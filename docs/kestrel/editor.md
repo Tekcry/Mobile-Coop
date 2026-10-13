@@ -71,7 +71,11 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Delete, Ctrl+D | delete (a wall takes its doors and windows), duplicate |
 | F | go to the selection |
 | Ctrl+Z, Ctrl+Y (or Ctrl+Shift+Z) | undo, redo |
-| Ctrl+S | save the file, the 7 plan images and the change log |
+| Ctrl+S | save: first a summary of what will be written (ON3), then the file, the 7 plan images and the change log |
+| Ctrl+K | **Find** a room, stair or object by name and go there (ON3) |
+| Shift+click | add to the selection or take out: several things move, copy and delete together (ON3) |
+| L, K | room names floating in 3D; the scale figure at the dot (ON3) |
+| Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
 | ` (backquote) or I | open / close the side panel |
 | M | small plan in the corner of 3D only (click it to take the camera there) |
@@ -187,11 +191,11 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
 | Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
 | Objects, Lights, Mission | shown once a later part adds tiles to them |
-| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan |
+| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3) |
 
 - The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
   chooses the last tab (default) or always Build.
@@ -240,11 +244,11 @@ pad, and any grab is put back first.
 
 | Tab | Holds |
 | --- | --- |
-| Play | Quick walk at the dot (same as L3 tap; it runs, L3 slows to a walk, B comes back); Walk test as the player (the game, as Tab or L3 held) |
-| File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
-| Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
+| Play | Quick walk at the dot (same as L3 tap; it runs, L3 slows to a walk, B comes back); Walk test as the player (the game, as Tab or L3 held); Find a room, stair or object (ON3, below) |
+| File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it; undone changes show grey above it until a new edit drops them, and A on one asks "Redo up to here?" (ON3) |
+| Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub, selects the element it names and frames it (ON3); a line naming nothing says "no place to go". While this tab is open the problem spots carry red markers |
 | Levels | the level to edit (A edits it); the level rows (ON2, below): storey height, add above / below, duplicate one storey up, rename, rename id, delete, Edit building outlines; then the Levels shown panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
-| View | the tile menu's View rows: layout, ghost, exploded and gap, cut walls at, levels shown, building filter, small plan, labels, level below on the plan |
+| View | the tile menu's View rows: layout, ghost, exploded and gap, cut walls at, levels shown, building filter, small plan, labels, level below on the plan, room names in 3D, scale figure; then Bookmarks: save this view (a name from the list or typed) and one Go to row per bookmark (ON3) |
 | Settings | plain toggles and sliders, the value shown large: rumble on / off, stick speed (0.5 to 2.0, step 0.25), repeat speed (0.5 to 2.0: held D-pad and stick in every menu and on the card), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the tile menu), Menu opens on (last tab / Build tab), Walls follow rooms (on by default; the tool bar's button for the mouse). Saved with the pad preferences (browser storage, a view preference) |
 | Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
 
@@ -462,6 +466,36 @@ defaults; files written before ON9 show their type's defaults until a setting is
 - **Frosted glass and closed blinds** block sight but pass light (bible 5.1). The editor shows it; the game has no such
   state yet: in the game from stage DR.
 
+## Ease of use (ON3, ED2 Part D items 5-13)
+- **Problems you can click**: every Checks line that names an element (its first id: an opening, wall, room, stair, ladder,
+  floor hole or roof) is a link. Pad: Hub > Checks > A on the line; mouse: click it in the side panel's Checks. The editor
+  goes to the element's level, selects it and frames it. A line naming no element says "no place to go". While the hub's
+  Checks tab or the side panel's Checks is open, every problem spot carries a red marker: a red post in 3D (on shown
+  levels) and a red ring with a cross on the plan (the editing level).
+- **Floating names** (L, or View > Room names in 3D): each room's name on its floor, fading with distance and hidden beyond
+  40 m (`facts.json` render.roomNameRange) and on hidden levels. A fixed pool of 48 labels; nothing is made per frame.
+- **Save summary**: Save (Ctrl+S, the Save button, Hub > File > Save) first shows what will be written in plain words, the
+  net changes since the last save grouped ("3 rooms added, 12 walls moved, 1 door type changed"), and the number of new
+  check problems, with Save / Cancel (A / B). Cancel writes nothing. A renamed id counts as one rename.
+- **Find** (Ctrl+K; pad: Hub > Play > Find): a list of rooms, stairs and named objects, filtered as you type (every word
+  must appear in the name or the id, any case; names that start with it first). Keyboard: type, up / down, Enter goes.
+  Pad: an on-screen keyboard (D-pad picks a key, A types, X deletes, Y done), then up / down picks a line and A goes there:
+  its level becomes the editing level and it is selected and framed (an object: the camera goes there). B closes.
+- **History**: Hub > File keeps the change list; undone changes show grey above it until a new edit drops them; A on one
+  asks "Redo up to here?" and redoes up to and including it.
+- **Scale figure** (K, or View > Scale figure): a 1.75 m person and a 1.15 m crouch outline beside it (`facts.json`
+  player.standHeight, crouchHeight, radius) at the dot (with the mouse: the screen centre on the editing floor).
+- **Bookmarks** (Hub > View > Bookmarks: save this view, then a name from the list (Overview, Gatehouse view, ... and the
+  room names on the editing level) or typed; one Go to row per bookmark). Keys: Ctrl+1-9 save the camera in that slot
+  ("View 3"), Alt+1-9 go there. A new bookmark from the hub takes the first free slot, else the oldest. Stored as a view
+  preference in browser storage (`kestrel-editor-bookmarks`), never in the file.
+- **Multi-select**: pad: hold A and move the dot (at least 0.5 m) = a box; letting go selects everything wholly inside it
+  on the editing level (rooms, walls, floor holes, stairs, ladders; doors and windows ride with their walls). Mouse:
+  Shift+click adds or takes out. The set is outlined orange in 3D and on the plan. A on one of the set (or Selected > Move)
+  grabs them all at the dot: A drops (one edit), B puts back. Mouse: drag one of the set. Arrow keys nudge the set,
+  Delete deletes it, Selected > Copy and Copy to level above copy the rooms, walls with their doors and windows, and floor
+  holes as one edit (pasted as a set, new ids). A plain A or click elsewhere clears the set.
+
 ## Roofs (ON10)
 Every roof is one record in `roofs[]` (schema.md section 2): an axis-aligned outline at the wall line, the eaves height
 (`base`) there, a type and only that type's settings. The geometry is one pure module, `src/world/maps/kestrelRoofs.ts`,
@@ -531,7 +565,13 @@ hand D-pad left / right changes the type, as for stairs):
   id (a hole's `reason`, the documents) is not renamed. Renaming the ground level G makes the walk test start on the level
   nearest floor 0. Services (pipe runs) keep their heights when a storey height changes. Duplicate does not copy stairs or
   ladders (they join two levels).
-- Clickable problems, search (Part D). With the mouse, wall ends do not snap to other walls (the pad's magnet does);
+- ON3: a problem line goes to the first element it names (a line naming two goes to the first). The plan marks problems on
+  the editing level only. Floating names are drawn over the 3D view (not hidden by walls in front). The new-problem count in
+  the save summary is "new since the editor opened" (as the Checks badge), not since the last save. In some browsers
+  Ctrl+1-9 switches tabs before the page sees it; Hub > View > Bookmarks always works. Box select is pad-only (the mouse
+  uses Shift+click); a set cannot be turned 90 or duplicated (Copy and Paste can); walls follow rooms does not apply to a
+  set (box the walls with the rooms). Find lists rooms, stairs and named objects only (no walls or doors).
+- With the mouse, wall ends do not snap to other walls (the pad's magnet does);
   a wall crossing another (an X, no end on it) is not a cross wall for door centring; live sizes measure straight walls
   along x or z for room edges (angled walls are skipped).
 - Lighting preview, props, guards and routes.
@@ -558,6 +598,8 @@ hand D-pad left / right changes the type, as for stairs):
 | `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
 | `src/editor/openingCatalogue.ts` | ON9: every door and window type (name, family, leaf, size with its source, the settings it has), realistic defaults per type, the settings in words and their steps, a type flip within the family (pure, `tests/editor/openingCatalogue.test.ts`) |
 | `src/world/maps/kestrelDoors.ts` | ON9: the one copy of the door side maths (swing side, hinge or stack end), shared by the editor and the walk test, and the walk test's game doors and panes (pure) |
+| `src/editor/ease.ts`, `src/editor/group.ts` | ON3: the element a check line names, the save summary's net changes and words, the Find list and filter, the bookmark store; multi-select box pick, moving, copying and pasting a set as one edit (pure, `tests/editor/ease.test.ts`) |
+| `src/editor/overlays.ts`, `src/editor/findView.ts` | ON3: floating room names (pooled labels), red problem markers, the scale figure; the Find box and its on-screen keyboard |
 | `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |

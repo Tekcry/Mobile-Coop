@@ -97,6 +97,8 @@ export class FindBox {
 
   /** One pad frame: steps (D-pad or left stick), A, B, X, Y. */
   frame(dx: number, dy: number, a: boolean, b: boolean, x: boolean, y: boolean): void {
+    // a pad press takes over from the typing box (the box keeps the cursor while only the keyboard is used)
+    if (!(dx || dy || a || b || x || y)) return;
     if (document.activeElement === this.input) this.input.blur();
     if (b) return this.close();
     if (x) this.setText(typeKey(this.text, 'Delete'));

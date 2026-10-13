@@ -148,8 +148,10 @@ try {
   assert(Math.abs(pitch1 - pitch0) < 0.01, `View tap again: back (pitch ${pitch1.toFixed(3)})`);
   const seen = [];
   for (let i = 0; i < 3; i++) {
+    // (ON3: held only until the layout changes, so a slow frame cannot make it a second hold or a tap)
+    const lay0 = (await st()).layout;
     await set(BTN.SELECT, 1);
-    await wait(600);
+    await page.waitForFunction((l) => window.__editor.prefs.layout !== l, lay0, { timeout: 5000 }).catch(() => {});
     await set(BTN.SELECT, 0);
     await frames(page, 3);
     seen.push((await st()).layout);
@@ -1226,7 +1228,7 @@ try {
     assert(planHatch > 0, `ON9: the plan draws glass hatching (${planHatch} hatch lines)`);
 
     // saved to the sandbox with the new data fields
-    await E(() => window.__editor.save());
+    await E(() => window.__editor.saveNow());
     await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
     const saved = JSON.parse(readFileSync(path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json'), 'utf8'));
     const so = (id) => saved.openings.find((o) => o.id === id);
@@ -1427,9 +1429,165 @@ try {
     await E(() => { const ed = window.__editor; ed.select(null); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
-  console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');
+  // ---------- ON3: ease of use ----------
+  {
+    console.log('ON3: Checks: A on a line naming a room selects and frames it; red markers while Checks is open');
+    /** Moves the hub focus one row (held only until the focus moves, so a slow frame cannot repeat it). */
+    const stepHub = (b) => E(async (b) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => document.querySelector('#hub .padfocus')?.dataset.row ?? '';
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, b);
+    const focusRow = () => E(() => document.querySelector('#hub .padfocus')?.dataset.row ?? '');
+    await E(() => { const ed = window.__editor; ed.setLayout('both'); ed.select(null); ed.setLevel('G'); ed.setTool('select'); });
+    await press(BTN.LB);
+    // a room problem: raise one room's shortest-side rule past its size (check A04 names the room first)
+    const pr = await E(() => {
+      const ed = window.__editor;
+      const r = ed.model.data.rooms.find((q) => q.level === 'G' && typeof q.minShort === 'number' && q.kind !== 'zone');
+      const b = ed.model.snapshot('rooms', r.id);
+      ed.commit([{ coll: 'rooms', id: r.id, before: b, after: { ...b, minShort: 99 } }]);
+      ed.runChecks(false);
+      return { id: r.id, level: r.level, c: [(r.rect[0] + r.rect[2]) / 2, (r.rect[1] + r.rect[3]) / 2] };
+    });
+    await page.waitForFunction((id) => window.__editor.problemLines().some((l) => l.text.includes(`${id} clear`)), pr.id, { timeout: 60000 });
+    const lineAt = await E((id) => window.__editor.problemLines().findIndex((l) => l.text.includes(`${id} clear`)), pr.id);
+    await press(BTN.START);
+    await E(() => window.__editor.pad.hub.setTab('Checks'));
+    await page.waitForFunction(() => window.__editor.overlays.markersShown > 0, null, { timeout: 10000 }).catch(() => {});
+    const marks3d = await E(() => window.__editor.overlays.markersShown);
+    for (let i = 0; i < lineAt + 3 && (await focusRow()) !== `prob.${lineAt}`; i++) await stepHub(BTN.DOWN);
+    const lit = await focusRow();
+    await press(BTN.A);
+    await page.waitForFunction(([x, z]) => { const s = window.__editor.controls.orbit.s; return Math.abs(s.tx - x) < 1 && Math.abs(s.tz - z) < 1; }, pr.c, { timeout: 10000 }).catch(() => {});
+    const went = await E(() => { const ed = window.__editor; const s = ed.controls.orbit.s; return { open: ed.pad.hub.isOpen, sel: ed.selected, level: ed.view.level, tx: s.tx, tz: s.tz, marks: ed.overlays.markersShown }; });
+    assert(lit === `prob.${lineAt}` && !went.open && went.sel === `rooms:${pr.id}` && went.level === pr.level && Math.abs(went.tx - pr.c[0]) < 1 && Math.abs(went.tz - pr.c[1]) < 1, `ON3: Checks > A on the line naming ${pr.id}: hub closed, ${went.sel} selected, the dot at ${went.tx.toFixed(1)}, ${went.tz.toFixed(1)} (room centre ${pr.c})`);
+    assert(marks3d > 0 && went.marks === 0, `ON3: red problem markers in 3D while the Checks tab is open (${marks3d}), none once it closes (${went.marks})`);
+    await E(() => { const ed = window.__editor; ed.tab = 'checks'; ed.openDrawer(); ed.renderPanel(); });
+    await page.waitForFunction(() => window.__editor.overlays.markersShown > 0 && document.querySelectorAll('#planSvg .probMark').length > 0, null, { timeout: 10000 }).catch(() => {});
+    const panelMarks = await E(() => ({ m: window.__editor.overlays.markersShown, plan: document.querySelectorAll('#planSvg .probMark').length, links: document.querySelectorAll('#panel [data-go]').length, none: (document.getElementById('panel').textContent.match(/no place to go/g) ?? []).length }));
+    await shot('on3-problem-markers');
+    assert(panelMarks.m > 0 && panelMarks.plan > 0 && panelMarks.links > 0, `ON3: the Checks panel open: ${panelMarks.m} markers in 3D, ${panelMarks.plan} on the plan, ${panelMarks.links} lines you can click (${panelMarks.none} with no place to go)`);
+    await E(() => window.__editor.select(null));
+    await E(() => document.querySelector('#panel [data-go]').click());
+    const clicked = await E(() => window.__editor.selected);
+    assert(!!clicked, `ON3: a click on a Checks panel line selects what it names (${clicked})`);
+    await E(() => { const ed = window.__editor; ed.undo(); ed.tab = 'props'; ed.renderPanel(); ed.select(null); });
+
+    console.log('ON3: floating room names and the scale figure');
+    await page.keyboard.press('KeyL');
+    await page.keyboard.press('KeyK');
+    await press(BTN.LB);
+    await E(([x, z]) => { const ed = window.__editor; ed.setLayout('3d'); ed.setLevel('G'); const o = ed.controls.orbit.s; o.tx = x; o.tz = z; o.dist = 22; o.pitch = 0.75; o.yaw = 0.4; }, pr.c);
+    await page.waitForFunction(() => window.__editor.overlays.namesShown > 0 && window.__editor.overlays.figureTop > 0, null, { timeout: 10000 }).catch(() => {});
+    const nm = await E(() => { const o = window.__editor.overlays; return { n: o.namesShown, top: o.figureTop, texts: [...document.querySelectorAll('#roomNames .rname')].filter((d) => d.style.display !== 'none').map((d) => d.textContent).slice(0, 4) }; });
+    await shot('on3-floating-names');
+    assert(nm.n > 0 && Math.abs(nm.top - 1.75) < 0.01, `ON3: L shows ${nm.n} room names in 3D (${nm.texts.join(', ')}); K stands a ${nm.top.toFixed(2)} m figure at the dot`);
+    await E(() => { const ed = window.__editor; ed.setLevel('B'); const o = ed.controls.orbit.s; o.dist = 140; o.pitch = 0.3; });
+    await wait(1500);
+    const fewer = await E(() => window.__editor.overlays.namesShown);
+    assert(fewer < nm.n, `ON3: names hide beyond 40 m and on hidden levels (${fewer} shown from far away on the level below, was ${nm.n})`);
+    await E(() => { const ed = window.__editor; ed.setNames(false); ed.setFigure(false); ed.setLevel('G'); ed.setLayout('both'); });
+
+    console.log('ON3: Save shows the summary; Cancel writes nothing');
+    const saves0 = saves;
+    const sv = await E(() => { const ed = window.__editor; const r = ed.model.data.rooms.find((q) => q.level === 'G' && q.kind !== 'zone'); ed.select(`rooms:${r.id}`); ed.nudge([0.5, 0]); ed.select(null); window.__saveDone = false; void ed.save().then(() => { window.__saveDone = true; }); return { dirty: ed.model.dirty, h: ed.model.history.length }; });
+    await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden') && /Save\?/.test(document.getElementById('ask').textContent), null, { timeout: 60000 });
+    const askText = await E(() => document.getElementById('ask').textContent);
+    await shot('on3-save-summary');
+    await press(BTN.LB);
+    await press(BTN.B);
+    await page.waitForFunction(() => window.__saveDone, null, { timeout: 10000 }).catch(() => {});
+    const afterCancel = await E(() => ({ dirty: window.__editor.model.dirty, status: document.getElementById('status').textContent, hidden: document.getElementById('ask').classList.contains('hidden') }));
+    assert(/\d+ rooms? (moved|resized)/.test(askText) && /new check problem/i.test(askText) && afterCancel.hidden && afterCancel.dirty === sv.dirty && saves === saves0 && /nothing written/.test(afterCancel.status), `ON3: Save shows "${askText.slice(0, 120)}"; Cancel writes nothing (saves ${saves - saves0}, unsaved ${afterCancel.dirty})`);
+    await E(() => window.__editor.undo());
+
+    console.log('ON3: Find a room by name and land on it');
+    const target = await E(() => {
+      const ed = window.__editor;
+      const rs = ed.model.data.rooms.filter((r) => r.level !== 'G' && r.name && r.name.length > 4);
+      const names = ed.model.data.rooms.map((r) => (r.name ?? '').toLowerCase());
+      const r = rs.find((q) => names.filter((n) => n.includes(q.name.toLowerCase())).length === 1 && !ed.model.data.stairs.some((s) => (s.name ?? '').toLowerCase().includes(q.name.toLowerCase())));
+      return r ? { id: r.id, name: r.name, level: r.level } : null;
+    });
+    assert(!!target, `ON3: a room with a name of its own off Ground to find (${target?.name})`);
+    await E(() => { window.__editor.setLevel('G'); window.__editor.select(null); });
+    await page.keyboard.press('Control+KeyK');
+    await page.waitForFunction(() => window.__editor.find.isOpen && document.activeElement?.id === 'findInput', null, { timeout: 5000 });
+    await page.keyboard.type(target.name.toLowerCase());
+    await page.waitForFunction((n) => document.querySelector('#findBox .fb-list .np-item')?.textContent.startsWith(n), target.name, { timeout: 5000 });
+    await press(BTN.Y);
+    await page.waitForFunction(() => window.__editor.find.mode === 'list', null, { timeout: 5000 }).catch(() => {});
+    await press(BTN.A);
+    const found = await E(() => ({ open: window.__editor.find.isOpen, sel: window.__editor.selected, level: window.__editor.view.level }));
+    assert(!found.open && found.sel === `rooms:${target.id}` && found.level === target.level, `ON3: Ctrl+K, "${target.name.toLowerCase()}", Y then A: on ${found.level} with ${found.sel} selected`);
+    await E(() => { window.__editor.select(null); window.__editor.setLevel('G'); });
+
+    console.log('ON3: box select two rooms with the pad and move them as one edit');
+    const pair = await E(() => {
+      const d = window.__editor.model.data;
+      // two rooms side by side (east-west, up to a wall's width apart), the pair's box at most 1200 m2
+      const rs = d.rooms.filter((r) => r.level === 'G' && r.kind !== 'yard' && r.kind !== 'lane');
+      for (const a of rs) for (const b of rs) {
+        if (a === b || b.rect[0] < a.rect[2] - 1e-6 || b.rect[0] - a.rect[2] > 0.6) continue;
+        if (Math.min(a.rect[3], b.rect[3]) - Math.max(a.rect[1], b.rect[1]) < 1) continue;
+        const box = [Math.min(a.rect[0], b.rect[0]), Math.min(a.rect[1], b.rect[1]), Math.max(a.rect[2], b.rect[2]), Math.max(a.rect[3], b.rect[3])];
+        if ((box[2] - box[0]) * (box[3] - box[1]) > 1200) continue;
+        return { a: a.id, b: b.id, box, ca: [(a.rect[0] + a.rect[2]) / 2, (a.rect[1] + a.rect[3]) / 2], ra: a.rect.slice(), rb: b.rect.slice() };
+      }
+      return null;
+    });
+    assert(!!pair, `ON3: two rooms side by side on Ground (${pair?.a}, ${pair?.b})`);
+    await E(() => { const ed = window.__editor; ed.setLayout('3d'); ed.select(null); const o = ed.controls.orbit.s; o.dist = 40; o.pitch = 1.2; });
+    // LB held: the magnet stays off, so the dot stays exactly where it is put; a dot put while the camera was still
+    // settling (an ease from Find, the builder camera starting again) is put again until it stays
+    await set(BTN.LB, 1);
+    await frames(page, 6);
+    const dotSure = async (x, z) => {
+      for (let i = 0; i < 4; i++) {
+        await dotAt(x, z);
+        if (await E(([x, z]) => { const s = window.__editor.controls.orbit.s; return Math.abs(s.tx - x) < 0.05 && Math.abs(s.tz - z) < 0.05; }, [x, z])) return;
+      }
+    };
+    await dotSure(pair.box[0] - 0.2, pair.box[1] - 0.2);
+    await set(BTN.A, 1);
+    await frames(page, 4);
+    await dotSure(pair.box[2] + 0.2, pair.box[3] + 0.2);
+    await frames(page, 4);
+    await set(BTN.A, 0);
+    await frames(page, 4);
+    const grp = await E(() => window.__editor.group.slice());
+    const boxWhy = await E(() => `${document.getElementById('status').textContent}; selected ${window.__editor.selected}; dot ${window.__editor.controls.orbit.s.tx.toFixed(1)}, ${window.__editor.controls.orbit.s.tz.toFixed(1)}`);
+    assert(grp.includes(`rooms:${pair.a}`) && grp.includes(`rooms:${pair.b}`), `ON3: hold A and move the dot: the box selects ${grp.length} things (${grp.filter((k) => k.startsWith('rooms:')).join(', ')}) [${boxWhy}]`);
+    const h0 = await E(() => window.__editor.model.history.length);
+    await dotSure(pair.ca[0], pair.ca[1]);
+    await press(BTN.A);
+    let how = 'A on a member';
+    if (!(await E(() => !!window.__editor.groupDrag))) {
+      how = 'Selected > Move';
+      await E(() => window.__editor.pad.runMenu('sel.move'));
+    }
+    await dotSure(pair.ca[0] + 2, pair.ca[1]);
+    await frames(page, 4);
+    await press(BTN.A);
+    const moved = await E(([a, b]) => { const ed = window.__editor; return { h: ed.model.history.length, ra: ed.model.get('rooms', a).rect.slice(), rb: ed.model.get('rooms', b).rect.slice(), drag: !!ed.groupDrag, text: ed.model.history.at(-1)?.text }; }, [pair.a, pair.b]);
+    await shot('on3-box-moved');
+    assert(!moved.drag && moved.h === h0 + 1 && Math.abs(moved.ra[0] - pair.ra[0] - 2) < 0.01 && Math.abs(moved.rb[0] - pair.rb[0] - 2) < 0.01 && Math.abs(moved.ra[1] - pair.ra[1]) < 0.01, `ON3: ${how}, the dot 2 m east, A: both rooms 2 m east in one undo step ("${moved.text}")`);
+    await set(BTN.LB, 0);
+    await E(() => window.__editor.undo());
+    const back = await E(([a, b]) => { const ed = window.__editor; return { h: ed.model.history.length, ra: ed.model.get('rooms', a).rect.slice(), rb: ed.model.get('rooms', b).rect.slice() }; }, [pair.a, pair.b]);
+    assert(back.h === h0 && back.ra.join() === pair.ra.join() && back.rb.join() === pair.rb.join(), 'ON3: one undo puts both rooms back');
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setLayout('both'); });
+  }
+
+  console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
-  await E(() => window.__editor.save());
+  await E(() => { void window.__editor.save(); });
+  await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden') && /Save\?/.test(document.getElementById('ask').textContent), null, { timeout: 60000 });
+  await press(BTN.A);
   await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
   const gitDocs = execSync('git status --porcelain docs/kestrel', { encoding: 'utf8' }) === docsBefore ? '' : 'changed';
   const sandFile = path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json');

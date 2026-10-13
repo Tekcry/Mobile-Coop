@@ -19,11 +19,11 @@ describe('hub tabs and rows', () => {
     expect(stepTab('File', 1)).toBe('Checks');
   });
 
-  it('Play: find (ON3), quick walk, and the walk test as the player (enabled)', () => {
+  it('Play: quick walk, the walk test as the player (enabled), and Find (ON3)', () => {
     const r = hubRows('Play', input);
-    expect(r.map((x) => x.text)).toEqual(['Find a room, stair or object', 'Quick walk at the dot', 'Walk test as the player']);
-    expect(r[2]!.disabled).toBeFalsy();
-    expect(r[2]!.id).toBe('play.walk');
+    expect(r.map((x) => x.text)).toEqual(['Quick walk at the dot', 'Walk test as the player', 'Find a room, stair or object']);
+    expect(r[1]!.disabled).toBeFalsy();
+    expect(r[1]!.id).toBe('play.walk');
   });
 
   it('File: undone changes grey above the list with "redo up to here" (ON3)', () => {

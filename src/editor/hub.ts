@@ -143,9 +143,9 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
   switch (tab) {
     case 'Play':
       return [
-        { id: 'play.find', text: 'Find a room, stair or object', note: 'An on-screen keyboard filters the list; A goes there (Ctrl+K on the keyboard)', kind: 'go' },
         { id: 'play.quick', text: 'Quick walk at the dot', note: 'Same as L3 tap; runs, L3 slows to a walk, B comes back', kind: 'go' },
         { id: 'play.walk', text: 'Walk test as the player', note: 'The game itself, unsaved edits included; L3 held or Tab too', kind: 'go' },
+        { id: 'play.find', text: 'Find a room, stair or object', note: 'An on-screen keyboard filters the list; A goes there (Ctrl+K on the keyboard)', kind: 'go' },
       ];
     case 'File':
       return [
