@@ -56,3 +56,10 @@ markers (setting `gameplay.courseMarkers`), courseRating (B9 tiers), course reco
 SAVE_VERSION bump: existing store), bay select in the lobby, Finish device, host-resolved client verbs, radio on the
 client. Fixed a T1b bug (ctick not routed by session.ts). 1143 tests. Assumptions A19-A24. Check: 1 fix (marker point
 scratch). CHANGELOG 3.7.0, TESTING 3.7.0 (desktop). PC-PASS rows 7-8 added.
+
+## Block A end (2026-10-13, cloud)
+Full `npm run e2e` (E2E_JOBS=2, 2249 s wall): KNOWN FLAKY e2e-netmove, e2e-coop, e2e-darkness; e2e-stealth and
+e2e-feedback failed on look / free-camera input timing under load and passed serially (40 s, 22 s); e2e-kestrel and
+e2e-camera-bounds level U are the kestrel-owned pre-existing failures (RULES). Perf trend (software GL): sim p95 3.75
+ms (T0 3.9), anim 0.088 ms/char (T0 0.105), alloc 11882 KB/s (T0 11163, +6%, over the 11520 budget on this VM: trend
+only, recheck on the PC), draws 43, tris 0.14 M. No sim / anim rise. GPU items: pending PC run.
