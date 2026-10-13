@@ -69,6 +69,8 @@ export const B3_METRICS = {
 /** B4 metrics (BAYS B4, local heights over the cell floors). */
 export const B4_METRICS = {
   wall: 4.4,
+  /** W2 (A35): 4.25 over C2 / C3 so the human ladder's grip (`TEAM.ladderGrab` + 0.2) reaches it; 0.15 below the gallery. */
+  w2: 4.25,
   wallThick: 1.0,
   gallery: 4.4,
   outlet: 4.4,
@@ -122,7 +124,7 @@ const M4 = B4_METRICS;
 /** The co-op lips (level-design 11.3): out of solo reach, within the boost (W1, W2, the outlet platform). */
 export const BUNKER_COOP_LIPS: readonly PlantLip[] = [
   lipBox('B4', 'W1', 0, 25, 32, 26, M4.wall),
-  lipBox('B4', 'W2', 0, 12, 32, 13, M4.wall),
+  lipBox('B4', 'W2', 0, 12, 32, 13, M4.w2),
   lipBox('B4', 'OUT', 15, 0, 21, 2, M4.outlet),
 ];
 
@@ -131,7 +133,7 @@ export const PLANT_LIPS: readonly PlantLip[] = [
   lipBox('B3', 'RC', 6, 15.2, 12, 16.4, M3.g1 + M3.casingTop, M3.g1),
   lipBox('B3', 'G3', 12, 12, 18, 18, M3.g3, M3.g2),
   ...BUNKER_COOP_LIPS,
-  lipBox('B4', 'OVF', 1.6, 1, 2.0, 11, M4.overflow),
+  lipBox('B4', 'OVF', 1.6, 1, 2.0, 8.5, M4.overflow),
   lipBox('B4', 'FLT', 2.6, 4, 4.4, 8.4, M4.overflow),
 ];
 
@@ -317,7 +319,7 @@ function buildB3(b: LevelBuilder, lips: number[], r: ShaftResult): void {
 
   r.debug.push(
     { id: 'B3', label: 'B3 The Intake (G1 at the A2 door)', pos: plantAt('B3', 1.5, 10, M3.g1), yaw: Math.PI / 2 },
-    { id: 'B3-RC', label: 'B3 RC slot (split)', pos: plantAt('B3', 7, 17.2, M3.g1), yaw: Math.PI / 2 },
+    { id: 'B3-RC', label: 'B3 RC slot (split)', pos: plantAt('B3', 8.5, 17.2, M3.g1), yaw: Math.PI / 2 },
     { id: 'B3-G3', label: 'B3 G3 (zipline start)', pos: plantAt('B3', 12.6, 16.4, M3.g3), yaw: Math.atan2(-10, -14) },
     { id: 'B3-rope', label: 'B3 G3 hoist recess (rappel)', pos: plantAt('B3', 18.4, 7, M3.g3), yaw: -Math.PI / 2 },
     { id: 'B3-floor', label: 'B3 chamber floor (CR door)', pos: plantAt('B3', 16, 9, 0), yaw: Math.PI / 2 },
@@ -367,12 +369,12 @@ function buildB4(b: LevelBuilder, lips: number[], r: ShaftResult): void {
   b.box(X(18), Y(M4.outlet / 2), Z(0), DOOR_W, M4.outlet, OUTER, C.wall);
   b.box(X(18), Y((M4.outlet + DOOR_H + H) / 2), Z(0), DOOR_W, H - M4.outlet - DOOR_H, OUTER, C.wall);
   roof(b, X(-OUTER), Z(-0.225), X(36 + OUTER), Z(38.225), Y(H));
-  // W1 (z 25..26) and W2 (z 12..13), 1 m thick, 4.4 high, walkable tops (co-op lips)
+  // W1 (z 25..26, 4.4 high) and W2 (z 12..13, 4.25 high: A35), 1 m thick, walkable tops (co-op lips)
   const w1 = b.boxes.length;
   wallXAt(b, Z(25.5), X(0), X(32), [[X(14), X(15.2)]], Y(0), M4.wall, C.conc, M4.wallThick);
   b.box(X(14.6), Y((DOOR_H + M4.wall) / 2), Z(25.5), DOOR_W, M4.wall - DOOR_H, M4.wallThick, C.conc);
-  wallXAt(b, Z(12.5), X(0), X(32), [[X(20), X(21.5)]], Y(0), M4.wall, C.conc, M4.wallThick);
-  b.box(X(20.75), Y((DOOR_H + M4.wall) / 2), Z(12.5), 1.5, M4.wall - DOOR_H, M4.wallThick, C.conc);
+  wallXAt(b, Z(12.5), X(0), X(32), [[X(20), X(21.5)]], Y(0), M4.w2, C.conc, M4.wallThick);
+  b.box(X(20.75), Y((DOOR_H + M4.w2) / 2), Z(12.5), 1.5, M4.w2 - DOOR_H, M4.wallThick, C.conc);
   for (let k = w1; k < b.boxes.length; k++) lips.push(k);
   // the inspection door in W1 (C2 face, swings into C2): bolted from C2; the sluice (1.5 wide) under W2 (C2 face)
   r.doors['B4-insp'] = b.door(X(14), Y(0), Z(25), DOOR_W, Math.PI / 2, { locked: true, swing: 1 }).id;
@@ -387,10 +389,10 @@ function buildB4(b: LevelBuilder, lips: number[], r: ShaftResult): void {
   // C1 / C2 access ladders: padlocked (visual only, no anchor)
   lockedLadder(b, X(32), Z(32), Y(0), Y(M4.gallery));
   lockedLadder(b, X(32), Z(19), Y(0), Y(M4.gallery));
-  // Phase 5 elements in C3: the overflow channel (x 0..1.6 to a wall 6.2 high: a split), the float shaft (x 3..4,
+  // Phase 5 elements in C3: the overflow channel (x 0..1.6, z 1..8.5 to a wall 6.2 high: a split; it ends 3.5 short of W2 so the split's jump-up finds no W2 lip), the float shaft (x 3..4,
   // 1.0 wide, 6.2), the sump (x 26..32, z 2..8, 4 deep) with a ladder out
   lips.push(b.boxes.length);
-  b.block(X(1.8), Z(6), 0.4, M4.overflow, 10, C.conc, Y(0));
+  b.block(X(1.8), Z(4.75), 0.4, M4.overflow, 7.5, C.conc, Y(0));
   for (const [cx, cz, w, d] of [[2.8, 6.2, 0.4, 4.4], [4.2, 6.2, 0.4, 4.4], [3.5, 8.2, 1.0, 0.4]] as const) {
     lips.push(b.boxes.length);
     b.block(X(cx), Z(cz), w, M4.overflow, d, C.conc, Y(0));

@@ -383,9 +383,54 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     expect(Math.min(ph[0]!.a.z, ph[0]!.b.z)).toBeLessThan(b3(0, 12).z);
   });
 
-  it('B4 co-op lips (W1, W2, outlet 4.4) are out of solo reach and within the boost; no other lip 3.8-4.5 over a B4 floor', () => {
+  it('B4 human ladder: from the shoulders against W2 (C2 side) the grip reaches W2 (teamController runTop rule)', () => {
+    const w2 = BUNKER_COOP_LIPS.find((l) => l.id === 'W2')!;
+    for (const x of [4, 10, 16, 26]) {
+      // the bracer's feet 0.5 off W2's north face (wallBehind), the climber on the shoulders facing the wall (south)
+      const p = b4(x, 13.5);
+      const at = { x: p.x, y: p.y + TEAM.ladderFeet + 1.75, z: p.z };
+      const t = findJumpTarget(A, at, -1, 0, -1, 1, 1.6, 0.2);
+      expect(t, `x ${x}`).not.toBeNull();
+      expect(t!.anchor.kind).toBe('ledge');
+      expect(inLip(t!.anchor as Ledge, w2.box, w2.top), `x ${x}`).toBe(true);
+      expect(t!.grip.y - p.y).toBeLessThanOrEqual(TEAM.ladderGrab + 0.2);
+    }
+  });
+
+  it('no split pose (both facings, along each split) jumps up onto a co-op lip', () => {
+    const coop = A.ledges.filter((l) => BUNKER_COOP_LIPS.some((p) => inLip(l, p.box, p.top)));
+    expect(coop.length).toBeGreaterThan(0);
+    const ids = new Set(coop.map((l) => l.id));
+    for (const g of splits) {
+      for (const face of [1, -1] as const) {
+        for (let s = 0.25; s <= g.len - 0.25; s += 0.25) {
+          const p = atPose(g, s, face);
+          const from = { x: p.x, y: g.a.y + SPLIT.feetHeight + 1.05, z: p.z };
+          const t = findJumpTarget(A, from, g.id, g.tx * face, g.tz * face, 1, 2.5, 0.6, 0, 0);
+          expect(t && ids.has(t.anchor.id) ? [g.id, face, s, t.grip] : null).toBeNull();
+        }
+      }
+    }
+  });
+
+  it('the B3-RC debug point stands where the split is offered facing its yaw', () => {
+    const rc = splits.find((g) => inBay('B3', g.a.x, g.a.z))!;
+    const d = play.debugPoints!.find((x) => x.id === 'B3-RC')!;
+    const r = splitReach(rc, d.pos.x, d.pos.y, d.pos.z, Math.sin(d.yaw), Math.cos(d.yaw));
+    expect(r).not.toBeNull();
+    // and the jump-up from that split pose finds the casing lip
+    const p = atPose(rc, r!.s, r!.face);
+    const t = findJumpTarget(A, { x: p.x, y: rc.a.y + SPLIT.feetHeight + 1.05, z: p.z }, rc.id, rc.tx * r!.face, rc.tz * r!.face, 1, 2.5, 0.6, 0, 0);
+    expect(t && inLip(t.anchor as Ledge, lipOf('RC').box, lipOf('RC').top)).toBe(true);
+  });
+
+  it('B4 co-op lips (W1 4.4, W2 4.25, outlet 4.4) are out of solo reach and within the boost; no other lip 3.8-4.5 over a B4 floor', () => {
     for (const l of BUNKER_COOP_LIPS) {
-      expect(l.top - l.floor, l.id).toBeGreaterThan(WALL_JUMP.maxUp + 0.5);
+      // W2 (A35): 0.45 over solo reach, within the human ladder's grip; W1 and the outlet keep level-design 11.3's 0.5
+      if (l.id === 'W2') {
+        expect(l.top - l.floor).toBeGreaterThanOrEqual(WALL_JUMP.maxUp + 0.45 - 1e-9);
+        expect(l.top - l.floor).toBeLessThanOrEqual(TEAM.ladderGrab + 0.2);
+      } else expect(l.top - l.floor, l.id).toBeGreaterThan(WALL_JUMP.maxUp + 0.5);
       expect(l.top - l.floor, l.id).toBeLessThanOrEqual(TEAM.boostMax);
       expect(genPlant.some((g) => inLip(g, l.box, l.top) && g.canHang), l.id).toBe(true);
     }
