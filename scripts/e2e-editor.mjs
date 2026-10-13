@@ -1583,6 +1583,176 @@ try {
     await E(() => { const ed = window.__editor; ed.select(null); ed.setLayout('both'); });
   }
 
+  // ---------- ON4: objects ----------
+  console.log('ON4: objects: a rack row of 10 and a second row with an aisle in the data hall, a crate in the yard, a desk turned; stealth view; walk test collision and crouch cover');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until the menu highlight moves (a slow frame cannot repeat it)
+    const hold = (btn) => E(async (b) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; };
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, btn);
+    const toTab = async (tab) => { for (let i = 0; i < 8 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
+    const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
+    /** Y, the Objects tab, A on the group tile (the menu stays), the preset's tile, A: the Object tool with that preset. */
+    const pickObject = async (group, name, shotName) => {
+      await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+      await press(BTN.Y);
+      let ok = await toTab('Objects');
+      ok = ok && (await toTileHeld(group));
+      await press(BTN.A);
+      await page.waitForFunction((g) => window.__editor.pad.menu.isOpen && document.querySelector('#tileMenu .tile.lit .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
+      ok = ok && (await toTileHeld(name));
+      if (shotName) await shot(shotName);
+      await press(BTN.A);
+      return ok && (await E(() => window.__editor.tool)) === 'object' && (await E(() => window.__editor.objPreset.name)) === name;
+    };
+    const objs = () => E(() => window.__editor.model.data.objects ?? []);
+    const waitObjs = (n) => page.waitForFunction((n) => (window.__editor.model.data.objects ?? []).length > n, n, { timeout: 5000 }).catch(() => {});
+
+    // an empty bay in the data hall for two 6 m rows 1.8 m apart (clear of walls and objects)
+    const bay = await E(() => {
+      const d = window.__editor.model.data;
+      const hall = d.rooms.find((r) => r.name === 'Data Hall').rect;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      const taken = (d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect);
+      for (let x = hall[0] + 2; x + 8 < hall[2]; x += 1) for (let z = hall[1] + 3; z + 6 < hall[3]; z += 1) {
+        const box = [x - 1, z - 1.5, x + 7, z + 4.5];
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < box[0] || Math.min(w.a[0], w.b[0]) > box[2] || Math.max(w.a[1], w.b[1]) < box[1] || Math.min(w.a[1], w.b[1]) > box[3])
+          && !taken.some((r) => r[0] < box[2] && r[2] > box[0] && r[1] < box[3] && r[3] > box[1]);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!bay && (await pickObject('Data hall', 'Rack row', 'on4-object-menu')), `ON4: Objects tab > Data hall > Rack row picks the Object tool (bay at ${bay})`);
+    const n0 = (await objs()).length;
+    await dotAt(bay[0], bay[1]);
+    await press(BTN.A);
+    await dotAt(bay[0] + 6, bay[1]);
+    await page.waitForFunction(() => /10 units, 6 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const drawWords = await dotText();
+    await press(BTN.A);
+    await waitObjs(n0);
+    const row1 = (await objs()).at(-1);
+    const w1 = row1 ? row1.rect[2] - row1.rect[0] : 0;
+    assert(!!row1 && row1.preset === 'rack-row' && Math.abs(w1 - 6) < 1e-6 && Math.abs(row1.rect[3] - row1.rect[1] - 1.2) < 1e-6 && row1.h === 2 && /10 units, 6 m/.test(drawWords), `ON4: A, A draws a rack row of 10 racks, 6 x 1.2 m, 2 m high (${JSON.stringify(row1?.rect)}); the dot said "${drawWords}"`);
+    // the second row 1.8 m across the aisle: the dot gives the aisle against the facts while drawing
+    const z2 = bay[1] + 3;
+    await dotAt(bay[0], z2);
+    await press(BTN.A);
+    await dotAt(bay[0] + 6, z2);
+    await page.waitForFunction(() => /aisle 1\.8 m clear/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const aisleDot = await dotText();
+    const redDot = await E(() => document.getElementById('reticle').classList.contains('bad'));
+    await press(BTN.A);
+    await waitObjs(n0 + 1);
+    const row2 = (await objs()).at(-1);
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`objects:${id}`); }, row2.id);
+    await page.waitForFunction(() => /aisle 1\.8 m clear/.test(document.querySelector('#selCard [data-aisle]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const card = await E(() => ({ aisle: document.querySelector('#selCard [data-aisle]')?.textContent ?? '', badges: document.querySelector('#selCard [data-badges]')?.textContent ?? '' }));
+    assert(/aisle 1\.8 m clear/.test(aisleDot) && !redDot && card.aisle === `aisle 1.8 m clear to ${row1.id}` && /Full cover/.test(card.badges), `ON4: the second row: the dot said "${aisleDot}" (not red); the card "${card.aisle}", badges "${card.badges}"`);
+    await E(([x, z]) => { const ed = window.__editor; ed.select(null); const o = ed.controls.orbit.s; o.tx = x + 3; o.tz = z + 1.5; o.yaw = 0.6; o.dist = 16; o.pitch = 0.9; ed.view.vis.section = 1.2; ed.applyVis(true); }, bay);
+    await frames(page, 10);
+    await shot('on4-data-hall-rows');
+    await E(() => { const ed = window.__editor; ed.view.vis.section = 0; ed.applyVis(true); });
+
+    // a crate and a desk in the yard: an empty patch clear of walls, objects and roofs
+    const yard = await E(() => {
+      const d = window.__editor.model.data;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      const taken = [...(d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect), ...(d.roofs ?? []).map((r) => r.rect), ...d.voids.map((v) => v.rect), ...d.stairs.map((s) => s.rect)];
+      const yards = d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard');
+      for (const y of yards) for (let x = y.rect[0] + 2; x + 7 < y.rect[2]; x += 1) for (let z = y.rect[1] + 2; z + 4 < y.rect[3]; z += 1) {
+        const box = [x - 1.5, z - 1.5, x + 6, z + 2.5];
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < box[0] || Math.min(w.a[0], w.b[0]) > box[2] || Math.max(w.a[1], w.b[1]) < box[1] || Math.min(w.a[1], w.b[1]) > box[3])
+          && !taken.some((r) => r[0] < box[2] && r[2] > box[0] && r[1] < box[3] && r[3] > box[1]);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!yard && (await pickObject('Goods-in', 'Crate 1.2 m')), `ON4: Objects tab > Goods-in > Crate 1.2 m (yard patch at ${yard})`);
+    const n1 = (await objs()).length;
+    await dotAt(yard[0], yard[1]);
+    await page.waitForFunction(() => /A: place Crate 1\.2 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await press(BTN.A);
+    await waitObjs(n1);
+    const crate = (await objs()).at(-1);
+    assert(!!crate && crate.preset === 'crate-1.2' && Math.abs(crate.rect[2] - crate.rect[0] - 1.2) < 1e-6 && crate.h === 1.2 && Math.abs((crate.rect[0] + crate.rect[2]) / 2 - yard[0]) < 0.11, `ON4: A places a 1.2 m crate at the dot in the yard (${JSON.stringify(crate?.rect)})`);
+    // a desk turned a quarter: RB turns the ghost, A places it
+    assert(await pickObject('Office and security', 'Desk'), 'ON4: Objects tab > Office and security > Desk');
+    await dotAt(yard[0] + 4, yard[1]);
+    await press(BTN.RB);
+    await page.waitForFunction(() => window.__editor.objYaw === 90, null, { timeout: 5000 }).catch(() => {});
+    const n2 = (await objs()).length;
+    await press(BTN.A);
+    await waitObjs(n2);
+    const desk = (await objs()).at(-1);
+    assert(!!desk && desk.preset === 'desk' && desk.yaw === 90 && Math.abs(desk.rect[2] - desk.rect[0] - 0.8) < 1e-6 && Math.abs(desk.rect[3] - desk.rect[1] - 1.6) < 1e-6, `ON4: RB turns the desk 90 degrees before A places it (yaw ${desk?.yaw}, ${JSON.stringify(desk?.rect)})`);
+    await E(() => { const ed = window.__editor; ed.objYaw = 0; ed.setTool('select'); ed.select(null); });
+
+    // the stealth view: Y > View > Stealth view; objects tinted in 3D and on the plan
+    await press(BTN.Y);
+    const stTab = await toTab('View');
+    // (the View tab is one column: down moves, left / right change values)
+    const stTile = await toTileHeld('Stealth view', BTN.DOWN);
+    await press(BTN.A);
+    await press(BTN.B);
+    await page.waitForFunction(() => (document.querySelector('#planSvg svg')?.querySelectorAll('g[data-id^="objects:"] rect[style]').length ?? 0) >= 4, null, { timeout: 15000 }).catch(() => {});
+    const sv = await E(() => ({ on: window.__editor.stealth, tinted: window.__editor.view.stealthTinted, plan: document.querySelector('#planSvg svg')?.querySelectorAll('g[data-id^="objects:"] rect[style]').length ?? 0, badges: window.__editor.overlays.badgesShown }));
+    assert(stTab && stTile && sv.on && sv.tinted >= 4 && sv.plan >= 4, `ON4: View > Stealth view on: ${sv.tinted} objects tinted in 3D, ${sv.plan} on the plan; ${sv.badges} badge icons`);
+    await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x + 3; o.tz = z + 1.5; o.yaw = 0.6; o.dist = 16; o.pitch = 0.9; ed.view.vis.section = 1.2; ed.applyVis(true); }, bay);
+    await frames(page, 10);
+    await shot('on4-stealth-view');
+    await E(() => { const ed = window.__editor; ed.view.vis.section = 0; ed.applyVis(true); });
+
+    // the walk test: the rack row is collision; the player crouches behind the crate
+    await dot((crate.rect[0] + crate.rect[2]) / 2, crate.rect[1] - 1, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 90000);
+    const walk = await gf().evaluate(async ([row, crate]) => {
+      const a = window.__app;
+      const g = a.current;
+      const p = g.player;
+      const c = p.controller;
+      const V = p.position.constructor;
+      const st = a.input.state;
+      const boxes = g.world.level.boxes;
+      const has = (o) => boxes.some((b) => b.collide && Math.abs(b.c[0] - (o.rect[0] + o.rect[2]) / 2) < 0.01 && Math.abs(b.c[2] - (o.rect[1] + o.rect[3]) / 2) < 0.01 && Math.abs(b.s[1] - o.h) < 0.01);
+      a.loop.manual = true;
+      const tp = (x, z, yaw) => { c.teleport(new V(x, 0.05, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; p.cam.snap(); st.move.x = st.move.y = 0; a.loop.stepHeadless(0.5); };
+      const run = (sec, y) => { for (let k = 0; k < Math.round(sec * 60); k++) { st.move.x = 0; st.move.y = y; a.loop.stepHeadless(1 / 60); } st.move.x = st.move.y = 0; };
+      // walk north (yaw 0 faces +z) into the row from 1.5 m south of its middle
+      const mx = (row.rect[0] + row.rect[2]) / 2;
+      tp(mx, row.rect[1] - 1.5, 0);
+      const z0 = p.position.z;
+      run(2.5, 1);
+      const z1 = p.position.z;
+      // crouch behind the crate's south face
+      const cx = (crate.rect[0] + crate.rect[2]) / 2;
+      tp(cx, crate.rect[1] - 0.45, 0);
+      st.tap('crouch');
+      a.loop.stepHeadless(0.8);
+      const crouched = c.crouched;
+      const top = c.crouchBlend;
+      const pz = p.position.z;
+      st.tap('crouch');
+      a.loop.stepHeadless(0.6);
+      a.loop.manual = false;
+      return { rowBox: has(row), crateBox: has(crate), z0, z1, crouched, blend: top, pz };
+    }, [row1, crate]);
+    const stopAt = row1.rect[1];
+    assert(walk.rowBox && walk.z1 - walk.z0 > 0.3 && walk.z1 < stopAt - 0.2, `ON4: the walk test builds the rack row as a solid box (${walk.rowBox}); walking north the player stops at it (z ${walk.z0.toFixed(2)} to ${walk.z1.toFixed(2)}, row face ${stopAt})`);
+    assert(walk.crateBox && walk.crouched && walk.blend > 0.99 && crate.h > 1.15 && walk.pz < crate.rect[1], `ON4: the player crouches behind the crate (crouched ${walk.crouched}, blend ${walk.blend.toFixed(2)}, crate top ${crate.h} m over the 1.15 m crouch, z ${walk.pz.toFixed(2)} south of ${crate.rect[1]})`);
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the objects', beforeW);
+    await E(() => { const ed = window.__editor; ed.setStealth(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
