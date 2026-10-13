@@ -80,14 +80,15 @@ describe('fitting catalogue', () => {
 });
 
 describe('placing lamps', () => {
-  it('a ceiling fitting sits at the room ceiling, or the level height when the room has none', () => {
+  it('a ceiling fitting sits under the room ceiling (or the slab above when the room has none), clear of the grown slab in the bake', () => {
     const d = campus();
     const t = placeLamp(fittingOf('troffer-600')!, 5, 5, ctx(d));
     expect(t.why).toBeNull();
-    expect(t.lamps[0]!.at[1]).toBeCloseTo(2.7 - 0.08, 6);
+    expect(t.lamps[0]!.at[1]).toBeCloseTo(2.7 - LF('surfaceGap'), 6);
     expect(t.lamps[0]!.room).toBe('R1');
     expect(t.lamps[0]!.owner).toBe('Building A');
-    expect(placeLamp(fittingOf('troffer-600')!, 15, 5, ctx(d)).lamps[0]!.at[1]).toBeCloseTo(4 - 0.08, 6);
+    expect(placeLamp(fittingOf('troffer-600')!, 15, 5, ctx(d)).lamps[0]!.at[1]).toBeCloseTo(4 - facts.room!.slab!.value - LF('surfaceGap'), 6);
+    expect(placeLamp(fittingOf('pendant')!, 5, 5, ctx(d)).lamps[0]!.at[1]).toBeCloseTo(2.7 - 0.8 - 0.25, 6);
     expect(placeLamp(fittingOf('troffer-600')!, 30, 5, ctx(d)).why).toMatch(/room or yard/);
   });
 
@@ -96,7 +97,7 @@ describe('placing lamps', () => {
     const r = placeLamp(fittingOf('floodlight')!, 10.3, 3, ctx(d));
     expect(r.on).toBe('W1');
     const l = one(r);
-    expect(l.at[0]).toBeCloseTo(10.1 + 0.06, 6);
+    expect(l.at[0]).toBeCloseTo(10.1 + LF('surfaceGap'), 6);
     expect(l.room).toBe('R2');
     expect(l.aim).toEqual([90, 30]);
     expect(l.params.cone!.dx).toBeGreaterThan(0.5);
@@ -237,7 +238,7 @@ describe('walk test lights', () => {
     expect(ls.length).toBe(5);
     expect(ls[0]!.group).toBe(1);
     expect(ls[0]!.on).toBe(true);
-    expect(ls[0]!.y).toBeCloseTo(2.62, 6);
+    expect(ls[0]!.y).toBeCloseTo(2.7 - LF('surfaceGap'), 6);
     expect(ls[0]!.destructible).toBe(true);
     expect(ls[1]!.on).toBe(false);
     expect(ls[2]!.cone!.dz).toBeCloseTo(-ls[1]!.cone!.dz, 6);

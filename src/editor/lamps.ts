@@ -45,11 +45,14 @@ export function circuitLevel(d: Pick<LampData, 'walls'>, c: Circuit): string {
   return c.switch ? (d.walls.find((w) => w.id === c.switch!.wall)?.level ?? '') : '';
 }
 
-/** Ceiling height over a room: its own `ceiling`, else the level height. */
+/** Ceiling height over a room: its own `ceiling`, else the underside of the slab above (the level height less facts room.slab). */
 export function ceilingOf(d: Pick<LampData, 'levels'>, r: Room): number {
   const c = typeof r.ceiling === 'number' ? r.ceiling : 0;
-  return c > 0 ? c : (d.levels.find((l) => l.id === r.level)?.height ?? 0);
+  return c > 0 ? c : r3((d.levels.find((l) => l.id === r.level)?.height ?? 0) - facts.room.slab.value);
 }
+
+/** How far a light point stands off the ceiling or wall it fixes to: its body, at least facts light.surfaceGap (the bake). */
+const gapOf = (body: number): number => Math.max(body, LF.surfaceGap.value);
 
 /** A linear fitting's length (plan), 0 for a point fitting. */
 export function lampLength(l: Pick<Lamp, 'at' | 'b'>): number {
@@ -192,8 +195,9 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
     const ceil = ceilingOf(d, room);
     let y: number;
     if (f.mount === 'floor') y = f.height ?? 0;
-    else if (f.mount === 'pendant') y = Math.min(f.height ?? Infinity, ceil - (f.drop ?? 0) - f.body[1]);
-    else y = ceil - f.body[1];
+    else if (f.mount === 'pendant') y = Math.min(f.height ?? Infinity, ceil - gapOf((f.drop ?? 0) + f.body[1]));
+    else y = ceil - gapOf(f.body[1]);
+    y = r3(y);
     if (y <= 0) return none(`The ceiling here is too low for a ${f.name.toLowerCase()}`);
     return { lamps: [finish(f, base(f, room, d, [at[0], r3(y), at[1]], c.yaw % 360, null))], why: null, on: null, post: null };
   }
@@ -201,7 +205,7 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
     const face = faceAt(d.walls, c.level, x, z);
     if (!face) return none('Move onto a wall face');
     const s = Math.min(face.s1, Math.max(face.s0, snap(face.axis === 0 ? z : x, g)));
-    const across = r3(face.pos + face.n * (f.body[2] / 2));
+    const across = r3(face.pos + face.n * gapOf(f.body[2] / 2));
     const p: Pt = face.axis === 0 ? [across, s] : [s, across];
     const room = roomOf(face.axis === 0 ? p[0] + face.n * 0.05 : p[0], face.axis === 0 ? p[1] : p[1] + face.n * 0.05);
     if (!room) return none('Move onto a wall face of a room or yard');
@@ -223,7 +227,7 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
     const dir = wallDir(op.w);
     // the face on the dot's side
     const side = (x - op.mid[0]) * -dir[1] + (z - op.mid[1]) * dir[0] >= 0 ? 1 : -1;
-    const off = op.w.t / 2 + f.body[2] / 2;
+    const off = op.w.t / 2 + gapOf(f.body[2] / 2);
     const p: Pt = [r3(op.mid[0] - dir[1] * off * side), r3(op.mid[1] + dir[0] * off * side)];
     const room = roomOf(p[0] - dir[1] * 0.05 * side, p[1] + dir[0] * 0.05 * side);
     if (!room) return none('Move over a door of a room or yard');
@@ -269,7 +273,7 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
 export function drawLamp(f: Fitting, a: Pt, b: Pt, c: PlaceCtx): { lamp: NewLamp | null; why: string | null } {
   const room = roomAt(c.data.rooms, c.level, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2) ?? roomAt(c.data.rooms, c.level, a[0], a[1]);
   if (!room) return { lamp: null, why: 'Move into a room or yard' };
-  const y = r3(onCeiling(f) ? ceilingOf(c.data, room) - f.body[1] : (f.height ?? 0));
+  const y = r3(onCeiling(f) ? ceilingOf(c.data, room) - gapOf(f.body[1]) : (f.height ?? 0));
   const l = base(f, room, c.data, [a[0], y, a[1]], 0, null);
   l.b = [b[0], y, b[1]];
   return { lamp: finish(f, l), why: null };

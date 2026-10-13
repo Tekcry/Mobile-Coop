@@ -2088,6 +2088,177 @@ try {
     assert(fileAfter === fileBefore, 'ON11: undo takes every stamp and the test corridor back: the data is as before');
   }
 
+  // ---------- ON6: lights ----------
+  console.log('ON6: a troffer grid of 4 in the security room on a switch by its door; a floodlight on Building B\'s yard wall aimed at the yard; a twin spot over a fire exit; the walk test light meter');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until the menu highlight moves (a slow frame cannot repeat it)
+    const hold = (btn) => E(async (b) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; };
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, btn);
+    const toTab = async (tab) => { for (let i = 0; i < 10 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
+    const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
+    /** Y, the Lights tab, a group tile (A shows it, the menu stays), then a tile: A picks it. */
+    const pick = async (group, tile) => {
+      await press(BTN.Y);
+      const tab = await toTab('Lights');
+      let grp = true;
+      if (group) {
+        grp = await toTileHeld(group);
+        await press(BTN.A);
+        await page.waitForFunction((g) => document.querySelector('#tileMenu .tile.hl .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
+      }
+      const t = await toTileHeld(tile);
+      return { tab, grp, t };
+    };
+    const lamps = () => E(() => window.__editor.model.data.lamps ?? []);
+    const circuits = () => E(() => window.__editor.model.data.circuits ?? []);
+    const placeAt = async (x, z, words) => {
+      const n0 = (await lamps()).length;
+      await dotAt(x, z);
+      if (words) await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), words, { timeout: 5000 }).catch(() => {});
+      const said = await dotText();
+      await press(BTN.A);
+      await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length > n, n0, { timeout: 5000 }).catch(() => {});
+      return { said, lamp: (await lamps()).at(-1), n: (await lamps()).length - n0 };
+    };
+    const room = await E(() => { const d = window.__editor.model.data; const r = d.rooms.find((q) => q.id === 'G-SEC'); const o = d.openings.find((q) => (q.between ?? []).includes('G-SEC')); const w = d.walls.find((q) => q.id === o.wall); return { rect: r.rect, door: o.id, wall: w.id, wz: w.a[1], t: w.t, dx: w.a[0] + o.at, ow: o.w }; });
+
+    // the Light tool: Y > Lights > Troffer 600 x 600 (the Interior group shows first)
+    await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+    const m1 = await pick(null, 'Troffer 600 x 600');
+    await shot('on6-light-menu');
+    const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
+    await press(BTN.A);
+    const t1 = await E(() => ({ tool: window.__editor.tool, fit: window.__editor.lampFit, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
+    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 600/.test(t1.bar) && tiles.slice(0, 6).join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch', `ON6: Y > Lights shows the groups and Switch (${tiles.slice(0, 7).join(', ')}); Troffer 600 x 600 picks the Light tool ("${t1.bar}")`);
+
+    // four troffers in a 2 x 2 grid (each A places one; the tool stays on)
+    const [x0, z0, x1, z1] = room.rect;
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const grid = [[cx - 1.5, cz - 1.5], [cx + 1.5, cz - 1.5], [cx - 1.5, cz + 1.5], [cx + 1.5, cz + 1.5]];
+    const placed = [];
+    for (const [x, z] of grid) placed.push(await placeAt(x, z, 'A: Troffer 600 x 600'));
+    const troffers = placed.map((p) => p.lamp);
+    const ceil = await E(() => window.__editor.model.data.levels.find((l) => l.id === 'G').height);
+    assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && /A: Troffer 600 x 600 [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
+
+    // Light > Switch: A on the wall face by the door places a switch; A on each troffer puts it on that switch
+    const m2 = await pick(null, 'Switch');
+    await press(BTN.A);
+    const sx = room.dx + room.ow / 2 + 0.4;
+    const sz = room.wz + room.t / 2 + 0.45;
+    await dotAt(sx, sz);
+    await page.waitForFunction(() => /A: a switch on/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const swSaid = await dotText();
+    const c0 = (await circuits()).length;
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.circuits ?? []).some((c) => c.switch), c0, { timeout: 5000 }).catch(() => {});
+    const sw = (await circuits()).find((c) => c.switch);
+    const edit = await E(() => window.__editor.circuitEdit);
+    assert(m2.t && !!sw && sw.switch.wall === room.wall && sw.switch.at[1] === 1.2 && edit === sw.id && /A: a switch on/.test(swSaid), `ON6: Light > Switch, A on the wall by the door (${room.door} on ${room.wall}) places switch ${sw?.id} at ${sw?.switch?.at.join(', ')}; the dot said "${swSaid}"`);
+    for (const l of troffers) {
+      await dotAt(l.at[0], l.at[2]);
+      await page.waitForFunction((id) => new RegExp(`put .*\\(${id}\\) on switch`).test(document.getElementById('reticleText').textContent), l.id, { timeout: 5000 }).catch(() => {});
+      await press(BTN.A);
+      await page.waitForFunction(([id, c]) => window.__editor.model.get('lamps', id)?.circuit === c, [l.id, sw.id], { timeout: 5000 }).catch(() => {});
+    }
+    const cs = await circuits();
+    const on = cs.find((c) => c.id === sw.id);
+    const others = cs.filter((c) => c.id !== sw.id && c.lamps.some((id) => troffers.some((l) => l.id === id)));
+    const lampsNow = await lamps();
+    assert(on && on.lamps.length === 4 && troffers.every((l) => on.lamps.includes(l.id) && lampsNow.find((q) => q.id === l.id).circuit === sw.id) && others.length === 0, `ON6: A on each troffer puts all four on ${sw.id} (${on?.lamps.join(', ')}), each on that circuit only (other circuits holding them: ${others.length}; circuits ${cs.map((c) => `${c.id}[${c.lamps.join(' ')}]`).join(', ')})`);
+    await press(BTN.B);
+    // the plan: thin dashed lines from the switch to its four lamps while the switch is selected
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`circuits:${id}`); }, sw.id);
+    await page.waitForFunction(() => document.querySelectorAll('#planSvg svg .circuitLine').length === 4, null, { timeout: 15000 }).catch(() => {});
+    const lines = await E(() => ({ lines: document.querySelectorAll('#planSvg svg .circuitLine').length, marks: document.querySelectorAll('#planSvg svg .lampMark').length, card: document.querySelector('#selCard [data-lamp]')?.textContent ?? '' }));
+    assert(lines.lines === 4 && lines.marks >= 4 && /4 lamps/.test(lines.card), `ON6: the plan draws ${lines.lines} dashed lines from the switch to its lamps (${lines.marks} lamp marks); the card says "${lines.card}"`);
+    await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x; o.tz = z; o.yaw = 0.3; o.dist = 16; o.pitch = 1.1; }, [cx, cz]);
+    await frames(page, 10);
+    await shot('on6-office-switch-lines');
+
+    // a floodlight on Building B's south (yard) wall, aimed at the yard; then Selected > Aim with the right stick
+    const yard = await E(() => {
+      const d = window.__editor.model.data;
+      const B = d.meta.buildings.find((b) => b.id === 'B').footprint;
+      const w = d.walls.find((q) => q.level === 'G' && q.a[1] === B[1] && q.b[1] === B[1] && Math.max(q.a[0], q.b[0]) > 80);
+      return { wall: w.id, z: w.a[1] - w.t / 2 - 0.45, x: 85 };
+    });
+    await E(() => window.__editor.setTool('select'));
+    const m3 = await pick('Outside', 'Floodlight');
+    await press(BTN.A);
+    const fl = await placeAt(yard.x, yard.z, 'A: Floodlight');
+    const flood = fl.lamp;
+    const yardRoom = await E((id) => window.__editor.model.data.rooms.find((r) => r.id === id)?.kind, flood?.room);
+    const fc = (await circuits()).find((c) => c.id === flood?.circuit);
+    assert(m3.grp && m3.t && flood?.fixture === 'floodlight' && yardRoom === 'yard' && flood.aim?.join() === '180,30' && flood.at[1] === 4.5 && flood.params.cone?.dz < -0.5 && /^Photocell/.test(fc?.unswitchable ?? ''), `ON6: a floodlight on ${yard.wall} at 4.5 m, in the yard (${flood?.room}), aimed out over the yard (aim ${flood?.aim}, beam z ${flood?.params?.cone?.dz}); its circuit ${fc?.id}: "${fc?.unswitchable}"`);
+    await E(() => window.__editor.setTool('select'));
+    await E((id) => window.__editor.select(`lamps:${id}`), flood.id);
+    await frames(page, 3);
+    const hA = await E(() => window.__editor.model.history.length);
+    await press(BTN.Y);
+    const sTab = await toTab('Selected');
+    const aTile = await toTileHeld('Aim');
+    await press(BTN.A);
+    await E(() => window.__pad.axis(2, 0.9));
+    await page.waitForFunction((id) => { const a = window.__editor.model.get('lamps', id)?.aim; return !!a && Math.abs(((a[0] - 180 + 540) % 360) - 180) >= 25; }, flood.id, { timeout: 10000 }).catch(() => {});
+    await E(() => window.__pad.axis(2, 0));
+    await frames(page, 3);
+    await press(BTN.A);
+    await page.waitForFunction((h) => window.__editor.model.history.length > h, hA, { timeout: 5000 }).catch(() => {});
+    const aimed = await E((id) => window.__editor.model.get('lamps', id), flood.id);
+    const aimText = await E(() => window.__editor.model.history.at(-1)?.text ?? '');
+    assert(sTab && aTile && aimed.aim[0] !== 180 && aimed.aim[1] === 30 && (await E(() => window.__editor.model.history.length)) === hA + 1 && /^Aimed Floodlight/.test(aimText) && Math.abs(aimed.params.cone.dx) > 0.2, `ON6: Selected > Aim: the right stick turns the flood to ${aimed.aim[0]} degrees and A sets it in one undo step ("${aimText}"; beam ${aimed.params.cone.dx}, ${aimed.params.cone.dz})`);
+    await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x; o.tz = z - 4; o.yaw = 0; o.dist = 16; o.pitch = 0.55; }, [flood.at[0], flood.at[2]]);
+    await frames(page, 10);
+    await shot('on6-flood-aimed');
+
+    // an emergency twin spot ("spitfire") over the fire exit, inside the building
+    const fire = await E(() => {
+      const d = window.__editor.model.data;
+      const o = d.openings.find((q) => q.type === 'fire-door' && (q.between ?? []).includes('G-NW'));
+      const w = d.walls.find((q) => q.id === o.wall);
+      return { id: o.id, wall: w.id, x: w.a[0] + w.t / 2 + 0.45, z: w.a[1] + o.at };
+    });
+    await E(() => window.__editor.setTool('select'));
+    const m4 = await pick('Emergency', 'Emergency twin spot');
+    await press(BTN.A);
+    const sp = await placeAt(fire.x, fire.z, 'A: Emergency twin spot');
+    const spit = sp.lamp;
+    const spc = (await circuits()).find((c) => c.id === spit?.circuit);
+    assert(m4.grp && m4.t && spit?.fixture === 'spitfire' && spit.on === fire.wall && spit.room === 'G-NW' && Math.abs(spit.at[2] - fire.z) < 0.051 && spit.at[1] === 2.5 && spit.emergency === 'non-maintained' && spit.heads === 2 && /^Emergency/.test(spc?.unswitchable ?? ''), `ON6: a twin spot over fire exit ${fire.id} on ${fire.wall} (${spit?.at?.join(', ')}), non-maintained, 2 heads, on ${spc?.id}: "${spc?.unswitchable}"`);
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+
+    // the walk test: the lamps are the game's lights; the light meter under a troffer is higher than in a dark corner
+    const t0 = troffers[0];
+    await dot(t0.at[0], t0.at[2], 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const meter = await gf().evaluate(([t, sp]) => {
+      const g = window.__app.current;
+      const lights = g.world.level.lights.lights;
+      const near = (x, y, z) => lights.find((l) => Math.abs(l.x - x) < 0.01 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.01);
+      const tl = near(t.at[0], t.at[1], t.at[2]);
+      const spots = lights.filter((l) => Math.abs(l.x - sp.at[0]) < 0.01 && Math.abs(l.z - sp.at[2]) < 0.01);
+      const f = g.world.lightField;
+      const under = f.bodyLevel(t.at[0], 0, t.at[2], 1.75);
+      const corner = f.bodyLevel(4.6, 0, 30.6, 1.75);
+      return { n: lights.length, troffer: tl ? { on: tl.on, group: tl.group, destructible: tl.destructible, radius: tl.radius } : null, spots: spots.map((l) => l.on), under, corner, meter: g.lightLevel };
+    }, [t0, spit]);
+    assert(!!meter.troffer && meter.troffer.on && meter.troffer.group > 0 && meter.spots.length === 2 && meter.spots.every((o) => o === false) && meter.under > meter.corner + 0.05, `ON6: the walk test builds the lamps as the game's lights (${meter.n}; troffer ${JSON.stringify(meter.troffer)}, twin spot heads off with the mains on ${JSON.stringify(meter.spots)}); light meter under a troffer ${meter.under.toFixed(3)} > dark corner ${meter.corner.toFixed(3)} (player ${Number(meter.meter).toFixed(3)})`);
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the lights', beforeW);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
@@ -2101,6 +2272,11 @@ try {
   const sandPresets = path.join(sandbox, 'docs/kestrel/editor-presets.json');
   const presetsText = existsSync(sandPresets) ? readFileSync(sandPresets, 'utf8') : '';
   assert(/"id": "mine\.1"/.test(presetsText) && /"name": "Office"/.test(presetsText) && !existsSync(path.join(process.cwd(), 'docs/kestrel/editor-presets.json')), 'ON11: the save writes your presets to the sandbox copy of docs/kestrel/editor-presets.json');
+  // ON6: the lamps and circuits go to the play file beside the campus file (the campus file holds none of them)
+  const sandPlay = path.join(sandbox, 'docs/kestrel/kestrel.play.json');
+  const playSaved = existsSync(sandPlay) ? JSON.parse(readFileSync(sandPlay, 'utf8')) : null;
+  const campusSaved = JSON.parse(readFileSync(sandFile, 'utf8'));
+  assert(!!playSaved && playSaved.lamps?.length >= 6 && playSaved.circuits?.some((c) => c.switch && c.lamps.length === 4) && !('lamps' in campusSaved) && !('circuits' in campusSaved) && !existsSync(path.join(process.cwd(), 'docs/kestrel/kestrel.play.json')), `ON6: the save writes the sandbox play file (${playSaved?.lamps?.length} lamps, ${playSaved?.circuits?.length} circuits) and a campus file without them; docs/kestrel untouched`);
 } catch (e) {
 
   failed = true;

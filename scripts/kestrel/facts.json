@@ -118,10 +118,11 @@
     "intensityMin": { "value": 0.15, "src": "editor default: dimmest intensity the conversion gives" },
     "intensityMax": { "value": 1.4, "src": "editor default: brightest intensity the conversion gives (the game maps use up to 1.0)" },
     "spotBeamMax": { "value": 100, "src": "editor default: beams narrower than this (degrees) are spot cones; wider light the hemisphere below (lampMath LAMP_CONE)" },
-    "wallReach": { "value": 0.6, "src": "editor default: a wall fitting or a switch backs onto a wall face within this distance of the dot" },
+    "wallReach": { "value": 0.8, "src": "editor default: a wall fitting or a switch backs onto a wall face within this distance of the dot (beyond the dot magnet's 0.5 m pull to a wall line)" },
     "openingReach": { "value": 1.0, "src": "editor default: an exit sign snaps to an opening whose middle is within this distance of the dot" },
     "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
-    "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" }
+    "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" },
+    "surfaceGap": { "value": 0.15, "src": "map lamps hang 0.15 m under their ceilings (src/world/maps/mansion.ts H1 - 0.15): the light bake grows solids by half a 0.2 m cell, so a light point nearer a ceiling or wall is inside it and lights nothing" }
   },
   "traverse": {
     "stepMax": { "value": 0.65, "src": "F04 (src/player/movement.ts pickTraversal: step up to 0.65, top clear)" },
