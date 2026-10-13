@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 0 (setup) -> 1 (audit) in progress
+Current step: 2 (plan and step files)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -13,6 +13,8 @@ Last commit: see git log (locomotion 00)
 ## Done
 - 00 setup: branch, BRIEF, RULES, DECISIONS, BIBLE-PROPOSALS, bible 1.13 (Section 5.17), CLAUDE.md resume line, scripts/perf-trend.mjs.
 
+- 01 audit: AUDIT.md + audit/*.
+
 ## Blocked
 (none)
 
@@ -20,7 +22,8 @@ Last commit: see git log (locomotion 00)
 (see PC-PASS.md)
 
 ## Open ASSUMED decisions
+- A1-A5 in DECISIONS.md.
 - A0: the audit document lives in docs/locomotion/AUDIT.md (brief) rather than docs/animation-audit.md (bible 5.12.4); bible text left as is.
 
 ## Next action
-Collect the 4 audit agents, spot-check, write AUDIT.md (step 1), then PLAN.md and step files (step 2).
+Write step files 01-34 (PLAN.md), then start step 01.
