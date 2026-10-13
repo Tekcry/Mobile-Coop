@@ -46,3 +46,6 @@ PC-PASS shots per bay (row 4) with `E2E_GPU=1`.
 ## Commit
 "training T5: House, Range and Plot geometry (B7, A7, B8, A8, B9, L9)". Docs: CHANGELOG, LOG, STATE, PC-PASS results.
 Opus self-review at the block end: BAYS register vs the built elements and level-design 16.10 (14 questions), logged.
+Then PAUSE (D15, D27): STATE.md "Paused for Michael's walk"; write docs/training/WALK.md (how to walk: two tabs or
+the solo flag, debug teleports per bay, what to look at per bay, where to write notes: docs/training/WALK-NOTES.md);
+final message, 10 lines or fewer; STOP. The run resumes with T5b when Michael says RESUME.

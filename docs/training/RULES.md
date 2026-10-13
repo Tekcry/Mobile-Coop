@@ -38,6 +38,10 @@ DECISIONS.md > docs/design-bible.md > SPEC.md (with exceptions E1-E10) > BAYS.md
 - Tuning tables (src/config/movement.ts, enemies, weapons, PERCEPTION, LIGHT) never change for this map: change the
   geometry. The course framework's own numbers go in src/config/course.ts.
 - No secrets, tokens or network dependencies in the game.
+- Desktop only (D24): no phone checks, no touch work, no phone perf runs for this map.
+- Every drill is mandatory (D30): no code path, setting, radio line or test helper completes a drill except a real
+  performed verb (the dev solo flag only makes one player's ticks count for both).
+- Planned stops: after Block B (D27, the walk) and at TM until locomotion step 20 has landed (D15).
 
 ## Checks
 - Every step: `npm run check` (lint + tests + build) and the e2e suites the step file names. Steps touching src/net also

@@ -30,7 +30,9 @@ Michael reviews the finished map. Section 2 answers his question: which systems 
    - bay restart when both players are down: both respawn in the bay's entry airlock; the bay's squad, gates, lights and
      breakables reset;
    - course radio lines through the existing barks / subtitles path, with solo / team variants left empty (2 players);
-   - a per-player verb log (which player did which verb) for e2e-bunker and the bot run;
+   - mandatory drills per bay, ticked per player, gating the airlocks (D30), with a full tutorial HUD (both players'
+     ticks, step text, markers that a setting hides; D18, D19), results with per-bay stats and a rating (D26), a course
+     record and "Start at bay N" (D20), a dev solo flag (D21);
    - host authority: the host runs the course state; a `course` message (state, door locks, flags) when changed or every
      2 s; clients mirror door locks and anchor locks; `parseMessage` case and a `tests/net.test.ts` test.
 2. **Run-time door lock state on clients** (inside T1 if T0 finds `Door.anchor.locked` changes do not reach clients:
@@ -68,6 +70,7 @@ A switch-on session merges the feature in (section 1), flips the element's cours
 | SW-P1 | Phase 1 fuse box | B5 breaker reset by a guard; maintained emergency lamps | e2e-bunker B5 |
 | SW-P2 | Phase 2 | B3 fan and B5 genset masking; sound meter; whistle (B5, B7) | e2e-bunker B5 |
 | SW-P5 | Phase 5 | B4 new team moves; Sync (B7 pair, B9 keys); clutch save (B9); drag a downed mate and medkit on a mate (B9); typed pings; outlines; team results | e2e-bunker B4, B7, B9 |
+| SW-6B | Phase 6b (visual target) | The desktop beauty pass for every bay (D14): CC0 textures, detail, haze, flicker, beauty shots | PC-PASS shots |
 | SW-P6 | Phase 6 / backlog | Throwables (B5, B8); civilian umpire (B7); per-stop facing; knife (B7 dust sheet); airfoil (B8) | e2e-bunker |
 
 ## 4. Build order (the local run)
@@ -79,17 +82,23 @@ the agents' summaries in its context.
 | Block | Step | Delivers | Block end |
 | --- | --- | --- | --- |
 | A Foundations | T0 facts | Baseline, 10 engine answers, reuse list, `T0-facts.md`, CLAUDE.md resume line (3 parallel Explore agents + checker; no code) | |
-| | T1a course logic | `src/game/course/` pure state machine, gates, airlocks, restart, pack / apply; `src/config/course.ts`; tests | |
-| | T1b course mode | `CourseMode`, NetMode `course` (2 players), `course` message with locks and light state, door / anchor locks, `courselab`, `e2e-course` | full e2e, perf trend, GPU baseline |
+| | T1a course logic | `src/game/course/` pure state machine: gates, airlocks gated by drills, per-player ticks, restart, start at bay N, per-bay stats, pack / apply; tests | |
+| | T1b course mode | `CourseMode`, NetMode `course` (2 players, co-op lobby only), `course` and `ctick` messages, door / anchor locks, light state, dev solo flag, `courselab`, `e2e-course` | |
+| | T1c tutorial | Drill detection, the tutorial HUD (both players' ticks, step text, markers with a hide setting), results panel and rating, the `course:fallow` record, bay select in the lobby | full e2e, perf trend, GPU baseline |
 | B Geometry | T2 Upper | `bunker.ts`, `bunkerUpper.ts`: B1, A1, B2, A2; `plan-svg.mjs`; map tests | |
 | | T3 Shaft and Cistern | `bunkerShaft.ts`: B3, A3, B4, A4; split gap, ropes, fence, duct, co-op lips | |
 | | T4 Plant | `bunkerPlant.ts`: B5, A5, B6, S6, A6; trench, gallery, mock site rooms, duct, device mount points | |
-| | T5 Deep | `bunkerDeep.ts`: B7, A7, B8, A8, B9, L9; e2e-anchors covers the map; nav order test | full e2e, perf trend, GPU shots per bay |
-| C Life | T6 Light | every light plan, circuits, switches, zones, surfaces; `e2e-bunker` light section | |
-| | T7a Course data | `bunkerCourse.ts`: all gates in now form, S1 cameras, radio lines, objectives, kit | |
+| | T5 Deep | `bunkerDeep.ts`: B7, A7, B8, A8, B9, L9; e2e-anchors covers the map; nav order test; `WALK.md` | full e2e, GPU shots per bay, then PAUSE: Michael walks the bays (D27) |
+| C Life | T5b walk notes | Michael's `WALK-NOTES.md` applied | |
+| | TM merge | `feature/ct-locomotion` (past step 20) and `feature/kestrel` merged in; drills use the real loco 09-20 verbs (waits for loco 20, D15) | |
+| | T6 Light | every light plan, circuits, switches, zones, surfaces; `e2e-bunker` light section | |
+| | T7a Course data | `bunkerCourse.ts`: every drill, all gates, S1 cameras, radio lines, objectives, kit | |
 | | T7b Guards | 21 guards in squads per bay, cycles 25-45 s, darkness / noise / body checks | full e2e, perf trend, GPU light look |
-| D Proof | T8 e2e-bunker | the two-page course suite, per-player coverage, perf on the bunker | full e2e, GPU perf budgets |
-| | T9 Finish | dressing, readability, TESTING, REVIEW.md | final checks; stop for Michael |
+| D Proof | T8a e2e first | course suite for B1-B5: every drill by real input, both tick columns, gates, airlocks, a forced restart | |
+| | T8b e2e rest | B6-B9, the full course, the per-player coverage report, lethal vs non-lethal rating, perf on the bunker | GPU perf budgets |
+| | T9a art Upper / Plant | voxel art layer for B1-B6 (D14); voxelFit includes the bunker | |
+| | T9b art Deep | voxel art layer for B7-B9, S6, airlocks, signage | |
+| | T10 Finish | light and dark showcase tuning on this PC, readability, TESTING, REVIEW.md | final checks; stop for Michael |
 | Later | SW-* | section 3, one run each from `steps/SW-template.md` | per run |
 
 ## 5. Local run and GPU
@@ -118,4 +127,4 @@ server). Recommendation: skip until Michael asks.
 
 ## 7. Starting the run
 The earlier cloud prompts are replaced by the run files: BRIEF.md (what the orchestrator does), RULES.md, STATE.md and
-`steps/T0-facts.md` .. `steps/T9-finish.md`. Start with "Training run: START. Follow docs/training/BRIEF.md."
+`steps/T0-facts.md` .. `steps/T10-finish.md`. Start with "Training run: START. Follow docs/training/BRIEF.md."

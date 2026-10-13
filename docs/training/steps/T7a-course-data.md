@@ -27,16 +27,20 @@ Model: implementer opus, checker opus. Deps: T6. Data and wiring through the cou
 6. Devices now: S1 cameras through `MapLayout.security` for B6 CAM1-4, B8 CAM-R, B9 CAM-P1 / P2 (fixed / sweep per
    BAYS), with no desk (S1 Part A has none); every other device is a mount point with its now form above.
 7. Hide spots, alarms (B9 panel), reinforce (B9 staff tunnel), objectives in `MapLayout`.
-8. Radio lines: per bay, 4-8 LANTERN lines (enter, each gate, done; a line naming any drill that is not live yet:
-   "That drill isn't live yet. Skip it." style), British spelling, <= 90 characters, dry, none during combat
-   (the framework suppresses lines while any guard is at level alert). Team variants only (2 players).
-9. Kit: every gadget at normal carry, every weapon class in the B8 kit lockers (the course loadout), `?kit=all`
+8. Drills (D18, D30): every FEATURES row placed in a bay becomes a `DrillDef` in teaching order, with its `who` (both,
+   lead, second, either per FEATURES section 11 and the swap rule), its tutorial text (what to press, glyph tokens for
+   pad / keyboard, <= 90 characters) and its marker (device id or point). Rows marked "not a drill until ... lands"
+   get an ElementFlag but no drill. No drill can be skipped.
+9. Radio lines: per bay, 4-8 LANTERN lines (enter, each gate, done), British spelling, <= 90 characters, dry, none
+   during combat (the framework holds them while a guard is at level alert). Team variants only (2 players).
+10. Kit: every gadget at normal carry, every weapon class in the B8 kit lockers (the course loadout), `?kit=all`
    equivalent when V3's kit exists (an ElementFlag).
 
 ## Tests
 `tests/bunkerCourse.test.ts`: validateCourse passes; every airlock box matches BAYS; every gate's door / switch exists in
 the built level; every radio line <= 90 characters and has no em dash; every FEATURES "now form" row in a bay has an
-element flag.
+element flag; every placed FEATURES row is a drill or is marked "not a drill until it lands"; every drill has a
+marker and a text.
 
 ## Checks
 `timeout 900 npm run check`; `node scripts/run-e2e.mjs e2e-bunker e2e-course e2e-security smoke`. The checker walks one

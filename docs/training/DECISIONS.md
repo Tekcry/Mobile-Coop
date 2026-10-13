@@ -34,6 +34,23 @@ multiple-choice tool. His own words are quoted where he typed them; otherwise th
 | D11 | How the training guards behave | "Real AI, marking rounds": full perception, patrols and alerts; damage is real, so downs and revives happen; takedowns knock out | BAYS guard sheets; SPEC mission. |
 | D12 | Living test map and the editor second-map part | "Claude must create the whole map as detailed as possible, start to finish, without consulting me. I will review once completed. If any systems should be created prior, let me know." | PLAN: Claude builds the whole map in code (no editor greybox by Michael); build sessions run back to back with Claude self-review and no Michael gate until the final review (SPEC E9); prerequisite systems listed in PLAN section 2. The editor part is kept only as optional later scope (PLAN section 6). This design session also ran without further questions or summary rounds. |
 | D13 | How the build session runs (2026-10-13, after the design) | "I will start this session locally once you have completed all documentation and planning. Must ensure that session operates as the current editor/locomotion sessions are, using agents and keeping context clear and streamlined at all times. I want to see the stage breakdown and all relevant information before starting it." | BRIEF.md, RULES.md, STATE.md, steps/: a local unattended run on his PC; orchestrator plus one opus implementer and one fresh opus checker per step; the orchestrator holds only STATE, the step file and agent summaries; GPU items run at block ends on his PC. |
+| D14 | How finished it looks | "Art layer now, beauty later": a voxel art layer in this run (+2 steps); the desktop beauty pass is its own later run once Phase 6b lands | steps T9a, T9b; PLAN 3 (SW-6B) |
+| D15 | Wait for locomotion? | "Wait for locomotion steps 09-20", then "Blocks A-B now, C-D later": the framework and all geometry run now; light, guards, course data and tests start after loco 20 is merged in, so loco 09-20 features need no stand-ins | BRIEF 3; STATE pause; step TM |
+| D16 | Ghosting | "Drills may force anything": each bay forces its own verbs, takedowns and combat included; guarded bays need not be ghostable | SPEC E4, E12 |
+| D17 | Guard difficulty | "Host's difficulty, Normal default" | T1b, T7b |
+| D18 | Guidance | "Full tutorial": step-by-step instructions and markers for every verb | T1a drills, T1c tutorial HUD |
+| D19 | Markers vs bible 6 (no world waypoints) | "Markers on, setting to hide": an exception for this map (E11); a course setting turns markers off | T1c; SPEC E11 |
+| D20 | Start at any bay | "Yes, once reached": the lobby offers "Start at bay N" for any bay the host has finished once; a dev flag unlocks all | T1c |
+| D21 | Testing alone | "Both": a dev solo flag in the debug menu, and the two-tab `?net=local` method in TESTING.md | T1b, T1c, T10 |
+| D22 | Where it appears | "Co-op lobby mode": "Training course" on the Fallow map, plus autostart for tests; not on the solo Play screen | T1b |
+| D23 | What it must prove | All four: the gameplay is fun; co-op sync is solid; every feature is covered; light and dark showcase | REVIEW.md sections; T6, T8, T10 |
+| D24 | Phone | "Desktop only": no phone checks or touch work for this map | RULES; PC-PASS |
+| D25 | Split drills | "Swap at every airlock" (confirms C3) | BAYS roles; FEATURES 11 |
+| D26 | Lethal | "Yes, rated down": lethal works ("marked out"), counted in results; the rating rewards non-lethal play | T1c results |
+| D27 | Pause after geometry | "Yes, a walk before C-D": after Block B Michael walks the bays (debug teleports, the solo flag); his notes become step T5b | STATE; steps/T5b |
+| D28 | Names | "Keep": Fallow, Cresset Training, LANTERN | - |
+| D29 | Blocked steps | "Log it and go on" | RULES |
+| D30 | The bays | "Build as shown. Make sure that none of the feature tests can be skipped. There must be feedback that both players have interacted as needed, as this is a fully guided training session that needs all objectives completed" | Every drill is mandatory and ticked per player; airlocks refuse until the bay's drills are done by the required players; the HUD checklist shows both players' ticks; no "skip" radio lines; a feature with no working form yet is not a drill until it lands (T1a, T1c, T7a, T8) |
 
 ## Decisions Claude made under D12 (Michael reviews them at the end)
 | # | Decision | Reason |
@@ -46,3 +63,5 @@ multiple-choice tool. His own words are quoted where he typed them; otherwise th
 | C6 | `MapDef.navLayers` 5 for the bunker. | The shaft (bay 3) stacks galleries over one column; the atrium (bay 9) has three floors. |
 | C7 | LANTERN runs the exercise on the radio; text radio and subtitles only. | Story 4 and 7; no voice (CLAUDE.md). |
 | C8 | Timed holds appear only in bays with no guards (bays 2 and 4). | Bible 6 "never: forced timers in stealth sections". |
+| C9 | The course record (bays reached, best run) is a kv record in IndexedDB through src/save (`course:fallow`), not a profile field, so no SAVE_VERSION bump collides with the locomotion run's. | D20, D26; CLAUDE.md saves rule |
+| C10 | Drill ticks for local-only verbs (gear, stance, vision, ping) are reported by the client and accepted by the host; ticks the host can see (MoveState modes, takedowns, team moves, gates) are decided by the host. | Host authority without new detection |

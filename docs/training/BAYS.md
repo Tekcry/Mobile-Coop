@@ -51,6 +51,11 @@ Nothing is built under another bay in plan: nav columns stack only inside a bay 
 **Roles (DECISIONS C3).** P1 = host, P2 = client. Each bay names a lead and a second; they swap at every airlock (B1
 lead P1, B2 lead P2, B3 lead P1, ...). Where a bay splits verbs, the other player gets them later (FEATURES.md "who").
 
+**Drills (D30).** Every verb a bay teaches is a mandatory drill, ticked per player on the HUD checklist (both players'
+columns). The bay's exit airlock refuses to cycle until every drill is done by the players it names ("Waiting: P2 -
+ledge shimmy"). Guidance is a full tutorial (D18): each drill's text step and a marker on its device or move (markers
+can be hidden, D19).
+
 **Failure (DECISIONS D4, D11).** Guards are Cresset role-players with marking rounds: real AI, real damage, takedowns
 knock out. A downed player is revived (existing revive, 2.5 s). Both down: the bay restarts at its entry airlock with
 the bay's squad respawned (course framework, PLAN T1). No fall damage exists (`LANDING`, player/movement.ts:203): a fall
@@ -264,12 +269,15 @@ Sequence and gates:
 3. The sluice (timed hold): on the gallery, the second holds the W2 sluice handwheel (hold interactable); the W2 sluice
    (1.5 wide, under the wall) rises while held and drops 6 s (TUNE) after release. The lead passes under into C3. The
    second climbs down C3's access ladder (unlocked) from the gallery.
-4. Phase 5 drills in C3, each on its own real element, each skipped with a radio line until live:
+4. Phase 5 drills in C3, each on its own real element; until Phase 5 lands an element is built but is not a drill (D30),
+   except the pull-up, whose now form (a boost onto the platform) is a required drill:
    - split-jump boost: the overflow channel (x 0..1.6, walls 6.0 high, lip 6.2): one splits, the other climbs onto them.
    - back-to-back: the 1.0 m wide float-valve shaft (x 3..4, 6 m) to the same lip.
-   - pull-up: the A4 landing (local x 15..21, z 0..2) is raised 4.4 over C3 (the reservoir outlet platform); now: a fixed
-     plant ladder; final: one climbs (boost), pulls the other up.
-   - rappel anchor: the sump (x 26..32, z 2..8) is 4 m deep with no anchor; now: skipped; final: one holds the rope.
+   - pull-up: the A4 landing (local x 15..21, z 0..2) is raised 4.4 over C3 (the reservoir outlet platform); now: a boost
+     onto it, then the top player lowers the outlet's hooked ladder for the partner (the B4 ladder trick, a course anchor
+     unlocked by the boost: anchorLock); final: one climbs, pulls the other up.
+   - rappel anchor: the sump (x 26..32, z 2..8) is 4 m deep with no anchor; now: not a drill (a ladder out); final: one
+     holds the rope.
 5. Both onto the outlet platform -> A4 (medkit).
 Lock behind: A4. Softlock check (SPEC E3): a player alone in any cell has the gallery ladders of C3 and the inspection
 doors; C1 and C2 have no way up alone, so the course framework restarts the bay if a partner disconnects (the session
@@ -599,7 +607,7 @@ Sequence: weapons drills on the firing line (both): pistol (draw by aiming, no h
 Phase 2 lands), penetration at PW, barrels; the lead climbs to RT for the sniper at 50 m. Gadgets: frag at BR, sleeping
 gas on a dummy group, flashbang (white-out when facing it), EMP on LG and CAM-R, noisemaker on a barricade, sticky cam on
 the shoot-house corner (lure ping, gas), proximity mine at the shoot-house gate, sticky shocker on a dummy (V3), pistol
-secondary on a lamp and CAM-R (V3), a thrown bottle at a lamp (Phase 6), ring airfoil (backlog: skipped). Then "live
+secondary on a lamp and CAM-R (V3), a thrown bottle at a lamp (Phase 6) and the ring airfoil (backlog) once they land (not drills until then, D30). Then "live
 fire": the three role-players at the far end are alerted (course trigger). The lead covers from the catwalk (sniper
 rifle: B8-S first, laser and glint warn); the floor player advances through SH against B8-E (shield: flank, shock, or
 a grab is refused frontally) and B8-F (flanks the player who holds cover over 4 s; one grenade at a time; suppression).

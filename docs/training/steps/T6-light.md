@@ -1,6 +1,6 @@
 # Step T6 - light, ambient zones, surfaces (Block C)
 
-Model: implementer opus, checker opus. Deps: T5 (Block B done). Gameplay light only from the light field (bible 5.1).
+Model: implementer opus, checker opus. Deps: TM (Block B done, the walk applied, locomotion 09-20 merged). Gameplay light only from the light field (bible 5.1).
 
 ## Read
 - BAYS.md light plans: grep `Light plan:` (one table per bay) and each bay's "Sound" line; 7-70 (offsets)

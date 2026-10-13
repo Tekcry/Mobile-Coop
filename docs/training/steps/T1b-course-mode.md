@@ -30,7 +30,10 @@ Model: implementer opus, checker opus (src/net). Deps: T1a. Runs e2e-coop and e2
    `{ t: 'course', s: packed CourseState, locks: doorIndex[], anchors: id[], lights: { groups: [g, on][], dead: id[] } }`
    when changed or every COURSE_SEND; parseMessage case with clamps; a tests/net.test.ts case. Clients apply door locks,
    anchor locks and light state (groups on / off, destroyed lamps) to their own world. Client presses and holds go
-   through the existing `use` message (the host checks reach). PROTOCOL_VERSION +1.
+   through the existing `use` message (the host checks reach). Drill ticks (DECISIONS C10): message `ctick` (client ->
+   host, `{ t: 'ctick', verb }`, rate-limited to 4 per second) for local-only verbs (gear, stance, vision, ping, aim,
+   reload, swap); the host ticks MoveState-visible and host-side verbs itself (traversal modes, team moves, takedowns,
+   gadgets, gates). parseMessage cases and tests for both. PROTOCOL_VERSION +1.
 5. `src/world/maps/courselab.ts`: a debug map (MAPS only, modes ['course'], not listed) of two rooms 8 x 8 joined by a
    6 x 6 airlock, then a strip with one example of each gate kind in a row (lever, bolt, hold, timedHold, pair, egress,
    mains with a lamp group, flag via a pickup, anchorLock on a ladder), each behind its own door; a short course def.
@@ -39,8 +42,10 @@ Model: implementer opus, checker opus (src/net). Deps: T1a. Runs e2e-coop and e2
    refuses one player, cycles with both, the near door stays locked; each gate kind works when the host acts and when
    the client acts; the client sees door locks and the lamp group change within 0.5 s; a forced both-down (damage) restarts
    the bay and both respawn in the airlock.
-7. Test-only flag `?course=solo`: one player may cycle airlocks and both halves of a pair gate (for single-page
-   checks in T7a / T8); ignored in co-op and never shown in the UI. Add to run-e2e REQUIRED and COVERS for src/game/course,
+7. Dev solo flag (D21): `?course=solo` and a debug-menu toggle (F3 overlay, dev builds only): one player may cycle
+   airlocks, work both halves of a pair gate, and his ticks count for both players. Never in the normal menus.
+8. The course is offered only in the co-op lobby (D22): coopUi lists "Training course" for maps whose modes include
+   'course'; not on the solo Play screen. Add to run-e2e REQUIRED and COVERS for src/game/course,
    src/game/modes/courseMode.ts and src/world/maps/courselab.ts.
 
 ## Checks

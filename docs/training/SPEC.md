@@ -112,8 +112,9 @@ balcony boost gap 4.5 (level-design 11.3 kept).
 - `modes`: `['course']` (a new co-op mode from T1). Do not change any other mode's default map. Not listed for solo.
 - Mission: id `fallow-course`, name "Fallow", insertion: the lift lobby (B1); brief (text): "Rehearsal night at Fallow.
   Nine bays, two of you, nobody goes on alone."; objectives: the bay chain, then B9's keys A and B, the case, the
-  two-key lift, extract; rules: none fail the course (the rating notes detections, alarms, knock-outs and kills of
-  role-players).
+  two-key lift, extract. Every bay's drills are mandatory and ticked per player (D30). Rules: none fail the course; the
+  results show total and per-bay time, detections, alarms, knock-outs, kills (rated down, D26), revives and team moves.
+- Desktop only (D24): pad first, then keyboard and mouse; no phone checks or touch work.
 - Kit: the full toolkit and every gadget at normal carry (FEATURES 4).
 - Theme: night inside; ambient 0.05 (TUNE); faction colours: Cresset grey and orange; no weather.
 - `reinforce`: B9 staff tunnel; `alarms`: B9 B-1 south; `hideSpots`: BAYS per bay; `switches`: BAYS light plans.
@@ -133,27 +134,30 @@ balcony boost gap 4.5 (level-design 11.3 kept).
 ## Approved exceptions (Michael, DECISIONS D10 and D12)
 Only these rules are loosened, and only for this map. Every other rule of `docs/level-design.md`, the template and the
 bible applies in full. E1-E4 were in the question Michael approved (D10); E5-E10 follow from his D12 instruction and are
-flagged for his confirmation at the final review.
+flagged for his confirmation at the final review. E11 and E12 come from his answers D16 and D19.
 | # | Rule | Loosened to | Why |
 | --- | --- | --- | --- |
 | E1 | Bible C1, level-design 11.1 (solo always complete; co-op routes never required) | The course needs two players; co-op gates are required | D1 co-op only |
 | E2 | Level-design 11.2 (solo invariance, no co-op markers) | Gates are explicit course devices (two-person airlocks, lane levers); LANTERN names them | A training course states its drills |
 | E3 | Level-design 11.4 (every co-op surface reachable solo) | Every surface has a way back to its bay's airlock for a revive, or the bay restarts when both are down; a disconnect ends the session (bible C2) | Two players always |
-| E4 | Level-design 3.2 (three routes plus a secret in every guarded space) | Guarded bays B5-B9 have at least two routes and a loop; secrets in B5 and B9; unguarded bays B1-B4 are drill lanes | A course, not a mission; D10 |
+| E4 | Level-design 3.2 (three routes plus a secret in every guarded space) | Guarded bays B5-B9 have at least two routes and a loop; secrets in B5 and B9; unguarded bays B1-B4 are drill lanes; a bay may force its drill's verbs (D16) | A course, not a mission; D10, D16 |
 | E5 | Level-design 6.1 (one new mechanic per space) | Each bay teaches a themed set of verbs | Nine bays must cover every system |
 | E6 | Level-design 16.7.3, 16.7.4 (no auto-crawl duct anchors; no grille into a room as a shortcut) | Engine crawl ducts in B3 and B6; the B6 ceiling vent drop over the records desk (a Cresset training drop point) | The engine's duct verbs must be exercised |
 | E7 | Level-design 16.2 (circulation only by stairs and plant ladders) for training structures | B2 obstacle ladders and downpipes, B4 padlocked cell ladders and B9 exercise ropes are training rig, not circulation | It is a training site |
 | E8 | Level-design 14 (stop for Michael after each phase) and 16.1.1 (D0 approval before gameplay design) | No stops; an Opus self-review per session; Michael reviews once at the end | D12 |
 | E9 | Level-design 13 (SVG plans before blockout) | BAYS.md text sketches and tables are the plans; `scripts/plan-svg.mjs` renders the built level in T2-T5 | D12 |
 | E10 | Level-design 15 ("every guard is alive at the start") and 12 (`SQUAD_CAP` nearest first) | Each bay's squad spawns when its entry airlock cycles; at most 7 alive | A linear course of 21 guards; the course framework |
+| E11 | Bible 6 "Never: world waypoints" | Tutorial markers on the next drill's device or move, on by default, hidden by a course setting | D18, D19 |
+| E12 | Bible P3 test and level-design 7.3 (ghost, non-lethal and lethal play all viable everywhere) | Drills may force takedowns (B7) and combat (B8); every bay stays passable non-lethally | D16 |
 
 ## Phases (fixed shape; steps in PLAN.md section 4 and steps/)
 - **T0** setup and investigation: progress log, confirm every fact by grep, answer the engine questions. No gameplay.
-- **T1** course framework (system).
+- **T1a-T1c** course framework (logic; mode and sync; tutorial, drills, results, bay select).
 - **T2-T5** build: Upper (B1, A1, B2, A2), Plant shaft and reservoir (B3, A3, B4, A4), Plant (B5, A5, B6, S6, A6), Deep
   (B7, A7, B8, A8, B9, L9); no guards; `plan-svg` comparison; section 15 tests that need no guards.
-- **T6** light, zones and surfaces; **T7** guards, devices and the course data; **T8** `e2e-bunker` and the full checks;
-  **T9** dressing, readability and verification (PC items pending).
+- **T5b** walk notes, **TM** locomotion merge, **T6** light, zones and surfaces, **T7a** course data and drills,
+  **T7b** guards; **T8a / T8b** `e2e-bunker` and the full checks; **T9a / T9b** voxel art layer; **T10** light showcase,
+  readability and REVIEW.md.
 - **SW-n** switch-on sessions as features land (PLAN section 3).
 
 ## Future recommendations (fixed)
