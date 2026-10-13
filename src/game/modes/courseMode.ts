@@ -42,11 +42,19 @@ export function drillDoneLine(d: DrillDef, p: PlayerIdx): string {
   return `${COURSE_CALLSIGNS[p]}: ${d.name ?? d.verb} - done`;
 }
 
-/** The next drill's marker point (a device's position or the drill's own point), or null. */
+/** Scratch for `markerPoint` (called every frame: no allocation). */
+const MARKER_PT = { x: 0, y: 0, z: 0 };
+
+/** The next drill's marker point (a device's position or the drill's own point), or null. A device's point is
+ *  written into a shared scratch object: read it before the next call. */
 function markerPoint(lay: CourseLayout, d: DrillDef): { x: number; y: number; z: number } | null {
   if (typeof d.marker !== 'string') return d.marker;
   const dv = lay.devices[d.marker];
-  return dv ? { x: dv.x, y: dv.y + 1.2, z: dv.z } : null;
+  if (!dv) return null;
+  MARKER_PT.x = dv.x;
+  MARKER_PT.y = dv.y + 1.2;
+  MARKER_PT.z = dv.z;
+  return MARKER_PT;
 }
 
 /** Draw (or hide) the marker of player `me`'s next drill with the pings renderer (D19; `gameplay.courseMarkers`). */

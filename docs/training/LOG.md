@@ -49,3 +49,10 @@ radio held while alerted, verb log, `window.__course`); net mode 'course' (2 pla
 PROTOCOL_VERSION 2 -> 3; light state synced to clients; friendly fire with co-op rules (D38); courselab debug map;
 e2e-course (REQUIRED). Dev solo flag per A6 (D21). Assumptions A11-A18 (A15 resolved). Check: 1 fix round (switch
 sync on restart, cached remote list, e2e waits). e2e-netmove failed as KNOWN FLAKY in 2-job runs, passed serially.
+
+## T1c tutorial HUD, drills, results, bay select (2026-10-13, cloud) - 8355897, 2b18c22 + marker fix
+drillDetect (single verb source, edge-triggered), courseFeed, courseHud (P1 / P2 ticks, step text, toasts, LANTERN),
+markers (setting `gameplay.courseMarkers`), courseRating (B9 tiers), course record `kv` `course:fallow` (no
+SAVE_VERSION bump: existing store), bay select in the lobby, Finish device, host-resolved client verbs, radio on the
+client. Fixed a T1b bug (ctick not routed by session.ts). 1143 tests. Assumptions A19-A24. Check: 1 fix (marker point
+scratch). CHANGELOG 3.7.0, TESTING 3.7.0 (desktop). PC-PASS rows 7-8 added.

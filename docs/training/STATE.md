@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T1c tutorial HUD, drills, results, bay select (Block A) - not started
+Current step: Block A end - in progress (full e2e, perf trend)
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -17,7 +17,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | A | T0 facts | done | (this commit) |
 | A | T1a course logic | done | 5e81e9f |
 | A | T1b course mode and sync | done | c81124a + comment fix |
-| A | T1c tutorial HUD, drills, results, bay select | not started | |
+| A | T1c tutorial HUD, drills, results, bay select | done | marker fix commit |
 | A | Block A end | not started | |
 | B | T2 Upper | not started | |
 | B | T3 Shaft and Cistern | not started | |
@@ -44,10 +44,10 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md)
 
 ## Open assumptions
-A1-A18 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A24 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-Start T1c: implementer subagent with docs/training/steps/T1c-tutorial.md.
+Block A end: full `npm run e2e` (E2E_JOBS=2), perf trend, PC-PASS row 1 pending PC run; then T2.
