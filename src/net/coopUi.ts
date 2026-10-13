@@ -526,10 +526,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     const m = MISSIONS[0]!;
     session.setSettings('infiltration', m.map, session.difficulty, m.id);
   }
-  const c = new CoopController(app, api, session);
-  current = c;
-  (window as unknown as { __coop?: CoopController }).__coop = c;
-  c.showLobby();
+  const c = adopt(app, api, session);
   if (role === 'client') {
     setTimeout(() => {
       if (!session.hostId && current === c && !c.inGame) {
@@ -539,6 +536,64 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
       }
     }, JOIN_TIMEOUT_MS);
   }
+}
+
+/** The room's controller and lobby for a connected session. */
+function adopt(app: App, api: CoopApi, session: NetSession): CoopController {
+  const c = new CoopController(app, api, session);
+  current = c;
+  (window as unknown as { __coop?: CoopController }).__coop = c;
+  c.showLobby();
+  return c;
+}
+
+/** `?net=local` autostart: how long a new tab listens for a host's lobby before it hosts itself (ms). */
+const AUTO_PROBE_MS = 1500;
+
+/** The fixed room code of a map's `?net=local` autostart room (every tab with the same URL finds the same room). */
+export function autoRoomCode(map: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < map.length; i++) h = Math.imul(h ^ map.charCodeAt(i), 16777619) >>> 0;
+  let s = '';
+  for (let i = 0; i < 5; i++) {
+    s += CODE_ALPHABET[h % CODE_ALPHABET.length]!;
+    h = Math.floor(h / CODE_ALPHABET.length) + 7919 * (i + 1);
+  }
+  return s;
+}
+
+/**
+ * `?net=local&autostart=<map>&mode=course` (dev builds and tests, same-device tabs only): the first tab hosts the map's
+ * fixed room with Course mode set, every later tab joins it and readies; the host starts the course once a partner is
+ * in and everyone is ready (once: a later match starts from the lobby as usual).
+ */
+export async function autoLocalCourse(app: App, api: CoopApi, map: string): Promise<void> {
+  const code = autoRoomCode(map);
+  // a client session hears an open room's lobby (the host answers its hello) within the probe window
+  const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile());
+  let full = false;
+  probe.events.on('full', () => (full = true));
+  await new Promise((r) => setTimeout(r, AUTO_PROBE_MS));
+  if (full) {
+    await probe.leave();
+    app.screens.push(new Dialog('Room full', `The local course room ${code} already has its players.`, [{ label: 'OK', action: () => {}, primary: true }]));
+    return;
+  }
+  if (probe.hostId) {
+    adopt(app, api, probe);
+    probe.setReady(true);
+    return;
+  }
+  await probe.leave();
+  const session = new NetSession(createLocalTransport(roomId(code)), 'host', code, api.profile());
+  session.setSettings('course', map, session.difficulty, '');
+  adopt(app, api, session);
+  const off = session.events.on('lobby', () => {
+    if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity) return;
+    off();
+    // (after the lobby handler that announced the partner: the match starts on the next task)
+    setTimeout(() => session.startMatch(), 0);
+  });
 }
 
 export function hostRoom(app: App, api: CoopApi): Promise<void> {

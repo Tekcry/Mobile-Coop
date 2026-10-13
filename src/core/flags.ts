@@ -4,8 +4,8 @@ export interface Flags {
   debug: boolean;
   /** Skip menus and boot straight into a map (dev convenience). */
   autostart: string | null;
-  /** Mode for autostart: sandbox | wave | mission. */
-  mode: 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'training' | null;
+  /** Mode for autostart. `course` with `?net=local` hosts / joins a same-device co-op room (`autoLocalCourse`). */
+  mode: 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'training' | 'course' | null;
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
@@ -65,7 +65,7 @@ export const flags: Flags = {
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
   // Hunter is the 2.0 name for Clear (both work)
-  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'wave', 'mission', 'clear', 'infiltration', 'training'] as const).find((m) => m === params.get('mode')) ?? null),
+  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'wave', 'mission', 'clear', 'infiltration', 'training', 'course'] as const).find((m) => m === params.get('mode')) ?? null),
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),

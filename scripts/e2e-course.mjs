@@ -7,6 +7,8 @@
 // T1c: drills, both tick columns, markers; the client's door is its own verb on the host; the end device refuses while
 // the last drill is open, LANTERN's radio reaches the client, results show the course panel on both pages, and a second
 // lobby starts at bay 2 with both players in its entry airlock.
+// T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
+// course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -404,6 +406,51 @@ try {
 }
 clearInterval(pump);
 pumpOn = false;
+
+// T2: Fallow (the training bunker) boots from `?autostart=bunker&mode=course` solo (no net): Course mode runs in bay
+// B1, the player stands on the Upper level's y 16 floor there and the page logs no errors.
+if (!failed) {
+  try {
+    await A.close().catch(() => {});
+    if (B) await B.close().catch(() => {});
+    const { page: F, errors: eF } = await openPage(ctx, url, 'autostart=bunker&mode=course');
+    await until(F, () => !!window.__app?.current?.player && !!window.__course?.state, null, 40000, 'Fallow course match');
+    await wait(1500);
+    const st = await F.evaluate(() => ({ mode: window.__app.current.opts?.mode, map: window.__app.current.opts?.map?.id, net: !!window.__app.current.net, bay: window.__course.debug().bay }));
+    assert(st.map === 'bunker' && st.mode === 'course' && !st.net, `Fallow: the URL boots Course mode on the bunker, single player (${JSON.stringify(st)})`);
+    assert(st.bay === 0, `Fallow: the course starts in bay B1 (bay index ${st.bay})`);
+    const p = await F.evaluate(() => { const q = window.__app.current.player.position; return { x: q.x, y: q.y, z: q.z }; });
+    assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 24 && p.z > 72 && p.z < 96, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
+    const errs = eF.filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
+    assert(errs.length === 0, `Fallow: no console errors (${errs.slice(0, 3).join(' | ')})`);
+    await F.close();
+  } catch (e) {
+    console.error(e);
+    failed = true;
+  }
+}
+
+// The walk URL (`?net=local&autostart=<map>&mode=course`, two tabs): the first page hosts the map's fixed local room,
+// the second joins it, and both reach the same course session with no clicks.
+if (!failed) {
+  try {
+    const q = 'net=local&autostart=courselab&mode=course';
+    const { page: H, errors: eH } = await openPage(ctx, url, q);
+    await until(H, () => window.__coop?.session?.isHost === true, null, 20000, 'first walk tab hosts');
+    const { page: C, errors: eC } = await openPage(ctx, url, q);
+    for (const [P, tag] of [[H, 'host'], [C, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'courselab', null, 40000, `${tag} walk tab in the course`);
+    const h = await H.evaluate(() => ({ code: window.__coop.session.code, id: window.__coop.session.selfId, n: window.__coop.session.players.size }));
+    const c = await C.evaluate(() => ({ code: window.__coop.session.code, host: window.__coop.session.hostId, role: window.__coop.session.role }));
+    assert(h.code === c.code && c.host === h.id && c.role === 'client' && h.n === 2, `two walk-URL tabs share one course session (${JSON.stringify({ h, c })})`);
+    const errs = [...eH, ...eC].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
+    assert(errs.length === 0, `walk URL: no console errors (${errs.slice(0, 3).join(' | ')})`);
+    await C.close();
+    await H.close();
+  } catch (e) {
+    console.error(e);
+    failed = true;
+  }
+}
 await browser.close();
 if (failed || process.exitCode) {
   console.error('FAILED');
