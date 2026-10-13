@@ -133,13 +133,15 @@ export function signId(d: Pick<Campus, 'signs'>): string {
   for (let n = 1; ; n++) if (!used.has(`SG-${n}`)) return `SG-${n}`;
 }
 
-/** The text list (decision 6): the buildings, Exit, then every room name on the campus (each once). */
+/** The text list (decision 6): the buildings (by letter, then by name), Exit, Reception, Goods In, then every room name (each once). */
 export function signTexts(d: Pick<Campus, 'rooms' | 'meta'>): string[] {
   const out: string[] = [];
   const add = (s: string): void => {
     if (s && !out.includes(s)) out.push(s);
   };
-  for (const b of d.meta.buildings ?? []) add(b.name || `Building ${b.id}`);
+  // "Building B" as people say it, then the building's own name
+  for (const b of d.meta.buildings ?? []) add(`Building ${b.id}`);
+  for (const b of d.meta.buildings ?? []) if (b.name) add(b.name);
   add('Exit');
   add('Reception');
   add('Goods In');

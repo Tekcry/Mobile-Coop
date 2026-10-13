@@ -84,6 +84,8 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Space > Mission tiles | the Mission tools (ON8): Guard (a click places a guard, then clicks add its patrol stops; a click on the first stop closes the loop; R turns the last stop 45 degrees, + / - its wait, Backspace removes it, Page Up / Down the level of the next stop, Esc ends), Insertion, Extraction (click a corner, click the far corner), Objective, Intel, Checkpoint, Hide |
 | Space > Security tiles | the Security tools (ON12): Fixed camera, Pan camera (a click on a wall face mounts it facing out, elsewhere under the ceiling facing the way the view looks; R turns that ceiling ghost 45 degrees), Card reader and Keypad (a click by a door binds it to the door; on a wall face alone), Motion sensor, Beam (click one end, click the other); the card's rows in the side panel step them; Space > View > Security coverage |
 | Space > Build > Crawl space | the Crawl space tool (ON13): click one end, click the other; a click at the selected crawl's end goes on with another leg; Esc puts the tool down. A room's side panel: Select the ceiling (its type, height and hatches step with the arrows); Space > View > Ceiling voids |
+| Space > Selected: Mirror, Align, Evenly space, Array | ON14: mirror the selection east-west or north-south about its centre, or about a line (click two points on it); align a set by an edge or centre; evenly space three or more; Array: the mouse sets the spacing, Left / Right arrows the count, a click makes the copies; Esc stops |
+| Space > Objects > Signs | the Sign tool (ON14): a click on a wall face fixes the sign there; away from walls a wayfinding sign hangs under the ceiling facing back along the view; the side panel sets its text, arrow, height and width. A door's side panel: Name plate (its text) |
 | 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
@@ -969,7 +971,56 @@ open / none. A ceiling with no type of its own is a grid in a corridor and plast
   reaches. Ceilings and boards are light shapes (bible 5.1), so a void is dark unless a lamp is placed in it; the light
   view (ON7) bakes them too.
 
+## Mirror, align, evenly space; name plates and signs (ON14)
+The rules are `src/editor/arrange.ts` and `src/editor/signs.ts` (pure, `tests/editor/arrange.test.ts`, `signs.test.ts`);
+`arrangeTool.ts` and `signTool.ts` join them to the editor. Every tool here is one commit (one undo step).
+
+- **What a selection brings**: a selected room takes its own walls (lying on its edges, no longer than the edge, ED3-3a
+  `onLine`) with their doors and windows, and what stands inside it: objects, signs, floor holes, stairs, ladders and its
+  lamps. The ED3-3a wall rules are kept: a moved wall landing on a wall that stays is dropped and that wall reused (its
+  doors move onto it); a room edge that had walls and has none at the new place gets new ones (its old kind and height);
+  a wall shared with a room that does not move stays (a wall onto a yard, the lane, a zone or a roof is the room's own);
+  a door on a wall that stays but on the room's edge moves with the room onto whatever wall is at its new place; every
+  moved door's `between` is worked out again (its swing and one-way rooms follow).
+- **Mirror** (Selected, one thing or a set): Mirror east-west, Mirror north-south (about the selection's centre), Mirror
+  about a line (the Arrange tool: A at a point on the line, A at a second; a line running north-south flips east-west).
+  Doors keep their hinge mirrored (a set left / right swaps; the default `a` end mirrors with the wall), stairs their
+  climb (`up`), objects, ladders, lamps (yaw, aim) and signs their facing (a sign's left / right arrow swaps). A lone
+  door mirrors in place (its hinge flips).
+- **Align** (a set of two or more): left (west), right (east), top (north), bottom (south), centres (x), centres (z), to
+  the outermost edge or, with Selected > Align to: First picked, to the first thing picked. Moves step 0.1 m.
+- **Evenly space along x / z** (three or more in a row): the outer two stay, the others move to equal gaps.
+- **Array** (Selected > Array): the Arrange tool; the dot's offset from the selection's centre along its larger
+  direction sets the direction and the spacing (0.1 m steps); D-pad left / right (Left / Right arrows) sets the count
+  (1 to facts `sign.arrayMax`, 20); the ghost shows every copy's outline before A. Copies get fresh ids (rooms
+  `<level>-NEW1`, named "Office 2"...); a copied wall that lands on a wall is not made (it is reused, and the copy's doors
+  go on it). Copies that would overlap are refused.
+- **Box select** now takes objects and signs too.
+- **Door name plates** (decision 5): `openings[].plate` (schema.md section 2), the plate's text. The door card's
+  **Name plate** row turns it on (the name of the room the door opens into: the one that is not a corridor, stair or
+  outside; between two rooms, the one it swings into) or off; **Plate text** steps through the site's names (A types).
+  The plate is in the door's card level colour (ON9, grey with none), 300 x 100 mm, on the wall beside the latch edge on
+  the outside face (away from the room it names) at facts `sign.plateCentre` 1.5 m; on the plan a small tag in that colour.
+  **Selected > Name plates: this level / this building** on a room adds a plate to every door without one (one edit).
+- **Signs** (decision 6, Y > Objects > Signs; the Sign tool): Direction sign, Room sign, Fire exit sign (wall or hung),
+  and the fixed safety presets Fire extinguisher, First aid, High voltage, Gas suppression warning, No entry, Authorised
+  only, CCTV in operation (wall only); sizes and colours with sources in `signCatalogue.ts`. A on a wall face (within
+  facts `sign.wallReach`) fixes it at facts `sign.wallCentre`; elsewhere a wayfinding sign hangs facts `sign.hangGap`
+  under the room's ceiling, facing back along the view, never lower than facts `sign.hangBottomMin` at its bottom. The
+  card: Type, Text (left / right: Building A, Building B, the buildings' names, Exit, Reception, Goods In, every room name;
+  A types), Arrow (none, left, right, ahead, up, down; drawn on the side it points), Height, Width. `signs[]`, schema.md
+  section 2. All sign text is in-world text (docs/story.md section 2: British spelling, the site's names).
+- **Walk test** (decision 8): plates and signs build as thin panels (facts `sign.panelThick`, 0.02 m) in their colour,
+  no collision, no ledge. The game cannot draw text on a panel (LevelBuilder's only DynamicTexture is the fence wire,
+  levelBuilder.ts:305; the detail pass's own signs are plain coloured boxes, detailPass.ts:94), so the words show in the
+  editor only. At 0.02 m they are under the light bake's `CANON_MIN_THICK` (0.05 m), as the detail pass's signs are, so
+  they are not light shapes (bible 5.1 parity).
+
 ## What it does not do yet (ED2 parts B-H)
+- ON14: a plate sits on the wall beside the door, not on the leaf (the game's hinged leaf cannot carry a panel). The walk
+  test's plates and signs have no words. Align and Evenly space move each room with its own walls; a wall two moved rooms
+  share goes with the later one. Array does not copy security devices, guards or crawl spaces, and copied lamps keep their
+  circuit. Mirror about a line takes only lines along x or z. The mirror and Array ghosts show outlines only (the pad's dot).
 - ON13: the clear height counts the ceiling's thickness but not the crawl boards' (boards sit on the ceiling). A ceiling
   is the room's whole rectangle (wall-centreline; no cut round columns, risers or bulkheads), one height, flat. The
   void's slab is found from the room's middle only. A crawl route's legs are straight; a bend leaves its corner square
@@ -1088,6 +1139,8 @@ open / none. A ceiling with no type of its own is a grid in a corridor and plast
 | `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
 | `src/editor/securityCatalogue.ts`, `src/editor/security.ts`, `src/editor/securityTool.ts` | ON12: the Security tab's devices, reader types, access level colours and drawn sizes (data with sources); the device records, placing (wall face, ceiling, by a door), the reader's door link, what a camera sees (`inFrame`, `losClear`), sensor fans, coverage and gaps, the card's rows and steps, the security file split (pure, `tests/editor/security.test.ts`); the Security tool in the editor: ghost and words, plan marks, labels, the light view's security cells |
 | `src/editor/ceilings.ts`, `src/editor/crawlTool.ts` | ON13: the ceiling piece (a room's ceiling fields), the slab underside and the void's clear height against the crawl rule, hatches (tiles and access hatches), the card's rows and steps, crawl records (ends at hatches and vents, heights from the void, legs, settling), words (pure, `tests/editor/ceilings.test.ts`); the Crawl space tool in the editor: drawing and going on, the dot's words, plan marks, the voids legend |
+| `src/editor/arrange.ts`, `src/editor/arrangeTool.ts` | ON14: what a selection brings, mirror, align, evenly space, Array and their ghosts with the ED3-3a wall rules (pure, `tests/editor/arrange.test.ts`); the Selected tab's tools, the Arrange tool's modes, auto name plates |
+| `src/editor/signCatalogue.ts`, `src/editor/signs.ts`, `src/editor/signTool.ts` | ON14: the sign kinds and the plate (data with sources); the plate's room, text, colour and place, auto plates, sign records, the text list, placing on a wall face or hung, the card's rows and steps, the walk test's panels (pure, `tests/editor/signs.test.ts`); the Sign tool, plan marks and plate tags |
 | `src/world/maps/kestrelCeilings.ts` | ON13: the one copy of the ceiling types, tile and hatch sizes and crawl boards (data with sources), and how the walk test builds ceilings (less their hatches) and crawl spaces, shared by the editor's 3D (pure) |
 | `docs/kestrel/kestrel.security.json` | ON12: the security file (S0 section 6, schema.md section 4); the editor writes `devices` |
 | `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |

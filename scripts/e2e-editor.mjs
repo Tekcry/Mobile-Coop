@@ -420,7 +420,7 @@ try {
   const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
   await shot('menu-selected');
   await press(BTN.B);
-  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Ceiling,Save as preset,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Ceiling,Save as preset,Split,Mirror east-west,Mirror north-south,Mirror about a line,Array,Name plates: this level,Name plates: this building,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
   await frames(page, 3);
   assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
@@ -2832,6 +2832,183 @@ try {
     await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
     await backCheck('F10 after the crawl walk', beforeW13);
     assert(walk.tiles > 0 && walk.boards > 0 && walk.sides >= 2 && walk.crouched && Math.abs(walk.ya - cr.y0) < 0.15 && Math.abs(walk.yb - cr.y0) < 0.15 && walk.xa - walk.xb > 0.3, `ON13: the walk test builds ${walk.tiles} grid tiles (no collision), ${walk.boards} crawl floor and ${walk.sides} side boards; the player crouches on the boards (y ${walk.ya.toFixed(2)} to ${walk.yb.toFixed(2)}, floor ${cr.y0}) and crouch-moves west ${(walk.xa - walk.xb).toFixed(2)} m`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON14: mirror, align, evenly space, Array; name plates and signs ----------
+  console.log('ON14: three rooms evenly spaced, an office with its door mirrored and an Array copy mirrored into a pair, two desks aligned, plates on every Ground door, a "Building B" sign hung in a corridor, the walk test panels');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 45 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile, btn = BTN.RIGHT) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile, btn);
+      await press(BTN.A);
+      if ((await menuState()).open) await press(BTN.B);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 10 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    // an empty 32 x 14 m patch of yard on Ground: no other room, wall, object, roof, hole, stair, climb piece or sign on it
+    const patch = await E(() => {
+      const d = window.__editor.model.data;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      const taken = [...d.rooms.filter((r) => r.level === 'G' && r.kind !== 'yard').map((r) => r.rect), ...(d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect), ...(d.roofs ?? []).map((r) => r.rect), ...d.voids.map((v) => v.rect), ...d.stairs.map((s) => s.rect), ...(d.exterior ?? []).map((e) => [Math.min(e.a[0], e.b[0]), Math.min(e.a[1], e.b[1]), Math.max(e.a[0], e.b[0]), Math.max(e.a[1], e.b[1])]), ...(d.signs ?? []).map((s) => [s.at[0], s.at[1], s.at[0], s.at[1]])];
+      for (const y of d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard')) for (let x = Math.ceil(y.rect[0]) + 1; x + 31 < y.rect[2]; x += 1) for (let z = Math.ceil(y.rect[1]) + 1; z + 13 < y.rect[3]; z += 1) {
+        const box = [x - 1, z - 1, x + 31, z + 13];
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < box[0] || Math.min(w.a[0], w.b[0]) > box[2] || Math.max(w.a[1], w.b[1]) < box[1] || Math.min(w.a[1], w.b[1]) > box[3])
+          && !taken.some((r) => r[0] <= box[2] && r[2] >= box[0] && r[1] <= box[3] && r[3] >= box[1]);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!patch, `ON14: an empty patch of yard at ${patch}`);
+    const [px, pz] = patch;
+    // three walled rooms in a row with uneven gaps (A 4 x 3, B one metre on, C ten metres on); doors in A and C; a desk in A
+    const trio = await E(([px, pz]) => {
+      const ed = window.__editor;
+      const ch = [];
+      const mk = (id, name, x0) => {
+        const r = { id, level: 'G', name, kind: 'room', rect: [x0, pz, x0 + 4, pz + 3], ring: 2 };
+        ch.push({ coll: 'rooms', id, before: null, after: r });
+        const pts = [[[x0, pz], [x0 + 4, pz]], [[x0 + 4, pz], [x0 + 4, pz + 3]], [[x0 + 4, pz + 3], [x0, pz + 3]], [[x0, pz + 3], [x0, pz]]];
+        pts.forEach(([a, b], i) => ch.push({ coll: 'walls', id: `W-${id}-${i}`, before: null, after: { id: `W-${id}-${i}`, level: 'G', a, b, t: 0.3, h: 4.2, kind: 'interior' } }));
+      };
+      mk('E14-A', 'Office A', px);
+      mk('E14-B', 'Office B', px + 5);
+      mk('E14-C', 'Office C', px + 15);
+      // doors on the south walls 1 m from the west end (hinged at the a end, the west), swinging in
+      for (const id of ['E14-A', 'E14-C']) ch.push({ coll: 'openings', id: `D-${id}`, before: null, after: { id: `D-${id}`, wall: `W-${id}-0`, at: 1, w: 0.9, h: 2.1, sill: 0, type: 'door', between: [id, ''], door: { swing: id } } });
+      ch.push({ coll: 'objects', id: 'E14-K', before: null, after: { id: 'E14-K', level: 'G', rect: [px + 0.2, pz + 1, px + 1, pz + 2.6], h: 0.75, y: 0, preset: 'desk', yaw: 90 } });
+      ed.commitText('e2e: three offices', ch);
+      return true;
+    }, [px, pz]);
+    await E(() => window.__editor.setGroup(['rooms:E14-A', 'rooms:E14-B', 'rooms:E14-C']));
+    await dotAt(px + 10, pz + 1.5);
+    const distTile = await pickTile('Selected', 'Evenly space along x');
+    await page.waitForFunction((x) => window.__editor.model.get('rooms', 'E14-B').rect[0] === x, px + 7.5, { timeout: 5000 }).catch(() => {});
+    const ev = await E(() => { const ed = window.__editor; const r = (id) => ed.model.get('rooms', id).rect; return { a: r('E14-A'), b: r('E14-B'), c: r('E14-C'), bw: ed.model.get('walls', 'W-E14-B-3').a[0], status: document.getElementById('status').textContent }; });
+    assert(trio && distTile && ev.b[0] === px + 7.5 && ev.b[0] - ev.a[2] === ev.c[0] - ev.b[2] && ev.bw === px + 7.5 && ev.a[0] === px && ev.c[0] === px + 15, `ON14: Selected > Evenly space along x: B now at x ${ev.b[0]} (gaps ${ev.b[0] - ev.a[2]} and ${ev.c[0] - ev.b[2]} m), its west wall at ${ev.bw}; "${ev.status}"`);
+
+    // mirror office A east-west about its own centre: its door goes to the east end, hinged at the east, the desk turns
+    await E(() => window.__editor.select('rooms:E14-A'));
+    const mirTile = await pickTile('Selected', 'Mirror east-west');
+    await page.waitForFunction((x) => window.__editor.model.get('objects', 'E14-K').rect[0] === x, px + 3, { timeout: 5000 }).catch(() => {});
+    const mir = await E(() => {
+      const ed = window.__editor;
+      const o = ed.model.get('openings', 'D-E14-A');
+      const w = ed.model.get('walls', o.wall);
+      const L = Math.abs(w.b[0] - w.a[0]) + Math.abs(w.b[1] - w.a[1]);
+      return { doorX: w.a[0] + ((w.b[0] - w.a[0]) * o.at) / L, hinge: o.door?.hinge ?? 'a end', aX: w.a[0], k: ed.model.get('objects', 'E14-K') };
+    });
+    assert(mirTile && Math.abs(mir.doorX - (px + 3)) < 1e-6 && mir.aX === px + 4 && mir.hinge === 'a end' && mir.k.rect[0] === px + 3 && mir.k.yaw === 270, `ON14: Selected > Mirror east-west: the door now at x ${mir.doorX} (was ${px + 1}), hinged at the ${mir.aX === px + 4 ? 'east' : 'west'} end (${mir.hinge}); the desk at x ${mir.k.rect[0]} turned to ${mir.k.yaw}`);
+
+    // Array: one copy of office C five metres east (the dot sets the spacing, D-pad left the count), then the copy mirrored: a mirrored pair
+    await E(() => window.__editor.select('rooms:E14-C'));
+    const arTile = await pickTile('Selected', 'Array');
+    const arTool = await E(() => window.__editor.tool);
+    await holdTill(BTN.LEFT, '() => window.__editor.arrange.count');
+    await dotAt(px + 22, pz + 1.5);
+    const arSaid = await said('A: 1 copy every 5 m east');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.model.data.rooms.some((r) => r.name === 'Office C 2'), null, { timeout: 5000 }).catch(() => {});
+    const copy = await E(() => { const ed = window.__editor; const r = ed.model.data.rooms.find((q) => q.name === 'Office C 2'); return r ? { id: r.id, rect: r.rect, tool: ed.tool, doors: ed.model.data.openings.filter((o) => (o.between ?? []).includes(r.id)).length } : null; });
+    assert(arTile && arTool === 'arrange' && /A: 1 copy every 5 m east/.test(arSaid) && !!copy && copy.rect[0] === px + 20 && copy.doors === 1 && copy.tool === 'select', `ON14: Selected > Array (the dot said "${arSaid}"): ${copy?.id} at ${JSON.stringify(copy?.rect)} with ${copy?.doors} door`);
+    await E((id) => window.__editor.select(`rooms:${id}`), copy.id);
+    const mir2 = await pickTile('Selected', 'Mirror east-west');
+    await page.waitForFunction((id) => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => (q.between ?? []).includes(id)); const w = o && ed.model.get('walls', o.wall); return !!w && w.a[0] > w.b[0]; }, copy.id, { timeout: 5000 }).catch(() => {});
+    const pairX = await E((id) => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => (q.between ?? []).includes(id)); const w = ed.model.get('walls', o.wall); return w.a[0] - o.at; }, copy.id);
+    await dot(px + 20, pz + 1.5, 0);
+    await shot('on14-mirrored-pair');
+    assert(mir2 && Math.abs(pairX - (px + 23)) < 1e-6, `ON14: the copy mirrored: its door at x ${pairX} (office C's at ${px + 16}): a mirrored pair`);
+
+    // two desks in the patch, then Align left (west)
+    await E(([px, pz]) => {
+      const ed = window.__editor;
+      const desk = (id, r) => ({ coll: 'objects', id, before: null, after: { id, level: 'G', rect: r, h: 0.75, y: 0, preset: 'desk' } });
+      ed.commitText('e2e: two desks', [desk('E14-D1', [px + 2, pz + 6, px + 3.6, pz + 6.8]), desk('E14-D2', [px + 5.3, pz + 8.5, px + 6.9, pz + 9.3])]);
+      ed.setGroup(['objects:E14-D1', 'objects:E14-D2']);
+    }, [px, pz]);
+    const alTile = await pickTile('Selected', 'Align left (west)');
+    await page.waitForFunction(() => window.__editor.model.get('objects', 'E14-D2').rect[0] === window.__editor.model.get('objects', 'E14-D1').rect[0], null, { timeout: 5000 }).catch(() => {});
+    const al = await E(() => ({ a: window.__editor.model.get('objects', 'E14-D1').rect, b: window.__editor.model.get('objects', 'E14-D2').rect }));
+    assert(alTile && al.b[0] === px + 2 && al.b[2] === px + 3.6 && al.b[1] === pz + 8.5 && al.a[0] === px + 2, `ON14: Selected > Align left (west): the second desk at x ${al.b[0]} (${JSON.stringify(al.b)})`);
+
+    // name plates on every Ground door (Selected on a room: Name plates: this level), one edit
+    await E(() => window.__editor.select('rooms:E14-A'));
+    const before14 = await E(() => window.__editor.model.history.length);
+    const plTile = await pickTile('Selected', 'Name plates: this level');
+    await page.waitForFunction(() => /Name plates on \d+ door/.test(document.getElementById('status').textContent), null, { timeout: 5000 }).catch(() => {});
+    const pl = await E(() => {
+      const ed = window.__editor;
+      const d = ed.model.data;
+      const g = new Set(d.walls.filter((w) => w.level === 'G').map((w) => w.id));
+      const doors = d.openings.filter((o) => g.has(o.wall) && !/window|louvre|rooflight/.test(o.type));
+      return { doors: doors.length, plated: doors.filter((o) => o.plate).length, a: ed.model.get('openings', 'D-E14-A').plate, h: ed.model.history.length, tags: document.querySelectorAll('#planSvg .plateTag').length, status: document.getElementById('status').textContent };
+    });
+    assert(plTile && pl.plated >= 3 && pl.a === 'Office A' && pl.h === before14 + 1 && pl.tags >= 3, `ON14: Selected > Name plates: this level: ${pl.plated} of ${pl.doors} Ground doors have a plate (office A's "${pl.a}"), ${pl.tags} plan tags, one edit; "${pl.status}"`);
+
+    // Y > Objects > Signs > Direction sign, hung in the spine corridor, its card set to "Building B" with a right arrow
+    const cor = await E(() => window.__editor.model.get('rooms', 'G-SPINE')?.rect ?? null);
+    await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+    await press(BTN.Y);
+    let sgOk = await toTab('Objects');
+    sgOk = sgOk && (await toTile('Signs'));
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.objGroup === 'signs', null, { timeout: 5000 }).catch(() => {});
+    sgOk = sgOk && (await toTile('Direction sign'));
+    await press(BTN.A);
+    if ((await menuState()).open) await press(BTN.B);
+    const sgTool = await E(() => `${window.__editor.tool}|${window.__editor.signTool.kind}`);
+    const sx = Math.round((cor[0] + cor[2]) / 2) + 0.4;
+    const sz = (cor[1] + cor[3]) / 2;
+    await dotAt(sx, sz);
+    // the view looks along the corridor (a hung sign faces back along the look)
+    await E(() => { window.__editor.controls.orbit.s.yaw = Math.PI / 2; });
+    await frames(page, 4);
+    const sgSaid = await said('A: Direction sign');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.signs ?? []).length >= 1, null, { timeout: 5000 }).catch(() => {});
+    await E(() => window.__editor.setTool('select'));
+    const tRow = await toRow('text');
+    for (let i = 0; i < 12 && (await E(() => (window.__editor.model.data.signs ?? [])[0]?.text)) !== 'Building B'; i++) await holdTill(BTN.LEFT, cardProbe);
+    const aRow = await toRow('arrow');
+    for (let i = 0; i < 6 && (await E(() => (window.__editor.model.data.signs ?? [])[0]?.arrow)) !== 'right'; i++) await holdTill(BTN.RIGHT, cardProbe);
+    await press(BTN.B);
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-sign]'), null, { timeout: 5000 }).catch(() => {});
+    const sg = await E(() => { const ed = window.__editor; const s = (ed.model.data.signs ?? [])[0]; return s ? { ...s, title: document.querySelector('#selCard b')?.textContent ?? '', plan: document.querySelectorAll('#planSvg .signMark').length, label: document.querySelector('#planSvg .signLabel')?.textContent ?? '' } : null; });
+    await dot(sx - 2, sz, Math.PI / 2);
+    await E(() => { const c = window.__editor.controls.orbit.s; c.dist = 6; c.pitch = 0.12; });
+    await frames(page, 6);
+    await shot('on14-corridor-signs');
+    assert(sgOk && sgTool === 'sign|direction' && /A: Direction sign .* hung in/.test(sgSaid) && !!sg && sg.hang === true && sg.facing % 180 === 90 && sg.text === 'Building B' && sg.arrow === 'right' && Math.abs(sg.y - 2.2) < 1e-6 && tRow && aRow && /Building B →/.test(sg.title) && sg.plan >= 1 && /Building B/.test(sg.label), `ON14: Objects > Signs > Direction sign (the dot said "${sgSaid}"): ${sg?.id} hung at ${sg?.y} m facing ${sg?.facing}, text "${sg?.text}" arrow ${sg?.arrow}, card "${sg?.title}", plan "${sg?.label}"`);
+
+    // the walk test builds each plate and sign as a thin panel that never collides
+    await dot(sx, sz, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const panels = await gf().evaluate(() => window.__app.current.world.level.boxes.filter((b) => !b.collide && Math.abs(b.s[2] - 0.02) < 1e-6 && b.noLedge).length);
+    const beforeW14 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the signs walk', beforeW14);
+    const want = await E(() => window.__editor.model.data.openings.filter((o) => o.plate).length + (window.__editor.model.data.signs ?? []).length);
+    assert(panels >= want && want >= 4, `ON14: the walk test builds ${panels} thin non-colliding panels for ${want} plates and signs`);
     await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 

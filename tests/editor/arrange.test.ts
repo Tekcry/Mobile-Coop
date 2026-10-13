@@ -111,7 +111,8 @@ describe('ON14 align and evenly space (decisions 2, 3)', () => {
 
   it('evenly spaces three rooms between the outer two, walls going along', () => {
     const d = base();
-    d.rooms.push(room('A', [0, 0, 2, 2]), room('B', [3, 0, 5, 2]), room('C', [8, 0, 10, 2]));
+    // in a yard: a wall onto the yard is the room's own (it goes with the room)
+    d.rooms.push(room('Y', [-5, -5, 20, 10], 'Yard', 'yard'), room('A', [0, 0, 2, 2]), room('B', [3, 0, 5, 2]), room('C', [8, 0, 10, 2]));
     d.walls.push(wall('BW', [3, 0], [3, 2]), wall('BE', [5, 0], [5, 2]));
     const m = run(d, distributeChanges(d, ['rooms:A', 'rooms:B', 'rooms:C'], 'x', 0.1));
     expect(get<Room>(m, 'rooms', 'B').rect).toEqual([4, 0, 6, 2]);

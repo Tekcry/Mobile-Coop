@@ -178,6 +178,9 @@ export class EditorScene {
     const ctx = tex.getContext() as CanvasRenderingContext2D;
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
+    // a box's face that looks along its local +z shows the canvas turned half round: draw it turned so it reads
+    ctx.translate(W, H);
+    ctx.scale(-1, -1);
     ctx.fillStyle = fg;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -207,7 +210,15 @@ export class EditorScene {
     const yaw = (e.facing * Math.PI) / 180;
     const out: Mesh[] = [];
     if (e.y - e.size[1] / 2 > this.cut) return [out, [e.level]];
-    out.push(this.box(`sign ${e.id}`, e.at[0], f + e.y, e.at[1], e.size[0], e.size[1], 0.03, yaw, this.textMat(signFace(e.text, e.arrow), k.bg, k.fg, e.size[0], e.size[1])));
+    const face = this.textMat(signFace(e.text, e.arrow), k.bg, k.fg, e.size[0], e.size[1]);
+    if (!e.hang) out.push(this.box(`sign ${e.id}`, e.at[0], f + e.y, e.at[1], e.size[0], e.size[1], 0.03, yaw, face));
+    else {
+      // hung: two faces back to back, each reading from its own side
+      const fx = Math.sin(yaw) * 0.008;
+      const fz = Math.cos(yaw) * 0.008;
+      out.push(this.box(`sign ${e.id}`, e.at[0] + fx, f + e.y, e.at[1] + fz, e.size[0], e.size[1], 0.015, yaw, face));
+      out.push(this.box(`sign ${e.id} back`, e.at[0] - fx, f + e.y, e.at[1] - fz, e.size[0], e.size[1], 0.015, yaw + Math.PI, face));
+    }
     if (e.hang) {
       const rod = this.mat('sign rod', '#5c636a');
       const top = f + e.y + e.size[1] / 2;

@@ -429,10 +429,14 @@ const hyp = (a: Pt, b: Pt): number => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[
 const hingePointOrNull = (o: Opening, w: Wall, rooms: readonly Room[]): Pt | null => hingePoint(o, w, rooms);
 const wallT = (d: Campus, kind: string): number => d.walls.find((q) => q.kind === kind)?.t ?? 0.3;
 
+/** Outside areas (a yard, the lane, a zone, a roof): a wall onto one is the room's own, never shared. */
+const OUTSIDE = new Set(['yard', 'lane', 'zone', 'roof']);
+
 /** A wall with a room on either side that does not move (a neighbour keeps it). */
 function isShared(d: Campus, w: Wall, moving: ReadonlySet<string>): boolean {
   const L = wallLen(w);
-  for (const s of [L * 0.25, L * 0.5, L * 0.75]) for (const r of roomsEitherSide(w, s, d.rooms)) if (r && !moving.has(r)) return true;
+  const inside = d.rooms.filter((r) => !OUTSIDE.has(r.kind));
+  for (const s of [L * 0.25, L * 0.5, L * 0.75]) for (const r of roomsEitherSide(w, s, inside)) if (r && !moving.has(r)) return true;
   return false;
 }
 
