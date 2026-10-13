@@ -66,3 +66,4 @@ Block A: grep the named symbol first.
 ## Commit
 "locomotion 11: back-to-wall core, MoveState wall, two-player stacking"
 Then LOG, STATE, AUDIT (S04), CHANGELOG, TESTING, docs/systems/movement.md, ai.md, coop.md, testing-tools.md.
+- Step 11 must also restore an e2e check that enemies flush a wall-held player with grenades and assign a flanker (lost with snap cover in step 05; enemyManager.ts:513, enemy.ts:1296 need localRef.cover).
