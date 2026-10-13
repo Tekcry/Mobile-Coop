@@ -17,16 +17,18 @@ Model: implementer opus, checker opus (touches src/net through T1b's messages). 
    takedown kind, team move, light meter band, throw) to verb ids; edge-triggered (a verb ticks once per occurrence).
    GameState feeds it each fixed step for the local player; the host ticks host-visible verbs for the remote (C10);
    the client sends `ctick` for its local-only verbs. Unit tests per verb family.
-2. Tutorial HUD (`src/ui/hud/courseHud.ts`, DOM, writes only on change): a panel listing the current bay's drills in
+2. Tutorial HUD (step texts in LANTERN's voice, D37) (`src/ui/hud/courseHud.ts`, DOM, writes only on change): a panel listing the current bay's drills in
    order with two tick columns (P1, P2; a dash where the drill is not that player's), the current step's text for this
    player in large type, a toast and a short radio line on every `drillDone` ("Moth: ledge shimmy - done"), and the
    airlock refusal naming the open drills. Pad / keyboard glyphs in step texts follow the input mode (existing prompt
    glyph system).
 3. Markers (D19): the next drill's marker (a device or a point) drawn with the pings renderer (on screen and edge arrows);
    setting `gameplay.courseMarkers` (default on; Settings > Gameplay "Course markers"; sanitiser default) hides them.
-4. Results (D26, D23): at `courseDone` the results screen gets a course panel: total and per-bay time, detections,
-   alarms, knock-outs, kills (rated down), revives, team moves, per player and team; a course rating (non-lethal and
-   undetected score higher; kills cost the most). `src/game/course/courseRating.ts` (pure, tested).
+4. Results (D31, D32, D23): at `courseDone` the results screen gets a course panel: total and per-bay time, detections,
+   alarms, knock-outs, kills, revives, team moves, per player and team, with no penalty for anything in the drill bays;
+   B9's ghost tier: Ghost (never seen, nobody touched), Silent (no alarm, knock-outs only), Loud, lowered by detections,
+   alarms and bodies found, time breaks ties; best tier and time per run in the course record.
+   `src/game/course/courseRating.ts` (pure, tested).
 5. Course record (C9): `course:fallow` in IndexedDB kv through src/save (bays the host has finished, best run per bay
    and in total); read at the lobby, written at each airlock and at `courseDone`; sanitised on read.
 6. Bay select (D20): the co-op lobby shows "Start at bay N" for bays in the host's record (all bays with the dev flag);

@@ -96,6 +96,7 @@ the agents' summaries in its context.
 | | T7b Guards | 21 guards in squads per bay, cycles 25-45 s, darkness / noise / body checks | full e2e, perf trend, GPU light look |
 | D Proof | T8a e2e first | course suite for B1-B5: every drill by real input, both tick columns, gates, airlocks, a forced restart | |
 | | T8b e2e rest | B6-B9, the full course, the per-player coverage report, lethal vs non-lethal rating, perf on the bunker | GPU perf budgets |
+| | T8c course bot | the loco 20 bot drives P2 through the course; "Bot partner (course)" in the debug menu (D35) | |
 | | T9a art Upper / Plant | voxel art layer for B1-B6 (D14); voxelFit includes the bunker | |
 | | T9b art Deep | voxel art layer for B7-B9, S6, airlocks, signage | |
 | | T10 Finish | light and dark showcase tuning on this PC, readability, TESTING, REVIEW.md | final checks; stop for Michael |

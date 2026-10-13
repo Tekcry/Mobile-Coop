@@ -14,3 +14,8 @@ locomotion step 20 is merged (TM); pause after Block B for his walk (T5b); full 
 drills ticked per player with no skip path (D30); bay select once reached; dev solo flag; co-op lobby only; desktop
 only; drills may force takedowns and combat (E4, E12); lethal rated down. New steps T1c, T5b, TM, T8a / T8b, T9a / T9b,
 T10.
+
+## Scope answers round 2 (2026-10-13)
+D31-D38: no penalty for kills or forced takedowns in the drill bays; B9 ghost tiers (Ghost / Silent / Loud) with
+overlapping coverage and two sync moments (BAYS B9 "Ghost plan"); first run 45-60 min; the bot playable as P2 from the
+debug menu (T8c); drills kept after a restart; LANTERN voices the steps; friendly fire on.

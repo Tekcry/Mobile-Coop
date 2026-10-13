@@ -681,6 +681,23 @@ Routes (each objective has at least two):
   tube station down inside the west wall to an inspection door in the lift lobby.
 - Loop: round the map table; round the B-1 south cabins (two doors each).
 
+Ghost plan (D32, D33). B9 can be ghosted (Ghost tier: never seen, nobody touched), but only with careful planning:
+- Overlapping coverage: every crossing on every route is watched by at least two of B9-1 (heavy), B9-2 / B9-D (handler
+  and dog), B9-3 (sniper), B9-4 (enforcer), B9-5 (rounds), CAM-P1 and the controller's feeds. Each crossing opens for 3-5 s
+  (TUNE) once per watcher cycle, and only when two cycles line up; T7b tunes the routes so each gap exists and lasts
+  at least 3 s.
+- Sync moment 1 (the plot floor): the west ring under B-2 west is in the sniper's view and CAM-P1's sweep. It opens only
+  while the sniper looks east. One player on B-1 east throws a noisemaker onto the floor's east side on the Sync count (Phase 5; until then the players count it
+  themselves with pings)
+  (the sniper and the handler turn to it, B9-1 glances); the other crosses the west ring in that window. Nobody is
+  touched; the noise is investigated by the dog, which must not find either player.
+- Sync moment 2 (the lift lobby): the lobby is lit (P3), on CAM-P2 and held by B9-4. The P3 switch is inside the tube
+  duct's inspection door; the zipline lands in the lobby from B-2 east. One player switches P3 off from the duct door on
+  the count while the other lands from the zipline in the same second; with P3 out the enforcer's view of the landing
+  is dark, and the controller sees only a dark feed (no video-loss event). Either alone fails: lights out without the
+  landing sends B9-4 to the switch (the duct player is found); the landing in light is seen.
+- Then the keys (pair gate, within 1.0 s). Silent tier: knock-outs without an alarm; Loud: an alarm.
+
 Devices: CAM-P1 sweep over the floor (north wall, y 6.0, 135..225), CAM-P2 fixed on the lift lobby (y 3.0, facing N);
 manned desk on the bridge (B9-O at it: feeds CAM-P1, CAM-P2); a high beam across the lift lobby threshold (z 44, y 1.4);
 PIR on B-2 west; alarm panel (`MapLayout.alarms`) on B-1 south (x 20, z 1.5, y 4.5); reinforcement point: the staff
@@ -817,7 +834,8 @@ Every route element. Airlocks, lamps and devices are in their bay tables above w
 | B8 Range | 4 | Weapons, gadgets, combat | Loud play | A8 (medkit) | Noise and release |
 | A8 | 1 | - | - | - | - |
 | B9 Plot | 5 | Sync, split and converge, revive | Everything | The lift | Finale |
-Tension rises overall (1, 2, 3, 2, 3, 4, 4, 4, 5) with a release (an airlock) after every bay.
+Tension rises overall (1, 2, 3, 2, 3, 4, 4, 4, 5) with a release (an airlock) after every bay. First run 45-60 minutes
+(D34), about 5-6 minutes a bay with every drill done.
 
 ## 12. Tool / problem matrix
 | Problem | Tools (at least three each) |
@@ -882,4 +900,4 @@ Tension rises overall (1, 2, 3, 2, 3, 4, 4, 4, 5) with a release (an airlock) af
 - Did any airlock cycle while a player was not inside, or fail to cycle with both inside?
 - Did a remote pose ever look wrong (the partner's view) in any bay?
 - Did the course feel like a real training bunker?
-- Total time 30-40 minutes for a first run?
+- Total time 45-60 minutes for a first run (D34)?

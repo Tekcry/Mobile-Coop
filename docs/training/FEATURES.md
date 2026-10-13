@@ -75,6 +75,9 @@ are merged before Block C (D15), so their rows run in their final form from the 
 | Two-person airlock (cycle, lock behind, checkpoint) | T1 | A1-A8 (both) | host course state; both pages see the doors lock | e2e-bunker every airlock; bot | Required before the build (PLAN 2) |
 | Bay restart when both are down | T1 | every bay | host restarts; clients rebuild the squad | e2e-bunker B5 forced | Required |
 | Team results and highlights | P5 (C18) | end (both) | host report in `end` | e2e-bunker end | Existing results screen |
+| Friendly fire (shots and blasts hurt the partner; downed, then revive) | T1b (D38) | all, B8 especially (both) | host-validated hits on the partner (PvP hit paths, co-op rules) | e2e-course, e2e-bunker B8 | - |
+| B9 ghost tier (Ghost / Silent / Loud) and its two sync moments | T1c (D32, D33) | B9 (both) | host rating in `end` | e2e-bunker B9 ghost run (T8b) | - |
+| Bot partner playable as P2 from the debug menu | T8c (D35; needs loco 20) | all | the bot is a normal client | e2e-bunker with the bot | Two tabs or a friend |
 | Host leaves: session ends | exists | any | `NetSession` peer leave | e2e-coop host leaving | - |
 | Connection test and network stats | P5 (C19) | lobby (outside the map) | - | - | - |
 

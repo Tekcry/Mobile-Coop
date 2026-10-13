@@ -23,7 +23,7 @@ multiple-choice tool. His own words are quoted where he typed them; otherwise th
 | --- | --- | --- | --- |
 | D1 | Co-op only, or a solo fallback? | "Co-op only" | SPEC exceptions E1-E3; no solo routes are built. Solo testing uses the dev bot partner (locomotion step 20); solo teaching stays in Training mode. |
 | D2 | 2 players, or 2-4? | "Exactly 2" | Every gate is a pair task. The course mode refuses a third player in the lobby. |
-| D3 | Target length and number of bays | "30-40 min, 9 bays" | BAYS.md beat chart: about 3.5 minutes a bay plus 9 airlock cycles. |
+| D3 | Target length and number of bays | "30-40 min, 9 bays" (length superseded by D34: 45-60 min) | BAYS.md beat chart: about 3.5 minutes a bay plus 9 airlock cycles. |
 | D4 | In-story frame and opposing force | "Night Shift rehearsal site": a Continuity Office bunker under Hollowmere; guards are role-players firing marking rounds; downed = revive; both down restarts the bay at its airlock | SPEC building brief and mission; BAYS failure rules. |
 | D5 | Lock-behind rule | "Two-person airlocks": each bay ends in an airlock that cycles only with both players inside, then seals behind them; a guaranteed regroup, a checkpoint and a sync check | BAYS airlock sheet; the course framework (PLAN T1). |
 | D6 | Branch for the map code | "feature/training-bunker", off feature/kestrel; merges kestrel and ct-locomotion in as features arrive | PLAN branch plan. |
@@ -46,11 +46,19 @@ multiple-choice tool. His own words are quoted where he typed them; otherwise th
 | D23 | What it must prove | All four: the gameplay is fun; co-op sync is solid; every feature is covered; light and dark showcase | REVIEW.md sections; T6, T8, T10 |
 | D24 | Phone | "Desktop only": no phone checks or touch work for this map | RULES; PC-PASS |
 | D25 | Split drills | "Swap at every airlock" (confirms C3) | BAYS roles; FEATURES 11 |
-| D26 | Lethal | "Yes, rated down": lethal works ("marked out"), counted in results; the rating rewards non-lethal play | T1c results |
+| D26 | Lethal | "Yes, rated down" (superseded by D31: no penalty in the drill bays; B9 rated by D32) | T1c results |
 | D27 | Pause after geometry | "Yes, a walk before C-D": after Block B Michael walks the bays (debug teleports, the solo flag); his notes become step T5b | STATE; steps/T5b |
 | D28 | Names | "Keep": Fallow, Cresset Training, LANTERN | - |
 | D29 | Blocked steps | "Log it and go on" | RULES |
 | D30 | The bays | "Build as shown. Make sure that none of the feature tests can be skipped. There must be feedback that both players have interacted as needed, as this is a fully guided training session that needs all objectives completed" | Every drill is mandatory and ticked per player; airlocks refuse until the bay's drills are done by the required players; the HUD checklist shows both players' ticks; no "skip" radio lines; a feature with no working form yet is not a drill until it lands (T1a, T1c, T7a, T8) |
+| D31 | Kills and forced takedowns | "Don't mark down for killing on training map, it's forced", then "No penalty for forced takedowns, but finale should be able to be ghosted and scored on but must take careful planning" | Supersedes D26: the drill bays count kills and knock-outs without any penalty; only B9 is rated (D32) |
+| D32 | How B9 is scored | "Ghost rating tiers": Ghost (never seen, nobody touched), Silent (no alarm, knock-outs only), Loud; detections, alarms and bodies found lower it; time breaks ties | T1c rating; BAYS B9 "Ghost plan"; T8b ghost run |
+| D33 | What makes the B9 ghost hard | "Overlapping coverage" and "Sync moments": no free path, gaps of a few seconds per cycle; some crossings need both players to act at the same moment from opposite sides | BAYS B9 "Ghost plan"; T7b; T8b |
+| D34 | Length | "45-60 min first run" (supersedes D3's 30-40; bay select keeps repeats short) | SPEC; BAYS beat chart, checklist |
+| D35 | Playing with the bot | "Yes, from the debug menu": dev-only, the bot takes P2 and does its half of every drill and gate | step T8c |
+| D36 | Restart after both down | "Keep them": finished drills stay ticked; guards, gates and lights reset | T1a, T8a (no longer an assumption) |
+| D37 | Who voices the steps | "LANTERN on the radio": step texts are LANTERN's dry radio lines with the button glyph (text only) | T1c, T7a |
+| D38 | Friendly fire | "Friendly fire on": shots and blasts hurt the partner in the bunker (downed, then revive) | T1b (course mode enables team damage through the host-validated hit paths); T8b |
 
 ## Decisions Claude made under D12 (Michael reviews them at the end)
 | # | Decision | Reason |

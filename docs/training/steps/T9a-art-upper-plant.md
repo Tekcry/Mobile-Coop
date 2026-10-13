@@ -1,6 +1,6 @@
 # Step T9a - voxel art layer: Upper and Plant levels (Block D)
 
-Model: implementer opus, checker opus. Deps: T8b. Visual only: gameplay reads the blockout (CLAUDE.md hard rule).
+Model: implementer opus, checker opus. Deps: T8c. Visual only: gameplay reads the blockout (CLAUDE.md hard rule).
 
 ## Read
 - DECISIONS.md D14, D23 (light and dark showcase); BAYS.md "Real purpose" and colour of B1-B6

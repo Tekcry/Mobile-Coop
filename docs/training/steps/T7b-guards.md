@@ -23,7 +23,10 @@ Model: implementer opus, checker opus. Deps: T7a. Enemies and tuning tables neve
 5. B9: the bridge controller B9-O has no desk logic yet (S1 Part B): he is a post; CAM-P1 / P2 feed nobody (unmanned
    rule) until SW-S1.
 6. Card / key holders: B6-GR and B6-GM now forms are switches (T7a); no card system code.
-7. Spawning: only the current bay's squad is alive (T1b spawns at `bayStarted`); assert at most 7 alive at any time.
+7. B9 ghost plan (BAYS B9 "Ghost plan", D32, D33): tune B9's routes, waits and facings so every crossing is watched by
+   two or more, each opens 3-5 s once per cycle, and the two sync moments work only when both players act within the
+   same second; log the final gap times.
+8. Spawning: only the current bay's squad is alive (T1b spawns at `bayStarted`); assert at most 7 alive at any time.
 
 ## Tests
 - `tests/bunkerCourse.test.ts`: every route's cycle in 25-45 s from the kind's walk speed; every stop in its bay's
@@ -34,6 +37,9 @@ Model: implementer opus, checker opus. Deps: T7a. Enemies and tuning tables neve
   circuit off: no longer noticed and the nearest calm guard investigates (lure); every route point is on the nav grid.
 - Noise: B5 grating at standing gear 4 draws B5-G1 to investigate; crouched gear 2 does not (level-design 15 noise).
 - A body left on B7-W's route is found within two of his cycles.
+- B9 (single page, `?course=solo` plus a scripted second avatar if T0 found one, else two pages): each sync moment
+  fails when one half is done alone and passes when both halves land in the same second; every B9 crossing has a gap
+  of at least 3 s and none longer than 5 s.
 
 ## Checks
 `timeout 900 npm run check`; `node scripts/run-e2e.mjs e2e-bunker e2e-course e2e-stealth-ai e2e-enemies smoke`.

@@ -47,7 +47,7 @@ every element in its final geometry so that they only flip flags.
 | A Foundations | T0 facts (read-only), T1a course logic, T1b course mode and sync, T1c tutorial HUD, drills, results, bay select | Full `npm run e2e`; perf trend; GPU baseline |
 | B Geometry | T2 Upper (B1, A1, B2, A2), T3 Shaft and Cistern (B3, A3, B4, A4), T4 Plant (B5, A5, B6, S6, A6), T5 Deep (B7, A7, B8, A8, B9, L9) | Full e2e; perf trend; GPU shots per bay; then PAUSE for Michael's walk (D27) |
 | C Life | T5b walk notes; TM merge locomotion 09-20 (waits for loco 20, D15); T6 light, zones, surfaces; T7a course data, drills, gates, devices; T7b guards | Full e2e; perf trend; GPU light look per bay |
-| D Proof | T8a e2e bays B1-B5; T8b e2e bays B6-B9, full course, coverage, perf; T9a art layer Upper and Plant; T9b art layer Deep; T10 light showcase, docs, REVIEW.md | Final checks; REVIEW.md; stop |
+| D Proof | T8a e2e bays B1-B5; T8b e2e bays B6-B9, full course, coverage, perf; T8c the bot as your partner; T9a art layer Upper and Plant; T9b art layer Deep; T10 light showcase, docs, REVIEW.md | Final checks; REVIEW.md; stop |
 
 ## 4. Step loop (the same as the locomotion run)
 1. **Implement:** one subagent (opus). Its prompt is the step file plus: "Read CLAUDE.md and docs/training/RULES.md

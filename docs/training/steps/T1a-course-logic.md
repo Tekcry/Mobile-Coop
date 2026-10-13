@@ -43,7 +43,7 @@ Model: implementer opus, checker opus. Deps: T0. Code: new Babylon-free modules 
    inside the next airlock; flag unlocks when the flag is set; anchorLock locks the anchor until the flag; pickup sets a
    flag (per player when `perPlayer`).
 7. Restart: `restart()` when both are downed for RESTART_DELAY: resets the current bay's gates, flags set in that bay,
-   and returns the bay's squad ids to respawn; earlier bays stay done; players respawn at the checkpoint airlock.
+   and returns the bay's squad ids to respawn; drills already ticked stay ticked (D36); earlier bays stay done; players respawn at the checkpoint airlock.
 8. Serialisation: `pack()` / `apply(packed)` for the `course` message (state, locks, flags); pure, tested round trip.
 
 ## Tests (tests/course.test.ts)

@@ -44,7 +44,11 @@ Model: implementer opus, checker opus (src/net). Deps: T1a. Runs e2e-coop and e2
    the bay and both respawn in the airlock.
 7. Dev solo flag (D21): `?course=solo` and a debug-menu toggle (F3 overlay, dev builds only): one player may cycle
    airlocks, work both halves of a pair gate, and his ticks count for both players. Never in the normal menus.
-8. The course is offered only in the co-op lobby (D22): coopUi lists "Training course" for maps whose modes include
+8. Friendly fire (D38): course mode turns team damage on for both players through the existing host-validated hit
+   paths (the PvP `friendly` flags, `Hitboxes` on avatars, `PvpTarget`, blast checks) with co-op rules otherwise (a
+   partner hit to zero is downed and revivable, never a PvP frag); e2e-course: a host shot and a client grenade down the
+   partner, who is revived.
+9. The course is offered only in the co-op lobby (D22): coopUi lists "Training course" for maps whose modes include
    'course'; not on the solo Play screen. Add to run-e2e REQUIRED and COVERS for src/game/course,
    src/game/modes/courseMode.ts and src/world/maps/courselab.ts.
 

@@ -16,8 +16,9 @@ Model: implementer opus, checker opus. Deps: T8a. Runs e2e-coop and e2e-netmove.
 2. The full course: one section runs B1 -> L9 with both players doing every drill (teleports only between drills);
    `courseDone` fires; the course record now offers every bay; the per-player coverage report lists every "(both)"
    FEATURES row done by both players - any missing row fails the suite (D30).
-3. Lethal and non-lethal: one run takes B7 with knock-outs only and one with a lethal takedown; the results rate the
-   non-lethal run higher (D26).
+3. Ratings (D31, D32): B7 with a lethal takedown costs nothing in the results; a scripted B9 ghost run (both sync
+   moments, the keys) ends with the Ghost tier; a run with one knock-out ends Silent; a run with an alarm ends Loud.
+   Friendly fire (D38): a shot and a grenade down the partner in B8; the revive works.
 4. `scripts/perf.mjs`: a `MODE=` env (default as now) and a `PERF_POINT=` debug point env, so
    `MAP=bunker MODE=course PERF_POINT=B9` measures the finale with its squad.
 

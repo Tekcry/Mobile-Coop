@@ -113,7 +113,9 @@ balcony boost gap 4.5 (level-design 11.3 kept).
 - Mission: id `fallow-course`, name "Fallow", insertion: the lift lobby (B1); brief (text): "Rehearsal night at Fallow.
   Nine bays, two of you, nobody goes on alone."; objectives: the bay chain, then B9's keys A and B, the case, the
   two-key lift, extract. Every bay's drills are mandatory and ticked per player (D30). Rules: none fail the course; the
-  results show total and per-bay time, detections, alarms, knock-outs, kills (rated down, D26), revives and team moves.
+  results show total and per-bay time, detections, alarms, knock-outs, kills, revives and team moves, with no penalty
+  in the drill bays (D31); B9 has a ghost rating tier (D32: Ghost, Silent, Loud). First run 45-60 min (D34). Friendly
+  fire is on (D38).
 - Desktop only (D24): pad first, then keyboard and mouse; no phone checks or touch work.
 - Kit: the full toolkit and every gadget at normal carry (FEATURES 4).
 - Theme: night inside; ambient 0.05 (TUNE); faction colours: Cresset grey and orange; no weather.

@@ -31,6 +31,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | C | Block C end | not started | |
 | D | T8a e2e bays B1-B5 | not started | |
 | D | T8b e2e bays B6-B9, full course, perf | not started | |
+| D | T8c bot as course partner | not started | |
 | D | T9a art layer Upper and Plant | not started | |
 | D | T9b art layer Deep | not started | |
 | D | T10 light showcase, docs, REVIEW.md | not started | |
