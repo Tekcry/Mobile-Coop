@@ -2,7 +2,7 @@
 
 At a back-to-wall edge, peek and lean-out use the open side: left edges move the weapon to the left hand or shoulder
 (D9). At a low-wall end, crouched aim toward the end leans out past the end instead of rising over the top (D10).
-Deps: 12 (runs directly after it, before 13). Model: implementer sonnet; checker opus (back-to-wall, network).
+Deps: 12 (runs directly after it, before 13). Model: implementer opus; checker opus (back-to-wall, network). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes step 09 (draw phases 0.2-0.3 s), step 11 (WALL_SUB incl. `leftHand` 128, e2e-wall) and step 12 (edgeL / edgeR,
 `peek`, `lean`, lean kind `lk`, PROTOCOL_VERSION 7). Line numbers verified 2026-10-13 before Block A: grep first.
 

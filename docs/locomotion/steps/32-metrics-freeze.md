@@ -1,6 +1,6 @@
 # Step 32 - metrics freeze: limits table, required harness (bible 5.12.4.5, 5.3)
 
-Model: implementer sonnet; checker opus. Depends on: 31.
+Model: implementer opus; checker opus. Depends on: 31. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 32: metrics freeze: animLimits config with tests, movement metrics in level-design 12, harness required"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

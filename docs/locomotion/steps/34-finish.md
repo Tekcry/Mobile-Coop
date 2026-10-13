@@ -1,6 +1,6 @@
 # Step 34 - finish: merges, versions, docs, PC-PASS, REVIEW, PR (BRIEF section 7)
 
-Model: implementer sonnet; checker sonnet. Depends on: 33.
+Model: implementer opus; checker opus. Depends on: 33. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 34: merge kestrel and master, versions, changelog, PC-PASS checklist, REVIEW"
 
 ## Read

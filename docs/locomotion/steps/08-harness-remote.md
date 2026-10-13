@@ -3,7 +3,7 @@
 Block B. Deps: 07. Bible 5.12.2.11 (`docs/design-bible.md:857-859`), 5.17 D2 (:1258 "local and remote"), D8 (:1317); RULES Step loop.
 
 ## Model
-Implementer: sonnet. Checker: opus (network measurement).
+Implementer: opus. Checker: opus (network measurement). (all subagents opus from step 06, Michael 2026-10-13)
 
 ## Read
 - scripts/anim-audit.mjs and src/anim/audit/*.ts (as built in 07); docs/locomotion/AUDIT.md section 4 (:214-245) and Baselines (:7-10).

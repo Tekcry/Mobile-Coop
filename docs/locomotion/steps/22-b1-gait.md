@@ -1,6 +1,6 @@
 # Step 22 - batch 1b: gait, lean, stops, pivots, quick 180, exertion (D5.1-D5.5)
 
-Model: implementer sonnet; checker opus. Depends on: 21.
+Model: implementer opus; checker opus. Depends on: 21. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-pivot, quick 180, exertion breathing"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

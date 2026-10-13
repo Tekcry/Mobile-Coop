@@ -1,6 +1,6 @@
 # Step 21 - batch 1a: D2 bob fixes and trained posture (D5.6)
 
-Model: implementer sonnet; checker opus. Depends on: 20.
+Model: implementer opus; checker opus. Depends on: 20. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, sway settle), trained posture"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

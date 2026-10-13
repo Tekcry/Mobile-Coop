@@ -1,7 +1,7 @@
 # Step 11 - wall-core (Block C)
 
 Back-to-wall: enter on the context press near a wall, slide along it, leave; MoveState `wall`; feeds the AI's cover
-reference; two players stack on one wall. Deps: 06, 08. Model: implementer sonnet; checker opus.
+reference; two players stack on one wall. Deps: 06, 08. Model: implementer opus; checker opus. (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A (player snap cover removed, `cover` input kept as the context action, MoveState slot 1 = `wall`,
 COVER_SUB retired, PROTOCOL_VERSION 3) and steps 09-10 (PROTOCOL_VERSION 5). Line numbers verified 2026-10-13 before
 Block A: grep the named symbol first.

@@ -3,7 +3,7 @@
 Block B. Deps: 06. Bible 5.12.2 (`docs/design-bible.md:786-887`), 5.12.4.2 (:919-928), 5.17 D2 (:1251-1258), D5 (:1268-1283).
 
 ## Model
-Implementer: sonnet. Checker: opus.
+Implementer: opus. Checker: opus. (all subagents opus from step 06, Michael 2026-10-13)
 
 ## Read
 - docs/locomotion/AUDIT.md sections 2 and 4 (:161-177, :214-245); audit/a-anim-rig.md (grep -n "bob\|sway\|breath\|LOD").

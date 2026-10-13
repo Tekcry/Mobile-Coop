@@ -1,7 +1,7 @@
 # Step 19 - difficulty (Block C)
 
 Custom difficulty: sliders for guard perception speed, guard aim and alarm tolerance, plus the existing presets; the
-host's values apply in co-op; persisted in Settings (D7, A3). Deps: 18. Model: implementer sonnet; checker opus
+host's values apply in co-op; persisted in Settings (D7, A3). Deps: 18. Model: implementer opus; checker opus (all subagents opus from step 06, Michael 2026-10-13)
 (src/net). Assumes Block A (`execute` / `sonar` fields gone from DifficultyDef) and steps 09-18 (PROTOCOL_VERSION 9,
 `DifficultyDef.medkits` from step 15). Line numbers verified 2026-10-13 before Block A: grep the named symbol first.
 

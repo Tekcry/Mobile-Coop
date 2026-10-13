@@ -1,7 +1,7 @@
 # Step 10 - elbow-strike (Block C)
 
 Fire while holstered = the elbow strike, a committed move; the generic host-approved committed-move protocol `cmove` /
-`cstart {t0}` / `cdeny` (A5, H3); MoveState `strike`. Deps: 09. Model: implementer sonnet; checker opus (src/net).
+`cstart {t0}` / `cdeny` (A5, H3); MoveState `strike`. Deps: 09. Model: implementer opus; checker opus (src/net). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A (PROTOCOL_VERSION 3, slot 1 `wall`) and step 09 (`drawState`, PROTOCOL_VERSION 4). Line numbers
 verified 2026-10-13 before Block A: grep the named symbol first.
 

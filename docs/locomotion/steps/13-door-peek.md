@@ -1,7 +1,7 @@
 # Step 13 - door-peek (Block C)
 
 Context press at a closed door: crack it open, peek through the crack, close it (or open it quietly). MoveState
-`doorPeek`; the door's crack is host-authoritative (bible 5.3 Doors). Deps: 06. Model: implementer sonnet; checker opus.
+`doorPeek`; the door's crack is host-authoritative (bible 5.3 Doors). Deps: 06. Model: implementer opus; checker opus. (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A (PROTOCOL_VERSION 3) and steps 09-12b (PROTOCOL_VERSION 7, MOVE_MODES up to `swat` 26). Line numbers
 verified 2026-10-13 before Block A: grep the named symbol first.
 

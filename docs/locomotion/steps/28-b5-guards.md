@@ -1,6 +1,6 @@
 # Step 28 - batch 5: guards, body language, guard look-at (D5.8)
 
-Model: implementer sonnet; checker opus. Depends on: 27.
+Model: implementer opus; checker opus. Depends on: 27. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 28: guard batch: state postures readable at 15 m, reactions, knock-outs, look-at"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

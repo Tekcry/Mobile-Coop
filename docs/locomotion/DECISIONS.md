@@ -137,3 +137,7 @@ Choices made during the unattended run. Each lists the option taken and the alte
 - **A32 (ASSUMED - for review, step 19): custom difficulty takes damage, hp, medkits and reward from a base preset; sliders 0.5-2.0; presets map to Rookie 0.7 / 0.7 / 1.35, Normal 1 / 1 / 1, Realistic 1.3 / 1.3 / 0.8, Perfectionist 1.5 / 1.3 / 0.7.** Alternative: every field a slider.
 - **A33 (ASSUMED - for review, step 04): the default loadout presets are renamed Ghost / Panther / Assault -> Silent / Flash / Loud;** existing saved presets keep their names. Alternative: keep the old names (they read as the removed style economy).
 - **A34 (ASSUMED - for review, steps 12 / 12b): D10's low-wall side lean is carried by a 2-bit lean-kind field `lk` on the wall MoveState (0 none, 1 out past the edge, 2 over the top), not a new WALL_SUB bit,** because all 8 WALL_SUB bits are used. Added inside step 12's PROTOCOL_VERSION 6 -> 7 bump. Alternative: widen WALL_SUB to 16 bits.
+
+## Michael's instructions during the run
+- **M1 (2026-10-13): model change.** From step 06 on, every subagent uses opus, implementers and checkers, in all blocks. Unchanged: one code-changing agent at a time, about 60 tool calls per subagent. Steps 01-05 ran with sonnet implementers.
+- **M2 (2026-10-13): speed rules** (RULES.md "Speed"): implementers run only their step's e2e suites, Block A steps 02-04 batched, E2E_JOBS=2, block-end kestrel merges, no proof worktrees.

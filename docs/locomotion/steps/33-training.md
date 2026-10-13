@@ -1,6 +1,6 @@
 # Step 33 - Training rewritten for the final verbs (Block E)
 
-Model: implementer sonnet; checker sonnet. Depends on: 32.
+Model: implementer opus; checker opus. Depends on: 32. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 33: Training teaches the final CT verbs, pad prompts first"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

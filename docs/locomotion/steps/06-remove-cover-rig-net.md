@@ -3,7 +3,7 @@
 Block A. Deps: 05. Bible 6, 5.12.4 ("cover clips are removed"); DECISIONS A2; audit c 2a; AUDIT 1i.
 
 ## Model
-Implementer: sonnet. Checker: opus (src/net, protocol change).
+Implementer: opus. Checker: opus (src/net, protocol change). (all subagents opus from step 06, Michael 2026-10-13)
 
 ## Read
 - DECISIONS.md A2. docs/locomotion/audit/c-removals.md 2a (lines 22-40).

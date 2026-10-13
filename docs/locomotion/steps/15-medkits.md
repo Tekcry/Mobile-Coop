@@ -2,7 +2,7 @@
 
 CT health model: health 100, medkits heal 40 over 1.5 s, damage interrupts, carry 2 (3 at Rookie), a wall medkit
 entity on test maps, a HUD health bar; counts host-authoritative; MoveState `medkit`; hook H2 (any target).
-Deps: 03 (and 10 for `cmove`). Model: implementer sonnet; checker opus (src/net).
+Deps: 03 (and 10 for `cmove`). Model: implementer opus; checker opus (src/net). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A step 03 (`Health(100)`, no shield, `sh` gone, HUD shield bar gone) and steps 09-13 (PROTOCOL_VERSION 8,
 MOVE_MODES up to `doorPeek` 27, `cmove` with `CKind = 'strike' | 'medkit'`). Line numbers verified 2026-10-13 before
 Block A: grep the named symbol first.

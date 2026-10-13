@@ -1,7 +1,7 @@
 # Step 09 - holster-draw (Block C)
 
 Holstered unless aiming, no hip fire, ADS spread tuning; drawn state and weapon in hand host-authoritative (bible 1.11,
-5.6; D8). Deps: 06. Model: implementer sonnet; checker opus (changes src/net).
+5.6; D8). Deps: 06. Model: implementer opus; checker opus (changes src/net). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A done (MoveState slot 1 = `wall`, PROTOCOL_VERSION 3, no shield / marks / sonar) and Block B
 (`scripts/anim-audit.mjs` local + remote). Line numbers verified 2026-10-13 before Block A; Block A shifts gameState,
 moveState, localMoveState, protocol, coopHost, coopClient, remoteAvatar: grep the named symbol first.

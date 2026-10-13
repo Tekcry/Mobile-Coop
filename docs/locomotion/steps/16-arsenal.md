@@ -1,7 +1,7 @@
 # Step 16 - arsenal (Block C)
 
 Curate the campaign arsenal (bible 5.6) and give every real-brand gun an original name in data and UI; the rest of
-the 16 weapons stay in code, unused by the campaign. Deps: 09. Model: implementer sonnet; checker sonnet.
+the 16 weapons stay in code, unused by the campaign. Deps: 09. Model: implementer opus; checker opus. (all subagents opus from step 06, Michael 2026-10-13)
 No network or save-shape change (weapon ids are unchanged). Line numbers verified 2026-10-13.
 
 ## Read

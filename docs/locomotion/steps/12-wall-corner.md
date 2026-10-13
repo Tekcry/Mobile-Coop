@@ -1,7 +1,7 @@
 # Step 12 - wall-corner (Block C)
 
 At a wall edge: peek, lean out to aim and shoot, SWAT turn across a doorway gap, corner takedown (bible 5.3, 5.4).
-Deps: 11. Model: implementer sonnet; checker opus. Step 12b (D9 open-side weapon, D10 low-wall side lean) runs next.
+Deps: 11. Model: implementer opus; checker opus. Step 12b (D9 open-side weapon, D10 low-wall side lean) runs next. (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A, step 09 (draw phases), step 10 (PROTOCOL_VERSION 5), step 11 (`wallController`, WALL_SUB, MoveState
 `wall`, PROTOCOL_VERSION 6). Line numbers verified 2026-10-13 before Block A: grep the named symbol first.
 

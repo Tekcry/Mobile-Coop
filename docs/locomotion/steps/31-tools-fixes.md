@@ -1,6 +1,6 @@
 # Step 31 - pose viewer and the known fixes (bible 5.12.3, bible 10 Phase 3b row)
 
-Model: implementer sonnet; checker opus. Depends on: 30.
+Model: implementer opus; checker opus. Depends on: 30. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 31: pose viewer; fixes: thigh pistol vs elbow, brace prompt, human ladder by touch, thin fence"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

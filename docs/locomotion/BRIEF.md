@@ -161,10 +161,8 @@ Proposals only (write them to BIBLE-PROPOSALS.md; do not build): guards undo pla
 - Per-step subagent budget: about 60 tool calls. Over budget: stop and return what is done and what is left.
 - Your own context holds only STATE.md, the current step file and subagent conclusions. After any context compaction, re-read STATE.md before acting.
 - Model use:
-  - implementers: sonnet
-  - checkers: sonnet for Blocks A, C (except back-to-wall and vision) and E
-  - checkers: opus for Block B, Block D, back-to-wall, vision and every step with a network change
-  - the audit: up to 4 parallel Explore agents on sonnet
+  - from step 06 on (Michael, 2026-10-13): every subagent uses opus, implementers and checkers, in all blocks
+  - (until step 05: implementers sonnet; checkers sonnet for Blocks A, C (except back-to-wall and vision) and E, opus for Block B, Block D, back-to-wall, vision and every step with a network change; the audit: up to 4 parallel Explore agents on sonnet)
   - only one code-changing agent at a time
 
 # 5. Documentation (the only memory between sessions; keep current)

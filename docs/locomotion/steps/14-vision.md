@@ -1,7 +1,7 @@
 # Step 14 - vision (Block C)
 
 Thermal and electro vision as post passes (local only, never detection); night vision stays the lighting gain; the
-vision button cycles off -> night -> thermal -> electro -> off (bible 5.5). Deps: 02. Model: implementer sonnet;
+vision button cycles off -> night -> thermal -> electro -> off (bible 5.5). Deps: 02. Model: implementer opus; (all subagents opus from step 06, Michael 2026-10-13)
 checker opus. No network change (D8: vision is never sent).
 Assumes Block A step 02 (sonar removed: `VisionMode = 'off' | 'night'`, the button cycles off / night). Line numbers
 verified 2026-10-13 before Block A: grep the named symbol first.

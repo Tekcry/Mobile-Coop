@@ -2,7 +2,7 @@
 
 Pad-first controls (D1, D5.12): a binding table for every verb; analog speed with gear snapping and hysteresis; the
 rocker sets the maximum gear; rumble on landings, takedowns, shots and heavy footfalls; touch reduced to the D1 basic
-scheme. Deps: 10-15. Model: implementer sonnet; checker sonnet. Local only: nothing here is sent (D8).
+scheme. Deps: 10-15. Model: implementer opus; checker opus. Local only: nothing here is sent (D8). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A (`mark`, `execute`, sonar gone; `cover` = the context action) and steps 09-15 (strike, wall, SWAT,
 door peek, medkit). Line numbers verified 2026-10-13 before Block A: grep the named symbol first.
 

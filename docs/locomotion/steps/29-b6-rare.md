@@ -1,6 +1,6 @@
 # Step 29 - batch 6: rare traversal and dedicated clips (rappel, fence, brace)
 
-Model: implementer sonnet; checker opus. Depends on: 27.
+Model: implementer opus; checker opus. Depends on: 27. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 29: rare traversal batch: pipes, split, wall jump, zipline, duct, vent drop; rappel, fence, brace clips"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

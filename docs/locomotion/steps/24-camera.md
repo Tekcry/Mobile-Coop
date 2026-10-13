@@ -1,6 +1,6 @@
 # Step 24 - CT camera and collision solver (D5.13, D2 camera limits)
 
-Model: implementer sonnet; checker opus. Depends on: 21.
+Model: implementer opus; checker opus. Depends on: 21. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 24: CT camera: capsule spring follow, landing dip, wall pull-in, auto shoulder swap, FOV by gear"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

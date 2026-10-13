@@ -1,6 +1,6 @@
 # Step 27 - batch 4: stealth contact, drag (H1), contact IK (D5.9)
 
-Model: implementer sonnet; checker opus (network step). Depends on: 26.
+Model: implementer opus; checker opus (network step). Depends on: 26. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab / carry, drag verb, contact IK"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

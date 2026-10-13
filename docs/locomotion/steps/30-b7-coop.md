@@ -1,6 +1,6 @@
 # Step 30 - batch 7: co-op bodies, team moves, 4-player run (D8)
 
-Model: implementer sonnet; checker opus (network step). Depends on: 29.
+Model: implementer opus; checker opus (network step). Depends on: 29. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 30: co-op batch: capsule separation, shoulder turn, wall stacking, team moves with contact IK, 4-player run"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

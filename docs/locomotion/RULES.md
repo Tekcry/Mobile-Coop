@@ -41,7 +41,7 @@ DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 ho
 - Logs: tail -40 or grep. Source: grep, then line ranges.
 - Same error twice with no progress: stop and report.
 - Subagent budget: about 60 tool calls per step; over budget, return done / left.
-- Implementers: sonnet. Checkers: sonnet for Blocks A, C (not back-to-wall, vision) and E; opus for B, D, back-to-wall, vision and any network step. Only one code-changing agent at a time.
+- Models (Michael, 2026-10-13, from step 06): every subagent uses opus, implementers and checkers, all blocks. Only one code-changing agent at a time; about 60 tool calls per subagent. (Steps 01-05 used sonnet implementers.)
 
 ## Step loop
 Implement (subagent, no commit) -> check (fresh subagent: diff, re-run checks, anim-audit local + remote, bible + D1-D8, PC-PASS items, PASS or FAIL list) -> up to 3 fix rounds -> commit "locomotion NN: <summary>", push, update LOG, STATE, AUDIT, CHANGELOG, TESTING, docs/systems (coop.md for network changes). Block end: full `npm run e2e` + perf trend.

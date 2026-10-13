@@ -1,7 +1,7 @@
 # Step 18 - input-remap (Block C)
 
 Full pad and KBM remapping with conflict warnings and reset; hold / toggle for aim, crouch, back-to-wall, sprint and
-grab; persisted in Settings (D7, A3). Deps: 17. Model: implementer sonnet; checker sonnet. Local only (D8).
+grab; persisted in Settings (D7, A3). Deps: 17. Model: implementer opus; checker opus. Local only (D8). (all subagents opus from step 06, Michael 2026-10-13)
 Assumes Block A and steps 09-17 (verbs and the binding table in docs/systems/input-and-loop.md). Line numbers
 verified 2026-10-13 before Block A: grep the named symbol first.
 

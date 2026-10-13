@@ -1,6 +1,6 @@
 # Step 25 - batch 2: weapon handling and muzzle discipline (D5.7)
 
-Model: implementer sonnet; checker opus. Depends on: 22.
+Model: implementer opus; checker opus. Depends on: 22. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 25: weapon handling batch: aim, reload, swap, throw, attached aim, muzzle discipline, low-ready"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

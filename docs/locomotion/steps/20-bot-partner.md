@@ -1,6 +1,6 @@
 # Step 20 - bot partner (Block D opener, bible 5.9 C20)
 
-Model: implementer sonnet; checker opus (network step). Depends on: 19 (Block C done).
+Model: implementer opus; checker opus (network step). Depends on: 19 (Block C done). (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 20: dev bot partner over the local transport, Block C co-op reruns"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)

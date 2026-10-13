@@ -1,6 +1,6 @@
 # Step 26 - batch 3: common traversal, D5.3 exits, D5.9 ledges, D5.11, momentum carry
 
-Model: implementer sonnet; checker opus. Depends on: 22.
+Model: implementer opus; checker opus. Depends on: 22. (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 26: traversal batch: durations, single settle on exits, ledge hand IK, momentum-scaled moves"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
