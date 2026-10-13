@@ -141,7 +141,7 @@ export interface UpperResult {
 }
 
 /** A floor slab over a world rect with rectangular holes (world rects), top at y. */
-function slabWithHoles(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, holes: readonly (readonly [number, number, number, number])[], color: string): void {
+export function slabWithHoles(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, holes: readonly (readonly [number, number, number, number])[], color: string): void {
   const xs = [x0, x1];
   const zs = [z0, z1];
   for (const h of holes) {
@@ -171,7 +171,7 @@ function slabWithHoles(b: LevelBuilder, x0: number, z0: number, x1: number, z1: 
 }
 
 /** A sunken pit under a slab hole (world rect): liners round it down to `depth` below y, and its floor. */
-function pit(b: LevelBuilder, h: readonly [number, number, number, number], y: number, depth: number, color: string): void {
+export function pit(b: LevelBuilder, h: readonly [number, number, number, number], y: number, depth: number, color: string): void {
   const [x0, z0, x1, z1] = h;
   const t = 0.2;
   b.box((x0 + x1) / 2, y - depth / 2, z0 - t / 2, x1 - x0 + 2 * t, depth, t, color);
@@ -277,11 +277,7 @@ function buildAirlock(b: LevelBuilder, bay: 'A1' | 'A2', r: UpperResult): void {
   const X = (x: number): number => wx(bay, x);
   const Z = (z: number): number => wz(bay, z);
   b.floor(X(3), Z(3), 6, 6 + 2 * OUTER, C.floor, y);
-  // A2's east wall (x 84, the far door's wall) until B3 is built (T3 owns the B3 side)
-  if (bay === 'A2') {
-    wallZAt(b, X(6), Z(-OUTER), Z(6 + OUTER), [[Z(2.4), Z(3.6)]], y, AIRLOCK_CLEAR, C.wall, OUTER);
-    headerZ(b, X(6), Z(2.4), Z(3.6), y, AIRLOCK_CLEAR, OUTER, C.wall);
-  }
+  // (A2's east wall at x 84, the far door's wall, is B3's west wall: bunkerShaft.ts builds it)
   wallXAt(b, Z(-OUTER / 2), X(0), X(6), [], y, AIRLOCK_CLEAR, C.wall, OUTER);
   wallXAt(b, Z(6 + OUTER / 2), X(0), X(6), [], y, AIRLOCK_CLEAR, C.wall, OUTER);
   // bench on the north wall
@@ -473,7 +469,5 @@ export function buildUpper(b: LevelBuilder): UpperResult {
   b.light({ ...l1, radius: 16, intensity: 0.9 });
   const l2 = at('B2', 24, 18, 10);
   b.light({ ...l2, radius: 32, intensity: 0.9 });
-  // the course end ("Finish") sits in A2 until B3 exists (T3 / T7a move B2's exit to A2)
-  r.devices.end = { x: wx('A2', 3), y: UPPER_Y, z: wz('A2', 5.0), yaw: Math.PI, label: 'Finish' };
   return r;
 }

@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T3 Shaft and Cistern (Block B) - not started
+Current step: T3 Shaft and Cistern (Block B) - implemented, pending check
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -20,7 +20,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | A | T1c tutorial HUD, drills, results, bay select | done | marker fix commit |
 | A | Block A end | done (GPU items pending PC run) | |
 | B | T2 Upper | done | ba09b54 |
-| B | T3 Shaft and Cistern | not started | |
+| B | T3 Shaft and Cistern | implemented, pending check (human-ladder vs W2 conflict in REVIEW-NOTES) | |
 | B | T4 Plant | not started | |
 | B | T5 Deep | not started | |
 | B | Block B end, then PAUSE for Michael's walk (D27) | not started | |

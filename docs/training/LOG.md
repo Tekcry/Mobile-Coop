@@ -86,3 +86,22 @@ boots sandbox: the course itself starts from the co-op lobby). Tests 8 -> 11.
   for a player who plays the lane; the walkway to A2 stays open.
 T2 checked: PASS after 1 fix round (dd966fd: gap grip to grip, exit doors gated, glass not climbable, ladder-head
 landing) and the walk URLs (ba09b54: `mode=course` autostart, solo and two tabs over net=local, A29).
+
+## T3 Shaft and Cistern geometry (2026-10-13, cloud)
+`src/world/maps/bunkerShaft.ts` (B3 The Intake, A3, B4 The Cistern, A4 on the Plant level; `PLANT_LIPS`,
+`BUNKER_COOP_LIPS`, `B3_METRICS`, `B4_METRICS`, `plantAt`), called from bunker.ts; A2's east wall is now B3's west wall;
+the course stub runs B1-B4 (B2 exits A2; B3: isolator pickup, fence x4 and duct anchorLocks, CR bolt; B4: inspection
+bolt, sluice timedHold, outlet ladder pickup + anchorLock; Finish in A4). Tests 11 -> 23 in bunkerMap (engine-function
+proofs: split jump-up via `findJumpTarget` from the split pose, WJ straight and corner via `wallJumpReach`, rope bottom
+on the floor and the window-kick check along the rope, zipline entry / end / body clearance, duct entry and exit,
+every ladder's top step-off on a floor, co-op lips). Shared tests: voxelFit height bound for the bunker 40 (A34).
+Number changes within windows: G1 north arm 2.8 deep, duct 4.15 m, A4 floor 10.4 (A30-A33). Assumptions A30-A34.
+
+### Spec change requests (T3)
+- B4 human ladder vs W2 (NOT applied, needs a decision): the human ladder reaches a lip at most 4.3 over the floor
+  (`TEAM.ladderGrab` 4.1 + 0.2), W2 is 4.4. Options: W2 at 4.25-4.3 (breaks level-design 11.3's 4.3 floor / the +0.5
+  solo margin) or the engine's human-ladder reach (a tuning table: Michael).
+- B3 fan pit: a mesh hood over the fan guard (the zipline crosses the pit; a drop-in would be a softlock while the
+  fence is locked); the duct and every fence side are locked until the isolator; CR's door is bolted from inside.
+- A4's floor at the outlet platform (y 10.4): T4 builds B5's entry landing to meet A4's far door.
+

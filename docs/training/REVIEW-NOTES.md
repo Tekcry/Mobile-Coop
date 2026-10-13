@@ -15,3 +15,7 @@
 - T2: spec change: B2 walkway east doors B2-exit-n/s locked and opened by the opposite lane's lever (closes a gate bypass); glass walls are invisible collision boxes (block bullets, sight probes and light like a wall), no glass mesh yet (no translucent box in the builder).
 - T2: e2e-course timed out once in a 2-job run ("host sees the client at 11, 2.4", older airlock section) and passed on its own: same timing-under-load pattern as T1b / T1c.
 - T2 PC shot: Lane S ladder rails stand 0.4 m clear of the ladder-head landing's face (visual gap only).
+- T3 SPEC CONFLICT (human ladder): `TEAM.ladderGrab` 4.1 (+0.2 slack, teamController.ts:306) caps the human ladder's grip at 4.3 over the floor, but W2's lip is 4.4 (BAYS, level-design 11.3 co-op lips 4.3-4.5, and > `WALL_JUMP.maxUp` + 0.5): the B4 step 2 human-ladder drill cannot reach W2. Not changed (tuning tables frozen; 4.3 fails the strict solo margin and float rounding). Needs a decision before T7a: W2 at 4.25-4.3, or the human ladder's reach. See LOG "Spec change requests (T3)".
+- T3: A4 floor at y 10.4 (outlet platform), not 6 (A32): T4 must land A4's far door on B5's entry landing at local 4.4.
+- T3: B3 fan pit hood (A31) and the duct at 4.15 m (not 7): spec numbers changed.
+- T3: voxelFit height bound for the bunker raised to 40 m (A34): T9a must size the bunker's voxel grid (the course is about 162 x 158 m; the 110 x 110 area bound will fail once T4 / T5 build out).
