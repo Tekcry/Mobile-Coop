@@ -59,6 +59,7 @@ multiple-choice tool. His own words are quoted where he typed them; otherwise th
 | D36 | Restart after both down | "Keep them": finished drills stay ticked; guards, gates and lights reset | T1a, T8a (no longer an assumption) |
 | D37 | Who voices the steps | "LANTERN on the radio": step texts are LANTERN's dry radio lines with the button glyph (text only) | T1c, T7a |
 | D38 | Friendly fire | "Friendly fire on": shots and blasts hurt the partner in the bunker (downed, then revive) | T1b (course mode enables team damage through the host-validated hit paths); T8b |
+| D39 | Hand-offs | "Make sure you give me explicit instructions during the process, telling me exactly what needs to happen next, what the prompt is etc. I shouldn't need to find any information or search documentation." | BRIEF section 6; RULES "Hand-offs"; STATE "Next for Michael"; WALK.md |
 
 ## Decisions Claude made under D12 (Michael reviews them at the end)
 | # | Decision | Reason |

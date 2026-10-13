@@ -45,5 +45,8 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 ## Open assumptions
 (none yet; DECISIONS.md A1 onward)
 
+## Next for Michael
+Nothing yet: the run is starting (cloud, Block A).
+
 ## Next action
 Start T0: read docs/training/steps/T0-facts.md and run its three Explore agents.

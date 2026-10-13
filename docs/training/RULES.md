@@ -19,6 +19,10 @@ DECISIONS.md > docs/design-bible.md > SPEC.md (with exceptions E1-E10) > BAYS.md
   feature/training-bunker whatever branch the cloud session was given: check it out, commit and push only there.
 - A run may move between cloud and local at any step boundary: STATE.md says where the last step ran.
 
+## Hand-offs (D39)
+Every stop ends with the "Next for Michael" block (BRIEF section 6): exact actions and the exact next prompt in a fenced
+block; he never has to look anything up. Keep STATE.md "Next for Michael" current.
+
 ## Context hygiene (orchestrator)
 - Your context holds only STATE.md, the current step file and subagent conclusions (their returned summaries). Never
   read source, diffs or logs yourself beyond `git status`, `git log -1` and a check's summary line.

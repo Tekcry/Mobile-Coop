@@ -76,3 +76,24 @@ every element in its final geometry so that they only flip flags.
   `?net=local&autostart=bunker&mode=course`, then two PCs over the lobby); the PC-PASS results and anything still pending; blocked and deferred items; the switch-on sessions to run next.
 - STATE.md: "Run complete". Final message, 15 lines or fewer: done / blocked / deferred / pending counts, the REVIEW.md
   path, and the next prompt names ("Training: feedback", "Training: SW-L1" ...).
+
+## 6. Hand-offs to Michael (D39)
+Every time the run stops (a planned stop, a wait, a block it cannot pass, a usage limit it can see coming, the end), its
+last message ends with a block titled **"Next for Michael"** that he can follow without opening any file:
+1. One line: where the run is and why it stopped.
+2. Numbered actions, exact and complete: which device (this cloud session or his PC), which folder, which command or
+   menu, what to look at and for how long, where to write notes (with the exact file path and an example line).
+3. The exact prompt to send next, in its own fenced code block, ready to paste.
+4. What happens after he sends it (the next stop, and roughly how many steps away).
+The same block is written to STATE.md under "Next for Michael" (replaced each time), so a fresh session can repeat it.
+Planned stops and their blocks:
+- After Block B (D27): the walk. The block gives the steps from WALK.md inline: start the dev server on the PC
+  (`cd C:\NightShift\Mobile-Coop`, `git fetch origin`, `git checkout feature/training-bunker`, `git pull`, `npm ci`,
+  `npm run dev`), the exact URLs for two tabs (`http://localhost:5173/?net=local&autostart=bunker&mode=course`, the address `npm run dev`
+  prints, normally port 5173; one per
+  tab) and the solo URL (`...&course=solo`), F3 for the debug teleports (bay ids B1-B9), what to check per bay (one line
+  each), how to write `docs/training/WALK-NOTES.md` (format and example), how to commit and push it (exact git commands),
+  then the resume prompt for the PC session.
+- At TM if locomotion step 20 has not landed (D15): how to check (the exact command), and the resume prompt for later.
+- At the end: how to play the course (two tabs, the bot from the debug menu, two PCs over the lobby: exact steps), where
+  REVIEW.md is (and its first questions inline), and the prompt for the feedback session.
