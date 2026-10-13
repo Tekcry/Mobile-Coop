@@ -56,3 +56,4 @@ Commit: "locomotion 20: dev bot partner over the local transport, Block C co-op 
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): no metric regresses vs the last run.
 - Perf trend not required (no rig change); state "no rig change" in the report.
 - PC-PASS: none (no visual change).
+- From step 08: remote stance / weapon settle vs the owner's curve at t - lag (the remote eases a binary crouch flag at 10/s); paired-move alignment palm vs ball-of-foot on both pages; harness remote runtime and 120 Hz jitter probe (steps/08-fixes-r1.md, carried list).
