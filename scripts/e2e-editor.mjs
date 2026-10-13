@@ -2865,13 +2865,15 @@ try {
       for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 10 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
       return (await litRow()) === row;
     };
-    // an empty 32 x 14 m patch of yard on Ground: no other room, wall, object, roof, hole, stair, climb piece or sign on it
+    // an empty 27 x 12 m patch on Ground: no room but a yard or the lane, no, wall, object, roof, hole, stair, climb piece or sign on it
     const patch = await E(() => {
       const d = window.__editor.model.data;
       const ws = d.walls.filter((w) => w.level === 'G');
-      const taken = [...d.rooms.filter((r) => r.level === 'G' && r.kind !== 'yard').map((r) => r.rect), ...(d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect), ...(d.roofs ?? []).map((r) => r.rect), ...d.voids.map((v) => v.rect), ...d.stairs.map((s) => s.rect), ...(d.exterior ?? []).map((e) => [Math.min(e.a[0], e.b[0]), Math.min(e.a[1], e.b[1]), Math.max(e.a[0], e.b[0]), Math.max(e.a[1], e.b[1])]), ...(d.signs ?? []).map((s) => [s.at[0], s.at[1], s.at[0], s.at[1]])];
-      for (const y of d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard')) for (let x = Math.ceil(y.rect[0]) + 1; x + 31 < y.rect[2]; x += 1) for (let z = Math.ceil(y.rect[1]) + 1; z + 13 < y.rect[3]; z += 1) {
-        const box = [x - 1, z - 1, x + 31, z + 13];
+      const taken = [...d.rooms.filter((r) => r.level === 'G' && r.kind !== 'yard' && r.kind !== 'lane').map((r) => r.rect), ...(d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect), ...(d.roofs ?? []).map((r) => r.rect), ...d.voids.map((v) => v.rect), ...d.stairs.map((s) => s.rect), ...(d.exterior ?? []).map((e) => [Math.min(e.a[0], e.b[0]), Math.min(e.a[1], e.b[1]), Math.max(e.a[0], e.b[0]), Math.max(e.a[1], e.b[1])]), ...(d.signs ?? []).map((s) => [s.at[0], s.at[1], s.at[0], s.at[1]])];
+      // anywhere on the site (the yards fill up with earlier steps' work): outside rooms or in a yard or the lane
+      const site = d.meta.site ?? [0, 0, 110, 80];
+      for (let x = Math.ceil(site[0]) + 2; x + 27 < site[2]; x += 1) for (let z = Math.ceil(site[1]) + 2; z + 12 < site[3]; z += 1) {
+        const box = [x - 1, z - 1, x + 26, z + 11];
         const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < box[0] || Math.min(w.a[0], w.b[0]) > box[2] || Math.max(w.a[1], w.b[1]) < box[1] || Math.min(w.a[1], w.b[1]) > box[3])
           && !taken.some((r) => r[0] <= box[2] && r[2] >= box[0] && r[1] <= box[3] && r[3] >= box[1]);
         if (clear) return [x, z];
