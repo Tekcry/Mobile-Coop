@@ -37,7 +37,9 @@ Commit: "locomotion 34: merge kestrel and master, versions, changelog, PC-PASS c
    - every ASSUMED decision as a question, recommended option first;
    - the bible proposals (BIBLE-PROPOSALS.md);
    - numbered desktop checklist, pad first then KBM: movement feel and weight, stops, turns, stairs, back-to-wall,
-     door peek, elbow strike, takedowns, medkits, vision modes, arsenal, remapping and hold / toggle, custom
+     open-side edge aim (D9: left edge pistol in the left hand, rifle on the left shoulder, camera follows, no pop;
+     right edge unchanged; mid-wall normal side), low-wall aim (D10: crouched side lean at the end with the head
+     below the top, over the top mid-wall), door peek, elbow strike, takedowns, medkits, vision modes, arsenal, remapping and hold / toggle, custom
      difficulty, Training;
    - numbered co-op checklist at 2 players (bot partner, and two tabs with `?net=local`): every verb seen from the
      other player, team moves, avatars passing and stacking, host-approved moves, a 4-player local run;

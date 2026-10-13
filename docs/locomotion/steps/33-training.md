@@ -4,7 +4,7 @@ Model: implementer sonnet; checker sonnet. Depends on: 32.
 Commit: "locomotion 33: Training teaches the final CT verbs, pad prompts first"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
-- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D1 (pad first, touch basic), D7.
+- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D1 (pad first, touch basic), D7, D9, D10.
 - docs/design-bible.md 5.3 "Training mode" line (`grep -n 'Training mode' docs/design-bible.md`).
 - docs/story.md writing rules for in-game text (`grep -n -i 'radio\|subtitle\|tone' docs/story.md | head`).
 - src/game/training.ts:1-104 (TrainingStepId, TRAINING_STEPS, TrainingStatus, stepDone, TrainingCourse).
@@ -15,7 +15,8 @@ Commit: "locomotion 33: Training teaches the final CT verbs, pad prompts first"
 
 ## Task
 1. New step list (ids and order): move (analog speed, gear rocker), sneak (crouch, silent band), stop and quick 180,
-   wall (back-to-wall, slide, corner peek), lean-out aim, door peek, vault / mantle, ladder, vision (night, thermal,
+   wall (back-to-wall, slide, corner peek), lean-out aim at a right and a left edge (the weapon moves to the open
+   side, D9), low-wall aim (side lean at the end and over the top, D10), door peek, vault / mantle, ladder, vision (night, thermal,
    electro), draw and aim (holstered unless aiming), elbow strike, takedown, drag and carry, medkit.
    Remove cover, mark, execute, gadget-free sonar text and any removed verb.
 2. Each step: a marker on the target, a one-line objective, the prompt glyph, a done test in `stepDone` from status

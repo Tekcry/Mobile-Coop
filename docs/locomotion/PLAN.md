@@ -28,11 +28,12 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 | 07 | harness-local | scripts/anim-audit.mjs: drives the local player headless (stepHeadless) at 60 / 120 Hz, every gear, both stances, flat / stairs / slope; measures 5.12.2 + D2 + D5 metrics; fail list with frames; JSON out | scripts/anim-audit.mjs, a pure metrics module src/anim/audit/*.ts + tests | - | 06 |
 | 08 | harness-remote | same metrics on a `?net=local` remote copy; joined to run-e2e (report mode until 34, then required); baseline in AUDIT.md | scripts/anim-audit.mjs, run-e2e.mjs | remote metrics recorded | 07 |
 
-## Block C - Verbs, kit and input (sonnet implement; opus check for 11, 12, 14 and every net step)
+## Block C - Verbs, kit and input (sonnet implement; opus check for 11, 12, 12b, 14 and every net step)
 | 09 | holster-draw | holstered unless aiming, no hip fire, ADS spread tuning; MoveState drawn bit + weapon in hand host-authoritative | weapons/playerWeapons, weaponStats, weapons.json, moveState, coopHost | netmove case drawn / holstered | 06 |
 | 10 | elbow-strike | fire while holstered = elbow strike (committed); generic committed-move protocol `cmove` / `cstart {t0}` / `cdeny` (H3); MoveState `strike` | takedownController, protocol, coopHost, coopClient, moveState | netmove case; host denies | 09 |
 | 11 | wall-core | back-to-wall: enter on context press near a wall >= 1.6 m (or low wall), slide along, exit; MoveState `wall`; feeds `localRef.cover` for AI; two players stack on one wall | new src/player/wallController.ts (pure core + tests), gameState, moveState, remoteAvatar | netmove case; stacking (rerun after 20) | 06, 08 |
-| 12 | wall-corner | corner peek, lean-out aim, SWAT turn, corner takedown from the wall | wallController, takedown.ts (highCover -> wall), camera | netmove peek / lean cases | 11 |
+| 12 | wall-corner | corner peek, lean-out aim, SWAT turn, corner takedown from the wall; lean kind `lk` field (PROTOCOL_VERSION 7) | wallController, takedown.ts (highCover -> wall), camera | netmove peek / lean cases | 11 |
+| 12b | wall-edge-aim | D9 open-side weapon at edges (left edge: pistol left hand, rifle left shoulder, camera follows, Inertializer switch, WALL_SUB leftHand); D10 low-wall crouched side lean vs over-the-top, head below the wall top; no protocol bump | wallController, characterRig, localMoveState, remoteAvatar | netmove left-edge lean and low-wall side lean | 12 |
 | 13 | door-peek | context press at a closed door: crack open, peek, close; MoveState `doorPeek`; door state host-authoritative | world/doors, gameState, moveState | netmove case | 06 |
 | 14 | vision | thermal and electro as post passes (local only, never detection); night vision stays the lighting gain; vision cycle night / thermal / electro / off | vfx/*, cinematicPost, gameState | none sent (unit test proves no protocol field) | 02 |
 | 15 | medkits | health 100, medkit heals 40 over 1.5 s, damage interrupts, carry 2 (3 at Rookie), wall medkit entity on test maps, HUD health bar; host-authoritative counts; MoveState `medkit` (H2) | game/health, pickups, hud, protocol, moveState | netmove case; host counts | 03 |
@@ -60,4 +61,4 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 | 33 | training | Training rewritten for the final verbs, pad prompts first | game/training.ts, trainingMode | - | 32 |
 | 34 | finish | merges (kestrel, master), versions, CHANGELOG, progress.md, PC-PASS checklist, REVIEW.md, PR | docs, package.json | full e2e | 33 |
 
-Scope guard: Block A 6 steps (max 12), B 2 (4), C 11 (22), D 13 (26), E 2 (4).
+Scope guard: Block A 6 steps (max 12), B 2 (4), C 12 (24, 12b added for D9-D10), D 13 (26), E 2 (4).

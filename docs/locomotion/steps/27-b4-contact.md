@@ -4,7 +4,7 @@ Model: implementer sonnet; checker opus (network step). Depends on: 26.
 Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab / carry, drag verb, contact IK"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
-- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D5.9, D8, A5; PLAN.md H1, H3.
+- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D5.9, D8, D9, D10, A5; PLAN.md H1, H3.
 - docs/design-bible.md 5.3 "Bodies" (`grep -n 'Drag (3b)' docs/design-bible.md`, +-10 lines); :680-685 (C11);
   :824-834 (durations: grab 0.5, lift 1.0, takedown 1.0-1.5 s).
 - docs/locomotion/AUDIT.md 1e (S01-S08).
@@ -23,7 +23,9 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 
 ## Task
 1. Back-to-wall dedicated clip set: enter (standing / crouched), slide loop, edge peek, lean-out aim, SWAT turn, exit,
-   interrupted exit; replace the stand-ins from steps 11-12. Back and support hand on the wall < 1 cm.
+   interrupted exit; replace the stand-ins from steps 11-12b. Back and support hand on the wall < 1 cm. The set
+   covers both edge sides with mirrored hands (D9: left edge pistol left hand, rifle left shoulder), the low-wall
+   crouched side lean past the end and the rise over the top (D10, head below the wall top).
 2. Takedowns: strike 0.70 -> 0.80 s; every kind (behind, front, side, above, below, window, drop, inverted, corner from
    the wall) plays from the host's shared start time: add 'takedown' and 'grab' to CKind (`cstart {.., t0}`), the
    existing `td` result path stays; both machines play from t0.
@@ -37,7 +39,8 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
    type and rejected by the host with a `cdeny` reason (Phase 5). Unit test proves the type and the denial.
 8. No climbing, sprint, back-to-wall or traversal while dragging or carrying (bible 5.3).
 9. D5.9: hand contact IK on door frames and outside corners when passing within 0.4 m at gears 1-3 (support hand
-   brushes, < 1 cm when touching); never while aiming.
+   brushes, < 1 cm when touching); never while aiming. Back-to-wall edge: the free hand (the one not on the weapon,
+   so it flips with D9) holds the wall corner, < 1 cm, at left and right edges, high wall and low-wall end.
 10. Duck under low geometry: head clearance probe; spine / knees flex to clear with >= 3 cm, no world clip > 3 cm.
 11. Sideways through gaps narrower than 0.7 m: torso turns up to 60 deg (spine limit) and steps sideways.
 12. Add `drag` to the bot partner command table (step 20) and to the e2e-bot suite.
@@ -45,6 +48,8 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 ## D8
 - New mode `drag`: e2e-netmove case; host-approved start; body position synced; denial path tested.
 - Remote char-vs-char <= 3 cm and paired alignment <= 3 cm in the remote audit (takedown, grab, drag, carry).
+- Harness re-checks D9 / D10 with the new clips, local and remote: grips < 2 cm, no weapon through the wall
+  (<= 2 cm) at both edges with pistol and rifle; low-wall side lean head below the wall top.
 - D5.9 contact IK on remotes from their pose and local geometry probes; no new field.
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
 
@@ -56,5 +61,6 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): durations, contacts, char-vs-char, alignment; batches 1-3 pass.
 - `node scripts/perf-trend.mjs`.
-- PC-PASS: anim-sheet for back-to-wall set, each takedown kind, grab, carry, drag, duck, sideways gap, side / front,
+- PC-PASS: anim-sheet for back-to-wall set (left and right edges, pistol and rifle, low-wall side lean and
+  over-the-top), each takedown kind, grab, carry, drag, duck, sideways gap, side / front,
   local and remote: "no clipping between bodies, hands on contact" (PROVISIONAL in the cloud).

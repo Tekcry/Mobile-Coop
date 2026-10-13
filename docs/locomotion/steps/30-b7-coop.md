@@ -4,7 +4,7 @@ Model: implementer sonnet; checker opus (network step). Depends on: 29.
 Commit: "locomotion 30: co-op batch: capsule separation, shoulder turn, wall stacking, team moves with contact IK, 4-player run"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
-- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D8, A4, A5; PLAN.md H3, H4.
+- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D8, D9, A4, A5; PLAN.md H3, H4.
 - docs/design-bible.md:680-685 (C11), :711-718 (C20), :808 and :859 (char-vs-char, paired alignment).
 - docs/locomotion/AUDIT.md 1h (N01-N10).
 - src/game/teamMoves.ts:9-80 (TeamKind, checks, boostPath); src/game/teamController.ts:28-70, :335-345.
@@ -29,7 +29,9 @@ Commit: "locomotion 30: co-op batch: capsule separation, shoulder turn, wall sta
 3. Head look-at to team-mates (step 23) polished: glance on approach, look at a mate who pings or speaks a radio line.
 4. Muzzle discipline (step 25) verified for 2-4 players, including remotes aiming past each other.
 5. Two-player wall stacking: the second player stacks 0.7 m behind on the same wall, shoulder to back, no clipping;
-   leaving the stack and a SWAT turn past the stack partner stay clean.
+   leaving the stack and a SWAT turn past the stack partner stay clean. Two players stacked at a left edge: the
+   lead's open-side switch (D9, WALL_SUB leftHand) poses on the partner's screen; the rear player's mirrored weapon
+   never sweeps the lead (muzzle discipline) and never clips the lead's body (<= 3 cm).
 6. Existing team moves only (A4): brace, boost, human ladder, dual takedown. Each gets the D5 layer (anticipation,
    compression, one settle) and contact IK: hands to cupped hands / shoulders / feet on shoulders < 1 cm, bodies
    <= 3 cm, both machines aligned <= 3 cm from the shared `tstart {t0}`.
@@ -53,5 +55,6 @@ Commit: "locomotion 30: co-op batch: capsule separation, shoulder turn, wall sta
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): char-vs-char, alignment, all batches 1-6 still pass.
 - Block D end: full `npm run e2e` in the background (read the summary, no sleep polling) and
   `node scripts/perf-trend.mjs` (sim p95 <= 3.31 ms, anim <= 0.063 ms on this VM).
-- PC-PASS: anim-sheet with the bot for stacking, pass-by, boost, human ladder, dual takedown, both views:
+- e2e-bot: stacked pair at a left and a right edge, lead leans out; both pages pose the open-side weapon < 10 cm.
+- PC-PASS: anim-sheet with the bot for stacking (incl. a left-edge open-side lean), pass-by, boost, human ladder, dual takedown, both views:
   "no clipping, contacts held" (PROVISIONAL in the cloud).
