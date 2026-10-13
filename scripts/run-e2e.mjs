@@ -55,6 +55,7 @@ const COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-enemies', 'e2e-levels', 'e2e-tactics', 'e2e-missions', 'e2e-takedown', 'e2e-fp-trunk'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
+  'src/world/maps/bunker': ['e2e-course'],
   'src/world/': ['e2e-security', 'e2e-kestrel', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-levels', 'e2e-anchors', 'e2e-ct-warehouse', 'e2e-desktop', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu'],
   'src/voxel/': ['e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop', 'e2e-darkness', 'e2e-phonelamps'],

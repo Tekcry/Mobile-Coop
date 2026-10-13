@@ -10,6 +10,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 - It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages: iPhone 17 Pro Max at 60 fps and desktop.
 - `docs/design-bible.md` decides design questions. Text anywhere describing Blacklist systems (snap cover, Mark & Execute, sonar, Ghost / Panther / Assault, PvP, Wave) is history.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
+- Fallow (map `bunker`, `src/world/maps/bunker*.ts`, run docs `docs/training/`): the two-player training bunker, course mode, `?autostart=bunker&mode=course`, not listed. Upper level (y 16, B1 / A1 / B2 / A2) built; `node scripts/plan-svg.mjs` draws its plans.
 
 ## Every session
 1. Read this file.

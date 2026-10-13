@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
+- T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks
+  A1 and A2 (locked blast doors the course opens, bench, vision slot), B2 The Lanes (two mirrored obstacle lanes with
+  every ground and climbing verb, glass walkway, lever-gated lane doors, drop pads and pit). Map `bunker` ("Fallow",
+  `?autostart=bunker&mode=course`, not listed) with a course stub (B1, B2). `scripts/plan-svg.mjs` draws a map's
+  storey plans headless. Tests: `tests/bunkerMap.test.ts`.
+
 ## 3.7.0 - Training course framework (Block A, branch `feature/training-bunker`)
 - Course mode (T1a, T1b): `CourseState` (pure, host only) runs bays, airlocks and gates (lever, bolt, hold, timed hold,
   pair, egress, mains, pickup / flag, anchor lock), checkpoints and bay restarts; `CourseMode` puts down the devices,

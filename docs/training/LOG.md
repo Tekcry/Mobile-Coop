@@ -63,3 +63,12 @@ e2e-feedback failed on look / free-camera input timing under load and passed ser
 e2e-camera-bounds level U are the kestrel-owned pre-existing failures (RULES). Perf trend (software GL): sim p95 3.75
 ms (T0 3.9), anim 0.088 ms/char (T0 0.105), alloc 11882 KB/s (T0 11163, +6%, over the 11520 budget on this VM: trend
 only, recheck on the PC), draws 43, tris 0.14 M. No sim / anim rise. GPU items: pending PC run.
+
+## T2 Upper level geometry (2026-10-13, cloud)
+`src/world/maps/bunker.ts` (MapDef `bunker` "Fallow": course + sandbox, navLayers 5, lightLevel 0.05, no sun; course
+stub), `bunkerUpper.ts` (B1, A1, B2 both lanes, A2 at y 16; `BUNKER_LIPS`, `B2_METRICS`), registered in index.ts (not
+listed). `scripts/plan-svg.mjs` (headless via Vite SSR) writes `test-results/training/plan-<y>.svg`.
+`tests/bunkerMap.test.ts` (8 tests: registration, spawns, course validates, no Upper split gaps, lips only from
+BUNKER_LIPS, step / vault / mantle, pipe reach, hang-drop, L1 / L2, gap 2.2, pad bands). Assumptions A25-A28. BAYS
+numbers moved within their windows (logged in A27): L1 column x 35 (-1), P x 38.85-42, cross wall x 44.2. Headless boot
+`?autostart=bunker&mode=course`: player at (2, 16, 84), no console errors.
