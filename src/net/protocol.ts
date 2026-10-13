@@ -8,8 +8,10 @@ import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -25,11 +27,13 @@ const WORLD = 400;
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
-export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa';
-export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa'];
+export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'course';
+export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa', 'course'];
+/** The training course takes exactly two players (P1 host, P2 client). */
+export const COURSE_MAX = 2;
 export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
 /** Players a mode takes. */
-export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : COOP_MAX);
+export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : m === 'course' ? COURSE_MAX : COOP_MAX);
 import { parseDifficulty, type Difficulty } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -176,6 +180,10 @@ export type Msg =
   | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
+  /** Training course state (host -> all): when it changes or every COURSE_SEND. */
+  | ({ t: 'course' } & CourseWire)
+  /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
+  | { t: 'ctick'; verb: ClientVerb }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -409,6 +417,72 @@ const MODES = NET_MODES;
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
 /** Validate an incoming message. Returns null for anything malformed. */
+const COURSE_LIST = 256;
+const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
+const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
+  const out: number[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const n = num(x, lo, hi);
+    if (n !== null) out.push(Math.round(n));
+  }
+  return out;
+};
+const strs = (v: unknown, max = COURSE_LIST): string[] => {
+  const out: string[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const s = safeText(x, 48);
+    if (s) out.push(s);
+  }
+  return out;
+};
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v.slice(0, COURSE_LIST) : []);
+const n0 = (v: unknown, lo: number, hi: number): number => num(v, lo, hi) ?? 0;
+
+/** The `course` message: every field clamped, lists capped, unknown shapes dropped. */
+function parseCourse(raw: Obj): Msg | null {
+  const s = raw.s;
+  const lights = raw.lights;
+  if (!isObj(s) || !isObj(lights)) return null;
+  const stat = (q: unknown) => {
+    const o = isObj(q) ? q : {};
+    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4) };
+  };
+  const packed: PackedCourse = {
+    bay: Math.round(n0(s.bay, 0, 64)),
+    done: arr(s.done).map((b) => b === true),
+    cp: safeText(s.cp, 48) ?? 'start',
+    clock: n0(s.clock, 0, 1e6),
+    over: s.over === true,
+    air: arr(s.air).map((a) => {
+      const o = isObj(a) ? a : {};
+      return { phase: oneOf(o.phase, PHASES) ?? 'open', t: n0(o.t, 0, 60) };
+    }),
+    gates: arr(s.gates).map((x) => {
+      const o = isObj(x) ? x : {};
+      return { open: o.open === true, t: n0(o.t, 0, 600), holders: Math.round(n0(o.holders, 0, 3)), ta: n0(o.ta, -1, 1e6), tb: n0(o.tb, -1, 1e6), pa: Math.round(n0(o.pa, -1, 1)), pb: Math.round(n0(o.pb, -1, 1)) };
+    }),
+    flags: strs(s.flags),
+    flagBay: arr(s.flagBay).flatMap((x): [string, number][] => {
+      const f = Array.isArray(x) ? safeText(x[0], 48) : null;
+      return f ? [[f, Math.round(n0((x as unknown[])[1], 0, 64))]] : [];
+    }),
+    groupsOff: strs(s.groupsOff),
+    ticks: arr(s.ticks).map((x): [number, number] => (Array.isArray(x) ? [Math.round(n0(x[0], 0, 99)), Math.round(n0(x[1], 0, 99))] : [0, 0])),
+    stats: arr(s.stats).map(stat),
+    locks: strs(s.locks),
+    anchors: strs(s.anchors),
+  };
+  const groups: [number, boolean][] = [];
+  for (const x of arr(lights.groups)) {
+    if (!Array.isArray(x)) continue;
+    const g = num(x[0], -1, 4096);
+    if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
+  }
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) } };
+}
+
 export function parseMessage(raw: unknown): Msg | null {
   if (!isObj(raw)) return null;
   switch (raw.t) {
@@ -440,6 +514,12 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'use': {
       const iid = id(raw.id);
       return iid ? { t: 'use', id: iid } : null;
+    }
+    case 'course':
+      return parseCourse(raw);
+    case 'ctick': {
+      const verb = oneOf(raw.verb, CLIENT_VERBS);
+      return verb ? { t: 'ctick', verb } : null;
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);

@@ -4,8 +4,9 @@
  * (`setFlag`), drill verbs (`tick`) and stats (`record`), then `update(dt)`. Outputs: door and anchor locks, the
  * current bay, the checkpoint, drill progress, the next drill per player, per-bay stats and `events`.
  *
- * Nothing completes a drill except `tick` (D30: no skip path). `solo` (the dev solo flag, D21) only makes one player's
- * ticks count for both; airlocks, refusals and restarts always need both players (a solo tester uses two tabs).
+ * Nothing completes a drill except `tick` (D30: no skip path). `solo` (the dev solo flag, D21, DECISIONS A6) makes one
+ * player's ticks count for both, lets one player cycle an airlock, work both halves of a pair gate and restart the bay
+ * when down; it never completes a drill.
  *
  * Per-step and per-query paths use indexed loops and allocate nothing (conventions.md hot paths).
  */
@@ -49,7 +50,7 @@ export interface PackedCourse {
   clock: number;
   over: boolean;
   air: { phase: AirlockPhase; t: number }[];
-  gates: { open: boolean; t: number; holders: number; ta: number; tb: number }[];
+  gates: { open: boolean; t: number; holders: number; ta: number; tb: number; pa?: number; pb?: number }[];
   flags: string[];
   /** [flag, bay index that set it]. */
   flagBay: [string, number][];
@@ -74,6 +75,9 @@ interface GateRt {
   /** pair: clock time of the last press of a / b (-1 = none). */
   ta: number;
   tb: number;
+  /** pair: who pressed a / b last (player index, -1 = none): a pair needs two players unless `solo`. */
+  pa: number;
+  pb: number;
   /** flag / anchorLock / perPlayer pickup: `${flag}@1` and `${flag}@2` (precomputed: queries must not allocate); else ''. */
   key1: string;
   key2: string;
@@ -96,7 +100,10 @@ export class CourseState {
   over = false;
   /** Checkpoint: 'start' or the last sealed airlock id. */
   checkpoint = 'start';
-  /** Dev solo flag (D21): one player's ticks count for both. Nothing else (D30). */
+  /**
+   * Dev solo flag (D21, A6): one player's ticks count for both; one player inside cycles an airlock; one player may press
+   * both halves of a pair gate; one player down restarts the bay. Never completes a drill (D30).
+   */
   solo = false;
   readonly done: boolean[];
   readonly stats: BayStats[];
@@ -134,7 +141,7 @@ export class CourseState {
         const keyed = g.kind === 'flag' || g.kind === 'anchorLock' || (g.kind === 'pickup' && g.perPlayer);
         const key1 = keyed ? `${g.flag}@1` : '';
         const key2 = keyed ? `${g.flag}@2` : '';
-        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, key1, key2 });
+        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, pa: -1, pb: -1, key1, key2 });
       }
       for (const d of b.drills) {
         this.drillIdx.set(d, this.ticks.length);
@@ -224,7 +231,7 @@ export class CourseState {
           }
           break;
         case 'pair':
-          if (!g.open && (d.a === id || d.b === id)) this.pressPair(g, id === d.a);
+          if (!g.open && (d.a === id || d.b === id)) this.pressPair(g, id === d.a, p);
           break;
         case 'pickup':
           if (d.switchId === id) {
@@ -325,6 +332,8 @@ export class CourseState {
       g.holders = 0;
       g.ta = -1;
       g.tb = -1;
+      g.pa = -1;
+      g.pb = -1;
       if (g.def.kind === 'mains' && this.groupsOff.has(g.def.group)) g.open = true;
       if (wasOpen && !g.open) this.events.push({ t: 'gateClosed', gate: g.def.id });
     }
@@ -360,7 +369,7 @@ export class CourseState {
     }
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') this.stepAirlock(a, dt);
-    const bothDown = this.downed[0] && this.downed[1];
+    const bothDown = this.solo ? this.downed[0] || this.downed[1] : this.downed[0] && this.downed[1];
     if (bothDown) {
       this.downT += dt;
       if (this.downT >= RESTART_DELAY - 1e-9) this.restart();
@@ -517,7 +526,7 @@ export class CourseState {
       clock: this.clock,
       over: this.over,
       air: this.air.map((a) => ({ phase: a.phase, t: a.t })),
-      gates: this.gates.map((g) => ({ open: g.open, t: g.t, holders: g.holders, ta: g.ta, tb: g.tb })),
+      gates: this.gates.map((g) => ({ open: g.open, t: g.t, holders: g.holders, ta: g.ta, tb: g.tb, pa: g.pa, pb: g.pb })),
       flags: [...this.flags],
       flagBay: [...this.flagBay],
       groupsOff: [...this.groupsOff],
@@ -550,6 +559,8 @@ export class CourseState {
         g.holders = s.holders;
         g.ta = s.ta;
         g.tb = s.tb;
+        g.pa = s.pa ?? -1;
+        g.pb = s.pb ?? -1;
       }
     });
     this.flags.clear();
@@ -591,13 +602,20 @@ export class CourseState {
     this.events.push(open ? { t: 'gateOpened', gate: g.def.id } : { t: 'gateClosed', gate: g.def.id });
   }
 
-  private pressPair(g: GateRt, isA: boolean): void {
+  private pressPair(g: GateRt, isA: boolean, p: PlayerIdx): void {
     if (g.def.kind !== 'pair') return;
     const win = (g.def.window ?? PAIR_WINDOW) + 1e-9;
-    if (isA) g.ta = this.clock;
-    else g.tb = this.clock;
+    if (isA) {
+      g.ta = this.clock;
+      g.pa = p;
+    } else {
+      g.tb = this.clock;
+      g.pb = p;
+    }
     const other = isA ? g.tb : g.ta;
     if (other < 0) return;
+    // two different players, unless the dev solo flag lets one work both halves (A6)
+    if (!this.solo && (isA ? g.pb : g.pa) === p) return;
     if (this.clock - other <= win) {
       if (g.def.flag !== undefined && !this.flags.has(g.def.flag)) {
         this.flags.add(g.def.flag);
@@ -637,9 +655,15 @@ export class CourseState {
     );
   }
 
+  /** Both players inside (one under `solo`). */
   private bothInside(a: AirRt | null): boolean {
     if (!a) return false;
-    return this.inside(a.def, 0) && this.inside(a.def, 1);
+    return this.insideCount(a.def) >= this.need();
+  }
+
+  /** Players an airlock needs: 2, or 1 under the dev solo flag (A6). */
+  private need(): number {
+    return this.solo ? 1 : 2;
   }
 
   private insideCount(a: AirlockDef): number {
@@ -683,7 +707,7 @@ export class CourseState {
   private cycleRefusal(a: AirRt): string | null {
     const n = this.insideCount(a.def);
     if (this.anyDowned()) return REFUSE_REVIVE;
-    if (n < 2) return REFUSE_PARTNER;
+    if (n < this.need()) return REFUSE_PARTNER;
     return this.drillRefusal();
   }
 
@@ -700,7 +724,7 @@ export class CourseState {
 
   private stepAirlock(a: AirRt, dt: number): void {
     const n = this.insideCount(a.def);
-    const need = 2;
+    const need = this.need();
     if (a.phase === 'cycling') {
       if (n < need || this.anyDowned()) {
         a.t = 0;

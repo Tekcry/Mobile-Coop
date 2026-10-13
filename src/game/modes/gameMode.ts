@@ -6,7 +6,7 @@ import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`. */
-export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training';
+export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training' | 'course';
 
 export interface SessionStats {
   mode: ModeId;
@@ -77,6 +77,10 @@ export interface GameMode {
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */
   onInteract?(it: Interactable): void;
+  /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
+  onRemoteVerb?(id: string, verb: string): void;
+  /** Co-op host: a client's movement mode (from its `pstate`). */
+  onRemoteMove?(id: string, mode: string): void;
   blips(): Blip[];
   dispose(): void;
 }

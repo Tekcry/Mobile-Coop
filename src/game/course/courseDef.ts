@@ -4,6 +4,7 @@
  * map really has (doors, switches, holds, anchors, light groups) and throws naming the bad id.
  */
 import { AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } from '../../config/course';
+import type { SquadSlot } from '../../world/rooms';
 
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
 export type PlayerIdx = 0 | 1;
@@ -257,4 +258,34 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
     }
   }
   return def;
+}
+
+/** A switch, a hold point or an airlock "Cycle" panel the map puts down (feet-level position, facing `yaw`). */
+export interface CourseDevice {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  /** Prompt label (default by gate kind). */
+  label?: string;
+}
+
+/**
+ * The map's course (`MapLayout.course`): the definition plus how its string ids map onto the built level: doors and
+ * anchors to their `TraversalAnchors` ids, light groups to `LightDef.group` numbers, devices (switches, holds, airlock
+ * Cycle panels, keyed by the id the definition uses) and the squad slots by id.
+ */
+export interface CourseLayout {
+  def: CourseDef;
+  doors: Record<string, number>;
+  anchors?: Record<string, number>;
+  groups?: Record<string, number>;
+  devices: Record<string, CourseDevice>;
+  squads: Record<string, SquadSlot>;
+}
+
+/** The ids a course layout really has (for `validateCourse`). */
+export function layoutKnownIds(l: CourseLayout): CourseKnownIds {
+  const devices = Object.keys(l.devices);
+  return { doors: Object.keys(l.doors), switches: devices, holds: devices, anchors: Object.keys(l.anchors ?? {}), groups: Object.keys(l.groups ?? {}) };
 }

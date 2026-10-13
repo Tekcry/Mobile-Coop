@@ -18,6 +18,8 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
+import { applyCourseWire } from '../game/modes/courseMode';
+import type { ClientVerb } from '../game/course/courseWire';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
@@ -61,6 +63,7 @@ export class CoopClient implements NetAttachment {
   ) {
     this.pvp = isPvp(g.opts.mode) ? (g.opts.mode as PvpMode) : null;
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
+    if (g.opts.mode === 'course') this.offs.push(g.events.on('vision', () => this.ctick('vision')));
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
@@ -90,6 +93,9 @@ export class CoopClient implements NetAttachment {
         break;
       case 'ev':
         for (const e of msg.events) this.onEvent(e);
+        break;
+      case 'course':
+        applyCourseWire(this.g, msg);
         break;
       case 'end':
         this.onEndMsg(msg.stats);
@@ -454,6 +460,7 @@ export class CoopClient implements NetAttachment {
     this.sendT -= dt;
     // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
+    if (this.mvSent.g !== 0 && mv.g !== this.mvSent.g) this.ctick('gear');
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
@@ -510,7 +517,13 @@ export class CoopClient implements NetAttachment {
   }
 
   /** Own ping: shown at once, the host relays it. */
+  /** Course mode: a verb only this client sees (C10); the host rate-limits and ticks it. */
+  private ctick(verb: ClientVerb): void {
+    if (this.g.opts.mode === 'course') this.s.toHost({ t: 'ctick', verb });
+  }
+
   ping(x: number, y: number, z: number, target: string): void {
+    this.ctick('ping');
     const me = this.s.selfId;
     this.s.toHost({ t: 'ping', x, y, z, target });
     this.g.addPing(me, x, y, z, target, this.s.players.get(me)?.tag.color ?? '#4fdc7c');

@@ -8,6 +8,7 @@ import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
+import { isListedMap } from '../world/maps/listed';
 import { DIFFICULTIES, DIFFICULTY } from '../ai/archetypes';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, isPvp, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
@@ -255,10 +256,12 @@ const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'sandbox', label: 'Free Roam' },
   { value: 'tdm', label: 'Team Deathmatch' },
   { value: 'ffa', label: 'Free-for-all' },
+  { value: 'course', label: 'Training course' },
 ];
 /** 3.5: Infiltration and Free Roam; Wave, Hunter, Team Deathmatch and Free-for-all only with `?legacy=1` (the mode already set stays listed). */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  const shown = visibleModes(MODE_OPTS, flags.legacy);
+  // the training course only when a listed map offers it (D22)
+  const shown = visibleModes(MODE_OPTS, flags.legacy).filter((m) => m.value !== 'course' || MAPS.some((x) => isListedMap(x.id) && x.modes.includes('course')));
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }

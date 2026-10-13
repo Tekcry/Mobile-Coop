@@ -1,7 +1,8 @@
 import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
-import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
+import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, MAX_DOORS, capacity, PROTOCOL_VERSION } from '../src/net/protocol';
+import { TickLimiter } from '../src/game/course/courseWire';
 import { mulberry } from '../src/core/rng';
 
 const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80, sh: 20 };
@@ -302,7 +303,7 @@ describe('net session', () => {
     let got = false;
     late.events.on('start', () => (got = true));
     // the late client subscribed after construction: a re-hello (reconnect) triggers the start again
-    late.transport.send({ t: 'hello', v: 2, name: 'Late', tag: {}, look: {} });
+    late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} });
     expect(got).toBe(true);
     let left = '';
     host.events.on('peerLeft', (p) => (left = p.name));
@@ -333,7 +334,7 @@ describe('net session', () => {
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
+    fifth.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
     expect(host.players.size).toBe(4);
     expect(full).toBe(true);
   });
@@ -375,5 +376,43 @@ describe('team moves (3.2.0 phase 5)', () => {
     expect(parseMessage({ t: 'tdeny', a: 'peerA', reason: 'notBraced' })).toEqual({ t: 'tdeny', a: 'peerA', reason: 'notBraced' });
     expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB' });
     expect(parseMessage({ t: 'tend', a: 'peerA' })).toBeNull();
+  });
+});
+
+describe('course messages (T1b)', () => {
+  it('parses a course message with clamps and caps', () => {
+    const m = parseMessage({
+      t: 'course',
+      s: { bay: 99, done: [true, 1], cp: 'A1<x>', clock: 5, over: false, air: [{ phase: 'bogus', t: 900 }], gates: [{ open: true, t: -4, holders: 9, ta: 1, tb: -1, pa: 0, pb: 5 }], flags: ['key'], flagBay: [['key', 1], [3, 1]], groupsOff: ['mains'], ticks: [[1, 200]], stats: [{ time: 2 }], locks: ['d0'], anchors: [] },
+      locks: [0, 3, 500, 'x'],
+      anchors: [12],
+      lights: { groups: [[7, false], [8, 'on']], dead: [4] },
+    });
+    expect(m).toMatchObject({ t: 'course', locks: [0, 3, MAX_DOORS - 1], anchors: [12], lights: { groups: [[7, false]], dead: [4] } });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.s.bay).toBe(64);
+    expect(m.s.done).toEqual([true, false]);
+    expect(m.s.cp).toBe('A1x');
+    expect(m.s.air[0]).toEqual({ phase: 'open', t: 60 });
+    expect(m.s.gates[0]).toMatchObject({ open: true, t: 0, holders: 3, pb: 1 });
+    expect(m.s.flagBay).toEqual([['key', 1]]);
+    expect(m.s.ticks[0]).toEqual([1, 99]);
+    expect(m.s.stats[0]).toMatchObject({ time: 2, kills: 0 });
+    expect(parseMessage({ t: 'course', s: 1, lights: {} })).toBeNull();
+  });
+  it('parses ctick for client-only verbs only', () => {
+    expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });
+    expect(parseMessage({ t: 'ctick', verb: 'takedown' })).toBeNull();
+  });
+  it('the course takes two players and the protocol was bumped', () => {
+    expect(capacity('course')).toBe(2);
+    expect(PROTOCOL_VERSION).toBe(3);
+  });
+  it('the ctick limiter allows 4 a second', () => {
+    const l = new TickLimiter();
+    let n = 0;
+    for (let i = 0; i < 20; i++) if (l.take(i * 0.05)) n++;
+    expect(n).toBeLessThanOrEqual(8);
+    expect(n).toBeGreaterThanOrEqual(4);
   });
 });

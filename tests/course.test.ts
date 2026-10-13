@@ -194,26 +194,58 @@ describe('drills gate the airlock (D30)', () => {
     s.tick(1, 'vault');
     expect(s.drillsDone()).toBe(true);
   });
-  it('the solo flag only counts one tick for both (airlocks and restarts still need both players)', () => {
+  it('the solo flag (A6): one tick counts for both, one player cycles and restarts; drills still need the verb', () => {
     const s = new CourseState(course());
     s.solo = true;
+    enter(s, 1, [0]);
+    outside(s, 1);
+    s.update(DT);
+    // no drill is ever completed by the flag itself (D30)
+    expect(s.drillsDone()).toBe(false);
+    expect(s.press('A1', 0)).toMatch(/^Waiting: /);
     s.tick(0, 'crouch');
     s.tick(0, 'shimmy');
     s.tick(0, 'ping');
     expect(s.drillsDone()).toBe(true);
+    expect(s.drillTicks('d-crouch', 1)).toBe(1);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('ready');
+    expect(s.press('A1', 0)).toBeNull();
+    run(s, AIRLOCK_CYCLE + 0.1);
+    expect(s.airlockPhase('A1')).toBe('sealed');
+    // one player down restarts the bay under solo
+    s.setPlayer(0, -50, 0, -50, true);
+    s.clearEvents();
+    run(s, RESTART_DELAY + 0.1);
+    expect(s.events.some((e) => e.t === 'bayRestart')).toBe(true);
+  });
+  it('without solo one player down never restarts and one player never cycles', () => {
+    const s = new CourseState(course());
+    s.tick(0, 'crouch');
+    s.tick(1, 'crouch');
+    s.tick(1, 'shimmy');
+    s.tick(0, 'ping');
     enter(s, 1, [0]);
     outside(s, 1);
     s.update(DT);
-    expect(s.airlockPhase('A1')).toBe('waiting');
     expect(s.press('A1', 0)).toBe(REFUSE_PARTNER);
-    s.setPlayer(1, -50, 0, -50, true);
-    expect(s.airlockPrompt('A1')).toBe(REFUSE_REVIVE);
     s.setPlayer(0, -50, 0, -50, true);
-    s.setPlayer(1, -50, 0, -50, false);
     s.clearEvents();
     run(s, RESTART_DELAY + 1);
     expect(s.events.some((e) => e.t === 'bayRestart')).toBe(false);
-    expect(s.airlockPhase('A1')).not.toBe('sealed');
+  });
+  it('a pair gate needs two players unless solo (A6)', () => {
+    const s = new CourseState(course());
+    s.press('sw-pa', 0);
+    s.update(0.5);
+    s.press('sw-pb', 0);
+    expect(s.locked('d-pair')).toBe(true);
+    const t = new CourseState(course());
+    t.solo = true;
+    t.press('sw-pa', 0);
+    t.update(0.5);
+    t.press('sw-pb', 0);
+    expect(t.locked('d-pair')).toBe(false);
   });
   it('finish refuses with open drills and ends the course', () => {
     const s = new CourseState(course());

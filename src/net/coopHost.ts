@@ -12,6 +12,7 @@ import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { hqStats } from '../progression/suit';
 import type { NetSession } from './session';
+import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
@@ -114,6 +115,8 @@ export class CoopHost implements NetAttachment {
   /** PvP: the score; per player hit volumes the host's own shots resolve against; respawn timers. */
   readonly score: PvpScore | null;
   private pvpBoxes = new Map<string, Hitboxes>();
+  /** Course mode: `ctick` rate limit per client. */
+  private ctickLim = new Map<string, TickLimiter>();
   private respawnIn = new Map<string, number>();
   private ended = false;
   private infoT = 0;
@@ -435,6 +438,7 @@ export class CoopHost implements NetAttachment {
       case 'pstate':
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
+        if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         break;
       case 'shot':
         if (this.score && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
@@ -454,6 +458,12 @@ export class CoopHost implements NetAttachment {
       case 'use':
         this.onUse(r, msg.id);
         break;
+      case 'ctick': {
+        let lim = this.ctickLim.get(r.id);
+        if (!lim) this.ctickLim.set(r.id, (lim = new TickLimiter()));
+        if (r.alive && lim.take(this.time)) this.g.mode?.onRemoteVerb?.(r.id, msg.verb);
+        break;
+      }
       case 'td':
         this.onTakedown(r, msg);
         break;
@@ -494,8 +504,13 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
-    if (it.onUse) it.onUse(it);
+    if (it.onUse) it.onUse(it, r.id);
     else this.g.mode?.onInteract?.(it);
+  }
+
+  /** Course mode: the course state, locks and lights to every client. */
+  course(w: CourseWire): void {
+    this.s.send({ t: 'course', ...w });
   }
 
   /** A client's takedown on a host enemy: seize it (in reach, calm or not facing), finish it, or let go. */

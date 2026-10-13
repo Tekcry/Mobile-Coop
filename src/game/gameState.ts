@@ -90,6 +90,8 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { TrainingMode } from './modes/trainingMode';
+import { CourseMode } from './modes/courseMode';
+import type { CourseWire } from './course/courseWire';
 import { StyleTracker } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
@@ -149,6 +151,8 @@ export interface NetAttachment {
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
   shadows?(b: BlobShadows): void;
+  /** Host, course mode: send the `course` message to every client. */
+  course?(w: CourseWire): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -514,7 +518,9 @@ export class GameState implements AppState {
               ? new InfiltrationMode(this)
               : opts.mode === 'training'
                 ? new TrainingMode(this)
-                : new MissionMode(this);
+                : opts.mode === 'course'
+                  ? new CourseMode(this)
+                  : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -770,6 +776,11 @@ export class GameState implements AppState {
     this.app.input.setGameplayActive(true);
     this.app.input.touch.setAction(null);
     this.mode?.start();
+    // the course's dev solo flag (D21, A6): a debug-overlay toggle in dev builds only, never in the menus
+    if (import.meta.env.DEV && this.mode instanceof CourseMode) {
+      const cm = this.mode;
+      this.app.debug.setToggle('courseSolo', 'Course solo', cm.state?.solo ?? false, (on) => cm.setSolo(on));
+    }
     if (this.opts.benchmark) {
       // the flight (3.2.5): the rooms joined by the guards' walking routes - through the doorways, never through a wall,
       // at a steady eye height (the doors open and their leaves hidden: an open leaf stands out into the corridor)
@@ -816,6 +827,7 @@ export class GameState implements AppState {
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
     this.app.debug.setTeleports(null);
+    this.app.debug.setToggle('courseSolo', '', false, null);
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
     this.enemyMgr?.clear();

@@ -5,6 +5,7 @@ import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
 import type { SecurityData } from '../security/data';
+import type { CourseLayout } from '../game/course/courseDef';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -63,6 +64,8 @@ export interface MapLayout {
   debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
   /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */
   security?: SecurityData;
+  /** Training course (course mode): the definition and its ids on this level. */
+  course?: CourseLayout;
 }
 
 export interface MapDef {
@@ -71,7 +74,7 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training')[];
+  modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training' | 'course')[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
   art?: VoxelArt;

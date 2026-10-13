@@ -38,8 +38,8 @@ export interface Interactable {
   reach?: number;
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
-  /** Called when used (else the mode handles it). */
-  onUse?: (it: Interactable) => void;
+  /** Called when used (else the mode handles it); `by` is the co-op client's id when a client used it. */
+  onUse?: (it: Interactable, by?: string) => void;
 }
 
 /**
