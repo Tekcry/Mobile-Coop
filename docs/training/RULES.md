@@ -10,6 +10,15 @@ Condensed from BRIEF.md. The brief and DECISIONS.md win if they differ.
 ## Authority
 DECISIONS.md > docs/design-bible.md > SPEC.md (with exceptions E1-E10) > BAYS.md > docs/level-design.md > other docs > code.
 
+## Where it runs
+- **Local (Michael's PC):** everything, GPU items included (section "GPU on this PC").
+- **Cloud mode** (the start message says "(cloud)", or `E2E_GPU` cannot work: no hardware GPU): software GL only. Never
+  set `E2E_GPU=1`; never claim a perf or visual result; every GPU item at a block end is marked "pending PC run" in
+  PC-PASS.md and STATE.md, and runs at the next local session's first block end (it reruns all pending rows). Use
+  `E2E_JOBS=2` (cloud VMs have about 4 cores). The perf trend (no --budget) still runs: trend only. The branch is
+  feature/training-bunker whatever branch the cloud session was given: check it out, commit and push only there.
+- A run may move between cloud and local at any step boundary: STATE.md says where the last step ran.
+
 ## Context hygiene (orchestrator)
 - Your context holds only STATE.md, the current step file and subagent conclusions (their returned summaries). Never
   read source, diffs or logs yourself beyond `git status`, `git log -1` and a check's summary line.

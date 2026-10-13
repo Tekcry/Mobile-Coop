@@ -4,6 +4,11 @@ Start a session on Michael's PC (Claude Code, local, in `C:\NightShift\Mobile-Co
 
     Training run: START. Follow docs/training/BRIEF.md.
 
+Or in a Claude Code cloud session (repo Tekcry/Mobile-Coop), for Blocks A and B while the PC is busy (cloud mode,
+RULES "Where it runs"):
+
+    Training run: START (cloud). Follow docs/training/BRIEF.md. Use branch feature/training-bunker.
+
 Resume after a stop, a crash or a compaction with:
 
     Training run: RESUME. Follow docs/training/BRIEF.md.
