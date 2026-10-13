@@ -2257,6 +2257,135 @@ try {
     await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
     await backCheck('F10 after the lights', beforeW);
     await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+
+    // ---------- ON7: live lighting, the darkness map, the lights preview modes, the guard view tester ----------
+    console.log('ON7: light view (Y), a downlight in the spine corridor lights its darkness map cell after the bake; Mains off; a guard eye; the walk test meter agrees');
+    {
+      const L = () => E(() => { const l = window.__editor.lights; return { on: l.on, dark: l.dark, state: l.state, bakes: l.bakes, mode: l.mode.kind, eyes: l.eyes.length, tool: window.__editor.tool }; });
+      const T = await E(() => window.__editor.lights.thresholds);
+      const cell = (x, z) => E(([x, z]) => window.__editor.lights.cellValue(x, z), [x, z]);
+      const baked = (b) => page.waitForFunction((b) => window.__editor.lights.bakes > b && window.__editor.lights.state === 'ready', b, { timeout: 180000 });
+      /** Holds a D-pad button on a View row only until its value changes. */
+      const holdVal = (btn) => E(async (b) => {
+        const raf = () => new Promise((r) => requestAnimationFrame(r));
+        const probe = () => document.querySelector('#tileMenu .tile.hl .tv')?.textContent ?? '';
+        const v0 = probe();
+        window.__pad.set(b, 1);
+        for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+        window.__pad.set(b, 0); await raf(); await raf(); await raf();
+      }, btn);
+      await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLevel('G'); ed.setLayout('both'); });
+      // Y with the keyboard: the light view; the first exact bake
+      await page.keyboard.press('KeyY');
+      await page.waitForFunction(() => window.__editor.lights.on && window.__editor.lights.state === 'ready', null, { timeout: 180000 });
+      const l1 = await L();
+      // the darkness map from the pad: Y > View > Darkness map, A
+      await press(BTN.Y);
+      const vTab = await toTab('View');
+      const dTile = await toTileHeld('Darkness map', BTN.DOWN);
+      await press(BTN.A);
+      await page.waitForFunction(() => window.__editor.lights.dark, null, { timeout: 5000 }).catch(() => {});
+      if ((await menuState()).open) await press(BTN.B);
+      const l2 = await L();
+      assert(l1.on && l1.state === 'ready' && l1.bakes >= 1 && vTab && dTile && l2.dark && /Exact light/.test(await E(() => document.getElementById('lightLegend').textContent)), `ON7: Y turns the light view on (bake ${l1.state}, ${l1.bakes} bakes); Y > View > Darkness map, A turns the darkness map on (${l2.dark})`);
+
+      // an empty, hidden patch of the spine corridor (G-SPINE, ceiling 2.4 m), no lamp within 6 m
+      const spot = await E(([shadow]) => {
+        const ed = window.__editor;
+        const d = ed.model.data;
+        const r = d.rooms.find((q) => q.id === 'G-SPINE');
+        const z = +((r.rect[1] + r.rect[3]) / 2).toFixed(1);
+        for (let x = r.rect[0] + 8; x < r.rect[2] - 2; x += 1) {
+          if ((d.lamps ?? []).some((l) => Math.hypot(l.at[0] - x, l.at[2] - z) < 6)) continue;
+          if (ed.lights.cellValue(x, z) < shadow && ed.lights.cellValue(x - 6, z) === ed.lights.cellValue(x - 6, z)) return { x, z };
+        }
+        return null;
+      }, [T.shadow]);
+      assert(!!spot, `ON7: an empty hidden patch of the spine corridor to light (${JSON.stringify(spot)})`);
+      const before = await cell(spot.x, spot.z);
+      const b0 = (await L()).bakes;
+      await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+      const m1 = await pick('Interior', 'Downlight 90 mm');
+      await press(BTN.A);
+      const dl = await placeAt(spot.x, spot.z, 'A: Downlight');
+      await baked(b0);
+      const after = await cell(spot.x, spot.z);
+      await E(() => { window.__editor.setTool('select'); window.__editor.select(null); });
+      await dotAt(spot.x, spot.z);
+      await page.waitForFunction(() => /light \d\.\d\d (lit|grey|hidden)/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const said = await dotText();
+      assert(m1.t && dl.n === 1 && dl.lamp.fixture === 'downlight' && before < T.shadow && after > T.lit && /light \d\.\d\d lit/.test(said), `ON7: a downlight at x ${spot.x}, z ${spot.z}: its darkness map cell goes from ${before.toFixed(3)} (hidden) to ${after.toFixed(3)} (lit) after the bake; the dot says "${said.slice(-40)}"`);
+      // the plan draws the map and the two labelled contours
+      const planMap = await E(() => ({ img: !!document.querySelector('#darkMap image'), words: [...document.querySelectorAll('#darkMap text')].map((t) => t.textContent) }));
+      assert(planMap.img && planMap.words.includes('hidden') && planMap.words.includes('lit'), `ON7: the plan shows the darkness map with its contours labelled ${planMap.words.join(', ')}`);
+      await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x; o.tz = z; o.yaw = 0; o.dist = 14; o.pitch = 0.6; }, [spot.x, spot.z]);
+      await frames(page, 10);
+      await shot('on7-lit-night');
+      await E(() => window.__editor.setLayout('plan'));
+      await frames(page, 6);
+      await shot('on7-darkness-plan');
+      await E(() => window.__editor.setLayout('both'));
+
+      // Mains off from the pad: Y > View > Lights preview, right: the downlight's cell goes dark, the twin spot lights its cells
+      const spitAt = await E(() => { const l = (window.__editor.model.data.lamps ?? []).find((q) => q.fixture === 'spitfire'); return l ? [l.at[0], l.at[2]] : null; });
+      // (the cells within 5 m of the twin spot, in a fixed order: other lamps light some of them with the mains on)
+      const near = (p) => E(([x, z]) => { const L = window.__editor.lights; const out = []; for (let dx = -5; dx <= 5; dx += 0.5) for (let dz = -5; dz <= 5; dz += 0.5) out.push(L.cellValue(x + dx, z + dz)); return out; }, p);
+      const spitNormal = await near(spitAt);
+      await press(BTN.Y);
+      await toTab('View');
+      const pTile = await toTileHeld('Lights preview', BTN.DOWN);
+      await holdVal(BTN.RIGHT);
+      await page.waitForFunction(() => window.__editor.lights.mode.kind === 'mains', null, { timeout: 5000 }).catch(() => {});
+      await press(BTN.B);
+      const mains = { mode: (await L()).mode, cell: await cell(spot.x, spot.z), spit: await near(spitAt) };
+      // the twin spot's own cells: out of the hidden band with the mains off, and brighter than with the mains on (it is off then)
+      const spitCells = mains.spit.filter((v, i) => v > T.shadow && v > spitNormal[i] + 0.1);
+      assert(pTile && mains.mode === 'mains' && mains.cell < T.shadow && spitCells.length > 0, `ON7: Lights preview > Mains off: the downlight's cell goes dark (${mains.cell.toFixed(3)}); the twin spot's cells stay lit (${spitCells.length} cells it lights, best ${Math.max(...spitCells, 0).toFixed(3)})`);
+      await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x; o.tz = z; o.yaw = 0; o.dist = 14; o.pitch = 0.7; }, spitAt);
+      await frames(page, 10);
+      await shot('on7-mains-off');
+      await E(() => window.__editor.setLightMode({ kind: 'normal' }));
+
+      // the guard view tester: Y > Lights > Guard view; A puts an eye 6 m west of the downlight; facing it, its lit cells are red
+      const m2 = await pick(null, 'Guard view');
+      await press(BTN.A);
+      await dotAt(spot.x - 6, spot.z);
+      await press(BTN.A);
+      await page.waitForFunction(() => window.__editor.lights.eyes.length === 1, null, { timeout: 5000 }).catch(() => {});
+      const y0 = await E(() => window.__editor.lights.eyes[0]?.yaw ?? 0);
+      await E(() => window.__pad.axis(2, 1));
+      await frames(page, 20);
+      await E(() => window.__pad.axis(2, 0));
+      await frames(page, 3);
+      const y1 = await E(() => window.__editor.lights.eyes[0]?.yaw ?? 0);
+      // (face the downlight: east)
+      await E(() => { const e = window.__editor.lights.eyes[0]; e.yaw = Math.PI / 2; window.__editor.lights.turnLastEye(0); });
+      const g = await E(([x, z]) => { const L = window.__editor.lights; return { tool: window.__editor.tool, at: L.guardAt(x, z), behind: L.guardAt(x - 9, z), plan: document.querySelectorAll('#guardMap').length, eye: document.querySelectorAll('.guardEye').length }; }, [spot.x, spot.z]);
+      assert(m2.t && g.tool === 'guard' && Math.abs(y1 - y0) > 0.1 && g.at === 'red' && g.behind === 'clear' && g.plan === 1 && g.eye === 1, `ON7: Light > Guard view, A puts a guard eye in the corridor; the right stick turns it (${y0.toFixed(2)} to ${y1.toFixed(2)}); facing the downlight its cell is ${g.at}, behind the eye ${g.behind}; the plan draws the tint and the eye`);
+      await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x; o.tz = z; o.yaw = 0; o.dist = 16; o.pitch = 0.9; }, [spot.x - 3, spot.z]);
+      await frames(page, 10);
+      await shot('on7-guard-view');
+      await press(BTN.B);
+      const gone = await L();
+      await press(BTN.B);
+      const out = await L();
+      assert(gone.eyes === 0 && gone.tool === 'guard' && out.tool === 'select', `ON7: B removes the eye (${gone.eyes} left), B again leaves the tool (${out.tool})`);
+
+      // parity (decision 9): the walk test's light meter at the downlight's cell equals the darkness map's value
+      const c = await E(([x, z]) => { const L = window.__editor.lights; const s = 0.5; return [Math.floor(x / s) * s + s / 2, Math.floor(z / s) * s + s / 2]; }, [spot.x, spot.z]);
+      const mapV = await cell(c[0], c[1]);
+      await dot(spot.x, spot.z, 0);
+      await page.keyboard.press('Tab');
+      await walkIs('open', 180000);
+      const game = await gf().evaluate(([x, z]) => { const g = window.__app.current; return { meter: g.world.lightField.bodyLevel(x, 0, z, 1.75), player: g.lightLevel }; }, c);
+      assert(Math.abs(game.meter - mapV) < 0.05, `ON7: the walk test's light meter at (${c.join(', ')}) is ${game.meter.toFixed(3)}, the darkness map's ${mapV.toFixed(3)} (player meter ${Number(game.player).toFixed(3)})`);
+      const beforeW7 = await edState();
+      await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+      await backCheck('F10 after the light preview', beforeW7);
+      await E(() => { const ed = window.__editor; ed.setLightView(false); ed.setDarkMap(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+      const off = await L();
+      assert(!off.on && !off.dark && off.state === 'off', `ON7: light view and darkness map off (${off.state})`);
+    }
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');

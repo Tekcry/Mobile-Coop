@@ -101,6 +101,8 @@ export class LightView {
   readonly eyes: Eye[] = [];
   /** The guard view tester is the tool. */
   guardTool = false;
+  /** The game's light meter thresholds (`LIGHT`, bible L6), for the words and the tests. */
+  readonly thresholds = { shadow: LIGHT.shadow, lit: LIGHT.lit };
 
   private cur: Exact | null = null;
   private lamps: BakedLamps | null = null;

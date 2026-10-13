@@ -1184,6 +1184,7 @@ export class PadControl {
       return ed.status('Measure cancelled');
     }
     if (ed.drag) ed.endDrag(true);
+    else if (ed.tool === 'guard' && ed.lights.removeEye()) ed.status(`Guard eye removed (${ed.lights.eyes.length} left); B again leaves the guard view`);
     else if (ed.tool !== 'select') ed.setTool('select');
     else ed.select(null);
     this.offset = [0, 0];
