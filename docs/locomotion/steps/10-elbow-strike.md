@@ -31,7 +31,8 @@ verified 2026-10-13 before Block A: grep the named symbol first.
    hip turn, 5.12.2 joint rates), remoteAvatar, pack / sanitize.
 5. Generic protocol (A5): `cmove {kind, id, target}` client -> host; `cstart {kind, a, id, target, t0}` host -> all;
    `cdeny {a, id, kind, reason}` host -> all. `CKind = 'strike' | 'medkit'` parse now (medkit used in step 15).
-   Reserved, not parsed (comment + PLAN H3 / H4): takedown, drag, splitBoost, backToBack, pullUp, rappelAnchor, clutch.
+   Reserved, not parsed yet (comment + PLAN H3 / H4): takedown, grab, drag (step 27), splitBoost, backToBack, pullUp,
+   rappelAnchor, clutch (Phase 5).
 6. Pure host check src/game/committedMoves.ts `checkCommitted(req) -> CDenial | null`: rate (0.3 s per player),
    dead, busy (attached, committed, takedown, team, downed), far (host distance to target > reach + 0.6 lag slack),
    noTarget (dead, seized, knocked out). Same function for the host's own strikes (no message).

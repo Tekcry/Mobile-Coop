@@ -34,8 +34,9 @@ Block A: grep the named symbol first.
    `sub` = WALL_SUB { crouch 1, faceRight 2, edgeL 4, edgeR 8, peek 16, lean 32, low 64, leftHand 128 } (bits 4-32
    reserved for step 12). Mirror in `localMoveState`, `poseFromMoveState`, remoteAvatar (position from `a` / `s`,
    interpolated on the same `a`; yaw from the face normal), pack / sanitize (`a` < segment count).
-8. Rig pose: back and shoulder blades on the wall (<= 3 cm gap, no clip), head turned along the slide direction,
-   near hand on the wall; sidesteps from the foot planner so planted feet slide < 1 cm. Clip polish is step 27.
+8. Rig pose (A6): build on the flat-back pose and support-hand contact kept by step 06 (`wallHand`, `offWall`; grep
+   characterRig.ts): back and shoulder blades on the wall (<= 3 cm gap, no clip), head turned along the slide, near
+   hand on the wall; sidesteps from the foot planner so planted feet slide < 1 cm. Clip polish is step 27.
 9. AI (bible: enemy cover AI stays): `localRef.cover` = the segment's `CoverSpot` while on the wall, else null; the
    host does the same for each remote from its MoveState so guards flank clients too.
 10. Takedown attacker state while on the wall = `ground` for now (corner takedown in step 12).
