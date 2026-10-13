@@ -38,7 +38,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "stairs": [ { "id": "S01", "kind": "main|fire|feature|bulkhead", "from": "G", "to": "F", "rect": [0, 0, 0, 0], "up": "N|S|E|W", "width": 1.3, "risers": 20 } ],
   "ladders": [ { "id": "L01", "room": "B02", "at": [0, 0], "from": "B", "to": "G", "facing": "N|S|E|W", "reason": "" } ],
   "voids": [ { "id": "V01", "level": "F", "rect": [0, 0, 0, 0], "kind": "stairwell|liftshaft|riser|hatch|rooflight", "reason": "" } ],
-  "objects": [ { "id": "O001", "level": "G", "name": "", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "noLedge": false, "reason": "" } ],
+  "objects": [ { "id": "O001", "level": "G", "name": "", "preset": "crate-1.2", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "yaw": 90, "noLedge": false, "seeThrough": true, "reason": "" } ],
   "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|sill|fire-escape|lamp-post|gate|fence|parapet|pipe", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
   "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ],
   "roofs": [ { "id": "RF01", "name": "", "building": "A", "level": "G", "rect": [0, 0, 0, 0], "base": 3.0, "type": "flat|mono|gable|hip|sawtooth|curved", "pitch": 25, "ridge": "x|z", "overhang": 0.5, "fascia": 0.2, "material": "metal|concrete|membrane|tile", "colour": "terracotta", "gutter": true, "downpipes": true } ]
@@ -110,6 +110,9 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | objects[].h, y | Height of the top above `y`, and `y` (base height above the floor) |
 | objects[].noLedge | True if the top must not become a hangable lip |
 | objects[].reason | Why the object is at that spot |
+| objects[].preset | Optional (ON4). The catalogue id it was placed from (`src/editor/catalogue.ts`); the card's Type row steps through its group |
+| objects[].yaw | Optional (ON4). Quarter turn 0, 90, 180 or 270 (absent = 0). The rect stays axis-aligned: 90 and 270 swap the preset's width and depth in the rect |
+| objects[].seeThrough | Optional (ON4). True for mesh, chairs and glass: collision is real (the walk test builds a solid box) but it gives no cover |
 | exterior[].id, kind | Unique id and the kind of exterior element |
 | exterior[].a, b | End points `[x, z]`; equal for a point element |
 | exterior[].y0, y1 | Absolute bottom and top height |

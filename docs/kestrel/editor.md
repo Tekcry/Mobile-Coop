@@ -64,6 +64,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
+| 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
@@ -75,6 +76,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Ctrl+K | **Find** a room, stair or object by name and go there (ON3) |
 | Shift+click | add to the selection or take out: several things move, copy and delete together (ON3) |
 | L, K | room names floating in 3D; the scale figure at the dot (ON3) |
+| J | the stealth view (ON4): objects tinted by what they give the player |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
 | ` (backquote) or I | open / close the side panel |
@@ -546,7 +548,54 @@ hand D-pad left / right changes the type, as for stairs):
   level or at its height) cut through. A flat roof whose top already has level floors under it (level R's roof rooms) adds
   no second slab, and no parapet on an edge that already has a parapet wall.
 
+## Objects and cover (ON4, ED2 Part F)
+The colocation campus's own furniture and plant, at real sizes, and what each piece means for a stealth player.
+
+- **Catalogue** (`src/editor/catalogue.ts`, one data list; Michael adds presets there only): five groups. Data hall
+  (server rack 42U, rack row, network rack, containment end door and roof, in-row cooler, CRAH, power distribution
+  cabinet, cable tray, gas suppression cylinders, cage mesh, crash cart, tape library, step ladder); Plant (UPS, battery
+  rack, LV switchboard section and row, generator, day tank, bulk fuel tank, chiller, condenser, pump set, pad
+  transformer, ring main unit, air handling unit); Office and security (desks, desk pod, chair, filing cabinet,
+  cupboard, lockers, reception counter, security desk, CCTV video wall, meeting table, sofa, kitchenette, fridge,
+  vending machine, water cooler, copier, shredder, whiteboard, pot plant); Goods-in (pallet, pallet stack, boxed
+  equipment, packing bench, roll cage, pallet jack, shelving, crates 1.0 and 1.2); Yard and roof (car, van, pickup,
+  skip, wheelie and bulk bins, bollard, boom gate, bike rack, smoking shelter roof, gas bottle cage, low wall, planter,
+  column, roof walkway). Each has its footprint, height, base height, `noLedge`, mount (floor, wall, ceiling),
+  see-through flag and a `src` (the brief, a fact, or "editor default: typical product"). The rack width is facts
+  `rules.rackWidth`, a column a storey (`room.storey`), the containment roof the aisle width (`rules.aisleMin`).
+- **Object tool**: Y > **Objects** tab: the five group tiles first (A shows that group, the menu stays open), then the
+  group's presets; A picks one. The tool bar shows "Object" with the preset under it; D-pad left / right steps the preset
+  within its group. The ghost sits at the dot on the 0.1 m object grid (`meta.objectGrid`) and backs onto a wall face
+  within `rules.aisleMaxGap` (0.3 m: a gap that small is closed anyway); **RB** turns it 90 degrees; **A** places it and
+  the tool stays on, so each A places another (the repeat). A wall-mounted preset (video wall, whiteboard) off a wall
+  makes the dot red: "Move onto a wall". Mouse: key 9 or the tool bar's Object button and list, click places, R turns.
+- **Rows**: rack row, LV switchboard row, low wall, cable tray, containment roof, cage mesh and walkway are drawn like
+  walls: A at the start, A at the end (mouse: drag). A row runs along the longer axis; racks and switchboard sections
+  snap to whole units (a 6 m rack row is 10 racks). While drawing, the dot gives the units, the length and the aisle to
+  the next parallel tall object: "aisle 1.8 m clear to O001", or red "aisle 1.2 m to O001: under 1.8 m", or "closed up"
+  for a gap of 0.3 m or less (facts `rules.aisleMin`, `aisleTallObject`, `aisleMaxGap`, as check A26).
+- **Card** (D-pad): Type (the presets of its group; a row keeps its length), Name, Width, Depth, Height, Base, Turn
+  (quarter turns about the centre, the corner kept on the grid), See-through, No ledge, Id. Its foot gives the stealth
+  badges and the aisle. Selected > Rotate 90 and R turn it too.
+- **Stealth badges** (`src/editor/objects.ts`, pure, from facts only): **Full cover** (top above `player.standHeight`),
+  **Crouch cover** (top above `player.crouchHeight`, up to standing), **Vault** (top over `traverse.stepMax`, at or under
+  `traverse.vaultMax`, the thin side at most `traverse.vaultDepth`), **Climb** (a mantle up to `traverse.mantleMax`, or a
+  lip from `lip.autoHeight` to `reach.grabMax`, not `noLedge`), **Hang** (a lip from `lip.autoHeight` to
+  `reach.jumpGrab`, at least `lip.minLength` long, not `noLedge`). Cover, vault and mantle need the object on the floor
+  (base 0). See-through gives no cover. A missing fact gives no badge and a "no fact" note. The `traverse` facts are F04
+  (`pickTraversal`); a test keeps them equal. Shown on the card and as a small label over each object in 3D.
+- **Stealth view** (J; Hub > View > Stealth view; Y > View): objects tinted in 3D and on the plan: full cover green,
+  crouch cover yellow, vault / climb / hang blue, see-through grey; others light grey.
+- **Plan**: `plans.mjs` draws each object's footprint with its name (its id where the name does not fit); see-through
+  ones dashed and unfilled.
+- **Walk test**: every object is a solid box of its real height and base (see-through ones too: collision is real), on
+  its level, through `campusToBuild` (`objectBoxes`); a `noLedge` object's top is never a hangable lip.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON4: objects are axis-aligned boxes (quarter turns only); a boom gate, smoking shelter or desk is one box (the shelter
+  is its roof slab). Box select, Copy and Paste do not take objects. Objects have no handles: change sizes on the card.
+  A row's side across the drawn line is centred on it (no side flip). The walk test draws every object in one grey.
+  Exterior features (downpipes, fences, lamp posts) are ON5.
 - ON10: outlines are rectangles along x and z (no L-shapes or angled roofs); one roof per outline, no valleys between
   roofs. A flat roof's fall is drawn, not built (level in 3D and in the walk test). Roof lights cut the walk test's roof
   but are not drawn as holes in the editor's 3D roof planes. Gutters and downpipes are roof settings drawn as boxes; ON5
@@ -558,7 +607,7 @@ hand D-pad left / right changes the type, as for stairs):
   and a frosted pane as clear). Hatches sit in walls; a floor or ceiling hatch is still a Floor hole. A roof light is a
   high window in a wall; a glazed hole in a roof slab is the Floor hole tool's Roof light. The card level does not change
   the room's access level (the Checks show A29 as before).
-- The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
+- The tile menu's Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
   keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
 - ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
   plan; the plan images do not draw them. Deleting a level leaves the levels above where they are. Free text that names an
@@ -597,6 +646,7 @@ hand D-pad left / right changes the type, as for stairs):
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
 | `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
 | `src/editor/openingCatalogue.ts` | ON9: every door and window type (name, family, leaf, size with its source, the settings it has), realistic defaults per type, the settings in words and their steps, a type flip within the family (pure, `tests/editor/openingCatalogue.test.ts`) |
+| `src/editor/catalogue.ts`, `src/editor/objects.ts` | ON4: the object presets (one data list with sizes and sources); placing at the dot, backing onto walls, turning, drawn rows in whole units, aisles, stealth badges and tints (pure, `tests/editor/objects.test.ts`) |
 | `src/world/maps/kestrelDoors.ts` | ON9: the one copy of the door side maths (swing side, hinge or stack end), shared by the editor and the walk test, and the walk test's game doors and panes (pure) |
 | `src/editor/ease.ts`, `src/editor/group.ts` | ON3: the element a check line names, the save summary's net changes and words, the Find list and filter, the bookmark store; multi-select box pick, moving, copying and pasting a set as one edit (pure, `tests/editor/ease.test.ts`) |
 | `src/editor/overlays.ts`, `src/editor/findView.ts` | ON3: floating room names (pooled labels), red problem markers, the scale figure; the Find box and its on-screen keyboard |

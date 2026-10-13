@@ -87,7 +87,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
@@ -1185,7 +1185,13 @@ try {
     await E((id) => window.__editor.select(`openings:${id}`), card.id);
     await frames(page, 3);
     assert(await toRowHeld('level'), 'ON9: D-pad down reaches the Card level row');
-    for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('openings', id).door.level, card.id)) !== 2; i++) await hold(BTN.RIGHT, 'card');
+    // (ON4: a slow frame can repeat a step: step towards level 2 from wherever it is, the row found again each time)
+    for (let i = 0; i < 12; i++) {
+      const lv = await E((id) => window.__editor.model.get('openings', id).door.level, card.id);
+      if (lv === 2) break;
+      await toRowHeld('level');
+      await hold(lv > 2 ? BTN.LEFT : BTN.RIGHT, 'card');
+    }
     await page.waitForFunction(() => /Level 2/.test(document.querySelector('#selCard .crow.on b')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
     const cardRowsText = await E(() => [...document.querySelectorAll('#selCard .crow')].map((r) => r.dataset.row).join(','));
     await shot('on9-door-card');
@@ -1203,7 +1209,12 @@ try {
     await E((id) => window.__editor.select(`openings:${id}`), win.id);
     await frames(page, 3);
     assert(await toRowHeld('blinds'), 'ON9: the window card has a Blinds row');
-    for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('openings', id).glass.blinds, win.id)) !== 'closed'; i++) await hold(BTN.LEFT, 'card');
+    // (ON4: a slow frame can move the lit row or repeat a step; the row is found again before each step)
+    for (let i = 0; i < 12 && (await E((id) => window.__editor.model.get('openings', id).glass.blinds, win.id)) !== 'closed'; i++) {
+      await toRowHeld('blinds');
+      await hold(BTN.LEFT, 'card');
+    }
+    await page.waitForFunction((id) => window.__editor.view.scene.meshes.some((m) => m.name === `opening ${id} blinds` && m.isEnabled()), win.id, { timeout: 5000 }).catch(() => {});
     const w2 = await E((id) => ({ g: window.__editor.model.get('openings', id).glass, blinds: window.__editor.view.scene.meshes.some((m) => m.name === `opening ${id} blinds` && m.isEnabled()) }), win.id);
     assert(w2.g.blinds === 'closed' && w2.blinds, `ON9: blinds closed on the frosted window, drawn in 3D (${JSON.stringify(w2.g)})`);
     await press(BTN.B);
