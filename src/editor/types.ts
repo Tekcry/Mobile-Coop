@@ -151,6 +151,8 @@ export interface Campus {
   checkpoints?: Checkpoint[];
   spawns?: Spawn[];
   extraction?: Extraction[];
+  /** ON12: the security file's devices (src/editor/security.ts), joined in while editing. */
+  devices?: { id: string; kind: string; level: string; [k: string]: unknown }[];
   [k: string]: unknown;
 }
 
@@ -185,10 +187,10 @@ export interface Ext {
  * The collections the editor can change. `levels` and `buildings` (meta.buildings) change through the Levels tab only
  * (ON2; ON4 made `objects` an element); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior' | 'lamps' | 'circuits' | 'guards' | 'objectives' | 'hides' | 'checkpoints' | 'spawns' | 'extraction';
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior' | 'lamps' | 'circuits' | 'guards' | 'objectives' | 'hides' | 'checkpoints' | 'spawns' | 'extraction' | 'devices';
 export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | LampRecord | CircuitRecord | Guard | Objective | Hide | Checkpoint | Spawn | Extraction | (Building & { [k: string]: unknown });
-/** ON6: `lamps` and `circuits` are the play file's (a circuit is picked by its wall switch); ON8: so are the mission ones. */
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'];
+/** ON6: `lamps` and `circuits` are the play file's (a circuit is picked by its wall switch); ON8: so are the mission ones; ON12: `devices` are the security file's. */
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;

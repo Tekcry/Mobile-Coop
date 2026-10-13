@@ -176,7 +176,17 @@
     "maxMantraps": { "value": 2, "src": "SN62" },
     "maxBeams": { "value": 10, "src": "SN63" },
     "maxPir": { "value": 6, "src": "SN64" },
-    "maxFaults": { "value": 2, "src": "SN65" }
+    "maxFaults": { "value": 2, "src": "SN65" },
+    "cameraSweepMax": { "value": 120, "src": "SN13" },
+    "cameraSweepDefault": { "value": 90, "src": "SN15 reason (a 90 deg sweep cycle = 16 s)" },
+    "cameraSweepStep": { "value": 10, "src": "ON12 editor default: a pan camera's sweep steps 10 degrees on the card" },
+    "cameraAimStep": { "value": 5, "src": "ON12 editor default: a camera's facing steps 5 degrees on the card" },
+    "cameraMountDefault": { "value": 3.0, "src": "S0 section 6 example camera y 3.0 (inside SN04)" },
+    "readerHeight": { "value": 1.1, "src": "S0 section 6 example reader y 1.1" },
+    "pirWallHeight": { "value": 2.4, "src": "ON12 editor default: typical product (a wall PIR sensor at 2.0-2.5 m)" },
+    "pirWallFan": { "value": 180, "src": "ON12 editor default: S0 2.6 tests range only, on its level; a wall sensor sees the half in front of its wall" },
+    "beamHeightDefault": { "value": 1.4, "src": "SN40 (the middle of the high band)" },
+    "monitorMax": { "value": 16, "src": "ON12 editor default: typical product (a 16-way video wall)" }
   },
   "climb": {
     "pipeLipRise": { "value": 0.8, "src": "src/player/attachController.ts pipeLip: a drainpipe climbs off onto a hangable ledge whose top is within 0.8 of the pipe top" },
