@@ -411,6 +411,29 @@ describe('gates', () => {
     expect(s.hasFlagFor('card', 0)).toBe(false);
     expect(s.hasFlag('card')).toBe(true);
   });
+  it('a perPlayer pickup flag opens a flag gate and an anchorLock (either player)', () => {
+    const def = course();
+    def.bays[0] = {
+      ...def.bays[0]!,
+      gates: [
+        { kind: 'pickup', id: 'g-card', switchId: 'sw-card', flag: 'card', perPlayer: true },
+        { kind: 'flag', id: 'g-cflag', flag: 'card', doorId: 'd-flag' },
+        { kind: 'anchorLock', id: 'g-cfan', anchorId: 'rope-1', flag: 'card' },
+      ],
+    };
+    for (const p of [0, 1] as const) {
+      const s = new CourseState(def);
+      expect(s.locked('d-flag')).toBe(true);
+      expect(s.anchorLocked('rope-1')).toBe(true);
+      s.press('sw-card', p);
+      expect(s.hasFlagFor('card', p)).toBe(true);
+      expect(s.hasFlagFor('card', p === 0 ? 1 : 0)).toBe(false);
+      expect(s.isGateOpen('g-cflag')).toBe(true);
+      expect(s.locked('d-flag')).toBe(false);
+      expect(s.anchorLocked('rope-1')).toBe(false);
+      expect(s.lockedAnchors()).toEqual([]);
+    }
+  });
 });
 
 describe('restart and stats', () => {

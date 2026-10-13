@@ -74,6 +74,9 @@ interface GateRt {
   /** pair: clock time of the last press of a / b (-1 = none). */
   ta: number;
   tb: number;
+  /** flag / anchorLock / perPlayer pickup: `${flag}@1` and `${flag}@2` (precomputed: queries must not allocate); else ''. */
+  key1: string;
+  key2: string;
 }
 
 interface AirRt {
@@ -112,6 +115,11 @@ export class CourseState {
   private readonly flagBay = new Map<string, number>();
   private readonly groupsOff = new Set<string>();
   private downT = 0;
+  /** Bumped whenever drill ticks may change (drillRefusal cache key, with the bay). */
+  private tickGen = 0;
+  private refusalGen = -1;
+  private refusalBay = -1;
+  private refusalText: string | null = null;
 
   constructor(readonly def: CourseDef) {
     this.done = def.bays.map(() => false);
@@ -122,7 +130,12 @@ export class CourseState {
       this.airById.set(a.id, rt);
     }
     def.bays.forEach((b, i) => {
-      for (const g of b.gates) this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1 });
+      for (const g of b.gates) {
+        const keyed = g.kind === 'flag' || g.kind === 'anchorLock' || (g.kind === 'pickup' && g.perPlayer);
+        const key1 = keyed ? `${g.flag}@1` : '';
+        const key2 = keyed ? `${g.flag}@2` : '';
+        this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1, key1, key2 });
+      }
       for (const d of b.drills) {
         this.drillIdx.set(d, this.ticks.length);
         this.ticks.push([0, 0]);
@@ -215,7 +228,7 @@ export class CourseState {
           break;
         case 'pickup':
           if (d.switchId === id) {
-            const flag = d.perPlayer ? `${d.flag}@${p + 1}` : d.flag;
+            const flag = d.perPlayer ? (p === 0 ? g.key1 : g.key2) : d.flag;
             if (!this.flags.has(flag)) {
               this.flags.add(flag);
               this.flagBay.set(flag, g.bay);
@@ -374,8 +387,9 @@ export class CourseState {
   /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
   anchorLocked(anchorId: string): boolean {
     for (let i = 0; i < this.gates.length; i++) {
-      const d = this.gates[i]!.def;
-      if (d.kind === 'anchorLock' && d.anchorId === anchorId && !this.hasFlag(d.flag)) return true;
+      const g = this.gates[i]!;
+      const d = g.def;
+      if (d.kind === 'anchorLock' && d.anchorId === anchorId && !this.gateOpen(g)) return true;
     }
     return false;
   }
@@ -544,6 +558,7 @@ export class CourseState {
     for (const [f, b] of p.flagBay) this.flagBay.set(f, b);
     this.groupsOff.clear();
     for (const g of p.groupsOff) this.groupsOff.add(g);
+    this.tickGen++;
     this.ticks.forEach((n, i) => {
       const s = p.ticks[i];
       if (s) {
@@ -565,8 +580,8 @@ export class CourseState {
   }
 
   private gateOpen(g: GateRt): boolean {
-    if (g.def.kind === 'flag') return this.hasFlag(g.def.flag);
-    if (g.def.kind === 'anchorLock') return this.hasFlag(g.def.flag);
+    const d = g.def;
+    if (d.kind === 'flag' || d.kind === 'anchorLock') return this.flags.has(d.flag) || this.flags.has(g.key1) || this.flags.has(g.key2);
     return g.open;
   }
 
@@ -598,6 +613,7 @@ export class CourseState {
     if (!this.drillOpenFor(d, p)) return;
     const n = this.ticks[this.drillIdx.get(d)!]!;
     n[p] += 1;
+    this.tickGen++;
     if (n[p] >= (d.count ?? 1)) {
       this.events.push({ t: 'drillDone', drill: d.id, player: p, complete: this.drillComplete(d) });
     }
@@ -636,25 +652,32 @@ export class CourseState {
 
   /** "Waiting: P1 - a; P2 - b, c" for the current bay's open drills, or null. */
   private drillRefusal(): string | null {
-    const parts: string[] = [];
-    const names = (p: PlayerIdx | -1): string[] => {
-      const out: string[] = [];
-      const drills = this.currentBay.drills;
-      for (let i = 0; i < drills.length; i++) {
-        const d = drills[i]!;
-        if (this.drillComplete(d)) continue;
-        const mine = p === -1 ? d.who === 'either' : d.who !== 'either' && this.drillOpenFor(d, p);
-        if (mine) out.push(d.name ?? d.verb);
-      }
-      return out;
-    };
-    const p1 = names(0);
-    const p2 = names(1);
-    const any = names(-1);
-    if (p1.length) parts.push(`P1 - ${p1.join(', ')}`);
-    if (p2.length) parts.push(`P2 - ${p2.join(', ')}`);
-    if (any.length) parts.push(`P1 or P2 - ${any.join(', ')}`);
-    return parts.length ? `Waiting: ${parts.join('; ')}` : null;
+    // Cached: rebuilt only when ticks or the bay change (airlockPrompt is queried every frame and must not allocate).
+    if (this.refusalGen === this.tickGen && this.refusalBay === this.bay) return this.refusalText;
+    let text = '';
+    const p1 = this.drillNames(0);
+    const p2 = this.drillNames(1);
+    const any = this.drillNames(-1);
+    if (p1) text = 'P1 - ' + p1;
+    if (p2) text += (text ? '; ' : '') + 'P2 - ' + p2;
+    if (any) text += (text ? '; ' : '') + 'P1 or P2 - ' + any;
+    this.refusalText = text ? 'Waiting: ' + text : null;
+    this.refusalGen = this.tickGen;
+    this.refusalBay = this.bay;
+    return this.refusalText;
+  }
+
+  /** Comma-separated names of the current bay's open drills for player `p` (-1: the `either` drills). */
+  private drillNames(p: PlayerIdx | -1): string {
+    let out = '';
+    const drills = this.currentBay.drills;
+    for (let i = 0; i < drills.length; i++) {
+      const d = drills[i]!;
+      if (this.drillComplete(d)) continue;
+      const mine = p === -1 ? d.who === 'either' : d.who !== 'either' && this.drillOpenFor(d, p);
+      if (mine) out += (out ? ', ' : '') + (d.name ?? d.verb);
+    }
+    return out;
   }
 
   private cycleRefusal(a: AirRt): string | null {
