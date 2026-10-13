@@ -124,6 +124,21 @@ describe('validateCourse', () => {
     flag.bays[1]!.gates = [{ kind: 'flag', id: 'g-f2', flag: 'ghost', doorId: 'd-flag' }];
     expect(() => validateCourse(flag, KNOWN)).toThrow(/g-f2.*ghost/);
   });
+  it('accepts a flag the mode sets (externalFlags) for flag and anchorLock gates', () => {
+    const c = course();
+    c.bays[1]!.gates = [
+      { kind: 'flag', id: 'g-f2', flag: 'keypad-code', doorId: 'd-flag' },
+      { kind: 'anchorLock', id: 'g-al2', anchorId: KNOWN.anchors[0]!, flag: 'fan-off' },
+    ];
+    expect(() => validateCourse(c, KNOWN)).toThrow(/never set/);
+    c.externalFlags = ['keypad-code', 'fan-off'];
+    expect(() => validateCourse(c, KNOWN)).not.toThrow();
+    const s = new CourseState(c);
+    s.startAt(2);
+    expect(s.isGateOpen('g-f2')).toBe(false);
+    s.setFlag('keypad-code');
+    expect(s.isGateOpen('g-f2')).toBe(true);
+  });
 });
 
 describe('drills gate the airlock (D30)', () => {
@@ -179,7 +194,7 @@ describe('drills gate the airlock (D30)', () => {
     s.tick(1, 'vault');
     expect(s.drillsDone()).toBe(true);
   });
-  it('the solo flag counts one tick for both and lets P1 cycle alone', () => {
+  it('the solo flag only counts one tick for both (airlocks and restarts still need both players)', () => {
     const s = new CourseState(course());
     s.solo = true;
     s.tick(0, 'crouch');
@@ -189,9 +204,16 @@ describe('drills gate the airlock (D30)', () => {
     enter(s, 1, [0]);
     outside(s, 1);
     s.update(DT);
-    expect(s.press('A1', 0)).toBeNull();
-    run(s, AIRLOCK_CYCLE);
-    expect(s.airlockPhase('A1')).toBe('sealed');
+    expect(s.airlockPhase('A1')).toBe('waiting');
+    expect(s.press('A1', 0)).toBe(REFUSE_PARTNER);
+    s.setPlayer(1, -50, 0, -50, true);
+    expect(s.airlockPrompt('A1')).toBe(REFUSE_REVIVE);
+    s.setPlayer(0, -50, 0, -50, true);
+    s.setPlayer(1, -50, 0, -50, false);
+    s.clearEvents();
+    run(s, RESTART_DELAY + 1);
+    expect(s.events.some((e) => e.t === 'bayRestart')).toBe(false);
+    expect(s.airlockPhase('A1')).not.toBe('sealed');
   });
   it('finish refuses with open drills and ends the course', () => {
     const s = new CourseState(course());

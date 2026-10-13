@@ -102,6 +102,11 @@ export interface CourseDef {
   bays: BayDef[];
   airlocks: AirlockDef[];
   objectives?: CourseObjective[];
+  /**
+   * Flags the mode sets through `CourseState.setFlag` (not a pickup or a pair gate), e.g. a keypad code learned from a
+   * camera or a hack. `validateCourse` counts them as set (A8).
+   */
+  externalFlags?: string[];
 }
 
 /** The ids the map really has. */
@@ -118,16 +123,18 @@ export function leadOf(bayIdx: number): PlayerIdx {
   return bayIdx % 2 === 0 ? 0 : 1;
 }
 
-/** Doors a gate unlocks. */
+const NO_DOORS: readonly string[] = [];
+
+/** Doors a gate unlocks (allocates for single-door gates: call at load, not per step). */
 export function gateDoors(g: GateDef): readonly string[] {
   switch (g.kind) {
     case 'egress':
       return g.doorIds;
     case 'pair':
-      return g.doorId !== undefined ? [g.doorId] : [];
+      return g.doorId !== undefined ? [g.doorId] : NO_DOORS;
     case 'anchorLock':
     case 'pickup':
-      return [];
+      return NO_DOORS;
     default:
       return [g.doorId];
   }
@@ -145,7 +152,8 @@ function unique(seen: Set<string>, id: string, what: string): void {
 
 /**
  * Check a course: unique ids; every gate, airlock and drill names known ids; the bays chain start -> airlocks -> end;
- * airlocks 6 x 6 (+-0.5); radio lines and drill steps <= 90 characters; every flag read is set somewhere.
+ * airlocks 6 x 6 (+-0.5); radio lines and drill steps <= 90 characters; every flag read is set by a pickup, a pair gate
+ * or `def.externalFlags`.
  * Throws with the offending id; returns the definition.
  */
 export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef {
@@ -175,7 +183,7 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
   const gateIds = new Set<string>();
   const drillIds = new Set<string>();
   const elemIds = new Set<string>();
-  const flagsSet = new Set<string>();
+  const flagsSet = new Set<string>(def.externalFlags);
   const flagsRead: [string, string][] = [];
   const text = (owner: string, s: string, what: string): void => {
     if (!s) fail(owner, `empty ${what}`);

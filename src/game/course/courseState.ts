@@ -4,8 +4,10 @@
  * (`setFlag`), drill verbs (`tick`) and stats (`record`), then `update(dt)`. Outputs: door and anchor locks, the
  * current bay, the checkpoint, drill progress, the next drill per player, per-bay stats and `events`.
  *
- * Nothing completes a drill except `tick` (D30: no skip path). `solo` (the dev solo flag, D21) makes one player's
- * ticks count for both and lets P1 cycle the airlocks alone.
+ * Nothing completes a drill except `tick` (D30: no skip path). `solo` (the dev solo flag, D21) only makes one player's
+ * ticks count for both; airlocks, refusals and restarts always need both players (a solo tester uses two tabs).
+ *
+ * Per-step and per-query paths use indexed loops and allocate nothing (conventions.md hot paths).
  */
 import { AIRLOCK_CYCLE, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
 import { gateDoors, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
@@ -61,6 +63,8 @@ export interface PackedCourse {
 
 interface GateRt {
   def: GateDef;
+  /** Doors the gate unlocks (precomputed: `locked` must not allocate). */
+  doors: readonly string[];
   bay: number;
   open: boolean;
   /** timedHold: seconds left after release. */
@@ -89,7 +93,7 @@ export class CourseState {
   over = false;
   /** Checkpoint: 'start' or the last sealed airlock id. */
   checkpoint = 'start';
-  /** Dev solo flag (D21): one player's ticks count for both; P1 cycles alone. */
+  /** Dev solo flag (D21): one player's ticks count for both. Nothing else (D30). */
   solo = false;
   readonly done: boolean[];
   readonly stats: BayStats[];
@@ -118,7 +122,7 @@ export class CourseState {
       this.airById.set(a.id, rt);
     }
     def.bays.forEach((b, i) => {
-      for (const g of b.gates) this.gates.push({ def: g, bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1 });
+      for (const g of b.gates) this.gates.push({ def: g, doors: gateDoors(g), bay: i, open: false, t: 0, holders: 0, ta: -1, tb: -1 });
       for (const d of b.drills) {
         this.drillIdx.set(d, this.ticks.length);
         this.ticks.push([0, 0]);
@@ -154,7 +158,8 @@ export class CourseState {
     if (on === !wasOff) return;
     if (on) this.groupsOff.delete(group);
     else this.groupsOff.add(group);
-    for (const g of this.gates) {
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
       if (g.def.kind !== 'mains' || g.def.group !== group) continue;
       if (!on) this.setOpen(g, true);
       else if (!this.bothInside(this.exitAirlockOf(g.bay))) this.setOpen(g, false);
@@ -187,7 +192,8 @@ export class CourseState {
     const a = this.airById.get(id);
     if (a) return this.pressCycle(a, p);
     let refusal: string | null = null;
-    for (const g of this.gates) {
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
       const d = g.def;
       switch (d.kind) {
         case 'lever':
@@ -228,7 +234,8 @@ export class CourseState {
   /** Player `p` holds (down) or releases `holdId`. */
   hold(holdId: string, p: PlayerIdx, down: boolean): void {
     const bit = 1 << p;
-    for (const g of this.gates) {
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
       const d = g.def;
       if ((d.kind !== 'hold' && d.kind !== 'timedHold') || d.holdId !== holdId) continue;
       const was = g.holders;
@@ -249,7 +256,9 @@ export class CourseState {
    */
   tick(p: PlayerIdx, verb: string): void {
     if (this.over) return;
-    for (const d of this.currentBay.drills) {
+    const drills = this.currentBay.drills;
+    for (let i = 0; i < drills.length; i++) {
+      const d = drills[i]!;
       if (d.verb !== verb) continue;
       this.tickOne(d, p);
       if (this.solo) this.tickOne(d, p === 0 ? 1 : 0);
@@ -294,7 +303,8 @@ export class CourseState {
    */
   restart(): string[] {
     const bi = this.bay;
-    for (const g of this.gates) {
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
       if (g.bay !== bi) continue;
       const wasOpen = g.open;
       g.open = false;
@@ -326,7 +336,8 @@ export class CourseState {
     if (this.over) return;
     this.clock += dt;
     this.stats[this.bay]!.time += dt;
-    for (const g of this.gates) {
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
       if (g.def.kind !== 'timedHold' || g.holders !== 0 || g.t <= 0) continue;
       g.t -= dt;
       if (g.t <= 1e-9) {
@@ -336,7 +347,7 @@ export class CourseState {
     }
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') this.stepAirlock(a, dt);
-    const bothDown = this.downed[0] && (this.downed[1] || this.solo);
+    const bothDown = this.downed[0] && this.downed[1];
     if (bothDown) {
       this.downT += dt;
       if (this.downT >= RESTART_DELAY - 1e-9) this.restart();
@@ -347,22 +358,24 @@ export class CourseState {
 
   /** Is the door locked by the course (an airlock or a gate)? */
   locked(doorId: string): boolean {
-    for (const a of this.air) {
+    for (let i = 0; i < this.air.length; i++) {
+      const a = this.air[i]!;
       if (a.def.nearDoor === doorId && a.phase === 'sealed') return true;
       if (a.def.farDoor === doorId && a.phase !== 'sealed') return true;
     }
-    for (const g of this.gates) {
-      if (this.gateOpen(g)) continue;
-      const doors = gateDoors(g.def);
-      for (let i = 0; i < doors.length; i++) if (doors[i] === doorId) return true;
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
+      const doors = g.doors;
+      for (let j = 0; j < doors.length; j++) if (doors[j] === doorId && !this.gateOpen(g)) return true;
     }
     return false;
   }
 
   /** Is the anchor locked (an anchorLock gate whose flag is not set)? */
   anchorLocked(anchorId: string): boolean {
-    for (const g of this.gates) {
-      if (g.def.kind === 'anchorLock' && g.def.anchorId === anchorId && !this.hasFlag(g.def.flag)) return true;
+    for (let i = 0; i < this.gates.length; i++) {
+      const d = this.gates[i]!.def;
+      if (d.kind === 'anchorLock' && d.anchorId === anchorId && !this.hasFlag(d.flag)) return true;
     }
     return false;
   }
@@ -374,7 +387,7 @@ export class CourseState {
       ids.add(a.def.nearDoor);
       ids.add(a.def.farDoor);
     }
-    for (const g of this.gates) for (const d of gateDoors(g.def)) ids.add(d);
+    for (const g of this.gates) for (const d of g.doors) ids.add(d);
     return [...ids].filter((d) => this.locked(d));
   }
 
@@ -385,8 +398,11 @@ export class CourseState {
   }
 
   isGateOpen(gateId: string): boolean {
-    const g = this.gates.find((x) => x.def.id === gateId);
-    return g ? this.gateOpen(g) : false;
+    for (let i = 0; i < this.gates.length; i++) {
+      const g = this.gates[i]!;
+      if (g.def.id === gateId) return this.gateOpen(g);
+    }
+    return false;
   }
 
   airlockPhase(id: string): AirlockPhase | null {
@@ -402,7 +418,14 @@ export class CourseState {
 
   /** Ticks player `p` has on a drill of the course. */
   drillTicks(drillId: string, p: PlayerIdx): number {
-    for (const b of this.def.bays) for (const d of b.drills) if (d.id === drillId) return this.ticks[this.drillIdx.get(d)!]![p];
+    const bays = this.def.bays;
+    for (let i = 0; i < bays.length; i++) {
+      const drills = bays[i]!.drills;
+      for (let j = 0; j < drills.length; j++) {
+        const d = drills[j]!;
+        if (d.id === drillId) return this.ticks[this.drillIdx.get(d)!]![p];
+      }
+    }
     return 0;
   }
 
@@ -442,20 +465,23 @@ export class CourseState {
 
   /** The next drill of the current bay for player `p` (tutorial step and marker), or null when they are done. */
   nextDrill(p: PlayerIdx): DrillDef | null {
-    for (const d of this.currentBay.drills) if (this.drillOpenFor(d, p)) return d;
+    const drills = this.currentBay.drills;
+    for (let i = 0; i < drills.length; i++) if (this.drillOpenFor(drills[i]!, p)) return drills[i]!;
     return null;
   }
 
   /** Every drill of the current bay is done. */
   drillsDone(): boolean {
-    for (const d of this.currentBay.drills) if (!this.drillComplete(d)) return false;
+    const drills = this.currentBay.drills;
+    for (let i = 0; i < drills.length; i++) if (!this.drillComplete(drills[i]!)) return false;
     return true;
   }
 
   /** Totals over every bay. */
   totals(): BayStats {
     const t = newStats();
-    for (const s of this.stats) {
+    for (let i = 0; i < this.stats.length; i++) {
+      const s = this.stats[i]!;
       t.time += s.time;
       t.detections += s.detections;
       t.alarms += s.alarms;
@@ -585,7 +611,11 @@ export class CourseState {
     const x = this.feet[p * 3]!;
     const y = this.feet[p * 3 + 1]!;
     const z = this.feet[p * 3 + 2]!;
-    const [x0, z0, x1, z1] = a.box;
+    const b = a.box;
+    const x0 = b[0];
+    const z0 = b[1];
+    const x1 = b[2];
+    const z1 = b[3];
     return (
       x >= Math.min(x0, x1) && x <= Math.max(x0, x1) && z >= Math.min(z0, z1) && z <= Math.max(z0, z1) && Math.abs(y - a.floorY) < AIRLOCK_Y_TOL
     );
@@ -593,15 +623,15 @@ export class CourseState {
 
   private bothInside(a: AirRt | null): boolean {
     if (!a) return false;
-    return this.inside(a.def, 0) && (this.solo || this.inside(a.def, 1));
+    return this.inside(a.def, 0) && this.inside(a.def, 1);
   }
 
   private insideCount(a: AirlockDef): number {
-    return (this.inside(a, 0) ? 1 : 0) + (!this.solo && this.inside(a, 1) ? 1 : 0);
+    return (this.inside(a, 0) ? 1 : 0) + (this.inside(a, 1) ? 1 : 0);
   }
 
   private anyDowned(): boolean {
-    return this.downed[0] || (!this.solo && this.downed[1]);
+    return this.downed[0] || this.downed[1];
   }
 
   /** "Waiting: P1 - a; P2 - b, c" for the current bay's open drills, or null. */
@@ -609,7 +639,9 @@ export class CourseState {
     const parts: string[] = [];
     const names = (p: PlayerIdx | -1): string[] => {
       const out: string[] = [];
-      for (const d of this.currentBay.drills) {
+      const drills = this.currentBay.drills;
+      for (let i = 0; i < drills.length; i++) {
+        const d = drills[i]!;
         if (this.drillComplete(d)) continue;
         const mine = p === -1 ? d.who === 'either' : d.who !== 'either' && this.drillOpenFor(d, p);
         if (mine) out.push(d.name ?? d.verb);
@@ -628,7 +660,7 @@ export class CourseState {
   private cycleRefusal(a: AirRt): string | null {
     const n = this.insideCount(a.def);
     if (this.anyDowned()) return REFUSE_REVIVE;
-    if (n < (this.solo ? 1 : 2)) return REFUSE_PARTNER;
+    if (n < 2) return REFUSE_PARTNER;
     return this.drillRefusal();
   }
 
@@ -645,7 +677,7 @@ export class CourseState {
 
   private stepAirlock(a: AirRt, dt: number): void {
     const n = this.insideCount(a.def);
-    const need = this.solo ? 1 : 2;
+    const need = 2;
     if (a.phase === 'cycling') {
       if (n < need || this.anyDowned()) {
         a.t = 0;
