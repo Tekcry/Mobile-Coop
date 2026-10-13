@@ -48,12 +48,21 @@ export function clearOfWalls(b: { readonly boxes: readonly BoxPiece[] }, x: numb
   return [x, z];
 }
 
+/** ON4: placed objects in the walk test (one plain grey; the editor's stealth view tints them, never the game). */
+const OBJECT_COLOUR = '#7d8288';
+
 /** The editor's campus: the builder's arch plus ladders and solid service boxes, spawned where the editor camera was. */
 function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
   const c = campusToBuild(d.campus);
   const layout = buildKestrel(b, c.arch);
   for (const l of c.ladders) b.ladder(l.x, l.z, l.y0, l.y1, l.yaw);
   for (const s of c.solids) b.box(s.c[0], s.c[1], s.c[2], s.s[0], s.s[1], s.s[2], STAIR_COLOUR);
+  // ON4: objects as solid boxes (racks, desks, crates, vehicles); a noLedge top is never a hangable lip
+  for (const o of c.objectBoxes) {
+    const at = b.boxes.length;
+    b.box(o.c[0], o.c[1], o.c[2], o.s[0], o.s[1], o.s[2], OBJECT_COLOUR);
+    if (o.noLedge) b.mark(at, { noLedge: true });
+  }
   // ON10: roofs as boxes the game stands on (strips tilted to a slope; too steep and the controller slides off), so the
   // moon and sky bakes see them as they see any box (bible 5.1); sawtooth glazing as the game's glass panes
   for (const r of c.roofBoxes) b.box(r.c[0], r.c[1], r.c[2], r.s[0], r.s[1], r.s[2], r.colour, r.yaw, r.pitch);

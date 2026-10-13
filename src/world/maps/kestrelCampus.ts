@@ -38,6 +38,21 @@ export interface CampusFile {
   services?: CampusService[];
   /** ON10: roofs (kestrelRoofs.ts). */
   roofs?: RoofData[];
+  /** ON4: placed objects: an axis-aligned footprint, the top `h` above the base `y` over its level's floor. */
+  objects?: CampusObject[];
+}
+
+export interface CampusObject {
+  id: string;
+  level: string;
+  rect: Rect4;
+  h: number;
+  y: number;
+  noLedge?: boolean;
+}
+/** ON4: an object as a solid box (collision is real, see-through or not); `noLedge` keeps its top from being a lip. */
+export interface ObjectBox extends SolidBox {
+  noLedge: boolean;
 }
 
 export interface LadderPlace {
@@ -61,6 +76,8 @@ export interface CampusBuild {
   /** ON10: every roof as boxes (strips on a slope) and its glazing as panes. */
   roofBoxes: RoofBox[];
   roofPanes: RoofPane[];
+  /** ON4: every object as a solid box of its real height and base. */
+  objectBoxes: ObjectBox[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -123,7 +140,12 @@ export function campusToBuild(f: CampusFile): CampusBuild {
     roofBoxes.push(...pc.boxes);
     roofPanes.push(...pc.panes);
   }
-  return { arch, ladders, solids, roofBoxes, roofPanes };
+  // ON4: the rect is already turned (yaw swaps w and d in the file), so a box needs no yaw
+  const objectBoxes: ObjectBox[] = (f.objects ?? []).map((o) => {
+    const [x0, z0, x1, z1] = o.rect;
+    return { id: o.id, c: [(x0 + x1) / 2, floor(o.level) + o.y + o.h / 2, (z0 + z1) / 2], s: [x1 - x0, o.h, z1 - z0], noLedge: !!o.noLedge };
+  });
+  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes };
 }
 
 /**

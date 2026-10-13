@@ -87,11 +87,22 @@ export interface Void {
   [k: string]: unknown;
 }
 
-/** A placed object (schema.md section 2 `objects`); the editor only copies, moves with a level and renames its level (ON2). */
+/** A placed object (schema.md section 2 `objects`); ON4: the Object tool places them from src/editor/catalogue.ts. */
 export interface Obj {
   id: string;
   level: string;
   name?: string;
+  /** Footprint, axis-aligned on the object grid. */
+  rect: Rect;
+  /** Height of the top above `y`; `y` is the base above the floor. */
+  h: number;
+  y: number;
+  noLedge?: boolean;
+  /** ON4: catalogue id, quarter turn (90 and 270 swap the preset's w and d), mesh / chair / glass (no cover). */
+  preset?: string;
+  yaw?: number;
+  seeThrough?: boolean;
+  reason?: string;
   [k: string]: unknown;
 }
 
@@ -122,16 +133,18 @@ export interface Campus {
   services?: Service[];
   /** ON10: absent until the first roof is drawn (a file without roofs saves byte-identical). */
   roofs?: Roof[];
+  /** ON4: placed objects (the campus file has the list, empty until the first object). */
+  objects?: Obj[];
   [k: string]: unknown;
 }
 
 /**
- * The collections the editor can change. `levels`, `objects` and `buildings` (meta.buildings) change through the Levels tab only
- * (ON2); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
+ * The collections the editor can change. `levels` and `buildings` (meta.buildings) change through the Levels tab only
+ * (ON2; ON4 made `objects` an element); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
 export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects';
 export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | (Building & { [k: string]: unknown });
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs'];
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;
