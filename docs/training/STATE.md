@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T4 Plant (Block B) - not started
+Current step: T5 Deep (Block B) - not started
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -21,7 +21,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | A | Block A end | done (GPU items pending PC run) | |
 | B | T2 Upper | done | ba09b54 |
 | B | T3 Shaft and Cistern | done | 408f27d |
-| B | T4 Plant | implemented (cloud), awaiting check | |
+| B | T4 Plant | done | 1094b71 |
 | B | T5 Deep | not started | |
 | B | Block B end, then PAUSE for Michael's walk (D27) | not started | |
 | C | T5b walk notes | not started | |
@@ -50,4 +50,4 @@ A1-A38 (DECISIONS.md; A6 revised per D21, A15 resolved)
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-T4 checker (fresh agent): docs/training/steps/T4-plant.md checks, the A5 -> S6 nav walk; then commit T4.
+Start T5: implementer subagent with docs/training/steps/T5-deep.md.

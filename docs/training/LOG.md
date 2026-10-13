@@ -149,3 +149,4 @@ Shared tests: voxelFit area bound for the bunker 164 x 160 (A36). Number changes
   EMP no longer reads as mains off (the A5-near bypass).
 - SR: a second plain door at the north end of the glazed west wall (local x 38, z 28.6..29.8) into the dark pocket
   behind the landing stair (x 33..38). Both SR doors open onto the same hall floor: no gate bypass (A36).
+T4 checked: PASS after 1 fix round (1094b71: nav seeds per bay, mains lamp not destructible, second SR door). Note: two B6 nav seeds sit on desk tops (tiny unreachable islands, harmless).
