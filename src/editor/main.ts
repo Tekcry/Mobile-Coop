@@ -59,6 +59,9 @@ import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
 import { MissionTool } from './missionTool';
 import { SecurityTool } from './securityTool';
+import { CrawlTool } from './crawlTool';
+import { ceilingWords } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
 import { hyp2 } from '../core/mathx';
 import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
 import type { Beam, Device, SecData, SecurityFile } from './security';
@@ -66,7 +69,7 @@ import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission,
 import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security' | 'crawl';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -247,6 +250,8 @@ export class Editor {
   secLoaded = '';
   /** ON12: the Security tool (cameras, readers, sensors, beams) and the coverage view. */
   readonly security: SecurityTool;
+  /** ON13: the Crawl space tool and the ceiling voids view. */
+  readonly crawl: CrawlTool;
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
@@ -285,6 +290,7 @@ export class Editor {
     this.mission = new MissionTool(this);
     this.view.mission = this.mission;
     this.security = new SecurityTool(this);
+    this.crawl = new CrawlTool(this);
     this.view.security = this.security;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
@@ -398,6 +404,10 @@ export class Editor {
     }
     if (isMission(coll)) return missionCentre(coll, e);
     if (coll === 'devices') return deviceCentre(e as unknown as Device);
+    if (coll === 'crawls') {
+      const p = (e as CrawlRecord).path;
+      return p.length ? [(p[0]![0] + p[p.length - 1]![0]) / 2, (p[0]![1] + p[p.length - 1]![1]) / 2] : [0, 0];
+    }
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -424,6 +434,8 @@ export class Editor {
     if (lk.length) this.lights.changed(lk);
     else if (keys.some((k) => k.startsWith('devices:'))) this.lights.refreshSecurity();
     this.lights.swap();
+    // ON13: the voids legend follows the rooms and ceilings
+    if (this.crawl.voids && keys.some((k) => k.startsWith('rooms:') || k.startsWith('ceilings:') || k.startsWith('levels:'))) this.voidLegend();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
       const alive = this.group.filter((k) => {
@@ -674,6 +686,8 @@ export class Editor {
   beginDrag(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', isNew = false): void {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
+    // ON13: a ceiling moves with its room (it is never dragged)
+    if (coll === 'ceilings') return;
     // the stair's arrow handle is a click, not a drag
     if (coll === 'stairs' && handle === 'turn') return this.turnStairClimb();
     this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
@@ -715,6 +729,8 @@ export class Editor {
       return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
     }
     if (d.coll === 'circuits') return e;
+    // ON13: a crawl's leg follows the pointer at its end; a placed crawl moves whole
+    if (d.coll === 'crawls') return this.crawl.dragged(d.before as unknown as CrawlRecord, d.isNew, d.start, x, z, fine ? this.fineGrid : this.objectGrid);
     // ON12: a beam being drawn follows the pointer at its far end; a placed device moves by its point
     if (d.coll === 'devices') {
       const og = fine ? this.fineGrid : this.objectGrid;
@@ -903,6 +919,8 @@ export class Editor {
     if (d.source !== 'pad') this.planGhost([], 'ghost');
     this.updateHint();
     if (cancel || !d.moved || d.refused) {
+      // ON13: a cancelled leg of an extended crawl puts the crawl back
+      if (d.coll === 'crawls' && this.crawl.cancel(d.isNew)) return this.renderPanel();
       this.unpreviewLinked(d);
       if (d.isNew) this.model.drop(d.coll, d.id);
       else this.model.preview(d.coll, d.before);
@@ -920,6 +938,8 @@ export class Editor {
     }
     let after = this.model.snapshot(d.coll, d.id);
     if (!after) return;
+    // ON13: a crawl settled (ends taken, hatches added) in one edit
+    if (d.coll === 'crawls') return this.crawl.drop(d.id, d.isNew, d.before as unknown as CrawlRecord, after as unknown as CrawlRecord);
     if (d.isNew && d.coll === 'exterior') {
       // ON5: a drawn piece is at least one grid step long; the Climb tool stays on for the next
       if (pieceLen(after as Ext) < this.objectGrid - 1e-6) {
@@ -1045,6 +1065,8 @@ export class Editor {
       this.mission.down(x, z, sx, sy, source);
     } else if (this.tool === 'security') {
       this.security.down(x, z, sx, sy, source);
+    } else if (this.tool === 'crawl') {
+      this.crawl.down(x, z, sx, sy, source);
     } else if (this.tool === 'guard') {
       // ON7: a guard eye at the point, facing the way the camera looks
       const ct = this.view.camera.getTarget();
@@ -1484,6 +1506,23 @@ export class Editor {
 
   /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
   /** ON8: Hub > View "Guard paths": every guard's, or only the selected guard's. */
+  /** ON13: the ceiling voids view (the tile menu's View): every void as a see-through box in the crawl rule's colour, with a legend. */
+  setVoidView(on: boolean): void {
+    this.crawl.voids = on;
+    this.view.setVoidView(on);
+    this.drawPlanOverlay();
+    this.voidLegend();
+    this.status(on ? 'Ceiling voids on: green meets the 1.5 m crawl rule, red does not; the legend gives each clear height' : 'Ceiling voids off');
+  }
+
+  /** The voids legend for the editing level (shown while the view is on). */
+  voidLegend(): void {
+    const lg = document.getElementById('voidLegend');
+    if (!lg) return;
+    lg.hidden = !this.crawl.voids;
+    lg.innerHTML = this.crawl.voids ? this.crawl.legend() : '';
+  }
+
   /** ON12: the security coverage view (Hub > View, the tile menu's View): every camera and sensor of the level, gaps clear. */
   setCoverage(on: boolean): void {
     this.security.coverage = on;
@@ -2111,6 +2150,8 @@ export class Editor {
     out += this.mission.planMarkup((x, z) => this.toPlan(x, z), S);
     // ON12: security devices (camera frames, sensor fans, beams, reader plates)
     out += this.security.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON13: crawl routes, ceiling hatches, voids (when on)
+    out += this.crawl.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -2411,6 +2452,7 @@ export class Editor {
     this.updateHint();
     this.refreshPlan(false);
     this.lights.levelChanged();
+    if (this.crawl.voids) this.voidLegend();
   }
 
   stepLevel(dir: 1 | -1): void {
@@ -2570,6 +2612,7 @@ export class Editor {
     if (this.group.length) return this.commitText(groupMoveWords(this.group, v[0], v[1]), moveSetChanges(this.groupSnapshots(), v[0], v[1]));
     const s = this.selectedElem();
     if (!s) return;
+    if (s.coll === 'ceilings') return this.status('A ceiling moves with its room');
     const c = this.centreOf(s.coll, s.e);
     const d: Drag = { coll: s.coll, id: s.id, handle: null, before: clone(s.e), start: c, planeY: 0, moved: true, sx: 0, sy: 0, source: '3d', isNew: false };
     let after = this.dragged(d, c[0] + v[0], c[1] + v[1], false);
@@ -2597,6 +2640,8 @@ export class Editor {
     if (s.coll === 'circuits') return this.status('A switch is not duplicated: place another with Light > Switch');
     if (isMission(s.coll)) return this.status('Guards and mission markers are not duplicated: place another with Y > Mission');
     if (s.coll === 'devices') return this.status('Security devices are not duplicated: place another with Y > Security');
+    if (s.coll === 'ceilings') return this.status('A ceiling belongs to its room: duplicate the room');
+    if (s.coll === 'crawls') return this.status('Crawl spaces are not duplicated: draw another with Y > Build > Crawl space');
     if (s.coll === 'lamps') {
       const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
       return this.commitLamps([{ ...l, id: '' }], null);
@@ -2743,6 +2788,7 @@ export class Editor {
       guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
       mission: this.mission.hint(),
       security: this.security.hint(),
+      crawl: this.crawl.hint(),
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -3375,6 +3421,7 @@ export class Editor {
       num('rect.3', 'North z', r[3]);
       rows.push(`<div class="row"><span>Size</span>${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m</div>`);
     };
+    const stepRow = (r: { id: string; label: string; value: string }): void => void rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
     if (s.coll === 'rooms') {
       text('name', 'Name');
       sel('kind', 'Kind', ROOM_KINDS.map((k) => [k, k]));
@@ -3383,6 +3430,19 @@ export class Editor {
       sel('finish', 'Floor finish', [['', 'None'], ...FINISHES.map((f): [string, string] => [f.id, f.name])]);
       rows.push(`<p class="dim" data-finish-words>${esc(loudWords((e as Room).finish))}</p>`);
       rect((e as Room).rect);
+      // ON13: the room's ceiling is a piece of its own
+      rows.push('<div class="row"><span>Ceiling</span><button id="toCeiling">Select the ceiling</button></div>');
+    } else if (s.coll === 'ceilings') {
+      // ON13: type, height, hatches (the card's rows), the void and the rule, what the player can do
+      for (const r of cardRows('ceilings', s.e)) stepRow(r);
+      rows.push(`<p id="ceilingWords" class="dim">${esc(ceilingWords(this.model.data, e as Ceiling))}</p>`);
+      rows.push('<div class="row"><button id="toRoom">Select the room</button></div>');
+    } else if (s.coll === 'crawls') {
+      // ON13: a crawl space: its name and reason, width and heights, what the player can do
+      text('name', 'Name');
+      text('reason', 'Reason');
+      for (const r of cardRows('crawls', s.e)) if (r.id === 'width' || r.id === 'y0' || r.id === 'clear') stepRow(r);
+      rows.push(`<p id="crawlWords" class="dim">${esc(this.crawl.footWords('crawls', s.e))}</p>`);
     } else if (s.coll === 'walls') {
       const w = e as Wall;
       sel('kind', 'Kind', WALL_KINDS.map((k) => [k, k === 'boundary' ? 'boundary (fence)' : k]));
@@ -3510,6 +3570,8 @@ export class Editor {
       this.mission.markAlone(s.id, t.tx, t.tz);
     });
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
+    document.getElementById('toCeiling')?.addEventListener('click', () => this.select(keyOf('ceilings', s.id)));
+    document.getElementById('toRoom')?.addEventListener('click', () => this.select(keyOf('rooms', s.id)));
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());
     $('frame').addEventListener('click', () => this.frameSelected());
@@ -3527,7 +3589,8 @@ export class Editor {
     if (!before) return;
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
-    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
+    const t = this.controls.orbit.s;
+    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data, dot: [t.tx, t.tz] });
     if (after) this.commit([{ coll, id, before, after: coll === 'guards' ? this.mission.recycle(after) : after }]);
   }
 

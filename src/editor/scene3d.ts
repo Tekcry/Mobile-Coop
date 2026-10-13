@@ -37,6 +37,9 @@ import { deviceCentre, isBeam, isCamera, isPir, isReader } from './security';
 import type { Device } from './security';
 import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalogue';
 import type { SecurityTool } from './securityTool';
+import { ruleColour, voidOf } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
+import { ceilingType, crawlBoxes, hatchRect } from '../world/maps/kestrelCeilings';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -95,6 +98,8 @@ export class EditorScene {
   private stealth = false;
   /** ON5: the finish view (room floors tinted by finish). */
   private finishView = false;
+  /** ON13: the ceiling voids view (Hub > View, the tile menu's View): every void as a see-through box in the rule's colour. */
+  private voidView = false;
   private readonly nodes = new Map<Key, Mesh[]>();
   private readonly mats = new Map<string, StandardMaterial>();
   private handleMeshes: Mesh[] = [];
@@ -192,6 +197,9 @@ export class EditorScene {
     for (const c of d.circuits ?? []) this.build(keyOf('circuits', c.id));
     for (const coll of ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'] as const) for (const e of (d[coll] ?? []) as { id: string }[]) this.build(keyOf(coll, e.id));
     for (const e of d.devices ?? []) this.build(keyOf('devices', e.id));
+    // ON13: each room's ceiling (a piece of its own) and the crawl spaces
+    for (const r of d.rooms) this.build(keyOf('ceilings', r.id));
+    for (const c of d.crawls ?? []) this.build(keyOf('crawls', c.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -211,6 +219,11 @@ export class EditorScene {
         // a deleted opening: its wall is whichever wall's pieces no longer match; rebuild walls that lost one
         else for (const w of this.data.walls) if ((this.nodes.get(keyOf('walls', w.id))?.length ?? 0) > 0 && this.wallHadOpening(w.id, p.id)) todo.add(keyOf('walls', w.id));
       }
+    }
+    // ON13: a room's ceiling follows the room (and the other way round)
+    for (const k of keys) {
+      if (k.startsWith('rooms:')) todo.add(keyOf('ceilings', k.slice(6)));
+      else if (k.startsWith('ceilings:')) todo.add(keyOf('rooms', k.slice(9)));
     }
     // ON2: a floor hole cuts the room floors on its level (old and new rect: rebuild every room on the level, or all when it went)
     for (const k of keys) {
@@ -259,6 +272,8 @@ export class EditorScene {
     else if (p.coll === 'circuits') [meshes, levels] = this.buildSwitch(e as Circuit);
     else if (isMission(p.coll)) [meshes, levels] = this.buildMission(p.coll, e);
     else if (p.coll === 'devices') [meshes, levels] = this.buildDevice(e as unknown as Device);
+    else if (p.coll === 'ceilings') [meshes, levels] = this.buildCeiling(e as Ceiling);
+    else if (p.coll === 'crawls') [meshes, levels] = this.buildCrawl(e as CrawlRecord);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -287,6 +302,10 @@ export class EditorScene {
     }
     if (isMission(coll)) return missionCentre(coll, e);
     if (coll === 'devices') return deviceCentre(e as Device);
+    if (coll === 'crawls') {
+      const pth = (e as CrawlRecord).path;
+      return pth.length ? [(pth[0]![0] + pth[pth.length - 1]![0]) / 2, (pth[0]![1] + pth[pth.length - 1]![1]) / 2] : [0, 0];
+    }
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -795,6 +814,90 @@ export class EditorScene {
     return [[m], [lv]];
   }
 
+  /**
+   * ON13: a room's ceiling: a quad facing down at its height (seen and picked only from below, so it never hides the room
+   * from the builder camera above), its hatches as dark squares just under it; with the voids view on, the void above as a
+   * see-through box, green when it meets the crawl rule, red when not.
+   */
+  private buildCeiling(c: Ceiling): [Mesh[], string[]] {
+    const t = ceilingType(c);
+    if (t.id === 'open' || !(c.ceiling > 0)) return [[], [c.level]];
+    const f = this.floorOf(c.level);
+    const out: Mesh[] = [this.downQuad(`ceiling ${c.id}`, c.rect as [number, number, number, number], f + c.ceiling, this.mat(`ceiling ${t.id}`, t.colour))];
+    const dark = this.mat('ceiling hatch', '#3b3f45');
+    for (const h of c.hatches ?? []) out.push(this.downQuad(`hatch ${c.id}`, hatchRect(t, h), f + c.ceiling - 0.01, dark));
+    if (this.voidView) {
+      const v = voidOf(this.data, c);
+      if (v) {
+        const [x0, z0, x1, z1] = c.rect;
+        const m = this.box(`void ${c.id}`, (x0 + x1) / 2, f + (v.y0 + v.y1) / 2, (z0 + z1) / 2, x1 - x0, v.y1 - v.y0, z1 - z0, 0, this.mat(`void ${v.colour}`, v.colour, 0.22, 0.3));
+        m.metadata = { voidOf: c.id };
+        out.push(m);
+      }
+    }
+    return [out, [c.level]];
+  }
+
+  /** A horizontal quad over `r` at height `y` whose front face looks down (the winding is checked by its normal). */
+  private downQuad(name: string, r: readonly [number, number, number, number], y: number, mat: StandardMaterial): Mesh {
+    const m = new Mesh(name, this.scene);
+    const vd = new VertexData();
+    vd.positions = [r[0], y, r[1], r[2], y, r[1], r[2], y, r[3], r[0], y, r[3]];
+    let idx = [0, 1, 2, 0, 2, 3];
+    const nrm: number[] = [];
+    VertexData.ComputeNormals(vd.positions, idx, nrm);
+    if ((nrm[1] ?? 0) > 0) {
+      idx = [0, 2, 1, 0, 3, 2];
+      nrm.length = 0;
+      VertexData.ComputeNormals(vd.positions, idx, nrm);
+    }
+    vd.indices = idx;
+    vd.normals = nrm;
+    vd.applyToMesh(m);
+    m.material = mat;
+    return m;
+  }
+
+  /** ON13: a crawl space: the walk test's own boards (kestrelCeilings.ts) and its clear space see-through in the rule's colour. */
+  private buildCrawl(c: CrawlRecord): [Mesh[], string[]] {
+    const f = this.floorOf(c.level);
+    const out: Mesh[] = [];
+    const board = this.mat('crawl board', '#a08a64');
+    for (const b of crawlBoxes(c, f)) {
+      const m = CreateBox(`crawl ${c.id}`, { width: Math.max(b.s[0], 0.01), height: Math.max(b.s[1], 0.01), depth: Math.max(b.s[2], 0.01) }, this.scene);
+      m.position.set(b.c[0], b.c[1], b.c[2]);
+      m.rotation.y = b.yaw;
+      m.material = board;
+      out.push(m);
+    }
+    const hex = ruleColour(c.y1 - c.y0);
+    const clear = this.mat(`crawl clear ${hex}`, hex, 0.25, 0.3);
+    for (let i = 0; i + 1 < c.path.length; i++) {
+      const a = c.path[i]!;
+      const b = c.path[i + 1]!;
+      const dx = b[0] - a[0];
+      const dz = b[1] - a[1];
+      const L = Math.sqrt(dx * dx + dz * dz);
+      if (L < 1e-6) continue;
+      out.push(this.box(`crawl ${c.id}`, (a[0] + b[0]) / 2, f + (c.y0 + c.y1) / 2, (a[1] + b[1]) / 2, L, c.y1 - c.y0, c.width, EditorScene.yaw(dx, dz), clear));
+    }
+    return [out, [c.level]];
+  }
+
+  /** ON13: the ceiling voids view on or off: every ceiling is rebuilt (with or without its void box). */
+  setVoidView(on: boolean): void {
+    if (on === this.voidView) return;
+    this.voidView = on;
+    this.refresh(this.data.rooms.map((r) => keyOf('ceilings', r.id)));
+  }
+
+  /** How many void boxes are drawn (the e2e reads it). */
+  get voidsShown(): number {
+    let n = 0;
+    for (const [k, ms] of this.nodes) if (k.startsWith('ceilings:')) n += ms.filter((m) => !!(m.metadata as { voidOf?: string }).voidOf).length;
+    return n;
+  }
+
   /** ON5: the finish view on or off: every room floor is rebuilt with its tint. */
   setFinishView(on: boolean): void {
     if (on === this.finishView) return;
@@ -1036,7 +1139,10 @@ export class EditorScene {
     if (ph?.hit && ph.pickedMesh) return { handle: (ph.pickedMesh.metadata as { handle: string }).handle };
     const pr = this.scene.pick(px, py, (m: AbstractMesh) => {
       const meta = m.metadata as Meta | null;
-      return m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level);
+      if (!(m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level))) return false;
+      // ON13: a ceiling is picked from below only (it is drawn facing down), never its void box
+      if (meta.key.startsWith('ceilings:')) return !(m.metadata as { voidOf?: string }).voidOf && this.camera.position.y < m.getBoundingInfo().boundingBox.maximumWorld.y;
+      return true;
     });
     if (!pr?.hit || !pr.pickedMesh || !pr.pickedPoint) return {};
     const meta = pr.pickedMesh.metadata as Meta;

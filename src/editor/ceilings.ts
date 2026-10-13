@@ -22,6 +22,8 @@ const ROOM_CEILING = facts.room.ceiling.value;
 const CORRIDOR = facts.ceiling.corridor.value;
 const MIN = facts.ceiling.min.value;
 const END_REACH = facts.ceiling.endReach.value;
+/** A crawl end within this of a vent or hatch takes it; A within it of a selected crawl's end goes on from there. */
+export const CRAWL_END_REACH = END_REACH;
 export const CRAWL_W_MIN = facts.crawl.widthMin.value;
 export const CRAWL_W_MAX = facts.crawl.widthMax.value;
 export const CRAWL_W_DEFAULT = facts.crawl.widthDefault.value;
@@ -230,6 +232,21 @@ export function ceilingWords(d: Lv, c: Ceiling): string {
   const hatch = t.anyTile ? `any tile lifts (${hs.length} marked)` : hs.length ? `${hs.length} access hatch${hs.length === 1 ? '' : 'es'}` : 'no access hatch (only placed hatches open)';
   const pos = hs.length ? `: ${hs.map((h) => `x ${fmt(h[0])} z ${fmt(h[1])}`).join('; ')}` : '';
   return `${t.name} at ${fmt(c.ceiling)} m; ${walk}. ${v ? `${v.words}. ` : t.id === 'slab' ? 'No void (the slab is the ceiling). ' : ''}Hatches: ${hatch}${pos}; from below ${hatchReach(top)}. Guards never enter voids.`;
+}
+
+/** The selection card's short foot for a ceiling: the void and the rule, the hatches. */
+export function ceilingFoot(d: Lv, c: Ceiling): string {
+  const t = ceilingType(c);
+  if (t.id === 'open') return 'No ceiling (open to the slab)';
+  const v = voidOf(d, c);
+  const n = (c.hatches ?? []).length;
+  return `${v ? `Void ${fmt(v.clear)} m clear: ${v.ok ? 'meets' : 'under'} the ${fmt(CRAWL_RULE)} m crawl rule` : 'No void'}; ${t.anyTile ? 'any tile lifts' : `${n} hatch${n === 1 ? '' : 'es'}`}; guards never enter voids`;
+}
+
+/** The selection card's short foot for a crawl space. */
+export function crawlFoot(c: CrawlRecord): string {
+  const clear = c.y1 - c.y0;
+  return `Crouch space, ${fmt(clear)} m clear: ${clear >= CRAWL_RULE - EPS ? 'meets' : 'under'} the ${fmt(CRAWL_RULE)} m crawl rule; guards never enter`;
 }
 
 // ---------- crawl spaces ----------

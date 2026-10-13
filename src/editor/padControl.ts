@@ -47,6 +47,8 @@ import { fittingOf, groupFittings } from './lightCatalogue';
 import type { MissionKind } from './missionCatalogue';
 import type { SecTool } from './securityCatalogue';
 import type { Device as SecDevice } from './security';
+import { ceilingFoot, crawlFoot } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
 import { isMission } from './mission';
 import type { LightGroup } from './lightCatalogue';
 import { aimDir } from './lightCatalogue';
@@ -77,6 +79,7 @@ const BAR = [
   ['guard', 'Guard view'],
   ['mission', 'Mission'],
   ['security', 'Security'],
+  ['crawl', 'Crawl space'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -268,7 +271,7 @@ export class PadControl {
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage, voids: ed.crawl.voids };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -439,6 +442,7 @@ export class PadControl {
     else if (id === 'view.circuit') return ed.stepLightCircuit(dir);
     else if (id === 'view.paths') return ed.stepGuardPaths();
     else if (id === 'view.coverage') return ed.setCoverage(!ed.security.coverage);
+    else if (id === 'view.voids') return ed.setVoidView(!ed.crawl.voids);
     this.applyPanel(rebuild);
   }
 
@@ -462,6 +466,12 @@ export class PadControl {
       ed.setStairType(id.slice(6) as StairTypeId);
       tool('stair');
     } else if (id === 'build.ladder') tool('ladder');
+    else if (id === 'build.crawl') tool('crawl');
+    else if (id === 'sel.ceiling' || id === 'sel.room') {
+      // ON13: a room's ceiling, and back to the room
+      const s = ed.selectedElem();
+      if (s) ed.select(keyOf(id === 'sel.ceiling' ? 'ceilings' : 'rooms', s.id));
+    }
     else if (id === 'build.hole') tool('hole');
     else if (id.startsWith('roof.')) {
       ed.setRoofType(roofType(id.slice(5)).id);
@@ -1437,7 +1447,9 @@ export class PadControl {
       const missionLine = isMission(s.coll) ? `<div class="dim" data-mission>${esc(ed.mission.footWords(s.coll, s.e))}</div>` : '';
       // ON12: what a device does in the game (and which stage builds it); a security desk's feeds
       const secLine = s.coll === 'devices' ? `<div class="dim" data-security>${esc(ed.security.footWords(s.e as unknown as SecDevice))}</div>` : s.coll === 'objects' && (s.e as Obj).preset === 'security-desk' ? `<div class="dim" data-security>${esc(ed.security.deskWords(s.e as Obj))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON13: a ceiling's void and the crawl rule; a crawl space's
+      const ceilLine = s.coll === 'ceilings' ? `<div class="dim" data-ceiling>${esc(ceilingFoot(ed.model.data, s.e as Ceiling))}</div>` : s.coll === 'crawls' ? `<div class="dim" data-crawl>${esc(crawlFoot(s.e as CrawlRecord))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}${ceilLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1621,6 +1633,14 @@ export class PadControl {
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if (ed.tool === 'crawl' && p && !ed.drag) {
+      // ON13: where the crawl would start (a hatch, a vent, an open end) and its clear height
+      const g = ed.crawl.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = `crw|${g.key}`;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
     } else if (ed.tool === 'security' && p && !ed.drag) {
       // ON12: the device A would place (on a wall face, under a ceiling, by a door), or why not
       const g = ed.security.ghost(p[0], p[1], f);

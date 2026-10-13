@@ -87,6 +87,8 @@ export interface ViewState {
   paths?: 'all' | 'selected';
   /** ON12: the security coverage view. */
   coverage?: boolean;
+  /** ON13: the ceiling voids view. */
+  voids?: boolean;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -121,6 +123,7 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.paths', icon: 'G', name: 'Guard paths', desc: 'Every guard, or only the selected one', kind: 'cycle', value: v.paths === 'selected' ? 'Selected guard' : 'All guards' },
     // ON12: every camera cone and sensor fan of this level tinted, the unwatched floor clear
     { id: 'view.coverage', icon: 'S', name: 'Security coverage', desc: 'Camera cones and sensor fans; gaps stay clear', kind: 'toggle', on: !!v.coverage, value: onOff(!!v.coverage) },
+    { id: 'view.voids', icon: 'V', name: 'Ceiling voids', desc: 'Each void see-through, green meets the crawl rule, red not', kind: 'toggle', on: !!v.voids, value: onOff(!!v.voids) },
   ];
 }
 
@@ -141,10 +144,12 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices' || s.coll === 'ceilings';
       // ON8: mission records are not duplicated (a fresh one is placed with its tool)
       // ON12: nor are security devices (a reader binds one door)
-      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices'].includes(s.coll);
+      // ON13: nor are ceilings (a room's own) and crawl spaces; a ceiling moves and is renamed with its room
+      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'ceilings', 'crawls'].includes(s.coll);
+      const own = s.coll !== 'ceilings';
       const t: (Tile | false)[] = [
         // ON8: a guard: its path, the patrol preview and the isolation point first
         s.coll === 'guards' && { id: 'sel.path', icon: 'P', name: 'Edit path', desc: 'A adds stops, A on the first closes the loop, B ends', kind: 'go' },
@@ -152,12 +157,15 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         s.coll === 'guards' && { id: 'sel.alone', icon: 'I', name: 'Mark alone here', desc: 'The point of the loop nearest the dot (or where the patrol is now)', kind: 'go' },
         s.coll === 'objectives' && { id: 'sel.requires', icon: 'N', name: 'Needs first', desc: 'A on other objectives: this needs them first; B ends', kind: 'go' },
         s.coll === 'objectives' && { id: 'sel.unlocks', icon: 'O', name: 'Opens', desc: 'A on other objectives: this opens them; B ends', kind: 'go' },
-        { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
+        own && { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         !mission && { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
         turns && { id: 'sel.rotate', icon: 'R', name: 'Rotate 90', desc: 'A quarter turn', kind: 'go' },
         copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste it from the Build tab', kind: 'go' },
         copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.finish', icon: 'F', name: 'Floor finish', desc: "The card's Floor finish row: left / right", kind: 'go' },
+        // ON13: the room's ceiling as a piece (type, height, hatches)
+        s.coll === 'rooms' && { id: 'sel.ceiling', icon: 'C', name: 'Ceiling', desc: 'Its type, height and hatches on the card', kind: 'go' },
+        s.coll === 'ceilings' && { id: 'sel.room', icon: 'R', name: 'Room', desc: 'Back to the room under this ceiling', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'The room, its walls, doors and objects', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
@@ -169,7 +177,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         // ON7: the light view with this lamp out (not saved)
         s.coll === 'lamps' && s.breakable === true && { id: 'sel.shot', icon: 'O', name: 'Preview shot out', desc: 'The light view with this lamp out (not saved)', kind: 'go' },
         s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'A on lamps puts them on this switch; B ends', kind: 'go' },
-        { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
+        own && { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
         s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
         { id: 'sel.props', icon: 'P', name: 'Properties', desc: 'Every field in the side panel', kind: 'go' },
@@ -185,6 +193,8 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         ...STAIR_TYPES.map((t): Tile => ({ id: `stair.${t.id}`, icon: 'S', name: t.id === 'main-straight' ? 'Straight stair' : `Stair: ${t.name}`, desc: 'A at the start corner, point the climb, A, A', kind: 'go' })),
         { id: 'build.ladder', icon: 'L', name: 'Ladder', desc: 'A on a wall face: up to the level above', kind: 'go' },
         { id: 'build.hole', icon: 'H', name: 'Floor hole', desc: 'A at one corner, A at the other', kind: 'go' },
+        // ON13: a crawl space in a ceiling void, from a hatch or vent to another
+        { id: 'build.crawl', icon: 'C', name: 'Crawl space', desc: 'A at one end, A at the other; A at its end goes on', kind: 'go' },
         // ON10: one Roof tile per type; A, A on the same spot takes the building (or room) under the dot
         ...ROOF_TYPES.map((t): Tile => ({ id: `roof.${t.id}`, icon: 'R', name: `Roof: ${t.name}`, desc: 'A at two corners, or A twice on a building', kind: 'go' })),
         { id: 'build.measure', icon: 'M', name: 'Measure', desc: 'A at one point, A at the other', kind: 'go' },

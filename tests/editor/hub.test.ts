@@ -62,7 +62,7 @@ describe('hub tabs and rows', () => {
 
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
-    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Lighting: off', 'Darkness map: off', 'Lights preview: Normal', 'Guard paths: All guards', 'Security coverage: off', 'Bookmarks: save this view: undefined']);
+    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Lighting: off', 'Darkness map: off', 'Lights preview: Normal', 'Guard paths: All guards', 'Security coverage: off', 'Ceiling voids: off', 'Bookmarks: save this view: undefined']);
     expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '0.1 m', '1.00x', '1.00x', 'Medium', '0.15', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
     expect(hubRows('Settings', input).map((x) => x.text).slice(1, 6)).toEqual(['Grid', 'Pan speed', 'Orbit speed', 'Smoothing', 'Dead zone']);
     expect(hubRows('Settings', input).find((x) => x.id === 'set.repeat')!.slider).toBeCloseTo((1 - 0.5) / 1.5);
