@@ -1,19 +1,20 @@
 # Training run - state
 
-Current step: T0 facts (Block A) - in progress (baseline done; agent a pending; checker pending)
+Current step: T1a course logic (Block A) - not started
+Where the last step ran: cloud
 Last commit: 6300300 (design docs) + the run files commit
 Branch: feature/training-bunker (from origin/feature/kestrel)
 
 ## Baseline (filled by T0)
-- npm run check: -
-- smoke e2e: -
-- Perf trend (node scripts/perf.mjs, no --budget): sim p95 -, anim - ms/char, alloc -, draws -, tris -
-- E2E_GPU=1 perf --desktop --budget (Warehouse, this PC): -
+- npm run check: lint 0 errors / 38 warnings; 99 files, 1085 tests passed; build ok
+- smoke e2e: ok (8 s)
+- Perf trend (node scripts/perf.mjs, no --budget, cloud software GL): sim p95 3.9 ms, anim 0.105 ms/char, alloc 11163 KB/s, draws 41, tris 0.15 M
+- E2E_GPU=1 perf --desktop --budget (Warehouse, this PC): pending PC run
 
 ## Steps
 | Block | Step | Status | Commit |
 | --- | --- | --- | --- |
-| A | T0 facts | not started | |
+| A | T0 facts | done | (this commit) |
 | A | T1a course logic | not started | |
 | A | T1b course mode and sync | not started | |
 | A | T1c tutorial HUD, drills, results, bay select | not started | |
@@ -49,4 +50,4 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-Start T0: read docs/training/steps/T0-facts.md and run its three Explore agents.
+Start T1a: implementer subagent with docs/training/steps/T1a-course-logic.md.

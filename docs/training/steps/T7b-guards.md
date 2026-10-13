@@ -5,7 +5,7 @@ Model: implementer opus, checker opus. Deps: T7a. Enemies and tuning tables neve
 ## Read
 - BAYS.md guard sheets: grep `Guard sheets` (B5 :300-385, B6 :386-485, B7 :493-569, B8 :570-644, B9 :645-735);
   sections 12 (tool / problem) and 13 (metrics: guard cycles)
-- src/world/rooms.ts 20-40 (SquadSlot: kind, x, z, yaw, y, route, wait, waits, faces); config/enemies.json (grep
+- src/world/rooms.ts 20-39 (SquadSlot: kind, x, z, yaw, y, route, wait, waits, faces); config/enemies.json (grep
   `walkSpeed` per kind: grunt 0.9, runner 1.3, heavy 0.75, sniper 0.85, enforcer 0.8, dog 1.1, officer 0.85)
 - src/ai/enemyManager.ts (MAX_ALIVE :25; alarms; reinforce; radio check); src/ai/archetypes.ts (grep `radio`, `buff`)
 - docs/level-design.md section 4 (guards) and 15 (acceptance)

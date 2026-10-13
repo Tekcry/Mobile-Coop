@@ -6,11 +6,11 @@ Model: implementer opus, checker opus (src/net). Deps: T1a. Runs e2e-coop and e2
 - CLAUDE.md hard rules (src/net only through the dynamic import behind flags.coop); docs/systems/coop.md (whole: 49 lines)
 - docs/training/T0-facts.md reuse list (it supersedes the line numbers below where they differ)
 - src/game/course/* (T1a); src/config/course.ts
-- src/game/modes/gameMode.ts 1-82; src/game/gameState.ts 455-520 (mode switch :508-517), 865-880 (onPlayerDeath)
+- src/game/modes/gameMode.ts 1-82; src/game/gameState.ts 455-520 (mode switch :508-517), 865-880 (onPlayerDeath), 723 and 1236-1250 (respawn)
 - src/game/interactables.ts 59-157; src/world/doors.ts 100-235; src/world/lights.ts (grep `setGroup`, `destroy`)
-- src/net/protocol.ts 10-35 (version, NetMode, capacity), 145-200 (Msg), 412-470 (parseMessage); tests/net.test.ts (grep `parseMessage`)
-- src/net/coopHost.ts 290-330 (all down), 440-500 (use), 805-870 (items, doors, snapshot)
-- src/net/coopClient.ts 200-270 (syncItems, doors), 520-545 (snap)
+- src/net/protocol.ts 10-35 (version, NetMode, capacity), 145-200 (Msg), 412-470 (parseMessage), 490-497 (start mode check); tests/net.test.ts (grep `parseMessage`)
+- src/net/coopHost.ts 290-330 (all down), 440-500 (use), 805-870 (items, doors, snapshot), 1040-1070 (onLocalDeath, onRespawn)
+- src/net/coopClient.ts 200-270 (syncItems, doors), 180-235 (onSnap)
 - src/net/coopUi.ts 245-270 (MODE_OPTS, lobbyModes); src/world/maps/index.ts (registration only); src/world/mapDef.ts 44-100
 - scripts/run-e2e.mjs 20-60 (REQUIRED, COVERS); scripts/e2e-lib.mjs 83-110 (launch, openPage); scripts/e2e-coop.mjs (grep `net=local` for the two-page pattern)
 

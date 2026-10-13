@@ -4,7 +4,7 @@ Model: implementer opus, checker opus. Deps: TM (Block B done, the walk applied,
 
 ## Read
 - BAYS.md light plans: grep `Light plan:` (one table per bay) and each bay's "Sound" line; 7-70 (offsets)
-- src/world/lights.ts 1-130 (LightDef :20-50, LightInit :59, group, destructible, electric, fixture, kind), 170-200
+- src/world/lights.ts 1-130 (LightDef :23-49, LightInit :59, group, destructible, electric, fixture, kind), 170-200
   (setGroup, destroy); src/world/levelBuilder.ts 383-404 (light, surface, ambientZone with minY / maxY)
 - src/world/surfaces.ts 1-30 (Surface :6: concrete, metal, grate, wood, gravel, carpet); docs/systems/lighting.md 6-60
 - src/world/mapDef.ts 54-55 (switches); T0-facts.md (light count and per-column cap answers)

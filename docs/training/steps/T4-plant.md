@@ -20,7 +20,8 @@ Model: implementer opus, checker opus. Deps: T3. No guards; one work lamp per ba
    glazed manager's office, the control room mezzanine at 3.6 with its glazed south front and the enclosed stair behind
    a door, locker room, records room, mantrap (two doors, the iris point), server room with rack rows and the exit door
    to S6. Every reader door is a `door` with `locked: true`. The supply duct from A5's service passage in the ceiling
-   void (3.4-4.6) along z 16 to the records ceiling grille (engine duct with a ceiling exit: SPEC E6).
+   void (3.4-4.6) along z 16 to the records ceiling grille (engine duct with a ceiling exit: SPEC E6); entry by a
+   plant platform in A5's service passage, feet 2.2 (T0: grate within 1.4 of the feet).
 4. Device mount points only (no logic yet): the four camera positions, the desk seat, the panel, readers, iris, beams,
    PIR, the CRAC fault point, the exit keypad, as an exported table `BUNKER_DEVICES` (id, kind, local -> world position,
    facing) that T7a reads. Fixtures for cameras as small boxes (visual, `collide` false).

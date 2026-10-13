@@ -13,13 +13,13 @@ Model: implementer opus, checker opus. Deps: T2. No guards; one work lamp per ba
 ## Task (decisions)
 1. `src/world/maps/bunkerShaft.ts`: B3, A3, B4, A4, called from bunker.ts.
 2. B3 shaft: walls to y 30 (local 24), chamfered corners, galleries G1 (10), G2 (14), G3 (17.4) with 1.1 rails except at
-   the move points; the riser casing RC 1.6 m off the north wall, 8 m above G1, its top 4.0 above G1 (or what T0 found
-   `findJump` from a split reaches; log the value); the grated bridge from the casing top to G2.
+   the move points; the riser casing RC 1.6 m off the north wall, its top 4.3 above G1 (T0: lip window
+   3.95-4.75 above the split floor); the grated bridge from the casing top down 0.3 to G2.
 3. The wall-jump lip 3.4 above G2 on the north wall and the north-east inside corner (2.7-3.8 window).
-4. The damper bar `pipeH` 2.5 over G3 across the 4 m void to above G2; the hoist `rappel` point (length to y 2.0 above
-   the floor); the control room CR outside the east wall with its shaft window on the rope line (`windowAt`, breakable,
+4. The damper bar `pipeH` 2.5 over G3 across the 4 m void to above G2; the hoist `rappel` point (length 17.4 to the floor:
+   T0); the control room CR outside the east wall with its shaft window on the rope line (`windowAt`, breakable,
    at local y 3.0-4.5) and its door onto the chamber floor; the spoil `zipline` from G3 (y 19.4) to the west platform WP
-   (y 2.6); the fan pit `fence` 2.4 high round x 6..12, z 6..12; the discharge `duct` (engine crawl duct, SPEC E6) from
+   (floor 2.6, cable end y 4.5: T0); the fan pit `fence` 2.4 high round x 6..12, z 6..12; the discharge `duct` (engine crawl duct, SPEC E6) from
    inside the pit to a wall grille in the short plant passage before A3; the plant ladder floor -> G1; catch nets
    (collision floors of grating, visual mesh) 2 m under RC and WJ with a net ladder back up.
 5. Exactly one split gap in B3 (the RC slot): assert it. Put `noLedge` on every gallery back edge and on the CR roof so

@@ -4,3 +4,5 @@
 - Co-op light state is not synced to clients on the base branch (src/net/coopHost.ts has no light state; 2026-10-13
   grep). T1b adds a minimal light list to the `course` message as a stand-in for First Playable S7a / bible L10.
 - `scripts/plan-svg.mjs` does not exist on the base branch; T2 creates it (template rule).
+- T0: B6 supply duct entry moved onto a plant platform (feet 2.2) in A5's service passage; B3 duct one-way (spec change requests, LOG.md T0).
+- T0: animation per character is over its scaled budget on the cloud VM at baseline (0.105 vs 0.067 ms): pre-existing, confirm on the PC.

@@ -58,7 +58,7 @@ can be hidden, D19).
 
 **Failure (DECISIONS D4, D11).** Guards are Cresset role-players with marking rounds: real AI, real damage, takedowns
 knock out. A downed player is revived (existing revive, 2.5 s). Both down: the bay restarts at its entry airlock with
-the bay's squad respawned (course framework, PLAN T1). No fall damage exists (`LANDING`, player/movement.ts:203): a fall
+the bay's squad respawned (course framework, PLAN T1). No fall damage exists (`LANDING`, player/movement.ts:204): a fall
 costs time and noise only, so every bay with a fall line has a plant ladder back up.
 
 **Airlock (every A1-A8).** Real reason: the 1950s bunker's gas-tight decontamination airlocks, two interlocked blast
@@ -204,13 +204,13 @@ Elements (local):
 | Id | Element | Where | Verb | Check |
 | --- | --- | --- | --- | --- |
 | G1 | Gallery 2.5 deep, west and north walls | y 10 | entry from A2 (west wall, z 7..13) | guard rail 1.1 except at move points |
-| RC | Concrete cable-riser casing 1.2 deep, x 6..12, standing 1.6 m off the north wall, 8 m tall above G1 | G1 north arm | split jump (double tap); from the split, jump up to the casing top | gap 1.2-1.95, both faces >= 3.6 (`SPLIT`); casing top 4.0 above G1 (TUNE: inside `findJump` from a split, feet line + 1.05 m reach) |
+| RC | Concrete cable-riser casing 1.2 deep, x 6..12, standing 1.6 m off the north wall, 4.3 m tall above G1 | G1 north arm | split jump (double tap); from the split, jump up to the casing top | gap 1.2-1.95, both faces >= 3.6 (`SPLIT`); casing top 4.3 above G1 (T0: `findJumpTarget` from a split accepts a lip 3.95-4.75 above the split floor); the grated bridge steps down 0.3 to G2 |
 | G2 | The casing top joins the east-wall gallery by a grated bridge | y 14 | - | - |
 | WJ | North wall lip at 3.4 above G2, and the north-east inside corner | G2 north end | wall jump (straight), corner kick (alternate) | 2.7-3.8 (`WALL_JUMP`); corner reach 1.4 |
 | G3 | Hoist landing, north-east corner, x 12..18, z 12..18 | y 17.4 | - | - |
 | PH | Damper-shaft bar from G3 over a 4 m void to above G2 | y 19.9 (2.5 over G3) | hands, legs up, inverted, flip drop onto G2 (a way back for practice) | `PIPE` times |
-| RP | Hoist beam over the east wall void, a rope anchor (`RappelPoint`, length 15.4 to y 2.0) | G3 east edge | rappel down the east wall; kick out, sideways, kick through the control-room window (y 3.0-4.5); unhook | `RAPPEL` speeds; `unhookHeight` 2.0 |
-| ZP | Spoil ropeway cable from G3 (y 19.4) to the west platform WP (x 0..4, z 0..4, y 2.6) | diagonal across the shaft | zipline, launched at the end onto WP | `ZIP_SPEED` 6 |
+| RP | Hoist beam over the east wall void, a rope anchor (`RappelPoint`, length 17.4 to the chamber floor y 0; T0: the rope bottom is the exit floor) | G3 east edge | rappel down the east wall; kick out, sideways, kick through the control-room window (y 3.0-4.5); unhook | `RAPPEL` speeds; `unhookHeight` 2.0 |
+| ZP | Spoil ropeway cable from G3 (y 19.4) to above the west platform WP (x 0..4, z 0..4, floor y 2.6; cable end y 4.5, T0: body hangs 1.9 under the cable) | diagonal across the shaft | zipline, launched at the end onto WP | `ZIP_SPEED` 6 |
 | CR | Fan control room, outside the east wall (local x 18..23, z 4..10), floor y 0, window in the shaft wall at y 3.0-4.5 | east | the rappel's window; the fan isolator; a door onto the chamber floor | window anchor; `ropeWindow` |
 | FP | Fan pit (x 6..12, z 6..12) inside a chain-link fan guard 2.4 high (`LevelBuilder.fence`) | floor | fence climb, shimmy, flip over; rattle above gear 3 | `FENCE` |
 | DU | Fan discharge duct, 1.2 wide x 1.0 high, from the pit's south wall 7 m to a wall grille in the plant corridor before A3 | floor | duct crawl; grille unscrew (hold, quiet) vs kick (tap, loud) | engine duct anchor (SPEC E6) |
@@ -862,9 +862,9 @@ Tension rises overall (1, 2, 3, 2, 3, 4, 4, 4, 5) with a release (an airlock) af
 | B2 gap jump | 2.2 | <= 2.5 | `findJumpTarget` |
 | B2 L2 depth | 0.4 | >= 0.38 to climb up | `LEDGE.climbDepth` anchors.ts:194 |
 | B2 gallery lips 4.0, 4.5 | reached by ladder / downpipe | lips >= 1.9 | `LEDGE.minDrop` anchors.ts:190 |
-| B3 split gap | 1.6 wide, 8 m faces | 1.2-1.95, >= 3.6 | `SPLIT` movement.ts:255 |
+| B3 split gap | 1.6 wide, 4.3 m faces | 1.2-1.95, >= 3.6 | `SPLIT` movement.ts:255 |
 | B3 wall jump lip | 3.4 | 2.7-3.8 | `WALL_JUMP` movement.ts:283 |
-| B3 rope | 15.4 m to 2.0 | unhook at 2.0 | `RAPPEL.unhookHeight` |
+| B3 rope | 17.4 m to the floor (y 0) | unhook at 2.0 | `RAPPEL.unhookHeight` |
 | B3 fence | 2.4 | `FENCE.reach` 0.85 to grab | movement.ts:345 |
 | B4, B9 co-op lips | 4.4, 4.5 | 4.3-4.5 (out of solo 3.8 + 0.5, under `TEAM.boostMax` 4.5) | level-design 11.3; movement.ts:286, 393 |
 | B5 genset roofs | 3.0 | wall jump 2.7-3.8 | `WALL_JUMP` |
