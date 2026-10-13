@@ -52,12 +52,14 @@ import { finishLegend, loudWords } from './finishes';
 import { circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
 import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './lamps';
 import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
+import { LightView } from './lightView';
+import { LIGHT_MODES, modeName, modeWords, type LightMode } from './lightPreview';
 import type { Fitting, LightGroup } from './lightCatalogue';
 import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -168,6 +170,8 @@ export class Editor {
   readonly model: EditorModel;
   readonly view: EditorScene;
   readonly controls: CameraControls;
+  /** ON7: the light view, darkness map, lights preview modes and the guard view tester. */
+  readonly lights: LightView;
   tool: Tool = 'select';
   selected: Key | null = null;
   /** ON3 multi-select (box select, Shift+click): two or more keys; `selected` is then null. */
@@ -250,6 +254,7 @@ export class Editor {
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
     this.view = new EditorScene(canvas, this.model);
+    this.lights = new LightView(this);
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
@@ -375,6 +380,9 @@ export class Editor {
       this.view.setOutlines(this.outlines);
       this.pad?.hub.render();
     } else this.view.refresh(keys);
+    // ON7: a lamp being edited shows its quick light; the exact bake follows; new meshes take the lit materials
+    this.lights.changed(keys);
+    this.lights.swap();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
       const alive = this.group.filter((k) => {
@@ -954,6 +962,13 @@ export class Editor {
       this.climbDown(x, z, sx, sy, source);
     } else if (this.tool === 'lamp') {
       this.lampDown(x, z, sx, sy, source);
+    } else if (this.tool === 'guard') {
+      // ON7: a guard eye at the point, facing the way the camera looks
+      const ct = this.view.camera.getTarget();
+      const cp = this.view.camera.position;
+      const f = { x: ct.x - cp.x, z: ct.z - cp.z };
+      const e = this.lights.addEye(x, z, Math.atan2(f.x, f.z));
+      this.status(`Guard eye ${this.lights.eyes.length} at x ${fmt(e.x)}, z ${fmt(e.z)}, facing ${Math.round(((e.yaw * 180) / Math.PI + 360) % 360)} degrees: red is seen at once (lit), amber slowly; right stick (R) turns it, B (Esc) removes it`);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -1128,6 +1143,10 @@ export class Editor {
 
   /** RB with the Object tool (R with the mouse): the ghost turns; with an object selected, the object turns. */
   turnObjectNow(): void {
+    if (this.tool === 'guard') {
+      this.lights.turnLastEye(45);
+      return this.status(this.lights.eyes.length ? 'Guard eye turned 45 degrees' : 'Place a guard eye first (A or click)');
+    }
     if (this.tool === 'lamp' && !this.drag) {
       this.lampYaw = (this.lampYaw + 90) % 360;
       return this.status(`${this.fitting?.name ?? 'Light'} turned to ${this.lampYaw} degrees`);
@@ -1362,6 +1381,65 @@ export class Editor {
     this.commitText(`Added ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`, [{ coll: 'exterior', id, before: null, after: r.e }]);
     this.select(keyOf('exterior', id));
     this.status(`Placed ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`);
+  }
+
+  /** ON7 Y (Hub > View): the light view: the 3D scene at night, lit by the game's own bake of the editing level. */
+  setLightView(on: boolean): void {
+    this.lights.setOn(on);
+    this.status(on ? `Light view on (Y): night, lit by the game's own light bake of this level (${modeWords(this.lights.mode)}); B shows the darkness map` : 'Light view off (Y)');
+  }
+
+  /** ON7 B (Hub > View): the darkness map: every floor cell by the light meter's band, the hidden and lit lines. */
+  setDarkMap(on: boolean): void {
+    this.lights.setDark(on);
+    this.status(on ? 'Darkness map on (B): black hidden, grey, white lit, by the game light meter at every 0.5 m of floor' : 'Darkness map off (B)');
+  }
+
+  /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
+  stepLightMode(dir: 1 | -1): void {
+    const k = LIGHT_MODES[(LIGHT_MODES.indexOf(this.lights.mode.kind) + dir + LIGHT_MODES.length) % LIGHT_MODES.length]!;
+    const m: LightMode = { kind: k };
+    if (k === 'switched') m.circuit = this.lightCircuits()[0];
+    if (k === 'shot') {
+      const s = this.selectedElem();
+      const l = s?.coll === 'lamps' ? (s.e as Lamp) : null;
+      if (l?.breakable) m.lamp = l.id;
+    }
+    this.setLightMode(m);
+  }
+
+  /** The circuits with lamps on the editing level (the Switched off mode picks one). */
+  lightCircuits(): string[] {
+    const d = this.model.data;
+    const on = new Set((d.lamps ?? []).filter((l) => lampLevel(d, l) === this.view.level).map((l) => l.circuit));
+    return (d.circuits ?? []).filter((c) => on.has(c.id)).map((c) => c.id);
+  }
+
+  /** Switched off: the next circuit on this level. */
+  stepLightCircuit(dir: 1 | -1): void {
+    const cs = this.lightCircuits();
+    if (!cs.length) return this.status('No circuits with lamps on this level');
+    const i = cs.indexOf(this.lights.mode.circuit ?? '');
+    this.setLightMode({ kind: 'switched', circuit: cs[(i + dir + cs.length) % cs.length]! });
+  }
+
+  setLightMode(m: LightMode): void {
+    this.lights.setMode(m);
+    if (!this.lights.on && !this.lights.dark) this.lights.setOn(true);
+    this.status(`Lights preview: ${modeWords(m)} (not saved)`);
+  }
+
+  /** Selected > Preview shot out on a breakable lamp. */
+  previewShot(): void {
+    const s = this.selectedElem();
+    const l = s?.coll === 'lamps' ? (s.e as Lamp) : null;
+    if (!l?.breakable) return this.status('Select a breakable lamp to preview it shot out');
+    this.setLightMode({ kind: 'shot', lamp: l.id });
+  }
+
+  /** The lights preview mode's name (the View row). */
+  get lightModeName(): string {
+    return modeName(this.lights.mode.kind);
   }
 
   /** N (Hub > View): the finish view: floors tinted by finish in 3D and on the plan, with a legend. */
@@ -1894,7 +1972,8 @@ export class Editor {
     const g = this.planSvg()?.querySelector('#overlay');
     if (!g) return;
     const S = this.planMap?.[3] ?? 1;
-    let out = '';
+    // ON7: the darkness map and the guard view under everything else
+    let out = this.lights.planMarkup((x, z) => this.toPlan(x, z), S);
     const s = this.selectedElem();
     if (s && this.levelOf(s.coll, s.e) === this.view.level) {
       if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs') {
@@ -2223,6 +2302,7 @@ export class Editor {
     this.syncLevelsUi();
     this.updateHint();
     this.refreshPlan(false);
+    this.lights.levelChanged();
   }
 
   stepLevel(dir: 1 | -1): void {
@@ -2286,10 +2366,15 @@ export class Editor {
         else if (this.splitting) this.cancelSplit();
         else if (this.stairDraw) this.cancelStair();
         else if (this.drag) this.endDrag(true);
+        else if (this.tool === 'guard' && this.lights.removeEye()) this.status(`Guard eye removed (${this.lights.eyes.length} left)`);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
         return;
-      case 'delete': return this.deleteSelected();
+      case 'delete':
+        if (this.tool === 'guard' && this.lights.removeEye()) return this.status(`Guard eye removed (${this.lights.eyes.length} left)`);
+        return this.deleteSelected();
+      case 'lightView': return this.setLightView(!this.lights.on);
+      case 'darkMap': return this.setDarkMap(!this.lights.dark);
       case 'duplicate': return this.duplicate();
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
@@ -2509,6 +2594,7 @@ export class Editor {
     if (this.drag) this.endDrag(true);
     if (this.stairDraw) this.cancelStair();
     this.tool = t;
+    if (this.lights.guardTool !== (t === 'guard')) this.lights.setGuardTool(t === 'guard');
     this.circuitEdit = null;
     this.updateHandles();
     this.updateBar();
@@ -2525,6 +2611,7 @@ export class Editor {
       climb: pieceOf(this.climbKind)?.place === 'draw' ? `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) at the start, A (click) at the end` : `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) places it`,
       stamp: `Stamp (${this.stamp.preset.name}): A (click) stamps it centred on the dot, RB (R) turns it`,
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
+      guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);

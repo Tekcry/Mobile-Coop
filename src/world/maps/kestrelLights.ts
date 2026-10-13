@@ -88,9 +88,10 @@ export function lampOnNormally(l: Pick<LampRecord, 'emergency' | 'motion' | 'par
 /**
  * Every lamp as the game's lights: absolute position (a linear fitting at its middle), the record's params, the
  * circuit as a switch group (1, 2, ... in the circuits' order; -1 none), breakable as `destructible`. A twin-spot
- * fitting is two lights, the second head mirrored.
+ * fitting is two lights, the second head mirrored. `ids` (ON7, the editor's light preview): the lamp id of each light,
+ * in the same order (the registry ids of a map that adds only these lights).
  */
-export function campusLights(f: Where & { lamps?: readonly LampRecord[]; circuits?: readonly CircuitRecord[] }): LightInit[] {
+export function campusLights(f: Where & { lamps?: readonly LampRecord[]; circuits?: readonly CircuitRecord[] }, ids?: string[]): LightInit[] {
   const out: LightInit[] = [];
   const circuits = f.circuits ?? [];
   for (const l of f.lamps ?? []) {
@@ -118,7 +119,11 @@ export function campusLights(f: Where & { lamps?: readonly LampRecord[]; circuit
       fixture: p.fixture ? { ...p.fixture } : null,
     };
     out.push(base);
-    if ((l.heads ?? 1) > 1 && p.cone) out.push({ ...base, cone: { ...p.cone, dx: -p.cone.dx, dz: -p.cone.dz }, fixture: null });
+    ids?.push(l.id);
+    if ((l.heads ?? 1) > 1 && p.cone) {
+      out.push({ ...base, cone: { ...p.cone, dx: -p.cone.dx, dz: -p.cone.dz }, fixture: null });
+      ids?.push(l.id);
+    }
   }
   return out;
 }

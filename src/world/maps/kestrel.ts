@@ -156,16 +156,19 @@ export const kestrel: MapDef = {
   modes: ['sandbox'],
   // ON0b (Michael): no generated wall or floor dressing; everything on a wall is placed on purpose in the editor
   detail: false,
+  // ON7 (overnight choice): the mission's night (docs/kestrel/01-mission-brief.md section 2: rain at night, a thin moon
+  // behind cloud) at the game's own night-map levels (Embassy's sky fill, moon and light level), so the lamps make the
+  // light and the dark the editor's darkness map shows; the B0 massing walk's day light was 0.9. ON15 sets the moon.
   theme: {
-    sky: '#8fa1b3',
-    horizon: '#b9c3cc',
-    ground: '#5f6364',
+    sky: '#0b0f16',
+    horizon: '#1c232d',
+    ground: '#3a3d40',
     fogStart: 120,
     fogEnd: 400,
     sunDir: [0.5, -0.8, 0.45],
-    sunIntensity: 0.5,
-    ambient: 1.4,
-    lightLevel: 0.9,
+    sunIntensity: 0.14,
+    ambient: 0.28,
+    lightLevel: 0.22,
     faction: 'urban',
   },
   build(b: LevelBuilder): MapLayout {

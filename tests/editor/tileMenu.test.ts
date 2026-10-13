@@ -27,8 +27,12 @@ describe('tile menu model (ON0a)', () => {
     const t = menuTiles('Lights', { ...none, lightGroup: 'emergency' });
     expect(t.slice(0, 6).map((x) => x.name)).toEqual(['Interior', 'Plant and goods', 'Outside', 'Emergency', 'Glow', 'Switch']);
     expect(t.find((x) => x.id === 'lightgroup.emergency')!.on).toBe(true);
-    expect(t.slice(6).map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
-    expect(menuTiles('Lights', none).slice(6, 8).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    // ON7: the guard view tester after Switch
+    expect(t[6]!.id).toBe('guard.view');
+    expect(t.slice(7).map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
+    expect(menuTiles('Lights', none).slice(7, 9).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    // ON7: a breakable lamp can be previewed shot out
+    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight', breakable: true } })).toContain('Preview shot out');
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'floodlight' } })).toEqual(['Move', 'Duplicate', 'Aim', 'Circuit', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight' } })).not.toContain('Aim');
     expect(names('Selected', { ...none, sel: { coll: 'circuits', type: '' } })).toContain('Add lamps');

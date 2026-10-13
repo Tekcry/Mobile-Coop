@@ -254,13 +254,13 @@ export class PadControl {
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup };
   }
 
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -425,6 +425,10 @@ export class PadControl {
     else if (id === 'view.figure') return ed.setFigure(!ed.prefs.figure);
     else if (id === 'view.stealth') return ed.setStealth(!ed.stealth);
     else if (id === 'view.finish') return ed.setFinishView(!ed.finishView);
+    else if (id === 'view.light') return ed.setLightView(!ed.lights.on);
+    else if (id === 'view.dark') return ed.setDarkMap(!ed.lights.dark);
+    else if (id === 'view.lmode') return ed.stepLightMode(dir);
+    else if (id === 'view.circuit') return ed.stepLightCircuit(dir);
     this.applyPanel(rebuild);
   }
 
@@ -468,6 +472,8 @@ export class PadControl {
       tool('lamp');
     }
     else if (id === 'sel.aim') this.startAim();
+    else if (id === 'sel.shot') ed.previewShot();
+    else if (id === 'guard.view') tool('guard');
     else if (id === 'sel.circuit') this.editCard('circuit');
     else if (id === 'sel.addLamps') {
       const s = ed.selectedElem();
@@ -746,7 +752,11 @@ export class PadControl {
     const rise = fine ? -ry : 0;
     const panScale = this.magnet ? MAGNET.PAN_SLOW : 1;
     // in Plan only the triggers zoom the plan, not the 3D camera
+    // ON7: the guard view tester: the right stick's left / right turns the last eye (90 degrees a second), not the camera
+    const turnEye = this.ed.tool === 'guard' && this.ed.lights.eyes.length > 0 && Math.abs(st.rawR.x) > 0.2;
+    if (turnEye) this.ed.lights.turnLastEye(st.rawR.x * 90 * dt);
     if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
+    else if (turnEye) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
     else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
@@ -1629,6 +1639,9 @@ export class PadControl {
     if (this.magnet) key += `|m:${this.magnet.key}`;
     ed.setHover(hover);
     if (words) text += ` - ${words.endsWith(' (A)') ? `A: ${words.slice(0, -4)}` : words}`;
+    // ON7: the light meter at the dot (the exact bake) while the light view or the darkness map is on
+    const meter = p ? ed.lights.meterAt(p[0], p[1]) : '';
+    if (meter) text += ` - ${meter}`;
     // Plan only: the 3D dot is hidden, so its words go under the plan
     $(ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     $('reticle').classList.toggle('bad', bad);

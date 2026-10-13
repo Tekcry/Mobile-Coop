@@ -122,6 +122,7 @@
     "openingReach": { "value": 1.0, "src": "editor default: an exit sign snaps to an opening whose middle is within this distance of the dot" },
     "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
     "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" },
+    "mapCell": { "value": 0.5, "src": "ON7 brief decision 4: the darkness map and the guard view sample every 0.5 m cell of the level's floor" },
     "surfaceGap": { "value": 0.15, "src": "map lamps hang 0.15 m under their ceilings (src/world/maps/mansion.ts H1 - 0.15): the light bake grows solids by half a 0.2 m cell, so a light point nearer a ceiling or wall is inside it and lights nothing" }
   },
   "traverse": {

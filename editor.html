@@ -77,6 +77,9 @@
       /* ON5: the finish view's legend (top right of the 3D view) */
       #finishLegend { position: absolute; right: 8px; top: 8px; z-index: 3; padding: 4px 8px; background: rgba(12, 14, 17, 0.75); border-radius: 4px; font-size: 12px; line-height: 1.5; pointer-events: none; }
       #finishLegend[hidden] { display: none; }
+      #lightLegend { position: absolute; right: 8px; bottom: 56px; z-index: 3; padding: 4px 8px; background: rgba(12, 14, 17, 0.8); border-radius: 4px; font-size: 12px; line-height: 1.5; pointer-events: none; max-width: 260px; }
+      #lightLegend[hidden] { display: none; }
+      #lightLegend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #444; vertical-align: -1px; }
       #finishLegend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #222; vertical-align: -1px; }
       #finishLegend i.none { background: #e0e0e0; }
       #roomNames { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
@@ -264,6 +267,7 @@
           <div id="hud"></div>
           <div id="reticle" class="hidden"><div id="reticleText"></div></div>
           <div id="finishLegend" hidden></div>
+          <div id="lightLegend" hidden></div>
         </section>
         <div id="divider" title="Drag to resize"></div>
         <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></section>

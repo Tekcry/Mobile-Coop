@@ -42,7 +42,7 @@ export interface Tile {
 /** What the tiles depend on; padControl fills it from the editor. */
 export interface MenuInput {
   /** The selection; `gap` when a selected wall has an end within 5 cm of another wall (ON0b). */
-  sel: { coll: Coll; type: string; gap?: boolean } | null;
+  sel: { coll: Coll; type: string; gap?: boolean; breakable?: boolean } | null;
   clipboard: boolean;
   view: ViewState;
   /** ON3: the number of things in a multi-selection (box select or Shift+click); its tiles replace the Selected tab's. */
@@ -74,6 +74,11 @@ export interface ViewState {
   stealth?: boolean;
   /** ON5: the finish view (N). */
   finish?: boolean;
+  /** ON7: the light view (Y), the darkness map (B), the lights preview mode's name and the circuit switched off. */
+  light?: boolean;
+  dark?: boolean;
+  lmode?: string;
+  circuit?: string | null;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -99,6 +104,11 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: 'A 1.75 m person and a crouch at the dot (K)', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
     { id: 'view.stealth', icon: 'J', name: 'Stealth view', desc: 'Objects by what they give the player (J)', kind: 'toggle', on: !!v.stealth, value: onOff(!!v.stealth) },
     { id: 'view.finish', icon: 'N', name: 'Finish view', desc: 'Floors tinted by finish, with a legend (N)', kind: 'toggle', on: !!v.finish, value: onOff(!!v.finish) },
+    // ON7: the game's own light: night lighting in 3D, the darkness map, the lights preview modes
+    { id: 'view.light', icon: 'Y', name: 'Lighting', desc: "Night, lit by the game's light bake of this level (Y)", kind: 'toggle', on: !!v.light, value: onOff(!!v.light) },
+    { id: 'view.dark', icon: 'B', name: 'Darkness map', desc: 'Floor by the light meter: hidden, grey, lit (B)', kind: 'toggle', on: !!v.dark, value: onOff(!!v.dark) },
+    { id: 'view.lmode', icon: 'P', name: 'Lights preview', desc: 'Normal, mains off, switched off, motion on, shot out', kind: 'cycle', value: v.lmode ?? 'Normal' },
+    ...(v.lmode === 'Switched off' ? [{ id: 'view.circuit', icon: 'C', name: 'Circuit off', desc: 'Left / right picks the circuit', kind: 'cycle' as const, value: v.circuit ?? 'none' }] : []),
   ];
 }
 
@@ -134,6 +144,8 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         // ON6: aim a flood or twin spot with the right stick; the circuit row; a switch takes more lamps
         s.coll === 'lamps' && fittingOf(s.type)?.aimPitch !== undefined && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Right stick aims, A sets, B puts it back', kind: 'go' },
         s.coll === 'lamps' && { id: 'sel.circuit', icon: 'C', name: 'Circuit', desc: "The card's Circuit row: left / right, or a new one", kind: 'go' },
+        // ON7: the light view with this lamp out (not saved)
+        s.coll === 'lamps' && s.breakable === true && { id: 'sel.shot', icon: 'O', name: 'Preview shot out', desc: 'The light view with this lamp out (not saved)', kind: 'go' },
         s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'A on lamps puts them on this switch; B ends', kind: 'go' },
         { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
@@ -192,6 +204,8 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       return [
         ...LIGHT_GROUPS.map((q): Tile => ({ id: `lightgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its fittings', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
         { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'A on a wall face, then A on its lamps', kind: 'go' },
+        // ON7: the guard view tester (not saved)
+        { id: 'guard.view', icon: 'E', name: 'Guard view', desc: 'A places a guard eye; red seen at once, amber slowly', kind: 'go' },
         ...groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'A at the start, A at the end' : f.mount === 'wall' ? 'A on a wall face' : f.mount === 'sign' ? 'A over a door' : f.mount === 'desk' || f.mount === 'object' ? `A on a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'A places it; RB turns', kind: 'go' })),
       ];
     }
