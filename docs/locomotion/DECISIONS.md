@@ -141,3 +141,4 @@ Choices made during the unattended run. Each lists the option taken and the alte
 ## Michael's instructions during the run
 - **M1 (2026-10-13): model change.** From step 06 on, every subagent uses opus, implementers and checkers, in all blocks. Unchanged: one code-changing agent at a time, about 60 tool calls per subagent. Steps 01-05 ran with sonnet implementers.
 - **M2 (2026-10-13): speed rules** (RULES.md "Speed"): implementers run only their step's e2e suites, Block A steps 02-04 batched, E2E_JOBS=2, block-end kestrel merges, no proof worktrees.
+- **A35 (ASSUMED - for review, step 07): the landing camera check allows 0 or 1 damped dips and never a rebound; the pelvis must show exactly one dip (D5.3 compression).** The camera follows the smoothed capsule, so a soft landing may show no camera dip at all. Alternative: require exactly one camera dip (A12 sets its size at step 24).

@@ -47,7 +47,7 @@ DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 ho
 Implement (subagent, no commit) -> check (fresh subagent: diff, re-run checks, anim-audit local + remote, bible + D1-D8, PC-PASS items, PASS or FAIL list) -> up to 3 fix rounds -> commit "locomotion NN: <summary>", push, update LOG, STATE, AUDIT, CHANGELOG, TESTING, docs/systems (coop.md for network changes). Block end: full `npm run e2e` + perf trend.
 
 ## ASSUMED decisions from step files
-A6-A34 are already logged in DECISIONS.md. Do not re-log them; a new assumption takes the next free number after the highest in DECISIONS.md.
+A6-A35 are already logged in DECISIONS.md. Do not re-log them; a new assumption takes the next free number after the highest in DECISIONS.md.
 
 ## Speed (user instruction, 2026-10-13, overrides the step loop in BRIEF section 6 where they differ)
 - Implementers run lint, unit tests, build and only the e2e suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net). The checker runs the full `npm run e2e:quick`.
