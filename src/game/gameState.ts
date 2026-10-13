@@ -81,6 +81,9 @@ import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
+import { WallCore, buildWallLinks, emptyWallInput, wallOverride } from '../player/wallController';
+import type { MoveOverride } from '../player/playerController';
+import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
@@ -137,6 +140,8 @@ export interface NetAttachment {
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
   teamMates?(): readonly TeamMate[];
+  /** (step 11, D8) Other players with their back to cover segment `seg`: metres along it into `out`; returns the count. */
+  wallOthers?(seg: number, out: Float64Array): number;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
@@ -287,6 +292,10 @@ export class GameState implements AppState {
   private readonly blankInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => PlayerRef[] = () => [];
+  /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
+  wallCore: WallCore | null = null;
+  private wallIn = emptyWallInput();
+  private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
@@ -1094,9 +1103,12 @@ export class GameState implements AppState {
     ti.sprintHeld = inp.down('dash');
     const offer = this.takedown.offer !== null;
     // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    // (step 11) on a wall the jump press leaves it (it does not traverse in the same step)
+    const wallWas = this.wallCore?.active ?? false;
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.team.active, null, inp.pressed('leap') && !this.team.active && !carrying && !busy);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.team.active, null, inp.pressed('leap') && !this.team.active && !carrying && !busy);
+    this.wallStep(dt, inp, busy || carrying);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
@@ -1130,7 +1142,7 @@ export class GameState implements AppState {
     this.weapons.handsBusy = this.strike.active;
     this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
-    this.player.cam.attach = this.traversal.cameraPreset;
+    this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
     this.player.cam.attachYaw = this.player.controller.yaw;
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
@@ -1206,6 +1218,7 @@ export class GameState implements AppState {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
         this.player.controller.override = null;
         this.traversal.reset();
+        this.wallCore?.reset();
         this.strike.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
@@ -1710,10 +1723,72 @@ export class GameState implements AppState {
     g.update(dt);
   }
 
-  /** The player's cover for enemy flanking / grenades: none until back-to-wall feeds it (step 11). */
+  /** The player's cover for enemy flanking / grenades (step 11): the wall's `CoverSpot` while on it, else none. */
   private updateCoverRef(): void {
-    this.localRef.cover = null;
-    this.localRef.coverT = 0;
+    const w = this.wallCore;
+    const on = !!w && w.active && this.player.alive;
+    this.localRef.cover = on ? w.spot : null;
+    this.localRef.coverT = on ? w.onT : 0;
+  }
+
+  /**
+   * (locomotion step 11) Back-to-wall: the context press (pad A, KBM bind, touch context button) or the stick held
+   * into a high face enters; the core drives the controller through its override; the pose and camera follow.
+   */
+  private wallStep(dt: number, inp: InputState, busy: boolean): void {
+    const segs = this.world.level.coverSegments;
+    const w = (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+    const pl = this.player;
+    const c = pl.controller;
+    const tr = this.traversal;
+    const i = this.wallIn;
+    const was = w.active;
+    const p = pl.position;
+    const cy = pl.cam.yaw;
+    const fx = Math.sin(cy);
+    const fz = Math.cos(cy);
+    const mx = inp.move.x;
+    const my = inp.move.y;
+    i.x = p.x;
+    i.y = p.y;
+    i.z = p.z;
+    i.moveX = fz * mx + fx * my;
+    i.moveZ = -fx * mx + fz * my;
+    i.lookX = fx;
+    i.lookZ = fz;
+    i.gear = c.gear;
+    i.crouched = c.crouched;
+    i.grounded = c.grounded;
+    i.context = inp.pressed('cover');
+    i.contextHeld = inp.down('cover');
+    i.crouchPressed = inp.pressed('crouch');
+    const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
+    i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
+    i.blocked = other || pl.ads;
+    i.toggle = this.app.settings.get().gameplay.wallToggle;
+    // stacking (D8): the other players on this segment
+    w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
+    w.update(dt, i);
+    if (w.active) {
+      c.override = wallOverride(w, this.wallOv);
+      if (i.crouchPressed) c.swallowCrouch = true;
+    } else if (was || c.override === this.wallOv) c.override = null;
+    // leaving a crouched wall keeps the stance the player had on it
+    if (was && !w.active && w.crouch !== c.crouched) {
+      if (w.crouch) c.setCrouchToggle();
+      else c.clearCrouchToggle();
+    }
+    const pose = pl.pose;
+    pose.wall = w.active;
+    pose.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    const g = w.seg >= 0 ? segs[w.seg] : undefined;
+    pose.wallNx = g ? g.nx : 0;
+    pose.wallNz = g ? g.nz : 0;
+    pose.wallTx = g ? g.tx : 0;
+    pose.wallTz = g ? g.tz : 0;
+    pose.wallGap = COVER_STANDOFF;
+    pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
+    pl.cam.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
   }
 
   /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */

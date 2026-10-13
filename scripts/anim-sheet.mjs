@@ -1,7 +1,9 @@
 // Animation contact sheet: runs a scenario on Proving Grounds and captures frames from a side camera
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
-// Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, crouchstop, walkstop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
+// Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, crouchstop, walkstop, turn, crouch, reload, swap, grenade,
+// vault, dash, strafe; back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
+// (edge peek / lean both edges arrive with step 12)
 import { launch } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -29,10 +31,15 @@ const SCENARIOS = {
   reload: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('reload');" } },
   swap: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('swapNext');" } },
   grenade: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('grenade');" } },
-  cover: { pos: [-3.7, -6], yaw: -Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('cover');" } },
-  highcover: { pos: [-8.8, 2.5], yaw: -Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('cover');" } },
-  lowpeek: { pos: [-3.7, -6], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
-  peek: { pos: [-8.8, 3.4], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
+  // (locomotion step 11) back to a wall: `wall` places the player 0.85 m out from a free wall on Proving (high, or a
+  // low one), facing it, `k` m along it (negative: from the far end); the context press enters during the warm-up
+  wall: { wall: { low: false, k: 2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({}) },
+  wallcrouch: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: () => ({}) },
+  wallslide: { wall: { low: false, k: 2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? 1 : 0 }) },
+  wallslideleft: { wall: { low: false, k: -2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? -1 : 0 }) },
+  walledge: { wall: { low: false, k: -1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: 1 }) },
+  walledgeleft: { wall: { low: false, k: 1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: -1 }) },
+  lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
 };
@@ -41,12 +48,36 @@ const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 await page.addStyleTag({ content: '.hud, .touch-layer, .screens { display: none !important; }' });
-await page.evaluate(({ pos, yaw, pre }) => {
+await page.evaluate(({ pos, yaw, wall }) => {
   const a = window.__app;
   const g = a.current;
   const p = g.player;
   a.loop.manual = true;
-  p.controller.teleport(new p.controller.pos.constructor(pos[0], 0, pos[1]), yaw);
+  const V = p.controller.pos.constructor;
+  let y = 0;
+  if (wall) {
+    // a wall segment with open floor in front of it (as e2e-netmove's findWall), low or high as asked
+    const clear = (x0, z0, x1, z1, h) => !g.ballistics.ray(new V(x0, h, z0), new V(x1, h, z1), 1).hit;
+    const floor = (x, z, h) => g.ballistics.ray(new V(x, h + 1, z), new V(x, h - 0.5, z), 1).hit;
+    const segs = g.world.level.coverSegments;
+    let found = null;
+    for (const s of segs) {
+      if (s.low !== wall.low || Math.abs(s.y) > 0.3 || s.len < (wall.low ? 2 : 4) || s.len > 14) continue;
+      let ok = true;
+      for (let k = 0.5; k < s.len && ok; k += 0.5) {
+        const x = s.ax + s.tx * k + s.nx * 0.45;
+        const z = s.az + s.tz * k + s.nz * 0.45;
+        ok = clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 0.3) && (wall.low || clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 1)) && floor(x + s.nx * 0.6, z + s.nz * 0.6, s.y);
+      }
+      if (ok) { found = s; break; }
+    }
+    if (!found) throw new Error(`no free ${wall.low ? 'low' : 'high'} wall on Proving`);
+    const k = wall.k < 0 ? found.len + wall.k : wall.k;
+    pos = [found.ax + found.tx * k + found.nx * 0.85, found.az + found.tz * k + found.nz * 0.85];
+    yaw = Math.atan2(-found.nx, -found.nz);
+    y = found.y + 0.05;
+  }
+  p.controller.teleport(new V(pos[0], y, pos[1]), yaw);
   p.cam.yaw = yaw;
   p.cam.pitch = 0;
   window.__camHold = true;
@@ -66,7 +97,7 @@ await page.evaluate(({ pos, yaw, pre }) => {
     c.setTarget(new r.constructor(r.x, r.y + 0.85, r.z));
   };
   a.loop.stepHeadless(0.3);
-}, { pos: sc.pos, yaw: sc.yaw, pre: sc.pre });
+}, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null });
 await page.evaluate((v) => (window.__view = v), view);
 
 const setInput = async (inp, code) =>
@@ -85,8 +116,9 @@ const step = (sec) => page.evaluate((sec) => window.__app.loop.stepHeadless(sec,
 // warm up into the scenario
 const pre = sc.pre;
 if (sc.at0) await setInput(sc.warm ?? {}, sc.at0);
+const preAt = sc.preAt ?? {};
 for (let t = 0; t < pre; t += 1 / 60) {
-  await setInput(sc.warm ?? {}, null);
+  await setInput(sc.warm ?? {}, Object.entries(preAt).find(([k]) => Math.abs(Number(k) - t) < 1 / 120)?.[1] ?? null);
   await step(1 / 60);
 }
 const shots = [];

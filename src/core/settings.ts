@@ -140,7 +140,7 @@ export interface Settings {
     avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -260,7 +260,7 @@ export function defaultSettings(): Settings {
     keys: defaultBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -462,6 +462,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       adsToggle: bool(gp.adsToggle, d.gameplay.adsToggle),
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
+      wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
     },

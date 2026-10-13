@@ -100,7 +100,7 @@ const res = await page.evaluate(([only, log]) => {
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;
     acc.maxBody = Math.max(acc.maxBody ?? 0, pen);
-    if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind}`); }
+    if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind} wall ${g.wallCore?.phase ?? '-'}`); }
   };
   const runBody = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, body: 0, maxBody: 0, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; bodyCheck(acc); check(acc); } return acc; };
   const merge = (r, r2) => { r.n += r2.n; r.body += r2.body; r.maxBody = Math.max(r.maxBody, r2.maxBody); r.minKnees = Math.min(r.minKnees, r2.minKnees); r.minFeet = Math.min(r.minFeet, r2.minFeet); r.log.push(...r2.log); return r; };

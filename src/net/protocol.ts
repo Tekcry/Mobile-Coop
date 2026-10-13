@@ -10,7 +10,7 @@ import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;

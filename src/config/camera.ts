@@ -96,7 +96,7 @@ export interface AttachFraming {
   blend: number;
 }
 
-export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted' | 'rappel' | 'fence';
+export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted' | 'rappel' | 'fence' | 'wall';
 
 export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // hanging: pulled back and lower, showing the drop
@@ -117,6 +117,8 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // (3.2.0 phase 3) rappel: out from the wall, looking down the drop; fence: over the shoulder up the mesh
   rappel: { boom: 2.8, shoulder: 0.5, pivot: 1.2, pitch: -0.3, cone: Math.PI, blend: 0.3 },
   fence: { boom: 2.2, shoulder: 0.5, pivot: 1.4, pitch: 0.05, cone: 2.4, blend: 0.25 },
+  // (locomotion step 11) back to a wall: pulled back to show the room, over the open-side shoulder (local only)
+  wall: { boom: 2.6, shoulder: 0.55, pivot: 1.45, pitch: -0.05, cone: Math.PI, blend: 0.25 },
 };
 
 /** Blend a framing (in place) from the hip framing towards an attached preset by `w` 0..1. */

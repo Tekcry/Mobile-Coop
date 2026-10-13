@@ -311,6 +311,8 @@ export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, r
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
  * and head rolled into it (side-signed by the wall side), a little lower and bent (unsigned).
  */
+/** (step 11) Flat back on a wall: pelvis and spine pitch back (rad; crouched adds), eased in over `tau` (s). */
+export const WALL_BACK = { pel: 0.05, pelCrouch: 0.1, spine: 0.08, spineCrouch: 0.2, tau: 0.1 };
 export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelPitch: 0.05, spPitch: 0.03 };
 /** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
 const SWAP_FADE = 8;
@@ -364,6 +366,8 @@ export class AnimGraph {
   private reloadW = 0;
   /** Tucked in against the wall while reloading / swapping / throwing. */
   tuckW = 0;
+  /** (step 11) Back-to-wall weight (eased in / out): the flat back replaces the carriage hunch. */
+  private wallW = 0;
   /** Back-to-wall ready weight (eased ~0.25 s). */
   private wallReadyW = 0;
 
@@ -537,6 +541,8 @@ export class AnimGraph {
     this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
     const atWall = i.wall;
     this.wallT = atWall ? this.wallT + dt : 0;
+    this.wallW = approach(this.wallW, atWall ? 1 : 0, WALL_BACK.tau, dt);
+    const wallW = this.wallW;
 
     // --- locomotion blend space, standing and crouched, then the posture blend
     const crouchK = clamp(i.crouch, 0, 1);
@@ -549,7 +555,9 @@ export class AnimGraph {
     this.slot(crouchK > 0.5 ? 'crouch loco' : 'loco', 1, ph);
 
     // --- kneel: one knee down when crouched and still (eased over kneelTime)
-    const wantKneel = i.kneel && crouchK > 0.5;
+    // (step 11) never at a wall: the crouched flat-back stance is the wall's own pose (a kneel there moves a foot the
+    // remote copy, posed from MoveState without the kneel timer, does not)
+    const wantKneel = i.kneel && crouchK > 0.5 && !i.wall;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
@@ -596,6 +604,12 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - 0.03 * this.tuckW;
       src[CH.spPitch] = src[CH.spPitch]! + 0.06 * this.tuckW;
     } else this.tuckW = 0;
+    if (wallW > 0) {
+      // (step 11) shoulder blades back on the wall over the pelvis: the pelvis tips back a little and the chest
+      // straightens (more crouched, where the crouch pose leans the trunk over the knees)
+      src[CH.pelPitch] = src[CH.pelPitch]! - (WALL_BACK.pel + WALL_BACK.pelCrouch * crouchK) * wallW;
+      src[CH.spPitch] = src[CH.spPitch]! - (WALL_BACK.spine + WALL_BACK.spineCrouch * crouchK) * wallW;
+    }
 
     // --- traversal, slide, air, landing
     if (i.traverse !== 'none') {
@@ -651,15 +665,14 @@ export class AnimGraph {
     const carryK = this.carryW;
     if (carryK > 0) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK;
-      const along = atWall ? this.moveW * carryK : 0;
-      // crouched: bent well over the knees (half of it straightens into a raised weapon); at a wall the wall
-      // hunch bends over the tucked weapon instead (the tuck stays clear of the thighs and the wall)
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (atWall ? 0 : 1) * carryK;
-      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.wall * along + HUNCH.aim * this.raiseS + crouchBend;
+      // (step 11) with the back to a wall the back stays flat on it: the hunch eases out with the wall weight
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW);
+      // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK;
+      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
-      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.wall * 0.6 * along - crouchBend * 0.7;
-      src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.wallDrop * along;
+      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - crouchBend * 0.7;
+      src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6);
     }
 
     // --- weapon actions (inertialized as they start and end). Not the swap (step 09): its overlay fades in and out

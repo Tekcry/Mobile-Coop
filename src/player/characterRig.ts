@@ -61,6 +61,10 @@ export interface RigPose {
   wall?: boolean;
   /** Side of the wall in the character's frame (-1 left, 1 right). */
   wallSide?: number;
+  /** (step 11) The wall's outward normal (XZ) and its face plane (n . p on the face): no foot lands behind it. */
+  wallNx?: number;
+  wallNz?: number;
+  wallFace?: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean?: number;
   /** Stick intent along the body, wanted minus current pace (-1..1), at render rate. */
@@ -262,6 +266,9 @@ function boneRotation(dir: Vector3, hint: Vector3, out: Quaternion): Quaternion 
   return Quaternion.RotationQuaternionFromAxisToRef(axX, axY, axZ, out);
 }
 
+/** (step 11) How far in front of a wall's face the ankles stay (m): the heel clear of it. */
+const WALL_FOOT_CLEAR = 0.1;
+
 /**
  * The shared humanoid: one skeleton and one smooth part set for the player, enemies, coop
  * remotes, training dummies and the customiser preview. Feet at the origin, facing +Z.
@@ -345,6 +352,10 @@ export class CharacterRig {
    */
   openLeft = false;
   private handBlend = 0;
+  /** (step 11) The hand holding the weapon now (1 right, -1 left): the other one goes on a wall. */
+  get weaponHand(): number {
+    return this.handBlend > 0.5 ? -1 : 1;
+  }
   /** World point for the off hand on the wall (back-to-wall contact IK, step 11), or null. */
   wallHand: Vector3 | null = null;
   /**
@@ -960,6 +971,24 @@ export class CharacterRig {
     pin.pinLZ = this.footPins[1]!;
     pin.pinRX = this.footPins[2]!;
     pin.pinRZ = this.footPins[3]!;
+    if (i.wall && !t.gait.moving && Number.isNaN(pin.pinLX)) {
+      // (step 11) still with the back to a wall: the feet step onto the stance spots under the (pushed) root, the same
+      // on every peer. Without this the idle stepping's front-back stagger tolerance keeps a foot wherever the entry
+      // left it (the local glide steps both feet in; a remote, posed still from MoveState, leaves one 15 cm out)
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      pin.pinLX = rp.x + t.stance.lX * c + t.stance.lZ * sn;
+      pin.pinLZ = rp.z - t.stance.lX * sn + t.stance.lZ * c;
+      pin.pinRX = rp.x + t.stance.rX * c + t.stance.rZ * sn;
+      pin.pinRZ = rp.z - t.stance.rX * sn + t.stance.rZ * c;
+    }
+    // (step 11) back to a wall: the feet stay in front of its face (ankle 0.1 m out: the heel clear of it) and step
+    // round with the turn onto it
+    const wf = i.wall && s.wallFace !== undefined ? s.wallFace : NaN;
+    pin.wallNx = s.wallNx ?? 0;
+    pin.wallNz = s.wallNz ?? 0;
+    pin.wallD = wf + WALL_FOOT_CLEAR;
+    pin.turnStep = i.wall ? 1.2 : Infinity;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down

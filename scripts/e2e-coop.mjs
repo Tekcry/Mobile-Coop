@@ -359,6 +359,11 @@ try {
   let skKo = false;
   let skInfo = '';
   for (let attempt = 0; attempt < 6 && !skKo; attempt++) {
+    // (step 10 check) a retry only after the client's strike ended and the host's record of it cleared
+    if (attempt > 0) {
+      await until(B, () => !window.__app.current.strike.active, null, 5000, 'client strike ended').catch(() => {});
+      await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record cleared').catch(() => {});
+    }
     await pinSk(skv);
     skInfo = await GB((id) => {
       const g = window.__app.current;

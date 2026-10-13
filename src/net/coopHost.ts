@@ -430,7 +430,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         break;
       case 'shot':
@@ -542,6 +542,16 @@ export class CoopHost implements NetAttachment {
 
   teamEnd(): void {
     this.onTeamMove(this.s.selfId, 'end', '', -1, 0, 0);
+  }
+
+  /** (step 11, D8) Clients with their back to segment `seg` (metres along it) for the host's own stacking. */
+  wallOthers(seg: number, out: Float64Array): number {
+    let n = 0;
+    for (const r of this.remotes.values()) {
+      const mv = r.state?.mv;
+      if (n < out.length && r.alive && mv?.m === 'wall' && mv.a === seg) out[n++] = mv.s;
+    }
+    return n;
   }
 
   private mateOut: TeamMate[] = [];
@@ -974,7 +984,8 @@ export class CoopHost implements NetAttachment {
       const st = r.state;
       if (!r.alive || !st) continue;
       if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0, (st.f & PF.sprint) !== 0);
+        // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
+        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall', (st.f & PF.sprint) !== 0);
         if (n > 0) em.hear(r.feet, n);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;

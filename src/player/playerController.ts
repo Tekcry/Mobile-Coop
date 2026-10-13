@@ -34,6 +34,8 @@ export interface MoveOverride {
   glide?: boolean;
   /** `velocity` is a run (cover-to-cover): the free-movement tuning at sprint acceleration. */
   run?: boolean;
+  /** (step 11) Footstep noise while the override drives: the crouch band (back-to-wall slide, bible 5.3). */
+  noise?: 'crouched';
 }
 
 export interface PlayerInput {
@@ -361,7 +363,7 @@ export class PlayerController {
     this.prevYaw = this.yaw;
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
-    this.steps = !ov ? 'free' : ov.run ? 'crouched' : 'silent';
+    this.steps = !ov ? 'free' : ov.run || ov.noise === 'crouched' ? 'crouched' : 'silent';
     // speed gears step by one per press (kept through stances, cover and traversal)
     if (input.gearUp) this.gears.step(1);
     if (input.gearDown) this.gears.step(-1);

@@ -8,7 +8,7 @@ Design authority: docs/design-bible.md (Section 5.9)
 - `Transport` (`transport.ts`): `send(msg, to?)`, `onMessage/onPeerJoin/onPeerLeave`. `trysteroTransport`
   (WebRTC, Nostr signalling, room `ss-<code>`) or `localTransport` (BroadcastChannel, `?net=local`, for tests).
 - `protocol.ts`: every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps).
-- `PROTOCOL_VERSION` 5 (locomotion step 10: `cmove` / `cstart` / `cdeny` and MoveState mode `strike`, index 25; 4 was step 09: MoveState `dw`; 3 was Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
+- `PROTOCOL_VERSION` 6 (locomotion step 11: MoveState `wall` set - `a` the cover segment in level order (sanitize: `0 <= a <` segment count), `s` metres along it, `sub` WALL_SUB u8; remotes pose from it, the host feeds the client's `CoverSpot` to its guards and hears the slide at the crouch band, stacking reads the others' `wall` states (`wallOthers`, D8); 5 was locomotion step 10: `cmove` / `cstart` / `cdeny` and MoveState mode `strike`, index 25; 4 was step 09: MoveState `dw`; 3 was Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
 - (step 09, D8, A20 / A41) Drawn state: every MoveState carries `dw` (0-3, the draw phase; sanitized to 0-3,
   default 0). The host (`RemotePlayer.accept`, pure `validate.ts`) keeps `w` only if it is in the player's lobby
   `loadout` (`hostWeapon`, else the last valid id; an empty loadout keeps the claim) and forces `dw` 0
@@ -66,7 +66,7 @@ Design authority: docs/design-bible.md (Section 5.9)
   `strike | medkit` (medkit from step 15); takedown, grab, drag (step 27), splitBoost, backToBack, pullUp,
   rappelAnchor and clutch are reserved, not parsed (PLAN H3 / H4). Damage to the striker before contact sends `cdeny`
   reason `hit`. First user: the elbow strike (`docs/systems/takedowns.md`). The client predicts the anticipation on
-  press, aligns its phase to host-now - t0 on `cstart`, and blends back in 0.12 s with no hit on `cdeny` or no reply in
+  press, aligns its phase to min(local, host-now - t0) on `cstart` (never forward: A44), and blends back in 0.12 s with no hit on `cdeny` or no reply in
   0.4 s. Contact resolves only on the host at t0 + 0.5 s. Remotes pose the strike from MoveState `strike` (`ph`, `tid`),
   the phase eased between the two interpolation states (`RemoteAvatar.update`).
 - Remote animation audit (locomotion step 08): `node scripts/anim-audit.mjs --remote` hosts and joins over `?net=local`

@@ -62,6 +62,41 @@ const st = () =>
       mode: window.__app.input.mode,
     };
   });
+// (locomotion step 11) back to a wall on Proving: find a free high face, stand 0.5 m out facing it (manual loop)
+const WALL_HARNESS = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const V = g.player.position.constructor;
+  const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+  const segs = g.world.level.coverSegments;
+  let seg = -1;
+  for (let i = 0; i < segs.length && seg < 0; i++) {
+    const s = segs[i];
+    if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+    let ok = true;
+    for (let k = 0.5; k < s.len && ok; k += 0.5) {
+      const x = s.ax + s.tx * k + s.nx * 0.45;
+      const z = s.az + s.tz * k + s.nz * 0.45;
+      ok = clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 1) && clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 0.3);
+    }
+    if (ok) seg = i;
+  }
+  const s = segs[seg];
+  const yaw = Math.atan2(-s.nx, -s.nz);
+  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.85, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.85), yaw);
+  g.player.cam.yaw = yaw;
+  g.player.cam.pitch = 0;
+  a.loop.stepHeadless(0.3, 120);
+  window.__wl = {
+    seg,
+    step(n = 1) {
+      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+    },
+    st: () => ({ phase: g.wallCore?.phase ?? 'none', s: g.wallCore?.s ?? 0, seg: g.wallCore?.seg ?? -1, last: g.wallCore?.lastLeave ?? '' }),
+  };
+};
+
 try {
   await page.waitForTimeout(1200);
   let s = await st();
@@ -192,6 +227,35 @@ try {
     assert(r.started >= 1 && r.ko, `LMB holstered behind a guard: knocked out (${JSON.stringify(r)})`);
   } finally {
     await S.browser.close();
+  }
+  console.log('back to a wall (the context key enters, WASD slides, the key leaves)');
+  const W = await launch({ url, params: 'autostart=proving' });
+  try {
+    const P = W.page;
+    await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+    await P.evaluate(WALL_HARNESS);
+    const key = async (code) => {
+      await P.keyboard.down(code);
+      await P.evaluate(() => window.__wl.step(2));
+      await P.keyboard.up(code);
+      await P.evaluate(() => window.__wl.step(1));
+    };
+    await key('Space');
+    await P.evaluate(() => window.__wl.step(20));
+    const on = await P.evaluate(() => window.__wl.st());
+    await P.keyboard.down('KeyD');
+    await P.evaluate(() => window.__wl.step(40));
+    await P.keyboard.up('KeyD');
+    await P.evaluate(() => window.__wl.step(5));
+    const slid = await P.evaluate(() => window.__wl.st());
+    await key('Space');
+    await P.evaluate(() => window.__wl.step(10));
+    const off = await P.evaluate(() => window.__wl.st());
+    assert(on.phase === 'on', `the KBM context key (Space) enters back-to-wall (${JSON.stringify(on)})`);
+    assert(slid.phase === 'on' && Math.abs(slid.s - on.s) > 0.5, `D slides along it (${on.s.toFixed(2)} -> ${slid.s.toFixed(2)})`);
+    assert(off.phase !== 'on' && off.last === 'context', `the context key again leaves (${JSON.stringify(off)})`);
+  } finally {
+    await W.browser.close();
   }
 } catch (e) {
   failed = true;

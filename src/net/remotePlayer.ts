@@ -1,6 +1,7 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
+import { dropBadWallMove } from '../player/moveState';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
@@ -11,6 +12,8 @@ import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
 import { hyp2 } from '../core/mathx';
+import type { CoverSegment } from '../cover/coverData';
+import type { CoverSpot } from '../game/tactics';
 
 /** Hip joint height (m) of the average build the capsule is fitted to. */
 const HIP_Y = proportions('average').y.hip;
@@ -38,6 +41,7 @@ export class RemotePlayer implements Damageable {
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
+  private wallSpot: CoverSpot | null = null;
   /** (step 09) The validated lobby loadout (`PlayerInfo.loadout`) and the last weapon id accepted from it. */
   loadout: readonly WeaponId[] = [];
   private lastW: WeaponId | null = null;
@@ -85,8 +89,10 @@ export class RemotePlayer implements Damageable {
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null): void {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
+    // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
+    if (segs) dropBadWallMove(s, segs.length);
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
@@ -112,6 +118,21 @@ export class RemotePlayer implements Damageable {
     this.feet.set(s.x, s.y, s.z);
     this.ref.speed = Math.min(MAX_SPEED, d / Math.max(dt, 1 / 60));
     this.ref.crouched = (s.f & PF.crouch) !== 0;
+    // (locomotion step 11) back to a wall: the segment's cover spot for the guards' flank / grenade tactics (D8)
+    const wseg = s.mv?.m === 'wall' && segs ? segs[s.mv.a] : undefined;
+    if (wseg) {
+      const c = (this.wallSpot ??= { nx: 0, nz: 1, low: false, x: 0, z: 0 });
+      c.nx = wseg.nx;
+      c.nz = wseg.nz;
+      c.low = wseg.low;
+      c.x = s.x;
+      c.z = s.z;
+      this.ref.coverT = this.ref.cover ? (this.ref.coverT ?? 0) + dt : 0;
+      this.ref.cover = c;
+    } else {
+      this.ref.cover = null;
+      this.ref.coverT = 0;
+    }
     this.state = s;
     this.sync();
   }

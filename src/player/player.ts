@@ -13,14 +13,23 @@ import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
+import { WALL_LOOK, wallHandPoint, wallRootPush } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
   /** Back to a wall (set by back-to-wall, step 11). */
   wall: boolean;
-  /** Wall side in the character's frame (-1 left, 1 right). */
+  /** Wall side in the character's frame (-1 left, 1 right): the slide's facing (step 11). */
   wallSide: number;
+  /** (step 11) The wall's outward normal and tangent (a -> b) and the body line's distance from the face (m). */
+  wallNx: number;
+  wallNz: number;
+  wallTx: number;
+  wallTz: number;
+  wallGap: number;
+  /** (step 11) The face plane: n . p on the wall's face. */
+  wallFace: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean: number;
   traverse: TraverseKind;
@@ -78,7 +87,10 @@ export class Player {
   weaponDrawn = false;
   weaponWeight = 1;
   /** Pose driven by back-to-wall / traversal / takedowns / team moves. */
-  readonly pose: PlayerPose = { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
+  /** (step 11) Back-to-wall blend 0..1 (the rig's push onto the face) and the off hand's wall point. */
+  private wallK = 0;
+  private wallHandPt: Vector3 | null = null;
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -244,6 +256,22 @@ export class Player {
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
     const cp = this.pose;
+    // (step 11) back to a wall: the rig's back onto the face (the capsule keeps its standoff), the off hand on it
+    this.wallK = Math.max(0, Math.min(1, this.wallK + (cp.wall ? dt : -dt) / 0.2));
+    const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
+    if (wk > 0) {
+      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf) * wk;
+      root.position.x -= cp.wallNx * push;
+      root.position.z -= cp.wallNz * push;
+    }
+    if (cp.wall) {
+      const wh = (this.wallHandPt ??= new Vector3());
+      // the free hand (the weapon hand's other) flat on the wall on its own side, out past the hip: never across the
+      // body whichever way the slide faces (the character's left is the face's +t)
+      const side = this.rig.weaponHand;
+      wallHandPoint(c.renderPos.x, c.renderPos.y, c.renderPos.z, cp.wallNx, cp.wallNz, cp.wallTx, cp.wallTz, cp.wallFace, side, c.crouchBlend, wh);
+      this.rig.wallHand = wh;
+    } else this.rig.wallHand = null;
     // aiming: the upper body follows the aim; not aiming the view orbits freely and only the head glances
     // towards where the camera looks (spine, arms and gun stay put until an action raises the weapon)
     const rel = wrapPi(this.cam.yaw - c.renderYaw);
@@ -272,6 +300,8 @@ export class Player {
     rp.aimWorldPitch = inv ? this.cam.pitch : undefined;
     rp.lookYaw = Math.max(-1.1, Math.min(1.1, rel)) * 0.5 * (1 - raise);
     rp.lookPitch = Math.max(-0.6, Math.min(0.6, this.cam.pitch)) * 0.5 * (1 - raise);
+    // (step 11) on a wall the head turns along the slide (the facing side)
+    if (cp.wall) rp.lookYaw = cp.wallSide * WALL_LOOK * (1 - raise);
     rp.aim = this.carry.raise;
     rp.carry = w;
     rp.weight = this.weaponWeight;
@@ -286,6 +316,9 @@ export class Player {
     rp.grenade = this.grenadeT;
     rp.wall = cp.wall;
     rp.wallSide = cp.wallSide;
+    rp.wallNx = cp.wallNx;
+    rp.wallNz = cp.wallNz;
+    rp.wallFace = cp.wallFace;
     rp.lean = cp.lean;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;

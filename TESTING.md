@@ -5,6 +5,13 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 11 - back-to-wall (PC, controller, phone)
+- Pad: walk up to a tall wall and press A: the back settles onto it in about 0.2 s (no slide from far away); the left stick slides along it at most at a jog, quietly; the head turns along the slide; the slide stops at an outside end; A again, pulling the stick away, jump or sprint leaves.
+- Holding the stick into a tall wall at a walk for about a third of a second also puts the back to it; a low wall is always crouched; B on a tall wall toggles crouch.
+- KBM: Space enters and leaves, WASD slides. Phone: the context button enters and leaves, the stick slides.
+- The back sits on the wall (no gap, nothing through it), the off hand rests on it when still; the camera pulls back over the open-side shoulder.
+- Co-op: a team-mate on a wall looks the same on both screens; two players on one wall stay a body apart; a guard flanks or throws a grenade at a player who holds a wall for several seconds.
+
 ## Locomotion step 10 - elbow strike (PC, controller, phone)
 - [ ] Holstered, RT / LMB / the touch Fire button behind an unaware guard: a short wind-up, the right elbow drives across the chest with the hips turning, the guard drops within about 0.6 s.
 - [ ] Facing an alert guard: one strike staggers (they stop aiming), a second strike in the stagger knocks them out. A heavy from the front only staggers.

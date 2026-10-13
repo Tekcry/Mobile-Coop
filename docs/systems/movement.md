@@ -159,6 +159,16 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
 - Cinematic post (`vfx/cinematicPost.ts`): one pass for vignette, optional film grain and letterbox (stingers);
   `GameState.slowBeat()` (0.25 s at 0.6x, setting `gameplay.slowBeat`) and `letterbox(seconds)`.
 
+## Back-to-wall (locomotion step 11, bible 5.3)
+- `player/wallController.ts`: pure `WallCore` (off / entering / on / leaving) on the level's `CoverSegment`s (kept for the AI) and a thin adapter (`wallOverride`) to the controller's `MoveOverride` (`noise: 'crouched'`: crouch-band footsteps). `GameState.wallStep` runs it each fixed step after traversal.
+- Enter: the `cover` context action with a face within `WALL.reach` 0.9 m of the body line and within 100 deg of the move or look direction (an eased settle of 0.2 s + 0.3 s per metre of approach, at most 0.45 s, A46; no snap from afar), or the stick held into a high face (dot >= 0.7) for 0.35 s at gear <= 4. A stick held through a traversal, an attach, a fall or another blocking state does not count until it is released once (`stickArmed`, A48), so walking off a ladder top or a roof with the stick forward never lands into a wall entry. High faces (>= HIGH_MIN 1.6 m) keep the stance (crouch toggles on the wall), low faces (LOW_MIN..LOW_MAX) are always crouched. Body line = `COVER_STANDOFF` (0.35 m) from the face.
+- Slide: the stick's along-wall component x the gear cap, gear <= 4 (2.8 / 1.8 m/s), paced from the body's own position along the wall and braked into an end (5 m/s^2) so it stops on it. Joined ends within 0.1 m (`buildWallLinks`): an inside corner wraps (the held stick keeps its sense until released), a flat join carries on, an outside end stops at `EDGE_MARGIN` with WALL_SUB edgeL / edgeR (step 12 adds peek).
+- Leave: the context press again (`gameplay.wallToggle` true; hold mode releases, step 18 ships the UI), stick outward > 0.6 for 0.15 s, jump, sprint, takedown, traversal, a team move, death.
+- Facing: the body faces out (yaw from the normal); the character's right is the face's -t, so WALL_SUB.faceRight is set sliding towards a. Pose: `pose.wall` (WALL_STANCE), the head turned along the slide (`WALL_LOOK`), the rig root pushed from the capsule onto the face so the back sits <= 3 cm off it (`wallRootPush`, A45), the off hand on the wall (`rig.wallHand`). Camera preset `wall` (boom 2.6, the open-side shoulder, blend 0.25 s), local only.
+- Stacking (D8): `stackClamp(s, dir, others, n)` keeps capsule centres >= 0.62 m apart along one segment; the others come from the remotes' `wall` MoveStates (`NetHooks.wallOthers`, host and client).
+- Takedown attacker state on a wall is `ground` (corner takedown in step 12).
+- Pose polish is carried to step 27, the dedicated back-to-wall clip (A47): step 11 fixes overshoot, feet behind the face, the back gap, the upper arm through the torso and foot skate; the entry-turn joint rate (~45 deg per frame), shank crossing, forearm clips, the exit pelvis jump and the remote `wallClip` in the settle still fail the audit's wall rows (baseline rows, fixed in step 27).
+
 ## Traversal anchors and attached states (2.0 phase 1)
 - `world/anchors.ts` (pure): `Ladder {base, top, facing, rung, width}`, `PipeVertical {base, top, side}`,
   `PipeHorizontal {a, b, hangHeight}`, `Ledge {a, b, top, n, t, len, drop, canHang, canClimbUp, nextA/B}`,

@@ -56,3 +56,4 @@ Commit: "locomotion 25: weapon handling batch: aim, reload, swap, throw, attache
   right edges, pistol and rifle (D9), local and remote; a muzzle-discipline sheet
   with the bot: "muzzle never crosses the mate, sway settles" (PROVISIONAL in the cloud).
 - From step 09: remotes show no draw / holster clip (the weapon pops in or out on dw); play the draw / holster on the remote copy from dw transitions (no extra bandwidth). PC-PASS 18.
+- From step 11: since step 09 (holstered by default) the e2e-clip walk-wall, sprint and crouch-run weapon scenarios measure 0 frames. Make them draw (aim) first so weapon-into-world coverage is restored.

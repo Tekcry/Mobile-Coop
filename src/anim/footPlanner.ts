@@ -97,12 +97,21 @@ export interface PlannerInput {
   pinLZ: number;
   pinRX: number;
   pinRZ: number;
+  /**
+   * (step 11) Back to a wall: no foot lands behind the plane n . p = wallD (outward normal wallNx / wallNz; wallD NaN =
+   * none), and a planted foot turned more than `turnStep` (rad) from the body steps round with it (a turn onto the wall
+   * never twists the legs across each other).
+   */
+  wallNx: number;
+  wallNz: number;
+  wallD: number;
+  turnStep: number;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, wallNx: 0, wallNz: 0, wallD: NaN, turnStep: Infinity, ground: null };
 }
 
 /** A pinned foot further than this (m) from its pin steps onto it. */
@@ -297,6 +306,13 @@ export class FootPlanner {
 
   /** A planted foot stays put unless the body has moved out of reach (then it must step). */
   private holdOrStep(f: FootState, i: PlannerInput, side: -1 | 1): void {
+    // (step 11) turned well away from the body (a turn onto a wall): step round with it, one foot at a time
+    const o = side < 0 ? this.R : this.L;
+    if (o.contact && Math.abs(wrap(f.yaw - i.yaw)) > i.turnStep) {
+      this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
+      this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
+      return;
+    }
     // measured from under its own hip (the foot's stance spot), not the root centre: a side-step's
     // trailing foot is a hip width further from the centre than the leg is actually stretched
     const lx = side < 0 ? i.lX : i.rX;
@@ -367,6 +383,14 @@ export class FootPlanner {
       tx = f.fromX + (sx * PLANNER.maxStep) / sl;
       tz = f.fromZ + (sz * PLANNER.maxStep) / sl;
     }
+    // (step 11) never behind a wall's face
+    if (!Number.isNaN(i.wallD)) {
+      const behind = tx * i.wallNx + tz * i.wallNz - i.wallD;
+      if (behind < 0) {
+        tx -= behind * i.wallNx;
+        tz -= behind * i.wallNz;
+      }
+    }
     f.toX = tx;
     f.toZ = tz;
     f.toYaw = yaw;
@@ -387,6 +411,13 @@ export class FootPlanner {
   private aimPin(f: FootState, i: PlannerInput, side: -1 | 1): void {
     f.toX = side < 0 ? i.pinLX : i.pinRX;
     f.toZ = side < 0 ? i.pinLZ : i.pinRZ;
+    if (!Number.isNaN(i.wallD)) {
+      const behind = f.toX * i.wallNx + f.toZ * i.wallNz - i.wallD;
+      if (behind < 0) {
+        f.toX -= behind * i.wallNx;
+        f.toZ -= behind * i.wallNz;
+      }
+    }
     f.toYaw = i.goalYaw;
     f.probeT -= i.dt;
     if (f.probeT <= 0) {

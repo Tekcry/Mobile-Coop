@@ -369,7 +369,7 @@ for (const [s, g] of QUICK ? [['stand', 2]] : [['stand', 2], ['stand', 4], ['cro
   add('flat', s, g, 60, true);
   aimGaits.push(gaits.pop());
 }
-const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'strike', 'tunnel'];
+const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'strike', 'tunnel', 'wall'];
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
@@ -501,6 +501,33 @@ async function drive(sc, halt = -1) {
       t.run(1.6, { taps: { 1: 'fire' } }, hz);
       m.end = t.mark();
       m.strikes = g.strike.count.started;
+    } else if (sc.kind === 'wall') {
+      // (locomotion step 11) back to a wall: a free high wall on Proving (FIND_WALL), 0.85 m out facing it, the context
+      // press enters (0.2 s settle), slide one way, stop, crouch, slide back, stop
+      const w = sc.plane;
+      t.stance(false, 3);
+      // (step 11 r3) the camera's own clock (idle drift, shake) runs from page load on real time: the entry reads the
+      // camera's view, so every wall run starts from the same clock (the run was not repeatable without it)
+      g.player.cam['t'] = 0;
+      t.tp(w.ax + w.tx * w.k + w.nx * 0.85, w.az + w.tz * w.k + w.nz * 0.85, Math.atan2(-w.nx, -w.nz), w.y);
+      t.begin(halt);
+      m.enter = t.mark();
+      t.run(0.6, { taps: { 1: 'cover' } }, hz);
+      m.on = t.mark();
+      m.onWall = g.wallCore?.phase === 'on';
+      t.run(1.0, { x: 1 }, hz);
+      m.stop = t.mark();
+      t.run(1.0, {}, hz);
+      m.crouch = t.mark();
+      t.run(1.0, { taps: { 1: 'crouch' } }, hz);
+      m.back = t.mark();
+      t.run(1.0, { x: -1 }, hz);
+      m.stop2 = t.mark();
+      t.run(1.0, {}, hz);
+      m.end = t.mark();
+      if (g.wallCore?.active) g.wallCore.leave('test');
+      t.run(0.3, {}, hz);
+      t.stance(false, 3);
     } else if (sc.kind === 'tunnel') {
       // crouch tunnel (x -12..-9.5, z -25..-19, roof 1.4 m), walked through crouched at gear 3
       t.stance(true, 3);
@@ -521,8 +548,34 @@ async function drive(sc, halt = -1) {
   }, [sc, halt, SURF, ACCEL, STOP]);
 }
 
+/** (step 11) A free high wall on Proving (as e2e-netmove's findWall): segment, plane, start `k` along it, body depth. */
+const FIND_WALL = () => {
+  const g = window.__app.current;
+  const V = g.player.position.constructor;
+  const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+  const floor = (x, z, y) => g.ballistics.ray(new V(x, y + 1, z), new V(x, y - 0.5, z), 1).hit;
+  const segs = g.world.level.coverSegments;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+    let ok = true;
+    for (let k = 0.5; k < s.len && ok; k += 0.5) {
+      const x = s.ax + s.tx * k + s.nx * 0.45;
+      const z = s.az + s.tz * k + s.nz * 0.45;
+      ok = clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 1) && clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 0.3) && floor(x + s.nx * 0.6, z + s.nz * 0.6, s.y);
+    }
+    if (ok) return { seg: i, ax: s.ax, az: s.az, tx: s.tx, tz: s.tz, nx: s.nx, nz: s.nz, y: s.y, len: s.len, k: s.len / 2, depth: g.player.rig.p.bodyDepthHalf };
+  }
+  return null;
+};
+
 async function record(sc, halt = -1) {
+  if (sc.kind === 'wall' && !sc.plane) {
+    sc.plane = await G(FIND_WALL);
+    if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
+  }
   const m = await drive(sc, halt);
+  if (sc.kind === 'wall') m.plane = sc.plane;
   const r = await G(() => window.__aa.end());
   const buf = Buffer.from(r.b64, 'base64');
   const data = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
@@ -771,7 +824,7 @@ function analyze(sc, rec) {
     const moving = L.pelvisJumpByGear('stand', hz)[sc.kind === 'turn180' ? 3 : 2];
     // (step 10) strike: balance from the end of its 0.9 s (STRIKE_DUR)
     const bal = sc.kind === 'idle' ? m.idle : sc.kind === 'strike' ? m.strike + Math.round((rec.remote ? 1 / rec.dtMed : hz) * 0.9) : -1;
-    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder'].includes(sc.kind) ? moving : still, bal);
+    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder', 'wall'].includes(sc.kind) ? moving : still, bal);
     const dt = rec.remote ? rec.dtMed : 1 / hz;
     if (sc.kind === 'stance') {
       // from the last frame before the press until crouchBlend is within 1e-4 of its target
@@ -819,12 +872,44 @@ function analyze(sc, rec) {
       const f = 1 / dt;
       const s0 = Math.min(rec.n - 1, m.strike + Math.round(f * 1.1));
       res(out, 'strikeSettle', { ...M.oscP2P(col(rec, 'headNode.y', s0, m.end), L.IDLE_BREATH), extra: { started: m.strikes ?? null } }, L.IDLE_BREATH, 'step 10 / D2', 'm', s0);
+    } else if (sc.kind === 'wall') {
+      wallMetrics(rec, out, m, dt);
     } else if (sc.kind === 'idle') {
       res(out, 'idleBreath', M.oscP2P(col(rec, 'headNode.y', m.idle, m.end), L.IDLE_BREATH), L.IDLE_BREATH, ':1257', 'm', m.idle);
       res(out, 'idleCamera', M.cameraOsc(col(rec, 'cam.y', m.idle, m.end)), L.CAMERA_P2P, ':1256', 'm', m.idle);
     }
   }
   return out;
+}
+
+/**
+ * (step 11) Back to a wall: the back's gap to the face (bible 5.3 / step 11 item 8: back and shoulder blades on the wall,
+ * <= 3 cm, no clip). Per frame in the full-weight `wall` lower state from 0.3 s after the entry press: the nearest of
+ * the torso and both shoulder joints to the wall plane, less the rig's body depth half (proportions bodyDepthHalf).
+ * wallGap: the largest gap (m), wallClip: the deepest the back goes behind the face (m).
+ */
+function wallMetrics(rec, out, m, dt) {
+  const w = m.plane;
+  if (!w) return;
+  const lower = col(rec, 'lower');
+  const lw = col(rec, 'lowerW');
+  const WI = LOWER.indexOf('wall');
+  const from = Math.min(rec.n, m.enter + Math.round(0.3 / dt) + 1);
+  const pts = ['torso', 'shoulderL', 'shoulderR'].map((n) => vec(rec, n));
+  let gap = { worst: 0, frame: -1 };
+  let clip = { worst: 0, frame: -1 };
+  let n = 0;
+  for (let i = from; i < m.end; i++) {
+    if (lower[i] !== WI || lw[i] < 0.99) continue;
+    n++;
+    let d = Infinity;
+    for (const p of pts) d = Math.min(d, (p[i * 3] - w.ax) * w.nx + (p[i * 3 + 2] - w.az) * w.nz);
+    const g = d - w.depth;
+    if (g > gap.worst) gap = { worst: g, frame: i };
+    if (-g > clip.worst) clip = { worst: -g, frame: i };
+  }
+  res(out, 'wallGap', { ...gap, pass: n > 0 && gap.worst <= L.WALL_GAP, extra: { frames: n, onWall: m.onWall ?? null } }, L.WALL_GAP, 'step 11 / bible 5.3', 'm');
+  res(out, 'wallClip', { ...clip, pass: n > 0 && clip.worst <= L.WALL_GAP }, L.WALL_GAP, 'step 11 / bible 5.3', 'm');
 }
 
 // ---------------------------------------------------------------- remote poses (step 08)
@@ -841,6 +926,8 @@ function remoteScenarios() {
     out.push({ name: 'stance', kind: 'stance', hz: 60 });
     // (step 10) the elbow strike: a client strike approved by the host (cmove / cstart), posed from MoveState
     out.push({ name: 'strike', kind: 'strike', hz: 60 });
+    // (step 11) back to a wall: the host's copy posed from the client's `wall` MoveState (segment, s, WALL_SUB)
+    out.push({ name: 'wall', kind: 'wall', hz: 60 });
     for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
     out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
@@ -852,6 +939,8 @@ function remoteScenarios() {
 function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
   if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
+  // (step 11) as the local drive: enter, slide, stop, crouch, slide back, stop
+  if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
   const cap = (crouch ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1];
@@ -1585,7 +1674,14 @@ async function runRemote() {
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
         const segs = remoteSegments(sc);
-        const s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
+        let s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
+        if (sc.kind === 'wall') {
+          // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
+          sc.plane ??= await A.evaluate(FIND_WALL);
+          if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
+          const w = sc.plane;
+          s = { x: w.ax + w.tx * w.k + w.nx * 0.85, z: w.az + w.tz * w.k + w.nz * 0.85, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
+        }
         await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
         await A.evaluate(() => window.__ar.begin());
         await B.evaluate((segs) => window.__rb.play(segs), segs);
@@ -1594,6 +1690,11 @@ async function runRemote() {
         rec = toRec(await A.evaluate(() => window.__ar.end()));
         b = await B.evaluate(() => window.__rb.end());
         await B.evaluate(() => window.__rb.stance(false, 3));
+        if (sc.kind === 'wall') {
+          sc.plane.depth = await A.evaluate(() => window.__app.current.net.remotes.values().next().value.avatar.rig.p.bodyDepthHalf);
+          await B.evaluate(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); g.player.controller.clearCrouchToggle(); });
+          await wait(400);
+        }
       }
       const bn = b.frames.length;
       const bd = new Float64Array(bn * BW);
@@ -1619,6 +1720,7 @@ async function runRemote() {
       if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
+      else if (sc.kind === 'wall') m = { enter: mk[0], on: mk[1], stop: mk[2], crouch: mk[3], back: mk[4], stop2: mk[5], end: Math.min(rec.n, mk[6] ?? rec.n), plane: sc.plane };
       rec.m = m;
       let metrics;
       if (sc.kind === 'boost') {
@@ -1842,9 +1944,12 @@ const REMOTE_GATED = ['pops', 'pairAlign', 'lodSkip'];
 const REMOTE_GATED_HZ = { pops: ['60'] };
 const remoteGated = (metric, hz) => REMOTE_GATED.includes(metric) && (!REMOTE_GATED_HZ[metric] || REMOTE_GATED_HZ[metric].includes(String(hz)));
 const REMOTE_GATE_TEXT = 'gated: pops @60, pairAlign, lodSkip; report-only: poseError until step 22 (A40), lowerBody, pops @120, gaitPhase and the other remote rows (A39)';
-if (BAND && remote) {
+/** (A49) Measured spread of the local wall rows over repeated runs: foot slide / sink flip by up to 7.1 mm (one foot's
+ *  contact settles a frame earlier or later), joint angles by up to 6.8 deg. */
+const WALL_SPREAD = { foot: 0.008, deg: 7 };
+if (BAND) {
   const prev = JSON.parse(readFileSync(BAND, 'utf8'));
-  for (const [key, row] of Object.entries(baseline.remote)) {
+  for (const [key, row] of Object.entries(remote ? baseline.remote : {})) {
     const pr = prev.remote?.[key];
     if (!pr) continue;
     for (const m of REMOTE_GATED) {
@@ -1852,6 +1957,20 @@ if (BAND && remote) {
       const b = pr[m];
       if (!a || !b) continue;
       row[m] = { worst: Math.max(a.worst, b.worst), pass: a.pass && b.pass, band: +Math.abs(a.worst - b.worst).toPrecision(4), runs: [b.worst, a.worst] };
+    }
+  }
+  // (step 11 r3, A49) the local wall rows are not repeatable to the bit (the camera's shape casts and the springs carry
+  // page-load state the harness cannot reset; a 1e-12 difference flips a foot contact): each keeps the worse of the two
+  // runs and a band covering the measured spread (WALL_SPREAD floors), and --compare allows that band
+  for (const [key, row] of Object.entries(baseline.local ?? {})) {
+    const pr = prev.local?.[key];
+    if (!pr || !/^wall@/.test(key)) continue;
+    for (const [m, a] of Object.entries(row)) {
+      const b = pr[m];
+      if (!b || !Number.isFinite(a.worst) || !Number.isFinite(b.worst)) continue;
+      const unit = report?.scenarios.find((s) => `${s.name}@${s.hz}` === key)?.metrics[m]?.unit;
+      const floor = /^foot/.test(m) && unit === 'm' ? WALL_SPREAD.foot : unit === 'deg' ? WALL_SPREAD.deg : 0;
+      row[m] = { worst: Math.max(a.worst, b.worst), pass: a.pass && b.pass, band: +Math.max(Math.abs(a.worst - b.worst), floor).toPrecision(4), runs: [b.worst, a.worst] };
     }
   }
   baseline.mode.band = true;
@@ -1906,7 +2025,7 @@ if (COMPARE) {
           if (Number.isFinite(worse) ? worse > tol : o.pass && !n.pass) lines.push(`${tag} ${key} ${metric}: ${o.worst} -> ${n.worst} (band ${o.band ?? 'none'}, tol ${+tol.toPrecision(3)})${o.pass && !n.pass ? ' (new fail)' : ''}`);
           continue;
         }
-        const tol = Math.max(0.1 * Math.abs(o.worst), tolerance(key, metric, unit, o.worst, hz));
+        const tol = Math.max(0.1 * Math.abs(o.worst), tolerance(key, metric, unit, o.worst, hz), tag === 'local' ? (o.band ?? 0) : 0);
         // the other remote rows are real time and not gated (A39: only remoteGated): listed as report-only, not counted
         if ((o.pass && !n.pass) || (Number.isFinite(worse) && worse > tol)) (tag === 'remote' ? remoteNoise : lines).push(`${tag} ${key} ${metric}: ${o.worst} -> ${n.worst}${o.pass && !n.pass ? ' (new fail)' : ''}`);
       }

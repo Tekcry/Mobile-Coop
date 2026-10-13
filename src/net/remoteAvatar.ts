@@ -1,3 +1,5 @@
+import { WALL_LOOK, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
+import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -55,6 +57,14 @@ export class RemoteAvatar {
   private gripFace = 1;
   private sPrev = 0;
   private mp = emptyMovePose();
+  /** (step 11) Back to a wall: the body-line point, `s` shown (tests), the rig's push onto the face, the hand point. */
+  private wp = { x: 0, z: 0, yaw: 0 };
+  wallS = 0;
+  private wallK = 0;
+  private wallNx = 0;
+  private wallNz = 0;
+  private wallFace = 0;
+  private wallHandPt = new Vector3();
   private replay: { t: number; c: MoveCommit; path: PathKind; pose: TraverseKind } | null = null;
   private lastCommit = -1;
   private stowed = false;
@@ -177,6 +187,21 @@ export class RemoteAvatar {
       if (replayK >= 1) this.replay = null;
     }
     const attached = !!mv && isAttachedMode(mv.m) && !rp;
+    // (locomotion step 11) back to a wall, settled: the body line from the segment and `s` (interpolated on the same
+    // segment, as the attached `s`), the yaw from the face normal
+    const wseg = mv?.m === 'wall' && !rp ? this.world.level.coverSegments[mv.a] : undefined;
+    if (wseg && mv!.ph >= 1) {
+      const from = s.from.mv;
+      const to = s.to.mv;
+      const sv = from && to && from.m === 'wall' && to.m === 'wall' && from.a === to.a ? from.s + (to.s - from.s) * Math.max(0, Math.min(1, s.k)) : mv!.s;
+      wallPoint(wseg, sv, COVER_STANDOFF, this.wp);
+      // across the wall: where the owner's capsule actually rests (its collision skin keeps it a little out)
+      const off = Math.max(-0.05, Math.min(0.1, (this.pos.x - this.wp.x) * wseg.nx + (this.pos.z - this.wp.z) * wseg.nz));
+      this.pos.x = this.wp.x + wseg.nx * off;
+      this.pos.z = this.wp.z + wseg.nz * off;
+      this.yaw = this.wp.yaw;
+      this.wallS = sv;
+    }
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
@@ -208,6 +233,23 @@ export class RemoteAvatar {
     if (this.rig.emote && (this.speed > 0.5 || f & PF.firing)) this.rig.emote = null;
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
     const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp) : emptyMovePose();
+    // (step 11) on a wall: the rig's back onto the face and the off hand on it (as the player's rig)
+    this.wallK = Math.max(0, Math.min(1, this.wallK + (wseg ? dt : -dt) / 0.2));
+    if (wseg) {
+      this.wallNx = wseg.nx;
+      this.wallNz = wseg.nz;
+    }
+    const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
+    if (wk > 0) {
+      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf) * wk;
+      r.position.x -= this.wallNx * push;
+      r.position.z -= this.wallNz * push;
+    }
+    if (wseg && mp.wall) {
+      this.wallFace = wseg.nx * wseg.ax + wseg.nz * wseg.az;
+      wallHandPoint(this.pos.x, this.pos.y, this.pos.z, wseg.nx, wseg.nz, wseg.tx, wseg.tz, this.wallFace, this.rig.weaponHand, this.crouch, this.wallHandPt);
+      this.rig.wallHand = this.wallHandPt;
+    } else this.rig.wallHand = null;
     // (locomotion step 10) the strike's phase eased between the two states around the render time (the sampled state is
     // the older one: a 20 Hz step in `ph` would jerk the elbow arc); a strike starting eases in from phase 0
     const sa = s.from.mv;
@@ -284,13 +326,17 @@ export class RemoteAvatar {
       aimWorldPitch: upside ? this.pitch : undefined,
       tumble: mp.tumble,
       // lowered: only the head glances where the owner looks (as the player's rig)
-      lookYaw: mv ? Math.max(-1.1, Math.min(1.1, mv.ay)) * 0.5 * (1 - this.aim) : 0,
+      lookYaw: mp.wall ? mp.wallSide * WALL_LOOK * (1 - this.aim) : mv ? Math.max(-1.1, Math.min(1.1, mv.ay)) * 0.5 * (1 - this.aim) : 0,
       lookPitch: Math.max(-0.6, Math.min(0.6, this.pitch)) * 0.5 * (1 - this.aim),
       aim: this.aim,
       carry: this.carryW,
       kick: this.kick,
       dash: (f & PF.sprint) !== 0 ? 1 : 0,
+      wall: mp.wall,
       wallSide: mp.wallSide,
+      wallNx: this.wallNx,
+      wallNz: this.wallNz,
+      wallFace: this.wallFace,
       lean: mp.lean,
       traverse: mp.traverse,
       traverseT: mp.traverseT,

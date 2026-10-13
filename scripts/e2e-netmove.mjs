@@ -235,16 +235,23 @@ try {
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; g.player.forceAds = true; });
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return !!r && r.state?.mv?.dw === 2 && !!r.avatar.rig.heldWeapon; }, null, 6000, 'host remote has the weapon in hand');
   await compare('drawn', 'ground');
-  // timestamps taken inside the pages (the client's sim: release and holstered; the host: dw 0 received, stowed)
+  // timestamps taken inside the pages: the client's sim (release to holstered, its own 0.4 s); the host's receipt of
+  // the first dw 0 state (stamped as the packet is buffered) and the frame its copy stows the weapon. Network delivery
+  // (VM latency) is not the remote pose's behaviour: the check is the client's holster time plus the host's receipt
+  // to stow, against the 0.4 s holster + 0.1 s interpolation + one host frame.
   await GA(() => {
-    const t = (window.__holT = { recv: 0, stow: 0 });
-    const tick = () => {
-      const r = window.__app.current.net.remotes.values().next().value;
-      if (r && !t.recv && r.state?.mv?.dw === 0) t.recv = Date.now();
-      if (r && !t.stow && !r.avatar.rig.heldWeapon) t.stow = Date.now();
-      if (!t.stow) requestAnimationFrame(tick);
+    const r = window.__app.current.net.remotes.values().next().value;
+    const av = r.avatar;
+    const t = (window.__holT = { recv: 0, stow: 0, frame: 0, last: 0 });
+    const push = av.buf.push.bind(av.buf);
+    av.buf.push = (tm, st) => { if (!t.recv && st?.mv?.dw === 0) t.recv = performance.now(); return push(tm, st); };
+    const upd = av.update.bind(av);
+    av.update = (dt, rt) => {
+      const now = performance.now();
+      upd(dt, rt);
+      if (t.recv && !t.stow && !av.rig.heldWeapon) { t.stow = now; t.frame = t.last ? now - t.last : 0; av.update = upd; av.buf.push = push; }
+      t.last = now;
     };
-    requestAnimationFrame(tick);
   });
   await GB(() => new Promise((res) => {
     const st = window.__app.current;
@@ -260,12 +267,12 @@ try {
   await until(A, () => window.__holT.stow > 0, null, 4000, 'host remote stowed');
   const hbT = await GB(() => window.__holT);
   const haT = await GA(() => window.__holT);
-  // wall time from release to the host's stow, less the client sim's own lag behind the wall clock (a loaded VM
-  // steps the client's 0.4 s holster over more than 0.4 s of wall time)
-  const lag = Math.max(0, hbT.dw0 - hbT.rel - hbT.sim * 1000);
-  const holMs = haT.stow - hbT.rel - lag;
-  console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host dw 0 after ${haT.recv - hbT.dw0} ms, stowed after ${haT.stow - hbT.dw0} ms`);
-  assert(holMs <= 600, `holstered: the host remote stows within 0.6 s of the release (${holMs.toFixed(0)} ms, client sim lag ${lag.toFixed(0)} ms)`);
+  const remMs = haT.stow - haT.recv;
+  const holMs = hbT.sim * 1000 + remMs;
+  const limit = 400 + 1000 / 60 + 100 + Math.max(1000 / 60, haT.frame);
+  console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host receipt to stow ${remMs.toFixed(0)} ms (host frame ${haT.frame.toFixed(0)} ms)`);
+  assert(remMs <= 100 + Math.max(1000 / 60, haT.frame) + 1, `the host's copy stows within 0.1 s + one frame of receiving dw 0 (${remMs.toFixed(0)} ms)`);
+  assert(holMs <= limit, `holstered: client holster + host receipt to stow ${holMs.toFixed(0)} ms <= ${limit.toFixed(0)} ms (0.4 s holster + one sim step + 0.1 s + one frame)`);
   await compare('holstered', 'ground');
   await reset();
 
@@ -376,6 +383,72 @@ try {
   assert(['notBraced', 'far', 'noTarget', 'busy'].includes(why), `a request without a braced partner is denied (${why})`);
   await reset();
 
+  // (locomotion step 11) back to a wall: the host's copy in mode wall, joints within 10 cm, its `s` within 5 cm of the
+  // client's; crouched; two players stacked on one wall >= 0.6 m apart (D8)
+  console.log('back to a wall');
+  await reset();
+  const findWall = () => {
+    const g = window.__app.current;
+    const V = g.player.position.constructor;
+    const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+    const floor = (x, z, y) => g.ballistics.ray(new V(x, y + 1, z), new V(x, y - 0.5, z), 1).hit;
+    const segs = g.world.level.coverSegments;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+      let ok = true;
+      for (let k = 0.5; k < s.len && ok; k += 0.5) {
+        const x = s.ax + s.tx * k + s.nx * 0.45;
+        const z = s.az + s.tz * k + s.nz * 0.45;
+        ok = clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 1) && clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 0.3) && floor(x + s.nx * 0.6, z + s.nz * 0.6, s.y);
+      }
+      if (ok) return i;
+    }
+    return -1;
+  };
+  const wseg = await GB(findWall);
+  assert(wseg >= 0, `a free high wall on Proving (${wseg})`);
+  /** Stand the page 0.5 m out from the wall at `k` m along it facing it, tap the context action. */
+  const toWall = (P, k) => P.evaluate(([i, k]) => {
+    const g = window.__app.current;
+    const s = g.world.level.coverSegments[i];
+    const yaw = Math.atan2(-s.nx, -s.nz);
+    g.player.controller.clearCrouchToggle();
+    g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+    g.player.cam.yaw = yaw;
+    g.player.cam.pitch = 0;
+    // (the stance settles standing first: the entry keeps the stance the player has)
+    setTimeout(() => window.__app.input.state.tap('cover'), 1000);
+  }, [wseg, k]);
+  await allowTeleport(A);
+  await toWall(B, 2);
+  await until(B, () => window.__app.current.wallCore?.phase === 'on', null, 6000, 'client on the wall');
+  // standing first (the entry keeps the stance the client had)
+  if (await GB(() => (window.__app.current.wallCore.sub() & 1) !== 0)) {
+    await GB(() => window.__app.input.state.tap('crouch'));
+    await until(B, () => (window.__app.current.wallCore.sub() & 1) === 0 && window.__app.current.player.controller.crouchBlend < 0.01, null, 3000, 'client standing on the wall');
+  }
+  await compare('wall', 'wall');
+  const wallS = async () => [await GB(() => window.__app.current.wallCore.s), await GA(() => window.__app.current.net.remotes.values().next().value.avatar.wallS)];
+  let [sl, sr] = await wallS();
+  assert(Math.abs(sl - sr) <= 0.05, `the host's copy is at s ${sr.toFixed(3)} (client ${sl.toFixed(3)}), within 5 cm`);
+  await GB(() => window.__app.input.state.tap('crouch'));
+  await until(B, () => (window.__app.current.wallCore.sub() & 1) !== 0 && window.__app.current.player.controller.crouchBlend > 0.99, null, 3000, 'client crouched on the wall');
+  await wait(600);
+  await compare('wall crouch', 'wall');
+  [sl, sr] = await wallS();
+  assert(Math.abs(sl - sr) <= 0.05, `crouched: the host's copy at s ${sr.toFixed(3)} (client ${sl.toFixed(3)})`);
+  // stacking: the host enters the same wall 0.3 m from the client: kept >= 0.62 m apart along it
+  await toWall(A, sl + 0.3);
+  await until(A, () => window.__app.current.wallCore?.phase === 'on', null, 6000, 'host on the wall');
+  await wait(800);
+  const st = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const p = g.player.position; return { s: g.wallCore.s, seg: g.wallCore.seg, d: Math.hypot(p.x - r.feet.x, p.z - r.feet.z) }; });
+  const sb = await GB(() => window.__app.current.wallCore.s);
+  assert(st.seg === wseg && Math.abs(st.s - sb) >= 0.6 && st.d >= 0.6, `stacked on one wall: centres ${Math.abs(st.s - sb).toFixed(2)} m apart along it, ${st.d.toFixed(2)} m apart (>= 0.6, no capsule overlap)`);
+  for (const P of [A, B]) await P.evaluate(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
+  await wait(300);
+  await GA(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
+
   // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode
   // strike with the joints within 10 cm; a refused strike (a target the host does not have) blends back to ground
   console.log('elbow strike');
@@ -388,6 +461,8 @@ try {
   await GB(() => { window.__app.current.strike.freezeAt = -1; });
   await until(B, () => !window.__app.current.strike.active, null, 5000, 'strike ends');
   await wait(500);
+  // (step 10 check) the host's record of the last strike ends before the refused one is asked for
+  await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record ends');
   const sd0 = await GB(() => window.__app.current.strike.count.denied);
   await GB(() => window.__app.current.strike.begin('nobody'));
   await until(B, (n) => window.__app.current.strike.count.denied > n && !window.__app.current.strike.active, sd0, 5000, 'strike denied');

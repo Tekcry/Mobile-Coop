@@ -60,9 +60,9 @@ describe('move state (3.2.0 phase 1)', () => {
 
   it('pstate carries a sanitised move state; a bad one is dropped, not the message', () => {
     const ps: PlayerState = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 } as PlayerState;
-    const mv = { ...emptyMoveState(), m: 'wall' as const, sub: 3, s: 1.1, ph: 0.75 };
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, sub: 3, s: 1.1, ph: 0.75 };
     const m = parseMessage(JSON.parse(JSON.stringify({ t: 'pstate', s: wirePlayerState({ ...ps, mv }) })));
-    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'wall', sub: 3, s: 1.1, ph: 0.75 });
+    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'wall', a: 2, sub: 3, s: 1.1, ph: 0.75 });
     const bad = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 'teleport' } } });
     expect(bad && bad.t === 'pstate' && bad.s.mv).toBeUndefined();
   });
@@ -92,20 +92,22 @@ describe('move state (3.2.0 phase 1)', () => {
   it("slot 1 is 'wall' (A2: the old cover index, reserved for back-to-wall); it packs and sanitizes round trip", () => {
     expect(MOVE_MODES.indexOf('wall')).toBe(1);
     expect((MOVE_MODES as readonly string[]).includes('cover')).toBe(false);
-    const mv = { ...emptyMoveState(), m: 'wall' as const, sub: 5, s: 0.4, ph: 0.25, g: 2, r: 0.5, ay: 0.3 };
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 7, sub: 5, s: 0.4, ph: 0.25, g: 2, r: 0.5, ay: 0.3 };
     const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
     expect(wire.m).toBe(1);
     expect(sanitizeMoveState(wire)).toEqual(mv);
     // the retired cover-only fields are not carried
     expect(sanitizeMoveState({ ...wire, cu: 0.5, lf: 0.1, fp: [0, 0, 0, 0] })).toEqual(mv);
-    // nothing poses from it yet (step 11)
+    // (step 11) the flat-back stance, facing along the slide (sub 2 = faceRight)
     const out = emptyMovePose();
     poseFromMoveState(mv, 0, out);
-    expect(out).toMatchObject({ wallSide: 0, lean: 0, traverse: 'none' });
+    expect(out).toMatchObject({ wall: true, wallSide: -1, lean: 0, traverse: 'none' });
+    poseFromMoveState({ ...mv, sub: 2 }, 0, out);
+    expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 5 (Block A wire changes; step 09 dw; step 10 cmove)', () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it('PROTOCOL_VERSION is 6 (Block A wire changes; step 09 dw; step 10 cmove; step 11 wall)', () => {
+    expect(PROTOCOL_VERSION).toBe(6);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {

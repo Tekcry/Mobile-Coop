@@ -308,14 +308,14 @@ describe('net session', () => {
     void late.leave();
     expect(left).toBe('Late');
   });
-  it('a peer on protocol version 4 is refused; version 5 joins', () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it('a peer on protocol version 5 is refused; version 6 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(6);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 4, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 5, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 5, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 6, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -389,11 +389,42 @@ describe('team moves (3.2.0 phase 5)', () => {
 
 import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
 import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
-import { packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
-  it('protocol 5 (step 10 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it('protocol 6 (step 11 raised it)', () => {
+    expect(PROTOCOL_VERSION).toBe(6);
+  });
+  it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
+    const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
+    expect(wire.m).toBe(1);
+    expect(sanitizeMoveState(wire, 4096, 10)).toMatchObject({ m: 'wall', a: 3, s: 2.25, sub: 67 });
+    expect(sanitizeMoveState({ ...wire, a: 10 }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, a: -1 }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, a: 'x' }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, sub: 0x1ff })!.sub).toBe(0xff);
+    expect(sanitizeMoveState({ ...wire, sub: -3 })!.sub).toBe(0);
+    // an attached anchor bound does not apply to a wall segment
+    expect(sanitizeMoveState(wire, 1, 10)!.a).toBe(3);
+  });
+  it('(step 11 r3) the receive path drops a wall `a` outside the level (the wire keeps anything under 4096)', () => {
+    const mv = packMoveState({ ...emptyMoveState(), m: 'wall' as const, a: 40, s: 1, sub: 1 });
+    const ps = { id: 'peerA', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistol', hp: 100, mv };
+    const msg = parseMessage({ t: 'pstate', s: ps });
+    const s = msg?.t === 'pstate' ? msg.s : null;
+    expect(s?.mv).toMatchObject({ m: 'wall', a: 40 });
+    // a level with 12 segments: dropped (posed as ground), not kept with a stale face
+    expect(dropBadWallMove(s!, 12)).toBe(true);
+    expect(s!.mv).toBeUndefined();
+    // in range: kept; other modes: untouched
+    const ok = { mv: { ...emptyMoveState(), m: 'wall' as const, a: 11 } };
+    expect(dropBadWallMove(ok, 12)).toBe(false);
+    expect(ok.mv.a).toBe(11);
+    const gr = { mv: { ...emptyMoveState(), a: 99 } };
+    expect(dropBadWallMove(gr, 12)).toBe(false);
+    expect(gr.mv).toBeDefined();
+    expect(dropBadWallMove({}, 12)).toBe(false);
   });
   it('dw packs and sanitizes (clamped 0-3, default 0)', () => {
     const mv = { ...emptyMoveState(), dw: 2 };

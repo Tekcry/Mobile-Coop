@@ -65,3 +65,5 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
   over-the-top), each takedown kind, grab, carry, drag, duck, sideways gap, side / front,
   local and remote: "no clipping between bodies, hands on contact" (PROVISIONAL in the cloud).
 - From step 09: hostDrawPhase must force dw 0 while carrying or dragging a body (add with the drag MoveState mode).
+- From step 11 (A47): wall rows still failing - entry 180 deg turn joint rate ~45 deg / frame (smooth the turn over the settle), selfShanks 8.8-10 cm and selfThighs 3.5 cm at the entry turn, selfForearmL 9.5 cm moving and selfForearmR 9.2 cm crouched (weapon carriage tuck vs the flat-back chest), exit pelvisJump 8.4 cm (leave needs the entry's smoothing), remote wallClip 3.9 cm in the settle, kneeL ~120-127 deg, footSlideR 1.0-1.5 cm. All must pass after this step.
+- Also from the step 11 check: wallGap@120 4.4 cm (limit 3), selfForearmR, kneeL ~120 deg, footSlideR 1.3-1.5 cm.

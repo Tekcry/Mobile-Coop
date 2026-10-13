@@ -67,6 +67,8 @@ export class ShoulderCamera {
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
   attach: AttachCamera | null = null;
+  /** (step 11) Back to a wall: the open side (1 right, -1 left, 0 none); the shoulder follows it in the `wall` preset. */
+  wallSide = 0;
   /** Body facing while attached: the orbit stays within the preset's cone around it. */
   attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
@@ -244,7 +246,7 @@ export class ShoulderCamera {
     this.t += dt;
     if (dt <= 0) dt = 1e-4;
     // framing blends (critically damped: 350-600 ms, no overshoot)
-    const side = this.sSide.step(this.shoulder, MOVEMENT.camShoulder, dt);
+    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, MOVEMENT.camShoulder, dt);
     this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
     const leanS = this.sLean.step(this.lean, 8, dt);
     const dashS = this.sDash.step(this.dash, 6, dt);

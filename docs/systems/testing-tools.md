@@ -97,6 +97,13 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown button, HUD defaults (no health bar, ammo fades), the results
+  - `scripts/e2e-wall.mjs` (locomotion step 11) back-to-wall on Proving: entry reach (none from 1.3 m, the press
+    within 0.9 m settles in 0.2 s), slide at the gear 3 cap and capped at gear 4, quieter than walking, the outside-end
+    stop with its edge flag, pull-away and context exits, the stick-into-wall entry after 0.35 s; Warehouse (Clear): two
+    guards against a player held on a wall - a flanker is assigned (> 4 s) and a grenade is lobbed (> 6 s). Required; in
+    the quick map for `src/player/` and `src/cover/`. e2e-netmove adds "wall", "wall crouch" (joints <= 10 cm, the copy's
+    `s` within 5 cm) and "stack" (both pages on one wall >= 0.6 m apart); e2e-pad (A / stick / A) and e2e-mouse (Space / D
+    / Space) cover the verb.
   - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client on a
     ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
     10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +
@@ -139,6 +146,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     over every pass (`PROFILE=1` CPU profile)
   - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict] [--compare=<file>] [--band=<file>]`
+    Step 11 adds the `wall` transition (local 60 / 120 Hz and a remote row): a free high wall on Proving, enter, slide, stop, crouch, slide back; `wallGap` / `wallClip` (back and shoulder blades vs the face, <= 3 cm, `WALL_GAP` in limits.ts) on top of the common foot-slide, self-intersection and joint-rate metrics.
     (locomotion steps 07-08) animation audit, local player and remote poses (default: both), Proving Grounds (bible 5.12.2, 5.12.4.2, 5.17 D2 / D5). Bundles the pure `src/anim/audit/metrics.ts` +
     `limits.ts` with esbuild into `test-results/anim-audit/lib`; the page only records joints / camera / capsule / planner every
     rendered frame (60 and 120 Hz), node computes. Full run: flat every gear both stances at 60 + 120 Hz, stairs and the 20.4 deg ramp

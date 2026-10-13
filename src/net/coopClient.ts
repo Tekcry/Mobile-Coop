@@ -22,7 +22,7 @@ import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
-import { emptyMoveState, moveChanged } from '../player/moveState';
+import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -131,6 +131,16 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: 0, gy: 0 });
   }
 
+  /** (step 11, D8) The other players with their back to segment `seg` (metres along it), from their MoveStates. */
+  wallOthers(seg: number, out: Float64Array): number {
+    let n = 0;
+    for (const a of this.avatars.values()) {
+      const mv = a.buf.latest()?.mv;
+      if (n < out.length && !a.dead && mv?.m === 'wall' && mv.a === seg) out[n++] = mv.s;
+    }
+    return n;
+  }
+
   private mateOut: TeamMate[] = [];
   teamMates(): readonly TeamMate[] {
     const out = this.mateOut;
@@ -202,6 +212,8 @@ export class CoopClient implements NetAttachment {
         continue;
       }
       seen.add(p.id);
+      // (step 11 r3) a wall segment outside this level: the copy poses as ground, never from a stale face
+      dropBadWallMove(p, g.world.level.coverSegments.length);
       this.avatar(p)?.buf.push(m.time, p);
     }
     for (const id of [...this.avatars.keys()]) if (!seen.has(id)) this.dropAvatar(id);

@@ -11,7 +11,8 @@ import type { TraverseKind } from '../anim/animGraph';
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
 export const MOVE_MODES = [
   'ground',
-  // back to a wall (A2: the old snap-cover slot, renamed; reserved - nothing sets it until step 11)
+  // (step 11) back to a wall (A2: the old snap-cover slot): `a` the cover segment (level order), `s` metres along it,
+  // `sub` WALL_SUB (wallController)
   'wall',
   // attached (`ATTACH` kinds)
   'ladder',
@@ -156,20 +157,35 @@ export function moveChanged(a: MoveState, b: MoveState): boolean {
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
 const WORLD = 400;
 
+/**
+ * (step 11 r3) The receive path's level check: the wire decode bounds a wall `a` by the generic 4096 only, so a state
+ * whose wall segment is not in this level's `coverSegments` (`segCount`) loses its `mv` (posed as ground), never a
+ * stale face. Returns whether `mv` was dropped.
+ */
+export function dropBadWallMove(s: { mv?: MoveState }, segCount: number): boolean {
+  const mv = s.mv;
+  if (!mv || mv.m !== 'wall' || (mv.a >= 0 && mv.a < segCount)) return false;
+  delete s.mv;
+  return true;
+}
+
 /** Untrusted wire data -> a valid state (unknown mode: null; numbers clamped; anchor index in range or -1). */
-export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState | null {
+export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4096): MoveState | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const mi = typeof o.m === 'number' ? Math.floor(o.m) : MOVE_MODES.indexOf(o.m as MoveMode);
   const m = MOVE_MODES[mi];
   if (!m) return null;
   let a = Math.floor(num(o.a, -1, 1e6, -1));
-  if (a >= anchorCount || !isAttachedMode(m)) a = -1;
+  if (m === 'wall') {
+    // (step 11) a cover segment in range, else not a wall state
+    if (a < 0 || a >= segCount) return null;
+  } else if (a >= anchorCount || !isAttachedMode(m)) a = -1;
   const out: MoveState = {
     m,
     a,
     s: num(o.s, -WORLD, WORLD, 0),
-    sub: Math.floor(num(o.sub, 0, 0xffff, 0)),
+    sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
     ph: num(o.ph, 0, 1, 0),
     tid: typeof o.tid === 'string' && /^[A-Za-z0-9_-]{0,40}$/.test(o.tid) ? o.tid : '',
     g: Math.floor(num(o.g, 1, 6, 3)),
@@ -215,6 +231,8 @@ const round = (v: number): number => Math.round(v * 1000) / 1000;
 
 /** The pose families a move state drives on the rig (`RigPose` subset). */
 export interface MovePose {
+  /** (step 11) Back to a wall (the flat-back stance). */
+  wall: boolean;
   /** Side of the wall (-1 left, 1 right, 0 none) and the lean around an edge (-1..1): back-to-wall (steps 11-12). */
   wallSide: number;
   lean: number;
@@ -228,7 +246,7 @@ export interface MovePose {
 }
 
 export function emptyMovePose(): MovePose {
-  return { wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false };
 }
 
 /**
@@ -236,6 +254,7 @@ export function emptyMovePose(): MovePose {
  * attach grips (`AttachGrips.cadence`). The local player and remotes both read it this way.
  */
 export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose): MovePose {
+  out.wall = false;
   out.wallSide = 0;
   out.lean = 0;
   out.traverse = 'none';
@@ -244,6 +263,11 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   switch (mv.m) {
+    case 'wall':
+      // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
+      out.wall = true;
+      out.wallSide = mv.sub & 2 ? 1 : -1;
+      return out;
     case 'split':
       out.traverse = 'split';
       return out;

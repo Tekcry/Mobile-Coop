@@ -96,6 +96,12 @@ Design authority: docs/design-bible.md (Section 5.7)
   `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
 - `GameState.difficultyDef`.
 
+## Player cover reference (locomotion step 11)
+- `PlayerRef.cover` / `coverT` are fed again (lost with snap cover in step 05): the local player's back-to-wall segment
+  (`WallCore.spot`, a `CoverSpot`) and seconds on it; the host sets each client's from its `wall` MoveState
+  (`RemotePlayer.accept`). `EnemyManager.assignFlanker` picks a flanker once a player has held cover > 4 s, and
+  `Enemy.tactics` lobs a grenade to flush one held > 6 s (e2e-wall checks both on Warehouse).
+
 ## AI and modes
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only
   for cover moves, and are constrained to nav cells (no physics character controller per enemy).

@@ -142,6 +142,8 @@ export const SETTLE_REBOUND_S = 0.25;
 /** :1257 - breathing filter for the second-excursion check: moving average over this (s), subtracted. */
 export const BREATH_FILTER_S = 1.0;
 export const IDLE_BREATH = 0.01;
+/** (locomotion step 11) Back to a wall: the back and shoulder blades within this of the face, and no deeper behind it (m). */
+export const WALL_GAP = 0.03;
 
 /** :1271 - D5 root overshoot 0: speed <= target x 1.01, no backward step after a stop (1 mm). */
 export const OVERSHOOT_RATIO = 1.01;

@@ -63,6 +63,17 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
+  // (locomotion step 11) back to a wall: the segment (level order), metres along it, WALL_SUB; `ph` the settle
+  const wc = g.wallCore;
+  if (wc && wc.active) {
+    out.m = 'wall';
+    out.a = wc.seg;
+    out.s = wc.s;
+    out.sub = wc.sub();
+    out.ph = wc.phase === 'entering' ? Math.min(1, wc.t / wc.enterDur) : 1;
+    delete out.c;
+    return out;
+  }
   if (tr.attached) {
     const m = tr.attach;
     const ac = tr.attachCtl;
