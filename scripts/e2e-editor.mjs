@@ -39,6 +39,25 @@ await page.addInitScript(() => {
   };
   navigator.getGamepads = () => [pad.connected ? pad : null, null, null, null];
 });
+// The warm walk-test game (a same-origin iframe, hidden and paused between walks) shares the editor's main thread; under
+// software GL its render loop made every editor frame wait for a game frame (1-8 s per frames() call by ON9, so the suite
+// ran past 35 minutes). Test harness only: while its frame is hidden the game's requestAnimationFrame callbacks wait; the
+// editor makes the frame visible before it posts the next walk, so the game runs again before it is needed.
+await page.addInitScript(() => {
+  if (window.top === window) return;
+  const raf = window.requestAnimationFrame.bind(window);
+  const caf = window.cancelAnimationFrame.bind(window);
+  const live = new Map();
+  let next = 1;
+  const hidden = () => window.frameElement?.style.visibility === 'hidden';
+  window.requestAnimationFrame = (cb) => {
+    const id = next++;
+    const tick = (t) => { if (!live.has(id)) return; if (hidden()) live.set(id, raf(tick)); else { live.delete(id); cb(t); } };
+    live.set(id, raf(tick));
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => { const r = live.get(id); if (r !== undefined) { caf(r); live.delete(id); } };
+});
 
 
 const E = (f, a) => page.evaluate(f, a);
@@ -1345,8 +1364,10 @@ try {
     const h0 = await E(() => window.__editor.model.history.length);
     await holdRoof(BTN.RIGHT, g.id, 'type');
     await page.waitForFunction((id) => window.__editor.model.get('roofs', id)?.type === 'hip', g.id, { timeout: 5000 }).catch(() => {});
+    // (the card redraws a frame after the data changes: wait for its lit row before reading it)
+    await page.waitForFunction(() => document.querySelector('#selCard .crow.on')?.dataset.row === 'type', null, { timeout: 5000 }).catch(() => {});
     const hip = await E((id) => window.__editor.model.get('roofs', id), g.id);
-    assert(hip.type === 'hip' && hip.pitch === 25 && (await litRow()) === 'type', `ON10: D-pad right on the Type row: gable to ${hip.type}, pitch ${hip.pitch} kept`);
+    assert(hip.type === 'hip' && hip.pitch === 25 && (await litRow()) === 'type', `ON10: D-pad right on the Type row: gable to ${hip.type}, pitch ${hip.pitch} kept (lit row ${await litRow()})`);
     assert(await toRowHeld('overhang'), 'ON10: D-pad down reaches the Overhang row');
     for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('roofs', id).overhang, g.id)) < 0.6 - 1e-6; i++) await holdRoof(BTN.RIGHT, g.id, 'overhang');
     await page.waitForFunction(() => /0\.6 m/.test(document.querySelector('#selCard .crow.on b')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
