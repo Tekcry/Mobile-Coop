@@ -54,6 +54,16 @@ export interface CampusFile {
   circuits?: CircuitRecord[];
   /** ON13: crawl spaces (kestrelCeilings.ts). */
   crawls?: CrawlRecord[];
+  /** ON14: door name plates and signs as thin panels, worked out by the editor for its walk test (src/editor/signs.ts `walkPanels`); never in the file. */
+  panels?: SignPanel[];
+}
+
+/** ON14: a name plate or sign: a thin panel (centre, size [w, h, thickness], yaw radians, colour); it never collides. */
+export interface SignPanel {
+  c: [number, number, number];
+  s: [number, number, number];
+  yaw: number;
+  colour: string;
 }
 
 export interface CampusObject {
@@ -99,6 +109,8 @@ export interface CampusBuild {
   lights: LightInit[];
   /** ON13: room ceilings (grid tiles light but do not collide) and crawl spaces' boards. */
   ceilings: CeilBox[];
+  /** ON14: plates and signs (thin, non-colliding, no ledge). */
+  panels: SignPanel[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -181,7 +193,7 @@ export function campusToBuild(f: CampusFile): CampusBuild {
     };
     ceilings.push(...crawlBoxes(c, floor(c.level), [side(0), side(c.ends.length - 1)]));
   }
-  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces, lights: campusLights(f), ceilings };
+  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces, lights: campusLights(f), ceilings, panels: f.panels ?? [] };
 }
 
 /**

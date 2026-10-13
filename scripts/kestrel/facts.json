@@ -113,6 +113,16 @@
     "widthMax": { "value": 1.2, "src": "ON13 brief decision 3; F32 crouch width" },
     "widthDefault": { "value": 1.2, "src": "F32 crouch width (standards-check.mjs: a crawl space's clear short side at least 1.2)" }
   },
+  "sign": {
+    "plateCentre": { "value": 1.5, "src": "ON14 brief decision 5: a door name plate at 1.5 m" },
+    "plateGap": { "value": 0.1, "src": "ON14 editor default: a name plate sits this far beyond the door's latch edge, on the wall" },
+    "wallCentre": { "value": 1.8, "src": "editor default: typical (a wall-mounted safety or direction sign at about eye level and just above, 1.5-2.0 m)" },
+    "hangGap": { "value": 0.1, "src": "ON14 editor default: a hung sign's top this far under the ceiling (its chains)" },
+    "hangBottomMin": { "value": 2.1, "src": "editor default: a hung sign clears a 2.1 m door head (facts door.singleHeight is the door's own)" },
+    "wallReach": { "value": 0.8, "src": "ON14 editor default: a sign backs onto a wall face within this distance of the dot (as light.wallReach)" },
+    "panelThick": { "value": 0.02, "src": "src/world/detailPass.ts:94: the game's own signs are 0.02 m panels (under lightShapes CANON_MIN_THICK, so never a light shape)" },
+    "arrayMax": { "value": 20, "src": "ON14 editor default: at most this many copies in one Array" }
+  },
   "cover": {
     "lowHeight": { "value": 1.2, "src": "scale-sheet s3" },
     "curbMin": { "value": 0.15, "src": "scale-sheet s3" },

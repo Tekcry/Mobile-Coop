@@ -87,6 +87,13 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
     b.box(q.c[0], q.c[1], q.c[2], q.s[0], q.s[1], q.s[2], q.colour, q.yaw, 0, q.collide);
     if (q.noLedge) b.mark(at, { noLedge: true });
   }
+  // ON14: name plates and signs as thin panels in their colour (the game draws no text on a panel; detailPass.ts:94 signs are
+  // plain boxes too); they never collide, give no ledge, and at 0.02 m are under the light bake's CANON_MIN_THICK as the detail pass's signs
+  for (const q of c.panels) {
+    const at = b.boxes.length;
+    b.box(q.c[0], q.c[1], q.c[2], q.s[0], q.s[1], q.s[2], q.colour, q.yaw, 0, false);
+    b.mark(at, { noLedge: true });
+  }
   // ON6: lamps through the same path a map's lights take (LevelBuilder.light), so the light meter reads them (bible 5.1)
   for (const l of c.lights) b.light(l);
   // ON5: floors marked by finish (footstep loudness and sound, src/world/surfaces.ts)
