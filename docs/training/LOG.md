@@ -109,3 +109,4 @@ finds no W2 lip; the 'B3-RC' debug point moved to local x 8.5. Tests 23 -> 26: t
   fence is locked); the duct and every fence side are locked until the isolator; CR's door is bolted from inside.
 - A4's floor at the outlet platform (y 10.4): T4 builds B5's entry landing to meet A4's far door.
 
+T3 checked: PASS after 1 fix round (408f27d).

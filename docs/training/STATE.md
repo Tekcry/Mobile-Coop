@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T3 Shaft and Cistern (Block B) - implemented, pending check
+Current step: T4 Plant (Block B) - not started
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -20,7 +20,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | A | T1c tutorial HUD, drills, results, bay select | done | marker fix commit |
 | A | Block A end | done (GPU items pending PC run) | |
 | B | T2 Upper | done | ba09b54 |
-| B | T3 Shaft and Cistern | implemented, pending check (human-ladder vs W2 conflict in REVIEW-NOTES) | |
+| B | T3 Shaft and Cistern | done | 408f27d |
 | B | T4 Plant | not started | |
 | B | T5 Deep | not started | |
 | B | Block B end, then PAUSE for Michael's walk (D27) | not started | |
@@ -44,10 +44,10 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A29 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A35 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-Start T3: implementer subagent with docs/training/steps/T3-shaft-cistern.md.
+Start T4: implementer subagent with docs/training/steps/T4-plant.md.
