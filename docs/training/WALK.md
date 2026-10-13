@@ -16,9 +16,9 @@ npm run dev
 `npm run dev` prints the address (normally `http://localhost:5173/`).
 
 - Two players, two tabs (pad first, then keyboard and mouse): open
-  `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1` in one tab, wait 2 seconds, then open the same URL in
+  `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min` in one tab, wait 2 seconds, then open the same URL in
   a second tab. The first tab hosts, the second joins, both start in B1.
-- Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1` (dev only: one player can cycle airlocks and
+- Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min` (dev only: one player can cycle airlocks and
   work both halves of a pair gate; drills still need their real moves).
 - F3 opens the debug overlay. Its "Teleport" button lists the Fallow points: B1-B9, A1-A8, L9, S6 and B3-G3, B3-RC,
   B3-rope, B3-floor, B5-SR, B6-CR, B7-roof, B8-RT, B9-B2.

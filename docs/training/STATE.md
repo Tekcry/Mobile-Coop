@@ -51,11 +51,11 @@ A1-A43 (DECISIONS.md; A6 revised per D21, A15 resolved)
    The run is paused for your walk of the geometry (D27).
 2. On your PC: `cd C:\NightShift\Mobile-Coop`, `git fetch origin`, `git checkout feature/training-bunker`, `git pull`,
    `npm ci`, `npm run dev`.
-3. Two tabs, one after the other (2 s apart): `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1`.
-   Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1`. F3 > Teleport lists B1-B9, A1-A8, L9, S6
+3. Two tabs, one after the other (2 s apart): `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min`.
+   Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min`. F3 > Teleport lists B1-B9, A1-A8, L9, S6
    and the extra points (B3-RC, B3-G3, B3-rope ...).
 4. Per bay, about 5 minutes: the checklist table in docs/training/WALK.md. Start with the top 5 risks at the end of
-   docs/training/BLOCK-B-REVIEW.md. `&fullbright=1` lights it like day for the walk (the real light plan comes in T6).
+   docs/training/BLOCK-B-REVIEW.md. `&fullbright=1&gfx=min` lights it like day for the walk (the real light plan comes in T6).
 5. Notes on the review page https://claude.ai/artifact/JMcAnistZtmPb6g3eyLMBs (saved for the run), or in docs/training/WALK-NOTES.md, one line each, e.g. `B5 | B5-SR | breaker escape too long | move the ladder`.
    Then: `git add docs/training/WALK-NOTES.md`, `git commit -m "training: walk notes"`,
    `git push origin feature/training-bunker`.
