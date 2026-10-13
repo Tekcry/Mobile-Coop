@@ -183,3 +183,11 @@ T4 checked: PASS after 1 fix round (1094b71: nav seeds per bay, mains lamp not d
 
 T5 checked: PASS after 1 fix round (d6cbef8). In-game nav: every B7-B9 storey reaches its floor within findPath's
 20000 limit (bridge 17954); guards' 3000 limit carried to T7b.
+
+## Block B end (2026-10-13, cloud)
+Full `npm run e2e` (E2E_JOBS=2, 1968 s wall): KNOWN FLAKY e2e-darkness, e2e-netmove, e2e-weapons-carry; e2e-course
+(host lock sync 821 ms vs 500 under load), e2e-mouse, e2e-stealth, e2e-feedback failed on timing under load and passed
+serially (217 s, 15 s, 38 s, 21 s); e2e-kestrel and e2e-camera-bounds level U are the kestrel-owned pre-existing
+failures. Perf trend (software GL): sim p95 3.5 ms (T0 3.9), anim 0.072 ms/char (T0 0.105), alloc 11163 KB/s (T0
+11163), draws 44, tris 0.14 M: no rise. Self-review: docs/training/BLOCK-B-REVIEW.md. GPU rows: pending PC run.
+PAUSED for Michael's walk (D27): docs/training/WALK.md.
