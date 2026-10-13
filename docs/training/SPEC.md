@@ -45,21 +45,19 @@ device the game has or plans. It is a vertical slice of the fun and a test map o
 2. Before referencing any file, type, function, field or constant, confirm it exists with grep and note where. If
    something named here does not exist or differs, log it and use the nearest existing equivalent only if it changes no
    route, gate or guard job; else log a "Future" item. Never invent a substitute system.
-3. One session at a time (PLAN section 4). At the start, re-read this spec, `docs/training/progress.md` and BAYS.md, then
-   print a short plan (files and functions, one line each). Do only that session.
-4. End of each session: run the listed checks, report results honestly (never claim a check passed unless it ran in this
-   session; paste the summary line), list what changed, update the progress log, commit and push, then run the next
-   session's prompt yourself only if PLAN says it chains; otherwise STOP. There is no Michael gate between sessions (E8):
-   an Opus self-review against BAYS.md and level-design 16.10 replaces it, logged in the progress log.
+3. The run follows docs/training/BRIEF.md and RULES.md: one step at a time from STATE.md, each step's file in
+   `steps/`, an implementer subagent and a fresh checker subagent per step.
+4. End of each step: the checker's PASS with the checks it re-ran (summary lines pasted), path-limited commit and push,
+   LOG.md and STATE.md updated. There is no Michael gate between steps (E8): the checker and an Opus self-review at each
+   block end replace it.
 5. This spec is saved at `docs/training/SPEC.md`. Change it only through "Spec change requests" in the progress log,
    applied by the next Opus session with the reason; never silently.
-6. Progress log: `docs/training/progress.md` (session, status, files changed, decisions, tests with results, open
-   issues, spec change requests, pending PC runs).
+6. Progress: `docs/training/STATE.md` (where the run is) and `docs/training/LOG.md` (one entry per step, spec change
+   requests); GPU results in PC-PASS.md.
 7. BAYS.md and FEATURES.md are the build contract. Deviations go under "Decisions" with the reason.
 8. Update `CLAUDE.md` (a short Fallow section) and `CHANGELOG.md` at the end of each session that adds playable content.
 9. Hyphens, never em dashes. Follow `CLAUDE.md` Conventions and Hard rules.
-10. Checks: `npm run check`; e2e after a build (`npm run e2e -- <suite>`, `npm run e2e:quick`). GPU, visual and
-    performance checks are "pending PC run" from cloud sessions (CLAUDE.md).
+10. Checks: RULES.md "Checks" and "GPU on this PC" (the run is local: GPU items run at block ends).
 
 ## Building brief (fill)
 - Building type and era: a 1950s regional civil-defence bunker cut into a hill (concrete box structure in rock, three
@@ -149,7 +147,7 @@ flagged for his confirmation at the final review.
 | E9 | Level-design 13 (SVG plans before blockout) | BAYS.md text sketches and tables are the plans; `scripts/plan-svg.mjs` renders the built level in T2-T5 | D12 |
 | E10 | Level-design 15 ("every guard is alive at the start") and 12 (`SQUAD_CAP` nearest first) | Each bay's squad spawns when its entry airlock cycles; at most 7 alive | A linear course of 21 guards; the course framework |
 
-## Phases (fixed shape; sessions in PLAN.md)
+## Phases (fixed shape; steps in PLAN.md section 4 and steps/)
 - **T0** setup and investigation: progress log, confirm every fact by grep, answer the engine questions. No gameplay.
 - **T1** course framework (system).
 - **T2-T5** build: Upper (B1, A1, B2, A2), Plant shaft and reservoir (B3, A3, B4, A4), Plant (B5, A5, B6, S6, A6), Deep

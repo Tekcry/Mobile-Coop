@@ -1,0 +1,80 @@
+# Training run - rules (branch feature/training-bunker)
+
+Condensed from BRIEF.md. The brief and DECISIONS.md win if they differ.
+
+## Resume
+1. Read CLAUDE.md, this file, then STATE.md. Read BRIEF.md after any resume or compaction.
+2. Read only the current step file (`steps/<id>.md`) and the line ranges it lists. Never read docs/archive/.
+3. Ignore the `feature/kestrel` line at the top of CLAUDE.md and its "Every session" steps 2-4.
+
+## Authority
+DECISIONS.md > docs/design-bible.md > SPEC.md (with exceptions E1-E10) > BAYS.md > docs/level-design.md > other docs > code.
+
+## Context hygiene (orchestrator)
+- Your context holds only STATE.md, the current step file and subagent conclusions (their returned summaries). Never
+  read source, diffs or logs yourself beyond `git status`, `git log -1` and a check's summary line.
+- After a compaction, re-read STATE.md before acting.
+- Subagent prompts are the step file plus the BRIEF section 4 line; never paste large text into them.
+- Subagents return at most about 40 lines: files changed, check summary lines, undone items, assumptions.
+
+## Agents
+- Every subagent uses opus. Only one code-changing agent at a time. Read-only Explore agents may run in parallel (up to
+  4) when a step says so.
+- Budget about 60 tool calls per subagent. Over budget: stop and return what is done and what is left; the orchestrator
+  starts a fresh implementer with the remainder.
+- The checker is always a fresh agent that did not implement.
+
+## Hard rules (CLAUDE.md holds)
+- Babylon only through src/core/babylon.ts; no hot-path allocation; hyp2 / hyp3, never Math.hypot.
+- Gameplay never reads graphics state; light parity holds (the light field is the one source).
+- Single player never imports src/net statically; co-op code stays behind the dynamic import and flags.coop.
+- Saves only through src/save, never localStorage. A save-shape change bumps SAVE_VERSION with a migration and a test.
+- No Splinter Cell IP, no real brands, no voice: text radio and subtitles only (story rules: British spelling, 90
+  characters per radio message, dry humour, none while guards are alert).
+- Never edit src/editor/**, src/world/maps/kestrel*, src/security/**, docs/kestrel/**, docs/locomotion/**. Use
+  `MapLayout.security` data for the S1 cameras; do not change the security code.
+- Map files: originality rule (SPEC). Never open other map builders (`src/world/maps/*.ts` other than index, listed,
+  storey, stairs, mapDef and the bunker files).
+- Tuning tables (src/config/movement.ts, enemies, weapons, PERCEPTION, LIGHT) never change for this map: change the
+  geometry. The course framework's own numbers go in src/config/course.ts.
+- No secrets, tokens or network dependencies in the game.
+
+## Checks
+- Every step: `npm run check` (lint + tests + build) and the e2e suites the step file names. Steps touching src/net also
+  run `e2e-coop` and `e2e-netmove`. The checker also runs `npm run e2e:quick`.
+- Shell commands get a timeout (`timeout 900 npm run check`, `timeout 1500 npm run e2e:quick`). Run the full
+  `npm run e2e` with run_in_background and wait for its notification; never poll with sleep loops.
+- Never run `npm run dev`, `npm run editor`, preview servers or watch modes. Unit tests: `npm test` (single run).
+- Read logs with tail -40 or grep; read source by grep, then line ranges.
+- E2E jobs: `E2E_JOBS=4` on this PC; a timing failure that passes on a serial rerun is logged as flaky in
+  REVIEW-NOTES.md, not fixed. Known-flaky suites (docs/backlog.md) print as KNOWN FLAKY.
+- Pre-existing failures need no proof: anything failing identically on `origin/feature/kestrel` (e2e-editor,
+  e2e-kestrel, e2e-camera-bounds level U were kestrel-owned on 2026-10-13). Log them in REVIEW-NOTES.md once.
+- The same error twice with no progress: stop that line of work, log it, move on.
+
+## GPU on this PC
+- This run is local: GPU checks may run here with `E2E_GPU=1`, at block ends only (never inside a step), from the
+  items in PC-PASS.md. Record each result (numbers, pass / fail against its limit, the screenshot path under
+  `test-results/training/`, never committed) in PC-PASS.md.
+- Visual judgement (does it look right) is Michael's: the run records the screenshots and the item stays "for Michael".
+- Perf budgets with `E2E_GPU=1 node scripts/perf.mjs --desktop --budget` are real claims on this PC; software-GL numbers
+  are trend only.
+- Perf trend: `node scripts/perf.mjs` (no --budget) at T0 and each block end; a rise over 25% in sim or animation time
+  against this run's T0 baseline: fix before moving on.
+
+## Choices and limits
+- A choice Michael would make: pick the option that best fits DECISIONS, the bible and BAYS; log it in DECISIONS.md as
+  "A<n> ASSUMED - for review" with the alternatives; carry on.
+- A BAYS change that only moves a number within its window: the implementer makes it and logs it. A change to a route,
+  gate or guard job: log it under "Spec change requests" in LOG.md with the reason and apply it (D12: no approval
+  needed), and list it in REVIEW-NOTES.md.
+- Blocked after 3 fix rounds: evidence in STATE.md under Blocked; move to the next independent step; retry once at
+  the block end.
+- Scope guard: a step that needs more than twice its planned work stops; the rest goes to REVIEW-NOTES.md.
+- Protocol version: T1b bumps `PROTOCOL_VERSION` once. When a later merge brings another bump, take the higher value
+  plus one and log it.
+
+## Commits
+- Path-limited commits (`git commit -- <paths>`), never `git add -A`. Message `training TN: <summary>`, ending with the
+  attribution lines from the session's system reminder. Push after every commit: `git push -u origin
+  feature/training-bunker` (retry network failures up to 4 times: 2, 4, 8, 16 s).

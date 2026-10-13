@@ -70,32 +70,35 @@ A switch-on session merges the feature in (section 1), flips the element's cours
 | SW-P5 | Phase 5 | B4 new team moves; Sync (B7 pair, B9 keys); clutch save (B9); drag a downed mate and medkit on a mate (B9); typed pings; outlines; team results | e2e-bunker B4, B7, B9 |
 | SW-P6 | Phase 6 / backlog | Throwables (B5, B8); civilian umpire (B7); per-stop facing; knife (B7 dust sheet); airfoil (B8) | e2e-bunker |
 
-## 4. Build order
-Priority (D7): T0-T8 run before Dead Line's P03R; the SW sessions interleave with Dead Line stages as features land.
-Sessions run back to back without Michael's gates (SPEC E8); each ends with an Opus self-review logged in
-`docs/training/progress.md`. "Chain" = the session may start the next one itself when its checks pass.
-| Session | Delivers | Where | Chain |
+## 4. Build order (the local run)
+Priority (D7): the run (Blocks A-D) goes before Dead Line's P03R; the SW sessions interleave with Dead Line stages as
+features land. The run is local on Michael's PC, unattended, orchestrated like the locomotion run: BRIEF.md (start and
+resume), RULES.md (rules), STATE.md (where it is), `steps/` (one file per step). Each step is implemented by one opus
+subagent and checked by a fresh opus subagent (up to 3 fix rounds); the orchestrator keeps only STATE, the step file and
+the agents' summaries in its context.
+| Block | Step | Delivers | Block end |
 | --- | --- | --- | --- |
-| T0 | Progress log; engine questions answered (SPEC); constants re-confirmed; what T1 can reuse; `T0-facts.md` | cloud | stop (T1's prompt may change from its findings) |
-| T1a | Course framework pure logic and tests (`src/game/course/`) | cloud | chain to T1b |
-| T1b | `CourseMode`, NetMode `course`, `course` message, door / anchor locks, `courselab` map, `scripts/e2e-course.mjs` | cloud | stop (Opus review of the framework) |
-| T2 | `bunker.ts` Upper level: B1, A1, B2, A2 geometry and anchors; lips; `plan-svg` render; guard-free section 15 tests | cloud | chain |
-| T3 | B3, A3, B4, A4 (shaft galleries, split gap, ropes, fence, duct; cells and co-op lips) | cloud | chain |
-| T4 | B5, A5, B6, S6, A6 (gensets, trench, gallery; mock site rooms, duct, mezzanine) | cloud | chain |
-| T5 | B7, A7, B8, A8, B9, L9 (cavern and house, range, atrium) | cloud | stop (Opus review against BAYS and 16.10) |
-| T6 | Lights (every BAYS light plan), circuits and switches, ambient zones, surfaces, the light checks (section 15 darkness) | cloud; GPU look pending PC | chain |
-| T7 | Course data (`bunkerCourse.ts`): bays, airlocks, gates in now form, squads and routes from the guard sheets, devices (S1A cameras now), radio lines, objectives | cloud | chain |
-| T8 | `scripts/e2e-bunker.mjs` (two pages `?net=local`: each bay's gate, each airlock, a forced bay restart, the per-player verb log); full `npm run e2e`; perf (software GL numbers only) | cloud | stop |
-| T9 | Dressing that tells the story; readability; `TESTING.md` PC checklist; Future recommendations | cloud; PC items pending | stop: Michael's review |
-| SW-* | Section 3, as features land | cloud | stop each |
-| PC-1 | Michael (and a friend or the bot) plays the course; GPU, perf, look, phone check | PC | - |
+| A Foundations | T0 facts | Baseline, 10 engine answers, reuse list, `T0-facts.md`, CLAUDE.md resume line (3 parallel Explore agents + checker; no code) | |
+| | T1a course logic | `src/game/course/` pure state machine, gates, airlocks, restart, pack / apply; `src/config/course.ts`; tests | |
+| | T1b course mode | `CourseMode`, NetMode `course` (2 players), `course` message with locks and light state, door / anchor locks, `courselab`, `e2e-course` | full e2e, perf trend, GPU baseline |
+| B Geometry | T2 Upper | `bunker.ts`, `bunkerUpper.ts`: B1, A1, B2, A2; `plan-svg.mjs`; map tests | |
+| | T3 Shaft and Cistern | `bunkerShaft.ts`: B3, A3, B4, A4; split gap, ropes, fence, duct, co-op lips | |
+| | T4 Plant | `bunkerPlant.ts`: B5, A5, B6, S6, A6; trench, gallery, mock site rooms, duct, device mount points | |
+| | T5 Deep | `bunkerDeep.ts`: B7, A7, B8, A8, B9, L9; e2e-anchors covers the map; nav order test | full e2e, perf trend, GPU shots per bay |
+| C Life | T6 Light | every light plan, circuits, switches, zones, surfaces; `e2e-bunker` light section | |
+| | T7a Course data | `bunkerCourse.ts`: all gates in now form, S1 cameras, radio lines, objectives, kit | |
+| | T7b Guards | 21 guards in squads per bay, cycles 25-45 s, darkness / noise / body checks | full e2e, perf trend, GPU light look |
+| D Proof | T8 e2e-bunker | the two-page course suite, per-player coverage, perf on the bunker | full e2e, GPU perf budgets |
+| | T9 Finish | dressing, readability, TESTING, REVIEW.md | final checks; stop for Michael |
+| Later | SW-* | section 3, one run each from `steps/SW-template.md` | per run |
 
-## 5. Cloud and PC
-- **Cloud (Claude sessions):** every T and SW session: code, data, unit tests, logic e2e on software GL, docs, commits to
-  `feature/training-bunker`. Every GPU, visual or performance claim is "pending PC run".
-- **PC (Michael):** `E2E_GPU=1` perf budgets on the bunker (desktop and the phone look), the lighting look per bay, the
-  phone check, two-player playtests (with a friend, or with the bot once loco 20 lands), and the final review of the map.
-- **Editor:** not needed for the build (D12). See section 6.
+## 5. Local run and GPU
+- **Where:** Claude Code on Michael's PC, branch `feature/training-bunker`. Start: "Training run: START. Follow
+  docs/training/BRIEF.md." Resume: "Training run: RESUME. Follow docs/training/BRIEF.md."
+- **GPU:** because the run is local, the block ends run the PC-PASS items with `E2E_GPU=1` (perf budgets are real
+  results on this PC). Looks are recorded as screenshots for Michael's eyes (`test-results/training/`, not committed).
+- **Michael:** no input during the run (D12). He reads REVIEW.md at the end, plays the two-player checklist, and judges
+  the screenshots. The editor is not needed (section 6).
 
 ## 6. Editor second-map part (scope only; optional, for a later PC session)
 D12 has Claude build the bunker in code, so the editor is no longer on the critical path. If Michael later wants to tweak
@@ -113,46 +116,6 @@ the bunker by pad, the editor needs:
 Estimate: one Opus session for items 1, 3 and 4, one for item 2, on the PC (the editor is dev-only and needs the dev
 server). Recommendation: skip until Michael asks.
 
-## 7. The first three session prompts
-
-### Prompt 1 - T0 setup and engine facts
-```
-Training bunker T0 - setup and engine facts (cloud, documents only).
-Repo Night Shift. Run `git fetch origin`, then `git checkout feature/training-bunker` and `git pull origin feature/training-bunker`. Commit only to feature/training-bunker. Never commit to or push feature/kestrel, feature/ct-locomotion, ct-movement, dev or master.
-Read CLAUDE.md, then docs/training/SPEC.md, DECISIONS.md, PLAN.md, BAYS.md sections 0 and 13, FEATURES.md (status and check keys). Read large files by section (`grep -n '^#'`, then line ranges). Never read docs/archive/.
-Do:
-1. Create docs/training/progress.md (fields in SPEC rule 6) with this session's entry.
-2. Answer SPEC "Engine questions for T0" 1-10 from the code: for each, the file:line, the value, and what BAYS.md or PLAN.md must change. Use a cheap Vitest probe only where reading cannot settle it; delete the probe afterwards.
-3. Re-confirm every constant in BAYS.md section 13 by grep; list any that moved.
-4. List what the course framework (PLAN section 2) can reuse, one line each with file:line: interactable kinds and holds, Door lock state at run time and whether it reaches clients, light switch and shot-lamp state on clients, anchor disable, NetMode list and capacity, GameMode hooks for all-down and respawn, objectives (ObjectiveChain), TrainingDummy placement height, the barks / radio subtitle path, squad spawning and SQUAD_CAP.
-5. Write docs/training/T0-facts.md (under 200 lines). Apply number-only fixes to BAYS.md and log them as Decisions; anything that changes a route, gate or guard job goes under "Spec change requests" with a proposed fix (Michael does not need to approve: DECISIONS D12; the T1a session applies it).
-6. Rewrite PLAN.md section 7 prompts 2 and 3 if the findings change them.
-No source code changes. No e2e runs. Commit "training T0: engine facts" (docs/training only), push feature/training-bunker, report (bible Appendix B), then STOP.
-```
-
-### Prompt 2 - T1a course framework logic
-```
-Training bunker T1a - course framework, pure logic (cloud).
-Repo Night Shift, branch feature/training-bunker only (fetch, checkout, pull). Never commit to or push feature/kestrel, feature/ct-locomotion, ct-movement, dev or master.
-Read CLAUDE.md, docs/training/SPEC.md (Scope), PLAN.md section 2, BAYS.md sections 0 (airlock rule) and each bay's "Co-op split and gate", docs/training/T0-facts.md, docs/training/progress.md. Apply any open Spec change requests first and log them.
-Build, all Babylon-free with Vitest tests (tests/course.test.ts):
-1. src/game/course/courseDef.ts: types for a course (bays, airlocks, gates, squads, radio lines, element flags now / final, objectives) and validateCourse (unique ids, every gate names existing doors / switches / anchors, every bay has an entry and exit airlock).
-2. src/game/course/courseState.ts: the host state machine: bay status, airlock phases (open, waiting, cycling 4 s, sealed) with the refusals ("Wait for your partner", "Revive first"), checkpoint index, flags, the gate kinds lever, bolt, hold, timedHold, pair (window 1.0 s), egress, mains, flag, anchorLock; door and anchor lock outputs; bay restart (what resets); the per-player verb log.
-3. src/config/course.ts: every number (TUNE) the state uses.
-Tests: each gate kind opens and closes as specified; an airlock never cycles with one player or a downed player; the near door never reopens; restart resets the bay's gates, flags and squad list but not earlier bays; pair refuses at 1.1 s; timedHold closes 6 s after release.
-Checks: `npm run check` (the known tests/kestrelMap.test.ts failure is pre-existing). Update docs/training/progress.md. Commit "training T1a: course framework logic", push, then continue with docs/training/PLAN.md section 7 prompt 3 in this session if the checks pass and context allows; else STOP and report.
-```
-
-### Prompt 3 - T1b course mode, net and test map
-```
-Training bunker T1b - course mode, co-op sync, courselab (cloud).
-Repo Night Shift, branch feature/training-bunker only (fetch, checkout, pull). Never commit to or push feature/kestrel, feature/ct-locomotion, ct-movement, dev or master.
-Read CLAUDE.md (Hard rules: src/net only through dynamic import behind flags.coop), docs/systems/coop.md, docs/training/PLAN.md section 2, T0-facts.md, progress.md, and src/game/course/* from T1a.
-Build:
-1. src/game/modes/courseMode.ts (GameMode): loads a course definition for the map, runs CourseState on the host, wires interactables (existing kinds with labels and holds) to gates, spawns each bay's squad when its entry airlock cycles, restarts the bay when both players are down (respawn both in the entry airlock), shows course radio lines through the existing barks / subtitles path.
-2. Co-op: NetMode 'course' (capacity 2; a third player is refused in the lobby), the `course` message (state, door locks, anchor locks, flags) host -> clients when changed or every 2 s, a parseMessage case and a tests/net.test.ts test; clients mirror door and anchor locks; client interactions go through the existing `use` message.
-3. Door lock state and anchor disable at run time, if T0 found them missing (one hook each).
-4. src/world/maps/courselab.ts (MAPS only, modes []): two small rooms, one airlock between them, and one example of each gate kind; its course data.
-5. scripts/e2e-course.mjs: two pages `?net=local&autostart=courselab&mode=course`: the airlock refuses one player, cycles with both, the near door stays locked; each gate kind works for host and client; a forced both-down restarts the bay. Register it in scripts/run-e2e.mjs as REQUIRED, covering src/game/course and courseMode.
-Checks: `npm run check`, `npm run build`, `npm run e2e:quick` and `npm run e2e -- e2e-course`, plus e2e-coop (it touches src/net). GPU and visual checks: pending PC run. Update progress.md, docs/systems/coop.md (the course message) and CLAUDE.md (one line in the module map). Commit "training T1b: course mode and co-op sync", push, Opus self-review against PLAN section 2 logged in progress.md, report, then STOP.
-```
+## 7. Starting the run
+The earlier cloud prompts are replaced by the run files: BRIEF.md (what the orchestrator does), RULES.md, STATE.md and
+`steps/T0-facts.md` .. `steps/T9-finish.md`. Start with "Training run: START. Follow docs/training/BRIEF.md."
