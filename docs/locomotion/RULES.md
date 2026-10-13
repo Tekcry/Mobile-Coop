@@ -16,6 +16,8 @@ DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 ho
 - D3: First Playable S3a / S3b absorbed. D4: phone budgets and 0.04 ms per character anim (remotes too) hold. D6: one final review.
 - D5: the modern layer (13 items, batches noted). Never motion matching, captured data, root motion driving control, stamina, player ragdoll.
 - D7: full remap (pad, KBM) with conflicts and reset; hold / toggle for aim, crouch, back-to-wall, sprint, grab; custom difficulty sliders (perception speed, aim, alarm tolerance), host's applies in co-op; persisted through src/save.
+- D9: at a back-to-wall edge, lean-out and peek use the open side (left edge: pistol left hand, rifle left shoulder, camera follows), switched inside the 0.2-0.3 s draw / lean via the Inertializer; exposure from the real mirrored pose; WALL_SUB leftHand from the edge side.
+- D10: at a low-wall end (crouched), aim toward the end = crouched lean-out past the end (D9 rules), head below the wall top; mid-wall or stick up / away = rise over the top; crouched peek around the end; networked as a WALL_SUB bit or lean field.
 - D8: every new state / verb / clip has a MoveState mode and remotes pose from it. Committed moves are host-approved with a shared start time. Health, medkits, drawn state and weapon are host-authoritative. Vision, camera, rumble, remap, hold / toggle are local only. D5 runs on remotes from MoveState + velocity, no extra bandwidth. Capsule separation, shoulder turn, team-mate look-at, muzzle discipline, two-player wall stacking, team moves get D5 + contact IK. Each new state adds an e2e-netmove case. Rubber-banding or pose error over the limits fails the step.
 
 ## Hard rules (CLAUDE.md holds)

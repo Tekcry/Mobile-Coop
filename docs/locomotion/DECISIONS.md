@@ -82,6 +82,22 @@ Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of t
   - rubber-banding, or pose error above the e2e-netmove limits, fails the step
 
 
+## Michael's decisions D9-D10 (2026-10-13, added mid-run), verbatim
+
+#### D9 Open-side weapon at edges:
+- At a back-to-wall edge, lean-out aim and peek always use the open side. At a left edge the pistol goes to the left hand (mirrored two-handed grip) and the rifle to the left shoulder; the camera shoulder follows. Right edges are unchanged.
+- The switch happens inside the draw or lean-out step (0.2-0.3 s), blended with the Inertializer, never a pop. Mid-wall aim stays on the normal side.
+- Body exposure (perception and the light meter) uses the real mirrored pose, so the open-side lean exposes less of the body.
+- Network: WALL_SUB leftHand is set from the edge side; remotes pose from it.
+- Checks: harness grips < 2 cm and no weapon through the wall on left and right edges for the pistol and the rifle; an exposure test proving the left-edge lean exposes no more body than the right-edge lean; anim-sheet items (PROVISIONAL in the cloud) for left and right edges with both weapons, local and remote.
+
+#### D10 Aim around low cover:
+- At the end of a low wall (crouched), aim with the stick or look toward the end: the body stays crouched and leans out past the end (same rules as the high-wall lean-out, including D9). Aim mid-wall, or with the stick up or away from the end: rise over the top as planned.
+- Crouched peek around the end works like the high-wall peek.
+- Exposure feeds perception and the light meter from the real pose, so leaning around the side keeps the head below the top of the wall.
+- Network: a new WALL_SUB bit or a field on the existing lean, posed on remotes.
+- Checks: e2e-wall cases for side lean and over-the-top on a low wall, both edges, pistol and rifle; an e2e-netmove case under 10 cm; a test that the side lean's head height stays below the wall top; anim-sheet items (PROVISIONAL).
+
 ## ASSUMED - for review
 
 Choices made during the unattended run. Each lists the option taken and the alternatives.
