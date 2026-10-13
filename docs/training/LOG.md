@@ -36,3 +36,9 @@ movement.ts:203 -> 204. Step files: T1b, T3, T4, T6, T7b line refs and numbers u
 - Course framework (T1b): the host does not pass which player used an interactable; bolt and pair gates need the
   RemotePlayer passed to onUse (small coopHost change). S1 cameras need the course mode to hook `security.onEvent`.
   Radio needs its own HUD channel (named speaker, shown with subtitles off). Lights and door locks need sync (new).
+
+## T1a course framework logic (2026-10-13, cloud) - 5e3cb1c, f2cbcff, 5e81e9f
+src/config/course.ts, src/game/course/courseDef.ts (types, 10 gate kinds, validateCourse), courseState.ts (airlock
+phases, gates, drills gate the airlock, startAt, restart keeps drills, pack / apply), tests/course.test.ts (1114 tests
+total). Check: 2 fix rounds (solo flag reduced to doubling ticks; allocation-free queries; external flags; cached
+airlock refusal). Assumptions A1-A10. Note for T1b: hasFlag / hasFlagFor build strings: do not call per frame.

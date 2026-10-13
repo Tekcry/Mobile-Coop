@@ -1,8 +1,8 @@
 # Training run - state
 
-Current step: T1a course logic (Block A) - not started
+Current step: T1b course mode and sync (Block A) - not started
 Where the last step ran: cloud
-Last commit: 6300300 (design docs) + the run files commit
+Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
 
 ## Baseline (filled by T0)
@@ -15,7 +15,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | Block | Step | Status | Commit |
 | --- | --- | --- | --- |
 | A | T0 facts | done | (this commit) |
-| A | T1a course logic | not started | |
+| A | T1a course logic | done | 5e81e9f |
 | A | T1b course mode and sync | not started | |
 | A | T1c tutorial HUD, drills, results, bay select | not started | |
 | A | Block A end | not started | |
@@ -44,10 +44,10 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md)
 
 ## Open assumptions
-(none yet; DECISIONS.md A1 onward)
+A1-A10 (DECISIONS.md, T1a)
 
 ## Next for Michael
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-Start T1a: implementer subagent with docs/training/steps/T1a-course-logic.md.
+Start T1b: implementer subagent with docs/training/steps/T1b-course-mode.md.
