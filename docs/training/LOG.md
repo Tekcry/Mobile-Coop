@@ -42,3 +42,10 @@ src/config/course.ts, src/game/course/courseDef.ts (types, 10 gate kinds, valida
 phases, gates, drills gate the airlock, startAt, restart keeps drills, pack / apply), tests/course.test.ts (1114 tests
 total). Check: 2 fix rounds (solo flag reduced to doubling ticks; allocation-free queries; external flags; cached
 airlock refusal). Assumptions A1-A10. Note for T1b: hasFlag / hasFlagFor build strings: do not call per frame.
+
+## T1b course mode, co-op sync, courselab (2026-10-13, cloud) - d4c00ac, fd9d25a, c81124a
+CourseMode (host state, gate devices, run-time door / anchor locks, squads per bay, restart at the checkpoint, LANTERN
+radio held while alerted, verb log, `window.__course`); net mode 'course' (2 players), `course` and `ctick` messages,
+PROTOCOL_VERSION 2 -> 3; light state synced to clients; friendly fire with co-op rules (D38); courselab debug map;
+e2e-course (REQUIRED). Dev solo flag per A6 (D21). Assumptions A11-A18 (A15 resolved). Check: 1 fix round (switch
+sync on restart, cached remote list, e2e waits). e2e-netmove failed as KNOWN FLAKY in 2-job runs, passed serially.
