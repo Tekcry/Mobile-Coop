@@ -199,6 +199,18 @@
     "fenceHeight": { "value": 2.4, "src": "editor default: typical product (a security chain-link fence, 2.4 m)" },
     "fenceRattle": { "value": 4, "src": "F14 (src/config/movement.ts FENCE.rattle; tests/editor/climb.test.ts keeps them equal)" }
   },
+  "guard": {
+    "navCell": { "value": 0.5, "src": "src/ai/navBuild.ts:72 (the AI nav grid cell, cell: 0.5); ON8 legs are searched on the same cell" },
+    "agentRadius": { "value": 0.32, "src": "src/ai/navBuild.ts:73 (agentRadius: 0.32, the guard's footprint the nav grid keeps clear)" },
+    "stepHeight": { "value": 0.45, "src": "src/ai/navBuild.ts:74 (stepHeight: 0.45): an object lower than this does not block a guard" },
+    "walk": { "value": { "grunt": 0.9, "runner": 1.3, "heavy": 0.75, "sniper": 0.85, "enforcer": 0.8, "dog": 1.1, "droneOp": 0.85, "officer": 0.85 }, "src": "F20 (src/config/enemies.json walkSpeed; tests/editor/mission.test.ts keeps them equal); a looped patrol walks at walkSpeed (src/ai/enemy.ts:988, a loop route's pace is 1)" },
+    "waitStep": { "value": 1, "src": "ON8 brief decision 2: a stop's wait steps 1 s, from 0" },
+    "faceStep": { "value": 45, "src": "ON8 editor: RB turns a stop's facing 45 degrees (the right stick aims it freely)" },
+    "stopPick": { "value": 0.75, "src": "ON8 editor: A within this of the first stop closes the loop; picks a stop" },
+    "connectorReach": { "value": 3, "src": "ON8 editor: a stair or ladder joins a leg at the walkable cell nearest it within this" },
+    "maxSpawns": { "value": 4, "src": "schema.md section 3 spawns (1-4 players; co-op is 2-4)" },
+    "previewRate": { "value": 1, "src": "ON8 brief decision 6: the patrol preview walks at the guard's own speed (real time)" }
+  },
   "render": {
     "pxPerM": { "value": 10, "src": "P03 prompt step 3" },
     "margin": { "value": 40, "src": "P03 prompt step 3" },
