@@ -46,3 +46,8 @@ Implement (subagent, no commit) -> check (fresh subagent: diff, re-run checks, a
 
 ## ASSUMED decisions from step files
 A6-A32 are already logged in DECISIONS.md. Do not re-log them; a new assumption takes the next free number after the highest in DECISIONS.md.
+
+## Speed (user instruction, 2026-10-13, overrides the step loop in BRIEF section 6 where they differ)
+- Implementers run lint, unit tests, build and only the e2e suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net). The checker runs the full `npm run e2e:quick`.
+- Small Block A steps are batched: 02-04 run as one implement-and-check cycle (one commit per step is not required; the commit names every step it covers).
+- This VM has 4 cores, so run-e2e defaults to 1 job. Run e2e with `E2E_JOBS=2`; a timing failure that passes on a serial rerun is logged as flaky, not fixed.
