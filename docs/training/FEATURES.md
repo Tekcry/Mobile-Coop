@@ -1,0 +1,245 @@
+# Fallow training bunker - feature matrix
+
+One row per player-facing feature or verb in the repo and in the plans. Every row is either placed in a bay or listed
+as out of scope with a reason (section 9). Bays: B1-B9 and the airlocks A1-A8 (BAYS.md). "Who": both players, or the
+role and where the other player gets it (DECISIONS C3).
+
+**Status key.** `exists` = on this branch (feature/kestrel base) today. `loco NN` = locomotion step NN
+(`origin/feature/ct-locomotion:docs/locomotion/PLAN.md`); steps 01-08 are done there (Blocks A, B), step 09 is next.
+`S1B`, `S2`, `S3`, `S4`, `S5` = security stages (docs/kestrel/progress.md: S1 Part A done, the rest not started).
+`V1`, `V2`, `V3` = toolkit stages (not started). `DR` = door kinds stage. `P1`-`P6` = bible roadmap phases (planned).
+`backlog N` = docs/backlog.md item. `T1` = the course framework (PLAN section 2, new).
+
+**Check key.** `e2e-bunker` = the new course suite (two pages `?net=local`, one step per bay, PLAN T8). `bot` = the full
+course with the dev bot as P2 (loco 20). Other names are existing suites (docs/systems/testing-tools.md).
+**Sync key.** What the row proves crosses the network correctly: the `MoveState` mode the partner poses from, or the
+host-authoritative message.
+
+## 1. Movement
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Speed gears 1-6, gear kept through stances | exists | B1 (both) | `MoveState.g`; `moveSpeedCap` on the host | e2e-move; e2e-bunker B1 gear run on both pages | - |
+| Instant stop / start, stop hold | exists | B1 (both) | remote pose at rest within 10 cm | e2e-move, e2e-anim | - |
+| Crouch / stand / kneel | exists | B1 (both) | `MoveState` stance | e2e-netmove | - |
+| Quick 180 | loco 22 | B1, B2 (both) | remote turn without a slide | anim-audit (remote) | Radio line skips the drill |
+| Momentum carry | loco 26 | B2 (both: vault-mantle chain, jump-pipe chain) | committed move with entry speed (`MoveCommit`) | anim-audit, e2e-bunker B2 | Moves work without carry |
+| Forward roll | exists | B2 (both) | `kind 'roll'` replayed | e2e-move, e2e-netmove roll | - |
+| Manual jump | exists | B2 (both) | jump arc on the remote | e2e-ct | - |
+| Step, vault, mantle | exists | B2 (both) | `traversePath` replay | e2e-move, e2e-clip | - |
+| Drop, lower into a hang, hang-drop | exists | B2 (both) | attach mode `hang` | e2e-traverse | - |
+| Landing bands soft / roll / heavy, landing noise | exists | B2 (both) | host hears the landing (`eventNoise`) | e2e-traverse landing bands | - |
+| Ladder (bottom / top entry, slide) | exists | B2 (both), B4, B8 | attach `ladder`, grips within 10 cm | e2e-anchors, e2e-netmove ladder | - |
+| Drainpipe | exists | B2 (both) | attach `pipeV` | e2e-netmove drainpipe | - |
+| Ledge hang, shimmy, outside corner, gap jump, climb up | exists | B2 (both), B7 bench | attach `ledge` | e2e-traverse, e2e-netmove ledge | - |
+| Horizontal pipe: hands | exists | B2 (both), B3 | attach `pipeH` | e2e-netmove pipe | - |
+| Pipe legs up, inverted, flip drop | exists | B3 (both), B7 water main | `ATTACH_SUB` pipe bits | e2e-ct, e2e-netmove legs up / inverted | - |
+| Split jump (double tap, brace, jump up out of it) | exists | B3 (both) | mode `split` | e2e-ct, e2e-netmove split | - |
+| Wall jump: straight, inside corner | exists | B3 (both), B5 genset roofs, B7 annex | mode `wallJump` | e2e-ct, e2e-ct-warehouse | - |
+| Rappel: speeds, kick out, sideways, kick through a window, unhook | exists | B3 (lead P1), B9 (open to both) | mode `rappel`, rope drawn on the remote | e2e-ct, e2e-netmove rappel | - |
+| Zipline | exists | B3 (second P2), B9 (lead P1) | attach `zipline` | e2e-anchors, e2e-netmove zipline | - |
+| Fence: climb, shimmy, rattle above gear 3, flip over | exists | B3 (both) | mode `fence`; host hears the rattle | e2e-ct fence, e2e-netmove fence | - |
+| Duct crawl; wall grille unscrew vs kick | exists | B3 (both), B6 supply duct | attach `duct`; `Breakables.open` | e2e-traverse duct, e2e-netmove duct | - |
+| Ceiling vent drop and roll | exists | B6 (runner, alternate) | committed drop registered as a landing | e2e-traverse vent drop | - |
+| Windows: open vault vs glazed break | exists | B2 (both), B7 | breakable state (host) | e2e-traverse windows | - |
+| Back-to-wall: enter, slide, leave; two players stacked | loco 11 (V1 lists it too; the locomotion step builds it) | B6 (both), B7 | mode `wall` | e2e-netmove wall, bot stacking | Corridor walls work as plain walls; radio line notes it |
+| Corner peek, lean-out aim, SWAT turn, corner takedown | loco 12 | B6 (both), B7 | `lk` lean kind | e2e-netmove peek / lean | Doorways and corners exist; drill skipped |
+| Open-side weapon at edges; low-wall side lean | loco 12b | B6, B7 sandbags | `WALL_SUB` leftHand | e2e-netmove left-edge lean | - |
+| Door: open quietly, open fast, bash | exists | B6, B7 (both) | `doors` open indices | e2e-tactics, e2e-coop doors | - |
+| Door peek (crack open) | loco 13 | B6 (both), B7 | mode `doorPeek` | e2e-netmove door peek | Doors open normally |
+| Floor settle, camera respects walls | exists | all | local only | e2e-camera-bounds | - |
+| CT camera and collision solver | loco 24 | all (tight: B3 duct, B6 corridor) | local only (never sent, bible C11) | e2e-camera-bounds | Current camera |
+
+## 2. Co-op team moves and co-op systems
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Brace | exists | B4 (P1 then P2), B9 boost gap | mode `brace`; `tmove` / `tstart` | e2e-netmove team, e2e-bunker B4 | - |
+| Boost | exists | B4 C1 (P2 boosted), B9 | mode `boost`, host check of both sides | e2e-netmove phase 5 cases | - |
+| Human ladder | exists | B4 C2 (P1 climbs) | mode `stacked` sub 1 / 2 | e2e-netmove human ladder | - |
+| Split-jump boost | P5 (hook H4) | B4 overflow channel | committed move `cmove` / `cstart` (loco 10) | e2e-bunker B4 (when live) | Element built; radio line skips |
+| Back-to-back climb | P5 (H4) | B4 float shaft | as above | as above | Element built; skipped |
+| Pull-up | P5 (H4) | B4 outlet platform | as above | as above | Fixed plant ladder |
+| Rappel anchor (partner holds the rope) | P5 (H4) | B4 sump | as above | as above | Skipped |
+| Dual takedown | exists | B7 pair (both) | `DUAL_WINDOW` 1.5 s banner relayed | e2e-coop dual takedown | - |
+| Sync (3-2-1 countdown, each acts manually) | P5 | B7 pair, B9 keys (both) | countdown start time from the host | e2e-bunker B7, B9 | T1 "two switches within 1.0 s"; a radio line "together" |
+| Clutch save (team-only marker on a guard detecting a partner) | P5 | B9 sniper (either) | marker relayed to the team only | e2e-bunker B9 | None (radio window rule already erases the sighting) |
+| Downed and revive | exists | B8, B9 (either) | `revive` interactable; `onLocalDeath` | e2e-coop revive | - |
+| Drag a downed team-mate into shadow | P5 (hook H1 at loco 27) | B9 dark ring | host decides who holds the body (bible C11) | e2e-bunker B9 | Revive in place |
+| Medkit on a team-mate | P5 (hook H2 at loco 15) | B9 | host-authoritative counts | e2e-bunker B9 | Self medkit only |
+| Pings (typed: Go, Hold, Target, Light, Here, Danger, Sync) and quick lines | exists (untyped); typed P5 | B1 (both), B2 across the glass, B6 operator to runner | `ping` msg, host rate 0.8 s | e2e-coop pings | Untyped ping |
+| Team-mate soft outline; distinct operators | P5 | all | lobby operator per player | e2e-cosmetics (operator), e2e-coop | Default look |
+| Two-person airlock (cycle, lock behind, checkpoint) | T1 | A1-A8 (both) | host course state; both pages see the doors lock | e2e-bunker every airlock; bot | Required before the build (PLAN 2) |
+| Bay restart when both are down | T1 | every bay | host restarts; clients rebuild the squad | e2e-bunker B5 forced | Required |
+| Team results and highlights | P5 (C18) | end (both) | host report in `end` | e2e-bunker end | Existing results screen |
+| Host leaves: session ends | exists | any | `NetSession` peer leave | e2e-coop host leaving | - |
+| Connection test and network stats | P5 (C19) | lobby (outside the map) | - | - | - |
+
+## 3. Weapons, health and combat
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Holstered unless aiming; draw by aiming; no hip fire | loco 09 | B1, B8 (both) | MoveState drawn bit; weapon in hand host-authoritative | e2e-netmove drawn / holstered | Current carry (raise to fire) |
+| ADS spread tuning | loco 09 | B8 (both) | host `maxHitDamage` validation | e2e-combat | Current spread |
+| Elbow strike (fire while holstered) | loco 10 | B1 pad, B7 (both) | `cmove` committed move; MoveState `strike`; host may deny | e2e-netmove strike | Takedowns only |
+| Pistol, SMG, rifle, shotgun, sniper; curated names | exists; names loco 16 | B8 (both; sniper: lead P2 from the tower, P1 in B9 if wanted) | validated hits (`shot`) | e2e-combat | Current names |
+| Reload, swap | exists | B8 (both) | remote clip events | e2e-combat, e2e-weapons-carry | - |
+| Suppressed vs loud shots (noise) | exists | B8 (both) | host hears `PF.quiet` / `PF.firing` | e2e-tactics | - |
+| Penetration | exists | B8 PW (both) | host ray check | e2e-combat | - |
+| Headshots, split hit volumes | exists | B8 dummies (both) | host `judge` with posed head | e2e-combat | - |
+| Explosive barrels | exists | B8 BR (either) | blast check `validate.ts` | e2e-combat | - |
+| Fire from attached states (split, inverted pipe sidearm) | exists | B3 optional (both) | attach aim band | e2e-ct | - |
+| Aim assist, recoil | exists | B8 | local | e2e-anim | - |
+| Health 100, no regeneration | loco 03 (done on ct-locomotion) | all | `sh` removed from PlayerState | e2e-coop | Current health and shield |
+| Medkits: self, wall medkits | loco 15 | A4, A6, A8, B9 (both) | MoveState `medkit`; host counts | e2e-netmove medkit | No medkits; revive only |
+| Enemy attacks: guards fire, one grenade at a time, flanker, suppression | exists | B8 live fire, B9 (both) | host AI; puppets on clients | e2e-tactics, e2e-combat | - |
+
+## 4. Gadgets and toolkit
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Gadget wheel (slow time solo only) | exists | B8 (both) | none (co-op never slows) | e2e-gadgets | - |
+| Frag grenade | exists | B8 barrels (both) | blast check on the host | e2e-gadgets | - |
+| Sleeping gas | exists | B8 dummies, B9 dog (both) | `gadget` relay, host `remoteEffect` | e2e-coop client gas cloud | - |
+| Flashbang (white-out) | exists | B8 (both) | relay | e2e-gadgets | - |
+| EMP (lights, cameras) | exists | B5, B8 lamp gantry, B9 (both) | relay; light state | e2e-gadgets | - |
+| Noisemaker | exists | B5, B7 skip, B8 (both) | relay; host `hear` | e2e-gadgets | - |
+| Sticky cam (feed, lure ping, gas) | exists | B8 shoot-house, B6 (either) | relay of the gas | e2e-gadgets | - |
+| Proximity mine | exists | B8 gate (either) | host blast | e2e-gadgets | - |
+| Throw an object (bottle, can) | P6 | B5, B8 (both) | thrown object state | e2e-bunker (when live) | Noisemaker covers the lure |
+| Pistol secondary (camera jammer + light disruptor) | V3 | B5 EM1, B6 CAM3, B8 lamp gantry and CAM-R, B9 CAM-P2 (both) | host range / line / charge check; light state; `sec` (S4) | e2e-toolkit, e2e-bunker B8 | Shoot the lamp (destroyed, not timed) |
+| Sticky shocker | V3 | B8 dummy and B8-E, B9 (both) | weapon path; host knock-out | e2e-toolkit | Gas or takedown |
+| Ring airfoil | backlog 23 | B8 lane (both) | weapon path | - | Skipped with a radio line |
+| Knife (lethal takedown, cut tarps) | backlog 24 | B7: a dust sheet over the cavern's north-east recess (cut: a hide spot) | `use` kind `cut` | - | Recess open |
+| Wall hug (toolkit row) | loco 11 | see section 1 | - | - | - |
+| Optic cable | V1 | B6 locker and records doors, B7 house doors (both) | MoveState `optic`; pings from the view | e2e-toolkit | Door peek / open the door |
+| Lockpick (minigame) | V2 | B6 locker 7 (operator P2), B9 key A drawer (lead P1), B9 key B locker (second P2); B6 manager's door (`pin`) | `use` kind `pick`, host minimum time | e2e-toolkit | Locker opens with "Open" |
+| Hacking (minigame; terminal, keypad) | V2 | B6 records PC (runner P1, alternate), B6 exit keypad (alternate) | `use` kind `hack` | e2e-toolkit | Numbered switches / the records PC as a plain terminal |
+| Interrogation | V3 | B7 officer (lead P1) | `use` kind `question`; intel to the team | e2e-toolkit, e2e-bunker B7 | Desk drawer switch |
+| Mission kit (per-mission tools) | V3 | course: the full kit (`?kit=all` equivalent in the course data) | every peer reads the same kit | e2e-toolkit | All tools on |
+
+## 5. Takedowns and grabs
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Takedown from behind | exists | B5, B6, B7 (both) | `td start/done` seizes the host enemy | e2e-takedown, e2e-coop client takedown | - |
+| Front, side (calm only) | exists | B7 (either) | as above | e2e-takedown | - |
+| Corner takedown | exists (from the wall: loco 12) | B6 L-turn on B6-GR, B7 house corner | as above | e2e-takedown | Behind takedown |
+| Over a low obstacle | exists | B7 sandbags | as above | e2e-takedown | - |
+| Drop takedown (from hang / pipe / split / zipline / rappel) | exists | B7 water main on B7-W (second P2) | as above, approach = fall time | e2e-takedown drop | - |
+| Ledge pull (below) | exists | B7 parapet on B7-R (lead P1) | as above | e2e-takedown | - |
+| Window takedown | exists | B7 manager's window on B7-O (lead P1) | as above | e2e-takedown | - |
+| Inverted takedown (pipe) | exists | B7 water main (either) | as above | e2e-takedown | - |
+| Tap = knock out, hold = lethal | exists | B7 | host applies | e2e-takedown | - |
+| Heavy: frontal grab lethal only | exists | B7-H, B9-1 | host archetype rule | e2e-enemies | - |
+| Grab: walk, sidearm, human shield, knock out, kill, shove | exists | B6 (runner P1 walks B6-GM to the iris), B7 (either), B8 | mode `grab` (`tid`); host keeps the seized guard | e2e-takedown, e2e-coop | - |
+| Use a held guard on a scanner (iris) | S2 | B6 IR1 (runner P1) | `use`; host checks enrolled + conscious | e2e-seclab | Iris door is a plain locked door opened by the egress switch |
+| Carry and hide bodies | exists | B7 recesses, lockers, skip (both) | host body list (`snap.bodies`) | e2e-coop kept / hidden bodies | - |
+| Drag bodies | loco 27 | B7 (both) | MoveState `drag`; host decides the holder | e2e-netmove drag | Carry |
+| Card taken on a takedown; clone while grabbing | S2 | B6 B6-GR card B (runner P1) | `sec` cards owner (S4) | e2e-seclab | "Card" pickup switch |
+
+## 6. Vision, light and sound
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Light meter (one light field, light parity) | exists | B1 dark store (both), every guarded bay | host computes `PlayerRef.light` per remote | e2e-darkness, e2e-stealth-ai | - |
+| Night vision (tube, auto-gain, bloom) | exists | B1 store, B3 dark chamber (both) | local only | e2e-darkness | - |
+| Thermal vision | loco 14 | B5 hot gensets, B9 (both) | none sent (unit test: no protocol field) | unit test | Night vision |
+| Electro (EMF) vision | loco 14 | B6 wiring, cameras, readers (both) | none sent | unit test | Night vision |
+| Light switches and circuits | exists | every bay | switch interactables in `items`; light state | e2e-stealth-ai, e2e-coop | - |
+| Shoot out lamps | exists | B2, B5, B7, B8, B9 (both) | host `shotRay`; light state | e2e-stealth-ai | - |
+| Light state synced to clients | FP S7a / bible L10 (planned) | every bay | lamp on / off / destroyed on clients | e2e-coop light case | Clients see their own registry from switch events (existing items) |
+| Fuse box / mains breaker (a guard sent to reset it) | P1 (step parked) | B5 MB (lead P1) | host light groups; reset by a guard | e2e-bunker B5 | Switch on the L1-L3 group + T1 mag lock gate |
+| Maintained emergency lamps (stay on with the mains off) | P1 with the fuse box | B5 EM1-3, every exit sign | light state | e2e-bunker B5 | Unswitched lamps (no group) |
+| PIR motion light | S3 | B5 fuel bay, B6 L-turn, B9 B-2 west | `sec` pirs (S4) | e2e-seclab | Plain lamp, off |
+| Flashlights carried into the dark | exists | B5 (G1, G2), B7, B9 | flashlight pose on puppets | e2e-stealth-ai | - |
+| Doors block light | exists | B6, B7 | door state | e2e-darkness | - |
+| Footstep noise by surface, loud / quiet floors | exists | B1 store, B2 galleries, B5 grating, B6 raised floor, B7 gravel, B9 balconies | host hears client footsteps by `noiseRadius` | e2e-stealth-ai, e2e-tactics | - |
+| Noise muffled by walls | exists | B5, B6 | host `hear` | e2e-tactics | - |
+| Sound meter (noise against the local ambient) | P2 | all | local HUD | - | Existing noise pulse on the tactical strip |
+| Noise masking, ambient zones | P2 | B3 fan, B5 gensets | host ambient level | - | Gensets are plain props |
+| Whistle | P2 | B5, B7 (both) | host `hear` from the client | - | Noisemaker |
+
+## 7. Security
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| CCTV fixed and sweep (detection meter, arcs) | S1 Part A done | B6 CAM1-4, B8 CAM-R, B9 CAM-P1/P2 (both) | camera yaw within 5 deg on clients, arcs (S4) | e2e-seclab | - (built) |
+| Security desk, operator, dispatch, unmanned log | S1B | B6 SD, B9 bridge desk | `sec` panel, barks | e2e-seclab | Cameras without a desk (no live response) |
+| Alarm panel: loop cameras, cameras off, beams off | S1B | B6 PN (operator P2) | `sec` panel flags | e2e-seclab | Course switch that disables cameras (T1) |
+| Desk console view (a player watches the feeds) | planned (PLAN 2 item 3) | B6 (operator P2) | local view of host-sent camera state | e2e-bunker B6 | The lit sign seen from CR |
+| Plant fault (trip cooling) | S1B | B6 CRAC (either) | dispatch on the host | e2e-seclab | Noisemaker lure |
+| Card readers, access levels, keycards | S2 | B6 RD1-4 (both) | door lock state; `sec` readers | e2e-seclab | T1 "card" switches + locked doors |
+| Card clone, revoke | S2 | B6 (runner P1) | `sec` cards | e2e-seclab | - |
+| Mantrap interlock, egress button | S2 | B6 MT (runner P1, then operator P2) | `sec` mantrap phase | e2e-seclab | Two locked doors + egress switch |
+| Iris scanner | S2 | B6 IR1 (runner P1) | as above | e2e-seclab | Egress switch |
+| Infrared beams high / low | S3 | B6 corridor (both), B9 lobby | `sec` beams; beam lines in night vision | e2e-seclab | None (corridor open) |
+| Security co-op sync and controls (`sec`, `secEv`) | S4 | B6, B9 | itself | e2e-seclab 2 and 4 players | Host-only devices |
+| Dormant guards (every guard spawns, at most 12 awake) | S5 | course squads | host spawns | e2e-bunker | T1 spawns each bay's squad at its airlock |
+| Alarm and reinforcements | exists | B9 panel, staff tunnel (either) | host `onAlarm`, reinforce | e2e-stealth-ai, e2e-modes | - |
+
+## 8. Guards (AI)
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Perception: light x stance x motion x exposure | exists | B5-B9 | per-player `PlayerRef`; `PF.spotted` | e2e-stealth-ai | - |
+| Alert states, awareness arcs, LKP ghost, search | exists | B5-B9 | puppet alert levels `al` | e2e-coop Hunter puppet alert levels | - |
+| Radio window, shout, spotter taken first tells nobody | exists | B7, B9 | host | e2e-stealth-ai | - |
+| Radio check | exists | B7 squad | host | e2e-enemies | - |
+| Bodies found; non-lethal bodies revived | exists | B7 (B7-W finds), B9 | host body list | e2e-stealth-ai | - |
+| Lure by lights out; noise investigation | exists | B5, B7, B9 | host | e2e-stealth-ai | - |
+| Doorway check | exists | B6, B7 | host | e2e-clear | - |
+| Patrol loops, posts with glances | exists | B5-B9 | puppet poses | e2e-stealth-ai | - |
+| Per-stop guard facing | P6 (editor data has it) | B5-B9 guard sheets | host | e2e-bunker | Glances only |
+| Multi-level nav (stairs, ladder links) | exists | B7 house, B9 balconies | host | e2e-levels | - |
+| Heavy (plates, frontal lethal only) | exists | B7-H, B9-1 | host | e2e-enemies | - |
+| Enforcer (shield, pushes) | exists | B8-E, B9-4 | host | e2e-enemies | - |
+| Sniper (laser, glint, relocates) | exists | B8-S, B9-3 | laser drawn on clients | e2e-enemies | - |
+| Dog (smell in the dark) | exists | B9-D | host | e2e-enemies | - |
+| Officer (buff, alarm first) | exists | B6-GM, B7-O, B9-O | host | e2e-enemies | - |
+| Guard body language | loco 28 | B5-B9 | guard pose on clients | anim-audit | Current poses |
+| Custom difficulty (host's applies in co-op) | loco 19 | course (host) | clients follow the host's values | e2e-pad / e2e-mouse | Existing tiers |
+| Civilians | P6 | B7 exercise umpire (east door) | host perception | - | Spot left empty |
+
+## 9. Course, mission and interface
+| Feature | Status | Bay (who) | Co-op sync it proves | e2e or bot check | Placeholder if not built |
+| --- | --- | --- | --- | --- | --- |
+| Course mode (co-op, 2 players), course data | T1 | all | host course state message | e2e-bunker | Required (PLAN 2) |
+| Gates: lever -> door, one-side bolt, hold, timed hold, two switches at once, egress, mag lock on mains | T1 | B2, B4, B5, B6, B9 | door lock state on clients | e2e-bunker | Required |
+| Objectives (keys, case, extract) | exists (`ObjectiveChain`) | B9 | `items` sync | e2e-missions | - |
+| Checkpoints, restart from checkpoint | P4 (T1 does the course's own) | airlocks | host | e2e-bunker | T1 |
+| Text radio and subtitles (LANTERN, solo / team variants) | P4 (barks exist) | every bay | radio lines to both | e2e-bunker | Barks path (`RADIO_BARKS`) through T1 |
+| Briefing | P4 | B1 briefing room | - | - | Radio lines |
+| Stealth rating and results | loco 04 stub; P4 | end | host report | e2e-bunker end | Existing results |
+| HUD: gear pips, light meter, arcs, world prompts, subtitles | exists | all | local | e2e-touch, e2e-pad | - |
+| Controls: pad first, mouse and keyboard, basic touch (locomotion D1) | exists; pad table loco 17 | all | local | e2e-pad, e2e-mouse, e2e-touch on B1-B2 | - |
+| Remapping, hold / toggle | loco 18 | course (settings) | local | e2e-pad, e2e-mouse | - |
+| Training dummies | exists | B1 strike pad, B8 lanes | host damage | e2e-combat | - |
+
+## 10. Out of scope (with the reason)
+| Feature | Reason |
+| --- | --- |
+| Snap cover, cover glide, cover-to-cover, blind fire over cover | Removed (bible 6; loco 05, 06). Back-to-wall replaces it. |
+| Mark & Execute | Removed (bible 6; loco 01). |
+| Sonar goggles | Removed (bible 6; loco 02). Thermal and electro replace it. |
+| Ghost / Panther / Assault style tracker and cash | Removed (bible 6; loco 04). |
+| Regenerating shield | Removed (loco 03). |
+| PvP Team Deathmatch, Free-for-all | Parked (bible 6). The bunker is co-op only (D1). |
+| Hunter, Wave Survival, the old Mission mode | Parked / retired (bible 6). |
+| Credits, unlocks, shop, suit, HQ, challenges, weapon mastery, attachment unlocks | Parked (bible 6). The course uses the course kit loadout. |
+| Camos, outfits, emotes, appearance editing | Parked (bible 6). |
+| Tri-rotor drone gadget, recon drone, drone operator | Parked (bible 6). |
+| Minimap | Parked (bible 6). |
+| The Confrontation (traitor finale, versus) | Mission 8 only (bible 5.15); versus content, not a co-op course. |
+| 3-4 players, `coopExtras` | The bunker is exactly 2 players (D2). The bible's 4-player e2e stays on other maps. |
+| Solo play, solo routes | Co-op only (D1). Solo teaching is Training mode; solo testing uses the bot. |
+| Quicksave | Decided against (bible 11, 2026-10-08). |
+| Photo mode, feedback notes, benchmark, debug overlay | Dev tools; they work in the bunker but are not course content. |
+| Parked maps (Embassy, Mansion, Port, Refinery, Dust Depot) | Parked (bible 6). |
+
+## 11. Per-player coverage (DECISIONS C3)
+Every row in sections 1-8 marked "(both)" is done by each player in its bay. Split rows and where each player gets them:
+| Verb | P1 | P2 |
+| --- | --- | --- |
+| Rappel | B3 (lead) | B9 (the bridge rope, open to both; the course marks it for P2) |
+| Zipline | B9 (lead) | B3 (second) |
+| Boost (boosted) / brace | B4 braces (C1), climbs the human ladder (C2) | B4 boosted (C1), human ladder holder (C2) |
+| Drop takedown / ledge pull / window takedown | B7 ledge pull, window takedown | B7 drop takedown; B9 drop from the rappel (optional) |
+| Interrogation | B7 (lead) | B9 controller B9-O (optional, flavour line) |
+| Lockpick | B9 key A desk drawer (`wafer`); B6 manager's door (optional) | B6 locker 7, B9 key B locker |
+| Iris / mantrap with a held guard | B6 (runner) | - (operator passes on the egress) |
+| Security desk (loop, beams off, feeds) | - | B6 (operator) |
+| Sniper rifle from the tower | B9 (optional, a sniper rifle on B-2) | B8 (lead) |
+e2e-bunker logs which player performed each verb; the bot run (loco 20) fails if a "(both)" verb is missing for a player.
