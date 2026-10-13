@@ -84,3 +84,5 @@ boots sandbox: the course itself starts from the co-op lobby). Tests 8 -> 11.
   that lane's x 24 gate lever (a second lever gate on the same switch). Unlocked, a player could enter a lane's east end
   from the walkway and reach its second half through the open window at x 44.2, bypassing the gate. Route unchanged
   for a player who plays the lane; the walkway to A2 stays open.
+T2 checked: PASS after 1 fix round (dd966fd: gap grip to grip, exit doors gated, glass not climbable, ladder-head
+landing) and the walk URLs (ba09b54: `mode=course` autostart, solo and two tabs over net=local, A29).
