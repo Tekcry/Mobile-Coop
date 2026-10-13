@@ -412,7 +412,7 @@ export class PlayerWeapons {
     const wants = s.def.fireMode === 'auto' ? inp.down('fire') : this.queuedT > 0;
     if (!wants || this.swapping || this.reloading || this.throwing || ctl.weaponBlocked || this.cooldown > 0) return;
     // raise-to-fire: the trigger is live only once the weapon is up from its ready position
-    if (!this.player.carry.canFire(this.player.carryIn) || this.player.coverFireBlocked) return;
+    if (!this.player.carry.canFire(this.player.carryIn)) return;
     this.queuedT = 0;
     if (s.mag <= 0) {
       if (inp.pressed('fire')) this.events.onDryFire?.(s.def);

@@ -15,9 +15,6 @@ export const MOVEMENT = {
   /** Aiming (strafe-locked to the aim). */
   adsSpeed: 1.4,
   adsCrouchSpeed: 1.0,
-  /** Shuffling along cover (standing / crouched). */
-  coverSpeed: 2.3,
-  coverCrouchSpeed: 1.25,
   /** Cover-to-cover run (low, fast). */
   coverRunSpeed: 3.6,
   /** Moving while reloading / swapping. */
@@ -94,8 +91,6 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   sprintSpeed: 5.0,
   adsSpeed: 1.4,
   adsCrouchSpeed: 1.0,
-  coverSpeed: 2.3,
-  coverCrouchSpeed: 1.25,
   coverRunSpeed: 3.6,
   reloadMult: 0.75,
   sneakBand: 0.4,
@@ -162,9 +157,6 @@ export const GEARS = {
   deadZone: 0.05,
   /** HUD gear pips stay this long after a change (s), then fade. */
   pipsShow: 1.5,
-  /** Cover strafe (3.2.0, approved change): the gear's pace, no faster than these along a wall (m/s). Gear 3 is about
-   *  the 2.x cover pace (2.3 / 1.25). */
-  coverMax: { stand: 2.8, crouch: 1.8 },
 } as const;
 
 /**
@@ -228,8 +220,6 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   sprintSpeed: [3, 7, 0.1],
   adsSpeed: [0.5, 2.5, 0.05],
   adsCrouchSpeed: [0.4, 2, 0.05],
-  coverSpeed: [0.4, 3.5, 0.05],
-  coverCrouchSpeed: [0.4, 3, 0.05],
   strafeMult: [0.5, 1, 0.01],
   backMult: [0.4, 1, 0.01],
   accelMax: [2, 25, 0.5],

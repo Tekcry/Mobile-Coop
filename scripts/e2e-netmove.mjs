@@ -1,5 +1,5 @@
 // 3.2.0 phase 1: networked movement state. Two pages over ?net=local, Free Roam on Proving Grounds: the client
-// takes low cover (and peeks over), high cover (and leans out at an edge), climbs a ladder and a drainpipe, hangs from a pipe and a lip, crawls a
+// climbs a ladder and a drainpipe, hangs from a pipe and a lip, crawls a
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose. PvP (Team Deathmatch): a host shot at a client hanging off a lip hits
 // the posed head.
@@ -51,7 +51,7 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
     const sp = await GB(() => window.__app.current.player.controller.speed);
     settled = sp < 0.05 && Math.max(...JOINTS.map((n) => err(a[n], b[n]))) < 0.01;
   }
-  if (!settled) console.log('  (client never settled)', await GB(() => JSON.stringify({ sp: window.__app.current.player.controller.speed, cover: window.__app.current.cover.state, axes: navigator.getGamepads()[0]?.axes, ov: !!window.__app.current.player.controller.override })));
+  if (!settled) console.log('  (client never settled)', await GB(() => JSON.stringify({ sp: window.__app.current.player.controller.speed, axes: navigator.getGamepads()[0]?.axes, ov: !!window.__app.current.player.controller.override })));
   await wait(800);
   // attached: the host's copy settled onto the owner's planted grips too (one limb at a time after 0.25 s still; the
   // host page is in the background, its frames throttled, so two foot swings after a climb can take seconds)
@@ -98,7 +98,6 @@ async function reset() {
   await GB(() => {
     const g = window.__app.current;
     if (g.traversal.attached) g.traversal.detach('drop');
-    g.cover.reset();
     g.player.controller.clearCrouchToggle();
     g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0);
   });
@@ -134,56 +133,7 @@ try {
   const mv = await GA(() => window.__app.current.net.remotes.values().next().value.state.mv);
   assert(mv && mv.m === 'ground', `the client's move state reaches the host (${JSON.stringify(mv)})`);
 
-  console.log('cover');
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
-  // low cover at x = -5 (faces x -4.7 / -5.3, z -8..-4): east of it facing west
-  await GB(() => { const g = window.__app.current; g.cover.reset(); window.__pad.connect(); g.player.controller.teleport(new g.player.position.constructor(-3.7, 0, -6), -Math.PI / 2); g.player.cam.yaw = -Math.PI / 2; });
-  await wait(500);
-  for (let k = 0; k < 5; k++) {
-    await GB(() => window.__pad.set(0, 1));
-    await wait(250);
-    await GB(() => window.__pad.set(0, 0));
-    await wait(700);
-    if (await GB(() => window.__app.current.cover.state !== 'none')) break;
-  }
-  await until(B, () => window.__app.current.cover.state === 'in', null, 6000, 'client in low cover');
-  await wait(1000);
-  // (feet in cover come from each rig's own foot planner: where it stepped on the way in)
-  await compare('low cover', 'cover', 0.1, ['headNode', 'wristL', 'wristR']);
-  const sub = await GA(() => window.__app.current.net.remotes.values().next().value.state.mv.sub);
-  assert((sub & 1) === 1, `low cover bit set (${sub})`);
-  // aim over the top (LT)
-  await GB(() => window.__pad.set(6, 1));
-  await until(B, () => window.__app.current.player.coverPose.peekOver > 0.9, null, 6000, 'client peeks over');
-  await until(A, () => (window.__app.current.net.remotes.values().next().value.state.mv.sub & 4) !== 0, null, 6000, 'host sees the over-peek');
-  await compare('peek over low cover', 'cover', 0.1, ['headNode', 'wristL', 'wristR']);
-  await GB(() => window.__pad.set(6, 0));
-  await reset();
-
-  console.log('high cover + edge peek');
-  // high cover at x = -10 (faces x -9.75 / -10.25), z 0..4: east of it facing west
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
-  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-8.8, 0, 2.5), -Math.PI / 2); g.player.cam.yaw = -Math.PI / 2; });
-  await wait(500);
-  for (let k = 0; k < 5; k++) {
-    await GB(() => window.__pad.set(0, 1));
-    await wait(250);
-    await GB(() => window.__pad.set(0, 0));
-    await wait(700);
-    if (await GB(() => window.__app.current.cover.state !== 'none')) break;
-  }
-  await until(B, () => window.__app.current.cover.state === 'in' && !window.__app.current.cover.low, null, 6000, 'client in high cover');
-  await compare('high cover', 'cover', 0.1, ['headNode', 'wristL', 'wristR']);
-  // to the +z edge, aim: a lean out round it
-  await GB(() => window.__pad.axis(0, 1));
-  await wait(1500);
-  await GB(() => { window.__pad.axis(0, 0); window.__pad.set(6, 1); });
-  await until(B, () => window.__app.current.cover.state === 'peek', null, 6000, 'client peeks round the edge');
-  await until(A, () => (window.__app.current.net.remotes.values().next().value.state.mv.sub & (64 | 128)) !== 0 || Math.abs(window.__app.current.net.remotes.values().next().value.state.mv.ph - 0.5) > 0.2, null, 6000, 'host sees the edge peek');
-  await compare('edge peek at high cover', 'cover', 0.1, ['headNode', 'wristL', 'wristR']);
-  await GB(() => window.__pad.set(6, 0));
-  await reset();
-
+  await GB(() => window.__pad.connect());
   console.log('attached states');
   await attach('ladder');
   await compare('ladder', 'ladder');
@@ -347,7 +297,7 @@ try {
 
   console.log('team moves: brace + boost (host climbs), human ladder (client climbs), denial');
   // the 4.2 m block north of Proving (south face z 27.5, x 2.5..5.5): the bottom braces with its back to it
-  const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); g.cover.reset(); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
+  const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
   const brace = async (P, label) => {
     await P.evaluate(() => window.__pad.set(3, 1));
     await until(P, () => window.__app.current.team.state === 'brace', null, 4000, `${label} braces`).catch(async (e) => { console.log(await P.evaluate(() => { const g = window.__app.current; return JSON.stringify({ mates: g.net.teamMates().map((m) => [m.id, m.pos.x, m.pos.z, m.mode]), pos: g.player.controller.pos, yaw: g.player.controller.yaw }); })); throw e; });

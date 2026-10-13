@@ -34,7 +34,6 @@ for (const [map, mode] of MAPS) {
       const L = g.world.level.anchors;
       const out = [];
       const tp = (x, y, z, yaw) => {
-        g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
         c.teleport(new V(x, y, z), yaw);

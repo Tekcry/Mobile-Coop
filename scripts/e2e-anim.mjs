@@ -33,8 +33,6 @@ await G(() => {
   const st = a.input.state;
   window.__t = {
     tp(x, z, yaw) {
-      g.cover.reset();
-      g.corners.reset();
       c.teleport(new V(x, 0, z), yaw);
       p.cam.yaw = yaw;
       p.cam.pitch = 0;

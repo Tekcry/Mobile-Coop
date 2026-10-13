@@ -1,5 +1,5 @@
 // Training course on Proving Grounds (Play > Training), played by touch: hints for the device in use, each verb
-// advances the course (move, sneak, cover, vault, ladder, goggles, the touch Takedown button on a passive guard,
+// advances the course (move, sneak, vault, ladder, goggles, the touch Takedown button on a passive guard,
 // a gadget), then TRAINING COMPLETE and the results. Also the HUD v3 defaults: no
 // health bar, the ammo readout fades, the hold ring, subtitles.
 import { launch, assert } from './e2e-lib.mjs';
@@ -44,9 +44,9 @@ try {
     a.input.state.tap('crouch');
     a.loop.stepHeadless(0.5);
   });
-  assert((await step()) === 'cover', `sneaking advances (${await step()})`);
+  assert((await step()) === 'vault', `sneaking advances (${await step()})`);
 
-  // cover at the low crate, then vault it
+  // the low crate, then vault it
   await G(() => {
     const a = window.__app;
     const g = a.current;
@@ -57,10 +57,8 @@ try {
     g.player.controller.teleport(new V(t.x, t.y + 0.05, t.z), Math.atan2(-seg.nx, -seg.nz));
     g.player.cam.yaw = Math.atan2(-seg.nx, -seg.nz);
     a.loop.stepHeadless(0.6);
-    a.input.state.tap('cover');
     a.loop.stepHeadless(1.2);
   });
-  assert((await step()) === 'vault', `taking cover advances (${await step()})`);
   await G(() => {
     const a = window.__app;
     a.input.state.tap('jump');

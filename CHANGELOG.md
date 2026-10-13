@@ -1,6 +1,7 @@
 # Changelog
 
 ## Locomotion run (Phase 3 + 3b, in progress, branch feature/ct-locomotion)
+- 05: player snap cover removed (cover controller, glide, cover-to-cover, blind fire, cover aim limits, the doorway / corner lean (A1), coverDash setting); `cover` input kept as the context action; enemy cover AI (coverData, corners, tactics) unchanged. Fix: a reset mid-vault no longer leaves the vault override stuck.
 - 02: sonar removed (pulse, marks, ring, HUD, audio, difficulty flag, suit / HQ hooks); the vision button is night vision only.
 - 01: Mark & Execute removed (marks, execute, chevrons, charge pips, `ex` shot field, RB / T / Y bindings, touch buttons; touch layout v6).
 - 03: regenerating shield removed: `Health(maxHp)`, no regen; effective player toughness 150 -> 100 (-33%). HUD shield bar and `PlayerState.sh` off the wire (no PROTOCOL_VERSION bump yet, step 06). Pistol guard at Normal: 26 per hit, 4 hits to down 100 hp.

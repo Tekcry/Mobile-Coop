@@ -151,12 +151,12 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
 
 /** Speed tolerance over a gear's pace (3.2.0 phase 1). */
 export const MOVE_TOLERANCE = 1.15;
-/** Anything else a client claims (falls, cover glides, zipline, committed moves) (m/s). */
+/** Anything else a client claims (falls, zipline, committed moves) (m/s). */
 export const MAX_FREE_SPEED = 11;
 
 /**
  * The fastest horizontal pace a client's state allows (m/s): free movement on the ground within its speed gear's
- * pace (the sprint's 5 m/s while sprinting) + `MOVE_TOLERANCE`; everything driven by cover / traversal or in the air
+ * pace (the sprint's 5 m/s while sprinting) + `MOVE_TOLERANCE`; everything driven by traversal or in the air
  * keeps the general cap.
  */
 export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprint: boolean, driven: boolean, grounded: boolean): number {

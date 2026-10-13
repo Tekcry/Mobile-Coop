@@ -1,6 +1,5 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
 import type { SwapReach } from '../anim/clips/actions';
-import { clampAim, type AimLimit, type AimState } from '../cover/coverAim';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
@@ -71,17 +70,11 @@ export class Player {
   /** Reload is the empty one; weapon swap and grenade throw progress 0..1 or -1 (set by PlayerWeapons). */
   reloadEmpty = false;
   swapT = -1;
-  /** Cover sets the angles a peek / blind fire may aim at (null = free). */
-  aimLimit: AimLimit | null = null;
   /**
    * (3.2.0) Aiming a sidearm while attached (split, hanging inverted): the aim's centre (world yaw), its yaw half
    * range and pitch band (rad, + up), and whether the body hangs upside down. Null: no aiming while traversing.
    */
   attachAim: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
-  /** The aim against the current cover limit (`inside` = within it, read by the cover controller). */
-  readonly aimState: AimState = { yaw: 0, pitch: 0, inside: false };
-  /** The weapon is not out past the cover yet (peek / rise / blind raise still moving): no shots. */
-  coverFireBlocked = false;
   /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
   swapFrom: SwapReach = 'backC';
   swapTo: SwapReach = 'backC';
@@ -93,7 +86,7 @@ export class Player {
   /** Pose driven by cover / corners / traversal. */
   readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1, tumble: 0 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
-  context = { doorway: false, coverEdge: false };
+  context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
   onLand: ((speed: number) => void) | null = null;
   private wasGrounded = true;
@@ -189,7 +182,6 @@ export class Player {
     ci.fire = this.alive && inp.down('fire');
     ci.sinceShot = this.sinceShot;
     ci.doorway = this.context.doorway;
-    ci.coverEdge = this.context.coverEdge;
     ci.dashing = c.weaponBlocked;
     // reloading, swapping and throwing all keep the weapon tucked in and down
     ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
@@ -232,16 +224,6 @@ export class Player {
       // the view back; when aiming the body turns to the view instead)
       this.cam.addLook(look.x, look.y);
       this.recentre(dt, look);
-      // from cover the aim stays within the angles the weapon can shoot along
-      const lim = this.aimLimit;
-      const as = this.aimState;
-      if (lim) {
-        as.yaw = this.cam.yaw;
-        as.pitch = this.cam.pitch;
-        clampAim(as, lim, dt);
-        this.cam.yaw = as.yaw;
-        this.cam.pitch = as.pitch;
-      } else as.inside = false;
       // (3.2.0) a sidearm from a split / an inverted hang: the aim stays within the band the body can turn to
       const at = this.attachAim;
       if (at && this.carry.raise > 0.05) {
@@ -361,13 +343,6 @@ export class Player {
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
     this.rig.animate(dt, rp);
-    // from cover, no shot until the weapon is actually out: leaned past the edge, risen over the top, or
-    // raised above it for blind fire (else the round would go into the cover)
-    const cp2 = this.coverPose;
-    const g = this.rig.graph;
-    this.coverFireBlocked =
-      cp2.cover !== 'none' &&
-      (cp2.lean !== 0 ? Math.abs(g.leanOut) < 0.85 || !cp2.gunClear : cp2.peekOver > 0.5 ? !this.rig.overClear : cp2.blind && cp2.cover === 'low' ? g.blindOut < 0.85 : false);
     // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));

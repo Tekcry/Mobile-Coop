@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 05 remove-cover-player (next)
+Current step: 06 remove-cover-rig-net (next; all subagents opus)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -17,6 +17,7 @@ Last commit: see git log (locomotion 00)
 - 02 plan: PLAN.md, steps/01-34, A1-A32.
 - step 01 remove-mark-execute.
 - steps 02-04 sonar, shield, style (SAVE_VERSION 8).
+- step 05 remove-cover-player (1 fix round).
 
 ## Blocked
 (none)

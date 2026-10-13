@@ -559,6 +559,8 @@ export class TraversalController {
   private teleports = 0;
 
   reset(): void {
+    // a committed move owns the controller's kinematic override: hand it back
+    if (this.kind !== 'none') this.player.controller.override = null;
     this.leapT = -1;
     this.leapSplit = null;
     this.kind = 'none';

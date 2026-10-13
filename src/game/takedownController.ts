@@ -104,7 +104,6 @@ export class TakedownController {
       if (k === 'duct') return 'duct';
       return 'climb';
     }
-    if (g.cover.inCover) return g.cover.low ? 'lowCover' : 'highCover';
     if (tr.hintWindow) return 'window';
     return 'ground';
   }
@@ -151,10 +150,9 @@ export class TakedownController {
     if (o.lethalOnly) lethal = true;
     const g = this.g;
     const c = g.player.controller;
-    // leaving cover / the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
+    // leaving the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
     if (o.plan.kind !== 'below' && o.plan.kind !== 'window' && o.plan.kind !== 'inverted') {
       if (g.traversal.attached) g.traversal.reset();
-      if (g.cover.inCover) g.cover.reset();
     }
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
     const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && this.grabAllowed && lethal === undefined;
@@ -230,9 +228,8 @@ export class TakedownController {
     i.vz = best.pos.z;
     i.vyaw = best.yaw;
     i.vCalm = !best.alerted && best.level !== 'searching';
-    const seg = g.cover.seg;
-    i.coverNx = seg?.nx;
-    i.coverNz = seg?.nz;
+    i.coverNx = undefined;
+    i.coverNz = undefined;
     const w = g.traversal.hintWindow;
     i.winNx = w ? Math.sin(w.yaw) : undefined;
     i.winNz = w ? Math.cos(w.yaw) : undefined;

@@ -28,8 +28,6 @@ const install = () => {
   const fwd = new V(0, 0, 1);
   window.__w = {
     tp(x, z, yaw) {
-      g.cover.reset();
-      g.corners.reset();
       c.teleport(new V(x, 0, z), yaw);
       p.cam.yaw = yaw;
       p.cam.snap();

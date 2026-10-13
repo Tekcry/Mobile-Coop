@@ -400,7 +400,7 @@ describe('enemy tuning is pinned (3.2.0: standalone literals)', () => {
   // the values ENEMY_MOTION / ENEMY_CALM_MOTION resolved to on 3.1.0 (`...MOVEMENT` + overrides)
   const PINNED = {
     sneakSpeed: 0.8, crouchWalkSpeed: 1.8, crouchRunSpeed: 2.6, walkSpeed: 1.4, jogSpeed: 2.8, sprintSpeed: 5, adsSpeed: 1.4,
-    adsCrouchSpeed: 1, coverSpeed: 2.3, coverCrouchSpeed: 1.25, coverRunSpeed: 3.6, reloadMult: 0.75, sneakBand: 0.4,
+    adsCrouchSpeed: 1, coverRunSpeed: 3.6, reloadMult: 0.75, sneakBand: 0.4,
     crouchWalkBand: 0.85, walkBand: 0.5, strafeMult: 0.9, backMult: 0.75, accelMax: 1.5, decelMax: 2, jerkMax: 9,
     sprintAccel: 4.5, velGain: 6, brakeGain: 6, startShift: 0.3, stepLen0: 0.27, stepLenK: 0.22, rootDip: 0.05,
     turnTravelSlow: 9.42477796076938, turnTravelFast: 5.235987755982989, turnAim: 1.9198621771937625, turnAccel: 12,

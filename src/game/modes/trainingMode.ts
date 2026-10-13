@@ -12,7 +12,7 @@ const STEP_SKIP = 90;
 
 /**
  * The training course on Proving Grounds (Play > Training): one verb at a time with a marker on the target and the
- * input for the device in use - move, sneak, cover, vault, ladder, goggles, a takedown on a passive guard, a
+ * input for the device in use - move, sneak, vault, ladder, goggles, a takedown on a passive guard, a
  * gadget. The operator cannot be hurt; guards see and hear nothing. Optional and replayable.
  */
 export class TrainingMode implements GameMode {
@@ -96,7 +96,6 @@ export class TrainingMode implements GameMode {
       case 'move':
         this.target = t.move ?? null;
         break;
-      case 'cover':
       case 'vault':
         this.target = t.cover ?? null;
         break;
@@ -134,9 +133,8 @@ export class TrainingMode implements GameMode {
     const p = g.player.position;
     s.moved = hyp2(p.x - this.stepStart.x, p.z - this.stepStart.z);
     s.crouchedMoving = c.crouched && c.speed > 0.3 && s.moved > 1;
-    s.inCover = g.cover.state !== 'none';
     const k = g.traversal.kind;
-    if (k === 'vault' || k === 'mantle' || k === 'step' || g.cover.state === 'vault') s.vaulted = true;
+    if (k === 'vault' || k === 'mantle' || k === 'step') s.vaulted = true;
     s.onLadder = g.traversal.attached && g.traversal.attachCtl.m.kind === 'ladder';
     s.goggles = g.vision.mode !== 'off';
     // the hint follows the device in use

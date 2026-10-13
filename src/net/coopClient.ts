@@ -418,7 +418,7 @@ export class CoopClient implements NetAttachment {
       }
       case 'revive':
         if (e.player !== me) break;
-        g.cover.reset();
+        g.player.controller.override = null;
         g.traversal.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();

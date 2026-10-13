@@ -97,7 +97,7 @@ export class TeamController {
     switch (this.state) {
       case 'none': {
         this.offer = null;
-        if (!mates.length || g.traversal.active || g.cover.state !== 'none' || g.takedown.active || !c.grounded) return false;
+        if (!mates.length || g.traversal.active || g.takedown.active || !c.grounded) return false;
         // a braced team-mate in reach, facing them: boost (tap) / ladder (hold)
         let best: TeamMate | null = null;
         let bd: number = TEAM.partnerReach;
@@ -212,7 +212,6 @@ export class TeamController {
       this.state = s.kind === 'boost' ? 'boost' : 'ladderUp';
       if (s.kind === 'boost') this.count.boosts++;
       else this.count.ladders++;
-      g.cover.reset();
     } else if (s.b === self) {
       this.partner = s.a;
       this.state = s.kind === 'boost' ? 'assist' : 'bottom';

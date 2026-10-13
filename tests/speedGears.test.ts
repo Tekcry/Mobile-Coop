@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampGear, coverPace, gearCap, gearSpeed, GearState, StickRelease, stickCurve } from '../src/player/speedGears';
+import { clampGear, gearCap, gearSpeed, GearState, StickRelease, stickCurve } from '../src/player/speedGears';
 import { noiseRadius, targetSpeed } from '../src/player/movement';
 import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 
@@ -72,15 +72,6 @@ describe('speed gears (3.2.0)', () => {
     expect(noiseRadius(5, false, true)).toBeGreaterThan(last);
     expect(NOISE_QUIET.crouch).toBeLessThan(GEARS.crouch[4]! * (1 - MOVEMENT.rootDip));
     expect(NOISE_QUIET.stand).toBeLessThan(GEARS.stand[2]! * (1 - MOVEMENT.rootDip));
-  });
-  it('cover strafe: the gear pace, capped along the wall (gear 3 ~ the 2.x cover pace)', () => {
-    expect(coverPace(1, false)).toBeCloseTo(0.8);
-    expect(coverPace(3, false)).toBeCloseTo(2.0);
-    expect(coverPace(6, false)).toBeCloseTo(GEARS.coverMax.stand);
-    expect(coverPace(1, true)).toBeCloseTo(0.5);
-    expect(coverPace(3, true)).toBeCloseTo(1.3);
-    expect(coverPace(6, true)).toBeCloseTo(GEARS.coverMax.crouch);
-    for (let g = 1; g < 6; g++) expect(coverPace(g + 1, false)).toBeGreaterThanOrEqual(coverPace(g, false));
   });
 });
 

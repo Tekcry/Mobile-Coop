@@ -16,7 +16,7 @@ export const BUTTON_ACTIONS = [
   'drop',
   /** Hold-to-use (doors, downloads, hacking): down once `interact` has been held `INTERACT_HOLD` s. */
   'interactHold',
-  /** Take/leave cover (touch button, controller B-hold, keyboard C). */
+  /** Context: back-to-wall (step 11). */
   'cover',
   'pause',
   /** The gadget button: held = aim the arc, released = throw (placed / flown gadgets go on the press). */

@@ -1,6 +1,6 @@
 // Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
 // calm guard), tap = non-lethal (knocked out) / hold = lethal, the attacker aligned within 5 cm, interrupted by
-// damage, over low cover, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
+// damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
@@ -27,7 +27,6 @@ try {
       reset() {
         g.takedown.reset();
         em.clear();
-        g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
         st.setMove('t', 0, 0);
@@ -381,45 +380,6 @@ try {
     assert(r.was && !r.now, 'taking damage breaks off a takedown');
     assert(r.alive && r.free && r.alerted, 'the victim breaks free, alerted');
     assert(!r.override, 'the attacker is released (no stuck override)');
-  });
-
-  await scen('cover', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      // the dock's low concrete block: player on one face in cover, a guard across it
-      let seg = null;
-      let bd = 9;
-      for (const sg of g.world.level.coverSegments) {
-        if (!sg.low) continue;
-        const mx = sg.ax + sg.tx * sg.len * 0.5;
-        const mz = sg.az + sg.tz * sg.len * 0.5;
-        const d = Math.hypot(mx + 10, mz + 13.2);
-        if (d < bd && sg.len > 1.5) {
-          bd = d;
-          seg = sg;
-        }
-      }
-      const mx = seg.ax + seg.tx * seg.len * 0.5;
-      const mz = seg.az + seg.tz * seg.len * 0.5;
-      t.tp(mx + seg.nx * 0.8, 0, mz + seg.nz * 0.8, Math.atan2(-seg.nx, -seg.nz));
-      t.step(0.3);
-      window.__app.input.state.tap('cover');
-      t.step(1);
-      const inCover = g.cover.inCover && g.cover.low;
-      const far = seg.depth + 0.75;
-      const e = t.spawn(mx - seg.nx * far, mz - seg.nz * far, Math.atan2(-seg.nx, -seg.nz));
-      t.step(0.4);
-      const offer = g.takedown.offer?.plan.kind;
-      t.press();
-      const run = t.run(1.6);
-      const p = g.player.position;
-      const across = (p.x - mx) * seg.nx + (p.z - mz) * seg.nz < 0;
-      return { inCover, offer, done: !e.alive, kind: run.kind, across };
-    });
-    assert(r.inCover, 'in low cover');
-    assert(r.offer === 'overCover', `a guard across low cover: takedown over it (${r.offer})`);
-    assert(r.done && r.across, `done, the attacker went over (${r.across})`);
   });
 
   await scen('above', async () => {

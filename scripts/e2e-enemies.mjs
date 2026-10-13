@@ -26,7 +26,6 @@ const setup = () => {
       g.takedown.reset();
       g.gadgets.clearWorld();
       em.clear();
-      g.cover.reset();
       g.traversal.reset();
       st.releaseAll();
       st.setMove('t', 0, 0);

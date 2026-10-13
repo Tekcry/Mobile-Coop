@@ -16,3 +16,6 @@ Mark & Execute gone end to end (game, HUD, input, touch layout v6, suit extraMar
 
 ## 02-04 remove-sonar, remove-shield, remove-style (batched)
 Sonar gone (vision = night only); Health(100), no shield or regen, `sh` off the wire; StealthRating stub (alarms, kills, knockouts, detections), style cash and bars gone, MissionRecord {rating, score, plays, wins}, SAVE_VERSION 8 with v7 migration + literal v7 test, HQ sonar / marks and the executes challenge dropped, presets Silent / Flash / Loud (A33). Opus check PASS: lint 0 errors, tests 1013/1014 (kestrel-owned), build ok, e2e quick pass except timing flakes passing serially (e2e-stealth, e2e-levels, netmove, darkness), legacy suites pass. Toughness 150 -> 100 (pistol guard 26 dmg: 4 hits).
+
+## 05 remove-cover-player
+Player snap cover, glide, cover-to-cover, blind fire, coverAim and cornerController (A1) removed; enemy cover AI kept. Unplanned but correct: override cleared on respawn / revive; speedCap reset each fixed step (the corner controller used to do it). Round 1 FAIL (stuck vault override after traversal.reset -> e2e-anchors; lost touch pointer-events check) fixed; recheck PASS: lint 0 errors, tests 990/991 (kestrel-owned), build ok, e2e anchors / touch / traverse / stealth-ai / takedown / coop ok, netmove flaky (passes serially). Flanker and grenade flush lose their player trigger until step 11.

@@ -128,7 +128,7 @@ export class StealthSystems {
   }
 
   private pickUp(b: Body): void {
-    if (this.carry || !b.present || this.g.traversal.active || this.g.cover.state !== 'none') return;
+    if (this.carry || !b.present || this.g.traversal.active) return;
     const rig = this.g.player.rig;
     const p = rig.p;
     const chestY = p.y.waist + 0.13 * (rig.height / 1.75);

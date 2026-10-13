@@ -439,11 +439,7 @@ export class PlayerController {
     const bc = Math.cos(camYaw);
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
-    const stance: Stance = ov
-      ? this.crouched
-        ? 'coverCrouch'
-        : 'cover'
-      : this.sprint.sprinting
+    const stance: Stance = this.sprint.sprinting
         ? 'sprint'
         : aiming
           ? this.crouched
@@ -452,7 +448,7 @@ export class PlayerController {
           : this.crouched
             ? 'crouch'
             : 'stand';
-    // free movement: the speed gear's cap x the stick (cover moves keep their own paces)
+    // free movement: the speed gear's cap x the stick (overrides set their own velocity)
     let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul * this.stanceMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);

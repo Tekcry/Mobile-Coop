@@ -44,7 +44,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'back', label: 'Move back', actions: [], defaults: ['KeyS'] },
   { id: 'left', label: 'Move left', actions: [], defaults: ['KeyA'] },
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
-  { id: 'cover', label: 'Cover / cover-to-cover', actions: ['cover'], defaults: ['Space'] },
+  { id: 'cover', label: 'Context action', actions: ['cover'], defaults: ['Space'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
   { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: ['ShiftLeft'] },
   { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },

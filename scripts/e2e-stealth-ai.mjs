@@ -52,7 +52,7 @@ try {
         }
         doors['mesh']?.thinInstanceBufferUpdated('matrix');
         g.noise = 0;
-        g.cover.reset();
+        g.player.controller.override = null;
         g.traversal.reset();
         st.releaseAll();
         st.setMove('t', 0, 0);

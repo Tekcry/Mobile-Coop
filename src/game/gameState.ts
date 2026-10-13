@@ -48,8 +48,6 @@ import { attachGameAudio } from '../audio/gameAudio';
 import { levelLabel, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
-import { CoverController } from '../cover/coverController';
-import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
@@ -58,7 +56,6 @@ import { TeamController, type TeamMate } from './teamController';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
-import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost, PHONE_DARK_FLOOR } from '../vfx/cinematicPost';
 import { NightAutoGain } from '../vfx/nightAutoGain';
@@ -82,7 +79,7 @@ import { TakedownController, type TakedownVictim } from './takedownController';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
-import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
+import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -181,12 +178,10 @@ const IMPACT_NOISE = 4;
 /** Touch action button: an interactable in reach, else (3.2.0) what the world prompts show. */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
 /** The action button's icon per world prompt. */
-const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { cover: 'cover', corner: 'cover', move: 'cover', vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
+const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 /** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
 const PROMPT_Y = 0.55;
-/** Along the face from the player in cover: the badge ahead, the vault prompt behind (m). */
-const PROMPT_ALONG = 0.55;
 
 /** Longest the loading screen waits for every material to compile (3.2.2). */
 const WARMUP_MAX_MS = 6000;
@@ -207,9 +202,7 @@ export class GameState implements AppState {
   readonly target: PlayerTarget;
   readonly hud: Hud;
   readonly minimap: Minimap;
-  readonly cover: CoverController;
   readonly traversal: TraversalController;
-  readonly corners: CornerController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
@@ -232,8 +225,6 @@ export class GameState implements AppState {
   private headTmp = new Vector3();
   private rayA = new Vector3();
   private rayB = new Vector3();
-  private coverSpot: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
-  private coverHeldT = 0;
   private swayT = 0;
   /** Cinematic post pass (vignette, grain, letterbox). */
   readonly post: CinematicPost;
@@ -353,7 +344,6 @@ export class GameState implements AppState {
     this.hud.world.onTap = (id) => this.onWorldPrompt(id);
     this.hud.world.onDown = (id) => this.onWorldPromptHold(id, true);
     this.hud.world.onUp = (id) => this.onWorldPromptHold(id, false);
-    this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.traversal.breakables = world.breakables;
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
@@ -408,7 +398,6 @@ export class GameState implements AppState {
       this.gadgets.closeWheel(false);
     };
     this.hud.gadgets.onClose = () => this.gadgets.closeWheel(false);
-    this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
@@ -576,11 +565,6 @@ export class GameState implements AppState {
     app.debug.extra.set('carry', () => {
       const k = this.player.carry;
       return `${k.ready} raise ${k.raise.toFixed(2)} w ${k.w.low.toFixed(2)}/${k.w.high.toFixed(2)}/${k.w.compressed.toFixed(2)} wt ${this.player.weaponWeight.toFixed(2)}`;
-    });
-    app.debug.extra.set('cover', () => {
-      const c = this.cover;
-      const pose = this.player.coverPose;
-      return `${c.state} face ${c.faceDir} swaps ${c.swaps} lean ${pose.lean.toFixed(2)} q ${this.coverQ.toFixed(2)} trav ${this.traversal.kind}${this.corners.door ? ' door' : ''}`;
     });
     app.debug.extra.set('combat', () => `exposure ${this.exposure.toFixed(2)} suppress ${this.suppression.value.toFixed(2)} noise ${this.noise.toFixed(1)}m`);
     let lastLimited = 0;
@@ -789,7 +773,7 @@ export class GameState implements AppState {
     this.net = null;
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
-    for (const k of ['player', 'carry', 'cover', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
+    for (const k of ['player', 'carry', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
     this.app.debug.setTeleports(null);
@@ -1083,14 +1067,10 @@ export class GameState implements AppState {
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
-    const coverWas = this.cover.state;
-    // a body on the shoulder: no cover, no traversal, weapon stowed, slow
+    // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
-    // a takedown running (from the last step): cover and traversal stand aside
+    // a takedown running (from the last step): traversal stands aside
     const busy = this.takedown.active !== null;
-    if (!this.traversal.active && !carrying && !busy && !this.team.active) this.cover.fixedUpdate(dt, inp);
-    // cover shot away / destroyed under the player: stumble out of it
-    if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
     const ti = this.traversal.input;
     ti.moveX = inp.move.x;
@@ -1106,7 +1086,7 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
     const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir, inp.pressed('leap') && !this.team.active && !carrying && !busy);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.team.active, null, inp.pressed('leap') && !this.team.active && !carrying && !busy);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
@@ -1139,7 +1119,8 @@ export class GameState implements AppState {
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
-    this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
+    // (carry and grab set their caps again each step while they hold)
+    this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate();
     this.security?.fixedUpdate(dt);
     // takedowns (Y / E: a takedown on offer, else the rest)
@@ -1153,7 +1134,7 @@ export class GameState implements AppState {
       this.takedown.fixedUpdate(dt, inp.pressed('interact'), inp.down('interact'));
     }
     this.suppression.update(dt);
-    this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
+    this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
@@ -1182,7 +1163,7 @@ export class GameState implements AppState {
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
-    this.updateCoverRef(dt);
+    this.updateCoverRef();
     this.updateExposure(dt);
     this.updateRoomTag(dt);
     this.enemyMgr?.update(dt);
@@ -1208,9 +1189,8 @@ export class GameState implements AppState {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
-        this.cover.reset();
+        this.player.controller.override = null;
         this.traversal.reset();
-        this.corners.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();
@@ -1714,24 +1694,10 @@ export class GameState implements AppState {
     g.update(dt);
   }
 
-  /** Publish the player's cover (for enemy flanking / grenades) and how long it has been held. */
-  private updateCoverRef(dt: number): void {
-    const c = this.cover;
-    const seg = c.inCover ? c.seg : null;
-    if (seg) {
-      const sp = this.coverSpot;
-      sp.nx = seg.nx;
-      sp.nz = seg.nz;
-      sp.low = c.low;
-      sp.x = this.player.position.x;
-      sp.z = this.player.position.z;
-      this.coverHeldT += dt;
-      this.localRef.cover = sp;
-    } else {
-      this.coverHeldT = 0;
-      this.localRef.cover = null;
-    }
-    this.localRef.coverT = this.coverHeldT;
+  /** The player's cover for enemy flanking / grenades: none until back-to-wall feeds it (step 11). */
+  private updateCoverRef(): void {
+    this.localRef.cover = null;
+    this.localRef.coverT = 0;
   }
 
   /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */
@@ -1854,15 +1820,6 @@ export class GameState implements AppState {
   private readonly dofDir = new Vector3();
   private readonly dofTo = new Vector3();
 
-  /** Lost the cover being used (shot away / destroyed): a short stagger. */
-  private stumble(): void {
-    const p = this.player;
-    p.controller.landT = Math.max(p.controller.landT, 0.45);
-    p.rig.hit(0.8, 0);
-    p.cam.shake(0.35);
-    this.suppression.add(0.3);
-  }
-
   private markerPt = new Vector3();
   private scr = { x: 0, y: 0 };
 
@@ -1938,73 +1895,19 @@ export class GameState implements AppState {
     return true;
   }
 
-  /**
-   * A world prompt on a cover face at `s` (clamped onto the face), at the face's prompt height; `edge`
-   * puts it on the top edge of low cover instead (in cover the camera looks over it, so the face below
-   * is out of view). A low prompt that is off screen falls back to the top edge.
-   */
-  private onFace(id: WorldPromptId, label: string | null, seg: CoverSegment, s: number, edge = false): void {
-    const w = this.hud.world;
-    if (!label) return w.set(id, null, 0, 0);
-    const ss = Math.max(0.15, Math.min(seg.len - 0.15, s));
-    // just proud of the surface so it never sinks into it
-    const x = seg.ax + seg.tx * ss + seg.nx * 0.04;
-    const z = seg.az + seg.tz * ss + seg.nz * 0.04;
-    const top = seg.y + seg.height;
-    let ok = !(edge && seg.low) && this.project(x, seg.y + Math.min(PROMPT_Y, seg.height * 0.5), z);
-    if (!ok && seg.low) ok = this.project(x, top, z);
-    w.set(id, ok ? label : null, this.scr.x, this.scr.y);
-  }
-
-  /**
-   * Cover prompts on the surfaces (Blacklist style): "Take cover" on the face a press would snap to,
-   * the cover type badge on the face in use (by touch tapping it leaves cover), vault / climb / step on
-   * the obstacle, the cover-to-cover marker on the target. The touch action button is only for "use".
-   */
+  /** World prompts on the surfaces: vault / climb / step on the obstacle; the touch action button is only for "use". */
   private updateCoverHud(): void {
-    const c = this.cover;
-    const st = c.state;
     const w = this.hud.world;
-    const stateText =
-      st === 'none' || st === 'vault' || st === 'dash'
-        ? null
-        : st === 'peek'
-          ? c.low
-            ? 'Aiming over'
-            : 'Peeking'
-          : st === 'blind'
-            ? 'Blind fire'
-            : c.low
-              ? 'Low cover'
-              : 'High cover';
-    // cover quality against the current threats: warn when the cover no longer protects
-    const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
-    const seg = c.seg;
-    if (stateText && seg) {
-      // nothing labels the wall being used (no cover type badge): only a warning when it stops protecting
-      this.onFace('state', flanked ? 'Flanked' : null, seg, c.s + c.faceDir * PROMPT_ALONG, true);
-      this.onFace('vault', c.low && (st === 'in' || st === 'peek') ? 'Vault' : null, seg, c.s - c.faceDir * PROMPT_ALONG, true);
-    } else w.set('state', null, 0, 0);
-    // round an outside corner: only offered while pushing against the edge; the cover button swings round
-    if (seg && st === 'in' && c.cornerSide !== 0) this.onFace('corner', 'Round corner', seg, c.cornerSide < 0 ? 0 : seg.len, true);
-    else w.set('corner', null, 0, 0);
-    const cand = st === 'none' && !this.traversal.attached ? c.candidate : null;
-    if (cand) this.onFace('cover', 'Take cover', cand.seg, cand.s);
-    else w.set('cover', null, 0, 0);
-    // traversal (not in cover): on the obstacle face, or on the floor at the ledge
+    w.set('state', null, 0, 0);
+    // traversal: on the obstacle face, or on the floor at the ledge
     const th = this.traversal.hint;
-    const tl = th && !c.inCover && st !== 'dash' && !anchorFirst(this.traversal.attachHint) ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
-    if (tl && th && cand) {
-      // the same surface offers cover too: vault sits beside the cover prompt (camera-right side)
-      const yaw = this.player.cam.yaw;
-      const side = Math.cos(yaw) * cand.seg.tx - Math.sin(yaw) * cand.seg.tz >= 0 ? 1 : -1;
-      this.onFace('vault', tl, cand.seg, cand.s + side * PROMPT_ALONG);
-    } else if (tl && th) {
+    const tl = th && !anchorFirst(this.traversal.attachHint) ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
+    if (tl && th) {
       const at = this.traversal.hintAt;
       const up = th.kind === 'drop' || th.kind === 'hop' ? 0.12 : Math.max(0.2, Math.min(PROMPT_Y, th.height * 0.5));
       const ok = this.project(at.x, at.y + up, at.z);
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
-    } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
+    } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
     // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
     const tOff = this.team.offer;
@@ -2031,12 +1934,6 @@ export class GameState implements AppState {
     this.hud.setGear(ctl.gear, ctl.gears.changes);
     this.app.input.touch.setGear(ctl.gear);
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
-    // cover-to-cover marker on the target face
-    const tg = st === 'in' ? c.target : null;
-    if (tg) {
-      const ok = this.project(tg.x, tg.seg.y + Math.min(PROMPT_Y, tg.seg.height * 0.5), tg.z);
-      w.set('move', ok ? (tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover') : null, this.scr.x, this.scr.y);
-    } else w.set('move', null, 0, 0);
     w.flush();
     // the touch action button: a gadget feed's action, an interactable in reach, else what the world prompts show
     // (they stay as the indicators of what is on offer and where)
@@ -2050,41 +1947,26 @@ export class GameState implements AppState {
 
   /** One `TouchAction` per world prompt (the label is refreshed each frame). */
   private promptActs = {} as Partial<Record<WorldPromptId, TouchAction>>;
-  private leaveAct: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
 
   /**
-   * (3.2.0) What the touch action button does now: the world prompt on offer (as tapping it did). Out of cover with
-   * both a cover face and an obstacle prompted, moving (or the stick pushed) goes over / up it, standing still takes
-   * cover; in cover the
-   * corner swing, cover-to-cover, the vault, else leaving cover; attached: climb up / jump / the pipe's states, else
-   * drop.
+   * What the touch action button does now: the world prompt on offer (as tapping it did). Attached: climb up / jump /
+   * the pipe's states, else drop.
    */
   private promptAction(): TouchAction | null {
     const w = this.hud.world;
-    const inCover = this.cover.state !== 'none';
-    const ctl = this.player.controller;
-    const wish = ctl.wishDir;
-    // moving, or pushing the stick (against the obstacle it does not move)
-    const moving = ctl.speed > 1.0 || wish.x * wish.x + wish.z * wish.z > 0.09;
-    const order: readonly WorldPromptId[] = inCover
-      ? ['corner', 'move', 'vault']
-      : this.traversal.attached
-        ? ['vault', 'jumpTo', 'drop']
-        : moving
-          ? ['vault', 'cover', 'jumpTo', 'drop']
-          : ['cover', 'vault', 'jumpTo', 'drop'];
+    const order: readonly WorldPromptId[] = ['vault', 'jumpTo', 'drop'];
     for (const id of order) {
       const lbl = w.label(id);
       if (!lbl) continue;
       let a = this.promptActs[id];
       if (!a) {
-        a = { action: id === 'cover' || id === 'corner' || id === 'move' ? 'cover' : 'jump', label: '', icon: PROMPT_ICON[id] ?? 'jump', press: () => this.onWorldPrompt(id), down: () => this.onWorldPromptHold(id, true), up: () => this.onWorldPromptHold(id, false) };
+        a = { action: 'jump', label: '', icon: PROMPT_ICON[id] ?? 'jump', press: () => this.onWorldPrompt(id), down: () => this.onWorldPromptHold(id, true), up: () => this.onWorldPromptHold(id, false) };
         this.promptActs[id] = a;
       }
       a.label = lbl.length > 16 ? lbl.slice(0, 15) + '\u2026' : lbl;
       return a;
     }
-    return inCover ? this.leaveAct : null;
+    return null;
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
@@ -2132,7 +2014,7 @@ export class GameState implements AppState {
     // from the ground: the anchor in reach when nothing closer (step / vault / mantle) is offered
     const h = ac.hint;
     const geo = t.hint && t.hint.kind !== 'drop' && !anchorFirst(h);
-    const blocked = !!geo || this.cover.state !== 'none';
+    const blocked = !!geo;
     // at a hangable edge the drop control (hold) / its prompt lowers into a hang (traverse there still drops)
     const low = blocked ? null : ac.lower;
     if (low) {
@@ -2238,8 +2120,7 @@ export class GameState implements AppState {
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
-    if (id === 'cover' || id === 'move' || id === 'corner') inp.tap('cover');
-    else if (id === 'vault' || id === 'jumpTo') {
+    if (id === 'vault' || id === 'jumpTo') {
       // (a vent prompt pressed on touch-down already did it)
       if (this.ventByTouch && id === 'vault') this.ventByTouch = false;
       // (3.2.0) the split prompt: straight into the split (by pad / keys it is a double jump)
@@ -2250,7 +2131,6 @@ export class GameState implements AppState {
       if (this.traversal.attached) inp.tap('drop');
       else this.traversal.attachCtl.lowerRequest = true;
     }
-    else if (id === 'state') inp.coverLeave = true;
   }
 
   private updateHud(): void {

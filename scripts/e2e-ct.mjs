@@ -17,7 +17,6 @@ await page.evaluate(() => {
     tp(x, y, z, yaw) {
       const st = H.st();
       st.traversal.reset();
-      st.cover.reset();
       const p = st.player;
       p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw);
       p.cam.yaw = yaw;

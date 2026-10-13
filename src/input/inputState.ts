@@ -23,9 +23,6 @@ export class InputState {
   private blocked = new Set<ButtonAction>();
   /** Move vector, x right, y forward, magnitude <= 1. Max across sources. */
   readonly move: Vec2 = { x: 0, y: 0 };
-  /** Leave cover now, even with a cover-to-cover target marked (touch: tapping the cover badge). Consumed by
-   *  the cover system. */
-  coverLeave = false;
   /** Keyboard 1-8: pick that gadget (wheel slot), -1 none. Consumed by the gadget system. */
   gadgetPick = -1;
   private moveBySource = new Map<string, Vec2>();

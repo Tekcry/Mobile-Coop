@@ -94,7 +94,7 @@ const setup = () =>
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
         jump: ac.jump ? ac.jump.anchor.id : -1,
         landing: c.lastLanding, fall: c.lastFall, landT: c.landT, noise: st.noise, tkind: st.traversal.kind,
-        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null, cover: st.cover.state, coverCand: !!st.cover.candidate,
+        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null,
       };
     },
   };
@@ -482,7 +482,7 @@ try {
   await page.touchscreen.tap(640, 60);
   await frames(page, 4);
   assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the grab prompt shows on the ledge');
-  // (a cover face there too: the stick pushed at the wall picks the grab, standing still would take cover)
+  // (the stick pushed at the wall picks the grab)
   await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 1));
   await frames(page, 4);
   assert(await tapPrompt('.tc-action', attachedNow), 'touch: the action button grabs the ledge (stick pushed at it)');

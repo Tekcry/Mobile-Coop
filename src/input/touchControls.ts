@@ -22,7 +22,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   fireLeft: { id: 'fireLeft', action: 'fire', size: 72, icon: 'fire', label: 'Fire (left)' },
   ads: { id: 'ads', action: 'ads', size: 68, icon: 'ads', label: 'Aim' },
   reload: { id: 'reload', action: 'reload', size: 58, icon: 'reload', label: 'Reload' },
-  action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Action (cover, vault, climb, use: what the prompts show)' },
+  action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Action (vault, climb, use: what the prompts show)' },
   crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
   swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Gadget (hold to aim, release to throw)' },
@@ -80,8 +80,8 @@ type PointerRole =
  * On-screen controls. Left: a floating move stick (anywhere in the left 40%). Right: a floating
  * camera-only stick (rate-based look with its own curve, dead zone, smoothing and acceleration; it
  * never fires or aims), a separate fire button that never moves the view, aim, a jump button (3.2.0) and the
- * contextual action button: whatever the world prompts on the surfaces show (`WorldPrompts`: cover, vault, climb,
- * grab, cover-to-cover, use), dimmed when nothing is on offer. Pointer handlers only record positions and press edges; the visuals and the look
+ * contextual action button: whatever the world prompts on the surfaces show (`WorldPrompts`: vault, climb,
+ * grab, use), dimmed when nothing is on offer. Pointer handlers only record positions and press edges; the visuals and the look
  * are applied once per frame in `update`, so handlers never touch layout.
  */
 export class TouchControls {

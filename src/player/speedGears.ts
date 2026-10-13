@@ -32,11 +32,6 @@ export function gearSpeed(gear: number, crouched: boolean, mag: number): number 
   return gearCap(gear, crouched) * stickCurve(mag);
 }
 
-/** Cover strafe pace (m/s) for a gear: the gear's pace, capped along a wall (`GEARS.coverMax`). */
-export function coverPace(gear: number, crouched: boolean): number {
-  return Math.min(gearCap(gear, crouched), crouched ? GEARS.coverMax.crouch : GEARS.coverMax.stand);
-}
-
 /**
  * Stick release detection (pure): while the stick drops fast (`CT.releaseRate`) from a real deflection, the last
  * deflection is kept (up to `CT.releaseWindow` s); reaching the dead zone in that time reads as a release straight
