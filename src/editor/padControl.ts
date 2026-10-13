@@ -70,6 +70,7 @@ const BAR = [
   ['climb', 'Climb'],
   ['lamp', 'Light'],
   ['stamp', 'Stamp'],
+  ['guard', 'Guard view'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
