@@ -2388,6 +2388,159 @@ try {
     }
   }
 
+  // ---------- ON8: guard patrol paths and mission markers ----------
+  console.log("ON8: a guard in Building A's ground corridor, 4 stops, the loop closed; a stop in a closed room is red; insertion, objective, extraction; Start at insertion 1");
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a pad button only until `probe` (evaluated in the page) changes, so a slow frame cannot repeat it
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTileHeld = async (name) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await holdTill(BTN.RIGHT, menuProbe); return (await menuState()).tile === name; };
+    /** Y, a tab, a tile, A. */
+    const pickTile = async (tab, tile) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTileHeld(tile);
+      await press(BTN.A);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const guard = () => E(() => { const ed = window.__editor; const g = ed.model.data.guards?.[0]; if (!g) return null; const p = ed.mission.patrolOf(g); return { g, legs: p.legs.map((l) => ({ ok: l.ok, why: l.why })), length: p.length, cycle: p.cycle, path: ed.mission.path?.id ?? null }; });
+    const stops = () => E(() => window.__editor.model.data.guards?.[0]?.loop.length ?? 0);
+    // the corridor's middle line, at walkable spots (the editor's own walk grid; earlier steps put things in rooms)
+    const spine = await E(() => { const ed = window.__editor; const d = ed.model.data; const r = d.rooms.find((q) => q.id === 'G-SPINE'); const g = ed.mission.grids.get(d, 'G'); const z = (r.rect[1] + r.rect[3]) / 2; const xs = []; for (let x = r.rect[0] + 2; x <= r.rect[2] - 2; x += 0.5) { const c = Math.floor((x - g.ox) / g.cell) + Math.floor((z - g.oz) / g.cell) * g.nx; if (g.ok[c] === 1) xs.push(x); } return { z, xs, soff: d.rooms.find((q) => q.id === 'G-SOFF').rect }; });
+    const xs = spine.xs;
+    const want = [xs[0], xs[Math.floor(xs.length / 3)], xs[Math.floor((2 * xs.length) / 3)], xs.at(-1)];
+    const h0 = await E(() => window.__editor.model.history.length);
+
+    // Y > Mission > Guard: A places the guard (its first stop) and starts its path
+    const m1 = await pickTile('Mission', 'Guard');
+    const t1 = await E(() => ({ tool: window.__editor.tool, kind: window.__editor.mission.kind, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
+    await dotAt(want[0], spine.z);
+    const s0 = await said('A: a guard');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.guards ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
+    assert(m1 && t1.tool === 'mission' && t1.kind === 'guard' && /^MissionGuard: /.test(t1.bar) && /A: a guard \(/.test(s0) && (await stops()) === 1 && (await E(() => window.__editor.ctx())) === 'path', `ON8: Y > Mission > Guard picks the tool ("${t1.bar}"); the dot said "${s0}"; A places guard GD1 and starts its path`);
+    // three more stops along the corridor (each A; the dot names the stop and its leg)
+    let s2 = '';
+    for (let i = 1; i < 4; i++) {
+      await dotAt(want[i], spine.z);
+      const w = await said(`A: stop ${i + 1} here`);
+      if (i === 1) s2 = w;
+      await press(BTN.A);
+      await page.waitForFunction((n) => (window.__editor.model.data.guards?.[0]?.loop.length ?? 0) === n, i + 1, { timeout: 5000 }).catch(() => {});
+    }
+    // D-pad up twice: the last stop waits 2 s; RB turns it 45 degrees
+    const waitProbe = "() => window.__editor.model.data.guards?.[0]?.loop.at(-1)?.wait";
+    await holdTill(BTN.UP, waitProbe);
+    await holdTill(BTN.UP, waitProbe);
+    const face0 = await E(() => window.__editor.model.data.guards[0].loop.at(-1).face);
+    await press(BTN.RB);
+    await page.waitForFunction((f) => window.__editor.model.data.guards[0].loop.at(-1).face !== f, face0, { timeout: 5000 }).catch(() => {});
+    const last = await E(() => window.__editor.model.data.guards[0].loop.at(-1));
+    assert((await stops()) === 4 && last.wait === 2 && last.face === (face0 + 45) % 360 && /A: stop 2 here, [0-9.]+ m from stop 1/.test(s2), `ON8: four stops along the corridor (the dot said "${s2}"); D-pad up twice waits ${last.wait} s; RB turns it from ${face0} to ${last.face} degrees`);
+    // A on the first stop closes the loop: cycle shown, every leg walkable, one undo step, readable words
+    await dotAt(want[0] + 0.1, spine.z);
+    const sc = await said('A: close the loop');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.model.data.guards?.[0]?.closed === true, null, { timeout: 5000 }).catch(() => {});
+    const g1 = await guard();
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select('guards:GD1'); });
+    await page.waitForFunction(() => /Loop \d+ m, \d+ s/.test(document.querySelector('#selCard [data-mission]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const card1 = await E(() => document.querySelector('#selCard [data-mission]')?.textContent ?? '');
+    const hist1 = await E(() => window.__editor.model.history.map((h) => h.text));
+    const expectCycle = Math.round((g1.length / 0.9 + 2) * 10) / 10;
+    assert(g1.g.closed && g1.path === null && g1.legs.length === 4 && g1.legs.every((l) => l.ok) && Math.abs(g1.cycle - expectCycle) < 0.11 && g1.g.cycle === g1.cycle && /^A: close the loop \(Loop/.test(sc) && /^Loop \d+ m, \d+ s; walks 0.9 m\/s/.test(card1) && hist1.length === h0 + 1 && /^Added guard GD1, Rounds officer, 4 stops, \d+ s loop$/.test(hist1.at(-1)), `ON8: A on the first stop closes the loop (dot "${sc}"): ${g1.legs.length} legs all walkable, ${g1.length.toFixed(1)} m, cycle ${g1.cycle} s (expected ${expectCycle}); the card says "${card1}"; one undo step "${hist1.at(-1)}"`);
+    await shot('on8-guard-path');
+
+    // Selected > Edit path: a stop inside a closed room (no door) is red, with its words; X removes it; the loop closes again
+    const soff = spine.soff;
+    const m2 = await pickTile('Selected', 'Edit path');
+    await dotAt((soff[0] + soff[2]) / 2, (soff[1] + soff[3]) / 2);
+    const sRed = await said('No way');
+    const redBad = await E(() => document.getElementById('reticle').classList.contains('bad'));
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.guards?.[0]?.loop.length ?? 0) === 5, null, { timeout: 5000 }).catch(() => {});
+    const g2 = await guard();
+    const red = await E(() => ({ plan: document.querySelectorAll('#planSvg .guardLeg.bad').length, why: [...document.querySelectorAll('#planSvg .legWhy')].map((t) => t.textContent) }));
+    await press(BTN.X);
+    await page.waitForFunction(() => (window.__editor.model.data.guards?.[0]?.loop.length ?? 0) === 4, null, { timeout: 5000 }).catch(() => {});
+    await dotAt(want[0] + 0.1, spine.z);
+    await said('A: close the loop');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.model.data.guards?.[0]?.closed === true, null, { timeout: 5000 }).catch(() => {});
+    const g3 = await guard();
+    assert(m2 && redBad && /^No way from stop 4 to here/.test(sRed) && g2.legs[3].why === 'No way from stop 4 to stop 5' && !g2.legs[3].ok && red.plan > 0 && red.why.includes('No way from stop 4 to stop 5') && g3.g.loop.length === 4 && g3.g.closed && g3.legs.every((l) => l.ok), `ON8: Edit path, a stop in the closed room G-SOFF: the dot said "${sRed}" (red), leg 4 is red on the plan (${red.plan} pieces, "${red.why[0]}"); X removes it and A on the first stop closes the loop again (${g3.g.loop.length} stops)`);
+
+    // Selected > Play patrol: the figure walks the loop; Mark alone here sets the isolation point
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select('guards:GD1'); });
+    const m3 = await pickTile('Selected', 'Play patrol');
+    await page.waitForFunction(() => !!window.__editor.view.patrolFigureAt, null, { timeout: 5000 }).catch(() => {});
+    const f0 = await E(() => window.__editor.view.patrolFigureAt);
+    await page.waitForFunction((a) => { const b = window.__editor.view.patrolFigureAt; return !!b && Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.5; }, f0, { timeout: 15000 }).catch(() => {});
+    const f1 = await E(() => window.__editor.view.patrolFigureAt);
+    const planFig = await E(() => document.querySelectorAll('#planSvg .patrolFig').length);
+    await shot('on8-patrol');
+    const m4 = await pickTile('Selected', 'Mark alone here');
+    const iso = await E(() => window.__editor.model.data.guards[0].isolation);
+    const m5 = await pickTile('Selected', 'Stop patrol');
+    const stopped = await E(() => ({ fig: window.__editor.view.patrolFigureAt, playing: window.__editor.mission.playing }));
+    assert(m3 && m4 && m5 && !!f0 && !!f1 && Math.hypot(f1[0] - f0[0], f1[1] - f0[1]) > 0.5 && planFig === 1 && !!iso && iso.at[2] === 'G' && iso.t >= 0 && iso.t <= g3.cycle && stopped.fig === null && stopped.playing === null, `ON8: Play patrol walks the figure from (${f0}) to (${f1}) (plan figure ${planFig}); Mark alone here: ${JSON.stringify(iso)}; Stop patrol ends it`);
+
+    // markers: insertion 1 in the corridor, an objective in G-SOFF, the extraction zone drawn with A, A
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+    const ins = [want[1] + 0.5, spine.z];
+    const m6 = await pickTile('Mission', 'Insertion');
+    await dotAt(ins[0], ins[1]);
+    const sIns = await said('A: insertion 1');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.spawns ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
+    const m7 = await pickTile('Mission', 'Objective');
+    await dotAt(soff[0] + 1, soff[1] + 1);
+    await said('A: objective');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.objectives ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
+    const m8 = await pickTile('Mission', 'Extraction');
+    await dotAt(10, 20);
+    await said('A: the extraction zone');
+    await press(BTN.A);
+    await dotAt(16, 24);
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.extraction ?? []).length === 1 && !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); ed.setLayout('plan'); });
+    const mk = await E(() => { const d = window.__editor.model.data; return { sp: d.spawns, ob: d.objectives, ex: d.extraction, plan: document.querySelectorAll('#planSvg .missionMark').length, words: [...document.querySelectorAll('#planSvg text')].map((t) => t.textContent).filter((t) => /^Insertion 1|^OBJ1|^Extraction/.test(t)) }; });
+    await shot('on8-markers-plan');
+    await E(() => window.__editor.setLayout('both'));
+    assert(m6 && m7 && m8 && /A: insertion 1/.test(sIns) && mk.sp.length === 1 && mk.sp[0].at[0] === ins[0] && mk.ob.length === 1 && mk.ob[0].id === 'OBJ1' && mk.ob[0].room === 'G-SOFF' && mk.ex.length === 1 && mk.ex[0].rect.join() === '10,20,16,24' && mk.plan >= 3 && mk.words.length >= 3, `ON8: insertion 1 at ${mk.sp[0]?.at}, objective ${mk.ob[0]?.id} in ${mk.ob[0]?.room}, extraction ${mk.ex[0]?.rect}; the plan labels them (${mk.words.join(', ')})`);
+
+    // Hub > Play > Start at insertion 1, then Tab: the walk test starts there
+    await press(BTN.START);
+    await E(() => window.__editor.pad.hub.setTab('Play'));
+    const hubProbe = "() => document.querySelector('#hub .padfocus')?.dataset.row ?? ''";
+    for (let i = 0; i < 6 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== 'play.insertion'; i++) await holdTill(BTN.DOWN, hubProbe);
+    const onRow = await E(() => document.querySelector('#hub .padfocus')?.dataset.row);
+    await press(BTN.A);
+    const startOn = await E(() => window.__editor.mission.startAtInsertion);
+    await press(BTN.B);
+    await dot(want[3], spine.z, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const pI = await player();
+    assert(onRow === 'play.insertion' && startOn && Math.hypot(pI.x - ins[0], pI.z - ins[1]) < 0.5 && Math.abs(pI.y) < 0.3, `ON8: Hub > Play > Start at insertion 1 (${startOn}); Tab starts the walk test there: player at (${pI.x.toFixed(2)}, ${pI.z.toFixed(2)}), insertion 1 at (${ins.join(', ')}); the dot was at x ${want[3]}`);
+    const beforeW8 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the insertion walk', beforeW8);
+    await E(() => { const ed = window.__editor; ed.mission.setStartAtInsertion(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
@@ -2406,6 +2559,9 @@ try {
   const playSaved = existsSync(sandPlay) ? JSON.parse(readFileSync(sandPlay, 'utf8')) : null;
   const campusSaved = JSON.parse(readFileSync(sandFile, 'utf8'));
   assert(!!playSaved && playSaved.lamps?.length >= 6 && playSaved.circuits?.some((c) => c.switch && c.lamps.length === 4) && !('lamps' in campusSaved) && !('circuits' in campusSaved) && !existsSync(path.join(process.cwd(), 'docs/kestrel/kestrel.play.json')), `ON6: the save writes the sandbox play file (${playSaved?.lamps?.length} lamps, ${playSaved?.circuits?.length} circuits) and a campus file without them; docs/kestrel untouched`);
+  // ON8: the guard and the markers too, in the file's shapes (spawns as points, the extraction one object)
+  const gd = playSaved?.guards?.[0];
+  assert(gd?.id === 'GD1' && gd.closed === true && gd.loop.length === 4 && gd.cycle > 0 && !!gd.isolation && playSaved.spawns?.length === 1 && Array.isArray(playSaved.spawns[0]) && playSaved.spawns[0][2] === 'G' && playSaved.objectives?.[0]?.id === 'OBJ1' && playSaved.extraction?.rect?.join() === '10,20,16,24' && !('guards' in campusSaved) && !('spawns' in campusSaved), `ON8: the play file has guard ${gd?.id} (${gd?.loop?.length} stops, ${gd?.cycle} s), spawns ${JSON.stringify(playSaved?.spawns)}, ${playSaved?.objectives?.[0]?.id}, extraction ${JSON.stringify(playSaved?.extraction)}; the campus file none of them`);
 } catch (e) {
 
   failed = true;

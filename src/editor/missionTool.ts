@@ -49,7 +49,7 @@ export class MissionTool {
   /** Objective picking: A on other objectives toggles them (needs first / opens). */
   link: { id: string; field: 'requires' | 'unlocks' } | null = null;
   /** The patrol preview: the guard, the time into its loop, its pose now. */
-  playing: { id: string; t: number; pose: PatrolPose; eye: Eye | null; eyeAt: number } | null = null;
+  playing: { id: string; t: number; pose: PatrolPose; eye: Eye | null; eyeAt: number; last: number } | null = null;
   /** Hub > Play: the walk test starts at insertion point 1. */
   startAtInsertion = false;
   /** Hub > View: every guard's path, or only the selected guard's. */
@@ -387,7 +387,7 @@ export class MissionTool {
     const lights = this.ed.lights;
     const eye = lights.on || lights.dark || lights.eyes.length > 0 ? lights.addEye(pose.x, pose.z, pose.yaw) : null;
     if (eye) eye.level = pose.level;
-    this.playing = { id, t: 0, pose, eye, eyeAt: 0 };
+    this.playing = { id, t: 0, pose, eye, eyeAt: 0, last: 0 };
     this.ed.status(`Patrol of ${id}: ${patrolWords(p, g)}${eye ? '; its sight moves with it' : ''}. Selected > Stop patrol ends it`);
     this.ed.view.setPatrolFigure(pose, this.colourOf(id));
   }
@@ -409,7 +409,11 @@ export class MissionTool {
     const g = this.guard(pl.id);
     if (!g) return this.stopPatrol();
     const p = this.patrolOf(g);
-    pl.t = (pl.t + dt * RATE) % Math.max(0.001, p.cycle);
+    // (wall-clock time, so a slow frame does not slow the guard; a stall of over half a second is skipped)
+    const now0 = performance.now();
+    const step = pl.last ? Math.min(0.5, (now0 - pl.last) / 1000) : dt;
+    pl.last = now0;
+    pl.t = (pl.t + step * RATE) % Math.max(0.001, p.cycle);
     pl.pose = patrolAt(g, p, pl.t);
     this.ed.view.setPatrolFigure(pl.pose, this.colourOf(pl.id));
     const now = performance.now();
