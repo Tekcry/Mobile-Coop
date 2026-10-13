@@ -1,24 +1,33 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
-import type { CourseDef } from '../../game/course/courseDef';
+import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_Y } from './bunkerUpper';
-import { buildShaft, plantAt } from './bunkerShaft';
+import { buildShaft, buildShaftFloors, plantAt } from './bunkerShaft';
+import { B5_GROUPS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
 
 /** Course footprint (BAYS 0: about 162 x 158 m in plan, every bay and airlock inside it). */
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2, T3): B1 to B4 with A1 to A4. B2's lane doors and the lanes' walkway doors at the east end
+ * The course data stub (T2-T4): B1 to B6 with A1 to A6 (B5 / B6 below; B6 ends the course for now, "Finish" in A6). B2's lane doors and the lanes' walkway doors at the east end
  * are lever gates (each lever in the other lane opens both of a lane's doors). B3: the fan guard (its four fence
  * sides) and the discharge duct stay locked until the fan isolator in CR is thrown (a pickup flag); CR's door onto the
  * chamber floor is bolted from inside CR. B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
- * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it. B4 ends the course for
- * now with the "Finish" device inside A4 (A4 is listed but never cycles until B5 exists). T7a completes the drills,
- * radio and the later bays.
+ * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it; B4 exits into A4.
+ * T7a completes the drills, radio and the later bays.
  */
 /** The bolted doors' press points (world plan: the door's centre in its wall). */
 const CR_DOOR = plantAt('B3', 18.225, 9);
 const INSP_DOOR = plantAt('B4', 14.6, 25);
+/** S6's top door in B6's west wall (opened from the B6 side only). */
+const S6_TOP = plantAt2('B6', 0, 1.5);
+
+/** A pickup switch setting several flags (a card of level n opens every reader up to n). */
+function card(id: string, switchId: string, levels: number): GateDef[] {
+  const out: GateDef[] = [];
+  for (let n = 1; n <= levels; n++) out.push({ kind: 'pickup', id: `g-${id}-${n}`, switchId, flag: `card-${n}`, perPlayer: false });
+  return out;
+}
 
 function courseDef(): CourseDef {
   return {
@@ -28,6 +37,8 @@ function courseDef(): CourseDef {
       { id: 'A2', box: [78, 81, 84, 87], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
       { id: 'A3', box: [90, 68, 96, 74], floorY: plantAt('A3', 0, 0).y, nearDoor: 'A3-near', farDoor: 'A3-far' },
       { id: 'A4', box: [97, 24, 103, 30], floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
+      { id: 'A5', box: [64, 5, 70, 11], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
+      { id: 'A6', box: [0, -10, 6, -4], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
     ],
     bays: [
       { id: 'B1', entry: 'start', exit: 'A1', squad: [], gates: [], radio: [], drills: [], elements: [] },
@@ -68,13 +79,53 @@ function courseDef(): CourseDef {
       {
         id: 'B4',
         entry: 'A3',
-        exit: 'end',
+        exit: 'A4',
         squad: [],
         gates: [
           { kind: 'bolt', id: 'g-insp', doorId: 'B4-insp', side: [0, -1], at: [INSP_DOOR.x, INSP_DOOR.z] },
           { kind: 'timedHold', id: 'g-sluice', holdId: 'hold-sluice', doorId: 'B4-sluice' },
           { kind: 'pickup', id: 'g-outlet', switchId: 'sw-outlet-ladder', flag: 'outlet-ladder', perPlayer: false },
           { kind: 'anchorLock', id: 'g-outlet-ladder', anchorId: 'B4-outlet-ladder', flag: 'outlet-ladder' },
+        ],
+        radio: [],
+        drills: [],
+        elements: [],
+      },
+      {
+        // the mains gate: A5's near door is unlocked while the L1-L3 group (MB in SR) is off
+        id: 'B5',
+        entry: 'A4',
+        exit: 'A5',
+        squad: [],
+        gates: [{ kind: 'mains', id: 'g-mains', group: 'B5-mains', doorId: 'A5-near' }],
+        radio: [],
+        drills: [],
+        elements: [],
+      },
+      {
+        // now forms (A37): cards are pickups setting reader levels, readers are flag gates; the exit keypad is three
+        // buttons (2 is right); the egress on the secure side and the records exit button release their readers;
+        // S6's top door opens from the B6 side only. B6 ends the course for now ("Finish" in A6).
+        id: 'B6',
+        entry: 'A5',
+        exit: 'end',
+        squad: [],
+        gates: [
+          ...card('card-a', 'pk-card-a', 2),
+          ...card('card-b', 'pk-card-b', 3),
+          ...card('card-m', 'pk-card-m', 4),
+          { kind: 'flag', id: 'g-rd1', flag: 'card-1', doorId: 'B6-rd1' },
+          { kind: 'flag', id: 'g-rd2', flag: 'card-2', doorId: 'B6-rd2' },
+          { kind: 'flag', id: 'g-rd3', flag: 'card-3', doorId: 'B6-rd3' },
+          { kind: 'flag', id: 'g-rd4', flag: 'card-4', doorId: 'B6-rd4' },
+          { kind: 'pickup', id: 'g-rex-1', switchId: 'sw-rd1-rex', flag: 'card-1', perPlayer: false },
+          { kind: 'pickup', id: 'g-egress-3', switchId: 'sw-mt-egress', flag: 'card-3', perPlayer: false },
+          { kind: 'pickup', id: 'g-egress-4', switchId: 'sw-mt-egress', flag: 'card-4', perPlayer: false },
+          { kind: 'pickup', id: 'g-key-2', switchId: 'sw-key-2', flag: 'exit-code', perPlayer: false },
+          { kind: 'pickup', id: 'g-key-1', switchId: 'sw-key-1', flag: 'keypad-wrong', perPlayer: false },
+          { kind: 'pickup', id: 'g-key-3', switchId: 'sw-key-3', flag: 'keypad-wrong', perPlayer: false },
+          { kind: 'flag', id: 'g-exit', flag: 'exit-code', doorId: 'B6-exit' },
+          { kind: 'bolt', id: 'g-s6-top', doorId: 'S6-top', side: [1, 0], at: [S6_TOP.x, S6_TOP.z] },
         ],
         radio: [],
         drills: [],
@@ -88,6 +139,7 @@ function courseDef(): CourseDef {
 const COURSE_DOORS = [
   'A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s', 'B2-exit-n', 'B2-exit-s',
   'B3-cr', 'A3-near', 'A3-far', 'B4-insp', 'B4-sluice', 'A4-near', 'A4-far',
+  'A5-near', 'A5-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A6-near', 'A6-far',
 ] as const;
 
 function pick(all: Record<string, number>): Record<string, number> {
@@ -103,7 +155,7 @@ function pick(all: Record<string, number>): Record<string, number> {
 /**
  * Fallow (training bunker, docs/training): a 1950s civil-defence bunker under a hill, fitted out as a two-player
  * course. Reached by `?autostart=bunker&mode=course` (not listed). One builder per part: Upper (y 16, bunkerUpper),
- * the shaft and reservoir (Plant y 6, bunkerShaft); the rest of Plant and Deep (y 0) follow (T4-T5).
+ * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant); Deep (y 0) follows (T5).
  */
 export const bunker: MapDef = {
   id: 'bunker',
@@ -129,16 +181,30 @@ export const bunker: MapDef = {
     b.bounds = { ...BUNKER_BOUNDS };
     const up = buildUpper(b);
     const sh = buildShaft(b);
+    const pl = buildPlant(b);
+    // the pieces the 'epic' detail pass dresses as floor go last (detailPass: ultra's wall stream = epic's)
+    buildShaftFloors(b);
+    buildPlantFloors(b);
     const def = courseDef();
-    const debug = [...up.debug, ...sh.debug];
+    const debug = [...up.debug, ...sh.debug, ...pl.debug];
+    const v = (p: { x: number; y: number; z: number }): Vector3 => new Vector3(p.x, p.y, p.z);
     return {
       playerSpawns: up.spawns.map((s) => ({ pos: new Vector3(s.pos.x, s.pos.y, s.pos.z), yaw: s.yaw })),
       enemySpawns: [],
       props: [],
       objectives: [],
       pickups: [],
+      switches: pl.switches.map((s) => ({ pos: v(s.pos), yaw: s.yaw, group: s.group })),
+      hideSpots: pl.hideSpots.map((p) => ({ pos: v(p) })),
       debugPoints: debug.map((d) => ({ group: 'Fallow', id: d.id, label: d.label, pos: new Vector3(d.pos.x, d.pos.y, d.pos.z), yaw: d.yaw })),
-      course: { def, doors: pick({ ...up.doors, ...sh.doors }), anchors: sh.anchors, devices: { ...up.devices, ...sh.devices }, squads: {} },
+      course: {
+        def,
+        doors: pick({ ...up.doors, ...sh.doors, ...pl.doors }),
+        anchors: { ...sh.anchors, ...pl.anchors },
+        groups: { 'B5-mains': B5_GROUPS.mains },
+        devices: { ...up.devices, ...sh.devices, ...pl.devices },
+        squads: {},
+      },
     };
   },
 };

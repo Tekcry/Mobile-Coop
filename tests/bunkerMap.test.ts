@@ -14,6 +14,9 @@ import type { SplitAnchor, TraversalAnchors } from '../src/world/anchors';
 import { B3_METRICS, B4_METRICS, BUNKER_COOP_LIPS, PLANT_LIPS, PLANT_Y, plantAt } from '../src/world/maps/bunkerShaft';
 import { RAPPEL, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { splitReach, wallJumpReach } from '../src/player/splitJump';
+import { B5_GROUPS, B5_LIPS, B5_METRICS, B6_METRICS, BUNKER_DEVICES, buildPlant, plantAt2, S6_METRICS, S6_RECT } from '../src/world/maps/bunkerPlant';
+import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
+import { hyp2 } from '../src/core/mathx';
 
 // Map tests build data only (T0 facts): ledges and splits come from `build`, so they are re-derived from the boxes.
 const b = new LevelBuilder();
@@ -198,14 +201,16 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     expect(g1.pos.y).toBeCloseTo(PLANT_Y + M3.g1, 5);
   });
 
-  it('the course stub: B3 (fan guard and duct locked until the isolator, CR bolted), B4 (bolt, sluice, outlet ladder), A3, A4', () => {
+  it('the course stub: B3 (fan guard and duct locked until the isolator, CR bolted), B4 (bolt, sluice, outlet ladder; exits into A4), A3, A4', () => {
     const c = play.course!;
     expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
     expect(c.def.bays.map((x) => [x.id, x.entry, x.exit])).toEqual([
       ['B1', 'start', 'A1'],
       ['B2', 'A1', 'A2'],
       ['B3', 'A2', 'A3'],
-      ['B4', 'A3', 'end'],
+      ['B4', 'A3', 'A4'],
+      ['B5', 'A4', 'A5'],
+      ['B6', 'A5', 'end'],
     ]);
     const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
     for (const id of ['A3-near', 'A3-far', 'A4-near', 'A4-far', 'B3-cr', 'B4-insp', 'B4-sluice']) expect(locked.has(c.doors[id]!), id).toBe(true);
@@ -217,7 +222,7 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     const fenceIds = new Set(['n', 'e', 's', 'w'].map((k) => c.anchors![`B3-fence-${k}`]));
     expect(pb.anchors.fences.filter((f) => inBay('B3', f.a.x, f.a.z)).every((f) => fenceIds.has(f.id))).toBe(true);
     expect(c.devices.end).toBeDefined();
-    expect(c.devices.end!.y).toBeCloseTo(plantAt('A4', 0, 0).y, 5);
+    expect(c.devices.A4!.y).toBeCloseTo(plantAt('A4', 0, 0).y, 5);
   });
 
   it('exactly one split gap in B3: the RC slot (1.6 wide, both faces >= 3.6, on G1); B4 only the overflow channel', () => {
@@ -442,5 +447,217 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     expect(PLANT_Y + M4.sump).toBeGreaterThan(-1.5);
     // the gallery has no lip: the cells cannot climb it, only W1 / W2 / C3's ladder reach it
     expect(genPlant.filter((l) => inBay('B4', l.a.x, l.a.z) && l.a.x >= b4(31.9, 0).x)).toEqual([]);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------ T4: B5, A5, B6, S6, A6
+
+describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
+  const pb = new LevelBuilder();
+  const play = bunker.build(pb, 0);
+  generateLedges(pb.boxes, pb.anchors);
+  const gaps = findSplitGaps(buildCoverSegments(pb.boxes, pb.cylinders));
+  for (const g of gaps) pb.anchors.add<SplitAnchor>({ kind: 'split', ...g } as SplitAnchor);
+  const A: TraversalAnchors = pb.anchors;
+  const c = play.course!;
+  const b5 = (x: number, z: number, y = 0) => plantAt2('B5', x, z, y);
+  const b6 = (x: number, z: number, y = 0) => plantAt2('B6', x, z, y);
+  /** The T4 bays in plan (B5, A5 and its passage, B6, S6, A6): south of A4, below the Upper level. */
+  const inT4 = (x: number, z: number): boolean => z >= -10.5 && z <= 24.3 && x >= -0.5 && x <= 118.5;
+  const genT4 = generated.filter((l) => l.top < UPPER_Y - 2 && inT4(l.a.x, l.a.z) && inT4(l.b.x, l.b.z));
+  const lipOf = (id: string) => B5_LIPS.find((l) => l.id === id)!;
+  const topAt = (x: number, z: number, y: number): boolean =>
+    pb.boxes.some((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3 && Math.abs(p.c[1] + p.s[1] / 2 - y) < 0.01 && Math.abs(x - p.c[0]) <= p.s[0] / 2 - 0.05 && Math.abs(z - p.c[2]) <= p.s[2] / 2 - 0.05);
+
+  it("debug points B5, B5-SR, B6, B6-CR, S6, A5, A6", () => {
+    const ids = play.debugPoints!.map((d) => d.id);
+    for (const id of ['B5', 'B5-SR', 'B6', 'B6-CR', 'S6', 'A5', 'A6']) expect(ids, id).toContain(id);
+    for (const d of play.debugPoints!.filter((p) => ['B5', 'B6-CR', 'S6'].includes(p.id))) expect(topAt(d.pos.x, d.pos.z, d.pos.y), d.id).toBe(true);
+  });
+
+  it('course stub: B5 mains gate on A5, B6 card / reader / keypad / egress gates, S6 one-way, A5 and A6', () => {
+    expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
+    expect(c.def.airlocks.map((a) => a.id).slice(-2)).toEqual(['A5', 'A6']);
+    const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
+    for (const id of ['A5-near', 'A5-far', 'A6-near', 'A6-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top']) expect(locked.has(c.doors[id]!), id).toBe(true);
+    const g5 = c.def.bays[4]!.gates;
+    expect(g5).toEqual([{ kind: 'mains', id: 'g-mains', group: 'B5-mains', doorId: 'A5-near' }]);
+    expect(c.groups!['B5-mains']).toBe(B5_GROUPS.mains);
+    // the mains gate starts shut: a lamp on the group is on (B5's work lamp); MB is a switch on that group
+    expect(pb.lights.lights.some((l) => l.group === B5_GROUPS.mains && l.on)).toBe(true);
+    expect(play.switches!.filter((s) => s.group === B5_GROUPS.mains).length).toBe(1);
+    const g6 = c.def.bays[5]!.gates;
+    const flagGate = (door: string) => g6.find((g) => g.kind === 'flag' && g.doorId === door);
+    for (const [door, flag] of [['B6-rd1', 'card-1'], ['B6-rd2', 'card-2'], ['B6-rd3', 'card-3'], ['B6-rd4', 'card-4'], ['B6-exit', 'exit-code']]) expect(flagGate(door!), door).toMatchObject({ flag });
+    // each reader door has exactly one gate (gates AND on a door)
+    for (const door of ['B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A5-near']) expect(c.def.bays.flatMap((x) => x.gates).filter((g) => 'doorId' in g && g.doorId === door).length, door).toBe(1);
+    expect(g6.some((g) => g.kind === 'bolt' && g.doorId === 'S6-top' && g.side[0] === 1)).toBe(true);
+    for (const k of ['pk-card-a', 'pk-card-b', 'pk-card-m', 'sw-key-1', 'sw-key-2', 'sw-key-3', 'sw-mt-egress', 'sw-rd1-rex']) expect(c.devices[k], k).toBeDefined();
+    // the Finish sits in A6 (B6 ends the course for now)
+    expect(c.devices.end!.y).toBe(0);
+    expect(c.devices.end!.x).toBeLessThan(6);
+  });
+
+  it('device mount points (BUNKER_DEVICES): four cameras, desk, panel, readers 1-4, iris, beams, PIR, fault, keypad', () => {
+    const kinds = BUNKER_DEVICES.map((d) => d.kind);
+    expect(kinds.filter((k) => k === 'camera' || k === 'cameraSweep').length).toBe(4);
+    expect(BUNKER_DEVICES.filter((d) => d.kind === 'reader').map((d) => d.level)).toEqual([1, 2, 3, 4]);
+    for (const k of ['desk', 'panel', 'iris', 'pir', 'fault', 'keypad', 'medkit'] as const) expect(kinds, k).toContain(k);
+    expect(BUNKER_DEVICES.filter((d) => d.kind === 'beam').length).toBe(2);
+    const sd = BUNKER_DEVICES.find((d) => d.id === 'SD')!;
+    expect(sd.pos.y).toBeCloseTo(PLANT_Y + B6_METRICS.mezzanine, 5);
+    for (const d of BUNKER_DEVICES.filter((x) => x.door)) expect(c.doors[d.door!], d.id).toBeDefined();
+  });
+
+  it('genset roofs 3.0 in the wall-jump window, kicked to from the floor; their lips exist', () => {
+    expect(B5_METRICS.genset).toBeGreaterThanOrEqual(WALL_JUMP.minUp);
+    expect(B5_METRICS.genset).toBeLessThanOrEqual(WALL_JUMP.maxUp);
+    for (const id of ['GEN1', 'GEN2', 'GEN3']) {
+      const l = lipOf(id);
+      const front = genT4.find((g) => inLip(g, l.box, l.top) && g.nz < -0.9)!;
+      expect(front, id).toBeDefined();
+      const st = { x: (l.box[0] + l.box[2]) / 2, z: l.box[1] + 0.05 - 0.6 };
+      expect(wallJumpReach(front, st.x, PLANT_Y, st.z, 0, 1), id).not.toBeNull();
+    }
+  });
+
+  it('no unplanned lip in B5 / B6 / S6 (gallery, racks, lockers, landing are noLedge); every planned lip exists', () => {
+    const stray = genT4.filter((l) => !B5_LIPS.some((p) => inLip(l, p.box, p.top)));
+    expect(stray.map((l) => [l.a, l.b, l.top])).toEqual([]);
+    for (const p of B5_LIPS) expect([...genT4, ...manual].some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
+    // no split gap anywhere in the T4 bays
+    expect(gaps.filter((g) => g.a.y < UPPER_Y - 2 && inT4(g.a.x, g.a.z))).toEqual([]);
+  });
+
+  it('the gallery hang-drop at x 2: a hang-only lip facing west; the drop from the hang is soft', () => {
+    const l = manual.filter((m) => inLip(m, lipOf('GAL-W').box, lipOf('GAL-W').top));
+    expect(l.length).toBe(1);
+    expect(l[0]!.canHang && !l[0]!.canClimbUp).toBe(true);
+    expect(l[0]!.nx).toBeCloseTo(-1, 5);
+    expect(landingKind(B5_METRICS.gallery - HANG.drop)).toBe('soft');
+  });
+
+  it('the cable trench: 1.5 deep x 1.2 wide, floor y 4.5, grated over but for the two lift-out panel openings', () => {
+    const [x0, z0, x1, z1] = B5_METRICS.trench;
+    expect(z1 - z0).toBeCloseTo(B5_METRICS.trenchWidth, 5);
+    expect(B5_METRICS.trenchDepth).toBe(1.5);
+    const floorY = PLANT_Y - B5_METRICS.trenchDepth;
+    expect(floorY).toBeGreaterThan(-1.5);
+    expect(topAt(b5((x0 + x1) / 2, 21).x, b5(0, 21).z, floorY)).toBe(true);
+    // the grating over the middle, open at the panels
+    expect(topAt(b5(20, 21).x, b5(0, 21).z, PLANT_Y)).toBe(true);
+    for (const px of B5_METRICS.panels) expect(topAt(b5(px, 21).x, b5(0, 21).z, PLANT_Y), `${px}`).toBe(false);
+    // hide spots: the two panels, the fuel bay, the gallery recess; B6 lockers and rack ends
+    expect(play.hideSpots!.length).toBe(8);
+  });
+
+  it('ladders in B5 / A5 (trench, gallery, platform) top out on a floor (the real step-off)', () => {
+    const lads = pb.anchors.ladders.filter((l) => inT4(l.base.x, l.base.z) && l.base.z > -8);
+    expect(lads.length).toBe(4);
+    for (const l of lads) {
+      const ex = l.top.x + Math.sin(l.facing) * 0.2;
+      const ez = l.top.z + Math.cos(l.facing) * 0.2;
+      expect(topAt(ex, ez, l.top.y), `${l.base.x} ${l.base.z}`).toBe(true);
+    }
+  });
+
+  it("the entry landing meets A4's far door at 4.4; its stair reaches the floor; the gallery is out of reach of it", () => {
+    const door = pb.anchors.doors.find((d) => d.id === c.doors['A4-far'])!;
+    expect(door.hinge.y).toBeCloseTo(PLANT_Y + B5_METRICS.landing, 5);
+    expect(topAt(door.hinge.x + 0.6, door.hinge.z - 0.6, door.hinge.y)).toBe(true);
+    // gallery east end x 24, landing west end x 27 behind a full-height screen
+    expect(b5(27, 0).x - b5(24, 0).x).toBeGreaterThanOrEqual(3);
+    const screen = pb.boxes.find((p) => p.collide && Math.abs(p.c[0] - b5(27, 0).x) < 0.01 && p.c[1] - p.s[1] / 2 <= PLANT_Y + B5_METRICS.landing + 0.01 && p.c[1] + p.s[1] / 2 >= PLANT_Y + B5_METRICS.clear - 0.01);
+    expect(screen).toBeDefined();
+    // the landing (4.4) is out of wall-jump reach from the floor and has no lip
+    expect(B5_METRICS.landing).toBeGreaterThan(WALL_JUMP.maxUp);
+  });
+
+  it('the supply duct: entry from the plant platform (feet 2.2) in A5 service passage, ceiling exit over the records desk (a roll)', () => {
+    const d = A.all.find((a) => a.id === c.anchors!['B6-duct'])!;
+    if (d.kind !== 'duct') throw new Error('no duct');
+    // the platform stance facing the grate (west): anchors.ts duct entry rule
+    const feet = PLANT_Y + B6_METRICS.platform;
+    expect(topAt(64.8, 11.85, feet)).toBe(true);
+    expect(hyp2(64.8 - d.entry.pos.x, 11.85 - d.entry.pos.z)).toBeLessThanOrEqual(1.1);
+    expect(Math.abs(d.entry.pos.y - feet)).toBeLessThanOrEqual(1.4);
+    expect(-(-1 * d.entry.nx)).toBeGreaterThanOrEqual(0.3);
+    // out of reach from the passage floor (the platform is the way in)
+    expect(Math.abs(d.entry.pos.y - PLANT_Y)).toBeGreaterThan(1.4);
+    expect(d.exit.where).toBe('ceiling');
+    expect(d.exit.pos.x).toBeGreaterThan(b6(22, 0).x);
+    expect(d.exit.pos.x).toBeLessThan(b6(34, 0).x);
+    expect(d.exit.pos.z).toBeLessThan(b6(0, 15).z);
+    // the drop: 3.5 to the floor or 2.75 onto the desk under the grille, both roll landings (T0 Q6)
+    expect(landingKind(d.exit.pos.y - PLANT_Y)).toBe('roll');
+    expect(topAt(d.exit.pos.x, d.exit.pos.z, PLANT_Y + B6_METRICS.desk)).toBe(true);
+    expect(landingKind(d.exit.pos.y - PLANT_Y - B6_METRICS.desk)).toBe('roll');
+    // the grille's hole: no collide piece between the desk and the duct floor under it
+    const blocked = pb.boxes.some((p) => p.collide && Math.abs(d.exit.pos.x - p.c[0]) < p.s[0] / 2 && Math.abs(d.exit.pos.z - p.c[2]) < p.s[2] / 2 && p.c[1] - p.s[1] / 2 < d.exit.pos.y - 0.05 && p.c[1] + p.s[1] / 2 > PLANT_Y + B6_METRICS.desk + 0.05);
+    expect(blocked).toBe(false);
+  });
+
+  it('the B6 mezzanine (CR) is 3.6 over the office floor; its stair (behind RD2) lands on it; no gate can be passed by a window or fence', () => {
+    expect(topAt(b6(27, 28).x, b6(0, 28).z, PLANT_Y + B6_METRICS.mezzanine)).toBe(true);
+    expect(topAt(b6(27, 20).x, b6(0, 20).z, PLANT_Y)).toBe(true);
+    const ramp = pb.boxes.find((p) => p.collide && Math.abs(p.pitch) > 1e-3 && Math.abs(p.c[0] - b6(21, 0).x) < 0.01 && p.c[2] > b6(0, 17).z && p.c[2] < b6(0, 24).z)!;
+    expect(ramp).toBeDefined();
+    expect(topAt(b6(21, 24.2).x, b6(0, 24.2).z, PLANT_Y + B6_METRICS.mezzanine)).toBe(true);
+    expect(pb.anchors.all.filter((a) => a.kind === 'window' && inT4(a.c.x, a.c.z))).toEqual([]);
+    expect(pb.anchors.fences.filter((f) => inT4(f.a.x, f.a.z))).toEqual([]);
+  });
+
+  it('S6: 33 risers of 0.182, going 0.28, 3.0 wide (stairs.ts layout) inside S6; its foot and top join on a layered nav grid', () => {
+    const s6 = buildPlant(new LevelBuilder()).s6;
+    expect(s6.flights.length).toBe(2);
+    expect(s6.flights.reduce((n, f) => n + f.steps, 0)).toBe(S6_METRICS.risers);
+    for (const f of s6.flights) {
+      expect(f.rise / f.steps).toBeCloseTo(6 / 33, 5);
+      expect(f.len / f.steps).toBeCloseTo(S6_METRICS.going, 5);
+      expect(f.w).toBe(S6_METRICS.width);
+    }
+    expect(S6_RECT[0]).toBeGreaterThan(6);
+    expect(S6_RECT[2]).toBeLessThan(22);
+    // a nav grid over S6 and its ends from the level's own pieces (an analytic version of navBuild's raycasts)
+    const solid = pb.boxes.filter((p) => p.collide && p.c[0] + p.s[0] > 3 && p.c[0] - p.s[0] < 26 && p.c[2] + p.s[2] > -12 && p.c[2] - p.s[2] < -2);
+    const surf = (x: number, z: number): { h: number; bottom: number }[] => {
+      const out: { h: number; bottom: number }[] = [];
+      for (const p of solid) {
+        const sy = Math.sin(p.yaw);
+        const cy = Math.cos(p.yaw);
+        const u = (x - p.c[0]) * sy + (z - p.c[2]) * cy;
+        const v = (x - p.c[0]) * cy - (z - p.c[2]) * sy;
+        if (Math.abs(v) > p.s[0] / 2) continue;
+        if (Math.abs(p.pitch) < 1e-3) {
+          if (Math.abs(u) <= p.s[2] / 2) out.push({ h: p.c[1] + p.s[1] / 2, bottom: p.c[1] - p.s[1] / 2 });
+        } else if (Math.abs(u) <= (p.s[2] * Math.cos(p.pitch)) / 2) {
+          const h = p.c[1] + (p.s[1] / 2) * Math.cos(p.pitch) + u * Math.tan(-p.pitch);
+          out.push({ h, bottom: h - 0.35 });
+        }
+      }
+      return out.sort((a, q) => q.h - a.h);
+    };
+    const blockers: NavBlocker[] = solid.filter((p) => Math.abs(p.pitch) < 1e-3 && !p.overhead).map((p) => ({ cx: p.c[0], cz: p.c[2], hx: p.s[0] / 2, hz: p.s[2] / 2, yaw: p.yaw, bottom: p.c[1] - p.s[1] / 2, top: p.c[1] + p.s[1] / 2 }));
+    const foot: [number, number] = [3, -7];
+    const head: [number, number] = [b6(2, 1.5).x, b6(2, 1.5).z];
+    const nav = new NavGrid({
+      minX: 0.5, maxX: 25, minZ: -9.5, maxZ: -3.5, cell: 0.25, agentRadius: 0.32, stepHeight: 0.45, layers: 5, blockers, seed: foot,
+      sample: () => ({ h: 0, ok: false }),
+      sampleLayers: (x, z) => {
+        const out: NavSample[] = [];
+        let ceiling = Infinity;
+        for (const s of surf(x, z)) {
+          if (s.h > ceiling) continue;
+          if (ceiling - s.h >= 1.7) out.push({ h: s.h, ok: true });
+          ceiling = Math.min(ceiling, s.bottom);
+        }
+        return out.reverse();
+      },
+    });
+    // doors are open for this (the course opens them): the foot in A6 and the top in B6's S6 lobby
+    const path = nav.findPath(foot, head, 20000, 0, PLANT_Y);
+    expect(path).not.toBeNull();
+    expect(nav.heightAt(s6.foot[0], s6.foot[1], 0)).toBeLessThan(0.2);
+    expect(nav.heightAt(s6.head[0], s6.head[1], PLANT_Y)).toBeCloseTo(PLANT_Y, 0);
   });
 });

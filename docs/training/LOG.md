@@ -110,3 +110,32 @@ finds no W2 lip; the 'B3-RC' debug point moved to local x 8.5. Tests 23 -> 26: t
 - A4's floor at the outlet platform (y 10.4): T4 builds B5's entry landing to meet A4's far door.
 
 T3 checked: PASS after 1 fix round (408f27d).
+
+## T4 Plant geometry (2026-10-13, cloud)
+`src/world/maps/bunkerPlant.ts` (B5 Standby Plant, A5 and its service passage, B6 Mock Site, S6 Stair 6, A6;
+`B5_LIPS`, `BUNKER_DEVICES`, `B5_METRICS`, `B6_METRICS`, `S6_METRICS`, `S6_RECT`, `B5_GROUPS`, `plantAt2`), called
+from bunker.ts; the floor-dressed pieces (B4 sump, B5 trench floor, S6 / A6 floors, A6 roof) are built last
+(`buildShaftFloors`, `buildPlantFloors`, A38). Course stub B1-B6: B4 exits into A4; B5 mains gate (group `B5-mains`
+51, MB a `switches` entry in SR, the B5 work lamp on it) on A5-near; B6 card pickups -> flag gates RD1-RD4, keypad
+keys 1-3 (2 sets `exit-code` for B6-exit), mantrap egress and records exit button (pickups), S6-top bolt from the B6
+side; Finish in A6; airlocks A5, A6 (A37). Hide spots (8), BUNKER_DEVICES mount points (cameras with visual fixtures,
+SD, PN, FLT, PC, WB, RD1-4, IR1, beams, PIR, KP, A6 medkit). Tests 26 -> 38 in bunkerMap (genset wall-jump via
+`wallJumpReach`, no stray lip or split in the T4 bays, gallery hang-drop, trench section and panel openings, ladder
+step-offs, landing at A4's door and its screen, duct entry from the platform and the ceiling exit roll over the desk,
+mezzanine 3.6 and its stair, no windows or fences, S6 stairLayout and an analytic layered NavGrid path foot -> top).
+Shared tests: voxelFit area bound for the bunker 164 x 160 (A36). Number changes within windows: S6 offset z -10 ->
+-8, S6 mid landing 1.8 -> 3.0, B6 ceilings 3.5, SV x 6..16 / z 0..15 (A36). Assumptions A36-A38.
+
+### Spec change requests (T4)
+- A32 follow-up: B5's entry landing at local 4.4 (x 27..33, z 30..32) meets A4's far door (x 99.4-100.6, z 24,
+  y 10.4); its own stair (24 risers) runs south to the floor. The cable gallery cannot pass the landing, so it ends at
+  x 24 with its ladder at x 23.3 (was x 37 by SR): the breaker player's "leave SR by the gallery ladder" is now a
+  13 m dash west along the north wall. A full-height mesh screen on the landing's west end: no free high route onto
+  the gallery or the gensets (A36).
+- B6: the corridor L leg dead-ends at z 2 (an open leg to the S6 exit would bypass the mantrap and the keypad); the
+  exit keypad door is SV's nook west wall into an S6 lobby; RD3 sits in the mantrap's north wall off a vestibule open
+  to CO (A36).
+- B6 supply duct: A5's service passage is between B6 and B5 north of A5, entered from B6's reception, so the duct
+  cannot skip A5's cycle; it reaches only records (the planned alternate route past RD1); records has an exit button
+  (no softlock for a solo runner).
+- S6: offset z -8 (top door in B6's west wall), mid landing 3.0 (stairs.ts rule).

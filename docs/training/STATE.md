@@ -21,7 +21,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | A | Block A end | done (GPU items pending PC run) | |
 | B | T2 Upper | done | ba09b54 |
 | B | T3 Shaft and Cistern | done | 408f27d |
-| B | T4 Plant | not started | |
+| B | T4 Plant | implemented (cloud), awaiting check | |
 | B | T5 Deep | not started | |
 | B | Block B end, then PAUSE for Michael's walk (D27) | not started | |
 | C | T5b walk notes | not started | |
@@ -44,10 +44,10 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A35 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A38 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 Nothing yet: the run is starting (cloud, Block A).
 
 ## Next action
-Start T4: implementer subagent with docs/training/steps/T4-plant.md.
+T4 checker (fresh agent): docs/training/steps/T4-plant.md checks, the A5 -> S6 nav walk; then commit T4.

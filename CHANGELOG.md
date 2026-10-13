@@ -11,6 +11,14 @@
   nets), airlock A3, B4 The Cistern (three cells, 4.4 co-op walls, inspection door, sluice, valve gallery, overflow
   channel, float shaft, sump, outlet platform) and airlock A4 on the outlet platform. Course stub B1-B4 with the fan
   isolator, bolts, the sluice hold and the outlet ladder.
+- T4 Plant level, rest (y 6) and Stair 6: B5 Standby Plant (three gensets with wall-jump roofs, grating walkway over a
+  secret cable trench with lift-out panels, cable gallery with a hang-drop, glazed switch room with the mains breaker
+  switch, fuel bay and day tank, duty desk, entry landing and stair at A4's door), airlock A5 and its service passage
+  (plant platform under the supply duct), B6 Mock Site (reception, corridor and L, open office with partitions and the
+  glazed manager's office, control-room mezzanine at 3.6 behind a reader door, lockers, records with the duct's
+  ceiling grille, mantrap, server room, exit keypad lobby), S6 (33-riser enclosed stair to y 0) and airlock A6.
+  `BUNKER_DEVICES` mount points for T7a. Course stub B1-B6: the mains gate on A5, card readers, keypad, egress, S6's
+  one-way top door; Finish in A6.
 
 ## 3.7.0 - Training course framework (Block A, branch `feature/training-bunker`)
 - Course mode (T1a, T1b): `CourseState` (pure, host only) runs bays, airlocks and gates (lever, bolt, hold, timed hold,

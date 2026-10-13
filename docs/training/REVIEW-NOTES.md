@@ -19,3 +19,7 @@
 - T3: A4 floor at y 10.4 (outlet platform), not 6 (A32): T4 must land A4's far door on B5's entry landing at local 4.4.
 - T3: B3 fan pit hood (A31) and the duct at 4.15 m (not 7): spec numbers changed.
 - T3: voxelFit height bound for the bunker raised to 40 m (A34): T9a must size the bunker's voxel grid (the course is about 162 x 158 m; the 110 x 110 area bound will fail once T4 / T5 build out).
+- T4 spec change (A36): B5 cable gallery shortened to x 2..24 (ladder at x 23.3, not by SR) because A4's door lands on a 4.4 landing on the north wall; landing screened from the gallery (no free high route). Michael: is the 13 m dash from SR to the gallery ladder acceptable for the breaker player's escape?
+- T4 spec change (A36): B6 corridor L leg dead-ends (beams and PIR guard a dead end); exit keypad door from SV's nook; S6 at z -8; S6 mid landing 3.0.
+- T4 (A37): B6 now-form gates AND per door, so readers are single flag gates; egress / records exit are pickups releasing reader levels. S6 top door one-way via bolt; relock after both pass needs a new gate kind (T7a).
+- T4 (A36): voxelFit bunker area bound now the course plan 164 x 160 (T9a sizes the voxel grid).

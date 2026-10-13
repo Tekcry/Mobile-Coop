@@ -329,14 +329,14 @@ function buildB3(b: LevelBuilder, lips: number[], r: ShaftResult): void {
 // ---------------------------------------------------------------------------------------------------- airlocks
 
 /** A3 / A4: 6 x 6 x 3.0 between two bays north and south; the north / south walls are the bays' (A4's south wall is
- *  B5's, built here until T4); W / E walls, bench, roof, the two locked blast doors in the bays' walls, Cycle panel. */
+ *  B5's: A4 builds its stretch at the outlet height); W / E walls, bench, roof, the two locked blast doors in the bays' walls, Cycle panel. */
 function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   const { X, Z, Y } = frame(bay);
   b.floor(X(3), Z(3), 6 + 2 * OUTER, 6, C.floor, Y(0));
   wallZAt(b, X(-OUTER / 2), Z(0), Z(6), [], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
   wallZAt(b, X(6 + OUTER / 2), Z(0), Z(6), [], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
   if (bay === 'A4') {
-    // B5's north wall (z 24) until T4 builds B5 (the far door at x 2.4..3.6)
+    // A4's stretch of B5's north wall (z 24; B5 fills below and above it, bunkerPlant): the far door at x 2.4..3.6
     wallXAt(b, Z(0), X(-OUTER), X(6 + OUTER), [[X(2.4), X(3.6)]], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
     b.box(X(3), Y((DOOR_H + PLANT_AIRLOCK_CLEAR) / 2), Z(0), DOOR_W, PLANT_AIRLOCK_CLEAR - DOOR_H, OUTER, C.wall);
   }
@@ -404,13 +404,22 @@ function buildB4(b: LevelBuilder, lips: number[], r: ShaftResult): void {
   b.block(X(18), Z(1), 6, M4.outlet, 2, C.conc, Y(0));
   r.anchors['B4-outlet-ladder'] = b.ladder(X(16), Z(2.2), Y(0), Y(M4.outlet), Math.PI).id;
   r.devices['sw-outlet-ladder'] = { x: X(16.6), y: Y(M4.outlet), z: Z(1.2), yaw: 0, label: 'Lower ladder' };
-  // the course end ("Finish") sits in A4 until B5 exists (T4 / T7a move B4's exit to A4)
-  r.devices.end = { x: plantAt('A4', 5.0, 3).x, y: plantAt('A4', 0, 0).y, z: plantAt('A4', 5.0, 3).z, yaw: -Math.PI / 2, label: 'Finish' };
   r.debug.push({ id: 'B4', label: 'B4 The Cistern (C1 at the A3 door)', pos: plantAt('B4', 11, 36), yaw: Math.PI });
 }
 
 /**
- * Build the shaft and the reservoir into `b`. Returns doors (course ids -> anchor ids), course devices, course
+ * The sump's liners and floor, built after every other piece of the map (bunker.ts): its floor (top y 2) is a piece the
+ * 'epic' detail pass dresses as floor, so the wall dressing before it draws the same random stream at 'ultra' and
+ * 'epic' (detailPass test: ultra <= epic).
+ */
+export function buildShaftFloors(b: LevelBuilder): void {
+  const from = b.boxes.length;
+  pit(b, B4_SUMP, PLANT_Y, -M4.sump, C.conc);
+  b.mark(from, { noLedge: true });
+}
+
+/**
+ * Build the shaft and the reservoir into `b` (the sump last of all: `buildShaftFloors`). Returns doors (course ids -> anchor ids), course devices, course
  * anchors and the debug points. Afterwards every piece but the lip pieces is `noLedge`.
  */
 export function buildShaft(b: LevelBuilder): ShaftResult {
@@ -421,9 +430,6 @@ export function buildShaft(b: LevelBuilder): ShaftResult {
   buildAirlock(b, 'A3', r);
   buildB4(b, lips, r);
   buildAirlock(b, 'A4', r);
-  // the sump's liners and floor last: its floor (top y 2) is the only piece the 'epic' detail pass dresses as floor,
-  // so the wall dressing before it draws the same random stream at 'ultra' and 'epic' (detailPass test: ultra <= epic)
-  pit(b, B4_SUMP, PLANT_Y, -M4.sump, C.conc);
   const keep = new Set(lips);
   for (let k = from; k < b.boxes.length; k++) if (!keep.has(k)) b.boxes[k]!.noLedge = true;
   // one work lamp per bay (T6 lights the bays)
