@@ -60,7 +60,7 @@ import type { PlayData } from './playFile';
 import { MissionTool } from './missionTool';
 import { SecurityTool } from './securityTool';
 import { CrawlTool } from './crawlTool';
-import { ceilingWords } from './ceilings';
+import { ceilingWords, CRAWL_RULE } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { hyp2 } from '../core/mathx';
 import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
@@ -1512,7 +1512,7 @@ export class Editor {
     this.view.setVoidView(on);
     this.drawPlanOverlay();
     this.voidLegend();
-    this.status(on ? 'Ceiling voids on: green meets the 1.5 m crawl rule, red does not; the legend gives each clear height' : 'Ceiling voids off');
+    this.status(on ? `Ceiling voids on: green meets the ${fmt(CRAWL_RULE)} m crawl rule, red does not; the legend gives each clear height` : 'Ceiling voids off');
   }
 
   /** The voids legend for the editing level (shown while the view is on). */

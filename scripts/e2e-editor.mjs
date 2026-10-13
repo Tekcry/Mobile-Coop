@@ -2704,6 +2704,137 @@ try {
     await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
+  // ---------- ON13: ceilings, voids and crawl spaces ----------
+  console.log('ON13: a corridor ceiling set to 2.4 m grid tiles on its card, the ceiling voids view (clear height), a crawl space from a hatch to a vent, the walk test player crouches in it');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile, btn = BTN.RIGHT) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile, btn);
+      await press(BTN.A);
+      if ((await menuState()).open) await press(BTN.B);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 8 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    // a voided corridor on Ground (the data: the longest corridor with a ceiling)
+    const cor = await E(() => { const d = window.__editor.model.data; const r = d.rooms.filter((q) => q.level === 'G' && q.kind === 'corridor' && q.ceiling > 0).sort((a, b) => (b.rect[2] - b.rect[0]) - (a.rect[2] - a.rect[0]))[0]; return r ? { id: r.id, name: r.name, rect: r.rect } : null; });
+    await E((id) => window.__editor.select(`rooms:${id}`), cor.id);
+    const ceilTile = await pickTile('Selected', 'Ceiling');
+    await page.waitForFunction((id) => window.__editor.selected === `ceilings:${id}`, cor.id, { timeout: 5000 }).catch(() => {});
+    const selC = await E(() => window.__editor.selected);
+    // the card: Height down a step and back (2.4 m), Type to plasterboard and back to the grid
+    const hRow = await toRow('height');
+    await holdTill(BTN.LEFT, cardProbe);
+    await holdTill(BTN.RIGHT, cardProbe);
+    const tRow = await toRow('type');
+    await holdTill(BTN.RIGHT, cardProbe);
+    const mid = await E((id) => window.__editor.model.get('rooms', id).ceilingType, cor.id);
+    await holdTill(BTN.LEFT, cardProbe);
+    await page.waitForFunction((id) => window.__editor.model.get('rooms', id).ceilingType === 'grid', cor.id, { timeout: 5000 }).catch(() => {});
+    const ceil = await E((id) => { const r = window.__editor.model.get('rooms', id); return { h: r.ceiling, type: r.ceilingType }; }, cor.id);
+    await press(BTN.B);
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-ceiling]'), null, { timeout: 5000 }).catch(() => {});
+    const cFoot = await E(() => document.querySelector('#selCard [data-ceiling]')?.textContent ?? '');
+    assert(ceilTile && selC === `ceilings:${cor.id}` && hRow && tRow && mid === 'plasterboard' && ceil.h === 2.4 && ceil.type === 'grid' && /Void \d\.\d+ m clear/.test(cFoot), `ON13: Selected > Ceiling of ${cor.id} (${selC}); its card set it to ${ceil.h} m ${ceil.type} tiles (Type went through ${mid}); card "${cFoot}"`);
+
+    // Y > View > Ceiling voids: the void over the corridor, its clear height and the rule
+    const vTile = await pickTile('View', 'Ceiling voids', BTN.DOWN);
+    await page.waitForFunction(() => window.__editor.crawl.voids && window.__editor.view.voidsShown > 0, null, { timeout: 8000 }).catch(() => {});
+    const vv = await E((id) => ({ on: window.__editor.crawl.voids, shown: window.__editor.view.voidsShown, legend: document.querySelector(`#voidLegend [data-void="${id}"]`)?.textContent ?? '', plan: document.querySelectorAll('#planSvg .voidMark').length }), cor.id);
+    await dotAt((cor.rect[0] + cor.rect[2]) / 2, (cor.rect[1] + cor.rect[3]) / 2);
+    await shot('on13-corridor-void');
+    assert(vTile && vv.on && vv.shown >= 1 && /\d\.\d+ m clear/.test(vv.legend) && vv.plan >= 1, `ON13: Y > View > Ceiling voids: ${vv.shown} void boxes, ${vv.plan} on the plan; legend "${vv.legend}"`);
+
+    // a vent at the corridor's west end, high in the void (an ON5 vent grille record on the file's grid), then Build > Crawl space from a hatch to it
+    const zc = (cor.rect[1] + cor.rect[3]) / 2;
+    const vent = await E(([x, z]) => {
+      const ed = window.__editor;
+      const used = new Set((ed.model.data.exterior ?? []).map((e) => e.id));
+      let i = 1;
+      while (used.has(`E${String(i).padStart(3, '0')}`)) i++;
+      const v = { id: `E${String(i).padStart(3, '0')}`, kind: 'vent', a: [x, z], b: [x, z], y0: 2.8, y1: 3.4, climbable: false, reason: 'e2e: a void vent', level: 'G', facing: 'E', size: [0.6, 0.6] };
+      ed.commitText(`Added vent ${v.id}`, [{ coll: 'exterior', id: v.id, before: null, after: v }]);
+      return v;
+    }, [cor.rect[0] + 0.5, Math.round(zc)]);
+    const cTile = await pickTile('Build', 'Crawl space');
+    const tool = await E(() => window.__editor.tool);
+    const hx = cor.rect[0] + 12.13;
+    await dotAt(hx, zc - 0.4);
+    const sStart = await said('A: a crawl space from a hatch');
+    await press(BTN.A);
+    await dotAt(vent.a[0] + 0.3, zc);
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.crawls ?? []).length === 1 && !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-crawl]'), null, { timeout: 5000 }).catch(() => {});
+    const cr = await E((id) => { const ed = window.__editor; const c = (ed.model.data.crawls ?? [])[0]; return c ? { ...JSON.parse(JSON.stringify(c)), hatches: ed.model.get('rooms', id).hatches ?? [], sel: ed.selected, foot: document.querySelector('#selCard [data-crawl]')?.textContent ?? '', plan: document.querySelectorAll('#planSvg .crawlMark').length } : null; }, cor.id);
+    await shot('on13-crawl-route');
+    const clear = cr ? cr.y1 - cr.y0 : 0;
+    assert(cTile && tool === 'crawl' && /A: a crawl space from a hatch in/.test(sStart) && !!cr && cr.ends[0].kind === 'hatch' && cr.ends[0].ref === cor.id && cr.ends[1].kind === 'vent' && cr.ends[1].ref === vent.id && Math.abs(cr.y0 - 2.42) < 1e-6 && clear > 1.4 && clear < 1.6 && cr.hatches.length === 1 && cr.sel === `crawls:${cr.id}` && /Crouch space/.test(cr.foot) && cr.plan === 1, `ON13: Build > Crawl space (the dot said "${sStart}"): ${cr?.id} from a hatch in ${cr?.ends?.[0]?.ref} to vent ${cr?.ends?.[1]?.ref}, ${clear.toFixed(2)} m clear from ${cr?.y0} m; the hatch went into the ceiling (${JSON.stringify(cr?.hatches)}); card "${cr?.foot}"`);
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.setVoidView(false); });
+
+    // the walk test: grid tiles are drawn but do not collide; the crawl boards hold the player, who crouch-moves along them
+    const midX = (cr.path[0][0] + cr.path[1][0]) / 2;
+    await dot(midX, zc, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const walk = await gf().evaluate(async ([x, z, y0, y1, r]) => {
+      const a = window.__app;
+      const g = a.current;
+      const p = g.player;
+      const c = p.controller;
+      const V = p.position.constructor;
+      const st = a.input.state;
+      const boxes = g.world.level.boxes;
+      const tiles = boxes.filter((b) => !b.collide && Math.abs(b.c[1] - b.s[1] / 2 - 2.4) < 0.01 && b.c[0] > r[0] && b.c[0] < r[2] && b.c[2] > r[1] && b.c[2] < r[3]).length;
+      const boards = boxes.filter((b) => b.collide && Math.abs(b.c[1] + b.s[1] / 2 - y0) < 0.01 && Math.abs(b.c[2] - z) < 1).length;
+      const sides = boxes.filter((b) => b.collide && Math.abs(b.c[1] - (y0 + y1) / 2) < 0.01 && Math.abs(b.s[1] - (y1 - y0)) < 0.01 && Math.abs(b.c[2] - z) < 1.5).length;
+      a.loop.manual = true;
+      // crouch on the corridor floor, then into the crawl space on its boards facing west along it
+      c.teleport(new V(x, 0.05, z), -Math.PI / 2);
+      p.cam.yaw = -Math.PI / 2; p.cam.pitch = 0; p.cam.snap();
+      st.move.x = st.move.y = 0;
+      a.loop.stepHeadless(0.3);
+      st.tap('crouch');
+      a.loop.stepHeadless(0.8);
+      c.teleport(new V(x, y0 + 0.05, z), -Math.PI / 2);
+      a.loop.stepHeadless(0.5);
+      const ya = p.position.y;
+      const xa = p.position.x;
+      for (let k = 0; k < 90; k++) { st.move.x = 0; st.move.y = 1; a.loop.stepHeadless(1 / 60); }
+      st.move.x = st.move.y = 0;
+      a.loop.stepHeadless(0.2);
+      const out = { tiles, boards, sides, crouched: c.crouched, ya, yb: p.position.y, xa, xb: p.position.x };
+      st.tap('crouch');
+      a.loop.stepHeadless(0.5);
+      a.loop.manual = false;
+      return out;
+    }, [midX, zc, cr.y0, cr.y1, cor.rect]);
+    await shot('on13-walk-crawl');
+    const beforeW13 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the crawl walk', beforeW13);
+    assert(walk.tiles > 0 && walk.boards > 0 && walk.sides >= 2 && walk.crouched && Math.abs(walk.ya - cr.y0) < 0.15 && Math.abs(walk.yb - cr.y0) < 0.15 && walk.xa - walk.xb > 0.3, `ON13: the walk test builds ${walk.tiles} grid tiles (no collision), ${walk.boards} crawl floor and ${walk.sides} side boards; the player crouches on the boards (y ${walk.ya.toFixed(2)} to ${walk.yb.toFixed(2)}, floor ${cr.y0}) and crouch-moves west ${(walk.xa - walk.xb).toFixed(2)} m`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
