@@ -3014,6 +3014,111 @@ try {
     await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
+  // ---------- ON15: moon direction and time-of-night preview ----------
+  console.log('ON15: Y > View > Moon and time; the moon full, moved from east to west, a yard cell of the darkness map changes; Use for the map, saved to the sandbox; the walk test meter agrees');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const valProbe = "() => document.querySelector('#tileMenu .tile.hl .tv')?.textContent ?? ''";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.DOWN) => { for (let i = 0; i < 45 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const val = () => E(() => document.querySelector('#tileMenu .tile.hl .tv')?.textContent ?? '');
+    const M = () => E(() => { const l = window.__editor.lights; return { show: l.moonShow, night: l.night, quick: l.moonQuick, state: l.state, bakes: l.bakes, meta: window.__editor.model.data.meta.night ?? null, legend: document.querySelector('#lightLegend [data-moon-legend]')?.textContent ?? '' }; });
+    const settled = (b) => page.waitForFunction((b) => { const l = window.__editor.lights; return l.bakes > b && l.state === 'ready' && !l.moonQuick; }, b, { timeout: 180000 });
+
+    // the pad: Y > View > Moon and time, A; its rows appear; the brightness to Full, one bearing step
+    await press(BTN.Y);
+    const vTab = await toTab('View');
+    const nTile = await toTile('Moon and time');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.lights.moonShow, null, { timeout: 5000 }).catch(() => {});
+    const rows = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent).slice(-5));
+    const bTile = await toTile('Moon brightness');
+    for (let i = 0; i < 4 && !/Full/.test(await val()); i++) await holdTill(BTN.RIGHT, valProbe);
+    const bright = await val();
+    const dTile = await toTile('Moon bearing', BTN.UP);
+    const b0 = await val();
+    await holdTill(BTN.RIGHT, valProbe);
+    const b1 = await val();
+    const quick = await M();
+    if ((await menuState()).open) await press(BTN.B);
+    assert(vTab && nTile && rows.join() === 'Time of night,Moon bearing,Moon height,Moon brightness,Use for the map' && bTile && /Full/.test(bright) && dTile && b0 !== b1 && quick.show && quick.night?.brightness === 'full' && /preview/.test(quick.legend), `ON15: Y > View > Moon and time shows its rows (${rows.join(', ')}); brightness ${bright}; a bearing step ${b0} to ${b1}; the legend "${quick.legend}"`);
+
+    // the moon low in the east, then in the west (the rows' steps, as the pad's), with the darkness map on
+    const stepTo = (row, key, want) => E(([row, key, want]) => { const ed = window.__editor; for (let i = 0; i < 80 && ed.night[key] !== want; i++) ed.stepNight(row, ed.night[key] < want ? 1 : -1); return ed.night[key]; }, [row, key, want]);
+    let bk = (await M()).bakes;
+    await E(() => window.__editor.setDarkMap(true));
+    await stepTo('height', 'height', 25);
+    await stepTo('bearing', 'bearing', 90);
+    await settled(bk);
+    const east = await E(() => { const l = window.__editor.lights; return { v: Array.from(l.values ?? []), g: l.grid ? { x0: l.grid.x0, z0: l.grid.z0, nx: l.grid.nx, cell: l.grid.cell } : null, shadow: document.querySelectorAll('#planSvg .moonShadow').length, arrow: document.querySelectorAll('#planSvg .moonArrow').length, words: document.querySelector('#planSvg .moonWords')?.textContent ?? '' }; });
+    await E(() => window.__editor.setLayout('plan'));
+    await wait(400);
+    await shot('on15-yard-moon-east');
+    await E(() => window.__editor.setLayout('both'));
+    bk = (await M()).bakes;
+    await stepTo('bearing', 'bearing', 270);
+    const moving = await M();
+    await settled(bk);
+    const west = await E(() => Array.from(window.__editor.lights.values ?? []));
+    await E(() => window.__editor.setLayout('plan'));
+    await wait(400);
+    await shot('on15-yard-moon-west');
+    await E(() => window.__editor.setLayout('both'));
+    // the yard cells (Ground's yard rooms) whose darkness value changed most
+    const yard = await E(([east, west, g]) => {
+      const d = window.__editor.model.data;
+      const yards = d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard');
+      let best = null;
+      for (let k = 0; k < west.length; k++) {
+        const a = east[k];
+        const b = west[k];
+        if (a !== a || b !== b || a === null || b === null) continue;
+        const x = g.x0 + (k % g.nx) * g.cell + g.cell / 2;
+        const z = g.z0 + Math.floor(k / g.nx) * g.cell + g.cell / 2;
+        if (!yards.some((r) => x > r.rect[0] && x < r.rect[2] && z > r.rect[1] && z < r.rect[3])) continue;
+        if (!best || Math.abs(b - a) > Math.abs(best.b - best.a)) best = { x, z, a, b, room: yards.find((r) => x > r.rect[0] && x < r.rect[2] && z > r.rect[1] && z < r.rect[3]).id };
+      }
+      return best;
+    }, [east.v, west, east.g]);
+    assert(!!east.g && moving.quick && !!yard && Math.abs(yard.b - yard.a) > 0.02 && east.shadow === 1 && east.arrow === 1 && /Moon 90 \(E\), 25 high, full/.test(east.words), `ON15: the moon from the east (bearing 90, 25 high) to the west (270): a yard cell in ${yard?.room} at (${yard?.x}, ${yard?.z}) goes from ${yard?.a?.toFixed(3)} to ${yard?.b?.toFixed(3)}; quick while it moved (${moving.quick}); the plan draws the shadow lines and the arrow ("${east.words}")`);
+
+    // Use for the map (the pad), saved to the sandbox
+    bk = (await M()).bakes;
+    await press(BTN.Y);
+    await toTab('View');
+    const uTile = await toTile('Use for the map');
+    await press(BTN.A);
+    await page.waitForFunction(() => !!window.__editor.model.data.meta.night, null, { timeout: 5000 }).catch(() => {});
+    if ((await menuState()).open) await press(BTN.B);
+    const used = await M();
+    await settled(bk);
+    await E(() => window.__editor.saveNow());
+    await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
+    const savedNight = JSON.parse(readFileSync(path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json'), 'utf8')).meta.night;
+    assert(uTile && !used.night && used.meta?.bearing === 270 && used.meta?.height === 25 && used.meta?.brightness === 'full' && savedNight?.bearing === 270 && savedNight?.brightness === 'full', `ON15: Use for the map sets meta.night (${JSON.stringify(used.meta)}); the sandbox file has it (${JSON.stringify(savedNight)})`);
+
+    // parity (decision 7): the walk test's light meter at the yard cell equals the darkness map's value there
+    const mapV = await E(([x, z]) => window.__editor.lights.cellValue(x, z), [yard.x, yard.z]);
+    await dot(yard.x, yard.z, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 180000);
+    const game = await gf().evaluate(([x, z]) => { const g = window.__app.current; return { meter: g.world.lightField.bodyLevel(x, 0, z, 1.75), dir: g.world.map.theme.sunDir }; }, [yard.x, yard.z]);
+    const beforeW15 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the moon walk', beforeW15);
+    assert(Math.abs(game.meter - mapV) < 0.05 && game.dir[0] > 0.8, `ON15: the walk test's light meter at (${yard.x}, ${yard.z}) is ${game.meter.toFixed(3)}, the darkness map's ${mapV.toFixed(3)}; the game's moon shines east (${game.dir.map((v) => v.toFixed(2)).join(', ')})`);
+    await E(() => { const ed = window.__editor; ed.setNightPanel(false); ed.setDarkMap(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });

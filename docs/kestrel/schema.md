@@ -54,6 +54,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | meta.site | Site rect (RULES section 2 limit 110 x 80) |
 | meta.footprint | Building footprint rect (limit 48 x 30). Optional and ignored by the checks when `meta.buildings` is set; without `meta.buildings` it is the one building, as before |
 | meta.buildings | Optional list `{ id, name, footprint }`, one per building. Each footprint is at most 48 x 30 and inside the site; no two overlap (A21) |
+| meta.night | Optional (ON15). The map's own night, from the editor's Moon and time "Use for the map": `{ bearing, height, brightness, time }`: the moon's compass bearing (degrees clockwise from north, +Z), its height above the horizon (degrees, 5-85), its brightness (`new`, `quarter`, `half`, `full`: a share 0, 0.25, 0.5, 1 of the theme's moon, `src/world/maps/kestrelNight.ts`) and the time of night the slider set (`HH:MM`, empty when the bearing or height was set by hand; display only). The Kestrel map's theme reads it in the walk test and the game (dev and build); without it the map keeps its own moon |
 | levels[].id, name | Level id (B, U, G, F, H, S, R) and its name |
 | levels[].floor | Floor height above ground floor level, in metres |
 | levels[].height | Floor-to-floor height of that level |

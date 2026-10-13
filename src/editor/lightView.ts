@@ -116,6 +116,8 @@ export class LightView {
   /** ON15: the moon moved since the exact bake (the 3D shows the quick sky light; the map waits for the bake). */
   moonQuick = false;
   private moonVals: Float32Array | null = null;
+  /** The night the running bake was built with (the quick state ends only when the bake has the night shown). */
+  private bakedNight = '';
   /** The game's light meter thresholds (`LIGHT`, bible L6), for the words and the tests. */
   readonly thresholds = { shadow: LIGHT.shadow, lit: LIGHT.lit };
 
@@ -347,7 +349,7 @@ export class LightView {
         if (this.on) this.render();
         if (old) this.disposeExact(old);
         this.state = 'ready';
-        this.moonQuick = false;
+        this.moonQuick = this.bakedNight !== JSON.stringify(this.night ?? this.host.model.data.meta.night ?? null);
         this.bakes++;
         this.ms = performance.now() - t0;
       }
@@ -373,6 +375,7 @@ export class LightView {
     const lamps = (d.lamps ?? []).filter((l) => lampLevel(d, l) === level);
     // (ON15: the night shown - the panel's, else the map's - goes in as the map's own, so the builder's theme is it)
     const night = this.night ?? d.meta.night;
+    this.bakedNight = JSON.stringify(night ?? null);
     const campus = JSON.parse(JSON.stringify({ ...d, meta: { ...d.meta, night }, lamps })) as CampusFile;
     const ids: string[] = [];
     campusLights(campus as Parameters<typeof campusLights>[0], ids);

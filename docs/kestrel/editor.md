@@ -1016,7 +1016,47 @@ The rules are `src/editor/arrange.ts` and `src/editor/signs.ts` (pure, `tests/ed
   editor only. At 0.02 m they are under the light bake's `CANON_MIN_THICK` (0.05 m), as the detail pass's signs are, so
   they are not light shapes (bible 5.1 parity).
 
+## Moon and time (ON15)
+The moon over the map: its direction, height and brightness, and a time-of-night slider, previewed with the game's own
+moon bake and kept for the map in the campus file (`meta.night`, schema.md).
+
+- **Moon and time** (Y > View, or Hub > View; A turns it on): its rows appear under it. Left / right steps a row (on the
+  hub, the - / + buttons with the mouse, or the arrow keys):
+  - **Time of night**: dusk (16:00) to dawn (08:00) in 10 minute steps; it sets the bearing and height from a simple sky
+    path for the site, and the hub draws it as a slider with a **Brief** marker at 01:10 (A goes back to the brief's
+    night). The sky path: the site at 54 degrees north (Overnight choice: RULES section 1 says a northern British city and
+    gives no latitude), the moon at a winter full moon's declination (+20) crossing the meridian in the south at
+    midnight: it rises north of east at dusk, stands 56 degrees high in the south at midnight and sets north of west at
+    dawn (heights kept 5-85 degrees). Facts `moon`.
+  - **Moon bearing**: the compass bearing in 5 degree steps; **Moon height**: degrees above the horizon in 5 degree
+    steps. Setting either by hand marks the time "hand set".
+  - **Moon brightness**: new, quarter, half, full: a share 0, 0.25, 0.5 or 1 of the Kestrel theme's moon, which is the
+    game's night-map moon (Embassy's); the sky fill stays as it is, so a new moon leaves the sky fill only.
+  - **Use for the map**: writes the setting to `meta.night` (unsaved until Save; it is in the change log and the save
+    summary, but not an undo step: use it again with other values to change it). The walk test and the game (dev and
+    build) then light the map with it. Without `meta.night` the map keeps its own moon exactly (bearing 228, about 50
+    degrees high, full).
+- **The default is the brief's night** (01-mission-brief.md section 2): a Tuesday in late November, 01:10, a thin waning
+  moon behind cloud, so the yard has no moonlight: brightness **new**. Until a row is stepped, the light view shows the
+  map's own moon (the legend says which: "Moon: the map's own", or the setting with "preview, not yet for the map").
+- **Preview**: with the light view, the darkness map or Moon and time on, a step is quick and the release is exact: at
+  once the 3D's sky light (the moon as the scene's directional light, its strength, the sky fill) follows; 300 ms after
+  the last step the editing level is baked again through the game's own pipeline (the map's theme under the setting, the
+  game's `bakeMoon` through `bakeLevelLight`; the lamps come from the cache), which moves the moon shadows in 3D and the
+  darkness map. The legend says "quick: sky light only" in between.
+- **Moon shadow lines** (the plan, while Moon and time is on): a moon arrow in the top left corner of the level's floor,
+  pointing the way the light travels, with the bearing, height and brightness; and dashed violet lines round the ground
+  in the moon's shadow (the exact bake's moon visibility a hand above the floor, at 0.5), so long dark strips across the
+  yard show. They are drawn from the exact bake only (hidden while a step waits for it).
+- **Light parity**: the light view, the darkness map and the walk test's light meter all read the same theme through the
+  game's own light code; the e2e checks a yard cell's darkness value against the walk test's meter after a moon change
+  (within 0.05).
+- **GPU**: how the moonlit 3D looks is Michael's check on the PC.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON15: the sky path is a simple full-moon arc (the moon's real place on a given date, its phase from the date and cloud
+  are not worked out); the brightness is a share of the game's night moon, not lux. Use for the map is not an undo step.
+  The moon arrow sits in a fixed corner of the plan. Only the editing level is baked (as ON7).
 - ON14: a plate sits on the wall beside the door, not on the leaf (the game's hinged leaf cannot carry a panel). The walk
   test's plates and signs have no words. Align and Evenly space move each room with its own walls; a wall two moved rooms
   share goes with the later one. Array does not copy security devices, guards or crawl spaces, and copied lamps keep their
@@ -1139,6 +1179,8 @@ The rules are `src/editor/arrange.ts` and `src/editor/signs.ts` (pure, `tests/ed
 | `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
 | `src/editor/securityCatalogue.ts`, `src/editor/security.ts`, `src/editor/securityTool.ts` | ON12: the Security tab's devices, reader types, access level colours and drawn sizes (data with sources); the device records, placing (wall face, ceiling, by a door), the reader's door link, what a camera sees (`inFrame`, `losClear`), sensor fans, coverage and gaps, the card's rows and steps, the security file split (pure, `tests/editor/security.test.ts`); the Security tool in the editor: ghost and words, plan marks, labels, the light view's security cells |
 | `src/editor/ceilings.ts`, `src/editor/crawlTool.ts` | ON13: the ceiling piece (a room's ceiling fields), the slab underside and the void's clear height against the crawl rule, hatches (tiles and access hatches), the card's rows and steps, crawl records (ends at hatches and vents, heights from the void, legs, settling), words (pure, `tests/editor/ceilings.test.ts`); the Crawl space tool in the editor: drawing and going on, the dot's words, plan marks, the voids legend |
+| `src/editor/night.ts` | ON15: the Moon and time panel: the time-of-night sky path (facts `moon`), the steps, the brief's night, the words (pure, `tests/editor/night.test.ts`); the preview and shadow lines are in `lightView.ts` |
+| `src/world/maps/kestrelNight.ts` | ON15: the one copy of `meta.night`: reading it, the brightness shares (data with sources), the moon's direction, and the Kestrel theme under it (the game's map and the editor) (pure) |
 | `src/editor/arrange.ts`, `src/editor/arrangeTool.ts` | ON14: what a selection brings, mirror, align, evenly space, Array and their ghosts with the ED3-3a wall rules (pure, `tests/editor/arrange.test.ts`); the Selected tab's tools, the Arrange tool's modes, auto name plates |
 | `src/editor/signCatalogue.ts`, `src/editor/signs.ts`, `src/editor/signTool.ts` | ON14: the sign kinds and the plate (data with sources); the plate's room, text, colour and place, auto plates, sign records, the text list, placing on a wall face or hung, the card's rows and steps, the walk test's panels (pure, `tests/editor/signs.test.ts`); the Sign tool, plan marks and plate tags |
 | `src/world/maps/kestrelCeilings.ts` | ON13: the one copy of the ceiling types, tile and hatch sizes and crawl boards (data with sources), and how the walk test builds ceilings (less their hatches) and crawl spaces, shared by the editor's 3D (pure) |
