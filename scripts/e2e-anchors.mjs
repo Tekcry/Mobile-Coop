@@ -8,6 +8,8 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
+  // the training bunker (level-design 15: e2e-anchors covers the map; T5), in its sandbox mode (no airlocks to cycle)
+  ['bunker', 'sandbox'],
 ];
 let failed = false;
 for (const [map, mode] of MAPS) {

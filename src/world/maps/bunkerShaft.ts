@@ -11,7 +11,7 @@ import { pit, slabWithHoles } from './bunkerUpper';
  *
  * Ledges (A25): `LevelBuilder.build` makes lips from box tops in absolute y, so every piece here is `noLedge` except
  * the lip pieces in `PLANT_LIPS`: B3's riser casing RC and the hoist landing G3 (the wall-jump lip), B4's walls W1 /
- * W2 and the outlet platform (the co-op lips, `BUNKER_COOP_LIPS`) and the Phase 5 overflow channel / float shaft.
+ * W2 and the outlet platform (the co-op lips, `B4_COOP_LIPS`) and the Phase 5 overflow channel / float shaft.
  */
 
 export const PLANT_Y = 6;
@@ -106,7 +106,8 @@ const C = {
 /** A planned lip on the Plant level: its plan box (world, grown 5 cm), top (world y) and the floor it is measured from. */
 export interface PlantLip {
   id: string;
-  bay: PlantBay;
+  /** The bay id (a Plant bay here; bunkerDeep's lips use the same shape with Deep bay ids). */
+  bay: string;
   box: [number, number, number, number];
   top: number;
   floor: number;
@@ -121,8 +122,9 @@ function lipBox(bay: PlantBay, id: string, x0: number, z0: number, x1: number, z
 const M3 = B3_METRICS;
 const M4 = B4_METRICS;
 
-/** The co-op lips (level-design 11.3): out of solo reach, within the boost (W1, W2, the outlet platform). */
-export const BUNKER_COOP_LIPS: readonly PlantLip[] = [
+/** B4's co-op lips (level-design 11.3): out of solo reach, within the boost (W1, W2, the outlet platform). The course-wide
+ *  list with B9's gap is `BUNKER_COOP_LIPS` (bunkerDeep). */
+export const B4_COOP_LIPS: readonly PlantLip[] = [
   lipBox('B4', 'W1', 0, 25, 32, 26, M4.wall),
   lipBox('B4', 'W2', 0, 12, 32, 13, M4.w2),
   lipBox('B4', 'OUT', 15, 0, 21, 2, M4.outlet),
@@ -132,7 +134,7 @@ export const BUNKER_COOP_LIPS: readonly PlantLip[] = [
 export const PLANT_LIPS: readonly PlantLip[] = [
   lipBox('B3', 'RC', 6, 15.2, 12, 16.4, M3.g1 + M3.casingTop, M3.g1),
   lipBox('B3', 'G3', 12, 12, 18, 18, M3.g3, M3.g2),
-  ...BUNKER_COOP_LIPS,
+  ...B4_COOP_LIPS,
   lipBox('B4', 'OVF', 1.6, 1, 2.0, 8.5, M4.overflow),
   lipBox('B4', 'FLT', 2.6, 4, 4.4, 8.4, M4.overflow),
 ];

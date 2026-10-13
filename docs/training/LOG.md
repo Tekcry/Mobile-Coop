@@ -150,3 +150,27 @@ Shared tests: voxelFit area bound for the bunker 164 x 160 (A36). Number changes
 - SR: a second plain door at the north end of the glazed west wall (local x 38, z 28.6..29.8) into the dark pocket
   behind the landing stair (x 33..38). Both SR doors open onto the same hall floor: no gate bypass (A36).
 T4 checked: PASS after 1 fix round (1094b71: nav seeds per bay, mains lamp not destructible, second SR door). Note: two B6 nav seeds sit on desk tops (tiny unreachable islands, harmless).
+
+### T5 House, Range and Plot geometry (2026-10-13, cloud; not committed by the implementer)
+- `src/world/maps/bunkerDeep.ts`: B7 (cavern 44 x 40 x 10, the kill house with first floor 3.2, roof 6.4, parapet,
+  hatch ladder, annex roof 3.2, doors front / back / side, 2 glazed + 2 open ground windows, the manager's window sill
+  4.1, the water main, the bench and its ladder, sandbags, skip, three recesses, the store door = A7's near door), A7,
+  B8 (benches, kit lockers, lane stands, penetration wall, barrels, lamp gantry, barricades 1.0 / 2.0, catwalk 4.0, RT,
+  LD at x 9, CS caged and bolted, scaffold 3.0, cease-fire switch), A8 (medkit), B9 (plot floor, map table, stands,
+  B-1 4.5 and B-2 9.0 with cabins, the bridge, SW / SE stair towers, the north-west co-op gap over a pier, the rope
+  point, the zipline to the lobby, the message-tube duct, the lift lobby, L9 with the Finish), one work lamp a bay.
+  Course stub B7-B9 with A7 / A8; `B4_COOP_LIPS` (bunkerShaft) and `BUNKER_COOP_LIPS` / `DEEP_LIPS` (bunkerDeep).
+  Nav seeds on every Deep floor and storey; the two B6 seeds on the office partition and the records desk moved onto
+  open floor. e2e-anchors covers `bunker` (sandbox).
+- Number changes (within their windows): WM 4.6 -> 4.9 (a standing grab from the bench 1.9 and the annex roof 1.7;
+  the drop onto B7-W 3.0, inverted over the annex roof 1.06); parapet 1.1 -> 0.9 (the ledge pull's victim 1.0 over the
+  hanging feet, band 0.8-2.6); the B8 plywood 0.05 -> 0.1 (the 5 cm voxel grid); the scaffold z 20..24 -> 19..23; CS
+  z 26..32 -> 24..30 with its landing z 30..32; WM runs wall to wall (x 0.5..43.5, BAYS 4..40) so the bench reaches it.
+
+### Spec change requests (T5)
+- B7: the inverted takedown is over the annex roof's edge, not over the cavern floor (A40); B7-O's window stop and
+  B7-R's ledge-pull stop move to the built window and parapet (A40, T7a routes).
+- B8: CS is a convenience gate (A43): the lead can always climb down the RT ladder; the catwalk rail is vaultable.
+- B9: B-1 / B-2 / cabin depths and the stair towers as built (A39); the bridge reaches the north wall.
+- Course: B6 exits into A6; the course ends in L9 (A41).
+

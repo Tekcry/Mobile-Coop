@@ -23,3 +23,7 @@
 - T4 spec change (A36): B6 corridor L leg dead-ends (beams and PIR guard a dead end); exit keypad door from SV's nook; S6 at z -8; S6 mid landing 3.0.
 - T4 (A37): B6 now-form gates AND per door, so readers are single flag gates; egress / records exit are pickups releasing reader levels. S6 top door one-way via bolt; relock after both pass needs a new gate kind (T7a).
 - T4 (A36): voxelFit bunker area bound now the course plan 164 x 160 (T9a sizes the voxel grid).
+- T5 spec changes (A39-A43): B7 inverted takedown over the annex roof edge; B7-O / B7-R stops for the window and the ledge pull; WM 4.9, parapet 0.9; B8 CS a convenience gate, CS / scaffold moved; B9 deck and cabin depths, stair towers, bridge to the wall. Michael: are the vaultable catwalk rail (A43) and the downpipe route onto the parapet (A40) acceptable?
+- T5: e2e-anchors now covers `bunker` and fails on three pre-T5 anchors (every Deep anchor passes): B3 zipline 42 "offered false engaged true" (another anchor wins the prompt at the suite's approach point, 0.7 m behind the cable's high end), B3 kick-through window 43 front / back "offered false engaged false" (a rope-only window: no floor on either side for the suite's approach), window 85 back "offered false engaged true". Not weakened; for the T5 checker / T3 owner.
+- T5: voxelFit bunker area bound 166 x 162 (A39; T9a sizes the grid).
+

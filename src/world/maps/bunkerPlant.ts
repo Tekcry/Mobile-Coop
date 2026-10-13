@@ -197,37 +197,37 @@ function frame(bay: Plant2Bay): Frame {
 }
 
 /** Overhead slab (no nav blocker, no lip) whose bottom is at y. */
-function roof(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, t = ROOF_T): void {
+export function roof(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, t = ROOF_T): void {
   const from = b.boxes.length;
   b.box((x0 + x1) / 2, y + t / 2, (z0 + z1) / 2, x1 - x0, t, z1 - z0, C.roof);
   b.mark(from, { overhead: true, noLedge: true });
 }
 
 /** A deck slab (0.3) whose top is at y over a world rect. */
-function deck(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, color: string): void {
+export function deck(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, color: string): void {
   b.box((x0 + x1) / 2, y - 0.15, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, color);
 }
 
 /** A guard rail 1.1 high along a world line (collides). */
-function rail(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number): void {
+export function rail(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number): void {
   if (Math.abs(x1 - x0) > Math.abs(z1 - z0)) b.box((x0 + x1) / 2, y + RAIL_H / 2, z0, Math.abs(x1 - x0), RAIL_H, 0.1, C.rail);
   else b.box(x0, y + RAIL_H / 2, (z0 + z1) / 2, 0.1, RAIL_H, Math.abs(z1 - z0), C.rail);
 }
 
 /** A wall along X (world z, x0..x1) with 1.2 door gaps starting at `doors` (world x, sorted) and their lintels. */
-function wallXDoors(b: LevelBuilder, z: number, x0: number, x1: number, doors: readonly number[], y: number, h: number, color: string, thick = PART): void {
+export function wallXDoors(b: LevelBuilder, z: number, x0: number, x1: number, doors: readonly number[], y: number, h: number, color: string, thick = PART): void {
   wallXAt(b, z, x0, x1, doors.map((d) => [d, d + DOOR_W] as const), y, h, color, thick);
   for (const d of doors) b.box(d + DOOR_W / 2, y + (DOOR_H + h) / 2, z, DOOR_W, h - DOOR_H, thick, color);
 }
 
 /** A wall along Z (world x, z0..z1) with 1.2 door gaps starting at `doors` (world z, sorted) and their lintels. */
-function wallZDoors(b: LevelBuilder, x: number, z0: number, z1: number, doors: readonly number[], y: number, h: number, color: string, thick = PART): void {
+export function wallZDoors(b: LevelBuilder, x: number, z0: number, z1: number, doors: readonly number[], y: number, h: number, color: string, thick = PART): void {
   wallZAt(b, x, z0, z1, doors.map((d) => [d, d + DOOR_W] as const), y, h, color, thick);
   for (const d of doors) b.box(x, y + (DOOR_H + h) / 2, d + DOOR_W / 2, thick, h - DOOR_H, DOOR_W, color);
 }
 
 /** A fixed glazed screen (collides, no window anchor) along a world line from y, h tall. */
-function glass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, h: number): void {
+export function glass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, h: number): void {
   if (Math.abs(x1 - x0) > Math.abs(z1 - z0)) b.box((x0 + x1) / 2, y + h / 2, z0, Math.abs(x1 - x0), h, 0.1, C.glass);
   else b.box(x0, y + h / 2, (z0 + z1) / 2, 0.1, h, Math.abs(z1 - z0), C.glass);
 }
@@ -348,7 +348,7 @@ function buildA6(b: LevelBuilder, r: Plant2Result): void {
   wallXAt(b, Z(6 + OUTER / 2), X(-OUTER), X(6 + OUTER), [], Y(0), AIR_CLEAR, C.wall, OUTER);
   // east wall (S6's west end): the near door at local z 2.9..4.1 (world -7.1..-5.9)
   wallZDoors(b, X(6), Z(-OUTER), Z(6 + OUTER), [Z(2.9)], Y(0), AIR_CLEAR, C.wall, OUTER);
-  // south wall (B7's north wall until T5): the far door at x 2.4..3.6 with its vision panel
+  // south wall (part of B7's north wall): the far door at x 2.4..3.6 with its vision panel
   wallXDoors(b, Z(0), X(-OUTER), X(6 + OUTER), [X(2.4)], Y(0), AIR_CLEAR, C.wall, OUTER);
   b.box(X(3.6) + 0.9, Y(1.5), Z(0) + 0.24, 0.6, 0.6, 0.04, C.glass, 0, 0, false);
   b.block(X(0.4), Z(1.5), 0.45, 0.45, 2.4, C.wood, Y(0));
@@ -356,8 +356,6 @@ function buildA6(b: LevelBuilder, r: Plant2Result): void {
   r.doors['A6-near'] = b.door(X(6), Y(0), Z(2.9), DOOR_W, 0, { locked: true, swing: 1 }).id;
   r.doors['A6-far'] = b.door(X(2.4), Y(0), Z(0), DOOR_W, Math.PI / 2, { locked: true, swing: -1 }).id;
   r.devices.A6 = { x: X(3), y: Y(0), z: Z(5.6), yaw: Math.PI };
-  // the course end ("Finish") sits in A6 until B7 exists (T5 / T7a move B6's exit to A6)
-  r.devices.end = { x: X(1.2), y: Y(0), z: Z(3), yaw: Math.PI / 2, label: 'Finish' };
   r.debug.push({ id: 'A6', label: 'A6 airlock (medkit)', pos: plantAt2('A6', 3, 3), yaw: Math.PI });
 }
 

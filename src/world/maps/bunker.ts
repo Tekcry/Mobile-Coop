@@ -4,17 +4,21 @@ import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_Y } from './bunkerUpper';
 import { buildShaft, buildShaftFloors, plantAt } from './bunkerShaft';
 import { B5_GROUPS, B5_METRICS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
+import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
 
 /** Course footprint (BAYS 0: about 162 x 158 m in plan, every bay and airlock inside it). */
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2-T4): B1 to B6 with A1 to A6 (B5 / B6 below; B6 ends the course for now, "Finish" in A6). B2's lane doors and the lanes' walkway doors at the east end
+ * The course data stub (T2-T5): B1 to B9 with A1 to A8 and the exit lift L9 ("Finish" in the car). B2's lane doors and the lanes' walkway doors at the east end
  * are lever gates (each lever in the other lane opens both of a lane's doors). B3: the fan guard (its four fence
  * sides) and the discharge duct stay locked until the fan isolator in CR is thrown (a pickup flag); CR's door onto the
  * chamber floor is bolted from inside CR. B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
  * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it; B4 exits into A4.
- * T7a completes the drills, radio and the later bays.
+ * B7: the store door (A7's near door) opens on the "Store key" pickup (B7-O's desk drawer). B8: the catwalk stair's
+ * door is bolted from below; the cease-fire switch sets its flag. B9: keys A and B and the case are pickups; the lift
+ * door opens only with all three flags AND the two key switches turned together (pair gate). T7a completes the drills
+ * and radio.
  */
 /** The bolted doors' press points (world plan: the door's centre in its wall). */
 const CR_DOOR = plantAt('B3', 18.225, 9);
@@ -39,6 +43,8 @@ function courseDef(): CourseDef {
       { id: 'A4', box: [97, 24, 103, 30], floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
       { id: 'A5', box: [64, 5, 70, 11], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
       { id: 'A6', box: [0, -10, 6, -4], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
+      { id: 'A7', box: [44, -33, 50, -27], floorY: 0, nearDoor: 'A7-near', farDoor: 'A7-far' },
+      { id: 'A8', box: [112, -33, 118, -27], floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
     ],
     bays: [
       { id: 'B1', entry: 'start', exit: 'A1', squad: [], gates: [], radio: [], drills: [], elements: [] },
@@ -105,10 +111,10 @@ function courseDef(): CourseDef {
       {
         // now forms (A37): cards are pickups setting reader levels, readers are flag gates; the exit keypad is three
         // buttons (2 is right); the egress on the secure side and the records exit button release their readers;
-        // S6's top door opens from the B6 side only. B6 ends the course for now ("Finish" in A6).
+        // S6's top door opens from the B6 side only.
         id: 'B6',
         entry: 'A5',
-        exit: 'end',
+        exit: 'A6',
         squad: [],
         gates: [
           ...card('card-a', 'pk-card-a', 2),
@@ -131,6 +137,54 @@ function courseDef(): CourseDef {
         drills: [],
         elements: [],
       },
+      {
+        // the store door is A7's near door: the store key (B7-O's desk drawer) AND the airlock (A37: gates AND together)
+        id: 'B7',
+        entry: 'A6',
+        exit: 'A7',
+        squad: [],
+        gates: [
+          { kind: 'pickup', id: 'g-store-key', switchId: 'sw-store-key', flag: 'store-key', perPlayer: false },
+          { kind: 'flag', id: 'g-store', flag: 'store-key', doorId: 'A7-near' },
+        ],
+        radio: [],
+        drills: [],
+        elements: [],
+      },
+      {
+        // CS (the catwalk stair) is bolted from below (the floor side); the cease-fire switch at the far end
+        id: 'B8',
+        entry: 'A7',
+        exit: 'A8',
+        squad: [],
+        gates: [
+          { kind: 'bolt', id: 'g-cs', doorId: 'B8-cs', side: [0, -1], at: [B8_CS_DOOR.x, B8_CS_DOOR.z] },
+          { kind: 'pickup', id: 'g-cease-fire', switchId: 'sw-cease-fire', flag: 'cease-fire', perPlayer: false },
+        ],
+        radio: [],
+        drills: [],
+        elements: [],
+      },
+      {
+        // objectives: key A (B-1 west cabin), key B (B-1 east cabin), the case (B-2 east); the lift: both keys turned
+        // within the pair window AND the three flags (the gates on one door AND together); the course ends in the car
+        id: 'B9',
+        entry: 'A8',
+        exit: 'end',
+        squad: [],
+        gates: [
+          { kind: 'pickup', id: 'g-key-a', switchId: 'pk-key-a', flag: 'key-a', perPlayer: false },
+          { kind: 'pickup', id: 'g-key-b', switchId: 'pk-key-b', flag: 'key-b', perPlayer: false },
+          { kind: 'pickup', id: 'g-case', switchId: 'pk-case', flag: 'case', perPlayer: false },
+          { kind: 'flag', id: 'g-lift-a', flag: 'key-a', doorId: 'L9-door' },
+          { kind: 'flag', id: 'g-lift-b', flag: 'key-b', doorId: 'L9-door' },
+          { kind: 'flag', id: 'g-lift-case', flag: 'case', doorId: 'L9-door' },
+          { kind: 'pair', id: 'g-lift', a: 'K-A', b: 'K-B', doorId: 'L9-door' },
+        ],
+        radio: [],
+        drills: [],
+        elements: [],
+      },
     ],
   };
 }
@@ -140,6 +194,7 @@ const COURSE_DOORS = [
   'A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s', 'B2-exit-n', 'B2-exit-s',
   'B3-cr', 'A3-near', 'A3-far', 'B4-insp', 'B4-sluice', 'A4-near', 'A4-far',
   'A5-near', 'A5-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A6-near', 'A6-far',
+  'A7-near', 'A7-far', 'B8-cs', 'A8-near', 'A8-far', 'L9-door',
 ] as const;
 
 function pick(all: Record<string, number>): Record<string, number> {
@@ -155,7 +210,7 @@ function pick(all: Record<string, number>): Record<string, number> {
 /**
  * Fallow (training bunker, docs/training): a 1950s civil-defence bunker under a hill, fitted out as a two-player
  * course. Reached by `?autostart=bunker&mode=course` (not listed). One builder per part: Upper (y 16, bunkerUpper),
- * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant); Deep (y 0) follows (T5).
+ * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant); Deep (y 0: B7-B9, L9, bunkerDeep).
  */
 export const bunker: MapDef = {
   id: 'bunker',
@@ -182,11 +237,14 @@ export const bunker: MapDef = {
     const up = buildUpper(b);
     const sh = buildShaft(b);
     const pl = buildPlant(b);
+    const dp = buildDeep(b);
     // the pieces the 'epic' detail pass dresses as floor go last (detailPass: ultra's wall stream = epic's)
     buildShaftFloors(b);
     buildPlantFloors(b);
+    b.boxes.push(...dp.floors);
     const def = courseDef();
-    const debug = [...up.debug, ...sh.debug, ...pl.debug];
+    const debug = [...up.debug, ...sh.debug, ...pl.debug, ...dp.debug];
+    const hides = [...pl.hideSpots, ...dp.hideSpots];
     const v = (p: { x: number; y: number; z: number }): Vector3 => new Vector3(p.x, p.y, p.z);
     return {
       playerSpawns: up.spawns.map((s) => ({ pos: new Vector3(s.pos.x, s.pos.y, s.pos.z), yaw: s.yaw })),
@@ -195,15 +253,15 @@ export const bunker: MapDef = {
       objectives: [],
       pickups: [],
       switches: pl.switches.map((s) => ({ pos: v(s.pos), yaw: s.yaw, group: s.group })),
-      hideSpots: pl.hideSpots.map((p) => ({ pos: v(p) })),
-      navSeeds: [...debug.map((d) => d.pos), ...pl.hideSpots, ...bunkerNavSeeds()].map(v),
+      hideSpots: hides.map((p) => ({ pos: v(p) })),
+      navSeeds: [...debug.map((d) => d.pos), ...hides, ...bunkerNavSeeds()].map(v),
       debugPoints: debug.map((d) => ({ group: 'Fallow', id: d.id, label: d.label, pos: new Vector3(d.pos.x, d.pos.y, d.pos.z), yaw: d.yaw })),
       course: {
         def,
-        doors: pick({ ...up.doors, ...sh.doors, ...pl.doors }),
-        anchors: { ...sh.anchors, ...pl.anchors },
+        doors: pick({ ...up.doors, ...sh.doors, ...pl.doors, ...dp.doors }),
+        anchors: { ...sh.anchors, ...pl.anchors, ...dp.anchors },
         groups: { 'B5-mains': B5_GROUPS.mains },
-        devices: { ...up.devices, ...sh.devices, ...pl.devices },
+        devices: { ...up.devices, ...sh.devices, ...pl.devices, ...dp.devices },
         squads: {},
       },
     };
@@ -220,8 +278,11 @@ function bunkerNavSeeds(): { x: number; y: number; z: number }[] {
     plantAt('B4', 11, 36), plantAt('B4', 11, 19), plantAt('B4', 11, 6), plantAt('B4', 34, 19, 4.4), plantAt('B4', 18, 1, 4.4),
     // B5: the hall floor, the gallery, the switch room, the fuel bay, the pocket behind the landing stair
     plantAt2('B5', 24, 12), plantAt2('B5', 12, 31, B5_METRICS.gallery), plantAt2('B5', 44, 28), plantAt2('B5', 42, 4), plantAt2('B5', 35, 27),
-    // B6: reception, corridor, open office, manager's office, locker room, records, mantrap, server room
-    plantAt2('B6', 39, 16), plantAt2('B6', 30, 16), plantAt2('B6', 26, 21), plantAt2('B6', 17, 29), plantAt2('B6', 8, 22),
-    plantAt2('B6', 27, 8), plantAt2('B6', 19, 7), plantAt2('B6', 10, 7),
+    // B6: reception, corridor, open office, manager's office, locker room, records, mantrap, server room (T5: the
+    // office and records seeds moved off the partition and the records desk onto open floor)
+    plantAt2('B6', 39, 16), plantAt2('B6', 30, 16), plantAt2('B6', 28, 19), plantAt2('B6', 17, 29), plantAt2('B6', 8, 22),
+    plantAt2('B6', 25.5, 8), plantAt2('B6', 19, 7), plantAt2('B6', 10, 7),
+    // B7, B8, B9, L9 (bunkerDeep)
+    ...deepNavSeeds(),
   ];
 }

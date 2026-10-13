@@ -11,11 +11,14 @@ import { buildCoverSegments } from '../src/cover/coverData';
 import { findSplitGaps } from '../src/player/splitJump';
 import { landingKind, pickTraversal } from '../src/player/movement';
 import type { SplitAnchor, TraversalAnchors } from '../src/world/anchors';
-import { B3_METRICS, B4_METRICS, BUNKER_COOP_LIPS, PLANT_LIPS, PLANT_Y, plantAt } from '../src/world/maps/bunkerShaft';
+import { B3_METRICS, B4_COOP_LIPS, B4_METRICS, PLANT_LIPS, PLANT_Y, plantAt } from '../src/world/maps/bunkerShaft';
+import { B7_METRICS, B8_METRICS, B9_COOP_LIP, B9_METRICS, BUNKER_COOP_LIPS, DEEP_LIPS, deepAt } from '../src/world/maps/bunkerDeep';
 import { RAPPEL, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { splitReach, wallJumpReach } from '../src/player/splitJump';
 import { B5_GROUPS, B5_LIPS, B5_METRICS, B6_METRICS, BUNKER_DEVICES, buildPlant, plantAt2, S6_METRICS, S6_RECT } from '../src/world/maps/bunkerPlant';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
+import { pickTakedown, TAKEDOWN } from '../src/game/takedown';
+import { hangPoint } from '../src/world/anchors';
 import { hyp2 } from '../src/core/mathx';
 
 // Map tests build data only (T0 facts): ledges and splits come from `build`, so they are re-derived from the boxes.
@@ -210,7 +213,10 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
       ['B3', 'A2', 'A3'],
       ['B4', 'A3', 'A4'],
       ['B5', 'A4', 'A5'],
-      ['B6', 'A5', 'end'],
+      ['B6', 'A5', 'A6'],
+      ['B7', 'A6', 'A7'],
+      ['B8', 'A7', 'A8'],
+      ['B9', 'A8', 'end'],
     ]);
     const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
     for (const id of ['A3-near', 'A3-far', 'A4-near', 'A4-far', 'B3-cr', 'B4-insp', 'B4-sluice']) expect(locked.has(c.doors[id]!), id).toBe(true);
@@ -389,7 +395,7 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
   });
 
   it('B4 human ladder: from the shoulders against W2 (C2 side) the grip reaches W2 (teamController runTop rule)', () => {
-    const w2 = BUNKER_COOP_LIPS.find((l) => l.id === 'W2')!;
+    const w2 = B4_COOP_LIPS.find((l) => l.id === 'W2')!;
     for (const x of [4, 10, 16, 26]) {
       // the bracer's feet 0.5 off W2's north face (wallBehind), the climber on the shoulders facing the wall (south)
       const p = b4(x, 13.5);
@@ -430,7 +436,7 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
   });
 
   it('B4 co-op lips (W1 4.4, W2 4.25, outlet 4.4) are out of solo reach and within the boost; no other lip 3.8-4.5 over a B4 floor', () => {
-    for (const l of BUNKER_COOP_LIPS) {
+    for (const l of B4_COOP_LIPS) {
       // W2 (A35): 0.45 over solo reach, within the human ladder's grip; W1 and the outlet keep level-design 11.3's 0.5
       if (l.id === 'W2') {
         expect(l.top - l.floor).toBeGreaterThanOrEqual(WALL_JUMP.maxUp + 0.45 - 1e-9);
@@ -441,7 +447,7 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     }
     const floors = [PLANT_Y, PLANT_Y + M4.sump];
     const band = genPlant.filter((l) => inBay('B4', l.a.x, l.a.z) && floors.some((f) => l.top - f >= 3.8 && l.top - f <= 4.5));
-    const odd = band.filter((l) => !BUNKER_COOP_LIPS.some((p) => inLip(l, p.box, p.top)));
+    const odd = band.filter((l) => !B4_COOP_LIPS.some((p) => inLip(l, p.box, p.top)));
     expect(odd.map((l) => [l.a, l.b, l.top])).toEqual([]);
     // the sump floor stays above the nav sampler's floor (SPEC engine Q1)
     expect(PLANT_Y + M4.sump).toBeGreaterThan(-1.5);
@@ -477,7 +483,7 @@ describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
 
   it('course stub: B5 mains gate on A5, B6 card / reader / keypad / egress gates, S6 one-way, A5 and A6', () => {
     expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
-    expect(c.def.airlocks.map((a) => a.id).slice(-2)).toEqual(['A5', 'A6']);
+    expect(c.def.airlocks.map((a) => a.id).slice(4, 6)).toEqual(['A5', 'A6']);
     const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
     for (const id of ['A5-near', 'A5-far', 'A6-near', 'A6-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top']) expect(locked.has(c.doors[id]!), id).toBe(true);
     const g5 = c.def.bays[4]!.gates;
@@ -495,9 +501,10 @@ describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
     for (const door of ['B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A5-near']) expect(c.def.bays.flatMap((x) => x.gates).filter((g) => 'doorId' in g && g.doorId === door).length, door).toBe(1);
     expect(g6.some((g) => g.kind === 'bolt' && g.doorId === 'S6-top' && g.side[0] === 1)).toBe(true);
     for (const k of ['pk-card-a', 'pk-card-b', 'pk-card-m', 'sw-key-1', 'sw-key-2', 'sw-key-3', 'sw-mt-egress', 'sw-rd1-rex']) expect(c.devices[k], k).toBeDefined();
-    // the Finish sits in A6 (B6 ends the course for now)
+    // the Finish sits in the lift car L9 (B9 ends the course, T5)
     expect(c.devices.end!.y).toBe(0);
-    expect(c.devices.end!.x).toBeLessThan(6);
+    expect(c.devices.end!.x).toBeGreaterThan(136);
+    expect(c.devices.end!.z).toBeGreaterThan(-4);
   });
 
   it('device mount points (BUNKER_DEVICES): four cameras, desk, panel, readers 1-4, iris, beams, PIR, fault, keypad', () => {
@@ -550,7 +557,7 @@ describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
     expect(topAt(b5(20, 21).x, b5(0, 21).z, PLANT_Y)).toBe(true);
     for (const px of B5_METRICS.panels) expect(topAt(b5(px, 21).x, b5(0, 21).z, PLANT_Y), `${px}`).toBe(false);
     // hide spots: the two panels, the fuel bay, the gallery recess; B6 lockers and rack ends
-    expect(play.hideSpots!.length).toBe(8);
+    expect(play.hideSpots!.filter((h) => inT4(h.pos.x, h.pos.z) && h.pos.z > -9.5).length).toBe(8);
   });
 
   it('ladders in B5 / A5 (trench, gallery, platform) top out on a floor (the real step-off)', () => {
@@ -671,5 +678,267 @@ describe('Fallow nav seeds (T4 fix)', () => {
     for (const d of lay.debugPoints ?? []) expect(has(d.pos), d.id).toBe(true);
     for (const h of lay.hideSpots ?? []) expect(has(h.pos)).toBe(true);
     for (const bay of ['B4', 'B5', 'B6'] as const) expect(lay.debugPoints!.some((d) => d.id === bay), bay).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------ T5: B7, A7, B8, A8, B9, L9
+
+describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
+  const pb = new LevelBuilder();
+  const play = bunker.build(pb, 0);
+  generateLedges(pb.boxes, pb.anchors);
+  const gaps = findSplitGaps(buildCoverSegments(pb.boxes, pb.cylinders));
+  for (const g of gaps) pb.anchors.add<SplitAnchor>({ kind: 'split', ...g } as SplitAnchor);
+  const A: TraversalAnchors = pb.anchors;
+  const c = play.course!;
+  const b7 = (x: number, z: number, y = 0) => deepAt('B7', x, z, y);
+  const b8 = (x: number, z: number, y = 0) => deepAt('B8', x, z, y);
+  const b9 = (x: number, z: number, y = 0) => deepAt('B9', x, z, y);
+  /** The Deep bays in plan (B7 to L9, south of S6): y 0 to 14. */
+  const inDeep = (x: number, z: number): boolean => z <= -9.5 || (x >= 117.5 && z <= 2.5);
+  const genDeep = generated.filter((l) => l.top < 15 && inDeep(l.a.x, l.a.z) && inDeep(l.b.x, l.b.z));
+  const lipOf = (id: string) => DEEP_LIPS.find((l) => l.id === id)!;
+  const topAt = (x: number, z: number, y: number): boolean =>
+    pb.boxes.some((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3 && Math.abs(p.c[1] + p.s[1] / 2 - y) < 0.01 && Math.abs(x - p.c[0]) <= p.s[0] / 2 - 0.05 && Math.abs(z - p.c[2]) <= p.s[2] / 2 - 0.05);
+  const anchor = (id: string) => A.all.find((a) => a.id === c.anchors![id])!;
+  const calm = { vyaw: 0, vCalm: true, los: true } as const;
+
+  it('debug points B7, B7-roof, B8, B8-RT, B9, B9-B2, L9, A7, A8 stand on a floor', () => {
+    for (const id of ['B7', 'B7-roof', 'B8', 'B8-RT', 'B9', 'B9-B2', 'L9', 'A7', 'A8']) {
+      const d = play.debugPoints!.find((p) => p.id === id);
+      expect(d, id).toBeDefined();
+      expect(topAt(d!.pos.x, d!.pos.z, d!.pos.y), id).toBe(true);
+    }
+  });
+
+  it('course stub: B7 store key -> store door (A7 near), B8 CS bolted from below and cease-fire, B9 keys, case and the two-key lift', () => {
+    expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
+    expect(c.def.airlocks.map((a) => a.id).slice(-2)).toEqual(['A7', 'A8']);
+    const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
+    for (const id of ['A7-near', 'A7-far', 'A8-near', 'A8-far', 'B8-cs', 'L9-door']) expect(locked.has(c.doors[id]!), id).toBe(true);
+    const g7 = c.def.bays[6]!.gates;
+    const g8 = c.def.bays[7]!.gates;
+    const g9 = c.def.bays[8]!.gates;
+    expect(g7).toContainEqual({ kind: 'flag', id: 'g-store', flag: 'store-key', doorId: 'A7-near' });
+    expect(g7).toContainEqual({ kind: 'pickup', id: 'g-store-key', switchId: 'sw-store-key', flag: 'store-key', perPlayer: false });
+    expect(g8.some((g) => g.kind === 'bolt' && g.doorId === 'B8-cs' && g.side[1] === -1)).toBe(true);
+    expect(g9.filter((g) => 'doorId' in g && g.doorId === 'L9-door').map((g) => g.kind).sort()).toEqual(['flag', 'flag', 'flag', 'pair']);
+    for (const k of ['sw-store-key', 'sw-cease-fire', 'pk-key-a', 'pk-key-b', 'pk-case', 'K-A', 'K-B', 'A7', 'A8', 'end']) expect(c.devices[k], k).toBeDefined();
+    // K-A and K-B 5 m apart in the lobby; the store-key switch on the first floor beside B7-O's desk
+    expect(hyp2(c.devices['K-A']!.x - c.devices['K-B']!.x, c.devices['K-A']!.z - c.devices['K-B']!.z)).toBeCloseTo(5, 5);
+    expect(c.devices['sw-store-key']!.y).toBe(B7_METRICS.firstFloor);
+    // the lift car is closed but for its door: no window, duct, rope or zipline ends inside it
+    const inCar = (x: number, z: number) => x > b9(18, 0).x && x < b9(26, 0).x && z > b9(0, 52).z;
+    expect(A.windows.filter((w) => inCar(w.c.x, w.c.z))).toEqual([]);
+    expect(A.ziplines.some((zz) => inCar(zz.b.x, zz.b.z)) || A.ducts.some((d) => inCar(d.exit.pos.x, d.exit.pos.z))).toBe(false);
+  });
+
+  it('every Deep lip is planned (DEEP_LIPS) and every planned lip exists; no split gap on the Deep level', () => {
+    const stray = genDeep.filter((l) => !DEEP_LIPS.some((p) => inLip(l, p.box, p.top)));
+    expect(stray.map((l) => [l.a, l.b, l.top])).toEqual([]);
+    for (const p of DEEP_LIPS) expect(genDeep.some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
+    expect(gaps.filter((g) => g.a.y < 15 && inDeep(g.a.x, g.a.z))).toEqual([]);
+    expect(BUNKER_COOP_LIPS).toContain(B9_COOP_LIP);
+  });
+
+  it("WM: the water main 4.9 over B7-W's stop (8, 6): the drop takedown from the hang; inverted over the annex roof", () => {
+    const wm = anchor('B7-main');
+    if (wm.kind !== 'pipeH') throw new Error('no main');
+    expect(wm.hangHeight).toBe(B7_METRICS.main);
+    const s = b7(8, 6).x - wm.a.x;
+    const hang = attachPose(wm, s, 1, 1.75, { x: 0, y: 0, z: 0, yaw: 0 }, 'hands');
+    const v = b7(8, 6);
+    const drop = pickTakedown({ state: 'pipe', ax: hang.x, ay: hang.y, az: hang.z, vx: v.x, vy: 0, vz: v.z, ...calm });
+    expect(drop?.kind).toBe('drop');
+    expect(hang.y).toBeGreaterThanOrEqual(TAKEDOWN.dropMin);
+    // inverted: a guard on the annex roof's south edge (B7-R covers it) right under the knees
+    const sx = b7(24, 6).x - wm.a.x;
+    const inv = attachPose(wm, sx, 1, 1.75, { x: 0, y: 0, z: 0, yaw: 0 }, 'inverted');
+    const t = pickTakedown({ state: 'inverted', ax: inv.x, ay: inv.y, az: inv.z, vx: b7(24, 6.5).x, vy: B7_METRICS.annex, vz: b7(24, 6.5).z, ...calm });
+    expect(t?.kind).toBe('inverted');
+    // the bench (3.0) and the annex roof (3.2) put the main in a standing grab
+    for (const f of [B7_METRICS.bench, B7_METRICS.annex]) {
+      expect(B7_METRICS.main - f).toBeLessThanOrEqual(REACH.grabMax);
+      expect(B7_METRICS.main - f).toBeGreaterThan(REACH.grabMin + 0.05);
+    }
+  });
+
+  it('AX: the annex roof 3.2 in the wall-jump window, kicked to from the cavern floor; the manager\'s window 0.9 over it', () => {
+    const ax = lipOf('AX');
+    expect(ax.top - ax.floor).toBeGreaterThanOrEqual(WALL_JUMP.minUp);
+    expect(ax.top - ax.floor).toBeLessThanOrEqual(WALL_JUMP.maxUp);
+    const south = generated.find((l) => inLip(l, ax.box, ax.top) && l.nz < -0.9)!;
+    const st = b7(24, 5.3);
+    expect(wallJumpReach(south, st.x, 0, st.z, 0, 1)).not.toBeNull();
+    const win = A.windows.find((w) => Math.abs(w.sillHeight - B7_METRICS.sill) < 1e-6 && w.open);
+    expect(win).toBeDefined();
+    expect(win!.c.x).toBeGreaterThan(b7(20, 0).x);
+    expect(win!.c.x).toBeLessThan(b7(28, 0).x);
+    // a guard at the window (first floor) and the attacker on the annex roof: within the window takedown's height band
+    expect(Math.abs(B7_METRICS.firstFloor - B7_METRICS.annex)).toBeLessThanOrEqual(0.6);
+  });
+
+  it('PR: from the hang on the parapet\'s south face at (30, 10) the ledge pull takes a guard on the roof behind it', () => {
+    const pr = lipOf('PR');
+    const south = generated.find((l) => inLip(l, pr.box, pr.top) && l.nz < -0.9 && l.a.z < b7(0, 9.9).z)!;
+    expect(south).toBeDefined();
+    const s = (b7(30, 0).x - south.a.x) * south.tx;
+    const h = hangPoint(south, Math.abs(s));
+    const v = b7(30, 10.45, B7_METRICS.roof);
+    const dy = v.y - h.y;
+    expect(dy).toBeGreaterThanOrEqual(0.9);
+    expect(dy).toBeLessThanOrEqual(2.5);
+    const t = pickTakedown({ state: 'hang', ax: h.x, ay: h.y, az: h.z, vx: v.x, vy: v.y, vz: v.z, ...calm });
+    expect(t?.kind).toBe('below');
+  });
+
+  it('B9 boost gap 4.5 (co-op lip): out of solo and human-ladder reach; the boost from a mate braced on the pier takes it; no other 3.8-4.5 lip', () => {
+    const l = B9_COOP_LIP;
+    expect(l.top - l.floor).toBeGreaterThan(WALL_JUMP.maxUp + 0.5);
+    expect(l.top - l.floor).toBeGreaterThan(TEAM.ladderGrab + 0.2);
+    expect(l.top - l.floor).toBeLessThanOrEqual(TEAM.boostMax);
+    // teamController.boostTarget: the mate's back to the pier (0.5 off its face), the toss over them into the wall
+    for (const z of [37.6, 38, 38.4]) {
+      const m = b9(8.5, z);
+      const yaw = Math.PI / 2;
+      const apex = { x: m.x, y: m.y + TEAM.boostMax - 1.15, z: m.z };
+      const t = findJumpTarget(A, apex, -1, -Math.sin(yaw), -Math.cos(yaw), 1, 2.2, 0.2);
+      expect(t, `z ${z}`).not.toBeNull();
+      expect(inLip(t!.anchor as Ledge, l.box, l.top), `z ${z}`).toBe(true);
+      expect(t!.grip.y - m.y).toBeLessThanOrEqual(TEAM.boostMax);
+      expect(t!.grip.y - m.y).toBeGreaterThanOrEqual(2.4);
+      // the brace wall behind (TEAM.wallBehind): the pier's face at x 8
+      expect(pb.boxes.some((p) => p.collide && Math.abs(p.c[0] + p.s[0] / 2 - b9(8, 0).x) < 1e-6 && Math.abs(m.z - p.c[2]) <= p.s[2] / 2 && p.c[1] - p.s[1] / 2 <= 0.01)).toBe(true);
+    }
+    const floors = [0, B9_METRICS.b1, B9_METRICS.b2];
+    const inB9 = (x: number, z: number) => x >= b9(0, 0).x - 0.5 && z >= b9(0, 0).z - 0.5 && z <= b9(0, 58).z;
+    const band = genDeep.filter((g) => inB9(g.a.x, g.a.z) && floors.some((f) => g.top - f >= 3.8 && g.top - f <= 4.5));
+    expect(band.filter((g) => !inLip(g, l.box, l.top)).map((g) => [g.a, g.b, g.top])).toEqual([]);
+  });
+
+  it('RP: the bridge rope 9.0 to the plot floor; ZP: B-2 east (cable 2.5 over it) to the lobby (end 1.9 over its floor), the ride clears every piece', () => {
+    const rp = anchor('B9-rappel');
+    if (rp.kind !== 'rappel') throw new Error('no rope');
+    expect(rp.top.y - rp.length).toBe(0);
+    expect(topAt(rp.top.x + rp.nx * 0.5, rp.top.z + rp.nz * 0.5, 0)).toBe(true);
+    expect(topAt(rp.top.x - rp.nx * 0.3, rp.top.z - rp.nz * 0.3, B9_METRICS.b2)).toBe(true);
+    const z = anchor('B9-zipline');
+    if (z.kind !== 'zipline') throw new Error('no zipline');
+    expect(z.a.y - B9_METRICS.b2).toBeGreaterThanOrEqual(1.5);
+    expect(z.a.y - B9_METRICS.b2).toBeLessThanOrEqual(2.6);
+    expect(z.b.y - HANG.drop).toBeCloseTo(0, 5);
+    expect(z.b.x).toBeGreaterThan(b9(18, 0).x);
+    expect(z.b.x).toBeLessThan(b9(26, 0).x);
+    expect(z.b.z).toBeGreaterThan(b9(0, 44).z);
+    const st = b9(39.3, 22, B9_METRICS.b2);
+    expect(topAt(st.x, st.z, st.y)).toBe(true);
+    expect(hyp2(st.x - z.a.x, st.z - z.a.z)).toBeLessThanOrEqual(REACH.zip);
+    const len = hyp2(z.b.x - z.a.x, z.b.z - z.a.z);
+    for (let d = 0.3; d < len - 0.3; d += 0.1) {
+      const t = d / len;
+      const x = z.a.x + (z.b.x - z.a.x) * t;
+      const zz = z.a.z + (z.b.z - z.a.z) * t;
+      const feet = z.a.y + (z.b.y - z.a.y) * t - HANG.drop;
+      const hit = pb.boxes.find((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(x - p.c[0]) < p.s[0] / 2 + 0.3 && Math.abs(zz - p.c[2]) < p.s[2] / 2 + 0.3 && p.c[1] + p.s[1] / 2 > feet && p.c[1] - p.s[1] / 2 < feet + 1.75);
+      expect(hit ? [d.toFixed(1), hit.c, hit.s] : null).toBeNull();
+    }
+  });
+
+  it('the message-tube duct: entry from the key A cabin (grate within reach), a wall exit into the lift lobby', () => {
+    const d = anchor('B9-duct');
+    if (d.kind !== 'duct') throw new Error('no duct');
+    const feet = b9(1.0, 30.5, B9_METRICS.b1);
+    expect(topAt(feet.x, feet.z, feet.y)).toBe(true);
+    expect(hyp2(d.entry.pos.x - feet.x, d.entry.pos.z - feet.z)).toBeLessThanOrEqual(1.1);
+    expect(Math.abs(d.entry.pos.y - feet.y)).toBeLessThanOrEqual(1.4);
+    expect(d.entry.where).toBe('wall');
+    expect(d.exit.where).toBe('wall');
+    expect(d.exit.pos.x).toBeCloseTo(b9(18.15, 0).x, 5);
+    expect(d.exit.pos.z).toBeGreaterThan(b9(0, 44).z);
+    expect(topAt(d.exit.pos.x + 0.6, d.exit.pos.z, 0)).toBe(true);
+  });
+
+  it('ladders on the Deep level (roof hatch, bench, RT, scaffold) top out on a floor (the real step-off)', () => {
+    const lads = A.ladders.filter((l) => inDeep(l.base.x, l.base.z));
+    expect(lads.length).toBe(4);
+    for (const l of lads) {
+      const ex = l.top.x + Math.sin(l.facing) * 0.2;
+      const ez = l.top.z + Math.cos(l.facing) * 0.2;
+      expect(topAt(ex, ez, l.top.y), `${l.base.x} ${l.base.z}`).toBe(true);
+    }
+  });
+
+  it('B8: catwalk 4.0, scaffold 3.0, CS door at the stair foot with no way round it (caged to 7.0)', () => {
+    expect(topAt(b8(30, 30).x, b8(30, 30).z, B8_METRICS.catwalk)).toBe(true);
+    expect(topAt(b8(58, 21).x, b8(58, 21).z, B8_METRICS.scaffold)).toBe(true);
+    const cs = A.doors.find((d) => d.id === c.doors['B8-cs'])!;
+    expect(cs.locked).toBe(true);
+    // the stair's landing is reached only from the catwalk or through CS: the cage walls stand 7.0 on both sides
+    const cage = pb.boxes.filter((p) => p.collide && p.c[1] + p.s[1] / 2 >= 7 - 1e-6 && Math.abs(p.c[2] - b8(0, 26.7).z) < 4.5 && p.c[0] > b8(57, 0).x && p.c[0] < b8(62, 0).x);
+    expect(cage.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // NavGrid ignores doors and models no ladders / ropes, so the course order is checked on a graph: each bay and
+  // airlock (BAYS 0 plan rects) is a node; a door joins the rooms on its two sides; an anchor whose ends lie in two
+  // rooms joins them (unless an anchorLock gate holds it). Inside a bay every floor is taken as joined (the bay tests).
+  it('reachability: with every course door open the way from B1 to L9 enters B1..B9 in order; as built nothing leaves B1', () => {
+    const rooms: [string, number, number, number, number][] = [
+      ['B1', 0, 72, 24, 24], ['A1', 24, 81, 6, 6], ['B2', 30, 66, 48, 36], ['A2', 78, 81, 6, 6], ['B3', 84, 74, 18, 18],
+      ['A3', 90, 68, 6, 6], ['B4', 82, 30, 36, 38], ['A4', 97, 24, 6, 6], ['B5', 70, -8, 48, 32], ['A5', 64, 5, 6, 6],
+      ['B6', 22, -8, 42, 32], ['S6', 6, -8, 16, 3], ['A6', 0, -10, 6, 6], ['B7', 0, -50, 44, 40], ['A7', 44, -33, 6, 6],
+      ['B8', 50, -46, 62, 32], ['A8', 112, -33, 6, 6], ['B9', 118, -56, 44, 52], ['L9', 136, -4, 8, 6],
+    ];
+    const room = (x: number, z: number): string | null => rooms.find(([, x0, z0, w, d]) => x > x0 && x < x0 + w && z > z0 && z < z0 + d)?.[0] ?? null;
+    const held = new Set(c.def.bays.flatMap((bay) => bay.gates).flatMap((g) => (g.kind === 'anchorLock' ? [c.anchors![g.anchorId]!] : [])));
+    const edges = (open: boolean): [string, string][] => {
+      const out: [string, string][] = [];
+      const link = (p: { x: number; z: number }, q: { x: number; z: number }) => {
+        const a = room(p.x, p.z);
+        const e = room(q.x, q.z);
+        if (a && e && a !== e) out.push([a, e]);
+      };
+      for (const d of A.doors) {
+        if (d.locked && !open) continue;
+        const mx = d.hinge.x + (Math.sin(d.yaw) * d.width) / 2;
+        const mz = d.hinge.z + (Math.cos(d.yaw) * d.width) / 2;
+        const nx = Math.cos(d.yaw);
+        const nz = -Math.sin(d.yaw);
+        link({ x: mx + nx * 0.8, z: mz + nz * 0.8 }, { x: mx - nx * 0.8, z: mz - nz * 0.8 });
+      }
+      for (const a of A.all) {
+        if (!open && held.has(a.id)) continue;
+        if (a.kind === 'ladder' || a.kind === 'pipeV') link(a.base, a.top);
+        else if (a.kind === 'zipline') link(a.a, a.b);
+        else if (a.kind === 'duct') link(a.path[0]!, a.path[a.path.length - 1]!);
+        else if (a.kind === 'rappel') link(a.top, { x: a.top.x + a.nx * 0.5, z: a.top.z + a.nz * 0.5 });
+      }
+      return out;
+    };
+    const route = (open: boolean, to: string): string[] | null => {
+      const es = edges(open);
+      const prev = new Map<string, string>([['B1', '']]);
+      const q = ['B1'];
+      while (q.length > 0) {
+        const n = q.shift()!;
+        for (const [a, e] of es) {
+          const m = a === n ? e : e === n ? a : null;
+          if (m && !prev.has(m)) {
+            prev.set(m, n);
+            q.push(m);
+          }
+        }
+      }
+      if (!prev.has(to)) return null;
+      const path = [to];
+      while (path[0] !== 'B1') path.unshift(prev.get(path[0]!)!);
+      return path;
+    };
+    const path = route(true, 'L9');
+    expect(path).toEqual(['B1', 'A1', 'B2', 'A2', 'B3', 'A3', 'B4', 'A4', 'B5', 'A5', 'B6', 'S6', 'A6', 'B7', 'A7', 'B8', 'A8', 'B9', 'L9']);
+    // the bays form one chain: every bay meets only its own airlocks (no side way skips a bay)
+    const es = edges(true);
+    const order = path!;
+    for (const [a, e] of es) expect(Math.abs(order.indexOf(a) - order.indexOf(e)), `${a}-${e}`).toBe(1);
+    for (const r of rooms.map((x) => x[0]).filter((x) => x !== 'B1')) expect(route(false, r), r).toBeNull();
   });
 });
