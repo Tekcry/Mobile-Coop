@@ -108,6 +108,21 @@
     "curbMin": { "value": 0.15, "src": "scale-sheet s3" },
     "curbMax": { "value": 0.4, "src": "scale-sheet s3" }
   },
+  "light": {
+    "calLumens": { "value": 900, "src": "ON6 brief decision 3 (editor): a 900 lm downlight is the calibration point" },
+    "calBeam": { "value": 60, "src": "ON6 brief decision 4: the 900 lm downlight beam (degrees)" },
+    "calRadius": { "value": 4, "src": "src/world/maps/warehouse.ts office ceiling lamp (21.45, 2.45, -22.9): radius 4" },
+    "calIntensity": { "value": 0.7, "src": "src/world/maps/warehouse.ts office ceiling lamp (21.45, 2.45, -22.9): intensity 0.7" },
+    "radiusMin": { "value": 0.5, "src": "editor default: smallest light reach the conversion gives (a step light)" },
+    "radiusMax": { "value": 20, "src": "editor default: longest light reach the conversion gives (lampBake boxes stay small)" },
+    "intensityMin": { "value": 0.15, "src": "editor default: dimmest intensity the conversion gives" },
+    "intensityMax": { "value": 1.4, "src": "editor default: brightest intensity the conversion gives (the game maps use up to 1.0)" },
+    "spotBeamMax": { "value": 100, "src": "editor default: beams narrower than this (degrees) are spot cones; wider light the hemisphere below (lampMath LAMP_CONE)" },
+    "wallReach": { "value": 0.6, "src": "editor default: a wall fitting or a switch backs onto a wall face within this distance of the dot" },
+    "openingReach": { "value": 1.0, "src": "editor default: an exit sign snaps to an opening whose middle is within this distance of the dot" },
+    "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
+    "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" }
+  },
   "traverse": {
     "stepMax": { "value": 0.65, "src": "F04 (src/player/movement.ts pickTraversal: step up to 0.65, top clear)" },
     "vaultMax": { "value": 1.25, "src": "F04 (pickTraversal: vault up to 1.25)" },

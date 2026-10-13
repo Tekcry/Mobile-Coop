@@ -80,6 +80,8 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
       if (o.noLedge) b.mark(at, { noLedge: true });
     }
   }
+  // ON6: lamps through the same path a map's lights take (LevelBuilder.light), so the light meter reads them (bible 5.1)
+  for (const l of c.lights) b.light(l);
   // ON5: floors marked by finish (footstep loudness and sound, src/world/surfaces.ts)
   for (const s of c.surfaces) b.surface(s.kind, s.rect[0], s.rect[2], s.rect[1], s.rect[3], s.top);
   // ON10: roofs as boxes the game stands on (strips tilted to a slope; too steep and the controller slides off), so the

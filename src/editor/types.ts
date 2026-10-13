@@ -3,6 +3,7 @@
  * editor reads or writes are typed; every other field rides along untouched (the index signatures).
  */
 import type { RoofData } from '../world/maps/kestrelRoofs';
+import type { CircuitRecord, LampRecord } from '../world/maps/kestrelLights';
 
 export type Pt = [number, number];
 /** A roof (ON10, schema.md section 2 `roofs[]`); the geometry is src/world/maps/kestrelRoofs.ts. */
@@ -139,6 +140,9 @@ export interface Campus {
   objects?: Obj[];
   /** ON5: climb pieces and exterior features (the campus file has the list, empty until the first piece). */
   exterior?: Ext[];
+  /** ON6: the play file's lamps and circuits, joined in while editing (src/editor/playFile.ts); never in the campus file. */
+  lamps?: LampRecord[];
+  circuits?: CircuitRecord[];
   [k: string]: unknown;
 }
 
@@ -173,9 +177,10 @@ export interface Ext {
  * The collections the editor can change. `levels` and `buildings` (meta.buildings) change through the Levels tab only
  * (ON2; ON4 made `objects` an element); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior';
-export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | (Building & { [k: string]: unknown });
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior'];
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior' | 'lamps' | 'circuits';
+export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | LampRecord | CircuitRecord | (Building & { [k: string]: unknown });
+/** ON6: `lamps` and `circuits` are the play file's (a circuit is picked by its wall switch). */
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;
