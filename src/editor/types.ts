@@ -4,6 +4,7 @@
  */
 import type { RoofData } from '../world/maps/kestrelRoofs';
 import type { CircuitRecord, LampRecord } from '../world/maps/kestrelLights';
+import type { Ceiling, CrawlRecord } from './ceilings';
 import type { Checkpoint, Extraction, Guard, Hide, Objective, Spawn } from './mission';
 
 export type Pt = [number, number];
@@ -30,6 +31,10 @@ export interface Room {
   building?: string;
   /** Floor finish (ON5: src/editor/finishes.ts); '' for none. */
   finish?: string;
+  /** ON13: ceiling height (0 = none), type and hatch centres (src/editor/ceilings.ts). */
+  ceiling?: number;
+  ceilingType?: string;
+  hatches?: Pt[];
   [k: string]: unknown;
 }
 
@@ -153,6 +158,8 @@ export interface Campus {
   extraction?: Extraction[];
   /** ON12: the security file's devices (src/editor/security.ts), joined in while editing. */
   devices?: { id: string; kind: string; level: string; [k: string]: unknown }[];
+  /** ON13: crawl spaces (absent until the first is drawn: a file without them saves byte-identical). */
+  crawls?: CrawlRecord[];
   [k: string]: unknown;
 }
 
@@ -187,10 +194,10 @@ export interface Ext {
  * The collections the editor can change. `levels` and `buildings` (meta.buildings) change through the Levels tab only
  * (ON2; ON4 made `objects` an element); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior' | 'lamps' | 'circuits' | 'guards' | 'objectives' | 'hides' | 'checkpoints' | 'spawns' | 'extraction' | 'devices';
-export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | LampRecord | CircuitRecord | Guard | Objective | Hide | Checkpoint | Spawn | Extraction | (Building & { [k: string]: unknown });
-/** ON6: `lamps` and `circuits` are the play file's (a circuit is picked by its wall switch); ON8: so are the mission ones; ON12: `devices` are the security file's. */
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices'];
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior' | 'lamps' | 'circuits' | 'guards' | 'objectives' | 'hides' | 'checkpoints' | 'spawns' | 'extraction' | 'devices' | 'ceilings' | 'crawls';
+export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | LampRecord | CircuitRecord | Guard | Objective | Hide | Checkpoint | Spawn | Extraction | Ceiling | CrawlRecord | (Building & { [k: string]: unknown });
+/** ON6: `lamps` and `circuits` are the play file's (a circuit is picked by its wall switch); ON8: so are the mission ones; ON12: `devices` are the security file's; ON13: `ceilings` are the rooms' ceiling fields (model.ts). */
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'ceilings', 'crawls'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;

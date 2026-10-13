@@ -232,6 +232,8 @@ export function references(d: Campus, coll: Coll, id: string): { coll: Coll; e: 
     for (const k of ['stairs', 'ladders'] as const) for (const e of d[k]) add(k, e, [e.from === id ? 'from' : '', e.to === id ? 'to' : ''].filter(Boolean));
     for (const o of (d.objects as Elem[] | undefined) ?? []) add('objects', o, (o as { level?: string }).level === id ? ['level'] : []);
     for (const x of (d.exterior as Elem[] | undefined) ?? []) add('exterior', x, (x as { level?: string }).level === id ? ['level'] : []);
+    // ON13: a crawl space is on a level
+    for (const x of d.crawls ?? []) add('crawls', x, x.level === id ? ['level'] : []);
   }
   return out;
 }

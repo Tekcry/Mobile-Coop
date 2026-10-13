@@ -16,6 +16,9 @@ import type { Extraction, Guard, Hide, Objective } from './mission';
 import { guardKind, hideKind, objectiveKind } from './missionCatalogue';
 import { deviceWords } from './security';
 import type { Device } from './security';
+import { typeOf } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
+import { crawlLength } from '../world/maps/kestrelCeilings';
 
 /** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
 export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = Object.fromEntries(CATALOGUE.map((c) => [c.id, { w: c.w, h: c.h, sill: c.sill }]));
@@ -47,6 +50,16 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
   }
   if (coll === 'hides') return { title: name || `Hiding place: ${hideKind((e as unknown as Hide).kind).name.toLowerCase()}`, size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
   if (coll === 'devices') return deviceWords(e as unknown as Device);
+  // ON13: a room's ceiling and a crawl space
+  if (coll === 'ceilings') {
+    const c = e as Ceiling;
+    const t = typeOf(c);
+    return { title: `Ceiling: ${name || c.id}`, size: t.id === 'open' ? 'None (open to the slab)' : `${t.name} at ${fmt(c.ceiling)} m` };
+  }
+  if (coll === 'crawls') {
+    const c = e as CrawlRecord;
+    return { title: name || 'Crawl space', size: `${fmt(crawlLength(c))} m long, ${fmt(c.width)} m wide, ${fmt(c.y1 - c.y0)} m clear` };
+  }
   if (coll === 'checkpoints') return { title: name || 'Checkpoint', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
   if (coll === 'spawns') return { title: 'Insertion point', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
   if (coll === 'extraction') {
@@ -103,7 +116,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'guards' ? 'guard ' : coll === 'objectives' ? `objective ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'hides' ? 'hiding place ' : coll === 'checkpoints' ? 'checkpoint ' : coll === 'spawns' ? 'insertion point ' : coll === 'extraction' ? 'extraction zone ' : coll === 'devices' ? `security ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
+  const kind = coll === 'guards' ? 'guard ' : coll === 'objectives' ? `objective ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'hides' ? 'hiding place ' : coll === 'checkpoints' ? 'checkpoint ' : coll === 'spawns' ? 'insertion point ' : coll === 'extraction' ? 'extraction zone ' : coll === 'devices' ? `security ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'ceilings' ? 'ceiling of ' : coll === 'crawls' ? 'crawl space ' : coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 
@@ -146,7 +159,10 @@ export function describeChange(d: Campus, c: Change): string {
       if (Math.abs(q[1]! - p[1]!) > EPS) parts.push(`height ${fmt(p[1]!)} to ${fmt(q[1]!)} m`);
     } else if (k === 'at' && Array.isArray(va)) parts.push(`moved ${moveWords((vb as number[])[0]! - (va as number[])[0]!, (vb as number[])[1]! - (va as number[])[1]!)}`);
     else if (k === 'params' || (k === 'b' && c.coll === 'lamps')) continue;
-    else if (k === 'between' || k === 'index') continue;
+    else if (k === 'between' || k === 'index' || k === 'ends') continue;
+    // ON13: a ceiling's hatches and a crawl's route
+    else if (k === 'hatches') parts.push(`hatches ${(Array.isArray(va) ? va.length : 0)} to ${(Array.isArray(vb) ? vb.length : 0)}`);
+    else if (k === 'path') parts.push(`route now ${fmt(crawlLength({ path: (vb ?? []) as [number, number][] }))} m, ${(Array.isArray(vb) ? vb.length : 0)} points`);
     else parts.push(fieldWords(c.coll, k, va, vb));
   }
   if (c.coll === 'walls' || c.coll === 'exterior') {
@@ -178,7 +194,7 @@ export function describeChange(d: Campus, c: Change): string {
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Field names in words; metre fields carry "m". */
-const FIELD_WORDS: Record<string, string> = { h: 'height', t: 'thickness', w: 'width', sill: 'sill', ceiling: 'ceiling', ring: 'access level', minShort: 'shortest side', risers: 'risers', width: 'width', floor: 'floor', height: 'height', key: 'key', reason: 'reason', finish: 'floor finish', y0: 'bottom', y1: 'top', depth: 'depth', climbable: 'climbable', override: 'set by hand', size: 'size', building: 'building', up: 'climbs', facing: 'facing', name: 'name' };
+const FIELD_WORDS: Record<string, string> = { h: 'height', t: 'thickness', w: 'width', sill: 'sill', ceiling: 'ceiling', ring: 'access level', minShort: 'shortest side', risers: 'risers', width: 'width', floor: 'floor', height: 'height', key: 'key', reason: 'reason', finish: 'floor finish', ceilingType: 'ceiling type', y0: 'bottom', y1: 'top', depth: 'depth', climbable: 'climbable', override: 'set by hand', size: 'size', building: 'building', up: 'climbs', facing: 'facing', name: 'name' };
 const METRES = new Set(['h', 't', 'w', 'sill', 'ceiling', 'minShort', 'width', 'floor', 'height', 'y0', 'y1', 'depth']);
 
 /** One field change in plain words (ED3-3a decision 19): no raw JSON. */

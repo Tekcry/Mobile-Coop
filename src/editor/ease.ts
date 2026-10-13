@@ -44,10 +44,11 @@ export interface SummaryGroup {
   n: number;
 }
 
-const SUMMARY_COLLS: readonly (Coll | 'objects')[] = ['levels', 'rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices'];
+const SUMMARY_COLLS: readonly (Coll | 'objects')[] = ['levels', 'rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'crawls'];
 const NOUN: Record<string, [string, string]> = {
   levels: ['level', 'levels'],
   devices: ['security device', 'security devices'],
+  crawls: ['crawl space', 'crawl spaces'],
   rooms: ['room', 'rooms'],
   walls: ['wall', 'walls'],
   door: ['door', 'doors'],
@@ -142,7 +143,7 @@ export function netChanges(saved: Campus, now: Campus): SummaryGroup[] {
       if (v) bump(nounOf(coll, e), v);
     }
   }
-  const order = ['levels', 'rooms', 'walls', 'door', 'window', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'buildings'];
+  const order = ['levels', 'rooms', 'walls', 'door', 'window', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'crawls', 'buildings'];
   const out: SummaryGroup[] = [];
   for (const noun of order)
     for (const verb of VERBS) {

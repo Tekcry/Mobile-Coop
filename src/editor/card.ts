@@ -9,7 +9,7 @@ import { DOOR_NAMES, ROOM_KINDS, WALL_KINDS } from './ops';
 import { BLINDS, familyOf, familyTypes, FLAG_SETTINGS, GLASS_KINDS, GLASS_WALL_DEFAULT, SETTING_LABELS, settingWords, shownSettings, stepSetting, withOpeningType } from './openingCatalogue';
 import type { GlassData, Setting, SideCtx } from './openingCatalogue';
 import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeOf, withStairType } from './vertical';
-import type { Coll, Elem, Ladder, Opening, Rect, Roof, Room, Stair, Void, Wall } from './types';
+import type { Coll, Elem, Ladder, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { ROOF_LABELS, ROOF_TYPES, roofSettingWords, roofType, shownRoofSettings, stepRoofSetting, withRoofType } from './roofGeometry';
 import type { RoofSetting } from './roofGeometry';
 import { stepPreset, turnObject } from './objects';
@@ -25,6 +25,8 @@ import { EMPLOYERS, GUARD_KINDS, guardKind, HIDE_KINDS, hideKind, JOBS, OBJECTIV
 import type { Guard, Hide, Objective } from './mission';
 import { deviceRows, deviceType, stepDevice } from './security';
 import type { Device, SecData } from './security';
+import { ceilingRows, crawlRows, stepCeiling, stepCrawl } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
 
 /** ON8: a guard's card: Type (the game's guard kind), Role (the brief's roster: name, employer and job), Employer, Job. */
 function guardRows(g: Guard): CardRow[] {
@@ -145,6 +147,9 @@ const glassOf = (w: Wall): GlassData => ({ ...GLASS_WALL_DEFAULT, ...(w.glass &&
  * has (ON9: no hinge on a sliding door); `ctx` gives the rooms and the wall for the side words.
  */
 export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
+  // ON13: a ceiling (type, height, hatches) and a crawl space
+  if (coll === 'ceilings') return ceilingRows(e as Ceiling);
+  if (coll === 'crawls') return crawlRows(e as CrawlRecord);
   if (coll === 'openings') {
     const o = e as Opening;
     const set = shownSettings(o, ctx.rooms ?? []).map((s): CardRow => ({ id: s, label: SETTING_LABELS[s], value: settingWords(o, s, ctx), kind: FLAG_SETTINGS.has(s) ? 'flag' : 'list' }));
@@ -245,7 +250,9 @@ export interface StepCtx {
   rooms?: SideCtx['rooms'];
   wall?: SideCtx['wall'];
   /** ON5: the file, for a climb piece's rules (heights, the lip at a downpipe's top, vents and ducts). */
-  data?: Pick<Campus, 'levels' | 'walls' | 'exterior' | 'openings'>;
+  data?: Pick<Campus, 'levels' | 'walls' | 'exterior' | 'openings' | 'rooms'>;
+  /** ON13: the dot (a ceiling's Hatches row adds one there). */
+  dot?: Pt;
 }
 
 /** At most this many card rows show while editing; more scroll with the lit row (ON9: a door has up to 16). */
@@ -264,6 +271,8 @@ export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [numb
 export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepCtx): Elem | null {
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
+  if (coll === 'ceilings') return c.data ? stepCeiling(c.data, e as Ceiling, row, dir, c.step, c.dot) : null;
+  if (coll === 'crawls' && row !== 'name' && row !== 'id') return stepCrawl(e as CrawlRecord, row, dir, c.step);
   if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
   if ((coll === 'guards' || coll === 'objectives' || coll === 'hides') && row !== 'name' && row !== 'id') return stepMissionRow(coll, e, row, dir);
   if (coll === 'devices' && row !== 'name' && row !== 'id') return c.data ? (stepDevice(c.data as unknown as SecData, e as unknown as Device, row, dir, c.step) as unknown as Elem | null) : null;

@@ -103,6 +103,16 @@
     "tunnelMin": { "value": 2.1, "src": "scale-sheet s3" },
     "tunnelPreferred": { "value": 2.4, "src": "scale-sheet s3" }
   },
+  "ceiling": {
+    "corridor": { "value": 2.4, "src": "handover Decisions H7 and brief R4: corridor ceilings 2.4 under the 1.5 m voids (a new corridor ceiling starts here)" },
+    "min": { "value": 2.1, "src": "editor default: typical product (the lowest ceiling the card steps to: a 2.1 m door head); below it the ceiling is none" },
+    "endReach": { "value": 0.6, "src": "ON13 editor default: a crawl end within this of a vent or a hatch takes it" }
+  },
+  "crawl": {
+    "widthMin": { "value": 0.6, "src": "ON13 brief decision 3 (one 600 mm crawl board)" },
+    "widthMax": { "value": 1.2, "src": "ON13 brief decision 3; F32 crouch width" },
+    "widthDefault": { "value": 1.2, "src": "F32 crouch width (standards-check.mjs: a crawl space's clear short side at least 1.2)" }
+  },
   "cover": {
     "lowHeight": { "value": 1.2, "src": "scale-sheet s3" },
     "curbMin": { "value": 0.15, "src": "scale-sheet s3" },
