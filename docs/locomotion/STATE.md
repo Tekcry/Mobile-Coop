@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 10 elbow-strike (next)
+Current step: 11 wall-core (next)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -22,6 +22,7 @@ Last commit: see git log (locomotion 00)
 - step 07 harness-local (3 fix rounds).
 - step 08 harness-remote (3 fix rounds + A40). Block B done.
 - step 09 holster-draw (1 fix round).
+- step 10 elbow-strike.
 
 ## Blocked
 (none)

@@ -10,6 +10,7 @@ import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
 import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
+import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
 import { PvpTarget } from './pvpTarget';
@@ -66,6 +67,8 @@ export class CoopClient implements NetAttachment {
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
     };
     g.onEmote = (id) => s.toHost({ t: 'emote', id });
+    // (locomotion step 10) the host resolves committed moves (strike contact) on its guards
+    g.strike.authority = false;
     // our gas / flash / EMP / noisemaker: the host applies it to the guards
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
@@ -101,6 +104,13 @@ export class CoopClient implements NetAttachment {
       case 'tdeny':
         if (msg.a === this.s.selfId) this.g.team.denied(msg.reason);
         break;
+      // (locomotion step 10, A5) this player's committed move started at host time t0 / refused / interrupted
+      case 'cstart':
+        if (msg.a === this.s.selfId && msg.kind === 'strike') this.g.strike.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
+        break;
+      case 'cdeny':
+        if (msg.a === this.s.selfId && msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
+        break;
       case 'tend':
         if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
         break;
@@ -110,6 +120,11 @@ export class CoopClient implements NetAttachment {
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
   teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
     this.s.toHost({ t: 'tmove', kind, partner, target, s: ss, gy });
+  }
+
+  /** (locomotion step 10, A5) Ask the host for a committed move. */
+  commitRequest(kind: CKind, id: number, target: string): void {
+    this.s.toHost({ t: 'cmove', kind, id, target });
   }
 
   teamEnd(): void {

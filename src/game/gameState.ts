@@ -76,6 +76,8 @@ import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
+import { StrikeController } from './strikeController';
+import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
@@ -139,6 +141,11 @@ export interface NetAttachment {
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
+  /** (locomotion step 10, A5) Ask the host for a committed move (`cmove`; the host's own: checked at once). The
+   *  answer comes back through `GameState.strike.accepted` / `denied`. */
+  commitRequest?(kind: CKind, id: number, target: string): void;
+  /** (step 10) Host: its own committed move was interrupted (damage): tell the others. */
+  commitCancel?(id: number, reason: string): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -263,6 +270,8 @@ export class GameState implements AppState {
   private interactTarget: Interactable | null = null;
   /** Melee takedowns. */
   readonly takedown: TakedownController;
+  /** (locomotion step 10) The elbow strike (fire while holstered). */
+  readonly strike: StrikeController;
   /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
   readonly team: TeamController;
   /** Suit and HQ effects for this session. */
@@ -383,6 +392,7 @@ export class GameState implements AppState {
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
+    this.strike = new StrikeController(this);
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
     // suit and HQ: armour, hands, gadget carry
@@ -1070,7 +1080,7 @@ export class GameState implements AppState {
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
-    const busy = this.takedown.active !== null;
+    const busy = this.takedown.active !== null || this.strike.active;
     // Y / E is contextual: an interactable in reach takes it, else it traverses
     const ti = this.traversal.input;
     ti.moveX = inp.move.x;
@@ -1115,6 +1125,9 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active && this.team.state !== 'top';
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
+    // remotes never see)
+    this.weapons.handsBusy = this.strike.active;
     this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset;
@@ -1131,8 +1144,10 @@ export class GameState implements AppState {
       this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
       if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
       this.takedown.grabAllowed = !this.pvp;
-      this.takedown.fixedUpdate(dt, inp.pressed('interact'), inp.down('interact'));
+      this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
+    // (locomotion step 10) fire while holstered: the elbow strike (D1: the touch fire button too)
+    this.strike.fixedUpdate(dt, inp.pressed('fire') && this.weapons.drawPhase === 0 && !inp.down('ads'));
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -1191,6 +1206,7 @@ export class GameState implements AppState {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
         this.player.controller.override = null;
         this.traversal.reset();
+        this.strike.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();

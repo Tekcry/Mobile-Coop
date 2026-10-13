@@ -387,6 +387,24 @@ export class Enemy implements Damageable {
     this.alert();
   }
 
+  /** (locomotion step 10) Seconds left of an elbow strike's stagger (a second strike inside it knocks out). */
+  strikeStaggerT = 0;
+
+  get strikeStaggered(): boolean {
+    return this.strikeStaggerT > 0;
+  }
+
+  /** (step 10) Hit by an elbow strike he faced: staggered `seconds`, his aim broken (burst and wind-up dropped). */
+  strikeStagger(seconds: number): void {
+    if (!this.alive || this.taken) return;
+    this.stagger = Math.max(this.stagger, seconds);
+    this.strikeStaggerT = seconds;
+    this.burstLeft = 0;
+    this.windup = 0;
+    this.vel.setAll(0);
+    this.alert();
+  }
+
   /** (3.2.0) Seconds this guard has seen its target holding a hostage (the hesitation before aimed fire). */
   private shieldT = 0;
 
@@ -755,6 +773,7 @@ export class Enemy implements Damageable {
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);
+    this.strikeStaggerT = Math.max(0, this.strikeStaggerT - dt);
     this.lastSeenT += dt;
     this.grenadeCd -= dt;
     this.doorCheck = Math.max(0, this.doorCheck - dt);

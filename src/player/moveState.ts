@@ -43,6 +43,8 @@ export const MOVE_MODES = [
   'brace',
   'boost',
   'stacked',
+  // (locomotion step 10) the elbow strike (committed, host-approved): `ph` 0..1 over its 0.9 s, `tid` the guard ('' = a whiff)
+  'strike',
 ] as const;
 export type MoveMode = (typeof MOVE_MODES)[number];
 
@@ -312,6 +314,11 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
       return out;
     case 'takedown':
       out.melee = mv.ph;
+      return out;
+    case 'strike':
+      // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered)
+      out.melee = mv.ph;
+      out.drawn = false;
       return out;
     case 'brace':
       out.traverse = 'brace';

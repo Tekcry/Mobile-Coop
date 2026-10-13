@@ -80,12 +80,17 @@ try {
   assert(Math.abs((await state()).yaw - y1) < 0.01, 'camera stops when the stick is released');
   // fire button hold: fires, and the camera does not move
   const fire = await page.locator('.tc-fire').boundingBox();
+  // (locomotion step 10, D1) holstered: the fire button is shown and strikes (the elbow strike)
+  const sk0 = await page.evaluate(() => { const g = window.__app.current; return { dp: g.weapons.drawPhase, n: g.strike.count.started }; });
+  assert(sk0.dp === 0 && !!fire && fire.width > 0, `fire button shown while holstered (draw phase ${sk0.dp})`);
   const fy0 = (await state()).yaw;
   await touch(page, 'touchStart', [{ x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 3 }]);
   await touch(page, 'touchMove', [{ x: fire.x + fire.width / 2 + 30, y: fire.y + fire.height / 2, id: 3 }]);
   await frames(page, 3);
   const fs = await state();
   assert(fs.fire, 'fire held');
+  const sk1 = await page.evaluate(() => window.__app.current.strike.count.started);
+  assert(sk1 > sk0.n, `the touch fire button strikes while holstered (${sk0.n} -> ${sk1})`);
   assert(Math.abs(fs.yaw - fy0) < 0.01, 'fire button never moves the camera (default)');
   await touch(page, 'touchEnd', []);
   // sizes: fire >= 76 px, secondary >= 56 px

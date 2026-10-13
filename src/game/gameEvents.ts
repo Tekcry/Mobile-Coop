@@ -18,6 +18,8 @@ export interface GameEvents {
   body: { action: 'pickup' | 'drop' | 'hide' };
   /** A takedown started / finished / was broken off. */
   takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
+  /** (locomotion step 10) An elbow strike landed (or missed) at contact. */
+  strike: { result: 'ko' | 'stagger' | 'miss' };
   /** Goggles switched (audio). */
   vision: { mode: 'off' | 'night' };
   /** A door opened / closed (audio). */

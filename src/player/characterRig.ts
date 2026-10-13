@@ -5,7 +5,7 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { solveTwoBone } from '../anim/rigMath';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
@@ -1376,8 +1376,9 @@ export class CharacterRig {
       tmpB.set(reach.x - tmpB.x * back, reach.y - tmpB.y * back, reach.z - tmpB.z * back);
       Vector3.LerpToRef(target, tmpB, Math.min(1, reach.w), target);
     }
-    // elbows down/out/back
-    this.dirToWorld(side * 0.55, -1, -0.35, tmpPole);
+    // elbows down/out/back; (step 10) the striking elbow (right) lifts out to the side, level, with the elbow arc
+    const mw = side > 0 && this.input.melee >= 0 ? meleePoleW(this.input.melee) : 0;
+    this.dirToWorld(side * (0.55 + 0.65 * mw), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
     // upper arm
     tmpC.subtractToRef(S, tmpA);

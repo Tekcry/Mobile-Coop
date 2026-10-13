@@ -339,6 +339,60 @@ try {
   await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); if (b) b.hidden = true; }, tdv);
   await until(B, (id) => !window.__app.current.net.kept.has(id), tdv, 8000, 'client drops the hidden body');
   assert(true, 'a body hidden on the host leaves the client');
+  // (locomotion step 10) a client elbow strike: approved by the host, the knock-out applied on the host's guard and
+  // the client's puppet; a strike on a guard the host already holds is refused (cdeny), no knock-out
+  const skv = await GB((no) => [...window.__app.current.net.puppets.values()].find((p) => p.alive && p.id !== no && p.def.kind === 'grunt')?.id ?? '', tdv);
+  assert(!!skv, `a second calm guard for the strike (${skv})`);
+  const pinSk = (id) => GA((id) => {
+    const g = window.__app.current;
+    for (const e of g.enemyMgr.enemies) e['stagger'] = 99;
+    for (const r of g.net.remotes.values()) r.allowTeleport(1);
+    const v = g.enemyMgr.enemies.find((e) => e.id === id);
+    if (v?.alive && !v.taken) {
+      v.pos.set(8, 0, -6);
+      v.yaw = 0;
+    }
+  }, id);
+  await pinSk(skv);
+  await wait(600);
+  await moveClient(B, 8, 0.1, -6.9, 0);
+  let skKo = false;
+  let skInfo = '';
+  for (let attempt = 0; attempt < 6 && !skKo; attempt++) {
+    await pinSk(skv);
+    skInfo = await GB((id) => {
+      const g = window.__app.current;
+      g.player.cam.yaw = 0;
+      if (g.strike.active) return `busy ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied} t ${g.strike.t.toFixed(2)} ok ${g.strike.approved}`;
+      const t = g.strike.pickTarget();
+      g.strike.begin();
+      return `target ${t || 'none'} want ${id} ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied}`;
+    }, skv);
+    for (let i = 0; i < 8 && !skKo; i++) {
+      await wait(300);
+      await pinSk(skv);
+      skKo = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, skv);
+    }
+  }
+  const hostSk = await GA(() => ({ last: window.__app.current.net.lastCommit, n: window.__app.current.strike.count }));
+  assert(skKo, `a client elbow strike knocks the host's guard out (${skInfo}; host ${JSON.stringify(hostSk)})`);
+  await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !p || !p.alive; }, skv, 8000, 'client puppet down');
+  assert(true, 'the strike knock-out reaches the client puppet');
+  // denied: the host seizes the target first
+  const skd = await GB((no) => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !no.includes(p.id) && p.def.kind === 'grunt')?.id ?? '', [tdv, skv]);
+  if (skd) {
+    await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); e.pos.set(8, 0, -6); e.yaw = 0; e.taken = true; }, skd);
+    await wait(1200);
+    // (the host's sim runs slow under software GL: its record of the last strike ends 0.9 s of host time after t0)
+    await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record ends');
+    const d0 = await GB(() => window.__app.current.strike.count.denied);
+    await GB((id) => window.__app.current.strike.begin(id), skd);
+    await until(B, (n) => window.__app.current.strike.count.denied > n && !window.__app.current.strike.active, d0, 5000, 'client strike denied');
+    const dn = await GB(() => ({ why: window.__app.current.strike.lastDenied, back: window.__app.current.strike.lastBackT }));
+    const alive = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); e.taken = false; return e.alive; }, skd);
+    const hl = await GA(() => window.__app.current.net.lastCommit);
+    assert(dn.why === 'noTarget' && alive && dn.back <= 0.3, `a strike on a guard the host holds: refused (${dn.why}; host ${hl}), no knock-out, back in ${dn.back.toFixed(2)} s`);
+  }
   // pings: the client marks a spot, the host shows it in the client's colour
   const clientId = await GB(() => window.__coop.session.selfId);
   await GB(() => window.__app.current.net.ping(6, 0.5, -3, ''));

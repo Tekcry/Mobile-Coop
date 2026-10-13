@@ -58,3 +58,4 @@ Commit: "locomotion 30: co-op batch: capsule separation, shoulder turn, wall sta
 - e2e-bot: stacked pair at a left and a right edge, lead leans out; both pages pose the open-side weapon < 10 cm.
 - PC-PASS: anim-sheet with the bot for stacking (incl. a left-edge open-side lean), pass-by, boost, human ladder, dual takedown, both views:
   "no clipping, contacts held" (PROVISIONAL in the cloud).
+- From step 10: a client's queued second strike lands at ~host t0 + 1.4 s + RTT; above ~100 ms RTT it misses the 1.0 s stagger window (staggers again instead of KO), and a slow host can refuse it as busy. Judge `staggered` when the request is accepted (or extend the stagger by the lag slack); add a unit test, and a test for damage cancelling a strike (cdeny reason hit).

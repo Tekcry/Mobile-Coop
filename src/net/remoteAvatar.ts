@@ -208,6 +208,15 @@ export class RemoteAvatar {
     if (this.rig.emote && (this.speed > 0.5 || f & PF.firing)) this.rig.emote = null;
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
     const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp) : emptyMovePose();
+    // (locomotion step 10) the strike's phase eased between the two states around the render time (the sampled state is
+    // the older one: a 20 Hz step in `ph` would jerk the elbow arc); a strike starting eases in from phase 0
+    const sa = s.from.mv;
+    const sb = s.to.mv;
+    if (sb?.m === 'strike' && (mv?.m === 'strike' || mv?.m === 'ground') && !rp) {
+      // (a denial blends back down; a queued second strike restarts from 0)
+      const ph0 = sa?.m === 'strike' && sa.ph < sb.ph + 0.5 ? sa.ph : 0;
+      mp.melee = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
+    }
     if (attached && this.world.level.anchors.all[mv!.a]) {
       const a = this.world.level.anchors.all[mv!.a]!;
       const from = s.from.mv;

@@ -8,7 +8,7 @@ Design authority: docs/design-bible.md (Section 5.9)
 - `Transport` (`transport.ts`): `send(msg, to?)`, `onMessage/onPeerJoin/onPeerLeave`. `trysteroTransport`
   (WebRTC, Nostr signalling, room `ss-<code>`) or `localTransport` (BroadcastChannel, `?net=local`, for tests).
 - `protocol.ts`: every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps).
-- `PROTOCOL_VERSION` 4 (step 09: MoveState `dw`; 3 was Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
+- `PROTOCOL_VERSION` 5 (locomotion step 10: `cmove` / `cstart` / `cdeny` and MoveState mode `strike`, index 25; 4 was step 09: MoveState `dw`; 3 was Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
 - (step 09, D8, A20 / A41) Drawn state: every MoveState carries `dw` (0-3, the draw phase; sanitized to 0-3,
   default 0). The host (`RemotePlayer.accept`, pure `validate.ts`) keeps `w` only if it is in the player's lobby
   `loadout` (`hostWeapon`, else the last valid id; an empty loadout keeps the claim) and forces `dw` 0
@@ -58,6 +58,17 @@ Design authority: docs/design-bible.md (Section 5.9)
   from `PvpScore.hostile`; host shots hit opponents through `Hitboxes` on their avatars; client shots hit
   `PvpTarget`s (hit volumes on opponent avatars) and are sent with the player id, rewound on the host
   (`RemotePlayer.history`, host `selfHist`). Results: eliminations / deaths (`SessionStats.deaths`).
+- (locomotion step 10, A5, D8) Committed moves, generic: the client sends `cmove {kind, id, target}`; the host runs the
+  pure `checkCommitted` (`src/game/committedMoves.ts`: `rate` 0.3 s per player, `dead`, `busy` - attached, committed,
+  takedown, team move, downed -, `far` - target beyond reach + 0.6 m lag slack -, `noTarget` - dead, seized, knocked
+  out) and answers all with `cstart {kind, a, id, target, t0}` (t0 = host time at acceptance, mapped with `ClockSync`)
+  or `cdeny {a, id, kind, reason}`. The host's own moves use the same check with no message. `CKind` parses
+  `strike | medkit` (medkit from step 15); takedown, grab, drag (step 27), splitBoost, backToBack, pullUp,
+  rappelAnchor and clutch are reserved, not parsed (PLAN H3 / H4). Damage to the striker before contact sends `cdeny`
+  reason `hit`. First user: the elbow strike (`docs/systems/takedowns.md`). The client predicts the anticipation on
+  press, aligns its phase to host-now - t0 on `cstart`, and blends back in 0.12 s with no hit on `cdeny` or no reply in
+  0.4 s. Contact resolves only on the host at t0 + 0.5 s. Remotes pose the strike from MoveState `strike` (`ph`, `tid`),
+  the phase eased between the two interpolation states (`RemoteAvatar.update`).
 - Remote animation audit (locomotion step 08): `node scripts/anim-audit.mjs --remote` hosts and joins over `?net=local`
   (helpers in `scripts/e2e-net-lib.mjs`, shared with e2e-netmove), drives the client in real time and scores the host's
   copy (`RemotePlayer.avatar.rig`) with the local player's metrics (bible :858 "remote poses obey the same continuity

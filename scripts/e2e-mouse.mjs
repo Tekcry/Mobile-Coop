@@ -7,6 +7,47 @@ import { launch, assert } from './e2e-lib.mjs';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving', touch: false });
 let failed = false;
+
+/** (locomotion step 10) A Hunter match on the Warehouse (guards), the loop stepped by hand, a strike harness. */
+async function strikePage(launch, url, touch) {
+  const S = await launch({ url, params: 'autostart=warehouse&mode=clear', touch });
+  await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+  return S;
+}
+const STRIKE_HARNESS = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  g.target.health.invulnerable = true;
+  g.mode.pending.length = 0;
+  const em = g.enemyMgr;
+  const V = g.player.position.constructor;
+  window.__sk = {
+    setup(kind, alerted, yaw) {
+      em.clear();
+      g.strike.reset();
+      g.player.controller.teleport(new V(2, 0, -1.9), 0);
+      g.player.cam.yaw = 0;
+      g.player.cam.pitch = 0;
+      const e = kind ? em.spawn(kind, new V(2, 0, -1), alerted, yaw) : null;
+      if (e) e['stagger'] = 99;
+      a.loop.stepHeadless(0.3, 120);
+      if (e) e.yaw = yaw;
+      return e;
+    },
+    step(n = 1) {
+      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+    },
+    until(fn, max) {
+      let t = 0;
+      while (!fn() && t < max) {
+        a.loop.stepHeadless(1 / 60, 120);
+        t += 1 / 60;
+      }
+      return t;
+    },
+  };
+};
 const st = () =>
   page.evaluate(() => {
     const g = window.__app.current;
@@ -121,6 +162,37 @@ try {
   await page.waitForTimeout(300);
   s = await st();
   assert(s.locked && !s.paused && !s.hint, `clicking Resume captures the mouse again (${JSON.stringify(s)})`);
+
+  console.log('elbow strike (LMB while holstered)');
+  const S = await strikePage(launch, url, false);
+  try {
+    const P = S.page;
+    await P.waitForTimeout(1200);
+    await P.mouse.move(640, 320);
+    // capture first (a capturing click never fires)
+    if (!(await P.evaluate(() => !!document.pointerLockElement))) {
+      await P.mouse.down();
+      await P.waitForTimeout(100);
+      await P.mouse.up();
+      await P.waitForTimeout(300);
+    }
+    await P.evaluate(STRIKE_HARNESS);
+    await P.evaluate(() => {
+      window.__e = window.__sk.setup('grunt', false, 0);
+    });
+    await P.mouse.down();
+    await P.evaluate(() => window.__sk.step(2));
+    await P.mouse.up();
+    const r = await P.evaluate(() => {
+      const g = window.__app.current;
+      const started = g.strike.count.started;
+      const t = window.__sk.until(() => !window.__e.alive, 1.5);
+      return { started, t, ko: !window.__e.alive && window.__e.ko, locked: !!document.pointerLockElement };
+    });
+    assert(r.started >= 1 && r.ko, `LMB holstered behind a guard: knocked out (${JSON.stringify(r)})`);
+  } finally {
+    await S.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

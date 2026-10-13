@@ -447,6 +447,32 @@ try {
     assert(r.done, 'done');
   });
 
+  // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (touch fire, D1)
+  await scen('elbow strike: heavy from the front', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      t.tp(2, 0, -1.9, 0);
+      const e = g.enemyMgr.spawn('heavy', new t.V(2, 0, -1), true, Math.PI);
+      e['stagger'] = 99;
+      t.step(0.2);
+      const fire = () => {
+        st.set('t', 'fire', true);
+        window.__app.loop.stepHeadless(1 / 60, 120);
+        st.set('t', 'fire', false);
+      };
+      const out = [];
+      for (let k = 0; k < 2; k++) {
+        e.yaw = Math.PI;
+        fire();
+        t.step(1.0);
+        out.push({ alive: e.alive, stag: g.strike.count.stagger });
+      }
+      return { out, ko: g.strike.count.ko, kind: e.def.kind };
+    });
+    assert(r.kind === 'heavy' && r.out.every((o) => o.alive) && r.out[1].stag >= 2 && r.ko === 0, `two frontal strikes on a heavy: staggered, never knocked out (${JSON.stringify(r)})`);
+  });
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {

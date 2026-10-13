@@ -7,6 +7,47 @@ const { browser, page, errors } = await launch({ url });
 const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
+
+/** (locomotion step 10) A Hunter match on the Warehouse (guards), the loop stepped by hand, a strike harness. */
+async function strikePage(launch, url, touch) {
+  const S = await launch({ url, params: 'autostart=warehouse&mode=clear', touch });
+  await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+  return S;
+}
+const STRIKE_HARNESS = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  g.target.health.invulnerable = true;
+  g.mode.pending.length = 0;
+  const em = g.enemyMgr;
+  const V = g.player.position.constructor;
+  window.__sk = {
+    setup(kind, alerted, yaw) {
+      em.clear();
+      g.strike.reset();
+      g.player.controller.teleport(new V(2, 0, -1.9), 0);
+      g.player.cam.yaw = 0;
+      g.player.cam.pitch = 0;
+      const e = kind ? em.spawn(kind, new V(2, 0, -1), alerted, yaw) : null;
+      if (e) e['stagger'] = 99;
+      a.loop.stepHeadless(0.3, 120);
+      if (e) e.yaw = yaw;
+      return e;
+    },
+    step(n = 1) {
+      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+    },
+    until(fn, max) {
+      let t = 0;
+      while (!fn() && t < max) {
+        a.loop.stepHeadless(1 / 60, 120);
+        t += 1 / 60;
+      }
+      return t;
+    },
+  };
+};
 try {
   console.log('hot-plug + iOS first-press detection');
   await page.evaluate(() => window.__pad.connect());
@@ -171,6 +212,9 @@ try {
     }
     window.__pad.set(7, 0);
     L.stepHeadless(0.1);
+    // (step 10) that RT press was an elbow strike (a whiff, committed): the draw waits for it to end
+    const struck = g.strike.count.started > 0;
+    until(() => !g.strike.active, 2);
     const s1 = shots();
     window.__pad.set(6, 1);
     const tDraw = until(() => w.drawPhase === 2, 2);
@@ -207,8 +251,9 @@ try {
     // (A43) reload pressed while holstered: draws to low ready, reloads, holsters; RT held throughout never fires
     cur.mag = Math.max(0, cur.stats.magSize - 3);
     const s3 = shots();
-    window.__pad.set(7, 1);
+    // (step 10: RT pressed while holstered is the elbow strike, so RT goes down as the reload's draw starts)
     tapX();
+    window.__pad.set(7, 1);
     const hDraw = until(() => w.reloading, 2);
     const hDrawn = w.drawPhase === 2 && !g.player.ads;
     const hT = until(() => !w.reloading, 5);
@@ -216,11 +261,12 @@ try {
     const hHol = until(() => w.drawPhase === 0, 2);
     window.__pad.set(7, 0);
     const s4 = shots();
-    return { s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
+    return { struck, s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.45, `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
   assert(dr.hDraw <= 0.5 && dr.hDrawn && dr.hFull && dr.hHol < 0.45 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.struck, 'RT while holstered: an elbow strike (step 10)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
   assert(dr.tDraw <= 0.45, `LT draws within 0.45 s (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
@@ -242,6 +288,65 @@ try {
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
 
+  console.log('elbow strike (RT while holstered)');
+  {
+    const S = await strikePage(launch, url, true);
+    try {
+      await S.page.evaluate(STRIKE_HARNESS);
+      const r = await S.page.evaluate(() => {
+        const g = window.__app.current;
+        const k = window.__sk;
+        window.__pad.connect();
+        const rt = () => {
+          window.__pad.set(7, 1);
+          k.step(2);
+          window.__pad.set(7, 0);
+          k.step(1);
+        };
+        const out = {};
+        // behind an unaware guard: knocked out within 0.6 s
+        let e = k.setup('grunt', false, 0);
+        rt();
+        out.started = g.strike.active;
+        out.tKo = 3 / 60 + k.until(() => !e.alive, 1.5);
+        out.ko = !e.alive && e.ko;
+        k.until(() => !g.strike.active, 1.5);
+        // an aware guard facing: staggered; a second RT inside the stagger: knocked out
+        e = k.setup('grunt', true, Math.PI);
+        rt();
+        k.until(() => g.strike.t >= 0.55 || !g.strike.active, 1);
+        out.stag = { alive: e.alive, staggered: e.strikeStaggered };
+        rt(); // (queued in the recovery: the next strike starts as this one ends)
+        e.yaw = Math.PI;
+        out.tKo2 = k.until(() => !e.alive, 2);
+        out.ko2 = !e.alive && e.ko;
+        k.until(() => !g.strike.active, 1.5);
+        // a heavy from the front: staggered only
+        e = k.setup('heavy', true, Math.PI);
+        rt();
+        k.until(() => !g.strike.active, 1.5);
+        e.yaw = Math.PI;
+        k.step(5);
+        rt();
+        k.until(() => !g.strike.active, 1.5);
+        out.heavy = { alive: e.alive, ko: e.ko };
+        // a whiff: the 0.4 s recovery stays exposed after contact time
+        k.setup(null);
+        rt();
+        k.until(() => g.strike.t >= 0.5 || !g.strike.active, 1);
+        out.whiffRecover = k.until(() => !g.strike.active, 2);
+        out.miss = g.strike.count.miss;
+        return out;
+      });
+      assert(r.started && r.ko && r.tKo <= 0.6, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.6)`);
+      assert(r.stag.alive && r.stag.staggered, `RT on an aware guard facing: staggered (${JSON.stringify(r.stag)})`);
+      assert(r.ko2, `a second RT inside the stagger knocks him out (${r.tKo2.toFixed(2)} s)`);
+      assert(r.heavy.alive && !r.heavy.ko, `a heavy from the front: staggered only (${JSON.stringify(r.heavy)})`);
+      assert(r.whiffRecover >= 0.38 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s recovery after contact time (0.4 s, to the frame)`);
+    } finally {
+      await S.browser.close();
+    }
+  }
   console.log('disconnect');
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while

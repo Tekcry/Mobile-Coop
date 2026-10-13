@@ -8,8 +8,9 @@ import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -163,6 +164,15 @@ export type Msg =
   | { t: 'tstart'; kind: 'boost' | 'ladder'; a: string; b: string; target: number; s: number; t0: number }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
+  /**
+   * (locomotion step 10, A5 / PLAN H3) The generic host-approved committed move: a client asks (`id` its own
+   * counter, `target` a guard id or ''), the host starts it for everyone at its time `t0` or refuses it (or
+   * interrupts it: reason `hit`). Kinds now: `strike`, `medkit` (step 15). Reserved, not parsed yet: takedown, grab,
+   * drag (step 27); splitBoost, backToBack, pullUp, rappelAnchor, clutch (Phase 5, PLAN H4).
+   */
+  | { t: 'cmove'; kind: CKind; id: number; target: string }
+  | { t: 'cstart'; kind: CKind; a: string; id: number; target: string; t0: number }
+  | { t: 'cdeny'; a: string; id: number; kind: CKind; reason: CDenyReason }
   /** The human ladder of `a` (top) and `b` (bottom) ended. */
   | { t: 'tend'; a: string; b: string }
   /** (3.2.0) PvP: a client's takedown on another player finished (the host checks it, then it is a kill). */
@@ -469,6 +479,30 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'tdeny': {
       const a = id(raw.a);
       return a ? { t: 'tdeny', a, reason: str(raw.reason, 20) ?? '' } : null;
+    }
+    case 'cmove': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const cid = num(raw.id, 0, 0xffff);
+      const target = raw.target === '' || raw.target === undefined ? '' : id(raw.target);
+      if (!kind || cid === null || target === null) return null;
+      return { t: 'cmove', kind, id: Math.floor(cid), target };
+    }
+    case 'cstart': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const a = id(raw.a);
+      const cid = num(raw.id, 0, 0xffff);
+      const target = raw.target === '' || raw.target === undefined ? '' : id(raw.target);
+      const t0 = typeof raw.t0 === 'number' && Number.isFinite(raw.t0) && raw.t0 >= 0 && raw.t0 <= 1e7 ? raw.t0 : null;
+      if (!kind || !a || cid === null || target === null || t0 === null) return null;
+      return { t: 'cstart', kind, a, id: Math.floor(cid), target, t0 };
+    }
+    case 'cdeny': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const a = id(raw.a);
+      const cid = num(raw.id, 0, 0xffff);
+      const reason = oneOf(raw.reason, CDENY_REASONS);
+      if (!kind || !a || cid === null || !reason) return null;
+      return { t: 'cdeny', a, id: Math.floor(cid), kind, reason };
     }
     case 'tend': {
       const a = id(raw.a);

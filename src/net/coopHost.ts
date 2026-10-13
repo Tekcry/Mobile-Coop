@@ -24,6 +24,8 @@ import { emptyMoveState, moveChanged } from '../player/moveState';
 import { GRAB } from '../game/takedown';
 import { PvpVictim } from './pvpVictim';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
+import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import type { TeamMate } from '../game/teamController';
 
 /** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
@@ -458,6 +460,9 @@ export class CoopHost implements NetAttachment {
       case 'tmove':
         this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy);
         break;
+      case 'cmove':
+        this.onCommitted(r.id, msg.kind, msg.id, msg.target);
+        break;
       case 'gadget': {
         // thrown from near the sender, one a second at most
         const last = this.gadgetAt.get(r.id) ?? -9;
@@ -596,6 +601,83 @@ export class CoopHost implements NetAttachment {
     const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
+  }
+
+  // --- (locomotion step 10, A5 / H3) committed moves: the elbow strike ---
+
+  private commitLast = new Map<string, number>();
+  /** The last committed-move decision (tests, debugging). */
+  lastCommit = '';
+  /** Clients' strikes the host is running: contact at t0 + 0.5 s, done at t0 + 0.9 s. */
+  private strikes = new Map<string, { id: number; target: string; t0: number; hp0: number; hit: boolean }>();
+
+  /** The host's own request: the same check, no message (the start / refusal still goes out to everyone). */
+  commitRequest(kind: CKind, id: number, target: string): void {
+    this.onCommitted(this.s.selfId, kind, id, target);
+  }
+
+  /** The host's own strike was interrupted (damage before contact). */
+  commitCancel(id: number, reason: string): void {
+    if (reason === 'hit') this.s.send({ t: 'cdeny', a: this.s.selfId, id, kind: 'strike', reason: 'hit' });
+  }
+
+  private onCommitted(by: string, kind: CKind, id: number, target: string): void {
+    const self = by === this.s.selfId;
+    const r = self ? null : this.remotes.get(by);
+    if (!self && !r) return;
+    const now = this.time;
+    const feet = self ? this.g.player.position : r!.feet;
+    let tv: CTargetView | null = null;
+    if (target) {
+      const e = this.g.enemyMgr?.enemies.find((x) => x.id === target);
+      tv = e ? { alive: e.alive, seized: e.taken || this.seized.has(e.id), ko: e.ko, dist: hyp2(e.pos.x - feet.x, e.pos.z - feet.z) } : { alive: false, seized: false, ko: false, dist: Infinity };
+    }
+    const alive = self ? this.g.player.alive : r!.alive;
+    const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
+    const active = !self && this.strikes.has(by);
+    const why = checkCommitted({
+      kind,
+      alive,
+      downed: !alive,
+      mode,
+      active,
+      sinceLast: now - (this.commitLast.get(by) ?? -99),
+      target: tv,
+      slack: self ? 0 : STRIKE.lagSlack,
+    });
+    this.commitLast.set(by, now);
+    this.lastCommit = `${kind} ${target || '-'} ${why ?? 'ok'} (${mode}${active ? ', running' : ''})`;
+    if (why) {
+      this.s.send({ t: 'cdeny', a: by, id, kind, reason: why });
+      if (self && kind === 'strike') this.g.strike.denied(id, why);
+      return;
+    }
+    this.s.send({ t: 'cstart', kind, a: by, id, target, t0: now });
+    if (kind !== 'strike') return;
+    if (self) this.g.strike.accepted(id, 0);
+    else this.strikes.set(by, { id, target, t0: now, hp0: r!.health.hp, hit: false });
+  }
+
+  /** Clients' strikes: interrupted by damage before contact, contact at t0 + 0.5 s (reach and cone again). */
+  private runStrikes(): void {
+    for (const [by, k] of this.strikes) {
+      const r = this.remotes.get(by);
+      const el = this.time - k.t0;
+      if (!r || !r.alive || el >= STRIKE_DUR) {
+        this.strikes.delete(by);
+        continue;
+      }
+      if (k.hit) continue;
+      if (r.health.hp < k.hp0) {
+        k.hit = true;
+        this.s.send({ t: 'cdeny', a: by, id: k.id, kind: 'strike', reason: 'hit' });
+        continue;
+      }
+      if (el < STRIKE.hitAt) continue;
+      k.hit = true;
+      const yaw = r.state?.yaw ?? 0;
+      this.g.strike.applyHit(by, r.feet, yaw, yaw + (r.state?.mv?.ay ?? 0), k.target, STRIKE.lagSlack);
+    }
   }
 
   /** (3.2.0) PvP: hostile players as takedown victims for the host's own takedowns. */
@@ -907,6 +989,7 @@ export class CoopHost implements NetAttachment {
 
   fixedUpdate(dt: number): void {
     this.time += dt;
+    if (this.strikes.size) this.runStrikes();
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes

@@ -198,6 +198,15 @@ export class PlayerWeapons {
   /** (A43) Reload pressed while not drawn: draw to low ready, then reload (then holster if aim is not held). */
   private reloadQueued = false;
 
+  /** (locomotion step 10) An elbow strike running: aim / reload do not draw until it ends (the gun stays in its
+   *  slot with no stow overlay, so the local rig poses exactly as the remotes do from MoveState, D8). */
+  handsBusy = false;
+
+  /** (locomotion step 10) A reload running or queued (A43): the hands are busy, no elbow strike. */
+  get reloadBusy(): boolean {
+    return this.reloadQueued || this.reloading;
+  }
+
   /**
    * Stow / draw for attached traversal: stowing plays the swap's holster half and holds there (hands empty,
    * every gun in its carry slot); drawing continues the same swap from its slot back into the hands. A swap
@@ -388,7 +397,7 @@ export class PlayerWeapons {
     } else {
       // (A43) a reload in progress or asked for while holstered keeps / brings the gun out at low ready
       const reloadWant = this.reloadT >= 0 || this.reloadQueued;
-      const ph = this.draw.update(dt, !this.drawLock && (this.player.ads || reloadWant), drawTimeFor(s.def.class));
+      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.ads || reloadWant), drawTimeFor(s.def.class));
       const away = ph === DRAW_HOLSTERED || ph === DRAW_HOLSTERING;
       if (away !== this.stowed) {
         const reverse = !away && this.swapT >= 0 && this.swapPhase === 0 && this.index === this.held;

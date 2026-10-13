@@ -54,6 +54,15 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
+  // (locomotion step 10) the elbow strike: after a takedown, before attached
+  const sk = g.strike;
+  if (sk.active) {
+    out.m = 'strike';
+    out.tid = sk.tid;
+    out.ph = sk.ph;
+    delete out.c;
+    return out;
+  }
   if (tr.attached) {
     const m = tr.attach;
     const ac = tr.attachCtl;

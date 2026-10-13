@@ -376,6 +376,25 @@ try {
   assert(['notBraced', 'far', 'noTarget', 'busy'].includes(why), `a request without a braced partner is denied (${why})`);
   await reset();
 
+  // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode
+  // strike with the joints within 10 cm; a refused strike (a target the host does not have) blends back to ground
+  console.log('elbow strike');
+  await reset();
+  await wait(400);
+  const sOk = await GB(() => { const g = window.__app.current; g.strike.freezeAt = 0.4; return g.strike.begin(''); });
+  assert(sOk, 'the client strikes while holstered (a whiff)');
+  await until(B, () => window.__app.current.strike.approved, null, 5000, 'host approves the strike (cstart)');
+  await compare('strike', 'strike');
+  await GB(() => { window.__app.current.strike.freezeAt = -1; });
+  await until(B, () => !window.__app.current.strike.active, null, 5000, 'strike ends');
+  await wait(500);
+  const sd0 = await GB(() => window.__app.current.strike.count.denied);
+  await GB(() => window.__app.current.strike.begin('nobody'));
+  await until(B, (n) => window.__app.current.strike.count.denied > n && !window.__app.current.strike.active, sd0, 5000, 'strike denied');
+  const sdn = await GB(() => ({ why: window.__app.current.strike.lastDenied, back: window.__app.current.strike.lastBackT, mode: window.__app.current.net.mvNow?.m }));
+  assert(sdn.why === 'noTarget' && sdn.back <= 0.3, `denied (${sdn.why}): no hit, back to ground in ${sdn.back.toFixed(2)} s`);
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client on the ground again');
+
   console.log('PvP: a client hanging off a lip is hit in the posed head');
   await GA(() => window.__coop.backToLobby());
   for (const P of pages()) await until(P, () => !!document.querySelector('.lobby-screen') && !window.__coop.inGame, null, 15000, 'back in the lobby');

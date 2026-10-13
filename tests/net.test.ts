@@ -308,14 +308,14 @@ describe('net session', () => {
     void late.leave();
     expect(left).toBe('Late');
   });
-  it('a peer on protocol version 3 is refused; version 4 joins', () => {
-    expect(PROTOCOL_VERSION).toBe(4);
+  it('a peer on protocol version 4 is refused; version 5 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(5);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 3, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 4, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 4, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 5, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -392,8 +392,8 @@ import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
 import { packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
-  it('protocol 4', () => {
-    expect(PROTOCOL_VERSION).toBe(4);
+  it('protocol 5 (step 10 raised it)', () => {
+    expect(PROTOCOL_VERSION).toBe(5);
   });
   it('dw packs and sanitizes (clamped 0-3, default 0)', () => {
     const mv = { ...emptyMoveState(), dw: 2 };
@@ -483,5 +483,45 @@ describe('step 09: host-authoritative drawn state (D8)', () => {
     expect(clientForcedHolster(0, 2, g, false)).toBe(false);
     expect(clientForcedHolster(0, 0, g, true)).toBe(false);
     expect(clientForcedHolster(2, 2, g, true)).toBe(false);
+  });
+});
+
+describe('step 10: committed-move messages (A5, PLAN H3)', () => {
+  it('parses cmove / cstart / cdeny', () => {
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' })).toEqual({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' });
+    expect(parseMessage({ t: 'cmove', kind: 'medkit', id: 1, target: '' })).toEqual({ t: 'cmove', kind: 'medkit', id: 1, target: '' });
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 })).toEqual({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 });
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' })).toEqual({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' });
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'hit' })).toMatchObject({ reason: 'hit' });
+  });
+  it('clamps ids and rejects bad fields', () => {
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 1e9, target: '' })).toMatchObject({ id: 0xffff });
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 2.7, target: '' })).toMatchObject({ id: 2 });
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 'x', target: '' })).toBeNull();
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 1, target: '<bad>' })).toBeNull();
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'bad id!', id: 1, target: '', t0: 1 })).toBeNull();
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 1, kind: 'strike', reason: 'because' })).toBeNull();
+  });
+  it('unknown and reserved kinds are rejected', () => {
+    for (const kind of ['nope', 'takedown', 'grab', 'drag', 'splitBoost', 'backToBack', 'pullUp', 'rappelAnchor', 'clutch']) {
+      expect(parseMessage({ t: 'cmove', kind, id: 1, target: '' })).toBeNull();
+      expect(parseMessage({ t: 'cstart', kind, a: 'peerA', id: 1, target: '', t0: 1 })).toBeNull();
+      expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 1, kind, reason: 'busy' })).toBeNull();
+    }
+  });
+  it('t0 must be a finite host time in range', () => {
+    for (const t0 of [-1, 1e8, NaN, Infinity, '3', undefined]) expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 1, target: '', t0 })).toBeNull();
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 1, target: '', t0: 0 })).toMatchObject({ t0: 0 });
+  });
+  it('MoveState strike is mode 25 and poses the elbow arc', () => {
+    const mv = { ...emptyMoveState(), m: 'strike' as const, ph: 0.4, tid: 'e3', dw: 2 };
+    const w = packMoveState(mv);
+    expect(w.m).toBe(25);
+    const back = sanitizeMoveState(w)!;
+    expect(back.m).toBe('strike');
+    expect(back.tid).toBe('e3');
+    const pose = poseFromMoveState(back, 0, emptyMovePose());
+    expect(pose.melee).toBeCloseTo(0.4);
+    expect(pose.drawn).toBe(false);
   });
 });

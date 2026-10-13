@@ -369,7 +369,7 @@ for (const [s, g] of QUICK ? [['stand', 2]] : [['stand', 2], ['stand', 4], ['cro
   add('flat', s, g, 60, true);
   aimGaits.push(gaits.pop());
 }
-const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'tunnel'];
+const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'strike', 'tunnel'];
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
@@ -492,6 +492,15 @@ async function drive(sc, halt = -1) {
       m.idle = t.mark();
       t.run(3.0, {}, hz);
       m.end = t.mark();
+    } else if (sc.kind === 'strike') {
+      // (locomotion step 10) fire while holstered: the elbow strike (a whiff on the open lane), 0.9 s, then idle
+      t.tp(-26, -26, 0);
+      t.begin(halt);
+      t.run(0.3, {}, hz);
+      m.strike = t.mark();
+      t.run(1.6, { taps: { 1: 'fire' } }, hz);
+      m.end = t.mark();
+      m.strikes = g.strike.count.started;
     } else if (sc.kind === 'tunnel') {
       // crouch tunnel (x -12..-9.5, z -25..-19, roof 1.4 m), walked through crouched at gear 3
       t.stance(true, 3);
@@ -760,7 +769,9 @@ function analyze(sc, rec) {
   } else {
     const still = L.pelvisJumpLimit(0, hz);
     const moving = L.pelvisJumpByGear('stand', hz)[sc.kind === 'turn180' ? 3 : 2];
-    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder'].includes(sc.kind) ? moving : still, sc.kind === 'idle' ? m.idle : -1);
+    // (step 10) strike: balance from the end of its 0.9 s (STRIKE_DUR)
+    const bal = sc.kind === 'idle' ? m.idle : sc.kind === 'strike' ? m.strike + Math.round((rec.remote ? 1 / rec.dtMed : hz) * 0.9) : -1;
+    common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder'].includes(sc.kind) ? moving : still, bal);
     const dt = rec.remote ? rec.dtMed : 1 / hz;
     if (sc.kind === 'stance') {
       // from the last frame before the press until crouchBlend is within 1e-4 of its target
@@ -803,6 +814,11 @@ function analyze(sc, rec) {
       res(out, 'landingDipCamera', { ...dc, extra: { dips: dc.dips } }, `0-${L.LANDING_DIPS} dip / ${L.LANDING_REBOUND}`, ':1256 / A35', 'm');
       res(out, 'landingDipPelvis', { ...dp, extra: { dips: dp.dips } }, `${L.LANDING_DIPS} dip / ${L.LANDING_REBOUND}`, ':1256 / A35', 'm');
       out.fell = { value: col(rec, 'cap.y', m.go, m.go + 1)[0] - col(rec, 'cap.y', m.land, m.land + 1)[0] };
+    } else if (sc.kind === 'strike') {
+      // (step 10) settle: from 0.2 s after the strike's 0.9 s (D2 sway settle) the head is back to idle breathing
+      const f = 1 / dt;
+      const s0 = Math.min(rec.n - 1, m.strike + Math.round(f * 1.1));
+      res(out, 'strikeSettle', { ...M.oscP2P(col(rec, 'headNode.y', s0, m.end), L.IDLE_BREATH), extra: { started: m.strikes ?? null } }, L.IDLE_BREATH, 'step 10 / D2', 'm', s0);
     } else if (sc.kind === 'idle') {
       res(out, 'idleBreath', M.oscP2P(col(rec, 'headNode.y', m.idle, m.end), L.IDLE_BREATH), L.IDLE_BREATH, ':1257', 'm', m.idle);
       res(out, 'idleCamera', M.cameraOsc(col(rec, 'cam.y', m.idle, m.end)), L.CAMERA_P2P, ':1256', 'm', m.idle);
@@ -823,6 +839,8 @@ function remoteScenarios() {
     g('ramp', 'stand', 3, 60);
     out.push({ name: 'stopidle', kind: 'gait', surface: 'flat', stance: 'stand', gear: 3, hz: 60, steady: 1.0, idleTail: true });
     out.push({ name: 'stance', kind: 'stance', hz: 60 });
+    // (step 10) the elbow strike: a client strike approved by the host (cmove / cstart), posed from MoveState
+    out.push({ name: 'strike', kind: 'strike', hz: 60 });
     for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
     out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
@@ -833,6 +851,7 @@ function remoteScenarios() {
 /** B's input timeline for a scenario (segments of `d` seconds: stick `y`, a tap at the segment start). */
 function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
+  if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
   const cap = (crouch ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1];
@@ -1566,7 +1585,7 @@ async function runRemote() {
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
         const segs = remoteSegments(sc);
-        const s = sc.kind === 'stance' ? FLAT : SURF[sc.surface];
+        const s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
         await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
         await A.evaluate(() => window.__ar.begin());
         await B.evaluate((segs) => window.__rb.play(segs), segs);
@@ -1599,6 +1618,7 @@ async function runRemote() {
       const mk = b.marks.map(fa);
       if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
+      else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
       rec.m = m;
       let metrics;
       if (sc.kind === 'boost') {

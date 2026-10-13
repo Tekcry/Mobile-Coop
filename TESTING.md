@@ -5,6 +5,13 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 10 - elbow strike (PC, controller, phone)
+- [ ] Holstered, RT / LMB / the touch Fire button behind an unaware guard: a short wind-up, the right elbow drives across the chest with the hips turning, the guard drops within about 0.6 s.
+- [ ] Facing an alert guard: one strike staggers (they stop aiming), a second strike in the stagger knocks them out. A heavy from the front only staggers.
+- [ ] A strike at nothing: the full swing and a short exposed recovery; you can only walk during it. Aiming during a strike draws only once it ends.
+- [ ] Nothing passes through the body: the elbow stays out to the side, the forearm level in front of the chest, the left hand up as a guard.
+- [ ] Co-op (two devices): a client strike KOs the guard on the host and on the client; the other player sees the same elbow arc; a strike while the host is seizing the same guard is refused (no KO) and blends back quickly.
+
 ## Locomotion step 09 - holstered unless aiming, no hip fire (PC, controller, phone)
 - [ ] A match starts with every gun in its slot and the hands free; no crosshair.
 - [ ] Hold LT / RMB / the touch Aim button: the gun comes out (pistol about 0.3 s, rifle 0.4 s) and the crosshair shows; release: it goes back (0.4 s). Release and press again mid-draw: it comes straight back up.

@@ -130,6 +130,22 @@ export interface AnimInput {
   hand: number;
 }
 
+/** (locomotion step 10) The elbow arc's hand overlay weight at melee phase `ph` 0..1 (in by 0.17, out from 0.62). */
+export function meleeHandW(ph: number): number {
+  return smoothstep(ph / 0.167) * (1 - smoothstep((ph - 0.62) / 0.38));
+}
+
+/** (step 10) The elbow arc's sweep 0 (wind-up, hand out to the side) .. 1 (contact, across the front). */
+export function meleeSweep(ph: number): number {
+  return smoothstep((ph - 0.1) / 0.456) * (1 - 0.5 * smoothstep((ph - 0.62) / 0.38));
+}
+
+/** (step 10) How far the striking elbow's IK pole lifts (out to the side, level): the graph's hand sweep and the
+ *  rig's pole share it, so local and remote rigs (both from `melee`) pose alike. */
+export function meleePoleW(ph: number): number {
+  return meleeSweep(ph) * meleeHandW(ph);
+}
+
 export function defaultInput(): AnimInput {
   return {
     speed: 0,
@@ -383,7 +399,7 @@ export class AnimGraph {
   private carryW = 1;
   /** Ready-hands weight (A42), eased ~0.25 s. */
   private readyW = 0;
-  /** Grenade / melee hands weight (eased), for the ready-hands follow. */
+  /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
   private readyFy = 0;
@@ -817,10 +833,38 @@ export class AnimGraph {
       this.slot('grenade', 1, i.grenade);
     }
     if (i.melee >= 0) {
-      const m = Math.sin(Math.PI * clamp(i.melee, 0, 1));
-      src[CH.hRX] = p.shoulderHalf * (1 - m * 0.8);
-      src[CH.hRY] = shY - 0.25 + m * 0.2;
-      src[CH.hRZ] = 0.15 + m * 0.45;
+      // (locomotion step 10) the elbow arc with the hip turn (the strike and the lethal takedown blow): the wind-up
+      // draws the right hand back with the chest and hips turning right (0 - 0.17), the strike drives the elbow
+      // across the chest at shoulder height with the hips leading the turn left to contact (0.56), the recovery eases
+      // back to the hands' own pose (1). Weighted from the clip's hands, so it starts and ends without a jump; the
+      // turn is spread over pelvis, spine and head (5.12.2 joint rates: about 3 deg per frame at its fastest).
+      const ph = clamp(i.melee, 0, 1);
+      const wStrike = smoothstep((ph - 0.1) / 0.456) * (1 - smoothstep((ph - 0.62) / 0.38));
+      const wWind = smoothstep(ph / 0.167) * (1 - smoothstep((ph - 0.167) / 0.333)) * (1 - wStrike);
+      // the right hand sweeps round the shoulder (never folding the elbow shut, never through the chest): reaching
+      // forward and out to the side on the wind-up, across the front to the midline at contact (the forearm level, the
+      // elbow out to the side: the rig lifts its pole by `meleePoleW`), half way back as it blends out. The chest sits
+      // ~0.2 m ahead of the root in the hands' frame; the reach forward fades last (in first) so the hand stays clear
+      const u = meleeSweep(ph);
+      const wHand = meleeHandW(ph);
+      const wFwd = Math.min(1, wHand * 1.6);
+      const phi = 0.5 + 1.68 * u;
+      const r = 0.24 + 0.08 * u;
+      // (targets in the frame after the ready-hands follow, which is added below: less the follow, last frame's)
+      const fwM = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
+      const fy = this.readyFy * fwM;
+      const fz = this.readyFz * fwM;
+      src[CH.hRX] = src[CH.hRX]! * (1 - wHand) + (p.shoulderHalf + r * Math.cos(phi)) * wHand;
+      src[CH.hRY] = src[CH.hRY]! * (1 - wHand) + (shY - 0.22 + 0.12 * u - fy) * wHand;
+      src[CH.hRZ] = src[CH.hRZ]! * (1 - wFwd) + (0.2 + r * Math.sin(phi) - fz) * wFwd;
+      // the left hand comes up as a guard (forward first, down last)
+      src[CH.hLY] = src[CH.hLY]! + 0.15 * wHand;
+      src[CH.hLZ] = src[CH.hLZ]! + 0.3 * wFwd;
+      const turn = 0.22 * wWind - 0.4 * wStrike;
+      src[CH.pelYaw] = src[CH.pelYaw]! + turn * 0.4;
+      src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
+      src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
+      src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
     }
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
@@ -845,7 +889,7 @@ export class AnimGraph {
     // from the inertialized body: the follow is as continuous as the body, and the hands are never inertialized
     // while they move with it (a stance or state switch mid-crouch would carry their velocity on top of the
     // body's own and overshoot). Weighted by the share of the ready hands the clips above left in place.
-    this.handClipW = approach(this.handClipW, i.grenade >= 0 || i.melee >= 0 ? 1 : 0, 0.05, dt);
+    this.handClipW = approach(this.handClipW, i.grenade >= 0 ? 1 : 0, 0.05, dt);
     const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
     // (the hands hang a touch behind the shoulders, READY_HANDS.lag: a fast crouch folds the chest and drops the
     // pelvis together, and the hands ease through it instead of taking the sum of both at full speed)
