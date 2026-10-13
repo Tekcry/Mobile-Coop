@@ -1903,6 +1903,15 @@ try {
     const toTab = async (tab) => { for (let i = 0; i < 9 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
     const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 60 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
     const hist = () => E(() => window.__editor.model.history.length);
+    // an RB tap pressed and let go inside the page (two frames): a slow round trip cannot turn it into a hold (0.3 s)
+    const tapRB = () => E(async () => { const raf = () => new Promise((r) => requestAnimationFrame(r)); window.__pad.set(5, 1); await raf(); await raf(); window.__pad.set(5, 0); for (let k = 0; k < 4; k++) await raf(); });
+    // a dot put while the camera is still settling is put again until it stays (as ON3)
+    const dotSure = async (x, z) => {
+      for (let i = 0; i < 4; i++) {
+        await dotAt(x, z);
+        if (await E(([x, z]) => { const s = window.__editor.controls.orbit.s; return Math.abs(s.tx - x) < 0.05 && Math.abs(s.tz - z) < 0.05; }, [x, z])) return;
+      }
+    };
     const fileBefore = await E(() => JSON.stringify(window.__editor.model.data));
     const h0 = await hist();
     // an empty 20 x 15 m patch of yard on Ground: no building room, wall, object or climb piece on it
@@ -1975,8 +1984,7 @@ try {
     await toTab('Presets');
     const pWc = await toTileHeld('WC block (male, female, accessible)');
     await press(BTN.A);
-    await press(BTN.RB);
-    await press(BTN.RB);
+    for (let i = 0; i < 6 && (await E(() => window.__editor.stamp.turns)) !== 2; i++) await tapRB();
     const turned = await E(() => window.__editor.stamp.turns);
     await dotAt(px + 8, pz + 11.25);
     await page.waitForFunction(() => /overlaps Office by/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
@@ -1987,7 +1995,7 @@ try {
     assert(pWc && turned === 2 && /overlaps Office by \d/.test(fit.words) && fit.bad && fit.red >= 1 && (await hist()) === hF && /Cannot stamp WC block/.test(refused), `ON11: RB twice turns the WC block (${turned * 90} degrees); over the office the ghost goes red with words ("${fit.words}", ${fit.red} red), A refuses ("${refused}")`);
     // LB held: the magnet stays off, so the group lands exactly where the dot is put
     await set(BTN.LB, 1);
-    await dotAt(px + 13.7, pz + 11.2);
+    await dotSure(px + 13.7, pz + 11.2);
     await page.waitForFunction(() => /A: stamp WC block/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
     await press(BTN.A);
     await set(BTN.LB, 0);
@@ -2004,12 +2012,6 @@ try {
     await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); const o = ed.controls.orbit.s; o.dist = 30; o.pitch = 1.2; });
     await set(BTN.LB, 1);
     await frames(page, 6);
-    const dotSure = async (x, z) => {
-      for (let i = 0; i < 4; i++) {
-        await dotAt(x, z);
-        if (await E(([x, z]) => { const s = window.__editor.controls.orbit.s; return Math.abs(s.tx - x) < 0.05 && Math.abs(s.tz - z) < 0.05; }, [x, z])) return;
-      }
-    };
     const r0 = office.rect;
     await dotSure(r0[0] - 0.2, r0[1] - 0.2);
     await set(BTN.A, 1);
@@ -2046,18 +2048,18 @@ try {
     const mineTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
     const pO = await toTileHeld('Office');
     await press(BTN.A);
-    await press(BTN.RB);
-    await press(BTN.RB);
+    // RB until the turn is back to none (read back each tap: a tap can be missed on a slow frame)
+    for (let i = 0; i < 6 && (await E(() => window.__editor.stamp.turns)) !== 0; i++) await tapRB();
     const t2 = await E(() => ({ tool: window.__editor.tool, id: window.__editor.stamp.id, turns: window.__editor.stamp.turns }));
     await set(BTN.LB, 1);
-    await dotAt(px + 5, pz + 3.5);
+    await dotSure(px + 5, pz + 3.5);
     await page.waitForFunction(() => /A: stamp Office \(6 x 5 m\)/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
     const hM = await hist();
     await press(BTN.A);
     await set(BTN.LB, 0);
     await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hM, { timeout: 8000 }).catch(() => {});
     const again = await E(() => { const ed = window.__editor; const d = ed.model.data; const r = d.rooms.filter((q) => q.name === 'Office' && q.id.startsWith('G-NEW')).at(-1); return { rect: r?.rect, north: r ? d.walls.filter((w) => w.level === 'G' && w.a[1] === r.rect[3] && w.b[1] === r.rect[3]).map((w) => w.id) : [], text: ed.model.history.at(-1)?.text }; });
-    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.slice(3).join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}"`);
+    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.slice(3).join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}" (${await E(() => document.getElementById('status').textContent)})`);
 
     // undo all to the file
     await E((h) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.setTool('select'); ed.select(null); }, h0);

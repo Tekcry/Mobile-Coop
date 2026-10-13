@@ -64,7 +64,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
-| 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees |
+| 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
@@ -195,10 +195,11 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
 | Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
 | Objects | the ON4 object groups and presets (below) |
+| Presets (ON11) | Start set, Module kit, Mine (A shows that source, the menu stays), then its presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
 | Climb (ON5) | Downpipe, Horizontal pipe, Ledge or string course, Window sill, Parapet coping, Vent grille, Duct crawl, Fire escape stair, Lamp post, Chain-link fence |
 | Lights, Mission | shown once a later part adds tiles to them |
 | View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5) |
@@ -656,7 +657,45 @@ What the outside of a building gives a climbing player, and how loud each floor 
 - **Plan**: `plans.mjs` draws each piece as before (a dot or a dashed line, green when climbable) in a group the editor
   can click.
 
+## Room presets and stamping (ON11)
+Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and save his own groups to reuse.
+
+- **Presets** (`src/editor/presets.ts`): a group of rooms, walls, doors and windows, objects, stairs, floor holes and
+  ladders relative to an origin (its south-west corner at 0,0), with a name, a footprint and a `src`. The records are
+  the campus file's own (doors and windows as ON9, objects as ON4 with their catalogue ids); levels are relative
+  (`+0` the level stamped on, `+1` the one above).
+- **Start set** (16, sizes from facts, the module kit and typical products, each with its `src`): 4-desk office, 8-desk
+  open office, meeting room (8), manager's office, WC block (male, female, accessible), kitchenette, security control
+  room (desk, video wall, lockers), reception (counter, lounge), locker room, comms room (2 racks), store, plant room (UPS
+  and batteries), stair core (main dogleg over two levels; its well comes from the ON2 stairwell link), lift lobby (with a
+  lift shaft), data hall bay (two rows of 10 racks, a contained 1.8 m cold aisle, two CRAH units), goods-in bay (roller
+  shutter to the yard in an outside wall). Rooms are walled on every edge; shared edges are one wall.
+- **Module kit**: every module of `scripts/kestrel/modules.json` is a preset too, read from that file each time the
+  editor loads (the editor server runs `expand.mjs` on one placement per module at the origin; nothing is copied).
+- **Stamp tool**: Y > **Presets** > a preset (mouse: Space, click). The ghost of the whole group sits centred on the dot
+  (walls 1.2 m high, floors, objects; on the 0.1 m grid); **RB** (R) turns it 90 degrees; **D-pad left / right** steps to
+  the next preset of the same source; **A** (click) stamps it as **one undo step** with fresh ids (rooms `<level>-NEW`,
+  walls `W<level>-NEW`, doors `O-NEW`, objects `O001`...). Its walls merge with walls already on the same lines (the
+  ED3-3a rules: an existing wall is reused, never doubled; a door on a reused wall moves onto it, and is left out where a
+  door is already there). Walls take the level's height; rooms join the building under them; a stair gets the risers
+  for the real rise.
+- **Fit check**: the ghost turns red where the stamp would overlap a room already there (sharing an edge is fine; yards,
+  lanes and roof areas are outside ground) or where a wall already there runs through one of its rooms, with words at the
+  dot ("overlaps Admin Office by 1.2 m", "wall WG012 runs through Office for 5 m"); A then refuses with the same words.
+  A preset that needs a level above says so.
+- **Save your own**: select a room, or box select a set (ON3), then Selected > **Save as preset**; the name comes from
+  the list (the selected rooms' names and your presets') or the keyboard. A set keeps its selected walls with their doors
+  and windows; one room gets walls along its edges carrying the doors already there; objects standing wholly inside the
+  rooms come along. They show under Presets > **Mine**; Rename and Delete there act on the one last picked. Your presets
+  are written to `docs/kestrel/editor-presets.json` with the file save (the Save button shows `*`; through the editor
+  server, so the e2e test's sandbox copy is used there).
+
 ## What it does not do yet (ED2 parts B-H)
+- ON11: presets carry no lamps or circuits yet (the light records are ON6, which has not run); they join when they exist. The
+  ghost shows for the pad (the mouse sees the words after a click). A stamp lands where the dot puts it (no snapping of
+  its edges to nearby walls; the magnet still moves the dot). The fit check looks at rooms and walls, not objects, climb
+  pieces or roofs. Saving a preset takes rooms, walls, floor holes, stairs, ladders and objects, not roofs or climb
+  pieces. A module kit preset's walls are its expand walls (outside walls 0.45 m where the module has no neighbour).
 - ON5: pieces are straight (a duct or pipe is one run; no bends); a duct does not cut the walls it crosses (they stay
   solid in the walk test). A fire escape is one straight flight with no landings (its words say when a real one would
   need one). A downpipe's top lip counts wall tops and ledge pieces, not roof edges or object tops. A lamp post's lamp
@@ -726,5 +765,7 @@ What the outside of a building gives a climbing player, and how loud each floor 
 | `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
+| `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |
+| `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

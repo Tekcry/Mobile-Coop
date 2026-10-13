@@ -333,6 +333,20 @@ A `"@a.b"` value is read from facts.json, so door sizes, aisles and rack width s
 - Stairs: a `dogleg` stair (all three stair modules) fills its room, so its rect is the room rect; a straight stair is the clear room rounded inward to the grid. `risers` = floor-to-floor / riser height. The upper rooms use the same rect and doors (`levels` can restrict a door to the base floor). The stairwell void is the stair rect.
 - Re-runs: every item expand wrote carries `"gen": "<placement id>"` and is rewritten each run. Items marked `"manual": true`, and items with no `gen` tag, are kept untouched (a manual wall or opening may name a generated wall id; keep it only if that wall still exists).
 
+### Own presets (docs/kestrel/editor-presets.json, ON11)
+Written by the level editor's Save (Selected > Save as preset); read by the editor's Presets tab under Mine.
+```json
+{ "about": "...", "presets": [ { "id": "mine.1", "name": "Office", "from": "mine", "size": [6, 5], "src": "saved in the level editor from G", "items": { "rooms": [], "walls": [], "openings": [], "objects": [], "stairs": [], "voids": [], "ladders": [] } } ] }
+```
+| Field | Meaning |
+| --- | --- |
+| id, name | `mine.<n>` and the name Michael gave it |
+| size | Footprint `[x, z]` in metres at no turn; the group's south-west corner is 0,0 |
+| items | The campus file's own records (section 2), moved to the origin; every `level`, stair `from` / `to` and ladder `from` / `to` is relative: `+0` the level stamped on, `+1` the one above. Ids are the saved ones; stamping gives fresh ids |
+
+The editor's start set (`src/editor/presets.ts`) and the module kit presets (this section's modules, expanded at the
+origin) have the same shape; they are not stored in this file.
+
 ### Calls made (Michael, 2026-10-10) and brief deviations
 - A07 corner rule: corridors and play-space rooms only; service rooms only need the door to fit in the wall. Small rooms no longer need neighbours on both sides.
 - The mantrap is Level 3 (the first Level 3 door in Building B, brief 6). A29 allows one level between joined rooms.
