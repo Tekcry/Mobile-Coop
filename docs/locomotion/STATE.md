@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: Block A end (full e2e, perf trend, kestrel merge), then 07 harness-local
+Current step: 07 harness-local (next)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)

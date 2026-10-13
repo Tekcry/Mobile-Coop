@@ -7,3 +7,5 @@
 - e2e-mouse ('losing the capture (Esc) pauses the match') flaked once under E2E_JOBS=2 at step 05; passes serially.
 - e2e-netmove new flake mode under 2 jobs: 'fence: joints within 10 cm' with wrists 30-36 cm (passes serially, 0 cm). Add to docs/backlog.md flaky entry at step 34 if it recurs.
 - Stale cover comments in src/game/takedownController.ts (~90, ~111): scrub in step 12 (corner takedown remap).
+- Kestrel-owned, pre-existing (fail identically on origin/feature/kestrel 6a403c5): e2e-editor "X undoes the wall"; e2e-kestrel "camera rays along the tour: 133 inside the tight places go to P04" (before the merge it also failed the zone teleports and tour / critical path walks, identically on 93c6ee8).
+- Block A perf A/B (same VM, back to back): anim per character baseline 0.0568 / 0.0564 ms vs after Block A 0.0498 / 0.0622 ms; sim p95 2.3 / 2.35 vs 2.3 / 2.75 ms. No regression; the VM's calibration swings 2x, so single runs are not comparable.

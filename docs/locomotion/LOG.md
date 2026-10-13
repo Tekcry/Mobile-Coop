@@ -22,3 +22,6 @@ Player snap cover, glide, cover-to-cover, blind fire, coverAim and cornerControl
 
 ## 06 remove-cover-rig-net
 Cover rig poses / clips gone, slot 1 `wall`, PROTOCOL_VERSION 3 (v2 hello refused, tested), A6 stance kept dormant, open-left mirroring restored dormant (renamed openLeft / EDGE_HAND_TIME, unit test), docs scrub, guard high-cover wallSide. Round 1 FAIL (deleted mirroring needed by D9; docs scrub incomplete; guard lean side) fixed; recheck PASS: lint 0 errors, tests 994/995 (kestrel-owned), build ok, 8 suites ok, netmove flaky (fence wrists 30-36 cm once in 2-job run, 0 serially). Block A complete.
+
+## Block A end
+Full e2e (2 jobs, 1903 s): all pass except e2e-stealth (flake, passes serially), e2e-netmove / e2e-darkness (known flaky) and e2e-kestrel (kestrel-owned, same on baseline). Perf A/B vs baseline: no regression. Merged origin/feature/kestrel (9 commits, no conflicts): lint 0 errors, tests 1026/1026 (kestrelMap fixed upstream), build ok, quick e2e ok except e2e-editor and e2e-kestrel (both kestrel-owned, identical on kestrel head).
