@@ -49,3 +49,7 @@ headless player with T1b's `?course=solo` test flag (one player cycles airlocks)
 ## Commit
 "training T7a: course data, gates, devices and radio for every bay". Docs: FEATURES.md statuses unchanged (now forms),
 LOG, STATE, CHANGELOG.
+
+## Carry-over from T4 (A9, A37)
+- B6 readers: restore a per-player "swipe card" verb (a reader opens for the player holding that card; D30), so the
+  mantrap egress is not redundant. S6's top door: a gate kind that relocks after both players pass.

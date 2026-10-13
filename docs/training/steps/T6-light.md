@@ -40,3 +40,7 @@ row 5) run at the Block C end, not here.
 
 ## Commit
 "training T6: lights, circuits, switches, ambient zones and surfaces". Docs: LOG, STATE, CHANGELOG, PC-PASS row 5.
+
+## Carry-over from T4's checker
+- Key the B5 mains gate to the MB switch state (or to "all of L1-L3 off"), never to lamp states: shooting or EMPing a
+  lamp must not open A5. L1-L3 as three SR switches need their own groups or an "all off" rule. Keep switch groups <= 12.
