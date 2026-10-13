@@ -53,3 +53,5 @@ LOG, STATE, CHANGELOG.
 ## Carry-over from T4 (A9, A37)
 - B6 readers: restore a per-player "swipe card" verb (a reader opens for the player holding that card; D30), so the
   mantrap egress is not redundant. S6's top door: a gate kind that relocks after both players pass.
+- From T5 (A40, A43): move B7-O's window stop and B7-R's ledge-pull stop to the built window and parapet; make
+  "unbolt the catwalk stair (CS)" a B8 drill so the co-op beat survives the vaultable rail.
