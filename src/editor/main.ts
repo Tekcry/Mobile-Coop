@@ -20,7 +20,7 @@ import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './vis
 import type { LevelPreset } from './visibility';
 import { campusText, EditorModel, localTime, logMarkdown } from './model';
 import type { Change, JournalEntry } from './model';
-import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, roomAt, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
+import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { StampTool } from './stampTool';
@@ -40,7 +40,7 @@ import type { ProblemSpot } from './overlays';
 import { FindBox } from './findView';
 import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
 import type { StairTypeId } from './vertical';
-import { defaultBase, footprintAt, newRoof, ridgeHandle, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
+import { defaultBase, footprintAt, newRoof, ridgeHandle, roofCornerSnap, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
 import type { RoofType } from './roofGeometry';
 import { aisleOf, newObject, stealthTint, objectId, placeObject, rowCount, rowRect, turnObject } from './objects';
 import { GROUPS, groupName, presetOf, PRESETS } from './catalogue';
@@ -49,7 +49,8 @@ import { drawPiece, extId, movePiece, pieceLen, pieceName, pieceWords, placePiec
 import { FINISHES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { finishLegend, loudWords } from './finishes';
-import { ceilingOf, circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
+import { ceilingOver, ceilingSurface, circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch, slideLamp, withParams } from './lamps';
+import { snapSlide } from './mount';
 import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './lamps';
 import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
 import { LightView } from './lightView';
@@ -168,6 +169,7 @@ async function boot(): Promise<void> {
   ed.secBase = f.sec;
   ed.secLoaded = f.secText;
   void ed.stamp.load();
+  ed.migrateLamps();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
   try {
@@ -1062,7 +1064,10 @@ export class Editor {
         const r = drawLamp(f, d.start, [snap(x, og), snap(z, og)], { ...this.lampCtx(), level: lampLevel(this.model.data, l0) || this.view.level });
         return r.lamp ? ({ ...r.lamp, id: l0.id, circuit: l0.circuit } as Elem) : e;
       }
-      return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
+      // Michael 2026-10-14: a placed lamp slides across the surface it is on (snapping to its centre and quarter lines)
+      const sl = slideLamp(this.model.data as LampData, l0, x - d.start[0], z - d.start[1], { grid: og, magnet: facts.light.snapMagnet.value, off: fine });
+      this.slideGuides(sl.snap, sl.surface, lampLevel(this.model.data, l0), sl.wall && sl.wall.t !== null ? lampCentre(sl.lamp) : null);
+      return sl.lamp as Elem;
     }
     if (d.coll === 'circuits') return e;
     // ON13: a crawl's leg follows the pointer at its end; a placed crawl moves whole
@@ -1077,6 +1082,16 @@ export class Editor {
       const og = fine ? this.fineGrid : this.objectGrid;
       const b = d.before as unknown as Device;
       if (d.isNew && isBeam(b)) return this.security.dragBeam(b, x, z) as unknown as Elem;
+      // Michael 2026-10-14: a ceiling device snaps to its ceiling's centre and quarter lines as the lamps
+      const pt = (b as { at?: Pt }).at;
+      if (pt && (b as { mount?: string }).mount === 'ceiling' && !isBeam(b)) {
+        const tx = snap(pt[0] + x - d.start[0], og);
+        const tz = snap(pt[1] + z - d.start[1], og);
+        const sf = ceilingSurface(this.model.data as LampData, b.level, tx, tz);
+        const sn = sf ? snapSlide(tx, tz, sf.rect, facts.light.snapMagnet.value, fine) : null;
+        this.slideGuides(sn && (sn.lx !== null || sn.lz !== null) ? sn : null, sf, b.level, null);
+        return this.security.move(b, +((sn?.x ?? tx) - pt[0]).toFixed(3), +((sn?.z ?? tz) - pt[1]).toFixed(3)) as unknown as Elem;
+      }
       return this.security.move(b, snap(x - d.start[0], og), snap(z - d.start[1], og)) as unknown as Elem;
     }
     // ON8: a guard moves whole (every stop), a marker by its point; the extraction zone is drawn below like a floor hole
@@ -1101,11 +1116,19 @@ export class Editor {
         const span: [number, number] = edge === 'W' || edge === 'E' ? [near[1], near[3]] : [near[0], near[2]];
         return edgeSnap(v, edge, lv, (this.model.list('walls') as Wall[]).filter((w) => !moving.has(`walls:${w.id}`)), (this.model.list('rooms') as Room[]).filter((q) => !moving.has(`rooms:${q.id}`)), d.id, span)?.v ?? v;
       };
-      if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
+      if (d.isNew && d.coll === 'roofs') {
+        // Michael 2026-10-14: the far corner snaps to a wall's outer face under it too (LB / Ctrl: off)
+        const q = roofCornerSnap(this.model.data, lv, snap(x, g), snap(z, g), fine).p;
+        (e as Room).rect = normRect([r[0], r[1], q[0], q[1]]);
+      } else if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
       else if (d.handle) (e as Room).rect = setEdge(r, d.handle as Edge, es(snap(d.handle === 'W' || d.handle === 'E' ? x : z, g), d.handle as Edge), Math.max(g, 0.5));
       else (e as Room).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
       // ON10: a roof being drawn sits on the walls under its outline as it grows
-      if (d.coll === 'roofs' && d.isNew) (e as Roof).base = defaultBase(this.model.data, (e as Roof).level, (e as Roof).rect);
+      if (d.coll === 'roofs' && d.isNew) {
+        (e as Roof).base = defaultBase(this.model.data, (e as Roof).level, (e as Roof).rect);
+        // (the drawing plane follows the eaves)
+        d.planeY = (e as Roof).base + this.view.offsetOf((e as Roof).level);
+      }
       return e;
     }
     if (d.coll === 'walls') {
@@ -1268,6 +1291,7 @@ export class Editor {
       return;
     }
     this.drag = null;
+    this.slideGuides(null, null, '', null);
     if (d.source !== 'pad') this.planGhost([], 'ghost');
     this.updateHint();
     if (cancel || !d.moved || d.refused) {
@@ -1402,9 +1426,12 @@ export class Editor {
       this.beginDrag('voids', v.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'roof') {
       // ON10: A at one corner, A at the other; the same spot twice takes the building (or room) under it
-      const r = newRoof(this.model.data, lvl, [p[0], p[1], p[0], p[1]], this.roofTypeId, roofId(this.model.data));
+      // Michael 2026-10-14: the corner snaps to the outer face of a wall under the aim; the roof sits on the wall tops
+      // and is drawn on the plane of its eaves (the aim on a wall top stays on it as the roof grows)
+      const q = roofCornerSnap(this.model.data, lvl, p[0], p[1], fine).p;
+      const r = newRoof(this.model.data, lvl, [q[0], q[1], q[0], q[1]], this.roofTypeId, roofId(this.model.data));
       this.model.preview('roofs', r);
-      this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
+      this.beginDrag('roofs', r.id, null, q, r.base + this.view.offsetOf(lvl), sx, sy, source, true);
     } else if (this.tool === 'object') {
       this.objectDown(x, z, sx, sy, source);
     } else if (this.tool === 'stamp') {
@@ -1672,6 +1699,77 @@ export class Editor {
     return c.dx || c.dz ? { e: this.shifted(coll, e, c.dx, c.dz) as T, why: null } : { e, why: null };
   }
 
+  /**
+   * Michael 2026-10-14: lamps saved before the troffer sizes (600 x 300 and 1200 x 300) and the area lights get their
+   * params again from the catalogue's one conversion: one change with a change-log line (none when all are current).
+   */
+  migrateLamps(): void {
+    const changes: Change[] = [];
+    for (const l of (this.model.list('lamps') as Lamp[] | undefined) ?? []) {
+      const w = withParams(l);
+      if (JSON.stringify(w.params) !== JSON.stringify(l.params)) changes.push({ coll: 'lamps', id: l.id, before: clone(l) as Elem, after: w as Elem });
+    }
+    if (!changes.length) return;
+    const tro = changes.filter((c) => (c.after as Lamp).fixture === 'troffer-600').map((c) => c.id);
+    this.commitText(`Lamps brought up to date (Michael 2026-10-14): ${tro.length ? `Troffer 600 x 600 is now 600 x 300 (${tro.join(', ')}); ` : ''}area fittings light across their whole face (${changes.length} ${changes.length === 1 ? 'lamp' : 'lamps'})`, changes);
+  }
+
+  /**
+   * Michael 2026-10-14: the lamp, security device or sign on the editing level drawn nearest a screen point (CSS px),
+   * within facts light.grabPx: A there takes it (to slide it), rather than the room behind it.
+   */
+  mountNear(px: number, py: number): { key: Key; d: number } | null {
+    const lv = this.view.level;
+    const f = this.viewFloor();
+    const tol = facts.light.grabPx.value;
+    let best: { key: Key; d: number } | null = null;
+    const near = (key: Key, x: number, y: number, z: number): void => {
+      const sp = this.view.screenOf(x, y, z);
+      if (!sp) return;
+      const d = hyp2(sp[0] - px, sp[1] - py);
+      if (d <= tol && (!best || d < best.d)) best = { key, d };
+    };
+    const d = this.model.data as LampData;
+    for (const l of d.lamps ?? []) {
+      if (lampLevel(d, l) !== lv) continue;
+      const c = lampCentre(l);
+      near(keyOf('lamps', l.id), c[0], f + l.at[1], c[1]);
+    }
+    for (const v of (this.model.list('devices') as unknown as Device[] | undefined) ?? []) {
+      if (v.level !== lv) continue;
+      const c = deviceCentre(v);
+      const y = (v as { y?: number }).y ?? (isBeam(v) ? v.a[1] : 0);
+      near(keyOf('devices', v.id), c[0], f + y, c[1]);
+    }
+    for (const g of (this.model.list('signs') as unknown as SignRecord[] | undefined) ?? []) {
+      if (g.level === lv) near(keyOf('signs', g.id), g.at[0], f + g.y, g.at[1]);
+    }
+    return best;
+  }
+
+  // ---------- slide guides (Michael 2026-10-14) ----------
+  /** The lines a slid lamp or device snapped to (shown while snapped), and their key. */
+  guides: { a: [number, number, number]; b: [number, number, number] }[] = [];
+  private guideKey = '';
+
+  /** Shows the guide lines of a snap on a ceiling surface (or a wall point's upright line), or none. */
+  slideGuides(sn: { lx: number | null; lz: number | null } | null, sf: { y: number; rect: readonly number[] } | null, level: string, wallAt: Pt | null): void {
+    const out: { a: [number, number, number]; b: [number, number, number] }[] = [];
+    if (sn && sf && level) {
+      const y = this.viewFloor(level) + sf.y - 0.02;
+      if (sn.lx !== null) out.push({ a: [sn.lx, y, sf.rect[1]!], b: [sn.lx, y, sf.rect[3]!] });
+      if (sn.lz !== null) out.push({ a: [sf.rect[0]!, y, sn.lz], b: [sf.rect[2]!, y, sn.lz] });
+    } else if (wallAt && level) {
+      const f = this.viewFloor(level);
+      out.push({ a: [wallAt[0], f, wallAt[1]], b: [wallAt[0], f + 3, wallAt[1]] });
+    }
+    const key = JSON.stringify(out);
+    if (key === this.guideKey) return;
+    this.guideKey = key;
+    this.guides = out;
+    this.view.setGuides(out);
+  }
+
   // ---------- surface aiming (Michael 2026-10-14; aim.ts) ----------
   /** The 3D view's last pointer position (canvas pixels), null off it. */
   mouseAt: Pt | null = null;
@@ -1688,10 +1786,8 @@ export class Editor {
     const d = this.model.data as LampData;
     const lv = this.view.level;
     const storey = (d.levels.find((l) => l.id === lv)?.height ?? 0) - facts.room.slab.value;
-    const ceilAt = (x: number, z: number): number => {
-      const r = roomAt(d.rooms, lv, x, z);
-      return fy + (r ? ceilingOf(d, r) : storey);
-    };
+    // Michael 2026-10-14: the ceiling the lamps hang from (a lowered roof's underside too: ceilingSurface)
+    const ceilAt = (x: number, z: number): number => fy + (ceilingOver(d, lv, x, z) ?? storey);
     this.aimVal = aimPoint(ray, hit, fy, ceilAt, this.grid);
     this.aimKey = key;
     return this.aimVal;

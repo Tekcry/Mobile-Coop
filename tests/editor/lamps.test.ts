@@ -228,7 +228,7 @@ describe('walk test lights', () => {
   it('lamps build into LightInits: circuit groups, breakable, PIR and non-maintained off, twin heads', () => {
     const d = campus() as LampData;
     const mk = (id: string, fixture: string, circuit: string): Lamp => ({ ...one(placeLamp(fittingOf(fixture)!, 9.8, 3, ctx(d))), id, circuit });
-    d.lamps = [{ ...one(placeLamp(fittingOf('troffer-600')!, 5, 5, ctx(d))), id: 'LP1', circuit: 'C1' }, mk('LP2', 'spitfire', 'C2'), mk('LP3', 'pir-flood', 'C3'), mk('LP4', 'emergency-bulkhead', 'C2')];
+    d.lamps = [{ ...one(placeLamp(fittingOf('downlight')!, 5, 5, ctx(d))), id: 'LP1', circuit: 'C1' }, mk('LP2', 'spitfire', 'C2'), mk('LP3', 'pir-flood', 'C3'), mk('LP4', 'emergency-bulkhead', 'C2')];
     d.circuits = [
       { id: 'C1', switch: null, lamps: ['LP1'], unswitchable: '' },
       { id: 'C2', switch: null, lamps: ['LP2', 'LP4'], unswitchable: 'x' },

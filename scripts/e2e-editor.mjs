@@ -2516,15 +2516,15 @@ try {
     };
     const room = await E(() => { const d = window.__editor.model.data; const r = d.rooms.find((q) => q.id === 'G-SEC'); const o = d.openings.find((q) => (q.between ?? []).includes('G-SEC')); const w = d.walls.find((q) => q.id === o.wall); return { rect: r.rect, door: o.id, wall: w.id, wz: w.a[1], t: w.t, dx: w.a[0] + o.at, ow: o.w }; });
 
-    // the Light tool: Y > Lights > Troffer 600 x 600 (the Interior group shows first)
+    // the Light tool: Y > Lights > Troffer 600 x 300 (the Interior group shows first)
     await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
-    const m1 = await pick(null, 'Troffer 600 x 600');
+    const m1 = await pick(null, 'Troffer 600 x 300');
     await shot('on6-light-menu');
     const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
     const lGroups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((t) => t.textContent));
     await press(BTN.A);
     const t1 = await E(() => ({ tool: window.__editor.tool, fit: window.__editor.lampFit, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
-    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 600/.test(t1.bar) && lGroups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && tiles[0] === 'Downlight 90 mm' && !tiles.some((t) => lGroups.includes(t) || t === 'Switch'), `ON6: Y > Lights shows the groups on the group row (${lGroups.join(', ')}) and only fittings as tiles (${tiles.slice(0, 3).join(', ')} ...); Troffer 600 x 600 picks the Light tool ("${t1.bar}")`);
+    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 300/.test(t1.bar) && lGroups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && tiles[0] === 'Downlight 90 mm' && !tiles.some((t) => lGroups.includes(t) || t === 'Switch'), `ON6: Y > Lights shows the groups on the group row (${lGroups.join(', ')}) and only fittings as tiles (${tiles.slice(0, 3).join(', ')} ...); Troffer 600 x 300 picks the Light tool ("${t1.bar}")`);
     // Michael 2026-10-14: the type carousel while placing: the current fitting centred and lit, its group's neighbours
     // either side; D-pad right steps it (the ghost and the dot's words follow at once); a click on a neighbour, ] and the
     // wheel over it step it with the mouse and keys
@@ -2547,11 +2547,11 @@ try {
       await page.waitForFunction((d) => document.getElementById('reticleText').textContent !== d, c0.dot, { timeout: 5000 }).catch(() => {});
       const c1 = await car();
       await shot('carousel-light-placing');
-      assert(c0.n >= 3 && c0.on === Math.floor(c0.n / 2) && c0.name === 'Troffer 600 x 600' && c0.ver === '1/2' && c1.fit !== c0.fit && c1.fit !== 'troffer-1200' && c1.on === Math.floor(c1.n / 2) && c1.name !== c0.name && c1.dot !== c0.dot, `the type carousel shows ${c0.n} items with ${c0.name} centred (place ${c0.on}, version ${c0.ver}); D-pad right: the next item ${c1.name} centred (${c1.fit}; the 1200 x 300 is a version, not an item), the dot now "${c1.dot.slice(0, 50)}"`);
+      assert(c0.n >= 3 && c0.on === Math.floor(c0.n / 2) && c0.name === 'Troffer 600 x 300' && c0.ver === '1/2' && c1.fit !== c0.fit && c1.fit !== 'troffer-1200' && c1.on === Math.floor(c1.n / 2) && c1.name !== c0.name && c1.dot !== c0.dot, `the type carousel shows ${c0.n} items with ${c0.name} centred (place ${c0.on}, version ${c0.ver}); D-pad right: the next item ${c1.name} centred (${c1.fit}; the 1200 x 300 is a version, not an item), the dot now "${c1.dot.slice(0, 50)}"`);
       // Michael 2026-10-14: D-pad down / up step the troffer's versions (the ghost and the dot's words follow); on a fitting
       // with one version they step the group; the hint bar says which
       await E(() => window.__editor.setLampFit('troffer-600'));
-      await page.waitForFunction(() => document.querySelector('#toolBar .ci.on .cn')?.textContent === 'Troffer 600 x 600', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction(() => document.querySelector('#toolBar .ci.on .cn')?.textContent === 'Troffer 600 x 300', null, { timeout: 5000 }).catch(() => {});
       await page.waitForFunction(() => /Item . Version/.test(document.getElementById('hint').textContent), null, { timeout: 5000 }).catch(() => {});
       const v0 = await car();
       await press(BTN.DOWN);
@@ -2608,10 +2608,10 @@ try {
     const cz = (z0 + z1) / 2;
     const grid = [[cx - 1.5, cz - 1.5], [cx + 1.5, cz - 1.5], [cx - 1.5, cz + 1.5], [cx + 1.5, cz + 1.5]];
     const placed = [];
-    for (const [x, z] of grid) placed.push(await placeAt(x, z, ' - Troffer 600 x 600, '));
+    for (const [x, z] of grid) placed.push(await placeAt(x, z, ' - Troffer 600 x 300, '));
     const troffers = placed.map((p) => p.lamp);
     const ceil = await E(() => window.__editor.model.data.levels.find((l) => l.id === 'G').height);
-    assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && / - Troffer 600 x 600, [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
+    assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && / - Troffer 600 x 300, [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
     // Michael 2026-10-14: a lamp's mounting height (one handle under its body) and a roof's ridge (its pitch): mouse drags
     // in 3D, the same 12 px handles, one undo step each (both undone after)
     {
@@ -2671,7 +2671,7 @@ try {
       await press(BTN.LB);
     }
     // Michael 2026-10-14: the dot's words name no buttons on any placing tool (what A does is the hint bar's); plain
-    // words such as "Troffer 600 x 600, 3.75 m up"
+    // words such as "Troffer 600 x 300, 3.75 m up"
     {
       const tools = ['room', 'wall', 'door', 'window', 'stair', 'ladder', 'hole', 'roof', 'object', 'climb', 'lamp', 'security', 'sign', 'stamp', 'mission', 'crawl'];
       const bad = [];
@@ -2783,7 +2783,7 @@ try {
     const meter = await gf().evaluate(([t, sp]) => {
       const g = window.__app.current;
       const lights = g.world.level.lights.lights;
-      const near = (x, y, z) => lights.find((l) => Math.abs(l.x - x) < 0.01 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.01);
+      const near = (x, y, z) => lights.find((l) => Math.abs(l.x - x) < 0.35 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.35);
       const tl = near(t.at[0], t.at[1], t.at[2]);
       const spots = lights.filter((l) => Math.abs(l.x - sp.at[0]) < 0.01 && Math.abs(l.z - sp.at[2]) < 0.01);
       const f = g.world.lightField;
@@ -3792,6 +3792,145 @@ try {
     await frames(page, 3);
     const n4 = await ex();
     assert(/Inside a wall/.test(inWords.words) && inWords.bad && n4 === n3 && /Inside a wall/.test((await st()).status), `a fire escape drawn along the wall line: the dot is red, "${inWords.words}"; A refuses it (${n3} -> ${n4} pieces, "${(await st()).status}")`);
+
+    // ---- PARITY START (Michael 2026-10-14: placing matches the ghost, slide and snap lamps, troffers, roofs on walls) ----
+    {
+      console.log('Parity (Michael 2026-10-14): a lamp under a lowered roof commits at the ghost; slide and snap a placed lamp; handles keep their size in a drag; troffers 600 x 300 / 1200 x 300 lit across the face; a roof sits on the walls');
+      // a lowered flat roof over the room (0.6 m under its ceiling)
+      const rf = await E((fr) => {
+        const ed = window.__editor;
+        const d = ed.model.data;
+        const lv = d.levels.find((l) => l.id === 'G');
+        const room = d.rooms.find((r) => r.id === fr.room);
+        const ceil = room.ceiling > 0 ? room.ceiling : lv.height - 0.3;
+        const roof = { id: 'RFT', level: 'G', rect: [...fr.rect], base: +(lv.floor + ceil - 0.6).toFixed(3), type: 'flat', fall: 1, fallsTo: 'S', edge: 'upstand', upstand: 0.3, overhang: 0, fascia: 0.2, material: 'membrane', colour: 'grey', gutter: false, downpipes: false };
+        ed.commitText('test: a lowered flat roof', [{ coll: 'roofs', id: 'RFT', before: null, after: roof }]);
+        return { base: roof.base, floor: lv.floor, ceil };
+      }, fr);
+      await E(() => { const ed = window.__editor; ed.select(null); ed.setLampFit('troffer-1200'); ed.setTool('lamp'); });
+      await press(BTN.LB);
+      await setPose(fr.cx, 1.6, fr.zm - 1.5, 0, -0.75);
+      await frames(page, 4);
+      await page.waitForFunction(() => /m up/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const pg = await E(() => {
+        const ed = window.__editor;
+        const a = ed.aimCentre();
+        const g = a ? ed.lampGhost(a.p[0], a.p[1]) : null;
+        return { surf: a?.surf, ceil: a ? a.ceil - ed.viewFloor() : null, at: g?.lamps?.[0]?.at ?? null, n: (ed.model.data.lamps ?? []).length };
+      });
+      await press(BTN.A);
+      await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length > n, pg.n, { timeout: 5000 }).catch(() => {});
+      const pl = await E(() => (window.__editor.model.data.lamps ?? []).at(-1));
+      const under = rf.base - 0.2 - rf.floor;
+      assert(pg.surf === 'ceiling' && !!pg.at && !!pl && pl.fixture === 'troffer-1200' && Math.abs(pl.at[1] - pg.at[1]) < 0.01 && pl.at[0] === pg.at[0] && pl.at[2] === pg.at[2] && pl.at[1] < under && Math.abs(pl.at[1] - (under - 0.15)) < 0.01, `a lamp aimed at a lowered roof's underside (${pg.surf}, ceiling ${pg.ceil?.toFixed(2)} m, underside ${under.toFixed(2)}) commits where the ghost was (ghost ${JSON.stringify(pg.at)}, placed ${JSON.stringify(pl?.at)})`);
+
+      // the placed lamp: A near it takes it (not the room); the left stick slides it; it snaps to a quarter line, LB frees it
+      await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+      // under it and a metre back, looking up at it
+      await setPose(pl.at[0], rf.floor + 1.0, pl.at[2] - 1, 0, -Math.atan2(pl.at[1] - 1.0, 1));
+      await frames(page, 4);
+      await page.waitForFunction(() => /take it and slide it/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const nearWords = await E(() => document.getElementById('reticleText').textContent);
+      await press(BTN.A);
+      const g0 = await E(() => { const ed = window.__editor; return { drag: ed.drag ? `${ed.drag.coll}:${ed.drag.id}` : null, sel: ed.selected }; });
+      await axes(1, 0);
+      await wait(500);
+      await axes(0, 0);
+      await frames(page, 4);
+      const moved = await E((id) => window.__editor.model.get('lamps', id).at, pl.id);
+      const cam = await pose();
+      // the raw point 0.07 m past the nearest quarter line along x: it snaps onto the line and shows its guide
+      const line = await E(([r, x]) => { const ls = [0.25, 0.5, 0.75].map((f) => +(r[0] + (r[2] - r[0]) * f).toFixed(3)); return ls.sort((a, b) => Math.abs(a - x) - Math.abs(b - x))[0]; }, [fr.rect, moved[0]]);
+      await E(([line, z]) => { const p = window.__editor.pad; const d = window.__editor.drag; p.offset = [line + 0.07 - d.start[0], z - d.start[1]]; }, [line, moved[2]]);
+      await frames(page, 4);
+      const sn = await E((id) => ({ at: window.__editor.model.get('lamps', id).at, guides: window.__editor.guides.length, px: window.__editor.view.handlePixels() }), pl.id);
+      await shot('lamp-slide-snap-guides');
+      await set(BTN.LB, 1);
+      await frames(page, 4);
+      const free = await E((id) => window.__editor.model.get('lamps', id).at, pl.id);
+      await set(BTN.LB, 0);
+      await frames(page, 4);
+      await press(BTN.A);
+      await frames(page, 3);
+      const fin = await E((id) => ({ l: window.__editor.model.get('lamps', id), drag: !!window.__editor.drag }), pl.id);
+      assert(/take it and slide it/.test(nearWords) && g0.drag === `lamps:${pl.id}` && g0.sel === `lamps:${pl.id}` && moved[0] - pl.at[0] > 0.3 && Math.abs(moved[2] - pl.at[2]) < 0.2 && Math.abs(cam.x - pl.at[0]) < 0.05 && Math.abs(moved[1] - pl.at[1]) < 1e-6, `A near the placed lamp takes it ("${nearWords}", ${g0.drag}); the left stick slides it on the roof underside (x ${pl.at[0]} -> ${moved[0]}, z ${pl.at[2]} -> ${moved[2]}, height kept ${moved[1]}), the camera stays (x ${cam.x.toFixed(2)})`);
+      assert(Math.abs(sn.at[0] - line) < 1e-6 && sn.guides >= 1 && sn.px.length > 0 && sn.px.every((v) => v > 8 && v < 16) && Math.abs(free[0] - line) > 0.04 && !fin.drag && Math.abs(fin.l.at[0] - line) < 1e-6 && Math.abs(fin.l.at[1] - pl.at[1]) < 1e-6 && fin.l.room === pl.room, `the lamp snaps to the quarter line x ${line} (${sn.at[0]}, ${sn.guides} guide lines; its handle ${sn.px.map((v) => v.toFixed(1)).join(', ')} px while held); LB held frees it (${free[0]}); A drops it there (${JSON.stringify(fin.l.at)}, ${fin.l.room})`);
+
+      // the roof's handles keep their size on screen while one is dragged (the mouse)
+      await E(() => { const ed = window.__editor; ed.select('roofs:RFT'); });
+      await setPose(fr.cx, rf.base + 9, fr.zm - 9, 0, 0.75);
+      await frames(page, 4);
+      // (the mouse takes over first: the screen's layout may change with the input)
+      await mouseCentre();
+      await frames(page, 4);
+      const hs = await E(() => { const ed = window.__editor; const h = ed.handlesFor().find((q) => q.id === 'W'); const sp = h ? ed.view.handleScreen('W') : null; const r = document.getElementById('c').getBoundingClientRect(); return sp ? [r.left + sp[0], r.top + sp[1]] : null; });
+      const hp0 = await E(() => window.__editor.view.handlePixels());
+      let hpMid = [];
+      if (hs) {
+        await page.mouse.move(hs[0], hs[1]);
+        await page.mouse.down();
+        await page.mouse.move(hs[0] - 40, hs[1] + 10, { steps: 6 });
+        await frames(page, 4);
+        hpMid = await E(() => window.__editor.view.handlePixels());
+        await page.mouse.up();
+        await frames(page, 3);
+      }
+      const hok = (a) => a.length >= 4 && a.every((v) => v > 8 && v < 16);
+      assert(!!hs && hok(hp0) && hok(hpMid), `a roof's handles keep about 12 px while one is dragged: before [${hp0.map((v) => v.toFixed(1)).join(', ')}], mid-drag [${hpMid.map((v) => v.toFixed(1)).join(', ')}]`);
+      const rAfter = await E(() => window.__editor.model.get('roofs', 'RFT').rect);
+      if (rAfter[0] !== fr.rect[0]) await E(() => window.__editor.undo());
+      await press(BTN.LB);
+
+      // troffer versions
+      const tv = await E(() => { const ed = window.__editor; const out = []; for (const id of ['troffer-600', 'troffer-1200']) { ed.setLampFit(id); const f = ed.fitting; out.push(`${f.name}|${f.body[0]}x${f.body[2]}`); } ed.setTool('select'); return out; });
+      assert(tv.join() === 'Troffer 600 x 300|0.6x0.3,Troffer 1200 x 300|1.2x0.3', `troffers come as 600 x 300 and 1200 x 300 (${tv.join(', ')})`);
+
+      // the 1200 troffer lights its whole face: the light view's own field near both ends is similar and not far under
+      // the middle (one point at the middle would leave the ends at about 0.6 of it)
+      await E(() => { const ed = window.__editor; ed.select(null); ed.setLightView(true); });
+      await page.waitForFunction(() => window.__editor.lights.on && window.__editor.lights.state === 'ready', null, { timeout: 180000 });
+      await setPose(fin.l.at[0] - 3, rf.floor + 1.2, fin.l.at[2] - 3, Math.PI / 4, -0.35);
+      await frames(page, 6);
+      const tf = await E((l) => {
+        const c = window.__editor.lights.cur;
+        const idx = c.ids.map((id, i) => (id === l.id ? i : -1)).filter((i) => i >= 0);
+        const fl = c.floor;
+        const y = fl + l.at[1] - 0.4;
+        const at = (x) => idx.reduce((s, i) => s + c.field.lampAt(i, x, y, l.at[2]), 0);
+        return { n: idx.length, mid: at(l.at[0]), a: at(l.at[0] - 0.5), b: at(l.at[0] + 0.5), xs: idx.map((i) => +c.reg.lights[i].x.toFixed(2)) };
+      }, fin.l);
+      await shot('troffer-1200-light-view');
+      const endR = Math.min(tf.a, tf.b) / Math.max(tf.mid, 1e-9);
+      assert(tf.n === 4 && tf.mid > 0 && Math.abs(tf.a - tf.b) / Math.max(tf.a, tf.b) < 0.15 && endR > 0.7, `a 1200 x 300 troffer lights its whole face: ${tf.n} light points at x ${tf.xs.join(', ')}; 0.4 m under it the ends read ${tf.a.toFixed(3)} and ${tf.b.toFixed(3)}, the middle ${tf.mid.toFixed(3)} (ends ${(endR * 100).toFixed(0)} % of the middle)`);
+      await E(() => window.__editor.setLightView(false));
+      // the lamp, its slide and the lowered roof go
+      await E(() => { const ed = window.__editor; ed.undo(); ed.undo(); ed.undo(); });
+      const gone = await E(() => !(window.__editor.model.data.roofs ?? []).some((r) => r.id === 'RFT'));
+      assert(gone, 'the test roof and lamp are undone');
+
+      // a roof drawn over the walls with the pad: the corner snaps to the west wall's outer face, the eaves at its top
+      const wall = await E((id) => { const d = window.__editor.model.data; const w = d.walls.find((q) => q.id === id); const lv = d.levels.find((l) => l.id === w.level); return { top: +(lv.floor + w.h).toFixed(3), x: w.a[0], t: w.t }; }, fr.wall);
+      await E(() => { const ed = window.__editor; ed.select(null); ed.roofTypeId = 'flat'; ed.setTool('roof'); });
+      const nr = await E(() => (window.__editor.model.data.roofs ?? []).length);
+      const ax = +(wall.x - wall.t / 2 + 0.1).toFixed(1);
+      await setPose(ax, wall.top + 6, fr.zm - 2, 0, 1.5707);
+      await frames(page, 4);
+      await page.waitForFunction(() => /wall top/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const startWords = await E(() => document.getElementById('reticleText').textContent);
+      const aimTop = await E(() => window.__editor.aimCentre());
+      await press(BTN.A);
+      await setPose(fr.cx, wall.top + 6, fr.zm + 2, 0, 1.5707);
+      await frames(page, 6);
+      await shot('roof-on-walls');
+      const ghost = await E(() => { const ed = window.__editor; const d = ed.drag; return d ? ed.model.get('roofs', d.id) : null; });
+      await press(BTN.A);
+      await frames(page, 3);
+      const roof = await E((n) => (window.__editor.model.data.roofs ?? []).length > n ? window.__editor.model.data.roofs.at(-1) : null, nr);
+      assert(aimTop?.surf === 'top' && /wall top/.test(startWords) && !!ghost && !!roof && Math.abs(roof.base - wall.top) < 1e-6 && Math.abs(roof.rect[0] - (wall.x - wall.t / 2)) < 1e-6 && roof.base === ghost.base && roof.rect.join() === ghost.rect.join(), `a roof drawn from the wall top (${aimTop?.surf}, "${startWords}") snaps its corner to the outer face (x ${roof?.rect?.[0]}, face ${wall.x - wall.t / 2}) and sits on the wall top (eaves ${roof?.base}, wall top ${wall.top}); committed as the ghost showed (${JSON.stringify(ghost?.rect)}, ${ghost?.base})`);
+      if (roof) await E(() => window.__editor.undo());
+      await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+    }
+    // ---- PARITY END ----
 
     await E(() => { const ed = window.__editor; ed.setTool('select'); const p = ed.pad; p.settings = { ...p.settings, camera: 'orbit' }; p.applySettings(); p.savePrefs(); ed.setLayout('both'); ed.setPreset(window.__pre0 ?? 'upTo'); });
     await press(BTN.LB);

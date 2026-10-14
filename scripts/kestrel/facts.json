@@ -88,7 +88,8 @@
     "fallMax": { "value": 2, "src": "ON10 brief (Michael 2026-10-13): flat roof fall 1-2 degrees" },
     "upstand": { "value": 0.3, "src": "ON10 brief (Michael 2026-10-13): upstand 0.3 with no parapet" },
     "overhangMax": { "value": 1.0, "src": "ON10 brief (Michael 2026-10-13): overhang 0-1.0 m" },
-    "levelTol": { "value": 0.05, "src": "ON10: a flat roof top within this of the roof level's floor matches it" }
+    "levelTol": { "value": 0.05, "src": "ON10: a flat roof top within this of the roof level's floor matches it" },
+    "cornerMagnet": { "value": 0.4, "src": "Michael 2026-10-14 (editor report): a roof corner being drawn snaps to the outer face of a wall under the aim within this distance (LB held: off)" }
   },
   "ladder": {
     "shaft": { "value": 1.0, "src": "scale-sheet s3" },
@@ -143,6 +144,11 @@
     "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
     "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" },
     "mapCell": { "value": 0.5, "src": "ON7 brief decision 4: the darkness map and the guard view sample every 0.5 m cell of the level's floor" },
+    "snapMagnet": { "value": 0.15, "src": "Michael 2026-10-14 (editor report): a lamp or device moved on a ceiling or roof underside snaps to its centre and quarter lines within this distance (LB held: off)" },
+    "slideSpeed": { "value": 1.5, "src": "editor default: a held lamp, device or sign slides this fast (m/s) at a full left stick" },
+    "areaCell": { "value": 0.3, "src": "Michael 2026-10-14 (editor report): an area fitting lights across its whole face, one light point per 300 mm of its length and width (a 1200 x 300 troffer: 4)" },
+    "areaMax": { "value": 8, "src": "editor default: at most this many light points per fitting (a long strip spreads them out), so the light bake stays small" },
+    "grabPx": { "value": 48, "src": "editor default: A with the aim this near a lamp, device or sign on screen (CSS px) takes it rather than the room" },
     "surfaceGap": { "value": 0.15, "src": "map lamps hang 0.15 m under their ceilings (src/world/maps/mansion.ts H1 - 0.15): the light bake grows solids by half a 0.2 m cell, so a light point nearer a ceiling or wall is inside it and lights nothing" }
   },
   "traverse": {

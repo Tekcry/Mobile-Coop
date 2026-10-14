@@ -2,7 +2,7 @@
  * The tool type carousel (Michael 2026-10-14), pure: while a placing tool is in hand, one compact row over the tool's
  * place shows the current item centred and lit (full size, its whole name) with same-width neighbours either side,
  * smaller and greyed, wrapping, fading toward the ends. Items are families: entries of a catalogue that share a `series`
- * (troffer 600 x 600 and 1200 x 300) are one item with versions. D-pad left / right, [ and ], the wheel over it or a
+ * (troffer 600 x 300 and 1200 x 300) are one item with versions. D-pad left / right, [ and ], the wheel over it or a
  * click change the item; D-pad up / down, Shift+[ and Shift+], Shift+wheel the version (or the group where the item has
  * one version and the tool has groups). Babylon- and DOM-free (tests/editor/carousel.test.ts); padControl.ts draws it.
  */

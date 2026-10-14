@@ -82,7 +82,7 @@ describe('type carousel (Michael 2026-10-14)', () => {
   it("derives the catalogues' families from their data", () => {
     const fam = (keys: (string | undefined)[], names: string[]): string[][] => carFamilies(keys).filter((m) => m.length > 1).map((m) => m.map((i) => names[i]!));
     const interior = groupFittings('interior');
-    expect(fam(interior.map((f) => f.series), interior.map((f) => f.name))).toEqual([['Troffer 600 x 600', 'Troffer 1200 x 300']]);
+    expect(fam(interior.map((f) => f.series), interior.map((f) => f.name))).toEqual([['Troffer 600 x 300', 'Troffer 1200 x 300']]);
     const plant = groupFittings('plant');
     expect(fam(plant.map((f) => f.series), plant.map((f) => f.name))).toEqual([['Round bulkhead', 'Oval bulkhead']]);
     const goods = groupPresets('goodsIn');

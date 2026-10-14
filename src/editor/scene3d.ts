@@ -16,7 +16,7 @@ import type { ObjGroup } from './catalogue';
 
 /** ON4: object colours by catalogue group (the stealth view tints by badge instead). */
 const OBJ_HEX: Record<ObjGroup | 'other', string> = { dataHall: '#3d4450', plant: '#8a8f6a', office: '#9c8466', goodsIn: '#a3825a', yard: '#6f7780', other: '#8d9096' };
-import { roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
+import { ROOF_BUILD, roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
 import type { RoofBox, RoofPlane } from '../world/maps/kestrelRoofs';
 import { keyOf, parseKey } from './types';
 import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
@@ -595,8 +595,11 @@ export class EditorScene {
       const sy = fx?.sy ?? 0.1;
       const sz = fx?.sz ?? 0.15;
       out.push(this.box(`lamp ${l.id}`, l.at[0], y + (fx?.oy ?? 0), l.at[2], sx, sy, sz, 0, body));
-      const bs = Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
-      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bs, 0.04, bs, 0, bulbMat));
+      // Michael 2026-10-14: an area fitting (a troffer) glows over its whole face; a bulb is a small square
+      const area = l.params.area;
+      const bx = area ? sx * 0.94 : Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
+      const bz = area ? sz * 0.94 : bx;
+      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bx, 0.04, bz, 0, bulbMat));
     }
     // an aimed fitting (flood, twin spot): a thin 1.5 m rod along its beam, so the aim reads from any side
     if (l.aim) {
@@ -1053,6 +1056,9 @@ export class EditorScene {
       return m;
     };
     poly(`roof ${r.id}`, sh.planes.filter((p) => p.kind === 'roof'), two('roof', roofHex(r)));
+    // Michael 2026-10-14: the deck's underside (the plane less the deck, as the walk test builds the slab): the aim meets
+    // it from below, so lamps under a roof hang from where the game's ceiling is
+    poly(`roof ${r.id} under`, sh.planes.filter((p) => p.kind === 'roof').map((p) => ({ ...p, pts: p.pts.map((q): [number, number, number] => [q[0], q[1] - ROOF_BUILD.deck.value, q[2]]) })), two('roof', roofHex(r)));
     poly(`roof ${r.id} ends`, sh.planes.filter((p) => p.kind === 'end'), two('roof-end', '#b9b6ae'));
     poly(`roof ${r.id} glass`, sh.planes.filter((p) => p.kind === 'glass'), two('roof-glass', '#9fd3ff', 0.45));
     const box = (b: RoofBox, i: number): void => {
@@ -1183,6 +1189,9 @@ export class EditorScene {
       return m;
     });
     this.handleKey = '';
+    // Michael 2026-10-14: sized at once (a held piece remakes its handles every frame, from inside the frame: left to
+    // the next frame's sizing they showed at 1 m until the drop)
+    this.sizeHandles();
   }
 
   private handleKey = '';
@@ -1191,7 +1200,10 @@ export class EditorScene {
     if (!this.handleMeshes.length) return;
     const c = this.camera.position;
     const h = this.engine.getRenderHeight();
-    const k = `${c.x.toFixed(3)}|${c.y.toFixed(3)}|${c.z.toFixed(3)}|${h}|${this.camera.fov}`;
+    // (Michael 2026-10-14: and where the handles are, so one moved while held keeps its size too)
+    let at = 0;
+    for (const m of this.handleMeshes) at += m.position.x * 1.31 + m.position.y * 1.71 + m.position.z;
+    const k = `${c.x.toFixed(3)}|${c.y.toFixed(3)}|${c.z.toFixed(3)}|${h}|${this.camera.fov}|${this.handleMeshes.length}|${at.toFixed(3)}`;
     if (k === this.handleKey) return;
     this.handleKey = k;
     const dpr = h / Math.max(1, (this.engine.getRenderingCanvas()?.clientHeight ?? h));
@@ -1215,6 +1227,32 @@ export class EditorScene {
       const a = Vector3.Project(m.position.add(half), Matrix.Identity(), tm, vp);
       const b = Vector3.Project(m.position.subtract(half), Matrix.Identity(), tm, vp);
       return Math.abs(a.y - b.y) / dpr;
+    });
+  }
+
+  private guideMeshes: Mesh[] = [];
+  /**
+   * Michael 2026-10-14: the guide lines of a slid lamp's snap (the ceiling's centre or quarter line it is on), thin
+   * bright bars drawn over everything; a small pool made once.
+   */
+  setGuides(lines: readonly { a: readonly number[]; b: readonly number[] }[]): void {
+    while (this.guideMeshes.length < Math.min(4, lines.length)) {
+      const m = this.box(`guide ${this.guideMeshes.length}`, 0, 0, 0, 1, 1, 1, 0, this.mat('guide', '#34c759', 0.9, 0.9));
+      m.isPickable = false;
+      m.renderingGroupId = 1;
+      m.setEnabled(false);
+      this.guideMeshes.push(m);
+    }
+    this.guideMeshes.forEach((m, i) => {
+      const l = lines[i];
+      if (!l) return m.setEnabled(false);
+      const [ax, ay, az] = [l.a[0]!, l.a[1]!, l.a[2]!];
+      const [bx, by, bz] = [l.b[0]!, l.b[1]!, l.b[2]!];
+      const t = 0.03;
+      m.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      m.rotation.y = 0;
+      m.scaling.set(Math.max(t, Math.abs(bx - ax)), Math.max(t, Math.abs(by - ay)), Math.max(t, Math.abs(bz - az)));
+      m.setEnabled(true);
     });
   }
 
@@ -1317,6 +1355,15 @@ export class EditorScene {
     const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
     const p = Vector3.Project(m.position, Matrix.Identity(), this.scene.getTransformMatrix(), this.camera.viewport.toGlobal(w, h));
     return [p.x / dpr, p.y / dpr];
+  }
+
+  /** A world point on the 3D view, CSS px from its top left (null behind the camera). */
+  screenOf(x: number, y: number, z: number): [number, number] | null {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const p = Vector3.Project(new Vector3(x, y, z), Matrix.Identity(), this.scene.getTransformMatrix(), this.camera.viewport.toGlobal(w, h));
+    return p.z < 0 || p.z > 1 ? null : [p.x / dpr, p.y / dpr];
   }
 
   /** The handle drawn nearest a screen point (CSS px) within `tol` px of it, among those `ok` takes (the pad's aim). */

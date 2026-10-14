@@ -14,7 +14,7 @@ import { inFrame } from '../security/camera';
 import { hyp2 } from '../core/mathx';
 import { fmt, roomAt, snap, wallDir } from './geometry';
 import { buildingAt } from './visibility';
-import { ceilingOf, faceAt, lampLevel, openingAt } from './lamps';
+import { ceilingOver, faceAt, lampLevel, openingAt } from './lamps';
 import type { Lamp, LampData } from './lamps';
 import { nextId } from './mission';
 import { BODY_HEIGHT, band, cellCentre } from './lightPreview';
@@ -121,7 +121,8 @@ export const floorOf = (d: Pick<Campus, 'levels'>, level: string): number => d.l
 function ceilingAt(d: SecData, level: string, x: number, z: number): number | null {
   const r = roomAt(d.rooms, level, x, z);
   if (!r || r.kind === 'yard' || r.kind === 'lane') return null;
-  return ceilingOf(d, r);
+  // Michael 2026-10-14: a lowered roof's underside too, as the lamps
+  return ceilingOver(d, level, x, z);
 }
 
 type Face = NonNullable<ReturnType<typeof faceAt>>;

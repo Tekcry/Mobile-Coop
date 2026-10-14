@@ -88,7 +88,7 @@ describe('tile menu model (ON0a)', () => {
     expect(menuGroups('Lights').map((g) => g.name)).toEqual(['Interior', 'Plant and goods', 'Outside', 'Emergency', 'Glow', 'Switch and test']);
     const t = menuTiles('Lights', { ...none, lightGroup: 'emergency' });
     expect(t.map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
-    expect(menuTiles('Lights', none).slice(0, 2).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    expect(menuTiles('Lights', none).slice(0, 2).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 300']);
     // Switch and ON7's guard view tester are their own group
     expect(menuTiles('Lights', { ...none, lightGroup: LIGHT_TOOLS }).map((x) => x.id)).toEqual(['light.switch', 'guard.view']);
     // ON7: a breakable lamp can be previewed shot out

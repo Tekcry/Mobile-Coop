@@ -68,7 +68,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening, resize an object by a corner (the opposite one stays), move a drawn piece's, strip light's or beam's end; a single centre marker moves the rest; in 3D the top and bottom handles change heights, a lamp's or device's height handle its mounting height and a roof's ridge handle its pitch (Free fly section). Handles keep 12 px on screen (facts `render.handlePx`) |
 | [ / ] (a tool in hand) | the previous / next item on the carousel (also the wheel over it, or a click on one; Michael 2026-10-14) |
-| Shift+[ / Shift+] ({ / }) | the item's next version (Troffer 600 x 600 / 1200 x 300), or the group where it has one version (also Shift and the wheel over the carousel) |
+| Shift+[ / Shift+] ({ / }) | the item's next version (Troffer 600 x 300 / 1200 x 300), or the group where it has one version (also Shift and the wheel over the carousel) |
 | Wheel while dragging | raise / lower what is held one grid step (Shift: 1 m); in Resize taller / shorter (fix-up 2026-10-14) |
 | T while dragging | Move or Resize: Resize keeps the corner (or end) opposite the pointer fixed (fix-up 2026-10-14) |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
@@ -318,7 +318,7 @@ pad, and any grab is put back first.
   "..." when long (the full name is the item's tooltip and shows when it is lit). A short even list shows the item
   opposite the current one at both ends, so the lit one stays centred.
   - **Items and versions**: entries of a catalogue with the same `series` (a field on the entry) are one item with
-    versions; the lit item shows "1/2". Families: lights Troffer 600 x 600 / 1200 x 300 and Round / Oval bulkhead;
+    versions; the lit item shows "1/2". Families: lights Troffer 600 x 300 / 1200 x 300 and Round / Oval bulkhead;
     objects Pallet / Pallet stack, Crate 1.0 / 1.2 m, Wheelie bin 240 L / Bulk bin 1100 L; doors Sliding glass door
     (automatic / card); windows Fixed / Frosted fixed window; security Fixed / Pan camera and Card reader / Keypad
     (from each device tool's existing `kind`). No catalogue gives downlight sizes or strip lengths, so none are made up.
@@ -391,6 +391,43 @@ pad, and any grab is put back first.
   left stick up / down change it in 0.1 m steps, A drops, B puts it back. Min sizes: objects, climb pieces and signs
   one object grid step, walls and openings 0.5 m; a base never below the floor; an opening's head never above its
   wall. One undo step per drag; the wall rule applies.
+
+## Placing matches the ghost, sliding lamps, area lights, roofs on walls (Michael 2026-10-14)
+- **What A places is what the ghost shows.** The cause of lamps appearing above a lowered roof: every tool worked out
+  the ceiling height from the room (its ceiling, else the storey less the slab) and never saw roofs; the ghost was drawn
+  over everything, so it looked right. Now one function, `ceilingSurface` / `ceilingOver` (`lamps.ts`), gives the
+  ceiling over a point: the room's ceiling, or a roof's underside where that is lower (the roof plane less its 0.2 m deck,
+  `ROOF_BUILD.deck`, as the walk test builds the slab; `roofUnderside` in `roofGeometry.ts`). The aim, the lamp ghost and
+  A, ceiling security devices and hung signs all read it, and the 3D view draws a roof's underside so the aim meets it from
+  below.
+- **Sliding a placed lamp** (also a security device or sign): with Select, the aim within facts `light.grabPx` (48 px) of
+  one says "Lamp LP3: take it and slide it (A)"; A selects and takes it whole (a top or bottom handle nearer the aim still
+  wins). The left stick slides it (the way the camera faces, facts `light.slideSpeed` 1.5 m/s; the camera stays), the
+  D-pad nudges 0.1 m, RT / LT change its height, A drops it, B puts it back. A ceiling fitting stays on its ceiling;
+  onto the next ceiling (another room, a lowered roof) it keeps its drop under that one; off every ceiling it stops at
+  the edge. A wall fitting slides along its wall (the stick's up / down is its height). **Snap**: on a ceiling or roof
+  underside it snaps to the surface's centre line and quarter lines both ways within facts `light.snapMagnet` (0.15 m),
+  green guide lines showing while snapped; a wall fitting to its wall's centre and quarter points. LB held: no snap, a
+  quarter speed. The mouse dragging a lamp or device does the same (Ctrl: no snap). Pure maths: `src/editor/mount.ts`
+  (`tests/editor/mount.test.ts`); `slideLamp` in `lamps.ts`.
+- **Handles keep their size while held**: a held piece remakes its handles every frame from inside the frame; they are now
+  sized as they are made (they showed at 1 m until the drop).
+- **Troffers** are 600 x 300 (1800 lm: a typical product, half the 1200 x 300's) and 1200 x 300 (3600 lm, ON6 decision 4)
+  (Michael, 2026-10-14). The ids stay `troffer-600` and `troffer-1200`; a file's older troffer 600 x 600 lamps (and any
+  area fitting saved before) get their params again on load as one change with a change-log line ("Lamps brought up to
+  date").
+- **Area fittings light across their whole face**: the game has no area light, so the shared conversion (`lampArea` in
+  `lamps.ts`, `areaGrid` in `lightCatalogue.ts`) lays light points over the lit face, one per facts `light.areaCell`
+  (0.3 m) of its width and depth, at most `light.areaMax` (8) (a 1200 x 300 troffer: 4, a 600 x 300: 2; a strip spreads
+  them along its line). The record carries them in `params.area`; `campusLights` (`kestrelLights.ts`) builds one light per
+  point with the same reach and cone and the intensity shared out (the sum is the fitting's), each point's cell of the
+  face as its fixture box, so the light view, the bake, the walk test and the meter all see the same lights. The 3D
+  fitting glows over its whole face. One-point fittings and aimed ones are unchanged; no other map's lights change.
+- **Roofs on walls**: the aim catches wall tops; the Roof tool's corners snap to the outer face of a wall under the aim
+  (facts `roof.cornerMagnet` 0.4 m, each axis; LB / Ctrl off) and a roof started on a wall top says "on the wall top 4.2 m
+  up". The default eaves are the wall top most of the wall length **along the outline** reaches (walls on an edge,
+  counted by their overlap), then the old rule (walls inside it), then a wall top under a corner, then the level top; the
+  roof is drawn on the plane of its eaves, so the aim on a wall top stays there as it grows.
 
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
@@ -807,7 +844,7 @@ the walk test builds and later parts read: nothing is entered twice.
   summary and the change log treat them as one. The campus file never holds lamps. A save with no lamp change leaves the
   play file alone; a no-op save writes neither (both byte-identical). `KESTREL_EDITOR_SANDBOX` covers it.
 - **Fitting catalogue** (`src/editor/lightCatalogue.ts`, one data list; Michael adds fittings there only): five groups.
-  Interior (downlight 90 mm, troffers 600 x 600 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
+  Interior (downlight 90 mm, troffers 600 x 300 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
   uplight, stair step light, desk lamp); Plant and goods (high bay, LED batten 1500 mm, round and oval bulkheads, cage
   light); Outside (floodlight, wall pack, pole lantern on a 6 m pole, bollard, PIR security flood); Emergency (twin spot,
   maintained exit sign, maintained emergency bulkhead); Glow (CCTV monitor, video wall, rack status LEDs, vending machine
@@ -1151,6 +1188,11 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 - **GPU**: how the moonlit 3D looks is Michael's check on the PC.
 
 ## What it does not do yet (ED2 parts B-H)
+- Michael 2026-10-14 (slide): a slid security device or sign keeps its height when it passes onto another ceiling (lamps
+  follow the new ceiling); a wall fitting stops at its wall's ends (it does not turn the corner onto the next wall);
+  linear lamps move whole without the snap. Lamps placed before this under a lowered roof keep their height (move them
+  once). The ghost-equals-A audit covered lamps, devices, signs and roofs (the ceiling and wall-top heights); climb
+  pieces, objects and openings already shared one function for both and were not changed.
 - Michael 2026-10-14: the wall rule checks placing and holding, not D-pad or arrow-key nudges of a selection, the
   selection card's steps or the stamp; pieces already inside a wall when taken are left as they are. Mouse ghosts show
   in 3D only (not under the cursor on the plan). The Orbit camera's dot stays on the floor plane (no surface aiming).
@@ -1280,7 +1322,8 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 | `src/world/maps/kestrelExterior.ts` | ON5: the one copy of the floor finishes and their game surfaces, and of how each climb piece builds in the walk test (the engine's builders or plain collision), shared by the editor and the walk test (pure) |
 | `src/editor/ease.ts`, `src/editor/group.ts` | ON3: the element a check line names, the save summary's net changes and words, the Find list and filter, the bookmark store; multi-select box pick, moving, copying and pasting a set as one edit (pure, `tests/editor/ease.test.ts`) |
 | `src/editor/overlays.ts`, `src/editor/findView.ts` | ON3: floating room names (pooled labels), red problem markers, the scale figure; the Find box and its on-screen keyboard |
-| `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
+| `src/editor/mount.ts` | Michael 2026-10-14: sliding a mounted piece: the ceiling's centre and quarter line snap, the stick's move, clamps (pure, `tests/editor/mount.test.ts`) |
+| `src/editor/roofGeometry.ts` | ON10 (and the roof underside, the wall-top eaves and the corner snap, Michael 2026-10-14): the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |

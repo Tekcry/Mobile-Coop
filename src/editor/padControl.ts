@@ -7,6 +7,8 @@
  * words live in actions.ts; the pure parts in pad.ts, orbit.ts, stickSteps.ts, tileMenu.ts, card.ts, grab.ts and hub.ts.
  */
 import { hyp2 } from '../core/mathx';
+import facts from '../../scripts/kestrel/facts.json';
+import { deadZone, stickMove } from './mount';
 import { HELD, isVert, liftSnap, liftStep } from './held';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
@@ -41,7 +43,7 @@ import type { Coll, Elem, Ext, Key, Ladder, Obj, Opening, Pt, Rect, Roof, Room, 
 import { keyOf, parseKey } from './types';
 import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
 import type { StairTypeId } from './vertical';
-import { footprintAt, ROOF_TYPES, roofType, roofWords } from './roofGeometry';
+import { footprintAt, roofCornerSnap, ROOF_TYPES, roofType, roofWords, wallTopAt } from './roofGeometry';
 import { boxOf, boxPick, COPY_COLLS, copyItems, groupWords, itemsCentre, levelAbove as levelIdAbove, pasteChanges } from './group';
 import type { ClipItem } from './group';
 import { badgeWords } from './objects';
@@ -975,6 +977,8 @@ export class PadControl {
     const held = this.ed.drag?.source === 'pad' && !this.ed.drag.isNew;
     // a top or bottom handle in hand: the left stick changes it, so it does not fly or pan
     const vert = held && isVert(this.ed.drag?.handle);
+    // Michael 2026-10-14: a lamp, device or sign in hand slides on its surface with the left stick (no fly, no pan)
+    const slide = held && this.slideHeld() !== null;
     if (held && st.pressed(PAD.Y)) {
       this.ed.toggleHeldMode();
       this.liftRaw = 0;
@@ -1018,11 +1022,11 @@ export class PadControl {
       const s = this.settings;
       c.flyTune = { dead: s.deadZone, smoothing: s.smoothing, pan: s.stickSpeed, orbit: s.orbitSpeed, invert: s.invertTilt };
       const look = !this.stickLatch && !turnEye && !aimStop && !(this.ed.mission.path && st.down(PAD.RB));
-      const move = !this.stickLatch && !this.cardEditing && !vert;
+      const move = !this.stickLatch && !this.cardEditing && !vert && !slide;
       c.flyIn = { moveX: move ? st.rawL.x : 0, moveY: move ? -st.rawL.y : 0, lookX: look ? st.rawR.x : 0, lookY: look ? -st.rawR.y : 0, rise: plan ? 0 : zoom, slow: fine };
     } else if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
     else if (turnEye || aimStop || (this.ed.mission.path && st.down(PAD.RB))) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
-    else if (!this.stickLatch) c.orbitIn = { panX: vert ? 0 : st.rawL.x, panY: vert ? 0 : -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
+    else if (!this.stickLatch) c.orbitIn = { panX: vert || slide ? 0 : st.rawL.x, panY: vert || slide ? 0 : -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
     if (this.ed.groupDrag?.source === 'pad') return this.groupFrame();
@@ -1065,7 +1069,7 @@ export class PadControl {
     else if (st.pressed(PAD.A)) this.primary();
     this.dpad(now);
     if (held) this.liftFrame(dt, fine);
-    this.followDrag();
+    this.followDrag(dt);
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
     if (this.device === 'pad' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) {
       const dot = c.mode === 'orbit' ? ([c.orbit.s.tx, c.orbit.s.tz] as Pt) : this.point();
@@ -1444,7 +1448,11 @@ export class PadControl {
     // edge-aware grab: the part the dot names (decision 13); outside the selection, A selects as before
     const s = ed.selectedElem();
     // Michael 2026-10-14: the aim on a top or bottom handle grabs it (RT / LT or the left stick change it, 0.1 m steps)
-    const vh = s ? this.vertAim() : null;
+    const vh0 = s ? this.vertAim() : null;
+    // Michael 2026-10-14: A near a lamp, device or sign takes it to slide (unless a handle is nearer the aim)
+    const mn = this.mountAim();
+    const vh = vh0 && (!mn || this.handleDist(vh0) <= mn.d) ? vh0 : null;
+    if (mn && !vh) return this.slideGrab(mn.key);
     const vhd = vh ? ed.handlesFor().find((q) => q.id === vh) : undefined;
     if (s && vh && vhd) {
       ed.beginDrag(s.coll, s.id, vh, [vhd.x, vhd.z], vhd.y, 0, 0, 'pad');
@@ -1466,6 +1474,38 @@ export class PadControl {
     // a selected ladder: A on it grabs it whole
     const k = parseKey(t.key)!;
     if (p) this.grab(k.coll, k.id, null, p, ed.viewFloor(), 'Move');
+  }
+
+  /** The lamp, device or sign A would take at the aim (the screen centre), with its distance on screen. */
+  mountAim(): { key: Key; d: number } | null {
+    if (this.ed.tool !== 'select' || this.ed.drag || this.measureFrom || this.ed.group.length || this.ed.prefs.layout === 'plan') return null;
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth ? this.ed.mountNear(cv.clientWidth / 2, cv.clientHeight / 2) : null;
+  }
+
+  /** A handle's distance from the screen centre (CSS px), Infinity when it is not drawn. */
+  private handleDist(id: string): number {
+    const cv = $<HTMLCanvasElement>('c');
+    const sp = this.ed.view.handleScreen(id);
+    return sp ? hyp2(sp[0] - cv.clientWidth / 2, sp[1] - cv.clientHeight / 2) : Infinity;
+  }
+
+  /** Michael 2026-10-14: selects a lamp, device or sign and takes it whole to slide on its surface. */
+  slideGrab(key: Key): void {
+    const ed = this.ed;
+    if (key !== ed.selected) ed.select(key);
+    const k = parseKey(key);
+    const s = ed.selectedElem();
+    if (!k || !s) return;
+    const c = ed.centreOf(k.coll, s.e);
+    if (!c) return;
+    ed.beginDrag(k.coll, k.id, null, c, ed.viewFloor(), 0, 0, 'pad');
+    if (ed.drag) ed.drag.moved = true;
+    this.offset = [0, 0];
+    this.turns = 0;
+    this.liftRaw = 0;
+    const wall = this.slideHeld() === 'wall';
+    ed.status(`${wall ? 'Slide along the wall with the left stick (up / down: height)' : 'Slide it with the left stick'}, D-pad 0.1 m, RT / LT height, LB no snap; A drops it, B puts it back`);
   }
 
   /** Selected > Move: grab it whole at the dot, as A in the middle. */
@@ -1504,8 +1544,8 @@ export class PadControl {
       }
       return;
     }
-    // a top or bottom handle: the left stick up / down too
-    const ly = isVert(this.ed.drag?.handle) && !this.stickLatch ? -st.ls.y : 0;
+    // a top or bottom handle: the left stick up / down too (and a lamp, device or sign held on a wall face)
+    const ly = (isVert(this.ed.drag?.handle) || this.slideHeld() === 'wall') && !this.stickLatch ? -st.ls.y : 0;
     if (!t && !ly) return;
     this.liftRaw = liftStep(this.liftRaw, st.rt + Math.max(0, ly), st.lt + Math.max(0, -ly), dt, fine);
     this.ed.setHeldLift(liftSnap(this.liftRaw, this.ed.grid));
@@ -1541,8 +1581,28 @@ export class PadControl {
     return out;
   }
 
+  /**
+   * Michael 2026-10-14: what a held lamp, security device or sign slides on with the left stick: 'ceiling' (a ceiling or
+   * roof underside, or anything not on a wall: the stick moves it over the plan) or 'wall' (along its wall; the stick's
+   * up / down is its height). Null when nothing like that is held whole.
+   */
+  slideHeld(): 'ceiling' | 'wall' | null {
+    const d = this.ed.drag;
+    if (!d || d.source !== 'pad' || d.isNew || d.handle || d.mode === 'resize') return null;
+    if (d.coll !== 'lamps' && d.coll !== 'devices' && d.coll !== 'signs') return null;
+    const e = this.ed.model.get(d.coll, d.id) as unknown as Record<string, unknown> | undefined;
+    if (!e) return null;
+    if (d.coll === 'lamps') {
+      const l = e as unknown as Lamp;
+      if (l.b) return 'ceiling';
+      return fittingOf(l.fixture)?.mount === 'wall' && !!l.on && !!this.ed.model.get('walls', l.on) ? 'wall' : 'ceiling';
+    }
+    if (d.coll === 'devices') return e.mount === 'wall' ? 'wall' : 'ceiling';
+    return e.wall ? 'wall' : 'ceiling';
+  }
+
   /** While grabbing or drawing with the pad: the item follows the dot, plus D-pad nudges and RB turns. */
-  private followDrag(): void {
+  private followDrag(dt = 0): void {
     const d = this.ed.drag;
     // ON2: aiming a stair, the proposal follows the dot
     if (!d && this.ed.stairDraw?.phase === 'aim') {
@@ -1552,6 +1612,23 @@ export class PadControl {
     if (!d || d.source !== 'pad') return this.updatePointers();
     // a top or bottom handle changes with the triggers and the stick only (liftFrame)
     if (isVert(d.handle)) return this.updatePointers();
+    const sk = this.slideHeld();
+    if (sk) {
+      // Michael 2026-10-14: the left stick slides it (the way the camera faces; on a wall its up / down is the height),
+      // the D-pad nudges 0.1 m; it snaps to its ceiling's centre and quarter lines, LB held: no snap, a quarter speed
+      const st = this.st;
+      const fine = st.down(PAD.LB);
+      const dz = this.settings.deadZone;
+      const sx = this.stickLatch ? 0 : deadZone(st.rawL.x, dz);
+      const sy = this.stickLatch || sk === 'wall' ? 0 : deadZone(-st.rawL.y, dz);
+      if (sx || sy) {
+        const yaw = this.ed.prefs.layout === 'plan' ? 0 : this.ed.controls.yaw;
+        const m = stickMove(sx, sy, yaw, facts.light.slideSpeed.value * (fine ? ORBIT.PRECISION : 1), dt);
+        this.offset = [this.offset[0] + m[0], this.offset[1] + m[1]];
+      }
+      this.ed.moveDrag(d.start[0] + this.offset[0], d.start[1] + this.offset[1], fine);
+      return this.updatePointers();
+    }
     const p = this.point(d.planeY);
     if (!p) return;
     // LB held or a D-pad nudge: no smart snapping (a nudge lands exactly where it was put)
@@ -1925,6 +2002,13 @@ export class PadControl {
       key = `d|${words}`;
       plan.push(...live.shapes);
     }
+    else if (!d && this.mountAim() && !(s && vAim && this.handleDist(vAim) <= (this.mountAim()?.d ?? Infinity))) {
+      const mk = this.mountAim()!;
+      const pk = parseKey(mk.key);
+      const what = pk?.coll === 'lamps' ? 'Lamp' : pk?.coll === 'devices' ? 'Device' : 'Sign';
+      words = `${what} ${pk?.id ?? ''}: take it and slide it (A)`;
+      key = `m|${mk.key}`;
+    }
     else if (s && vAim) {
       words = vAim === 'top' ? (s.coll === 'roofs' ? 'Ridge: higher or lower (A)' : 'Top: taller or shorter (A)') : s.coll === 'lamps' || s.coll === 'devices' ? 'Height: up or down (A)' : 'Bottom: base up or down (A)';
       key = `v|${ed.selected}|${vAim}`;
@@ -2093,9 +2177,14 @@ export class PadControl {
       if (p) {
         const fp = ed.tool === 'roof' ? footprintAt(ed.model.data, ed.view.level, p[0], p[1]) : null;
         words = ed.tool === 'roof' ? `Start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `, or on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `Start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `Start a ${ed.tool} here`;
-        key = `s|${p[0]},${p[1]}`;
-        marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: p[0], y: f + 0.03, z: p[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
-        plan.push({ kind: 'ring', p });
+        // Michael 2026-10-14: a roof corner snaps to the outer face of the wall under the aim and sits on its top
+        const q = ed.tool === 'roof' ? roofCornerSnap(ed.model.data, ed.view.level, p[0], p[1], this.st.down(PAD.LB)).p : p;
+        const top = ed.tool === 'roof' ? wallTopAt(ed.model.data, ed.view.level, q[0], q[1]) : null;
+        const y0 = top !== null ? top + ed.view.offsetOf(ed.view.level) : f;
+        if (top !== null) words += `, on the wall top ${fmt(top - ed.floor())} m up`;
+        key = `s|${q[0]},${q[1]}|${top}`;
+        marks.push({ x: q[0], y: y0 + 0.75, z: q[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: q[0], y: y0 + 0.03, z: q[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
+        plan.push({ kind: 'ring', p: q });
       }
     } else if ((ed.tool === 'door' || ed.tool === 'window') && p) {
       const w = nearestWall(ed.model.list('walls') as Wall[], ed.view.level, p[0], p[1], GHOST.REACH);

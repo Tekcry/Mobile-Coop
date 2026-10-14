@@ -216,7 +216,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | lamps[].room | Room id the lamp is in |
 | lamps[].at | `[x, y, z]`, y above the room's floor |
 | lamps[].circuit | Circuit id it belongs to |
-| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25); the editor also writes `kind`, `fixture` (the body box) and `on: false` for a light off in its normal state, from the fitting catalogue's one conversion (ON6) |
+| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25); the editor also writes `kind`, `fixture` (the body box) and `on: false` for a light off in its normal state, from the fitting catalogue's one conversion (ON6), and `area` ({ pts: [dx, dz][], sx, sz }: an area fitting's light points across its face with each point's cell; the game builds one light per point, the intensity shared out; Michael 2026-10-14) |
 | lamps[].aim | Optional `[yaw, pitch]` degrees for aimed fittings (floods, twin spots): yaw 0 north, 90 east; pitch below the horizontal (ON6) |
 | lamps[].b | Optional `[x, y, z]`: the other end of a linear fitting (strip, batten, troffer run), `at` being the first (ON6) |
 | lamps[].emergency | Optional: `maintained` (always on, also in mains-off) or `non-maintained` (on only in mains-off) (ON6) |

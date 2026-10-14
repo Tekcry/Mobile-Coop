@@ -13,7 +13,7 @@ import facts from '../../scripts/kestrel/facts.json';
 import type { Change } from './model';
 import type { Campus, Elem, Opening, Pt, Room, Wall } from './types';
 import { fmt, roomAt, roomsEitherSide, wallDir, wallLen, wallPoint } from './geometry';
-import { faceAt as lampFaceAt } from './lamps';
+import { ceilingOver, faceAt as lampFaceAt } from './lamps';
 import { familyOf } from './openingCatalogue';
 import type { DoorData } from './openingCatalogue';
 import { levelColour } from './securityCatalogue';
@@ -181,7 +181,8 @@ export function placeSign(d: Pick<Campus, 'rooms' | 'walls' | 'levels' | 'meta'>
   if (k.mount === 'wall') return { sign: null, why: `${k.name} goes on a wall: bring the dot to a wall face`, words: '' };
   const room = roomAt(d.rooms, level, x, z);
   if (!room) return { sign: null, why: 'A hung sign needs a room (its ceiling) over the dot', words: '' };
-  const ceil = ceilingAt(d, room, facts.room.slab.value);
+  // Michael 2026-10-14: the ceiling over the point as the lamps read it (a lowered roof's underside too)
+  const ceil = ceilingOver(d, level, snapTo(x, grid), snapTo(z, grid)) ?? ceilingAt(d, room, facts.room.slab.value);
   const y = r3(ceil - SIGN_F.hangGap.value - k.h / 2);
   if (y - k.h / 2 < SIGN_F.hangBottomMin.value - 1e-6) return { sign: null, why: `The ceiling here (${fmt(ceil)} m) is too low: a hung sign keeps ${fmt(SIGN_F.hangBottomMin.value)} m under it`, words: '' };
   const facing = (((Math.round((lookYaw + 180) / 90) * 90) % 360) + 360) % 360;

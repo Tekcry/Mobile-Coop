@@ -707,7 +707,9 @@ export class LightView {
     const c = this.cur;
     if (!c) return;
     const d = this.host.model.data;
-    const init = campusLights({ levels: d.levels, rooms: d.rooms, lamps: [l], circuits: d.circuits ?? [] })[0];
+    // (an area fitting is several points: the quick light is their sum at their middle)
+    const all = campusLights({ levels: d.levels, rooms: d.rooms, lamps: [l], circuits: d.circuits ?? [] });
+    const init = all.length > 1 ? { ...all[0]!, x: all.reduce((a, q) => a + q.x, 0) / all.length, z: all.reduce((a, q) => a + q.z, 0) / all.length, intensity: all.reduce((a, q) => a + (q.intensity ?? 0), 0) } : all[0];
     c.ids.forEach((id, i) => {
       if (id === l.id) c.reg.setOn(i, false);
     });
