@@ -39,6 +39,7 @@ import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalog
 import { HANDLE_PX, handleWorld } from './held';
 import { hyp3 } from '../core/mathx';
 import type { SecurityTool } from './securityTool';
+import type { AimRay, SurfaceHit } from './aim';
 import { ruleColour, voidOf } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { ceilingType, crawlBoxes, hatchRect } from '../world/maps/kestrelCeilings';
@@ -1252,16 +1253,33 @@ export class EditorScene {
   pick(px: number, py: number): { handle?: string; hit?: Hit } {
     const ph = this.scene.pick(px, py, (m) => m.isEnabled() && !!(m.metadata as { handle?: string } | null)?.handle);
     if (ph?.hit && ph.pickedMesh) return { handle: (ph.pickedMesh.metadata as { handle: string }).handle };
-    const pr = this.scene.pick(px, py, (m: AbstractMesh) => {
-      const meta = m.metadata as Meta | null;
-      if (!(m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level))) return false;
-      // ON13: a ceiling is picked from below only (it is drawn facing down), never its void box
-      if (meta.key.startsWith('ceilings:')) return !(m.metadata as { voidOf?: string }).voidOf && this.camera.position.y < m.getBoundingInfo().boundingBox.maximumWorld.y;
-      return true;
-    });
+    const pr = this.scene.pick(px, py, this.pickable);
     if (!pr?.hit || !pr.pickedMesh || !pr.pickedPoint) return {};
     const meta = pr.pickedMesh.metadata as Meta;
     return { hit: { key: meta.key, x: pr.pickedPoint.x, y: pr.pickedPoint.y, z: pr.pickedPoint.z } };
+  }
+
+  /** What the pointer can pick: an element on the editing level (stairs: either end's level). */
+  private readonly pickable = (m: AbstractMesh): boolean => {
+    const meta = m.metadata as Meta | null;
+    if (!(m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level))) return false;
+    // ON13: a ceiling is picked from below only (it is drawn facing down), never its void box; from above the ray goes
+    // through to the floor (the aim maps that to the ceiling over it)
+    if (meta.key.startsWith('ceilings:')) return !(m.metadata as { voidOf?: string }).voidOf && this.camera.position.y < m.getBoundingInfo().boundingBox.maximumWorld.y;
+    return true;
+  };
+
+  /**
+   * Surface aiming (Michael 2026-10-14): the ray through a screen point and the first surface of the editing level it
+   * meets, with the surface normal (aim.ts turns them into the tools' plan point).
+   */
+  aimRay(px: number, py: number): { ray: AimRay; hit: SurfaceHit | null } {
+    const r = this.scene.createPickingRay(px, py, Matrix.Identity(), this.camera);
+    const ray: AimRay = { o: [r.origin.x, r.origin.y, r.origin.z], d: [r.direction.x, r.direction.y, r.direction.z] };
+    const pr = this.scene.pick(px, py, this.pickable);
+    if (!pr?.hit || !pr.pickedPoint) return { ray, hit: null };
+    const n = pr.getNormal(true, true);
+    return { ray, hit: { x: pr.pickedPoint.x, y: pr.pickedPoint.y, z: pr.pickedPoint.z, n: n ? [n.x, n.y, n.z] : [0, 1, 0] } };
   }
 
   /** Where the pointer ray meets the horizontal plane at height `y`, or null when it points away from it. */

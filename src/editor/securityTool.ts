@@ -9,7 +9,7 @@ import { CAMERA } from '../config/security';
 import { hyp2 } from '../core/mathx';
 import { fmt } from './geometry';
 import { aimDevice, beamEnd, beamHeights, camClass, cameraCells, camView, coverage, deviceCentre, deviceFoot, deviceId, feedWords, isBeam, isCamera, isPir, isReader, makeBeam, moveDevice, pirCovers, placeDevice, sweepSpan, turnDevice } from './security';
-import type { Beam, Camera, Device, RayPts, SecData, SightRay } from './security';
+import type { Beam, Camera, Device, Placed, RayPts, SecData, SightRay } from './security';
 import { DEVICE_COLOURS, levelColour, SEC_TOOLS, secTool, SF } from './securityCatalogue';
 import type { SecTool } from './securityCatalogue';
 import type { CellGrid } from './lightPreview';
@@ -107,13 +107,20 @@ export class SecurityTool {
       ed.beginDrag('devices', id, null, a.p, ed.viewFloor(), sx, sy, source, true);
       return ed.status(`Beam from ${a.wall ? `the face of ${a.wall}` : `a post at x ${fmt(a.p[0])}, z ${fmt(a.p[1])}`}: A (click) at the far end`);
     }
-    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from());
+    const p = this.walled(placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from()));
     if (!p.dev) return ed.status(p.why ?? 'Cannot go here');
     const dev = { ...p.dev, id: deviceId(this.d, p.dev.kind) } as Device;
     const text = `Added ${secTool(this.kind).name.toLowerCase()} ${dev.id}: ${p.words}`;
     ed.commitText(text, [{ coll: 'devices', id: dev.id, before: null, after: dev as unknown as Elem }]);
     ed.select(keyOf('devices', dev.id));
     ed.status(`${text}; A (click) places another, B (Esc) puts the tool down`);
+  }
+
+  /** Michael 2026-10-14: nothing inside walls (pushed out to the face when a little way in, else refused). */
+  private walled(p: Placed<Device>): Placed<Device> {
+    if (!p.dev) return p;
+    const w = this.ed.wallGuard('devices', p.dev as unknown as Elem);
+    return w.why ? { ...p, dev: null, why: w.why } : { ...p, dev: w.e as unknown as Device };
   }
 
   /** The beam being drawn with its far end at the pointer (the editor's drag). */
@@ -145,7 +152,7 @@ export class SecurityTool {
       plan.push({ kind: 'ring', p: e.p });
       return { words: `A: a beam from ${e.wall ? `the face of ${e.wall}` : 'a post here'}, ${fmt(h)} m (high)`, bad: false, key: `bm|${e.p.join()}`, marks, plan };
     }
-    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from());
+    const p = this.walled(placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from()));
     if (!p.dev) {
       marks.push({ x, y: f + 1.2, z, sx: 0.15, sy: 0.15, sz: 0.15, dx: 1, dz: 0, look: 'bad' });
       return { words: p.why ?? 'Cannot go here', bad: true, key: `sx|${this.kind}|${Math.round(x * 10)},${Math.round(z * 10)}`, marks, plan };

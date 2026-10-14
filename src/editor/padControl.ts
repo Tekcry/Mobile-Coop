@@ -219,6 +219,8 @@ export class PadControl {
   /** Text size on the pad screen, the hub and the tile menu; stick speed and invert tilt are read each frame. */
   applySettings(): void {
     document.body.style.setProperty('--ts', String(this.settings.textSize === 'large' ? LARGE_TEXT : 1));
+    // Michael 2026-10-14: Settings > Camera (the frame enters or leaves the orbit camera on the next pad input)
+    this.ed.controls.camSetting = this.settings.camera;
   }
 
   /** The sticks do nothing until they return to the centre (after a menu or the hub opens or closes). */
@@ -787,6 +789,7 @@ export class PadControl {
     c.padMove = { x: 0, y: 0 };
     c.padLook = { x: 0, y: 0 };
     c.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false };
+    c.flyIn = null;
     if (gp) {
       this.st.update({ buttons: gp.buttons.map((b) => b.value), axes: gp.axes }, now);
       if (this.st.active) {
@@ -798,8 +801,14 @@ export class PadControl {
         this.setDevice('pad');
       }
     }
-    // the pad drives the builder camera; a walk (Tab or quick) keeps walking
-    if (gp && this.device === 'pad' && c.mode === 'fly') this.ed.enterOrbit();
+    // the pad drives the builder camera (Settings > Camera: Orbit; Free fly too while the layout is Plan only, where the
+    // 3D view is hidden), else it flies (Michael 2026-10-14); a walk (Tab or quick) keeps walking
+    if (gp && this.device === 'pad') {
+      const orbit = this.settings.camera === 'orbit' || this.ed.prefs.layout === 'plan';
+      if (orbit && c.mode === 'fly') this.ed.enterOrbit();
+      else if (!orbit && c.mode === 'orbit') c.leaveOrbit();
+    }
+    document.body.dataset.cam = c.mode === 'fly' ? 'fly' : 'orbit';
     this.drawStrip();
     this.drawBar();
     // a new selection starts the card at its first row, not editing
@@ -875,7 +884,15 @@ export class PadControl {
       this.stopAimed = true;
       this.ed.mission.turnFace(Math.round(deg / 5) * 5);
     }
-    if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
+    if (c.mode === 'fly' && this.device === 'pad') {
+      // Michael 2026-10-14, Free fly: the left stick moves along the view, the right stick looks, RT / LT rise and drop
+      // (holding something they raise and lower it instead), LB slow; the camera table's dead zone, curve and smoothing
+      const s = this.settings;
+      c.flyTune = { dead: s.deadZone, smoothing: s.smoothing, pan: s.stickSpeed, orbit: s.orbitSpeed, invert: s.invertTilt };
+      const look = !this.stickLatch && !turnEye && !aimStop && !(this.ed.mission.path && st.down(PAD.RB));
+      const move = !this.stickLatch && !this.cardEditing;
+      c.flyIn = { moveX: move ? st.rawL.x : 0, moveY: move ? -st.rawL.y : 0, lookX: look ? st.rawR.x : 0, lookY: look ? -st.rawR.y : 0, rise: plan ? 0 : zoom, slow: fine };
+    } else if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
     else if (turnEye || aimStop || (this.ed.mission.path && st.down(PAD.RB))) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
     else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
@@ -922,7 +939,10 @@ export class PadControl {
     if (held) this.liftFrame(dt, fine);
     this.followDrag();
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
-    if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
+    if (this.device === 'pad' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) {
+      const dot = c.mode === 'orbit' ? ([c.orbit.s.tx, c.orbit.s.tz] as Pt) : this.point();
+      if (dot) this.ed.planFollow(dot[0], dot[1], kz);
+    }
   }
 
   /** ON8: RB held and the right stick aimed the last stop (the RB release is then no 45 degree turn). */
@@ -1070,13 +1090,25 @@ export class PadControl {
   /** The dot pulls onto snap points and lines (decision 15); a new snap pulses the dot and rumbles once. */
   private magnetFrame(dt: number, off: boolean): void {
     const c = this.ed.controls;
-    if (this.device !== 'pad' || c.mode !== 'orbit' || this.focus !== '3d') {
+    if (this.device !== 'pad' || (c.mode !== 'orbit' && c.mode !== 'fly') || this.focus !== '3d') {
       this.magnet = null;
       return;
     }
-    const o = c.orbit.s;
     const d = this.ed.drag;
-    const hit = magnetSearch(o.tx, o.tz, this.candidates(), this.magnet, { off, skip: d ? keyOf(d.coll, d.id) : null, grid: this.ed.grid });
+    // Free fly (Michael 2026-10-14): the aim snaps (the camera does not move); only on the floor, so a wall face or a
+    // ceiling aimed at stays the surface it is
+    let fly: Pt | null = null;
+    if (c.mode === 'fly') {
+      const a = d?.source === 'pad' ? null : this.ed.aimCentre();
+      fly = d?.source === 'pad' ? this.planeDot(d.planeY) : a?.surf === 'floor' ? a.p : null;
+      if (!fly) {
+        this.magnet = null;
+        return;
+      }
+    }
+    const o = c.orbit.s;
+    const [mx, mz] = fly ?? [o.tx, o.tz];
+    const hit = magnetSearch(mx, mz, this.candidates(), this.magnet, { off, skip: d ? keyOf(d.coll, d.id) : null, grid: this.ed.grid });
     if (hit && hit.key !== this.magnet?.key) {
       this.rumble('snap');
       const r = $('reticle');
@@ -1085,7 +1117,7 @@ export class PadControl {
       r.classList.add('pulse');
     }
     this.magnet = hit;
-    if (hit && hyp2(this.st.ls.x, this.st.ls.y) < MAGNET.EASE_STICK) {
+    if (hit && !fly && hyp2(this.st.ls.x, this.st.ls.y) < MAGNET.EASE_STICK) {
       const f = easeFactor(dt);
       o.tx += (hit.x - o.tx) * f;
       o.tz += (hit.z - o.tz) * f;
@@ -1095,6 +1127,11 @@ export class PadControl {
   /** View tap (decision 7): top-down and back. */
   private topDown(): void {
     const c = this.ed.controls;
+    if (c.mode === 'fly') {
+      this.ed.status(c.flyTopDown() ? 'Top-down (View again goes back)' : 'Back from top-down');
+      this.stripAt = 0;
+      return;
+    }
     if (c.mode !== 'orbit') return;
     c.orbit.toggleTopDown();
     this.ed.status(c.orbit.topDown ? 'Top-down (View again goes back)' : 'Back from top-down');
@@ -1121,14 +1158,21 @@ export class PadControl {
     const g = this.ed.grid;
     const c = this.ed.controls;
     let p: Pt | null;
+    if (this.device === 'pad' && this.magnet && !fine) return [this.magnet.x, this.magnet.z];
     if (c.mode === 'orbit') {
-      if (this.magnet && !fine) return [this.magnet.x, this.magnet.z];
       p = [c.orbit.s.tx, c.orbit.s.tz];
-    } else {
-      const cv = $<HTMLCanvasElement>('c');
-      p = this.ed.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, planeY ?? this.ed.viewFloor());
-    }
+    } else if (planeY === undefined) {
+      // Michael 2026-10-14, surface aiming: the pad's screen centre (Free fly) or the mouse cursor meets the real
+      // surfaces of the editing level (aim.ts: on the grid, a wall face hit just out of the face)
+      return (this.device === 'pad' ? this.ed.aimCentre() : this.ed.mouseAim())?.p ?? null;
+    } else p = this.planeDot(planeY);
     return p ? [snap(p[0], g), snap(p[1], g)] : null;
+  }
+
+  /** The screen centre on the horizontal plane at y (a held thing follows it, never the surfaces: it would climb itself). */
+  private planeDot(y: number): Pt | null {
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth > 0 ? this.ed.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, y) : null;
   }
 
   /** The dot unsnapped (the snap point while snapped), for the grab's edge bands. */
@@ -1142,9 +1186,8 @@ export class PadControl {
   private target(): { key?: Key; x: number; y: number; z: number } | null {
     const ed = this.ed;
     if (ed.prefs.layout === 'plan') {
-      const o = ed.controls.orbit.s;
-      const sp = ed.planScreen(o.tx, o.tz);
       const p = this.point();
+      const sp = p ? ed.planScreen(p[0], p[1]) : null;
       if (!sp || !p) return null;
       const el = document.elementFromPoint(sp[0], sp[1]);
       const key = (el?.closest('[data-id]')?.getAttribute('data-id') ?? undefined) as Key | undefined;
@@ -1178,7 +1221,7 @@ export class PadControl {
     const c = this.ed.controls;
     const g = this.ed.grid;
     if (c.mode === 'orbit') return [snap(c.orbit.s.tx, g), snap(c.orbit.s.tz, g)];
-    return this.point();
+    return this.point(this.ed.groupDrag?.planeY ?? this.ed.viewFloor());
   }
 
   /** ON3: one frame while a set is moved with the pad. */
@@ -1289,6 +1332,8 @@ export class PadControl {
   }
 
   private grab(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, words: string): void {
+    // Free fly: the grab starts where the follow will read (the plane), so nothing jumps when the aim was on a top
+    if (this.ed.controls.mode === 'fly') start = this.point(planeY) ?? start;
     this.ed.beginDrag(coll, id, handle, start, planeY, 0, 0, 'pad');
     if (this.ed.drag) this.ed.drag.moved = true;
     this.offset = [0, 0];
@@ -1464,7 +1509,9 @@ export class PadControl {
     const walk = this.ed.controls.walking;
     // the tile menu covers the bottom half: the dot, tool bar and card wait above it; the card being edited hides the dot's words
     const menu = this.menuOpen;
-    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
+    const r = $('reticle');
+    if (pad) r.style.left = r.style.top = '';
+    r.classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
     $('reticleText').classList.toggle('hidden', this.cardEditing);
     $('toolBar').classList.toggle('hidden', !pad || walk || menu);
     $('selCard').classList.toggle('hidden', !pad || walk || menu || !this.ed.selectedElem());
@@ -1609,7 +1656,9 @@ export class PadControl {
   private labelAt = 0;
   /** The dot's words, the grab preview (decision 14) and the tool ghosts (decisions 17, 18), a few times a second. */
   private updatePointers(): void {
-    if (this.device !== 'pad' || this.focus === 'drawer' || this.ed.controls.walking || this.hub.isOpen) return this.setMarks([], [], '');
+    const mouse = this.device !== 'pad';
+    if (mouse) this.mouseReticle(this.mouseGhosts());
+    if (mouse ? !this.mouseGhosts() : this.focus === 'drawer' || this.ed.controls.walking || this.hub.isOpen) return this.setMarks([], [], '');
     const now = performance.now();
     if (now - this.labelAt < 80) return;
     this.labelAt = now;
@@ -1895,6 +1944,26 @@ export class PadControl {
       ed.updateHint();
     }
     this.setMarks(marks, plan, `${key}|${f}|${bad}`);
+  }
+
+  /**
+   * Michael 2026-10-14: with a build or add tool in hand, the ghost follows the mouse cursor (not only after a click),
+   * with the dot's words beside it; a click places as A does.
+   */
+  private mouseGhosts(): boolean {
+    const ed = this.ed;
+    return ed.tool !== 'select' && !ed.drag && !ed.groupDrag && !!ed.mouseAt && !ed.controls.walking && !ed.controls.blend && !this.hub.isOpen && !this.menuOpen && ed.prefs.layout !== 'plan';
+  }
+
+  /** The dot's marker and words at the mouse cursor (shown) or hidden. */
+  private mouseReticle(on: boolean): void {
+    const r = $('reticle');
+    const m = this.ed.mouseAt;
+    if (on && m) {
+      r.style.left = `${m[0]}px`;
+      r.style.top = `${m[1]}px`;
+    }
+    if (r.classList.contains('hidden') === on) r.classList.toggle('hidden', !on);
   }
 
   /** Shows the marks in 3D and the dashed shapes on the plan when they changed. */

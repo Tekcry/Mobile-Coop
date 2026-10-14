@@ -55,8 +55,9 @@ views are generated from it, so this table and the editor cannot drift apart for
 
 | Input | Does |
 | --- | --- |
-| Right mouse drag | look around |
-| W A S D | move; Q / E down / up (fly); Shift fast; mouse wheel zooms in and out |
+| Right mouse drag | look around (hold the right button and move) |
+| W A S D | move along the view; Q / E down / up (fly); Shift fast (3.5x); mouse wheel: the fly speed (2 to 60 m/s, 10 to start; Settings > Camera Orbit: moves in and out as before) |
+| Mouse over the 3D view, a build or add tool in hand | the tool's ghost follows the cursor, with the dot's words beside it; it aims at real surfaces (below, "Free fly, aiming and walls"); a click places exactly what the ghost shows |
 | Tab | **walk test (game)**: the game's own player at the dot, unsaved edits included (below) |
 | Shift+Tab | **quick walk** at the dot (same as L3 tap; 1.75 m eye, walls block, C crouches to 1.15 m, Shift held runs); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
@@ -107,9 +108,12 @@ plan and names it in the corner of the 3D view.
 Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the hub's Help tab switch
 to the pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
 
-The pad drives a **builder camera** that circles the **dot**, a point on the editing floor. The first pad input starts
-it from the current view (aimed at the screen centre, or 25 m ahead when that misses); mouse or key input hands back to
-the free camera from the same spot. Nothing jumps either way.
+**Hub > Settings > Camera** (Michael 2026-10-14): **Free fly** (the default, also for settings saved before it existed)
+or **Orbit**. In Free fly the pad flies the same free camera as the mouse (below, "Free fly, aiming and walls"). In
+Orbit the pad drives a **builder camera** that circles the **dot**, a point on the editing floor; the rest of this
+section describes Orbit. The first pad input starts it from the current view (aimed at the screen centre, or 25 m ahead
+when that misses); mouse or key input hands back to the free camera from the same spot. Nothing jumps either way. With
+the layout on Plan only the pad uses the orbit dot in both modes (the 3D view is hidden).
 
 ### Building (the normal state)
 | Button | Does |
@@ -308,6 +312,31 @@ pad, and any grab is put back first.
 - **Questions** such as Revert are answered in the editor: A (or click) yes, B no.
 - **Rumble**: once on a new snap, on a drop, and a heavier one on an error. Off in the hub's Settings.
 - Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
+## Free fly, aiming and walls (Michael 2026-10-14)
+- **Free fly (pad)**: left stick flies along the view (looking down, forward goes down toward what you look at), right
+  stick looks (Settings > Invert tilt), RT up / LT down when nothing is held (holding something they raise and lower it
+  as before), LB slow (30 %). Dead zone, response curve, smoothing and rates are the camera table's (`ORBIT` in
+  `orbit.ts`: turn 1.8 rad/s, tilt 1.1 rad/s; Pan speed and Orbit speed scale them); speed is the fly speed (the wheel
+  sets it). A small crosshair marks the screen centre. View tap: straight down, north up, and back; View held: layout.
+- **The aim** (the dot in Free fly): the screen-centre ray on the pad, the cursor ray with the mouse. It meets the real
+  surfaces of the editing level (`src/editor/aim.ts`): a ceiling underside gives the point under it, a wall face a
+  point 0.05 m out of that face (snapped along the face only, so it never lands behind it), a floor or an object top
+  the point there. Looking up at no ceiling the ray meets the ceiling plane of the room it is in (the storey less the
+  slab outside rooms). Ceilings are picked from below only, so from above a ray goes through to the floor, and a
+  ceiling fitting goes to the ceiling over that point. In Free fly the magnet snaps the aim (the camera does not move),
+  only when it is on the floor. The tools still place by that plan point: ceiling fittings at the ceiling, wall
+  fittings, switches, cameras, readers, signs and wall climb pieces on the face hit, facing out of it.
+- **Go to** (RB, F, Find, problem lines, the small plan) eases the fly camera so the aim lands on the place, keeping the
+  yaw, looking down at least 20 degrees, from the distance the aim was. Bookmarks restore the pose. L3 quick walk and
+  the walk test start at the aim; the quick walk's B comes back to the fly pose; back from the walk test the camera
+  eases round the player and flies from there.
+- **Nothing inside walls** (`src/editor/wallClear.ts`): climb pieces, objects, lamps, security devices (not beams) and
+  signs may not overlap a wall's solid part (openings cut out, heights counted). Touching a face (0.01 m, facts
+  `rules.wallTouchTol`) is on it. A piece in by 0.3 m or less (facts `rules.wallPushMax`) is pushed out to the nearest
+  face, ghost and placement alike; deeper, the ghost turns red with "Inside a wall" and A (click) does nothing. Moving,
+  resizing or raising a held piece follows the same rule: pushed out, or red words and the drop puts it back. Points
+  (lamps, devices, signs) are checked at their centre, lines and boxes by their section (at least a pipe's radius).
+
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
   choice, the divider and the panel state are remembered (browser storage; a view preference, not a save).
@@ -1067,6 +1096,9 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 - **GPU**: how the moonlit 3D looks is Michael's check on the PC.
 
 ## What it does not do yet (ED2 parts B-H)
+- Michael 2026-10-14: the wall rule checks placing and holding, not D-pad or arrow-key nudges of a selection, the
+  selection card's steps or the stamp; pieces already inside a wall when taken are left as they are. Mouse ghosts show
+  in 3D only (not under the cursor on the plan). The Orbit camera's dot stays on the floor plane (no surface aiming).
 - Fix-up 2026-10-14: a ceiling is never held, so its height stays on the card (it moves with its room); signs and point
   devices have no Resize (a centre marker only); a strip light's or beam's end moves without the placing checks (they
   run again on the next Checks). Resize words show size and height in the tag and the status line, not on the card
@@ -1166,6 +1198,7 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 ## Files
 | File | Role |
 | --- | --- |
+| `src/editor/fly.ts`, `src/editor/aim.ts`, `src/editor/wallClear.ts` | Michael 2026-10-14: the free-fly camera's move, look, wheel speed, pad step and go-to (`FLY` table); surface aiming (hit to plan point, the ceiling plane); nothing inside walls (wall solids, overlap and push-out) (pure, `tests/editor/fly.test.ts`, `wallClear.test.ts`) |
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |

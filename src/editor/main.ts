@@ -20,7 +20,7 @@ import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './vis
 import type { LevelPreset } from './visibility';
 import { campusText, EditorModel, localTime, logMarkdown } from './model';
 import type { Change, JournalEntry } from './model';
-import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
+import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, roomAt, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { StampTool } from './stampTool';
@@ -49,7 +49,7 @@ import { drawPiece, extId, movePiece, pieceLen, pieceName, pieceWords, placePiec
 import { FINISHES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { finishLegend, loudWords } from './finishes';
-import { circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
+import { ceilingOf, circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
 import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './lamps';
 import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
 import { LightView } from './lightView';
@@ -70,6 +70,12 @@ import type { SignRecord } from './signs';
 import { ceilingWords, CRAWL_RULE } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { hyp2 } from '../core/mathx';
+import facts from '../../scripts/kestrel/facts.json';
+import { aimPoint } from './aim';
+import { FLY } from './fly';
+import type { Aim } from './aim';
+import { clearOfWalls, INSIDE_WALL, pointFoot, rectFoot, segFoot, wallSolids } from './wallClear';
+import type { Foot } from './wallClear';
 import { canLift, cornerPt, cornerResize, CORNERS, GROWS, growElem, heightWords, HELD, HANDLE_PX, liftElem, nearestCorner, nearestEnd, planHandleUnits } from './held';
 import type { Corner } from './held';
 import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
@@ -81,6 +87,8 @@ import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelCont
 type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security' | 'crawl' | 'arrange' | 'sign';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
+/** Michael 2026-10-14: the collections the wall rule checks (wallClear.ts). */
+const WALL_COLLS: ReadonlySet<Coll> = new Set<Coll>(['objects', 'exterior', 'lamps', 'devices', 'signs']);
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -185,8 +193,10 @@ interface Drag {
   isNew: boolean;
   /** Walls follow rooms (ED3-3a): the linked changes now previewed (befores are the data at the drag's start). */
   linked?: Change[];
-  /** Why the linked edit cannot be done at this spot, if it cannot. */
+  /** Why the linked edit cannot be done at this spot, if it cannot (or "Inside a wall": the wall rule). */
   refused?: string;
+  /** The held piece was inside a wall before it was taken (old data): the wall rule leaves it be. */
+  inWall?: boolean;
   /** Words of the last linked preview (moved, stretched, neighbours). */
   linkedText?: string;
   /** The rect and setting the linked preview was made for (the work is skipped while they do not change). */
@@ -318,6 +328,8 @@ export class Editor {
     this.signTool = new SignTool(this);
     this.view.security = this.security;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
+    // Free fly (Michael 2026-10-14): the wheel sets the fly speed
+    this.controls.onFlySpeed = (v) => this.status(`Fly speed ${fmt(v)} m/s (mouse wheel; Shift for ${fmt(v * FLY.FAST)})`);
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
     if (this.view.vis.building !== 'all' && this.view.vis.building !== 'site' && !data.meta.buildings?.some((b) => b.id === this.view.vis.building)) this.view.vis.building = 'all';
@@ -763,6 +775,7 @@ export class Editor {
     // fix-up 2026-10-14: a centre marker moves the whole thing
     if (handle === 'c') handle = null;
     this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew, mode: handle ? 'resize' : 'move', last: start };
+    if (!isNew && WALL_COLLS.has(coll)) this.drag.inWall = this.wallGuard(coll, before).why !== null;
     this.updateHint();
   }
 
@@ -1059,6 +1072,12 @@ export class Editor {
     d.last = [x, z];
     let e = this.dragged(d, x, z, fine);
     if (turn) e = turn(e);
+    // Michael 2026-10-14: nothing inside walls; a little way in is pushed out to the face, deeper is refused on the drop
+    if (WALL_COLLS.has(d.coll) && !d.inWall) {
+      const g = this.wallGuard(d.coll, e);
+      e = g.e;
+      d.refused = g.why ?? undefined;
+    }
     if (d.coll !== 'rooms' || d.isNew) return this.model.preview(d.coll, e);
     // a room: the walls, neighbours and doors it takes along (a turned room leaves its walls)
     const follow = this.wallsFollow && !turn;
@@ -1438,7 +1457,105 @@ export class Editor {
   objectGhost(x: number, z: number): { rect: Rect; wall: string | null; why: string | null } | null {
     const p = this.objPreset;
     if (p.draw) return null;
-    return placeObject(p, this.objYaw, x, z, this.objectGrid, this.model.list('walls') as Wall[], this.view.level);
+    const g = placeObject(p, this.objYaw, x, z, this.objectGrid, this.model.list('walls') as Wall[], this.view.level);
+    if (g.why) return g;
+    const w = this.wallGuard('objects', newObject('O-GHOST', this.view.level, p, g.rect, this.objYaw));
+    return w.why ? { ...g, why: w.why } : { ...g, rect: (w.e as Obj).rect };
+  }
+
+  // ---------- nothing inside walls (Michael 2026-10-14; wallClear.ts) ----------
+  /** The footprint the wall rule checks, heights above its level's floor, and that level (null: not checked). */
+  private footOf(coll: Coll, e: Elem): { f: Foot; level: string } | null {
+    if (coll === 'objects') {
+      const o = e as Obj;
+      return { f: rectFoot(o.rect, o.y, o.y + o.h), level: o.level };
+    }
+    if (coll === 'exterior') {
+      const x = e as Ext;
+      const level = x.level ?? this.view.level;
+      const fl = this.floor(level);
+      const point = x.a[0] === x.b[0] && x.a[1] === x.b[1];
+      // a wall-mounted point (downpipe, vent) is checked at its centre; a line by its section, at least a pipe's
+      const half = point && !x.size ? 0 : Math.max(facts.climb.pipeRadius.value, (x.depth ?? x.size?.[0] ?? 0) / 2);
+      const flat = x.y1 - x.y0 < 1e-6 ? half : 0;
+      return { f: segFoot(x.a, x.b, half, x.y0 - fl - flat, x.y1 - fl + flat), level };
+    }
+    if (coll === 'lamps') {
+      const l = e as Lamp;
+      return { f: segFoot([l.at[0], l.at[2]], l.b ? [l.b[0], l.b[2]] : [l.at[0], l.at[2]], 0, l.at[1], l.at[1]), level: lampLevel(this.model.data, l) };
+    }
+    if (coll === 'devices') {
+      const v = e as unknown as Device & { at?: [number, number]; y?: number };
+      if (isBeam(v) || !Array.isArray(v.at) || typeof v.y !== 'number') return null;
+      return { f: pointFoot(v.at[0], v.at[1], v.y), level: v.level };
+    }
+    if (coll === 'signs') {
+      const g = e as unknown as SignRecord;
+      return { f: pointFoot(g.at[0], g.at[1], g.y), level: g.level };
+    }
+    return null;
+  }
+
+  /** The element moved by (dx, dz) as its own move does (a piece's rules, a lamp's room, a sign along its wall). */
+  private shifted(coll: Coll, e: Elem, dx: number, dz: number): Elem {
+    const d = this.model.data;
+    if (coll === 'objects') {
+      const r = (e as Obj).rect;
+      return { ...(e as Obj), rect: [+(r[0] + dx).toFixed(3), +(r[1] + dz).toFixed(3), +(r[2] + dx).toFixed(3), +(r[3] + dz).toFixed(3)] };
+    }
+    if (coll === 'exterior') return movePiece(d, e as Ext, dx, dz);
+    if (coll === 'lamps') return moveLamp(d as LampData, e as Lamp, dx, dz) as Elem;
+    if (coll === 'devices') return this.security.move(e as unknown as Device, dx, dz) as unknown as Elem;
+    if (coll === 'signs') return moveSign(d, e as unknown as SignRecord, dx, dz) as unknown as Elem;
+    return e;
+  }
+
+  /**
+   * The wall rule for a piece being placed or held: clear as it is; pushed out to the nearest face when it is in by
+   * facts rules.wallPushMax or less; else refused, with why ("Inside a wall").
+   */
+  wallGuard<T extends Elem>(coll: Coll, e: T): { e: T; why: string | null } {
+    const ft = this.footOf(coll, e);
+    if (!ft) return { e, why: null };
+    const c = clearOfWalls(ft.f, wallSolids(this.model.list('walls') as Wall[], this.model.list('openings') as Opening[], ft.level));
+    if (!c.ok) return { e, why: c.why };
+    return c.dx || c.dz ? { e: this.shifted(coll, e, c.dx, c.dz) as T, why: null } : { e, why: null };
+  }
+
+  // ---------- surface aiming (Michael 2026-10-14; aim.ts) ----------
+  /** The 3D view's last pointer position (canvas pixels), null off it. */
+  mouseAt: Pt | null = null;
+  private aimKey = '';
+  private aimVal: Aim | null = null;
+
+  /** The aim through a point of the 3D view: the surface of the editing level it meets, as the tools' plan point. */
+  aimAt(px: number, py: number): Aim | null {
+    const cp = this.view.camera.position;
+    const key = `${px}|${py}|${cp.x}|${cp.y}|${cp.z}|${this.controls.yaw}|${this.controls.pitch}|${this.model.rev}|${this.view.level}|${this.grid}|${this.view.offsetOf(this.view.level)}`;
+    if (key === this.aimKey) return this.aimVal;
+    const { ray, hit } = this.view.aimRay(px, py);
+    const fy = this.viewFloor();
+    const d = this.model.data as LampData;
+    const lv = this.view.level;
+    const storey = (d.levels.find((l) => l.id === lv)?.height ?? 0) - facts.room.slab.value;
+    const ceilAt = (x: number, z: number): number => {
+      const r = roomAt(d.rooms, lv, x, z);
+      return fy + (r ? ceilingOf(d, r) : storey);
+    };
+    this.aimVal = aimPoint(ray, hit, fy, ceilAt, this.grid);
+    this.aimKey = key;
+    return this.aimVal;
+  }
+
+  /** The pad's aim in Free fly: the screen centre. */
+  aimCentre(): Aim | null {
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth > 0 ? this.aimAt(cv.clientWidth / 2, cv.clientHeight / 2) : null;
+  }
+
+  /** The mouse's aim: under the cursor (null when the cursor is off the 3D view). */
+  mouseAim(): Aim | null {
+    return this.mouseAt ? this.aimAt(this.mouseAt[0], this.mouseAt[1]) : null;
   }
 
   /** "Rack row (O001, 10 units, 6 m)" / "Desk (O004)". */
@@ -1570,7 +1687,15 @@ export class Editor {
   /** Where A would put the fitting now (null for a linear one: A starts it, or with Switch). */
   lampGhost(x: number, z: number): LampPlace | null {
     const f = this.fitting;
-    return f && !f.linear ? placeLamp(f, x, z, this.lampCtx()) : null;
+    if (!f || f.linear) return null;
+    const g = placeLamp(f, x, z, this.lampCtx());
+    const lamps: Lamp[] = [];
+    for (const l of g.lamps) {
+      const w = this.wallGuard('lamps', l);
+      if (w.why) return { ...g, lamps: [], why: w.why };
+      lamps.push(w.e);
+    }
+    return { ...g, lamps };
   }
 
   /** With Switch: the lamp A would put on the switch's circuit, else the switch A would place (or why not). */
@@ -1598,8 +1723,8 @@ export class Editor {
       this.beginDrag('lamps', id, null, start, this.viewFloor(), sx, sy, source, true);
       return;
     }
-    const g = placeLamp(f, x, z, this.lampCtx());
-    if (!g.lamps.length) return this.status(g.why ?? 'Cannot go here');
+    const g = this.lampGhost(x, z);
+    if (!g?.lamps.length) return this.status(g?.why ?? 'Cannot go here');
     this.commitLamps(g.lamps, g.post);
   }
 
@@ -1715,7 +1840,9 @@ export class Editor {
     const p = pieceOf(this.climbKind);
     if (!p || p.place === 'draw') return null;
     const r = placePiece(p.id, x, z, extId(this.model.data), { data: this.model.data, level: this.view.level, grid: this.objectGrid });
-    return { e: r.e, why: r.why };
+    if (!r.e) return { e: null, why: r.why };
+    const w = this.wallGuard('exterior', r.e);
+    return w.why ? { e: null, why: w.why } : { e: w.e, why: null };
   }
 
   /** A (click) with the Climb tool: a drawn piece starts at the dot; any other is placed (the tool stays on). */
@@ -1730,8 +1857,8 @@ export class Editor {
       this.beginDrag('exterior', id, null, start, this.viewFloor(), sx, sy, source, true);
       return;
     }
-    const r = placePiece(p.id, x, z, id, ctx);
-    if (!r.e) return this.status(r.why ?? 'Cannot go here');
+    const r = this.climbGhost(x, z);
+    if (!r?.e) return this.status(r?.why ?? 'Cannot go here');
     this.commitText(`Added ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`, [{ coll: 'exterior', id, before: null, after: r.e }]);
     this.select(keyOf('exterior', id));
     this.status(`Placed ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`);
@@ -2102,7 +2229,10 @@ export class Editor {
         if (h && p?.coll === 'walls') return this.toolDown(h.x, h.z, e.clientX, e.clientY, '3d', fine, p.id);
       }
       if (this.tool !== 'select') {
-        const pt = this.view.planePoint(px, py, this.viewFloor());
+        // Michael 2026-10-14: the click places where the ghost under the cursor shows (surface aiming, aim.ts); a click
+        // while drawing reads the drawing's plane (the piece being drawn is under the cursor)
+        this.mouseAt = [px, py];
+        const pt = this.drag ? this.view.planePoint(px, py, this.drag.planeY) : (this.mouseAim()?.p ?? null);
         if (pt) this.toolDown(pt[0], pt[1], e.clientX, e.clientY, '3d', fine);
         return;
       }
@@ -2122,8 +2252,12 @@ export class Editor {
       const p = parseKey(k)!;
       this.beginDrag(p.coll, p.id, null, [hit.hit.x, hit.hit.z], hit.hit.y, e.clientX, e.clientY, '3d');
     });
+    canvas.addEventListener('pointerleave', () => {
+      this.mouseAt = null;
+    });
     canvas.addEventListener('pointermove', (e) => {
       const [px, py] = local(e);
+      this.mouseAt = [px, py];
       const gd = this.groupDrag;
       if (gd?.source === '3d') {
         const pt = this.view.planePoint(px, py, gd.planeY);
@@ -2340,6 +2474,7 @@ export class Editor {
     const d = this.drag;
     const s = d ? this.model.get(d.coll, d.id) : undefined;
     if (!d || !s) return { words: '', shapes: [] };
+    if (d.refused === INSIDE_WALL) return { words: `${INSIDE_WALL}: move it out (B puts it back)`, shapes: [], bad: true };
     const walls = this.model.list('walls') as Wall[];
     if (d.coll === 'walls') {
       const lw = liveWall(s as Wall, walls);
@@ -2619,7 +2754,14 @@ export class Editor {
   goTo(x: number, z: number, floorY = this.viewFloor()): void {
     if (this.controls.walking) this.controls.walkAt(x, z, this.floor());
     else if (this.controls.mode === 'orbit') this.controls.orbit.goTo(x, z, floorY);
-    else this.controls.overlook(x, z, floorY, 22);
+    else if (this.pad?.settings.camera === 'fly') {
+      // Free fly (Michael 2026-10-14): ease so the aim lands on the point, keeping the yaw, from where the aim is now
+      // (within the orbit camera's zoom range; 22 m when the aim is off)
+      const cp = this.view.camera.position;
+      const a = this.dotPoint();
+      const dist = a ? Math.min(ORBIT.DIST_MAX, Math.max(ORBIT.DIST_MIN * 2, hyp2(hyp2(a[0] - cp.x, a[1] - cp.z), cp.y - floorY))) : 22;
+      this.controls.flyTo(x, floorY, z, dist);
+    } else this.controls.overlook(x, z, floorY, 22);
   }
 
   // ---------- walk mode ----------
@@ -2652,16 +2794,41 @@ export class Editor {
 
   /** The orbit as it was before the pad's quick walk; null when not quick walking. */
   private quickFrom: OrbitState | null = null;
+  /** Free fly (Michael 2026-10-14): the fly pose a quick walk comes back to. */
+  private quickPose: CamPose | null = null;
   private quickLevel = '';
 
   get quickWalking(): boolean {
-    if (this.quickFrom && !this.controls.walking) this.quickFrom = null;
-    return this.quickFrom !== null;
+    if ((this.quickFrom || this.quickPose) && !this.controls.walking) this.quickFrom = this.quickPose = null;
+    return this.quickFrom !== null || this.quickPose !== null;
   }
 
   /** Pad quick walk (L3, decision 14): walk at the dot facing the camera's way; again returns to the orbit as it was. */
   quickWalk(): void {
     const c = this.controls;
+    if (this.quickWalking && this.quickPose) {
+      // Free fly: back to the pose the walk started from (at the new level's height when the level changed)
+      const back = this.quickPose;
+      this.quickPose = null;
+      c.mode = 'fly';
+      const dy = this.view.level !== this.quickLevel ? this.viewFloor() - this.viewFloor(this.quickLevel) : 0;
+      c.setPose({ ...back, pos: [back.pos[0], back.pos[1] + dy, back.pos[2]] });
+      this.walkChanged();
+      return;
+    }
+    if (c.mode === 'fly' && this.pad?.settings.camera === 'fly' && this.prefs.layout !== 'plan') {
+      // Free fly: the walk starts at the aim point (the pad's screen centre)
+      const p = this.dotPoint();
+      if (!p) return this.status('Aim at a floor to walk there');
+      this.quickPose = c.pose();
+      this.quickLevel = this.view.level;
+      const yaw = c.yaw;
+      c.walkAt(p[0], p[1], this.floor());
+      c.yaw = yaw;
+      c.padRun = true;
+      this.walkChanged();
+      return;
+    }
     if (this.quickWalking) {
       c.orbit.enter(this.quickFrom!);
       c.mode = 'orbit';
@@ -2692,8 +2859,8 @@ export class Editor {
     const atOrbit = c.mode === 'fly' && Math.abs(p.x - ox) + Math.abs(p.y - oy) + Math.abs(p.z - oz) < 0.01;
     if (c.mode === 'orbit' || atOrbit) return { x: c.orbit.s.tx, z: c.orbit.s.tz, level: this.view.level, yaw: c.orbit.s.yaw };
     if (c.walking) return { x: p.x, z: p.z, level: this.view.level, yaw: c.yaw };
-    const canvas = $<HTMLCanvasElement>('c');
-    const pt = canvas.clientWidth > 0 ? this.view.planePoint(canvas.clientWidth / 2, canvas.clientHeight / 2, this.viewFloor()) : null;
+    // flying: the aim at the screen centre (Free fly, Michael 2026-10-14: on whatever surface it meets)
+    const pt = this.dotPoint();
     return { x: pt?.[0] ?? p.x, z: pt?.[1] ?? p.z, level: this.view.level, yaw: c.yaw };
   }
 
@@ -2743,7 +2910,8 @@ export class Editor {
     if (keep && this.selected !== keep) this.select(keep);
     const floorY = this.viewFloor();
     c.orbit.enter({ tx: r.x, tz: r.z, floorY, dist: this.walkFrom?.dist ?? ORBIT.DIST_START, yaw: from.yaw, pitch: this.walkFrom?.pitch ?? 0.9 });
-    c.mode = 'orbit';
+    // Free fly (Michael 2026-10-14): the same pose round the player, then flying from there
+    c.mode = this.pad?.settings.camera === 'fly' ? 'fly' : 'orbit';
     const [x, y, z] = c.orbit.position();
     c.blend = { from: { ...from, fov: editorFov }, to: { pos: [x, y, z], yaw: c.orbit.s.yaw, pitch: c.orbit.s.pitch, fov: editorFov }, t: 0, dur: 0.4, done: () => undefined };
     this.walkChanged();
@@ -3593,8 +3761,8 @@ export class Editor {
   dotPoint(): Pt | null {
     const c = this.controls;
     if (c.mode === 'orbit') return [c.orbit.s.tx, c.orbit.s.tz];
-    const cv = $<HTMLCanvasElement>('c');
-    return cv.clientWidth > 0 ? this.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, this.viewFloor()) : null;
+    // Free fly (Michael 2026-10-14): the aim at the screen centre, on whatever surface it meets
+    return this.aimCentre()?.p ?? null;
   }
 
   setNames(on: boolean): void {

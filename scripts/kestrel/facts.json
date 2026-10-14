@@ -165,7 +165,9 @@
     "aisleMaxGap": { "value": 0.3, "src": "P03 prompt A26" },
     "parapet": { "value": 1.1, "src": "level-design 16.5.3" },
     "wallJoinTol": { "value": 0.001, "src": "ON0b (Michael 2026-10-13): a wall end within this of another wall meets it (corners join)" },
-    "wallGapMax": { "value": 0.05, "src": "ON0b (Michael 2026-10-13): a wall end this near another wall but not on it is a Gap" }
+    "wallGapMax": { "value": 0.05, "src": "ON0b (Michael 2026-10-13): a wall end this near another wall but not on it is a Gap" },
+    "wallPushMax": { "value": 0.3, "src": "Michael 2026-10-14 (editor report): a piece placed or moved this far or less into a wall is pushed out to the face; deeper is refused" },
+    "wallTouchTol": { "value": 0.01, "src": "editor default: a piece touching a wall face (or this little into it) is on the face, not inside" }
   },
   "escape": {
     "oneWay": { "value": 18, "src": "02-building-brief s7 (general knowledge)" },

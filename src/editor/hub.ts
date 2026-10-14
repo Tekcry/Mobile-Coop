@@ -41,8 +41,10 @@ export interface PadSettings {
   menuOpens: 'last' | 'build';
   /** Held D-pad and stick repeat in every menu and on the card (1 = normal). */
   repeatSpeed: number;
+  /** The camera (Michael 2026-10-14): free fly (the default, also for saved settings without it) or the ground-target orbit. */
+  camera: 'fly' | 'orbit';
 }
-export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, orbitSpeed: 1, smoothing: 'medium', deadZone: ORBIT.DEAD, grid: 0.1, invertTilt: false, textSize: 'normal', wallsFollow: true, menuOpens: 'last', repeatSpeed: 1 };
+export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, orbitSpeed: 1, smoothing: 'medium', deadZone: ORBIT.DEAD, grid: 0.1, invertTilt: false, textSize: 'normal', wallsFollow: true, menuOpens: 'last', repeatSpeed: 1, camera: 'fly' };
 export const STICK_SPEED = { MIN: 0.5, MAX: 2, STEP: 0.25 } as const;
 export const DEAD_ZONE = { MIN: 0.05, MAX: 0.35, STEP: 0.05 } as const;
 /** Settings > Grid choices, metres (ON0b decision 5). */
@@ -67,6 +69,7 @@ export function readSettings(raw: unknown): PadSettings {
   if (typeof r.wallsFollow === 'boolean') s.wallsFollow = r.wallsFollow;
   if (r.menuOpens === 'last' || r.menuOpens === 'build') s.menuOpens = r.menuOpens;
   if (typeof r.repeatSpeed === 'number' && r.repeatSpeed >= REPEAT_SPEED.MIN && r.repeatSpeed <= REPEAT_SPEED.MAX) s.repeatSpeed = r.repeatSpeed;
+  if (r.camera === 'fly' || r.camera === 'orbit') s.camera = r.camera;
   return s;
 }
 
@@ -82,6 +85,7 @@ export function changeSetting(s: PadSettings, id: string, dir: 1 | -1): PadSetti
   else if (id === 'set.smooth') n.smoothing = SMOOTHING[Math.min(2, Math.max(0, SMOOTHING.indexOf(s.smoothing) + dir))]!;
   else if (id === 'set.dead') n.deadZone = Math.min(DEAD_ZONE.MAX, Math.max(DEAD_ZONE.MIN, +(s.deadZone + dir * DEAD_ZONE.STEP).toFixed(2)));
   else if (id === 'set.grid') n.grid = GRIDS[(GRIDS.indexOf(s.grid as (typeof GRIDS)[number]) + dir + GRIDS.length) % GRIDS.length]!;
+  else if (id === 'set.camera') n.camera = s.camera === 'fly' ? 'orbit' : 'fly';
   else if (id === 'set.menuOpens') n.menuOpens = s.menuOpens === 'last' ? 'build' : 'last';
   else if (id === 'set.repeat') n.repeatSpeed = Math.min(REPEAT_SPEED.MAX, Math.max(REPEAT_SPEED.MIN, +(s.repeatSpeed + dir * REPEAT_SPEED.STEP).toFixed(2)));
   return n;
@@ -208,6 +212,7 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
         { id: 'set.text', text: 'Text size', value: h.settings.textSize === 'large' ? 'Large' : 'Normal', kind: 'step' },
         { id: 'set.menuOpens', text: 'Menu opens on', value: h.settings.menuOpens === 'last' ? 'Last tab' : 'Build tab', kind: 'step' },
         { id: 'set.follow', text: 'Walls follow rooms', value: onOff(h.settings.wallsFollow), note: 'Stretching or moving a room takes its walls along', kind: 'step' },
+        { id: 'set.camera', text: 'Camera', value: h.settings.camera === 'fly' ? 'Free fly' : 'Orbit', note: 'Free fly: move and look anywhere; Orbit: circle a point on the floor', kind: 'step' },
       ];
     case 'Help':
       return [];

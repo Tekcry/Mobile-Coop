@@ -114,6 +114,8 @@
       #reticle.pulse::before { animation: dotPulse 0.3s ease-out; }
       @keyframes dotPulse { 50% { transform: scale(1.8); } }
       #reticle.bad::before { border-color: #ff3b30; box-shadow: 0 0 0 2px #ff3b30; }
+      /* Free fly on the pad: a small crosshair at the screen centre (the aim) */
+      body[data-device='pad'][data-cam='fly'] #reticle::after { content: ''; position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; background: linear-gradient(#fff, #fff) center / 2px 12px no-repeat, linear-gradient(#fff, #fff) center / 12px 2px no-repeat; }
       #reticle.bad #reticleText { color: #ff8a80; }
       /* Large text: the pad screen, the tile menu and the name picker */
       #padStrip, #toolBar, #selCard, #reticleText, #heldTag, #padToast, #tileMenu, #namePick { zoom: var(--ts, 1); }

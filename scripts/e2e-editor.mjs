@@ -99,6 +99,19 @@ try {
   await E(() => window.__pad.connect());
   await press(BTN.LB);
   assert((await E(() => window.__editor.pad.device)) === 'pad', 'pad input switches the hint bar to the pad');
+  // Michael 2026-10-14: Hub > Settings > Camera is Free fly by default (the pad flies, a crosshair at the centre); the
+  // older steps below were written for the orbit camera, so the hub switches to Orbit here (it is kept over the reload)
+  const cam0 = await E(() => ({ set: window.__editor.pad.settings.camera, mode: window.__editor.controls.mode, cross: getComputedStyle(document.getElementById('reticle'), '::after').content }));
+  assert(cam0.set === 'fly' && cam0.mode === 'fly' && cam0.cross !== 'none', `Camera: Free fly by default; pad input flies, with a crosshair at the centre (${JSON.stringify(cam0)})`);
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('Settings'));
+  await frames(page, 3);
+  for (let i = 0; i < 20 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== 'set.camera'; i++) await press(BTN.DOWN);
+  await press(BTN.RIGHT);
+  const camRow = await E(() => document.querySelector('#hub [data-row="set.camera"]')?.textContent ?? '');
+  await press(BTN.B);
+  await press(BTN.LB);
+  assert((await E(() => window.__editor.pad.settings.camera)) === 'orbit' && /Camera/.test(camRow) && /Orbit/.test(camRow), `Hub > Settings > Camera switches to Orbit ("${camRow}")`);
   assert((await E(() => window.__editor.controls.mode)) === 'orbit', 'pad input starts the builder camera');
   assert(/A Select\s+Y Menu\s+X Undo\s+LS click Walk\s+Menu Hub/.test((await st()).hint), `hint bar shows the pad's building words ("${(await st()).hint.slice(0, 80)}")`);
   await shot('hint-idle');
@@ -3311,6 +3324,146 @@ try {
     await backCheck('F10 after the moon walk', beforeW15);
     assert(Math.abs(game.meter - mapV) < 0.05 && game.dir[0] > 0.8, `ON15: the walk test's light meter at (${yard.x}, ${yard.z}) is ${game.meter.toFixed(3)}, the darkness map's ${mapV.toFixed(3)}; the game's moon shines east (${game.dir.map((v) => v.toFixed(2)).join(', ')})`);
     await E(() => { const ed = window.__editor; ed.setNightPanel(false); ed.setDarkMap(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  {
+    console.log('Free fly (Michael 2026-10-14): keys, wheel, pad; the ghost under the mouse; aiming at ceilings and walls; nothing inside walls');
+    const ex = () => E(() => (window.__editor.model.data.exterior ?? []).length);
+    const hyp = (a, b) => Math.sqrt(a * a + b * b);
+    const pose = () => E(() => { const c = window.__editor.controls; const p = c.pose(); return { x: p.pos[0], y: p.pos[1], z: p.pos[2], yaw: c.yaw, pitch: c.pitch, mode: c.mode, speed: c.flySpeed }; });
+    const setPose = (x, y, z, yaw, pitch) => E(([x, y, z, yaw, pitch]) => { const c = window.__editor.controls; c.blend = null; c.mode = 'fly'; c.setPose({ pos: [x, y, z], yaw, pitch, fov: c.pose().fov }); }, [x, y, z, yaw, pitch]);
+    const centre = () => E(() => { const r = document.getElementById('c').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    /** The mouse to the 3D view's centre (moved in from aside, so the mouse takes over from the pad). */
+    const mouseCentre = async () => { const [cx, cy] = await centre(); await page.mouse.move(cx - 60, cy - 40); await page.mouse.move(cx, cy, { steps: 5 }); await frames(page, 4); return [cx, cy]; };
+    await E(() => { const ed = window.__editor; ed.setLayout('3d'); ed.setLevel('G'); ed.select(null); ed.setTool('select'); window.__pre0 = ed.view.vis.preset; ed.setPreset('single'); const p = ed.pad; p.settings = { ...p.settings, camera: 'fly' }; p.applySettings(); p.savePrefs(); });
+    await press(BTN.LB);
+    const m0 = await pose();
+    assert(m0.mode === 'fly', `Camera Free fly: pad input leaves the orbit camera for the fly camera (${m0.mode})`);
+
+    // keys: W flies along the view; the wheel sets the fly speed
+    await setPose(20, 10, 20, 0, 0.3);
+    await mouseCentre();
+    const k0 = await pose();
+    await page.keyboard.down('KeyW');
+    await wait(400);
+    await page.keyboard.up('KeyW');
+    await frames(page, 2);
+    const k1 = await pose();
+    await page.mouse.wheel(0, -100);
+    await frames(page, 2);
+    const k2 = await pose();
+    assert(k1.z - k0.z > 0.5 && k1.y < k0.y && Math.abs(k1.x - k0.x) < 0.01 && k2.speed > k1.speed && /Fly speed/.test((await st()).status), `Free fly, keys: W flies along the view (z ${k0.z.toFixed(2)} -> ${k1.z.toFixed(2)}, y ${k0.y.toFixed(2)} -> ${k1.y.toFixed(2)}); the wheel sets the speed (${k1.speed} -> ${k2.speed}, "${(await st()).status}")`);
+    await E(() => { window.__editor.controls.flySpeed = 10; });
+
+    // pad: the left stick flies, the right stick turns, RT rises
+    await press(BTN.LB);
+    await setPose(20, 10, 20, 0, 0.3);
+    const p0 = await pose();
+    await axes(0, -1);
+    await E(() => window.__pad.axis(2, 0.8));
+    await set(BTN.RT, 1);
+    await wait(600);
+    await axes(0, 0);
+    await E(() => window.__pad.axis(2, 0));
+    await set(BTN.RT, 0);
+    await wait(400);
+    const p1 = await pose();
+    const crossOn = await E(() => getComputedStyle(document.getElementById('reticle'), '::after').content !== 'none' && !document.getElementById('reticle').classList.contains('hidden'));
+    assert(p1.mode === 'fly' && hyp(p1.x - p0.x, p1.z - p0.z) > 1 && p1.yaw > p0.yaw + 0.2 && p1.y > p0.y && crossOn, `Free fly, pad: the left stick flies (${p0.x.toFixed(1)}, ${p0.z.toFixed(1)} -> ${p1.x.toFixed(1)}, ${p1.z.toFixed(1)}), the right stick turns (yaw ${p0.yaw.toFixed(2)} -> ${p1.yaw.toFixed(2)}), RT rises (y ${p0.y.toFixed(1)} -> ${p1.y.toFixed(1)}); crosshair at the centre (${crossOn})`);
+    // View tap: top-down and back
+    await press(BTN.SELECT);
+    await wait(500);
+    const td = await pose();
+    await press(BTN.SELECT);
+    await wait(500);
+    const tb = await pose();
+    assert(td.pitch > 1.5 && Math.abs(tb.pitch - p1.pitch) < 0.05, `Free fly: View tap looks straight down (pitch ${td.pitch.toFixed(2)}) and back (${tb.pitch.toFixed(2)})`);
+
+    // a Ground room at least 5 m each way with a wall along its west edge, clear of openings near the middle
+    const fr = await E(() => {
+      const d = window.__editor.model.data;
+      for (const r of d.rooms) {
+        if (r.level !== 'G' || r.kind === 'yard' || r.rect[2] - r.rect[0] < 5 || r.rect[3] - r.rect[1] < 5) continue;
+        const zm = (r.rect[1] + r.rect[3]) / 2;
+        const w = d.walls.find((q) => q.level === 'G' && q.a[0] === r.rect[0] && q.b[0] === r.rect[0] && Math.min(q.a[1], q.b[1]) <= zm - 2 && Math.max(q.a[1], q.b[1]) >= zm + 2);
+        if (!w) continue;
+        const sg = Math.sign(w.b[1] - w.a[1]);
+        if (d.openings.some((o) => o.wall === w.id && Math.abs(w.a[1] + sg * o.at - zm) < o.w / 2 + 1.5)) continue;
+        if ((d.objects ?? []).some((o) => o.level === 'G' && o.rect[0] < r.rect[0] + 2.5 && o.rect[2] > r.rect[0] && o.rect[1] < zm + 1 && o.rect[3] > zm - 1)) continue;
+        return { room: r.id, rect: r.rect, wall: w.id, x: w.a[0], t: w.t, zm, cx: (r.rect[0] + r.rect[2]) / 2 };
+      }
+      return null;
+    });
+    assert(!!fr, `a Ground room with a clear west wall for the aiming steps (${JSON.stringify(fr)})`);
+
+    // the Light tool, the mouse over a ceiling area: the ghost sits at ceiling height before any click
+    await E(() => { const ed = window.__editor; ed.setLampFit('troffer-600'); ed.setTool('lamp'); });
+    await setPose(fr.cx, 1.6, fr.zm - 1.5, 0, -0.75);
+    const [mx, my] = await mouseCentre();
+    await page.waitForFunction(() => /m up/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const lg = await E(([mx, my]) => {
+      const ed = window.__editor;
+      const a = ed.mouseAim();
+      const g = a ? ed.lampGhost(a.p[0], a.p[1]) : null;
+      const l = g?.lamps?.[0];
+      const marks = ed.view.markMeshes.filter((m) => m.isEnabled()).map((m) => m.position.y);
+      const r = document.getElementById('reticle');
+      const floorHit = ed.view.planePoint(mx - document.getElementById('c').getBoundingClientRect().left, my - document.getElementById('c').getBoundingClientRect().top, ed.viewFloor());
+      return { surf: a?.surf, p: a?.p, ceil: a?.ceil, at: l?.at, oy: l?.params?.fixture?.oy ?? 0, marks, words: document.getElementById('reticleText').textContent, shown: !r.classList.contains('hidden'), left: r.style.left, floorHit, n: (ed.model.data.lamps ?? []).length, f: ed.viewFloor() };
+    }, [mx, my]);
+    await shot('fly-light-ghost-ceiling');
+    const ghostY = lg.at ? lg.f + lg.at[1] + lg.oy : NaN;
+    assert(lg.surf === 'ceiling' && !!lg.at && lg.at[1] > 2 && Math.abs(lg.at[1] - (lg.ceil - lg.f)) < 0.2 && lg.marks.some((y) => Math.abs(y - ghostY) < 0.02) && lg.shown && lg.left !== '' && /m up/.test(lg.words) && lg.floorHit === null, `Light tool, mouse over the ceiling: aim on the ${lg.surf} at ${JSON.stringify(lg.p)} (the floor plane is not even in view: ${JSON.stringify(lg.floorHit)}); the ghost at ${lg.at?.[1]} m up (ceiling ${(lg.ceil - lg.f).toFixed(2)}), its mark at ${ghostY.toFixed(2)} (${lg.marks.map((y) => y.toFixed(2)).join(', ')}); the words at the cursor ("${lg.words}")`);
+    await page.mouse.click(mx, my);
+    await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length > n, lg.n, { timeout: 5000 }).catch(() => {});
+    const placedL = await E(() => (window.__editor.model.data.lamps ?? []).at(-1));
+    assert(!!placedL && placedL.at[0] === lg.at[0] && placedL.at[2] === lg.at[2] && placedL.at[1] === lg.at[1], `a click places the light exactly where the ghost was (${JSON.stringify(placedL?.at)})`);
+    await E(() => window.__editor.undo());
+
+    // the Climb tool (downpipe), the mouse on a wall face: the ghost and the piece sit on the face, not inside
+    await E(() => { const ed = window.__editor; ed.setClimbKind('downpipe'); ed.setTool('climb'); });
+    await setPose(fr.x + fr.t / 2 + 2, 1.6, fr.zm, -Math.PI / 2, 0.15);
+    await mouseCentre();
+    await page.waitForFunction(() => /Downpipe/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const wg = await E(() => { const a = window.__editor.mouseAim(); return { surf: a?.surf, p: a?.p, words: document.getElementById('reticleText').textContent }; });
+    await shot('fly-climb-on-wall-face');
+    const n1 = await ex();
+    const [wx, wy] = await centre();
+    await page.mouse.click(wx, wy);
+    await page.waitForFunction((n) => (window.__editor.model.data.exterior ?? []).length > n, n1, { timeout: 5000 }).catch(() => {});
+    const dp = await E(() => (window.__editor.model.data.exterior ?? []).at(-1));
+    const face = fr.x + fr.t / 2;
+    assert(wg.surf === 'wall' && /Downpipe/.test(wg.words) && !!dp && dp.kind === 'downpipe' && Math.abs(dp.a[0] - (face + 0.06)) < 1e-6 && dp.wall === fr.wall, `Climb tool, mouse on the face of ${fr.wall}: aim on the ${wg.surf} at ${JSON.stringify(wg.p)} ("${wg.words}"); the click puts the downpipe on the face (x ${dp?.a?.[0]}, face ${face})`);
+    await E(() => window.__editor.undo());
+
+    // aimed at the wall's top from above (the pad): a lamp post is pushed out to the face; a fire escape is refused
+    await E(() => { const ed = window.__editor; ed.setClimbKind('lamp-post'); ed.setTool('climb'); });
+    await press(BTN.LB);
+    await setPose(fr.x, 12, fr.zm - 1, 0, 1.55);
+    await frames(page, 4);
+    await wait(250);
+    const n2 = await ex();
+    const aimTop = await E(() => window.__editor.aimCentre());
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.exterior ?? []).length > n, n2, { timeout: 5000 }).catch(() => {});
+    const lp = await E(() => (window.__editor.model.data.exterior ?? []).at(-1));
+    const off = lp ? Math.abs(lp.a[0] - fr.x) : NaN;
+    assert(aimTop?.surf === 'top' && Math.abs(aimTop.p[0] - fr.x) < 1e-6 && lp?.kind === 'lamp-post' && Math.abs(off - (fr.t / 2 + 0.075)) < 1e-3, `aimed at the top of ${fr.wall} (x ${aimTop?.p?.[0]}, ${aimTop?.surf}), a lamp post is pushed out to the face (${off.toFixed(3)} m off the wall line, wall ${fr.t} m)`);
+    await E(() => window.__editor.undo());
+    await E(() => { const ed = window.__editor; ed.setClimbKind('fire-escape'); ed.setTool('climb'); });
+    await frames(page, 2);
+    const n3 = await ex();
+    await press(BTN.A);
+    await setPose(fr.x, 12, fr.zm + 1, 0, 1.55);
+    await page.waitForFunction(() => /Inside a wall/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const inWords = await E(() => ({ words: document.getElementById('reticleText').textContent, bad: document.getElementById('reticle').classList.contains('bad') }));
+    await press(BTN.A);
+    await frames(page, 3);
+    const n4 = await ex();
+    assert(/Inside a wall/.test(inWords.words) && inWords.bad && n4 === n3 && /Inside a wall/.test((await st()).status), `a fire escape drawn along the wall line: the dot is red, "${inWords.words}"; A refuses it (${n3} -> ${n4} pieces, "${(await st()).status}")`);
+
+    await E(() => { const ed = window.__editor; ed.setTool('select'); const p = ed.pad; p.settings = { ...p.settings, camera: 'orbit' }; p.applySettings(); p.savePrefs(); ed.setLayout('both'); ed.setPreset(window.__pre0 ?? 'upTo'); });
+    await press(BTN.LB);
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');

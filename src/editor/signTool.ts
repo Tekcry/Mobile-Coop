@@ -48,7 +48,11 @@ export class SignTool {
   }
 
   private place(x: number, z: number): ReturnType<typeof placeSign> {
-    return placeSign(this.ed.model.data, this.kind, this.ed.view.level, x, z, this.ed.objectGrid, this.lookYaw());
+    const p = placeSign(this.ed.model.data, this.kind, this.ed.view.level, x, z, this.ed.objectGrid, this.lookYaw());
+    if (!p.sign) return p;
+    // Michael 2026-10-14: nothing inside walls (pushed out to the face when a little way in, else refused)
+    const w = this.ed.wallGuard('signs', p.sign as unknown as Elem);
+    return w.why ? { ...p, sign: null, why: w.why } : { ...p, sign: w.e as unknown as SignRecord };
   }
 
   /** A (a click): the sign at the dot, selected; the tool stays on. */

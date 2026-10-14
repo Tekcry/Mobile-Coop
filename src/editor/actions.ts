@@ -44,11 +44,12 @@ const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'p
 const SEL: Ctx[] = ['selected', 'card'];
 
 export const ACTIONS: readonly Action[] = [
-  { id: 'look', name: 'look around', group: 'Camera', keys: [], mouse: 'Right drag', ctx: NOT_MENU, passive: true },
-  { id: 'move', name: 'move (pad: the dot across the floor; walking: walk)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
-  { id: 'orbit', name: 'orbit / tilt (walking: look)', group: 'Camera', keys: [], pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
-  { id: 'zoom', name: 'zoom out / in (Plan only: the plan)', group: 'Camera', keys: [], pad: ['LT/RT'], ctx: ['idle', 'selected', 'card', 'draw', 'chain', 'path'], hint: ['idle'], passive: true },
+  { id: 'look', name: 'look around (hold the right button and move)', group: 'Camera', keys: [], mouse: 'Right drag', ctx: NOT_MENU, passive: true },
+  { id: 'move', name: 'move (Free fly: along the view; Orbit on the pad: the dot across the floor; walking: walk)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
+  { id: 'orbit', name: 'look (Free fly) or orbit / tilt (Orbit); walking: look', group: 'Camera', keys: [], pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
+  { id: 'zoom', name: 'Free fly: down / up; Orbit: zoom out / in (Plan only: the plan)', group: 'Camera', keys: [], pad: ['LT/RT'], ctx: ['idle', 'selected', 'card', 'draw', 'chain', 'path'], hint: ['idle'], passive: true },
   { id: 'fly', name: 'down / up when flying', group: 'Camera', keys: ['KeyQ', 'KeyE'], ctx: NOT_MENU, passive: true },
+  { id: 'flySpeed', name: 'Free fly: fly speed (Orbit: move in / out); Shift held flies fast', group: 'Camera', keys: [], mouse: 'Wheel', ctx: NOT_MENU, passive: true },
   { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], ctx: NOT_MENU, passive: true },
   { id: 'walk', name: 'walk test (game): the real player at the dot, unsaved edits included', group: 'Camera', keys: ['Tab'], pad: ['L3 hold'], ctx: NOT_DRAG, hint: ['idle'] },
   { id: 'quickWalk', name: 'quick walk at the dot, running (pad: L3 tap; L3 again walks slowly and back, B ends; L3 held is the walk test)', group: 'Camera', keys: ['Shift+Tab'], pad: ['L3'], ctx: NOT_DRAG, hint: ['idle'] , short: 'Walk' },
@@ -197,7 +198,7 @@ export function keyWords(id: string): string {
 
 /** An action's keyboard and mouse bindings in words, shortened for families (WASD, the arrows). */
 export function bindingWords(a: Action): string {
-  if (a.id === 'move') return 'W A S D (Shift fast, wheel zooms)';
+  if (a.id === 'move') return 'W A S D (Shift fast; wheel: fly speed, Orbit: in / out)';
   if (a.id === 'fly') return 'Q / E';
   if (a.id === 'nudge') return 'Arrows';
   if (a.id === 'bookmarkSave') return 'Ctrl+1-9';
