@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { bunker } from '../src/world/maps/bunker';
-import { B2_METRICS, BUNKER_LIPS, UPPER_Y, at } from '../src/world/maps/bunkerUpper';
+import { B2_METRICS, BUNKER_LIPS, UPPER_ROOMS, UPPER_Y, at, buildUpper } from '../src/world/maps/bunkerUpper';
 import { getMap } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
@@ -105,7 +105,19 @@ function inLip(l: Ledge, box: readonly number[], top: number): boolean {
   return Math.abs(l.top - top) < 0.02 && ok(l.a.x, l.a.z) && ok(l.b.x, l.b.z);
 }
 
-describe('Fallow (bunker) Upper level (T2)', () => {
+describe('Fallow (bunker) Upper level (T5d, BAYS v2)', () => {
+  const W = (bay: 'B1' | 'A1' | 'B2' | 'A2', x: number, z: number, y = 0) => at(bay, x, z, y);
+  const lockedShut = b.anchors.doors.filter((d) => d.locked).map(doorLeaf);
+  const nav = analyticNav(b, [-1, 48, 66, 76], lockedShut);
+  const doorOf = (cid: string) => b.anchors.doors.find((d) => d.id === lay.course!.doors[cid] || d.id === upDoors[cid])!;
+  const upDoors: Record<string, number> = {};
+  {
+    // the Upper's own door ids (B1's plain doors, RL2) from a fresh Upper build
+    const ub = new LevelBuilder();
+    Object.assign(upDoors, buildUpper(ub).doors);
+  }
+  const joins = (n: NavGrid, p: { x: number; y: number; z: number }, q: { x: number; y: number; z: number }) => n.findPath([p.x, p.z], [q.x, q.z], 1e6, p.y, q.y);
+
   it('is registered, course and sandbox, not listed, five nav layers', () => {
     expect(getMap('bunker').id).toBe('bunker');
     expect(bunker.modes).toEqual(['course', 'sandbox']);
@@ -114,30 +126,44 @@ describe('Fallow (bunker) Upper level (T2)', () => {
     expect(bunker.theme.sunIntensity).toBe(0);
   });
 
-  it('spawns in the lift lobby facing east; debug points for B1, A1, B2, A2', () => {
+  it('spawns in the lift lobby facing east; a debug point per room and vantage', () => {
     expect(lay.playerSpawns.map((s) => [s.pos.x, s.pos.y, s.pos.z, s.yaw])).toEqual([
-      [at('B1', 2, 12).x, UPPER_Y, at('B1', 2, 12).z, Math.PI / 2],
-      [at('B1', 4, 12).x, UPPER_Y, at('B1', 4, 12).z, Math.PI / 2],
+      [W('B1', 2, 11.4).x, UPPER_Y, W('B1', 2, 11.4).z, Math.PI / 2],
+      [W('B1', 4, 11.4).x, UPPER_Y, W('B1', 4, 11.4).z, Math.PI / 2],
     ]);
     const ids = lay.debugPoints!.map((d) => d.id);
-    for (const id of ['A1', 'A2', 'B1', 'B2']) expect(ids).toContain(id);
+    for (const id of ['B1', 'B1-KR', 'B1-BR', 'B1-GR', 'B1-DS', 'A1', 'B2', 'B2-2B', 'B2-G1', 'B2-pit', 'B2-G2', 'B2-2C', 'B2-2C-E', 'B2-deck', 'B2-2D', 'B2-2F', 'A2']) expect(ids, id).toContain(id);
     expect(lay.debugPoints!.every((d) => d.group === 'Fallow')).toBe(true);
+    // each stands on a floor (nav seeds)
+    for (const d of lay.debugPoints!.filter((p) => p.pos.y >= UPPER_Y - 3 && p.pos.x < 66 && p.pos.z > 48)) expect(nav.heightAt(d.pos.x, d.pos.z, d.pos.y), d.id).toBeCloseTo(d.pos.y, 1);
   });
 
-  it('the course stub validates against the built ids (B1, B2; lane levers; A1, A2)', () => {
+  it('the course stub: B1, B2 one shared course with no gate (R3), objectives by name in BAYS order (R5), airlocks automatic', () => {
     const c = lay.course!;
     expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
     expect(c.def.bays.map((x) => x.id).slice(0, 2)).toEqual(['B1', 'B2']);
-    const doors = new Set(b.anchors.doors.filter((d) => d.locked).map((d) => d.id));
-    for (const id of ['A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s', 'B2-exit-n', 'B2-exit-s']) expect(doors.has(c.doors[id]!)).toBe(true);
-    // each lane's walkway door (east end) opens with that lane's x 24 gate lever: no way round the gate
-    const gates = c.def.bays[1]!.gates.filter((g) => g.kind === 'lever');
-    for (const l of ['n', 's']) {
-      const sw = gates.filter((g) => g.kind === 'lever' && g.doorId === `B2-lane-${l}`).map((g) => (g.kind === 'lever' ? g.switchId : ''));
-      const ex = gates.filter((g) => g.kind === 'lever' && g.doorId === `B2-exit-${l}`).map((g) => (g.kind === 'lever' ? g.switchId : ''));
-      expect(ex, l).toEqual(sw);
-    }
-    expect(c.devices.end).toBeDefined();
+    expect(c.def.bays[0]!.gates).toEqual([]);
+    expect(c.def.bays[1]!.gates).toEqual([]);
+    const locked = new Set(b.anchors.doors.filter((d) => d.locked).map((d) => d.id));
+    for (const id of ['A1-near', 'A1-far', 'A2-near', 'A2-far']) expect(locked.has(c.doors[id]!), id).toBe(true);
+    // no airlock button: the airlocks carry no device
+    for (const k of Object.keys(c.devices)) expect(/^A[12]/.test(k), k).toBe(false);
+    const obj = c.def.objectives!.filter((o) => o.bay === 'B1' || o.bay === 'B2');
+    expect(obj.length).toBe(13 + 24);
+    expect(obj[0]!.text).toBe('Open your locker');
+    expect(obj[12]!.text).toBe('Both on the airlock pad');
+    expect(obj.filter((o) => o.bay === 'B2').map((o) => o.id.slice(3)).join(' ')).toBe('1 2 3 4 4a 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23');
+    expect(obj.every((o) => o.text.length <= 90)).toBe(true);
+    expect(c.def.airlocks.find((a) => a.id === 'A1')!.box).toEqual([1, 54, 7, 60]);
+    expect(c.def.airlocks.find((a) => a.id === 'A2')!.box).toEqual([59, 50, 65, 56]);
+  });
+
+  it('R4: footprints as BAYS 0.1 (B1 216 m2 L-shaped, B2 468 m2), airlocks 6 x 6', () => {
+    const area = (bay: string) => UPPER_ROOMS.filter((r) => r.bay === bay).reduce((n, r) => n + (r.rect[2] - r.rect[0]) * (r.rect[3] - r.rect[1]), 0);
+    expect(area('B1')).toBeCloseTo(216, 5);
+    expect(area('B2')).toBeCloseTo(468, 5);
+    expect(area('A1')).toBeCloseTo(36, 5);
+    expect(area('A2')).toBeCloseTo(36, 5);
   });
 
   it('has no split gaps on the Upper level', () => {
@@ -146,102 +172,185 @@ describe('Fallow (bunker) Upper level (T2)', () => {
   });
 
   it('every lip is one BAYS names (BUNKER_LIPS), and every named lip exists', () => {
-    const upper = generated.filter((l) => l.top >= UPPER_Y && Math.max(l.a.x, l.b.x) <= 84);
-    const stray = upper.filter((l) => !BUNKER_LIPS.some((p) => inLip(l, p.box, p.top)));
+    const upper = generated.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 84 && Math.min(l.a.z, l.b.z) > 48);
+    expect(upper.map((l) => [l.a, l.b, l.top])).toEqual([]);
+    const manualUp = manual.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 84 && Math.min(l.a.z, l.b.z) > 48);
+    const stray = manualUp.filter((l) => !BUNKER_LIPS.some((p) => inLip(l, p.box, p.top)));
     expect(stray.map((l) => [l.a, l.b, l.top])).toEqual([]);
-    for (const p of BUNKER_LIPS) {
-      const have = [...upper, ...manual].some((l) => inLip(l, p.box, p.top));
-      expect(have, p.id).toBe(true);
-    }
+    for (const p of BUNKER_LIPS) expect(manualUp.some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
   });
 
-  it('ground verbs: step, vault, mantle', () => {
+  it('ground verbs: step, vault, mantle; landing bands: hang-drop soft, pads soft / roll, pit heavy', () => {
     expect(pickTraversal({ height: M.step, depth: 1, landingClear: true, topClear: true })).toBe('step');
     expect(pickTraversal({ height: M.vault, depth: M.vaultThick, landingClear: true, topClear: false })).toBe('vault');
     expect(pickTraversal({ height: M.mantle, depth: 2, landingClear: false, topClear: true })).toBe('mantle');
+    expect(landingKind(M.gallery - HANG.drop)).toBe('soft');
+    expect(landingKind(M.deck - M.padSoft)).toBe('soft');
+    expect(landingKind(M.deck - M.padRoll)).toBe('roll');
+    expect(landingKind(M.deck - M.padPit)).toBe('heavy');
+    // the lowest Upper floors stay above the nav sampler's floor (SPEC engine Q1)
+    expect(UPPER_Y - M.trenchDepth).toBeGreaterThan(-1.5);
+    // the trench: 1.2 wide (a jump), too deep to mantle out (step irons on the near side only)
+    expect(M.trenchDepth).toBeGreaterThan(1.8);
   });
 
-  it('climbing metrics: pipe reach from G1, hang-drop and jump-down off G2, L1 hang only, L2 climbable, gap 2.2', () => {
+  it('climbing metrics: pipe reach from G1, G2 hang point, L1 hang only round the column, the sill climbable, gap 2.2', () => {
     const reach = M.pipe - M.gallery;
     expect(reach).toBeGreaterThanOrEqual(REACH.grabMin);
     expect(reach).toBeLessThanOrEqual(REACH.grabMax);
     expect(M.pipe - HANG.drop).toBeGreaterThan(M.gallery);
-    expect(landingKind(M.gallery - HANG.drop)).toBe('soft');
-    expect(landingKind(M.gallery)).toBe('roll');
+    const lipOf = (id: string): Ledge[] => manual.filter((l) => inLip(l, BUNKER_LIPS.find((p) => p.id === id)!.box, BUNKER_LIPS.find((p) => p.id === id)!.top));
+    const g2 = lipOf('G2H');
+    expect(g2.length).toBe(1);
+    expect(g2[0]!.canHang).toBe(true);
+    expect(g2[0]!.nx).toBeCloseTo(1, 5);
+    const l1 = lipOf('L1');
+    expect(l1.length).toBe(5);
+    expect(l1.every((l) => l.canHang && !l.canClimbUp)).toBe(true);
+    expect(l1.filter((l) => l.nextA >= 0 || l.nextB >= 0).length).toBe(5);
     expect(M.l1Depth).toBeLessThan(LEDGE.climbDepth);
     expect(M.l2Depth).toBeGreaterThanOrEqual(LEDGE.climbDepth);
-    for (const lane of ['N', 'S']) {
-      const l1 = manual.filter((l) => inLip(l, BUNKER_LIPS.find((p) => p.id === `L1${lane}`)!.box, UPPER_Y + M.beam));
-      const l2 = manual.filter((l) => inLip(l, BUNKER_LIPS.find((p) => p.id === `L2${lane}`)!.box, UPPER_Y + M.beam));
-      // Lane S: the ladder-head landing's east-face lip also lies in L1's box (6)
-      expect(l1.length, lane).toBe(lane === 'N' ? 5 : 6);
-      expect(l1.every((l) => l.canHang && !l.canClimbUp)).toBe(true);
-      expect(l2.length).toBe(1);
-      expect(l2[0]!.canClimbUp).toBe(true);
-      // the 2.2 gap is hand to hand: the stub's grip (inside its edge margins) to L2's nearest grip
-      const stub = l1.reduce((p, l) => (Math.max(l.a.x, l.b.x) > Math.max(p.a.x, p.b.x) ? l : p));
-      const rs = attachRange(stub);
-      const l2r = attachRange(l2[0]!);
-      const stubGrip = Math.min(stub.a.x, stub.b.x) + rs.min;
-      const l2Grip = Math.min(l2[0]!.a.x, l2[0]!.b.x) + l2r.min;
-      expect(l2Grip - stubGrip).toBeCloseTo(M.gap, 5);
-      // two outside corners round the column: the chain is linked end to end
-      expect(l1.filter((l) => l.nextA >= 0 || l.nextB >= 0).length).toBe(l1.length);
+    const l2 = lipOf('L2');
+    expect(l2.length).toBe(1);
+    expect(l2[0]!.canClimbUp).toBe(true);
+    const stub = l1.reduce((p, l) => (Math.max(l.a.z, l.b.z) > Math.max(p.a.z, p.b.z) ? l : p));
+    const stubGrip = Math.min(stub.a.z, stub.b.z) + attachRange(stub).min;
+    const l2Grip = Math.min(l2[0]!.a.z, l2[0]!.b.z) + attachRange(l2[0]!).min;
+    expect(l2Grip - stubGrip).toBeCloseTo(M.gap, 5);
+    // the engine jump from the hang on the stub (north, along the wall, real 2.5 limit) lands on the sill
+    const pose: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
+    attachPose(stub, attachRange(stub).max, 1, 1.75, pose);
+    const t = findJumpTarget(b.anchors, { x: pose.x, y: stub.top, z: pose.z }, stub.id, 0, 1, 0, 2.5, 0.6, stub.nx, stub.nz);
+    expect(t?.anchor.id).toBe(l2[0]!.id);
+  });
+
+  it('A51: no lip a boost could skip by: L1 over 2C and the sill over the sump stand above 4.5; G2 hang point only back', () => {
+    const below = (l: Ledge) => {
+      const mx = (l.a.x + l.b.x) / 2 + l.nx * 0.6;
+      const mz = (l.a.z + l.b.z) / 2 + l.nz * 0.6;
+      return nav.heightAt(mx, mz, l.top - 1);
+    };
+    for (const id of ['L1', 'L2']) {
+      for (const l of manual.filter((q) => inLip(q, BUNKER_LIPS.find((p) => p.id === id)!.box, BUNKER_LIPS.find((p) => p.id === id)!.top))) {
+        expect(l.top - below(l), id).toBeGreaterThan(TEAM.boostMax);
+      }
+    }
+    // G2's hang point is 4.0 over 2C: a boost there goes back to G2 (the element's start), never onward
+    expect(M.gallery).toBeLessThan(TEAM.boostMax);
+    // G1 has no lip (screened 2.4 and caged ladder): nothing to boost to
+    const g1 = generated.concat(manual).filter((l) => Math.abs(l.top - (UPPER_Y + M.gallery)) < 0.05 && Math.min(l.a.x, l.b.x) >= W('B2', 13.9, 0).x && Math.max(l.a.x, l.b.x) <= W('B2', 16.1, 0).x);
+    expect(g1).toEqual([]);
+  });
+
+  it('A26 glass: see-through collision (invisible, noLedge), no fence or climbing anchor on it', () => {
+    const glassBoxes = b.boxes.filter((p) => p.collide && p.visible === false && p.noLedge && p.c[1] > UPPER_Y && p.c[0] < 66 && p.c[2] > 48 && p.c[2] < 76);
+    // BR's south wall (2 runs), G1's west screens (2), G2's east screens (2), RL2's cage side
+    expect(glassBoxes.length).toBeGreaterThanOrEqual(7);
+    for (const g of glassBoxes) {
+      const inG = (x: number, z: number) => Math.abs(x - g.c[0]) <= g.s[0] / 2 + 0.05 && Math.abs(z - g.c[2]) <= g.s[2] / 2 + 0.05;
+      expect(b.anchors.fences.filter((f) => inG(f.a.x, f.a.z) && inG(f.b.x, f.b.z))).toEqual([]);
+      expect(b.anchors.ledges.filter((l) => inG(l.a.x, l.a.z) && inG(l.b.x, l.b.z))).toEqual([]);
     }
   });
 
-  it('item 11: the engine jump from the hang on the L1 stub (east, real 2.5 limit) lands on L2, both lanes', () => {
-    for (const lane of ['N', 'S']) {
-      const lipOf = (id: string): Ledge[] => manual.filter((l) => inLip(l, BUNKER_LIPS.find((p) => p.id === id)!.box, UPPER_Y + M.beam));
-      const stub = lipOf(`L1${lane}`).reduce((p, l) => (Math.max(l.a.x, l.b.x) > Math.max(p.a.x, p.b.x) ? l : p));
-      const l2 = lipOf(`L2${lane}`)[0]!;
-      // the controller's grip centre (attachController gripCentre): the hang pose's x / z at the lip top
-      const r = attachRange(stub);
-      const pose: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
-      attachPose(stub, r.max, 1, 1.75, pose);
-      const from = { x: pose.x, y: stub.top, z: pose.z };
-      // attachController ~:1075: findJumpTarget(..., up 0, maxGap 2.5, minCos 0.6, the held lip's normal)
-      const t = findJumpTarget(b.anchors, from, stub.id, 1, 0, 0, 2.5, 0.6, stub.nx, stub.nz);
-      expect(t?.anchor.id, lane).toBe(l2.id);
+  it('R1 / R2, B1: LL -> KR -> BR -> GR -> DS -> A1 is the only line; the run crosses every mark in order; each door is a cut', () => {
+    const open = analyticNav(b, [-1, 48, 66, 76], b.anchors.doors.filter((d) => d.locked && d.id !== lay.course!.doors['A1-near']).map(doorLeaf));
+    const ll = W('B1', 3, 10);
+    const a1 = W('A1', 3, 3);
+    expect(joins(nav, ll, a1)).toBeNull();
+    const path = joins(open, ll, a1);
+    expect(path).not.toBeNull();
+    // the path's points in the gear run, in order, pass every mark (x 18 .. 3) and the stop and turn marks going west
+    const gr = UPPER_ROOMS.find((r) => r.id === 'GR')!.rect;
+    const xs = path!.filter((w) => w[1] > gr[1] && w[1] < gr[3]).map((w) => w[0]);
+    expect(Math.max(...xs)).toBeGreaterThan(W('B1', 18, 0).x);
+    expect(Math.min(...xs)).toBeLessThan(W('B1', 1.8, 0).x);
+    for (const id of ['B1-kr', 'B1-br', 'B1-gr', 'B1-ds']) {
+      const cut = analyticNav(b, [-1, 48, 66, 76], [...b.anchors.doors.filter((d) => d.locked && d.id !== lay.course!.doors['A1-near']).map(doorLeaf), doorLeaf(doorOf(id))]);
+      expect(joins(cut, ll, a1), id).toBeNull();
     }
   });
 
-  it('Lane S item 9: the ladder tops out on a landing at the beam height whose lip chains into L1', () => {
-    const lad = b.anchors.ladders.filter((l) => Math.abs(l.top.y - (UPPER_Y + M.beam)) < 0.01);
-    expect(lad.length).toBe(1);
-    const top = lad[0]!;
-    // the top step-off (attachController detach 'top': top + 0.2 along facing) lands on the landing box
-    const ex = top.top.x + Math.sin(top.facing) * 0.2;
-    const ez = top.top.z + Math.cos(top.facing) * 0.2;
-    const on = b.boxes.some((p) => p.collide && Math.abs(p.c[1] + p.s[1] / 2 - top.top.y) < 0.01 && Math.abs(ex - p.c[0]) <= p.s[0] / 2 - 0.1 && Math.abs(ez - p.c[2]) <= p.s[2] / 2 - 0.1);
-    expect(on).toBe(true);
-    const head = manual.filter((l) => inLip(l, BUNKER_LIPS.find((p) => p.id === 'LHS')!.box, UPPER_Y + M.beam));
-    expect(head.length).toBe(2);
-    expect(head.every((l) => l.canHang && !l.canClimbUp)).toBe(true);
-    // linked: the front edge to the east face (an outside corner), the east face on into L1 (an inside corner)
-    expect(head.every((l) => l.nextA >= 0 || l.nextB >= 0)).toBe(true);
-    expect(head.filter((l) => l.nextA >= 0 && l.nextB >= 0).length).toBe(1);
-  });
-
-  it('A26: the B2 glass walls (z 15, z 21) carry no fence or climbing anchor; a full-height collision box stops movement', () => {
-    for (const z of [15, 21].map((v) => at('B2', 0, v).z)) {
-      const onLine = (x0: number, z0: number, x1: number, z1: number): boolean =>
-        Math.abs(z0 - z) < 0.3 && Math.abs(z1 - z) < 0.3 && Math.max(x0, x1) > at('B2', 0, 0).x && Math.min(x0, x1) < at('B2', 48, 0).x;
-      expect(b.anchors.fences.filter((f) => onLine(f.a.x, f.a.z, f.b.x, f.b.z))).toEqual([]);
-      expect(b.anchors.ladders.filter((l) => onLine(l.base.x, l.base.z, l.base.x, l.base.z))).toEqual([]);
-      expect(b.anchors.ledges.filter((l) => l.top >= UPPER_Y && onLine(l.a.x, l.a.z, l.b.x, l.b.z))).toEqual([]);
-      const wall = b.boxes.filter((p) => p.collide && p.visible === false && p.noLedge && Math.abs(p.c[2] - z) < 0.01 && p.s[1] >= 12 - 0.01);
-      const len = wall.reduce((n, p) => n + p.s[0], 0);
-      expect(len).toBeGreaterThan(48 - 2 * 1.2 - 0.5);
+  // B2's room graph (BAYS 0.2 Proof): cells are floors the nav keeps apart; links are the elements' passages
+  type Cell = string;
+  const P = (x: number, z: number, y: number) => W('B2', x, z, y);
+  const cells: Record<Cell, ReturnType<typeof at> | null> = {
+    '2A0': P(1, 4.5, 0), PL: P(2.5, 4.5, M.step), '2A1': P(4, 4.5, 0), '2A2': P(6.4, 4.5, 0), BW: P(8.5, 4.5, M.mantle),
+    '2BF': P(11.5, 4.5, 0), G1: P(15, 2, M.gallery), PIT: P(18, 7, M.pit), G2: P(21, 2, M.gallery), CAGE: P(21.4, 8.3, M.gallery),
+    '2CW': P(24, 4.5, 0), TR: P(27.6, 4.5, -M.trenchDepth), '2CE': P(31, 2, 0), SUMP: P(32.6, 7.5, M.sump), L1: null, SILL: null,
+    DECK: P(36, 4.5, M.deck), PS: P(39.5, 1.5, M.padSoft), PR: P(39.5, 4.5, M.padRoll), PP: P(43, 7, M.padPit), '2F': P(50, 6, 0),
+    A2: W('A2', 3, 3),
+  };
+  /** [from, to, element, both ways, return link (A61)]. */
+  const links: [Cell, Cell, string, boolean, boolean?][] = [
+    ['2A0', 'PL', 'step', true], ['PL', '2A1', 'step', true], ['2A1', '2A2', 'vault', true], ['2A2', 'BW', 'mantle', false],
+    ['BW', '2A2', 'fall', false], ['BW', '2BF', 'mantle', false], ['2BF', 'G1', 'ladder', true], ['G1', 'G2', 'pipe', true],
+    ['G1', 'PIT', 'fall', false], ['G2', 'PIT', 'fall', false], ['PIT', 'G1', 'pit ladder', false], ['G2', '2CW', 'hang-drop', false],
+    ['2CW', 'CAGE', 'RL2', true], ['CAGE', 'G2', 'turnstile', false, true], ['2CW', '2CE', 'trench jump', true],
+    ['2CW', 'TR', 'fall', false], ['2CE', 'TR', 'fall', false], ['TR', '2CW', 'step irons', false], ['2CE', 'L1', 'downpipe', true],
+    ['L1', '2CE', 'fall', false], ['L1', 'SUMP', 'fall', false], ['SUMP', '2CE', 'mantle', true], ['L1', 'SILL', 'gap jump', false],
+    ['SILL', 'SUMP', 'fall', false], ['SILL', 'DECK', 'climb up', true], ['DECK', 'PS', 'deck drop', false],
+    ['DECK', 'PR', 'deck drop', false], ['DECK', 'PP', 'deck drop', false], ['PS', 'PP', 'fall', false], ['PR', 'PP', 'fall', false],
+    ['PP', 'PR', 'mantle', false], ['PP', 'DECK', 'pad ladder', false], ['PP', '2F', 'window', true], ['2F', 'A2', 'door', true],
+  ];
+  const reach = (from: Cell, without: string | null, ret: boolean): Map<Cell, [Cell, string]> => {
+    const prev = new Map<Cell, [Cell, string]>([[from, ['', '']]]);
+    const q = [from];
+    while (q.length > 0) {
+      const n = q.shift()!;
+      for (const [a, e, el, both, r] of links) {
+        if (el === without || (r && !ret)) continue;
+        for (const [s, t] of both ? [[a, e], [e, a]] : [[a, e]]) {
+          if (s === n && !prev.has(t!)) {
+            prev.set(t!, [n, el]);
+            q.push(t!);
+          }
+        }
+      }
     }
+    return prev;
+  };
+
+  it('B2: the nav keeps every cell apart (every station spans wall to wall; no floor joins two cells)', () => {
+    const named = Object.entries(cells).filter((e): e is [Cell, NonNullable<(typeof e)[1]>] => e[1] !== null);
+    for (const [id, p] of named) expect(nav.heightAt(p.x, p.z, p.y), id).toBeCloseTo(p.y, 1);
+    const joined: string[] = [];
+    for (let i = 0; i < named.length; i++) for (let k = i + 1; k < named.length; k++) if (joins(nav, named[i]![1], named[k]![1])) joined.push(`${named[i]![0]}-${named[k]![0]}`);
+    expect(joined).toEqual([]);
   });
 
-  it('drop pads off P land in their bands: soft, roll, heavy', () => {
-    expect(landingKind(M.platform - M.padSoft)).toBe('soft');
-    expect(landingKind(M.platform - M.padRoll)).toBe('roll');
-    expect(landingKind(M.platform - M.pit)).toBe('heavy');
-    // the pit floor stays above the nav sampler's floor (SPEC engine Q1)
-    expect(UPPER_Y + M.pit).toBeGreaterThan(-1.5);
+  it('B2 element evidence: ladders, pipes, lips, windows and doors are where the graph says', () => {
+    const near = (p: { x: number; z: number }, x: number, z: number, r = 0.6) => Math.abs(p.x - W('B2', x, 0).x) < r && Math.abs(p.z - W('B2', 0, z).z) < r;
+    expect(b.anchors.ladders.some((l) => near(l.base, 13.6, 4.5) && Math.abs(l.top.y - (UPPER_Y + M.gallery)) < 0.01)).toBe(true);
+    expect(b.anchors.ladders.some((l) => near(l.base, 16.4, 1) && Math.abs(l.base.y - (UPPER_Y + M.pit)) < 0.01)).toBe(true);
+    expect(b.anchors.ladders.some((l) => near(l.base, 22.4, 8.5))).toBe(true);
+    expect(b.anchors.ladders.some((l) => near(l.base, 27.35, 4.5) && Math.abs(l.base.y - (UPPER_Y - M.trenchDepth)) < 0.01)).toBe(true);
+    expect(b.anchors.ladders.some((l) => near(l.base, 38.4, 8) && Math.abs(l.top.y - (UPPER_Y + M.deck)) < 0.01)).toBe(true);
+    expect(b.anchors.all.some((a) => a.kind === 'pipeH' && Math.abs(a.a.y - (UPPER_Y + M.pipe)) < 0.01 && near(a.a, 15.5, 4.5) && near(a.b, 20.5, 4.5))).toBe(true);
+    expect(b.anchors.all.some((a) => a.kind === 'pipeV' && near(a.base, 33.9, 0.8) && Math.abs(a.top.y - (UPPER_Y + M.beam)) < 0.01)).toBe(true);
+    const wins = b.anchors.all.filter((a) => a.kind === 'window' && Math.abs(a.c.x - W('B2', 46.15, 0).x) < 0.01);
+    expect(wins.length).toBe(3);
+    expect(wins.filter((w) => w.kind === 'window' && w.breakable).length).toBe(2);
+    // RL2's turnstile is a locked door until T7a (A61 stub; UPPER_ELEMENTS)
+    expect(doorOf('B2-rl2').locked).toBe(true);
+    expect(lay.course!.def.bays[1]!.elements.map((e) => e.id)).toEqual(['B2-RL2', 'B2-reglaze', 'B2-relamp']);
+  });
+
+  it('R1, B2: the path from 2A to A2 passes the elements in the objective order and never uses a return link', () => {
+    const prev = reach('2A0', null, false);
+    expect(prev.has('A2')).toBe(true);
+    const els: string[] = [];
+    for (let n: Cell = 'A2'; n !== '2A0'; n = prev.get(n)![0]) els.unshift(prev.get(n)![1]);
+    expect(els.filter((e) => e !== 'fall')).toEqual(['step', 'step', 'vault', 'mantle', 'mantle', 'ladder', 'pipe', 'hang-drop', 'trench jump', 'downpipe', 'gap jump', 'climb up', 'deck drop', 'window', 'door']);
+    // with the return links too, nothing new is reached before its element (G2 only from G1 or by the return)
+    const withRet = reach('2A0', null, true);
+    expect([...withRet.keys()].sort()).toEqual([...prev.keys()].sort());
+  });
+
+  it('R2, B2: each element is a cut: without its passage the exit (A2) is unreachable, return links included', () => {
+    for (const el of ['step', 'vault', 'mantle', 'ladder', 'pipe', 'hang-drop', 'trench jump', 'downpipe', 'gap jump', 'climb up', 'deck drop', 'window']) {
+      expect(reach('2A0', el, true).has('A2'), el).toBe(false);
+    }
   });
 });
 
@@ -1033,7 +1142,9 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
   // rooms joins them (unless an anchorLock gate holds it). Inside a bay every floor is taken as joined (the bay tests).
   it('reachability: with every course door open the way from B1 to L9 enters B1..B9 in order; as built nothing leaves B1', () => {
     const rooms: [string, number, number, number, number][] = [
-      ['B1', 0, 72, 24, 24], ['A1', 24, 81, 6, 6], ['B2', 30, 66, 48, 36], ['A2', 78, 81, 6, 6], ['B3', 84, 74, 18, 18],
+      // T5d: Upper at its v2 offsets; until T5e the interim passage (INTERIM_PASSAGE) counts as B3's approach
+      ['B1', 0, 60, 20, 14.4], ['A1', 1, 54, 6, 6], ['B2', 7, 49.5, 52, 9], ['A2', 59, 50, 6, 6], ['B3', 84, 74, 18, 18],
+      ['B3', 65, 52, 12, 2], ['B3', 75, 54, 2, 29], ['B3', 75, 83, 9, 2],
       ['A3', 90, 68, 6, 6], ['B4', 82, 30, 36, 38], ['A4', 97, 24, 6, 6], ['B5', 70, -8, 48, 32], ['A5', 64, 5, 6, 6],
       ['B6', 22, -8, 42, 32], ['S6', 6, -8, 16, 3], ['A6', 0, -10, 6, 6], ['B7', 0, -50, 44, 40], ['A7', 44, -33, 6, 6],
       ['B8', 50, -46, 62, 32], ['A8', 112, -33, 6, 6], ['B9', 118, -56, 44, 52], ['L9', 136, -4, 8, 6],

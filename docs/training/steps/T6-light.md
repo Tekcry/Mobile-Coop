@@ -44,3 +44,5 @@ row 5) run at the Block C end, not here.
 ## Carry-over from T4's checker
 - Key the B5 mains gate to the MB switch state (or to "all of L1-L3 off"), never to lamp states: shooting or EMPing a
   lamp must not open A5. L1-L3 as three SR switches need their own groups or an "all off" rule. Keep switch groups <= 12.
+- From T5d (REVIEW-NOTES): B1's store switch K4 inside the DS door (local 2.2, 5.7) drives L1-7S and L1-9 (off at start);
+  B2's L2-G1..3 breakable gallery bulkheads (objective 4a); the airlock pad borders' white / amber / green.

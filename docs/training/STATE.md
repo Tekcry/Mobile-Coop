@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T5d (rebuild Upper)
+Current step: T5e (rebuild Shaft and Cistern; closes the T5c Blocked items first)
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -27,7 +27,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | C | T5b walk-1 fixes (automatic airlocks, client prompts and doors, objective list) | done | 4cae63f |
 | C | T5b2 partners block each other (D49) | done | (this commit) |
 | C | T5c BAYS v2 redesign (docs) | done with 3 open B3 items (Blocked, see below; T5e resolves them first) | (this commit) |
-| C | T5d rebuild Upper (B1, A1, B2, A2) | not started | |
+| C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | (this commit) |
 | C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | not started | |
 | C | T5f rebuild Plant (B5, A5, B6, S6, A6) | not started | |
 | C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | not started | |
@@ -59,11 +59,11 @@ T5c open items (B3 rope stages, after 3 fix rounds; resolve first in T5e):
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A65 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A70 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
-   Next: T5b, T5b2 (partner blocking, D49) and T5c (BAYS v2) done; T5d-T5g rebuild on paper, T5d-T5g rebuild of every bay, then the run stops for walk 2.
+   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2) and T5d (Upper rebuilt) done; T5e-T5g rebuild the other bays, then the run stops for walk 2.
 2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
    on the PC. Send:
    ```
@@ -73,4 +73,4 @@ A1-A65 (DECISIONS.md; A6 revised per D21, A15 resolved)
 3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
 
 ## Next action
-On RESUME: read BRIEF, RULES, STATE; then T5d (docs/training/steps/T5d-rebuild-upper.md). T5e first closes the T5c open items under Blocked.
+On RESUME: read BRIEF, RULES, STATE; then T5e (docs/training/steps/T5e-*.md): first close the T5c open items under Blocked, then move B3 to (65, 46) against A2's east wall and remove the Upper's interim passage (bunkerUpper `INTERIM_PASSAGE`, the 'B3' passage rects in the room graph test).

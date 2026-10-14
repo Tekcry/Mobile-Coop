@@ -84,3 +84,12 @@
   - CCTV is now P2-only: B6 operator loops CAM1-4 (objective 15); P1 has no CCTV drill (B8 / B9 cameras placed).
   - IR beams: v1 "B6 (both)" is now the runner P1 crossing them (placed, not ticked); P2 turns them off (objective 16).
   - Self-use medkits are placed (A4, A6, A8, B9: use when hurt), not a drill for either player.
+- T5d (Upper v2) left for T7a / T6: (1) RL2's one-way single-occupancy return turnstile (A61) is a locked door on G2
+  (`B2-rl2`); until T7a builds the rotor a player who leaves G2 without the hang cannot go back up (the hang objective
+  is still ticked only by the real verb). (2) The two glazed practice panes do not re-glaze (A54, A61). (3) L2-G1..3
+  and the re-lamp rule are T6 / T7a (objective 4a is listed only). (4) DS light switch K4 and the strike post are not
+  devices yet. (5) e2e-bunker's client-use check moved from B2's lane lever (gone in v2) to B6's card A pickup.
+  (6) Interim: A2's far door opens onto a 2 m passage to the v1 B3 door at x 84; T5e removes it and moves B3 to (65, 46).
+  (7) Objectives are `CourseDef.objectives` entries (names in BAYS order), not drills, so the airlocks still cycle
+  with nothing open until T7a.
+

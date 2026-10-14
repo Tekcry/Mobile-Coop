@@ -1,7 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { CourseDef, GateDef } from '../../game/course/courseDef';
-import { buildUpper, UPPER_Y } from './bunkerUpper';
+import { buildUpper, UPPER_ELEMENTS, UPPER_OBJECTIVES, UPPER_Y } from './bunkerUpper';
 import { buildShaft, buildShaftFloors, plantAt } from './bunkerShaft';
 import { B5_GROUPS, B5_METRICS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
 import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
@@ -10,8 +10,8 @@ import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2-T5): B1 to B9 with A1 to A8 and the exit lift L9 ("Finish" in the car). B2's lane doors and the lanes' walkway doors at the east end
- * are lever gates (each lever in the other lane opens both of a lane's doors). B3: the fan guard (its four fence
+ * The course data stub (T2-T5, Upper rebuilt to BAYS v2 in T5d): B1 to B9 with A1 to A8 and the exit lift L9 ("Finish" in
+ * the car). B1 and B2 have no gates (one shared course, R3). B3: the fan guard (its four fence
  * sides) and the discharge duct stay locked until the fan isolator in CR is thrown (a pickup flag); CR's door onto the
  * chamber floor is bolted from inside CR. B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
  * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it; B4 exits into A4.
@@ -36,9 +36,10 @@ function card(id: string, switchId: string, levels: number): GateDef[] {
 function courseDef(): CourseDef {
   return {
     id: 'bunker',
+    objectives: [...UPPER_OBJECTIVES],
     airlocks: [
-      { id: 'A1', box: [24, 81, 30, 87], floorY: UPPER_Y, nearDoor: 'A1-near', farDoor: 'A1-far' },
-      { id: 'A2', box: [78, 81, 84, 87], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
+      { id: 'A1', box: [1, 54, 7, 60], floorY: UPPER_Y, nearDoor: 'A1-near', farDoor: 'A1-far' },
+      { id: 'A2', box: [59, 50, 65, 56], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
       { id: 'A3', box: [90, 68, 96, 74], floorY: plantAt('A3', 0, 0).y, nearDoor: 'A3-near', farDoor: 'A3-far' },
       { id: 'A4', box: [97, 24, 103, 30], floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
       { id: 'A5', box: [64, 5, 70, 11], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
@@ -47,23 +48,10 @@ function courseDef(): CourseDef {
       { id: 'A8', box: [112, -33, 118, -27], floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
     ],
     bays: [
-      { id: 'B1', entry: 'start', exit: 'A1', squad: [], gates: [], radio: [], drills: [], elements: [] },
-      {
-        id: 'B2',
-        entry: 'A1',
-        exit: 'A2',
-        squad: [],
-        gates: [
-          { kind: 'lever', id: 'g-lane-n', switchId: 'sw-lever-s', doorId: 'B2-lane-n' },
-          { kind: 'lever', id: 'g-lane-s', switchId: 'sw-lever-n', doorId: 'B2-lane-s' },
-          // each lane's walkway door at its east end opens with the same lever (no way into the second half round the gate)
-          { kind: 'lever', id: 'g-exit-n', switchId: 'sw-lever-s', doorId: 'B2-exit-n' },
-          { kind: 'lever', id: 'g-exit-s', switchId: 'sw-lever-n', doorId: 'B2-exit-s' },
-        ],
-        radio: [],
-        drills: [],
-        elements: [],
-      },
+      // B1, B2 (BAYS v2, T5d): one shared course, no split, no gate (R3); objectives by name (UPPER_OBJECTIVES, T7a
+      // makes them drills); the elements still stubs are flagged (UPPER_ELEMENTS)
+      { id: 'B1', entry: 'start', exit: 'A1', squad: [], gates: [], radio: [], drills: [], elements: UPPER_ELEMENTS.B1 },
+      { id: 'B2', entry: 'A1', exit: 'A2', squad: [], gates: [], radio: [], drills: [], elements: UPPER_ELEMENTS.B2 },
       {
         id: 'B3',
         entry: 'A2',
@@ -191,7 +179,7 @@ function courseDef(): CourseDef {
 
 /** Course door ids the definition uses (the other doors stay plain, unlocked). */
 const COURSE_DOORS = [
-  'A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s', 'B2-exit-n', 'B2-exit-s',
+  'A1-near', 'A1-far', 'A2-near', 'A2-far',
   'B3-cr', 'A3-near', 'A3-far', 'B4-insp', 'B4-sluice', 'A4-near', 'A4-far',
   'A5-near', 'A5-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A6-near', 'A6-far',
   'A7-near', 'A7-far', 'B8-cs', 'A8-near', 'A8-far', 'L9-door',

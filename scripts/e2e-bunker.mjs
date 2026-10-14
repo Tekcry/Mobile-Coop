@@ -8,7 +8,8 @@
 // it against a free walk of the same length); partners block each other (D49): the host walking into the standing client
 // and the client walking into the standing host both stop short of him (traced: never closer than the two radii, never
 // past him); a partner teleported across the other's standing spot does not move him (T5b2: no sweep between spots).
-// B2: the client pulls a lane lever through `use` and both pages see its doors unlock.
+// Client use (was B2's lane lever; BAYS v2 B2 has no gate): the client takes card A (B6) through `use` and both pages
+// see the reader doors it opens unlock.
 import { launch, openPage, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -141,14 +142,15 @@ try {
   console.log('B1: the A1 pad (R6)');
   const near = await doorIndex('A1-near');
   const far = await doorIndex('A1-far');
-  const nearX = await GA((n) => window.__app.current.world.doors.list[n].cx, near);
+  const nearZ = await GA((n) => window.__app.current.world.doors.list[n].cz, near);
   await until(B, (f) => window.__course.wire.locks.includes(f), far, 5000, 'client sees the far door locked');
-  await moveClient(12, 84);
-  await moveHost(27, 84);
+  // T5d (BAYS v2): A1 is x 1..7, z 54..60 (pad x 2..6, z 55..59); the near door in its north wall (z 60, x 3.4..4.6)
+  await moveClient(4, 63);
+  await moveHost(4, 57);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Waiting for partner/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? '') && !document.querySelector('.course-hud .ch-air').hidden, null, 8000, `${tag} shows "Waiting for partner"`);
   assert((await hostDebug()).air.A1 === 'waiting', `one player on the A1 pad: both pages show "Waiting for partner" (client "${await airText(B)}")`);
   // both on it: B1 has no drills yet (T7a), so nothing is open and it cycles by itself
-  await moveClient(27, 85.5);
+  await moveClient(4, 58.5);
   await until(A, () => /^(cycling|sealed)$/.test(window.__course.debug().air.A1), null, 5000, 'A1 cycling by itself');
   await GA(() => window.__app.loop.stepHeadless(4.5));
   await until(A, () => window.__course.debug().bay === 1, null, 9000, 'A1 sealed, bay B2');
@@ -162,30 +164,30 @@ try {
   assert(fA.target === 1 && !fA.locked, `the front door opens when the cycle ends (${JSON.stringify(fA)})`);
 
   console.log('B1: a locked door blocks the client');
-  // the host steps clear of both walk lines first: he stood at (27, 84), the rear walk's start, and the client page's
+  // the host steps clear of both walk lines first: he stood at (4, 57), the rear walk's start, and the client page's
   // partner body (PartnerBlocker, D49; before T5b2 the PvpTarget hit boxes) blocks the client's body there, so the client
   // teleported into the host and was pinned (x 27.0 -> 27.25 in failed runs, camera and stick correct)
-  await moveHost(25.2, 82);
-  // control: the same walk along the airlock (+z, clear floor) covers more than the 3 m to the door
-  await moveClient(27, 81.7);
+  await moveHost(2.2, 55);
+  // control: the same walk along the airlock (+z, clear floor from the south wall) covers more than 3 m
+  await moveClient(4, 54.7);
   const c0 = await walkClient(0, 2.8);
-  const free = Math.hypot(c0[0] - 27, c0[1] - 81.7);
-  // into the shut, locked rear door (-x) from 3 m inside the airlock
-  const x0 = nearX + 3;
-  await moveClient(x0, 84);
-  const c1 = await walkClient(-Math.PI / 2, 2.8);
+  const free = Math.hypot(c0[0] - 4, c0[1] - 54.7);
+  // into the shut, locked rear door (+z, the north wall) from 3 m inside the airlock
+  const z0 = nearZ - 3;
+  await moveClient(4, z0);
+  const c1 = await walkClient(0, 2.8);
   assert(free >= 3, `control: the client walks ${free.toFixed(2)} m freely in the same time`);
-  const blocked = c1[0] < nearX + 0.8 && c1[0] > nearX + 0.1 && Math.abs(c1[1] - 84) < 0.6;
+  const blocked = c1[1] > nearZ - 0.8 && c1[1] < nearZ - 0.1 && Math.abs(c1[0] - 4) < 0.6;
   if (!blocked) console.error('walk trace [x, z, camYaw, yaw, speed, wishX, wishZ, override, padY]', JSON.stringify(await GB(() => window.__walkTrace)));
-  assert(c1[0] < nearX + 0.8 && c1[0] > nearX + 0.1 && Math.abs(c1[1] - 84) < 0.6, `the locked rear door blocks the client: he walks up to it and stays on the airlock side (x ${x0.toFixed(1)} -> ${c1[0].toFixed(2)}, z ${c1[1].toFixed(2)}; door at x ${nearX.toFixed(1)})`);
+  assert(blocked, `the locked rear door blocks the client: he walks up to it and stays on the airlock side (z ${z0.toFixed(1)} -> ${c1[1].toFixed(2)}, x ${c1[0].toFixed(2)}; door at z ${nearZ.toFixed(1)})`);
 
   console.log('B1: partners block each other (D49)');
-  // in the sealed airlock (clear floor along x 27, the control walk above): one stands 2.3 m ahead on the walk line, the
+  // in the sealed airlock (clear floor along x 4, the control walk above): one stands 2.3 m ahead on the walk line, the
   // other walks dead-centre into him for 2.8 s; a control walk with the partner off the line covers more than 2.3 m.
   // Sliding round a round capsule on contact is accepted physics (REVIEW-NOTES), so the check bounds it from the trace:
   // the walker never comes closer than the two radii (less a tolerance) and never ends past the partner
-  const lineZ = 81.7;
-  const standZ = 84;
+  const lineZ = 54.7;
+  const standZ = 57;
   const WALK_R = 0.3; // MOVEMENT.radius, the local player's controller capsule
   /** The walker's page: the partner's shown feet, whether its blocker is solid, and its radius. */
   const partnerOn = (P) =>
@@ -207,16 +209,16 @@ try {
   };
   const walkInto = async (tag, place, placePartner, walk) => {
     const P = tag === 'host' ? A : B;
-    await placePartner(25.2, 82);
-    await place(27, lineZ);
+    await placePartner(2.2, 55);
+    await place(4, lineZ);
     const f = await walk(0, 2.8);
-    const freeW = Math.hypot(f[0] - 27, f[1] - lineZ);
-    await placePartner(27, standZ);
-    await settled(P, tag, 27, standZ);
+    const freeW = Math.hypot(f[0] - 4, f[1] - lineZ);
+    await placePartner(4, standZ);
+    await settled(P, tag, 4, standZ);
     // dead-centre: the walker starts on the line through the partner's shown feet
     const pt = await partnerOn(P);
     await place(pt.x, lineZ);
-    await settled(P, tag, 27, standZ);
+    await settled(P, tag, 4, standZ);
     const w = await walk(0, 2.8);
     const tr = await P.evaluate(() => window.__walkTrace);
     let near = Infinity;
@@ -234,9 +236,9 @@ try {
    */
   const teleportPast = async (tag, place, placePartner) => {
     const P = tag === 'host' ? A : B;
-    await placePartner(27, 81.6);
-    await place(27, 82.9);
-    await settled(P, tag, 27, 81.6);
+    await placePartner(4, 54.6);
+    await place(4, 55.9);
+    await settled(P, tag, 4, 54.6);
     const s0 = await P.evaluate(() => { const p = window.__app.current.player.position; return [p.x, p.z]; });
     let moved = 0;
     const watch = (async () => {
@@ -255,8 +257,8 @@ try {
       return e.a ?? e.avatar;
     };
     await P.evaluate(`{ const b = (${avatarOf})().buf; window.__capWas = b.cap; b.cap = 100000; }`);
-    await placePartner(27, 84.3);
-    await settled(P, tag, 27, 84.3);
+    await placePartner(4, 57.3);
+    await settled(P, tag, 4, 57.3);
     // replay the walker page's buffered partner states at 60 fps through the real avatar and blocker (the live page
     // samples too few frames in software GL to catch a 50 ms sweep): solid and where at each frame
     const log = await P.evaluate(() => {
@@ -280,13 +282,13 @@ try {
     await watch;
     // from the last frame the partner shows at the old spot (earlier buffered moves are not the teleport)
     let from = -1;
-    for (let i = 0; i < log.length; i++) if (Math.abs(log[i][0] - 81.6) < 0.15) from = i;
+    for (let i = 0; i < log.length; i++) if (Math.abs(log[i][0] - 54.6) < 0.15) from = i;
     const after = from < 0 ? [] : log.slice(from);
-    const between = after.filter(([z, solid]) => solid && z > 81.9 && z < 84.0);
-    const spans = after.some(([z]) => z > 84.1);
+    const between = after.filter(([z, solid]) => solid && z > 54.9 && z < 57.0);
+    const spans = after.some(([z]) => z > 57.1);
     if (between.length || !spans) console.error(`${tag} blocker log [z, solid]`, JSON.stringify(after.length ? after : log));
     assert(spans && between.length === 0, `the partner teleported across the ${tag}'s spot is never solid between the two spots on the ${tag}'s page (${log.length} frames replayed from the old spot to the new: ${spans}, ${between.length} between)`);
-    assert(moved < 0.05, `the partner teleported across the ${tag}'s spot (z 81.6 -> 84.3, ${tag} at z 82.9) does not move him (moved ${moved.toFixed(3)} m)`);
+    assert(moved < 0.05, `the partner teleported across the ${tag}'s spot (z 54.6 -> 57.3, ${tag} at z 55.9) does not move him (moved ${moved.toFixed(3)} m)`);
   };
   await teleportPast('host', moveHost, moveClient);
   await teleportPast('client', moveClient, moveHost);
@@ -295,31 +297,35 @@ try {
   // the blocked walker was not pushed through anything: still on the airlock floor
   const hy = await GA(() => window.__app.current.player.position.y);
   assert(Math.abs(hy - Y) < 0.3, `the host stays on the airlock floor after the contact (y ${hy.toFixed(2)})`);
-  await moveHost(25.2, 82);
+  await moveHost(2.2, 55);
 
-  console.log('B2: the client pulls a lane lever through `use`');
-  const lever = iA.find((i) => /lever/.test(i.id))?.id;
-  assert(!!lever, `B2 has a lever prompt (${lever})`);
-  const lp = await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === id); return [it.pos.x, it.pos.z, it.node.rotation.y]; }, lever);
-  const gate = (await GA(() => Object.keys(window.__course.debug().gates))).filter((g) => /^g-(lane|exit)-/.test(g));
+  console.log('Client use: the client takes card A (B6) through `use`');
+  const lever = iA.find((i) => /pk-card-a/.test(i.id))?.id;
+  assert(!!lever, `the course has a card A prompt (${lever})`);
+  const lp = await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === id); return [it.pos.x, it.pos.z, it.node.rotation.y, it.pos.y]; }, lever);
+  const gate = (await GA(() => Object.keys(window.__course.debug().gates))).filter((g) => /^g-(card-a-\d|rd[12])$/.test(g));
   const g0 = await hostDebug();
   // stand in front of the lever (its face is along its yaw), within reach
   let ok = false;
   for (const [dx, dz] of [[Math.sin(lp[2]), Math.cos(lp[2])], [0, 1], [0, -1], [1, 0], [-1, 0]]) {
-    await moveClient(lp[0] + dx * 0.8, lp[1] + dz * 0.8);
+    // the card stands on the Plant level (B6, y 6): stand on its floor
+    await moveClient(lp[0] + dx * 0.8, lp[1] + dz * 0.8, 0, Math.round(lp[3]));
     if ((await use(B, lever)) !== 'ok') continue;
     try {
-      await until(A, (gs) => gs.some((g) => window.__course.debug().gates[g]), gate, 3000, 'a lane gate opens');
+      await until(A, (gs) => gs.some((g) => window.__course.debug().gates[g]), gate, 3000, 'a reader gate opens');
       ok = true;
       break;
     } catch {}
   }
+  await until(A, (gs) => gs.every((g) => window.__course.debug().gates[g]), gate, 3000, 'every card A gate open').catch(() => {});
   const g1 = await hostDebug();
   const openedG = gate.filter((g) => g1.gates[g] && !g0.gates[g]);
-  assert(ok && openedG.length === 2, `the client's lever opens its lane and walkway doors on the host (${openedG})`);
-  const laneDoor = await doorIndex(openedG[0] === 'g-lane-n' || openedG[0] === 'g-exit-n' ? 'B2-lane-n' : 'B2-lane-s');
-  await until(B, (i) => !window.__course.wire.locks.includes(i), laneDoor, 3000, 'client sees the lane door unlock');
-  assert(true, 'the client sees the lane door unlock');
+  assert(ok && openedG.includes('g-rd1') && openedG.includes('g-rd2'), `the client's card A opens both reader doors on the host (${openedG})`);
+  for (const id of ['B6-rd1', 'B6-rd2']) {
+    const rd = await doorIndex(id);
+    await until(B, (i) => !window.__course.wire.locks.includes(i), rd, 3000, `client sees ${id} unlock`);
+  }
+  assert(true, 'the client sees both reader doors unlock');
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);

@@ -478,7 +478,7 @@ if (!failed) {
     assert(st.map === 'bunker' && st.mode === 'course' && !st.net, `Fallow: the URL boots Course mode on the bunker, single player (${JSON.stringify(st)})`);
     assert(st.bay === 0, `Fallow: the course starts in bay B1 (bay index ${st.bay})`);
     const p = await F.evaluate(() => { const q = window.__app.current.player.position; return { x: q.x, y: q.y, z: q.z }; });
-    assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 24 && p.z > 72 && p.z < 96, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
+    assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 20 && p.z > 60 && p.z < 74.4, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
     // (T4 fix) the nav grid keeps every level (seeded per bay): A5 -> S6 and B5's floor (the SR) -> A5 have paths.
     // Nav does not model doors (closed or locked): only the level's static pieces block it.
     const navp = await F.evaluate(() => {

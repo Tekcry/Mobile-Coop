@@ -57,3 +57,5 @@ LOG, STATE, CHANGELOG.
   mantrap egress is not redundant. S6's top door: a gate kind that relocks after both players pass.
 - From T5 (A40, A43): move B7-O's window stop and B7-R's ledge-pull stop to the built window and parapet; make
   "unbolt the catwalk stair (CS)" a B8 drill so the co-op beat survives the vaultable rail.
+- From T5d (REVIEW-NOTES, UPPER_ELEMENTS): B2's RL2 door `B2-rl2` (locked) becomes the A61 one-way single-occupancy return
+  turnstile; the 2E practice panes re-glaze (A54); the A61 re-lamp rule; B1's strike post as a TrainingDummy at (12.5, 10).

@@ -288,3 +288,17 @@ drill only where its bay has an objective line. Assumptions A50-A65. Checker rou
 ends, FEATURES marks, boost reach, B3 rope stages vs the engine). After 3 fix rounds three B3 rope items stay open
 (STATE "Blocked"); committed so T5d (independent of B3) can start; T5e closes them first. Boost-reach spots WJ1/WJ2
 and B4 W2 are a question for Michael (REVIEW-NOTES).
+
+## T5d rebuild Upper to BAYS v2 (2026-10-14, cloud)
+bunkerUpper.ts rebuilt: B1 (0, 60) five rooms in a chain LL -> KR -> BR -> GR -> DS (216 m2), A1 (1, 54) with its
+near door in the north wall and far door in the east wall, B2 (7, 49.5) one 52 x 9 lane of seven stations (468 m2), A2
+(59, 50). Every Upper piece `noLedge`; the only lips are G2's hang point, L1 round the column and the portal sill.
+Glass is invisible collision behind a visual frame; LED strips visual only; one work lamp per room / station.
+Course stub: B1 / B2 no gates, objectives by name in BAYS order (`CourseDef.objectives`, T7a makes them drills),
+elements still stubs flagged (`UPPER_ELEMENTS`: RL2 turnstile, re-glaze, re-lamp, the DS switch). Interim passage
+A2 -> v1 B3 (x 65..84, removed by T5e). Tests: R1 / R2 for B1 (nav: each door a cut, the run crosses every mark) and
+B2 (nav keeps 21 cells apart; element links with anchor evidence; path in objective order; each element a cut), lips,
+A51 boost reach, A26 glass, landing bands, R4 footprints. e2e-bunker: A1 coordinates moved; the client-use check now
+takes card A (B6) because v2 B2 has no lever (same assertions: client use -> host gate -> client sees the doors
+unlock). e2e-course: spawn bounds moved.
+

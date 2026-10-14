@@ -11,6 +11,11 @@
   group; off while the partner is down or in a boost or human ladder). Remote players snap on a teleport instead of
   sliding through the space between (a jump over 2 m faster than 25 m/s, or across a stall that a 90-degree turn at
   the earlier speed cannot explain), so a teleported partner no longer shoves anyone.
+- T5d Upper rebuilt to the v2 bay plans: B1 Muster is five small rooms in a chain (lift lobby, kit room, briefing room
+  with a glass wall onto the gear run, the 20 m gear run, the dark store), B2 The Lanes is one 52 m lane both players
+  run in order (plinth, rail, block wall, caged ladder, pipe over a pit, hang-drop, trench, downpipe and beam ledge
+  round a column, gap jump to the portal sill, three drop pads, the window wall). Glass is see-through and not
+  climbable; every bay's objectives are listed by name.
 
 ## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
 - T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks

@@ -26,8 +26,8 @@ npm run dev
 ## What to check per bay (about 5 minutes each)
 | Bay | Look at |
 | --- | --- |
-| B1 Lift and kit store (y 16) | Room sizes; corridor and store; spawns; the briefing glass |
-| B2 Assault lanes | Both lanes in order (step, vault, mantle, ladder, gallery, pipe, lever door at x 24, trench, beam hang, gap jump L1 -> L2, drop pads, windows); glass walls not climbable (they show only a frame: no glass mesh yet) |
+| B1 Muster (y 16, v2) | Five small rooms in a chain: lift lobby -> kit room -> briefing room (glass south wall onto the run) -> gear run (20 m, east to west, marks 1-6, stop line, turn mark) -> dark store -> A1 pad; no way to skip a room |
+| A1, B2 The Lanes (v2) | A1 pad (north door in, east door out). One lane, both players: plinth, rail, block wall; caged ladder up G1 (screened, no boost); pipe over the pit (fall: pit ladder back to G1); hang and hang-drop off G2's open 1.5 m; trench jump and roll; downpipe, beam ledge round the column, gap jump to the portal sill, climb onto the deck; three drops (pads soft / roll, pit heavy); window wall (one open, two glazed); stop and turn marks; A2. RL2's turnstile is a locked door until T7a; panes do not re-glaze yet; A2 opens onto an interim passage to the old B3 until T5e |
 | B3 Intake shaft | Split jump in the casing slot (B3-RC) and up onto the casing; wall jump to G3; rope down past the control-room window and kick through; zipline from G3 (B3-G3); fan-pit fence; one-way duct |
 | B4 Cistern | Cells C1-C3, walls W1 / W2 (W2 lowered to 4.25 for the human ladder, A35), valve gallery, sluice, overflow channel, outlet platform |
 | B5 Standby plant | Entry landing at 4.4 and its stair (A32 / A36), gensets, trench and panels, cable gallery (shortened, A36), switch room and its two doors, fuel bay |
