@@ -328,7 +328,6 @@ function buildA5(b: LevelBuilder, r: Plant2Result): void {
   b.box(X(0.24), Y(1.5), Z(3) + 1.1, 0.04, 0.6, 0.6, C.glass, 0, 0, false);
   r.doors['A5-near'] = b.door(X(6), Y(0), Z(2.4), DOOR_W, 0, { locked: true, swing: 1 }).id;
   r.doors['A5-far'] = b.door(X(0), Y(0), Z(2.4), DOOR_W, 0, { locked: true, swing: -1 }).id;
-  r.devices.A5 = { x: X(3), y: Y(0), z: Z(5.6), yaw: Math.PI };
   r.debug.push({ id: 'A5', label: 'A5 airlock', pos: plantAt2('A5', 3, 3), yaw: -Math.PI / 2 });
 
   // A5's service passage (x 64.225..69.775, z 11.225..14 world), off B6's reception: the plant platform (feet 2.2)
@@ -355,7 +354,6 @@ function buildA6(b: LevelBuilder, r: Plant2Result): void {
   b.box(X(0.25), Y(1.2), Z(4.5), 0.06, 0.4, 0.5, '#a33a30', 0, 0, false);
   r.doors['A6-near'] = b.door(X(6), Y(0), Z(2.9), DOOR_W, 0, { locked: true, swing: 1 }).id;
   r.doors['A6-far'] = b.door(X(2.4), Y(0), Z(0), DOOR_W, Math.PI / 2, { locked: true, swing: -1 }).id;
-  r.devices.A6 = { x: X(3), y: Y(0), z: Z(5.6), yaw: Math.PI };
   r.debug.push({ id: 'A6', label: 'A6 airlock (medkit)', pos: plantAt2('A6', 3, 3), yaw: Math.PI });
 }
 

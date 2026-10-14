@@ -94,3 +94,8 @@ drill's marker is drawn by `PingView.marker` (on screen or on the edge); Setting
 per-bay time, team and per-player numbers, the finale's Ghost / Silent / Loud tier, `courseRating.ts`) on the host and
 the client; it is reached through the course end device ("Finish", `devices.end` in the last bay), refused while that
 bay's drills are open. The co-op lobby reads the course record again whenever it is shown ("Start at bay N").
+T5b (R5, R6): the objective list is always on screen for both players from spawn ("B<n> - objectives": each drill
+named, ticked per player, the current one highlighted, then the airlock row); it has no toggle. Below it the airlock status
+line (`.ch-air`, `CourseState.airlockStatus`) shows "Waiting for partner" with one player on the pad, the refusal naming
+the open objectives (or "Revive first") with both on it, and the cycle while it runs; it is hidden otherwise. Airlocks have
+no Cycle button: each has an emissive floor pad outline (`buildAirlockPads`, visual only).

@@ -3,10 +3,17 @@
  * perception and light tables never change for the course map (docs/training/RULES.md).
  */
 
-/** Seconds an airlock takes to cycle once both players are inside and one pressed "Cycle" (TUNE). */
+/** Seconds an airlock takes to cycle once both players stand on its pad (automatic, R6) (TUNE). */
 export const AIRLOCK_CYCLE = 4;
 /** A player counts as inside an airlock when the feet are within this (m) of its floor (TUNE). */
 export const AIRLOCK_Y_TOL = 1.0;
+/**
+ * The airlock pad is the airlock box inset by this (m) on every side: feet at the box edge stand in a door plane, and a
+ * door forced shut on them would pin them (DOOR.clearance is 0.75 m; keep this at least that) (TUNE).
+ */
+export const AIRLOCK_PAD_INSET = 1.0;
+/** The cycle does not start while a player's feet are within this (m) of the rear door's centre (mirrors DOOR.clearance). */
+export const AIRLOCK_DOORWAY_CLEAR = 0.75;
 /** Airlock rooms are this size (m, square) ... */
 export const AIRLOCK_SIZE = 6;
 /** ... within this tolerance (m), checked by `validateCourse`. */

@@ -331,7 +331,7 @@ function buildB3(b: LevelBuilder, lips: number[], r: ShaftResult): void {
 // ---------------------------------------------------------------------------------------------------- airlocks
 
 /** A3 / A4: 6 x 6 x 3.0 between two bays north and south; the north / south walls are the bays' (A4's south wall is
- *  B5's: A4 builds its stretch at the outlet height); W / E walls, bench, roof, the two locked blast doors in the bays' walls, Cycle panel. */
+ *  B5's: A4 builds its stretch at the outlet height); W / E walls, bench, roof, the two locked blast doors in the bays' walls, (no Cycle panel: automatic, R6). */
 function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   const { X, Z, Y } = frame(bay);
   b.floor(X(3), Z(3), 6 + 2 * OUTER, 6, C.floor, Y(0));
@@ -348,7 +348,6 @@ function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   // doors 1.2 x 2.1 at local x 2.4..3.6: near (north, the bay left) and far (south), both swinging into the chamber
   r.doors[`${bay}-near`] = b.door(X(2.4), Y(0), Z(6), DOOR_W, Math.PI / 2, { locked: true, swing: 1 }).id;
   r.doors[`${bay}-far`] = b.door(X(2.4), Y(0), Z(0), DOOR_W, Math.PI / 2, { locked: true, swing: -1 }).id;
-  r.devices[bay] = { x: X(0.4), y: Y(0), z: Z(3), yaw: Math.PI / 2 };
   r.debug.push({ id: bay, label: `${bay} airlock`, pos: plantAt(bay, 3, 3), yaw: Math.PI });
 }
 

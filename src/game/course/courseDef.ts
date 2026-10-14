@@ -3,7 +3,7 @@
  * gates, drills, radio lines and element switch-on flags. `validateCourse` checks a definition against the ids the
  * map really has (doors, switches, holds, anchors, light groups) and throws naming the bad id.
  */
-import { AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } from '../../config/course';
+import { AIRLOCK_PAD_INSET, AIRLOCK_SIZE, AIRLOCK_SIZE_TOL, COURSE_TEXT_MAX } from '../../config/course';
 import type { SquadSlot } from '../../world/rooms';
 
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
@@ -18,6 +18,19 @@ export interface AirlockDef {
   nearDoor: string;
   /** The door into the next bay (locked until the airlock seals). */
   farDoor: string;
+}
+
+/**
+ * An airlock's pad (plan [minX, minZ, maxX, maxZ]): its box inset by AIRLOCK_PAD_INSET on every side, clear of the door
+ * planes. `CourseState` tests feet against it and the mode draws its outline (one source). Writes into `out`.
+ */
+export function airlockPad(a: AirlockDef, out: [number, number, number, number]): [number, number, number, number] {
+  const b = a.box;
+  out[0] = Math.min(b[0], b[2]) + AIRLOCK_PAD_INSET;
+  out[1] = Math.min(b[1], b[3]) + AIRLOCK_PAD_INSET;
+  out[2] = Math.max(b[0], b[2]) - AIRLOCK_PAD_INSET;
+  out[3] = Math.max(b[1], b[3]) - AIRLOCK_PAD_INSET;
+  return out;
 }
 
 /** A switch unlocks a door for good. */
@@ -260,7 +273,7 @@ export function validateCourse(def: CourseDef, known: CourseKnownIds): CourseDef
   return def;
 }
 
-/** A switch, a hold point or an airlock "Cycle" panel the map puts down (feet-level position, facing `yaw`). */
+/** A switch, a hold point or a pickup the map puts down (feet-level position, facing `yaw`). */
 export interface CourseDevice {
   x: number;
   y: number;
@@ -272,8 +285,8 @@ export interface CourseDevice {
 
 /**
  * The map's course (`MapLayout.course`): the definition plus how its string ids map onto the built level: doors and
- * anchors to their `TraversalAnchors` ids, light groups to `LightDef.group` numbers, devices (switches, holds, airlock
- * Cycle panels, keyed by the id the definition uses; `end` is the course end device, "Finish" in the last bay, which
+ * anchors to their `TraversalAnchors` ids, light groups to `LightDef.group` numbers, devices (switches, holds, pickups;
+ * airlocks have none, R6), keyed by the id the definition uses; `end` is the course end device, "Finish" in the last bay, which
  * calls `CourseState.finish` and is refused like an airlock while that bay's drills are open) and the squad slots by id.
  */
 export interface CourseLayout {

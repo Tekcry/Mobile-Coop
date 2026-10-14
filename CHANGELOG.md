@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5b walk-1 fixes: airlocks are automatic (R6, D46): a marked 4 x 4 m floor pad set 1 m in from the walls; one player
+  on it shows "Waiting for partner" on both screens, both on it with the bay's objectives done seal it (the rear door
+  shuts and locks for good, a 4 s cycle, the front door opens). The Cycle button is gone. The cycle holds while anyone
+  stands in the rear doorway. The client now gets every course prompt (course items are sent first; `MAX_ITEMS` 128,
+  `MAX_DOORS` 256) and shuts any rear door the host locks. The objective list is always on screen for both players
+  (R5, D45) with the airlock status under it. New two-page suite `e2e-bunker` (B1, B2).
+
 ## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
 - T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks
   A1 and A2 (locked blast doors the course opens, bench, vision slot), B2 The Lanes (two mirrored obstacle lanes with

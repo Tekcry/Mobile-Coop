@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AIRLOCK_CYCLE, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../src/config/course';
+import { AIRLOCK_CYCLE, AIRLOCK_PAD_INSET, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../src/config/course';
 import { leadOf, validateCourse, type AirlockDef, type BayDef, type CourseDef, type CourseKnownIds, type GateDef } from '../src/game/course/courseDef';
-import { CourseState, REFUSE_BOLT, REFUSE_PARTNER, REFUSE_REVIVE, type PackedCourse } from '../src/game/course/courseState';
+import { AIR_CYCLING, AIR_WAITING, CourseState, REFUSE_BOLT, REFUSE_PARTNER, REFUSE_REVIVE, type PackedCourse } from '../src/game/course/courseState';
 
 const DT = 1 / 60;
 
@@ -149,14 +149,15 @@ describe('drills gate the airlock (D30)', () => {
     s.tick(0, 'ping');
     enter(s, 1);
     s.update(DT);
-    expect(s.airlockPrompt('A1')).toBe('Waiting: P2 - ledge shimmy');
+    expect(s.airlockStatus()).toBe('Waiting: P2 - ledge shimmy');
     expect(s.press('A1', 0)).toBe('Waiting: P2 - ledge shimmy');
     run(s, AIRLOCK_CYCLE + 1);
     expect(s.airlockPhase('A1')).toBe('ready');
     s.tick(1, 'shimmy');
-    expect(s.airlockPrompt('A1')).toBe('Cycle');
-    expect(s.press('A1', 1)).toBeNull();
+    // automatic (R6): the next step cycles by itself, no button
+    s.update(DT);
     expect(s.airlockPhase('A1')).toBe('cycling');
+    expect(s.airlockStatus()).toBe(AIR_CYCLING);
     run(s, AIRLOCK_CYCLE);
     expect(s.airlockPhase('A1')).toBe('sealed');
     expect(s.bay).toBe(1);
@@ -209,8 +210,7 @@ describe('drills gate the airlock (D30)', () => {
     expect(s.drillsDone()).toBe(true);
     expect(s.drillTicks('d-crouch', 1)).toBe(1);
     s.update(DT);
-    expect(s.airlockPhase('A1')).toBe('ready');
-    expect(s.press('A1', 0)).toBeNull();
+    expect(s.airlockPhase('A1')).toBe('cycling');
     run(s, AIRLOCK_CYCLE + 0.1);
     expect(s.airlockPhase('A1')).toBe('sealed');
     // one player down restarts the bay under solo
@@ -290,21 +290,71 @@ describe('airlocks', () => {
     s.update(DT);
     expect(s.press('A1', 0)).toBe(REFUSE_PARTNER);
   });
-  it('aborts when one leaves mid-cycle', () => {
+  it('feet at the box edge in a doorway are not on the pad; past the inset they are (rear door forced shut, D48)', () => {
     const s = ready();
+    // the rear door plane is the box edge x 100; the pad is the box inset by AIRLOCK_PAD_INSET
+    expect(AIRLOCK_PAD_INSET).toBeGreaterThanOrEqual(0.75);
+    enter(s, 1, [0]);
+    s.setPlayer(1, 100, 0, 3, false);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('waiting');
+    s.setPlayer(1, 100 + AIRLOCK_PAD_INSET - 0.05, 0, 3, false);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('waiting');
+    s.setPlayer(1, 100 + AIRLOCK_PAD_INSET + 0.05, 0, 3, false);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('cycling');
+    expect(s.locked('A1-near')).toBe(true);
+  });
+  it('the cycle waits while someone is in the rear doorway (solo: the partner off the pad)', () => {
+    const s = ready();
+    s.solo = true;
+    s.setDoorPoint('A1-near', 100, 3);
+    enter(s, 1, [0]);
+    s.setPlayer(1, 100.3, 0, 3, false);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('ready');
+    expect(s.events.some((e) => e.t === 'airlockCycling')).toBe(false);
+    outside(s, 1);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('cycling');
+  });
+  it('one on the pad waits for the partner; both on it seal the rear door and cycle by themselves (R6, D46)', () => {
+    const s = ready();
+    // (the fixture's near door is also a mains gate: power off opens it)
+    s.setGroup('mains', false);
+    enter(s, 1, [0]);
+    outside(s, 1);
+    s.update(DT);
+    expect(s.airlockStatus()).toBe(AIR_WAITING);
+    expect(s.locked('A1-near')).toBe(false);
     enter(s, 1);
     s.update(DT);
-    s.press('A1', 0);
+    expect(s.airlockPhase('A1')).toBe('cycling');
+    expect(s.events.some((e) => e.t === 'airlockCycling')).toBe(true);
+    // the rear door shuts and locks as the cycle starts; the front stays locked until it ends
+    expect(s.locked('A1-near')).toBe(true);
+    expect(s.locked('A1-far')).toBe(true);
+    // stepping off the pad does not abort it (the rear door stays locked)
     run(s, AIRLOCK_CYCLE / 2);
     outside(s, 1);
     s.update(DT);
-    expect(s.airlockPhase('A1')).toBe('waiting');
-    expect(s.events.some((e) => e.t === 'airlockAborted')).toBe(true);
-    enter(s, 1);
-    run(s, AIRLOCK_CYCLE + 1);
-    expect(s.airlockPhase('A1')).toBe('ready');
+    expect(s.airlockPhase('A1')).toBe('cycling');
+    expect(s.locked('A1-near')).toBe(true);
+    run(s, AIRLOCK_CYCLE);
+    expect(s.airlockPhase('A1')).toBe('sealed');
+    expect(s.locked('A1-far')).toBe(false);
   });
-  it('aborts when a player goes down mid-cycle', () => {
+  it('no status outside the pad; the refusal names the open objectives with both on it', () => {
+    const s = new CourseState(course());
+    s.update(DT);
+    expect(s.airlockStatus()).toBeNull();
+    enter(s, 1);
+    s.update(DT);
+    expect(s.airlockPhase('A1')).toBe('ready');
+    expect(s.airlockStatus()).toMatch(/^Waiting: /);
+  });
+  it('pauses when a player goes down mid-cycle', () => {
     const s = ready();
     enter(s, 1);
     s.update(DT);

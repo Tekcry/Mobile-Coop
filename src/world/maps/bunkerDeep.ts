@@ -309,7 +309,6 @@ function buildAirlock(b: LevelBuilder, bay: 'A7' | 'A8', r: DeepResult, medkit: 
   if (medkit) b.box(X(3), Y(1.2), Z(5.75), 0.5, 0.4, 0.06, '#a33a30', 0, 0, false);
   r.doors[`${bay}-near`] = b.door(X(0), Y(0), Z(2.4), DOOR_W, 0, { locked: true, swing: 1 }).id;
   r.doors[`${bay}-far`] = b.door(X(6), Y(0), Z(2.4), DOOR_W, 0, { locked: true, swing: -1 }).id;
-  r.devices[bay] = { x: X(3), y: Y(0), z: Z(5.6), yaw: Math.PI };
   r.debug.push({ id: bay, label: `${bay} airlock${medkit ? ' (medkit)' : ''}`, pos: deepAt(bay, 3, 3), yaw: Math.PI / 2 });
 }
 

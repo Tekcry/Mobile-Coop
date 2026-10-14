@@ -10,14 +10,13 @@
  *
  * Per-step and per-query paths use indexed loops and allocate nothing (conventions.md hot paths).
  */
-import { AIRLOCK_CYCLE, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
-import { gateDoors, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
+import { AIRLOCK_CYCLE, AIRLOCK_DOORWAY_CLEAR, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
+import { airlockPad, gateDoors, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
 
 export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
 
 export type CourseEvent =
   | { t: 'airlockCycling'; airlock: string }
-  | { t: 'airlockAborted'; airlock: string }
   | { t: 'airlockCycled'; airlock: string; nearDoor: string; farDoor: string }
   | { t: 'gateOpened'; gate: string }
   | { t: 'gateClosed'; gate: string }
@@ -43,6 +42,10 @@ export type StatKind = Exclude<keyof BayStats, 'time'>;
 export const REFUSE_PARTNER = 'Wait for your partner';
 export const REFUSE_REVIVE = 'Revive first';
 export const REFUSE_BOLT = 'Bolted from the other side';
+/** The airlock status while one player stands on the pad (R6, D46): shown to both players. */
+export const AIR_WAITING = 'Waiting for partner';
+/** The airlock status while it cycles (the rear door shut and locked). */
+export const AIR_CYCLING = 'Airlock sealed - cycling';
 
 /** The `course` message body: plain JSON (state, locks, flags; T1b sends it). */
 export interface PackedCourse {
@@ -117,6 +120,8 @@ export class CourseState {
   readonly events: CourseEvent[] = [];
 
   private readonly feet = [0, 0, 0, 0, 0, 0];
+  private readonly padTmp: [number, number, number, number] = [0, 0, 0, 0];
+  private readonly doorAt = new Map<string, [number, number]>();
   private readonly downed: [boolean, boolean] = [false, false];
   private readonly gates: GateRt[] = [];
   private readonly air: AirRt[] = [];
@@ -179,6 +184,11 @@ export class CourseState {
     this.downed[p] = downed;
   }
 
+  /** A course door's plan centre (the mode sets the airlocks' rear doors once): the cycle waits while it is occupied. */
+  setDoorPoint(id: string, x: number, z: number): void {
+    this.doorAt.set(id, [x, z]);
+  }
+
   setGroup(group: string, on: boolean): void {
     const wasOff = this.groupsOff.has(group);
     if (on === !wasOff) return;
@@ -210,13 +220,13 @@ export class CourseState {
   }
 
   /**
-   * Player `p` used `id`: an airlock's "Cycle" (the airlock id), a gate switch, a bolted door or a pickup.
-   * Returns a refusal to show, or null.
+   * Player `p` used `id`: a gate switch, a bolted door or a pickup. Returns a refusal to show, or null.
+   * Airlocks have no button (R6, D46): an airlock id only answers why it is not cycling (nothing changes).
    */
   press(id: string, p: PlayerIdx): string | null {
     if (this.over || this.downed[p]) return null;
     const a = this.airById.get(id);
-    if (a) return this.pressCycle(a, p);
+    if (a) return this.airRefusalFor(a, p);
     let refusal: string | null = null;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
@@ -389,7 +399,8 @@ export class CourseState {
   locked(doorId: string): boolean {
     for (let i = 0; i < this.air.length; i++) {
       const a = this.air[i]!;
-      if (a.def.nearDoor === doorId && a.phase === 'sealed') return true;
+      // the rear door shuts and locks for good once the cycle starts (R6, D48)
+      if (a.def.nearDoor === doorId && (a.phase === 'sealed' || a.phase === 'cycling')) return true;
       if (a.def.farDoor === doorId && a.phase !== 'sealed') return true;
     }
     for (let i = 0; i < this.gates.length; i++) {
@@ -439,11 +450,24 @@ export class CourseState {
     return this.airById.get(id)?.phase ?? null;
   }
 
-  /** The airlock prompt: "Cycle", a refusal, or null (not the current bay's exit, sealed or cycling). */
-  airlockPrompt(id: string): string | null {
-    const a = this.airById.get(id);
-    if (!a || a.phase === 'sealed' || a.phase === 'cycling' || this.currentBay.exit !== id) return null;
-    return this.cycleRefusal(a) ?? 'Cycle';
+  /**
+   * The current bay's exit airlock status for the HUD (both players, R6): "Waiting for partner" with one on the pad,
+   * the refusal naming the open objectives (or "Revive first") with both on it, "cycling" while it cycles, else null.
+   * Cached strings: no allocation per frame.
+   */
+  airlockStatus(): string | null {
+    const a = this.airById.get(this.currentBay.exit);
+    if (!a || this.over) return null;
+    switch (a.phase) {
+      case 'waiting':
+        return AIR_WAITING;
+      case 'ready':
+        return this.anyDowned() ? REFUSE_REVIVE : this.drillRefusal();
+      case 'cycling':
+        return AIR_CYCLING;
+      default:
+        return null;
+    }
   }
 
   /** Ticks player `p` has on a drill of the course. */
@@ -666,18 +690,25 @@ export class CourseState {
     return this.airById.get(this.def.bays[bayIdx]!.exit) ?? null;
   }
 
+  /** Feet on the airlock's pad: its box inset clear of the door planes (`airlockPad`), so no one on it is in a doorway. */
   private inside(a: AirlockDef, p: PlayerIdx): boolean {
     const x = this.feet[p * 3]!;
     const y = this.feet[p * 3 + 1]!;
     const z = this.feet[p * 3 + 2]!;
-    const b = a.box;
-    const x0 = b[0];
-    const z0 = b[1];
-    const x1 = b[2];
-    const z1 = b[3];
-    return (
-      x >= Math.min(x0, x1) && x <= Math.max(x0, x1) && z >= Math.min(z0, z1) && z <= Math.max(z0, z1) && Math.abs(y - a.floorY) < AIRLOCK_Y_TOL
-    );
+    const b = airlockPad(a, this.padTmp);
+    return x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3] && Math.abs(y - a.floorY) < AIRLOCK_Y_TOL;
+  }
+
+  /** Someone's feet within AIRLOCK_DOORWAY_CLEAR of the airlock's rear door (unknown door point: never). */
+  private rearDoorwayOccupied(a: AirlockDef): boolean {
+    const at = this.doorAt.get(a.nearDoor);
+    if (!at) return false;
+    for (let p = 0; p < 2; p++) {
+      const dx = this.feet[p * 3]! - at[0];
+      const dz = this.feet[p * 3 + 2]! - at[1];
+      if (dx * dx + dz * dz < AIRLOCK_DOORWAY_CLEAR * AIRLOCK_DOORWAY_CLEAR) return true;
+    }
+    return false;
   }
 
   /** Both players inside (one under `solo`). */
@@ -701,7 +732,8 @@ export class CourseState {
 
   /** "Waiting: P1 - a; P2 - b, c" for the current bay's open drills, or null. */
   private drillRefusal(): string | null {
-    // Cached: rebuilt only when ticks or the bay change (airlockPrompt is queried every frame and must not allocate).
+    // Cached: rebuilt only when ticks or the bay change (airlockStatus and the course end refusal query it every step
+    // and must not allocate).
     if (this.refusalGen === this.tickGen && this.refusalBay === this.bay) return this.refusalText;
     let text = '';
     const p1 = this.drillNames(0);
@@ -736,32 +768,34 @@ export class CourseState {
     return this.drillRefusal();
   }
 
-  private pressCycle(a: AirRt, p: PlayerIdx): string | null {
+  /** Why the airlock is not cycling for player `p` on its pad (null: not the current exit, not on the pad, or cycling). */
+  private airRefusalFor(a: AirRt, p: PlayerIdx): string | null {
     if (this.currentBay.exit !== a.def.id || a.phase === 'sealed' || a.phase === 'cycling') return null;
     if (!this.inside(a.def, p)) return null;
-    const why = this.cycleRefusal(a);
-    if (why) return why;
-    a.phase = 'cycling';
-    a.t = 0;
-    this.events.push({ t: 'airlockCycling', airlock: a.def.id });
-    return null;
+    return this.cycleRefusal(a);
   }
 
+  /**
+   * Automatic airlock (R6, D46): both on the pad (one under solo), none downed and the bay's drills done starts the
+   * cycle by itself; the rear door then stays shut and locked for good. A downed player pauses the cycle (a both-down
+   * restart reopens it); stepping off the pad does not abort it (the rear door is already locked behind them).
+   */
   private stepAirlock(a: AirRt, dt: number): void {
-    const n = this.insideCount(a.def);
-    const need = this.need();
     if (a.phase === 'cycling') {
-      if (n < need || this.anyDowned()) {
-        a.t = 0;
-        a.phase = n === 0 ? 'open' : n < need ? 'waiting' : 'ready';
-        this.events.push({ t: 'airlockAborted', airlock: a.def.id });
-        return;
-      }
+      if (this.anyDowned()) return;
       a.t += dt;
       if (a.t >= AIRLOCK_CYCLE - 1e-9) this.seal(a);
       return;
     }
-    a.phase = n === 0 ? 'open' : n < need ? 'waiting' : 'ready';
+    const n = this.insideCount(a.def);
+    a.phase = n === 0 ? 'open' : n < this.need() ? 'waiting' : 'ready';
+    // belt and braces (the pad is already clear of the doorway): never start while the rear doorway is occupied, the
+    // rear door is forced shut when the cycle starts
+    if (a.phase === 'ready' && this.cycleRefusal(a) === null && !this.rearDoorwayOccupied(a.def)) {
+      a.phase = 'cycling';
+      a.t = 0;
+      this.events.push({ t: 'airlockCycling', airlock: a.def.id });
+    }
   }
 
   private seal(a: AirRt): void {

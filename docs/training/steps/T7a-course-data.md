@@ -41,6 +41,8 @@ Model: implementer opus, checker opus. Deps: T6. Data and wiring through the cou
 the built level; every radio line <= 90 characters and has no em dash; every FEATURES "now form" row in a bay has an
 element flag; every placed FEATURES row is a drill or is marked "not a drill until it lands"; every drill has a
 marker and a text.
+`scripts/e2e-bunker.mjs` gains the B1 airlock refusal check: both on the A1 pad with B1 drills open, the HUD names the
+open objectives and the rear door stays unlocked (A48).
 
 ## Checks
 `timeout 900 npm run check`; `node scripts/run-e2e.mjs e2e-bunker e2e-course e2e-security smoke`. The checker walks one

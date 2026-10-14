@@ -290,8 +290,6 @@ function buildAirlock(b: LevelBuilder, bay: 'A1' | 'A2', r: UpperResult): void {
   const far: Door = b.door(X(6), y, Z(2.4), DOOR_W, 0, { locked: true, swing: -1 });
   r.doors[`${bay}-near`] = near.id;
   r.doors[`${bay}-far`] = far.id;
-  // the Cycle panel on the south wall, facing into the chamber
-  r.devices[bay] = { x: X(3), y, z: Z(0.4), yaw: 0 };
   r.debug.push({ id: bay, label: `${bay} airlock`, pos: at(bay, 3, 3), yaw: Math.PI / 2 });
 }
 

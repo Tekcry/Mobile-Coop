@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: PAUSED for Michael's walk (D27) after Block B; resume with T5b
+Current step: T5b2 (partners block each other, D49), then T5c
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -24,7 +24,8 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | B | T4 Plant | done | 1094b71 |
 | B | T5 Deep | done | d6cbef8 |
 | B | Block B end, then PAUSE for Michael's walk (D27) | done; paused (GPU rows pending PC run) | a75574b |
-| C | T5b walk-1 fixes (automatic airlocks, client prompts and doors, objective list) | not started | |
+| C | T5b walk-1 fixes (automatic airlocks, client prompts and doors, objective list) | done | (this commit) |
+| C | T5b2 partners block each other (D49) | not started | |
 | C | T5c BAYS v2 redesign (docs) | not started | |
 | C | T5d rebuild Upper (B1, A1, B2, A2) | not started | |
 | C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | not started | |
@@ -49,11 +50,11 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A43 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A48 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
-   Next: T5b fixes, T5c redesign on paper, T5d-T5g rebuild of every bay, then the run stops for walk 2.
+   Next: T5b done; T5b2 partner blocking, T5c redesign on paper, T5d-T5g rebuild of every bay, then the run stops for walk 2.
 2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
    on the PC. Send:
    ```
@@ -63,4 +64,4 @@ A1-A43 (DECISIONS.md; A6 revised per D21, A15 resolved)
 3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
 
 ## Next action
-On RESUME: read BRIEF, RULES, STATE; then T5b (docs/training/steps/T5b-fixes.md). The dev-server shader fix is in (3c89308).
+On RESUME: read BRIEF, RULES, STATE; then T5b2 (no step file: make the host's player collide with the client's player as the client already collides with the host's, D49; e2e both ways in e2e-bunker), then T5c (docs/training/steps/T5c-redesign.md).

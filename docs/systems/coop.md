@@ -53,6 +53,10 @@ Design authority: docs/design-bible.md (Section 5.9)
   (`Doors.setLocked`), locked anchor ids (`AttachController.disabled`), light state (`lights.groups` [group, on] and
   `lights.dead` destroyed lamp ids: clients `setGroup` / `kill` / `restore` their own registry) and `ref` / `rn` (P2's last
   refusal and its counter: the client shows its own refusal). Clients press and hold course devices through `use`.
+  T5b (D48): the host's `items` list sends the course devices (`c-` ids) first, then the rest, so the cap never drops
+  them (a map's door items had filled it); `MAX_ITEMS` is 128 and `MAX_DOORS` 256 (no protocol bump: both peers run one
+  build). A door the host reports locked is shut on the client too (leaf closed, body back); nothing on the client
+  unlocks a course door by itself. The host shuts a locked course door the same way (`setLocked` only sets the flag).
   `ctick` (client -> host, `{ verb }`, `TickLimiter` 4 a second) reports the drill verbs only the client sees (gear,
   stance, vision, ping, aim, reload, swap; `VerbEdges`); the host ticks traversal modes (`pstate.mv`), team moves,
   takedowns, gadgets and gates itself. Friendly fire (D38): `playersHostile` (pure, `net/pvp.ts`) makes partners hostile

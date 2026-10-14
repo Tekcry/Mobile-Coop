@@ -19,8 +19,8 @@ export const TEAM_MAX = 4;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
 /** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */
-export const MAX_ITEMS = 48;
-export const MAX_DOORS = 96;
+export const MAX_ITEMS = 128;
+export const MAX_DOORS = 256;
 const WORLD = 400;
 
 /** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */

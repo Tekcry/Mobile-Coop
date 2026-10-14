@@ -32,3 +32,16 @@
 - Block B self-review (docs/training/BLOCK-B-REVIEW.md): register 24 built / 24 changed (logged) / 3 partial / 0 missing. Level-design 16.10 gaps for T5b / T9: handrails on the B7 stair and stairwell, B9 tower flights and B8 catwalk stair (16.2.4); B7 parapet 0.9 vs 16.5.3's 1.1 (needed for the ledge pull band); B7 roof hatch cover; about 10 built elements without a register row (B3 hood, B5 entry landing, SR second door, B7 downpipe, B9 pier ...); E-B3-2's reason out of date.
 - Block B end: e2e-course's 500 ms host lock-sync assert fails under 2-job load in most full runs (821-1323 ms) and passes serially: T8a should make the limit load-aware or measure in sim time.
 - Walk blocker (2026-10-13): Michael sees a black 3D view (UI and minimap fine) on his PC, even with `&fullbright=1`. Software GL renders the bunker at every preset. Suspect: GPU memory at medium and above. The bunker's 3D textures are a voxel brick pool of 512x512x760 (R8, ~200 MB) plus a 980x141x880 R8 volume (~120 MB) and others, against Warehouse's 512x512x248. At `gfx=min` they shrink to 512x512x32 and 359x103x359. Walk workaround: `&gfx=min`. Root cause and the fix (grid sizing, A34 / T9a) need the PC's console.
+- T5b check (E2E_JOBS=2, e2e:quick): e2e-feedback "free camera flies (0.42 m)" failed under 2-job load and passed
+  serially (flaky; T5b does not touch it). e2e-coop "everyone ready" and e2e-netmove failed under load and passed
+  serially (known flaky).
+- T5b fixes: e2e-course's 500 ms host lock-sync assert (the mains lamp group, 727 ms) failed once more under
+  E2E_JOBS=2 and passed serially (as logged at Block B end; T8a). The client-blocked walk checks in e2e-course and
+  e2e-bunker were flaky for a different reason, now fixed: the client was teleported onto the host, and the client
+  page's partner hit capsule (PvpTarget hit boxes, G.ENEMY, which the player collides with) pinned him. The host
+  now steps clear first. Open question: the client is body-blocked by the host's capsule but the host walks through
+  the client (asymmetric); decide whether partners should block each other.
+- T5b fixes (round 2): e2e-bunker's client join (the 60 s wait, e2e-bunker.mjs ~:112) timed out under e2e:quick with
+  E2E_JOBS=2 and passed serially (flaky under load; not fixed).
+- T5b fixes (round 2): e2e-course's "host sees the client at 11, 2.4" wait (moveClient, e2e-course.mjs ~:135) timed out
+  once under E2E_JOBS=2 and passed serially (flaky under load; not fixed).

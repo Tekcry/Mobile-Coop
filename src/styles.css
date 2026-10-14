@@ -3592,6 +3592,8 @@ body.rotated.ccw {
 .course-hud td.ch-t { text-align: center; width: 28px; opacity: 0.6; }
 .course-hud td.ch-t.done { color: #4fdc7c; opacity: 1; }
 .course-hud tr.cur td.ch-n { color: #f2c14e; }
+.course-hud .ch-air { margin-top: 8px; padding: 4px 8px; display: inline-block; border-radius: 6px; background: rgba(10, 14, 18, 0.7); border: 1px solid #39d0ff; color: #bfefff; font-weight: 600; white-space: normal; }
+.course-hud .ch-air[hidden] { display: none; }
 .course-hud .ch-step { margin-top: 10px; font-size: 20px; line-height: 1.3; text-shadow: 0 1px 3px #000; white-space: normal; }
 .course-hud .ch-step .glyph { vertical-align: middle; }
 .course-hud[hidden] { display: none; }

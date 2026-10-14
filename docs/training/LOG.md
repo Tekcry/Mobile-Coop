@@ -199,3 +199,12 @@ screen, automatic airlocks with a marked pad, dark shell with glass and LED fit-
 client prompts, client passes his locked door, airlock rear door stayed open, no Cycle on the client (airlocks become
 automatic). Fix 3c89308: dev server served index.html for shaders (black view) - PBR, shadow, depth and post shaders now
 registered in src/core/babylon.ts. New steps T5b (fixes), T5c (BAYS v2), T5d-T5g (rebuild), then walk 2.
+
+## T5b walk-1 fixes (2026-10-14, cloud)
+Automatic airlocks with an inset floor pad (AIRLOCK_PAD_INSET 1.0) and a rear-doorway hold; Cycle device removed from
+all maps and courselab; rear door locks and shuts at cycle start (setLocked only set a flag); client prompts fixed (map
+doors filled MAX_ITEMS 48 first: course items now sent first, MAX_ITEMS 128, MAX_DOORS 256); client shuts host-locked
+rear doors; objective list always on with airlock status. New e2e-bunker (B1, B2, two pages). Checker rounds: FAIL
+(e2e-bunker walk pinned by the host's hit capsule; forced close on every locking door), FAIL (pad edge on the door
+plane), PASS. Assumptions A44-A48. Michael answered D49: partners block each other (follow-up T5b2). Flakes under
+E2E_JOBS=2 (e2e-feedback, e2e-coop, e2e-netmove, e2e-course, e2e-bunker join) passed serially: REVIEW-NOTES.

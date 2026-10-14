@@ -300,7 +300,8 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     const fenceIds = new Set(['n', 'e', 's', 'w'].map((k) => c.anchors![`B3-fence-${k}`]));
     expect(pb.anchors.fences.filter((f) => inBay('B3', f.a.x, f.a.z)).every((f) => fenceIds.has(f.id))).toBe(true);
     expect(c.devices.end).toBeDefined();
-    expect(c.devices.A4!.y).toBeCloseTo(plantAt('A4', 0, 0).y, 5);
+    // automatic airlocks (R6): no Cycle panel device
+    expect(c.devices.A4).toBeUndefined();
   });
 
   it('exactly one split gap in B3: the RC slot (1.6 wide, both faces >= 3.6, on G1); B4 only the overflow channel', () => {
@@ -870,7 +871,9 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
     expect(g7).toContainEqual({ kind: 'pickup', id: 'g-store-key', switchId: 'sw-store-key', flag: 'store-key', perPlayer: false });
     expect(g8.some((g) => g.kind === 'bolt' && g.doorId === 'B8-cs' && g.side[1] === -1)).toBe(true);
     expect(g9.filter((g) => 'doorId' in g && g.doorId === 'L9-door').map((g) => g.kind).sort()).toEqual(['flag', 'flag', 'flag', 'pair']);
-    for (const k of ['sw-store-key', 'sw-cease-fire', 'pk-key-a', 'pk-key-b', 'pk-case', 'K-A', 'K-B', 'A7', 'A8', 'end']) expect(c.devices[k], k).toBeDefined();
+    for (const k of ['sw-store-key', 'sw-cease-fire', 'pk-key-a', 'pk-key-b', 'pk-case', 'K-A', 'K-B', 'end']) expect(c.devices[k], k).toBeDefined();
+    // automatic airlocks (R6): no Cycle panel devices
+    for (const k of ['A7', 'A8']) expect(c.devices[k], k).toBeUndefined();
     // K-A and K-B 5 m apart in the lobby; the store-key switch on the first floor beside B7-O's desk
     expect(hyp2(c.devices['K-A']!.x - c.devices['K-B']!.x, c.devices['K-A']!.z - c.devices['K-B']!.z)).toBeCloseTo(5, 5);
     expect(c.devices['sw-store-key']!.y).toBe(B7_METRICS.firstFloor);

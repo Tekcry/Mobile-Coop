@@ -53,7 +53,6 @@ export const courselab: MapDef = {
     b.light({ x: 48, y: 2.8, z: 4, radius: 6, intensity: 1, group: MAINS_GROUP });
     const dev = (x: number, z: number, label?: string): CourseDevice => ({ x, y: 0, z, yaw: -Math.PI / 2, label });
     const devices: Record<string, CourseDevice> = {
-      A1: { x: 11, y: 0, z: 1.6, yaw: 0 },
       'sw-l1': dev(7.6, 1.5, 'Press panel'),
       'sw-lever': dev(21.2, 1.5),
       'h-hold': dev(29.2, 1.5),

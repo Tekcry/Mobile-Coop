@@ -113,27 +113,37 @@ try {
   const clientId = await GB(() => window.__coop.session.selfId);
   assert((await GA(() => window.__app.current.net.score)) === null, 'course mode is co-op (no PvP score)');
 
-  console.log('airlock');
+  console.log('objective list and automatic airlock (R5, R6)');
   const near = await doorIndex('A1-near');
   const far = await doorIndex('A1-far');
   await until(B, (far) => window.__course.wire.locks.includes(far), far, 5000, 'client sees the far door locked');
   assert(true, 'the far airlock door starts locked on the client');
+  // R5: the objective list is on screen on both pages from spawn, before any action (named, a tick column per player)
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, () => { const el = document.querySelector('.course-hud'); return !!el && !el.hidden && el.offsetParent !== null && /objectives/.test(el.querySelector('.ch-bay')?.textContent ?? '') && document.querySelectorAll('.course-hud tr[data-drill]').length === 3 && !!document.querySelector('.course-hud tr[data-obj="exit"]'); }, null, 8000, `${tag} objective list at spawn`);
+  }
+  assert(true, 'the objective list shows on both pages at spawn (three drills and the airlock row)');
+  // R6: no Cycle button anywhere (host and client)
+  const cyc = [await GA(() => window.__app.current.interactables.items.some((i) => i.id === 'c-A1' || /cycle/i.test(i.label))), await GB(() => window.__app.current.interactables.items.some((i) => i.id === 'c-A1' || /cycle/i.test(i.label)))];
+  assert(!cyc[0] && !cyc[1], `no airlock Cycle button on either page (${cyc})`);
+  const airText = (P) => P.evaluate(() => { const e = document.querySelector('.course-hud .ch-air'); return e && !e.hidden ? e.textContent : ''; });
   await moveHost(11, 2.4);
-  const r1 = await use(A, 'c-A1');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /Waiting for partner/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? '') && !document.querySelector('.course-hud .ch-air').hidden, null, 8000, `${tag} shows "Waiting for partner"`);
   let d = await hostDebug();
-  assert(r1 === 'ok' && /partner/i.test(d.refusal) && d.air.A1 !== 'cycling', `the airlock refuses one player (${r1}: "${d.refusal}", ${d.air.A1})`);
+  assert(d.air.A1 === 'waiting', `one player on the pad waits; both pages show "Waiting for partner" (${d.air.A1})`);
   await moveHost(3, 3.4);
   await moveClient(11, 2.4);
-  const rn0 = await GB(() => window.__course.wire.rn);
-  const r2 = await use(B, 'c-A1');
-  await until(B, (n) => window.__course.wire.rn > n && /partner/i.test(window.__course.wire.ref), rn0, 5000, 'client refusal');
-  const banner = await GB(() => document.body.innerText.includes(window.__course.wire.ref));
-  assert(r2 === 'ok' && banner, `the client's own refusal is shown on the client ("${await GB(() => window.__course.wire.ref)}")`);
+  await until(A, () => window.__course.debug().air.A1 === 'waiting', null, 5000, 'client alone on the pad: waiting');
+  await until(B, () => /Waiting for partner/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? ''), null, 5000, 'client sees "Waiting for partner" (client on the pad)');
+  assert(true, 'the client alone on the pad waits too');
   console.log('drills (T1c): refusal, both tick columns, client tick, markers');
   await moveHost(11.6, 3.2);
-  const r2b = await use(A, 'c-A1');
+  await until(A, () => window.__course.debug().air.A1 === 'ready', null, 5000, 'both on the pad, drills open: ready');
+  await until(B, () => /speed gear/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? ''), null, 5000, 'client HUD names the open objectives');
+  const refA = await GA(() => window.__course.state.airlockStatus());
+  const refB = await airText(B);
   d = await hostDebug();
-  assert(r2b === 'ok' && /speed gear/.test(d.refusal) && /vault/.test(d.refusal) && /panel/.test(d.refusal) && d.air.A1 !== 'cycling', `the airlock names the open drills and refuses ("${d.refusal}")`);
+  assert(/speed gear/.test(refA) && /vault/.test(refA) && /panel/.test(refA) && /speed gear/.test(refB) && d.air.A1 !== 'cycling', `both on the pad with drills open: no cycle; the HUD names the open objectives (host "${refA}", client "${refB}")`);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await until(P, () => document.querySelectorAll('.course-hud tr[data-drill] td[data-p="1"]').length === 3 && document.querySelectorAll('.course-hud tr[data-drill] td[data-p="2"]').length === 3, null, 8000, `${tag} HUD lists the drills`);
   }
@@ -168,16 +178,64 @@ try {
   await moveHost(7, 1.6);
   assert((await use(A, 'c-sw-l1')) === 'ok' && (await GA(() => window.__course.log[0].includes('switch'))), 'the host presses the panel (switch drill)');
   await until(B, () => document.querySelectorAll('.course-hud td.done').length >= 4, null, 5000, 'client HUD shows the ticks');
+  // the rear (near) door stands open (D48: it stayed open on the cycle in walk 1)
+  await GA((n) => { const g = window.__app.current; g.world.doors.open(g.world.doors.list[n], 'quiet'); }, near);
+  await until(B, (n) => window.__app.current.world.doors.list[n].target === 1, near, 5000, 'client sees the near door open');
   await moveClient(11, 2.4);
   await moveHost(11.6, 3.2);
-  const r3 = await use(B, 'c-A1');
-  await until(A, () => window.__course.debug().air.A1 === 'cycling', null, 3000, 'airlock cycling');
+  // automatic: both on the pad with the drills done cycles by itself (no button)
+  await until(A, () => window.__course.debug().air.A1 === 'cycling', null, 3000, 'airlock cycling by itself');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => /cycling/i.test(document.querySelector('.course-hud .ch-air')?.textContent ?? ''), null, 5000, `${tag} HUD shows the cycle`);
   // the cycle's simulated seconds, at once (nobody moves meanwhile)
   await GA(() => window.__app.loop.stepHeadless(4.5));
   await until(A, () => window.__course.debug().bay === 1, null, 9000, 'airlock sealed, bay L2');
   await until(B, ([n, f]) => window.__course.wire.locks.includes(n) && !window.__course.wire.locks.includes(f) && window.__course.wire.s.bay === 1, [near, far], 5000, 'client sees the near door locked');
   d = await hostDebug();
-  assert(r3 === 'ok' && d.checkpoint === 'A1', `cycles with both inside (client pressed), the near door stays locked, the far door opens`);
+  assert(d.checkpoint === 'A1', `cycles by itself with both on the pad (checkpoint ${d.checkpoint})`);
+  // the rear door is shut (leaf closed, body back) and locked on both pages; the front door opened by itself (host)
+  const doorOn = (P, n) => P.evaluate((n) => { const x = window.__app.current.world.doors.list[n]; return { target: x.target, open: +x.open.toFixed(2), body: !!x.body, locked: !!x.anchor.locked }; }, n);
+  await until(B, (n) => { const x = window.__app.current.world.doors.list[n]; return x.target === 0 && x.open === 0 && !!x.body && x.anchor.locked; }, near, 5000, 'client: the rear door shut, body back, locked');
+  const nA = await doorOn(A, near);
+  const nB = await doorOn(B, near);
+  const fA = await doorOn(A, far);
+  assert(nA.target === 0 && nA.open === 0 && nA.body && nA.locked && nB.target === 0 && nB.body && nB.locked, `the rear door is shut and locked on both pages (host ${JSON.stringify(nA)}, client ${JSON.stringify(nB)})`);
+  assert(fA.target === 1 && !fA.locked, `the front door opens by itself when the cycle ends (${JSON.stringify(fA)})`);
+  // a locked door blocks the client: he walks into the shut rear door from 3 m inside the airlock and stays inside.
+  // The stick is camera-relative: the walk sets the camera's yaw, not only the body's, and steps the client's own page
+  // headless (as e2e-ct). Control: the same walk along the airlock (+z, clear floor) covers more than the 3 m.
+  const walkClient = (yaw, secs) =>
+    GB(([yaw, secs]) => {
+      const g = window.__app.current;
+      window.__pad.connect();
+      g.player.cam.yaw = yaw;
+      g.player.cam.pitch = 0;
+      window.__pad.axis(1, -1);
+      const tr = [];
+      for (let t = 0; t < secs - 1e-6; t += 0.2) {
+        window.__app.loop.stepHeadless(Math.min(0.2, secs - t), 120);
+        const c = g.player.controller;
+        const f2 = (v) => (typeof v === 'number' ? +v.toFixed(2) : v);
+        tr.push([f2(g.player.position.x), f2(g.player.position.z), f2(g.player.cam.yaw), f2(c.yaw), f2(c.speed), f2(c.wishDir?.x), f2(c.wishDir?.z), !!c.override, f2(window.__pad.state?.axes?.[1])]);
+      }
+      window.__walkTrace = tr;
+      window.__pad.axis(1, 0);
+      window.__app.loop.stepHeadless(0.2, 120);
+      return [g.player.position.x, g.player.position.z];
+    }, [yaw, secs]);
+  const [ndx, ndz] = await GA((n) => { const x = window.__app.current.world.doors.list[n]; return [x.cx, x.cz]; }, near);
+  // the host steps clear of both walk lines first (he stood at (11.6, 3.2), beside them): the client page's hit boxes
+  // of its partner (PvpTarget, course friendly fire D38) block the client's body
+  await moveHost(13, 6);
+  await moveClient(ndx + 3, 1.7);
+  const c0 = await walkClient(0, 2.8);
+  const free = Math.hypot(c0[0] - (ndx + 3), c0[1] - 1.7);
+  await moveClient(ndx + 3, ndz);
+  const c1 = await walkClient(-Math.PI / 2, 2.8);
+  assert(free >= 3, `control: the client walks ${free.toFixed(2)} m freely in the same time`);
+  const blocked = c1[0] < ndx + 0.8 && c1[0] > ndx + 0.1 && Math.abs(c1[1] - ndz) < 0.6;
+  if (!blocked) console.error('walk trace [x, z, camYaw, yaw, speed, wishX, wishZ, override, padY]', JSON.stringify(await GB(() => window.__walkTrace)));
+  assert(c1[0] < ndx + 0.8 && c1[0] > ndx + 0.1 && Math.abs(c1[1] - ndz) < 0.6, `the locked rear door blocks the client: he walks up to it and stays on the airlock side (x ${(ndx + 3).toFixed(1)} -> ${c1[0].toFixed(2)}; door at x ${ndx.toFixed(1)})`);
+  await moveClient(11, 2.4);
 
   /** Work every gate in the strip; `who` acts ('A' host / 'B' client), the other only does the pair gate's second half. */
   async function gates(who) {

@@ -1,4 +1,4 @@
-import { Vector3 } from '../../core/babylon';
+import { Color3, CreateBox, StandardMaterial, Vector3, type Mesh } from '../../core/babylon';
 import type { Enemy } from '../../ai/enemy';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
@@ -7,7 +7,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
-import { layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import { airlockPad, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -99,7 +99,7 @@ interface HoldRt {
 
 /**
  * Training course mode (training bunker framework): runs `CourseState` on the host (single player too), puts down the
- * gate devices (switches, hold points, bolts, airlock Cycle panels), keeps door and anchor locks in step, spawns a bay's
+ * gate devices (switches, hold points, bolts; airlocks are automatic, R6), keeps door and anchor locks in step, spawns a bay's
  * squad when it starts, restarts the bay when everyone is down, speaks the course radio as LANTERN (held while any
  * guard is alerted), ticks drills from real events and sends the `course` message to clients (`g.net.course`).
  */
@@ -111,7 +111,13 @@ export class CourseMode implements GameMode {
   readonly log: [string[], string[]] = [[], []];
   private devices = new Map<string, Interactable>();
   private holds: HoldRt[] = [];
-  private cycles: { it: Interactable; id: string }[] = [];
+  /** The airlock floor pads' outline meshes (R6, visual only). */
+  private pads: Mesh[] = [];
+  /** Course door ids that are an airlock's front door (opened automatically when the cycle ends). */
+  private farDoors = new Set<string>();
+  /** Course door ids that are an airlock's rear door: the only doors a course lock shuts by force (D48). */
+  private rearDoors = new Set<string>();
+  private airSeen: string | null = null;
   private doorOf = new Map<string, DoorState>();
   private squad: Enemy[] = [];
   private radioQ: string[] = [];
@@ -159,10 +165,14 @@ export class CourseMode implements GameMode {
       const d = doors.list.find((x) => x.anchor.id === aid);
       if (d) this.doorOf.set(cid, d);
     }
+    // automatic airlocks (R6, D46): no Cycle button, a marked floor pad; the front door opens when the cycle ends
     for (const a of lay.def.airlocks) {
-      const it = this.device(a.id, 'Cycle');
-      if (it) this.cycles.push({ it, id: a.id });
+      this.farDoors.add(a.farDoor);
+      this.rearDoors.add(a.nearDoor);
+      const rd = this.doorOf.get(a.nearDoor);
+      if (rd) st.setDoorPoint(a.nearDoor, rd.cx, rd.cz);
     }
+    this.pads = buildAirlockPads(g, lay);
     for (const b of lay.def.bays) for (const gate of b.gates) this.addGate(gate);
     // the course end (the last bay's exit 'end'): refuses like an airlock while drills are open
     const end = lay.devices.end ? this.device('end', 'Finish') : null;
@@ -421,13 +431,11 @@ export class CourseMode implements GameMode {
     this.handle();
     const endOn = !st.over && st.currentBay.exit === 'end';
     if (this.endIt && this.endIt.enabled !== endOn) g.interactables!.setEnabled(this.endIt, endOn);
-    // airlock prompts (cached strings: no allocation per step)
-    const ints = g.interactables!;
-    for (let i = 0; i < this.cycles.length; i++) {
-      const c = this.cycles[i]!;
-      const prompt = st.airlockPrompt(c.id);
-      if (prompt !== null && c.it.label !== prompt) c.it.label = prompt;
-      if ((prompt !== null) !== c.it.enabled) ints.setEnabled(c.it, prompt !== null);
+    // the airlock status (cached strings: no allocation per step); a change goes to the client at once
+    const air = st.airlockStatus();
+    if (air !== this.airSeen) {
+      this.airSeen = air;
+      this.dirty = true;
     }
     // radio, held while any guard is alerted
     this.radioT -= dt;
@@ -581,10 +589,16 @@ export class CourseMode implements GameMode {
     const st = this.state;
     if (!st) return;
     const g = this.g;
+    const doors = g.world.doors;
     for (const [cid, d] of this.doorOf) {
       const on = st.locked(cid);
       if (d.anchor.locked === on) continue;
-      g.world.doors.setLocked(d, on);
+      doors.setLocked(d, on);
+      // an airlock's rear door shuts when it locks (leaf swings closed, the body comes back: D48; both players are on the
+      // pad, clear of the doorway); other gates (hold / timedHold) only lock, never forced shut on a player in the
+      // doorway (the body would trap him); an airlock's front door opens by itself when its cycle ends (R6)
+      if (on && this.rearDoors.has(cid)) doors.setOpen(d, false);
+      else if (this.farDoors.has(cid)) doors.open(d, 'quiet');
       const it = g.interactables?.items.find((x) => x.id === `door-${d.anchor.id}`);
       if (it) g.interactables!.setEnabled(it, !on);
     }
@@ -645,6 +659,7 @@ export class CourseMode implements GameMode {
     const st = this.state;
     if (!st || !this.hud) return;
     this.hud.update(st, 0);
+    this.hud.setStatus(st.airlockStatus());
     drawMarker(this.g, st, this.layout!, 0);
   }
 
@@ -657,6 +672,8 @@ export class CourseMode implements GameMode {
     this.offs.length = 0;
     this.feed?.dispose();
     this.hud?.dispose();
+    for (const m of this.pads) m.dispose();
+    this.pads.length = 0;
     this.g.hud.pings.hideMarker();
     const w = window as unknown as { __course?: unknown };
     if (w.__course === this) delete w.__course;
@@ -676,6 +693,9 @@ interface ClientCourse {
   startBay: number;
   /** The host's radio counter the client last said. */
   radioN: number;
+  pads: Mesh[];
+  /** Anchor ids of the airlocks' rear doors (the only doors a lock shuts by force, as on the host). */
+  rear: Set<number>;
 }
 const mirrors = new WeakMap<GameState, ClientCourse>();
 
@@ -685,7 +705,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const lay = g.world.layout.course;
   if (!lay) return null;
   const st = new CourseState(lay.def);
-  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0 };
+  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), rear: rearDoorAnchors(lay) };
   mirrors.set(g, m);
   return m;
 }
@@ -695,6 +715,7 @@ export function clientCourseFrame(g: GameState): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.hud.update(m.st, 1);
+  m.hud.setStatus(m.st.airlockStatus());
   drawMarker(g, m.st, m.lay, 1);
 }
 
@@ -709,6 +730,7 @@ export function disposeClientCourse(g: GameState): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.hud.dispose();
+  for (const p of m.pads) p.dispose();
   g.hud.pings.hideMarker();
   mirrors.delete(g);
 }
@@ -749,10 +771,14 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
     if (w.rn > shownRn && w.ref) g.hud.banner('', w.ref, 1800);
     shownRn = w.rn;
   }
+  // the host's door locks (D48): a locked airlock rear door is shut here too (leaf closed, body back), as on the host;
+  // nothing on the client unlocks or opens a course door by itself (open states come only from the host's snapshots)
   const doors = g.world.doors;
+  const rear = mirrorOf(g)?.rear;
   for (const d of doors.list) {
     const on = w.locks.includes(d.index);
     if (d.anchor.locked !== on) doors.setLocked(d, on);
+    if (on && d.target !== 0 && rear?.has(d.anchor.id)) doors.setOpen(d, false);
   }
   const dis = g.traversal.attachCtl.disabled;
   dis.clear();
@@ -766,4 +792,56 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   }
   mirrorApply(g, w);
   (window as unknown as { __course?: unknown }).__course = { wire: w, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
+}
+
+/** Door anchor ids of the airlocks' rear doors (the client mirror's forced-close set). */
+function rearDoorAnchors(lay: CourseLayout): Set<number> {
+  const out = new Set<number>();
+  for (const a of lay.def.airlocks) {
+    const id = lay.doors[a.nearDoor];
+    if (id !== undefined) out.add(id);
+  }
+  return out;
+}
+
+/** Pad outline thickness (m) and height above the floor. */
+const PAD_EDGE = 0.08;
+const PAD_LIFT = 0.012;
+
+/**
+ * Each airlock's marked floor pad (R6, D46): an emissive outline round its pad (`airlockPad`) at floor level (visual only: gameplay
+ * reads the pad in `CourseState`, never these meshes). One shared material; four thin strips per airlock.
+ */
+function buildAirlockPads(g: GameState, lay: CourseLayout): Mesh[] {
+  const out: Mesh[] = [];
+  if (!lay.def.airlocks.length) return out;
+  const scene = g.scene;
+  const mat = new StandardMaterial('airlockPadMat', scene);
+  mat.diffuseColor = Color3.Black();
+  mat.specularColor = Color3.Black();
+  mat.emissiveColor = new Color3(0.22, 0.82, 1);
+  mat.disableLighting = true;
+  for (const a of lay.def.airlocks) {
+    // the pad CourseState tests (the box inset clear of the door planes), not the room box
+    const [minX, minZ, maxX, maxZ] = airlockPad(a, [0, 0, 0, 0]);
+    const y = a.floorY + PAD_LIFT;
+    const w = maxX - minX;
+    const d = maxZ - minZ;
+    const strips: [number, number, number, number][] = [
+      [(minX + maxX) / 2, minZ + PAD_EDGE / 2, w, PAD_EDGE],
+      [(minX + maxX) / 2, maxZ - PAD_EDGE / 2, w, PAD_EDGE],
+      [minX + PAD_EDGE / 2, (minZ + maxZ) / 2, PAD_EDGE, d],
+      [maxX - PAD_EDGE / 2, (minZ + maxZ) / 2, PAD_EDGE, d],
+    ];
+    for (let i = 0; i < strips.length; i++) {
+      const [cx, cz, sx, sz] = strips[i]!;
+      const m = CreateBox(`airlockPad-${a.id}-${i}`, { width: sx, height: 0.01, depth: sz }, scene);
+      m.position.set(cx, y, cz);
+      m.material = mat;
+      m.isPickable = false;
+      m.freezeWorldMatrix();
+      out.push(m);
+    }
+  }
+  return out;
 }
