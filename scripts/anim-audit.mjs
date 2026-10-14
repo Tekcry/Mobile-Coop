@@ -30,7 +30,7 @@
 //   --shots   PNG of the first failing frame per failing scenario (PC only, E2E_GPU=1)
 //   --strict  exit 1 on any fail (step 32); by default it reports and exits 0 unless the harness itself errors
 //
-// Without a url it serves dist/ itself (vite preview on 4173, killed at exit): run `npm run build` first.
+// Without a url it serves dist/ itself (vite preview on E2E_PORT or 4173, killed at exit): run `npm run build` first.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -43,7 +43,8 @@ const args = process.argv.slice(2);
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const flag = (k) => args.includes(`--${k}`);
 const urlArg = args.find((a) => !a.startsWith('--'));
-const url = urlArg ?? 'http://localhost:4173/';
+const PORT = String(process.env.E2E_PORT ?? 4173);
+const url = urlArg ?? `http://localhost:${PORT}/`;
 const QUICK = flag('quick');
 const ONLY = opt('only');
 const OUT = resolve(opt('out') ?? 'test-results/anim-audit');
@@ -77,7 +78,7 @@ const up = async () => {
 };
 if (!(await up())) {
   if (urlArg) throw new Error(`${url} is not reachable`);
-  server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', '4173', '--strictPort', '--host', '127.0.0.1'], { stdio: 'ignore' });
+  server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', PORT, '--strictPort', '--host', '127.0.0.1'], { stdio: 'ignore' });
   process.on('exit', () => server?.kill());
   let ok = false;
   for (let i = 0; i < 60 && !ok; i++) {

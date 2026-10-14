@@ -9,7 +9,7 @@ import { launch } from './e2e-lib.mjs';
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
 const FRAMES = Number(framesArg);
 const INTERVAL = Number(intervalArg);
-const url = process.env.URL ?? 'http://localhost:4173/';
+const url = process.env.URL ?? `http://localhost:${process.env.E2E_PORT ?? 4173}/`;
 
 /** Scenario: setup (once) and per-frame input (time t in s since the first frame). */
 const SCENARIOS = {

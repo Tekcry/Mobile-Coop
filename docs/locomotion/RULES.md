@@ -28,8 +28,8 @@ DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 ho
 - Saves only through src/save; never localStorage. Save-shape change: bump SAVE_VERSION, migration, test with a literal old save.
 - No Splinter Cell IP, no real gun brands.
 - Never edit src/editor/**, src/world/maps/kestrel*, src/security/**, docs/kestrel/** (merge conflicts only). Kestrel-owned failures go to REVIEW.md, not fixed.
-- Cloud is software GL: never set E2E_GPU=1; never claim perf, visual or contact-sheet results; list them in PC-PASS.md with command and limit. The audit harness decides animation pass / fail in the cloud.
-- Perf trend: `node scripts/perf.mjs` (no --budget) at baseline and each block end; >25% rise in sim or anim time vs this VM baseline: fix before moving on.
+- Software GL (cloud): never set E2E_GPU=1; never claim perf, visual or contact-sheet results from it. On Michael's PC (M6, below) GPU checks are allowed and expected.
+- Perf trend: `node scripts/perf-trend.mjs` at baseline and each block end; >25% rise in sim or anim time vs this machine's baseline (PC baseline in STATE.md): fix before moving on.
 - Michael-level choices: pick the best fit to bible + D1-D8, log "ASSUMED - for review" in DECISIONS.md with alternatives.
 - 3 failed fix rounds: Blocked in STATE.md with evidence, move on, retry once at block end.
 - Scope guard: a block over 2x its planned steps stops; the rest goes to REVIEW.md.
@@ -52,7 +52,17 @@ A6-A48 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 ## Speed (user instruction, 2026-10-13, overrides the step loop in BRIEF section 6 where they differ)
 - Implementers run lint, unit tests, build and only the e2e suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net). The checker runs the full `npm run e2e:quick`.
 - Small Block A steps are batched: 02-04 run as one implement-and-check cycle (one commit per step is not required; the commit names every step it covers).
-- This VM has 4 cores, so run-e2e defaults to 1 job. Run e2e with `E2E_JOBS=2`; a timing failure that passes on a serial rerun is logged as flaky, not fixed.
+- (Cloud VM, 4 cores: `E2E_JOBS=2`.) On the PC run-e2e's default jobs apply. A timing failure that passes on a serial rerun is logged as flaky, not fixed.
 - Block end also merges origin/feature/kestrel into this branch (after the full e2e and perf trend), resolving conflicts per BRIEF 7.1, then reruns `npm run check` and `npm run e2e:quick`. Kestrel-owned failures go to REVIEW-NOTES.md.
 - Known pre-existing failures need no proof: e2e-editor, e2e-kestrel and e2e-camera-bounds level U (kestrel-owned, REVIEW-NOTES); tests/kestrelMap.test.ts now passes. Checkers never build worktrees or old copies to prove a failure is pre-existing; if a new failure appears outside the step's files, report it with the log line and move on.
 - anim-audit `--compare`: a remote gated regression counts only if it reproduces on one rerun (same rule as e2e flakes; A39 gate noise). Local regressions count at once (local is deterministic).
+
+## On Michael's PC (M6, 2026-10-15; overrides the cloud rules above where they differ)
+- Location: only C:\NightShift\Mobile-Coop-locomotion (worktree), branch feature/ct-locomotion. Never touch C:\NightShift\Mobile-Coop (feature/training-bunker), Mobile-Coop-kestrel or Mobile-Coop-music.
+- Branch guard before every git command that writes (every subagent too): `cd /c/NightShift/Mobile-Coop-locomotion && test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-locomotion && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-locomotion"`. Push only with `git push origin feature/ct-locomotion`.
+- Bash (Git Bash) for scripts, always inside the worktree. `E2E_PORT=4189` on every e2e, perf, perf-trend, anim-audit, shot and anim-sheet run (other sessions use 4173 / 4179).
+- GPU: `E2E_GPU=1` for perf.mjs, anim-sheet.mjs, shot.mjs and the visual suites. Re-baseline perf-trend and the anim audit on this PC (STATE.md). Block ends also run `perf.mjs --budget` and `perf.mjs --phone --budget` against docs/systems/performance.md.
+- Each step's checker runs that step's GPU items itself (contact sheets local and remote; perf when the step touches anim, camera, vfx or render). An opus checker reads the sheets with the Read tool and judges them against bible 5.12.1, 5.12.2 and D2, D5, D8-D11. PC-PASS.md keeps only items that need Michael's eyes or a phone.
+- Full e2e: run_in_background and wait for the notification. Every shell command has a timeout.
+- Order: PC1 GPU catch-up (PC-PASS 01-14), steps 15-20, 20b, Block C end, play-check checklist, the single pause for Michael, then 21-34 unattended.
+- Keep docs/locomotion/OWNER-NOTES.md current: project knowledge lives in git, never only in Claude memory.

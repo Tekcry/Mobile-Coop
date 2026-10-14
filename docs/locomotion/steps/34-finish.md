@@ -28,6 +28,7 @@ Commit: "locomotion 34: merge kestrel and master, versions, changelog, PC-PASS c
    metrics freeze, Training). package.json gets the higher one.
 4. docs/progress.md: Phase 3 and 3b done (versions), GPU checks pending a PC run, First Playable S3a / S3b absorbed
    (D3), the Phase 5 hooks H1-H4 listed; current state paragraph updated.
+   Also copy the merge plan and follow-ups from OWNER-NOTES.md into docs/progress.md (Michael, M6). GPU checks: done on the PC (M6), not pending.
 5. PC-PASS.md: one ordered checklist, each with command and pass limit, all with `E2E_GPU=1`:
    `node scripts/perf.mjs --budget`; `node scripts/perf.mjs --phone --budget`; anim-sheet contact sheets (side / front
    / ots) for every gear, stance, new verb and D5 item, local and remote; the vision mode looks; every item added by

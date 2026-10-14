@@ -19,7 +19,7 @@
 import { launch, frames, GPU } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
-const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
+const url = args.find((a) => !a.startsWith('--')) ?? `http://localhost:${process.env.E2E_PORT ?? 4173}/`;
 const asJson = args.includes('--json');
 const enforce = args.includes('--budget');
 const preset = args.find((a) => a.startsWith('--preset='))?.slice(9) ?? null;

@@ -1,0 +1,90 @@
+# Locomotion run - owner notes (Michael)
+
+Keep this file current to the end of the run.
+
+## Rule
+Project knowledge lives in git, never only in Claude memory or chat: Michael swaps Claude accounts. Every decision, plan, prompt and follow-up Michael gives goes into this branch's docs (DECISIONS.md for decisions, this file for setup, prompts, merge plan and follow-ups).
+
+## Local setup (Michael's PC, M6)
+- Worktree: `C:\NightShift\Mobile-Coop-locomotion`. Branch: `feature/ct-locomotion`, tracking `origin/feature/ct-locomotion`.
+- If missing: `git -C C:/NightShift/Mobile-Coop fetch origin`, then `git -C C:/NightShift/Mobile-Coop worktree add --track -b feature/ct-locomotion C:/NightShift/Mobile-Coop-locomotion origin/feature/ct-locomotion`, then `npm ci` in it.
+- `E2E_PORT=4189` on every e2e, perf, perf-trend, anim-audit, shot and anim-sheet run. `E2E_GPU=1` for GPU checks (perf, anim-sheet, shot, visual suites).
+- Branch guard before every commit and push (and in every subagent before any git command):
+  `cd /c/NightShift/Mobile-Coop-locomotion && test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-locomotion && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-locomotion"`
+- Push only with `git push origin feature/ct-locomotion`.
+- Do not touch the other worktrees (other sessions use them): `C:\NightShift\Mobile-Coop` (feature/training-bunker), `C:\NightShift\Mobile-Coop-kestrel` (feature/kestrel), `C:\NightShift\Mobile-Coop-music` (feature/music).
+
+## Prompts Michael uses
+- Resume line (new session or new account): **Locomotion run: RESUME (local)**. The session then runs the branch guard in the worktree and resumes from RULES.md and STATE.md.
+- After the play-check pause: **Locomotion: go** (with or without notes).
+- The standby prompt and its addition, verbatim:
+
+    # Standby prompt (2026-10-15)
+    
+    Locomotion run: LOCAL STANDBY, then RESUME on Michael's PC with GPU (2026-10-15).
+    
+    # 0. Location and branch (hard rules for you and every subagent)
+    - The only folder for this run is C:\NightShift\Mobile-Coop-locomotion (a git worktree). The only branch is feature/ct-locomotion, tracking origin/feature/ct-locomotion.
+    - Never read from, write to or run commands in C:\NightShift\Mobile-Coop (feature/training-bunker), C:\NightShift\Mobile-Coop-kestrel (feature/kestrel) or C:\NightShift\Mobile-Coop-music (feature/music). Other sessions use them.
+    - CLAUDE.md lines about feature/training-bunker and feature/kestrel do not apply here; follow docs/locomotion/RULES.md.
+    - Branch guard, run before every commit and every push (and tell every subagent to run it before any git command): `cd /c/NightShift/Mobile-Coop-locomotion && test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-locomotion && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-locomotion"`. If it fails, stop and fix the location before doing anything else. Push only with `git push origin feature/ct-locomotion`. Never checkout, merge into or push any other branch; merges INTO this branch from origin/feature/kestrel and origin/master happen only where BRIEF.md says.
+    - Start the session with: cd /c/NightShift/Mobile-Coop-locomotion, run the branch guard, and confirm `git rev-parse --abbrev-ref --symbolic-full-name @{u}` is origin/feature/ct-locomotion. If the folder or branch is missing, create it: `git -C C:/NightShift/Mobile-Coop fetch origin` then `git -C C:/NightShift/Mobile-Coop worktree add --track -b feature/ct-locomotion C:/NightShift/Mobile-Coop-locomotion origin/feature/ct-locomotion`, then npm ci in it. Confirm node_modules exists (otherwise npm ci).
+    
+    # 1. Wait for the cloud handover
+    - Do not edit or commit anything while the cloud session is still working on this branch.
+    - Use the Monitor tool with an until-loop script (Bash, in the worktree) that every 10 minutes runs `git fetch -q origin` and stops when either:
+      (a) `git log origin/feature/ct-locomotion -1 --format=%s` starts with "locomotion: handover to PC", or
+      (b) `git show origin/feature/ct-locomotion:docs/locomotion/STATE.md` contains "Ready to move to the PC".
+      Give up after 48 hours. Never use foreground sleep and never poll from your own turns.
+    - When it fires: git pull --ff-only, run the branch guard, check `git status` is clean and HEAD equals origin/feature/ct-locomotion.
+    
+    # 2. Resume
+    - Read CLAUDE.md (this worktree's copy), then docs/locomotion/RULES.md, STATE.md (start with "Handover to PC"), DECISIONS.md (D1-D11 and M1-M5) and BRIEF.md (sections 1-2 only unless STATE points elsewhere).
+    - The handover is before step 15 (M5). Run unattended from here: no questions to Michael except the single pause in section 5; finish with the PR.
+    
+    # 3. Environment changes (record them in RULES.md and DECISIONS.md as M6, commit, push, then continue)
+    - Windows PC with a hardware GPU. Use the Bash tool (Git Bash) for scripts, always inside the worktree. Set E2E_PORT=4189 on every e2e, perf, shot and anim-sheet run (other sessions may use 4179).
+    - GPU checks are now allowed and expected: E2E_GPU=1 for perf.mjs, anim-sheet.mjs, shot.mjs and the visual suites. The "never claim GPU results" rule now applies only to software GL.
+    - Re-baseline perf-trend on this PC first (record it in STATE.md; the cloud baseline is cloud-only). Block ends also run perf.mjs --budget and perf.mjs --phone --budget against docs/systems/performance.md.
+    - Each step's checker runs that step's GPU items itself: contact sheets local and remote, and perf where the step touches anim, camera, vfx or render. An opus checker reads the sheets with the Read tool and judges them against bible 5.12.1, 5.12.2 and D2, D5, D8-D11. PC-PASS.md keeps only items that need Michael's eyes or a phone.
+    - Run the full e2e with run_in_background and wait for its notification; never poll with sleep loops. Every shell command gets a timeout.
+    - All subagents opus, one code-changing agent at a time, about 60 tool calls per subagent: unchanged.
+    
+    # 4. Order of work
+    1. PC1 GPU catch-up: run every PC-PASS.md item for steps 01-14 with E2E_GPU=1, fix failures through the normal implement-and-check loop, mark each item PASS or FAIL with numbers, commit "locomotion PC1: GPU catch-up" and push. Do not pause after it.
+    2. Steps 15-20 in PLAN.md order, then step 20b net-check (D11 lite), then the Block C end: full e2e, perf with --budget and --phone --budget, merge origin/feature/kestrel into this branch and verify, retry every Blocked item in STATE.md.
+    3. Write the "Play check before step 21" checklist (D11 item 4) into STATE.md, commit and push.
+    
+    # 5. The single pause, then steps 21-34
+    - Stop and show Michael, in 15 lines or fewer: the results of PC1, steps 15-20b and the Block C end, any Blocked items, and the play-check checklist (how to start the game and the bot partner on the pad, which map, which verbs to try). Wait for his reply.
+    - When he replies "Locomotion: go" (with or without notes): turn each note into a change to the Block D step files or a new step (record them in DECISIONS.md as Michael's), commit and push, then continue from step 21 unattended to the end.
+    
+    # 6. Finish
+    As BRIEF.md section 7, on this PC: the merges into this branch, versions, full e2e, GPU perf and contact sheets, REVIEW.md (PC-PASS.md now holds only phone and hands-on items), the PR feature/ct-locomotion -> master, then the final message. Run the branch guard before the final push.
+    
+    # Addition (Michael, 2026-10-15)
+    
+    Addition (Michael, 2026-10-15), do it in the same commit as M6, right after the handover (not before):
+    
+    1. Create docs/locomotion/OWNER-NOTES.md and keep it current to the end of the run:
+       - Rule: project knowledge lives in git, never only in Claude memory or chat; Michael swaps Claude accounts. Every decision, plan, prompt and follow-up he gives goes into this branch's docs.
+       - The local setup: worktree C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion, E2E_PORT=4189, E2E_GPU=1, the branch guard, and the other worktrees that must not be touched (Mobile-Coop = feature/training-bunker, Mobile-Coop-kestrel, Mobile-Coop-music).
+       - The prompts Michael uses: the full text of this session's standby prompt and of this message, plus the resume line "Locomotion run: RESUME (local)", so a new account can restart the run from git alone.
+       - Merge plan (Michael, 2026-10-13): merge feature/kestrel to master first; then merge master into feature/ct-locomotion, re-run checks, and merge the locomotion PR; then clean up stale branches (ct-movement, dev, feature/exchange-map, character-model, claude/new-session-*) only with Michael's go-ahead, and from then on work from master plus one feature branch per job.
+       - Follow-ups after the merge: kestrel security cameras, lasers and keypads (src/security) need electro-vision glow flags; the parked Phase 1 light steps 4c-9 (breaker, motion lights, mains-off) are the next lighting job; the untracked scripts/_tmp-rest.mjs in the main folder must not be committed; full network tuning (D11 full) is Phase 5; the nine modernisation proposals are in BIBLE-PROPOSALS.md.
+    2. Add one line to CLAUDE.md under the title: "Project knowledge lives in git, never only in Claude memory: Michael swaps accounts. Record decisions, plans and follow-ups in the repo docs."
+    3. At the finish (step 34), copy the merge plan and follow-ups into docs/progress.md so they reach master with the PR.
+
+## Merge plan (Michael, 2026-10-13)
+1. Merge feature/kestrel to master first.
+2. Then merge master into feature/ct-locomotion, re-run the checks, and merge the locomotion PR.
+3. Then clean up stale branches (ct-movement, dev, feature/exchange-map, character-model, claude/new-session-*), only with Michael's go-ahead.
+4. From then on: work from master plus one feature branch per job.
+
+## Follow-ups after the merge
+- Kestrel security cameras, lasers and keypads (src/security) need electro-vision glow flags (A53 covers only the kinds that exist on this branch).
+- The parked Phase 1 light steps 4c-9 (breaker, motion lights, mains-off) are the next lighting job.
+- The untracked `scripts/_tmp-rest.mjs` in the main folder (C:\NightShift\Mobile-Coop) must not be committed.
+- Full network tuning (D11 full) is Phase 5.
+- The nine modernisation proposals are in BIBLE-PROPOSALS.md.
+- At the finish (step 34), copy this merge plan and these follow-ups into docs/progress.md so they reach master with the PR.

@@ -4,7 +4,7 @@
 // Usage: node scripts/perf-trend.mjs [extra perf.mjs args, e.g. --json]
 import { spawn } from 'node:child_process';
 
-const PORT = 4173;
+const PORT = Number(process.env.E2E_PORT ?? 4173);
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { stdio: 'ignore' });
 const stop = () => { try { server.kill(); } catch { /* already gone */ } };
 process.on('exit', stop);

@@ -1,5 +1,7 @@
 # Night Shift - architecture and conventions
 
+Project knowledge lives in git, never only in Claude memory: Michael swaps accounts. Record decisions, plans and follow-ups in the repo docs.
+
 On branch feature/ct-locomotion, follow docs/locomotion/RULES.md and resume from docs/locomotion/STATE.md (brief: BRIEF.md).
 
 On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading below: follow docs/kestrel/RULES.md and read only the files the prompt lists. Planner sessions (message begins 'Planner:') follow docs/kestrel/PLANNER.md.

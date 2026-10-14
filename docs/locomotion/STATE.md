@@ -1,5 +1,10 @@
 # Locomotion run - state
 
+## On the PC (M6, 2026-10-15)
+- Resumed locally on Michael's PC (worktree C:\NightShift\Mobile-Coop-locomotion, E2E_PORT=4189, E2E_GPU=1). Rules: RULES.md "On Michael's PC". Setup and prompts: OWNER-NOTES.md. Resume line: "Locomotion run: RESUME (local)".
+- Current: PC1 GPU catch-up (PC-PASS items for steps 01-14), then steps 15-20, 20b, Block C end, play-check list, the single pause.
+- PC perf-trend baseline: (pending, first PC1 task).
+
 ## Handover to PC (M5, 2026-10-14)
 
 **Ready to move to the PC.**
