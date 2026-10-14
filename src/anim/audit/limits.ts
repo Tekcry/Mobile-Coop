@@ -144,6 +144,10 @@ export const BREATH_FILTER_S = 1.0;
 export const IDLE_BREATH = 0.01;
 /** (locomotion step 11) Back to a wall: the back and shoulder blades within this of the face, and no deeper behind it (m). */
 export const WALL_GAP = 0.03;
+/** (locomotion step 13) Door peek: the palm of the hand away from the hinge within this of the handle (m), and no body
+ *  joint deeper than this past the cracked leaf's face (m). */
+export const DOOR_HAND = 0.02;
+export const DOOR_CLIP = 0;
 
 /** :1271 - D5 root overshoot 0: speed <= target x 1.01, no backward step after a stop (1 mm). */
 export const OVERSHOOT_RATIO = 1.01;

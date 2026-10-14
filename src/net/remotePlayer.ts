@@ -1,7 +1,7 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
-import { dropBadWallMove } from '../player/moveState';
+import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
 import { WALL, WALL_SUB, remoteWallHeadCap, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
@@ -104,10 +104,12 @@ export class RemotePlayer implements Damageable {
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null): void {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
     // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
     if (segs) dropBadWallMove(s, segs.length);
+    // (step 13) a door peek on a door this level does not have: no door pose
+    if (doorCount !== null) dropBadDoorMove(s, doorCount);
     // (step 12) a SWAT turn's commit within the turn's range and pace, else dropped (A24: client-owned, host-checked)
     if (s.mv?.m === 'swat' && (!s.mv.c || !swatCommitOk(s.mv.c))) {
       delete s.mv;
@@ -161,6 +163,8 @@ export class RemotePlayer implements Damageable {
     this.ref.peekX = this.peekTmp.x;
     this.ref.peekZ = this.peekTmp.z;
     this.headCap = remoteWallHeadCap(s.mv?.m ?? '', s.mv?.lk, s.mv?.sub ?? 0, wseg);
+    // (step 12b carry-over) off the wall the posed head sample goes at once (not at the next frame's setPosedHead)
+    if (!wseg) this.ref.head = null;
     this.state = s;
     this.sync();
   }

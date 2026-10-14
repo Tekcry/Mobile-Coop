@@ -10,7 +10,7 @@ import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -152,9 +152,11 @@ export type Msg =
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). */
   | { t: 'use'; id: string }
+  /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
+  | { t: 'door'; i: number; crack: boolean }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
@@ -449,6 +451,11 @@ export function parseMessage(raw: unknown): Msg | null {
       const iid = id(raw.id);
       return iid ? { t: 'use', id: iid } : null;
     }
+    case 'door': {
+      const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;
+      const crack = bool(raw.crack);
+      return i === null || crack === null ? null : { t: 'door', i, crack };
+    }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);
       const x = num(raw.x, -WORLD, WORLD);
@@ -572,6 +579,16 @@ export function parseMessage(raw: unknown): Msg | null {
           if (n !== null && !ds.includes(Math.floor(n))) ds.push(Math.floor(n));
         }
         out.doors = ds;
+      }
+      // (step 13) cracked doors (door peek), the same bounds
+      if (Array.isArray(raw.dcr)) {
+        const cs: number[] = [];
+        // (fix r1) an out-of-range entry is dropped, never clamped (-1 must not crack door 0)
+        for (const d of raw.dcr.slice(0, MAX_DOORS)) {
+          if (typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > 4095) continue;
+          if (!cs.includes(d)) cs.push(d);
+        }
+        out.dcr = cs;
       }
       if (Array.isArray(raw.score)) out.score = raw.score.slice(0, MAX_PLAYERS).map(scoreLine).filter((l): l is ScoreLine => !!l);
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);

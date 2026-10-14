@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 13 - door peek (PC, controller, phone)
+- [ ] Pad: Proving, face the shed's north door within a metre and press A: the body settles at the frame (hinge at one shoulder, the other hand on the handle), the leaf cracks open a little over about half a second, silently; the view moves to the crack, slightly zoomed.
+- [ ] Right stick looks left and right through the crack, stopping at about 35 degrees each way; the camera never shows the inside of the leaf or the jamb.
+- [ ] A again (or the stick held back) closes the crack; stick forward (or interact) opens the door quietly and ends the peek; aim, jump or sprint end the peek with the door left cracked.
+- [ ] KBM: Space cracks and closes, the mouse looks within the range, E opens. Phone: the context button shows Peek at the door and Close while peeking.
+- [ ] A guard on the other side does not see or hear the crack; light through the doorway does not change.
+- [ ] Co-op: a team-mate's crack shows on every screen with their hand on the handle; their close clears it; a guard walking through opens the cracked door normally.
+
 ## Locomotion step 12b - open-side weapon at wall edges, low-wall side lean (PC, controller, phone)
 - [ ] Pad: tall wall, slide to the LEFT end and hold the stick toward it: the weapon changes to the left hand in about a quarter second without a pop, then the head eases out; the camera sits on the left shoulder.
 - [ ] LT at the left end: the body steps out with the pistol in the left hand (two-handed, mirrored) or the rifle on the left shoulder; RT fires from the left-held weapon; release: back in and the weapon returns to the right hand smoothly. The right end is unchanged (right hand).

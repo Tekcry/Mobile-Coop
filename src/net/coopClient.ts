@@ -23,6 +23,7 @@ import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
+import { CrackPrediction } from '../world/doorPeek';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -241,7 +242,7 @@ export class CoopClient implements NetAttachment {
     this.puppetList = [...this.puppets.values()];
     g.pickups?.setMask(m.pk);
     if (m.items) this.syncItems(m.items);
-    if (m.doors) this.syncDoors(m.doors);
+    if (m.doors) this.syncDoors(m.doors, m.dcr ?? []);
     if (m.bodies) {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
       for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id)) this.dropBody(id);
@@ -289,9 +290,23 @@ export class CoopClient implements NetAttachment {
     }
   }
 
-  private syncDoors(open: number[]): void {
+  private syncDoors(open: number[], cracked: readonly number[]): void {
     const doors = this.g.world.doors;
-    for (const d of doors.list) doors.setOpen(d, open.includes(d.index));
+    const pred = (this.crackPred ??= new CrackPrediction(doors.list.length));
+    for (const d of doors.list) {
+      doors.setOpen(d, open.includes(d.index));
+      // (step 13) the host's cracks (door peek); a local prediction holds for about a round trip (fix r1)
+      if (d.target === 0) doors.crack(d, pred.resolve(d.index, cracked.includes(d.index), this.time));
+    }
+  }
+
+  /** (step 13 fix r1) The local crack predictions against the snapshots' `dcr`. */
+  private crackPred: CrackPrediction | null = null;
+
+  /** (locomotion step 13) Ask the host to crack door `i` (or close its crack); predicted locally by the caller. */
+  doorCrack(i: number, on: boolean): void {
+    (this.crackPred ??= new CrackPrediction(this.g.world.doors.list.length)).predict(i, on, this.time);
+    this.s.toHost({ t: 'door', i, crack: on });
   }
 
   /** Host-authoritative health for the local player. */

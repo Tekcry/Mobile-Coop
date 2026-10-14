@@ -308,14 +308,24 @@ describe('net session', () => {
     void late.leave();
     expect(left).toBe('Late');
   });
-  it('a peer on protocol version 6 is refused; version 7 joins', () => {
-    expect(PROTOCOL_VERSION).toBe(7);
+  it("(step 13) a client's door crack request reaches the host's game", () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    host.startMatch();
+    const got: unknown[] = [];
+    host.events.on('game', (e) => got.push(e.msg));
+    cli.toHost({ t: 'door', i: 0, crack: true });
+    expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
+  });
+  it('a peer on protocol version 7 is refused; version 8 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(8);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 6, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 7, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 7, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 8, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -393,7 +403,7 @@ import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, pose
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(7);
+    expect(PROTOCOL_VERSION).toBe(8);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -588,9 +598,9 @@ describe('step 12: wall lean kind and the SWAT turn', () => {
 import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate';
 
 describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
-  it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION stays 7', async () => {
+  it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(7);
+    expect(PROTOCOL_VERSION).toBe(8);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
@@ -644,5 +654,31 @@ describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () 
     expect(feet.y + 1.75 * 0.65 * 0.95).toBeGreaterThan(top);
     // and the fix-r1 cap (0.86 m) was 8-9 cm under the posed copy
     expect(feet.y + 0.953 - wallHeadCap(feet.y, 1.0)).toBeGreaterThan(0.08);
+  });
+});
+
+describe('step 13: door peek on the wire', () => {
+  it('parses `door` with an index bound and a bool', () => {
+    expect(parseMessage({ t: 'door', i: 3, crack: true })).toEqual({ t: 'door', i: 3, crack: true });
+    expect(parseMessage({ t: 'door', i: 0, crack: false })).toEqual({ t: 'door', i: 0, crack: false });
+    expect(parseMessage({ t: 'door', i: -1, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 96, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 1.5, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 2, crack: 1 })).toBeNull();
+    expect(parseMessage({ t: 'door', i: '2', crack: true })).toBeNull();
+  });
+  it('bounds the snapshot `dcr` list: out-of-range entries dropped (never clamped to door 0), duplicates, MAX_DOORS', () => {
+    const many = Array.from({ length: 200 }, (_, i) => i);
+    const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], dcr: [2, 2, -1, 'x', 5000, 1.5, 7, ...many] });
+    expect(m && m.t === 'snap').toBe(true);
+    const dcr = (m as Extract<typeof m, { t: 'snap' }>).dcr!;
+    expect(dcr.slice(0, 3)).toEqual([2, 7, 0]);
+    const m2 = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], dcr: [-1, 4096] });
+    expect((m2 as Extract<typeof m2, { t: 'snap' }>).dcr).toEqual([]);
+    expect(dcr.length).toBeLessThanOrEqual(96);
+    expect(new Set(dcr).size).toBe(dcr.length);
+  });
+  it('PROTOCOL_VERSION is 8', () => {
+    expect(PROTOCOL_VERSION).toBe(8);
   });
 });

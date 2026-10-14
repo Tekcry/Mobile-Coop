@@ -49,6 +49,9 @@ export const MOVE_MODES = [
   // (locomotion step 12) the SWAT turn across a doorway gap (committed, client-owned like a traversal, A24): a crouched
   // move from one wall edge to the far wall (`c` from, to, dur), ends in `wall`
   'swat',
+  // (locomotion step 13) the door peek: `a` the door index, `sub` bit 1 the hinge on the body's right, `ph` the door's
+  // drawn crack (0..DOOR.crack); the crack itself is the door's (host-authoritative, snapshot `dcr`)
+  'doorPeek',
 ] as const;
 export type MoveMode = (typeof MOVE_MODES)[number];
 
@@ -163,6 +166,14 @@ export function moveChanged(a: MoveState, b: MoveState): boolean {
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
 const WORLD = 400;
 
+/** (step 13) The receive path's level check for a door peek: a door index outside this level drops `mv`. */
+export function dropBadDoorMove(s: { mv?: MoveState }, doorCount: number): boolean {
+  const mv = s.mv;
+  if (!mv || mv.m !== 'doorPeek' || (mv.a >= 0 && mv.a < doorCount)) return false;
+  delete s.mv;
+  return true;
+}
+
 /**
  * (step 11 r3) The receive path's level check: the wire decode bounds a wall `a` by the generic 4096 only, so a state
  * whose wall segment is not in this level's `coverSegments` (`segCount`) loses its `mv` (posed as ground), never a
@@ -176,7 +187,7 @@ export function dropBadWallMove(s: { mv?: MoveState }, segCount: number): boolea
 }
 
 /** Untrusted wire data -> a valid state (unknown mode: null; numbers clamped; anchor index in range or -1). */
-export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4096): MoveState | null {
+export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4096, doorCount = 96): MoveState | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const mi = typeof o.m === 'number' ? Math.floor(o.m) : MOVE_MODES.indexOf(o.m as MoveMode);
@@ -186,12 +197,15 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
   if (m === 'wall') {
     // (step 11) a cover segment in range, else not a wall state
     if (a < 0 || a >= segCount) return null;
+  } else if (m === 'doorPeek') {
+    // (step 13) a door index in range (the level's door count, MAX_DOORS on the wire), else not a peek
+    if (a < 0 || a >= doorCount) return null;
   } else if (a >= anchorCount || !isAttachedMode(m)) a = -1;
   const out: MoveState = {
     m,
     a,
     s: num(o.s, -WORLD, WORLD, 0),
-    sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
+    sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : m === 'doorPeek' ? Math.floor(num(o.sub, 0, 1, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
     ph: num(o.ph, 0, 1, 0),
     tid: typeof o.tid === 'string' && /^[A-Za-z0-9_-]{0,40}$/.test(o.tid) ? o.tid : '',
     g: Math.floor(num(o.g, 1, 6, 3)),
@@ -287,6 +301,9 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
       }
       // (step 12b, D9) the open-left weapon hand (only with the left edge bit; D10's low side lean is `lk` 1 with `low`)
       out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
+      return out;
+    case 'doorPeek':
+      // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door
       return out;
     case 'swat':
       // (step 12) a crouched run across the gap: the gait from the replayed path's speed (no traverse family)

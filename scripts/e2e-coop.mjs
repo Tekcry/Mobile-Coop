@@ -620,6 +620,35 @@ try {
   assert(true, 'free-for-all ends on time');
   await toLobby();
 
+  // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host and on a third page (the
+  // snapshot's dcr), and its close clears it everywhere
+  console.log('door peek: a client crack shows on the host and a third page; close clears it');
+  await startMode('sandbox', 'proving');
+  const dpos = await GB(() => {
+    const d = window.__app.current.world.doors.list[0];
+    if (!d) return null;
+    const an = d.anchor;
+    const nx = Math.cos(an.yaw);
+    const nz = -Math.sin(an.yaw);
+    return [an.hinge.x + Math.sin(an.yaw) * an.width * 0.5 + nx * 0.7, an.hinge.y + 0.05, an.hinge.z + Math.cos(an.yaw) * an.width * 0.5 + nz * 0.7, Math.atan2(-nx, -nz)];
+  });
+  assert(!!dpos, 'Proving has a door');
+  await moveClient(B, dpos[0], dpos[1], dpos[2], dpos[3]);
+  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; window.__app.input.state.tap('cover'); }, dpos[3]);
+  await until(B, () => window.__app.current.doorPeek.phase !== 'off', null, 5000, 'client starts the peek');
+  const cracked = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return d.cracked && d.target === 0 && d.ajar > 0.06; }, null, 10000, 'the door cracked');
+  await cracked(A);
+  await cracked(C);
+  const dcC = await C.evaluate(() => { const d = window.__app.current.world.doors.list[0]; return { cracked: d.cracked, ajar: d.ajar, target: d.target, mode: [...window.__app.current.net.avatars.values()].map((a) => a.mode) }; });
+  assert(dcC.cracked && dcC.target === 0, `the client's crack shows on the host and a third page (${JSON.stringify(dcC)})`);
+  await until(B, () => window.__app.current.doorPeek.phase === 'peek', null, 5000, 'client peeking');
+  await GB(() => window.__app.input.state.tap('cover'));
+  const shut = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return !d.cracked && d.ajar < 0.01; }, null, 10000, 'the crack closed');
+  await shut(A);
+  await shut(C);
+  assert(true, 'closing clears the crack on the host and the third page');
+  await toLobby();
+
   console.log('host leaves');
   await GA(() => window.__coop.leave(false));
   await until(B, () => /Host left/.test(document.querySelector('.dialog-title')?.textContent ?? ''), null, 8000, 'host-left dialog');

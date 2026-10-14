@@ -501,6 +501,79 @@ try {
       await W.browser.close();
     }
   }
+  console.log('door peek (step 13, D1): A cracks, right stick looks, A closes; stick forward opens quietly');
+  {
+    const W = await launch({ url, params: 'autostart=proving' });
+    try {
+      await W.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      const r = await W.page.evaluate(() => {
+        const a = window.__app;
+        const g = a.current;
+        a.loop.manual = true;
+        const V = g.player.position.constructor;
+        const d = g.world.doors.list[0];
+        if (!d) return null;
+        const an = d.anchor;
+        // the leaf's middle, 0.7 m out on the normal's side, facing it
+        const nx = Math.cos(an.yaw);
+        const nz = -Math.sin(an.yaw);
+        const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+        const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+        const yaw = Math.atan2(-nx, -nz);
+        g.player.controller.teleport(new V(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+        a.loop.stepHeadless(0.3, 120);
+        const step = (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); };
+        const P = window.__pad;
+        const press = (b) => { P.set(b, 1); step(2); P.set(b, 0); step(1); };
+        const st = () => ({ phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, body: !!d.body, view: g.player.cam.doorPeek, look: Math.atan2(Math.sin(g.player.cam.yaw - g.player.cam.doorYaw), Math.cos(g.player.cam.yaw - g.player.cam.doorYaw)) });
+        P.connect();
+        step(2);
+        press(0);
+        step(60);
+        const peek = st();
+        P.axis(2, 1);
+        step(40);
+        P.axis(2, 0);
+        step(2);
+        const looked = st();
+        press(0);
+        step(30);
+        const closed = st();
+        // (fix r1) an abandoned crack: LT ends the peek with the door left cracked; A resumes the peek, A closes it
+        press(0);
+        step(60);
+        P.set(6, 1);
+        step(6);
+        P.set(6, 0);
+        step(45);
+        const left = st();
+        press(0);
+        step(30);
+        const resumed = st();
+        press(0);
+        step(30);
+        const shut = st();
+        press(0);
+        step(60);
+        const again = st();
+        P.axis(1, -1);
+        step(10);
+        P.axis(1, 0);
+        step(5);
+        return { peek, looked, closed, left, resumed, shut, again, opened: st() };
+      });
+      assert(!!r, 'Proving has a door');
+      assert(r.peek.phase === 'peek' && r.peek.cracked && Math.abs(r.peek.ajar - 0.12) < 0.01 && r.peek.target === 0 && r.peek.body && r.peek.view === 1, `pad A cracks the shed door 0.12 and peeks (body kept) (${JSON.stringify(r.peek)})`);
+      assert(Math.abs(r.looked.look) > 0.3 && Math.abs(r.looked.look) <= (35 * Math.PI) / 180 + 1e-3 && r.looked.phase === 'peek', `the right stick looks, within +-35 deg (${JSON.stringify(r.looked)})`);
+      assert(r.closed.phase === 'off' && !r.closed.cracked && r.closed.ajar === 0 && r.closed.body, `pad A closes the crack (${JSON.stringify(r.closed)})`);
+      assert(r.left.phase === 'off' && r.left.cracked && r.resumed.phase === 'peek' && r.resumed.cracked && r.resumed.view === 1 && r.shut.phase === 'off' && !r.shut.cracked && r.shut.ajar === 0, `an abandoned crack (LT ended the peek) resumes on A and A closes it (${JSON.stringify({ left: r.left, resumed: r.resumed, shut: r.shut })})`);
+      assert(r.again.phase === 'peek' && r.opened.target === 1 && !r.opened.cracked && r.opened.phase === 'off', `the stick forward opens it quietly and ends the peek (${JSON.stringify(r.opened)})`);
+    } finally {
+      await W.browser.close();
+    }
+  }
   console.log('wall edge verbs (step 12, D1): stick-to-edge peek, LT lean-out, RT fire, A SWAT, Y corner takedown');
   {
     const W = await launch({ url, params: 'autostart=proving' });

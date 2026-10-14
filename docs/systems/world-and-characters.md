@@ -26,7 +26,16 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
   human ladder), a rappel point over the dispatch window, the corridor's walls at 4 m over x 6.5..11.5 (a 1.86 m split gap), a deck
   pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
   closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
-  Grounds has a three-room mini set (north west) for tests.
+  Grounds has a three-room mini set (north west) for tests. (Locomotion step 13) the Proving shed's north doorway
+  (x 24.4-25.6, z -2) has a hinged door (`b.door(24.4, 0, -2, 1.2, PI / 2, { swing: 1 })`, swinging into the shed,
+  `doors.list[0]`) for the door-peek e2e and audit cases; the wall-edge doorway cases (step 12, the 1.1 m gap at
+  z +-8) are unaffected.
+- Door crack (locomotion step 13, A25 / A52, `world/doors.ts`): `Doors.crack(d, on)` eases the drawn leaf
+  (`DoorState.ajar`) to `DOOR.crack` 0.12 of the swing over `DOOR.crackTime` 0.6 s (closed in 0.4 s) and sets
+  `DoorState.cracked`; the swing `open` stays 0, so the collision body, the light field and baked lamps (`DOOR_SHUT`
+  0.05) and guard sight see a closed door (nothing in `src/ai`, the light bake or the lamp bake reads `cracked`). A
+  full open (`open` / `setOpen`, anyone, guards walking through included) clears `cracked` and swings on from the
+  cracked angle. The door-peek core (pure, Babylon-free) is `world/doorPeek.ts` (see movement.md).
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
 - Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one

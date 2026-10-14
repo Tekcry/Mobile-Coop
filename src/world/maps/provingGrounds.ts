@@ -111,6 +111,8 @@ export const provingGrounds: MapDef = {
     b.windowAt(26, 1.5, -8, 1.2, 1.2, 0, { sill: 0.9, open: true });
     b.wall(23, -2, 24.4, -2, SH, C.wall, 0.3);
     b.wall(25.6, -2, 27, -2, SH, C.wall, 0.3);
+    // (locomotion step 13) a hinged door in the shed's north doorway (the door-peek e2e cases), swinging in
+    b.door(27.0, 0, -2, 1.2, Math.PI / 2, { swing: 1 });
     b.wall(28.2, -2, 29, -2, SH, C.wall, 0.3);
     b.box(25, 0.45, -2, 1.2, 0.9, 0.3, C.wall);
     b.box(25, 2.55, -2, 1.2, 0.9, 0.3, C.wall);

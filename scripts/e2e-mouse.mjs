@@ -413,6 +413,69 @@ try {
     } finally {
       await E.browser.close();
     }
+    console.log('door peek (step 13, D1): Space cracks the Proving shed door, the mouse looks within +-35 deg, Space closes');
+    const DP = await launch({ url, params: 'autostart=proving', touch: false });
+    try {
+      const P = DP.page;
+      await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      await P.waitForTimeout(1200);
+      await P.mouse.move(640, 320);
+      for (let i = 0; i < 4 && !(await P.evaluate(() => !!document.pointerLockElement)); i++) {
+        await P.mouse.down();
+        await P.waitForTimeout(100);
+        await P.mouse.up();
+        await P.waitForTimeout(300);
+      }
+      assert(await P.evaluate(() => !!document.pointerLockElement), 'a click captures the mouse on the Proving');
+      const ok = await P.evaluate(() => {
+        const a = window.__app;
+        const g = a.current;
+        a.loop.manual = true;
+        const d = g.world.doors.list[0];
+        if (!d) return false;
+        const an = d.anchor;
+        const nx = Math.cos(an.yaw);
+        const nz = -Math.sin(an.yaw);
+        const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+        const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+        const yaw = Math.atan2(-nx, -nz);
+        g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+        a.loop.stepHeadless(0.3, 120);
+        window.__dp = {
+          step: (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); },
+          st: () => { const c = g.player.cam; return { phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, view: c.doorPeek, look: Math.atan2(Math.sin(c.yaw - c.doorYaw), Math.cos(c.yaw - c.doorYaw)) }; },
+        };
+        return true;
+      });
+      assert(ok, 'Proving has a door');
+      const step = (n) => P.evaluate((n) => window.__dp.step(n), n);
+      const st = () => P.evaluate(() => window.__dp.st());
+      const key = async (code) => {
+        await P.keyboard.down(code);
+        await step(2);
+        await P.keyboard.up(code);
+        await step(1);
+      };
+      await key('Space');
+      await step(60);
+      const peek = await st();
+      for (let i = 1; i <= 8; i++) {
+        await P.mouse.move(640 + i * 60, 320);
+        await step(2);
+      }
+      await step(4);
+      const looked = await st();
+      await key('Space');
+      await step(30);
+      const closed = await st();
+      assert(peek.phase === 'peek' && peek.cracked && Math.abs(peek.ajar - 0.12) < 0.01 && peek.target === 0 && peek.view === 1, `Space cracks the shed door 0.12 and peeks (${JSON.stringify(peek)})`);
+      assert(looked.phase === 'peek' && Math.abs(looked.look) > 0.3 && Math.abs(looked.look) <= (35 * Math.PI) / 180 + 1e-3, `the mouse looks, clamped within +-35 deg (${JSON.stringify(looked)})`);
+      assert(closed.phase === 'off' && !closed.cracked && closed.ajar === 0 && closed.target === 0, `Space again closes the crack (${JSON.stringify(closed)})`);
+    } finally {
+      await DP.browser.close();
+    }
     const C = await launch({ url, params: 'autostart=warehouse&mode=clear', touch: false });
     try {
       const P = C.page;

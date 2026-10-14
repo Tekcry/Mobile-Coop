@@ -388,6 +388,8 @@ if (!QUICK) {
   for (const weapon of ['rifle', 'pistol']) for (const e of [1, -1]) transitions.push({ name: `wallopen${e > 0 ? 'L' : 'R'}-${weapon}`, kind: 'wall', edge: true, open: 'high', end: e, weapon, hz: 60 });
   for (const e of [1, -1]) transitions.push({ name: `walllow${e > 0 ? 'L' : 'R'}`, kind: 'wall', edge: true, open: 'low', end: e, hz: 60 });
 }
+// (step 13) door peek at the Proving shed door: crack, peek, close (the hand on the handle, no clip into the leaf)
+if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'doorpeek', kind: 'door', hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
@@ -517,6 +519,22 @@ async function drive(sc, halt = -1) {
       t.run(1.6, { taps: { 1: 'fire' } }, hz);
       m.end = t.mark();
       m.strikes = g.strike.count.started;
+    } else if (sc.kind === 'door') {
+      // (locomotion step 13) door peek: 0.7 m out from the shed door's middle facing it; the context press settles
+      // (0.25 s), cracks (0.6 s) and peeks; a second press closes (0.4 s)
+      const q = sc.door;
+      t.stance(false, 3);
+      g.player.cam['t'] = 0;
+      t.tp(q.sx, q.sz, q.syaw, q.y);
+      t.begin(halt);
+      m.enter = t.mark();
+      t.run(0.3, {}, hz);
+      m.press = t.mark();
+      t.run(2.0, { taps: { 1: 'cover' } }, hz);
+      m.close = t.mark();
+      m.peeked = g.doorPeek.phase;
+      t.run(0.8, { taps: { 1: 'cover' } }, hz);
+      m.end = t.mark();
     } else if (sc.kind === 'wall') {
       // (locomotion step 11) back to a wall: a free high wall on Proving (FIND_WALL), 0.85 m out facing it, the context
       // press enters (0.2 s settle), slide one way, stop, crouch, slide back, stop
@@ -649,7 +667,45 @@ const wallSegs = (sc) => (sc.open ? openSegments(sc.plane.end, sc.open === 'low'
  *  to the edge, peek (stick held toward it), lean-out (aim), the SWAT turn across the doorway, settle. */
 const edgeSegments = (e) => [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: e }, { d: 0.4 }, { d: 1.0, x: e }, { d: 0.6 }, { d: 1.0, ads: true }, { d: 0.6 }, { d: 0.3, x: e }, { d: 0.9, x: e, tap: 'cover' }, { d: 0.8 }];
 
+/** (step 13) The Proving shed door: where to stand (0.7 m out from the leaf's middle, facing it), the handle at the
+ *  crack, the hand that takes it (away from the hinge) and the cracked leaf's plane. */
+const FIND_PEEKDOOR = () => {
+  const g = window.__app.current;
+  const d = g.world.doors.list[0];
+  if (!d) return null;
+  const a = d.anchor;
+  const nx = Math.cos(a.yaw);
+  const nz = -Math.sin(a.yaw);
+  const tx = Math.sin(a.yaw);
+  const tz = Math.cos(a.yaw);
+  const syaw = Math.atan2(-nx, -nz);
+  const hingeRight = -tx * Math.cos(syaw) + tz * Math.sin(syaw) > 0;
+  const k = 0.12 * 0.12 * (3 - 2 * 0.12);
+  const ly = a.yaw + a.swing * 1.75 * k;
+  const lx = Math.sin(ly);
+  const lz = Math.cos(ly);
+  const hl = a.width - 0.07;
+  return {
+    sx: a.hinge.x + tx * a.width * 0.5 + nx * 0.7,
+    sz: a.hinge.z + tz * a.width * 0.5 + nz * 0.7,
+    syaw,
+    y: a.hinge.y,
+    hinge: [a.hinge.x, a.hinge.y, a.hinge.z],
+    width: a.width,
+    height: a.height,
+    thick: 0.05,
+    leaf: [lx, lz],
+    handle: [a.hinge.x + lx * hl + lz * 0.06, a.hinge.y + 1.0, a.hinge.z + lz * hl - lx * 0.06],
+    hand: hingeRight ? 'L' : 'R',
+    handLen: g.player.rig.p.hand.len,
+  };
+};
+
 async function record(sc, halt = -1) {
+  if (sc.kind === 'door' && !sc.door) {
+    sc.door = await G(FIND_PEEKDOOR);
+    if (!sc.door) throw new Error('anim-audit door: no door on Proving');
+  }
   if (sc.kind === 'wall' && !sc.plane) {
     sc.plane = await G(...findPlane(sc));
     if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
@@ -658,6 +714,7 @@ async function record(sc, halt = -1) {
   if (sc.edge) sc.segs = wallSegs(sc);
   const m = await drive(sc, halt);
   if (sc.kind === 'wall') m.plane = sc.plane;
+  if (sc.kind === 'door') m.door = sc.door;
   const r = await G(() => window.__aa.end());
   const buf = Buffer.from(r.b64, 'base64');
   const data = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
@@ -956,6 +1013,8 @@ function analyze(sc, rec) {
       res(out, 'strikeSettle', { ...M.oscP2P(col(rec, 'headNode.y', s0, m.end), L.IDLE_BREATH), extra: { started: m.strikes ?? null } }, L.IDLE_BREATH, 'step 10 / D2', 'm', s0);
     } else if (sc.kind === 'wall') {
       wallMetrics(rec, out, m, dt);
+    } else if (sc.kind === 'door') {
+      doorMetrics(rec, out, m, dt);
     } else if (sc.kind === 'idle') {
       res(out, 'idleBreath', M.oscP2P(col(rec, 'headNode.y', m.idle, m.end), L.IDLE_BREATH), L.IDLE_BREATH, ':1257', 'm', m.idle);
       res(out, 'idleCamera', M.cameraOsc(col(rec, 'cam.y', m.idle, m.end)), L.CAMERA_P2P, ':1256', 'm', m.idle);
@@ -970,6 +1029,54 @@ function analyze(sc, rec) {
  * the torso and both shoulder joints to the wall plane, less the rig's body depth half (proportions bodyDepthHalf).
  * wallGap: the largest gap (m), wallClip: the deepest the back goes behind the face (m).
  */
+/**
+ * (step 13) Door peek: from 1.0 s after the press (0.25 s settle + 0.6 s crack + 0.15 s) to the close press, the palm of
+ * the hand away from the hinge (the wrist plus the rig's palm offset along the shoulder-wrist line, as characterRig's
+ * reach) to the handle at the crack (doorHand), and the deepest any body joint goes past the cracked leaf's face on
+ * the body's side, inside the leaf's extent (doorClip).
+ */
+function doorMetrics(rec, out, m, dt) {
+  const q = m.door;
+  if (!q) return;
+  const from = Math.min(rec.n, m.press + Math.round(1.0 / dt));
+  const to = Math.min(rec.n, m.close);
+  const wr = vec(rec, `wrist${q.hand}`);
+  const sh = vec(rec, `shoulder${q.hand}`);
+  const back = q.handLen * 0.45;
+  const [lx, lz] = q.leaf;
+  // the leaf's normal toward the body (the body stands on the anchor normal's + side)
+  const nx = lz;
+  const nz = -lx;
+  const joints = NODES.filter((n) => n !== 'weaponPivot').map((n) => vec(rec, n));
+  let hand = { worst: 0, frame: -1 };
+  let clip = { worst: 0, frame: -1 };
+  let n = 0;
+  for (let i = from; i < to; i++) {
+    n++;
+    const o = i * 3;
+    const dx = wr[o] - sh[o];
+    const dy = wr[o + 1] - sh[o + 1];
+    const dz = wr[o + 2] - sh[o + 2];
+    const len = Math.hypot(dx, dy, dz) || 1;
+    const px = wr[o] + (dx / len) * back;
+    const py = wr[o + 1] + (dy / len) * back;
+    const pz = wr[o + 2] + (dz / len) * back;
+    const h = Math.hypot(px - q.handle[0], py - q.handle[1], pz - q.handle[2]);
+    if (h > hand.worst) hand = { worst: h, frame: i };
+    for (const p of joints) {
+      const rx = p[o] - q.hinge[0];
+      const rz = p[o + 2] - q.hinge[2];
+      const along = rx * lx + rz * lz;
+      const y = p[o + 1] - q.hinge[1];
+      if (along < 0 || along > q.width || y < 0 || y > q.height) continue;
+      const c = q.thick / 2 - (rx * nx + rz * nz);
+      if (c > clip.worst) clip = { worst: c, frame: i };
+    }
+  }
+  res(out, 'doorHand', { ...hand, pass: n > 0 && hand.worst <= L.DOOR_HAND, extra: { frames: n, peeked: m.peeked ?? null } }, L.DOOR_HAND, 'step 13', 'm', from);
+  res(out, 'doorClip', { ...clip, pass: n > 0 && clip.worst <= L.DOOR_CLIP + 1e-4 }, L.DOOR_CLIP, 'step 13', 'm', from);
+}
+
 function wallMetrics(rec, out, m, dt) {
   const w = m.plane;
   if (!w) return;
@@ -1020,6 +1127,8 @@ function remoteScenarios() {
     for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
     out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
+    // (step 13) door peek: the client cracks the shed door, the host's copy poses from MoveState doorPeek
+    out.push({ name: 'doorpeek', kind: 'door', hz: 60 });
   }
   return out.filter((s) => !ONLY || s.name.includes(ONLY));
 }
@@ -1028,6 +1137,7 @@ function remoteScenarios() {
 function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
   if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
+  if (sc.kind === 'door') return [{ d: 0.3 }, { d: 2.0, tap: 'cover' }, { d: 0.8, tap: 'cover' }];
   // (step 11) as the local drive: enter, slide, stop, crouch, slide back, stop
   if (sc.kind === 'wall' && sc.edge) return wallSegs(sc);
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
@@ -1765,13 +1875,19 @@ async function runRemote() {
         await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); });
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
-        let s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
+        let s = sc.kind === 'stance' || sc.kind === 'strike' || sc.kind === 'door' ? FLAT : SURF[sc.surface];
         if (sc.kind === 'wall') {
           // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
           sc.plane ??= await A.evaluate(...findPlane(sc));
           if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
           const w = sc.plane;
           s = { x: w.ax + w.tx * w.k + w.nx * 0.85, z: w.az + w.tz * w.k + w.nz * 0.85, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
+        }
+        if (sc.kind === 'door') {
+          sc.door ??= await A.evaluate(FIND_PEEKDOOR);
+          if (!sc.door) throw new Error('anim-audit door: no door on Proving');
+          sc.door.handLen = await A.evaluate(() => window.__app.current.net.remotes.values().next().value.avatar.rig.p.hand.len);
+          s = { x: sc.door.sx, z: sc.door.sz, yaw: sc.door.syaw, y: sc.door.y };
         }
         const segs = remoteSegments(sc);
         await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
@@ -1812,6 +1928,7 @@ async function runRemote() {
       if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
+      else if (sc.kind === 'door') m = { enter: mk[0], press: mk[1], close: mk[2] ?? rec.n, end: Math.min(rec.n, mk[3] ?? rec.n), door: sc.door };
       else if (sc.kind === 'wall' && sc.edge) m = { enter: mk[0], on: mk[1], end: rec.n, plane: sc.plane };
       else if (sc.kind === 'wall') m = { enter: mk[0], on: mk[1], stop: mk[2], crouch: mk[3], back: mk[4], stop2: mk[5], end: Math.min(rec.n, mk[6] ?? rec.n), plane: sc.plane };
       rec.m = m;

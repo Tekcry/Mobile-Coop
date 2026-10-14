@@ -74,9 +74,9 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       else if (phase === 'destroyed') sfx.explosion(0.25, 0);
       else if (phase !== 'trigger') sfx.gadget('beep');
     }),
-    g.events.on('door', ({ how, x, z }) => {
+    g.events.on('door', ({ how, x, z, vol }) => {
       const s = a.spatial(x, 1, z, how === 'bash' ? 40 : 20);
-      if (s.gain > 0.03) sfx.door(how, s.gain, s.pan);
+      if (s.gain > 0.03) sfx.door(how, s.gain * (vol ?? 1), s.pan);
     }),
     g.events.on('body', ({ action }) => (action === 'pickup' ? sfx.thud(0.5) : sfx.thud(1))),
     g.events.on('waveCleared', () => sfx.objective()),

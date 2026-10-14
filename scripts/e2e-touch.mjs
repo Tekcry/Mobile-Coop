@@ -226,6 +226,45 @@ try {
   } finally {
     await pc.browser.close();
   }
+  console.log('door peek (step 13, D1 basic scheme): the context button cracks the Proving shed door, again closes');
+  const dp = await launch({ url, params: 'autostart=proving' });
+  try {
+    const P = dp.page;
+    await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+    const ok = await P.evaluate(() => {
+      const g = window.__app.current;
+      const d = g.world.doors.list[0];
+      if (!d) return false;
+      const an = d.anchor;
+      const nx = Math.cos(an.yaw);
+      const nz = -Math.sin(an.yaw);
+      const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+      const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+      const yaw = Math.atan2(-nx, -nz);
+      g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+      g.player.cam.yaw = yaw;
+      g.player.cam.pitch = 0;
+      return true;
+    });
+    assert(ok, 'Proving has a door');
+    await frames(P, 20);
+    const st = () => P.evaluate(() => { const g = window.__app.current; const d = g.world.doors.list[0]; const b = document.querySelector('.tc-action'); return { phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, idle: b.classList.contains('tc-idle'), label: b.textContent?.trim() ?? '' }; });
+    const offer = await st();
+    assert(!offer.idle && offer.phase === 'off', `the context button offers the peek at the closed door (${JSON.stringify(offer)})`);
+    await P.locator('.tc-action').tap();
+    await P.waitForFunction(() => window.__app.current.doorPeek.phase === 'peek', null, { timeout: 8000 }).catch(() => {});
+    const on = await st();
+    assert(on.phase === 'peek' && on.cracked && on.target === 0, `the touch context button cracks the door and peeks (${JSON.stringify(on)})`);
+    await frames(P, 4);
+    await P.locator('.tc-action').tap();
+    await P.waitForFunction(() => { const g = window.__app.current; return g.doorPeek.phase === 'off' && !g.world.doors.list[0].cracked; }, null, { timeout: 8000 }).catch(() => {});
+    const off = await st();
+    assert(off.phase === 'off' && !off.cracked && off.target === 0, `the context button again closes it (${JSON.stringify(off)})`);
+    const errs = dp.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(errs.length === 0, `door peek: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  } finally {
+    await dp.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

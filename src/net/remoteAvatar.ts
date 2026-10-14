@@ -1,3 +1,5 @@
+import { crackedHandle } from '../world/doorPeek';
+import { DOOR } from '../world/doors';
 import { WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3, type InstancedMesh } from '../core/babylon';
@@ -34,6 +36,9 @@ let ropeKeys = 0;
  */
 export class RemoteAvatar {
   readonly rig: CharacterRig;
+  /** (step 13) The door-peek handle reach (world) and whether it is set. */
+  private readonly doorHand = { x: 0, y: 0, z: 0 };
+  private doorHandOn = false;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
   readonly pos = new Vector3();
   yaw = 0;
@@ -219,6 +224,25 @@ export class RemoteAvatar {
       this.wallYawOn = true;
       this.wallS = sv;
     } else this.wallYawOn = false;
+    // (locomotion step 13, D8) a door peek: the hand away from the hinge on the handle of the leaf as cracked (`ph`),
+    // the side from where the body stands
+    const pd = mv?.m === 'doorPeek' && !rp ? this.world.doors.list[mv.a] : undefined;
+    if (pd) {
+      const a = pd.anchor;
+      const side = (this.pos.x - a.hinge.x) * Math.cos(a.yaw) - (this.pos.z - a.hinge.z) * Math.sin(a.yaw) >= 0 ? 1 : -1;
+      crackedHandle(a, side, mv!.ph, DOOR.openAngle, this.doorHand);
+      const reach = mv!.sub & 1 ? this.rig.reachL : this.rig.reachR;
+      const other = mv!.sub & 1 ? this.rig.reachR : this.rig.reachL;
+      reach.x = this.doorHand.x;
+      reach.y = this.doorHand.y;
+      reach.z = this.doorHand.z;
+      reach.w = Math.min(1, reach.w + dt / 0.25);
+      other.w = 0;
+      this.doorHandOn = true;
+    } else if (this.doorHandOn) {
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      this.doorHandOn = false;
+    }
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top

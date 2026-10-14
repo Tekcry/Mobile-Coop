@@ -5,6 +5,7 @@ import { ATTACH_FRAMING, attachFraming, CAMERA, framing, WALL_CAMERA, type Attac
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
+import { DOOR_PEEK, clampPeekYaw } from '../world/doorPeek';
 import { vfovFor } from '../core/display';
 import { castStop, easeRate, lowFraming, lowSwing, lowWeight, nearPlane, pivotFraction } from './cameraBounds';
 
@@ -74,6 +75,13 @@ export class ShoulderCamera {
   wallLean = 0;
   wallEdgeX = 0;
   wallEdgeZ = 0;
+  /** (locomotion step 13) Door peek: the view at the crack (0..1, the core's), the eye there (world) and the look's
+   *  centre yaw (the look stays within +-35 deg of it). Local only, never sent. */
+  doorPeek = 0;
+  readonly doorEye = new Vector3();
+  doorYaw = 0;
+  private doorW = 0;
+  private readonly doorPt = new Vector3();
   /** Eased peek / lean amounts (capped rate) and the edge direction they swing toward. */
   private peekW = 0;
   private leanW = 0;
@@ -255,6 +263,9 @@ export class ShoulderCamera {
     const T = CAMERA;
     this.t += dt;
     if (dt <= 0) dt = 1e-4;
+    // (step 13) at a door's crack the look stays within its range
+    if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
+    this.doorW = this.doorPeek;
     // framing blends (critically damped: 350-600 ms, no overshoot)
     const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, MOVEMENT.camShoulder, dt);
     this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
@@ -395,10 +406,22 @@ export class ShoulderCamera {
     this.boomActual = Math.min(boomNow, dist);
     const pos = v.scaleToRef(this.boomActual / len, this.camPos).addInPlace(shoulderPt);
     this.camera.minZ = nearPlane(this.boomActual);
+    // (step 13) door peek: the eye goes to the crack (cast from the head, so never inside the leaf or the jamb)
+    const dw = this.doorW;
+    if (dw > 0) {
+      const e = dw * dw * (3 - 2 * dw);
+      const eye = this.doorPt.copyFrom(this.doorEye);
+      if (eng && this.pivotShape) {
+        const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, head, eye), Vector3.Distance(head, eye), T.castSkin);
+        if (f < 1) Vector3.LerpToRef(head, eye, f, eye);
+      }
+      Vector3.LerpToRef(pos, eye, e, pos);
+      this.camera.minZ += (0.02 - this.camera.minZ) * e;
+    }
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom;
+    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
   }
 
   /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */

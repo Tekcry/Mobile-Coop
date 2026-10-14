@@ -361,7 +361,9 @@ export class CharacterRig {
   /**
    * (step 12b, light parity) The posed head centre and chest (torso joint) in world space, refreshed from the root:
    * perception's exposure points and the light meter's head sample read the real pose (a mirrored open-side lean,
-   * the low-wall side lean under the top), never a separate model. Off the hot path (4-10 Hz).
+   * the low-wall side lean under the top), never a separate model. Locally off the hot path (4-10 Hz); on the host
+   * it is also called every render frame per remote on a wall (`CoopHost` -> `RemotePlayer.setPosedHead`): a matrix
+   * refresh of the root and the neck chain, no allocation.
    */
   posedHead(out: Vector3): Vector3 {
     fresh(this.root);

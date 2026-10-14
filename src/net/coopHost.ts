@@ -21,6 +21,7 @@ import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } 
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
+import { hostCrackOk } from '../world/doorPeek';
 import { GRAB } from '../game/takedown';
 import { PvpVictim } from './pvpVictim';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
@@ -430,7 +431,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         break;
       case 'shot':
@@ -450,6 +451,9 @@ export class CoopHost implements NetAttachment {
         break;
       case 'use':
         this.onUse(r, msg.id);
+        break;
+      case 'door':
+        this.onDoorCrack(r, msg.i, msg.crack);
         break;
       case 'td':
         this.onTakedown(r, msg);
@@ -496,6 +500,19 @@ export class CoopHost implements NetAttachment {
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
     if (it.onUse) it.onUse(it);
     else this.g.mode?.onInteract?.(it);
+  }
+
+  /** (locomotion step 13) A client's door-peek crack: in reach (door centre within 1.5 m of its feet), closed and
+   *  unlocked; the same `Doors.crack` the host's own player uses. A request on an open door is ignored. */
+  private onDoorCrack(r: RemotePlayer, i: number, on: boolean): void {
+    const doors = this.g.world.doors;
+    const d = doors.list[i];
+    if (!r.alive || !d || Math.abs(d.anchor.hinge.y - r.feet.y) > 2) return;
+    if (!hostCrackOk(d, r.feet.x, r.feet.z, on)) {
+      if (d.target === 0) r.violations++;
+      return;
+    }
+    doors.crack(d, on);
   }
 
   /** A client's takedown on a host enemy: seize it (in reach, calm or not facing), finish it, or let go. */
@@ -904,6 +921,13 @@ export class CoopHost implements NetAttachment {
     return out;
   }
 
+  /** (step 13) Cracked doors (door peek), capped at MAX_DOORS. */
+  private cracked(): number[] {
+    const out: number[] = [];
+    for (const d of this.g.world.doors.list) if (d.cracked && out.length < MAX_DOORS) out.push(d.index);
+    return out;
+  }
+
   private snapshot(): void {
     const players: PlayerState[] = [this.selfState()];
     for (const r of this.remotes.values()) {
@@ -924,7 +948,8 @@ export class CoopHost implements NetAttachment {
     for (const b of this.g.enemyMgr?.bodies ?? []) if (b.enemyId && !b.hidden && !b.carried && bodies.length < MAX_ENEMIES) bodies.push(b.enemyId);
     const bsig = bodies.join();
     const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}`).join();
-    const dsig = doors.join();
+    const dcr = this.cracked();
+    const dsig = `${doors.join()}/${dcr.join()}`;
     if (isig !== this.itemsSig || dsig !== this.doorsSig || bsig !== this.bodiesSig || this.itemsT <= 0) {
       this.itemsSig = isig;
       this.doorsSig = dsig;
@@ -932,6 +957,7 @@ export class CoopHost implements NetAttachment {
       this.itemsT = ITEMS_EVERY;
       snap.items = items;
       snap.doors = doors;
+      snap.dcr = dcr;
       snap.bodies = bodies;
     }
     if (this.score) {

@@ -64,6 +64,17 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
+  // (locomotion step 13) the door peek: the door, the hinge side, the door's drawn crack
+  const dp = g.doorPeek;
+  if (dp.active) {
+    out.m = 'doorPeek';
+    out.a = dp.door;
+    out.sub = g.peekFrame.hingeRight ? 1 : 0;
+    out.ph = Math.max(0, Math.min(1, g.world.doors.list[dp.door]?.ajar ?? 0));
+    delete out.lk;
+    delete out.c;
+    return out;
+  }
   // (locomotion step 11) back to a wall: the segment (level order), metres along it, WALL_SUB; `ph` the settle
   const wc = g.wallCore;
   // (locomotion step 12) the SWAT turn: a committed move (from, to, dur) the remotes replay (A24)

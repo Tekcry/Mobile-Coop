@@ -23,7 +23,7 @@ export interface GameEvents {
   /** Goggles switched (audio). */
   vision: { mode: 'off' | 'night' };
   /** A door opened / closed (audio). */
-  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
+  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number; vol?: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
   gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
   pickup: { kind: PickupKind };

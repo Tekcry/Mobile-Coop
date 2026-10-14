@@ -77,6 +77,8 @@ import { SecuritySystem } from '../security/securitySystem';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
+import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
+import { DOOR } from '../world/doors';
 import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
@@ -142,6 +144,8 @@ export interface NetAttachment {
   teamMates?(): readonly TeamMate[];
   /** (step 11, D8) Other players with their back to cover segment `seg`: metres along it into `out`; returns the count. */
   wallOthers?(seg: number, out: Float64Array): number;
+  /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
+  doorCrack?(i: number, on: boolean): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
@@ -189,6 +193,8 @@ const IMPACT_NOISE = 4;
 
 /** Touch action button: an interactable in reach, else (3.2.0) what the world prompts show. */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
+/** (locomotion step 13, D1) The touch context button at a closed door: crack it and peek; while peeking: close. */
+const ACT_PEEK: TouchAction = { action: 'cover', label: 'Peek', icon: 'interact' };
 /** The action button's icon per world prompt. */
 const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
@@ -295,6 +301,18 @@ export class GameState implements AppState {
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
+  /** (locomotion step 13) The door peek (context press at a closed door), its frame, override and input. */
+  readonly doorPeek = new DoorPeekCore();
+  readonly peekFrame = emptyFrame();
+  private peekOv: MoveOverride = {};
+  private peekIn: DoorPeekInput = { context: false, interact: false, push: 0, end: false, candidate: -1, doorOpened: false };
+  private peekTook = false;
+  /** (step 13) A door peek is on offer (eligible door in front) or running: the touch context button carries it. */
+  private peekOffer = false;
+  /** (step 13) The door the peek offer is for (-1 none): the touch button offers Peek ahead of only its own Use. */
+  private peekOfferDoor = -1;
+  private peekHp = 0;
+  private peekHand = { x: 0, y: 0, z: 0 };
   private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
@@ -1112,7 +1130,10 @@ export class GameState implements AppState {
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
-    const busy = this.takedown.active !== null || this.strike.active;
+    const busy0 = this.takedown.active !== null || this.strike.active;
+    // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
+    this.doorPeekStep(dt, inp, busy0 || carrying);
+    const busy = busy0 || this.doorPeek.active;
     // Y / E is contextual: an interactable in reach takes it, else it traverses
     const ti = this.traversal.input;
     ti.moveX = inp.move.x;
@@ -1242,6 +1263,7 @@ export class GameState implements AppState {
         this.player.controller.override = null;
         this.traversal.reset();
         this.wallCore?.reset();
+        this.doorPeek.reset();
         this.strike.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
@@ -1782,8 +1804,8 @@ export class GameState implements AppState {
     i.gear = c.gear;
     i.crouched = c.crouched;
     i.grounded = c.grounded;
-    i.context = inp.pressed('cover');
-    i.contextHeld = inp.down('cover');
+    i.context = inp.pressed('cover') && !this.peekTook;
+    i.contextHeld = inp.down('cover') && !this.peekTook;
     i.crouchPressed = inp.pressed('crouch');
     const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
     i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
@@ -1834,6 +1856,118 @@ export class GameState implements AppState {
     pl.cam.wallLean = w.phase === 'on' && w.lk === 1 ? 1 : 0;
     pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
     pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
+  }
+
+  /**
+   * (locomotion step 13) Door peek: the context press at a closed, unlocked door faced within 60 deg settles on the
+   * frame, cracks the leaf (host-authoritative in co-op) and frames the view at the crack; a press or the stick pulled
+   * back closes it, the stick pushed in or `interact` opens it quietly; damage, aim, jump or sprint ends the peek.
+   */
+  private doorPeekStep(dt: number, inp: InputState, busy: boolean): void {
+    const dp = this.doorPeek;
+    const doors = this.world.doors;
+    const pl = this.player;
+    const c = pl.controller;
+    const p = pl.position;
+    const tr = this.traversal;
+    const was = dp.active;
+    this.peekTook = false;
+    const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || !!this.wallCore?.active || (!!c.override && c.override !== this.peekOv);
+    const ctx = inp.pressed('cover');
+    let cand = -1;
+    let offer = -1;
+    if (!was && !other && doors.list.length) {
+      const d = doors.nearest(p.x, p.z, 2);
+      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
+    }
+    if (ctx) cand = offer;
+    this.peekOffer = was || offer >= 0;
+    this.peekOfferDoor = was ? dp.door : offer;
+    const d0 = dp.door >= 0 ? doors.list[dp.door] : undefined;
+    const hp = this.target.health.hp;
+    const hurt = was && hp < this.peekHp;
+    this.peekHp = hp;
+    const fr = this.peekFrame;
+    const interact = inp.pressed('interact');
+    const pi = this.peekIn;
+    pi.context = ctx;
+    pi.interact = interact;
+    // the stick toward the door (the frame's facing)
+    const cy = pl.cam.yaw;
+    const wx = Math.cos(cy) * inp.move.x + Math.sin(cy) * inp.move.y;
+    const wz = -Math.sin(cy) * inp.move.x + Math.cos(cy) * inp.move.y;
+    pi.push = was ? wx * Math.sin(fr.yaw) + wz * Math.cos(fr.yaw) : 0;
+    // (KBM shares E between traverse and interact: an interact press opens, it does not end the peek)
+    pi.end = was && (other || hurt || pl.ads || inp.down('ads') || (inp.pressed('jump') && !interact) || inp.pressed('dash'));
+    pi.candidate = cand;
+    // (fix r1) an abandoned crack: the peek resumes at it (no crack request), so it can be closed
+    pi.resume = cand >= 0 && doors.list[cand]!.cracked;
+    pi.doorOpened = !!d0 && d0.target === 1;
+    const act = dp.update(dt, pi);
+    if (!was && dp.active) {
+      const d = doors.list[dp.door]!;
+      doorFrame(d.anchor, p.x, p.z, 1.0 + 0.6 * (1 - c.crouchBlend), fr);
+    }
+    if (ctx && (was || dp.active)) this.peekTook = true;
+    const d = dp.door >= 0 ? doors.list[dp.door] : d0;
+    if (d && act === PEEK_ACT.crackOn) this.peekCrack(d.index, true);
+    else if (d && act === PEEK_ACT.crackOff) this.peekCrack(d.index, false);
+    else if (d0 && act === PEEK_ACT.open && !interact) {
+      // the stick pushed in: the door's own quiet open (the host's on a client); an interact press already used it
+      const it = this.interactables?.items.find((x) => x.id === `door-${d0.anchor.id}`);
+      if (it?.onUse) it.onUse(it);
+      else doors.open(d0, 'quiet');
+    }
+    const rig = pl.rig;
+    if (dp.active) {
+      const ov = this.peekOv;
+      const v = (ov.velocity ??= { x: 0, z: 0 });
+      const left = dp.phase === 'settle' ? Math.max(dt, DOOR_PEEK.settle - dp.t) : 0.1;
+      v.x = (fr.x - p.x) / left;
+      v.z = (fr.z - p.z) / left;
+      ov.yaw = fr.yaw;
+      ov.crouch = c.crouched;
+      ov.turnRate = 12;
+      ov.glide = true;
+      ov.run = false;
+      ov.noise = 'crouched';
+      c.override = ov;
+      // the hand on the handle (the hand away from the hinge), following the drawn leaf
+      const dd = doors.list[dp.door]!;
+      crackedHandle(dd.anchor, fr.side, dd.ajar, DOOR.openAngle, this.peekHand);
+      const reach = fr.hingeRight ? rig.reachL : rig.reachR;
+      reach.x = this.peekHand.x;
+      reach.y = this.peekHand.y;
+      reach.z = this.peekHand.z;
+      reach.w = dp.handW();
+    } else if (was) {
+      if (c.override === this.peekOv) c.override = null;
+      rig.reachL.w = rig.reachR.w = 0;
+    }
+    // the view at the crack (local only, never sent)
+    const cam = pl.cam;
+    cam.doorPeek = dp.view();
+    cam.doorEye.set(fr.ex, fr.ey, fr.ez);
+    cam.doorYaw = fr.yaw;
+  }
+
+  /** (step 13 fix r1) A team-mate in mode doorPeek at the door centred (cx, cz) (within the host's crack reach). */
+  private peekedByOther(cx: number, cz: number): boolean {
+    const mates = this.net?.teamMates?.();
+    if (!mates) return false;
+    for (let i = 0; i < mates.length; i++) {
+      const m = mates[i]!;
+      if (m.mode === 'doorPeek' && hyp2(m.pos.x - cx, m.pos.z - cz) <= DOOR_PEEK.hostReach) return true;
+    }
+    return false;
+  }
+
+  /** (step 13) Crack / close door `i`: on a client the host decides (predicted here), else at once. */
+  private peekCrack(i: number, on: boolean): void {
+    const d = this.world.doors.list[i];
+    if (!d) return;
+    this.net?.doorCrack?.(i, on);
+    this.world.doors.crack(d, on);
   }
 
   /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */
@@ -2079,7 +2213,12 @@ export class GameState implements AppState {
     if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
     const touchCtl = this.app.input.touch;
     const ga = this.gadgets.touchAction();
-    touchCtl.setAction(ga ?? (it ? ACT_USE : this.promptAction()));
+    // (fix r1) Peek beats Use only when nothing else is in reach or the interactable is that door's own; Close (a
+    // peek in progress) always shows
+    const pd = this.peekOfferDoor >= 0 ? this.world.doors.list[this.peekOfferDoor] : undefined;
+    const peekFirst = this.peekOffer && (this.doorPeek.active || !it || (!!pd && it.id === `door-${pd.anchor.id}`));
+    if (peekFirst) ACT_PEEK.label = this.doorPeek.active ? 'Close' : 'Peek';
+    touchCtl.setAction(ga ?? (peekFirst ? ACT_PEEK : it ? ACT_USE : this.promptAction()));
     touchCtl.setControlHidden('action', false);
   }
 

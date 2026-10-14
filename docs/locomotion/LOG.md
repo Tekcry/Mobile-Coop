@@ -50,3 +50,6 @@ Corner peek, lean-out aim, low-wall over-the-top, step round, SWAT (mode 26), co
 
 ## 12b wall-edge-aim (D9 / D10)
 Open-side weapon at edges (openSide, wallLeftHand, mirrored grip, EDGE_HAND_TIME 0.25 s, reversal rewind), low-wall side lean with head cap (A51), exposure and light from the posed head (local; host from its posed copy for remotes). 2 implementers + 2 fix rounds (switch reversal pop, pistol + rifle coverage, remote head cap / light parity, audit determinism: aim assist off and camera clock reset in the harness). Check PASS: tests 1170, netmove left-edge lean 1.1 cm, low-wall head 0.953 m local / host, peek heads 1 mm apart. Deviation: audit grips at edges 17-70 cm (D9 limit 2 cm) carried to step 27.
+
+## 13 door-peek
+Door peek (src/world/doorPeek.ts): crack 0.12 over 0.6 s keeps collision / light / guard sight closed (A25), camera through the crack +-35 deg, close / open / end exits, resume of an abandoned crack; host-checked `door` message, snapshot dcr, MoveState doorPeek (27), PROTOCOL_VERSION 8, client crack prediction; touch Peek / Close (A52). Real bug fixed: the session whitelist did not forward `door`. Proving shed got a hinged door in its doorway. 2 implementers + 1 fix round. Check PASS: tests 1194, netmove doorPeek joints <= 2 cm, leaf 0.120. Doorpeek pose fails carried to step 27.

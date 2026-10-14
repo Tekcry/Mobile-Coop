@@ -506,7 +506,7 @@ try {
   const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z) }; });
   const pd = Math.hypot(pl.h[0] - plL.h[0], pl.h[1] - plL.h[1], pl.h[2] - plL.h[2]);
   console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m`);
-  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && pl.ref && pd < 0.05, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
   await GB(() => window.__pad.axis(0, 0));
   await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
   // lean-out: aim held at the edge (lk 1), the body 0.35 m past it
@@ -713,6 +713,40 @@ try {
   const sdn = await GB(() => ({ why: window.__app.current.strike.lastDenied, back: window.__app.current.strike.lastBackT, mode: window.__app.current.net.mvNow?.m }));
   assert(sdn.why === 'noTarget' && sdn.back <= 0.3, `denied (${sdn.why}): no hit, back to ground in ${sdn.back.toFixed(2)} s`);
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client on the ground again');
+
+  // (locomotion step 13) door peek: the client cracks the Proving shed door; the host's copy poses in mode doorPeek
+  // (joints within 10 cm) and the host's leaf is drawn at the crack
+  console.log('doorPeek');
+  await reset();
+  await allowTeleport(A);
+  const dOk = await GB(() => {
+    const g = window.__app.current;
+    const d = g.world.doors.list[0];
+    if (!d) return false;
+    const an = d.anchor;
+    const nx = Math.cos(an.yaw);
+    const nz = -Math.sin(an.yaw);
+    const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+    const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+    const yaw = Math.atan2(-nx, -nz);
+    g.player.controller.clearCrouchToggle();
+    g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+    g.player.cam.yaw = yaw;
+    g.player.cam.pitch = 0;
+    setTimeout(() => window.__app.input.state.tap('cover'), 800);
+    return true;
+  });
+  assert(dOk, 'Proving has a door');
+  await until(B, () => window.__app.current.doorPeek.phase === 'peek', null, 6000, 'client peeks at the door');
+  await until(A, () => window.__app.current.world.doors.list[0].cracked, null, 5000, 'host cracks the door');
+  await compare('doorPeek', 'doorPeek');
+  await wait(800);
+  const dcA = await GA(() => { const d = window.__app.current.world.doors.list[0]; return { ajar: d.ajar, target: d.target, open: d.open, body: !!d.body }; });
+  const dcB = await GB(() => { const d = window.__app.current.world.doors.list[0]; return { ajar: d.ajar, cracked: d.cracked }; });
+  assert(Math.abs(dcA.ajar - 0.12) <= 0.05 && Math.abs(dcA.ajar - dcB.ajar) <= 0.05 && dcA.target === 0 && dcA.body, `host leaf at the crack (host ${dcA.ajar.toFixed(3)}, client ${dcB.ajar.toFixed(3)}, ${JSON.stringify(dcA)})`);
+  await GB(() => window.__app.input.state.tap('cover'));
+  await until(A, () => !window.__app.current.world.doors.list[0].cracked, null, 5000, 'host clears the crack on close');
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client back on the ground');
 
   console.log('PvP: a client hanging off a lip is hit in the posed head');
   await GA(() => window.__coop.backToLobby());
