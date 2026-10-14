@@ -1,8 +1,12 @@
-# Fallow walk (D27) - after Block B
+# Fallow walk 2 (after T5g)
 
-The geometry of all nine bays and eight airlocks is built (greybox). There are no guards, no light plan (one work lamp
-per bay, so most of it is dark: use night vision or the debug overlay), no art, and the drills are stubs. This walk is
-about shape, size, routes and moves: does each bay read and play as BAYS.md describes?
+Since walk 1 all nine bays and eight airlocks were rebuilt to BAYS v2 under the course rules R1-R8 (your walk-1
+notes): one linear line per bay, every element unavoidable, both players do every element, splits only where a bay
+lists one, compact rooms, the objective list always on screen, automatic airlock pads, a glass / steel / LED look.
+
+Still missing (not bugs): LEDs are unlit until T6 (one work lamp per bay, so use the URLs below); guards, drill ticks
+and devices (cameras, beams, keypads, turnstiles) are stubs until T7a / T7b. Drills do not tick yet, so an airlock
+cycles even with objectives open. This walk is about shape, routes and moves.
 
 ## Start (Michael's PC)
 ```
@@ -16,45 +20,54 @@ npm run dev
 `npm run dev` prints the address (normally `http://localhost:5173/`).
 
 - Two players, two tabs (pad first, then keyboard and mouse): open
-  `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min` in one tab, wait 2 seconds, then open the same URL in
-  a second tab. The first tab hosts, the second joins, both start in B1.
-- Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min` (dev only: one player can cycle airlocks and
-  work both halves of a pair gate; drills still need their real moves).
-- F3 opens the debug overlay. Its "Teleport" button lists the Fallow points: B1-B9, A1-A8, L9, S6 and B3-G3, B3-RC,
-  B3-rope, B3-floor, B5-SR, B5-CG, B5-GEN, B6-AH, B6-RE, B6-CO, B6-CR, B6-MT, B6-SV, B7-house, B7-office, B7-roof, B7-annex, B7-bench,
-  B8-RT, B8-CW, B8-far, B9-floor, B9-B1, B9-B2, B9-bridge, B9-lobby.
+  `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min` in one tab, wait 2 seconds, then
+  open the same URL in a second tab. The first tab hosts, the second joins, both start in B1.
+- Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min` (dev only: one player
+  can cycle airlocks and work both halves of a pair gate).
+- Keep `gfx=min`: higher presets show a black 3D view on this PC (a known issue, fixed later).
+- F3 opens the debug overlay. Its "Teleport" button lists the Fallow points (below, per bay). Airlocks: A1-A8.
 
 ## What to check per bay (about 5 minutes each)
-| Bay | Look at |
-| --- | --- |
-| B1 Muster (y 16, v2) | Five small rooms in a chain: lift lobby -> kit room -> briefing room (glass south wall onto the run) -> gear run (20 m, east to west, marks 1-6, stop line, turn mark) -> dark store -> A1 pad; no way to skip a room |
-| A1, B2 The Lanes (v2) | A1 pad (north door in, east door out). One lane, both players: plinth, rail, block wall; caged ladder up G1 (screened, no boost); pipe over the pit (fall: pit ladder back to G1); hang and hang-drop off G2's open 1.5 m; trench jump and roll; downpipe, beam ledge round the column, gap jump to the portal sill, climb onto the deck; three drops (pads soft / roll, pit heavy); window wall (one open, two glazed); stop and turn marks; A2. RL2's turnstile is a locked door until T7a; panes do not re-glaze yet; A2 opens onto an interim passage to the old B3 until T5e |
-| B3 Intake shaft (v2) | From A2 onto G1: split in the riser slot (B3-RC) and up onto the casing; wall jump G2 -> G3, corner kick to G4; damper bar to G5 (fall: NT1, ladder to G4); hoist rope, sideways and unhook on ML (B3-ML); davit rope, kick through CR's window; isolator; zipline to WP; fan guard; twin ducts; PP; A3. W5 / ML return gates locked and grilles plain until T7a |
-| B4 Cistern (v2) | Straight off A3 (v2 offset, T5f). C1: boost onto W1, drop, draw the bolt; C2: human ladder up W2 at x 1..4, sluice held from VG; VG ladder into C3; boost onto OP, lower its ladder; A4. Phase 5 bay behind glass |
-| B5 Standby plant (v2) | EL at 4.4 screened but for its stair (no drop off it), gensets (wall-jump roofs), trench and its two end panels, cable gallery and the hang-drop at x 2, glazed switch room (MB) with its door onto the aisle, fuel bay, desk; A5 opens only with MB pulled. A4 has a wall medkit |
-| B6 Mock site (v2) | Reception (inner door locked) -> AH ladder -> duct -> vent drop onto the records desk -> exit button -> corridor; lockers, CR stair and mezzanine behind glass; L-leg beams, mantrap, server room, keypad by the exit door. Corridors feel 2.0 wide? |
-| S6 / A6 (v2) | The stair down south from the server room (top door bolted from B6), A6 with its medkit, then B7 |
-| B7 The House (v2) | 30 x 30 cavern; house: lobby stair, office behind glass, roof hatch, parapet 0.9; annex roof wall jump; water main 4.9 over the annex edge; bench and its ladder; sandbags; the store door (A7) is the only exit |
-| B8 The Range (v2) | Lockers, firing-line glass screen with its slot and door, lanes (far stands 50 m, lanes 4-5 at 45 m), shoot-house, RT by ladder, catwalk to x 50, caged stair down to its bolted foot door, scaffold, A8 the only exit |
-| B9 The Plot (v2) | Well: dark ring, map table, towers to B-1 (4.5) and B-2 (9.0), key cabins, case cabin, bridge rope, zipline to the lobby, tube duct, NW co-op lip, staff tunnel door (east), lobby keys 5 m apart, lift L9 |
+Every bay: you cannot get past an element without doing it; both players do every element; the objective list is on
+screen and names what to do; the airlock opens by both standing on the pad (no button; "Waiting for partner" with one);
+rooms feel compact, not hallways; glass partitions and screens, LED strips (unlit), dark concrete above.
 
-Questions worth an answer: Is any space too big, too small or too samey? Is a move hard to find or to do? Can you get
-somewhere you should not (round a gate, over a wall, onto a roof)? Does a bay feel like the place BAYS describes?
-The run's own list of risks is in docs/training/BLOCK-B-REVIEW.md (top 5 at the end) and docs/training/REVIEW-NOTES.md and the assumptions in docs/training/DECISIONS.md
-(A1-A43).
+| Bay | Teleports | Look for |
+| --- | --- | --- |
+| B1 Muster | B1, B1-KR, B1-BR, B1-GR, B1-DS | Five rooms in a chain, one door each: lobby, kit room, briefing room, gear run (20 m, marks 1-6), dark store, A1. No split. Glass locker fronts and briefing-room glass |
+| B2 The Lanes | B2, B2-2B, B2-G1, B2-pit, B2-G2, B2-2C, B2-2C-E, B2-deck, B2-2D, B2-2F | Seven stations in one line, each element wall to wall: caged ladder to G1, pipe, G2 hang-drop, trench, downpipe / ledge / portal, deck drop, window wall. No boost past G1 or the portal. Falls land on a catcher with a ladder back. Glass window onto each next station |
+| B3 The Intake | B3, B3-RC, B3-G2, B3-G3, B3-G4, B3-NT1, B3-G5, B3-NR, B3-ML, B3-RF, B3-CR, B3-ZD, B3-NT2, B3-WP, B3-floor, B3-pit, B3-PP | One climb, every landing one way on: slot, wall jumps, bar, rope sideways onto ML, window kick into CR, zipline, fan guard, ducts, A3. Glass screens on every landing edge. Return gates are locked doors until T7a |
+| B4 The Cistern | B4, B4-W1, B4-C2, B4-VG, B4-C3, B4-OP | C1, W1 (boost), C2, W2 (human ladder) and sluice, C3, OP, A4. One split: one holds the sluice. No way from W1 onto VG. Phase 5 bay behind glass |
+| B5 Standby Plant | B5, B5-floor, B5-GEN, B5-CG, B5-trench, B5-SR, B5-FB, A5 | EL leads only down its stair; two routes through the hall rejoin at A5. One split: breaker (SR) and crosser. A5 opens only with MB pulled |
+| B6 Mock Site | B6, B6-AH, B6-PLAT, B6-RE, B6-CO, B6-L, B6-LK, B6-OF, B6-CR, B6-MT, B6-SV | Shared start: reception, AH ladder, duct, vent drop, records, corridor. Then one split: operator (lockers, office, control room) and runner (L-leg, mantrap); rejoin in the server room. Corridors 2.0 wide? |
+| S6 / A6 | S6, A6 | Stair down from the server room (top door bolted from B6), A6 with its medkit |
+| B7 The House | B7, B7-house, B7-office, B7-roof, B7-annex, B7-bench | One guarded cavern; floor, bench, roofs and house routes rejoin at the store door (A7), the only exit. No split. House glass inside, cavern dark |
+| B8 The Range | B8, B8-RT, B8-CW, B8-far | Firing line, lanes, shoot-house, far end, A8. One split: overwatch (tower, catwalk, caged stair) and floor. Glass firing-line screen, glazed tower, catwalk balustrade |
+| B9 The Plot | B9, B9-floor, B9-B1, B9-B2, B9-bridge, B9-lobby, L9 | Well, balconies, key cabins, case cabin, lobby, lift. One split: the two keys; rejoin in the lobby. Lift is the end (no airlock) |
+
+## Look at (flagged for you)
+- Boost reach: can a co-op boost skip the wall jumps at B3 WJ1 (B3-G2) and WJ2 (B3-G3), or the human ladder at B4 W2
+  (B4-C2)? Only the drill tick blocks it there today. Keep the tick, or allow boosts only at marked spots?
+- B8 catwalk stair (B8-CW, B8-far): the caged stair now runs at x 50..58 and closes the dark walk at x 50; the dark walk
+  rejoins the lanes before x 50. Does that read?
+- B8 firing slot (B8): can you vault through the 0.6 m slot in the glass screen on a diagonal?
+- B3 ML (B3-ML): the waiting spot overlaps the open hatch until T7a; a waiting player can drop into RF. Annoying?
+- Partners blocking each other: walking into a standing partner stops you short; off-centre you slide round. Right?
+- B5 (B5-SR, B5-CG): is the 13 m dash from the switch room to the gallery ladder fair for the breaker?
+- B5 EL (B5): its south edge is a 2.4 screen, not a low balustrade. B3 NT2 (B3-NT2): the fan guard is climbed from
+  x 9.5..12. B7 / B8: the vaultable catwalk rail and the downpipe route onto the parapet - acceptable?
 
 ## Notes
-Either use the review page https://claude.ai/artifact/JMcAnistZtmPb6g3eyLMBs (a verdict and notes per bay, saved for the run: T5b reads its `feedback` collection with ArtifactData), or write to `docs/training/WALK-NOTES.md`, one line per note: bay, where (a debug point or x, z), what, and what you want.
-Example:
+Write to `docs/training/WALK-NOTES.md`: add a `## Walk 2` section at the end, then one line per note: bay, where (a
+teleport point or x, z), what, and what you want. Example:
 
-    B2 | Lane N trench (x 29) | trench too narrow to turn in | widen to 1.5
-    B5 | B5-SR | breaker escape run feels too long | move the gallery ladder closer
+    - B3 G5: the rope point is hard to find; no prompt until I face the beam
 
 Then commit and push:
 ```
 git add docs/training/WALK-NOTES.md
-git commit -m "training: walk notes"
-git push origin feature/training-bunker
+git commit -m "walk 2 notes"
+git push
 ```
 
 ## Resume
@@ -62,5 +75,5 @@ In a Claude Code session on the PC (folder `C:\NightShift\Mobile-Coop`), send:
 
     Training run: RESUME. Follow docs/training/BRIEF.md.
 
-The run starts Block C with T5b (your walk notes), then TM (merge locomotion 09-20, which waits for locomotion step 20 on
-origin/feature/ct-locomotion), T6 light, T7a course data, T7b guards.
+The run applies your walk 2 notes (a fix step, only if there are notes), then TM (merge locomotion 09-20), T6 light,
+T7a course data, T7b guards, then walk 3.
