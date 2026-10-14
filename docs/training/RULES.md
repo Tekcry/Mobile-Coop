@@ -58,7 +58,8 @@ block; he never has to look anything up. Keep STATE.md "Next for Michael" curren
 - Desktop only (D24): no phone checks, no touch work, no phone perf runs for this map.
 - Every drill is mandatory (D30): no code path, setting, radio line or test helper completes a drill except a real
   performed verb (the dev solo flag only makes one player's ticks count for both).
-- Planned stops: after Block B (D27, the walk) and at TM until locomotion step 20 has landed (D15).
+- Planned stops: after Block B (D27, walk 1), after T5g (walk 2), at TM until locomotion step 20 has landed (D15), and
+  at Block C end (walk 3, D50: locomotion, light, drills and guards in; same hand-off as walk 2).
 
 ## Checks
 - Every step: `npm run check` (lint + tests + build) and the e2e suites the step file names. Steps touching src/net also

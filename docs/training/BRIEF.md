@@ -14,9 +14,9 @@ Resume after a stop, a crash or a compaction with:
     Training run: RESUME. Follow docs/training/BRIEF.md.
 
 You are the orchestrator of an unattended local run. Michael gives no input until the final review (DECISIONS D12):
-never ask him anything and never use AskUserQuestion. Work through the steps in STATE.md. Two planned stops: after
-Block B (Michael walks the geometry, D27) and at TM if locomotion step 20 is not on origin/feature/ct-locomotion yet
-(D15). Resume on "Training run: RESUME". After Block D write REVIEW.md and stop. Never open a pull request and never merge anything.
+never ask him anything and never use AskUserQuestion. Work through the steps in STATE.md. Planned stops: after
+Block B (Michael walks the geometry, D27), after T5g (walk 2), at TM if locomotion step 20 is not on
+origin/feature/ct-locomotion yet (D15), and at Block C end (walk 3, D50). Resume on "Training run: RESUME". After Block D write REVIEW.md and stop. Never open a pull request and never merge anything.
 
 ## 0. Branch
 - `git fetch origin`, `git checkout feature/training-bunker`, `git pull origin feature/training-bunker`.
@@ -51,7 +51,7 @@ every element in its final geometry so that they only flip flags.
 | --- | --- | --- |
 | A Foundations | T0 facts (read-only), T1a course logic, T1b course mode and sync, T1c tutorial HUD, drills, results, bay select | Full `npm run e2e`; perf trend; GPU baseline |
 | B Geometry | T2 Upper (B1, A1, B2, A2), T3 Shaft and Cistern (B3, A3, B4, A4), T4 Plant (B5, A5, B6, S6, A6), T5 Deep (B7, A7, B8, A8, B9, L9) | Full e2e; perf trend; GPU shots per bay; then PAUSE for Michael's walk (D27) |
-| C Life | T5b walk-1 fixes; T5c BAYS v2 (course rules R1-R8, D40-D47); T5d-T5g rebuild every bay; PAUSE for walk 2; walk-2 fixes if any; TM merge locomotion 09-20 (waits for loco 20, D15); T6 light, zones, surfaces; T7a course data, drills, gates, devices; T7b guards | Full e2e; perf trend; GPU light look per bay |
+| C Life | T5b walk-1 fixes; T5c BAYS v2 (course rules R1-R8, D40-D47); T5d-T5g rebuild every bay; PAUSE for walk 2; walk-2 fixes if any; TM merge locomotion 09-20 (waits for loco 20, D15) with the movement re-check (D50); T6 light, zones, surfaces; T7a course data, drills, gates, devices; T7b guards | Full e2e; perf trend; GPU light look per bay; then PAUSE for walk 3 (D50) |
 | D Proof | T8a e2e bays B1-B5; T8b e2e bays B6-B9, full course, coverage, perf; T8c the bot as your partner; T9a art layer Upper and Plant; T9b art layer Deep; T10 light showcase, docs, REVIEW.md | Final checks; REVIEW.md; stop |
 
 ## 4. Step loop (the same as the locomotion run)
@@ -95,5 +95,7 @@ Planned stops and their blocks:
   each), how to write `docs/training/WALK-NOTES.md` (format and example), how to commit and push it (exact git commands),
   then the resume prompt for the PC session.
 - At TM if locomotion step 20 has not landed (D15): how to check (the exact command), and the resume prompt for later.
+- After T5g (walk 2) and at Block C end (walk 3, D50): the same walk block as after Block B, with what changed since
+  the last walk and what to check per bay (walk 3: the new movement, light and dark, drills ticking, guards).
 - At the end: how to play the course (two tabs, the bot from the debug menu, two PCs over the lobby: exact steps), where
   REVIEW.md is (and its first questions inline), and the prompt for the feedback session.
