@@ -10,3 +10,5 @@
 - Kestrel-owned, pre-existing (fail identically on origin/feature/kestrel 6a403c5): e2e-editor "X undoes the wall"; e2e-kestrel "camera rays along the tour: 133 inside the tight places go to P04" (before the merge it also failed the zone teleports and tour / critical path walks, identically on 93c6ee8).
 - Block A perf A/B (same VM, back to back): anim per character baseline 0.0568 / 0.0564 ms vs after Block A 0.0498 / 0.0622 ms; sim p95 2.3 / 2.35 vs 2.3 / 2.75 ms. No regression; the VM's calibration swings 2x, so single runs are not comparable.
 - Kestrel-owned, pre-existing: e2e-camera-bounds 'level U (U-Z4V): crouched ... camera stays between floor and ceiling' (fails identically on origin/feature/kestrel; level U comes from the kestrel map).
+- Kestrel-owned doc: docs/kestrel/00-facts.md F17 still lists attacker states lowCover / highCover (now wallLow / wall since step 12). Not edited (kestrel-owned).
+- Load flakes seen at step 12 under E2E_JOBS=2: e2e-wall step-11 grenade-flush case; e2e-mouse "Esc pauses" (both pass alone).
