@@ -3,7 +3,7 @@
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
 - Story, setting and in-game text: `docs/story.md`.
 - It has a solo campaign that is also playable in 2-4 player co-op. Light and shadow is the core.
-- It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages: iPhone 17 Pro Max at 60 fps and desktop.
+- It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages. Desktop first: desktop performance is the target; the iPhone 17 Pro Max only has to load and play on Low with basic touch controls (bible P7).
 - `docs/design-bible.md` decides design questions. Text anywhere describing Blacklist systems (snap cover, Mark & Execute, sonar, Ghost / Panther / Assault, PvP, Wave) is history.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
@@ -57,7 +57,7 @@
 
 ## Definition of done (every phase, bible 9)
 - `npm run check` passes; the e2e suites the spec names pass, and the full required suite (`npm run e2e`) passes at the end.
-- Performance budgets pass (`docs/systems/performance.md`); visual changes on the phone list a Phone check in `TESTING.md`.
+- Desktop performance budgets pass (`docs/systems/performance.md`; phone budgets are information only); the phone loads and plays on Low (the phone smoke check in `TESTING.md`).
 - Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system has an e2e suite or extends one.
 - New or changed animations meet the realism standard (bible 5.12.2).
 - Docs updated: `CHANGELOG.md` (one minor version per phase), `TESTING.md` (a short manual phone and desktop checklist), the relevant `docs/systems/*.md`, `docs/progress.md`.

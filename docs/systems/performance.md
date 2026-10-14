@@ -3,6 +3,9 @@ Purpose: frame-rate targets, CPU / draw / memory budgets and the perf script bud
 Design authority: docs/design-bible.md (Section 8)
 
 ## Performance budget (3.0: the gaming laptop; desktop first)
+- Bible 1.14 (2026-10-14, desktop first): the desktop budgets are the gates. Every phone budget and phone target below
+  (3.1 phone budgets, the phone light look, the iPhone 60 fps target) is information only: `perf.mjs --phone` /
+  `--mobile` print a miss and do not fail. The phone only has to load and play on Low (TESTING.md phone smoke check).
 - Frame-rate targets (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average):
   1920 x 1200 165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50),
   7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted); 3.1.9: the iPhone 17 Pro Max target is 60 fps at Ultra, native.

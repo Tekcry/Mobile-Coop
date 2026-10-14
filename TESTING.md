@@ -1,7 +1,15 @@
 # Manual device test checklist
 
-Run on your phone (and MFi controller where noted). Tick each item. Use `?debug=1` to show the FPS overlay,
+Run on the PC (and controller where noted). Tick each item. Use `?debug=1` to show the FPS overlay,
 or tap with three fingers.
+
+## Phone smoke check (every phase; bible 1.14, desktop first)
+The phone has no fps gate or hold. It only has to load and play on Low:
+1. [ ] Open the build on the phone.
+2. [ ] Start a match on the Low preset.
+3. [ ] Move and take one action with touch.
+
+Older phone holds and Phone check items below are history.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 

@@ -4,7 +4,7 @@
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
 // Usage: [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop | --phone] [--preset=low|medium|high|ultra|epic [--mobile]]
-//   (--budget exits 1 when a CPU-side budget is missed)
+//   (--budget exits 1 when a CPU-side budget is missed; phone runs (--phone, --mobile) only print it: bible 1.14, desktop first)
 //   default: `?gfx=min` - the phone / test-path regression check (the 2.x numbers)
 //   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
 //   the sim + the render's JS (active mesh evaluation incl. skinning bones), draw calls and triangles over every pass
@@ -334,5 +334,7 @@ const missed = [
   GPU && out.mainP95 > BUDGET.mainMs && 'main thread',
   GPU && out.rendered.p95 > (1000 / real.hz) * BUDGET.paceMul && 'frame pacing',
 ].filter(Boolean);
-if (missed.length) console.log('over budget: ' + missed.join(', '));
-process.exit(enforce && (missed.length || real_errors.length) ? 1 : 0);
+// bible 1.14 (desktop first): phone budgets are information only; shader errors still fail
+const phoneRun = phone || mobile;
+if (missed.length) console.log((phoneRun ? 'over phone budget (info only): ' : 'over budget: ') + missed.join(', '));
+process.exit(enforce && ((missed.length && !phoneRun) || real_errors.length) ? 1 : 0);

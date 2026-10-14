@@ -2,7 +2,7 @@
 
 # Night Shift - Design Bible
 
-Version 1.12 - 2026-10-10 (1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.14 - 2026-10-14 (1.14: desktop first (Michael, 2026-10-14) - desktop performance is the target; the phone only has to load and play on Low with basic touch controls and no fps gate; phone code stays, no new phone work unless it stops loading or playing on Low; the iPhone 60 fps hold and the Phone check gate are gone. 1.13 (feature/ct-locomotion): locomotion decisions D1-D8 in Section 5.17. 1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -54,10 +54,10 @@ The campaign is a sequence of handcrafted missions.
 - The same missions are playable in co-op for 2-4 players, with team moves that open extra routes.
 - Story is delivered through text radio and subtitles only.
 
-It runs in the browser as an installable PWA. The two platforms are equal:
+It runs in the browser as an installable PWA. Desktop comes first (P7):
 
-- the iPhone 17 Pro Max (landscape, touch or controller)
-- desktop (mouse and keyboard or controller)
+- desktop (mouse and keyboard or controller): the performance target
+- the iPhone 17 Pro Max (landscape, touch or controller): loads and plays on the Low preset
 
 The heart of the game is the light and shadow system. If a feature makes light less truthful, less readable or less controllable, it is wrong.
 
@@ -107,9 +107,11 @@ The heart of the game is the light and shadow system. If a feature makes light l
 - Player count never changes guard count.
 - **One exception:** Mission 8's Act 2, the Confrontation (5.15), turns the team against itself. It is the only versus content in the campaign.
 
-### P7 - Phone and desktop are both first class
+### P7 - Desktop first (Michael, 2026-10-14)
 
-- Phone: 60 fps sustained on a warm iPhone 17 Pro Max.
+- Desktop performance is the target.
+- The phone only has to load and play on the lightest preset (Low), with working basic touch controls. No fps gate.
+- Phone code stays as it is; nothing is deleted. No new phone work unless something stops it loading or playing on Low.
 - Every action is possible on touch through contextual prompts.
 - Gameplay never depends on graphics settings (crossplay fairness).
 
@@ -265,7 +267,7 @@ The Phase column refers to Section 10.
 - **L3 - What you see is what counts.**
   - Every renderer reads the same bake.
   - Desktop uses the exact per-lamp path. The phone uses the two-tap lamp light volume (`voxel/lampVolume.ts`) on the plain blockout instead of six unshadowed lights.
-  - The phone version must pass the Phone check 3-minute hold at 60 fps.
+  - The phone version must load and play on Low (P7).
 - **L4 - Real-time shadows only for what the bake cannot know:** flashlights, moving lights and characters (capsule / contact shadows near the camera). Static lamps never need a shadow map.
 - **L5 - Parity test.** A test samples a grid of points per map and compares the gameplay level against the rendered band (dark / mid / lit) on the phone light look and on Epic. Any mismatch fails.
   - **Rendered bands have display brightness targets** (2026-10-09). Measured on a matte 50% grey surface facing the light, after tone mapping and grade:
@@ -459,7 +461,7 @@ The Phase column refers to Section 10.
 
 - **Vision modes** cycle: off, night, thermal, electro. Night vision is a gain in the lighting (L7), so it reveals real detail and blows out near lamps.
   - Thermal and electro are post passes on `CinematicPost` (or the phone grade pass).
-  - The phone cost must pass the Phone check.
+  - The phone must still load and play on Low (P7).
   - Vision modes never change detection.
 - **Gadget wheel** stays. Time-slow while the wheel is open stays solo-only (existing).
 - **Campaign kit** is limited per mission by the loadout kit (Section 5.6). No credits.
@@ -959,7 +961,7 @@ Each batch:
 
 - 0.04 ms or less animation per character (existing).
 - Realism layers (springs, look-at, balance correction) count inside that budget.
-- The phone Phone check must still hold 60 fps.
+- The phone must still load and play on Low (P7).
 
 ### 5.13 Health and damage
 
@@ -1301,10 +1303,9 @@ The standard's existing content stays. This bible adds the following:
 
 ## 8. Platform and performance
 
-- **Phone:** iPhone 17 Pro Max, landscape, 60 fps sustained after 3 minutes warm (the Phone check hold), with the governor's 30 fps fallback.
+- **Desktop first (P7, 2026-10-14):** the budgets in `docs/systems/performance.md` are the target.
+- **Phone:** iPhone 17 Pro Max, landscape. It must load and play on the Low preset with working basic touch controls. No fps gate; phone budgets are information only.
   - The phone look is the 3.4 light renderer plus the lamp volume from Phase 1.
-  - Any new visual feature on the phone must pass the Phone check hold before it ships.
-- **Desktop:** the budgets in `docs/systems/performance.md`.
 - **Gameplay reads only:**
   - collision
   - occupancy
@@ -1381,7 +1382,7 @@ The standard's existing content stays. This bible adds the following:
 
 - `npm run check` passes.
 - The e2e suites named in the spec pass, and the full required suite (`npm run e2e`) passes at the end of the phase.
-- Performance budgets pass (`docs/systems/performance.md`). Visual changes on the phone list a Phone check for Michael in `TESTING.md`.
+- Performance budgets pass (`docs/systems/performance.md`). The phone loads and plays on Low (the phone smoke check in `TESTING.md`).
 - Pure logic is in Babylon-free modules with Vitest tests. Each new player-facing system has an e2e suite or extends one.
 - New or changed animations meet the realism standard (5.12.2) and pass the audit harness once it exists (Phase 3b). Contact sheets are attached to the report.
 - Docs are updated:
@@ -1403,7 +1404,7 @@ The standard's existing content stays. This bible adds the following:
 | Phase | Name | Delivers |
 | --- | --- | --- |
 | 0 | Foundation | Merge `dev` (3.2.1-3.4.0 phone work) into `ct-movement`; this bible installed; `CLAUDE.md` cut to a lean core with `docs/systems/`; old changelog / testing archived; parked modes behind `?legacy=1`; player-facing title renamed to Night Shift; `docs/story.md` installed; `docs/progress.md`. Spec: `docs/prompts/phase-0-foundation.md`. |
-| 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (Phone check gate); parity test; continuous meter HUD; fuse boxes; door decision. |
+| 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (loads and plays on Low); parity test; continuous meter HUD; fuse boxes; door decision. |
 | 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and the Dead Line map. |
 | 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
 | 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
@@ -1504,7 +1505,7 @@ One paragraph. Which bible sections and pillars this implements.
 3. Does gameplay read any graphics state? It must not.
 4. Does it extend a removed or parked system? It must not.
 5. Is pure logic separated and unit-tested? Are there e2e checks for player-facing behaviour?
-6. Are there allocations in hot paths? Are the performance budgets and phone budgets measured?
+6. Are there allocations in hot paths? Do the desktop performance budgets pass? (Phone budgets are information only.)
 7. Does it work on touch, controller and mouse? And for co-op host, client and solo?
 7b. Do animations meet 5.12.2: instant control but a continuous body, no pops, no slides, no clipping, human timing and joint limits?
 8. Is a save change versioned and migrated?
