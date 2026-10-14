@@ -66,3 +66,8 @@ A6-A48 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 - Full e2e: run_in_background and wait for the notification. Every shell command has a timeout.
 - Order: PC1 GPU catch-up (PC-PASS 01-14), steps 15-20, 20b, Block C end, play-check checklist, the single pause for Michael, then 21-34 unattended.
 - Keep docs/locomotion/OWNER-NOTES.md current: project knowledge lives in git, never only in Claude memory.
+
+## On the secondary desktop (M7, 2026-10-15; overrides M6 where they differ)
+- Same folder, branch, branch guard, E2E_PORT=4189 and M6 rules. GPU visual checks (contact sheets, visual suites, anim-sheet, shot, anim audit) run here with `E2E_GPU=1`.
+- Never run `perf.mjs --budget` (any profile) here and never claim a budget pass: record each budget item "pending target laptop" in PC-PASS.md section 0. Perf trend only, against the desktop baseline in STATE.md (>25% rise: fix).
+- Pauses: the play-check pause after the Block C end (M6), then "Ready for the Block D laptop check" after step 32, then "Ready for the target laptop pass" before step 34. Each waits for "Locomotion: go".

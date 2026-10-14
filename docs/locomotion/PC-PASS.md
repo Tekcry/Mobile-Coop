@@ -14,6 +14,18 @@ Conventions:
   picture, so look items always name a sheet or a shot as well where one exists.
 - Contact-sheet views: `side`, `front`, `ots` (BRIEF 7.3); `back` where noted.
 
+## 0. Target laptop pass (M7: run on the RTX 4090 laptop only, budgets first)
+
+Every `perf.mjs --budget` run (any profile) runs here, never on the secondary desktop. The desktop appends each
+pending budget run (block ends, steps that touch anim / camera / vfx / render) to this list.
+
+| # | Item | When | Status |
+| --- | --- | --- | --- |
+| L1 | PC-PASS items 4-8 (section 2) | Block D laptop check, then again before step 34 | pending target laptop |
+| L2 | Block C end budgets: `--budget`, `--phone --budget` | Block D laptop check | pending target laptop |
+| L3 | Block D end budgets: `--budget`, `--phone --budget`, `--desktop --budget` (D4: 0.04 ms per character anim, remotes too) | Block D laptop check | pending target laptop |
+| L4 | Re-baseline perf-trend and the anim audit on the laptop; compare with the desktop baselines | Before step 34 | pending target laptop |
+
 ## 1. Setup
 
 | # | Item | Command | Pass limit | Step |

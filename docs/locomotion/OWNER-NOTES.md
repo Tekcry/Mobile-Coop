@@ -14,6 +14,13 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 - Push only with `git push origin feature/ct-locomotion`.
 - Do not touch the other worktrees (other sessions use them): `C:\NightShift\Mobile-Coop` (feature/training-bunker), `C:\NightShift\Mobile-Coop-kestrel` (feature/kestrel), `C:\NightShift\Mobile-Coop-music` (feature/music).
 
+## Secondary desktop setup (M7)
+1. On the crashed PC, if it boots: `cd /c/NightShift/Mobile-Coop-locomotion && git status && git log origin/feature/ct-locomotion..HEAD --oneline`; push anything listed (`git push origin feature/ct-locomotion`), then close its Claude sessions.
+2. Desktop: pause Windows Update, set active hours, sleep Never, mains power. Install Node 22, Git for Windows, Claude Code; sign in with the other Claude account. Git credentials need push access: `git ls-remote https://github.com/tekcry/mobile-coop`.
+3. `mkdir -p /c/NightShift && cd /c/NightShift && git clone -b feature/ct-locomotion https://github.com/tekcry/mobile-coop Mobile-Coop-locomotion && cd Mobile-Coop-locomotion && npm ci && npx playwright-core install chromium && npm run build && npm test && E2E_PORT=4189 node scripts/run-e2e.mjs smoke`
+4. Start Claude Code in that folder with: **Locomotion run: RESUME (local)**.
+5. At "Ready for the Block D laptop check" and "Ready for the target laptop pass": on the RTX 4090 laptop pull, `npm ci && npm run build`, run PC-PASS section 0, then reply "Locomotion: go" on the desktop (with notes for any failure).
+
 ## Prompts Michael uses
 - Resume line (new session or new account): **Locomotion run: RESUME (local)**. The session then runs the branch guard in the worktree and resumes from RULES.md and STATE.md.
 - After the play-check pause: **Locomotion: go** (with or without notes).
