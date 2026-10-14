@@ -44,6 +44,7 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 
 ## Block D - Animation and camera (sonnet implement, opus check)
 | 20 | bot-partner | dev bot partner (C20): a scripted second player over the local transport that follows, stacks, and performs every verb and team move on command; reruns the "rerun after 20" checks | src/net (dev only, behind flags.coop), scripts/e2e-bot.mjs | itself | 19 |
+| 20b | net-check | D11: network conditions simulator in the local / test transport (?netsim=typical, E2E_NETSIM=typical: 80 ms RTT, 20 ms jitter, 1% loss); e2e-netmove / coop / bot once under typical in report mode; fix only clear breakages; tuning to BIBLE-PROPOSALS | src/net transport, e2e libs | report under typical | 20 |
 | 21 | b1-bob | batch 1a: D2 fixes (heel-strike kick, walk sway, camera footstep kick removed, breathing and sway settle), trained posture D5.6 | anim/*, characterRig, shoulderCamera | remote audit | 20 |
 | 22 | b1-gait | batch 1b: speed-scaled gait D5.1, accel / turn lean spring D5.2 (remotes derive accel locally), compression and settle D5.3, plant-and-pivot + stride warping D5.4, quick 180, exertion breathing D5.5 | anim/*, motion, footPlanner, remoteAvatar | remote audit | 21 |
 | 23 | b1-ik | batch 1c: stairs / slopes full-body IK D5.10, look-at D5.8 (noise, team-mates, aim) | characterRig, footPlanner | remote audit | 22 |

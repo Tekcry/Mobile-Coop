@@ -98,6 +98,14 @@ Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of t
 - Network: a new WALL_SUB bit or a field on the existing lean, posed on remotes.
 - Checks: e2e-wall cases for side lean and over-the-top on a low wall, both edges, pistol and rifle; an e2e-netmove case under 10 cm; a test that the side lean's head height stays below the wall top; anim-sheet items (PROVISIONAL).
 
+#### D11 Net check (Michael, 2026-10-14, lite)
+
+add step 20b net-check after step 20, before the handover.
+1. A network conditions simulator in the local / test transport only (never the shipped path): one-way delay, jitter and loss, set by ?netsim=typical or E2E_NETSIM=typical (80 ms RTT, 20 ms jitter, 1% loss).
+2. Run e2e-netmove, e2e-coop and e2e-bot once under typical, in REPORT mode (not a gate). Record pose error, pops, and any committed move that failed or stuck, with numbers, in LOG.md and REVIEW.md.
+3. Fix only clear breakages (a stuck or lost committed move, a desync of drawn / holstered, health or medkits, a pop over 25 cm). Leave tuning for Phase 5 and list it in BIBLE-PROPOSALS.md.
+4. In the handover (STATE.md), add "Play check before step 21": a 10-line checklist for Michael to try every new verb on the pad, solo and with the bot partner (how to start the bot partner, which map, what to try), so his notes can steer Block D.
+
 ## ASSUMED - for review
 
 Choices made during the unattended run. Each lists the option taken and the alternatives.
