@@ -154,6 +154,85 @@ try {
     assert(r.firstArc >= 0 && r.alertAt - r.firstArc > 0.25, `the awareness arc shows first (arc at ${r.firstArc.toFixed(2)} s, detected at ${r.alertAt.toFixed(2)} s)`);
   });
 
+  await scen('vision-detect', async () => {
+    // (step 14) vision is rendering only: the same scripted approach is detected on the same frame with thermal (and
+    // electro) on as off (the light level is sampled, not pinned)
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const rnd = Math.random;
+      const run = (mode) => {
+        // the same random draws every run (guard reaction jitter): only the vision mode differs
+        let seed = 12345;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        t.reset();
+        t.light(null);
+        g.vision.reset();
+        g.vision.set(mode);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, -3, 0);
+        t.step(0.4);
+        g.frameUpdate(0.4, 1);
+        let alertAt = -1;
+        for (let k = 0; k < 240 && alertAt < 0; k++) {
+          st.setMove('t', k % 60 < 30 ? 0.6 : -0.6, 0);
+          t.step(1 / 60);
+          g.frameUpdate(1 / 60, 1);
+          if (e.alerted) alertAt = k;
+        }
+        st.setMove('t', 0, 0);
+        const out = { mode: g.vision.shown, vk: g.post.visionKind, alertAt, light: +g.lightLevel.toFixed(3) };
+        g.vision.reset();
+        g.frameUpdate(1 / 60, 1);
+        return out;
+      };
+      try {
+        return { off: run('off'), thermal: run('thermal'), electro: run('electro') };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.off.alertAt > 0, `the approach is detected with vision off (${JSON.stringify(r.off)})`);
+    assert(r.thermal.vk === 1 && Math.abs(r.thermal.alertAt - r.off.alertAt) <= 1, `thermal on: detected on the same frame +-1 (${JSON.stringify(r)})`);
+    assert(r.electro.vk === 2 && Math.abs(r.electro.alertAt - r.off.alertAt) <= 1, `electro on: detected on the same frame +-1 (${JSON.stringify(r)})`);
+  });
+
+  await scen('vision-dog', async () => {
+    // (step 14) the dog's own body (its humanoid rig is hidden) is warm in thermal, cold otherwise, and cools once dead
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const e = t.spawn('dog', 0, 5, Math.PI);
+      // the mode changes at the middle of the goggle flip (fixed step), then the render frame paints
+      const frame = () => {
+        t.step(0.3);
+        for (let k = 0; k < 3; k++) g.frameUpdate(1 / 60, 1);
+      };
+      g.vision.reset();
+      frame();
+      const off0 = e.dog.partHeat();
+      g.vision.set('thermal');
+      frame();
+      const on = e.dog.partHeat();
+      t.kill(e);
+      frame();
+      const dead0 = e.dog.partHeat();
+      e.dog.downAge = 30 - 0.4;
+      frame();
+      const dead30 = e.dog.partHeat();
+      e.dog.downAge = 61 - 0.4;
+      frame();
+      const dead61 = e.dog.partHeat();
+      g.vision.reset();
+      frame();
+      return { off0, on, dead0, dead30, dead61, off1: e.dog.partHeat(), vk: g.post.visionKind };
+    });
+    assert(r.off0 === 0 && r.on > 0.5, `a live dog's part: pattern.w 0 with thermal off, > 0 with it on (${JSON.stringify(r)})`);
+    assert(r.dead0 > 0.5 && r.dead30 > 0.3 && r.dead30 < r.dead0 && r.dead61 === 0, `a dead dog cools over 60 s (${JSON.stringify(r)})`);
+    assert(r.off1 === 0, `thermal off again: the dog is cold (${JSON.stringify(r)})`);
+  });
+
   await scen('walls', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -812,14 +891,23 @@ try {
       st.tap('vision');
       t.step(0.1);
       g.frameUpdate(0.1, 1);
-      // the second press turns the goggles off (night vision only until step 14)
+      // (step 14) the second press: thermal, then electro, then off
       t.step(0.4);
       g.frameUpdate(0.4, 1);
-      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent };
+      const thermal = { mode: v.mode, vk: g.post.visionKind, nv: g.post['nv'] };
+      st.tap('vision');
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const electro = { mode: v.mode, vk: g.post.visionKind };
+      st.tap('vision');
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind, thermal, electro };
       return { night, off, nvOff: g.post['nv'] };
     });
     assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.off.mode === 'off' && r.off.hud === '', `again: off (${JSON.stringify(r.off)})`);
+    assert(r.off.thermal.mode === 'thermal' && r.off.thermal.vk === 1 && r.off.thermal.nv < 0.01 && r.off.electro.mode === 'electro' && r.off.electro.vk === 2, `then thermal, then electro (${JSON.stringify(r.off)})`);
+    assert(r.off.mode === 'off' && r.off.hud === '' && r.off.vk === 0, `then off (${JSON.stringify(r.off)})`);
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 

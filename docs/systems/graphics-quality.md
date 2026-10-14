@@ -75,7 +75,8 @@ Design authority: docs/design-bible.md (Section 8)
   aiming = the aim ray's hit; not aiming = fully sharp, f/1e7, so its depth pass may pause - `vfx/dofAperture.ts`
   eases the aperture and opens it only while that depth renders (3.6: the old idle f/32 read the paused depth as
   "at the lens" and blurred the whole frame on High / Ultra / Epic with ray tracing off), chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
-  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last. The passes ahead of tone mapping (TAA, SSAO2,
+  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last (it also carries the step 14 thermal /
+  electro `vk` branch: render-only, never detection; no extra pass or target; see `docs/systems/lighting.md`). The passes ahead of tone mapping (TAA, SSAO2,
   SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float on desktop
   (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew contour bands and blocky
   speckle. Phones (`q.mobile`) keep 8 bits.

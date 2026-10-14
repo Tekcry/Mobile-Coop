@@ -156,7 +156,7 @@ export class VoxelSink {
         vd.matricesWeights = this.MI.map((_, i) => (i % 4 === 0 ? 1 : 0));
       }
       vd.applyToMesh(mesh, true);
-      mesh.setVerticesData('pattern', this.PT, false, 4);
+      mesh.setVerticesData('pattern', this.PT, true, 4);
       mesh.setVerticesData('color2', this.C2, false, 4);
       mesh.setVerticesData('vox', this.VX, false, 3);
     }
@@ -181,6 +181,9 @@ export class VoxelBody {
   readonly bones: Bone[] = [];
   /** Per merged mesh: the vertex colours as built, and each smooth part's vertices (lens glow). */
   private baseColors = new Map<Mesh, Float32Array>();
+  /** Per-vertex `pattern` (w = the step 14 vision glow, `setHeat`). */
+  private patterns = new Map<Mesh, Float32Array>();
+  private heat = 0;
   private flashColors = new Map<Mesh, Float32Array>();
   private partVerts = new Map<Mesh, Map<number, Uint32Array>>();
   private obs: Observer<Scene> | null;
@@ -241,6 +244,7 @@ export class VoxelBody {
         mesh.alwaysSelectAsActiveMesh = true;
         this.partVerts.set(mesh, sink.partVerts());
         this.baseColors.set(mesh, new Float32Array(sink.C));
+        this.patterns.set(mesh, new Float32Array(sink.PT));
         out.push(mesh);
       }
       return out;
@@ -285,6 +289,17 @@ export class VoxelBody {
         c[i + 3] = 1;
       }
       mesh.updateVerticesData(VertexBuffer.ColorKind, c);
+    }
+  }
+
+  /** (Step 14) thermal vision's warmth 0..1 as a render-only glow (`pattern.w`); only touches buffers on a change. */
+  setHeat(k: number): void {
+    if (k === this.heat) return;
+    this.heat = k;
+    for (const [mesh, pt] of this.patterns) {
+      if (!pt.length) continue;
+      for (let i = 3; i < pt.length; i += 4) pt[i] = k;
+      mesh.updateVerticesData('pattern', pt);
     }
   }
 

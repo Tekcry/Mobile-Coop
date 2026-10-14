@@ -1,8 +1,24 @@
 # Gadgets
-> Status: sonar is removed (locomotion step 02; the vision button is night vision only until step 14 adds thermal /
-> electro); the tri-rotor drone is parked (bible 6).
+> Status: sonar is removed (locomotion step 02); the vision button cycles off / night / thermal / electro (step 14);
+> the tri-rotor drone is parked (bible 6).
 Purpose: the gadget set, the wheel, remote views and effects.
 Design authority: docs/design-bible.md (Section 5.5)
+
+## Vision modes (locomotion step 14, A26, A53)
+- The goggles button (pad View, KBM N, touch vision) cycles off -> night -> thermal -> electro -> off
+  (`game/vision.ts` `VisionState`, `VISION_CYCLE`). Each switch is one 0.2 s goggle flip with the image changing at
+  the middle; a press during a flip queues one more flip to the newest mode. The HUD label (NV / THERMAL / ELECTRO)
+  shows for 1.5 s after a switch.
+- Render-only and local-only (D8): never sent, never read by gameplay. Perception, the light meter and alarms give
+  the same result in every mode (`tests/visionIsolation.test.ts`, e2e-stealth-ai `vision-detect`).
+- Thermal: every live rig (player, team-mates, remote avatars, guards) and every dog body (`DogModel.setHeat`,
+  `LIVE_DOGS`) glows at `THERMAL.bodyEmit`; a dead guard's body or a dead dog cools linearly over
+  `THERMAL.coolTime` 60 s in 1/16 steps. No seeing through walls (A26).
+- Electro: powered devices glow: security cameras (`sec-cam-*`), laser sights, the sticky-cam lens and interactables
+  whose `kind` is in `ELECTRO_KINDS` (switch, alarm, terminal, charge). Intel folders, cache crates, extract beacons,
+  hide spots, doors, bodies, VIPs and revives stay dark. The list is built once per switch into electro. Lamp
+  fixtures take the night-vision boost.
+- Look and cost: `docs/systems/lighting.md` (vision modes) and `docs/systems/graphics-quality.md`.
 
 ## Gadgets (2.0 phase 5)
 - `game/gadgets.ts` (pure): `GADGETS` (frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, tri-rotor drone,

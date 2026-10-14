@@ -303,6 +303,29 @@ try {
   const em = await holdBtn(BTN.SELECT, 500, () => !!window.__app.current.player.rig.emote);
   const v2 = await G(() => window.__app.current.vision.mode);
   assert(em.emote && v2 === vBefore, `View held: an emote, goggles untouched (${em.emote}, ${vBefore} -> ${v2})`);
+  // (step 14) View cycles off -> night -> thermal -> electro -> off; the post pass's vision kind follows at mid-flip
+  {
+    const vis = () => G(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
+    const until = async (want) => {
+      let r = await vis();
+      for (let i = 0; i < 60 && (r.mode !== want || r.shown !== want); i++) {
+        await page.waitForTimeout(50);
+        r = await vis();
+      }
+      return r;
+    };
+    const seq = [];
+    // (let the held-View emote release settle before the next tap)
+    await page.waitForTimeout(400);
+    const start = (await vis()).mode;
+    if (start !== 'night') throw new Error(`vision start ${start}`);
+    for (const want of ['thermal', 'electro', 'off']) {
+      await press(page, BTN.SELECT);
+      seq.push(await until(want));
+    }
+    const ok = seq[0].mode === 'thermal' && seq[0].vk === 1 && seq[1].mode === 'electro' && seq[1].vk === 2 && seq[2].mode === 'off' && seq[2].vk === 0;
+    assert(ok, `View x3 more: thermal (vk 1) -> electro (vk 2) -> off (vk 0) (${JSON.stringify(seq)})`);
+  }
   // (step 09) holstered unless aiming: LT draws (<= 0.45 s), RT then fires; release holsters (<= 0.45 s); RT while
   // holstered does nothing (fixed steps, the pad polled every step)
   const dr = await G(() => {

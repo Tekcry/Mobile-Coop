@@ -21,7 +21,7 @@ export interface GameEvents {
   /** (locomotion step 10) An elbow strike landed (or missed) at contact. */
   strike: { result: 'ko' | 'stagger' | 'miss' };
   /** Goggles switched (audio). */
-  vision: { mode: 'off' | 'night' };
+  vision: { mode: 'off' | 'night' | 'thermal' | 'electro' };
   /** A door opened / closed (audio). */
   door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number; vol?: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */

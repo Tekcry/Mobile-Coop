@@ -361,9 +361,8 @@ export class Hud {
     this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
   }
 
-  /** Goggles: the mode in use. */
-  setVision(mode: 'off' | 'night'): void {
-    const text = mode === 'night' ? 'NV' : '';
+  /** Goggles (step 14): a small label for the mode just chosen ('' once it has shown for 1.5 s, or off). */
+  setVision(text: string, mode: string): void {
     this.set('vision', text, () => {
       this.visionEl.textContent = text;
       this.visionEl.dataset.mode = mode;

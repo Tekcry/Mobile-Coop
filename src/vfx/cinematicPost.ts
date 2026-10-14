@@ -2,6 +2,7 @@ import { Effect, PostProcess, type Camera } from '../core/babylon';
 import type { NightBloom } from './nightBloom';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { NV_GLSL, NV_TONE } from './nightVision';
+import { THERMAL, VISION_GLSL } from './visionLook';
 
 export { PHONE_DARK_FLOOR } from '../core/quality';
 
@@ -26,7 +27,9 @@ uniform sampler2D glowSampler;
 uniform float glowScale;
 uniform float veil;
 uniform float flip;
+uniform float vk;
 ${NV_GLSL}
+${VISION_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // the map's colour grade: tint, saturation, contrast round mid grey
@@ -55,6 +58,27 @@ void main(void) {
     vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
     p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
     c.rgb = mix(c.rgb, max(p, 0.0), nv);
+  }
+  if (vk > 0.5) {
+    // (step 14) thermal (vk 1) / electro (vk 2): post branches of this pass (desktop and the phone's grade pass alike,
+    // no extra target); warm bodies and live devices are bright through render-only emissive flags (\`visionLook.ts\`)
+    float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec3 p;
+    if (vk < 1.5) {
+      // softened: four taps round the pixel (thermal images are soft)
+      vec2 o = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
+      float s = dot(texture2D(textureSampler, vUV + o).rgb + texture2D(textureSampler, vUV - o).rgb
+        + texture2D(textureSampler, vUV + vec2(o.x, -o.y)).rgb + texture2D(textureSampler, vUV - vec2(o.x, -o.y)).rgb, vec3(0.2126, 0.7152, 0.0722));
+      p = thermalColor(mix(l, s * 0.25, 0.6));
+    } else {
+      p = electroColor(l);
+    }
+    highp vec2 gc = floor(vUV * vec2(aspect, 1.0) * 900.0) + time * vec2(37.0, 17.0);
+    highp float ng = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
+    p += (ng - 0.5) * 0.04;
+    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
+    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
+    c.rgb = max(p, 0.0);
   }
   if (feed > 0.0) {
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
@@ -87,6 +111,8 @@ export class CinematicPost {
   barsTarget = 0;
   /** Night-vision blend 0..1. */
   private nv = 0;
+  /** (Step 14) the vision post mode: 0 off / night, 1 thermal, 2 electro. */
+  private vk = 0;
   /** Night vision's bloom (`NightBloom`) and auto-gain (`NightAutoGain.veil`). */
   private bloom: NightBloom | null = null;
   private veil = 0;
@@ -159,6 +185,18 @@ export class CinematicPost {
     this.sync();
   }
 
+  /** (Step 14) thermal (1) / electro (2) vision, 0 = neither (rendering only). */
+  setVisionKind(k: number): void {
+    if (k === this.vk) return;
+    this.vk = k;
+    this.sync();
+  }
+
+  /** The vision post mode in use (tests: `post.vk`). */
+  get visionKind(): number {
+    return this.vk;
+  }
+
   /** Night vision's bloom (Step 4b fix round 4): its glow is read each frame. */
   setBloom(bloom: NightBloom | null): void {
     this.bloom = bloom;
@@ -197,9 +235,9 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
+    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glowScale', 'veil', 'flip'], ['glowSampler'], 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glowScale', 'veil', 'flip', 'vk'], ['glowSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -221,6 +259,7 @@ export class CinematicPost {
         e.setFloat('glowScale', glow ? this.bloom!.glowScale : 0);
         e.setFloat('veil', this.veil);
         e.setFloat('flip', this.flip);
+        e.setFloat('vk', this.vk);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

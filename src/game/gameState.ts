@@ -1,10 +1,11 @@
 import type { App, AppState } from '../core/app';
-import { Color3, type FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
-import { setVoxelBodies } from '../player/characterRig';
+import { LIVE_RIGS, setVoxelBodies } from '../player/characterRig';
+import { LIVE_DOGS } from '../ai/dogModel';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
 import { LOD_DISTANCE } from '../world/partLibrary';
@@ -72,6 +73,8 @@ import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
 import { VISION_GAIN } from '../world/darkCurve';
+import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
+import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import { SecurityView } from '../security/securityView';
@@ -188,6 +191,8 @@ const SHOT_NOISE = 28;
 /** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
 const ARC_NEAR = 2.5;
 const ARC_MIN = 0.06;
+/** (Step 14) the vision HUD label shows this long after a switch (s). */
+const VISION_LABEL_TIME = 1.5;
 const SUPPRESSED_NOISE = 0.6;
 const IMPACT_NOISE = 4;
 
@@ -1265,6 +1270,8 @@ export class GameState implements AppState {
         this.wallCore?.reset();
         this.doorPeek.reset();
         this.strike.reset();
+        // (step 14) goggles up on respawn
+        this.vision.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();
@@ -1699,14 +1706,21 @@ export class GameState implements AppState {
 
   /** Last Known Position ghost (stealth rules only). */
   ghost: LkpGhost;
-  /** Goggles (night vision only until step 14: thermal / electro). */
+  /** Goggles: off -> night -> thermal -> electro (step 14; rendering only, never sent: D8). */
   readonly vision = new VisionState();
+  /** Seconds since the last vision switch (the HUD label shows for `VISION_LABEL_TIME`). */
+  private visionLabelT = 99;
+  /** (Step 14) the render frame's stamp (bodies mark their rigs with it), and electro's live device parts. */
+  private visionFrame = 0;
+  private electroParts: InstancedMesh[] = [];
+  private electroK = 0;
 
-  /** Goggles per fixed step: the button toggles night vision. */
+  /** Goggles per fixed step: the button cycles the modes. */
   private updateVision(dt: number): void {
     const v = this.vision;
     if (this.app.input.state.pressed('vision') && this.player.alive) {
       v.cycle();
+      this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
     }
     v.step(dt);
@@ -1721,12 +1735,85 @@ export class GameState implements AppState {
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
     this.nightBloom.k = v.night;
-    this.world.lightRig.setVisionBoost(v.night);
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
-    // the tri-lens glows brighter while a mode is on
+    // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
     this.player.rig.setLensGlow(v.mode !== 'off');
-    this.hud.setVision(v.mode);
+    // (step 14) thermal / electro: the post branch, then the render-only emissive flags (gameplay never reads them)
+    const kind = v.kind;
+    this.post.setVisionKind(kind);
+    this.paintHeat(kind === 1);
+    this.paintElectro(kind === 2 ? 1 : 0);
+    this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? 1 : 0));
+    this.visionLabelT += dt;
+    this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
+  }
+
+  /** (Step 14) thermal's warm bodies: every live rig is warm; a fresh body cools over `THERMAL.coolTime`. */
+  private paintHeat(on: boolean): void {
+    const f = ++this.visionFrame;
+    const bodies = on ? this.enemyMgr?.bodies : undefined;
+    if (bodies) {
+      for (let i = 0; i < bodies.length; i++) {
+        const r = bodies[i]!.view;
+        if (!r) continue;
+        r.bodyFrame = f;
+        r.bodyAge = bodies[i]!.age;
+      }
+    }
+    for (let i = 0; i < LIVE_RIGS.length; i++) {
+      const r = LIVE_RIGS[i]!;
+      let k = 0;
+      if (on) {
+        k = THERMAL.bodyEmit;
+        // (a body cools in 1/16 steps: its buffers change a few times a minute, not every frame)
+        if (r.bodyFrame === f) k *= Math.round(16 * Math.max(0, 1 - r.bodyAge / THERMAL.coolTime)) / 16;
+      }
+      r.setHeat(k);
+    }
+    // the dogs' own bodies (their humanoid rigs stay hidden): warm while up, cooling like a body once down
+    for (let i = 0; i < LIVE_DOGS.length; i++) {
+      const d = LIVE_DOGS[i]!;
+      let k = 0;
+      if (on) {
+        k = THERMAL.bodyEmit;
+        if (d.isDown) k *= Math.round(16 * Math.max(0, 1 - d.downAge / THERMAL.coolTime)) / 16;
+      }
+      d.setHeat(k);
+    }
+  }
+
+  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights. */
+  private paintElectro(k: number): void {
+    if (k > 0 && this.electroK === 0) {
+      // gathered on each switch to electro (not per frame): devices built since are included
+      const list = this.electroParts;
+      list.length = 0;
+      for (const m of this.scene.meshes) {
+        if (!(m instanceof InstancedMesh)) continue;
+        const pn = m.parent?.name ?? '';
+        if (m.name === 'laser' || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
+      }
+      // interactables by kind: only the powered ones (no intel folders, cache crates, beacons or hide spots)
+      const its = this.interactables?.items;
+      if (its) {
+        for (let i = 0; i < its.length; i++) {
+          const it = its[i]!;
+          if (!ELECTRO_KINDS.has(it.kind)) continue;
+          for (let j = 0; j < it.parts.length; j++) {
+            const m = it.parts[j]!;
+            if (m instanceof InstancedMesh) list.push(m);
+          }
+        }
+      }
+    }
+    if (k === this.electroK) return;
+    this.electroK = k;
+    const list = this.electroParts;
+    for (let i = 0; i < list.length; i++) {
+      const pt = list[i]!.instancedBuffers?.pattern as Vector4 | undefined;
+      if (pt) pt.w = k * ELECTRO.deviceEmit;
+    }
   }
 
   /**

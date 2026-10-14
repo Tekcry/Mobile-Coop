@@ -1,4 +1,4 @@
-import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
 import { addGlow, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
@@ -284,6 +284,9 @@ const WALL_FOOT_CLEAR = 0.1;
  * bind pose. Each frame `animate` runs the AnimGraph, then two-bone IK places arms (on the weapon's
  * grip and foregrip, or free swing targets) and legs (on the gait's planted foot targets).
  */
+/** (Step 14) every live rig (render-only passes such as thermal vision's warmth walk it without an iterator). */
+export const LIVE_RIGS: CharacterRig[] = [];
+
 export class CharacterRig {
   readonly root: TransformNode;
   readonly body: TransformNode;
@@ -501,6 +504,7 @@ export class CharacterRig {
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
     DEBUG_RIGS.add(this);
+    LIVE_RIGS.push(this);
   }
 
   /** The merged voxel body (3.0; null: the smooth parts render). */
@@ -1601,6 +1605,31 @@ export class CharacterRig {
     });
   }
 
+  /** (Step 14) thermal vision's warmth on this body, 0..1 (render-only `pattern.w` glow). */
+  private heatK = 0;
+  /** (Step 14) set by gameState's render frame while this rig lies as a body: the frame stamp and its age (s). */
+  bodyFrame = -1;
+  bodyAge = 0;
+
+  /** (Step 14) thermal vision's warmth (render only; nothing in gameplay reads it). Only touches buffers on a change. */
+  setHeat(k: number): void {
+    if (k === this.heatK) return;
+    this.heatK = k;
+    if (this.voxel) {
+      this.voxel.setHeat(k);
+      return;
+    }
+    const parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const pt = (parts[i] as InstancedMesh).instancedBuffers?.pattern as Vector4 | undefined;
+      if (pt) pt.w = k;
+    }
+  }
+
+  get heat(): number {
+    return this.heatK;
+  }
+
   /** Disposed (no longer animates or renders). */
   disposed = false;
   private lodSkip = false;
@@ -1609,6 +1638,8 @@ export class CharacterRig {
   dispose(): void {
     this.disposed = true;
     DEBUG_RIGS.delete(this);
+    const li = LIVE_RIGS.indexOf(this);
+    if (li >= 0) LIVE_RIGS.splice(li, 1);
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     for (const g of this.glows) g.dispose();

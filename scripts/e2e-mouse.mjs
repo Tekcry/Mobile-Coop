@@ -272,6 +272,22 @@ try {
   await page.keyboard.press('Minus');
   const g2 = await gearIs(g0);
   assert(g1 === Math.min(6, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
+  // (step 14) the KBM vision key (N) cycles off -> night -> thermal -> electro -> off; post.vk follows
+  {
+    const vis = () => page.evaluate(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
+    const seq = [];
+    for (const want of ['night', 'thermal', 'electro', 'off']) {
+      await page.keyboard.press('KeyN');
+      let r = await vis();
+      for (let i = 0; i < 60 && (r.mode !== want || r.shown !== want); i++) {
+        await page.waitForTimeout(50);
+        r = await vis();
+      }
+      seq.push(r);
+    }
+    const vks = seq.map((r) => `${r.mode}/${r.vk}`).join(' ');
+    assert(vks === 'night/0 thermal/1 electro/2 off/0', `N cycles the vision modes, post.vk follows (${vks})`);
+  }
   await page.evaluate(() => document.exitPointerLock());
   await page.waitForTimeout(300);
   s = await st();

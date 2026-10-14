@@ -5,6 +5,13 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 14 - thermal and electro vision (PC, controller, phone)
+- [ ] Pad View / KBM N / phone vision button cycles off -> NV -> THERMAL -> ELECTRO -> off; each switch is one goggle flip, the label shows about 1.5 s then hides.
+- [ ] Phone check, night vision: green tube, lamps glare, frame rate holds (debug overlay) in a dark room.
+- [ ] Phone check, thermal: cold blue-grey scene; guards, dogs, team-mates and your own body glow; no seeing through walls; a fresh body or dead dog fades over about a minute; frame rate holds.
+- [ ] Phone check, electro: dark green scene; cameras, laser sights, alarm panels, switches and terminals glow; intel folders, crates and the extract beacon do not; frame rate holds.
+- [ ] In every mode a guard notices you exactly as with goggles off (same light, same distance); a co-op team-mate never sees your mode.
+
 ## Locomotion step 13 - door peek (PC, controller, phone)
 - [ ] Pad: Proving, face the shed's north door within a metre and press A: the body settles at the frame (hinge at one shoulder, the other hand on the handle), the leaf cracks open a little over about half a second, silently; the view moves to the crack, slightly zoomed.
 - [ ] Right stick looks left and right through the crack, stopping at about 35 degrees each way; the camera never shows the inside of the leaf or the jamb.

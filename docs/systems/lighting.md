@@ -110,6 +110,12 @@ Design authority: docs/design-bible.md (Section 5.1)
 - The phone's black floor is `PHONE_DARK_FLOOR` 0.008 (OLED smear). Brightness calibration (`BrightnessScreen`,
   Settings > Display; once after the update): an exposure multiplier in the grade, `BRIGHTNESS_MIN` .. `MAX`,
   `GameState.brightnessLocked` for the Confrontation.
+- Thermal and electro (locomotion step 14, A26, A53; `vfx/visionLook.ts`, pure, mirrored in GLSL as `VISION_GLSL`):
+  a `vk` branch in the existing cinematic post pass (desktop) and the phone grade pass (1 thermal, 2 electro). No
+  new render target or material. Warm bodies and live devices set the free `pattern.w` channel the PatternPlugin
+  carries (per instance, or per vertex on voxel bodies), a white emissive added to the lit colour; the ramp then
+  colours by luma. Thermal softens with 4 taps in the same pass. Render-only: the light meter, the light bake and
+  guard perception never read it (light parity holds because the lit scene underneath is unchanged).
 - The goggle glow (`player/goggleGlow.ts`): the tri-lens lenses and a rear battery-pack LED as emissive instances of one
   unlit sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the scene's

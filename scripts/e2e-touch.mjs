@@ -107,6 +107,20 @@ try {
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     await frames(page, 4);
   };
+  // (step 14, D1) the vision toggle cycles off -> night -> thermal -> electro -> off
+  {
+    const seq = [];
+    for (let i = 0; i < 4; i++) {
+      await tapIn('.tc-vision');
+      let m = await page.evaluate(() => window.__app.current.vision.mode);
+      for (let k = 0; k < 20 && m === (seq[seq.length - 1] ?? 'off'); k++) {
+        await frames(page, 2);
+        m = await page.evaluate(() => window.__app.current.vision.mode);
+      }
+      seq.push(m);
+    }
+    assert(seq.join(' ') === 'night thermal electro off', `the touch vision button cycles the four modes (${seq.join(' ')})`);
+  }
   const g0 = await gearNow();
   assert(g0.pips === g0.gear, `rocker pips show the gear (${g0.pips} lit, gear ${g0.gear})`);
   await tapIn('.tc-speed .tc-sp-up');

@@ -53,3 +53,6 @@ Open-side weapon at edges (openSide, wallLeftHand, mirrored grip, EDGE_HAND_TIME
 
 ## 13 door-peek
 Door peek (src/world/doorPeek.ts): crack 0.12 over 0.6 s keeps collision / light / guard sight closed (A25), camera through the crack +-35 deg, close / open / end exits, resume of an abandoned crack; host-checked `door` message, snapshot dcr, MoveState doorPeek (27), PROTOCOL_VERSION 8, client crack prediction; touch Peek / Close (A52). Real bug fixed: the session whitelist did not forward `door`. Proving shed got a hinged door in its doorway. 2 implementers + 1 fix round. Check PASS: tests 1194, netmove doorPeek joints <= 2 cm, leaf 0.120. Doorpeek pose fails carried to step 27.
+
+## 14 vision
+Thermal and electro as render-only post branches in the cinematic pass (vk uniform), cycle off / night / thermal / electro on pad Select, N, touch Vision; thermal warms rigs and dogs (LIVE_RIGS, LIVE_DOGS, glow on pattern.w) and cools bodies over 60 s; electro glows switch / alarm / terminal / charge, cameras, lasers, sticky-cam lens (A53). Isolation test: perception identical in all modes, nothing on the wire. 1 implementer + 1 fix round (dogs, electro filter). Check PASS: tests 1202, e2e serial all pass; quick-run failures are load flakes (stealth, mouse, darkness, pad).
