@@ -9,6 +9,9 @@ import { KEYBOARD, KEYBOARD_COLS, typeKey } from './card';
 import { gridMove, LIST_TABS, menuTabs, menuTiles } from './tileMenu';
 import type { MenuInput, MenuTab, TileMenu } from './tileMenu';
 
+/** A grid tile's width, CSS pixels (fix-up 2026-10-14: compact one-line tiles). */
+const TILE_W = 300;
+
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export class TileMenuView {
@@ -28,10 +31,10 @@ export class TileMenuView {
     });
   }
 
-  /** Tiles a row on a grid tab, from the panel's width (2 to 6). */
+  /** Tiles a row on a grid tab, from the panel's width (2 to 6; wide enough for a title and its words on one line). */
   cols(): number {
     const w = this.el.clientWidth || 800;
-    return Math.min(6, Math.max(2, Math.floor(w / 210)));
+    return Math.min(6, Math.max(2, Math.floor(w / TILE_W)));
   }
 
   render(m: TileMenu, inp: MenuInput, padWords: { tab: string; close: string }, bottom: number): void {
@@ -54,8 +57,11 @@ export class TileMenuView {
     const body = tiles
       .map((t, i) => {
         const cls = `tile${i === m.index ? ' hl' : ''}${t.disabled ? ' off' : ''}${t.on ? ' lit' : ''}`;
-        const value = t.value !== undefined ? `<b class="tv">${list && t.kind !== 'toggle' ? '&#8249; ' : ''}${esc(t.value)}${list && t.kind !== 'toggle' ? ' &#8250;' : ''}</b>` : '';
-        return `<div class="${cls}" data-tile="${i}"><span class="ti">${esc(t.icon)}</span><span class="tn">${esc(t.name)}</span>${value}<small>${esc(t.disabled ?? t.desc)}</small></div>`;
+        // a group tile's "shown" is a small marker; an empty value draws nothing
+        const mark = !list && t.kind === 'toggle' && t.value === 'shown';
+        const arrows = list && t.kind !== 'toggle';
+        const value = t.value ? `<b class="tv${mark ? ' mark' : ''}">${arrows ? '&#8249; ' : ''}${esc(t.value)}${arrows ? ' &#8250;' : ''}</b>` : '';
+        return `<div class="${cls}" data-tile="${i}"><span class="ti">${esc(t.icon)}</span><span class="tt"><span class="tn">${esc(t.name)}</span><small>${esc(t.disabled ?? t.desc)}</small></span>${value}</div>`;
       })
       .join('');
     this.el.innerHTML = `<div class="tm-head"><span class="dim">${esc(padWords.tab)}</span><div class="tm-tabs">${tabHtml}</div><span class="dim">${esc(padWords.close)}</span></div><div class="tm-body${list ? ' list' : ''}" style="--cols:${list ? 1 : this.cols()}">${body}</div>`;

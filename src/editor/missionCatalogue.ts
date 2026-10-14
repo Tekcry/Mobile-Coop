@@ -109,11 +109,11 @@ export const hideKind = (id: string): { id: string; name: string } => HIDE_KINDS
 /** The Mission tab's tools (the tile menu), in order. */
 export type MissionKind = 'guard' | 'spawn' | 'extraction' | 'objective' | 'intel' | 'checkpoint' | 'hide';
 export const MISSION_TOOLS: readonly { id: MissionKind; name: string; desc: string }[] = [
-  { id: 'guard', name: 'Guard', desc: 'A places a guard, then A adds its patrol stops' },
-  { id: 'spawn', name: 'Insertion', desc: 'A places a player start (1-4, numbered)' },
-  { id: 'extraction', name: 'Extraction', desc: 'A at one corner, A at the other' },
-  { id: 'objective', name: 'Objective', desc: 'A places an objective; its kind on the card' },
-  { id: 'intel', name: 'Intel', desc: 'A places an intel pickup (an objective of kind intel)' },
-  { id: 'checkpoint', name: 'Checkpoint', desc: 'A places a checkpoint' },
-  { id: 'hide', name: 'Hide', desc: 'A places a hiding place; its kind on the card' },
+  { id: 'guard', name: 'Guard', desc: 'Then its patrol stops' },
+  { id: 'spawn', name: 'Insertion', desc: 'Player starts, 1 to 4' },
+  { id: 'extraction', name: 'Extraction', desc: 'Two corners' },
+  { id: 'objective', name: 'Objective', desc: 'Kind on the card' },
+  { id: 'intel', name: 'Intel', desc: 'Intel pickup objective' },
+  { id: 'checkpoint', name: 'Checkpoint', desc: 'Placed at the dot' },
+  { id: 'hide', name: 'Hide', desc: 'Kind on the card' },
 ];

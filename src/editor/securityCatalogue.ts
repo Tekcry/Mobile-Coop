@@ -22,12 +22,12 @@ export interface SecToolDef {
 }
 
 export const SEC_TOOLS: readonly SecToolDef[] = [
-  { id: 'camera', name: 'Fixed camera', desc: 'A on a wall face or under a ceiling; aim with the right stick', kind: 'camera' },
-  { id: 'pan', name: 'Pan camera', desc: 'Sweeps between two angles (S0 SN13-SN15)', kind: 'camera' },
-  { id: 'reader', name: 'Card reader', desc: 'A by a door sets its reader and card level; or alone on a wall', kind: 'reader' },
-  { id: 'keypad', name: 'Keypad', desc: 'A PIN pad by a door, or alone on a wall', kind: 'reader' },
-  { id: 'pir', name: 'Motion sensor', desc: 'PIR on a ceiling or wall; links to a motion light or the alarm', kind: 'pir' },
-  { id: 'beam', name: 'Beam', desc: 'A at one wall point, A at the other; infrared, high or low', kind: 'beam' },
+  { id: 'camera', name: 'Fixed camera', desc: 'Wall or ceiling, then aim', kind: 'camera' },
+  { id: 'pan', name: 'Pan camera', desc: 'Sweeps between two angles', kind: 'camera' },
+  { id: 'reader', name: 'Card reader', desc: 'By a door, card level', kind: 'reader' },
+  { id: 'keypad', name: 'Keypad', desc: 'PIN pad by a door', kind: 'reader' },
+  { id: 'pir', name: 'Motion sensor', desc: 'Lights or the alarm', kind: 'pir' },
+  { id: 'beam', name: 'Beam', desc: 'Wall point to wall point', kind: 'beam' },
 ];
 
 export const secTool = (id: string): SecToolDef => SEC_TOOLS.find((t) => t.id === id) ?? SEC_TOOLS[0]!;

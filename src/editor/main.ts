@@ -70,6 +70,8 @@ import type { SignRecord } from './signs';
 import { ceilingWords, CRAWL_RULE } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { hyp2 } from '../core/mathx';
+import { canLift, cornerPt, cornerResize, CORNERS, GROWS, growElem, heightWords, HELD, HANDLE_PX, liftElem, nearestCorner, nearestEnd, planHandleUnits } from './held';
+import type { Corner } from './held';
 import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
 import type { Beam, Device, SecData, SecurityFile } from './security';
 import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission, withCycle } from './mission';
@@ -82,6 +84,8 @@ const LADDER_REACH = 1.2;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** Status messages written for the keyboard and mouse (the pad's toast skips them). */
+const KEY_WORDS = /\b(click|drag|Esc|Ctrl|Shift|Space|Page Up|keys?|mouse|wheel|Tab|Delete|Backspace)\b/i;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 
@@ -187,6 +191,15 @@ interface Drag {
   linkedText?: string;
   /** The rect and setting the linked preview was made for (the work is skipped while they do not change). */
   linkedKey?: string;
+  /** Fix-up 2026-10-14: Move or Resize (Y on the pad, T on the keyboard); the element when the mode last changed. */
+  mode?: 'move' | 'resize';
+  base?: Elem;
+  /** Added to the pointer (a Resize switch puts the dot on the corner it moves); the last pointer, with it. */
+  off?: Pt;
+  last?: Pt;
+  /** Raised (Move) or taller (Resize) by this many metres since the mode last changed (one undo step on the drop). */
+  lift?: number;
+  grow?: number;
 }
 
 export class Editor {
@@ -425,8 +438,17 @@ export class Editor {
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
 
+  private toastAt = 0;
   status(text: string): void {
     $('status').textContent = text;
+    // fix-up 2026-10-14: on the controller the status line is hidden; a message shows for a moment at the top right
+    // (keyboard and mouse words never show there: those messages stay in the hidden line)
+    if (this.pad?.device !== 'pad' || KEY_WORDS.test(text)) return;
+    const t = $('padToast');
+    t.textContent = text;
+    t.classList.remove('hidden');
+    clearTimeout(this.toastAt);
+    this.toastAt = window.setTimeout(() => t.classList.add('hidden'), 3000);
   }
 
   // ---------- model changes ----------
@@ -687,6 +709,41 @@ export class Editor {
         { id: 'r', x: hi[0], z: hi[1], y },
       ];
     }
+    // fix-up 2026-10-14: objects take corners (Resize), drawn pieces their ends, the rest one centre marker ('c': move)
+    const fl = this.model.data.levels.find((l) => l.id === lvl)?.floor ?? 0;
+    if (s.coll === 'objects') {
+      const o = s.e as Obj;
+      const y = f + o.y + o.h;
+      return (['SW', 'SE', 'NW', 'NE'] as const).map((c) => {
+        const p = cornerPt(o.rect, c);
+        return { id: c, x: p[0], z: p[1], y };
+      });
+    }
+    if (s.coll === 'exterior') {
+      const x = s.e as Ext;
+      const y = f + x.y1 - fl;
+      if (hyp2(x.b[0] - x.a[0], x.b[1] - x.a[1]) < 1e-6) return [{ id: 'c', x: x.a[0], z: x.a[1], y }];
+      return [
+        { id: 'a', x: x.a[0], z: x.a[1], y },
+        { id: 'b', x: x.b[0], z: x.b[1], y },
+      ];
+    }
+    if (s.coll === 'lamps') {
+      const l = s.e as Lamp;
+      if (l.b) return [{ id: 'a', x: l.at[0], z: l.at[2], y: f + l.at[1] }, { id: 'b', x: l.b[0], z: l.b[2], y: f + l.b[1] }];
+      return [{ id: 'c', x: l.at[0], z: l.at[2], y: f + l.at[1] }];
+    }
+    if (s.coll === 'devices') {
+      const dv = s.e as unknown as Device;
+      if (isBeam(dv)) return [{ id: 'a', x: dv.a[0], z: dv.a[2], y: f + dv.a[1] }, { id: 'b', x: dv.b[0], z: dv.b[2], y: f + dv.b[1] }];
+      const at = (dv as { at?: Pt }).at;
+      const y = (dv as { y?: number }).y ?? 0;
+      return at ? [{ id: 'c', x: at[0], z: at[1], y: f + y }] : [];
+    }
+    if (s.coll === 'signs') {
+      const g = s.e as SignRecord;
+      return [{ id: 'c', x: g.at[0], z: g.at[1], y: f + g.y }];
+    }
     return [];
   }
 
@@ -703,12 +760,173 @@ export class Editor {
     if (coll === 'ceilings') return;
     // the stair's arrow handle is a click, not a drag
     if (coll === 'stairs' && handle === 'turn') return this.turnStairClimb();
-    this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
+    // fix-up 2026-10-14: a centre marker moves the whole thing
+    if (handle === 'c') handle = null;
+    this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew, mode: handle ? 'resize' : 'move', last: start };
     this.updateHint();
   }
 
-  /** The element as it would be with the pointer at (x, z). */
+  // ---------- holding: raise and lower, Move / Resize (fix-up 2026-10-14) ----------
+  /** The mode and height words of the held element (or the selected one). */
+  heldWords(): string {
+    const d = this.drag;
+    const s = d ? { coll: d.coll, e: this.model.get(d.coll, d.id) } : this.selectedElem();
+    const h = s?.e ? heightWords(s.coll, s.e) : null;
+    const m = d && !d.isNew ? (d.mode === 'resize' ? 'Resize' : 'Move') : '';
+    return [m, h].filter(Boolean).join(', ');
+  }
+
+  /** Whether the triggers (wheel, Page Up / Down) change the held thing's height in its mode. */
+  heldLifts(): boolean {
+    const d = this.drag;
+    return !!d && !d.isNew && (d.mode === 'resize' ? GROWS.includes(d.coll) : canLift(d.coll));
+  }
+
+  /** Raise (+) or lower (-) what is held by `dy` metres more (taller or shorter in Resize); one undo step on the drop. */
+  heldLift(dy: number): boolean {
+    const d = this.drag;
+    if (!d || d.isNew) return false;
+    if (!this.heldLifts()) {
+      this.status(d.mode === 'resize' ? 'Its height stays (Move raises and lowers)' : 'Stays on its level');
+      return false;
+    }
+    if (d.mode === 'resize') d.grow = +((d.grow ?? 0) + dy).toFixed(3);
+    else d.lift = +((d.lift ?? 0) + dy).toFixed(3);
+    d.moved = true;
+    d.linkedKey = undefined;
+    const p = d.last ?? d.start;
+    this.moveDrag(p[0] - (d.off?.[0] ?? 0), p[1] - (d.off?.[1] ?? 0), true);
+    if (d.source !== 'pad') this.status(this.heldWords());
+    return true;
+  }
+
+  /** The held lift (growth in Resize) set to `v` metres (the pad's triggers; the caller snaps it). */
+  setHeldLift(v: number): void {
+    const d = this.drag;
+    if (!d || d.isNew || !this.heldLifts()) return;
+    const cur = d.mode === 'resize' ? (d.grow ?? 0) : (d.lift ?? 0);
+    if (Math.abs(v - cur) > 1e-6) this.heldLift(+(v - cur).toFixed(3));
+  }
+
+  /** Y (pad) or T (keyboard) while holding: Move and Resize swap; the element so far becomes the base. */
+  toggleHeldMode(): void {
+    const d = this.drag;
+    if (!d || d.isNew) return;
+    const cur = this.model.get(d.coll, d.id);
+    if (!cur) return;
+    const last = d.last ?? d.start;
+    if (d.mode === 'resize') {
+      d.mode = 'move';
+      d.handle = null;
+      d.base = clone(cur) as Elem;
+      d.start = last;
+    } else {
+      const h = this.resizeHandle(d.coll, cur as Elem, last[0], last[1]);
+      if (!h) return this.status(d.source === 'pad' ? 'Nothing to resize: RT / LT raise and lower it' : 'Nothing to resize: the wheel or Page Up / Down raise and lower it');
+      d.mode = 'resize';
+      d.handle = h.id;
+      d.base = clone(cur) as Elem;
+      d.off = [+((d.off?.[0] ?? 0) + h.x - last[0]).toFixed(3), +((d.off?.[1] ?? 0) + h.z - last[1]).toFixed(3)];
+      d.last = [h.x, h.z];
+    }
+    d.lift = 0;
+    d.grow = 0;
+    d.linkedKey = undefined;
+    d.moved = true;
+    this.updateHint();
+    const up = d.source === 'pad' ? 'RT / LT' : 'the wheel';
+    this.status(d.mode === 'resize' ? `Resize: the far ${d.handle && d.handle.length === 2 ? 'corner' : 'end'} stays put; ${up} change${d.source === 'pad' ? '' : 's'} the height` : 'Move');
+  }
+
+  /** The corner or end Resize takes, nearest (x, z); null where nothing resizes. */
+  private resizeHandle(coll: Coll, e: Elem, x: number, z: number): { id: string; x: number; z: number } | null {
+    const seg = (a: Pt, b: Pt, ids: [string, string]): { id: string; x: number; z: number } => {
+      const end = nearestEnd(a, b, x, z);
+      const p = end === 'a' ? a : b;
+      return { id: end === 'a' ? ids[0] : ids[1], x: p[0], z: p[1] };
+    };
+    if ('rect' in e && (coll === 'rooms' || coll === 'stairs' || coll === 'voids' || coll === 'roofs' || coll === 'extraction' || coll === 'objects')) {
+      const c = nearestCorner((e as Room).rect, x, z);
+      const p = cornerPt((e as Room).rect, c);
+      return { id: c, x: p[0], z: p[1] };
+    }
+    if (coll === 'walls') return seg((e as Wall).a, (e as Wall).b, ['a', 'b']);
+    if (coll === 'openings') {
+      const o = e as Opening;
+      const w = this.model.get<Wall>('walls', o.wall);
+      return w ? seg(wallPoint(w, o.at - o.w / 2), wallPoint(w, o.at + o.w / 2), ['l', 'r']) : null;
+    }
+    if (coll === 'exterior') {
+      const t = e as Ext;
+      return hyp2(t.b[0] - t.a[0], t.b[1] - t.a[1]) < 1e-6 ? null : seg(t.a, t.b, ['a', 'b']);
+    }
+    if (coll === 'lamps') {
+      const l = e as Lamp;
+      return l.b ? seg([l.at[0], l.at[2]], [l.b[0], l.b[2]], ['a', 'b']) : null;
+    }
+    if (coll === 'devices' && isBeam(e as unknown as Device)) {
+      const bm = e as unknown as Beam;
+      return seg([bm.a[0], bm.a[2]], [bm.b[0], bm.b[2]], ['a', 'b']);
+    }
+    return null;
+  }
+
+  /** Page Up / Page Down with one thing selected (not held): a step up or down, one undo step; false if it has no height. */
+  liftSelected(dy: number): boolean {
+    const s = this.selectedElem();
+    if (!s || this.group.length || !canLift(s.coll)) return false;
+    const wh = s.coll === 'openings' ? this.model.get<Wall>('walls', (s.e as Opening).wall)?.h : undefined;
+    const after = liftElem(s.coll, clone(s.e) as Elem, dy, wh);
+    if (JSON.stringify(after) === JSON.stringify(s.e)) {
+      this.status(`${heightWords(s.coll, s.e) ?? ''}: as far as it goes`);
+      return true;
+    }
+    this.commit([{ coll: s.coll, id: s.id, before: clone(s.e) as Elem, after }]);
+    this.status(`${dy > 0 ? 'Raised' : 'Lowered'} ${fmt(Math.abs(dy))} m: ${heightWords(s.coll, after) ?? ''}`);
+    return true;
+  }
+
+  /** The element as it would be with the pointer at (x, z): moved or resized from its base, then raised and grown. */
   dragged(d: Drag, x: number, z: number, fine: boolean): Elem {
+    const dd: Drag = d.base ? { ...d, before: d.base } : d;
+    let e = this.heldEnd(dd, x, z, fine) ?? this.draggedFlat(dd, x, z, fine);
+    const wh = d.coll === 'openings' ? this.model.get<Wall>('walls', (e as Opening).wall)?.h : undefined;
+    if (d.lift) e = liftElem(d.coll, e, d.lift, wh);
+    if (d.grow) e = growElem(d.coll, e, d.grow, d.coll === 'openings' || d.coll === 'walls' ? 0.5 : this.objectGrid, wh);
+    return e;
+  }
+
+  /** Fix-up 2026-10-14: an object corner (the opposite one fixed) or a drawn piece's, linear lamp's or beam's end. */
+  private heldEnd(d: Drag, x: number, z: number, fine: boolean): Elem | null {
+    const h = d.handle;
+    if (!h || d.isNew) return null;
+    const og = fine ? this.fineGrid : this.objectGrid;
+    if (CORNERS.includes(h) && 'rect' in d.before) {
+      const e = clone(d.before) as Room;
+      const min = d.coll === 'objects' ? og : Math.max(this.grid, 0.5);
+      e.rect = cornerResize(e.rect, h as Corner, x, z, d.coll === 'objects' ? og : fine ? this.fineGrid : this.grid, min);
+      return e as Elem;
+    }
+    if (h !== 'a' && h !== 'b') return null;
+    const p: Pt = [snap(x, og), snap(z, og)];
+    if (d.coll === 'exterior') return withRules(this.model.data, { ...(d.before as Ext), [h]: p }) as Elem;
+    if (d.coll === 'lamps') {
+      const l = clone(d.before) as Lamp;
+      if (h === 'a') l.at = [p[0], l.at[1], p[1]];
+      else if (l.b) l.b = [p[0], l.b[1], p[1]];
+      return l as Elem;
+    }
+    if (d.coll === 'devices' && isBeam(d.before as unknown as Device)) {
+      const b = clone(d.before) as unknown as Beam;
+      const q = b[h];
+      b[h] = [p[0], q[1], p[1]];
+      return b as unknown as Elem;
+    }
+    return null;
+  }
+
+  /** The element moved or stretched by its handle (no height changes). */
+  private draggedFlat(d: Drag, x: number, z: number, fine: boolean): Elem {
     const g = fine ? this.fineGrid : this.grid;
     const e = clone(d.before) as Elem & Record<string, unknown>;
     const dx = snap(x - d.start[0], g);
@@ -834,6 +1052,11 @@ export class Editor {
   moveDrag(x: number, z: number, fine: boolean, turn?: (e: Elem) => Elem): void {
     const d = this.drag;
     if (!d) return;
+    if (d.off) {
+      x += d.off[0];
+      z += d.off[1];
+    }
+    d.last = [x, z];
     let e = this.dragged(d, x, z, fine);
     if (turn) e = turn(e);
     if (d.coll !== 'rooms' || d.isNew) return this.model.preview(d.coll, e);
@@ -1860,6 +2083,8 @@ export class Editor {
       const r = canvas.getBoundingClientRect();
       return [e.clientX - r.left, e.clientY - r.top];
     };
+    // fix-up 2026-10-14: the wheel while dragging raises and lowers (Shift: 1 m), before the camera's zoom sees it
+    $('view3d').addEventListener('wheel', (e) => this.wheelHeld(e), { capture: true, passive: false });
     canvas.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       canvas.setPointerCapture(e.pointerId);
@@ -1976,7 +2201,7 @@ export class Editor {
       if (resetView || this.planLevel !== level || !this.planViewBox) this.planViewBox = vb;
       this.planLevel = level;
       this.planFullBox = vb;
-      svg.setAttribute('viewBox', (this.isMinimap() ? vb : this.planViewBox).join(' '));
+      this.setPlanBox(svg, (this.isMinimap() ? vb : this.planViewBox).join(' '));
       const under = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       under.id = 'underlay';
       svg.appendChild(under);
@@ -2017,7 +2242,7 @@ export class Editor {
     if (!svg || !m || !p || !this.planViewBox) return;
     const [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
     this.planViewBox = [p[0] - (p[0] - vx) * k + dx / m.a, p[1] - (p[1] - vy) * k + dy / m.d, vw * k, vh * k];
-    if (!this.isMinimap()) svg.setAttribute('viewBox', this.planViewBox.join(' '));
+    if (!this.isMinimap()) this.setPlanBox(svg, this.planViewBox.join(' '));
   }
 
   /** A plan point in metres -> screen pixels, or null with no plan drawn. */
@@ -2055,7 +2280,7 @@ export class Editor {
     const next = [vx, vy, vw, vh];
     if (next.some((v, i) => Math.abs(v - this.planViewBox![i]!) > 1e-6)) {
       this.planViewBox = next;
-      svg.setAttribute('viewBox', next.join(' '));
+      this.setPlanBox(svg, next.join(' '));
     }
   }
 
@@ -2181,6 +2406,41 @@ export class Editor {
     for (const k of this.selected ? [this.selected, ...this.group] : this.group) for (const el of svg.querySelectorAll(`[data-id="${CSS.escape(k)}"]`)) el.classList.add('sel');
   }
 
+  /** The wheel while a mouse drag holds something: one grid step up or down (Shift: 1 m); true when it took it. */
+  private wheelHeld(e: WheelEvent): boolean {
+    const d = this.drag;
+    if (!d || d.isNew || d.source === 'pad' || !e.deltaY) return false;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    this.heldLift((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? HELD.BIG : this.grid));
+    return true;
+  }
+
+  /** A plan handle's size in SVG units now (HANDLE_PX on screen). */
+  private planUnits(): number {
+    const svg = this.planSvg();
+    const vb = svg?.getAttribute('viewBox')?.split(/[ ,]+/).map(Number);
+    if (!svg || !vb || vb.length < 4) return 14;
+    const box = svg.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) return 14;
+    return planHandleUnits(HANDLE_PX, vb[2]!, vb[3]!, box.width, box.height);
+  }
+
+  /** Sets the plan's view box and keeps the handles HANDLE_PX on screen. */
+  private setPlanBox(svg: Element, box: string): void {
+    svg.setAttribute('viewBox', box);
+    const u = this.planUnits();
+    for (const r of svg.querySelectorAll<SVGRectElement>('rect[data-handle]')) {
+      const cx = Number(r.dataset.cx);
+      const cy = Number(r.dataset.cy);
+      r.setAttribute('x', String(cx - u / 2));
+      r.setAttribute('y', String(cy - u / 2));
+      r.setAttribute('width', String(u));
+      r.setAttribute('height', String(u));
+      r.setAttribute('stroke-width', String(u / 6));
+    }
+  }
+
   /** Orange outline of the selected element, its handles, and the camera, drawn over the plan. */
   drawPlanOverlay(): void {
     const g = this.planSvg()?.querySelector('#overlay');
@@ -2211,9 +2471,11 @@ export class Editor {
         const a = this.toPlan(...(s.e as Ladder).at);
         out += `<circle cx="${a[0]}" cy="${a[1]}" r="8" fill="none" stroke="#ff7300" stroke-width="3"/>`;
       }
+      // fix-up 2026-10-14: HANDLE_PX on screen at any plan zoom (sizePlanHandles keeps it on zoom)
+      const u = this.planUnits();
       for (const h of this.handlesFor()) {
         const p = this.toPlan(h.x, h.z);
-        out += `<rect data-handle="${h.id}" x="${p[0] - 7}" y="${p[1] - 7}" width="14" height="14" fill="#ff7300" stroke="#fff" stroke-width="2" style="cursor:move"/>`;
+        out += `<rect data-handle="${h.id}" data-cx="${p[0]}" data-cy="${p[1]}" x="${p[0] - u / 2}" y="${p[1] - u / 2}" width="${u}" height="${u}" fill="#ff7300" stroke="#fff" stroke-width="${u / 6}" style="cursor:move"/>`;
       }
     }
     // ON6: lamps and switches; the selected circuit's lines from its switch to its lamps
@@ -2264,13 +2526,14 @@ export class Editor {
     let downAt: [number, number] | null = null;
     host.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (this.wheelHeld(e)) return;
       const svg = this.planSvg();
       const p = this.svgPoint(e);
       if (!svg || !p || !this.planViewBox) return;
       const k = e.deltaY > 0 ? 1.15 : 1 / 1.15;
       const [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
       this.planViewBox = [p[0] - (p[0] - vx) * k, p[1] - (p[1] - vy) * k, vw * k, vh * k];
-      svg.setAttribute('viewBox', this.planViewBox.join(' '));
+      this.setPlanBox(svg, this.planViewBox.join(' '));
     }, { passive: false });
     host.addEventListener('contextmenu', (e) => e.preventDefault());
     host.addEventListener('pointerdown', (e) => {
@@ -2316,7 +2579,7 @@ export class Editor {
         const dx = (e.clientX - pan.x) / m.a;
         const dy = (e.clientY - pan.y) / m.d;
         this.planViewBox = [pan.vb[0]! - dx, pan.vb[1]! - dy, pan.vb[2]!, pan.vb[3]!];
-        svg.setAttribute('viewBox', this.planViewBox.join(' '));
+        this.setPlanBox(svg, this.planViewBox.join(' '));
         return;
       }
       if (p) {
@@ -2583,6 +2846,14 @@ export class Editor {
       case 'quickWalk': return this.quickWalk();
       case 'levelUp': return this.stepLevel(1);
       case 'levelDown': return this.stepLevel(-1);
+      case 'raise':
+      case 'lower': {
+        const dy = (id === 'raise' ? 1 : -1) * (e?.shiftKey ? HELD.BIG : this.grid);
+        if (this.drag) return void this.heldLift(dy);
+        if (!this.liftSelected(dy)) this.stepLevel(dy > 0 ? 1 : -1);
+        return;
+      }
+      case 'heldMode': return this.toggleHeldMode();
       case 'frame': return this.frameSelected();
       case 'chainRemove': return this.chainRemoveLast();
       // ON8: path editing with the keys
@@ -3050,7 +3321,7 @@ export class Editor {
     // the small plan always shows the whole level; the full plan keeps its own zoom
     const svg = this.planSvg();
     const box = this.isMinimap() ? this.planFullBox : this.planViewBox;
-    if (svg && box) svg.setAttribute('viewBox', box.join(' '));
+    if (svg && box) this.setPlanBox(svg, box.join(' '));
     this.syncViewButtons();
     this.savePrefs();
     this.view.engine.resize();

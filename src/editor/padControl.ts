@@ -7,6 +7,7 @@
  * words live in actions.ts; the pure parts in pad.ts, orbit.ts, stickSteps.ts, tileMenu.ts, card.ts, grab.ts and hub.ts.
  */
 import { hyp2 } from '../core/mathx';
+import { HELD, liftSnap, liftStep } from './held';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
@@ -121,6 +122,9 @@ export class PadControl {
   private offset: Pt = [0, 0];
   /** Quarter turns (RB taps) of the grabbed thing, about the dot. */
   private turns = 0;
+  /** Fix-up 2026-10-14: the triggers' raw lift while holding (snapped to the grid when applied); "Stays on its level" said. */
+  private liftRaw = 0;
+  private liftSaid = false;
   private measureFrom: Pt | null = null;
   /** Copied elements (one, or a set with the doors and windows of its walls, ON3). */
   clipboard: ClipItem[] | null = null;
@@ -832,12 +836,19 @@ export class PadControl {
     if (this.devAim) return this.devAimFrame(dt);
     if (c.walking) return this.walkFrame();
     if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
+    // fix-up 2026-10-14: holding something, Y swaps Move and Resize and the triggers raise and lower it (no zoom)
+    const held = this.ed.drag?.source === 'pad' && !this.ed.drag.isNew;
+    if (held && st.pressed(PAD.Y)) {
+      this.ed.toggleHeldMode();
+      this.liftRaw = 0;
+      this.turns = 0;
+    }
     if (st.viewTap === 'tap') this.topDown();
     else if (st.viewTap === 'hold') this.ed.run('layout');
     if (this.focus === 'drawer' && !this.ed.prefs.drawer) this.setFocus('3d');
     if (this.focus === 'drawer') return this.drawerFrame(now, dt);
     const plan = this.ed.prefs.layout === 'plan';
-    const zoom = st.rt - st.lt;
+    const zoom = held ? 0 : st.rt - st.lt;
     const fine = st.down(PAD.LB);
     if (fine !== this.lbWas) {
       this.lbWas = fine;
@@ -908,6 +919,7 @@ export class PadControl {
     } else if (st.pressed(PAD.B)) this.cancel();
     else if (st.pressed(PAD.A)) this.primary();
     this.dpad(now);
+    if (held) this.liftFrame(dt, fine);
     this.followDrag();
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
@@ -1281,8 +1293,26 @@ export class PadControl {
     if (this.ed.drag) this.ed.drag.moved = true;
     this.offset = [0, 0];
     this.turns = 0;
+    this.liftRaw = 0;
     const turn = !handle && TURNS.includes(coll) ? ', RB turns it' : '';
-    this.ed.status(`${words}: move the dot, A drops it, B puts it back, D-pad nudges${turn}`);
+    this.ed.status(`${words}: move the dot, A drops it, B puts it back, D-pad nudges, Y Move / Resize, RT / LT raise and lower${turn}`);
+  }
+
+  /** Fix-up 2026-10-14: RT raises and LT lowers what is held (Resize: taller / shorter), analogue, snapped to the grid. */
+  private liftFrame(dt: number, fine: boolean): void {
+    const st = this.st;
+    const t = st.rt - st.lt;
+    if (Math.abs(t) < HELD.PRESS) this.liftSaid = false;
+    if (!this.ed.heldLifts()) {
+      if (Math.abs(t) >= HELD.PRESS && !this.liftSaid) {
+        this.liftSaid = true;
+        this.ed.heldLift(0);
+      }
+      return;
+    }
+    if (!t) return;
+    this.liftRaw = liftStep(this.liftRaw, st.rt, st.lt, dt, fine);
+    this.ed.setHeldLift(liftSnap(this.liftRaw, this.ed.grid));
   }
 
   /** RB tap while grabbing (decision 19): a quarter turn about the dot, shown live; the drop commits move and turn. */
@@ -1850,6 +1880,12 @@ export class PadControl {
     // ON7: the light meter at the dot (the exact bake) while the light view or the darkness map is on
     const meter = p ? ed.lights.meterAt(p[0], p[1]) : '';
     if (meter) text += ` - ${meter}`;
+    // fix-up 2026-10-14: holding something: Move or Resize and its height, beside the dot (and under the plan in Plan)
+    const tag = d?.source === 'pad' && !d.isNew ? ed.heldWords() : '';
+    if (tag && ed.prefs.layout === 'plan') text = `${tag} - ${text}`;
+    const tagEl = $('heldTag');
+    if (tagEl.textContent !== tag) tagEl.textContent = tag;
+    tagEl.classList.toggle('hidden', !tag);
     // Plan only: the 3D dot is hidden, so its words go under the plan
     $(ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     $('reticle').classList.toggle('bad', bad);

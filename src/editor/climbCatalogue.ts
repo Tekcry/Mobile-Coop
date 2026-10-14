@@ -31,16 +31,16 @@ export interface ClimbPiece {
 }
 
 export const CLIMB_PIECES: readonly ClimbPiece[] = [
-  { id: 'downpipe', name: 'Downpipe', place: 'wallPoint', move: 'pipeV', desc: 'A on a wall face: ground to the wall top', src: 'ON5 brief decision 1; LevelBuilder.pipeV (F12)' },
-  { id: 'pipe', name: 'Horizontal pipe', place: 'draw', move: 'pipeH', desc: 'A at the start, A at the end', src: 'ON5 brief decision 1; LevelBuilder.pipeH (F12)' },
-  { id: 'ledge', name: 'Ledge or string course', place: 'draw', move: 'ledge', desc: 'Along a wall face: A, A', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
-  { id: 'sill', name: 'Window sill', place: 'window', move: 'ledge', desc: 'A on a window', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
-  { id: 'parapet', name: 'Parapet coping', place: 'wallTop', move: 'ledge', desc: 'A on a wall: along its top', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
-  { id: 'vent', name: 'Vent grille', place: 'wallPoint', move: 'duct', desc: 'A on a wall face; a duct starts here', src: 'ON5 brief decision 1; duct grates (src/world/anchors.ts Grate)' },
-  { id: 'duct', name: 'Duct crawl', place: 'draw', move: 'duct', desc: 'From one vent to another: A, A', src: 'ON5 brief decision 1; crouch duct 1.5 x 1.2 (F32)' },
-  { id: 'fire-escape', name: 'Fire escape stair', place: 'draw', move: null, desc: 'Outside: A at the foot, A at the top end', src: 'ON5 brief decision 1; stair facts (scale-sheet s3)' },
-  { id: 'lamp-post', name: 'Lamp post', place: 'point', move: null, desc: 'A places it (its lamp is a later part)', src: 'ON5 brief decision 1' },
-  { id: 'fence', name: 'Chain-link fence', place: 'draw', move: 'fence', desc: 'A at the start, A at the end; climbable', src: 'ON5 brief decision 1; LevelBuilder.fence (F14)' },
+  { id: 'downpipe', name: 'Downpipe', place: 'wallPoint', move: 'pipeV', desc: 'Wall face, ground to top', src: 'ON5 brief decision 1; LevelBuilder.pipeV (F12)' },
+  { id: 'pipe', name: 'Horizontal pipe', place: 'draw', move: 'pipeH', desc: 'Start to end', src: 'ON5 brief decision 1; LevelBuilder.pipeH (F12)' },
+  { id: 'ledge', name: 'Ledge or string course', place: 'draw', move: 'ledge', desc: 'Along a wall face', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
+  { id: 'sill', name: 'Window sill', place: 'window', move: 'ledge', desc: 'On a window', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
+  { id: 'parapet', name: 'Parapet coping', place: 'wallTop', move: 'ledge', desc: 'Along a wall top', src: 'ON5 brief decision 1; ledges from box tops (F09)' },
+  { id: 'vent', name: 'Vent grille', place: 'wallPoint', move: 'duct', desc: 'Wall face, starts a duct', src: 'ON5 brief decision 1; duct grates (src/world/anchors.ts Grate)' },
+  { id: 'duct', name: 'Duct crawl', place: 'draw', move: 'duct', desc: 'Vent to vent', src: 'ON5 brief decision 1; crouch duct 1.5 x 1.2 (F32)' },
+  { id: 'fire-escape', name: 'Fire escape stair', place: 'draw', move: null, desc: 'Outside, foot to top', src: 'ON5 brief decision 1; stair facts (scale-sheet s3)' },
+  { id: 'lamp-post', name: 'Lamp post', place: 'point', move: null, desc: 'Placed at the dot', src: 'ON5 brief decision 1' },
+  { id: 'fence', name: 'Chain-link fence', place: 'draw', move: 'fence', desc: 'Start to end, climbable', src: 'ON5 brief decision 1; LevelBuilder.fence (F14)' },
 ];
 
 export const pieceOf = (k: string | undefined): ClimbPiece | undefined => CLIMB_PIECES.find((p) => p.id === k) ?? (k === 'stringcourse' ? CLIMB_PIECES.find((p) => p.id === 'ledge') : undefined);

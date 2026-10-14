@@ -60,12 +60,14 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Tab | **walk test (game)**: the game's own player at the dot, unsaved edits included (below) |
 | Shift+Tab | **quick walk** at the dot (same as L3 tap; 1.75 m eye, walls block, C crouches to 1.15 m, Shift held runs); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
-| Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
+| Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor). With something selected or held that has a height (objects, lamps, signs, security devices, climb pieces, doors and windows, roofs): raise / lower it one grid step, Shift 1 m, one undo step each (fix-up 2026-10-14); a room or wall stays on its level, so the level changes as before |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
 | 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
-| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
+| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening, resize an object by a corner (the opposite one stays), move a drawn piece's, strip light's or beam's end; a single centre marker moves the rest. Handles keep 12 px on screen (facts `render.handlePx`) |
+| Wheel while dragging | raise / lower what is held one grid step (Shift: 1 m); in Resize taller / shorter (fix-up 2026-10-14) |
+| T while dragging | Move or Resize: Resize keeps the corner (or end) opposite the pointer fixed (fix-up 2026-10-14) |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
 | Arrow keys | nudge the selection one grid step, 0.1 m by default (Shift: ten steps) |
@@ -115,7 +117,7 @@ the free camera from the same spot. Nothing jumps either way.
 | Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out, a little slower near a snap |
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
 | LB held + right stick up / down | raise or lower the camera without tilting (the camera keeps its x, z; the dot slides along the view); the hint bar says so while LB is held |
-| LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
+| LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan. While holding something they raise and lower it instead (below) |
 | A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish (Wall: each A ends a wall and starts the next, a chain); door and window tools place one |
 | B | cancel a grab or a drawing; else leave the card; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
@@ -169,6 +171,8 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 | A | drop / finish the corner or wall end |
 | B | put it back / cancel |
 | RB tap | turn the grabbed room, stair, ladder or wall 90 degrees about the dot (shown live; the drop saves move and turn as one change; B puts it back). Doors, windows and floor holes ignore it |
+| RT / LT | raise / lower (analogue, 1 m/s at a full trigger, snapped to 0.1 m; LB held a quarter speed). Objects (base), lamps, signs, security devices, climb pieces, doors and windows (sill, kept inside the wall), roofs (base). A room, wall, stair or ladder says "Stays on its level". The triggers zoom again once it is dropped (fix-up 2026-10-14) |
+| Y | **Move / Resize**. A small tag by the dot says which, with the height ("Resize, base 0.5 m, 1.2 m high"). Resize takes the corner (rooms, stairs, floor holes, roofs, objects) or end (walls, doors and windows, drawn pieces, strip lights, beams) nearest the dot; the opposite one stays put. The left stick and the D-pad (0.1 m) move it; RT / LT change the height (objects, walls, doors and windows, climb pieces). Min sizes and the room rules (walls follow, reuse) hold; Y again goes back to Move from where it is. The drop is one undo step (fix-up 2026-10-14) |
 | LB held | slow and no magnet, as above |
 
 ### Smarter A
@@ -189,8 +193,11 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 - The constants are one table at the top of `src/editor/grab.ts` (Michael tunes them after his pad test).
 
 ### The tile menu (ON0a: replaces the wheels; Y tap, Space with the mouse)
-A full-width panel over the bottom half of the views; the 3D view stays visible above it, and the dot, tool bar and card
-wait until it closes. A row of tabs, then a grid of large tiles (a letter, the name, one line of what it does).
+A full-width panel along the bottom of the views, as tall as its tiles need and at most about a third of the window
+(then it scrolls; fix-up 2026-10-14). The 3D view stays visible above it, and the dot, tool bar and card wait until it
+closes. A row of tabs, then a grid of compact tiles: a letter, the name and two to five words of what it does on one
+line where it fits (the words wrap under the name otherwise). A group tile (Objects, Presets, Lights) shows "shown" as a
+small marker. Tile words never name buttons: the hint bar says what A does.
 
 | Button | Does |
 | --- | --- |
@@ -282,7 +289,9 @@ pad, and any grab is put back first.
   checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open and with the card being edited).
 - **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; its
   first row, size and level; while the D-pad edits it, every row with the lit one between arrows (the dot's words hide).
-- **Hint bar** (controller): one line, at most 5 prompts. Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
+- **Status line**: hidden while the controller was used last (the views take its room); back with the mouse or keyboard.
+  On the pad a new message shows for 3 s at the top right instead (fix-up 2026-10-14).
+- **Hint bar** (controller): one line, at most 5 prompts; holding something: "A Drop, LT/RT Lower / raise, Y Move / Resize, RB Turn 90, B Back". Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
   with a selection: "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; editing the card: "D-pad Edit, A Done, Y Menu, B
   Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close"; LB held: "LB + RS Height, LB Slow". What A would take replaces "Grab" ("Stretch east
   edge"). Full words are in the hub's Help. The keyboard keeps the long words.
@@ -1054,6 +1063,10 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 - **GPU**: how the moonlit 3D looks is Michael's check on the PC.
 
 ## What it does not do yet (ED2 parts B-H)
+- Fix-up 2026-10-14: a ceiling is never held, so its height stays on the card (it moves with its room); signs and point
+  devices have no Resize (a centre marker only); a strip light's or beam's end moves without the placing checks (they
+  run again on the next Checks). Resize words show size and height in the tag and the status line, not on the card
+  while held.
 - ON15: the sky path is a simple full-moon arc (the moon's real place on a given date, its phase from the date and cloud
   are not worked out); the brightness is a share of the game's night moon, not lux. Use for the map is not an undo step.
   The moon arrow sits in a fixed corner of the plan. Only the editing level is baked (as ON7).
@@ -1154,6 +1167,7 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |
 | `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
 | `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
+| `src/editor/held.ts` | fix-up 2026-10-14: raising and lowering what is held, Move / Resize with the opposite corner fixed, min heights, height words, handle size on screen (3D distance, plan zoom) (pure, `tests/editor/held.test.ts`, also the tile word rules) |
 | `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search, guide lines and their constants (`GRAB`, `MAGNET`, `SNAP`); the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: the ORBIT feel table, dead zone and curve, eased pan / orbit / tilt / zoom / height, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |

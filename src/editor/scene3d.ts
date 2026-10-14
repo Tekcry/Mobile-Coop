@@ -36,6 +36,8 @@ import type { MissionTool } from './missionTool';
 import { deviceCentre, isBeam, isCamera, isPir, isReader } from './security';
 import type { Device } from './security';
 import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalogue';
+import { HANDLE_PX, handleWorld } from './held';
+import { hyp3 } from '../core/mathx';
 import type { SecurityTool } from './securityTool';
 import { ruleColour, voidOf } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
@@ -134,7 +136,10 @@ export class EditorScene {
     this.camera.minZ = 0.05;
     this.camera.maxZ = 2000;
     this.camera.fov = 1.0;
-    this.engine.runRenderLoop(() => this.scene.render());
+    this.engine.runRenderLoop(() => {
+      this.sizeHandles();
+      this.scene.render();
+    });
   }
 
   get data(): Campus {
@@ -1169,11 +1174,46 @@ export class EditorScene {
   /** Drag handles (orange cubes) for the selected element. */
   setHandles(hs: readonly Handle[]): void {
     for (const m of this.handleMeshes) m.dispose();
+    // a unit cube scaled each frame the camera moves so it keeps HANDLE_PX on screen (sizeHandles)
     this.handleMeshes = hs.map((h) => {
-      const m = this.box(`handle ${h.id}`, h.x, h.y, h.z, 0.4, 0.4, 0.4, 0, this.mat('handle', '#ff7300', 1, 0.6));
+      const m = this.box(`handle ${h.id}`, h.x, h.y, h.z, 1, 1, 1, 0, this.mat('handle', '#ff7300', 1, 0.6));
       m.metadata = { handle: h.id };
       m.renderingGroupId = 1; // drawn over walls so a handle is never lost inside one
       return m;
+    });
+    this.handleKey = '';
+  }
+
+  private handleKey = '';
+  /** Fix-up 2026-10-14: handles a constant size on screen; only when the camera, the view or the handles changed. */
+  private sizeHandles(): void {
+    if (!this.handleMeshes.length) return;
+    const c = this.camera.position;
+    const h = this.engine.getRenderHeight();
+    const k = `${c.x.toFixed(3)}|${c.y.toFixed(3)}|${c.z.toFixed(3)}|${h}|${this.camera.fov}`;
+    if (k === this.handleKey) return;
+    this.handleKey = k;
+    const dpr = h / Math.max(1, (this.engine.getRenderingCanvas()?.clientHeight ?? h));
+    for (const m of this.handleMeshes) {
+      const p = m.position;
+      const s = handleWorld(HANDLE_PX * dpr, this.camera.fov, hyp3(p.x - c.x, p.y - c.y, p.z - c.z), h);
+      m.scaling.set(s, s, s);
+    }
+  }
+
+  /** Each handle's height on screen in CSS pixels, projected (the e2e reads it). */
+  handlePixels(): number[] {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const up = this.camera.getDirection(Vector3.Up());
+    const tm = this.scene.getTransformMatrix();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    return this.handleMeshes.map((m) => {
+      const half = up.scale(m.scaling.y / 2);
+      const a = Vector3.Project(m.position.add(half), Matrix.Identity(), tm, vp);
+      const b = Vector3.Project(m.position.subtract(half), Matrix.Identity(), tm, vp);
+      return Math.abs(a.y - b.y) / dpr;
     });
   }
 

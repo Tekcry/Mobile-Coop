@@ -771,9 +771,11 @@ export function readMine(text: string): RoomPreset[] {
 /** "3 rooms, 9 walls, 12 objects" for the tile's second line. */
 export function presetWords(p: RoomPreset): string {
   const it = p.items;
+  // fix-up 2026-10-14: tile words, short: the size, then the objects (or the rooms, or the stair)
   const parts: string[] = [`${fmt(p.size[0])} x ${fmt(p.size[1])} m`];
-  if (it.rooms.length) parts.push(`${it.rooms.length} room${it.rooms.length === 1 ? '' : 's'}`);
   if (it.objects.length) parts.push(`${it.objects.length} object${it.objects.length === 1 ? '' : 's'}`);
-  if (it.stairs.length) parts.push('stair');
+  else if (it.rooms.length > 1) parts.push(`${it.rooms.length} rooms`);
+  else if (it.stairs.length) parts.push('stair');
+  else parts.push('empty room');
   return parts.join(', ');
 }

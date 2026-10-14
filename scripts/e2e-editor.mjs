@@ -763,6 +763,151 @@ try {
   }
   await page.setViewportSize({ width: 1600, height: 900 });
 
+  console.log('fix-up 2026-10-14: compact tile menu, group tiles, status strip, screen-size handles, raise and lower, Move / Resize');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('3d'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); });
+    // the status line: hidden on the controller, back with the keyboard, hidden again after pad input
+    await press(BTN.LB);
+    const stat = () => E(() => ({ dev: window.__editor.pad.device, shown: getComputedStyle(document.getElementById('status')).display !== 'none', stage: document.getElementById('stage').getBoundingClientRect().bottom, h: window.innerHeight }));
+    const sp = await stat();
+    await page.keyboard.press('Shift');
+    await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+    const sk = await stat();
+    await press(BTN.LB);
+    await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+    const sp2 = await stat();
+    assert(sp.dev === 'pad' && !sp.shown && sk.dev === 'keys' && sk.shown && sp2.dev === 'pad' && !sp2.shown && sp.stage > sk.stage, `the status line hides on the pad (views to ${sp.stage} of ${sp.h} px), shows with the keyboard (${sk.stage} px), hides again after pad input`);
+
+    // the tile menu fits its content (at most about a third of the window); group tiles keep their words inside
+    const tabs = ['Build', 'Objects', 'Lights'];
+    for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) {
+      await page.setViewportSize({ width: vw, height: vh });
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); });
+      for (const tab of tabs) {
+        await E((t) => { const p = window.__editor.pad; p.menu.setTab(t, p.menuInput()); }, tab);
+        await page.waitForFunction((t) => document.querySelector('#tileMenu [data-mtab].on')?.textContent === t, tab, { timeout: 5000 }).catch(() => {});
+        await frames(page, 3);
+        const m = await E(() => {
+          const el = document.getElementById('tileMenu');
+          const b = el.getBoundingClientRect();
+          const body = el.querySelector('.tm-body');
+          const tiles = [...el.querySelectorAll('.tile')];
+          const out = [];
+          for (const t of tiles.filter((x) => x.querySelector('.tv.mark') || x.querySelector('.ti')?.textContent === 'G')) {
+            const tb = t.getBoundingClientRect();
+            const sm = t.querySelector('small').getBoundingClientRect();
+            const tn = t.querySelector('.tn').getBoundingClientRect();
+            if (!(sm.width > 4 && sm.height > 4 && sm.left >= tb.left - 0.5 && sm.right <= tb.right + 0.5 && sm.top >= tb.top - 0.5 && sm.bottom <= tb.bottom + 0.5 && tn.width > 4)) out.push(t.querySelector('.tn').textContent);
+          }
+          const strip = document.getElementById('padStrip').getBoundingClientRect();
+          const hint = document.getElementById('hint').getBoundingClientRect();
+          return { h: b.height, top: b.top, scroll: body.scrollHeight > body.clientHeight + 1, rows: body.scrollHeight, bad: out, groups: tiles.filter((x) => x.querySelector('.ti')?.textContent === 'G').length, marks: el.querySelectorAll('.tv.mark').length, stripBottom: strip.bottom, hintTop: hint.top, bottom: b.bottom };
+        });
+        const capped = m.h <= vh * 0.34 + 24;
+        assert(capped && m.bad.length === 0 && m.top >= m.stripBottom && m.bottom <= m.hintTop + 0.5 && (tab === 'Build' || (m.groups >= 5 && m.marks === 1)), `${vw} x ${vh} ${tab}: menu ${Math.round(m.h)} px high (cap ${Math.round(vh * 0.34)}), ${m.scroll ? 'scrolls' : 'fits'}; ${m.groups} group tiles, ${m.marks} shown marker, words cut or outside [${m.bad.join(', ')}]; clear of the strip and the hint bar`);
+        if (vw !== 1024) await shot(`menu-${tab.toLowerCase()}-${vw}x${vh}`);
+      }
+      // (back on Build: the menu remembers its tab, and later steps open it there)
+      await E(() => { const p = window.__editor.pad; p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+    }
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    // an empty patch on the ground floor for a test room (no wall within a metre of a 6 x 5 box)
+    const spot = await E(() => {
+      const ws = window.__editor.model.data.walls.filter((w) => w.level === 'G');
+      for (let z = 4; z < 70; z += 1) for (let x = 4; x < 100; x += 1) {
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 9 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 8);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!spot, `an empty patch for the hold steps at ${spot}`);
+    const [sx, sz] = spot;
+    const hStart = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('room.walls'));
+    await dotAt(sx, sz); await press(BTN.A);
+    await dotAt(sx + 4, sz + 3); await press(BTN.A);
+    const room = await E(() => { const rs = window.__editor.model.data.rooms; return rs[rs.length - 1]; });
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`rooms:${id}`); ed.controls.orbit.s.dist = 18; }, room.id);
+    await frames(page, 4);
+
+    // handles keep about 12 px on screen in 3D at two camera distances, and on the plan at two zooms
+    const px3 = async (dist) => { await E((d) => { window.__editor.controls.orbit.s.dist = d; }, dist); await frames(page, 4); return E(() => window.__editor.view.handlePixels()); };
+    const near = await px3(12);
+    const far = await px3(60);
+    const ok3 = (a) => a.length === 4 && a.every((v) => v > 8 && v < 16);
+    assert(ok3(near) && ok3(far), `3D handles stay about 12 px: camera 12 m [${near.map((v) => v.toFixed(1)).join(', ')}], 60 m [${far.map((v) => v.toFixed(1)).join(', ')}]`);
+    await E(() => window.__editor.setLayout('plan'));
+    await frames(page, 4);
+    const pxPlan = () => E(() => [...document.querySelectorAll('#planSvg rect[data-handle]')].map((r) => r.getBoundingClientRect().width));
+    const p1 = await pxPlan();
+    await E(() => { const svg = document.querySelector('#planSvg svg'); const b = svg.getBoundingClientRect(); for (let i = 0; i < 4; i++) document.getElementById('planSvg').dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true, cancelable: true })); });
+    await frames(page, 3);
+    const p2 = await pxPlan();
+    const vb = await E(() => document.querySelector('#planSvg svg').getAttribute('viewBox'));
+    const okP = (a) => a.length >= 4 && a.every((v) => Math.abs(v - 12) < 1.5);
+    assert(okP(p1) && okP(p2), `plan handles stay 12 px at two zooms: [${p1.map((v) => v.toFixed(1)).join(', ')}] then [${p2.map((v) => v.toFixed(1)).join(', ')}] (view box ${vb})`);
+    await E(() => window.__editor.setLayout('3d'));
+    await frames(page, 3);
+
+    // Y while holding: Resize; the left stick widens the room, the corner opposite the dot stays put; one undo step
+    const r0 = (await E((id) => window.__editor.model.get('rooms', id).rect, room.id)).slice();
+    await dotAt(r0[2] - 0.6, r0[3] - 0.6);
+    const h0 = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await page.waitForFunction(() => window.__editor.drag?.source === 'pad', null, { timeout: 5000 }).catch(() => {});
+    await press(BTN.Y);
+    await page.waitForFunction(() => window.__editor.drag?.mode === 'resize', null, { timeout: 5000 }).catch(() => {});
+    const tag = await E(() => ({ mode: window.__editor.drag?.mode, handle: window.__editor.drag?.handle, tag: document.getElementById('heldTag').textContent, hint: document.getElementById('hint').textContent }));
+    await axes(0.8, 0);
+    await page.waitForFunction(([id, x1]) => window.__editor.model.get('rooms', id).rect[2] >= x1 + 1, [room.id, r0[2]], { timeout: 20000 }).catch(() => {});
+    await axes(0, 0);
+    await frames(page, 3);
+    await press(BTN.A);
+    await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const r1 = await E((id) => window.__editor.model.get('rooms', id).rect, room.id);
+    const h1 = await E(() => window.__editor.model.history.length);
+    assert(tag.mode === 'resize' && tag.handle === 'NE' && /^Resize/.test(tag.tag) && /Y Move \/ Resize/.test(tag.hint) && r1[2] >= r0[2] + 1 && r1[0] === r0[0] && r1[1] === r0[1] && h1 === h0 + 1, `Y switches to Resize (${tag.handle}, tag "${tag.tag}"); the stick widens the room to ${JSON.stringify(r1)} from ${JSON.stringify(r0)}, the south-west corner fixed; ${h1 - h0} undo step`);
+
+    // RT while holding an object raises it (0.1 m steps), A drops it: one undo step; the triggers zoom again after
+    await E(([x, z]) => {
+      const ed = window.__editor;
+      const o = { id: 'OBJ-E2E-LIFT', level: 'G', name: 'Crate', rect: [x + 1, z + 1, x + 2.2, z + 2.2], h: 1.2, y: 0, preset: 'crate-1.2' };
+      ed.model.commit('e2e crate', [{ coll: 'objects', id: o.id, before: null, after: o }]);
+      ed.select('objects:OBJ-E2E-LIFT');
+    }, [sx, sz]);
+    await dotAt(sx + 1.6, sz + 1.6);
+    const oh0 = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await page.waitForFunction(() => window.__editor.drag?.source === 'pad', null, { timeout: 5000 }).catch(() => {});
+    const dist0 = await E(() => window.__editor.controls.orbit.s.dist);
+    await set(BTN.RT, 1);
+    await page.waitForFunction(() => (window.__editor.drag?.lift ?? 0) >= 0.5, null, { timeout: 20000 }).catch(() => {});
+    await set(BTN.RT, 0);
+    await frames(page, 3);
+    const lift = await E(() => ({ lift: window.__editor.drag?.lift, tag: document.getElementById('heldTag').textContent, dist: window.__editor.controls.orbit.s.dist }));
+    await press(BTN.A);
+    await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const o1 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+    const oh1 = await E(() => window.__editor.model.history.length);
+    assert(o1.y >= 0.5 && Math.abs(o1.y * 10 - Math.round(o1.y * 10)) < 1e-6 && oh1 === oh0 + 1 && Math.abs(lift.dist - dist0) < 0.01 && /base 0\.[5-9]|base 1/.test(lift.tag), `RT raises the held crate to ${o1.y} m (0.1 m steps; tag "${lift.tag}"); the camera did not zoom (${dist0.toFixed(2)} -> ${lift.dist.toFixed(2)}); A drops it in ${oh1 - oh0} undo step`);
+    // a room stays on its level; Page Up with the crate selected raises it a step (keyboard)
+    await page.keyboard.press('PageUp');
+    const o2 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT').y);
+    assert(Math.abs(o2 - o1.y - 0.1) < 1e-6, `Page Up raises the selected crate 0.1 m (${o1.y} -> ${o2})`);
+    await press(BTN.LB);
+    await E((id) => window.__editor.select(`rooms:${id}`), room.id);
+    await dotAt((r1[0] + r1[2]) / 2, (r1[1] + r1[3]) / 2);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await set(BTN.RT, 1); await frames(page, 6); await set(BTN.RT, 0); await frames(page, 2);
+    const said = await E(() => ({ status: document.getElementById('status').textContent, toast: document.getElementById('padToast').textContent, lift: window.__editor.drag?.lift ?? 0 }));
+    await press(BTN.B);
+    assert(/Stays on its level/.test(said.status) && /Stays on its level/.test(said.toast) && !said.lift, `RT on a held room: "${said.toast}" (no lift)`);
+    // put the test pieces back
+    await E((h) => { const ed = window.__editor; ed.select(null); while (ed.model.history.length > h) ed.undo(); }, hStart);
+    await frames(page, 3);
+  }
+
   console.log('rooms make walls, walls follow rooms, Split (ED3-3a)');
   await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setLevel('G'); });
   await press(BTN.LB);

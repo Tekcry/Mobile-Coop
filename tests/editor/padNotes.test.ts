@@ -25,7 +25,8 @@ describe('pad hint bar', () => {
       for (const i of items) expect(i.name.split(' ').length).toBeLessThanOrEqual(3);
     }
     expect(hintItems('idle', 'pad').map((i) => `${i.keys} ${i.name}`)).toEqual(['A Select', 'Y Menu', 'X Undo', 'LS click Walk', 'Menu Hub']);
-    expect(hintItems('drag', 'pad').map((i) => i.keys)).toEqual(['A', 'D-pad', 'RB', 'LB', 'B']);
+    // fix-up 2026-10-14: holding: drop, raise / lower, Move / Resize, turn, back
+    expect(hintItems('drag', 'pad').map((i) => `${i.keys} ${i.name}`)).toEqual(['A Drop', 'LT/RT Lower / raise', 'Y Move / Resize', 'RB Turn 90', 'B Back']);
   });
 
   it('keeps the full words for the keyboard', () => {

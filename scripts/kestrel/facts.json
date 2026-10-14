@@ -323,6 +323,7 @@
     "labelSpread": { "value": 0.75, "src": "P03 style: fraction of the room the label candidates cover" },
     "calloutGap": { "value": 4, "src": "P03 style (drawing only): px between a leader line and its text" },
     "calloutPad": { "value": 3, "src": "P03 style (drawing only): px between stacked callouts" },
-    "roomNameRange": { "value": 40, "src": "ON3 brief decision 2 (editor only): floating room names in 3D hide beyond this many metres" }
+    "roomNameRange": { "value": 40, "src": "ON3 brief decision 2 (editor only): floating room names in 3D hide beyond this many metres" },
+    "handlePx": { "value": 12, "src": "Michael 2026-10-14 editor fix-up (editor only): selection handles keep this many pixels on screen in 3D and on the plan" }
   }
 }
