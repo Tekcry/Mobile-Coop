@@ -16,21 +16,20 @@ import { glass, led, pit, slabWithHoles } from './bunkerUpper';
  * Ledges: every piece here is `noLedge`; the only lips are the manual ones in `PLANT_LIPS` (RC's casing top, G3's
  * front (WJ1), the pier top (WJ2), B4's co-op lips W1 / W2 / the outlet platform).
  *
- * Interim (T5e -> T5f): B4 v2's offset (66, 14) lies inside the v1 B5 that T5f replaces, so B4 stands at (93, 30) with
- * A4 at its v1 place (97, 24) on the v1 B5's entry landing, and a 2 m passage (y 6) joins A3's far door to B4's C1
- * door (`INTERIM_PASSAGE`). T5f moves B4 and A4 to their v2 offsets and removes the passage.
+ * T5f moved B4 / A4 to their v2 offsets (the T5e interim passage, A71, is gone): A3's far door opens on C1's door, OP's
+ * door on A4, and A4's far door on B5's entry landing (y 10.4). A4 carries a wall medkit (BAYS 0.4).
  */
 
 export const PLANT_Y = 6;
 
 export type PlantBay = 'B3' | 'A3' | 'B4' | 'A4';
 
-/** BAYS 0.1 offsets (x, z) and floor y (B4 / A4 interim until T5f, see above). */
+/** BAYS 0.1 offsets (x, z) and floor y. */
 export const PLANT_OFFSET: Record<PlantBay, readonly [number, number, number]> = {
   B3: [65, 46, PLANT_Y],
   A3: [69, 40, PLANT_Y],
-  B4: [93, 30, PLANT_Y],
-  A4: [97, 24, PLANT_Y + 4.4],
+  B4: [66, 14, PLANT_Y],
+  A4: [70, 8, PLANT_Y + 4.4],
 };
 
 /** World point from a bay's local (x, z, y above the bay's floor). */
@@ -146,16 +145,8 @@ export const PLANT_LIPS: readonly PlantLip[] = [
 /** BAYS v2 room tables in plan (local rect per room; R4 footprints, debug points). */
 export const SHAFT_BOX: Record<'B3' | 'B4', readonly [number, number, number, number]> = {
   B3: [65, 46, 79, 60],
-  B4: [93, 30, 105, 56],
+  B4: [66, 14, 78, 40],
 };
-
-/** Interim (T5e -> T5f): A3's far door to B4's C1 door, world rects at y 6 (see the file comment). */
-export const INTERIM_PASSAGE: readonly (readonly [number, number, number, number])[] = [
-  [71, 35, 73, 40],
-  [71, 35, 91, 37],
-  [89, 35, 91, 58.225],
-  [89, 56.225, 100.5, 58.225],
-];
 
 /** BAYS v2 objective tables (R5, A47): the names T7a turns into drills (`DrillDef.name`), in teaching order. */
 const B3_OBJ = [
@@ -448,9 +439,9 @@ function buildB3(b: LevelBuilder, r: ShaftResult): void {
 
 // ---------------------------------------------------------------------------------------------------- airlocks
 
-/** A3 / A4: 6 x 6 x 3.0 between two bays north and south; the north / south walls are the bays' (A3's south wall is the
- *  interim passage's, A4's south wall B5's: A4 builds its stretch at the outlet height); W / E walls, bench, the pad
- *  border, roof, the two locked blast doors (automatic, R6: no panel). */
+/** A3 / A4: 6 x 6 x 3.0 between two bays north and south; each builds its stretch of the far bay's wall (A3's in B4's
+ *  north wall, A4's in B5's north wall at the outlet height); W / E walls, bench, the pad border, roof, the two locked
+ *  blast doors (automatic, R6: no panel); A4's wall medkit (BAYS 0.4, `BUNKER_DEVICES` A4-MED). */
 function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   const f = frame(bay);
   const { X, Z, Y } = f;
@@ -458,11 +449,12 @@ function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   b.floor(X(3), Z(3), 6 + 2 * OUTER, 6, C.floor, Y(0));
   wallZAt(b, X(-OUTER / 2), Z(0), Z(6), [], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
   wallZAt(b, X(6 + OUTER / 2), Z(0), Z(6), [], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
-  // the far wall (z 0): A4's stretch of B5's north wall (z 24; B5 fills below and above it), A3's the passage's
+  // the far wall (z 0): A4's stretch of B5's north wall (B5 fills below and above it), A3's stretch of B4's north wall
   wallXAt(b, Z(0), X(-OUTER), X(6 + OUTER), [[X(2.4), X(3.6)]], Y(0), PLANT_AIRLOCK_CLEAR, C.wall, OUTER);
   b.box(X(3), Y((DOOR_H + PLANT_AIRLOCK_CLEAR) / 2), Z(0), DOOR_W, PLANT_AIRLOCK_CLEAR - DOOR_H, OUTER, C.wall);
   b.block(X(5.6), Z(3), 0.45, 0.45, 3, C.wood, Y(0));
   b.box(X(3.6) + 0.9, Y(1.5), Z(0) + 0.24, 0.6, 0.6, 0.04, C.steel, 0, 0, false);
+  if (bay === 'A4') b.box(X(0.25), Y(1.2), Z(4.5), 0.06, 0.4, 0.5, '#a33a30', 0, 0, false);
   strip(1, 1, 5, 1, 0.015);
   strip(1, 5, 5, 5, 0.015);
   strip(1, 1, 1, 5, 0.015);
@@ -471,27 +463,7 @@ function buildAirlock(b: LevelBuilder, bay: 'A3' | 'A4', r: ShaftResult): void {
   // doors 1.2 x 2.1 at local x 2.4..3.6: near (north, the bay left) and far (south), both swinging into the chamber
   r.doors[`${bay}-near`] = b.door(X(2.4), Y(0), Z(6), DOOR_W, Math.PI / 2, { locked: true, swing: 1 }).id;
   r.doors[`${bay}-far`] = b.door(X(2.4), Y(0), Z(0), DOOR_W, Math.PI / 2, { locked: true, swing: -1 }).id;
-  r.debug.push({ id: bay, label: `${bay} airlock`, pos: plantAt(bay, 3, 3), yaw: Math.PI });
-}
-
-/** Interim (T5e -> T5f): the passage from A3's far door to B4's C1 door (2 m wide, 3.0 high, y 6). */
-function buildInterimPassage(b: LevelBuilder, r: ShaftResult): void {
-  const y = PLANT_Y;
-  const h = PLANT_AIRLOCK_CLEAR;
-  const t = 0.3;
-  for (const [x0, z0, x1, z1] of INTERIM_PASSAGE) b.floor((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, C.floor, y);
-  wallZAt(b, 71 - t / 2, 35, 40, [], y, h, C.wall, t);
-  wallZAt(b, 73 + t / 2, 37 + t, 40, [], y, h, C.wall, t);
-  wallXAt(b, 35 - t / 2, 71 - t, 91 + t, [], y, h, C.wall, t);
-  wallXAt(b, 37 + t / 2, 73, 89, [], y, h, C.wall, t);
-  wallZAt(b, 91 + t / 2, 35, 56.225 - t, [], y, h, C.wall, t);
-  wallZAt(b, 89 - t / 2, 37, 58.225 + t, [], y, h, C.wall, t);
-  wallXAt(b, 58.225 + t / 2, 89 - t, 100.5 + t, [], y, h, C.wall, t);
-  wallXAt(b, 56.225 - t / 2, 91, 92.55, [], y, h, C.wall, t);
-  wallZAt(b, 100.5 + t / 2, 56.225, 58.225, [], y, h, C.wall, t);
-  for (const [x0, z0, x1, z1] of INTERIM_PASSAGE) roof(b, x0 - t, z0 - t, x1 + t, z1 + t, y + h);
-  b.light({ x: 90, y: y + 2.8, z: 46, radius: 20, intensity: 0.7 });
-  r.debug.push({ id: 'B4-X', label: 'Interim passage A3 -> B4 (until T5f)', pos: { x: 90, y, z: 46 }, yaw: 0 });
+  r.debug.push({ id: bay, label: `${bay} airlock${bay === 'A4' ? ' (medkit)' : ''}`, pos: plantAt(bay, 3, 3), yaw: Math.PI });
 }
 
 // ---------------------------------------------------------------------------------------------------- B4 The Cistern
@@ -505,11 +477,13 @@ function buildB4(b: LevelBuilder, r: ShaftResult): void {
   const { solid, gl, strip } = kit(b, f);
   const H = M4.clear;
   slabWithHoles(b, X(-OUTER), Z(-0.225), X(12 + OUTER), Z(26.225), Y(0), [B4_SUMP], C.floor);
-  // outer walls: west / east outside the bay box; north (C1 door x 5.4..6.6) and south (A4: the door at OP's height)
+  // outer walls: west / east outside the bay box; north (A3's stretch, the C1 door x 5.4..6.6) and south (A4: the door
+  // at OP's height)
   wallZAt(b, X(-OUTER / 2), Z(-0.225), Z(26.225), [], Y(0), H, C.wall, OUTER);
   wallZAt(b, X(12 + OUTER / 2), Z(-0.225), Z(26.225), [], Y(0), H, C.wall, OUTER);
-  wallXAt(b, Z(26), X(-OUTER), X(12 + OUTER), [[X(5.4), X(6.6)]], Y(0), H, C.wall, OUTER);
-  b.box(X(6), Y((DOOR_H + H) / 2), Z(26), DOOR_W, H - DOOR_H, OUTER, C.wall);
+  // north wall: A3 builds its 6.9 m stretch (x 2.55..9.45, to 3.0, the C1 door); B4 fills above it
+  wallXAt(b, Z(26), X(-OUTER), X(12 + OUTER), [[X(2.55), X(9.45)]], Y(0), H, C.wall, OUTER);
+  b.box(X(6), Y((PLANT_AIRLOCK_CLEAR + H) / 2), Z(26), 6.9, H - PLANT_AIRLOCK_CLEAR, OUTER, C.wall);
   wallXAt(b, Z(0), X(-OUTER), X(12 + OUTER), [[X(6.4), X(7.6)]], Y(0), H, C.wall, OUTER);
   b.box(X(7), Y(M4.outlet / 2), Z(0), DOOR_W, M4.outlet, OUTER, C.wall);
   b.box(X(7), Y((M4.outlet + DOOR_H + H) / 2), Z(0), DOOR_W, H - M4.outlet - DOOR_H, OUTER, C.wall);
@@ -595,7 +569,6 @@ export function buildShaft(b: LevelBuilder): ShaftResult {
   const from = b.boxes.length;
   buildB3(b, r);
   buildAirlock(b, 'A3', r);
-  buildInterimPassage(b, r);
   buildB4(b, r);
   buildAirlock(b, 'A4', r);
   for (let k = from; k < b.boxes.length; k++) b.boxes[k]!.noLedge = true;

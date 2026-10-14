@@ -1,6 +1,12 @@
 # Changelog
 
 ## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5f: B5 Standby Plant, A5, B6 Mock Site, S6 and A6 rebuilt to BAYS v2; B4 / A4 at their v2 offsets (66, 14) / (70, 8)
+  (the T5e passage is gone) and A4's wall medkit. B5: one 30 x 24 guarded hall: EL (screened but for its stair), gensets
+  (wall-jump roofs), trench, cable gallery, glazed switch room (MB, the mains gate on A5), fuel bay. B6: one line RC ->
+  AH -> plant ladder -> supply duct -> vent drop -> records -> corridor (2.0 clear), then the operator / runner split
+  (lockers, CR stair, mezzanine / L-leg, mantrap, server room) -> keypad -> S6 (rising north) -> A6. Relief doors (A62)
+  placed as visual leaves with course data. v1 Deep moved by (+17.5, -29) until T5g (A74). New R1 / R2 nav tests.
 - T5e: B3 The Intake and B4 The Cistern rebuilt to BAYS v2. B3 sits against A2 (no more passage): one line up the shaft
   (riser slot, two wall jumps, the damper bar) and down again (two rope stages, the control-room window, the zipline,
   the fan guard, twin ducts). B4: three cells, W1 boost and bolt door, W2 human ladder and sluice, outlet platform; it

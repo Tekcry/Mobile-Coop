@@ -34,7 +34,7 @@ the nav sampler's y -2 (SPEC engine Q1). Nothing is built under another bay in p
 | A4 | Airlock 4 (medkit) | 70, 8 | 10.4 (A32) | 6 x 6 | 3.0 | - |
 | B5 | Standby Plant (light and sound) | 48, -16 | 6 | 30 x 24 | 9 | 720 / 1536 (47%) |
 | A5 | Airlock 5 | 42, -7 | 6 | 6 x 6 | 3.0 | - |
-| B6 | Mock Site (corners and security) | 12, -17 | 6 | 30 x 24 | 4.6 (CR mezzanine 3.6) | 720 / 1344 (54%) |
+| B6 | Mock Site (corners and security) | 12, -17 | 6 | 30 x 24 | 4.6 (office / CR / stair volume 6.4; CR mezzanine 3.6) | 720 / 1344 (54%) |
 | S6 | Stair 6 (quiet connector) | 19, -33 | 6 to 0 | 3 x 16 | enclosed | - |
 | A6 | Airlock 6 (medkit) | 17.5, -39 | 0 | 6 x 6 | 3.0 | - |
 | B7 | The House (guards and takedowns) | 6, -69 | 0 | 30 x 30 | 10 | 900 / 1760 (51%) |
@@ -598,24 +598,24 @@ Unavoidable elements:
 Layout (local):
 | Element | Box / position | Real reason | Gameplay |
 | --- | --- | --- | --- |
-| Entry landing EL | x 22..28, z 21..24 at 4.4; glass balustrade; its own stair (24 risers) down south along x 26.4..28 to z 14; a full-height mesh screen on its west end (A36) | A4 door; plant-room access stair | vantage: dark, sees both guards within one cycle; joins nothing but its stair |
-| Switch room SR | x 24..30, z 6..12; glazed west wall (glass partition), rubber floor; door on the west wall z 8..9.2 | Breaker and circuit switches | mains breaker MB (hold 2 s), switches L1-L3 |
+| Entry landing EL | x 22..30, z 21..24 at 4.4; a 2.4 glass screen (`noLedge`) on its south edge but for the stair head (R2: no drop past the stair); its own stair (24 risers) down south along x 26.4..28 to z 14.3; a full-height mesh screen on its west end (A36) | A4 door; plant-room access stair | vantage: dark, sees both guards within one cycle; joins nothing but its stair |
+| Switch room SR | x 24..30, z 6..12; glazed west wall (glass partition), rubber floor; door on the west wall z 6.6..7.8 (onto the aisle) | Breaker and circuit switches | mains breaker MB (hold 2 s), switches L1-L3 |
 | Gensets GEN-1, 2, 3 | x 5..9, 12..16, 19..23; z 9..11.5; 3.0 high | Standby sets | full cover; roofs are planned lips (wall jump) |
-| Cable trench grating | z 14..15.2, x 1..29 | Trench covers | loud fast route |
-| Cable trench (secret) | under the grating, 1.5 deep x 1.2 wide, lift-out panels at x 27 and x 2 | The trench itself | crouch duct (16.7.3) |
-| Cable gallery CG | y 3.5, x 1..16, z 22.5..24; ladder at its east end x 15.3; its west end a hang-only lip (`GAL-W`, A38) | Cable trays | high route, hang-drop at x 1 |
+| Cable trench grating | z 12.8..14, x 1.4..25.6 (clear of the stair foot) | Trench covers | loud fast route |
+| Cable trench (secret) | under the grating, 1.5 deep x 1.2 wide, lift-out panels at x 25 and x 2 (a plant ladder in each) | The trench itself | crouch duct (16.7.3) |
+| Cable gallery CG | y 3.5, x 2..16, z 22.5..24; ladder at its east end x 15.3; its west end a hang-only lip (`GAL-W`, A38) | Cable trays | high route, hang-drop at x 2 |
 | Main aisle | z 4..7 | Plant aisle | lit crossing |
-| Fuel bay FB | x 24..30, z 0..5; day tank 4 x 2 x 2.4 | Fuel | cover; PIR flood |
+| Fuel bay FB | x 24..30, z 0..6, door in its west wall z 1.4..2.6; day tank 4 x 2 x 2.4 | Fuel | cover; PIR flood |
 | Monitoring desk | x 1..4, z 1..3.5, facing east | The duty desk | B5-G2's post |
 | A5 door | west wall, z 11.4..12.6 | Plant-room fire door on a mag lock | the gate |
 
-Routes to A5 (E4; all start at the stair foot (27, 14) and rejoin at the A5 door):
+Routes to A5 (E4; all start at the stair foot (27.2, 14) and rejoin at the A5 door):
 - Shadow: west along the dark strip north of the grating (z 15.2..22, under the gallery), down the west wall (dark) to A5.
   Loop: round GEN-1 (two dark gaps).
-- High: the gallery ladder (x 15.3), west along CG, hang-drop at x 1 (soft); or wall jump onto the genset roofs and
+- High: the gallery ladder (x 15.3), west along CG, hang-drop at x 2 (soft); or wall jump onto the genset roofs and
   cross them (3 m gaps: drop and wall jump).
 - Loud: the grating or the main aisle at speed.
-- Secret: the cable trench from the x 27 panel to the x 2 panel.
+- Secret: the cable trench from the x 25 panel to the x 2 panel.
 
 Objectives (R5; order free inside the hall, the breaker last):
 | # | Objective | Who | Where | Verb / tick |
@@ -649,6 +649,7 @@ Guard sheets:
 | Covered by / covers | Covers G2 from (13, 7) facing W | Covers the aisle and A5 |
 | Lures | Shot HB5 / HB6 (L3): investigates between the sets; a noisemaker on GEN-1 | MB pulled (final: walks to SR); a lamp shot near the desk |
 | Search | Behind the gensets; hide spots: trench panels, the fuel bay, the dark under the gallery | The desk area; hide: the west recess under the gallery hang-drop |
+| Relief door (A62) | `B5-relief`: the hall's south wall x 12.4..13.6 (both guards) | `B5-relief` |
 | Flashlight | Yes (`torchWanted`: investigating where the level is below 0.35) | Yes when sent into the dark |
 
 Light plan:
@@ -691,7 +692,7 @@ R1-R8 check:
 | R4 | 30 x 24 (47%): a guarded hall holding two routes and a loop. |
 | R5 | 9 explicit objectives. |
 | R6 | A5 (0.4). |
-| R7 | SR's glass front, EL's glass balustrade, LED nosings; the plant hall bare concrete and dark between lamps. |
+| R7 | SR's glass front, EL's 2.4 glass screen, LED nosings; the plant hall bare concrete and dark between lamps. |
 | R8 | Guards, jobs, routes, gaps, lures and the breaker gate kept; distances rescaled (cycle 38 s). |
 
 Unavoidable elements:
@@ -716,16 +717,16 @@ Unavoidable elements:
 Rooms (local; the shared line runs RC -> AH -> duct -> RE -> CO, then the split, rejoining in SV):
 | Room | Box | Contents | Exit(s) |
 | --- | --- | --- | --- |
-| Reception RC | x 24..30, z 8..18 | Counter 1.1 (low cover); CAM1; A5 door on the east wall (z 12.4..13.6); the inner (visitors') door to CO locked (out of hours: nobody's card) | Door to AH in the south wall (x 26..27.2) |
+| Reception RC | x 24..30, z 8..24 | Counter 1.1 (low cover); CAM1; A5 door on the east wall (z 12.4..13.6); the inner (visitors') door to CO locked (out of hours: nobody's card) | Door to AH in the south wall (x 26..27.2) |
 | Air-handling room AH | x 24..30, z 0..8 | The office's air-handling unit (fed from B5's plant); a caged plant ladder (16.2.1; no boost to the duct mouth, A51) up to the supply duct's mouth at 3.4 | The duct |
 | Supply duct | x 18..24, z 5.4..6.6 in the ceiling void (1.2 x 1.0, engine duct anchors, SPEC E6), 6 m west from AH | The office air supply | Ceiling grille over the records desk (x 18..19.2): vent drop into RE |
-| Records RE | x 12..24, z 2..12 | Records PC (`hack`: `intel:exitCode`, `unlock:RD3` 20 s (TUNE)); CRAC unit (fault: "Trip cooling"); exit (REX) button inside the door (A37) | Door to CO, north wall x 17..18.2 (reader RD1 outside) |
-| Corridor CO | x 2..24, z 12..14 (2.0 wide), then the L-leg x 2..4, z 4..12 | Doors: LK (x 6..7.2, north), OF (x 13..14.2 and x 20..21.2, north), RE (south), the locked RC inner door (east end); beam pair B6-BH (1.4) and B6-BL (0.35) at z 9 and 7.8 in the L-leg; PIR1 at the L-turn | The L-leg's south end: RD3 into MT |
+| Records RE | x 12..24, z 0..12 | Records PC (`hack`: `intel:exitCode`, `unlock:RD3` 20 s (TUNE)); CRAC unit (fault: "Trip cooling"); exit (REX) button inside the door (A37) | Door to CO, north wall x 17..18.2 (reader RD1 outside) |
+| Corridor CO | x 2..24, z 12..14 (2.0 clear: wider than a split gap), then the L-leg x 2..4, z 4..12 (2.0 clear); x 0..2 solid (a cable riser) | Doors: LK (x 6..7.2, north), OF (x 13..14.2 and x 20..21.2, north), RE (south), the locked RC inner door (east end); beam pair B6-BH (1.4) and B6-BL (0.35) at z 9 and 7.8 in the L-leg; PIR1 at the L-turn | The L-leg's south end: RD3 into MT |
 | Locker room LK | x 2..10, z 14..24 | Lockers (hide spots); locker 7 (`wafer`) holds card A (level 2) | CO only |
-| Open office OF | x 10..24, z 14..24 (6.4 clear) | Desk pods with 1.5 glass partitions (low cover, see-through), the manager's glazed office (x 10..14, z 19..24, `pin` lock), the whiteboard with the exit code (seen on CAM4) | CO; the stair |
-| Control room CR | mezzanine x 14..24, z 19..24 at 3.6; glazed south front | Security desk SD (feeds CAM1-4), alarm panel PN (loop / cameras off / beams off), the desk console (feeds view). Enclosed stair x 10..12, z 15..19 behind reader RD2 (level 2), up to an enclosed landing x 10..14, z 19..21 at 3.6 over the manager's office (its ceiling 3.4 there), with the door into CR at x 14 | The stair |
+| Open office OF | x 10..24, z 14..24 (6.4 clear) | Desk pods with 1.5 glass partitions (low cover, see-through), the manager's glazed office (x 10..14, z 20..24, `pin` lock), the whiteboard with the exit code (seen on CAM4) | CO only (the CR stair is reached from CO through RD2, not from OF) |
+| Control room CR | mezzanine x 14..24, z 19..24 at 3.6; glazed south front | Security desk SD (feeds CAM1-4), alarm panel PN (loop / cameras off / beams off), the desk console (feeds view). Enclosed stair x 10..12 (2.0 clear), z 14.3..20 behind reader RD2 (level 2, CO's north wall x 10.4..11.6), up to an enclosed landing x 10..14, z 20..24 at 3.6 over the manager's office (x 10..14, z 20..24, ceiling 3.3), with the door into CR at x 14 (z 21..22.2) | The stair |
 | Mantrap MT | x 2..6, z 0..4 | Outer door RD3 (level 3) at the L-leg's south end; inner door RD4 (level 4) + iris IR1 (enrolled: B6-GM) on its east wall | SV |
-| Server room SV | x 6..12, z 0..10 | Rack rows (full cover), blue rack LEDs; the egress button by RD4; exit door to S6 in the south wall (x 8..9.2): keypad, code = `exitCode` | S6 |
+| Server room SV | x 4..12, z 4..12 and x 6..12, z 0..4 | Rack rows (full cover), blue rack LEDs; the egress button by RD4; exit door to S6 in the south wall (x 8..9.2): keypad, code = `exitCode` | S6 |
 
 Devices (S0 kinds; counts within SN60-SN65):
 | Id | Kind | At (local x, z, y) | Facing / sweep | Reason |
@@ -735,10 +736,10 @@ Devices (S0 kinds; counts within SN60-SN65):
 | CAM3 | camera fixed | 3, 11.6, 2.8 | 180 (S down the L-leg at RD3) | Covers the mantrap approach |
 | CAM4 | camera sweep | 19, 18.8, 3.4 | 135..225 | Office floor (shows the whiteboard) |
 | SD | desk | 19, 23, y 3.6 | 180 | Operator post; feeds CAM1-4 |
-| PN | panel | 23.5, 23.5, y 4.9 | 270 | Controls CAM1-4, B6-BH, B6-BL |
+| PN | panel | 23.7, 23.3, y 4.9 | 270 | Controls CAM1-4, B6-BH, B6-BL |
 | FLT | fault (CRAC) | 22, 3, 1.2 | 0 | Responder: B6-GM |
 | RD1..4 | readers | RE door, CR stair, MT outer, MT inner | - | Levels 1, 2, 3, 4; building A |
-| IR1 | iris | 5.8, 2.8, 1.6 | - | Enrolled B6-GM |
+| IR1 | iris | 5.8, 3.2, 1.6 (RD4 at 5.75, 0.8) | - | Enrolled B6-GM |
 | B6-BH, B6-BL | beams | a (2.2, 1.4, 9) b (3.8, 1.4, 9); a (2.2, 0.35, 7.8) b (3.8, 0.35, 7.8) | - | The L-leg trap before the mantrap |
 | PIR1 | PIR | 3, 12.8, 3.2 | lamp L6-P | The L-turn |
 Cards: A (level 2, locker 7), B (level 3, held by B6-GR), M (level 4, held by B6-GM). Now forms as A37 (card pickups
@@ -791,6 +792,7 @@ Guard sheets:
 | Covered by / covers | Covers the office (eyes) and the corridor (CAM1, CAM2 feeds) | Covered by CAM2 most of his loop | Covers CO west and the L-turn; covered by CAM3 |
 | Lures | CRAC trip (he dispatches B6-GM; he stays); a noise in CR's stair | A shot lamp in the office; a noisemaker in LK | CRAC trip (responder); the panel's "beams off" when manned (dispatch) |
 | Search | CR and the stair | Office pods; hide: LK lockers | Records; hide: the server room rack ends |
+| Relief door (A62) | `B6-relief-cr`: CR's north wall x 18.4..19.6 at 3.6 | `B6-relief-of`: the office's north wall x 21.4..22.6 (under CR) | `B6-relief-co`: CO's west end (x 2, z 12.4..13.6) |
 
 Light plan:
 | Id | Fitting | Circuit | Switch | Notes |
@@ -827,7 +829,7 @@ Sketch:
 R1-R8 check:
 | Rule | How B6 meets it |
 | --- | --- |
-| R1 | Shared: RC -> AH -> duct -> RE -> CO (RC's inner door locked). Operator: CO -> LK -> CO -> OF -> stair -> CR -> back. Runner: CO -> L-leg -> MT -> SV. Rejoin in SV. No door skips a room: RE opens only from inside (REX), MT only through its readers, SV only through MT. |
+| R1 | Shared: RC -> AH -> duct -> RE -> CO (RC's inner door locked). Operator: CO -> LK -> CO -> OF -> CO -> RD2 -> stair -> CR -> back. Runner: CO -> L-leg -> MT -> SV. Rejoin in SV. No door skips a room: RE opens only from inside (REX), MT only through its readers, SV only through MT. |
 | R2 | The duct is AH's only exit; the mantrap and keypad gate the exit; the beams span the 2.0 m L-leg (S3: crouch under the high beam, step over the low one, or the panel). |
 | R3 | One split (operator / runner), listed with its reason; corners, duct and vent drop for both. |
 | R4 | Rooms 4-14 m; 54% of v1. |
@@ -850,7 +852,8 @@ Unavoidable elements:
 
 ## S6 and A6 - quiet connector
 An enclosed concrete stair (the bunker's original main stair between the plant and deep levels): 33 risers of 0.182,
-going 0.28, one half landing 1.8 m; 3.0 wide with handrails both sides (16.2.4); x 19..22, z -33..-17 (world); no
+going 0.28, one half landing 3.0 m (stairs.ts: as deep as the stair is wide), top landing z -19.76..-17 with S6's top
+door (bolted from the B6 side) across it at z -18.3; 3.0 wide with handrails both sides (16.2.4); x 19..22, z -33..-17 (world); no
 guard; one bulkhead (4000 K) and an LED handrail strip (accent). At the foot, A6 (medkit). A6's vision panel shows the
 kill house's lit windows across the dark cavern (the glimpse). R1: the stair is the only link from SV to A6; R6: A6 is
 B6's exit airlock (objective 24).

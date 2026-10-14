@@ -15,6 +15,8 @@ Model: implementer opus, checker opus. Deps: the step before (T5c first). No gua
    one shared course where R3 says, the automatic airlock pad (T5b), glass partitions and observation windows as
    see-through collision (no way round an element through or over glass), dark shell with LED strip fixtures as
    visual-only pieces (T6 lights them).
+1a. Undo the T5f interim (A74): drop DEEP_OFFSET's (+17.5, -29) shift for the v2 offsets, shrink BUNKER_BOUNDS to the
+   v2 course and restore a fixed bunker area limit in tests/voxelFit.test.ts (166 x 162 or tighter).
 2. Course data stubs for these bays: objectives in teaching order (explicit names, R5), gates only where a split is
    listed, airlocks automatic. Update debugPoints (one per room and vantage).
 3. Tests in tests/bunkerMap.test.ts: the R1 nav test (the only path from entry to exit passes every element's trigger

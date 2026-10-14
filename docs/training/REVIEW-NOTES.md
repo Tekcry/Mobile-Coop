@@ -113,3 +113,12 @@
   E2E_JOBS=2 failed once on "the partner teleported across the host's spot is never solid" and once on the client-join
   timeout; both passed serially.
 - T5e final check: ML's waiting spot (x 6.1..8.1, z 0..2) overlaps the open hatch hole (x 6..6.8, z 1.5..2.9) until T7a fits the walkable lid; a waiting player can drop 9.1 m into RF and climb back (nuisance, not a skip). A4's wall medkit was missing (added in T5f).
+- T5f (B5, A5, B6, S6, A6 rebuilt to v2; B4 / A4 moved to v2, A71 interim removed; cloud). Left for T6 / T7a / T7b
+  (PLANT2_ELEMENTS, `final: false`): B5 L1-L4 circuits, HB1-6 / CG1-3 lamps, EM / PIR fittings and the A61 re-lamp (one
+  mains work lamp now, non-breakable); the CG switch is not built (MB only); B6 cameras, beams, PIR, iris, panel and
+  fault are mount points (`BUNKER_DEVICES`); guards, cards and relief (`RELIEF_DOORS`, A62: visual leaves with spawn
+  points, no anchor) are T7b; S6's relock gate is T7a. Interim (A74): v1 Deep moved by (+17.5, -29) so v1 B7's A6 door
+  meets v2 A6; BUNKER_BOUNDS grew to x -1..181, z -86..103 (nav grid about +30%, trend only) and voxelFit's bunker area
+  bound now derives from BUNKER_BOUNDS; T5g restores v2 Deep. Numbers moved within windows (A75, BAYS updated). For
+  Michael: EL's south edge is a 2.4 screen, not the BAYS balustrade (R2: a vault off it skipped the stair).
+- T5f checks: e2e-bunker "timed out waiting for client in the Fallow course" under e2e:quick (E2E_JOBS=2) again; passed serially (load flake, recurring). Vitest 5 s timeouts (lightField allocation, voxelFit Warehouse) once while e2e ran alongside; passed on rerun.

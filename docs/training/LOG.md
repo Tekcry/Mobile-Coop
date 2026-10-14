@@ -319,3 +319,18 @@ unlock). e2e-course: spawn bounds moved.
 Final T5e checks: code and tests PASS (rope catchers test; RP2 / screens moved after a pit push-out skip); BAYS B3 / B4
 text synced to the build over three docs rounds. Last finding (A4 wall medkit missing from buildAirlock) moved to T5f
 task 1a; ML's waiting spot overlaps the open hatch until T7a's lid (nuisance, not a skip: REVIEW-NOTES).
+
+## T5f rebuild Plant to BAYS v2 (2026-10-14, cloud)
+B5, A5, B6, S6, A6 rebuilt in `bunkerPlant.ts` (v1 replaced); B4 / A4 at (66, 14) / (70, 8), the T5e interim passage,
+B4-X and its test rects removed (A71 closed); A4 wall medkit (A4-MED). B5: EL (4.4) -> stair -> hall -> A5 (mains gate);
+B6: RC -> AH ladder -> duct -> vent drop -> RE (REX) -> CO -> split -> MT -> SV -> keypad -> S6 -> A6. Course data:
+objectives B5 9 / B6 24 by name (PLANT2_OBJECTIVES), element flags (PLANT2_ELEMENTS), gates kept (S6-top bolt side now
+north), A4 / A5 / A6 boxes at v2. Relief doors (A62) as `RELIEF_DOORS` (visual leaves, no anchor). Interim A74: v1 Deep
+moved by (+17.5, -29). Numbers moved within windows: A75 (BAYS rows synced). Tests: R1 / R2 graphs for B5 and B6, nav
+"cells apart" with doors shut, exact anchor sets, lips (13, all manual), no split gap, duct, S6 nav, relief doors.
+### Spec change requests (T5f)
+- None to routes, gates or guard jobs. EL's south edge 2.4 screen instead of a balustrade (R2), listed in REVIEW-NOTES.
+
+T5f checks: FAIL (voxelFit limit derived from bounds, stale BAYS rows, B6 built 6.4 clear vs 4.6), fixed (fixed
+temporary limit 186 x 168, B6 four roof slabs 4.6 / 6.4 with closed edges), then PASS bar one BAYS row (office z),
+fixed by the orchestrator. D50 (Michael): walk 3 at Block C end and a movement re-check at TM.

@@ -21,7 +21,7 @@ npm run dev
 - Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min` (dev only: one player can cycle airlocks and
   work both halves of a pair gate; drills still need their real moves).
 - F3 opens the debug overlay. Its "Teleport" button lists the Fallow points: B1-B9, A1-A8, L9, S6 and B3-G3, B3-RC,
-  B3-rope, B3-floor, B5-SR, B6-CR, B7-roof, B8-RT, B9-B2.
+  B3-rope, B3-floor, B5-SR, B5-CG, B5-GEN, B6-AH, B6-RE, B6-CO, B6-CR, B6-MT, B6-SV, B7-roof, B8-RT, B9-B2.
 
 ## What to check per bay (about 5 minutes each)
 | Bay | Look at |
@@ -29,10 +29,10 @@ npm run dev
 | B1 Muster (y 16, v2) | Five small rooms in a chain: lift lobby -> kit room -> briefing room (glass south wall onto the run) -> gear run (20 m, east to west, marks 1-6, stop line, turn mark) -> dark store -> A1 pad; no way to skip a room |
 | A1, B2 The Lanes (v2) | A1 pad (north door in, east door out). One lane, both players: plinth, rail, block wall; caged ladder up G1 (screened, no boost); pipe over the pit (fall: pit ladder back to G1); hang and hang-drop off G2's open 1.5 m; trench jump and roll; downpipe, beam ledge round the column, gap jump to the portal sill, climb onto the deck; three drops (pads soft / roll, pit heavy); window wall (one open, two glazed); stop and turn marks; A2. RL2's turnstile is a locked door until T7a; panes do not re-glaze yet; A2 opens onto an interim passage to the old B3 until T5e |
 | B3 Intake shaft (v2) | From A2 onto G1: split in the riser slot (B3-RC) and up onto the casing; wall jump G2 -> G3, corner kick to G4; damper bar to G5 (fall: NT1, ladder to G4); hoist rope, sideways and unhook on ML (B3-ML); davit rope, kick through CR's window; isolator; zipline to WP; fan guard; twin ducts; PP; A3. W5 / ML return gates locked and grilles plain until T7a |
-| B4 Cistern (v2) | Interim passage from A3 (until T5f). C1: boost onto W1, drop, draw the bolt; C2: human ladder up W2 at x 1..4, sluice held from VG; VG ladder into C3; boost onto OP, lower its ladder; A4. Phase 5 bay behind glass |
-| B5 Standby plant | Entry landing at 4.4 and its stair (A32 / A36), gensets, trench and panels, cable gallery (shortened, A36), switch room and its two doors, fuel bay |
-| B6 Mock site | Reception, corridor (L leg dead-ends, A36), open office, control-room mezzanine, records and the vent drop onto the desk, mantrap, server room, keypad nook |
-| S6 / A6 | The stair down; the airlock |
+| B4 Cistern (v2) | Straight off A3 (v2 offset, T5f). C1: boost onto W1, drop, draw the bolt; C2: human ladder up W2 at x 1..4, sluice held from VG; VG ladder into C3; boost onto OP, lower its ladder; A4. Phase 5 bay behind glass |
+| B5 Standby plant (v2) | EL at 4.4 screened but for its stair (no drop off it), gensets (wall-jump roofs), trench and its two end panels, cable gallery and the hang-drop at x 2, glazed switch room (MB) with its door onto the aisle, fuel bay, desk; A5 opens only with MB pulled. A4 has a wall medkit |
+| B6 Mock site (v2) | Reception (inner door locked) -> AH ladder -> duct -> vent drop onto the records desk -> exit button -> corridor; lockers, CR stair and mezzanine behind glass; L-leg beams, mantrap, server room, keypad by the exit door. Corridors feel 2.0 wide? |
+| S6 / A6 (v2) | The stair down south from the server room (top door bolted from B6), A6 with its medkit; B7 is still v1 (moved, T5g rebuilds) |
 | B7 The House | Cavern, two storeys, roof and parapet (0.9), annex roof wall jump, water main at 4.9 (drop takedown), windows, store door |
 | B8 The Range | Firing line, lanes (lanes 5 and 6 far stands at 45 m), shoot house, catwalk and tower cabin, catwalk stair and its door, sniper scaffold (z 18..22) |
 | B9 The Plot | Plot floor, map table, balconies B-1 (4.5) and B-2 (9.0), both stair towers, the bridge, rope from the bridge rail, zipline to the lift lobby, message-tube duct, north-west co-op lip, staff tunnel door (now on the east wall), lift L9 |

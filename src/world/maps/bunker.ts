@@ -3,14 +3,14 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_ELEMENTS, UPPER_OBJECTIVES, UPPER_Y } from './bunkerUpper';
 import { buildShaft, buildShaftFloors, plantAt, SHAFT_ELEMENTS, SHAFT_OBJECTIVES } from './bunkerShaft';
-import { B5_GROUPS, B5_METRICS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
-import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
+import { B5_GROUPS, B5_METRICS, B6_METRICS, buildPlant, buildPlantFloors, PLANT2_BOX, PLANT2_ELEMENTS, PLANT2_OBJECTIVES, plantAt2, S6_TOP_DOOR } from './bunkerPlant';
+import { B8_CS_DOOR, buildDeep, deepAt, deepNavSeeds } from './bunkerDeep';
 
-/** Course footprint (BAYS 0: about 162 x 158 m in plan, every bay and airlock inside it). */
-export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
+/** Course footprint (every bay and airlock inside it; T5f: v1 Deep moved by (+17.5, -29) until T5g, A74). */
+export const BUNKER_BOUNDS = { minX: -1, maxX: 181, minZ: -86, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2-T5, Upper rebuilt to BAYS v2 in T5d, the shaft and reservoir in T5e): B1 to B9 with A1 to A8
+ * The course data stub (T2-T5; BAYS v2: Upper in T5d, the shaft and reservoir in T5e, the plant in T5f): B1 to B9, A1 to A8
  * and the exit lift L9 ("Finish" in the car). B1, B2 and B3 have no split (one shared course, R3). B3: the fan guard
  * stays locked until either player throws the fan isolator in CR (a pickup flag; a gate on the line). B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
  * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it; B4 exits into A4.
@@ -21,8 +21,10 @@ export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as co
  */
 /** The bolted doors' press points (world plan: the door's centre in its wall). */
 const INSP_DOOR = plantAt('B4', 4.6, 17);
-/** S6's top door in B6's west wall (opened from the B6 side only). */
-const S6_TOP = plantAt2('B6', 0, 1.5);
+/** S6's top door across S6's top landing (opened from the B6 side, north, only). */
+const S6_TOP = S6_TOP_DOOR;
+/** An airlock's course box (world plan) from its south-west corner. */
+const box6 = (p: { x: number; z: number }): [number, number, number, number] => [p.x, p.z, p.x + 6, p.z + 6];
 
 /** A pickup switch setting several flags (a card of level n opens every reader up to n). */
 function card(id: string, switchId: string, levels: number): GateDef[] {
@@ -34,16 +36,16 @@ function card(id: string, switchId: string, levels: number): GateDef[] {
 function courseDef(): CourseDef {
   return {
     id: 'bunker',
-    objectives: [...UPPER_OBJECTIVES, ...SHAFT_OBJECTIVES],
+    objectives: [...UPPER_OBJECTIVES, ...SHAFT_OBJECTIVES, ...PLANT2_OBJECTIVES],
     airlocks: [
       { id: 'A1', box: [1, 54, 7, 60], floorY: UPPER_Y, nearDoor: 'A1-near', farDoor: 'A1-far' },
       { id: 'A2', box: [59, 50, 65, 56], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
       { id: 'A3', box: [69, 40, 75, 46], floorY: plantAt('A3', 0, 0).y, nearDoor: 'A3-near', farDoor: 'A3-far' },
-      { id: 'A4', box: [97, 24, 103, 30], floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
-      { id: 'A5', box: [64, 5, 70, 11], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
-      { id: 'A6', box: [0, -10, 6, -4], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
-      { id: 'A7', box: [44, -33, 50, -27], floorY: 0, nearDoor: 'A7-near', farDoor: 'A7-far' },
-      { id: 'A8', box: [112, -33, 118, -27], floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
+      { id: 'A4', box: box6(plantAt('A4', 0, 0)), floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
+      { id: 'A5', box: [...PLANT2_BOX.A5], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
+      { id: 'A6', box: [...PLANT2_BOX.A6], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
+      { id: 'A7', box: box6(deepAt('A7', 0, 0)), floorY: 0, nearDoor: 'A7-near', farDoor: 'A7-far' },
+      { id: 'A8', box: box6(deepAt('A8', 0, 0)), floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
     ],
     bays: [
       // B1, B2 (BAYS v2, T5d): one shared course, no split, no gate (R3); objectives by name (UPPER_OBJECTIVES, T7a
@@ -87,7 +89,7 @@ function courseDef(): CourseDef {
         gates: [{ kind: 'mains', id: 'g-mains', group: 'B5-mains', doorId: 'A5-near' }],
         radio: [],
         drills: [],
-        elements: [],
+        elements: PLANT2_ELEMENTS.B5,
       },
       {
         // now forms (A37): cards are pickups setting reader levels, readers are flag gates; the exit keypad is three
@@ -112,11 +114,11 @@ function courseDef(): CourseDef {
           { kind: 'pickup', id: 'g-key-1', switchId: 'sw-key-1', flag: 'keypad-wrong', perPlayer: false },
           { kind: 'pickup', id: 'g-key-3', switchId: 'sw-key-3', flag: 'keypad-wrong', perPlayer: false },
           { kind: 'flag', id: 'g-exit', flag: 'exit-code', doorId: 'B6-exit' },
-          { kind: 'bolt', id: 'g-s6-top', doorId: 'S6-top', side: [1, 0], at: [S6_TOP.x, S6_TOP.z] },
+          { kind: 'bolt', id: 'g-s6-top', doorId: 'S6-top', side: [0, 1], at: [S6_TOP.x, S6_TOP.z] },
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: PLANT2_ELEMENTS.B6,
       },
       {
         // the store door is A7's near door: the store key (B7-O's desk drawer) AND the airlock (A37: gates AND together)
@@ -191,7 +193,7 @@ function pick(all: Record<string, number>): Record<string, number> {
 /**
  * Fallow (training bunker, docs/training): a 1950s civil-defence bunker under a hill, fitted out as a two-player
  * course. Reached by `?autostart=bunker&mode=course` (not listed). One builder per part: Upper (y 16, bunkerUpper),
- * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant); Deep (y 0: B7-B9, L9, bunkerDeep).
+ * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant, BAYS v2 since T5f); Deep (y 0: B7-B9, L9, bunkerDeep).
  */
 export const bunker: MapDef = {
   id: 'bunker',
@@ -257,12 +259,12 @@ function bunkerNavSeeds(): { x: number; y: number; z: number }[] {
   return [
     // B4: the three cells, the valve gallery, the outlet platform (the debug points seed B3's rooms)
     plantAt('B4', 6, 22), plantAt('B4', 6, 13), plantAt('B4', 10.5, 1.5), plantAt('B4', 10.5, 20, 4.4), plantAt('B4', 7, 1, 4.4),
-    // B5: the hall floor, the gallery, the switch room, the fuel bay, the pocket behind the landing stair
-    plantAt2('B5', 24, 12), plantAt2('B5', 12, 31, B5_METRICS.gallery), plantAt2('B5', 44, 28), plantAt2('B5', 42, 4), plantAt2('B5', 35, 27),
-    // B6: reception, corridor, open office, manager's office, locker room, records, mantrap, server room (T5: the
-    // office and records seeds moved off the partition and the records desk onto open floor)
-    plantAt2('B6', 39, 16), plantAt2('B6', 30, 16), plantAt2('B6', 28, 19), plantAt2('B6', 17, 29), plantAt2('B6', 8, 22),
-    plantAt2('B6', 25.5, 8), plantAt2('B6', 19, 7), plantAt2('B6', 10, 7),
+    // B5 (v2, T5f): the hall floor, the gallery, the switch room, the fuel bay, the strip east of the landing stair
+    plantAt2('B5', 12, 6), plantAt2('B5', 12, 23.1, B5_METRICS.gallery), plantAt2('B5', 27, 10), plantAt2('B5', 25, 1), plantAt2('B5', 29, 18),
+    // B6 (v2): reception, AH, the platform, records, corridor, locker room, office, the floor under CR, CR, mantrap, server room
+    plantAt2('B6', 27, 20), plantAt2('B6', 25.5, 2), plantAt2('B6', 24.9, 5.5, B6_METRICS.platform), plantAt2('B6', 20, 9),
+    plantAt2('B6', 20, 13), plantAt2('B6', 8, 16), plantAt2('B6', 22, 16), plantAt2('B6', 23.4, 20.2), plantAt2('B6', 16, 20, B6_METRICS.mezzanine),
+    plantAt2('B6', 3, 1), plantAt2('B6', 11, 1.5),
     // B7, B8, B9, L9 (bunkerDeep)
     ...deepNavSeeds(),
   ];

@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T5f (rebuild Plant; also moves B4 / A4 to v2 and removes the shaft interim passage, A71)
+Current step: T5g (rebuild Deep; restores the Deep offsets moved in T5f, A74)
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -28,14 +28,14 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | C | T5b2 partners block each other (D49) | done | (this commit) |
 | C | T5c BAYS v2 redesign (docs) | done; its 3 open B3 items closed in T5e | 8c10c3c |
 | C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | 49f417d |
-| C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | done (cloud; T5c open items closed; B4 at interim (93, 30) with a passage from A3 until T5f, A71; turnstiles, sprung window, hatch, grilles stubbed for T7a; A4 wall medkit missing, added in T5f) | (this commit) |
-| C | T5f rebuild Plant (B5, A5, B6, S6, A6) | not started | |
+| C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | done (cloud; T5c open items closed; B4 at interim (93, 30) with a passage from A3 until T5f, A71; turnstiles, sprung window, hatch, grilles stubbed for T7a; A4 wall medkit missing, added in T5f) | 2fe4faf |
+| C | T5f rebuild Plant (B5, A5, B6, S6, A6) | done (cloud; B4 / A4 at v2, interim removed, A4 medkit; v1 Deep moved (+17.5, -29) until T5g, A74; circuits, security devices, guards and relief stubbed for T6 / T7a / T7b) | (this commit) |
 | C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | not started | |
-| C | TM merge locomotion 09-20 (waits for loco 20, D15) | not started | |
+| C | TM merge locomotion 09-20 (waits for loco 20, D15), with the movement re-check (D50) | not started | |
 | C | T6 light, zones, surfaces | not started | |
 | C | T7a course data, drills, gates, devices | not started | |
 | C | T7b guards | not started | |
-| C | Block C end | not started | |
+| C | Block C end, then PAUSE for walk 3 (D50) | not started | |
 | D | T8a e2e bays B1-B5 | not started | |
 | D | T8b e2e bays B6-B9, full course, perf | not started | |
 | D | T8c bot as course partner | not started | |
@@ -50,11 +50,11 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A73 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A75 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
-   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2), T5d (Upper) and T5e (Shaft, Cistern) done; T5f-T5g rebuild the other bays, then the run stops for walk 2.
+   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2), T5d (Upper), T5e (Shaft, Cistern) and T5f (Plant) done; T5g rebuilds Deep, then the run stops for walk 2.
 2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
    on the PC. Send:
    ```
@@ -64,6 +64,5 @@ A1-A73 (DECISIONS.md; A6 revised per D21, A15 resolved)
 3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
 
 ## Next action
-On RESUME: read BRIEF, RULES, STATE; then T5f (docs/training/steps/T5f-*.md). It also moves B4 to (66, 14) and A4 to (70, 8)
-(BAYS 0.1) once the v1 B5 is gone, and removes bunkerShaft `INTERIM_PASSAGE` (its walls, debug point B4-X and the
-passage rects in the reachability test's room list).
+On RESUME: read BRIEF, RULES, STATE; then T5g (docs/training/steps/T5g-*.md). T5g builds Deep at the BAYS v2 offsets and
+removes the T5f interim shift of `DEEP_OFFSET` (A74); BUNKER_BOUNDS can shrink back then (voxelFit derives from it).

@@ -20,14 +20,15 @@ import { deck, glass, rail, roof, wallXDoors, wallZDoors } from './bunkerPlant';
 
 export type DeepBay = 'B7' | 'A7' | 'B8' | 'A8' | 'B9' | 'L9';
 
-/** BAYS 0 offsets (x, z); every Deep bay's floor is y 0. */
+/** The v1 offsets moved by (+17.5, -29) (T5f interim, A74: v1 B7's A6 door meets v2 A6 at (17.5, -39); the v2 B6 and S6
+ *  stand where v1 B7 was) until T5g rebuilds Deep at the BAYS v2 offsets; every Deep bay's floor is y 0. */
 export const DEEP_OFFSET: Record<DeepBay, readonly [number, number]> = {
-  B7: [0, -50],
-  A7: [44, -33],
-  B8: [50, -46],
-  A8: [112, -33],
-  B9: [118, -56],
-  L9: [118, -56],
+  B7: [17.5, -79],
+  A7: [61.5, -62],
+  B8: [67.5, -75],
+  A8: [129.5, -62],
+  B9: [135.5, -85],
+  L9: [135.5, -85],
 };
 
 /** World point from a bay's local (x, z, y above the floor). L9 uses B9's frame (BAYS: the car is x 18..26, z 52..58). */
@@ -207,11 +208,9 @@ function buildB7(b: LevelBuilder, lips: number[], r: DeepResult): void {
   wallZAt(b, X(0), Z(-0.225), Z(40.225), [], Y(0), H, C.rock, OUTER);
   wallXAt(b, Z(0), X(-0.225), X(44.225), [], Y(0), H, C.rock, OUTER);
   wallZDoors(b, X(44), Z(-0.225), Z(40.225), [Z(19.4)], Y(0), H, C.rock, OUTER);
-  wallXAt(b, Z(40), X(22), X(44.225), [], Y(0), H, C.rock, OUTER);
+  wallXAt(b, Z(40), X(6.45), X(44.225), [], Y(0), H, C.rock, OUTER);
   b.box(X(3.1125), Y((AIR_CLEAR + H) / 2), Z(40), 6.675, H - AIR_CLEAR, OUTER, C.rock);
   roof(b, X(-0.225), Z(-0.225), X(44.225), Z(40.225), Y(H));
-  // x 6.45..22 the north wall is solid rock up to S6's south wall: no 1.5 m slot (a split gap) between them
-  b.box(14.225, Y(H / 2), (Z(39.775) - 8.3) / 2, 15.55, H, -8.3 - Z(39.775), C.rock);
 
   // the house (x 14..34, z 10..26): ground storey, first floor 3.2, roof 6.4 with the parapet and the roof hatch
   const F = M7.firstFloor;

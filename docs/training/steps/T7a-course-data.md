@@ -60,3 +60,6 @@ LOG, STATE, CHANGELOG.
 - From T5d (REVIEW-NOTES, UPPER_ELEMENTS): B2's RL2 door `B2-rl2` (locked) becomes the A61 one-way single-occupancy return
   turnstile; the 2E practice panes re-glaze (A54); the A61 re-lamp rule; B1's strike post as a TrainingDummy at (12.5, 10).
 - From T5e (REVIEW-NOTES, SHAFT_ELEMENTS): B3 `B3-w5` / `B3-mlr` (locked) and NR's gap become A61 turnstiles; CR's window the sprung rope-only pane (A53); RF's hatch below-only; duct grilles unscrew-only and louvres kick-only, self-closing; B4 rail gate; B4 P5 float shaft and greyed line.
+- From T5f (REVIEW-NOTES, PLANT2_ELEMENTS): B5 circuits L1-L4, HB / CG lamps and re-lamp; B6 security mount points as devices; RELIEF_DOORS for T7b; S6 relock.
+- B6 roles bind per player (R3, A37): card M on the shared CO lets one player open RD2-RD4 and key 2 needs no code, so
+  T7a's per-role drill ticks must make the operator / runner split mandatory for two players.
