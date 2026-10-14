@@ -81,10 +81,10 @@ import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
-import { WallCore, buildWallLinks, emptyWallInput, wallOverride } from '../player/wallController';
+import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallHeadCap, wallOverride } from '../player/wallController';
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
-import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type P3 } from './tactics';
+import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -981,18 +981,36 @@ export class GameState implements AppState {
     // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
     // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).
     const wc = this.wallCore;
-    const ox = wc && wc.phase === 'on' ? wc.exX : 0;
-    const oz = wc && wc.phase === 'on' ? wc.exZ : 0;
-    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, h, this.lightOccluder, ox, oz);
+    let ox = wc && wc.phase === 'on' ? wc.exX : 0;
+    let oz = wc && wc.phase === 'on' ? wc.exZ : 0;
+    let hh = h;
+    // (step 12b) on the wall the head sample is the real posed head (peek, the mirrored open-side lean, the low-wall
+    // side lean under the top), as perception's exposure points
+    if (wc && wc.phase === 'on' && this.player.pose.wall) {
+      const hd = this.player.rig.posedHead(this.posedHead);
+      const hs = posedHeadSample(p.x, p.y, p.z, hd.x, hd.y, hd.z, this.headSample);
+      ox = hs.ox;
+      oz = hs.oz;
+      hh = hs.h;
+    }
+    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, hh, this.lightOccluder, ox, oz);
     this.localRef.light = this.lightLevel;
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+      // (step 12b fix r2) on a wall: the host's posed copy's head (the same sample as the remote's headPoint)
+      const rh = r.head;
+      if (rh) {
+        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
+        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
     }
   }
+  private readonly headSample = { ox: 0, oz: 0, h: 0 };
 
   private lightFrom = new Vector3();
+  private readonly posedHead = new Vector3();
+  private readonly posedChest = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
@@ -1773,6 +1791,8 @@ export class GameState implements AppState {
     i.toggle = this.app.settings.get().gameplay.wallToggle;
     // (step 12) aim held: the lean-out at an edge / the rise over a low wall (the draw follows the step 09 timings)
     i.aim = pl.ads || inp.down('ads');
+    // (step 12b, D10) the stick's raw up: on a low wall it rises over the top
+    i.moveUp = my;
     // stacking (D8): the other players on this segment
     w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
     w.update(dt, i);
@@ -1794,6 +1814,12 @@ export class GameState implements AppState {
     // (step 12) the head-first peek and the lean-out past the edge (the hit volumes follow the rig: guards see the
     // real body, never the camera)
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
+    // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
+    // EDGE_HAND_TIME inside the draw or the lean-out step (the remotes from WALL_SUB.leftHand)
+    pl.rig.openLeft = w.leftHand;
+    // (step 12b, D10) the low-wall side lean keeps the head under the wall top (the head sample stays behind it)
+    const lg = w.seg >= 0 ? segs[w.seg] : undefined;
+    pose.headCap = w.phase === 'on' && lg && lg.low && w.lk === LEAN_KIND.out ? wallHeadCap(lg.y, lg.height) : NaN;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -1839,7 +1865,9 @@ export class GameState implements AppState {
       if (eyes.length >= 4) break;
     }
     const c = p.controller;
-    exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts);
+    // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts);
+    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);

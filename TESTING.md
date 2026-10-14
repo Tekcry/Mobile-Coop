@@ -5,6 +5,15 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 12b - open-side weapon at wall edges, low-wall side lean (PC, controller, phone)
+- [ ] Pad: tall wall, slide to the LEFT end and hold the stick toward it: the weapon changes to the left hand in about a quarter second without a pop, then the head eases out; the camera sits on the left shoulder.
+- [ ] LT at the left end: the body steps out with the pistol in the left hand (two-handed, mirrored) or the rifle on the left shoulder; RT fires from the left-held weapon; release: back in and the weapon returns to the right hand smoothly. The right end is unchanged (right hand).
+- [ ] Low wall (crouched) at an end: LT with the stick toward the end (or looking toward it) leans out round the end, still crouched, head below the wall top; LT with the stick up or away, or mid-wall, rises over the top.
+- [ ] Holding the stick toward a low-wall end peeks round it crouched.
+- [ ] KBM: A / D toward the end + RMB at a low-wall end leans round the side; W + RMB rises over.
+- [ ] Co-op: a team-mate's left-edge lean shows the weapon in their left hand on both screens; their low-wall side lean stays crouched with the head under the top.
+- [ ] Guards: a lit left-edge lean is seen no more readily than the same lean at a right edge.
+
 ## Locomotion step 12 - wall corner: peek, lean-out, SWAT, corner takedown (PC, controller, phone)
 - [ ] Pad: on a tall wall, slide to an outside end and hold the stick toward the edge: after about 0.2 s the head and near shoulder ease out and the camera swings about 25 deg round the corner; release and it eases back.
 - [ ] LT at the edge: the body steps out past the corner (about a third of a metre), the gun comes up, the camera moves to the open-side shoulder; RT fires only once drawn; releasing LT steps back in within a quarter second.

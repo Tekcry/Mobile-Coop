@@ -252,10 +252,12 @@ export interface MovePose {
   tumble: number;
   /** (step 09) The weapon in the hand (`dw` drawing, drawn or holstering); false = holstered. */
   drawn: boolean;
+  /** (step 12b, D9) The weapon in the left hand at a left wall edge (WALL_SUB.leftHand 128); the rig blends it. */
+  leftHand: boolean;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false };
 }
 
 /**
@@ -271,6 +273,7 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
   out.melee = -1;
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
+  out.leftHand = false;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
@@ -282,6 +285,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
         const side = mv.sub & 4 ? -1 : 1;
         out.lean = side * ((mv.sub & 16 ? 0.45 : 0) + (mv.sub & 32 && mv.lk === 1 ? 0.3 * Math.max(0.5, mv.r) : 0));
       }
+      // (step 12b, D9) the open-left weapon hand (only with the left edge bit; D10's low side lean is `lk` 1 with `low`)
+      out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
       return out;
     case 'swat':
       // (step 12) a crouched run across the gap: the gait from the replayed path's speed (no traverse family)

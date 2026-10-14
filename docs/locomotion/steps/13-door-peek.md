@@ -58,3 +58,4 @@ verified 2026-10-13 before Block A: grep the named symbol first.
 ## Commit
 "locomotion 13: door peek, MoveState doorPeek, host-authoritative door crack"
 Then LOG, STATE, AUDIT (S05), CHANGELOG, TESTING, docs/systems/movement.md, world-and-characters.md, coop.md.
+- Small carry-overs from the step 12b check (do first): scripts/e2e-netmove.mjs peek case add a lower bound on the head offset (local and host hd > 0.1 m); src/player/characterRig.ts ~361-365 posedHead comment (now called every frame per wall remote on the host); clear ref.head in RemotePlayer.accept when the move mode stops being wall.

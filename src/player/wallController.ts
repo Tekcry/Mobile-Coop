@@ -79,6 +79,66 @@ export const WALL = {
   swatMax: 0.8,
 } as const;
 
+/**
+ * (step 12b, D9) The open side at a back-to-wall edge from WALL_SUB: -1 left (edgeL, the end at b), 1 right (edgeR).
+ * Mid-wall (no edge bit) aim stays on the normal right side (1). Peek and lean-out always use the open side.
+ */
+export function openSide(sub: number): -1 | 1 {
+  return sub & WALL_SUB.edgeL ? -1 : 1;
+}
+
+/**
+ * (step 12b, D9) The weapon goes to the left hand (pistol: mirrored two-handed grip; rifle: left shoulder) while
+ * peeking or leaning out at a left edge (`sub` WALL_SUB, `lk` LEAN_KIND). Rising over a low wall keeps the right hand.
+ */
+export function wallLeftHand(sub: number, lk: number): boolean {
+  if (!(sub & WALL_SUB.edgeL)) return false;
+  return (sub & WALL_SUB.peek) !== 0 || ((sub & WALL_SUB.lean) !== 0 && lk === LEAN_KIND.out);
+}
+
+/**
+ * (step 12b, D10) Aim on a low wall: at an edge (`edge` +-1, `atEnd`), the stick toward the end (`toward` = stick .
+ * edge direction) or, with the stick idle, the look toward the end (`lookToward` = look . edge direction) leans out
+ * past the end, crouched (LEAN_KIND.out); mid-wall, the stick up (`up` = the stick's forward component) or away from
+ * the end rises over the top (LEAN_KIND.over). No allocation.
+ */
+export function lowAimKind(edge: number, atEnd: boolean, toward: number, up: number, lookToward: number): number {
+  if (edge === 0 || !atEnd) return LEAN_KIND.over;
+  if (toward > LOW_AIM.stick && toward >= up) return LEAN_KIND.out;
+  if (toward < -LOW_AIM.stick || up > LOW_AIM.stick) return LEAN_KIND.over;
+  // stick idle (or a small push): the look decides
+  return lookToward > LOW_AIM.look ? LEAN_KIND.out : LEAN_KIND.over;
+}
+
+/** (step 12b, D10) The head centre's ceiling in a low-wall side lean: the wall top less the head's half height and a
+ *  margin, so the head sample (perception, light meter) stays below the top. */
+export const LOW_HEAD_CLEAR = 0.14;
+export function wallHeadCap(baseY: number, height: number): number {
+  return baseY + height - LOW_HEAD_CLEAR;
+}
+
+/** (step 12b fix r2, light parity) The light meter's head sample from a posed head centre (hx, hy, hz) over the feet
+ *  (px, py, pz): the horizontal offset and the body height whose head sample (`bodyLevel`, 0.95 of the height) lands
+ *  on the head. The local player (its rig) and the host's remotes (their posed RemoteAvatar rig) both call it, so the
+ *  light meter, perception's head point and the posed body agree on the wall (bible 5.1). Writes `out`. */
+export function posedHeadSample(px: number, py: number, pz: number, hx: number, hy: number, hz: number, out: { ox: number; oz: number; h: number }): { ox: number; oz: number; h: number } {
+  out.ox = hx - px;
+  out.oz = hz - pz;
+  out.h = Math.max(0.3, (hy - py) / 0.95);
+  return out;
+}
+
+/** (step 12b fix r1, light parity) The head cap a remote's MoveState asks for: the low-wall side lean (`m` 'wall',
+ *  `lk` 1, WALL_SUB.low) caps the head centre at `wallHeadCap` of its segment, else +Infinity (no cap). The remote's
+ *  posed rig and the host's head sample (perception, light) both read it, as the local rig and sample read the cap. */
+export function remoteWallHeadCap(m: string, lk: number | undefined, sub: number, seg: { y: number; height: number } | undefined): number {
+  return seg && m === 'wall' && lk === LEAN_KIND.out && (sub & WALL_SUB.low) !== 0 ? wallHeadCap(seg.y, seg.height) : Infinity;
+}
+
+/** (step 12b, D10) `lowAimKind` thresholds: a stick push (magnitude along an axis) and the look toward the end
+ *  (look . edge direction, about 45 deg off the wall line). */
+export const LOW_AIM = { stick: 0.5, look: 0.7 } as const;
+
 /** (step 12) SWAT turn duration for a gap (m): clamp(gap / 2.4 x 1.15, 0.5, 0.8) s (A24). */
 export function swatDuration(gap: number): number {
   return Math.max(WALL.swatMin, Math.min(WALL.swatMax, (gap / WALL.swatPace) * WALL.swatK));
@@ -266,6 +326,8 @@ export interface WallInput {
   toggle: boolean;
   /** (step 12) Aim held (the lean-out / over-the-top aim at an edge or on a low wall). */
   aim: boolean;
+  /** (step 12b, D10) The stick's raw forward (up) component -1..1: up on a low wall rises over the top. */
+  moveUp?: number;
 }
 
 export function emptyWallInput(): WallInput {
@@ -712,8 +774,11 @@ export class WallCore {
     const toward = this.edge !== 0 ? i.moveX * ex + i.moveZ * ez : 0;
     const into = -(i.moveX * g.nx + i.moveZ * g.nz);
     const atEnd = this.atEnd;
-    // lean-out aim (high wall at an edge: out past it) or over the top (low wall, anywhere)
-    const want = i.aim ? (this.low ? LEAN_KIND.over : atEnd ? LEAN_KIND.out : LEAN_KIND.none) : LEAN_KIND.none;
+    // lean-out aim (high wall at an edge: out past it); a low wall: at an edge the stick / look toward the end leans
+    // out past it crouched (12b, D10), else over the top. A kind already running holds until the lean is back in.
+    const lookToward = this.edge !== 0 ? i.lookX * ex + i.lookZ * ez : 0;
+    const lowKind = this.lk !== LEAN_KIND.none ? this.lk : lowAimKind(this.edge, atEnd, toward, i.moveUp ?? 0, lookToward);
+    const want = i.aim ? (this.low ? lowKind : atEnd ? LEAN_KIND.out : LEAN_KIND.none) : LEAN_KIND.none;
     if (want !== LEAN_KIND.none && (this.lk === LEAN_KIND.none || this.lk === want)) {
       this.lk = want;
       this.lean = Math.min(1, this.lean + dt / WALL.leanIn);
@@ -742,6 +807,11 @@ export class WallCore {
     this.exX = ex * WALL.peekOut * pe;
     this.exZ = ez * WALL.peekOut * pe;
     return false;
+  }
+
+  /** (step 12b, D9) The weapon in the left hand: peeking or leaning out at a left edge (WALL_SUB.leftHand). */
+  get leftHand(): boolean {
+    return this.phase === 'on' && wallLeftHand(this.sub(), this.lk);
   }
 
   /** The rig's lean (-1 left .. 1 right; the edge at b is the body's left) from the peek and the lean-out. */

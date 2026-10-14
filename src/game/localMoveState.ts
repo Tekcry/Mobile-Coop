@@ -6,6 +6,7 @@
 import { wrapPi } from '../anim/motion';
 import { packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
 import type { GameState } from './gameState';
+import { WALL_SUB } from '../player/wallController';
 
 const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle: 'mantle', ventDrop: 'ventDrop', drop: 'drop' };
 
@@ -91,7 +92,8 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.a = wc.seg;
     // (step 12) leaning out: the body's own place past the edge
     out.s = wc.s + wc.leanS;
-    out.sub = wc.sub();
+    // (step 12b, D9) leftHand from the edge side: peeking or leaning out at edgeL (remotes pose the mirrored grip)
+    out.sub = wc.sub() | (wc.leftHand ? WALL_SUB.leftHand : 0);
     out.ph = wc.phase === 'entering' ? Math.min(1, wc.t / wc.enterDur) : 1;
     if (wc.lk) out.lk = wc.lk;
     else delete out.lk;

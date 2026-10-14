@@ -60,6 +60,9 @@ export interface PlayerRef {
    *  is sampled (light parity, bible 5.1). Remotes set it from their MoveState. */
   peekX?: number;
   peekZ?: number;
+  /** (step 12b fix r2, light parity) On a wall: the host's posed head centre of a remote (its RemoteAvatar rig), the
+   *  one sample its light, head point and posed body share; null / absent elsewhere. */
+  head?: Vector3 | null;
   /** Seen by a guard in combat this alert: those guards know this player is there (no takedowns on them). Cleared
    *  when no guard is in combat any more. Each player separately (co-op). */
   spotted?: boolean;

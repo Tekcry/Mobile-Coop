@@ -2,7 +2,7 @@ import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, Transf
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
 import { dropBadWallMove } from '../player/moveState';
-import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
+import { WALL, WALL_SUB, remoteWallHeadCap, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
@@ -89,8 +89,16 @@ export class RemotePlayer implements Damageable {
   /** Head volume centre (guard exposure sampling): over the feet, or past the wall edge while peeking (step 12, from
    *  the MoveState: the guards see the remote's real head, as they see the local one's). */
   headPoint(out: Vector3): Vector3 {
-    return out.copyFrom(this.feet).addInPlaceFromFloats(this.ref.peekX ?? 0, this.crouched ? 1.05 : 1.6, this.ref.peekZ ?? 0);
+    // (step 12b fix r2) on a wall: the host's posed copy's head, the sample the light meter reads too (light parity)
+    if (this.ref.head) return out.copyFrom(this.ref.head);
+    // (step 12b fix r1) the low-wall side lean keeps the head under the wall top, as the posed remote and the local
+    // player's sample do (light parity)
+    const y = Math.min(this.feet.y + (this.crouched ? 1.05 : 1.6), this.headCap);
+    return out.set(this.feet.x + (this.ref.peekX ?? 0), y, this.feet.z + (this.ref.peekZ ?? 0));
   }
+
+  /** (step 12b fix r1) The head centre's ceiling from the MoveState (low-wall side lean), else +Infinity. */
+  private headCap = Infinity;
 
   /**
    * Accept a client state. Positions that move faster than humanly possible are clamped
@@ -152,6 +160,7 @@ export class RemotePlayer implements Damageable {
     wallPeekOffset(s.mv?.m ?? '', s.mv?.sub ?? 0, wseg ? wseg.tx : 0, wseg ? wseg.tz : 0, this.peekTmp, this.peekK);
     this.ref.peekX = this.peekTmp.x;
     this.ref.peekZ = this.peekTmp.z;
+    this.headCap = remoteWallHeadCap(s.mv?.m ?? '', s.mv?.lk, s.mv?.sub ?? 0, wseg);
     this.state = s;
     this.sync();
   }
@@ -191,6 +200,13 @@ export class RemotePlayer implements Damageable {
   private posed = false;
   private poseHips = new Vector3();
   private poseUp = new Vector3(0, 1, 0);
+
+  private readonly posedHeadV = new Vector3();
+  /** (step 12b fix r2, light parity) Per render frame (host), after the avatar is posed: the posed head centre while
+   *  the remote is on a wall (`ref.head`, read by `headPoint` and the light meter), else null. */
+  setPosedHead(head: Vector3 | null): void {
+    this.ref.head = head && this.state?.mv?.m === 'wall' ? this.posedHeadV.copyFrom(head) : null;
+  }
 
   /** Per render frame (host), after the avatar is posed: the hit capsule follows the rig's hips -> head line. */
   followPose(hips: Vector3, head: Vector3): void {

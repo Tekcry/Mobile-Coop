@@ -47,3 +47,6 @@ Back-to-wall core: wallController (pure, 13 tests), MoveState wall slot 1 + WALL
 
 ## 12 wall-corner
 Corner peek, lean-out aim, low-wall over-the-top, step round, SWAT (mode 26), corner takedown, lk, PROTOCOL_VERSION 7, peek light parity (bodyLevel head offset, wallPeekOffset from MoveState). A50. 4 implementers + 1 fix round (remote lean yaw, SWAT stance, short-face edge choice, host SWAT replay keyed on mode, remote yaw ease, remote peek ease, tests). Check PASS: tests 1154, netmove peek / lean / SWAT settled <= 2.2 cm, mid-move root 8 cm (joints 70-103 cm, D8 deviation carried to step 27 under A47).
+
+## 12b wall-edge-aim (D9 / D10)
+Open-side weapon at edges (openSide, wallLeftHand, mirrored grip, EDGE_HAND_TIME 0.25 s, reversal rewind), low-wall side lean with head cap (A51), exposure and light from the posed head (local; host from its posed copy for remotes). 2 implementers + 2 fix rounds (switch reversal pop, pistol + rifle coverage, remote head cap / light parity, audit determinism: aim assist off and camera clock reset in the harness). Check PASS: tests 1170, netmove left-edge lean 1.1 cm, low-wall head 0.953 m local / host, peek heads 1 mm apart. Deviation: audit grips at edges 17-70 cm (D9 limit 2 cm) carried to step 27.

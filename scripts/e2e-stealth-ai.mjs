@@ -744,7 +744,9 @@ try {
         for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
         const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
         P.axis(0, 1);
-        t.step(0.5);
+        // (step 12b, D9) at a left edge the weapon goes to the left hand (EDGE_HAND_TIME 0.25 s) before the lean
+        // starts: the head is out past the edge about 0.6 s after the push (0.2 s hold + the switch + the lean)
+        t.step(0.9);
         const peekOn = g.wallCore.peekOn;
         const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
         if (!peekOn || !only.length) {

@@ -312,6 +312,120 @@ async function edges() {
   }
 }
 
+/** (step 12b, D9 / D10) Open side at both edges of a high wall (lean-out aim and fire from the left-held weapon at a
+ *  left edge, the camera on the open side) and a low wall's side lean / over the top at both ends, with the pistol
+ *  and the rifle (a local loadout swap, restored after each run; single player, so no host to disagree). */
+async function openSide() {
+  const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+  try {
+    const G = (f, a) => page.evaluate(f, a);
+    await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+    await G(HARNESS);
+    await G(() => window.__w.run(0.1));
+    for (const weapon of ['pistol', 'rifle']) for (const low of [false, true]) {
+      const r = await G(({ low, weapon }) => {
+        const g = window.__app.current;
+        const W = g.weapons;
+        const held = W['index'];
+        const j = W.slots.findIndex((q) => q.def.class === weapon);
+        if (j < 0) return { low, ends: {}, missing: weapon };
+        if (j !== held) W['equip'](j);
+        window.__w.run(0.3);
+        const L = g.wallCore.links;
+        const segs = g.world.level.coverSegments;
+        const p = g.player.position;
+        const st = window.__app.input.state;
+        const w = g.wallCore;
+        const out = { low, ends: {}, cls: W.current.def.class };
+        for (let i = 0; i < segs.length && Object.keys(out.ends).length < 2; i++) {
+          const s = segs[i];
+          if (s.low !== low || s.len < 2.5 || Math.abs(s.y - p.y) > 0.3) continue;
+          for (const e of [1, -1]) {
+            if (out.ends[e] || (e > 0 ? L.kB[i] : L.kA[i]) !== 0) continue;
+            window.__w.place(i, e > 0 ? s.len - 0.8 : 0.8, 0.35 + 0.5);
+            window.__w.run(0.6, 0, 0, 'cover');
+            window.__w.run(1.0, e, 0);
+            window.__w.run(0.1);
+            if (w.phase !== 'on' || w.edge !== e) {
+              window.__w.run(0.3, 0, 0, 'cover');
+              continue;
+            }
+            const rig = g.player.rig;
+            const o = { seg: i };
+            // aim toward the end (high: the lean-out; low: the stick toward the end = the side lean)
+            st.set('t', 'ads', true);
+            window.__w.run(0.6, low ? e : 0, 0);
+            o.lk = w.lk;
+            o.leftHand = w.leftHand;
+            o.sub = w.sub();
+            o.hand = rig.weaponHand;
+            o.cam = g.player.cam.wallSide;
+            o.crouched = g.player.controller.crouched;
+            o.head = rig.posedHead(new rig.root.position.constructor()).y - s.y;
+            o.top = s.height;
+            // the muzzle on the open side of the body (its right vector from the yaw)
+            const m = g.weapons.muzzlePoint();
+            const yaw = g.player.controller.yaw;
+            o.muzzleSide = (m.x - p.x) * Math.cos(yaw) - (m.z - p.z) * Math.sin(yaw);
+            const mag0 = g.weapons.current.mag;
+            st.set('t', 'fire', true);
+            window.__w.run(0.3, low ? e : 0, 0);
+            st.set('t', 'fire', false);
+            o.fired = mag0 - g.weapons.current.mag;
+            st.set('t', 'ads', false);
+            window.__w.run(0.5);
+            o.back = rig.weaponHand;
+            o.lkAfter = w.lk;
+            if (low) {
+              // the stick up: over the top (standing, right hand)
+              st.set('t', 'ads', true);
+              window.__w.run(0.6, 0, 1);
+              o.upLk = w.lk;
+              o.upHand = rig.weaponHand;
+              o.upCrouched = g.player.controller.crouched;
+              st.set('t', 'ads', false);
+              window.__w.run(0.5);
+              // the crouched peek round the low end
+              window.__w.run(0.6, e, 0);
+              o.peek = w.peekOn && w.crouch;
+              window.__w.run(0.3);
+            }
+            out.ends[e] = o;
+            window.__w.run(0.3, 0, 0, 'cover');
+            window.__w.run(0.3);
+          }
+        }
+        if (W['index'] !== held) W['equip'](held);
+        window.__w.run(0.3);
+        return out;
+      }, { low, weapon });
+      assert(!r.missing && r.cls === weapon, `${weapon}: in the Proving loadout and in hand (${r.missing ?? r.cls})`);
+      const name = `${low ? 'low wall' : 'high wall'} (${weapon})`;
+      for (const e of [1, -1]) {
+        const o = r.ends[e];
+        const side = e > 0 ? 'left' : 'right';
+        assert(!!o, `${name}: a ${side} edge found (${JSON.stringify(Object.keys(r.ends))})`);
+        const hand = e > 0 ? -1 : 1;
+        assert(o.lk === 1 && o.leftHand === (e > 0) && o.hand === hand, `${name} ${side} edge: lean-out (lk ${o.lk}), weapon hand ${o.hand} (want ${hand}), leftHand ${o.leftHand}`);
+        assert(o.cam === hand, `${name} ${side} edge: camera on the open side (${o.cam})`);
+        assert(Math.sign(o.muzzleSide) === hand, `${name} ${side} edge: the shot leaves the ${side}-held weapon (muzzle ${o.muzzleSide.toFixed(3)} m to the body's right)`);
+        assert(o.fired > 0, `${name} ${side} edge: fires while leaning out (${o.fired})`);
+        assert(o.back === 1 && o.lkAfter === 0, `${name} ${side} edge: back to the right hand after the release (${o.back})`);
+        if (low) {
+          assert(o.crouched, `${name} ${side} edge: the side lean stays crouched`);
+          assert(o.head < o.top || o.top < 1.07, `${name} ${side} edge: head ${o.head.toFixed(3)} m under the top ${o.top.toFixed(2)} m (A51: walls from 1.07 m)`);
+          assert(o.upLk === 2 && !o.upCrouched && o.upHand === 1, `${name} ${side} edge: the stick up rises over the top (lk ${o.upLk}, standing ${!o.upCrouched}, hand ${o.upHand})`);
+          assert(o.peek, `${name} ${side} edge: crouched peek round the end`);
+        }
+      }
+    }
+    const bad = errors.filter((e) => !/WebGL|GPU stall|swiftshader|favicon/i.test(e));
+    assert(bad.length === 0, `no console errors (${bad.slice(0, 2).join(' | ')})`);
+  } finally {
+    await browser.close();
+  }
+}
+
 /** (step 12) Corner takedown on Warehouse: back to a wall at an outside edge, a guard round it -> kind `corner`. */
 async function cornerTakedown() {
   const { browser, page } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
@@ -361,6 +475,8 @@ try {
   await flank();
   console.log('edge verbs on Proving: peek, lean-out aim, SWAT, round the corner, over the top (step 12)');
   await edges();
+  console.log('open side at wall edges and the low-wall side lean (step 12b)');
+  await openSide();
   console.log('corner takedown from the wall (Warehouse, step 12)');
   await cornerTakedown();
 } catch (e) {

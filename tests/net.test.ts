@@ -586,3 +586,63 @@ describe('step 12: wall lean kind and the SWAT turn', () => {
   });
 });
 import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate';
+
+describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
+  it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION stays 7', async () => {
+    const { PROTOCOL_VERSION } = await import('../src/net/protocol');
+    expect(PROTOCOL_VERSION).toBe(7);
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
+    const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
+    expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
+    expect(back.lk).toBe(1);
+    const hi = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 4 | 16 | 128 };
+    expect(sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(hi))), 4096, 8)!.sub).toBe(4 | 16 | 128);
+  });
+  it('poseFromMoveState: leftHand only with the left edge bit; the low side lean leans toward the edge', () => {
+    const l = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 4 | 32 | 64 | 128, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(l.leftHand).toBe(true);
+    expect(l.lean).toBeCloseTo(-0.3, 6);
+    const r = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 32 | 64, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(r.leftHand).toBe(false);
+    expect(r.lean).toBeCloseTo(0.3, 6);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: 4 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
+  });
+  it('remote head cap (fix r1, light parity): the low-wall side lean caps the head sample like the local one', async () => {
+    const { remoteWallHeadCap, wallHeadCap, WALL_SUB } = await import('../src/player/wallController');
+    const seg = { y: 0.5, height: 1.1 };
+    // the low side lean: the wall top less LOW_HEAD_CLEAR, the same value the local rig and sample use
+    const cap = remoteWallHeadCap('wall', 1, WALL_SUB.crouch | WALL_SUB.edgeL | WALL_SUB.lean | WALL_SUB.low, seg);
+    expect(cap).toBe(wallHeadCap(seg.y, seg.height));
+    expect(cap).toBeLessThan(seg.y + seg.height);
+    // the crouched head centre (feet + 1.05 m) is under a 1.1 m top, but only by 5 cm, less than the head's half
+    // height (the head shows); capped it sits LOW_HEAD_CLEAR under the top, and a standing sample (1.6 m) too
+    expect(seg.y + seg.height - (seg.y + 1.05)).toBeLessThan(0.14);
+    expect(Math.min(seg.y + 1.05, cap)).toBeCloseTo(seg.y + seg.height - 0.14, 9);
+    expect(Math.min(seg.y + 1.6, cap)).toBeLessThan(seg.y + seg.height);
+    // no cap: rising over the top (lk 2), a high wall's lean-out, not on a wall, no segment
+    expect(remoteWallHeadCap('wall', 2, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', 1, WALL_SUB.edgeL | WALL_SUB.lean, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', undefined, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('ladder', 1, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', 1, WALL_SUB.low, undefined)).toBe(Infinity);
+  });
+  it('posed head sample (fix r2, light parity): local and remote light samples land on the posed head', async () => {
+    const { posedHeadSample, wallHeadCap } = await import('../src/player/wallController');
+    // a 1.00 m wall (under 1.07 m): the posed heads seen in e2e-netmove, local 0.941 m and the host's copy 0.953 m
+    const feet = { x: 2, y: 0.5, z: -1 };
+    const top = feet.y + 1.0;
+    const local = posedHeadSample(feet.x, feet.y, feet.z, 2.3, feet.y + 0.941, -0.9, { ox: 0, oz: 0, h: 0 });
+    const remote = posedHeadSample(feet.x, feet.y, feet.z, 2.31, feet.y + 0.953, -0.9, { ox: 0, oz: 0, h: 0 });
+    // the light meter samples at feet + 0.95 h (LightField.bodyLevel): exactly the posed head
+    expect(feet.y + local.h * 0.95).toBeCloseTo(feet.y + 0.941, 9);
+    expect(feet.y + remote.h * 0.95).toBeCloseTo(feet.y + 0.953, 9);
+    expect(local.ox).toBeCloseTo(0.3, 9);
+    expect(local.oz).toBeCloseTo(0.1, 9);
+    // local vs remote within 2 cm; the old remote sample (crouched model height 1.1375 m: 1.08 m) sat over the top
+    expect(Math.abs(local.h * 0.95 - remote.h * 0.95)).toBeLessThan(0.02);
+    expect(feet.y + 1.75 * 0.65 * 0.95).toBeGreaterThan(top);
+    // and the fix-r1 cap (0.86 m) was 8-9 cm under the posed copy
+    expect(feet.y + 0.953 - wallHeadCap(feet.y, 1.0)).toBeGreaterThan(0.08);
+  });
+});

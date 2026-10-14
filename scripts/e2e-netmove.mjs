@@ -500,8 +500,13 @@ try {
   await until(A, () => (window.__app.current.net.remotes.values().next().value?.state?.mv?.sub & 16) !== 0, null, 5000, 'host sees the peek bit');
   await compare('wall peek', 'wall');
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.25) < 0.01; }, null, 3000, 'host peek offset eased to 0.25 m');
-  const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
-  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && Math.abs(pl.hd - 0.25) < 0.01, `the host samples the peeking client's light and head 0.25 m past the edge (${JSON.stringify(pl)})`);
+  // (step 12b fix r2, light parity) the host's head point and light sample are its posed copy's head (ref.head) on
+  // the wall, as the local light meter reads the local posed head: the two heads agree (the MoveState offset is 0.25 m)
+  const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, h: [h.x, h.y, h.z], ref: !!r.ref.head, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
+  const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z) }; });
+  const pd = Math.hypot(pl.h[0] - plL.h[0], pl.h[1] - plL.h[1], pl.h[2] - plL.h[2]);
+  console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m`);
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && pl.ref && pd < 0.05, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
   await GB(() => window.__pad.axis(0, 0));
   await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
   // lean-out: aim held at the edge (lk 1), the body 0.35 m past it
@@ -609,6 +614,83 @@ try {
   assert(Math.abs(ssl - ssr) <= 0.05, `after the SWAT turn: the host's copy at s ${ssr.toFixed(3)} on the far wall (client ${ssl.toFixed(3)})`);
   await GB(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
   await wait(300);
+  await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
+  // (locomotion step 12b, D9 / D10) the open side at a left edge (WALL_SUB.leftHand 128: the mirrored grip, the
+  // pistol and the rifle) and the crouched side lean past a low-wall end (`lk` 1 with `low`): the host's copy within
+  // 10 cm, the weapon in its left hand
+  console.log('wall edge open side and low side lean (12b)');
+  const leftEdge = async (low) => {
+    const at = await GB((low) => {
+      const g = window.__app.current;
+      const L = g.wallCore.links;
+      const segs = g.world.level.coverSegments;
+      const p = g.player.position;
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i];
+        if (s.low !== low || s.len < 2.5 || s.len > 12 || Math.abs(s.y - p.y) > 0.3 || L.kB[i] !== 0) continue;
+        return { i, len: s.len };
+      }
+      return null;
+    }, low);
+    assert(!!at, `a ${low ? 'low' : 'high'} wall with a free left end on Proving (${JSON.stringify(at)})`);
+    await allowTeleport(A);
+    await GB(([i, k]) => {
+      const g = window.__app.current;
+      if (g.wallCore?.active) g.wallCore.leave('test');
+      const s = g.world.level.coverSegments[i];
+      const yaw = Math.atan2(-s.nx, -s.nz);
+      window.__pad.connect();
+      for (let j = 0; j < 4; j++) window.__pad.axis(j, 0);
+      g.player.controller.clearCrouchToggle();
+      g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+      g.player.cam.yaw = yaw;
+      g.player.cam.pitch = 0;
+      setTimeout(() => window.__app.input.state.tap('cover'), 1000);
+    }, [at.i, at.len - 0.8]);
+    await until(B, (i) => window.__app.current.wallCore?.phase === 'on' && window.__app.current.wallCore.seg === i, at.i, 6000, 'client on the wall');
+    if (!low && (await GB(() => (window.__app.current.wallCore.sub() & 1) !== 0))) {
+      await GB(() => window.__app.input.state.tap('crouch'));
+      await until(B, () => (window.__app.current.wallCore.sub() & 1) === 0 && window.__app.current.player.controller.crouchBlend < 0.01, null, 3000, 'client standing on the wall');
+    }
+    await GB(() => window.__pad.axis(0, 1));
+    await until(B, () => window.__app.current.wallCore.edge === 1, null, 6000, 'client at the left edge');
+    await wait(400);
+    // high wall: the aim alone leans out; low wall: the stick held toward the end with the aim (the side lean)
+    if (!low) await GB(() => window.__pad.axis(0, 0));
+    await wait(300);
+    await GB(() => window.__app.input.state.set('t', 'ads', true));
+    await until(B, () => { const w = window.__app.current.wallCore; return w.lk === 1 && w.lean === 1 && w.leftHand; }, null, 4000, 'client leans out at the left edge');
+    await until(A, (low) => { const mv = window.__app.current.net.remotes.values().next().value?.state?.mv; return !!mv && mv.lk === 1 && (mv.sub & 128) !== 0 && ((mv.sub & 64) !== 0) === low; }, low, 5000, 'host sees lk 1 + leftHand');
+  };
+  const leanBack = async () => {
+    await GB(() => { window.__app.input.state.set('t', 'ads', false); window.__pad.axis(0, 0); });
+    await until(B, () => window.__app.current.wallCore.lk === 0 && window.__app.current.wallCore.lean === 0, null, 4000, 'client back in');
+    await GB(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
+    await wait(400);
+  };
+  const hands = async () => [await GB(() => window.__app.current.player.rig.weaponHand), await GA(() => window.__app.current.net.remotes.values().next().value.avatar.rig.weaponHand)];
+  await reset();
+  // the weapon in hand: the case runs with the current one. The host takes any weapon id from the client's lobby
+  // loadout (hostWeapon), so the remote pose follows the same leftHand bit for either weapon; the per-weapon open side
+  // (pistol and rifle, both edges, high and low wall) is covered locally by e2e-wall
+  const cls = await GB(() => window.__app.current.weapons.current.def.class);
+  await leftEdge(false);
+  await compare(`wall lean left edge (${cls})`, 'wall');
+  const [hl, hr] = await hands();
+  assert(hl === -1 && hr === -1, `${cls}: the weapon in the left hand, local ${hl}, the host's copy ${hr}`);
+  await leanBack();
+  await leftEdge(true);
+  await compare('low wall side lean', 'wall');
+  const lowHead = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; const av = r.avatar; const s = window.__app.current.world.level.coverSegments[r.state.mv.a]; return { head: av.rig.headNode.getAbsolutePosition().y - s.y, top: s.height }; });
+  assert(lowHead.head < lowHead.top || lowHead.top < 1.07, `low wall side lean: the host's copy head at ${lowHead.head.toFixed(3)} m, under the top ${lowHead.top.toFixed(2)} m (A51)`);
+  // (step 12b fix r2, light parity) one head sample per remote: the host's headPoint (perception) and its light sample
+  // are the posed copy's head, within 2 cm of the local player's light-meter head sample (its posed head)
+  const hsL = await GB(() => { const g = window.__app.current; const s = g.world.level.coverSegments[g.wallCore.seg]; const h = g.player.rig.posedHead(new g.player.position.constructor()); return { y: h.y - s.y, top: s.height }; });
+  const hsH = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const s = g.world.level.coverSegments[r.state.mv.a]; const V = g.player.position.constructor; const hp = r.headPoint(new V()); const ph = r.avatar.rig.posedHead(new V()); return { y: hp.y - s.y, posed: ph.y - s.y, ref: !!r.ref.head, light: r.ref.head ? r.ref.head.y - s.y : null }; });
+  console.log(`  low wall (${hsL.top.toFixed(2)} m) head samples: local ${hsL.y.toFixed(3)} m, host headPoint ${hsH.y.toFixed(3)} m, host light ${hsH.light?.toFixed(3)} m, host posed copy ${hsH.posed.toFixed(3)} m`);
+  assert(hsH.ref && Math.abs(hsH.y - hsH.posed) < 0.02 && hsH.light !== null && Math.abs(hsH.light - hsH.y) < 1e-6, `the host's head point and light sample are its posed copy's head (${JSON.stringify(hsH)})`);
+  assert(Math.abs(hsL.y - hsH.y) < 0.02, `low wall head samples: local ${hsL.y.toFixed(3)} m vs host ${hsH.y.toFixed(3)} m within 2 cm`);
+  await leanBack();
   await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
 
   // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode

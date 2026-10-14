@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
-import { WALL, WALL_SUB, WallCore, buildWallLinks, emptyWallInput, stackClamp, swatDuration, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
+import { LEAN_KIND, WALL, WALL_SUB, WallCore, buildWallLinks, emptyWallInput, lowAimKind, openSide, stackClamp, swatDuration, wallHeadCap, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
 import type { MoveOverride } from '../src/player/playerController';
@@ -526,5 +526,138 @@ describe('peek light parity (step 12, bible 5.1)', () => {
     expect(peek).toBeGreaterThan(0.7);
     // the default (no offset) is the old sample
     expect(f.bodyLevel(-0.1, 0, 0, 1.75, undefined, 0, 0)).toBe(dark);
+  });
+});
+
+describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
+  // a free-standing high wall and a low wall, both ends outside (edges), front faces normal +z at z = 0.2
+  const sg = buildCoverSegments([box(0, 0, 4, 2.5, 0.4), box(20, 0, 4, 1.0, 0.4)]);
+  const lk2 = buildWallLinks(sg);
+  const hi = sg.findIndex((g) => g.nz > 0.99 && !g.low);
+  const lo = sg.findIndex((g) => g.nz > 0.99 && g.low);
+  /** Settled on face `k` at its end b (edge +1, edgeL) or a (edge -1, edgeR). */
+  function atEnd(k: number, end: 'a' | 'b'): { w: WallCore; i: WallInput; tx: number; tz: number } {
+    const g = sg[k]!;
+    const w = new WallCore(sg, lk2, SO);
+    const s = end === 'a' ? EDGE_MARGIN + 0.05 : g.len - EDGE_MARGIN - 0.05;
+    const i = inp(g.ax + g.tx * s, 0.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    const e = end === 'b' ? 1 : -1;
+    // slide onto the end (the stick toward it), then idle
+    i.moveX = g.tx * e;
+    i.moveZ = g.tz * e;
+    run(w, i, 0.15);
+    i.moveX = i.moveZ = 0;
+    run(w, i, 0.05);
+    expect(w.phase).toBe('on');
+    expect(w.edge).toBe(e);
+    return { w, i, tx: g.tx * e, tz: g.tz * e };
+  }
+
+  it('openSide: left at edgeL, right at edgeR, right mid-wall', () => {
+    expect(openSide(WALL_SUB.edgeL)).toBe(-1);
+    expect(openSide(WALL_SUB.edgeR)).toBe(1);
+    expect(openSide(0)).toBe(1);
+    expect(openSide(WALL_SUB.crouch | WALL_SUB.low | WALL_SUB.lean)).toBe(1);
+  });
+
+  it('wallLeftHand: only at edgeL while peeking or leaning out (not over the top)', () => {
+    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.peek, 0)).toBe(true);
+    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.lean, LEAN_KIND.out)).toBe(true);
+    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.lean, LEAN_KIND.over)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.edgeL, 0)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.edgeR | WALL_SUB.peek, 0)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.edgeR | WALL_SUB.lean, LEAN_KIND.out)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.lean | WALL_SUB.peek, LEAN_KIND.out)).toBe(false);
+  });
+
+  it('lowAimKind: stick or look toward the end leans out; stick up, away or mid-wall rises over', () => {
+    expect(lowAimKind(1, true, 1, 0, 0)).toBe(LEAN_KIND.out);
+    expect(lowAimKind(-1, true, 0.8, 0.2, -1)).toBe(LEAN_KIND.out);
+    expect(lowAimKind(1, true, 0, 1, 1)).toBe(LEAN_KIND.over);
+    expect(lowAimKind(1, true, -1, 0, 1)).toBe(LEAN_KIND.over);
+    expect(lowAimKind(1, true, 0, 0, 0.9)).toBe(LEAN_KIND.out);
+    expect(lowAimKind(1, true, 0, 0, 0.2)).toBe(LEAN_KIND.over);
+    expect(lowAimKind(0, false, 1, 0, 1)).toBe(LEAN_KIND.over);
+    expect(lowAimKind(1, false, 1, 0, 1)).toBe(LEAN_KIND.over);
+  });
+
+  it('high wall: leftHand set at edgeL while leaning out or peeking, never at edgeR; back off on release', () => {
+    const L = atEnd(hi, 'b');
+    expect(L.w.leftHand).toBe(false);
+    L.i.aim = true;
+    run(L.w, L.i, 1 / 60);
+    expect(L.w.lk).toBe(LEAN_KIND.out);
+    expect(L.w.leftHand).toBe(true);
+    run(L.w, L.i, WALL.leanIn);
+    expect(L.w.leftHand).toBe(true);
+    L.i.aim = false;
+    run(L.w, L.i, WALL.leanBack + 2 / 60);
+    expect(L.w.leftHand).toBe(false);
+    // the peek (look past the edge) at edgeL
+    L.i.lookX = L.tx;
+    L.i.lookZ = L.tz;
+    run(L.w, L.i, 2 / 60);
+    expect(L.w.peekOn).toBe(true);
+    expect(L.w.leftHand).toBe(true);
+    const R = atEnd(hi, 'a');
+    R.i.aim = true;
+    run(R.w, R.i, WALL.leanIn + 0.1);
+    expect(R.w.lk).toBe(LEAN_KIND.out);
+    expect(R.w.leftHand).toBe(false);
+    expect(R.w.sub() & WALL_SUB.leftHand).toBe(0);
+  });
+
+  it('low wall at an edge: stick / look toward the end leans out crouched (lk 1); stick up or mid-wall rises (lk 2)', () => {
+    for (const end of ['a', 'b'] as const) {
+      const { w, i, tx, tz } = atEnd(lo, end);
+      i.aim = true;
+      i.moveX = tx;
+      i.moveZ = tz;
+      run(w, i, WALL.leanIn + 0.1);
+      expect(w.lk).toBe(LEAN_KIND.out);
+      expect(w.sub() & WALL_SUB.low).toBeTruthy();
+      expect(Math.abs(w.leanS)).toBeCloseTo(WALL.leanOut, 5);
+      expect(wallOverride(w, {})!.crouch).toBe(true);
+      expect(w.leftHand).toBe(end === 'b');
+      i.aim = false;
+      i.moveX = i.moveZ = 0;
+      run(w, i, WALL.leanBack + 0.05);
+      expect(w.lk).toBe(0);
+      // the stick up: over the top, standing, right hand
+      i.aim = true;
+      i.moveUp = 1;
+      run(w, i, 0.4);
+      expect(w.lk).toBe(LEAN_KIND.over);
+      expect(wallOverride(w, {})!.crouch).toBe(false);
+      expect(w.leftHand).toBe(false);
+    }
+    // mid-wall: over the top even looking along the wall
+    const w = new WallCore(sg, lk2, SO);
+    const g = sg[lo]!;
+    const i = inp(g.ax + g.tx * 2, 0.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    i.aim = true;
+    i.lookX = g.tx;
+    i.lookZ = g.tz;
+    run(w, i, 0.4);
+    expect(w.lk).toBe(LEAN_KIND.over);
+  });
+
+  it('crouched peek round a low-wall end works like the high-wall peek', () => {
+    const { w, i, tx, tz } = atEnd(lo, 'a');
+    expect(w.crouch).toBe(true);
+    i.moveX = tx;
+    i.moveZ = tz;
+    run(w, i, WALL.peekHold + WALL.peekBlend + 0.05);
+    expect(w.peekOn).toBe(true);
+    expect(w.sub() & (WALL_SUB.peek | WALL_SUB.low | WALL_SUB.crouch)).toBe(WALL_SUB.peek | WALL_SUB.low | WALL_SUB.crouch);
+    expect(Math.abs(w.rigLean())).toBeCloseTo(WALL.peekLean, 5);
+    expect(wallOverride(w, {})!.crouch).toBe(true);
+  });
+
+  it('wallHeadCap sits under the wall top', () => {
+    const g = sg[lo]!;
+    expect(wallHeadCap(g.y, g.height)).toBeLessThan(g.y + g.height - 0.1);
   });
 });

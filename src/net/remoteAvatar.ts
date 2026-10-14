@@ -1,4 +1,4 @@
-import { WALL_LOOK, WALL_SUB, WALL_TURN_RATE, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
+import { WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
@@ -324,8 +324,9 @@ export class RemoteAvatar {
       mp.traverse = rp.pose;
       mp.traverseT = replayK;
     }
-    // weapon hand: stays right-handed until step 12b drives it from WALL_SUB.leftHand (D9 open-side edge)
-    this.rig.openLeft = false;
+    // (step 12b, D9) weapon hand from WALL_SUB.leftHand (the open side at a left edge): the rig blends the switch
+    // over EDGE_HAND_TIME as the owner's did
+    this.rig.openLeft = !!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -355,6 +356,8 @@ export class RemoteAvatar {
       wallNz: this.wallNz,
       wallFace: this.wallFace,
       lean: mp.lean,
+      // (step 12b, D10) the low-wall side lean (`lk` 1 with `low`): the head stays under the wall top, as the owner's
+      headCap: mv && wseg ? finiteOrUndef(remoteWallHeadCap(mv.m, mv.lk, mv.sub, wseg)) : undefined,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,
@@ -405,4 +408,9 @@ export class RemoteAvatar {
     this.models.clear();
     this.rig.dispose();
   }
+}
+
+/** A finite cap, else undefined (the rig's "no cap"). */
+function finiteOrUndef(v: number): number | undefined {
+  return Number.isFinite(v) ? v : undefined;
 }

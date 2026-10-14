@@ -1088,6 +1088,7 @@ export class CoopHost implements NetAttachment {
     this.g.endSession(sc.won(this.s.selfId), sub);
   }
 
+  private readonly posedHeadTmp = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     for (const r of this.remotes.values()) {
@@ -1097,7 +1098,9 @@ export class CoopHost implements NetAttachment {
         rig.hips.computeWorldMatrix(true);
         rig.headNode.computeWorldMatrix(true);
         r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
-      }
+        // (step 12b fix r2, light parity) on a wall: perception's head point and the light meter read the posed head
+        r.setPosedHead(r.state?.mv?.m === 'wall' ? rig.posedHead(this.posedHeadTmp) : null);
+      } else r.setPosedHead(null);
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {

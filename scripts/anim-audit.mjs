@@ -127,6 +127,10 @@ await G(([NODES, W, names, LOWER]) => {
   const rig = p.rig;
   const V = p.position.constructor;
   g.target.damageMul = 0;
+  // (step 12b fix r1) no aim assist: its magnetism turns the camera toward the map's guards, whose positions carry
+  // the real-time frames before the harness takes the loop (the wall entry and head read the camera: the open-side
+  // rows were not repeatable)
+  g['applyAimAssist'] = () => {};
   a.loop.manual = true;
   // step 07 carry (wall-clock leak between scenarios): with the loop manual the engine's render loop still ran
   // `scene.render()` every display frame between the page.evaluate calls (render observers, timers and the physics
@@ -307,6 +311,9 @@ await G(([NODES, W, names, LOWER]) => {
       // idle clock (breathing, weapon sway; animGraph seeds it at random): every run from the same phase
       rig.graph['idleT'] = 0;
       rig.graph['stillT'] = 0;
+      // (step 12b fix r2) the camera's own clock (handheld drift, shake) too: it runs from page load on real time and
+      // the drift turns the view, so cameraOsc and the 60 / 120 Hz camera parity rows read a different phase each run
+      p.cam['t'] = 0;
       aa.tp = 1;
     },
     run(sec, inp, hz = 60) {
@@ -374,6 +381,13 @@ const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
 // (step 12) the wall edge verbs at the Proving doorway: peek, lean-out, SWAT turn (the wall drive with `edge`)
 if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'walledge', kind: 'wall', edge: true, hz });
+// (step 12b, D9 / D10) the open side at a free left (edgeL, the weapon to the left hand) and right end of a high wall,
+// pistol and rifle (peek, lean-out aim: the hand switch inside the 0.25 s step), and the crouched side lean past a
+// low-wall end; 60 Hz
+if (!QUICK) {
+  for (const weapon of ['rifle', 'pistol']) for (const e of [1, -1]) transitions.push({ name: `wallopen${e > 0 ? 'L' : 'R'}-${weapon}`, kind: 'wall', edge: true, open: 'high', end: e, weapon, hz: 60 });
+  for (const e of [1, -1]) transitions.push({ name: `walllow${e > 0 ? 'L' : 'R'}`, kind: 'wall', edge: true, open: 'low', end: e, hz: 60 });
+}
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
@@ -516,12 +530,20 @@ async function drive(sc, halt = -1) {
       m.enter = t.mark();
       if (sc.edge) {
         // (step 12) the edge verbs at the doorway
-        const names = ['on', 'slide', 'stop', 'peek', 'unpeek', 'lean', 'unlean', 'toward', 'swat', 'settle'];
+        const names = sc.open ? ['on', 'slide', 'stop', 'peek', 'unpeek', 'lean', 'unlean'] : ['on', 'slide', 'stop', 'peek', 'unpeek', 'lean', 'unlean', 'toward', 'swat', 'settle'];
+        // (step 12b) the weapon for the open-side rows (a local loadout swap; restored after the run)
+        const W = g.weapons;
+        const held = W['index'];
+        if (sc.weapon) {
+          const j = W.slots.findIndex((q) => q.def.class === sc.weapon);
+          if (j >= 0 && j !== held) W['equip'](j);
+        }
         sc.segs.forEach((q, k) => {
           t.run(q.d, { x: q.x ?? 0, ads: !!q.ads, taps: q.tap ? { 1: q.tap } : undefined }, hz);
           m[names[k]] = t.mark();
         });
-        m.end = m.settle;
+        m.end = m[names[names.length - 1]];
+        if (W['index'] !== held) W['equip'](held);
         m.onWall = g.wallCore?.phase === 'on';
         m.swats = g.wallCore?.count.swat ?? 0;
       } else {
@@ -598,17 +620,42 @@ const FIND_DOOR = () => {
   return null;
 };
 
+/** (step 12b) A free end (`end` 1: the b end, the body's left = edgeL; -1: the a end, edgeR) of a high or low wall on
+ *  Proving, open in front (as FIND_WALL), the start 0.8 m from that end. */
+const FIND_END = ([end, low]) => {
+  const g = window.__app.current;
+  const V = g.player.position.constructor;
+  const L = g.wallCore.links;
+  const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+  const segs = g.world.level.coverSegments;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.low !== low || Math.abs(s.y) > 0.3 || s.len < 2.5 || s.len > 12 || (end > 0 ? L.kB[i] : L.kA[i]) !== 0) continue;
+    const k = end > 0 ? s.len - 0.8 : 0.8;
+    const x = s.ax + s.tx * k + s.nx * 0.45;
+    const z = s.az + s.tz * k + s.nz * 0.45;
+    if (!clear(x, z, x + s.nx * 2.5, z + s.nz * 2.5, s.y + 0.3)) continue;
+    return { seg: i, ax: s.ax, az: s.az, tx: s.tx, tz: s.tz, nx: s.nx, nz: s.nz, y: s.y, len: s.len, k, end, low, depth: g.player.rig.p.bodyDepthHalf };
+  }
+  return null;
+};
+/** (step 12b) The open-side drive: enter, slide to the end, stop, peek (stick toward it), release, aim (high: the
+ *  lean-out with the stick idle; low: the stick toward the end = the crouched side lean), release. */
+const openSegments = (e, low) => [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: e }, { d: 0.4 }, { d: 1.0, x: e }, { d: 0.6 }, { d: 1.2, ads: true, x: low ? e : 0 }, { d: 0.8 }];
+const findPlane = (sc) => (sc.open ? [FIND_END, [sc.end, sc.open === 'low']] : [sc.edge ? FIND_DOOR : FIND_WALL]);
+const wallSegs = (sc) => (sc.open ? openSegments(sc.plane.end, sc.open === 'low') : edgeSegments(sc.plane.end));
+
 /** (step 12) The edge verbs, local and remote alike (segments of `d` s: stick x, aim, a tap at the start): enter, slide
  *  to the edge, peek (stick held toward it), lean-out (aim), the SWAT turn across the doorway, settle. */
 const edgeSegments = (e) => [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: e }, { d: 0.4 }, { d: 1.0, x: e }, { d: 0.6 }, { d: 1.0, ads: true }, { d: 0.6 }, { d: 0.3, x: e }, { d: 0.9, x: e, tap: 'cover' }, { d: 0.8 }];
 
 async function record(sc, halt = -1) {
   if (sc.kind === 'wall' && !sc.plane) {
-    sc.plane = await G(sc.edge ? FIND_DOOR : FIND_WALL);
+    sc.plane = await G(...findPlane(sc));
     if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
   }
   // (step 12) the edge drive's segments go into the page with the scenario
-  if (sc.edge) sc.segs = edgeSegments(sc.plane.end);
+  if (sc.edge) sc.segs = wallSegs(sc);
   const m = await drive(sc, halt);
   if (sc.kind === 'wall') m.plane = sc.plane;
   const r = await G(() => window.__aa.end());
@@ -965,6 +1012,11 @@ function remoteScenarios() {
     out.push({ name: 'wall', kind: 'wall', hz: 60 });
     // (step 12) the edge verbs: peek, lean-out, SWAT turn (the host's copy from WALL_SUB peek / lean, `lk`, the commit)
     out.push({ name: 'walledge', kind: 'wall', edge: true, hz: 60 });
+    // (step 12b) the open side at a left / right high-wall end and the low-wall side lean (WALL_SUB.leftHand, `lk` 1
+    // with `low`); the weapon in hand (the host validates the loadout: no local swap on the remote)
+    out.push({ name: 'wallopenL', kind: 'wall', edge: true, open: 'high', end: 1, hz: 60 });
+    out.push({ name: 'wallopenR', kind: 'wall', edge: true, open: 'high', end: -1, hz: 60 });
+    out.push({ name: 'walllowL', kind: 'wall', edge: true, open: 'low', end: 1, hz: 60 });
     for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
     out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
@@ -977,7 +1029,7 @@ function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
   if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
   // (step 11) as the local drive: enter, slide, stop, crouch, slide back, stop
-  if (sc.kind === 'wall' && sc.edge) return edgeSegments(sc.plane.end);
+  if (sc.kind === 'wall' && sc.edge) return wallSegs(sc);
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
@@ -1716,7 +1768,7 @@ async function runRemote() {
         let s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
         if (sc.kind === 'wall') {
           // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
-          sc.plane ??= await A.evaluate(sc.edge ? FIND_DOOR : FIND_WALL);
+          sc.plane ??= await A.evaluate(...findPlane(sc));
           if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
           const w = sc.plane;
           s = { x: w.ax + w.tx * w.k + w.nx * 0.85, z: w.az + w.tz * w.k + w.nz * 0.85, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
