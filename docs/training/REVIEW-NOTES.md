@@ -122,3 +122,13 @@
   bound now derives from BUNKER_BOUNDS; T5g restores v2 Deep. Numbers moved within windows (A75, BAYS updated). For
   Michael: EL's south edge is a 2.4 screen, not the BAYS balustrade (R2: a vault off it skipped the stair).
 - T5f checks: e2e-bunker "timed out waiting for client in the Fallow course" under e2e:quick (E2E_JOBS=2) again; passed serially (load flake, recurring). Vitest 5 s timeouts (lightField allocation, voxelFit Warehouse) once while e2e ran alongside; passed on rerun.
+- T5g (B7, A7, B8, A8, B9, L9 rebuilt to v2 at the BAYS 0.1 offsets; A74 interim undone; cloud). Left for T6 / T7a / T7b
+  (DEEP_ELEMENTS, `final: false`): B7 guards, L7 circuits and re-lamp, the store code (now the desk-drawer pickup),
+  greyed whistle / drag lines; B8 guards and the live-fire trigger, L8 circuits and gantry re-lamp, dummies / barrels /
+  CAM-R as data, greyed V3 / Phase 6 / backlog lines; B9 guards and dog, CAM-P1 / P2, desk, beam, PIR, alarm and
+  reinforcements as mount points (`DEEP_DEVICES`), L9 circuits with the P3 switch in the duct door, greyed Phase 5
+  line, the key pair as two switches until Sync. Relief doors (`DEEP_RELIEF_DOORS`, A62) are visual leaves with spawns.
+  Numbers moved within windows: A76 (BAYS rows synced); bounds A77. For Michael: B8's CS now runs along the dark walk's
+  east end (x 50..58) because a 4.0 m stair does not fit in 6 m; the cage closes the dark walk at x 50, so the dark walk
+  (z 12..16 under CW) rejoins the lanes before x 50 and the far end is reached past the scaffold (z 0..12).
+- T5g check: e2e-course "lamp group goes off in 1033 ms (limit 500)" under e2e:quick (E2E_JOBS=2), passed serially (the known lock-sync load flake, T8a). Advisory: the B8 firing slot (0.6 m) may admit a kinematic vault on a diagonal approach (vault rays pass the slot); it skips nothing (the glass door is beside it) - close the slot to 1.0..1.4 or add a 0.4 m kick-panel ledge if it shows up in walk 2. Stair widths B7 1.5, CS 1.6, towers 1.7 are under A50's 1.8 (B5 / B6 precedent; two capsules still pass). No e2e walks B1 to L9 end to end yet (unit reachability only; T8b).

@@ -63,3 +63,5 @@ LOG, STATE, CHANGELOG.
 - From T5f (REVIEW-NOTES, PLANT2_ELEMENTS): B5 circuits L1-L4, HB / CG lamps and re-lamp; B6 security mount points as devices; RELIEF_DOORS for T7b; S6 relock.
 - B6 roles bind per player (R3, A37): card M on the shared CO lets one player open RD2-RD4 and key 2 needs no code, so
   T7a's per-role drill ticks must make the operator / runner split mandatory for two players.
+- From T5g (REVIEW-NOTES, DEEP_ELEMENTS): B7 / B8 / B9 circuits and re-lamps; B8 props and CAM-R; B9 devices (CAM-P1 / P2,
+  desk, beam, PIR, alarm, reinforce, P3 switch in the duct door); greyed lines (whistle, drag, V3, Phase 5 / 6); DEEP_RELIEF_DOORS for T7b.

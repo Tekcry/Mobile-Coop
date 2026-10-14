@@ -1,6 +1,11 @@
 # Changelog
 
 ## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5g: the Deep level rebuilt to BAYS v2 at its own offsets (the T5f shift is gone): B7 The House (a 30 x 30 cavern round
+  the two-storey kill house, its office behind glass, annex roof, water main, bench, sandbags, the store door into A7),
+  B8 The Range (60 x 16: glass firing-line screen, six lanes, shoot-house, glazed tower, catwalk and its caged stair,
+  sniper scaffold), A8 with its medkit, B9 The Plot (a three-floor well with glass balcony fronts, cabins, bridge, rope,
+  zipline and tube duct to the lift lobby) and the exit lift. Objectives listed by name; relief doors placed.
 - T5f: B5 Standby Plant, A5, B6 Mock Site, S6 and A6 rebuilt to BAYS v2; B4 / A4 at their v2 offsets (66, 14) / (70, 8)
   (the T5e passage is gone) and A4's wall medkit. B5: one 30 x 24 guarded hall: EL (screened but for its stair), gensets
   (wall-jump roofs), trench, cable gallery, glazed switch room (MB, the mains gate on A5), fuel bay. B6: one line RC ->

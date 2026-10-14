@@ -863,8 +863,8 @@ B6's exit airlock (objective 24).
 | Field | Content |
 | --- | --- |
 | Real purpose | The rock cavern left from excavating the bunker (sprayed concrete), where Cresset built a two-storey "kill house" (a mock office, glass-fronted inside) for close-quarters drills; a 300 mm water main and the cavern's lighting truss cross it overhead. |
-| Size, shape | Cavern 30 x 30, 10 high, dark (900 m2, 51% of v1); the house x 8..22, z 8..20 (14 x 12), ground 0, first floor 3.2, flat roof 6.4 with a 1.1 parapet and a roof hatch; a single-storey annex (kitchen) on the south side x 12..18, z 4..8, roof 3.2. |
-| Verticality | Roof, first floor, annex roof, the water main at 4.6, a sprayed-concrete bench on the west cavern wall at 3.0. |
+| Size, shape | Cavern 30 x 30, 10 high, dark (900 m2, 51% of v1); the house x 8..22, z 8..20 (14 x 12), ground 0, first floor 3.2, flat roof 6.4 with a 0.9 parapet (T5, kept in T5g: the ledge pull's height) and a roof hatch; a single-storey annex (kitchen) on the south side x 12..18, z 5..8, roof 3.2 (T5g: z 5..8 puts the water main over its south edge). |
+| Verticality | Roof, first floor, annex roof, the water main at 4.9, a sprayed-concrete bench on the west cavern wall at 3.0. |
 | Colour | 3000 K: warm house windows in a dark cavern; cold LED floods on the cavern walls. |
 | New mechanics | Every takedown kind (behind, front, side, corner, over a low obstacle, drop from a pipe, ledge pull, window, inverted from the pipe), tap / hold, elbow strike, grab (walk, sidearm, human shield, knock out, shove), interrogation, carry, drag, hide, bodies found, radio check, dual takedown and Sync, an officer's buff, a heavy (frontal = lethal only), doors (quiet, fast, bash). |
 | Guards | 6 (B7-P1, B7-P2, B7-W, B7-R, B7-O, B7-H). |
@@ -873,15 +873,15 @@ B6's exit airlock (objective 24).
 Elements:
 | Id | Element (real reason) | Position (local) | Use |
 | --- | --- | --- | --- |
-| WM | Water main 300 mm on brackets (the supply to the deep level) | z 5, x 1..29, y 4.6 (over the annex roof, A40) | horizontal pipe: hang, legs up, inverted; drop takedown on B7-W at (4, 5); inverted takedown over the annex roof's south edge |
+| WM | Water main 300 mm on brackets (the supply to the deep level) | z 5, x 1..29, y 4.9 (T5, kept in T5g: a standing grab from the bench and the annex roof; over the annex roof's south edge, A40) | horizontal pipe: hang, legs up, inverted; drop takedown on B7-W at (4, 5); inverted takedown over the annex roof's south edge |
 | WB | Sprayed-concrete bench on the west cavern wall (rock-bolting platform) | x 0..1.5, z 4..24, top 3.0 | lip: hang and shimmy; a fixed plant ladder at z 24 |
-| AX | Annex roof (kitchen) | x 12..18, z 4..8, 3.2 | wall jump up (2.7-3.8); the manager's first-floor window above it (sill 4.1) = window takedown |
-| PR | Roof parapet; a roof downpipe on the south face (x 20.5, floor to 7.3, A40) | roof edge, 6.4 + 1.1 | hang below it on the south face at (19, 8): ledge pull on B7-R |
+| AX | Annex roof (kitchen) | x 12..18, z 5..8, 3.2 | wall jump up (2.7-3.8); the manager's first-floor window above it (sill 4.1) = window takedown |
+| PR | Roof parapet; a roof downpipe on the south face (x 20.5, floor to 7.3, A40) | roof edge, 6.4 + 0.9 | hang below it on the south face at (19, 8): ledge pull on B7-R |
 | SB | Sandbag walls 1.0 (range leftovers, Cresset's cover props) | x 24..27, z 10..20 | low cover; takedown over a low obstacle |
-| KH doors | Front (north, (15, 20)), back (through the annex, (15, 4)), side (east, (22, 14)) | - | open quiet / fast / bash; peek |
-| Windows | Ground floor: two glazed, two open; first floor: the manager's (south, over the annex), two more | - | vault in; window takedown |
+| KH doors | Front (north, (15, 20)), back (through the annex, (15, 5)), side (east, (22, 17), the lobby; T5g) | - | open quiet / fast / bash; peek |
+| Windows | Ground floor: two glazed (north), two open (west); first floor: the manager's (south, over the annex, open), two fixed | - | vault in; window takedown |
 | Glass | Inside the house: glass office partitions (kill-house observation walls) | - | sightlines through the house for the players (opaque to guards' sight probes, A26) |
-| Hides | Lobby lockers (2), three dark recesses in the cavern wall (west z 26, north-east, south-east), a builder's skip (x 2..5, z 25..28) | - | hide bodies |
+| Hides | Lobby lockers (2), three dark recesses in the cavern wall (west z 27, north-east, south-east), a builder's skip (x 2..5, z 25..28) | - | hide bodies |
 | Exit | Secure store door on the cavern's east wall (z 14.4..15.6) with a keypad: A7's near door (A41) | - | the gate (code from B7-O) |
 
 Objectives (R5; order free inside the cavern, the store door last):
@@ -897,7 +897,7 @@ Objectives (R5; order free inside the cavern, the store door last):
 | 8 | Ledge pull the roof watch off the parapet | P1 | PR (19, 8) | takedown:ledge |
 | 9 | Window takedown on the officer | P1 | the manager's window | takedown:window |
 | 10 | Elbow-strike a guard | either | any | strike |
-| 11 | Grab a guard: walk him, draw your sidearm, hold him as a shield, then knock him out or shove him | either | any | grab (walk, sidearm, shield, knock-out / shove) |
+| 11 | Grab a guard: walk him, draw, hold him as a shield, then knock him out or shove him | either | any | grab (walk, sidearm, shield, knock-out / shove) |
 | 12 | Question the officer for the store code | P1 | B7-O | interrogate (V3; now: his desk drawer "Store key") |
 | 13 | Carry a body to a hiding place | each | lockers, recesses, skip | carry, hide |
 | 14 | Drag a body | each | any | drag (not a drill until loco 27; carry meanwhile) |
@@ -917,6 +917,8 @@ Guard sheets:
 | Covered by / covers | Cover each other; B7-H covers their backs through the front door | Covered by B7-R when B7-R faces S at (10, 9.5) | Covers B7-W and the annex roof (facing S); covered by nobody | Buffs every guard within his officer radius | Covers the pair through the front door |
 | Lures | A noisemaker by the skip pulls one of the pair (the other follows after 3 s); a shot porch lamp | The lamp under WM (L7-W) pulls him to (4, 5) = under the drop spot | A noise on the annex roof | A knock at his door | Noise at the back door |
 | Search | The skip, the north-east recess | The west recesses | The roof hatch | The first floor | The ground floor |
+
+Relief door (A62): `B7-relief`, the cavern's south wall at x 21 (all B7 guards).
 
 Sequence (intended; other orders work): from A6's dark vantage the pair reads all six. Together they go high (WB bench
 or the AX wall jump): the lead takes B7-R with a ledge pull from the parapet's south face (via the roof downpipe);
@@ -951,7 +953,7 @@ Sketch:
      |(3.0) |  HOUSE 14x12      | SB [store door] -> A7
      |      |  1st: office O    | SB|
  z8  |      +-[annex roof 3.2]--+   |
- z5  |==W======water main 4.6=======|
+ z5  |==W======water main 4.9=======|
  z0  +------------------------------+
      x0     x8                 x22  x30
 ```
@@ -989,18 +991,18 @@ Unavoidable elements:
 Elements (local):
 | Id | Element | Position | Use |
 | --- | --- | --- | --- |
-| FL | Firing line benches behind a glass screen with firing ports; a glass door in the screen (x 4, z 10..11) onto the lanes (P1's way to SH) | x 2..4, z 1..11 | weapon drills (both side by side) |
+| FL | Firing line benches behind a glass screen with firing ports; a glass door in the screen (x 4, z 9.9..11.1) onto the lanes; the screen is a 1.0 kick panel and a head screen 1.6..3.0 with the firing slot between (P1's way to SH) | x 2..4, z 1..11 | weapon drills (both side by side) |
 | KL | Kit lockers (the course kit loadout) | x 0..2, z 10..12 | take each weapon class |
-| TG | Training dummies on lane stands at 10, 25, 50 m (x 14, 29, 54) | lanes 1-6 (2 m each) | hits, headshots, reload under time |
+| TG | Training dummies on lane stands at 10, 25, 50 m (x 14, 29, 54; lanes 4-5 at 45 m, x 49: the scaffold, T5g) | lanes 1-6 (2 m each) | hits, headshots, reload under time |
 | PW | Penetration wall: plywood 0.05 beside block 0.2 | lane 2 at 15 m (x 19) | penetration vs none |
 | BR | Two explosive barrels | lane 5 at 30 m (x 34) | frag / shot |
 | LG | Lamp gantry with breakable lamps and a fixed camera CAM-R | lane 6 at 20 m (x 24) | shoot lamps; EMP; pistol secondary (V3) |
 | SH | Shoot-house barricades: low 1.0 and high 2.0 | x 30..54, z 0..12 | the floor advance; low cover |
 | RT | Range control tower cabin, y 4.0, glazed | x 2..8, z 12..16 | sniper drill; circuit switches |
 | LD | Fixed ladder to RT (gantry access) | (3, 12) | the lead's way up |
-| CW | Catwalk on the crane gantry, y 4.0, glass balustrade 1.1 on its south edge (overwatch over it) | x 8..58, z 13..16 | overwatch |
+| CW | Catwalk on the crane gantry, y 4.0, glass balustrade 1.1 on its south edge (overwatch over it) | x 8..50, z 13..16 (T5g: ends at CS's head) | overwatch |
 | SP | Sniper's scaffold 3.0 at the far end | x 54..57, z 7..10 | B8-S post |
-| CS | Catwalk stair at the east end, caged to 7.0, its foot door (z 10) bolted from below | x 58..60, z 10..16 | the gate back to the floor |
+| CS | Catwalk stair at the east end, rising west from its foot (x 58) to the catwalk's end (x 50), caged to 7.0 (its west wall closes the dark walk under the catwalk), its foot door in the cage's south wall (x 58.3..59.5, z 12) bolted from below (T5g: a 4.0 rise needs the 8 m run) | x 50..60, z 12..16 | the gate back to the floor |
 
 Objectives (R5):
 | # | Objective | Who | Where | Verb / tick |
@@ -1046,6 +1048,8 @@ Guard sheets (combat role-players; calm at their posts until the live-fire trigg
 | Counters | Shot from RT / CW, gas, EMP his platform lamp, flank along the dark walk | Flank, shock (V3), frag, takedown from behind | Takedown, shock, any weapon |
 | Isolation | Before live fire: at SP alone (the stealth option: take all three before live fire) | (52, 6) alone, dark if R3 is off | (44, 10), t 9-13 s |
 
+Relief door (A62): `B8-relief`, the south wall at x 45 (all B8 guards).
+
 Light plan:
 | Id | Fitting | Circuit | Switch | Notes |
 | --- | --- | --- | --- | --- |
@@ -1063,7 +1067,7 @@ Sound: workshop concrete; catwalk grating (loud); the tower vinyl.
 
 Sketch:
 ```
- z16 +RT[LD]======== catwalk CW (4.0), dark walk below ===========[CS]+
+ z16 +RT[LD]====== catwalk CW (4.0, x 8..50), dark walk below =====[CS stair x 50..58, cage]+
  z12 |KL|----------- lane stands 10 / 25 / 50 m ---------------  |    |
  A7  |FL| lanes 1-6  PW  LG+CAM-R  BR   SH barricades   E  [SP] |    [A8]
  z0  +--+--------------------------------------------------------+----+
@@ -1093,7 +1097,7 @@ Unavoidable elements:
 | Field | Content |
 | --- | --- |
 | Real purpose | The bunker's operations room, where the regional plot was tracked: a two-storey-deep well with the plotting floor and map table at the bottom, glass cabins on balconies at 4.5 and 9.0, the controller's bridge across the north end at 9.0, the pneumatic message-tube system, and the exit lift to the surface. Final exercise: recover the case, turn both keys, extract. |
-| Size, shape | 32 x 38, 14 high (1048 m2, 46% of v1): the well x 0..32, z 0..31 (plot floor x 6..26, z 6..28; the dark ring under B-1 round it); balcony B-1 (4.5) 6 m deep on the west, south and east (a 2.5 walkway in front of 3.5 cabins); B-2 (9.0) 5 m deep west and east; the bridge z 28..31 at 9.0; enclosed stairs in the SW and SE corners (x 0..6 / 26..32, z 0..4: 0 -> 4.5 -> 9.0); the lift lobby x 12..20, z 31..38. |
+| Size, shape | 32 x 38, 14 high (1048 m2, 46% of v1): the well x 0..32, z 0..31 (plot floor x 6..26, z 6..28; the dark ring under B-1 round it); balcony B-1 (4.5) 6 m deep on the west, south and east (a 2.5 walkway in front of 3.5 cabins); B-2 (9.0) 5 m deep west and east; the bridge z 28..31 at 9.0; enclosed stairs in the SW and SE corners (x 0..8 / 24..32, z 0..4: 0 -> 4.5 -> 9.0; T5g: 8 m for two 4.7 runs and their landings); the lift lobby x 12..20, z 31..38. |
 | Verticality | Three floors; rappel from the bridge, zipline from B-2 east to the lift lobby. |
 | Colour | Mixed: 3000 K pendants over the floor, 4000 K balconies, the back-lit map table (cyan), 6500 K lift lobby, red alarm beacons; LED strips along every balcony's glass front. |
 | New mechanics | Everything together; split and converge (two keys), Sync (two-key lift), clutch save, downed / revive / drag a downed partner / medkit on a mate (Phase 5), alarm panel and reinforcements, a dog (smell in the dark), a sniper, an enforcer, a heavy, an officer on a manned desk, team results. |
@@ -1115,9 +1119,9 @@ The rappel from the bridge and the zipline to the lobby are routes here (both pl
 Routes (each objective has at least two; all rejoin in the lobby):
 - Floor (shadow): the dark ring under B-1 (4.5 clear), between plotting stands, round the map table (low cover,
   glowing: avoid its light).
-- High: the stairs or a boost to B-1 (one balustrade gap at the north-west where the balcony edge is a planned co-op
-  lip, 4.5 over the floor), along the cabins, up to B-2, the bridge; rappel from the bridge (16, 29.5) to the floor's
-  north end; the zipline from B-2 east (29, 26) to the lift lobby's mezzanine rail, launched onto the lobby floor.
+- High: the stairs or a boost to B-1 (one balustrade gap at the north-west, x 5..6, z 26..28, where the balcony edge is a planned co-op
+  lip, 4.5 over the floor, over a pier), along the cabins, up to B-2, the bridge; rappel from the bridge front (11, 28) to the floor's
+  north end; the zipline from B-2 east (27.5, 22) to the lift lobby's mezzanine rail, launched onto the lobby floor.
 - Loud: straight across the plot floor.
 - Secret: the pneumatic tube duct (1.5 x 1.2) from the key A cabin's tube station down inside the west wall and along
   the north wall to an inspection door in the lobby's west wall (12, 34).
@@ -1140,8 +1144,8 @@ careful planning:
 
 Devices: CAM-P1 sweep over the floor (under the bridge at (16, 27.8), y 6.0, 135..225); CAM-P2 fixed on the lobby
 ((16, 31.3), y 3.0, facing N); manned desk on the bridge (B9-O: feeds CAM-P1, CAM-P2); a high beam across the lobby
-threshold (z 31, y 1.4); PIR on B-2 west; alarm panel (`MapLayout.alarms`) on B-1 south ((16, 1.5), y 4.5);
-reinforcement point: the staff tunnel door at the floor's south-east ((32, 2), `MapLayout.reinforce`, A41); wall medkit
+threshold (z 31, y 1.4); PIR on B-2 west; alarm panel (`MapLayout.alarms`) on B-1's south wall ((16, 0.3) wall mount, y 4.5; A76);
+reinforcement point: the staff tunnel door at the floor's south-east ((32, 5), north of the SE stair, `MapLayout.reinforce`, A41); wall medkit
 on the floor's north-west.
 
 Guard sheets:
@@ -1152,6 +1156,8 @@ Guard sheets:
 | Isolation | None (post); from behind via the dark ring | The handler at (20, 14) facing W, t 26-29 s (the dog smells a player within its range in the dark) | Alone on B-2 west at all times (the clutch-save target) | None; flank or shock | (12, 4.75) facing N, alone, dark | Alone on the bridge: grab from behind, interrogate (flavour) |
 | Covers | The floor centre | The floor | The floor and B-1 east | The lobby | B-1 west and south | Through the feeds |
 | Lures | Noise at the stair doors | A noisemaker in the dark ring (the dog investigates first) | EMP or pistol secondary on his lamp; a flashbang from below | Noise at the tube duct door | A shot cabin lamp | CAM trouble (video loss dispatches a guard; he stays) |
+
+Relief doors (A62): `B9-relief`, the ring's east wall at z 18; `B9-relief-lobby`, the lobby's east wall at z 35.5.
 
 Sequence (one of many): the team splits from the A8 vantage (west, floor level, dark ring). Lead: SW stair or the boost
 gap to B-1 west -> key A -> up to B-2 west (the sniper: take him, or crouch past behind him) -> along the bridge (grab

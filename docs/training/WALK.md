@@ -21,7 +21,8 @@ npm run dev
 - Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min` (dev only: one player can cycle airlocks and
   work both halves of a pair gate; drills still need their real moves).
 - F3 opens the debug overlay. Its "Teleport" button lists the Fallow points: B1-B9, A1-A8, L9, S6 and B3-G3, B3-RC,
-  B3-rope, B3-floor, B5-SR, B5-CG, B5-GEN, B6-AH, B6-RE, B6-CO, B6-CR, B6-MT, B6-SV, B7-roof, B8-RT, B9-B2.
+  B3-rope, B3-floor, B5-SR, B5-CG, B5-GEN, B6-AH, B6-RE, B6-CO, B6-CR, B6-MT, B6-SV, B7-house, B7-office, B7-roof, B7-annex, B7-bench,
+  B8-RT, B8-CW, B8-far, B9-floor, B9-B1, B9-B2, B9-bridge, B9-lobby.
 
 ## What to check per bay (about 5 minutes each)
 | Bay | Look at |
@@ -32,10 +33,10 @@ npm run dev
 | B4 Cistern (v2) | Straight off A3 (v2 offset, T5f). C1: boost onto W1, drop, draw the bolt; C2: human ladder up W2 at x 1..4, sluice held from VG; VG ladder into C3; boost onto OP, lower its ladder; A4. Phase 5 bay behind glass |
 | B5 Standby plant (v2) | EL at 4.4 screened but for its stair (no drop off it), gensets (wall-jump roofs), trench and its two end panels, cable gallery and the hang-drop at x 2, glazed switch room (MB) with its door onto the aisle, fuel bay, desk; A5 opens only with MB pulled. A4 has a wall medkit |
 | B6 Mock site (v2) | Reception (inner door locked) -> AH ladder -> duct -> vent drop onto the records desk -> exit button -> corridor; lockers, CR stair and mezzanine behind glass; L-leg beams, mantrap, server room, keypad by the exit door. Corridors feel 2.0 wide? |
-| S6 / A6 (v2) | The stair down south from the server room (top door bolted from B6), A6 with its medkit; B7 is still v1 (moved, T5g rebuilds) |
-| B7 The House | Cavern, two storeys, roof and parapet (0.9), annex roof wall jump, water main at 4.9 (drop takedown), windows, store door |
-| B8 The Range | Firing line, lanes (lanes 5 and 6 far stands at 45 m), shoot house, catwalk and tower cabin, catwalk stair and its door, sniper scaffold (z 18..22) |
-| B9 The Plot | Plot floor, map table, balconies B-1 (4.5) and B-2 (9.0), both stair towers, the bridge, rope from the bridge rail, zipline to the lift lobby, message-tube duct, north-west co-op lip, staff tunnel door (now on the east wall), lift L9 |
+| S6 / A6 (v2) | The stair down south from the server room (top door bolted from B6), A6 with its medkit, then B7 |
+| B7 The House (v2) | 30 x 30 cavern; house: lobby stair, office behind glass, roof hatch, parapet 0.9; annex roof wall jump; water main 4.9 over the annex edge; bench and its ladder; sandbags; the store door (A7) is the only exit |
+| B8 The Range (v2) | Lockers, firing-line glass screen with its slot and door, lanes (far stands 50 m, lanes 4-5 at 45 m), shoot-house, RT by ladder, catwalk to x 50, caged stair down to its bolted foot door, scaffold, A8 the only exit |
+| B9 The Plot (v2) | Well: dark ring, map table, towers to B-1 (4.5) and B-2 (9.0), key cabins, case cabin, bridge rope, zipline to the lobby, tube duct, NW co-op lip, staff tunnel door (east), lobby keys 5 m apart, lift L9 |
 
 Questions worth an answer: Is any space too big, too small or too samey? Is a move hard to find or to do? Can you get
 somewhere you should not (round a gate, over a wall, onto a roof)? Does a bay feel like the place BAYS describes?

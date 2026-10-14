@@ -334,3 +334,14 @@ moved by (+17.5, -29). Numbers moved within windows: A75 (BAYS rows synced). Tes
 T5f checks: FAIL (voxelFit limit derived from bounds, stale BAYS rows, B6 built 6.4 clear vs 4.6), fixed (fixed
 temporary limit 186 x 168, B6 four roof slabs 4.6 / 6.4 with closed edges), then PASS bar one BAYS row (office z),
 fixed by the orchestrator. D50 (Michael): walk 3 at Block C end and a movement re-check at TM.
+
+## T5g rebuild Deep (cloud)
+B7 (30 x 30 cavern, house x 8..22 z 8..20 with the office behind glass, annex, main 4.9, bench, sandbags, store door =
+A7 near), A7, B8 (60 x 16: FL glass screen and door, lanes / SH, RT, CW, CS caged x 50..60, SP), A8 (medkit), B9 (well
+32 x 31 with towers 8 wide, B-1 / B-2 / bridge, cabins, NW co-op lip, rope, zipline, tube duct, lobby) and L9 at the
+BAYS v2 offsets; A74 interim undone; BUNKER_BOUNDS x -1..142, z -71..76; voxelFit 166 x 162. Objectives by name
+(DEEP_OBJECTIVES), element flags (DEEP_ELEMENTS), relief doors. Numbers moved within windows: A76, A77 (BAYS rows synced).
+Tests: R1 / R2 graphs for B7 / B8 / B9, nav cells apart with doors shut, exact anchor sets, lips, no split gap, A26
+glass, B9's rope and zipline in 'rope catchers'.
+### Spec change requests (T5g)
+- None to routes, gates or guard jobs.

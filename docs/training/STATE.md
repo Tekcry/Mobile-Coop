@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T5g (rebuild Deep; restores the Deep offsets moved in T5f, A74)
+Current step: walk-2 block end (full e2e, perf trend), then PAUSE for walk 2
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -29,8 +29,8 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | C | T5c BAYS v2 redesign (docs) | done; its 3 open B3 items closed in T5e | 8c10c3c |
 | C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | 49f417d |
 | C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | done (cloud; T5c open items closed; B4 at interim (93, 30) with a passage from A3 until T5f, A71; turnstiles, sprung window, hatch, grilles stubbed for T7a; A4 wall medkit missing, added in T5f) | 2fe4faf |
-| C | T5f rebuild Plant (B5, A5, B6, S6, A6) | done (cloud; B4 / A4 at v2, interim removed, A4 medkit; v1 Deep moved (+17.5, -29) until T5g, A74; circuits, security devices, guards and relief stubbed for T6 / T7a / T7b) | (this commit) |
-| C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | not started | |
+| C | T5f rebuild Plant (B5, A5, B6, S6, A6) | done (cloud; B4 / A4 at v2, interim removed, A4 medkit; v1 Deep moved (+17.5, -29) until T5g, A74; circuits, security devices, guards and relief stubbed for T6 / T7a / T7b) | f787448 |
+| C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | built (cloud; A74 undone, bounds A77, numbers A76; guards, circuits, devices stubbed for T6 / T7a / T7b); checker PASS bar two BAYS rows, fixed | (this commit) |
 | C | TM merge locomotion 09-20 (waits for loco 20, D15), with the movement re-check (D50) | not started | |
 | C | T6 light, zones, surfaces | not started | |
 | C | T7a course data, drills, gates, devices | not started | |
@@ -50,7 +50,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A75 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A77 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).

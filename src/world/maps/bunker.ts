@@ -4,10 +4,10 @@ import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_ELEMENTS, UPPER_OBJECTIVES, UPPER_Y } from './bunkerUpper';
 import { buildShaft, buildShaftFloors, plantAt, SHAFT_ELEMENTS, SHAFT_OBJECTIVES } from './bunkerShaft';
 import { B5_GROUPS, B5_METRICS, B6_METRICS, buildPlant, buildPlantFloors, PLANT2_BOX, PLANT2_ELEMENTS, PLANT2_OBJECTIVES, plantAt2, S6_TOP_DOOR } from './bunkerPlant';
-import { B8_CS_DOOR, buildDeep, deepAt, deepNavSeeds } from './bunkerDeep';
+import { B8_CS_DOOR, buildDeep, DEEP_BOX, DEEP_ELEMENTS, DEEP_OBJECTIVES, deepNavSeeds } from './bunkerDeep';
 
-/** Course footprint (every bay and airlock inside it; T5f: v1 Deep moved by (+17.5, -29) until T5g, A74). */
-export const BUNKER_BOUNDS = { minX: -1, maxX: 181, minZ: -86, maxZ: 103 } as const;
+/** Course footprint (every bay and airlock inside it, BAYS v2 offsets since T5g; the Deep relief spawns included). */
+export const BUNKER_BOUNDS = { minX: -1, maxX: 142, minZ: -71, maxZ: 76 } as const;
 
 /**
  * The course data stub (T2-T5; BAYS v2: Upper in T5d, the shaft and reservoir in T5e, the plant in T5f): B1 to B9, A1 to A8
@@ -36,7 +36,7 @@ function card(id: string, switchId: string, levels: number): GateDef[] {
 function courseDef(): CourseDef {
   return {
     id: 'bunker',
-    objectives: [...UPPER_OBJECTIVES, ...SHAFT_OBJECTIVES, ...PLANT2_OBJECTIVES],
+    objectives: [...UPPER_OBJECTIVES, ...SHAFT_OBJECTIVES, ...PLANT2_OBJECTIVES, ...DEEP_OBJECTIVES],
     airlocks: [
       { id: 'A1', box: [1, 54, 7, 60], floorY: UPPER_Y, nearDoor: 'A1-near', farDoor: 'A1-far' },
       { id: 'A2', box: [59, 50, 65, 56], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
@@ -44,8 +44,8 @@ function courseDef(): CourseDef {
       { id: 'A4', box: box6(plantAt('A4', 0, 0)), floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
       { id: 'A5', box: [...PLANT2_BOX.A5], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
       { id: 'A6', box: [...PLANT2_BOX.A6], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
-      { id: 'A7', box: box6(deepAt('A7', 0, 0)), floorY: 0, nearDoor: 'A7-near', farDoor: 'A7-far' },
-      { id: 'A8', box: box6(deepAt('A8', 0, 0)), floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
+      { id: 'A7', box: [...DEEP_BOX.A7], floorY: 0, nearDoor: 'A7-near', farDoor: 'A7-far' },
+      { id: 'A8', box: [...DEEP_BOX.A8], floorY: 0, nearDoor: 'A8-near', farDoor: 'A8-far' },
     ],
     bays: [
       // B1, B2 (BAYS v2, T5d): one shared course, no split, no gate (R3); objectives by name (UPPER_OBJECTIVES, T7a
@@ -132,7 +132,7 @@ function courseDef(): CourseDef {
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: DEEP_ELEMENTS.B7,
       },
       {
         // CS (the catwalk stair) is bolted from below (the floor side); the cease-fire switch at the far end
@@ -146,7 +146,7 @@ function courseDef(): CourseDef {
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: DEEP_ELEMENTS.B8,
       },
       {
         // objectives: key A (B-1 west cabin), key B (B-1 east cabin), the case (B-2 east); the lift: both keys turned
@@ -166,7 +166,7 @@ function courseDef(): CourseDef {
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: DEEP_ELEMENTS.B9,
       },
     ],
   };
