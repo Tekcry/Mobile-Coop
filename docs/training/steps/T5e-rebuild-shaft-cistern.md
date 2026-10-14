@@ -9,6 +9,8 @@ Model: implementer opus, checker opus. Deps: the step before (T5c first). No gua
   checks they ran (tests/bunkerMap.test.ts, plan-svg, e2e-anchors)
 
 ## Task
+0. First close the three T5c open items in docs/training/STATE.md "Blocked" (B3 G5 -> ML walk-off skip, rope
+   kick-outs through ladder cages, stale wording) in BAYS.md / DECISIONS / REVIEW-NOTES, then build to the fixed sheet.
 1. Replace the geometry of B3, A3, B4, A4 in src/world/maps/bunkerShaft.ts with BAYS v2: compact linear rooms, every element unavoidable,
    one shared course where R3 says, the automatic airlock pad (T5b), glass partitions and observation windows as
    see-through collision (no way round an element through or over glass), dark shell with LED strip fixtures as

@@ -1,5 +1,12 @@
 # Notes collected for REVIEW.md (built at T9)
 
+- **QUESTION FOR MICHAEL (T5c, D41 / A51): boost skips geometry cannot close.** A co-op boost reaches lips to 4.5
+  (`TEAM.boostMax`, frozen). Where a boost could skip an element, BAYS v2 now raises the lip above 4.5, screens it
+  (flush 2.4 `noLedge`) or cages the ladder head. Three spots cannot be closed that way: B3 WJ1 (lip 3.4) and WJ2
+  (lip 3.2), because a wall-jump lip (2.7-3.8) is always inside boost reach; and B4 W2 (4.25 / 4.4), because the boost
+  reaches everything the human ladder reaches. Today the drill tick holds them (the airlock refuses until the wall
+  jump / human ladder is ticked, D30). Options: (a) keep the tick as the backstop there; (b) a course rule: a boost
+  works only at marked boost spots (B4 W1, OP, B9's gap) - a code change in the course framework, no tuning change.
 - Exceptions E5-E10 (SPEC) need Michael's confirmation; E1-E4 were approved in D10.
 - Co-op light state is not synced to clients on the base branch (src/net/coopHost.ts has no light state; 2026-10-13
   grep). T1b adds a minimal light list to the `course` message as a stand-in for First Playable S7a / bible L10.
@@ -56,3 +63,24 @@
 - T5b2 fixes (E2E_JOBS=2): e2e-netmove (cover joints within 10 cm, twice) and e2e-coop ("client takedown offered on the
   host's guard", once) failed under load and passed serially (known flaky). The e2e-bunker startup timeout did not recur.
 - T5b2 final check: e2e-netmove failed 4 of 6 runs on the T5b2 tree; the same cover-joints check also fails at base 4cae63f (1 of 3 serial runs), so it is pre-existing. With a stall of 0.4 s or more, a snapped moving partner steps back from the extrapolated spot to the old state, then jumps to the new one (hold-then-snap design; minor). A reversal or a speed change (walk to sprint) during a stall over 0.3 s can still snap; the blocker parks, nobody is shoved.
+- T5c (BAYS v2) route / gate changes for Michael's review (LOG "Spec change requests (T5c)"; A50-A60): B2 one lane, no
+  lever gates; B3 no split, two rope stages, twin ducts; B4 Phase 5 bay off the line; B6 shared duct start, locked
+  reception inner door, L-leg to the mantrap; B7 no split; every bay's coordinates new (BAYS 0.1).
+- T5c fix round 1 (checker FAIL): B4 W1 screened from VG and W2's south edge screened (R1 bypass closed); B3 landing
+  edges 2.4 screens; retry rule (A61: B3 RL1 / W5 return routes and gates, self-closing grilles and louvres, B2 RL2 and
+  re-glazing panes, B5 / B8 re-lamping) and guard relief (A62) - new course features T5d / T5e must build; A50 reworded
+  (single-file at any length with waiting spots); A51 rewritten (geometry first: B3 casing 4.6, B2 pit -1.0 and portal
+  sump, caged ladders at B2 G1 and B6 AH); B5-G1 route 25.6 m / 38 s; B6 stair landing; B8 firing-line door; B1 L1-9.
+- T5c fix round 2 (checker FAIL): return gates are one-way single-occupancy turnstiles (A61, new course feature
+  for T5d); B3 rope net NR under G5's rope point (ML only by sideways + unhook), RL1 replaced by ML -> NR -> G5, CR
+  window rope-only, CR substructure solid; B2 L1 and portal sill 4.5 -> 5.0 (boost); relief doors (A62); lamp-shot
+  drills restored in B2 / B7 / B9 and a greyed B7 whistle line; v1 "(both)" rows now marked "placed" (friendly fire,
+  ghost tier, ADS spread, medkits, gadget wheel, CCTV, ...: LOG "Spec change requests (T5c fix round 2)") - confirm.
+- T5c fix round 3 (checker FAIL; rope stages fitted to the engine's rope code as it stands, no tuning change): B3 RP1
+  hangs from a hoist niche in the south wall (top x 4.8, z 0), reaches ML (x 6.3) at the `RAPPEL` 1.5 m sideways limit
+  through a slot in ML's west screen, rope end at ML's floor; NR lowered to y 8.8 (ML lip 4.8 over it: a rope bottom-out
+  lands heavy, no damage); RP2 hangs from a davit head on CR's west wall (x 9, facing west) into a 0.9 m well, the
+  only place the engine offers the kick through CR's window. Drill coverage changes from v1 - confirm:
+  - CCTV is now P2-only: B6 operator loops CAM1-4 (objective 15); P1 has no CCTV drill (B8 / B9 cameras placed).
+  - IR beams: v1 "B6 (both)" is now the runner P1 crossing them (placed, not ticked); P2 turns them off (objective 16).
+  - Self-use medkits are placed (A4, A6, A8, B9: use when hurt), not a drill for either player.

@@ -217,3 +217,74 @@ down / boost / human ladder and for 3 frames after a jump; course partner hit bo
 max(2 m, sqrt(2) * speed * stall) from the straight-line prediction. e2e-bunker: walk-into both ways, teleport-past
 replay both ways. Checker rounds: FAIL (teleport sweep, flaky e2e), FAIL (stalled sprinter popped), FAIL (corner
 during a stall popped), PASS. e2e-netmove cover-joints flake also fails at base: REVIEW-NOTES.
+
+## T5c BAYS v2 (2026-10-14, cloud) - docs only, uncommitted at hand-off
+BAYS.md rewritten as v2 under SPEC R1-R8 (v1 kept as BAYS-v1.md with a superseded note). New world offsets (0.1):
+footprints B1 38%, B2 27%, B3 60%, B4 23%, B5 47%, B6 54%, B7 51%, B8 48%, B9 46% of v1. Shared rules in 0.2 (the line,
+edges, catchers, passing widths for D49, objective lines), automatic airlock sheet (0.4), look kit (0.5). Every bay:
+room / element table with "one at a time / side by side", an explicit objectives table, "R1-R8 check" and
+"Unavoidable elements" tables. FEATURES.md: movement "who" both everywhere, objective-list row, gates row, section 11
+redone. PLAN.md section 4: T5b-T5g rows. DECISIONS A50-A60.
+
+### Spec change requests (T5c; D12, applied)
+- B2: v1's twin lanes, glazed walkway and x 24 lever gates replaced by one lane of seven stations (D42, D43); each
+  player vaults the open window and breaks one pane (A54).
+- B3: v1's rappel / zipline split and fan-isolation split removed (both do both, A52); two rope stages (hoist rope to a
+  mid landing, davit rope to the CR window); CR moved inside the shaft at 7.5; a fourth landing G4 for the corner kick;
+  catch nets under the bar and the zipline; twin discharge ducts (A53).
+- B4: cells 9 x 8; the Phase 5 elements moved off the line into a glass-screened bay (A55).
+- B5: switch room inside the hall's east side; G2 walks 22 m to reset (was 40 m); G1 loop 36 s.
+- B6: shared start through the air-handling room, supply duct and vent drop (both, A57); reception's inner door locked;
+  the L-leg leads to the mantrap; B6-GM checks the locker-room door; B6-GR loop 39 s.
+- B7: no split (A56); house 14 x 12 in a 30 x 30 cavern; routes rescaled (30-43 s).
+- B8: 60 x 16; sniper scaffold and catwalk stair moved to the east end in the new frame.
+- B9: well 32 x 31 with 6 m B-1 decks (2.5 walkway + 3.5 cabins), lobby 8 x 7; routes rescaled (42-44 s).
+
+### T5c fix round 1 (2026-10-14, cloud) - checker FAIL, docs only
+- B4: flush 2.4 `noLedge` screens where W1 meets VG and on W2's south edge, and on VG's cell side (closes the
+  W1 -> VG -> C3 ladder and W2 -> C3 bypasses); R1 / R2 / Unavoidable rows updated.
+- B3: landing edges G2-ZD are 2.4 screens (were balustrades); casing 4.6 above G1 (boost reach); return routes RL1
+  (ML -> G5) and W5 (G5 -> NT1 -> G4) with one-way return gates; grille unscrew-only, louvre kick-only, both
+  self-closing; the fence climbs both ways (A53, A61).
+- B2: G1 / G2 edges screened, G1 ladder caged, pit floor -1.0, a sump under the portal sill (A51); RL2 2C -> G2;
+  re-glazing practice panes (A54).
+- 0.2: boost-reach rule, retry rule (A61), guard relief (A62), A50 single-file wording, R4 8-14 m with exceptions.
+- B5-G1 route via (11, 7): 25.6 m, 38 s (cleared GEN-2). B6: stair-top landing over the manager's office to CR.
+  B8: glass door from the firing line to the lanes. B1: L1-9 lit chokepoint restored. B4: A35 citation corrected.
+- FEATURES: B7 bench / annex / sandbags, B9 rappel / zipline, B3 night vision marked route / optional; B6 beams runner
+  P1; section 11 says only "each" objectives count.
+
+### T5c fix round 2 (2026-10-14, cloud) - checker FAIL, docs only
+- B3: G5's rope point and RP1's hoist beam now stand over a new rope net NR (x 4..6, z 0..3, y 10.5, ladder back to G5);
+  ML moved to x 6..8.4 and is reached only by moving sideways on RP1 and unhooking; ML's lip 5.5 over NR with its
+  screen (no boost). RL1 replaced by ML -> NR -> G5. CR window opens only to the rope kick (closed, `noLedge` from RF).
+  CR substructure solid under x 12..14, z 0..6.5 and x 9..14, z 0..2.6; PP's north wall solid (no way round the fence).
+- 0.2 / A61: every return gate is a one-way, single-occupancy turnstile (no tailgating forward); the room-graph test
+  models it as a directed link and asserts no entry -> exit path uses one. B2 RL2, B3 W5 and NR -> G5 updated.
+- B2: L1 and the portal sill raised 4.5 -> 5.0 (gap 2.2 unchanged; 0.5 step down onto the deck), out of boost reach
+  over 2C's floor; Size row lists the 2B pit -1.0 and the sump -1.0; 2B-3 pit floor corrected to -1.0.
+- A62: relief guards enter through each guarded bay's relief door (staff door locked to players, off the room graph,
+  used only while neither player can see it). B5: HB1-HB4 and CG1..3 marked breakable.
+- FEATURES: drill rule rewritten (a row is a drill only where its bay has an objective line; other placements are
+  "placed"); every flagged row re-marked to match the v2 objective tables.
+
+### Spec change requests (T5c fix round 2; D12, applied)
+- Lamp-shot drills restored from v1 (FEATURES v1 "Shoot out lamps: B2, B5, B7, B8, B9 (both)", D47): B2 objective 4a
+  (L2-G1..3), B7 16a (L7-F1..3 / L7-P), B9 2a (L9-P1..4 / L9-L1..2), each "each", with the 0.2 re-lamp rule.
+- Whistle (v1 "B5, B7 (both)"): B7 gets a greyed "each" line until Phase 2 (B5's greyed line now says each).
+- v1's rule made every "(both)" placement a drill; v2 marks these "placed" (systems or situations, not a verb a player
+  can be asked to perform on demand): friendly fire, B9 ghost tier, ADS spread tuning, medkits (A4 / A6 / A8 / B9),
+  enemy attacks in B9, the gadget wheel (used by B8's gadget lines), CCTV in B8 / B9, and the secondary placements of
+  sleeping gas (B9 dog), EMP (B9), noisemaker (B7 skip), pistol secondary (B5 / B6 / B9), sticky shocker (B8-E, B9),
+  optic cable (B7), thermal (B9), back-to-wall / door peek / doors (B6 or B7), low-wall lean (B6). For Michael:
+  REVIEW-NOTES.
+
+## T5c BAYS v2 (2026-10-14, cloud)
+BAYS.md rewritten as v2 (v1 kept as BAYS-v1.md): nine bays as compact linear chains (23-60% of v1 footprint), one
+shared course for B2-B4, splits only B4 sluice / B5 breaker / B6 operator-runner / B8 overwatch / B9 keys, explicit
+objective lines per drill (A47, A59), automatic airlock pads, glass / LED look, retry rule (A61 one-way turnstiles,
+re-glazing, re-lamping), guard relief (A62), per-bay R1-R8 and Unavoidable tables. FEATURES drill rule: a row is a
+drill only where its bay has an objective line. Assumptions A50-A65. Checker rounds: FAIL x4 (bypasses, retry dead
+ends, FEATURES marks, boost reach, B3 rope stages vs the engine). After 3 fix rounds three B3 rope items stay open
+(STATE "Blocked"); committed so T5d (independent of B3) can start; T5e closes them first. Boost-reach spots WJ1/WJ2
+and B4 W2 are a question for Michael (REVIEW-NOTES).

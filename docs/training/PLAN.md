@@ -89,7 +89,10 @@ the agents' summaries in its context.
 | | T3 Shaft and Cistern | `bunkerShaft.ts`: B3, A3, B4, A4; split gap, ropes, fence, duct, co-op lips | |
 | | T4 Plant | `bunkerPlant.ts`: B5, A5, B6, S6, A6; trench, gallery, mock site rooms, duct, device mount points | |
 | | T5 Deep | `bunkerDeep.ts`: B7, A7, B8, A8, B9, L9; e2e-anchors covers the map; nav order test; `WALK.md` | full e2e, GPU shots per bay, then PAUSE: Michael walks the bays (D27) |
-| C Life | T5b walk notes | Michael's `WALK-NOTES.md` applied | |
+| C Life | T5b walk notes | Walk-1 fixes: automatic airlocks (R6), objective list always on screen (R5) | |
+| | T5b2 partner collision | Partners block each other (D49); teleport snap | |
+| | T5c BAYS v2 | Docs only: BAYS v2 under R1-R8 (v1 kept as `BAYS-v1.md`), FEATURES "who", explicit objective lines (A59) | |
+| | T5d-T5g rebuild | Every bay rebuilt to BAYS v2 (T5d B1-A2, T5e B3-A4, T5f B5-A6, T5g B7-L9): R1 / R2 nav tests per element, footprint check (R4), objective lines as drill names | full e2e, GPU shots per bay, then PAUSE: Michael walks again (walk 2) |
 | | TM merge | `feature/ct-locomotion` (past step 20) and `feature/kestrel` merged in; drills use the real loco 09-20 verbs (waits for loco 20, D15) | |
 | | T6 Light | every light plan, circuits, switches, zones, surfaces; `e2e-bunker` light section | |
 | | T7a Course data | `bunkerCourse.ts`: every drill, all gates, S1 cameras, radio lines, objectives, kit | |
