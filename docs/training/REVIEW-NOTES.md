@@ -45,3 +45,14 @@
   E2E_JOBS=2 and passed serially (flaky under load; not fixed).
 - T5b fixes (round 2): e2e-course's "host sees the client at 11, 2.4" wait (moveClient, e2e-course.mjs ~:135) timed out
   once under E2E_JOBS=2 and passed serially (flaky under load; not fixed).
+- T5b2 (D49) for Michael: walking dead-centre into a standing partner stops short of him (0.52 m apart, the two
+  radii 0.59, e2e-bunker); a walker that hits off-centre slides round the partner's round capsule on contact. That is
+  accepted physics, not a bug: e2e-bunker bounds it from the walk trace (never closer than the two radii less 0.08 m,
+  never past him).
+- T5b2 fixes: a teleported partner (bay start, checkpoint reset, respawn) slid through every point between the two spots
+  for one snapshot interval (about 50 ms), and its blocker with him, shoving other players. Fixed at the root: the
+  snapshot interpolation snaps jumps over 2 m made at over 25 m/s, or across a gap of over 0.3 s in the states (a stalled sender: the first e2e run showed a standing partner gliding 2.6 m over 2 s; also enemy puppets) that land further than max(2 m, sqrt(2) x the speed before the gap x the gap) from where that velocity would carry the partner (fix round 3: a runner turning a corner early in a stall no longer pops; a moving partner teleported during a stall within that bound slides instead of snapping), and the blocker parks 3 frames after
+  a 0.6 m+ jump. e2e-bunker replays the buffered states at 60 fps and checks the blocker is never solid between.
+- T5b2 fixes (E2E_JOBS=2): e2e-netmove (cover joints within 10 cm, twice) and e2e-coop ("client takedown offered on the
+  host's guard", once) failed under load and passed serially (known flaky). The e2e-bunker startup timeout did not recur.
+- T5b2 final check: e2e-netmove failed 4 of 6 runs on the T5b2 tree; the same cover-joints check also fails at base 4cae63f (1 of 3 serial runs), so it is pre-existing. With a stall of 0.4 s or more, a snapped moving partner steps back from the extrapolated spot to the old state, then jumps to the new one (hold-then-snap design; minor). A reversal or a speed change (walk to sprint) during a stall over 0.3 s can still snap; the blocker parks, nobody is shoved.

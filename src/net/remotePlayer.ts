@@ -10,6 +10,7 @@ import { attachedClamp, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimi
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
+import type { PartnerBlocker } from './partnerBlocker';
 import { hyp2 } from '../core/mathx';
 
 /** Hip joint height (m) of the average build the capsule is fitted to. */
@@ -209,7 +210,11 @@ export class RemotePlayer implements Damageable {
     this.sync();
   }
 
+  /** (T5b2, D49) A co-op partner's body on the host (null for a PvP opponent); synced by `CoopHost.frameUpdate`. */
+  blocker: PartnerBlocker | null = null;
+
   dispose(): void {
+    this.blocker?.dispose();
     this.registry.removeTarget(this);
     this.body.dispose();
     this.shape.dispose();

@@ -40,6 +40,11 @@ export class PvpTarget implements Damageable {
     return { dealt: h.amount * (h.part === 'head' ? 1.3 : 1), killed: false };
   }
 
+  /** Solid to the local player's body or not (a co-op partner blocks through its `PartnerBlocker` instead, D49). */
+  setSolid(on: boolean): void {
+    this.boxes.setSolid(on);
+  }
+
   /** Per render frame, after the avatar is posed. */
   sync(): void {
     if (!this.alive) {

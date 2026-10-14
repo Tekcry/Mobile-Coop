@@ -7,6 +7,10 @@
   stands in the rear doorway. The client now gets every course prompt (course items are sent first; `MAX_ITEMS` 128,
   `MAX_DOORS` 256) and shuts any rear door the host locks. The objective list is always on screen for both players
   (R5, D45) with the airlock status under it. New two-page suite `e2e-bunker` (B1, B2).
+- T5b2 partners block each other (D49) in every co-op mode, on both screens (a partner capsule in its own collision
+  group; off while the partner is down or in a boost or human ladder). Remote players snap on a teleport instead of
+  sliding through the space between (a jump over 2 m faster than 25 m/s, or across a stall that a 90-degree turn at
+  the earlier speed cannot explain), so a teleported partner no longer shoves anyone.
 
 ## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
 - T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks

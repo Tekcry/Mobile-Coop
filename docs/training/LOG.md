@@ -208,3 +208,12 @@ rear doors; objective list always on with airlock status. New e2e-bunker (B1, B2
 (e2e-bunker walk pinned by the host's hit capsule; forced close on every locking door), FAIL (pad edge on the door
 plane), PASS. Assumptions A44-A48. Michael answered D49: partners block each other (follow-up T5b2). Flakes under
 E2E_JOBS=2 (e2e-feedback, e2e-coop, e2e-netmove, e2e-course, e2e-bunker join) passed serially: REVIEW-NOTES.
+
+## T5b2 partners block each other (2026-10-14, cloud)
+D49 (Michael): partners block each other. New src/net/partnerBlocker.ts: a capsule in G.PARTNER (1<<11, player-only)
+per partner on host and client, all co-op modes (A49; TDM team-mates too, PvP opponents unchanged), parked while
+down / boost / human ladder and for 3 frames after a jump; course partner hit boxes bullets-only. SnapshotBuffer
+(src/net/interp.ts) snaps teleports: > 2 m and > 25 m/s, or across a stall > 0.3 s landing further than
+max(2 m, sqrt(2) * speed * stall) from the straight-line prediction. e2e-bunker: walk-into both ways, teleport-past
+replay both ways. Checker rounds: FAIL (teleport sweep, flaky e2e), FAIL (stalled sprinter popped), FAIL (corner
+during a stall popped), PASS. e2e-netmove cover-joints flake also fails at base: REVIEW-NOTES.

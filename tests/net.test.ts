@@ -124,16 +124,86 @@ describe('snapshot interpolation', () => {
   it('interpolates between bracketing states and holds before the first', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>();
     b.push(1, st(0));
-    b.push(2, st(10));
-    expect(b.sample(1.5)!.x).toBeCloseTo(5);
+    b.push(2, st(1.5));
+    expect(b.sample(1.5)!.x).toBeCloseTo(0.75);
     expect(b.sample(0)!.x).toBe(0);
   });
   it('extrapolates a little past the newest state, then holds', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
     b.push(1, st(0));
-    b.push(2, st(10));
-    expect(b.sample(2.1)!.x).toBeCloseTo(11);
-    expect(b.sample(5)!.x).toBeCloseTo(12);
+    b.push(2, st(1.5));
+    expect(b.sample(2.1)!.x).toBeCloseTo(1.65);
+    expect(b.sample(5)!.x).toBeCloseTo(1.8);
+  });
+  it('snaps a teleport instead of sliding through the points between (T5b2)', () => {
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
+    b.push(1, st(0));
+    b.push(1.05, st(0.3));
+    b.push(1.1, st(8));
+    expect(b.sample(1.025)!.x).toBeCloseTo(0.15);
+    expect(b.sample(1.09)!.x).toBeCloseTo(0.3);
+    expect(b.sample(1.1)!.x).toBeCloseTo(8);
+    expect(b.sample(1.2)!.x).toBeCloseTo(8);
+    // a standing partner teleported after a 2 s pause in its states snaps too (slow on paper, a jump in fact)
+    b.push(3.1, st(11));
+    expect(b.sample(2.5)!.x).toBeCloseTo(8);
+    expect(b.sample(3.1)!.x).toBeCloseTo(11);
+  });
+  it('runs a sprinter on smoothly across a stalled sender, never backwards (T5b2)', () => {
+    // 5 m/s (sprint), states every 50 ms, then a 0.45 s stall (0.2 -> 0.65) while the sprinter keeps running
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(40, 0.25);
+    const times: number[] = [];
+    for (let t = 0; t <= 0.2 + 1e-9; t += 0.05) times.push(t);
+    for (let t = 0.65; t <= 1 + 1e-9; t += 0.05) times.push(t);
+    let next = 0;
+    let prev = -Infinity;
+    for (let f = 0; f <= 72; f++) {
+      const rt = f / 60;
+      while (next < times.length && times[next]! <= rt + 1e-9) {
+        b.push(times[next]!, st(5 * times[next]!));
+        next++;
+      }
+      const x = b.sample(rt - 0.1)!.x;
+      expect(x).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = x;
+      // while stalled, extrapolation clamps at 1.0 + 5 * 0.25 = 2.25
+      if (rt > 0.55 && rt < 0.65) expect(x).toBeCloseTo(2.25);
+    }
+    // after the late state (0.65, 3.25) lands, 0.2 s before it interpolates 1.0 + 2.25 * (0.25 / 0.45) = 2.25
+    expect(b.sample(0.45)!.x).toBeCloseTo(2.25);
+    expect(b.sample(0.65)!.x).toBeCloseTo(3.25);
+  });
+  it('runs a partner on smoothly round a corner turned during a stall, no hold (T5b2)', () => {
+    // 5 m/s along +x, states every 50 ms to t 1.0, then a 0.6 s stall; 0.1 s into it the runner turns 90 degrees to +z
+    const p3 = (x: number, z: number) => ({ x, y: 0, z, yaw: 0 });
+    const b = new SnapshotBuffer<ReturnType<typeof p3>>(40, 0.2);
+    for (let i = 0; i <= 20; i++) b.push(i * 0.05, p3(5 * i * 0.05, 0));
+    // at 1.6: x 5 + 0.5, z 5 * 0.5 (3.54 m off the straight-line prediction (8, 0), under sqrt(2) * 5 * 0.6 = 4.24)
+    b.push(1.6, p3(5.5, 2.5));
+    const mid = b.sample(1.3)!;
+    expect(mid.k).toBeCloseTo(0.5);
+    expect(mid.x).toBeCloseTo(5.25);
+    expect(mid.z).toBeCloseTo(1.25);
+    let prevZ = 0;
+    for (let t = 1.0; t <= 1.6 + 1e-9; t += 0.05) {
+      const z = b.sample(t)!.z;
+      expect(z).toBeGreaterThanOrEqual(prevZ - 1e-9);
+      prevZ = z;
+    }
+    // a standing partner teleported the same way after the same stall still snaps
+    const s = new SnapshotBuffer<ReturnType<typeof p3>>(40, 0.2);
+    s.push(0.95, p3(5, 0));
+    s.push(1, p3(5, 0));
+    s.push(1.6, p3(5.5, 2.5));
+    expect(s.sample(1.3)!.z).toBe(0);
+    expect(s.sample(1.6)!.z).toBeCloseTo(2.5);
+  });
+  it('interpolates a fast run (2.5 m over 0.15 s) instead of snapping it (T5b2)', () => {
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
+    b.push(1, st(0));
+    b.push(1.15, st(2.5));
+    expect(b.sample(1.075)!.x).toBeCloseTo(1.25);
+    expect(b.sample(1.03)!.x).toBeCloseTo(0.5);
   });
   it('drops out-of-order states and caps its size', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>(3);

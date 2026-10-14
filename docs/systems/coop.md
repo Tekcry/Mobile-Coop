@@ -19,6 +19,21 @@ Design authority: docs/design-bible.md (Section 5.9)
   kill tallies sent in `end`. `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with
   `SnapshotBuffer`/`ClockSync` (`interp.ts`), sends `pstate` at 20 Hz and hits as `shot`; rewards come from
   `clampEnd` + `coopSessionStats` of the host report.
+- Partners block each other (T5b2, D49 / A49): every page gives each partner (anyone but a PvP opponent) a
+  `PartnerBlocker` (`partnerBlocker.ts`): an upright capsule at their shown (interpolated) feet in `G.PARTNER`, which
+  only the local controller collides with (`MASK.PLAYER_COLLIDE`). Host: `RemotePlayer.blocker`; client: per
+  `RemoteAvatar`. Parked while the partner is down or in a boost / human ladder (`partnerPassable`: wire mode `boost`
+  or `stacked`); brace keeps it (reach 1.2 m). Course friendly fire's partner hit boxes (`PvpTarget`, host
+  `pvpBoxes`) are `setSolid(false)`: bullets only. PvP opponents still block through their `G.ENEMY` hit boxes.
+  TDM team-mates are partners (they block each other). Teleports: `SnapshotBuffer` (`interp.ts`) holds the old spot and
+  then shows the new one when two states are more than `SNAP_MIN` (2 m) apart and either faster than `SNAP_SPEED`
+  (25 m/s) or, across a gap of more than `SNAP_GAP` (0.3 s, a stalled sender), further than max(`SNAP_MIN`,
+  sqrt(2) x |v| x gap) from where the velocity v before the gap would carry the partner (the most a 90-degree turn
+  during the gap can deviate; compared squared). A standing partner teleported after a pause snaps; a sprinter whose
+  sender stalled runs on smoothly, round a corner too; a moving partner teleported during a stall within that bound
+  slides instead of snapping. Across a short gap anything slower interpolates. The
+  blocker also parks for 3 frames when the shown feet jump more than 0.6 m between syncs, so a teleported partner never
+  sweeps through the points between.
 - Modes (`NetMode`): co-op `wave | clear | infiltration | sandbox` (`COOP_MAX` 4), PvP `tdm | ffa` (`MAX_PLAYERS`
   8, `TEAM_MAX` 4 a side); `capacity(mode)` gates joins and `startMatch` (`overCapacity`). Lobby/start carry
   `mission` (Infiltration); `PlayerInfo.team` (balanced on join, `team` message / `requestTeam`).

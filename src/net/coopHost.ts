@@ -16,6 +16,7 @@ import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
+import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { pickSpawn, playersHostile, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
@@ -298,6 +299,12 @@ export class CoopHost implements NetAttachment {
       // the host's own shots hit opponents (course mode: the partner) through their own hit volumes (head / body)
       if (this.hostile(this.s.selfId, p.id)) this.pvpBoxes.set(p.id, new Hitboxes(g.scene, g.registry, r, 1, 'average'));
       r.shootable = this.ff;
+    }
+    // (T5b2, D49) a partner (anyone but a PvP opponent) blocks the host's body as the host blocks theirs on the client;
+    // course friendly fire's hit boxes then take bullets only
+    if (!sc || !sc.hostile(this.s.selfId, p.id)) {
+      r.blocker = new PartnerBlocker(g.scene, p.id);
+      this.pvpBoxes.get(p.id)?.setSolid(false);
     }
     this.remotes.set(p.id, r);
     this.remoteRefs.push(r.ref);
@@ -1060,6 +1067,7 @@ export class CoopHost implements NetAttachment {
         rig.headNode.computeWorldMatrix(true);
         r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
       }
+      r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {

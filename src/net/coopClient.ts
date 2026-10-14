@@ -13,6 +13,7 @@ import { ClockSync } from './interp';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
 import { PvpTarget } from './pvpTarget';
+import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { PvpVictim } from './pvpVictim';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
@@ -40,6 +41,8 @@ export class CoopClient implements NetAttachment {
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PvpTarget>();
+  /** (T5b2, D49) The co-op partners' bodies (every non-opponent): they block the local player as he blocks them. */
+  private blockers: { id: string; a: RemoteAvatar; b: PartnerBlocker }[] = [];
   private ragdolls: Ragdoll[] = [];
   /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). */
   private kept = new Map<string, Ragdoll>();
@@ -167,7 +170,10 @@ export class CoopClient implements NetAttachment {
         const t = new PvpTarget(g.scene, g.registry, st.id, a);
         t.onShot = (h) => this.sendShot(st.id, h);
         this.targets.set(st.id, t);
+        // a partner's hit boxes take bullets only: its body is the blocker below (the same on the host)
+        if (!this.hostile(st.id)) t.setSolid(false);
       }
+      if (!this.hostile(st.id)) this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
     }
     return a;
   }
@@ -194,6 +200,11 @@ export class CoopClient implements NetAttachment {
     this.avatars.delete(id);
     this.targets.get(id)?.dispose();
     this.targets.delete(id);
+    const i = this.blockers.findIndex((e) => e.id === id);
+    if (i >= 0) {
+      this.blockers[i]!.b.dispose();
+      this.blockers.splice(i, 1);
+    }
   }
 
   private onSnap(m: Extract<Msg, { t: 'snap' }>): void {
@@ -519,6 +530,10 @@ export class CoopClient implements NetAttachment {
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
+    for (let i = 0; i < this.blockers.length; i++) {
+      const e = this.blockers[i]!;
+      e.b.sync(e.a.pos, (e.a.flags & PF.crouch) !== 0, !e.a.dead && !partnerPassable(e.a.mode));
+    }
     for (const p of this.puppetList) p.update(dt, t);
     for (const p of this.dying) p.settle(dt);
     for (let i = this.ragdolls.length - 1; i >= 0; i--) {
