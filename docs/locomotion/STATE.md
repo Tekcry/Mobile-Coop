@@ -10,6 +10,11 @@ Last commit: see git log (locomotion 00)
 - Perf trend baseline (node scripts/perf-trend.mjs, calib 9.9 ms): sim p95 2.65 ms, anim 0.0504 ms/char, alloc 11245 KB/s, draws 42, tris 0.14 M. +25% trip: sim 3.31, anim 0.063.
 - e2e-netmove baseline (limit 10 cm, 121 s): worst joint errors cm: low cover 0.5, low peek 3.7, high cover 1.9, high edge peek 3.5, ladder 0.3, pipeV 0.2, pipeH 0.2, ledge 0, duct 0.2, split 0, split aim 1.1, wall-jump hang 0.2, pipe legs 0.4, inverted 0.1, rappel 0.2, fence 0.8.
 
+## Resume note (2026-10-14)
+- Last pushed: step 13 (cfc565f) plus docs. Step 14 (vision) was being implemented in the old session's container and was NOT committed: a new session starts step 14 fresh from steps/14-vision.md.
+- Loop per RULES.md: implement (opus) -> check (opus) -> up to 3 fix rounds -> commit 'locomotion NN' and push. Commit docs with path-limited commits while code is uncommitted.
+- Remaining in the cloud: 14, 15, 16, 17, 18, 19, Block C end (full e2e, perf trend, kestrel merge, retry Blocked 11a-c), 20, 20b (D11), then the PC handover (M3) and stop.
+
 ## Plan change M3 (Michael, 2026-10-14)
 Cloud runs through step 20, step 20b net check (D11) and the Block C end, then hands over (handover includes the D11 'Play check before step 21' list) to Michael's PC (GPU) before step 21. Do not start step 21 in the cloud.
 
