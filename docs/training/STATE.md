@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: walk-2 block end (full e2e, perf trend), then PAUSE for walk 2
+Current step: PAUSED for Michael's walk 2 (after T5g); resume with walk-2 fixes, then TM
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -30,7 +30,7 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | 49f417d |
 | C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | done (cloud; T5c open items closed; B4 at interim (93, 30) with a passage from A3 until T5f, A71; turnstiles, sprung window, hatch, grilles stubbed for T7a; A4 wall medkit missing, added in T5f) | 2fe4faf |
 | C | T5f rebuild Plant (B5, A5, B6, S6, A6) | done (cloud; B4 / A4 at v2, interim removed, A4 medkit; v1 Deep moved (+17.5, -29) until T5g, A74; circuits, security devices, guards and relief stubbed for T6 / T7a / T7b) | f787448 |
-| C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | built (cloud; A74 undone, bounds A77, numbers A76; guards, circuits, devices stubbed for T6 / T7a / T7b); checker PASS bar two BAYS rows, fixed | (this commit) |
+| C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 (block-end checks done; paused) | built (cloud; A74 undone, bounds A77, numbers A76; guards, circuits, devices stubbed for T6 / T7a / T7b); checker PASS bar two BAYS rows, fixed | 9215c85 |
 | C | TM merge locomotion 09-20 (waits for loco 20, D15), with the movement re-check (D50) | not started | |
 | C | T6 light, zones, surfaces | not started | |
 | C | T7a course data, drills, gates, devices | not started | |
@@ -53,16 +53,24 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 A1-A77 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
-1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
-   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2), T5d (Upper), T5e (Shaft, Cistern) and T5f (Plant) done; T5g rebuilds Deep, then the run stops for walk 2.
-2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
-   on the PC. Send:
+1. Where the run is: PAUSED for walk 2. Every bay (B1-B9) is rebuilt to BAYS v2 under the course rules R1-R8.
+   LEDs are unlit until T6; guards, drill ticks and devices are stubs until T7a / T7b, so airlocks cycle with
+   objectives open.
+2. On the PC (C:\NightShift\Mobile-Coop), follow docs/training/WALK.md (start commands, two tab URLs, F3
+   teleports, per-bay checklist, "look at" items). In short: `git fetch origin`, `git checkout feature/training-bunker`,
+   `git pull`, `npm ci`, `npm run dev`; open
+   `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min` in two tabs. Walk B1-B9
+   (about 30-45 min).
+3. Write notes under "## Walk 2" in docs/training/WALK-NOTES.md, one line each, e.g.
+   `- B3 G5: the rope point is hard to find; no prompt until I face the beam`. Then:
+   `git add docs/training/WALK-NOTES.md`, `git commit -m "walk 2 notes"`, `git push`.
+4. Send (cloud or PC):
    ```
-   Training run: RESUME (cloud). Follow docs/training/BRIEF.md. Use branch feature/training-bunker.
+   Training run: RESUME. Follow docs/training/BRIEF.md.
    ```
-   (On the PC, drop "(cloud)" and the branch sentence is optional.)
-3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
+5. After that: a walk-2 fix step (only if notes exist), then TM (stops if locomotion step 20 has not landed on
+   origin/feature/ct-locomotion), T6, T7a, T7b, then the stop for walk 3 (D50). About 5-6 steps.
 
 ## Next action
-On RESUME: read BRIEF, RULES, STATE; then T5g (docs/training/steps/T5g-*.md). T5g builds Deep at the BAYS v2 offsets and
-removes the T5f interim shift of `DEEP_OFFSET` (A74); BUNKER_BOUNDS can shrink back then (voxelFit derives from it).
+On RESUME: read BRIEF, RULES, STATE; read docs/training/WALK-NOTES.md "## Walk 2". If notes exist, write a fix step
+(like T5b) from them and run it; then TM (docs/training/steps/TM-merge.md, with the D50 movement re-check).

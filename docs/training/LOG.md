@@ -345,3 +345,10 @@ Tests: R1 / R2 graphs for B7 / B8 / B9, nav cells apart with doors shut, exact a
 glass, B9's rope and zipline in 'rope catchers'.
 ### Spec change requests (T5g)
 - None to routes, gates or guard jobs.
+
+## Walk-2 stop (2026-10-14, cloud)
+Full `npm run e2e` (E2E_JOBS=2, 2590 s wall): KNOWN FLAKY e2e-darkness, e2e-netmove; e2e-bunker (client join timeout),
+e2e-stealth (look input), e2e-feedback (free camera 0.42 m) failed under load and passed serially (199 s, 40 s, 24 s;
+netmove 138 s); e2e-kestrel and e2e-camera-bounds level U are the kestrel-owned pre-existing failures. Perf trend
+(software GL): sim p95 3.4 ms (T0 3.9), anim 0.0835 ms/char (T0 0.105), alloc 11156 KB/s (T0 11163), draws 41, tris
+0.14 M: no rise. GPU per-bay shots: pending PC run. WALK.md rewritten for walk 2. PAUSED for Michael's walk 2.
