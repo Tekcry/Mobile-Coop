@@ -4,7 +4,9 @@
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
 - Current: PC1 GPU catch-up WITHOUT budget items (PC-PASS 4-8 go to section 0, pending target laptop), then steps 15-20, 20b, Block C end (no budgets), play-check list, the single pause.
 - PC1 agent preamble (shared prompt header for PC1 agents): steps/PC1-preamble.md. PC1 had not produced results before the M6 crash: start PC1 from item 9 (anim audit), with items 4-8 moved to section 0.
-- Desktop perf-trend baseline: (pending, first task). Desktop anim-audit baseline: (pending, first task; two runs with --band).
+- Desktop perf-trend baseline (2026-10-15, 3 runs, E2E_GPU=1, calib 4.7 ms, hardware GPU, 60 Hz display): sim p95 1.1 / 1.2 / 1.45 ms (median 1.2); anim 0.0356-0.0362 ms per character; allocations 11.7-13.4 MB/s; draws 40-41; tris 0.12-0.13 M. +25% trip: sim p95 1.5 ms, anim 0.0446 ms. Budgets are not claimed here (anim 0.036 vs the 0.03 local budget and allocations vs 11.5 MB/s are for the target laptop pass, PC-PASS section 0).
+- Desktop anim-audit baseline: docs/locomotion/audit/anim-baseline-desktop.json (run 2, banded on run 1). Two runs, 164-166 s each: local 541 fails in both, 0 local flips (deterministic); remote 165 / 171 fails, 20 remote flips (A39 noise); `--compare` against the cloud baseline: no regression. Remote loops: client 62.5 fps, host 56.5 fps, 120 Hz pump p95 jitter 1.5-1.6 ms. Later desktop audits use `--compare=docs/locomotion/audit/anim-baseline-desktop.json`.
+- Tooling fix: scripts/anim-audit.mjs spawned `node_modules/.bin/esbuild` (a .cmd shim on Windows: ENOENT); it now runs esbuild's JS entry through node.
 - Target laptop: Block D laptop check after step 32; full target laptop pass (PC-PASS section 0 first) before step 34.
 
 ## On the PC (M6, 2026-10-15)

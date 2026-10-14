@@ -63,7 +63,8 @@ const BOOST_CONTACT_K = 0.35;
 
 // ---------------------------------------------------------------- pure metrics for node
 const LIB = resolve('test-results/anim-audit/lib');
-execFileSync('node_modules/.bin/esbuild', ['src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { stdio: 'inherit' });
+// node + esbuild's JS entry, not node_modules/.bin/esbuild: on Windows .bin holds a .cmd shim execFileSync cannot spawn.
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 
