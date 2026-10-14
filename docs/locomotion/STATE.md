@@ -3,6 +3,7 @@
 ## On the secondary desktop (M7, 2026-10-15)
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
 - Current: PC1 GPU catch-up WITHOUT budget items (PC-PASS 4-8 go to section 0, pending target laptop), then steps 15-20, 20b, Block C end (no budgets), play-check list, the single pause.
+- PC1 agent preamble (shared prompt header for PC1 agents): steps/PC1-preamble.md. PC1 had not produced results before the M6 crash: start PC1 from item 9 (anim audit), with items 4-8 moved to section 0.
 - Desktop perf-trend baseline: (pending, first task). Desktop anim-audit baseline: (pending, first task; two runs with --band).
 - Target laptop: Block D laptop check after step 32; full target laptop pass (PC-PASS section 0 first) before step 34.
 
