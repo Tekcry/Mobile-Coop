@@ -13,6 +13,11 @@ Model: implementer opus, checker opus. Deps: the step before (T5c first). No gua
    one shared course where R3 says, the automatic airlock pad (T5b), glass partitions and observation windows as
    see-through collision (no way round an element through or over glass), dark shell with LED strip fixtures as
    visual-only pieces (T6 lights them).
+1a. Add A4's wall medkit (BAYS 0.1 / 0.4: A4, A6, A8; T5e's buildAirlock has none; device like A6-MED).
+    Undo the T5e interim (A71): move B4 / A4 to their v2 offsets (66, 14) / (70, 8) in bunkerShaft.ts; remove
+   `INTERIM_PASSAGE`, its floor / walls / roof build, debug point `B4-X` and the passage rects in the reachability
+   test (tests/bunkerMap.test.ts); update the A4 airlock box hard-coded in bunker.ts (`[97, 24, 103, 30]`) and the same box hard-coded in
+   tests/bunkerMap.test.ts (~:448, `expect(...A4...).box).toEqual([97, 24, 103, 30])`).
 2. Course data stubs for these bays: objectives in teaching order (explicit names, R5), gates only where a split is
    listed, airlocks automatic. Update debugPoints (one per room and vantage).
 3. Tests in tests/bunkerMap.test.ts: the R1 nav test (the only path from entry to exit passes every element's trigger

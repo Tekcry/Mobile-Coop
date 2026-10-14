@@ -77,8 +77,8 @@
   drills restored in B2 / B7 / B9 and a greyed B7 whistle line; v1 "(both)" rows now marked "placed" (friendly fire,
   ghost tier, ADS spread, medkits, gadget wheel, CCTV, ...: LOG "Spec change requests (T5c fix round 2)") - confirm.
 - T5c fix round 3 (checker FAIL; rope stages fitted to the engine's rope code as it stands, no tuning change): B3 RP1
-  hangs from a hoist niche in the south wall (top x 4.8, z 0), reaches ML (x 6.3) at the `RAPPEL` 1.5 m sideways limit
-  through a slot in ML's west screen, rope end at ML's floor; NR lowered to y 8.8 (ML lip 4.8 over it: a rope bottom-out
+  hangs from the hoist beam on HP's north face (top x 4.8, z 0.8), reaches ML (x 6.3) at the `RAPPEL` 1.5 m sideways limit
+  and unhooks onto ML (T5e: ML's west edge is a full-height screen with a one-way return gate to NR), rope end at ML's floor; NR lowered to y 8.8 (ML lip 4.8 over it: a rope bottom-out
   lands heavy, no damage); RP2 hangs from a davit head on CR's west wall (x 9, facing west) into a 0.9 m well, the
   only place the engine offers the kick through CR's window. Drill coverage changes from v1 - confirm:
   - CCTV is now P2-only: B6 operator loops CAM1-4 (objective 15); P1 has no CCTV drill (B8 / B9 cameras placed).
@@ -92,4 +92,24 @@
   (6) Interim: A2's far door opens onto a 2 m passage to the v1 B3 door at x 84; T5e removes it and moves B3 to (65, 46).
   (7) Objectives are `CourseDef.objectives` entries (names in BAYS order), not drills, so the airlocks still cycle
   with nothing open until T7a.
-
+- T5e (B3, A3, B4, A4 rebuilt to v2; cloud). T5c open items closed: (1) walk-off from HS: the rope column (x 3..5.95,
+  z 0..3.8 over NR) is closed north and east by full-height glass to y 23.0; ML's west screen carries a return gate to NR
+  (the RP1 retry). (2) Ladders moved out of the rope kick volumes: NR's to (4.4, 3.3), RF's to (6.4, 1.9) facing a hatch pier (an unhook after a kick-out, z 2.5, can drop through the hatch into RF: the ladder returns)
+  (test: no ladder in either swept volume). (3) Wording fixed here, in A61 and BAYS; heavy landing recovery is ~0.7 s,
+  not 0.6 (corrected in fix round 1: `playerController.ts` landT = min(0.7, 0.15 + (v - 3) * 0.08), floored at
+  `LANDING.heavyRecovery` 0.6; falls >= 4.5 m land at >= 12.7 m/s, so 0.7; STATE's "~0.7 s" was right); register rows E-B3-10..12 added (renumbered from duplicate E-B3-7..9 in fix round 2).
+  Left for T7a (SHAFT_ELEMENTS, `final: false`): W5's turnstile and ML's return gate are locked doors (`B3-w5`,
+  `B3-mlr`); NR's turnstile is an open gap (a way back only); CR's window is a breakable pane, not the sprung rope-only
+  pane (RF lowered to 4.5 so its sill is 5.0 over RF: no boost in); RF's hatch is an open manhole (RF is a dead end);
+  duct grilles / louvres are plain duct ends; B4's rail gate is an opening; the Phase 5 float shaft is not built.
+  Interim (A71): B4 v2's offset (66, 14) lies inside the v1 B5, so B4 stands at (93, 30), A4 at its v1 place and a 2 m
+  passage joins A3 to C1 until T5f. For Michael: NT2 (y 2.0) overhangs the fan guard's west half, so the guard is
+  climbed from x 9.5..12 (2.5 m); the zipline rider's feet pass 0.1 over NT2's 2.0 west screen.
+  Fix round 1 (checker): RP2 could leave the body overlapping the well's north screen (z 2.9..3.0) with the fan pit
+  behind it (a push-out into the pit skips CR..fence). Moved within the windows: RP2 and the CR window z 1.5 -> 1.8,
+  the well / RF north screen to z 3.65..3.75 (RF, ML, DB, DH run to 3.75; DH's rope gap z 1.3..2.2). New test 'rope
+  catchers': every rope / cable position plus kick-out plus capsule radius settles over its catcher (fails on the old
+  geometry); R2 graph gains G5 -> RF by rope 1 (an unhook over ML's hatch). Flaky (load): e2e-bunker under
+  E2E_JOBS=2 failed once on "the partner teleported across the host's spot is never solid" and once on the client-join
+  timeout; both passed serially.
+- T5e final check: ML's waiting spot (x 6.1..8.1, z 0..2) overlaps the open hatch hole (x 6..6.8, z 1.5..2.9) until T7a fits the walkable lid; a waiting player can drop 9.1 m into RF and climb back (nuisance, not a skip). A4's wall medkit was missing (added in T5f).

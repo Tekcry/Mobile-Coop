@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T5e (rebuild Shaft and Cistern; closes the T5c Blocked items first)
+Current step: T5f (rebuild Plant; also moves B4 / A4 to v2 and removes the shaft interim passage, A71)
 Where the last step ran: cloud
 Last commit: see git log (T1a done)
 Branch: feature/training-bunker (from origin/feature/kestrel)
@@ -26,9 +26,9 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | B | Block B end, then PAUSE for Michael's walk (D27) | done; paused (GPU rows pending PC run) | a75574b |
 | C | T5b walk-1 fixes (automatic airlocks, client prompts and doors, objective list) | done | 4cae63f |
 | C | T5b2 partners block each other (D49) | done | (this commit) |
-| C | T5c BAYS v2 redesign (docs) | done with 3 open B3 items (Blocked, see below; T5e resolves them first) | (this commit) |
-| C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | (this commit) |
-| C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | not started | |
+| C | T5c BAYS v2 redesign (docs) | done; its 3 open B3 items closed in T5e | 8c10c3c |
+| C | T5d rebuild Upper (B1, A1, B2, A2) | done (cloud; RL2 turnstile, re-glaze, re-lamp stubbed for T7a; interim A2 -> v1 B3 passage until T5e) | 49f417d |
+| C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | done (cloud; T5c open items closed; B4 at interim (93, 30) with a passage from A3 until T5f, A71; turnstiles, sprung window, hatch, grilles stubbed for T7a; A4 wall medkit missing, added in T5f) | (this commit) |
 | C | T5f rebuild Plant (B5, A5, B6, S6, A6) | not started | |
 | C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | not started | |
 | C | TM merge locomotion 09-20 (waits for loco 20, D15) | not started | |
@@ -44,26 +44,17 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | D | T10 light showcase, docs, REVIEW.md | not started | |
 
 ## Blocked
-T5c open items (B3 rope stages, after 3 fix rounds; resolve first in T5e):
-  1. R2 skip G5 -> ML without the rope: a walk-off from HS's open north edge at a jog lands on ML (~x 6.8, z 2.0) or
-     catches ML's open west lip (7 m fall, gravity 18, no fall damage); BAYS ~:400/:401/:473/:487 "any fall lands in NR"
-     is false. Fix: full-height flush glass screen at x 5.6..5.95 from ML's floor to y 23.0, ML west edge noLedge (or log
-     an A51-style residual for Michael).
-  2. Rope kick-outs (swingOut 1.2) sweep through ladder cages: NR's ladder (x 4, z 2.5) inside RP1's volume
-     x 3.0..6.6, z 1.0..2.8, y 13.6..21.4; RF's ladder (x 7.4, z 0) inside RP2's volume x 7.0..9, z 0..3, y 7.5..15.4.
-     Move both ladders out.
-  3. Stale wording: REVIEW-NOTES ~:79-82 ("hoist niche in the south wall", "slot in ML's west screen"), A61 ("ML's west
-     slot"); BAYS ~:401 recovery 0.6 s -> ~0.7 s; element register lacks DB, hatch, turnstiles.
+(none; the T5c open items were closed in T5e: REVIEW-NOTES "T5e")
 
 ## Pending PC (visual items for Michael)
 (see PC-PASS.md) - every row pending PC run (cloud Blocks A-B); row 1 (GPU baseline) first at the next local block end
 
 ## Open assumptions
-A1-A70 (DECISIONS.md; A6 revised per D21, A15 resolved)
+A1-A73 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
 1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
-   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2) and T5d (Upper rebuilt) done; T5e-T5g rebuild the other bays, then the run stops for walk 2.
+   Next: T5b, T5b2 (partner blocking, D49), T5c (BAYS v2), T5d (Upper) and T5e (Shaft, Cistern) done; T5f-T5g rebuild the other bays, then the run stops for walk 2.
 2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
    on the PC. Send:
    ```
@@ -73,4 +64,6 @@ A1-A70 (DECISIONS.md; A6 revised per D21, A15 resolved)
 3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
 
 ## Next action
-On RESUME: read BRIEF, RULES, STATE; then T5e (docs/training/steps/T5e-*.md): first close the T5c open items under Blocked, then move B3 to (65, 46) against A2's east wall and remove the Upper's interim passage (bunkerUpper `INTERIM_PASSAGE`, the 'B3' passage rects in the room graph test).
+On RESUME: read BRIEF, RULES, STATE; then T5f (docs/training/steps/T5f-*.md). It also moves B4 to (66, 14) and A4 to (70, 8)
+(BAYS 0.1) once the v1 B5 is gone, and removes bunkerShaft `INTERIM_PASSAGE` (its walls, debug point B4-X and the
+passage rects in the reachability test's room list).

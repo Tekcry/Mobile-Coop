@@ -302,3 +302,20 @@ A51 boost reach, A26 glass, landing bands, R4 footprints. e2e-bunker: A1 coordin
 takes card A (B6) because v2 B2 has no lever (same assertions: client use -> host gate -> client sees the doors
 unlock). e2e-course: spawn bounds moved.
 
+## T5e rebuild Shaft and Cistern to BAYS v2 (2026-10-14, cloud)
+- T5c open items closed (REVIEW-NOTES T5e): HS walk-off screens, ladders out of the rope kick volumes, wording.
+- B3 at (65, 46) against A2's east wall (the Upper interim passage and debug point B3-X removed); A3 at (69, 40); B4 v2
+  geometry at the interim (93, 30) with a passage from A3 (A71); A4 unchanged. Manual lips only (RC, WJ1, WJ2, W1, W2,
+  OP); objectives B3-1..21, B4-1..12 (SHAFT_OBJECTIVES); stubs flagged (SHAFT_ELEMENTS); one work lamp per room.
+- Tests: room-graph R1 / R2 for B3 and B4, nav cell separation, exact anchor set per rebuilt bay (B2, B3, B4), rope kick
+  volumes, the HS screens.
+
+### Spec change requests (T5e; D12, applied)
+- B3: RP1's retry from ML is a one-way return gate in ML's new full-height west screen (was an open edge into NR).
+- B3: RF 7.5 -> 4.5 (the window from RF out of boost reach while the pane is a breakable stub).
+- B3: CR's door onto ZD is plain (v1's bolt gone: CR is reached only through the window); the fence is one anchor
+  (north side; east and south are the substructure and PP's wall); two duct anchors.
+- B4: W2's 4.4 part screened (A73).
+Final T5e checks: code and tests PASS (rope catchers test; RP2 / screens moved after a pit push-out skip); BAYS B3 / B4
+text synced to the build over three docs rounds. Last finding (A4 wall medkit missing from buildAirlock) moved to T5f
+task 1a; ML's waiting spot overlaps the open hatch until T7a's lid (nuisance, not a skip: REVIEW-NOTES).

@@ -12,8 +12,7 @@ import { wallXAt, wallZAt, windowZ } from './storey';
  * Ledges: `LevelBuilder.build` generates lips from box tops in absolute y, so every Upper piece is `noLedge`; the only
  * lips are the manual ones in `BUNKER_LIPS` (G2's hang point, the beam ledge L1 round the column, the portal sill L2).
  *
- * Interim (T5d -> T5e): A2's far door opens onto a 2 m passage to the v1 B3's G1 door (x 84, z 84); T5e moves B3 to its
- * v2 offset (65, 46) against A2's east wall and removes the passage (`buildInterimPassage`).
+ * A2's far door opens onto B3's G1 (bunkerShaft, B3 at its v2 offset (65, 46) since T5e).
  */
 
 export const UPPER_Y = 16;
@@ -264,7 +263,7 @@ function roof(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y
  * Toughened glass (A26, BAYS 0.5) over a world plan rect from y to y + h: one invisible collision box (`noLedge`, no
  * fence anchor: never climbable) and a visual-only steel frame (posts about every 3 m, sill and head rails).
  */
-function glass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, h: number): void {
+export function glass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number, h: number): void {
   const from = b.boxes.length;
   const cx = (x0 + x1) / 2;
   const cz = (z0 + z1) / 2;
@@ -283,7 +282,7 @@ function glass(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, 
 }
 
 /** A visual-only LED strip (T6 decides which strips are lamps; an accent strip adds no light). */
-function led(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number): void {
+export function led(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y: number): void {
   b.box((x0 + x1) / 2, y, (z0 + z1) / 2, Math.max(0.04, x1 - x0), 0.03, Math.max(0.04, z1 - z0), C.led, 0, 0, false);
 }
 
@@ -566,34 +565,6 @@ function buildB2(b: LevelBuilder, r: UpperResult): void {
   for (const x of [5, 18, 28, 36, 44, 49.5]) b.light({ ...at('B2', x, 4.5, 8.5), radius: 12, intensity: 0.8 });
 }
 
-// ---------------------------------------------------------------------------------------------------- interim
-
-/**
- * Interim (T5d until T5e): a 2 m passage (y 16, 3.0 clear) from A2's far door (x 65, z 53) east to x 77, north to z 84
- * and east to the v1 B3's west-wall door gap (x 84, z 83.4..84.6). Counted as B3's (its approach) by the room graph.
- */
-export const INTERIM_PASSAGE: readonly [number, number, number, number][] = [
-  [65, 52, 77, 54],
-  [75, 54, 77, 83],
-  [75, 83, 84, 85],
-];
-
-function buildInterimPassage(b: LevelBuilder, r: UpperResult): void {
-  const y = UPPER_Y;
-  const h = AIRLOCK_CLEAR;
-  const t = 0.3;
-  for (const [x0, z0, x1, z1] of INTERIM_PASSAGE) b.floor((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, C.floor, y);
-  wallXAt(b, 52 - t / 2, 65, 77 + t, [], y, h, C.wall, t);
-  wallXAt(b, 54 + t / 2, 65, 75, [], y, h, C.wall, t);
-  wallZAt(b, 77 + t / 2, 52, 83, [], y, h, C.wall, t);
-  wallZAt(b, 75 - t / 2, 54, 85 + t, [], y, h, C.wall, t);
-  wallXAt(b, 83 - t / 2, 77, 84 - 0.225, [], y, h, C.wall, t);
-  wallXAt(b, 85 + t / 2, 75, 84 - 0.225, [], y, h, C.wall, t);
-  for (const [x0, z0, x1, z1] of INTERIM_PASSAGE) roof(b, x0 - t, z0 - t, x1 + t, z1 + t, y + h);
-  b.light({ x: 76, y: y + 2.8, z: 68, radius: 20, intensity: 0.7 });
-  r.debug.push({ id: 'B3-X', label: 'Interim passage A2 -> B3 (until T5e)', pos: { x: 76, y, z: 68 }, yaw: 0 });
-}
-
 /**
  * Build the Upper level into `b`. Returns doors (course ids -> anchor ids), course devices (none: B1 and B2 have no
  * gates in v2), the two lift spawns and the debug points. Afterwards every Upper box is `noLedge`.
@@ -605,7 +576,6 @@ export function buildUpper(b: LevelBuilder): UpperResult {
   buildAirlock(b, 'A1', r);
   buildB2(b, r);
   buildAirlock(b, 'A2', r);
-  buildInterimPassage(b, r);
   for (let k = from; k < b.boxes.length; k++) b.boxes[k]!.noLedge = true;
   return r;
 }

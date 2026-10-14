@@ -1,6 +1,10 @@
 # Changelog
 
 ## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5e: B3 The Intake and B4 The Cistern rebuilt to BAYS v2. B3 sits against A2 (no more passage): one line up the shaft
+  (riser slot, two wall jumps, the damper bar) and down again (two rope stages, the control-room window, the zipline,
+  the fan guard, twin ducts). B4: three cells, W1 boost and bolt door, W2 human ladder and sluice, outlet platform; it
+  stands at an interim offset with a passage from A3 until the Plant rebuild.
 - T5b walk-1 fixes: airlocks are automatic (R6, D46): a marked 4 x 4 m floor pad set 1 m in from the walls; one player
   on it shows "Waiting for partner" on both screens, both on it with the bay's objectives done seal it (the rear door
   shuts and locks for good, a 4 s cycle, the front door opens). The Cycle button is gone. The cycle holds while anyone

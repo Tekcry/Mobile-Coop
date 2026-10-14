@@ -9,6 +9,8 @@ Model: implementer opus, checker opus. Deps: the step before (T5c first). No gua
   checks they ran (tests/bunkerMap.test.ts, plan-svg, e2e-anchors)
 
 ## Task
+0. Add B9's rappel and zipline to the 'rope catchers' test (tests/bunkerMap.test.ts, from T5e) and assert the
+   exact traversal anchor set per rebuilt bay, as T5d / T5e did.
 1. Replace the geometry of B7, A7, B8, A8, B9, L9 in src/world/maps/bunkerDeep.ts with BAYS v2: compact linear rooms, every element unavoidable,
    one shared course where R3 says, the automatic airlock pad (T5b), glass partitions and observation windows as
    see-through collision (no way round an element through or over glass), dark shell with LED strip fixtures as

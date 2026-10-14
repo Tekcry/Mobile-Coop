@@ -59,3 +59,4 @@ LOG, STATE, CHANGELOG.
   "unbolt the catwalk stair (CS)" a B8 drill so the co-op beat survives the vaultable rail.
 - From T5d (REVIEW-NOTES, UPPER_ELEMENTS): B2's RL2 door `B2-rl2` (locked) becomes the A61 one-way single-occupancy return
   turnstile; the 2E practice panes re-glaze (A54); the A61 re-lamp rule; B1's strike post as a TrainingDummy at (12.5, 10).
+- From T5e (REVIEW-NOTES, SHAFT_ELEMENTS): B3 `B3-w5` / `B3-mlr` (locked) and NR's gap become A61 turnstiles; CR's window the sprung rope-only pane (A53); RF's hatch below-only; duct grilles unscrew-only and louvres kick-only, self-closing; B4 rail gate; B4 P5 float shaft and greyed line.

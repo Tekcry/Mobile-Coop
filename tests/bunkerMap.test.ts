@@ -11,7 +11,7 @@ import { buildCoverSegments } from '../src/cover/coverData';
 import { findSplitGaps } from '../src/player/splitJump';
 import { landingKind, pickTraversal } from '../src/player/movement';
 import type { SplitAnchor, TraversalAnchors } from '../src/world/anchors';
-import { B3_METRICS, B4_COOP_LIPS, B4_METRICS, PLANT_LIPS, PLANT_Y, plantAt } from '../src/world/maps/bunkerShaft';
+import { B3_METRICS, B4_COOP_LIPS, B4_METRICS, PLANT_LIPS, PLANT_Y, plantAt, SHAFT_BOX } from '../src/world/maps/bunkerShaft';
 import { B7_METRICS, B8_BARRELS, B8_METRICS, B8_TARGETS, B9_COOP_LIP, B9_METRICS, BUNKER_COOP_LIPS, DEEP_DEVICES, DEEP_LIPS, deepAt } from '../src/world/maps/bunkerDeep';
 import { RAPPEL, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { splitReach, wallJumpReach } from '../src/player/splitJump';
@@ -167,14 +167,14 @@ describe('Fallow (bunker) Upper level (T5d, BAYS v2)', () => {
   });
 
   it('has no split gaps on the Upper level', () => {
-    const gaps = findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).filter((g) => g.a.y >= UPPER_Y - 2 && g.a.x < 84);
+    const gaps = findSplitGaps(buildCoverSegments(b.boxes, b.cylinders)).filter((g) => g.a.y >= UPPER_Y - 2 && g.a.x < 65);
     expect(gaps).toEqual([]);
   });
 
   it('every lip is one BAYS names (BUNKER_LIPS), and every named lip exists', () => {
-    const upper = generated.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 84 && Math.min(l.a.z, l.b.z) > 48);
+    const upper = generated.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 65 && Math.min(l.a.z, l.b.z) > 48);
     expect(upper.map((l) => [l.a, l.b, l.top])).toEqual([]);
-    const manualUp = manual.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 84 && Math.min(l.a.z, l.b.z) > 48);
+    const manualUp = manual.filter((l) => l.top >= UPPER_Y - 2.5 && Math.max(l.a.x, l.b.x) <= 65 && Math.min(l.a.z, l.b.z) > 48);
     const stray = manualUp.filter((l) => !BUNKER_LIPS.some((p) => inLip(l, p.box, p.top)));
     expect(stray.map((l) => [l.a, l.b, l.top])).toEqual([]);
     for (const p of BUNKER_LIPS) expect(manualUp.some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
@@ -354,9 +354,46 @@ describe('Fallow (bunker) Upper level (T5d, BAYS v2)', () => {
   });
 });
 
-// ------------------------------------------------------------------------------------------------ T3: B3, A3, B4, A4
+// ------------------------------------------------------------------------------------------------ T5e: B3, A3, B4, A4
 
-describe('Fallow (bunker) shaft and reservoir (T3)', () => {
+/** Traversal anchors by kind inside a world plan box (strictly inside by 0.1), each at its first point. */
+function anchorKinds(lb: LevelBuilder, box: readonly [number, number, number, number], y0 = -10, y1 = 100): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const a of lb.anchors.all) {
+    const ab = 'a' in a && 'b' in a ? (a as { a: { x: number; y: number; z: number }; b: { x: number; y: number; z: number } }) : null;
+    const p = a.kind === 'ladder' || a.kind === 'pipeV' ? a.base : a.kind === 'rappel' ? a.top : a.kind === 'duct' ? a.path[0]! : a.kind === 'window' ? a.c : a.kind === 'door' ? { x: a.hinge.x + (Math.sin(a.yaw) * a.width) / 2, y: a.hinge.y, z: a.hinge.z + (Math.cos(a.yaw) * a.width) / 2 } : ab ? { x: (ab.a.x + ab.b.x) / 2, y: ab.a.y, z: (ab.a.z + ab.b.z) / 2 } : null;
+    if (!p) continue;
+    if (p.x > box[0] + 0.1 && p.x < box[2] - 0.1 && p.z > box[1] + 0.1 && p.z < box[3] - 0.1 && p.y >= y0 && p.y <= y1) out[a.kind] = (out[a.kind] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** BFS over a room graph: [from, to, element, both ways, return link (A61)]. */
+type Link = [string, string, string, boolean, boolean?];
+function reachGraph(links: readonly Link[], from: string, without: readonly string[], ret: boolean): Map<string, [string, string]> {
+  const prev = new Map<string, [string, string]>([[from, ['', '']]]);
+  const q = [from];
+  while (q.length > 0) {
+    const n = q.shift()!;
+    for (const [a, e, el, both, r] of links) {
+      if (without.includes(el) || (r && !ret)) continue;
+      for (const [s, t] of both ? [[a, e], [e, a]] : [[a, e]]) {
+        if (s === n && !prev.has(t!)) {
+          prev.set(t!, [n, el]);
+          q.push(t!);
+        }
+      }
+    }
+  }
+  return prev;
+}
+function pathEls(prev: Map<string, [string, string]>, from: string, to: string): string[] {
+  const els: string[] = [];
+  for (let n = to; n !== from; n = prev.get(n)![0]) els.unshift(prev.get(n)![1]);
+  return els.filter((e) => e !== 'fall');
+}
+
+describe('Fallow (bunker) shaft and reservoir (T5e, BAYS v2)', () => {
   // the anchors `build` would make: manual ones, generated ledges, split anchors (in that order, as levelBuilder.build)
   const pb = new LevelBuilder();
   const play = bunker.build(pb, 0);
@@ -364,78 +401,90 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
   const gaps = findSplitGaps(buildCoverSegments(pb.boxes, pb.cylinders));
   for (const g of gaps) pb.anchors.add<SplitAnchor>({ kind: 'split', ...g } as SplitAnchor);
   const A: TraversalAnchors = pb.anchors;
+  const c = play.course!;
   const M3 = B3_METRICS;
   const M4 = B4_METRICS;
   const b3 = (x: number, z: number, y = 0) => plantAt('B3', x, z, y);
   const b4 = (x: number, z: number, y = 0) => plantAt('B4', x, z, y);
   const inBay = (bay: 'B3' | 'B4', x: number, z: number): boolean => {
-    const o = bay === 'B3' ? b3(0, 0) : b4(0, 0);
-    const [w, d] = bay === 'B3' ? [24, 18] : [36, 38];
-    return x >= o.x - 0.5 && x <= o.x + w && z >= o.z - 0.5 && z <= o.z + d;
+    const r = SHAFT_BOX[bay];
+    return x >= r[0] - 0.3 && x <= r[2] + 0.3 && z >= r[1] - 0.3 && z <= r[3] + 0.3;
   };
   const lipOf = (id: string) => PLANT_LIPS.find((l) => l.id === id)!;
-  const genPlant = generated.filter((l) => l.top < UPPER_Y + 8 && (inBay('B3', l.a.x, l.a.z) || inBay('B4', l.a.x, l.a.z)) && l.top >= PLANT_Y - 4.5);
   const splits = A.all.filter((a): a is SplitAnchor => a.kind === 'split');
   const atPose = (a: Parameters<typeof attachPose>[0], s: number, face: number) => attachPose(a, s, face, 1.75, { x: 0, y: 0, z: 0, yaw: 0 });
+  const shut = b.anchors.doors.filter((d) => d.locked).map(doorLeaf);
+  const fence = b.anchors.fences.find((f) => f.id === lay.course!.anchors!['B3-fence'])!;
+  const fenceLeaf: NavBlocker = { cx: (fence.a.x + fence.b.x) / 2, cz: fence.a.z, hx: fence.len / 2, hz: 0.05, yaw: 0, bottom: fence.a.y, top: fence.a.y + fence.height };
+  const joins = (n: NavGrid, p: { x: number; y: number; z: number }, q: { x: number; y: number; z: number }) => n.findPath([p.x, p.z], [q.x, q.z], 1e6, p.y, q.y);
+  const covered = (x: number, z: number, y: number) => b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) <= p.s[0] / 2 && Math.abs(z - p.c[2]) <= p.s[2] / 2 && Math.abs(y - p.c[1]) <= p.s[1] / 2);
 
-  it('debug points B3, B3-G3, B3-floor, B4, A3, A4 (and the RC slot, the rope)', () => {
-    const ids = play.debugPoints!.map((d) => d.id);
-    for (const id of ['B3', 'B3-G3', 'B3-floor', 'B4', 'A3', 'A4', 'B3-RC', 'B3-rope']) expect(ids, id).toContain(id);
-    const g1 = play.debugPoints!.find((d) => d.id === 'B3')!;
-    expect(g1.pos.y).toBeCloseTo(PLANT_Y + M3.g1, 5);
+  it('debug points per room and vantage; every one stands on a floor', () => {
+    const ids = lay.debugPoints!.map((d) => d.id);
+    for (const id of ['B3', 'B3-RC', 'B3-G2', 'B3-G3', 'B3-G4', 'B3-NT1', 'B3-G5', 'B3-NR', 'B3-ML', 'B3-RF', 'B3-CR', 'B3-ZD', 'B3-NT2', 'B3-WP', 'B3-floor', 'B3-pit', 'B3-PP', 'A3', 'B4', 'B4-W1', 'B4-C2', 'B4-VG', 'B4-C3', 'B4-OP', 'A4']) expect(ids, id).toContain(id);
+    expect(ids).not.toContain('B3-X');
+    const nav = analyticNav(b, [64, 23, 106, 61], shut);
+    for (const d of lay.debugPoints!.filter((p) => inBay('B3', p.pos.x, p.pos.z) || inBay('B4', p.pos.x, p.pos.z))) expect(nav.heightAt(d.pos.x, d.pos.z, d.pos.y), d.id).toBeCloseTo(d.pos.y, 1);
   });
 
-  it('the course stub: B3 (fan guard and duct locked until the isolator, CR bolted), B4 (bolt, sluice, outlet ladder; exits into A4), A3, A4', () => {
-    const c = play.course!;
+  it('the course stub: B3 one shared course (fence locked until the isolator), B4 bolt / sluice / outlet; objectives by name (R5); A3, A4 automatic', () => {
     expect(() => validateCourse(c.def, layoutKnownIds(c))).not.toThrow();
-    expect(c.def.bays.map((x) => [x.id, x.entry, x.exit])).toEqual([
-      ['B1', 'start', 'A1'],
-      ['B2', 'A1', 'A2'],
-      ['B3', 'A2', 'A3'],
-      ['B4', 'A3', 'A4'],
-      ['B5', 'A4', 'A5'],
-      ['B6', 'A5', 'A6'],
-      ['B7', 'A6', 'A7'],
-      ['B8', 'A7', 'A8'],
-      ['B9', 'A8', 'end'],
-    ]);
-    const locked = new Set(pb.anchors.doors.filter((d) => d.locked).map((d) => d.id));
-    for (const id of ['A3-near', 'A3-far', 'A4-near', 'A4-far', 'B3-cr', 'B4-insp', 'B4-sluice']) expect(locked.has(c.doors[id]!), id).toBe(true);
-    // every way into the pit (four fence sides) and the duct out of it wait for the isolator
-    const b3g = c.def.bays[2]!.gates;
-    const locks = b3g.filter((g) => g.kind === 'anchorLock').map((g) => (g.kind === 'anchorLock' ? [g.anchorId, g.flag] : []));
-    expect(locks.sort()).toEqual([['B3-duct', 'fan-off'], ['B3-fence-e', 'fan-off'], ['B3-fence-n', 'fan-off'], ['B3-fence-s', 'fan-off'], ['B3-fence-w', 'fan-off']]);
-    expect(b3g.some((g) => g.kind === 'pickup' && g.switchId === 'sw-isolator' && g.flag === 'fan-off')).toBe(true);
-    const fenceIds = new Set(['n', 'e', 's', 'w'].map((k) => c.anchors![`B3-fence-${k}`]));
-    expect(pb.anchors.fences.filter((f) => inBay('B3', f.a.x, f.a.z)).every((f) => fenceIds.has(f.id))).toBe(true);
-    expect(c.devices.end).toBeDefined();
-    // automatic airlocks (R6): no Cycle panel device
-    expect(c.devices.A4).toBeUndefined();
+    const bay = (id: string) => c.def.bays.find((x) => x.id === id)!;
+    expect([bay('B3').entry, bay('B3').exit, bay('B4').entry, bay('B4').exit, bay('B5').entry]).toEqual(['A2', 'A3', 'A3', 'A4', 'A4']);
+    expect(bay('B3').gates.map((g) => g.id)).toEqual(['g-isolator', 'g-fan']);
+    expect(bay('B3').gates[1]).toEqual({ kind: 'anchorLock', id: 'g-fan', anchorId: 'B3-fence', flag: 'fan-off' });
+    expect(bay('B4').gates.map((g) => g.id)).toEqual(['g-insp', 'g-sluice', 'g-outlet', 'g-outlet-ladder']);
+    const locked = new Set(b.anchors.doors.filter((d) => d.locked).map((d) => d.id));
+    for (const id of ['A3-near', 'A3-far', 'A4-near', 'A4-far', 'B4-insp', 'B4-sluice']) expect(locked.has(c.doors[id]!), id).toBe(true);
+    for (const k of Object.keys(c.devices)) expect(/^A[34]/.test(k), k).toBe(false);
+    const obj = (id: string) => c.def.objectives!.filter((o) => o.bay === id);
+    expect(obj('B3').length).toBe(21);
+    expect(obj('B4').length).toBe(12);
+    expect(obj('B3')[0]!.text).toBe('Split jump in the riser slot');
+    expect(obj('B3')[11]!.text).toBe('Stop the fan at the isolator');
+    expect(obj('B4')[5]!.text).toBe('Hold the sluice open from the gallery');
+    expect([...obj('B3'), ...obj('B4')].every((o) => o.text.length <= 90)).toBe(true);
+    expect(c.def.airlocks.find((a) => a.id === 'A3')!.box).toEqual([69, 40, 75, 46]);
+    expect(c.def.airlocks.find((a) => a.id === 'A4')!.box).toEqual([97, 24, 103, 30]);
+    expect(bay('B3').elements.map((e) => e.id)).toEqual(['B3-W5', 'B3-NR', 'B3-MLR', 'B3-window', 'B3-hatch', 'B3-grilles']);
   });
 
-  it('exactly one split gap in B3: the RC slot (1.6 wide, both faces >= 3.6, on G1); B4 only the overflow channel', () => {
+  it('R4: B3 14 x 14 (196 m2) against A2, B4 12 x 26 (312 m2); the interim passage reaches B4 (T5f moves it)', () => {
+    const area = (r: readonly number[]) => (r[2]! - r[0]!) * (r[3]! - r[1]!);
+    expect(area(SHAFT_BOX.B3)).toBeCloseTo(196, 5);
+    expect(area(SHAFT_BOX.B4)).toBeCloseTo(312, 5);
+    expect(SHAFT_BOX.B3[0]).toBe(at('A2', 6, 0).x);
+    const g1 = b3(1.4, 7, M3.g1);
+    expect(g1.y).toBe(UPPER_Y);
+    // A2's far door opens onto G1
+    const far = b.anchors.doors.find((d) => d.id === lay.course!.doors['A2-far'])!;
+    expect(far.hinge.x).toBeCloseTo(SHAFT_BOX.B3[0], 5);
+    expect(far.hinge.y).toBeCloseTo(UPPER_Y, 5);
+    const open = analyticNav(b, [64, 23, 106, 61], b.anchors.doors.filter((d) => d.locked && d.id !== c.doors['A3-far']).map(doorLeaf));
+    expect(joins(open, plantAt('A3', 3, 3), b4(6, 24))).not.toBeNull();
+  });
+
+  it('lips only where planned (PLANT_LIPS, all manual); no generated lip in B3 / B4', () => {
+    expect(generated.filter((l) => inBay('B3', l.a.x, l.a.z) || inBay('B4', l.a.x, l.a.z))).toEqual([]);
+    const mine = manual.filter((l) => inBay('B3', l.a.x, l.a.z) || inBay('B4', l.a.x, l.a.z));
+    for (const l of mine) expect(PLANT_LIPS.some((p) => inLip(l, p.box, p.top)), `${l.a.x} ${l.a.z} ${l.top}`).toBe(true);
+    for (const p of PLANT_LIPS) expect(mine.some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
+    expect(mine.length).toBe(7);
+  });
+
+  it('exactly one split gap in B3 (the RC slot, 1.6, faces >= 3.6, on G1) and one in B4 (the Phase 5 overflow channel)', () => {
     const inB3 = splits.filter((g) => inBay('B3', g.a.x, g.a.z));
     expect(inB3.length).toBe(1);
-    const rc = inB3[0]!;
-    expect(rc.width).toBeCloseTo(M3.slot, 5);
-    expect(rc.height).toBeGreaterThanOrEqual(SPLIT.minHeight);
-    expect(rc.a.y).toBeCloseTo(PLANT_Y + M3.g1, 5);
-    expect(Math.min(rc.a.x, rc.b.x)).toBeGreaterThanOrEqual(b3(6, 0).x);
-    expect(Math.max(rc.a.x, rc.b.x)).toBeLessThanOrEqual(b3(12, 0).x);
+    expect(inB3[0]!.a.y).toBeCloseTo(PLANT_Y + M3.g1, 5);
     const inB4 = splits.filter((g) => inBay('B4', g.a.x, g.a.z));
     expect(inB4.length).toBe(1);
     expect(inB4[0]!.a.x).toBeCloseTo(b4(0.8, 0).x, 5);
-    // anything else between the plant floors and the shaft top is no split (A3, A4 too)
-    expect(splits.filter((g) => g.a.y < UPPER_Y - 2 && !inBay('B3', g.a.x, g.a.z) && !inBay('B4', g.a.x, g.a.z))).toEqual([]);
   });
 
-  it('RC: from the split (real pose, both facings) the engine jump-up lands on the casing top lip, 4.3 over G1', () => {
+  it('RC: from the split (real pose, both facings) the engine jump-up lands on the casing top lip, 4.6 over G1', () => {
     const rc = splits.find((g) => inBay('B3', g.a.x, g.a.z))!;
-    const casing = A.ledges.filter((l) => inLip(l, lipOf('RC').box, lipOf('RC').top));
-    expect(casing.length).toBeGreaterThan(0);
-    const ids = new Set(casing.map((l) => l.id));
-    // offered where the player stands in the slot (splitReach), then the controller's findJump probe (it looks 1.2 m
-    // ahead along the facing: the casing lip must run on that far, so facing out of the slot's last 1.5 m finds none)
+    const ids = new Set(A.ledges.filter((l) => inLip(l, lipOf('RC').box, lipOf('RC').top)).map((l) => l.id));
+    expect(ids.size).toBeGreaterThan(0);
     for (const face of [1, -1] as const) {
       for (const s of face === 1 ? [0.5, rc.len / 2, rc.len - 1.5] : [1.5, rc.len / 2, rc.len - 0.5]) {
         const p = atPose(rc, s, face);
@@ -444,156 +493,164 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
         const t = findJumpTarget(A, from, rc.id, rc.tx * face, rc.tz * face, 1, 2.5, 0.6, 0, 0);
         expect(t, `${face} ${s}`).not.toBeNull();
         expect(ids.has(t!.anchor.id), `${face} ${s}`).toBe(true);
-        expect(t!.grip.y - rc.a.y).toBeGreaterThanOrEqual(3.95);
-        expect(t!.grip.y - rc.a.y).toBeLessThanOrEqual(4.75);
       }
     }
-    // the bridge steps down 0.3 from the casing top to G2
-    expect(M3.casingTop + M3.g1 - M3.bridgeStep).toBeCloseTo(M3.g2, 5);
+    expect(M3.casingTop - M3.g1).toBeGreaterThan(TEAM.boostMax);
   });
 
-  it('WJ: G3 lip 3.4 over G2 (2.7-3.8); straight kick from G2 and the north-east inside corner', () => {
-    expect(M3.g3 - M3.g2).toBeGreaterThanOrEqual(WALL_JUMP.minUp);
-    expect(M3.g3 - M3.g2).toBeLessThanOrEqual(WALL_JUMP.maxUp);
-    const front = generated.find((l) => inLip(l, lipOf('G3').box, lipOf('G3').top) && l.nz < -0.9)!;
-    expect(front).toBeDefined();
-    const g2 = PLANT_Y + M3.g2;
-    // straight: on G2 0.6 short of the face, facing north
-    const st = b3(15, 11.4);
-    expect(wallJumpReach(front, st.x, g2, st.z, 0, 1)?.corner).toBe(false);
-    // inside corner: in the corner facing the east wall, the lip side-on
-    const co = b3(17.4, 11.4);
-    expect(wallJumpReach(front, co.x, g2, co.z, 1, 0)?.corner).toBe(true);
-    // nothing in wall-jump reach from G1 (only the split goes up from there)
-    const fromG1 = genPlant.filter((l) => l.canHang && l.top - (PLANT_Y + M3.g1) >= WALL_JUMP.minUp && l.top - (PLANT_Y + M3.g1) <= WALL_JUMP.maxUp);
-    expect(fromG1).toEqual([]);
-  });
-
-  it('lips only where planned (PLANT_LIPS); every planned lip exists', () => {
-    const stray = genPlant.filter((l) => !PLANT_LIPS.some((p) => inLip(l, p.box, p.top)));
-    expect(stray.map((l) => [l.a, l.b, l.top])).toEqual([]);
-    for (const p of PLANT_LIPS) expect(genPlant.some((l) => inLip(l, p.box, p.top)), p.id).toBe(true);
-  });
-
-  it('RP: rope 17.4 to the chamber floor, entry from the hoist recess, kick-through window in reach on the way down', () => {
-    const rp = pb.anchors.all.find((a) => a.id === play.course!.anchors!['B3-rappel'])!;
-    expect(rp.kind).toBe('rappel');
-    if (rp.kind !== 'rappel') return;
-    expect(rp.top.y - rp.length).toBeCloseTo(PLANT_Y, 5);
-    expect(rp.length).toBeCloseTo(M3.rope, 5);
-    // the recess floor under the hook-on spot (0.3 behind the edge): a collide box whose top is the rope top
-    const st = { x: rp.top.x - rp.nx * 0.3, z: rp.top.z - rp.nz * 0.3 };
-    const on = pb.boxes.some((p) => p.collide && Math.abs(p.c[1] + p.s[1] / 2 - rp.top.y) < 0.01 && Math.abs(st.x - p.c[0]) <= p.s[0] / 2 && Math.abs(st.z - p.c[2]) <= p.s[2] / 2);
-    expect(on).toBe(true);
-    // attachController window check (:739-744): in the rope's wall plane, beside the body, sill near the feet
-    const w = pb.anchors.all.find((a) => a.kind === 'window' && inBay('B3', a.c.x, a.c.z) && a.breakable)!;
-    expect(w).toBeDefined();
-    if (w.kind !== 'window') return;
-    expect(w.sillHeight).toBeCloseTo(PLANT_Y + M3.windowSill, 5);
-    let reach = false;
-    for (let s = 0; s <= rp.length; s += 0.1) {
-      const p = atPose(rp, s, 1);
-      const off = (p.x - w.c.x) * rp.nx + (p.z - w.c.z) * rp.nz;
-      const lat = Math.abs((p.x - w.c.x) * -rp.nz + (p.z - w.c.z) * rp.nx);
-      if (off >= 0 && off <= 1.4 && lat <= Math.max(RAPPEL.windowReach, w.w / 2) && Math.abs(w.sillHeight - (p.y + 0.6)) <= 0.8) reach = true;
+  it('WJ1 straight from G2 (3.4) and WJ2 up the inside corner from G3 (3.2)', () => {
+    const wj1 = manual.find((l) => inLip(l, lipOf('WJ1').box, lipOf('WJ1').top))!;
+    const st = b3(12, 11.8);
+    expect(wallJumpReach(wj1, st.x, PLANT_Y + M3.g2, st.z, 0, 1)?.corner).toBe(false);
+    const wj2 = manual.find((l) => inLip(l, lipOf('WJ2').box, lipOf('WJ2').top))!;
+    const co = b3(10.6, 13.4);
+    expect(wallJumpReach(wj2, co.x, PLANT_Y + M3.g3, co.z, 0, 1)).not.toBeNull();
+    for (const d of [M3.g3 - M3.g2, M3.g4 - M3.g3]) {
+      expect(d).toBeGreaterThanOrEqual(WALL_JUMP.minUp);
+      expect(d).toBeLessThanOrEqual(WALL_JUMP.maxUp);
     }
-    expect(reach).toBe(true);
-    // the kick-through lands inside CR (between the east wall and CR's far wall)
-    const tx = w.c.x - rp.nx * 0.9;
-    expect(tx).toBeGreaterThan(b3(18.45, 0).x);
-    expect(tx).toBeLessThan(b3(23, 0).x);
   });
 
-  it('ZP: from G3 (cable 2.0 over it) to cable end 4.5 over WP (floor 2.6); the ride clears every piece under it', () => {
-    const z = pb.anchors.all.find((a) => a.id === play.course!.anchors!['B3-zipline'])!;
-    if (z.kind !== 'zipline') throw new Error('no zipline');
-    expect(z.a.y - (PLANT_Y + M3.g3)).toBeGreaterThanOrEqual(1.5);
-    expect(z.a.y - (PLANT_Y + M3.g3)).toBeLessThanOrEqual(2.6);
-    expect(z.b.y).toBeCloseTo(PLANT_Y + M3.zipEnd, 5);
-    expect(z.b.y - HANG.drop).toBeCloseTo(PLANT_Y + M3.wp, 5);
-    // the end is over WP (x 0..4, z 0..4)
-    expect(z.b.x).toBeGreaterThan(b3(0, 0).x);
-    expect(z.b.x).toBeLessThan(b3(4, 0).x);
-    expect(z.b.z).toBeLessThan(b3(0, 4).z);
-    // the body (feet 1.9 under the cable, 1.75 tall) never meets a collide box along the ride (past the first 0.3 m)
-    const len = Math.hypot(z.b.x - z.a.x, z.b.z - z.a.z);
-    for (let d = 0.3; d < len - 0.3; d += 0.1) {
-      const t = d / len;
-      const x = z.a.x + (z.b.x - z.a.x) * t;
-      const zz = z.a.z + (z.b.z - z.a.z) * t;
-      const feet = z.a.y + (z.b.y - z.a.y) * t - HANG.drop;
-      const hit = pb.boxes.find((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(x - p.c[0]) < p.s[0] / 2 + 0.3 && Math.abs(zz - p.c[2]) < p.s[2] / 2 + 0.3 && p.c[1] + p.s[1] / 2 > feet && p.c[1] - p.s[1] / 2 < feet + 1.75);
-      expect(hit, `${d.toFixed(1)}`).toBeUndefined();
+  it('ropes: RP1 to ML floor height, sideways onto ML at lateralMax; RP2 offers the CR window, its RF side out of boost', () => {
+    const rp1 = b.anchors.all.find((a) => a.id === c.anchors!['B3-rappel-1'])!;
+    if (rp1.kind !== 'rappel') throw new Error('rp1');
+    expect(rp1.top.y - rp1.length).toBeCloseTo(PLANT_Y + M3.ml, 5);
+    expect(rp1.top.x + RAPPEL.lateralMax - 0.32).toBeGreaterThan(b3(5.95, 0).x);
+    const rp2 = b.anchors.all.find((a) => a.id === c.anchors!['B3-rappel-2'])!;
+    if (rp2.kind !== 'rappel') throw new Error('rp2');
+    expect(rp2.top.y - rp2.length).toBeCloseTo(PLANT_Y + M3.rf, 5);
+    const w = b.anchors.all.find((a) => a.kind === 'window' && inBay('B3', a.c.x, a.c.z))!;
+    if (w.kind !== 'window') throw new Error('w');
+    expect(Math.abs(Math.sin(w.yaw) * rp2.nx + Math.cos(w.yaw) * rp2.nz)).toBeGreaterThan(0.9);
+    expect(Math.abs(w.c.z - rp2.top.z)).toBeLessThan(0.01);
+    expect(w.sillHeight - (PLANT_Y + M3.cr)).toBeCloseTo(2.0, 5);
+    expect(w.sillHeight - (PLANT_Y + M3.rf)).toBeGreaterThan(TEAM.boostMax);
+  });
+
+  it('T5c open items: HS walk-off screens close the rope column to 23.0; no ladder in a rope kick volume', () => {
+    for (let y = M3.ml + 0.2; y < M3.screenTop; y += 0.5) {
+      expect(covered(b3(5.8, 0.5).x, b3(0, 0.5).z, PLANT_Y + y), `east ${y}`).toBe(true);
+      if (y > M3.ml + 2.1) expect(covered(b3(5.8, 2.4).x, b3(0, 2.4).z, PLANT_Y + y), `east door ${y}`).toBe(true);
     }
-    // a start stance on G3 within the entry reach
-    const st = play.debugPoints!.find((d) => d.id === 'B3-G3')!;
-    expect(Math.hypot(st.pos.x - z.a.x, st.pos.z - z.a.z)).toBeLessThanOrEqual(REACH.zip);
-  });
-
-  it('FP: the fan guard 2.4 high round x 6..12, z 6..12; a hood over it out of reach; DU entry in the pit, exit in the passage', () => {
-    const fences = pb.anchors.fences.filter((f) => inBay('B3', f.a.x, f.a.z));
-    expect(fences.length).toBe(4);
-    for (const f of fences) expect(f.height).toBe(M3.fence);
-    const xs = fences.flatMap((f) => [f.a.x, f.b.x]);
-    const zs = fences.flatMap((f) => [f.a.z, f.b.z]);
-    expect([Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)]).toEqual([b3(6, 0).x, b3(12, 0).x, b3(0, 6).z, b3(0, 12).z]);
-    // the flip over the top (fence top + 0.12, a 1.75 body) passes under the hood
-    expect(M3.hood).toBeGreaterThan(M3.fence + 0.12 + 1.75);
-    const d = pb.anchors.all.find((a) => a.id === play.course!.anchors!['B3-duct'])!;
-    if (d.kind !== 'duct') throw new Error('no duct');
-    // entry: wall grate facing into the pit (inside the guard), within 1.1 m / 1.4 of the feet of a stance in the pit
-    const stance = b3(9, 7.2);
-    expect(Math.hypot(stance.x - d.entry.pos.x, stance.z - d.entry.pos.z)).toBeLessThanOrEqual(1.1);
-    expect(Math.abs(d.entry.pos.y - PLANT_Y)).toBeLessThanOrEqual(1.4);
-    expect(d.entry.nz).toBe(1);
-    expect(stance.z).toBeGreaterThan(b3(0, 6).z);
-    // exit: the crawl ends 0.75 out of the grille, on the passage floor (x 5..13, z 0..2.6)
-    const ex = { x: d.exit.pos.x + d.exit.nx * 0.75, z: d.exit.pos.z + d.exit.nz * 0.75 };
-    expect(ex.x).toBeGreaterThan(b3(5, 0).x);
-    expect(ex.x).toBeLessThan(b3(13, 0).x);
-    expect(ex.z).toBeGreaterThan(b3(0, 0.225).z);
-    expect(ex.z).toBeLessThan(b3(0, 2.45).z);
-  });
-
-  it('ladders: PL floor -> G1, the net ladders and C3 / sump / outlet ladders top out on a floor (the real step-off)', () => {
-    const lads = pb.anchors.ladders.filter((l) => inBay('B3', l.base.x, l.base.z) || inBay('B4', l.base.x, l.base.z));
-    expect(lads.length).toBe(6);
-    for (const l of lads) {
-      const ex = l.top.x + Math.sin(l.facing) * 0.2;
-      const ez = l.top.z + Math.cos(l.facing) * 0.2;
-      const on = pb.boxes.some((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.c[1] + p.s[1] / 2 - l.top.y) < 0.01 && Math.abs(ex - p.c[0]) <= p.s[0] / 2 - 0.1 && Math.abs(ez - p.c[2]) <= p.s[2] / 2 - 0.1);
-      expect(on, `${l.base.x} ${l.base.z} ${l.top.y}`).toBe(true);
+    for (let y = M3.nr + 0.2; y < M3.screenTop; y += 0.5) expect(covered(b3(5, 0).x, b3(0, 3.75).z, PLANT_Y + y), `north ${y}`).toBe(true);
+    for (const id of ['B3-rappel-1', 'B3-rappel-2']) {
+      const rp = b.anchors.all.find((a) => a.id === c.anchors![id])!;
+      if (rp.kind !== 'rappel') throw new Error(id);
+      const out = RAPPEL.standoff + RAPPEL.swingOut + 0.35;
+      const lat = RAPPEL.lateralMax + 0.35;
+      const y0 = rp.top.y - rp.length;
+      for (const l of b.anchors.ladders) {
+        const u = (l.base.x - rp.top.x) * rp.nx + (l.base.z - rp.top.z) * rp.nz;
+        const v = Math.abs((l.base.x - rp.top.x) * -rp.nz + (l.base.z - rp.top.z) * rp.nx);
+        const inside = u > -0.1 && u < out && v < lat + l.width / 2 && l.top.y > y0 + 0.01 && l.base.y < rp.top.y - 0.01;
+        expect(inside, `${id} ladder ${l.base.x} ${l.base.z}`).toBe(false);
+      }
     }
-    expect(lads.some((l) => l.base.y === PLANT_Y && l.top.y === PLANT_Y + M3.g1)).toBe(true);
   });
 
-  it('PH: the damper bar 2.5 over G3, hangable from G3, its far end over G2', () => {
-    const ph = pb.anchors.pipesH.filter((p) => inBay('B3', p.a.x, p.a.z));
-    expect(ph.length).toBe(1);
-    expect(ph[0]!.hangHeight - (PLANT_Y + M3.g3)).toBeCloseTo(M3.bar, 5);
-    expect(M3.bar).toBeGreaterThanOrEqual(REACH.grabMin);
-    expect(M3.bar).toBeLessThanOrEqual(REACH.grabMax);
-    expect(Math.min(ph[0]!.a.z, ph[0]!.b.z)).toBeLessThan(b3(0, 12).z);
+  it('rope catchers: every rope / cable position plus the kick-out and the capsule radius settles over its catcher, never the pit', () => {
+    // the body is pushed out of each collider it overlaps along the shortest axis (a tie, centre on a mid-plane, fails);
+    // the settled centre must stand over one of the rope's catcher floors, at the bottom-out and the unhook heights
+    const R = 0.3;
+    const ext = (p: (typeof b.boxes)[number]): [number, number] => (Math.abs(Math.sin(p.yaw)) > 0.5 ? [p.s[2] / 2, p.s[0] / 2] : [p.s[0] / 2, p.s[2] / 2]);
+    const floorUnder = (x: number, z: number, feet: number): number => {
+      let top = -Infinity;
+      for (const p of b.boxes) {
+        const [hx, hz] = ext(p);
+        const t = p.c[1] + p.s[1] / 2;
+        if (p.collide && t <= feet + 0.3 && t > top && Math.abs(x - p.c[0]) <= hx && Math.abs(z - p.c[2]) <= hz) top = t;
+      }
+      return top;
+    };
+    const settle = (x0: number, z0: number, feet: number): [number, number] | null => {
+      let x = x0;
+      let z = z0;
+      for (let pass = 0; pass < 4; pass++) {
+        let moved = false;
+        for (const p of b.boxes) {
+          const lo = p.c[1] - p.s[1] / 2;
+          const hi = p.c[1] + p.s[1] / 2;
+          if (!p.collide || hi <= feet + 0.3 || lo >= feet + 1.75) continue;
+          const [hx, hz] = ext(p);
+          const dx = x - p.c[0];
+          const dz = z - p.c[2];
+          const px = hx + R - Math.abs(dx);
+          const pz = hz + R - Math.abs(dz);
+          if (px <= 1e-6 || pz <= 1e-6) continue;
+          if (px < pz) {
+            if (Math.abs(dx) < 1e-6) return null;
+            x += Math.sign(dx) * px;
+          } else {
+            if (Math.abs(dz) < 1e-6) return null;
+            z += Math.sign(dz) * pz;
+          }
+          moved = true;
+        }
+        if (!moved) break;
+      }
+      return [x, z];
+    };
+    const check = (id: string, x: number, z: number, feet: number, floors: readonly number[]) => {
+      const s2 = settle(x, z, feet);
+      expect(s2, `${id} tie at ${x.toFixed(2)} ${z.toFixed(2)} ${feet}`).not.toBeNull();
+      const f = floorUnder(s2![0], s2![1], feet);
+      expect(floors.some((y) => Math.abs(f - (PLANT_Y + y)) < 0.05), `${id} at ${x.toFixed(2)} ${z.toFixed(2)} ${feet}: floor ${f}`).toBe(true);
+    };
+    // RP1: NR under the rope, ML at lateralMax, RF through ML's hatch (RF's ladder rejoins ML); RP2: RF only
+    const ropes: [string, readonly number[]][] = [['B3-rappel-1', [M3.nr, M3.ml, M3.rf]], ['B3-rappel-2', [M3.rf]]];
+    for (const [id, floors] of ropes) {
+      const rp = b.anchors.all.find((a) => a.id === c.anchors![id])!;
+      if (rp.kind !== 'rappel') throw new Error(id);
+      const y0 = rp.top.y - rp.length;
+      for (let u = -RAPPEL.lateralMax; u <= RAPPEL.lateralMax + 1e-6; u += RAPPEL.lateralMax / 6)
+        for (let d = RAPPEL.standoff; d <= RAPPEL.standoff + RAPPEL.swingOut + 1e-6; d += RAPPEL.swingOut / 6)
+          for (const feet of [y0, y0 + RAPPEL.unhookHeight]) check(id, rp.top.x + rp.nx * d - rp.nz * u, rp.top.z + rp.nz * d + rp.nx * u, feet, floors);
+    }
+    // ZP: a let-go anywhere along the cable west of ZD lands on NT2, WP or the floor ring west of NT2 (never the pit)
+    const zp = b.anchors.all.find((a) => a.id === c.anchors!['B3-zipline'])!;
+    if (zp.kind !== 'zipline') throw new Error('zip');
+    for (let t = 0; t <= 1 + 1e-6; t += 0.05) {
+      const x = zp.a.x + (zp.b.x - zp.a.x) * t;
+      const z = zp.a.z + (zp.b.z - zp.a.z) * t;
+      const feet = zp.a.y + (zp.b.y - zp.a.y) * t - HANG.drop;
+      check('B3-zipline', x, z, feet, [M3.cr, M3.nt2, M3.wp, 0]);
+      expect(x > b3(6, 0).x && z < b3(0, 6.5).z, `zip over the pit at ${t}`).toBe(false);
+    }
   });
 
-  it('B4 human ladder: from the shoulders against W2 (C2 side) the grip reaches W2 (teamController runTop rule)', () => {
+  it('ZP: feet on ZD at the start and on WP at the end; FP one fence 2.4 locked on fan-off; two ducts pit -> PP', () => {
+    const z = b.anchors.all.find((a) => a.id === c.anchors!['B3-zipline'])!;
+    if (z.kind !== 'zipline') throw new Error('zip');
+    expect(z.a.y - HANG.drop).toBeCloseTo(PLANT_Y + M3.cr, 1);
+    expect(z.b.y - HANG.drop).toBeCloseTo(PLANT_Y + M3.wp, 1);
+    expect(b.anchors.fences.filter((f) => inBay('B3', f.a.x, f.a.z)).length).toBe(1);
+    expect(fence.height).toBe(M3.fence);
+    for (const k of [1, 2]) {
+      const d = b.anchors.all.find((a) => a.id === c.anchors![`B3-duct-${k}`])!;
+      if (d.kind !== 'duct') throw new Error('duct');
+      expect(d.entry.pos.x).toBeCloseTo(b3(6, 0).x, 5);
+      expect(d.exit.pos.x).toBeCloseTo(b3(2, 0).x, 5);
+    }
+  });
+
+  it('B4 human ladder: from the shoulders against W2 (C2 side) the grip reaches W2 at x 1..4 only', () => {
     const w2 = B4_COOP_LIPS.find((l) => l.id === 'W2')!;
-    for (const x of [4, 10, 16, 26]) {
-      // the bracer's feet 0.5 off W2's north face (wallBehind), the climber on the shoulders facing the wall (south)
-      const p = b4(x, 13.5);
-      const at = { x: p.x, y: p.y + TEAM.ladderFeet + 1.75, z: p.z };
-      const t = findJumpTarget(A, at, -1, 0, -1, 1, 1.6, 0.2);
+    for (const x of [1.5, 2.5, 3.5]) {
+      const p = b4(x, 9.5);
+      const from = { x: p.x, y: p.y + TEAM.ladderFeet + 1.75, z: p.z };
+      const t = findJumpTarget(A, from, -1, 0, -1, 1, 1.6, 0.2);
       expect(t, `x ${x}`).not.toBeNull();
-      expect(t!.anchor.kind).toBe('ledge');
       expect(inLip(t!.anchor as Ledge, w2.box, w2.top), `x ${x}`).toBe(true);
-      expect(t!.grip.y - p.y).toBeLessThanOrEqual(TEAM.ladderGrab + 0.2);
+    }
+    for (const l of B4_COOP_LIPS) {
+      expect(l.top - l.floor).toBeGreaterThanOrEqual(4.25);
+      expect(l.top - l.floor).toBeLessThanOrEqual(TEAM.boostMax);
     }
   });
 
   it('no split pose (both facings, along each split) jumps up onto a co-op lip', () => {
-    const coop = A.ledges.filter((l) => BUNKER_COOP_LIPS.some((p) => inLip(l, p.box, p.top)));
-    expect(coop.length).toBeGreaterThan(0);
-    const ids = new Set(coop.map((l) => l.id));
+    const ids = new Set(A.ledges.filter((l) => BUNKER_COOP_LIPS.some((p) => inLip(l, p.box, p.top))).map((l) => l.id));
+    expect(ids.size).toBeGreaterThan(0);
     for (const g of splits) {
       for (const face of [1, -1] as const) {
         for (let s = 0.25; s <= g.len - 0.25; s += 0.25) {
@@ -606,35 +663,79 @@ describe('Fallow (bunker) shaft and reservoir (T3)', () => {
     }
   });
 
-  it('the B3-RC debug point stands where the split is offered facing its yaw', () => {
-    const rc = splits.find((g) => inBay('B3', g.a.x, g.a.z))!;
-    const d = play.debugPoints!.find((x) => x.id === 'B3-RC')!;
-    const r = splitReach(rc, d.pos.x, d.pos.y, d.pos.z, Math.sin(d.yaw), Math.cos(d.yaw));
-    expect(r).not.toBeNull();
-    // and the jump-up from that split pose finds the casing lip
-    const p = atPose(rc, r!.s, r!.face);
-    const t = findJumpTarget(A, { x: p.x, y: rc.a.y + SPLIT.feetHeight + 1.05, z: p.z }, rc.id, rc.tx * r!.face, rc.tz * r!.face, 1, 2.5, 0.6, 0, 0);
-    expect(t && inLip(t.anchor as Ledge, lipOf('RC').box, lipOf('RC').top)).toBe(true);
+  it('per rebuilt bay, the traversal anchors in the bay box are exactly the R2 graph set (an added ladder, lip or door fails)', () => {
+    expect(anchorKinds(b, [7, 49.5, 59, 58.5])).toEqual({ ladder: 5, pipeH: 1, pipeV: 1, ledge: 7, window: 3, door: 1 });
+    expect(anchorKinds(b, SHAFT_BOX.B3)).toEqual({ ledge: 3, door: 3, pipeH: 1, ladder: 4, rappel: 2, window: 1, zipline: 1, fence: 1, duct: 2 });
+    expect(anchorKinds(b, SHAFT_BOX.B4)).toEqual({ ledge: 4, door: 3, ladder: 3 });
   });
 
-  it('B4 co-op lips (W1 4.4, W2 4.25, outlet 4.4) are out of solo reach and within the boost; no other lip 3.8-4.5 over a B4 floor', () => {
-    for (const l of B4_COOP_LIPS) {
-      // W2 (A35): 0.45 over solo reach, within the human ladder's grip; W1 and the outlet keep level-design 11.3's 0.5
-      if (l.id === 'W2') {
-        expect(l.top - l.floor).toBeGreaterThanOrEqual(WALL_JUMP.maxUp + 0.45 - 1e-9);
-        expect(l.top - l.floor).toBeLessThanOrEqual(TEAM.ladderGrab + 0.2);
-      } else expect(l.top - l.floor, l.id).toBeGreaterThan(WALL_JUMP.maxUp + 0.5);
-      expect(l.top - l.floor, l.id).toBeLessThanOrEqual(TEAM.boostMax);
-      expect(genPlant.some((g) => inLip(g, l.box, l.top) && g.canHang), l.id).toBe(true);
-    }
-    const floors = [PLANT_Y, PLANT_Y + M4.sump];
-    const band = genPlant.filter((l) => inBay('B4', l.a.x, l.a.z) && floors.some((f) => l.top - f >= 3.8 && l.top - f <= 4.5));
-    const odd = band.filter((l) => !B4_COOP_LIPS.some((p) => inLip(l, p.box, p.top)));
-    expect(odd.map((l) => [l.a, l.b, l.top])).toEqual([]);
-    // the sump floor stays above the nav sampler's floor (SPEC engine Q1)
-    expect(PLANT_Y + M4.sump).toBeGreaterThan(-1.5);
-    // the gallery has no lip: the cells cannot climb it, only W1 / W2 / C3's ladder reach it
-    expect(genPlant.filter((l) => inBay('B4', l.a.x, l.a.z) && l.a.x >= b4(31.9, 0).x)).toEqual([]);
+  // B3's room graph (BAYS 0.2 Proof): cells are floors the nav keeps apart; links are the elements' passages
+  const P3 = (x: number, z: number, y: number) => b3(x, z, y);
+  const cells3: Record<string, { x: number; y: number; z: number }> = {
+    A2: at('A2', 3, 3), G1: P3(1.4, 7, M3.g1), CASE: P3(5.5, 11.8, M3.casingTop), G2: P3(12.5, 10, M3.g2), G3: P3(12.5, 13.2, M3.g3),
+    G4: P3(7, 13.3, M3.g4), NT1: P3(3.5, 8, M3.nt1), W5N: P3(0.6, 10.4, M3.g5), G5: P3(2, 2, M3.g5), NR: P3(4.6, 2.4, M3.nr),
+    ML: P3(7.4, 2, M3.ml), RF: P3(7.8, 2, M3.rf), CR: P3(11.5, 2.5, M3.cr), ZD: P3(12, 6.5, M3.cr), NT2: P3(6, 8, M3.nt2),
+    WP: P3(1.5, 8.5, M3.wp), RING: P3(11, 11, 0), PIT: P3(8, 4.5, 0), PP: P3(4, 1.3, 0), A3: plantAt('A3', 3, 3),
+  };
+  // rope 1 also lands in RF through ML's hatch at lateralMax (the rope-catcher test); RF's ladder rejoins ML
+  const links3: Link[] = [
+    ['A2', 'G1', 'door', true], ['G1', 'CASE', 'split', false], ['CASE', 'G1', 'fall', false], ['CASE', 'G2', 'step', true],
+    ['G2', 'G3', 'WJ1', false], ['G3', 'G2', 'fall', false], ['G3', 'G4', 'WJ2', false], ['G4', 'G3', 'fall', false],
+    ['G4', 'G5', 'bar', false], ['G4', 'NT1', 'fall', false], ['NT1', 'G4', 'net ladder', false], ['NT1', 'W5N', 'step', true],
+    ['G5', 'W5N', 'W5 turnstile', false, true], ['G5', 'NR', 'fall', false], ['NR', 'G5', 'NR turnstile', false, true],
+    ['G5', 'ML', 'rope 1', false], ['G5', 'RF', 'rope 1', false], ['ML', 'NR', 'ML gate', false, true], ['ML', 'RF', 'fall', false], ['RF', 'ML', 'hatch ladder', false, true],
+    ['ML', 'CR', 'rope 2 window', false], ['CR', 'ZD', 'door', true], ['ZD', 'NT2', 'fall', false], ['NT2', 'ZD', 'net ladder', false],
+    ['ZD', 'WP', 'zipline', false], ['WP', 'RING', 'drop', false], ['RING', 'WP', 'boost', false], ['RING', 'PIT', 'fence', true],
+    ['PIT', 'PP', 'duct 1', true], ['PIT', 'PP', 'duct 2', true], ['PP', 'A3', 'door', true],
+  ];
+
+  it('B3: the nav keeps every cell apart (landings screened, catchers closed, the fence and ducts the only ways on)', () => {
+    const nav = analyticNav(b, [58, 39, 80, 61], [...shut, ...b.anchors.doors.filter((d) => !d.locked && inBay('B3', d.hinge.x, d.hinge.z)).map(doorLeaf), fenceLeaf]);
+    const named = Object.entries(cells3);
+    for (const [id, p] of named) expect(nav.heightAt(p.x, p.z, p.y), id).toBeCloseTo(p.y, 1);
+    const joined: string[] = [];
+    for (let i = 0; i < named.length; i++) for (let k = i + 1; k < named.length; k++) if (joins(nav, named[i]![1], named[k]![1])) joined.push(`${named[i]![0]}-${named[k]![0]}`);
+    expect(joined).toEqual([]);
+  });
+
+  it('R1, B3: the path from A2 to A3 passes the elements in the objective order and never uses a return link', () => {
+    const prev = reachGraph(links3, 'A2', [], false);
+    expect(pathEls(prev, 'A2', 'A3')).toEqual(['door', 'split', 'step', 'WJ1', 'WJ2', 'bar', 'rope 1', 'rope 2 window', 'door', 'zipline', 'drop', 'fence', 'duct 1', 'door']);
+    expect([...reachGraph(links3, 'A2', [], true).keys()].sort()).toEqual([...prev.keys()].sort());
+  });
+
+  it('R2, B3: each element is a cut (return links included); the fence is a cut while fan-off is unset', () => {
+    for (const el of ['split', 'WJ1', 'WJ2', 'bar', 'rope 1', 'rope 2 window', 'zipline', 'fence']) expect(reachGraph(links3, 'A2', [el], true).has('A3'), el).toBe(false);
+    expect(reachGraph(links3, 'A2', ['duct 1', 'duct 2'], true).has('A3')).toBe(false);
+  });
+
+  // B4's room graph
+  const cells4: Record<string, { x: number; y: number; z: number }> = {
+    A3: plantAt('A3', 3, 3), C1: b4(6, 22), W1: b4(2, 17.5, M4.wall), C2: b4(2.5, 12), W2: b4(2.5, 8.5, M4.w2), VG: b4(10.5, 14, M4.gallery),
+    C3: b4(6, 5), OP: b4(5, 1, M4.outlet), A4: plantAt('A4', 3, 3),
+  };
+  const links4: Link[] = [
+    ['A3', 'C1', 'door', true], ['C1', 'W1', 'boost', false], ['W1', 'C1', 'fall', false], ['W1', 'C2', 'drop', false],
+    ['C2', 'C1', 'bolt door', false], ['C2', 'W2', 'human ladder', false], ['W2', 'C2', 'fall', false], ['W2', 'VG', 'rail gate', true],
+    ['C2', 'C3', 'sluice', false], ['VG', 'C3', 'C3 ladder', true], ['C3', 'OP', 'outlet boost', false], ['OP', 'C3', 'fall', false],
+    ['C3', 'OP', 'outlet ladder', false], ['OP', 'A4', 'door', true],
+  ];
+
+  it('B4: the nav keeps every cell apart (walls wall to wall, VG and W2 screened)', () => {
+    const nav = analyticNav(b, [64, 23, 106, 61], shut);
+    const named = Object.entries(cells4);
+    for (const [id, p] of named) expect(nav.heightAt(p.x, p.z, p.y), id).toBeCloseTo(p.y, 1);
+    const joined: string[] = [];
+    for (let i = 0; i < named.length; i++) for (let k = i + 1; k < named.length; k++) if (joins(nav, named[i]![1], named[k]![1])) joined.push(`${named[i]![0]}-${named[k]![0]}`);
+    expect(joined).toEqual([]);
+  });
+
+  it('R1 / R2, B4: A3 -> C1 -> W1 -> C2 -> W2 / sluice -> C3 -> OP -> A4; each team move is a cut', () => {
+    const prev = reachGraph(links4, 'A3', ['sluice'], true);
+    expect(pathEls(prev, 'A3', 'A4')).toEqual(['door', 'boost', 'drop', 'human ladder', 'rail gate', 'C3 ladder', 'outlet boost', 'door']);
+    for (const el of ['boost', 'drop', 'outlet boost']) expect(reachGraph(links4, 'A3', el === 'outlet boost' ? [el, 'outlet ladder'] : [el], true).has('A4'), el).toBe(false);
+    // the second player (left in C2): the sluice is C2's only floor exit, the human ladder its only way up
+    expect(reachGraph(links4, 'C2', ['sluice', 'human ladder'], true).has('C3')).toBe(false);
   });
 });
 
@@ -1142,10 +1243,11 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
   // rooms joins them (unless an anchorLock gate holds it). Inside a bay every floor is taken as joined (the bay tests).
   it('reachability: with every course door open the way from B1 to L9 enters B1..B9 in order; as built nothing leaves B1', () => {
     const rooms: [string, number, number, number, number][] = [
-      // T5d: Upper at its v2 offsets; until T5e the interim passage (INTERIM_PASSAGE) counts as B3's approach
-      ['B1', 0, 60, 20, 14.4], ['A1', 1, 54, 6, 6], ['B2', 7, 49.5, 52, 9], ['A2', 59, 50, 6, 6], ['B3', 84, 74, 18, 18],
-      ['B3', 65, 52, 12, 2], ['B3', 75, 54, 2, 29], ['B3', 75, 83, 9, 2],
-      ['A3', 90, 68, 6, 6], ['B4', 82, 30, 36, 38], ['A4', 97, 24, 6, 6], ['B5', 70, -8, 48, 32], ['A5', 64, 5, 6, 6],
+      // T5d / T5e: Upper, B3 and A3 at their v2 offsets; until T5f B4 stands at (93, 30) and the interim passage
+      // (bunkerShaft INTERIM_PASSAGE) counts as B4's approach
+      ['B1', 0, 60, 20, 14.4], ['A1', 1, 54, 6, 6], ['B2', 7, 49.5, 52, 9], ['A2', 59, 50, 6, 6], ['B3', 65, 46, 14, 14],
+      ['A3', 69, 40, 6, 6], ['B4', 71, 35, 2, 5], ['B4', 71, 35, 20, 2], ['B4', 89, 35, 2, 23.225], ['B4', 89, 56.225, 11.5, 2],
+      ['B4', 93, 30, 12, 26], ['A4', 97, 24, 6, 6], ['B5', 70, -8, 48, 32], ['A5', 64, 5, 6, 6],
       ['B6', 22, -8, 42, 32], ['S6', 6, -8, 16, 3], ['A6', 0, -10, 6, 6], ['B7', 0, -50, 44, 40], ['A7', 44, -33, 6, 6],
       ['B8', 50, -46, 62, 32], ['A8', 112, -33, 6, 6], ['B9', 118, -56, 44, 52], ['L9', 136, -4, 8, 6],
     ];

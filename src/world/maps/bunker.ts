@@ -2,7 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_ELEMENTS, UPPER_OBJECTIVES, UPPER_Y } from './bunkerUpper';
-import { buildShaft, buildShaftFloors, plantAt } from './bunkerShaft';
+import { buildShaft, buildShaftFloors, plantAt, SHAFT_ELEMENTS, SHAFT_OBJECTIVES } from './bunkerShaft';
 import { B5_GROUPS, B5_METRICS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
 import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
 
@@ -10,10 +10,9 @@ import { B8_CS_DOOR, buildDeep, deepNavSeeds } from './bunkerDeep';
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2-T5, Upper rebuilt to BAYS v2 in T5d): B1 to B9 with A1 to A8 and the exit lift L9 ("Finish" in
- * the car). B1 and B2 have no gates (one shared course, R3). B3: the fan guard (its four fence
- * sides) and the discharge duct stay locked until the fan isolator in CR is thrown (a pickup flag); CR's door onto the
- * chamber floor is bolted from inside CR. B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
+ * The course data stub (T2-T5, Upper rebuilt to BAYS v2 in T5d, the shaft and reservoir in T5e): B1 to B9 with A1 to A8
+ * and the exit lift L9 ("Finish" in the car). B1, B2 and B3 have no split (one shared course, R3). B3: the fan guard
+ * stays locked until either player throws the fan isolator in CR (a pickup flag; a gate on the line). B4: W1's inspection door is bolted from C2, the W2 sluice opens while the
  * handwheel is held (and 6 s after), the outlet ladder is locked until the top player lowers it; B4 exits into A4.
  * B7: the store door (A7's near door) opens on the "Store key" pickup (B7-O's desk drawer). B8: the catwalk stair's
  * door is bolted from below; the cease-fire switch sets its flag. B9: keys A and B and the case are pickups; the lift
@@ -21,8 +20,7 @@ export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as co
  * and radio.
  */
 /** The bolted doors' press points (world plan: the door's centre in its wall). */
-const CR_DOOR = plantAt('B3', 18.225, 9);
-const INSP_DOOR = plantAt('B4', 14.6, 25);
+const INSP_DOOR = plantAt('B4', 4.6, 17);
 /** S6's top door in B6's west wall (opened from the B6 side only). */
 const S6_TOP = plantAt2('B6', 0, 1.5);
 
@@ -36,11 +34,11 @@ function card(id: string, switchId: string, levels: number): GateDef[] {
 function courseDef(): CourseDef {
   return {
     id: 'bunker',
-    objectives: [...UPPER_OBJECTIVES],
+    objectives: [...UPPER_OBJECTIVES, ...SHAFT_OBJECTIVES],
     airlocks: [
       { id: 'A1', box: [1, 54, 7, 60], floorY: UPPER_Y, nearDoor: 'A1-near', farDoor: 'A1-far' },
       { id: 'A2', box: [59, 50, 65, 56], floorY: UPPER_Y, nearDoor: 'A2-near', farDoor: 'A2-far' },
-      { id: 'A3', box: [90, 68, 96, 74], floorY: plantAt('A3', 0, 0).y, nearDoor: 'A3-near', farDoor: 'A3-far' },
+      { id: 'A3', box: [69, 40, 75, 46], floorY: plantAt('A3', 0, 0).y, nearDoor: 'A3-near', farDoor: 'A3-far' },
       { id: 'A4', box: [97, 24, 103, 30], floorY: plantAt('A4', 0, 0).y, nearDoor: 'A4-near', farDoor: 'A4-far' },
       { id: 'A5', box: [64, 5, 70, 11], floorY: plantAt2('A5', 0, 0).y, nearDoor: 'A5-near', farDoor: 'A5-far' },
       { id: 'A6', box: [0, -10, 6, -4], floorY: plantAt2('A6', 0, 0).y, nearDoor: 'A6-near', farDoor: 'A6-far' },
@@ -59,16 +57,11 @@ function courseDef(): CourseDef {
         squad: [],
         gates: [
           { kind: 'pickup', id: 'g-isolator', switchId: 'sw-isolator', flag: 'fan-off', perPlayer: false },
-          { kind: 'anchorLock', id: 'g-fan-n', anchorId: 'B3-fence-n', flag: 'fan-off' },
-          { kind: 'anchorLock', id: 'g-fan-e', anchorId: 'B3-fence-e', flag: 'fan-off' },
-          { kind: 'anchorLock', id: 'g-fan-s', anchorId: 'B3-fence-s', flag: 'fan-off' },
-          { kind: 'anchorLock', id: 'g-fan-w', anchorId: 'B3-fence-w', flag: 'fan-off' },
-          { kind: 'anchorLock', id: 'g-duct', anchorId: 'B3-duct', flag: 'fan-off' },
-          { kind: 'bolt', id: 'g-cr', doorId: 'B3-cr', side: [1, 0], at: [CR_DOOR.x, CR_DOOR.z] },
+          { kind: 'anchorLock', id: 'g-fan', anchorId: 'B3-fence', flag: 'fan-off' },
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: SHAFT_ELEMENTS.B3,
       },
       {
         id: 'B4',
@@ -83,7 +76,7 @@ function courseDef(): CourseDef {
         ],
         radio: [],
         drills: [],
-        elements: [],
+        elements: SHAFT_ELEMENTS.B4,
       },
       {
         // the mains gate: A5's near door is unlocked while the L1-L3 group (MB in SR) is off
@@ -180,7 +173,7 @@ function courseDef(): CourseDef {
 /** Course door ids the definition uses (the other doors stay plain, unlocked). */
 const COURSE_DOORS = [
   'A1-near', 'A1-far', 'A2-near', 'A2-far',
-  'B3-cr', 'A3-near', 'A3-far', 'B4-insp', 'B4-sluice', 'A4-near', 'A4-far',
+  'A3-near', 'A3-far', 'B4-insp', 'B4-sluice', 'A4-near', 'A4-far',
   'A5-near', 'A5-far', 'B6-rd1', 'B6-rd2', 'B6-rd3', 'B6-rd4', 'B6-exit', 'S6-top', 'A6-near', 'A6-far',
   'A7-near', 'A7-far', 'B8-cs', 'A8-near', 'A8-far', 'L9-door',
 ] as const;
@@ -262,8 +255,8 @@ export const bunker: MapDef = {
  */
 function bunkerNavSeeds(): { x: number; y: number; z: number }[] {
   return [
-    // B4: the three cells, the valve gallery, the outlet platform
-    plantAt('B4', 11, 36), plantAt('B4', 11, 19), plantAt('B4', 11, 6), plantAt('B4', 34, 19, 4.4), plantAt('B4', 18, 1, 4.4),
+    // B4: the three cells, the valve gallery, the outlet platform (the debug points seed B3's rooms)
+    plantAt('B4', 6, 22), plantAt('B4', 6, 13), plantAt('B4', 10.5, 1.5), plantAt('B4', 10.5, 20, 4.4), plantAt('B4', 7, 1, 4.4),
     // B5: the hall floor, the gallery, the switch room, the fuel bay, the pocket behind the landing stair
     plantAt2('B5', 24, 12), plantAt2('B5', 12, 31, B5_METRICS.gallery), plantAt2('B5', 44, 28), plantAt2('B5', 42, 4), plantAt2('B5', 35, 27),
     // B6: reception, corridor, open office, manager's office, locker room, records, mantrap, server room (T5: the
