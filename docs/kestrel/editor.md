@@ -66,7 +66,8 @@ views are generated from it, so this table and the editor cannot drift apart for
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
 | 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
-| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening, resize an object by a corner (the opposite one stays), move a drawn piece's, strip light's or beam's end; a single centre marker moves the rest. Handles keep 12 px on screen (facts `render.handlePx`) |
+| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening, resize an object by a corner (the opposite one stays), move a drawn piece's, strip light's or beam's end; a single centre marker moves the rest; in 3D the top and bottom handles change heights (Free fly section). Handles keep 12 px on screen (facts `render.handlePx`) |
+| [ / ] (a tool in hand) | the previous / next type on the carousel over the tool bar (also the wheel over it, or a click on one; Michael 2026-10-14) |
 | Wheel while dragging | raise / lower what is held one grid step (Shift: 1 m); in Resize taller / shorter (fix-up 2026-10-14) |
 | T while dragging | Move or Resize: Resize keeps the corner (or end) opposite the pointer fixed (fix-up 2026-10-14) |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
@@ -197,34 +198,43 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 - The constants are one table at the top of `src/editor/grab.ts` (Michael tunes them after his pad test).
 
 ### The tile menu (ON0a: replaces the wheels; Y tap, Space with the mouse)
-A full-width panel along the bottom of the views, as tall as its tiles need and at most about a third of the window
-(then it scrolls; fix-up 2026-10-14). The 3D view stays visible above it, and the dot, tool bar and card wait until it
-closes. A row of tabs centred over a centred grid of tiles: a letter, the name, and under it two to five words of what
-it does. Every tile is one size (2026-10-14, Michael): 292 px wide (216 px on phones and small windows), the width the
-longest names need capped so four columns fit at 1280 (932 on the small layout); long names wrap inside the tile. The
-height is the tallest tile any grid tab can show, so every tab's tiles match. At most 4 columns, fewer on a narrow panel
-(never stretched to the edges, never overflowing); a tab with fewer tiles than columns draws fewer columns, still
-centred. The D-pad steps across the columns as drawn. The View tab's list is as wide as the grid would be. A group tile
-(Objects, Presets, Lights) shows "shown" as a small marker. Tile words never name buttons: the hint bar says what A does.
+A full-width panel along the bottom of the views, **one fixed size on every tab and group** (Michael 2026-10-14): the
+tab row, the group row and a body three tiles tall (two on phones and small windows); a tab with more tiles scrolls
+inside it. The 3D view stays visible above it, and the dot, tool bar and card wait until it closes. A row of tabs, under
+it the **group row** (styled like the tabs; blank on a tab with no groups), then a centred grid of tiles: a letter, the
+name, and under it two to five words of what it does. Every tile is one size: 292 x 80 px (216 x 65 on the small
+layout); long names wrap inside the tile. At most 4 columns, fewer on a narrow panel (never stretched to the edges,
+never overflowing); a tab with fewer tiles than columns draws fewer columns, still centred. The D-pad steps across the
+columns as drawn. The View tab's list is as wide as the grid would be. Tile words never name buttons: the hint bar says
+what A does.
+
+**Group row (Michael 2026-10-14):** groups are tabs, not tiles; the tiles are only the items of the group shown.
+Objects: Data hall, Plant, Office and security, Goods-in, Yard and roof, Signs. Presets: Start set, Module kit, Mine
+(Mine's tiles add Rename and Delete). Lights: Interior, Plant and goods, Outside, Emergency, Glow, and **Switch and test**
+(Switch and Guard view, which are not fittings). Climb, Mission and Security have no groups. LT / RT step the group
+(wrapping; the triggers do not zoom while the menu is open), a click picks one; the header says "LT / RT group". The
+menu remembers the group per tab (picking a fitting or object sets its group) and the highlight per tab and group.
 
 | Button | Does |
 | --- | --- |
 | D-pad or left stick | move the highlight (wraps); on the View tab, left / right change the row's value |
 | A | pick the tile: a tool or an action runs and the menu closes; a View row changes and the menu stays |
 | LB / RB | previous / next tab (wraps) |
+| LT / RT | previous / next group on the group row (wraps) |
 | B or Y | close |
 | Right stick | scroll a long tab |
-| Mouse | Space opens and closes it; click a tab or a tile; Esc closes |
+| Mouse | Space opens and closes it; click a tab, a group or a tile; Esc closes |
 
 | Tab | Tiles |
 | --- | --- |
 | Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Ceiling (rooms, ON13: selects the room's ceiling) and Room (a ceiling: back to its room; a ceiling has no Move, Duplicate or Rename id), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
 | Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Crawl space (ON13), the Roof types (ON10), Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
-| Objects | the ON4 object groups and presets (below) |
-| Presets (ON11) | Start set, Module kit, Mine (A shows that source, the menu stays), then its presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
+| Objects | group row: the ON4 object groups and Signs; tiles: that group's presets or signs (below) |
+| Presets (ON11) | group row: Start set, Module kit, Mine; tiles: that source's presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
 | Climb (ON5) | Downpipe, Horizontal pipe, Ledge or string course, Window sill, Parapet coping, Vent grille, Duct crawl, Fire escape stair, Lamp post, Chain-link fence |
-| Lights, Mission | shown once a later part adds tiles to them |
+| Lights (ON6) | group row: Interior, Plant and goods, Outside, Emergency, Glow, Switch and test; tiles: that group's fittings (Switch and test: Switch, Guard view) |
+| Mission, Security | Guard and the markers (ON8); the security devices (ON12) |
 | View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5), the light rows (ON7), Guard paths (ON8), Security coverage (ON12), Ceiling voids (ON13) |
 
 - The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
@@ -294,14 +304,21 @@ pad, and any grab is put back first.
 - **Tool bar** (bottom centre): the active tool only (the Y menu picks tools), with its type under it in words (Door:
   Single, Double, Fire door; Room: With walls, Outside walls, Room only). When the selection card shows, the bar centres
   in the width left of it; where that is too narrow the card rises above the bar. Nothing on the pad screen overlaps (e2e
-  checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open and with the card being edited).
+  checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open, with the card being edited and with the carousel).
+- **Type carousel** (Michael 2026-10-14; `src/editor/carousel.ts`): while a placing tool is in hand (doors, windows,
+  rooms, stairs, floor holes, roofs, objects, climb pieces, lights, security devices, signs, presets, guard roles,
+  mission markers) a strip over the tool's slot shows its types in the current group: the current one centred and lit,
+  its neighbours either side as many as fit beside the card and the small plan (odd, at most 7, at least 3 where the
+  list has them), fading toward the edges, wrapping. D-pad left / right (pad), [ and ] (keys), the wheel over it or a
+  click on an item change it; the ghost and the dot's words follow at once. It shows with the mouse too (the slot under
+  it). No carousel for Select, Wall, Switch, path editing or the Array count (D-pad left / right still sets the count).
 - **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; its
   first row, size and level; while the D-pad edits it, every row with the lit one between arrows (the dot's words hide).
 - **Status line**: hidden while the controller was used last (the views take its room); back with the mouse or keyboard.
   On the pad a new message shows for 3 s at the top right instead (fix-up 2026-10-14).
 - **Hint bar** (controller): one line, at most 5 prompts; holding something: "A Drop, LT/RT Lower / raise, Y Move / Resize, RB Turn 90, B Back". Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
   with a selection: "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; editing the card: "D-pad Edit, A Done, Y Menu, B
-  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close"; LB held: "LB + RS Height, LB Slow". What A would take replaces "Grab" ("Stretch east
+  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB / RB Tab, LT / RT Group, B Close"; LB held: "LB + RS Height, LB Slow". What A would take replaces "Grab" ("Stretch east
   edge"). Full words are in the hub's Help. The keyboard keeps the long words.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
   the same spot); it runs by default, L3 toggles a slow walk, L3 held starts the walk test, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
@@ -336,6 +353,18 @@ pad, and any grab is put back first.
   face, ghost and placement alike; deeper, the ghost turns red with "Inside a wall" and A (click) does nothing. Moving,
   resizing or raising a held piece follows the same rule: pushed out, or red words and the drop puts it back. Points
   (lamps, devices, signs) are checked at their centre, lines and boxes by their section (at least a pipe's radius).
+  The same rule (Michael 2026-10-14) covers the arrow-key nudges, the card's and side panel's steps (D-pad left / right
+  on a row) and preset stamps: pushed out within `rules.wallPushMax`, else nothing changes and the status says "Inside a
+  wall" (a stamp names the piece). A piece already inside a wall (old data) is left be.
+- **Top and bottom handles** (Michael 2026-10-14; `held.ts` `vertResize`): a selected object, wall (top only), door
+  or window (head and sill), climb piece (its top and bottom heights), sign (top and bottom edge) and roof (bottom: the
+  eaves; the whole roof rises) has an orange handle at the centre of its top face and of its bottom face, drawn in 3D
+  only (the plan has no height), the same 12 px on screen. Mouse: drag a top handle up or down to change the height
+  (the bottom stays), a bottom handle to move the base or sill (the top stays), in 0.1 m steps (Ctrl: the fine grid).
+  Pad: with the aim (the screen centre) on one the dot says "Top: taller or shorter (A)"; A grabs it, RT / LT or the
+  left stick up / down change it in 0.1 m steps, A drops, B puts it back. Min sizes: objects, climb pieces and signs
+  one object grid step, walls and openings 0.5 m; a base never below the floor; an opening's head never above its
+  wall. One undo step per drag; the wall rule applies.
 
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
@@ -1160,7 +1189,9 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
   wood). Box select, Copy and Paste do not take climb pieces. A level's storey change does not move them (heights are
   absolute).
 - ON4: objects are axis-aligned boxes (quarter turns only); a boom gate, smoking shelter or desk is one box (the shelter
-  is its roof slab). Box select, Copy and Paste do not take objects. Objects have no handles: change sizes on the card.
+  is its roof slab). Box select, Copy and Paste do not take objects. Objects have corner handles and top and bottom handles (2026-10-14); lamps and security devices have no height
+  handles (no height to size: Page Up / Down or RT / LT move them), and a roof's ridge or pitch has no handle (the card).
+  The stamp ghost does not turn red for the wall rule; the stamp is refused on A with the piece named.
   A row's side across the drawn line is centred on it (no side flip). The walk test draws every object in one grey.
 - ON10: outlines are rectangles along x and z (no L-shapes or angled roofs); one roof per outline, no valleys between
   roofs. A flat roof's fall is drawn, not built (level in 3D and in the walk test). Roof lights cut the walk test's roof
@@ -1203,8 +1234,9 @@ moon bake and kept for the map in the campus file (`meta.night`, schema.md).
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |
 | `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
-| `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
-| `src/editor/held.ts` | fix-up 2026-10-14: raising and lowering what is held, Move / Resize with the opposite corner fixed, min heights, height words, handle size on screen (3D distance, plan zoom) (pure, `tests/editor/held.test.ts`, also the tile word rules) |
+| `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, group rows (`menuGroups`, `stepGroup`), tiles (one data list), navigation and memory per tab and group; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
+| `src/editor/held.ts` | fix-up 2026-10-14: raising and lowering what is held, Move / Resize with the opposite corner fixed, min heights, height words, handle size on screen (3D distance, plan zoom); the top and bottom handles' resize (`vertResize`) (pure, `tests/editor/held.test.ts`, also the tile word rules) |
+| `src/editor/carousel.ts` | Michael 2026-10-14: the type carousel's window, wrap, fit and fade (pure, `tests/editor/carousel.test.ts`) |
 | `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search, guide lines and their constants (`GRAB`, `MAGNET`, `SNAP`); the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: the ORBIT feel table, dead zone and curve, eased pan / orbit / tilt / zoom / height, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |

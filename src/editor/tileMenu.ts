@@ -59,8 +59,8 @@ export interface MenuInput {
   alignFirst?: boolean;
   /** ON11: the Presets tab: the source shown, its presets, and the own preset Rename / Delete act on (the one last picked). */
   presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
-  /** ON6: the Lights tab's group (its fittings follow the group tiles and Switch). */
-  lightGroup?: LightGroup;
+  /** ON6: the Lights tab's group (its fittings), or the Switch and test group. */
+  lightGroup?: LightGroup | typeof LIGHT_TOOLS;
   /** ON8: a guard's patrol is playing (Selected: Stop patrol instead of Play patrol). */
   playing?: boolean;
 }
@@ -256,22 +256,16 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       // ON9: every door and window type of the catalogue, doors first
       return CATALOGUE.map((c): Tile => ({ id: c.id === 'window' ? 'build.window' : `${c.family}.${c.id}`, icon: c.family === 'window' ? 'W' : 'D', name: c.name, desc: OPENING_DESC[c.motion], kind: 'go' }));
     case 'Objects': {
-      // ON4: the five groups first (A changes the group, the menu stays), then that group's presets
+      // ON4: the group is a tab on the group row (Michael 2026-10-14); the tiles are its objects, or ON14's signs
       const g = inp.objGroup ?? 'dataHall';
-      return [
-        ...GROUPS.map((q): Tile => ({ id: `objgroup.${q.id}`, icon: 'G', name: q.name, desc: 'Pick a group', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
-        // ON14: Signs (wayfinding and safety) as a sixth group
-        { id: 'objgroup.signs', icon: 'G', name: 'Signs', desc: 'Pick a group', kind: 'toggle', on: g === 'signs', value: g === 'signs' ? 'shown' : '' },
-        ...(g === 'signs' ? SIGN_KINDS.map((k): Tile => ({ id: `sign.${k.id}`, icon: k.group === 'way' ? 'W' : 'S', name: k.name, desc: k.mount === 'wall' ? 'On a wall face' : 'On a wall, or hung', kind: 'go' })) : []),
-        ...(g === 'signs' ? [] : groupPresets(g)).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'Start to end' : p.mount === 'wall' ? 'On a wall' : 'Place and turn', kind: 'go' })),
-      ];
+      if (g === 'signs') return SIGN_KINDS.map((k): Tile => ({ id: `sign.${k.id}`, icon: k.group === 'way' ? 'W' : 'S', name: k.name, desc: k.mount === 'wall' ? 'On a wall face' : 'On a wall, or hung', kind: 'go' }));
+      return groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'Start to end' : p.mount === 'wall' ? 'On a wall' : 'Place and turn', kind: 'go' }));
     }
     case 'Presets': {
-      // ON11: the three sources first (A shows that list, the menu stays), then its presets (A picks the Stamp tool)
+      // ON11: the source is a tab on the group row; its presets (A picks the Stamp tool); Mine adds Rename and Delete
       const ps = inp.presets ?? { from: 'start' as PresetFrom, list: [], mine: null };
       const pickFirst = ps.mine ? undefined : 'Pick one of yours first';
       return [
-        ...PRESET_FROMS.map((q): Tile => ({ id: `presetfrom.${q.id}`, icon: 'G', name: q.name, desc: 'Pick a group', kind: 'toggle', on: q.id === ps.from, value: q.id === ps.from ? 'shown' : '' })),
         ...(ps.from === 'mine'
           ? [
               { id: 'mine.rename', icon: 'I', name: ps.mine ? `Rename ${ps.mine.name}` : 'Rename a preset', desc: 'Name list and keyboard', kind: 'go', disabled: pickFirst } as Tile,
@@ -285,15 +279,16 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       // ON5: climb pieces and exterior features (the catalogue's order)
       return CLIMB_PIECES.map((c): Tile => ({ id: `climb.${c.id}`, icon: c.place === 'draw' ? 'R' : c.place === 'point' ? 'O' : 'W', name: c.name, desc: c.desc, kind: 'go' }));
     case 'Lights': {
-      // ON6: the five groups and Switch first (a group tile shows its fittings, the menu stays), then the group's fittings
+      // ON6: the group is a tab on the group row (Michael 2026-10-14); the tiles are its fittings only. Switch and Guard
+      // view are the "Switch and test" group
       const g = inp.lightGroup ?? 'interior';
-      return [
-        ...LIGHT_GROUPS.map((q): Tile => ({ id: `lightgroup.${q.id}`, icon: 'G', name: q.name, desc: 'Pick a group', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
-        { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'Wall, then pick lamps', kind: 'go' },
-        // ON7: the guard view tester (not saved)
-        { id: 'guard.view', icon: 'E', name: 'Guard view', desc: 'What a guard sees', kind: 'go' },
-        ...groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'Start to end' : f.mount === 'wall' ? 'On a wall face' : f.mount === 'sign' ? 'Over a door' : f.mount === 'desk' || f.mount === 'object' ? `On a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'Place and turn', kind: 'go' })),
-      ];
+      if (g === LIGHT_TOOLS)
+        return [
+          { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'Wall, then pick lamps', kind: 'go' },
+          // ON7: the guard view tester (not saved)
+          { id: 'guard.view', icon: 'E', name: 'Guard view', desc: 'What a guard sees', kind: 'go' },
+        ];
+      return groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'Start to end' : f.mount === 'wall' ? 'On a wall face' : f.mount === 'sign' ? 'Over a door' : f.mount === 'desk' || f.mount === 'object' ? `On a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'Place and turn', kind: 'go' }));
     }
     case 'View':
       return viewTiles(inp.view);
@@ -309,7 +304,52 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
 }
 
 /** The tabs that show: those with tiles (Selected first, only with a selection). */
-export const menuTabs = (inp: MenuInput): MenuTab[] => MENU_TABS.filter((t) => menuTiles(t, inp).length > 0);
+export const menuTabs = (inp: MenuInput): MenuTab[] => MENU_TABS.filter((t) => menuTiles(t, inp).length > 0 || menuGroups(t).length > 0);
+
+/** The Lights tab's group for Switch and Guard view (not a fitting group). */
+export const LIGHT_TOOLS = 'tools';
+
+/** One tab of the group row (Michael 2026-10-14); its id is the action that shows the group (`objgroup.dataHall`). */
+export interface MenuGroup {
+  id: string;
+  name: string;
+}
+
+/** A tab's group row, in order (empty: the tab has no groups and the row is left blank). */
+export function menuGroups(tab: MenuTab): MenuGroup[] {
+  switch (tab) {
+    case 'Objects':
+      return [...GROUPS.map((g) => ({ id: `objgroup.${g.id}`, name: g.name })), { id: 'objgroup.signs', name: 'Signs' }];
+    case 'Presets':
+      return PRESET_FROMS.map((g) => ({ id: `presetfrom.${g.id}`, name: g.name }));
+    case 'Lights':
+      return [...LIGHT_GROUPS.map((g) => ({ id: `lightgroup.${g.id}`, name: g.name })), { id: `lightgroup.${LIGHT_TOOLS}`, name: 'Switch and test' }];
+    default:
+      return [];
+  }
+}
+
+/** The group a tab shows now (its id), or null on a tab with no groups. */
+export function menuGroup(tab: MenuTab, inp: MenuInput): string | null {
+  switch (tab) {
+    case 'Objects':
+      return `objgroup.${inp.objGroup ?? 'dataHall'}`;
+    case 'Presets':
+      return `presetfrom.${inp.presets?.from ?? 'start'}`;
+    case 'Lights':
+      return `lightgroup.${inp.lightGroup ?? 'interior'}`;
+    default:
+      return null;
+  }
+}
+
+/** LT / RT with the menu open: the previous / next group of the tab (wrapping), or null on a tab with no groups. */
+export function stepGroup(tab: MenuTab, inp: MenuInput, dir: 1 | -1): string | null {
+  const gs = menuGroups(tab);
+  if (!gs.length) return null;
+  const i = Math.max(0, gs.findIndex((g) => g.id === menuGroup(tab, inp)));
+  return gs[(i + dir + gs.length) % gs.length]!.id;
+}
 
 /** Grid navigation with wrap: left / right through the list, up / down by a row (same column, wrapping). */
 export function gridMove(i: number, n: number, cols: number, dx: number, dy: number): number {
@@ -333,7 +373,13 @@ export class TileMenu {
   isOpen = false;
   tab: MenuTab = 'Build';
   index = 0;
-  private readonly last = new Map<MenuTab, number>();
+  /** The highlight per tab and group ("Lights|lightgroup.outside"). */
+  private readonly last = new Map<string, number>();
+  private shownKey = '';
+
+  private keyOf(t: MenuTab, inp: MenuInput): string {
+    return `${t}|${menuGroup(t, inp) ?? ''}`;
+  }
 
   /** Opens on the last tab (or Build when `opens` is 'build', or when the last tab is not shown now). */
   open(inp: MenuInput, opens: 'last' | 'build' = 'last'): void {
@@ -348,10 +394,16 @@ export class TileMenu {
   }
 
   setTab(t: MenuTab, inp: MenuInput): void {
-    this.last.set(this.tab, this.index);
+    if (this.shownKey) this.last.set(this.shownKey, this.index);
     this.tab = t;
+    this.shownKey = this.keyOf(t, inp);
     const n = menuTiles(t, inp).length;
-    this.index = Math.min(this.last.get(t) ?? 0, Math.max(0, n - 1));
+    this.index = Math.min(this.last.get(this.shownKey) ?? 0, Math.max(0, n - 1));
+  }
+
+  /** After the caller changed the tab's group: the highlight that group had last (the old group's is kept). */
+  groupChanged(inp: MenuInput): void {
+    this.setTab(this.tab, inp);
   }
 
   /** LB / RB: the next shown tab, wrapping. */
@@ -367,7 +419,8 @@ export class TileMenu {
     const n = menuTiles(this.tab, inp).length;
     const list = LIST_TABS.includes(this.tab);
     this.index = gridMove(this.index, n, list ? 1 : cols, list ? 0 : dx, dy);
-    this.last.set(this.tab, this.index);
+    this.shownKey = this.keyOf(this.tab, inp);
+    this.last.set(this.shownKey, this.index);
   }
 
   /** The highlighted tile. */

@@ -63,7 +63,7 @@ describe('pad bindings in the action map', () => {
     const words = (c: Parameters<typeof hintItems>[0]): string => hintItems(c, 'pad').map((i) => `${i.keys} ${i.name}`).join(', ');
     expect(words('idle')).toBe('A Select, Y Menu, X Undo, LS click Walk, Menu Hub');
     expect(words('selected')).toBe('D-pad Edit, A Grab, Y Menu, B Clear, RB Go to');
-    expect(words('menu')).toBe('D-pad Move, A Pick, LB / RB Tab, B Close');
+    expect(words('menu')).toBe('D-pad Move, A Pick, LB / RB Tab, LT / RT Group, B Close');
     expect(words('card')).toBe('D-pad Edit, A Done, Y Menu, B Back, RB Go to');
     expect(hintItems('drag', 'pad').find((i) => i.keys === 'RB')?.name).toBe('Turn 90');
     expect(hintItems('hub', 'pad').map((i) => i.keys)).toEqual(['LB / RB', 'D-pad up/down', 'D-pad left/right', 'A', 'B / Menu']);

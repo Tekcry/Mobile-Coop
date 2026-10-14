@@ -99,8 +99,10 @@ export const ACTIONS: readonly Action[] = [
   { id: 'menuMove', name: 'move the highlight (left stick too); on View rows left / right changes the value', group: 'Tools', keys: [], pad: ['D-pad'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Move' },
   { id: 'menuPick', name: 'pick the tile', group: 'Tools', keys: [], mouse: 'Click a tile', pad: ['A'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Pick' },
   { id: 'menuTab', name: 'change tab', group: 'Tools', keys: [], mouse: 'Click a tab', pad: ['LB', 'RB'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Tab' },
+  { id: 'menuGroup', name: 'change group on the group row (Objects, Presets, Lights)', group: 'Tools', keys: [], mouse: 'Click a group', pad: ['LT', 'RT'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Group' },
   { id: 'menuClose', name: 'close the menu', group: 'Tools', keys: ['Escape'], pad: ['B'], ctx: ['menu'], hint: ['menu'], short: 'Close' },
   { id: 'toolVariant', name: "the tool's type: door type, room walls, stair type, floor hole kind (with a tool, nothing grabbed)", group: 'Tools', keys: [], pad: ['D-pad left/right'], ctx: ['draw'], hint: ['draw'], passive: true, short: 'Type' },
+  { id: 'typeStep', name: "the tool's type: previous / next on the carousel above the tool bar (the mouse: scroll over it, or click one)", group: 'Tools', keys: ['BracketLeft', 'BracketRight'], ctx: ['draw'] },
   { id: 'toolSelect', name: 'select tool', group: 'Tools', keys: ['Digit1'], ctx: NOT_DRAG },
   { id: 'toolRoom', name: 'room tool (drag a rectangle)', group: 'Tools', keys: ['Digit2'], ctx: NOT_DRAG },
   { id: 'toolWall', name: 'wall tool (drag end to end)', group: 'Tools', keys: ['Digit3'], ctx: NOT_DRAG },
@@ -186,7 +188,7 @@ export function conflicts(): string[] {
   return out;
 }
 
-const KEY_WORDS: Record<string, string> = { Backquote: '`', PageUp: 'PgUp', PageDown: 'PgDn', Escape: 'Esc', Delete: 'Del', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down' };
+const KEY_WORDS: Record<string, string> = { Backquote: '`', PageUp: 'PgUp', PageDown: 'PgDn', Escape: 'Esc', Delete: 'Del', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', BracketLeft: '[', BracketRight: ']' };
 
 /** A key id in plain words: `Ctrl+KeyZ` -> `Ctrl+Z`. */
 export function keyWords(id: string): string {
@@ -226,7 +228,7 @@ export const PAD_HINTS: Record<Ctx, readonly string[]> = {
   chain: ['chainNext', 'chainRemove', 'cancel', 'precision'],
   path: ['pathStop', 'pathFace', 'pathWait', 'pathRemove', 'cancel'],
   draw: ['padDraw', 'toolVariant', 'menu', 'precision', 'cancel'],
-  menu: ['menuMove', 'menuPick', 'menuTab', 'menuClose'],
+  menu: ['menuMove', 'menuPick', 'menuTab', 'menuGroup', 'menuClose'],
   hub: ['hubTab', 'hubRow', 'hubChange', 'hubDo', 'hubClose'],
 };
 

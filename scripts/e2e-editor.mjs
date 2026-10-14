@@ -80,6 +80,9 @@ const stepMenu = (b) => E(async (b) => {
   for (let k = 0; k < 150 && probe() === v0; k++) await raf();
   window.__pad.set(b, 0); await raf(); await raf(); await raf();
 }, b);
+/** Michael 2026-10-14: groups are tabs on the menu's group row (LT / RT), no longer tiles. */
+const onGroup = () => E(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? null);
+const toGroup = async (name) => { for (let i = 0; i < 10 && (await onGroup()) !== name; i++) await press(BTN.RT); return (await onGroup()) === name; };
 const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await stepMenu(btn); return (await menuState()).tile === name; };
 /** Lights a card row with the D-pad (read back each press). */
 const toRow = async (row) => { for (let i = 0; i < 12 && (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) !== row; i++) await press(BTN.DOWN); return (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) === row; };
@@ -120,7 +123,7 @@ try {
   await press(BTN.Y);
   let ms = await menuState();
   assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,Security,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
-  assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
+  assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+LT \/ RT Group\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 80)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
   await press(BTN.LB);
@@ -742,9 +745,10 @@ try {
   await E((id) => window.__editor.select(`walls:${id}`), wWid);
   for (const minimap of [false, true]) {
   await E((on) => { const ed = window.__editor; ed.prefs.layout = '3d'; ed.prefs.minimap = on; ed.applyLayout?.(); }, minimap);
-  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) for (const mode of ['', 'card', 'menu']) {
+  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) for (const mode of ['', 'card', 'menu', 'car']) {
     await page.setViewportSize({ width: vw, height: vh });
-    await E((m) => { const p = window.__editor.pad; if (m === 'card') p.editCard('type'); else p.cardEditing = false; if (m === 'menu') p.toggleMenu(); }, mode);
+    // 'car' (Michael 2026-10-14): a placing tool in hand, the type carousel over the tool bar
+    await E((m) => { const p = window.__editor.pad; if (m === 'card') p.editCard('type'); else p.cardEditing = false; if (m === 'menu') p.toggleMenu(); if (m === 'car') { window.__editor.select(null); p.runMenu('light.troffer-600'); } }, mode);
     await wait(400);
     await frames(page, 4);
     const r = await E(() => {
@@ -764,14 +768,17 @@ try {
       const hint = document.getElementById('hint');
       const line = parseFloat(getComputedStyle(hint).lineHeight) || parseFloat(getComputedStyle(hint).fontSize) * 1.3;
       const cut = [...document.querySelectorAll('#toolBar .slot b, #toolBar .slot small')].filter((e) => e.scrollWidth > e.clientWidth + 0.5).map((e) => e.textContent);
-      return { shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent };
+      const items = [...document.querySelectorAll('#toolBar .ci')].map((e) => e.getBoundingClientRect());
+      const tb = document.getElementById('toolBar').getBoundingClientRect();
+      const carOut = items.filter((b) => b.left < tb.left - 0.5 || b.right > tb.right + 0.5).length;
+      return { shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent, car: items.length, carOut };
     });
-    const want = mode === 'menu' ? r.shown.includes('tileMenu') && !r.shown.includes('selCard') : r.shown.includes('toolBar') && r.shown.includes('selCard') && r.slots === 1 && /^Interior wall /.test(r.card) && (mode !== 'card' || !r.shown.includes('reticleText'));
+    const want = mode === 'menu' ? r.shown.includes('tileMenu') && !r.shown.includes('selCard') : mode === 'car' ? r.shown.includes('toolBar') && r.car >= 3 && r.carOut === 0 && r.slots === 1 : r.shown.includes('toolBar') && r.shown.includes('selCard') && r.slots === 1 && /^Interior wall /.test(r.card) && (mode !== 'card' || !r.shown.includes('reticleText'));
     assert(want && r.hits.length === 0 && !r.hintCut && !r.hintTall && r.cut.length === 0,
-      `${vw} x ${vh}${minimap ? ', small plan' : ''}${mode ? `, ${mode === 'menu' ? 'menu open' : 'card editing'}` : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slot, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
+      `${vw} x ${vh}${minimap ? ', small plan' : ''}${mode ? `, ${mode === 'menu' ? 'menu open' : mode === 'car' ? `type carousel (${r.car} items)` : 'card editing'}` : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slot, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
     if (mode === 'card' && vw === 1280 && !minimap) await shot('card-editing');
     await shot(`pad-screen-${vw}x${vh}${minimap ? '-small-plan' : ''}${mode ? `-${mode}` : ''}`);
-    await E(() => { const p = window.__editor.pad; p.closeMenu(); p.cardEditing = false; });
+    await E((id) => { const p = window.__editor.pad; p.closeMenu(); p.cardEditing = false; if (window.__editor.tool !== 'select') { window.__editor.setTool('select'); window.__editor.select(`walls:${id}`); } }, wWid);
   }
   }
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -791,39 +798,86 @@ try {
     const sp2 = await stat();
     assert(sp.dev === 'pad' && !sp.shown && sk.dev === 'keys' && sk.shown && sp2.dev === 'pad' && !sp2.shown && sp.stage > sk.stage, `the status line hides on the pad (views to ${sp.stage} of ${sp.h} px), shows with the keyboard (${sk.stage} px), hides again after pad input`);
 
-    // the tile menu fits its content (at most about a third of the window); group tiles keep their words inside
-    const tabs = ['Build', 'Objects', 'Lights'];
-    for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) {
+    // Michael 2026-10-14: the tile menu is one size on every tab and every group (three tile rows on the desktop layout,
+    // two on the small one; a longer tab scrolls inside); the group row shows on Objects, Presets and Lights only; every
+    // tile's words stay inside it; the panel is clear of the strip and the hint bar
+    for (const [vw, vh] of [[1920, 1080], [1280, 720], [1024, 600], [932, 430]]) {
       await page.setViewportSize({ width: vw, height: vh });
       await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); });
-      for (const tab of tabs) {
+      await frames(page, 3);
+      const tabNames = await E(() => [...document.querySelectorAll('#tileMenu [data-mtab]')].map((b) => b.textContent));
+      const seen = [];
+      const bad = [];
+      let rows = '';
+      for (const tab of tabNames) {
         await E((t) => { const p = window.__editor.pad; p.menu.setTab(t, p.menuInput()); }, tab);
         await page.waitForFunction((t) => document.querySelector('#tileMenu [data-mtab].on')?.textContent === t, tab, { timeout: 5000 }).catch(() => {});
-        await frames(page, 3);
-        const m = await E(() => {
-          const el = document.getElementById('tileMenu');
-          const b = el.getBoundingClientRect();
-          const body = el.querySelector('.tm-body');
-          const tiles = [...el.querySelectorAll('.tile')];
-          const out = [];
-          for (const t of tiles.filter((x) => x.querySelector('.tv.mark') || x.querySelector('.ti')?.textContent === 'G')) {
-            const tb = t.getBoundingClientRect();
-            const sm = t.querySelector('small').getBoundingClientRect();
-            const tn = t.querySelector('.tn').getBoundingClientRect();
-            if (!(sm.width > 4 && sm.height > 4 && sm.left >= tb.left - 0.5 && sm.right <= tb.right + 0.5 && sm.top >= tb.top - 0.5 && sm.bottom <= tb.bottom + 0.5 && tn.width > 4)) out.push(t.querySelector('.tn').textContent);
+        await frames(page, 2);
+        const groups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((b) => b.dataset.mgroup));
+        rows += `${tab}:${groups.length} `;
+        for (const g of groups.length ? groups : [null]) {
+          if (g) {
+            await E((g) => window.__editor.pad.showGroup(g), g);
+            await page.waitForFunction((g) => document.querySelector('#tileMenu [data-mgroup].on')?.dataset.mgroup === g, g, { timeout: 5000 }).catch(() => {});
           }
-          const strip = document.getElementById('padStrip').getBoundingClientRect();
-          const hint = document.getElementById('hint').getBoundingClientRect();
-          return { h: b.height, top: b.top, scroll: body.scrollHeight > body.clientHeight + 1, rows: body.scrollHeight, bad: out, groups: tiles.filter((x) => x.querySelector('.ti')?.textContent === 'G').length, marks: el.querySelectorAll('.tv.mark').length, stripBottom: strip.bottom, hintTop: hint.top, bottom: b.bottom };
-        });
-        const capped = m.h <= vh * 0.34 + 24;
-        assert(capped && m.bad.length === 0 && m.top >= m.stripBottom && m.bottom <= m.hintTop + 0.5 && (tab === 'Build' || (m.groups >= 5 && m.marks === 1)), `${vw} x ${vh} ${tab}: menu ${Math.round(m.h)} px high (cap ${Math.round(vh * 0.34)}), ${m.scroll ? 'scrolls' : 'fits'}; ${m.groups} group tiles, ${m.marks} shown marker, words cut or outside [${m.bad.join(', ')}]; clear of the strip and the hint bar`);
-        if (vw !== 1024) await shot(`menu-${tab.toLowerCase()}-${vw}x${vh}`);
+          await frames(page, 2);
+          const m = await E(() => {
+            const el = document.getElementById('tileMenu');
+            const b = el.getBoundingClientRect();
+            const out = [];
+            if (!el.querySelector('.tm-grid.list'))
+              for (const t of el.querySelectorAll('.tile')) {
+                const tb = t.getBoundingClientRect();
+                const sm = t.querySelector('small').getBoundingClientRect();
+                const tn = t.querySelector('.tn').getBoundingClientRect();
+                if (!(sm.width > 4 && sm.height > 4 && sm.top >= tb.top - 0.5 && sm.bottom <= tb.bottom + 0.5 && tn.width > 4 && tn.top >= tb.top - 0.5 && tn.bottom <= tb.bottom + 0.5)) out.push(t.querySelector('.tn').textContent);
+              }
+            const strip = document.getElementById('padStrip').getBoundingClientRect();
+            const hint = document.getElementById('hint').getBoundingClientRect();
+            return { h: Math.round(b.height * 10) / 10, out, clear: b.top >= strip.bottom && b.bottom <= hint.top + 0.5, on: document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? '' };
+          });
+          seen.push(m.h);
+          if (m.out.length || !m.clear) bad.push(`${tab}${g ? `/${m.on}` : ''}: ${m.clear ? '' : 'not clear '}${m.out.join(', ')}`);
+          if (tab === 'Lights' && g === 'lightgroup.interior' && (vw === 1920 || vw === 932)) await shot(`menu-lights-groups-${vw}x${vh}`);
+        }
       }
-      // (back on Build: the menu remembers its tab, and later steps open it there)
-      await E(() => { const p = window.__editor.pad; p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+      const same = Math.max(...seen) - Math.min(...seen) <= 0.5;
+      const groupTabs = rows.trim().split(' ').filter((r) => !r.endsWith(':0')).map((r) => r.split(':')[0]).join();
+      assert(same && bad.length === 0 && groupTabs === 'Objects,Presets,Lights', `${vw} x ${vh}: the menu is ${Math.min(...seen)} px high on all ${seen.length} tabs and groups (spread ${(Math.max(...seen) - Math.min(...seen)).toFixed(1)} px); group rows on ${groupTabs}; words cut or panel not clear [${bad.join('; ')}]`);
+      // back to the first groups and Build (later steps open the menu there)
+      await E(() => { const p = window.__editor.pad; for (const g of ['objgroup.dataHall', 'presetfrom.start', 'lightgroup.interior']) p.showGroup(g); p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
     }
     await page.setViewportSize({ width: 1600, height: 900 });
+
+    // Lights: the group row (Interior, Plant and goods, Outside ...) and only fittings as tiles; RT / LT and a click change the group
+    {
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); p.menu.setTab('Lights', p.menuInput()); });
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mtab].on')?.textContent === 'Lights', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const lm = () => E(() => ({ groups: [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((b) => b.textContent), on: document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? '', tiles: [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent), icons: [...document.querySelectorAll('#tileMenu .tile .ti')].map((t) => t.textContent), head: document.querySelector('#tileMenu .tm-ghead .dim')?.textContent ?? '', hint: document.getElementById('hint').textContent }));
+      const l0 = await lm();
+      await press(BTN.RT);
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Plant and goods', null, { timeout: 5000 }).catch(() => {});
+      const l1 = await lm();
+      await press(BTN.LT);
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Interior', null, { timeout: 5000 }).catch(() => {});
+      const l2 = await lm();
+      await page.click('#tileMenu [data-mgroup="lightgroup.outside"]');
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Outside', null, { timeout: 5000 }).catch(() => {});
+      const l3 = await lm();
+      await page.click('#tileMenu [data-mgroup="lightgroup.tools"]');
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Switch and test', null, { timeout: 5000 }).catch(() => {});
+      const l4 = await lm();
+      const fittingsOnly = (l) => l.tiles.length > 0 && l.icons.every((i) => i === 'L' || i === 'W' || i === 'R') && !l.tiles.some((t) => l.groups.includes(t) || t === 'Switch' || t === 'Guard view');
+      assert(l0.groups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && l0.on === 'Interior' && fittingsOnly(l0) && l0.tiles[0] === 'Downlight 90 mm' && /LT \/ RT group/.test(l0.head) && /LT \/ RT Group/.test(l0.hint), `Lights: the group row ${l0.groups.join(', ')} (on ${l0.on}; header "${l0.head}"); tiles only fittings (${l0.tiles.slice(0, 3).join(', ')} ...); hint "${l0.hint}"`);
+      assert(l1.on === 'Plant and goods' && fittingsOnly(l1) && l1.tiles.join() !== l0.tiles.join() && l2.on === 'Interior' && l2.tiles.join() === l0.tiles.join() && l3.on === 'Outside' && fittingsOnly(l3) && l4.tiles.join() === 'Switch,Guard view', `Lights: RT shows ${l1.on} (${l1.tiles.slice(0, 2).join(', ')} ...), LT back to ${l2.on}; a click on Outside shows ${l3.tiles.slice(0, 2).join(', ')} ...; Switch and test holds ${l4.tiles.join(', ')}`);
+      await E(() => { const p = window.__editor.pad; p.showGroup('lightgroup.interior'); p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+      // (back to the pad layout: the clicks gave the mouse the screen)
+      await page.mouse.move(5, 5);
+      await press(BTN.LB);
+      await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 3);
+    }
 
     // 2026-10-14 (Michael): tiles centred, at most 4 equal columns; the View list as wide as the grid; D-pad matches columns
     for (const [vw, vh] of [[1920, 1080], [1280, 720], [1024, 600], [932, 430]]) {
@@ -965,6 +1019,98 @@ try {
     const said = await E(() => ({ status: document.getElementById('status').textContent, toast: document.getElementById('padToast').textContent, lift: window.__editor.drag?.lift ?? 0 }));
     await press(BTN.B);
     assert(/Stays on its level/.test(said.status) && /Stays on its level/.test(said.toast) && !said.lift, `RT on a held room: "${said.toast}" (no lift)`);
+    // Michael 2026-10-14: top and bottom handles (3D only). The mouse drags the crate's top up: taller, the base stays,
+    // one undo step; the pad's aim on the top handle, A grabs it, RT makes it taller in 0.1 m steps
+    {
+      const cam0 = await E(() => window.__editor.pad.settings.camera);
+      await E(() => { const ed = window.__editor; ed.pad.settings.camera = 'fly'; ed.prefs.minimap = false; ed.setLayout('3d'); ed.setTool('select'); ed.select('objects:OBJ-E2E-LIFT'); });
+      /** The fly camera `back` metres south of the crate and `up` over its top, looking at the top handle. */
+      const lookTop = (back, up) => E(([back, up]) => {
+        const ed = window.__editor;
+        const o = ed.model.get('objects', 'OBJ-E2E-LIFT');
+        const cx = (o.rect[0] + o.rect[2]) / 2;
+        const cz = (o.rect[1] + o.rect[3]) / 2;
+        const ty = ed.viewFloor() + o.y + o.h;
+        const c = ed.controls;
+        c.mode = 'fly';
+        c.setPose({ pos: [cx, ty + up, cz - back], yaw: 0, pitch: 0, fov: c.camera.fov });
+        c.lookAt(cx, ty, cz);
+        c.setPose(c.pose());
+      }, [back, up]);
+      // the mouse first: the keyboard and mouse layout shows the top bar, so the 3D view moves down
+      await page.mouse.move(5, 5);
+      await page.mouse.move(60, 60);
+      await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 4);
+      await lookTop(5, 1.2);
+      await frames(page, 8);
+      const hv = await E(() => ({ ids: window.__editor.handlesFor().map((h) => h.id), px: window.__editor.view.handlePixels(), plan: document.querySelectorAll('#planSvg [data-handle="top"], #planSvg [data-handle="bot"]').length }));
+      await shot('handles-top-bottom');
+      const oA = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hA = await E(() => window.__editor.model.history.length);
+      const at = await E(() => { const p = window.__editor.view.handleScreen('top'); const r = document.getElementById('c').getBoundingClientRect(); return p ? [r.left + p[0], r.top + p[1]] : null; });
+      if (at) {
+        await page.mouse.move(at[0], at[1]);
+        await page.mouse.down();
+        for (let i = 1; i <= 8; i++) { await page.mouse.move(at[0], at[1] - i * 10); await frames(page, 1); }
+        await page.mouse.up();
+      }
+      await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+      const oB = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hB = await E(() => window.__editor.model.history.length);
+      assert(hv.ids.includes('top') && hv.ids.includes('bot') && hv.px.every((p) => p > 8 && p < 16) && hv.plan === 0, `the selected crate has top and bottom handles (${hv.ids.join(', ')}), each ${hv.px.map((p) => p.toFixed(1)).join(' / ')} px on screen; none on the plan (${hv.plan})`);
+      assert(!!at && oB.h > oA.h + 0.05 && Math.abs(oB.h * 10 - Math.round(oB.h * 10)) < 1e-6 && oB.y === oA.y && hB === hA + 1, `the mouse drags the top handle up: ${oA.h} m to ${oB.h} m high, base ${oB.y} m kept, ${hB - hA} undo step`);
+      // the pad: the aim on the top handle, A grabs it, RT taller, A drops it
+      await press(BTN.LB);
+      await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+      await lookTop(4, 1);
+      await frames(page, 6);
+      await page.waitForFunction(() => /Top: taller/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const vSaid = await dotText();
+      const hC = await E(() => window.__editor.model.history.length);
+      await press(BTN.A);
+      await page.waitForFunction(() => window.__editor.drag?.handle === 'top', null, { timeout: 5000 }).catch(() => {});
+      const grabbed = await E(() => window.__editor.drag?.handle ?? null);
+      await set(BTN.RT, 1);
+      await page.waitForFunction(() => (window.__editor.drag?.vdy ?? 0) >= 0.3, null, { timeout: 20000 }).catch(() => {});
+      await set(BTN.RT, 0);
+      await frames(page, 3);
+      const vdy = await E(() => window.__editor.drag?.vdy ?? 0);
+      await press(BTN.A);
+      await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+      const oD = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hD = await E(() => window.__editor.model.history.length);
+      assert(/Top: taller/.test(vSaid) && grabbed === 'top' && oD.h >= oB.h + 0.3 - 1e-6 && Math.abs(oD.h - oB.h - vdy) < 1e-6 && Math.abs(oD.h * 10 - Math.round(oD.h * 10)) < 1e-6 && oD.y === oB.y && hD === hC + 1, `the pad's aim on the top handle ("${vSaid}"); A grabs it (${grabbed}), RT makes the crate ${oD.h} m high from ${oB.h} m in 0.1 m steps (base ${oD.y} m); ${hD - hC} undo step`);
+      await E((c) => { window.__editor.pad.settings.camera = c; }, cam0);
+    }
+
+    // Michael 2026-10-14: nothing inside walls for nudges too: a crate against a wall's face, Down nudges it 0.1 m into
+    // the wall: pushed back to the face; Shift+Down (1 m) would bury it: refused with "Inside a wall"
+    {
+      const nw = await E(() => {
+        const ed = window.__editor;
+        const d = ed.model.data;
+        const holed = new Set(d.openings.map((o) => o.wall));
+        const w = d.walls.find((q) => q.level === 'G' && q.a[1] === q.b[1] && Math.abs(q.b[0] - q.a[0]) > 6 && !holed.has(q.id) && q.t >= 0.15);
+        if (!w) return null;
+        const mx = Math.round((w.a[0] + w.b[0]) / 2);
+        const face = +(w.a[1] + w.t / 2).toFixed(3);
+        const o = { id: 'OBJ-E2E-NUDGE', level: 'G', name: 'Crate', rect: [mx - 0.6, face, mx + 0.6, +(face + 1.2).toFixed(3)], h: 1.2, y: 0, preset: 'crate-1.2' };
+        ed.model.commit('e2e nudge crate', [{ coll: 'objects', id: o.id, before: null, after: o }]);
+        ed.setTool('select');
+        ed.select('objects:OBJ-E2E-NUDGE');
+        return { wall: w.id, face };
+      });
+      await page.mouse.move(5, 5);
+      await page.keyboard.press('ArrowDown');
+      await frames(page, 2);
+      const n1 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-NUDGE').rect);
+      await page.keyboard.press('Shift+ArrowDown');
+      await frames(page, 2);
+      const n2 = await E(() => ({ rect: window.__editor.model.get('objects', 'OBJ-E2E-NUDGE').rect, status: document.getElementById('status').textContent }));
+      assert(!!nw && n1[1] >= nw.face - 0.011 && n2.rect[1] >= nw.face - 0.011 && /Inside a wall/.test(n2.status), `a crate on ${nw?.wall}'s face (z ${nw?.face}): a 0.1 m nudge into the wall is pushed back (z ${n1[1]}); a 1 m nudge is refused (z ${n2.rect[1]}): "${n2.status}"`);
+    }
+
     // put the test pieces back
     await E((h) => { const ed = window.__editor; ed.select(null); while (ed.model.history.length > h) ed.undo(); }, hStart);
     await frames(page, 3);
@@ -1841,14 +1987,12 @@ try {
     }, btn);
     const toTab = async (tab) => { for (let i = 0; i < 8 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
     const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
-    /** Y, the Objects tab, A on the group tile (the menu stays), the preset's tile, A: the Object tool with that preset. */
+    /** Y, the Objects tab, LT / RT to the group on the group row (2026-10-14), the preset's tile, A: the Object tool with that preset. */
     const pickObject = async (group, name, shotName) => {
       await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
       await press(BTN.Y);
       let ok = await toTab('Objects');
-      ok = ok && (await toTileHeld(group));
-      await press(BTN.A);
-      await page.waitForFunction((g) => window.__editor.pad.menu.isOpen && document.querySelector('#tileMenu .tile.lit .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
+      ok = ok && (await toGroup(group));
       ok = ok && (await toTileHeld(name));
       if (shotName) await shot(shotName);
       await press(BTN.A);
@@ -2180,10 +2324,11 @@ try {
     await press(BTN.Y);
     const pTab = await toTab('Presets');
     const pTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
+    const pGroups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((e) => e.textContent));
     await shot('on11-presets-tab');
     const pOffice = await toTileHeld('4-desk office');
     await press(BTN.A);
-    assert(pTab && pOffice && /^Start set,Module kit,Mine,4-desk office,8-desk open office/.test(pTiles.join()) && pTiles.length === 19 && (await st()).tool === 'stamp', `ON11: Y > Presets shows the sources and the start set (${pTiles.length} tiles: ${pTiles.slice(0, 5).join(', ')} ...); A on 4-desk office picks the Stamp tool`);
+    assert(pTab && pOffice && pGroups.join() === 'Start set,Module kit,Mine' && /^4-desk office,8-desk open office/.test(pTiles.join()) && pTiles.length === 16 && (await st()).tool === 'stamp', `ON11: Y > Presets shows the sources on the group row (${pGroups.join(', ')}) and the start set as tiles (${pTiles.length} tiles: ${pTiles.slice(0, 3).join(', ')} ...); A on 4-desk office picks the Stamp tool`);
     const kitN = await E(() => window.__editor.stamp.kit.length);
     assert(kitN >= 30, `ON11: the module kit is read from modules.json through the editor server (${kitN} presets)`);
 
@@ -2273,8 +2418,7 @@ try {
     // Presets > Mine > Office, RB twice back to no turn, stamped south of the corridor (its north wall is the corridor's south wall)
     await press(BTN.Y);
     await toTab('Presets');
-    const pMine = await toTileHeld('Mine');
-    await press(BTN.A);
+    const pMine = await toGroup('Mine');
     const mineTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
     const pO = await toTileHeld('Office');
     await press(BTN.A);
@@ -2289,7 +2433,7 @@ try {
     await set(BTN.LB, 0);
     await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hM, { timeout: 8000 }).catch(() => {});
     const again = await E(() => { const ed = window.__editor; const d = ed.model.data; const r = d.rooms.filter((q) => q.name === 'Office' && q.id.startsWith('G-NEW')).at(-1); return { rect: r?.rect, north: r ? d.walls.filter((w) => w.level === 'G' && w.a[1] === r.rect[3] && w.b[1] === r.rect[3]).map((w) => w.id) : [], text: ed.model.history.at(-1)?.text }; });
-    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.slice(3).join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}" (${await E(() => document.getElementById('status').textContent)})`);
+    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}" (${await E(() => document.getElementById('status').textContent)})`);
 
     // undo all to the file
     await E((h) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.setTool('select'); ed.select(null); }, h0);
@@ -2312,16 +2456,12 @@ try {
     }, btn);
     const toTab = async (tab) => { for (let i = 0; i < 10 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
     const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
-    /** Y, the Lights tab, a group tile (A shows it, the menu stays), then a tile: A picks it. */
+    /** Y, the Lights tab, a group on the group row (LT / RT, 2026-10-14), then a tile: A picks it. */
     const pick = async (group, tile) => {
       await press(BTN.Y);
       const tab = await toTab('Lights');
       let grp = true;
-      if (group) {
-        grp = await toTileHeld(group);
-        await press(BTN.A);
-        await page.waitForFunction((g) => document.querySelector('#tileMenu .tile.hl .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
-      }
+      if (group) grp = await toGroup(group);
       const t = await toTileHeld(tile);
       return { tab, grp, t };
     };
@@ -2343,9 +2483,51 @@ try {
     const m1 = await pick(null, 'Troffer 600 x 600');
     await shot('on6-light-menu');
     const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
+    const lGroups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((t) => t.textContent));
     await press(BTN.A);
     const t1 = await E(() => ({ tool: window.__editor.tool, fit: window.__editor.lampFit, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
-    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 600/.test(t1.bar) && tiles.slice(0, 6).join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch', `ON6: Y > Lights shows the groups and Switch (${tiles.slice(0, 7).join(', ')}); Troffer 600 x 600 picks the Light tool ("${t1.bar}")`);
+    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 600/.test(t1.bar) && lGroups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && tiles[0] === 'Downlight 90 mm' && !tiles.some((t) => lGroups.includes(t) || t === 'Switch'), `ON6: Y > Lights shows the groups on the group row (${lGroups.join(', ')}) and only fittings as tiles (${tiles.slice(0, 3).join(', ')} ...); Troffer 600 x 600 picks the Light tool ("${t1.bar}")`);
+    // Michael 2026-10-14: the type carousel while placing: the current fitting centred and lit, its group's neighbours
+    // either side; D-pad right steps it (the ghost and the dot's words follow at once); a click on a neighbour, ] and the
+    // wheel over it step it with the mouse and keys
+    {
+      await dotAt((room.rect[0] + room.rect[2]) / 2, (room.rect[1] + room.rect[3]) / 2);
+      await page.waitForFunction(() => document.querySelectorAll('#toolBar .ci').length >= 3, null, { timeout: 5000 }).catch(() => {});
+      const car = () => E(() => { const cs = [...document.querySelectorAll('#toolBar .ci')]; const on = cs.findIndex((c) => c.classList.contains('on')); return { n: cs.length, on, name: cs[on]?.textContent ?? '', fit: window.__editor.lampFit, dot: document.getElementById('reticleText').textContent, slot: document.querySelector('#toolBar .slot small')?.textContent ?? '' }; });
+      const c0 = await car();
+      await press(BTN.RIGHT);
+      await page.waitForFunction((f) => window.__editor.lampFit !== f, c0.fit, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction((n) => (document.querySelector('#toolBar .ci.on')?.textContent ?? n) !== n, c0.name, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction((d) => document.getElementById('reticleText').textContent !== d, c0.dot, { timeout: 5000 }).catch(() => {});
+      const c1 = await car();
+      await shot('carousel-light-placing');
+      assert(c0.n >= 3 && c0.on === Math.floor(c0.n / 2) && c0.name === 'Troffer 600 x 600' && c1.fit !== c0.fit && c1.on === Math.floor(c1.n / 2) && c1.name !== c0.name && c1.dot !== c0.dot, `the type carousel shows ${c0.n} fittings with ${c0.name} centred (place ${c0.on}); D-pad right: ${c1.name} centred (${c1.fit}), the dot now "${c1.dot.slice(0, 50)}"`);
+      const centre = (i) => E((i) => { const b = document.querySelectorAll('#toolBar .ci')[i].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, i);
+      // the mouse first (its layout moves the views), then the carousel read again
+      await page.mouse.move(5, 5);
+      await page.mouse.move(60, 60);
+      await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 4);
+      await wait(250);
+      const c1m = await car();
+      const left = await centre(c1m.on - 1);
+      await page.mouse.click(left[0], left[1]);
+      await page.waitForFunction((f) => window.__editor.lampFit === f, c0.fit, { timeout: 5000 }).catch(() => {});
+      const c2 = await car();
+      await page.keyboard.press(']');
+      await page.waitForFunction((f) => window.__editor.lampFit === f, c1.fit, { timeout: 5000 }).catch(() => {});
+      const c3 = await car();
+      const mid = await centre(c3.on);
+      await page.mouse.move(mid[0], mid[1]);
+      await page.mouse.wheel(0, 120);
+      await page.waitForFunction((f) => window.__editor.lampFit !== f, c3.fit, { timeout: 5000 }).catch(() => {});
+      const c4 = await car();
+      assert(c2.fit === c0.fit && c3.fit === c1.fit && c4.fit !== c3.fit && c4.on === Math.floor(c4.n / 2), `the mouse and keys: a click on the left neighbour goes back to ${c2.name}, ] forward to ${c3.name}, the wheel over it to ${c4.name}`);
+      await page.mouse.move(5, 5);
+      await E(() => window.__editor.setLampFit('troffer-600'));
+      await press(BTN.LB);
+    }
+
 
     // four troffers in a 2 x 2 grid (each A places one; the tool stays on)
     const [x0, z0, x1, z1] = room.rect;
@@ -2359,7 +2541,7 @@ try {
     assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && /A: Troffer 600 x 600 [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
 
     // Light > Switch: A on the wall face by the door places a switch; A on each troffer puts it on that switch
-    const m2 = await pick(null, 'Switch');
+    const m2 = await pick('Switch and test', 'Switch');
     await press(BTN.A);
     const sx = room.dx + room.ow / 2 + 0.4;
     const sz = room.wz + room.t / 2 + 0.45;
@@ -2556,7 +2738,7 @@ try {
       await E(() => window.__editor.setLightMode({ kind: 'normal' }));
 
       // the guard view tester: Y > Lights > Guard view; A puts an eye 6 m west of the downlight; facing it, its lit cells are red
-      const m2 = await pick(null, 'Guard view');
+      const m2 = await pick('Switch and test', 'Guard view');
       await press(BTN.A);
       await dotAt(spot.x - 6, spot.z);
       await press(BTN.A);
@@ -3178,8 +3360,7 @@ try {
     await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
     await press(BTN.Y);
     let sgOk = await toTab('Objects');
-    sgOk = sgOk && (await toTile('Signs'));
-    await press(BTN.A);
+    sgOk = sgOk && (await toGroup('Signs'));
     await page.waitForFunction(() => window.__editor.objGroup === 'signs', null, { timeout: 5000 }).catch(() => {});
     sgOk = sgOk && (await toTile('Direction sign'));
     await press(BTN.A);
@@ -3255,6 +3436,8 @@ try {
     const b0 = await val();
     await holdTill(BTN.RIGHT, valProbe);
     const b1 = await val();
+    // (the legend follows the preview a frame or two later)
+    await page.waitForFunction(() => /preview/.test(document.querySelector('#lightLegend [data-moon-legend]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
     const quick = await M();
     if ((await menuState()).open) await press(BTN.B);
     assert(vTab && nTile && rows.join() === 'Time of night,Moon bearing,Moon height,Moon brightness,Use for the map' && bTile && /Full/.test(bright) && dTile && b0 !== b1 && quick.show && quick.night?.brightness === 'full' && /preview/.test(quick.legend), `ON15: Y > View > Moon and time shows its rows (${rows.join(', ')}); brightness ${bright}; a bearing step ${b0} to ${b1}; the legend "${quick.legend}"`);

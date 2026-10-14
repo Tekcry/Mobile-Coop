@@ -37,7 +37,7 @@ import { deviceCentre, isBeam, isCamera, isPir, isReader } from './security';
 import type { Device } from './security';
 import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalogue';
 import { HANDLE_PX, handleWorld } from './held';
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
 import type { SecurityTool } from './securityTool';
 import type { AimRay, SurfaceHit } from './aim';
 import { ruleColour, voidOf } from './ceilings';
@@ -1289,6 +1289,57 @@ export class EditorScene {
     const t = (y - ray.origin.y) / ray.direction.y;
     if (t <= 0) return null;
     return [ray.origin.x + ray.direction.x * t, ray.origin.z + ray.direction.z * t];
+  }
+
+  /**
+   * Michael 2026-10-14 (top and bottom handles): the height where the pointer ray meets the upright plane through
+   * (x, z) that faces the camera; null when the view looks straight down (no upright plane to drag on).
+   */
+  verticalY(px: number, py: number, x: number, z: number): number | null {
+    const f = this.camera.getForwardRay(1).direction;
+    const l = hyp2(f.x, f.z);
+    if (l < 0.05) return null;
+    const nx = f.x / l;
+    const nz = f.z / l;
+    const ray = this.scene.createPickingRay(px, py, Matrix.Identity(), this.camera);
+    const den = ray.direction.x * nx + ray.direction.z * nz;
+    if (Math.abs(den) < 1e-6) return null;
+    const t = ((x - ray.origin.x) * nx + (z - ray.origin.z) * nz) / den;
+    return t > 0 ? ray.origin.y + ray.direction.y * t : null;
+  }
+
+  /** Where a handle is drawn on the 3D view, CSS px from its top left (null when it is not shown); the e2e drags it. */
+  handleScreen(id: string): [number, number] | null {
+    const m = this.handleMeshes.find((q) => (q.metadata as { handle?: string } | null)?.handle === id);
+    if (!m) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const p = Vector3.Project(m.position, Matrix.Identity(), this.scene.getTransformMatrix(), this.camera.viewport.toGlobal(w, h));
+    return [p.x / dpr, p.y / dpr];
+  }
+
+  /** The handle drawn nearest a screen point (CSS px) within `tol` px of it, among those `ok` takes (the pad's aim). */
+  handleNear(px: number, py: number, tol: number, ok: (id: string) => boolean): string | null {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const tm = this.scene.getTransformMatrix();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    let best: string | null = null;
+    let bd = tol;
+    for (const m of this.handleMeshes) {
+      const id = (m.metadata as { handle?: string } | null)?.handle;
+      if (!id || !ok(id)) continue;
+      const p = Vector3.Project(m.position, Matrix.Identity(), tm, vp);
+      if (p.z < 0 || p.z > 1) continue;
+      const d = hyp2(p.x / dpr - px, p.y / dpr - py);
+      if (d <= bd) {
+        bd = d;
+        best = id;
+      }
+    }
+    return best;
   }
 
   elementLevels(coll: Coll, id: string): string[] {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canLift, cornerResize, growElem, HANDLE_PX, handleWorld, heightWords, liftElem, liftSnap, liftStep, nearestCorner, nearestEnd, planHandleUnits } from '../../src/editor/held';
+import { canLift, cornerResize, isVert, VERT_BOT, VERT_TOP, vertResize, growElem, HANDLE_PX, handleWorld, heightWords, liftElem, liftSnap, liftStep, nearestCorner, nearestEnd, planHandleUnits } from '../../src/editor/held';
 import { menuTabs, menuTiles, MENU_TABS } from '../../src/editor/tileMenu';
 import type { MenuInput, Tile } from '../../src/editor/tileMenu';
 import { GROUPS } from '../../src/editor/catalogue';
@@ -116,5 +116,35 @@ describe('tile words: plain, 2-5 words, no button names', () => {
   it('titles: a capital first, no full stop, no doubled spaces', () => {
     const bad = [...all.values()].filter((t) => !/^[A-Z0-9]/.test(t.name) || /\.$/.test(t.name) || / {2}/.test(t.name)).map((t) => t.name);
     expect(bad).toEqual([]);
+  });
+});
+
+describe('top and bottom handles (Michael 2026-10-14)', () => {
+  const obj = { id: 'O1', level: 'L0', rect: [0, 0, 1, 1], y: 0.5, h: 1 };
+  it('an object: the top changes the height (base fixed), the bottom the base (top fixed), never under the min', () => {
+    expect(vertResize('objects', obj, 'top', 0.3, 0.1)).toMatchObject({ y: 0.5, h: 1.3 });
+    expect(vertResize('objects', obj, 'top', -5, 0.1)).toMatchObject({ y: 0.5, h: 0.1 });
+    expect(vertResize('objects', obj, 'bot', 0.2, 0.1)).toMatchObject({ y: 0.7, h: 0.8 });
+    expect(vertResize('objects', obj, 'bot', -2, 0.1)).toMatchObject({ y: 0, h: 1.5 });
+    expect(vertResize('objects', obj, 'bot', 3, 0.1)).toMatchObject({ y: 1.4, h: 0.1 });
+    expect(vertResize('objects', obj, 'top', 0, 0.1)).toBe(obj);
+  });
+  it('an opening stays under its wall top and keeps its head when the sill moves', () => {
+    const o = { sill: 0.9, h: 1.2 };
+    expect(vertResize('openings', o, 'top', 1, 0.5, 2.7)).toMatchObject({ sill: 0.9, h: 1.8 });
+    expect(vertResize('openings', o, 'bot', -0.4, 0.5, 2.7)).toMatchObject({ sill: 0.5, h: 1.6 });
+    expect(vertResize('openings', o, 'bot', 1, 0.5, 2.7)).toMatchObject({ sill: 1.6, h: 0.5 });
+  });
+  it('walls take a top only; climb pieces their ends; signs keep the other edge; roofs their eaves', () => {
+    expect(vertResize('walls', { h: 3 }, 'top', -0.2, 0.5)).toEqual({ h: 2.8 });
+    expect(vertResize('walls', { h: 3 }, 'bot', 1, 0.5)).toEqual({ h: 3 });
+    expect(vertResize('exterior', { y0: 0, y1: 6 }, 'top', -1, 0.1)).toEqual({ y0: 0, y1: 5 });
+    expect(vertResize('exterior', { y0: 0, y1: 6 }, 'bot', 7, 0.1)).toEqual({ y0: 5.9, y1: 6 });
+    expect(vertResize('signs', { y: 2, size: [0.9, 0.2] }, 'top', 0.1, 0.1)).toEqual({ y: 2.05, size: [0.9, 0.3] });
+    expect(vertResize('signs', { y: 2, size: [0.9, 0.2] }, 'bot', 0.5, 0.1)).toEqual({ y: 2.05, size: [0.9, 0.1] });
+    expect(vertResize('roofs', { base: 6 }, 'bot', 0.4, 0.1)).toEqual({ base: 6.4 });
+    expect(VERT_TOP).not.toContain('roofs');
+    expect(VERT_BOT).not.toContain('walls');
+    expect(isVert('top') && isVert('bot') && !isVert('NE') && !isVert(null)).toBe(true);
   });
 });

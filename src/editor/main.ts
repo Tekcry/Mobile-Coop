@@ -76,7 +76,8 @@ import { FLY } from './fly';
 import type { Aim } from './aim';
 import { clearOfWalls, INSIDE_WALL, pointFoot, rectFoot, segFoot, wallSolids } from './wallClear';
 import type { Foot } from './wallClear';
-import { canLift, cornerPt, cornerResize, CORNERS, GROWS, growElem, heightWords, HELD, HANDLE_PX, liftElem, nearestCorner, nearestEnd, planHandleUnits } from './held';
+import { canLift, cornerPt, cornerResize, CORNERS, GROWS, growElem, heightWords, HELD, HANDLE_PX, isVert, liftElem, nearestCorner, nearestEnd, planHandleUnits, VERT_BOT, VERT_TOP, vertResize } from './held';
+import type { VSide } from './held';
 import type { Corner } from './held';
 import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
 import type { Beam, Device, SecData, SecurityFile } from './security';
@@ -210,6 +211,8 @@ interface Drag {
   /** Raised (Move) or taller (Resize) by this many metres since the mode last changed (one undo step on the drop). */
   lift?: number;
   grow?: number;
+  /** Michael 2026-10-14: a top or bottom handle moved up (+) or down (-) this many metres (one undo step on the drop). */
+  vdy?: number;
 }
 
 export class Editor {
@@ -679,6 +682,61 @@ export class Editor {
 
   // ---------- handles ----------
   handlesFor(): { id: string; x: number; z: number; y: number }[] {
+    const hs = this.flatHandles();
+    const v = this.vertHandles();
+    return v.length ? [...hs, ...v] : hs;
+  }
+
+  /**
+   * Michael 2026-10-14: the top and bottom handles (the centre of the top face and of the bottom face; 3D only, the plan
+   * has no height): a top changes the height with the bottom fixed, a bottom the base or sill with the top fixed.
+   */
+  private vertHandles(): { id: VSide; x: number; z: number; y: number }[] {
+    const s = this.selectedElem();
+    if (!s || this.tool !== 'select' || this.group.length) return [];
+    const lvl = this.levelOf(s.coll, s.e);
+    const f = this.viewFloor(lvl);
+    const fl = this.model.data.levels.find((l) => l.id === lvl)?.floor ?? 0;
+    const two = (x: number, z: number, y0: number, y1: number): { id: VSide; x: number; z: number; y: number }[] => [
+      ...(VERT_TOP.includes(s.coll) ? [{ id: 'top' as const, x, z, y: y1 }] : []),
+      ...(VERT_BOT.includes(s.coll) ? [{ id: 'bot' as const, x, z, y: y0 }] : []),
+    ];
+    switch (s.coll) {
+      case 'objects': {
+        const o = s.e as Obj;
+        return two((o.rect[0] + o.rect[2]) / 2, (o.rect[1] + o.rect[3]) / 2, f + o.y, f + o.y + o.h);
+      }
+      case 'walls': {
+        const w = s.e as Wall;
+        return two((w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2, f, f + w.h);
+      }
+      case 'openings': {
+        const o = s.e as Opening;
+        const w = this.model.get<Wall>('walls', o.wall);
+        if (!w) return [];
+        const p = wallPoint(w, o.at);
+        return two(p[0], p[1], f + o.sill, f + o.sill + o.h);
+      }
+      case 'exterior': {
+        const x = s.e as Ext;
+        return two((x.a[0] + x.b[0]) / 2, (x.a[1] + x.b[1]) / 2, f + x.y0 - fl, f + x.y1 - fl);
+      }
+      case 'signs': {
+        const g = s.e as SignRecord;
+        return two(g.at[0], g.at[1], f + g.y - g.size[1] / 2, f + g.y + g.size[1] / 2);
+      }
+      case 'roofs': {
+        const r = (s.e as Roof).rect;
+        const b = (s.e as Roof).base + this.view.offsetOf(lvl);
+        return two((r[0] + r[2]) / 2, (r[1] + r[3]) / 2, b, b);
+      }
+      default:
+        return [];
+    }
+  }
+
+  /** The handles the plan shows too: edges, corners, ends and centre markers. */
+  private flatHandles(): { id: string; x: number; z: number; y: number }[] {
     const s = this.selectedElem();
     if (!s || this.tool !== 'select') return [];
     const lvl = this.levelOf(s.coll, s.e);
@@ -734,7 +792,8 @@ export class Editor {
     if (s.coll === 'exterior') {
       const x = s.e as Ext;
       const y = f + x.y1 - fl;
-      if (hyp2(x.b[0] - x.a[0], x.b[1] - x.a[1]) < 1e-6) return [{ id: 'c', x: x.a[0], z: x.a[1], y }];
+      // a point piece's move marker sits halfway up (its top and bottom handles take the ends)
+      if (hyp2(x.b[0] - x.a[0], x.b[1] - x.a[1]) < 1e-6) return [{ id: 'c', x: x.a[0], z: x.a[1], y: f + (x.y0 + x.y1) / 2 - fl }];
       return [
         { id: 'a', x: x.a[0], z: x.a[1], y },
         { id: 'b', x: x.b[0], z: x.b[1], y },
@@ -785,13 +844,14 @@ export class Editor {
     const d = this.drag;
     const s = d ? { coll: d.coll, e: this.model.get(d.coll, d.id) } : this.selectedElem();
     const h = s?.e ? heightWords(s.coll, s.e) : null;
-    const m = d && !d.isNew ? (d.mode === 'resize' ? 'Resize' : 'Move') : '';
+    const m = d && !d.isNew ? (d.handle === 'top' ? 'Top' : d.handle === 'bot' ? 'Bottom' : d.mode === 'resize' ? 'Resize' : 'Move') : '';
     return [m, h].filter(Boolean).join(', ');
   }
 
   /** Whether the triggers (wheel, Page Up / Down) change the held thing's height in its mode. */
   heldLifts(): boolean {
     const d = this.drag;
+    if (d && !d.isNew && isVert(d.handle)) return true;
     return !!d && !d.isNew && (d.mode === 'resize' ? GROWS.includes(d.coll) : canLift(d.coll));
   }
 
@@ -803,7 +863,8 @@ export class Editor {
       this.status(d.mode === 'resize' ? 'Its height stays (Move raises and lowers)' : 'Stays on its level');
       return false;
     }
-    if (d.mode === 'resize') d.grow = +((d.grow ?? 0) + dy).toFixed(3);
+    if (isVert(d.handle)) d.vdy = +((d.vdy ?? 0) + dy).toFixed(3);
+    else if (d.mode === 'resize') d.grow = +((d.grow ?? 0) + dy).toFixed(3);
     else d.lift = +((d.lift ?? 0) + dy).toFixed(3);
     d.moved = true;
     d.linkedKey = undefined;
@@ -817,7 +878,7 @@ export class Editor {
   setHeldLift(v: number): void {
     const d = this.drag;
     if (!d || d.isNew || !this.heldLifts()) return;
-    const cur = d.mode === 'resize' ? (d.grow ?? 0) : (d.lift ?? 0);
+    const cur = isVert(d.handle) ? (d.vdy ?? 0) : d.mode === 'resize' ? (d.grow ?? 0) : (d.lift ?? 0);
     if (Math.abs(v - cur) > 1e-6) this.heldLift(+(v - cur).toFixed(3));
   }
 
@@ -825,6 +886,7 @@ export class Editor {
   toggleHeldMode(): void {
     const d = this.drag;
     if (!d || d.isNew) return;
+    if (isVert(d.handle)) return this.status(d.source === 'pad' ? 'A top or bottom handle: RT / LT or the left stick change it' : 'A top or bottom handle: drag it up or down');
     const cur = this.model.get(d.coll, d.id);
     if (!cur) return;
     const last = d.last ?? d.start;
@@ -901,6 +963,12 @@ export class Editor {
 
   /** The element as it would be with the pointer at (x, z): moved or resized from its base, then raised and grown. */
   dragged(d: Drag, x: number, z: number, fine: boolean): Elem {
+    if (isVert(d.handle) && !d.isNew) {
+      // a top or bottom handle: the height (the other end fixed), at least the min size, an opening under its wall's top
+      const wh = d.coll === 'openings' ? this.model.get<Wall>('walls', (d.before as Opening).wall)?.h : undefined;
+      const min = d.coll === 'openings' || d.coll === 'walls' ? 0.5 : this.objectGrid;
+      return vertResize(d.coll, clone(d.before) as Elem, d.handle, d.vdy ?? 0, min, wh);
+    }
     const dd: Drag = d.base ? { ...d, before: d.base } : d;
     let e = this.heldEnd(dd, x, z, fine) ?? this.draggedFlat(dd, x, z, fine);
     const wh = d.coll === 'openings' ? this.model.get<Wall>('walls', (e as Opening).wall)?.h : undefined;
@@ -1464,6 +1532,49 @@ export class Editor {
   }
 
   // ---------- nothing inside walls (Michael 2026-10-14; wallClear.ts) ----------
+  /**
+   * The wall rule for an edit made in one step (an arrow or D-pad nudge, a card or side panel step): pushed out to the
+   * nearest face within facts rules.wallPushMax, else null with "Inside a wall" on the status line. A piece that was
+   * already inside a wall (old data) is left be.
+   */
+  wallStep<T extends Elem>(coll: Coll, before: T, after: T): T | null {
+    if (!WALL_COLLS.has(coll) || this.wallGuard(coll, before).why !== null) return after;
+    const g = this.wallGuard(coll, after);
+    if (g.why) {
+      this.status(`${g.why} - not changed`);
+      return null;
+    }
+    return g.e;
+  }
+
+  /**
+   * The wall rule for a preset stamp: each new piece against the level's walls and the stamp's own; pushed out within
+   * facts rules.wallPushMax, else the stamp is refused with the piece named.
+   */
+  private stampWallRule(changes: Change[]): Change[] | string {
+    const walls = new Map((this.model.list('walls') as Wall[]).map((w) => [w.id, w]));
+    const opens = new Map((this.model.list('openings') as Opening[]).map((o) => [o.id, o]));
+    for (const c of changes) {
+      if (c.coll === 'walls' && c.after) walls.set(c.id, c.after as Wall);
+      if (c.coll === 'openings' && c.after) opens.set(c.id, c.after as Opening);
+    }
+    const solids = new Map<string, ReturnType<typeof wallSolids>>();
+    const out: Change[] = [];
+    for (const c of changes) {
+      const ft = c.after && WALL_COLLS.has(c.coll) ? this.footOf(c.coll, c.after) : null;
+      if (!ft || !c.after) {
+        out.push(c);
+        continue;
+      }
+      let sl = solids.get(ft.level);
+      if (!sl) solids.set(ft.level, (sl = wallSolids([...walls.values()], [...opens.values()], ft.level)));
+      const r = clearOfWalls(ft.f, sl);
+      if (!r.ok) return `${r.why}: ${String((c.after as { name?: string }).name ?? c.id)}`;
+      out.push(r.dx || r.dz ? { ...c, after: this.shifted(c.coll, c.after, r.dx, r.dz) } : c);
+    }
+    return out;
+  }
+
   /** The footprint the wall rule checks, heights above its level's floor, and that level (null: not checked). */
   private footOf(coll: Coll, e: Elem): { f: Foot; level: string } | null {
     if (coll === 'objects') {
@@ -1595,7 +1706,10 @@ export class Editor {
   private stampDown(x: number, z: number): void {
     const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
     if ('why' in r) return this.status(r.why);
-    this.commitText(r.words, r.changes);
+    // Michael 2026-10-14: nothing inside walls, stamps too
+    const ch = this.stampWallRule(r.changes);
+    if (typeof ch === 'string') return this.status(`${ch} - not stamped`);
+    this.commitText(r.words, ch);
     this.status(`${r.words}: A (click) stamps another, RB (R) turns, B (Esc) puts the tool down`);
   }
 
@@ -2268,6 +2382,17 @@ export class Editor {
       if (d && d.source === '3d') {
         if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
         d.moved = true;
+        if (isVert(d.handle)) {
+          // a top or bottom handle follows the pointer up and down (the upright plane through it, facing the camera)
+          const y = this.view.verticalY(px, py, d.start[0], d.start[1]);
+          if (y !== null) {
+            d.vdy = +snap(y - d.planeY, e.ctrlKey ? this.fineGrid : this.grid).toFixed(3);
+            this.moveDrag(d.start[0], d.start[1], e.ctrlKey);
+            this.status(this.heldWords());
+          }
+          this.mouseLive();
+          return;
+        }
         const pt = this.view.planePoint(px, py, d.planeY);
         if (pt) this.moveDrag(pt[0], pt[1], e.ctrlKey);
         this.mouseLive();
@@ -2608,7 +2733,7 @@ export class Editor {
       }
       // fix-up 2026-10-14: HANDLE_PX on screen at any plan zoom (sizePlanHandles keeps it on zoom)
       const u = this.planUnits();
-      for (const h of this.handlesFor()) {
+      for (const h of this.flatHandles()) {
         const p = this.toPlan(h.x, h.z);
         out += `<rect data-handle="${h.id}" data-cx="${p[0]}" data-cy="${p[1]}" x="${p[0] - u / 2}" y="${p[1] - u / 2}" width="${u}" height="${u}" fill="#ff7300" stroke="#fff" stroke-width="${u / 6}" style="cursor:move"/>`;
       }
@@ -3047,6 +3172,8 @@ export class Editor {
       case 'lightView': return this.setLightView(!this.lights.on);
       case 'darkMap': return this.setDarkMap(!this.lights.dark);
       case 'duplicate': return this.duplicate();
+      // Michael 2026-10-14: [ and ] step the tool's type on the carousel
+      case 'typeStep': return this.pad?.carouselStep(e?.code === 'BracketLeft' ? -1 : 1);
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
         const c = e?.code ?? '';
@@ -3133,6 +3260,10 @@ export class Editor {
     const d: Drag = { coll: s.coll, id: s.id, handle: null, before: clone(s.e), start: c, planeY: 0, moved: true, sx: 0, sy: 0, source: '3d', isNew: false };
     let after = this.dragged(d, c[0] + v[0], c[1] + v[1], false);
     if (s.coll === 'rooms') return this.commitRoom(s.id, (after as Room).rect);
+    // Michael 2026-10-14: nothing inside walls, nudges too
+    const ok = this.wallStep(s.coll, d.before, after);
+    if (!ok) return;
+    after = ok;
     if (s.coll === 'openings') after = withBetween(this.model, after as Opening);
     this.commit([{ coll: s.coll, id: s.id, before: d.before, after }]);
   }
@@ -4117,7 +4248,9 @@ export class Editor {
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
     const t = this.controls.orbit.s;
-    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data, dot: [t.tx, t.tz] });
+    const stepped = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data, dot: [t.tx, t.tz] });
+    // Michael 2026-10-14: nothing inside walls, card steps too
+    const after = stepped ? this.wallStep(coll, before, stepped) : null;
     if (after) this.commit([{ coll, id, before, after: coll === 'guards' ? this.mission.recycle(after) : after }]);
   }
 

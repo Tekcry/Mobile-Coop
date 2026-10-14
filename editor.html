@@ -146,7 +146,7 @@
       #ask { position: absolute; z-index: 30; left: 50%; top: 12px; transform: translateX(-50%); padding: 10px 14px; background: var(--panel); border: 2px solid var(--accent); border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
       #ask button { margin-left: 8px; }
       /* the tile menu (ON0a): full width over the bottom half, tabs then big tiles; the View tab is a list */
-      #tileMenu { position: absolute; z-index: 25; left: 0; right: 0; bottom: 0; max-height: calc(34vh / var(--ts, 1)); display: flex; flex-direction: column; background: rgba(12, 14, 17, 0.94); border-top: 2px solid var(--accent); padding: 8px 12px 6px; box-sizing: border-box; }
+      #tileMenu { position: absolute; z-index: 25; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; background: rgba(12, 14, 17, 0.94); border-top: 2px solid var(--accent); padding: 8px 12px 6px; box-sizing: border-box; }
       .tm-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr); align-items: center; column-gap: 12px; flex: none; }
       .tm-head .dim:first-child { grid-column: 1; justify-self: start; }
       .tm-head .tm-close { grid-column: 3; justify-self: end; }
@@ -154,8 +154,14 @@
       .tm-tabs { grid-column: 2; display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; overflow: hidden; }
       .tm-tabs button { font-size: 17px; padding: 5px 14px; border-radius: 8px; }
       .tm-tabs button.on { background: var(--accent); color: #fff; border-color: #fff; }
-      /* fixed-size tiles, at most 4 a row, centred (2026-10-14); the View list takes the grid's width */
-      .tm-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable both-edges; margin-top: 8px; }
+      /* Michael 2026-10-14: the group row (Objects, Presets, Lights) under the tabs, styled like them; always there (blank on a tab with no groups) so the panel never changes size */
+      .tm-ghead { margin-top: 6px; }
+      .tm-groups { grid-column: 2; display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; overflow: hidden; }
+      .tm-groups button { font-size: 15px; padding: 3px 12px; border-radius: 8px; white-space: nowrap; }
+      .tm-groups button.on { background: var(--accent); color: #fff; border-color: #fff; }
+      .tm-ghead.empty .tm-groups { visibility: hidden; }
+      /* fixed-size tiles, at most 4 a row, centred (2026-10-14); the View list takes the grid's width; the body is a fixed number of tile rows tall */
+      .tm-body { flex: none; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable both-edges; margin-top: 8px; }
       .tm-grid { display: grid; grid-template-columns: repeat(var(--cols, 4), var(--tw, 292px)); gap: 8px; width: var(--gw); max-width: 100%; margin: 0 auto; align-content: start; }
       .tm-grid.list { grid-template-columns: minmax(0, 1fr); }
       /* fix-up 2026-10-14: compact tiles: icon, then title and words on one line where they fit (the words wrap under the title otherwise); a group's "shown" is a small marker */
@@ -167,7 +173,7 @@
       .tile .tn { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 17px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
       .tile small { flex: 1 1 7em; min-width: 0; color: var(--dim); font-size: 13px; overflow-wrap: anywhere; }
       .tile .tv { flex: none; color: var(--accent); font-size: 17px; white-space: nowrap; }
-      .tile .tv.mark { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #111; background: var(--accent); border-radius: 4px; padding: 1px 5px; }
+      .tm-grid:not(.list) .tile { overflow: hidden; }
       .tile.hl { border-color: #fff; background: rgba(10, 132, 255, 0.4); }
       .tile.off { opacity: 0.45; }
       .tile.lit .ti { background: var(--accent); color: #111; }
@@ -219,6 +225,12 @@
       #toolBar.compact { gap: 2px; padding: 4px; }
       #toolBar.compact .slot { min-width: 0; padding: 4px 7px; font-size: 16px; }
       #toolBar.compact .slot small { font-size: 12px; }
+      /* Michael 2026-10-14: the type carousel over the tool's slot (pad and mouse): the current type centred and lit, its neighbours fading; click or wheel over it */
+      #toolBar.withcar { flex-direction: column; align-items: center; }
+      body:not([data-device='pad']) #toolBar.withcar:not(.hidden) { display: flex; }
+      #toolBar .car { display: flex; gap: 4px; pointer-events: auto; }
+      #toolBar .ci { flex: none; box-sizing: border-box; width: 118px; height: 46px; padding: 2px 6px; border: 2px solid transparent; border-radius: 6px; background: rgba(40, 45, 52, 0.95); color: var(--ink); font-size: 14px; line-height: 1.2; text-align: center; display: flex; align-items: center; justify-content: center; overflow: hidden; overflow-wrap: anywhere; cursor: pointer; pointer-events: auto; }
+      #toolBar .ci.on { border-color: #fff; background: rgba(10, 132, 255, 0.6); font-weight: 600; }
       #selCard { right: 8px; bottom: 64px; padding: 10px 14px; font-size: 20px; line-height: 1.4; max-width: 420px; }
       #selCard b { color: var(--accent); }
       #selCard small.id { color: var(--dim); font-size: 0.7em; margin-left: 4px; }
@@ -257,6 +269,10 @@
         #tileMenu { padding: 5px 8px 4px; }
         .tm-head .dim { display: none; }
         .tm-tabs button { font-size: 13px; padding: 3px 8px; min-height: 28px; }
+        .tm-ghead { margin-top: 4px; }
+        .tm-groups { gap: 4px; }
+        .tm-groups button { font-size: 12px; padding: 2px 7px; min-height: 24px; }
+        #toolBar .ci { width: 92px; height: 38px; font-size: 12px; }
         .tm-body { margin-top: 5px; }
         .tm-grid { gap: 5px; }
         .tile { padding: 3px 7px; gap: 6px; }

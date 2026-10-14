@@ -193,3 +193,72 @@ export function cornerResize(r: Rect, c: Corner, x: number, z: number, g: number
 export function nearestEnd(a: Pt, b: Pt, x: number, z: number): 'a' | 'b' {
   return (x - a[0]) ** 2 + (z - a[1]) ** 2 <= (x - b[0]) ** 2 + (z - b[1]) ** 2 ? 'a' : 'b';
 }
+
+/** Michael 2026-10-14: the top and bottom handles (centre of the top face and of the bottom face), in 3D only. */
+export type VSide = 'top' | 'bot';
+export const isVert = (h: string | null | undefined): h is VSide => h === 'top' || h === 'bot';
+/** What takes a top handle (its height, the bottom fixed) and a bottom one (its base or sill, the top fixed). */
+export const VERT_TOP: readonly Coll[] = ['objects', 'walls', 'openings', 'exterior', 'signs'];
+export const VERT_BOT: readonly Coll[] = ['objects', 'openings', 'exterior', 'signs', 'roofs'];
+
+/**
+ * The element with its top moved by `dy` (the bottom stays) or its bottom moved by `dy` (the top stays), never under
+ * `min` tall, a base never under the floor and an opening never over its wall's top (`wallH`). A roof's bottom is its
+ * eaves (base): the whole roof goes up or down.
+ */
+export function vertResize<T>(coll: Coll, e: T, side: VSide, dy: number, min: number, wallH?: number): T {
+  if (!dy) return e;
+  const o = { ...(e as Any) };
+  const top = side === 'top';
+  switch (coll) {
+    case 'objects': {
+      const y = o.y as number;
+      const h = o.h as number;
+      if (top) o.h = r3(Math.max(min, h + dy));
+      else {
+        const y1 = y + h;
+        const y0 = Math.min(Math.max(0, y + dy), y1 - min);
+        o.y = r3(Math.max(0, y0));
+        o.h = r3(y1 - (o.y as number));
+      }
+      break;
+    }
+    case 'walls':
+      if (!top) return e;
+      o.h = r3(Math.max(min, (o.h as number) + dy));
+      break;
+    case 'openings': {
+      const sill = o.sill as number;
+      const h = o.h as number;
+      // the head stays under the wall's top
+      if (top) o.h = r3(Math.max(min, Math.min(h + dy, (wallH ?? Infinity) - sill)));
+      else {
+        const y1 = sill + h;
+        o.sill = r3(Math.min(Math.max(0, sill + dy), y1 - min));
+        o.h = r3(y1 - (o.sill as number));
+      }
+      break;
+    }
+    case 'exterior':
+      if (top) o.y1 = r3(Math.max((o.y0 as number) + min, (o.y1 as number) + dy));
+      else o.y0 = r3(Math.min((o.y1 as number) - min, (o.y0 as number) + dy));
+      break;
+    case 'signs': {
+      const [w, h] = o.size as [number, number];
+      const y0 = (o.y as number) - h / 2;
+      const y1 = (o.y as number) + h / 2;
+      const nb = top ? y0 : Math.min(y1 - min, Math.max(0, y0 + dy));
+      const nt = top ? Math.max(y0 + min, y1 + dy) : y1;
+      o.size = [w, r3(nt - nb)];
+      o.y = r3((nt + nb) / 2);
+      break;
+    }
+    case 'roofs':
+      if (top) return e;
+      o.base = r3(Math.max(0, (o.base as number) + dy));
+      break;
+    default:
+      return e;
+  }
+  return o as T;
+}

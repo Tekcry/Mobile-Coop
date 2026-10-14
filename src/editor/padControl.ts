@@ -7,7 +7,7 @@
  * words live in actions.ts; the pure parts in pad.ts, orbit.ts, stickSteps.ts, tileMenu.ts, card.ts, grab.ts and hub.ts.
  */
 import { hyp2 } from '../core/mathx';
-import { HELD, liftSnap, liftStep } from './held';
+import { HELD, isVert, liftSnap, liftStep } from './held';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
@@ -27,7 +27,11 @@ import { PAD, PadState, padWords as padWordsOf } from './pad';
 import { linkedHint, ROOM_OPTIONS } from './roomWalls';
 import type { RoomWallOption } from './roomWalls';
 import { navAxes, StepRepeat } from './stickSteps';
-import { TileMenu } from './tileMenu';
+import { LIGHT_TOOLS, stepGroup, TileMenu } from './tileMenu';
+import { carouselFade, carouselSlots, carouselWindow, wrapIndex } from './carousel';
+import { MISSION_TOOLS, ROSTER } from './missionCatalogue';
+import { SEC_TOOLS } from './securityCatalogue';
+import { SIGN_KINDS } from './signCatalogue';
 import type { MenuInput, ViewState } from './tileMenu';
 import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
@@ -66,6 +70,11 @@ import type { PresetFrom } from './presets';
 
 type Focus = '3d' | 'drawer';
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
+/** The type carousel (Michael 2026-10-14): at most this many items, each this wide (CSS px; editor.html matches), this gap. */
+/** The pad's aim takes a top or bottom handle this close to the screen centre (CSS px; a handle is facts render.handlePx). */
+const VERT_AIM_PX = 16;
+const CAR = { MAX: 7, W: 118, W_SMALL: 92, GAP: 4, PAD: 16 } as const;
+
 const BAR = [
   ['select', 'Select'],
   ['room', 'Room'],
@@ -159,6 +168,7 @@ export class PadControl {
         this.menu.index = i;
         this.pickTile();
       },
+      (g) => this.showGroup(g),
     );
     this.names = new NamePick($('namePick'));
     try {
@@ -179,6 +189,24 @@ export class PadControl {
     window.addEventListener('pointermove', (e) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 8) keysUsed();
     });
+    // the type carousel (Michael 2026-10-14): a click picks an item, the wheel over it steps
+    const bar = $('toolBar');
+    // (on the press: the bar is redrawn when the mouse takes over, which would lose a click)
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const i = (e.target as Element).closest('[data-ci]')?.getAttribute('data-ci');
+      if (i !== null && i !== undefined) this.carouselPick(Number(i));
+    });
+    bar.addEventListener(
+      'wheel',
+      (e) => {
+        if (!(e.target as Element).closest('.car')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.deltaY || e.deltaX) this.carouselStep((e.deltaY || e.deltaX) > 0 ? 1 : -1);
+      },
+      { passive: false },
+    );
     this.ed.view.scene.onBeforeRenderObservable.add(() => this.frame());
   }
 
@@ -276,7 +304,7 @@ export class PadControl {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
     const playing = !!s && s.coll === 'guards' && this.ed.mission.playing?.id === s.id;
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, alignFirst: this.ed.arrange.alignFirst, presets: this.presetsInput(), lightGroup: this.ed.lightGroup, playing };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, alignFirst: this.ed.arrange.alignFirst, presets: this.presetsInput(), lightGroup: this.lightTools ? LIGHT_TOOLS : this.ed.lightGroup, playing };
   }
 
   viewState(): ViewState {
@@ -312,8 +340,30 @@ export class PadControl {
   renderMenu(): void {
     const s = this.style;
     const pad = this.device === 'pad';
-    const words = { tab: pad ? `${padWordsOf('LB', s)} / ${padWordsOf('RB', s)}` : 'Click a tab', close: pad ? `${padWordsOf('B', s)} or ${padWordsOf('Y', s)} closes` : 'Space or Esc closes' };
+    const words = { tab: pad ? `${padWordsOf('LB', s)} / ${padWordsOf('RB', s)} tab` : 'Click a tab', group: pad ? `${padWordsOf('LT', s)} / ${padWordsOf('RT', s)} group` : 'Click a group', close: pad ? `${padWordsOf('B', s)} or ${padWordsOf('Y', s)} closes` : 'Space or Esc closes' };
     this.menuView.render(this.menu, this.menuInput(), words, $('hint').offsetHeight);
+  }
+
+  /** The Lights tab shows its Switch and test group (Switch, Guard view) instead of a fitting group. */
+  private lightTools = false;
+
+  /**
+   * A group tab (a click, or LT / RT with the menu open; Michael 2026-10-14): the tab shows that group's items, the
+   * menu stays open and the highlight goes to where it was last in that group.
+   */
+  showGroup(id: string): void {
+    const ed = this.ed;
+    if (id.startsWith('objgroup.')) ed.setObjectGroup(id.slice(9) as ObjGroup | 'signs');
+    else if (id === `lightgroup.${LIGHT_TOOLS}`) {
+      this.lightTools = true;
+      ed.status('Lights: Switch and test');
+    } else if (id.startsWith('lightgroup.')) {
+      this.lightTools = false;
+      ed.setLightGroup(id.slice(11) as LightGroup);
+    } else if (id.startsWith('presetfrom.')) ed.stamp.from = id.slice(11) as PresetFrom;
+    else return;
+    this.menu.groupChanged(this.menuInput());
+    this.renderMenu();
   }
 
   /** One pad frame with the menu open. */
@@ -323,6 +373,10 @@ export class PadControl {
     if (st.pressed(PAD.B) || st.pressed(PAD.Y)) return this.closeMenu();
     if (st.pressed(PAD.LB)) this.menu.stepTab(-1, inp);
     if (st.pressed(PAD.RB)) this.menu.stepTab(1, inp);
+    // LT / RT: the previous / next group of the tab (the zoom is not needed while the menu is open)
+    const gdir = st.pressed(PAD.RT) ? 1 : st.pressed(PAD.LT) ? -1 : 0;
+    const g = gdir ? stepGroup(this.menu.tab, this.menuInput(), gdir) : null;
+    if (g) this.showGroup(g);
     const n = this.nav(now, true);
     const t = this.menu.tile(inp);
     // on the View rows left / right change the value (sliders faster the further the stick is pushed)
@@ -395,21 +449,6 @@ export class PadControl {
     }
     if (t.id.startsWith('view.')) {
       this.runView(t.id, 1, true);
-      return this.renderMenu();
-    }
-    if (t.id.startsWith('objgroup.')) {
-      // ON4: a group tile shows that group's objects; the menu stays open
-      this.ed.setObjectGroup(t.id.slice(9) as ObjGroup);
-      return this.renderMenu();
-    }
-    if (t.id.startsWith('lightgroup.')) {
-      // ON6: a group tile shows that group's fittings; the menu stays open
-      this.ed.setLightGroup(t.id.slice(11) as LightGroup);
-      return this.renderMenu();
-    }
-    if (t.id.startsWith('presetfrom.')) {
-      // ON11: a source tile shows that source's presets; the menu stays open
-      this.ed.stamp.from = t.id.slice(11) as PresetFrom;
       return this.renderMenu();
     }
     if (t.id === 'sel.alignFirst') {
@@ -522,7 +561,8 @@ export class PadControl {
       tool('climb');
     }
     else if (id.startsWith('light.')) {
-      // ON6: a fitting, or Switch
+      // ON6: a fitting, or Switch (a fitting's group is the menu's Lights group from now on)
+      if (id !== 'light.switch') this.lightTools = false;
       ed.setLampFit(id.slice(6));
       tool('lamp');
     }
@@ -581,75 +621,83 @@ export class PadControl {
     else if (id === 'sel.type') this.editCard('type');
   }
 
-  /** D-pad left / right with a tool and nothing grabbed: the door type or the room's walls option. */
+  /**
+   * The placing tool's types for the carousel (Michael 2026-10-14): the list in the current group (doors, windows,
+   * room options, stair, hole and roof types, the object group's presets, climb pieces, the light group's fittings,
+   * security devices, signs, the presets source, guard roles or mission markers), the current one and how to set one.
+   * Null where the tool has no types (Select, Wall, Switch, path editing, the Array count).
+   */
+  carousel(): { label: string; names: string[]; index: number; set: (i: number) => void } | null {
+    const ed = this.ed;
+    const of = <T,>(label: string, list: readonly T[], name: (t: T) => string, cur: (t: T) => boolean, set: (t: T) => void) =>
+      list.length ? { label, names: list.map(name), index: Math.max(0, list.findIndex(cur)), set: (i: number) => set(list[wrapIndex(i, list.length)]!) } : null;
+    if (ed.drag || ed.stairDraw) return null;
+    switch (ed.tool) {
+      case 'door':
+      case 'window': {
+        const sel = $<HTMLSelectElement>(ed.tool === 'door' ? 'doorType' : 'windowType');
+        return of(ed.tool === 'door' ? 'Door type' : 'Window type', familyTypes(ed.tool), (t) => DOOR_NAMES[t] ?? t, (t) => t === sel.value, (t) => (sel.value = t));
+      }
+      case 'room':
+        return of('Room', ROOM_OPTIONS, (o) => o.name, (o) => o.id === ed.roomOption, (o) => ed.setRoomOption(o.id));
+      case 'stair':
+        return of('Stair', STAIR_TYPES, (t) => t.name, (t) => t.id === ed.stairTypeId, (t) => ed.setStairType(t.id));
+      case 'hole':
+        return of('Floor hole', HOLE_KINDS, (k) => HOLE_NAMES[k] ?? k, (k) => k === ed.holeKind, (k) => ed.setHoleKind(k));
+      case 'roof':
+        return of('Roof', ROOF_TYPES, (t) => t.name, (t) => t.id === ed.roofTypeId, (t) => ed.setRoofType(t.id));
+      case 'object':
+        return of('Object', groupPresets(ed.objPreset.group), (p) => p.name, (p) => p.id === ed.objPresetId, (p) => ed.setObjectPreset(p.id));
+      case 'climb':
+        return of('Climb', CLIMB_PIECES, (q) => q.name, (q) => q.id === ed.climbKind, (q) => ed.setClimbKind(q.id));
+      case 'security':
+        return of('Security', SEC_TOOLS, (t) => t.name, (t) => t.id === ed.security.kind, (t) => ed.security.setKind(t.id));
+      case 'sign':
+        return of('Sign', SIGN_KINDS, (k) => k.name, (k) => k.id === ed.signTool.kind, (k) => ed.signTool.setKind(k.id));
+      case 'stamp':
+        return of('Stamp', ed.stamp.list(ed.stamp.from), (p) => p.name, (p) => p.id === ed.stamp.id, (p) => void ed.stamp.set(p.id));
+      case 'lamp': {
+        const f = ed.fitting;
+        return f ? of('Light', groupFittings(f.group), (q) => q.name, (q) => q.id === f.id, (q) => ed.setLampFit(q.id)) : null;
+      }
+      case 'mission': {
+        const m = ed.mission;
+        if (m.path || m.link) return null;
+        // the Guard tool steps the roster role a new guard takes; a marker tool steps the markers
+        if (m.kind === 'guard') return of('Guard', ROSTER, (r) => r.name, (r) => r === ROSTER[m.role], (r) => (m.role = ROSTER.indexOf(r)));
+        return of('Mission', MISSION_TOOLS.filter((t) => t.id !== 'guard'), (t) => t.name, (t) => t.id === m.kind, (t) => m.setKind(t.id));
+      }
+      default:
+        return null;
+    }
+  }
+
+  /** The carousel's current item to `i` (a click), or by `dir` (D-pad left / right, [ and ], the wheel); the ghost follows at once. */
+  carouselPick(i: number): void {
+    const c = this.carousel();
+    if (!c) return;
+    c.set(i);
+    this.ed.status(`${c.label}: ${c.names[wrapIndex(i, c.names.length)] ?? ''}`);
+    this.barKey = '';
+    this.barAt = 0;
+    this.ed.updateHint();
+    this.drawBar();
+  }
+
+  carouselStep(dir: 1 | -1): void {
+    const c = this.carousel();
+    if (c) this.carouselPick(c.index + dir);
+  }
+
+  /** D-pad left / right with a tool and nothing grabbed: the next type on the carousel (the Array tool: its count). */
   private toolVariant(dir: 1 | -1): void {
     const ed = this.ed;
-    if (ed.tool === 'door') {
-      const doors = familyTypes('door');
-      const sel = $<HTMLSelectElement>('doorType');
-      const next = doors[(Math.max(0, doors.indexOf(sel.value)) + dir + doors.length) % doors.length]!;
-      sel.value = next;
-      ed.status(`Door type: ${DOOR_NAMES[next] ?? next}`);
-    } else if (ed.tool === 'window') {
-      const wins = familyTypes('window');
-      const sel = $<HTMLSelectElement>('windowType');
-      const next = wins[(Math.max(0, wins.indexOf(sel.value)) + dir + wins.length) % wins.length]!;
-      sel.value = next;
-      ed.status(`Window type: ${DOOR_NAMES[next] ?? next}`);
-    } else if (ed.tool === 'room') {
-      const i = ROOM_OPTIONS.findIndex((o) => o.id === ed.roomOption);
-      const o = ROOM_OPTIONS[(i + dir + ROOM_OPTIONS.length) % ROOM_OPTIONS.length]!;
-      ed.setRoomOption(o.id);
-      ed.status(`Room: ${o.name}`);
-    } else if (ed.tool === 'stair') {
-      const i = STAIR_TYPES.findIndex((t) => t.id === ed.stairTypeId);
-      const t = STAIR_TYPES[(i + dir + STAIR_TYPES.length) % STAIR_TYPES.length]!;
-      ed.setStairType(t.id);
-      ed.status(`Stair: ${t.name}`);
-    } else if (ed.tool === 'hole') {
-      const i = HOLE_KINDS.indexOf(ed.holeKind as (typeof HOLE_KINDS)[number]);
-      const k = HOLE_KINDS[(i + dir + HOLE_KINDS.length) % HOLE_KINDS.length]!;
-      ed.setHoleKind(k);
-      ed.status(`Floor hole: ${HOLE_NAMES[k] ?? k}`);
-    } else if (ed.tool === 'object') {
-      const ps = groupPresets(ed.objPreset.group);
-      const i = ps.findIndex((q) => q.id === ed.objPresetId);
-      const p = ps[(i + dir + ps.length) % ps.length]!;
-      ed.setObjectPreset(p.id);
-      ed.status(`Object: ${p.name}`);
-    } else if (ed.tool === 'climb') {
-      const i = CLIMB_PIECES.findIndex((q) => q.id === ed.climbKind);
-      const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
-      ed.setClimbKind(q.id);
-      ed.status(`Climb: ${q.name}`);
-    } else if (ed.tool === 'security') {
-      // ON12: the next device of the Security tab
-      ed.status(`Security: ${ed.security.stepKind(dir)}`);
-    } else if (ed.tool === 'mission') {
-      // ON8: the Guard tool's role (the mission brief's roster)
-      if (ed.mission.kind === 'guard' && !ed.mission.path) ed.status(`Guard: ${ed.mission.stepRole(dir)}`);
-    } else if (ed.tool === 'lamp') {
-      // ON6: the next fitting in the group (Switch stays Switch)
-      const f = ed.fitting;
-      if (!f) return;
-      const fs = groupFittings(f.group);
-      const q = fs[(fs.findIndex((x) => x.id === f.id) + dir + fs.length) % fs.length]!;
-      ed.setLampFit(q.id);
-      ed.status(`Light: ${q.name}`);
-    } else if (ed.tool === 'arrange') {
-      // ON14: the Array's count
+    // ON14: the Array's count
+    if (ed.tool === 'arrange') {
       if (ed.arrange.mode === 'array') ed.arrange.stepCount(dir);
-    } else if (ed.tool === 'sign') {
-      ed.status(`Sign: ${ed.signTool.stepKind(dir)}`);
-    } else if (ed.tool === 'stamp') {
-      const p = ed.stamp.step(dir);
-      if (p) ed.status(`Stamp: ${p.name}`);
-    } else if (ed.tool === 'roof') {
-      const i = ROOF_TYPES.findIndex((t) => t.id === ed.roofTypeId);
-      const t = ROOF_TYPES[(i + dir + ROOF_TYPES.length) % ROOF_TYPES.length]!;
-      ed.setRoofType(t.id);
-      ed.status(`Roof: ${t.name}`);
+      return;
     }
+    this.carouselStep(dir);
   }
 
   // ---------- the selection card on the D-pad (ON0a) ----------
@@ -699,6 +747,10 @@ export class PadControl {
     }
     const merge = { key: `${s.coll}:${s.id}|${row}`, at: now, within: CARD_MERGE_S };
     if (s.coll === 'rooms' && (row === 'width' || row === 'depth')) return ed.commitRoom(s.id, (after as Room).rect, merge);
+    // Michael 2026-10-14: nothing inside walls, card steps too (pushed out to the face, or refused)
+    const clear = ed.wallStep(s.coll, s.e, after);
+    if (!clear) return this.rumble('error');
+    after = clear;
     if (s.coll === 'openings') after = withBetween(ed.model, after as Opening);
     // ON8: a guard's kind sets its walk speed: the loop's time again
     if (s.coll === 'guards') after = ed.mission.recycle(after);
@@ -847,6 +899,8 @@ export class PadControl {
     if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
     // fix-up 2026-10-14: holding something, Y swaps Move and Resize and the triggers raise and lower it (no zoom)
     const held = this.ed.drag?.source === 'pad' && !this.ed.drag.isNew;
+    // a top or bottom handle in hand: the left stick changes it, so it does not fly or pan
+    const vert = held && isVert(this.ed.drag?.handle);
     if (held && st.pressed(PAD.Y)) {
       this.ed.toggleHeldMode();
       this.liftRaw = 0;
@@ -890,11 +944,11 @@ export class PadControl {
       const s = this.settings;
       c.flyTune = { dead: s.deadZone, smoothing: s.smoothing, pan: s.stickSpeed, orbit: s.orbitSpeed, invert: s.invertTilt };
       const look = !this.stickLatch && !turnEye && !aimStop && !(this.ed.mission.path && st.down(PAD.RB));
-      const move = !this.stickLatch && !this.cardEditing;
+      const move = !this.stickLatch && !this.cardEditing && !vert;
       c.flyIn = { moveX: move ? st.rawL.x : 0, moveY: move ? -st.rawL.y : 0, lookX: look ? st.rawR.x : 0, lookY: look ? -st.rawR.y : 0, rise: plan ? 0 : zoom, slow: fine };
     } else if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
     else if (turnEye || aimStop || (this.ed.mission.path && st.down(PAD.RB))) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
-    else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
+    else if (!this.stickLatch) c.orbitIn = { panX: vert ? 0 : st.rawL.x, panY: vert ? 0 : -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
     if (this.ed.groupDrag?.source === 'pad') return this.groupFrame();
@@ -1261,6 +1315,15 @@ export class PadControl {
     this.rumble('drop');
   }
 
+  /** Michael 2026-10-14: the top or bottom handle the aim (the screen centre) is on, within VERT_AIM_PX; null otherwise. */
+  vertAim(): 'top' | 'bot' | null {
+    if (this.device !== 'pad' || this.ed.tool !== 'select' || this.ed.drag || this.measureFrom) return null;
+    const cv = $<HTMLCanvasElement>('c');
+    if (!cv.clientWidth) return null;
+    const id = this.ed.view.handleNear(cv.clientWidth / 2, cv.clientHeight / 2, VERT_AIM_PX, isVert);
+    return isVert(id) ? id : null;
+  }
+
   grabPartNow(): GrabPart | null {
     if (this.ed.tool !== 'select' || this.ed.drag || this.measureFrom) return null;
     const g = this.grabShape();
@@ -1306,6 +1369,18 @@ export class PadControl {
     }
     // edge-aware grab: the part the dot names (decision 13); outside the selection, A selects as before
     const s = ed.selectedElem();
+    // Michael 2026-10-14: the aim on a top or bottom handle grabs it (RT / LT or the left stick change it, 0.1 m steps)
+    const vh = s ? this.vertAim() : null;
+    const vhd = vh ? ed.handlesFor().find((q) => q.id === vh) : undefined;
+    if (s && vh && vhd) {
+      ed.beginDrag(s.coll, s.id, vh, [vhd.x, vhd.z], vhd.y, 0, 0, 'pad');
+      const vd = ed.drag as { moved: boolean } | null;
+      if (vd) vd.moved = true;
+      this.liftRaw = 0;
+      this.offset = [0, 0];
+      this.turns = 0;
+      return ed.status(`${vh === 'top' ? 'Top: taller or shorter' : 'Bottom: base up or down'} - RT / LT or the left stick, A drops it, B puts it back`);
+    }
     const part = this.grabPartNow();
     if (s && part && p) return this.grab(s.coll, s.id, part.handle, p, ed.viewFloor(), part.words);
     const t = this.target();
@@ -1355,8 +1430,10 @@ export class PadControl {
       }
       return;
     }
-    if (!t) return;
-    this.liftRaw = liftStep(this.liftRaw, st.rt, st.lt, dt, fine);
+    // a top or bottom handle: the left stick up / down too
+    const ly = isVert(this.ed.drag?.handle) && !this.stickLatch ? -st.ls.y : 0;
+    if (!t && !ly) return;
+    this.liftRaw = liftStep(this.liftRaw, st.rt + Math.max(0, ly), st.lt + Math.max(0, -ly), dt, fine);
     this.ed.setHeldLift(liftSnap(this.liftRaw, this.ed.grid));
   }
 
@@ -1399,6 +1476,8 @@ export class PadControl {
       if (p) this.ed.aimStair(p[0], p[1]);
     }
     if (!d || d.source !== 'pad') return this.updatePointers();
+    // a top or bottom handle changes with the triggers and the stick only (liftFrame)
+    if (isVert(d.handle)) return this.updatePointers();
     const p = this.point(d.planeY);
     if (!p) return;
     // LB held or a D-pad nudge: no smart snapping (a nudge lands exactly where it was put)
@@ -1513,7 +1592,8 @@ export class PadControl {
     if (pad) r.style.left = r.style.top = '';
     r.classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
     $('reticleText').classList.toggle('hidden', this.cardEditing);
-    $('toolBar').classList.toggle('hidden', !pad || walk || menu);
+    // the type carousel shows with the mouse too (Michael 2026-10-14)
+    $('toolBar').classList.toggle('hidden', (!pad && !this.carOn) || walk || menu);
     $('selCard').classList.toggle('hidden', !pad || walk || menu || !this.ed.selectedElem());
     $('drawer').classList.toggle('padfocus', pad && this.focus === 'drawer');
     if (!(pad && this.focus === 'drawer')) for (const x of $('panel').querySelectorAll('.padfocus')) x.classList.remove('padfocus');
@@ -1521,28 +1601,44 @@ export class PadControl {
 
   private barAt = 0;
   private barKey = '';
-  /** The tool bar (decision 11) and the selection card (decision 16), pad screen only. */
+  /** Carousel places that fit beside the card and the small plan (layoutBar measures them; odd, at most CAR.MAX). */
+  private carSlots: number = CAR.MAX;
+  /** The carousel shown on the bar now (also with the mouse: Michael 2026-10-14). */
+  private carOn = false;
+  /** The tool bar (decision 11) and the selection card (decision 16), pad screen only; the type carousel on both. */
   private drawBar(): void {
-    if (this.device !== 'pad') return;
+    const pad = this.device === 'pad';
     const now = performance.now();
     if (now - this.barAt < 100) return;
     this.barAt = now;
+    const car = this.ed.controls.walking ? null : this.carousel();
+    this.carOn = !!car;
     this.showPointers();
+    if (!pad && !car) return;
     this.layoutBar();
     const ed = this.ed;
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ed.tool === 'arrange' ? ed.arrange.barWords() : ed.tool === 'sign' ? ed.signTool.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ed.tool === 'arrange' ? ed.arrange.barWords() : ed.tool === 'sign' ? ed.signTool.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}|${pad}|${car ? `${car.label}|${car.index}|${car.names.length}|${car.names[0] ?? ''}|${this.carSlots}` : ''}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
     const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'security' ? ed.security.barWords() : slot === 'arrange' ? ed.arrange.barWords() : slot === 'sign' ? ed.signTool.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
-    $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
-    if (s) {
+    // Michael 2026-10-14: the type carousel over the slot: the current type centred and lit, its group's neighbours either side, fading
+    let carHtml = '';
+    if (car) {
+      const win = carouselWindow(car.names.length, car.index, this.carSlots);
+      const half = Math.max(1, ...win.map((w) => Math.abs(w.off)));
+      carHtml = `<div class="car" data-car="${esc(car.label)}">${win.map((w) => `<div class="ci${w.off ? '' : ' on'}" data-ci="${w.i}" style="opacity:${carouselFade(w.off, half + 1).toFixed(2)}">${esc(car.names[w.i] ?? '')}</div>`).join('')}</div>`;
+    }
+    const bar = $('toolBar');
+    bar.classList.toggle('withcar', !!car);
+    bar.innerHTML = `${carHtml}<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    if (s && pad) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
       const rows = cardRows(s.coll, s.e, this.cardCtx(s));
@@ -1614,6 +1710,19 @@ export class PadControl {
     const L = (miniBeside ? mini.right : stage.left) + gap;
     const cardOn = !!card.offsetParent;
     const c = cardOn ? card.getBoundingClientRect() : null;
+    if (this.carOn) {
+      // as many carousel items as fit beside the card (above it when the card rises), at least three
+      const small = matchMedia('(max-width: 900px), (max-height: 500px)').matches;
+      const iw = small ? CAR.W_SMALL : CAR.W;
+      const room = (r: number): number => carouselSlots((r - L) / kb - CAR.PAD, iw, CAR.GAP, CAR.MAX);
+      let n = room(c ? c.left - gap : stage.right - gap);
+      if (n < 3) n = Math.max(n, room(stage.right - gap));
+      if (n !== this.carSlots) {
+        this.carSlots = n;
+        this.barKey = '';
+        this.barAt = 0;
+      }
+    }
     const place = (right: number): boolean => {
       if (b.width > right - L) return false;
       bar.style.left = `${(L - stage.left + (right - L - b.width) / 2) / kb}px`;
@@ -1675,6 +1784,7 @@ export class PadControl {
     const f = ed.viewFloor();
     const part = this.grabPartNow();
     const s = ed.selectedElem();
+    const vAim = s ? this.vertAim() : null;
     let hover: Key | null = null;
     if (this.boxFrom && this.boxTo) {
       // ON3 box select: the box on the floor and the plan
@@ -1724,6 +1834,10 @@ export class PadControl {
       bad = !!live.bad;
       key = `d|${words}`;
       plan.push(...live.shapes);
+    }
+    else if (s && vAim) {
+      words = vAim === 'top' ? 'Top: taller or shorter (A)' : 'Bottom: base up or down (A)';
+      key = `v|${ed.selected}|${vAim}`;
     }
     else if (part && s) {
       words = `${part.words}${s.coll === 'rooms' && ed.wallsFollow ? this.linkedHintFor(s.id, part.handle) : ''} (A)`;

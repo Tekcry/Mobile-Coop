@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { repeatEvery, STEPS, StepRepeat, navAxes } from '../../src/editor/stickSteps';
-import { gridMove, menuTabs, menuTiles, TileMenu } from '../../src/editor/tileMenu';
+import { gridMove, LIGHT_TOOLS, menuGroup, menuGroups, menuTabs, menuTiles, stepGroup, TileMenu } from '../../src/editor/tileMenu';
 import type { MenuInput } from '../../src/editor/tileMenu';
 
 const view = { layout: '3d', ghost: false, exploded: false, gap: 3, cut: 0, preset: 'upTo', building: 'all', minimap: false, labels: true, underlay: false } as const;
@@ -41,24 +41,56 @@ describe('tile menu model (ON0a)', () => {
     expect(cam).not.toContain('Duplicate');
   });
 
-  it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {
-    const t = menuTiles('Objects', { ...none, objGroup: 'goodsIn' });
-    expect(t.slice(0, 5).map((x) => x.name)).toEqual(['Data hall', 'Plant', 'Office and security', 'Goods-in', 'Yard and roof']);
-    expect(t.find((x) => x.id === 'objgroup.goodsIn')!.on).toBe(true);
-    expect(t.slice(6).map((x) => x.id)).toContain('obj.crate-1.0');
-    expect(menuTiles('Objects', none).slice(6, 8).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
+  it('Objects tab (ON4, group row 2026-10-14): the groups on the group row, the tiles only the chosen group objects', () => {
+    expect(menuGroups('Objects').map((g) => g.name)).toEqual(['Data hall', 'Plant', 'Office and security', 'Goods-in', 'Yard and roof', 'Signs']);
+    const inp = { ...none, objGroup: 'goodsIn' as const };
+    expect(menuGroup('Objects', inp)).toBe('objgroup.goodsIn');
+    const t = menuTiles('Objects', inp);
+    expect(t.map((x) => x.id)).toContain('obj.crate-1.0');
+    expect(t.every((x) => x.id.startsWith('obj.'))).toBe(true);
+    expect(menuTiles('Objects', none).slice(0, 2).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
     // ON14: Signs is a sixth group; its tiles are the sign kinds
-    expect(menuTiles('Objects', { ...none, objGroup: 'signs' }).slice(6, 8).map((x) => x.id)).toEqual(['sign.direction', 'sign.room-sign']);
+    expect(menuTiles('Objects', { ...none, objGroup: 'signs' }).slice(0, 2).map((x) => x.id)).toEqual(['sign.direction', 'sign.room-sign']);
   });
 
-  it('Lights tab (ON6): the five groups and Switch, then the fittings of the chosen group; a lamp has Aim and Circuit', () => {
+  it('group row (Michael 2026-10-14): only Objects, Presets and Lights; LT / RT step it with wrap; no group tiles left', () => {
+    expect(['Build', 'Openings', 'Climb', 'Mission', 'Security', 'View', 'Selected'].map((t) => menuGroups(t as Parameters<typeof menuGroups>[0]).length)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(menuGroup('Build', none)).toBeNull();
+    expect(stepGroup('Build', none, 1)).toBeNull();
+    expect(stepGroup('Lights', none, 1)).toBe('lightgroup.plant');
+    expect(stepGroup('Lights', none, -1)).toBe('lightgroup.' + LIGHT_TOOLS);
+    expect(stepGroup('Objects', { ...none, objGroup: 'signs' }, 1)).toBe('objgroup.dataHall');
+    expect(stepGroup('Presets', none, 1)).toBe('presetfrom.kit');
+    for (const tab of ['Objects', 'Presets', 'Lights'] as const) for (const g of menuGroups(tab)) expect(menuTiles(tab, { ...none, presets: { from: 'start', list: [], mine: null } }).some((t) => t.id === g.id)).toBe(false);
+    // a tab with groups shows even when the chosen group is empty
+    expect(menuTabs({ ...none, presets: { from: 'mine', list: [], mine: null } })).toContain('Presets');
+  });
+
+  it('the highlight is remembered per tab and group', () => {
+    const m = new TileMenu();
+    const a = { ...none, lightGroup: 'interior' as const };
+    const b = { ...none, lightGroup: 'outside' as const };
+    m.open(a);
+    m.setTab('Lights', a);
+    m.move(1, 0, 4, a);
+    m.move(1, 0, 4, a);
+    expect(m.index).toBe(2);
+    m.groupChanged(b);
+    expect(m.index).toBe(0);
+    m.move(1, 0, 4, b);
+    m.groupChanged(a);
+    expect(m.index).toBe(2);
+    m.groupChanged(b);
+    expect(m.index).toBe(1);
+  });
+
+  it('Lights tab (ON6, group row): the five groups and Switch and test on the group row, the tiles only fittings; a lamp has Aim and Circuit', () => {
+    expect(menuGroups('Lights').map((g) => g.name)).toEqual(['Interior', 'Plant and goods', 'Outside', 'Emergency', 'Glow', 'Switch and test']);
     const t = menuTiles('Lights', { ...none, lightGroup: 'emergency' });
-    expect(t.slice(0, 6).map((x) => x.name)).toEqual(['Interior', 'Plant and goods', 'Outside', 'Emergency', 'Glow', 'Switch']);
-    expect(t.find((x) => x.id === 'lightgroup.emergency')!.on).toBe(true);
-    // ON7: the guard view tester after Switch
-    expect(t[6]!.id).toBe('guard.view');
-    expect(t.slice(7).map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
-    expect(menuTiles('Lights', none).slice(7, 9).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    expect(t.map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
+    expect(menuTiles('Lights', none).slice(0, 2).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    // Switch and ON7's guard view tester are their own group
+    expect(menuTiles('Lights', { ...none, lightGroup: LIGHT_TOOLS }).map((x) => x.id)).toEqual(['light.switch', 'guard.view']);
     // ON7: a breakable lamp can be previewed shot out
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight', breakable: true } })).toContain('Preview shot out');
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'floodlight' } })).toEqual(['Move', 'Duplicate', 'Aim', 'Circuit', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Array', 'Rename id', 'Change type', 'Properties', 'Delete']);
@@ -180,14 +212,16 @@ describe('Climb tab (ON5)', () => {
 });
 
 describe('ON11 Presets tab', () => {
-  it('shows the three sources, then the shown source presets; Mine adds Rename and Delete', () => {
+  it('the three sources on the group row; the tiles are the shown source presets; Mine adds Rename and Delete', () => {
     const view = { layout: '3d', ghost: false, exploded: false, gap: 0, cut: 0, preset: 'whole', building: 'all', minimap: false, labels: true, underlay: false } as const;
     const inp = { sel: null, clipboard: false, view, presets: { from: 'start' as const, list: [{ id: 'start.office-4', name: '4-desk office', desc: '6 x 5 m' }], mine: null } };
-    expect(menuTiles('Presets', inp).map((t) => t.id)).toEqual(['presetfrom.start', 'presetfrom.kit', 'presetfrom.mine', 'preset.start.office-4']);
+    expect(menuGroups('Presets').map((g) => g.id)).toEqual(['presetfrom.start', 'presetfrom.kit', 'presetfrom.mine']);
+    expect(menuTiles('Presets', inp).map((t) => t.id)).toEqual(['preset.start.office-4']);
     const mine = { ...inp, presets: { from: 'mine' as const, list: [], mine: null } };
+    expect(menuGroup('Presets', mine)).toBe('presetfrom.mine');
     const tiles = menuTiles('Presets', mine);
-    expect(tiles.map((t) => t.id)).toEqual(['presetfrom.start', 'presetfrom.kit', 'presetfrom.mine', 'mine.rename', 'mine.delete']);
-    expect(tiles[3]!.disabled).toBeTruthy();
+    expect(tiles.map((t) => t.id)).toEqual(['mine.rename', 'mine.delete']);
+    expect(tiles[0]!.disabled).toBeTruthy();
     expect(menuTiles('Selected', { ...inp, group: 3 }).map((t) => t.name)).toContain('Save as preset');
   });
 });
