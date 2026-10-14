@@ -191,3 +191,11 @@ serially (217 s, 15 s, 38 s, 21 s); e2e-kestrel and e2e-camera-bounds level U ar
 failures. Perf trend (software GL): sim p95 3.5 ms (T0 3.9), anim 0.072 ms/char (T0 0.105), alloc 11163 KB/s (T0
 11163), draws 44, tris 0.14 M: no rise. Self-review: docs/training/BLOCK-B-REVIEW.md. GPU rows: pending PC run.
 PAUSED for Michael's walk (D27): docs/training/WALK.md.
+
+## Walk 1 (2026-10-14)
+Michael walked B1-B2 and stopped: redesign needed. Notes in WALK-NOTES.md; decisions D40-D48; SPEC course rules R1-R8
+(linear and unavoidable, together unless a drill needs a split, one shared course, compact rooms, objective list always on
+screen, automatic airlocks with a marked pad, dark shell with glass and LED fit-out, everything else kept). Bugs: no
+client prompts, client passes his locked door, airlock rear door stayed open, no Cycle on the client (airlocks become
+automatic). Fix 3c89308: dev server served index.html for shaders (black view) - PBR, shadow, depth and post shaders now
+registered in src/core/babylon.ts. New steps T5b (fixes), T5c (BAYS v2), T5d-T5g (rebuild), then walk 2.

@@ -133,6 +133,18 @@ balcony boost gap 4.5 (level-design 11.3 kept).
 9. How many lights may one map carry (bake, `LightRegistry`), and the lamp count per 2 m column (8)? BAYS lists about 150-170 including the airlocks.
 10. Does `ClearMode` / `InfiltrationMode`'s `SQUAD_CAP` apply to the course mode, or does T1 spawn per bay?
 
+## Course rules (Michael, 2026-10-14, walk 1: D40-D47; they bind every bay and win over BAYS v1)
+| # | Rule | Check |
+| --- | --- | --- |
+| R1 | One linear path. Every bay is a chain of rooms the players must pass through in order; no corridor joins rooms so that one can be skipped; the exit is reachable only through every drill element. | Nav test: with the course's doors as gated, the only path from a bay's entry to its exit passes every drill element's trigger box, in order |
+| R2 | Unavoidable elements. Each obstacle spans the full width of its room or corridor (or the walls funnel to it): there is no walk round, over or past it; a fall from it leads back to its start, never onward. | Per element: blocking the element's own traversal makes the exit unreachable (nav test with the element's passage removed) |
+| R3 | Together unless the drill needs a split. Obstacle and movement drills are one shared course: both players run the same elements in the same order (no "ladder for one, pipe for the other"). Players split only where the drill's story needs it (one sneaks to a control room to open the way for the other; one holds while the other passes) and rejoin at once. | BAYS v2 lists every split with its reason; FEATURES "who" is "both" for every movement row |
+| R4 | Compact. Rooms only as big as their drill needs: typical drill rooms 8-14 m across, ceilings 3-6 m unless the drill is vertical; no empty floor. | BAYS v2 sizes; each bay's footprint at most about 60% of v1's |
+| R5 | Objectives on screen. The bay's objective list is always visible, each objective named explicitly and ticked as it is done (per player where both must do it). | e2e: the list shows on both pages from spawn, before any action |
+| R6 | Automatic airlocks. A marked floor area inside each airlock; one player on it shows "Waiting for partner" to both; both on it (none downed, the bay's objectives done) closes and locks the door behind for good, cycles and opens the door ahead. No button. | e2e: one inside waits; both inside seals and opens; the rear door is shut and locked on both pages |
+| R7 | Look: dark shell, glass and LED fit-out. The 1950s concrete shell stays dark; inside it the training spaces are fitted with glass partitions and screens, brushed steel, clean wall panels and LED strip lighting (an expensive modern facility). Glass is used for observation and sightlines, never as a way round an element. | BAYS v2 per bay; art layer T9a / T9b |
+| R8 | Everything else in the design stays (drills, story, gates where a split is needed, the B9 ghost plan, light plans adapted to the new rooms). | T5c self-check |
+
 ## Approved exceptions (Michael, DECISIONS D10 and D12)
 Only these rules are loosened, and only for this map. Every other rule of `docs/level-design.md`, the template and the
 bible applies in full. E1-E4 were in the question Michael approved (D10); E5-E10 follow from his D12 instruction and are

@@ -19,6 +19,10 @@ DECISIONS.md > docs/design-bible.md > SPEC.md (with exceptions E1-E10) > BAYS.md
   feature/training-bunker whatever branch the cloud session was given: check it out, commit and push only there.
 - A run may move between cloud and local at any step boundary: STATE.md says where the last step ran.
 
+## Course rules and BAYS v2 (walk 1, 2026-10-14)
+SPEC "Course rules" R1-R8 bind every step from T5b on. After T5c, BAYS.md is v2 (v1 kept as BAYS-v1.md): line
+ranges in later step files (T6-T10) point at v1; find the same section in v2 by its heading instead.
+
 ## Hand-offs (D39)
 Every stop ends with the "Next for Michael" block (BRIEF section 6): exact actions and the exact next prompt in a fenced
 block; he never has to look anything up. Keep STATE.md "Next for Michael" current.

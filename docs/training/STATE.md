@@ -24,7 +24,12 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 | B | T4 Plant | done | 1094b71 |
 | B | T5 Deep | done | d6cbef8 |
 | B | Block B end, then PAUSE for Michael's walk (D27) | done; paused (GPU rows pending PC run) | a75574b |
-| C | T5b walk notes | not started | |
+| C | T5b walk-1 fixes (automatic airlocks, client prompts and doors, objective list) | not started | |
+| C | T5c BAYS v2 redesign (docs) | not started | |
+| C | T5d rebuild Upper (B1, A1, B2, A2) | not started | |
+| C | T5e rebuild Shaft and Cistern (B3, A3, B4, A4) | not started | |
+| C | T5f rebuild Plant (B5, A5, B6, S6, A6) | not started | |
+| C | T5g rebuild Deep (B7-B9, L9), then PAUSE for walk 2 | not started | |
 | C | TM merge locomotion 09-20 (waits for loco 20, D15) | not started | |
 | C | T6 light, zones, surfaces | not started | |
 | C | T7a course data, drills, gates, devices | not started | |
@@ -47,24 +52,15 @@ Branch: feature/training-bunker (from origin/feature/kestrel)
 A1-A43 (DECISIONS.md; A6 revised per D21, A15 resolved)
 
 ## Next for Michael
-1. Where the run is: Blocks A and B are done (course framework, all nine bays and eight airlocks as greybox, checked).
-   The run is paused for your walk of the geometry (D27).
-2. On your PC: `cd C:\NightShift\Mobile-Coop`, `git fetch origin`, `git checkout feature/training-bunker`, `git pull`,
-   `npm ci`, `npm run dev`.
-3. Two tabs, one after the other (2 s apart): `http://localhost:5173/?net=local&autostart=bunker&mode=course&fullbright=1&gfx=min`.
-   Alone: `http://localhost:5173/?autostart=bunker&mode=course&course=solo&fullbright=1&gfx=min`. F3 > Teleport lists B1-B9, A1-A8, L9, S6
-   and the extra points (B3-RC, B3-G3, B3-rope ...).
-4. Per bay, about 5 minutes: the checklist table in docs/training/WALK.md. Start with the top 5 risks at the end of
-   docs/training/BLOCK-B-REVIEW.md. `&fullbright=1&gfx=min` lights it like day for the walk (the real light plan comes in T6).
-5. Notes on the review page https://claude.ai/artifact/JMcAnistZtmPb6g3eyLMBs (saved for the run), or in docs/training/WALK-NOTES.md, one line each, e.g. `B5 | B5-SR | breaker escape too long | move the ladder`.
-   Then: `git add docs/training/WALK-NOTES.md`, `git commit -m "training: walk notes"`,
-   `git push origin feature/training-bunker`.
-6. Then send in a Claude Code session on the PC (folder C:\NightShift\Mobile-Coop):
+1. Where the run is: walk 1 done (notes in docs/training/WALK-NOTES.md, decisions D40-D48, course rules R1-R8 in SPEC).
+   Next: T5b fixes, T5c redesign on paper, T5d-T5g rebuild of every bay, then the run stops for walk 2.
+2. These steps need no GPU and no locomotion work: run them in a Claude Code cloud session (repo Tekcry/Mobile-Coop) or
+   on the PC. Send:
    ```
-   Training run: RESUME. Follow docs/training/BRIEF.md.
+   Training run: RESUME (cloud). Follow docs/training/BRIEF.md. Use branch feature/training-bunker.
    ```
-7. After that: T5b applies your notes, then TM (waits for locomotion step 20 on origin/feature/ct-locomotion: the next
-   planned stop if it has not landed), then T6 light, T7a course data, T7b guards and the Block C end (about 6 steps).
-   The first local block end also runs every pending PC-PASS row (GPU baseline, shots, perf).
+   (On the PC, drop "(cloud)" and the branch sentence is optional.)
+3. After that: about 6 steps, then a stop with walk-2 instructions (URLs, what to check, where to write notes).
+
 ## Next action
-Paused. On RESUME: read BRIEF, RULES, STATE; then T5b (docs/training/steps/T5b-walk-fixes.md) with WALK-NOTES.md.
+On RESUME: read BRIEF, RULES, STATE; then T5b (docs/training/steps/T5b-fixes.md). The dev-server shader fix is in (3c89308).
