@@ -195,9 +195,13 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 ### The tile menu (ON0a: replaces the wheels; Y tap, Space with the mouse)
 A full-width panel along the bottom of the views, as tall as its tiles need and at most about a third of the window
 (then it scrolls; fix-up 2026-10-14). The 3D view stays visible above it, and the dot, tool bar and card wait until it
-closes. A row of tabs, then a grid of compact tiles: a letter, the name and two to five words of what it does on one
-line where it fits (the words wrap under the name otherwise). A group tile (Objects, Presets, Lights) shows "shown" as a
-small marker. Tile words never name buttons: the hint bar says what A does.
+closes. A row of tabs centred over a centred grid of tiles: a letter, the name, and under it two to five words of what
+it does. Every tile is one size (2026-10-14, Michael): 292 px wide (216 px on phones and small windows), the width the
+longest names need capped so four columns fit at 1280 (932 on the small layout); long names wrap inside the tile. The
+height is the tallest tile any grid tab can show, so every tab's tiles match. At most 4 columns, fewer on a narrow panel
+(never stretched to the edges, never overflowing); a tab with fewer tiles than columns draws fewer columns, still
+centred. The D-pad steps across the columns as drawn. The View tab's list is as wide as the grid would be. A group tile
+(Objects, Presets, Lights) shows "shown" as a small marker. Tile words never name buttons: the hint bar says what A does.
 
 | Button | Does |
 | --- | --- |

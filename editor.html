@@ -145,26 +145,33 @@
       #ask button { margin-left: 8px; }
       /* the tile menu (ON0a): full width over the bottom half, tabs then big tiles; the View tab is a list */
       #tileMenu { position: absolute; z-index: 25; left: 0; right: 0; bottom: 0; max-height: calc(34vh / var(--ts, 1)); display: flex; flex-direction: column; background: rgba(12, 14, 17, 0.94); border-top: 2px solid var(--accent); padding: 8px 12px 6px; box-sizing: border-box; }
-      .tm-head { display: flex; align-items: center; gap: 12px; flex: none; }
+      .tm-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr); align-items: center; column-gap: 12px; flex: none; }
+      .tm-head .dim:first-child { grid-column: 1; justify-self: start; }
+      .tm-head .tm-close { grid-column: 3; justify-self: end; }
       .tm-head .dim { white-space: nowrap; font-size: 14px; }
-      .tm-tabs { display: flex; gap: 6px; flex: 1; justify-content: center; flex-wrap: nowrap; overflow: hidden; }
+      .tm-tabs { grid-column: 2; display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; overflow: hidden; }
       .tm-tabs button { font-size: 17px; padding: 5px 14px; border-radius: 8px; }
       .tm-tabs button.on { background: var(--accent); color: #fff; border-color: #fff; }
-      .tm-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 8px; margin-top: 8px; align-content: start; }
+      /* fixed-size tiles, at most 4 a row, centred (2026-10-14); the View list takes the grid's width */
+      .tm-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable both-edges; margin-top: 8px; }
+      .tm-grid { display: grid; grid-template-columns: repeat(var(--cols, 4), var(--tw, 292px)); gap: 8px; width: var(--gw); max-width: 100%; margin: 0 auto; align-content: start; }
+      .tm-grid.list { grid-template-columns: minmax(0, 1fr); }
       /* fix-up 2026-10-14: compact tiles: icon, then title and words on one line where they fit (the words wrap under the title otherwise); a group's "shown" is a small marker */
       .tile { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border: 2px solid var(--line); border-radius: 10px; background: rgba(40, 45, 52, 0.95); cursor: pointer; min-width: 0; }
       .tile .ti { flex: none; width: 28px; height: 28px; border-radius: 7px; background: #2c3440; color: var(--accent); font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
       .tile .tt { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
-      .tile .tn { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 17px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .tile small { flex: 1 1 7em; min-width: 0; color: var(--dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tm-grid:not(.list) .tile .tt { flex-direction: column; align-items: flex-start; }
+      .tm-grid:not(.list) .tile small { flex: none; }
+      .tile .tn { flex: 0 1 auto; min-width: 0; max-width: 100%; font-size: 17px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+      .tile small { flex: 1 1 7em; min-width: 0; color: var(--dim); font-size: 13px; overflow-wrap: anywhere; }
       .tile .tv { flex: none; color: var(--accent); font-size: 17px; white-space: nowrap; }
       .tile .tv.mark { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #111; background: var(--accent); border-radius: 4px; padding: 1px 5px; }
       .tile.hl { border-color: #fff; background: rgba(10, 132, 255, 0.4); }
       .tile.off { opacity: 0.45; }
       .tile.lit .ti { background: var(--accent); color: #111; }
-      .tm-body.list .tile { padding: 4px 12px; }
-      .tm-body.list .tile .tv { font-size: 18px; }
-      .tm-body.list .tile .ti { width: 26px; height: 26px; font-size: 15px; }
+      .tm-grid.list .tile { padding: 4px 12px; }
+      .tm-grid.list .tile .tv { font-size: 18px; }
+      .tm-grid.list .tile .ti { width: 26px; height: 26px; font-size: 15px; }
       /* the small plan in the corner of 3D waits under the open menu */
       body:has(#tileMenu:not(.hidden)) #stage[data-layout='3d'][data-minimap='1'] #planWrap { visibility: hidden; }
       /* the name picker (A on the card's Name row): the names used, then the on-screen keyboard */
@@ -248,14 +255,15 @@
         #tileMenu { padding: 5px 8px 4px; }
         .tm-head .dim { display: none; }
         .tm-tabs button { font-size: 13px; padding: 3px 8px; min-height: 28px; }
-        .tm-body { gap: 5px; margin-top: 5px; }
+        .tm-body { margin-top: 5px; }
+        .tm-grid { gap: 5px; }
         .tile { padding: 3px 7px; gap: 6px; }
         .tile .ti { width: 22px; height: 22px; font-size: 13px; }
         .tile .tn, .tile .tv { font-size: 14px; }
         .tile small { font-size: 11px; }
-        .tm-body.list .tile { padding: 3px 8px; }
-        .tm-body.list .tile .ti { width: 22px; height: 22px; font-size: 13px; }
-        .tm-body.list .tile .tv { font-size: 14px; }
+        .tm-grid.list .tile { padding: 3px 8px; }
+        .tm-grid.list .tile .ti { width: 22px; height: 22px; font-size: 13px; }
+        .tm-grid.list .tile .tv { font-size: 14px; }
         .np-head, .np-item, .np-key { font-size: 14px; }
         #hint, body[data-device='pad'] #hint { font-size: 13px; padding: 4px 8px; }
         #padStrip { font-size: 13px; padding: 5px 8px; }

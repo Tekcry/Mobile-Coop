@@ -812,6 +812,55 @@ try {
     }
     await page.setViewportSize({ width: 1600, height: 900 });
 
+    // 2026-10-14 (Michael): tiles centred, at most 4 equal columns; the View list as wide as the grid; D-pad matches columns
+    for (const [vw, vh] of [[1920, 1080], [1280, 720], [1024, 600], [932, 430]]) {
+      await page.setViewportSize({ width: vw, height: vh });
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); });
+      let gridW = 0;
+      for (const tab of ['Build', 'Openings', 'Objects', 'View']) {
+        await E((t) => { const p = window.__editor.pad; p.menu.setTab(t, p.menuInput()); }, tab);
+        await page.waitForFunction((t) => document.querySelector('#tileMenu [data-mtab].on')?.textContent === t, tab, { timeout: 5000 }).catch(() => {});
+        await frames(page, 3);
+        const g = await E(() => {
+          const el = document.getElementById('tileMenu');
+          const mb = el.getBoundingClientRect();
+          const grid = el.querySelector('.tm-grid').getBoundingClientRect();
+          const tabs = el.querySelector('.tm-tabs').getBoundingClientRect();
+          const bs = [...el.querySelectorAll('.tm-tabs button')].map((b) => b.getBoundingClientRect());
+          const tb = [...el.querySelectorAll('.tile')].map((t) => t.getBoundingClientRect());
+          const lefts = [...new Set(tb.map((b) => Math.round(b.left)))];
+          const ws = tb.map((b) => b.width), hs = tb.map((b) => b.height);
+          let over = 0;
+          for (let i = 0; i < tb.length; i++) for (let j = i + 1; j < tb.length; j++) { const [a, c] = [tb[i], tb[j]]; if (a.left < c.right - 0.5 && c.left < a.right - 0.5 && a.top < c.bottom - 0.5 && c.top < a.bottom - 0.5) over++; }
+          const cut = tb.filter((b) => b.left < mb.left - 0.5 || b.right > mb.right + 0.5).length;
+          const tabsMid = bs.length ? (bs[0].left + bs[bs.length - 1].right) / 2 : 0;
+          return { cols: lefts.length, n: tb.length, dw: Math.max(...ws) - Math.min(...ws), dh: Math.max(...hs) - Math.min(...hs), w: Math.round(ws[0]), h: Math.round(hs[0]), gl: grid.left - mb.left, gr: mb.right - grid.right, gw: grid.width, over, cut, tabsOff: Math.abs(tabsMid - (mb.left + mb.right) / 2), tabsFit: tabs.width >= bs.reduce((a, b) => a + b.width, 0) - 1 };
+        });
+        if (tab !== 'View') gridW = Math.max(gridW, g.gw);
+        const ok = g.cols <= 4 && g.dw <= 1 && g.dh <= 1 && Math.abs(g.gl - g.gr) <= 2 && g.over === 0 && g.cut === 0 && (!g.tabsFit || g.tabsOff <= 2) && (tab !== 'View' || Math.abs(g.gw - gridW) <= 1);
+        assert(ok, `${vw} x ${vh} ${tab}: ${g.n} tiles in ${g.cols} columns, each ${g.w} x ${g.h} px (spread ${g.dw.toFixed(1)} x ${g.dh.toFixed(1)}), gaps left ${g.gl.toFixed(1)} / right ${g.gr.toFixed(1)}, ${tab === 'View' ? `list ${Math.round(g.gw)} px wide (grid ${Math.round(gridW)})` : `grid ${Math.round(g.gw)} px`}, tabs off centre ${g.tabsOff.toFixed(1)} px, ${g.over} overlaps, ${g.cut} outside`);
+        if ((vw === 1920 || vw === 932) && (tab === 'Openings' || tab === 'View')) await shot(`menu-centred-${tab.toLowerCase()}-${vw}x${vh}`);
+      }
+      // D-pad right then down on Openings: the highlight moves one column, then one visual row (same column)
+      await E(() => { const p = window.__editor.pad; p.menu.setTab('Openings', p.menuInput()); });
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mtab].on')?.textContent === 'Openings', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const pos = () => E(() => { const b = document.querySelector('#tileMenu .tile.hl').getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top)]; });
+      await E(() => { window.__editor.pad.menu.index = 0; });
+      await page.waitForFunction(() => window.__editor.pad.menu.index === 0, null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const p0 = await pos();
+      await press(BTN.RIGHT);
+      await frames(page, 2);
+      const p1 = await pos();
+      await press(BTN.DOWN);
+      await frames(page, 2);
+      const p2 = await pos();
+      assert(p1[1] === p0[1] && p1[0] > p0[0] && p2[0] === p1[0] && p2[1] > p1[1], `${vw} x ${vh}: D-pad right moves one visual column (${p0} to ${p1}), down one visual row in the same column (${p2})`);
+      await E(() => { const p = window.__editor.pad; p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+    }
+    await page.setViewportSize({ width: 1600, height: 900 });
+
     // an empty patch on the ground floor for a test room (no wall within a metre of a 6 x 5 box)
     const spot = await E(() => {
       const ws = window.__editor.model.data.walls.filter((w) => w.level === 'G');
