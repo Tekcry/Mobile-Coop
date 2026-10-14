@@ -40,7 +40,7 @@ import type { ProblemSpot } from './overlays';
 import { FindBox } from './findView';
 import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
 import type { StairTypeId } from './vertical';
-import { defaultBase, footprintAt, newRoof, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
+import { defaultBase, footprintAt, newRoof, ridgeHandle, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
 import type { RoofType } from './roofGeometry';
 import { aisleOf, newObject, stealthTint, objectId, placeObject, rowCount, rowRect, turnObject } from './objects';
 import { GROUPS, groupName, presetOf, PRESETS } from './catalogue';
@@ -727,8 +727,28 @@ export class Editor {
       }
       case 'roofs': {
         const r = (s.e as Roof).rect;
-        const b = (s.e as Roof).base + this.view.offsetOf(lvl);
-        return two((r[0] + r[2]) / 2, (r[1] + r[3]) / 2, b, b);
+        const off = this.view.offsetOf(lvl);
+        const b = (s.e as Roof).base + off;
+        // the top handle is the ridge (Michael 2026-10-14; a flat roof has none)
+        const rg = ridgeHandle(s.e as Roof);
+        return [...(rg ? [{ id: 'top' as const, x: rg.x, z: rg.z, y: rg.y + off }] : []), { id: 'bot' as const, x: (r[0] + r[2]) / 2, z: (r[1] + r[3]) / 2, y: b }];
+      }
+      // Michael 2026-10-14: a lamp's and a security device's mounting height, one handle under the body's centre (a
+      // point one 0.3 m under it, clear of its move marker; above it where that would be under the floor)
+      case 'lamps': {
+        const l = s.e as Lamp;
+        const fx = l.params.fixture;
+        const y = l.at[1] + (fx?.oy ?? 0) - (fx?.sy ?? 0) / 2;
+        if (l.b) return two((l.at[0] + l.b[0]) / 2, (l.at[2] + l.b[2]) / 2, f + y + (l.b[1] - l.at[1]) / 2, 0);
+        const yb = y >= 0.3 ? y - 0.3 : y + 0.3;
+        return two(l.at[0], l.at[2], f + yb, f + yb);
+      }
+      case 'devices': {
+        const dv = s.e as unknown as { a?: [number, number, number]; b?: [number, number, number]; at?: [number, number]; y?: number };
+        if (dv.a && dv.b) return two((dv.a[0] + dv.b[0]) / 2, (dv.a[2] + dv.b[2]) / 2, f + (dv.a[1] + dv.b[1]) / 2, 0);
+        if (!dv.at || typeof dv.y !== 'number') return [];
+        const yb = dv.y >= 0.3 ? dv.y - 0.3 : dv.y + 0.3;
+        return two(dv.at[0], dv.at[1], f + yb, 0);
       }
       default:
         return [];
@@ -843,8 +863,12 @@ export class Editor {
   heldWords(): string {
     const d = this.drag;
     const s = d ? { coll: d.coll, e: this.model.get(d.coll, d.id) } : this.selectedElem();
-    const h = s?.e ? heightWords(s.coll, s.e) : null;
-    const m = d && !d.isNew ? (d.handle === 'top' ? 'Top' : d.handle === 'bot' ? 'Bottom' : d.mode === 'resize' ? 'Resize' : 'Move') : '';
+    // Michael 2026-10-14: a roof's top handle is its ridge; a lamp's or device's bottom one its mounting height
+    const ridge = d?.handle === 'top' && s?.coll === 'roofs' && s.e ? (s.e as Roof) : null;
+    const rh = ridge ? ridgeHandle(ridge) : null;
+    const h = ridge && rh ? `${fmt(rh.y)} m, ${ridge.type === 'curved' ? `rise ${fmt(ridge.rise ?? 0)} m` : `${ridge.pitch ?? 0} degrees`}` : s?.e ? heightWords(s.coll, s.e) : null;
+    const mount = s?.coll === 'lamps' || s?.coll === 'devices';
+    const m = d && !d.isNew ? (d.handle === 'top' ? (ridge ? 'Ridge' : 'Top') : d.handle === 'bot' ? (mount ? 'Height' : 'Bottom') : d.mode === 'resize' ? 'Resize' : 'Move') : '';
     return [m, h].filter(Boolean).join(', ');
   }
 
@@ -1545,6 +1569,21 @@ export class Editor {
       return null;
     }
     return g.e;
+  }
+
+  private stampWallKey = '';
+  private stampWallSays: string | null = null;
+  /**
+   * Michael 2026-10-14: the stamp ghost's wall rule before A, "Inside a wall: Desk" when the stamp would be refused, else
+   * null. Worked out only when the ghost moves, turns or the file changes (its key), not every frame.
+   */
+  stampWallWhy(ghostKey: string, x: number, z: number): string | null {
+    if (ghostKey === this.stampWallKey) return this.stampWallSays;
+    this.stampWallKey = ghostKey;
+    const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
+    const ch = 'why' in r ? null : this.stampWallRule(r.changes);
+    this.stampWallSays = typeof ch === 'string' ? ch : null;
+    return this.stampWallSays;
   }
 
   /**
@@ -2599,7 +2638,7 @@ export class Editor {
     const d = this.drag;
     const s = d ? this.model.get(d.coll, d.id) : undefined;
     if (!d || !s) return { words: '', shapes: [] };
-    if (d.refused === INSIDE_WALL) return { words: `${INSIDE_WALL}: move it out (B puts it back)`, shapes: [], bad: true };
+    if (d.refused === INSIDE_WALL) return { words: `${INSIDE_WALL}: move it out`, shapes: [], bad: true };
     const walls = this.model.list('walls') as Wall[];
     if (d.coll === 'walls') {
       const lw = liveWall(s as Wall, walls);
@@ -3174,6 +3213,10 @@ export class Editor {
       case 'duplicate': return this.duplicate();
       // Michael 2026-10-14: [ and ] step the tool's type on the carousel
       case 'typeStep': return this.pad?.carouselStep(e?.code === 'BracketLeft' ? -1 : 1);
+      // Shift+[ and Shift+] ({ and }): the item's version, or the group
+      case 'typeAxis':
+        if (!this.pad?.carouselAxis(e?.code === 'BracketLeft' ? -1 : 1)) this.status('This item has no other versions or groups');
+        return;
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
         const c = e?.code ?? '';
@@ -3782,7 +3825,7 @@ export class Editor {
     const partWords = this.splitting ? 'Split here' : padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
-    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox', pad?.lbHeld ?? false).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);
+    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox', pad?.lbHeld ?? false).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.id === 'toolVariant' && padOn ? pad.carouselHint() : i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 

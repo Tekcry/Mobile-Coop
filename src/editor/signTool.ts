@@ -80,7 +80,7 @@ export class SignTool {
     marks.push({ x: s.at[0], y: f + s.y, z: s.at[1], sx: s.size[0], sy: s.size[1], sz: 0.05, dx: Math.cos(yaw), dz: -Math.sin(yaw), look: 'ghost' });
     const h = s.size[0] / 2;
     plan.push({ kind: 'line', a: [s.at[0] - Math.cos(yaw) * h, s.at[1] + Math.sin(yaw) * h], b: [s.at[0] + Math.cos(yaw) * h, s.at[1] - Math.sin(yaw) * h] });
-    return { words: `A: ${p.words}`, bad: false, key: `sg|${this.kind}|${s.at.join()}|${s.facing}|${s.y}`, marks, plan };
+    return { words: p.words, bad: false, key: `sg|${this.kind}|${s.at.join()}|${s.facing}|${s.y}`, marks, plan };
   }
 
   /** The plan's signs (bars in their colour with their words) and name plates (tags in the access level colour). */

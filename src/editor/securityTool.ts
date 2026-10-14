@@ -150,7 +150,7 @@ export class SecurityTool {
       const h = SF.beamHeightDefault.value;
       marks.push({ x: e.p[0], y: f + h / 2, z: e.p[1], sx: 0.08, sy: h, sz: 0.08, dx: 1, dz: 0, look: 'ghost' });
       plan.push({ kind: 'ring', p: e.p });
-      return { words: `A: a beam from ${e.wall ? `the face of ${e.wall}` : 'a post here'}, ${fmt(h)} m (high)`, bad: false, key: `bm|${e.p.join()}`, marks, plan };
+      return { words: `A beam from ${e.wall ? `the face of ${e.wall}` : 'a post here'}, ${fmt(h)} m (high)`, bad: false, key: `bm|${e.p.join()}`, marks, plan };
     }
     const p = this.walled(placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from()));
     if (!p.dev) {
@@ -162,7 +162,7 @@ export class SecurityTool {
     marks.push({ x: dev.at[0], y: f + dev.y, z: dev.at[1], sx: 0.3, sy: 0.15, sz: 0.15, dx: Math.sin(yaw), dz: Math.cos(yaw), look: 'ghost' });
     plan.push({ kind: 'ring', p: dev.at });
     if (isCamera(dev)) for (const s of this.frameLines(dev)) plan.push({ kind: 'line', a: s[0], b: s[1] });
-    return { words: `A: ${p.words}`, bad: false, key: `sd|${this.kind}|${dev.at.join()}|${dev.facing}|${isReader(dev) ? dev.door ?? '' : ''}`, marks, plan };
+    return { words: `${p.words.charAt(0).toUpperCase()}${p.words.slice(1)}`, bad: false, key: `sd|${this.kind}|${dev.at.join()}|${dev.facing}|${isReader(dev) ? dev.door ?? '' : ''}`, marks, plan };
   }
 
   /** A camera's frame outline on the plan: the two edges of its frame (a pan camera: of its whole sweep) to its range. */

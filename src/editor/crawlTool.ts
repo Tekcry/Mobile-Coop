@@ -114,7 +114,7 @@ export class CrawlTool {
     const marks: Mark[] = [{ x: at[0], y: f + h.y0 + 0.05, z: at[1], sx: 0.6, sy: 0.1, sz: 0.6, dx: 1, dz: 0, look: 'ghost' }];
     const plan: PlanShape[] = [{ kind: 'ring', p: at }];
     const where = h.inVoid ? `in the void, ${fmt(h.y1 - h.y0)} m clear` : `on the floor, ${fmt(h.y1 - h.y0)} m clear (no ceiling void here)`;
-    const words = c0 ? `A: crawl space ${c0.id} goes on from its end` : `A: a crawl space from ${this.endWords(e)}, ${where}`;
+    const words = c0 ? `Crawl space ${c0.id} goes on from its end` : `A crawl space from ${this.endWords(e)}, ${where}`;
     return { words, bad: false, key: `cr|${at.join()}|${e.kind}|${c0?.id ?? ''}`, marks, plan };
   }
 

@@ -27,6 +27,8 @@ export interface CatEntry {
   sill: number;
   /** The settings the card shows for this type, in card order. */
   settings: readonly Setting[];
+  /** Michael 2026-10-14: one kind in other versions (the carousel's versions: D-pad up / down). */
+  series?: string;
   /** Where the size comes from. */
   src: string;
 }
@@ -44,17 +46,17 @@ export const CATALOGUE: readonly CatEntry[] = [
   { id: 'fire-door', name: 'Fire door', family: 'door', leaf: 'solid', motion: 'swing', w: facts.stair.fireDoorWidth.value, h: F.singleHeight.value, sill: 0, settings: SWING_SET, src: `facts stair.fireDoorWidth, door.singleHeight (${facts.stair.fireDoorWidth.src})` },
   { id: 'double', name: 'Double door', family: 'door', leaf: 'solid', motion: 'double', w: F.doubleWidthA.value, h: F.singleHeight.value, sill: 0, settings: ['swing', 'oneWay', 'locked', 'reader', 'level', 'closer', 'alarmed', 'vision'], src: `facts door.doubleWidthA (${F.doubleWidthA.src})` },
   { id: 'glass-door', name: 'Glass swing door', family: 'door', leaf: 'glass', motion: 'swing', w: F.singleWidth.value, h: F.singleHeight.value, sill: 0, settings: GLASS_SWING, src: `facts door.singleWidth, singleHeight (${F.singleWidth.src})` },
-  { id: 'slide-auto', name: 'Sliding glass door (automatic)', family: 'door', leaf: 'glass', motion: 'slide', w: F.doubleWidthB.value, h: F.singleHeight.value, sill: 0, settings: GLASS_SLIDE, src: `facts door.doubleWidthB (${F.doubleWidthB.src}): a two-leaf automatic slider's clear width` },
-  { id: 'slide-card', name: 'Sliding glass door (card)', family: 'door', leaf: 'glass', motion: 'slide', w: F.doubleWidthB.value, h: F.singleHeight.value, sill: 0, settings: GLASS_SLIDE, src: `facts door.doubleWidthB (${F.doubleWidthB.src})` },
+  { id: 'slide-auto', name: 'Sliding glass door (automatic)', series: 'slide-glass', family: 'door', leaf: 'glass', motion: 'slide', w: F.doubleWidthB.value, h: F.singleHeight.value, sill: 0, settings: GLASS_SLIDE, src: `facts door.doubleWidthB (${F.doubleWidthB.src}): a two-leaf automatic slider's clear width` },
+  { id: 'slide-card', name: 'Sliding glass door (card)', series: 'slide-glass', family: 'door', leaf: 'glass', motion: 'slide', w: F.doubleWidthB.value, h: F.singleHeight.value, sill: 0, settings: GLASS_SLIDE, src: `facts door.doubleWidthB (${F.doubleWidthB.src})` },
   { id: 'slide', name: 'Sliding door (manual)', family: 'door', leaf: 'solid', motion: 'slide', w: F.singleWidth.value, h: F.singleHeight.value, sill: 0, settings: ['stack', 'locked', 'reader', 'level', 'alarmed', 'vision'], src: `facts door.singleWidth (${F.singleWidth.src})` },
   { id: 'roller', name: 'Roller shutter', family: 'door', leaf: 'solid', motion: 'roll', w: F.rollerWidth.value, h: F.rollerHeight.value, sill: 0, settings: ['locked', 'reader', 'level', 'alarmed'], src: `facts door.rollerWidth, rollerHeight (${F.rollerWidth.src})` },
   { id: 'gate', name: 'Gate', family: 'door', leaf: 'mesh', motion: 'swing', w: F.singleWidth.value, h: 2.4, sill: 0, settings: ['hinge', 'swing', 'oneWay', 'locked', 'reader', 'level', 'closer', 'alarmed'], src: `facts door.singleWidth; height ${EDITOR} (a pedestrian gate in a 2.4 m fence, P03B 2d-2b)` },
   { id: 'slide-gate', name: 'Sliding gate', family: 'door', leaf: 'mesh', motion: 'slide', w: F.wideOpeningMax.value + F.wideOpeningMin.value, h: 2.4, sill: 0, settings: ['stack', 'locked', 'reader', 'level', 'alarmed'], src: `facts door.wideOpeningMin + wideOpeningMax (${F.wideOpeningMax.src}): a vehicle gate; height ${EDITOR}` },
   { id: 'hatch', name: 'Hatch', family: 'door', leaf: 'solid', motion: 'swing', w: 0.9, h: 0.9, sill: 0, settings: ['hinge', 'swing', 'locked', 'alarmed'], src: `${EDITOR} (an access hatch; a floor or ceiling hatch is a Floor hole until stage DR)` },
   { id: 'arch', name: 'Arch (no leaf)', family: 'door', leaf: 'none', motion: 'none', w: F.singleWidth.value, h: F.singleHeight.value, sill: 0, settings: [], src: `facts door.singleWidth, singleHeight (${F.singleWidth.src})` },
-  { id: 'window', name: 'Fixed window', family: 'window', leaf: 'glass', motion: 'none', w: 1.2, h: 1.2, sill: 0.9, settings: WINDOW_SET, src: EDITOR },
+  { id: 'window', name: 'Fixed window', series: 'fixed-window', family: 'window', leaf: 'glass', motion: 'none', w: 1.2, h: 1.2, sill: 0.9, settings: WINDOW_SET, src: EDITOR },
   { id: 'window-open', name: 'Opening window (top hung)', family: 'window', leaf: 'glass', motion: 'hung', w: 1.2, h: 1.2, sill: 0.9, settings: WINDOW_SET, src: EDITOR },
-  { id: 'window-frosted', name: 'Frosted fixed window', family: 'window', leaf: 'glass', motion: 'none', w: 1.2, h: 1.2, sill: 0.9, settings: WINDOW_SET, src: EDITOR },
+  { id: 'window-frosted', name: 'Frosted fixed window', series: 'fixed-window', family: 'window', leaf: 'glass', motion: 'none', w: 1.2, h: 1.2, sill: 0.9, settings: WINDOW_SET, src: EDITOR },
   { id: 'louvre', name: 'Louvre window', family: 'window', leaf: 'glass', motion: 'louvre', w: 0.9, h: 0.9, sill: 1.2, settings: WINDOW_SET, src: EDITOR },
   { id: 'rooflight', name: 'Roof light', family: 'window', leaf: 'glass', motion: 'none', w: 1.2, h: 0.6, sill: 2.2, settings: WINDOW_SET, src: `${EDITOR} (high in the wall under the roof; a glazed hole in a roof slab is the Floor hole tool's Roof light)` },
 ];

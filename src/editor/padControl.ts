@@ -21,14 +21,14 @@ import type { PadSettings } from './hub';
 import { focusField, HubView, stepField } from './hubView';
 import type { Editor, PlanShape } from './main';
 import { cardWords, DOOR_NAMES, label, OPENING_DEFAULTS, slotDoorName, withBetween } from './ops';
-import { familyTypes } from './openingCatalogue';
+import { catEntry, familyTypes } from './openingCatalogue';
 import { ORBIT } from './orbit';
 import { PAD, PadState, padWords as padWordsOf } from './pad';
 import { linkedHint, ROOM_OPTIONS } from './roomWalls';
 import type { RoomWallOption } from './roomWalls';
 import { navAxes, StepRepeat } from './stickSteps';
 import { LIGHT_TOOLS, stepGroup, TileMenu } from './tileMenu';
-import { carouselFade, carouselSlots, carouselWindow, wrapIndex } from './carousel';
+import { carAxis, carFamilies, carNextFamily, carNextVersion, carouselFade, carouselSlots, carouselWindow, carWhere, wrapIndex } from './carousel';
 import { MISSION_TOOLS, ROSTER } from './missionCatalogue';
 import { SEC_TOOLS } from './securityCatalogue';
 import { SIGN_KINDS } from './signCatalogue';
@@ -48,7 +48,7 @@ import { badgeWords } from './objects';
 import { CLIMB_PIECES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { pieceWords } from './climb';
-import { fittingOf, groupFittings } from './lightCatalogue';
+import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
 import type { MissionKind } from './missionCatalogue';
 import type { SecTool } from './securityCatalogue';
 import type { Device as SecDevice } from './security';
@@ -63,17 +63,38 @@ import { aimDir } from './lightCatalogue';
 import { circuitWords, lampWords, withParams } from './lamps';
 import type { Circuit, Lamp, LampData } from './lamps';
 import { loudWords } from './finishes';
-import { groupPresets } from './catalogue';
+import { GROUPS as OBJ_GROUPS, groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
 import { presetWords } from './presets';
 import type { PresetFrom } from './presets';
 
 type Focus = '3d' | 'drawer';
+/** The carousel's groups (objects, lights, presets): their names, the current one and how to go to one (its first entry). */
+interface CarGroups {
+  names: string[];
+  index: number;
+  set: (i: number) => void;
+}
+/** The carousel's list: names, the current index, how to set one, its families (list indices by series) and groups. */
+interface Car {
+  label: string;
+  names: string[];
+  index: number;
+  set: (i: number) => void;
+  fams: number[][];
+  groups?: CarGroups;
+}
+/** The Stamp tool's sources as the carousel's groups (the Presets tab's group row). */
+const PRESET_FROMS: readonly { id: PresetFrom; name: string }[] = [
+  { id: 'start', name: 'Start set' },
+  { id: 'kit', name: 'Module kit' },
+  { id: 'mine', name: 'Mine' },
+];
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
-/** The type carousel (Michael 2026-10-14): at most this many items, each this wide (CSS px; editor.html matches), this gap. */
 /** The pad's aim takes a top or bottom handle this close to the screen centre (CSS px; a handle is facts render.handlePx). */
 const VERT_AIM_PX = 16;
-const CAR = { MAX: 7, W: 118, W_SMALL: 92, GAP: 4, PAD: 16 } as const;
+/** The type carousel (Michael 2026-10-14): at most this many items, neighbours this wide, the lit one at most SEL (CSS px; editor.html matches), this gap. */
+const CAR = { MAX: 7, W: 132, W_SMALL: 96, SEL: 300, SEL_SMALL: 210, GAP: 4, PAD: 16 } as const;
 
 const BAR = [
   ['select', 'Select'],
@@ -203,7 +224,12 @@ export class PadControl {
         if (!(e.target as Element).closest('.car')) return;
         e.preventDefault();
         e.stopPropagation();
-        if (e.deltaY || e.deltaX) this.carouselStep((e.deltaY || e.deltaX) > 0 ? 1 : -1);
+        const dir = (e.deltaY || e.deltaX) > 0 ? 1 : -1;
+        // Shift+wheel: the version (or the group)
+        if (e.deltaY || e.deltaX) {
+          if (e.shiftKey) this.carouselAxis(dir);
+          else this.carouselStep(dir);
+        }
       },
       { passive: false },
     );
@@ -624,19 +650,21 @@ export class PadControl {
   /**
    * The placing tool's types for the carousel (Michael 2026-10-14): the list in the current group (doors, windows,
    * room options, stair, hole and roof types, the object group's presets, climb pieces, the light group's fittings,
-   * security devices, signs, the presets source, guard roles or mission markers), the current one and how to set one.
-   * Null where the tool has no types (Select, Wall, Switch, path editing, the Array count).
+   * security devices, signs, the presets source, guard roles or mission markers), the current one and how to set one;
+   * `series` per entry (the catalogue's `series`, the security tool's device kind) makes families with versions, and
+   * `groups` the tool's groups (objects, lights, presets). Null where the tool has no types (Select, Wall, Switch, path
+   * editing, the Array count).
    */
-  carousel(): { label: string; names: string[]; index: number; set: (i: number) => void } | null {
+  carousel(): Car | null {
     const ed = this.ed;
-    const of = <T,>(label: string, list: readonly T[], name: (t: T) => string, cur: (t: T) => boolean, set: (t: T) => void) =>
-      list.length ? { label, names: list.map(name), index: Math.max(0, list.findIndex(cur)), set: (i: number) => set(list[wrapIndex(i, list.length)]!) } : null;
+    const of = <T,>(label: string, list: readonly T[], name: (t: T) => string, cur: (t: T) => boolean, set: (t: T) => void, series?: (t: T) => string | undefined, groups?: CarGroups): Car | null =>
+      list.length ? { label, names: list.map(name), index: Math.max(0, list.findIndex(cur)), set: (i: number) => set(list[wrapIndex(i, list.length)]!), fams: carFamilies(series ? list.map(series) : list.map(() => undefined)), groups } : null;
     if (ed.drag || ed.stairDraw) return null;
     switch (ed.tool) {
       case 'door':
       case 'window': {
         const sel = $<HTMLSelectElement>(ed.tool === 'door' ? 'doorType' : 'windowType');
-        return of(ed.tool === 'door' ? 'Door type' : 'Window type', familyTypes(ed.tool), (t) => DOOR_NAMES[t] ?? t, (t) => t === sel.value, (t) => (sel.value = t));
+        return of(ed.tool === 'door' ? 'Door type' : 'Window type', familyTypes(ed.tool), (t) => DOOR_NAMES[t] ?? t, (t) => t === sel.value, (t) => (sel.value = t), (t) => catEntry(t).series);
       }
       case 'room':
         return of('Room', ROOM_OPTIONS, (o) => o.name, (o) => o.id === ed.roomOption, (o) => ed.setRoomOption(o.id));
@@ -646,19 +674,28 @@ export class PadControl {
         return of('Floor hole', HOLE_KINDS, (k) => HOLE_NAMES[k] ?? k, (k) => k === ed.holeKind, (k) => ed.setHoleKind(k));
       case 'roof':
         return of('Roof', ROOF_TYPES, (t) => t.name, (t) => t.id === ed.roofTypeId, (t) => ed.setRoofType(t.id));
-      case 'object':
-        return of('Object', groupPresets(ed.objPreset.group), (p) => p.name, (p) => p.id === ed.objPresetId, (p) => ed.setObjectPreset(p.id));
+      case 'object': {
+        const g = ed.objPreset.group;
+        const groups: CarGroups = { names: OBJ_GROUPS.map((q) => q.name), index: Math.max(0, OBJ_GROUPS.findIndex((q) => q.id === g)), set: (i) => ed.setObjectPreset(groupPresets(OBJ_GROUPS[wrapIndex(i, OBJ_GROUPS.length)]!.id)[0]!.id) };
+        return of('Object', groupPresets(g), (p) => p.name, (p) => p.id === ed.objPresetId, (p) => ed.setObjectPreset(p.id), (p) => p.series, groups);
+      }
       case 'climb':
         return of('Climb', CLIMB_PIECES, (q) => q.name, (q) => q.id === ed.climbKind, (q) => ed.setClimbKind(q.id));
       case 'security':
-        return of('Security', SEC_TOOLS, (t) => t.name, (t) => t.id === ed.security.kind, (t) => ed.security.setKind(t.id));
+        return of('Security', SEC_TOOLS, (t) => t.name, (t) => t.id === ed.security.kind, (t) => ed.security.setKind(t.id), (t) => t.kind);
       case 'sign':
         return of('Sign', SIGN_KINDS, (k) => k.name, (k) => k.id === ed.signTool.kind, (k) => ed.signTool.setKind(k.id));
-      case 'stamp':
-        return of('Stamp', ed.stamp.list(ed.stamp.from), (p) => p.name, (p) => p.id === ed.stamp.id, (p) => void ed.stamp.set(p.id));
+      case 'stamp': {
+        const st = ed.stamp;
+        const froms = PRESET_FROMS.filter((q) => st.list(q.id).length);
+        const groups: CarGroups = { names: froms.map((q) => q.name), index: Math.max(0, froms.findIndex((q) => q.id === st.from)), set: (i) => void st.set(st.list(froms[wrapIndex(i, froms.length)]!.id)[0]!.id) };
+        return of('Stamp', st.list(st.from), (p) => p.name, (p) => p.id === st.id, (p) => void st.set(p.id), undefined, groups);
+      }
       case 'lamp': {
         const f = ed.fitting;
-        return f ? of('Light', groupFittings(f.group), (q) => q.name, (q) => q.id === f.id, (q) => ed.setLampFit(q.id)) : null;
+        if (!f) return null;
+        const groups: CarGroups = { names: LIGHT_GROUPS.map((q) => q.name), index: Math.max(0, LIGHT_GROUPS.findIndex((q) => q.id === f.group)), set: (i) => ed.setLampFit(groupFittings(LIGHT_GROUPS[wrapIndex(i, LIGHT_GROUPS.length)]!.id)[0]!.id) };
+        return of('Light', groupFittings(f.group), (q) => q.name, (q) => q.id === f.id, (q) => ed.setLampFit(q.id), (q) => q.series, groups);
       }
       case 'mission': {
         const m = ed.mission;
@@ -672,21 +709,58 @@ export class PadControl {
     }
   }
 
-  /** The carousel's current item to `i` (a click), or by `dir` (D-pad left / right, [ and ], the wheel); the ghost follows at once. */
+  /** What D-pad up / down does with the carousel now (null: nothing). */
+  private carAxisNow(c: Car | null): 'version' | 'group' | null {
+    if (!c) return null;
+    const { f } = carWhere(c.fams, c.index);
+    return carAxis(c.fams[f]?.length ?? 1, c.groups?.names.length ?? 0);
+  }
+
+  /** The hint bar's word for the D-pad with a tool in hand: "Item / Version", "Item / Group", "Item", the Array's count, or "Level". */
+  carouselHint(): string {
+    if (this.ed.tool === 'arrange') return 'Count / Level';
+    const c = this.carousel();
+    if (!c) return 'Level';
+    const a = this.carAxisNow(c);
+    return a === 'version' ? 'Item / Version' : a === 'group' ? 'Item / Group' : 'Item';
+  }
+
+  /** The carousel's current entry to list index `i` (a click), or by `dir` (D-pad left / right, [ and ], the wheel); the ghost follows at once. */
   carouselPick(i: number): void {
     const c = this.carousel();
     if (!c) return;
     c.set(i);
     this.ed.status(`${c.label}: ${c.names[wrapIndex(i, c.names.length)] ?? ''}`);
+    this.carChanged();
+  }
+
+  private carChanged(): void {
     this.barKey = '';
     this.barAt = 0;
     this.ed.updateHint();
     this.drawBar();
   }
 
+  /** The next or previous item (family) on the carousel, its first version. */
   carouselStep(dir: 1 | -1): void {
     const c = this.carousel();
-    if (c) this.carouselPick(c.index + dir);
+    if (c) this.carouselPick(carNextFamily(c.fams, c.index, dir));
+  }
+
+  /** D-pad up / down, Shift+[ / Shift+], Shift+wheel: the next version of the item, or the next group; false if neither. */
+  carouselAxis(dir: 1 | -1): boolean {
+    const c = this.carousel();
+    const a = this.carAxisNow(c);
+    if (!c || !a) return false;
+    if (a === 'version') {
+      this.carouselPick(carNextVersion(c.fams, c.index, dir));
+      return true;
+    }
+    const g = c.groups!;
+    g.set(g.index + dir);
+    this.ed.status(`${c.label}: ${g.names[wrapIndex(g.index + dir, g.names.length)] ?? ''}`);
+    this.carChanged();
+    return true;
   }
 
   /** D-pad left / right with a tool and nothing grabbed: the next type on the carousel (the Array tool: its count). */
@@ -1534,8 +1608,11 @@ export class PadControl {
     // something selected, no tool: the D-pad edits the selection card (ON0a decision 4)
     if (ed.tool === 'select' && ed.selected && !this.measureFrom && !ed.splitting) return this.cardFrame(now);
     // nothing selected: up / down change level; with a tool, left / right flip its type (decision 5)
+    // Michael 2026-10-14: with a carousel, up / down step the item's version (or the group); without one, the level
     const n = this.nav(now, false);
-    if (n.y) ed.stepLevel(n.y < 0 ? 1 : -1);
+    const car = ed.tool !== 'select' && n.y ? this.carousel() : null;
+    if (n.y && car) this.carouselAxis(n.y > 0 ? 1 : -1);
+    else if (n.y) ed.stepLevel(n.y < 0 ? 1 : -1);
     if (n.x && ed.tool !== 'select') this.toolVariant(n.x as 1 | -1);
   }
 
@@ -1624,6 +1701,8 @@ export class PadControl {
     const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ed.tool === 'arrange' ? ed.arrange.barWords() : ed.tool === 'sign' ? ed.signTool.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}|${pad}|${car ? `${car.label}|${car.index}|${car.names.length}|${car.names[0] ?? ''}|${this.carSlots}` : ''}`;
     if (key === this.barKey) return;
     this.barKey = key;
+    // the hint bar's D-pad word follows the item (Item / Version or Item / Group)
+    if (car && pad) this.ed.updateHint();
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
@@ -1631,13 +1710,23 @@ export class PadControl {
     // Michael 2026-10-14: the type carousel over the slot: the current type centred and lit, its group's neighbours either side, fading
     let carHtml = '';
     if (car) {
-      const win = carouselWindow(car.names.length, car.index, this.carSlots);
+      // one row of families: the current one lit with its own name (and its version, "1/2"), the others by their first
+      const cw = carWhere(car.fams, car.index);
+      const win = carouselWindow(car.fams.length, cw.f, this.carSlots);
       const half = Math.max(1, ...win.map((w) => Math.abs(w.off)));
-      carHtml = `<div class="car" data-car="${esc(car.label)}">${win.map((w) => `<div class="ci${w.off ? '' : ' on'}" data-ci="${w.i}" style="opacity:${carouselFade(w.off, half + 1).toFixed(2)}">${esc(car.names[w.i] ?? '')}</div>`).join('')}</div>`;
+      carHtml = `<div class="car" data-car="${esc(car.label)}">${win
+        .map((w) => {
+          const m = car.fams[w.i] ?? [car.index];
+          const li = w.off ? (m[0] ?? car.index) : car.index;
+          const ver = !w.off && m.length > 1 ? `<small class="ver">${cw.v + 1}/${m.length}</small>` : '';
+          const nm = esc(car.names[li] ?? '');
+          return `<div class="ci${w.off ? '' : ' on'}" data-ci="${li}" title="${nm}" style="opacity:${carouselFade(w.off, half).toFixed(2)}"><span class="cn">${nm}</span>${ver}</div>`;
+        })
+        .join('')}</div>`;
     }
     const bar = $('toolBar');
     bar.classList.toggle('withcar', !!car);
-    bar.innerHTML = `${carHtml}<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    bar.innerHTML = `${carHtml}<div class="slot on${car ? ' under' : ''}" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s && pad) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
@@ -1714,7 +1803,8 @@ export class PadControl {
       // as many carousel items as fit beside the card (above it when the card rises), at least three
       const small = matchMedia('(max-width: 900px), (max-height: 500px)').matches;
       const iw = small ? CAR.W_SMALL : CAR.W;
-      const room = (r: number): number => carouselSlots((r - L) / kb - CAR.PAD, iw, CAR.GAP, CAR.MAX);
+      const sw = small ? CAR.SEL_SMALL : CAR.SEL;
+      const room = (r: number): number => carouselSlots((r - L) / kb - CAR.PAD, iw, CAR.GAP, CAR.MAX, sw);
       let n = room(c ? c.left - gap : stage.right - gap);
       if (n < 3) n = Math.max(n, room(stage.right - gap));
       if (n !== this.carSlots) {
@@ -1794,23 +1884,23 @@ export class PadControl {
         marks.push(this.bar(cs[i]!, cs[(i + 1) % 4]!, f + 0.1, 0.2, 0.15, 'ghost'));
         plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
-      words = `box ${fmt(b[2] - b[0])} x ${fmt(b[3] - b[1])} m: let go of A to select what is wholly inside`;
+      words = `box ${fmt(b[2] - b[0])} x ${fmt(b[3] - b[1])} m: selects what is wholly inside`;
       key = `box|${b.join()}`;
     } else if (ed.groupDrag) {
-      words = `moving ${groupWords(ed.group)} ${fmt(ed.groupDrag.dx)}, ${fmt(ed.groupDrag.dz)} m - A drops, B puts back`;
+      words = `moving ${groupWords(ed.group)} ${fmt(ed.groupDrag.dx)}, ${fmt(ed.groupDrag.dz)} m`;
       key = `gd|${ed.groupDrag.dx}|${ed.groupDrag.dz}`;
     } else if (ed.splitting && p) {
       // Split: the line across the room through the dot (red where it is too close to an edge)
       const l = ed.splitLine(p[0], p[1]);
       if (l) {
         bad = !!l.why;
-        words = l.why ?? `A: split here (${l.axis === 'x' ? 'north-south' : 'east-west'} line), RB turns it, B cancels`;
+        words = l.why ?? `Split here (${l.axis === 'x' ? 'north-south' : 'east-west'} line)`;
         key = `x|${l.axis}|${l.v}|${bad}`;
         marks.push(this.bar(l.a, l.b, f + 1.2, 2.4, 0.15, 'ghost'));
         plan.push({ kind: 'line', a: l.a, b: l.b });
       }
     } else if (this.measureFrom && p) {
-      if (Number.isNaN(this.measureFrom[0])) words = 'A: first point';
+      if (Number.isNaN(this.measureFrom[0])) words = 'Measure from here';
       else {
         const [x0, z0] = this.measureFrom;
         const len = hyp2(p[0] - x0, p[1] - z0);
@@ -1823,7 +1913,7 @@ export class PadControl {
       // ON2: the stair proposal (the stair itself is previewed in 3D and on the plan); its words at the dot
       const sd = ed.stairDraw;
       bad = !sd.ok;
-      words = sd.ok ? `${sd.words} - ${sd.phase === 'aim' ? 'A: show it' : 'A: accept, B: cancel'}` : sd.words;
+      words = sd.ok ? `${sd.words}${sd.phase === 'aim' ? '' : ' - proposed'}` : sd.words;
       key = `st|${sd.phase}|${sd.words}`;
       const r = ed.model.get<Stair>('stairs', sd.id)?.rect;
       if (r) plan.push({ kind: 'line', a: [r[0], r[1]], b: [r[2], r[1]] }, { kind: 'line', a: [r[2], r[1]], b: [r[2], r[3]] }, { kind: 'line', a: [r[2], r[3]], b: [r[0], r[3]] }, { kind: 'line', a: [r[0], r[3]], b: [r[0], r[1]] });
@@ -1836,7 +1926,7 @@ export class PadControl {
       plan.push(...live.shapes);
     }
     else if (s && vAim) {
-      words = vAim === 'top' ? 'Top: taller or shorter (A)' : 'Bottom: base up or down (A)';
+      words = vAim === 'top' ? (s.coll === 'roofs' ? 'Ridge: higher or lower (A)' : 'Top: taller or shorter (A)') : s.coll === 'lamps' || s.coll === 'devices' ? 'Height: up or down (A)' : 'Bottom: base up or down (A)';
       key = `v|${ed.selected}|${vAim}`;
     }
     else if (part && s) {
@@ -1846,7 +1936,7 @@ export class PadControl {
     } else if (ed.tool === 'stair' && p) {
       const to = levelAbove(ed.model.data, ed.view.level);
       bad = !to;
-      words = to ? `A: start corner of a stair (${stairType(ed.stairTypeId).name}) to ${to.name}` : 'No level above: add one on the hub\'s Levels tab';
+      words = to ? `Start corner of a stair (${stairType(ed.stairTypeId).name}) to ${to.name}` : 'No level above: add one on the hub\'s Levels tab';
       key = `s|${p[0]},${p[1]}|${ed.stairTypeId}`;
       marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
       plan.push({ kind: 'ring', p });
@@ -1856,7 +1946,7 @@ export class PadControl {
         bad = true;
         words = r.why;
       } else {
-        words = `A: ${r.words.charAt(0).toLowerCase()}${r.words.slice(1)}`;
+        words = r.words;
         const a = r.ladder.at;
         const h = (ed.model.data.levels.find((l) => l.id === r.ladder.to)?.floor ?? 0) - (ed.model.data.levels.find((l) => l.id === r.ladder.from)?.floor ?? 0);
         const ew = r.ladder.facing === 'E' || r.ladder.facing === 'W';
@@ -1870,14 +1960,14 @@ export class PadControl {
       const pre = ed.objPreset;
       const g = ed.objectGhost(p[0], p[1]);
       if (!g) {
-        words = `A: start a ${pre.name.toLowerCase()} here`;
+        words = `Start a ${pre.name.toLowerCase()} here`;
         key = `s|${p[0]},${p[1]}|${pre.id}`;
         marks.push({ x: p[0], y: f + pre.y + pre.h / 2, z: p[1], sx: 0.2, sy: pre.h, sz: 0.2, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
       } else {
         bad = !!g.why;
         const r = g.rect;
-        words = g.why ?? `A: place ${pre.name}${g.wall ? ` against ${g.wall}` : ''}; RB turns`;
+        words = g.why ?? `${pre.name}${g.wall ? ` against ${g.wall}` : ''}${ed.objYaw ? `, turned ${ed.objYaw} degrees` : ''}`;
         key = `ob|${r.join()}|${pre.id}|${bad}`;
         marks.push({ x: (r[0] + r[2]) / 2, y: f + pre.y + pre.h / 2, z: (r[1] + r[3]) / 2, sx: r[2] - r[0], sy: pre.h, sz: r[3] - r[1], dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
@@ -1922,19 +2012,19 @@ export class PadControl {
         const g = ed.switchGhost(p[0], p[1]);
         if (g.lamp) {
           const l = g.lamp;
-          words = l.circuit === ed.circuitEdit ? `${l.id} is on ${ed.circuitEdit} already; B ends` : `A: put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${ed.circuitEdit}`;
+          words = l.circuit === ed.circuitEdit ? `${l.id} is on ${ed.circuitEdit} already` : `Put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${ed.circuitEdit}`;
           key = `sl|${l.id}|${ed.circuitEdit}|${l.circuit}`;
           const lf = ed.floor(ed.levelOf('lamps', l));
           marks.push({ x: l.at[0], y: fl + lf + l.at[1], z: l.at[2], sx: 0.5, sy: 0.3, sz: 0.5, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p: [l.at[0], l.at[2]] });
         } else if (g.sw) {
-          words = ed.circuitEdit ? `A: a new switch on ${g.sw.wall} (or A on a lamp for ${ed.circuitEdit}); B ends` : `A: a switch on ${g.sw.wall}`;
+          words = ed.circuitEdit ? `A new switch on ${g.sw.wall}, or a lamp for ${ed.circuitEdit}` : `A switch on ${g.sw.wall}`;
           key = `sw|${g.sw.at.join()}|${ed.circuitEdit ?? ''}`;
           marks.push({ x: g.sw.at[0], y: f + g.sw.at[1], z: g.sw.at[2], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p: [g.sw.at[0], g.sw.at[2]] });
         } else {
           bad = !ed.circuitEdit;
-          words = ed.circuitEdit ? `Move onto a lamp to put it on ${ed.circuitEdit}; B ends` : (g.why ?? 'Move onto a wall face');
+          words = ed.circuitEdit ? `Move onto a lamp to put it on ${ed.circuitEdit}` : (g.why ?? 'Move onto a wall face');
           key = `swb|${p[0]},${p[1]}|${ed.circuitEdit ?? ''}`;
           marks.push({ x: p[0], y: f + 1.2, z: p[1], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
           plan.push({ kind: 'ring', p });
@@ -1943,7 +2033,7 @@ export class PadControl {
         const fit = ed.fitting;
         const g = ed.lampGhost(p[0], p[1]);
         if (!g) {
-          words = `A: start a ${(fit?.name ?? '').toLowerCase()} here`;
+          words = `Start a ${(fit?.name ?? '').toLowerCase()} here`;
           key = `ls|${p[0]},${p[1]}|${ed.lampFit}`;
           marks.push({ x: p[0], y: f + 1.5, z: p[1], sx: 0.1, sy: 3, sz: 0.1, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p });
@@ -1955,7 +2045,7 @@ export class PadControl {
           plan.push({ kind: 'ring', p });
         } else {
           const l0 = g.lamps[0]!;
-          words = `A: ${g.lamps.length > 1 ? `${g.lamps.length} x ` : ''}${fit?.name ?? ''} ${fmt(l0.at[1])} m up${g.on ? ` on ${g.on}` : ''}${g.post ? ' with a lamp post' : ''}; RB turns`;
+          words = `${g.lamps.length > 1 ? `${g.lamps.length} x ` : ''}${fit?.name ?? ''}, ${fmt(l0.at[1])} m up${g.on ? ` on ${g.on}` : ''}${g.post ? ' with a lamp post' : ''}`;
           key = `lg|${g.lamps.map((l) => l.at.join()).join(';')}|${ed.lampFit}|${ed.lampYaw}`;
           for (const l of g.lamps) {
             const fx = l.params.fixture;
@@ -1968,16 +2058,18 @@ export class PadControl {
       // ON11: the whole group at the dot; red where the fit check would refuse it, with its words
       const g = ed.stamp.ghost(ed.model.data, ed.view.level, p[0], p[1], ed.grid, ed.model.rev);
       const pre = ed.stamp.preset;
-      bad = !!g.why || g.problems.length > 0;
-      words = g.why ?? (g.problems.length ? `${g.problems[0]!.words}${g.problems.length > 1 ? ` (and ${g.problems.length - 1} more)` : ''}` : `A: stamp ${pre.name} (${fmt(g.size[0])} x ${fmt(g.size[1])} m); RB turns`);
-      key = `sp|${g.key}`;
-      this.stampMarks(g, f, marks, plan);
+      // Michael 2026-10-14: the wall rule before A (only when the ghost moves, turns or the file changes): red, naming the piece
+      const wall = g.why || g.problems.length ? null : ed.stampWallWhy(g.key, p[0], p[1]);
+      bad = !!g.why || g.problems.length > 0 || !!wall;
+      words = g.why ?? (g.problems.length ? `${g.problems[0]!.words}${g.problems.length > 1 ? ` (and ${g.problems.length - 1} more)` : ''}` : wall ?? `${pre.name}, ${fmt(g.size[0])} x ${fmt(g.size[1])} m`);
+      key = `sp|${g.key}|${wall ?? ''}`;
+      this.stampMarks(g, f, marks, plan, !!wall);
     } else if (ed.tool === 'climb' && p) {
       // ON5: the piece's ghost at the dot with what the player can do with it (red where it cannot go)
       const kind = pieceOf(ed.climbKind);
       const g = ed.climbGhost(p[0], p[1]);
       if (!g) {
-        words = `A: start a ${(kind?.name ?? '').toLowerCase()} here`;
+        words = `Start a ${(kind?.name ?? '').toLowerCase()} here`;
         key = `cs|${p[0]},${p[1]}|${ed.climbKind}`;
         marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
@@ -1989,7 +2081,7 @@ export class PadControl {
         plan.push({ kind: 'ring', p });
       } else {
         const e = g.e;
-        words = `A: ${pieceWords(ed.model.data, e)}`;
+        words = pieceWords(ed.model.data, e);
         key = `cg|${e.a.join()}|${e.b.join()}|${e.y0}|${e.y1}|${ed.climbKind}`;
         const y = f - ed.floor() + (e.y0 + e.y1) / 2;
         const h = Math.max(0.05, e.y1 - e.y0);
@@ -2000,7 +2092,7 @@ export class PadControl {
     } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole' || ed.tool === 'roof') {
       if (p) {
         const fp = ed.tool === 'roof' ? footprintAt(ed.model.data, ed.view.level, p[0], p[1]) : null;
-        words = ed.tool === 'roof' ? `A: start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `; A twice: on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `A: start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `A: start a ${ed.tool} here`;
+        words = ed.tool === 'roof' ? `Start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `, or on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `Start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `Start a ${ed.tool} here`;
         key = `s|${p[0]},${p[1]}`;
         marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: p[0], y: f + 0.03, z: p[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
@@ -2020,7 +2112,7 @@ export class PadControl {
         const a = wallPoint(w, at - width / 2);
         const b = wallPoint(w, at + width / 2);
         const lo = liveOpening(w, walls, at, width);
-        words = `width ${fmt(width)} m, ${lo.words} - A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
+        words = `${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}, width ${fmt(width)} m, ${lo.words}`;
         key = `o|${w.id}|${at}|${type}`;
         marks.push(this.bar(a, b, f + def.sill + def.h / 2, def.h, w.t + 0.1, 'ghost'));
         plan.push({ kind: 'line', a, b }, ...lo.shapes);
@@ -2039,7 +2131,8 @@ export class PadControl {
     }
     if (this.magnet) key += `|m:${this.magnet.key}`;
     ed.setHover(hover);
-    if (words) text += ` - ${words.endsWith(' (A)') ? `A: ${words.slice(0, -4)}` : words}`;
+    // Michael 2026-10-14: plain words only at the dot; what A does is the hint bar's
+    if (words) text += ` - ${words.endsWith(' (A)') ? words.slice(0, -4) : words}`;
     // ON7: the light meter at the dot (the exact bake) while the light view or the darkness map is on
     const meter = p ? ed.lights.meterAt(p[0], p[1]) : '';
     if (meter) text += ` - ${meter}`;
@@ -2094,7 +2187,8 @@ export class PadControl {
 
   /** A box from a to b at height y (centre), sy tall and sz thick. */
   /** ON11: the stamp ghost's boxes (walls 1.2 m high, floors, objects, red problem areas) and its plan outline. */
-  private stampMarks(g: StampGhost, f: number, marks: Mark[], plan: PlanShape[]): void {
+  private stampMarks(g: StampGhost, f: number, marks: Mark[], plan: PlanShape[], red = false): void {
+    const look: Mark['look'] = red ? 'bad' : 'ghost';
     const d = this.ed.model.data;
     const base = this.ed.floor();
     const lift = (rel: string): number => {
@@ -2107,16 +2201,16 @@ export class PadControl {
       marks.push({ x: (r[0] + r[2]) / 2, y: y + 0.75, z: (r[1] + r[3]) / 2, sx: Math.max(0.1, r[2] - r[0]), sy: 1.5, sz: Math.max(0.1, r[3] - r[1]), dx: 1, dz: 0, look: 'bad' });
     }
     for (const w of g.items.walls) {
-      marks.push(this.bar(w.a, w.b, f + lift(w.level) + 0.6, 1.2, w.t, 'ghost'));
+      marks.push(this.bar(w.a, w.b, f + lift(w.level) + 0.6, 1.2, w.t, look));
       if (w.level === '+0') plan.push({ kind: 'line', a: w.a, b: w.b });
     }
     for (const r of g.items.rooms) {
       const q = r.rect;
-      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(r.level) + 0.02, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: 0.04, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(r.level) + 0.02, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: 0.04, sz: q[3] - q[1], dx: 1, dz: 0, look });
     }
     for (const o of g.items.objects) {
       const q = o.rect;
-      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(o.level) + (o.y ?? 0) + o.h / 2, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: o.h, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(o.level) + (o.y ?? 0) + o.h / 2, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: o.h, sz: q[3] - q[1], dx: 1, dz: 0, look });
     }
   }
 

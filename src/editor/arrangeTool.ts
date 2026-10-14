@@ -150,14 +150,14 @@ export class ArrangeTool {
       }
     };
     if (this.mode === 'mirror') {
-      if (!this.first) return { words: 'A: the first point of the mirror line', bad: false, key: 'mi0', marks, plan };
+      if (!this.first) return { words: 'The first point of the mirror line', bad: false, key: 'mi0', marks, plan };
       const p: Pt = [snap(x, og), snap(z, og)];
       const l = lineMirror(this.first, p);
       const a: Pt = l.axis === 'x' ? [l.about, Math.min(this.first[1], p[1]) - 1] : [Math.min(this.first[0], p[0]) - 1, l.about];
       const b: Pt = l.axis === 'x' ? [l.about, Math.max(this.first[1], p[1]) + 1] : [Math.max(this.first[0], p[0]) + 1, l.about];
       plan.push({ kind: 'line', a, b, guide: true });
       shapes(mirrorGhost(d, this.keys, l.axis, l.about));
-      return { words: `A: mirror ${l.axis === 'x' ? 'east-west' : 'north-south'} about ${l.axis} ${fmt(l.about)}`, bad: false, key: `mi|${l.axis}|${l.about}`, marks, plan };
+      return { words: `Mirror ${l.axis === 'x' ? 'east-west' : 'north-south'} about ${l.axis} ${fmt(l.about)}`, bad: false, key: `mi|${l.axis}|${l.about}`, marks, plan };
     }
     const st = arrayStep(d, this.keys, [x, z], og);
     // the copies are worked out only when the spacing, direction, count or the file change (ED3-3a lesson)
@@ -165,7 +165,7 @@ export class ArrangeTool {
     if (this.cache?.key === key) return this.cache.g;
     const r = arrayChanges(d, this.keys, st.axis, st.step, this.count);
     shapes(arrayGhost(d, this.keys, st.axis, st.step, this.count));
-    const words = r.why ?? `A: ${this.count} cop${this.count === 1 ? 'y' : 'ies'} every ${fmt(Math.abs(st.step))} m ${st.axis === 'x' ? (st.step > 0 ? 'east' : 'west') : st.step > 0 ? 'north' : 'south'}; D-pad left / right: count`;
+    const words = r.why ?? `${this.count} cop${this.count === 1 ? 'y' : 'ies'} every ${fmt(Math.abs(st.step))} m ${st.axis === 'x' ? (st.step > 0 ? 'east' : 'west') : st.step > 0 ? 'north' : 'south'}`;
     const g = { words, bad: !!r.why, key, marks, plan };
     this.cache = { key, g };
     return g;

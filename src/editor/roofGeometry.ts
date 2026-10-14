@@ -166,6 +166,49 @@ function typeDefaults(type: RoofType, rect: Rect): Partial<RoofData> {
   return d;
 }
 
+/**
+ * Michael 2026-10-14: the ridge handle's place (plan x, z and the height above ground floor level): the middle of the
+ * first ridge line the game's own shape draws (gable, hip, sawtooth, curved), a mono-pitch's high edge; null for a flat
+ * roof (no ridge).
+ */
+export function ridgeHandle(r: RoofData): { x: number; z: number; y: number } | null {
+  if (r.type === 'flat') return null;
+  const sh = roofShape(r);
+  const rg = sh.ridges[0];
+  if (rg) return { x: r3((rg[0][0] + rg[1][0]) / 2), z: r3((rg[0][2] + rg[1][2]) / 2), y: sh.ridgeHeight };
+  const [x0, z0, x1, z1] = r.rect;
+  const o = Math.max(0, r.overhang ?? 0);
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  const hi = r.type === 'mono' ? (r.high ?? 'N') : null;
+  const x = hi === 'E' ? x1 + o : hi === 'W' ? x0 - o : cx;
+  const z = hi === 'N' ? z1 + o : hi === 'S' ? z0 - o : cz;
+  return { x: r3(x), z: r3(z), y: sh.ridgeHeight };
+}
+
+/**
+ * Michael 2026-10-14: the ridge handle moved by `dy` metres: a pitched roof (gable, hip, mono, sawtooth) keeps its eaves
+ * and takes the pitch that puts the ridge there (0.1 degree, within the card's 1-60 degrees), the run measured from the
+ * game's own shape; a curved roof its rise (0.1 m, at least 0.1, at most half the span); a flat roof is unchanged.
+ */
+export function ridgeResize(r: RoofData, dy: number): RoofData {
+  if (!dy || r.type === 'flat') return r;
+  if (r.type === 'curved') {
+    const lim = LIMITS.rise!;
+    const half = (r.ridge ?? longSide(r.rect)) === 'x' ? (r.rect[3] - r.rect[1]) / 2 : (r.rect[2] - r.rect[0]) / 2;
+    const rise = r3(Math.min(lim.max, half, Math.max(lim.min, (r.rise ?? 0) + dy)));
+    return rise === r.rise ? r : { ...r, rise };
+  }
+  const lim = LIMITS.pitch!;
+  // the run: the ridge's height above the eaves at 45 degrees (tan 45 = 1)
+  const run = roofShape({ ...r, pitch: 45 }).ridgeHeight - r.base;
+  if (!(run > 1e-6)) return r;
+  const rise = roofShape(r).ridgeHeight - r.base + dy;
+  const deg = rise > 0 ? (Math.atan(rise / run) * 180) / Math.PI : lim.min;
+  const pitch = +Math.min(lim.max, Math.max(lim.min, deg)).toFixed(1);
+  return pitch === r.pitch ? r : { ...r, pitch };
+}
+
 /** Every setting key any type has (dropped when the type no longer has it). */
 const ALL_SETTINGS: readonly string[] = [...new Set(ROOF_TYPES.flatMap((t) => [...t.own, ...COMMON]))];
 

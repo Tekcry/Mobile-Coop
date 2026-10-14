@@ -342,7 +342,7 @@ export class MissionTool {
       if (onFirstStop(g, x, z, lv)) {
         const p = this.patrolOf(closeLoop(g));
         marks.push(post('ghost'));
-        return { words: g.loop.length >= 3 ? `A: close the loop (${patrolWords(p, closeLoop(g))})` : 'The first stop: a loop needs three stops', bad: g.loop.length < 3, key: `pc|${g.id}|${g.loop.length}`, marks, plan };
+        return { words: g.loop.length >= 3 ? `Close the loop (${patrolWords(p, closeLoop(g))})` : 'The first stop: a loop needs three stops', bad: g.loop.length < 3, key: `pc|${g.id}|${g.loop.length}`, marks, plan };
       }
       const last = g.loop.at(-1)!;
       const leg = legBetween(this.ed.model.data, last.at, [x, z, lv], g.loop.length - 1, g.loop.length, this.gridOf);
@@ -352,25 +352,25 @@ export class MissionTool {
         if (a[2] === lv && b[2] === lv) plan.push({ kind: 'line', a: [a[0], a[1]], b: [b[0], b[1]] });
       }
       marks.push(post(leg.ok ? 'ghost' : 'bad'));
-      const words = leg.ok ? `A: stop ${g.loop.length + 1} here, ${fmt(leg.len)} m from stop ${g.loop.length}` : `${leg.why.replace(`stop ${g.loop.length + 1}`, 'here')}`;
+      const words = leg.ok ? `Stop ${g.loop.length + 1} here, ${fmt(leg.len)} m from stop ${g.loop.length}` : `${leg.why.replace(`stop ${g.loop.length + 1}`, 'here')}`;
       return { words: floor ? words : `${words} (not a floor a guard can stand on)`, bad: !leg.ok, key: `pl|${g.id}|${g.loop.length}|${Math.round(x * 10)},${Math.round(z * 10)}`, marks, plan };
     }
     if (this.link) {
       const o = this.objectiveNear(x, z);
       const me = this.ed.model.get<Objective>('objectives', this.link.id);
-      if (!o || !me) return { words: `Move onto another objective; B ends`, bad: false, key: `lk|${x},${z}`, marks, plan };
+      if (!o || !me) return { words: 'Move onto another objective', bad: false, key: `lk|${x},${z}`, marks, plan };
       const [needer, needed] = this.link.field === 'requires' ? [me, o] : [o, me];
       const had = needer.requires.includes(needed.id);
       marks.push({ x: o.at[0], y: f + 1, z: o.at[1], sx: 0.6, sy: 0.6, sz: 0.6, dx: 1, dz: 0, look: 'ghost' });
-      return { words: had ? `A: ${needer.id} no longer needs ${needed.id}` : `A: ${needer.id} needs ${needed.id} first`, bad: false, key: `lk|${o.id}|${had}`, marks, plan };
+      return { words: had ? `${needer.id} no longer needs ${needed.id}` : `${needer.id} needs ${needed.id} first`, bad: false, key: `lk|${o.id}|${had}`, marks, plan };
     }
     if (this.kind === 'spawn' && (this.d.spawns ?? []).length >= MAX_SPAWNS) {
       marks.push(post('bad'));
       return { words: `Insertion ${MAX_SPAWNS} is the last (1-${MAX_SPAWNS} players)`, bad: true, key: 'sp-full', marks, plan };
     }
     marks.push(post('ghost', this.kind === 'extraction' ? 0.2 : 1.75));
-    const what = this.kind === 'guard' ? `a guard (${ROSTER[this.role]?.name ?? ''})` : this.kind === 'spawn' ? `insertion ${(this.d.spawns ?? []).length + 1}` : this.kind === 'extraction' ? 'the extraction zone: A here, A at the far corner' : this.kind === 'intel' ? 'an intel pickup' : this.kind === 'objective' ? `objective ${(this.d.objectives ?? []).length + 1}` : this.kind === 'checkpoint' ? 'a checkpoint' : 'a hiding place';
-    return { words: `A: ${what}${floor ? '' : ' (not on a floor a guard or player stands on)'}`, bad: false, key: `mk|${this.kind}|${this.role}|${Math.round(x * 10)},${Math.round(z * 10)}|${floor}`, marks, plan };
+    const what = this.kind === 'guard' ? `a guard (${ROSTER[this.role]?.name ?? ''})` : this.kind === 'spawn' ? `insertion ${(this.d.spawns ?? []).length + 1}` : this.kind === 'extraction' ? 'the extraction zone: this corner, then the far one' : this.kind === 'intel' ? 'an intel pickup' : this.kind === 'objective' ? `objective ${(this.d.objectives ?? []).length + 1}` : this.kind === 'checkpoint' ? 'a checkpoint' : 'a hiding place';
+    return { words: `${what.charAt(0).toUpperCase()}${what.slice(1)}${floor ? '' : ' (not on a floor a guard or player stands on)'}`, bad: false, key: `mk|${this.kind}|${this.role}|${Math.round(x * 10)},${Math.round(z * 10)}|${floor}`, marks, plan };
   }
 
   // ---------- patrol preview and isolation ----------

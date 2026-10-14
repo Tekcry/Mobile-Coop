@@ -6,6 +6,8 @@ import { GROUPS } from '../../src/editor/catalogue';
 import { LIGHT_GROUPS } from '../../src/editor/lightCatalogue';
 import { presetWords, START_PRESETS } from '../../src/editor/presets';
 import type { Coll } from '../../src/editor/types';
+import { ridgeHandle, ridgeResize } from '../../src/editor/roofGeometry';
+import type { RoofData } from '../../src/editor/roofGeometry';
 
 describe('handles a constant size on screen (fix-up 2026-10-14)', () => {
   it('3D: the world size grows with distance and keeps HANDLE_PX on screen', () => {
@@ -143,8 +145,40 @@ describe('top and bottom handles (Michael 2026-10-14)', () => {
     expect(vertResize('signs', { y: 2, size: [0.9, 0.2] }, 'top', 0.1, 0.1)).toEqual({ y: 2.05, size: [0.9, 0.3] });
     expect(vertResize('signs', { y: 2, size: [0.9, 0.2] }, 'bot', 0.5, 0.1)).toEqual({ y: 2.05, size: [0.9, 0.1] });
     expect(vertResize('roofs', { base: 6 }, 'bot', 0.4, 0.1)).toEqual({ base: 6.4 });
-    expect(VERT_TOP).not.toContain('roofs');
+    expect(VERT_TOP).toContain('roofs');
     expect(VERT_BOT).not.toContain('walls');
     expect(isVert('top') && isVert('bot') && !isVert('NE') && !isVert(null)).toBe(true);
+  });
+
+  it('lamps and devices take one bottom handle: the mounting height, never under the floor (Michael 2026-10-14)', () => {
+    expect(VERT_BOT).toContain('lamps');
+    expect(VERT_BOT).toContain('devices');
+    expect(VERT_TOP).not.toContain('lamps');
+    expect(vertResize('lamps', { at: [1, 2.5, 3] }, 'bot', -0.5, 0.1)).toEqual({ at: [1, 2, 3] });
+    expect(vertResize('lamps', { at: [1, 2.5, 3], b: [4, 2.5, 3] }, 'bot', 0.3, 0.1)).toEqual({ at: [1, 2.8, 3], b: [4, 2.8, 3] });
+    expect(vertResize('lamps', { at: [1, 2.5, 3] }, 'top', 1, 0.1)).toEqual({ at: [1, 2.5, 3] });
+    expect(vertResize('devices', { y: 2 }, 'bot', 0.3, 0.1)).toEqual({ y: 2.3 });
+    expect(vertResize('devices', { y: 2 }, 'bot', -5, 0.1)).toEqual({ y: 0 });
+  });
+
+  it('a roof ridge handle sets the pitch (or a barrel roof its rise); a flat roof has none (Michael 2026-10-14)', () => {
+    const gable: RoofData = { id: 'R', level: 'G', rect: [0, 0, 10, 6], base: 6, type: 'gable', pitch: 45, ridge: 'x', overhang: 0 };
+    expect(ridgeHandle(gable)).toEqual({ x: 5, z: 3, y: 9 });
+    // the ridge 1 m lower: rise 2 over a 3 m run, atan(2 / 3) = 33.7 degrees
+    expect(vertResize('roofs', gable, 'top', -1, 0.1)).toMatchObject({ pitch: 33.7, base: 6 });
+    expect(ridgeResize(gable, 100).pitch).toBe(60);
+    expect(ridgeResize(gable, -5).pitch).toBe(1);
+    expect(ridgeHandle({ ...gable, pitch: 33.7 })!.y).toBeCloseTo(8, 2);
+    const mono: RoofData = { id: 'M', level: 'G', rect: [0, 0, 4, 10], base: 3, type: 'mono', pitch: 45, high: 'N', overhang: 0 };
+    expect(ridgeHandle(mono)).toEqual({ x: 2, z: 10, y: 13 });
+    expect(ridgeResize(mono, -5).pitch).toBe(26.6);
+    const barrel: RoofData = { id: 'C', level: 'G', rect: [0, 0, 10, 6], base: 6, type: 'curved', rise: 1.5, ridge: 'x', overhang: 0 };
+    expect(ridgeHandle(barrel)!.y).toBeCloseTo(7.5, 3);
+    expect(ridgeResize(barrel, 1).rise).toBe(2.5);
+    expect(ridgeResize(barrel, 9).rise).toBe(3);
+    expect(ridgeResize(barrel, -9).rise).toBe(0.1);
+    const flat: RoofData = { id: 'F', level: 'G', rect: [0, 0, 10, 6], base: 6, type: 'flat' };
+    expect(ridgeHandle(flat)).toBeNull();
+    expect(vertResize('roofs', flat, 'top', 1, 0.1)).toBe(flat);
   });
 });

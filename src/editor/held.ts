@@ -6,6 +6,8 @@
 import facts from '../../scripts/kestrel/facts.json';
 import { snap } from './geometry';
 import type { Coll, Pt, Rect } from './types';
+import { ridgeResize } from './roofGeometry';
+import type { RoofData } from './roofGeometry';
 
 /** Feel numbers for holding (editor defaults; Michael tunes them after his pad test). */
 export const HELD = {
@@ -197,14 +199,19 @@ export function nearestEnd(a: Pt, b: Pt, x: number, z: number): 'a' | 'b' {
 /** Michael 2026-10-14: the top and bottom handles (centre of the top face and of the bottom face), in 3D only. */
 export type VSide = 'top' | 'bot';
 export const isVert = (h: string | null | undefined): h is VSide => h === 'top' || h === 'bot';
-/** What takes a top handle (its height, the bottom fixed) and a bottom one (its base or sill, the top fixed). */
-export const VERT_TOP: readonly Coll[] = ['objects', 'walls', 'openings', 'exterior', 'signs'];
-export const VERT_BOT: readonly Coll[] = ['objects', 'openings', 'exterior', 'signs', 'roofs'];
+/**
+ * What takes a top handle (its height, the bottom fixed) and a bottom one (its base or sill, the top fixed). A roof's top
+ * handle is its ridge (not on a flat roof); a lamp's or a security device's single bottom handle is its mounting height
+ * (they have no height to size: the whole fitting moves).
+ */
+export const VERT_TOP: readonly Coll[] = ['objects', 'walls', 'openings', 'exterior', 'signs', 'roofs'];
+export const VERT_BOT: readonly Coll[] = ['objects', 'openings', 'exterior', 'signs', 'roofs', 'lamps', 'devices'];
 
 /**
  * The element with its top moved by `dy` (the bottom stays) or its bottom moved by `dy` (the top stays), never under
  * `min` tall, a base never under the floor and an opening never over its wall's top (`wallH`). A roof's bottom is its
- * eaves (base): the whole roof goes up or down.
+ * eaves (base): the whole roof goes up or down; its top is the ridge (`ridgeResize`: the pitch or the rise). A lamp's or
+ * device's bottom is its mounting height (never under the floor).
  */
 export function vertResize<T>(coll: Coll, e: T, side: VSide, dy: number, min: number, wallH?: number): T {
   if (!dy) return e;
@@ -254,9 +261,12 @@ export function vertResize<T>(coll: Coll, e: T, side: VSide, dy: number, min: nu
       break;
     }
     case 'roofs':
-      if (top) return e;
+      if (top) return ridgeResize(e as RoofData, dy) as T;
       o.base = r3(Math.max(0, (o.base as number) + dy));
       break;
+    case 'lamps':
+    case 'devices':
+      return top ? e : liftElem(coll, e, dy);
     default:
       return e;
   }
