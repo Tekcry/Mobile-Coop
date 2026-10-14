@@ -5,6 +5,16 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 12 - wall corner: peek, lean-out, SWAT, corner takedown (PC, controller, phone)
+- [ ] Pad: on a tall wall, slide to an outside end and hold the stick toward the edge: after about 0.2 s the head and near shoulder ease out and the camera swings about 25 deg round the corner; release and it eases back.
+- [ ] LT at the edge: the body steps out past the corner (about a third of a metre), the gun comes up, the camera moves to the open-side shoulder; RT fires only once drawn; releasing LT steps back in within a quarter second.
+- [ ] On a low wall, LT rises to aim over the top; release crouches again.
+- [ ] At the Proving close-quarters doorway (1.1 m gap), A with the stick toward the gap: a quick, quiet crouched dash to the wall across, back on it.
+- [ ] Holding the stick toward the edge and into the wall steps round the corner off the wall.
+- [ ] A guard just round the corner: Y gives the corner takedown.
+- [ ] KBM: A / D to the edge peeks, RMB leans out, LMB fires, Space with A / D toward the gap SWATs, E takes down round the corner.
+- [ ] Co-op: a team-mate's peek, lean and SWAT look the same on both screens; a guard round the corner notices a peeking head in a lit doorway but not the camera.
+
 ## Locomotion step 11 - back-to-wall (PC, controller, phone)
 - Pad: walk up to a tall wall and press A: the back settles onto it in about 0.2 s (no slide from far away); the left stick slides along it at most at a jog, quietly; the head turns along the slide; the slide stops at an outside end; A again, pulling the stick away, jump or sprint leaves.
 - Holding the stick into a tall wall at a walk for about a third of a second also puts the back to it; a low wall is always crouched; B on a tall wall toggles crouch.

@@ -155,13 +155,15 @@ export class LightField {
 
   /**
    * How lit a standing or crouched body is: the brighter of the chest and head samples, so a head poking out of a
-   * shadow into a lamp's pool shows. `height` is the head height above the feet (crouch lowers it).
+   * shadow into a lamp's pool shows. `height` is the head height above the feet (crouch lowers it). (locomotion step
+   * 12) `hx`, `hz`: the head's horizontal offset from the feet (a peek past a wall edge), so the head is sampled where
+   * it is (light parity, bible 5.1).
    */
-  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder): number {
+  bodyLevel(x: number, feetY: number, z: number, height: number, occluded?: Occluder, hx = 0, hz = 0): number {
     this.totalInto(x, feetY + height * 0.6, z, occluded);
     const chest = this.res;
     if (chest >= 1) return 1;
-    this.totalInto(x, feetY + height * 0.95, z, occluded);
+    this.totalInto(x + hx, feetY + height * 0.95, z + hz, occluded);
     const head = this.res;
     return chest > head ? chest : head;
   }

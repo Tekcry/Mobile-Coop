@@ -193,8 +193,8 @@ export const warehouse: MapDef = {
     b.block(-21.5, -9, 1.2, 1.3, 1.2, CRATE).block(-21.5, -7.6, 1.2, 1.0, 1.2, CRATE);
     b.block(-6.5, -9.5, 1.2, 1.6, 1.2, CRATE);
     b.block(-14.5, -11.5, 1.3, 1.5, 2.4, HAZARD).box(-14.5, 1.9, -10.2, 1.0, 2.2, 0.2, STEEL);
-    b.lowCover(-10, -13.2, 2.6, CONCRETE, Math.PI / 2, 1.05, 0.5);
-    b.lowCover(-20, -14.6, 2.2, CONCRETE, 0, 1.05, 0.5);
+    b.lowWall(-10, -13.2, 2.6, CONCRETE, Math.PI / 2, 1.05, 0.5);
+    b.lowWall(-20, -14.6, 2.2, CONCRETE, 0, 1.05, 0.5);
     b.block(-18.5, -17.2, 3, 0.08, 1.2, STEEL).block(-10.5, -17.2, 3, 0.08, 1.2, STEEL);
     // shrink-wrapped loads waiting to go out: tall stacks in the dark corners (shadowed alcoves off the beat)
     b.block(-23.2, -12.6, 1.1, 2.1, 1.6, SHRINK).block(-6.4, -12.4, 1.2, 2.0, 1.2, SHRINK);
@@ -259,7 +259,7 @@ export const warehouse: MapDef = {
     b.block(23.55, -2.5, 0.8, 2.1, 1.8, '#4b5560').block(23.55, 3.2, 0.8, 2.1, 1.8, '#4b5560');
     b.block(21.2, 0.4, 2.2, 1.4, 1.2, HAZARD).box(19.98, 1.15, 0.4, 0.15, 2.3, 1.0, STEEL);
     b.box(21.4, 2.15, 0.4, 1.4, 0.08, 1.1, STEEL, 0, 0, false);
-    b.lowCover(16, -6.8, 2.0, STEEL, Math.PI / 2, 1.0, 0.6);
+    b.lowWall(16, -6.8, 2.0, STEEL, Math.PI / 2, 1.0, 0.6);
     b.block(17.2, 10.2, 1.2, 1.1, 1.2, CRATE);
     // overhead crane girder and hoist, a painted walkway line (visual)
     b.box(10, 5.0, 2, 27.6, 0.4, 0.35, BEAM, 0, 0, false).box(16, 4.55, 2, 0.6, 0.5, 0.6, HAZARD, 0, 0, false);
@@ -328,8 +328,8 @@ export const warehouse: MapDef = {
     // yard: trailer, container, jersey barriers
     b.block(-3.5, -22.5, 7, 2.8, 2.5, '#d8d8d8').box(-3.5, 0.45, -22.5, 6.2, 0.9, 2.3, '#2a2d30', 0, 0, false);
     b.block(9, -23, 6, 2.6, 2.4, '#3d6e8f');
-    b.lowCover(-14, -21.5, 3, CONCRETE, Math.PI / 2, 1.0, 0.6);
-    b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
+    b.lowWall(-14, -21.5, 3, CONCRETE, Math.PI / 2, 1.0, 0.6);
+    b.lowWall(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
     // the trailer's tractor unit (cab, windscreen, bumper)
     b.block(1.4, -22.5, 2.4, 2.5, 2.3, '#8b2b2b').box(2.62, 1.85, -22.5, 0.04, 0.6, 2.0, GLASS, 0, 0, false).box(2.66, 0.45, -22.5, 0.12, 0.3, 2.3, TYRE, 0, 0, false);
     // a gatehouse in the east lot with a lit window and a door lamp (3.2.0: 2 m clear of the pump house)

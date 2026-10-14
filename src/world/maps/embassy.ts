@@ -231,7 +231,7 @@ export const embassy: MapDef = {
     // lobby: a reception desk, benches, pillars; a baggage scanner, a waiting sofa
     b.block(0, 6.2, 3.2, 1.05, 0.8, WOOD);
     b.pillar(-3, 3, 0.3, H, STONE).pillar(3, 3, 0.3, H, STONE);
-    b.lowCover(-3.5, 8.5, 1.8, WOOD, 0, 0.9, 0.5);
+    b.lowWall(-3.5, 8.5, 1.8, WOOD, 0, 0.9, 0.5);
     b.block(4.2, 1.8, 0.8, 1.05, 2.0, STEEL);
     b.block(-4.4, 6.45, 0.8, 0.8, 1.6, '#3e4a5a');
     // security office: desks and a monitor wall (screens), a gun locker
@@ -244,7 +244,7 @@ export const embassy: MapDef = {
     b.block(-17.5, 9.2, 0.6, 1.8, 1.0, '#2a3440');
     // reception / ambassador: desks, a bookcase, a sofa
     b.block(8, 4.5, 2.4, 0.95, 0.9, WOOD).block(15.5, 6.5, 2.6, 0.95, 1.2, WOOD).block(17.5, 2, 0.6, 2.0, 2.6, WOOD);
-    b.lowCover(13, 2.2, 2.2, '#5a3a3a', 0, 0.85, 0.8);
+    b.lowWall(13, 2.2, 2.2, '#5a3a3a', 0, 0.85, 0.8);
     // reception: a waiting sofa, filing cabinets; ambassador: a coffee table, a sideboard
     b.block(6.9, 0.6, 2.0, 0.8, 0.8, '#4a3a3a').block(5.45, 8.9, 0.5, 1.3, 1.0, STEEL);
     b.block(14, 2.0, 0.6, 0.45, 1.0, WOOD).block(16.8, 9.45, 1.2, 1.0, 0.6, WOOD);
@@ -295,14 +295,14 @@ export const embassy: MapDef = {
     // ---------------- front court ----------------
     // fountain, hedges, cars, lamp posts
     b.pillar(0, -10, 1.8, 0.8, STONE).pillar(0, -10, 0.3, 2.2, STONE);
-    b.lowCover(-8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8).lowCover(8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8);
-    b.lowCover(-8, -15, 4, HEDGE, 0, 1.1, 0.8).lowCover(8, -15, 4, HEDGE, 0, 1.1, 0.8);
+    b.lowWall(-8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8).lowWall(8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8);
+    b.lowWall(-8, -15, 4, HEDGE, 0, 1.1, 0.8).lowWall(8, -15, 4, HEDGE, 0, 1.1, 0.8);
     // diplomatic cars in the west court
     car(b, -15.5, -7, 0, CAR);
     car(b, -12.5, -7, 0, '#3a3f48');
     car(b, -16.5, -12.2, 0, '#8d9298');
     // hedge planters 2 m off the facade: a crouched lane behind them to the security and reception windows
-    for (const x of [-15.2, -11.6, 11.4, 14.6]) b.lowCover(x, -2.2, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
+    for (const x of [-15.2, -11.6, 11.4, 14.6]) b.lowWall(x, -2.2, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
     // flags by the front door, a bronze statue in the east court
     flag(b, -4.6, -1.4, 6.5, '#24427a');
     flag(b, -3.4, -1.4, 6.5, '#a8323a');
@@ -336,7 +336,7 @@ export const embassy: MapDef = {
     // the shed (hide a body behind its door) and the storm drain grate
     b.block(-23.6, 8.5, 2.6, 2.4, 2.2, WOOD);
     b.box(-21, 0.03, -2, 1.2, 0.04, 1.2, STEEL, 0, 0, false);
-    b.lowCover(-20, 18, 3, HEDGE, Math.PI / 2, 1.1, 0.8);
+    b.lowWall(-20, 18, 3, HEDGE, Math.PI / 2, 1.1, 0.8);
     // shrubs off the patrol path, and a tall hedge screening the garden from the west court
     for (const [x, z] of [[-24.8, -8.5], [-24.6, -1], [-24.9, 14.5], [-19.5, 8.6]] as const) b.pillar(x, z, 0.6, 1.1, HEDGE);
     b.box(-19.2, 0.9, -10.5, 0.8, 1.8, 5, HEDGE);

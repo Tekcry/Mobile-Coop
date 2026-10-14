@@ -121,6 +121,16 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   wall: { boom: 2.6, shoulder: 0.55, pivot: 1.45, pitch: -0.05, cone: Math.PI, blend: 0.25 },
 };
 
+/**
+ * (locomotion step 12) Back-to-wall edge cameras (`wall.peek`, `wall.lean`): the pivot swings out toward the edge by
+ * `offset` (m) and the view turns toward it by up to `yaw` (rad), at a capped rate over `blend` (s). Local only (never
+ * sent; bible "guards detect the body, never the camera"); the camera's pivot safety keeps it out of geometry.
+ */
+export const WALL_CAMERA = {
+  peek: { offset: 0.6, yaw: (25 * Math.PI) / 180, blend: 0.2 },
+  lean: { offset: 0.2, yaw: 0, blend: 0.2 },
+} as const;
+
 /** Blend a framing (in place) from the hip framing towards an attached preset by `w` 0..1. */
 export function attachFraming<T extends { boom: number; shoulder: number; pivot: number }>(base: T, preset: AttachFraming, w: number): T {
   base.boom += (preset.boom - base.boom) * w;

@@ -56,6 +56,10 @@ export interface PlayerRef {
   suppress?(from: Vector3, to: Vector3, hit: boolean): void;
   /** Light level on the body 0..1 (sampled by the owner; enemies sample it themselves when absent). */
   light?: number;
+  /** (locomotion step 12) Peeking past a wall edge: the head's horizontal offset from the feet (m), where its light
+   *  is sampled (light parity, bible 5.1). Remotes set it from their MoveState. */
+  peekX?: number;
+  peekZ?: number;
   /** Seen by a guard in combat this alert: those guards know this player is there (no takedowns on them). Cleared
    *  when no guard is in combat any more. Each player separately (co-op). */
   spotted?: boolean;

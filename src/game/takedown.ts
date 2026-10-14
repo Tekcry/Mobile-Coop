@@ -10,7 +10,7 @@ import { hyp2 } from '../core/mathx';
 export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted';
 
 /** Where the attacker is. (3.2.0 phase 4: `split`, `pipe` (a horizontal pipe, hands / legs up), `inverted`, `rappel`.) */
-export type AttackerState = 'ground' | 'lowCover' | 'highCover' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel';
+export type AttackerState = 'ground' | 'wallLow' | 'wall' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel';
 
 export const TAKEDOWN = {
   /** Ground reach (feet to feet, m) and height tolerance. */
@@ -79,9 +79,14 @@ export interface TakedownInput {
   vCalm: boolean;
   /** Line of sight attacker -> victim (caller ray). */
   los: boolean;
-  /** Low cover face normal (outward, towards the attacker) when `state` is lowCover. */
+  /** Wall face normal (outward, towards the attacker) when `state` is wall / wallLow. */
   coverNx?: number;
   coverNz?: number;
+  /** (step 12) Back to a wall at an edge: the outside end on the face (x, z) and the direction past it (unit). */
+  edgeX?: number;
+  edgeZ?: number;
+  edgeTx?: number;
+  edgeTz?: number;
   /** Window: its plane normal (any sign) when `state` is window. */
   winNx?: number;
   winNz?: number;
@@ -134,17 +139,23 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
   });
   switch (i.state) {
     case 'ground':
-    case 'highCover': {
+    case 'wall': {
       if (Math.abs(dy) <= T.dy && d <= T.reach) {
         const kind: TakedownKind | null = behind ? 'behind' : front ? 'front' : i.vCalm ? 'side' : null;
         if (!kind) return null;
-        return ground(i.state === 'highCover' ? 'corner' : kind);
+        if (i.state === 'wall') {
+          // (step 12) back to a wall: a guard round the edge (past the outside end) is the corner takedown; one in
+          // front of the face is an ordinary one; one behind the wall is out of reach
+          if (i.edgeTx !== undefined && (i.vx - (i.edgeX ?? 0)) * i.edgeTx + (i.vz - (i.edgeZ ?? 0)) * (i.edgeTz ?? 0) > 0) return ground('corner');
+          if (dx * (i.coverNx ?? 0) + dz * (i.coverNz ?? 0) < -0.2) return null;
+        }
+        return ground(kind);
       }
       // a drop onto someone below
       if (i.state === 'ground' && -dy >= T.aboveMin && -dy <= T.aboveMax && d <= T.aboveReach) return above(i, face, ux, uz);
       return null;
     }
-    case 'lowCover': {
+    case 'wallLow': {
       if (Math.abs(dy) > T.dy || d > T.coverReach) return null;
       // the victim is across the cover (on the far side of the face)
       const nx = i.coverNx ?? 0;

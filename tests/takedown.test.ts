@@ -22,9 +22,9 @@ describe('takedown kinds', () => {
     expect(Math.abs(p.faceYaw)).toBeLessThan(1e-6);
   });
   it('over low cover: only a victim across it', () => {
-    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
     // same side as the attacker (beyond reach for a ground takedown)
-    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: 1, vz: 1.85 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: 1, vz: 1.85 }))).toBeNull();
   });
   it('from above: a drop onto someone below, from a ledge / pipe / zipline too', () => {
     expect(pickTakedown(base({ ay: 3, vz: 1.5 }))?.kind).toBe('above');
@@ -88,5 +88,22 @@ describe('Chaos Theory takedowns (3.2.0 phase 4)', () => {
     expect(GRAB.spreadMul).toBeCloseTo(1.2);
     expect(GRAB.shoveStagger).toBeCloseTo(1.0);
     expect(GRAB.hesitate).toBeCloseTo(1.5);
+  });
+});
+
+describe('back-to-wall takedowns (step 12)', () => {
+  // on a wall whose face (normal +z) is 0.35 m behind the attacker; its outside end at x = 0.2, past it is +x
+  const wall = (o: Partial<TakedownInput>): TakedownInput => base({ state: 'wall', coverNx: 0, coverNz: 1, edgeX: 0.2, edgeZ: -0.35, edgeTx: 1, edgeTz: 0, ...o });
+  it('a guard round the edge gives the corner takedown', () => {
+    expect(pickTakedown(wall({ vx: 1.0, vz: -0.6, vyaw: 0 }))?.kind).toBe('corner');
+    expect(pickTakedown(wall({ vx: 1.0, vz: -0.6, vyaw: Math.PI }))?.kind).toBe('corner');
+  });
+  it('a guard in front of the face is an ordinary takedown; one behind the wall is out of reach', () => {
+    expect(pickTakedown(wall({ vx: -0.3, vz: 1.2, vyaw: 0 }))?.kind).toBe('behind');
+    expect(pickTakedown(wall({ vx: -0.5, vz: -1.0, vyaw: 0 }))).toBeNull();
+    expect(pickTakedown(wall({ vx: -0.5, vz: -1.0, vyaw: 0, edgeTx: undefined }))).toBeNull();
+  });
+  it('a low wall (crouched) maps to over-cover', () => {
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
   });
 });

@@ -447,6 +447,100 @@ try {
     assert(r.done, 'done');
   });
 
+  // (locomotion step 12 r1) back to a high wall at an outside edge: a guard round the corner (past the end) is the
+  // corner takedown; played from the wall, the guard goes down and the operator comes off the wall
+  await scen('corner from the wall', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const V = t.V;
+      const segs = g.world.level.coverSegments;
+      const L = g.wallCore?.links;
+      if (!L) return { err: 'no wallCore links' };
+      const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+      const floor = (x, z, y) => g.ballistics.ray(new V(x, y + 1, z), new V(x, y - 0.5, z), 1).hit;
+      // a free high wall end: the face clear 2 m out along its last metre, the space round the end clear and floored
+      let pick = null;
+      for (let i = 0; i < segs.length && !pick; i++) {
+        const s = segs[i];
+        if (s.low || Math.abs(s.y) > 0.3 || s.len < 1.5) continue;
+        for (const end of [1, -1]) {
+          if ((end > 0 ? L.kB[i] : L.kA[i]) !== 0) continue;
+          const ex = end > 0 ? s.bx : s.ax;
+          const ez = end > 0 ? s.bz : s.az;
+          const tx = end * s.tx;
+          const tz = end * s.tz;
+          // the player 0.25 m in from the end on the body line, the guard 0.75 m past the end, 0.35 m out
+          const px = ex - tx * 0.25 + s.nx * 0.35;
+          const pz = ez - tz * 0.25 + s.nz * 0.35;
+          const gx = ex + tx * 0.75 + s.nx * 0.35;
+          const gz = ez + tz * 0.75 + s.nz * 0.35;
+          let ok = floor(px, pz, s.y) && floor(gx, gz, s.y) && floor(gx + tx * 0.6, gz + tz * 0.6, s.y);
+          for (const h of [0.3, 1.0, 1.6]) {
+            ok = ok && clear(px, pz, gx + tx * 0.6, gz + tz * 0.6, s.y + h);
+            ok = ok && clear(px, pz, px + s.nx * 1.5, pz + s.nz * 1.5, s.y + h);
+          }
+          if (!ok) continue;
+          // (inside the map: a guard spawned there stays there, not moved onto the nearest walkable cell)
+          const probe = t.spawn(gx, gz, 0, s.y);
+          const inPlace = Math.hypot(probe.pos.x - gx, probe.pos.z - gz) < 0.1;
+          g.enemyMgr.clear();
+          if (inPlace) { pick = { i, end, px, pz, gx, gz, tx, tz, y: s.y }; break; }
+        }
+      }
+      if (!pick) return { err: 'no free wall end on the map' };
+      const s = segs[pick.i];
+      const yaw = Math.atan2(-s.nx, -s.nz);
+      t.tp(pick.px + s.nx * 0.5, pick.y + 0.05, pick.pz + s.nz * 0.5, yaw);
+      t.step(0.3);
+      st.set('t', 'cover', true);
+      t.step(1 / 60);
+      st.set('t', 'cover', false);
+      t.step(0.8);
+      const wc = g.wallCore;
+      const onWall = wc.phase === 'on' && wc.seg === pick.i && !wc.low;
+      const edge = wc.edge;
+      // the guard past the end, facing on away round the corner (not seeing the operator)
+      const e = t.spawn(pick.gx, pick.gz, Math.atan2(pick.tx, pick.tz), pick.y);
+      e.passive = true;
+      e.update = () => {};
+      t.step(0.3);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      const stillOn = g.wallCore.phase === 'on';
+      const dbg = offer ? null : JSON.stringify({ inp: g.takedown['inp'], vic: g.takedownVictims().length, p: [g.player.position.x, g.player.position.z], e: [e.pos.x, e.pos.z, e.alive, e.taken, e.level], s: [s.ax, s.az, s.bx, s.bz, s.nx, s.nz] });
+      t.press();
+      const run = t.run(1.6);
+      const down = !e.alive || g.takedown.hostage === e;
+      const offWall = g.wallCore.phase !== 'on';
+      // the same guard in front of the face (not past the end): an ordinary takedown, not a corner one
+      t.reset();
+      if (g.wallCore.active) g.wallCore.leave('test');
+      t.tp(pick.px + s.nx * 0.5, pick.y + 0.05, pick.pz + s.nz * 0.5, yaw);
+      t.step(0.3);
+      st.set('t', 'cover', true);
+      t.step(1 / 60);
+      st.set('t', 'cover', false);
+      t.step(0.8);
+      const fx = pick.px - pick.tx * 0.2 + s.nx * 1.1;
+      const fz = pick.pz - pick.tz * 0.2 + s.nz * 1.1;
+      const e2 = t.spawn(fx, fz, Math.atan2(s.nx, s.nz), pick.y);
+      e2.passive = true;
+      e2.update = () => {};
+      t.step(0.3);
+      const offer2 = g.takedown.offer?.plan.kind ?? null;
+      const on2 = g.wallCore.phase === 'on';
+      if (g.wallCore.active) g.wallCore.leave('test');
+      t.reset();
+      return { dbg, pick: { i: pick.i, end: pick.end }, onWall, edge, offer, stillOn, kind: run.kind, aligned: run.aligned, down, offWall, offer2, on2 };
+    });
+    assert(!r.err, `corner from the wall: ${r.err ?? 'a free wall end'}`);
+    assert(r.onWall && r.edge === r.pick.end, `on a high wall at its outside end (edge ${r.edge}, end ${r.pick.end})`);
+    assert(r.offer === 'corner' && r.stillOn, `a guard round the edge: the corner takedown offered from the wall (${r.offer}${r.dbg ? ' ' + r.dbg : ''})`);
+    assert(r.kind === 'corner' && r.down && r.offWall && r.aligned < 0.25, `played from the wall: corner, the guard down, off the wall, aligned ${r.aligned.toFixed(2)} m (${JSON.stringify(r)})`);
+    assert(r.on2 && r.offer2 !== 'corner', `a guard in front of the face: not a corner takedown (${r.offer2})`);
+  });
+
   // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (touch fire, D1)
   await scen('elbow strike: heavy from the front', async () => {
     const r = await G(() => {

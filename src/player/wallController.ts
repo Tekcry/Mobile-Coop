@@ -50,12 +50,69 @@ export const WALL = {
   /** Feet height window about the face base (m). */
   yBelow: 0.4,
   yAbove: 0.6,
+  // --- (step 12) edge verbs (bible 5.3, A24, A50)
+  /** Within this of an outside end (m): WALL_SUB edgeL / edgeR, the edge verbs. */
+  edgeReach: 0.35,
+  /** Peek: the stick toward the edge held this long at the end (s); the head and near shoulder out at most `peekOut`
+   *  (m), the rig's lean amount `peekLean`, eased over `peekBlend` (s). */
+  peekHold: 0.2,
+  peekOut: 0.25,
+  peekLean: 0.45,
+  peekBlend: 0.2,
+  /** Looking past the edge (look . edge direction) peeks too. */
+  peekLook: 0.85,
+  /** Lean-out aim: the body steps out past the edge (m), in over the draw (s), back in (s). */
+  leanOut: 0.35,
+  leanIn: 0.3,
+  leanBack: 0.25,
+  /** The rig's lean while leaning out (the near shoulder past the edge, with the aim). */
+  leanLean: 0.3,
+  /** Step round the corner: the stick toward the edge and into the wall (round it) held this long (s). */
+  roundTime: 0.3,
+  roundInto: 0.4,
+  /** SWAT turn: a coplanar segment across a gap in this range (m); duration clamp(gap / pace x k, min, max) (s). */
+  swatGapMin: 0.8,
+  swatGapMax: 2.0,
+  swatPace: 2.4,
+  swatK: 1.15,
+  swatMin: 0.5,
+  swatMax: 0.8,
 } as const;
 
-/** MoveState `sub` bits for `wall` (u8). Bits 4-32 are reserved for step 12 (edge flags are set here already). */
+/** (step 12) SWAT turn duration for a gap (m): clamp(gap / 2.4 x 1.15, 0.5, 0.8) s (A24). */
+export function swatDuration(gap: number): number {
+  return Math.max(WALL.swatMin, Math.min(WALL.swatMax, (gap / WALL.swatPace) * WALL.swatK));
+}
+
+/** (step 12) The fastest average pace a SWAT turn can claim (m/s): the widest gap plus both edge margins over its
+ *  duration (the host's speed check, validate.ts). */
+export const SWAT_MAX_PACE = (WALL.swatGapMax + 2 * EDGE_MARGIN + 0.1) / swatDuration(WALL.swatGapMax);
+
+/** (step 12) Lean kinds on the wall MoveState `lk` (A34): none, out past the edge, over the top (12b: 1 with `low`). */
+export const LEAN_KIND = { none: 0, out: 1, over: 2 } as const;
+
+/** MoveState `sub` bits for `wall` (u8): edge flags, peek and lean (step 12); `leftHand` is step 12b's (D9). */
 export const WALL_SUB = { crouch: 1, faceRight: 2, edgeL: 4, edgeR: 8, peek: 16, lean: 32, low: 64, leftHand: 128 } as const;
 
-export type WallPhase = 'off' | 'entering' | 'on' | 'leaving';
+/**
+ * (step 12, light parity) The head's horizontal offset past the edge while peeking, from the wall MoveState alone
+ * (`sub` WALL_SUB, the segment's tangent): `peekOut` toward the edge (edgeL = +t), else 0. The host samples a remote
+ * player's light and exposure there (no extra bandwidth); the local body uses its own blended offset. `k` (0..1) is
+ * the blend amount: the receiver derives it from its time since the peek bit came on (`peekBlend`), so the ease-in
+ * matches the owner's; the ease-out keeps the bit set until the owner's head is back, so a remote reads the full
+ * offset for up to `peekBlend` while easing out (deliberately conservative: the guards see at least as much).
+ */
+export function wallPeekOffset(m: string, sub: number, tx: number, tz: number, out: { x: number; z: number }, k = 1): { x: number; z: number } {
+  const e = m !== 'wall' || !(sub & WALL_SUB.peek) ? 0 : sub & WALL_SUB.edgeL ? 1 : sub & WALL_SUB.edgeR ? -1 : 0;
+  // (step 12 r1) the eased amount (the local body's smoothstep of its 0.2 s blend), from the receiver's time in peek
+  const c = Math.max(0, Math.min(1, k));
+  const pe = WALL.peekOut * c * c * (3 - 2 * c);
+  out.x = e * tx * pe;
+  out.z = e * tz * pe;
+  return out;
+}
+
+export type WallPhase = 'off' | 'entering' | 'on' | 'leaving' | 'swat';
 
 /** Per-segment joins at each end: -1 none; else the neighbour index, `kind` 1 = inside corner, 2 = flat continuation;
  *  `at` 0 = the neighbour's a end meets, 1 = its b end. */
@@ -66,12 +123,33 @@ export interface WallLinks {
   kB: Uint8Array;
   atA: Uint8Array;
   atB: Uint8Array;
+  /** (step 12) SWAT targets at each outside end: a coplanar segment across a gap (`swatGap*` m) or -1, the gap (m),
+   *  and which of its ends faces us (0 = a, 1 = b). */
+  gA: Int32Array;
+  gB: Int32Array;
+  gapA: Float32Array;
+  gapB: Float32Array;
+  gatA: Uint8Array;
+  gatB: Uint8Array;
 }
 
 /** Joins between segment ends within `WALL.joinGap` (built once per level). */
 export function buildWallLinks(segs: readonly CoverSegment[]): WallLinks {
   const n = segs.length;
-  const L: WallLinks = { nA: new Int32Array(n).fill(-1), nB: new Int32Array(n).fill(-1), kA: new Uint8Array(n), kB: new Uint8Array(n), atA: new Uint8Array(n), atB: new Uint8Array(n) };
+  const L: WallLinks = {
+    nA: new Int32Array(n).fill(-1),
+    nB: new Int32Array(n).fill(-1),
+    kA: new Uint8Array(n),
+    kB: new Uint8Array(n),
+    atA: new Uint8Array(n),
+    atB: new Uint8Array(n),
+    gA: new Int32Array(n).fill(-1),
+    gB: new Int32Array(n).fill(-1),
+    gapA: new Float32Array(n),
+    gapB: new Float32Array(n),
+    gatA: new Uint8Array(n),
+    gatB: new Uint8Array(n),
+  };
   const g2 = WALL.joinGap * WALL.joinGap;
   for (let i = 0; i < n; i++) {
     const s = segs[i]!;
@@ -109,6 +187,41 @@ export function buildWallLinks(segs: readonly CoverSegment[]): WallLinks {
           }
           if (best >= 0) break;
         }
+      }
+      // (step 12) an outside end: a coplanar segment (same facing, on the same line) across a doorway-size gap
+      let gs = -1;
+      let gd = 0;
+      let gat = 0;
+      if (best < 0) {
+        for (let j = 0; j < n; j++) {
+          if (j === i) continue;
+          const o = segs[j]!;
+          if (Math.abs(o.y - s.y) > 0.3 || o.low !== s.low || o.nx * s.nx + o.nz * s.nz < 0.95) continue;
+          for (let oe = 0; oe < 2; oe++) {
+            const dx = (oe ? o.bx : o.ax) - ex;
+            const dz = (oe ? o.bz : o.az) - ez;
+            const ahead = dx * wx + dz * wz;
+            if (Math.abs(dx * s.nx + dz * s.nz) > 0.15 || ahead < WALL.swatGapMin || ahead > WALL.swatGapMax) continue;
+            // that end faces us: the segment runs on away from the gap
+            const ox = oe ? -o.tx : o.tx;
+            const oz = oe ? -o.tz : o.tz;
+            if (ox * wx + oz * wz < 0.95) continue;
+            if (gs < 0 || ahead < gd) {
+              gs = j;
+              gd = ahead;
+              gat = oe;
+            }
+          }
+        }
+      }
+      if (end) {
+        L.gB[i] = gs;
+        L.gapB[i] = gd;
+        L.gatB[i] = gat;
+      } else {
+        L.gA[i] = gs;
+        L.gapA[i] = gd;
+        L.gatA[i] = gat;
       }
       if (end) {
         L.nB[i] = best;
@@ -151,10 +264,12 @@ export interface WallInput {
   blocked: boolean;
   /** `gameplay.wallToggle`: press on / press off (true) or hold (false). */
   toggle: boolean;
+  /** (step 12) Aim held (the lean-out / over-the-top aim at an edge or on a low wall). */
+  aim: boolean;
 }
 
 export function emptyWallInput(): WallInput {
-  return { x: 0, y: 0, z: 0, moveX: 0, moveZ: 0, lookX: 0, lookZ: 1, gear: 3, crouched: false, grounded: true, context: false, contextHeld: false, crouchPressed: false, leave: false, blocked: false, toggle: true };
+  return { x: 0, y: 0, z: 0, moveX: 0, moveZ: 0, lookX: 0, lookZ: 1, gear: 3, crouched: false, grounded: true, context: false, contextHeld: false, crouchPressed: false, leave: false, blocked: false, toggle: true, aim: false };
 }
 
 /** Clamp `s` so it keeps `WALL.stackGap` from every other player on the segment (`others[0..n)`, metres along it).
@@ -214,7 +329,34 @@ export class WallCore {
   /** This entry's settle time (s). */
   enterDur: number = WALL.enterTime;
   readonly spot: CoverSpot = { nx: 0, nz: 1, low: false, x: 0, z: 0 };
-  count = { enter: 0, leave: 0, wrap: 0 };
+  count = { enter: 0, leave: 0, wrap: 0, swat: 0, peek: 0 };
+  // --- (step 12) edge verbs
+  /** Peek: the stick-toward-edge timer (s), the eased amount 0..1, whether it is on. */
+  peekT = 0;
+  peek = 0;
+  peekOn = false;
+  /** Lean-out / over-the-top aim amount 0..1 and its kind (`LEAN_KIND`; kept while `lean` > 0). */
+  lean = 0;
+  lk = 0;
+  /** Step-round timer (s). */
+  roundT = 0;
+  /** The body's offset past the edge (m along +t) from the lean, and the head's from the peek (world XZ): the light
+   *  meter samples there (light parity, bible 5.1). */
+  leanS = 0;
+  /** `leanS` at the step's start (the step's own lean move is fed forward, A50). */
+  private leanS0 = 0;
+  exX = 0;
+  exZ = 0;
+  /** SWAT turn: the committed move (from, to on the body lines, duration, time), its target and a wrapping counter. */
+  swatN = 0;
+  swatT = 0;
+  swatDur = 0;
+  swatGap = 0;
+  readonly swatFrom = { x: 0, y: 0, z: 0 };
+  readonly swatTo = { x: 0, y: 0, z: 0 };
+  private swatSeg = -1;
+  private swatS = 0;
+  private swatDir = 1;
   lastLeave = '';
 
   constructor(
@@ -224,7 +366,19 @@ export class WallCore {
   ) {}
 
   get active(): boolean {
-    return this.phase === 'entering' || this.phase === 'on';
+    return this.phase === 'entering' || this.phase === 'on' || this.phase === 'swat';
+  }
+
+  /** At an outside end (edge != 0) and stopped on it. */
+  get atEnd(): boolean {
+    if (this.edge === 0 || this.seg < 0) return false;
+    return Math.abs(this.s - this.range(this.seg, this.edge > 0 ? 1 : 0)) < 0.03;
+  }
+
+  /** A SWAT target across the gap at the current edge (segment index or -1). */
+  get swatTarget(): number {
+    if (this.edge === 0 || this.seg < 0) return -1;
+    return this.edge > 0 ? this.links.gB[this.seg]! : this.links.gA[this.seg]!;
   }
 
   /** Body-line point at `s` on segment `i` -> (tx, tz). */
@@ -312,6 +466,14 @@ export class WallCore {
     this.vx = this.vz = 0;
     this.lastLeave = why;
     this.count.leave++;
+    this.clearEdge();
+  }
+
+  private clearEdge(): void {
+    this.peekT = this.roundT = 0;
+    this.peek = this.lean = this.leanS = this.leanS0 = this.exX = this.exZ = 0;
+    this.peekOn = false;
+    this.lk = 0;
   }
 
   reset(): void {
@@ -320,6 +482,67 @@ export class WallCore {
     this.v = this.vx = this.vz = 0;
     this.onT = 0;
     this.intoT = this.pullT = 0;
+    this.edge = 0;
+    this.clearEdge();
+  }
+
+  /** (step 12) Start the SWAT turn across the gap at the current edge (a crouched committed move, A24). */
+  private startSwat(): void {
+    const j = this.swatTarget;
+    const end = this.edge > 0 ? 1 : 0;
+    const L = this.links;
+    const g = this.segs[this.seg]!;
+    const o = this.segs[j]!;
+    const at = end ? L.gatB[this.seg]! : L.gatA[this.seg]!;
+    this.swatGap = end ? L.gapB[this.seg]! : L.gapA[this.seg]!;
+    this.point(this.seg, this.s);
+    this.swatFrom.x = this.tx;
+    this.swatFrom.y = g.y;
+    this.swatFrom.z = this.tz;
+    this.swatSeg = j;
+    this.swatS = this.range(j, at as 0 | 1);
+    this.swatDir = at === 0 ? 1 : -1;
+    this.point(j, this.swatS);
+    this.swatTo.x = this.tx;
+    this.swatTo.y = o.y;
+    this.swatTo.z = this.tz;
+    this.swatDur = swatDuration(this.swatGap);
+    this.swatT = 0;
+    this.swatN = (this.swatN + 1) & 255;
+    this.phase = 'swat';
+    this.crouch = true;
+    this.v = 0;
+    this.clearEdge();
+    this.count.swat++;
+  }
+
+  /** One step of the SWAT turn: the eased path from the near edge to the far wall's end, then `on` there. */
+  private swatStep(dt: number, i: WallInput): void {
+    this.swatT += dt;
+    const T = this.swatDur;
+    const k = Math.min(1, this.swatT / T);
+    const k0 = Math.max(0, (this.swatT - dt) / T);
+    const de = (k * k * (3 - 2 * k) - k0 * k0 * (3 - 2 * k0)) / Math.max(dt, 1e-3);
+    const e0 = k0 * k0 * (3 - 2 * k0);
+    const kg = Math.min(WALL.enterGain, 0.5 / Math.max(dt, 1e-3));
+    const f = this.swatFrom;
+    const t = this.swatTo;
+    this.vx = (t.x - f.x) * de + (f.x + (t.x - f.x) * e0 - i.x) * kg;
+    this.vz = (t.z - f.z) * de + (f.z + (t.z - f.z) * e0 - i.z) * kg;
+    const o = this.segs[this.swatSeg]!;
+    this.yaw = Math.atan2(o.nx, o.nz);
+    this.onT += dt;
+    if (k >= 1) {
+      this.seg = this.swatSeg;
+      this.s = this.swatS;
+      this.dir = this.swatDir;
+      this.low = o.low;
+      this.phase = 'on';
+      this.t = 0;
+      this.edge = 0;
+      this.latch = 0;
+      this.updateSpot(o);
+    }
   }
 
   /** One fixed step. */
@@ -358,9 +581,16 @@ export class WallCore {
       } else this.intoT = 0;
       return;
     }
+    if (this.phase === 'swat') return this.swatStep(dt, i);
     const g = this.segs[this.seg]!;
     // leaving: another action, the context press again (toggle) or released (hold), the stick pulled away
     if (i.leave) return this.leave('action');
+    // (step 12) SWAT turn: the context press at a doorway edge with the stick toward the gap
+    if (i.context && this.phase === 'on' && this.atEnd && this.swatTarget >= 0 && this.lean === 0) {
+      const ex = this.edge * g.tx;
+      const ez = this.edge * g.tz;
+      if (i.moveX * ex + i.moveZ * ez > 0.5) return this.startSwat();
+    }
     if (i.toggle && i.context && this.t > 0) return this.leave('context');
     if (!i.toggle) {
       // hold mode (D7): a context entry stays while the button is held; a stick entry while the stick is held (holding
@@ -403,7 +633,7 @@ export class WallCore {
       else along = this.latch * mag;
     }
     const cap = (this.crouch ? GEARS.crouch : GEARS.stand)[Math.max(1, Math.min(WALL.maxGear, i.gear)) - 1]!;
-    this.v = Math.abs(along) > GEARS.deadZone ? Math.max(-1, Math.min(1, along)) * cap : 0;
+    this.v = Math.abs(along) > GEARS.deadZone && this.lean === 0 ? Math.max(-1, Math.min(1, along)) * cap : 0;
     if (this.v !== 0) this.dir = this.v > 0 ? 1 : -1;
     // from where the body is along the wall (no lag to catch up: the controller's own acceleration paces it)
     const sb = (i.x - g.ax) * g.tx + (i.z - g.az) * g.tz;
@@ -434,22 +664,92 @@ export class WallCore {
       const sc = stackClamp(s, this.dir, this.others, this.othersN);
       if (sc !== s) this.v = 0;
       this.s = Math.max(this.range(this.seg, 0), Math.min(this.range(this.seg, 1), sc));
-      if (this.edge === 0) {
-        if (this.s <= this.lo(g2) + 1e-4 && this.links.kA[this.seg] === 0) this.edge = -1;
-        else if (this.s >= this.hi(g2) - 1e-4 && this.links.kB[this.seg] === 0) this.edge = 1;
-      }
+      // (step 12) an edge: within `edgeReach` of an outside end (no join there)
+      // A short face (a pillar) with both outside ends in reach: the end the stick points at (else the nearer), so
+      // the step round / peek follow the stick and never lock it on the far end
+      this.edge = 0;
+      const nearB = this.links.kB[this.seg] === 0 && this.hi(g2) - this.s <= WALL.edgeReach + 1e-4;
+      const nearA = this.links.kA[this.seg] === 0 && this.s - this.lo(g2) <= WALL.edgeReach + 1e-4;
+      if (nearA && nearB) {
+        const st = i.moveX * g2.tx + i.moveZ * g2.tz;
+        this.edge = st > GEARS.deadZone ? 1 : st < -GEARS.deadZone ? -1 : this.hi(g2) - this.s <= this.s - this.lo(g2) ? 1 : -1;
+      } else if (nearB) this.edge = 1;
+      else if (nearA) this.edge = -1;
     }
-    // the controller follows the body line: the slide plus a correction onto it
+    if (this.edgeVerbs(dt, i)) return;
+    // the controller follows the body line: the slide plus a correction onto it (leaning out: past the edge)
     const gs = this.segs[this.seg]!;
-    this.point(this.seg, this.s);
+    this.point(this.seg, this.s + this.leanS);
     const k = Math.min(WALL.hold, 1 / Math.max(dt, 1e-3));
     // along: the slide (a stacked stop or an end holds the body where it is); across: onto the body line
     const off = this.standoff - ((i.x - gs.ax) * gs.nx + (i.z - gs.az) * gs.nz);
-    const ds = this.v === 0 ? (this.s - ((i.x - gs.ax) * gs.tx + (i.z - gs.az) * gs.tz)) * k : this.v;
+    const bodyS = (i.x - gs.ax) * gs.tx + (i.z - gs.az) * gs.tz;
+    // stepping out / back in: the lean's own move this step plus a pull onto where it was at the step's start (as the
+    // entry settle: no lag, so no overshoot past the 0.35 m)
+    const leaning = this.leanS !== 0 || this.leanS0 !== 0;
+    const ds = leaning
+      ? (this.leanS - this.leanS0) / Math.max(dt, 1e-3) + (this.s + this.leanS0 - bodyS) * Math.min(WALL.enterGain, 0.5 / Math.max(dt, 1e-3))
+      : this.v === 0
+        ? (this.s - bodyS) * k
+        : this.v;
     this.vx = ds * gs.tx + off * gs.nx * k;
     this.vz = ds * gs.tz + off * gs.nz * k;
-    this.yaw = Math.atan2(gs.nx, gs.nz);
+    // leaning / rising to aim: the body turns with the aim (pivoting on the outer foot); else it faces out
+    this.yaw = this.lean > 0 ? Math.atan2(i.lookX, i.lookZ) : Math.atan2(gs.nx, gs.nz);
     this.updateSpot(gs);
+  }
+
+  /**
+   * (step 12) The edge verbs after the slide: peek (the stick toward the edge held 0.2 s, or the look past it), the
+   * lean-out aim (aim at an edge: the body 0.35 m past it; on a low wall: over the top), the step round the corner
+   * (the stick toward the edge and into the wall, 0.3 s: off the wall; the stick moves on, no auto move). Returns true
+   * when it left the wall.
+   */
+  private edgeVerbs(dt: number, i: WallInput): boolean {
+    const g = this.segs[this.seg]!;
+    const ex = this.edge * g.tx;
+    const ez = this.edge * g.tz;
+    const toward = this.edge !== 0 ? i.moveX * ex + i.moveZ * ez : 0;
+    const into = -(i.moveX * g.nx + i.moveZ * g.nz);
+    const atEnd = this.atEnd;
+    // lean-out aim (high wall at an edge: out past it) or over the top (low wall, anywhere)
+    const want = i.aim ? (this.low ? LEAN_KIND.over : atEnd ? LEAN_KIND.out : LEAN_KIND.none) : LEAN_KIND.none;
+    if (want !== LEAN_KIND.none && (this.lk === LEAN_KIND.none || this.lk === want)) {
+      this.lk = want;
+      this.lean = Math.min(1, this.lean + dt / WALL.leanIn);
+    } else {
+      this.lean = Math.max(0, this.lean - dt / WALL.leanBack);
+      if (this.lean === 0) this.lk = LEAN_KIND.none;
+    }
+    const le = this.lean * this.lean * (3 - 2 * this.lean);
+    this.leanS0 = this.leanS;
+    this.leanS = this.lk === LEAN_KIND.out ? this.edge * WALL.leanOut * le : 0;
+    if (this.lean > 0) this.v = 0;
+    // step round the corner: the stick round it (toward the edge and into the wall)
+    this.roundT = atEnd && this.lean === 0 && toward > 0.5 && into > WALL.roundInto ? this.roundT + dt : 0;
+    if (this.roundT >= WALL.roundTime) {
+      this.leave('round');
+      return true;
+    }
+    // peek: the stick toward the edge (not round it) held 0.2 s at the end, or the look past the edge; not while aiming
+    const lookPast = this.edge !== 0 && i.lookX * ex + i.lookZ * ez > WALL.peekLook;
+    this.peekT = atEnd && this.lean === 0 && toward > 0.5 && into <= WALL.roundInto ? this.peekT + dt : 0;
+    const on = atEnd && this.lean === 0 && (this.peekT >= WALL.peekHold || lookPast);
+    if (on && !this.peekOn) this.count.peek++;
+    this.peekOn = on;
+    this.peek = on ? Math.min(1, this.peek + dt / WALL.peekBlend) : Math.max(0, this.peek - dt / WALL.peekBlend);
+    const pe = this.peek * this.peek * (3 - 2 * this.peek);
+    this.exX = ex * WALL.peekOut * pe;
+    this.exZ = ez * WALL.peekOut * pe;
+    return false;
+  }
+
+  /** The rig's lean (-1 left .. 1 right; the edge at b is the body's left) from the peek and the lean-out. */
+  rigLean(): number {
+    if (this.edge === 0) return 0;
+    const pe = this.peek * this.peek * (3 - 2 * this.peek);
+    const le = this.lk === LEAN_KIND.out ? this.lean * this.lean * (3 - 2 * this.lean) : 0;
+    return (this.edge > 0 ? -1 : 1) * (WALL.peekLean * pe + WALL.leanLean * le);
   }
 
   /** Off the end (1 = b, 0 = a) onto a joined segment; false = an outside end (stop). */
@@ -485,7 +785,15 @@ export class WallCore {
 
   /** MoveState `sub` (WALL_SUB) for the current state. */
   sub(): number {
-    return (this.crouch ? WALL_SUB.crouch : 0) | (this.dir < 0 ? WALL_SUB.faceRight : 0) | (this.edge === 1 ? WALL_SUB.edgeL : 0) | (this.edge === -1 ? WALL_SUB.edgeR : 0) | (this.low ? WALL_SUB.low : 0);
+    return (
+      (this.crouch ? WALL_SUB.crouch : 0) |
+      (this.dir < 0 ? WALL_SUB.faceRight : 0) |
+      (this.edge === 1 ? WALL_SUB.edgeL : 0) |
+      (this.edge === -1 ? WALL_SUB.edgeR : 0) |
+      (this.peek > 0 ? WALL_SUB.peek : 0) |
+      (this.lean > 0 ? WALL_SUB.lean : 0) |
+      (this.low ? WALL_SUB.low : 0)
+    );
   }
 }
 
@@ -496,13 +804,18 @@ export function wallOverride(core: WallCore, ov: MoveOverride): MoveOverride | n
   v.x = core.vx;
   v.z = core.vz;
   ov.yaw = core.yaw;
-  ov.crouch = core.crouch;
-  ov.turnRate = 12;
-  ov.glide = core.phase === 'entering';
+  // (step 12) rising over a low wall to aim stands the body up; a SWAT turn stays crouched
+  ov.crouch = core.phase === 'swat' ? true : core.lk === LEAN_KIND.over && core.lean > 0.5 ? false : core.crouch;
+  ov.turnRate = WALL_TURN_RATE;
+  // (the settle, the SWAT turn and the step out / back in follow their eased paths exactly)
+  ov.glide = core.phase === 'entering' || core.phase === 'swat' || core.lean > 0;
   ov.run = false;
   ov.noise = 'crouched';
   return ov;
 }
+
+/** (step 12) The body's turn rate on a wall (rad/s): the owner's override and the remote copy's yaw ease. */
+export const WALL_TURN_RATE = 12;
 
 /** Head turn along the slide (rad, the look yaw toward the facing side). */
 export const WALL_LOOK = 0.55;

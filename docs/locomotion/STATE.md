@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 12 wall-corner (next)
+Current step: 12b wall-edge-aim (next)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -27,6 +27,7 @@ Cloud runs through step 20 + Block C end, then hands over to Michael's PC (GPU) 
 - step 09 holster-draw (1 fix round).
 - step 10 elbow-strike.
 - step 11 wall-core (3 fix rounds; 3 items Blocked, see below).
+- step 12 wall-corner (1 fix round).
 
 ## Blocked
 - 11 (after 3 fix rounds; committed functional, retry at Block C end): (a) e2e-wall 'held on a wall > 6 s: a guard lobs a grenade' fails 2 of 3 serial runs (throws 0: enemy.ts ~1320 needs lastSeenT < 8 and 7-22 m; make the spawned guards aware first or log as flaky); (b) e2e-mouse 'losing the capture (Esc) pauses' flaked once (log as flaky); (c) remote stopidle@60 pops 0 -> 3 reproduced on an --only rerun (band 0): confirm A39 noise and re-cut that row's band, or find a step 11 remoteAvatar / remotePlayer cause.

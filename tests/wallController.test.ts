@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
-import { WALL, WALL_SUB, WallCore, buildWallLinks, emptyWallInput, stackClamp, wallOverride, type WallInput } from '../src/player/wallController';
+import { WALL, WALL_SUB, WallCore, buildWallLinks, emptyWallInput, stackClamp, swatDuration, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
+import { LightField } from '../src/world/lightField';
+import { LightRegistry } from '../src/world/lights';
 import type { MoveOverride } from '../src/player/playerController';
 
 const SO = 0.35;
@@ -269,5 +271,260 @@ describe('back-to-wall core (step 11)', () => {
     expect(ov.velocity).toBe(v);
     expect(w.spot).toBe(spot);
     expect(ov.noise).toBe('crouched');
+  });
+});
+
+describe('back-to-wall edge verbs (step 12)', () => {
+  /** On the front wall near its outside end a (x = 3): the body line at s, settled. */
+  function atA(s = 0.6): { w: WallCore; i: WallInput } {
+    const w = core();
+    const g = segs[front]!;
+    const i = inp(g.ax + g.tx * s, 0.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    expect(w.phase).toBe('on');
+    return { w, i };
+  }
+
+  it('flags the edge within 0.35 m of an outside end, not further, never at the inside corner', () => {
+    const { w, i } = atA(1.5);
+    expect(w.edge).toBe(0);
+    // slide toward a (+x): the edge comes on within 0.35 m of the end (s <= 0.22 + 0.35)
+    i.moveX = 1;
+    let firstS = -1;
+    for (let k = 0; k < 120 && firstS < 0; k++) {
+      run(w, i, 1 / 60);
+      if (w.edge !== 0) firstS = w.s;
+    }
+    expect(w.edge).toBe(-1);
+    expect(firstS).toBeLessThanOrEqual(EDGE_MARGIN + WALL.edgeReach + 1e-3);
+    expect(firstS).toBeGreaterThan(EDGE_MARGIN + WALL.edgeReach - 0.06);
+    expect(w.sub() & WALL_SUB.edgeR).toBeTruthy();
+    // the b end is an inside corner (wrap): no edge there
+    const b = core();
+    const g = segs[front]!;
+    const ib = inp(g.ax + g.tx * (g.len - 0.6), 0.2 + SO + 0.3, { context: true });
+    run(b, ib, 0.6);
+    expect(b.edge).toBe(0);
+  });
+
+  it('peeks after the stick is held toward the edge 0.2 s at the end; eases out when released', () => {
+    const { w, i } = atA(EDGE_MARGIN + 0.05);
+    i.moveX = 1;
+    run(w, i, 0.2);
+    // now stopped at the end: the hold counts from there
+    expect(w.atEnd).toBe(true);
+    w.peekT = 0;
+    run(w, i, 0.15);
+    expect(w.peekOn).toBe(false);
+    run(w, i, 0.1);
+    expect(w.peekOn).toBe(true);
+    run(w, i, WALL.peekBlend);
+    expect(w.peek).toBe(1);
+    expect(w.sub() & WALL_SUB.peek).toBeTruthy();
+    expect(Math.hypot(w.exX, w.exZ)).toBeCloseTo(WALL.peekOut, 5);
+    expect(Math.abs(w.rigLean())).toBeCloseTo(WALL.peekLean, 5);
+    i.moveX = 0;
+    run(w, i, WALL.peekBlend + 0.02);
+    expect(w.peek).toBe(0);
+    expect(w.phase).toBe('on');
+  });
+
+  it('leans out 0.35 m past the edge while aiming (lk 1) and is back in 0.25 s', () => {
+    const { w, i } = atA(EDGE_MARGIN);
+    const g = segs[front]!;
+    i.aim = true;
+    run(w, i, WALL.leanIn + 0.3);
+    expect(w.lk).toBe(1);
+    expect(w.lean).toBe(1);
+    expect(w.leanS).toBeCloseTo(-WALL.leanOut, 5);
+    // the body went past the end (toward a: along -t)
+    const along = (i.x - g.ax) * g.tx + (i.z - g.az) * g.tz;
+    expect(along).toBeLessThan(EDGE_MARGIN - WALL.leanOut + 0.03);
+    expect(w.sub() & WALL_SUB.lean).toBeTruthy();
+    i.aim = false;
+    run(w, i, WALL.leanBack - 1 / 60);
+    expect(w.lean).toBeGreaterThan(0);
+    run(w, i, 2 / 60);
+    expect(w.lean).toBe(0);
+    expect(w.lk).toBe(0);
+  });
+
+  it('rises over the top of a low wall to aim (lk 2, standing)', () => {
+    const w = core();
+    const g = segs[lowFront]!;
+    const i = inp(g.ax + g.tx * 2, 0.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    expect(w.phase).toBe('on');
+    i.aim = true;
+    run(w, i, 0.4);
+    expect(w.lk).toBe(2);
+    const ov: MoveOverride = {};
+    expect(wallOverride(w, ov)!.crouch).toBe(false);
+  });
+
+  it('steps round the corner (stick toward the edge and into the wall 0.3 s), never on its own', () => {
+    const { w, i } = atA(EDGE_MARGIN);
+    run(w, i, 1);
+    expect(w.phase).toBe('on');
+    i.moveX = 0.8;
+    i.moveZ = -0.6;
+    run(w, i, 0.25);
+    expect(w.phase).toBe('on');
+    run(w, i, 0.08);
+    expect(w.lastLeave).toBe('round');
+  });
+
+  it('SWAT turn across a 0.8-2.0 m coplanar gap: duration clamp, crouched, ends on the far wall', () => {
+    expect(swatDuration(0.8)).toBe(0.5);
+    expect(swatDuration(1.1)).toBeCloseTo((1.1 / 2.4) * 1.15, 6);
+    expect(swatDuration(2.0)).toBe(0.8);
+    // two walls on one line with a 1.1 m doorway; another pair 2.4 m apart (no SWAT)
+    const ss = buildCoverSegments([box(0, 10, 4, 2.5, 0.4), box(5.1, 10, 4, 2.5, 0.4), box(0, 30, 4, 2.5, 0.4), box(6.4, 30, 4, 2.5, 0.4)]);
+    const L = buildWallLinks(ss);
+    const near = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 10.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
+    const far = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 10.2) < 1e-6 && Math.min(g.ax, g.bx) > 3);
+    const wide = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 30.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
+    const ng = ss[near]!;
+    const endAtDoor = ng.ax > ng.bx ? 0 : 1;
+    expect(endAtDoor ? L.gB[near] : L.gA[near]).toBe(far);
+    expect(endAtDoor ? L.gapB[near] : L.gapA[near]).toBeCloseTo(1.1, 3);
+    expect(L.gA[wide]).toBe(-1);
+    expect(L.gB[wide]).toBe(-1);
+    const w = new WallCore(ss, L, SO);
+    const i = inp(1.0, 10.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    i.moveX = 1;
+    run(w, i, 1.2);
+    expect(w.atEnd).toBe(true);
+    expect(w.swatTarget).toBe(far);
+    i.context = true;
+    w.update(1 / 60, i);
+    expect(w.phase).toBe('swat');
+    expect(w.crouch).toBe(true);
+    expect(w.swatDur).toBeCloseTo(swatDuration(1.1), 6);
+    const n0 = w.count.swat;
+    run(w, i, w.swatDur + 0.05);
+    expect(w.phase).toBe('on');
+    expect(w.seg).toBe(far);
+    expect(w.count.swat).toBe(n0);
+    expect(Math.abs(i.x - w.swatTo.x)).toBeLessThan(0.1);
+  });
+});
+
+describe('back-to-wall edge choice and SWAT gap (step 12 r1)', () => {
+  // a 1.0 m pillar: its +z face has both outside ends within `edgeReach` from the middle
+  const ps = buildCoverSegments([box(0, 40, 1.0, 2.5, 1.0)]);
+  const PL = buildWallLinks(ps);
+  const pf = ps.findIndex((g) => g.nz > 0.99);
+  /** On the pillar face at `s` along it (settled, stick idle). */
+  function onPillar(s: number): { w: WallCore; i: WallInput } {
+    const g = ps[pf]!;
+    const w = new WallCore(ps, PL, SO);
+    const i = inp(g.ax + g.tx * s, g.az + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    expect(w.phase).toBe('on');
+    expect(w.seg).toBe(pf);
+    return { w, i };
+  }
+
+  it('a short face (both outside ends within 0.35 m): the stick picks the end, idle the nearer', () => {
+    expect(pf).toBeGreaterThanOrEqual(0);
+    expect(PL.kA[pf]).toBe(0);
+    expect(PL.kB[pf]).toBe(0);
+    const g = ps[pf]!;
+    const mid = g.len / 2;
+    // both ends in reach from the middle
+    expect(mid - EDGE_MARGIN).toBeLessThanOrEqual(WALL.edgeReach);
+    // stick +t -> edge 1 (b, edgeL); -t -> edge -1 (a, edgeR)
+    {
+      const { w, i } = onPillar(mid);
+      i.moveX = g.tx * 0.6;
+      i.moveZ = g.tz * 0.6;
+      w.update(1 / 60, i);
+      expect(w.edge).toBe(1);
+      expect(w.sub() & WALL_SUB.edgeL).toBeTruthy();
+    }
+    {
+      const { w, i } = onPillar(mid);
+      i.moveX = -g.tx * 0.6;
+      i.moveZ = -g.tz * 0.6;
+      w.update(1 / 60, i);
+      expect(w.edge).toBe(-1);
+      expect(w.sub() & WALL_SUB.edgeR).toBeTruthy();
+    }
+    // idle: the nearer end
+    {
+      const { w, i } = onPillar(mid + 0.06);
+      w.update(1 / 60, i);
+      expect(w.s).toBeGreaterThan(mid);
+      expect(w.edge).toBe(1);
+    }
+    {
+      const { w, i } = onPillar(mid - 0.06);
+      w.update(1 / 60, i);
+      expect(w.s).toBeLessThan(mid);
+      expect(w.edge).toBe(-1);
+    }
+  });
+
+  it('a coplanar gap under 0.8 m gets no SWAT target (the end is still an edge)', () => {
+    // two walls on one line with a 0.6 m gap
+    const ss = buildCoverSegments([box(0, 60, 4, 2.5, 0.4), box(4.6, 60, 4, 2.5, 0.4)]);
+    const L = buildWallLinks(ss);
+    const near = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 60.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
+    expect(near).toBeGreaterThanOrEqual(0);
+    const ng = ss[near]!;
+    const endAtGap = ng.ax > ng.bx ? 0 : 1;
+    expect(endAtGap ? L.kB[near] : L.kA[near]).toBe(0);
+    expect(endAtGap ? L.gB[near] : L.gA[near]).toBe(-1);
+    const w = new WallCore(ss, L, SO);
+    const i = inp(1.0, 60.2 + SO + 0.3, { context: true });
+    run(w, i, 0.6);
+    i.moveX = 1;
+    run(w, i, 1.2);
+    expect(w.atEnd).toBe(true);
+    expect(w.edge).not.toBe(0);
+    expect(w.swatTarget).toBe(-1);
+    i.context = true;
+    w.update(1 / 60, i);
+    expect(w.phase).not.toBe('swat');
+  });
+});
+
+describe('peek light parity (step 12, bible 5.1)', () => {
+  it('wallPeekOffset: the head peekOut past the edge from the MoveState alone (edgeL = +t, edgeR = -t)', () => {
+    const o = { x: 9, z: 9 };
+    wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeL, 1, 0, o);
+    expect(o.x).toBeCloseTo(WALL.peekOut, 9);
+    expect(o.z).toBe(0);
+    wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeR, 0, 1, o);
+    expect(o.z).toBeCloseTo(-WALL.peekOut, 9);
+    // no peek bit, no edge, or not on a wall: no offset
+    for (const [m, sub] of [['wall', WALL_SUB.edgeL], ['wall', WALL_SUB.peek], ['ground', WALL_SUB.peek | WALL_SUB.edgeL]] as const) {
+      wallPeekOffset(m, sub, 1, 0, o);
+      expect(o.x === 0 && o.z === 0).toBe(true);
+    }
+    // (r1) the blend amount: the owner's smoothstep (half-way in = half out; 0 = none)
+    wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeL, 1, 0, o, 0.5);
+    expect(o.x).toBeCloseTo(WALL.peekOut * 0.5, 9);
+    wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeL, 1, 0, o, 0.25);
+    expect(o.x).toBeCloseTo(WALL.peekOut * 0.15625, 9);
+    wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeL, 1, 0, o, 0);
+    expect(o.x).toBe(0);
+  });
+
+  it('the light sample takes the head where it is: a peek into a lit pool reads lit, the body behind the edge stays dark', () => {
+    const reg = new LightRegistry();
+    reg.ambient = 0.02;
+    // a bright pool starting 0.1 m past the edge at x = 0 (the body stands at x = -0.1, behind it)
+    reg.addZone({ minX: 0.1, maxX: 5, minY: -1, maxY: 4, minZ: -5, maxZ: 5, ambient: 0.8 });
+    const f = new LightField(null, reg);
+    const dark = f.bodyLevel(-0.1, 0, 0, 1.75);
+    const o = wallPeekOffset('wall', WALL_SUB.peek | WALL_SUB.edgeL, 1, 0, { x: 0, z: 0 });
+    const peek = f.bodyLevel(-0.1, 0, 0, 1.75, undefined, o.x, o.z);
+    expect(dark).toBeLessThan(0.1);
+    expect(peek).toBeGreaterThan(0.7);
+    // the default (no offset) is the old sample
+    expect(f.bodyLevel(-0.1, 0, 0, 1.75, undefined, 0, 0)).toBe(dark);
   });
 });

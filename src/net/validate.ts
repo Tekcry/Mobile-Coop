@@ -12,6 +12,7 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { gearCap } from '../player/speedGears';
 import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
 import { attachPose, type AttachPose } from '../player/attach';
+import { SWAT_MAX_PACE, WALL } from '../player/wallController';
 import type { TraversalAnchors } from '../world/anchors';
 
 export interface V3 {
@@ -160,9 +161,21 @@ export const MAX_FREE_SPEED = 11;
  * keeps the general cap.
  */
 export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprint: boolean, driven: boolean, grounded: boolean): number {
+  // (step 12) the SWAT turn: its eased path peaks at 1.5x its average pace
+  if (mv?.m === 'swat') return SWAT_MAX_PACE * 1.5 * MOVE_TOLERANCE;
   if (!mv || mv.m !== 'ground' || driven || !grounded) return MAX_FREE_SPEED;
   const pace = sprint ? Math.max(5, gearCap(mv.g, false)) : gearCap(mv.g, crouched);
   return pace * MOVE_TOLERANCE;
+}
+
+/**
+ * (step 12) A SWAT turn's commit is plausible: no longer than the widest gap plus the edge margins, a duration in the
+ * turn's clamp, an average pace under `SWAT_MAX_PACE` + tolerance. A false commit is dropped (the remote poses ground).
+ */
+export function swatCommitOk(c: { x0: number; z0: number; x1: number; z1: number; dur: number }): boolean {
+  const d = hyp2(c.x1 - c.x0, c.z1 - c.z0);
+  if (c.dur < WALL.swatMin - 1e-3 || c.dur > WALL.swatMax + 1e-3) return false;
+  return d <= WALL.swatGapMax + 0.8 && d / c.dur <= SWAT_MAX_PACE * MOVE_TOLERANCE;
 }
 
 /** Furthest an attached client may be from where its anchor puts it (m). */

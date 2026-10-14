@@ -62,6 +62,90 @@ const st = () =>
       mode: window.__app.input.mode,
     };
   });
+// (locomotion step 12) the Proving doorway (1.1 m gap): stand 0.5 m out from its high wall 0.8 m from the edge, facing it
+// (manual loop). `sx` is the stick x toward the edge (+t is the camera's right facing the wall).
+const EDGE_HARNESS = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const V = g.player.position.constructor;
+  a.loop.stepHeadless(0.1, 120);
+  const L = g.wallCore.links;
+  const segs = g.world.level.coverSegments;
+  let d = null;
+  for (let i = 0; i < segs.length && !d; i++) {
+    const s = segs[i];
+    if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
+    if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) d = { i, end: 1, to: L.gB[i], len: s.len };
+    else if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) d = { i, end: -1, to: L.gA[i], len: s.len };
+  }
+  const s = segs[d.i];
+  const k = d.end > 0 ? d.len - 0.8 : 0.8;
+  const yaw = Math.atan2(-s.nx, -s.nz);
+  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+  g.player.cam.yaw = yaw;
+  g.player.cam.pitch = 0;
+  a.loop.stepHeadless(0.3, 120);
+  window.__ed = {
+    d,
+    sx: d.end,
+    step(n = 1) {
+      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+    },
+    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, lk: w.lk, lean: w.lean, swat: w.count.swat, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
+  };
+  return d;
+};
+
+// (locomotion step 12) Warehouse (clear mode, guards cleared): back to a high wall at an outside edge with a guard round
+// it, until the takedown on offer is `corner` (manual loop). Returns the offer kind or null.
+const CORNER_SETUP = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const step = (n) => { for (let k = 0; k < n; k++) a.loop.stepHeadless(1 / 60, 120); };
+  const V = g.player.position.constructor;
+  g.target.health.invulnerable = true;
+  g.mode.pending.length = 0;
+  g.enemyMgr.clear();
+  step(6);
+  window.__cn = { step, st: () => ({ td: !!g.takedown.active, kind: g.takedown.offer?.plan.kind ?? null }) };
+  const segs = g.world.level.coverSegments;
+  const L = g.wallCore.links;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
+    const yaw = Math.atan2(-s.nx, -s.nz);
+    if (g.wallCore.active) g.wallCore.leave('test');
+    step(20);
+    g.player.controller.clearCrouchToggle();
+    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+    g.player.cam.yaw = yaw;
+    g.player.cam.pitch = 0;
+    step(18);
+    window.__app.input.state.tap('cover');
+    step(36);
+    if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
+    // slide to the edge at b (the camera's right), then release the stick
+    window.__pad.connect();
+    window.__pad.axis(0, 1);
+    step(60);
+    window.__pad.axis(0, 0);
+    step(4);
+    if (g.wallCore.edge !== 1) continue;
+    const x = s.bx + s.tx * 0.7 - s.nx * 0.45;
+    const z = s.bz + s.tz * 0.7 - s.nz * 0.45;
+    const e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(s.tx, s.tz));
+    step(2);
+    if (!g.takedown.offer || g.takedown.offer.e !== e) {
+      g.enemyMgr.clear();
+      continue;
+    }
+    return g.takedown.offer.plan.kind;
+  }
+  return null;
+};
+
 // (locomotion step 11) back to a wall on Proving: find a free high face, stand 0.5 m out facing it (manual loop)
 const WALL_HARNESS = () => {
   const a = window.__app;
@@ -256,6 +340,92 @@ try {
     assert(off.phase !== 'on' && off.last === 'context', `the context key again leaves (${JSON.stringify(off)})`);
   } finally {
     await W.browser.close();
+  }
+  console.log('wall edge verbs (step 12, D1): D / A to the edge peeks, RMB lean-out, LMB fire, Space SWAT, E corner takedown');
+  {
+    const E = await launch({ url, params: 'autostart=proving', touch: false });
+    try {
+      const P = E.page;
+      await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      // capture the mouse first on the real loop (as the mouse ADS case: headless grants the lock to a click the
+      // running page handles, not under the manual loop; a capturing click never fires)
+      await P.waitForTimeout(1200);
+      await P.mouse.move(640, 320);
+      for (let i = 0; i < 4 && !(await P.evaluate(() => !!document.pointerLockElement)); i++) {
+        await P.mouse.down();
+        await P.waitForTimeout(100);
+        await P.mouse.up();
+        await P.waitForTimeout(300);
+      }
+      const locked = await P.evaluate(() => !!document.pointerLockElement);
+      assert(locked, 'a click captures the mouse on the Proving');
+      const d = await P.evaluate(EDGE_HARNESS);
+      assert(!!d, `the Proving doorway (${JSON.stringify(d)})`);
+      const step = (n) => P.evaluate((n) => window.__ed.step(n), n);
+      const st = () => P.evaluate(() => window.__ed.st());
+      const key = async (code) => {
+        await P.keyboard.down(code);
+        await step(2);
+        await P.keyboard.up(code);
+        await step(1);
+      };
+      // capture the mouse first (a click that only captures)
+      await key('Space');
+      await step(30);
+      const on = await st();
+      const toward = d.end > 0 ? 'KeyD' : 'KeyA';
+      await P.keyboard.down(toward);
+      for (let i = 0; i < 12 && (await st()).edge !== d.end; i++) await step(10);
+      await step(10);
+      await P.keyboard.up(toward);
+      await step(18);
+      await P.keyboard.down(toward);
+      await step(36);
+      const peek = await st();
+      await P.keyboard.up(toward);
+      await step(30);
+      await P.mouse.down({ button: 'right' });
+      await step(40);
+      const lean = await st();
+      await P.mouse.down();
+      await step(18);
+      await P.mouse.up();
+      await step(2);
+      const fired = lean.mag - (await st()).mag;
+      await P.mouse.up({ button: 'right' });
+      await step(30);
+      const back = await st();
+      await P.keyboard.down(toward);
+      await step(6);
+      await P.keyboard.down('Space');
+      await step(2);
+      await P.keyboard.up('Space');
+      const swat = await st();
+      await P.keyboard.up(toward);
+      await step(60);
+      const end = await st();
+      assert(on.phase === 'on', `Space enters the doorway wall (${JSON.stringify(on)})`);
+      assert(peek.peekOn && (peek.sub & 16) !== 0 && peek.cam === 1, `${toward} held at the edge: peek (${JSON.stringify(peek)})`);
+      assert(lean.lk === 1 && lean.lean === 1 && (lean.sub & 32) !== 0, `RMB at the edge: lean-out (lk ${lean.lk}, lean ${lean.lean}, locked ${locked}, ${JSON.stringify(lean)})`);
+      assert(fired > 0, `LMB fires from the lean (${fired} rounds)`);
+      assert(back.lk === 0 && back.lean === 0, `RMB released: back in (lk ${back.lk})`);
+      assert(swat.phase === 'swat' && end.phase === 'on' && end.seg === d.to, `Space with ${toward} toward the gap: SWAT to the far wall (${swat.phase} -> ${end.phase}, seg ${end.seg} / ${d.to})`);
+    } finally {
+      await E.browser.close();
+    }
+    const C = await launch({ url, params: 'autostart=warehouse&mode=clear', touch: false });
+    try {
+      const P = C.page;
+      await P.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+      const kind = await P.evaluate(CORNER_SETUP);
+      await P.keyboard.down('KeyE');
+      await P.evaluate(() => window.__cn.step(2));
+      await P.keyboard.up('KeyE');
+      const r = await P.evaluate(() => { window.__cn.step(1); return window.__cn.st(); });
+      assert(kind === 'corner' && r.td, `E: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
+    } finally {
+      await C.browser.close();
+    }
   }
 } catch (e) {
   failed = true;

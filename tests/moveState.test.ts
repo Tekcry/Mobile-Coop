@@ -106,8 +106,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 6 (Block A wire changes; step 09 dw; step 10 cmove; step 11 wall)', () => {
-    expect(PROTOCOL_VERSION).toBe(6);
+  it('PROTOCOL_VERSION is 7 (Block A wire changes; step 09 dw; step 10 cmove; step 11 wall; step 12 swat, lk)', () => {
+    expect(PROTOCOL_VERSION).toBe(7);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {

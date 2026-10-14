@@ -1,7 +1,7 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, PhysicsShapeSphere, Quaternion, ShapeCastResult, Vector3, type HavokPlugin, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type AttachFraming } from '../config/camera';
+import { ATTACH_FRAMING, attachFraming, CAMERA, framing, WALL_CAMERA, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
@@ -69,6 +69,16 @@ export class ShoulderCamera {
   attach: AttachCamera | null = null;
   /** (step 11) Back to a wall: the open side (1 right, -1 left, 0 none); the shoulder follows it in the `wall` preset. */
   wallSide = 0;
+  /** (step 12) Back to a wall at an edge: peek / lean-out targets (0..1) and the direction past the edge (unit XZ). */
+  wallPeek = 0;
+  wallLean = 0;
+  wallEdgeX = 0;
+  wallEdgeZ = 0;
+  /** Eased peek / lean amounts (capped rate) and the edge direction they swing toward. */
+  private peekW = 0;
+  private leanW = 0;
+  private edgeX = 0;
+  private edgeZ = 0;
   /** Body facing while attached: the orbit stays within the preset's cone around it. */
   attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
@@ -290,7 +300,23 @@ export class ShoulderCamera {
     const fx = this.sFx.step(feet.x, MOVEMENT.camFollow, dt);
     const fz = this.sFz.step(feet.z, MOVEMENT.camFollow, dt);
     const bob = this.sBob.step(0, 16, dt);
-    this.pivot.set(fx + lx, footY + pivotY + bob, fz + lz);
+    // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
+    // keeps it on the head's side of any wall)
+    const wp = WALL_CAMERA.peek;
+    const wl = WALL_CAMERA.lean;
+    const onWall = this.attach === 'wall';
+    if (this.wallEdgeX !== 0 || this.wallEdgeZ !== 0) {
+      this.edgeX = this.wallEdgeX;
+      this.edgeZ = this.wallEdgeZ;
+    }
+    const pT = onWall ? this.wallPeek : 0;
+    const lT = onWall ? this.wallLean : 0;
+    this.peekW += Math.max(-dt / wp.blend, Math.min(dt / wp.blend, pT - this.peekW));
+    this.leanW += Math.max(-dt / wl.blend, Math.min(dt / wl.blend, lT - this.leanW));
+    const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+    const le = this.leanW * this.leanW * (3 - 2 * this.leanW);
+    const swing = wp.offset * pe + wl.offset * le;
+    this.pivot.set(fx + lx + this.edgeX * swing, footY + pivotY + bob, fz + lz + this.edgeZ * swing);
     // the head: the pivot height on the operator's own axis (no follow lag, no look-ahead), always in the operator's space
     const head = this.head.set(feet.x, this.pivot.y, feet.z);
     const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
@@ -320,7 +346,14 @@ export class ShoulderCamera {
     // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
     // yaw and pitch peaks combine: 0.0018 rad per axis keeps the total under 0.15 deg
     const drift = 0.0018 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
-    const yaw = this.viewYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
+    // (step 12) peeking: the view turns toward the edge, at most `WALL_CAMERA.peek.yaw` (the aim is untouched)
+    let peekYaw = 0;
+    if (this.peekW > 0) {
+      const d = Math.atan2(Math.sin(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw), Math.cos(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw));
+      const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+      peekYaw = Math.sign(d) * Math.min(Math.abs(d), WALL_CAMERA.peek.yaw) * pe;
+    }
+    const yaw = this.viewYaw + peekYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
     const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
     const dYaw = yaw - prevYaw;
     this.angVel = hyp2(dYaw, pitch - prevPitch) / dt;

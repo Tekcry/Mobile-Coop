@@ -44,3 +44,6 @@ Elbow strike + cmove / cstart / cdeny + MoveState strike + PROTOCOL_VERSION 5 (A
 
 ## 11 wall-core
 Back-to-wall core: wallController (pure, 13 tests), MoveState wall slot 1 + WALL_SUB, PROTOCOL_VERSION 6, stacking >= 0.62 m on host and client, remotes pose from a / s with feet pinned under the pushed root, guards flank / flush a wall-held player, hold / toggle, e2e-wall, audit wall scenario. A45-A49. 3 implementers + 3 fix rounds (entry glide / overshoot, back gap, arm through torso, foot skate, ladder clip via stick re-entry, hold-mode loop, wire `a` validation, wall audit determinism). Committed with 3 items Blocked for the Block C end retry (STATE.md). Wall pose polish carried to step 27 (A47).
+
+## 12 wall-corner
+Corner peek, lean-out aim, low-wall over-the-top, step round, SWAT (mode 26), corner takedown, lk, PROTOCOL_VERSION 7, peek light parity (bodyLevel head offset, wallPeekOffset from MoveState). A50. 4 implementers + 1 fix round (remote lean yaw, SWAT stance, short-face edge choice, host SWAT replay keyed on mode, remote yaw ease, remote peek ease, tests). Check PASS: tests 1154, netmove peek / lean / SWAT settled <= 2.2 cm, mid-move root 8 cm (joints 70-103 cm, D8 deviation carried to step 27 under A47).

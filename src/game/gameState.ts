@@ -978,12 +978,17 @@ export class GameState implements AppState {
     const f = this.world.lightField;
     const p = this.player.position;
     const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
-    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, h, this.lightOccluder);
+    // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
+    // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).
+    const wc = this.wallCore;
+    const ox = wc && wc.phase === 'on' ? wc.exX : 0;
+    const oz = wc && wc.phase === 'on' ? wc.exZ : 0;
+    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, h, this.lightOccluder, ox, oz);
     this.localRef.light = this.lightLevel;
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder);
+      r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
     }
   }
 
@@ -1766,6 +1771,8 @@ export class GameState implements AppState {
     i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
     i.blocked = other || pl.ads;
     i.toggle = this.app.settings.get().gameplay.wallToggle;
+    // (step 12) aim held: the lean-out at an edge / the rise over a low wall (the draw follows the step 09 timings)
+    i.aim = pl.ads || inp.down('ads');
     // stacking (D8): the other players on this segment
     w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
     w.update(dt, i);
@@ -1779,8 +1786,14 @@ export class GameState implements AppState {
       else c.clearCrouchToggle();
     }
     const pose = pl.pose;
-    pose.wall = w.active;
-    pose.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    // (step 12, D8) the SWAT turn is a crouched run across the gap, not the flat-back stance: posed as the remotes pose
+    // its `swat` MoveState (a gait from the move, no wall stance)
+    const flat = w.active && w.phase !== 'swat';
+    pose.wall = flat;
+    pose.wallSide = flat ? (w.dir < 0 ? 1 : -1) : 0;
+    // (step 12) the head-first peek and the lean-out past the edge (the hit volumes follow the rig: guards see the
+    // real body, never the camera)
+    pose.lean = w.phase === 'on' ? w.rigLean() : 0;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -1788,7 +1801,13 @@ export class GameState implements AppState {
     pose.wallTz = g ? g.tz : 0;
     pose.wallGap = COVER_STANDOFF;
     pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
-    pl.cam.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    // at an edge the shoulder goes to the open side (the edge at b is the body's left)
+    pl.cam.wallSide = !w.active ? 0 : w.edge !== 0 ? (w.edge > 0 ? -1 : 1) : w.dir < 0 ? 1 : -1;
+    // (step 12) the peek / lean-out camera swing toward the edge (local only, never sent)
+    pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
+    pl.cam.wallLean = w.phase === 'on' && w.lk === 1 ? 1 : 0;
+    pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
+    pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
   }
 
   /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */

@@ -13,6 +13,7 @@ Design authority: docs/design-bible.md (Section 5.4)
   `controller.override.kinematic` along the path, `Enemy.beginTakedown` / `holdAt` / `releaseTakedown` (brain off,
   struggle emote), `pose.melee` strike, `reachL/R` on the victim (frame update), weapon stowed; damage (hp +
   shield) aborts; finish = `applyDamage` (lethal) or `knockOut`, noise.
+- (locomotion step 12) Attacker states `highCover` / `lowCover` are renamed `wall` / `wallLow`, set from back-to-wall (`WallCore` phase `on`; a low wall is `wallLow`). `wall` with a guard past the outside end (the edge point and the direction past it, `edgeX` / `edgeZ` / `edgeTx` / `edgeTz`) gives `corner`; in front of the face an ordinary `behind` / `front` / `side`; behind the wall plane (> 0.2 m) nothing. `wallLow` gives `overCover` (the guard across the wall). Host approval stays on `td` (moves to `cmove` in step 27).
 - GameState order: busy (takedown from the last step) blocks traversal's jump and the team move; Y is a
   takedown when offered, else interact / traverse.
 

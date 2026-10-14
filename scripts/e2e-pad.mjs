@@ -48,6 +48,90 @@ const STRIKE_HARNESS = () => {
     },
   };
 };
+// (locomotion step 12) the Proving doorway (1.1 m gap): stand 0.5 m out from its high wall 0.8 m from the edge, facing it
+// (manual loop). `sx` is the stick x toward the edge (+t is the camera's right facing the wall).
+const EDGE_HARNESS = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const V = g.player.position.constructor;
+  a.loop.stepHeadless(0.1, 120);
+  const L = g.wallCore.links;
+  const segs = g.world.level.coverSegments;
+  let d = null;
+  for (let i = 0; i < segs.length && !d; i++) {
+    const s = segs[i];
+    if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
+    if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) d = { i, end: 1, to: L.gB[i], len: s.len };
+    else if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) d = { i, end: -1, to: L.gA[i], len: s.len };
+  }
+  const s = segs[d.i];
+  const k = d.end > 0 ? d.len - 0.8 : 0.8;
+  const yaw = Math.atan2(-s.nx, -s.nz);
+  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+  g.player.cam.yaw = yaw;
+  g.player.cam.pitch = 0;
+  a.loop.stepHeadless(0.3, 120);
+  window.__ed = {
+    d,
+    sx: d.end,
+    step(n = 1) {
+      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+    },
+    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, lk: w.lk, lean: w.lean, swat: w.count.swat, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
+  };
+  return d;
+};
+
+// (locomotion step 12) Warehouse (clear mode, guards cleared): back to a high wall at an outside edge with a guard round
+// it, until the takedown on offer is `corner` (manual loop). Returns the offer kind or null.
+const CORNER_SETUP = () => {
+  const a = window.__app;
+  const g = a.current;
+  a.loop.manual = true;
+  const step = (n) => { for (let k = 0; k < n; k++) a.loop.stepHeadless(1 / 60, 120); };
+  const V = g.player.position.constructor;
+  g.target.health.invulnerable = true;
+  g.mode.pending.length = 0;
+  g.enemyMgr.clear();
+  step(6);
+  window.__cn = { step, st: () => ({ td: !!g.takedown.active, kind: g.takedown.offer?.plan.kind ?? null }) };
+  const segs = g.world.level.coverSegments;
+  const L = g.wallCore.links;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
+    const yaw = Math.atan2(-s.nx, -s.nz);
+    if (g.wallCore.active) g.wallCore.leave('test');
+    step(20);
+    g.player.controller.clearCrouchToggle();
+    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+    g.player.cam.yaw = yaw;
+    g.player.cam.pitch = 0;
+    step(18);
+    window.__app.input.state.tap('cover');
+    step(36);
+    if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
+    // slide to the edge at b (the camera's right), then release the stick
+    window.__pad.connect();
+    window.__pad.axis(0, 1);
+    step(60);
+    window.__pad.axis(0, 0);
+    step(4);
+    if (g.wallCore.edge !== 1) continue;
+    const x = s.bx + s.tx * 0.7 - s.nx * 0.45;
+    const z = s.bz + s.tz * 0.7 - s.nz * 0.45;
+    const e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(s.tx, s.tz));
+    step(2);
+    if (!g.takedown.offer || g.takedown.offer.e !== e) {
+      g.enemyMgr.clear();
+      continue;
+    }
+    return g.takedown.offer.plan.kind;
+  }
+  return null;
+};
+
 // (locomotion step 11) back to a wall on Proving: find a free high face, stand 0.5 m out facing it (manual loop)
 const WALL_HARNESS = () => {
   const a = window.__app;
@@ -415,6 +499,75 @@ try {
       assert(r.off.phase !== 'on' && r.off.last === 'context', `pad A again leaves (${JSON.stringify(r.off)})`);
     } finally {
       await W.browser.close();
+    }
+  }
+  console.log('wall edge verbs (step 12, D1): stick-to-edge peek, LT lean-out, RT fire, A SWAT, Y corner takedown');
+  {
+    const W = await launch({ url, params: 'autostart=proving' });
+    try {
+      await W.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      const d = await W.page.evaluate(EDGE_HARNESS);
+      assert(!!d, `the Proving doorway (${JSON.stringify(d)})`);
+      const r = await W.page.evaluate(() => {
+        const k = window.__ed;
+        const P = window.__pad;
+        const press = (b) => { P.set(b, 1); k.step(2); P.set(b, 0); k.step(1); };
+        P.connect();
+        k.step(2);
+        press(0);
+        k.step(30);
+        const on = k.st();
+        P.axis(0, k.sx);
+        for (let i = 0; i < 120 && k.st().edge !== k.d.end; i++) k.step(1);
+        k.step(10);
+        P.axis(0, 0);
+        k.step(18);
+        // peek: the stick held toward the edge 0.2 s
+        P.axis(0, k.sx);
+        k.step(36);
+        const peek = k.st();
+        P.axis(0, 0);
+        k.step(30);
+        // LT: lean out past the edge, drawn; RT fires from the lean; release: back in
+        P.set(6, 1);
+        k.step(40);
+        const lean = k.st();
+        P.set(7, 1);
+        k.step(18);
+        P.set(7, 0);
+        k.step(2);
+        const fired = lean.mag - k.st().mag;
+        P.set(6, 0);
+        k.step(30);
+        const back = k.st();
+        // A with the stick toward the gap: the SWAT turn to the far wall
+        P.axis(0, k.sx);
+        k.step(6);
+        P.set(0, 1);
+        k.step(2);
+        P.set(0, 0);
+        const swat = k.st();
+        P.axis(0, 0);
+        k.step(60);
+        return { on, peek, lean, fired, back, swat, end: k.st(), to: k.d.to };
+      });
+      assert(r.on.phase === 'on', `pad A enters the doorway wall (${JSON.stringify(r.on)})`);
+      assert(r.peek.peekOn && (r.peek.sub & 16) !== 0 && r.peek.cam === 1, `stick toward the edge held: peek (${JSON.stringify(r.peek)})`);
+      assert(r.lean.lk === 1 && r.lean.lean === 1 && (r.lean.sub & 32) !== 0, `LT at the edge: lean-out (lk ${r.lean.lk}, lean ${r.lean.lean})`);
+      assert(r.fired > 0, `RT fires from the lean (${r.fired} rounds)`);
+      assert(r.back.lk === 0 && r.back.lean === 0, `LT released: back in (lk ${r.back.lk})`);
+      assert(r.swat.phase === 'swat' && r.end.phase === 'on' && r.end.seg === r.to, `A with the stick toward the gap: SWAT to the far wall (${r.swat.phase} -> ${r.end.phase}, seg ${r.end.seg} / ${r.to})`);
+    } finally {
+      await W.browser.close();
+    }
+    const C = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+    try {
+      await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+      const kind = await C.page.evaluate(CORNER_SETUP);
+      const r = await C.page.evaluate(() => { const k = window.__cn; window.__pad.set(3, 1); k.step(2); window.__pad.set(3, 0); k.step(1); return k.st(); });
+      assert(kind === 'corner' && r.td, `pad Y: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
+    } finally {
+      await C.browser.close();
     }
   }
   console.log('disconnect');

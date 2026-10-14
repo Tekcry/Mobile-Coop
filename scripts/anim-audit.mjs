@@ -372,6 +372,8 @@ for (const [s, g] of QUICK ? [['stand', 2]] : [['stand', 2], ['stand', 4], ['cro
 const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'strike', 'tunnel', 'wall'];
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
+// (step 12) the wall edge verbs at the Proving doorway: peek, lean-out, SWAT turn (the wall drive with `edge`)
+if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'walledge', kind: 'wall', edge: true, hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
@@ -512,6 +514,17 @@ async function drive(sc, halt = -1) {
       t.tp(w.ax + w.tx * w.k + w.nx * 0.85, w.az + w.tz * w.k + w.nz * 0.85, Math.atan2(-w.nx, -w.nz), w.y);
       t.begin(halt);
       m.enter = t.mark();
+      if (sc.edge) {
+        // (step 12) the edge verbs at the doorway
+        const names = ['on', 'slide', 'stop', 'peek', 'unpeek', 'lean', 'unlean', 'toward', 'swat', 'settle'];
+        sc.segs.forEach((q, k) => {
+          t.run(q.d, { x: q.x ?? 0, ads: !!q.ads, taps: q.tap ? { 1: q.tap } : undefined }, hz);
+          m[names[k]] = t.mark();
+        });
+        m.end = m.settle;
+        m.onWall = g.wallCore?.phase === 'on';
+        m.swats = g.wallCore?.count.swat ?? 0;
+      } else {
       t.run(0.6, { taps: { 1: 'cover' } }, hz);
       m.on = t.mark();
       m.onWall = g.wallCore?.phase === 'on';
@@ -525,6 +538,7 @@ async function drive(sc, halt = -1) {
       m.stop2 = t.mark();
       t.run(1.0, {}, hz);
       m.end = t.mark();
+      }
       if (g.wallCore?.active) g.wallCore.leave('test');
       t.run(0.3, {}, hz);
       t.stance(false, 3);
@@ -569,11 +583,32 @@ const FIND_WALL = () => {
   return null;
 };
 
+/** (step 12) The Proving doorway's high wall (1.1 m gap to a coplanar wall): the plane, a start 0.8 m from the edge,
+ *  `end` the stick x toward the edge (the far wall is coplanar: the same plane holds through the SWAT turn). */
+const FIND_DOOR = () => {
+  const g = window.__app.current;
+  const L = g.wallCore.links;
+  const segs = g.world.level.coverSegments;
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
+    const end = L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05 ? 1 : L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05 ? -1 : 0;
+    if (end) return { seg: i, ax: s.ax, az: s.az, tx: s.tx, tz: s.tz, nx: s.nx, nz: s.nz, y: s.y, len: s.len, k: end > 0 ? s.len - 0.8 : 0.8, end, depth: g.player.rig.p.bodyDepthHalf };
+  }
+  return null;
+};
+
+/** (step 12) The edge verbs, local and remote alike (segments of `d` s: stick x, aim, a tap at the start): enter, slide
+ *  to the edge, peek (stick held toward it), lean-out (aim), the SWAT turn across the doorway, settle. */
+const edgeSegments = (e) => [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: e }, { d: 0.4 }, { d: 1.0, x: e }, { d: 0.6 }, { d: 1.0, ads: true }, { d: 0.6 }, { d: 0.3, x: e }, { d: 0.9, x: e, tap: 'cover' }, { d: 0.8 }];
+
 async function record(sc, halt = -1) {
   if (sc.kind === 'wall' && !sc.plane) {
-    sc.plane = await G(FIND_WALL);
+    sc.plane = await G(sc.edge ? FIND_DOOR : FIND_WALL);
     if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
   }
+  // (step 12) the edge drive's segments go into the page with the scenario
+  if (sc.edge) sc.segs = edgeSegments(sc.plane.end);
   const m = await drive(sc, halt);
   if (sc.kind === 'wall') m.plane = sc.plane;
   const r = await G(() => window.__aa.end());
@@ -928,6 +963,8 @@ function remoteScenarios() {
     out.push({ name: 'strike', kind: 'strike', hz: 60 });
     // (step 11) back to a wall: the host's copy posed from the client's `wall` MoveState (segment, s, WALL_SUB)
     out.push({ name: 'wall', kind: 'wall', hz: 60 });
+    // (step 12) the edge verbs: peek, lean-out, SWAT turn (the host's copy from WALL_SUB peek / lean, `lk`, the commit)
+    out.push({ name: 'walledge', kind: 'wall', edge: true, hz: 60 });
     for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
     out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
@@ -940,6 +977,7 @@ function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
   if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
   // (step 11) as the local drive: enter, slide, stop, crouch, slide back, stop
+  if (sc.kind === 'wall' && sc.edge) return edgeSegments(sc.plane.end);
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
@@ -1469,6 +1507,7 @@ async function runRemote() {
           if (k >= rb.segs.length) {
             rb.done = true;
             st.move.x = st.move.y = 0;
+            st.set('anim-audit', 'ads', false);
             rb.marks.push(sec());
           } else {
             const s = rb.segs[k];
@@ -1479,6 +1518,7 @@ async function runRemote() {
             }
             st.move.x = s.x ?? 0;
             st.move.y = s.y ?? 0;
+            st.set('anim-audit', 'ads', !!s.ads);
           }
         }
         return ob?.call(this, dt);
@@ -1673,15 +1713,15 @@ async function runRemote() {
         await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); });
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
-        const segs = remoteSegments(sc);
         let s = sc.kind === 'stance' || sc.kind === 'strike' ? FLAT : SURF[sc.surface];
         if (sc.kind === 'wall') {
           // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
-          sc.plane ??= await A.evaluate(FIND_WALL);
+          sc.plane ??= await A.evaluate(sc.edge ? FIND_DOOR : FIND_WALL);
           if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
           const w = sc.plane;
           s = { x: w.ax + w.tx * w.k + w.nx * 0.85, z: w.az + w.tz * w.k + w.nz * 0.85, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
         }
+        const segs = remoteSegments(sc);
         await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
         await A.evaluate(() => window.__ar.begin());
         await B.evaluate((segs) => window.__rb.play(segs), segs);
@@ -1720,6 +1760,7 @@ async function runRemote() {
       if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
+      else if (sc.kind === 'wall' && sc.edge) m = { enter: mk[0], on: mk[1], end: rec.n, plane: sc.plane };
       else if (sc.kind === 'wall') m = { enter: mk[0], on: mk[1], stop: mk[2], crouch: mk[3], back: mk[4], stop2: mk[5], end: Math.min(rec.n, mk[6] ?? rec.n), plane: sc.plane };
       rec.m = m;
       let metrics;
@@ -1964,7 +2005,7 @@ if (BAND) {
   // runs and a band covering the measured spread (WALL_SPREAD floors), and --compare allows that band
   for (const [key, row] of Object.entries(baseline.local ?? {})) {
     const pr = prev.local?.[key];
-    if (!pr || !/^wall@/.test(key)) continue;
+    if (!pr || !/^wall(edge)?@/.test(key)) continue;
     for (const [m, a] of Object.entries(row)) {
       const b = pr[m];
       if (!b || !Number.isFinite(a.worst) || !Number.isFinite(b.worst)) continue;

@@ -65,15 +65,40 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   }
   // (locomotion step 11) back to a wall: the segment (level order), metres along it, WALL_SUB; `ph` the settle
   const wc = g.wallCore;
+  // (locomotion step 12) the SWAT turn: a committed move (from, to, dur) the remotes replay (A24)
+  if (wc && wc.phase === 'swat') {
+    out.m = 'swat';
+    out.a = -1;
+    out.s = 0;
+    out.sub = 0;
+    out.ph = Math.max(0, Math.min(1, wc.swatT / Math.max(1e-3, wc.swatDur)));
+    delete out.lk;
+    const k = (out.c ??= { n: 0, x0: 0, y0: 0, z0: 0, x1: 0, y1: 0, z1: 0, top: 0, v: 0, dur: 1 });
+    k.n = wc.swatN;
+    k.x0 = wc.swatFrom.x;
+    k.y0 = wc.swatFrom.y;
+    k.z0 = wc.swatFrom.z;
+    k.x1 = wc.swatTo.x;
+    k.y1 = wc.swatTo.y;
+    k.z1 = wc.swatTo.z;
+    k.top = wc.swatTo.y;
+    k.v = 0;
+    k.dur = wc.swatDur;
+    return out;
+  }
   if (wc && wc.active) {
     out.m = 'wall';
     out.a = wc.seg;
-    out.s = wc.s;
+    // (step 12) leaning out: the body's own place past the edge
+    out.s = wc.s + wc.leanS;
     out.sub = wc.sub();
     out.ph = wc.phase === 'entering' ? Math.min(1, wc.t / wc.enterDur) : 1;
+    if (wc.lk) out.lk = wc.lk;
+    else delete out.lk;
     delete out.c;
     return out;
   }
+  delete out.lk;
   if (tr.attached) {
     const m = tr.attach;
     const ac = tr.attachCtl;

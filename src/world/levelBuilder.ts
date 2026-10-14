@@ -199,12 +199,12 @@ export class LevelBuilder {
   }
 
   /** Waist-high cover (cover faces are generated for every solid piece at build time). */
-  lowCover(x: number, z: number, len: number, color: string, yaw = 0, h = 1.05, thick = 0.6): this {
+  lowWall(x: number, z: number, len: number, color: string, yaw = 0, h = 1.05, thick = 0.6): this {
     return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 
   /** Full-height cover wall chunk. */
-  highCover(x: number, z: number, len: number, color: string, yaw = 0, h = 2.6, thick = 0.5): this {
+  highWall(x: number, z: number, len: number, color: string, yaw = 0, h = 2.6, thick = 0.5): this {
     return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 

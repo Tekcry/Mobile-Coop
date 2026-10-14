@@ -2,12 +2,13 @@ import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, Transf
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
 import { dropBadWallMove } from '../player/moveState';
+import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { WEAPONS } from '../weapons/weaponDefs';
-import { attachedClamp, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
+import { attachedClamp, swatCommitOk, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
@@ -85,6 +86,12 @@ export class RemotePlayer implements Damageable {
     return out.copyFrom(this.feet).addInPlaceFromFloats(0, this.crouched ? 0.85 : 1.3, 0);
   }
 
+  /** Head volume centre (guard exposure sampling): over the feet, or past the wall edge while peeking (step 12, from
+   *  the MoveState: the guards see the remote's real head, as they see the local one's). */
+  headPoint(out: Vector3): Vector3 {
+    return out.copyFrom(this.feet).addInPlaceFromFloats(this.ref.peekX ?? 0, this.crouched ? 1.05 : 1.6, this.ref.peekZ ?? 0);
+  }
+
   /**
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
@@ -93,6 +100,11 @@ export class RemotePlayer implements Damageable {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
     // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
     if (segs) dropBadWallMove(s, segs.length);
+    // (step 12) a SWAT turn's commit within the turn's range and pace, else dropped (A24: client-owned, host-checked)
+    if (s.mv?.m === 'swat' && (!s.mv.c || !swatCommitOk(s.mv.c))) {
+      delete s.mv;
+      this.violations++;
+    }
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
@@ -133,9 +145,20 @@ export class RemotePlayer implements Damageable {
       this.ref.cover = null;
       this.ref.coverT = 0;
     }
+    // (step 12, light parity) peeking: the head past the edge, where the host samples its light and exposure
+    // (r1) eased like the owner's 0.2 s blend from the time since the peek bit came on (no extra bandwidth)
+    const peeking = !!wseg && ((s.mv?.sub ?? 0) & WALL_SUB.peek) !== 0;
+    this.peekK = peeking ? Math.min(1, this.peekK + dt / WALL.peekBlend) : 0;
+    wallPeekOffset(s.mv?.m ?? '', s.mv?.sub ?? 0, wseg ? wseg.tx : 0, wseg ? wseg.tz : 0, this.peekTmp, this.peekK);
+    this.ref.peekX = this.peekTmp.x;
+    this.ref.peekZ = this.peekTmp.z;
     this.state = s;
     this.sync();
   }
+
+  private readonly peekTmp = { x: 0, z: 0 };
+  /** (step 12 r1) The peek blend amount from the time since the peek bit came on (0..1). */
+  private peekK = 0;
 
   allowTeleport(seconds = 1.5): void {
     this.teleportGrace = seconds;

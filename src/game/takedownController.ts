@@ -61,7 +61,7 @@ export interface TakedownVictim {
 /**
  * Runs melee takedowns (phase 4). Each fixed step it finds the takedown on offer (the nearest enemy the geometry
  * allows, `pickTakedown`), shows it as a world prompt on the victim, and on the interact press plays it: the
- * attacker's feet follow an eased path onto the aligned spot (a vault over low cover, a drop from above), the
+ * attacker's feet follow an eased path onto the aligned spot (a vault over a low wall, a drop from above), the
  * victim is seized (brain off, a struggle pose, pulled over a lip or through a window), then the strike: tap =
  * non-lethal (a choke, the victim knocked out), held = lethal. Taking damage aborts it (the victim breaks free,
  * alerted).
@@ -87,10 +87,12 @@ export class TakedownController {
 
   constructor(private g: GameState) {}
 
-  /** Attacker state from cover / traversal. */
+  /** Attacker state from back-to-wall (step 12: a high wall `wall`, a low one `wallLow`) / traversal. */
   private attackerState(): AttackerState {
     const g = this.g;
     const tr = g.traversal;
+    const wc = g.wallCore;
+    if (wc && wc.phase === 'on') return wc.low ? 'wallLow' : 'wall';
     if (tr.attached) {
       const ac = tr.attachCtl;
       if (ac.m.phase !== 'on') return 'climb';
@@ -108,7 +110,7 @@ export class TakedownController {
     return 'ground';
   }
 
-  /** Fixed step, before cover / traversal: find the offer, run an active takedown. Returns true while one runs. */
+  /** Fixed step, before back-to-wall / traversal: find the offer, run an active takedown. Returns true while one runs. */
   fixedUpdate(dt: number, pressed: boolean, held: boolean): boolean {
     const g = this.g;
     if (this.active) {
@@ -228,8 +230,16 @@ export class TakedownController {
     i.vz = best.pos.z;
     i.vyaw = best.yaw;
     i.vCalm = !best.alerted && best.level !== 'searching';
-    i.coverNx = undefined;
-    i.coverNz = undefined;
+    // (step 12) back to a wall: the face normal, and at an edge the outside end and the way past it
+    const wc = g.wallCore;
+    const ws = wc && wc.phase === 'on' ? g.world.level.coverSegments[wc.seg] : undefined;
+    i.coverNx = ws ? ws.nx : undefined;
+    i.coverNz = ws ? ws.nz : undefined;
+    const atEdge = !!ws && wc!.edge !== 0;
+    i.edgeX = atEdge ? (wc!.edge > 0 ? ws!.bx : ws!.ax) : undefined;
+    i.edgeZ = atEdge ? (wc!.edge > 0 ? ws!.bz : ws!.az) : undefined;
+    i.edgeTx = atEdge ? wc!.edge * ws!.tx : undefined;
+    i.edgeTz = atEdge ? wc!.edge * ws!.tz : undefined;
     const w = g.traversal.hintWindow;
     i.winNx = w ? Math.sin(w.yaw) : undefined;
     i.winNz = w ? Math.cos(w.yaw) : undefined;

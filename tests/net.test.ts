@@ -308,14 +308,14 @@ describe('net session', () => {
     void late.leave();
     expect(left).toBe('Late');
   });
-  it('a peer on protocol version 5 is refused; version 6 joins', () => {
-    expect(PROTOCOL_VERSION).toBe(6);
+  it('a peer on protocol version 6 is refused; version 7 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(7);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 5, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 6, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 6, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 7, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -392,8 +392,8 @@ import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
 import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
-  it('protocol 6 (step 11 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(6);
+  it('protocol 7 (step 12 raised it)', () => {
+    expect(PROTOCOL_VERSION).toBe(7);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -556,3 +556,33 @@ describe('step 10: committed-move messages (A5, PLAN H3)', () => {
     expect(pose.drawn).toBe(false);
   });
 });
+
+describe('step 12: wall lean kind and the SWAT turn', () => {
+  it('lk packs and sanitizes 0-2; 3 and non-integers are not carried', () => {
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 32 | 8, lk: 1 };
+    const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
+    expect(back.lk).toBe(1);
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 2 }, 4096, 8)!.lk).toBe(2);
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 3 }, 4096, 8)!.lk).toBeUndefined();
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 1.5 }, 4096, 8)!.lk).toBeUndefined();
+    expect(sanitizeMoveState({ m: 0, lk: 1 })!.lk).toBeUndefined();
+  });
+  it('swat is mode 26, committed, and carries its MoveCommit', () => {
+    const r = sanitizeMoveState({ m: 26, c: { n: 3, x0: 0, y0: 0, z0: 0, x1: 1.5, y1: 0, z1: 0, top: 0, v: 0, dur: 0.53 } })!;
+    expect(r.m).toBe('swat');
+    expect(r.c?.dur).toBeCloseTo(0.53, 6);
+  });
+  it('peek / lean bits pose the rig lean toward the edge side', () => {
+    const p = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 16 | 4 }, 0, emptyMovePose());
+    expect(p.lean).toBeCloseTo(-0.45, 6);
+    const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(q.lean).toBeCloseTo(0.3, 6);
+  });
+  it('the host drops an implausible SWAT commit and caps its pace', () => {
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.54, z1: 0, dur: 0.527 })).toBe(true);
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 6, z1: 0, dur: 0.8 })).toBe(false);
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.5, z1: 0, dur: 0.2 })).toBe(false);
+    expect(moveSpeedCap({ ...emptyMoveState(), m: 'swat' }, true, false, false, true)).toBeLessThan(MAX_FREE_SPEED);
+  });
+});
+import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate';

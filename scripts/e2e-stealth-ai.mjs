@@ -694,6 +694,104 @@ try {
     assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
   });
 
+  // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
+  // camera); the lean-out exposes the chest
+  await scen('wall peek exposes the head', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const V = t.V;
+      const P = window.__pad;
+      P.connect();
+      t.light(1);
+      const segs = g.world.level.coverSegments;
+      const L = g.wallCore.links;
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i];
+        if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y) > 0.3) continue;
+        if (g.wallCore.active) g.wallCore.leave('test');
+        t.step(0.3);
+        g.player.controller.clearCrouchToggle();
+        const yaw = Math.atan2(-s.nx, -s.nz);
+        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+        t.step(0.3);
+        window.__app.input.state.tap('cover');
+        t.step(0.6);
+        if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
+        P.axis(0, 1);
+        t.step(1.0);
+        P.axis(0, 0);
+        t.step(0.3);
+        if (g.wallCore.edge !== 1) continue;
+        // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
+        const pt = new V();
+        let gx = 0;
+        let gz = 0;
+        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head
+        const see = () => {
+          const eye = new V(gx, s.y + 1.55, gz);
+          // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
+          const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
+          return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
+        };
+        const place = (x, z) => {
+          gx = x;
+          gz = z;
+        };
+        const spots = [];
+        for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
+        const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
+        P.axis(0, 1);
+        t.step(0.5);
+        const peekOn = g.wallCore.peekOn;
+        const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
+        if (!peekOn || !only.length) {
+          P.axis(0, 0);
+          t.reset();
+          continue;
+        }
+        // the guard's own perception there: head only
+        g.enemyMgr.clear();
+        let e = null;
+        // the spawn settles the guard on the nav grid: keep one whose own eye (where it stands) sees the head only
+        for (const [x, z] of only) {
+          e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
+          if (!e) continue;
+          place(e.pos.x, e.pos.z);
+          const v = see();
+          if (!v.chest && v.head) break;
+          g.enemyMgr.clear();
+          e = null;
+        }
+        if (!e) {
+          P.axis(0, 0);
+          t.reset();
+          continue;
+        }
+        t.step(0.3);
+        const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
+        P.axis(0, 0);
+        t.step(0.5);
+        const back = { los: e.los };
+        // the lean-out (aim at the edge): the chest is out too
+        window.__app.input.state.set('t', 'ads', true);
+        t.step(0.7);
+        const lean = { lk: g.wallCore.lk, los: e.los, head: e.losHead };
+        window.__app.input.state.set('t', 'ads', false);
+        t.step(0.4);
+        if (g.wallCore.active) g.wallCore.leave('test');
+        return { i, hidden: hidden.length, only: only.length, peek, back, lean };
+      }
+      return null;
+    });
+    assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
+    assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
+    assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
+    assert(r.lean.lk === 1 && r.lean.los && !r.lean.head, `leaning out: the chest is in view (${JSON.stringify(r.lean)})`);
+  });
+
   await scen('vision', async () => {
     const r = await G(() => {
       const t = window.__t;

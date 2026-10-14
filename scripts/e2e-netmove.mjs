@@ -449,6 +449,168 @@ try {
   await wait(300);
   await GA(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
 
+  // (locomotion step 12) the edge verbs at the Proving doorway (1.1 m gap): the head-first peek (WALL_SUB.peek), the
+  // lean-out with the aim (`lk` 1) and the SWAT turn (the host replays the commit and lands it on the far wall); the
+  // host's copy within 10 cm each time, and the host samples a peeking client's light at its head (light parity)
+  console.log('wall edge: peek, lean, swat');
+  await reset();
+  const door = await GB(() => {
+    const g = window.__app.current;
+    const L = g.wallCore.links;
+    const segs = g.world.level.coverSegments;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
+      if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) return { i, end: 1, to: L.gB[i], len: s.len };
+      if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) return { i, end: -1, to: L.gA[i], len: s.len };
+    }
+    return null;
+  });
+  assert(!!door, `the Proving doorway (${JSON.stringify(door)})`);
+  const toEdge = async () => {
+    await allowTeleport(A);
+    await GB(([i, k]) => {
+      const g = window.__app.current;
+      const s = g.world.level.coverSegments[i];
+      const yaw = Math.atan2(-s.nx, -s.nz);
+      window.__pad.connect();
+      for (let j = 0; j < 4; j++) window.__pad.axis(j, 0);
+      g.player.controller.clearCrouchToggle();
+      g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+      g.player.cam.yaw = yaw;
+      g.player.cam.pitch = 0;
+      setTimeout(() => window.__app.input.state.tap('cover'), 1000);
+    }, [door.i, door.end > 0 ? door.len - 0.8 : 0.8]);
+    await until(B, () => window.__app.current.wallCore?.phase === 'on', null, 6000, 'client on the doorway wall');
+    if (await GB(() => (window.__app.current.wallCore.sub() & 1) !== 0)) {
+      await GB(() => window.__app.input.state.tap('crouch'));
+      await until(B, () => (window.__app.current.wallCore.sub() & 1) === 0 && window.__app.current.player.controller.crouchBlend < 0.01, null, 3000, 'client standing on the doorway wall');
+    }
+    // slide to the edge, then release
+    await GB((x) => window.__pad.axis(0, x), door.end);
+    await until(B, (e) => window.__app.current.wallCore.edge === e, door.end, 6000, 'client at the doorway edge');
+    await wait(400);
+    await GB(() => window.__pad.axis(0, 0));
+    await wait(300);
+  };
+  await toEdge();
+  // peek: the stick toward the edge held (the client is stopped on the end)
+  await GB((x) => window.__pad.axis(0, x), door.end);
+  await until(B, () => window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 1, null, 4000, 'client peeks');
+  await until(A, () => (window.__app.current.net.remotes.values().next().value?.state?.mv?.sub & 16) !== 0, null, 5000, 'host sees the peek bit');
+  await compare('wall peek', 'wall');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.25) < 0.01; }, null, 3000, 'host peek offset eased to 0.25 m');
+  const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && Math.abs(pl.hd - 0.25) < 0.01, `the host samples the peeking client's light and head 0.25 m past the edge (${JSON.stringify(pl)})`);
+  await GB(() => window.__pad.axis(0, 0));
+  await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
+  // lean-out: aim held at the edge (lk 1), the body 0.35 m past it
+  await GB(() => window.__app.input.state.set('t', 'ads', true));
+  await until(B, () => window.__app.current.wallCore.lk === 1 && window.__app.current.wallCore.lean === 1, null, 4000, 'client leans out');
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.state?.mv?.lk === 1, null, 5000, 'host sees lk 1');
+  await compare('wall lean', 'wall');
+  const [lsl, lsr] = await wallS();
+  assert(Math.abs(lsl + (await GB(() => window.__app.current.wallCore.leanS)) - lsr) <= 0.05, `leaning: the host's copy at s ${lsr.toFixed(3)} (client ${lsl.toFixed(3)} + lean), within 5 cm`);
+  await GB(() => window.__app.input.state.set('t', 'ads', false));
+  await until(B, () => window.__app.current.wallCore.lk === 0 && window.__app.current.wallCore.lean === 0, null, 4000, 'client back in');
+  await until(A, () => !window.__app.current.net.remotes.values().next().value?.state?.mv?.lk, null, 5000, 'host sees lk 0');
+  // SWAT: the context press with the stick toward the gap; the host replays the commit and settles on the far wall
+  await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
+  // (step 12 r1, D8) the SWAT turn mid-move: both pages record root and joints each frame by the turn's phase k (the
+  // client's swatT / swatDur, the host's replay t / dur); host samples at k 0.15-0.85 are compared with the client's
+  // pose interpolated to the same k
+  const swRec = ([host, names]) => {
+    window.__sw = [];
+    const t0 = performance.now();
+    // the host page renders in the background (throttled frames): sample right after each of the copy's updates
+    if (host) {
+      const av = window.__app.current.net.remotes.values().next().value.avatar;
+      const orig = av.update;
+      av.update = function (dt, rt) {
+        orig.call(this, dt, rt);
+        const rp = this.replay;
+        if (rp && rp.path === 'swat') {
+          const j = {};
+          for (const n of names) { this.rig[n].computeWorldMatrix(true); const p = this.rig[n].getAbsolutePosition(); j[n] = [p.x, p.y, p.z]; }
+          const r = this.rig.root.position;
+          window.__sw.push({ k: Math.min(1, rp.t / rp.c.dur), mode: this.mode, root: [r.x, r.y, r.z], j });
+        }
+        if (performance.now() - t0 > 20000) this.update = orig;
+      };
+      return;
+    }
+    const tick = () => {
+      const g = window.__app.current;
+      if (!g) return;
+      let k = -1;
+      let rig = null;
+      let mode = '';
+      if (host) {
+        const av = g.net.remotes.values().next().value?.avatar;
+        const rp = av?.replay;
+        if (av && rp && rp.path === 'swat') { k = Math.min(1, rp.t / rp.c.dur); rig = av.rig; mode = av.mode; }
+      } else if (g.wallCore?.phase === 'swat' && g.wallCore.swatDur > 0) {
+        k = Math.min(1, g.wallCore.swatT / g.wallCore.swatDur);
+        rig = g.player.rig;
+        mode = g.net?.mvNow?.m ?? '';
+      }
+      if (rig) {
+        const j = {};
+        for (const n of names) { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); j[n] = [p.x, p.y, p.z]; }
+        const r = rig.root.position;
+        window.__sw.push({ k, mode, root: [r.x, r.y, r.z], j });
+      }
+      if (performance.now() - t0 < 10000) requestAnimationFrame(tick);
+    };
+    tick();
+  };
+  await GA(swRec, [true, JOINTS]);
+  await GB(swRec, [false, JOINTS]);
+  await GB((x) => window.__pad.axis(0, x), door.end);
+  await wait(200);
+  await GB(() => window.__app.input.state.tap('cover'));
+  await until(B, () => window.__app.current.wallCore.count.swat > 0, null, 4000, 'client starts the SWAT turn');
+  await GB(() => window.__pad.axis(0, 0));
+  await until(B, (to) => window.__app.current.wallCore.phase === 'on' && window.__app.current.wallCore.seg === to, door.to, 4000, 'client on the far wall');
+  await until(A, () => window.__seen.has('swat'), null, 6000, 'host replays the swat');
+  await until(A, (to) => window.__app.current.net.remotes.values().next().value?.state?.mv?.a === to, door.to, 6000, 'host sees the far wall');
+  {
+    const sB = (await GB(() => window.__sw)).sort((a, b) => a.k - b.k);
+    const sA = (await GA(() => window.__sw)).filter((s) => s.k >= 0.15 && s.k <= 0.85);
+    const lerp = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
+    /** The client's pose at phase k (linear between its two nearest frames). */
+    const at = (k) => {
+      let i = sB.findIndex((s) => s.k >= k);
+      if (i < 0) i = sB.length - 1;
+      const b = sB[i];
+      const a = sB[Math.max(0, i - 1)];
+      const u = b.k > a.k ? Math.max(0, Math.min(1, (k - a.k) / (b.k - a.k))) : 0;
+      return { root: lerp(a.root, b.root, u), j: Object.fromEntries(JOINTS.map((n) => [n, lerp(a.j[n], b.j[n], u)])) };
+    };
+    let rootW = 0;
+    let jointW = 0;
+    let jointN = '';
+    for (const s of sA) {
+      const c = at(s.k);
+      rootW = Math.max(rootW, Math.hypot(s.root[0] - c.root[0], s.root[2] - c.root[2]));
+      for (const n of JOINTS) {
+        const e = err(s.j[n], c.j[n]);
+        if (e > jointW) { jointW = e; jointN = `${n} @k ${s.k.toFixed(2)}`; }
+      }
+    }
+    const modes = [...new Set(sA.map((s) => s.mode))];
+    console.log(`    swat mid-move: ${sB.length} client / ${sA.length} host frames (k 0.15-0.85), root ${(rootW * 100).toFixed(1)} cm, worst joint ${(jointW * 100).toFixed(1)} cm (${jointN})`);
+    assert(sB.length >= 5 && sA.length >= 1 && modes.length === 1 && modes[0] === 'swat' && rootW <= 0.1, `swat mid-move: the host's copy in mode swat (${modes.join(',')}), root within 10 cm of the client's at the same phase (${(rootW * 100).toFixed(1)} cm)`);
+    // joints <= 10 cm mid-move is a D8 deviation carried to step 27 (REVIEW-NOTES) when over: reported, not gated
+    if (jointW > 0.1) console.log(`    (D8 deviation, step 27: swat mid-move joints ${(jointW * 100).toFixed(1)} cm > 10 cm)`);
+  }
+  await compare('swat (settled on the far wall)', 'wall');
+  const [ssl, ssr] = await wallS();
+  assert(Math.abs(ssl - ssr) <= 0.05, `after the SWAT turn: the host's copy at s ${ssr.toFixed(3)} on the far wall (client ${ssl.toFixed(3)})`);
+  await GB(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
+  await wait(300);
+  await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
+
   // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode
   // strike with the joints within 10 cm; a refused strike (a target the host does not have) blends back to ground
   console.log('elbow strike');
