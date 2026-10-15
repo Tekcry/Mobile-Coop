@@ -132,6 +132,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-music.mjs` (music project) the V3 sketch picker (`?musiclab=1`) on phone emulation and desktop: the picker
     comes first, each sketch loads its three MP3 stems, Calm / Alert / Evasion and the ladder move the stem gains, every decoded
     loop joins without a seam, the playback cost (60 s of three stems rendered offline), no console errors. Needs no GPU
+  - Music V4 test page (music project, manual, no e2e yet): `npm run dev`, then open `/music-test.html` (linked from
+    nowhere in the game). The themes alone, two menu sketches, two mission sketches with live Calm / Cautious / Alert
+    switching, the stinger, fake footsteps, guard voice and noise cue, and a volume slider per layer. Unit tests:
+    `tests/score.test.ts` (themes, arrangements, the director's hysteresis, the pure synthesis)
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
   `?gfx=min` (every graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user`
   for the saved settings): the PC renderer at Epic on software GL takes seconds per frame.

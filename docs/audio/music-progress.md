@@ -1,5 +1,75 @@
 # Night Shift - music progress
 
+**Current direction: V4** (Michael's brief of 2026-10-15): one main theme, a menu theme and one adaptive mission score,
+all synthesised in code. Research `docs/music/research.md`, design `docs/music/score-design.md`, code
+`src/audio/score/`, test page `/music-test.html`. Everything below the V4 report is history.
+
+## V4 status
+| Step | Name | Status |
+| --- | --- | --- |
+| 1 | Research | done (`docs/music/research.md`) |
+| 2 | Design | done (`docs/music/score-design.md`) |
+| 3 | Audition sketches and test page | done; waiting for Michael's listen and pick |
+| 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 Steps 1-3 report
+- Done:
+  - Research summary with the rules the score follows (web plus own knowledge; MGS mechanics and hysteresis from my
+    own knowledge, no reliable source found).
+  - Design: two sketches, each with its own theme, hook, menu theme and mission score. A "Long Shadow" (D minor,
+    cinematic, 80 / 92 / 138 BPM). B "Cold Wire" (C minor Phrygian, noir, 74 / 84 / 126 BPM).
+  - `src/audio/score/`:
+    - `theory.ts`, `themes.ts`: notes and the two themes.
+    - `arrange.ts`: every layer as timed events.
+    - `director.ts`: the state ladder with hysteresis.
+    - `synth.ts`: pure drum hits, plucked bass, short strings and noise beds.
+    - `instruments.ts`: Web Audio strings, brass, horns and bass.
+    - `render.ts`: offline render per layer, folded into a seamless loop and scaled to a target loudness.
+    - `player.ts`: loops, fades on beat and bar lines, stinger, duck, mid cut.
+    - `worldSim.ts`: the game's footstep, a guard murmur and a bottle cue.
+    - `lab.ts`: the page.
+  - `music-test.html`: a Vite page linked from nowhere in the game.
+- Decisions:
+  - **The V3 lab and its CC0 stems are untouched.** V4 is separate, so nothing is lost if Michael wants to compare.
+  - **No audio library.** Plain Web Audio plus pure-JS sample maths was enough.
+  - **Short, repeated notes are cached samples.** Drums, plucked bass and short strings are computed once as samples.
+    With oscillators per note, a layer took up to 11 s to render.
+  - **Notes are scheduled 4 s ahead of the offline render, and finished notes are disconnected.** Without this,
+    thousands of idle nodes made the render roughly 5 times slower.
+  - **Calm and Cautious share one loop.** Alert is a second loop at 1.5 times the tempo, restarted from its top two
+    beats after the stinger.
+- Tests: `tests/score.test.ts` (21). Full `npm test` 665 pass; lint and build clean. No e2e suite yet (the page is
+  standalone; the integration step adds one).
+- Measured (PC, Chromium, renders run 4 at a time):
+  - **Render time:**
+    - Mission A about 9-14 s, Mission B about 17 s.
+    - Menus 11-13 s.
+    - The themes alone under 1 s.
+  - **Loop lengths:**
+    - Menu A 96 s, Menu B 104 s.
+    - Mission A 83.5 s (both loops), Mission B 91.4 s.
+  - **Mixed levels on the music bus** (before the music volume):
+
+    | State | A average | B average | A peak |
+    | --- | --- | --- | --- |
+    | Calm | -34.0 dBFS | -34.1 dBFS | -13.1 dBFS |
+    | Cautious | -26.6 dBFS | -26.7 dBFS | - |
+    | Alert | -16.3 dBFS | -16.4 dBFS | -1.5 dBFS (the limiter catches it) |
+    | Evasion | -19.7 dBFS | -19.8 dBFS | - |
+
+  - **Calm leaves the footstep band almost empty:** its 0.9-4 kHz band is 18 dB below its full level. In Cautious that
+    band is 6 dB below, and in Alert 9 dB below.
+  - **Menu build:** about -26 dBFS in the intro, rising to -16 dBFS in the final statement.
+- Open issues:
+  - **Listening is the real test.** I cannot hear the result. Pitches, levels and timing were checked by numbers only.
+  - **Ear test for originality.** Does either theme or hook remind Michael of a known tune?
+  - **Memory:** a mission sketch holds about 150-250 MB of decoded audio, which is fine on the PC. The game will need
+    lower sample rates or fewer layers on phones.
+- Next: Michael listens and picks a direction. Then Step 4: refine the chosen sketches and wire them into the game.
+  STOP.
+
+---
+
 Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/audio/music-direction-v2.md`
 (replaces `music-direction.md`). Brief: `C:\NightShift\bundles\music-direction-v2.md`. Branch: `feature/music`.
 

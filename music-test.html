@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Night Shift - music test</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0d10;
+        --panel: #12171c;
+        --line: #232b33;
+        --text: #d8dee4;
+        --muted: #8592a0;
+        --accent: #6fb3c8;
+        --calm: #5c8f6e;
+        --caution: #c9a23c;
+        --alert: #c8503c;
+        --evade: #b07a3c;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 20px 16px 60px; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+      main { max-width: 980px; margin: 0 auto; }
+      h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: 0.02em; }
+      h2 { font-size: 16px; margin: 0 0 10px; color: var(--accent); }
+      h3 { font-size: 15px; margin: 0 0 6px; }
+      section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+      .muted, small { color: var(--muted); }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+      .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+      .card p { margin: 0 0 8px; }
+      .notes { font: 12.5px/1.5 ui-monospace, monospace; color: #b8c4cf; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+      button, select { background: #1b232b; color: var(--text); border: 1px solid #2f3a45; border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      button.on { background: #24485a; border-color: var(--accent); }
+      button.big { padding: 10px 16px; font-weight: 600; }
+      button.small { padding: 3px 8px; font-size: 12px; }
+      button.state { min-width: 110px; font-weight: 700; letter-spacing: 0.05em; }
+      button.g-calm.on { background: var(--calm); }
+      button.g-caution.on { background: var(--caution); color: #111; }
+      button.g-alert.on { background: var(--alert); }
+      body.busy button { opacity: 0.5; pointer-events: none; }
+      .progress { min-height: 1.4em; color: var(--accent); }
+      .status { margin-top: 8px; padding: 10px; border-radius: 6px; background: #0d1216; min-height: 3.2em; }
+      .g-calm, .m-calm { color: #8fd0a4; }
+      .g-caution, .m-caution { color: var(--caution); }
+      .g-alert, .m-alert { color: #ff7a63; }
+      .m-evade { color: var(--evade); }
+      .layer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 220px) 48px auto; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid #1a2128; }
+      .lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+      input[type='range'] { width: 100%; accent-color: var(--accent); }
+      label { display: inline-flex; align-items: center; gap: 6px; }
+      label input[type='range'] { width: 160px; }
+      pre { margin: 0; font-size: 12px; color: var(--muted); white-space: pre-wrap; }
+      @media (max-width: 600px) {
+        .layer { grid-template-columns: 1fr 48px auto; }
+        .layer input[type='range'] { grid-column: 1 / -1; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app"></main>
+    <script type="module">
+      import { mountScoreLab } from './src/audio/score/lab.ts';
+      mountScoreLab(document.getElementById('app'));
+    </script>
+  </body>
+</html>
