@@ -2,13 +2,22 @@
 
 ## On the secondary desktop (M7, 2026-10-15)
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
-- Current: step 16 done. Next: step 17 input pad, then 18-20, 20b, Block C end (no budgets), play-check list, the single pause. Rules added this session: M8 (no ray tracing on this desktop), M9 (port 4189 / 4191 commands), M10 (desktop speed).
+- Current: step 16 done. Next: step 17 input pad, then 18, 19, 20b (step 20 dropped, M12), Block C end (no budgets), play-check list, the single pause. Rules added this session: M8 (no ray tracing on this desktop), M9 (port 4189 / 4191 commands), M10 (desktop speed).
 - Blocked 11a (e2e-wall grenade): passed on the desktop (throws 2); retry at the Block C end as planned.
 - PC1 agent preamble (shared prompt header for PC1 agents): steps/PC1-preamble.md. PC1 had not produced results before the M6 crash: start PC1 from item 9 (anim audit), with items 4-8 moved to section 0.
 - Desktop perf-trend baseline (2026-10-15, 3 runs, E2E_GPU=1, calib 4.7 ms, hardware GPU, 60 Hz display): sim p95 1.1 / 1.2 / 1.45 ms (median 1.2); anim 0.0356-0.0362 ms per character; allocations 11.7-13.4 MB/s; draws 40-41; tris 0.12-0.13 M. +25% trip: sim p95 1.5 ms, anim 0.0446 ms. Budgets are not claimed here (anim 0.036 vs the 0.03 local budget and allocations vs 11.5 MB/s are for the target laptop pass, PC-PASS section 0).
 - Desktop anim-audit baseline: docs/locomotion/audit/anim-baseline-desktop.json (run 2, banded on run 1). Two runs, 164-166 s each: local 541 fails in both, 0 local flips (deterministic); remote 165 / 171 fails, 20 remote flips (A39 noise); `--compare` against the cloud baseline: no regression. Remote loops: client 62.5 fps, host 56.5 fps, 120 Hz pump p95 jitter 1.5-1.6 ms. Later desktop audits use `--compare=docs/locomotion/audit/anim-baseline-desktop.json`.
 - Tooling fix: scripts/anim-audit.mjs spawned `node_modules/.bin/esbuild` (a .cmd shim on Windows: ENOENT); it now runs esbuild's JS entry through node.
 - Target laptop: Block D laptop check after step 32; full target laptop pass (PC-PASS section 0 first) before step 34.
+- M12 (Michael, 2026-10-15): step 20 (bot partner) dropped; order is now 17, 18, 19, 20b, Block C end, play-check list, the single pause. Steps 20b-34 use two-page e2e-netmove / e2e-coop cases, anim-audit remote rows and two-tab PC-PASS items instead of the bot.
+- Play check (D11 item 4) uses two browser tabs on one PC, no bot: start `npm run dev`, open the host tab with `?net=local`, Co-op > Host a room; the second tab opens the join URL (`?net=local&room=<code>`) or Co-op > Join room with the code; pad in the host tab. Its text is still to be written into STATE.md by the orchestrator (BRIEF.md:140, DECISIONS.md:107 D11 item 4 and OWNER-NOTES.md:64-67 still say "bot partner").
+
+### Block C end: former step 20 reruns (M12)
+Run at the Block C end as two-page `?net=local` cases; record each in LOG.md and drop the pending note.
+1. Step 11 two-player stacking: both pages on one wall, centres >= 0.6 m apart, no capsule overlap. The e2e-netmove "stack" case already asserts it (e2e-netmove.mjs:441-447; reads 0.75 m): run it and record the reading.
+2. Step 15 4-player `?net=local` medkit run: owned by step 30 task 10 (4-page e2e-coop case covering medkits); at the Block C end confirm the 3-page e2e-coop medkit case (host-authoritative heal, counts, cdeny none, wall medkit) passes.
+3. Step 19: "rerun after 20" items are this list (no extra check).
+4. Step 08 carried items (remote stance / weapon settle vs the owner's curve, paired-move alignment palm vs ball-of-foot, remote runtime, 120 Hz jitter): moved to step 30 task 12, not a Block C end item.
 
 ## On the PC (M6, 2026-10-15)
 - Resumed locally on Michael's PC (worktree C:\NightShift\Mobile-Coop-locomotion, E2E_PORT=4189, E2E_GPU=1). Rules: RULES.md "On Michael's PC". Setup and prompts: OWNER-NOTES.md. Resume line: "Locomotion run: RESUME (local)".

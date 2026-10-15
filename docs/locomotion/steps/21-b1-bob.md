@@ -1,6 +1,6 @@
 # Step 21 - batch 1a: D2 bob fixes and trained posture (D5.6)
 
-Model: implementer opus; checker opus. Depends on: 20. (all subagents opus from step 06, Michael 2026-10-13)
+Model: implementer opus; checker opus. Depends on: 20b (step 20 dropped, M12). (all subagents opus from step 06, Michael 2026-10-13)
 Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, sway settle), trained posture"
 
 ## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
@@ -55,7 +55,7 @@ Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, s
 ## Checks
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
-- `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-netmove e2e-coop e2e-bot`
+- `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-netmove e2e-coop`
   (netmove / coop are KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): pelvis p2p, one low / high, sway, head, settle, breathing, joint
   rate pass for batch 1 rows; nothing else regresses. `node scripts/perf-trend.mjs` (rig touched).

@@ -3,7 +3,7 @@
 Authority: DECISIONS.md > bible (1.13, 5.17) > this file. Inputs: AUDIT.md and docs/locomotion/audit/*.
 Each step has a file in `steps/` (80 lines or fewer). Every step runs `npm run check` and `npm run e2e:quick`; a step that
 touches a movement state or src/net also runs e2e-netmove and e2e-coop. Checks marked "rerun after 20" are recorded as
-pending and rerun by step 20 (the bot partner). Block end: full `npm run e2e` (background) + `node scripts/perf-trend.mjs`.
+pending and rerun at the Block C end as two-page `?net=local` cases (M12: step 20 dropped; list in STATE.md). Block end: full `npm run e2e` (background) + `node scripts/perf-trend.mjs`.
 
 Baselines (STATE.md): sim p95 2.65 ms, anim 0.0504 ms/char (this VM); netmove worst 3.7 cm (limit 10 cm).
 Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
@@ -31,7 +31,7 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 ## Block C - Verbs, kit and input (sonnet implement; opus check for 11, 12, 12b, 14 and every net step)
 | 09 | holster-draw | holstered unless aiming, no hip fire, ADS spread tuning; MoveState drawn bit + weapon in hand host-authoritative | weapons/playerWeapons, weaponStats, weapons.json, moveState, coopHost | netmove case drawn / holstered | 06 |
 | 10 | elbow-strike | fire while holstered = elbow strike (committed); generic committed-move protocol `cmove` / `cstart {t0}` / `cdeny` (H3); MoveState `strike` | takedownController, protocol, coopHost, coopClient, moveState | netmove case; host denies | 09 |
-| 11 | wall-core | back-to-wall: enter on context press near a wall >= 1.6 m (or low wall), slide along, exit; MoveState `wall`; feeds `localRef.cover` for AI; two players stack on one wall | new src/player/wallController.ts (pure core + tests), gameState, moveState, remoteAvatar | netmove case; stacking (rerun after 20) | 06, 08 |
+| 11 | wall-core | back-to-wall: enter on context press near a wall >= 1.6 m (or low wall), slide along, exit; MoveState `wall`; feeds `localRef.cover` for AI; two players stack on one wall | new src/player/wallController.ts (pure core + tests), gameState, moveState, remoteAvatar | netmove case; stacking (rerun after 20: Block C end, two-page) | 06, 08 |
 | 12 | wall-corner | corner peek, lean-out aim, SWAT turn, corner takedown from the wall; lean kind `lk` field (PROTOCOL_VERSION 7) | wallController, takedown.ts (highCover -> wall), camera | netmove peek / lean cases | 11 |
 | 12b | wall-edge-aim | D9 open-side weapon at edges (left edge: pistol left hand, rifle left shoulder, camera follows, Inertializer switch, WALL_SUB leftHand); D10 low-wall crouched side lean vs over-the-top, head below the wall top; no protocol bump | wallController, characterRig, localMoveState, remoteAvatar | netmove left-edge lean and low-wall side lean | 12 |
 | 13 | door-peek | context press at a closed door: crack open, peek, close; MoveState `doorPeek`; door state host-authoritative | world/doors, gameState, moveState | netmove case | 06 |
@@ -43,13 +43,13 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 | 19 | difficulty | custom difficulty: perception speed, guard aim, alarm tolerance sliders + presets; host's applies in co-op | ai/archetypes, enemy, settings, coopUi | client follows host values | 18 |
 
 ## Block D - Animation and camera (sonnet implement, opus check)
-| 20 | bot-partner | dev bot partner (C20): a scripted second player over the local transport that follows, stacks, and performs every verb and team move on command; reruns the "rerun after 20" checks | src/net (dev only, behind flags.coop), scripts/e2e-bot.mjs | itself | 19 |
-| 20b | net-check | D11: network conditions simulator in the local / test transport (?netsim=typical, E2E_NETSIM=typical: 80 ms RTT, 20 ms jitter, 1% loss); e2e-netmove / coop / bot once under typical in report mode; fix only clear breakages; tuning to BIBLE-PROPOSALS | src/net transport, e2e libs | report under typical | 20 |
-| 21 | b1-bob | batch 1a: D2 fixes (heel-strike kick, walk sway, camera footstep kick removed, breathing and sway settle), trained posture D5.6 | anim/*, characterRig, shoulderCamera | remote audit | 20 |
+| 20 | bot-partner | DROPPED (M12, Michael 2026-10-15): no bot partner built; co-op is tested with the two-page e2e-netmove / e2e-coop suites, anim-audit remote rows and two browser tabs; the "rerun after 20" checks run at the Block C end as two-page cases | - | - | - |
+| 20b | net-check | D11: network conditions simulator in the local / test transport (?netsim=typical, E2E_NETSIM=typical: 80 ms RTT, 20 ms jitter, 1% loss); e2e-netmove / coop once under typical in report mode; fix only clear breakages; tuning to BIBLE-PROPOSALS | src/net transport, e2e libs | report under typical | 19 |
+| 21 | b1-bob | batch 1a: D2 fixes (heel-strike kick, walk sway, camera footstep kick removed, breathing and sway settle), trained posture D5.6 | anim/*, characterRig, shoulderCamera | remote audit | 20b |
 | 22 | b1-gait | batch 1b: speed-scaled gait D5.1, accel / turn lean spring D5.2 (remotes derive accel locally), compression and settle D5.3, plant-and-pivot + stride warping D5.4, quick 180, exertion breathing D5.5 | anim/*, motion, footPlanner, remoteAvatar | remote audit | 21 |
 | 23 | b1-ik | batch 1c: stairs / slopes full-body IK D5.10, look-at D5.8 (noise, team-mates, aim) | characterRig, footPlanner | remote audit | 22 |
 | 24 | camera | CT camera + collision solver D5.13: spring-damper capsule follow, look-ahead, wall pull-in, auto shoulder swap at corners, FOV by gear and stance, one damped landing dip | shoulderCamera, cameraBounds, config/camera | local only | 21 |
-| 25 | b2-weapon | batch 2: aim, reload, swap, throw, aim from attached states; muzzle discipline D5.7 (never sweeps team-mates), low-ready in tight spaces | animGraph, characterRig | team-mate muzzle test with bot | 22 |
+| 25 | b2-weapon | batch 2: aim, reload, swap, throw, aim from attached states; muzzle discipline D5.7 (never sweeps team-mates), low-ready in tight spaces | animGraph, characterRig | team-mate muzzle test, two-page (page B in the aim line) | 22 |
 | 26 | b3-traversal | batch 3: mantle, vault, step, drop, ladder, pipe, ledge, window, landing, roll; D5.3 settle on exits; D5.9 ledge hand IK; D5.11 momentum-scaled traversal; momentum carry | traversal, traversePath, clips | netmove traversal cases | 22 |
 | 27 | b4-contact | batch 4: back-to-wall clip, takedowns, grab, carry; drag (new verb, MoveState `drag`, host-approved, H1); D5.9 door-frame / corner contact IK, duck under low geometry, sideways through gaps | clips, takedownController, characterRig | netmove drag case | 26 |
 | 28 | b5-guards | batch 5: guard patrol / investigate / alert / search / radio / reactions / knock-outs; guard body language; look-at toward visible guards (D5.8) | ai/*, enemyPuppet, clips | guard pose on client | 27 |
@@ -62,4 +62,4 @@ Pre-existing failure: tests/kestrelMap.test.ts (kestrel-owned).
 | 33 | training | Training rewritten for the final verbs, pad prompts first | game/training.ts, trainingMode | - | 32 |
 | 34 | finish | merges (kestrel, master), versions, CHANGELOG, progress.md, PC-PASS checklist, REVIEW.md, PR | docs, package.json | full e2e | 33 |
 
-Scope guard: Block A 6 steps (max 12), B 2 (4), C 12 (24, 12b added for D9-D10), D 13 (26), E 2 (4).
+Scope guard: Block A 6 steps (max 12), B 2 (4), C 12 (24, 12b added for D9-D10), D 13 (26; 12 after step 20 was dropped, M12), E 2 (4).

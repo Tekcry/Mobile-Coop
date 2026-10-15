@@ -24,7 +24,7 @@ Commit: "locomotion 31: pose viewer; fixes: thigh pistol vs elbow, brace prompt,
    Pick any clip, lower state, transition, operator or guard; scrub, 0.1x-1x, loop, orbit camera.
 2. Overlays: joint limits (red over limit), contact points, centre of mass and support area, clipping points; reads the
    same pure metric functions as the harness (no second implementation).
-3. Remote preview: pose a second rig from a recorded MoveState stream (from e2e-netmove or the bot) side by side.
+3. Remote preview: pose a second rig from a recorded MoveState stream (from an e2e-netmove or e2e-coop page B) side by side.
 4. Pad and KBM drive the viewer (D1); touch gets scrub and play only.
 5. Thigh pistol vs elbow: move the right-arm carry or holster offset so the elbow pad clears the thigh pistol by >= 2 cm
    at every crouch gear; e2e-weapons-carry runs at crouch gears 2, 3 and 4.
@@ -43,7 +43,7 @@ Commit: "locomotion 31: pose viewer; fixes: thigh pistol vs elbow, brace prompt,
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
-  `node scripts/run-e2e.mjs e2e-weapons-carry e2e-touch e2e-pad e2e-desktop e2e-coop e2e-bot`
+  `node scripts/run-e2e.mjs e2e-weapons-carry e2e-touch e2e-pad e2e-desktop e2e-coop`
   (coop, touch, pad KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): nothing regresses. `node scripts/perf-trend.mjs`.
 - PC-PASS: pose viewer on the phone (`npm run build`, served, phone on LAN): "scrub, overlays readable";

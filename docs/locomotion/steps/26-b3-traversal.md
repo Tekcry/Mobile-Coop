@@ -48,7 +48,7 @@ Commit: "locomotion 26: traversal batch: durations, single settle on exits, ledg
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
-  `node scripts/run-e2e.mjs e2e-traverse e2e-anchors e2e-move e2e-anim e2e-clip e2e-netmove e2e-coop e2e-bot`
+  `node scripts/run-e2e.mjs e2e-traverse e2e-anchors e2e-move e2e-anim e2e-clip e2e-netmove e2e-coop`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): durations, hands on lips, single settle; batches 1-2 still pass.
 - `node scripts/perf-trend.mjs`.

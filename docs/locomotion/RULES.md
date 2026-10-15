@@ -64,7 +64,7 @@ A6-A48 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 - GPU: `E2E_GPU=1` for perf.mjs, anim-sheet.mjs, shot.mjs and the visual suites. Re-baseline perf-trend and the anim audit on this PC (STATE.md). Block ends also run `perf.mjs --budget` and `perf.mjs --phone --budget` against docs/systems/performance.md.
 - Each step's checker runs that step's GPU items itself (contact sheets local and remote; perf when the step touches anim, camera, vfx or render). An opus checker reads the sheets with the Read tool and judges them against bible 5.12.1, 5.12.2 and D2, D5, D8-D11. PC-PASS.md keeps only items that need Michael's eyes or a phone.
 - Full e2e: run_in_background and wait for the notification. Every shell command has a timeout.
-- Order: PC1 GPU catch-up (PC-PASS 01-14), steps 15-20, 20b, Block C end, play-check checklist, the single pause for Michael, then 21-34 unattended.
+- Order: PC1 GPU catch-up (PC-PASS 01-14), steps 15-19, 20b, Block C end (step 20 bot partner dropped, M12), play-check checklist, the single pause for Michael, then 21-34 unattended.
 - Keep docs/locomotion/OWNER-NOTES.md current: project knowledge lives in git, never only in Claude memory.
 
 ## On the secondary desktop (M7, 2026-10-15; overrides M6 where they differ)

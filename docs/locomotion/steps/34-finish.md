@@ -24,7 +24,7 @@ Commit: "locomotion 34: merge kestrel and master, versions, changelog, PC-PASS c
    suites and kestrel-owned failures (those go to REVIEW.md).
 3. Recompute the highest version across the merged branches and CHANGELOG headings; write two CHANGELOG entries
    (Phase 3: removals, back-to-wall, door peek, holster / elbow strike, vision, medkits, arsenal, input, remap,
-   difficulty; Phase 3b: harness, bot partner, batches 1-7, camera, drag, quick 180, momentum carry, pose viewer,
+   difficulty; Phase 3b: harness, net check (simulated network), batches 1-7, camera, drag, quick 180, momentum carry, pose viewer,
    metrics freeze, Training). package.json gets the higher one.
 4. docs/progress.md: Phase 3 and 3b done (versions), GPU checks pending a PC run, First Playable S3a / S3b absorbed
    (D3), the Phase 5 hooks H1-H4 listed; current state paragraph updated.
@@ -42,8 +42,10 @@ Commit: "locomotion 34: merge kestrel and master, versions, changelog, PC-PASS c
      right edge unchanged; mid-wall normal side), low-wall aim (D10: crouched side lean at the end with the head
      below the top, over the top mid-wall), door peek, elbow strike, takedowns, medkits, vision modes, arsenal, remapping and hold / toggle, custom
      difficulty, Training;
-   - numbered co-op checklist at 2 players (bot partner, and two tabs with `?net=local`): every verb seen from the
-     other player, team moves, avatars passing and stacking, host-approved moves, a 4-player local run;
+   - numbered co-op checklist at 2 players (two browser tabs on one PC with `?net=local`: host tab creates the room,
+     second tab joins with the code / URL, pad in the host tab; no bot partner, M12): every verb seen from the other
+     player, team moves, avatars passing and stacking, host-approved moves, a 4-player local run (four tabs);
+   - D3 note for the review: the bot partner (bible 5.9 C20) was dropped by M12, see BIBLE-PROPOSALS.md;
    - a 5-line phone smoke test;
    - blocked, deferred and kestrel-owned items, Phase 5 hooks, known issues.
 7. CLAUDE.md module map: the `cover/` row matches what Block A left; docs/systems/*.md touched by the run are current.

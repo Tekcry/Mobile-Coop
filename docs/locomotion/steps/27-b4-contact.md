@@ -43,7 +43,9 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
    so it flips with D9) holds the wall corner, < 1 cm, at left and right edges, high wall and low-wall end.
 10. Duck under low geometry: head clearance probe; spine / knees flex to clear with >= 3 cm, no world clip > 3 cm.
 11. Sideways through gaps narrower than 0.7 m: torso turns up to 60 deg (spine limit) and steps sideways.
-12. Add `drag` to the bot partner command table (step 20) and to the e2e-bot suite.
+12. Two-page `drag` coverage (M12, no bot partner): an e2e-coop case where page B drags a body and page A sees it
+    posed from MoveState < 10 cm with the body position synced, plus the netmove case below; an anim-audit remote
+    `drag` row.
 
 ## D8
 - New mode `drag`: e2e-netmove case; host-approved start; body position synced; denial path tested.
@@ -57,7 +59,7 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
-  `node scripts/run-e2e.mjs e2e-takedown e2e-stealth e2e-clip e2e-anim e2e-netmove e2e-coop e2e-bot`
+  `node scripts/run-e2e.mjs e2e-takedown e2e-stealth e2e-clip e2e-anim e2e-netmove e2e-coop`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): durations, contacts, char-vs-char, alignment; batches 1-3 pass.
 - `node scripts/perf-trend.mjs`.

@@ -54,7 +54,7 @@ Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-p
 ## Checks
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
-- `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-ct e2e-netmove e2e-coop e2e-bot`
+- `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-ct e2e-netmove e2e-coop`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote), 60 and 120 Hz: batch 1 rows pass, nothing regresses vs step 21.
 - `node scripts/perf-trend.mjs`.

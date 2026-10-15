@@ -13,3 +13,4 @@ Michael decides each. Suggested phase and a one-line reason.
 | 7 | Instant checkpoint retry in under 3 s | 4 | Failure must be cheap for stealth to be fun; checkpoints arrive in Phase 4. |
 | 8 | An after-action route map | 4 | Shows the route, detections and lights used next to the stealth rating, rewarding authored approaches (P3). |
 | 9 | Adaptive layered music | 2 | Music that tracks alert state supports sound (P2); it belongs with the audio work and its A/B test. |
+- M12 (Michael, 2026-10-15): the dev bot partner (5.9 C20, Phase 3b row) was skipped in the locomotion run. Proposal: move C20's bot partner to Phase 5 (co-op), where the bible already lists "the bot partner extended", or drop it; solo co-op testing meanwhile uses two browser tabs with `?net=local`.

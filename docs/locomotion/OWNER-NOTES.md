@@ -22,6 +22,8 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 4. Start Claude Code in that folder with: **Locomotion run: RESUME (local)**.
 5. At "Ready for the Block D laptop check" and "Ready for the target laptop pass": on the RTX 4090 laptop pull, `npm ci && npm run build`, run PC-PASS section 0, then reply "Locomotion: go" on the desktop (with notes for any failure).
 
+- M12: the bot partner (step 20) was dropped; the play check and co-op checks use two browser tabs with `?net=local`. The verbatim prompts below still mention it.
+
 ## Prompts Michael uses
 - Resume line (new session or new account): **Locomotion run: RESUME (local)**. The session then runs the branch guard in the worktree and resumes from RULES.md and STATE.md.
 - After the play-check pause: **Locomotion: go** (with or without notes).

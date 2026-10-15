@@ -40,21 +40,23 @@ Commit: "locomotion 25: weapon handling batch: aim, reload, swap, throw, attache
 10. Unit tests for the muzzle-sweep test (segment vs capsule, no allocation) and the low-ready rule.
 
 ## D8
-- New mode `throw`: e2e-netmove case under 10 cm. Muzzle test with the bot partner: the bot steps into the aim line;
-  host and client both show low-ready within 0.15 s.
+- New mode `throw`: e2e-netmove case under 10 cm. Muzzle test, two-page e2e-netmove case (M12): page A
+  aims, page B's player is moved into A's aim line by B's inputs (or a window hook); host and client both show
+  low-ready within 0.15 s.
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
 
 ## Checks
 - Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
   a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
-  `node scripts/run-e2e.mjs e2e-weapons-carry e2e-combat e2e-anim e2e-netmove e2e-coop e2e-bot`
+  `node scripts/run-e2e.mjs e2e-weapons-carry e2e-combat e2e-anim e2e-netmove e2e-coop`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): durations (raise, swap), hands, self-intersection, settle; batch 1
   rows still pass. `node scripts/perf-trend.mjs`.
 - PC-PASS: anim-sheet `aim`, `reload`, `swap`, `grenade`, side / ots, local and remote; wall-edge lean at left and
   right edges, pistol and rifle (D9), local and remote; a muzzle-discipline sheet
-  with the bot: "muzzle never crosses the mate, sway settles" (PROVISIONAL in the cloud).
+  with a second `?net=local` page's player in the aim line (two pages): "muzzle never crosses the mate, sway settles"
+  (PROVISIONAL in the cloud).
 - From step 09: remotes show no draw / holster clip (the weapon pops in or out on dw); play the draw / holster on the remote copy from dw transitions (no extra bandwidth). PC-PASS 18.
 - From step 11: since step 09 (holstered by default) the e2e-clip walk-wall, sprint and crouch-run weapon scenarios measure 0 frames. Make them draw (aim) first so weapon-into-world coverage is restored.
 - From PC1 (desktop GPU, 2026-10-15, PC-PASS 28; identical to the cloud baseline raise rows, not recorded before): the holster after a release pops 0.12-0.23 s in (aa raise frames 73-80): jointRate 150.7 deg / frame, gripR 19.6 / gripL 24.0 cm, elbowR 156.9 deg, right arm through the torso (selfUpperArmR 12.6, selfForearmR 12.0 cm), wristFlexR 143.6 deg; aim wristSideR 157.7 deg at frame 46. Look at the grip / swap-overlay weights (src/anim/animGraph.ts:317, :395-402) and the readyW ease (:658) plus the holster-slot hand path. The raise rows must pass after this step. Also PC-PASS 15: aim wrists stand2 wristSideL 26.9 / flexR 86.5 / sideR 129.6 deg, crouch3 30.2 / 82.2 / 116.3 (AUDIT.md:271).
