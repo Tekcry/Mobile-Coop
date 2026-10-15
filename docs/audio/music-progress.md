@@ -20,8 +20,31 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; Michael: likes the Zimmer menu's orchestra, but it strays from Hook A; wants it darker and more stealthy, still epic |
 | 3j | Round 10: dark Zimmer menu (two versions) and a dark in-game loop, Hook A on D | done; waiting for Michael's feedback |
 | 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; Michael: likes it in general, but too quick and upbeat for stealth |
-| 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done; waiting for Michael's feedback |
+| 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done |
+| 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 13 - more "Alert, faster"; under fire
+- **Michael (2026-10-16):**
+  - He really likes "Alert, faster (strings)" (round 7, 120 BPM).
+  - He wants a few more versions of it, slower ones for the menu, and another Alert with urgency: "like you're being
+    shot at... get your heart rate pumping because you're in trouble".
+- **Done:**
+  - **Alert, under fire** (132 BPM, 40 bars, 73 s, 13 layers), on the same hook and melody, adding:
+    - a pounding heart-rate drum pattern (big drum with sticks and mallet, timpani, bass drum, cymbal swells)
+    - off-beat stabs on the "and" of 2 and the last sixteenth of 4, from strings and short horn notes (the "shots")
+    - violins climbing a semitone per bar over 4 bars
+    - a grating D against E-flat tremolo rub up high
+    - fast ticking on high violins
+    - the driving sixteenths rising a semitone in every 4th bar
+    - low brass swells
+    - Presets: Under fire, Alert, Evasion, Strings only, Everything on.
+  - **Alert faster, with brass and drums** (120 BPM): low brass swells on each chord, a big drum on the 3 + 3 + 2
+    accents, timpani on the chord changes, cymbal swells.
+  - **Alert faster, with drums only** (120 BPM).
+  - **Menu theme, from Alert faster**, at 96 BPM and 84 BPM: the same piece, slowed.
+- **Balance:** the stabs, the ticking and the drums were raised after the first render.
+- **Measured:** each piece renders in 11-26 s. All local renders total 264 MB, git-ignored.
 
 ## V4 round 12 - Past/Present/Future, slow and dark
 - **Michael (2026-10-16):** "I like Past/Present in general but it doesn't suit a stealth game, it's too quick and

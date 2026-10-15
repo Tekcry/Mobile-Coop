@@ -1,4 +1,6 @@
 /**
+ * Round 13 (2026-10-16): he really likes "Alert, faster (strings)": more versions of it (with brass and drums, with drums),
+ * slower copies for the menu (96 and 84 BPM), and "Alert, under fire" (132 BPM) with urgency, like being shot at.
  * Round 12 (2026-10-16): he likes Past/Present/Future in general but it is too quick and upbeat for stealth: a slow (80 and
  * 70 BPM), dark, minor, epic version: a heavy plucked pulse, the figure low in the violas, a darker melody, a big peak.
  * Round 11 (2026-10-16): pieces in the style of Brandon Roberts' "Past/Present/Future" (Andor season 2): a soft pulse,
@@ -47,6 +49,86 @@ export interface PieceMeta {
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
 
 export const PIECES: readonly PieceMeta[] = [
+  {
+    id: 'underfire',
+    name: 'Alert, under fire',
+    about: 'Built on Alert faster, at 132 BPM, to get your heart pumping: a pounding drum pattern, stabbing off-beat hits from strings and short horns, violins climbing a semitone at a time, a grating tremolo rub high up, a fast ticking line, and the driving sixteenths rising a semitone every fourth bar, under the same hook and melody.',
+    use: 'mission',
+    bpm: 132,
+    bars: 40,
+    layers: [
+      S('hookBass', 'Hook A, basses'),
+      S('hookCello', 'Hook A, cellos'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('drive', 'Driving sixteenths (rising every 4th bar)'),
+      S('rise', 'Violins climbing a semitone at a time'),
+      S('trem', 'Tremolo rub, high (D against E-flat)'),
+      S('stabs', 'Off-beat stabs, strings'),
+      S('ticks', 'Fast ticking, high violins'),
+      S('lowSus', 'Low held D'),
+      S('melody', 'Melody on violins and cellos'),
+      { id: 'hornStabs', name: 'Off-beat stabs, short horns', kind: 'brass' },
+      { id: 'brass', name: 'Low brass swells', kind: 'brass' },
+      { id: 'drums', name: 'Pounding drums, timpani, swells', kind: 'perc' },
+    ],
+    presets: {
+      'Under fire': { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.6, rise: 0.7, trem: 0.6, stabs: 0.75, ticks: 0.5, lowSus: 0.45, melody: 0.85, hornStabs: 0.6, brass: 0.5, drums: 0.8 },
+      Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.55, trem: 0.5, stabs: 0.6, lowSus: 0.45, melody: 0.9, drums: 0.6 },
+      Evasion: { hookBass: 0.7, hookCello: 0.85, drive: 0.5, trem: 0.4, ticks: 0.4, lowSus: 0.4, drums: 0.4 },
+      'Strings only': { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.6, rise: 0.7, trem: 0.6, stabs: 0.75, ticks: 0.5, lowSus: 0.45, melody: 0.85 },
+      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, rise: 1, trem: 1, stabs: 1, ticks: 1, lowSus: 1, melody: 1, hornStabs: 1, brass: 1, drums: 1 },
+    },
+  },
+  {
+    id: 'afheavy',
+    name: 'Alert faster, with brass and drums',
+    about: 'Alert faster as you like it, plus low brass swells on each chord and big drums (low drum on the 3 + 3 + 2 accents, timpani on the chord changes, cymbal swells into each section).',
+    use: 'mission',
+    bpm: 120,
+    bars: 32,
+    layers: [
+      S('hookBass', 'Hook A, basses'),
+      S('hookCello', 'Hook A, cellos'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('drive', 'Driving sixteenths on D'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on violins and cellos'),
+      { id: 'brass', name: 'Low brass swells', kind: 'brass' },
+      { id: 'drums', name: 'Big drums, timpani, swells', kind: 'perc' },
+    ],
+    presets: {
+      Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1, brass: 0.55, drums: 0.65 },
+      Evasion: { hookBass: 0.7, hookCello: 0.9, drive: 0.45, lowSus: 0.45, trem: 0.55, drums: 0.4 },
+      'Strings only': { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
+      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1, brass: 1, drums: 1 },
+    },
+  },
+  {
+    id: 'afdrums',
+    name: 'Alert faster, with drums only',
+    about: 'Alert faster with just the drums added (no brass): the strings you like, with a pulse underneath.',
+    use: 'mission',
+    bpm: 120,
+    bars: 32,
+    layers: [
+      S('hookBass', 'Hook A, basses'),
+      S('hookCello', 'Hook A, cellos'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('drive', 'Driving sixteenths on D'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on violins and cellos'),
+      { id: 'drums', name: 'Big drums, timpani, swells', kind: 'perc' },
+    ],
+    presets: {
+      Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1, drums: 0.65 },
+      Evasion: { hookBass: 0.7, hookCello: 0.9, drive: 0.45, lowSus: 0.45, trem: 0.55, drums: 0.4 },
+      'Strings only': { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
+    },
+  },
   {
     id: 'ppfslowmission',
     name: 'Mission score, Past/Present/Future slow and dark',
@@ -286,6 +368,50 @@ export const PIECES: readonly PieceMeta[] = [
       Alert: { hook: 1, hookHigh: 0.8, stabs: 0.7, soft: 0.6, melody: 1 },
       Evasion: { hook: 0.85, hookHigh: 0.5, stabs: 0.5 },
       'Everything on': { hook: 1, hookHigh: 1, stabs: 1, soft: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'afmenu96',
+    name: 'Menu theme, from Alert faster (96 BPM)',
+    about: 'Alert faster, the piece you like, slowed to 96 BPM for the main menu: the same hook, drive, chords, tremolo and melody.',
+    use: 'menu',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('hookBass', 'Hook A, basses'),
+      S('hookCello', 'Hook A, cellos'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('drive', 'Driving sixteenths on D'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on violins and cellos'),
+    ],
+    presets: {
+      Full: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
+      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'afmenu84',
+    name: 'Menu theme, from Alert faster (84 BPM)',
+    about: 'Alert faster, the piece you like, slowed to 84 BPM for the main menu: the same hook, drive, chords, tremolo and melody.',
+    use: 'menu',
+    bpm: 84,
+    bars: 32,
+    layers: [
+      S('hookBass', 'Hook A, basses'),
+      S('hookCello', 'Hook A, cellos'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('drive', 'Driving sixteenths on D'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on violins and cellos'),
+    ],
+    presets: {
+      Full: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
+      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
     },
   },
   {
@@ -1333,12 +1459,103 @@ function ppfSlowMission(s: Score): void {
   for (const b of [8, 24]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.4);
 }
 
+
+// ------------------------------------------------------------------ round 13: more Alert faster; under fire
+
+/** Big drums for the Alert-faster family: low drum on the 3 + 3 + 2 sixteenth accents, timpani on chord changes, swells. */
+function afDrums(s: Score, layer: string, from: number, to: number, vel: number): void {
+  const P = s.L(layer);
+  for (let b = from; b < to; b++) {
+    for (const i of [0, 6, 11]) hit(P, s.bank, 'giant', i === 0 ? 1 : 2, s.t(b, i / 4), vel * (i === 0 ? 1 : 0.7));
+    if (b % 2 === 0) timp(P, s.bank, CH[PROG[Math.floor(b / 2) % 4]!].root + 12, s.t(b), vel * 0.9);
+  }
+  for (let b = from + 8; b < to; b += 8) swellInto(P, s.bank, 'cym', 1, s.t(b), vel * 0.8);
+}
+
+function afBrass(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[PROG[Math.floor(b / 2) % 4]!];
+    note(s.L(layer), s.bank, 'hornSus', c.tones[0]!, s.t(b), s.d(8), { vel, attack: s.d(2), release: 1.2 });
+    note(s.L(layer), s.bank, 'hornSus', c.tones[2]!, s.t(b), s.d(8), { vel: vel * 0.9, attack: s.d(2), release: 1.2 });
+    note(s.L(layer), s.bank, 'tbnSus', c.root + 12, s.t(b), s.d(8), { vel: vel * 0.9, attack: s.d(2), release: 1.2 });
+  }
+}
+
+function afHeavy(s: Score, brass: boolean): void {
+  alertFast(s);
+  if (brass) afBrass(s, 'brass', 0, s.meta.bars, 0.4);
+  afDrums(s, 'drums', 0, s.meta.bars, 0.85);
+}
+
+function underFire(s: Score): void {
+  const N = s.meta.bars;
+  const chordAt = (b: number): ChordName => PROG[Math.floor(b / 2) % 4]!;
+  hookLine(s, 'hookBass', 'bassSpic', -12, 0, N, () => 0.9);
+  hookLine(s, 'hookCello', 'celloSpic', 0, 0, N, () => 0.95);
+  hookLine(s, 'hookHigh', 'violaSpic', 12, 0, N, () => 0.85);
+  // driving sixteenths: the last two beats of every 4th bar rise a semitone (the screw tightening)
+  const acc = [0, 3, 6, 8, 11, 14];
+  for (let b = 0; b < N; b++) {
+    for (let i = 0; i < 16; i++) {
+      const up = b % 4 === 3 && i >= 8 ? 1 : 0;
+      const v = 0.62 * (acc.includes(i) ? 1 : 0.6);
+      note(s.L('drive'), s.bank, 'celloSpic', D + 12 + up, s.t(b, i / 4), s.d(0.25), { vel: v, release: 0.06 });
+      note(s.L('drive'), s.bank, 'violaSpic', D + 24 + up, s.t(b, i / 4), s.d(0.25), { vel: v * 0.9, release: 0.06 });
+    }
+  }
+  // violins climbing a semitone per bar over 4 bars, repeated eighths (A4 -> C5), restarting each 4 bars
+  for (let b = 0; b < N; b++) {
+    const m = n('A4') + (b % 4);
+    for (let i = 0; i < 8; i++) note(s.L('rise'), s.bank, 'violinSpic', m, s.t(b, i / 2), s.d(0.4), { vel: 0.5 + 0.06 * (b % 4) + (i % 2 ? 0 : 0.08), release: 0.08 });
+  }
+  // a grating tremolo rub: D5 against E-flat5, swelling over 4 bars; violas on A4
+  for (let b = 0; b < N; b += 4) {
+    for (const [inst, m, v] of [['violinTrem', n('D5'), 0.6], ['violinTrem', n('Eb5'), 0.5], ['violaTrem', n('A4'), 0.5]] as const) {
+      note(s.L('trem'), s.bank, inst, m, s.t(b), s.d(16), { vel: v, attack: s.d(12), release: 0.4 });
+    }
+  }
+  // off-beat stabs (the "shots"): on the "and" of 2 and the last sixteenth of 4, strings and short horns
+  for (let b = 0; b < N; b++) {
+    const c = CH[chordAt(b)];
+    for (const [beat, v] of [[1.5, 1], [3.75, 0.85]] as const) {
+      for (const m of [c.tones[2]!, c.tones[3]!]) note(s.L('stabs'), s.bank, m < n('C4') ? 'violaSpic' : 'violinSpic', m, s.t(b, beat), s.d(0.2), { vel: v, release: 0.06 });
+      note(s.L('stabs'), s.bank, 'celloSpic', c.tones[1]!, s.t(b, beat), s.d(0.2), { vel: v * 0.9, release: 0.06 });
+      for (const m of [c.tones[1]!, c.tones[3]!]) note(s.L('hornStabs'), s.bank, 'hornStac', m, s.t(b, beat), s.d(0.25), { vel: v, release: 0.08 });
+    }
+  }
+  // fast ticking: high violins, soft sixteenths on A5
+  for (let b = 0; b < N; b++) for (let i = 0; i < 16; i++) note(s.L('ticks'), s.bank, 'violinSpic', n('A5'), s.t(b, i / 4), s.d(0.2), { vel: i % 4 === 0 ? 0.8 : 0.55, release: 0.05 });
+  lowD(s, 'lowSus', 0, N, 4, 0.5);
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'violinSus', at, 0.85, 12);
+    motif(s, 'melody', 'violinSus', at, 0.75);
+    motif(s, 'melody', 'celloSus', at, 0.75, -12);
+  }
+  afBrass(s, 'brass', 0, N, 0.4);
+  // pounding drums: a heart-rate pattern on the big drum, timpani on the chord changes, bass drum every 2 bars, swells
+  const P = s.L('drums');
+  for (let b = 0; b < N; b++) {
+    for (const [i, which, v] of [[0, 1, 1], [3, 0, 0.7], [6, 0, 0.75], [8, 1, 0.9], [11, 0, 0.7], [14, 2, 0.6]] as const) hit(P, s.bank, 'giantStick', which, s.t(b, i / 4), 0.75 * v);
+    hit(P, s.bank, 'giant', 1, s.t(b), 0.7);
+    hit(P, s.bank, 'giant', 1, s.t(b, 2), 0.55);
+    if (b % 2 === 0) {
+      timp(P, s.bank, CH[chordAt(b)].root + 12, s.t(b), 0.75);
+      hit(P, s.bank, 'bdrum', 1, s.t(b), 0.6);
+    }
+  }
+  for (let b = 8; b <= N; b += 8) swellInto(P, s.bank, 'cym', 1, s.t(b % N), 0.6);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
   else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'underfire') underFire(s);
+  else if (meta.id === 'afheavy') afHeavy(s, true);
+  else if (meta.id === 'afdrums') afHeavy(s, false);
+  else if (meta.id === 'afmenu96' || meta.id === 'afmenu84') alertFast(s);
   else if (meta.id === 'ppfslow80' || meta.id === 'ppfslow70') ppfSlowMenu(s);
   else if (meta.id === 'ppfslowmission') ppfSlowMission(s);
   else if (meta.id === 'ppfmenu') ppfMenu(s);
