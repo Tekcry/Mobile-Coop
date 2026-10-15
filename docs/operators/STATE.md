@@ -43,7 +43,7 @@
 9. `npm run check`, commit, push, STOP.
 
 **Tool check (2026-10-15).**
-- Headless Blender works: `C:\Program Files\Blender Foundation\Blender 5.2blender.exe`, 5.2.2 LTS (Python 3.13).
+- Headless Blender works: `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`, 5.2.2 LTS (Python 3.13).
 - OptiX and CUDA see the RTX 4090 Laptop GPU. A cloth drape test simulated and rendered in Cycles on the GPU; the
   glTF exporter is present.
 - Pin 5.2.2 LTS in the pipeline.
