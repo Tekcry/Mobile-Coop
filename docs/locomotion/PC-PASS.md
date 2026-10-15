@@ -209,3 +209,11 @@ PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, 
 | 53 | Pad X held 0.4 s for the medkit (A55); tap stays reload, held while aiming stays swap | Feels right on the pad |
 | 54 | Phone HUD: health bar, kit count ("+N kits") and the heal fill (pc/s15-medkit-hud.png) | Legible at arm's length |
 | 55 | Co-op: a client uses and cancels a medkit as the host sees it | No pop, health and kits agree on both screens |
+
+### Step 16: arsenal (Michael's eyes / phone)
+
+| # | Item | Pass limit |
+| --- | --- | --- |
+| 56 | A62: the campaign rifle is issued suppressed; a bare barrel is not possible in the campaign (a compensator swaps it) | Accept, or pick an alternative (A62) |
+| 57 | Phone: loadout screen with the new names and the Sidearm label (pc/s16-loadout-root2.png, s16-loadout-primary2.png); the longest name "SPOTTER 7.62 MARKSMAN" not truncated | Readable at phone width |
+| 58 | Internal weapon ids `p90` / `tavor` remain in docs/systems/combat.md's id column (A28 keeps ids) | Accept or rename ids |

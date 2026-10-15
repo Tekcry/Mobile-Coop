@@ -5,6 +5,13 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 16 - the arsenal (PC, controller, phone)
+- [ ] Campaign loadout: Primary lists Heron Carbine, Marten 9 SMG, Mason 12 Pump, Spotter 7.62 Marksman; Sidearm lists Hush 9 SD and Warden .45; the preset panel agrees with the rows.
+- [ ] The Heron Carbine shows silenced, with the suppressor on the model.
+- [ ] No real gun brand anywhere in menus, HUD or results.
+- [ ] Phone check: SPOTTER 7.62 MARKSMAN fits on the loadout row.
+- [ ] Co-op Infiltration: the client starts with the same guns its loadout screen shows and can fire them.
+
 ## Locomotion step 15 - medkits (PC, controller, phone)
 - [ ] Pad: at under 100 hp hold X (not aiming) about half a second: the operator holsters, injects at the thigh, health rises 40 over 1.5 s, kit count drops by one. KBM: H.
 - [ ] Take damage mid-heal: the heal stops and the kit is spent. Aim, jump or sprint mid-heal cancels and keeps the kit.

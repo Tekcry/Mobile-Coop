@@ -77,7 +77,7 @@ Owner: `both` = shared `CharacterRig` / `AnimGraph` (guards via `enemyRig` / `en
 | W09 arm IK (grip / foregrip / mag / wall / reach) | both | per frame | - | hands < 2 cm | - | yes | pass; D5.9 hook | 2 | characterRig.ts:1410-1470 |
 | W10 holstered unless aiming / draw | player | aim | swap beat only | - | - | none | rework: drawn state host-auth (D8, bible 1.11) | C | playerWeapons.ts:190-213,283-289 |
 | W11 hip fire and ADS spread | player | fire | - | - | - | - | fix: no hip fire (bible 1.11) | C | weapons.json:19-24; playerWeapons.ts:310,511 |
-| W12 real-brand names (13 of 16 weapons) | - | - | - | - | - | - | fix: original names | C | weapons.json:134-2661 |
+| W12 real-brand names (13 of 16 weapons) | - | - | - | - | - | - | done step 16: original names (ids kept, A28) | C | weapons.json, config/arsenal.ts |
 
 ### 1d. Common traversal (batch 3; committed, kinematic, `MoveCommit` once per `n`)
 | ID | owner | trigger | duration base / min | contacts | interrupt paths | net | status | batch | source |

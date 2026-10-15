@@ -2,7 +2,7 @@
 
 ## On the secondary desktop (M7, 2026-10-15)
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
-- Current: step 15 done. Next: step 16 arsenal, then 17-20, 20b, Block C end (no budgets), play-check list, the single pause. Rules added this session: M8 (no ray tracing on this desktop), M9 (port 4189 / 4191 commands), M10 (desktop speed).
+- Current: step 16 done. Next: step 17 input pad, then 18-20, 20b, Block C end (no budgets), play-check list, the single pause. Rules added this session: M8 (no ray tracing on this desktop), M9 (port 4189 / 4191 commands), M10 (desktop speed).
 - Blocked 11a (e2e-wall grenade): passed on the desktop (throws 2); retry at the Block C end as planned.
 - PC1 agent preamble (shared prompt header for PC1 agents): steps/PC1-preamble.md. PC1 had not produced results before the M6 crash: start PC1 from item 9 (anim audit), with items 4-8 moved to section 0.
 - Desktop perf-trend baseline (2026-10-15, 3 runs, E2E_GPU=1, calib 4.7 ms, hardware GPU, 60 Hz display): sim p95 1.1 / 1.2 / 1.45 ms (median 1.2); anim 0.0356-0.0362 ms per character; allocations 11.7-13.4 MB/s; draws 40-41; tris 0.12-0.13 M. +25% trip: sim p95 1.5 ms, anim 0.0446 ms. Budgets are not claimed here (anim 0.036 vs the 0.03 local budget and allocations vs 11.5 MB/s are for the target laptop pass, PC-PASS section 0).
@@ -71,6 +71,7 @@ Cloud runs through step 20, step 20b net check (D11) and the Block C end, then h
 - step 13 door-peek (1 fix round).
 - step 14 vision (1 fix round).
 - step 15 medkits (2 implementers, 1 fix round; desktop).
+- step 16 arsenal (1 implementer, 2 fix rounds; desktop).
 
 ## Blocked
 - 11 (after 3 fix rounds; committed functional, retry at Block C end): (a) e2e-wall 'held on a wall > 6 s: a guard lobs a grenade' fails 2 of 3 serial runs (throws 0: enemy.ts ~1320 needs lastSeenT < 8 and 7-22 m; make the spawned guards aware first or log as flaky); (b) e2e-mouse 'losing the capture (Esc) pauses' flaked once (log as flaky); (c) remote stopidle@60 pops 0 -> 3 reproduced on an --only rerun (band 0): confirm A39 noise and re-cut that row's band, or find a step 11 remoteAvatar / remotePlayer cause.

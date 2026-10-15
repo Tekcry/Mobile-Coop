@@ -2,7 +2,7 @@
 // (that click never fires) and hides the "click to capture" hint; captured, moving looks, left fires,
 // the wheel steps the speed gear (3.2.0; weapons are Q / X); losing the capture (Esc) pauses; clicking Resume
 // captures it again.
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, openPage, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving', touch: false });
@@ -550,6 +550,62 @@ try {
       assert(kind === 'corner' && r.td, `E: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
     } finally {
       await C.browser.close();
+    }
+  }
+
+  console.log('campaign loadout (step 16, bible 5.6): mouse clicks pick from the 6 curated guns; Infiltration starts on the campaign set');
+  {
+    const LO = await launch({ url, touch: false });
+    try {
+      const P = LO.page;
+      const labels = () => P.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
+      const value = (k) => P.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+      // (a row clicked within 350 ms of gaining focus only previews: click, wait it out, click again)
+      // (the second click only when the first one only previewed: a second click on an equipped row opens Customize)
+      const pick = async (sel, done) => {
+        await P.locator(sel).first().click();
+        await P.waitForTimeout(450);
+        if (!(await done())) await P.locator(sel).first().click();
+        await P.waitForTimeout(150);
+      };
+      const title = () => P.evaluate(() => document.querySelector('.lo-title')?.textContent ?? '');
+      await P.waitForSelector('.main-menu');
+      await P.locator('.main-menu .btn', { hasText: 'Loadout' }).first().click();
+      await P.waitForSelector('.loadout-screen .lo-row');
+      assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
+      await pick('.lo-list .lo-row[data-key="primary"]', async () => /PRIMARY WEAPON/.test(await title()));
+      const prim = await labels();
+      assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine', 'Marten 9 SMG', 'Mason 12 Pump', 'Spotter 7.62 Marksman']), `the primary list is the 4 campaign primaries (${prim})`);
+      await pick('.lo-list .lo-row[data-key="w-shotgun"]', () => P.evaluate(() => window.__app.save.get().loadout.secondary === 'shotgun'));
+      const lo = await P.evaluate(() => window.__app.save.get().loadout);
+      assert(lo.secondary === 'shotgun' && lo.primary === 'pistolSd', `a click equips the Mason 12 Pump as the primary (${JSON.stringify(lo)})`);
+      // back to the root (a second click on the now-equipped row may have opened Customize)
+      await P.evaluate(() => { for (let i = 0; i < 4 && !document.querySelector('.lo-list .lo-row[data-key="secondary"]'); i++) window.__app.screens.top.onBack(); });
+      await P.waitForTimeout(150);
+      await pick('.lo-list .lo-row[data-key="secondary"]', async () => /SIDEARM WEAPON/.test(await title()));
+      const side = await labels();
+      assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD', 'Warden .45']), `the sidearm list is the 2 built sidearms (${side})`);
+      // a loadout left over from ?legacy=1 (two guns outside the set): Infiltration maps it onto the defaults at use
+      await P.evaluate(async () => {
+        window.__app.save.update((d) => {
+          d.loadout.primary = 'p90';
+          d.loadout.secondary = 'sniper';
+        });
+        await window.__app.save.flush();
+      });
+      // close the menu tab first (the save is flushed): a second tab opened while the first was live sometimes stalled its autostart (fix round 2)
+      await LO.page.close();
+      const M = await openPage(LO.ctx, url, 'autostart=warehouse&mode=infiltration&mission=warehouse-ledger&insertion=yard');
+      try {
+        await M.page.waitForFunction(() => window.__app?.current?.weapons?.slots?.length > 0, null, { timeout: 60000 });
+      } catch (err) {
+        console.error(`Infiltration autostart timed out; page errors:\n${M.errors.join('\n') || '(none)'}`);
+        throw err;
+      }
+      const ids = await M.page.evaluate(() => window.__app.current.weapons.slots.map((s) => s.def.id));
+      assert(JSON.stringify([...ids].sort()) === JSON.stringify(['pistolSd', 'rifle']), `Infiltration starts with the campaign defaults (${ids})`);
+    } finally {
+      await LO.browser.close();
     }
   }
 } catch (e) {

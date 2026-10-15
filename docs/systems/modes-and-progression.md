@@ -48,8 +48,10 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
 - `GameOptions.suit / hq / gadget` (single player from the save in `main.ts`; the look via `suitLook`); GameState
   applies `target.armorMul`, `weapons.handsMul`, `takedown.handsMul`, gadget counts, footstep noise
   x `suit.noise`, radar blips, restock on respawn. `ui/screens/loadoutScreen.ts` (Gear / HQ tabs;
-  root page presets); Play screen Loadout row. Save v6; v7 (2.3) issues the 9mm SD (`STARTER_UNLOCKS`) as the
-  default primary with the 552 secondary (a loadout / preset still on 552 + P45 moves to it). `?loadout=a,b` for
+  root page presets); Play screen Loadout row. Save v6; v7 (2.3) issues the Hush 9 SD (`pistolSd`, `STARTER_UNLOCKS`) as the
+  default primary with the Heron Carbine (`rifle`) secondary (a loadout / preset still on rifle + pistol moves to it).
+  Locomotion step 16: the campaign (no `?legacy=1`) lists only `CAMPAIGN_ARSENAL` (rows Primary = the long gun,
+  Sidearm, wherever the save keeps them) and Infiltration maps the loadout onto it at use (combat.md, Arsenal). `?loadout=a,b` for
   autostart (tests).
 
 ## Cosmetics

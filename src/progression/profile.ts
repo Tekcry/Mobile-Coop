@@ -8,6 +8,7 @@ import { levelFromXp, masteryLevel, type LevelInfo } from './levels';
 import { canUpgrade, type UpgradeTrack } from './upgrades';
 import { UNLOCKS, unlockById, unlockState, type UnlockContext, type UnlockItem } from './unlocks';
 import { combinedMods, sanitizeAttachments } from './attachments';
+import { campaignAttachments, issuedLoadout } from '../config/arsenal';
 import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, PRESETS, type HqId, type SuitPiece } from './suit';
 
 /** Pure operations on a SaveData (callers clone via SaveManager.update). */
@@ -225,14 +226,31 @@ export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: Weapon
   return true;
 }
 
-/** Weapons for a match from the profile (sandbox: every weapon, still with your upgrades). */
-export function loadoutEntries(s: SaveData, mode: SessionStats['mode'], skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>): LoadoutEntry[] {
-  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : [s.loadout.primary, s.loadout.secondary];
-  return ids.map((id) => ({
-    id,
-    upgrades: s.weapons[id].upgrades,
-    mods: combinedMods(s.weapons[id].attachments),
-    attachments: [...s.weapons[id].attachments],
-    ...(skin?.(id, s.weapons[id].camo) ?? {}),
-  }));
+/**
+ * Weapons for a match from the profile (sandbox: a fixed set, still with your upgrades; Infiltration, the campaign:
+ * the loadout mapped onto the curated arsenal at use, `config/arsenal.ts`, bible 5.6). `campaignOpen`:
+ * `campaignUnlocked(flags.legacy)`, so ?legacy=1 Infiltration issues the save as is, the same as its lobby loadout (D8).
+ */
+export function loadoutEntries(
+  s: SaveData,
+  mode: SessionStats['mode'],
+  campaignOpen: boolean,
+  skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
+): LoadoutEntry[] {
+  const campaign = mode === 'infiltration' && campaignOpen;
+  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : lobbyLoadout(s, campaign);
+  return ids.map((id) => {
+    const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];
+    return { id, upgrades: s.weapons[id].upgrades, mods: combinedMods(att), attachments: att, ...(skin?.(id, s.weapons[id].camo) ?? {}) };
+  });
+}
+
+/**
+ * The two weapon ids a match issues, in hand first (pure). Co-op sends this as the lobby loadout (`main.ts`, with
+ * `campaignUnlocked`), so the host's weapon checks (`hostWeapon`, `hostShotWeapon`) and remote avatars see the
+ * guns Infiltration issues (D8).
+ */
+export function lobbyLoadout(s: SaveData, campaign: boolean): WeaponId[] {
+  const lo = issuedLoadout(s.loadout, campaign);
+  return [lo.primary, lo.secondary];
 }

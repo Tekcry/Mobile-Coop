@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, press, stick, BTN, focusedText, assert } from './e2e-lib.mjs';
+import { launch, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -253,6 +253,44 @@ try {
   await press(page, BTN.B);
   await press(page, BTN.B);
   assert(await q('.main-menu') && !(await q('.settings-screen')), 'B backs out to main menu');
+
+  console.log('campaign loadout (step 16, bible 5.6): pad lists only the 6 curated guns, defaults Heron Carbine + Hush 9 SD');
+  {
+    const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
+    const labels = () => page.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
+    const value = (k) => page.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+    assert(await focusTo(page, /Loadout/), 'focus Loadout');
+    await press(page, BTN.A);
+    assert(await q('.loadout-screen'), 'A opens the Loadout');
+    const root = await labels();
+    assert(JSON.stringify(root) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the root: loadout, primary, sidearm, gadget (${root})`);
+    assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
+    for (let i = 0; i < 4 && (await key()) !== 'primary'; i++) await press(page, BTN.DOWN);
+    await press(page, BTN.A);
+    const prim = await labels();
+    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine', 'Marten 9 SMG', 'Mason 12 Pump', 'Spotter 7.62 Marksman']), `the primary list is the 4 campaign primaries (${prim})`);
+    const seen = new Set([await key()]);
+    for (let i = 0; i < 4; i++) {
+      await press(page, BTN.DOWN);
+      seen.add(await key());
+    }
+    assert(['w-rifle', 'w-smg', 'w-shotgun', 'w-dmr'].every((k) => seen.has(k)) && seen.size === 4, `the d-pad reaches each of them and nothing else (${[...seen]})`);
+    for (let i = 0; i < 4 && (await key()) !== 'w-dmr'; i++) await press(page, BTN.DOWN);
+    await press(page, BTN.A);
+    const lo = await page.evaluate(() => window.__app.save.get().loadout);
+    assert(lo.secondary === 'dmr' && lo.primary === 'pistolSd', `A equips the marksman as the primary, the sidearm stays in hand (${JSON.stringify(lo)})`);
+    await press(page, BTN.B);
+    assert((await value('primary')) === 'Spotter 7.62 Marksman', `B returns to the root with it (${await value('primary')})`);
+    for (let i = 0; i < 4 && (await key()) !== 'secondary'; i++) await press(page, BTN.DOWN);
+    await press(page, BTN.A);
+    const side = await labels();
+    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD', 'Warden .45']), `the sidearm list is the 2 built sidearms (${side})`);
+    // put the default back (the rest of the suite expects a fresh profile)
+    await page.evaluate(() => window.__app.save.update((d) => void (d.loadout.secondary = 'rifle')));
+    await press(page, BTN.B);
+    await press(page, BTN.B);
+    assert(await q('.main-menu') && !(await q('.loadout-screen')), 'B backs out to the main menu');
+  }
 
   console.log('play setup + in-game pause flow');
   for (let i = 0; i < 6 && !/^Play/.test(await focusedText(page)); i++) await press(page, BTN.UP);

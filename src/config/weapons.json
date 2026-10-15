@@ -1,6 +1,6 @@
 {
   "pistol": {
-    "name": "P45 Compact",
+    "name": "Warden .45",
     "class": "pistol",
     "slot": "secondary",
     "fireMode": "semi",
@@ -131,7 +131,7 @@
     ]
   },
   "smg": {
-    "name": "MP5 Kurz",
+    "name": "Marten 9 SMG",
     "class": "smg",
     "slot": "primary",
     "fireMode": "auto",
@@ -324,7 +324,7 @@
     ]
   },
   "rifle": {
-    "name": "552 Commando",
+    "name": "Heron Carbine",
     "class": "rifle",
     "slot": "primary",
     "fireMode": "auto",
@@ -555,7 +555,7 @@
     ]
   },
   "shotgun": {
-    "name": "M870 Pump",
+    "name": "Mason 12 Pump",
     "class": "shotgun",
     "slot": "primary",
     "fireMode": "semi",
@@ -718,7 +718,7 @@
     ]
   },
   "sniper": {
-    "name": "M700 Bolt",
+    "name": "Ridgeline Bolt",
     "class": "sniper",
     "slot": "primary",
     "fireMode": "semi",
@@ -890,7 +890,7 @@
     ]
   },
   "fiveseven": {
-    "name": "FN Five-7",
+    "name": "Kite 5.7",
     "class": "pistol",
     "slot": "secondary",
     "fireMode": "semi",
@@ -1021,7 +1021,7 @@
     ]
   },
   "pistolSd": {
-    "name": "9mm SD",
+    "name": "Hush 9 SD",
     "class": "pistol",
     "slot": "secondary",
     "fireMode": "semi",
@@ -1173,7 +1173,7 @@
     ]
   },
   "vector": {
-    "name": "Vector .45",
+    "name": "Ferret .45 SMG",
     "class": "smg",
     "slot": "primary",
     "fireMode": "auto",
@@ -1366,7 +1366,7 @@
     ]
   },
   "p90": {
-    "name": "P-90",
+    "name": "Swift 5.7 PDW",
     "class": "smg",
     "slot": "primary",
     "fireMode": "auto",
@@ -1559,7 +1559,7 @@
     ]
   },
   "ak": {
-    "name": "AK-74",
+    "name": "Steppe 5.45 Rifle",
     "class": "rifle",
     "slot": "primary",
     "fireMode": "auto",
@@ -1757,7 +1757,7 @@
     ]
   },
   "tavor": {
-    "name": "TAR-21",
+    "name": "Ibex Bullpup",
     "class": "rifle",
     "slot": "primary",
     "fireMode": "auto",
@@ -1950,7 +1950,7 @@
     ]
   },
   "semiShotgun": {
-    "name": "M1014 Semi",
+    "name": "Talon 12 Semi",
     "class": "shotgun",
     "slot": "primary",
     "fireMode": "semi",
@@ -2276,7 +2276,7 @@
     ]
   },
   "dmr": {
-    "name": "M14 DMR",
+    "name": "Spotter 7.62 Marksman",
     "class": "dmr",
     "slot": "primary",
     "fireMode": "semi",
@@ -2658,7 +2658,7 @@
     ]
   },
   "lmg": {
-    "name": "M249 SAW",
+    "name": "Anvil 5.56 LMG",
     "class": "lmg",
     "slot": "primary",
     "fireMode": "auto",

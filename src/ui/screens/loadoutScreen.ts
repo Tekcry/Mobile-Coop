@@ -22,8 +22,9 @@ import { icon } from '../icons';
 import { button, choice } from '../widgets';
 import { showSavedOperator } from './operator';
 import { vx } from '../../core/viewRotation';
+import { arsenalSlot, CAMPAIGN_ISSUED, campaignAttachments, campaignKit, campaignList, campaignLoadout } from '../../config/arsenal';
 
-/** Weapon order in the lists. */
+/** Weapon order in the lists (sandbox and `?legacy=1`: all 16; the campaign lists `CAMPAIGN_ARSENAL`, bible 5.6). */
 export const WEAPON_ORDER: WeaponId[] = ['pistolSd', 'pistol', 'fiveseven', 'smg', 'vector', 'p90', 'rifle', 'ak', 'tavor', 'dmr', 'sniper', 'crossbow', 'shotgun', 'semiShotgun', 'breacher', 'lmg'];
 
 const SLOTS: { slot: AttachmentSlot; label: string }[] = [
@@ -127,7 +128,7 @@ export class LoadoutScreen extends Screen {
   constructor(private app: App) {
     super('loadout-screen');
     const s = this.s();
-    this.weapon = s.loadout.primary;
+    this.weapon = this.shownLoadout().primary;
     this.look = structuredClone(s.avatar);
     this.suit = { ...s.suit.worn };
     this.tickerEl = h('div', { class: 'net-ticker' });
@@ -162,6 +163,23 @@ export class LoadoutScreen extends Screen {
     this.unsub = app.save.subscribe(() => this.renderTop());
     this.renderTop();
     this.render();
+  }
+
+  /**
+   * The save field a loadout row edits. Legacy: the field itself. The campaign (bible 5.6): the 'primary' row is the
+   * long gun and the 'secondary' row the sidearm, wherever the save keeps them (the issued kit starts on the
+   * sidearm, so the save's first field holds it).
+   */
+  private field(slot: 'primary' | 'secondary'): 'primary' | 'secondary' {
+    if (!this.campaign) return slot;
+    const lo = campaignLoadout(this.s().loadout);
+    return arsenalSlot(lo.primary) === (slot === 'primary' ? 'primary' : 'sidearm') ? 'primary' : 'secondary';
+  }
+
+  /** The loadout as shown: the campaign maps it onto the curated arsenal (`campaignLoadout`, applied at use). */
+  private shownLoadout(): SaveData['loadout'] {
+    const lo = this.s().loadout;
+    return this.campaign ? campaignLoadout(lo) : lo;
   }
 
   private s(): SaveData {
@@ -308,7 +326,13 @@ export class LoadoutScreen extends Screen {
   }
 
   private attOf(w: WeaponId): string[] {
-    return this.att[w] ?? this.s().weapons[w].attachments;
+    return this.att[w] ?? this.savedAtt(w);
+  }
+
+  /** A gun's saved attachments as the match issues them (the campaign adds its issued parts, A62). */
+  private savedAtt(w: WeaponId): string[] {
+    const a = this.s().weapons[w].attachments;
+    return this.campaign ? campaignAttachments(w, a) : a;
   }
 
   /** Back to what is saved (a focused row then sets its own preview). */
@@ -320,7 +344,7 @@ export class LoadoutScreen extends Screen {
     this.suit = { ...s.suit.worn };
     // the weapon in hand: the one this list is about, else the primary
     const w = this.stack.map((e) => e.page.id).reverse().find((id) => id.startsWith('w:'));
-    this.weapon = w ? (w.slice(2) as WeaponId) : this.page.id === 'slot:secondary' ? s.loadout.secondary : s.loadout.primary;
+    this.weapon = w ? (w.slice(2) as WeaponId) : this.page.id === 'slot:secondary' ? this.shownLoadout()[this.field('secondary')] : this.shownLoadout()[this.field('primary')];
   }
 
   private preview(): void {
@@ -415,7 +439,7 @@ export class LoadoutScreen extends Screen {
 
   private savedStats(w: WeaponId): EffectiveStats {
     const wp = this.s().weapons[w];
-    return computeStats(WEAPONS[w], wp.upgrades, combinedMods(wp.attachments));
+    return computeStats(WEAPONS[w], wp.upgrades, combinedMods(this.savedAtt(w)));
   }
 
   private upgradeCount(w: WeaponId): number {
@@ -454,16 +478,21 @@ export class LoadoutScreen extends Screen {
         const gadget = (preset?.gadget ?? 'frag') as GadgetId;
         const hqLv = HQ_IDS.reduce((n, id) => n + s.hq[id], 0);
         const hqMax = HQ_IDS.reduce((n, id) => n + HQ[id].prices.length, 0);
-        const wRow = (slot: 'primary' | 'secondary'): Row => ({
-          key: slot,
-          label: slot === 'primary' ? 'Primary' : 'Secondary',
-          value: WEAPONS[s.loadout[slot]].name,
-          go: true,
-          preview: () => void (this.weapon = s.loadout[slot]),
-          detail: () => this.weaponDetail(s.loadout[slot]),
-          act: { label: `Change ${slot}`, run: () => this.open(this.weaponsPage(slot)) },
-          alt: { label: 'Customize', run: () => this.open(this.customizePage(s.loadout[slot])) },
-        });
+        const lo = this.shownLoadout();
+        const wRow = (slot: 'primary' | 'secondary'): Row => {
+          const w = lo[this.field(slot)];
+          const name = slot === 'primary' ? 'primary' : this.campaign ? 'sidearm' : 'secondary';
+          return {
+            key: slot,
+            label: name[0]!.toUpperCase() + name.slice(1),
+            value: WEAPONS[w].name,
+            go: true,
+            preview: () => void (this.weapon = w),
+            detail: () => this.weaponDetail(w),
+            act: { label: `Change ${name}`, run: () => this.open(this.weaponsPage(slot)) },
+            alt: { label: 'Customize', run: () => this.open(this.customizePage(w)) },
+          };
+        };
         const rows: Row[] = [
           { key: 'preset', group: 'KIT', label: 'Loadout', value: preset?.name ?? '', go: true, detail: () => this.presetDetail(s.preset), act: { label: 'Change loadout', run: () => this.open(this.presetsPage()) } },
           wRow('primary'),
@@ -484,7 +513,16 @@ export class LoadoutScreen extends Screen {
   private presetDetail(i: number): HTMLElement {
     const p = this.s().presets[i];
     if (!p) return h('div');
-    return this.panel(p.name.toUpperCase(), this.line('PRIMARY', WEAPONS[p.primary as WeaponId]?.name ?? p.primary), this.line('SECONDARY', WEAPONS[p.secondary as WeaponId]?.name ?? p.secondary), this.line('GADGET', GADGETS[p.gadget as GadgetId]?.name ?? p.gadget));
+    const name = (w: string): string => WEAPONS[w as WeaponId]?.name ?? w;
+    // the campaign shows the kit it issues, by role (bible 5.6)
+    const kit = this.presetKit(p);
+    const guns = kit ? [this.line('PRIMARY', name(kit.primary)), this.line('SIDEARM', name(kit.sidearm))] : [this.line('PRIMARY', name(p.primary)), this.line('SECONDARY', name(p.secondary))];
+    return this.panel(p.name.toUpperCase(), ...guns, this.line('GADGET', GADGETS[p.gadget as GadgetId]?.name ?? p.gadget));
+  }
+
+  /** A preset's campaign kit (long gun, sidearm), or null outside the campaign. */
+  private presetKit(p: { primary: string; secondary: string }): { primary: WeaponId; sidearm: WeaponId } | null {
+    return this.campaign ? campaignKit({ primary: p.primary as WeaponId, secondary: p.secondary as WeaponId }) : null;
   }
 
   private presetsPage(): Page {
@@ -496,41 +534,52 @@ export class LoadoutScreen extends Screen {
       framing: 'loadout',
       rows: () => {
         const s = this.s();
-        return s.presets.map((p, i) => ({
-          key: `preset-${i}`,
-          label: p.name,
-          value: `${WEAPONS[p.primary as WeaponId]?.name ?? ''}`,
-          mark: s.preset === i ? 'equipped' : 'owned',
-          preview: () => void (this.weapon = (WEAPONS[p.primary as WeaponId] ? p.primary : s.loadout.primary) as WeaponId),
-          detail: () => this.presetDetail(i),
-          act: s.preset === i ? undefined : { label: `Use ${p.name}`, run: () => {
-            this.save((d) => applyPreset(d, i, this.campaign));
-            this.refresh();
-          } },
-        }));
+        return s.presets.map((p, i) => {
+          const gun = this.presetKit(p)?.primary ?? p.primary;
+          return {
+            key: `preset-${i}`,
+            label: p.name,
+            value: `${WEAPONS[gun as WeaponId]?.name ?? ''}`,
+            mark: s.preset === i ? 'equipped' as const : 'owned' as const,
+            preview: () => void (this.weapon = (WEAPONS[gun as WeaponId] ? gun : this.shownLoadout()[this.field('primary')]) as WeaponId),
+            detail: () => this.presetDetail(i),
+            act: s.preset === i ? undefined : { label: `Use ${p.name}`, run: () => {
+              this.save((d) => applyPreset(d, i, this.campaign));
+              this.refresh();
+            } },
+          };
+        });
       },
     };
   }
 
   private weaponsPage(slot: 'primary' | 'secondary'): Page {
+    const name = slot === 'secondary' && this.campaign ? 'sidearm' : slot;
     return {
       id: `slot:${slot}`,
-      crumb: slot.toUpperCase(),
-      title: `${slot.toUpperCase()} WEAPON`,
+      crumb: name.toUpperCase(),
+      title: `${name.toUpperCase()} WEAPON`,
       sub: 'SELECT A WEAPON',
       framing: 'weapon',
       rows: () => {
-        const s = this.s();
-        const cur = s.loadout[slot];
-        return WEAPON_ORDER.map((w) => {
+        // the campaign edits the field that holds this slot's gun, from the curated list only (bible 5.6)
+        const field = this.field(slot);
+        const lo = this.shownLoadout();
+        const cur = lo[field];
+        const list = this.campaign ? campaignList(slot === 'primary' ? 'primary' : 'sidearm') : WEAPON_ORDER;
+        const setSlot = (d: SaveData, w: WeaponId): void => {
+          if (this.campaign) d.loadout = campaignLoadout(d.loadout);
+          setLoadout(d, field, w, this.campaign);
+        };
+        return list.map((w) => {
           const def = WEAPONS[w];
           const u = this.unlockRow(`weapon:${w}`);
           const owned = u.mark === 'owned';
           const equipped = cur === w;
-          const other = s.loadout[slot === 'primary' ? 'secondary' : 'primary'] === w;
+          const other = !this.campaign && lo[slot === 'primary' ? 'secondary' : 'primary'] === w;
           const equip: Action = { label: `Equip ${def.name}`, run: () => {
             this.save((d) => {
-              setLoadout(d, slot, w, this.campaign);
+              setSlot(d, w);
               savePreset(d, d.preset);
             });
             this.refresh();
@@ -548,10 +597,10 @@ export class LoadoutScreen extends Screen {
               return d;
             },
             act: owned ? (equipped ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : equip) : u.act && u.mark === 'buyable' ? { ...u.act, run: () => this.buy(`weapon:${w}`, (d) => {
-              setLoadout(d, slot, w, this.campaign);
+              setSlot(d, w);
               savePreset(d, d.preset);
             }) } : u.act,
-            alt: owned ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : undefined,
+            alt: owned && !equipped ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : undefined,
           };
         });
       },
@@ -570,7 +619,7 @@ export class LoadoutScreen extends Screen {
         const s = this.s();
         const ownsW = ownsOrOpen(s, `weapon:${w}`, this.campaign);
         const rows: Row[] = [];
-        const saved = s.weapons[w].attachments;
+        const saved = this.savedAtt(w);
         for (const sl of SLOTS) {
           const opts = attachmentsFor(w).filter((a) => a.slot === sl.slot);
           if (!opts.length) continue;
@@ -589,8 +638,10 @@ export class LoadoutScreen extends Screen {
 
   private attachmentRow(w: WeaponId, a: AttachmentDef, slotOpts: AttachmentDef[], group: string | undefined, ownsW: boolean): Row {
     const s = this.s();
-    const saved = s.weapons[w].attachments;
+    const saved = this.savedAtt(w);
     const on = saved.includes(a.id);
+    // (A62) the campaign's issued part fills an empty slot: it is swapped for another part, not removed
+    const issued = on && this.campaign && CAMPAIGN_ISSUED[w] === a.id && !s.weapons[w].attachments.includes(a.id);
     const u = this.unlockRow(`att:${a.id}`);
     const others = slotOpts.map((o) => o.id);
     const withIt = (): string[] => [a.id, ...saved.filter((id) => !others.includes(id))];
@@ -600,6 +651,8 @@ export class LoadoutScreen extends Screen {
     };
     const act: Action | undefined = !ownsW
       ? { label: 'Unlock the weapon first', run: () => undefined, blocked: 'Unlock the weapon first' }
+      : issued
+        ? { label: `Issued ${a.name}`, run: () => undefined, blocked: 'Issued with the rifle: equip another barrel part to swap it' }
       : u.mark === 'owned'
         ? on
           ? { label: `Remove ${a.name}`, run: () => {
@@ -653,7 +706,7 @@ export class LoadoutScreen extends Screen {
         const def = WEAPONS[w];
         const was = this.savedStats(w);
         const up = { ...wp.upgrades, [t]: Math.min(MAX_UPGRADE, n + 1) };
-        const now = computeStats(def, up, combinedMods(wp.attachments));
+        const now = computeStats(def, up, combinedMods(this.savedAtt(w)));
         return h('div', {}, this.panel(`${TRACK_LABEL[t].toUpperCase()} ${n}/${MAX_UPGRADE}`, this.note(n >= MAX_UPGRADE ? 'Fully upgraded.' : `Next level: ${value}.`)), this.panel(`${def.name.toUpperCase()} TOTAL`, ...this.weaponStats(def, n >= MAX_UPGRADE ? was : now, was, this.upgradeCount(w))));
       },
       act: !c.ok && c.reason === 'maxed' ? undefined : { label: `Upgrade ${TRACK_LABEL[t]} · ${c.cost} cr`, run: () => {

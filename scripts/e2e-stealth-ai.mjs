@@ -679,7 +679,7 @@ try {
       t.tp(0, -5, Math.PI);
       const e2 = t.spawn('grunt', 0, 5, 0);
       t.step(0.3);
-      // (an unsuppressed report: the issued 9mm SD is quiet)
+      // (an unsuppressed report: the issued Hush 9 SD is quiet)
       const st2 = g.weapons.current.stats;
       const n1 = st2.noise;
       st2.noise = 1;

@@ -4,7 +4,7 @@ import { launch, frames, press, BTN, focusedText, focusTo, assert } from './e2e-
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, ctx, page, errors } = await launch({ url });
+const { browser, ctx, page, errors } = await launch({ url, params: 'legacy=1' });
 const G = (f, a) => page.evaluate(f, a);
 const q = (sel) => G((s) => !!document.querySelector(s), sel);
 let failed = false;
@@ -23,13 +23,13 @@ try {
   await press(page, BTN.A);
   assert(await q('.loadout-screen'), 'Loadout opens');
   await press(page, BTN.DOWN);
-  assert((await key()) === 'primary' && /9MM SD/.test(await detail()), `Primary: the issued 9mm SD (${await key()})`);
+  assert((await key()) === 'primary' && /Hush 9 SD/i.test(await detail()), `Primary: the issued Hush 9 SD (${await key()}: ${(await detail()).slice(0, 80)})`);
   assert((await shown())[1] === 'pistolSd', 'the operator holds it');
   await press(page, BTN.A);
   assert(/PRIMARY WEAPON/.test(await G(() => document.querySelector('.lo-title')?.textContent)), 'A opens the primary weapon list');
   for (let i = 0; i < 6 && (await key()) !== 'w-smg'; i++) await press(page, BTN.DOWN);
-  assert((await key()) === 'w-smg' && (await shown())[1] === 'smg', 'focusing the MP5 puts it in the operator\'s hands');
-  assert(/Level 2/.test(await detail()) && /MP5/.test(await detail()), `the details show its stats and what it needs`);
+  assert((await key()) === 'w-smg' && (await shown())[1] === 'smg', 'focusing the Marten 9 SMG puts it in the operator\'s hands');
+  assert(/Level 2/.test(await detail()) && /Marten 9 SMG/i.test(await detail()), `the details show its stats and what it needs`);
   for (let i = 0; i < 6 && (await key()) !== 'w-pistolSd'; i++) await press(page, BTN.UP);
   await press(page, BTN.Y);
   assert(/ATTACHMENTS & UPGRADES/.test(await G(() => document.querySelector('.lo-sub')?.textContent)), 'Y customises the weapon');
@@ -53,7 +53,7 @@ try {
   await press(page, BTN.DOWN);
   await press(page, BTN.A);
   for (let i = 0; i < 6 && (await key()) !== 'w-smg'; i++) await press(page, BTN.DOWN);
-  assert(/Buy MP5 Kurz · 600 cr/.test(await G(() => document.querySelector('.lo-acts')?.textContent)), 'the action bar offers the buy');
+  assert(/Buy Marten 9 SMG · 600 cr/.test(await G(() => document.querySelector('.lo-acts')?.textContent)), 'the action bar offers the buy');
   await press(page, BTN.A);
   const sv = await G(() => window.__app.save.get());
   assert(sv.unlocks.includes('weapon:smg') && sv.loadout.primary === 'smg', 'buying unlocks the SMG and equips it');

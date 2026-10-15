@@ -71,10 +71,10 @@ export const MIGRATIONS: Record<number, Migration> = {
   // v4 -> v5: Infiltration mission records (none yet)
   4: (s) => ({ ...s, version: 5, missions: isObj(s.missions) ? s.missions : {} }),
   // v5 -> v6: suit, HQ upgrades, challenges, loadout presets (issued kit; the 1.x weapons keep their ids, now the
-  // P45 / MP5 / 552 / M870 / M700, so unlocks and upgrades carry over as they are)
+  // pistol / smg / rifle / shotgun / sniper ids, so unlocks and upgrades carry over as they are)
   5: (s) => ({ ...s, version: 6 }),
-  // v6 -> v7: the 9mm SD is issued and is the primary of the issued kit (a loadout or preset still on the old
-  // issue, 552 + P45, moves to 9mm SD + 552; chosen kit stays)
+  // v6 -> v7: the suppressed pistol (pistolSd) is issued and is the primary of the issued kit (a loadout or preset still on the old
+  // issue, rifle + pistol, moves to pistolSd + rifle; chosen kit stays)
   6: (s) => {
     const issue = (p: unknown): boolean => isObj(p) && p.primary === 'rifle' && p.secondary === 'pistol';
     const sd = (p: Raw): Raw => ({ ...p, primary: 'pistolSd', secondary: 'rifle' });

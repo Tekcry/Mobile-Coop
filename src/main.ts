@@ -28,7 +28,7 @@ import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
-import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
+import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
 import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
@@ -121,7 +121,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: [sv.loadout.primary, sv.loadout.secondary] };
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, campaignUnlocked(flags.legacy)) };
     },
   };
   const loadCoop = () => import('./net/coopUi');
@@ -148,7 +148,7 @@ async function boot(): Promise<void> {
     const coop = !!base.net;
     const opts: GameOptions = {
       ...base,
-      loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin),
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, campaignUnlocked(flags.legacy), skin),
       look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
       emotes: sv.emotes,
       suit: base.suit ?? (coop ? undefined : sv.suit.worn),

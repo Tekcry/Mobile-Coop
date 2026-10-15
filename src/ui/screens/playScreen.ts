@@ -1,6 +1,7 @@
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
-import { defaultMode, visibleModes } from '../../core/legacy';
+import { campaignUnlocked, defaultMode, visibleModes } from '../../core/legacy';
+import { campaignKit } from '../../config/arsenal';
 import type { GameOptions, ModeId } from '../../game/gameState';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
@@ -176,11 +177,16 @@ export class PlayScreen extends Screen {
   /** The loadout preset to deploy with (weapons and starting gadget; edited in HQ). */
   private presetChoice(): HTMLElement {
     const sv = this.app.save.get();
+    const campaign = campaignUnlocked(flags.legacy);
     return choice(
       'Loadout',
-      sv.presets.map((p, i) => ({ value: i, label: `${p.name}: ${WEAPONS[p.primary as WeaponId]?.name ?? p.primary}` })),
+      sv.presets.map((p, i) => {
+        // the campaign names the long gun it issues (`campaignKit`, bible 5.6)
+        const w = campaign ? campaignKit({ primary: p.primary as WeaponId, secondary: p.secondary as WeaponId }).primary : p.primary;
+        return { value: i, label: `${p.name}: ${WEAPONS[w as WeaponId]?.name ?? w}` };
+      }),
       () => this.app.save.get().preset,
-      (i) => this.app.save.update((d) => applyPreset(d, i)),
+      (i) => this.app.save.update((d) => applyPreset(d, i, campaign)),
     );
   }
 

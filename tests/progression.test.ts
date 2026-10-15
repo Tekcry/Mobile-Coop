@@ -162,7 +162,7 @@ describe('profile operations', () => {
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(false); // not owned
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
-    const lo = loadoutEntries(s, 'wave');
+    const lo = loadoutEntries(s, 'wave', true);
     expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
     expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
     expect(buyUpgrade(s, 'smg', 'damage').ok).toBe(false); // smg locked
