@@ -10,8 +10,32 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 1 | Research | done (`docs/music/research.md`) |
 | 2 | Design | done (`docs/music/score-design.md`) |
 | 3 | Audition sketches and test page | done; Michael: loves Hook A alone, dislikes everything else |
-| 3b | Round 2: Hook A with one partner at a time | done; waiting for Michael's picks |
+| 3b | Round 2: Hook A with one partner at a time | done; Michael: hates all but 5 (guitar), which is still too aggressive; Hook A too loud |
+| 3c | Round 3: subtle Hook A and subtle guitar | done; waiting for Michael's picks |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 3 - subtle
+- **Michael (2026-10-15):**
+  - Hook A is "very loud". He wants subtle alternatives.
+  - He hates every round 2 partner except 5 (the guitar), which is OK but still a little too aggressive.
+  - "If it was all a little more subtle it would be cool."
+- **Done:** `hookLab.ts` now has:
+  - **Seven subtle versions of Hook A:**
+    1. the original, for comparison
+    2. soft fingers
+    3. ghosted
+    4. sparse
+    5. slower (80 BPM)
+    6. from another room
+    7. on a soft palm-muted guitar
+  - **Three gentler takes on loop 5:**
+    1. the same part, clean and soft
+    2. sparser
+    3. distant
+- **New code-made voices:** a soft upright (darker string, 8 ms finger attack, low-pass at 650 Hz), a clean soft guitar
+  and a soft palm-muted guitar. None of them is driven.
+- **Levels:** the soft versions are 8-11 dB quieter than the original, with peaks 9-13 dB lower.
+- The round 2 partners are removed from the page and the code.
 
 ## V4 round 2 - Hook A first
 - **Michael's feedback (2026-10-15):**

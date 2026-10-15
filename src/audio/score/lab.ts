@@ -1,5 +1,5 @@
 import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type MusicState, type Plan } from './arrange';
-import { hookPartners } from './hookLab';
+import { subtleGuitar, subtleHooks } from './hookLab';
 import type { GameAwareness } from './director';
 import { ScorePlayer, type LayerRt } from './player';
 import { renderAll, renderLayer, type Rendered } from './render';
@@ -239,31 +239,26 @@ export function mountScoreLab(root: HTMLElement): void {
     el('p', {
       className: 'muted',
       textContent:
-        'Round 2: everything built around Hook A. Everything is generated in code and rendered when you press play (the first time takes a few seconds).',
+        'Round 3: Hook A, more subtle. Everything is generated in code and rendered when you press play (well under a second each).',
     }),
     el('div', { id: 'progress', className: 'progress' }),
     el(
       'section',
       {},
-      el('h2', { textContent: '1. Hook A' }),
-      el('p', { className: 'muted', textContent: 'Your pick from round 1: the bass riff on its own.' }),
-      el('div', { className: 'row' }, button('Hook A alone', () => void playShot(hookShot(SKETCHES[0]!)), 'big'), button('Stop', stop)),
+      el('h2', { textContent: '1. Subtle versions of Hook A' }),
+      el('p', {
+        className: 'muted',
+        textContent: 'Hook A on its own, played more gently. The first one is the original for comparison; the rest are 8-11 dB quieter. Each loops (about 40 s).',
+      }),
+      cards(subtleHooks()),
+      el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el(
       'section',
       {},
-      el('h2', { textContent: '2. Hook A with one partner' }),
-      el('p', {
-        className: 'muted',
-        textContent: 'Each loop is Hook A plus one other ingredient (about 40 s at 92 BPM, 28 s at Alert speed). Say which partners work and which do not. Sliders below set each part.',
-      }),
-      el(
-        'div',
-        { className: 'partners' },
-        ...hookPartners().map((pl, i) =>
-          el('div', { className: 'partner' }, button(`${i + 1}. ${pl.name}`, () => void playLoop(pl), 'big'), el('small', { textContent: pl.blurb ?? '' })),
-        ),
-      ),
+      el('h2', { textContent: '2. Hook A with a soft guitar' }),
+      el('p', { className: 'muted', textContent: 'Gentler takes on round 2 loop 5, all over the "Soft fingers" hook. Use the sliders below to balance them.' }),
+      cards(subtleGuitar()),
       el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el(
@@ -380,6 +375,14 @@ export function mountScoreLab(root: HTMLElement): void {
     }
   });
   (window as unknown as { __score: unknown }).__score = { get player() { return player; }, cache, SKETCHES, menuPlan, missionPlans, renderLayer };
+}
+
+function cards(plans: Plan[]): HTMLElement {
+  return el(
+    'div',
+    { className: 'partners' },
+    ...plans.map((pl, i) => el('div', { className: 'partner' }, button(`${i + 1}. ${pl.name}`, () => void playLoop(pl), 'big'), el('small', { textContent: pl.blurb ?? '' }))),
+  );
 }
 
 function slider(id: string, value: number, max: number): HTMLInputElement {

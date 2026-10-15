@@ -18,6 +18,8 @@ export interface Bus {
 
 const now0 = 0.0001;
 
+type Tuned = 'rhodes' | 'guitar' | 'guitarMute' | 'pizzSoft' | 'guitarSoft' | 'guitarMuteSoft';
+
 export class Kit {
   private readonly hits = new Map<Hit, AudioBuffer>();
   private readonly plucks = new Map<number, AudioBuffer>();
@@ -69,7 +71,7 @@ export class Kit {
   }
 
   /** Cached tuned samples: electric piano, open guitar, palm-muted guitar. */
-  tuned(kind: 'rhodes' | 'guitar' | 'guitarMute', n: number): AudioBuffer {
+  tuned(kind: Tuned, n: number): AudioBuffer {
     const key = `${kind}-${n}`;
     let b = this.keys.get(key);
     if (!b) {
@@ -77,7 +79,17 @@ export class Kit {
       const r = this.rng.fork(key);
       const f = freq(n);
       const data =
-        kind === 'rhodes' ? rhodes(rate, f, r) : kind === 'guitar' ? pluck(rate, f, r, 2.6, 1.5, 0.8, 4200, 220) : pluck(rate, f, r, 0.9, 0.22, 0.6, 2200, 180);
+        kind === 'rhodes'
+          ? rhodes(rate, f, r)
+          : kind === 'guitar'
+            ? pluck(rate, f, r, 2.6, 1.5, 0.8, 4200, 220)
+            : kind === 'guitarMute'
+              ? pluck(rate, f, r, 0.9, 0.22, 0.6, 2200, 180)
+              : kind === 'pizzSoft'
+                ? pluck(rate, f, r, 2.4, 1.4, 0.08, 800, 100)
+                : kind === 'guitarSoft'
+                  ? pluck(rate, f, r, 2.4, 1.2, 0.4, 2400, 220)
+                  : pluck(rate, f, r, 0.9, 0.28, 0.3, 1400, 180);
       b = this.buffer(data);
       this.keys.set(key, b);
     }
@@ -203,6 +215,9 @@ export class Kit {
       case 'rhodes':
       case 'guitar':
       case 'guitarMute':
+      case 'pizzSoft':
+      case 'guitarSoft':
+      case 'guitarMuteSoft':
         return this.tunedVoice(e, e.v, t, d, bus);
       case 'str':
       case 'strHi':
@@ -256,13 +271,20 @@ export class Kit {
     s.connect(lp).connect(g);
   }
 
-  private tunedVoice(e: Ev, kind: 'rhodes' | 'guitar' | 'guitarMute', t: number, d: number, bus: Bus): void {
+  private tunedVoice(e: Ev, kind: Tuned, t: number, d: number, bus: Bus): void {
     const s = this.src(this.tuned(kind, e.n), t);
     const g = this.out(bus, e.pan, e.vel);
-    g.gain.setTargetAtTime(0, t + d, kind === 'rhodes' ? 0.12 : 0.06);
+    // the soft voices are released gently (a finger lifting, not a hand slapping the strings)
+    const soft = kind === 'pizzSoft' || kind === 'guitarSoft' || kind === 'guitarMuteSoft';
+    if (soft) {
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(e.vel, t + 0.008);
+    }
+    g.gain.setTargetAtTime(0, t + d, kind === 'rhodes' ? 0.12 : soft ? 0.09 : 0.06);
     s.stop(t + d + 0.8);
-    if (kind === 'rhodes') s.connect(g);
-    else s.connect(this.shaper(kind === 'guitar' ? 1.5 : 1.8)).connect(g);
+    if (kind === 'guitar' || kind === 'guitarMute') s.connect(this.shaper(kind === 'guitar' ? 1.5 : 1.8)).connect(g);
+    else if (kind === 'pizzSoft') s.connect(this.filter('lowpass', 650, 0.5)).connect(g);
+    else s.connect(g);
   }
 
   /** "Lub" or "dub": a sub sine with a fast pitch drop plus a soft pluck an octave up. */

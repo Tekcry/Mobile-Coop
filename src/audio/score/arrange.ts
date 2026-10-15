@@ -32,7 +32,10 @@ export type Voice =
   | 'boom'
   | 'rhodes'
   | 'guitar'
-  | 'guitarMute';
+  | 'guitarMute'
+  | 'pizzSoft'
+  | 'guitarSoft'
+  | 'guitarMuteSoft';
 
 export const HITS: readonly Hit[] = ['kick', 'snare', 'ghost', 'hat', 'ohat', 'rim', 'shaker', 'brush', 'taiko', 'metal', 'plate', 'crash'];
 
