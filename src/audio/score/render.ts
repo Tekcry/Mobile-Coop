@@ -19,6 +19,9 @@ export interface Rendered {
   rawDb: number;
   gain: number;
   ms: number;
+  /** For decoded files with padding around the loop: the loop region inside the buffer (s). */
+  loopStart?: number;
+  loopEnd?: number;
 }
 
 const IRS: Record<'room' | 'hall' | 'far', IrSpec> = {

@@ -15,6 +15,21 @@ adding it to `samples.json` and regenerating this table in the same commit.
 | VSCO 2 Community Edition (Versilian Studios) | CC0 1.0 | https://github.com/sgossner/VSCO-2-CE | `440300901dfe9275fd84e0b7763af1f8443ae62e` | 2026-10-09 (LICENSE file and README) |
 | Versilian Community Sample Library (VCSL) | CC0 1.0 | https://github.com/sgossner/VCSL | `c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e` | 2026-10-09 (LICENSE file and README) |
 
+## V4 round 6: orchestral set (325)
+
+The orchestral sketches (`src/audio/score/orch/`) use 325 further CC0 recordings from VSCO 2 CE, at the same pinned
+commit. The list is `scripts/music/orch-samples.json`, with library path and sounding pitch per file. VSCO names
+sound an octave above their label; the organ is numbered by key; the timpani are measured.
+- **Fetch:** `node scripts/music/fetch-samples.mjs orch-samples.json orch`, into `.music-cache/orch/`, git-ignored,
+  about 536 MB.
+- **Render:** `npm run music:orch`. Only the rendered MP3 stems ship (`src/assets/music/orch/`).
+- **Instruments:**
+  - **Strings:** cello section (spiccato, sustained, tremolo), viola and violin sections (sustained), violin section
+    tremolo, solo contrabass (spiccato, sustained).
+  - **Brass:** French horn (sustained, staccato), tenor trombone and tuba (sustained).
+  - **Organ:** pipe organ, loud and quiet manuals, and pedal.
+  - **Percussion:** timpani hits and rolls, bass drum, large ethnic drum, suspended cymbal rolls, gong.
+
 ## Samples (107)
 
 | Id | Library | File | Source URL |

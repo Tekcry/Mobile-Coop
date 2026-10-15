@@ -1,14 +1,15 @@
 // Downloads the CC0 source samples listed in scripts/music/samples.json into .music-cache/samples/ (git-ignored).
 // Only the rendered stems ship; the raw WAVs never enter the repo. Re-running skips files already present.
-// Usage: node scripts/music/fetch-samples.mjs
+// Usage: node scripts/music/fetch-samples.mjs [manifest.json] [cache subfolder]
+// (the V4 orchestral set: node scripts/music/fetch-samples.mjs orch-samples.json orch)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
-const manifest = JSON.parse(readFileSync(join(here, 'samples.json'), 'utf8'));
-const dir = join(root, '.music-cache', 'samples');
+const manifest = JSON.parse(readFileSync(join(here, process.argv[2] ?? 'samples.json'), 'utf8'));
+const dir = join(root, '.music-cache', process.argv[3] ?? 'samples');
 mkdirSync(dir, { recursive: true });
 
 export const sampleUrl = (s) => {

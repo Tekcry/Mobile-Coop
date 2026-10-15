@@ -13,8 +13,46 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3b | Round 2: Hook A with one partner at a time | done; Michael: hates all but 5 (guitar), which is still too aggressive; Hook A too loud |
 | 3c | Round 3: subtle Hook A and subtle guitar | done; Michael: not sure it fits the feel of the game |
 | 3d | Round 4: ten hooks to choose from | done; Michael: not liking anything yet; asked for MGS1 alert / escape style |
-| 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; waiting for Michael's feedback |
+| 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; Michael: "absolutely all wrong" |
+| 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 6 - orchestral, Hans Zimmer spirit, real instruments
+- **Michael (2026-10-15):**
+  - Round 5 was "absolutely all wrong".
+  - "I like Hans Zimmer, orchestral, epic."
+  - Asked to choose, he picked:
+    - **real orchestra recordings** (CC0), which **replaces the brief's "no samples for now"**
+    - The Dark Knight and Interstellar as the closest Zimmer sound
+- **Done:**
+  - **Samples:** `scripts/music/orch-samples.json` lists 325 CC0 recordings from VSCO 2 CE (see
+    `docs/audio/samples.md`). They are fetched into `.music-cache/orch/`, git-ignored, 536 MB.
+  - **Renderer:** `src/audio/score/orch/` is an offline renderer, run with `npm run music:orch`.
+    - `bank.ts`: zones and pitches. VSCO names sound an octave above their label, the organ is mapped by key number,
+      the timpani are measured. All checked by pitch detection.
+    - `play.ts`: nearest-sample varispeed, long notes extended by crossfaded loops, round robins, cymbal swells timed
+      to land on the beat.
+    - `pieces.ts`: the three pieces.
+    - `cli.ts`: hall reverb per section, one master gain, MP3 stems.
+  - **Three original pieces**, each growing from quiet to huge:
+    - **Pursuit** (The Dark Knight side, 120 BPM, 80 s): a 16th-note low-string ostinato in 3 + 3 + 2 accents, a
+      horn motif D, A, B-flat, A, low brass hits every 2 bars, timpani, big drum, cymbal swells, gong, a final hit.
+    - **Long Night** (the Interstellar side, 84 BPM, 91 s): a repeating pipe-organ pattern over D minor, B-flat,
+      F and C, low strings, then a long-note violin melody, horns, full organ, timpani.
+    - **Night Shift** (both, 92 BPM, 84 s): Hook A as the low-string ostinato, organ chords, the horn motif, brass
+      hits.
+  - **Stems:** strings, brass, organ and percussion, as 128 kbps MP3s in `src/assets/music/orch/` (15 MB) with
+    `orch.json`.
+  - **Test page:** the pieces come first, with a slider per section. Rounds 1 and 3-5 are in collapsed boxes.
+- **Measured:**
+  - Render takes about 11 s per piece.
+  - Each piece builds 8-16 dB from start to climax.
+  - The full mix is about -18 dB loudness, with peaks at -1 dBFS.
+  - Percussion is trimmed up 5 dB.
+- **Open:**
+  - The brief's "no samples" rule and the CLAUDE.md "no external audio" hard rule need Michael's written exception
+    if this direction is kept. He chose real recordings here.
+  - 15 MB of MP3 is fine for a test page. The game version needs a size budget.
 
 ## V4 round 5 - Alert hooks in the Metal Gear Solid spirit
 - **Michael (2026-10-15):**

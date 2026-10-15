@@ -191,7 +191,11 @@ export class ScorePlayer {
       s.buffer = l.r.buffer;
       s.loop = true;
       s.connect(l.user);
-      s.start(at);
+      if (l.r.loopStart !== undefined && l.r.loopEnd !== undefined) {
+        s.loopStart = l.r.loopStart;
+        s.loopEnd = l.r.loopEnd;
+        s.start(at, l.r.loopStart);
+      } else s.start(at);
       l.src = s;
     }
     g.t0 = at;

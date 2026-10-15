@@ -2,6 +2,21 @@ import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type Music
 import { subtleGuitar, subtleHooks } from './hookLab';
 import { HOOKS, hookPlan, type HookDef } from './hooks';
 import { ALERT_HOOKS, alertHookPlan, type AlertHook } from './mgs';
+import orchManifest from '../../assets/music/orch/orch.json';
+
+/** Round 6: the orchestral sketches, rendered offline from real recordings (npm run music:orch). */
+interface OrchPiece {
+  id: string;
+  name: string;
+  about: string;
+  bpm: number;
+  bars: number;
+  loop: number;
+  stems: Record<string, { file: string; bytes: number }>;
+}
+const ORCH = orchManifest as { pad: number; pieces: OrchPiece[] };
+const ORCH_URLS = import.meta.glob('../../assets/music/orch/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+const STEM_NAMES: Record<string, string> = { strings: 'Strings', brass: 'Brass', organ: 'Organ', perc: 'Percussion' };
 import type { GameAwareness } from './director';
 import { ScorePlayer, type LayerRt } from './player';
 import { renderAll, renderLayer, type Rendered } from './render';
@@ -72,6 +87,45 @@ async function rendered(key: string, defs: LayerDef[], loop: (d: LayerDef) => bo
 
 async function playMenu(sk: SketchDef): Promise<void> {
   await playLoop(menuPlan(sk));
+}
+
+async function playOrch(piece: OrchPiece): Promise<void> {
+  if (busy) return;
+  const { p, w } = ensure();
+  const key = `orch-${piece.id}`;
+  let r = cache.get(key);
+  const plan: Plan = { id: key, name: piece.name, group: 'menu', bpm: piece.bpm, bars: piece.bars, layers: [] };
+  if (!r) {
+    keepOnly(key);
+    setBusy(true, `Loading ${piece.name}...`);
+    const ids = Object.keys(piece.stems);
+    r = await Promise.all(
+      ids.map(async (id): Promise<Rendered> => {
+        const url = ORCH_URLS[`../../assets/music/orch/${piece.stems[id]!.file}`]!;
+        const buffer = await p.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
+        const def: LayerDef = {
+          id: `${key}-${id}`,
+          name: STEM_NAMES[id] ?? id,
+          group: 'menu',
+          bpm: piece.bpm,
+          bars: piece.bars,
+          mono: false,
+          rate: buffer.sampleRate,
+          level: 0,
+          fx: { room: 0, hall: 0, far: 0 },
+          mix: { calm: 1, caution: 1, alert: 1, evade: 1 },
+          events: [],
+        };
+        return { def, buffer, loopSec: piece.loop, rawDb: 0, gain: 1, ms: 0, loopStart: ORCH.pad, loopEnd: ORCH.pad + piece.loop };
+      }),
+    );
+    cache.set(key, r);
+    setBusy(false, '');
+  }
+  w.setChatter(false);
+  p.playMenu(plan, r);
+  note(`Playing ${piece.name} (${piece.bpm} BPM, ${piece.loop.toFixed(0)} s, real orchestra recordings)`);
+  buildLayers();
 }
 
 /** Any looping plan (a menu theme or a Hook A partner loop), with a slider per layer. */
@@ -241,19 +295,30 @@ export function mountScoreLab(root: HTMLElement): void {
     el('p', {
       className: 'muted',
       textContent:
-        'Round 5: Alert hooks in the Metal Gear Solid spirit. Everything is generated in code and rendered when you press play (a second or two each).',
+        'Round 6: orchestral, Hans Zimmer spirit, real recorded instruments. Earlier rounds are in the boxes at the bottom.',
     }),
     el('div', { id: 'progress', className: 'progress' }),
     el(
       'section',
       {},
-      el('h2', { textContent: '1. Alert hooks in the Metal Gear Solid spirit' }),
+      el('h2', { textContent: '1. Orchestral sketches (real instruments)' }),
       el('p', {
         className: 'muted',
         textContent:
-          'Four original Alert hooks: fast, urgent, a repeated-note pickup into a held note, a driving snare and a pulsing bass. Hear each hook alone, as Alert with the hook on three different instruments, and as Evasion (the drive stays, the hook drops out). Each loops (about 13 s).',
+          'Three original pieces in the Hans Zimmer spirit (The Dark Knight and Interstellar), played by recorded orchestral instruments: string sections, horns, trombones, tuba, pipe organ, timpani and big drums. Each grows from quiet to huge, so you can hear both the sneaking end and the alert end. Sliders below for strings, brass, organ and percussion.',
       }),
-      el('div', { className: 'partners' }, ...ALERT_HOOKS.map(alertCard)),
+      el(
+        'div',
+        { className: 'partners' },
+        ...ORCH.pieces.map((pc, i) =>
+          el(
+            'div',
+            { className: 'partner' },
+            button(`${i + 1}. ${pc.name}`, () => void playOrch(pc), 'big'),
+            el('small', { textContent: `${pc.about} ${pc.bpm} BPM, ${Math.round(pc.loop)} s.` }),
+          ),
+        ),
+      ),
       el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el(
@@ -314,6 +379,23 @@ export function mountScoreLab(root: HTMLElement): void {
     ),
     el('section', {}, el('h2', { textContent: '3. Layers' }), el('div', { id: 'layers' })),
     el('section', {}, el('h2', { textContent: 'Log' }), el('pre', { id: 'log' })),
+    el(
+      'details',
+      { className: 'old' },
+      el('summary', { textContent: 'Round 5: Metal Gear Solid style Alert hooks (kept for comparison)' }),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: 'Alert hooks in the Metal Gear Solid spirit' }),
+      el('p', {
+        className: 'muted',
+        textContent:
+          'Four original Alert hooks: fast, urgent, a repeated-note pickup into a held note, a driving snare and a pulsing bass. Hear each hook alone, as Alert with the hook on three different instruments, and as Evasion (the drive stays, the hook drops out). Each loops (about 13 s).',
+      }),
+      el('div', { className: 'partners' }, ...ALERT_HOOKS.map(alertCard)),
+      el('div', { className: 'row' }, button('Stop', stop)),
+    ),
+    ),
     el(
       'details',
       { className: 'old' },

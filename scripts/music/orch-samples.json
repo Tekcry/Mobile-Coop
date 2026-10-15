@@ -1,0 +1,2287 @@
+{
+ "licence": "CC0-1.0",
+ "note": "Orchestral samples for the V4 round 6 Zimmer-style sketches. midi = sounding pitch (VSCO labels are an octave low); null = unpitched or set by detection.",
+ "sources": {
+  "V": {
+   "repo": "sgossner/VSCO-2-CE",
+   "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e"
+  }
+ },
+ "samples": [
+  {
+   "id": "celloSpic-spic_A2_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_A2_v1_RR1.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloSpic-spic_A2_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_A2_v2_RR1.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloSpic-spic_A2_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_A2_v2_RR2.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloSpic-spic_B1_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B1_v1_RR1.wav",
+   "midi": 47
+  },
+  {
+   "id": "celloSpic-spic_B1_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B1_v2_RR1.wav",
+   "midi": 47
+  },
+  {
+   "id": "celloSpic-spic_B1_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B1_v2_RR2.wav",
+   "midi": 47
+  },
+  {
+   "id": "celloSpic-spic_B3_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B3_v1_RR1.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloSpic-spic_B3_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B3_v2_RR1.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloSpic-spic_B3_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_B3_v2_RR2.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloSpic-spic_C1_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C1_v1_RR1.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloSpic-spic_C1_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C1_v2_RR1.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloSpic-spic_C1_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C1_v2_RR2.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloSpic-spic_C3_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C3_v1_RR1.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloSpic-spic_C3_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C3_v2_RR1.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloSpic-spic_C3_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_C3_v2_RR2.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloSpic-spic_D2_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D2_v1_RR1.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloSpic-spic_D2_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D2_v2_RR1.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloSpic-spic_D2_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D2_v2_RR2.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloSpic-spic_D4_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D4_v1_RR1.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloSpic-spic_D4_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D4_v2_RR1.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloSpic-spic_D4_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_D4_v2_RR2.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloSpic-spic_E1_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E1_v1_RR1.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloSpic-spic_E1_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E1_v2_RR1.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloSpic-spic_E1_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E1_v2_RR2.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloSpic-spic_E3_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E3_v1_RR1.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloSpic-spic_E3_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E3_v2_RR1.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloSpic-spic_E3_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_E3_v2_RR2.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloSpic-spic_F2_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F2_v1_RR1.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloSpic-spic_F2_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F2_v2_RR1.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloSpic-spic_F2_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F2_v2_RR2.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloSpic-spic_F4_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F4_v1_RR1.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloSpic-spic_F4_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F4_v2_RR1.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloSpic-spic_F4_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_F4_v2_RR2.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloSpic-spic_G1_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G1_v1_RR1.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloSpic-spic_G1_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G1_v2_RR1.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloSpic-spic_G1_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G1_v2_RR2.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloSpic-spic_G3_v1_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G3_v1_RR1.wav",
+   "midi": 67
+  },
+  {
+   "id": "celloSpic-spic_G3_v2_RR1",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G3_v2_RR1.wav",
+   "midi": 67
+  },
+  {
+   "id": "celloSpic-spic_G3_v2_RR2",
+   "lib": "V",
+   "inst": "celloSpic",
+   "path": "Strings/Cello Section/spic/spic_G3_v2_RR2.wav",
+   "midi": 67
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_As0_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A#0_v1_rr1.wav",
+   "midi": 34
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_As0_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A#0_v1_rr2.wav",
+   "midi": 34
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_As0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A#0_v3_rr1.wav",
+   "midi": 34
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_As0_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A#0_v3_rr2.wav",
+   "midi": 34
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_A1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A1_v1_rr1.wav",
+   "midi": 45
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_A1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_A1_v1_rr2.wav",
+   "midi": 45
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_B2_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_B2_v1_rr1.wav",
+   "midi": 59
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_B2_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_B2_v1_rr2.wav",
+   "midi": 59
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Cs2_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C#2_v1_rr1.wav",
+   "midi": 49
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Cs2_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C#2_v1_rr2.wav",
+   "midi": 49
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_C1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C1_v1_rr1.wav",
+   "midi": 36
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_C1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C1_v1_rr2.wav",
+   "midi": 36
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_C1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C1_v3_rr1.wav",
+   "midi": 36
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_C1_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_C1_v3_rr2.wav",
+   "midi": 36
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_D1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_D1_v1_rr1.wav",
+   "midi": 38
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_D1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_D1_v1_rr2.wav",
+   "midi": 38
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_D1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_D1_v3_rr1.wav",
+   "midi": 38
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_D1_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_D1_v3_rr2.wav",
+   "midi": 38
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E0_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E0_v1_rr1.wav",
+   "midi": 28
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E0_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E0_v1_rr2.wav",
+   "midi": 28
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E0_v3_rr1.wav",
+   "midi": 28
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E0_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E0_v3_rr2.wav",
+   "midi": 28
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E1_v1_rr1.wav",
+   "midi": 40
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E1_v1_rr2.wav",
+   "midi": 40
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E1_v3_rr1.wav",
+   "midi": 40
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E1_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E1_v3_rr2.wav",
+   "midi": 40
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E2_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E2_v1_rr1.wav",
+   "midi": 52
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_E2_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_E2_v1_rr2.wav",
+   "midi": 52
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs0_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#0_v1_rr1.wav",
+   "midi": 30
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs0_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#0_v1_rr2.wav",
+   "midi": 30
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#0_v3_rr1.wav",
+   "midi": 30
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs0_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#0_v3_rr2.wav",
+   "midi": 30
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#1_v1_rr1.wav",
+   "midi": 42
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Fs1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_F#1_v1_rr2.wav",
+   "midi": 42
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Gs1_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G#1_v1_rr1.wav",
+   "midi": 44
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Gs1_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G#1_v1_rr2.wav",
+   "midi": 44
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Gs2_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G#2_v1_rr1.wav",
+   "midi": 56
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_Gs2_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G#2_v1_rr2.wav",
+   "midi": 56
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_G0_v1_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G0_v1_rr1.wav",
+   "midi": 31
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_G0_v1_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G0_v1_rr2.wav",
+   "midi": 31
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_G0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G0_v3_rr1.wav",
+   "midi": 31
+  },
+  {
+   "id": "bassSpic-BKCtbss_Spic_G0_v3_rr2",
+   "lib": "V",
+   "inst": "bassSpic",
+   "path": "Strings/Solo Contrabass/Spic/BKCtbss_Spic_G0_v3_rr2.wav",
+   "midi": 31
+  },
+  {
+   "id": "celloSus-susvib_A2_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_A2_v1_1.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloSus-susvib_A2_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_A2_v3_1.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloSus-susvib_B1_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_B1_v1_1.wav",
+   "midi": 47
+  },
+  {
+   "id": "celloSus-susvib_B1_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_B1_v3_1.wav",
+   "midi": 47
+  },
+  {
+   "id": "celloSus-susvib_B3_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_B3_v1_1.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloSus-susvib_B3_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_B3_v3_1.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloSus-susvib_C1_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_C1_v1_1.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloSus-susvib_C1_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_C1_v3_1.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloSus-susvib_C3_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_C3_v1_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloSus-susvib_C3_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_C3_v3_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloSus-susvib_D2_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_D2_v1_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloSus-susvib_D2_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_D2_v3_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloSus-susvib_D4_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_D4_v1_1.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloSus-susvib_D4_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_D4_v3_1.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloSus-susvib_E1_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_E1_v1_1.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloSus-susvib_E1_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_E1_v3_1.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloSus-susvib_E3_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_E3_v1_1.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloSus-susvib_E3_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_E3_v3_1.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloSus-susvib_F2_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_F2_v1_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloSus-susvib_F2_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_F2_v3_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloSus-susvib_F4_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_F4_v1_1.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloSus-susvib_F4_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_F4_v3_1.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloSus-susvib_G1_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_G1_v1_1.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloSus-susvib_G1_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_G1_v3_1.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloSus-susvib_G3_v1_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_G3_v1_1.wav",
+   "midi": 67
+  },
+  {
+   "id": "celloSus-susvib_G3_v3_1",
+   "lib": "V",
+   "inst": "celloSus",
+   "path": "Strings/Cello Section/susvib/susvib_G3_v3_1.wav",
+   "midi": 67
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_A3_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_A3_v2_1.wav",
+   "midi": 69
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_B2_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_B2_v2_1.wav",
+   "midi": 59
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_B4_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_B4_v2_1.wav",
+   "midi": 83
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_C2_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_C2_v2_1.wav",
+   "midi": 48
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_C4_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_C4_v2_1.wav",
+   "midi": 72
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_D2_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_D2_v2_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_D3_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_D3_v2_1.wav",
+   "midi": 62
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_D5_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_D5_v2_1.wav",
+   "midi": 86
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_E2_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_E2_v2_1.wav",
+   "midi": 52
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_E4_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_E4_v2_1.wav",
+   "midi": 76
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_F3_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_F3_v2_1.wav",
+   "midi": 65
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_G2_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_G2_v2_1.wav",
+   "midi": 55
+  },
+  {
+   "id": "violaSus-ViolaEns_susvib_G4_v2_1",
+   "lib": "V",
+   "inst": "violaSus",
+   "path": "Strings/Viola Section/susvib/ViolaEns_susvib_G4_v2_1.wav",
+   "midi": 79
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_A2_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_A2_v2.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_A3_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_A3_v2.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_B2_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_B2_v2.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_B4_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_B4_v2.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_C4_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_C4_v2.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_D3_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_D3_v2.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_D5_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_D5_v2.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_E4_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_E4_v2.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_Fs3_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_F#3_v2.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_G2_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_G2_v2.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinSus-VlnEns_susVib_G4_v2",
+   "lib": "V",
+   "inst": "violinSus",
+   "path": "Strings/Violin Section/susVib/VlnEns_susVib_G4_v2.wav",
+   "midi": 79
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_As0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_A#0_v3_rr1.wav",
+   "midi": 34
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_A1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_A1_v3_rr1.wav",
+   "midi": 45
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_B2_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_B2_v3_rr1.wav",
+   "midi": 59
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_Cs2_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C#2_v3_rr1.wav",
+   "midi": 49
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_C1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C1_v3_rr1.wav",
+   "midi": 36
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_D1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_D1_v3_rr1.wav",
+   "midi": 38
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_E1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_E1_v3_rr1.wav",
+   "midi": 40
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_E2_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_E2_v3_rr1.wav",
+   "midi": 52
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_Fs0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_F#0_v3_rr1.wav",
+   "midi": 30
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_Fs1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_F#1_v3_rr1.wav",
+   "midi": 42
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_Gs1_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G#1_v3_rr1.wav",
+   "midi": 44
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_Gs2_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G#2_v3_rr1.wav",
+   "midi": 56
+  },
+  {
+   "id": "bassSus-BKCtbss_SusVib_G0_v3_rr1",
+   "lib": "V",
+   "inst": "bassSus",
+   "path": "Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_G0_v3_rr1.wav",
+   "midi": 31
+  },
+  {
+   "id": "celloTrem-trem_A2_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_A2_v2_1.wav",
+   "midi": 57
+  },
+  {
+   "id": "celloTrem-trem_B2_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_B2_v2_1.wav",
+   "midi": 59
+  },
+  {
+   "id": "celloTrem-trem_B3_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_B3_v2_1.wav",
+   "midi": 71
+  },
+  {
+   "id": "celloTrem-trem_C1_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_C1_v2_1.wav",
+   "midi": 36
+  },
+  {
+   "id": "celloTrem-trem_C3_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_C3_v2_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "celloTrem-trem_D2_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_D2_v2_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "celloTrem-trem_D4_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_D4_v2_1.wav",
+   "midi": 74
+  },
+  {
+   "id": "celloTrem-trem_E1_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_E1_v2_1.wav",
+   "midi": 40
+  },
+  {
+   "id": "celloTrem-trem_E3_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_E3_v2_1.wav",
+   "midi": 64
+  },
+  {
+   "id": "celloTrem-trem_F2_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_F2_v2_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "celloTrem-trem_F4_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_F4_v2_1.wav",
+   "midi": 77
+  },
+  {
+   "id": "celloTrem-trem_G1_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_G1_v2_1.wav",
+   "midi": 43
+  },
+  {
+   "id": "celloTrem-trem_G3_v2_1",
+   "lib": "V",
+   "inst": "celloTrem",
+   "path": "Strings/Cello Section/trem/trem_G3_v2_1.wav",
+   "midi": 67
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_A2_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_A2_v1.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_A3_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_A3_v1.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_B2_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_B2_v1.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_B4_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_B4_v1.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_C4_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_C4_v1.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_D3_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_D3_v1.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_D5_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_D5_v1.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_E4_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_E4_v1.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_Fs3_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_F#3_v1.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_G2_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_G2_v1.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinTrem-VlnEns_Trem_G4_v1",
+   "lib": "V",
+   "inst": "violinTrem",
+   "path": "Strings/Violin Section/Trem/VlnEns_Trem_G4_v1.wav",
+   "midi": 79
+  },
+  {
+   "id": "hornSus-MOHorn_sus_As1_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_A#1_v2_1.wav",
+   "midi": 46
+  },
+  {
+   "id": "hornSus-MOHorn_sus_As1_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_A#1_v3_1.wav",
+   "midi": 46
+  },
+  {
+   "id": "hornSus-MOHorn_sus_A2_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_A2_v2_1.wav",
+   "midi": 57
+  },
+  {
+   "id": "hornSus-MOHorn_sus_A2_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_A2_v3_1.wav",
+   "midi": 57
+  },
+  {
+   "id": "hornSus-MOHorn_sus_C1_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_C1_v2_1.wav",
+   "midi": 36
+  },
+  {
+   "id": "hornSus-MOHorn_sus_C1_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_C1_v3_1.wav",
+   "midi": 36
+  },
+  {
+   "id": "hornSus-MOHorn_sus_C3_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_C3_v2_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "hornSus-MOHorn_sus_C3_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_C3_v3_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "hornSus-MOHorn_sus_Ds1_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_D#1_v2_1.wav",
+   "midi": 39
+  },
+  {
+   "id": "hornSus-MOHorn_sus_Ds1_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_D#1_v3_1.wav",
+   "midi": 39
+  },
+  {
+   "id": "hornSus-MOHorn_sus_D2_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_D2_v2_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "hornSus-MOHorn_sus_D2_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_D2_v3_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "hornSus-MOHorn_sus_F2_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_F2_v2_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "hornSus-MOHorn_sus_F2_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_F2_v3_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "hornSus-MOHorn_sus_G1_v2_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_G1_v2_1.wav",
+   "midi": 43
+  },
+  {
+   "id": "hornSus-MOHorn_sus_G1_v3_1",
+   "lib": "V",
+   "inst": "hornSus",
+   "path": "Brass/F Horn/sus/MOHorn_sus_G1_v3_1.wav",
+   "midi": 43
+  },
+  {
+   "id": "hornStac-MOHorn_stac_As1_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_A#1_v2_rr1.wav",
+   "midi": 46
+  },
+  {
+   "id": "hornStac-MOHorn_stac_As1_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_A#1_v3_rr1.wav",
+   "midi": 46
+  },
+  {
+   "id": "hornStac-MOHorn_stac_A2_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_A2_v2_rr1.wav",
+   "midi": 57
+  },
+  {
+   "id": "hornStac-MOHorn_stac_A2_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_A2_v3_rr1.wav",
+   "midi": 57
+  },
+  {
+   "id": "hornStac-MOHorn_stac_C1_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_C1_v2_rr1.wav",
+   "midi": 36
+  },
+  {
+   "id": "hornStac-MOHorn_stac_C3_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_C3_v2_rr1.wav",
+   "midi": 60
+  },
+  {
+   "id": "hornStac-MOHorn_stac_C3_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_C3_v3_rr1.wav",
+   "midi": 60
+  },
+  {
+   "id": "hornStac-MOHorn_stac_Ds1_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_D#1_v2_rr1.wav",
+   "midi": 39
+  },
+  {
+   "id": "hornStac-MOHorn_stac_D2_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_D2_v2_rr1.wav",
+   "midi": 50
+  },
+  {
+   "id": "hornStac-MOHorn_stac_D2_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_D2_v3_rr1.wav",
+   "midi": 50
+  },
+  {
+   "id": "hornStac-MOHorn_stac_D4_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_D4_v2_rr1.wav",
+   "midi": 74
+  },
+  {
+   "id": "hornStac-MOHorn_stac_D4_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_D4_v3_rr1.wav",
+   "midi": 74
+  },
+  {
+   "id": "hornStac-MOHorn_stac_F2_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_F2_v2_rr1.wav",
+   "midi": 53
+  },
+  {
+   "id": "hornStac-MOHorn_stac_F2_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_F2_v3_rr1.wav",
+   "midi": 53
+  },
+  {
+   "id": "hornStac-MOHorn_stac_F4_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_F4_v2_rr1.wav",
+   "midi": 77
+  },
+  {
+   "id": "hornStac-MOHorn_stac_F4_v3_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_F4_v3_rr1.wav",
+   "midi": 77
+  },
+  {
+   "id": "hornStac-MOHorn_stac_G1_v2_rr1",
+   "lib": "V",
+   "inst": "hornStac",
+   "path": "Brass/F Horn/stac/MOHorn_stac_G1_v2_rr1.wav",
+   "midi": 43
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_As0_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_A#0_v1_1.wav",
+   "midi": 34
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_As1_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_A#1_v1_1.wav",
+   "midi": 46
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_As1_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_A#1_v3_1.wav",
+   "midi": 46
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Cs1_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_C#1_v1_1.wav",
+   "midi": 37
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Cs3_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_C#3_v1_1.wav",
+   "midi": 61
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Cs3_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_C#3_v3_1.wav",
+   "midi": 61
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_C3_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_C3_v1_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_C3_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_C3_v3_1.wav",
+   "midi": 60
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Ds1_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D#1_v1_1.wav",
+   "midi": 39
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Ds1_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D#1_v3_1.wav",
+   "midi": 39
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Ds3_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D#3_v1_1.wav",
+   "midi": 63
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_Ds3_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D#3_v3_1.wav",
+   "midi": 63
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_D2_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D2_v1_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_D2_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_D2_v3_1.wav",
+   "midi": 50
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F1_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F1_v1_1.wav",
+   "midi": 41
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F1_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F1_v3_1.wav",
+   "midi": 41
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F2_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F2_v1_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F2_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F2_v3_1.wav",
+   "midi": 53
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F3_v1_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F3_v1_1.wav",
+   "midi": 65
+  },
+  {
+   "id": "tbnSus-tenortbn_sus_F3_v3_1",
+   "lib": "V",
+   "inst": "tbnSus",
+   "path": "Brass/Tenor Trombone/sus/tenortbn_sus_F3_v3_1.wav",
+   "midi": 65
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As0_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#0_v1_rr1_Mid.wav",
+   "midi": 34
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As0_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#0_v3_rr1_Mid.wav",
+   "midi": 34
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As1_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#1_v1_rr1_Mid.wav",
+   "midi": 46
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As1_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#1_v3_rr1_Mid.wav",
+   "midi": 46
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As2_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#2_v1_rr1_Mid.wav",
+   "midi": 58
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_As2_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_A#2_v3_rr1_Mid.wav",
+   "midi": 58
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_Ds1_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_D#1_v1_rr1_Mid.wav",
+   "midi": 39
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_Ds1_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_D#1_v3_rr1_Mid.wav",
+   "midi": 39
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_D2_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_D2_v1_rr1_Mid.wav",
+   "midi": 50
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_D2_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_D2_v3_rr1_Mid.wav",
+   "midi": 50
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_D3_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_D3_v1_rr1_Mid.wav",
+   "midi": 62
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_F0_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_F0_v1_rr1_Mid.wav",
+   "midi": 29
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_F1_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_F1_v1_rr1_Mid.wav",
+   "midi": 41
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_F1_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_F1_v3_rr1_Mid.wav",
+   "midi": 41
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_F2_v1_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_F2_v1_rr1_Mid.wav",
+   "midi": 53
+  },
+  {
+   "id": "tubaSus-Tuba3_sus_F2_v3_rr1_Mid",
+   "lib": "V",
+   "inst": "tubaSus",
+   "path": "Brass/Tuba/sus/Tuba3_sus_F2_v3_rr1_Mid.wav",
+   "midi": 53
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_01",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_01.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_04",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_04.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_07",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_07.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_10",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_10.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_13",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_13.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_16",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_16.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_19",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_19.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_22",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_22.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_25",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_25.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_28",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_28.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_31",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_31.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_34",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_34.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_37",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_37.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_40",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_40.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_43",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_43.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_46",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_46.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_49",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_49.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_52",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_52.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_55",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_55.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_58",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_58.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Man3Open_61",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Man3Open_61.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_01",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_01.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_04",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_04.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_07",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_07.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_10",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_10.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_13",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_13.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_16",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_16.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_19",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_19.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_22",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_22.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_25",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_25.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_28",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_28.wav",
+   "midi": null
+  },
+  {
+   "id": "organLoud-Rode_Pedal_31",
+   "lib": "V",
+   "inst": "organLoud",
+   "path": "Keys/Organ/Loud/Rode_Pedal_31.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_122_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_122_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_125_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_125_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_128_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_128_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_131_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_131_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_134_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_134_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_137_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_137_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_140_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_140_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_143_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_143_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_146_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_146_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_149_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_149_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_152_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_152_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_155_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_155_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_158_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_158_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_161_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_161_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_164_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_164_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_167_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_167_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_170_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_170_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_173_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_173_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_176_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_176_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_179_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_179_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "organQuiet-NT5_Man3Quiet_182_rr1",
+   "lib": "V",
+   "inst": "organQuiet",
+   "path": "Keys/Organ/Quiet/NT5_Man3Quiet_182_rr1.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani1_Hit_v3_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani1_Hit_v3_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani2_Hit_v3_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani2_Hit_v3_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani2_Hit_v4_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani2_Hit_v4_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani3_Hit_v3_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani3_Hit_v3_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani3_Hit_v4_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani3_Hit_v4_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani4_Hit_v3_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani4_Hit_v3_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani4_Hit_v4_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani4_Hit_v4_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani5_Hit_v3_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani5_Hit_v3_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timp-Timpani5_Hit_v4_rr1_Sum",
+   "lib": "V",
+   "inst": "timp",
+   "path": "Percussion/Timpani/Timpani5_Hit_v4_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timpRoll-Timpani1_Roll_v5_rr1_Sum",
+   "lib": "V",
+   "inst": "timpRoll",
+   "path": "Percussion/Timpani/Rolls/Timpani1_Roll_v5_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timpRoll-Timpani2_Roll_v5_rr1_Sum",
+   "lib": "V",
+   "inst": "timpRoll",
+   "path": "Percussion/Timpani/Rolls/Timpani2_Roll_v5_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timpRoll-Timpani3_Roll_v5_rr1_Sum",
+   "lib": "V",
+   "inst": "timpRoll",
+   "path": "Percussion/Timpani/Rolls/Timpani3_Roll_v5_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "timpRoll-Timpani4_Roll_v5_rr1_Sum",
+   "lib": "V",
+   "inst": "timpRoll",
+   "path": "Percussion/Timpani/Rolls/Timpani4_Roll_v5_rr1_Sum.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_f_1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_f_1.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_ff_1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_ff_1.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_fff_1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_fff_1.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_mp_1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_mp_1.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_p_1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_p_1.wav",
+   "midi": null
+  },
+  {
+   "id": "bdrum-bdrum_roll_long1",
+   "lib": "V",
+   "inst": "bdrum",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_roll_long1.wav",
+   "midi": null
+  },
+  {
+   "id": "giant-EthnicLargeMallet_hit_f_1",
+   "lib": "V",
+   "inst": "giant",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/mallet/EthnicLargeMallet_hit_f_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giant-EthnicLargeMallet_hit_ff_1",
+   "lib": "V",
+   "inst": "giant",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/mallet/EthnicLargeMallet_hit_ff_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giant-EthnicLargeMallet_hit_ff_2",
+   "lib": "V",
+   "inst": "giant",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/mallet/EthnicLargeMallet_hit_ff_2.wav",
+   "midi": null
+  },
+  {
+   "id": "giant-EthnicLargeMallet_hit_mf_1",
+   "lib": "V",
+   "inst": "giant",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/mallet/EthnicLargeMallet_hit_mf_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giant-EthnicLargeMallet_hit_pp_1",
+   "lib": "V",
+   "inst": "giant",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/mallet/EthnicLargeMallet_hit_pp_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giantStick-EthnicLargeSticks_hit_f_1",
+   "lib": "V",
+   "inst": "giantStick",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/sticks/EthnicLargeSticks_hit_f_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giantStick-EthnicLargeSticks_hit_fff_1",
+   "lib": "V",
+   "inst": "giantStick",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/sticks/EthnicLargeSticks_hit_fff_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giantStick-EthnicLargeSticks_hit_mf_1",
+   "lib": "V",
+   "inst": "giantStick",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/sticks/EthnicLargeSticks_hit_mf_1.wav",
+   "midi": null
+  },
+  {
+   "id": "giantStick-EthnicLargeSticks_hit_p_1",
+   "lib": "V",
+   "inst": "giantStick",
+   "path": "VSCO 1 Percussion/drums/other/ethnic/giant/sticks/EthnicLargeSticks_hit_p_1.wav",
+   "midi": null
+  },
+  {
+   "id": "cym-susp_hit_softmall_ff",
+   "lib": "V",
+   "inst": "cym",
+   "path": "VSCO 1 Percussion/varMetal/Cymbals/susp/susp_hit_softmall_ff.wav",
+   "midi": null
+  },
+  {
+   "id": "cym-susp_hit_softmall_roll2_cresc",
+   "lib": "V",
+   "inst": "cym",
+   "path": "VSCO 1 Percussion/varMetal/Cymbals/susp/susp_hit_softmall_roll2_cresc.wav",
+   "midi": null
+  },
+  {
+   "id": "cym-susp_hit_softmall_roll4_fff_long",
+   "lib": "V",
+   "inst": "cym",
+   "path": "VSCO 1 Percussion/varMetal/Cymbals/susp/susp_hit_softmall_roll4_fff_long.wav",
+   "midi": null
+  },
+  {
+   "id": "cym-susp_hit_softmall_roll5_long_p",
+   "lib": "V",
+   "inst": "cym",
+   "path": "VSCO 1 Percussion/varMetal/Cymbals/susp/susp_hit_softmall_roll5_long_p.wav",
+   "midi": null
+  },
+  {
+   "id": "gong-gong_hit_ff",
+   "lib": "V",
+   "inst": "gong",
+   "path": "VSCO 1 Percussion/varMetal/Gong/gong_hit_ff.wav",
+   "midi": null
+  },
+  {
+   "id": "gong-gong_hit_p",
+   "lib": "V",
+   "inst": "gong",
+   "path": "VSCO 1 Percussion/varMetal/Gong/gong_hit_p.wav",
+   "midi": null
+  },
+  {
+   "id": "gong-gong_roll_long_ff",
+   "lib": "V",
+   "inst": "gong",
+   "path": "VSCO 1 Percussion/varMetal/Gong/gong_roll_long_ff.wav",
+   "midi": null
+  }
+ ]
+}
