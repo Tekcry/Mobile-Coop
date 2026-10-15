@@ -1,5 +1,18 @@
 # Locomotion run - state
 
+## Play check before step 21 (D11 item 4, M12: two tabs instead of the bot)
+Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the URL it prints in Chrome on the desktop, pad connected. Solo: Play > Free Roam > Proving Grounds; guards: Play > Hunter > Warehouse. Co-op: tab 1 `<url>/?net=local` > Co-op > Host a room (pad stays in this tab); tab 2 same URL > Join room with the code. Watch tab 2 to see your operator from outside.
+1. Movement: push the stick a little, halfway, fully (silent slow walk, walk, jog), L3 sprint; D-pad up / down sets the max gear (HUD pips). Does the body feel weighty, any bob? (Step 21 targets bob.)
+2. Holstered by default: LT draws (pistol 0.3 s, rifle 0.4 s), release holsters; RT while holstered = elbow strike (knocks out from behind, staggers from the front).
+3. Back to wall: A near a wall; slide along it; at an edge push the stick out to peek, LT to lean out and aim (left edge: weapon in the left hand); crouch at a low wall and aim over or round the end; SWAT turn across the shed doorway.
+4. Door peek: A at the Proving shed door: look through the crack with the right stick; close / open from there.
+5. Medkit: take damage, hold X about half a second: heals 40 over 1.5 s; get hit mid-heal; use the wall medkit station; check the HUD bar and kit count.
+6. Vision: View cycles night, thermal, electro; guards behave the same in every mode.
+7. Arsenal: Loadout (campaign): Heron Carbine (suppressed) / Hush 9 SD default; try the others.
+8. Settings: Controls: remap a button, see the conflict warning, play with it, reset; Gameplay: hold / toggle for aim, crouch, sprint, wall, grab; Rumble strength; Difficulty sliders.
+9. Co-op (two tabs): from tab 2 watch tab 1 draw / holster, strike, back to wall, peek, door peek, medkit; stack both on one wall; brace + boost.
+10. Note anything that feels wrong, slow or floaty; reply "Locomotion: go" with notes (they steer steps 21-34).
+
 ## On the secondary desktop (M7, 2026-10-15)
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
 - Current: steps 15-19 and 20b done (step 20 dropped, M12). Next: the Block C end (full e2e running, perf trend, kestrel merge: 24 commits, no conflicts predicted, Blocked 11a-c retries, former step 20 reruns), the play-check list, then step 21 in its own commit (M13), then the play-check pause for "Locomotion: go".
@@ -13,9 +26,9 @@
 - Play check (D11 item 4) uses two browser tabs on one PC, no bot: start `npm run dev`, open the host tab with `?net=local`, Co-op > Host a room; the second tab opens the join URL (`?net=local&room=<code>`) or Co-op > Join room with the code; pad in the host tab. Its text is still to be written into STATE.md by the orchestrator (BRIEF.md:140, DECISIONS.md:107 D11 item 4 and OWNER-NOTES.md:64-67 still say "bot partner").
 
 ### Block C end: former step 20 reruns (M12)
-Run at the Block C end as two-page `?net=local` cases; record each in LOG.md and drop the pending note.
-1. Step 11 two-player stacking: both pages on one wall, centres >= 0.6 m apart, no capsule overlap. The e2e-netmove "stack" case already asserts it (e2e-netmove.mjs:441-447; reads 0.75 m): run it and record the reading.
-2. Step 15 4-player `?net=local` medkit run: owned by step 30 task 10 (4-page e2e-coop case covering medkits); at the Block C end confirm the 3-page e2e-coop medkit case (host-authoritative heal, counts, cdeny none, wall medkit) passes.
+Done at the Block C end (desktop, 2026-10-16):
+1. Step 11 two-player stacking: both pages on one wall, centres >= 0.6 m apart, no capsule overlap. The e2e-netmove "stack" case already asserts it (e2e-netmove.mjs:441-447; reads 0.75 m): run it and record the reading. RESULT: e2e-netmove stack case 0.75 m along the wall and 0.75 m apart (step 18 check, solo; one 0.47 m reading under load in an implementer run, not reproduced): PASS.
+2. Step 15 4-player `?net=local` medkit run: owned by step 30 task 10 (4-page e2e-coop case covering medkits); at the Block C end confirm the 3-page e2e-coop medkit case (host-authoritative heal, counts, cdeny none, wall medkit) passes. RESULT: the 3-page e2e-coop medkit case passed (full e2e run solo reruns 2 of 2; step 15 checks): PASS; 4-player stays with step 30.
 3. Step 19: "rerun after 20" items are this list (no extra check).
 4. Step 08 carried items (remote stance / weapon settle vs the owner's curve, paired-move alignment palm vs ball-of-foot, remote runtime, 120 Hz jitter): moved to step 30 task 12, not a Block C end item.
 
@@ -88,7 +101,7 @@ Cloud runs through step 20, step 20b net check (D11) and the Block C end, then h
 - step 20 bot partner: dropped (M12).
 
 ## Blocked
-- 11 (after 3 fix rounds; committed functional, retry at Block C end): (a) e2e-wall 'held on a wall > 6 s: a guard lobs a grenade' fails 2 of 3 serial runs (throws 0: enemy.ts ~1320 needs lastSeenT < 8 and 7-22 m; make the spawned guards aware first or log as flaky); (b) e2e-mouse 'losing the capture (Esc) pauses' flaked once (log as flaky); (c) remote stopidle@60 pops 0 -> 3 reproduced on an --only rerun (band 0): confirm A39 noise and re-cut that row's band, or find a step 11 remoteAvatar / remotePlayer cause.
+- 11 RESOLVED at the Block C end (desktop): (a) e2e-wall grenade case passes on the desktop (PC1 run: throws 2, maxT 10.5; every e2e-wall run since, incl. the full e2e): closed. (b) e2e-mouse "losing the capture (Esc) pauses": load flake, logged (passes solo, steps 15-19). (c) remote stopidle@60 pops: A39 noise; desktop pops bands set from six runs (step 15), no gated regression since. Nothing Blocked.
 
 ## Pending PC
 (see PC-PASS.md)
