@@ -156,3 +156,12 @@ views), not node values. Undo: `materials.py`, `LIMITS` in `check_garment.py`.
 **A6 Kit mapping of sewn details (step 03b).** The combat shirt builds kit item `combatShirt`; its elbow pads build
 `elbowPockets`, the arm pockets and their flaps `armPocketL` / `armPocketR`; the blank loop panels, cuff tabs and zip
 garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `kit` keys in `combat_shirt.py`.
+
+## Assumed decisions, step 04 (D15 unattended)
+**A7** The Lab is a production-style build served by `vite preview`, not the dev server. Why: Babylon loads its shaders by
+  dynamic import and the dev server returned the HTML page for them (black screen). Undo: none needed; the build takes 16 s.
+**A8** The Lab reads the GLB with its own small reader (`glb.ts`), not `@babylonjs/loaders`. Why: no package install without
+  asking Michael (RULES), and the export is one skin of plain triangle meshes. Undo: add the loader and drop `glb.ts`.
+**A9** Lab materials are flat albedo and roughness factors (the means of the procedural materials) until baked maps exist
+  (step 10); `export_gltf.py` flattens them. Undo: remove the FLAT table when step 10 exports textures.
+**A10** The Lab's lighting rigs use high exposure (2-4.5) rather than bright lights, because the fabric albedo is 0.02-0.06.

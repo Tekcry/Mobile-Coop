@@ -3,15 +3,15 @@
 // 2. Export each operator's corrected joints to build/operators/joints.json.
 // 3. Blender stages, headless on the pinned Blender:
 //    skeleton check -> base body (shaped, rigged, skinned) -> garments (sewn by cloth simulation) -> garment detail.
+// 4. glTF export for the Operator Lab (<id>-lab.glb).
 // --render also renders the garment test views into docs/operators/mockups/tests/ (Cycles on the GPU).
 import path from 'node:path';
 import { exportJoints } from './export-joints.mjs';
 import { fetchBaseBody } from './fetch-base-body.mjs';
 import { findBlender, runBlender } from './blender.mjs';
+import { exportGltf, GARMENTS } from './export-gltf.mjs';
 import { OUT_DIR, ROOT } from './paths.mjs';
 
-/** Garments built per operator so far (RUNBOOK step 3: Wren's combat shirt only). */
-const GARMENTS = { wren: ['combat_shirt'], moth: [] };
 
 const argv = process.argv.slice(2);
 const only = argv.filter((a) => !a.startsWith('-'));
@@ -37,5 +37,6 @@ for (const id of only.length ? only : ['wren', 'moth']) {
         '--samples', '384'], { blender });
     }
   }
+  exportGltf(id, blender);
 }
 console.info(`operators: done -> ${path.relative(process.cwd(), OUT_DIR)}`);

@@ -34,4 +34,11 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
 - `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the four
   test views (`--render`).
 
-Stages still to come (PLAN.md): more garments and kit, baked maps, LODs, glTF export.
+- `py/export_gltf.py`, `export-gltf.mjs` (`npm run operators:export`) - `<id>-lab.glb`: body and garments skinned to the game
+  joint names, flat material factors (baked maps and KTX2 arrive in step 10). Runs at the end of `operators:build`.
+- `npm run operators` - the dev-only Operator Lab (`operators.html`, `src/operators/lab/`, `vite.operators.config.ts`): builds
+  into `build/operators-lab/` and serves at `http://127.0.0.1:4191/operators.html` (E2E_PORT). Never in `dist/`.
+- `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
+  (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4191`) - the contact sheets, into `docs/operators/mockups/<id>/`.
+
+Stages still to come (PLAN.md): more garments and kit, baked maps, LODs.

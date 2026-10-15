@@ -139,3 +139,27 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
   folds above the hem at the back; the knit spans from the chest in a visible line under a side key (covered by the
   carrier in step 08). Revisit when the carrier and trousers constrain the shirt.
 
+
+## Step 04 - Operator Lab and the contact sheet script
+- Built: `py/export_gltf.py` (`npm run operators:export`, also the last stage of `operators:build`): `<id>-lab.glb` with the
+  body and every garment item skinned to the game joint names (weights from the nearest body vertex, modifiers applied,
+  procedural materials flattened to their mean albedo and roughness). Wren: 933,504 triangles hero, 19 meshes, 10 materials.
+- Operator Lab: `operators.html`, `src/operators/lab/` (`glb.ts` reader, `retarget.ts` skeleton drive, `labData.ts` rigs /
+  presets / poses / close-ups / colour-blind matrices, `lab.ts` scene, `main.ts` page), `npm run operators` (builds into
+  `build/operators-lab/`, serves it with `build/operators/` at `/__operators`). Not in `dist/` (checked: no match).
+  Turntable, free camera, perspective 50 mm or orthographic, LOD selector (lists hero; lod1, lod2, phone appear when built),
+  Low / High / Epic / phone look, six lighting rigs, seven poses, wireframe / normals / UV / material ID, bones linked with
+  `Bone.linkTransformNode` to nodes driven from a read-only CharacterRig, game operator beside the new one.
+- `scripts/operator-sheet.mjs` (`npm run operators:sheet [wren|moth] [--only a,b]`, E2E_GPU=1 E2E_PORT=4191): turnaround,
+  11 close-ups with callouts (built items; unbuilt ones listed as pending), menu test with three camera-move strips,
+  Hollowmere and darkness context, before / after, LOD and phone look, wireframe / normals / material ID strip, colour-blind
+  strip. Output `docs/operators/mockups/<id>/<id>-sheet-*.webp` (Wren: 17 sheets, 1.1 MB). Rendered on the RTX 4090 (ANGLE D3D11).
+- Tests: `tests/operatorLab.test.ts` (14: GLB reader frame and winding, skin order, retarget, data lists, colour-blind maths,
+  callouts). `npm run check` and `npm run operators:check` pass.
+- Open: (1) Moth is not built: its sheets and the two-operator frame are skipped by the script and listed. (2) Lab materials are
+  flat factors, no textures or normal maps until step 10 (sheen only under the phone look off). (3) The retarget (rig world
+  rotation per joint, arms swung from A-pose to hang) was checked by eye in idle, crouch, sneak: arms read natural, not
+  measured; aim and climb poses are not reviewed. (4) The goggle glow is a stand-in box on the head joint until step 07.
+  (5) The current game operator shown beside is the game rig built from flat boxes, not the full voxel look. (6) The studio
+  light uses exposure 4.5 because the albedo is 0.02-0.06 by design; the rigs, not the garment, carry the brightness.
+  (7) No in-game or phone LOD yet, so those sheet tiles repeat hero with the phone look.
