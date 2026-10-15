@@ -11,6 +11,7 @@ proportions) is listed under "Reference data" and kept out of the repo.
 
 | File (repo path) | What it is | Source (URL) | Author | Licence | Date added | Used by |
 | --- | --- | --- | --- | --- | --- | --- |
+| `build/operators/cache/mpfb2/` (git-ignored, fetched by `scripts/operators/fetch-base-body.mjs`; list in `scripts/operators/data/mpfb2-files.txt`) | MakeHuman hm08 base mesh, body shape targets, vertex groups, default rig weights (data only, no MPFB code) | https://github.com/makehumancommunity/mpfb2 at commit 3af0cd5a2ffba072e93a34e5f6f494fdc4813ddf (`src/mpfb/data/`, `LICENSE.ASSETS.md`) | Data Collection AB, Joel Palmius, Jonas Hauquier (MakeHuman community) | CC0 1.0 Universal | 2026-10-15 | Operator base bodies (`scripts/operators/py/build_body.py`); never shipped as is |
 
 ## Reference data (not in the repo, not shipped)
 

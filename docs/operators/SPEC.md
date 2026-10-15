@@ -7,6 +7,9 @@ Decisions: `DECISIONS.md` (D1-D11 Michael; S1-S2 setup). Sources read: Section 9
 
 ## 1. The detail standard (Michael, 2026-10-15; every render is checked against it)
 
+The look itself (identity, silhouette, layers, colour, materials, the combat shirt, what to avoid) is in
+`ART-DIRECTION.md`; every render is checked against both. Conflicts between the two: `DECISIONS.md` D13.
+
 **Logical.**
 - Every strap has two anchor points and a reason to exist.
 - Every buckle, clip and webbing loop does a job: it carries load, adjusts fit or retains an item.

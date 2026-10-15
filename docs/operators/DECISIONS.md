@@ -77,3 +77,41 @@ skeleton, hit volumes and light sample heights match their real size, so shots a
 Capsule, speeds and every traversal move stay shared, so maps and routes work the same for everyone."
 - Heights: Wren about 1.68 m, Moth about 1.78 m (SPEC 4).
 - What stays shared: the capsule, speeds, eye and camera rules, and every traversal move and its anchors.
+
+## Stage 2 answers (RUNBOOK step 3, 2026-10-15)
+
+**D12 CC0 base body download.** Michael chose "Download it (Recommended)": the MPFB2 CC0 data only (base mesh, body
+targets, vertex groups, default rig weights; 592 files, about 23 MB) from github.com/makehumancommunity/mpfb2 at commit
+3af0cd5, into the git-ignored cache `build/operators/cache/mpfb2/`. No MPFB code (GPL). `docs/art-credits.md` lists it.
+
+**D13 Art direction.** Michael's step 3 brief adds `ART-DIRECTION.md`, the look standard beside SPEC Section 1. Conflicts
+with SPEC found and decided:
+- Waist. Art direction: lean, narrow waist. SPEC A4: survey-average waists. Michael chose "Art direction: leaner
+  (Recommended)". Applied: the body's waist breadth and depth are 0.93 of the A4 value (`LEAN_WAIST` in
+  `build_body.py`); visual only, hit volumes unchanged.
+- Goggles. Art direction: tiny muted emitters only. SPEC 2: glowing lenses are the signature (Wren green, Moth amber).
+  Michael chose "Strong lens glow": SPEC 2 stands; the art direction's "muted" rule applies to every other light.
+- Bind pose. The brief says bind pose = the game rig's bind pose; the rig's rest pose has the arms hanging straight
+  through the hips (about 4 cm overlap). Michael chose "A-pose on the game skeleton (Recommended)": identical joints
+  and bone lengths, the mesh bound with the arms about 42 degrees out and MakeHuman's slight elbow bend; the glTF's
+  inverse bind matrices carry the A-pose. (Setup note S3.)
+
+**D14 Garment method.** After the first shirt renders Michael answered "stop and reconsider my last detailed prompt"
+and pasted the step 3 brief again (follow it as written). After the fit fixes (leaner body, close-fit knit, trimmer
+sleeves) he chose "Yes, continue (Recommended)": the sewn-panel cloth method is the method for both operators. The
+remaining shirt faults (hem bunching, crumpled forearms, collar not standing) are fixed in a focused step first.
+
+**D15 How the run continues.** Michael: "i would prefer to do smaller steps that keep claude focused and on task. i
+want it to run unattended throughout the entire process, resulting in completed characters as per the description".
+He chose "Chained small steps (Recommended)": one focused step per session with automatic checks; each session starts
+the next itself; he reviews the finished characters at the end.
+- Consequences: the three-concepts-per-operator round and the mid-run review page are replaced by one design per
+  operator built to ART-DIRECTION.md, checked by script and by the render self-review; Michael's review comes at the
+  end (`PLAN.md`).
+- Model and effort (Michael asked for them named): Opus 5.5 High for design, garments, kit, bakes and renders; Sonnet
+  5.5 Medium for tooling and pages.
+
+## Setup notes (step 3)
+
+**S3 Bind pose.** See D13. The skeleton round trip (`build_skeleton.py`) still checks the game's rest pose to 0.1 mm;
+the body report (`<id>-body.json`, `bindJoints`) lists the A-pose joints the mesh is bound in.

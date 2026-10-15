@@ -4,11 +4,14 @@ Branch `feature/operators`, worktree `C:\NightShift\Mobile-Coop-operators` (cut 
 Pre-production only: design, a dev-only viewer, an offline asset pipeline and mockup renders. No game integration.
 
 ## Every session
-1. Read `CLAUDE.md`, then this file, then `STATE.md` (the resume point), then `DECISIONS.md`.
-2. Read `SPEC.md` sections the current stage needs (grep, line ranges). `BRIEF.md` is the original prompt; read it when a
-   rule here is unclear.
+1. Read `CLAUDE.md`, then this file, then `STATE.md` (the resume point), `PLAN.md` and the current step's file in
+   `steps/`. Read the `DECISIONS.md` entries the step needs (grep).
+2. Read only the files the step file lists (grep, line ranges). `ART-DIRECTION.md` is the look standard beside SPEC 1.
+   `BRIEF.md` is the original prompt; read it when a rule here is unclear. History is in `LOG.md`; do not read it
+   whole.
 3. Skip `docs/progress.md` and the phase specs: this run is not a roadmap phase.
-4. Authority: Michael (DECISIONS.md, quoted) > BRIEF.md > the bible > SPEC.md > other docs > code.
+4. Authority: Michael (DECISIONS.md, quoted) > ART-DIRECTION.md > BRIEF.md > the bible > SPEC.md > other docs > code.
+5. Stay inside the step: its objective, its files, its checks. Anything else goes into LOG.md as a follow-up.
 
 ## Hard rules for this run
 - Work only in this worktree. `E2E_PORT=4191`. GPU renders on Michael's PC use `E2E_GPU=1`. Never claim a visual
@@ -27,10 +30,31 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 - Questions to Michael use the native multiple-choice UI, recommendation first. Ask only what the docs and decisions do
   not answer. If a hard constraint blocks the realism goal, raise it as a decision; never decide it.
 
+## Unattended run (DECISIONS D15)
+- Michael is not watching. Decide within the step file, ART-DIRECTION.md and SPEC; record a judgement call in
+  DECISIONS.md as an assumed decision (A1, A2, ...: what, why, how to undo) and carry on.
+- Ask Michael (multiple-choice UI) only before installing software or downloading a file, or when a hard constraint
+  blocks the step. Then wait for the answer; do not chain on.
+- A check that cannot pass after real effort: write it into LOG.md as open with the evidence, keep the best result and
+  carry on (the final review sees the open list). Never weaken a check to pass it.
+
+## Chaining
+When the step's checks pass and the work is pushed, start the next step's session, then end the turn:
+- Tool `mcp__ccd_session__start_session` with `initiation: "user_asked"` (Michael asked for the chained run, D15),
+  `context: "fresh"`, `cwd: "C:\NightShift\Mobile-Coop-operators"`, `use_worktree: false`, `model` and `effort` from
+  PLAN.md for that step (`claude-opus-5-5` or `claude-sonnet-5-5`; `high` or `medium`), `title: "Operators step NN: ..."`,
+  `prompt`: that step's block from RUNBOOK.md, verbatim; `background`: one paragraph (the run, the step, D15).
+- Never start a step while another session of this run is working: one writer on `feature/operators` at a time.
+- If the start is refused or the tool is missing: STOP and give Michael the next prompt inline (model, effort, when to
+  clear), as below.
+- Step 18 starts nothing: the run ends.
+
 ## Stops
 - Commit and push `feature/operators` after each stage and at every stop (`git push -u origin feature/operators`).
-- Update `STATE.md` at every stop: stage, what is done, what is next, open questions.
+- Update `STATE.md` at every stop (short: current step, next step, open questions) and append the step's record to
+  `LOG.md` (what was built, numbers, open items).
 - Report in plain English, short: numbered next steps, when to clear, and the full next-session prompt inline in one
   fenced code block.
-- The next prompt always comes from `RUNBOOK.md` (the next step's block, given inline with its model). If a step changes the plan, update RUNBOOK.md in the same commit.
+- The next prompt always comes from `RUNBOOK.md` (the next step's block, with its model and effort). If a step changes
+  the plan, update PLAN.md, the step files and RUNBOOK.md in the same commit.
 - Never merge into `ct-movement`, `dev` or `master`.
