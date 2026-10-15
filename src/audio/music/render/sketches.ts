@@ -279,11 +279,25 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
   const s0 = straight(0);
   const s1 = straight(1);
   const half: (Chop | number)[] = [0, 1, 2, 3, -1, -1, 6, 7, 4, 5, -1, 3, -1, -1, 14, 15];
+  // the alert break: a separate, much busier performance (driving kick, 16th hats, a snare roll in each fill), so calm
+  // and caution keep the half-time break they have
+  const brkI = performBreak(g, {
+    kick: [bank('kickBig'), bank('kickBig2')],
+    snare: [bank('snareM5'), bank('snareM7')],
+    ghost: [bank('snareGhost'), bank('snare1pp'), bank('snare2p')],
+    hat: [bank('hatC1'), bank('hatC2'), bank('hatC3'), bank('hatClose')],
+    openHat: bank('hatOpen'),
+  }, {
+    kick: ['X...X..xX.x.X..x', 'X...X.x.X.x.X.xX'],
+    snare: ['....X.......X...', '....X.....x.XxXX'],
+    ghost: ['.g.g..g..g.g.g.g', '.g.g..g..g.g.gXg'],
+    hat: ['XgxgXgxgXgxgXgxg', 'XgxgXgxgXgxgXgXg'],
+  }, rng.fork('breakBI'), 3.2);
   const full = L();
   const halfT = L();
   for (let bar = 0; bar < g.bars; bar++) {
     const k = bar % 8;
-    chopBar(full, g, bar, brk, k % 4 === 3 ? s1 : k === 6 ? REPEAT : s0);
+    chopBar(full, g, bar, brkI, k % 4 === 3 ? s1 : k === 6 ? REPEAT : s0);
     chopBar(halfT, g, bar, brk, k === 7 ? half.map((x, i) => (i > 11 ? -1 : x)) : half);
   }
   stutter(full, g.at(7, 14), g.beat / 8, 3, 0.8);
@@ -342,7 +356,7 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
   const subA = L();
   for (let bar = 0; bar < g.bars; bar++) {
     if (bar % 8 === 7) continue;
-    for (const i of [0, 2, 10, 13]) place(subA, pizz, { t: g.at(bar, i), pan: 0, semis: semisTo(pizz, bar % 8 === 6 && i > 9 ? N.Eb1 : N.D1), lp: 150, drive: 3.5, gain: i === 0 ? 1 : 0.65, dur: g.beat * 0.9 });
+    for (const i of [0, 4, 7, 8, 10, 12, 15]) place(subA, pizz, { t: g.at(bar, i), pan: 0, semis: semisTo(pizz, bar % 8 === 6 && i > 9 ? N.Eb1 : N.D1), lp: 150, drive: 3.5, gain: i === 0 ? 1 : 0.65, dur: g.beat * 0.9 });
   }
   lay(alert, subA, -13);
   const grit = L();
@@ -356,7 +370,7 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
   const m = ['metal5', 'metal8', 'metal10', 'anvil', 'brake2'].map(bank);
   for (let bar = 0; bar < g.bars; bar++) for (const i of bar % 2 ? [7, 15] : [15]) place(metal, m[(bar + i) % m.length]!, { t: g.at(bar, i), pan: i === 7 ? -0.6 : 0.6, semis: -3, hp: 500, gain: i === 15 ? 0.9 : 0.6, dur: 0.4 });
   lay(alert, verb(metal, 0.6, { rt60: 1.6, damp: 5000, size: 1.2, hp: 400 }), -12);
-  lay(alert, tension(g, bank, rng.fork('tensionB'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16, 20] }), -4);
+  lay(alert, tension(g, bank, rng.fork('tensionB'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16, 20], step: 1 }), -2);
   verb(alert, 0.12, { rt60: 1.2, damp: 5000, size: 1, hp: 250 });
 
   return { calm: finish(calm, 1.3, 9000, 3), caution: finish(caution, 1.6, 9500, 3), alert: finish(alert, 2.6, 11000, 3) };

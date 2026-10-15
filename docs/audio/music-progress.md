@@ -345,3 +345,8 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   fixed: three bars of groove, a written fill bar closing each four (a snare build and extra kicks), a beat-repeat on bar 6
   of each eight, glitch edits only on fill bars. The metal accents are on fixed beats. A's alert kick is syncopated
   (1, a of 1, & of 2, & of 3, a of 4). Break patterns rewritten in all three sketches.
+
+## S1.4 - Breakline alert intensity (Michael: B calm and caution good, alert needs to be much more upbeat and intense)
+- B alert has its own break performance (calm and caution keep theirs): kick on every beat plus pushes, accented
+  sixteenth hats, busier ghosts, a snare roll closing every second bar, harder drive. The sub follows the kick, the
+  pizzicato pulse runs in sixteenths and the tension layer sits 2 dB louder. A and C unchanged.

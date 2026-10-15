@@ -16,7 +16,7 @@
     },
     "caution": {
      "file": "A-caution.mp3",
-     "bytes": 977327
+     "bytes": 975407
     },
     "alert": {
      "file": "A-alert.mp3",
@@ -52,9 +52,9 @@
     }
    },
    "stack": {
-    "calm": -30.8,
-    "caution": -24.8,
-    "alert": -18.8,
+    "calm": -30.3,
+    "caution": -24.3,
+    "alert": -18.3,
     "peak": -3.1
    }
   },
