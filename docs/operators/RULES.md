@@ -38,9 +38,38 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 - A check that cannot pass after real effort: write it into LOG.md as open with the evidence, keep the best result and
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
+## Step loop (workflow, Michael 2026-10-16; overrides each step file's "Finish" and the Chaining text below)
+Modelled on the locomotion run (docs/locomotion/RULES.md "Step loop"). Script: `docs/operators/run.workflow.js`.
+1. Implement: the step's agent (PLAN.md model and effort) builds, renders on the GPU, runs `npm run operators:check`
+   and `npm run check`, drafts the LOG.md record and STATE.md, and returns. It never commits, pushes or sends files.
+2. Check: a fresh Opus High checker re-runs `npm run operators:check` and `npm run check`, reads the diff, and reads
+   every render PNG with the Read tool against the step file's Checks, the ART-DIRECTION.md render check and SPEC
+   Section 1, citing file and view for each verdict. It edits nothing except its fix list
+   (`steps/NN-fixes-rN.md`) and returns PASS or a numbered fix list.
+3. Up to 3 fix rounds (implement the fix list, check again). Still failing: the step is OPEN (LOG.md, with the last
+   fix list as evidence) and the run moves on.
+4. Finish (Sonnet): branch guard, LOG.md status line, STATE.md, commit "operators: step NN - <title>" (add "(OPEN)"
+   when open), `git push -u origin feature/operators`, confirm clean and not ahead, send Michael the renders and a
+   three-line note (SendUserFile, proactive, render).
+
+No hangs, low tokens (every agent):
+- Branch guard before any git command that writes: `cd /c/NightShift/Mobile-Coop-operators && test "$(git rev-parse
+  --abbrev-ref HEAD)" = feature/operators && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-operators"`.
+- Every shell command has a timeout. Anything that may pass 10 minutes (`operators:build --render`, `npm run check`,
+  sheets) runs in the background; wait for its notification, never sleep-poll. No dev server, no watch mode.
+- A Blender run with no new output for 15 minutes: kill that process by its PID (never every blender.exe; Michael's
+  Blender GUI may be open), log it, change approach.
+- Same error twice with no progress: stop and return done / left. Logs: tail -40 or grep, never whole.
+- Budget: implementers about 100 tool calls, fix rounds and checkers about 60. Over budget: return done / left.
+- Port 4191 (the Lab and `operators:sheet` serve their own on E2E_PORT; never start a server for them):
+  1. Free it before any Lab, sheet or preview run and before you finish:
+     `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4191 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
+  2. Check it is free: `netstat -ano | grep ":4191 .*LISTENING"` prints nothing.
+  3. "Port 4191 is already in use" means step 1 was skipped: run it and retry once.
+
 ## Chaining
 **Superseded 2026-10-16:** a session cannot start another session, so steps 05-18 run as one workflow
-(`WORKFLOW-PROMPT.md`). The workflow chains; step agents start nothing. The text below is history.
+(`WORKFLOW-PROMPT.md`, "Step loop" above). The workflow chains; step agents start nothing. The text below is history.
 
 When the step's checks pass and the work is pushed:
 - Progress for Michael (he wants to see every step): send the step's renders, or screenshots for tooling steps, with

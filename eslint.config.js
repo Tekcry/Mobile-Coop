@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dist-next', 'dev-dist', 'node_modules', 'coverage', 'build', 'vite.operators.config.ts', 'scripts/**/*.mjs'] },
+  { ignores: ['dist', 'dist-next', 'dev-dist', 'node_modules', 'coverage', 'build', 'vite.operators.config.ts', 'scripts/**/*.mjs', 'docs/**/*.workflow.js'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

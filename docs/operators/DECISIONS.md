@@ -120,6 +120,12 @@ the body report (`<id>-body.json`, `bindJoints`) lists the A-pose joints the mes
 Every step ends by sending its renders (or screenshots for tooling steps) with a three-line note before it chains on;
 nothing waits for his answer (RULES "Chaining", every step file's Finish).
 
+**D17 Step loop like the locomotion run (2026-10-16).** Michael asked whether the workflow could learn from the
+locomotion run, then chose "Restart with all": each step is implement, then an independent Opus High checker (re-runs
+the checks, reads every render against ART-DIRECTION and SPEC 1), up to 3 fix rounds, then commit and push only after
+PASS (OPEN after 3 failed rounds). Plus the locomotion no-hang rules: tool-call budgets, timeouts, exact port 4191
+commands, branch guard. RULES "Step loop"; script `run.workflow.js`.
+
 ## Assumed decisions (unattended run, D15)
 
 Judgement calls made inside a step without Michael (RULES "Unattended run"): what, why, how to undo. Numbered A1, A2, ...
