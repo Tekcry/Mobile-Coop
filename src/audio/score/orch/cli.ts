@@ -131,7 +131,8 @@ for (const meta of PIECES) {
   for (const l of meta.layers) {
     const name = `${meta.id}-${l.id}`;
     const wav = join(wavDir, `${name}.wav`);
-    writeFileSync(wav, encodeWav(padded(layers[l.id]!), RATE));
+    // loops carry PAD seconds of their own wrap on each side; a one-shot (the spotted hit) is written as it is
+    writeFileSync(wav, encodeWav(meta.use === 'shot' ? [layers[l.id]!.l, layers[l.id]!.r] : padded(layers[l.id]!), RATE));
     pairs.push(wav, join(outDir, `${name}.mp3`));
     outs.push({ id: l.id, name: l.name, kind: l.kind, file: `${name}.mp3`, bytes: 0, loudness: Math.round(loudness(layers[l.id]!) * 10) / 10 });
   }

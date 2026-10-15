@@ -1,9 +1,16 @@
-import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type MusicState, type Plan } from './arrange';
-import { subtleGuitar, subtleHooks } from './hookLab';
-import { HOOKS, hookPlan, type HookDef } from './hooks';
-import { ALERT_HOOKS, alertHookPlan, type AlertHook } from './mgs';
+import type { LayerDef, MusicState, Plan } from './arrange';
+import type { GameAwareness } from './director';
+import { ScorePlayer, type LayerRt } from './player';
+import type { Rendered } from './render';
+import { WorldSim, type Gait, type Surface } from './worldSim';
 
-/** Rounds 6-7: orchestral pieces rendered offline from real recordings (npm run music:orch; the files stay local). */
+/**
+ * The music test page (`/music-test.html`, linked from nowhere in the game). Round 15 (Michael, 2026-10-16): the two
+ * keepers ("Alert, under fire" and "Menu theme, Grand, dialled back"), three sneaking loops run with Under fire by the
+ * music director (Calm / Cautious / Alert / Evasion fading into each other, the spotted hit on detection), and two menu
+ * alternatives. The pieces are rendered offline from CC0 recordings (`npm run music:orch`; the files stay local).
+ */
+
 interface OrchLayer {
   id: string;
   name: string;
@@ -14,7 +21,7 @@ interface OrchPiece {
   id: string;
   name: string;
   about: string;
-  use: 'mission' | 'menu' | 'reference';
+  use: 'alert' | 'menu' | 'stealth' | 'shot';
   bpm: number;
   bars: number;
   loop: number;
@@ -24,25 +31,20 @@ interface OrchPiece {
 const ORCH_JSON = import.meta.glob('../../assets/music/orch/orch.json', { eager: true, import: 'default' }) as Record<string, { pad: number; pieces: OrchPiece[] }>;
 const ORCH = Object.values(ORCH_JSON)[0] ?? { pad: 0.5, pieces: [] };
 const ORCH_URLS = import.meta.glob('../../assets/music/orch/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
-let current: OrchPiece | null = null;
-const solo = new Set<LayerRt>();
-import type { GameAwareness } from './director';
-import { ScorePlayer, type LayerRt } from './player';
-import { renderAll, renderLayer, type Rendered } from './render';
-import { SKETCHES, type SketchDef } from './themes';
-import { WorldSim, type Gait, type Surface } from './worldSim';
-
-/**
- * The standalone V4 music test page (`/music-test.html`, linked from nowhere in the game). Renders a sketch's layers
- * offline, plays the menu theme or the mission score, switches the game state live, triggers the stinger, and plays
- * fake footsteps and a guard voice over the top. Per-layer volume sliders.
- */
+const piece = (id: string): OrchPiece | undefined => ORCH.pieces.find((p) => p.id === id);
+/** Decode at 24 kHz: half the memory of 48 kHz (a phone holds a whole adaptive set this way). */
+const DECODE_RATE = 24000;
 
 let player: ScorePlayer | null = null;
 let world: WorldSim | null = null;
 let busy = false;
-const cache = new Map<string, Rendered[]>();
+/** Decoded stems per piece. */
+const buffers = new Map<string, AudioBuffer[]>();
+/** The piece whose presets the Layers panel shows (loops only). */
+let current: OrchPiece | null = null;
+const solo = new Set<LayerRt>();
 const log: string[] = [];
+let alertBass = false;
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -77,131 +79,110 @@ function setBusy(on: boolean, text = ''): void {
   $('#progress').textContent = text;
 }
 
-/** Keep only the content being played (a mission sketch is a few hundred MB of decoded audio). */
-function keepOnly(key: string): void {
-  for (const k of [...cache.keys()]) if (k !== key && !k.startsWith('shot-')) cache.delete(k);
-}
+// ---------------------------------------------------------------- loading
 
-async function rendered(key: string, defs: LayerDef[], loop: (d: LayerDef) => boolean, label: string): Promise<Rendered[]> {
-  const hit = cache.get(key);
+/** Decode a piece's stems (kept; other pieces are dropped unless listed in `keep`). */
+async function load(pc: OrchPiece, keep: string[]): Promise<AudioBuffer[]> {
+  for (const k of [...buffers.keys()]) if (!keep.includes(k)) buffers.delete(k);
+  const hit = buffers.get(pc.id);
   if (hit) return hit;
-  keepOnly(key);
-  const t0 = performance.now();
-  setBusy(true, `Rendering ${label}: 0 / ${defs.length} parts...`);
-  const out = await renderAll(defs, loop, (_r, done) => setBusy(true, `Rendering ${label}: ${done} / ${defs.length} parts...`));
-  cache.set(key, out);
-  setBusy(false, `${label} rendered in ${((performance.now() - t0) / 1000).toFixed(1)} s.`);
+  const decoder = new OfflineAudioContext(2, 1, DECODE_RATE);
+  const out = await Promise.all(
+    pc.layers.map(async (ly) => {
+      const url = ORCH_URLS[`../../assets/music/orch/${ly.file}`];
+      if (!url) throw new Error(`missing ${ly.file}: run npm run music:orch`);
+      return decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
+    }),
+  );
+  buffers.set(pc.id, out);
   return out;
 }
 
-async function playMenu(sk: SketchDef): Promise<void> {
-  await playLoop(menuPlan(sk));
+const ALL: Record<MusicState, number> = { calm: 1, caution: 1, alert: 1, evade: 1 };
+
+/** Wrap decoded stems for the player: one layer each, with a gain per music state. */
+function wrap(pc: OrchPiece, bufs: AudioBuffer[], mixOf: (layerId: string) => Record<MusicState, number>, group: LayerDef['group'] = 'menu'): Rendered[] {
+  return pc.layers.map((ly, i) => {
+    const buffer = bufs[i]!;
+    const def: LayerDef = {
+      id: `${pc.id}-${ly.id}`,
+      name: ly.name,
+      group,
+      bpm: pc.bpm,
+      bars: pc.bars,
+      mono: false,
+      rate: buffer.sampleRate,
+      level: 0,
+      fx: { room: 0, hall: 0, far: 0 },
+      mix: mixOf(ly.id),
+      events: [],
+    };
+    const loop = pc.use !== 'shot';
+    return {
+      def,
+      buffer,
+      loopSec: pc.loop,
+      rawDb: 0,
+      gain: 1,
+      ms: 0,
+      ...(loop ? { loopStart: ORCH.pad, loopEnd: ORCH.pad + pc.loop } : {}),
+    };
+  });
 }
 
-async function playOrch(piece: OrchPiece): Promise<void> {
+const planOf = (pc: OrchPiece, group: Plan['group']): Plan => ({ id: pc.id, name: pc.name, group, bpm: pc.bpm, bars: pc.bars, layers: [] });
+
+// ---------------------------------------------------------------- playing
+
+/** One piece as a loop, with its presets in the Layers panel. */
+async function playLoop(pc: OrchPiece): Promise<void> {
   if (busy) return;
   const { p, w } = ensure();
-  const key = `orch-${piece.id}`;
-  let r = cache.get(key);
-  const plan: Plan = { id: key, name: piece.name, group: 'menu', bpm: piece.bpm, bars: piece.bars, layers: [] };
-  if (!r) {
-    keepOnly(key);
-    setBusy(true, `Loading ${piece.name} (${piece.layers.length} layers)...`);
-    r = await Promise.all(
-      piece.layers.map(async (ly): Promise<Rendered> => {
-        const url = ORCH_URLS[`../../assets/music/orch/${ly.file}`]!;
-        const buffer = await p.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
-        const def: LayerDef = {
-          id: `${key}-${ly.id}`,
-          name: ly.name,
-          group: 'menu',
-          bpm: piece.bpm,
-          bars: piece.bars,
-          mono: false,
-          rate: buffer.sampleRate,
-          level: 0,
-          fx: { room: 0, hall: 0, far: 0 },
-          mix: { calm: 1, caution: 1, alert: 1, evade: 1 },
-          events: [],
-        };
-        return { def, buffer, loopSec: piece.loop, rawDb: 0, gain: 1, ms: 0, loopStart: ORCH.pad, loopEnd: ORCH.pad + piece.loop };
-      }),
-    );
-    cache.set(key, r);
+  setBusy(true, `Loading ${pc.name}...`);
+  try {
+    const bufs = await load(pc, [pc.id]);
+    w.setChatter(false);
+    p.playMenu(planOf(pc, 'menu'), wrap(pc, bufs, () => ALL));
+    current = pc;
+    solo.clear();
+    buildLayers();
+    const first = Object.keys(pc.presets)[0]!;
+    applyPreset(first, 0.02);
+    note(`Playing ${pc.name} (${pc.bpm} BPM, ${pc.loop.toFixed(0)} s loop), ${first}`);
+  } finally {
     setBusy(false, '');
   }
-  w.setChatter(false);
-  p.playMenu(plan, r);
-  current = piece;
-  solo.clear();
-  const first = Object.keys(piece.presets)[0]!;
-  buildLayers();
-  applyPreset(first, 0.02);
-  note(`Playing ${piece.name} (${piece.bpm} BPM, ${piece.loop.toFixed(0)} s loop), ${first}`);
 }
 
-/** Set every layer of the playing orchestral piece to a preset; by default the fade takes about a bar. */
-function applyPreset(name: string, tc?: number): void {
-  const p = player;
-  if (!p || !current) return;
-  const mix = current.presets[name] ?? {};
-  const fade = tc ?? (60 / current.bpm) * (4 / 3);
-  const prefix = `orch-${current.id}-`;
-  solo.clear();
-  for (const l of p.layers()) p.setLayerGain(l, mix[l.r.def.id.slice(prefix.length)] ?? 0, false, fade);
-  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) b.classList.toggle('on', b.dataset['preset'] === name);
-  if (tc === undefined) note(`${current.use === 'mission' ? 'Game state' : 'Preset'}: ${name}`);
-  syncLayerRows();
-}
-
-/** Solo wins over mute: with any layer soloed, only soloed layers sound. */
-function applySolo(): void {
-  const p = player;
-  if (!p) return;
-  for (const l of p.layers()) p.setLayerOut(l, solo.size ? (solo.has(l) ? l.userValue : 0) : l.muted ? 0 : l.userValue);
-}
-
-/** Any looping plan (a menu theme or a Hook A partner loop), with a slider per layer. */
-async function playLoop(plan: Plan): Promise<void> {
+/** A sneaking loop and Under fire, run by the music director: the game-state buttons drive it. */
+async function playAdaptive(stealth: OrchPiece): Promise<void> {
   if (busy) return;
-  const { p, w } = ensure();
-  const r = await rendered(plan.id, plan.layers, () => true, plan.name);
-  w.setChatter(false);
-  current = null;
-  solo.clear();
-  p.playMenu(plan, r);
-  note(`Playing ${plan.name} (${plan.bpm} BPM, ${plan.bars} bars, ${(r[0]!.loopSec).toFixed(0)} s loop)`);
-  buildLayers();
-}
-
-async function playMission(sk: SketchDef): Promise<void> {
-  if (busy) return;
+  const alert = piece('underfire');
+  const hitPc = piece('spotted');
+  if (!alert || !hitPc) return;
   const { p } = ensure();
-  const m = missionPlans(sk);
-  const defs = [...m.low.layers, ...m.alert.layers, m.stinger, m.stingerShort];
-  const r = await rendered(`mission-${sk.id}`, defs, (d) => d.group !== 'shot', `Mission ${sk.id}`);
-  const nLow = m.low.layers.length;
-  const nAlert = m.alert.layers.length;
-  p.playMission(m.low, r.slice(0, nLow), m.alert, r.slice(nLow, nLow + nAlert), r[nLow + nAlert]!, r[nLow + nAlert + 1]!);
-  note(`Playing Mission ${sk.id}: Calm (${m.low.bpm} BPM, ${r[0]!.loopSec.toFixed(0)} s loop); Alert ${m.alert.bpm} BPM, ${r[nLow]!.loopSec.toFixed(0)} s loop`);
-  setGameButtons('calm');
-  buildLayers();
-}
-
-async function playShot(def: LayerDef): Promise<void> {
-  if (busy) return;
-  const { p } = ensure();
-  const key = `shot-${def.id}`;
-  let r = cache.get(key)?.[0];
-  if (!r) {
-    setBusy(true, `Rendering ${def.name}...`);
-    r = await renderLayer(def, false);
-    cache.set(key, [r]);
+  setBusy(true, `Loading ${stealth.name} + ${alert.name}...`);
+  try {
+    const keep = [stealth.id, alert.id, hitPc.id];
+    const sb = await load(stealth, keep);
+    const ab = await load(alert, keep);
+    const hb = await load(hitPc, keep);
+    const calm = stealth.presets['Calm'] ?? {};
+    const caution = stealth.presets['Cautious'] ?? {};
+    const lowR = wrap(stealth, sb, (id) => ({ calm: calm[id] ?? 0, caution: caution[id] ?? 0, alert: 0, evade: 0 }), 'low');
+    const alertMix = alert.presets[alertBass ? 'Under fire + bass' : 'Under fire'] ?? {};
+    const evade = alert.presets['Evasion'] ?? {};
+    const alertR = wrap(alert, ab, (id) => ({ calm: 0, caution: 0, alert: alertMix[id] ?? 0, evade: evade[id] ?? 0 }), 'alert');
+    const hitR = wrap(hitPc, hb, () => ALL, 'shot')[0]!;
+    p.playMission(planOf(stealth, 'low'), lowR, planOf(alert, 'alert'), alertR, hitR, hitR);
+    current = null;
+    solo.clear();
+    setGameButtons('calm');
+    buildLayers();
+    note(`Adaptive: ${stealth.name} for Calm and Cautious, ${alert.name}${alertBass ? ' + bass' : ''} for Alert and Evasion`);
+  } finally {
     setBusy(false, '');
   }
-  p.playShot(r);
-  note(`Playing ${def.name}`);
-  buildLayers();
 }
 
 function stop(): void {
@@ -232,10 +213,28 @@ function setGameButtons(s: GameAwareness): void {
   for (const b of document.querySelectorAll<HTMLButtonElement>('[data-game]')) b.classList.toggle('on', b.dataset['game'] === s);
 }
 
-// ---------------------------------------------------------------- layers panel
+// ---------------------------------------------------------------- presets, solo, layers panel
+
+function applyPreset(name: string, tc?: number): void {
+  const p = player;
+  if (!p || !current) return;
+  const mix = current.presets[name] ?? {};
+  const fade = tc ?? (60 / current.bpm) * (4 / 3);
+  const prefix = `${current.id}-`;
+  solo.clear();
+  for (const l of p.layers()) p.setLayerGain(l, mix[l.r.def.id.slice(prefix.length)] ?? 0, false, fade);
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) b.classList.toggle('on', b.dataset['preset'] === name);
+  if (tc === undefined) note(`Preset: ${name}`);
+  syncLayerRows();
+}
+
+function applySolo(): void {
+  const p = player;
+  if (!p) return;
+  for (const l of p.layers()) p.setLayerOut(l, solo.size ? (solo.has(l) ? l.userValue : 0) : l.muted ? 0 : l.userValue);
+}
 
 const STATE_LABEL: Record<MusicState, string> = { calm: 'Calm', caution: 'Cautious', alert: 'Alert', evade: 'Evasion' };
-
 const rows = new Map<LayerRt, { slider: HTMLInputElement; val: HTMLElement; mute: HTMLButtonElement; solo: HTMLButtonElement }>();
 
 function buildLayers(): void {
@@ -249,13 +248,13 @@ function buildLayers(): void {
   }
   const head = el('div', { className: 'row presets' });
   if (current) {
-    head.append(el('b', { textContent: `${current.name}: ${current.use === 'mission' ? 'game state' : 'preset'}` }));
+    head.append(el('b', { textContent: `${current.name}: ` }));
     for (const name of Object.keys(current.presets)) {
       const b = button(name, () => applyPreset(name), 'state');
       b.dataset['preset'] = name;
       head.append(b);
     }
-  }
+  } else head.append(el('small', { textContent: 'Adaptive: each layer plays at its level for the current music state; the sliders scale that.' }));
   head.append(
     button('All to 100%', () => {
       for (const l of ls) player?.setLayerGain(l, 1, false);
@@ -305,11 +304,17 @@ function layerRow(l: LayerRt): HTMLElement {
   };
   rows.set(l, { slider, val, mute, solo: soloB });
   mute.classList.toggle('on', l.muted);
-  const states = l.group === 'menu' ? '' : (Object.keys(l.r.def.mix) as MusicState[]).filter((s) => l.r.def.mix[s] > 0).map((s) => STATE_LABEL[s]).join(', ');
+  const states =
+    l.group === 'menu'
+      ? ''
+      : (Object.keys(l.r.def.mix) as MusicState[])
+          .filter((s) => l.r.def.mix[s] > 0)
+          .map((s) => STATE_LABEL[s])
+          .join(', ');
   return el(
     'div',
     { className: 'layer' },
-    el('div', { className: 'lname' }, el('b', { textContent: l.r.def.name }), el('small', { textContent: states ? ` in ${states}` : '' })),
+    el('div', { className: 'lname' }, el('b', { textContent: l.r.def.name }), el('small', { textContent: states ? ` in ${states}` : l.group === 'menu' ? '' : ' (off in every state)' })),
     slider,
     val,
     el('div', { className: 'btns' }, mute, soloB),
@@ -333,7 +338,7 @@ function refresh(): void {
       ` (for ${s.held.toFixed(1)} s${nxt})<br><small>${s.group} - ${s.bpm} BPM - bar ${s.bar}, beat ${s.beat}</small>`;
   } else if (s.mode === 'menu') {
     box.innerHTML = `Loop playing<br><small>${s.group} - ${s.bpm} BPM - bar ${s.bar}, beat ${s.beat}</small>`;
-  } else box.textContent = s.mode === 'shot' ? 'Playing...' : 'Stopped.';
+  } else box.textContent = 'Stopped.';
 }
 
 // ---------------------------------------------------------------- world sounds and volumes
@@ -353,63 +358,93 @@ function applyVolumes(): void {
 
 function button(label: string, fn: () => void, cls = ''): HTMLButtonElement {
   const b = el('button', { textContent: label, className: cls });
-  b.onclick = () => {
-    fn();
-  };
+  b.onclick = () => fn();
   return b;
 }
 
-function sketchCard(sk: SketchDef): HTMLElement {
+function card(pc: OrchPiece, ...actions: HTMLElement[]): HTMLElement {
   return el(
     'div',
-    { className: 'card' },
-    el('h3', { textContent: `${sk.id} - ${sk.name}` }),
-    el('p', { textContent: sk.blurb }),
-    el('p', { className: 'notes', textContent: `Theme: ${sk.themeText.replace(/:/g, ' ')}` }),
-    el('p', { className: 'notes', textContent: `Hook: ${sk.hookText}` }),
-    el('div', { className: 'row' }, button(`Theme ${sk.id} alone`, () => void playShot(melodyShot(sk))), button(`Hook ${sk.id} alone`, () => void playShot(hookShot(sk)))),
+    { className: 'partner' },
+    el('b', { textContent: pc.name }),
+    el('small', { textContent: `${pc.about} ${pc.bpm} BPM, ${Math.round(pc.loop)} s, ${pc.layers.length} layers.` }),
+    el('div', { className: 'row' }, ...actions),
   );
 }
 
+function slider(id: string, value: number, max: number): HTMLInputElement {
+  const s = el('input', { type: 'range', id, min: '0', max: String(max), value: String(value) });
+  s.oninput = applyVolumes;
+  return s;
+}
+
+function check(label: string, on: boolean, fn: (on: boolean) => void): HTMLLabelElement {
+  const c = el('input', { type: 'checkbox', checked: on });
+  c.onchange = () => fn(c.checked);
+  return el('label', { className: 'check' }, c, ` ${label}`);
+}
+
+function gameButton(label: string, state: GameAwareness): HTMLButtonElement {
+  const b = button(label, () => setGame(state), `state g-${state}`);
+  b.dataset['game'] = state;
+  return b;
+}
+
 export function mountScoreLab(root: HTMLElement): void {
+  const missing = !ORCH.pieces.length;
+  const keepers = ['underfire', 'grandsoft'].map(piece).filter((p): p is OrchPiece => !!p);
+  const stealth = ORCH.pieces.filter((p) => p.use === 'stealth');
+  const menus = ORCH.pieces.filter((p) => p.use === 'menu' && p.id !== 'grandsoft');
   root.append(
     el('h1', { textContent: 'Night Shift - music test' }),
-    el('p', {
-      className: 'muted',
-      textContent:
-        'Round 7: strings only, built on Hook A, for the in-game score and the main menu. Earlier rounds are in the boxes at the bottom.',
-    }),
+    el('p', { className: 'muted', textContent: 'Real orchestra recordings, built around the two keepers. Each piece loads in a second or two the first time.' }),
     el('div', { id: 'progress', className: 'progress' }),
-    ...(
-      [
-        ['mission', '1. In-game score (strings)', 'Built for the dynamic in-game music. Play one, then use the game-state buttons in the Layers panel to hear Calm, Cautious, Alert and Evasion as layer mixes of the same loop.'],
-        ['menu', '2. Main menu (strings)', 'Two takes on the menu theme, both on Hook A and the melody.'],
-        ['reference', '3. Round 6 piece, in layers', 'The piece you liked, split into its parts; it starts on your pick (strings only).'],
-      ] as const
-    ).map(([use, title, blurb]) =>
+    missing
+      ? el('p', { className: 'muted', textContent: 'Not rendered on this computer yet: run "npm run music:orch" (needs the samples: node scripts/music/fetch-samples.mjs orch-samples.json orch).' })
+      : '',
+    el(
+      'section',
+      {},
+      el('h2', { textContent: '1. The keepers' }),
+      el('div', { className: 'partners' }, ...keepers.map((pc) => card(pc, button('Play', () => void playLoop(pc), 'big')))),
+      el('div', { className: 'row' }, button('Stop', stop)),
+    ),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: '2. In game: sneaking to Alert, fading together' }),
+      el('p', {
+        className: 'muted',
+        textContent:
+          'Pick a sneaking loop, then use the buttons as the game would. CALM is almost silent; CAUTIOUS adds tension; ALERT plays the spotted hit and Under fire lands on its downbeat; when the game calms down the music steps down slowly through Evasion and Cautious. Keys: 1 2 3, G glance.',
+      }),
+      el('div', { className: 'partners' }, ...stealth.map((pc) => card(pc, button('Play with Under fire', () => void playAdaptive(pc), 'big'), button('Loop alone', () => void playLoop(pc))))),
       el(
-        'section',
-        {},
-        el('h2', { textContent: title }),
-        el('p', { className: 'muted', textContent: blurb }),
-        ORCH.pieces.length
-          ? el(
-              'div',
-              { className: 'partners' },
-              ...ORCH.pieces
-                .filter((pc) => pc.use === use)
-                .map((pc) =>
-                  el(
-                    'div',
-                    { className: 'partner' },
-                    button(pc.name, () => void playOrch(pc), 'big'),
-                    el('small', { textContent: `${pc.about} ${pc.bpm} BPM, ${Math.round(pc.loop)} s, ${pc.layers.length} layers.` }),
-                  ),
-                ),
-            )
-          : el('p', { className: 'muted', textContent: 'Not rendered on this computer yet: run "npm run music:orch" (needs the samples: node scripts/music/fetch-samples.mjs orch-samples.json orch).' }),
-        el('div', { className: 'row' }, button('Stop', stop)),
+        'div',
+        { className: 'row' },
+        gameButton('CALM', 'calm'),
+        gameButton('CAUTIOUS', 'caution'),
+        gameButton('ALERT', 'alert'),
+        button('Guard glance (0.4 s)', glance),
+        button('Spotted hit only', () => player?.playStinger()),
+        button('Stop', stop),
       ),
+      el(
+        'div',
+        { className: 'row' },
+        check('Bass in Alert (Under fire + bass; press Play again)', alertBass, (on) => {
+          alertBass = on;
+        }),
+      ),
+      el('div', { id: 'state', className: 'status' }),
+    ),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: '3. Menu alternatives' }),
+      el('p', { className: 'muted', textContent: 'Variations on the menu theme you chose (Grand, dialled back).' }),
+      el('div', { className: 'partners' }, ...menus.map((pc) => card(pc, button('Play', () => void playLoop(pc), 'big')))),
+      el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el('section', { className: 'mixer' }, el('h2', { textContent: 'Layers' }), el('div', { id: 'layers' })),
     el(
@@ -469,99 +504,6 @@ export function mountScoreLab(root: HTMLElement): void {
       ),
     ),
     el('section', {}, el('h2', { textContent: 'Log' }), el('pre', { id: 'log' })),
-    el(
-      'details',
-      { className: 'old' },
-      el('summary', { textContent: 'Round 5: Metal Gear Solid style Alert hooks (kept for comparison)' }),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Alert hooks in the Metal Gear Solid spirit' }),
-      el('p', {
-        className: 'muted',
-        textContent:
-          'Four original Alert hooks: fast, urgent, a repeated-note pickup into a held note, a driving snare and a pulsing bass. Hear each hook alone, as Alert with the hook on three different instruments, and as Evasion (the drive stays, the hook drops out). Each loops (about 13 s).',
-      }),
-      el('div', { className: 'partners' }, ...ALERT_HOOKS.map(alertCard)),
-      el('div', { className: 'row' }, button('Stop', stop)),
-    ),
-    ),
-    el(
-      'details',
-      { className: 'old' },
-      el('summary', { textContent: 'Round 4: ten bass hooks (kept for comparison)' }),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Hooks to choose from' }),
-      el('p', {
-        className: 'muted',
-        textContent:
-          'Ten bass hooks of different character, each alone and quiet. Play each on the soft upright or on a dark, round synth bass (more electronic, closer to Chaos Theory). Each loops (about 20 s).',
-      }),
-      el('div', { className: 'partners' }, ...HOOKS.map(hookCard)),
-      el('div', { className: 'row' }, button('Stop', stop)),
-    ),
-    ),
-    el(
-      'details',
-      { className: 'old' },
-      el('summary', { textContent: 'Round 3: subtle Hook A and soft guitar (kept for comparison)' }),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Subtle versions of Hook A' }),
-      el('p', {
-        className: 'muted',
-        textContent: 'Hook A on its own, played more gently. The first one is the original for comparison; the rest are 8-11 dB quieter. Each loops (about 40 s).',
-      }),
-      cards(subtleHooks()),
-      el('div', { className: 'row' }, button('Stop', stop)),
-    ),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Hook A with a soft guitar' }),
-      el('p', { className: 'muted', textContent: 'Gentler takes on round 2 loop 5, all over the "Soft fingers" hook. Use the sliders below to balance them.' }),
-      cards(subtleGuitar()),
-      el('div', { className: 'row' }, button('Stop', stop)),
-    ),
-    ),
-    el(
-      'details',
-      { className: 'old' },
-      el('summary', { textContent: 'Round 1 sketches (not liked; kept for comparison)' }),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Themes on their own' }),
-      el('p', { className: 'muted', textContent: 'A plain tone, no backing: can you hum it afterwards? The hook is the bass riff.' }),
-      el('div', { className: 'cards' }, ...SKETCHES.map(sketchCard)),
-    ),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Menu theme' }),
-      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Menu ${sk.id} - ${sk.name}`, () => void playMenu(sk), 'big')), button('Stop', stop)),
-    ),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: 'Mission score' }),
-      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Mission ${sk.id} - ${sk.name}`, () => void playMission(sk), 'big')), button('Stop', stop)),
-      el('p', { className: 'muted', textContent: 'The buttons set the GAME state, as a guard would. The music follows with its own timing: a short delay going up, holds and a slow ladder going down. Keys: 1 2 3, G glance, S stinger.' }),
-      el(
-        'div',
-        { className: 'row' },
-        button('CALM', () => setGame('calm'), 'state g-calm'),
-        button('CAUTIOUS', () => setGame('caution'), 'state g-caution'),
-        button('ALERT', () => setGame('alert'), 'state g-alert'),
-        button('Guard glance (0.4 s)', glance),
-        button('Stinger only', () => player?.playStinger()),
-      ),
-      el('div', { id: 'state', className: 'status' }),
-    ),
-    ),
   );
   buildLayers();
   refresh();
@@ -573,7 +515,6 @@ export function mountScoreLab(root: HTMLElement): void {
     else if (k === '2') setGame('caution');
     else if (k === '3') setGame('alert');
     else if (k === 'g') glance();
-    else if (k === 's') player?.playStinger();
     else if (k === 'v') ensure().w.guardVoice();
     else if (k === 'b') ensure().w.noiseCue();
     else if (k === 'w') {
@@ -582,55 +523,10 @@ export function mountScoreLab(root: HTMLElement): void {
       syncWorld();
     }
   });
-  (window as unknown as { __score: unknown }).__score = { get player() { return player; }, cache, SKETCHES, menuPlan, missionPlans, renderLayer };
-}
-
-function alertCard(h: AlertHook, i: number): HTMLElement {
-  return el(
-    'div',
-    { className: 'partner' },
-    el('b', { textContent: `${i + 1}. ${h.name}` }),
-    el('small', { textContent: `${h.blurb} ${h.bpm} BPM.` }),
-    el('p', { className: 'notes', textContent: h.lead.replace(/:\d+/g, '').replace(/ - /g, ' . ') }),
-    el(
-      'div',
-      { className: 'row' },
-      button('Hook alone', () => void playLoop(alertHookPlan(h, 'brass', 'alone'))),
-      button('Alert: brass', () => void playLoop(alertHookPlan(h, 'brass', 'alert'))),
-      button('Alert: synth lead', () => void playLoop(alertHookPlan(h, 'synth', 'alert'))),
-      button('Alert: horns', () => void playLoop(alertHookPlan(h, 'horns', 'alert'))),
-      button('Evasion', () => void playLoop(alertHookPlan(h, 'brass', 'evade'))),
-    ),
-  );
-}
-
-function hookCard(h: HookDef, i: number): HTMLElement {
-  return el(
-    'div',
-    { className: 'partner' },
-    el('b', { textContent: `${i + 1}. ${h.name}` }),
-    el('small', { textContent: `${h.blurb} ${h.bpm} BPM.` }),
-    el('p', { className: 'notes', textContent: h.notes.replace(/:\d+/g, '').replace(/ - /g, ' . ') }),
-    el('div', { className: 'row' }, button('Upright', () => void playLoop(hookPlan(h, 'upright'))), button('Synth bass', () => void playLoop(hookPlan(h, 'synth')))),
-  );
-}
-
-function cards(plans: Plan[]): HTMLElement {
-  return el(
-    'div',
-    { className: 'partners' },
-    ...plans.map((pl, i) => el('div', { className: 'partner' }, button(`${i + 1}. ${pl.name}`, () => void playLoop(pl), 'big'), el('small', { textContent: pl.blurb ?? '' }))),
-  );
-}
-
-function slider(id: string, value: number, max: number): HTMLInputElement {
-  const s = el('input', { type: 'range', id, min: '0', max: String(max), value: String(value) });
-  s.oninput = applyVolumes;
-  return s;
-}
-
-function check(label: string, on: boolean, fn: (on: boolean) => void): HTMLLabelElement {
-  const c = el('input', { type: 'checkbox', checked: on });
-  c.onchange = () => fn(c.checked);
-  return el('label', { className: 'check' }, c, ` ${label}`);
+  (window as unknown as { __score: unknown }).__score = {
+    get player() {
+      return player;
+    },
+    pieces: ORCH.pieces,
+  };
 }

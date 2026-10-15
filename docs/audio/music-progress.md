@@ -22,8 +22,43 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; Michael: likes it in general, but too quick and upbeat for stealth |
 | 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done |
 | 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; see round 14 for his ratings |
-| 3n | Round 14: bass for Under fire; calmer, quieter menus | done; waiting for Michael's feedback |
+| 3n | Round 14: bass for Under fire; calmer, quieter menus | done |
+| 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 15 - the keepers, and adaptive sets around them
+- **Michael's decisions (2026-10-16):**
+  - **"Alert, under fire" is the Alert theme.** Everything else is to be based around it, slower as necessary.
+  - **"Menu theme, Grand, dialled back" is the menu theme** ("fantastic").
+  - **Remove all the others.**
+  - He wants alternatives based on these, including dynamic versions that fade together by alertness.
+  - He wants an almost silent version for sneaking around, without burning out the one theme.
+- **Done:**
+  - **Removed:** every other piece, and the rejected synth rounds (`hookLab.ts`, `hooks.ts`, `mgs.ts`) with their
+    tests and page sections. `pieces.ts` now holds only what is kept or new.
+  - **Three sneaking loops** for Calm and Cautious, made from Under fire's ingredients. Hook A appears only as
+    fragments or in short spells, so the theme stays fresh for Alert.
+    - **Heartbeat** (88 BPM): a heartbeat drum, a deep sub, a far D / E-flat rub, Hook A's opening plucked every 4
+      bars. Cautious adds ticking, a gentle pulse, climbing violas and a low D.
+    - **Ticking** (88 BPM): a quiet clock on high violins, the sub, a rare rub. Cautious adds double ticking, a
+      plucked heartbeat, Hook A plucked in two 8-bar spells, climbing violas.
+    - **Breath** (66 BPM, half Under fire's tempo): long breathing low-string swells, the rub, a sub. Cautious adds
+      the heartbeat, a slow plucked Hook A and climbing violas.
+  - **Spotted:** an orchestral one-shot. A low brass and horn D / E-flat cluster, a string rip into tremolo, timpani,
+    big drum, bass drum, cymbal and a sub hit, then a two-beat roll and climbing violins into Under fire's first
+    downbeat.
+  - **The adaptive test:** the page runs a sneaking loop (Calm and Cautious) and Under fire (Alert, plus its Evasion
+    mix) through the music director, with the spotted hit and the hysteresis ladder, driven by CALM, CAUTIOUS and
+    ALERT. A switch uses "Under fire + bass" for Alert.
+  - **Menu alternatives:**
+    - **Grand, night opening:** four bars of heartbeat, sub and rub before the hook.
+    - **Grand with soft horns and drums.**
+  - **Phone:** stems decode at 24 kHz, half the memory.
+- **Measured:**
+  - Sneaking loops: everything on is -22 dB, so the Calm preset is around -30 dB before the music volume.
+  - Under fire is unchanged.
+  - Render: 1-19 s per piece. Local renders total 81 MB.
+  - Tests: 665 pass; lint and build clean.
 
 ## V4 round 14 - bass for Under fire; calmer menus
 - **Michael's ratings (2026-10-16):**
