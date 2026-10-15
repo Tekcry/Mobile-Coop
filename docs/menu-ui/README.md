@@ -1,7 +1,18 @@
 # Menu UI redesign - overview and plan
 
-Status (2026-10-15): planned. Step 1 not started. Plain-English steps, models and when to clear: [RUNBOOK.md](RUNBOOK.md). Start step 1 with
-[STEP1-PROMPT.md](STEP1-PROMPT.md). Branch: `feature/menu-ui-spec` (docs only, off master; Michael merges).
+Status (2026-10-15): **step 1 done** (design spec, decisions MD1-MD20, prototype, run files). Steps 2-4 (the
+implementation run) wait for the `feature/ct-locomotion` merge to master; the START prompt is in
+[RUNBOOK.md](RUNBOOK.md). Branch: `feature/menu-ui-spec` (docs only, off master; Michael merges).
+
+## Step 1 outputs
+- [SPEC.md](SPEC.md): visual direction, tokens, template, input mapping table, every screen's layout / focus / Back /
+  legend / states, pause blur, cinematic shot list with tests and budget, parity checklist.
+- [DECISIONS.md](DECISIONS.md): MD1-MD20 and the remaining questions.
+- Prototype: https://claude.ai/artifact/XvpChFnv69HTzmDtW4n5Fb (private) and [prototype/index.html](prototype/index.html)
+  (open in Chrome to test a real controller; the artifact frame may block the Gamepad API).
+  [prototype/parity-test.mjs](prototype/parity-test.mjs) is its scripted keyboard / mouse / pad check (43 checks).
+- Run files for sessions 2-4: [BRIEF.md](BRIEF.md) (the START brief), [RULES.md](RULES.md), [PLAN.md](PLAN.md),
+  [STATE.md](STATE.md), [LOG.md](LOG.md), [steps/](steps/) 01-13.
 
 ## Goal (Michael, 2026-10-15)
 Restyle every menu in the visual language of Batman: Arkham Knight's menus (style only: no Arkham or Splinter Cell IP):

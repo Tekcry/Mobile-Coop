@@ -35,11 +35,27 @@ so clear it.
 When it stops for your play check, include the "Animation problems seen" list from [FINDINGS.md](FINDINGS.md) in
 your notes after "Locomotion: go". Nothing else here needs it.
 
+Step 1 is done (2026-10-15). Before the run: try the prototype (link in README.md) with keyboard, mouse and your
+controller; ask for changes in the step 1 session or a new one on `feature/menu-ui-spec`.
+
 ### Steps 2-4 - implementation (unattended, the locomotion way)
 - Start only after the feature/ct-locomotion PR is merged to master.
-- Step 1 writes their brief and step files (`docs/menu-ui/BRIEF.md`, `PLAN.md`, `steps/`). The prompt to paste will
-  be one line, like the locomotion run's: "Menu UI run: START" (first time) and "Menu UI run: RESUME" (after any
-  clear or crash). Step 1's report gives the exact lines; they will also be in README.md.
-- Model: Opus 5.5 for the run and its subagents.
-- The run pauses for you at fixed points (after the core screens, after the pause blur, after the cinematic
-  background). Clear at each pause, then paste the RESUME line plus your notes.
+- Model: Opus 5.5 for the run and its subagents. New session in `C:\NightShift\Mobile-Coop-menu-ui`.
+- First time, paste:
+
+```
+Menu UI run: START. Work in C:\NightShift\Mobile-Coop-menu-ui. First run: git fetch origin. Read
+docs/menu-ui/BRIEF.md from origin/feature/menu-ui-spec (git show origin/feature/menu-ui-spec:docs/menu-ui/BRIEF.md)
+and follow it exactly: it creates feature/menu-ui from master, merges the spec branch in, and runs steps 01-13 with
+implementer and checker subagents, stopping at pauses A, B and C. Never merge to dev or master.
+```
+
+- After any clear or crash, paste:
+
+```
+Menu UI run: RESUME. Work in C:\NightShift\Mobile-Coop-menu-ui on branch feature/menu-ui. Read CLAUDE.md,
+docs/menu-ui/RULES.md, docs/menu-ui/STATE.md and docs/menu-ui/BRIEF.md, then continue from STATE.md.
+```
+
+- At each pause (A after the core screens, B after the pause blur, C at the end): test on the PC, clear, then paste
+  the RESUME prompt with "Menu UI: go" and your notes on the next line.
