@@ -11,6 +11,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
+import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import { WALL_LOOK, wallHandPoint, wallRootPush } from './wallController';
@@ -61,7 +62,7 @@ export class Player {
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
-  private adsToggled = false;
+  private adsLatch = new HoldToggle();
   ads = false;
   /** Aim regardless of input (tests and scripted sequences). */
   forceAds = false;
@@ -173,12 +174,8 @@ export class Player {
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.getSettings();
     const c = this.controller;
-    if (s.gameplay.adsToggle) {
-      if (inp.pressed('ads')) this.adsToggled = !this.adsToggled;
-      this.ads = this.adsToggled;
-    } else {
-      this.ads = inp.down('ads');
-    }
+    // (locomotion step 18, D7) aim: hold or toggle
+    this.ads = this.adsLatch.update(s.gameplay.adsToggle, inp.pressed('ads'), inp.down('ads'));
     // aiming while sprinting ends the sprint and raises the weapon
     if (this.ads && c.sprinting && this.pose.traverse === 'none') c.cancelSprint();
     if (this.forceAds) this.ads = true;

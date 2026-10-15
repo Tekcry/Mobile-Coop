@@ -7,8 +7,11 @@ Design authority: docs/design-bible.md (Section 5.10)
   (bars optional, `.no-hbar`), the weapon readout fades (`.quiet`) 3 s after the last change, hold ring on the use
   prompt (`setInteract(text, progress)`), subtitles (`BarkView.subtitles`), colour-safe arcs
   (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`, held actions by tap
-  (`access.holdToggle`, `GameState.holdLatch`). `ControlsScreen` (Settings > Accessibility) lists bindings per
-  input type (`CONTROLS`; keep it in step with the mappings).
+  (`access.holdToggle`, `GameState.holdLatch`). `ControlsScreen` (Settings > Accessibility): a Controller and a
+  Keyboard & mouse tab to remap (locomotion step 18, D7: `bindPanel`: two slots per verb, "press a button / key"
+  capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per device with a confirm; pad: A
+  rebinds, Y clears, B held 1 s cancels) and the fixed Touch list (`CONTROLS.touch`). Settings > Mouse & Keyboard
+  shows the same keyboard panel; Settings > Gameplay has hold / toggle for aim, crouch, sprint, back to wall, grab.
 - Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
   guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
 - Forced landscape (3.1.6, `core/viewRotation.ts`): a coarse pointer in a portrait window turns the page

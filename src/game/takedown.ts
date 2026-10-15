@@ -62,6 +62,13 @@ export const GRAB = {
   hesitate: 1.5,
 } as const;
 
+/** (locomotion step 18, D7) The grab's deciding moment while holding a hostage (pure): toggle (`gameplay.grabToggle`,
+ *  the 3.2.0 behaviour) = a fresh press (released before `lethalHold` knocks out, held through kills); hold = letting
+ *  go of the button (a knockout, A70). */
+export function grabDecides(toggle: boolean, pressed: boolean, holding: boolean): boolean {
+  return toggle ? pressed : !holding;
+}
+
 /** Kinds that start a grab (held, then knocked out / killed / shoved / let go) instead of a strike. */
 export const GRAB_KINDS: readonly TakedownKind[] = ['behind'];
 

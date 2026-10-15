@@ -1,6 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { defaultPadBinds, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PHONE_OUTPUT_DEFAULT, PHONE_OUTPUTS, PRESET_IDS, presetDisplay, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
@@ -81,6 +82,8 @@ export interface Settings {
   };
   /** Keyboard / mouse bindings (`input/keyBindings.ts`). */
   keys: KeyBinds;
+  /** (locomotion step 18, D7) Controller bindings (`input/padBinds.ts`; local only, D8). */
+  pad: PadBinds;
   video: {
     /** UI and input platform (auto-detected; never changes rendering). */
     platform: PlatformChoice;
@@ -133,7 +136,7 @@ export interface Settings {
     avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -239,9 +242,10 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
+    pad: defaultPadBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, rumble: 1 },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1 },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -406,6 +410,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       raw: bool(m.raw, d.mouse.raw),
     },
     keys: sanitizeBinds(r.keys),
+    pad: sanitizePadBinds(r.pad),
     video: {
       platform: pick(v.platform, ['auto', 'desktop', 'mobile'] as const, d.video.platform),
       ...videoGfx(v),
@@ -446,6 +451,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),
+      grabToggle: bool(gp.grabToggle, d.gameplay.grabToggle),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
       rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
@@ -544,6 +550,6 @@ export function settingsDigest(s: Settings): { video: string; changed: string } 
   const c: string[] = [];
   const rest = { ...s, video: undefined } as Record<string, unknown>;
   const restD = { ...d, video: undefined } as Record<string, unknown>;
-  digestLeaves(rest, restD, '', c, true, new Set(['touch.layout', 'keys']));
+  digestLeaves(rest, restD, '', c, true, new Set(['touch.layout', 'keys', 'pad']));
   return { video: v.join(' '), changed: c.length ? c.join(' ') : 'defaults' };
 }

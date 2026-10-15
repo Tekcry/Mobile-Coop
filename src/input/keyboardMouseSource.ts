@@ -199,6 +199,11 @@ export class KeyboardMouseSource {
     return this.capture !== null;
   }
 
+  /** (locomotion step 18) Give up a capture (the controls screen's 5 s timeout). */
+  cancelCapture(): void {
+    if (this.capture) this.finishCapture(null);
+  }
+
   private finishCapture(code: string | null): void {
     const cb = this.capture;
     this.capture = null;

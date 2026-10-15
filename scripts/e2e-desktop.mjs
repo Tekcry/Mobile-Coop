@@ -39,12 +39,12 @@ try {
   await frames(page, 2);
   let k = await G(() => ({ r: window.__app.settings.get().keys.reload, label: document.querySelector('.kb-key[data-bind="reload:0"]').textContent }));
   assert(k.r[0] === 'KeyU' && k.label === 'U', `reload rebound to U (${k.label})`);
-  // a key already in use moves over: G (gadget) onto reload's second slot
+  // (locomotion step 18, D7) a key already in use is shared and warned about: G (gadget) onto reload's second slot
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('KeyG');
   await frames(page, 2);
-  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '' }));
-  assert(k.r.join() === 'KeyU,KeyG' && k.g.length === 0 && /moved from Gadget/.test(k.toast), `a key in use moves over (${k.toast.trim()})`);
+  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '', rows: [...document.querySelectorAll('.bind-row.conflict')].map((r) => r.dataset.row).sort().join() }));
+  assert(k.r.join() === 'KeyU,KeyG' && k.g.join() === 'KeyG' && /also Gadget/.test(k.toast) && k.rows === 'gadget,reload', `a key in use is shared with a conflict warning (${k.toast.trim()}; rows ${k.rows})`);
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('Backspace');
   await frames(page, 2);

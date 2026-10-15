@@ -3237,6 +3237,53 @@ body {
 .input-kbm .kb-key.focused {
   outline: 2px solid var(--focus);
 }
+/* (locomotion step 18) remap rows: pad slots share the key look; conflicts warn on both rows and in a summary */
+.pad-key {
+  min-width: 74px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pad-key.empty {
+  color: var(--muted);
+}
+.pad-key.listening {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.input-gamepad .pad-key.focused,
+.input-kbm .pad-key.focused {
+  outline: 2px solid var(--focus);
+}
+.controls-row.bind-row {
+  grid-template-columns: minmax(120px, 34%) auto 1fr;
+}
+.controls-row.conflict {
+  background: rgba(255, 170, 60, 0.12);
+  box-shadow: inset 3px 0 0 #ffaa3c;
+}
+.controls-row .bind-warn {
+  color: #ffc27a;
+  font-size: 12px;
+}
+.bind-summary {
+  color: #ffc27a;
+}
+@media (max-width: 520px) {
+  .controls-row.bind-row {
+    grid-template-columns: 1fr auto;
+  }
+  .controls-row .bind-warn {
+    grid-column: 1 / -1;
+  }
+}
 .platform-desktop .tab-strip.side-nav {
   width: 210px;
 }

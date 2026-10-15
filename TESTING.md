@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 18 - remapping and hold / toggle (PC, controller)
+- [ ] Controls > Controller: remap Crouch to another button (press, release to bind); a shared button shows a warning on both rows; play: the new button crouches; prompts show the new glyph.
+- [ ] Hold B 1 s (or Esc) cancels a capture; 5 s with no input cancels.
+- [ ] Reset to defaults (with confirm) restores the standard layout on each tab.
+- [ ] Keyboard & mouse: remap a key, play with it, reset.
+- [ ] Gameplay: aim, crouch, sprint, back to wall and grab each switch between hold and toggle and behave so in play.
+- [ ] The controls screen is readable over the live scene.
+
 ## Locomotion step 17 - pad first input (PC, controller, phone)
 - [ ] Pad: push the stick gently, halfway, fully: sneak, walk, jog, run speeds with no flicker at the boundaries; L3 sprints.
 - [ ] D-pad up / down sets the maximum gear (pips dimmed above it); the stick never exceeds it.

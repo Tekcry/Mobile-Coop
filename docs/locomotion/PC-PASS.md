@@ -226,3 +226,11 @@ PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, 
 | 60 | Analog thresholds by hand: 50 / 80 / 100% -> gears 2 / 4 / 5 (A63), no chatter, rocker cap | Feels deliberate on the pad |
 | 61 | Phone touch: basic layout (v7 reset), tilt gears 1-5 (A66), takedown on the context button, training without the gadget step (A67) | Playable one-handed-stick plus buttons |
 | 62 | HUD gear pips: dim (cap) vs off contrast (pc/s17-gear-pips.png) | Distinct at a glance |
+
+### Step 18: remap and hold / toggle (Michael's hands)
+
+| # | Item | Pass limit |
+| --- | --- | --- |
+| 63 | Real-pad remap: capture binds on release, B held 1 s cancels (A69); a shared input fires both verbs with a warning (A71) | Clear and safe to use |
+| 64 | Hold-mode grab: release knocks out, no lethal finish from behind in hold mode (A70; bible 5.4 asks for the lethal / non-lethal choice in every position) | Accept, or add a lethal input in hold mode (e.g. fire while holding, takedownController.ts ~:328) |
+| 65 | Controls screen over the live scene (pc/s18-controls-pad.png): the hint line sits on a bright floor | Readable |

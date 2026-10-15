@@ -84,6 +84,24 @@ and the code together.
 | Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | - |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | Pause button |
 
+### Remapping and hold / toggle (step 18, D7; local only, D8)
+- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs,
+  at most 2 buttons each, defaults = `GAME_BINDINGS`); `GamepadSource` rebuilds the flat `padBindTable` only when
+  `settings.pad` changes and `mapPad(p, t, table)` reads it. Sticks, the triggers' analog aim / fire and the menu
+  buttons (`UI_BINDINGS`) are fixed; LT / RT can take a button verb. Keyboard: `Settings.keys` / `BINDS` (unchanged ids).
+- Shared-by-design verbs are one row: Y = traverse + use + takedown, X = reload (tap) + medkit (hold, A55), A = the
+  context action (back-to-wall, door peek, SWAT), RT = fire / elbow strike. The tap / hold splits follow the button.
+- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
+  menu keys are their own group; keyboard Traverse + Use may share (both interact). A conflict is shared, warned on
+  both rows and in a summary, and saved (A71).
+- Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held 1 s or Esc cancels, Y on
+  a slot clears (A69). Reset per device with a confirm.
+- Hold / toggle in `Settings.gameplay`: `adsToggle` (default hold, `HoldToggle`), `crouchToggle` (default toggle,
+  `crouchWanted` / `crouchToggleNext`), `sprintHold` (default toggle, `sprintEdge`), `wallToggle` (default toggle,
+  `WallInput.toggle`), `grabToggle` (default toggle = the 3.2.0 grab; hold: letting go knocks out, A70, `grabDecides`).
+  `access.holdToggle` (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
+- In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
+
 ### Analog speed and the maximum gear (step 17, D5.12)
 - The rocker (D-pad up / down, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`);
   gear 6 is the sprint only. The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure):

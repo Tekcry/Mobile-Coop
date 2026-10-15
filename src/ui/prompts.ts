@@ -1,4 +1,5 @@
 import { GLYPHS } from '../input/gamepadMapping';
+import { padButtonName } from '../input/padBinds';
 
 export type PromptButton = 'A' | 'B' | 'X' | 'Y' | 'LB' | 'RB' | 'LT' | 'RT' | 'LS' | 'START';
 
@@ -25,6 +26,24 @@ export const keyLabels = {
   speedUp: '=',
   speedDown: '-',
 };
+
+/** (locomotion step 18) In-game pad buttons from the player's bindings (set by the app; button index, -1 unbound). */
+export const padButtons = { cover: 0, traverse: 3, crouch: 1, reload: 2 };
+const IDX_BTN: Partial<Record<number, PromptButton>> = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT', 9: 'START', 10: 'LS' };
+
+/** A gameplay prompt: the verb's bound pad button (remapped, D7) and its key. */
+export function verbPromptHtml(verb: keyof typeof padButtons, key: string): string {
+  const i = padButtons[verb];
+  const b = IDX_BTN[i];
+  if (b) return promptHtml(b, key);
+  const n = (s: 'xbox' | 'playstation' | 'nintendo'): string => (i < 0 ? '-' : padButtonName(i, s));
+  return (
+    `<span class="glyph g-pad g-xbox pill">${n('xbox')}</span>` +
+    `<span class="glyph g-pad g-ps pill">${n('playstation')}</span>` +
+    `<span class="glyph g-pad g-nin pill">${n('nintendo')}</span>` +
+    `<span class="glyph g-key">${key}</span>`
+  );
+}
 
 /**
  * Renders a controller/keyboard prompt. All variants are emitted and CSS picks one by

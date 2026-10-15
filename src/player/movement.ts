@@ -161,6 +161,27 @@ export class SprintGate {
   }
 }
 
+/** (locomotion step 18, D7) Crouch hold / toggle (pure): the stance wanted from the toggle latch or the held button. */
+export function crouchWanted(toggle: boolean, toggled: boolean, held: boolean): boolean {
+  return toggle ? toggled : held;
+}
+
+/** (step 18) A crouch press in toggle mode: from a sprint it always crouches, else it flips the latch. */
+export function crouchToggleNext(toggled: boolean, sprinting: boolean): boolean {
+  return sprinting ? true : !toggled;
+}
+
+/** (step 18, D7) Sprint hold / toggle (pure): 1 start, -1 stop, 0 keep. Toggle: a press starts (stick past 0.3) or
+ *  stops; hold: sprinting while held with the stick past 0.3. */
+export function sprintEdge(toggle: boolean, pressed: boolean, held: boolean, sprinting: boolean, stickMag: number): -1 | 0 | 1 {
+  if (toggle) {
+    if (!pressed) return 0;
+    return sprinting ? -1 : stickMag > 0.3 ? 1 : 0;
+  }
+  if (held && stickMag > 0.3) return sprinting ? 0 : 1;
+  return sprinting ? -1 : 0;
+}
+
 /** What the contextual jump does with the obstacle in front (heights relative to the feet, m). */
 export type Traversal = 'vault' | 'mantle' | 'step' | 'none';
 

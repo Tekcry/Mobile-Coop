@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
+import { launch, openPage, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -886,6 +886,148 @@ try {
       assert(!r.hitActive && Math.abs(r.hpAfter - r.hpHit) < 0.01 && r.hpHit > 70 && r.hpHit < 80 && r.kitsHit === 0, `damage mid-use stops the heal at ${r.hpHit.toFixed(1)} hp (kit spent: ${r.kitsHit})`);
     } finally {
       await M.browser.close();
+    }
+  }
+
+  console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, reload X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
+  {
+    const R = await launch({ url });
+    try {
+      const P = R.page;
+      const G = (f, a) => P.evaluate(f, a);
+      const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
+      await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
+      await G(() => window.__pad.connect());
+      await press(P, BTN.DOWN);
+      await click('.main-menu .btn', 'Settings');
+      await P.waitForTimeout(300);
+      await click('.settings-screen .tab', 'Accessibility');
+      await P.waitForTimeout(200);
+      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await P.waitForTimeout(300);
+      const panel = '.controls-screen .tab-panel.active';
+      const focusSlot = (b) => G(([p, x]) => window.__app.nav.focus(document.querySelector(`${p} ${x}`)), [panel, b.includes('.') ? b : `.pad-key[data-bind="${b}"]`]);
+      const pad = () => G(() => window.__app.settings.get().pad);
+      const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
+      assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
+      // Y on a slot clears it: R3 off Swap shoulder
+      await focusSlot('shoulder:0');
+      await press(P, BTN.Y);
+      assert((await pad()).shoulder.length === 0, 'Y clears the focused slot (R3 off Swap shoulder)');
+      // A, then R3: reload moves from X to R3
+      await focusSlot('reload:0');
+      await press(P, BTN.A);
+      const listening = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).classList.contains('listening'), panel);
+      await press(P, BTN.RS);
+      let v = await view();
+      const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).textContent, panel);
+      assert(listening && JSON.stringify((await pad()).reload) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds reload (${lab}, conflicts "${v.rows}")`);
+      // a capture is cancelled by holding B 1 s (the screen stays)
+      await focusSlot('reload:1');
+      await press(P, BTN.A);
+      await G(() => window.__pad.set(1, 1));
+      await P.waitForTimeout(1500);
+      await G(() => window.__pad.set(1, 0));
+      await P.waitForTimeout(300);
+      v = await view();
+      assert(!v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `B held 1 s cancels the capture (${JSON.stringify(v)})`);
+      // play: the new button reloads, X does not (settings persist through IndexedDB to a new page)
+      await P.waitForTimeout(600);
+      const Q = await openPage(R.ctx, url, 'autostart=proving');
+      try {
+        await Q.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+        const r = await Q.page.evaluate(() => {
+          const a = window.__app;
+          const c = a.current.player.controller;
+          a.loop.manual = true;
+          const s = a.input.state;
+          const acts = new Set();
+          const tap0 = s.tap.bind(s);
+          s.tap = (x) => {
+            acts.add(x);
+            tap0(x);
+          };
+          const step = (n) => {
+            for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+          };
+          window.__pad.connect();
+          step(30);
+          const btn = (b) => {
+            window.__pad.set(b, 1);
+            step(3);
+            window.__pad.set(b, 0);
+            step(3);
+          };
+          acts.clear();
+          btn(2);
+          const x = acts.has('reload');
+          acts.clear();
+          btn(11);
+          const r3 = acts.has('reload');
+          s.tap = tap0;
+          // crouch: toggle (default), then hold
+          btn(1);
+          const t1 = c.crouched;
+          btn(1);
+          const t2 = c.crouched;
+          a.settings.update((d) => void (d.gameplay.crouchToggle = false));
+          window.__pad.set(1, 1);
+          step(10);
+          const h1 = c.crouched;
+          window.__pad.set(1, 0);
+          step(10);
+          const h2 = c.crouched;
+          return { x, r3, t1, t2, h1, h2, pad: a.settings.get().pad.reload };
+        });
+        assert(r.r3 && !r.x && JSON.stringify(r.pad) === '[11]', `in play R3 reloads, X does not (${JSON.stringify(r)})`);
+        assert(r.t1 && !r.t2 && r.h1 && !r.h2, `crouch toggle (B, B) and hold (held, released) (${JSON.stringify(r)})`);
+        // back to a wall: hold mode stays while A is held, toggle mode stays after the release
+        await Q.page.evaluate(WALL_HARNESS);
+        const w = await Q.page.evaluate(() => {
+          const a = window.__app;
+          const k = window.__wl;
+          const out = {};
+          for (const toggle of [false, true]) {
+            a.settings.update((d) => void (d.gameplay.wallToggle = toggle));
+            window.__pad.set(0, 1);
+            k.step(30);
+            const held = k.st().phase;
+            window.__pad.set(0, 0);
+            k.step(20);
+            const rel = k.st().phase;
+            out[toggle ? 'toggle' : 'hold'] = [held, rel];
+            // leave (toggle: a press) and settle
+            if (toggle) {
+              window.__pad.set(0, 1);
+              k.step(2);
+              window.__pad.set(0, 0);
+            }
+            k.step(40);
+          }
+          return out;
+        });
+        assert(w.hold[0] === 'on' && w.hold[1] !== 'on' && w.toggle[0] === 'on' && w.toggle[1] === 'on', `back to wall hold / toggle (${JSON.stringify(w)})`);
+      } finally {
+        await Q.page.close();
+      }
+      // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
+      await focusSlot('reload:0');
+      await press(P, BTN.A);
+      await press(P, BTN.B);
+      v = await view();
+      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen, `reload onto B warns on both rows (${JSON.stringify(v)})`);
+      await focusSlot('.bind-reset');
+      await press(P, BTN.A);
+      await P.waitForFunction(() => !!document.querySelector('.dialog-screen'), null, { timeout: 3000 }).catch(() => {});
+      const dg = await G(() => ({ d: !!document.querySelector('.dialog-screen'), f: window.__app.nav.focused?.className, t: window.__app.nav.focused?.textContent, cap: window.__app.input.gamepad.capturing, mode: window.__app.input.mode }));
+      assert(dg.d, `reset asks first (${JSON.stringify(dg)})`);
+      await press(P, BTN.A);
+      await P.waitForTimeout(200);
+      v = await view();
+      const def = await pad();
+      assert(JSON.stringify(def.reload) === '[2]' && JSON.stringify(def.shoulder) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.reload)})`);
+    } finally {
+      await R.browser.close();
     }
   }
 

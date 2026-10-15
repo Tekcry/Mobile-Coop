@@ -118,12 +118,14 @@ export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
 
 const STICK_NAV_THRESHOLD = 0.55;
 
-export function mapPad(p: PadSnapshot, t: PadTuning): PadFrame {
+/** `table`: the active gameplay bindings (locomotion step 18: `padBindTable(settings.pad)`, rebuilt only when the
+ *  bindings change); the defaults are GAME_BINDINGS. */
+export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readonly [number, ButtonAction]> = GAME_BINDINGS): PadFrame {
   const b = (i: number): number => p.buttons[i] ?? 0;
   const ax = (i: number): number => p.axes[i] ?? 0;
   const out: PadFrame['buttons'] = {};
 
-  for (const [i, a] of GAME_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
+  for (const [i, a] of table) if (b(i) > BTN_THRESHOLD) out[a] = true;
   for (const [i, a] of UI_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
 
   const lt = applyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);

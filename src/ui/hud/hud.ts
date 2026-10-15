@@ -1,6 +1,6 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { keyLabels, promptHtml } from '../prompts';
+import { keyLabels, verbPromptHtml } from '../prompts';
 import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
@@ -328,7 +328,7 @@ export class Hud {
   /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */
   setInteract(text: string | null, progress = -1): void {
     this.set('int', text ?? '', () => {
-      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${promptHtml('Y', keyLabels.traverse)}<span>${text}</span>` : '';
+      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('traverse', keyLabels.traverse)}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
     });
     const p = Math.round(progress * 40);

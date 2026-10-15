@@ -5,7 +5,7 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, GRAB, GRAB_KINDS, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, GRAB, GRAB_KINDS, grabDecides, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
 import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
@@ -260,6 +260,8 @@ export class TakedownController {
 
   /** Grabs are allowed (not against other players: PvP turns them off). */
   grabAllowed = true;
+  /** (locomotion step 18, D7) `gameplay.grabToggle` (local only, D8). */
+  grabToggle = true;
 
   /** Holding a hostage now (the grab past its approach). */
   get hostage(): TakedownVictim | null {
@@ -324,7 +326,7 @@ export class TakedownController {
       return;
     }
     // a fresh press: released before `lethalHold` knocks them out, held through kills
-    if (gr.pressT < 0 && this.pressedNow) gr.pressT = 0;
+    if (gr.pressT < 0 && grabDecides(this.grabToggle, this.pressedNow, this.holding)) gr.pressT = 0;
     if (gr.pressT >= 0) {
       gr.pressT += dt;
       if (!this.holding || gr.pressT >= TAKEDOWN.lethalHold) {

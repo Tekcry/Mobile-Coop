@@ -1,6 +1,6 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { keyLabels, promptHtml } from '../prompts';
+import { keyLabels, verbPromptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
 export type WorldPromptId = 'vault' | 'state' | 'jumpTo' | 'drop' | 'takedown';
@@ -27,9 +27,9 @@ function glyph(id: WorldPromptId): string {
     case 'vault':
     case 'jumpTo':
     case 'takedown':
-      return promptHtml('Y', keyLabels.traverse);
+      return verbPromptHtml('traverse', keyLabels.traverse);
     case 'drop':
-      return promptHtml('B', keyLabels.crouch);
+      return verbPromptHtml('crouch', keyLabels.crouch);
     case 'state':
       return '';
   }

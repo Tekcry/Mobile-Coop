@@ -649,6 +649,114 @@ try {
       await LO.browser.close();
     }
   }
+  console.log('remap (step 18, D7): Controls > Keyboard & mouse: crouch to U, a conflict warns, reset (confirm), 5 s timeout, play; sprint hold vs toggle');
+  {
+    const R = await launch({ url, touch: false });
+    try {
+      const P = R.page;
+      const G = (f, a) => P.evaluate(f, a);
+      const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
+      await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
+      await click('.main-menu .btn', 'Settings');
+      await P.waitForTimeout(300);
+      await click('.settings-screen .tab', 'Accessibility');
+      await P.waitForTimeout(200);
+      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await P.waitForTimeout(300);
+      await click('.controls-screen .tab', 'Keyboard');
+      await P.waitForTimeout(200);
+      const panel = '.controls-screen .tab-panel.active';
+      const slot = (b) => `${panel} .kb-key[data-bind="${b}"]`;
+      const keys = () => G(() => window.__app.settings.get().keys);
+      const view = () => G((p) => ({ rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.kbm.capturing }), panel);
+      await click(slot('crouch:0'));
+      await P.keyboard.press('KeyU');
+      await P.waitForTimeout(200);
+      assert((await keys()).crouch.join() === 'KeyU,ControlLeft', `crouch rebound to U (${(await keys()).crouch})`);
+      await click(slot('reload:0'));
+      await P.keyboard.press('KeyU');
+      await P.waitForTimeout(200);
+      let v = await view();
+      assert(v.rows === 'crouch,reload' && /share U/.test(v.sum) && (await keys()).reload.join() === 'KeyU', `reload onto U warns on both rows, still saved (${JSON.stringify(v)})`);
+      await click(`${panel} .bind-reset`);
+      await P.waitForTimeout(200);
+      await click('.dialog-screen .btn', '^Reset$');
+      await P.waitForTimeout(200);
+      let k = await keys();
+      v = await view();
+      assert(k.crouch.join() === 'KeyC,ControlLeft' && k.reload.join() === 'KeyR' && v.rows === '' && !v.sum, `reset (confirmed) restores the keys (${k.crouch}, ${k.reload})`);
+      // a capture with no key gives up after 5 s
+      await click(slot('ping:0'));
+      await P.waitForTimeout(5600);
+      v = await view();
+      const pl = await G((s) => document.querySelector(s).classList.contains('listening'), slot('ping:0'));
+      assert(!v.cap && !pl && (await keys()).ping.join() === 'KeyZ', 'the capture times out after 5 s');
+      await click(slot('crouch:0'));
+      await P.keyboard.press('KeyU');
+      await P.waitForTimeout(800);
+      const Q = await openPage(R.ctx, url, 'autostart=proving');
+      try {
+        await Q.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+        await Q.page.evaluate(() => {
+          const a = window.__app;
+          a.loop.manual = true;
+          window.__rm = {
+            step(n) {
+              for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+            },
+            st() {
+              const c = a.current.player.controller;
+              return { crouched: c.crouched, sprinting: c.sprinting };
+            },
+          };
+          window.__rm.step(30);
+        });
+        const QP = Q.page;
+        const tap = async (code) => {
+          await QP.keyboard.down(code);
+          await QP.evaluate(() => window.__rm.step(3));
+          await QP.keyboard.up(code);
+          await QP.evaluate(() => window.__rm.step(3));
+        };
+        await tap('KeyU');
+        const u1 = await QP.evaluate(() => window.__rm.st());
+        await tap('KeyU');
+        const u2 = await QP.evaluate(() => window.__rm.st());
+        await tap('KeyC');
+        const c1 = await QP.evaluate(() => window.__rm.st());
+        assert(u1.crouched && !u2.crouched && !c1.crouched, `in play U crouches (toggle), C no longer does (${u1.crouched} ${u2.crouched} ${c1.crouched})`);
+        // sprint: hold, then toggle (W held throughout)
+        const out = {};
+        for (const hold of [true, false]) {
+          await QP.evaluate((h) => window.__app.settings.update((d) => void (d.gameplay.sprintHold = h)), hold);
+          await QP.keyboard.down('KeyW');
+          await QP.evaluate(() => window.__rm.step(10));
+          if (hold) {
+            await QP.keyboard.down('ShiftLeft');
+            await QP.evaluate(() => window.__rm.step(20));
+            const on = (await QP.evaluate(() => window.__rm.st())).sprinting;
+            await QP.keyboard.up('ShiftLeft');
+            await QP.evaluate(() => window.__rm.step(10));
+            out.hold = [on, (await QP.evaluate(() => window.__rm.st())).sprinting];
+          } else {
+            await tap('ShiftLeft');
+            await QP.evaluate(() => window.__rm.step(20));
+            const on = (await QP.evaluate(() => window.__rm.st())).sprinting;
+            await tap('ShiftLeft');
+            await QP.evaluate(() => window.__rm.step(5));
+            out.toggle = [on, (await QP.evaluate(() => window.__rm.st())).sprinting];
+          }
+          await QP.keyboard.up('KeyW');
+          await QP.evaluate(() => window.__rm.step(30));
+        }
+        assert(out.hold[0] && !out.hold[1] && out.toggle[0] && !out.toggle[1], `sprint hold (held / released) vs toggle (press / press) (${JSON.stringify(out)})`);
+      } finally {
+        await Q.page.close();
+      }
+    } finally {
+      await R.browser.close();
+    }
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

@@ -10,7 +10,7 @@ import {
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
+import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, crouchToggleNext, crouchWanted, sprintEdge, type LandingKind, type Stance } from './movement';
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
@@ -413,30 +413,24 @@ export class PlayerController {
     const crouchPressed = input.crouchPressed && !this.swallowCrouch;
     this.swallowCrouch = false;
     if (!this.frozen && !ov && crouchPressed && this.grounded && input.crouchToggle) {
-      if (this.sprint.sprinting) {
-        this.endSprint();
-        this.crouchToggled = true;
-      } else this.crouchToggled = !this.crouchToggled;
+      const was = this.sprint.sprinting;
+      if (was) this.endSprint();
+      this.crouchToggled = crouchToggleNext(this.crouchToggled, was);
     }
 
     // sprint: toggle (press) or hold; ends on aiming, cover, traversal or releasing the stick
     const aiming = input.ads || input.aiming;
     if (!ov && !this.frozen && this.grounded && !aiming) {
-      if (input.sprintToggle) {
-        if (input.sprintPressed) {
-          if (this.sprint.sprinting) this.endSprint();
-          else if (mag > 0.3) this.startSprint();
-        }
-      } else if (input.sprintHeld && mag > 0.3) {
-        if (!this.sprint.sprinting) this.startSprint();
-      } else if (this.sprint.sprinting) this.endSprint();
+      const e = sprintEdge(input.sprintToggle, input.sprintPressed, input.sprintHeld, this.sprint.sprinting, mag);
+      if (e > 0) this.startSprint();
+      else if (e < 0) this.endSprint();
     }
     if (this.sprint.sprinting && (ov || aiming || !this.grounded)) this.endSprint();
     this.sprint.update(dt, mag);
     if (!this.sprint.sprinting && this.sprintWas) this.endSprint();
     this.sprintWas = this.sprint.sprinting;
 
-    let wantCrouch = input.crouchToggle ? this.crouchToggled : input.crouchHeld;
+    let wantCrouch = crouchWanted(input.crouchToggle, this.crouchToggled, input.crouchHeld);
     if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
     if (this.sprint.sprinting) wantCrouch = false;
     this.applyCrouch(wantCrouch);

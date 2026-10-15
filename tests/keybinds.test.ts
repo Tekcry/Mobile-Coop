@@ -13,11 +13,11 @@ describe('key bindings', () => {
     expect(m.get('Equal')).toEqual(['speedUp']);
     expect(m.get('Minus')).toEqual(['speedDown']);
   });
-  it('a key moves from the action that had it (no key on two actions)', () => {
+  it('(step 18, D7) a key already in use stays there too (a conflict, warned) and the other action is named', () => {
     const b = defaultBinds();
     expect(assignBind(b, 'reload', 0, 'KeyE')).toBe('traverse');
     expect(b.reload).toEqual(['KeyE']);
-    expect(b.traverse).toEqual([]);
+    expect(b.traverse).toEqual(['KeyE']);
     expect(assignBind(b, 'crouch', 1, 'Mouse3')).toBeNull();
     expect(b.crouch).toEqual(['KeyC', 'Mouse3']);
     clearBind(b, 'crouch', 0);
@@ -30,7 +30,7 @@ describe('key bindings', () => {
     expect(assignBind(b, 'reload', 0, 'Escape')).toBeNull();
     expect(b.reload).toEqual(['KeyR']);
   });
-  it('stored binds are sanitised: two per action, duplicates dropped, missing ones defaulted', () => {
+  it('stored binds are sanitised: two per action, duplicates in one action dropped, missing ones defaulted', () => {
     const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], cover: ['Bogus'], sprint: 'ShiftLeft' });
     expect(b.reload).toEqual(['KeyT', 'KeyR']);
     expect(b).not.toHaveProperty('bogus');
@@ -38,6 +38,8 @@ describe('key bindings', () => {
     expect(b.sprint).toEqual(['ShiftLeft']);
     expect(Object.keys(b).length).toBe(BINDS.length);
     expect(sanitizeBinds(null)).toEqual(defaultBinds());
+    // a key on two actions is kept on both (step 18: a conflict, not an error)
+    expect(sanitizeBinds({ reload: ['KeyC'] }).crouch).toEqual(['KeyC', 'ControlLeft']);
   });
   it('labels', () => {
     expect(keyName('KeyW')).toBe('W');

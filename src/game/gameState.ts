@@ -1269,6 +1269,7 @@ export class GameState implements AppState {
       this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
       if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
       this.takedown.grabAllowed = !this.pvp;
+      this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
     // (locomotion step 10) fire while holstered: the elbow strike (D1: the touch fire button too)
