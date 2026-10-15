@@ -21,8 +21,43 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3j | Round 10: dark Zimmer menu (two versions) and a dark in-game loop, Hook A on D | done; waiting for Michael's feedback |
 | 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; Michael: likes it in general, but too quick and upbeat for stealth |
 | 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done |
-| 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; waiting for Michael's feedback |
+| 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; see round 14 for his ratings |
+| 3n | Round 14: bass for Under fire; calmer, quieter menus | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 14 - bass for Under fire; calmer menus
+- **Michael's ratings (2026-10-16):**
+
+  | Piece | His words |
+  | --- | --- |
+  | Alert, under fire | Loves it; "maybe an option to add some bass" |
+  | Mission score (strings) | Good |
+  | Alert, faster (strings) | Good |
+  | Mission score, lighter | OK |
+  | Alert, lighter | OK |
+  | Menu from Alert faster, 96 BPM | OK, maybe a bit much for a menu |
+  | Menu from Alert faster, 84 BPM | Way too slow |
+  | Menu theme, Zimmer | Still really likes it, but the tempo is a little strange; likes when the violins kick in, but a bit too upbeat for a menu |
+  | Menu theme, grand (slower) | A little too slow and loud for a menu, needs dialling back, but feels pretty epic |
+
+- **Done:**
+  - **Alert, under fire:**
+    - New layers: a bass line (basses and cellos in eighths on the chord roots) and a deep hybrid sub bass (a sine
+      with a little second harmonic) under the orchestra.
+    - New preset "Under fire + bass"; the original "Under fire" mix is unchanged.
+  - **Removed:** the 84 BPM menu copy.
+  - **Menu from Alert faster (96 BPM):** a new default "Softer" mix (no drive, lighter top and tremolo); quieter
+    render target.
+  - **Menu theme, Zimmer, calmer** (88 BPM):
+    - No busy 16th viola pattern and quieter drums.
+    - The same cello swell out of silence and the violin entrance.
+    - Presets choose the hook following the chords, or on D.
+  - **Menu theme, Zimmer meets Grand** (88 BPM): Grand's shape (the hook alone, the melody on cellos, then violins
+    and the section) with the Zimmer orchestra (the cello swell, breathing low swells, soft horns, the violin entrance),
+    with the hook on D.
+  - **Menu theme, Grand, dialled back** (90 BPM, was 84): quieter, with a "Softer" default.
+- **Renderer:** a piece can set its own loudness target. The menus render at -19 to -21 dB, against -16 dB for the
+  others.
 
 ## V4 round 13 - more "Alert, faster"; under fire
 - **Michael (2026-10-16):**

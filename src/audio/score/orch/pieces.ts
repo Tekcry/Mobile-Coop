@@ -1,4 +1,6 @@
 /**
+ * Round 14 (2026-10-16): bass layers for "Alert, under fire"; calmer, quieter menus at 88-90 BPM (Zimmer calmer, Zimmer meets
+ * Grand, Grand dialled back); the 84 BPM menu removed; softer default for the 96 BPM menu.
  * Round 13 (2026-10-16): he really likes "Alert, faster (strings)": more versions of it (with brass and drums, with drums),
  * slower copies for the menu (96 and 84 BPM), and "Alert, under fire" (132 BPM) with urgency, like being shot at.
  * Round 12 (2026-10-16): he likes Past/Present/Future in general but it is too quick and upbeat for stealth: a slow (80 and
@@ -20,7 +22,7 @@
  * - round 6's piece itself, split into fine layers (strings-only preset = his pick).
  * Original music for this project; recorded instruments are CC0 VSCO 2 CE.
  */
-import { secs, stereo, type Stereo } from '../../music/render/canvas';
+import { RATE, secs, stereo, type Stereo } from '../../music/render/canvas';
 import type { Bank } from './bank';
 import { hit, note, swellInto, timp } from './play';
 import { midi } from '../theory';
@@ -44,6 +46,8 @@ export interface PieceMeta {
   layers: LayerMeta[];
   /** Named layer mixes (layer id -> gain; missing = 0). The first is the default. */
   presets: Record<string, Record<string, number>>;
+  /** Loudness of everything on (gated, dB); quieter for menus. Default: the render command's target. */
+  target?: number;
 }
 
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
@@ -67,16 +71,19 @@ export const PIECES: readonly PieceMeta[] = [
       S('ticks', 'Fast ticking, high violins'),
       S('lowSus', 'Low held D'),
       S('melody', 'Melody on violins and cellos'),
+      S('bass', 'Bass line: basses and cellos on the chord roots'),
+      S('sub', 'Deep sub bass (hybrid, under the orchestra)'),
       { id: 'hornStabs', name: 'Off-beat stabs, short horns', kind: 'brass' },
       { id: 'brass', name: 'Low brass swells', kind: 'brass' },
       { id: 'drums', name: 'Pounding drums, timpani, swells', kind: 'perc' },
     ],
     presets: {
       'Under fire': { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.6, rise: 0.7, trem: 0.6, stabs: 0.75, ticks: 0.5, lowSus: 0.45, melody: 0.85, hornStabs: 0.6, brass: 0.5, drums: 0.8 },
+      'Under fire + bass': { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.6, rise: 0.7, trem: 0.6, stabs: 0.75, ticks: 0.5, lowSus: 0.3, melody: 0.85, bass: 0.75, sub: 0.6, hornStabs: 0.6, brass: 0.5, drums: 0.8 },
       Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.55, trem: 0.5, stabs: 0.6, lowSus: 0.45, melody: 0.9, drums: 0.6 },
       Evasion: { hookBass: 0.7, hookCello: 0.85, drive: 0.5, trem: 0.4, ticks: 0.4, lowSus: 0.4, drums: 0.4 },
       'Strings only': { hookBass: 0.8, hookCello: 1, hookHigh: 0.85, drive: 0.6, rise: 0.7, trem: 0.6, stabs: 0.75, ticks: 0.5, lowSus: 0.45, melody: 0.85 },
-      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, rise: 1, trem: 1, stabs: 1, ticks: 1, lowSus: 1, melody: 1, hornStabs: 1, brass: 1, drums: 1 },
+      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, rise: 1, trem: 1, stabs: 1, ticks: 1, lowSus: 1, melody: 1, bass: 1, sub: 1, hornStabs: 1, brass: 1, drums: 1 },
     },
   },
   {
@@ -371,9 +378,81 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'zcalm',
+    name: 'Menu theme, Zimmer, calmer',
+    about: 'The Zimmer menu you like, calmer for the menu: 88 BPM, no busy sixteenth pattern, quieter drums, the same cello swell out of silence and the violin entrance. Two hook choices: following the chords (as before) or staying on D.',
+    use: 'menu',
+    bpm: 88,
+    bars: 32,
+    target: -20,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (following the chords)'),
+      S('hook', 'Hook A, cellos (following the chords)'),
+      S('pizzD', 'Hook A, pizzicato (on D)'),
+      S('hookD', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('high', 'High violins'),
+      S('melody', 'Melody on cellos, then violins in octaves'),
+      { id: 'horns', name: 'Warm horns (soft)', kind: 'brass' },
+      { id: 'pulse', name: 'Soft drums and swells', kind: 'perc' },
+    ],
+    presets: {
+      'Hook follows the chords': { pizz: 1, hook: 1, swell: 1, high: 1, melody: 1, horns: 0.7, pulse: 0.6 },
+      'Hook on D': { pizzD: 1, hookD: 1, swell: 1, high: 1, melody: 1, horns: 0.7, pulse: 0.6 },
+      'Strings only (hook on D)': { pizzD: 1, hookD: 1, swell: 1, high: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'zgrand',
+    name: 'Menu theme, Zimmer meets Grand',
+    about: 'A blend: the Grand theme\'s shape (the hook alone, the melody on cellos, then violins and the whole section) with the Zimmer orchestra (a cello swelling out of silence, breathing low swells, soft horns, the violin entrance), at 88 BPM and kept quieter.',
+    use: 'menu',
+    bpm: 88,
+    bars: 32,
+    target: -20,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos and basses (on D)'),
+      S('swell', 'Low string swells'),
+      S('chords', 'Held chords (violas, violins)'),
+      S('high', 'High violins'),
+      S('celloMel', 'Melody on cellos'),
+      S('violinMel', 'Melody on violins'),
+      { id: 'horns', name: 'Warm horns (soft)', kind: 'brass' },
+      { id: 'pulse', name: 'Soft drums and swells', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pizz: 1, hook: 1, swell: 1, chords: 1, high: 1, celloMel: 1, violinMel: 1, horns: 0.7, pulse: 0.6 },
+      'Strings only': { pizz: 1, hook: 1, swell: 1, chords: 1, high: 1, celloMel: 1, violinMel: 1 },
+    },
+  },
+  {
+    id: 'grandsoft',
+    name: 'Menu theme, Grand, dialled back',
+    about: 'The Grand menu you found epic, at 90 BPM (was 84) and quieter, starting on a softer mix (lighter top octave, chords and tremolo); "Full" is the original balance.',
+    use: 'menu',
+    bpm: 90,
+    bars: 32,
+    target: -21,
+    layers: [
+      S('hookLow', 'Hook A, cellos and basses'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('celloMel', 'Melody on cellos'),
+      S('violinMel', 'Melody on violins'),
+    ],
+    presets: {
+      Softer: { hookLow: 0.9, hookHigh: 0.5, lowSus: 0.6, chords: 0.65, trem: 0.45, celloMel: 0.9, violinMel: 0.8 },
+      Full: { hookLow: 1, hookHigh: 1, lowSus: 1, chords: 1, trem: 1, celloMel: 1, violinMel: 1 },
+    },
+  },
+  {
     id: 'afmenu96',
     name: 'Menu theme, from Alert faster (96 BPM)',
-    about: 'Alert faster, the piece you like, slowed to 96 BPM for the main menu: the same hook, drive, chords, tremolo and melody.',
+    target: -19,
+    about: 'Alert faster, the piece you like, slowed to 96 BPM for the main menu. It starts on a softer mix (no driving sixteenths, lighter tremolo); "Full" is the original balance.',
     use: 'menu',
     bpm: 96,
     bars: 32,
@@ -388,28 +467,7 @@ export const PIECES: readonly PieceMeta[] = [
       S('melody', 'Melody on violins and cellos'),
     ],
     presets: {
-      Full: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
-      'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
-    },
-  },
-  {
-    id: 'afmenu84',
-    name: 'Menu theme, from Alert faster (84 BPM)',
-    about: 'Alert faster, the piece you like, slowed to 84 BPM for the main menu: the same hook, drive, chords, tremolo and melody.',
-    use: 'menu',
-    bpm: 84,
-    bars: 32,
-    layers: [
-      S('hookBass', 'Hook A, basses'),
-      S('hookCello', 'Hook A, cellos'),
-      S('hookHigh', 'Hook A, violas an octave up'),
-      S('drive', 'Driving sixteenths on D'),
-      S('lowSus', 'Low held D'),
-      S('chords', 'Held chords'),
-      S('trem', 'High tremolo'),
-      S('melody', 'Melody on violins and cellos'),
-    ],
-    presets: {
+      Softer: { hookBass: 0.45, hookCello: 0.75, hookHigh: 0.4, lowSus: 0.35, chords: 0.65, trem: 0.3, melody: 0.85 },
       Full: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
       'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
     },
@@ -1544,6 +1602,93 @@ function underFire(s: Score): void {
     }
   }
   for (let b = 8; b <= N; b += 8) swellInto(P, s.bank, 'cym', 1, s.t(b % N), 0.6);
+  // round 14: a driving bass line on the chord roots (basses and cellos, eighths) and a deep sub bass under it
+  for (let b = 0; b < N; b++) {
+    const r = CH[chordAt(b)].root;
+    for (const [i, v] of [[0, 1], [1, 0.6], [3, 0.85], [4, 0.6], [6, 0.9], [7, 0.6]] as const) {
+      note(s.L('bass'), s.bank, 'bassSpic', r, s.t(b, i / 2), s.d(0.45), { vel: 0.8 * v, release: 0.08 });
+      note(s.L('bass'), s.bank, 'celloSpic', r + 12, s.t(b, i / 2), s.d(0.45), { vel: 0.65 * v, release: 0.08 });
+    }
+    if (b % 2 === 0) subBass(s.L('sub'), s.t(b), s.d(8), r - 12, 0.5);
+  }
+}
+
+/** A sine sub bass with a little second harmonic (so small speakers hint at it), soft attack, written straight onto the canvas. */
+function subBass(c: Stereo, t: number, dur: number, m: number, gain: number): void {
+  const f = 440 * Math.pow(2, (m - 69) / 12);
+  const n0 = Math.round(t * RATE);
+  const len = Math.round((dur + 0.3) * RATE);
+  const att = Math.round(0.06 * RATE);
+  const rel = Math.round(0.3 * RATE);
+  const N = c.l.length;
+  for (let i = 0; i < len; i++) {
+    const env = Math.min(1, i / att) * (i > len - rel ? (len - i) / rel : 1);
+    const ph = (2 * Math.PI * f * i) / RATE;
+    const v = (Math.sin(ph) + 0.25 * Math.sin(2 * ph)) * env * gain;
+    const j = (n0 + i) % N;
+    c.l[j]! += v;
+    c.r[j]! += v;
+  }
+}
+
+
+// ------------------------------------------------------------------ round 14: calmer menus
+
+/** The final D minor chord of the Zimmer menus, ringing out into the quiet start. */
+function zFinal(s: Score, at: number, strings: string, horns: string, vel: number): void {
+  for (const [inst, m, v] of [
+    ['bassSus', D, 1],
+    ['celloSus', D, 1],
+    ['celloSus', n('A2'), 0.88],
+    ['violaSus', n('F3'), 0.88],
+    ['violinSus', n('D4'), 0.85],
+    ['violinSus', n('A4'), 0.8],
+  ] as const) note(s.L(strings), s.bank, inst, m, s.t(at), s.d(10), { vel: vel * v, attack: 0.4, release: 3 });
+  for (const m of [n('D3'), n('A3')]) note(s.L(horns), s.bank, 'hornSus', m, s.t(at), s.d(10), { vel: vel * 0.5, attack: 0.4, release: 3 });
+}
+
+function zCalm(s: Score): void {
+  note(s.L('swell'), s.bank, 'celloSus', n('A2'), s.t(0), s.d(16), { vel: 0.55, attack: s.d(12), release: 1.5 });
+  note(s.L('high'), s.bank, 'violinSus', n('A5'), s.t(1), s.d(12), { vel: 0.25, attack: s.d(8), release: 1.5 });
+  hookLine(s, 'pizz', 'celloPizz', hookTo(4), 4, 12, () => 0.6, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', hookTo(4), 12, 28, (b) => (b < 20 ? 0.65 : 0.78), false, 0.85);
+  hookLine(s, 'pizzD', 'celloPizz', 0, 4, 12, () => 0.6, false, 0.85);
+  hookLine(s, 'hookD', 'celloSpic', 0, 12, 28, (b) => (b < 20 ? 0.65 : 0.78), false, 0.85);
+  swells(s, 'swell', 4, 28, 0.5);
+  highHold(s, 'high', 'violinSus', 20, 28, 0.45);
+  motif(s, 'melody', 'celloSus', 12, 0.6, -12);
+  motif(s, 'melody', 'violinSus', 20, 0.75, 12);
+  motif(s, 'melody', 'violinSus', 20, 0.65);
+  motif(s, 'horns', 'hornSus', 12, 0.32);
+  hornSwells(s, 'horns', 20, 28, 0.32);
+  zFinal(s, 28, 'swell', 'horns', 0.7);
+  const P = s.L('pulse');
+  for (let b = 20; b < 28; b++) hit(P, s.bank, 'giant', 4, s.t(b), 0.35);
+  swellInto(P, s.bank, 'cym', 1, s.t(20), 0.4);
+  swellInto(P, s.bank, 'cym', 1, s.t(28), 0.45);
+  hit(P, s.bank, 'gong', 1, s.t(28), 0.4);
+}
+
+function zGrand(s: Score): void {
+  // a cello swelling out of silence (Zimmer), then the Grand shape over the broad progression, hook on D
+  note(s.L('swell'), s.bank, 'celloSus', D, s.t(0), s.d(16), { vel: 0.55, attack: s.d(12), release: 1.5 });
+  hookLine(s, 'pizz', 'celloPizz', 0, 4, 12, (b) => 0.5 + (b - 4) * 0.02, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', 0, 8, 28, (b) => (b < 16 ? 0.6 : b < 20 ? 0.7 : 0.8), false, 0.85);
+  hookLine(s, 'hook', 'bassSpic', -12, 16, 28, () => 0.55, true, 0.85);
+  swells(s, 'swell', 4, 28, 0.5);
+  softChords(s, 'chords', 20, 28, 2, 0.55, s.d(2));
+  highHold(s, 'high', 'violinSus', 20, 28, 0.42);
+  motif(s, 'celloMel', 'celloSus', 12, 0.62, -12);
+  motif(s, 'violinMel', 'violinSus', 20, 0.75, 12);
+  motif(s, 'violinMel', 'violaSus', 20, 0.62);
+  motif(s, 'celloMel', 'celloSus', 20, 0.65, -12);
+  hornSwells(s, 'horns', 12, 20, 0.28);
+  motif(s, 'horns', 'hornSus', 20, 0.32, -12);
+  zFinal(s, 28, 'swell', 'horns', 0.7);
+  const P = s.L('pulse');
+  for (let b = 20; b < 28; b++) hit(P, s.bank, 'giant', 4, s.t(b), 0.35);
+  swellInto(P, s.bank, 'cym', 1, s.t(20), 0.4);
+  hit(P, s.bank, 'gong', 1, s.t(28), 0.35);
 }
 
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
@@ -1552,10 +1697,13 @@ export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
   else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'zcalm') zCalm(s);
+  else if (meta.id === 'zgrand') zGrand(s);
+  else if (meta.id === 'grandsoft') menuGrand(s);
   else if (meta.id === 'underfire') underFire(s);
   else if (meta.id === 'afheavy') afHeavy(s, true);
   else if (meta.id === 'afdrums') afHeavy(s, false);
-  else if (meta.id === 'afmenu96' || meta.id === 'afmenu84') alertFast(s);
+  else if (meta.id === 'afmenu96') alertFast(s);
   else if (meta.id === 'ppfslow80' || meta.id === 'ppfslow70') ppfSlowMenu(s);
   else if (meta.id === 'ppfslowmission') ppfSlowMission(s);
   else if (meta.id === 'ppfmenu') ppfMenu(s);

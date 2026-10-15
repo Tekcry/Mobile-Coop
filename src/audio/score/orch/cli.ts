@@ -122,7 +122,7 @@ for (const meta of PIECES) {
   for (const l of meta.layers) layers[l.id] = withRoom(piece.layers[l.id]!, l.kind);
   // one gain for every layer, so the balance is kept: everything on hits TARGET, peaks stay under PEAK
   const all = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
-  let g = Math.pow(10, (TARGET - loudness(all)) / 20);
+  let g = Math.pow(10, ((meta.target ?? TARGET) - loudness(all)) / 20);
   g = Math.min(g, PEAK / peakOf(all));
   for (const l of meta.layers) scale(layers[l.id]!, g);
   const full = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
