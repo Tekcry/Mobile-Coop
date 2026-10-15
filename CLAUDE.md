@@ -1,5 +1,7 @@
 # Night Shift - architecture and conventions
 
+On branch feature/operators, follow docs/operators/RULES.md and resume from docs/operators/STATE.md (brief: docs/operators/BRIEF.md).
+
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
 - Story, setting and in-game text: `docs/story.md`.
 - It has a solo campaign that is also playable in 2-4 player co-op. Light and shadow is the core.
