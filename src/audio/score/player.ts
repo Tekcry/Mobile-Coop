@@ -63,6 +63,8 @@ export interface LayerRt {
   state: Fader;
   stateNode: GainNode;
   src: AudioBufferSourceNode | null;
+  /** The clean opening, while it plays. */
+  head: AudioBufferSourceNode | null;
 }
 
 interface GroupRt {
@@ -153,7 +155,10 @@ export class ScorePlayer {
     for (const g of [this.menu, this.low, this.alert]) {
       if (!g) continue;
       g.bus.gain.setTargetAtTime(0, now, 0.05);
-      for (const l of g.layers) l.src?.stop(now + 0.3);
+      for (const l of g.layers) {
+        l.src?.stop(now + 0.3);
+        l.head?.stop(now + 0.3);
+      }
       setTimeout(() => g.bus.disconnect(), 500);
     }
     this.shot?.stop(now + 0.05);
@@ -179,6 +184,7 @@ export class ScorePlayer {
         state: new Fader(stateNode.gain, initial ? r.def.mix[initial] : 1),
         stateNode,
         src: null,
+        head: null,
       };
     });
     return { plan, layers, bus, t0: 0, beat, bar: beat * 4, running: false };
@@ -187,14 +193,26 @@ export class ScorePlayer {
   private startGroup(g: GroupRt, at: number): void {
     for (const l of g.layers) {
       l.src?.stop(at);
+      l.head?.stop(at);
+      l.head = null;
       const s = this.ctx.createBufferSource();
       s.buffer = l.r.buffer;
       s.loop = true;
       s.connect(l.user);
-      if (l.r.loopStart !== undefined && l.r.loopEnd !== undefined) {
-        s.loopStart = l.r.loopStart;
-        s.loopEnd = l.r.loopEnd;
-        s.start(at, l.r.loopStart);
+      const { loopStart, loopEnd, head, headSec } = l.r;
+      if (loopStart !== undefined && loopEnd !== undefined) {
+        s.loopStart = loopStart;
+        s.loopEnd = loopEnd;
+        if (head && headSec) {
+          // the clean opening first (no tail of the loop's own last bar), then the loop from the same point
+          const h = this.ctx.createBufferSource();
+          h.buffer = head;
+          h.connect(l.user);
+          h.start(at, loopStart);
+          h.stop(at + headSec);
+          l.head = h;
+          s.start(at + headSec, loopStart + headSec);
+        } else s.start(at, loopStart);
       } else s.start(at);
       l.src = s;
     }
@@ -205,7 +223,9 @@ export class ScorePlayer {
   private stopGroup(g: GroupRt, at: number): void {
     for (const l of g.layers) {
       l.src?.stop(at);
+      l.head?.stop(at);
       l.src = null;
+      l.head = null;
     }
     g.running = false;
   }

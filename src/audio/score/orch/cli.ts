@@ -15,7 +15,7 @@ import { addInto, detectPitch, peakOf, RATE, scale, secs, type Stereo } from '..
 import { reverbWet } from '../../music/render/fx';
 import { db, loudness, sum } from '../../music/render/kit';
 import { Bank } from './bank';
-import { PIECES, renderPiece, type Kind, type PieceMeta } from './pieces';
+import { HEAD_BARS, PIECES, renderPiece, type Kind, type PieceMeta } from './pieces';
 
 const PAD = 0.5;
 const KBPS = 128;
@@ -88,6 +88,8 @@ interface LayerOut {
   file: string;
   bytes: number;
   loudness: number;
+  /** The clean opening (loops only): the first HEAD_BARS bars from silence, with PAD seconds of silence in front. */
+  head?: string;
 }
 interface Entry {
   id: string;
@@ -99,6 +101,8 @@ interface Entry {
   loop: number;
   layers: LayerOut[];
   presets: PieceMeta['presets'];
+  /** Length of each layer's clean opening (s), 0 for one-shots. */
+  head: number;
   loudness: number;
   peak: number;
 }
@@ -120,11 +124,26 @@ for (const meta of PIECES) {
   const piece = renderPiece(bank, meta);
   const layers: Record<string, Stereo> = {};
   for (const l of meta.layers) layers[l.id] = withRoom(piece.layers[l.id]!, l.kind);
+  // the clean opening: the same piece rendered without wrapping (so its start has no tail of its own last bar)
+  const loopPiece = meta.use !== 'shot';
+  const headSec = loopPiece ? (HEAD_BARS * 4 * 60) / meta.bpm : 0;
+  const heads: Record<string, Stereo> = {};
+  if (loopPiece) {
+    const lin = renderPiece(bank, meta, true);
+    for (const l of meta.layers) {
+      const wet = withRoom(lin.layers[l.id]!, l.kind);
+      const k = secs(headSec);
+      heads[l.id] = { l: wet.l.slice(0, k), r: wet.r.slice(0, k) };
+    }
+  }
   // one gain for every layer, so the balance is kept: everything on hits TARGET, peaks stay under PEAK
   const all = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
   let g = Math.pow(10, ((meta.target ?? TARGET) - loudness(all)) / 20);
   g = Math.min(g, PEAK / peakOf(all));
-  for (const l of meta.layers) scale(layers[l.id]!, g);
+  for (const l of meta.layers) {
+    scale(layers[l.id]!, g);
+    if (heads[l.id]) scale(heads[l.id]!, g);
+  }
   const full = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
   const pairs: string[] = [];
   const outs: LayerOut[] = [];
@@ -134,7 +153,21 @@ for (const meta of PIECES) {
     // loops carry PAD seconds of their own wrap on each side; a one-shot (the spotted hit) is written as it is
     writeFileSync(wav, encodeWav(meta.use === 'shot' ? [layers[l.id]!.l, layers[l.id]!.r] : padded(layers[l.id]!), RATE));
     pairs.push(wav, join(outDir, `${name}.mp3`));
-    outs.push({ id: l.id, name: l.name, kind: l.kind, file: `${name}.mp3`, bytes: 0, loudness: Math.round(loudness(layers[l.id]!) * 10) / 10 });
+    const out: LayerOut = { id: l.id, name: l.name, kind: l.kind, file: `${name}.mp3`, bytes: 0, loudness: Math.round(loudness(layers[l.id]!) * 10) / 10 };
+    const h = heads[l.id];
+    if (h) {
+      // PAD seconds of silence in front, like the loops, so both files share the encoder's delay
+      const p = secs(PAD);
+      const hl = new Float32Array(h.l.length + p);
+      const hr = new Float32Array(h.r.length + p);
+      hl.set(h.l, p);
+      hr.set(h.r, p);
+      const hw = join(wavDir, `${name}-head.wav`);
+      writeFileSync(hw, encodeWav([hl, hr], RATE));
+      pairs.push(hw, join(outDir, `${name}-head.mp3`));
+      out.head = `${name}-head.mp3`;
+    }
+    outs.push(out);
   }
   execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'scripts', 'music', 'encode-mp3.ps1'), '-Kbps', String(KBPS), ...pairs], {
     stdio: 'ignore',
@@ -151,6 +184,7 @@ for (const meta of PIECES) {
     loop,
     layers: outs,
     presets: meta.presets,
+    head: headSec,
     loudness: Math.round(loudness(full) * 10) / 10,
     peak: Math.round(db(peakOf(full)) * 10) / 10,
   };

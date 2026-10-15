@@ -23,8 +23,32 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done |
 | 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; see round 14 for his ratings |
 | 3n | Round 14: bass for Under fire; calmer, quieter menus | done |
-| 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done; waiting for Michael's feedback |
+| 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done |
+| 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 16 - Heartbeat; quieter Calm; clean openings
+- **Michael (2026-10-16):**
+  - He loves Heartbeat, but there is too much happening in everything except Alert.
+  - He likes the calm sneaking idea and the broken Hook A, but as Cautious, not Calm: "keep heartbeat as cautious".
+  - He wants an even calmer Calm with no heartbeat.
+  - "An old sound file plays at the start of Alert."
+- **Done:**
+  - **Heartbeat presets:**
+    - **Calm:** only the deep sub and the far D / E-flat rub.
+    - **Cautious:** round 15's Calm (the heartbeat, the sub, the rub, Hook A's opening three notes plucked every
+      4 bars).
+    - Also "Calm, near silence", and "Cautious, more tension" (round 15's Cautious).
+  - **Ticking and Breath removed.**
+  - **The old sound at the start of Alert:**
+    - The cause: each loop is circular, so its first seconds hold the ringing-out tail of its own last bar (low
+      brass, the held D, tremolo). That is right when the loop repeats, wrong on a fresh start.
+    - **The fix:** the render command also renders each loop without wrapping and writes its first 4 bars as a clean
+      opening (`<layer>-head.mp3`). The player starts every loop on the clean opening, then hands over to the loop at
+      the same point.
+    - Measured: in the first 50 ms of Under fire, low brass was at -26 dB, the held D at -27 dB and tremolo at
+      -30 dB; the clean opening is below -68 dB there. By 5 s the two are identical.
+    - The same fix applies to the menu's start (Grand's final chord rang into its opening).
 
 ## V4 round 15 - the keepers, and adaptive sets around them
 - **Michael's decisions (2026-10-16):**

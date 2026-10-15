@@ -16,6 +16,8 @@ interface OrchLayer {
   name: string;
   kind: string;
   file: string;
+  /** The clean opening (loops). */
+  head?: string;
 }
 interface OrchPiece {
   id: string;
@@ -27,6 +29,8 @@ interface OrchPiece {
   loop: number;
   layers: OrchLayer[];
   presets: Record<string, Record<string, number>>;
+  /** Length of each layer's clean opening (s). */
+  head?: number;
 }
 const ORCH_JSON = import.meta.glob('../../assets/music/orch/orch.json', { eager: true, import: 'default' }) as Record<string, { pad: number; pieces: OrchPiece[] }>;
 const ORCH = Object.values(ORCH_JSON)[0] ?? { pad: 0.5, pieces: [] };
@@ -38,8 +42,8 @@ const DECODE_RATE = 24000;
 let player: ScorePlayer | null = null;
 let world: WorldSim | null = null;
 let busy = false;
-/** Decoded stems per piece. */
-const buffers = new Map<string, AudioBuffer[]>();
+/** Decoded stems per piece: the loop and its clean opening per layer. */
+const buffers = new Map<string, { loop: AudioBuffer; head: AudioBuffer | null }[]>();
 /** The piece whose presets the Layers panel shows (loops only). */
 let current: OrchPiece | null = null;
 const solo = new Set<LayerRt>();
@@ -82,18 +86,17 @@ function setBusy(on: boolean, text = ''): void {
 // ---------------------------------------------------------------- loading
 
 /** Decode a piece's stems (kept; other pieces are dropped unless listed in `keep`). */
-async function load(pc: OrchPiece, keep: string[]): Promise<AudioBuffer[]> {
+async function load(pc: OrchPiece, keep: string[]): Promise<{ loop: AudioBuffer; head: AudioBuffer | null }[]> {
   for (const k of [...buffers.keys()]) if (!keep.includes(k)) buffers.delete(k);
   const hit = buffers.get(pc.id);
   if (hit) return hit;
   const decoder = new OfflineAudioContext(2, 1, DECODE_RATE);
-  const out = await Promise.all(
-    pc.layers.map(async (ly) => {
-      const url = ORCH_URLS[`../../assets/music/orch/${ly.file}`];
-      if (!url) throw new Error(`missing ${ly.file}: run npm run music:orch`);
-      return decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
-    }),
-  );
+  const decode = async (file: string): Promise<AudioBuffer> => {
+    const url = ORCH_URLS[`../../assets/music/orch/${file}`];
+    if (!url) throw new Error(`missing ${file}: run npm run music:orch`);
+    return decoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
+  };
+  const out = await Promise.all(pc.layers.map(async (ly) => ({ loop: await decode(ly.file), head: ly.head ? await decode(ly.head) : null })));
   buffers.set(pc.id, out);
   return out;
 }
@@ -101,9 +104,10 @@ async function load(pc: OrchPiece, keep: string[]): Promise<AudioBuffer[]> {
 const ALL: Record<MusicState, number> = { calm: 1, caution: 1, alert: 1, evade: 1 };
 
 /** Wrap decoded stems for the player: one layer each, with a gain per music state. */
-function wrap(pc: OrchPiece, bufs: AudioBuffer[], mixOf: (layerId: string) => Record<MusicState, number>, group: LayerDef['group'] = 'menu'): Rendered[] {
+function wrap(pc: OrchPiece, bufs: { loop: AudioBuffer; head: AudioBuffer | null }[], mixOf: (layerId: string) => Record<MusicState, number>, group: LayerDef['group'] = 'menu'): Rendered[] {
   return pc.layers.map((ly, i) => {
-    const buffer = bufs[i]!;
+    const buffer = bufs[i]!.loop;
+    const head = bufs[i]!.head;
     const def: LayerDef = {
       id: `${pc.id}-${ly.id}`,
       name: ly.name,
@@ -126,6 +130,7 @@ function wrap(pc: OrchPiece, bufs: AudioBuffer[], mixOf: (layerId: string) => Re
       gain: 1,
       ms: 0,
       ...(loop ? { loopStart: ORCH.pad, loopEnd: ORCH.pad + pc.loop } : {}),
+      ...(loop && head && pc.head ? { head, headSec: pc.head } : {}),
     };
   });
 }

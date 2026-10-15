@@ -1,8 +1,8 @@
 /**
  * The Night Shift score, round 15 (Michael, 2026-10-16): "Alert, under fire" is the Alert theme and "Menu theme, Grand,
  * dialled back" is the menu; everything else was removed. Built around those two:
- * - three sneaking loops (Heartbeat, Ticking, Breath) for Calm and Cautious, almost silent in Calm, made from Under
- *   fire's ingredients (the D / E-flat rub, ticking, slow climbing semitones, a heartbeat, a sub bass) with Hook A only
+ * - the sneaking loop (Heartbeat; round 16: Calm is near silence, Cautious the heartbeat and the broken hook), made from
+ *   Under fire's ingredients (the D / E-flat rub, ticking, slow climbing semitones, a heartbeat, a sub bass) with Hook A only
  *   in fragments, so the theme is not worn out;
  * - the "spotted" hit that leads into Under fire's downbeat;
  * - two alternatives of the menu.
@@ -38,8 +38,6 @@ export interface PieceMeta {
 }
 
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
-
-const STEALTH_ABOUT = 'Plays under the game while you sneak. Calm is almost silent; Cautious adds tension. Hook A only appears in fragments, so the theme stays fresh for Alert.';
 
 export const PIECES: readonly PieceMeta[] = [
   {
@@ -87,7 +85,7 @@ export const PIECES: readonly PieceMeta[] = [
   {
     id: 'heartbeat',
     name: 'Sneaking: Heartbeat',
-    about: `${STEALTH_ABOUT} A slow heartbeat on a big drum, a deep sub, the high D / E-flat rub far away; Cautious adds soft ticking, a gentle eighth-note pulse on D, violas climbing a semitone every 2 bars and a low held D.`,
+    about: 'Round 16: Calm is near silence (a deep sub and the far-away D / E-flat rub, no heartbeat). Cautious is the heartbeat with the broken Hook A (the opening three notes plucked every 4 bars). "Cautious, more tension" adds soft ticking, a gentle pulse on D, climbing violas and a low D.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
@@ -103,54 +101,11 @@ export const PIECES: readonly PieceMeta[] = [
       S('low', 'Low held D'),
     ],
     presets: {
-      Calm: { sub: 0.5, heart: 0.45, rub: 0.3, frag: 0.35 },
-      Cautious: { sub: 0.6, heart: 0.65, rub: 0.5, frag: 0.55, tick: 0.5, drive: 0.5, climb: 0.55, low: 0.45 },
+      Calm: { sub: 0.4, rub: 0.22 },
+      Cautious: { sub: 0.5, heart: 0.45, rub: 0.3, frag: 0.35 },
+      'Calm, near silence': { sub: 0.35, rub: 0.12 },
+      'Cautious, more tension': { sub: 0.6, heart: 0.65, rub: 0.5, frag: 0.55, tick: 0.5, drive: 0.5, climb: 0.55, low: 0.45 },
       'Everything on': { sub: 1, heart: 1, rub: 1, frag: 1, tick: 1, drive: 1, climb: 1, low: 1 },
-    },
-  },
-  {
-    id: 'ticking',
-    name: 'Sneaking: Ticking',
-    about: `${STEALTH_ABOUT} A quiet clock-like tick on high violins and a deep sub, the rub only now and then; Cautious doubles the ticking, adds a plucked heartbeat, Hook A plucked quietly (in two 8-bar spells only) and the climbing violas.`,
-    use: 'stealth',
-    bpm: 88,
-    bars: 32,
-    target: -22,
-    layers: [
-      S('clock', 'Ticking clock (quarter notes)'),
-      S('sub', 'Deep sub (D)'),
-      S('rub', 'High rub, now and then'),
-      S('tick8', 'Ticking doubled (eighths)'),
-      S('pulse', 'Plucked heartbeat, basses and cellos'),
-      S('pizz', 'Hook A, plucked (two spells)'),
-      S('climb', 'Violas climbing a semitone every 2 bars'),
-    ],
-    presets: {
-      Calm: { clock: 0.35, sub: 0.45, rub: 0.25 },
-      Cautious: { clock: 0.5, tick8: 0.45, sub: 0.55, rub: 0.45, pulse: 0.5, pizz: 0.55, climb: 0.5 },
-      'Everything on': { clock: 1, sub: 1, rub: 1, tick8: 1, pulse: 1, pizz: 1, climb: 1 },
-    },
-  },
-  {
-    id: 'breath',
-    name: 'Sneaking: Breath',
-    about: `${STEALTH_ABOUT} The slowest (66 BPM, half Under fire's tempo): long low string swells that breathe in and out, the rub, a deep sub; Cautious adds the heartbeat drum, Hook A plucked slowly and the climbing violas.`,
-    use: 'stealth',
-    bpm: 66,
-    bars: 24,
-    target: -22,
-    layers: [
-      S('swell', 'Low string swells (breathing)'),
-      S('rub', 'High rub, far away'),
-      S('sub', 'Deep sub'),
-      { id: 'heart', name: 'Heartbeat drum', kind: 'perc' },
-      S('pizz', 'Hook A, plucked (slow)'),
-      S('climb', 'Violas climbing a semitone every 2 bars'),
-    ],
-    presets: {
-      Calm: { swell: 0.4, rub: 0.3, sub: 0.4 },
-      Cautious: { swell: 0.6, rub: 0.45, sub: 0.5, heart: 0.55, pizz: 0.55, climb: 0.5 },
-      'Everything on': { swell: 1, rub: 1, sub: 1, heart: 1, pizz: 1, climb: 1 },
     },
   },
   {
@@ -231,6 +186,10 @@ export interface Piece {
 
 /** Seconds of tail after a one-shot (the spotted hit rings out). */
 export const SHOT_TAIL = 3.5;
+/** Extra canvas for a linear render: longer than any note tail plus the reverb's pre-roll, so it ends in silence. */
+export const LINEAR_TAIL = 14;
+/** The clean opening's length in bars (covers every wrapped tail at the loop start). */
+export const HEAD_BARS = 4;
 
 class Score {
   readonly layers: Record<string, Stereo> = {};
@@ -239,9 +198,11 @@ class Score {
   constructor(
     readonly bank: Bank,
     readonly meta: PieceMeta,
+    linear = false,
   ) {
     this.beat = 60 / meta.bpm;
-    const n = secs(meta.bars * 4 * this.beat + (meta.use === 'shot' ? SHOT_TAIL : 0));
+    // linear: a long canvas so nothing wraps (the clean opening, heard the first time a loop starts)
+    const n = secs(meta.bars * 4 * this.beat + (meta.use === 'shot' ? SHOT_TAIL : linear ? LINEAR_TAIL : 0));
     for (const l of meta.layers) this.layers[l.id] = stereo(n);
   }
 
@@ -520,43 +481,7 @@ function heartbeatLoop(s: Score): void {
   lowD(s, 'low', 0, N, 8, 0.35);
 }
 
-function tickingLoop(s: Score): void {
-  const N = s.meta.bars;
-  for (let b = 0; b < N; b++) for (let i = 0; i < 4; i++) note(s.L('clock'), s.bank, 'violinSpic', n('A5'), s.t(b, i), s.d(0.25), { vel: i === 0 ? 0.58 : 0.48, release: 0.06 });
-  for (let b = 0; b < N; b++) for (let i = 1; i < 8; i += 2) note(s.L('tick8'), s.bank, 'violinSpic', n('E5'), s.t(b, i / 2), s.d(0.2), { vel: 0.45, release: 0.05 });
-  subD(s, 'sub', 0, N, 0.2);
-  rub(s, 'rub', 4, N, 16, 0.3);
-  for (let b = 0; b < N; b++) {
-    if (resting(b)) continue;
-    for (const [beat, v] of [[0, 1], [0.5, 0.65]] as const) {
-      note(s.L('pulse'), s.bank, 'bassPizz', D - 12, s.t(b, beat), s.d(1), { vel: 0.5 * v, release: 0.3 });
-      note(s.L('pulse'), s.bank, 'celloPizz', D, s.t(b, beat), s.d(1), { vel: 0.4 * v, release: 0.3 });
-    }
-  }
-  hookLine(s, 'pizz', 'celloPizz', 0, 8, 16, () => 0.5, false, 0.85);
-  hookLine(s, 'pizz', 'celloPizz', 0, 24, 32, () => 0.5, false, 0.85);
-  climb(s, 'climb', 0, N, 0.6);
-}
 
-function breathLoop(s: Score): void {
-  const N = s.meta.bars;
-  // long breaths: D, B-flat, D, G minor, D, A (four bars each)
-  const roots: ChordName[] = ['Dm', 'Bb', 'Dm', 'Gm', 'Dm', 'A'];
-  for (let k = 0; k < roots.length; k++) {
-    const c = CH[roots[k]!];
-    const at = s.t(k * 4);
-    const dur = s.d(16);
-    note(s.L('swell'), s.bank, 'bassSus', c.root + 12, at, dur, { vel: 0.45, attack: dur * 0.55, release: dur * 0.4 });
-    note(s.L('swell'), s.bank, 'celloSus', c.root + 12, at, dur, { vel: 0.45, attack: dur * 0.55, release: dur * 0.4 });
-    note(s.L('swell'), s.bank, 'violaSus', c.tones[1]!, at, dur, { vel: 0.32, attack: dur * 0.6, release: dur * 0.4 });
-    subBass(s.L('sub'), at, dur, c.root, 0.18, dur * 0.5);
-  }
-  rub(s, 'rub', 0, N, 8, 0.35);
-  heartbeat(s, 'heart', 0, N, 0.5);
-  hookLine(s, 'pizz', 'celloPizz', 0, 4, 12, () => 0.5, false, 0.85);
-  hookLine(s, 'pizz', 'celloPizz', 0, 16, 24, () => 0.5, false, 0.85);
-  climb(s, 'climb', 0, N, 0.6);
-}
 
 // ------------------------------------------------------------------ the menu (kept) and its alternatives
 
@@ -598,8 +523,12 @@ function grandHorns(s: Score): void {
   hit(P, s.bank, 'gong', 1, s.t(30), 0.4);
 }
 
-export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
-  const s = new Score(bank, meta);
+/**
+ * Render a piece. A loop is circular: its start holds the ringing-out tail of its own last bar, so it joins seamlessly.
+ * With `linear`, nothing wraps: the start is clean, as when the piece begins from silence (the player's first pass).
+ */
+export function renderPiece(bank: Bank, meta: PieceMeta, linear = false): Piece {
+  const s = new Score(bank, meta, linear);
   switch (meta.id) {
     case 'underfire':
       underFire(s);
@@ -610,12 +539,6 @@ export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
     case 'heartbeat':
       heartbeatLoop(s);
       break;
-    case 'ticking':
-      tickingLoop(s);
-      break;
-    case 'breath':
-      breathLoop(s);
-      break;
     case 'grandnight':
       grandNight(s);
       break;
@@ -624,6 +547,15 @@ export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
       break;
     default:
       menuGrand(s);
+  }
+  if (linear) {
+    // anything placed before time 0 (a swell leading into the first downbeat) wrapped to the far end of the long
+    // canvas; clear that end so it cannot reverb back into the clean opening (real tails end well before it)
+    const from = secs(meta.bars * 4 * s.beat + LINEAR_TAIL / 2);
+    for (const c of Object.values(s.layers)) {
+      c.l.fill(0, from);
+      c.r.fill(0, from);
+    }
   }
   return { meta, layers: s.layers };
 }

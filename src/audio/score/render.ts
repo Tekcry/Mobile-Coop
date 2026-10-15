@@ -22,6 +22,9 @@ export interface Rendered {
   /** For decoded files with padding around the loop: the loop region inside the buffer (s). */
   loopStart?: number;
   loopEnd?: number;
+  /** The clean opening (first bars from silence, after `loopStart` seconds of padding) and its length (s). */
+  head?: AudioBuffer;
+  headSec?: number;
 }
 
 const IRS: Record<'room' | 'hall' | 'far', IrSpec> = {
