@@ -121,7 +121,7 @@ Every mission is at night. Rain is common. Moonlight and street light matter (P1
 
 ### The operators
 
-Looks and personality only. Every operator has identical stats and hitboxes (bible 5.14).
+Looks and personality only. Every operator has identical stats; each is their own real size (bible 5.14).
 
 #### WREN - team lead
 

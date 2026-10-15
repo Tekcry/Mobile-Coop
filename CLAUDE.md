@@ -39,7 +39,9 @@ On branch feature/operators, follow docs/operators/RULES.md and resume from docs
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art or audio, except CC0 textures for desktop detail (bible 5.16). Audio is WebAudio synthesis unless the Phase 2 A/B test changes it (bible S7).
+- No external art or audio, except CC0 textures for desktop detail (bible 5.16) and the CC0 base body of the operator
+  pipeline (bible 5.14). Operator meshes and maps are generated offline by in-repo scripts (Blender, headless) and
+  bundled; phones never download hero assets. Audio is WebAudio synthesis unless the Phase 2 A/B test changes it (bible S7).
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
   side-effect module is missing (it warns: "requires a side-effect import"). Add the side-effect import there.
 - Important data goes to IndexedDB (`src/save`). `localStorage` is never used for saves.

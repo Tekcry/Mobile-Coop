@@ -2,7 +2,7 @@
 
 # Night Shift - Design Bible
 
-Version 1.14 - 2026-10-14 (1.14: desktop first (Michael, 2026-10-14) - desktop performance is the target; the phone only has to load and play on Low with basic touch controls and no fps gate; phone code stays, no new phone work unless it stops loading or playing on Low; the iPhone 60 fps hold and the Phone check gate are gone. 1.13 (feature/ct-locomotion): locomotion decisions D1-D8 in Section 5.17. 1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.15 - 2026-10-15 (1.15: operators (feature/operators, Michael 2026-10-15) - operators are generated offline by the scripted Blender pipeline on a CC0 base body to a AAA close-up standard (5.14, 5.16, Section 6); each operator has a real height and build (Wren about 1.68 m, Moth about 1.78 m) with skeleton, hit volumes and light samples following the body, while capsule, speeds, camera and traversal stay shared (5.14, 5.15). 1.14: desktop first (Michael, 2026-10-14) - desktop performance is the target; the phone only has to load and play on Low with basic touch controls and no fps gate; phone code stays, no new phone work unless it stops loading or playing on Low; the iPhone 60 fps hold and the Phone check gate are gone. 1.13 (feature/ct-locomotion): locomotion decisions D1-D8 in Section 5.17. 1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -996,10 +996,19 @@ Each batch:
 
 **Locked decision (Michael, 2026-10-08):** a distinct operator per player, 2-4 characters.
 
-- **Code-built,** like every character. They differ in head, headgear, kit, goggle shape and goggle light colour.
+- **Generated, not hand-made (Michael, 2026-10-15).** The operators are built offline by the scripted operator
+  pipeline in the repo (Blender run headless from Python scripts), on a CC0 base human body, and bundled as skinned
+  glTF meshes with baked texture maps. Nothing is hand-made or bought; every mesh and map is reproducible from the
+  scripts. The bar is a modern AAA stealth character up close (0.3-1 m at 1440p and 4K), held to the detail standard
+  in `docs/operators/SPEC.md`. Hero LOD for menus and close cameras; in-game LODs keep the silhouette with the detail
+  in texture maps; phones get the lowest LOD and never download hero assets. Splinter Cell inspired in feel, original
+  in every shape. They differ in head, headgear, kit, goggle shape and goggle light colour.
   - Each is identifiable at 20 m in the dark by silhouette and goggle colour.
   - Original goggle design: not the series' three-lens look.
-- **Fairness:** identical skeleton, capsule, speeds, hit volumes and light sample heights. Visible build differences stay within a few percent.
+- **Size (Michael, 2026-10-15: realism over fairness; the game is mostly co-op).** Each operator has a realistic
+  height and build (Wren about 1.68 m, Moth about 1.78 m). Their skeleton, hit volumes and light sample heights
+  follow their own body. The capsule, speeds, camera rules and every traversal move stay identical for all
+  operators, so maps and routes work the same for everyone.
 - **The goggle glow arrives early** (Phase 1 Step 4b, green for every operator until Phase 5): emissive lenses, visual only, never a light, never seen by guards. It is how a player finds their operator in darkness (L7).
 - **Choosing:** solo, the player picks one. In co-op each player picks a different one; the host resolves duplicates.
 - **Cosmetics:** they replace appearance editing in the campaign. Cosmetics stay parked.
@@ -1161,6 +1170,8 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
   - The look is identical on phone and desktop.
   - Phase 1's light parity is a hard requirement for this mission.
 - **Network:** hits are validated by the host (existing PvP code in `src/net`). The traitor choice is never sent early.
+- Operators differ in height (5.14): hit volumes and light samples follow each body. Accepted for the
+  Confrontation.
 - **Disconnects:**
   - A traitor who drops is replaced by the AI traitor so the match can finish.
   - If every protagonist drops, the traitors win.
@@ -1203,7 +1214,8 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
   - Cached for offline play after the first desktop load.
   - A size budget is set in Phase 6b (proposal: 60 MB of compressed textures for the whole campaign).
   - Every file's source and licence goes in `docs/art-credits.md`.
-- Geometry, characters and animation stay code-built (5.12).
+- Geometry and animation stay code-built (5.12). Operators come from the scripted operator pipeline (5.14); guards
+  and other characters stay code-built until Michael decides otherwise.
 
 **Pillars of the look:**
 
@@ -1218,7 +1230,7 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
    - steam, dust in light shafts, layered fog
 3. **Hollowmere's identity:** orange sodium lamps against blue moonlight, rain-wet stone and metal, deep but readable blacks.
 4. **The operators:**
-   - detailed code-built silhouettes: fabric folds, straps, pouches, harnesses, kit detail
+   - sewn garment panels with simulated folds and seams, straps under tension, hard kit with real material response (5.14)
    - CC0 fabric and gear textures
    - the goggle glow as the signature light
 5. **Vision modes as a showpiece:** night, thermal and electro, each with its own grain, bloom and noise character.
@@ -1262,7 +1274,9 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 
 - Splinter Cell IP of any kind.
 - Recorded or synthesised voice.
-- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7).
+- External art files, except CC0 textures for desktop detail (5.16) and the CC0 base human body the operator
+  pipeline builds on (5.14). Assets generated offline by scripts in the repo are not external art; they are bundled
+  like code. External audio files, unless the Phase 2 A/B test changes that rule (S7).
 - Random patrols that defeat planning.
 - Forced timers in stealth sections.
 - World waypoints.
