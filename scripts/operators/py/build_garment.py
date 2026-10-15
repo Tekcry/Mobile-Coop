@@ -4,8 +4,9 @@
 2. Draft the garment's panels and seams from those measurements (garments/<name>.py).
 3. Mesh the panels (pattern.py); arrange them round the body (torso panels on the body's contour, sleeves as tubes
    round the arm, everything pushed clear of the skin).
-4. Simulate: the flat pattern is the cloth's rest shape (shape key), sewing springs pull every seam pair together,
-   gravity settles the fabric on the body (collision, self collision).
+4. Simulate: the flat pattern is the cloth's rest shape (a shape key read through Dynamic Mesh), sewing springs
+   pull every seam pair together, scaled gravity settles the fabric on the body (collision, self collision away from
+   the seams).
 5. Weld the seams and save the simulated garment with its pattern-space UVs for the detail stage.
 
 Writes build/operators/<id>/<id>-<garment>-sim.blend and <id>-<garment>-sim.npz / .json.
@@ -26,16 +27,28 @@ from mathutils.geometry import convex_hull_2d
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'garments'))
 import common  # noqa: E402
+from pattern import points_in_polygon, rounded_rect  # noqa: E402
 
 args = common.parse_args({
     '--operator': {'required': True},
     '--garment': {'required': True},
     '--out': {'required': True},
     '--frames': {'type': int, 'default': 90},
+    '--sim': {'default': '', 'help': 'JSON merged over the garment SIM table (tuning runs)'},
 })
 common.check_version()
 common.seed_everything(args.seed)
 garment = __import__(args.garment)
+
+
+def merged(base, over):
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = merged(out.get(k, {}), v) if isinstance(v, dict) else v
+    return out
+
+
+SIM = merged(garment.SIM, json.loads(args.sim) if args.sim else {})
 
 op_id = args.operator
 body_blend = os.path.join(args.out, f'{op_id}-body.blend')
@@ -112,12 +125,23 @@ L = ('shL', 'elL', 'wrL')
 m['circ_bicep'] = arm_circ(J['shL'], J['elL'], 0.35, ['shL'])
 m['circ_elbow'] = arm_circ(J['shL'], J['elL'], 0.97, ['shL', 'elL'])
 m['circ_wrist'] = arm_circ(J['elL'], J['wrL'], 0.95, ['elL', 'wrL'])
+# The forearm is widest a little below the elbow (the flexor and extensor bellies), wider than the elbow itself: a
+# sleeve drafted from the elbow and wrist alone cannot close round it.
+FOREARM_T = (0.15, 0.2, 0.25, 0.3, 0.35, 0.4)
+fore_c = [arm_circ(J['elL'], J['wrL'], t, ['elL']) for t in FOREARM_T]
+m['circ_forearm'] = max(fore_c)
+m['forearm_drop'] = FOREARM_T[int(np.argmax(fore_c))] * float(np.linalg.norm(J['wrL'] - J['elL']))  # below the elbow
 upper = float(np.linalg.norm(J['elL'] - J['shL']))
 fore = float(np.linalg.norm(J['wrL'] - J['elL']))
 CUFF_EXT = 0.02 * s
 m['sleeve_under'] = fore + upper - 0.11 * s + CUFF_EXT
 m['sleeve_elbow'] = fore + CUFF_EXT
 m['collar_h'] = 0.045 * s
+# The cloth rests on the collision surface, not the skin: every girth is measured there, so the pattern's ease is ease
+# over the body (without this an 8 % sleeve ease could not close round the forearm: the 3 mm layer adds ~2 cm).
+GAP = SIM['collision']['body'] + SIM['collision']['cloth']
+for k in [k for k in m if k.startswith('circ_')]:
+    m[k] += 2 * math.pi * GAP
 
 pattern, details, info = garment.draft(m)
 uv, panel_of, tris, pairs, seam_lines = pattern.mesh()
@@ -330,13 +354,46 @@ for poly in me.polygons:
     pid.data[poly.index].value = int(panel_idx[poly.vertices[0]])
 
 MAT = {name: p.material for name, p in pattern.panels.items()}
-vg_struct = obj.vertex_groups.new(name='stiff_struct')
-vg_bend = obj.vertex_groups.new(name='stiff_bend')
+# Per-vertex stiffness: the panel's material (or the panel's own entry), raised inside sewn-on patches. Blender maps
+# a vertex group weight w to min + (max - min) * w, so each property gets its own group spanning its range.
+PROPS = ('tension', 'shear', 'bending')  # compression follows tension (Blender uses one group for both)
+stiff = {p: np.zeros(len(uv)) for p in PROPS}
 for pi, name in enumerate(panel_names):
-    ids = np.where(panel_idx == pi)[0].tolist()
-    ripstop = MAT[name] == 'ripstop'
-    vg_struct.add(ids, 1.0 if ripstop else 0.0, 'REPLACE')
-    vg_bend.add(ids, 1.0 if name == 'collar' else (0.05 if ripstop else 0.0), 'REPLACE')
+    ids = panel_idx == pi
+    spec = SIM['panels'].get(name, SIM['materials'][MAT[name]])
+    for p in PROPS:
+        stiff[p][ids] = spec[p]
+patch_verts = 0
+for spec in details['patches']:
+    over = SIM['patches'].get(spec['kind'])
+    if not over:
+        continue
+    outline = rounded_rect(spec['centre'], spec['size'], spec['r'], angle=spec.get('angle', 0.0), pivot=spec.get('pivot'))
+    ids = np.where(panel_idx == panel_names.index(spec['panel']))[0]
+    inside = ids[points_in_polygon(uv[ids], outline)]
+    patch_verts += len(inside)
+    for p, v in over.items():
+        stiff[p][inside] = np.maximum(stiff[p][inside], v)
+RANGE = {p: (float(stiff[p].min()), float(stiff[p].max())) for p in PROPS}
+for p in PROPS:
+    lo, hi = RANGE[p]
+    vg = obj.vertex_groups.new(name=f'stiff_{p}')
+    w = (stiff[p] - lo) / max(hi - lo, 1e-9)
+    for value in np.unique(np.round(w, 4)):
+        vg.add(np.where(np.round(w, 4) == value)[0].tolist(), float(value), 'REPLACE')
+
+# Seam vertices and their neighbours stay out of self collision: the two sides of a seam lie on each other, and self
+# collision would hold them apart (the seam gap grew from 9 to 12 mm in the settle phase before this).
+near_seam = np.zeros(len(uv), bool)
+near_seam[[i for pr in pairs for i in pr]] = True
+for _ in range(2):
+    grow = near_seam.copy()
+    for a_, b_ in ((0, 1), (1, 2), (2, 0)):
+        grow[tri_arr[near_seam[tri_arr[:, a_]], b_]] = True
+        grow[tri_arr[near_seam[tri_arr[:, b_]], a_]] = True
+    near_seam = grow
+vg_self = obj.vertex_groups.new(name='self_collision')
+vg_self.add(np.where(~near_seam)[0].tolist(), 1.0, 'REPLACE')
 
 coll_src = body.copy()
 coll_src.data = body.data.copy()
@@ -346,35 +403,40 @@ coll_src.matrix_world = body.matrix_world
 coll_src.name = 'collider'
 scene.collection.objects.link(coll_src)
 cm = coll_src.modifiers.new('collision', 'COLLISION')
-coll_src.collision.thickness_outer = 0.004
-coll_src.collision.cloth_friction = 2.0
+coll_src.collision.thickness_outer = SIM['collision']['body']
+coll_src.collision.cloth_friction = SIM['friction']
 body.hide_render = True
 
 def add_cloth(self_collision, frames):
     cloth = obj.modifiers.new('cloth', 'CLOTH')
     cs = cloth.settings
-    cs.quality = 16
-    cs.mass = 0.1
-    cs.air_damping = 1.0
-    cs.tension_stiffness = 14.0
-    cs.compression_stiffness = 40.0
-    cs.tension_stiffness_max = 45.0
-    cs.compression_stiffness_max = 60.0
-    cs.vertex_group_structural_stiffness = 'stiff_struct'
-    cs.shear_stiffness = 6.0
-    cs.bending_stiffness = 0.05
-    cs.bending_stiffness_max = 8.0
-    cs.vertex_group_bending = 'stiff_bend'
+    cs.quality = SIM['quality']
+    cs.mass = SIM['mass']
+    cs.effector_weights.gravity = SIM['gravity']
+    cs.air_damping = SIM['air_damping']
+    cs.tension_damping = cs.compression_damping = cs.shear_damping = SIM['spring_damping']
+    cs.tension_stiffness, cs.tension_stiffness_max = RANGE['tension']
+    cs.compression_stiffness, cs.compression_stiffness_max = RANGE['tension']
+    cs.vertex_group_structural_stiffness = 'stiff_tension'
+    cs.shear_stiffness, cs.shear_stiffness_max = RANGE['shear']
+    cs.vertex_group_shear_stiffness = 'stiff_shear'
+    cs.bending_stiffness, cs.bending_stiffness_max = RANGE['bending']
+    cs.vertex_group_bending = 'stiff_bending'
     cs.use_sewing_springs = True
-    cs.sewing_force_max = 8.0
-    cs.rest_shape_key = flat
+    cs.sewing_force_max = SIM['sewing_force']
+    # The flat pattern is the rest shape through Dynamic Mesh: Blender 5.2 ignores the cloth's rest shape key (tested:
+    # a sheet with a 0.6x rest key never shrinks), but with Dynamic Mesh the spring rest lengths and bend angles follow
+    # the base mesh every frame while the cloth keeps its own positions. The 'pattern' key is animated from 0 (the
+    # arranged start) to 1 (the flat cut) at frame 2, so the base mesh, and with it the rest shape, is the pattern.
+    cs.use_dynamic_mesh = True
     cs.use_internal_springs = False
     cc = cloth.collision_settings
     cc.use_collision = True
-    cc.distance_min = 0.003
-    cc.collision_quality = 4
+    cc.distance_min = SIM['collision']['cloth']
+    cc.collision_quality = SIM['collision_quality']
     cc.use_self_collision = self_collision
     cc.self_distance_min = 0.003
+    cc.vertex_group_self_collisions = 'self_collision'
     cc.self_friction = 5.0
     cloth.point_cache.frame_start = 1
     cloth.point_cache.frame_end = frames
@@ -396,7 +458,22 @@ def evaluated_positions():
 PHASES = (('sew', False, args.frames), ('settle', True, max(30, args.frames // 3)))
 t0 = time.time()
 gaps = []
+
+
+def rest_is_pattern_from_frame_2():
+    """Key the 'pattern' shape: 0 at frame 1 (the cloth starts from the arranged shape), 1 from frame 2 (the rest shape
+    is the flat cut). A gradual ramp does not work: the key blends positions, not edge lengths, and where the flat
+    layout faces the other way (the back panel) a blended edge passes through zero length and the cloth collapses."""
+    obj.data.shape_keys.animation_data_clear()
+    bpy.context.preferences.edit.keyframe_new_interpolation_type = 'CONSTANT'
+    flat.value = 0.0
+    flat.keyframe_insert('value', frame=1)
+    flat.value = 1.0
+    flat.keyframe_insert('value', frame=2)
+
+
 for phase, self_coll, frames in PHASES:
+    rest_is_pattern_from_frame_2()
     scene.frame_set(1)
     cloth = add_cloth(self_coll, frames)
     for f in range(1, frames + 1):
@@ -405,7 +482,9 @@ for phase, self_coll, frames in PHASES:
             P = evaluated_positions()
             gap = float(np.linalg.norm(P[[a for a, _ in pairs]] - P[[b for _, b in pairs]], axis=1).max())
             gaps.append((phase, f, gap))
-            print(f'operators: {phase} frame {f}/{frames}, worst seam gap {gap * 1000:.1f} mm, {time.time() - t0:.0f} s')
+            drift = float(np.linalg.norm(P.mean(axis=0) - co.mean(axis=0)))
+            print(f'operators: {phase} frame {f}/{frames}, worst seam gap {gap * 1000:.1f} mm, '
+                  f'centroid drift {drift * 1000:.0f} mm, {time.time() - t0:.0f} s', flush=True)
             if not np.isfinite(P).all() or gap > 0.5:
                 far = np.argsort(-np.linalg.norm(P - co, axis=1))[:8]
                 for i in far:
@@ -477,7 +556,7 @@ np.savez_compressed(stem + '.npz', uv=uv, panel_idx=panel_idx, tris=np.array(tri
 coll_src.hide_render = True
 bpy.ops.wm.save_as_mainfile(filepath=stem + '.blend', compress=True)
 report = {
-    'operator': op_id, 'garment': args.garment, 'seed': args.seed, 'blender': bpy.app.version_string,
+    'operator': op_id, 'garment': args.garment, 'kit': garment.KIT, 'seed': args.seed, 'blender': bpy.app.version_string,
     'measurements': m, 'panels': {n: {'material': p.material, 'areaM2': round(p.area(), 4)}
                                   for n, p in pattern.panels.items()},
     'seams': [{'name': sl['name'], 'style': sl['style'], 'a': sl['a'][0], 'b': sl['b'][0], 'pairs': len(sl['a'][1])}
@@ -486,6 +565,7 @@ report = {
                    'b': [sl['b'][0], [int(i) for i in sl['b'][1]]]} for sl in seam_lines],
     'panelNames': panel_names,
     'details': details,
+    'sim': SIM, 'patchStiffVerts': patch_verts, 'seamVertsNoSelfCollision': int(near_seam.sum()),
     'verts': len(uv), 'tris': len(tris), 'weldedVerts': len(me.vertices), 'pushedClear': pushed, 'relaxedAfterWeld': relaxed,
     'weldMoveMaxMm': round(float(moved.max()) * 1000, 1),
     'frames': args.frames, 'simSeconds': round(sim_seconds, 1), 'seamGapByFrame': gaps,

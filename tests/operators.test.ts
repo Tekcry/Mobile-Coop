@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KITS, MAX_CABLE_SPAN, MOTH_KIT, validateKit, WREN_KIT } from '../src/operators/kit';
+import { KITS, kitCoverage, MAX_CABLE_SPAN, MOTH_KIT, validateKit, WREN_KIT } from '../src/operators/kit';
 import type { Kit, KitItem } from '../src/operators/kit';
 import { BASE_CORRECTIONS, JOINT_NAMES, OPERATORS, operatorBodyExport, operatorJoints, operatorProportions } from '../src/operators/operatorBody';
 import { proportions } from '../src/player/proportions';
@@ -11,6 +11,13 @@ describe('operator kit', () => {
   it('both kits are logical', () => {
     expect(validateKit(WREN_KIT)).toEqual([]);
     expect(validateKit(MOTH_KIT)).toEqual([]);
+  });
+
+  it('the pipeline kit check names built items missing from the kit', () => {
+    expect(kitCoverage(WREN_KIT, ['combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['combatShirt', 'shoulderCape']).missing).toEqual(['shoulderCape']);
+    const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
+    expect(kitCoverage(broken, ['combatShirt']).errors.length).toBeGreaterThan(0);
   });
 
   it('every cable span is within the limit', () => {

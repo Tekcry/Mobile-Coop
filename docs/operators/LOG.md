@@ -110,3 +110,32 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
 - Open (step 03b): fabric bunching above the hem, crumpled forearms, the mock neck not standing, faint knit banding,
   pockets and the elbow panel copying the sleeve wrinkles. No automatic checks script yet.
 - Michael: the method is approved (D14); the run continues as chained small steps (D15); PLAN.md and steps/ written.
+
+## Step 03b (2026-10-15): combat shirt fit, automatic checks (Opus 5.5)
+
+- `npm run operators:check` (`scripts/operators/check.mjs`, `py/check_garment.py`): per built item a JSON report
+  (`build/operators/<id>/<id>-<item>-check.json`), non-zero exit on any failure. Checks: seam gap before the weld
+  under 10 mm; simulation finite, no runaway seam gap, nothing over 8 cm from the skin (depth inside the skin reported);
+  no render-mesh edge over 3 cm; no solidify spike; every garment material tagged fabric or hard; measured albedo
+  (fabric 0.02-0.06) and roughness (fabric 0.7-0.95, hard 0.55-0.9) from emission renders of what feeds each
+  material's Base Color and Roughness, one sample a pixel against an ID render, four views, 1st-99th percentile;
+  every built item names a kit item (`kitCoverage` in `src/operators/kit.ts`, Vitest) and `validateKit` passes.
+- Root cause of the step 3 faults: Blender 5.2 ignores the cloth rest shape key, so the shirt simulated with its
+  arranged start shape as rest (A1). Fixed with Dynamic Mesh; then the collision layer (A3), the cut and cloth values
+  (A4). Also found: near-real vertex masses throw the cloth off the body (A2); a shape-key ramp blends positions, not
+  lengths, and collapses the cloth (the rest shape switches at frame 2 instead).
+- Garment data: `SIM` table per garment (mass, gravity, stiffness per material and panel, stiffer sewn layers,
+  sewing, damping, quality, collision), `--sim` JSON override for tuning runs; `KIT` and per-detail `kit` ids.
+- Pockets, flaps, loop panels, tabs and the elbow pads sit on a smoothed copy of the sleeve, pushed clear of the real
+  surface, then relaxed with their edges smoothed only along the edge (straight sewn edges, no ripples).
+- Knit and ripstop micro bump fades with camera distance (0.5-1.4 m) so it cannot alias into bands.
+- Result (wren, combat shirt): seam gap 7.2 mm before the weld, sim 71 s, deepest inside the skin 1.2 mm, longest
+  render edge 23 mm (zip slider); albedo knit 0.032, ripstop 0.026, Cordura 0.023; all checks pass. Renders on the
+  RTX 4090 (OptiX): `docs/operators/mockups/tests/wren-combat_shirt-{a,b,c,d}-*.webp`.
+- Render check: silhouette reads in near-darkness; fabric matte; knit and ripstop distinct at close range; folds
+  sewn; nothing off-brief. SPEC 1 items in frame: arm pockets (marker light / spare battery, bound flap, hook-and-loop),
+  elbow pad pockets, cuff tabs, zip with garage: each has its job.
+- Open (cosmetic, carried): faint 1-2 cm ripples on the back of the upper sleeves under a raking key; soft horizontal
+  folds above the hem at the back; the knit spans from the chest in a visible line under a side key (covered by the
+  carrier in step 08). Revisit when the carrier and trousers constrain the shirt.
+

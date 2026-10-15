@@ -241,3 +241,12 @@ export function validateKit(kit: Kit): string[] {
   }
   return errors;
 }
+
+/**
+ * The pipeline's kit check for one built item (`npm run operators:check`): the kit ids the build claims (the garment
+ * and everything sewn or fixed onto it) that the kit does not list, and the kit's own rule breaks.
+ */
+export function kitCoverage(kit: Kit, claimed: readonly string[]): { missing: string[]; errors: string[] } {
+  const ids = new Set(kit.items.map((i) => i.id));
+  return { missing: claimed.filter((id) => !ids.has(id)), errors: validateKit(kit) };
+}

@@ -4,6 +4,11 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
 
 - `npm run operators:build [wren|moth]` - runs every stage for both operators (or the named ones). Output goes to
   `build/operators/` (not committed).
+- `npm run operators:check [wren|moth]` - the automatic checks on every built item (`check.mjs`, `py/check_garment.py`):
+  seam gap before the weld under 10 mm, no simulation divergence, no render-mesh edge over 3 cm, no solidify spike,
+  measured fabric albedo 0.02-0.06 linear, roughness 0.7-0.95 on fabric and 0.55-0.9 on hard parts, every built item
+  named in the kit data with a passing `validateKit`. A JSON report per item in `build/operators/<id>/`
+  (`<id>-<item>-check.json`); non-zero exit on any failure. Run it after every build.
 - `blender.mjs` - finds Blender (`BLENDER_PATH`, else the standard install folder) and refuses any version but the pinned
   5.2.2. Scripts run with `-b --factory-startup -noaudio --python-exit-code 1`.
 - `export-joints.mjs` - writes `build/operators/joints.json`: each operator's corrected proportions, hit volumes and
@@ -20,7 +25,10 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
 - `py/build_body.py` - stage 1: the body shaped to the operator, rigged on the game joints (A-pose bind, D13), skinned
   (4 influences), hero finger and toe bones; `<id>-body.blend` and `<id>-body.json` (measurements against targets).
 - `py/pattern.py` - 2D panels, seams, panel meshing, the pattern-space surface lookup.
-- `py/garments/<name>.py` - a garment drafted from body measurements (`combat_shirt.py`).
+- `py/garments/<name>.py` - a garment drafted from body measurements (`combat_shirt.py`): its panels, seams and
+  details, the kit item it builds (`KIT`, and `kit` on each detail) and its cloth settings (`SIM`: vertex mass,
+  stiffness per material and panel, stiffer sewn layers under pockets and pads). `build_garment.py --sim '<json>'`
+  overrides `SIM` for tuning runs.
 - `py/build_garment.py` - stage 2: arrange, sew by cloth simulation (the flat pattern is the rest shape), settle, weld.
 - `py/garment_details.py` - stage 3: seam ridges, hems, thread stitches, patches, zip, materials.
 - `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the four

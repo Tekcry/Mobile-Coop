@@ -18,9 +18,35 @@ import numpy as np
 
 from pattern import Panel, Pattern, bezier, polyline_length
 
+KIT = 'combatShirt'   # the kit item (src/operators/kit.ts) this garment builds
 KNIT, RIPSTOP = 'knit', 'ripstop'
 KNIT_EASE = -0.03     # close-fit stretch knit (art direction 6): cut slightly under the body, it stretches on
+KNIT_EASE_V = -0.03   # ... in length too: any vertical slack in a knit buckles into horizontal ripples
 SLEEVE_EASE = 1.08    # ripstop sleeves: close but free to move (the gusset and darts give the reach)
+
+# Cloth simulation (build_garment.py): the flat pattern is the rest shape. Blender cloth stiffness is per spring and
+# mass per vertex; lighter, near-real vertex masses make the solver unstable (the sewing and collision impulses throw
+# the cloth off the body), so the mass stays at 0.1 with full gravity. Per material: tension (compression matches
+# it) / shear / bending. Sewn layers (pockets, the elbow pad, cuff tabs) are two or three plies stitched together:
+# stiffer than the sleeve round them, so they hold their shape instead of copying its wrinkles.
+SIM = {
+    'mass': 0.1,
+    'gravity': 1.0,
+    'materials': {
+        # Bending sets the fold scale: lower values crumple at the mesh scale (1-2 cm ripples, the step 3 'banding').
+        KNIT: {'tension': 10.0, 'shear': 4.0, 'bending': 0.3},
+        RIPSTOP: {'tension': 45.0, 'shear': 12.0, 'bending': 3.0},
+    },
+    # The collar is ripstop round a fusible interfacing: it stands round the neck.
+    'panels': {'collar': {'tension': 60.0, 'shear': 20.0, 'bending': 12.0}},
+    'patches': {'pad': {'bending': 12.0, 'shear': 20.0}, 'pocket': {'bending': 8.0, 'shear': 16.0},
+                'flap': {'bending': 8.0}, 'tab': {'bending': 8.0}},
+    'sewing_force': 12.0,
+    'quality': 16, 'collision_quality': 4,
+    'collision': {'body': 0.0015, 'cloth': 0.0015},   # m: collider thickness and cloth distance (fabric on skin)
+    'air_damping': 1.0, 'spring_damping': 5.0,
+    'friction': 2.0,
+}
 
 
 def catmull(points, n=12):
@@ -74,9 +100,12 @@ def draft(m, h=0.011):
     hw = {k: m[f'circ_{k}'] / 4.0 * e for k in ('hem', 'waist', 'bust', 'ua')}
     # A gentle waist: combat shirts hang nearly straight under a carrier; a fitted taper catches on the hips.
     hw['waist'] = max(hw['waist'], 0.35 * hw['waist'] + 0.65 * min(hw['hem'], hw['bust']))
-    y_w, y_b, y_ua = m['z_waist'] - m['z_hem'], m['z_bust'] - m['z_hem'], m['z_ua'] - m['z_hem']
+    v = 1.0 + KNIT_EASE_V
+    y_w, y_b, y_ua = (m['z_waist'] - m['z_hem']) * v, (m['z_bust'] - m['z_hem']) * v, (m['z_ua'] - m['z_hem']) * v
     nw = m['neck_half_w'] + 0.012
-    y_nk = {'front': m['z_neck'] - m['z_hem'] + 0.03, 'back': m['z_neck'] - m['z_hem'] + 0.015}
+    # The front is cut a little longer than the back for the chest; 2 cm (3 cm left a 3 % vertical excess under the
+    # bust that folded into a crease once the pattern became the true rest shape).
+    y_nk = {'front': (m['z_neck'] - m['z_hem']) * v + 0.02, 'back': (m['z_neck'] - m['z_hem']) * v + 0.015}
     drop = {'front': 0.045, 'back': 0.018}
 
     LG = 0.055 * m['height'] / 1.68  # underarm gusset edge length
@@ -115,6 +144,7 @@ def draft(m, h=0.011):
     # Sleeve widths and lengths.
     wc = m['circ_wrist'] * SLEEVE_EASE + 0.035     # room for the glove cuff under the tab
     we = m['circ_elbow'] * SLEEVE_EASE
+    wf = m['circ_forearm'] * SLEEVE_EASE           # widest forearm girth, below the elbow
     wb = m['circ_bicep'] * SLEEVE_EASE
     lu, yel = m['sleeve_under'], m['sleeve_elbow']
     nsw = 0.05
@@ -130,8 +160,9 @@ def draft(m, h=0.011):
         for part in ('front', 'back'):
             dx = (wb - nsw) / 2
             top[part] = lu + math.sqrt(max(rag_len[part] ** 2 - dx ** 2, 1e-4))
-        f_pl = catmull([(sf * wc / 2, 0), (sf * we / 2, yel), (sf * wb / 2, lu)])
-        b_pl = catmull([(sb * wc / 2, -CUFF_DROP), (sb * we / 2, yel), (sb * wb / 2, lu)])
+        y_fa = yel - m['forearm_drop']   # the forearm's widest girth, below the elbow
+        f_pl = catmull([(sf * wc / 2, 0), (sf * wf / 2, y_fa), (sf * max(we, wf) / 2, yel), (sf * wb / 2, lu)])
+        b_pl = catmull([(sb * wc / 2, -CUFF_DROP), (sb * wf / 2, y_fa), (sb * max(we, wf) / 2, yel), (sb * wb / 2, lu)])
         lf, lb = arc(f_pl)[-1], arc(b_pl)[-1]
         s_el = arc(b_pl)[int(np.argmin(np.abs(b_pl[:, 1] - yel)))]
         s1, s2 = s_el - 0.022, s_el + 0.022
@@ -244,31 +275,31 @@ def draft(m, h=0.011):
     for side, sleeve_p, back_sign, pocket_job in (('L', sl, 1, 'marker light'), ('R', sr, -1, 'spare goggle battery')):
         tilt = POCKET_TILT * back_sign
         details['patches'].append({
-            'name': f'elbowPad{side}', 'panel': sleeve_p.name, 'kind': 'pad', 'material': 'cordura',
+            'name': f'elbowPad{side}', 'kit': 'elbowPockets', 'panel': sleeve_p.name, 'kind': 'pad', 'material': 'cordura',
             'centre': (back_sign * we * 0.15, yel + 0.005), 'size': (0.10 * s, 0.15 * s), 'r': 0.025 * s,
             'angle': 0.0, 'bulge': 0.006,
             'job': 'elbow pad pocket: heavier Cordura outer panel, foam pad inside, opening at the top'})
         y_pk = yel + (lu - yel) * 0.62
         pc = (-back_sign * 0.012, y_pk)
         details['patches'].append({
-            'name': f'armPocket{side}', 'panel': sleeve_p.name, 'kind': 'pocket', 'material': 'ripstop',
+            'name': f'armPocket{side}', 'kit': f'armPocket{side}', 'panel': sleeve_p.name, 'kind': 'pocket', 'material': 'ripstop',
             'centre': pc, 'size': (0.10 * s, 0.12 * s), 'r': 0.008 * s, 'angle': tilt, 'bulge': 0.004,
             'job': f'upper-arm pocket: {pocket_job}'})
         details['patches'].append({
-            'name': f'armFlap{side}', 'panel': sleeve_p.name, 'kind': 'flap', 'material': 'ripstop', 'over': f'armPocket{side}',
+            'name': f'armFlap{side}', 'kit': f'armPocket{side}', 'panel': sleeve_p.name, 'kind': 'flap', 'material': 'ripstop', 'over': f'armPocket{side}',
             'centre': (pc[0], pc[1] + 0.038 * s), 'pivot': pc, 'size': (0.112 * s, 0.05 * s), 'r': 0.006 * s,
             'angle': tilt, 'bulge': 0.0, 'job': 'pocket flap: bound edge, hook-and-loop closure'})
         details['patches'].append({
-            'name': f'armLoop{side}', 'panel': sleeve_p.name, 'kind': 'loop', 'material': 'loop', 'over': f'armPocket{side}',
+            'name': f'armLoop{side}', 'kit': KIT, 'panel': sleeve_p.name, 'kind': 'loop', 'material': 'loop', 'over': f'armPocket{side}',
             'centre': (pc[0], pc[1] - 0.018 * s), 'pivot': pc, 'size': (0.076 * s, 0.05 * s), 'r': 0.004,
             'angle': tilt, 'bulge': 0.0, 'job': 'blank hook-and-loop identity panel (stays blank)'})
         details['patches'].append({
-            'name': f'cuffTab{side}', 'panel': sleeve_p.name, 'kind': 'tab', 'material': 'ripstop',
+            'name': f'cuffTab{side}', 'kit': KIT, 'panel': sleeve_p.name, 'kind': 'tab', 'material': 'ripstop',
             'centre': (-back_sign * wc * 0.22, 0.045), 'size': (0.03, 0.075), 'r': 0.008, 'angle': 0.0,
             'bulge': 0.0, 'job': 'cuff tab: hook-and-loop, closes the cuff over the glove'})
     for end, x0 in (('L', inset + 0.001), ('R', lc - inset - 0.014)):
         details['patches'].append({
-            'name': f'zipGarage{end}', 'panel': 'collar', 'kind': 'garage', 'material': 'ripstop',
+            'name': f'zipGarage{end}', 'kit': KIT, 'panel': 'collar', 'kind': 'garage', 'material': 'ripstop',
             'centre': (x0 + 0.0065, hc - 0.011), 'size': (0.013, 0.022), 'r': 0.003, 'angle': 0.0, 'bulge': 0.0,
             'job': 'zip garage: folded fabric over the slider so it does not dig into the chin'})
     return pattern, details, {'top': {'L': top_l, 'R': top_r}, 'sleeve_w': (wc, we, wb), 'collar_len': lc}

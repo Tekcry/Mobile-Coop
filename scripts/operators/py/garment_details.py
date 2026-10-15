@@ -22,7 +22,9 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(__file__))
 import common  # noqa: E402
 import materials as MAT  # noqa: E402
-from pattern import Panel, Pattern, SurfaceLookup, distance_to_polyline, resample, polyline_length  # noqa: E402
+from mathutils import Vector  # noqa: E402
+from mathutils.bvhtree import BVHTree  # noqa: E402
+from pattern import Panel, Pattern, SurfaceLookup, distance_to_polyline, resample, polyline_length, rounded_rect  # noqa: E402
 
 args = common.parse_args({
     '--operator': {'required': True},
@@ -272,23 +274,6 @@ zigzag(surf, 'front', np.array([[-0.011, zd['y_cf'] - zd['front_len'] - 0.006], 
 # --- Patches --------------------------------------------------------------------------------------------------------
 
 
-def rounded_rect(c, size, r, n=6, angle=0.0, pivot=None):
-    cx, cy = c
-    w, h = size[0] / 2, size[1] / 2
-    pts = []
-    for (sx, sy), a0 in (((1, -1), -90), ((1, 1), 0), ((-1, 1), 90), ((-1, -1), 180)):
-        ccx, ccy = cx + sx * (w - r), cy + sy * (h - r)
-        for k in range(n + 1):
-            a = math.radians(a0 + 90 * k / n)
-            pts.append((ccx + r * math.cos(a), ccy + r * math.sin(a)))
-    pts = np.array(pts)
-    if angle:
-        pv = np.asarray(pivot if pivot is not None else c, dtype=np.float64)
-        ca, sa = math.cos(math.radians(angle)), math.sin(math.radians(angle))
-        pts = (pts - pv) @ np.array([[ca, sa], [-sa, ca]]) + pv
-    return pts
-
-
 def local(spec, q):
     """Pattern point -> the patch's own unrotated frame (for top / bottom tests)."""
     if not spec.get('angle'):
@@ -308,6 +293,66 @@ def to_pattern(spec, q):
 
 patch_objs = {}
 patch_bulge = {}
+
+# Sewn layers (pockets, flaps, the elbow pad, cuff tabs) are stiffer than the sleeve: they bridge its small wrinkles
+# instead of copying them. They are placed on a smoothed copy of the garment surface, then pushed clear of the real
+# one, so the sleeve's folds still lift them where a fold really runs underneath.
+PATCH_SMOOTH = 30
+ed_v = np.empty(len(dense.edges) * 2, dtype=np.int64)
+dense.edges.foreach_get('vertices', ed_v)
+ed_v = ed_v.reshape(-1, 2)
+deg_v = np.bincount(ed_v.ravel(), minlength=nv).astype(np.float64)
+co_s = co_d.copy()
+for _ in range(PATCH_SMOOTH):
+    acc = np.zeros_like(co_s)
+    np.add.at(acc, ed_v[:, 0], co_s[ed_v[:, 1]])
+    np.add.at(acc, ed_v[:, 1], co_s[ed_v[:, 0]])
+    co_s = 0.5 * co_s + 0.5 * acc / np.maximum(deg_v, 1)[:, None]
+tv_ = loop_v[tri_loops]
+fn_ = np.cross(co_s[tv_[:, 1]] - co_s[tv_[:, 0]], co_s[tv_[:, 2]] - co_s[tv_[:, 0]])
+nrm_s = np.zeros_like(co_s)
+for k in range(3):
+    np.add.at(nrm_s, tv_[:, k], fn_)
+nrm_s /= np.maximum(np.linalg.norm(nrm_s, axis=1, keepdims=True), 1e-12)
+surf_s = SurfaceLookup(loop_uv[tri_loops], np.array(PANELS)[loop_panel[tri_loops[:, 0]]], tv_, co_s, nrm_s)
+real = BVHTree.FromPolygons([tuple(v) for v in co_d], [tuple(t) for t in tv_.tolist()])
+
+
+def clear_of_garment(pts, min_gap):
+    """Push points that sit closer than min_gap above the real (wrinkled) garment surface out to min_gap."""
+    moved = 0
+    for i in range(len(pts)):
+        loc, n_, _, _ = real.find_nearest(Vector(pts[i]))
+        if loc is None:
+            continue
+        h = (Vector(pts[i]) - loc).dot(n_)
+        if h < min_gap:
+            pts[i] = np.array(loc + n_ * min_gap)
+            moved += 1
+    return moved
+
+
+def settle_patch(pts, tris_, min_gap, iters=8):
+    """Relax the bumps the push-out leaves, keeping the patch clear: interior vertices average their neighbours, edge
+    vertices only their neighbours along the edge (a sewn edge stays a clean line, not a ripple), then push out."""
+    e = np.concatenate([tris_[:, [0, 1]], tris_[:, [1, 2]], tris_[:, [2, 0]]])
+    key = np.sort(e, axis=1)
+    uniq, count = np.unique(key, axis=0, return_counts=True)
+    rim = uniq[count == 1]
+    on_rim = np.zeros(len(pts), bool)
+    on_rim[rim.ravel()] = True
+    inner = e[~on_rim[e[:, 0]]]
+    pushed = 0
+    for _ in range(iters):
+        acc, deg = np.zeros_like(pts), np.zeros(len(pts))
+        np.add.at(acc, inner[:, 0], pts[inner[:, 1]])
+        np.add.at(deg, inner[:, 0], 1)
+        for a_, b_ in ((0, 1), (1, 0)):
+            np.add.at(acc, rim[:, a_], pts[rim[:, b_]])
+            np.add.at(deg, rim[:, a_], 1)
+        pts = 0.5 * pts + 0.5 * acc / np.maximum(deg, 1)[:, None]
+        pushed = clear_of_garment(pts, min_gap)
+    return pts, pushed
 
 
 def bulge_fn(spec):
@@ -345,7 +390,7 @@ for spec in R['details']['patches']:
         base_off = gap + f(puv)
     pts, nrms, missing = [], [], []
     for i, q in enumerate(puv):
-        r = surf(pn, q)
+        r = surf_s(pn, q)
         if r is None:  # off the panel (should not happen): filled from the nearest found neighbour below
             missing.append(i)
             r = (np.full(3, np.nan), np.array([0, 0, 1.0]))
@@ -357,6 +402,11 @@ for spec in R['details']['patches']:
         j = found[np.argmin(np.linalg.norm(puv[found] - puv[i], axis=1))]
         pts[i] = pts[j]
     stats.setdefault('patchLookupMisses', {})[spec['name']] = len(missing)
+    # Clear of the real surface (and of the pocket under a flap), then relaxed; pushed = vertices still held out.
+    min_gap = gap * 2 + 0.0008 if spec.get('over') else gap
+    clear_of_garment(pts, min_gap)
+    pts, pushed = settle_patch(pts, np.array(ptris), min_gap)
+    stats.setdefault('patchPushedClear', {})[spec['name']] = pushed
     me = bpy.data.meshes.new(spec['name'])
     me.from_pydata(pts.tolist(), [], [list(t) for t in ptris])
     me.validate()
@@ -567,7 +617,8 @@ report = {
     'operator': op_id, 'garment': gname, 'seed': args.seed,
     'denseVerts': nv, 'stitches': stats['stitches'], 'stitchRowsM': round(stats['stitchRowsM'], 2),
     'patches': [{k: v for k, v in p.items() if k != 'centre'} for p in R['details']['patches']],
-    'zipTeeth': teeth, 'patchLookupMisses': stats.get('patchLookupMisses', {}), 'heroFacesBeforeSolidify': tri_count,
+    'zipTeeth': teeth, 'patchLookupMisses': stats.get('patchLookupMisses', {}),
+    'patchPushedClear': stats.get('patchPushedClear', {}), 'heroFacesBeforeSolidify': tri_count,
 }
 with open(stem + '.json', 'w', encoding='utf-8') as f:
     json.dump(report, f, indent=1)

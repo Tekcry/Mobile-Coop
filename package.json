@@ -16,7 +16,8 @@
     "e2e:serial": "node scripts/run-e2e.mjs --serial",
     "e2e:quick": "node scripts/run-e2e.mjs --quick",
     "check": "npm run lint && npm test && npm run build",
-    "operators:build": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/build.mjs"
+    "operators:build": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/build.mjs",
+    "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

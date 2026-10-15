@@ -119,3 +119,40 @@ the body report (`<id>-body.json`, `bindJoints`) lists the A-pose joints the mes
 **D16 Progress screenshots.** Michael: "i still want to see screenshot at end of each step so i can see progress."
 Every step ends by sending its renders (or screenshots for tooling steps) with a three-line note before it chains on;
 nothing waits for his answer (RULES "Chaining", every step file's Finish).
+
+## Assumed decisions (unattended run, D15)
+
+Judgement calls made inside a step without Michael (RULES "Unattended run"): what, why, how to undo. Numbered A1, A2, ...
+(a separate series from SPEC 4.3's proportion corrections A1-A7).
+
+**A1 Cloth rest shape through Dynamic Mesh (step 03b).** Blender 5.2's cloth ignores the rest shape key (a sheet with a
+0.6x rest key never shrinks, tested headless), so every garment simulated so far used its arranged start shape as the
+rest shape, not the cut pattern: the step 3 bunching, baggy forearms and limp collar came from that. The pipeline now
+turns on Dynamic Mesh and keys the pattern shape on at frame 2: the rest lengths and bend angles are the flat cut, and
+the cloth keeps its own positions. Undo: set `rest_shape_key` again in `build_garment.py add_cloth` if a later Blender
+honours it (the pinned version is 5.2.2).
+
+**A2 Vertex mass 0.1 at full gravity (step 03b).** Near-real vertex masses (a 0.3 kg shirt: ~0.00004 kg a vertex, also
+0.0001-0.01) make the solver throw the cloth off the body; 0.1 is stable and, with the true rest shape, drapes right.
+Gravity stays 1.0 (`SIM['gravity']`). Undo: the `SIM` table in `garments/combat_shirt.py`.
+
+**A3 Collision layer 3 mm, girths measured on it (step 03b).** The body collider was 4 mm thick and the cloth kept 3 mm
+off it: 7 mm round the skin, about 4 cm of girth an 8 % ease never allowed, so the forearm seam could not close (gap
+15 mm). Now 1.5 + 1.5 mm, and every measured girth is the girth of that surface, so the ease in a pattern is ease over
+the body. Undo: `SIM['collision']` and the `GAP` lines in `build_garment.py`.
+
+**A4 Combat shirt cut and cloth (step 03b).** Within art direction 6 (close fit under armour): the knit torso is cut 3 %
+short in length as well as round (vertical slack in a knit buckles into horizontal ripples); the front is 2 cm longer
+than the back for the chest (was 3 cm: a crease under the bust); the sleeve gets a forearm control point at its widest
+girth; bending 0.3 knit, 3.0 ripstop, 8-12 under pockets, flaps, tabs and the elbow pad (sewn plies); the seam band
+(seam vertices and two rings round them) is out of self collision so seams can close. Undo: `combat_shirt.py`.
+
+**A5 Material values for the check limits (step 03b).** Measured albedo must sit in 0.02-0.06 linear (art direction 4):
+ripstop 0.025 (was 0.021), Cordura 0.022 (0.016), loop 0.023 (0.019), binding 0.023 (0.020); the Cordura stays darker
+than the ripstop round it. Coated metal roughness 0.58-0.68 (was 0.42-0.62: below the hard-part floor 0.55). The
+check reads the 1st and 99th percentiles of each material's rendered albedo and roughness (emission renders, four
+views), not node values. Undo: `materials.py`, `LIMITS` in `check_garment.py`.
+
+**A6 Kit mapping of sewn details (step 03b).** The combat shirt builds kit item `combatShirt`; its elbow pads build
+`elbowPockets`, the arm pockets and their flaps `armPocketL` / `armPocketR`; the blank loop panels, cuff tabs and zip
+garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `kit` keys in `combat_shirt.py`.

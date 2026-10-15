@@ -190,6 +190,24 @@ class Pattern:
         return pts[d > 0.6 * h]
 
 
+def rounded_rect(c, size, r, n=6, angle=0.0, pivot=None):
+    """Rounded rectangle outline (counter-clockwise) centred at c, rotated by angle degrees about pivot (default c)."""
+    cx, cy = c
+    w, h = size[0] / 2, size[1] / 2
+    pts = []
+    for (sx, sy), a0 in (((1, -1), -90), ((1, 1), 0), ((-1, 1), 90), ((-1, -1), 180)):
+        ccx, ccy = cx + sx * (w - r), cy + sy * (h - r)
+        for k in range(n + 1):
+            a = math.radians(a0 + 90 * k / n)
+            pts.append((ccx + r * math.cos(a), ccy + r * math.sin(a)))
+    pts = np.array(pts)
+    if angle:
+        pv = np.asarray(pivot if pivot is not None else c, dtype=np.float64)
+        ca, sa = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+        pts = (pts - pv) @ np.array([[ca, sa], [-sa, ca]]) + pv
+    return pts
+
+
 def _points_in_polygon(pts, poly):
     x, y = pts[:, 0][:, None], pts[:, 1][:, None]
     x0, y0 = poly[:, 0][None, :], poly[:, 1][None, :]
@@ -209,6 +227,7 @@ def _distance_to_polyline(pts, pl):
 
 
 distance_to_polyline = _distance_to_polyline
+points_in_polygon = _points_in_polygon
 
 
 class SurfaceLookup:
