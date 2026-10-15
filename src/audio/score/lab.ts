@@ -48,7 +48,8 @@ const buffers = new Map<string, { loop: AudioBuffer; head: AudioBuffer | null }[
 let current: OrchPiece | null = null;
 const solo = new Set<LayerRt>();
 const log: string[] = [];
-let alertBass = false;
+/** Which of Under fire's mixes plays as Alert (its first preset unless chosen). */
+let alertMixName = '';
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -175,7 +176,8 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
     const calm = stealth.presets['Calm'] ?? {};
     const caution = stealth.presets['Cautious'] ?? {};
     const lowR = wrap(stealth, sb, (id) => ({ calm: calm[id] ?? 0, caution: caution[id] ?? 0, alert: 0, evade: 0 }), 'low');
-    const alertMix = alert.presets[alertBass ? 'Under fire + bass' : 'Under fire'] ?? {};
+    const name = alertMixName || Object.keys(alert.presets)[0]!;
+    const alertMix = alert.presets[name] ?? {};
     const evade = alert.presets['Evasion'] ?? {};
     const alertR = wrap(alert, ab, (id) => ({ calm: 0, caution: 0, alert: alertMix[id] ?? 0, evade: evade[id] ?? 0 }), 'alert');
     const hitR = wrap(hitPc, hb, () => ALL, 'shot')[0]!;
@@ -184,7 +186,7 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
     solo.clear();
     setGameButtons('calm');
     buildLayers();
-    note(`Adaptive: ${stealth.name} for Calm and Cautious, ${alert.name}${alertBass ? ' + bass' : ''} for Alert and Evasion`);
+    note(`Adaptive: ${stealth.name} for Calm and Cautious, ${alert.name} (${name}) for Alert and Evasion`);
   } finally {
     setBusy(false, '');
   }
@@ -437,9 +439,21 @@ export function mountScoreLab(root: HTMLElement): void {
       el(
         'div',
         { className: 'row' },
-        check('Bass in Alert (Under fire + bass; press Play again)', alertBass, (on) => {
-          alertBass = on;
-        }),
+        el(
+          'label',
+          {},
+          'Alert mix ',
+          (() => {
+            const names = Object.keys(piece('underfire')?.presets ?? {}).filter((k) => k !== 'Evasion' && k !== 'Strings only');
+            const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
+            sel.onchange = () => {
+              alertMixName = sel.value;
+              note(`Alert mix: ${sel.value} (press Play again)`);
+            };
+            return sel;
+          })(),
+          el('small', { textContent: ' (press Play again after changing)' }),
+        ),
       ),
       el('div', { id: 'state', className: 'status' }),
     ),

@@ -25,8 +25,40 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3n | Round 14: bass for Under fire; calmer, quieter menus | done |
 | 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done |
 | 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done |
-| 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done; waiting for Michael's feedback |
+| 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done |
+| 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 18 - hook forward; broken-hook sets; lighter menus
+- **Michael (2026-10-16):**
+  - **Alert:** the hook needs more punch and bass. It sounds muffled behind everything, but it sounds really good.
+  - **Heartbeat:** sounds more like Cautious. He loves the broken Hook A and wants it to evolve from Calm to Alert.
+    The high rub is too tense for Calm. "Keep the broken hook and make some alternatives for it to be used in game."
+  - **Shadows:** OK but too noisy in Calm, and Cautious too noisy. He still prefers the broken hook.
+  - **Gathering storm:** too noisy in Calm; he likes its Cautious less.
+  - **Menu:** he likes Grand dialled back but not the cello sound. He wants alternatives, maybe a little less epic;
+    "a really catchy theme".
+- **Done:**
+  - **Alert, "hook forward" (the new default Alert mix):**
+    - Hook layers drier (reverb send 0.14 instead of 0.32).
+    - New layers: a short tuba doubling the hook, short horns an octave up, and a sub hit under each hook note.
+    - The cellos and basses on the hook are up; the drive, stabs, ticking, tremolo and low D (on the same notes or
+      busy) are down.
+    - Measured: the hook is about 2 dB louder and the drive about 5 dB quieter than in the round 15 mix.
+    - Also "hook forward, no tuba". The round 15 mixes are kept; the page has an "Alert mix" chooser.
+  - **Broken-hook sets** (88 BPM, 6 layers each): plucked, bowed (short soft bows) and timpani (tuned timpani with a
+    plucked high D).
+    - Calm: the broken hook every 4 bars over a quiet low bed (held D and sub). No rub, no heartbeat.
+    - Cautious: the broken hook every 2 bars, the walk-up every 8, the heartbeat, a faint rub.
+    - Alert: the full hook in Under fire.
+  - **Gathering storm removed.** Shadows Calm is quieter (low strings and sub only).
+  - **Menu alternatives without the cello sound** (90 BPM, quieter): piano and strings; harp, clarinet and strings;
+    violas and horn.
+  - **New CC0 recordings (57):** upright piano (one dynamic, every 4 semitones), harp, clarinet. Pitches checked by
+    detection.
+  - **Renderer:** a layer can set its own reverb send.
+- **Note:** the app stops the test server from time to time. It is restarted with the `music-test` preview, on port
+  5180.
 
 ## V4 round 17 - cinematic sneaking sets
 - **Michael (2026-10-16):**

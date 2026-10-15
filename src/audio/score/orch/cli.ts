@@ -29,7 +29,7 @@ bank.tune('timp');
 bank.tune('timpRoll');
 
 if (process.argv.includes('--check')) {
-  for (const inst of ['celloSpic', 'celloSus', 'violinSus', 'hornSus', 'tbnSus', 'tubaSus', 'bassSpic', 'organLoud', 'organQuiet', 'timp']) {
+  for (const inst of process.argv.includes('--new') ? ['piano', 'harp', 'clarinet'] : ['celloSpic', 'celloSus', 'violinSus', 'hornSus', 'tbnSus', 'tubaSus', 'bassSpic', 'organLoud', 'organQuiet', 'timp']) {
     const zs = bank.zones(inst);
     const pickN = [zs[0]!, zs[Math.floor(zs.length / 2)]!, zs[zs.length - 1]!];
     for (const z of pickN) {
@@ -53,11 +53,11 @@ const ROOM: Record<Kind, { rt60: number; wet: number; damp: number }> = {
 /** Balance on top of the written dynamics (dB): big drums are central to this style. */
 const TRIM: Record<Kind, number> = { strings: 0, brass: 0, organ: 0, perc: 5 };
 
-function withRoom(x: Stereo, kind: Kind): Stereo {
+function withRoom(x: Stereo, kind: Kind, wetOverride?: number): Stereo {
   const r = ROOM[kind];
   const wet = reverbWet(x, { rt60: r.rt60, damp: r.damp, size: 3, predelay: 0.025, hp: 120 });
   const out: Stereo = { l: x.l.slice(), r: x.r.slice() };
-  addInto(out, wet, r.wet);
+  addInto(out, wet, wetOverride ?? r.wet);
   scale(out, Math.pow(10, TRIM[kind] / 20));
   return out;
 }
@@ -123,7 +123,7 @@ for (const meta of PIECES) {
   const t0 = performance.now();
   const piece = renderPiece(bank, meta);
   const layers: Record<string, Stereo> = {};
-  for (const l of meta.layers) layers[l.id] = withRoom(piece.layers[l.id]!, l.kind);
+  for (const l of meta.layers) layers[l.id] = withRoom(piece.layers[l.id]!, l.kind, l.wet);
   // the clean opening: the same piece rendered without wrapping (so its start has no tail of its own last bar)
   const loopPiece = meta.use !== 'shot';
   const headSec = loopPiece ? (HEAD_BARS * 4 * 60) / meta.bpm : 0;
@@ -131,7 +131,7 @@ for (const meta of PIECES) {
   if (loopPiece) {
     const lin = renderPiece(bank, meta, true);
     for (const l of meta.layers) {
-      const wet = withRoom(lin.layers[l.id]!, l.kind);
+      const wet = withRoom(lin.layers[l.id]!, l.kind, l.wet);
       const k = secs(headSec);
       heads[l.id] = { l: wet.l.slice(0, k), r: wet.r.slice(0, k) };
     }

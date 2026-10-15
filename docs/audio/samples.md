@@ -15,9 +15,9 @@ adding it to `samples.json` and regenerating this table in the same commit.
 | VSCO 2 Community Edition (Versilian Studios) | CC0 1.0 | https://github.com/sgossner/VSCO-2-CE | `440300901dfe9275fd84e0b7763af1f8443ae62e` | 2026-10-09 (LICENSE file and README) |
 | Versilian Community Sample Library (VCSL) | CC0 1.0 | https://github.com/sgossner/VCSL | `c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e` | 2026-10-09 (LICENSE file and README) |
 
-## V4 rounds 6-7: orchestral set (477)
+## V4 rounds 6-18: orchestral set (578)
 
-The orchestral sketches (`src/audio/score/orch/`) use 477 further CC0 recordings from VSCO 2 CE, at the same pinned
+The orchestral sketches (`src/audio/score/orch/`) use 578 further CC0 recordings from VSCO 2 CE, at the same pinned
 commit. The list is `scripts/music/orch-samples.json`, with library path and sounding pitch per file. VSCO names
 sound an octave above their label; the organ is numbered by key; the timpani are measured.
 - **Fetch:** `node scripts/music/fetch-samples.mjs orch-samples.json orch`, into `.music-cache/orch/`, git-ignored,
@@ -29,6 +29,8 @@ sound an octave above their label; the organ is numbered by key; the timpani are
   - **Brass:** French horn (sustained, staccato), tenor trombone and tuba (sustained).
   - **Organ:** pipe organ, loud and quiet manuals, and pedal.
   - **Percussion:** timpani hits and rolls, bass drum, large ethnic drum, suspended cymbal rolls, gong.
+  - **Round 18:** upright piano (medium dynamic, every 4 semitones; file number n is key 21 + 2n), harp (labels in
+    scientific pitch), clarinet.
 
 ## Samples (107)
 

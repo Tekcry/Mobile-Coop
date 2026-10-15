@@ -3654,6 +3654,405 @@
    "inst": "violinSpic",
    "path": "Strings/Violin Section/Spic/VlnEns_Spic_G4_v2_rr2.wav",
    "midi": 79
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_000",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_000.wav",
+   "midi": 21
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_002",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_002.wav",
+   "midi": 25
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_004",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_004.wav",
+   "midi": 29
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_006",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_006.wav",
+   "midi": 33
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_008",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_008.wav",
+   "midi": 37
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_010",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_010.wav",
+   "midi": 41
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_012",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_012.wav",
+   "midi": 45
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_014",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_014.wav",
+   "midi": 49
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_016",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_016.wav",
+   "midi": 53
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_018",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_018.wav",
+   "midi": 57
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_020",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_020.wav",
+   "midi": 61
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_022",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_022.wav",
+   "midi": 65
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_024",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_024.wav",
+   "midi": 69
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_026",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_026.wav",
+   "midi": 73
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_028",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_028.wav",
+   "midi": 77
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_030",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_030.wav",
+   "midi": 81
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_032",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_032.wav",
+   "midi": 85
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_034",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_034.wav",
+   "midi": 89
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_036",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_036.wav",
+   "midi": 93
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_038",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_038.wav",
+   "midi": 97
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_040",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_040.wav",
+   "midi": 101
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_042",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_042.wav",
+   "midi": 105
+  },
+  {
+   "id": "piano-Player_dyn2_rr1_044",
+   "lib": "V",
+   "inst": "piano",
+   "path": "Keys/Upright Piano/Player_dyn2_rr1_044.wav",
+   "midi": 109
+  },
+  {
+   "id": "harp-KSHarp_A2_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_A2_mf.wav",
+   "midi": 45
+  },
+  {
+   "id": "harp-KSHarp_A4_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_A4_mf.wav",
+   "midi": 69
+  },
+  {
+   "id": "harp-KSHarp_A6_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_A6_mf.wav",
+   "midi": 93
+  },
+  {
+   "id": "harp-KSHarp_B1_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_B1_mf.wav",
+   "midi": 35
+  },
+  {
+   "id": "harp-KSHarp_B3_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_B3_mf.wav",
+   "midi": 59
+  },
+  {
+   "id": "harp-KSHarp_B5_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_B5_mf.wav",
+   "midi": 83
+  },
+  {
+   "id": "harp-KSHarp_B6_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_B6_mf.wav",
+   "midi": 95
+  },
+  {
+   "id": "harp-KSHarp_C3_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_C3_mf.wav",
+   "midi": 48
+  },
+  {
+   "id": "harp-KSHarp_C5_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_C5_mf.wav",
+   "midi": 72
+  },
+  {
+   "id": "harp-KSHarp_D2_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_D2_mf.wav",
+   "midi": 38
+  },
+  {
+   "id": "harp-KSHarp_D4_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_D4_mf.wav",
+   "midi": 62
+  },
+  {
+   "id": "harp-KSHarp_D6_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_D6_mf.wav",
+   "midi": 86
+  },
+  {
+   "id": "harp-KSHarp_D7_f",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_D7_f.wav",
+   "midi": 98
+  },
+  {
+   "id": "harp-KSHarp_E1_f",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_E1_f.wav",
+   "midi": 28
+  },
+  {
+   "id": "harp-KSHarp_E3_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_E3_mf.wav",
+   "midi": 52
+  },
+  {
+   "id": "harp-KSHarp_E5_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_E5_mf.wav",
+   "midi": 76
+  },
+  {
+   "id": "harp-KSHarp_F2_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_F2_mf.wav",
+   "midi": 41
+  },
+  {
+   "id": "harp-KSHarp_F4_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_F4_mf.wav",
+   "midi": 65
+  },
+  {
+   "id": "harp-KSHarp_F6_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_F6_mf.wav",
+   "midi": 89
+  },
+  {
+   "id": "harp-KSHarp_F7_f",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_F7_f.wav",
+   "midi": 101
+  },
+  {
+   "id": "harp-KSHarp_G1_mp",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_G1_mp.wav",
+   "midi": 31
+  },
+  {
+   "id": "harp-KSHarp_G3_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_G3_mf.wav",
+   "midi": 55
+  },
+  {
+   "id": "harp-KSHarp_G5_mf",
+   "lib": "V",
+   "inst": "harp",
+   "path": "Strings/Harp/KSHarp_G5_mf.wav",
+   "midi": 79
+  },
+  {
+   "id": "clarinet-DCClar_susLong_As2_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_A#2_v2_rr1_sum.wav",
+   "midi": 58
+  },
+  {
+   "id": "clarinet-DCClar_susLong_As3_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_A#3_v2_rr1_sum.wav",
+   "midi": 70
+  },
+  {
+   "id": "clarinet-DCClar_susLong_As4_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_A#4_v2_rr1_sum.wav",
+   "midi": 82
+  },
+  {
+   "id": "clarinet-DCClar_susLong_D2_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_D2_v2_rr1_sum.wav",
+   "midi": 50
+  },
+  {
+   "id": "clarinet-DCClar_susLong_D3_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_D3_v2_rr1_sum.wav",
+   "midi": 62
+  },
+  {
+   "id": "clarinet-DCClar_susLong_D4_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_D4_v2_rr1_sum.wav",
+   "midi": 74
+  },
+  {
+   "id": "clarinet-DCClar_susLong_D5_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_D5_v2_rr1_sum.wav",
+   "midi": 86
+  },
+  {
+   "id": "clarinet-DCClar_susLong_Fs5_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_F#5_v2_rr1_sum.wav",
+   "midi": 90
+  },
+  {
+   "id": "clarinet-DCClar_susLong_F2_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_F2_v2_rr1_sum.wav",
+   "midi": 53
+  },
+  {
+   "id": "clarinet-DCClar_susLong_F3_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_F3_v2_rr1_sum.wav",
+   "midi": 65
+  },
+  {
+   "id": "clarinet-DCClar_susLong_F4_v2_rr1_sum",
+   "lib": "V",
+   "inst": "clarinet",
+   "path": "Woodwinds/Clarinet/susLong/DCClar_susLong_F4_v2_rr1_sum.wav",
+   "midi": 77
   }
  ]
 }
