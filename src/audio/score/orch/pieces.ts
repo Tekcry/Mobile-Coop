@@ -1,4 +1,6 @@
 /**
+ * Round 12 (2026-10-16): he likes Past/Present/Future in general but it is too quick and upbeat for stealth: a slow (80 and
+ * 70 BPM), dark, minor, epic version: a heavy plucked pulse, the figure low in the violas, a darker melody, a big peak.
  * Round 11 (2026-10-16): pieces in the style of Brandon Roberts' "Past/Present/Future" (Andor season 2): a soft pulse,
  * a minimalist repeating figure that grows, D Dorian with a hopeful G major, long-note melody, a long build. Style only.
  * Round 10 (2026-10-16): he likes the Zimmer menu's orchestra but it strays from Hook A; wants it darker, more
@@ -45,6 +47,34 @@ export interface PieceMeta {
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
 
 export const PIECES: readonly PieceMeta[] = [
+  {
+    id: 'ppfslowmission',
+    name: 'Mission score, Past/Present/Future slow and dark',
+    about: 'The slow, dark Past/Present/Future material as the in-game loop at 80 BPM, with the state buttons: Calm is the plucked pulse and the low figure; Alert brings the hook, the melody, the brass and the drums.',
+    use: 'mission',
+    bpm: 80,
+    bars: 32,
+    layers: [
+      S('pulse', 'Low plucked pulse (two beats a bar)'),
+      S('fig', 'Repeating figure, violas (low)'),
+      S('figHigh', 'Repeating figure, violins an octave up'),
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo'),
+      S('melody', 'Melody: cellos and violas, then violins'),
+      { id: 'brass', name: 'Low horns and trombones', kind: 'brass' },
+      { id: 'drums', name: 'Timpani, low drums, cymbal swells', kind: 'perc' },
+    ],
+    presets: {
+      Calm: { pulse: 0.4, fig: 0.3, trem: 0.15 },
+      Cautious: { pulse: 0.55, fig: 0.5, pizz: 0.45, swell: 0.4, trem: 0.35 },
+      Alert: { pulse: 0.7, fig: 0.75, figHigh: 0.6, hook: 0.85, swell: 0.8, trem: 0.5, melody: 0.9, brass: 0.55, drums: 0.6 },
+      Evasion: { pulse: 0.6, fig: 0.65, hook: 0.7, swell: 0.6, trem: 0.45, drums: 0.35 },
+      'Strings only': { pulse: 0.7, fig: 0.75, figHigh: 0.6, hook: 0.85, swell: 0.8, trem: 0.5, melody: 0.9 },
+      'Everything on': { pulse: 1, fig: 1, figHigh: 1, pizz: 1, hook: 1, swell: 1, trem: 1, melody: 1, brass: 1, drums: 1 },
+    },
+  },
   {
     id: 'ppfmission',
     name: 'Mission score, Past/Present/Future style',
@@ -256,6 +286,52 @@ export const PIECES: readonly PieceMeta[] = [
       Alert: { hook: 1, hookHigh: 0.8, stabs: 0.7, soft: 0.6, melody: 1 },
       Evasion: { hook: 0.85, hookHigh: 0.5, stabs: 0.5 },
       'Everything on': { hook: 1, hookHigh: 1, stabs: 1, soft: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'ppfslow80',
+    name: 'Menu theme, Past/Present/Future slow and dark (80 BPM)',
+    about: 'The Past/Present/Future idea made slow, dark and epic: a heavy plucked pulse, the repeating figure low in the violas growing every 8 bars, Hook A on D, a darker minor progression (D minor, B-flat, G minor, A), the melody rising from cellos to violins with low horns, a big peak, then back down.',
+    use: 'menu',
+    bpm: 80,
+    bars: 32,
+    layers: [
+      S('pulse', 'Low plucked pulse (two beats a bar)'),
+      S('fig', 'Repeating figure, violas (low)'),
+      S('figHigh', 'Repeating figure, violins an octave up'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo'),
+      S('melody', 'Melody: cellos and violas, then violins'),
+      { id: 'brass', name: 'Low horns and trombones', kind: 'brass' },
+      { id: 'drums', name: 'Timpani, low drums, cymbal swells', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pulse: 1, fig: 1, figHigh: 1, hook: 1, swell: 1, trem: 1, melody: 1, brass: 0.8, drums: 0.7 },
+      'Strings only': { pulse: 1, fig: 1, figHigh: 1, hook: 1, swell: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'ppfslow70',
+    name: 'Menu theme, Past/Present/Future slow and dark (70 BPM)',
+    about: 'The same piece slower still, for comparison.',
+    use: 'menu',
+    bpm: 70,
+    bars: 32,
+    layers: [
+      S('pulse', 'Low plucked pulse (two beats a bar)'),
+      S('fig', 'Repeating figure, violas (low)'),
+      S('figHigh', 'Repeating figure, violins an octave up'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo'),
+      S('melody', 'Melody: cellos and violas, then violins'),
+      { id: 'brass', name: 'Low horns and trombones', kind: 'brass' },
+      { id: 'drums', name: 'Timpani, low drums, cymbal swells', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pulse: 1, fig: 1, figHigh: 1, hook: 1, swell: 1, trem: 1, melody: 1, brass: 0.8, drums: 0.7 },
+      'Strings only': { pulse: 1, fig: 1, figHigh: 1, hook: 1, swell: 1, trem: 1, melody: 1 },
     },
   },
   {
@@ -1141,12 +1217,130 @@ function ppfMission(s: Score): void {
   for (const b of [8, 24]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.4);
 }
 
+
+// ------------------------------------------------------------------ round 12: Past/Present/Future, slow and dark
+
+/** The darker minor progression for the slow version, two bars each. */
+const SLOW: ChordName[] = ['Dm', 'Bb', 'Gm', 'A'];
+const slowAt = (b: number): ChordName => SLOW[Math.floor(b / 2) % 4]!;
+
+/** The figure low in the violas: chord tones from D3 up. */
+const LOW_FIGURE: Record<string, number[]> = {
+  Dm: [n('D3'), n('F3'), n('A3'), n('D4')],
+  Bb: [n('D3'), n('F3'), n('Bb3'), n('D4')],
+  Gm: [n('D3'), n('G3'), n('Bb3'), n('D4')],
+  A: [n('C#3'), n('E3'), n('A3'), n('C#4')],
+};
+
+function slowFigure(s: Score, layer: string, inst: string, from: number, to: number, tr: number, vel: (b: number) => number, stageOf: (b: number) => number): void {
+  for (let b = from; b < to; b++) {
+    const tones = LOW_FIGURE[slowAt(b)]!;
+    const order = FIG_ORDER[Math.min(FIG_ORDER.length - 1, stageOf(b))]!;
+    for (let i = 0; i < 8; i++) note(s.L(layer), s.bank, inst, tones[order[i]!]! + tr, s.t(b, i / 2), s.d(0.48), { vel: vel(b) * (i % 4 === 0 ? 1 : 0.72), release: 0.15 });
+  }
+}
+
+/** A heavy, soft plucked pulse: basses and cellos on beat 1 and the "and" of 2, on the chord root. */
+function slowPulse(s: Score, layer: string, from: number, to: number, vel: (b: number) => number): void {
+  for (let b = from; b < to; b++) {
+    const r = CH[slowAt(b)].root + 12;
+    for (const [beat, v] of [[0, 1], [1.5, 0.7]] as const) {
+      note(s.L(layer), s.bank, 'bassPizz', r - 12, s.t(b, beat), s.d(1), { vel: vel(b) * v, release: 0.3 });
+      note(s.L(layer), s.bank, 'celloPizz', r, s.t(b, beat), s.d(1), { vel: vel(b) * v * 0.8, release: 0.3 });
+    }
+  }
+}
+
+/** The new long-note melody, made minor and epic: phrase 0 low and searching, phrase 1 rising to the peak. */
+const SLOW_MEL: [string, number][][] = [
+  [['A4', 8], ['Bb4', 6], ['A4', 2], ['G4', 4], ['Bb4', 4], ['A4', 8]],
+  [['D5', 8], ['F5', 6], ['D5', 2], ['D5', 4], ['Bb4', 4], ['C#5', 8]],
+];
+
+function slowMelody(s: Score, layer: string, inst: string, at: number, phrase: number, vel: number, tr = 0): void {
+  let beat = 0;
+  for (const [m, len] of SLOW_MEL[phrase]!) {
+    note(s.L(layer), s.bank, inst, n(m) + tr, s.t(at, beat), s.d(len) * 0.98, { vel, attack: len >= 6 ? s.d(1.5) : 0.3, release: 1 });
+    beat += len;
+  }
+}
+
+function slowSwells(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[slowAt(b)];
+    const dur = s.d(8);
+    note(s.L(layer), s.bank, 'bassSus', c.root + 12, s.t(b), dur, { vel, attack: dur * 0.65, release: 1.5 });
+    note(s.L(layer), s.bank, 'celloSus', c.root + 12, s.t(b), dur, { vel, attack: dur * 0.65, release: 1.5 });
+    note(s.L(layer), s.bank, 'violaSus', c.tones[1]!, s.t(b), dur, { vel: vel * 0.7, attack: dur * 0.65, release: 1.5 });
+  }
+}
+
+function slowBrass(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[slowAt(b)];
+    note(s.L(layer), s.bank, 'hornSus', c.tones[0]!, s.t(b), s.d(8), { vel, attack: s.d(3), release: 1.4 });
+    note(s.L(layer), s.bank, 'hornSus', c.tones[2]!, s.t(b), s.d(8), { vel: vel * 0.9, attack: s.d(3), release: 1.4 });
+    note(s.L(layer), s.bank, 'tbnSus', c.root + 12, s.t(b), s.d(8), { vel: vel * 0.9, attack: s.d(3), release: 1.4 });
+  }
+}
+
+function slowDrums(s: Score, layer: string, from: number, to: number, vel: number, heartbeat: boolean): void {
+  const P = s.L(layer);
+  for (let b = from; b < to; b++) {
+    if (b % 2 === 0) timp(P, s.bank, CH[slowAt(b)].root + 12, s.t(b), vel);
+    if (heartbeat) {
+      hit(P, s.bank, 'giant', 1, s.t(b), vel * 0.8);
+      hit(P, s.bank, 'giant', 4, s.t(b, 1.5), vel * 0.5);
+    }
+  }
+}
+
+function ppfSlowMenu(s: Score): void {
+  const dyn = (b: number): number => (b < 8 ? 0.45 : b < 16 ? 0.55 : b < 24 ? 0.65 : b < 30 ? 0.82 : 0.55);
+  slowPulse(s, 'pulse', 0, 32, (b) => dyn(b) * 0.9);
+  slowFigure(s, 'fig', 'violaSpic', 0, 32, 0, dyn, (b) => (b < 8 ? 0 : b < 16 ? 1 : b < 24 ? 2 : b < 30 ? 3 : 0));
+  slowFigure(s, 'figHigh', 'violinSpic', 24, 30, 12, (b) => dyn(b) * 0.8, () => 3);
+  hookLine(s, 'hook', 'celloSpic', 0, 8, 30, (b) => (b < 16 ? 0.7 : b < 24 ? 0.8 : 0.9), false, 0.85);
+  slowSwells(s, 'swell', 0, 32, 0.55);
+  darkTrem(s, 'trem', 8, 30, 0.85, false);
+  slowMelody(s, 'melody', 'celloSus', 16, 0, 0.55, -12);
+  slowMelody(s, 'melody', 'violaSus', 16, 0, 0.42);
+  slowMelody(s, 'melody', 'violinSus', 24, 1, 0.68);
+  slowMelody(s, 'melody', 'celloSus', 24, 1, 0.55, -12);
+  slowMelody(s, 'brass', 'hornSus', 24, 1, 0.35, -12);
+  slowBrass(s, 'brass', 24, 30, 0.32);
+  slowDrums(s, 'drums', 16, 30, 0.5, false);
+  slowDrums(s, 'drums', 24, 30, 0.5, true);
+  for (const b of [16, 24]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.45);
+  hit(s.L('drums'), s.bank, 'gong', 1, s.t(24), 0.4);
+}
+
+function ppfSlowMission(s: Score): void {
+  const N = s.meta.bars;
+  slowPulse(s, 'pulse', 0, N, () => 0.6);
+  slowFigure(s, 'fig', 'violaSpic', 0, N, 0, () => 0.6, (b) => Math.floor(b / 8));
+  slowFigure(s, 'figHigh', 'violinSpic', 0, N, 12, () => 0.5, (b) => Math.min(3, Math.floor(b / 8) + 1));
+  hookLine(s, 'pizz', 'celloPizz', 0, 0, N, () => 0.6, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', 0, 0, N, () => 0.88, false, 0.85);
+  slowSwells(s, 'swell', 0, N, 0.58);
+  darkTrem(s, 'trem', 0, N, 0.85, false);
+  slowMelody(s, 'melody', 'celloSus', 8, 0, 0.55, -12);
+  slowMelody(s, 'melody', 'violaSus', 8, 0, 0.42);
+  slowMelody(s, 'melody', 'violinSus', 24, 1, 0.65);
+  slowMelody(s, 'melody', 'celloSus', 24, 1, 0.52, -12);
+  slowBrass(s, 'brass', 0, N, 0.3);
+  slowDrums(s, 'drums', 0, N, 0.45, true);
+  for (const b of [8, 24]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.4);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
   else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'ppfslow80' || meta.id === 'ppfslow70') ppfSlowMenu(s);
+  else if (meta.id === 'ppfslowmission') ppfSlowMission(s);
   else if (meta.id === 'ppfmenu') ppfMenu(s);
   else if (meta.id === 'ppfmission') ppfMission(s);
   else if (meta.id === 'zdark') zdarkMenu(s, false);

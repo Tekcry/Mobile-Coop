@@ -19,8 +19,31 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; Michael: add more Hans Zimmer influence again |
 | 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; Michael: likes the Zimmer menu's orchestra, but it strays from Hook A; wants it darker and more stealthy, still epic |
 | 3j | Round 10: dark Zimmer menu (two versions) and a dark in-game loop, Hook A on D | done; waiting for Michael's feedback |
-| 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; waiting for Michael's feedback |
+| 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; Michael: likes it in general, but too quick and upbeat for stealth |
+| 3l | Round 12: Past/Present/Future slow, dark and epic (80 and 70 BPM) | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 12 - Past/Present/Future, slow and dark
+- **Michael (2026-10-16):** "I like Past/Present in general but it doesn't suit a stealth game, it's too quick and
+  upbeat. Needs to alter significantly to slower and epic."
+- **Done (same idea, rebuilt):**
+  - **Tempo:** 80 BPM, with a 70 BPM copy of the menu to compare (was 115).
+  - **Harmony:** D minor, B-flat, G minor, A in place of the hopeful D Dorian with G major.
+  - **Pulse:** the eighth-note pulse becomes a heavy, soft pluck on the chord root (basses and cellos) on beat 1 and
+    the "and" of 2.
+  - **Figure:** the repeating figure moves down into the violas (from D3) and still grows every 8 bars; violins
+    double it an octave up only at the peak.
+  - **Rest of the scoring:**
+    - Hook A on D
+    - low swells and low cello tremolo
+    - a new minor long-note melody, low on cellos and violas, then rising on violins with low horns
+    - trombones, timpani and a heartbeat drum at the peak, a gong
+- **Pieces:**
+  - **Menu theme, Past/Present/Future slow and dark** at 80 BPM (96 s, 9 layers) and 70 BPM (110 s).
+  - **Mission score, Past/Present/Future slow and dark** (80 BPM, 96 s, 10 layers), with the state presets.
+- **Balance:**
+  - The first render had the melody about 8 dB over the hook.
+  - The melody is now down, and the hook and the tremolo are up. The hook sits within 2-4 dB of the melody.
 
 ## V4 round 11 - in the style of "Past/Present/Future"
 - **Michael (2026-10-16):** "Can you include some in the style of Past/Present/Future by Brandon Roberts?"
