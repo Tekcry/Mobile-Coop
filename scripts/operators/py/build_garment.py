@@ -27,7 +27,7 @@ from mathutils.geometry import convex_hull_2d
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'garments'))
 import common  # noqa: E402
-from pattern import points_in_polygon, rounded_rect  # noqa: E402
+from pattern import patch_outline, points_in_polygon, rounded_rect  # noqa: E402
 
 args = common.parse_args({
     '--operator': {'required': True},
@@ -35,6 +35,8 @@ args = common.parse_args({
     '--out': {'required': True},
     '--frames': {'type': int, 'default': 90},
     '--sim': {'default': '', 'help': 'JSON merged over the garment SIM table (tuning runs)'},
+    '--under': {'default': '', 'help': 'comma list of the garments already built under this one (in build order): '
+                                       'the blend of the last is opened, and every one of them is a collider'},
 })
 common.check_version()
 common.seed_everything(args.seed)
@@ -51,12 +53,17 @@ def merged(base, over):
 SIM = merged(garment.SIM, json.loads(args.sim) if args.sim else {})
 
 op_id = args.operator
-body_blend = os.path.join(args.out, f'{op_id}-body.blend')
+UNDER_IDS = [u for u in args.under.split(',') if u]
+# Multi-layer: the last built garment's blend holds the body and every earlier garment (their final objects and the
+# welded simulation meshes, '<id>-<garment>'); those welded meshes are colliders under this garment.
+src_blend = os.path.join(args.out, f'{op_id}-{UNDER_IDS[-1]}.blend' if UNDER_IDS else f'{op_id}-body.blend')
 with open(os.path.join(args.out, f'{op_id}-body.json'), encoding='utf-8') as f:
     body_report = json.load(f)
-bpy.ops.wm.open_mainfile(filepath=body_blend)
+bpy.ops.wm.open_mainfile(filepath=src_blend)
 common.seed_everything(args.seed)
 scene = bpy.context.scene
+for o in [o for o in bpy.data.objects if o.name.startswith('collider')]:
+    bpy.data.objects.remove(o)
 body = bpy.data.objects[f'{op_id}-body']
 rig = bpy.data.objects[f'{op_id}-rig']
 J = {k: np.array(common.game_to_blender(v)) for k, v in body_report['bindJoints'].items()}
@@ -71,6 +78,17 @@ for v in body.data.vertices:
     best = max(v.groups, key=lambda g: g.weight, default=None)
     dominant.append(gnames[best.group] if best else '')
 dominant = np.array(dominant)
+BV_BODY, DOM_BODY = BV, dominant
+# Earlier layers (colliders below). Girths are measured on the body and each gets a fixed allowance per layer worn
+# under it (the garment's UNDER_LAYERS): measuring over the simulated layers themselves was tried and over-measured
+# by 5-10 cm (the hull of a wrinkled layer), which drafted a loose shirt whose sleeves slid up the arms.
+UNDER = []
+for u in UNDER_IDS:
+    ob = bpy.data.objects.get(f'{op_id}-{u}')
+    if ob is None:
+        raise SystemExit(f'operators: {u} is not in {src_blend} (build the garments in order)')
+    UNDER.append((u, ob, np.array([(ob.matrix_world @ v.co)[:] for v in ob.data.vertices])))
+LAYERS = getattr(garment, 'UNDER_LAYERS', {}) if UNDER else {}
 TORSO = {'pelvis', 'spine', 'chest', 'neck', 'hipL', 'hipR'}
 is_torso = np.array([d in TORSO for d in dominant])
 
@@ -111,7 +129,9 @@ def arm_circ(a, b, t, side_bones):
 y_hip = J['hipL'][2]
 m = {
     'height': H,
-    'z_hem': y_hip + 0.01 * s,
+    # Tops are cut long enough to tuck in (step 05): the hem drafted 5 cm below the hip joint settles about 8 cm higher
+    # (the fabric runs over the chest and back), deep inside the trousers' waist.
+    'z_hem': y_hip - 0.05 * s,
     'z_waist': J['spine'][2],
     'z_bust': body_report['bindJoints']['chest'][1] + 0.077 * s,
     'z_ua': J['shL'][2] - 0.085 * s,
@@ -137,17 +157,86 @@ CUFF_EXT = 0.02 * s
 m['sleeve_under'] = fore + upper - 0.11 * s + CUFF_EXT
 m['sleeve_elbow'] = fore + CUFF_EXT
 m['collar_h'] = 0.045 * s
+# Legs (the leg block, garments/legwear.py): the crotch is the lowest body point on the midline; girth rows of the
+# left leg (horizontal slices below the crotch) and of the torso (above it).
+# The leg mesh is sparse along the shin (rows 2-3 cm apart), so these girths cut the mesh edges with the plane
+# instead of collecting vertices near it.
+EDGES = np.array([e.vertices[:] for e in body.data.edges])
+
+
+def ring_cut(z, mask):
+    """Convex hull of where the mesh edges (both ends in mask) cross the plane at height z."""
+    e = EDGES[mask[EDGES[:, 0]] & mask[EDGES[:, 1]]]
+    za, zb = BV[e[:, 0], 2], BV[e[:, 1], 2]
+    hit = (za - z) * (zb - z) <= 0
+    e, za, zb = e[hit], za[hit], zb[hit]
+    t = np.where(np.abs(zb - za) > 1e-9, (z - za) / np.where(np.abs(zb - za) > 1e-9, zb - za, 1.0), 0.5)
+    pts = BV[e[:, 0], :2] + (BV[e[:, 1], :2] - BV[e[:, 0], :2]) * t[:, None]
+    return hull_ring(pts)
+
+
+core = (np.abs(BV_BODY[:, 0]) < 0.02) & (DOM_BODY == 'pelvis') & (BV_BODY[:, 2] < J['hipL'][2])
+m['z_crotch'] = float(BV_BODY[core, 2].min()) if core.any() else float(J['hipL'][2] - 0.07 * s)
+m['z_knee'] = float(J['knL'][2])
+m['z_ankle'] = float(J['anL'][2])
+_lx = np.interp(BV[:, 2], [J['anL'][2], J['knL'][2], J['hipL'][2]], [J['anL'][0], J['knL'][0], J['hipL'][0]])
+LEG = (np.abs(BV[:, 0] - _lx) < 0.16) & (BV[:, 0] * np.sign(J['hipL'][0]) > 0.003) & (BV[:, 2] < m['z_crotch'] + 0.02)
+m['leg_rows'] = [(float(zz), perimeter(ring_cut(zz, LEG))) for zz in np.arange(J['anL'][2] + 0.04, m['z_crotch'] - 0.006, 0.01)]
+m['torso_rows'] = [(float(zz), perimeter(ring_cut(zz, is_torso))) for zz in np.arange(m['z_crotch'] + 0.01, J['spine'][2] + 0.06, 0.01)]
 # The cloth rests on the collision surface, not the skin: every girth is measured there, so the pattern's ease is ease
 # over the body (without this an 8 % sleeve ease could not close round the forearm: the 3 mm layer adds ~2 cm).
+# Each layer under this garment adds its own thickness and collision gap (LAYER_T) round the body.
 GAP = SIM['collision']['body'] + SIM['collision']['cloth']
+LAYER_T = GAP + 0.0011
+
+
+def allowance(k, z=None):
+    n = LAYERS.get(k, LAYERS.get('default', 0))
+    if callable(n):
+        n = n(z)
+    return 2 * math.pi * (GAP + n * LAYER_T)
+
+
 for k in [k for k in m if k.startswith('circ_')]:
-    m[k] += 2 * math.pi * GAP
+    m[k] += allowance(k)
+for k in ('leg_rows', 'torso_rows'):
+    m[k] = [(zz, c + allowance(k, zz)) for zz, c in m[k]]
+m['layersUnder'] = {k: (v if not callable(v) else 'by height') for k, v in LAYERS.items()}
+# Crotch path (step 05 fix round 1): the outline a centre seam follows from the front waist, under the crotch, to the
+# back waist - the convex hull of a thin midline slab of the body in the side view (y, z), so it bridges the buttock
+# cleft and the navel like the fabric does. legwear.draft_legs drafts the rise from it (the leg block's centre seams
+# were first estimates and hung the crotch 6 cm low). crotch_offset: how far the garment sits off the skin there.
+
+
+def hull_yz(pts):
+    """Convex hull (Andrew's monotone chain), counter-clockwise, of 2D points."""
+    pts = sorted(set(map(tuple, np.round(pts, 5))))
+
+    def half(seq):
+        out = []
+        for p in seq:
+            while len(out) >= 2 and ((out[-1][0] - out[-2][0]) * (p[1] - out[-2][1])
+                                     - (out[-1][1] - out[-2][1]) * (p[0] - out[-2][0])) <= 0:
+                out.pop()
+            out.append(p)
+        return out
+    lo, up = half(pts), half(pts[::-1])
+    return np.array(lo[:-1] + up[:-1])
+
+
+_slab = (np.abs(BV_BODY[:, 0]) < 0.025) & (BV_BODY[:, 2] >= m['z_crotch'] - 0.003) & (BV_BODY[:, 2] <= J['spine'][2] + 0.1)
+m['crotch_hull'] = hull_yz(BV_BODY[_slab][:, [1, 2]]).tolist()
+m['crotch_offset'] = allowance('torso_rows', m['z_crotch']) / (2 * math.pi)
 
 pattern, details, info = garment.draft(m)
 uv, panel_of, tris, pairs, seam_lines = pattern.mesh()
 panel_names = list(pattern.panels)
 panel_idx = np.array([panel_names.index(p) for p in panel_of])
 PANELS_OF = panel_of
+SEAM_OF = {}   # vertex pair -> seam name (diagnostics)
+for _sl in seam_lines:
+    for _a, _b in zip(_sl['a'][1], _sl['b'][1]):
+        SEAM_OF[(int(_a), int(_b))] = _sl['name']
 print(f'operators: {op_id} {args.garment}: {len(uv)} verts, {len(tris)} tris, {len(pairs)} seam pairs')
 
 # --- 3. Arrange round the body --------------------------------------------------------------------------------------
@@ -162,7 +251,7 @@ def radial_profile(mask_key):
     if mask_key in prof_cache:
         return prof_cache[mask_key]
     mask = is_torso if mask_key == 'torso' else (dominant == 'neck') | is_torso
-    zs = np.arange(m['z_hem'] - 0.05, m['z_neck'] + 0.12, 0.005)
+    zs = np.arange(min(m['z_hem'], m['z_crotch']) - 0.05, m['z_neck'] + 0.12, 0.005)
     R = np.zeros((len(zs), N_TH))
     C = np.zeros((len(zs), 2))
     for k, z in enumerate(zs):
@@ -216,8 +305,15 @@ def contour_point(mask_key, z, arc, offset):
 
 co = np.zeros((len(uv), 3))
 radial = np.zeros((len(uv), 3))  # outward direction of each start position (for pushing clear of the skin)
-for pn in ('front', 'back'):
-    sel = np.where(panel_idx == panel_names.index(pn))[0]
+standoff = np.full(len(uv), 0.012)
+
+
+def ids_of(pn):
+    return np.where(panel_idx == panel_names.index(pn))[0] if pn in panel_names else np.zeros(0, dtype=np.int64)
+
+
+for pn in [p for p in ('front', 'back') if p in panel_names]:
+    sel = ids_of(pn)
     for i in sel:
         x, y = uv[i]
         z = min(m['z_hem'] + y, m['z_neck'] + 0.01)
@@ -229,7 +325,7 @@ for pn in ('front', 'back'):
         radial[i] = (p[0] - c0[0], p[1] - c0[1], 0.0)
 
 # Collar: round the neck, centre front at x = 0, towards +X first; its length spread over the neck contour.
-sel = np.where(panel_idx == panel_names.index('collar'))[0]
+sel = ids_of('collar')
 for i in sel:
     x, y = uv[i]
     # The collar's bottom follows the neckline: low at the centre front, high at the back.
@@ -241,8 +337,8 @@ for i in sel:
 
 
 # Underarm gussets: a small diamond in the armpit, gT towards the arm, gF towards the front.
-for side, sgn in (('L', 1.0), ('R', -1.0)):
-    sel = np.where(panel_idx == panel_names.index(f'gusset{side}'))[0]
+for side, sgn in [(sd, g) for sd, g in (('L', 1.0), ('R', -1.0)) if f'gusset{sd}' in panel_names]:
+    sel = ids_of(f'gusset{side}')
     perim = contour_point('torso', m['z_ua'], 0.0, 0.015)[1]
     p, _ = contour_point('torso', m['z_ua'], perim * (0.25 if sgn > 0 else 0.75), 0.015)
     c3 = np.array([p[0], p[1], m['z_ua']])
@@ -265,9 +361,9 @@ def smooth_path(points, n=200):
     return P, np.concatenate([[0], np.cumsum(seg)])
 
 
-for side in ('L', 'R'):
+for side in [sd for sd in ('L', 'R') if f'sleeve{sd}' in panel_names]:
     pn = f'sleeve{side}'
-    sel = np.where(panel_idx == panel_names.index(pn))[0]
+    sel = ids_of(pn)
     sh, el, wr = J[f'sh{side}'], J[f'el{side}'], J[f'wr{side}']
     cuff = wr + (wr - el) / np.linalg.norm(wr - el) * CUFF_EXT
     sgn = 1.0 if sh[0] > 0 else -1.0
@@ -298,13 +394,127 @@ for side in ('L', 'R'):
         co[i] = P[k] + r * (math.cos(th) * U + math.sin(th) * S)
         radial[i] = math.cos(th) * U + math.sin(th) * S
 
-# Push every vertex clear of the skin.
-deps = bpy.context.evaluated_depsgraph_get()
-bvh = BVHTree.FromObject(body, deps)
-standoff = np.where(np.isin(panel_idx, [panel_names.index('sleeveL'), panel_names.index('sleeveR')]), 0.02, 0.012)
-standoff[panel_idx == panel_names.index('collar')] = 0.018
+for pn in ('sleeveL', 'sleeveR'):
+    standoff[ids_of(pn)] = 0.02
+standoff[ids_of('collar')] = 0.018
+
+
+def leg_path(side):
+    """The leg's axis, ankle to above the hip, relaxed at the knee."""
+    hip, kn, an = J[f'hip{side}'], J[f'kn{side}'], J[f'an{side}']
+    top = hip + (hip - kn) / np.linalg.norm(hip - kn) * 0.12
+    bot = an + (an - kn) / np.linalg.norm(an - kn) * 0.06
+    return smooth_path([bot, an, kn, hip, top])
+
+
+def arrange_legs(A, geo):
+    """Leg block (garments/legwear.py): below the crotch every leg panel wraps half its leg as a tube round the leg
+    axis (front from the inseam over the shin to the outseam, back the other way round); above it the panels lie on
+    the torso contour (front centre at arc 0, back centre at half the perimeter); the gusset lies flat under the
+    crotch, the waistband round the top like the collar."""
+    z_hem, z_c = A['z_hem'], A['z_crotch']
+    xs, xi = geo['x_side'], geo['x_inner']
+    paths = {sd: leg_path(sd) for sd in ('L', 'R')}
+    down = np.array([0.0, -1.0, 0.0])
+    for pn, (sd, part, plain) in A['legs'].items():
+        P_, _ = paths[sd]
+        lat0 = np.array([1.0 if J[f'hip{sd}'][0] > 0 else -1.0, 0.0, 0.0])
+        for i in ids_of(pn):
+            x, y = uv[i]
+            yy = max(float(y), 0.0)
+            z = z_hem + y
+            xc = x if plain else -x
+            d = xc - float(xi(part, yy))
+            w = {q: float(xs(q, yy) - xi(q, yy)) for q in ('front', 'back')}
+            if z < z_c:
+                c = w['front'] + w['back']
+                fs = w['front'] / c
+                phi = -math.pi * fs + (2 * math.pi * d / c if part == 'front' else -2 * math.pi * d / c)
+                k = int(np.clip(np.searchsorted(P_[:, 2], z), 1, len(P_) - 1))
+                f = float(np.clip((z - P_[k - 1, 2]) / max(P_[k, 2] - P_[k - 1, 2], 1e-9), 0, 1))
+                ctr = P_[k - 1] * (1 - f) + P_[k] * f
+                T = P_[k] - P_[k - 1]
+                T /= np.linalg.norm(T)
+                F = down - down.dot(T) * T
+                F /= np.linalg.norm(F)
+                Lt = lat0 - lat0.dot(T) * T - lat0.dot(F) * F
+                Lt /= np.linalg.norm(Lt)
+                rdir = math.cos(phi) * F + math.sin(phi) * Lt
+                p3 = ctr + (c / (2 * math.pi) + A['offset']) * rdir
+                if p3[0] * lat0[0] < 0.004:   # the inner thigh never crosses the midline
+                    p3[0] = 0.004 * lat0[0]
+                co[i] = p3
+                radial[i] = rdir
+            else:
+                tot = 2 * (w['front'] + w['back'])
+                perim = contour_point('torso', z, 0.0, A['offset'])[1]
+                a = d / tot * perim
+                arc = {('L', 'front'): a, ('R', 'front'): -a, ('L', 'back'): perim / 2 - a,
+                       ('R', 'back'): perim / 2 + a}[(sd, part)]
+                p, _ = contour_point('torso', z, arc, A['offset'])
+                co[i] = (p[0], p[1], z)
+                zs_, _, Cs_ = radial_profile('torso')
+                c0 = Cs_[int(np.clip(np.searchsorted(zs_, z), 0, len(zs_) - 1))]
+                radial[i] = (p[0] - c0[0], p[1] - c0[1], 0.0)
+            standoff[i] = A['standoff']
+    zs_, _, Cs_ = radial_profile('torso')
+    cy = float(Cs_[int(np.clip(np.searchsorted(zs_, z_c), 0, len(zs_) - 1))][1])
+    for i in ids_of(A['gusset']):
+        x, y = uv[i]
+        co[i] = (x, cy - y, A['gusset_z'])   # seen from below: +x the wearer's left (+X), +y the front (-Y)
+        radial[i] = (0.0, 0.0, -1.0)
+        standoff[i] = A['standoff']
+    if A.get('band'):
+        for i in ids_of(A['band']):
+            x, y = uv[i]
+            z = A['z_top'] + y
+            perim = contour_point('torso', z, 0.0, A['offset'] + 0.002)[1]
+            p, _ = contour_point('torso', z, x * perim / A['band_len'], A['offset'] + 0.002)
+            co[i] = (p[0], p[1], z)
+            radial[i] = (p[0], p[1] - cy, 0.0)
+            standoff[i] = A['standoff']
+
+
+if info.get('legs'):
+    arrange_legs(info['legs'], info['leg_geometry'])
+
+# Orientation check: every panel's faces must point away from the body (the pattern is seen from outside).
+_ta = np.array(tris)
+_fn = np.cross(co[_ta[:, 1]] - co[_ta[:, 0]], co[_ta[:, 2]] - co[_ta[:, 0]])
+_out = np.einsum('ij,ij->i', _fn, radial[_ta].mean(axis=1)) > 0
+for pi_, pn in enumerate(panel_names):
+    fr = float(_out[panel_idx[_ta[:, 0]] == pi_].mean())
+    print(f'operators: arrange {pn}: {fr * 100:.0f} % of faces outward', flush=True)
+    if fr < 0.6:
+        raise SystemExit(f'operators: panel {pn} is arranged inside out ({fr * 100:.0f} % outward)')
+
+# Push every vertex clear of the skin and of the layers under this garment (one surface for both).
+# A layer's folds turn some of its faces inward; push-out along such a face would pull the new cloth through the
+# layer. Every layer face is wound to face away from the skin first (the colliders use the same faces).
+_bv = [tuple(v.co) for v in body.data.vertices]
+_bp = [tuple(p.vertices) for p in body.data.polygons]
+_skin = BVHTree.FromPolygons(_bv, _bp)
+LAYER_FACES = {}
+for _u, _ob, _V in UNDER:
+    _o = len(_bv)
+    _bv += [tuple(v) for v in _V]
+    faces, flipped = [], 0
+    for p in _ob.data.polygons:
+        loc, nrm_, _, _ = _skin.find_nearest(p.center)
+        f = tuple(p.vertices)
+        if loc is not None and p.normal.dot(p.center - loc) < 0 and p.normal.dot(nrm_) < 0:
+            f = f[::-1]
+            flipped += 1
+        faces.append(f)
+    LAYER_FACES[_u] = faces
+    print(f'operators: layer {_u}: {len(faces)} faces, {flipped} turned to face out', flush=True)
+    _bp += [tuple(i + _o for i in f) for f in faces]
+bvh = BVHTree.FromPolygons(_bv, _bp)
+
+
 def push_clear():
-    """Snap any vertex closer than its standoff to the skin out to the standoff (nearest skin point)."""
+    """Snap any vertex closer than its standoff to the skin or an earlier layer out to the standoff (nearest point)."""
+
     count = 0
     for i in range(len(co)):
         loc, nrm_, _, _ = bvh.find_nearest(Vector(co[i]))
@@ -325,12 +535,18 @@ for a_, b_ in ((0, 1), (1, 2), (2, 0)):
     np.add.at(deg, tri_arr[:, a_], 1)
     np.add.at(deg, tri_arr[:, b_], 1)
 pushed = push_clear()
+# Pinned panels (SIM 'pin', below) keep their arranged shape: the relaxation would shrink a band's ring away from its
+# closing seam (a 32 mm gap at the centre front) and collapse its height (3 cm to 5 mm), and the pin holds it there.
+PIN = SIM.get('pin') or {}
+pin_ids = np.concatenate([ids_of(pn) for pn in PIN.get('panels', [])]) if PIN.get('panels') else np.zeros(0, int)
+co_pin = co[pin_ids].copy()
 for it in range(12):
     nbr_sum[:] = 0
     for a_, b_ in ((0, 1), (1, 2), (2, 0)):
         np.add.at(nbr_sum, tri_arr[:, a_], co[tri_arr[:, b_]])
         np.add.at(nbr_sum, tri_arr[:, b_], co[tri_arr[:, a_]])
     co = co * 0.5 + 0.5 * nbr_sum / np.maximum(deg, 1)[:, None]
+    co[pin_ids] = co_pin
     pushed = push_clear()
 
 # --- 4. Cloth simulation --------------------------------------------------------------------------------------------
@@ -346,6 +562,15 @@ flat = obj.shape_key_add(name='pattern')
 flat.value = 0.0  # Blender 5.2 adds keys at 1.0; the start shape must stay the arranged one
 for i, (x, y) in enumerate(uv):
     flat.data[i].co = (x, y, 0.0)
+# Pinned panels (SIM 'pin', step 05 fix round 1): a waistband is held on its arranged ring (its drafted height round
+# the body and the layers) while the legs are sewn to it, then held softly (or released) in the settle. Without it the
+# band slid 6-7 cm down: the layers under it are not colliders in the simulation (see LAYER_COLLIDERS), so the band,
+# drafted over them, rode on the bare skin with a layer allowance of slack, and nothing in the cloth model grips.
+# A pinned vertex follows the base mesh, which from frame 2 is the 'pattern' key: the pinned panel's key is its
+# arranged shape (it is not sewn to itself, so no spring spans the flat and the arranged layout).
+for i in pin_ids:
+    flat.data[int(i)].co = tuple(co[int(i)])
+vg_pin = obj.vertex_groups.new(name='pin') if len(pin_ids) else None
 uvl = me.uv_layers.new(name='pattern')
 for loop in me.loops:
     uvl.data[loop.index].uv = uv[loop.vertex_index]
@@ -368,12 +593,19 @@ for spec in details['patches']:
     over = SIM['patches'].get(spec['kind'])
     if not over:
         continue
-    outline = rounded_rect(spec['centre'], spec['size'], spec['r'], angle=spec.get('angle', 0.0), pivot=spec.get('pivot'))
+    outline = patch_outline(spec)
     ids = np.where(panel_idx == panel_names.index(spec['panel']))[0]
     inside = ids[points_in_polygon(uv[ids], outline)]
     patch_verts += len(inside)
     for p, v in over.items():
         stiff[p][inside] = np.maximum(stiff[p][inside], v)
+# Seamed-in inserts (details 'inserts', e.g. the trousers' stretch-knit panel behind the knee): the region inside the
+# insert's seam takes its own material's stiffness.
+for spec in details.get('inserts') or []:
+    ids = np.where(panel_idx == panel_names.index(spec['panel']))[0]
+    inside = ids[points_in_polygon(uv[ids], np.asarray(spec['outline'], dtype=np.float64))]
+    for p, v in SIM['materials'][spec['material']].items():
+        stiff[p][inside] = v
 RANGE = {p: (float(stiff[p].min()), float(stiff[p].max())) for p in PROPS}
 for p in PROPS:
     lo, hi = RANGE[p]
@@ -406,6 +638,26 @@ cm = coll_src.modifiers.new('collision', 'COLLISION')
 coll_src.collision.thickness_outer = SIM['collision']['body']
 coll_src.collision.cloth_friction = SIM['friction']
 body.hide_render = True
+# The earlier layers as cloth colliders (their welded simulation surfaces, every face turned outward). Off by default
+# (SIM 'layer_collision'): Blender's cloth against a thin cloth collider tore the shirt in test runs - with the layers
+# colliding while sewing, the seams could not meet across the armpits (seam gaps 7-15 cm); colliding only in the settle
+# phase, the push-out stretched the sewn seams to 37 mm. The layers are resolved after the simulation instead
+# (layer_push below): the new garment is drafted over them (UNDER_LAYERS) and pushed clear of them, then relaxed.
+LAYER_COLLIDERS = []
+for u, ob, _V in UNDER:
+    _me = bpy.data.meshes.new(f'collider-{u}')
+    _me.from_pydata([tuple(v) for v in _V], [], LAYER_FACES[u])
+    cu = bpy.data.objects.new(f'collider-{u}', _me)
+    scene.collection.objects.link(cu)
+    cu.hide_viewport = cu.hide_render = False
+    cu.modifiers.new('collision', 'COLLISION')
+    cu.collision.thickness_outer = SIM['collision']['body']
+    cu.collision.cloth_friction = SIM.get('layer_friction', SIM['friction'])   # fabric on fabric
+    # A layer is a thin sheet whose folds turn some faces inward: two-sided collision (no normal culling) keeps the
+    # new cloth on the side it starts on, outside.
+    cu.collision.use_culling = SIM.get('layer_culling', True)
+    LAYER_COLLIDERS.append(cu)
+    cu.hide_render = True
 
 def add_cloth(self_collision, frames):
     cloth = obj.modifiers.new('cloth', 'CLOTH')
@@ -429,6 +681,9 @@ def add_cloth(self_collision, frames):
     # the base mesh every frame while the cloth keeps its own positions. The 'pattern' key is animated from 0 (the
     # arranged start) to 1 (the flat cut) at frame 2, so the base mesh, and with it the rest shape, is the pattern.
     cs.use_dynamic_mesh = True
+    if vg_pin is not None:
+        cs.vertex_group_mass = 'pin'
+        cs.pin_stiffness = PIN.get('stiffness', 1.0)
     cs.use_internal_springs = False
     cc = cloth.collision_settings
     cc.use_collision = True
@@ -473,15 +728,22 @@ def rest_is_pattern_from_frame_2():
 
 
 for phase, self_coll, frames in PHASES:
+    for cu in LAYER_COLLIDERS:
+        cu.collision.use = bool(SIM.get('layer_collision')) and phase != 'sew'
     rest_is_pattern_from_frame_2()
     scene.frame_set(1)
+    if vg_pin is not None:
+        vg_pin.add(pin_ids.tolist(), float(PIN.get(phase, 0.0)), 'REPLACE')
     cloth = add_cloth(self_coll, frames)
     for f in range(1, frames + 1):
         scene.frame_set(f)
         if f % 15 == 0 or f == frames:
             P = evaluated_positions()
-            gap = float(np.linalg.norm(P[[a for a, _ in pairs]] - P[[b for _, b in pairs]], axis=1).max())
+            gv = np.linalg.norm(P[[a for a, _ in pairs]] - P[[b for _, b in pairs]], axis=1)
+            gap = float(gv.max())
             gaps.append((phase, f, gap))
+            wa, wb = pairs[int(np.argmax(gv))]
+            print(f'operators:   worst seam {SEAM_OF.get((wa, wb), SEAM_OF.get((wb, wa), "?"))}', flush=True)
             drift = float(np.linalg.norm(P.mean(axis=0) - co.mean(axis=0)))
             print(f'operators: {phase} frame {f}/{frames}, worst seam gap {gap * 1000:.1f} mm, '
                   f'centroid drift {drift * 1000:.0f} mm, {time.time() - t0:.0f} s', flush=True)
@@ -497,6 +759,325 @@ for phase, self_coll, frames in PHASES:
 sim_seconds = time.time() - t0
 if not np.isfinite(P).all():
     raise SystemExit('cloth simulation diverged')
+
+
+def under_bvh():
+    """The outer faces of every layer under this garment, as one BVH (None without layers)."""
+    if not UNDER:
+        return None
+    lv, lf = [], []
+    for u, _ob, V in UNDER:
+        o = len(lv)
+        lv += [tuple(v) for v in V]
+        lf += [tuple(i + o for i in f) for f in LAYER_FACES[u]]
+    return BVHTree.FromPolygons(lv, lf)
+
+
+def spread(D, need, rings=8, decay=0.86):
+    """A per-vertex push (D, vectors; need: the vertices that must move) spread into a smooth bump: each ring out takes
+    a decayed average of the ring inside it, and a vertex keeps the larger of its own push and its neighbours'. A
+    vertex-by-vertex snap leaves a step at the edge of the pushed region (dark dashes in raking light, step 05 fix
+    round 2); the spread bump has no step."""
+    mag0 = np.linalg.norm(D, axis=1)
+    S = D.copy()
+    for _ in range(rings):
+        A = decay * neighbour_avg(S)
+        keep = need & (mag0 >= np.linalg.norm(A, axis=1))
+        S = np.where(keep[:, None], D, A)
+    return S
+
+
+def push_out(P, tree, clear, reach=0.03, iters=4, rings=8, decay=0.86):
+    """Every vertex closer than 'clear' to the surface (nearest point within reach, along its normal) goes out to
+    'clear', as a spread bump (see spread), repeated until nothing is left inside; a last exact snap of the
+    remainder (sub-millimetre by then). Returns the new positions, the vertices that had to move and the largest
+    first-pass push."""
+    P = P.copy()
+    moved_any = np.zeros(len(P), bool)
+    first = 0.0
+    for it in range(iters + 1):
+        D = np.zeros_like(P)
+        need = np.zeros(len(P), bool)
+        for i in range(len(P)):
+            loc, n_, _, d = tree.find_nearest(Vector(P[i]))
+            if loc is None or d > reach:
+                continue
+            h = (Vector(P[i]) - loc).dot(n_)
+            if h < clear:
+                D[i] = np.array(n_) * (clear - h)
+                need[i] = True
+        if not need.any():
+            break
+        if it == 0:
+            first = float(np.linalg.norm(D, axis=1).max())
+        moved_any |= need
+        P += D if it == iters else spread(D, need, rings, decay)
+    return P, moved_any, first
+
+
+def layer_push(P):
+    """Resolve the layers under this garment: every vertex closer than one layer step (LAYER_T) to the outer face of a
+    layer below, or behind it, goes out to LAYER_T, spread into a smooth bump (push_out)."""
+    if not UNDER:
+        return P, 0
+    P, moved, first = push_out(P, under_bvh(), LAYER_T)
+    print(f'operators: layer push: largest {first * 1000:.1f} mm', flush=True)
+    return P, int(moved.sum())
+
+
+def interior_mask():
+    """Vertices off every panel edge (an edge used by one triangle): the seams and hems stay where the simulation
+    sewed them while the surface between them is faired."""
+    e = np.sort(np.concatenate([tri_arr[:, [0, 1]], tri_arr[:, [1, 2]], tri_arr[:, [2, 0]]]), axis=1)
+    ue, cnt = np.unique(e, axis=0, return_counts=True)
+    inner = np.ones(len(P), bool)
+    inner[ue[cnt == 1].ravel()] = False
+    return inner
+
+
+def neighbour_avg(X):
+    acc = np.zeros_like(X)
+    for a_, b_ in ((0, 1), (1, 2), (2, 0)):
+        np.add.at(acc, tri_arr[:, a_], X[tri_arr[:, b_]])
+        np.add.at(acc, tri_arr[:, b_], X[tri_arr[:, a_]])
+    return acc / np.maximum(deg, 1)[:, None]
+
+
+def smoothed_skin(iters):
+    """The skin with its small features (nipples, the navel, creases) faired out (Taubin, shrink-free): the surface a
+    compression knit lies on. A knit under tension bridges anything much smaller than its own curvature."""
+    V = np.array([v.co[:] for v in body.data.vertices])
+    E = np.array([e.vertices[:] for e in body.data.edges])
+    dg = np.bincount(E.ravel(), minlength=len(V)).astype(np.float64)
+    for _ in range(iters):
+        for f in (0.5, -0.53):
+            acc = np.zeros_like(V)
+            np.add.at(acc, E[:, 0], V[E[:, 1]])
+            np.add.at(acc, E[:, 1], V[E[:, 0]])
+            V = V + f * (acc / np.maximum(dg, 1)[:, None] - V)
+    return BVHTree.FromPolygons([tuple(v) for v in V], [tuple(p.vertices) for p in body.data.polygons])
+
+
+def cling(P, cfg):
+    """Compression knit (SIM 'cling'): the fabric is drawn onto the skin, not draped over it. Every vertex within
+    'reach' of the skin goes to 'standoff' off it (nearest point), the surface between the seams is relaxed
+    tangentially, repeated. Removes the bridging shelves, ring steps and the accordion ripples the mass-spring cloth
+    leaves where a negative-ease knit is compressed along its length. With 'bridge' (Taubin iterations) the knit is
+    drawn onto a faired copy of the skin, so it runs smooth over small features such as the nipples (step 05 fix
+    round 2), and is then only pushed clear of the real skin ('guard'), as a broad spread bump."""
+    P = P.copy()
+    inner = interior_mask()
+    so, reach = cfg.get('standoff', 0.0035), cfg.get('reach', 0.025)
+    skin = smoothed_skin(cfg['bridge']) if cfg.get('bridge') else _skin
+    moved = 0
+    for it in range(cfg.get('iters', 4) + 1):
+        for i in range(len(P)):
+            loc, n_, _, d = skin.find_nearest(Vector(P[i]))
+            if loc is None or d > reach:
+                continue
+            hgt = (Vector(P[i]) - loc).dot(n_)
+            if hgt < reach:
+                P[i] = np.array(loc + n_ * so)
+                moved += it == 0
+        if it < cfg.get('iters', 4):
+            P[inner] = 0.5 * P[inner] + 0.5 * neighbour_avg(P)[inner]
+    # Then relaxed and only pushed out (not drawn in): the knit tents over what is left of small features instead of
+    # shrink-wrapping them.
+    for _ in range(cfg.get('tent', 3)):
+        P[inner] = 0.5 * P[inner] + 0.5 * neighbour_avg(P)[inner]
+        for i in range(len(P)):
+            loc, n_, _, d = skin.find_nearest(Vector(P[i]))
+            if loc is not None and d < reach and (Vector(P[i]) - loc).dot(n_) < so:
+                P[i] = np.array(loc + n_ * so)
+    if cfg.get('bridge'):
+        P, gm, first = push_out(P, _skin, cfg.get('guard', 0.0015), reach=reach, rings=cfg.get('guard_rings', 8),
+                                decay=cfg.get('guard_decay', 0.86))
+        post['clingGuard'] = {'verts': int(gm.sum()), 'maxMm': round(first * 1000, 2)}
+        print(f"operators: cling guard: {int(gm.sum())} vertices pushed off the real skin, largest "
+              f"{first * 1000:.2f} mm", flush=True)
+    # A panel that laps over another (the top's hem over the leggings' waistband) lies one layer further out there.
+    lap = cfg.get('lap')
+    if lap:
+        under = ids_of(lap['under'])
+        z_lim = float(P[under, 2].max()) + lap.get('above', 0.01)
+        for pn in lap['over']:
+            for i in ids_of(pn):
+                ramp = float(np.clip((z_lim + 0.02 - P[i, 2]) / 0.02, 0.0, 1.0))   # eased out above the band
+                if ramp > 0:
+                    loc, n_, _, d = _skin.find_nearest(Vector(P[i]))
+                    if loc is not None and d < reach:
+                        P[i] = np.array(loc + n_ * (so + ramp * LAYER_T))
+    return P, int(moved)
+
+
+def boundary_lines():
+    """Panel-edge vertices with their two neighbours along the edge (seams, hems), excluding corners (a turn sharper
+    than about 35 degrees in the flat pattern, or more or fewer than two edge neighbours)."""
+    e = np.sort(np.concatenate([tri_arr[:, [0, 1]], tri_arr[:, [1, 2]], tri_arr[:, [2, 0]]]), axis=1)
+    ue, cnt = np.unique(e, axis=0, return_counts=True)
+    be = ue[cnt == 1]
+    nb = {}
+    for a_, b_ in be:
+        nb.setdefault(int(a_), []).append(int(b_))
+        nb.setdefault(int(b_), []).append(int(a_))
+    ids, l, r = [], [], []
+    for v, n2 in nb.items():
+        if len(n2) != 2:
+            continue
+        d1, d2 = uv[v] - uv[n2[0]], uv[n2[1]] - uv[v]
+        c = float(np.dot(d1, d2) / max(np.linalg.norm(d1) * np.linalg.norm(d2), 1e-12))
+        if c < 0.82:
+            continue
+        ids.append(v)
+        l.append(n2[0])
+        r.append(n2[1])
+    return np.array(ids, int), np.array(l, int), np.array(r, int)
+
+
+def fair(P, cfg):
+    """Soft-shell drape (SIM 'fair'): Taubin smoothing (shrink-free) of the surface between the seams removes the
+    small-scale dents the solver leaves on a heavy woven panel; broad folds are longer than the filter and stay. The
+    seam and hem lines are faired along themselves (1D, the corners held), so a sewn edge is a clean line, not a
+    frill, and the stitches on it run straight (step 05 fix round 2)."""
+    P = P.copy()
+    inner = interior_mask()
+    bi, bl, br = boundary_lines()
+    if cfg.get('panels'):                    # only these panels (e.g. the shirt's front over the bust)
+        zone = np.zeros(len(P), bool)
+        for pn in cfg['panels']:
+            zone[ids_of(pn)] = True
+        inner &= zone
+        keep = zone[bi]
+        bi, bl, br = bi[keep], bl[keep], br[keep]
+    for _ in range(cfg.get('iters', 6)):
+        for f in (cfg.get('lam', 0.5), cfg.get('mu', -0.53)):
+            avg = neighbour_avg(P)
+            edge_avg = 0.5 * (P[bl] + P[br])
+            P[inner] = P[inner] + f * (avg[inner] - P[inner])
+            if cfg.get('edges', True) and len(bi):
+                P[bi] = P[bi] + f * (edge_avg - P[bi])
+    return P
+
+
+def envelope_bvh(cfg, lo, hi):
+    """The layers under this garment with their hollows bridged (SIM 'bridge'): in a box round the region, each layer
+    is smoothed and every vertex kept at the larger of its smoothed and its real height (along its normal), repeated
+    'iters' times - a rubber sheet pulled over the layer. It spans hollows narrower than about sqrt(iters) edges (the
+    gluteal cleft, the sacral dimple, the lumbar groove) and sits on the crowns between them."""
+    lv, lf = [], []
+    for u, _ob, V in UNDER:
+        V0 = np.asarray(V, float)
+        F = np.array(LAYER_FACES[u], int)
+        E = np.unique(np.sort(np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1), axis=0)
+        dg_ = np.bincount(E.ravel(), minlength=len(V0)).astype(np.float64)
+        fn = np.cross(V0[F[:, 1]] - V0[F[:, 0]], V0[F[:, 2]] - V0[F[:, 0]])
+        N0 = np.zeros_like(V0)
+        for k in range(3):
+            np.add.at(N0, F[:, k], fn)
+        N0 /= np.maximum(np.linalg.norm(N0, axis=1), 1e-12)[:, None]
+        free = np.all((V0 >= lo) & (V0 <= hi), axis=1)
+        X = V0.copy()
+        for _ in range(cfg.get('iters', 120)):
+            acc = np.zeros_like(X)
+            np.add.at(acc, E[:, 0], X[E[:, 1]])
+            np.add.at(acc, E[:, 1], X[E[:, 0]])
+            Y = 0.5 * X + 0.5 * acc / np.maximum(dg_, 1)[:, None]
+            h = np.einsum('ij,ij->i', Y - V0, N0)
+            Y = np.where((h < 0)[:, None], Y - h[:, None] * N0, Y)    # never below the real layer
+            X = np.where(free[:, None], Y, V0)
+        o = len(lv)
+        lv += [tuple(v) for v in X]
+        lf += [tuple(i + o for i in f) for f in LAYER_FACES[u]]
+    return BVHTree.FromPolygons(lv, lf)
+
+
+def bridge(P, cfg):
+    """Soft-shell over the seat (SIM 'bridge', step 05 fix round 3): the back panels between the crotch and the band
+    are pushed out to one layer step off the bridged layers (envelope_bvh), not the layers themselves, so the cloth
+    spans the gluteal cleft and the lower-back hollows instead of shrink-wrapping them. Eased in above the crotch and
+    out under the (pinned) band; the push is spread into a smooth bump (spread) and repeated."""
+    zone = np.zeros(len(P), bool)
+    for pn in cfg['panels']:
+        zone[ids_of(pn)] = True
+    z0, r0 = m['z_crotch'] + cfg['crotch'][0], cfg['crotch'][1]
+    z_band = float(P[ids_of('waistband'), 2].min())
+    z1, r1 = z_band - cfg['band'][0], cfg['band'][1]
+    # The bridged box: behind the body's frontal plane (y > 'y_from'), from just above the crotch (the leggings' crotch
+    # below it stays put and anchors the sheet) to above the band.
+    lo = np.array([-0.4, cfg.get('y_from', 0.0), m['z_crotch'] + cfg.get('box_from_crotch', 0.01)])
+    hi = np.array([0.4, 0.4, z_band + 0.06])
+    tree = envelope_bvh(cfg, lo, hi)
+    w = np.clip((P[:, 2] - z0) / r0, 0, 1) * np.clip((z1 - P[:, 2]) / r1, 0, 1)
+    w = np.where(zone, w * w * (3 - 2 * w), 0.0)
+    P = P.copy()
+    first, moved = 0.0, np.zeros(len(P), bool)
+    for it in range(cfg.get('passes', 4)):
+        D = np.zeros_like(P)
+        need = np.zeros(len(P), bool)
+        for i in np.where(w > 0)[0]:
+            loc, n_, _, d = tree.find_nearest(Vector(P[i]))
+            if loc is None or d > cfg.get('reach', 0.06):
+                continue
+            h = (Vector(P[i]) - loc).dot(n_)
+            if h < LAYER_T:
+                D[i] = np.array(n_) * (LAYER_T - h) * w[i]
+                need[i] = True
+        if not need.any():
+            break
+        if it == 0:
+            first = float(np.linalg.norm(D, axis=1).max())
+        moved |= need
+        P += spread(D, need, 6, 0.8)
+        inner = interior_mask() & (w > 0)
+        P[inner] = 0.5 * P[inner] + 0.5 * neighbour_avg(P)[inner]
+    print(f'operators: bridge: {int(moved.sum())} vertices over the bridged layers, largest {first * 1000:.1f} mm',
+          flush=True)
+    return P, {'verts': int(moved.sum()), 'maxMm': round(first * 1000, 1)}
+
+
+def tuck(P, cfg):
+    """A tucked hem (SIM 'tuck'): below the waistband of the garment that goes over it, the fabric is drawn onto the
+    layer under it (one layer step out), eased in over 'ramp' above. Without it the hem hangs where the simulation left
+    it (3 cm proud of the base layer over the lower belly) and the trousers, pushed over it, show its edge as a lip
+    under the band (step 05 fix round 2)."""
+    tree = under_bvh() or _skin
+    off = LAYER_T if UNDER else GAP
+    z_full = m['z_waist'] + cfg.get('from_waist', 0.0) * (m['height'] / 1.68)
+    ramp = cfg.get('ramp', 0.05)
+    P = P.copy()
+    w = np.clip((z_full + ramp - P[:, 2]) / ramp, 0.0, 1.0)
+    w = w * w * (3 - 2 * w)
+    n = 0
+    for i in np.where(w > 0)[0]:
+        loc, n_, _, d = tree.find_nearest(Vector(P[i]))
+        if loc is None or d > 0.08:
+            continue
+        P[i] = P[i] + w[i] * (np.array(loc + n_ * off) - P[i])
+        n += 1
+    inner = interior_mask()
+    sel = inner & (w > 0)
+    for _ in range(cfg.get('relax', 4)):
+        P[sel] = 0.5 * P[sel] + 0.5 * neighbour_avg(P)[sel]
+    return P, n
+
+
+post = {}
+if SIM.get('cling'):
+    P, post['clingVerts'] = cling(P, SIM['cling'])
+    print(f"operators: cling: {post['clingVerts']} vertices drawn onto the skin", flush=True)
+if SIM.get('tuck'):
+    P, post['tuckVerts'] = tuck(P, SIM['tuck'])
+    print(f"operators: tuck: {post['tuckVerts']} vertices drawn in under the waist", flush=True)
+if SIM.get('bridge') and UNDER:
+    P, post['bridge'] = bridge(P, SIM['bridge'])
+if SIM.get('fair'):
+    _before = P.copy()
+    P = fair(P, SIM['fair'])
+    post['fairMaxMm'] = round(float(np.linalg.norm(P - _before, axis=1).max()) * 1000, 1)
+    print(f"operators: fair: max move {post['fairMaxMm']} mm", flush=True)
+P, layer_pushed = layer_push(P)
+if UNDER:
+    print(f'operators: layers resolved: {layer_pushed} vertices pushed clear of {", ".join(UNDER_IDS)}', flush=True)
 
 # --- 5. Weld the seams ----------------------------------------------------------------------------------------------
 parent = list(range(len(P)))
@@ -567,6 +1148,7 @@ report = {
     'details': details,
     'sim': SIM, 'patchStiffVerts': patch_verts, 'seamVertsNoSelfCollision': int(near_seam.sum()),
     'verts': len(uv), 'tris': len(tris), 'weldedVerts': len(me.vertices), 'pushedClear': pushed, 'relaxedAfterWeld': relaxed,
+    'under': UNDER_IDS, 'layerPushed': layer_pushed, 'post': post, 'pinned': int(len(pin_ids)),
     'weldMoveMaxMm': round(float(moved.max()) * 1000, 1),
     'frames': args.frames, 'simSeconds': round(sim_seconds, 1), 'seamGapByFrame': gaps,
     'outlines': {n: [[c, np.asarray(pl).round(5).tolist()] for c, pl in p.edges] for n, p in pattern.panels.items()},

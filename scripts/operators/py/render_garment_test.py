@@ -1,5 +1,8 @@
-"""Garment method test renders (RUNBOOK step 3): front, 3/4 back and a 0.4 m raking-light close-up of the shoulder and
-elbow, Cycles on the hardware GPU (OptiX), WebP into docs/operators/mockups/tests/.
+"""Garment method test renders (RUNBOOK step 3): front and 3/4 back in stealth light, raking-light close-ups at about
+0.4 m of what the garment adds, and a neutral front; Cycles on the hardware GPU (OptiX), WebP into
+docs/operators/mockups/tests/. The shirt frames the upper body; the base layer and the trousers the whole figure.
+Close-ups: shirt - left upper arm and elbow; base layer - collar and left cuff; trousers - left knee and cargo pocket,
+the waist (belt loops, fly, tucked shirt) and the seat.
 """
 import json
 import os
@@ -63,39 +66,95 @@ def stealth(cam_loc, cam_target, key_loc, rim_loc):
 
 floor.data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.012, 0.012, 0.013, 1)
 
+FULL = gname != 'combat_shirt'   # the whole figure (legs) or the upper body (the shirt's own framing)
+front_cam = ((0.3, -3.4, 1.0), (0.0, 0.0, 0.88)) if FULL else ((0.22, -2.45, 1.22), (0.0, 0.0, 1.06))
+
 # a. Front, stealth: the key rakes in hard from the wearer's left and above; the rim from behind right.
-stealth((0.22, -2.45, 1.22), (0.0, 0.0, 1.06), (2.2, -0.9, 2.3), (-1.4, 2.2, 2.0))
+stealth(*front_cam, (2.2, -0.9, 2.3), (-1.4, 2.2, 2.0))
 out.append(shot('a-front-stealth', (1200, 1500), -1.2))
 
 # b. Three-quarter back, stealth (behind the wearer's left shoulder).
-stealth((1.55, 1.85, 1.45), (0.04, 0.0, 1.1), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
+if FULL:
+    stealth((2.1, 2.6, 1.15), (0.03, 0.0, 0.9), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
+else:
+    stealth((1.55, 1.85, 1.45), (0.04, 0.0, 1.1), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
 out.append(shot('b-back34-stealth', (1200, 1500), -1.2))
+
+
+def closeup(name, target, view, lens=35, dist=0.40, rake_from=None, power=30):
+    """Raking-light close-up: camera at dist along view from target; one small light skimming the surface. Power 30 W:
+    at 120 W (the shirt's arm rake, which skims from 0.5 m along the arm) these lights, closer and facing more of the
+    surface, clipped the fabric to white (step 05 fix round 1)."""
+    clear_rig()
+    RN.world(sc, 0.02)
+    view = np.asarray(view, float) / np.linalg.norm(view)
+    target = np.asarray(target, float)
+    cam = target + view * dist
+    sc.camera = RN.camera(name, tuple(cam), tuple(target), lens)
+    rake = target + np.asarray(rake_from, float)
+    RN.area_light('rake', tuple(rake), tuple(target), power, 0.04, (1.0, 0.96, 0.9))
+    up = np.array([0.0, 0.0, 1.0])
+    RN.area_light('fill', tuple(cam + up * 0.3), tuple(target), 1.5, 0.5, (0.85, 0.9, 1.0))
+    out.append(shot(name, (1800, 1350), 1.0))
+
+
+if gname == 'trousers':
+    kn, hp = J['knL'], J['hipL']
+    side = np.sign(kn[0])
+    # c. Left knee and cargo pocket from the front-outside; the light skims down the thigh.
+    closeup('c-closeup-knee-cargo', (kn + (hp - kn) * 0.45) + np.array([side * 0.03, -0.07, 0.0]),
+            (side * 0.55, -1.0, 0.12), lens=28, dist=0.55, rake_from=(side * 0.12, -0.08, 0.45))
+    # e. The waist: belt loops, the fly, the snap and the shirt tucked under the band.
+    closeup('e-closeup-waist', (0.02, J['spine'][1] - 0.13, J['spine'][2] - 0.07), (0.25, -1.0, 0.15), lens=35,
+            dist=0.42, rake_from=(0.35, -0.05, 0.15))
+    # f. The seat and the back of the knee from behind.
+    closeup('f-closeup-seat', (side * 0.05, J['pelvis'][1] + 0.1, hp[2] - 0.06), (0.15, 1.0, 0.1), lens=28,
+            dist=0.6, rake_from=(-side * 0.4, 0.1, 0.25))
+    # g. The crotch gusset from below, between the knees, looking up: the knit diamond and its four seams (step 05 fix
+    # round 2: the earlier front-and-below view left it in the thighs' shadow). The light skims in from the front.
+    closeup('g-closeup-gusset', (0.0, J['pelvis'][1] + 0.01, hp[2] - 0.13), (0.05, -0.12, -1.0), lens=30,
+            dist=0.32, rake_from=(0.1, -0.2, -0.15), power=12)
+elif gname == 'base_layer':
+    nk = J['neck']
+    closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,
+            rake_from=(0.25, -0.05, 0.2))
+    wr = J['wrL']
+    closeup('e-closeup-cuff', wr, (np.sign(wr[0]) * 0.6, -1.0, 0.3), lens=35, dist=0.36,
+            rake_from=(np.sign(wr[0]) * 0.05, -0.05, 0.25))
 
 # c. Close-up at 0.4 m: the left upper arm from behind and outside, so the back raglan seam (knit to ripstop), the
 # arm pocket and the elbow are in frame. One small light skims along the arm (raking); a faint fill.
-clear_rig()
-RN.world(sc, 0.02)
-axis = (el - sh) / np.linalg.norm(el - sh)
-up = np.array([0, 0, 1.0]) - axis[2] * axis
-up /= np.linalg.norm(up)
-back = np.array([0, 1.0, 0]) - axis[1] * axis
-back /= np.linalg.norm(back)
-view = up * 0.45 + back * 0.9
-view /= np.linalg.norm(view)
-target = sh + (el - sh) * 0.55 + view * 0.045 - np.array([np.sign(sh[0]) * 0.03, 0, 0])
-cam = target + view * 0.40
-sc.camera = RN.camera('close', tuple(cam), tuple(target), 35)
-rake = sh - axis * 0.32 + view * 0.05 + up * 0.03
-RN.area_light('rake', tuple(rake), tuple(target + axis * 0.1), 120, 0.04, (1.0, 0.96, 0.9))
-RN.area_light('fill', tuple(cam + up * 0.3), tuple(target), 1.5, 0.5, (0.85, 0.9, 1.0))
-out.append(shot('c-closeup-raking', (1800, 1350), 1.0))
+if gname == 'combat_shirt':
+    clear_rig()
+    RN.world(sc, 0.02)
+    axis = (el - sh) / np.linalg.norm(el - sh)
+    up = np.array([0, 0, 1.0]) - axis[2] * axis
+    up /= np.linalg.norm(up)
+    back = np.array([0, 1.0, 0]) - axis[1] * axis
+    back /= np.linalg.norm(back)
+    view = up * 0.45 + back * 0.9
+    view /= np.linalg.norm(view)
+    target = sh + (el - sh) * 0.55 + view * 0.045 - np.array([np.sign(sh[0]) * 0.03, 0, 0])
+    cam = target + view * 0.40
+    sc.camera = RN.camera('close', tuple(cam), tuple(target), 35)
+    rake = sh - axis * 0.32 + view * 0.05 + up * 0.03
+    RN.area_light('rake', tuple(rake), tuple(target + axis * 0.1), 120, 0.04, (1.0, 0.96, 0.9))
+    RN.area_light('fill', tuple(cam + up * 0.3), tuple(target), 1.5, 0.5, (0.85, 0.9, 1.0))
+    out.append(shot('c-closeup-raking', (1800, 1350), 1.0))
+    # e, f. The base layer under the shirt: the mock neck above the collar, the knit inside the cuff.
+    nk, wr = J['neck'], J['wrL']
+    closeup('e-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,
+            rake_from=(0.25, -0.05, 0.2))
+    closeup('f-closeup-cuff', wr, (np.sign(wr[0]) * 0.6, -1.0, 0.3), lens=35, dist=0.36,
+            rake_from=(np.sign(wr[0]) * 0.05, -0.05, 0.25))
+
 
 # d. Front, neutral even light, for checking construction.
 clear_rig()
 RN.world(sc, 0.6, (0.5, 0.5, 0.5))
 RN.studio_rig(centre, 1.7)
 floor.data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.08, 0.08, 0.085, 1)
-sc.camera = RN.camera('front', (0.22, -2.45, 1.22), (0.0, 0.0, 1.06), 55)
+sc.camera = RN.camera('front', *front_cam, 55)
 out.append(shot('d-front-neutral', (1200, 1500), 1.4))
 
 print('operators: test renders on', ', '.join(gpus))

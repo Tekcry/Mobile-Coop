@@ -258,3 +258,26 @@ def loop(name='loop', colour=(0.023, 0.024, 0.025)):
     g.bsdf.inputs['Sheen Roughness'].default_value = 0.6
     g.link(nrm, g.bsdf.inputs['Normal'])
     return mat
+
+
+def softshell(name='softshell', colour=(0.027, 0.028, 0.025)):
+    """Stretch soft-shell (trousers): a tight woven face over a brushed back. A fine 2/1 twill (about 0.7 mm) only at
+    close range, otherwise smooth and matte with a faint sheen under raking light; slightly olive dark slate, so it
+    separates from the charcoal shirt by hue and surface, not by value."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    twill = g.math('SINE', g.math('MULTIPLY', g.math('ADD', u, v), 6.2832 / 0.0007))
+    fade = g.near_fade()
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', twill, fade), 0.25), g.math('MULTIPLY', g.noise(900.0, 2.0), 0.3))
+    nrm = g.bump(h, g.math('ADD', 0.08, g.math('MULTIPLY', fade, 0.25)), 0.0003)
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.smoothstep(0.53, 0.63, pt)
+    base = g.wear(colour, dust_amount=0.3, edge=edge)
+    g.link(base, g.bsdf.inputs['Base Color'])
+    g.link(g.math('SUBTRACT', 0.8, g.math('MULTIPLY', edge, 0.06)), g.bsdf.inputs['Roughness'])
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.25
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.45
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat

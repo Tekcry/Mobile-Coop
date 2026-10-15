@@ -8,9 +8,10 @@ checks, each {name, pass, value, limit, detail}. check.mjs adds the kit check an
 - edgeLength: no edge of any rendered garment mesh (modifiers applied) over 3 cm.
 - solidify: no solidify spike (inner shell further from the outer than twice the thickness).
 - albedo / roughness: measured, not read from the node values: every material is rendered as an emission of what
-  feeds its Base Color and Roughness (Cycles, one sample per pixel, same rays as an ID render), from four views.
+  feeds its Base Color and Roughness (Cycles, one sample per pixel, same rays as an ID render).
   Fabric albedo 0.02-0.06 linear (Rec. 709 luminance, 1st to 99th percentile); roughness 0.7-0.95 on fabric,
-  0.55-0.9 on hard parts. A material with too few pixels to judge fails as unsampled.
+  0.55-0.9 on hard parts. A material with too few pixels to judge fails as unsampled. Six views: front, back, the left
+  upper arm, the neck, the left thigh and knee, the waist front.
 """
 import json
 import math
@@ -210,6 +211,9 @@ views = [
     ((0.3, 2.45, 1.25), (0.0, 0.0, 1.08), 55),
     (tuple(sh + (el - sh) * 0.5 + np.array([np.sign(sh[0]) * 0.22, 0.3, 0.1])), tuple(sh + (el - sh) * 0.5), 35),
     (tuple(nk + np.array([0.05, -0.38, 0.0])), tuple(nk + np.array([0.0, -0.04, -0.04])), 50),
+    # the legs (trousers, leggings): the left thigh and knee, and the waist front
+    (tuple(J['knL'] + np.array([np.sign(J['knL'][0]) * 0.35, -0.75, 0.25])), tuple((J['knL'] + J['hipL']) / 2), 40),
+    (tuple(J['spine'] + np.array([0.12, -0.6, -0.08])), tuple(J['spine'] + np.array([0.0, -0.1, -0.1])), 45),
 ]
 samples = {name: {'albedo': [], 'roughness': []} for name in order}
 tmp = os.path.abspath(os.path.join(args.out, 'check-tmp.exr'))  # Blender resolves relative render paths itself
@@ -233,7 +237,7 @@ for name in order:
     r = np.concatenate(samples[name]['roughness'])
     entry = {'class': cls, 'pixels': int(len(a))}
     if len(a) < LIMITS['minPixels']:
-        check(f'sampled:{name}', False, len(a), f">= {LIMITS['minPixels']} pixels over the four views")
+        check(f'sampled:{name}', False, len(a), f">= {LIMITS['minPixels']} pixels over the six views")
         report_mats[name] = entry
         continue
     pa = [round(float(x), 4) for x in np.percentile(a, [1, 50, 99])]

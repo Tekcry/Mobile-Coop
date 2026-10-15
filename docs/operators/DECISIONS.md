@@ -177,3 +177,58 @@ garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `
 **A9** Lab materials are flat albedo and roughness factors (the means of the procedural materials) until baked maps exist
   (step 10); `export_gltf.py` flattens them. Undo: remove the FLAT table when step 10 exports textures.
 **A10** The Lab's lighting rigs use high exposure (2-4.5) rather than bright lights, because the fabric albedo is 0.02-0.06.
+
+## Assumed decisions, step 05 (D15 unattended)
+**A11 Layer order and the tuck (deviation from step 05 Do 1).** Wren's garments build in the order base layer, combat
+  shirt, trousers (`GARMENTS` in `export-gltf.mjs`). Step 05 Do 1 asks for the earlier layers as colliders in the
+  simulation; the pipeline does not do that. Each garment is simulated against the body only; the earlier layers are
+  resolved after the simulation: the garment is drafted over them with a fixed girth allowance per layer
+  (`UNDER_LAYERS`, `build_garment.py` `allowance`), arranged clear of them, and after the sew and settle every vertex
+  closer than one layer step (`LAYER_T`) to an earlier layer's outer face is pushed out and the region relaxed
+  (`layer_push`). Why: Blender's cloth against a thin cloth collider broke the seams in test runs (colliding while
+  sewing, the shirt's seams could not meet across the armpits, gaps 7-15 cm; colliding only in the settle, the
+  push-out stretched sewn seams to 37 mm; gaps up to 149 mm on the trousers); girths measured over the simulated
+  layers over-measured by 5-10 cm. The collider objects are still built; `SIM.layer_collision: true` (settle phase
+  only) turns them on - that is the undo, once a solver handles cloth on cloth. The shirt is sewn before the trousers
+  so its hem ends inside the trousers' pinned waistband (A15): the tuck comes from the order and the layer push.
+**A12 One base-layer garment.** The compression top and the leggings are one garment (`base_layer`, kit `baseLayer`), two
+  pieces in one simulation; the top is the shirt's block re-cut (negative ease, knit everywhere, flatlock seams, a mock
+  neck about 1 cm taller than the shirt collar), and its hem laps over the leggings' waistband. Undo: split into two
+  garment modules in `GARMENTS`.
+**A13 Legwear gravity.** Leggings and trousers simulate at reduced gravity (0.3) and higher friction (4): the
+  pipeline's vertex mass (0.1, kept for solver stability, A1) is far heavier than fabric, and legwear hangs from the
+  hips - at full gravity the leggings slid 15 cm down the legs. Undo: the `SIM` tables of the two garments.
+**A14 Knee pad pockets as a kit pouch.** `kneePads` (pouch, contents "knee pad", opening inside at the top) is added to
+  Wren's kit for the internal knee pad pockets SPEC 5.1 names under the trousers; `baseLayer` is added as a garment.
+  Undo: the two entries in `src/operators/kit.ts`.
+**A15 Waistbands pinned; compression knit drawn on; soft-shell faired (step 05 fix round 1).** The leggings' and the
+  trousers' waistbands are pinned to their arranged ring (drafted height, round the body and the layers) through the
+  sew and the settle (`SIM.pin`): without colliding layers (A11) a band drafted over them rode on the bare skin with a
+  layer allowance of slack and slid 6-7 cm. The pin stands in for the elastic's and the duty belt's grip. The leg
+  block's rise is solved from the measured crotch path (front waist, under the crotch, back waist; `crotch_ease`),
+  which replaced estimates that were 3-4 cm long at the front. The base layer is drawn onto the skin after the
+  simulation (`SIM.cling`: projected to 3.5 mm off the skin and relaxed between the seams; the top's hem one layer out
+  over the band): a mass-spring cloth bridges and ripples where a compression knit clings. The trousers' surface is
+  Taubin-smoothed between the seams after the simulation (`SIM.fair`) to remove solver dents. Undo: remove `pin`,
+  `cling`, `fair` and `crotch_ease` from the garments' tables.
+**A16 Smooth layer push, bridged knit, tucked hem, inserts (step 05 fix round 2).** `layer_push` (A11) and the cling
+  guard spread each push into a smooth bump (`build_garment.push_out` / `spread`: a decayed ring average, about 8 rings)
+  instead of snapping vertices one by one, which left a stepped edge (dark dashes on the shirt front in raking light).
+  The base layer's `cling` draws the knit onto a Taubin-faired copy of the skin (`bridge` 25) and then only pushes it
+  1.5 mm clear of the real skin (`guard`), to bridge small features (the nipples are softened, not yet gone). The
+  combat shirt's hem is drawn onto the base layer below the trousers' band (`SIM.tuck`): the free hem stood 3 cm proud
+  of the lower belly and the trousers, pushed over it, showed its edge as a lip under the front band. The trousers'
+  `fair` runs 40 Taubin passes and fairs the seam and hem lines along themselves (corners held), so the band edge and
+  the fly are clean lines. The stretch-knit panels behind the knees are seamed-in inserts (details `inserts`: the
+  region inside the seam takes the knit's material and stiffness, a raised seam allowance and a stitch row either side)
+  rather than separate pattern panels in the leg block: the same look and stretch, without re-cutting the back panels
+  and their seams. The seat reinforcement is one Cordura panel per side shaped to the back panel (patch `outline`).
+  Undo: `tuck` / `bridge` / `guard` / the `fair` iterations in the garments' `SIM` tables; `inserts` in `trousers.py`.
+**A17 Seat bridge and stitch shadows off (step 05 fix round 3; recorded by the orchestrator).** The trousers' back
+  panels are pushed one layer step off a smoothed envelope over the under-layers (`SIM.bridge`, 150 passes) so the seat
+  bridges the cleft and the sacral hollow instead of shrink-wrapping them. The trousers' stitch threads cast no shadow in
+  renders (`stitchShadows: False` in the details): 0.36 mm threads on an ungrooved surface threw 5-10 mm spiky shadows
+  under the grazing rake (the waistband "crinkle"). Render only; the glTF is unchanged, and the game's shadow maps
+  cannot resolve sub-millimetre casters. Seam plateaus are ramped (`offsetSmooth: 3`, exported). Proper fix (LOG
+  step 05 OPEN 6): a stitch channel in the offset map. Undo: `SIM.bridge`, `stitchShadows`, `offsetSmooth` in
+  `trousers.py`.

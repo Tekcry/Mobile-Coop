@@ -4,8 +4,13 @@ import { pathToFileURL } from 'node:url';
 import { findBlender, runBlender } from './blender.mjs';
 import { OUT_DIR } from './paths.mjs';
 
-/** Garments built per operator so far; the last one's blend holds the body, rig and every earlier garment. */
-export const GARMENTS = { wren: ['combat_shirt'], moth: [] };
+/**
+ * Garments built per operator, in build (layer) order: each is drafted over the earlier ones, simulated over the body
+ * only, then pushed clear of the earlier layers (layer_push, A11), so the base layer comes first and the trousers after
+ * the shirt (its hem tucks in). The last one's blend holds the body,
+ * the rig and every earlier garment.
+ */
+export const GARMENTS = { wren: ['base_layer', 'combat_shirt', 'trousers'], moth: [] };
 
 export function exportGltf(id, blender = findBlender()) {
   const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);

@@ -26,14 +26,11 @@ common.seed_everything(args.seed)
 
 rig = bpy.data.objects[f'{op_id}-rig']
 body = bpy.data.objects[f'{op_id}-body']
-SKIP = {'collider', f'{op_id}-body'}
+SKIP = {f'{op_id}-body', 'floor'}
+# every rendered garment item: the hero meshes, stitches and hardware ('<id>-...') and the sewn-on patches
 items = [o for o in bpy.data.objects
          if o.type == 'MESH' and not o.hide_render and o.name not in SKIP and o.parent is None
-         and o.name.startswith(op_id + '-')]
-for o in bpy.data.objects:
-    if o.type == 'MESH' and o.parent is None and o.name.startswith(('arm', 'cuff', 'elbow', 'zip')) and not o.hide_render:
-        items.append(o)
-items = list({o.name: o for o in items}.values())
+         and not o.name.startswith('collider')]
 
 from mathutils.kdtree import KDTree  # noqa: E402
 
@@ -79,6 +76,8 @@ bpy.ops.object.mode_set(mode='OBJECT') if bpy.context.object and bpy.context.obj
 FLAT = {  # name: (albedo, roughness)
     'knit': (0.031, 0.90), 'ripstop': (0.027, 0.85), 'ripstop patch': (0.027, 0.85), 'cordura': (0.022, 0.88),
     'loop': (0.023, 0.95), 'binding': (0.023, 0.80), 'zip teeth': (0.022, 0.70), 'zip slider': (0.022, 0.60),
+    'softshell': (0.027, 0.80), 'softshell patch': (0.027, 0.80), 'compression knit': (0.035, 0.90),
+    'hardware metal': (0.022, 0.60), 'thread': (0.036, 0.72),
 }
 for mat in bpy.data.materials:
     if not mat.use_nodes:

@@ -25,14 +25,19 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
 - `py/build_body.py` - stage 1: the body shaped to the operator, rigged on the game joints (A-pose bind, D13), skinned
   (4 influences), hero finger and toe bones; `<id>-body.blend` and `<id>-body.json` (measurements against targets).
 - `py/pattern.py` - 2D panels, seams, panel meshing, the pattern-space surface lookup.
-- `py/garments/<name>.py` - a garment drafted from body measurements (`combat_shirt.py`): its panels, seams and
+- `py/garments/<name>.py` - a garment drafted from body measurements (`base_layer.py`, `combat_shirt.py`,
+  `trousers.py`; `legwear.py` is the leg block shared by the leggings and the trousers): its panels, seams and
   details, the kit item it builds (`KIT`, and `kit` on each detail) and its cloth settings (`SIM`: vertex mass,
   stiffness per material and panel, stiffer sewn layers under pockets and pads). `build_garment.py --sim '<json>'`
   overrides `SIM` for tuning runs.
 - `py/build_garment.py` - stage 2: arrange, sew by cloth simulation (the flat pattern is the rest shape), settle, weld.
-- `py/garment_details.py` - stage 3: seam ridges, hems, thread stitches, patches, zip, materials.
-- `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the four
-  test views (`--render`).
+  Multi-layer: garments build in `GARMENTS` order (`export-gltf.mjs`: base layer, shirt, trousers); `--under a,b` opens
+  the last earlier garment's blend, measures every girth over the body plus the earlier layers and makes each of them
+  a collider. Prints the worst seam per sample and refuses a panel arranged inside out.
+- `py/garment_details.py` - stage 3: seam ridges, hems, thread stitches, patches (pads, pockets, flaps, tabs,
+  reinforcement panels, belt loops), zip, fly, snaps and grommets, materials (reused by name across garments).
+- `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the test
+  views (`--render`; per garment: front and back in stealth light, raking close-ups, a neutral front).
 
 - `py/export_gltf.py`, `export-gltf.mjs` (`npm run operators:export`) - `<id>-lab.glb`: body and garments skinned to the game
   joint names, flat material factors (baked maps and KTX2 arrive in step 10). Runs at the end of `operators:build`.

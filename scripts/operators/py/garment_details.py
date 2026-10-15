@@ -4,10 +4,12 @@
   to), hems show their fold; the fabric is then thickened (solidify).
 - Stitches: real thread geometry, about 7 stitches per inch, on offset rows along every seam, hem and cuff
   (twin-needle topstitch on the raglans, flatlock zigzag on the knit side seams, single rows elsewhere).
-- Patches: elbow pad pockets with a foam pad, upper-arm pockets with bound flaps, cuff tabs with box-X stitching,
-  bar tacks at the pocket corners.
-- The quarter zip: moulded teeth along the centre front and the collar, a painted metal slider and puller.
-- Procedural materials (materials.py) on the pattern UVs: knit torso, ripstop sleeves and collar.
+- Patches: pad pockets with a foam pad (elbows, knees), pockets with bound flaps, tabs with box-X stitching,
+  reinforcement panels (seat), belt loops, bar tacks at the pocket corners and loop ends.
+- The quarter zip (shirt): moulded teeth along the centre front and the collar, a painted metal slider and puller.
+- Trousers: the fly's J-stitch and bar tack, a waistband snap, drain grommets at the cargo pocket bottoms.
+- Procedural materials (materials.py) on the pattern UVs, one per panel material (knit, ripstop, soft-shell,
+  compression knit). Every material is reused by name, so a later garment's blend holds one copy of each.
 
 Reads build/operators/<id>/<id>-<garment>-sim.*; writes <id>-<garment>.blend and <id>-<garment>.json.
 """
@@ -24,7 +26,7 @@ import common  # noqa: E402
 import materials as MAT  # noqa: E402
 from mathutils import Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
-from pattern import Panel, Pattern, SurfaceLookup, distance_to_polyline, resample, polyline_length, rounded_rect  # noqa: E402
+from pattern import Panel, Pattern, SurfaceLookup, distance_to_polyline, resample, polyline_length, rounded_rect, patch_outline  # noqa: E402
 
 args = common.parse_args({
     '--operator': {'required': True},
@@ -109,26 +111,64 @@ for sl in R['seamLines']:
             h = 0 * d
         offset_loop[sel] = np.maximum(offset_loop[sel], h)
 
+D = R['details']
+FLAT_HEMS = bool(D.get('flatHems'))   # compression knit: coverstitched flat, no folded plateau
 hem_rows = []
-for kind, width, height in (('hems', 0.022, 0.0007), ('cuffs', 0.030, 0.0007)):
-    for pn, c0, c1 in R['details'][kind]:
+for kind, width, height in (('hems', 0.022, 0.0007), ('cuffs', 0.030, 0.0007), ('bandTops', 0.008, 0.0005)):
+    if FLAT_HEMS and kind != 'bandTops':
+        width, height = 0.013, 0.00035
+    for pn, c0, c1 in D.get(kind) or []:
         pl = panels[pn].run(c0, c1)[0]
         hem_rows.append((pn, pl, kind))
         sel = np.where(loop_panel == PID[pn])[0]
         d = distance_to_polyline(loop_uv[sel], pl)
         offset_loop[sel] = np.maximum(offset_loop[sel], plateau(d, width, height, 0.002))
-ct = R['details']['collarTop']
-collar_top = panels[ct[0]].run(ct[1], ct[2])[0]
-sel = np.where(loop_panel == PID['collar'])[0]
-offset_loop[sel] = np.maximum(offset_loop[sel], plateau(distance_to_polyline(loop_uv[sel], collar_top), 0.006, 0.0005))
+ct = D.get('collarTop')
+if ct:
+    collar_top = panels[ct[0]].run(ct[1], ct[2])[0]
+    sel = np.where(loop_panel == PID[ct[0]])[0]
+    offset_loop[sel] = np.maximum(offset_loop[sel], plateau(distance_to_polyline(loop_uv[sel], collar_top), 0.006, 0.0005))
 # The zip placket: the fabric folds up beside the zip on the centre front and the collar front.
-zd = R['details']['zip']
-zip_front = np.array([[0.0, zd['y_cf'] - zd['front_len']], [0.0, zd['y_cf']]])
-sel = np.where(loop_panel == PID['front'])[0]
-offset_loop[sel] = np.maximum(offset_loop[sel], plateau(distance_to_polyline(loop_uv[sel], zip_front), 0.012, 0.0009))
+zd = D.get('zip')
+if zd:
+    zip_front = np.array([[0.0, zd['y_cf'] - zd['front_len']], [0.0, zd['y_cf']]])
+    sel = np.where(loop_panel == PID['front'])[0]
+    offset_loop[sel] = np.maximum(offset_loop[sel], plateau(distance_to_polyline(loop_uv[sel], zip_front), 0.012, 0.0009))
+# The fly: the shield under the left front stands a little proud inside the J-stitch.
+fd = D.get('fly')
+if fd:
+    from pattern import _points_in_polygon
+    region = np.array(fd['region'])
+    sel = np.where(loop_panel == PID[fd['panel']])[0]
+    inside = _points_in_polygon(loop_uv[sel], region)
+    d = distance_to_polyline(loop_uv[sel], np.concatenate([region, region[:1]]))
+    offset_loop[sel] = np.maximum(offset_loop[sel], np.where(inside, 0.0008 * np.clip(d / 0.002, 0, 1), 0.0))
+
+# Seamed-in inserts (the trousers' stretch knee panels): the seam allowance under the outline stands a little proud.
+INSERTS = D.get('inserts') or []
+for ins_ in INSERTS:
+    sel = np.where(loop_panel == PID[ins_['panel']])[0]
+    ring_ = np.asarray(ins_['outline'], dtype=np.float64)
+    d = distance_to_polyline(loop_uv[sel], np.concatenate([ring_, ring_[:1]]))
+    offset_loop[sel] = np.maximum(offset_loop[sel], plateau(d, 0.007, 0.0005))
 
 vert_off = np.zeros(nv)
 np.maximum.at(vert_off, loop_v, offset_loop)
+# Smoothed over the dense surface (details 'offsetSmooth' passes, step 05 fix round 3): a plateau's 1.5 mm ramp is
+# shorter than the dense mesh's edges (about 2.8 mm), so where a plateau edge crosses the mesh obliquely (the waistband's
+# centre-front join, the fly's J-stitch) each straddling triangle tilts on its own and raking light shows a sawtooth
+# of spiky shadows. A few neighbour-average passes turn the step into a ramp a couple of edges wide.
+_ns = int(D.get('offsetSmooth') or 0)
+if _ns:
+    _E = np.empty(len(dense.edges) * 2, dtype=np.int64)
+    dense.edges.foreach_get('vertices', _E)
+    _E = _E.reshape(-1, 2)
+    _dg = np.maximum(np.bincount(_E.ravel(), minlength=nv), 1)
+    for _ in range(_ns):
+        _acc = np.zeros(nv)
+        np.add.at(_acc, _E[:, 0], vert_off[_E[:, 1]])
+        np.add.at(_acc, _E[:, 1], vert_off[_E[:, 0]])
+        vert_off = 0.5 * vert_off + 0.5 * _acc / _dg
 co_d = co + nrm * vert_off[:, None]
 dense.vertices.foreach_set('co', co_d.ravel())
 dense.update()
@@ -137,13 +177,36 @@ dense.vertex_normals.foreach_get('vector', nrm)
 nrm = nrm.reshape(-1, 3)
 dense.polygons.foreach_set('use_smooth', [True] * len(dense.polygons))
 
-m_knit, m_rip, m_thread = MAT.knit(), MAT.ripstop(), MAT.thread()
-m_rip_patch = MAT.ripstop('ripstop patch', edge_attr=True)
-m_poly, m_metal, m_bind = MAT.polymer('zip teeth'), MAT.painted_metal('zip slider'), MAT.webbing('binding')
-m_cordura, m_loop = MAT.cordura(), MAT.loop()
-dense.materials.append(m_knit)
-dense.materials.append(m_rip)
-mat_idx = np.array([0 if R['panels'][n]['material'] == 'knit' else 1 for n in PANELS])[face_panel]
+def reuse(fn, name, **kw):
+    """One material per name across the garments of one operator (a later garment's blend holds the earlier ones)."""
+    return bpy.data.materials.get(name) or fn(name, **kw)
+
+
+m_thread = reuse(MAT.thread, 'thread')
+m_rip_patch = reuse(MAT.ripstop, 'ripstop patch', edge_attr=True)
+m_poly, m_metal, m_bind = reuse(MAT.polymer, 'zip teeth'), reuse(MAT.painted_metal, 'zip slider'), reuse(MAT.webbing, 'binding')
+m_cordura, m_loop = reuse(MAT.cordura, 'cordura'), reuse(MAT.loop, 'loop')
+m_soft_patch = reuse(MAT.softshell, 'softshell patch')
+m_hw = reuse(MAT.painted_metal, 'hardware metal')
+PANEL_MAT = {'knit': lambda: reuse(MAT.knit, 'knit'), 'ripstop': lambda: reuse(MAT.ripstop, 'ripstop'),
+             'softshell': lambda: reuse(MAT.softshell, 'softshell'),
+             'compression': lambda: reuse(MAT.knit, 'compression knit', colour=(0.035, 0.036, 0.037))}
+used = sorted({R['panels'][n]['material'] for n in PANELS})
+for kind in used:
+    dense.materials.append(PANEL_MAT[kind]())
+mat_idx = np.array([used.index(R['panels'][n]['material']) for n in PANELS])[face_panel]
+if INSERTS:
+    from pattern import _points_in_polygon
+    face_uv = np.zeros((len(dense.polygons), 2))
+    np.add.at(face_uv, loop_face, loop_uv)
+    face_uv /= np.maximum(np.bincount(loop_face, minlength=len(dense.polygons)), 1)[:, None]
+    for ins_ in INSERTS:
+        if ins_['material'] not in used:
+            used.append(ins_['material'])
+            dense.materials.append(PANEL_MAT[ins_['material']]())
+        sel = np.where(face_panel == PID[ins_['panel']])[0]
+        inside = sel[_points_in_polygon(face_uv[sel], np.asarray(ins_['outline'], dtype=np.float64))]
+        mat_idx[inside] = used.index(ins_['material'])
 dense.polygons.foreach_set('material_index', mat_idx)
 shirt = bpy.data.objects.new(f'{op_id}-{gname}-hero', dense)
 scene.collection.objects.link(shirt)
@@ -262,14 +325,26 @@ for sl in R['seamLines']:
         for p_, pl_ in ((pa, pla), (pb, plb)):
             stitch_row(surf, p_, offset_into(pl_, 0.0028, outline_poly[p_]), pitch=0.0024, length=0.0021)
         zigzag(surf, pa, offset_into(pla, 0.0012, outline_poly[pa]), 0.0024, 0.0022, outline_poly[pa])
+HEM_DIST = {'hems': (0.016, 0.021), 'cuffs': (0.024, 0.030), 'bandTops': (0.003,)}
 for pn, pl, kind in hem_rows:
-    for dist in ((0.016, 0.021) if kind == 'hems' else (0.024, 0.030)):
+    for dist in ((0.006, 0.0105) if FLAT_HEMS and kind != 'bandTops' else HEM_DIST[kind]):
         stitch_row(surf, pn, offset_into(pl, dist, outline_poly[pn]))
-stitch_row(surf, 'collar', offset_into(collar_top, 0.003, outline_poly['collar']))
-for x in (-0.009, 0.009):
-    stitch_row(surf, 'front', np.array([[x, zd['y_cf'] - zd['front_len'] - 0.004], [x, zd['y_cf'] - 0.004]]))
-zigzag(surf, 'front', np.array([[-0.011, zd['y_cf'] - zd['front_len'] - 0.006], [0.011, zd['y_cf'] - zd['front_len'] - 0.006]]),
-       0.003, 0.0006, outline_poly['front'])
+if ct:
+    stitch_row(surf, ct[0], offset_into(collar_top, 0.003, outline_poly[ct[0]]))
+if zd:
+    for x in (-0.009, 0.009):
+        stitch_row(surf, 'front', np.array([[x, zd['y_cf'] - zd['front_len'] - 0.004], [x, zd['y_cf'] - 0.004]]))
+    zigzag(surf, 'front', np.array([[-0.011, zd['y_cf'] - zd['front_len'] - 0.006], [0.011, zd['y_cf'] - zd['front_len'] - 0.006]]),
+           0.003, 0.0006, outline_poly['front'])
+if fd:
+    stitch_row(surf, fd['panel'], np.array(fd['line']))
+    zigzag(surf, fd['panel'], np.array(fd['tack']), 0.003, 0.0006, outline_poly[fd['panel']])
+
+for ins_ in INSERTS:   # the insert's seam: a stitch row either side
+    ring_ = np.asarray(ins_['outline'], dtype=np.float64)
+    closed_ = np.concatenate([ring_, ring_[:1]])
+    for dist in (0.003, -0.003):
+        stitch_row(surf, ins_['panel'], offset_into(closed_, dist, ring_))
 
 # --- Patches --------------------------------------------------------------------------------------------------------
 
@@ -359,8 +434,7 @@ def bulge_fn(spec):
     kind, b = spec['kind'], spec['bulge']
     c = np.array(spec['centre'])
     w, h = spec['size']
-    outline = rounded_rect(spec['centre'], spec['size'], spec['r'], angle=spec.get('angle', 0.0),
-                           pivot=spec.get('pivot'))
+    outline = patch_outline(spec)
 
     def f(q):
         q = np.atleast_2d(q)
@@ -369,6 +443,10 @@ def bulge_fn(spec):
             return b * np.clip(d / 0.016, 0, 1) ** 0.6
         if kind == 'garage':
             return 0.0058 * np.clip(d / 0.003, 0, 1) ** 0.5
+        if kind == 'beltloop':
+            # A folded strip sewn down at both ends, standing off the band in between (the belt runs under it).
+            yy = (local(spec, q)[..., 1] - (c[1] - h / 2)) / h
+            return b * np.clip(np.minimum(yy, 1.0 - yy) / 0.1, 0, 1) ** 0.6 * np.clip(d / 0.0015, 0, 1)
         if kind == 'pocket':
             # Contents sit low in the pocket (gravity): the bulge peaks in the lower half.
             yy = (local(spec, q)[..., 1] - (c[1] - h / 2)) / h
@@ -389,8 +467,14 @@ for spec in R['details']['patches']:
     else:
         base_off = gap + f(puv)
     pts, nrms, missing = [], [], []
+    ext = spec.get('band_h')   # a belt loop runs past the band's lower edge: extended down the band's own slope
     for i, q in enumerate(puv):
-        r = surf_s(pn, q)
+        if ext and q[1] < 0.003:
+            r0, r1 = surf_s(pn, (q[0], 0.003)), surf_s(pn, (q[0], 0.013))
+            r = None if r0 is None or r1 is None else (
+                r0[0] + (r0[0] - r1[0]) / 0.01 * (0.003 - q[1]), r0[1])
+        else:
+            r = surf_s(pn, q)
         if r is None:  # off the panel (should not happen): filled from the nearest found neighbour below
             missing.append(i)
             r = (np.full(3, np.nan), np.array([0, 0, 1.0]))
@@ -417,7 +501,8 @@ for spec in R['details']['patches']:
     ed = distance_to_polyline(puv, np.concatenate([outline, outline[:1]]))
     edge.data.foreach_set('value', ed)
     me.polygons.foreach_set('use_smooth', [True] * len(me.polygons))
-    me.materials.append({'ripstop': m_rip_patch, 'cordura': m_cordura, 'loop': m_loop}[spec.get('material', 'ripstop')])
+    me.materials.append({'ripstop': m_rip_patch, 'cordura': m_cordura, 'loop': m_loop,
+                         'softshell': m_soft_patch}[spec.get('material', 'ripstop')])
     ob = bpy.data.objects.new(spec['name'], me)
     scene.collection.objects.link(ob)
     s2 = ob.modifiers.new('thickness', 'SOLIDIFY')
@@ -431,7 +516,8 @@ for spec in R['details']['patches']:
     patch_objs[spec['name']] = (ob, look, outline)
     c = np.array(spec['centre'])
     w, h = spec['size']
-    flat = rounded_rect(spec['centre'], spec['size'], spec['r'])           # unrotated outline
+    flat = (patch_outline(spec) if spec.get('outline') is not None
+            else rounded_rect(spec['centre'], spec['size'], spec['r']))   # unrotated outline
     closed_f = np.concatenate([flat, flat[:1]])
     rows = []                                                              # rows in the unrotated frame
     top = c[1] + h / 2
@@ -447,6 +533,12 @@ for spec in R['details']['patches']:
         rows.append(np.array([[c[0] - w / 2 + 0.003, top - 0.004], [c[0] + w / 2 - 0.003, top - 0.004]]))
     elif spec['kind'] in ('loop', 'garage'):
         rows.append(ins(0.002))
+    elif spec['kind'] == 'panel':      # reinforcement: double-stitched all round
+        rows += [ins(0.002), ins(0.007)]
+    elif spec['kind'] == 'beltloop':   # folded edges stitched down the long sides
+        for sx in (-1, 1):
+            x = c[0] + sx * (w / 2 - 0.0018)
+            rows.append(np.array([[x, c[1] - h / 2 + 0.002], [x, c[1] + h / 2 - 0.002]]))
     elif spec['kind'] == 'tab':
         bot = c[1] - h / 2
         box = np.array([[c[0] - w / 2 + 0.004, bot + 0.004], [c[0] + w / 2 - 0.004, bot + 0.004],
@@ -467,6 +559,10 @@ for spec in R['details']['patches']:
         for sx in (-1, 1):
             x = c[0] + sx * (w / 2 - 0.006)
             zigzag(look, spec['name'], np.array([[x, top - 0.014], [x, top - 0.004]]), 0.0025, 0.0006, outline)
+    if spec['kind'] == 'beltloop':   # bar tacks across both ends take the belt's load
+        for yb in (c[1] - h / 2 + 0.003, c[1] + h / 2 - 0.003):
+            zigzag(look, spec['name'], to_pattern(spec, np.array([[c[0] - w / 2 + 0.002, yb], [c[0] + w / 2 - 0.002, yb]])),
+                   0.0028, 0.0006, outline)
 
 # Flap binding: a folded tape round the three free edges of each flap.
 BV_, BF_ = [], []
@@ -515,6 +611,7 @@ for name, (ob, look, outline) in patch_objs.items():
 
 # --- Zip ------------------------------------------------------------------------------------------------------------
 ZV, ZF, MV, MF = [], [], [], []
+HV, HF = [], []   # metal hardware: snaps, grommets
 
 
 def box(store_v, store_f, c, t, u, n, size, bevel=0.25):
@@ -531,55 +628,89 @@ def box(store_v, store_f, c, t, u, n, size, bevel=0.25):
         store_f.append(tuple(base0 + i for i in f))
 
 
-zpath = []
-for y in np.linspace(zd['y_cf'] - zd['front_len'], zd['y_cf'], 90):
-    zpath.append(('front', (0.0, y)))
-for k in np.linspace(0, 1, 26)[1:]:
-    zpath.append(('collar', (zd['collar_inset'] * k * 0.98, zd['collar_h'] * k * 0.98)))
-zp, zn = [], []
-for pn, q in zpath:
-    r = surf(pn, q)
-    if r is not None:
-        zp.append(r[0])
-        zn.append(r[1])
-zp, zn = np.array(zp), np.array(zn)
-teeth = 0
-seg = np.linalg.norm(np.diff(zp, axis=0), axis=1)
-cum = np.concatenate([[0], np.cumsum(seg)])
-pitch = 0.0026
-for k, s_ in enumerate(np.arange(0.002, cum[-1] - 0.012, pitch)):
-    i = int(np.clip(np.searchsorted(cum, s_) - 1, 0, len(zp) - 2))
-    f = (s_ - cum[i]) / max(seg[i], 1e-9)
-    c = zp[i] + (zp[i + 1] - zp[i]) * f
-    n = zn[i]
-    t = (zp[i + 1] - zp[i]) / max(seg[i], 1e-9)
+def ring(store_v, store_f, c, n, r_in, r_out, height, seg=20):
+    """A flanged ring (grommet) or, with r_in = 0, a domed disc (snap cap), lying on the surface at c (normal n)."""
+    t = np.cross(n, [0.0, 0.0, 1.0] if abs(n[2]) < 0.9 else [1.0, 0.0, 0.0])
+    t /= np.linalg.norm(t)
     u = np.cross(n, t)
-    u /= np.linalg.norm(u)
-    side = 1 if k % 2 else -1
-    box(ZV, ZF, c + n * 0.0008 + u * side * 0.0008, t, u, n, (0.0019, 0.0042, 0.0013), 0.35)
-    teeth += 1
-# Tape either side of the teeth.
-for side in (-1, 1):
-    pts = []
-    for i in range(len(zp)):
-        t = zp[min(i + 1, len(zp) - 1)] - zp[max(i - 1, 0)]
-        t /= np.linalg.norm(t)
-        u = np.cross(zn[i], t)
+    prof = ([(r_out, 0.0), (r_out * 0.98, height * 0.7), (r_out * 0.8, height), (max(r_in, 1e-4) * 1.15, height),
+             (max(r_in, 1e-4), height * 0.4)] if r_in > 0 else
+            [(r_out, 0.0), (r_out * 0.97, height * 0.6), (r_out * 0.75, height * 0.95), (r_out * 0.35, height * 1.05),
+             (1e-4, height * 1.08)])
+    base0 = len(store_v)
+    for k in range(seg):
+        a = 2 * math.pi * k / seg
+        d_ = math.cos(a) * t + math.sin(a) * u
+        for rr, hh in prof:
+            store_v.append(c + d_ * rr + n * hh)
+    m_ = len(prof)
+    for k in range(seg):
+        k1 = (k + 1) % seg
+        for j in range(m_ - 1):
+            store_f.append((base0 + k * m_ + j, base0 + k1 * m_ + j, base0 + k1 * m_ + j + 1, base0 + k * m_ + j + 1))
+
+
+for g in D.get('grommets') or []:
+    spec = next(p for p in D['patches'] if p['name'] == g['patch'])
+    ob_, look_, _ = patch_objs[g['patch']]
+    r_ = look_(g['patch'], to_pattern(spec, np.array(g['at'], dtype=np.float64)))
+    if r_ is not None:
+        ring(HV, HF, r_[0] + r_[1] * 0.0002, r_[1], 0.0022, 0.0045, 0.0011)
+for sn in D.get('snaps') or []:
+    r_ = surf(sn['panel'], np.array(sn['at'], dtype=np.float64))
+    if r_ is not None:
+        ring(HV, HF, r_[0] + r_[1] * 0.0002, r_[1], 0.0, sn['r'], 0.0022)
+
+zpath = []
+for y in (np.linspace(zd['y_cf'] - zd['front_len'], zd['y_cf'], 90) if zd else []):
+    zpath.append(('front', (0.0, y)))
+for k in (np.linspace(0, 1, 26)[1:] if zd else []):
+    zpath.append(('collar', (zd['collar_inset'] * k * 0.98, zd['collar_h'] * k * 0.98)))
+teeth = 0
+if zd:
+    zp, zn = [], []
+    for pn, q in zpath:
+        r = surf(pn, q)
+        if r is not None:
+            zp.append(r[0])
+            zn.append(r[1])
+    zp, zn = np.array(zp), np.array(zn)
+    seg = np.linalg.norm(np.diff(zp, axis=0), axis=1)
+    cum = np.concatenate([[0], np.cumsum(seg)])
+    pitch = 0.0026
+    for k, s_ in enumerate(np.arange(0.002, cum[-1] - 0.012, pitch)):
+        i = int(np.clip(np.searchsorted(cum, s_) - 1, 0, len(zp) - 2))
+        f = (s_ - cum[i]) / max(seg[i], 1e-9)
+        c = zp[i] + (zp[i + 1] - zp[i]) * f
+        n = zn[i]
+        t = (zp[i + 1] - zp[i]) / max(seg[i], 1e-9)
+        u = np.cross(n, t)
         u /= np.linalg.norm(u)
-        pts.append((zp[i] + u * side * 0.0026 + zn[i] * 0.0007, zp[i] + u * side * 0.0060 + zn[i] * 0.0007))
-    base0 = len(ZV)
-    for a, b in pts:
-        ZV.extend([a, b])
-    for i in range(len(pts) - 1):
-        ZF.append((base0 + 2 * i, base0 + 2 * i + 1, base0 + 2 * i + 3, base0 + 2 * i + 2))
-# Slider at the top (zip closed) and its puller hanging down along the zip.
-top_c, top_n = zp[-6], zn[-6]
-t_ = zp[-1] - zp[-10]
-t_ /= np.linalg.norm(t_)
-u_ = np.cross(top_n, t_)
-u_ /= np.linalg.norm(u_)
-box(MV, MF, top_c + top_n * 0.0009, t_, u_, top_n, (0.013, 0.0095, 0.0042), 0.3)
-box(MV, MF, top_c + top_n * 0.0048 - t_ * 0.0125, t_, u_, top_n, (0.024, 0.0068, 0.0016), 0.2)
+        side = 1 if k % 2 else -1
+        box(ZV, ZF, c + n * 0.0008 + u * side * 0.0008, t, u, n, (0.0019, 0.0042, 0.0013), 0.35)
+        teeth += 1
+    # Tape either side of the teeth.
+    for side in (-1, 1):
+        pts = []
+        for i in range(len(zp)):
+            t = zp[min(i + 1, len(zp) - 1)] - zp[max(i - 1, 0)]
+            t /= np.linalg.norm(t)
+            u = np.cross(zn[i], t)
+            u /= np.linalg.norm(u)
+            pts.append((zp[i] + u * side * 0.0026 + zn[i] * 0.0007, zp[i] + u * side * 0.0060 + zn[i] * 0.0007))
+        base0 = len(ZV)
+        for a, b in pts:
+            ZV.extend([a, b])
+        for i in range(len(pts) - 1):
+            ZF.append((base0 + 2 * i, base0 + 2 * i + 1, base0 + 2 * i + 3, base0 + 2 * i + 2))
+    # Slider at the top (zip closed) and its puller hanging down along the zip.
+    top_c, top_n = zp[-6], zn[-6]
+    t_ = zp[-1] - zp[-10]
+    t_ /= np.linalg.norm(t_)
+    u_ = np.cross(top_n, t_)
+    u_ /= np.linalg.norm(u_)
+    box(MV, MF, top_c + top_n * 0.0009, t_, u_, top_n, (0.013, 0.0095, 0.0042), 0.3)
+    box(MV, MF, top_c + top_n * 0.0048 - t_ * 0.0125, t_, u_, top_n, (0.024, 0.0068, 0.0016), 0.2)
 
 
 def add_mesh(name, V, F, mat, smooth=True, bevel=False):
@@ -599,17 +730,27 @@ def add_mesh(name, V, F, mat, smooth=True, bevel=False):
 
 
 add_mesh(f'{op_id}-{gname}-stitches', TV, TF, m_thread)
-add_mesh(f'{op_id}-{gname}-binding', BV_, BF_, m_bind)
-add_mesh(f'{op_id}-{gname}-zip', ZV, ZF, m_poly, smooth=False, bevel=True)
-add_mesh(f'{op_id}-{gname}-zip-slider', MV, MF, m_metal, smooth=False, bevel=True)
+# Threads that cast no shadow (details 'stitchShadows' False, step 05 fix round 3): under a near-grazing rake (the
+# trousers' waist and seat close-ups) a thread standing 0.3 mm proud of a surface that bends away from the light (the
+# centre-front join, the centre back seam) throws a 5-10 mm spiky shadow, which reads as torn cloth. A real topstitch
+# sinks into the fabric it compresses and throws almost none. Render only: the glTF export does not carry it.
+if D.get('stitchShadows', True) is False:
+    bpy.data.objects[f'{op_id}-{gname}-stitches'].visible_shadow = False
+if BV_:
+    add_mesh(f'{op_id}-{gname}-binding', BV_, BF_, m_bind)
+if ZV:
+    add_mesh(f'{op_id}-{gname}-zip', ZV, ZF, m_poly, smooth=False, bevel=True)
+    add_mesh(f'{op_id}-{gname}-zip-slider', MV, MF, m_metal, smooth=False, bevel=True)
+if HV:
+    add_mesh(f'{op_id}-{gname}-hardware', HV, HF, m_hw, smooth=True)
 body.hide_render = False
 body.data.materials.clear()
-body.data.materials.append(MAT.clay())
-sb = body.modifiers.new('sub', 'SUBSURF')
-sb.levels = sb.render_levels = 1
-for o in bpy.data.objects:
-    if o.name == 'collider':
-        o.hide_render = True
+body.data.materials.append(reuse(MAT.clay, 'mannequin'))
+if 'sub' not in body.modifiers:
+    sb = body.modifiers.new('sub', 'SUBSURF')
+    sb.levels = sb.render_levels = 1
+for o in [o for o in bpy.data.objects if o.name.startswith('collider')]:
+    bpy.data.objects.remove(o)   # every stage adds its own colliders
 
 bpy.ops.wm.save_as_mainfile(filepath=stem + '.blend', compress=True)
 tri_count = sum(len(o.data.polygons) for o in scene.objects if o.type == 'MESH' and not o.hide_render and o != body)
@@ -617,7 +758,7 @@ report = {
     'operator': op_id, 'garment': gname, 'seed': args.seed,
     'denseVerts': nv, 'stitches': stats['stitches'], 'stitchRowsM': round(stats['stitchRowsM'], 2),
     'patches': [{k: v for k, v in p.items() if k != 'centre'} for p in R['details']['patches']],
-    'zipTeeth': teeth, 'patchLookupMisses': stats.get('patchLookupMisses', {}),
+    'zipTeeth': teeth, 'hardwareParts': len(D.get('grommets') or []) + len(D.get('snaps') or []), 'patchLookupMisses': stats.get('patchLookupMisses', {}),
     'patchPushedClear': stats.get('patchPushedClear', {}), 'heroFacesBeforeSolidify': tri_count,
 }
 with open(stem + '.json', 'w', encoding='utf-8') as f:

@@ -23,6 +23,10 @@ KNIT, RIPSTOP = 'knit', 'ripstop'
 KNIT_EASE = -0.03     # close-fit stretch knit (art direction 6): cut slightly under the body, it stretches on
 KNIT_EASE_V = -0.03   # ... in length too: any vertical slack in a knit buckles into horizontal ripples
 SLEEVE_EASE = 1.08    # ripstop sleeves: close but free to move (the gusset and darts give the reach)
+CUFF_ROOM = 0.035     # m added to the cuff girth: room for the glove cuff under the tab
+# Layers worn under the shirt (build_garment.py adds a layer allowance to each girth when it is sewn over them): the
+# base top everywhere, and the leggings' waistband too round the hem.
+UNDER_LAYERS = {'default': 1, 'circ_hem': 2}
 
 # Cloth simulation (build_garment.py): the flat pattern is the rest shape. Blender cloth stiffness is per spring and
 # mass per vertex; lighter, near-real vertex masses make the solver unstable (the sewing and collision impulses throw
@@ -46,6 +50,16 @@ SIM = {
     'collision': {'body': 0.0015, 'cloth': 0.0015},   # m: collider thickness and cloth distance (fabric on skin)
     'air_damping': 1.0, 'spring_damping': 5.0,
     'friction': 2.0,
+    # Tucked in (A11): below the trousers' band top (about 1 cm under the waist joint) the hem is drawn onto the base
+    # layer, eased in over 5 cm above (build_garment 'tuck'; step 05 fix round 2: the free hem stood 3 cm proud of the
+    # belly and showed through the trousers' front as a lip).
+    'tuck': {'from_waist': -0.015, 'ramp': 0.05, 'relax': 8},
+    # The front over the bust: the simulation leaves a 1 cm horizontal step across the upper chest where the cloth
+    # drapes from the bust (a dark bar in raking light, step 05 fix round 2), and the tuck crumples the back above the
+    # band; faired on the body panels only, between the seams (20 Taubin passes damp features up to about 6 cm; the
+    # seam lines are held - fairing them on one side opened the raglan seams to 15 mm; the sleeves keep their
+    # wrinkles).
+    'fair': {'iters': 20, 'panels': ['front', 'back'], 'edges': False},   # seam lines held: the sleeves are not faired
 }
 
 
@@ -94,13 +108,17 @@ def reverse_segments(segs, end_name):
     return [(names[i + 1], segs[i][1][::-1].copy()) for i in reversed(range(len(segs)))]
 
 
-def draft(m, h=0.011):
-    """m: body measurements (see build_garment.measure). Returns the pattern and the detail specs."""
-    e = 1.0 + KNIT_EASE
+def draft(m, h=0.011, ease=None):
+    """m: body measurements (see build_garment.measure). Returns the pattern and the detail specs.
+    ease: overrides of the cut constants (knit_ease, knit_ease_v, sleeve_ease, cuff_room), for garments drafted on
+    this block (the base layer top)."""
+    ec = {'knit_ease': KNIT_EASE, 'knit_ease_v': KNIT_EASE_V, 'sleeve_ease': SLEEVE_EASE, 'cuff_room': CUFF_ROOM,
+          **(ease or {})}
+    e = 1.0 + ec['knit_ease']
     hw = {k: m[f'circ_{k}'] / 4.0 * e for k in ('hem', 'waist', 'bust', 'ua')}
     # A gentle waist: combat shirts hang nearly straight under a carrier; a fitted taper catches on the hips.
     hw['waist'] = max(hw['waist'], 0.35 * hw['waist'] + 0.65 * min(hw['hem'], hw['bust']))
-    v = 1.0 + KNIT_EASE_V
+    v = 1.0 + ec['knit_ease_v']
     y_w, y_b, y_ua = (m['z_waist'] - m['z_hem']) * v, (m['z_bust'] - m['z_hem']) * v, (m['z_ua'] - m['z_hem']) * v
     nw = m['neck_half_w'] + 0.012
     # The front is cut a little longer than the back for the chest; 2 cm (3 cm left a 3 % vertical excess under the
@@ -142,10 +160,11 @@ def draft(m, h=0.011):
     rag_len = {'front': polyline_length(front.run('uaL', 'nkL')[0]), 'back': polyline_length(back.run('uaL', 'nkL')[0])}
 
     # Sleeve widths and lengths.
-    wc = m['circ_wrist'] * SLEEVE_EASE + 0.035     # room for the glove cuff under the tab
-    we = m['circ_elbow'] * SLEEVE_EASE
-    wf = m['circ_forearm'] * SLEEVE_EASE           # widest forearm girth, below the elbow
-    wb = m['circ_bicep'] * SLEEVE_EASE
+    se = ec['sleeve_ease']
+    wc = m['circ_wrist'] * se + ec['cuff_room']
+    we = m['circ_elbow'] * se
+    wf = m['circ_forearm'] * se           # widest forearm girth, below the elbow
+    wb = m['circ_bicep'] * se
     lu, yel = m['sleeve_under'], m['sleeve_elbow']
     nsw = 0.05
 

@@ -208,6 +208,14 @@ def rounded_rect(c, size, r, n=6, angle=0.0, pivot=None):
     return pts
 
 
+def patch_outline(spec):
+    """A detail patch's outline in pattern space: its own polygon ('outline', e.g. a seat panel shaped to the panel's
+    seams) or a rounded rectangle from centre, size and corner radius."""
+    if spec.get('outline') is not None:
+        return np.asarray(spec['outline'], dtype=np.float64)
+    return rounded_rect(spec['centre'], spec['size'], spec['r'], angle=spec.get('angle', 0.0), pivot=spec.get('pivot'))
+
+
 def _points_in_polygon(pts, poly):
     x, y = pts[:, 0][:, None], pts[:, 1][:, None]
     x0, y0 = poly[:, 0][None, :], poly[:, 1][None, :]
