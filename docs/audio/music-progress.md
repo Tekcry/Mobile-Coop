@@ -15,8 +15,30 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3d | Round 4: ten hooks to choose from | done; Michael: not liking anything yet; asked for MGS1 alert / escape style |
 | 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; Michael: "absolutely all wrong" |
 | 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; Michael: loves 3 (Night Shift) strings only; hated 1 and 2 |
-| 3g | Round 7: strings-only variations on Hook A (in-game layers, menu), finer layer control | done; waiting for Michael's feedback |
+| 3g | Round 7: strings-only variations on Hook A (in-game layers, menu), finer layer control | done; Michael: right direction; too much happening at times; the D too loud and aggressive; unsure about the slower ones |
+| 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 8 - softer D, lighter variations
+- **Michael (2026-10-16):**
+  - "Definitely heading in the right direction."
+  - Sometimes too much is happening.
+  - "The D is really loud and aggressive."
+  - Not sure he likes the slower ones (the 76 and 84 BPM menus).
+- **Softer D everywhere:**
+  - The hook's first note leads at 0.9 instead of 1.0 (the others are at 0.8).
+  - The held low D is about 2.5 dB lower, and the driving sixteenths about 2 dB lower.
+  - The Alert and Evasion presets pull the drive and the low D down a further 4-6 dB.
+- **New variations, all 92 BPM or faster:**
+  - **Mission score, lighter** (92 BPM, 7 layers): the hook on cellos only; quiet chord roots instead of a
+    constant D; violas doubling the walk-up; soft high chords; the melody on violins alone.
+  - **Mission score, moving** (96 BPM, 6 layers): the hook follows the chords (D, B-flat, G, A), so it travels
+    instead of sitting on D. A light bass, and the melody on cellos and violas.
+  - **Alert, lighter** (120 BPM, 5 layers): no driving sixteenths and no low D; short chord stabs instead.
+  - **Menu theme, at game speed** (96 BPM, 5 layers): plucked, then bowed and following the chords; the melody with
+    violas a third below; no big climax.
+- The slower menus stay, labelled "(slower)".
+- **Measured:** each piece renders in 6-15 s. All local renders total 80 MB, git-ignored.
 
 ## V4 round 7 - strings only, in layers
 - **Michael (2026-10-15):**

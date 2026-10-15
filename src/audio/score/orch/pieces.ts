@@ -1,4 +1,6 @@
 /**
+ * Round 8 (2026-10-16): "too much happening sometimes; the D is really loud and aggressive; not sure about the slower
+ * ones": softer D everywhere, and lighter variations at 92-120 BPM (fewer layers, the hook following the chords).
  * Round 7 (Michael, 2026-10-15): he loves round 6's "Night Shift" (Hook A as the low-string ostinato) with the brass,
  * organ and percussion muted - strings only - and hated the other two pieces. Everything here is strings built on Hook A,
  * rendered as many separate layers (one file each) so they can be mixed live:
@@ -58,8 +60,8 @@ export const PIECES: readonly PieceMeta[] = [
     presets: {
       Calm: { pizz: 0.5, lowSus: 0.35, trem: 0.12 },
       Cautious: { hookCello: 0.65, hookBass: 0.55, lowSus: 0.5, chords: 0.3, trem: 0.35 },
-      Alert: { hookBass: 1, hookCello: 1, hookHigh: 0.9, drive: 0.85, lowSus: 0.9, chords: 0.9, trem: 0.8, melody: 1 },
-      Evasion: { hookBass: 0.9, hookCello: 0.9, drive: 0.7, lowSus: 0.8, trem: 0.6 },
+      Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.45, lowSus: 0.55, chords: 0.9, trem: 0.7, melody: 1 },
+      Evasion: { hookBass: 0.7, hookCello: 0.9, drive: 0.4, lowSus: 0.5, trem: 0.55 },
       'Everything on': { pizz: 1, hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
     },
   },
@@ -81,14 +83,85 @@ export const PIECES: readonly PieceMeta[] = [
       S('melody', 'Melody on violins and cellos'),
     ],
     presets: {
-      Alert: { hookBass: 1, hookCello: 1, hookHigh: 0.9, drive: 0.9, lowSus: 0.8, chords: 0.85, trem: 0.8, melody: 1 },
-      Evasion: { hookBass: 0.9, hookCello: 0.9, drive: 0.8, lowSus: 0.7, trem: 0.6 },
+      Alert: { hookBass: 0.8, hookCello: 1, hookHigh: 0.9, drive: 0.5, lowSus: 0.5, chords: 0.85, trem: 0.7, melody: 1 },
+      Evasion: { hookBass: 0.7, hookCello: 0.9, drive: 0.45, lowSus: 0.45, trem: 0.55 },
       'Everything on': { hookBass: 1, hookCello: 1, hookHigh: 1, drive: 1, lowSus: 1, chords: 1, trem: 1, melody: 1 },
     },
   },
   {
+    id: 'lighter',
+    name: 'Mission score, lighter',
+    about: 'Less going on: the hook on cellos only (no basses doubling it), the chord roots held quietly instead of a constant low D, soft high chords, an answer on violas, the melody on violins alone.',
+    use: 'mission',
+    bpm: 92,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato'),
+      S('hook', 'Hook A, cellos'),
+      S('answer', 'Violas doubling the walk-up'),
+      S('roots', 'Low chord roots (quiet)'),
+      S('soft', 'Soft high chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on violins'),
+    ],
+    presets: {
+      Calm: { pizz: 0.5, roots: 0.3 },
+      Cautious: { hook: 0.65, roots: 0.45, soft: 0.3, trem: 0.2 },
+      Alert: { hook: 1, answer: 0.8, roots: 0.7, soft: 0.8, trem: 0.5, melody: 0.9 },
+      Evasion: { hook: 0.85, answer: 0.6, roots: 0.6, trem: 0.4 },
+      'Everything on': { pizz: 1, hook: 1, answer: 1, roots: 1, soft: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'moving',
+    name: 'Mission score, moving',
+    about: 'The hook follows the chords (D, B-flat, G, A) instead of sitting on D, so the music travels. Cellos with a light bass, soft chords, the melody on cellos and violas.',
+    use: 'mission',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (following the chords)'),
+      S('hook', 'Hook A, cellos (following the chords)'),
+      S('bass', 'Basses, light, on the strong notes'),
+      S('soft', 'Soft high chords'),
+      S('trem', 'High tremolo'),
+      S('melody', 'Melody on cellos and violas'),
+    ],
+    presets: {
+      Calm: { pizz: 0.5, soft: 0.15 },
+      Cautious: { hook: 0.65, bass: 0.35, soft: 0.35 },
+      Alert: { hook: 1, bass: 0.7, soft: 0.8, trem: 0.6, melody: 1 },
+      Evasion: { hook: 0.85, bass: 0.6, soft: 0.4, trem: 0.45 },
+      'Everything on': { pizz: 1, hook: 1, bass: 1, soft: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'alertlight',
+    name: 'Alert, lighter',
+    about: 'A faster Alert (120 BPM) with less weight: the hook on cellos and violas, short chord stabs, the melody, no driving sixteenths and no low D.',
+    use: 'mission',
+    bpm: 120,
+    bars: 32,
+    layers: [S('hook', 'Hook A, cellos'), S('hookHigh', 'Hook A, violas an octave up'), S('stabs', 'Short chord stabs'), S('soft', 'Soft high chords'), S('melody', 'Melody on violins')],
+    presets: {
+      Alert: { hook: 1, hookHigh: 0.8, stabs: 0.7, soft: 0.6, melody: 1 },
+      Evasion: { hook: 0.85, hookHigh: 0.5, stabs: 0.5 },
+      'Everything on': { hook: 1, hookHigh: 1, stabs: 1, soft: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'menuflow',
+    name: 'Menu theme, at game speed',
+    about: 'The menu at 96 BPM with little going on: the hook plucked, then bowed and following the chords, the melody on violins with violas a third below, soft chord swells. No big climax.',
+    use: 'menu',
+    bpm: 96,
+    bars: 32,
+    layers: [S('pizz', 'Hook A, pizzicato'), S('hook', 'Hook A, cellos (following the chords)'), S('soft', 'Soft chord swells'), S('melody', 'Melody on violins'), S('harmony', 'Violas a third below')],
+    presets: { Full: { pizz: 1, hook: 1, soft: 1, melody: 1, harmony: 1 } },
+  },
+  {
     id: 'menugrand',
-    name: 'Menu theme, grand',
+    name: 'Menu theme, grand (slower)',
     about: 'A full statement for the main menu at 84 BPM: the hook alone, then the melody on cellos, then violins and the whole section, a climax and a long final chord.',
     use: 'menu',
     bpm: 84,
@@ -106,7 +179,7 @@ export const PIECES: readonly PieceMeta[] = [
   },
   {
     id: 'menubrood',
-    name: 'Menu theme, brooding',
+    name: 'Menu theme, brooding (slower)',
     about: 'A darker, quieter menu at 76 BPM: the hook plucked, a low held D, the melody on cellos, tremolo swells and soft chords. No big climax.',
     use: 'menu',
     bpm: 76,
@@ -200,15 +273,47 @@ const MOTIF: [string, number][] = [
 ];
 
 /** Hook A from bar `from` to `to` on one instrument, `tr` semitones from written, with a per-bar level. */
-function hookLine(s: Score, layer: string, inst: string, tr: number, from: number, to: number, vel: (b: number) => number, onlyStrong = false): void {
+/**
+ * Hook A from bar `from` to `to` on one instrument, `tr` semitones from written (a number, or per bar so the hook can
+ * follow the chords), with a per-bar level. The first note leads only gently (round 8: "the D is really loud").
+ */
+function hookLine(s: Score, layer: string, inst: string, tr: number | ((b: number) => number), from: number, to: number, vel: (b: number) => number, onlyStrong = false, lead = 0.9): void {
   for (let b = from; b < to; b++) {
+    const shift = typeof tr === 'number' ? tr : tr(b);
     for (let i = 0; i < 8; i++) {
       const name = HOOK_A[(b % 2) * 8 + i];
       if (!name) continue;
       if (onlyStrong && !(i === 0 || i === 3)) continue;
       const len = HOOK_A[(b % 2) * 8 + i + 1] === null && i < 7 ? 1 : 0.5;
-      note(s.L(layer), s.bank, inst, n(name) + tr, s.t(b, i / 2), s.d(len) * 0.9, { vel: vel(b) * (i === 0 ? 1 : 0.78), release: 0.12 });
+      note(s.L(layer), s.bank, inst, n(name) + shift, s.t(b, i / 2), s.d(len) * 0.9, { vel: vel(b) * (i === 0 ? lead : 0.8), release: 0.12 });
     }
+  }
+}
+
+/** Semitones that move the hook from D onto a chord's root, kept within -5..+6 so it stays in the cellos' range. */
+function toRoot(c: ChordName): number {
+  const d = (((CH[c].root - D) % 12) + 12) % 12;
+  return d > 6 ? d - 12 : d;
+}
+
+/** Soft held chords on violas and violins only (no basses, no low D), long swells. */
+function softChords(s: Score, layer: string, from: number, to: number, barsPer: number, vel: number, attack: number): void {
+  for (let b = from; b < to; b += barsPer) {
+    const c = CH[PROG[Math.floor((b - from) / barsPer) % 4]!];
+    const dur = s.d(4 * barsPer);
+    note(s.L(layer), s.bank, 'violaSus', c.tones[2]!, s.t(b), dur, { vel, attack, release: 1 });
+    note(s.L(layer), s.bank, 'violinSus', c.tones[3]!, s.t(b), dur, { vel: vel * 0.9, attack, release: 1 });
+    note(s.L(layer), s.bank, 'violinSus', c.tones[4]!, s.t(b), dur, { vel: vel * 0.85, attack, release: 1 });
+  }
+}
+
+/** The chord roots, held low and quietly (instead of a constant D). */
+function roots(s: Score, layer: string, from: number, to: number, barsPer: number, vel: number): void {
+  for (let b = from; b < to; b += barsPer) {
+    const r = CH[PROG[Math.floor((b - from) / barsPer) % 4]!].root + 12;
+    const dur = s.d(4 * barsPer);
+    note(s.L(layer), s.bank, 'celloSus', r, s.t(b), dur, { vel, attack: s.d(2), release: 1 });
+    note(s.L(layer), s.bank, 'bassSus', r, s.t(b), dur, { vel: vel * 0.8, attack: s.d(2), release: 1 });
   }
 }
 
@@ -273,9 +378,9 @@ function mission(s: Score): void {
   hookLine(s, 'hookBass', 'bassSpic', -12, 0, N, () => 0.8);
   hookLine(s, 'hookCello', 'celloSpic', 0, 0, N, () => 0.85);
   hookLine(s, 'hookHigh', 'violaSpic', 12, 0, N, () => 0.75);
-  drive(s, 'drive', 'celloSpic', D + 12, 0, N, 0.7);
-  drive(s, 'drive', 'violaSpic', D + 24, 0, N, 0.6);
-  lowD(s, 'lowSus', 0, N, 8, 0.6);
+  drive(s, 'drive', 'celloSpic', D + 12, 0, N, 0.55);
+  drive(s, 'drive', 'violaSpic', D + 24, 0, N, 0.5);
+  lowD(s, 'lowSus', 0, N, 8, 0.45);
   chords(s, 'chords', 0, N, 2, 0.6, 0.6, false);
   trem(s, 'trem', 0, N, 8, 0.55);
   for (const at of [8, 24]) {
@@ -289,9 +394,9 @@ function alertFast(s: Score): void {
   hookLine(s, 'hookBass', 'bassSpic', -12, 0, N, () => 0.9);
   hookLine(s, 'hookCello', 'celloSpic', 0, 0, N, () => 0.95);
   hookLine(s, 'hookHigh', 'violaSpic', 12, 0, N, () => 0.85);
-  drive(s, 'drive', 'celloSpic', D + 12, 0, N, 0.8);
-  drive(s, 'drive', 'violaSpic', D + 24, 0, N, 0.7);
-  lowD(s, 'lowSus', 0, N, 4, 0.75);
+  drive(s, 'drive', 'celloSpic', D + 12, 0, N, 0.6);
+  drive(s, 'drive', 'violaSpic', D + 24, 0, N, 0.55);
+  lowD(s, 'lowSus', 0, N, 4, 0.55);
   chords(s, 'chords', 0, N, 2, 0.8, 0.12, false);
   trem(s, 'trem', 0, N, 4, 0.7, false);
   for (const at of [8, 24]) {
@@ -393,10 +498,82 @@ function nightShiftRef(s: Score): void {
   timp(P, s.bank, D + 12, s.t(14), 0.6, true);
 }
 
+
+function lighter(s: Score): void {
+  const N = s.meta.bars;
+  hookLine(s, 'pizz', 'celloPizz', 0, 0, N, () => 0.65, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', 0, 0, N, () => 0.8, false, 0.85);
+  // violas double only the walk-up (the second bar's last four notes), an octave up
+  for (let b = 1; b < N; b += 2) {
+    for (let i = 4; i < 8; i++) note(s.L('answer'), s.bank, 'violaSpic', n(HOOK_A[8 + i]!) + 12, s.t(b, i / 2), s.d(0.45), { vel: 0.6 + 0.05 * (i - 4), release: 0.12 });
+  }
+  roots(s, 'roots', 0, N, 2, 0.45);
+  softChords(s, 'soft', 0, N, 2, 0.5, s.d(3));
+  trem(s, 'trem', 0, N, 8, 0.4);
+  for (const at of [8, 24]) motif(s, 'melody', 'violinSus', at, 0.75, 12);
+}
+
+function moving(s: Score): void {
+  const N = s.meta.bars;
+  const tr = (b: number): number => toRoot(PROG[Math.floor(b / 2) % 4]!);
+  hookLine(s, 'pizz', 'celloPizz', tr, 0, N, () => 0.65, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', tr, 0, N, () => 0.8, false, 0.85);
+  hookLine(s, 'bass', 'bassSpic', (b) => tr(b) - 12, 0, N, () => 0.55, true, 0.85);
+  softChords(s, 'soft', 0, N, 2, 0.5, s.d(2));
+  trem(s, 'trem', 0, N, 8, 0.4);
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'celloSus', at, 0.75);
+    motif(s, 'melody', 'violaSus', at, 0.65);
+  }
+}
+
+function alertLight(s: Score): void {
+  const N = s.meta.bars;
+  hookLine(s, 'hook', 'celloSpic', 0, 0, N, () => 0.85, false, 0.85);
+  hookLine(s, 'hookHigh', 'violaSpic', 12, 0, N, () => 0.75, false, 0.85);
+  // a short chord on beat 1 and the "and" of 2 of every bar, on the progression
+  for (let b = 0; b < N; b++) {
+    const c = CH[PROG[Math.floor(b / 2) % 4]!];
+    for (const beat of [0, 1.5]) for (const m of c.tones.slice(1, 4)) note(s.L('stabs'), s.bank, m < n('C4') ? 'violaSpic' : 'celloSpic', m, s.t(b, beat), s.d(0.3), { vel: beat === 0 ? 0.7 : 0.55, release: 0.1 });
+  }
+  softChords(s, 'soft', 0, N, 2, 0.55, 0.3);
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'violinSus', at, 0.85, 12);
+    motif(s, 'melody', 'violinSus', at, 0.75);
+  }
+}
+
+function menuFlow(s: Score): void {
+  const N = s.meta.bars;
+  const tr = (b: number): number => toRoot(PROG[Math.floor(b / 2) % 4]!);
+  hookLine(s, 'pizz', 'celloPizz', 0, 0, 8, (b) => 0.5 + b * 0.02, false, 0.85);
+  hookLine(s, 'pizz', 'celloPizz', tr, 8, N, () => 0.45, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', tr, 8, N, (b) => (b < 16 ? 0.6 : 0.72), false, 0.85);
+  softChords(s, 'soft', 8, N, 2, 0.5, s.d(4));
+  motif(s, 'melody', 'violinSus', 8, 0.7, 12);
+  motif(s, 'melody', 'violinSus', 24, 0.8, 12);
+  // violas a third below the melody (a chord tone under each note)
+  let beat = 0;
+  for (const [m, len] of MOTIF) {
+    for (const at of [8, 24]) {
+      const c = CH[PROG[Math.floor((at + Math.floor(beat / 4)) / 2) % 4]!];
+      const top = n(m);
+      let low = top - 3;
+      while (low > top - 6 && !c.tones.some((t) => (t - low) % 12 === 0)) low--;
+      note(s.L('harmony'), s.bank, 'violaSus', low, s.t(at, beat), s.d(len) * 0.97, { vel: at === 8 ? 0.6 : 0.7, attack: len >= 8 ? s.d(3) : 0.2, release: 0.8 });
+    }
+    beat += len;
+  }
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
+  else if (meta.id === 'lighter') lighter(s);
+  else if (meta.id === 'moving') moving(s);
+  else if (meta.id === 'alertlight') alertLight(s);
+  else if (meta.id === 'menuflow') menuFlow(s);
   else if (meta.id === 'menugrand') menuGrand(s);
   else if (meta.id === 'menubrood') menuBrood(s);
   else nightShiftRef(s);
