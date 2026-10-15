@@ -1,7 +1,7 @@
 # Operators WREN and MOTH - specification (Stage 1 draft)
 
-Status: Stage 1 (research and the technique decision). Stage 3 replaces this with the final character detail sheet.
-Decisions: `DECISIONS.md` (D1-D5 Michael; S1 setup). Sources read: Section 9.
+Status: Stage 1 done and answered (D7-D11). Stage 3 replaces this with the final character detail sheet.
+Decisions: `DECISIONS.md` (D1-D11 Michael; S1-S2 setup). Sources read: Section 9.
 
 ---
 
@@ -202,11 +202,34 @@ two or three clips or elastic loops, down to the mount; strain relief at both en
 
 ## 4. Anthropometry and the shared skeleton
 
-### 4.1 The rule
+### 4.1 The rule (D10, D11 override D3's identical skeleton)
 
-D3: one skeleton, capsule, speed set, hit volumes and light sample heights for both. Height stays the game's standard
-1.75 m (`STANDARD_HEIGHT`) unless Michael changes it (DECISIONS Q4). At 1.75 m Moth is about an average man; Wren is a
-tall woman (around the 90th percentile). "Compact" for Wren means build and kit, not height.
+**Each operator has their own height.**
+- Wren 1.68 m: a tallish woman, about the 75th percentile; compact in build.
+- Moth 1.78 m: a little above the average man; lean.
+
+**Per operator (follows the body you see):**
+- the skeleton: `proportions(build, height)` already scales every length by height;
+- the hit volumes (`hitVolumes(p)` of that operator's proportions);
+- the light sample heights (chest and head, from that operator's joints).
+
+**Shared (as today):**
+- the controller capsule;
+- speeds and gears;
+- camera rules;
+- every traversal move and its anchors.
+
+**Gameplay effects to carry into integration:**
+- Light: Wren's head sample sits about 6 cm lower than Moth's, so she is slightly harder to see over low cover and
+  in a low lamp pool.
+- Hit volumes: shots that clear Wren's head can hit Moth's.
+- Mission 8 (the Confrontation, the only versus content) inherits both effects. Michael accepted this ("realism over
+  fairness; the game is mostly co-op").
+- Traversal: hands reach the same anchors from the same capsule. The visible body's root offset and IK must take up
+  the 10 cm height difference:
+  - hangs: a shorter operator hangs with more arm extension, within the 5.12.2 ROM limits;
+  - ladders and vaults: the step and hand timing come from the shared move.
+- These are verified per operator in the Lab's poses (Stage 2) and in `e2e-traverse` at integration.
 
 ### 4.2 Check against real data
 
@@ -234,29 +257,32 @@ tool is installed.
 | Waist depth | 0.185 | ~0.21-0.24 (lean: ~0.20) | ~0.20 | **Thin** (visual only) |
 | Chest w x d | 0.34 x 0.22 | ~0.33 x 0.25 | ~0.31 x 0.25 (with bust) | Depth thin (visual only) |
 
-### 4.3 Proposed corrections to the shared skeleton (applied at integration, after the locomotion merge)
+### 4.3 Proposed corrections to the base proportions (applied at integration, after the locomotion merge)
 
-| # | Change | Why | Gameplay effect (identical for both operators) |
+These fix the base ratios that every height scales from, so they apply to both operators (and to guards, which share
+`proportions.ts`). The lengths below are at 1.75 m; each operator's height scales them.
+
+| # | Change | Why | Gameplay effect |
 | --- | --- | --- | --- |
 | A1 | Shoulder joint y 1.435 -> 1.41 | The joint centre sits under the acromion, not level with it | Body hit capsule top (`hitVolumes.bodyY1`) 2.5 cm lower; the weapon's aim pocket and grip IK 2.5 cm lower; the camera follows the head: none expected (to verify) |
 | A2 | Upper arm 0.30 -> 0.31 | With A1, fingertips reach 0.38 H | Hand reach +1 cm: ladder, pipe and ledge contact bars re-run (`e2e-traverse`) |
 | A3 | Hand length 0.17 -> 0.185 | Real hands; hero hands have fingers | None: grip offsets (`WRIST_TRIGGER`, `WRIST_SUPPORT`) retuned, weapon hold bars re-run |
 | A4 | Pelvis width 0.31 -> 0.33, waist depth 0.185 -> 0.20, chest depth 0.22 -> 0.23 | Real body mass for draping clothes | None: visual mesh only; hit volumes come from the shared base build, not the mesh |
 
-Hit volumes and the capsule are computed once from the shared base build for both operators, never from either
-operator's mesh.
+Each operator's hit volumes come from that operator's proportions (height and build), never from the mesh, so they
+stay simple capsules and a head sphere.
 
-### 4.4 Builds (the few-percent rule)
+### 4.4 Builds
 
-The existing `BUILD_MODS` range (0.88-1.15) is too wide for operators. Operators get their own mods within +-4%,
-visual only:
+Height carries most of the difference (D10, D11). Build mods stay modest so the two still read as fit operators of
+the same team:
 
 | | Shoulders | Chest | Waist | Hips | Girth (limbs) |
 | --- | --- | --- | --- | --- | --- |
 | Wren (thirties, compact, ex-military woman) | 0.97 | 1.00 (bust under the carrier) | 0.96 | 1.04 | 0.98 |
 | Moth (twenties, lean, ex-steeplejack man) | 1.03 | 0.98 | 0.96 | 0.97 | 0.96 (long, ropey forearms) |
 
-What tells them apart is mostly silhouette and kit:
+What tells them apart: height (10 cm), silhouette and kit:
 - Wren: square goggle and a close hood; a plate carrier; a compact, upright stance.
 - Moth: round lenses; a chest rig plus harness; rolled sleeves; a lean, loose stance (gait differences per 5.12.2.8,
   within fairness).
@@ -530,7 +556,26 @@ with:
 >   pipeline (bible 5.14). Operator meshes and maps are generated offline by in-repo scripts (Blender, headless) and
 >   bundled; phones never download hero assets.
 
-The version line goes to 1.15 with a summary of this change.
+**Fairness (follows from D10 and D11; applied with the rest).**
+
+- **Bible 5.14.** Replace "**Fairness:** identical skeleton, capsule, speeds, hit volumes and light sample heights.
+  Visible build differences stay within a few percent." with:
+
+  > - **Size (Michael, 2026-10-15: realism over fairness; the game is mostly co-op).** Each operator has a realistic
+  >   height and build (Wren about 1.68 m, Moth about 1.78 m). Their skeleton, hit volumes and light sample heights
+  >   follow their own body. The capsule, speeds, camera rules and every traversal move stay identical for all
+  >   operators, so maps and routes work the same for everyone.
+
+- **Bible 5.15 "Fairness".** Add:
+
+  > - Operators differ in height (5.14): hit volumes and light samples follow each body. Accepted for the
+  >   Confrontation.
+
+- **story.md Section 4.** Replace "Every operator has identical stats and hitboxes (bible 5.14)." with:
+
+  > Every operator has identical stats; each is their own real size (bible 5.14).
+
+The version line goes to 1.15 with a summary of these changes.
 
 ---
 
@@ -555,8 +600,11 @@ The version line goes to 1.15 with a summary of this change.
 - **Menu spec.** The menu redesign (`feature/menu-ui-spec`) frames the operator medium or wide because "the model is
   low detail". Once the operators pass, closer shots become possible; that is the menu run's call.
 - **Repo size.** Only approved outputs are committed. Mockup renders are WebP at sensible sizes.
-- **The phone.** Bible 1.14 (P7) dropped the phone's 60 fps gate; the brief asks for 60 fps in the phone menu
-  (DECISIONS Q3).
+- **The phone (D9).** The phone gets LOD2 in game and in the menu, never hero assets; no fps gate (bible 1.14).
+- **Different heights (D10, D11).**
+  - Paired moves (takedowns, team moves, carry, drag) must align hands within 3 cm for a 1.68 m and a 1.78 m
+    operator (5.12.2.11).
+  - Guards use `proportions.ts` too; changing the base ratios (A1-A4) moves them as well. Check at integration.
 
 ---
 

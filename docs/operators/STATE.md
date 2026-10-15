@@ -1,31 +1,46 @@
 # Operators run - state (resume point)
 
-**Stage:** 1 done (research and the technique decision). Waiting for Michael's answers to Q1-Q4 (DECISIONS.md).
+**Stage:** 1 done and answered (DECISIONS D7-D11). Next: Stage 2 (mockups).
 
 **Done**
 - Worktree `C:\NightShift\Mobile-Coop-operators`, branch `feature/operators` from `origin/ct-movement` (DECISIONS S1).
-- `docs/operators/`: BRIEF, RULES, STATE, DECISIONS (D1-D6, S1-S2, Q1-Q4), SPEC (Stage 1 draft):
+- `docs/operators/`: BRIEF, RULES, STATE, DECISIONS (D1-D11, S1-S2), SPEC (Stage 1):
   - the detail standard;
   - the design language (D5);
   - the reference study;
-  - the anthropometry check and proposed skeleton corrections A1-A4;
-  - kit lists for Wren and Moth;
-  - the technique comparison and recommendation;
+  - anthropometry and per-operator heights;
+  - kit lists;
+  - the technique;
   - cost estimates;
-  - draft rule text;
+  - the approved rule text;
   - risks.
 - CLAUDE.md line for this branch.
+- Michael's answers:
+  - the Blender pipeline on a CC0 base body (D7);
+  - the rule text approved (D8);
+  - the phone follows bible 1.14 (D9);
+  - per-operator heights, Wren about 1.68 m and Moth about 1.78 m. Skeleton, hit volumes and light samples follow the
+    body; the capsule, speeds and traversal stay shared (D10, D11).
 
-**Next (Stage 2, after the answers)**
-1. Apply the approved rule changes (bible 5.14, 5.16, Section 6, version 1.15; CLAUDE.md).
-2. Install the pipeline tools on the PC: Blender (pinned LTS) and a KTX2 encoder. Create `docs/art-credits.md` with the
-   CC0 base body and any textures.
-3. Pipeline skeleton: `scripts/operators/` (Python, headless Blender), `npm run operators:build`, the kit data file
-   and its Vitest validator.
-4. The Operator Lab (`npm run operators`, dev only).
-5. `scripts/operator-sheet.mjs`.
-6. Three concepts per operator, contact sheets, the review Artifact with the db capability.
-7. `npm run check`, commit, push, STOP.
+**Next: Stage 2, in this order**
+1. Apply the approved rule text from SPEC Section 7 (bible 5.14, 5.15, 5.16, Section 6, version 1.15; CLAUDE.md
+   hard rule; story.md Section 4). Commit.
+2. Check the tools: Blender (Michael installs it before the session; pin the installed version in the pipeline). Ask
+   Michael before installing anything else; a KTX2 encoder can wait until the export step. Create
+   `docs/art-credits.md`.
+3. Verify the SPEC 4.2 anthropometry table against the ANSUR II report or CSVs (openlab.psu.edu/ansur2). Ask Michael
+   before downloading.
+4. Pipeline skeleton:
+   - `scripts/operators/` (Python, Blender headless) and `npm run operators:build`;
+   - the CC0 base body (MPFB / MakeHuman assets) shaped to each operator's proportions;
+   - the kit data file with its pure Vitest validator (every strap two anchors, every pouch named contents, every
+     cable a source, a device and retention points no more than 15 cm apart).
+5. The Operator Lab (`npm run operators`, dev only, never in the production bundle). It reads the rig's pose data
+   read-only.
+6. `scripts/operator-sheet.mjs` (E2E_GPU=1, E2E_PORT=4191) and the contact sheets of BRIEF Stage 2.2.
+7. Three concepts per operator, Splinter Cell inspired and original (D5). Renders go in `docs/operators/mockups/`.
+8. The review Artifact with Approve / Reject / Note per card (db capability).
+9. `npm run check`, commit, push, STOP.
 
 **Open items**
-- Verify the anthropometry table (SPEC 4.2) against the ANSUR II report tables (needs a PDF text tool or the CSVs).
+- None waiting on Michael.

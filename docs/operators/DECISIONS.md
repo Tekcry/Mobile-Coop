@@ -44,8 +44,36 @@ the phone "load and play on Low, no fps gate". Asked as Q3.
 
 ## Questions for Michael (Stage 1)
 
-- **Q1 Technique.** Recommended: the scripted Blender pipeline on a CC0 base body (SPEC 6.3). Answer: pending.
-- **Q2 Rule changes.** Approve the drafted bible 5.14 / 5.16 / Section 6 and CLAUDE.md text (SPEC Section 7).
-  Answer: pending.
-- **Q3 Phone.** Bible 1.14 (lowest LOD, no fps gate) or the brief's 60 fps phone menu. Answer: pending.
-- **Q4 Height.** Keep the shared 1.75 m or lower it. Answer: pending.
+All answered 2026-10-15 through the multiple-choice UI.
+
+- **Q1 Technique.** Recommended: the scripted Blender pipeline on a CC0 base body (SPEC 6.3). Answer below (D7).
+- **Q2 Rule changes.** Approve the drafted bible 5.14 / 5.16 / Section 6 and CLAUDE.md text (SPEC Section 7). Answer
+  below (D8).
+- **Q3 Phone.** Bible 1.14 (lowest LOD, no fps gate) or the brief's 60 fps phone menu. Answer below (D9).
+- **Q4 Height.** Keep the shared 1.75 m or lower it. Answer below (D10), with a follow-up on scope (D11).
+
+## Stage 1 answers
+
+**D7 Technique (Q1).** Michael chose "Blender pipeline (Recommended)".
+- In-repo Python scripts run Blender headless, on a CC0 base body: sewn garment panels draped by cloth simulation,
+  bevelled kit, baked maps, glTF out (SPEC 6.3).
+
+**D8 Rule changes (Q2).** Michael chose "Approve as drafted (Recommended)".
+- The bible 5.14 / 5.16 / Section 6 and CLAUDE.md text in SPEC Section 7 is approved.
+- It is applied at the start of Stage 2 (bible 1.15), together with the D10 / D11 fairness text (SPEC 7, last
+  block), which follows from Michael's own answers.
+
+**D9 Phone (Q3).** Michael chose "Bible 1.14 (Recommended)".
+- The phone gets the lowest LOD of the same design and never downloads hero assets.
+- No fps gate; phone numbers are information only.
+- The brief's "60 fps phone menu" line is superseded.
+
+**D10 Height (Q4).** Michael: "operators can be slightly different sizes, i would prefer realism over fairness. the
+games focus is mostly coop"
+- This overrides D3's "identical skeleton ... hit volumes and light sample heights" and bible 5.14's fairness bullet.
+
+**D11 Size scope (follow-up to D10).** Michael chose "Hit boxes follow the body (Recommended)": "Each operator's
+skeleton, hit volumes and light sample heights match their real size, so shots and light hit the body you see.
+Capsule, speeds and every traversal move stay shared, so maps and routes work the same for everyone."
+- Heights: Wren about 1.68 m, Moth about 1.78 m (SPEC 4).
+- What stays shared: the capsule, speeds, eye and camera rules, and every traversal move and its anchors.
