@@ -1,4 +1,6 @@
 /**
+ * Round 11 (2026-10-16): pieces in the style of Brandon Roberts' "Past/Present/Future" (Andor season 2): a soft pulse,
+ * a minimalist repeating figure that grows, D Dorian with a hopeful G major, long-note melody, a long build. Style only.
  * Round 10 (2026-10-16): he likes the Zimmer menu's orchestra but it strays from Hook A; wants it darker, more
  * suitable for stealth, still epic: Hook A back on D, a darker progression with the Phrygian E-flat, everything low.
  * Round 9 (2026-10-16): "add more influence from Hans Zimmer again": Zimmer pieces (swells, mid-register sixteenth
@@ -43,6 +45,33 @@ export interface PieceMeta {
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
 
 export const PIECES: readonly PieceMeta[] = [
+  {
+    id: 'ppfmission',
+    name: 'Mission score, Past/Present/Future style',
+    about: 'In the style of Brandon Roberts\' Andor score (115 BPM): a soft low pulse in 3 + 3 + 2, a repeating string figure that grows a note at a time, Hook A on D underneath, low swells, a long-note melody that lifts over a hopeful G major chord, horns and drums for Alert.',
+    use: 'mission',
+    bpm: 115,
+    bars: 32,
+    layers: [
+      S('pulse', 'Low pulse in eighths (soft)'),
+      S('arp', 'Repeating figure, violas'),
+      S('arpHigh', 'Repeating figure, violins an octave up'),
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('melody', 'Long-note melody on violins'),
+      { id: 'brass', name: 'Horn swells, low trombones', kind: 'brass' },
+      { id: 'drums', name: 'Timpani and low drums', kind: 'perc' },
+    ],
+    presets: {
+      Calm: { pulse: 0.3, arp: 0.25, pizz: 0.35 },
+      Cautious: { pulse: 0.5, arp: 0.5, hook: 0.6, swell: 0.45 },
+      Alert: { pulse: 0.75, arp: 0.8, arpHigh: 0.7, hook: 0.85, swell: 0.8, melody: 0.9, brass: 0.55, drums: 0.6 },
+      Evasion: { pulse: 0.65, arp: 0.7, hook: 0.75, swell: 0.6, drums: 0.4 },
+      'Strings only': { pulse: 0.75, arp: 0.8, arpHigh: 0.7, hook: 0.85, swell: 0.8, melody: 0.9 },
+      'Everything on': { pulse: 1, arp: 1, arpHigh: 1, pizz: 1, hook: 1, swell: 1, melody: 1, brass: 1, drums: 1 },
+    },
+  },
   {
     id: 'zdarkmission',
     name: 'Mission score, Zimmer dark',
@@ -230,6 +259,28 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'ppfmenu',
+    name: 'Menu theme, Past/Present/Future style',
+    about: 'In the style of Brandon Roberts\' Andor score (115 BPM): it starts with only a soft pulse and a repeating string figure, Hook A arrives on D, the figure grows a note at a time, a long-note melody lifts over the hopeful G major chord, and horns and drums carry it to an epic peak before it drops back to the pulse.',
+    use: 'menu',
+    bpm: 115,
+    bars: 40,
+    layers: [
+      S('pulse', 'Low pulse in eighths (soft)'),
+      S('arp', 'Repeating figure, violas'),
+      S('arpHigh', 'Repeating figure, violins an octave up'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('swell', 'Low string swells'),
+      S('melody', 'Long-note melody on violins'),
+      { id: 'brass', name: 'Horn swells, low trombones', kind: 'brass' },
+      { id: 'drums', name: 'Timpani and low drums', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pulse: 1, arp: 1, arpHigh: 1, hook: 1, swell: 1, melody: 1, brass: 0.8, drums: 0.7 },
+      'Strings only': { pulse: 1, arp: 1, arpHigh: 1, hook: 1, swell: 1, melody: 1 },
+    },
+  },
+  {
     id: 'zdark',
     name: 'Menu theme, Zimmer dark',
     about: 'The Zimmer menu, darker and closer to Hook A: the hook stays on D as you like it, the harmony turns darker (D minor, B-flat, then an E-flat chord rubbing against the D), everything sits low (no bright violin climax), low cello tremolo, the melody on cellos, violas and low horns, soft low drums, and a huge but dark final chord.',
@@ -402,6 +453,7 @@ const CH = {
   F: { root: n('F1'), tones: [n('C3'), n('F3'), n('A3'), n('C4'), n('F4'), n('A4')] },
   C: { root: n('C2'), tones: [n('C3'), n('E3'), n('G3'), n('C4'), n('E4'), n('G4')] },
   Eb: { root: n('Eb2'), tones: [n('Eb3'), n('G3'), n('Bb3'), n('Eb4'), n('G4'), n('Bb4')] },
+  G: { root: n('G1'), tones: [n('D3'), n('G3'), n('B3'), n('D4'), n('G4'), n('B4')] },
 };
 type ChordName = keyof typeof CH;
 const PROG: ChordName[] = ['Dm', 'Bb', 'Gm', 'A'];
@@ -409,6 +461,8 @@ const PROG: ChordName[] = ['Dm', 'Bb', 'Gm', 'A'];
 const EPIC: ChordName[] = ['Dm', 'Bb', 'F', 'C'];
 /** Round 10's darker progression over the D pedal: i, VI, the Phrygian flat-II (E-flat against D), i. Hook A stays on D. */
 const DARK: ChordName[] = ['Dm', 'Bb', 'Eb', 'Dm'];
+/** Round 11 (in the style of Andor's "Past/Present/Future"): D Dorian, the major IV (G) giving the dark-but-hopeful lift. */
+const DORIAN: ChordName[] = ['Dm', 'G', 'F', 'C'];
 
 /** Hook A, eighth by eighth (two bars). */
 const HOOK_A = ['D2', null, 'D3', 'D2', null, 'C3', null, 'A2', 'D2', null, 'D3', 'D2', 'F2', 'G2', 'Ab2', 'A2'];
@@ -976,12 +1030,125 @@ function zdarkMission(s: Score): void {
   for (const b of [8, 24]) swellInto(P, s.bank, 'cym', 1, s.t(b), 0.4);
 }
 
+
+// ------------------------------------------------------------------ round 11: in the style of "Past/Present/Future"
+
+const dorAt = (b: number): ChordName => DORIAN[Math.floor(b / 2) % 4]!;
+
+/** The repeating figure's notes per chord (one octave, from D4 or C4), and its eighth-note order. */
+const FIGURE: Record<string, number[]> = {
+  Dm: [n('D4'), n('F4'), n('A4'), n('C5')],
+  G: [n('D4'), n('G4'), n('B4'), n('D5')],
+  F: [n('C4'), n('F4'), n('A4'), n('C5')],
+  C: [n('C4'), n('E4'), n('G4'), n('C5')],
+};
+/** The figure grows a note at a time: each stage adds a step to the eighth-note order. */
+const FIG_ORDER = [
+  [0, 1, 2, 1, 0, 1, 2, 1],
+  [0, 1, 2, 1, 0, 1, 2, 3],
+  [0, 1, 2, 3, 0, 1, 2, 3],
+  [0, 2, 1, 3, 0, 2, 1, 3],
+];
+
+function figure(s: Score, layer: string, inst: string, from: number, to: number, tr: number, vel: (b: number) => number, stageOf: (b: number) => number): void {
+  for (let b = from; b < to; b++) {
+    const tones = FIGURE[dorAt(b)]!;
+    const order = FIG_ORDER[Math.min(FIG_ORDER.length - 1, stageOf(b))]!;
+    for (let i = 0; i < 8; i++) note(s.L(layer), s.bank, inst, tones[order[i]!]! + tr, s.t(b, i / 2), s.d(0.45), { vel: vel(b) * (i % 4 === 0 ? 1 : 0.75), release: 0.1 });
+  }
+}
+
+/** A soft low pulse in eighths on D with 3 + 3 + 2 accents (kept gentle: round 8 found the D aggressive). */
+function softPulse(s: Score, layer: string, from: number, to: number, vel: (b: number) => number): void {
+  for (let b = from; b < to; b++) {
+    for (let i = 0; i < 8; i++) {
+      const acc = i === 0 || i === 3 || i === 6;
+      note(s.L(layer), s.bank, 'celloSpic', n('D3'), s.t(b, i / 2), s.d(0.45), { vel: vel(b) * (acc ? 0.9 : 0.55), release: 0.1 });
+      if (acc) note(s.L(layer), s.bank, 'bassSpic', D, s.t(b, i / 2), s.d(0.45), { vel: vel(b) * 0.6, release: 0.1 });
+    }
+  }
+}
+
+/** A long-note melody (original), 8 bars per phrase, lifting over the G major chord. */
+const PPF_MEL: [string, number][][] = [
+  [['A4', 8], ['B4', 6], ['A4', 2], ['C5', 4], ['A4', 4], ['G4', 6], ['E4', 2]],
+  [['A4', 4], ['D5', 4], ['D5', 6], ['B4', 2], ['C5', 4], ['F5', 4], ['E5', 8]],
+];
+
+function longMelody(s: Score, layer: string, at: number, phrase: number, vel: number, tr = 0): void {
+  let beat = 0;
+  for (const [m, len] of PPF_MEL[phrase]!) {
+    note(s.L(layer), s.bank, 'violinSus', n(m) + tr, s.t(at, beat), s.d(len) * 0.98, { vel, attack: len >= 6 ? s.d(1.5) : 0.25, release: 0.9 });
+    beat += len;
+  }
+}
+
+function dorSwells(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[dorAt(b)];
+    const dur = s.d(8);
+    note(s.L(layer), s.bank, 'bassSus', c.root + 12, s.t(b), dur, { vel, attack: dur * 0.6, release: 1.3 });
+    note(s.L(layer), s.bank, 'celloSus', c.root + 12, s.t(b), dur, { vel, attack: dur * 0.6, release: 1.3 });
+    note(s.L(layer), s.bank, 'violaSus', c.tones[1]!, s.t(b), dur, { vel: vel * 0.7, attack: dur * 0.6, release: 1.3 });
+  }
+}
+
+function dorBrass(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[dorAt(b)];
+    for (const m of [c.tones[1]!, c.tones[2]!]) note(s.L(layer), s.bank, 'hornSus', m, s.t(b), s.d(8), { vel, attack: s.d(3), release: 1.2 });
+    note(s.L(layer), s.bank, 'tbnSus', c.root + 12, s.t(b), s.d(8), { vel: vel * 0.85, attack: s.d(3), release: 1.2 });
+  }
+}
+
+function dorDrums(s: Score, layer: string, from: number, to: number, vel: number, big: boolean): void {
+  const P = s.L(layer);
+  for (let b = from; b < to; b++) {
+    if (b % 2 === 0) timp(P, s.bank, CH[dorAt(b)].root + 12, s.t(b), vel);
+    if (big) for (const i of [0, 3, 6]) hit(P, s.bank, 'giant', i === 0 ? 1 : 4, s.t(b, i / 2), vel * (i === 0 ? 0.9 : 0.6));
+  }
+}
+
+function ppfMenu(s: Score): void {
+  const N = s.meta.bars;
+  const dyn = (b: number): number => (b < 8 ? 0.45 : b < 16 ? 0.55 : b < 24 ? 0.65 : b < 36 ? 0.8 : 0.45);
+  softPulse(s, 'pulse', 0, N, (b) => dyn(b) * 0.85);
+  figure(s, 'arp', 'violaSpic', 0, N, 0, dyn, (b) => (b < 8 ? 0 : b < 16 ? 1 : b < 24 ? 2 : b < 36 ? 3 : 0));
+  figure(s, 'arpHigh', 'violinSpic', 24, 36, 12, (b) => dyn(b) * 0.85, () => 3);
+  hookLine(s, 'hook', 'celloSpic', 0, 8, 36, (b) => (b < 16 ? 0.62 : b < 24 ? 0.72 : 0.85), false, 0.85);
+  dorSwells(s, 'swell', 8, 36, 0.6);
+  longMelody(s, 'melody', 16, 0, 0.75);
+  longMelody(s, 'melody', 24, 1, 0.85);
+  longMelody(s, 'melody', 24, 1, 0.75, -12);
+  dorBrass(s, 'brass', 24, 36, 0.4);
+  dorDrums(s, 'drums', 16, 36, 0.55, false);
+  dorDrums(s, 'drums', 24, 36, 0.5, true);
+  for (const b of [16, 24, 32]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.45);
+}
+
+function ppfMission(s: Score): void {
+  const N = s.meta.bars;
+  softPulse(s, 'pulse', 0, N, () => 0.6);
+  figure(s, 'arp', 'violaSpic', 0, N, 0, () => 0.6, (b) => Math.floor(b / 8));
+  figure(s, 'arpHigh', 'violinSpic', 0, N, 12, () => 0.55, (b) => Math.min(3, Math.floor(b / 8) + 1));
+  hookLine(s, 'pizz', 'celloPizz', 0, 0, N, () => 0.62, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', 0, 0, N, () => 0.8, false, 0.85);
+  dorSwells(s, 'swell', 0, N, 0.6);
+  longMelody(s, 'melody', 8, 0, 0.8);
+  longMelody(s, 'melody', 24, 1, 0.85);
+  dorBrass(s, 'brass', 0, N, 0.38);
+  dorDrums(s, 'drums', 0, N, 0.5, true);
+  for (const b of [8, 24]) swellInto(s.L('drums'), s.bank, 'cym', 1, s.t(b), 0.4);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
   else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'ppfmenu') ppfMenu(s);
+  else if (meta.id === 'ppfmission') ppfMission(s);
   else if (meta.id === 'zdark') zdarkMenu(s, false);
   else if (meta.id === 'zdarker') zdarkMenu(s, true);
   else if (meta.id === 'zdarkmission') zdarkMission(s);

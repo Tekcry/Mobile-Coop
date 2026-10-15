@@ -19,7 +19,30 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; Michael: add more Hans Zimmer influence again |
 | 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; Michael: likes the Zimmer menu's orchestra, but it strays from Hook A; wants it darker and more stealthy, still epic |
 | 3j | Round 10: dark Zimmer menu (two versions) and a dark in-game loop, Hook A on D | done; waiting for Michael's feedback |
+| 3k | Round 11: pieces in the style of Brandon Roberts' "Past/Present/Future" | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 11 - in the style of "Past/Present/Future"
+- **Michael (2026-10-16):** "Can you include some in the style of Past/Present/Future by Brandon Roberts?"
+- **The reference:**
+  - A track from the *Andor* Season 2 score (Walt Disney Records, 2025), with Maxwell Karmazyn and Nicholas Britell
+    as co-composers. A chord site lists about 115 BPM.
+  - I could not listen to it, so the style comes from what is known of that score:
+    - a minimalist repeating string figure that grows
+    - a steady low pulse
+    - dark but hopeful harmony
+    - long-note melodies
+    - a long build
+  - Nothing is taken from the track: no melody, chords or rhythm.
+- **Done (new CC0 recordings: 44 violin section spiccato):**
+  - **Menu theme, Past/Present/Future style** (115 BPM, 40 bars, 84 s, 8 layers):
+    - It starts with a soft low pulse (eighths on D in 3 + 3 + 2, kept gentle) and a repeating viola figure.
+    - Hook A arrives on D, and the figure grows a step every 8 bars.
+    - A new long-note melody lifts over a hopeful G major chord (D Dorian: D minor, G, F, C).
+    - Violins double the figure an octave up, and horns, timpani and low drums carry it to the peak.
+    - Then it drops back to the pulse.
+  - **Mission score, Past/Present/Future style** (115 BPM, 32 bars, 67 s, 9 layers): the same material as a loop,
+    with Calm, Cautious, Alert, Evasion, Strings only and Everything on.
 
 ## V4 round 10 - darker, closer to Hook A
 - **Michael (2026-10-16):** likes the Zimmer menu theme. "It strays a little bit from the A one I like, but the

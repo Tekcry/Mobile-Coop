@@ -3346,6 +3346,314 @@
    "inst": "violaTrem",
    "path": "Strings/Viola Section/trem/Violas_trem_G4_v1_rr1.wav",
    "midi": 79
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A2_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A2_v1_rr1.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A2_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A2_v1_rr2.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A2_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A2_v2_rr1.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A2_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A2_v2_rr2.wav",
+   "midi": 57
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A3_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A3_v1_rr1.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A3_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A3_v1_rr2.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A3_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A3_v2_rr1.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_A3_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_A3_v2_rr2.wav",
+   "midi": 69
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B2_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B2_v1_rr1.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B2_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B2_v1_rr2.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B2_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B2_v2_rr1.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B2_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B2_v2_rr2.wav",
+   "midi": 59
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B4_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B4_v1_rr1.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B4_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B4_v1_rr2.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B4_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B4_v2_rr1.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_B4_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_B4_v2_rr2.wav",
+   "midi": 83
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_C4_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_C4_v1_rr1.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_C4_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_C4_v1_rr2.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_C4_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_C4_v2_rr1.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_C4_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_C4_v2_rr2.wav",
+   "midi": 72
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D3_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D3_v1_rr1.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D3_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D3_v1_rr2.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D3_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D3_v2_rr1.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D3_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D3_v2_rr2.wav",
+   "midi": 62
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D5_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D5_v1_rr1.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D5_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D5_v1_rr2.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D5_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D5_v2_rr1.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_D5_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_D5_v2_rr2.wav",
+   "midi": 86
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_E4_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_E4_v1_rr1.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_E4_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_E4_v1_rr2.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_E4_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_E4_v2_rr1.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_E4_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_E4_v2_rr2.wav",
+   "midi": 76
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_Fs3_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_F#3_v1_rr1.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_Fs3_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_F#3_v1_rr2.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_Fs3_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_F#3_v2_rr1.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_Fs3_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_F#3_v2_rr2.wav",
+   "midi": 66
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G2_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G2_v1_rr1.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G2_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G2_v1_rr2.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G2_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G2_v2_rr1.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G2_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G2_v2_rr2.wav",
+   "midi": 55
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G4_v1_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G4_v1_rr1.wav",
+   "midi": 79
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G4_v1_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G4_v1_rr2.wav",
+   "midi": 79
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G4_v2_rr1",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G4_v2_rr1.wav",
+   "midi": 79
+  },
+  {
+   "id": "violinSpic-VlnEns_Spic_G4_v2_rr2",
+   "lib": "V",
+   "inst": "violinSpic",
+   "path": "Strings/Violin Section/Spic/VlnEns_Spic_G4_v2_rr2.wav",
+   "midi": 79
   }
  ]
 }
