@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alertPlan, HITS, hookShot, lowPlan, melodyShot, menuPlan, missionPlans, type LayerDef } from '../src/audio/score/arrange';
 import { HOOKS, hookBars, hookPlan } from '../src/audio/score/hooks';
+import { ALERT_HOOKS, alertHookPlan } from '../src/audio/score/mgs';
 import { DEFAULT_TIMES, Director, type DirectorAction } from '../src/audio/score/director';
 import { gatedDb, makeHit, pluck, spiccato } from '../src/audio/score/synth';
 import { SKETCHES, SKETCH_A, SKETCH_B } from '../src/audio/score/themes';
@@ -169,6 +170,22 @@ describe('round 4 hooks', () => {
       expect(p.layers[0]!.events.every((e) => e.at >= 0 && e.at < 32), h.id).toBe(true);
     }
     expect(new Set(HOOKS.map((h) => h.notes)).size).toBe(HOOKS.length);
+  });
+});
+
+describe('round 5 alert hooks', () => {
+  it('each lead fills 4 bars, has one chord per bar, and builds every version inside its 8-bar loop', () => {
+    for (const h of ALERT_HOOKS) {
+      expect(hookBars(h.lead), h.id).toBe(4);
+      expect(h.chords.length).toBe(4);
+      for (const lead of ['brass', 'synth', 'horns'] as const) {
+        for (const mode of ['alert', 'evade', 'alone'] as const) {
+          const p = alertHookPlan(h, lead, mode);
+          for (const l of p.layers) expect(l.events.every((e) => e.at >= 0 && e.at < 32), `${p.id} ${l.id}`).toBe(true);
+          expect(p.layers.some((l) => l.id.endsWith('-lead'))).toBe(mode !== 'evade');
+        }
+      }
+    }
   });
 });
 

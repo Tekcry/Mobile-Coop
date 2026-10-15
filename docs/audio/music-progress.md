@@ -12,8 +12,32 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3 | Audition sketches and test page | done; Michael: loves Hook A alone, dislikes everything else |
 | 3b | Round 2: Hook A with one partner at a time | done; Michael: hates all but 5 (guitar), which is still too aggressive; Hook A too loud |
 | 3c | Round 3: subtle Hook A and subtle guitar | done; Michael: not sure it fits the feel of the game |
-| 3d | Round 4: ten hooks to choose from | done; waiting for Michael's pick |
+| 3d | Round 4: ten hooks to choose from | done; Michael: not liking anything yet; asked for MGS1 alert / escape style |
+| 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 5 - Alert hooks in the Metal Gear Solid spirit
+- **Michael (2026-10-15):**
+  - He asked to see the MGS1 alert and escape hooks. Declined: they are copyrighted, and the project's rule is that
+    every note is original. He was pointed to the official soundtrack instead.
+  - He then asked for original hooks in that spirit, with alternative versions to give feedback on. "I'm not liking
+    anything at the moment."
+- **Done:** `src/audio/score/mgs.ts` has four original Alert hooks, each 4 bars in D minor at 144-160 BPM:
+  - **Breach:** a repeated-note pickup into a held high D, then a step-down sequence.
+  - **Lockdown:** a figure that climbs one step per bar.
+  - **Snapshot:** a syncopated call to the tritone, with a falling reply.
+  - **Countdown:** four ticking notes, then a break-out.
+- **Versions of each:**
+  - the hook alone (plain tone)
+  - Alert with the hook on low brass
+  - Alert with the hook on a new 90s console-style synth lead
+  - Alert with the hook on horns
+  - Evasion (drums thinned, bass pulse and rare stabs, no hook)
+- **Alert arrangement:** a driving kick, a snare on 2 and 4 with military ghost notes, 16th hats, rolls every 4 bars,
+  an eighth-note bass pulse with octave pops, and brass stabs on beat 1 and the "and" of 2.
+- **Measured:**
+  - Alert loops about -19 dBFS, Evasion about -27 dBFS.
+  - Each version renders in 0.4-3 s.
 
 ## V4 round 4 - hooks to choose from
 - **Michael (2026-10-15):** "Not sure it's working for the feel of this game; give me various hooks to decide

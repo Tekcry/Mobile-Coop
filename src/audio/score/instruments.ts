@@ -205,6 +205,8 @@ export class Kit {
         return this.heart(e, t, bus);
       case 'subBass':
         return this.subBass(e, t, d, bus);
+      case 'leadSynth':
+        return this.leadSynth(e, t, d, bus);
       case 'darkBass':
       case 'reese':
         return this.synthBass(e, t, d, bus, e.v === 'reese');
@@ -305,6 +307,35 @@ export class Kit {
     g2.gain.setTargetAtTime(0, t + 0.25, 0.08);
     s.stop(t + 0.8);
     s.connect(lp).connect(g2);
+  }
+
+  /** A 90s console synth lead: two detuned saws and a square through a resonant filter that opens on the attack, late vibrato. */
+  private leadSynth(e: Ev, t: number, d: number, bus: Bus): void {
+    const ctx = this.ctx;
+    const f = freq(e.n);
+    const end = t + d + 0.4;
+    const sum = ctx.createGain();
+    sum.gain.value = 0.3;
+    const lfo = this.osc('sine', 5.8, t, end);
+    const lg = ctx.createGain();
+    lg.gain.setValueAtTime(0, t);
+    lg.gain.setValueAtTime(0, t + 0.22);
+    lg.gain.linearRampToValueAtTime(14, t + 0.5);
+    lfo.connect(lg);
+    for (const [type, det, gain] of [['sawtooth', -8, 1], ['sawtooth', 8, 1], ['square', 0, 0.5]] as const) {
+      const o = this.osc(type, f, t, end, det);
+      lg.connect(o.detune);
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      o.connect(g).connect(sum);
+    }
+    const lp = this.filter('lowpass', f * 2, 2.2);
+    lp.frequency.setValueAtTime(f * 2, t);
+    lp.frequency.linearRampToValueAtTime(Math.min(5000, f * 7), t + 0.025);
+    lp.frequency.setTargetAtTime(Math.min(3200, f * 4), t + 0.03, 0.12);
+    const amp = this.out(bus, e.pan, 0);
+    this.adsr(amp.gain, t, d, e.vel * 0.3, 0.008, 0.1, 0.8, 0.2);
+    sum.connect(lp).connect(this.shaper(1.4)).connect(amp);
   }
 
   /** A dark, round synth bass: a sine with a quiet octave triangle, low-passed, a soft 12 ms attack, barely saturated. */

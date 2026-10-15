@@ -1,6 +1,7 @@
 import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type MusicState, type Plan } from './arrange';
 import { subtleGuitar, subtleHooks } from './hookLab';
 import { HOOKS, hookPlan, type HookDef } from './hooks';
+import { ALERT_HOOKS, alertHookPlan, type AlertHook } from './mgs';
 import type { GameAwareness } from './director';
 import { ScorePlayer, type LayerRt } from './player';
 import { renderAll, renderLayer, type Rendered } from './render';
@@ -240,19 +241,19 @@ export function mountScoreLab(root: HTMLElement): void {
     el('p', {
       className: 'muted',
       textContent:
-        'Round 4: hooks to choose from. Everything is generated in code and rendered when you press play (well under a second each).',
+        'Round 5: Alert hooks in the Metal Gear Solid spirit. Everything is generated in code and rendered when you press play (a second or two each).',
     }),
     el('div', { id: 'progress', className: 'progress' }),
     el(
       'section',
       {},
-      el('h2', { textContent: '1. Hooks to choose from' }),
+      el('h2', { textContent: '1. Alert hooks in the Metal Gear Solid spirit' }),
       el('p', {
         className: 'muted',
         textContent:
-          'Ten bass hooks of different character, each alone and quiet. Play each on the soft upright or on a dark, round synth bass (more electronic, closer to Chaos Theory). Each loops (about 20 s).',
+          'Four original Alert hooks: fast, urgent, a repeated-note pickup into a held note, a driving snare and a pulsing bass. Hear each hook alone, as Alert with the hook on three different instruments, and as Evasion (the drive stays, the hook drops out). Each loops (about 13 s).',
       }),
-      el('div', { className: 'partners' }, ...HOOKS.map(hookCard)),
+      el('div', { className: 'partners' }, ...ALERT_HOOKS.map(alertCard)),
       el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el(
@@ -313,6 +314,23 @@ export function mountScoreLab(root: HTMLElement): void {
     ),
     el('section', {}, el('h2', { textContent: '3. Layers' }), el('div', { id: 'layers' })),
     el('section', {}, el('h2', { textContent: 'Log' }), el('pre', { id: 'log' })),
+    el(
+      'details',
+      { className: 'old' },
+      el('summary', { textContent: 'Round 4: ten bass hooks (kept for comparison)' }),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: 'Hooks to choose from' }),
+      el('p', {
+        className: 'muted',
+        textContent:
+          'Ten bass hooks of different character, each alone and quiet. Play each on the soft upright or on a dark, round synth bass (more electronic, closer to Chaos Theory). Each loops (about 20 s).',
+      }),
+      el('div', { className: 'partners' }, ...HOOKS.map(hookCard)),
+      el('div', { className: 'row' }, button('Stop', stop)),
+    ),
+    ),
     el(
       'details',
       { className: 'old' },
@@ -393,6 +411,25 @@ export function mountScoreLab(root: HTMLElement): void {
     }
   });
   (window as unknown as { __score: unknown }).__score = { get player() { return player; }, cache, SKETCHES, menuPlan, missionPlans, renderLayer };
+}
+
+function alertCard(h: AlertHook, i: number): HTMLElement {
+  return el(
+    'div',
+    { className: 'partner' },
+    el('b', { textContent: `${i + 1}. ${h.name}` }),
+    el('small', { textContent: `${h.blurb} ${h.bpm} BPM.` }),
+    el('p', { className: 'notes', textContent: h.lead.replace(/:\d+/g, '').replace(/ - /g, ' . ') }),
+    el(
+      'div',
+      { className: 'row' },
+      button('Hook alone', () => void playLoop(alertHookPlan(h, 'brass', 'alone'))),
+      button('Alert: brass', () => void playLoop(alertHookPlan(h, 'brass', 'alert'))),
+      button('Alert: synth lead', () => void playLoop(alertHookPlan(h, 'synth', 'alert'))),
+      button('Alert: horns', () => void playLoop(alertHookPlan(h, 'horns', 'alert'))),
+      button('Evasion', () => void playLoop(alertHookPlan(h, 'brass', 'evade'))),
+    ),
+  );
 }
 
 function hookCard(h: HookDef, i: number): HTMLElement {
