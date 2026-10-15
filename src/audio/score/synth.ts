@@ -160,7 +160,7 @@ export function makeHit(h: Hit, rate: number, rng: Rng): Float32Array {
  * A plucked double bass: a soft, low-passed finger excitation in a tuned delay loop (two-point average gives the
  * damping; linear interpolation keeps fractional periods in tune), a little thump at the fundamental, a body bump.
  */
-export function pluck(rate: number, f: number, rng: Rng, seconds = 2.2, t60 = 1.8, bright = 0.35): Float32Array {
+export function pluck(rate: number, f: number, rng: Rng, seconds = 2.2, t60 = 1.8, bright = 0.35, lpHz = 1800, bodyHz = 110): Float32Array {
   const n = len(seconds, rate);
   const out = new Float32Array(n);
   const P = rate / f;
@@ -192,8 +192,8 @@ export function pluck(rate: number, f: number, rng: Rng, seconds = 2.2, t60 = 1.
     const t = i / rate;
     out[i]! += Math.sin(TAU * f * t) * 0.35 * Math.exp(-t / 0.09) * Math.min(1, t / 0.003);
   }
-  biquad(out, 'peaking', 110, 1.2, rate, 3);
-  biquad(out, 'lowpass', Math.min(rate / 2 - 300, 1800), 0.7, rate);
+  biquad(out, 'peaking', bodyHz, 1.2, rate, 3);
+  biquad(out, 'lowpass', Math.min(rate / 2 - 300, lpHz), 0.7, rate);
   for (let i = 0; i < Math.min(n, len(0.002, rate)); i++) out[i]! *= i / len(0.002, rate);
   return normalize(out, 0.85);
 }
@@ -234,6 +234,29 @@ export function spiccato(rate: number, f: number, rng: Rng): Float32Array {
   const a = 0.006 * rate;
   for (let i = 0; i < out.length; i++) out[i]! *= 0.5 * (i < a ? i / a : Math.exp(-(i - a) / (0.08 * rate)));
   return out;
+}
+
+/**
+ * A dark electric piano (tine and tone bar): a two-operator FM voice whose brightness falls fast after the strike, a
+ * soft bell ping on the attack, a little bark, slightly driven. About 2.8 s.
+ */
+export function rhodes(rate: number, f: number, rng: Rng): Float32Array {
+  const out = new Float32Array(len(2.8, rate));
+  const ph = rng.next() * TAU;
+  const decay = 1.4 * Math.pow(220 / f, 0.3);
+  const ping = f * 14.3 < rate * 0.45;
+  for (let i = 0; i < out.length; i++) {
+    const t = i / rate;
+    const index = 1.8 * Math.exp(-t / 0.18) + 0.35;
+    const mod = Math.sin(TAU * f * t + ph);
+    let v = Math.sin(TAU * f * t + index * mod);
+    v += Math.sin(TAU * 2 * f * t) * 0.1 * Math.exp(-t / 0.35);
+    if (ping) v += Math.sin(TAU * f * 14.3 * t) * 0.12 * Math.exp(-t / 0.015);
+    out[i] = v * Math.exp(-t / decay) * Math.min(1, t / 0.002);
+  }
+  softClip(out, 1.4);
+  biquad(out, 'lowpass', Math.min(4500, rate / 2 - 300), 0.7, rate);
+  return normalize(out, 0.8);
 }
 
 /** Loopable noise beds. */

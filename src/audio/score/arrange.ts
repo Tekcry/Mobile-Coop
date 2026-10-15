@@ -29,7 +29,10 @@ export type Voice =
   | 'crackle'
   | 'riser'
   | 'swell'
-  | 'boom';
+  | 'boom'
+  | 'rhodes'
+  | 'guitar'
+  | 'guitarMute';
 
 export const HITS: readonly Hit[] = ['kick', 'snare', 'ghost', 'hat', 'ohat', 'rim', 'shaker', 'brush', 'taiko', 'metal', 'plate', 'crash'];
 
@@ -87,6 +90,8 @@ export interface Plan {
   bpm: number;
   bars: number;
   layers: LayerDef[];
+  /** One line for the test page. */
+  blurb?: string;
 }
 
 export interface Mission {
@@ -96,7 +101,7 @@ export interface Mission {
   stingerShort: LayerDef;
 }
 
-class Seq {
+export class Seq {
   readonly ev: Ev[] = [];
 
   add(at: number, dur: number, v: Voice, n: number, vel: number, pan = 0, p = 1): void {
@@ -107,7 +112,7 @@ class Seq {
 
 const ALL: Record<MusicState, number> = { calm: 1, caution: 1, alert: 1, evade: 1 };
 
-function layer(
+export function layer(
   id: string,
   name: string,
   group: Group,
@@ -149,13 +154,13 @@ export function pattern(src: string): number[] {
   return out;
 }
 
-function drums(s: Seq, bar: number, v: Hit, pat: string, vel: number, swing: number, p = 1, pan = 0, from = 0, to = 16, shift = 0): void {
+export function drums(s: Seq, bar: number, v: Hit, pat: string, vel: number, swing: number, p = 1, pan = 0, from = 0, to = 16, shift = 0): void {
   const k = pattern(pat);
   for (let i = from; i < Math.min(to, k.length); i++) if (k[i]! > 0) s.add(s16(bar, i, swing) + shift, 0, v, 0, k[i]! * vel, pan, p);
 }
 
 /** Three taiko players a few milliseconds apart. */
-function taiko(s: Seq, at: number, vel: number, p = 1): void {
+export function taiko(s: Seq, at: number, vel: number, p = 1): void {
   s.add(at, 0, 'taiko', 0, vel, -0.35, p * 0.97);
   s.add(at + 0.012, 0, 'taiko', 0, vel * 0.9, 0, p * 0.91);
   s.add(at + 0.024, 0, 'taiko', 0, vel * 0.8, 0.35, p * 1.04);
@@ -176,7 +181,7 @@ export function shiftTo(sk: SketchDef, c: Chord): number {
 }
 
 /** One bar of the hook (`half` 0 = the riff, 1 = the walk-up), shifted onto a chord. */
-function hook(s: Seq, sk: SketchDef, bar: number, half: 0 | 1, v: Voice, vel: number, shift: number, swing8: number): void {
+export function hook(s: Seq, sk: SketchDef, bar: number, half: 0 | 1, v: Voice, vel: number, shift: number, swing8: number): void {
   for (let i = 0; i < 8; i++) {
     const n = sk.hook[half * 8 + i];
     if (n === null || n === undefined) continue;
@@ -225,7 +230,7 @@ interface Kit {
   ost: number[];
 }
 
-const KIT_A: Kit = {
+export const KIT_A: Kit = {
   halfK: 'X..o......x.....',
   halfS: '........X.......',
   halfG: '.....g.......g.g',
@@ -256,10 +261,10 @@ const KIT_B: Kit = {
 };
 
 const kitOf = (sk: SketchDef): Kit => (sk.feel === 'noir' ? KIT_B : KIT_A);
-const swing8Of = (sk: SketchDef, alert = false): number => (sk.feel === 'noir' ? 0.18 : 0.06) * (alert ? 0.5 : 1);
+export const swing8Of = (sk: SketchDef, alert = false): number => (sk.feel === 'noir' ? 0.18 : 0.06) * (alert ? 0.5 : 1);
 
 /** A full-break bar with the fill / beat-repeat plan: fill on every 4th bar, beat-repeat on bar 6 of each 8. */
-function fullBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number, local: number): void {
+export function fullBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number, local: number): void {
   const k = kitOf(sk);
   const noir = sk.feel === 'noir';
   const fill = local % 4 === 3;
@@ -298,7 +303,7 @@ function fullBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number,
 }
 
 /** A half-time bar with fills and a beat-repeat; `drop` silences the last two beats (a dropout before a phrase). */
-function halfBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number, local: number, drop = false): void {
+export function halfBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number, local: number, drop = false): void {
   const k = kitOf(sk);
   const noir = sk.feel === 'noir';
   const fill = local % 4 === 3;
@@ -321,7 +326,7 @@ function halfBar(s: Seq, sk: SketchDef, bar: number, swing: number, vel: number,
 }
 
 /** A stutter: `count` slices of a hit, rising in pitch and level (a glitch edit into a downbeat). */
-function stutter(s: Seq, at: number, len: number, count: number, v: Hit, vel: number, rise = 0.5): void {
+export function stutter(s: Seq, at: number, len: number, count: number, v: Hit, vel: number, rise = 0.5): void {
   const step = len / count;
   for (let i = 0; i < count; i++) {
     const f = i / Math.max(1, count - 1);
@@ -330,7 +335,7 @@ function stutter(s: Seq, at: number, len: number, count: number, v: Hit, vel: nu
 }
 
 /** A snare roll from `at` to `to`: sixteenths, then thirty-seconds in the last beat, crescendo. */
-function roll(s: Seq, at: number, to: number, v0: number, v1: number): void {
+export function roll(s: Seq, at: number, to: number, v0: number, v1: number): void {
   let t = at;
   while (t < to - 1e-6) {
     const step = to - t <= 1 + 1e-6 ? 0.125 : 0.25;
@@ -340,7 +345,7 @@ function roll(s: Seq, at: number, to: number, v0: number, v1: number): void {
   }
 }
 
-function impact(s: Seq, at: number, vel: number): void {
+export function impact(s: Seq, at: number, vel: number): void {
   s.add(at, 0, 'crash', 0, vel * 0.7, 0.2);
   s.add(at, 6, 'boom', 0, vel);
 }

@@ -1,6 +1,6 @@
 import type { Rng } from '../music/rng';
 import { HITS, type Ev, type Hit } from './arrange';
-import { crackle, makeHit, noiseBed, pluck, reverseCymbal, spiccato } from './synth';
+import { crackle, makeHit, noiseBed, pluck, reverseCymbal, rhodes, spiccato } from './synth';
 import { freq } from './theory';
 
 /**
@@ -22,6 +22,7 @@ export class Kit {
   private readonly hits = new Map<Hit, AudioBuffer>();
   private readonly plucks = new Map<number, AudioBuffer>();
   private readonly spiccs = new Map<number, AudioBuffer>();
+  private readonly keys = new Map<string, AudioBuffer>();
   private readonly beds = new Map<string, AudioBuffer>();
   private readonly shaperCache = new Map<number, Float32Array<ArrayBuffer>>();
   /** Output nodes of scheduled notes and when they are silent, so finished notes can leave the graph. */
@@ -63,6 +64,22 @@ export class Kit {
     if (!b) {
       b = this.buffer(spiccato(this.ctx.sampleRate, freq(n), this.rng.fork(`spicc-${n}`)));
       this.spiccs.set(n, b);
+    }
+    return b;
+  }
+
+  /** Cached tuned samples: electric piano, open guitar, palm-muted guitar. */
+  tuned(kind: 'rhodes' | 'guitar' | 'guitarMute', n: number): AudioBuffer {
+    const key = `${kind}-${n}`;
+    let b = this.keys.get(key);
+    if (!b) {
+      const rate = this.ctx.sampleRate;
+      const r = this.rng.fork(key);
+      const f = freq(n);
+      const data =
+        kind === 'rhodes' ? rhodes(rate, f, r) : kind === 'guitar' ? pluck(rate, f, r, 2.6, 1.5, 0.8, 4200, 220) : pluck(rate, f, r, 0.9, 0.22, 0.6, 2200, 180);
+      b = this.buffer(data);
+      this.keys.set(key, b);
     }
     return b;
   }
@@ -183,6 +200,10 @@ export class Kit {
         s.connect(this.out(bus, e.pan, e.vel));
         return;
       }
+      case 'rhodes':
+      case 'guitar':
+      case 'guitarMute':
+        return this.tunedVoice(e, e.v, t, d, bus);
       case 'str':
       case 'strHi':
       case 'strTrem':
@@ -233,6 +254,15 @@ export class Kit {
     g.gain.setTargetAtTime(0, t + d + 0.03, 0.05);
     s.stop(t + d + 0.5);
     s.connect(lp).connect(g);
+  }
+
+  private tunedVoice(e: Ev, kind: 'rhodes' | 'guitar' | 'guitarMute', t: number, d: number, bus: Bus): void {
+    const s = this.src(this.tuned(kind, e.n), t);
+    const g = this.out(bus, e.pan, e.vel);
+    g.gain.setTargetAtTime(0, t + d, kind === 'rhodes' ? 0.12 : 0.06);
+    s.stop(t + d + 0.8);
+    if (kind === 'rhodes') s.connect(g);
+    else s.connect(this.shaper(kind === 'guitar' ? 1.5 : 1.8)).connect(g);
   }
 
   /** "Lub" or "dub": a sub sine with a fast pitch drop plus a soft pluck an octave up. */

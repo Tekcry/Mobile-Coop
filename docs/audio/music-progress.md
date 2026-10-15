@@ -9,8 +9,31 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | --- | --- | --- |
 | 1 | Research | done (`docs/music/research.md`) |
 | 2 | Design | done (`docs/music/score-design.md`) |
-| 3 | Audition sketches and test page | done; waiting for Michael's listen and pick |
+| 3 | Audition sketches and test page | done; Michael: loves Hook A alone, dislikes everything else |
+| 3b | Round 2: Hook A with one partner at a time | done; waiting for Michael's picks |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 2 - Hook A first
+- **Michael's feedback (2026-10-15):**
+  - He loves "Hook A alone" ("fantastic and very catchy").
+  - He does not really like anything else.
+  - He especially dislikes the "air sound" (the filtered-noise wind or the synthesised sustained strings).
+- **Decisions:**
+  - Hook A (the walk-up bass riff on the plucked upright) becomes the main idea.
+  - The round 1 themes, menus and missions are kept only in a collapsed "Round 1" box on the test page.
+  - No sustained synth strings and no noise air.
+- **Done:** `src/audio/score/hookLab.ts` has eight 16-bar loops. Each is Hook A plus one partner:
+  1. heartbeat kick and brushes
+  2. chopped half-time break
+  3. downtempo breakbeat
+  4. dark electric piano (new code-made voice)
+  5. muted and open guitar (new plucked voice)
+  6. metal percussion
+  7. Alert speed: the hook doubled by a dark bass over a driving break
+  8. As 7, plus guitar and piano stabs
+- **Measured:** each loop renders in under 1 s.
+- **Next:** Michael says which partners work. The full menu theme and mission score are then rebuilt from Hook A and
+  the approved partners.
 
 ## V4 Steps 1-3 report
 - Done:

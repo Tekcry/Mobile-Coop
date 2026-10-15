@@ -1,4 +1,5 @@
-import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type MusicState } from './arrange';
+import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type MusicState, type Plan } from './arrange';
+import { hookPartners } from './hookLab';
 import type { GameAwareness } from './director';
 import { ScorePlayer, type LayerRt } from './player';
 import { renderAll, renderLayer, type Rendered } from './render';
@@ -68,9 +69,13 @@ async function rendered(key: string, defs: LayerDef[], loop: (d: LayerDef) => bo
 }
 
 async function playMenu(sk: SketchDef): Promise<void> {
+  await playLoop(menuPlan(sk));
+}
+
+/** Any looping plan (a menu theme or a Hook A partner loop), with a slider per layer. */
+async function playLoop(plan: Plan): Promise<void> {
   if (busy) return;
   const { p, w } = ensure();
-  const plan = menuPlan(sk);
   const r = await rendered(plan.id, plan.layers, () => true, plan.name);
   w.setChatter(false);
   p.playMenu(plan, r);
@@ -189,7 +194,7 @@ function refresh(): void {
       `Game: <b class="g-${s.game}">${s.game.toUpperCase()}</b> &nbsp; Music: <b class="m-${s.music}">${STATE_LABEL[s.music].toUpperCase()}</b>` +
       ` (for ${s.held.toFixed(1)} s${nxt})<br><small>${s.group} - ${s.bpm} BPM - bar ${s.bar}, beat ${s.beat}</small>`;
   } else if (s.mode === 'menu') {
-    box.innerHTML = `Menu theme playing<br><small>${s.group} - ${s.bpm} BPM - bar ${s.bar}, beat ${s.beat}</small>`;
+    box.innerHTML = `Loop playing<br><small>${s.group} - ${s.bpm} BPM - bar ${s.bar}, beat ${s.beat}</small>`;
   } else box.textContent = s.mode === 'shot' ? 'Playing...' : 'Stopped.';
 }
 
@@ -234,43 +239,37 @@ export function mountScoreLab(root: HTMLElement): void {
     el('p', {
       className: 'muted',
       textContent:
-        'Two sketches, each with a main theme, a menu theme and a mission score (Calm, Cautious, Alert, Evasion). Everything is generated in code and rendered when you press play (first time takes a few seconds).',
+        'Round 2: everything built around Hook A. Everything is generated in code and rendered when you press play (the first time takes a few seconds).',
     }),
     el('div', { id: 'progress', className: 'progress' }),
     el(
       'section',
       {},
-      el('h2', { textContent: '1. The themes on their own' }),
-      el('p', { className: 'muted', textContent: 'A plain tone, no backing: can you hum it afterwards? The hook is the bass riff.' }),
-      el('div', { className: 'cards' }, ...SKETCHES.map(sketchCard)),
+      el('h2', { textContent: '1. Hook A' }),
+      el('p', { className: 'muted', textContent: 'Your pick from round 1: the bass riff on its own.' }),
+      el('div', { className: 'row' }, button('Hook A alone', () => void playShot(hookShot(SKETCHES[0]!)), 'big'), button('Stop', stop)),
     ),
     el(
       'section',
       {},
-      el('h2', { textContent: '2. Menu theme' }),
-      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Menu ${sk.id} - ${sk.name}`, () => void playMenu(sk), 'big')), button('Stop', stop)),
-    ),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: '3. Mission score' }),
-      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Mission ${sk.id} - ${sk.name}`, () => void playMission(sk), 'big')), button('Stop', stop)),
-      el('p', { className: 'muted', textContent: 'The buttons set the GAME state, as a guard would. The music follows with its own timing: a short delay going up, holds and a slow ladder going down. Keys: 1 2 3, G glance, S stinger.' }),
+      el('h2', { textContent: '2. Hook A with one partner' }),
+      el('p', {
+        className: 'muted',
+        textContent: 'Each loop is Hook A plus one other ingredient (about 40 s at 92 BPM, 28 s at Alert speed). Say which partners work and which do not. Sliders below set each part.',
+      }),
       el(
         'div',
-        { className: 'row' },
-        button('CALM', () => setGame('calm'), 'state g-calm'),
-        button('CAUTIOUS', () => setGame('caution'), 'state g-caution'),
-        button('ALERT', () => setGame('alert'), 'state g-alert'),
-        button('Guard glance (0.4 s)', glance),
-        button('Stinger only', () => player?.playStinger()),
+        { className: 'partners' },
+        ...hookPartners().map((pl, i) =>
+          el('div', { className: 'partner' }, button(`${i + 1}. ${pl.name}`, () => void playLoop(pl), 'big'), el('small', { textContent: pl.blurb ?? '' })),
+        ),
       ),
-      el('div', { id: 'state', className: 'status' }),
+      el('div', { className: 'row' }, button('Stop', stop)),
     ),
     el(
       'section',
       {},
-      el('h2', { textContent: '4. Gameplay sounds over the music' }),
+      el('h2', { textContent: '3. Gameplay sounds over the music' }),
       el('p', { className: 'muted', textContent: 'Same footstep sound and level as the game. Keys: W walk, V voice, B bottle.' }),
       el(
         'div',
@@ -323,8 +322,43 @@ export function mountScoreLab(root: HTMLElement): void {
         el('label', {}, 'Gameplay sounds ', slider('sfxVol', 100, 150)),
       ),
     ),
-    el('section', {}, el('h2', { textContent: '5. Layers' }), el('div', { id: 'layers' })),
+    el('section', {}, el('h2', { textContent: '4. Layers' }), el('div', { id: 'layers' })),
     el('section', {}, el('h2', { textContent: 'Log' }), el('pre', { id: 'log' })),
+    el(
+      'details',
+      { className: 'old' },
+      el('summary', { textContent: 'Round 1 sketches (not liked; kept for comparison)' }),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: 'Themes on their own' }),
+      el('p', { className: 'muted', textContent: 'A plain tone, no backing: can you hum it afterwards? The hook is the bass riff.' }),
+      el('div', { className: 'cards' }, ...SKETCHES.map(sketchCard)),
+    ),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: 'Menu theme' }),
+      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Menu ${sk.id} - ${sk.name}`, () => void playMenu(sk), 'big')), button('Stop', stop)),
+    ),
+    el(
+      'section',
+      {},
+      el('h2', { textContent: 'Mission score' }),
+      el('div', { className: 'row' }, ...SKETCHES.map((sk) => button(`Mission ${sk.id} - ${sk.name}`, () => void playMission(sk), 'big')), button('Stop', stop)),
+      el('p', { className: 'muted', textContent: 'The buttons set the GAME state, as a guard would. The music follows with its own timing: a short delay going up, holds and a slow ladder going down. Keys: 1 2 3, G glance, S stinger.' }),
+      el(
+        'div',
+        { className: 'row' },
+        button('CALM', () => setGame('calm'), 'state g-calm'),
+        button('CAUTIOUS', () => setGame('caution'), 'state g-caution'),
+        button('ALERT', () => setGame('alert'), 'state g-alert'),
+        button('Guard glance (0.4 s)', glance),
+        button('Stinger only', () => player?.playStinger()),
+      ),
+      el('div', { id: 'state', className: 'status' }),
+    ),
+    ),
   );
   buildLayers();
   refresh();
