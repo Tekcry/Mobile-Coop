@@ -1,5 +1,7 @@
 # Locomotion run - state
 
+## Michael's play-check notes (2026-10-16): docs/locomotion/PLAY-NOTES.md (N1-N8), recorded, not planned yet. Wait for his planning call.
+
 ## Play check before step 21 (D11 item 4, M12: two tabs instead of the bot)
 Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the URL it prints in Chrome on the desktop, pad connected. Solo: Play > Free Roam > Proving Grounds; guards: Play > Hunter > Warehouse. Co-op: tab 1 `<url>/?net=local` > Co-op > Host a room (pad stays in this tab); tab 2 same URL > Join room with the code. Watch tab 2 to see your operator from outside.
 1. Movement: push the stick a little, halfway, fully (silent slow walk, walk, jog), L3 sprint; D-pad up / down sets the max gear (HUD pips). Does the body feel weighty, any bob? (Step 21 targets bob.)
