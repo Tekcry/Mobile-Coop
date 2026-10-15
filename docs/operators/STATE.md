@@ -1,6 +1,6 @@
 # Operators run - state (resume point)
 
-**Stage:** 1 done and answered (DECISIONS D7-D11). Next: Stage 2 (mockups).
+**Stage:** 1 done and answered (DECISIONS D7-D11). Next: RUNBOOK step 2 (rules and pipeline foundation, Opus 5.5). `RUNBOOK.md` holds every step's model and prompt.
 
 **Done**
 - Worktree `C:\NightShift\Mobile-Coop-operators`, branch `feature/operators` from `origin/ct-movement` (DECISIONS S1).
@@ -22,7 +22,7 @@
   - per-operator heights, Wren about 1.68 m and Moth about 1.78 m. Skeleton, hit volumes and light samples follow the
     body; the capsule, speeds and traversal stay shared (D10, D11).
 
-**Next: Stage 2, in this order**
+**Stage 2 work (split into RUNBOOK steps 2-7)**
 1. Apply the approved rule text from SPEC Section 7 (bible 5.14, 5.15, 5.16, Section 6, version 1.15; CLAUDE.md
    hard rule; story.md Section 4). Commit.
 2. Check the tools: Blender (Michael installs it before the session; pin the installed version in the pipeline). Ask

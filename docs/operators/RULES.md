@@ -32,4 +32,5 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 - Update `STATE.md` at every stop: stage, what is done, what is next, open questions.
 - Report in plain English, short: numbered next steps, when to clear, and the full next-session prompt inline in one
   fenced code block.
+- The next prompt always comes from `RUNBOOK.md` (the next step's block, given inline with its model). If a step changes the plan, update RUNBOOK.md in the same commit.
 - Never merge into `ct-movement`, `dev` or `master`.
