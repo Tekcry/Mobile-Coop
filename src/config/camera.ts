@@ -69,8 +69,6 @@ export const CAMERA = {
   /** Pitch limits (rad). */
   minPitch: -1.2,
   maxPitch: 1.05,
-  /** Weighted bob during a dash (m). */
-  dashBob: 0.02,
 };
 
 export type CameraKey = keyof typeof CAMERA;

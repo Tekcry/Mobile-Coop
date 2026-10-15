@@ -405,7 +405,7 @@ describe('enemy tuning is pinned (3.2.0: standalone literals)', () => {
     sprintAccel: 4.5, velGain: 6, brakeGain: 6, startShift: 0.3, stepLen0: 0.27, stepLenK: 0.22, rootDip: 0.05,
     turnTravelSlow: 9.42477796076938, turnTravelFast: 5.235987755982989, turnAim: 1.9198621771937625, turnAccel: 12,
     turnSprint: 1.2, turnMoving: 2.4, turnChunk: 0.785, turnChunkTime: 0.3, turnThreshold: 0.45, twistMax: 1.3,
-    pivotTime: 0.6, pivotMinSpeed: 0.45, crouchTime: 0.25, kneelTime: 0.3, standTime: 0.28, airControl: 0.05,
+    pivotTime: 0.6, pivotMinSpeed: 0.45, crouchTime: 0.25, kneelTime: 0.3, standTime: 0.3, airControl: 0.05,
     standHeight: 1.75, crouchHeight: 1.15, radius: 0.3, maxStep: 0.42, camFollow: 16, camShoulder: 15.5, camAds: 19,
     recentreDelay: 1.5, recentreRate: 1.6,
   };

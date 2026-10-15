@@ -451,3 +451,37 @@ describe('anim audit wrist angles', () => {
     expect(s2).toBeCloseTo(-20, 4);
   });
 });
+
+describe('anim audit step 21 (holstered arms gate, M14)', () => {
+  it('flexBand: an elbow inside the band passes, a straight or folded arm fails by its distance out', () => {
+    // shoulder at the origin, elbow 0.3 m down, wrist 0.27 m from the elbow at the given flexion (deg)
+    const arm = (deg: number[]): [number[], number[], number[]] => {
+      const a: number[] = [];
+      const b: number[] = [];
+      const c: number[] = [];
+      for (const d of deg) {
+        const r = (d * Math.PI) / 180;
+        a.push(0, 0, 0);
+        b.push(0, -0.3, 0);
+        c.push(0, -0.3 - 0.27 * Math.cos(r), 0.27 * Math.sin(r));
+      }
+      return [a, b, c];
+    };
+    // M14: relaxed at the sides standing (8-30), softly bent crouched (15-50), pumping at the sprint (55-95)
+    const st = L.readyElbowBand('stand', 2);
+    expect(st).toEqual({ min: 8, max: 30 });
+    expect(L.readyElbowBand('crouch', 3)).toEqual({ min: 15, max: 50 });
+    expect(L.readyElbowBand('stand', 6)).toEqual({ min: 55, max: 95 });
+    const ok = M.flexBand(...arm([12, 18, 25]), st.min, st.max);
+    expect(ok.pass).toBe(true);
+    expect(ok.min).toBeCloseTo(12, 3);
+    expect(ok.max).toBeCloseTo(25, 3);
+    const cr = L.readyElbowBand('crouch', 2);
+    const straight = M.flexBand(...arm([30, 5.1]), cr.min, cr.max);
+    expect(straight.pass).toBe(false);
+    expect(straight.worst).toBeCloseTo(9.9, 3);
+    // A42's old hands-in-front carriage now fails standing
+    const folded = M.flexBand(...arm([75]), st.min, st.max);
+    expect(folded.worst).toBeCloseTo(45, 3);
+  });
+});

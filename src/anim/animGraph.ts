@@ -37,6 +37,8 @@ import { hyp2 } from '../core/mathx';
 
 
 export const FADE = 0.2;
+/** (locomotion step 21) Crouch -> kneel cross-fade (s), inside the Inertializer's 0.1-0.25 s (bible 5.12.2). */
+export const KNEEL_FADE = 0.22;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
@@ -85,6 +87,8 @@ export interface AnimInput {
    * stand-in and the body keeps the armed carriage (holstering never changes pelvis or head motion, D2).
    */
   ready: boolean;
+  /** (fix 21-1, A81) A gun holstered on the right thigh: the relaxed right hand hangs out past it (READY_HANDS.xHolster). */
+  thighGear: boolean;
   /** Dash blend 0..1. */
   dash: number;
   /** Dash-in slide progress 0..1, or < 0. */
@@ -177,6 +181,7 @@ export function defaultInput(): AnimInput {
     yawRate: 0,
     armed: true,
     ready: false,
+    thighGear: false,
     dash: 0,
     slide: -1,
     landing: 0,
@@ -236,6 +241,13 @@ export interface RigTargets {
   layers: Record<string, number>;
   /** Vertical weapon bob left after stabilisation (m), for tests and the debug trace. */
   weaponBob: number;
+  /** (locomotion step 21) Share of the free hand targets that follow the shoulders (ready hands): the rig adds its own
+   *  pelvis drop (feet reach, head cap) to that share, so the shoulders' real drop is carried once. */
+  readyFollow: number;
+  /** (step 21, M14) Where the graph puts the right shoulder joint for the ready hands (body space, m; the left mirrors
+   *  x): the rig moves the ready share of the hand targets by the real shoulder's offset from it, so the arms hang from
+   *  the actual shoulders (the rig's pelvis drop, head cap and twist included) and keep their bend. */
+  readyShoulder: V3;
   /** Cheek weld 0..1 (raised to aim): the neck bends the head down onto the stock, eyes stay on the aim. */
   weld: number;
   /** How far the weapon is raised onto the aim line 0..1 (lowered it follows the body, raised the aim). */
@@ -259,6 +271,8 @@ export function emptyTargets(): RigTargets {
     tumble: 0,
     layers: {},
     weaponBob: 0,
+    readyFollow: 0,
+    readyShoulder: { x: 0, y: 0, z: 0 },
     weld: 0,
     aimW: 0,
   };
@@ -283,8 +297,13 @@ export function pickLower(i: AnimInput): LowerState {
 export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: 0.02 };
 export const SIGHT_HEAD = { roll: 0.15 };
 
-/** Heel strike pelvis kick (spring velocity, m/s): how hard each footfall lands. */
-export const HEEL_KICK = 0.45;
+/**
+ * (locomotion step 21, D2) Weapon / kit stabilisation spring (rad/s): critically damped, settles to 2 % in 5.8 / omega
+ * = 0.2 s after a stop, no secondary wobble. Idle breathing (BREATH) starts after `still` s without moving, never
+ * while moving or aiming; `amp` is the chest pitch (rad, ~4 mm at the head), `rate` its angular frequency (rad/s).
+ */
+export const WEAPON_SETTLE_OMEGA = 29;
+export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 1.6 };
 /**
  * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
  * level) - never upright like a mannequin. More bent over moving along a wall and crouched (`crouch`: over the
@@ -293,14 +312,55 @@ export const HEEL_KICK = 0.45;
 export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.2, wallDrop: 0.06, aim: 0.05, crouch: 0.34 };
 
 /**
- * (step 09, A42) Ready hands while holstered on foot (a stand-in until the step 21 trained posture): elbows soft and
- * bent (about 60-90 deg), hands in front at the belt line, a little inside the shoulders and clear of the slung long
- * gun and the hip holster. The hands are placed from the chest: `torso` (m) is the spine-to-shoulder length used to
- * follow the hunch / lean forward, and the pelvis offsets carry them too, so a lean or a start lunge never folds the arms; `x` in from the shoulder half-width, `y` below
- * and `z` ahead of the leaned shoulder; `swing` the small fore-aft hand motion with the gait; `lag` (s) how far the
- * hands ease behind the shoulders' follow.
+ * (step 09, A42; step 21, D5.6 trained posture; M14 relaxed arms) Holstered hands on foot: the arms hang RELAXED AT THE
+ * SIDES (M14, replaces A42's hands in front), elbows slightly bent, hands loose by the thighs, with a natural counter
+ * swing when moving (the arm opposite the leg forward, growing with speed). Crouched the arms stay relaxed, hands out
+ * by the knees, elbows softly bent (never straight, never through the thighs). At the sprint the arms pump with the
+ * stride (A76): elbows bent, a bigger fore-aft drive, hands a little higher. The wrist target hangs below the shoulder
+ * joint (which follows the rig's bent chain, below), at a shoulder-to-wrist distance that gives the elbow bend, so the
+ * swing turns the arm about the shoulder without changing the bend.
+ * - `x` (m) out from the shoulder joint (hands by the thighs), `xMove` more out at a jog (clear of the swinging
+ *   thighs, stairs and slopes included), `xCrouch` more out crouched (outside the knees), `xSprint` at the sprint.
+ * - `z` (m) the wrist ahead of the shoulder at rest, `zCrouch` more ahead crouched, `zSprint` at the sprint (the
+ *   pumping hands carried by the lower chest; A80: 1 cm with a 13 cm pump, at 8 / 16 cm the forward forearm went
+ *   level at the chest and read as a reach).
+ * - `flex`, `flexCrouch`, `flexSprint` (rad) the elbow bend standing (~18 deg), crouched (~34) and pumping (~80).
+ * - `swing` (m per m/s) the counter swing fore-aft, capped at `swingMax` (m); crouched `swingCrouch` of it.
+ *   `backSwing` of it behind the rest (A81: the forward swing is the bigger one), arcing `xArc` (m per m) out as
+ *   the hand goes back past the hip (clear of the forward thigh); not at the sprint.
+ * - `xHolster` (m) the right hand further out over a gun holstered on the right thigh (A81: the holster's grip tips
+ *   out with the thigh as it swings forward; the hand hangs outside it, as an operator's does over a drop-leg rig;
+ *   the rig turns that elbow out too, HOLSTER_ELBOW_OUT, clear of the grip crouched).
+ * - `pump` (m) the fore-aft drive at the sprint, `pumpLift` (m) the hands up for it, `pumpPhase` (cycles) its phase
+ *   shift to the sprinting legs.
+ * - `settle` (s) the swing's fade time constant (2 % in 0.2 s on a stop, D2), `lag` (s) the hands' ease behind
+ *   the shoulders' follow.
  */
-export const READY_HANDS = { torso: 0.45, x: -0.06, y: 0.4, z: -0.02, swing: 0.012, lag: 0.035 };
+export const READY_HANDS = {
+  x: 0.06,
+  xMove: 0.03,
+  xCrouch: 0.05,
+  xSprint: 0.03,
+  z: 0.05,
+  zCrouch: 0.04,
+  flex: 0.31,
+  flexCrouch: 0.6,
+  flexSprint: 1.5,
+  swing: 0.06,
+  swingMax: 0.15,
+  swingCrouch: 0.6,
+  backSwing: 0.7,
+  xArc: 0.3,
+  xHolster: 0.05,
+  pump: 0.13,
+  pumpLift: 0,
+  zSprint: 0.01,
+  pumpPhase: 0.35,
+  settle: 0.05,
+  lag: 0.035,
+};
+/** Spine-to-chest joint length of the rig (m at 1.75 m; characterRig.ts `torso` node). */
+const CHEST_SEG = 0.13;
 
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
@@ -325,6 +385,8 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
 const SWAP_FADE = 8;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
 const CARRY_SWAP_TAU = 0.08;
+/** (fix 21-2) Time constant (s) of the right hand's holster offset (READY_HANDS.xHolster) easing in / out. */
+const HOLSTER_TAU = 0.06;
 /** (step 09) Grip weight rate (1/s): the hands take / leave the grip and the foregrip in at least 0.2 s. */
 const GRIP_RATE = 5;
 /** Seconds the support hand takes to settle onto the wall. */
@@ -359,6 +421,8 @@ export class AnimGraph {
   // timers and smoothed parameters
   private idleT = Math.random() * 4;
   private stillT = 0;
+  /** (fix 21-5) Breathing weight 0..1 (fades out over BREATH.fadeOut on a move). */
+  private breathW = 0;
   /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
   private locoSpeed = 0;
   private kneelW = 0;
@@ -415,6 +479,10 @@ export class AnimGraph {
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
   private readyFy = 0;
   private readyFz = 0;
+  /** (step 21, M14) Relaxed arm counter swing amplitude (m), eased by READY_HANDS.settle. */
+  private armSwingA = 0;
+  /** (fix 21-2) Eased share of READY_HANDS.xHolster: on with thigh gear on foot, out on a traverse / attach and a draw. */
+  private holsterK = 0;
   private bobResidual = 0;
 
   constructor(private p: Proportions) {}
@@ -429,10 +497,8 @@ export class AnimGraph {
     this.hitSide = side;
   }
 
-  /** Heel strike from the foot planner: the pelvis compresses (2-4 cm, heavier with more mass): weight lands. */
-  heelStrike(mass = 1): void {
-    this.pelSpring.kick(-HEEL_KICK * clamp(mass, 0.6, 1.6));
-  }
+  // (locomotion step 21, A10) no heel-strike pelvis kick: the weight of each footfall is the clip's own single loading
+  // dip (a second spring dip on top made a double bounce, D2). `pelSpring` stays for the stop / landing settles (D5.3).
 
   /** Support side from the planner (-1 left foot only, 1 right only, 0 both / none). */
   setSupport(side: number): void {
@@ -520,7 +586,7 @@ export class AnimGraph {
     // --- lower state (inertialized on change)
     const target = pickLower(i);
     if (target !== this.state) trigger = true;
-    this.fade(target, dt, target === 'slide' || target === 'traverse' ? 0.12 : target === 'kneel' ? 0.35 : FADE);
+    this.fade(target, dt, target === 'slide' || target === 'traverse' ? 0.12 : target === 'kneel' ? KNEEL_FADE : FADE);
 
     // --- clocks and smoothed parameters
     const still = i.speed < 0.05;
@@ -692,7 +758,11 @@ export class AnimGraph {
     // --- upper body: aim, lean (head first), checks
     const aimPitch = clamp(i.aimPitch, -1.2, 1.2);
     const raise = this.raiseS;
-    const breath = Math.sin(this.idleT * 1.6) * 0.008;
+    // (locomotion step 21, D2) breathing only after BREATH.still s still (idle, crouch idle, kneel); none moving or aiming
+    // (fix 21-5) it fades in with the stillness and out over ~0.2 s on the first move (no one-frame snap)
+    const breathT = smoothstep((this.stillT - BREATH.still) / BREATH.fadeIn);
+    this.breathW = breathT >= this.breathW ? breathT : approach(this.breathW, breathT, BREATH.fadeOut, dt);
+    const breath = Math.sin(this.idleT * BREATH.rate) * BREATH.amp * this.breathW * (1 - raise);
     // head-first peek: the head leans out first, the body follows; coming back the body (and weapon)
     // return first and the head follows
     // the weapon changes to the outside hand before any lean starts
@@ -734,7 +804,7 @@ export class AnimGraph {
     const rl = READY_POSES.low;
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
-    const sway = (Math.sin(this.idleT * 1.3) * 0.005 + Math.sin(this.idleT * 0.7) * 0.003) * mass * (1 - kw * 0.5);
+    // (locomotion step 21, D2) no free-running weapon sway: the only idle weapon motion is what the chest breathing carries
     const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
     // raised: up to the eye
     const sight = raiseW;
@@ -755,7 +825,7 @@ export class AnimGraph {
     chh *= nw;
     cc *= nw;
     src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sight * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sway + sight * SIGHT_RAISE.y;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sight * SIGHT_RAISE.y;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
     this.out.weld = sight;
@@ -764,7 +834,7 @@ export class AnimGraph {
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
     const crPitch = cr.pitch * (1 - 0.6 * Math.min(1, Math.abs(bd)));
-    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass + sway * 2;
+    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass;
     src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw) + check * 0.6 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
     // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
@@ -794,20 +864,48 @@ export class AnimGraph {
     src[CH.hRX] = p.shoulderHalf + 0.06;
     src[CH.hRY] = shY - armLen * 0.92;
     src[CH.hRZ] = 0.05 - swing * 0.3;
-    // ready hands (A42): forearms up, hands in front at the belt line (a slight counter swing with the gait)
+    // holstered hands (D5.6, M14): relaxed at the sides, a natural counter swing with the gait (the right arm forward at
+    // the left heel strike, phase 0); pumping at the sprint (A76)
     const rw = this.readyW;
+    const RH = READY_HANDS;
+    const dash = this.dashS;
+    const swingT = (Math.min(RH.swingMax, RH.swing * i.speed) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - dash) + RH.pump * dash) * smoothstep(i.speed / 0.22);
+    this.armSwingA = approach(this.armSwingA, swingT, RH.settle, dt);
+    this.holsterK = approach(this.holsterK, i.thighGear && i.traverse === 'none' ? 1 : 0, HOLSTER_TAU, dt);
     if (rw > 0) {
-      const rs = READY_HANDS.swing * this.moveW * Math.sin(ph * Math.PI * 2);
       // body-relative here; the follow of the leaning chest and the pelvis is added after inertialization (below)
-      const rx = p.shoulderHalf + READY_HANDS.x;
-      const ry = shY - READY_HANDS.y;
-      const rz = READY_HANDS.z;
-      src[CH.hLX] = src[CH.hLX]! + (-rx - src[CH.hLX]!) * rw;
-      src[CH.hLY] = src[CH.hLY]! + (ry - src[CH.hLY]!) * rw;
-      src[CH.hLZ] = src[CH.hLZ]! + (rz + rs - src[CH.hLZ]!) * rw;
+      // (pose units: the output is scaled by k in writeTargets)
+      const u = p.upperArm.len / k;
+      const fl = p.forearm.len / k;
+      const flex = (RH.flex + (RH.flexCrouch - RH.flex) * crouchK) * (1 - dash) + RH.flexSprint * dash;
+      const d2 = u * u + fl * fl + 2 * u * fl * Math.cos(flex);
+      const dx = RH.x + RH.xMove * smoothstep(i.speed / 3) + RH.xCrouch * crouchK + RH.xSprint * dash;
+      const z0 = RH.z + RH.zCrouch * crouchK + RH.zSprint * dash;
+      // (the sprint stride runs ~0.35 of a cycle ahead of the clip phase at the feet: the pump keeps to the legs)
+      const sw = this.armSwingA * Math.cos((ph + RH.pumpPhase * dash) * Math.PI * 2);
+      // (fix 21-1) on foot the hand swings back less than forward and arcs out past the hip as it goes back, clear of
+      // the forward-swinging thigh and its holster (the sprint pump keeps its own symmetric drive)
+      const backK = 1 - (1 - RH.backSwing) * (1 - dash);
+      const arc = RH.xArc * (1 - dash);
+      const bR = sw < 0 ? -sw * backK : 0;
+      const bL = sw > 0 ? sw * backK : 0;
+      const zR = sw < 0 ? z0 - bR : z0 + sw;
+      const zL = sw > 0 ? z0 - bL : z0 - sw;
+      const dxR = dx + arc * bR + RH.xHolster * this.holsterK * (1 - dash);
+      const dxL = dx + arc * bL;
+      // (from the rig's rest shoulder joint, p.y.shoulder: `shY` above sits 4 cm lower for the hanging default)
+      const lift = p.y.shoulder / k + RH.pumpLift * dash;
+      const yR = lift - Math.sqrt(Math.max(0.01, d2 - dxR * dxR - zR * zR));
+      const yL = lift - Math.sqrt(Math.max(0.01, d2 - dxL * dxL - zL * zL));
+      const sh = p.shoulderHalf / k;
+      const rx = sh + dxR;
+      const lx = sh + dxL;
+      src[CH.hLX] = src[CH.hLX]! + (-lx - src[CH.hLX]!) * rw;
+      src[CH.hLY] = src[CH.hLY]! + (yL - src[CH.hLY]!) * rw;
+      src[CH.hLZ] = src[CH.hLZ]! + (zL - src[CH.hLZ]!) * rw;
       src[CH.hRX] = src[CH.hRX]! + (rx - src[CH.hRX]!) * rw;
-      src[CH.hRY] = src[CH.hRY]! + (ry - src[CH.hRY]!) * rw;
-      src[CH.hRZ] = src[CH.hRZ]! + (rz - rs - src[CH.hRZ]!) * rw;
+      src[CH.hRY] = src[CH.hRY]! + (yR - src[CH.hRY]!) * rw;
+      src[CH.hRZ] = src[CH.hRZ]! + (zR - src[CH.hRZ]!) * rw;
     }
     // reload / swap / grenade clips over the weapon layer
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
@@ -928,8 +1026,9 @@ export class AnimGraph {
     const sup = this.supportX.step(this.moveW > 0.3 ? 0 : this.support * 0.012, 10, dt);
     src[CH.pelX] = src[CH.pelX]! + sup;
 
-    // --- stabilisation: most of the gait bob is taken out of the weapon (the head is world-stabilised)
-    const bob = src[CH.pelY]! - this.pelBase.step(src[CH.pelY]!, 6, dt);
+    // --- stabilisation: some of the gait bob is taken out of the weapon (the head is world-stabilised); (step 21, D2) the
+    // base follows at WEAPON_SETTLE_OMEGA, so after a stop the weapon is back on the chest in 0.2 s with no wobble
+    const bob = src[CH.pelY]! - this.pelBase.step(src[CH.pelY]!, WEAPON_SETTLE_OMEGA, dt);
     src[CH.wpY] = src[CH.wpY]! - bob * 0.8;
     this.bobResidual = bob * 0.2;
 
@@ -944,9 +1043,20 @@ export class AnimGraph {
     const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
     // (the hands hang a touch behind the shoulders, READY_HANDS.lag: a fast crouch folds the chest and drops the
     // pelvis together, and the hands ease through it instead of taking the sum of both at full speed)
-    const tp = pose[CH.spPitch]! + pose[CH.pelPitch]!;
-    this.readyFy = approach(this.readyFy, pose[CH.pelY]! - READY_HANDS.torso * (1 - Math.cos(tp)), READY_HANDS.lag, dt);
-    this.readyFz = approach(this.readyFz, pose[CH.pelZ]! + READY_HANDS.torso * Math.sin(tp), READY_HANDS.lag, dt);
+    // (locomotion step 21, PC1) the shoulders' drop and reach as the rig bends the chain (characterRig applyTargets: the
+    // pelvis pitch, then the spine and chest share the spine pitch and take back 0.6 of the pelvis pitch), so the hands
+    // keep the same place below the shoulders standing and crouched (the old single-pivot model counted ~0.1 m too much
+    // drop crouched: the arms hung straight to the knees)
+    const pp = pose[CH.pelPitch]!;
+    const sp = pose[CH.spPitch]!;
+    const a2 = 0.4 * pp + 0.45 * sp;
+    const a3 = 0.4 * pp + sp;
+    const h1 = (p.y.waist - p.y.hip) / k;
+    const h3 = (p.y.shoulder - p.y.waist) / k - CHEST_SEG;
+    const drop = h1 * (1 - Math.cos(pp)) + CHEST_SEG * (1 - Math.cos(a2)) + h3 * (1 - Math.cos(a3));
+    const reach = h1 * Math.sin(pp) + CHEST_SEG * Math.sin(a2) + h3 * Math.sin(a3);
+    this.readyFy = approach(this.readyFy, pose[CH.pelY]! - drop, READY_HANDS.lag, dt);
+    this.readyFz = approach(this.readyFz, pose[CH.pelZ]! + reach, READY_HANDS.lag, dt);
     if (fw > 0.0001) {
       const fy = this.readyFy * fw;
       const fz = this.readyFz * fw;
@@ -957,6 +1067,10 @@ export class AnimGraph {
     }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
+    o.readyFollow = fw;
+    o.readyShoulder.x = p.shoulderHalf;
+    o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
+    o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     return o;
   }
 

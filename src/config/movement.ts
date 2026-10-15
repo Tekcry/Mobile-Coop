@@ -61,7 +61,7 @@ export const MOVEMENT = {
   /** Stance transition times (s): stand -> crouch, crouch -> kneel, crouch -> stand. */
   crouchTime: 0.25,
   kneelTime: 0.3,
-  standTime: 0.28,
+  standTime: 0.3,
   /** Fraction of ground control kept in the air (drops / vault exits only). */
   airControl: 0.05,
   standHeight: 1.75,
@@ -122,7 +122,7 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   pivotMinSpeed: 0.45,
   crouchTime: 0.25,
   kneelTime: 0.3,
-  standTime: 0.28,
+  standTime: 0.3,
   airControl: 0.05,
   standHeight: 1.75,
   crouchHeight: 1.15,

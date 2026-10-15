@@ -524,6 +524,26 @@ export function romAngles(a: Arr, b: Arr, c: Arr, bend?: Arr, flexMax: number = 
   return { ...result(worst, frame, worst <= flexMax && hyper <= hyperMax), hyper: result(hyper, hyperF, hyper <= hyperMax) };
 }
 
+/**
+ * (locomotion step 21) Three-point flexion (deg) held inside [min, max] (ready-hands elbows): worst = the furthest any
+ * frame falls outside the band (0 inside), with the range seen.
+ */
+export function flexBand(a: Arr, b: Arr, c: Arr, min: number, max: number): Result & { min: number; max: number } {
+  let worst = 0;
+  let frame = -1;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i * 3 + 2 < b.length; i++) {
+    const f = flexion(a, b, c, i);
+    if (!finite(f)) continue;
+    lo = Math.min(lo, f);
+    hi = Math.max(hi, f);
+    const out = f < min ? min - f : f > max ? f - max : 0;
+    if (out > worst || frame < 0) [worst, frame] = [out, i];
+  }
+  return { ...result(worst, frame, worst <= 0), min: lo, max: hi };
+}
+
 /** :812-815 angle form of ROM (wrist flex / side, neck twist, spine twist): |angle| <= limit (deg). */
 export function romLimit(angles: Arr, limit: number): Result {
   let worst = 0;

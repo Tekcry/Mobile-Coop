@@ -1055,6 +1055,16 @@ function analyze(sc, rec) {
     out.window = { from, to: m.stop };
     if (m.stop - from >= Math.round(hz * 0.3)) steady(rec, hz, out, from, m.stop, band, sc.stance === 'stand' && sc.gear <= 3, m.cap, sc.surface);
     else out.window.short = true;
+    // (step 21, D5.6 / M14, PC1) holstered arms relaxed at the sides: the elbow band per stance / gear over the steady
+    // window (A42's 60-90 replaced by M14), and the forearms clear of the thighs
+    if (!sc.aim && m.stop > from) {
+      const eb = L.readyElbowBand(sc.stance, sc.gear);
+      for (const s of ['L', 'R']) {
+        const fb = M.flexBand(vec(rec, `shoulder${s}`, from, m.stop), vec(rec, `elbow${s}`, from, m.stop), vec(rec, `wrist${s}`, from, m.stop), eb.min, eb.max);
+        res(out, `readyElbow${s}`, { ...fb, extra: { min: +fb.min.toFixed(1), max: +fb.max.toFixed(1) } }, `${eb.min}-${eb.max}`, 'D5.6 / M14', 'deg', from);
+        res(out, `readyThigh${s}`, M.segmentDistance(vec(rec, `elbow${s}`, from, m.stop), vec(rec, `wrist${s}`, from, m.stop), vec(rec, `hip${s}`, from, m.stop), vec(rec, `knee${s}`, from, m.stop), L.LIMB_RADIUS.forearm + L.LIMB_RADIUS.thigh, L.CLIP_SELF), L.CLIP_SELF, 'D5.6 / M14 / :807', 'm', from);
+      }
+    }
     stopMetrics(rec, hz, out, m.start, m.stop, m.end, m.cap);
   } else if (sc.kind === 'tunnel') {
     common(rec, hz, out, 0, rec.n, L.pelvisJumpByGear('crouch', hz)[2], m.stop + Math.round(hz * 0.6));

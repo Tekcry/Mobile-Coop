@@ -371,12 +371,9 @@ export class Player {
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
     this.rig.animate(dt, rp);
-    // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
+    // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
     const pl = this.rig.planner;
-    if ((pl.L.landed || pl.R.landed) && c.grounded) {
-      this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
-      this.onFootPlant?.();
-    }
+    if ((pl.L.landed || pl.R.landed) && c.grounded) this.onFootPlant?.();
     this.cam.applyBodyFade(this.rig);
   }
 

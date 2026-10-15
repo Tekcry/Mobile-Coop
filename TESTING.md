@@ -5,6 +5,13 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 21 - no bob, relaxed arms (PC, controller)
+- [ ] Walk, jog, run, sprint: no visible up-and-down bob of the camera or head; one dip per step.
+- [ ] Holstered and standing: arms hang relaxed at the sides, hands by the thighs, swing naturally when walking; pump when sprinting; nothing clips the thigh pistol.
+- [ ] Crouched holstered: arms softly bent, not straight.
+- [ ] Stand still 2 s: slight breathing; it fades out as soon as you move.
+- [ ] Co-op: a team-mate starting to walk has no ankle snap on your screen.
+
 ## Locomotion step 19 - custom difficulty (PC, controller, phone)
 - [ ] Play screen: pick a preset, then move Perception, Aim and Alarm tolerance sliders: difficulty shows Custom on that base.
 - [ ] Low perception: guards take visibly longer to notice you; high aim: guards hit more; low alarm tolerance: alarms come faster.

@@ -98,6 +98,7 @@ export class WeaponModel {
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
   hold(rig: CharacterRig): void {
+    this.owner = rig;
     this.slot = null;
     this.track(rig, false);
     this.node.parent = rig.weaponPivot;
@@ -119,6 +120,7 @@ export class WeaponModel {
   /** Mid-swap: in the right hand (grip at the palm) on its way from its slot to the aim pocket. */
   inHand(rig: CharacterRig): void {
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.owner = rig;
     this.slot = null;
     this.track(rig, false);
     this.node.parent = rig.weaponSocket;
@@ -135,6 +137,7 @@ export class WeaponModel {
    */
   holster(rig: CharacterRig, slot: CarrySlot): void {
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.owner = rig;
     this.slot = slot;
     this.track(rig, slot === 'sling');
     const e = this.ext;
@@ -221,8 +224,23 @@ export class WeaponModel {
     this.splay = SLING_SPLAY;
   }
 
+  /** (fix 21-2) The rig given to the last hold / inHand / holster. */
+  private owner: CharacterRig | null = null;
+  /** (fix 21-2) The rig whose `thighCount` this model is counted in (visible on its right thigh), else null. */
+  private thighOn: CharacterRig | null = null;
+
   setVisible(v: boolean): void {
     this.node.setEnabled(v);
+    this.syncThigh();
+  }
+
+  /** (fix 21-2) `rig.thighGear` is true iff a visible model is holstered on that rig's thigh. */
+  private syncThigh(): void {
+    const want = this.slot === 'thigh' && this.node.isEnabled(false) ? this.owner : null;
+    if (want === this.thighOn) return;
+    if (this.thighOn) this.thighOn.thighCount = Math.max(0, this.thighOn.thighCount - 1);
+    if (want) want.thighCount++;
+    this.thighOn = want;
   }
 
   muzzleWorld(out: Vector3): Vector3 {
@@ -232,6 +250,8 @@ export class WeaponModel {
 
   dispose(): void {
     if (this.rig) this.track(this.rig, false);
+    this.slot = null;
+    this.syncThigh();
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.node.dispose();

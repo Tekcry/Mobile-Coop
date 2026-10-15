@@ -36,8 +36,8 @@ export const CAMERA_TUNING = {
  * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
  * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
  * ADS, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
- * the head. Subtle handheld drift (steadier when kneeling or aiming) and a damped footstep micro-bob
- * give it weight. Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
+ * the head. Subtle handheld drift (steadier when kneeling or aiming)
+ * gives it weight; no footstep bob (D2). Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
  * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls
  * in at once and eases back out. Low spaces: probes up and down from the head lower the shoulder point and shorten the boom
  * between floor and ceiling, easing back when the space opens. In the open none of this changes the framing.
@@ -238,11 +238,6 @@ export class ShoulderCamera {
     const s = Math.max(0, Math.min(1, strength));
     this.sBob.kick(-0.7 * s);
     this.trauma = Math.min(1, this.trauma + 0.16 * s);
-  }
-
-  /** A footstep landed (heel strike): a tiny damped dip of the view (strength ~0..1). */
-  footstep(strength = 1): void {
-    this.sBob.kick(-0.05 * Math.min(1.5, strength));
   }
 
   /** Snap the rendered view to the targets (teleport, respawn). */

@@ -142,6 +142,16 @@ export const SETTLE_REBOUND_S = 0.25;
 /** :1257 - breathing filter for the second-excursion check: moving average over this (s), subtracted. */
 export const BREATH_FILTER_S = 1.0;
 export const IDLE_BREATH = 0.01;
+/**
+ * (locomotion step 21, D5.6 / M14) Holstered arms: elbow flexion stays in these bands (deg) over the steady gait. M14
+ * replaced A42's ready hands in front (60-90 deg, first cut of this gate) with arms relaxed at the sides: a slight bend
+ * standing, walking and jogging (~10-25), softly bent crouched (never straight: PC1 measured 5.1), pumping at the sprint
+ * (A76). The forearms also stay clear of the thighs (CLIP_SELF, LIMB_RADIUS forearm + thigh).
+ */
+export const READY_ELBOW = { stand: { min: 8, max: 30 }, crouch: { min: 15, max: 50 }, sprint: { min: 55, max: 95 } } as const;
+export function readyElbowBand(stance: string, gear: number): { min: number; max: number } {
+  return stance === 'crouch' ? READY_ELBOW.crouch : gear >= 6 ? READY_ELBOW.sprint : READY_ELBOW.stand;
+}
 /** (locomotion step 11) Back to a wall: the back and shoulder blades within this of the face, and no deeper behind it (m). */
 export const WALL_GAP = 0.03;
 /** (locomotion step 13) Door peek: the palm of the hand away from the hinge within this of the handle (m), and no body

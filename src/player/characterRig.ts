@@ -145,7 +145,10 @@ export function avatarStyle(): AvatarStyle {
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
-/** Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. */
+/**
+ * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
+ * hips and knees 25 rad/s = 23.9 deg per 60 Hz frame, under bible 5.12.2's 25 deg per frame.
+ */
 const JOINT_RATE = new Map<string, number>([
   ['pelvis', 8],
   ['spine', 8],
@@ -156,10 +159,10 @@ const JOINT_RATE = new Map<string, number>([
   ['shR', 22],
   ['elL', 24],
   ['elR', 24],
-  ['hipL', 26],
-  ['hipR', 26],
-  ['knL', 30],
-  ['knR', 30],
+  ['hipL', 25],
+  ['hipR', 25],
+  ['knL', 25],
+  ['knR', 25],
 ]);
 
 const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
@@ -201,6 +204,12 @@ const tmpC = new Vector3();
 const tmpD = new Vector3();
 const tmpE = new Vector3();
 const tmpPole = new Vector3();
+/** (fix 21-1, A81) Extra outward elbow pole (body x, against the pole's down 1) for the relaxed right arm over a thigh holster. */
+const HOLSTER_ELBOW_OUT = 0.8;
+/** (fix 21-2) The holster-out pole term eases in / out at this rate (1/s), so a draw never jumps the elbow. */
+const HOLSTER_OUT_RATE = 8;
+/** (step 21) Scratch body-space point for the ready-hands shoulder. */
+const readyShTmp = { x: 0, y: 0, z: 0 };
 const legHint = new Vector3();
 const legPole = new Vector3();
 /**
@@ -351,6 +360,14 @@ export class CharacterRig {
   backGear = 0;
   /** Sideways reach (m) of the thigh's surface and gear from the hip joint. */
   thighOuter = 0;
+  /** (fix 21-2) Visible weapons holstered on the right thigh (kept by WeaponModel; see `thighGear`). */
+  thighCount = 0;
+  /** (fix 21-1, A81) A visible weapon sits in the right-thigh holster (derived from WeaponModel's count). */
+  get thighGear(): boolean {
+    return this.thighCount > 0;
+  }
+  /** (fix 21-2) Eased 0..1 share of the holster-out elbow pole (follows `thighGear`). */
+  private holsterW = 0;
   /** Called after each solved pose (carried gear that reacts to the body, e.g. a sling pushed by the thigh). */
   readonly onPosed: (() => void)[] = [];
   /** Extra emote overrides (set by the emote player). */
@@ -409,8 +426,17 @@ export class CharacterRig {
   private velX = 0;
   private velZ = 0;
   private pelvisDrop = 0;
+  /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
+  private softL = 1;
+  private softR = 1;
+  /** (fix 21-3) Per foot: the pelvis drop (m) it needed on its last planted frame (let go over its early swing). */
+  private liftL = 0;
+  private liftR = 0;
   /** (step 12b) Pelvis sink under a head cap (m) and the cap (world y), from `RigPose.headCap`. */
   private capDrop = 0;
+  /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
+  private readyRf = 0;
+  private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private headCap: number | undefined = undefined;
   /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
   handSwap = -1;
@@ -924,6 +950,7 @@ export class CharacterRig {
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
     i.ready = this.carrier && !this.heldWeapon;
+    i.thighGear = this.thighGear;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
     i.landing = s.landing ?? 0;
@@ -1063,7 +1090,6 @@ export class CharacterRig {
     this.planner.update(pin);
     const L = this.planner.L;
     const R = this.planner.R;
-    if (L.landed || R.landed) this.graph.heelStrike(i.weight);
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);
 
     this.applyTargets(t, dt, free);
@@ -1247,18 +1273,63 @@ export class CharacterRig {
     // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
     // easing back up stays smooth
-    const legLen = (p.thigh.len + p.calf.len) * 0.97;
+    const legFull = p.thigh.len + p.calf.len;
+    const legLen = legFull * 0.97;
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? L : R;
+      // (locomotion step 21, D2 one low / one high per step, A80) a stepping foot in the air does not pull the
+      // pelvis down before it lands: the trailing foot just lifted lets go (early swing counts for nothing) and the
+      // reaching foot may straighten its knee (terminal swing, full leg length), its share growing over the second
+      // half of the swing so a step down onto a lower tread still lowers the pelvis ahead of the landing. Before,
+      // the reaching foot dropped the pelvis 2-3 cm two frames before every other heel strike (a second low per
+      // step) and the sprint's trailing foot up to 13 cm in flight.
+      // A landed foot eases from the full leg back to the soft knee over ~0.1 s (the loading response: the low
+      // just after the strike), so the need is continuous across the landing (no one-frame drop, no ankle snap).
+      // (A82) Not for a step the travel has reversed against (over ~135 deg from the foot's heading at lift: a 180
+      // turn's first steps, a backpedal; not a strafe or wall side-step): the foot swings back past the planted one,
+      // and a pelvis held high for it overstretched the legs (turn180 selfShanks 1.8 -> 2.0-5 cm, the landed ankle
+      // pulled 3.9 cm off its plant); such a step pulls the pelvis down at the soft
+      // knee all through its swing as before step 21, and lands already at the soft knee
+      let w = 1;
+      const air = !free && !f.contact && f.swing >= 0;
+      const reversed = air && this.velX * Math.sin(f.fromYaw) + this.velZ * Math.cos(f.fromYaw) < -0.7 * hyp2(this.velX, this.velZ);
+      const stepping = air && !reversed;
+      let soft = k === 0 ? this.softL : this.softR;
+      soft = stepping ? 0 : reversed ? 1 : approachTo(soft, 1, dt, 0.035);
+      if (k === 0) this.softL = soft;
+      else this.softR = soft;
+      let len = legFull - (legFull - legLen) * soft;
+      if (stepping) {
+        const u = Math.max(0, Math.min(1, (f.swing - 0.5) * 2));
+        w = u * u * (3 - 2 * u);
+        len = legFull;
+      }
+      // (fix 21-3) the trailing foot just lifted lets go of the drop it held over the first half of its swing (the
+      // reaching foot's share grows over the second half): letting go at once raised the pelvis 1.8-6.8 cm in a frame
+      // on stairs and ramps going up, where the planted trailing foot had held it low. Capped at what it needed
+      // planted (it never grows in the air: the sprint's trailing foot pulled the pelvis down 13 cm in flight)
+      // Only for a take-off below the root (climbing): on the level it lets go at once as before (a turn's held
+      // trailing drop crossed the shins, turn180 selfShanks 1.3 -> 8 cm)
+      if (stepping) {
+        const u = Math.max(0, Math.min(1, f.swing * 2));
+        const up = Math.max(0, Math.min(1, (rp.y - f.fromY - 0.03) / 0.05));
+        if (up > 0) need = Math.max(need, (k === 0 ? this.liftL : this.liftR) * up * (1 - u * u * (3 - 2 * u)));
+      }
+      if (w <= 0) continue;
       const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
       const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
       const footY = f.y + p.y.ankle + (k === 0 ? st.lY : st.rY);
-      const reachV = Math.sqrt(Math.max(0, legLen * legLen - dh * dh));
-      need = Math.max(need, hipY - footY - reachV);
+      const reachV = Math.sqrt(Math.max(0, len * len - dh * dh));
+      const fNeed = hipY - footY - reachV;
+      if (!stepping) {
+        if (k === 0) this.liftL = Math.max(0, fNeed);
+        else this.liftR = Math.max(0, fNeed);
+      }
+      need = Math.max(need, fNeed * w);
     }
     need = Math.max(0, Math.min(0.4, need));
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
@@ -1382,6 +1453,11 @@ export class CharacterRig {
     // to the right hand when the weapon is in the left)
     const gripW = this.heldWeapon ? t.grip : 0;
     const leftGrips = this.handBlend > 0.5;
+    // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
+    this.readyRf = t.readyFollow;
+    this.readySh = t.readyShoulder;
+    // (fix 21-2) the holster-out elbow eases with the gear (a draw clears thighGear while the hands still hang)
+    this.holsterW += ((this.thighGear ? 1 : 0) - this.holsterW) * Math.min(1, dt * HOLSTER_OUT_RATE);
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offWall, leftGrips, leftGrips ? 0 : t.offMag);
     this.limitJoint(this.shoulderL, dt);
@@ -1452,6 +1528,15 @@ export class CharacterRig {
     const S = sh.getAbsolutePosition();
     // free-swing target, then the weapon grip blended over it
     const target = this.bodyToWorld(free, tmpA);
+    if (this.readyRf > 0) {
+      readyShTmp.x = this.readySh.x * side;
+      readyShTmp.y = this.readySh.y;
+      readyShTmp.z = this.readySh.z;
+      this.bodyToWorld(readyShTmp, tmpF);
+      target.x += (S.x - tmpF.x) * this.readyRf;
+      target.y += (S.y - tmpF.y) * this.readyRf;
+      target.z += (S.z - tmpF.z) * this.readyRf;
+    }
     if (gripW > 0 && this.heldWeapon) {
       const m = this.heldWeapon.getWorldMatrix();
       // the hand wraps the gun: the wrist sits behind / under the palm point (weapon space), so the arm
@@ -1488,7 +1573,11 @@ export class CharacterRig {
     }
     // elbows down/out/back; (step 10) the striking elbow (right) lifts out to the side, level, with the elbow arc
     const mw = side > 0 && this.input.melee >= 0 ? meleePoleW(this.input.melee) : 0;
-    this.dirToWorld(side * (0.55 + 0.65 * mw), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    // (fix 21-1, A81) relaxed over a right-thigh holster the right elbow points further out, clear of the gun's grip
+    // (fix 21-2) eased with the gear, and gone by a quarter of the reach to a world grip (zipline, ladder, ledge):
+    // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
+    const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
+    this.dirToWorld(side * (0.55 + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
     // upper arm
     tmpC.subtractToRef(S, tmpA);
