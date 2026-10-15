@@ -1,7 +1,8 @@
 # Operators run - state (resume point)
 
 **Now:** step 05 (Wren: base layer and trousers), Opus 5.5, High. Steps 1-4 and 03b are done (LOG.md).
-**Run style:** unattended chained steps (DECISIONS D15); each step starts the next (RULES.md "Chaining").
+**Run style:** unattended (DECISIONS D15); steps 05-18 run as one workflow, one agent per step: paste the prompt in
+`WORKFLOW-PROMPT.md` into a new Opus 5.5 High session. Sessions cannot start sessions, so session chaining is retired.
 **After 05:** step 06 (gloves and boots).
 
 **Key facts for the next step**

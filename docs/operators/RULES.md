@@ -39,6 +39,9 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
 ## Chaining
+**Superseded 2026-10-16:** a session cannot start another session, so steps 05-18 run as one workflow
+(`WORKFLOW-PROMPT.md`). The workflow chains; step agents start nothing. The text below is history.
+
 When the step's checks pass and the work is pushed:
 - Progress for Michael (he wants to see every step): send the step's renders, or screenshots for tooling steps, with
   SendUserFile (status proactive, display render) and a three-line note (built, passed, open). It does not wait for
