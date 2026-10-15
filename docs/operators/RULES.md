@@ -4,6 +4,7 @@ Branch `feature/operators`, worktree `C:\NightShift\Mobile-Coop-operators` (cut 
 Pre-production only: design, a dev-only viewer, an offline asset pipeline and mockup renders. No game integration.
 
 ## Every session
+0. "Operators run: RESUME (local)" (or a start request) means: run the start prompt in OWNER-NOTES.md from section 0.
 1. Read `CLAUDE.md`, then this file, then `STATE.md` (the resume point), `PLAN.md` and the current step's file in
    `steps/`. Read the `DECISIONS.md` entries the step needs (grep).
 2. Read only the files the step file lists (grep, line ranges). `ART-DIRECTION.md` is the look standard beside SPEC 1.
@@ -38,21 +39,33 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 - A check that cannot pass after real effort: write it into LOG.md as open with the evidence, keep the best result and
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
-## Step loop (workflow, Michael 2026-10-16; overrides each step file's "Finish" and the Chaining text below)
-Modelled on the locomotion run (docs/locomotion/RULES.md "Step loop"). Script: `docs/operators/run.workflow.js`.
-1. Implement: the step's agent (PLAN.md model and effort) builds, renders on the GPU, runs `npm run operators:check`
-   and `npm run check`, drafts the LOG.md record and STATE.md, and returns. It never commits, pushes or sends files.
-2. Check: a fresh Opus High checker re-runs `npm run operators:check` and `npm run check`, reads the diff, and reads
-   every render PNG with the Read tool against the step file's Checks, the ART-DIRECTION.md render check and SPEC
-   Section 1, citing file and view for each verdict. It edits nothing except its fix list
-   (`steps/NN-fixes-rN.md`) and returns PASS or a numbered fix list.
-3. Up to 3 fix rounds (implement the fix list, check again). Still failing: the step is OPEN (LOG.md, with the last
-   fix list as evidence) and the run moves on.
-4. Finish (Sonnet): branch guard, LOG.md status line, STATE.md, commit "operators: step NN - <title>" (add "(OPEN)"
-   when open), `git push -u origin feature/operators`, confirm clean and not ahead, send Michael the renders and a
-   three-line note (SendUserFile, proactive, render).
+## Step loop (orchestrator session, Michael 2026-10-16, D18; overrides each step file's "Finish" and "Chaining")
+Exactly like the locomotion run (docs/locomotion/RULES.md "Step loop"): one long-lived orchestrator session (Opus 5.5
+High) starts subagents with the Agent tool, one code-changing agent at a time, and commits itself. Every subagent
+prompt starts with "Read docs/operators/steps/AGENT-PREAMBLE.md first", then its role, step and handover.
+1. Implement: a subagent (PLAN.md model and effort) builds, renders on the GPU, runs `npm run operators:check` and
+   `npm run check`, drafts the LOG.md record and STATE.md, and returns. It never commits, pushes or sends files.
+2. Check: a fresh Opus High subagent re-runs the checks, reads the diff and reads every render PNG with the Read tool
+   against the step file's Checks, the ART-DIRECTION.md render check and SPEC Section 1, citing file and view. It
+   edits nothing except its fix list (`steps/NN-fixes-rN.md`) and returns PASS or a numbered fix list.
+3. Up to 3 fix rounds (a subagent implements the fix list, a fresh checker checks again). Still failing: the step is
+   OPEN (LOG.md, with the last fix list as evidence) and the run moves on.
+4. Orchestrator finish: branch guard, LOG.md status line, STATE.md, commit "operators: step NN - <title>" (add
+   "(OPEN)" when open), `git push -u origin feature/operators`, confirm clean and not ahead, send Michael the renders
+   and a three-line note (SendUserFile, proactive, render), then start the next step's implementer at once.
+- Models: implementers and fixers use PLAN.md's model and effort for the step; every checker is Opus 5.5 High.
+  Subagents run in the background; the orchestrator waits for each notification, never polls.
+- The orchestrator keeps its own context small: it reads the subagents' returned reports, STATE.md and LOG.md
+  headings, never source or renders. It never ends a turn without a subagent running, except at the end of the run.
+- Blocks: Wren (05-11), Moth (12-16), finish (17-18). Block end (after 11 and after 16): retry each OPEN step of the
+  block once through the same loop (fix list = its last fix list), then continue.
+- Scope guard: a step that needs more than its 3 fix rounds goes OPEN; a block over 2x its steps stops adding work,
+  the rest goes to LOG.md as follow-ups.
+- The orchestrator commits with a path-limited `git add` of the step's files (never stash or reset), ending the
+  message with the Co-Authored-By line for its own model.
+- `run.workflow.js` (the scripted version, D17) is history; it is not used.
 
-No hangs, low tokens (every agent):
+No hangs, low tokens (every agent; repeated in AGENT-PREAMBLE.md):
 - Branch guard before any git command that writes: `cd /c/NightShift/Mobile-Coop-operators && test "$(git rev-parse
   --abbrev-ref HEAD)" = feature/operators && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-operators"`.
 - Every shell command has a timeout. Anything that may pass 10 minutes (`operators:build --render`, `npm run check`,
@@ -68,8 +81,8 @@ No hangs, low tokens (every agent):
   3. "Port 4191 is already in use" means step 1 was skipped: run it and retry once.
 
 ## Chaining
-**Superseded 2026-10-16:** a session cannot start another session, so steps 05-18 run as one workflow
-(`WORKFLOW-PROMPT.md`, "Step loop" above). The workflow chains; step agents start nothing. The text below is history.
+**Superseded 2026-10-16:** a session cannot start another session, so steps 05-18 run in one orchestrator session
+("Step loop" above, D18; start and resume prompts in OWNER-NOTES.md). Subagents start nothing. The text below is history.
 
 When the step's checks pass and the work is pushed:
 - Progress for Michael (he wants to see every step): send the step's renders, or screenshots for tooling steps, with

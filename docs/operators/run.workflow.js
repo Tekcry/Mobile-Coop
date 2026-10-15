@@ -7,7 +7,7 @@ export const meta = {
   ],
 }
 
-// Workflow script (Claude Code Workflow tool). Rules: docs/operators/RULES.md "Step loop".
+// HISTORY (D17, stopped 2026-10-16): replaced by the orchestrator session (D18, RULES "Step loop"). Not used.
 // Run: Workflow({scriptPath: "C:\\NightShift\\Mobile-Coop-operators\\docs\\operators\\run.workflow.js", args: {from: "05"}})
 // args.from: the first step not yet done (STATE.md). args.handover: optional handover text for that step.
 

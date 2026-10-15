@@ -126,6 +126,12 @@ the checks, reads every render against ART-DIRECTION and SPEC 1), up to 3 fix ro
 PASS (OPEN after 3 failed rounds). Plus the locomotion no-hang rules: tool-call budgets, timeouts, exact port 4191
 commands, branch guard. RULES "Step loop"; script `run.workflow.js`.
 
+**D18 Orchestrator session, exactly like the locomotion run (2026-10-16).** Michael: "why is this running a workflow?
+the locomotion never did that", then "Orchestrator session", then "do all the prep work with the repo and give me the
+prompt, i will put it in another session. must operate exactly like the locomotion session". One orchestrator session
+(Opus 5.5 High) runs steps 05-18 with Agent subagents (implementer, Opus checker, up to 3 fix rounds) and commits
+itself. Replaces D17's scripted workflow (stopped; the script is kept as history). Prompts: OWNER-NOTES.md.
+
 ## Assumed decisions (unattended run, D15)
 
 Judgement calls made inside a step without Michael (RULES "Unattended run"): what, why, how to undo. Numbered A1, A2, ...
