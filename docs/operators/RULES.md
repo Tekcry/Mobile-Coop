@@ -39,7 +39,11 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
   carry on (the final review sees the open list). Never weaken a check to pass it.
 
 ## Chaining
-When the step's checks pass and the work is pushed, start the next step's session, then end the turn:
+When the step's checks pass and the work is pushed:
+- Progress for Michael (he wants to see every step): send the step's renders, or screenshots for tooling steps, with
+  SendUserFile (status proactive, display render) and a three-line note (built, passed, open). It does not wait for
+  an answer.
+- Then start the next step's session, then end the turn:
 - Tool `mcp__ccd_session__start_session` with `initiation: "user_asked"` (Michael asked for the chained run, D15),
   `context: "fresh"`, `cwd: "C:\NightShift\Mobile-Coop-operators"`, `use_worktree: false`, `model` and `effort` from
   PLAN.md for that step (`claude-opus-5-5` or `claude-sonnet-5-5`; `high` or `medium`), `title: "Operators step NN: ..."`,

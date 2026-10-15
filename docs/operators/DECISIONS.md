@@ -115,3 +115,7 @@ the next itself; he reviews the finished characters at the end.
 
 **S3 Bind pose.** See D13. The skeleton round trip (`build_skeleton.py`) still checks the game's rest pose to 0.1 mm;
 the body report (`<id>-body.json`, `bindJoints`) lists the A-pose joints the mesh is bound in.
+
+**D16 Progress screenshots.** Michael: "i still want to see screenshot at end of each step so i can see progress."
+Every step ends by sending its renders (or screenshots for tooling steps) with a three-line note before it chains on;
+nothing waits for his answer (RULES "Chaining", every step file's Finish).
