@@ -205,8 +205,8 @@ two or three clips or elastic loops, down to the mount; strain relief at both en
 ### 4.1 The rule (D10, D11 override D3's identical skeleton)
 
 **Each operator has their own height.**
-- Wren 1.68 m: a tallish woman, about the 75th percentile; compact in build.
-- Moth 1.78 m: a little above the average man; lean.
+- Wren 1.68 m: a tallish woman, the 79th percentile of ANSUR II women; compact in build.
+- Moth 1.78 m: a little above the average man (63rd percentile); lean.
 
 **Per operator (follows the body you see):**
 - the skeleton: `proportions(build, height)` already scales every length by height;
@@ -220,7 +220,7 @@ two or three clips or elastic loops, down to the mount; strain relief at both en
 - every traversal move and its anchors.
 
 **Gameplay effects to carry into integration:**
-- Light: Wren's head sample sits about 6 cm lower than Moth's, so she is slightly harder to see over low cover and
+- Light: Wren's head sample sits about 9 cm lower than Moth's (1.571 m against 1.664 m in the step 2 export), so she is slightly harder to see over low cover and
   in a low lamp pool.
 - Hit volumes: shots that clear Wren's head can hit Moth's.
 - Mission 8 (the Confrontation, the only versus content) inherits both effects. Michael accepted this ("realism over
@@ -231,56 +231,78 @@ two or three clips or elastic loops, down to the mount; strain relief at both en
   - ladders and vaults: the step and hand timing come from the shared move.
 - These are verified per operator in the Lab's poses (Stage 2) and in `e2e-traverse` at integration.
 
-### 4.2 Check against real data
+### 4.2 Check against real data (verified against ANSUR II, 2026-10-15)
 
-Real values are the published averages of the large US Army anthropometric survey (ANSUR II, 2012; men about 1.756 m,
-women about 1.629 m tall), as ratios of stature scaled to 1.75 m.
+Source: the ANSUR II public CSVs (US Army anthropometric survey 2012; 4,082 men, mean stature 1.756 m; 1,986 women,
+mean 1.629 m), downloaded from openlab.psu.edu/ansur2 with Michael's approval and kept out of the repo. Each value is
+the mean of every subject's landmark divided by their stature, scaled to 1.75 m. The survey is military: its waist and
+chest means include heavier soldiers, so fit operators sit a little below them.
 
-The values are from the published summary as I recall it, to about 1 cm. Stage 2 must check each against the report's
-tables (Gordon et al. 2014, NATICK/TR-15/007). Stage 1 could not extract the PDF's tables on this PC: no PDF text
-tool is installed.
+Joint centres are not surface landmarks. The offsets used: the shoulder joint sits about 3.5 cm below the acromion and
+about 1.5-2 cm inside it; the elbow axis is at the radiale; the wrist joint at the stylion; the hip joint at the
+trochanterion; the knee axis at the lateral femoral epicondyle; the ankle at the lateral malleolus.
 
-| Landmark at 1.75 m | proportions.ts | Real, man | Real, woman (scaled) | Verdict |
+| Landmark at 1.75 m | proportions.ts | ANSUR II, men | ANSUR II, women (scaled) | Verdict |
 | --- | --- | --- | --- | --- |
-| Head height (vertex to chin) | 0.229 (7.6 heads) | ~0.23 | ~0.23 | Good |
-| Head breadth / length | 0.158 / 0.19 | ~0.155 / 0.197 | ~0.157 / 0.20 | Good (the hood adds 8-12 mm a side) |
-| Neck base (joint) | 1.48 | cervicale ~1.51 (the joint sits ~3 cm lower) | same ratio | Good |
-| Shoulder joint (glenohumeral centre) | 1.435 | acromion ~1.44; joint ~4 cm below it, ~1.40-1.41 | same ratio | **~3 cm high** |
-| Fingertip height, arms hanging | 0.705 (1.435 - 0.30 - 0.26 - 0.17) | ~0.66 (0.38 H) | ~0.66 | **Arms ~4 cm short** |
-| Hip joint | 0.915 | ~0.91 | ~0.91 | Good |
-| Knee joint | 0.50 | ~0.49-0.50 | ~0.49 | Good |
-| Ankle joint | 0.075 | ~0.07-0.08 | ~0.07 | Good |
-| Hand length | 0.17 | ~0.19 | ~0.19 | **~2 cm short** (fine for a mitten, wrong for fingers at 0.3 m) |
-| Foot length | 0.27 | ~0.27 | ~0.26 | Good (boots ~0.29-0.30) |
-| Shoulder width (bideltoid) | 0.46 | ~0.50 | ~0.47 | Between the two: fine as a shared base |
-| Hip breadth | pelvis 0.31 | ~0.35 | ~0.39 | **Narrow** (visual only) |
-| Waist depth | 0.185 | ~0.21-0.24 (lean: ~0.20) | ~0.20 | **Thin** (visual only) |
-| Chest w x d | 0.34 x 0.22 | ~0.33 x 0.25 | ~0.31 x 0.25 (with bust) | Depth thin (visual only) |
+| Head length / breadth | 0.19 / 0.158 | 0.199 / 0.154 | 0.204 / 0.159 | Length **1 cm short** (A5) |
+| Head height (vertex to chin) | 0.229 (7.6 heads) | not in the public CSVs | - | Kept (the 7.5-head canon) |
+| Neck base (joint) | 1.48 | cervicale 1.512 | 1.500 | Good (the joint sits ~3 cm below cervicale) |
+| Acromion | - | 1.435 | 1.435 | proportions.ts puts the **joint** at the acromion |
+| Shoulder joint | 1.435 | ~1.40 | ~1.40 | **3.5 cm high** (A1) |
+| Upper arm (joint to elbow) | 0.30 | acromion-radiale 0.334, joint ~0.30 | 0.334, ~0.30 | Good |
+| Forearm (elbow to wrist) | 0.26 | radiale-stylion 0.267 | 0.259 | Good |
+| Hand length | 0.17 | 0.193 | 0.195 | **2 cm short** (A3) |
+| Elbow axis to fingertip | 0.43 | forearm-hand 0.479 less ~2 cm olecranon = ~0.46 | ~0.45 | Short by the hand (A3) |
+| Fingertip height, arms hanging | 0.705 | ~0.64 (from the landmarks) | ~0.65 | **6 cm high**: shoulder high and hand short (A1, A3) |
+| Hip joint | 0.915 | trochanterion 0.897 | 0.908 | Good |
+| Knee joint | 0.50 (the rig's leg chain puts it at 0.47) | epicondyle 0.490 | 0.501 | Table good; **chain 2.5 cm low** (A7) |
+| Ankle joint | 0.075 (straight-leg chain: 0.045) | malleolus 0.073 | 0.067 | Table good; chain long (A7) |
+| Foot length | 0.27 | 0.270 | 0.265 | Good (boots ~0.29-0.30) |
+| Shoulder width (bideltoid) | 0.46 | 0.509 | 0.484 | **3-5 cm narrow** (A6) |
+| Shoulder joint half-spacing | 0.175 | biacromial / 2 = 0.207, joint ~0.19 | 0.197, ~0.18 | Narrow, follows A6 |
+| Hip breadth | pelvis 0.31 | 0.345 | 0.380 | **Narrow** (A4, visual only) |
+| Waist w x d | 0.28 x 0.185 | 0.325 x 0.237 | 0.322 x 0.229 | **Thin** (A4, visual only) |
+| Chest w x d | 0.34 x 0.22 | 0.289 x 0.253 | 0.290 x 0.266 | Width is the arm-to-arm hit span, not chest breadth; depth **thin** (A4) |
+
+The Stage 1 guess "arms 4 cm short" was wrong: the arm segments are right; the shoulder joint is too high and the hand
+too short. A2 (upper arm 0.31) is withdrawn.
+
+Heights: Moth 1.78 m is the 63rd percentile of the survey's men; Wren 1.68 m the 79th percentile of its women.
 
 ### 4.3 Proposed corrections to the base proportions (applied at integration, after the locomotion merge)
 
 These fix the base ratios that every height scales from, so they apply to both operators (and to guards, which share
-`proportions.ts`). The lengths below are at 1.75 m; each operator's height scales them.
+`proportions.ts`). The lengths below are at 1.75 m; each operator's height scales them. The step 2 joint export
+(`scripts/operators/export-joints.mjs`, through `src/operators/operatorBody.ts`) already applies them for the pipeline; `proportions.ts` is unchanged.
 
-| # | Change | Why | Gameplay effect |
+| # | Change | Why (ANSUR II) | Gameplay effect |
 | --- | --- | --- | --- |
-| A1 | Shoulder joint y 1.435 -> 1.41 | The joint centre sits under the acromion, not level with it | Body hit capsule top (`hitVolumes.bodyY1`) 2.5 cm lower; the weapon's aim pocket and grip IK 2.5 cm lower; the camera follows the head: none expected (to verify) |
-| A2 | Upper arm 0.30 -> 0.31 | With A1, fingertips reach 0.38 H | Hand reach +1 cm: ladder, pipe and ledge contact bars re-run (`e2e-traverse`) |
-| A3 | Hand length 0.17 -> 0.185 | Real hands; hero hands have fingers | None: grip offsets (`WRIST_TRIGGER`, `WRIST_SUPPORT`) retuned, weapon hold bars re-run |
-| A4 | Pelvis width 0.31 -> 0.33, waist depth 0.185 -> 0.20, chest depth 0.22 -> 0.23 | Real body mass for draping clothes | None: visual mesh only; hit volumes come from the shared base build, not the mesh |
+| A1 | Shoulder joint y 1.435 -> 1.40 | The acromion is at 1.435 in both sexes; the joint centre sits ~3.5 cm below it | Body hit capsule top (`hitVolumes.bodyY1`) 3.5 cm lower; the aim pocket and grip IK 3.5 cm lower; hand reach 3.5 cm lower: ladder, pipe and ledge contact bars re-run (`e2e-traverse`); the camera follows the head: none expected (to verify) |
+| A2 | Withdrawn | Upper arm 0.30 matches (acromion-radiale 0.334 less the A1 offset) | - |
+| A3 | Hand length 0.17 -> 0.19 | 0.193 men, 0.195 women | Fingertips 2 cm further; grip offsets (`WRIST_TRIGGER`, `WRIST_SUPPORT`) retuned, weapon hold bars re-run |
+| A4 | Pelvis width 0.31 -> 0.35, waist 0.28 x 0.185 -> 0.30 x 0.215, chest depth 0.22 -> 0.24 | Real body mass for draping clothes; fit operators a little below the survey means | `bodyDepthHalf` +1 cm (cover standoff uses the broad build: re-check `COVER_STANDOFF`); otherwise visual only |
+| A5 | Head depth 0.19 -> 0.20 | 0.199 men, 0.204 women | Head hit sphere radius +6 mm |
+| A6 | Shoulder width 0.46 -> 0.49 | Bideltoid 0.509 men, 0.484 women; joint half-spacing 0.175 -> 0.19 matches biacromial | Shoulder joints 1.5 cm wider each side: aim pocket and grip IK; body hit radius unchanged (it comes from chest width) |
+| A7 | Thigh 0.415 -> 0.39 | The rig hangs the knee from the hip joint at `y.hip - 0.03` = 0.885: 0.885 - 0.415 puts the knee axis at 0.47 (epicondyle 0.490 men, 0.501 women) and the straight-leg ankle at 0.045 (malleolus 0.07). With 0.39 the straight leg lands on `y.knee` and `y.ankle` | Legs 2.5 cm shorter: the standing stance today relies on the extra length (leg IK `legLen * 0.97` bends the knees slightly at rest). The locomotion run's foot planner and leg IK own this: re-tune the rest bend or the pelvis height at integration; `e2e-move`, `e2e-traverse` and the anim sheets re-run |
 
 Each operator's hit volumes come from that operator's proportions (height and build), never from the mesh, so they
-stay simple capsules and a head sphere.
+stay simple capsules and a head sphere. The controller capsule is `MOVEMENT.radius`, shared, and never follows
+`proportions.capsuleRadius`.
 
 ### 4.4 Builds
 
-Height carries most of the difference (D10, D11). Build mods stay modest so the two still read as fit operators of
-the same team:
+Height carries most of the difference (D10, D11). Build mods are relative to the corrected base (A4, A6), which sits
+near the survey's men; ANSUR II women at the same stature have 0.95 the shoulder width, 1.05 the chest depth, 0.97
+the waist and 1.10 the hip breadth of the men. The mods stay modest so the two still read as fit operators of the same
+team:
 
 | | Shoulders | Chest | Waist | Hips | Girth (limbs) |
 | --- | --- | --- | --- | --- | --- |
-| Wren (thirties, compact, ex-military woman) | 0.97 | 1.00 (bust under the carrier) | 0.96 | 1.04 | 0.98 |
+| Wren (thirties, compact, ex-military woman) | 0.97 | 1.03 (bust under the carrier) | 0.96 | 1.08 | 0.98 |
 | Moth (twenties, lean, ex-steeplejack man) | 1.03 | 0.98 | 0.96 | 0.97 | 0.96 (long, ropey forearms) |
+
+Changed after the ANSUR II check: Wren's chest 1.00 -> 1.03 and hips 1.04 -> 1.08 (the survey's female ratios, a
+little leaner).
 
 What tells them apart: height (10 cm), silhouette and kit:
 - Wren: square goggle and a close hood; a plate carrier; a compact, upright stance.
@@ -292,6 +314,15 @@ What tells them apart: height (10 cm), silhouette and kit:
 ## 5. Kit lists (drive the logical-detail rule; concepts vary the details, not the logic)
 
 Notation: item - where - what it holds or does - how it attaches.
+
+The lists are data in `src/operators/kit.ts` (`WREN_KIT`, `MOTH_KIT`), checked by `validateKit` in
+`tests/operators.test.ts`: every item has a job, every strap two anchors, every pouch its contents and closure, every
+cable a source, a device and no free span over 15 cm. Writing them as data added cable fixings this text left open:
+- Wren's earpiece cable: a clip on the shirt collar, then tucked under the balaclava edge.
+- Moth's goggle cable: two clips on the right side strap.
+- Moth's earpiece cable: an elastic loop on the right H-strap, a collar clip, then under the balaclava edge.
+- Routed lengths (estimates, checked against the base body in step 3): goggle cables 0.40 / 0.42 m, Wren's radio
+  cable 0.45 m (three loops), Moth's 0.30 m (two loops), earpiece cables 0.27 / 0.36 m.
 
 ### 5.1 WREN (lead)
 
@@ -604,7 +635,7 @@ The version line goes to 1.15 with a summary of these changes.
 - **Different heights (D10, D11).**
   - Paired moves (takedowns, team moves, carry, drag) must align hands within 3 cm for a 1.68 m and a 1.78 m
     operator (5.12.2.11).
-  - Guards use `proportions.ts` too; changing the base ratios (A1-A4) moves them as well. Check at integration.
+  - Guards use `proportions.ts` too; changing the base ratios (A1, A3-A7) moves them as well. Check at integration.
 
 ---
 

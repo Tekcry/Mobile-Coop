@@ -1,6 +1,29 @@
 # Operators run - state (resume point)
 
-**Stage:** 1 done and answered (DECISIONS D7-D11). Next: RUNBOOK step 2 (rules and pipeline foundation, Opus 5.5). `RUNBOOK.md` holds every step's model and prompt.
+**Stage:** 2 in progress. RUNBOOK step 2 (rules and pipeline foundation) done 2026-10-15. Next: RUNBOOK step 3 (base
+bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's model and prompt.
+
+**Step 2 done (2026-10-15)**
+- Rule text applied (SPEC 7, D8): bible 1.15 (5.14 generated operators and per-operator size, 5.15 Confrontation
+  note, 5.16, Section 6), the CLAUDE.md hard rule, story.md Section 4.
+- `docs/art-credits.md` created (no external files yet; ANSUR II listed as reference data, not in the repo).
+- ANSUR II check (Michael approved the CSV download; kept in the scratchpad, not the repo). SPEC 4.2-4.4 rewritten
+  from the real means:
+  - shoulder joint 3.5 cm high (A1, now 1.40); arm segments right, so A2 is withdrawn; hand 2 cm short (A3, 0.19);
+  - body mass A4 revised (pelvis 0.35, waist 0.30 x 0.215, chest depth 0.24); new A5 head depth 0.20, A6 shoulder
+    width 0.49, A7 thigh 0.39 (the rig's straight leg put the ankle 3 cm under its table height);
+  - Wren chest 1.03 and hips 1.08 (survey female ratios); Wren is the 79th percentile of women, Moth the 63rd of men;
+  - head light sample gap is about 9 cm, not 6 (SPEC 4.1 fixed).
+  - A7 touches standing leg IK (`legLen * 0.97`): the locomotion run owns it at integration.
+- `src/operators/operatorBody.ts`: per-operator corrected proportions, hit volumes and bind-pose joints (mirrors the
+  rig's node offsets), pure, tested.
+- `src/operators/kit.ts`: Wren and Moth kit lists as data with `validateKit`; both kits pass. Writing them as data
+  added a few cable fixings (SPEC 5 intro).
+- Pipeline skeleton `scripts/operators/` (README there): Node launcher pinned to Blender 5.2.2 (refuses others),
+  joint export to `build/operators/joints.json`, fixed seed 1015, stage 0 `build_skeleton.py` (armature from the
+  joints, round trip under 0.1 mm: measured 4e-8 m). `npm run operators:build` runs it; output in `build/`
+  (git-ignored).
+- `npm ci` run in the worktree (Michael approved). `npm run check` passes (lint 0 errors, 746 tests, build).
 
 **Done**
 - Worktree `C:\NightShift\Mobile-Coop-operators`, branch `feature/operators` from `origin/ct-movement` (DECISIONS S1).
@@ -23,8 +46,7 @@
     body; the capsule, speeds and traversal stay shared (D10, D11).
 
 **Stage 2 work (split into RUNBOOK steps 2-7)**
-1. Apply the approved rule text from SPEC Section 7 (bible 5.14, 5.15, 5.16, Section 6, version 1.15; CLAUDE.md
-   hard rule; story.md Section 4). Commit.
+1. Done (step 2): the approved rule text.
 2. Check the tools: Blender (Michael installs it before the session; pin the installed version in the pipeline). Ask
    Michael before installing anything else; a KTX2 encoder can wait until the export step. Create
    `docs/art-credits.md`.
