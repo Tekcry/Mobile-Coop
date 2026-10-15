@@ -1,4 +1,6 @@
 /**
+ * Round 9 (2026-10-16): "add more influence from Hans Zimmer again": Zimmer pieces (swells, mid-register sixteenth
+ * patterns, the broad i-VI-III-VII progression, a rising semitone, warm horns and soft drums as their own layers).
  * Round 8 (2026-10-16): "too much happening sometimes; the D is really loud and aggressive; not sure about the slower
  * ones": softer D everywhere, and lighter variations at 92-120 BPM (fewer layers, the hook following the chords).
  * Round 7 (Michael, 2026-10-15): he loves round 6's "Night Shift" (Hook A as the low-string ostinato) with the brass,
@@ -39,6 +41,55 @@ export interface PieceMeta {
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
 
 export const PIECES: readonly PieceMeta[] = [
+  {
+    id: 'zbuild',
+    name: 'Mission score, Zimmer',
+    about: 'More Hans Zimmer: long low-string swells that breathe in from nothing, a soft sixteenth-note pattern in the violas (not on the low D), the hook following a broad D minor, B-flat, F, C progression, warm horn swells and a soft drum heartbeat. Mute horns or drums if you want strings only.',
+    use: 'mission',
+    bpm: 92,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato'),
+      S('hook', 'Hook A, cellos (following the chords)'),
+      S('ost', 'Sixteenth pattern, violas'),
+      S('swell', 'Low string swells'),
+      S('high', 'High violins, held'),
+      S('melody', 'Melody, cellos and violins in octaves'),
+      { id: 'horns', name: 'Warm horn swells', kind: 'brass' },
+      { id: 'pulse', name: 'Soft drum heartbeat and swells', kind: 'perc' },
+    ],
+    presets: {
+      Calm: { pizz: 0.45, swell: 0.35, high: 0.12 },
+      Cautious: { hook: 0.65, ost: 0.3, swell: 0.55, high: 0.25, pulse: 0.25 },
+      Alert: { hook: 0.9, ost: 0.85, swell: 0.9, high: 0.7, melody: 0.9, horns: 0.6, pulse: 0.6 },
+      Evasion: { hook: 0.8, ost: 0.7, swell: 0.7, high: 0.4, pulse: 0.45 },
+      'Strings only': { hook: 0.9, ost: 0.85, swell: 0.9, high: 0.7, melody: 0.9 },
+      'Everything on': { pizz: 1, hook: 1, ost: 1, swell: 1, high: 1, melody: 1, horns: 1, pulse: 1 },
+    },
+  },
+  {
+    id: 'zdrive',
+    name: 'Alert, Zimmer drive',
+    about: 'A Dark Knight-style Alert at 120 BPM: a relentless sixteenth-note pattern on cellos and violas in the middle register that rises a semitone every fourth bar, the hook on top, big string swells, horns and low drums on the accents.',
+    use: 'mission',
+    bpm: 120,
+    bars: 32,
+    layers: [
+      S('ost', 'Sixteenth pattern, cellos and violas'),
+      S('hook', 'Hook A, violas and cellos'),
+      S('swell', 'Big string swells'),
+      S('high', 'High violins, tremolo'),
+      S('melody', 'Melody, violins and cellos in octaves'),
+      { id: 'horns', name: 'Horns and trombones, swells', kind: 'brass' },
+      { id: 'drums', name: 'Low drums and timpani', kind: 'perc' },
+    ],
+    presets: {
+      Alert: { ost: 0.9, hook: 0.85, swell: 0.85, high: 0.6, melody: 0.9, horns: 0.6, drums: 0.6 },
+      Evasion: { ost: 0.75, hook: 0.6, swell: 0.6, high: 0.4, drums: 0.4 },
+      'Strings only': { ost: 0.9, hook: 0.85, swell: 0.85, high: 0.6, melody: 0.9 },
+      'Everything on': { ost: 1, hook: 1, swell: 1, high: 1, melody: 1, horns: 1, drums: 1 },
+    },
+  },
   {
     id: 'mission',
     name: 'Mission score (strings)',
@@ -150,6 +201,28 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'zmenu',
+    name: 'Menu theme, Zimmer',
+    about: 'A slow-burn menu at 96 BPM: one cello note swelling out of silence, the hook plucked, then bowed over the broad progression, the melody on cellos and horns, then violins in octaves over everything, ending on a huge chord that dies away.',
+    use: 'menu',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato'),
+      S('hook', 'Hook A, cellos (following the chords)'),
+      S('ost', 'Sixteenth pattern, violas'),
+      S('swell', 'Low string swells'),
+      S('high', 'High violins'),
+      S('melody', 'Melody on cellos, then violins in octaves'),
+      { id: 'horns', name: 'Warm horns (melody and swells)', kind: 'brass' },
+      { id: 'pulse', name: 'Soft drums and cymbal swells', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pizz: 1, hook: 1, ost: 1, swell: 1, high: 1, melody: 1, horns: 0.8, pulse: 0.7 },
+      'Strings only': { pizz: 1, hook: 1, ost: 1, swell: 1, high: 1, melody: 1 },
+    },
+  },
+  {
     id: 'menuflow',
     name: 'Menu theme, at game speed',
     about: 'The menu at 96 BPM with little going on: the hook plucked, then bowed and following the chords, the melody on violins with violas a third below, soft chord swells. No big climax.',
@@ -253,9 +326,13 @@ const CH = {
   Bb: { root: n('Bb1'), tones: [n('D3'), n('F3'), n('Bb3'), n('D4'), n('F4'), n('Bb4')] },
   Gm: { root: n('G1'), tones: [n('D3'), n('G3'), n('Bb3'), n('D4'), n('G4'), n('Bb4')] },
   A: { root: n('A1'), tones: [n('C#3'), n('E3'), n('A3'), n('C#4'), n('E4'), n('A4')] },
+  F: { root: n('F1'), tones: [n('C3'), n('F3'), n('A3'), n('C4'), n('F4'), n('A4')] },
+  C: { root: n('C2'), tones: [n('C3'), n('E3'), n('G3'), n('C4'), n('E4'), n('G4')] },
 };
 type ChordName = keyof typeof CH;
 const PROG: ChordName[] = ['Dm', 'Bb', 'Gm', 'A'];
+/** The broad minor progression of epic film scores (i, VI, III, VII), two bars each in the Zimmer pieces. */
+const EPIC: ChordName[] = ['Dm', 'Bb', 'F', 'C'];
 
 /** Hook A, eighth by eighth (two bars). */
 const HOOK_A = ['D2', null, 'D3', 'D2', null, 'C3', null, 'A2', 'D2', null, 'D3', 'D2', 'F2', 'G2', 'Ab2', 'A2'];
@@ -566,11 +643,154 @@ function menuFlow(s: Score): void {
   }
 }
 
+
+// ------------------------------------------------------------------ round 9: more Hans Zimmer
+
+const epicAt = (b: number, from = 0): ChordName => EPIC[Math.floor((b - from) / 2) % 4]!;
+
+/** Low strings on the chord root, breathing in from nothing over most of the chord (the Zimmer swell). */
+function swells(s: Score, layer: string, from: number, to: number, vel: number, shape = 0.75): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[epicAt(b, from)];
+    const dur = s.d(8);
+    const o = { vel, attack: dur * shape, release: 1.4 };
+    note(s.L(layer), s.bank, 'bassSus', c.root + 12, s.t(b), dur, o);
+    note(s.L(layer), s.bank, 'celloSus', c.root + 12, s.t(b), dur, o);
+    note(s.L(layer), s.bank, 'celloSus', c.tones[2]!, s.t(b), dur, { ...o, vel: vel * 0.75 });
+  }
+}
+
+/** A sixteenth-note pattern on chord tones in the middle register (3 + 3 + 2 accents); `rise` lifts the last two beats of every 4th bar a semitone. */
+function ostinato(s: Score, layer: string, insts: string[], from: number, to: number, vel: (b: number) => number, low: number, rise = false): void {
+  const acc = [0, 3, 6, 8, 11, 14];
+  for (let b = from; b < to; b++) {
+    const c = CH[epicAt(b, from)];
+    const tones = c.tones.filter((t) => t >= low && t < low + 12).sort((x, y) => x - y);
+    const a = tones[0] ?? c.tones[2]!;
+    const pat = [a, tones[1] ?? a + 7, tones[2] ?? a + 12, tones[1] ?? a + 7];
+    for (let i = 0; i < 16; i++) {
+      const up = rise && b % 4 === 3 && i >= 8 ? 1 : 0;
+      for (const inst of insts) {
+        note(s.L(layer), s.bank, inst, pat[i % 4]! + up + (inst === 'celloSpic' ? -12 : 0), s.t(b, i / 4), s.d(0.25), { vel: vel(b) * (acc.includes(i) ? 1 : 0.62), release: 0.07 });
+      }
+    }
+  }
+}
+
+/** High violins holding the top of each chord, entering softly. */
+function highHold(s: Score, layer: string, inst: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[epicAt(b, from)];
+    note(s.L(layer), s.bank, inst, c.tones[5]! + 12, s.t(b), s.d(8), { vel, attack: s.d(3), release: 1 });
+    note(s.L(layer), s.bank, inst, c.tones[4]! + 12, s.t(b), s.d(8), { vel: vel * 0.85, attack: s.d(3), release: 1 });
+  }
+}
+
+/** Warm horn chords swelling over each chord. */
+function hornSwells(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[epicAt(b, from)];
+    for (const m of [c.tones[0]!, c.tones[1]!, c.tones[2]!]) note(s.L(layer), s.bank, 'hornSus', m, s.t(b), s.d(8), { vel, attack: s.d(5), release: 1.2 });
+  }
+}
+
+const hookTo = (from: number) => (b: number): number => toRoot(epicAt(b, from));
+
+function zbuild(s: Score): void {
+  const N = s.meta.bars;
+  hookLine(s, 'pizz', 'celloPizz', hookTo(0), 0, N, () => 0.7, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', hookTo(0), 0, N, () => 0.85, false, 0.85);
+  ostinato(s, 'ost', ['violaSpic'], 0, N, () => 0.55, n('D4'));
+  swells(s, 'swell', 0, N, 0.6);
+  highHold(s, 'high', 'violinSus', 0, N, 0.45);
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'violinSus', at, 0.75, 12);
+    motif(s, 'melody', 'celloSus', at, 0.75, -12);
+  }
+  hornSwells(s, 'horns', 0, N, 0.35);
+  motif(s, 'horns', 'hornSus', 24, 0.45);
+  const P = s.L('pulse');
+  for (let b = 0; b < N; b++) {
+    hit(P, s.bank, 'giant', 4, s.t(b), 0.5);
+    hit(P, s.bank, 'giant', 4, s.t(b, 0.5), 0.3);
+    if (b % 2 === 0) timp(P, s.bank, CH[epicAt(b)].root + 12, s.t(b), 0.4);
+  }
+  for (const b of [8, 16, 24]) swellInto(P, s.bank, 'cym', 1, s.t(b), 0.45);
+}
+
+function zdrive(s: Score): void {
+  const N = s.meta.bars;
+  ostinato(s, 'ost', ['celloSpic', 'violaSpic'], 0, N, () => 0.7, n('D4'), true);
+  hookLine(s, 'hook', 'violaSpic', (b) => hookTo(0)(b) + 12, 0, N, () => 0.75, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', hookTo(0), 0, N, () => 0.7, false, 0.85);
+  swells(s, 'swell', 0, N, 0.75, 0.5);
+  for (let b = 0; b < N; b += 4) {
+    const c = CH[epicAt(b)];
+    note(s.L('high'), s.bank, 'violinTrem', c.tones[5]! + 12, s.t(b), s.d(16), { vel: 0.6, attack: s.d(8), release: 0.8 });
+    note(s.L('high'), s.bank, 'violinTrem', c.tones[4]! + 12, s.t(b), s.d(16), { vel: 0.5, attack: s.d(8), release: 0.8 });
+  }
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'violinSus', at, 0.85, 12);
+    motif(s, 'melody', 'celloSus', at, 0.85, -12);
+  }
+  for (let b = 0; b < N; b += 2) {
+    const c = CH[epicAt(b)];
+    for (const m of [c.tones[0]!, c.tones[2]!]) note(s.L('horns'), s.bank, 'hornSus', m, s.t(b), s.d(8), { vel: 0.5, attack: s.d(3), release: 1.2 });
+    note(s.L('horns'), s.bank, 'tbnSus', c.root + 12, s.t(b), s.d(8), { vel: 0.45, attack: s.d(3), release: 1.2 });
+  }
+  const P = s.L('drums');
+  for (let b = 0; b < N; b++) {
+    for (const i of [0, 6, 11]) hit(P, s.bank, 'giant', i === 0 ? 1 : 2, s.t(b, i / 4), i === 0 ? 0.65 : 0.45);
+    if (b % 2 === 0) timp(P, s.bank, CH[epicAt(b)].root + 12, s.t(b), 0.6);
+  }
+  for (const b of [8, 16, 24]) swellInto(P, s.bank, 'cym', 1, s.t(b), 0.6);
+  timp(P, s.bank, D + 12, s.t(30), 0.65, true);
+}
+
+function zmenu(s: Score): void {
+  // one cello note out of silence (bars 0-3), a high violin far above it
+  note(s.L('swell'), s.bank, 'celloSus', n('A2'), s.t(0), s.d(16), { vel: 0.6, attack: s.d(12), release: 1.5 });
+  note(s.L('high'), s.bank, 'violinSus', n('A5'), s.t(1), s.d(12), { vel: 0.3, attack: s.d(8), release: 1.5 });
+  hookLine(s, 'pizz', 'celloPizz', hookTo(4), 4, 12, () => 0.65, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', hookTo(4), 12, 28, (b) => (b < 20 ? 0.75 : 0.88), false, 0.85);
+  swells(s, 'swell', 4, 28, 0.55);
+  ostinato(s, 'ost', ['violaSpic'], 12, 28, (b) => (b < 20 ? 0.4 : 0.6), n('D4'));
+  highHold(s, 'high', 'violinSus', 20, 28, 0.55);
+  motif(s, 'melody', 'celloSus', 12, 0.7, -12);
+  motif(s, 'melody', 'violinSus', 20, 0.85, 12);
+  motif(s, 'melody', 'violinSus', 20, 0.75);
+  motif(s, 'horns', 'hornSus', 12, 0.42);
+  hornSwells(s, 'horns', 20, 28, 0.42);
+  // the final chord: everything on D minor, ringing out into the quiet start
+  const end = s.t(28);
+  for (const [inst, m, v] of [
+    ['bassSus', D, 0.8],
+    ['celloSus', D, 0.8],
+    ['celloSus', n('A2'), 0.7],
+    ['violaSus', n('F3'), 0.7],
+    ['violinSus', n('D4'), 0.7],
+    ['violinSus', n('A4'), 0.65],
+    ['violinSus', n('D5'), 0.6],
+  ] as const) note(s.L('swell'), s.bank, inst, m, end, s.d(10), { vel: v, attack: 0.3, release: 3 });
+  for (const m of [n('D3'), n('A3'), n('F4')]) note(s.L('horns'), s.bank, 'hornSus', m, end, s.d(10), { vel: 0.45, attack: 0.3, release: 3 });
+  const P = s.L('pulse');
+  for (let b = 20; b < 28; b++) {
+    hit(P, s.bank, 'giant', 4, s.t(b), 0.5);
+    hit(P, s.bank, 'giant', 4, s.t(b, 2.5), 0.35);
+  }
+  swellInto(P, s.bank, 'cym', 1, s.t(20), 0.5);
+  swellInto(P, s.bank, 'cym', 1, s.t(28), 0.6);
+  hit(P, s.bank, 'gong', 1, end, 0.5);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
+  else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'zdrive') zdrive(s);
+  else if (meta.id === 'zmenu') zmenu(s);
   else if (meta.id === 'moving') moving(s);
   else if (meta.id === 'alertlight') alertLight(s);
   else if (meta.id === 'menuflow') menuFlow(s);

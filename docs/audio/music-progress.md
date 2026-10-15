@@ -16,8 +16,29 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; Michael: "absolutely all wrong" |
 | 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; Michael: loves 3 (Night Shift) strings only; hated 1 and 2 |
 | 3g | Round 7: strings-only variations on Hook A (in-game layers, menu), finer layer control | done; Michael: right direction; too much happening at times; the D too loud and aggressive; unsure about the slower ones |
-| 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; waiting for Michael's feedback |
+| 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; Michael: add more Hans Zimmer influence again |
+| 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 9 - more Hans Zimmer
+- **Michael (2026-10-16):** "Can you add more influence from Hans Zimmer again."
+- **Done:** three new pieces, still led by strings on Hook A, with the D kept gentle:
+  - **Mission score, Zimmer** (92 BPM, 8 layers):
+    - low-string swells that breathe in from nothing over each chord
+    - a soft 16th-note pattern in the violas on chord tones (middle register, not the low D)
+    - the hook following a broad D minor, B-flat, F, C progression (i, VI, III, VII)
+    - high violins held
+    - the melody on cellos and violins in octaves
+    - warm horn swells and a soft drum heartbeat, as their own layers
+    - Presets: Calm, Cautious, Alert, Evasion, Strings only, Everything on.
+  - **Alert, Zimmer drive** (120 BPM, 7 layers): a relentless 16th pattern on cellos and violas that rises a
+    semitone every 4th bar, the hook, big swells, violin tremolo, the melody in octaves, horn and trombone swells, low
+    drums and timpani on the accents.
+  - **Menu theme, Zimmer** (96 BPM, 8 layers): one cello note swelling out of silence; the hook plucked, then bowed;
+    the melody on cellos and horns, then violins in octaves; a huge D minor chord that dies away.
+- **Balance:** the first render had the horns as the loudest layer, about 8 dB over the hook. Horn velocities are
+  down and the hook is up, so the horns now sit about 2.5 dB under the hook (about 6 dB under in the Alert mix).
+- **Measured:** each piece renders in 9-12 s.
 
 ## V4 round 8 - softer D, lighter variations
 - **Michael (2026-10-16):**
