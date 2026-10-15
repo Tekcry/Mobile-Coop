@@ -1,4 +1,6 @@
 /**
+ * Round 10 (2026-10-16): he likes the Zimmer menu's orchestra but it strays from Hook A; wants it darker, more
+ * suitable for stealth, still epic: Hook A back on D, a darker progression with the Phrygian E-flat, everything low.
  * Round 9 (2026-10-16): "add more influence from Hans Zimmer again": Zimmer pieces (swells, mid-register sixteenth
  * patterns, the broad i-VI-III-VII progression, a rising semitone, warm horns and soft drums as their own layers).
  * Round 8 (2026-10-16): "too much happening sometimes; the D is really loud and aggressive; not sure about the slower
@@ -41,6 +43,33 @@ export interface PieceMeta {
 const S = (id: string, name: string): LayerMeta => ({ id, name, kind: 'strings' });
 
 export const PIECES: readonly PieceMeta[] = [
+  {
+    id: 'zdarkmission',
+    name: 'Mission score, Zimmer dark',
+    about: 'The dark Zimmer menu material as the in-game loop at 96 BPM: Hook A on D, the darker progression, low swells and tremolo, the melody low. The state buttons fade between layer mixes.',
+    use: 'mission',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos (on D)'),
+      S('bass', 'Basses on the strong notes'),
+      S('ost', 'Low sixteenth pattern, violas'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo, distant violins'),
+      S('melody', 'Melody on cellos and violas'),
+      { id: 'horns', name: 'Low horns and trombones', kind: 'brass' },
+      { id: 'pulse', name: 'Soft low drums', kind: 'perc' },
+    ],
+    presets: {
+      Calm: { pizz: 0.45, swell: 0.3, trem: 0.12 },
+      Cautious: { hook: 0.65, bass: 0.4, swell: 0.5, trem: 0.35, ost: 0.25, pulse: 0.25 },
+      Alert: { hook: 0.9, bass: 0.7, ost: 0.8, swell: 0.85, trem: 0.55, melody: 0.9, horns: 0.6, pulse: 0.6 },
+      Evasion: { hook: 0.8, bass: 0.6, ost: 0.65, swell: 0.65, trem: 0.45, pulse: 0.4 },
+      'Strings only': { hook: 0.9, bass: 0.7, ost: 0.8, swell: 0.85, trem: 0.55, melody: 0.9 },
+      'Everything on': { pizz: 1, hook: 1, bass: 1, ost: 1, swell: 1, trem: 1, melody: 1, horns: 1, pulse: 1 },
+    },
+  },
   {
     id: 'zbuild',
     name: 'Mission score, Zimmer',
@@ -201,6 +230,50 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'zdark',
+    name: 'Menu theme, Zimmer dark',
+    about: 'The Zimmer menu, darker and closer to Hook A: the hook stays on D as you like it, the harmony turns darker (D minor, B-flat, then an E-flat chord rubbing against the D), everything sits low (no bright violin climax), low cello tremolo, the melody on cellos, violas and low horns, soft low drums, and a huge but dark final chord.',
+    use: 'menu',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos and basses (on D)'),
+      S('ost', 'Low sixteenth pattern, violas'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo, distant violins'),
+      S('melody', 'Melody on cellos and violas'),
+      { id: 'horns', name: 'Low horns and trombones', kind: 'brass' },
+      { id: 'pulse', name: 'Soft low drums', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pizz: 1, hook: 1, ost: 1, swell: 1, trem: 1, melody: 1, horns: 0.8, pulse: 0.7 },
+      'Strings only': { pizz: 1, hook: 1, ost: 1, swell: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
+    id: 'zdarker',
+    name: 'Menu theme, Zimmer darker and stealthier',
+    about: 'The same, more held back: no violins at all, the hook plucked most of the way and bowed only for the big section, the melody on violas then low cellos and horns, a smaller ending.',
+    use: 'menu',
+    bpm: 96,
+    bars: 32,
+    layers: [
+      S('pizz', 'Hook A, pizzicato (on D)'),
+      S('hook', 'Hook A, cellos and basses (on D)'),
+      S('ost', 'Low sixteenth pattern, violas'),
+      S('swell', 'Low string swells'),
+      S('trem', 'Low cello tremolo'),
+      S('melody', 'Melody on violas, then cellos'),
+      { id: 'horns', name: 'Low horns', kind: 'brass' },
+      { id: 'pulse', name: 'Heartbeat drum', kind: 'perc' },
+    ],
+    presets: {
+      Full: { pizz: 1, hook: 1, ost: 1, swell: 1, trem: 1, melody: 1, horns: 0.8, pulse: 0.7 },
+      'Strings only': { pizz: 1, hook: 1, ost: 1, swell: 1, trem: 1, melody: 1 },
+    },
+  },
+  {
     id: 'zmenu',
     name: 'Menu theme, Zimmer',
     about: 'A slow-burn menu at 96 BPM: one cello note swelling out of silence, the hook plucked, then bowed over the broad progression, the melody on cellos and horns, then violins in octaves over everything, ending on a huge chord that dies away.',
@@ -328,11 +401,14 @@ const CH = {
   A: { root: n('A1'), tones: [n('C#3'), n('E3'), n('A3'), n('C#4'), n('E4'), n('A4')] },
   F: { root: n('F1'), tones: [n('C3'), n('F3'), n('A3'), n('C4'), n('F4'), n('A4')] },
   C: { root: n('C2'), tones: [n('C3'), n('E3'), n('G3'), n('C4'), n('E4'), n('G4')] },
+  Eb: { root: n('Eb2'), tones: [n('Eb3'), n('G3'), n('Bb3'), n('Eb4'), n('G4'), n('Bb4')] },
 };
 type ChordName = keyof typeof CH;
 const PROG: ChordName[] = ['Dm', 'Bb', 'Gm', 'A'];
 /** The broad minor progression of epic film scores (i, VI, III, VII), two bars each in the Zimmer pieces. */
 const EPIC: ChordName[] = ['Dm', 'Bb', 'F', 'C'];
+/** Round 10's darker progression over the D pedal: i, VI, the Phrygian flat-II (E-flat against D), i. Hook A stays on D. */
+const DARK: ChordName[] = ['Dm', 'Bb', 'Eb', 'Dm'];
 
 /** Hook A, eighth by eighth (two bars). */
 const HOOK_A = ['D2', null, 'D3', 'D2', null, 'C3', null, 'A2', 'D2', null, 'D3', 'D2', 'F2', 'G2', 'Ab2', 'A2'];
@@ -783,12 +859,132 @@ function zmenu(s: Score): void {
   hit(P, s.bank, 'gong', 1, end, 0.5);
 }
 
+
+// ------------------------------------------------------------------ round 10: darker, closer to Hook A
+
+const darkAt = (b: number, from = 0): ChordName => DARK[Math.floor((b - from) / 2) % 4]!;
+
+/** Low swells over the dark progression: basses and cellos on the root, violas on the third, low. */
+function darkSwells(s: Score, layer: string, from: number, to: number, vel: number): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[darkAt(b, from)];
+    const dur = s.d(8);
+    const o = { vel, attack: dur * 0.7, release: 1.5 };
+    note(s.L(layer), s.bank, 'bassSus', c.root + 12, s.t(b), dur, o);
+    note(s.L(layer), s.bank, 'celloSus', c.root + 12, s.t(b), dur, o);
+    note(s.L(layer), s.bank, 'violaSus', c.tones[1]!, s.t(b), dur, { ...o, vel: vel * 0.7 });
+  }
+}
+
+/** A low sixteenth pattern on the violas over the dark chords (3 + 3 + 2 accents). */
+function darkOst(s: Score, layer: string, from: number, to: number, vel: (b: number) => number): void {
+  const acc = [0, 3, 6, 8, 11, 14];
+  for (let b = from; b < to; b++) {
+    const c = CH[darkAt(b, from)];
+    const pat = [c.tones[0]!, c.tones[1]!, c.tones[2]!, c.tones[1]!];
+    for (let i = 0; i < 16; i++) note(s.L(layer), s.bank, 'violaSpic', pat[i % 4]!, s.t(b, i / 4), s.d(0.25), { vel: vel(b) * (acc.includes(i) ? 1 : 0.6), release: 0.07 });
+  }
+}
+
+/** Low cello tremolo swelling on D (and A), with violins far away and quiet when `violins`. */
+function darkTrem(s: Score, layer: string, from: number, to: number, vel: number, violins: boolean): void {
+  for (let b = from; b < to; b += 8) {
+    const dur = s.d(Math.min(8, to - b) * 4);
+    note(s.L(layer), s.bank, 'celloTrem', n('D3'), s.t(b), dur, { vel, attack: dur * 0.6, release: 1 });
+    note(s.L(layer), s.bank, 'celloTrem', n('A3'), s.t(b), dur, { vel: vel * 0.8, attack: dur * 0.6, release: 1 });
+    if (violins) note(s.L(layer), s.bank, 'violinTrem', n('A4'), s.t(b), dur, { vel: vel * 0.55, attack: dur * 0.7, release: 1 });
+  }
+}
+
+/** Low brass swelling on the root and fifth: trombones and a horn, soft attack (dark weight, not a blast). */
+function lowBrass(s: Score, layer: string, from: number, to: number, vel: number, trombones = true): void {
+  for (let b = from; b < to; b += 2) {
+    const c = CH[darkAt(b, from)];
+    note(s.L(layer), s.bank, 'hornSus', c.tones[0]!, s.t(b), s.d(8), { vel, attack: s.d(4), release: 1.4 });
+    if (trombones) note(s.L(layer), s.bank, 'tbnSus', c.root + 12, s.t(b), s.d(8), { vel: vel * 0.9, attack: s.d(4), release: 1.4 });
+  }
+}
+
+function zdarkMenu(s: Score, stealth: boolean): void {
+  // one low D swelling out of silence (bars 0-3)
+  note(s.L('swell'), s.bank, 'celloSus', D, s.t(0), s.d(16), { vel: 0.6, attack: s.d(12), release: 1.5 });
+  note(s.L('swell'), s.bank, 'bassSus', D, s.t(0), s.d(16), { vel: 0.5, attack: s.d(12), release: 1.5 });
+  // Hook A on D, unchanged: plucked, then bowed
+  hookLine(s, 'pizz', 'celloPizz', 0, 4, stealth ? 28 : 20, (b) => (b < 12 ? 0.62 : 0.5), false, 0.85);
+  hookLine(s, 'pizz', 'bassPizz', -12, 4, stealth ? 28 : 20, () => 0.5, true, 0.85);
+  const bowFrom = stealth ? 20 : 12;
+  hookLine(s, 'hook', 'celloSpic', 0, bowFrom, 28, (b) => (b < 20 ? 0.7 : 0.85), false, 0.85);
+  hookLine(s, 'hook', 'bassSpic', -12, bowFrom, 28, (b) => (b < 20 ? 0.5 : 0.7), true, 0.85);
+  darkSwells(s, 'swell', 4, 28, stealth ? 0.5 : 0.58);
+  darkOst(s, 'ost', 12, 28, (b) => (b < 20 ? 0.35 : stealth ? 0.45 : 0.55));
+  darkTrem(s, 'trem', 12, 28, stealth ? 0.6 : 0.65, !stealth);
+  if (stealth) {
+    motif(s, 'melody', 'violaSus', 12, 0.5);
+    motif(s, 'melody', 'celloSus', 20, 0.6, -12);
+    motif(s, 'horns', 'hornSus', 20, 0.32, -12);
+  } else {
+    motif(s, 'melody', 'celloSus', 12, 0.58, -12);
+    motif(s, 'melody', 'celloSus', 20, 0.7, -12);
+    motif(s, 'melody', 'violaSus', 20, 0.6);
+    motif(s, 'horns', 'hornSus', 20, 0.35, -12);
+    lowBrass(s, 'horns', 20, 28, 0.3);
+  }
+  // the final chord: low and dark, ringing out into the quiet start
+  const end = s.t(28);
+  const big = stealth ? 0.6 : 0.8;
+  for (const [inst, m, v] of [
+    ['bassSus', D, big],
+    ['celloSus', D, big],
+    ['celloSus', n('A2'), big * 0.85],
+    ['violaSus', n('D3'), big * 0.8],
+    ['violaSus', n('F3'), big * 0.75],
+  ] as const) note(s.L('swell'), s.bank, inst, m, end, s.d(10), { vel: v, attack: 0.25, release: 3 });
+  for (const m of [n('D3'), n('A3')]) note(s.L('horns'), s.bank, 'hornSus', m, end, s.d(10), { vel: stealth ? 0.35 : 0.45, attack: 0.25, release: 3 });
+  if (!stealth) note(s.L('horns'), s.bank, 'tbnSus', D, end, s.d(10), { vel: 0.45, attack: 0.25, release: 3 });
+  // drums: a low heartbeat in the big section, timpani on the chord changes, swells, a gong on the final chord
+  const P = s.L('pulse');
+  for (let b = stealth ? 20 : 12; b < 28; b++) {
+    hit(P, s.bank, 'giant', 4, s.t(b), b < 20 ? 0.4 : 0.5);
+    hit(P, s.bank, 'giant', 4, s.t(b, 0.5), b < 20 ? 0.25 : 0.32);
+  }
+  if (!stealth) for (let b = 20; b < 28; b += 2) timp(P, s.bank, CH[darkAt(b, 4)].root + 12, s.t(b), 0.45);
+  swellInto(P, s.bank, 'cym', 1, s.t(20), stealth ? 0.35 : 0.45);
+  swellInto(P, s.bank, 'cym', 1, s.t(28), stealth ? 0.4 : 0.55);
+  hit(P, s.bank, 'gong', 1, end, stealth ? 0.35 : 0.5);
+}
+
+function zdarkMission(s: Score): void {
+  const N = s.meta.bars;
+  hookLine(s, 'pizz', 'celloPizz', 0, 0, N, () => 0.65, false, 0.85);
+  hookLine(s, 'hook', 'celloSpic', 0, 0, N, () => 0.85, false, 0.85);
+  hookLine(s, 'bass', 'bassSpic', -12, 0, N, () => 0.6, true, 0.85);
+  darkOst(s, 'ost', 0, N, () => 0.5);
+  darkSwells(s, 'swell', 0, N, 0.58);
+  darkTrem(s, 'trem', 0, N, 0.65, true);
+  for (const at of [8, 24]) {
+    motif(s, 'melody', 'celloSus', at, 0.65, -12);
+    motif(s, 'melody', 'violaSus', at, 0.55);
+  }
+  lowBrass(s, 'horns', 0, N, 0.3);
+  motif(s, 'horns', 'hornSus', 24, 0.33, -12);
+  const P = s.L('pulse');
+  for (let b = 0; b < N; b++) {
+    hit(P, s.bank, 'giant', 4, s.t(b), 0.45);
+    hit(P, s.bank, 'giant', 4, s.t(b, 0.5), 0.28);
+    if (b % 2 === 0) timp(P, s.bank, CH[darkAt(b)].root + 12, s.t(b), 0.4);
+  }
+  for (const b of [8, 24]) swellInto(P, s.bank, 'cym', 1, s.t(b), 0.4);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta): Piece {
   const s = new Score(bank, meta);
   if (meta.id === 'mission') mission(s);
   else if (meta.id === 'alertfast') alertFast(s);
   else if (meta.id === 'lighter') lighter(s);
   else if (meta.id === 'zbuild') zbuild(s);
+  else if (meta.id === 'zdark') zdarkMenu(s, false);
+  else if (meta.id === 'zdarker') zdarkMenu(s, true);
+  else if (meta.id === 'zdarkmission') zdarkMission(s);
   else if (meta.id === 'zdrive') zdrive(s);
   else if (meta.id === 'zmenu') zmenu(s);
   else if (meta.id === 'moving') moving(s);

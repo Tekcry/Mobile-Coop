@@ -17,8 +17,32 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; Michael: loves 3 (Night Shift) strings only; hated 1 and 2 |
 | 3g | Round 7: strings-only variations on Hook A (in-game layers, menu), finer layer control | done; Michael: right direction; too much happening at times; the D too loud and aggressive; unsure about the slower ones |
 | 3h | Round 8: softer D, lighter variations at 92-120 BPM | done; Michael: add more Hans Zimmer influence again |
-| 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; waiting for Michael's feedback |
+| 3i | Round 9: Zimmer pieces (mission, Alert, menu) | done; Michael: likes the Zimmer menu's orchestra, but it strays from Hook A; wants it darker and more stealthy, still epic |
+| 3j | Round 10: dark Zimmer menu (two versions) and a dark in-game loop, Hook A on D | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 10 - darker, closer to Hook A
+- **Michael (2026-10-16):** likes the Zimmer menu theme. "It strays a little bit from the A one I like, but the
+  orchestra is good. Make it darker / more suitable for stealth but still keep it feeling epic."
+- **Done:**
+  - **Hook A back on D, unchanged.** In round 9 it followed the chords.
+  - **A darker progression over the D pedal:** D minor, B-flat, E-flat (the Phrygian flat second, rubbing against
+    the D), D minor.
+  - **Everything low:**
+    - no bright violin climax; violins only as distant tremolo, and none in the stealthier version
+    - low cello tremolo for tension
+    - the melody on cellos and violas, with low horns in unison
+    - soft trombone swells
+    - a low drum heartbeat and timpani
+    - a huge but dark final chord
+- **Three new pieces, at 96 BPM:**
+  - **Menu theme, Zimmer dark** (8 layers).
+  - **Menu theme, Zimmer darker and stealthier** (8 layers): no violins; the hook plucked until the big section;
+    the melody on violas, then cellos; a smaller ending.
+  - **Mission score, Zimmer dark** (9 layers): the same material as the in-game loop, with Calm, Cautious, Alert,
+    Evasion, Strings only and Everything on.
+- **Balance:** the first render had the melody and horns over the hook. They are down 2-3 dB and the tremolo is up
+  about 5 dB. The melody now measures 2-4 dB over the hook: long notes measure louder than short plucked ones.
 
 ## V4 round 9 - more Hans Zimmer
 - **Michael (2026-10-16):** "Can you add more influence from Hans Zimmer again."
