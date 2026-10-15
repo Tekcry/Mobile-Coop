@@ -2,21 +2,30 @@ import { hookShot, melodyShot, menuPlan, missionPlans, type LayerDef, type Music
 import { subtleGuitar, subtleHooks } from './hookLab';
 import { HOOKS, hookPlan, type HookDef } from './hooks';
 import { ALERT_HOOKS, alertHookPlan, type AlertHook } from './mgs';
-import orchManifest from '../../assets/music/orch/orch.json';
 
-/** Round 6: the orchestral sketches, rendered offline from real recordings (npm run music:orch). */
+/** Rounds 6-7: orchestral pieces rendered offline from real recordings (npm run music:orch; the files stay local). */
+interface OrchLayer {
+  id: string;
+  name: string;
+  kind: string;
+  file: string;
+}
 interface OrchPiece {
   id: string;
   name: string;
   about: string;
+  use: 'mission' | 'menu' | 'reference';
   bpm: number;
   bars: number;
   loop: number;
-  stems: Record<string, { file: string; bytes: number }>;
+  layers: OrchLayer[];
+  presets: Record<string, Record<string, number>>;
 }
-const ORCH = orchManifest as { pad: number; pieces: OrchPiece[] };
+const ORCH_JSON = import.meta.glob('../../assets/music/orch/orch.json', { eager: true, import: 'default' }) as Record<string, { pad: number; pieces: OrchPiece[] }>;
+const ORCH = Object.values(ORCH_JSON)[0] ?? { pad: 0.5, pieces: [] };
 const ORCH_URLS = import.meta.glob('../../assets/music/orch/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
-const STEM_NAMES: Record<string, string> = { strings: 'Strings', brass: 'Brass', organ: 'Organ', perc: 'Percussion' };
+let current: OrchPiece | null = null;
+const solo = new Set<LayerRt>();
 import type { GameAwareness } from './director';
 import { ScorePlayer, type LayerRt } from './player';
 import { renderAll, renderLayer, type Rendered } from './render';
@@ -97,15 +106,14 @@ async function playOrch(piece: OrchPiece): Promise<void> {
   const plan: Plan = { id: key, name: piece.name, group: 'menu', bpm: piece.bpm, bars: piece.bars, layers: [] };
   if (!r) {
     keepOnly(key);
-    setBusy(true, `Loading ${piece.name}...`);
-    const ids = Object.keys(piece.stems);
+    setBusy(true, `Loading ${piece.name} (${piece.layers.length} layers)...`);
     r = await Promise.all(
-      ids.map(async (id): Promise<Rendered> => {
-        const url = ORCH_URLS[`../../assets/music/orch/${piece.stems[id]!.file}`]!;
+      piece.layers.map(async (ly): Promise<Rendered> => {
+        const url = ORCH_URLS[`../../assets/music/orch/${ly.file}`]!;
         const buffer = await p.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
         const def: LayerDef = {
-          id: `${key}-${id}`,
-          name: STEM_NAMES[id] ?? id,
+          id: `${key}-${ly.id}`,
+          name: ly.name,
           group: 'menu',
           bpm: piece.bpm,
           bars: piece.bars,
@@ -124,8 +132,33 @@ async function playOrch(piece: OrchPiece): Promise<void> {
   }
   w.setChatter(false);
   p.playMenu(plan, r);
-  note(`Playing ${piece.name} (${piece.bpm} BPM, ${piece.loop.toFixed(0)} s, real orchestra recordings)`);
+  current = piece;
+  solo.clear();
+  const first = Object.keys(piece.presets)[0]!;
   buildLayers();
+  applyPreset(first, 0.02);
+  note(`Playing ${piece.name} (${piece.bpm} BPM, ${piece.loop.toFixed(0)} s loop), ${first}`);
+}
+
+/** Set every layer of the playing orchestral piece to a preset; by default the fade takes about a bar. */
+function applyPreset(name: string, tc?: number): void {
+  const p = player;
+  if (!p || !current) return;
+  const mix = current.presets[name] ?? {};
+  const fade = tc ?? (60 / current.bpm) * (4 / 3);
+  const prefix = `orch-${current.id}-`;
+  solo.clear();
+  for (const l of p.layers()) p.setLayerGain(l, mix[l.r.def.id.slice(prefix.length)] ?? 0, false, fade);
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) b.classList.toggle('on', b.dataset['preset'] === name);
+  if (tc === undefined) note(`${current.use === 'mission' ? 'Game state' : 'Preset'}: ${name}`);
+  syncLayerRows();
+}
+
+/** Solo wins over mute: with any layer soloed, only soloed layers sound. */
+function applySolo(): void {
+  const p = player;
+  if (!p) return;
+  for (const l of p.layers()) p.setLayerOut(l, solo.size ? (solo.has(l) ? l.userValue : 0) : l.muted ? 0 : l.userValue);
 }
 
 /** Any looping plan (a menu theme or a Hook A partner loop), with a slider per layer. */
@@ -134,6 +167,8 @@ async function playLoop(plan: Plan): Promise<void> {
   const { p, w } = ensure();
   const r = await rendered(plan.id, plan.layers, () => true, plan.name);
   w.setChatter(false);
+  current = null;
+  solo.clear();
   p.playMenu(plan, r);
   note(`Playing ${plan.name} (${plan.bpm} BPM, ${plan.bars} bars, ${(r[0]!.loopSec).toFixed(0)} s loop)`);
   buildLayers();
@@ -170,6 +205,8 @@ async function playShot(def: LayerDef): Promise<void> {
 }
 
 function stop(): void {
+  current = null;
+  solo.clear();
   player?.stopAll();
   world?.stop();
   syncWorld();
@@ -199,30 +236,75 @@ function setGameButtons(s: GameAwareness): void {
 
 const STATE_LABEL: Record<MusicState, string> = { calm: 'Calm', caution: 'Cautious', alert: 'Alert', evade: 'Evasion' };
 
+const rows = new Map<LayerRt, { slider: HTMLInputElement; val: HTMLElement; mute: HTMLButtonElement; solo: HTMLButtonElement }>();
+
 function buildLayers(): void {
+  rows.clear();
   const box = $('#layers');
   box.textContent = '';
   const ls = player?.layers() ?? [];
   if (!ls.length) {
-    box.append(el('p', { className: 'muted', textContent: 'Play a menu or mission sketch to get a slider for each layer.' }));
+    box.append(el('p', { className: 'muted', textContent: 'Play something to get a slider, Mute and Solo for each layer.' }));
     return;
   }
+  const head = el('div', { className: 'row presets' });
+  if (current) {
+    head.append(el('b', { textContent: `${current.name}: ${current.use === 'mission' ? 'game state' : 'preset'}` }));
+    for (const name of Object.keys(current.presets)) {
+      const b = button(name, () => applyPreset(name), 'state');
+      b.dataset['preset'] = name;
+      head.append(b);
+    }
+  }
+  head.append(
+    button('All to 100%', () => {
+      for (const l of ls) player?.setLayerGain(l, 1, false);
+      solo.clear();
+      for (const b of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) b.classList.remove('on');
+      syncLayerRows();
+    }),
+    button('Clear solo', () => {
+      solo.clear();
+      applySolo();
+      syncLayerRows();
+    }),
+  );
+  box.append(head);
   for (const l of ls) box.append(layerRow(l));
+}
+
+function syncLayerRows(): void {
+  for (const [l, r] of rows) {
+    r.slider.value = String(Math.round(l.userValue * 100));
+    r.val.textContent = `${r.slider.value}%`;
+    r.mute.classList.toggle('on', l.muted);
+    r.solo.classList.toggle('on', solo.has(l));
+  }
 }
 
 function layerRow(l: LayerRt): HTMLElement {
   const slider = el('input', { type: 'range', min: '0', max: '150', value: String(Math.round(l.userValue * 100)) });
   const val = el('span', { className: 'val', textContent: `${slider.value}%` });
   const mute = el('button', { className: 'small', textContent: 'Mute' });
-  mute.classList.toggle('on', l.muted);
+  const soloB = el('button', { className: 'small', textContent: 'Solo' });
   slider.oninput = () => {
     val.textContent = `${slider.value}%`;
     player?.setLayerGain(l, Number(slider.value) / 100);
+    applySolo();
   };
   mute.onclick = () => {
     player?.setLayerGain(l, l.userValue, !l.muted);
-    mute.classList.toggle('on', l.muted);
+    applySolo();
+    syncLayerRows();
   };
+  soloB.onclick = () => {
+    if (solo.has(l)) solo.delete(l);
+    else solo.add(l);
+    applySolo();
+    syncLayerRows();
+  };
+  rows.set(l, { slider, val, mute, solo: soloB });
+  mute.classList.toggle('on', l.muted);
   const states = l.group === 'menu' ? '' : (Object.keys(l.r.def.mix) as MusicState[]).filter((s) => l.r.def.mix[s] > 0).map((s) => STATE_LABEL[s]).join(', ');
   return el(
     'div',
@@ -230,7 +312,7 @@ function layerRow(l: LayerRt): HTMLElement {
     el('div', { className: 'lname' }, el('b', { textContent: l.r.def.name }), el('small', { textContent: states ? ` in ${states}` : '' })),
     slider,
     val,
-    mute,
+    el('div', { className: 'btns' }, mute, soloB),
   );
 }
 
@@ -295,36 +377,45 @@ export function mountScoreLab(root: HTMLElement): void {
     el('p', {
       className: 'muted',
       textContent:
-        'Round 6: orchestral, Hans Zimmer spirit, real recorded instruments. Earlier rounds are in the boxes at the bottom.',
+        'Round 7: strings only, built on Hook A, for the in-game score and the main menu. Earlier rounds are in the boxes at the bottom.',
     }),
     el('div', { id: 'progress', className: 'progress' }),
-    el(
-      'section',
-      {},
-      el('h2', { textContent: '1. Orchestral sketches (real instruments)' }),
-      el('p', {
-        className: 'muted',
-        textContent:
-          'Three original pieces in the Hans Zimmer spirit (The Dark Knight and Interstellar), played by recorded orchestral instruments: string sections, horns, trombones, tuba, pipe organ, timpani and big drums. Each grows from quiet to huge, so you can hear both the sneaking end and the alert end. Sliders below for strings, brass, organ and percussion.',
-      }),
+    ...(
+      [
+        ['mission', '1. In-game score (strings)', 'Built for the dynamic in-game music. Play one, then use the game-state buttons in the Layers panel to hear Calm, Cautious, Alert and Evasion as layer mixes of the same loop.'],
+        ['menu', '2. Main menu (strings)', 'Two takes on the menu theme, both on Hook A and the melody.'],
+        ['reference', '3. Round 6 piece, in layers', 'The piece you liked, split into its parts; it starts on your pick (strings only).'],
+      ] as const
+    ).map(([use, title, blurb]) =>
       el(
-        'div',
-        { className: 'partners' },
-        ...ORCH.pieces.map((pc, i) =>
-          el(
-            'div',
-            { className: 'partner' },
-            button(`${i + 1}. ${pc.name}`, () => void playOrch(pc), 'big'),
-            el('small', { textContent: `${pc.about} ${pc.bpm} BPM, ${Math.round(pc.loop)} s.` }),
-          ),
-        ),
+        'section',
+        {},
+        el('h2', { textContent: title }),
+        el('p', { className: 'muted', textContent: blurb }),
+        ORCH.pieces.length
+          ? el(
+              'div',
+              { className: 'partners' },
+              ...ORCH.pieces
+                .filter((pc) => pc.use === use)
+                .map((pc) =>
+                  el(
+                    'div',
+                    { className: 'partner' },
+                    button(pc.name, () => void playOrch(pc), 'big'),
+                    el('small', { textContent: `${pc.about} ${pc.bpm} BPM, ${Math.round(pc.loop)} s, ${pc.layers.length} layers.` }),
+                  ),
+                ),
+            )
+          : el('p', { className: 'muted', textContent: 'Not rendered on this computer yet: run "npm run music:orch" (needs the samples: node scripts/music/fetch-samples.mjs orch-samples.json orch).' }),
+        el('div', { className: 'row' }, button('Stop', stop)),
       ),
-      el('div', { className: 'row' }, button('Stop', stop)),
     ),
+    el('section', { className: 'mixer' }, el('h2', { textContent: 'Layers' }), el('div', { id: 'layers' })),
     el(
       'section',
       {},
-      el('h2', { textContent: '2. Gameplay sounds over the music' }),
+      el('h2', { textContent: '4. Gameplay sounds over the music' }),
       el('p', { className: 'muted', textContent: 'Same footstep sound and level as the game. Keys: W walk, V voice, B bottle.' }),
       el(
         'div',
@@ -377,7 +468,6 @@ export function mountScoreLab(root: HTMLElement): void {
         el('label', {}, 'Gameplay sounds ', slider('sfxVol', 100, 150)),
       ),
     ),
-    el('section', {}, el('h2', { textContent: '3. Layers' }), el('div', { id: 'layers' })),
     el('section', {}, el('h2', { textContent: 'Log' }), el('pre', { id: 'log' })),
     el(
       'details',

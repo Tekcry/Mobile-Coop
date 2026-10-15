@@ -285,10 +285,23 @@ export class ScorePlayer {
     return [this.menu, this.low, this.alert].flatMap((g) => g?.layers ?? []);
   }
 
-  setLayerGain(l: LayerRt, v: number, muted = l.muted): void {
+  /** Set a layer's own gain; `tc` is the fade's time constant (s), so a preset can glide over a bar. */
+  setLayerGain(l: LayerRt, v: number, muted = l.muted, tc = 0.03): void {
     l.userValue = v;
     l.muted = muted;
-    l.user.gain.setTargetAtTime(muted ? 0 : v, this.ctx.currentTime, 0.03);
+    this.setLayerOut(l, muted ? 0 : v, tc);
+  }
+
+  /** The gain actually applied (the page's solo logic uses this directly). */
+  setLayerOut(l: LayerRt, v: number, tc = 0.03): void {
+    const p = l.user.gain as Param;
+    const now = this.ctx.currentTime;
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now);
+    else {
+      p.cancelScheduledValues(now);
+      p.setValueAtTime(p.value, now);
+    }
+    p.setTargetAtTime(v, now, tc);
   }
 
   status(): PlayerStatus {

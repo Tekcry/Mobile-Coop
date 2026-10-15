@@ -15,7 +15,7 @@ import { addInto, detectPitch, peakOf, RATE, scale, secs, type Stereo } from '..
 import { reverbWet } from '../../music/render/fx';
 import { db, loudness, sum } from '../../music/render/kit';
 import { Bank } from './bank';
-import { PIECES, renderPiece, STEMS, type StemId } from './pieces';
+import { PIECES, renderPiece, type Kind, type PieceMeta } from './pieces';
 
 const PAD = 0.5;
 const KBPS = 128;
@@ -42,22 +42,23 @@ if (process.argv.includes('--check')) {
   process.exit(0);
 }
 
-/** Per stem: reverb (a big hall) and how much of it. */
-const ROOM: Record<StemId, { rt60: number; wet: number; damp: number }> = {
+/** Per kind of layer: reverb (a big hall) and how much of it. */
+const ROOM: Record<Kind, { rt60: number; wet: number; damp: number }> = {
   strings: { rt60: 2.6, wet: 0.32, damp: 7000 },
   brass: { rt60: 3.0, wet: 0.36, damp: 5500 },
   organ: { rt60: 4.2, wet: 0.4, damp: 5000 },
   perc: { rt60: 2.4, wet: 0.3, damp: 6000 },
 };
 
-/** Section balance on top of the written dynamics (dB): big drums are central to this style. */
-const TRIM: Record<StemId, number> = { strings: 0, brass: 0, organ: 0, perc: 5 };
+/** Balance on top of the written dynamics (dB): big drums are central to this style. */
+const TRIM: Record<Kind, number> = { strings: 0, brass: 0, organ: 0, perc: 5 };
 
-function withRoom(x: Stereo, id: StemId): Stereo {
-  const r = ROOM[id];
+function withRoom(x: Stereo, kind: Kind): Stereo {
+  const r = ROOM[kind];
   const wet = reverbWet(x, { rt60: r.rt60, damp: r.damp, size: 3, predelay: 0.025, hp: 120 });
   const out: Stereo = { l: x.l.slice(), r: x.r.slice() };
   addInto(out, wet, r.wet);
+  scale(out, Math.pow(10, TRIM[kind] / 20));
   return out;
 }
 
@@ -73,26 +74,37 @@ function padded(s: Stereo): Float32Array[] {
   });
 }
 
+// rendered audition audio is not committed (it is rebuilt from the samples with this command)
 const outDir = join(root, 'src', 'assets', 'music', 'orch');
 const wavDir = join(root, '.music-cache', 'orch-out');
 mkdirSync(outDir, { recursive: true });
 mkdirSync(wavDir, { recursive: true });
 const manifestPath = join(outDir, 'orch.json');
 
+interface LayerOut {
+  id: string;
+  name: string;
+  kind: Kind;
+  file: string;
+  bytes: number;
+  loudness: number;
+}
 interface Entry {
   id: string;
   name: string;
   about: string;
+  use: PieceMeta['use'];
   bpm: number;
   bars: number;
   loop: number;
-  stems: Partial<Record<StemId, { file: string; bytes: number }>>;
+  layers: LayerOut[];
+  presets: PieceMeta['presets'];
   loudness: number;
   peak: number;
 }
 let previous: Entry[] = [];
 try {
-  previous = (JSON.parse(readFileSync(manifestPath, 'utf8')) as { pieces: Entry[] }).pieces;
+  previous = (JSON.parse(readFileSync(manifestPath, 'utf8')) as { pieces: Entry[] }).pieces ?? [];
 } catch {
   // first render
 }
@@ -106,39 +118,47 @@ for (const meta of PIECES) {
   }
   const t0 = performance.now();
   const piece = renderPiece(bank, meta);
-  const stems = {} as Record<StemId, Stereo>;
-  for (const id of STEMS) {
-    stems[id] = withRoom(piece.stems[id], id);
-    scale(stems[id], Math.pow(10, TRIM[id] / 20));
-  }
-  // one gain for every stem, so the orchestra's balance is kept: the full mix hits TARGET, peaks stay under PEAK
-  const mix = sum(...STEMS.map((id): [Stereo, number] => [stems[id], 1]));
-  let g = Math.pow(10, (TARGET - loudness(mix)) / 20);
-  g = Math.min(g, PEAK / peakOf(mix));
-  for (const id of STEMS) scale(stems[id], g);
-  const full = sum(...STEMS.map((id): [Stereo, number] => [stems[id], 1]));
+  const layers: Record<string, Stereo> = {};
+  for (const l of meta.layers) layers[l.id] = withRoom(piece.layers[l.id]!, l.kind);
+  // one gain for every layer, so the balance is kept: everything on hits TARGET, peaks stay under PEAK
+  const all = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
+  let g = Math.pow(10, (TARGET - loudness(all)) / 20);
+  g = Math.min(g, PEAK / peakOf(all));
+  for (const l of meta.layers) scale(layers[l.id]!, g);
+  const full = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
   const pairs: string[] = [];
-  const files: Entry['stems'] = {};
-  // a section the piece never uses gets no file
-  const used = STEMS.filter((id) => peakOf(stems[id]) > 1e-4);
-  for (const id of used) {
-    const name = `${meta.id}-${id}`;
+  const outs: LayerOut[] = [];
+  for (const l of meta.layers) {
+    const name = `${meta.id}-${l.id}`;
     const wav = join(wavDir, `${name}.wav`);
-    writeFileSync(wav, encodeWav(padded(stems[id]), RATE));
+    writeFileSync(wav, encodeWav(padded(layers[l.id]!), RATE));
     pairs.push(wav, join(outDir, `${name}.mp3`));
-    files[id] = { file: `${name}.mp3`, bytes: 0 };
+    outs.push({ id: l.id, name: l.name, kind: l.kind, file: `${name}.mp3`, bytes: 0, loudness: Math.round(loudness(layers[l.id]!) * 10) / 10 });
   }
   execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'scripts', 'music', 'encode-mp3.ps1'), '-Kbps', String(KBPS), ...pairs], {
-    stdio: 'inherit',
+    stdio: 'ignore',
   });
-  for (const id of used) files[id]!.bytes = statSync(join(outDir, files[id]!.file)).size;
+  for (const o of outs) o.bytes = statSync(join(outDir, o.file)).size;
   const loop = (meta.bars * 4 * 60) / meta.bpm;
-  const e: Entry = { id: meta.id, name: meta.name, about: meta.about, bpm: meta.bpm, bars: meta.bars, loop, stems: files, loudness: Math.round(loudness(full) * 10) / 10, peak: Math.round(db(peakOf(full)) * 10) / 10 };
+  const e: Entry = {
+    id: meta.id,
+    name: meta.name,
+    about: meta.about,
+    use: meta.use,
+    bpm: meta.bpm,
+    bars: meta.bars,
+    loop,
+    layers: outs,
+    presets: meta.presets,
+    loudness: Math.round(loudness(full) * 10) / 10,
+    peak: Math.round(db(peakOf(full)) * 10) / 10,
+  };
   entries.push(e);
-  console.info(`${meta.name}: ${loop.toFixed(1)} s, loudness ${e.loudness} dB, peak ${e.peak} dBFS, ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  console.info(`${meta.name}: ${loop.toFixed(1)} s, ${outs.length} layers, all on ${e.loudness} dB (peak ${e.peak} dBFS), ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  console.info(`  ${outs.map((o) => `${o.id} ${o.loudness}`).join(', ')}`);
 }
 const order = PIECES.map((p) => p.id);
 entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 writeFileSync(manifestPath, JSON.stringify({ pad: PAD, kbps: KBPS, pieces: entries }, null, 1) + '\n');
-const total = entries.reduce((a, e) => a + Object.values(e.stems).reduce((b, f) => b + (f?.bytes ?? 0), 0), 0);
+const total = entries.reduce((a, e) => a + e.layers.reduce((b, l) => b + l.bytes, 0), 0);
 console.info(`total ${(total / 1e6).toFixed(2)} MB`);

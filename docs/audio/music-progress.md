@@ -14,8 +14,44 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3c | Round 3: subtle Hook A and subtle guitar | done; Michael: not sure it fits the feel of the game |
 | 3d | Round 4: ten hooks to choose from | done; Michael: not liking anything yet; asked for MGS1 alert / escape style |
 | 3e | Round 5: Alert hooks in the Metal Gear Solid spirit | done; Michael: "absolutely all wrong" |
-| 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; waiting for Michael's feedback |
+| 3f | Round 6: orchestral, Hans Zimmer spirit, real recorded instruments | done; Michael: loves 3 (Night Shift) strings only; hated 1 and 2 |
+| 3g | Round 7: strings-only variations on Hook A (in-game layers, menu), finer layer control | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 7 - strings only, in layers
+- **Michael (2026-10-15):**
+  - Loves round 6's piece 3, "Night Shift", with the brass, organ and percussion muted: strings only.
+  - Hated pieces 1 and 2.
+  - Wants variations for the dynamic in-game music and the main menu, and more control over the layers.
+- **Done:** `src/audio/score/orch/pieces.ts` rewritten. Every piece is now strings built on Hook A, rendered as one
+  file per layer.
+  - **Mission score** (92 BPM, 83 s, 9 layers):
+    - Hook A pizzicato
+    - Hook A on basses, on cellos, and on violas an octave up
+    - driving sixteenths on D
+    - a low held D
+    - held chords (D minor, B-flat, G minor, A)
+    - high tremolo
+    - the motif melody on violins
+    - Presets (game states): Calm (pizzicato, low D, a touch of tremolo, quiet), Cautious, Alert (everything),
+      Evasion (no melody, no high hook).
+  - **Alert, faster** (120 BPM, 64 s, 8 layers): presets Alert and Evasion.
+  - **Menu theme, grand** (84 BPM, 91 s, 7 layers): the hook, then the melody on cellos, then violins, a climax, a
+    long final chord.
+  - **Menu theme, brooding** (76 BPM, 101 s, 5 layers): pizzicato hook, low D, the melody on cellos, tremolo swells.
+  - **Round 6 "Night Shift" in layers** (9 layers): presets "Strings only (your pick)" and "Everything".
+- **New CC0 recordings (152):** cello section and contrabass pizzicato, viola section spiccato and tremolo.
+- **Test page:**
+  - Sections for in-game, menu and the reference piece.
+  - One sticky Layers panel: preset buttons that fade over about a bar, plus a slider (0-150 %), Mute and Solo per
+    layer, "All to 100%" and "Clear solo".
+- **Decision:** the rendered audition audio (51 MB) is no longer committed.
+  - `src/assets/music/orch/` is git-ignored, and `npm run music:orch` rebuilds it from the samples in about a minute.
+  - The page loads without it and says how to render.
+- **Measured:**
+  - Render takes 9-17 s per piece.
+  - Everything on is -16 to -20 dB loudness, with peaks at -1 dBFS.
+  - The Calm preset is set about 4 dB lower than in round 6's settings.
 
 ## V4 round 6 - orchestral, Hans Zimmer spirit, real instruments
 - **Michael (2026-10-15):**
