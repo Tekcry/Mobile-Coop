@@ -159,13 +159,15 @@ export interface DifficultyDef {
   perception: number;
   /** Reaction delays (radio, first shot). */
   reaction: number;
+  /** (locomotion step 15) Medkits carried (bible 5.13: 2, 3 at Rookie); the host's applies in co-op. */
+  medkits: number;
 }
 
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
-  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35 },
-  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1 },
-  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8 },
-  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7 },
+  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35, medkits: 3 },
+  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1, medkits: 2 },
+  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8, medkits: 2 },
+  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7, medkits: 2 },
 };
 
 /** A stored / received difficulty, including the 1.x names (easy / hard). */

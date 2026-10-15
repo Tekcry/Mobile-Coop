@@ -75,9 +75,17 @@ export class CoopClient implements NetAttachment {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
     g.takedownVictims = () => (this.pvp ? this.pvpVictimList() : this.puppetList);
-    if (!this.pvp && g.opts.mode !== 'sandbox') {
-      this.ints = new Interactables(g.scene, g.world.parts);
-      (g as { interactables: Interactables | null }).interactables = this.ints;
+    // (locomotion step 15) medkits: the host heals and counts (`mk`); the wall stations are the host's, mirrored
+    g.medkit.authority = false;
+    const own = g.interactables;
+    if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
+    if (!this.pvp) {
+      if (g.opts.mode !== 'sandbox' || !own) {
+        this.ints = new Interactables(g.scene, g.world.parts);
+        (g as { interactables: Interactables | null }).interactables = this.ints;
+      } else this.ints = own;
+      // (free roam mirrors only the host's wall medkits)
+      if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
     }
     g.hud.setObjective('Connecting to host…');
   }
@@ -107,10 +115,14 @@ export class CoopClient implements NetAttachment {
         break;
       // (locomotion step 10, A5) this player's committed move started at host time t0 / refused / interrupted
       case 'cstart':
-        if (msg.a === this.s.selfId && msg.kind === 'strike') this.g.strike.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
+        if (msg.a !== this.s.selfId) break;
+        if (msg.kind === 'strike') this.g.strike.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
+        else if (msg.kind === 'medkit') this.g.medkit.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
         break;
       case 'cdeny':
-        if (msg.a === this.s.selfId && msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
+        if (msg.a !== this.s.selfId) break;
+        if (msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
+        else if (msg.kind === 'medkit') this.g.medkit.denied(msg.id, msg.reason);
         break;
       case 'tend':
         if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
@@ -125,7 +137,8 @@ export class CoopClient implements NetAttachment {
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
   commitRequest(kind: CKind, id: number, target: string): void {
-    this.s.toHost({ t: 'cmove', kind, id, target });
+    // (step 15) a medkit on yourself names your own id (H2: a team-mate's id later)
+    this.s.toHost({ t: 'cmove', kind, id, target: kind === 'medkit' && !target ? this.s.selfId : target });
   }
 
   teamEnd(): void {
@@ -261,11 +274,15 @@ export class CoopClient implements NetAttachment {
   }
 
   /** Mirror the host's usable things: create / move / enable; gone from the list = removed. */
+  /** (step 15) Sandbox: mirror only this item kind into the client's own interactables. */
+  private mirrorOnly: NetItem['k'] | null = null;
+
   private syncItems(list: NetItem[]): void {
     const ints = this.ints;
     if (!ints) return;
     const keep = new Set<string>();
     for (const n of list) {
+      if (this.mirrorOnly && n.k !== this.mirrorOnly) continue;
       keep.add(n.id);
       let it = this.items.get(n.id);
       if (!it) {
@@ -278,6 +295,7 @@ export class CoopClient implements NetAttachment {
       it.pos.set(n.x, n.y, n.z);
       it.node.position.set(n.x, n.y, n.z);
       it.label = n.label;
+      if (n.k === 'medkitWall') it.done = !n.on;
       // your own revive point is for the others
       const on = n.on && n.id !== `revive-${this.s.selfId}`;
       if (it.enabled !== on) ints.setEnabled(it, on);
@@ -325,6 +343,8 @@ export class CoopClient implements NetAttachment {
     if (p.mv && clientForcedHolster(p.mv.dw, g.weapons.drawPhase, this.mvNow, p.hp <= 0)) g.weapons.forceHolster();
     const h = g.target.health;
     h.hp = p.hp;
+    // (step 15) kits held: the host's count
+    if (p.mk !== undefined) g.medkit.kits = p.mk;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
       if (!this.pvp) g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
@@ -447,7 +467,7 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         if (e.kind === 'ammo') g.weapons.addAmmo(0.5);
         g.events.emit('pickup', { kind: e.kind });
-        g.hud.feedItem(e.kind === 'health' ? '+50 health' : 'Ammo refilled');
+        g.hud.feedItem(e.kind === 'medkit' ? '+1 medkit' : 'Ammo refilled');
         break;
       case 'emote':
         if (e.player !== me) this.avatars.get(e.player)?.emote(e.id);

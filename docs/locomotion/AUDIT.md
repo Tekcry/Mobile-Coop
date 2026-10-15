@@ -109,7 +109,7 @@ Owner: `both` = shared `CharacterRig` / `AnimGraph` (guards via `enemyRig` / `en
 | S05 door peek | player | context | - | door | - | none | rework: missing | C/4 | - |
 | S06 drag / carry / put down | player | - | lift >= 1.0 s | body | - | none | rework: missing (Phase 5 hook: any target) | 4 | - |
 | S07 elbow strike | player | fire while holstered | - | - | - | none | rework: missing; host-approved | C | - |
-| S08 medkit use | player | item | 40 HP over 1.5 s | - | damage | none | rework: missing; host-auth | C | health.ts |
+| S08 medkit use | player | item | 40 HP over 1.5 s | - | damage | MoveState medkit (28), cmove | done step 15 | C | game/medkit.ts |
 | S09 snap cover, glide, cover-to-cover, blind fire | player | `cover` | 0.35 s; 0.25-0.42 s | faces | stumble | `cover` | remove | A | coverController.ts:50-52; coverState.ts:13 |
 | S10 coverEnter / Side / Exit / Turn clips, duckS / overS | both | cover | 0.8 / 0.8 / 0.5 / 1 s | wall hand | inert | `cover` | remove | A | actions.ts:135-174; animGraph.ts:635,642 |
 | S11 corner controller (doorway lean / check) | player | aim near corner | 0.25 / 0.9 s | corners | off | none | remove (logic may seed door peek) | A | cornerController.ts:10-11 |
@@ -152,7 +152,7 @@ Owner: `both` = shared `CharacterRig` / `AnimGraph` (guards via `enemyRig` / `en
 | V02 night vision (lighting gain) | player | vision | flip | - | - | local | pass (bible 1.10) | C | gameState.ts:1700-1711 |
 | V03 thermal / electro | player | vision | - | - | - | local | rework: missing (post passes) | C | cinematicPost.ts:156 |
 | V04 regenerating shield | both | 4 s delay | continuous | - | damage | `sh` | remove | A | health.ts:1-12; playerTarget.ts:34 |
-| V05 health pickup | player | walk over | instant | - | - | host `onPickup` | fix: becomes medkit | C | gameState.ts:696-704 |
+| V05 health pickup | player | walk over | instant | - | - | host `onPickup` | done step 15: gives a kit | C | game/pickups.ts |
 | V06 style tracker + cash | - | events | - | - | - | indirect | remove (stub, SAVE_VERSION 7 -> 8) | A | playstyle.ts:7; schema.ts:28-37 |
 | V07 D7 remap / hold-toggle / difficulty sliders | player | settings | - | - | - | local (host difficulty) | rework: pad remap missing, no alarm tolerance | C | gamepadMapping.ts:58-75; archetypes.ts:166-171 |
 

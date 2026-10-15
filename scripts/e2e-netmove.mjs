@@ -714,6 +714,21 @@ try {
   assert(sdn.why === 'noTarget' && sdn.back <= 0.3, `denied (${sdn.why}): no hit, back to ground in ${sdn.back.toFixed(2)} s`);
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client on the ground again');
 
+  // (locomotion step 15) medkit: the client (hurt on the host) uses a kit, held mid-use (a test freeze); the host's copy in
+  // mode medkit with the joints within 10 cm; the host heals it to 100 and spends one kit
+  console.log('medkit');
+  await reset();
+  await GA(() => { const r = window.__app.current.net.remotes.values().next().value; r.health.hp = 60; });
+  await until(B, () => window.__app.current.target.health.hp < 61, null, 5000, 'client hurt (host snapshot)');
+  const mOk = await GB(() => { const g = window.__app.current; g.medkit.freezeAt = 0.45; return g.medkit.begin(); });
+  assert(mOk, 'the client starts a medkit');
+  await until(B, () => window.__app.current.medkit.approved, null, 5000, 'host approves the medkit (cstart)');
+  await compare('medkit', 'medkit');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r.health.hp >= 99.9 && r.mk === 1; }, null, 10000, 'host heals the client to 100 and spends a kit');
+  await GB(() => { window.__app.current.medkit.freezeAt = -1; });
+  await until(B, () => !window.__app.current.medkit.active, null, 5000, 'medkit ends');
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client on the ground again');
+
   // (locomotion step 13) door peek: the client cracks the Proving shed door; the host's copy poses in mode doorPeek
   // (joints within 10 cm) and the host's leaf is drawn at the crack
   console.log('doorPeek');

@@ -4,7 +4,7 @@ import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive';
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive' | 'medkitWall';
 
 const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
@@ -19,6 +19,7 @@ const KIND_COLOR: Record<InteractKind, string> = {
   intel: '#ffd23f',
   charge: '#ff6b5a',
   revive: '#4fdc7c',
+  medkitWall: '#d9363e',
 };
 
 export interface Interactable {
@@ -39,7 +40,7 @@ export interface Interactable {
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
   /** Called when used (else the mode handles it). */
-  onUse?: (it: Interactable) => void;
+  onUse?: (it: Interactable, who?: string) => void;
 }
 
 /**
@@ -91,6 +92,11 @@ export class Interactables {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);
       add('box', '#1c1f24', [0.6, 0.4, 0.05], [0, 0.95, 0.24]);
       light = add('box', '#3fc1ff', [0.5, 0.3, 0.02], [0, 0.95, 0.27]);
+    } else if (kind === 'medkitWall') {
+      // (locomotion step 15) a wall medkit station: a white box on the wall (facing +z), a red cross lit while stocked
+      add('box', '#f1f1ef', [0.42, 0.34, 0.12], [0, 1.25, 0.06]);
+      add('box', '#d9363e', [0.06, 0.2, 0.02], [0, 1.25, 0.125]);
+      light = add('box', KIND_COLOR.medkitWall, [0.2, 0.06, 0.02], [0, 1.25, 0.127]);
     } else if (kind === 'cache') {
       add('box', '#59636b', [0.9, 0.5, 0.6], [0, 0.25, 0]);
       light = add('box', '#ffd23f', [0.92, 0.08, 0.62], [0, 0.45, 0]);

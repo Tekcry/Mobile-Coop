@@ -13809,7 +13809,16 @@
    },
    "pops": {
     "worst": 0,
-    "pass": true
+    "pass": true,
+    "band": 0,
+    "runs": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -13963,7 +13972,16 @@
    },
    "pops": {
     "worst": 4,
-    "pass": false
+    "pass": false,
+    "band": 3,
+    "runs": [
+     3,
+     3,
+     4,
+     1,
+     1,
+     3
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14116,8 +14134,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 3,
-    "pass": false
+    "worst": 6,
+    "pass": false,
+    "band": 5,
+    "runs": [
+     6,
+     6,
+     3,
+     6,
+     1,
+     6
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14271,7 +14298,16 @@
    },
    "pops": {
     "worst": 1,
-    "pass": false
+    "pass": false,
+    "band": 1,
+    "runs": [
+     0,
+     0,
+     1,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14432,8 +14468,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 0,
-    "pass": true
+    "worst": 1,
+    "pass": true,
+    "band": 1,
+    "runs": [
+     1,
+     1,
+     0,
+     1,
+     0,
+     1
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14595,7 +14640,16 @@
    },
    "pops": {
     "worst": 1,
-    "pass": false
+    "pass": false,
+    "band": 1,
+    "runs": [
+     1,
+     1,
+     1,
+     0,
+     0,
+     1
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14756,8 +14810,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 0,
-    "pass": true
+    "worst": 1,
+    "pass": true,
+    "band": 1,
+    "runs": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -14899,7 +14962,16 @@
    },
    "pops": {
     "worst": 0,
-    "pass": true
+    "pass": true,
+    "band": 0,
+    "runs": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15037,7 +15109,16 @@
    },
    "pops": {
     "worst": 0,
-    "pass": true
+    "pass": true,
+    "band": 0,
+    "runs": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15178,8 +15259,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 1,
-    "pass": false
+    "worst": 3,
+    "pass": false,
+    "band": 2,
+    "runs": [
+     1,
+     1,
+     1,
+     3,
+     1,
+     2
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15320,8 +15410,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 9,
-    "pass": false
+    "worst": 12,
+    "pass": false,
+    "band": 3,
+    "runs": [
+     10,
+     12,
+     9,
+     9,
+     12,
+     12
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15462,8 +15561,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 7,
-    "pass": false
+    "worst": 12,
+    "pass": false,
+    "band": 5,
+    "runs": [
+     11,
+     12,
+     7,
+     12,
+     11,
+     10
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15604,8 +15712,17 @@
     "pass": false
    },
    "pops": {
-    "worst": 10,
-    "pass": false
+    "worst": 13,
+    "pass": false,
+    "band": 7,
+    "runs": [
+     6,
+     13,
+     10,
+     10,
+     10,
+     10
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -15747,7 +15864,16 @@
    },
    "pops": {
     "worst": 22,
-    "pass": false
+    "pass": false,
+    "band": 11,
+    "runs": [
+     20,
+     20,
+     22,
+     11,
+     21,
+     16
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -16509,7 +16635,16 @@
    },
    "pops": {
     "worst": 0,
-    "pass": true
+    "pass": true,
+    "band": 0,
+    "runs": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,
@@ -16647,7 +16782,16 @@
    },
    "pops": {
     "worst": 0,
-    "pass": true
+    "pass": true,
+    "band": 0,
+    "runs": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
    },
    "lodSkip": {
     "worst": 0,

@@ -666,6 +666,59 @@ try {
       await C.browser.close();
     }
   }
+  console.log('medkit (pad X held 0.4 s; locomotion step 15): 60 -> 100 hp in 1.5 s, kits 2 -> 1; damage mid-use stops the heal');
+  {
+    const M = await launch({ url, params: 'autostart=proving' });
+    try {
+      const P = M.page;
+      await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      await P.evaluate(() => {
+        const a = window.__app;
+        a.loop.manual = true;
+        a.loop.stepHeadless(0.3, 120);
+        a.current.target.health.hp = 60;
+        window.__mk = { step: (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); } };
+      });
+      await P.evaluate(() => {
+        window.__pad.connect();
+        window.__pad.set(2, 1);
+        window.__mk.step(30);
+      });
+      await P.waitForTimeout(500);
+      await P.evaluate(() => {
+        window.__mk.step(2);
+        window.__pad.set(2, 0);
+        window.__mk.step(1);
+      });
+      const r = await P.evaluate(() => {
+        const g = window.__app.current;
+        const out = { started: g.medkit.active, kits0: g.medkit.kits, dw: g.weapons.drawPhase };
+        let t = 0;
+        while (g.medkit.active && t < 3) {
+          window.__mk.step(1);
+          t += 1 / 60;
+        }
+        Object.assign(out, { t, hp: g.target.health.hp, kits: g.medkit.kits });
+        // damage mid-use: the heal stops, the kit is spent
+        g.target.health.hp = 60;
+        g.medkit.begin();
+        window.__mk.step(45);
+        g.target.health.damage(5);
+        window.__mk.step(2);
+        const hpHit = g.target.health.hp;
+        window.__mk.step(60);
+        Object.assign(out, { hitActive: g.medkit.active, hpHit, hpAfter: g.target.health.hp, kitsHit: g.medkit.kits, lastDenied: g.medkit.lastDenied });
+        return out;
+      });
+      console.log('  ', JSON.stringify(r));
+      assert(r.started && r.kits0 === 2 && r.dw === 0, `the medkit starts holstered with 2 kits (${JSON.stringify(r)})`);
+      assert(r.hp >= 99.9 && r.kits === 1 && r.t > 1.2 && r.t < 1.6, `60 -> ${r.hp.toFixed(1)} hp in ${r.t.toFixed(2)} s, kits ${r.kits}`);
+      assert(!r.hitActive && Math.abs(r.hpAfter - r.hpHit) < 0.01 && r.hpHit > 70 && r.hpHit < 80 && r.kitsHit === 0, `damage mid-use stops the heal at ${r.hpHit.toFixed(1)} hp (kit spent: ${r.kitsHit})`);
+    } finally {
+      await M.browser.close();
+    }
+  }
+
   console.log('disconnect');
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while

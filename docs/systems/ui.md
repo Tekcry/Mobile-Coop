@@ -83,3 +83,8 @@ Design authority: docs/design-bible.md (Section 5.10)
 ## 3.5 title
 - The game's name is Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest "Night Shift" / "Night Shift (Preview CT)", short name
   "NS CT"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export magic `shoulder-strike-save`, the co-op app id.
+
+## Health bar and medkits (locomotion step 15)
+
+- `access.healthBar` now defaults on (a stored false is kept); with it off the screen-edge damage vignette is the only health readout.
+- Beside the health number: the kit count (`+N kits`, dimmed at 0, shown with the bar on or off). During a medkit use a pale fill after the health fill shows the heal still to come (`HudFrame.kits`, `heal`). Phone legibility: pending PC run.

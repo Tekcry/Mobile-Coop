@@ -122,7 +122,9 @@ describe('touch layout migration (v1 -> v2)', () => {
   });
   it('accessibility settings are clamped', () => {
     const s = sanitizeSettings({ access: { hudScale: 9, shake: -1, subtitles: 'no', holdToggle: true } });
-    expect(s.access).toMatchObject({ hudScale: 1.4, shake: 0, subtitles: true, holdToggle: true, healthBar: false });
+    // (locomotion step 15) the health bar is on by default; a stored false is kept
+    expect(s.access).toMatchObject({ hudScale: 1.4, shake: 0, subtitles: true, holdToggle: true, healthBar: true });
+    expect(sanitizeSettings({ access: { healthBar: false } }).access.healthBar).toBe(false);
   });
   it('presets cover every control and the left-handed one mirrors', async () => {
     const { LAYOUT_PRESETS, TOUCH_CONTROL_IDS } = await import('../src/core/settings');

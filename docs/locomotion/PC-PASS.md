@@ -200,3 +200,12 @@ New finding: Warehouse gfx=epic desktop with alerted guards failed the PBR compi
 MAX_TEXTURE_IMAGE_UNITS(16)", 14 times; meshes not drawn). Fixed in the PC1 fix round (LOG.md).
 
 PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, pistol `...p`) show the body stepping off the wall at 0.1-0.2 s and standing in the open with the weapon near the face; the front view never shows the aim line along the wall and a wall column hides the body from 0.3 s (walledgeleftaimp). Judge whether that is the intended lean-out (Michael) and fix the camera / warm-up in step 27's sheet work. `--shots` side camera can sit inside geometry (doorpeek-60-pelvisJump-f32.png shows only a wall).
+
+### Step 15: medkits (Michael's eyes / phone)
+
+| # | Item | Pass limit |
+| --- | --- | --- |
+| 52 | Medkit pose standing and crouched, local and the host's copy of a client (pc/s15b-medkit-crouch-*.png): off hand in front of the belt, injector to the thigh, no prop mesh (A58); elbows flare wide from the front | Reads as using a medkit, no arm through torso or thigh |
+| 53 | Pad X held 0.4 s for the medkit (A55); tap stays reload, held while aiming stays swap | Feels right on the pad |
+| 54 | Phone HUD: health bar, kit count ("+N kits") and the heal fill (pc/s15-medkit-hud.png) | Legible at arm's length |
+| 55 | Co-op: a client uses and cancels a medkit as the host sees it | No pop, health and kits agree on both screens |

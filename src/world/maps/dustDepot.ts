@@ -232,11 +232,11 @@ export const dustDepot: MapDef = {
       ],
       pickups: [
         { pos: v(-S + 3, -S + 3), kind: 'ammo' },
-        { pos: v(-11, 0), kind: 'health' },
+        { pos: v(-11, 0), kind: 'medkit' },
         { pos: v(11, 0), kind: 'ammo' },
-        { pos: v(0, 11), kind: 'health' },
+        { pos: v(0, 11), kind: 'medkit' },
         { pos: v(0, -11), kind: 'ammo' },
-        { pos: v(S, S - 3), kind: 'health' },
+        { pos: v(S, S - 3), kind: 'medkit' },
       ],
     };
   },

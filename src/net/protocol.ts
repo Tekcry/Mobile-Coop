@@ -9,8 +9,9 @@ import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
+import { MEDKIT } from '../game/medkit';
 
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -63,6 +64,8 @@ export interface PlayerState {
   f: number;
   w: WeaponId;
   hp: number;
+  /** (locomotion step 15) Medkits held, 0-3: host-authoritative (sent in snapshots; a client's own in `pstate` is ignored). */
+  mk?: number;
   /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
 }
@@ -90,7 +93,7 @@ export interface EnemyState {
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall';
   x: number;
   y: number;
   z: number;
@@ -100,7 +103,7 @@ export interface NetItem {
   reach: number;
   on: boolean;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall'];
 
 /** PvP scoreboard line. */
 export interface ScoreLine {
@@ -116,7 +119,7 @@ export type NetEvent =
   | { e: 'kill'; enemy: string; kind: EnemyKind; by: string; head: boolean }
   | { e: 'banner'; title: string; sub: string }
   | { e: 'feed'; text: string }
-  | { e: 'pickup'; player: string; kind: 'ammo' | 'health' }
+  | { e: 'pickup'; player: string; kind: 'ammo' | 'medkit' }
   | { e: 'emote'; player: string; id: string }
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
   /** A player took damage from a source at (x, z). */
@@ -245,6 +248,7 @@ function playerState(v: unknown): PlayerState | null {
     f: Math.floor(num(v.f, 0, 2047) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
+    ...(typeof v.mk === 'number' && Number.isFinite(v.mk) ? { mk: Math.max(0, Math.min(MEDKIT.max, Math.round(v.mk))) } : {}),
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
@@ -315,7 +319,7 @@ function netEvent(v: unknown): NetEvent | null {
       return { e: 'feed', text: safeText(v.text, 60) ?? '' };
     case 'pickup': {
       const player = id(v.player);
-      const kind = oneOf(v.kind, ['ammo', 'health'] as const);
+      const kind = oneOf(v.kind, ['ammo', 'medkit'] as const);
       return player && kind ? { e: 'pickup', player, kind } : null;
     }
     case 'emote': {

@@ -27,6 +27,8 @@ import { PvpVictim } from './pvpVictim';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { addKit, MEDKIT, MedkitUse, SELF_TARGET } from '../game/medkit';
+import type { PickupKind } from '../game/pickups';
 import type { TeamMate } from '../game/teamController';
 
 /** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
@@ -498,7 +500,7 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
-    if (it.onUse) it.onUse(it);
+    if (it.onUse) it.onUse(it, r.id);
     else this.g.mode?.onInteract?.(it);
   }
 
@@ -643,9 +645,60 @@ export class CoopHost implements NetAttachment {
     this.onCommitted(this.s.selfId, kind, id, target);
   }
 
-  /** The host's own strike was interrupted (damage before contact). */
-  commitCancel(id: number, reason: string): void {
-    if (reason === 'hit') this.s.send({ t: 'cdeny', a: this.s.selfId, id, kind: 'strike', reason: 'hit' });
+  /** The host's own strike or medkit was interrupted (damage). */
+  commitCancel(id: number, reason: string, kind: CKind = 'strike'): void {
+    if (reason === 'hit') this.s.send({ t: 'cdeny', a: this.s.selfId, id, kind, reason: 'hit' });
+  }
+
+  // --- (locomotion step 15) medkits: host-authoritative counts and heals ---
+
+  /** Clients' medkit uses the host runs on their health (heal over 1.5 s, damage interrupts). */
+  private medkits = new Map<string, { id: number; use: MedkitUse; last: PlayerState | null; states: number; seen: boolean }>();
+
+  /** A remote's kits (first read: the host's carry for its difficulty). */
+  private kitsOf(r: RemotePlayer): number {
+    if (r.mk < 0) r.mk = this.g.medkit.max;
+    return r.mk;
+  }
+
+  /** A wall medkit used by client `who`: one kit up to the carry max. */
+  giveMedkit(who: string): boolean {
+    const r = this.remotes.get(who);
+    if (!r) return false;
+    const n = this.kitsOf(r);
+    if (n >= this.g.medkit.max) return false;
+    r.mk = addKit(n, this.g.medkit.max);
+    return true;
+  }
+
+  /** Clients' medkits: done (a kit spent), interrupted by damage (spent, `cdeny hit`), or cancelled by the client
+   *  (its MoveState left `medkit`: the heal so far taken back, not spent; A56). The cancel is read only from snapshots
+   *  that arrived after the start (a fixed host-time grace raced the client's 20 Hz pstate under load), and not in the
+   *  last `hostEndSlack` s, where the client's own end may arrive first. */
+  private runMedkits(dt: number): void {
+    for (const [by, k] of this.medkits) {
+      const r = this.remotes.get(by);
+      if (!r) {
+        this.medkits.delete(by);
+        continue;
+      }
+      const st = r.state;
+      if (st && st !== k.last) {
+        k.last = st;
+        k.states++;
+        if (st.mv?.m === 'medkit') k.seen = true;
+        else if ((k.seen || k.states >= MEDKIT.hostStates) && k.use.t < MEDKIT.time - MEDKIT.hostEndSlack) {
+          k.use.cancel(r.health);
+          this.medkits.delete(by);
+          continue;
+        }
+      }
+      const res = k.use.step(dt, r.health);
+      if (res === 'run') continue;
+      this.medkits.delete(by);
+      r.mk = Math.max(0, this.kitsOf(r) - 1);
+      if (res === 'hit') this.s.send({ t: 'cdeny', a: by, id: k.id, kind: 'medkit', reason: 'hit' });
+    }
   }
 
   private onCommitted(by: string, kind: CKind, id: number, target: string): void {
@@ -655,13 +708,17 @@ export class CoopHost implements NetAttachment {
     const now = this.time;
     const feet = self ? this.g.player.position : r!.feet;
     let tv: CTargetView | null = null;
-    if (target) {
+    // (step 15) a medkit's target is a player (self only is wired: '' or the requester's own id; H2 a team-mate)
+    if (kind === 'medkit') {
+      if (target && target !== by) tv = { alive: false, seized: false, ko: false, dist: Infinity };
+    } else if (target) {
       const e = this.g.enemyMgr?.enemies.find((x) => x.id === target);
       tv = e ? { alive: e.alive, seized: e.taken || this.seized.has(e.id), ko: e.ko, dist: hyp2(e.pos.x - feet.x, e.pos.z - feet.z) } : { alive: false, seized: false, ko: false, dist: Infinity };
     }
     const alive = self ? this.g.player.alive : r!.alive;
     const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
-    const active = !self && this.strikes.has(by);
+    const active = !self && (this.strikes.has(by) || this.medkits.has(by));
+    const hp = self ? this.g.target.health : r!.health;
     const why = checkCommitted({
       kind,
       alive,
@@ -671,15 +728,28 @@ export class CoopHost implements NetAttachment {
       sinceLast: now - (this.commitLast.get(by) ?? -99),
       target: tv,
       slack: self ? 0 : STRIKE.lagSlack,
+      kits: self ? this.g.medkit.kits : this.kitsOf(r!),
+      hp: hp.hp,
+      maxHp: hp.maxHp,
     });
     this.commitLast.set(by, now);
     this.lastCommit = `${kind} ${target || '-'} ${why ?? 'ok'} (${mode}${active ? ', running' : ''})`;
     if (why) {
       this.s.send({ t: 'cdeny', a: by, id, kind, reason: why });
       if (self && kind === 'strike') this.g.strike.denied(id, why);
+      if (self && kind === 'medkit') this.g.medkit.denied(id, why);
       return;
     }
     this.s.send({ t: 'cstart', kind, a: by, id, target, t0: now });
+    if (kind === 'medkit') {
+      if (self) this.g.medkit.accepted(id, 0);
+      else {
+        const use = new MedkitUse();
+        use.start(SELF_TARGET, r!.health.hp);
+        this.medkits.set(by, { id, use, last: r!.state, states: 0, seen: false });
+      }
+      return;
+    }
     if (kind !== 'strike') return;
     if (self) this.g.strike.accepted(id, 0);
     else this.strikes.set(by, { id, target, t0: now, hp0: r!.health.hp, hit: false });
@@ -886,6 +956,7 @@ export class CoopHost implements NetAttachment {
       f: localFlags(g),
       w: g.weapons.current.def.id,
       hp: th.hp,
+      mk: this.g.medkit.kits,
     };
   }
 
@@ -932,7 +1003,7 @@ export class CoopHost implements NetAttachment {
     const players: PlayerState[] = [this.selfState()];
     for (const r of this.remotes.values()) {
       if (!r.state) continue;
-      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
+      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, mk: this.kitsOf(r), f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
     }
     const enemies: EnemyState[] = [];
     for (const e of this.g.enemyMgr?.enemies ?? []) {
@@ -1027,6 +1098,7 @@ export class CoopHost implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     if (this.strikes.size) this.runStrikes();
+    if (this.medkits.size) this.runMedkits(dt);
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes
@@ -1181,19 +1253,20 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) if (!r.alive) this.reviveOne(r.id, this.spawnPoint([...this.remotes.keys()].indexOf(r.id) + 1));
   }
 
-  pickers(): { id: string; feet: Vector3; needs: (k: 'ammo' | 'health') => boolean }[] {
+  pickers(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[] {
     const out = [];
     for (const r of this.remotes.values()) {
       if (!r.alive) continue;
-      out.push({ id: r.id, feet: r.feet, needs: (k: 'ammo' | 'health') => (k === 'health' ? r.health.hp < r.health.maxHp : true) });
+      out.push({ id: r.id, feet: r.feet, needs: (k: PickupKind) => (k === 'medkit' ? this.kitsOf(r) < this.g.medkit.max : true) });
     }
     return out;
   }
 
-  onPickup(kind: 'ammo' | 'health', who: string): void {
+  onPickup(kind: PickupKind, who: string): void {
     const r = this.remotes.get(who);
     if (!r) return;
-    if (kind === 'health') r.health.heal(50);
+    // (step 15) a medkit crate: one kit up to the carry max (host-authoritative)
+    if (kind === 'medkit') r.mk = addKit(this.kitsOf(r), this.g.medkit.max);
     this.push({ e: 'pickup', player: who, kind });
   }
 

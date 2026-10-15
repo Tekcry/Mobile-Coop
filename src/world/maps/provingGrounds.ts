@@ -204,9 +204,11 @@ export const provingGrounds: MapDef = {
       objectives: [],
       pickups: [
         { pos: v(-6, -2), kind: 'ammo' },
-        { pos: v(6, -2), kind: 'health' },
+        { pos: v(6, -2), kind: 'medkit' },
         { pos: v(0, 16, 2.6), kind: 'ammo' },
       ],
+      // (locomotion step 15) a wall medkit station on the south perimeter wall, facing the yard
+      medkitWalls: [{ pos: v(4, -29.6), yaw: 0 }],
       rooms: ROOMS,
     };
   },

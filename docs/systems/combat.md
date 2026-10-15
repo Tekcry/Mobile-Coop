@@ -24,3 +24,10 @@ Design authority: docs/design-bible.md (Section 5.6)
   attachment mods stay for guards and parked modes only.
 - Mouse: a second button pressed while another is held arrives as a chorded `pointermove` (no `pointerdown`);
   `keyboardMouseSource` reads it, so RMB held then LMB fires.
+
+## Medkits (locomotion step 15, bible 5.13)
+
+- Health 100, no regeneration. A medkit heals 40 linearly over 1.5 s (2.0 s on a team-mate, H2 / C14: `useMedkit` target API, only self wired). Pure: `src/game/medkit.ts` (`MEDKIT`, `MedkitUse`, `medkitCarry`, `addKit`, `medkitDenial`); controller `src/game/medkitController.ts`.
+- Carry: `DifficultyDef.medkits` (Rookie 3, others 2); the host's difficulty applies in co-op. Respawns keep the count; checkpoint health is mission-framework work.
+- Use: `medkit` action (pad X held 0.4 s while not aiming, A55; KBM H; no touch control, D1). Standing or crouched, grounded and free; movement locked, the weapon holstered (`forceHolster`, `handsBusy`). Aim, jump or sprint cancels: the kit is not spent and the heal so far is taken back; damage interrupts: the kit is spent, the heal so far stays (A56). No use at full health or with 0 kits.
+- Pickups: the `medkit` crate gives one kit up to the carry max (a full carrier walks over it). Wall station `medkitWall` (Proving Grounds only, `MapLayout.medkitWalls`): hold 0.6 s, +1 kit, single use, shown spent.

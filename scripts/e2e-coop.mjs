@@ -647,6 +647,47 @@ try {
   await shut(A);
   await shut(C);
   assert(true, 'closing clears the crack on the host and the third page');
+  // (locomotion step 15) medkits: a client heal runs on the host (hp and mk change, the client mirrors them); at 0 kits
+  // the host refuses (cdeny none); a wall medkit gives one kit, then shows spent on both pages
+  console.log('medkits: host-authoritative heal and counts, cdeny none, a wall medkit');
+  {
+    // (three pages here: the remote the host runs for this client, by its id)
+    await GA((id) => { window.__bid = id; }, await GB(() => window.__app.current.net.s.selfId));
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 60; r.mk = 2; });
+    await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01 && window.__app.current.medkit.kits === 2, null, 8000, 'client mirrors 60 hp, 2 kits');
+    await wait(400);
+    const mk = await GB(() => { const g = window.__app.current; return { ok: g.medkit.begin(), alive: g.player.alive, grounded: g.player.controller.grounded }; });
+    assert(mk.ok, `the client starts a medkit (${JSON.stringify(mk)})`);
+    try {
+      await until(A, () => { const r = window.__app.current.net.remotes.get(window.__bid); return r.health.hp >= 99.9 && r.mk === 1; }, null, 10000, 'host heals the client to 100 and spends a kit');
+    } catch (e) {
+      const dA = await GA(() => { const n = window.__app.current.net; const r = n.remotes.get(window.__bid); return { lastCommit: n.lastCommit, hp: r?.health.hp, mk: r?.mk, m: r?.state?.mv?.m, ids: [...n.remotes.keys()], bid: window.__bid, medkits: n.medkits?.size }; });
+      const dB = await GB(() => { const g = window.__app.current; return { lastDenied: g.medkit.lastDenied, count: g.medkit.count, active: g.medkit.active, kits: g.medkit.kits, hp: g.target.health.hp }; });
+      console.log('   medkit diag host', JSON.stringify(dA), 'client', JSON.stringify(dB));
+      throw e;
+    }
+    await until(B, () => { const g = window.__app.current; return g.target.health.hp >= 99.9 && g.medkit.kits === 1 && !g.medkit.active; }, null, 8000, 'client mirrors 100 hp, 1 kit');
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 50; r.mk = 0; });
+    await until(B, () => window.__app.current.medkit.kits === 0, null, 8000, 'client mirrors 0 kits');
+    await wait(400);
+    await GB(() => { const g = window.__app.current; g.medkit.id = 777; g.net.commitRequest('medkit', 777, ''); });
+    await until(B, () => window.__app.current.medkit.lastDenied === 'none', null, 8000, 'client at 0 kits gets cdeny none');
+    // a wall medkit next to the client (the station Proving places, added on this map by hand)
+    await GA(() => {
+      const g = window.__app.current;
+      const r = g.net.remotes.get(window.__bid);
+      const it = g.interactables.add('medkit-e2e', 'medkitWall', r.feet.clone().addInPlaceFromFloats(0.5, 0, 0), 'Medkit station', 0.6, 0);
+      g.interactables.setEnabled(it, true);
+      it.onUse = (x, who) => g['useWallMedkit'](x, who ?? 'local');
+    });
+    await until(B, () => !!window.__app.current.interactables?.items.find((i) => i.id === 'medkit-e2e' && i.enabled), null, 8000, 'client mirrors the wall medkit');
+    await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'medkit-e2e').onUse());
+    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return r.mk === 1 && it.done && !it.enabled; }, null, 8000, 'host: one kit, the station spent');
+    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return g.medkit.kits === 1 && (!it || !it.enabled); }, null, 8000, 'client: 1 kit, the station shown spent');
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
+    assert(true, 'the host heals the client (hp, mk mirrored), cdeny none at 0 kits, the wall medkit refills one kit and shows spent on both pages');
+  }
+
   await toLobby();
 
   console.log('host leaves');

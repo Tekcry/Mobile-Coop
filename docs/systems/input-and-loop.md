@@ -51,3 +51,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   show/hide the focus ring, glyph prompts, and the touch layer.
 - iOS exposes a controller only after its first button press: `GamepadSource` scans on every poll, not just on
   `gamepadconnected`.
+
+## Medkit binding (locomotion step 15)
+
+- Action `medkit`. Pad: X held 0.4 s (`MEDKIT_HOLD`) while not aiming; a tap stays reload; held while aiming it is still the next-weapon swap (A55). KBM: H (`BINDS` id `medkit`, remappable). Touch: none (D1 basic scheme). Step 17 lists it in the binding table.

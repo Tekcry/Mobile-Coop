@@ -107,6 +107,9 @@ names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y
 for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT']) names.push(`${s}.${k}`);
 names.push('lower', 'lowerW', 'grip.x', 'grip.y', 'grip.z', 'muz.x', 'muz.y', 'muz.z', 'hR.x', 'hR.y', 'hR.z', 'hL.x', 'hL.y', 'hL.z', 'wR', 'wL');
 names.push('raise', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
+// (step 15) the medkit use's phase (rig input, -1 none) and the anim graph's free hand targets in world (the kit hand and
+// the injector hand: no kit mesh, A58)
+names.push('kitPh', 'tL.x', 'tL.y', 'tL.z', 'tR.x', 'tR.y', 'tR.z');
 /** Remote rows: measured frame time, the copy's move mode, the host's own team-move clock and its own joints (paired moves). */
 const OWN = ['hips', 'neck', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 const MODES = ['ground', 'brace', 'boost', 'assist', 'stacked'];
@@ -151,6 +154,19 @@ await G(([NODES, W, names, LOWER]) => {
   let last = null;
   const gu = rig.graph.update.bind(rig.graph);
   rig.graph.update = (dt, i) => (last = gu(dt, i));
+  // (step 15) the medkit phase and the graph's free hand targets in world (characterRig.ts bodyToWorld, as solveArm)
+  const kitCols = (rig, last, f, o, tmp) => {
+    f[o++] = rig.input?.medkit ?? -1;
+    for (const h of last ? [last.handL, last.handR] : [null, null]) {
+      if (h) {
+        rig.bodyToWorld(h, tmp);
+        f[o++] = tmp.x;
+        f[o++] = tmp.y;
+        f[o++] = tmp.z;
+      } else o += 3, (f[o - 1] = f[o - 2] = f[o - 3] = NaN);
+    }
+    return o;
+  };
   // world ground under each ankle: a down-ray against static geometry (not the planner's own ground)
   const eng = g.scene.getPhysicsEngine();
   const rq = { membership: 2, collideWith: 1 };
@@ -273,6 +289,7 @@ await G(([NODES, W, names, LOWER]) => {
     f[o++] = ac?.m?.s ?? NaN;
     const mi = c.motionIn;
     f[o++] = mi ? Math.sqrt(mi.vx * mi.vx + mi.vz * mi.vz) : NaN;
+    o = kitCols(rig, last, f, o, tmp);
     aa.frames.push(f);
   };
   const halted = () => aa.halt >= 0 && aa.frames.length >= aa.halt;
@@ -446,6 +463,8 @@ if (!QUICK) {
 }
 // (step 13) door peek at the Proving shed door: crack, peek, close (the hand on the handle, no clip into the leaf)
 if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'doorpeek', kind: 'door', hz });
+// (step 15) a medkit at 60 hp, standing and crouched, held through the 1.5 s use
+if (!QUICK) for (const hz of [60, 120]) for (const crouch of [false, true]) transitions.push({ name: crouch ? 'medkit-crouch' : 'medkit', kind: 'medkit', crouch, hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
@@ -576,6 +595,22 @@ async function drive(sc, halt = -1) {
       t.run(1.6, { taps: { 1: 'fire' } }, hz);
       m.end = t.mark();
       m.strikes = g.strike.count.started;
+    } else if (sc.kind === 'medkit') {
+      // (locomotion step 15) a medkit at 60 hp (the KBM medkit action), standing or crouched, 1.5 s, then still
+      t.stance(!!sc.crouch, 3);
+      t.tp(-26, -26, 0);
+      g.medkit.kits = g.medkit.max;
+      g.target.health.hp = 60;
+      // crouched: settled before the record (the crouch itself is the stance row's)
+      if (sc.crouch) t.run(0.9, {}, hz);
+      t.begin(halt);
+      t.run(0.3, {}, hz);
+      m.use = t.mark();
+      t.run(2.2, { taps: { 1: 'medkit' } }, hz);
+      m.end = t.mark();
+      m.used = { started: g.medkit.count.started, done: g.medkit.count.done, hp: g.target.health.hp };
+      g.target.health.hp = g.target.health.maxHp;
+      t.stance(false, 3);
     } else if (sc.kind === 'door') {
       // (locomotion step 13) door peek: 0.7 m out from the shed door's middle facing it; the context press settles
       // (0.25 s), cracks (0.6 s) and peeks; a second press closes (0.4 s)
@@ -1070,6 +1105,8 @@ function analyze(sc, rec) {
       const f = 1 / dt;
       const s0 = Math.min(rec.n - 1, m.strike + Math.round(f * 1.1));
       res(out, 'strikeSettle', { ...M.oscP2P(col(rec, 'headNode.y', s0, m.end), L.IDLE_BREATH), extra: { started: m.strikes ?? null } }, L.IDLE_BREATH, 'step 10 / D2', 'm', s0);
+    } else if (sc.kind === 'medkit') {
+      medkitMetrics(rec, out, m, dt);
     } else if (sc.kind === 'wall') {
       wallMetrics(rec, out, m, dt);
     } else if (sc.kind === 'door') {
@@ -1094,6 +1131,46 @@ function analyze(sc, rec) {
  * reach) to the handle at the crack (doorHand), and the deepest any body joint goes past the cracked leaf's face on
  * the body's side, inside the leaf's extent (doorClip).
  */
+/**
+ * (step 15) Medkit: over the full-weight part of the use (phase 0.15 - 0.85, animGraph.ts) each wrist on its graph target
+ * (the kit in the off hand, the injector hand: no kit mesh, A58), the forearms clear of the thighs (the injector at the
+ * thigh), and 0.2 s after the use the head back to idle breathing (D2 settle).
+ */
+function medkitMetrics(rec, out, m, dt) {
+  const ph = col(rec, 'kitPh');
+  let from = -1;
+  let to = -1;
+  let end = -1;
+  for (let i = m.use ?? 0; i < rec.n; i++) {
+    if (ph[i] >= 0.15 && ph[i] <= 0.85) {
+      if (from < 0) from = i;
+      to = i + 1;
+    }
+    if (ph[i] >= 0) end = i + 1;
+  }
+  const used = m.used ?? null;
+  for (const s of ['L', 'R']) {
+    let hand = { worst: from < 0 ? NaN : 0, frame: -1 };
+    if (from >= 0) {
+      const wr = vec(rec, `wrist${s}`, from, to);
+      const tg = vec(rec, `t${s}`, from, to);
+      for (let i = 0; i < to - from; i++) {
+        const o = i * 3;
+        const d = Math.sqrt((wr[o] - tg[o]) ** 2 + (wr[o + 1] - tg[o + 1]) ** 2 + (wr[o + 2] - tg[o + 2]) ** 2);
+        if (d > hand.worst) hand = { worst: d, frame: i };
+      }
+    }
+    res(out, `kitHand${s}`, { ...hand, pass: from >= 0 && hand.worst <= L.HAND_GRIP, extra: { frames: from < 0 ? 0 : to - from, used } }, L.HAND_GRIP, 'step 15', 'm', from);
+    const a = from < 0 ? 0 : from;
+    const b = from < 0 ? 0 : to;
+    res(out, `kitClip${s}`, M.segmentDistance(vec(rec, `elbow${s}`, a, b), vec(rec, `wrist${s}`, a, b), vec(rec, `hip${s}`, a, b), vec(rec, `knee${s}`, a, b), L.LIMB_RADIUS.forearm + L.LIMB_RADIUS.thigh, L.CLIP_SELF), L.CLIP_SELF, 'step 15 / :807', 'm', a);
+  }
+  if (end >= 0) {
+    const s0 = Math.min(rec.n - 1, end + Math.round(0.2 / dt));
+    if (rec.n - s0 >= Math.round(0.3 / dt)) res(out, 'kitSettle', M.oscP2P(col(rec, 'headNode.y', s0, rec.n), L.IDLE_BREATH), L.IDLE_BREATH, 'step 15 / D2', 'm', s0);
+  }
+}
+
 function doorMetrics(rec, out, m, dt) {
   const q = m.door;
   if (!q) return;
@@ -1174,6 +1251,8 @@ function remoteScenarios() {
     out.push({ name: 'stance', kind: 'stance', hz: 60 });
     // (step 10) the elbow strike: a client strike approved by the host (cmove / cstart), posed from MoveState
     out.push({ name: 'strike', kind: 'strike', hz: 60 });
+    // (step 15) a client medkit at 60 hp (host-run, cmove / cstart), posed from MoveState
+    out.push({ name: 'medkit', kind: 'medkit', hz: 60 });
     // (step 11) back to a wall: the host's copy posed from the client's `wall` MoveState (segment, s, WALL_SUB)
     out.push({ name: 'wall', kind: 'wall', hz: 60 });
     // (step 12) the edge verbs: peek, lean-out, SWAT turn (the host's copy from WALL_SUB peek / lean, `lk`, the commit)
@@ -1196,6 +1275,7 @@ function remoteScenarios() {
 function remoteSegments(sc) {
   if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
   if (sc.kind === 'strike') return [{ d: 0.3 }, { d: 1.6, tap: 'fire' }];
+  if (sc.kind === 'medkit') return [{ d: 0.5 }, { d: 2.4, tap: 'medkit' }];
   if (sc.kind === 'door') return [{ d: 0.3 }, { d: 2.0, tap: 'cover' }, { d: 0.8, tap: 'cover' }];
   // (step 11) as the local drive: enter, slide, stop, crouch, slide back, stop
   if (sc.kind === 'wall' && sc.edge) return wallSegs(sc);
@@ -1510,6 +1590,19 @@ async function runRemote() {
       let last = null;
       const gu = rig.graph.update.bind(rig.graph);
       rig.graph.update = (dt, i) => (last = gu(dt, i));
+      // (step 15) the medkit phase and the graph's free hand targets in world (characterRig.ts bodyToWorld, as solveArm)
+      const kitCols = (rig, last, f, o, tmp) => {
+        f[o++] = rig.input?.medkit ?? -1;
+        for (const h of last ? [last.handL, last.handR] : [null, null]) {
+          if (h) {
+            rig.bodyToWorld(h, tmp);
+            f[o++] = tmp.x;
+            f[o++] = tmp.y;
+            f[o++] = tmp.z;
+          } else o += 3, (f[o - 1] = f[o - 2] = f[o - 3] = NaN);
+        }
+        return o;
+      };
       const eng = g.scene.getPhysicsEngine();
       const rq = { membership: 2, collideWith: 1 };
       const rFrom = new V();
@@ -1620,6 +1713,7 @@ async function runRemote() {
         f[o++] = 0;
         f[o++] = NaN;
         f[o++] = NaN;
+        o = kitCols(rig, last, f, o, tmp);
         // remote extras
         f[o++] = mdt;
         f[o++] = MODES.indexOf(av.mode);
@@ -1934,7 +2028,7 @@ async function runRemote() {
         await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); });
         for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
       } else {
-        let s = sc.kind === 'stance' || sc.kind === 'strike' || sc.kind === 'door' ? FLAT : SURF[sc.surface];
+        let s = sc.kind === 'stance' || sc.kind === 'strike' || sc.kind === 'door' || sc.kind === 'medkit' ? FLAT : SURF[sc.surface];
         if (sc.kind === 'wall') {
           // (step 11) B 0.85 m out from a free high wall facing it (A's player then stands BEHIND m further out)
           sc.plane ??= await A.evaluate(...findPlane(sc));
@@ -1948,6 +2042,8 @@ async function runRemote() {
           sc.door.handLen = await A.evaluate(() => window.__app.current.net.remotes.values().next().value.avatar.rig.p.hand.len);
           s = { x: sc.door.sx, z: sc.door.sz, yaw: sc.door.syaw, y: sc.door.y };
         }
+        // (step 15) the host owns B's health and kits: 60 hp and a full carry before the use (the snapshot carries both)
+        if (sc.kind === 'medkit') await A.evaluate(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; r.health.hp = 60; r.mk = g.medkit.max; });
         const segs = remoteSegments(sc);
         await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
         await A.evaluate(() => window.__ar.begin());
@@ -1987,6 +2083,7 @@ async function runRemote() {
       if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
+      else if (sc.kind === 'medkit') m = { use: mk[1], end: mk[2] ?? rec.n };
       else if (sc.kind === 'door') m = { enter: mk[0], press: mk[1], close: mk[2] ?? rec.n, end: Math.min(rec.n, mk[3] ?? rec.n), door: sc.door };
       else if (sc.kind === 'wall' && sc.edge) m = { enter: mk[0], on: mk[1], end: rec.n, plane: sc.plane };
       else if (sc.kind === 'wall') m = { enter: mk[0], on: mk[1], stop: mk[2], crouch: mk[3], back: mk[4], stop2: mk[5], end: Math.min(rec.n, mk[6] ?? rec.n), plane: sc.plane };

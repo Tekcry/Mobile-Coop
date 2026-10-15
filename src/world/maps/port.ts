@@ -416,7 +416,7 @@ export const port: MapDef = {
       ],
       pickups: [
         { pos: v(7.6, -27.4, 0.95), kind: 'ammo' },
-        { pos: v(27, -12.6, 1.2), kind: 'health' },
+        { pos: v(27, -12.6, 1.2), kind: 'medkit' },
         { pos: v(-25, 26.6, DECK_Y + 1.0), kind: 'ammo' },
       ],
       rooms: ROOMS,

@@ -52,6 +52,9 @@ export const MOVE_MODES = [
   // (locomotion step 13) the door peek: `a` the door index, `sub` bit 1 the hinge on the body's right, `ph` the door's
   // drawn crack (0..DOOR.crack); the crack itself is the door's (host-authoritative, snapshot `dcr`)
   'doorPeek',
+  // (locomotion step 15) using a medkit (host-approved, A5): `ph` progress 0..1, `tid` the target player id ('' = self);
+  // movement locked, the weapon holstered (`dw` 0)
+  'medkit',
 ] as const;
 export type MoveMode = (typeof MOVE_MODES)[number];
 
@@ -268,10 +271,12 @@ export interface MovePose {
   drawn: boolean;
   /** (step 12b, D9) The weapon in the left hand at a left wall edge (WALL_SUB.leftHand 128); the rig blends it. */
   leftHand: boolean;
+  /** (step 15) Medkit use progress 0..1, or < 0: the kit in the off hand, the injector to the thigh. */
+  medkit: number;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, medkit: -1 };
 }
 
 /**
@@ -290,6 +295,7 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
   out.leftHand = false;
+  out.medkit = -1;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
@@ -385,6 +391,11 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'strike':
       // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered)
       out.melee = mv.ph;
+      out.drawn = false;
+      return out;
+    case 'medkit':
+      // (step 15) the kit in the off hand, the injector to the thigh; hands busy (holstered)
+      out.medkit = mv.ph;
       out.drawn = false;
       return out;
     case 'brace':

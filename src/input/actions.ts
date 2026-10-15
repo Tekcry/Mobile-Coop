@@ -4,6 +4,8 @@ export const BUTTON_ACTIONS = [
   'fire',
   'ads',
   'reload',
+  /** (locomotion step 15) Use a medkit (pad: X held while not aiming; KBM H; no touch control, D1). */
+  'medkit',
   'jump',
   /** (3.2.0) The manual jump (touch Jump button; Y / E jump when nothing else is offered). */
   'leap',

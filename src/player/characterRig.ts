@@ -76,6 +76,8 @@ export interface RigPose {
   traverse?: TraverseKind;
   traverseT?: number;
   melee?: number;
+  /** (locomotion step 15) Medkit use 0..1, or < 0. */
+  medkit?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
   /** Doorway check sweep 0..1, or < 0. */
@@ -932,6 +934,7 @@ export class CharacterRig {
     i.traverse = s.traverse ?? 'none';
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
+    i.medkit = s.medkit ?? -1;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;
     i.phase = s.phase ?? -1;

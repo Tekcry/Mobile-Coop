@@ -19,7 +19,7 @@ try {
   assert(marker === 1, 'a marker on the target');
   // HUD v3 defaults
   const hud = await G(() => ({ noBar: document.querySelector('.hud').classList.contains('no-hbar'), bar: getComputedStyle(document.querySelector('.bar.health')).display }));
-  assert(hud.noBar && hud.bar === 'none', 'no health bar by default (screen-edge vignette)');
+  assert(!hud.noBar && hud.bar !== 'none', 'the health bar shows by default (step 15)');
   await G(() => window.__app.loop.stepHeadless(0.1));
   await wait(3400);
   const quiet = await G(() => document.querySelector('.hud-weapon').classList.contains('quiet'));

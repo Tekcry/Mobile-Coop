@@ -1,7 +1,8 @@
 import { TransformNode, Vector3, type AbstractMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 
-export type PickupKind = 'ammo' | 'health';
+/** (locomotion step 15) `medkit`: one kit up to the carry max (was `health`, +50 hp). */
+export type PickupKind = 'ammo' | 'medkit';
 
 interface Pickup {
   kind: PickupKind;
@@ -35,7 +36,7 @@ export class Pickups {
         m.position.set(...p);
         ps.push(m);
       };
-      if (s.kind === 'health') {
+      if (s.kind === 'medkit') {
         add('box', '#f1f1ef', [0.5, 0.32, 0.36], [0, 0.16, 0]);
         add('box', '#d9363e', [0.36, 0.1, 0.38], [0, 0.18, 0]);
         add('box', '#d9363e', [0.1, 0.1, 0.38], [0, 0.18, 0]);

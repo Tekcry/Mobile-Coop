@@ -11,9 +11,10 @@ import { STRIKE } from './elbowStrike';
 export const CKINDS = ['strike', 'medkit'] as const;
 export type CKind = (typeof CKINDS)[number];
 
-export type CDenial = 'rate' | 'dead' | 'busy' | 'far' | 'noTarget';
+/** (step 15) `none`: no medkit held; `full`: at full health. */
+export type CDenial = 'rate' | 'dead' | 'busy' | 'far' | 'noTarget' | 'none' | 'full';
 /** Every reason a `cdeny` carries: a check's denial, or the host interrupting a started move (damage). */
-export const CDENY_REASONS = ['rate', 'dead', 'busy', 'far', 'noTarget', 'hit'] as const;
+export const CDENY_REASONS = ['rate', 'dead', 'busy', 'far', 'noTarget', 'hit', 'none', 'full'] as const;
 export type CDenyReason = (typeof CDENY_REASONS)[number];
 
 /** Seconds between two requests of one player. */
@@ -43,6 +44,10 @@ export interface CRequest {
   target: CTargetView | null;
   /** Extra reach (m): the lag slack for a client, 0 for the host's own. */
   slack: number;
+  /** (step 15, medkit) The requester's kits held and health in the host's view. */
+  kits?: number;
+  hp?: number;
+  maxHp?: number;
 }
 
 const TEAM_BUSY = new Set<string>(['brace', 'boost', 'stacked', 'takedown', 'grab']);
@@ -54,6 +59,10 @@ export function checkCommitted(r: CRequest): CDenial | null {
   const m = r.mode as MoveMode;
   // (the requester's own predicted `strike` mode is not busy; the host's record of a running move is)
   if (r.downed || r.active || TEAM_BUSY.has(m) || isAttachedMode(m) || isCommittedMode(m)) return 'busy';
+  if (r.kind === 'medkit') {
+    if ((r.kits ?? 0) <= 0) return 'none';
+    if ((r.hp ?? 0) >= (r.maxHp ?? 100)) return 'full';
+  }
   const t = r.target;
   if (t) {
     if (!t.alive || t.seized || t.ko) return 'noTarget';

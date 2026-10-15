@@ -8,6 +8,7 @@ import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
 import { GEARS } from '../../config/movement';
+import { MEDKIT } from '../../game/medkit';
 
 export interface HudFrame {
   hp: number;
@@ -30,6 +31,9 @@ export interface HudFrame {
   yaw: number;
   /** Compass markers: world bearing (radians) + label/colour. */
   markers: { bearing: number; kind: 'objective' | 'enemy' }[];
+  /** (locomotion step 15) Medkits held, and a use in progress 0..1 (< 0 none; optional for old callers). */
+  kits?: number;
+  heal?: number;
 }
 
 const COMPASS_PX_PER_RAD = 120;
@@ -39,6 +43,9 @@ export class Hud {
   readonly el: HTMLElement;
   private hpFill: HTMLElement;
   private hpText: HTMLElement;
+  /** (step 15) The heal still to come during a medkit use (on the bar, after the fill) and the kit count. */
+  private healFill: HTMLElement;
+  private kitText: HTMLElement;
   private wName: HTMLElement;
   private wMag: HTMLElement;
   private wRes: HTMLElement;
@@ -86,6 +93,8 @@ export class Hud {
   constructor(parent: HTMLElement) {
     this.hpFill = h('div', { class: 'bar-fill hp' });
     this.hpText = h('div', { class: 'vital-text' });
+    this.healFill = h('div', { class: 'bar-fill heal' });
+    this.kitText = h('div', { class: 'vital-kits', title: 'Medkits' });
     this.staminaFill = h('i');
     this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
     this.exposureEl = h('div', { class: 'tac-exposure', html: '<b>EXPOSED</b><span><i></i><i></i><i></i><i></i><i></i></span>' });
@@ -97,8 +106,8 @@ export class Hud {
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
-      h('div', { class: 'bar health' }, this.hpFill),
-      this.hpText,
+      h('div', { class: 'bar health' }, this.hpFill, this.healFill),
+      h('div', { class: 'vital-row' }, this.hpText, this.kitText),
       this.staminaBar,
       h('div', { class: 'hud-tac' }, this.lightEl, this.gearEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
@@ -174,7 +183,7 @@ export class Hud {
   }
 
   /** Health shown as bars (else only the screen-edge vignette); ammo always on (else it fades when unchanged). */
-  private healthBar = false;
+  private healthBar = true;
   private ammoAlways = false;
   private ammoT = 0;
   private ammoKey = '';
@@ -217,6 +226,19 @@ export class Hud {
       this.hpText.textContent = `${Math.ceil(f.hp)}`;
       // the screen edge reddens with damage: the only health readout without the bars
       this.vignette.style.opacity = String(this.healthBar ? (hpPct < 0.35 ? (0.35 - hpPct) * 2.2 : 0) : hpPct < 0.9 ? Math.min(0.95, Math.pow((0.9 - hpPct) / 0.9, 0.8) * 1.05) : 0);
+    });
+    // (step 15) the kit count beside the bar, and the heal still to come while a kit is in use (MEDKIT heal 40 of 100)
+    const kits = f.kits ?? -1;
+    this.set('kits', kits, () => {
+      this.kitText.textContent = kits >= 0 ? `+${kits}` : '';
+      this.kitText.classList.toggle('none', kits === 0);
+    });
+    const heal = f.heal ?? -1;
+    const left = heal >= 0 ? Math.max(0, Math.min(1 - hpPct, (MEDKIT.heal * (1 - heal)) / f.maxHp)) : 0;
+    this.set('heal', Math.round(left * 200) + (heal >= 0 ? 1000 : 0), () => {
+      this.healFill.style.left = `${hpPct * 100}%`;
+      this.healFill.style.width = `${left * 100}%`;
+      this.healFill.classList.toggle('on', heal >= 0);
     });
     this.set('wn', f.weapon, () => (this.wName.textContent = f.weapon));
     this.set('mag', f.mag, () => {

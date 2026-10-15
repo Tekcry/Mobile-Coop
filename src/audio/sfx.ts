@@ -252,8 +252,8 @@ export class Sfx {
     this.tone('sfx', 0.18 * gain, pan, 'sawtooth', 70, 300, 0.6, 0, 0.3);
   }
 
-  pickup(kind: 'ammo' | 'health'): void {
-    const base = kind === 'health' ? 660 : 520;
+  pickup(kind: 'ammo' | 'medkit'): void {
+    const base = kind === 'medkit' ? 660 : 520;
     this.tone('ui', 0.22, 0, 'triangle', base, base, 0.08);
     this.tone('ui', 0.22, 0, 'triangle', base * 1.5, base * 1.5, 0.12, 0.07);
   }

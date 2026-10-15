@@ -19,6 +19,7 @@ export type BindId =
   | 'traverse'
   | 'use'
   | 'reload'
+  | 'medkit'
   | 'nextWeapon'
   | 'prevWeapon'
   | 'gadget'
@@ -52,6 +53,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },
   { id: 'use', label: 'Use', actions: ['interact'], defaults: ['KeyF'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
+  { id: 'medkit', label: 'Use medkit', actions: ['medkit'], defaults: ['KeyH'] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: ['KeyX'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
   { id: 'gadget', label: 'Gadget (hold to aim)', actions: ['grenade'], defaults: ['KeyG'] },

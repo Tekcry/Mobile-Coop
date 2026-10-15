@@ -91,3 +91,8 @@ Only one agent uses port 4189 at a time. Never use `npx vite preview`, `npm run 
   - 4189: GPU work (anim-audit, anim-sheet, shot, perf-trend, E2E_GPU=1 single suites).
   - Inside one checker, while the 4191 quick suite runs in the background, only deterministic GPU work runs on 4189: anim-sheet, shot and `anim-audit --local`. perf-trend, `anim-audit --remote` (real-time rows) and E2E_GPU=1 netmove / coop wait until the quick suite has finished (load skews their numbers). Free and check each port with its own number.
 - Not overlapped: a step's checker and the next step's implementer. They share the working tree and dist/ (the checker's diff and served build would change under it). One code-changing agent at a time is unchanged.
+
+## Desktop tuning (M11, Michael, 2026-10-15; overrides M10 where they differ)
+- Quick and full e2e: `E2E_JOBS=2` (default on this 8-thread desktop), port 4191, run alone: no GPU work overlaps it. GPU items (audit local and remote, sheets, shots, perf-trend) run on 4189 after it finishes. (M10's JOBS=3 plus overlap caused extra load-only failures, each costing 2 solo reruns.)
+- Implementer budget: about 100 tool calls on the big steps (16 arsenal, 18 remap, 20 bot partner); about 60 elsewhere. Checkers stay about 60.
+- Implementers grep scripts/ and tests/ for assertions on any default they change (settings, HUD, bindings, carry counts) and update them before handing over.

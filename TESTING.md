@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 15 - medkits (PC, controller, phone)
+- [ ] Pad: at under 100 hp hold X (not aiming) about half a second: the operator holsters, injects at the thigh, health rises 40 over 1.5 s, kit count drops by one. KBM: H.
+- [ ] Take damage mid-heal: the heal stops and the kit is spent. Aim, jump or sprint mid-heal cancels and keeps the kit.
+- [ ] Full health: holding X does nothing. Rookie starts with 3 kits, other difficulties 2.
+- [ ] Proving: the wall medkit station gives one kit, then shows spent.
+- [ ] Phone check: the health bar and kit count are legible; the heal fill shows during use.
+- [ ] Co-op: a client heals; the host sees the medkit pose and the client's health rise; a client with no kits gets refused.
+
 ## Locomotion PC1 - desktop GPU catch-up (PC)
 - [ ] Desktop, Epic preset, Warehouse: get spotted so guards raise flashlights; near walls and floors keep drawing (no missing meshes), one flashlight casts a shadow.
 - [ ] Co-op: watch a team-mate peek at a back-to-wall edge; the peek eases in, the feet stay planted.

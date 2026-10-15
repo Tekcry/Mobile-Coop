@@ -42,6 +42,8 @@ export class RemotePlayer implements Damageable {
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
+  /** (locomotion step 15) Medkits held, host-authoritative (-1 = not set yet: the host's carry for its difficulty). */
+  mk = -1;
   private wallSpot: CoverSpot | null = null;
   /** (step 09) The validated lobby loadout (`PlayerInfo.loadout`) and the last weapon id accepted from it. */
   loadout: readonly WeaponId[] = [];
