@@ -1,6 +1,6 @@
 # Menu UI redesign - overview and plan
 
-Status (2026-10-15): planned. Step 1 (design spec and working prototype) not started. Start it with the prompt in
+Status (2026-10-15): planned. Step 1 not started. Plain-English steps, models and when to clear: [RUNBOOK.md](RUNBOOK.md). Start step 1 with
 [STEP1-PROMPT.md](STEP1-PROMPT.md). Branch: `feature/menu-ui-spec` (docs only, off master; Michael merges).
 
 ## Goal (Michael, 2026-10-15)
