@@ -109,6 +109,57 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'shadows',
+    name: 'Sneaking: Shadows (cinematic)',
+    about: 'Slow and vast, like the quiet before a big film scene (72 BPM). Calm: low strings breathing on a held D, soft chords shifting underneath (D minor, B-flat, G minor, A), a high string shimmer, a horn calling far away, a deep sub. Cautious adds a soft pulse rubbing D against E-flat, a timpani heartbeat, the broken Hook A and strings slowly rising.',
+    use: 'stealth',
+    bpm: 72,
+    bars: 24,
+    target: -22,
+    layers: [
+      S('pedal', 'Low strings breathing on D'),
+      S('harmony', 'Soft shifting chords (cellos, violas)'),
+      S('shimmer', 'High string shimmer'),
+      { id: 'farHorn', name: 'Horn calling far away', kind: 'brass' },
+      S('sub', 'Deep sub'),
+      S('pulse', 'Soft pulse, D against E-flat (violas)'),
+      { id: 'heart', name: 'Timpani heartbeat', kind: 'perc' },
+      S('frag', 'Hook A fragment, plucked'),
+      S('rise', 'Strings slowly rising'),
+    ],
+    presets: {
+      Calm: { pedal: 0.5, harmony: 0.35, shimmer: 0.25, farHorn: 0.3, sub: 0.4 },
+      Cautious: { pedal: 0.55, harmony: 0.45, shimmer: 0.3, farHorn: 0.35, sub: 0.45, pulse: 0.5, heart: 0.5, frag: 0.45, rise: 0.45 },
+      'Calm, near silence': { pedal: 0.4, shimmer: 0.15, sub: 0.35 },
+      'Everything on': { pedal: 1, harmony: 1, shimmer: 1, farHorn: 1, sub: 1, pulse: 1, heart: 1, frag: 1, rise: 1 },
+    },
+  },
+  {
+    id: 'gathering',
+    name: 'Sneaking: Gathering storm (cinematic)',
+    about: 'Tension building like a film thriller (88 BPM). Calm: a low cello tremolo swelling and fading, distant timpani rolls like far-off thunder, a high violin note held above, a deep sub. Cautious adds a slow cello ostinato that builds, low horn swells, a heartbeat drum and the broken Hook A.',
+    use: 'stealth',
+    bpm: 88,
+    bars: 32,
+    target: -22,
+    layers: [
+      S('trem', 'Low cello tremolo'),
+      { id: 'thunder', name: 'Distant timpani rolls', kind: 'perc' },
+      S('high', 'High violins, held'),
+      S('sub', 'Deep sub'),
+      S('ost', 'Slow cello ostinato, building'),
+      { id: 'horns', name: 'Low horn swells', kind: 'brass' },
+      { id: 'heart', name: 'Heartbeat drum', kind: 'perc' },
+      S('frag', 'Hook A fragment, plucked'),
+    ],
+    presets: {
+      Calm: { trem: 0.45, thunder: 0.35, high: 0.25, sub: 0.4 },
+      Cautious: { trem: 0.55, thunder: 0.4, high: 0.3, sub: 0.5, ost: 0.5, horns: 0.35, heart: 0.45, frag: 0.45 },
+      'Calm, near silence': { trem: 0.35, sub: 0.35, high: 0.12 },
+      'Everything on': { trem: 1, thunder: 1, high: 1, sub: 1, ost: 1, horns: 1, heart: 1, frag: 1 },
+    },
+  },
+  {
     id: 'grandsoft',
     name: 'Menu theme, Grand, dialled back',
     about: 'The menu theme (kept): 90 BPM, the hook alone, then the melody on cellos, then violins and the whole section, a long final chord. Starts on the softer mix; "Full" is the original balance.',
@@ -527,6 +578,93 @@ function grandHorns(s: Score): void {
  * Render a piece. A loop is circular: its start holds the ringing-out tail of its own last bar, so it joins seamlessly.
  * With `linear`, nothing wraps: the start is clean, as when the piece begins from silence (the player's first pass).
  */
+
+// ------------------------------------------------------------------ round 17: cinematic sneaking sets
+
+/** Hook A's opening (D . D3 D) plucked, with the bass on the first note, every `every` bars from `from`. */
+function hookFragment(s: Score, layer: string, from: number, to: number, every: number, vel: number): void {
+  for (let b = from; b < to; b += every) {
+    for (const [i, m, v] of [[0, D, 1], [2, D + 12, 0.8], [3, D, 0.85]] as const) note(s.L(layer), s.bank, 'celloPizz', m, s.t(b, i / 2), s.d(1), { vel: vel * v, release: 0.3 });
+    note(s.L(layer), s.bank, 'bassPizz', D - 12, s.t(b), s.d(1), { vel: vel * 0.85, release: 0.3 });
+  }
+}
+
+function shadowsLoop(s: Score): void {
+  const N = s.meta.bars;
+  // low strings breathing on D: long swells in and out every 8 bars
+  for (let b = 0; b < N; b += 8) {
+    const dur = s.d(32);
+    for (const [inst, m, v] of [['bassSus', D, 1], ['celloSus', D, 1], ['celloSus', D + 7, 0.6]] as const) {
+      note(s.L('pedal'), s.bank, inst, m, s.t(b), dur, { vel: 0.5 * v, attack: dur * 0.55, release: dur * 0.4 });
+    }
+  }
+  // soft chords shifting over the D every 4 bars
+  const ch: ChordName[] = ['Dm', 'Bb', 'Gm', 'A', 'Bb', 'Dm'];
+  for (let k = 0; k < N / 4; k++) {
+    const c = CH[ch[k % ch.length]!];
+    const dur = s.d(16);
+    note(s.L('harmony'), s.bank, 'celloSus', c.tones[1]!, s.t(k * 4), dur, { vel: 0.4, attack: dur * 0.5, release: dur * 0.4 });
+    note(s.L('harmony'), s.bank, 'violaSus', c.tones[2]!, s.t(k * 4), dur, { vel: 0.35, attack: dur * 0.5, release: dur * 0.4 });
+  }
+  // a high shimmer: violins in tremolo on A5 and D6, swelling far above
+  for (let b = 2; b < N; b += 8) {
+    const dur = s.d(24);
+    for (const [m, v] of [[n('A5'), 1], [n('D6'), 0.8]] as const) note(s.L('shimmer'), s.bank, 'violinTrem', m, s.t(b), dur, { vel: 0.3 * v, attack: dur * 0.5, release: dur * 0.45 });
+  }
+  // a horn calling far away: D then A, slow swells, every 12 bars
+  for (const b of [4, 16]) {
+    note(s.L('farHorn'), s.bank, 'hornSus', n('D3'), s.t(b), s.d(8), { vel: 0.35, attack: s.d(4), release: s.d(3) });
+    note(s.L('farHorn'), s.bank, 'hornSus', n('A3'), s.t(b + 2), s.d(10), { vel: 0.32, attack: s.d(4), release: s.d(4) });
+  }
+  for (let b = 0; b < N; b += 8) subBass(s.L('sub'), s.t(b), s.d(32), D - 12, 0.2, s.d(8));
+  // Cautious: a soft pulse rubbing D against E-flat (violas, eighths), a timpani heartbeat, the broken hook, strings rising
+  for (let b = 0; b < N; b++) {
+    if (b % 8 === 7) continue;
+    const m = b % 2 === 0 ? n('D4') : n('Eb4');
+    for (let i = 0; i < 8; i++) note(s.L('pulse'), s.bank, 'violaSpic', m, s.t(b, i / 2), s.d(0.45), { vel: i % 4 === 0 ? 0.65 : 0.5, release: 0.1 });
+    timp(s.L('heart'), s.bank, n('D3'), s.t(b), 0.6);
+    timp(s.L('heart'), s.bank, n('D3'), s.t(b, 0.5), 0.42);
+  }
+  hookFragment(s, 'frag', 1, N, 4, 0.55);
+  for (let b = 0; b < N; b += 2) {
+    const m = n('A3') + Math.floor((b % 8) / 2);
+    note(s.L('rise'), s.bank, 'violaTrem', m, s.t(b), s.d(8), { vel: 0.5, attack: s.d(6), release: 0.6 });
+    note(s.L('rise'), s.bank, 'celloTrem', m - 12, s.t(b), s.d(8), { vel: 0.45, attack: s.d(6), release: 0.6 });
+  }
+}
+
+function gatheringLoop(s: Score): void {
+  const N = s.meta.bars;
+  // a low cello tremolo on D (and A above it), swelling in and fading every 8 bars
+  for (let b = 0; b < N; b += 8) {
+    const dur = s.d(32);
+    note(s.L('trem'), s.bank, 'celloTrem', n('D3'), s.t(b), dur, { vel: 0.75, attack: dur * 0.5, release: dur * 0.45 });
+    note(s.L('trem'), s.bank, 'celloTrem', n('A2'), s.t(b), dur, { vel: 0.65, attack: dur * 0.5, release: dur * 0.45 });
+  }
+  // distant thunder: soft timpani rolls swelling into bars 8, 16, 24 and the loop top
+  for (const b of [6, 14, 22, 30]) timp(s.L('thunder'), s.bank, n('D3'), s.t(b), 0.45, true);
+  // a high violin note held above it all, changing every 8 bars (A5, B-flat5, A5, G5)
+  for (const [b, m] of [[0, 'A5'], [8, 'Bb5'], [16, 'A5'], [24, 'G5']] as const) {
+    const dur = s.d(32);
+    note(s.L('high'), s.bank, 'violinSus', n(m), s.t(b), dur, { vel: 0.35, attack: dur * 0.4, release: dur * 0.4 });
+  }
+  for (let b = 0; b < N; b += 8) subBass(s.L('sub'), s.t(b), s.d(32), D - 12, 0.2, s.d(8));
+  // Cautious: a slow cello ostinato in eighths (D F A F), building through each 8 bars
+  const OST = [n('D3'), n('F3'), n('A3'), n('F3')];
+  for (let b = 0; b < N; b++) {
+    if (b % 8 === 7) continue;
+    const grow = 0.35 + 0.04 * (b % 8);
+    for (let i = 0; i < 8; i++) note(s.L('ost'), s.bank, 'celloSpic', OST[i % 4]! + (b % 8 >= 4 && i >= 6 ? 1 : 0), s.t(b, i / 2), s.d(0.45), { vel: grow * (i % 4 === 0 ? 1 : 0.75), release: 0.1 });
+  }
+  for (let b = 0; b < N; b += 4) {
+    const c = CH[PROG[(b / 4) % 4]!];
+    note(s.L('horns'), s.bank, 'hornSus', c.tones[0]!, s.t(b), s.d(16), { vel: 0.25, attack: s.d(8), release: s.d(4) });
+    note(s.L('horns'), s.bank, 'hornSus', c.tones[2]!, s.t(b), s.d(16), { vel: 0.22, attack: s.d(8), release: s.d(4) });
+  }
+  heartbeat(s, 'heart', 0, N, 0.5);
+  hookFragment(s, 'frag', 1, N, 4, 0.55);
+}
+
 export function renderPiece(bank: Bank, meta: PieceMeta, linear = false): Piece {
   const s = new Score(bank, meta, linear);
   switch (meta.id) {
@@ -538,6 +676,12 @@ export function renderPiece(bank: Bank, meta: PieceMeta, linear = false): Piece 
       break;
     case 'heartbeat':
       heartbeatLoop(s);
+      break;
+    case 'shadows':
+      shadowsLoop(s);
+      break;
+    case 'gathering':
+      gatheringLoop(s);
       break;
     case 'grandnight':
       grandNight(s);

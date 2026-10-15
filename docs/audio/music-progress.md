@@ -24,8 +24,29 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3m | Round 13: more Alert faster versions, slower menu copies, "Alert, under fire" | done; see round 14 for his ratings |
 | 3n | Round 14: bass for Under fire; calmer, quieter menus | done |
 | 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done |
-| 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done; waiting for Michael's feedback |
+| 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done |
+| 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 17 - cinematic sneaking sets
+- **Michael (2026-10-16):**
+  - "Create some alternatives again, focus on keeping the epic feel. Keep what you currently have."
+  - "I really want all of it to make you feel like you're in a movie, but suit the situation you are in."
+- **Done (kept everything; added two sneaking sets, each with Calm, Cautious, near silence and everything-on mixes,
+  playable with Under fire through the director):**
+  - **Shadows (cinematic)** (72 BPM, 80 s, 9 layers):
+    - Calm: low strings breathing on a held D; soft chords shifting underneath (D minor, B-flat, G minor, A,
+      B-flat); a high tremolo shimmer on A5 and D6; a horn calling far away; a deep sub.
+    - Cautious adds: a soft viola pulse alternating D and E-flat, a timpani heartbeat, the broken Hook A, cellos and
+      violas in tremolo rising a semitone every 2 bars.
+  - **Gathering storm (cinematic)** (88 BPM, 87 s, 8 layers):
+    - Calm: a low cello tremolo on D and A, swelling and fading; soft timpani rolls like distant thunder; a high
+      violin note held above (A, B-flat, A, G); a deep sub.
+    - Cautious adds: a slow cello ostinato (D F A F) building through each 8 bars, low horn swells, the heartbeat
+      drum, the broken Hook A.
+- **Balance:** after the first render, the Shadows pulse and timpani heartbeat went up about 5-7 dB, the Gathering
+  storm tremolo up about 4.5 dB, and its horns down about 3.5 dB.
+- **Note:** the app had stopped the test server. It was restarted on port 5180 (the LAN link works again).
 
 ## V4 round 16 - Heartbeat; quieter Calm; clean openings
 - **Michael (2026-10-16):**
