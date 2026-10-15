@@ -318,14 +318,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 8 is refused; version 9 joins (step 15)', () => {
-    expect(PROTOCOL_VERSION).toBe(9);
+  it('a peer on protocol version 9 is refused; version 10 joins (step 19)', () => {
+    expect(PROTOCOL_VERSION).toBe(10);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 8, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 9, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 9, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 10, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -403,7 +403,7 @@ import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, pose
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(9);
+    expect(PROTOCOL_VERSION).toBe(10);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -600,7 +600,7 @@ import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate'
 describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
   it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(9);
+    expect(PROTOCOL_VERSION).toBe(10);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
@@ -679,6 +679,26 @@ describe('step 13: door peek on the wire', () => {
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 8', () => {
-    expect(PROTOCOL_VERSION).toBe(9);
+    expect(PROTOCOL_VERSION).toBe(10);
+  });
+});
+
+describe('custom difficulty on the wire (locomotion step 19)', () => {
+  it('lobby / start with dc parse and clamp; base must be a preset', () => {
+    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
+    expect(s).toMatchObject({ difficulty: 'custom', dc: { b: 'rookie', p: 0.5, a: 1.3, t: 2 } });
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect(l).toMatchObject({ difficulty: 'custom', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    const bad = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'custom', p: 0.5, a: 1, t: 2 } });
+    expect(bad).not.toBeNull();
+    expect((bad as { dc?: unknown }).dc).toBeUndefined();
+  });
+
+  it('a non-custom lobby / start ignores dc', () => {
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'realistic', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect(l).toMatchObject({ difficulty: 'realistic' });
+    expect((l as { dc?: unknown }).dc).toBeUndefined();
+    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect((s as { dc?: unknown }).dc).toBeUndefined();
   });
 });

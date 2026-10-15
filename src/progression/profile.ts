@@ -1,6 +1,6 @@
 import type { SaveData } from '../save/schema';
 import type { SessionStats } from '../game/modes/gameMode';
-import type { Difficulty } from '../ai/enemyDefs';
+import type { DifficultyPreset } from '../ai/archetypes';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import type { LoadoutEntry } from '../weapons/playerWeapons';
 import { computeRewards, type SessionRewards } from './rewards';
@@ -67,7 +67,7 @@ export interface SessionReport {
 export const LEVEL_UP_CREDITS = 200;
 
 /** Apply a finished session to the save. Mutates `s`. */
-export function applySession(s: SaveData, stats: SessionStats, difficulty: Difficulty): SessionReport {
+export function applySession(s: SaveData, stats: SessionStats, difficulty: DifficultyPreset): SessionReport {
   const before = levelInfo(s);
   const ctxBefore = unlockContext(s);
   const buyableBefore = new Set(UNLOCKS.filter((u) => unlockState(u, ctxBefore) === 'buyable').map((u) => u.id));

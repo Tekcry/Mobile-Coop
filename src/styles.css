@@ -433,6 +433,10 @@ body {
   padding: 8px 14px;
   min-height: 44px;
 }
+/* (locomotion step 19) a hidden row (the difficulty sliders off Custom in the lobby, Free Roam's difficulty) */
+.row[hidden] {
+  display: none;
+}
 .row-label {
   font-weight: 600;
 }

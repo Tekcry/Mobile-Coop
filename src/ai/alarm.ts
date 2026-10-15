@@ -50,3 +50,8 @@ export function nearestPanel(panels: readonly AlarmPanel[], x: number, z: number
   }
   return best;
 }
+
+/** (locomotion step 19) Seconds at a panel to raise it: `holdTime` x the difficulty's alarm tolerance (`DifficultyDef.reaction`). */
+export function raiseTime(tolerance: number): number {
+  return ALARM.holdTime * tolerance;
+}

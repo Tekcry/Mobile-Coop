@@ -2,7 +2,7 @@ import './styles.css';
 import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
 import { suitLook } from './progression/suit';
-import { parseDifficulty } from './ai/archetypes';
+import { basePreset, parseDifficulty } from './ai/archetypes';
 import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
@@ -67,7 +67,7 @@ async function boot(): Promise<void> {
   });
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
-    app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
+    app.save.update((d) => void (report = applySession(d, stats, basePreset(opts.difficulty ?? 'normal', opts.customDifficulty ?? null))));
     await app.save.flush();
     if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
     // (3.5: progression still records; the credits / XP panel is shown only with `?legacy=1`)
@@ -210,7 +210,7 @@ async function boot(): Promise<void> {
   if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), customDifficulty: parseDifficulty(flags.difficulty) === 'custom' ? { ...app.settings.get().gameplay.customDifficulty } : undefined, missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
   editorWalk?.attach(app);

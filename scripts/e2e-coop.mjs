@@ -525,6 +525,32 @@ try {
   assert(true, 'client revives the downed host');
   await toLobby();
 
+  console.log("custom difficulty (step 19, D7): the host's sliders reach the client lobby read-only and run the match; the client's own stay");
+  {
+    const mine = await GB(() => JSON.stringify(window.__app.settings.get().gameplay.customDifficulty));
+    await GA(() => {
+      const s = window.__coop.session;
+      s.setCustom({ base: 'normal', perception: 0.5, aim: 1, alarm: 2 });
+      s.setSettings('clear', 'warehouse', 'custom', '');
+    });
+    await until(B, () => window.__coop.session.difficulty === 'custom' && window.__coop.session.custom?.perception === 0.5, null, 8000, 'the custom lobby reaches the client');
+    await until(B, () => /perception 0\.50.*alarm 2\.00/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host sliders');
+    const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff="perception"]'));
+    assert(ro, 'the client lobby shows the host values read-only (no sliders)');
+    for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
+    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
+    await GA(() => window.__coop.session.startMatch());
+    await until(A, () => !!window.__app.current?.enemyMgr && !!window.__app.current.net, null, 40000, 'host match up');
+    await until(B, () => !!window.__app.current?.net, null, 40000, 'client match up');
+    const hd = await GA(() => { const d = window.__app.current.enemyMgr.diff; return { p: d.perception, t: d.reaction, l: d.label }; });
+    assert(hd.p === 0.5 && hd.t === 2 && hd.l === 'Custom', `the host's manager runs the host sliders (${JSON.stringify(hd)})`);
+    const cd = await GB(() => ({ p: window.__app.current.diff.perception, t: window.__app.current.diff.reaction, own: JSON.stringify(window.__app.settings.get().gameplay.customDifficulty) }));
+    assert(cd.p === 0.5 && cd.t === 2, `the client's match takes the host's values (${JSON.stringify(cd)})`);
+    assert(cd.own === mine, `the client's own stored sliders are unchanged (${cd.own})`);
+    await toLobby();
+    await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'normal', ''));
+  }
+
   console.log('infiltration co-op: the mission and its objectives reach the client');
   await startMode('infiltration', 'warehouse', 'warehouse-ledger');
   const inf = await GB(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));

@@ -1,5 +1,5 @@
 import type { SessionStats } from '../game/modes/gameMode';
-import { DIFFICULTY, type Difficulty } from '../ai/archetypes';
+import { DIFFICULTY, type DifficultyPreset } from '../ai/archetypes';
 import { ENEMIES, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 
 /** Kill rewards per kind (from the enemy defs). */
@@ -19,7 +19,8 @@ export interface SessionRewards {
 }
 
 /** Converts session stats into XP and credits. Pure, clamped against nonsense input. */
-export function computeRewards(s: SessionStats, difficulty: Difficulty): SessionRewards {
+/** `difficulty`: the preset that pays (Custom pays its base preset, step 19). */
+export function computeRewards(s: SessionStats, difficulty: DifficultyPreset): SessionRewards {
   const lines: RewardLine[] = [];
   const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
   if (s.mode === 'sandbox') return { lines: [], xp: 0, credits: 0 };

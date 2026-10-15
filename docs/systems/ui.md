@@ -104,3 +104,15 @@ Design authority: docs/design-bible.md (Section 5.10)
   layouts.
 - Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, the rumble table in
   `config/rumble.ts`), Test vibration.
+
+## Custom difficulty (locomotion step 19, D7)
+
+- `ui/difficultyRows.ts` `difficultyRows(app, get, set, onChange)`: the Difficulty choice (Rookie, Normal, Realistic,
+  Perfectionist, Custom), three sliders (Guard perception, Guard aim, Alarm tolerance; 0.5-2.0, step 0.1) and the
+  Custom base preset (shown only on Custom). On a preset the sliders show its values; moving one switches to Custom
+  from that preset; picking a preset makes it Custom's base. Rows update in place (no rebuild), so a mouse drag keeps
+  going; pad left / right steps a slider. The sliders persist in `gameplay.customDifficulty` (A3). Rows carry
+  `data-diff` (`choice`, `perception`, `aim`, `alarm`, `base`) for the e2e suites.
+- Used by the play screen (both builds; hidden in Free Roam) and the co-op host's lobby (`compact`: the sliders and
+  base show only on Custom, so the lobby actions stay clear of the hints bar). A co-op client sees one
+  read-only row (`customSummary`: "Custom (Normal base): perception 0.50, aim 1.00, alarm 2.00").

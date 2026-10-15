@@ -35,7 +35,7 @@ import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
-import { DIFFICULTY, type DifficultyDef } from '../ai/archetypes';
+import { resolveDifficulty, type CustomDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -112,6 +112,8 @@ export interface GameOptions {
   mode: ModeId;
   seed: number;
   difficulty?: Difficulty;
+  /** (locomotion step 19) The custom sliders when `difficulty` is 'custom' (the host's in co-op). */
+  customDifficulty?: CustomDifficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
   /** Equipped emote ids (quick slots). */
@@ -435,7 +437,8 @@ export class GameState implements AppState {
     this.takedown = new TakedownController(this);
     this.strike = new StrikeController(this);
     this.medkit = new MedkitController(this);
-    this.medkit.init(DIFFICULTY[opts.difficulty ?? 'normal']);
+    this.diff = resolveDifficulty(opts.difficulty ?? 'normal', opts.customDifficulty ?? null);
+    this.medkit.init(this.diff);
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
     // suit and HQ: armour, hands, gadget carry
@@ -517,7 +520,7 @@ export class GameState implements AppState {
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers);
-      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, opts.difficulty ?? 'normal', () => this.playerRefs());
+      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefs());
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {
@@ -2184,9 +2187,12 @@ export class GameState implements AppState {
 
   private scopeT = 0;
 
+  /** (locomotion step 19) The match's difficulty, resolved once at start (preset or custom; the host's in co-op). */
+  diff!: DifficultyDef;
+
   /** Difficulty tier rules (perception, damage). */
   get difficultyDef(): DifficultyDef {
-    return DIFFICULTY[this.opts.difficulty ?? 'normal'];
+    return this.diff;
   }
 
   /** Bark position: over the speaker's head (false when gone or off screen). */

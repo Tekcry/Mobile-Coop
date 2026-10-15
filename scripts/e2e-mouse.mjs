@@ -444,6 +444,65 @@ try {
   } finally {
     await W.browser.close();
   }
+  console.log('custom difficulty (step 19, D7): mouse drags set the sliders, a preset click restores its values, the match resolves them');
+  {
+    const D = await launch({ url, params: '', touch: false });
+    try {
+      const P = D.page;
+      await P.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 60000 });
+      const box = (sel) => P.evaluate((s) => {
+        const el = document.querySelector(s);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+      }, sel);
+      const playBtn = await P.evaluate(() => {
+        const b = [...document.querySelectorAll('.main-menu button')].find((x) => /^\s*Play/.test(x.textContent ?? ''));
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      assert(!!playBtn, 'the main menu has Play');
+      await P.mouse.click(playBtn.x, playBtn.y);
+      await P.waitForFunction(() => !!document.querySelector('.play-screen [data-diff="perception"]'), null, { timeout: 10000 });
+      const drag = async (key, t) => {
+        await P.evaluate((k) => document.querySelector(`.play-screen [data-diff="${k}"]`)?.scrollIntoView({ block: 'center' }), key);
+        const b = await box(`.play-screen [data-diff="${key}"] .slider-track`);
+        await P.mouse.move(b.x + b.w * 0.5, b.y + b.h / 2);
+        await P.mouse.down();
+        await P.mouse.move(b.x + b.w * 0.3, b.y + b.h / 2, { steps: 4 });
+        await P.mouse.move(b.x + b.w * t, b.y + b.h / 2, { steps: 4 });
+        await P.mouse.up();
+      };
+      const st = () => P.evaluate(() => ({ c: window.__app.settings.get().gameplay.customDifficulty, choice: document.querySelector('.play-screen [data-diff="choice"] .choice-val')?.textContent ?? '', shown: document.querySelector('.play-screen [data-diff="perception"] .slider-val')?.textContent ?? '' }));
+      // perception: drag to the far left (0.5); the alarm slider to the far right (2.0)
+      await drag('perception', -0.2);
+      await drag('alarm', 1.2);
+      const a = await st();
+      assert(a.c.perception === 0.5 && a.c.alarm === 2 && a.c.aim === 1 && a.choice === 'Custom', `mouse drags set perception 0.5, alarm 2.0 and switch to Custom (${JSON.stringify(a)})`);
+      // click the Difficulty row: Custom -> Rookie (a preset): the sliders show Rookie's values
+      await P.evaluate(() => document.querySelector('.play-screen [data-diff="choice"]')?.scrollIntoView({ block: 'center' }));
+      const cb = await box('.play-screen [data-diff="choice"] .choice-val');
+      await P.mouse.click(cb.x + cb.w / 2, cb.y + cb.h / 2);
+      const b = await st();
+      assert(b.choice === 'Rookie' && b.shown === '0.70' && b.c.base === 'rookie', `a preset click restores its values (${JSON.stringify(b)})`);
+      // a drag on Rookie: Custom from Rookie (aim 0.7, alarm 1.35 kept)
+      await drag('perception', -0.2);
+      const c = await st();
+      assert(c.choice === 'Custom' && JSON.stringify(c.c) === JSON.stringify({ base: 'rookie', perception: 0.5, aim: 0.7, alarm: 1.35 }), `a drag on a preset is Custom from that preset (${JSON.stringify(c)})`);
+      // the stored sliders reach a match (Proving, training: guards on): the manager's resolved def (after the 250 ms save)
+      await P.waitForTimeout(800);
+      const Q = await openPage(D.ctx, url, 'autostart=proving&mode=training&difficulty=custom');
+      await Q.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+      const r = await Q.page.evaluate(() => {
+        const d = window.__app.current.enemyMgr.diff;
+        return { p: d.perception, a: d.accuracy, t: d.reaction, k: d.medkits, l: d.label };
+      });
+      assert(r.p === 0.5 && r.a === 0.7 && r.t === 1.35 && r.k === 3 && r.l === 'Custom', `the match's manager resolves the stored Custom (${JSON.stringify(r)})`);
+    } finally {
+      await D.browser.close();
+    }
+  }
   console.log('wall edge verbs (step 12, D1): D / A to the edge peeks, RMB lean-out, LMB fire, Space SWAT, E corner takedown');
   {
     const E = await launch({ url, params: 'autostart=proving', touch: false });

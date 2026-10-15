@@ -5,6 +5,12 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 19 - custom difficulty (PC, controller, phone)
+- [ ] Play screen: pick a preset, then move Perception, Aim and Alarm tolerance sliders: difficulty shows Custom on that base.
+- [ ] Low perception: guards take visibly longer to notice you; high aim: guards hit more; low alarm tolerance: alarms come faster.
+- [ ] Co-op: the host sets Custom in the lobby; the client sees the values read-only and plays with them; the client's own sliders are unchanged afterwards.
+- [ ] Phone check: the sliders fit and are usable on the play screen.
+
 ## Locomotion step 18 - remapping and hold / toggle (PC, controller)
 - [ ] Controls > Controller: remap Crouch to another button (press, release to bind); a shared button shows a warning on both rows; play: the new button crouches; prompts show the new glyph.
 - [ ] Hold B 1 s (or Esc) cancels a capture; 5 s with no input cancels.

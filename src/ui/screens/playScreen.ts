@@ -3,7 +3,8 @@ import { flags } from '../../core/flags';
 import { campaignUnlocked, defaultMode, visibleModes } from '../../core/legacy';
 import { campaignKit } from '../../config/arsenal';
 import type { GameOptions, ModeId } from '../../game/gameState';
-import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
+import type { CustomDifficulty, Difficulty } from '../../ai/archetypes';
+import { difficultyRows } from '../difficultyRows';
 import { MAPS } from '../../world/maps';
 import type { MapDef, WeatherChoice } from '../../world/mapDef';
 import { MISSIONS, missionById } from '../../game/missions';
@@ -90,19 +91,14 @@ export class PlayScreen extends Screen {
         this.rebuild();
       },
     );
-    const diff = choice(
-      'Difficulty',
-      DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label })),
-      () => this.difficulty,
-      (v) => (this.difficulty = v),
-    );
+    const diff = difficultyRows(this.app, () => this.difficulty, (v) => (this.difficulty = v));
     modeChoice.dataset.autofocus = '';
-    if (this.mode === 'sandbox') diff.hidden = true;
-    const go = button('Deploy', () => this.start({ map, mode: this.mode, difficulty: this.difficulty, seed: Math.floor(Math.random() * 1e6), weather: this.weatherFor(map) }), {
+    if (this.mode === 'sandbox') for (const r of diff) r.hidden = true;
+    const go = button('Deploy', () => this.start({ map, mode: this.mode, difficulty: this.difficulty, customDifficulty: this.customFor(), seed: Math.floor(Math.random() * 1e6), weather: this.weatherFor(map) }), {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, mapChoice, diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
+    this.body.replaceChildren(modeChoice, mapChoice, ...diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
   }
 
   /** Infiltration: the mission board (best rating per mission), insertion, difficulty. */
@@ -143,23 +139,18 @@ export class PlayScreen extends Screen {
       () => this.insertion,
       (v) => (this.insertion = v),
     );
-    const diff = choice(
-      'Difficulty',
-      DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label })),
-      () => this.difficulty,
-      (v) => (this.difficulty = v),
-    );
+    const diff = difficultyRows(this.app, () => this.difficulty, (v) => (this.difficulty = v));
     const map = MAPS.find((x) => x.id === m.map)!;
     const rules = (['noAlarms', 'noKills', 'undetected'] as const)
       .filter((k) => m.rules[k] !== 'off')
       .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
     const best = rec ? `Best ${STARS(rec.rating)}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
     this.desc.textContent = `Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
-    const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion, weather: this.weatherFor(map) }), {
+    const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, customDifficulty: this.customFor(), seed: 1, missionId: m.id, insertion: this.insertion, weather: this.weatherFor(map) }), {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
+    this.body.replaceChildren(modeChoice, missionChoice, insChoice, ...diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
   }
 
   /** Weather (3.0, visual only) for maps that offer it. */
@@ -168,6 +159,11 @@ export class PlayScreen extends Screen {
     if (!ws?.length) return [];
     if (!ws.includes(this.weather)) this.weather = ws[0]!;
     return [choice('Weather', ws.map((w) => ({ value: w, label: WEATHER_LABEL[w] })), () => this.weather, (v) => (this.weather = v))];
+  }
+
+  /** (locomotion step 19) The stored custom sliders when Custom is picked (resolved once at match start). */
+  private customFor(): CustomDifficulty | undefined {
+    return this.difficulty === 'custom' ? { ...this.app.settings.get().gameplay.customDifficulty } : undefined;
   }
 
   private weatherFor(map: MapDef): WeatherChoice | undefined {

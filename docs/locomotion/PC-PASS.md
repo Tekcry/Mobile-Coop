@@ -234,3 +234,11 @@ PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, 
 | 63 | Real-pad remap: capture binds on release, B held 1 s cancels (A69); a shared input fires both verbs with a warning (A71) | Clear and safe to use |
 | 64 | Hold-mode grab: release knocks out, no lethal finish from behind in hold mode (A70; bible 5.4 asks for the lethal / non-lethal choice in every position) | Accept, or add a lethal input in hold mode (e.g. fire while holding, takedownController.ts ~:328) |
 | 65 | Controls screen over the live scene (pc/s18-controls-pad.png): the hint line sits on a bright floor | Readable |
+
+### Step 19: custom difficulty (Michael)
+
+| # | Item | Pass limit |
+| --- | --- | --- |
+| 66 | Each slider's effect is felt in play (perception, aim, alarm tolerance = reaction delays, A72); presets as bases (A74) | Noticeable and sensible ranges (0.5-2.0) |
+| 67 | Phone: play screen sliders usable | Fit and drag cleanly |
+| 68 | Stick feel: since step 17 a part-pushed stick (gear 2, 1.3 m/s) is a silent walk, full stick (gear 4 default max) is audible | Intended stealth control on the pad |

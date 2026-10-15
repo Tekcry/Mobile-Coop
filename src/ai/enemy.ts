@@ -12,7 +12,7 @@ import type { NavGrid, NavLink, P2, Waypoint } from './navGrid';
 import { COVER_STANDOFF, type CoverPoint } from '../world/levelBuilder';
 import { coverPose, nearestEdge, type CoverSegment } from '../cover/coverData';
 import { coverQuality, flanks, type CoverSpot } from '../game/tactics';
-import { DIFFICULTY, type Difficulty, type EnemyDef } from './enemyDefs';
+import type { EnemyDef } from './enemyDefs';
 import { G, MASK } from '../physics/groups';
 import { GRAB } from '../game/takedown';
 import { spreadDir } from '../weapons/ballistics';
@@ -24,14 +24,14 @@ import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
-import { ALERT, AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
+import { AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
-import { ALARM, alarmStandPoint, type AlarmPanel } from './alarm';
+import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef } from '../world/lights';
 import type { LightField } from '../world/lightField';
-import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate } from './archetypes';
+import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, type DifficultyDef } from './archetypes';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
@@ -78,7 +78,8 @@ export interface AiContext {
   registry: DamageRegistry;
   ballistics: Ballistics;
   vfx: Vfx;
-  difficulty: Difficulty;
+  /** (locomotion step 19) The match's difficulty, resolved once at match start (resolveDifficulty). */
+  diff: DifficultyDef;
   players(): readonly PlayerRef[];
   flow(): Float32Array;
   enemies(): readonly Enemy[];
@@ -276,7 +277,7 @@ export class Enemy implements Damageable {
     spawn: Vector3,
     yaw = 0,
   ) {
-    const d = DIFFICULTY[ctx.difficulty];
+    const d = ctx.diff;
     this.health = new Health(def.hp * d.hp);
     this.pos = spawn.clone();
     this.pos.y = ctx.nav.heightAt(spawn.x, spawn.z, spawn.y);
@@ -507,7 +508,7 @@ export class Enemy implements Damageable {
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
     if (this.passive) return 0;
-    return DIFFICULTY[this.ctx.difficulty].perception * (this.buff ? 1.1 : 1);
+    return this.ctx.diff.perception * (this.buff ? 1.1 : 1);
   }
 
   private setState(s: EnemyState): void {
@@ -641,7 +642,7 @@ export class Enemy implements Damageable {
         else {
           if (this.target && this.los) this.target.spotted = true;
           this.ctx.shout?.(this);
-          this.radioT = ALERT.callIn * DIFFICULTY[this.ctx.difficulty].reaction * (this.buff ? ARCHETYPE.officer.reaction : 1);
+          this.radioT = callInDelay(this.ctx.diff.reaction) * (this.buff ? ARCHETYPE.officer.reaction : 1);
         }
       }
       this.loudAlert = false;
@@ -1112,7 +1113,7 @@ export class Enemy implements Damageable {
         const d = hyp2(this.alarmPt[0] - this.pos.x, this.alarmPt[1] - this.pos.z);
         if (d < 0.8) {
           this.alarmT += dt;
-          if (this.alarmT >= ALARM.holdTime) {
+          if (this.alarmT >= raiseTime(this.ctx.diff.reaction)) {
             this.alarm = null;
             this.ctx.raiseAlarm(this, ap);
           }
@@ -1139,7 +1140,7 @@ export class Enemy implements Damageable {
         this.kick = 1;
         this.ctx.onMelee?.(this);
         t.target.applyDamage({
-          amount: def.melee.damage * DIFFICULTY[this.ctx.difficulty].damage,
+          amount: def.melee.damage * this.ctx.diff.damage,
           point: t.feet.clone(),
           dir: t.feet.subtract(this.pos).normalize(),
           part: 'body',
@@ -1480,7 +1481,7 @@ export class Enemy implements Damageable {
   }
 
   private shoot(t: PlayerRef, w: NonNullable<EnemyDef['weapon']>, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
-    const d = DIFFICULTY[this.ctx.difficulty];
+    const d = this.ctx.diff;
     const origin = this.eye(new Vector3());
     origin.y -= 0.2 * this.def.scale;
     origin.x += Math.sin(this.yaw) * 0.45 + Math.cos(this.yaw) * 0.18;
@@ -1490,7 +1491,7 @@ export class Enemy implements Damageable {
     const aim = mode === 'aim' ? ((this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
-    const settle = Math.min(1, 0.45 + (this.losT * 0.55) / DIFFICULTY[this.ctx.difficulty].reaction);
+    const settle = Math.min(1, 0.45 + (this.losT * 0.55) / d.reaction);
     if (this.def.kind === 'sniper') this.shotsHere++;
     const moving = Math.min(1, t.speed / 5);
     const modeMul = mode === 'blind' ? 3 : mode === 'suppress' ? 1.6 : 1;

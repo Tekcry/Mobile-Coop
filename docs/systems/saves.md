@@ -7,7 +7,8 @@ Design authority: docs/design-bible.md (Section 5.11)
   `app.save.update(d => op(d, ...))`; `SaveManager` sanitises, debounces and persists to IndexedDB.
 - Settings are not the save: `Settings` (`core/settings.ts`) live in IndexedDB `kv/settings` through `save/db.ts`,
   sanitised on load (missing fields take the defaults), with no `SAVE_VERSION` (A3). Locomotion step 18 added
-  `pad` (controller bindings) and `gameplay.grabToggle`; older settings load with the defaults
+  `pad` (controller bindings) and `gameplay.grabToggle`; step 19 added `gameplay.customDifficulty {base, perception,
+  aim, alarm}` (sanitized: base a preset, values clamped 0.5-2.0; default Normal 1 / 1 / 1); older settings load with the defaults
   (`tests/settings.test.ts`).
 - Save schema: `save/schema.ts` (`SAVE_VERSION`). Changing the shape = bump the version, add a
   migration in `save/migrations.ts` (input is the previous version's raw object), extend `sanitizeSave`,

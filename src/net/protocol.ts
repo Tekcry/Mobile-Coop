@@ -11,7 +11,7 @@ import { packMoveState, sanitizeMoveState, type MoveState } from '../player/move
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { MEDKIT } from '../game/medkit';
 
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -32,7 +32,7 @@ export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infil
 export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
 /** Players a mode takes. */
 export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : COOP_MAX);
-import { parseDifficulty, type Difficulty } from '../ai/archetypes';
+import { clampCustom, DIFFICULTIES, parseDifficulty, type Difficulty, type DifficultyPreset } from '../ai/archetypes';
 export type { Difficulty };
 
 export interface PlayerInfo {
@@ -147,11 +147,11 @@ export interface EndStats {
 
 export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
-  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
+  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice; dc?: WireCustom }
   | { t: 'ready'; ready: boolean }
   /** Ask the host for a TDM side. */
   | { t: 'team'; team: number }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; dc?: WireCustom }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -423,6 +423,25 @@ const MODES = NET_MODES;
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
 /** Validate an incoming message. Returns null for anything malformed. */
+/**
+ * (locomotion step 19, D7) The host's custom difficulty on `lobby` / `start` (only when `difficulty` is 'custom'):
+ * b = base preset, p = perception, a = aim, t = alarm tolerance (each 0.5-2.0).
+ */
+export interface WireCustom {
+  b: DifficultyPreset;
+  p: number;
+  a: number;
+  t: number;
+}
+
+/** Parses `dc`: the base must be a preset (else dropped: the match then runs Normal sliders); values clamp 0.5-2.0. */
+export function wireCustom(raw: unknown): WireCustom | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  if (!DIFFICULTIES.includes(o.b as DifficultyPreset)) return undefined;
+  return { b: o.b as DifficultyPreset, p: clampCustom(o.p), a: clampCustom(o.a), t: clampCustom(o.t) };
+}
+
 export function parseMessage(raw: unknown): Msg | null {
   if (!isObj(raw)) return null;
   switch (raw.t) {
@@ -443,7 +462,8 @@ export function parseMessage(raw: unknown): Msg | null {
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
       const map = id(raw.map);
       if (!mode || !difficulty || !phase || !map) return null;
-      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
+      const dc = difficulty === 'custom' ? wireCustom(raw.dc) : undefined;
+      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(dc ? { dc } : {}) };
     }
     case 'ready': {
       const r = bool(raw.ready);
@@ -536,7 +556,8 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
+      const dc = difficulty === 'custom' ? wireCustom(raw.dc) : undefined;
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(dc ? { dc } : {}) };
     }
     case 'pstate': {
       const s = playerState(raw.s);

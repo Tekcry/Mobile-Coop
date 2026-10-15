@@ -94,7 +94,18 @@ Design authority: docs/design-bible.md (Section 5.7)
   `ARCHETYPE.radio`, stealth only), radio delays x tier reaction x officer.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView` (pool, placed by
   `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
-- `GameState.difficultyDef`.
+- `GameState.difficultyDef` (= `GameState.diff`).
+- Custom difficulty (locomotion step 19, D7, A72-A74): `Difficulty` = the four presets (`DifficultyPreset`) or `custom`;
+  `CustomDifficulty {base, perception, aim, alarm}` (each 0.5-2.0, slider step 0.1, stored values snap to 0.05 so
+  Rookie's 1.35 holds). Presets map to the sliders (`presetSliders`): Rookie 0.7 / 0.7 / 1.35, Normal 1 / 1 / 1,
+  Realistic 1.3 / 1.3 / 0.8, Perfectionist 1.5 / 1.3 / 0.7 (= `perception`, `accuracy`, `reaction`). The pure
+  `resolveDifficulty(d, custom)` returns a preset's shared def, or for Custom the base preset's damage, hp, medkits
+  and reward with the three sliders. `GameState` resolves it once at match start (`GameState.diff`, also the medkit
+  carry, A55-A57) and hands it to `EnemyManager.diff` / `AiContext.diff`: every AI read goes through it (no
+  `DIFFICULTY[` lookups in `src/ai` outside the resolver). Alarm tolerance = `reaction`: the radio call-in
+  (`callInDelay`), the squad radio delays, the first-shot settle and the panel raise (`raiseTime` = `ALARM.holdTime` x
+  tolerance); a mission's failing alarm count is unchanged. Rewards pay the base preset (`basePreset`). In co-op the
+  host's def runs (the AI is host-only).
 
 ## Player cover reference (locomotion step 11)
 - `PlayerRef.cover` / `coverT` are fed again (lost with snap cover in step 05): the local player's back-to-wall segment

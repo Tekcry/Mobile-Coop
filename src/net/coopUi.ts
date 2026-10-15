@@ -8,7 +8,8 @@ import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
-import { DIFFICULTIES, DIFFICULTY } from '../ai/archetypes';
+import { sanitizeCustom } from '../ai/archetypes';
+import { customSummary, difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, isPvp, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { TEAM_COLORS, TEAM_NAMES } from './pvp';
@@ -92,6 +93,8 @@ class CoopController {
         mode: s.mode,
         seed: s.seed,
         difficulty: s.difficulty,
+        // (locomotion step 19, D7) the host's sliders: a client gets them from start and never applies its own
+        customDifficulty: s.difficulty === 'custom' ? (s.custom ?? undefined) : undefined,
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         net: {
@@ -264,7 +267,6 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
 }
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
-const DIFF_OPTS: { value: Difficulty; label: string }[] = DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label }));
 
 class LobbyScreen extends Screen {
   private list: HTMLElement;
@@ -355,7 +357,7 @@ class LobbyScreen extends Screen {
       this.opts.replaceChildren(
         row('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
         infil ? row('Mission', missionById(s.mission)?.name ?? '') : row('Map', map?.name ?? s.map),
-        ...(pvp ? [] : [row('Difficulty', DIFF_OPTS.find((d) => d.value === s.difficulty)?.label ?? '')]),
+        ...(pvp ? [] : [row('Difficulty', s.difficulty === 'custom' ? customSummary(s.custom ?? sanitizeCustom(null)) : (DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''))]),
         ...(map?.weathers ? [row('Weather', WEATHER_LABEL[s.weather])] : []),
       );
       return;
@@ -378,7 +380,19 @@ class LobbyScreen extends Screen {
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
         : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
-      ...(pvp ? [] : [choice('Difficulty', DIFF_OPTS, () => s.difficulty, (v) => set(s.mode, s.map, v))]),
+      // (locomotion step 19) the host's difficulty rows update in place (no rebuild, so a slider drag keeps going)
+      ...(pvp
+        ? []
+        : difficultyRows(
+            this.c.app,
+            () => s.difficulty,
+            (v) => s.setSettings(s.mode, s.map, v),
+            () => {
+              s.setCustom({ ...this.c.app.settings.get().gameplay.customDifficulty });
+              this.renderPlayers();
+            },
+            true,
+          )),
       ...(MAPS.find((m) => m.id === s.map)?.weathers
         ? [
             choice(

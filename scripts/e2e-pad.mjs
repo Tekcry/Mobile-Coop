@@ -298,12 +298,22 @@ try {
   await press(page, BTN.A);
   assert(await q('.play-screen'), 'A opens the play setup');
   assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
+  // (locomotion step 19, D7) custom difficulty by pad: d-pad down to Guard perception, left x5 = 0.5 -> Custom
+  for (let i = 0; i < 14 && !/Guard perception/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/Guard perception/.test(await focusedText(page)), `the pad reaches the Guard perception slider (${await focusedText(page)})`);
+  for (let i = 0; i < 5; i++) await press(page, BTN.LEFT);
+  const cd = await page.evaluate(() => ({ c: window.__app.settings.get().gameplay.customDifficulty, choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', base: !document.querySelector('.play-screen [data-diff="base"]')?.hidden }));
+  assert(cd.c.perception === 0.5 && cd.c.aim === 1 && cd.c.alarm === 1 && cd.c.base === 'normal', `pad left x5 sets perception 0.5 from Normal (${JSON.stringify(cd.c)})`);
+  assert(/Custom/.test(cd.choice) && cd.base, `moving a slider on a preset switches to Custom and shows its base (${cd.choice})`);
+  for (let i = 0; i < 14 && !/Mode/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   await press(page, BTN.LEFT);
   assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
   for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/Deploy/.test(await focusedText(page)), 'focus Deploy');
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+  const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
+  assert(rd.p === 0.5 && rd.l === 'Custom' && (rd.m === null || rd.m === 0.5), `the match resolves Custom with perception 0.5 (${JSON.stringify(rd)})`);
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
   // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
   // goggles, View held an emote
