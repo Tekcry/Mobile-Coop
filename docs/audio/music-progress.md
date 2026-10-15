@@ -11,8 +11,27 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 2 | Design | done (`docs/music/score-design.md`) |
 | 3 | Audition sketches and test page | done; Michael: loves Hook A alone, dislikes everything else |
 | 3b | Round 2: Hook A with one partner at a time | done; Michael: hates all but 5 (guitar), which is still too aggressive; Hook A too loud |
-| 3c | Round 3: subtle Hook A and subtle guitar | done; waiting for Michael's picks |
+| 3c | Round 3: subtle Hook A and subtle guitar | done; Michael: not sure it fits the feel of the game |
+| 3d | Round 4: ten hooks to choose from | done; waiting for Michael's pick |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 4 - hooks to choose from
+- **Michael (2026-10-15):** "Not sure it's working for the feel of this game; give me various hooks to decide
+  between."
+- **Done:** `src/audio/score/hooks.ts` has ten bass hooks, each written for this project, in D, at 76-100 BPM. Each
+  plays alone at the round 3 "soft" level, on the soft upright or on a new dark round synth bass (a sine with a quiet
+  octave, low-passed, soft attack).
+  - Hook A, for comparison
+  - Creep
+  - Tripwire
+  - Walking noir
+  - Pulse
+  - Off-kilter
+  - Two notes
+  - Phrygian spy
+  - Hook A darker
+  - Cold steel
+- Rounds 1 and 3 stay in collapsed boxes on the page.
 
 ## V4 round 3 - subtle
 - **Michael (2026-10-15):**

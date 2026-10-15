@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alertPlan, HITS, hookShot, lowPlan, melodyShot, menuPlan, missionPlans, type LayerDef } from '../src/audio/score/arrange';
+import { HOOKS, hookBars, hookPlan } from '../src/audio/score/hooks';
 import { DEFAULT_TIMES, Director, type DirectorAction } from '../src/audio/score/director';
 import { gatedDb, makeHit, pluck, spiccato } from '../src/audio/score/synth';
 import { SKETCHES, SKETCH_A, SKETCH_B } from '../src/audio/score/themes';
@@ -154,6 +155,20 @@ describe('arrangements', () => {
       const short = missionPlans(sk).stingerShort;
       expect(short.events.some((e) => e.v === 'snare')).toBe(false);
     }
+  });
+});
+
+describe('round 4 hooks', () => {
+  it('every hook fills whole bars, starts on the key note and loops in 8 bars', () => {
+    for (const h of HOOKS) {
+      const bars = hookBars(h.notes);
+      expect(Number.isInteger(bars), h.id).toBe(true);
+      expect(8 % bars, h.id).toBe(0);
+      expect(h.notes.startsWith('D2'), h.id).toBe(true);
+      const p = hookPlan(h, 'synth');
+      expect(p.layers[0]!.events.every((e) => e.at >= 0 && e.at < 32), h.id).toBe(true);
+    }
+    expect(new Set(HOOKS.map((h) => h.notes)).size).toBe(HOOKS.length);
   });
 });
 

@@ -35,7 +35,8 @@ export type Voice =
   | 'guitarMute'
   | 'pizzSoft'
   | 'guitarSoft'
-  | 'guitarMuteSoft';
+  | 'guitarMuteSoft'
+  | 'subBass';
 
 export const HITS: readonly Hit[] = ['kick', 'snare', 'ghost', 'hat', 'ohat', 'rim', 'shaker', 'brush', 'taiko', 'metal', 'plate', 'crash'];
 

@@ -203,6 +203,8 @@ export class Kit {
         return this.pizz(e, t, d, bus);
       case 'heart':
         return this.heart(e, t, bus);
+      case 'subBass':
+        return this.subBass(e, t, d, bus);
       case 'darkBass':
       case 'reese':
         return this.synthBass(e, t, d, bus, e.v === 'reese');
@@ -303,6 +305,23 @@ export class Kit {
     g2.gain.setTargetAtTime(0, t + 0.25, 0.08);
     s.stop(t + 0.8);
     s.connect(lp).connect(g2);
+  }
+
+  /** A dark, round synth bass: a sine with a quiet octave triangle, low-passed, a soft 12 ms attack, barely saturated. */
+  private subBass(e: Ev, t: number, d: number, bus: Bus): void {
+    const f = freq(e.n);
+    const end = t + d + 0.4;
+    const o = this.osc('sine', f, t, end);
+    const o2 = this.osc('triangle', f * 2, t, end);
+    const g2 = this.ctx.createGain();
+    g2.gain.value = 0.22;
+    const lp = this.filter('lowpass', 420, 0.7);
+    const sh = this.shaper(1.3);
+    const g = this.out(bus, e.pan, 0);
+    this.adsr(g.gain, t, d, e.vel * 0.6, 0.012, 0.1, 0.85, 0.3);
+    o.connect(lp);
+    o2.connect(g2).connect(lp);
+    lp.connect(sh).connect(g);
   }
 
   /** Alert bass: two detuned saws and a sub, driven; `reese` is wider and darker with a moving filter. */
