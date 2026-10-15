@@ -35,4 +35,6 @@ Bakes.
 
 - LOG.md: what was built, numbers, open items. STATE.md: the next step (keep it short).
 - Commit and push `feature/operators`.
+- Progress for Michael (D16): send this step's renders (screenshots for tooling steps) with SendUserFile (status
+  proactive, display render) and a three-line note: what was built, what passed, what is open.
 - Start step 15 (moth-bake-lod-export) as RULES.md Chaining says.
