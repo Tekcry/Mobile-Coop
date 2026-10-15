@@ -107,8 +107,9 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
     if (/GL Driver Message \(OpenGL, Performance/.test(m.text())) return;
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
-    else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
+    else if (process.env.VERBOSE || (NETSIM && /^NETSIM/.test(m.text()))) console.log(`[${m.type()}] ${m.text()}`);
   });
+  if (NETSIM) await page.addInitScript(netsimProbe);
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}${process.env.STACK ? "\n" + e.stack : ""}`));
   await page.addInitScript(fakePointerLock);
   // Windows Chromium offers the OS share sheet (navigator.canShare true): the exports must take the download path in every run, never open a sheet on the PC
@@ -166,7 +167,9 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // (2.8 m/s) start in gear 4, which is that pace, unless they name a gear (`gear=none` keeps the real default)
   const g = /(^|&)gear=/.test(p) || /[?&]gear=/.test(url) ? p : `${p}&gear=4`;
   // 3.5: the parked modes and the economy are behind ?legacy=1 (`npm run e2e:legacy` sets LEGACY=1; a suite can name `legacy=1` itself)
-  const q = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
+  const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
+  // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
+  const q = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
@@ -251,8 +254,75 @@ export async function focusTo(page, re, max = 12) {
 }
 
 export function assert(cond, msg) {
+  if (!cond && NETSIM) {
+    // (step 20b, D11) report mode: a check that fails under the simulator is a finding, not a stop
+    netsimFails.push(msg);
+    console.log('  NETSIM FAIL -', msg);
+    return;
+  }
   if (!cond) throw new Error('ASSERT: ' + msg);
   console.log('  ok -', msg);
+}
+
+/**
+ * (locomotion step 20b, D11) `E2E_NETSIM=<preset>` (e.g. `typical`): the ?net=local pages get `&netsim=<preset>` (the
+ * local transport's network conditions simulator), `assert` reports instead of stopping (REPORT mode, not a gate), and
+ * every page runs `netsimProbe`. `E2E_NETSIM=off` keeps the network clean but runs the probe and report mode (the
+ * baseline for the same numbers).
+ */
+export const NETSIM = process.env.E2E_NETSIM ?? '';
+const netsimFails = [];
+if (NETSIM) process.on('exit', () => console.log(`NETSIM REPORT (${NETSIM}): ${netsimFails.length} check(s) failed${netsimFails.length ? ':\n  ' + netsimFails.join('\n  ') : ''}`));
+
+/**
+ * In-page probe (init script): each frame, every drawn remote player's root (host: `net.remotes[*].avatar`, client:
+ * `net.avatars`) is compared with its last frame. A pop = a frame step more than 25 cm beyond a 7 m/s pace (outside a
+ * host teleport grace); clamps = the host's rubber-band count (`RemotePlayer.violations`). Logs each pop and a
+ * `NETSIM-STAT` line every 5 s (pops, worst excess step, clamps, the simulator's sent / retransmitted / max delay).
+ */
+function netsimProbe() {
+  const st = { pops: 0, worst: 0, clamps: 0 };
+  window.__netsimProbe = st;
+  const last = new Map();
+  const vio = new Map();
+  let lastT = 0;
+  let statT = 0;
+  const tick = (t) => {
+    const dt = lastT ? (t - lastT) / 1000 : 0;
+    lastT = t;
+    const net = window.__app?.current?.net;
+    const list = [];
+    if (net?.remotes) for (const r of net.remotes.values()) list.push([r.avatar, r]);
+    if (net?.avatars) for (const a of net.avatars.values()) list.push([a, null]);
+    for (const [av, r] of list) {
+      const p = av?.rig?.root?.position;
+      if (!p) continue;
+      const prev = last.get(av);
+      const grace = r && r.teleportGrace > 0;
+      if (prev && dt > 0 && !grace) {
+        const j = Math.hypot(p.x - prev[0], p.y - prev[1], p.z - prev[2]);
+        const ex = j - 7 * dt;
+        if (ex > st.worst) st.worst = ex;
+        if (ex > 0.25) {
+          st.pops++;
+          console.log(`NETSIM-POP ${r ? 'host' : 'client'} sees ${(j * 100).toFixed(0)} cm in ${(dt * 1000).toFixed(0)} ms (mode ${av.mode})`);
+        }
+      }
+      last.set(av, [p.x, p.y, p.z]);
+      if (r) {
+        const v = r.violations ?? 0;
+        if (v > (vio.get(r) ?? 0)) st.clamps += v - (vio.get(r) ?? 0);
+        vio.set(r, v);
+      }
+    }
+    if (t - statT > 5000) {
+      statT = t;
+      const s = globalThis.__netsim?.stats;
+      if (list.length) console.log(`NETSIM-STAT pops ${st.pops} worst ${(st.worst * 100).toFixed(1)} cm clamps ${st.clamps}${s ? ` sent ${s.sent} retx ${s.retransmitted} maxDelay ${s.maxDelayMs.toFixed(0)} ms` : ''}`);
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 /** Multi-touch via CDP. points: [{x,y,id}] */

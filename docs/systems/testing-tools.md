@@ -203,6 +203,17 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     `scripts/e2e-net-lib.mjs` (the `-lib` helpers are never suites themselves; `e2e-lib.mjs` reruns CORE).
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
+## Network conditions (locomotion step 20b, D11)
+- `E2E_NETSIM=typical node scripts/run-e2e.mjs e2e-netmove e2e-coop` (or a single suite): `e2e-lib` adds `&netsim=typical`
+  to every `?net=local` page (the local transport's simulator, coop.md: 80 ms RTT, +-20 ms jitter, 1% loss as
+  retransmits, reliable ordered). REPORT mode, never a gate and never in REQUIRED under netsim: `assert` prints
+  `NETSIM FAIL - <check>` and carries on (a `until` timeout or thrown error still ends the suite), and the suite ends
+  with `NETSIM REPORT (<preset>): N check(s) failed`. Every page runs a probe: `NETSIM-POP` for a remote root step
+  more than 25 cm beyond a 7 m/s pace in one frame (host teleport grace excluded), and `NETSIM-STAT` every 5 s (pops,
+  worst excess step, host clamps = `RemotePlayer.violations`, simulator sent / retransmitted / max delay).
+  `E2E_NETSIM=off` runs the same probe and report mode on a clean network (the baseline: test teleports also show as
+  pops there). Results: docs/locomotion/LOG.md "20b".
+
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script: `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches Chromium with the hardware GPU
   (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader. Always headless (no window) with a faked pointer lock (the hidden window's real one grabbed the PC's cursor);
