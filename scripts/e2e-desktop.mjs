@@ -591,6 +591,22 @@ try {
   }
   assert(tex.pending === 0, `Epic: every drawn mesh's shader compiled (${tex.pending} pending)`);
   assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
+  // (PC1 fix) a spot's shadow joins a shader only once its map has casters: idle at the start, a guard's flashlight
+  // fills it when the guards alert (the near level chunks reached 17 textures and stopped drawing). Alert them and count again.
+  const flash = await e.page.evaluate(() => {
+    const g = window.__app.current;
+    for (const en of g.enemyMgr.enemies) en.alert();
+    return g.world.lightRig.shadowPool.length;
+  });
+  await frames(e.page, 240);
+  tex = await texProbe();
+  for (let i = 0; i < 120 && tex.pending > 0; i++) {
+    await wait(500);
+    tex = await texProbe();
+  }
+  const lit = await e.page.evaluate(() => window.__app.current.world.lightRig.shadowPool.filter((s) => s.id >= 0 && s.list.length > 0).length);
+  assert(lit > 0, `alerted guards' flashlights take the shadow pool (${lit} of ${flash} shadowed with casters)`);
+  assert(tex.pending === 0 && tex.max <= 16, `Epic, guards alerted: every material shader within 16 textures (${tex.max}, ${tex.who}, ${tex.pending} pending)`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));

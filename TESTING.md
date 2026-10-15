@@ -5,6 +5,11 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion PC1 - desktop GPU catch-up (PC)
+- [ ] Desktop, Epic preset, Warehouse: get spotted so guards raise flashlights; near walls and floors keep drawing (no missing meshes), one flashlight casts a shadow.
+- [ ] Co-op: watch a team-mate peek at a back-to-wall edge; the peek eases in, the feet stay planted.
+- [ ] HUD tactical row: light, gear and noise evenly spaced with goggles off.
+
 ## Locomotion step 14 - thermal and electro vision (PC, controller, phone)
 - [ ] Pad View / KBM N / phone vision button cycles off -> NV -> THERMAL -> ELECTRO -> off; each switch is one goggle flip, the label shows about 1.5 s then hides.
 - [ ] Phone check, night vision: green tube, lamps glare, frame rate holds (debug overlay) in a dark room.

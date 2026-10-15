@@ -276,9 +276,11 @@ export function emptyMovePose(): MovePose {
 
 /**
  * The pose families from a move state (attached, committed, takedown). `cadence` is the climb cycle of the
- * attach grips (`AttachGrips.cadence`). The local player and remotes both read it this way.
+ * attach grips (`AttachGrips.cadence`). The local player and remotes both read it this way. `peek` (0..1, default the
+ * peek bit) is the receiver's eased head-first peek (PC1 fix: the owner eases it over `WALL.peekBlend` with a smoothstep;
+ * a copy that jumped to the full lean at the bit swung its pelvis faster than the owner's and re-planted its feet elsewhere).
  */
-export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose): MovePose {
+export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose, peek = mv.sub & 16 ? 1 : 0): MovePose {
   out.wall = false;
   out.wallSide = 0;
   out.lean = 0;
@@ -295,9 +297,10 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
       out.wallSide = mv.sub & 2 ? 1 : -1;
       // (step 12) at an edge: the head-first peek (WALL_SUB.peek 16) or the lean-out with the aim (lean 32, `lk` 1);
       // the edge at b (edgeL 4) is the body's left
-      if (mv.sub & (16 | 32) && mv.sub & (4 | 8)) {
+      if ((peek > 0 || mv.sub & 32) && mv.sub & (4 | 8)) {
         const side = mv.sub & 4 ? -1 : 1;
-        out.lean = side * ((mv.sub & 16 ? 0.45 : 0) + (mv.sub & 32 && mv.lk === 1 ? 0.3 * Math.max(0.5, mv.r) : 0));
+        const pe = peek * peek * (3 - 2 * peek);
+        out.lean = side * (0.45 * pe + (mv.sub & 32 && mv.lk === 1 ? 0.3 * Math.max(0.5, mv.r) : 0));
       }
       // (step 12b, D9) the open-left weapon hand (only with the left edge bit; D10's low side lean is `lk` 1 with `low`)
       out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;

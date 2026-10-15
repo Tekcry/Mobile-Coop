@@ -8,7 +8,12 @@ Design authority: docs/design-bible.md (Section 8)
   from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
   cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
   shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
-  the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16), map
+  the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16, at the start
+  and again with the guards alerted. PC1 fix: since the lamp bake the voxel level's micro-detail shader takes 15 without a
+  lamp shadow, and a spot's shadow joins a shader only once its map has casters - a guard's flashlight - so two shadowed
+  flashlights took the near chunks to 17 and they stopped drawing as guards alerted; `LightRig` caps the pool at one with
+  micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=warehouse&mode=clear&gfx=epic&platform=desktop` with E2E_GPU=1, call
+  `alert()` on every `enemyMgr.enemies`, then count `MAX_TEXTURE_IMAGE_UNITS` console errors - 7 before the fix, 0 after), map
   size, sun filtering quality; lights 8-48; ao,
   bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
   preset, fairness) + `volLights` 2-12, `postRes` half / full (SSAO ratio, SSR downsample), dof, motionBlur, lens, aa fxaa / msaa / taa,

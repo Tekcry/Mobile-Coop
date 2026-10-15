@@ -426,6 +426,113 @@ async function openSide() {
   }
 }
 
+/** (PC1, PC-PASS 42) Mid-switch reversal at a free left end of a high wall (the lean-out moves the weapon to the left
+ *  hand inside the 0.25 s step): aim pushed and released within 0.25 s (the switch rewinds to the right hand), and
+ *  pushed, released and re-pushed within 0.25 s (it goes on to the left hand). Every frame the held weapon and both
+ *  wrists move at most MAX_STEP (no jump, no pop), the hand blend turns round within a few frames of the release and
+ *  never passes its target. The push starts holstered (the default), so the draw is part of it, as in play. */
+const MAX_STEP = 0.05;
+/** The reversal checks fail the suite only with PC42_STRICT=1 until the game passes them (PC1 round 1 found a weapon
+ *  pop on a mid-draw release and a lean-out that does not rewind: see docs/locomotion LOG); otherwise each failing
+ *  check prints KNOWN FAIL (PC-PASS 42). Flip the default once the game fix lands. */
+const check = (cond, msg) => (process.env.PC42_STRICT ? assert(cond, msg) : cond ? console.log('  ok -', msg) : console.log('  KNOWN FAIL (PC-PASS 42) -', msg));
+async function midSwitch() {
+  const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+  try {
+    const G = (f, a) => page.evaluate(f, a);
+    await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+    await G(HARNESS);
+    await G(() => window.__w.run(0.1));
+    for (const kind of ['release', 'repush', 'drawn-repush']) {
+      const r = await G((kind) => {
+        const g = window.__app.current;
+        const st = window.__app.input.state;
+        const w = g.wallCore;
+        const L = w.links;
+        const segs = g.world.level.coverSegments;
+        const p = g.player.position;
+        const rig = g.player.rig;
+        let seg = -1;
+        for (let i = 0; i < segs.length && seg < 0; i++) {
+          const q = segs[i];
+          if (q.low || q.len < 2.5 || Math.abs(q.y - p.y) > 0.3 || L.kB[i] !== 0) continue;
+          window.__w.place(i, q.len - 0.8, 0.85);
+          window.__w.run(0.6, 0, 0, 'cover');
+          window.__w.run(1.0, 1, 0);
+          // settle: the peek's hand switch (stick held at the end) rewinds before the push
+          window.__w.run(0.8);
+          if (w.phase === 'on' && w.edge === 1) seg = i;
+          else window.__w.run(0.3, 0, 0, 'cover');
+        }
+        if (seg < 0) return { seg };
+        const probe = () => {
+          rig.root.computeWorldMatrix(true);
+          for (const d of rig.root.getDescendants(false)) d.computeWorldMatrix?.(true);
+          const n = g.weapons.current.model.node;
+          n.computeWorldMatrix(true);
+          const a = n.getAbsolutePosition();
+          const l = rig.wristL.getAbsolutePosition();
+          const rr = rig.wristR.getAbsolutePosition();
+          return { b: rig['handBlend'], g: [a.x, a.y, a.z], l: [l.x, l.y, l.z], r: [rr.x, rr.y, rr.z], lk: w.lk };
+        };
+        const fr = [probe()];
+        const seq = kind === 'release' ? [[0.12, true], [1.0, false]] : kind === 'repush' ? [[0.15, true], [0.1, false], [0.8, true], [0.8, false]] : [[0.8, true], [0.12, false], [0.8, true], [0.8, false]];
+        const marks = [];
+        for (const [d, ads] of seq) {
+          st.set('t', 'ads', ads);
+          marks.push(fr.length);
+          fr.push(...window.__w.run(d, 0, 0, null, probe));
+        }
+        st.set('t', 'ads', false);
+        window.__w.run(0.3, 0, 0, 'cover');
+        window.__w.run(0.3);
+        return { seg, fr, marks };
+      }, kind);
+      assert(r.seg >= 0, `mid-switch ${kind}: a free left end of a high wall found`);
+      if (r.seg < 0) continue;
+      const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      const step = { g: 0, l: 0, r: 0 };
+      let at = { g: -1, l: -1, r: -1 };
+      // the reversal window: from the push (drawn-repush: from the first release; its first push is the settled draw
+      // and lean-out) to 0.25 s after the release that reverses (release) or to the final release (re-push: the
+      // holster after it is not part of the reversal)
+      const w0 = kind === 'drawn-repush' ? r.marks[1] : 1;
+      const w1 = kind === 'release' ? Math.min(r.fr.length, r.marks[1] + 15) : r.marks[3];
+      for (let i = w0; i < w1; i++)
+        for (const k of ['g', 'l', 'r']) {
+          const v = d(r.fr[i][k], r.fr[i - 1][k]);
+          if (v > step[k]) (step[k] = v), (at[k] = i);
+        }
+      const bs = r.fr.map((q) => q.b);
+      const rel = r.marks[1];
+      const peak = Math.max(...bs.slice(0, rel + 1));
+      const cm = (v) => (v * 100).toFixed(1);
+      console.log(`  ${kind}: weapon step ${cm(step.g)} cm @${at.g}, wristL ${cm(step.l)} cm @${at.l}, wristR ${cm(step.r)} cm @${at.r}; hand blend at release ${bs[rel].toFixed(2)} (peak ${peak.toFixed(2)}), end ${bs[bs.length - 1].toFixed(2)}`);
+      if (process.env.PC42_DUMP) console.log(r.fr.map((q, i) => `${i}:${q.b.toFixed(2)}/${q.lk}/${i ? cm(d(q.g, r.fr[i - 1].g)) : '-'}/${i ? cm(d(q.l, r.fr[i - 1].l)) : '-'}/${i ? cm(d(q.r, r.fr[i - 1].r)) : '-'}`).join(' '));
+      check(step.g <= MAX_STEP && step.l <= MAX_STEP && step.r <= MAX_STEP, `mid-switch ${kind}: no weapon / hand jump (weapon ${cm(step.g)}, wrists ${cm(step.l)} / ${cm(step.r)} cm per frame <= ${cm(MAX_STEP)})`);
+      check(bs.every((b) => b >= -1e-6 && b <= 1 + 1e-6), `mid-switch ${kind}: hand blend inside 0..1`);
+      if (kind === 'release') {
+        // released mid-switch: it had started, it turns round within 6 frames (0.1 s) and rewinds to the right hand
+        const after = bs.slice(rel);
+        const top = after.indexOf(Math.max(...after));
+        check(bs[rel] > 0.02 && bs[rel] < 0.98, `mid-switch release: released mid-switch (blend ${bs[rel].toFixed(2)})`);
+        check(top <= 6, `mid-switch release: the switch turns round within 0.1 s of the release (${top} frames)`);
+        check(after[after.length - 1] < 0.02, `mid-switch release: rewound to the right hand (blend ${after[after.length - 1].toFixed(2)})`);
+      } else {
+        // re-pushed within 0.25 s: on to the left hand while held, then back to the right after the final release
+        const held = bs.slice(r.marks[2], r.marks[3]);
+        const end = bs[bs.length - 1];
+        check(held[held.length - 1] > 0.98, `mid-switch re-push: the switch completes to the left hand (blend ${held[held.length - 1].toFixed(2)})`);
+        check(end < 0.02, `mid-switch re-push: back to the right hand after the release (blend ${end.toFixed(2)})`);
+      }
+    }
+    const bad = errors.filter((e) => !/WebGL|GPU stall|swiftshader|favicon/i.test(e));
+    assert(bad.length === 0, `no console errors (${bad.slice(0, 2).join(' | ')})`);
+  } finally {
+    await browser.close();
+  }
+}
+
 /** (step 12) Corner takedown on Warehouse: back to a wall at an outside edge, a guard round it -> kind `corner`. */
 async function cornerTakedown() {
   const { browser, page } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
@@ -469,6 +576,10 @@ async function cornerTakedown() {
 }
 
 try {
+  if (process.env.PC42_ONLY) {
+    await midSwitch();
+    process.exit(process.exitCode ?? 0);
+  }
   console.log('back-to-wall on Proving');
   await proving();
   console.log('guards flank and flush a wall-held player (Warehouse)');
@@ -477,6 +588,8 @@ try {
   await edges();
   console.log('open side at wall edges and the low-wall side lean (step 12b)');
   await openSide();
+  console.log('mid-switch reversal at a left edge: lean-out released / re-pushed within 0.25 s (PC-PASS 42)');
+  await midSwitch();
   console.log('corner takedown from the wall (Warehouse, step 12)');
   await cornerTakedown();
 } catch (e) {

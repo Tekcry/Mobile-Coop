@@ -24,6 +24,7 @@ pending budget run (block ends, steps that touch anim / camera / vfx / render) t
 | L1 | PC-PASS items 4-8 (section 2) | Block D laptop check, then again before step 34 | pending target laptop |
 | L2 | Block C end budgets: `--budget`, `--phone --budget` | Block D laptop check | pending target laptop |
 | L3 | Block D end budgets: `--budget`, `--phone --budget`, `--desktop --budget` (D4: 0.04 ms per character anim, remotes too) | Block D laptop check | pending target laptop |
+| L5 | Ray-traced checks (M8): `E2E_GPU=1 node scripts/e2e-desktop.mjs $URL` including "ray traced + TAAU + Panini" (the desktop GPU has no ray tracing; it fails there by design) | Block D laptop check | pending target laptop |
 | L4 | Re-baseline perf-trend and the anim audit on the laptop; compare with the desktop baselines | Before step 34 | pending target laptop |
 
 ## 1. Setup
@@ -144,3 +145,58 @@ pages, 2-12 frames/s for drawn match scenes). The PC run draws the pages, so it 
 | 49 | Wall / SWAT / door pose polish carried to step 27 under A47: wall pose polish (step 11), remote SWAT mid-move pose (D8 deviation: joints 70-103 cm, root <= 10 cm; REVIEW-NOTES), doorpeek pose fails (step 13) | Pictures from items 33, 37, 39, 44, 45 | Record what you see for step 27; no pass / fail here | 11-13 |
 | 50 | D9 grip deviation: audit grips at open-side edges 17-70 cm against the 2 cm D9 limit, carried to step 27 | Pictures from items 40 and 43 | Note where the hands leave the weapon (which edge, which weapon, which frame) for step 27 | 12b |
 | 51 | Other carried look items from steps 09-10: holstered neckTwist and crouch balance (step 21); inertializer swap trigger and remote hip drop (step 22); remote draw clip, weapon snaps into the hand (step 25); remote poseError report-only (A40, step 22) | Pictures from items 25-27 and 11 | Note anything worse than "known, carried"; no pass / fail here | 09-10 |
+
+## 6. PC1 results (secondary desktop, M7, 2026-10-15)
+
+E2E_GPU=1 (hardware GPU), E2E_PORT=4189, headless (no E2E_HEADED: nobody watches), HEAD 5c0190d. Items 1-3: setup done
+(build passes, hardware renderer). Items 4-8 are budget items: section 0 (L1), pending target laptop. Pictures in `pc/`
+(gitignored), audit output in `test-results/aa-pc*`. PASS = the numbers pass here; MICHAEL = needs his eyes, a phone or
+a headed watch; carried = a known deviation owned by the named step (its step file has the PC1 numbers).
+
+| # | Result | Numbers / evidence |
+| --- | --- | --- |
+| 9-10 | PASS | Desktop baseline (STATE.md): local 541 fails both runs, 0 local flips; remote 165 / 171 (A39 noise); `--compare` cloud: no regression. `audit/anim-baseline-desktop.json` |
+| 11 | PASS (numbers); look MICHAEL | Client 62.5 fps all rows, host 56.2-56.8 (60 Hz) / 123.5-125 (120 Hz); pump p95 jitter 1.5-1.6 ms; lodSkip 0 everywhere; pops@60 <= cloud in every row; braceboost pairAlign 16.6 cm (cloud 16.8, N01 carried to 29); wall rows carried to 27 |
+| 12 | PASS (coverage); shots fixed in PC1 fix round | 541 fails = run 2 line for line, 91 shots. Shots were unusable (follow camera, HUD, TAA ghosting, one shot per scenario): harness fixes, see LOG |
+| 13 | MICHAEL | footSinkR 6.03-6.45 cm crouch (as cloud); judge on the fixed shots |
+| 14 | MICHAEL | stairs / ramp footSink 7.26-9.05 cm (as cloud); judge on the fixed shots |
+| 15 | carried to 25 | aim wrists stand2 26.9 / 86.5 / 129.6 deg, crouch3 30.2 / 82.2 / 116.3 (same as cloud) |
+| 16 | PASS | pc/hud01*.png; no pips, nothing over guards. Empty `.tac-vision` gap fixed in PC1 |
+| 17 | MICHAEL | e2e-touch 49 ok; real phone, claw layout and Ping icon in co-op by hand |
+| 18 | PASS (numbers); look MICHAEL | e2e-darkness 28 ok, NV 98.3%; pc/nv02.png no orange ring or marks |
+| 19 | PASS | pc/hud03.png (no-hbar, vignette 0.78 at 28 hp), pc/hud03-hbar.png (bar flush) |
+| 20 | PASS (numbers); look MICHAEL | e2e-missions 26 ok, normal and LEGACY=1 |
+| 21 | PASS | pc/wp05.png: only VAULT on the crate face, action button "Vault", no cover badges |
+| 22 | MICHAEL | e2e-clip 79 ok (gun into world 0 frames); Proving doorway walk by hand |
+| 23 | MICHAEL | no capture: alerted guards leave cover before a shot; no suite covers guard cover poses |
+| 24 | PASS (numbers) | e2e-anim 49 ok; netmove drawn / holstered max 4.7 cm (< 10); aim / crouch sheets clean |
+| 25 | carried to 21 | standing gears pass (walk / jog / sprint / start / stop / back sheets); crouched hands hang straight to the knees (elbow 5.1 deg, = cloud) |
+| 26 | carried to 21 | standing ready-hands elbow 104-109 deg (A42: 60-90); crouch 5.1; self-intersection 0; grenade-side sling swing 0.0-0.1 s MICHAEL |
+| 27 | PASS (numbers); look MICHAEL | netmove drawn wrists 0.3 / 0.4 cm, holster receipt 450 / 552 ms; remote weapon snap carried to 25 |
+| 28 | carried to 25 | holster pop 0.12-0.23 s after release: jointRate 150.7 deg / frame, grips 19.6 / 24.0 cm, right arm 12-13 cm through the torso (= cloud baseline) |
+| 29 | MICHAEL | reload sheet now draws first (PC1 harness fix); manual sandbox look |
+| 30 | PASS (numbers); look MICHAEL | aa strike: jointRate 22.92 @60 / 11.46 @120, elbowR 128.3, self-intersection 0, 0 fails |
+| 31 | PASS (numbers); look MICHAEL | remote strike jointRate 23.2 (band 23.6); netmove wrists 0.4 / 0.1 cm, ankles 6.1 cm |
+| 32 | MICHAEL | e2e-takedown ground 9/9, alignment 2.0 cm; no blow metrics |
+| 33 | carried to 27 | back on the wall (wall / wallcrouch / lowwall side); D9 left-edge weapon left. Misses: off hand not on the wall, legs cross in the slide, body off the wall at the edge, slung rifle between back and wall |
+| 34 | carried to 27 | wall@60 gap 1.7 / clip 2.3 cm, @120 2.9 / 2.3; footSlideR 1.5 / 1.1, exit pelvisJump 8.4, entry jointRate 44.5, selfShanks 8.8 |
+| 35 | PASS (numbers); look MICHAEL | wall copy <= 3.3 cm; stacked 0.75 m apart (>= 0.62) |
+| 36 | PASS (numbers); look MICHAEL | peek head 0.250 m, lean-out 0.350 m, camera outside the wall (pc/walledge16-ots.png); walledge wallClip 13.4 carried to 27 |
+| 37 | PASS (numbers); look MICHAEL | SWAT 0.527 s, far wall 0.350 m standoff |
+| 38 | PASS (numbers); look MICHAEL | e2e-takedown corner: aligned 0.02 m |
+| 39 | FAIL -> PC1 fix | remote peek settled ankle 3.9 / 4.3 cm (2 of 3 runs, limit 2.2); lean / SWAT 2.0; SWAT mid-move 74-104 cm carried to 27 |
+| 40 | carried to 27 | grips L-rifle 29.4 / 11.2, R-rifle 27.7 / 30.7, L-pistol 57.4 / 63.4, R-pistol 17.3 / 50.8 cm; e2e-wall 12b open-side checks pass |
+| 41 | PASS (numbers) | head 0.941 / 0.945 m left, 0.996 right on a 1.00 m wall; netmove 0.953; grips / clip carried to 27 |
+| 42 | carried to 27 | new e2e-wall midSwitch() case: hand switch rewinds; weapon jumps 27-50 cm, wrists 10-12 cm in one frame (limit 5); report-only until step 27 (PC42_STRICT=1) |
+| 43 | PASS | left-edge lean wrists <= 0.6 cm, low-wall head 0.953 m both pages, peek heads 2-4 mm apart |
+| 44 | PASS (numbers); framing MICHAEL | doorHand 0, doorClip 0; entry pelvisJump 3.15 / jointRate 25.1 carried to 27 |
+| 45 | PASS | doorPeek joints <= 2.1 cm, leaf 0.120 both pages |
+| 46 | MICHAEL | pc/thermal-*.png: player white-hot, no vignette leak or banding; lamps not warm in frame; cooling, dogs, flip not shown |
+| 47 | MICHAEL | pc/electro-*.png: people dim; phone frame near black vs epic; devices at 20 m not in view |
+| 48 | PASS | LOOK=phone e2e-darkness OK (NV 98.3%); pc/night-phone.png no wash |
+| 49-51 | recorded | in steps/21, 25, 27 "From PC1" lines |
+
+New finding: Warehouse gfx=epic desktop with alerted guards failed the PBR compile ("texture image units exceeds
+MAX_TEXTURE_IMAGE_UNITS(16)", 14 times; meshes not drawn). Fixed in the PC1 fix round (LOG.md).
+
+PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, pistol `...p`) show the body stepping off the wall at 0.1-0.2 s and standing in the open with the weapon near the face; the front view never shows the aim line along the wall and a wall column hides the body from 0.3 s (walledgeleftaimp). Judge whether that is the intended lean-out (Michael) and fix the camera / warm-up in step 27's sheet work. `--shots` side camera can sit inside geometry (doorpeek-60-pelvisJump-f32.png shows only a wall).

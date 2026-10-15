@@ -14,6 +14,14 @@ const PICK_INTERVAL = 0.25;
 /** With baked lamps (3.2): the moving lights the pools hold, and how many cast shadows. */
 const BAKED_POOL = 4;
 const BAKED_SHADOWS = 2;
+/**
+ * (PC1 fix) Shadowed spots the voxel level's micro-detail shader has texture units for (micro detail: Textures above Low).
+ * Measured at Epic, that shader takes 15 of WebGL's 16 without a spot shadow: environment BRDF, the moon's cascades, the cluster's two, the voxel
+ * plugin's 7 (micro detail and normals among them) and the lamp bake's (`e2e-desktop` measures it). A spot's shadow
+ * joins a material's shader only once its map has casters - when a guard's flashlight takes the slot - so the second
+ * one took the shader to 17 and the level's near chunks stopped drawing as guards alerted.
+ */
+const MICRO_SHADOWS = 1;
 /** 3.6 the phone light look with baked lamps: plain pool lights for the flashlights only. */
 const BAKED_PLAIN_POOL = 2;
 /** Sun + hemisphere already light every material. */
@@ -38,6 +46,8 @@ export interface LightRigConfig {
   minimal?: boolean;
   /** 3.4 phones' light look: plain per-pixel lights (no clustering: a few lights, no light texture per pixel). */
   plain?: boolean;
+  /** The voxel level draws micro detail (`VoxelWorld.micro`): the shadow pool shrinks to `MICRO_SHADOWS`. */
+  micro?: boolean;
 }
 
 /** One pool slot: a Babylon spot light and, for the shadow pool, its generator. */
@@ -193,6 +203,8 @@ export class LightRig {
   configure(cfg: LightRigConfig, force = false): void {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, cfg.plain ? BAKED_PLAIN_POOL : BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
+    // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
+    if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.plain === this.cfg.plain && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;

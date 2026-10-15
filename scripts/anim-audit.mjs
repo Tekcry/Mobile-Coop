@@ -27,8 +27,12 @@
 //   --out     output folder (default test-results/anim-audit): local.json / remote.json (per scenario and metric: worst,
 //             frame, limit, pass, bible line), fails.txt (one line per fail, tagged local / remote; remote frames are A's
 //             frames) and baseline.json (worst per scenario x metric, the --compare format)
-//   --shots   PNG of the first failing frame per failing scenario (PC only, E2E_GPU=1)
+//   --shots   PNG per failing (scenario, metric) at the metric's worst frame, side camera on the body, HUD hidden
+//             (PC only, E2E_GPU=1; local rows; --shots-max=N caps the count, default 500)
 //   --strict  exit 1 on any fail (step 32); by default it reports and exits 0 unless the harness itself errors
+//   (PC1) every local scenario starts from a reset (__aa.reset: first weapon selected and holstered, off the wall, aim
+//             released, standing gear 3): before it, `swap` left the third weapon selected for every later row, so
+//             `--only` differed from the full run. AA_RESET_LOG=1 prints what each reset changed
 //
 // Without a url it serves dist/ itself (vite preview on E2E_PORT or 4173, killed at exit): run `npm run build` first.
 import { execFileSync, spawn } from 'node:child_process';
@@ -344,8 +348,58 @@ await G(([NODES, W, names, LOWER]) => {
       st.move.x = st.move.y = 0;
       return aa.frames.length;
     },
+    /**
+     * (PC1 harness fix 4) Every scenario starts from the same weapon / stance / wall state, whatever ran before it
+     * (`--only` matches the full run): the weapon selection back to the match's first (the `swap` rows cycle it and
+     * the open-side rows equip their own), no gun left in the hand while holstered (the open-side rows' local equip
+     * while holstered puts the model in the hand), off the wall, aim released, standing at gear 3. Returns what it
+     * changed (logged by node).
+     */
+    reset() {
+      const W = g.weapons;
+      const was = [];
+      if (aa.w0 === undefined) aa.w0 = W.index;
+      st.move.x = st.move.y = 0;
+      st.set('anim-audit', 'ads', false);
+      if (g.wallCore?.active) {
+        g.wallCore.leave('test');
+        was.push('wall');
+      }
+      if (W.index !== aa.w0) {
+        was.push(`weapon ${W.index}->${aa.w0}`);
+        W.index = aa.w0;
+        if (W.isStowed) {
+          c.speedMul = W.current.def.moveSpeedMult;
+          p.cam.adsZoom = W.current.stats.adsZoom;
+        }
+      }
+      if (W.isStowed && W['swapT'] < 0 && rig.heldWeapon) {
+        was.push('gun in hand while holstered');
+        W['holsterAll'](-1);
+      }
+      c.clearCrouchToggle();
+      c.gears.set(3);
+      return was;
+    },
+    halted,
+    /**
+     * (PC1 harness fix 1) A still of the frozen pose: a side camera on the body (feet in frame, as anim-sheet.mjs), the
+     * TAAU history reset and several renders at the frozen pose so TAA / TAAU history converges on this frame (one
+     * render after headless stepping blended older frames: a ghosted multi-exposure).
+     */
     render() {
-      g.scene.render();
+      const cm = p.cam.camera;
+      const r = rig.root.position;
+      const fy = c.renderYaw;
+      const fx = Math.sin(fy);
+      const fz = Math.cos(fy);
+      cm.position.set(r.x + fz * 3.1, r.y + 1.0, r.z - fx * 3.1);
+      cm.setTarget(new V(r.x, r.y + 0.8, r.z));
+      const tu = g.stack?.['taau'];
+      for (let k = 0; k < 32; k++) {
+        if (tu && k === 0) tu['reset'] = 1;
+        g.scene.render();
+      }
     },
   };
 }, [NODES, { grip: [...L.WRIST_ON_GRIP], fore: [...L.WRIST_ON_FOREGRIP] }, names, LOWER]);
@@ -401,6 +455,7 @@ async function drive(sc, halt = -1) {
     const hz = sc.hz;
     const m = {};
     const g = window.__app.current;
+    m.reset = t.reset();
     if (sc.kind === 'gait') {
       const s = SURF[sc.surface];
       const crouch = sc.stance === 'crouch';
@@ -563,7 +618,8 @@ async function drive(sc, halt = -1) {
           m[names[k]] = t.mark();
         });
         m.end = m[names[names.length - 1]];
-        if (W['index'] !== held) W['equip'](held);
+        // (PC1) not on a --shots halt: the equip would put the gun in the hand of the frozen pose (reset() restores)
+        if (W['index'] !== held && !t.halted()) W['equip'](held);
         m.onWall = g.wallCore?.phase === 'on';
         m.swats = g.wallCore?.count.swat ?? 0;
       } else {
@@ -715,6 +771,7 @@ async function record(sc, halt = -1) {
   // (step 12) the edge drive's segments go into the page with the scenario
   if (sc.edge) sc.segs = wallSegs(sc);
   const m = await drive(sc, halt);
+  if (m.reset?.length && process.env.AA_RESET_LOG) console.log(`  reset before ${sc.name}@${sc.hz}: ${m.reset.join(', ')}`);
   if (sc.kind === 'wall') m.plane = sc.plane;
   if (sc.kind === 'door') m.door = sc.door;
   const r = await G(() => window.__aa.end());
@@ -2065,17 +2122,48 @@ if (DO_LOCAL) try {
     for (const [mk, r] of Object.entries(pm)) if (!r.pass) fails.push({ tag: 'local', scenario: `${name}-parity`, hz: '60v120', metric: mk, value: r.worst, limit: r.limit, frame: -1, unit: r.unit });
   }
   if (SHOTS) {
+    // (PC1 harness fix 1) one still per (scenario, metric) at that metric's reported (worst) frame, 60 Hz first (the
+    // 120 Hz row only when the metric fails there alone), HUD and toasts hidden, side camera on the body (feet in
+    // frame), TAA / TAAU history converged on the frozen pose. Capped at --shots-max (default 500, round robin over
+    // scenarios); one render per
+    // (scenario, hz, frame), shared by the metrics failing on that frame.
     mkdirSync(OUT, { recursive: true });
-    const seen = new Set();
-    for (const f of fails) {
+    await page.addStyleTag({ content: 'body > :not(#game), .hud, .touch-layer, .screens, .toasts, .toast { display: none !important; }' });
+    const MAX = Number(opt('shots-max') ?? 500);
+    const want = new Map();
+    for (const f of [...fails].sort((p, q) => (p.hz === 60 ? 0 : 1) - (q.hz === 60 ? 0 : 1))) {
+      const id = `${f.scenario}|${f.metric}`;
+      if (f.tag !== 'local' || f.frame < 0 || want.has(id)) continue;
       const sc = scenarios.find((s) => s.name === f.scenario && s.hz === f.hz);
-      if (!sc || f.frame < 0 || seen.has(`${sc.name}@${sc.hz}`)) continue;
-      seen.add(`${sc.name}@${sc.hz}`);
-      await drive(sc, f.frame + 1);
-      await G(() => window.__aa.end());
-      await G(() => window.__aa.render());
-      await page.screenshot({ path: `${OUT}/${sc.name}-${sc.hz}-${f.metric}-f${f.frame}.png` });
+      if (sc) want.set(id, { sc, f });
     }
+    // round robin: every failing scenario's first metric before any scenario's second, so a cap still covers them all
+    const order = (p, q) => scenarios.indexOf(p.sc) - scenarios.indexOf(q.sc) || p.f.frame - q.f.frame;
+    const all = [...want.values()].sort(order);
+    const per = new Map();
+    for (const e of all) {
+      e.r = per.get(e.sc) ?? 0;
+      per.set(e.sc, e.r + 1);
+    }
+    const list = [...all].sort((p, q) => p.r - q.r || order(p, q)).slice(0, MAX).sort(order);
+    if (all.length > MAX) console.log(`anim-audit --shots: ${all.length} (scenario, metric) fails, ${MAX} pictured round robin (--shots-max=N)`);
+    const vp = page.viewportSize();
+    const w = Math.min(vp.width, vp.height);
+    const clip = { x: Math.round(vp.width / 2 - w / 2), y: 0, width: w, height: vp.height };
+    let buf = null;
+    let key = '';
+    for (const { sc, f } of list.slice(0, MAX)) {
+      const k = `${sc.name}@${sc.hz}#${f.frame}`;
+      if (key !== k) {
+        key = k;
+        await drive(sc, f.frame + 1);
+        await G(() => window.__aa.end());
+        await G(() => window.__aa.render());
+        buf = await page.screenshot({ clip });
+      }
+      writeFileSync(`${OUT}/${sc.name}-${sc.hz}-${f.metric}-f${f.frame}.png`, buf);
+    }
+    console.log(`anim-audit --shots: ${Math.min(MAX, list.length)} pictures in ${OUT}`);
   }
 } catch (e) {
   console.error('anim-audit harness error:', e?.stack ?? String(e));

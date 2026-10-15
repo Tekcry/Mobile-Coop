@@ -1,6 +1,6 @@
 import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
-import { WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
+import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
@@ -62,6 +62,8 @@ export class RemoteAvatar {
   private gripFace = 1;
   private sPrev = 0;
   private mp = emptyMovePose();
+  /** (PC1 fix) The head-first peek eased as the owner's (`WALL.peekBlend` each way, from the peek bit). */
+  private peekK = 0;
   /** (step 11) Back to a wall: the body-line point, `s` shown (tests), the rig's push onto the face, the hand point. */
   private wp = { x: 0, z: 0, yaw: 0 };
   /** (step 12 r1) The eased wall yaw and whether it was set last frame. */
@@ -273,7 +275,9 @@ export class RemoteAvatar {
     r.rotation.y = this.yaw;
     if (this.rig.emote && (this.speed > 0.5 || f & PF.firing)) this.rig.emote = null;
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
-    const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp) : emptyMovePose();
+    const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
+    this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;
+    const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp, this.peekK) : emptyMovePose();
     // (step 11) on a wall: the rig's back onto the face and the off hand on it (as the player's rig)
     this.wallK = Math.max(0, Math.min(1, this.wallK + (wseg ? dt : -dt) / 0.2));
     if (wseg) {

@@ -47,7 +47,7 @@ Design authority: docs/design-bible.md (Section 5.1)
   `attachAll`): per pixel the lamps in its 2 m column - range falloff, cone (lamps: `LAMP_CONE` exponent 1; spots:
   exponent 2), N.L - as Babylon's lights gave them, x the atlas (trilinear, a cell off the geometric normal) x
   `lampCapsule` soft shadows, added to `finalDiffuse`. `LightRig.setBaked(ids)`: the pools skip baked lights and hold
-  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
+  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`; 1 with the level's micro detail, `MICRO_SHADOWS`): the flashlights. GLSL names must not clash with
   Babylon's macros (`E` is one).
 
 ## Phone light look (3.6, Phase 1 Step 4)

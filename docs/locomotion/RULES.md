@@ -70,4 +70,24 @@ A6-A48 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 ## On the secondary desktop (M7, 2026-10-15; overrides M6 where they differ)
 - Same folder, branch, branch guard, E2E_PORT=4189 and M6 rules. GPU visual checks (contact sheets, visual suites, anim-sheet, shot, anim audit) run here with `E2E_GPU=1`.
 - Never run `perf.mjs --budget` (any profile) here and never claim a budget pass: record each budget item "pending target laptop" in PC-PASS.md section 0. Perf trend only, against the desktop baseline in STATE.md (>25% rise: fix).
+- M8: this desktop GPU has no ray tracing (the target laptop has it). Ray-traced checks (e2e-desktop "ray traced + TAAU + Panini" with E2E_GPU=1) are not run or fixed here; they are PC-PASS section 0 item L5.
 - Pauses: the play-check pause after the Block C end (M6), then "Ready for the Block D laptop check" after step 32, then "Ready for the target laptop pass" before step 34. Each waits for "Locomotion: go".
+
+## Port 4189 (and 4191, M10) (M9, Michael, 2026-10-15: hard rule for the orchestrator and every agent, verbatim in every agent prompt)
+Only one agent uses port 4189 at a time. Never use `npx vite preview`, `npm run preview` or a bare `&` server start.
+1. Free the port (before starting a server, before any run-e2e / anim-audit / perf-trend / perf run, and before you finish):
+   `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4189 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
+2. Start a server only for shot.mjs / anim-sheet.mjs / perf.mjs / single suites, as a background Bash task:
+   `cd /c/NightShift/Mobile-Coop-locomotion && node node_modules/vite/bin/vite.js preview --port 4189 --strictPort --host 127.0.0.1`
+   then `URL=http://127.0.0.1:4189/`. run-e2e, anim-audit and perf-trend start their own: do not start one for them.
+3. Check it is free: `netstat -ano | grep ":4189 .*LISTENING"` prints nothing.
+4. When done: step 1 again, then step 3. "Port 4189 is already in use" means step 1 was skipped: run it and retry once.
+
+## Speed on the desktop (M10, Michael, 2026-10-15; overrides "Speed" above where they differ)
+- Implementers run lint, unit tests, `npm run build` and only the single suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net), each once. Never `npm run e2e:quick` or the full `npm run e2e` in an implementer. A second run only to judge a flake (A39).
+- The checker runs `npm run e2e:quick` exactly once per round, with `E2E_JOBS=3`. The full `npm run e2e` (block ends) also uses `E2E_JOBS=3`. A failure counts as flaky only if the suite is already on the known-flaky list, or it passes in 2 solo reruns; a newly flaky suite is logged in LOG.md with the failing line and both rerun results. Otherwise it is a fail.
+- Two ports, one per job type, both under the M9 commands (replace 4189 with 4191 for the second):
+  - 4191: software-GL logic e2e only (`E2E_PORT=4191 E2E_JOBS=3 npm run e2e:quick`, the full e2e), never with E2E_GPU=1.
+  - 4189: GPU work (anim-audit, anim-sheet, shot, perf-trend, E2E_GPU=1 single suites).
+  - Inside one checker, while the 4191 quick suite runs in the background, only deterministic GPU work runs on 4189: anim-sheet, shot and `anim-audit --local`. perf-trend, `anim-audit --remote` (real-time rows) and E2E_GPU=1 netmove / coop wait until the quick suite has finished (load skews their numbers). Free and check each port with its own number.
+- Not overlapped: a step's checker and the next step's implementer. They share the working tree and dist/ (the checker's diff and served build would change under it). One code-changing agent at a time is unchanged.

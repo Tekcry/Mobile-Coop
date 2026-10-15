@@ -77,6 +77,11 @@ export class VoxelWorld {
     this.brickmap = new Brickmap(lv.origin, lv.size, lv.dims);
   }
 
+  /** Micro surface detail on the near levels (two more textures in their shaders: `LightRig` sizes its shadow pool by it). */
+  get micro(): boolean {
+    return this.opts.micro;
+  }
+
   /** Build the level's voxels (workers; the cache when it has them). */
   static async build(scene: Scene, lv: LevelVoxels, opts: VoxelWorldOptions): Promise<VoxelWorld> {
     const t0 = performance.now();

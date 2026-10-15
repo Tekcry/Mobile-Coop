@@ -9,6 +9,7 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 - Worktree: `C:\NightShift\Mobile-Coop-locomotion`. Branch: `feature/ct-locomotion`, tracking `origin/feature/ct-locomotion`.
 - If missing: `git -C C:/NightShift/Mobile-Coop fetch origin`, then `git -C C:/NightShift/Mobile-Coop worktree add --track -b feature/ct-locomotion C:/NightShift/Mobile-Coop-locomotion origin/feature/ct-locomotion`, then `npm ci` in it.
 - `E2E_PORT=4189` on every e2e, perf, perf-trend, anim-audit, shot and anim-sheet run. `E2E_GPU=1` for GPU checks (perf, anim-sheet, shot, visual suites).
+- Port 4189 "already in use": an orphan `vite preview` left by `npx ... &` on Windows. Free it: `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4189 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`; start servers with `node node_modules/vite/bin/vite.js preview` (steps/PC1-preamble.md).
 - Branch guard before every commit and push (and in every subagent before any git command):
   `cd /c/NightShift/Mobile-Coop-locomotion && test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-locomotion && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-locomotion"`
 - Push only with `git push origin feature/ct-locomotion`.

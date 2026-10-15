@@ -3,7 +3,17 @@
 - Work only in C:\NightShift\Mobile-Coop-locomotion (Git Bash: /c/NightShift/Mobile-Coop-locomotion). Never read, write or run anything in C:\NightShift\Mobile-Coop, Mobile-Coop-kestrel or Mobile-Coop-music.
 - Before any git command, run the branch guard: `cd /c/NightShift/Mobile-Coop-locomotion && test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-locomotion && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-locomotion"`. Never commit, push, checkout or merge: the orchestrator commits.
 - Read CLAUDE.md and docs/locomotion/RULES.md (sections "On Michael's PC" and "On the secondary desktop (M7)") first. Never run perf.mjs --budget (any profile) on the desktop: budget items are "pending target laptop" (PC-PASS section 0).
-- Every e2e / perf / perf-trend / anim-audit / shot / anim-sheet run: `E2E_PORT=4189`; GPU runs also `E2E_GPU=1`. For shot.mjs / anim-sheet.mjs / perf.mjs / single suites, serve dist/ yourself as a background process: `npx vite preview --port 4189 --strictPort --host 127.0.0.1` and pass `URL=http://127.0.0.1:4189/` (and the URL argument to perf.mjs and suites). Kill that server before you finish. anim-audit and perf-trend serve their own on E2E_PORT when none is up.
+- Every e2e / perf / perf-trend / anim-audit / shot / anim-sheet run: `E2E_PORT=4189`; GPU runs also `E2E_GPU=1`. Servers: follow the PORT 4189 HARD RULE below exactly. anim-audit and perf-trend serve their own on E2E_PORT when none is up.
+- SPEED (RULES.md M10): implementers never run `npm run e2e:quick` or the full e2e: only lint, unit tests, build and the single suites their step names, once each. Checkers run `E2E_PORT=4191 E2E_JOBS=3 npm run e2e:quick` once, in the background, while only deterministic GPU items (anim-sheet, shot, `anim-audit --local`) run on 4189; perf-trend, `anim-audit --remote` and GPU netmove / coop wait for the quick suite to finish. A failure is flaky only if already on the known-flaky list or it passes in 2 solo reruns. Port 4191 is software GL only (never E2E_GPU=1); use the commands below with 4191 in place of 4189 for it.
+- PORT 4189 HARD RULE (RULES.md M9, verbatim):
+  Only one agent uses port 4189 at a time. Never use `npx vite preview`, `npm run preview` or a bare `&` server start.
+  1. Free the port (before starting a server, before any run-e2e / anim-audit / perf-trend / perf run, and before you finish):
+     `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4189 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
+  2. Start a server only for shot.mjs / anim-sheet.mjs / perf.mjs / single suites, as a background Bash task:
+     `cd /c/NightShift/Mobile-Coop-locomotion && node node_modules/vite/bin/vite.js preview --port 4189 --strictPort --host 127.0.0.1`
+     then `URL=http://127.0.0.1:4189/`. run-e2e, anim-audit and perf-trend start their own: do not start one for them.
+  3. Check it is free: `netstat -ano | grep ":4189 .*LISTENING"` prints nothing.
+  4. When done: step 1 again, then step 3. "Port 4189 is already in use" means step 1 was skipped: run it and retry once.
 - Every shell command has a timeout (`timeout N ...`). No dev server, no watch mode, no sleep polling loops. Long runs: run in background and wait for the notification.
 - Output pictures go to `pc/` (gitignored). Logs: tail -40 or grep, never whole.
 - Never use E2E_HEADED=1 (nobody watches). A "watch" item: run the suite headless with E2E_GPU=1 for its numbers; the look stays in PC-PASS.md for Michael.

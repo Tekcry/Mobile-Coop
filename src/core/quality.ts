@@ -188,7 +188,8 @@ export interface ShadowSpec {
 /**
  * Lamp / flashlight shadow maps a material can take (3.1.7): WebGL guarantees 16 textures per shader and the largest
  * material (the voxel level) already uses 11 without lamp shadows - one each (PCF) fits 4 (headless software GL allows
- * 32, so only real GPUs failed). `e2e-desktop` checks every material against 16.
+ * 32, so only real GPUs failed). `e2e-desktop` checks every material against 16, before and after the guards alert.
+ * (Since the lamp bake the level's micro-detail shader takes 15 without a lamp shadow: `LightRig` caps the pool at one there.)
  */
 export const MAX_SHADOW_CASTERS = 4;
 

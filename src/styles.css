@@ -946,6 +946,10 @@ body {
 .tac-vision {
   color: #7dff9b;
 }
+/* (empty, it would still hold a flex gap in the tactical row) */
+.tac-vision:empty {
+  display: none;
+}
 .hud-awareness {
   position: absolute;
   left: 0;
