@@ -217,3 +217,12 @@ PC1 checker notes: the new aimed edge sheets (`walledgeaim`, `walledgeleftaim`, 
 | 56 | A62: the campaign rifle is issued suppressed; a bare barrel is not possible in the campaign (a compensator swaps it) | Accept, or pick an alternative (A62) |
 | 57 | Phone: loadout screen with the new names and the Sidearm label (pc/s16-loadout-root2.png, s16-loadout-primary2.png); the longest name "SPOTTER 7.62 MARKSMAN" not truncated | Readable at phone width |
 | 58 | Internal weapon ids `p90` / `tavor` remain in docs/systems/combat.md's id column (A28 keeps ids) | Accept or rename ids |
+
+### Step 17: pad input (Michael's hands / phone)
+
+| # | Item | Pass limit |
+| --- | --- | --- |
+| 59 | Rumble feel on a real pad for every table entry and the Rumble strength slider | Felt, not annoying; heavy landings stronger than footfalls |
+| 60 | Analog thresholds by hand: 50 / 80 / 100% -> gears 2 / 4 / 5 (A63), no chatter, rocker cap | Feels deliberate on the pad |
+| 61 | Phone touch: basic layout (v7 reset), tilt gears 1-5 (A66), takedown on the context button, training without the gadget step (A67) | Playable one-handed-stick plus buttons |
+| 62 | HUD gear pips: dim (cap) vs off contrast (pc/s17-gear-pips.png) | Distinct at a glance |

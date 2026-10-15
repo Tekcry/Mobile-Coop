@@ -28,7 +28,7 @@ export const keyLabels = {
 
 /**
  * Renders a controller/keyboard prompt. All variants are emitted and CSS picks one by
- * body class (input-gamepad / input-kbm, pad-ps), so prompts update instantly on mode change.
+ * body class (input-gamepad / input-kbm, pad-ps / pad-nin: the pad glyphs whenever a pad is the last device used), so prompts update instantly on mode change.
  */
 export function promptHtml(btn: PromptButton, key?: string): string {
   const x = GLYPHS.xbox[btn];
@@ -37,6 +37,7 @@ export function promptHtml(btn: PromptButton, key?: string): string {
   return (
     `<span class="glyph g-pad g-xbox ${shape} gx-${btn}">${x}</span>` +
     `<span class="glyph g-pad g-ps ${shape} gp-${btn}">${ps}</span>` +
+    `<span class="glyph g-pad g-nin ${shape} gn-${btn}">${GLYPHS.nintendo[btn]}</span>` +
     `<span class="glyph g-key">${key ?? KEYS[btn]}</span>`
   );
 }

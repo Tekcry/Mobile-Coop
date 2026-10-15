@@ -1,3 +1,5 @@
+import { landingRumble } from '../config/rumble';
+import { MAX_ROCKER_GEAR } from '../player/speedGears';
 import type { App, AppState } from '../core/app';
 import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
@@ -365,8 +367,8 @@ export class GameState implements AppState {
       opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistol' }]);
     // PvP is fair: no damage upgrades or damage mods (and below: no suit armour, no HQ perks)
     const loadout = pvpMatch ? pvpLoadout(base) : base;
-    this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (s, w, ms) =>
-      app.input.rumble(s, w, ms),
+    this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (suppressed) =>
+      app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
     this.stats = emptyStats(opts.mode, opts.map.id);
@@ -455,7 +457,7 @@ export class GameState implements AppState {
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
       if (kind === 'kill') {
-        app.input.rumble(0.5, 0.8, 120);
+        app.input.haptic('kill');
         this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
       }
     };
@@ -473,11 +475,26 @@ export class GameState implements AppState {
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
       this.hud.damageFrom(bearing - this.player.cam.yaw);
       this.player.cam.shake(h.kind === 'explosion' ? 0.5 : 0.12);
-      app.input.rumble(0.6, 0.3, 90);
+      app.input.haptic('hurt');
       // (3.2.0) a pipe transition (legs up / inverted) falls back to the hands
       this.traversal.attachCtl.onHit();
     };
     this.target.onDeath = () => this.onPlayerDeath();
+    // (locomotion step 17) rumble: the landing band, heavy footfalls (gear 6 or carrying a body), takedowns, elbow
+    // hits (all the local player's own: `Player` is the local player, takedown / strike events are local only)
+    this.player.onLanding = (kind) => {
+      const r = landingRumble(kind);
+      if (r) app.input.haptic(r);
+    };
+    this.player.onFootPlant = () => {
+      if (this.player.controller.gear >= 6 || this.stealth?.carrying) app.input.haptic('footfallHeavy');
+    };
+    this.events.on('takedown', (e) => {
+      if (e.phase === 'done') app.input.haptic('takedownDone');
+    });
+    this.events.on('strike', (e) => {
+      if (e.result !== 'miss') app.input.haptic('elbowHit');
+    });
     this.player.onLand = (v) => {
       this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
       this.player.cam.shake(Math.min(0.25, v * 0.02));
@@ -485,7 +502,7 @@ export class GameState implements AppState {
     this.explosions.onExplode = (pos, radius) => {
       const d = Vector3.Distance(pos, this.player.position);
       this.player.cam.shake(Math.max(0, 0.9 - d / (radius * 3)));
-      if (d < radius * 2) app.input.rumble(1, 1, 220);
+      if (d < radius * 2) app.input.haptic('explosion');
     };
 
     if (this.puppet) {
@@ -1261,6 +1278,10 @@ export class GameState implements AppState {
     this.player.pose.medkit = this.medkit.active ? this.medkit.ph : -1;
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
+    // (locomotion step 17, A66) touch has no gear rocker (D1): real touch-stick input raises the maximum gear to 5, so
+    // the stick spans gears 1-5. A plain set, not an override: `?gear=`, test gear sets and the rocker on later pad /
+    // KBM input still win (headless pages start in touch mode with no stick input).
+    if (this.app.input.mode === 'touch' && this.app.input.touch.stickActive) this.player.controller.gears.set(MAX_ROCKER_GEAR);
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
@@ -1893,10 +1914,6 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
-    const touch = this.app.input.touch;
-    // touch v3: the takedown button only while one is on offer (and through the move, for the hold)
-    touch.setControlHidden('takedown', !this.takedown.offer && !this.takedown.active);
-    touch.setControlHidden('ping', !this.net || this.pvp);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
     if (em && em.stealth) {
@@ -2340,9 +2357,8 @@ export class GameState implements AppState {
       w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
-    // speed gear: pips by the tactical strip after a change; on touch the rocker shows it all the time
-    this.hud.setGear(ctl.gear, ctl.gears.changes);
-    this.app.input.touch.setGear(ctl.gear);
+    // speed gear: pips by the tactical strip after a change (step 17: current lit, maximum dim; the touch rocker is gone, D1)
+    this.hud.setGear(ctl.gear, ctl.gears.changes, Math.max(ctl.gear, ctl.maxGear));
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     w.flush();
     // the touch action button: a gadget feed's action, an interactable in reach, else what the world prompts show
@@ -2356,7 +2372,9 @@ export class GameState implements AppState {
     const pd = this.peekOfferDoor >= 0 ? this.world.doors.list[this.peekOfferDoor] : undefined;
     const peekFirst = this.peekOffer && (this.doorPeek.active || !it || (!!pd && it.id === `door-${pd.anchor.id}`));
     if (peekFirst) ACT_PEEK.label = this.doorPeek.active ? 'Close' : 'Peek';
-    touchCtl.setAction(ga ?? (peekFirst ? ACT_PEEK : it ? ACT_USE : this.promptAction()));
+    // (locomotion step 17, D1) the context button carries the takedown too (a tap knocks out, a long press is lethal)
+    const td = this.takedown.offer || this.takedown.active ? this.takedownAction() : null;
+    touchCtl.setAction(ga ?? td ?? (peekFirst ? ACT_PEEK : it ? ACT_USE : this.promptAction()));
     touchCtl.setControlHidden('action', false);
   }
 
@@ -2503,6 +2521,18 @@ export class GameState implements AppState {
       ropes.set('local', a.top.x - a.nx * 0.25, a.top.y + 0.55, a.top.z - a.nz * 0.25, p.x, p.y, p.z);
     } else ropes.hide('local');
     ropes.flush();
+  }
+
+  /** (locomotion step 17, D1) The touch context button's takedown: pressed = `touchPress(true)`, released = false. */
+  private readonly actTakedown: TouchAction = {
+    action: 'interact',
+    label: 'Takedown',
+    icon: 'interact',
+    down: () => this.takedown.touchPress(true),
+    press: () => this.takedown.touchPress(false),
+  };
+  private takedownAction(): TouchAction {
+    return this.actTakedown;
   }
 
   /** Touch held on a prompt: at a closed vent, holding it is holding the use button (unscrew) and a quick tap kicks

@@ -361,16 +361,21 @@ export class Hud {
   }
 
   /** Speed gear: the pips light up to the gear; shown after a change (`changes` moves), then fade. */
-  setGear(gear: number, changes: number): void {
+  setGear(gear: number, changes: number, max = gear): void {
+    // (locomotion step 17) lit up to the current (stick) gear, dim up to the maximum gear (rocker / wheel)
     const now = performance.now();
     if (changes !== this.gearSeen) {
       // (the first reading is the spawn gear: no flash on entering the match)
       if (this.gearSeen >= 0) this.gearT = now;
       this.gearSeen = changes;
     }
-    this.set('gear', gear, () => {
+    this.set('gear', gear * 8 + max, () => {
       this.gearEl.dataset.gear = String(gear);
-      this.gearEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < gear));
+      this.gearEl.dataset.max = String(max);
+      this.gearEl.querySelectorAll('i').forEach((el, i) => {
+        el.classList.toggle('on', i < gear);
+        el.classList.toggle('cap', i < max);
+      });
     });
     const show = now - this.gearT < GEARS.pipsShow * 1000;
     this.set('gearShow', show, () => this.gearEl.classList.toggle('show', show));

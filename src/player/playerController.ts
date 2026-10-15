@@ -11,7 +11,7 @@ import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
-import { GearState, StickRelease, clampGear } from './speedGears';
+import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
@@ -110,6 +110,8 @@ export class PlayerController {
   /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
    *  start on another gear with `?gear=N`. */
   readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
+  /** (locomotion step 17, D5.12) The stick's snapped gear within `gears.gear` (the maximum gear). */
+  readonly analog = new AnalogGear();
   /** Free movement uses the Chaos Theory feel (instant stop / start; `MotionInput.ct`) this step. */
   ct = false;
   /**
@@ -248,8 +250,14 @@ export class PlayerController {
     this.crouchToggled = true;
   }
 
-  /** Current speed gear (1..6). */
+  /** Current speed gear (1..6): the stick's snapped gear while moving (step 17), else the maximum gear. */
   get gear(): number {
+    return this.analog.moving ? this.analog.gear : this.maxGear;
+  }
+
+  /** The maximum gear (rocker / wheel, 1..5; step 17). Touch has no rocker: the game sets it to 5 on real touch-stick
+   *  input (A66), a plain set that later gear sets and the rocker override. */
+  get maxGear(): number {
     return this.gears.gear;
   }
 
@@ -448,7 +456,10 @@ export class PlayerController {
             ? 'crouch'
             : 'stand';
     // free movement: the speed gear's cap x the stick (overrides set their own velocity)
-    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul);
+    // (locomotion step 17, D5.12) analog speed: the stick snaps to a gear within the maximum gear (hysteresis), the
+    // speed is that gear's cap (`AnalogGear`); a keyboard or a full stick gives the maximum gear
+    const snapped = this.analog.update(this.maxGear, this.crouched, mag, this.sprint.sprinting);
+    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : targetSpeed(snapped > 0 ? 1 : 0, stance, lx, lz, T, snapped)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;

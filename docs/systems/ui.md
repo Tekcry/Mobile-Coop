@@ -75,7 +75,7 @@ Design authority: docs/design-bible.md (Section 5.10)
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
 - Use `ui/widgets.ts` (button, toggle, slider, choice, TabView, Dialog). They work identically by touch and pad.
-- Screens give footer `hints()`; prompts render glyphs for Xbox/PlayStation/keyboard, picked by CSS.
+- Screens give footer `hints()`; prompts render glyphs for Xbox / PlayStation / Nintendo / keyboard, picked by CSS (step 17).
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
 - No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
   children opt in.
@@ -88,3 +88,16 @@ Design authority: docs/design-bible.md (Section 5.10)
 
 - `access.healthBar` now defaults on (a stored false is kept); with it off the screen-edge damage vignette is the only health readout.
 - Beside the health number: the kit count (`+N kits`, dimmed at 0, shown with the bar on or off). During a medkit use a pale fill after the health fill shows the heal still to come (`HudFrame.kits`, `heal`). Phone legibility: pending PC run.
+
+## Pad-first controls (locomotion step 17)
+
+- Prompts (`ui/prompts.ts` `promptHtml`) emit Xbox, PlayStation, Nintendo (`GLYPHS.nintendo`) and key glyphs; the body
+  classes `input-gamepad` + `pad-ps` / `pad-nin` (from `InputManager.applyModeClass`) show the pad glyph whenever a pad
+  is the last device used. The binding table for every verb: `docs/systems/input-and-loop.md` "Binding table".
+- HUD gear pips (`hud.setGear(gear, changes, max)`): the current (snapped) gear lit, gears up to the maximum dim, shown
+  for 1.5 s after a change. The touch speed rocker and its pips are gone (D1).
+- Touch basic scheme (D1, A65): move, look, aim, fire / elbow, crouch, jump, vision, one context button (takedown,
+  door peek, use, traversal), reload, pause. The layout editor lists only these; `TOUCH_LAYOUT_VERSION` 7 resets stored
+  layouts.
+- Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, the rumble table in
+  `config/rumble.ts`), Test vibration.

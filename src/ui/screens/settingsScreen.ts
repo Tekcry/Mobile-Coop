@@ -180,7 +180,8 @@ export class SettingsScreen extends Screen {
             section(
               'Haptics',
               toggle('Vibration', () => s().gamepad.vibration, (v) => upd((d) => void (d.gamepad.vibration = v))),
-              button('Test vibration', () => app.input.gamepad.rumble(0.8, 0.5, 300), { class: 'subtle' }),
+              slider('Rumble strength', { min: 0, max: 1, step: 0.05, get: () => s().gameplay.rumble, set: (v) => upd((d) => void (d.gameplay.rumble = v)), format: pct }),
+              button('Test vibration', () => void app.input.testHaptic(), { class: 'subtle' }),
             ),
             resetBtn('gamepad', 'pad'),
           );

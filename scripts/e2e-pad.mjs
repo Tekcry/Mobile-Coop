@@ -308,13 +308,13 @@ try {
   // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
   // goggles, View held an emote
   const G = (f) => page.evaluate(f);
-  const gear0 = await G(() => window.__app.current.player.controller.gear);
+  const gear0 = await G(() => window.__app.current.player.controller.maxGear);
   await press(page, BTN.UP);
-  const gearUp = await G(() => window.__app.current.player.controller.gear);
+  const gearUp = await G(() => window.__app.current.player.controller.maxGear);
   await press(page, BTN.DOWN);
   await press(page, BTN.DOWN);
-  const gearDown = await G(() => window.__app.current.player.controller.gear);
-  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the speed gear (${gear0} -> ${gearUp} -> ${gearDown})`);
+  const gearDown = await G(() => window.__app.current.player.controller.maxGear);
+  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
   const holdBtn = async (b, ms, until) => {
     await page.evaluate((b) => window.__pad.set(b, 1), b);
     await page.waitForTimeout(ms);
@@ -523,6 +523,138 @@ try {
       assert(r.ko2, `a second RT inside the stagger knocks him out (${r.tKo2.toFixed(2)} s)`);
       assert(r.heavy.alive && !r.heavy.ko, `a heavy from the front: staggered only (${JSON.stringify(r.heavy)})`);
       assert(r.whiffRecover >= 0.38 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s recovery after contact time (0.4 s, to the frame)`);
+    } finally {
+      await S.browser.close();
+    }
+  }
+  console.log('analog gear, rocker cap, rumble, pad verbs (step 17)');
+  {
+    const S = await strikePage(launch, url, false);
+    try {
+      await S.page.evaluate(STRIKE_HARNESS);
+      const r = await S.page.evaluate(() => {
+        const g = window.__app.current;
+        const c = g.player.controller;
+        const k = window.__sk;
+        const P = window.__pad;
+        P.connect();
+        const btn = (i, n = 2) => {
+          P.set(i, 1);
+          k.step(n);
+          P.set(i, 0);
+          k.step(2);
+        };
+        const out = {};
+        k.setup(null);
+        // the rocker: up to the maximum gear 5 (it never reaches 6)
+        for (let i = 0; i < 5; i++) btn(12);
+        out.max5 = c.maxGear;
+        // analog: raw stick 50 / 80 / 100% forward (A63) -> gears 2 / 4 / 5
+        // (each from the same spot, facing open floor: 0.5 s of travel)
+        const V0 = g.player.position.constructor;
+        const at = (v) => {
+          c.teleport(new V0(2, 0, -1.9), 0);
+          g.player.cam.yaw = 0;
+          P.axis(1, -v);
+          k.step(30);
+          return { g: c.gear, v: +c.speed.toFixed(2) };
+        };
+        out.a50 = at(0.5);
+        out.a80 = at(0.8);
+        out.a100 = at(1);
+        // L3 with the stick full: sprint, gear 6
+        P.set(10, 1);
+        k.step(30);
+        out.sprint = { g: c.gear, sprinting: c.sprinting };
+        P.set(10, 0);
+        P.axis(1, 0);
+        k.step(40);
+        // rocker down twice: maximum 3 caps the full stick at gear 3's 2.0 m/s
+        btn(13);
+        btn(13);
+        out.max3 = c.maxGear;
+        out.cap = at(1);
+        P.axis(1, 0);
+        k.step(20);
+        // B crouches (toggle), B again stands
+        btn(1);
+        out.crouch = c.crouched;
+        btn(1);
+        out.stand = !c.crouched;
+        // RB / LB swap, R3 swaps the shoulder, D-pad right held aims the gadget
+        const w0 = g.weapons.index;
+        btn(5, 2);
+        k.step(40);
+        out.rb = g.weapons.index !== w0;
+        btn(4, 2);
+        k.step(40);
+        out.lb = g.weapons.index === w0;
+        const sh0 = g.player.cam.shoulder;
+        btn(11);
+        out.r3 = g.player.cam.shoulder === -sh0;
+        P.set(15, 1);
+        k.step(20);
+        out.gadgetAim = g.gadgets.aiming;
+        g.gadgets.aiming = false;
+        P.set(15, 0);
+        k.step(5);
+        g.gadgets.aiming = false;
+        // rumble: a landing (2 m drop), a shot, an elbow hit, a takedown; the fake pad records every playEffect
+        const fx = () => P.effects.map((e) => `${e.strong.toFixed(2)}/${e.weak.toFixed(2)}/${e.ms}`);
+        P.effects.length = 0;
+        const V = g.player.position.constructor;
+        const l0 = c.landings;
+        c.teleport(new V(2, 2.0, -1.9), 0);
+        k.until(() => c.landings > l0, 3);
+        k.step(10);
+        out.land = fx();
+        P.effects.length = 0;
+        P.set(6, 1);
+        k.step(40);
+        P.set(7, 1);
+        k.step(3);
+        P.set(7, 0);
+        k.step(10);
+        P.set(6, 0);
+        k.step(40);
+        out.shot = fx();
+        P.effects.length = 0;
+        const e = k.setup('grunt', false, 0);
+        btn(7, 2);
+        k.until(() => !e.alive || !g.strike.active, 1.5);
+        out.elbow = fx();
+        k.until(() => !g.strike.active, 1.5);
+        P.effects.length = 0;
+        const e2 = k.setup('grunt', false, 0);
+        e2['stagger'] = 0;
+        k.until(() => !!g.takedown.offer, 1);
+        out.tdOffer = g.takedown.offer?.plan?.kind ?? (g.takedown.offer ? "yes" : null);
+        btn(3);
+        out.tdViaPad = !!g.takedown.active || g.takedown.hostage !== null;
+        // (pad Y on a takedown is covered by the corner check below; here only the rumble on completion matters)
+        if (!out.tdViaPad && g.takedown.offer) g.takedown.start(false);
+        k.until(() => g.takedown.hostage !== null || !e2.alive, 1);
+        if (e2.alive && g.takedown.hostage !== null) btn(3);
+        k.until(() => !e2.alive, 4);
+        k.step(10);
+        out.takedown = fx();
+        out.tdDone = !e2.alive;
+        return out;
+      });
+      console.log(JSON.stringify(r));
+      assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
+      assert(r.a50.g === 2 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> gears 2 / 4 / 5 (A63) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
+      assert(Math.abs(r.a50.v - 1.3) < 0.1 && Math.abs(r.a80.v - 2.8) < 0.15 && Math.abs(r.a100.v - 3.8) < 0.2, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
+      assert(r.sprint.sprinting && r.sprint.g === 6, `L3 with a full stick: sprint, gear 6 (${JSON.stringify(r.sprint)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.crouch && r.stand, 'B crouches and stands');
+      assert(r.rb && r.lb, 'RB next weapon, LB previous');
+      assert(r.r3, 'R3 swaps the shoulder');
+      assert(r.gadgetAim, 'D-pad right held aims the gadget');
+      assert(r.land.some((s) => ['0.15/0.25/60', '0.35/0.45/110', '0.80/0.80/200'].includes(s)), `rumble on landing (${r.land})`);
+      assert(r.shot.some((s) => ['0.12/0.20/45', '0.40/0.55/80'].includes(s)), `rumble on a shot (${r.shot})`);
+      assert(r.elbow.includes('0.50/0.30/90'), `rumble on an elbow hit (${r.elbow})`);
+      assert(r.tdDone && r.takedown.includes('0.60/0.40/150'), `rumble on a takedown (${r.tdDone}, offer ${r.tdOffer}, pad ${r.tdViaPad}, ${r.takedown})`);
     } finally {
       await S.browser.close();
     }

@@ -14,21 +14,14 @@ export const TOUCH_CONTROL_IDS = [
   'reload',
   'action',
   'crouch',
-  'swap',
-  'grenade',
-  'dash',
-  'shoulder',
   'pause',
   'vision',
-  'gadgets',
-  'takedown',
-  'ping',
-  'speed',
   'jump',
 ] as const;
 /** Touch layout format version (2: camera stick, contextual action button; 3: takedown button; 4: speed rocker; 5: jump
- *  button; 6: Mark and Execute buttons removed). */
-export const TOUCH_LAYOUT_VERSION = 6;
+ *  button; 6: Mark and Execute buttons removed; 7: the D1 basic scheme, locomotion step 17: swap, gadget, wheel, sprint,
+ *  shoulder, ping, speed rocker and takedown buttons removed (the takedown is on the context button), stored layouts reset). */
+export const TOUCH_LAYOUT_VERSION = 7;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -140,7 +133,7 @@ export interface Settings {
     avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -174,17 +167,8 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   reload: { x: 0.78, y: 0.27, scale: 1 },
   action: { x: 0.6, y: 0.8, scale: 1 },
   crouch: { x: 0.965, y: 0.53, scale: 1 },
-  swap: { x: 0.49, y: 0.88, scale: 1 },
-  grenade: { x: 0.585, y: 0.5, scale: 1 },
-  dash: { x: 0.35, y: 0.88, scale: 1 },
-  shoulder: { x: 0.68, y: 0.09, scale: 1 },
   pause: { x: 0.79, y: 0.09, scale: 1 },
   vision: { x: 0.655, y: 0.27, scale: 1 },
-  gadgets: { x: 0.515, y: 0.62, scale: 1 },
-  takedown: { x: 0.6, y: 0.62, scale: 1 },
-  ping: { x: 0.57, y: 0.09, scale: 1 },
-  // 3.2.0 speed rocker (gear up / down): just right of the move stick's zone
-  speed: { x: 0.445, y: 0.67, scale: 1 },
   // 3.2.0 jump (the action button beside it does what the world prompts show)
   jump: { x: 0.7, y: 0.78, scale: 1 },
 };
@@ -195,11 +179,8 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   fire: { x: 0.9, y: 0.2, scale: 1 },
   ads: { x: 0.76, y: 0.2, scale: 1 },
   reload: { x: 0.64, y: 0.2, scale: 1 },
-  grenade: { x: 0.69, y: 0.48, scale: 1 },
-  shoulder: { x: 0.5, y: 0.09, scale: 1 },
   pause: { x: 0.585, y: 0.09, scale: 1 },
   vision: { x: 0.57, y: 0.33, scale: 1 },
-  gadgets: { x: 0.6, y: 0.62, scale: 1 },
 };
 
 /** Left-handed: everything mirrored. */
@@ -260,7 +241,7 @@ export function defaultSettings(): Settings {
     keys: defaultBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, rumble: 1 },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -374,12 +355,14 @@ export function sanitizeSettings(raw: unknown): Settings {
   // (v2 -> v3, v3 -> v4 and v4 -> v5 only add controls: every stored placement is kept, the new one takes its default spot;
   // v5 -> v6 only removes the Mark and Execute buttons: their stored placements are dropped, every other one is kept)
   const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
+  // (locomotion step 17) v6 -> v7: the D1 basic scheme; every stored placement resets to the defaults
+  const reset = num(t.layoutVersion, 1, 1, 99) < 7;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);
     const dp = d.touch.layout[id];
     const v1 = V1_DEFAULT_LAYOUT[id];
     // v1 "fire" was the right aim-and-fire stick; its spot now belongs to the camera stick, so it resets
-    const isNew = !isObj(lay[id]);
+    const isNew = reset || !isObj(lay[id]);
     const untouched = isNew || (fromV1 && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale)));
     const place: ControlPlacement = untouched ? { ...dp } : { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
     if (!untouched && typeof p.alpha === 'number') place.alpha = num(p.alpha, 1, 0.2, 1.6);
@@ -465,6 +448,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
+      rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

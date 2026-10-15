@@ -137,9 +137,11 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       timestamp: 0,
       axes: [0, 0, 0, 0],
       buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })),
-      vibrationActuator: { playEffect: async () => 'complete' },
+      // (locomotion step 17) every rumble is recorded: window.__pad.effects = [{ type, strong, weak, ms, t }]
+      vibrationActuator: { playEffect: async (type, p) => { window.__pad.effects.push({ type, strong: p?.strongMagnitude ?? 0, weak: p?.weakMagnitude ?? 0, ms: p?.duration ?? 0, t: performance.now() }); return 'complete'; } },
     };
     window.__pad = {
+      effects: [],
       connect() {
         pad.connected = true;
       },

@@ -345,11 +345,15 @@ await G(([NODES, W, names, LOWER]) => {
         st.move.x = inp.x ?? 0;
         st.move.y = inp.y ?? 0;
         st.set('anim-audit', 'ads', !!inp.ads);
+        // (step 17, A68) sprint held as the game reads it (`dash`: one press edge in toggle mode, held in hold mode);
+        // kept down across back-to-back sprint runs (a release + press would toggle it off)
+        st.set('anim-audit', 'dash', !!inp.sprint);
         if (inp.taps?.[k]) st.tap(inp.taps[k]);
         a.loop.stepHeadless(1 / 60, hz);
       }
       st.move.x = st.move.y = 0;
       st.set('anim-audit', 'ads', false);
+      if (!inp.sprint) st.set('anim-audit', 'dash', false);
       return aa.frames.length;
     },
     /** Hold `inp` until the capsule lands after being airborne (or `max` s). */
@@ -378,6 +382,7 @@ await G(([NODES, W, names, LOWER]) => {
       if (aa.w0 === undefined) aa.w0 = W.index;
       st.move.x = st.move.y = 0;
       st.set('anim-audit', 'ads', false);
+      st.set('anim-audit', 'dash', false);
       if (g.wallCore?.active) {
         g.wallCore.leave('test');
         was.push('wall');
@@ -437,10 +442,11 @@ const add = (surface, stance, gear, hz, aim = false) => gaits.push({ name: `${su
 if (QUICK) {
   for (const hz of [60, 120]) for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 3]]) add('flat', s, g, hz);
 } else {
-  for (const hz of [60, 120]) for (const s of ['stand', 'crouch']) for (let g = 1; g <= 6; g++) add('flat', s, g, hz);
-  for (const surface of ['stairs', 'ramp']) for (const s of ['stand', 'crouch']) for (let g = 1; g <= 6; g++) add(surface, s, g, 60);
+  // (step 17, A68) gear 6 is the sprint (sprint held, standing): crouched gear 6 is unreachable, crouch rows stop at 5
+  for (const hz of [60, 120]) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add('flat', s, g, hz);
+  for (const surface of ['stairs', 'ramp']) for (const s of ['stand', 'crouch']) for (let g = 1; g <= (s === 'crouch' ? 5 : 6); g++) add(surface, s, g, 60);
   for (const surface of ['stairs', 'slope35'])
-    for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2], ['crouch', 6]]) add(surface, s, g, 120);
+    for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2]]) add(surface, s, g, 120);
 }
 // the drawn subset runs last (step 09 fix 4): the page carries its clocks and springs from one scenario to the next, so
 // running it among the gaits shifted every later holstered row (idle breathing phase, tunnel head / camera)
@@ -497,9 +503,11 @@ async function drive(sc, halt = -1) {
       t.begin(halt);
       t.run(0.3, { ads }, hz);
       m.start = t.mark();
-      t.run(accel, { y: 1, ads }, hz);
+      // (step 17, A68) gear 6 only with sprint held: the stand6 rows hold it through accel + steady
+      const sprint = !crouch && sc.gear === 6;
+      t.run(accel, { y: 1, ads, sprint }, hz);
       m.steady = t.mark();
-      t.run(steady, { y: 1, ads }, hz);
+      t.run(steady, { y: 1, ads, sprint }, hz);
       m.stop = t.mark();
       t.run(STOP, { ads }, hz);
       m.end = t.mark();
@@ -1292,7 +1300,9 @@ function remoteSegments(sc) {
     steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4) / cap - accel + 0.1));
   }
   // stopidle (r1): a 1.5 s idle tail, the breath measured after the stop settles
-  return [{ d: 0.3 }, { d: accel, y: 1 }, { d: steady, y: 1 }, { d: sc.idleTail ? 1.5 : 1.2 }];
+  // (step 17, A68) stand6: sprint held through accel + steady (gear 6 only with sprint)
+  const sprint = !crouch && sc.gear === 6;
+  return [{ d: 0.3 }, { d: accel, y: 1, sprint }, { d: steady, y: 1, sprint }, { d: sc.idleTail ? 1.5 : 1.2 }];
 }
 
 /** Linear interpolation of B's track (rows of `w` floats, column 0 = t) at time t: column `c..c+2` -> out. */
@@ -1823,6 +1833,7 @@ async function runRemote() {
             rb.done = true;
             st.move.x = st.move.y = 0;
             st.set('anim-audit', 'ads', false);
+            st.set('anim-audit', 'dash', false);
             rb.marks.push(sec());
           } else {
             const s = rb.segs[k];
@@ -1834,6 +1845,7 @@ async function runRemote() {
             st.move.x = s.x ?? 0;
             st.move.y = s.y ?? 0;
             st.set('anim-audit', 'ads', !!s.ads);
+            st.set('anim-audit', 'dash', !!s.sprint);
           }
         }
         return ob?.call(this, dt);

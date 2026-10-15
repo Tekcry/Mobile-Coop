@@ -57,7 +57,7 @@ const st = () =>
       fire: window.__app.input.state.down('fire'),
       yaw: g.player.cam.yaw,
       weapon: g.weapons.index,
-      gear: g.player.controller.gear,
+      gear: g.player.controller.maxGear,
       paused: !g.simulating,
       mode: window.__app.input.mode,
     };
@@ -250,7 +250,7 @@ try {
   await page.mouse.wheel(0, 120);
   await page.waitForTimeout(300);
   const down = await st();
-  assert(up.gear === Math.min(6, s0.gear + 1) && down.gear === Math.max(1, s0.gear - 1) && down.weapon === s0.weapon, `wheel steps the speed gear (${s0.gear} -> ${up.gear} -> ${down.gear}), not the weapon (${s0.weapon} -> ${down.weapon})`);
+  assert(up.gear === Math.min(5, s0.gear + 1) && down.gear === Math.max(1, s0.gear - 1) && down.weapon === s0.weapon, `wheel steps the maximum gear (${s0.gear} -> ${up.gear} -> ${down.gear}), not the weapon (${s0.weapon} -> ${down.weapon})`);
   // X swaps weapons now
   await page.keyboard.press('KeyX');
   await page.waitForTimeout(1200);
@@ -268,10 +268,51 @@ try {
     return g;
   };
   await page.keyboard.press('Equal');
-  const g1 = await gearIs(Math.min(6, g0 + 1));
+  const g1 = await gearIs(Math.min(5, g0 + 1));
   await page.keyboard.press('Minus');
   const g2 = await gearIs(g0);
-  assert(g1 === Math.min(6, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
+  assert(g1 === Math.min(5, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
+  // (locomotion step 17, D1) every KBM verb in the binding table (docs/systems/input-and-loop.md) raises its action:
+  // the input state is wrapped to record and swallow what each default key raises (no side effects in the match)
+  {
+    const KBM = [
+      ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['Space', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
+      ['ShiftLeft', 'dash'], ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
+      ['KeyH', 'medkit'], ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
+      ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyJ', 'quick2'], ['KeyK', 'quick3'], ['KeyL', 'quick4'], ['KeyP', 'pause'],
+    ];
+    await page.evaluate(() => {
+      const s = window.__app.input.state;
+      const acts = (window.__acts = new Set());
+      window.__restore = { set: s.set, tap: s.tap, setMove: s.setMove };
+      s.set = function (src, a, d) {
+        if (d) acts.add(a);
+      };
+      s.tap = function (a) {
+        acts.add(a);
+      };
+      s.setMove = function (src, x, y) {
+        if (x || y) acts.add('move');
+      };
+    });
+    const missed = [];
+    for (const [code, ...want] of KBM) {
+      await page.evaluate(() => window.__acts.clear());
+      await page.keyboard.down(code);
+      await page.waitForTimeout(40);
+      await page.keyboard.up(code);
+      const got = await page.evaluate(() => [...window.__acts]);
+      if (!want.every((a) => got.includes(a))) missed.push(`${code}: ${got.join('+') || 'nothing'}`);
+    }
+    await page.evaluate(() => {
+      const s = window.__app.input.state;
+      delete s.set;
+      delete s.tap;
+      delete s.setMove;
+      s.releaseAll();
+    });
+    assert(missed.length === 0, `every KBM verb raises its action (${KBM.length} keys; missed: ${missed.join(', ') || 'none'})`);
+  }
   // (step 14) the KBM vision key (N) cycles off -> night -> thermal -> electro -> off; post.vk follows
   {
     const vis = () => page.evaluate(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));

@@ -6,6 +6,7 @@ import { TouchControls } from './touchControls';
 import type { PadStyle } from './gamepadMapping';
 import type { SettingsStore } from '../core/settings';
 import { EventBus } from '../core/events';
+import { playRumble, type RumbleKind } from '../config/rumble';
 
 export interface InputEvents {
   mode: InputMode;
@@ -27,8 +28,14 @@ export class InputManager {
   /** Gameplay wants touch controls shown (in game, no menu open). */
   private gameplayActive = false;
 
+  private readonly getSettings: () => ReturnType<SettingsStore['get']>;
+  private readonly sink = (strong: number, weak: number, ms: number): void => this.rumble(strong, weak, ms);
+  /** The settings "Test vibration" button: straight to the pad whatever the input mode (a mouse click on the button). */
+  private readonly padSink = (strong: number, weak: number, ms: number): void => this.gamepad.rumble(strong, weak, ms);
+
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement, settings: SettingsStore) {
     const get = (): ReturnType<SettingsStore['get']> => settings.get();
+    this.getSettings = get;
     this._mode = matchMedia('(pointer: coarse)').matches ? 'touch' : 'kbm';
     this.gamepad = new GamepadSource(this.state, get, {
       onConnect: (id, style) => this.events.emit('padConnected', { id, style }),
@@ -83,6 +90,7 @@ export class InputManager {
     c.remove('input-touch', 'input-gamepad', 'input-kbm');
     c.add(`input-${this._mode}`);
     c.toggle('pad-ps', this.gamepad?.style === 'playstation');
+    c.toggle('pad-nin', this.gamepad?.style === 'nintendo');
   }
 
   /** Call when entering/leaving live gameplay (no menus). */
@@ -114,6 +122,17 @@ export class InputManager {
     this.touch.update(dt);
     this.state.tick(dt);
     if (style !== this.gamepad.style) this.applyModeClass();
+  }
+
+  /** (locomotion step 17) The rumble table (`config/rumble.ts`): an event of the local player (`local`), scaled by
+   *  `gameplay.rumble`. Every game rumble goes through here. */
+  haptic(kind: RumbleKind, local = true): boolean {
+    return playRumble(this.sink, kind, local, this.getSettings().gameplay.rumble);
+  }
+
+  /** The settings "Test vibration" button: the table's `test` entry on the pad, at the chosen rumble strength. */
+  testHaptic(): boolean {
+    return playRumble(this.padSink, 'test', true, this.getSettings().gameplay.rumble);
   }
 
   rumble(strong: number, weak: number, ms: number): void {

@@ -432,7 +432,7 @@ export class CoopClient implements NetAttachment {
         if (e.by === me) {
           g.hud.hitMarker('kill');
           g.app.sfx.hitMarker('kill');
-          g.app.input.rumble(0.5, 0.8, 120);
+          g.app.input.haptic('kill');
           g.hud.feedItem(`${p?.def.name ?? 'Hostile'} ${e.head ? 'headshot' : 'down'}`, 'kill');
         } else {
           g.hud.feedItem(`${this.name(e.by)}: ${p?.def.name ?? 'hostile'} ${e.head ? 'headshot' : 'down'}`);
@@ -444,7 +444,7 @@ export class CoopClient implements NetAttachment {
         if (e.by === me && e.victim !== me) {
           g.hud.hitMarker('kill');
           g.app.sfx.hitMarker('kill');
-          g.app.input.rumble(0.5, 0.8, 120);
+          g.app.input.haptic('kill');
           g.hud.feedItem(`${this.name(e.victim)} eliminated${e.head ? ' (headshot)' : ''}`, 'kill');
         } else if (e.victim === me) g.hud.banner('ELIMINATED', e.by === me ? '' : `by ${this.name(e.by)}`, 2500);
         else g.hud.feedItem(e.by === e.victim ? `${this.name(e.victim)} died` : `${this.name(e.by)} > ${this.name(e.victim)}`);
@@ -477,7 +477,7 @@ export class CoopClient implements NetAttachment {
         const pp = g.player.position;
         g.hud.damageFrom(Math.atan2(e.x - pp.x, e.z - pp.z) - g.player.cam.yaw);
         g.player.cam.shake(e.boom ? 0.5 : 0.12);
-        g.app.input.rumble(0.6, 0.3, 90);
+        g.app.input.haptic('hurt');
         g.app.sfx.playerHurt();
         break;
       }

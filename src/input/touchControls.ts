@@ -24,34 +24,18 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   reload: { id: 'reload', action: 'reload', size: 58, icon: 'reload', label: 'Reload' },
   action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Action (vault, climb, use: what the prompts show)' },
   crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
-  swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
-  grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Gadget (hold to aim, release to throw)' },
-  gadgets: { id: 'gadgets', action: 'gadgetWheel', size: 56, icon: 'wheel', label: 'Gadget wheel' },
-  dash: { id: 'dash', action: 'dash', size: 56, icon: 'dash', label: 'Sprint (toggle)' },
-  shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
   vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Vision' },
-  takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
-  ping: { id: 'ping', action: 'ping', size: 56, icon: 'ping', label: 'Ping (co-op)' },
-  speed: { id: 'speed', action: null, size: 56, icon: 'dash', label: 'Speed (gear up / down)' },
   jump: { id: 'jump', action: 'leap', size: 72, icon: 'jump', label: 'Jump (grabs what is in reach; double tap between two walls: split)' },
 };
 
-/** The speed rocker is a tall pill (up half, the six gear pips, down half); every other control is round. */
-export const ROCKER_TALL = 1.9;
-
-/** Box (px) of a control drawn at `size`. */
-export function controlBox(id: TouchControlId, size: number): { w: number; h: number } {
-  return { w: size, h: id === 'speed' ? size * ROCKER_TALL : size };
+/** Box (px) of a control drawn at `size` (every control is round; the speed rocker left with step 17, D1). */
+export function controlBox(_id: TouchControlId, size: number): { w: number; h: number } {
+  return { w: size, h: size };
 }
 
 /** Inner markup of a control (layout editor handles too). */
 export function controlHtml(id: TouchControlId): string {
-  if (id === 'speed') {
-    let pips = '';
-    for (let g = 6; g >= 1; g--) pips += `<i data-g="${g}"></i>`;
-    return `<div class="tc-sp-up">${icon('jump', 18)}</div><div class="tc-sp-pips">${pips}</div><div class="tc-sp-down">${icon('crouch', 18)}</div>`;
-  }
   return icon(TOUCH_DEFS[id].icon, 26);
 }
 
@@ -108,6 +92,8 @@ export class TouchControls {
   private lookY = 0;
   private lookHeldT = 0;
   private dirty = true;
+  /** (step 17, A66) The move stick is held this frame (real touch-stick input; the game reads it for the gear). */
+  stickActive = false;
 
   constructor(
     private state: InputState,
@@ -185,17 +171,6 @@ export class TouchControls {
     return this.context;
   }
 
-  private shownGear = 0;
-
-  /** The speed rocker's pips: gears up to the current one lit. */
-  setGear(gear: number): void {
-    if (gear === this.shownGear) return;
-    this.shownGear = gear;
-    const pips = this.elements.get('speed')?.querySelectorAll<HTMLElement>('.tc-sp-pips i');
-    pips?.forEach((p) => p.classList.toggle('on', Number(p.dataset.g) <= gear));
-    this.elements.get('speed')?.setAttribute('data-gear', String(gear));
-  }
-
   setPressedVisual(id: TouchControlId, on: boolean): void {
     this.elements.get(id)?.classList.toggle('active', on);
   }
@@ -257,8 +232,6 @@ export class TouchControls {
       this.pointers.set(e.pointerId, role);
       // the action button: a held interaction starts on the press (unscrewing a vent), the rest act on release
       if (id === 'action') this.context?.down?.();
-      // the speed rocker: the half pressed steps the gear (a tap each)
-      if (id === 'speed') this.state.tap((e.target as HTMLElement).closest('.tc-sp-down') ? 'speedDown' : 'speedUp');
       if (def.action) this.state.set(`touch-${id}`, def.action, true);
       target.classList.add('active');
       this.haptic(8);
@@ -338,7 +311,10 @@ export class TouchControls {
    * update here (never in the pointer handlers).
    */
   update(dt: number): void {
-    if (!this.visible || this.editMode) return;
+    if (!this.visible || this.editMode) {
+      this.stickActive = false;
+      return;
+    }
     const t = this.getSettings().touch;
     let move: Extract<PointerRole, { kind: 'move' }> | null = null;
     let look: Extract<PointerRole, { kind: 'look' }> | null = null;
@@ -347,6 +323,7 @@ export class TouchControls {
       else if (r.kind === 'look') look = r;
     }
     // move stick
+    this.stickActive = move !== null;
     if (move) {
       const rad = STICK_RADIUS * t.layout.move.scale * t.scale;
       let dx = move.x - move.ox;

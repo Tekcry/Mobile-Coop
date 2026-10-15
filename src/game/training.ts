@@ -11,6 +11,8 @@ export interface TrainingStep {
   text: string;
   /** Short hint per input type. */
   hint: { pad: string; kbm: string; touch: string };
+  /** (locomotion step 17, A67) No touch control for it in the D1 basic scheme: skipped while playing by touch. */
+  noTouch?: boolean;
 }
 
 export const TRAINING_STEPS: readonly TrainingStep[] = [
@@ -19,8 +21,8 @@ export const TRAINING_STEPS: readonly TrainingStep[] = [
   { id: 'vault', text: 'Vault over the low crate', hint: { pad: 'Y at the crate', kbm: 'E at the crate', touch: 'Tap "Vault"' } },
   { id: 'ladder', text: 'Climb the ladder', hint: { pad: 'Y at the ladder', kbm: 'E at the ladder', touch: 'Tap "Climb"' } },
   { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'Tap the View button', kbm: 'N', touch: 'Goggles button' } },
-  { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold', touch: 'Takedown button: grab, then again' } },
-  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release', touch: 'Hold the gadget button, release' } },
+  { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold', touch: 'Action button: grab, then again' } },
+  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release', touch: 'Pad or keyboard only' }, noTouch: true },
 ];
 
 /** What the game reports each step. */

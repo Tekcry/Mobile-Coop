@@ -99,6 +99,10 @@ export class Player {
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
   onLand: ((speed: number) => void) | null = null;
+  /** (locomotion step 17) A landing in a band (`LandingKind`: soft / roll / heavy) and a foot plant (rumble). */
+  onLanding: ((kind: string) => void) | null = null;
+  onFootPlant: (() => void) | null = null;
+  private landingsSeen = 0;
   private wasGrounded = true;
   private fallSpeed = 0;
   private probeT = 0;
@@ -222,6 +226,10 @@ export class Player {
     if (c.grounded && !this.wasGrounded && this.fallSpeed > 4) this.onLand?.(this.fallSpeed);
     if (c.grounded) this.fallSpeed = 0;
     this.wasGrounded = c.grounded;
+    if (c.landings !== this.landingsSeen) {
+      this.landingsSeen = c.landings;
+      this.onLanding?.(c.lastLanding);
+    }
   }
 
   /** Render-rate update: look, camera, animation. */
@@ -368,7 +376,10 @@ export class Player {
     this.rig.animate(dt, rp);
     // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
     const pl = this.rig.planner;
-    if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
+    if ((pl.L.landed || pl.R.landed) && c.grounded) {
+      this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
+      this.onFootPlant?.();
+    }
     this.cam.applyBodyFade(this.rig);
   }
 

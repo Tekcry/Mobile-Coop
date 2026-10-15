@@ -206,10 +206,12 @@ body {
 }
 .input-gamepad .g-xbox,
 .input-gamepad.pad-ps .g-ps,
+.input-gamepad.pad-nin .g-nin,
 .input-kbm .g-key {
   display: inline-flex;
 }
-.input-gamepad.pad-ps .g-xbox {
+.input-gamepad.pad-ps .g-xbox,
+.input-gamepad.pad-nin .g-xbox {
   display: none;
 }
 .gx-A { background: #2f9e44; }
@@ -3413,6 +3415,10 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   height: 8px;
   border-radius: 1px;
   background: rgba(255, 255, 255, 0.18);
+}
+/* (locomotion step 17) pips up to the maximum gear (rocker / wheel) dim, up to the current (stick) gear lit */
+.tac-gear i.cap {
+  background: rgba(255, 255, 255, 0.45);
 }
 .tac-gear i.on {
   background: var(--accent);

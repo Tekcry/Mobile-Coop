@@ -21,7 +21,7 @@ describe('speed gears (3.2.0)', () => {
     expect(g.step(1)).toBe(true);
     expect(g.gear).toBe(4);
     for (let i = 0; i < 5; i++) g.step(1);
-    expect(g.gear).toBe(6);
+    expect(g.gear).toBe(5); // (locomotion step 17: the rocker sets the maximum gear 1-5; gear 6 is the sprint)
     expect(g.step(1)).toBe(false);
     for (let i = 0; i < 9; i++) g.step(-1);
     expect(g.gear).toBe(1);

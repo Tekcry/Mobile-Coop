@@ -142,6 +142,14 @@ export class TrainingMode implements GameMode {
       this.hintMode = g.app.input.mode;
       this.updateHud();
     }
+    // (locomotion step 17, A67) the touch basic scheme has no gadget button (D1): that step is skipped by touch
+    if (this.course.step?.noTouch && g.app.input.mode === 'touch') {
+      g.hud.feedItem('Step skipped: no touch control');
+      this.course.skip(s);
+      this.enter();
+      if (this.course.done) this.finish();
+      return;
+    }
     this.stepT += dt;
     const done = this.course.update(s);
     if (done) {

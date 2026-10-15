@@ -98,10 +98,11 @@ try {
     Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
   );
   assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
-  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision', 'speed']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
-  // 3.2.0 speed rocker: the up half steps the gear up, the down half down; its pips always show the gear, the HUD
-  // pips show after a change
-  const gearNow = () => page.evaluate(() => ({ gear: window.__app.current.player.controller.gear, pips: document.querySelectorAll('.tc-speed .tc-sp-pips i.on').length, hud: document.querySelector('.tac-gear')?.classList.contains('show') ?? false }));
+  // (locomotion step 17, D1) the basic scheme: move, look, aim, fire / elbow, crouch, jump, one context button, vision
+  // (plus reload and pause, A65); the swap, gadget, wheel, sprint, shoulder, ping, speed and takedown buttons are gone
+  for (const id of ['reload', 'crouch', 'ads', 'vision', 'jump', 'action']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  const gone = await page.evaluate(() => ['swap', 'grenade', 'gadgets', 'dash', 'shoulder', 'ping', 'speed', 'takedown'].filter((id) => !!document.querySelector(`.touch-layer .tc-${id}`)));
+  assert(gone.length === 0, `the removed buttons are absent (${gone.join(', ') || 'none'})`);
   const tapIn = async (sel) => {
     const b = await page.locator(sel).boundingBox();
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
@@ -121,33 +122,31 @@ try {
     }
     assert(seq.join(' ') === 'night thermal electro off', `the touch vision button cycles the four modes (${seq.join(' ')})`);
   }
-  const g0 = await gearNow();
-  assert(g0.pips === g0.gear, `rocker pips show the gear (${g0.pips} lit, gear ${g0.gear})`);
-  await tapIn('.tc-speed .tc-sp-up');
-  const g1 = await gearNow();
-  await tapIn('.tc-speed .tc-sp-down');
-  await tapIn('.tc-speed .tc-sp-down');
-  const g2 = await gearNow();
-  assert(g1.gear === g0.gear + 1 && g1.pips === g1.gear && g1.hud && g2.gear === g0.gear - 1 && g2.pips === g2.gear, `rocker: up ${g0.gear} -> ${g1.gear}, down -> ${g2.gear}; HUD pips shown after a change (${g1.hud})`);
-  await page.waitForTimeout(2200);
-  assert(!(await gearNow()).hud, 'HUD gear pips fade after 1.5 s');
-  // forward roll by touch: top gear on the rocker, push the stick, tap crouch
-  for (let i = 0; i < 4; i++) await tapIn('.tc-speed .tc-sp-up');
+  // (step 17, A66) no rocker on touch: the stick spans gears 1-5 (analog snapping); a small push walks, a full push
+  // runs at gear 5; crouch tapped at gear 5 while moving rolls
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
   await frames(page, 4);
+  const endS = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 22 });
+  await frames(page, 6);
+  const small = await page.evaluate(() => ({ g: window.__app.current.player.controller.gear, max: window.__app.current.player.controller.maxGear }));
+  await endS();
+  await frames(page, 3);
+  await page.evaluate(() => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
+  await frames(page, 4);
   const rolls0 = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
-  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 70 });
+  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 120 });
   await page.waitForFunction(() => window.__app.current.player.controller.speed > 3, null, { timeout: 8000 }).catch(() => {});
+  const full = await page.evaluate(() => window.__app.current.player.controller.gear);
+  assert(small.max === 5 && small.g >= 1 && small.g < 5 && full === 5, `touch stick: maximum gear 5, a small push gear ${small.g}, a full push gear ${full}`);
   const cr = await page.locator('.tc-crouch').boundingBox();
-  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
+  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 120, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
   await frames(page, 2);
-  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }]);
+  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 120, id: 0 }]);
   await page.waitForFunction((r) => window.__app.current.traversal.forwardRolls > r, rolls0, { timeout: 6000 }).catch(() => {});
   await endR();
   const rolled = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
-  assert(rolled === rolls0 + 1, `touch: crouch at gear 6 while moving rolls (${rolled - rolls0})`);
+  assert(rolled === rolls0 + 1, `touch: crouch at gear 5 while moving rolls (${rolled - rolls0})`);
   await page.waitForFunction(() => window.__app.current.traversal.kind === 'none', null, { timeout: 6000 }).catch(() => {});
-  await page.evaluate(() => { const c = window.__app.current.player.controller; c.gears.set(4); });
   await frames(page, 4);
   if (await page.evaluate(() => window.__app.current.player.controller.crouched)) await tapIn('.tc-crouch');
   // (3.2.0) the action button is always there, dimmed with nothing on offer
@@ -178,6 +177,47 @@ try {
   await page.locator('.dialog .btn', { hasText: 'Quit' }).tap();
   await page.waitForSelector('.main-menu', { timeout: 10000 });
   assert(true, 'quit by touch');
+  // (locomotion step 17, A65, D1) the context button carries the takedown: behind a guard it reads "Takedown"; a tap
+  // starts it (a grab from behind, then a second tap knocks out)
+  console.log('touch takedown on the context button (step 17, A65)');
+  {
+    const tk = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+    try {
+      const P = tk.page;
+      await P.waitForFunction(() => !!window.__app?.current?.enemyMgr && !!window.__app.current.player, null, { timeout: 60000 });
+      await frames(P, 5);
+      await P.evaluate(() => {
+        const g = window.__app.current;
+        g.target.health.invulnerable = true;
+        g.mode.pending.length = 0;
+        const V = g.player.position.constructor;
+        g.enemyMgr.clear();
+        g.player.controller.teleport(new V(2, 0, -1.9), 0);
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0);
+        e['stagger'] = 99;
+        e.yaw = 0;
+        window.__tdE = e;
+      });
+      await P.waitForFunction(() => !!window.__app.current.takedown.offer && document.querySelector('.tc-action')?.textContent === 'Takedown', null, { timeout: 8000 }).catch(() => {});
+      const label = await P.evaluate(() => ({ offer: !!window.__app.current.takedown.offer, text: document.querySelector('.tc-action')?.textContent ?? '' }));
+      const tapAct = async () => {
+        const b = await P.locator('.tc-action').boundingBox();
+        await P.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+        await frames(P, 4);
+      };
+      await tapAct();
+      const started = await P.evaluate(() => { const t = window.__app.current.takedown; return !!t.active || t.hostage !== null || !window.__tdE.alive; });
+      await P.waitForFunction(() => { const t = window.__app.current.takedown; return t.hostage !== null || !window.__tdE.alive; }, null, { timeout: 4000 }).catch(() => {});
+      if (await P.evaluate(() => window.__tdE.alive && window.__app.current.takedown.hostage !== null)) await tapAct();
+      await P.waitForFunction(() => !window.__tdE.alive, null, { timeout: 8000 }).catch(() => {});
+      const down = await P.evaluate(() => !window.__tdE.alive);
+      assert(label.offer && label.text === 'Takedown' && started && down, `touch: the context button reads Takedown behind a guard and a tap takes them down (${JSON.stringify(label)}, started ${started}, down ${down})`);
+    } finally {
+      await tk.browser.close();
+    }
+  }
   // 3.1.6 forced landscape: a phone held upright (rotation locked) gets the page turned, not a "rotate" screen; taps
   // and sticks act in the turned space (hold the phone turned left: the screen's top is the game's left)
   const pt = await launch({ url, touchViewport: { width: 390, height: 844 } });

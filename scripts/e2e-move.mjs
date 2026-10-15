@@ -39,7 +39,7 @@ try {
   assert(p0.grounded && Math.abs(p0.y) < 0.1, `spawned on ground (y=${p0.y.toFixed(2)})`);
 
   // 3.2.0 Chaos Theory speed gears: spawn in gear 3; D-pad up / down step one gear; full stick = the gear's cap
-  const GEAR = () => page.evaluate(() => window.__app.current.player.controller.gear);
+  const GEAR = () => page.evaluate(() => window.__app.current.player.controller.maxGear);
   assert((await GEAR()) === 3, `spawns in gear 3 (${await GEAR()})`);
   const setGear = async (n) => {
     for (let i = 0; i < 6 && (await GEAR()) > n; i++) await press(page, BTN.DOWN);
@@ -61,14 +61,21 @@ try {
   const STAND = [0.8, 1.3, 2.0, 2.8, 3.8, 5.0];
   const CROUCH = [0.5, 0.9, 1.3, 1.8, 2.3, 2.8];
   for (const crouched of [false, true]) {
-    for (let g = 1; g <= 6; g++) {
+    // (locomotion step 17) the rocker sets the maximum gear 1-5; gear 6 is the sprint only (LS held, standing: the sprint
+    // stands you up, so the crouched gear 6 cap is a table value covered by the unit tests)
+    for (let g = 1; g <= (crouched ? 5 : 6); g++) {
       await tp(-10, 0, -14, Math.PI / 2);
       await settle(0.2);
       if (crouched && !(await P()).crouched) await press(page, BTN.B);
       if (!crouched && (await P()).crouched) await press(page, BTN.B);
-      const got = await setGear(g);
+      let got = await setGear(Math.min(g, 5));
       await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
+      if (g === 6) {
+        await sim(0.1);
+        await press(page, BTN.LS);
+      }
       await sim(0.25);
+      if (g === 6) got = await page.evaluate(() => window.__app.current.player.controller.gear);
       const v = await meanSpeed(0.5);
       const want = (crouched ? CROUCH : STAND)[g - 1];
       assert(got === g && Math.abs(v - want) < want * 0.06 + 0.03, `gear ${g} ${crouched ? 'crouched' : 'standing'}: ${v.toFixed(2)} m/s (cap ${want})`);

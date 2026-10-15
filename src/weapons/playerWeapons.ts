@@ -144,7 +144,8 @@ export class PlayerWeapons {
     private grenadeSys: Grenades,
     private vfx: Vfx,
     loadout: LoadoutEntry[],
-    private rumble: (s: number, w: number, ms: number) => void,
+    /** (locomotion step 17) the shot rumble (the table, `config/rumble.ts`): suppressed or loud. */
+    private shotFeel: (suppressed: boolean) => void,
   ) {
     // every carried weapon gets its own slot on the body (back / sling / thigh), so all stay visible
     const defs = loadout.map((e) => withAttachments(WEAPONS[e.id], e.attachments ?? []));
@@ -651,7 +652,7 @@ export class PlayerWeapons {
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
     cam.shake(def.class === 'sniper' ? 0.25 : def.class === 'shotgun' ? 0.2 : 0.04);
     this.bloom += def.spreadPerShot;
-    this.rumble(def.class === 'shotgun' || def.class === 'sniper' ? 0.7 : 0.25, 0.4, def.class === 'smg' ? 40 : 70);
+    this.shotFeel(s.stats.noise <= 0.6);
     this.events.onShot?.(def);
   }
 

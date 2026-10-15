@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 17 - pad first input (PC, controller, phone)
+- [ ] Pad: push the stick gently, halfway, fully: sneak, walk, jog, run speeds with no flicker at the boundaries; L3 sprints.
+- [ ] D-pad up / down sets the maximum gear (pips dimmed above it); the stick never exceeds it.
+- [ ] Rumble on landings, heavy footfalls, takedowns, elbow hits and shots; Settings Rumble strength scales it; Test vibration works.
+- [ ] KBM: the mouse wheel and = / - set the maximum gear.
+- [ ] Phone: the touch layout reset to the basic scheme; tilt reaches walk to run; a takedown from the context button; Training skips the gadget lesson.
+- [ ] HUD gear pips: lit, dimmed (cap) and off pips are distinct.
+
 ## Locomotion step 16 - the arsenal (PC, controller, phone)
 - [ ] Campaign loadout: Primary lists Heron Carbine, Marten 9 SMG, Mason 12 Pump, Spotter 7.62 Marksman; Sidearm lists Hush 9 SD and Warden .45; the preset panel agrees with the rows.
 - [ ] The Heron Carbine shows silenced, with the suppressor on the model.
