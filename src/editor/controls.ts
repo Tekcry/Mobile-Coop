@@ -1,13 +1,17 @@
 /**
  * Level editor camera: fly (free, through walls), walk (eye height, walls block, crouch) and orbit (the controller's
  * builder camera around the dot, orbit.ts). Right mouse drag looks, WASD moves, Q / E go down and up (fly), Shift is
- * fast, the wheel dollies, C crouches (walk). Mouse or key input in orbit hands over to fly from the same pose.
+ * fast, C crouches (walk). Mouse or key input in orbit hands over to fly from the same pose. Hub > Settings > Camera
+ * (Michael 2026-10-14): Free fly (the default: the pad flies too, fly.ts; the wheel sets the fly speed) or Orbit (the
+ * pad drives the orbit camera; the wheel dollies, as before).
  */
 import type { FreeCamera } from '../core/babylon';
 import { collide } from './geometry';
 import type { Obb } from './geometry';
-import { OrbitCam, orbitFromPose, blendPose, type CamPose } from './orbit';
-import type { OrbitInput } from './orbit';
+import { OrbitCam, ORBIT, orbitFromPose, blendPose, type CamPose } from './orbit';
+import type { OrbitInput, OrbitTune } from './orbit';
+import { FLY, flyGoTo, flyPad, flyVel, wheelSpeed } from './fly';
+import type { FlyPadIn, FlyPose } from './fly';
 
 export type CamMode = 'fly' | 'walk' | 'orbit';
 
@@ -18,8 +22,6 @@ const EYE_DROP = 0.12;
 const RADIUS = 0.3;
 const WALK = 1.6; // m/s, a careful walk
 const RUN = 4.5;
-const FLY = 10;
-const FLY_FAST = 35;
 /** Pad look, radians per second at full stick. */
 const LOOK_RATE = 2.4;
 
@@ -38,6 +40,16 @@ export class CameraControls {
   /** Controller input when walking, set each frame by padControl.ts: left stick move (x right, y forward), right stick look rate (x right, y up). */
   padMove = { x: 0, y: 0 };
   padLook = { x: 0, y: 0 };
+  /** Hub > Settings > Camera (padControl copies it in). */
+  camSetting: 'fly' | 'orbit' = 'fly';
+  /** Free fly: the speed (the wheel steps it), the pad's input this frame (null: none) and its eased velocity. */
+  flySpeed: number = FLY.SPEED;
+  flyIn: FlyPadIn | null = null;
+  readonly flyV = flyVel();
+  /** Free fly: the view before the top-down swap (View tap); null when not top-down. */
+  flyTop: { yaw: number; pitch: number } | null = null;
+  /** Free fly: called when the wheel changes the speed. */
+  onFlySpeed: ((speed: number) => void) | null = null;
   /** Controller run while walking (L3 toggles it, as the game's sprint; ED3-pad1). Reset when a walk starts. */
   padRun = false;
   private readonly keys = new Set<string>();
@@ -76,6 +88,11 @@ export class CameraControls {
         e.preventDefault();
         if (this.walking) return;
         this.leaveOrbit();
+        if (this.camSetting === 'fly') {
+          this.flySpeed = wheelSpeed(this.flySpeed, e.deltaY);
+          this.onFlySpeed?.(this.flySpeed);
+          return;
+        }
         const step = -Math.sign(e.deltaY) * (e.shiftKey ? 12 : 4);
         const f = this.forward();
         this.camera.position.set(this.camera.position.x + f[0] * step, this.camera.position.y + f[1] * step, this.camera.position.z + f[2] * step);
@@ -105,6 +122,30 @@ export class CameraControls {
   /** Mouse or keys: the fly camera takes over exactly where the orbit camera is (decision 3). */
   leaveOrbit(): void {
     if (this.mode === 'orbit') this.mode = 'fly';
+  }
+
+  /** Free fly, the pad's View tap: ease to straight down, north up; again goes back to the view before. */
+  flyTopDown(): boolean {
+    const back = this.flyTop;
+    const p = this.camera.position;
+    const from = this.pose();
+    if (back) {
+      this.flyTop = null;
+      this.blend = { from, to: { ...from, yaw: back.yaw, pitch: back.pitch }, t: 0, dur: 0.3, done: () => undefined };
+      return false;
+    }
+    this.flyTop = { yaw: this.yaw, pitch: this.pitch };
+    this.blend = { from, to: { pos: [p.x, p.y, p.z], yaw: 0, pitch: FLY.PITCH, fov: from.fov }, t: 0, dur: 0.3, done: () => undefined };
+    return true;
+  }
+
+  /** Free fly: ease so the aim lands on (x, y, z) from `dist` metres, keeping the yaw and looking down (go to, Find, problems). */
+  flyTo(x: number, y: number, z: number, dist: number): void {
+    const from = this.pose();
+    const g = flyGoTo({ x: from.pos[0], y: from.pos[1], z: from.pos[2], yaw: this.yaw, pitch: this.pitch }, x, y, z, dist);
+    this.mode = 'fly';
+    this.flyTop = null;
+    this.blend = { from, to: { pos: [g.x, g.y, g.z], yaw: g.yaw, pitch: g.pitch, fov: from.fov }, t: 0, dur: 0.3, done: () => undefined };
   }
 
   /** Unit view direction [x, y, z]. */
@@ -175,6 +216,7 @@ export class CameraControls {
       return;
     }
     if (this.mode === 'orbit') return this.updateOrbit(dt);
+    if (this.mode === 'fly' && this.flyIn) return this.updateFlyPad(dt, this.flyIn);
     const k = this.keys;
     const fast = k.has('ShiftLeft') || k.has('ShiftRight') || (this.walking && this.padRun);
     const clamp1 = (v: number): number => Math.max(-1, Math.min(1, v));
@@ -195,13 +237,28 @@ export class CameraControls {
       const [x, z] = collide(nx, nz, RADIUS, this.blockers);
       p.set(x, this.floor + this.eye(), z);
     } else {
-      const v = (fast ? FLY_FAST : FLY) * dt;
+      const v = this.flySpeed * (fast ? FLY.FAST : 1) * dt;
       const f = this.forward();
       const rx = Math.cos(this.yaw);
       const rz = -Math.sin(this.yaw);
       const up = clamp1((k.has('KeyE') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0));
       p.set(p.x + (f[0] * fwd + rx * side) * v, p.y + (f[1] * fwd + up) * v, p.z + (f[2] * fwd + rz * side) * v);
     }
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  /** Pad tune (padControl copies Settings in: dead zone, smoothing, pan and orbit speed) and invert tilt. */
+  flyTune: OrbitTune & { invert: boolean } = { dead: ORBIT.DEAD, smoothing: 'medium', pan: 1, orbit: 1, invert: false };
+
+  /** Free fly on the pad (fly.ts): the eased sticks and triggers move and turn the camera; keys still add W A S D. */
+  private updateFlyPad(dt: number, i: FlyPadIn): void {
+    const p = this.camera.position;
+    const pose: FlyPose = { x: p.x, y: p.y, z: p.z, yaw: this.yaw, pitch: this.pitch };
+    if (i.lookX || i.lookY) this.flyTop = null;
+    flyPad(pose, this.flyV, i, dt, this.flyTune, this.flySpeed, this.flyTune.invert);
+    p.set(pose.x, pose.y, pose.z);
+    this.yaw = pose.yaw;
+    this.pitch = pose.pitch;
     this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
 

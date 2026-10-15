@@ -88,7 +88,8 @@
     "fallMax": { "value": 2, "src": "ON10 brief (Michael 2026-10-13): flat roof fall 1-2 degrees" },
     "upstand": { "value": 0.3, "src": "ON10 brief (Michael 2026-10-13): upstand 0.3 with no parapet" },
     "overhangMax": { "value": 1.0, "src": "ON10 brief (Michael 2026-10-13): overhang 0-1.0 m" },
-    "levelTol": { "value": 0.05, "src": "ON10: a flat roof top within this of the roof level's floor matches it" }
+    "levelTol": { "value": 0.05, "src": "ON10: a flat roof top within this of the roof level's floor matches it" },
+    "cornerMagnet": { "value": 0.4, "src": "Michael 2026-10-14 (editor report): a roof corner being drawn snaps to the outer face of a wall under the aim within this distance (LB held: off)" }
   },
   "ladder": {
     "shaft": { "value": 1.0, "src": "scale-sheet s3" },
@@ -102,6 +103,26 @@
     "crouchWidth": { "value": 1.2, "src": "F32" },
     "tunnelMin": { "value": 2.1, "src": "scale-sheet s3" },
     "tunnelPreferred": { "value": 2.4, "src": "scale-sheet s3" }
+  },
+  "ceiling": {
+    "corridor": { "value": 2.4, "src": "handover Decisions H7 and brief R4: corridor ceilings 2.4 under the 1.5 m voids (a new corridor ceiling starts here)" },
+    "min": { "value": 2.1, "src": "editor default: typical product (the lowest ceiling the card steps to: a 2.1 m door head); below it the ceiling is none" },
+    "endReach": { "value": 0.6, "src": "ON13 editor default: a crawl end within this of a vent or a hatch takes it" }
+  },
+  "crawl": {
+    "widthMin": { "value": 0.6, "src": "ON13 brief decision 3 (one 600 mm crawl board)" },
+    "widthMax": { "value": 1.2, "src": "ON13 brief decision 3; F32 crouch width" },
+    "widthDefault": { "value": 1.2, "src": "F32 crouch width (standards-check.mjs: a crawl space's clear short side at least 1.2)" }
+  },
+  "sign": {
+    "plateCentre": { "value": 1.5, "src": "ON14 brief decision 5: a door name plate at 1.5 m" },
+    "plateGap": { "value": 0.1, "src": "ON14 editor default: a name plate sits this far beyond the door's latch edge, on the wall" },
+    "wallCentre": { "value": 1.8, "src": "editor default: typical (a wall-mounted safety or direction sign at about eye level and just above, 1.5-2.0 m)" },
+    "hangGap": { "value": 0.1, "src": "ON14 editor default: a hung sign's top this far under the ceiling (its chains)" },
+    "hangBottomMin": { "value": 2.1, "src": "editor default: a hung sign clears a 2.1 m door head (facts door.singleHeight is the door's own)" },
+    "wallReach": { "value": 0.8, "src": "ON14 editor default: a sign backs onto a wall face within this distance of the dot (as light.wallReach)" },
+    "panelThick": { "value": 0.02, "src": "src/world/detailPass.ts:94: the game's own signs are 0.02 m panels (under lightShapes CANON_MIN_THICK, so never a light shape)" },
+    "arrayMax": { "value": 20, "src": "ON14 editor default: at most this many copies in one Array" }
   },
   "cover": {
     "lowHeight": { "value": 1.2, "src": "scale-sheet s3" },
@@ -123,6 +144,11 @@
     "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
     "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" },
     "mapCell": { "value": 0.5, "src": "ON7 brief decision 4: the darkness map and the guard view sample every 0.5 m cell of the level's floor" },
+    "snapMagnet": { "value": 0.15, "src": "Michael 2026-10-14 (editor report): a lamp or device moved on a ceiling or roof underside snaps to its centre and quarter lines within this distance (LB held: off)" },
+    "slideSpeed": { "value": 1.5, "src": "editor default: a held lamp, device or sign slides this fast (m/s) at a full left stick" },
+    "areaCell": { "value": 0.3, "src": "Michael 2026-10-14 (editor report): an area fitting lights across its whole face, one light point per 300 mm of its length and width (a 1200 x 300 troffer: 4)" },
+    "areaMax": { "value": 8, "src": "editor default: at most this many light points per fitting (a long strip spreads them out), so the light bake stays small" },
+    "grabPx": { "value": 48, "src": "editor default: A with the aim this near a lamp, device or sign on screen (CSS px) takes it rather than the room" },
     "surfaceGap": { "value": 0.15, "src": "map lamps hang 0.15 m under their ceilings (src/world/maps/mansion.ts H1 - 0.15): the light bake grows solids by half a 0.2 m cell, so a light point nearer a ceiling or wall is inside it and lights nothing" }
   },
   "traverse": {
@@ -145,7 +171,9 @@
     "aisleMaxGap": { "value": 0.3, "src": "P03 prompt A26" },
     "parapet": { "value": 1.1, "src": "level-design 16.5.3" },
     "wallJoinTol": { "value": 0.001, "src": "ON0b (Michael 2026-10-13): a wall end within this of another wall meets it (corners join)" },
-    "wallGapMax": { "value": 0.05, "src": "ON0b (Michael 2026-10-13): a wall end this near another wall but not on it is a Gap" }
+    "wallGapMax": { "value": 0.05, "src": "ON0b (Michael 2026-10-13): a wall end this near another wall but not on it is a Gap" },
+    "wallPushMax": { "value": 0.3, "src": "Michael 2026-10-14 (editor report): a piece placed or moved this far or less into a wall is pushed out to the face; deeper is refused" },
+    "wallTouchTol": { "value": 0.01, "src": "editor default: a piece touching a wall face (or this little into it) is on the face, not inside" }
   },
   "escape": {
     "oneWay": { "value": 18, "src": "02-building-brief s7 (general knowledge)" },
@@ -176,7 +204,17 @@
     "maxMantraps": { "value": 2, "src": "SN62" },
     "maxBeams": { "value": 10, "src": "SN63" },
     "maxPir": { "value": 6, "src": "SN64" },
-    "maxFaults": { "value": 2, "src": "SN65" }
+    "maxFaults": { "value": 2, "src": "SN65" },
+    "cameraSweepMax": { "value": 120, "src": "SN13" },
+    "cameraSweepDefault": { "value": 90, "src": "SN15 reason (a 90 deg sweep cycle = 16 s)" },
+    "cameraSweepStep": { "value": 10, "src": "ON12 editor default: a pan camera's sweep steps 10 degrees on the card" },
+    "cameraAimStep": { "value": 5, "src": "ON12 editor default: a camera's facing steps 5 degrees on the card" },
+    "cameraMountDefault": { "value": 3.0, "src": "S0 section 6 example camera y 3.0 (inside SN04)" },
+    "readerHeight": { "value": 1.1, "src": "S0 section 6 example reader y 1.1" },
+    "pirWallHeight": { "value": 2.4, "src": "ON12 editor default: typical product (a wall PIR sensor at 2.0-2.5 m)" },
+    "pirWallFan": { "value": 180, "src": "ON12 editor default: S0 2.6 tests range only, on its level; a wall sensor sees the half in front of its wall" },
+    "beamHeightDefault": { "value": 1.4, "src": "SN40 (the middle of the high band)" },
+    "monitorMax": { "value": 16, "src": "ON12 editor default: typical product (a 16-way video wall)" }
   },
   "climb": {
     "pipeLipRise": { "value": 0.8, "src": "src/player/attachController.ts pipeLip: a drainpipe climbs off onto a hangable ledge whose top is within 0.8 of the pipe top" },
@@ -210,6 +248,19 @@
     "connectorReach": { "value": 3, "src": "ON8 editor: a stair or ladder joins a leg at the walkable cell nearest it within this" },
     "maxSpawns": { "value": 4, "src": "schema.md section 3 spawns (1-4 players; co-op is 2-4)" },
     "previewRate": { "value": 1, "src": "ON8 brief decision 6: the patrol preview walks at the guard's own speed (real time)" }
+  },
+  "moon": {
+    "latitude": { "value": 54, "src": "Overnight choice (ON15): RULES section 1 puts Kestrel in a northern British city and no doc gives a latitude; 54 degrees north (northern hemisphere: the moon's arc runs through the south)" },
+    "declination": { "value": 20, "src": "editor default: the simple sky path's moon declination, a winter full moon's (opposite the late-November sun at about -20 degrees), so it rises north of east at dusk, stands highest in the south at midnight and sets north of west at dawn" },
+    "dusk": { "value": 960, "src": "editor default: the slider's dusk, 16:00 (minutes after midnight); late November at 54 N the sun sets about 15:50" },
+    "dawn": { "value": 480, "src": "editor default: the slider's dawn, 08:00 (minutes after midnight); late November at 54 N the sun rises about 08:00" },
+    "timeStep": { "value": 10, "src": "editor default: the time-of-night slider steps 10 minutes" },
+    "bearingStep": { "value": 5, "src": "ON15 brief decision 1: the moon's compass bearing steps 5 degrees" },
+    "heightStep": { "value": 5, "src": "editor default: the moon's height steps 5 degrees, as the bearing" },
+    "heightMin": { "value": 5, "src": "editor default: the lowest moon height the bake takes (a moon on the horizon casts endless shadows)" },
+    "heightMax": { "value": 85, "src": "editor default: the highest moon height (straight overhead has no bearing)" },
+    "briefTime": { "value": 70, "src": "docs/kestrel/01-mission-brief.md section 2: a Tuesday in late November, 01:10 start (minutes after midnight)" },
+    "briefBrightness": { "value": "new", "src": "docs/kestrel/01-mission-brief.md section 2: a thin waning moon behind cloud, so the yard has no moonlight (the game's scale: new, no moon light)" }
   },
   "render": {
     "pxPerM": { "value": 10, "src": "P03 prompt step 3" },
@@ -280,6 +331,7 @@
     "labelSpread": { "value": 0.75, "src": "P03 style: fraction of the room the label candidates cover" },
     "calloutGap": { "value": 4, "src": "P03 style (drawing only): px between a leader line and its text" },
     "calloutPad": { "value": 3, "src": "P03 style (drawing only): px between stacked callouts" },
-    "roomNameRange": { "value": 40, "src": "ON3 brief decision 2 (editor only): floating room names in 3D hide beyond this many metres" }
+    "roomNameRange": { "value": 40, "src": "ON3 brief decision 2 (editor only): floating room names in 3D hide beyond this many metres" },
+    "handlePx": { "value": 12, "src": "Michael 2026-10-14 editor fix-up (editor only): selection handles keep this many pixels on screen in 3D and on the plan" }
   }
 }

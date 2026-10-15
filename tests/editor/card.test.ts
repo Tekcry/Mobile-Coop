@@ -11,7 +11,7 @@ const c = { step: 0.1, wallLen: 6 };
 describe('selection card rows (ON0a decision 4)', () => {
   it('Type first, then the element own fields', () => {
     // ON9: a single door's own settings follow its sizes
-    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Hinge', 'Swings into', 'One-way', 'Locked', 'Reader', 'Self-closing', 'Alarmed', 'Vision panel', 'Id']);
+    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Hinge', 'Swings into', 'One-way', 'Locked', 'Reader', 'Self-closing', 'Alarmed', 'Vision panel', 'Name plate', 'Id']);
     expect(cardRows('walls', wall).map((r) => r.label)).toEqual(['Type', 'Name', 'Thickness', 'Height', 'Length', 'Id']);
     expect(cardRows('rooms', room).map((r) => `${r.label} ${r.value}`)).toEqual(['Type Room', 'Name Office', 'Width 4 m', 'Depth 3 m', `Access ${RING_NAMES[2]}`, 'Floor finish None', `Id ${room.id}`]);
     expect(cardRows('stairs', { id: 'S', kind: 'stair', from: 'G', to: 'F', rect: [0, 0, 2, 5], up: 'N' }).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Depth', 'Climbs', 'To level', 'Id']);

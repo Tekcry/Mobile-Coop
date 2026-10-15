@@ -1,40 +1,86 @@
 /**
- * The tile menu and the name picker on screen (ON0a). The tile menu is a full-width panel over the bottom half of the
- * views (the 3D view stays visible above): a row of tabs, then a grid of large tiles (a list of rows on the View tab).
+ * The tile menu and the name picker on screen (ON0a). The tile menu is a full-width panel along the bottom of the
+ * views (the 3D view stays visible above): a row of tabs, a row of group tabs (Objects, Presets, Lights), then a
+ * centred grid of equal fixed-size tiles, at most 4 a row (on the View tab a list of rows as wide as the grid). The
+ * panel is one size on every tab and group (Michael 2026-10-14).
  * The name picker opens from the card's Name row: the names already used, then an on-screen keyboard. Rows, tiles and
  * keys come from the pure modules (tileMenu.ts, card.ts); padControl.ts drives both with the pad, clicks drive them
  * with the mouse. DOM is written only when something changes.
  */
 import { KEYBOARD, KEYBOARD_COLS, typeKey } from './card';
-import { gridMove, LIST_TABS, menuTabs, menuTiles } from './tileMenu';
-import type { MenuInput, MenuTab, TileMenu } from './tileMenu';
+import { gridMove, LIST_TABS, menuGroup, menuGroups, menuTabs, menuTiles } from './tileMenu';
+import type { MenuInput, MenuTab, Tile, TileMenu } from './tileMenu';
+
+/** A grid tile's width, CSS pixels: fits the longest title on one line and four columns at 1280 px (2026-10-14). */
+const TILE_W = 292;
+/** The same on phones and small windows (the small-screen rule in editor.html shrinks the text). */
+const TILE_W_SMALL = 216;
+/** Gap between tiles, CSS pixels (matches editor.html). */
+const GAP = 8;
+const GAP_SMALL = 5;
+/** Space kept for the scroll bar on each side of the tiles (the body reserves a gutter on both edges). */
+const GUTTER = 16;
+/** At most this many tiles a row. */
+const MAX_COLS = 4;
+/** Every grid tile's height (Michael 2026-10-14: one size everywhere; long names wrap inside it). */
+const TILE_H = 80;
+const TILE_H_SMALL = 65;
+/** The body is this many tile rows tall on every tab (the small layout: the same share of a phone's height). */
+const ROWS = 3;
+const ROWS_SMALL = 2;
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+function tileHtml(t: Tile, i: number, list: boolean, hl: boolean): string {
+  const cls = `tile${hl ? ' hl' : ''}${t.disabled ? ' off' : ''}${t.on ? ' lit' : ''}`;
+  // an empty value draws nothing
+  const arrows = list && t.kind !== 'toggle';
+  const value = t.value ? `<b class="tv">${arrows ? '&#8249; ' : ''}${esc(t.value)}${arrows ? ' &#8250;' : ''}</b>` : '';
+  return `<div class="${cls}" data-tile="${i}"><span class="ti">${esc(t.icon)}</span><span class="tt"><span class="tn">${esc(t.name)}</span><small>${esc(t.disabled ?? t.desc)}</small></span>${value}</div>`;
+}
+
 export class TileMenuView {
   private key = '';
+  /** Tiles on the tab last drawn (a short tab draws fewer columns, still centred). */
+  private count = 0;
+  private readonly small = typeof matchMedia === 'function' ? matchMedia('(max-width: 900px), (max-height: 500px)') : null;
 
   constructor(
     private readonly el: HTMLElement,
     onTab: (t: MenuTab) => void,
     onTile: (i: number) => void,
+    onGroup: (id: string) => void,
   ) {
     el.addEventListener('click', (e) => {
       const t = e.target as Element;
       const tab = t.closest('[data-mtab]')?.getAttribute('data-mtab');
       if (tab) return onTab(tab as MenuTab);
+      const group = t.closest('[data-mgroup]')?.getAttribute('data-mgroup');
+      if (group) return onGroup(group);
       const tile = t.closest('[data-tile]')?.getAttribute('data-tile');
       if (tile !== null && tile !== undefined) onTile(Number(tile));
     });
   }
 
-  /** Tiles a row on a grid tab, from the panel's width (2 to 6). */
-  cols(): number {
-    const w = this.el.clientWidth || 800;
-    return Math.min(6, Math.max(2, Math.floor(w / 210)));
+  private get isSmall(): boolean {
+    return !!this.small?.matches;
   }
 
-  render(m: TileMenu, inp: MenuInput, padWords: { tab: string; close: string }, bottom: number): void {
+  /** Columns the panel's width allows (1 to 4): every tile one fixed width, never stretched. */
+  private fitCols(): number {
+    const small = this.isSmall;
+    const tw = small ? TILE_W_SMALL : TILE_W;
+    const gap = small ? GAP_SMALL : GAP;
+    const w = (this.el.clientWidth || 800) - 2 * (small ? 8 : 12) - 2 * GUTTER;
+    return Math.min(MAX_COLS, Math.max(1, Math.floor((w + gap) / (tw + gap))));
+  }
+
+  /** Tiles a row on the grid tab last drawn (what the D-pad steps across): the fitting columns, fewer on a short tab. */
+  cols(): number {
+    return Math.min(this.fitCols(), Math.max(1, this.count));
+  }
+
+  render(m: TileMenu, inp: MenuInput, padWords: { tab: string; group: string; close: string }, bottom: number): void {
     if (!m.isOpen) {
       if (this.key) {
         this.el.classList.add('hidden');
@@ -45,22 +91,44 @@ export class TileMenuView {
     }
     const tiles = menuTiles(m.tab, inp);
     const tabs = menuTabs(inp);
+    const groups = menuGroups(m.tab);
+    const cur = menuGroup(m.tab, inp);
     const list = LIST_TABS.includes(m.tab);
-    const k = `${m.tab}|${m.index}|${tabs.join()}|${tiles.map((t) => `${t.id}:${t.value ?? ''}:${t.disabled ? 1 : 0}`).join()}|${padWords.tab}|${bottom}|${this.cols()}`;
+    const fit = this.fitCols();
+    const k = `${m.tab}|${m.index}|${tabs.join()}|${cur ?? ''}|${tiles.map((t) => `${t.id}:${t.value ?? ''}:${t.disabled ? 1 : 0}`).join()}|${padWords.tab}|${padWords.group}|${bottom}|${fit}|${this.isSmall ? 1 : 0}`;
     if (k === this.key) return;
     this.key = k;
+    this.count = tiles.length;
+    if (this.el.classList.contains('hidden')) this.el.classList.remove('hidden');
     this.el.style.bottom = `${bottom}px`;
+    const small = this.isSmall;
+    const tw = small ? TILE_W_SMALL : TILE_W;
+    const th = small ? TILE_H_SMALL : TILE_H;
+    const gap = small ? GAP_SMALL : GAP;
+    // the grid and the View list share one width: the fitting columns of fixed tiles, centred
+    const gw = fit * tw + (fit - 1) * gap;
+    const cols = list ? 1 : this.cols();
+    const w = list ? gw : cols * tw + (cols - 1) * gap;
+    // Michael 2026-10-14: one panel size on every tab and group: the group row is always there (blank on a tab with no
+    // groups) and the body is ROWS tiles tall (it scrolls when a tab has more)
+    const rows = small ? ROWS_SMALL : ROWS;
+    const bodyH = rows * th + (rows - 1) * gap;
     const tabHtml = tabs.map((t) => `<button data-mtab="${t}" class="${t === m.tab ? 'on' : ''}">${t}</button>`).join('');
-    const body = tiles
-      .map((t, i) => {
-        const cls = `tile${i === m.index ? ' hl' : ''}${t.disabled ? ' off' : ''}${t.on ? ' lit' : ''}`;
-        const value = t.value !== undefined ? `<b class="tv">${list && t.kind !== 'toggle' ? '&#8249; ' : ''}${esc(t.value)}${list && t.kind !== 'toggle' ? ' &#8250;' : ''}</b>` : '';
-        return `<div class="${cls}" data-tile="${i}"><span class="ti">${esc(t.icon)}</span><span class="tn">${esc(t.name)}</span>${value}<small>${esc(t.disabled ?? t.desc)}</small></div>`;
-      })
-      .join('');
-    this.el.innerHTML = `<div class="tm-head"><span class="dim">${esc(padWords.tab)}</span><div class="tm-tabs">${tabHtml}</div><span class="dim">${esc(padWords.close)}</span></div><div class="tm-body${list ? ' list' : ''}" style="--cols:${list ? 1 : this.cols()}">${body}</div>`;
-    this.el.classList.remove('hidden');
+    const groupHtml = groups.length ? groups.map((g) => `<button data-mgroup="${g.id}" class="${g.id === cur ? 'on' : ''}">${esc(g.name)}</button>`).join('') : '<button class="ph" tabindex="-1" aria-hidden="true">&nbsp;</button>';
+    const body = tiles.map((t, i) => tileHtml(t, i, list, i === m.index)).join('');
+    this.el.innerHTML = `<div class="tm-head"><span class="dim">${esc(padWords.tab)}</span><div class="tm-tabs">${tabHtml}</div><span class="dim tm-close">${esc(padWords.close)}</span></div><div class="tm-head tm-ghead${groups.length ? '' : ' empty'}"><span class="dim">${groups.length ? esc(padWords.group) : ''}</span><div class="tm-groups">${groupHtml}</div><span></span></div><div class="tm-body" style="height:${bodyH + 2}px"><div class="tm-grid${list ? ' list' : ''}" style="--cols:${cols};--tw:${tw}px;--gw:${w}px">${body}</div></div>`;
+    const grid = this.el.querySelector<HTMLElement>('.tm-grid');
+    if (grid) {
+      let h = th;
+      if (list) for (const t of grid.children) h = Math.max(h, (t as HTMLElement).offsetHeight);
+      grid.style.gridAutoRows = list ? `${h}px` : `${th}px`;
+    }
     this.el.querySelector('.tile.hl')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** The panel's height on screen, CSS pixels (the e2e checks it never changes between tabs and groups). */
+  get height(): number {
+    return this.el.getBoundingClientRect().height;
   }
 
   /** The scrolling part (the right stick scrolls it). */

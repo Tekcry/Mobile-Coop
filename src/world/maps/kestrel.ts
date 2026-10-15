@@ -1,10 +1,14 @@
 import { Vector3 } from '../../core/babylon';
 import { MOVEMENT } from '../../config/movement';
-import type { MapDef, MapLayout } from '../mapDef';
+import type { MapDef, MapLayout, MapTheme } from '../mapDef';
 import type { BoxPiece, LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
+import type { CameraDevice } from '../../security/data';
 import blocks from './kestrel.blocks.json';
 import { campusToBuild, type CampusFile } from './kestrelCampus';
+// ON15: only the campus file's `meta` (the map's own night); the named import keeps the rest of the file out of the build
+import { meta as campusMeta } from '../../../docs/kestrel/kestrel.campus.blocks.json';
+import { nightTheme } from './kestrelNight';
 import { walkOpenings } from './kestrelDoors';
 import { debugSpots, floorTiles, levelOf, ringFloorColour, SLAB, stairLayout, STAIR_COLOUR, wallBoxes, type KestrelArch } from './kestrelGeo';
 
@@ -80,6 +84,19 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
       if (o.noLedge) b.mark(at, { noLedge: true });
     }
   }
+  // ON13: ceilings and crawl boards as boxes (light shapes, bible 5.1); grid tiles do not collide, side boards give no ledge
+  for (const q of c.ceilings) {
+    const at = b.boxes.length;
+    b.box(q.c[0], q.c[1], q.c[2], q.s[0], q.s[1], q.s[2], q.colour, q.yaw, 0, q.collide);
+    if (q.noLedge) b.mark(at, { noLedge: true });
+  }
+  // ON14: name plates and signs as thin panels in their colour (the game draws no text on a panel; detailPass.ts:94 signs are
+  // plain boxes too); they never collide, give no ledge, and at 0.02 m are under the light bake's CANON_MIN_THICK as the detail pass's signs
+  for (const q of c.panels) {
+    const at = b.boxes.length;
+    b.box(q.c[0], q.c[1], q.c[2], q.s[0], q.s[1], q.s[2], q.colour, q.yaw, 0, false);
+    b.mark(at, { noLedge: true });
+  }
   // ON6: lamps through the same path a map's lights take (LevelBuilder.light), so the light meter reads them (bible 5.1)
   for (const l of c.lights) b.light(l);
   // ON5: floors marked by finish (footstep loudness and sound, src/world/surfaces.ts)
@@ -92,6 +109,9 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
   const ops = walkOpenings(c.arch);
   for (const o of ops.doors) b.door(o.hinge[0], o.hinge[1], o.hinge[2], o.width, o.yaw, { height: o.height, swing: o.swing, locked: o.locked });
   for (const p of ops.panes) b.windowAt(p.c[0], p.c[1], p.c[2], p.w, p.h, p.yaw, { breakable: p.breakable });
+  // ON12: the editor's cameras as the game's own security cameras (S1); readers, sensors and beams wait for S2-S3
+  const cams = ((d.campus as { devices?: { kind?: string }[] }).devices ?? []).filter((x): x is CameraDevice => x.kind === 'camera');
+  if (cams.length) layout.security = { devices: cams.map((q) => ({ id: q.id, kind: 'camera', level: q.level, at: q.at, y: q.y, facing: q.facing, ...(q.sweep ? { sweep: q.sweep } : {}), room: q.room, reason: q.reason })), levels: Object.fromEntries(c.arch.levels.map((l) => [l.id, l.floor])) };
   if (d.spawn) {
     const y = levelOf(c.arch, d.spawn.level).floor;
     const [x, z] = clearOfWalls(b, d.spawn.x, d.spawn.z, y, SPAWN_CLEAR);
@@ -149,6 +169,25 @@ export function buildKestrel(b: LevelBuilder, arch: KestrelArch): MapLayout {
   };
 }
 
+// ON7 (overnight choice): the mission's night (docs/kestrel/01-mission-brief.md section 2: rain at night, a thin moon
+// behind cloud) at the game's own night-map levels (Embassy's sky fill, moon and light level), so the lamps make the
+// light and the dark the editor's darkness map shows; the B0 massing walk's day light was 0.9. ON15 sets the moon.
+export const KESTREL_THEME: MapTheme = {
+  sky: '#0b0f16',
+  horizon: '#1c232d',
+  ground: '#3a3d40',
+  fogStart: 120,
+  fogEnd: 400,
+  sunDir: [0.5, -0.8, 0.45],
+  sunIntensity: 0.14,
+  ambient: 0.28,
+  lightLevel: 0.22,
+  faction: 'urban',
+};
+
+let themeFor: unknown = null;
+let themeNow: MapTheme = KESTREL_THEME;
+
 export const kestrel: MapDef = {
   id: 'kestrel',
   name: 'Cinder Yard',
@@ -156,20 +195,15 @@ export const kestrel: MapDef = {
   modes: ['sandbox'],
   // ON0b (Michael): no generated wall or floor dressing; everything on a wall is placed on purpose in the editor
   detail: false,
-  // ON7 (overnight choice): the mission's night (docs/kestrel/01-mission-brief.md section 2: rain at night, a thin moon
-  // behind cloud) at the game's own night-map levels (Embassy's sky fill, moon and light level), so the lamps make the
-  // light and the dark the editor's darkness map shows; the B0 massing walk's day light was 0.9. ON15 sets the moon.
-  theme: {
-    sky: '#0b0f16',
-    horizon: '#1c232d',
-    ground: '#3a3d40',
-    fogStart: 120,
-    fogEnd: 400,
-    sunDir: [0.5, -0.8, 0.45],
-    sunIntensity: 0.14,
-    ambient: 0.28,
-    lightLevel: 0.22,
-    faction: 'urban',
+  // ON15: the theme under the map's own night (`meta.night`, the editor's Moon and time): the editor's campus in the walk
+  // test and the editor's light view, else the campus file's; without one, KESTREL_THEME exactly
+  get theme(): MapTheme {
+    const night = draft ? (draft.campus.meta as { night?: unknown } | undefined)?.night : (campusMeta as { night?: unknown }).night;
+    if (night !== themeFor) {
+      themeFor = night;
+      themeNow = nightTheme(KESTREL_THEME, night);
+    }
+    return themeNow;
   },
   build(b: LevelBuilder): MapLayout {
     return draft ? buildDraft(b, draft) : buildKestrel(b, SOURCE);

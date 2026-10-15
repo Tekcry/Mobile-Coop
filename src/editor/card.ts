@@ -9,7 +9,7 @@ import { DOOR_NAMES, ROOM_KINDS, WALL_KINDS } from './ops';
 import { BLINDS, familyOf, familyTypes, FLAG_SETTINGS, GLASS_KINDS, GLASS_WALL_DEFAULT, SETTING_LABELS, settingWords, shownSettings, stepSetting, withOpeningType } from './openingCatalogue';
 import type { GlassData, Setting, SideCtx } from './openingCatalogue';
 import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeOf, withStairType } from './vertical';
-import type { Coll, Elem, Ladder, Opening, Rect, Roof, Room, Stair, Void, Wall } from './types';
+import type { Coll, Elem, Ladder, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { ROOF_LABELS, ROOF_TYPES, roofSettingWords, roofType, shownRoofSettings, stepRoofSetting, withRoofType } from './roofGeometry';
 import type { RoofSetting } from './roofGeometry';
 import { stepPreset, turnObject } from './objects';
@@ -23,6 +23,12 @@ import type { Lamp, LampData } from './lamps';
 import { fittingOf } from './lightCatalogue';
 import { EMPLOYERS, GUARD_KINDS, guardKind, HIDE_KINDS, hideKind, JOBS, OBJECTIVE_KINDS, objectiveKind, ROSTER } from './missionCatalogue';
 import type { Guard, Hide, Objective } from './mission';
+import { deviceRows, deviceType, stepDevice } from './security';
+import type { Device, SecData } from './security';
+import { ceilingRows, crawlRows, stepCeiling, stepCrawl } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
+import { isDoor, plateDefault, signRows, signTexts, stepSign } from './signs';
+import type { SignRecord } from './signs';
 
 /** ON8: a guard's card: Type (the game's guard kind), Role (the brief's roster: name, employer and job), Employer, Job. */
 function guardRows(g: Guard): CardRow[] {
@@ -143,6 +149,11 @@ const glassOf = (w: Wall): GlassData => ({ ...GLASS_WALL_DEFAULT, ...(w.glass &&
  * has (ON9: no hinge on a sliding door); `ctx` gives the rooms and the wall for the side words.
  */
 export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
+  // ON13: a ceiling (type, height, hatches) and a crawl space
+  if (coll === 'ceilings') return ceilingRows(e as Ceiling);
+  if (coll === 'crawls') return crawlRows(e as CrawlRecord);
+  // ON14: a sign (type, text and arrow for a wayfinding one, height, width)
+  if (coll === 'signs') return signRows(e as SignRecord);
   if (coll === 'openings') {
     const o = e as Opening;
     const set = shownSettings(o, ctx.rooms ?? []).map((s): CardRow => ({ id: s, label: SETTING_LABELS[s], value: settingWords(o, s, ctx), kind: FLAG_SETTINGS.has(s) ? 'flag' : 'list' }));
@@ -154,6 +165,8 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
       { id: 'sill', label: 'Sill', value: m(o.sill), kind: 'len' },
       { id: 'at', label: 'Along wall', value: m(o.at), kind: 'len' },
       ...set,
+      // ON14: a door's name plate: on / off (on takes the room it opens into), and its text (left / right: the site's names, A types)
+      ...(isDoor(o) ? plateRows(o) : []),
       idRow(e),
     ];
   }
@@ -214,6 +227,8 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   }
   if (coll === 'hides') return [{ id: 'type', label: 'Type', value: hideKind((e as unknown as Hide).kind).name, kind: 'list' }, nameRow(e), idRow(e)];
   if (coll === 'spawns') return [idRow(e)];
+  // ON12: a security device: Type (fixed / pan camera, card reader / card and PIN / keypad), Name, its own rows
+  if (coll === 'devices') return [{ id: 'type', label: 'Type', value: deviceType(e as unknown as Device), kind: 'list' }, nameRow(e), ...deviceRows(e as unknown as Device), idRow(e)];
   if (coll === 'extraction') return sizeRows((e as unknown as { rect: Rect }).rect);
   // ON6: a lamp: Type (the fitting), Name, lumens, colour temperature, beam, height, aim, the flags, circuit, owner
   if (coll === 'lamps') return [{ id: 'type', label: 'Type', value: fittingOf((e as Lamp).fixture)?.name ?? (e as Lamp).fixture, kind: 'list' }, nameRow(e), ...lampRows(e as Lamp), idRow(e)];
@@ -241,7 +256,15 @@ export interface StepCtx {
   rooms?: SideCtx['rooms'];
   wall?: SideCtx['wall'];
   /** ON5: the file, for a climb piece's rules (heights, the lip at a downpipe's top, vents and ducts). */
-  data?: Pick<Campus, 'levels' | 'walls' | 'exterior' | 'openings'>;
+  data?: Pick<Campus, 'levels' | 'walls' | 'exterior' | 'openings' | 'rooms'>;
+  /** ON13: the dot (a ceiling's Hatches row adds one there). */
+  dot?: Pt;
+}
+
+/** ON14: a door's plate rows. */
+function plateRows(o: Opening): CardRow[] {
+  const on = typeof o.plate === 'string' && !!o.plate;
+  return [{ id: 'plate', label: 'Name plate', value: on ? 'On' : 'Off', kind: 'flag' }, ...(on ? [{ id: 'plateText', label: 'Plate text', value: String(o.plate), kind: 'name' as const }] : [])];
 }
 
 /** At most this many card rows show while editing; more scroll with the lit row (ON9: a door has up to 16). */
@@ -260,8 +283,26 @@ export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [numb
 export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepCtx): Elem | null {
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
+  if (coll === 'ceilings') return c.data ? stepCeiling(c.data, e as Ceiling, row, dir, c.step, c.dot) : null;
+  if (coll === 'crawls' && row !== 'name' && row !== 'id') return stepCrawl(e as CrawlRecord, row, dir, c.step);
+  // ON14: a sign's rows; a door's plate (on with its default text, off) and its text through the site's names
+  if (coll === 'signs' && row !== 'id') return c.data ? (stepSign(c.data as Campus, e as SignRecord, row, dir, c.step) as Elem | null) : null;
+  if (coll === 'openings' && (row === 'plate' || row === 'plateText')) {
+    const o = a as Opening;
+    if (row === 'plate') {
+      if (typeof o.plate === 'string' && o.plate) delete o.plate;
+      else o.plate = plateDefault({ rooms: (c.rooms ?? c.data?.rooms ?? []) as Room[] }, o) || 'Room';
+      return o;
+    }
+    if (!c.data) return null;
+    const list = signTexts(c.data as Campus);
+    const i = list.indexOf(String(o.plate ?? ''));
+    o.plate = list[(i + dir + list.length) % list.length] ?? o.plate;
+    return o;
+  }
   if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
   if ((coll === 'guards' || coll === 'objectives' || coll === 'hides') && row !== 'name' && row !== 'id') return stepMissionRow(coll, e, row, dir);
+  if (coll === 'devices' && row !== 'name' && row !== 'id') return c.data ? (stepDevice(c.data as unknown as SecData, e as unknown as Device, row, dir, c.step) as unknown as Elem | null) : null;
   if (coll === 'lamps' && row !== 'name' && row !== 'id') return c.data ? stepLamp(c.data as unknown as LampData, e as Lamp, row, dir, c.step) : null;
   if (coll === 'rooms' && row === 'finish') {
     const f = stepFinish((e as Room).finish, dir);

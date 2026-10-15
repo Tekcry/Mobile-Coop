@@ -44,18 +44,22 @@ const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'p
 const SEL: Ctx[] = ['selected', 'card'];
 
 export const ACTIONS: readonly Action[] = [
-  { id: 'look', name: 'look around', group: 'Camera', keys: [], mouse: 'Right drag', ctx: NOT_MENU, passive: true },
-  { id: 'move', name: 'move (pad: the dot across the floor; walking: walk)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
-  { id: 'orbit', name: 'orbit / tilt (walking: look)', group: 'Camera', keys: [], pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
-  { id: 'zoom', name: 'zoom out / in (Plan only: the plan)', group: 'Camera', keys: [], pad: ['LT/RT'], ctx: NOT_MENU, hint: ['idle'], passive: true },
+  { id: 'look', name: 'look around (hold the right button and move)', group: 'Camera', keys: [], mouse: 'Right drag', ctx: NOT_MENU, passive: true },
+  { id: 'move', name: 'move (Free fly: along the view; Orbit on the pad: the dot across the floor; walking: walk)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
+  { id: 'orbit', name: 'look (Free fly) or orbit / tilt (Orbit); walking: look', group: 'Camera', keys: [], pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
+  { id: 'zoom', name: 'Free fly: down / up; Orbit: zoom out / in (Plan only: the plan)', group: 'Camera', keys: [], pad: ['LT/RT'], ctx: ['idle', 'selected', 'card', 'draw', 'chain', 'path'], hint: ['idle'], passive: true },
   { id: 'fly', name: 'down / up when flying', group: 'Camera', keys: ['KeyQ', 'KeyE'], ctx: NOT_MENU, passive: true },
+  { id: 'flySpeed', name: 'Free fly: fly speed (Orbit: move in / out); Shift held flies fast', group: 'Camera', keys: [], mouse: 'Wheel', ctx: NOT_MENU, passive: true },
   { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], ctx: NOT_MENU, passive: true },
   { id: 'walk', name: 'walk test (game): the real player at the dot, unsaved edits included', group: 'Camera', keys: ['Tab'], pad: ['L3 hold'], ctx: NOT_DRAG, hint: ['idle'] },
   { id: 'quickWalk', name: 'quick walk at the dot, running (pad: L3 tap; L3 again walks slowly and back, B ends; L3 held is the walk test)', group: 'Camera', keys: ['Shift+Tab'], pad: ['L3'], ctx: NOT_DRAG, hint: ['idle'] , short: 'Walk' },
   { id: 'walkBack', name: 'back to the editor from the walk test (also Esc, then Back to editor)', group: 'Camera', keys: ['F10'], pad: ['View + Menu hold'], ctx: NOT_MENU, passive: true },
-  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: [...NOT_DRAG, 'path'], hint: ['idle', 'path'] },
-  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: [...NOT_DRAG, 'path'], hint: ['path'] },
-  { id: 'padLevel', name: 'level up / down (nothing selected)', group: 'Camera', keys: [], pad: ['D-pad up/down'], ctx: ['idle', 'draw'], passive: true, short: 'Level' },
+  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: ['idle', 'draw', 'path'], hint: ['idle', 'path'] },
+  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: ['idle', 'draw', 'path'], hint: ['path'] },
+  // fix-up 2026-10-14: with something selected or held, Page Up / Down raise and lower it (a thing with no height: the level as before)
+  { id: 'raise', name: 'raise the held or selected thing one grid step (Shift: 1 m); a room or wall stays on its level, so the level goes up', group: 'Edit', keys: ['PageUp', 'Shift+PageUp'], ctx: ['selected', 'card', 'drag'], hint: ['selected', 'drag'] },
+  { id: 'lower', name: 'lower it one grid step (Shift: 1 m); a room or wall: level down', group: 'Edit', keys: ['PageDown', 'Shift+PageDown'], ctx: ['selected', 'card', 'drag'] },
+  { id: 'padLevel', name: 'level up / down (nothing selected)', group: 'Camera', keys: [], pad: ['D-pad up/down'], ctx: ['idle'], passive: true, short: 'Level' },
   { id: 'frame', name: 'go to the selection', group: 'Camera', keys: ['KeyF'], pad: ['RB'], ctx: SEL, hint: SEL, short: 'Go to' },
   { id: 'camHeight', name: 'camera up / down without tilting (LB held, right stick up / down)', group: 'Camera', keys: [], pad: ['LB + RS'], ctx: NOT_MENU, passive: true, short: 'Height' },
   { id: 'topDown', name: 'top-down and back', group: 'Camera', keys: [], pad: ['View'], ctx: NOT_MENU, hint: ['idle'], passive: true },
@@ -70,6 +74,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'precision', name: 'while held: slower camera, magnet off (the grid stays Settings > Grid)', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw', 'chain'], passive: true , short: 'Slow', shortIn: { chain: 'Fine' } },
   { id: 'padRotate', name: 'turn it 90 degrees about the dot (rooms, stairs, ladders, walls)', group: 'Edit', keys: [], pad: ['RB'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Turn 90' },
   { id: 'padNudge', name: 'nudge one grid step (as the camera faces)', group: 'Edit', keys: [], pad: ['D-pad'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Nudge' },
+  { id: 'heldLift', name: 'while holding: raise / lower (Resize: taller / shorter), 0.1 m steps, LB slower; the triggers zoom again once dropped', group: 'Edit', keys: [], mouse: 'Wheel while dragging', pad: ['LT/RT'], ctx: ['drag'], hint: ['drag'], passive: true, short: 'Lower / raise' },
+  { id: 'heldMode', name: 'while holding: Move or Resize (Resize keeps the corner or end opposite the dot fixed)', group: 'Edit', keys: ['KeyT'], pad: ['Y'], ctx: ['drag'], hint: ['drag'], short: 'Move / Resize' },
   { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw', 'chain'], short: 'Back', shortIn: { selected: 'Clear', chain: 'End chain', path: 'End' } },
   { id: 'chainNext', name: 'wall chain: end this wall here and start the next from its end; on the first point the loop closes', group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['chain'], hint: ['chain'], passive: true, short: 'Next wall' },
   { id: 'chainRemove', name: 'wall chain: remove the last finished wall', group: 'Tools', keys: ['Backspace'], pad: ['X'], ctx: ['chain'], hint: ['chain'], short: 'Remove last' },
@@ -93,8 +99,11 @@ export const ACTIONS: readonly Action[] = [
   { id: 'menuMove', name: 'move the highlight (left stick too); on View rows left / right changes the value', group: 'Tools', keys: [], pad: ['D-pad'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Move' },
   { id: 'menuPick', name: 'pick the tile', group: 'Tools', keys: [], mouse: 'Click a tile', pad: ['A'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Pick' },
   { id: 'menuTab', name: 'change tab', group: 'Tools', keys: [], mouse: 'Click a tab', pad: ['LB', 'RB'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Tab' },
+  { id: 'menuGroup', name: 'change group on the group row (Objects, Presets, Lights)', group: 'Tools', keys: [], mouse: 'Click a group', pad: ['LT', 'RT'], ctx: ['menu'], hint: ['menu'], passive: true, short: 'Group' },
   { id: 'menuClose', name: 'close the menu', group: 'Tools', keys: ['Escape'], pad: ['B'], ctx: ['menu'], hint: ['menu'], short: 'Close' },
-  { id: 'toolVariant', name: "the tool's type: door type, room walls, stair type, floor hole kind (with a tool, nothing grabbed)", group: 'Tools', keys: [], pad: ['D-pad left/right'], ctx: ['draw'], hint: ['draw'], passive: true, short: 'Type' },
+  { id: 'toolVariant', name: "the carousel (with a tool, nothing grabbed): left / right the item; up / down its version (troffer sizes) or, with one version, the group; a tool with no carousel: up / down the level", group: 'Tools', keys: [], pad: ['D-pad'], ctx: ['draw'], hint: ['draw'], passive: true, short: 'Item' },
+  { id: 'typeStep', name: "the tool's item: previous / next on the carousel (the mouse: scroll over it, or click one)", group: 'Tools', keys: ['BracketLeft', 'BracketRight'], ctx: ['draw'] },
+  { id: 'typeAxis', name: "the item's version, or the group: previous / next (the mouse: Shift and scroll over the carousel)", group: 'Tools', keys: ['Shift+BracketLeft', 'Shift+BracketRight'], ctx: ['draw'] },
   { id: 'toolSelect', name: 'select tool', group: 'Tools', keys: ['Digit1'], ctx: NOT_DRAG },
   { id: 'toolRoom', name: 'room tool (drag a rectangle)', group: 'Tools', keys: ['Digit2'], ctx: NOT_DRAG },
   { id: 'toolWall', name: 'wall tool (drag end to end)', group: 'Tools', keys: ['Digit3'], ctx: NOT_DRAG },
@@ -180,7 +189,7 @@ export function conflicts(): string[] {
   return out;
 }
 
-const KEY_WORDS: Record<string, string> = { Backquote: '`', PageUp: 'PgUp', PageDown: 'PgDn', Escape: 'Esc', Delete: 'Del', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down' };
+const KEY_WORDS: Record<string, string> = { Backquote: '`', PageUp: 'PgUp', PageDown: 'PgDn', Escape: 'Esc', Delete: 'Del', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', BracketLeft: '[', BracketRight: ']' };
 
 /** A key id in plain words: `Ctrl+KeyZ` -> `Ctrl+Z`. */
 export function keyWords(id: string): string {
@@ -192,7 +201,7 @@ export function keyWords(id: string): string {
 
 /** An action's keyboard and mouse bindings in words, shortened for families (WASD, the arrows). */
 export function bindingWords(a: Action): string {
-  if (a.id === 'move') return 'W A S D (Shift fast, wheel zooms)';
+  if (a.id === 'move') return 'W A S D (Shift fast; wheel: fly speed, Orbit: in / out)';
   if (a.id === 'fly') return 'Q / E';
   if (a.id === 'nudge') return 'Arrows';
   if (a.id === 'bookmarkSave') return 'Ctrl+1-9';
@@ -216,11 +225,11 @@ export const PAD_HINTS: Record<Ctx, readonly string[]> = {
   idle: ['padPick', 'menu', 'undo', 'quickWalk', 'help'],
   selected: ['cardEdit', 'padPick', 'menu', 'cancel', 'frame'],
   card: ['cardEdit', 'cardDone', 'menu', 'cancel', 'frame'],
-  drag: ['padDrop', 'padNudge', 'padRotate', 'precision', 'cancel'],
+  drag: ['padDrop', 'heldLift', 'heldMode', 'padRotate', 'cancel'],
   chain: ['chainNext', 'chainRemove', 'cancel', 'precision'],
   path: ['pathStop', 'pathFace', 'pathWait', 'pathRemove', 'cancel'],
   draw: ['padDraw', 'toolVariant', 'menu', 'precision', 'cancel'],
-  menu: ['menuMove', 'menuPick', 'menuTab', 'menuClose'],
+  menu: ['menuMove', 'menuPick', 'menuTab', 'menuGroup', 'menuClose'],
   hub: ['hubTab', 'hubRow', 'hubChange', 'hubDo', 'hubClose'],
 };
 

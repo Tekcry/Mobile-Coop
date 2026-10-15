@@ -3,7 +3,7 @@
  * tinted by access level, stairs, ladders, floor holes, pipe runs), picking, selection outlines and drag handles.
  * A dev tool: it rebuilds whole elements on change and never touches the game's renderer.
  */
-import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3, VertexData } from '../core/babylon';
+import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, DynamicTexture, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3, VertexData } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
@@ -16,7 +16,7 @@ import type { ObjGroup } from './catalogue';
 
 /** ON4: object colours by catalogue group (the stealth view tints by badge instead). */
 const OBJ_HEX: Record<ObjGroup | 'other', string> = { dataHall: '#3d4450', plant: '#8a8f6a', office: '#9c8466', goodsIn: '#a3825a', yard: '#6f7780', other: '#8d9096' };
-import { roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
+import { ROOF_BUILD, roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
 import type { RoofBox, RoofPlane } from '../world/maps/kestrelRoofs';
 import { keyOf, parseKey } from './types';
 import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
@@ -33,6 +33,19 @@ import { aimDir, SWITCH } from './lightCatalogue';
 import { isMission, missionCentre } from './mission';
 import type { Extraction, Guard, MissionColl, PatrolPose, PlayPt } from './mission';
 import type { MissionTool } from './missionTool';
+import { deviceCentre, isBeam, isCamera, isPir, isReader } from './security';
+import type { Device } from './security';
+import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalogue';
+import { HANDLE_PX, handleWorld } from './held';
+import { hyp2, hyp3 } from '../core/mathx';
+import type { SecurityTool } from './securityTool';
+import type { AimRay, SurfaceHit } from './aim';
+import { ruleColour, voidOf } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
+import { ceilingType, crawlBoxes, hatchRect } from '../world/maps/kestrelCeilings';
+import { platePlace, plateColour } from './signs';
+import type { SignRecord } from './signs';
+import { PLATE, SIGN_F, signFace, signKind } from './signCatalogue';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -91,6 +104,8 @@ export class EditorScene {
   private stealth = false;
   /** ON5: the finish view (room floors tinted by finish). */
   private finishView = false;
+  /** ON13: the ceiling voids view (Hub > View, the tile menu's View): every void as a see-through box in the rule's colour. */
+  private voidView = false;
   private readonly nodes = new Map<Key, Mesh[]>();
   private readonly mats = new Map<string, StandardMaterial>();
   private handleMeshes: Mesh[] = [];
@@ -100,6 +115,8 @@ export class EditorScene {
   private links: Mesh[] = [];
   /** ON8: the mission tool (guard colours, patrols, which paths show); set by the editor. */
   mission: MissionTool | null = null;
+  /** ON12: the security tool (camera frame outlines); set by the editor. */
+  security: SecurityTool | null = null;
   private figure: Mesh[] = [];
 
   constructor(
@@ -120,7 +137,10 @@ export class EditorScene {
     this.camera.minZ = 0.05;
     this.camera.maxZ = 2000;
     this.camera.fov = 1.0;
-    this.engine.runRenderLoop(() => this.scene.render());
+    this.engine.runRenderLoop(() => {
+      this.sizeHandles();
+      this.scene.render();
+    });
   }
 
   get data(): Campus {
@@ -148,6 +168,69 @@ export class EditorScene {
       this.mats.set(k, m);
     }
     return m;
+  }
+
+  /**
+   * ON14: a sign face: its words drawn on a canvas texture in its colours (the editor only; the walk test's panels are
+   * plain, signs.ts). One material per text and colours.
+   */
+  private textMat(text: string, bg: string, fg: string, w: number, h: number): StandardMaterial {
+    const k = `text|${text}|${bg}|${fg}|${w}|${h}`;
+    let m = this.mats.get(k);
+    if (m) return m;
+    const W = 512;
+    const H = Math.max(64, Math.min(512, Math.round((W * h) / Math.max(0.01, w) / 8) * 8));
+    const tex = new DynamicTexture(`signTex ${text}`, { width: W, height: H }, this.scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    // a box's face that looks along its local +z shows the canvas turned half round: draw it turned so it reads
+    ctx.translate(W, H);
+    ctx.scale(-1, -1);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // the largest size that fits, wrapped onto two lines when it is long
+    const words = text.split(' ');
+    const lines = words.length > 3 && H > 120 ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')] : [text];
+    let size = Math.floor((H * 0.7) / lines.length);
+    ctx.font = `bold ${size}px sans-serif`;
+    while (size > 10 && Math.max(...lines.map((l) => ctx.measureText(l).width)) > W * 0.92) {
+      size -= 2;
+      ctx.font = `bold ${size}px sans-serif`;
+    }
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, (H * (i + 0.5)) / lines.length));
+    tex.update();
+    m = new StandardMaterial(k, this.scene);
+    m.diffuseTexture = tex;
+    m.specularColor = new Color3(0.05, 0.05, 0.05);
+    m.emissiveColor = new Color3(0.35, 0.35, 0.35);
+    this.mats.set(k, m);
+    return m;
+  }
+
+  /** ON14: a sign: its face with its words (both sides when hung) and, hung, its rods to the ceiling. */
+  private buildSign(e: SignRecord): [Mesh[], string[]] {
+    const k = signKind(e.kind);
+    const f = this.floorOf(e.level);
+    const yaw = (e.facing * Math.PI) / 180;
+    const out: Mesh[] = [];
+    if (e.y - e.size[1] / 2 > this.cut) return [out, [e.level]];
+    const face = this.textMat(signFace(e.text, e.arrow), k.bg, k.fg, e.size[0], e.size[1]);
+    if (!e.hang) out.push(this.box(`sign ${e.id}`, e.at[0], f + e.y, e.at[1], e.size[0], e.size[1], 0.03, yaw, face));
+    else {
+      // hung: two faces back to back, each reading from its own side
+      const fx = Math.sin(yaw) * 0.008;
+      const fz = Math.cos(yaw) * 0.008;
+      out.push(this.box(`sign ${e.id}`, e.at[0] + fx, f + e.y, e.at[1] + fz, e.size[0], e.size[1], 0.015, yaw, face));
+      out.push(this.box(`sign ${e.id} back`, e.at[0] - fx, f + e.y, e.at[1] - fz, e.size[0], e.size[1], 0.015, yaw + Math.PI, face));
+    }
+    if (e.hang) {
+      const rod = this.mat('sign rod', '#5c636a');
+      const top = f + e.y + e.size[1] / 2;
+      for (const s of [-0.35, 0.35]) out.push(this.box(`sign ${e.id} rod`, e.at[0] + Math.cos(yaw) * e.size[0] * s, top + SIGN_F.hangGap.value / 2, e.at[1] - Math.sin(yaw) * e.size[0] * s, 0.01, SIGN_F.hangGap.value, 0.01, 0, rod));
+    }
+    return [out, [e.level]];
   }
 
   /** A box from its centre and size; `yaw` turns its local x onto a plan direction. */
@@ -185,6 +268,12 @@ export class EditorScene {
     for (const l of d.lamps ?? []) this.build(keyOf('lamps', l.id));
     for (const c of d.circuits ?? []) this.build(keyOf('circuits', c.id));
     for (const coll of ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'] as const) for (const e of (d[coll] ?? []) as { id: string }[]) this.build(keyOf(coll, e.id));
+    for (const e of d.devices ?? []) this.build(keyOf('devices', e.id));
+    // ON13: each room's ceiling (a piece of its own) and the crawl spaces
+    for (const r of d.rooms) this.build(keyOf('ceilings', r.id));
+    for (const c of d.crawls ?? []) this.build(keyOf('crawls', c.id));
+    // ON14: signs
+    for (const g of d.signs ?? []) this.build(keyOf('signs', g.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -205,6 +294,11 @@ export class EditorScene {
         else for (const w of this.data.walls) if ((this.nodes.get(keyOf('walls', w.id))?.length ?? 0) > 0 && this.wallHadOpening(w.id, p.id)) todo.add(keyOf('walls', w.id));
       }
     }
+    // ON13: a room's ceiling follows the room (and the other way round)
+    for (const k of keys) {
+      if (k.startsWith('rooms:')) todo.add(keyOf('ceilings', k.slice(6)));
+      else if (k.startsWith('ceilings:')) todo.add(keyOf('rooms', k.slice(9)));
+    }
     // ON2: a floor hole cuts the room floors on its level (old and new rect: rebuild every room on the level, or all when it went)
     for (const k of keys) {
       const p = parseKey(k);
@@ -219,7 +313,7 @@ export class EditorScene {
       for (const w of this.data.walls) if (EditorScene.joinKey(old.get(w.id)) !== EditorScene.joinKey(this.joins.get(w.id))) todo.add(keyOf('walls', w.id));
     }
     // ON8: a building change can open or close a guard's way: its legs are worked out again
-    if ([...todo].some((k) => !isMission(k.slice(0, k.indexOf(':'))))) for (const g of this.data.guards ?? []) todo.add(keyOf('guards', g.id));
+    if ([...todo].some((k) => !isMission(k.slice(0, k.indexOf(':'))) && !k.startsWith('devices:'))) for (const g of this.data.guards ?? []) todo.add(keyOf('guards', g.id));
     for (const k of todo) this.build(k);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -251,6 +345,10 @@ export class EditorScene {
     else if (p.coll === 'lamps') [meshes, levels] = this.buildLamp(e as Lamp);
     else if (p.coll === 'circuits') [meshes, levels] = this.buildSwitch(e as Circuit);
     else if (isMission(p.coll)) [meshes, levels] = this.buildMission(p.coll, e);
+    else if (p.coll === 'devices') [meshes, levels] = this.buildDevice(e as unknown as Device);
+    else if (p.coll === 'ceilings') [meshes, levels] = this.buildCeiling(e as Ceiling);
+    else if (p.coll === 'crawls') [meshes, levels] = this.buildCrawl(e as CrawlRecord);
+    else if (p.coll === 'signs') [meshes, levels] = this.buildSign(e as SignRecord);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -278,8 +376,69 @@ export class EditorScene {
       return sw ? [sw.at[0], sw.at[2]] : [0, 0];
     }
     if (isMission(coll)) return missionCentre(coll, e);
+    if (coll === 'devices') return deviceCentre(e as Device);
+    if (coll === 'signs') return (e as SignRecord).at;
+    if (coll === 'crawls') {
+      const pth = (e as CrawlRecord).path;
+      return pth.length ? [(pth[0]![0] + pth[pth.length - 1]![0]) / 2, (pth[0]![1] + pth[pth.length - 1]![1]) / 2] : [0, 0];
+    }
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  }
+
+  /**
+   * ON12: a security device: a camera's housing (SN05) facing its way with its frame outline on the floor (a pan
+   * camera: its whole sweep) to its range; a reader plate in its access level's colour; a PIR dome with its fan on the
+   * floor; a beam as a line between its ends (bright when visible, dark when night vision only) with posts. Their ids are
+   * labels (overlays.ts). The light view tints what a camera sees (lightView.ts).
+   */
+  private buildDevice(e: Device): [Mesh[], string[]] {
+    const out: Mesh[] = [];
+    const y0 = this.floorOf(e.level);
+    const line = (name: string, pts: Vector3[][], hex: string): void => {
+      const c = Color3.FromHexString(hex);
+      const cc = new Color4(c.r, c.g, c.b, 1);
+      out.push(CreateLineSystem(name, { lines: pts, colors: pts.map((l) => l.map(() => cc)) }, this.scene));
+    };
+    if (isBeam(e)) {
+      const a = new Vector3(e.a[0], y0 + e.a[1], e.a[2]);
+      const b = new Vector3(e.b[0], y0 + e.b[1], e.b[2]);
+      line(`beam ${e.id}`, [[a, b]], e.visible ? DEVICE_COLOURS.beam : '#7a1f1f');
+      const post = this.mat('beam post', '#495057', 1, 0.2);
+      for (const p of [e.a, e.b]) out.push(this.box(`beam ${e.id} post`, p[0], y0 + (p[1] + 0.1) / 2, p[2], DEVICE_SIZES.beamPost.w, p[1] + 0.1, DEVICE_SIZES.beamPost.d, 0, post));
+      return [out, [e.level]];
+    }
+    const at = e.at as [number, number] | undefined;
+    if (!at) return [[], [e.level]];
+    const y = y0 + (typeof e.y === 'number' ? e.y : 1);
+    const yaw = typeof e.facing === 'number' ? (e.facing * Math.PI) / 180 : 0;
+    if (isCamera(e)) {
+      const s = DEVICE_SIZES.camera;
+      out.push(this.box(`camera ${e.id}`, at[0], y - s.h / 2, at[1], s.w, s.h, s.d, yaw, this.mat('camera', DEVICE_COLOURS.camera, 1, 0.2)));
+      const led = this.box(`camera ${e.id} led`, at[0] + Math.sin(yaw) * (s.d / 2), y - s.h / 2, at[1] + Math.cos(yaw) * (s.d / 2), 0.04, 0.04, 0.04, yaw, this.mat('camera led', '#ff2222', 1, 1));
+      out.push(led);
+      const fl = this.security?.frameLines(e) ?? [];
+      const fy = y0 + 0.07;
+      if (fl.length) line(`camera ${e.id} frame`, fl.map(([p, q]) => [new Vector3(p[0], fy, p[1]), new Vector3(q[0], fy, q[1])]), DEVICE_COLOURS.cone);
+    } else if (isReader(e)) {
+      const s = DEVICE_SIZES.reader;
+      out.push(this.box(`reader ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat(`reader level ${e.accessLevel}`, levelColour(e.accessLevel), 1, 0.4)));
+    } else if (isPir(e)) {
+      const s = DEVICE_SIZES.pir;
+      out.push(this.box(`pir ${e.id}`, at[0], y - s.h / 2, at[1], s.w, s.h, s.d, yaw, this.mat('pir', DEVICE_COLOURS.pir, 1, 0.5)));
+      const r = SF.pirRange.value;
+      const half = e.mount === 'wall' ? (SF.pirWallFan.value / 2) * (Math.PI / 180) : Math.PI;
+      const pts: Vector3[] = [];
+      const fy = y0 + 0.06;
+      if (e.mount === 'wall') pts.push(new Vector3(at[0], fy, at[1]));
+      for (let i = 0; i <= 36; i++) {
+        const a = yaw - half + (2 * half * i) / 36;
+        pts.push(new Vector3(at[0] + Math.sin(a) * r, fy, at[1] + Math.cos(a) * r));
+      }
+      if (e.mount === 'wall') pts.push(new Vector3(at[0], fy, at[1]));
+      line(`pir ${e.id} fan`, [pts], DEVICE_COLOURS.pirFan);
+    } else out.push(this.box(`device ${e.id}`, at[0], y, at[1], 0.2, 0.2, 0.2, yaw, this.mat('device', '#868e96', 1, 0.2)));
+    return [out, [e.level]];
   }
 
   /** ON8: every guard rebuilt (Hub > View "Guard paths", or the selection while it shows only the selected guard's). */
@@ -436,8 +595,11 @@ export class EditorScene {
       const sy = fx?.sy ?? 0.1;
       const sz = fx?.sz ?? 0.15;
       out.push(this.box(`lamp ${l.id}`, l.at[0], y + (fx?.oy ?? 0), l.at[2], sx, sy, sz, 0, body));
-      const bs = Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
-      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bs, 0.04, bs, 0, bulbMat));
+      // Michael 2026-10-14: an area fitting (a troffer) glows over its whole face; a bulb is a small square
+      const area = l.params.area;
+      const bx = area ? sx * 0.94 : Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
+      const bz = area ? sz * 0.94 : bx;
+      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bx, 0.04, bz, 0, bulbMat));
     }
     // an aimed fitting (flood, twin spot): a thin 1.5 m rod along its beam, so the aim reads from any side
     if (l.aim) {
@@ -621,6 +783,11 @@ export class EditorScene {
         line([P(at, -away * 1.0, fy), P(at, away * 1.0, fy), P(at - 0.25, away * 0.7, fy)], '#2e8b57');
         line([P(at, away * 1.0, fy), P(at + 0.25, away * 0.7, fy)], '#2e8b57');
       }
+      // ON14: the door's name plate beside the latch on the outside face, in its card level colour, with its text
+      if (typeof o.plate === 'string' && o.plate) {
+        const pp = platePlace(this.data, o);
+        if (pp && pp.y + PLATE.h / 2 < Math.min(w.h, this.cut)) out.push(this.box(`opening ${o.id} plate`, pp.at[0], f + pp.y, pp.at[1], PLATE.w, PLATE.h, 0.03, (pp.facing * Math.PI) / 180, this.textMat(o.plate, plateColour(o), PLATE.fg, PLATE.w, PLATE.h)));
+      }
       // ON9 decision 9: the card level on a small plate over the door, in the plans' level colour
       const lv = set.door.level;
       if (lv !== undefined && (reader === 'card' || reader === 'card-pin') && o.sill + o.h + 0.25 < Math.min(w.h, this.cut)) {
@@ -731,6 +898,90 @@ export class EditorScene {
     return [[m], [lv]];
   }
 
+  /**
+   * ON13: a room's ceiling: a quad facing down at its height (seen and picked only from below, so it never hides the room
+   * from the builder camera above), its hatches as dark squares just under it; with the voids view on, the void above as a
+   * see-through box, green when it meets the crawl rule, red when not.
+   */
+  private buildCeiling(c: Ceiling): [Mesh[], string[]] {
+    const t = ceilingType(c);
+    if (t.id === 'open' || !(c.ceiling > 0)) return [[], [c.level]];
+    const f = this.floorOf(c.level);
+    const out: Mesh[] = [this.downQuad(`ceiling ${c.id}`, c.rect as [number, number, number, number], f + c.ceiling, this.mat(`ceiling ${t.id}`, t.colour))];
+    const dark = this.mat('ceiling hatch', '#3b3f45');
+    for (const h of c.hatches ?? []) out.push(this.downQuad(`hatch ${c.id}`, hatchRect(t, h), f + c.ceiling - 0.01, dark));
+    if (this.voidView) {
+      const v = voidOf(this.data, c);
+      if (v) {
+        const [x0, z0, x1, z1] = c.rect;
+        const m = this.box(`void ${c.id}`, (x0 + x1) / 2, f + (v.y0 + v.y1) / 2, (z0 + z1) / 2, x1 - x0, v.y1 - v.y0, z1 - z0, 0, this.mat(`void ${v.colour}`, v.colour, 0.22, 0.3));
+        m.metadata = { voidOf: c.id };
+        out.push(m);
+      }
+    }
+    return [out, [c.level]];
+  }
+
+  /** A horizontal quad over `r` at height `y` whose front face looks down (the winding is checked by its normal). */
+  private downQuad(name: string, r: readonly [number, number, number, number], y: number, mat: StandardMaterial): Mesh {
+    const m = new Mesh(name, this.scene);
+    const vd = new VertexData();
+    vd.positions = [r[0], y, r[1], r[2], y, r[1], r[2], y, r[3], r[0], y, r[3]];
+    let idx = [0, 1, 2, 0, 2, 3];
+    const nrm: number[] = [];
+    VertexData.ComputeNormals(vd.positions, idx, nrm);
+    if ((nrm[1] ?? 0) > 0) {
+      idx = [0, 2, 1, 0, 3, 2];
+      nrm.length = 0;
+      VertexData.ComputeNormals(vd.positions, idx, nrm);
+    }
+    vd.indices = idx;
+    vd.normals = nrm;
+    vd.applyToMesh(m);
+    m.material = mat;
+    return m;
+  }
+
+  /** ON13: a crawl space: the walk test's own boards (kestrelCeilings.ts) and its clear space see-through in the rule's colour. */
+  private buildCrawl(c: CrawlRecord): [Mesh[], string[]] {
+    const f = this.floorOf(c.level);
+    const out: Mesh[] = [];
+    const board = this.mat('crawl board', '#a08a64');
+    for (const b of crawlBoxes(c, f)) {
+      const m = CreateBox(`crawl ${c.id}`, { width: Math.max(b.s[0], 0.01), height: Math.max(b.s[1], 0.01), depth: Math.max(b.s[2], 0.01) }, this.scene);
+      m.position.set(b.c[0], b.c[1], b.c[2]);
+      m.rotation.y = b.yaw;
+      m.material = board;
+      out.push(m);
+    }
+    const hex = ruleColour(c.y1 - c.y0);
+    const clear = this.mat(`crawl clear ${hex}`, hex, 0.25, 0.3);
+    for (let i = 0; i + 1 < c.path.length; i++) {
+      const a = c.path[i]!;
+      const b = c.path[i + 1]!;
+      const dx = b[0] - a[0];
+      const dz = b[1] - a[1];
+      const L = Math.sqrt(dx * dx + dz * dz);
+      if (L < 1e-6) continue;
+      out.push(this.box(`crawl ${c.id}`, (a[0] + b[0]) / 2, f + (c.y0 + c.y1) / 2, (a[1] + b[1]) / 2, L, c.y1 - c.y0, c.width, EditorScene.yaw(dx, dz), clear));
+    }
+    return [out, [c.level]];
+  }
+
+  /** ON13: the ceiling voids view on or off: every ceiling is rebuilt (with or without its void box). */
+  setVoidView(on: boolean): void {
+    if (on === this.voidView) return;
+    this.voidView = on;
+    this.refresh(this.data.rooms.map((r) => keyOf('ceilings', r.id)));
+  }
+
+  /** How many void boxes are drawn (the e2e reads it). */
+  get voidsShown(): number {
+    let n = 0;
+    for (const [k, ms] of this.nodes) if (k.startsWith('ceilings:')) n += ms.filter((m) => !!(m.metadata as { voidOf?: string }).voidOf).length;
+    return n;
+  }
+
   /** ON5: the finish view on or off: every room floor is rebuilt with its tint. */
   setFinishView(on: boolean): void {
     if (on === this.finishView) return;
@@ -805,6 +1056,9 @@ export class EditorScene {
       return m;
     };
     poly(`roof ${r.id}`, sh.planes.filter((p) => p.kind === 'roof'), two('roof', roofHex(r)));
+    // Michael 2026-10-14: the deck's underside (the plane less the deck, as the walk test builds the slab): the aim meets
+    // it from below, so lamps under a roof hang from where the game's ceiling is
+    poly(`roof ${r.id} under`, sh.planes.filter((p) => p.kind === 'roof').map((p) => ({ ...p, pts: p.pts.map((q): [number, number, number] => [q[0], q[1] - ROOF_BUILD.deck.value, q[2]]) })), two('roof', roofHex(r)));
     poly(`roof ${r.id} ends`, sh.planes.filter((p) => p.kind === 'end'), two('roof-end', '#b9b6ae'));
     poly(`roof ${r.id} glass`, sh.planes.filter((p) => p.kind === 'glass'), two('roof-glass', '#9fd3ff', 0.45));
     const box = (b: RoofBox, i: number): void => {
@@ -927,11 +1181,78 @@ export class EditorScene {
   /** Drag handles (orange cubes) for the selected element. */
   setHandles(hs: readonly Handle[]): void {
     for (const m of this.handleMeshes) m.dispose();
+    // a unit cube scaled each frame the camera moves so it keeps HANDLE_PX on screen (sizeHandles)
     this.handleMeshes = hs.map((h) => {
-      const m = this.box(`handle ${h.id}`, h.x, h.y, h.z, 0.4, 0.4, 0.4, 0, this.mat('handle', '#ff7300', 1, 0.6));
+      const m = this.box(`handle ${h.id}`, h.x, h.y, h.z, 1, 1, 1, 0, this.mat('handle', '#ff7300', 1, 0.6));
       m.metadata = { handle: h.id };
       m.renderingGroupId = 1; // drawn over walls so a handle is never lost inside one
       return m;
+    });
+    this.handleKey = '';
+    // Michael 2026-10-14: sized at once (a held piece remakes its handles every frame, from inside the frame: left to
+    // the next frame's sizing they showed at 1 m until the drop)
+    this.sizeHandles();
+  }
+
+  private handleKey = '';
+  /** Fix-up 2026-10-14: handles a constant size on screen; only when the camera, the view or the handles changed. */
+  private sizeHandles(): void {
+    if (!this.handleMeshes.length) return;
+    const c = this.camera.position;
+    const h = this.engine.getRenderHeight();
+    // (Michael 2026-10-14: and where the handles are, so one moved while held keeps its size too)
+    let at = 0;
+    for (const m of this.handleMeshes) at += m.position.x * 1.31 + m.position.y * 1.71 + m.position.z;
+    const k = `${c.x.toFixed(3)}|${c.y.toFixed(3)}|${c.z.toFixed(3)}|${h}|${this.camera.fov}|${this.handleMeshes.length}|${at.toFixed(3)}`;
+    if (k === this.handleKey) return;
+    this.handleKey = k;
+    const dpr = h / Math.max(1, (this.engine.getRenderingCanvas()?.clientHeight ?? h));
+    for (const m of this.handleMeshes) {
+      const p = m.position;
+      const s = handleWorld(HANDLE_PX * dpr, this.camera.fov, hyp3(p.x - c.x, p.y - c.y, p.z - c.z), h);
+      m.scaling.set(s, s, s);
+    }
+  }
+
+  /** Each handle's height on screen in CSS pixels, projected (the e2e reads it). */
+  handlePixels(): number[] {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const up = this.camera.getDirection(Vector3.Up());
+    const tm = this.scene.getTransformMatrix();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    return this.handleMeshes.map((m) => {
+      const half = up.scale(m.scaling.y / 2);
+      const a = Vector3.Project(m.position.add(half), Matrix.Identity(), tm, vp);
+      const b = Vector3.Project(m.position.subtract(half), Matrix.Identity(), tm, vp);
+      return Math.abs(a.y - b.y) / dpr;
+    });
+  }
+
+  private guideMeshes: Mesh[] = [];
+  /**
+   * Michael 2026-10-14: the guide lines of a slid lamp's snap (the ceiling's centre or quarter line it is on), thin
+   * bright bars drawn over everything; a small pool made once.
+   */
+  setGuides(lines: readonly { a: readonly number[]; b: readonly number[] }[]): void {
+    while (this.guideMeshes.length < Math.min(4, lines.length)) {
+      const m = this.box(`guide ${this.guideMeshes.length}`, 0, 0, 0, 1, 1, 1, 0, this.mat('guide', '#34c759', 0.9, 0.9));
+      m.isPickable = false;
+      m.renderingGroupId = 1;
+      m.setEnabled(false);
+      this.guideMeshes.push(m);
+    }
+    this.guideMeshes.forEach((m, i) => {
+      const l = lines[i];
+      if (!l) return m.setEnabled(false);
+      const [ax, ay, az] = [l.a[0]!, l.a[1]!, l.a[2]!];
+      const [bx, by, bz] = [l.b[0]!, l.b[1]!, l.b[2]!];
+      const t = 0.03;
+      m.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      m.rotation.y = 0;
+      m.scaling.set(Math.max(t, Math.abs(bx - ax)), Math.max(t, Math.abs(by - ay)), Math.max(t, Math.abs(bz - az)));
+      m.setEnabled(true);
     });
   }
 
@@ -970,13 +1291,33 @@ export class EditorScene {
   pick(px: number, py: number): { handle?: string; hit?: Hit } {
     const ph = this.scene.pick(px, py, (m) => m.isEnabled() && !!(m.metadata as { handle?: string } | null)?.handle);
     if (ph?.hit && ph.pickedMesh) return { handle: (ph.pickedMesh.metadata as { handle: string }).handle };
-    const pr = this.scene.pick(px, py, (m: AbstractMesh) => {
-      const meta = m.metadata as Meta | null;
-      return m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level);
-    });
+    const pr = this.scene.pick(px, py, this.pickable);
     if (!pr?.hit || !pr.pickedMesh || !pr.pickedPoint) return {};
     const meta = pr.pickedMesh.metadata as Meta;
     return { hit: { key: meta.key, x: pr.pickedPoint.x, y: pr.pickedPoint.y, z: pr.pickedPoint.z } };
+  }
+
+  /** What the pointer can pick: an element on the editing level (stairs: either end's level). */
+  private readonly pickable = (m: AbstractMesh): boolean => {
+    const meta = m.metadata as Meta | null;
+    if (!(m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level))) return false;
+    // ON13: a ceiling is picked from below only (it is drawn facing down), never its void box; from above the ray goes
+    // through to the floor (the aim maps that to the ceiling over it)
+    if (meta.key.startsWith('ceilings:')) return !(m.metadata as { voidOf?: string }).voidOf && this.camera.position.y < m.getBoundingInfo().boundingBox.maximumWorld.y;
+    return true;
+  };
+
+  /**
+   * Surface aiming (Michael 2026-10-14): the ray through a screen point and the first surface of the editing level it
+   * meets, with the surface normal (aim.ts turns them into the tools' plan point).
+   */
+  aimRay(px: number, py: number): { ray: AimRay; hit: SurfaceHit | null } {
+    const r = this.scene.createPickingRay(px, py, Matrix.Identity(), this.camera);
+    const ray: AimRay = { o: [r.origin.x, r.origin.y, r.origin.z], d: [r.direction.x, r.direction.y, r.direction.z] };
+    const pr = this.scene.pick(px, py, this.pickable);
+    if (!pr?.hit || !pr.pickedPoint) return { ray, hit: null };
+    const n = pr.getNormal(true, true);
+    return { ray, hit: { x: pr.pickedPoint.x, y: pr.pickedPoint.y, z: pr.pickedPoint.z, n: n ? [n.x, n.y, n.z] : [0, 1, 0] } };
   }
 
   /** Where the pointer ray meets the horizontal plane at height `y`, or null when it points away from it. */
@@ -986,6 +1327,66 @@ export class EditorScene {
     const t = (y - ray.origin.y) / ray.direction.y;
     if (t <= 0) return null;
     return [ray.origin.x + ray.direction.x * t, ray.origin.z + ray.direction.z * t];
+  }
+
+  /**
+   * Michael 2026-10-14 (top and bottom handles): the height where the pointer ray meets the upright plane through
+   * (x, z) that faces the camera; null when the view looks straight down (no upright plane to drag on).
+   */
+  verticalY(px: number, py: number, x: number, z: number): number | null {
+    const f = this.camera.getForwardRay(1).direction;
+    const l = hyp2(f.x, f.z);
+    if (l < 0.05) return null;
+    const nx = f.x / l;
+    const nz = f.z / l;
+    const ray = this.scene.createPickingRay(px, py, Matrix.Identity(), this.camera);
+    const den = ray.direction.x * nx + ray.direction.z * nz;
+    if (Math.abs(den) < 1e-6) return null;
+    const t = ((x - ray.origin.x) * nx + (z - ray.origin.z) * nz) / den;
+    return t > 0 ? ray.origin.y + ray.direction.y * t : null;
+  }
+
+  /** Where a handle is drawn on the 3D view, CSS px from its top left (null when it is not shown); the e2e drags it. */
+  handleScreen(id: string): [number, number] | null {
+    const m = this.handleMeshes.find((q) => (q.metadata as { handle?: string } | null)?.handle === id);
+    if (!m) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const p = Vector3.Project(m.position, Matrix.Identity(), this.scene.getTransformMatrix(), this.camera.viewport.toGlobal(w, h));
+    return [p.x / dpr, p.y / dpr];
+  }
+
+  /** A world point on the 3D view, CSS px from its top left (null behind the camera). */
+  screenOf(x: number, y: number, z: number): [number, number] | null {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const p = Vector3.Project(new Vector3(x, y, z), Matrix.Identity(), this.scene.getTransformMatrix(), this.camera.viewport.toGlobal(w, h));
+    return p.z < 0 || p.z > 1 ? null : [p.x / dpr, p.y / dpr];
+  }
+
+  /** The handle drawn nearest a screen point (CSS px) within `tol` px of it, among those `ok` takes (the pad's aim). */
+  handleNear(px: number, py: number, tol: number, ok: (id: string) => boolean): string | null {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const dpr = h / Math.max(1, this.engine.getRenderingCanvas()?.clientHeight ?? h);
+    const tm = this.scene.getTransformMatrix();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    let best: string | null = null;
+    let bd = tol;
+    for (const m of this.handleMeshes) {
+      const id = (m.metadata as { handle?: string } | null)?.handle;
+      if (!id || !ok(id)) continue;
+      const p = Vector3.Project(m.position, Matrix.Identity(), tm, vp);
+      if (p.z < 0 || p.z > 1) continue;
+      const d = hyp2(p.x / dpr - px, p.y / dpr - py);
+      if (d <= bd) {
+        bd = d;
+        best = id;
+      }
+    }
+    return best;
   }
 
   elementLevels(coll: Coll, id: string): string[] {

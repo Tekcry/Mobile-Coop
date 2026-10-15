@@ -19,6 +19,8 @@ const LOG_JSONL = 'docs/kestrel/editor-log.jsonl';
 const PRESETS = 'docs/kestrel/editor-presets.json';
 /** ON6: the play file (lamps and circuits; schema.md section 3), loaded and saved with the campus file. */
 const PLAY = 'docs/kestrel/kestrel.play.json';
+/** ON12: the security file (devices, zones, cards; schema.md section 4), loaded and saved with the campus file. */
+const SECURITY = 'docs/kestrel/kestrel.security.json';
 type ExpandMod = {
   loadModules: () => Map<string, { id: string; name: string; source?: string }>;
   expandLayout: (a: { layout: unknown; modules: unknown }) => { arch: Record<string, unknown>; errors: string[] };
@@ -87,7 +89,7 @@ async function renderPlans(root: string, data: unknown, level: string | null): P
   return { dir, ...r };
 }
 
-type CheckMod = { runChecks: (o: { arch: unknown }) => { id: string; title: string; status: string; details: string[]; notes?: string[] }[]; summary: (r: unknown) => Record<string, number> };
+type CheckMod = { runChecks: (o: { arch: unknown; security?: unknown }) => { id: string; title: string; status: string; details: string[]; notes?: string[] }[]; summary: (r: unknown) => Record<string, number> };
 type StdMod = { standardsCheck: (a: unknown) => { fails: string[]; info: string[]; counts: unknown }; summary: (r: unknown) => string };
 
 export function kestrelEditor(): Plugin {
@@ -116,6 +118,7 @@ export function kestrelEditor(): Plugin {
       mkdirSync(path.dirname(f), { recursive: true });
       copyFileSync(path.join(root, CAMPUS), f);
       if (existsSync(path.join(root, PLAY))) copyFileSync(path.join(root, PLAY), path.join(store, PLAY));
+      if (existsSync(path.join(root, SECURITY))) copyFileSync(path.join(root, SECURITY), path.join(store, SECURITY));
     }
   };
 
@@ -147,6 +150,13 @@ export function kestrelEditor(): Plugin {
           if (url.pathname === '/__editor/play' && req.method === 'GET') {
             const f = path.join(store, PLAY);
             // (no file yet: an empty reply, not a 404, so the browser logs no error)
+            if (!existsSync(f)) return send(res, 200, 'application/json', '');
+            res.setHeader('x-mtime', String(Math.floor(statSync(f).mtimeMs)));
+            return send(res, 200, 'application/json', readFileSync(f, 'utf8'));
+          }
+          // ON12: the security file, when there is one (the editor makes it on the first save with a device)
+          if (url.pathname === '/__editor/security' && req.method === 'GET') {
+            const f = path.join(store, SECURITY);
             if (!existsSync(f)) return send(res, 200, 'application/json', '');
             res.setHeader('x-mtime', String(Math.floor(statSync(f).mtimeMs)));
             return send(res, 200, 'application/json', readFileSync(f, 'utf8'));
@@ -205,7 +215,12 @@ export function kestrelEditor(): Plugin {
 
           if (url.pathname === '/__editor/check') {
             const [c, s] = await loadChecks();
-            const results = c.runChecks({ arch: data });
+            // ON12: the S0 security checks on the editor's devices (the file's zones and cards as saved)
+            const sf = path.join(store, SECURITY);
+            const saved = existsSync(sf) ? (JSON.parse(readFileSync(sf, 'utf8')) as Record<string, unknown>) : null;
+            const devs = Array.isArray(data.devices) ? (data.devices as unknown[]) : [];
+            const security = devs.length || saved ? { zones: [], cards: [], ...(saved ?? {}), devices: devs } : null;
+            const results = c.runChecks({ arch: data, security });
             const std = s.standardsCheck(data);
             return json(res, { results: results.filter((r) => r.status !== 'PASS'), summary: c.summary(results), standards: { fails: std.fails, info: std.info, line: s.summary(std) } });
           }
@@ -227,6 +242,11 @@ export function kestrelEditor(): Plugin {
             if (typeof data.playText === 'string') {
               if (!data.playText.startsWith('{')) return json(res, { error: 'bad play file' }, 400);
               writeFileSync(path.join(store, PLAY), data.playText);
+            }
+            // ON12: the security file, only when the editor's devices changed it
+            if (typeof data.securityText === 'string') {
+              if (!data.securityText.startsWith('{')) return json(res, { error: 'bad security file' }, 400);
+              writeFileSync(path.join(store, SECURITY), data.securityText);
             }
             const savedAt = new Date().toISOString();
             if (journal.length) {

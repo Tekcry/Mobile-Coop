@@ -222,6 +222,8 @@ export function references(d: Campus, coll: Coll, id: string): { coll: Coll; e: 
   if (coll === 'walls') for (const o of d.openings) add('openings', o, o.wall === id ? ['wall'] : []);
   // ON5: a climb piece names the wall it backs onto and the level it was placed from
   if (coll === 'walls') for (const x of (d.exterior as Elem[] | undefined) ?? []) add('exterior', x, (x as { wall?: string }).wall === id ? ['wall'] : []);
+  // ON14: a wall sign names its wall; a sign is on a level
+  if (coll === 'walls') for (const x of d.signs ?? []) add('signs', x, x.wall === id ? ['wall'] : []);
   if (coll === 'rooms') {
     for (const o of d.openings) add('openings', o, o.between?.includes(id) ? ['between'] : []);
     for (const l of d.ladders) add('ladders', l, l.room === id ? ['room'] : []);
@@ -232,6 +234,9 @@ export function references(d: Campus, coll: Coll, id: string): { coll: Coll; e: 
     for (const k of ['stairs', 'ladders'] as const) for (const e of d[k]) add(k, e, [e.from === id ? 'from' : '', e.to === id ? 'to' : ''].filter(Boolean));
     for (const o of (d.objects as Elem[] | undefined) ?? []) add('objects', o, (o as { level?: string }).level === id ? ['level'] : []);
     for (const x of (d.exterior as Elem[] | undefined) ?? []) add('exterior', x, (x as { level?: string }).level === id ? ['level'] : []);
+    // ON13: a crawl space is on a level
+    for (const x of d.crawls ?? []) add('crawls', x, x.level === id ? ['level'] : []);
+    for (const x of d.signs ?? []) add('signs', x, x.level === id ? ['level'] : []);
   }
   return out;
 }

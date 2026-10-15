@@ -54,6 +54,8 @@ export interface Fitting {
   onObjects?: string[];
   /** One lamp per unit of the object row (rack status LEDs: one per rack). */
   perUnit?: boolean;
+  /** Michael 2026-10-14: one product range in other sizes or shapes (the carousel's versions: D-pad up / down). */
+  series?: string;
   src: string;
 }
 
@@ -87,8 +89,8 @@ const set = (group: LightGroup, fs: F[]): Fitting[] => fs.map((f) => ({ linear: 
 export const FITTINGS: readonly Fitting[] = [
   ...set('interior', [
     { id: 'downlight', name: 'Downlight 90 mm', mount: 'recessed', body: [0.09, 0.06, 0.09], height: null, lumens: 900, kelvin: 4000, beam: 60, src: `${B} decision 4: 90 mm, 900 lm, 4000 K, 60 deg; body depth ${TYP}` },
-    { id: 'troffer-600', name: 'Troffer 600 x 600', mount: 'recessed', body: [0.6, 0.08, 0.6], height: null, lumens: 3600, kelvin: 4000, beam: 110, src: `${B} decision 4: 600 x 600, 3600 lm, 4000 K, 110 deg` },
-    { id: 'troffer-1200', name: 'Troffer 1200 x 300', mount: 'recessed', body: [1.2, 0.08, 0.3], height: null, lumens: 3600, kelvin: 4000, beam: 110, src: `${B} decision 4: 1200 x 300, 3600 lm, 4000 K, 110 deg` },
+    { id: 'troffer-600', name: 'Troffer 600 x 300', series: 'troffer', mount: 'recessed', body: [0.6, 0.08, 0.3], height: null, lumens: 1800, kelvin: 4000, beam: 110, src: `Michael, 2026-10-14: troffers are 600 x 300 and 1200 x 300; 1800 lm: ${TYP} (a 600 x 300 panel, half the 1200 x 300's 3600 lm of ${B} decision 4); 4000 K, 110 deg: ${B} decision 4` },
+    { id: 'troffer-1200', name: 'Troffer 1200 x 300', series: 'troffer', mount: 'recessed', body: [1.2, 0.08, 0.3], height: null, lumens: 3600, kelvin: 4000, beam: 110, src: `Michael, 2026-10-14: troffers are 600 x 300 and 1200 x 300; ${B} decision 4: 1200 x 300, 3600 lm, 4000 K, 110 deg` },
     { id: 'led-strip', name: 'LED strip in aluminium extrusion', mount: 'recessed', body: [0.03, 0.02, 0.03], height: null, lumens: 1000, kelvin: 4000, beam: 120, linear: true, src: `${B} decision 4: 1000 lm per metre, 4000 K, 120 deg, drawn A to B; extrusion 30 mm: ${TYP}` },
     { id: 'pendant', name: 'Pendant', mount: 'pendant', body: [0.35, 0.25, 0.35], height: null, drop: 0.8, lumens: 2000, kelvin: 3000, beam: 120, src: `${B} decision 4: 2000 lm, 3000 K; 350 mm shade on a 0.8 m drop, 120 deg: ${TYP}` },
     { id: 'under-cabinet', name: 'Under-cabinet strip', mount: 'wall', body: [0.03, 0.01, 0.03], height: 1.4, lumens: 500, kelvin: 3000, beam: 120, linear: true, src: `${B} decision 4: 500 lm per metre, 3000 K; under wall units 1.4 m up, 120 deg: ${TYP}` },
@@ -99,8 +101,8 @@ export const FITTINGS: readonly Fitting[] = [
   ...set('plant', [
     { id: 'high-bay', name: 'High bay', mount: 'pendant', body: [0.45, 0.2, 0.45], height: 7, drop: 0.3, lumens: 20000, kelvin: 5000, beam: 90, src: `${B} decision 5: 20000 lm, 5000 K, 90 deg, 6-8 m (7 m, never above the ceiling less its 0.3 m hanger)` },
     { id: 'batten-1500', name: 'LED batten 1500 mm', mount: 'surface', body: [0.07, 0.07, 0.07], height: null, lumens: 2667, kelvin: 5000, beam: 120, linear: true, src: `${B} decision 5: 4000 lm per 1500 mm (2667 per metre), 5000 K, surface; 120 deg: ${TYP}` },
-    { id: 'bulkhead-round', name: 'Round bulkhead', mount: 'wall', body: [0.3, 0.3, 0.1], height: 2.4, lumens: 1000, kelvin: 4000, beam: 120, src: `${B} decision 5: 1000 lm, 4000 K; 2.4 m up: ${TYP}` },
-    { id: 'bulkhead-oval', name: 'Oval bulkhead', mount: 'wall', body: [0.3, 0.18, 0.1], height: 2.4, lumens: 1000, kelvin: 4000, beam: 120, src: `${B} decision 5: 1000 lm; 4000 K, 2.4 m up: ${TYP}` },
+    { id: 'bulkhead-round', name: 'Round bulkhead', series: 'bulkhead', mount: 'wall', body: [0.3, 0.3, 0.1], height: 2.4, lumens: 1000, kelvin: 4000, beam: 120, src: `${B} decision 5: 1000 lm, 4000 K; 2.4 m up: ${TYP}` },
+    { id: 'bulkhead-oval', name: 'Oval bulkhead', series: 'bulkhead', mount: 'wall', body: [0.3, 0.18, 0.1], height: 2.4, lumens: 1000, kelvin: 4000, beam: 120, src: `${B} decision 5: 1000 lm; 4000 K, 2.4 m up: ${TYP}` },
     { id: 'cage-light', name: 'Cage light (wire guard)', mount: 'wall', body: [0.2, 0.25, 0.15], height: 2.4, lumens: 800, kelvin: 4000, beam: 120, src: `${B} decision 5: 800 lm, 4000 K; 2.4 m up: ${TYP}` },
   ]),
   ...set('outside', [
@@ -194,6 +196,23 @@ export function lightParams(p: ParamInput): LampParams {
   if (p.fixture) out.fixture = { sx: r3(p.fixture.sx), sy: r3(p.fixture.sy), sz: r3(p.fixture.sz), oy: r3(p.fixture.oy) };
   if (p.off) out.on = false;
   return out;
+}
+
+/**
+ * Michael 2026-10-14: an area fitting lights across its whole face. Its light is a grid of points over the face, one per
+ * facts light.areaCell of its width and depth (rounded, at least 1 each way; at most light.areaMax in all, the longer
+ * side giving way first). Returns the counts along the face's width and depth.
+ */
+export function areaGrid(w: number, d: number): { nw: number; nd: number } {
+  const cell = LF.areaCell.value;
+  let nw = Math.max(1, Math.round(w / cell - 1e-9));
+  let nd = Math.max(1, Math.round(d / cell - 1e-9));
+  while (nw * nd > LF.areaMax.value) {
+    if (nw >= nd && nw > 1) nw--;
+    else if (nd > 1) nd--;
+    else break;
+  }
+  return { nw, nd };
 }
 
 /** Colour temperatures the card steps through (K). */

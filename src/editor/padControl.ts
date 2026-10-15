@@ -7,6 +7,9 @@
  * words live in actions.ts; the pure parts in pad.ts, orbit.ts, stickSteps.ts, tileMenu.ts, card.ts, grab.ts and hub.ts.
  */
 import { hyp2 } from '../core/mathx';
+import facts from '../../scripts/kestrel/facts.json';
+import { deadZone, stickMove } from './mount';
+import { HELD, isVert, liftSnap, liftStep } from './held';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
@@ -20,13 +23,17 @@ import type { PadSettings } from './hub';
 import { focusField, HubView, stepField } from './hubView';
 import type { Editor, PlanShape } from './main';
 import { cardWords, DOOR_NAMES, label, OPENING_DEFAULTS, slotDoorName, withBetween } from './ops';
-import { familyTypes } from './openingCatalogue';
+import { catEntry, familyTypes } from './openingCatalogue';
 import { ORBIT } from './orbit';
 import { PAD, PadState, padWords as padWordsOf } from './pad';
 import { linkedHint, ROOM_OPTIONS } from './roomWalls';
 import type { RoomWallOption } from './roomWalls';
 import { navAxes, StepRepeat } from './stickSteps';
-import { TileMenu } from './tileMenu';
+import { LIGHT_TOOLS, stepGroup, TileMenu } from './tileMenu';
+import { carAxis, carFamilies, carNextFamily, carNextVersion, carouselFade, carouselSlots, carouselWindow, carWhere, wrapIndex } from './carousel';
+import { MISSION_TOOLS, ROSTER } from './missionCatalogue';
+import { SEC_TOOLS } from './securityCatalogue';
+import { SIGN_KINDS } from './signCatalogue';
 import type { MenuInput, ViewState } from './tileMenu';
 import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
@@ -36,28 +43,61 @@ import type { Coll, Elem, Ext, Key, Ladder, Obj, Opening, Pt, Rect, Roof, Room, 
 import { keyOf, parseKey } from './types';
 import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
 import type { StairTypeId } from './vertical';
-import { footprintAt, ROOF_TYPES, roofType, roofWords } from './roofGeometry';
+import { footprintAt, roofCornerSnap, ROOF_TYPES, roofType, roofWords, wallTopAt } from './roofGeometry';
 import { boxOf, boxPick, COPY_COLLS, copyItems, groupWords, itemsCentre, levelAbove as levelIdAbove, pasteChanges } from './group';
 import type { ClipItem } from './group';
 import { badgeWords } from './objects';
 import { CLIMB_PIECES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { pieceWords } from './climb';
-import { fittingOf, groupFittings } from './lightCatalogue';
+import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
 import type { MissionKind } from './missionCatalogue';
+import type { SecTool } from './securityCatalogue';
+import type { Device as SecDevice } from './security';
+import { ceilingFoot, crawlFoot } from './ceilings';
+import { isDoor, plateWords, signTexts } from './signs';
+import type { SignRecord } from './signs';
+import type { AlignMode } from './arrange';
+import type { Ceiling, CrawlRecord } from './ceilings';
 import { isMission } from './mission';
 import type { LightGroup } from './lightCatalogue';
 import { aimDir } from './lightCatalogue';
 import { circuitWords, lampWords, withParams } from './lamps';
 import type { Circuit, Lamp, LampData } from './lamps';
 import { loudWords } from './finishes';
-import { groupPresets } from './catalogue';
+import { GROUPS as OBJ_GROUPS, groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
 import { presetWords } from './presets';
 import type { PresetFrom } from './presets';
 
 type Focus = '3d' | 'drawer';
+/** The carousel's groups (objects, lights, presets): their names, the current one and how to go to one (its first entry). */
+interface CarGroups {
+  names: string[];
+  index: number;
+  set: (i: number) => void;
+}
+/** The carousel's list: names, the current index, how to set one, its families (list indices by series) and groups. */
+interface Car {
+  label: string;
+  names: string[];
+  index: number;
+  set: (i: number) => void;
+  fams: number[][];
+  groups?: CarGroups;
+}
+/** The Stamp tool's sources as the carousel's groups (the Presets tab's group row). */
+const PRESET_FROMS: readonly { id: PresetFrom; name: string }[] = [
+  { id: 'start', name: 'Start set' },
+  { id: 'kit', name: 'Module kit' },
+  { id: 'mine', name: 'Mine' },
+];
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
+/** The pad's aim takes a top or bottom handle this close to the screen centre (CSS px; a handle is facts render.handlePx). */
+const VERT_AIM_PX = 16;
+/** The type carousel (Michael 2026-10-14): at most this many items, neighbours this wide, the lit one at most SEL (CSS px; editor.html matches), this gap. */
+const CAR = { MAX: 7, W: 132, W_SMALL: 96, SEL: 300, SEL_SMALL: 210, GAP: 4, PAD: 16 } as const;
+
 const BAR = [
   ['select', 'Select'],
   ['room', 'Room'],
@@ -74,6 +114,10 @@ const BAR = [
   ['stamp', 'Stamp'],
   ['guard', 'Guard view'],
   ['mission', 'Mission'],
+  ['security', 'Security'],
+  ['crawl', 'Crawl space'],
+  ['arrange', 'Arrange'],
+  ['sign', 'Sign'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -110,6 +154,9 @@ export class PadControl {
   private offset: Pt = [0, 0];
   /** Quarter turns (RB taps) of the grabbed thing, about the dot. */
   private turns = 0;
+  /** Fix-up 2026-10-14: the triggers' raw lift while holding (snapped to the grid when applied); "Stays on its level" said. */
+  private liftRaw = 0;
+  private liftSaid = false;
   private measureFrom: Pt | null = null;
   /** Copied elements (one, or a set with the doors and windows of its walls, ON3). */
   clipboard: ClipItem[] | null = null;
@@ -144,6 +191,7 @@ export class PadControl {
         this.menu.index = i;
         this.pickTile();
       },
+      (g) => this.showGroup(g),
     );
     this.names = new NamePick($('namePick'));
     try {
@@ -164,6 +212,29 @@ export class PadControl {
     window.addEventListener('pointermove', (e) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 8) keysUsed();
     });
+    // the type carousel (Michael 2026-10-14): a click picks an item, the wheel over it steps
+    const bar = $('toolBar');
+    // (on the press: the bar is redrawn when the mouse takes over, which would lose a click)
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const i = (e.target as Element).closest('[data-ci]')?.getAttribute('data-ci');
+      if (i !== null && i !== undefined) this.carouselPick(Number(i));
+    });
+    bar.addEventListener(
+      'wheel',
+      (e) => {
+        if (!(e.target as Element).closest('.car')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const dir = (e.deltaY || e.deltaX) > 0 ? 1 : -1;
+        // Shift+wheel: the version (or the group)
+        if (e.deltaY || e.deltaX) {
+          if (e.shiftKey) this.carouselAxis(dir);
+          else this.carouselStep(dir);
+        }
+      },
+      { passive: false },
+    );
     this.ed.view.scene.onBeforeRenderObservable.add(() => this.frame());
   }
 
@@ -204,6 +275,8 @@ export class PadControl {
   /** Text size on the pad screen, the hub and the tile menu; stick speed and invert tilt are read each frame. */
   applySettings(): void {
     document.body.style.setProperty('--ts', String(this.settings.textSize === 'large' ? LARGE_TEXT : 1));
+    // Michael 2026-10-14: Settings > Camera (the frame enters or leaves the orbit camera on the next pad input)
+    this.ed.controls.camSetting = this.settings.camera;
   }
 
   /** The sticks do nothing until they return to the centre (after a menu or the hub opens or closes). */
@@ -259,13 +332,13 @@ export class PadControl {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
     const playing = !!s && s.coll === 'guards' && this.ed.mission.playing?.id === s.id;
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup, playing };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, alignFirst: this.ed.arrange.alignFirst, presets: this.presetsInput(), lightGroup: this.lightTools ? LIGHT_TOOLS : this.ed.lightGroup, playing };
   }
 
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage, voids: ed.crawl.voids, night: ed.nightState() };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -295,8 +368,30 @@ export class PadControl {
   renderMenu(): void {
     const s = this.style;
     const pad = this.device === 'pad';
-    const words = { tab: pad ? `${padWordsOf('LB', s)} / ${padWordsOf('RB', s)}` : 'Click a tab', close: pad ? `${padWordsOf('B', s)} or ${padWordsOf('Y', s)} closes` : 'Space or Esc closes' };
+    const words = { tab: pad ? `${padWordsOf('LB', s)} / ${padWordsOf('RB', s)} tab` : 'Click a tab', group: pad ? `${padWordsOf('LT', s)} / ${padWordsOf('RT', s)} group` : 'Click a group', close: pad ? `${padWordsOf('B', s)} or ${padWordsOf('Y', s)} closes` : 'Space or Esc closes' };
     this.menuView.render(this.menu, this.menuInput(), words, $('hint').offsetHeight);
+  }
+
+  /** The Lights tab shows its Switch and test group (Switch, Guard view) instead of a fitting group. */
+  private lightTools = false;
+
+  /**
+   * A group tab (a click, or LT / RT with the menu open; Michael 2026-10-14): the tab shows that group's items, the
+   * menu stays open and the highlight goes to where it was last in that group.
+   */
+  showGroup(id: string): void {
+    const ed = this.ed;
+    if (id.startsWith('objgroup.')) ed.setObjectGroup(id.slice(9) as ObjGroup | 'signs');
+    else if (id === `lightgroup.${LIGHT_TOOLS}`) {
+      this.lightTools = true;
+      ed.status('Lights: Switch and test');
+    } else if (id.startsWith('lightgroup.')) {
+      this.lightTools = false;
+      ed.setLightGroup(id.slice(11) as LightGroup);
+    } else if (id.startsWith('presetfrom.')) ed.stamp.from = id.slice(11) as PresetFrom;
+    else return;
+    this.menu.groupChanged(this.menuInput());
+    this.renderMenu();
   }
 
   /** One pad frame with the menu open. */
@@ -306,6 +401,10 @@ export class PadControl {
     if (st.pressed(PAD.B) || st.pressed(PAD.Y)) return this.closeMenu();
     if (st.pressed(PAD.LB)) this.menu.stepTab(-1, inp);
     if (st.pressed(PAD.RB)) this.menu.stepTab(1, inp);
+    // LT / RT: the previous / next group of the tab (the zoom is not needed while the menu is open)
+    const gdir = st.pressed(PAD.RT) ? 1 : st.pressed(PAD.LT) ? -1 : 0;
+    const g = gdir ? stepGroup(this.menu.tab, this.menuInput(), gdir) : null;
+    if (g) this.showGroup(g);
     const n = this.nav(now, true);
     const t = this.menu.tile(inp);
     // on the View rows left / right change the value (sliders faster the further the stick is pushed)
@@ -380,19 +479,10 @@ export class PadControl {
       this.runView(t.id, 1, true);
       return this.renderMenu();
     }
-    if (t.id.startsWith('objgroup.')) {
-      // ON4: a group tile shows that group's objects; the menu stays open
-      this.ed.setObjectGroup(t.id.slice(9) as ObjGroup);
-      return this.renderMenu();
-    }
-    if (t.id.startsWith('lightgroup.')) {
-      // ON6: a group tile shows that group's fittings; the menu stays open
-      this.ed.setLightGroup(t.id.slice(11) as LightGroup);
-      return this.renderMenu();
-    }
-    if (t.id.startsWith('presetfrom.')) {
-      // ON11: a source tile shows that source's presets; the menu stays open
-      this.ed.stamp.from = t.id.slice(11) as PresetFrom;
+    if (t.id === 'sel.alignFirst') {
+      // ON14: Align to the first picked or the outermost; the menu stays open
+      this.ed.arrange.alignFirst = !this.ed.arrange.alignFirst;
+      this.ed.status(`Align to ${this.ed.arrange.alignFirst ? 'the first picked' : 'the outermost'}`);
       return this.renderMenu();
     }
     this.closeMenu();
@@ -435,6 +525,15 @@ export class PadControl {
     else if (id === 'view.lmode') return ed.stepLightMode(dir);
     else if (id === 'view.circuit') return ed.stepLightCircuit(dir);
     else if (id === 'view.paths') return ed.stepGuardPaths();
+    else if (id === 'view.coverage') return ed.setCoverage(!ed.security.coverage);
+    else if (id === 'view.voids') return ed.setVoidView(!ed.crawl.voids);
+    // ON15: the Moon and time panel and its rows
+    else if (id === 'view.night') return ed.setNightPanel(!ed.lights.moonShow);
+    else if (id === 'view.ntime') return press ? ed.nightBrief() : ed.stepNight('time', dir);
+    else if (id === 'view.nbear') return ed.stepNight('bearing', dir);
+    else if (id === 'view.nheight') return ed.stepNight('height', dir);
+    else if (id === 'view.nbright') return ed.stepNight('brightness', dir);
+    else if (id === 'view.nuse') return ed.useNightForMap();
     this.applyPanel(rebuild);
   }
 
@@ -458,6 +557,23 @@ export class PadControl {
       ed.setStairType(id.slice(6) as StairTypeId);
       tool('stair');
     } else if (id === 'build.ladder') tool('ladder');
+    else if (id === 'build.crawl') tool('crawl');
+    // ON14: mirror, align, evenly space, Array, name plates; the Sign tool
+    else if (id === 'sel.mirrorX' || id === 'sel.mirrorZ') ed.arrange.mirror(id === 'sel.mirrorX' ? 'x' : 'z');
+    else if (id === 'sel.mirrorLine') ed.arrange.start('mirror');
+    else if (id === 'sel.array') ed.arrange.start('array');
+    else if (id.startsWith('sel.align.')) ed.arrange.align(id.slice(10) as AlignMode);
+    else if (id === 'sel.distX' || id === 'sel.distZ') ed.arrange.distribute(id === 'sel.distX' ? 'x' : 'z');
+    else if (id === 'sel.platesLevel' || id === 'sel.platesBuilding') ed.arrange.plates(id === 'sel.platesLevel' ? 'level' : 'building');
+    else if (id.startsWith('sign.')) {
+      ed.signTool.setKind(id.slice(5));
+      tool('sign');
+    }
+    else if (id === 'sel.ceiling' || id === 'sel.room') {
+      // ON13: a room's ceiling, and back to the room
+      const s = ed.selectedElem();
+      if (s) ed.select(keyOf(id === 'sel.ceiling' ? 'ceilings' : 'rooms', s.id));
+    }
     else if (id === 'build.hole') tool('hole');
     else if (id.startsWith('roof.')) {
       ed.setRoofType(roofType(id.slice(5)).id);
@@ -473,9 +589,15 @@ export class PadControl {
       tool('climb');
     }
     else if (id.startsWith('light.')) {
-      // ON6: a fitting, or Switch
+      // ON6: a fitting, or Switch (a fitting's group is the menu's Lights group from now on)
+      if (id !== 'light.switch') this.lightTools = false;
       ed.setLampFit(id.slice(6));
       tool('lamp');
+    }
+    else if (id.startsWith('security.')) {
+      // ON12: a camera, reader, keypad, motion sensor or beam
+      ed.security.setKind(id.slice(9) as SecTool);
+      tool('security');
     }
     else if (id.startsWith('mission.')) {
       // ON8: the Guard tool or a mission marker
@@ -527,67 +649,131 @@ export class PadControl {
     else if (id === 'sel.type') this.editCard('type');
   }
 
-  /** D-pad left / right with a tool and nothing grabbed: the door type or the room's walls option. */
+  /**
+   * The placing tool's types for the carousel (Michael 2026-10-14): the list in the current group (doors, windows,
+   * room options, stair, hole and roof types, the object group's presets, climb pieces, the light group's fittings,
+   * security devices, signs, the presets source, guard roles or mission markers), the current one and how to set one;
+   * `series` per entry (the catalogue's `series`, the security tool's device kind) makes families with versions, and
+   * `groups` the tool's groups (objects, lights, presets). Null where the tool has no types (Select, Wall, Switch, path
+   * editing, the Array count).
+   */
+  carousel(): Car | null {
+    const ed = this.ed;
+    const of = <T,>(label: string, list: readonly T[], name: (t: T) => string, cur: (t: T) => boolean, set: (t: T) => void, series?: (t: T) => string | undefined, groups?: CarGroups): Car | null =>
+      list.length ? { label, names: list.map(name), index: Math.max(0, list.findIndex(cur)), set: (i: number) => set(list[wrapIndex(i, list.length)]!), fams: carFamilies(series ? list.map(series) : list.map(() => undefined)), groups } : null;
+    if (ed.drag || ed.stairDraw) return null;
+    switch (ed.tool) {
+      case 'door':
+      case 'window': {
+        const sel = $<HTMLSelectElement>(ed.tool === 'door' ? 'doorType' : 'windowType');
+        return of(ed.tool === 'door' ? 'Door type' : 'Window type', familyTypes(ed.tool), (t) => DOOR_NAMES[t] ?? t, (t) => t === sel.value, (t) => (sel.value = t), (t) => catEntry(t).series);
+      }
+      case 'room':
+        return of('Room', ROOM_OPTIONS, (o) => o.name, (o) => o.id === ed.roomOption, (o) => ed.setRoomOption(o.id));
+      case 'stair':
+        return of('Stair', STAIR_TYPES, (t) => t.name, (t) => t.id === ed.stairTypeId, (t) => ed.setStairType(t.id));
+      case 'hole':
+        return of('Floor hole', HOLE_KINDS, (k) => HOLE_NAMES[k] ?? k, (k) => k === ed.holeKind, (k) => ed.setHoleKind(k));
+      case 'roof':
+        return of('Roof', ROOF_TYPES, (t) => t.name, (t) => t.id === ed.roofTypeId, (t) => ed.setRoofType(t.id));
+      case 'object': {
+        const g = ed.objPreset.group;
+        const groups: CarGroups = { names: OBJ_GROUPS.map((q) => q.name), index: Math.max(0, OBJ_GROUPS.findIndex((q) => q.id === g)), set: (i) => ed.setObjectPreset(groupPresets(OBJ_GROUPS[wrapIndex(i, OBJ_GROUPS.length)]!.id)[0]!.id) };
+        return of('Object', groupPresets(g), (p) => p.name, (p) => p.id === ed.objPresetId, (p) => ed.setObjectPreset(p.id), (p) => p.series, groups);
+      }
+      case 'climb':
+        return of('Climb', CLIMB_PIECES, (q) => q.name, (q) => q.id === ed.climbKind, (q) => ed.setClimbKind(q.id));
+      case 'security':
+        return of('Security', SEC_TOOLS, (t) => t.name, (t) => t.id === ed.security.kind, (t) => ed.security.setKind(t.id), (t) => t.kind);
+      case 'sign':
+        return of('Sign', SIGN_KINDS, (k) => k.name, (k) => k.id === ed.signTool.kind, (k) => ed.signTool.setKind(k.id));
+      case 'stamp': {
+        const st = ed.stamp;
+        const froms = PRESET_FROMS.filter((q) => st.list(q.id).length);
+        const groups: CarGroups = { names: froms.map((q) => q.name), index: Math.max(0, froms.findIndex((q) => q.id === st.from)), set: (i) => void st.set(st.list(froms[wrapIndex(i, froms.length)]!.id)[0]!.id) };
+        return of('Stamp', st.list(st.from), (p) => p.name, (p) => p.id === st.id, (p) => void st.set(p.id), undefined, groups);
+      }
+      case 'lamp': {
+        const f = ed.fitting;
+        if (!f) return null;
+        const groups: CarGroups = { names: LIGHT_GROUPS.map((q) => q.name), index: Math.max(0, LIGHT_GROUPS.findIndex((q) => q.id === f.group)), set: (i) => ed.setLampFit(groupFittings(LIGHT_GROUPS[wrapIndex(i, LIGHT_GROUPS.length)]!.id)[0]!.id) };
+        return of('Light', groupFittings(f.group), (q) => q.name, (q) => q.id === f.id, (q) => ed.setLampFit(q.id), (q) => q.series, groups);
+      }
+      case 'mission': {
+        const m = ed.mission;
+        if (m.path || m.link) return null;
+        // the Guard tool steps the roster role a new guard takes; a marker tool steps the markers
+        if (m.kind === 'guard') return of('Guard', ROSTER, (r) => r.name, (r) => r === ROSTER[m.role], (r) => (m.role = ROSTER.indexOf(r)));
+        return of('Mission', MISSION_TOOLS.filter((t) => t.id !== 'guard'), (t) => t.name, (t) => t.id === m.kind, (t) => m.setKind(t.id));
+      }
+      default:
+        return null;
+    }
+  }
+
+  /** What D-pad up / down does with the carousel now (null: nothing). */
+  private carAxisNow(c: Car | null): 'version' | 'group' | null {
+    if (!c) return null;
+    const { f } = carWhere(c.fams, c.index);
+    return carAxis(c.fams[f]?.length ?? 1, c.groups?.names.length ?? 0);
+  }
+
+  /** The hint bar's word for the D-pad with a tool in hand: "Item / Version", "Item / Group", "Item", the Array's count, or "Level". */
+  carouselHint(): string {
+    if (this.ed.tool === 'arrange') return 'Count / Level';
+    const c = this.carousel();
+    if (!c) return 'Level';
+    const a = this.carAxisNow(c);
+    return a === 'version' ? 'Item / Version' : a === 'group' ? 'Item / Group' : 'Item';
+  }
+
+  /** The carousel's current entry to list index `i` (a click), or by `dir` (D-pad left / right, [ and ], the wheel); the ghost follows at once. */
+  carouselPick(i: number): void {
+    const c = this.carousel();
+    if (!c) return;
+    c.set(i);
+    this.ed.status(`${c.label}: ${c.names[wrapIndex(i, c.names.length)] ?? ''}`);
+    this.carChanged();
+  }
+
+  private carChanged(): void {
+    this.barKey = '';
+    this.barAt = 0;
+    this.ed.updateHint();
+    this.drawBar();
+  }
+
+  /** The next or previous item (family) on the carousel, its first version. */
+  carouselStep(dir: 1 | -1): void {
+    const c = this.carousel();
+    if (c) this.carouselPick(carNextFamily(c.fams, c.index, dir));
+  }
+
+  /** D-pad up / down, Shift+[ / Shift+], Shift+wheel: the next version of the item, or the next group; false if neither. */
+  carouselAxis(dir: 1 | -1): boolean {
+    const c = this.carousel();
+    const a = this.carAxisNow(c);
+    if (!c || !a) return false;
+    if (a === 'version') {
+      this.carouselPick(carNextVersion(c.fams, c.index, dir));
+      return true;
+    }
+    const g = c.groups!;
+    g.set(g.index + dir);
+    this.ed.status(`${c.label}: ${g.names[wrapIndex(g.index + dir, g.names.length)] ?? ''}`);
+    this.carChanged();
+    return true;
+  }
+
+  /** D-pad left / right with a tool and nothing grabbed: the next type on the carousel (the Array tool: its count). */
   private toolVariant(dir: 1 | -1): void {
     const ed = this.ed;
-    if (ed.tool === 'door') {
-      const doors = familyTypes('door');
-      const sel = $<HTMLSelectElement>('doorType');
-      const next = doors[(Math.max(0, doors.indexOf(sel.value)) + dir + doors.length) % doors.length]!;
-      sel.value = next;
-      ed.status(`Door type: ${DOOR_NAMES[next] ?? next}`);
-    } else if (ed.tool === 'window') {
-      const wins = familyTypes('window');
-      const sel = $<HTMLSelectElement>('windowType');
-      const next = wins[(Math.max(0, wins.indexOf(sel.value)) + dir + wins.length) % wins.length]!;
-      sel.value = next;
-      ed.status(`Window type: ${DOOR_NAMES[next] ?? next}`);
-    } else if (ed.tool === 'room') {
-      const i = ROOM_OPTIONS.findIndex((o) => o.id === ed.roomOption);
-      const o = ROOM_OPTIONS[(i + dir + ROOM_OPTIONS.length) % ROOM_OPTIONS.length]!;
-      ed.setRoomOption(o.id);
-      ed.status(`Room: ${o.name}`);
-    } else if (ed.tool === 'stair') {
-      const i = STAIR_TYPES.findIndex((t) => t.id === ed.stairTypeId);
-      const t = STAIR_TYPES[(i + dir + STAIR_TYPES.length) % STAIR_TYPES.length]!;
-      ed.setStairType(t.id);
-      ed.status(`Stair: ${t.name}`);
-    } else if (ed.tool === 'hole') {
-      const i = HOLE_KINDS.indexOf(ed.holeKind as (typeof HOLE_KINDS)[number]);
-      const k = HOLE_KINDS[(i + dir + HOLE_KINDS.length) % HOLE_KINDS.length]!;
-      ed.setHoleKind(k);
-      ed.status(`Floor hole: ${HOLE_NAMES[k] ?? k}`);
-    } else if (ed.tool === 'object') {
-      const ps = groupPresets(ed.objPreset.group);
-      const i = ps.findIndex((q) => q.id === ed.objPresetId);
-      const p = ps[(i + dir + ps.length) % ps.length]!;
-      ed.setObjectPreset(p.id);
-      ed.status(`Object: ${p.name}`);
-    } else if (ed.tool === 'climb') {
-      const i = CLIMB_PIECES.findIndex((q) => q.id === ed.climbKind);
-      const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
-      ed.setClimbKind(q.id);
-      ed.status(`Climb: ${q.name}`);
-    } else if (ed.tool === 'mission') {
-      // ON8: the Guard tool's role (the mission brief's roster)
-      if (ed.mission.kind === 'guard' && !ed.mission.path) ed.status(`Guard: ${ed.mission.stepRole(dir)}`);
-    } else if (ed.tool === 'lamp') {
-      // ON6: the next fitting in the group (Switch stays Switch)
-      const f = ed.fitting;
-      if (!f) return;
-      const fs = groupFittings(f.group);
-      const q = fs[(fs.findIndex((x) => x.id === f.id) + dir + fs.length) % fs.length]!;
-      ed.setLampFit(q.id);
-      ed.status(`Light: ${q.name}`);
-    } else if (ed.tool === 'stamp') {
-      const p = ed.stamp.step(dir);
-      if (p) ed.status(`Stamp: ${p.name}`);
-    } else if (ed.tool === 'roof') {
-      const i = ROOF_TYPES.findIndex((t) => t.id === ed.roofTypeId);
-      const t = ROOF_TYPES[(i + dir + ROOF_TYPES.length) % ROOF_TYPES.length]!;
-      ed.setRoofType(t.id);
-      ed.status(`Roof: ${t.name}`);
+    // ON14: the Array's count
+    if (ed.tool === 'arrange') {
+      if (ed.arrange.mode === 'array') ed.arrange.stepCount(dir);
+      return;
     }
+    this.carouselStep(dir);
   }
 
   // ---------- the selection card on the D-pad (ON0a) ----------
@@ -629,7 +815,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
-    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels, data: ed.model.data, ...this.cardCtx(s) });
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels, data: ed.model.data, dot: this.point() ?? undefined, ...this.cardCtx(s) });
     if (!after) {
       if (row === 'name') return ed.status('A opens the name list');
       this.rumble('error');
@@ -637,11 +823,35 @@ export class PadControl {
     }
     const merge = { key: `${s.coll}:${s.id}|${row}`, at: now, within: CARD_MERGE_S };
     if (s.coll === 'rooms' && (row === 'width' || row === 'depth')) return ed.commitRoom(s.id, (after as Room).rect, merge);
+    // Michael 2026-10-14: nothing inside walls, card steps too (pushed out to the face, or refused)
+    const clear = ed.wallStep(s.coll, s.e, after);
+    if (!clear) return this.rumble('error');
+    after = clear;
     if (s.coll === 'openings') after = withBetween(ed.model, after as Opening);
     // ON8: a guard's kind sets its walk speed: the loop's time again
     if (s.coll === 'guards') after = ed.mission.recycle(after);
     ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }], merge);
     ed.renderPanel();
+  }
+
+  /** ON14: A on a sign's Text row or a door's Plate text row: the site's names and the on-screen keyboard. */
+  private openText(row: 'text' | 'plateText'): void {
+    const ed = this.ed;
+    const s = ed.selectedElem();
+    if (!s) return;
+    const field = row === 'text' ? 'text' : 'plate';
+    const cur = String((s.e as Record<string, unknown>)[field] ?? '');
+    this.latchSticks();
+    this.names.open(row === 'text' ? 'Sign text' : 'Name plate', signTexts(ed.model.data), cur, (text) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (text === null || text === cur || !text) return;
+      const after = clone(s.e) as Elem & Record<string, unknown>;
+      after[field] = text;
+      ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }]);
+      ed.renderPanel();
+    });
+    ed.updateHint();
   }
 
   /** A on the card's Name row: the name list and the on-screen keyboard. */
@@ -650,7 +860,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const cur = typeof s.e.name === 'string' ? s.e.name : '';
-    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', roofs: 'Roof', levels: 'Level', buildings: 'Building', objects: 'Object', exterior: 'Climb piece', lamps: 'Lamp', circuits: 'Switch', guards: 'Guard', objectives: 'Objective', hides: 'Hide', checkpoints: 'Checkpoint', spawns: 'Insertion', extraction: 'Extraction' }[s.coll];
+    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', roofs: 'Roof', levels: 'Level', buildings: 'Building', objects: 'Object', exterior: 'Climb piece', lamps: 'Lamp', circuits: 'Switch', guards: 'Guard', objectives: 'Objective', hides: 'Hide', checkpoints: 'Checkpoint', spawns: 'Insertion', extraction: 'Extraction', devices: 'Device', ceilings: 'Ceiling', crawls: 'Crawl space', signs: 'Sign' }[s.coll];
     this.latchSticks();
     this.names.open(`${what} name`, nameList(ed.model.list(s.coll)), cur, (name) => {
       this.latchSticks();
@@ -707,6 +917,7 @@ export class PadControl {
     c.padMove = { x: 0, y: 0 };
     c.padLook = { x: 0, y: 0 };
     c.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false };
+    c.flyIn = null;
     if (gp) {
       this.st.update({ buttons: gp.buttons.map((b) => b.value), axes: gp.axes }, now);
       if (this.st.active) {
@@ -718,8 +929,14 @@ export class PadControl {
         this.setDevice('pad');
       }
     }
-    // the pad drives the builder camera; a walk (Tab or quick) keeps walking
-    if (gp && this.device === 'pad' && c.mode === 'fly') this.ed.enterOrbit();
+    // the pad drives the builder camera (Settings > Camera: Orbit; Free fly too while the layout is Plan only, where the
+    // 3D view is hidden), else it flies (Michael 2026-10-14); a walk (Tab or quick) keeps walking
+    if (gp && this.device === 'pad') {
+      const orbit = this.settings.camera === 'orbit' || this.ed.prefs.layout === 'plan';
+      if (orbit && c.mode === 'fly') this.ed.enterOrbit();
+      else if (!orbit && c.mode === 'orbit') c.leaveOrbit();
+    }
+    document.body.dataset.cam = c.mode === 'fly' ? 'fly' : 'orbit';
     this.drawStrip();
     this.drawBar();
     // a new selection starts the card at its first row, not editing
@@ -753,14 +970,26 @@ export class PadControl {
     }
     if (this.menu.isOpen) return this.menuFrame(now, dt);
     if (this.aim) return this.aimFrame(dt);
+    if (this.devAim) return this.devAimFrame(dt);
     if (c.walking) return this.walkFrame();
     if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
+    // fix-up 2026-10-14: holding something, Y swaps Move and Resize and the triggers raise and lower it (no zoom)
+    const held = this.ed.drag?.source === 'pad' && !this.ed.drag.isNew;
+    // a top or bottom handle in hand: the left stick changes it, so it does not fly or pan
+    const vert = held && isVert(this.ed.drag?.handle);
+    // Michael 2026-10-14: a lamp, device or sign in hand slides on its surface with the left stick (no fly, no pan)
+    const slide = held && this.slideHeld() !== null;
+    if (held && st.pressed(PAD.Y)) {
+      this.ed.toggleHeldMode();
+      this.liftRaw = 0;
+      this.turns = 0;
+    }
     if (st.viewTap === 'tap') this.topDown();
     else if (st.viewTap === 'hold') this.ed.run('layout');
     if (this.focus === 'drawer' && !this.ed.prefs.drawer) this.setFocus('3d');
     if (this.focus === 'drawer') return this.drawerFrame(now, dt);
     const plan = this.ed.prefs.layout === 'plan';
-    const zoom = st.rt - st.lt;
+    const zoom = held ? 0 : st.rt - st.lt;
     const fine = st.down(PAD.LB);
     if (fine !== this.lbWas) {
       this.lbWas = fine;
@@ -787,9 +1016,17 @@ export class PadControl {
       this.stopAimed = true;
       this.ed.mission.turnFace(Math.round(deg / 5) * 5);
     }
-    if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
+    if (c.mode === 'fly' && this.device === 'pad') {
+      // Michael 2026-10-14, Free fly: the left stick moves along the view, the right stick looks, RT / LT rise and drop
+      // (holding something they raise and lower it instead), LB slow; the camera table's dead zone, curve and smoothing
+      const s = this.settings;
+      c.flyTune = { dead: s.deadZone, smoothing: s.smoothing, pan: s.stickSpeed, orbit: s.orbitSpeed, invert: s.invertTilt };
+      const look = !this.stickLatch && !turnEye && !aimStop && !(this.ed.mission.path && st.down(PAD.RB));
+      const move = !this.stickLatch && !this.cardEditing && !vert && !slide;
+      c.flyIn = { moveX: move ? st.rawL.x : 0, moveY: move ? -st.rawL.y : 0, lookX: look ? st.rawR.x : 0, lookY: look ? -st.rawR.y : 0, rise: plan ? 0 : zoom, slow: fine };
+    } else if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
     else if (turnEye || aimStop || (this.ed.mission.path && st.down(PAD.RB))) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
-    else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
+    else if (!this.stickLatch) c.orbitIn = { panX: vert || slide ? 0 : st.rawL.x, panY: vert || slide ? 0 : -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
     if (this.ed.groupDrag?.source === 'pad') return this.groupFrame();
@@ -810,7 +1047,7 @@ export class PadControl {
         /* (RB is the stop's facing) */
       } else if (st.rbTap === 'tap') {
         if (this.ed.splitting) this.ed.splitTurn();
-        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp') this.ed.turnObjectNow();
+        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp' || this.ed.tool === 'security') this.ed.turnObjectNow();
         else this.ed.frameSelected();
       }
     } else if (this.ed.chaining && st.pressed(PAD.X)) this.ed.chainRemoveLast(); // on press: a slow frame never turns it into a hold
@@ -822,6 +1059,7 @@ export class PadControl {
       const s = this.ed.selectedElem();
       const rowId = s ? cardRows(s.coll, s.e, this.cardCtx(s))[this.cardRow]?.id : undefined;
       if (rowId === 'name') this.openNames();
+      else if (rowId === 'text' || rowId === 'plateText') this.openText(rowId);
       else if (rowId === 'id') this.openRename();
       else {
         this.cardEditing = false;
@@ -830,9 +1068,13 @@ export class PadControl {
     } else if (st.pressed(PAD.B)) this.cancel();
     else if (st.pressed(PAD.A)) this.primary();
     this.dpad(now);
-    this.followDrag();
+    if (held) this.liftFrame(dt, fine);
+    this.followDrag(dt);
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
-    if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
+    if (this.device === 'pad' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) {
+      const dot = c.mode === 'orbit' ? ([c.orbit.s.tx, c.orbit.s.tz] as Pt) : this.point();
+      if (dot) this.ed.planFollow(dot[0], dot[1], kz);
+    }
   }
 
   /** ON8: RB held and the right stick aimed the last stop (the RB release is then no 45 degree turn). */
@@ -840,9 +1082,18 @@ export class PadControl {
 
   /** ON6: Selected > Aim on a flood or twin spot: the lamp being aimed, its aim as it was, and the aim now. */
   private aim: { id: string; before: Lamp; yaw: number; pitch: number } | null = null;
+  /** ON12: Selected > Aim on a camera or motion sensor: the device, its record as it was, and its yaw now. */
+  private devAim: { id: string; before: SecDevice; yaw: number } | null = null;
 
   private startAim(): void {
     const s = this.ed.selectedElem();
+    if (s?.coll === 'devices' && typeof (s.e as unknown as SecDevice).facing === 'number') {
+      const e = clone(s.e) as unknown as SecDevice;
+      this.devAim = { id: s.id, before: e, yaw: e.facing as number };
+      this.latchSticks();
+      this.ed.status(`Aim ${s.id}: the right stick turns it, A sets, B puts it back`);
+      return this.ed.updateHint();
+    }
     const l = s?.coll === 'lamps' ? (clone(s.e) as Lamp) : null;
     if (!s || !l?.aim) return this.ed.status('Select a floodlight or a twin spot to aim it');
     this.aim = { id: s.id, before: l, yaw: l.aim[0], pitch: l.aim[1] };
@@ -881,6 +1132,35 @@ export class PadControl {
     if (cur?.aim && cur.aim[0] === aim[0] && cur.aim[1] === aim[1]) return;
     ed.model.preview('lamps', withParams({ ...clone(a.before), aim }) as Elem);
     ed.status(`Aim ${a.id}: turn ${aim[0]} degrees, ${aim[1]} down (beam ${aimDir(aim).map((v) => fmt(v)).join(', ')}); A sets, B puts it back`);
+  }
+
+  /** ON12: the right stick turns the camera or sensor (90 degrees a second, 5 degree steps), previewed; A sets it, B puts it back. */
+  private devAimFrame(dt: number): void {
+    const st = this.st;
+    const a = this.devAim!;
+    const ed = this.ed;
+    ed.controls.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false, rise: 0 };
+    if (st.pressed(PAD.B)) {
+      ed.model.preview('devices', a.before as unknown as Elem);
+      this.devAim = null;
+      ed.status(`Aim of ${a.id} put back`);
+      return ed.updateHint();
+    }
+    if (st.pressed(PAD.A)) {
+      const after = ed.model.snapshot('devices', a.id) as unknown as SecDevice | null;
+      this.devAim = null;
+      if (after && JSON.stringify(after) !== JSON.stringify(a.before)) ed.commitText(`Aimed ${a.id} to ${String(after.facing)} degrees`, [{ coll: 'devices', id: a.id, before: a.before as unknown as Elem, after: after as unknown as Elem }]);
+      ed.status(`${a.id} faces ${String(after?.facing ?? '')} degrees`);
+      return ed.updateHint();
+    }
+    const x = Math.abs(st.rawR.x) > 0.2 ? st.rawR.x : 0;
+    if (!x) return;
+    a.yaw = (((a.yaw + x * 90 * dt) % 360) + 360) % 360;
+    const yaw = Math.round(a.yaw / 5) * 5;
+    const cur = ed.model.get('devices', a.id) as unknown as SecDevice | undefined;
+    if (cur?.facing === yaw % 360) return;
+    ed.model.preview('devices', ed.security.aimed(a.before, yaw) as unknown as Elem);
+    ed.status(`Aim ${a.id}: ${yaw % 360} degrees; A sets, B puts it back`);
   }
 
   /** Quick walk (L3 tap from building): sticks walk and look, it runs, L3 toggles a slow walk, L3 held starts the walk test, B comes back; the dot, tool bar and card hide; A does nothing. */
@@ -942,13 +1222,25 @@ export class PadControl {
   /** The dot pulls onto snap points and lines (decision 15); a new snap pulses the dot and rumbles once. */
   private magnetFrame(dt: number, off: boolean): void {
     const c = this.ed.controls;
-    if (this.device !== 'pad' || c.mode !== 'orbit' || this.focus !== '3d') {
+    if (this.device !== 'pad' || (c.mode !== 'orbit' && c.mode !== 'fly') || this.focus !== '3d') {
       this.magnet = null;
       return;
     }
-    const o = c.orbit.s;
     const d = this.ed.drag;
-    const hit = magnetSearch(o.tx, o.tz, this.candidates(), this.magnet, { off, skip: d ? keyOf(d.coll, d.id) : null, grid: this.ed.grid });
+    // Free fly (Michael 2026-10-14): the aim snaps (the camera does not move); only on the floor, so a wall face or a
+    // ceiling aimed at stays the surface it is
+    let fly: Pt | null = null;
+    if (c.mode === 'fly') {
+      const a = d?.source === 'pad' ? null : this.ed.aimCentre();
+      fly = d?.source === 'pad' ? this.planeDot(d.planeY) : a?.surf === 'floor' ? a.p : null;
+      if (!fly) {
+        this.magnet = null;
+        return;
+      }
+    }
+    const o = c.orbit.s;
+    const [mx, mz] = fly ?? [o.tx, o.tz];
+    const hit = magnetSearch(mx, mz, this.candidates(), this.magnet, { off, skip: d ? keyOf(d.coll, d.id) : null, grid: this.ed.grid });
     if (hit && hit.key !== this.magnet?.key) {
       this.rumble('snap');
       const r = $('reticle');
@@ -957,7 +1249,7 @@ export class PadControl {
       r.classList.add('pulse');
     }
     this.magnet = hit;
-    if (hit && hyp2(this.st.ls.x, this.st.ls.y) < MAGNET.EASE_STICK) {
+    if (hit && !fly && hyp2(this.st.ls.x, this.st.ls.y) < MAGNET.EASE_STICK) {
       const f = easeFactor(dt);
       o.tx += (hit.x - o.tx) * f;
       o.tz += (hit.z - o.tz) * f;
@@ -967,6 +1259,11 @@ export class PadControl {
   /** View tap (decision 7): top-down and back. */
   private topDown(): void {
     const c = this.ed.controls;
+    if (c.mode === 'fly') {
+      this.ed.status(c.flyTopDown() ? 'Top-down (View again goes back)' : 'Back from top-down');
+      this.stripAt = 0;
+      return;
+    }
     if (c.mode !== 'orbit') return;
     c.orbit.toggleTopDown();
     this.ed.status(c.orbit.topDown ? 'Top-down (View again goes back)' : 'Back from top-down');
@@ -993,14 +1290,21 @@ export class PadControl {
     const g = this.ed.grid;
     const c = this.ed.controls;
     let p: Pt | null;
+    if (this.device === 'pad' && this.magnet && !fine) return [this.magnet.x, this.magnet.z];
     if (c.mode === 'orbit') {
-      if (this.magnet && !fine) return [this.magnet.x, this.magnet.z];
       p = [c.orbit.s.tx, c.orbit.s.tz];
-    } else {
-      const cv = $<HTMLCanvasElement>('c');
-      p = this.ed.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, planeY ?? this.ed.viewFloor());
-    }
+    } else if (planeY === undefined) {
+      // Michael 2026-10-14, surface aiming: the pad's screen centre (Free fly) or the mouse cursor meets the real
+      // surfaces of the editing level (aim.ts: on the grid, a wall face hit just out of the face)
+      return (this.device === 'pad' ? this.ed.aimCentre() : this.ed.mouseAim())?.p ?? null;
+    } else p = this.planeDot(planeY);
     return p ? [snap(p[0], g), snap(p[1], g)] : null;
+  }
+
+  /** The screen centre on the horizontal plane at y (a held thing follows it, never the surfaces: it would climb itself). */
+  private planeDot(y: number): Pt | null {
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth > 0 ? this.ed.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, y) : null;
   }
 
   /** The dot unsnapped (the snap point while snapped), for the grab's edge bands. */
@@ -1014,9 +1318,8 @@ export class PadControl {
   private target(): { key?: Key; x: number; y: number; z: number } | null {
     const ed = this.ed;
     if (ed.prefs.layout === 'plan') {
-      const o = ed.controls.orbit.s;
-      const sp = ed.planScreen(o.tx, o.tz);
       const p = this.point();
+      const sp = p ? ed.planScreen(p[0], p[1]) : null;
       if (!sp || !p) return null;
       const el = document.elementFromPoint(sp[0], sp[1]);
       const key = (el?.closest('[data-id]')?.getAttribute('data-id') ?? undefined) as Key | undefined;
@@ -1050,7 +1353,7 @@ export class PadControl {
     const c = this.ed.controls;
     const g = this.ed.grid;
     if (c.mode === 'orbit') return [snap(c.orbit.s.tx, g), snap(c.orbit.s.tz, g)];
-    return this.point();
+    return this.point(this.ed.groupDrag?.planeY ?? this.ed.viewFloor());
   }
 
   /** ON3: one frame while a set is moved with the pad. */
@@ -1088,6 +1391,15 @@ export class PadControl {
     }
     ed.setGroup(keys);
     this.rumble('drop');
+  }
+
+  /** Michael 2026-10-14: the top or bottom handle the aim (the screen centre) is on, within VERT_AIM_PX; null otherwise. */
+  vertAim(): 'top' | 'bot' | null {
+    if (this.device !== 'pad' || this.ed.tool !== 'select' || this.ed.drag || this.measureFrom) return null;
+    const cv = $<HTMLCanvasElement>('c');
+    if (!cv.clientWidth) return null;
+    const id = this.ed.view.handleNear(cv.clientWidth / 2, cv.clientHeight / 2, VERT_AIM_PX, isVert);
+    return isVert(id) ? id : null;
   }
 
   grabPartNow(): GrabPart | null {
@@ -1135,6 +1447,22 @@ export class PadControl {
     }
     // edge-aware grab: the part the dot names (decision 13); outside the selection, A selects as before
     const s = ed.selectedElem();
+    // Michael 2026-10-14: the aim on a top or bottom handle grabs it (RT / LT or the left stick change it, 0.1 m steps)
+    const vh0 = s ? this.vertAim() : null;
+    // Michael 2026-10-14: A near a lamp, device or sign takes it to slide (unless a handle is nearer the aim)
+    const mn = this.mountAim();
+    const vh = vh0 && (!mn || this.handleDist(vh0) <= mn.d) ? vh0 : null;
+    if (mn && !vh) return this.slideGrab(mn.key);
+    const vhd = vh ? ed.handlesFor().find((q) => q.id === vh) : undefined;
+    if (s && vh && vhd) {
+      ed.beginDrag(s.coll, s.id, vh, [vhd.x, vhd.z], vhd.y, 0, 0, 'pad');
+      const vd = ed.drag as { moved: boolean } | null;
+      if (vd) vd.moved = true;
+      this.liftRaw = 0;
+      this.offset = [0, 0];
+      this.turns = 0;
+      return ed.status(`${vh === 'top' ? 'Top: taller or shorter' : 'Bottom: base up or down'} - RT / LT or the left stick, A drops it, B puts it back`);
+    }
     const part = this.grabPartNow();
     if (s && part && p) return this.grab(s.coll, s.id, part.handle, p, ed.viewFloor(), part.words);
     const t = this.target();
@@ -1146,6 +1474,38 @@ export class PadControl {
     // a selected ladder: A on it grabs it whole
     const k = parseKey(t.key)!;
     if (p) this.grab(k.coll, k.id, null, p, ed.viewFloor(), 'Move');
+  }
+
+  /** The lamp, device or sign A would take at the aim (the screen centre), with its distance on screen. */
+  mountAim(): { key: Key; d: number } | null {
+    if (this.ed.tool !== 'select' || this.ed.drag || this.measureFrom || this.ed.group.length || this.ed.prefs.layout === 'plan') return null;
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth ? this.ed.mountNear(cv.clientWidth / 2, cv.clientHeight / 2) : null;
+  }
+
+  /** A handle's distance from the screen centre (CSS px), Infinity when it is not drawn. */
+  private handleDist(id: string): number {
+    const cv = $<HTMLCanvasElement>('c');
+    const sp = this.ed.view.handleScreen(id);
+    return sp ? hyp2(sp[0] - cv.clientWidth / 2, sp[1] - cv.clientHeight / 2) : Infinity;
+  }
+
+  /** Michael 2026-10-14: selects a lamp, device or sign and takes it whole to slide on its surface. */
+  slideGrab(key: Key): void {
+    const ed = this.ed;
+    if (key !== ed.selected) ed.select(key);
+    const k = parseKey(key);
+    const s = ed.selectedElem();
+    if (!k || !s) return;
+    const c = ed.centreOf(k.coll, s.e);
+    if (!c) return;
+    ed.beginDrag(k.coll, k.id, null, c, ed.viewFloor(), 0, 0, 'pad');
+    if (ed.drag) ed.drag.moved = true;
+    this.offset = [0, 0];
+    this.turns = 0;
+    this.liftRaw = 0;
+    const wall = this.slideHeld() === 'wall';
+    ed.status(`${wall ? 'Slide along the wall with the left stick (up / down: height)' : 'Slide it with the left stick'}, D-pad 0.1 m, RT / LT height, LB no snap; A drops it, B puts it back`);
   }
 
   /** Selected > Move: grab it whole at the dot, as A in the middle. */
@@ -1161,12 +1521,34 @@ export class PadControl {
   }
 
   private grab(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, words: string): void {
+    // Free fly: the grab starts where the follow will read (the plane), so nothing jumps when the aim was on a top
+    if (this.ed.controls.mode === 'fly') start = this.point(planeY) ?? start;
     this.ed.beginDrag(coll, id, handle, start, planeY, 0, 0, 'pad');
     if (this.ed.drag) this.ed.drag.moved = true;
     this.offset = [0, 0];
     this.turns = 0;
+    this.liftRaw = 0;
     const turn = !handle && TURNS.includes(coll) ? ', RB turns it' : '';
-    this.ed.status(`${words}: move the dot, A drops it, B puts it back, D-pad nudges${turn}`);
+    this.ed.status(`${words}: move the dot, A drops it, B puts it back, D-pad nudges, Y Move / Resize, RT / LT raise and lower${turn}`);
+  }
+
+  /** Fix-up 2026-10-14: RT raises and LT lowers what is held (Resize: taller / shorter), analogue, snapped to the grid. */
+  private liftFrame(dt: number, fine: boolean): void {
+    const st = this.st;
+    const t = st.rt - st.lt;
+    if (Math.abs(t) < HELD.PRESS) this.liftSaid = false;
+    if (!this.ed.heldLifts()) {
+      if (Math.abs(t) >= HELD.PRESS && !this.liftSaid) {
+        this.liftSaid = true;
+        this.ed.heldLift(0);
+      }
+      return;
+    }
+    // a top or bottom handle: the left stick up / down too (and a lamp, device or sign held on a wall face)
+    const ly = (isVert(this.ed.drag?.handle) || this.slideHeld() === 'wall') && !this.stickLatch ? -st.ls.y : 0;
+    if (!t && !ly) return;
+    this.liftRaw = liftStep(this.liftRaw, st.rt + Math.max(0, ly), st.lt + Math.max(0, -ly), dt, fine);
+    this.ed.setHeldLift(liftSnap(this.liftRaw, this.ed.grid));
   }
 
   /** RB tap while grabbing (decision 19): a quarter turn about the dot, shown live; the drop commits move and turn. */
@@ -1199,8 +1581,28 @@ export class PadControl {
     return out;
   }
 
+  /**
+   * Michael 2026-10-14: what a held lamp, security device or sign slides on with the left stick: 'ceiling' (a ceiling or
+   * roof underside, or anything not on a wall: the stick moves it over the plan) or 'wall' (along its wall; the stick's
+   * up / down is its height). Null when nothing like that is held whole.
+   */
+  slideHeld(): 'ceiling' | 'wall' | null {
+    const d = this.ed.drag;
+    if (!d || d.source !== 'pad' || d.isNew || d.handle || d.mode === 'resize') return null;
+    if (d.coll !== 'lamps' && d.coll !== 'devices' && d.coll !== 'signs') return null;
+    const e = this.ed.model.get(d.coll, d.id) as unknown as Record<string, unknown> | undefined;
+    if (!e) return null;
+    if (d.coll === 'lamps') {
+      const l = e as unknown as Lamp;
+      if (l.b) return 'ceiling';
+      return fittingOf(l.fixture)?.mount === 'wall' && !!l.on && !!this.ed.model.get('walls', l.on) ? 'wall' : 'ceiling';
+    }
+    if (d.coll === 'devices') return e.mount === 'wall' ? 'wall' : 'ceiling';
+    return e.wall ? 'wall' : 'ceiling';
+  }
+
   /** While grabbing or drawing with the pad: the item follows the dot, plus D-pad nudges and RB turns. */
-  private followDrag(): void {
+  private followDrag(dt = 0): void {
     const d = this.ed.drag;
     // ON2: aiming a stair, the proposal follows the dot
     if (!d && this.ed.stairDraw?.phase === 'aim') {
@@ -1208,6 +1610,25 @@ export class PadControl {
       if (p) this.ed.aimStair(p[0], p[1]);
     }
     if (!d || d.source !== 'pad') return this.updatePointers();
+    // a top or bottom handle changes with the triggers and the stick only (liftFrame)
+    if (isVert(d.handle)) return this.updatePointers();
+    const sk = this.slideHeld();
+    if (sk) {
+      // Michael 2026-10-14: the left stick slides it (the way the camera faces; on a wall its up / down is the height),
+      // the D-pad nudges 0.1 m; it snaps to its ceiling's centre and quarter lines, LB held: no snap, a quarter speed
+      const st = this.st;
+      const fine = st.down(PAD.LB);
+      const dz = this.settings.deadZone;
+      const sx = this.stickLatch ? 0 : deadZone(st.rawL.x, dz);
+      const sy = this.stickLatch || sk === 'wall' ? 0 : deadZone(-st.rawL.y, dz);
+      if (sx || sy) {
+        const yaw = this.ed.prefs.layout === 'plan' ? 0 : this.ed.controls.yaw;
+        const m = stickMove(sx, sy, yaw, facts.light.slideSpeed.value * (fine ? ORBIT.PRECISION : 1), dt);
+        this.offset = [this.offset[0] + m[0], this.offset[1] + m[1]];
+      }
+      this.ed.moveDrag(d.start[0] + this.offset[0], d.start[1] + this.offset[1], fine);
+      return this.updatePointers();
+    }
     const p = this.point(d.planeY);
     if (!p) return;
     // LB held or a D-pad nudge: no smart snapping (a nudge lands exactly where it was put)
@@ -1264,8 +1685,11 @@ export class PadControl {
     // something selected, no tool: the D-pad edits the selection card (ON0a decision 4)
     if (ed.tool === 'select' && ed.selected && !this.measureFrom && !ed.splitting) return this.cardFrame(now);
     // nothing selected: up / down change level; with a tool, left / right flip its type (decision 5)
+    // Michael 2026-10-14: with a carousel, up / down step the item's version (or the group); without one, the level
     const n = this.nav(now, false);
-    if (n.y) ed.stepLevel(n.y < 0 ? 1 : -1);
+    const car = ed.tool !== 'select' && n.y ? this.carousel() : null;
+    if (n.y && car) this.carouselAxis(n.y > 0 ? 1 : -1);
+    else if (n.y) ed.stepLevel(n.y < 0 ? 1 : -1);
     if (n.x && ed.tool !== 'select') this.toolVariant(n.x as 1 | -1);
   }
 
@@ -1318,9 +1742,12 @@ export class PadControl {
     const walk = this.ed.controls.walking;
     // the tile menu covers the bottom half: the dot, tool bar and card wait above it; the card being edited hides the dot's words
     const menu = this.menuOpen;
-    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
+    const r = $('reticle');
+    if (pad) r.style.left = r.style.top = '';
+    r.classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
     $('reticleText').classList.toggle('hidden', this.cardEditing);
-    $('toolBar').classList.toggle('hidden', !pad || walk || menu);
+    // the type carousel shows with the mouse too (Michael 2026-10-14)
+    $('toolBar').classList.toggle('hidden', (!pad && !this.carOn) || walk || menu);
     $('selCard').classList.toggle('hidden', !pad || walk || menu || !this.ed.selectedElem());
     $('drawer').classList.toggle('padfocus', pad && this.focus === 'drawer');
     if (!(pad && this.focus === 'drawer')) for (const x of $('panel').querySelectorAll('.padfocus')) x.classList.remove('padfocus');
@@ -1328,28 +1755,56 @@ export class PadControl {
 
   private barAt = 0;
   private barKey = '';
-  /** The tool bar (decision 11) and the selection card (decision 16), pad screen only. */
+  /** Carousel places that fit beside the card and the small plan (layoutBar measures them; odd, at most CAR.MAX). */
+  private carSlots: number = CAR.MAX;
+  /** The carousel shown on the bar now (also with the mouse: Michael 2026-10-14). */
+  private carOn = false;
+  /** The tool bar (decision 11) and the selection card (decision 16), pad screen only; the type carousel on both. */
   private drawBar(): void {
-    if (this.device !== 'pad') return;
+    const pad = this.device === 'pad';
     const now = performance.now();
     if (now - this.barAt < 100) return;
     this.barAt = now;
+    const car = this.ed.controls.walking ? null : this.carousel();
+    this.carOn = !!car;
     this.showPointers();
+    if (!pad && !car) return;
     this.layoutBar();
     const ed = this.ed;
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ed.tool === 'arrange' ? ed.arrange.barWords() : ed.tool === 'sign' ? ed.signTool.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}|${pad}|${car ? `${car.label}|${car.index}|${car.names.length}|${car.names[0] ?? ''}|${this.carSlots}` : ''}`;
     if (key === this.barKey) return;
     this.barKey = key;
+    // the hint bar's D-pad word follows the item (Item / Version or Item / Group)
+    if (car && pad) this.ed.updateHint();
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
-    $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
-    if (s) {
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'security' ? ed.security.barWords() : slot === 'arrange' ? ed.arrange.barWords() : slot === 'sign' ? ed.signTool.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
+    // Michael 2026-10-14: the type carousel over the slot: the current type centred and lit, its group's neighbours either side, fading
+    let carHtml = '';
+    if (car) {
+      // one row of families: the current one lit with its own name (and its version, "1/2"), the others by their first
+      const cw = carWhere(car.fams, car.index);
+      const win = carouselWindow(car.fams.length, cw.f, this.carSlots);
+      const half = Math.max(1, ...win.map((w) => Math.abs(w.off)));
+      carHtml = `<div class="car" data-car="${esc(car.label)}">${win
+        .map((w) => {
+          const m = car.fams[w.i] ?? [car.index];
+          const li = w.off ? (m[0] ?? car.index) : car.index;
+          const ver = !w.off && m.length > 1 ? `<small class="ver">${cw.v + 1}/${m.length}</small>` : '';
+          const nm = esc(car.names[li] ?? '');
+          return `<div class="ci${w.off ? '' : ' on'}" data-ci="${li}" title="${nm}" style="opacity:${carouselFade(w.off, half).toFixed(2)}"><span class="cn">${nm}</span>${ver}</div>`;
+        })
+        .join('')}</div>`;
+    }
+    const bar = $('toolBar');
+    bar.classList.toggle('withcar', !!car);
+    bar.innerHTML = `${carHtml}<div class="slot on${car ? ' under' : ''}" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    if (s && pad) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
       const rows = cardRows(s.coll, s.e, this.cardCtx(s));
@@ -1384,7 +1839,13 @@ export class PadControl {
       const lampLine = s.coll === 'lamps' ? `<div class="dim" data-lamp>${esc(lampWords(ed.model.data as LampData, s.e as Lamp))}</div>` : s.coll === 'circuits' ? `<div class="dim" data-lamp>${esc(circuitWords(s.e as Circuit))}</div>` : '';
       // ON8: a guard's loop (length, cycle, the first red leg), an objective's links, an insertion's number
       const missionLine = isMission(s.coll) ? `<div class="dim" data-mission>${esc(ed.mission.footWords(s.coll, s.e))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON12: what a device does in the game (and which stage builds it); a security desk's feeds
+      const secLine = s.coll === 'devices' ? `<div class="dim" data-security>${esc(ed.security.footWords(s.e as unknown as SecDevice))}</div>` : s.coll === 'objects' && (s.e as Obj).preset === 'security-desk' ? `<div class="dim" data-security>${esc(ed.security.deskWords(s.e as Obj))}</div>` : '';
+      // ON13: a ceiling's void and the crawl rule; a crawl space's
+      const ceilLine = s.coll === 'ceilings' ? `<div class="dim" data-ceiling>${esc(ceilingFoot(ed.model.data, s.e as Ceiling))}</div>` : s.coll === 'crawls' ? `<div class="dim" data-crawl>${esc(crawlFoot(s.e as CrawlRecord))}</div>` : '';
+      // ON14: a sign's words; a door's name plate
+      const signLine = s.coll === 'signs' ? `<div class="dim" data-sign>${esc(ed.signTool.footWords(s.e as SignRecord))}</div>` : s.coll === 'openings' && isDoor(s.e as Opening) ? `<div class="dim" data-plate>${esc(plateWords(s.e as Opening))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}${ceilLine}${signLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1415,6 +1876,20 @@ export class PadControl {
     const L = (miniBeside ? mini.right : stage.left) + gap;
     const cardOn = !!card.offsetParent;
     const c = cardOn ? card.getBoundingClientRect() : null;
+    if (this.carOn) {
+      // as many carousel items as fit beside the card (above it when the card rises), at least three
+      const small = matchMedia('(max-width: 900px), (max-height: 500px)').matches;
+      const iw = small ? CAR.W_SMALL : CAR.W;
+      const sw = small ? CAR.SEL_SMALL : CAR.SEL;
+      const room = (r: number): number => carouselSlots((r - L) / kb - CAR.PAD, iw, CAR.GAP, CAR.MAX, sw);
+      let n = room(c ? c.left - gap : stage.right - gap);
+      if (n < 3) n = Math.max(n, room(stage.right - gap));
+      if (n !== this.carSlots) {
+        this.carSlots = n;
+        this.barKey = '';
+        this.barAt = 0;
+      }
+    }
     const place = (right: number): boolean => {
       if (b.width > right - L) return false;
       bar.style.left = `${(L - stage.left + (right - L - b.width) / 2) / kb}px`;
@@ -1457,7 +1932,9 @@ export class PadControl {
   private labelAt = 0;
   /** The dot's words, the grab preview (decision 14) and the tool ghosts (decisions 17, 18), a few times a second. */
   private updatePointers(): void {
-    if (this.device !== 'pad' || this.focus === 'drawer' || this.ed.controls.walking || this.hub.isOpen) return this.setMarks([], [], '');
+    const mouse = this.device !== 'pad';
+    if (mouse) this.mouseReticle(this.mouseGhosts());
+    if (mouse ? !this.mouseGhosts() : this.focus === 'drawer' || this.ed.controls.walking || this.hub.isOpen) return this.setMarks([], [], '');
     const now = performance.now();
     if (now - this.labelAt < 80) return;
     this.labelAt = now;
@@ -1474,6 +1951,7 @@ export class PadControl {
     const f = ed.viewFloor();
     const part = this.grabPartNow();
     const s = ed.selectedElem();
+    const vAim = s ? this.vertAim() : null;
     let hover: Key | null = null;
     if (this.boxFrom && this.boxTo) {
       // ON3 box select: the box on the floor and the plan
@@ -1483,23 +1961,23 @@ export class PadControl {
         marks.push(this.bar(cs[i]!, cs[(i + 1) % 4]!, f + 0.1, 0.2, 0.15, 'ghost'));
         plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
-      words = `box ${fmt(b[2] - b[0])} x ${fmt(b[3] - b[1])} m: let go of A to select what is wholly inside`;
+      words = `box ${fmt(b[2] - b[0])} x ${fmt(b[3] - b[1])} m: selects what is wholly inside`;
       key = `box|${b.join()}`;
     } else if (ed.groupDrag) {
-      words = `moving ${groupWords(ed.group)} ${fmt(ed.groupDrag.dx)}, ${fmt(ed.groupDrag.dz)} m - A drops, B puts back`;
+      words = `moving ${groupWords(ed.group)} ${fmt(ed.groupDrag.dx)}, ${fmt(ed.groupDrag.dz)} m`;
       key = `gd|${ed.groupDrag.dx}|${ed.groupDrag.dz}`;
     } else if (ed.splitting && p) {
       // Split: the line across the room through the dot (red where it is too close to an edge)
       const l = ed.splitLine(p[0], p[1]);
       if (l) {
         bad = !!l.why;
-        words = l.why ?? `A: split here (${l.axis === 'x' ? 'north-south' : 'east-west'} line), RB turns it, B cancels`;
+        words = l.why ?? `Split here (${l.axis === 'x' ? 'north-south' : 'east-west'} line)`;
         key = `x|${l.axis}|${l.v}|${bad}`;
         marks.push(this.bar(l.a, l.b, f + 1.2, 2.4, 0.15, 'ghost'));
         plan.push({ kind: 'line', a: l.a, b: l.b });
       }
     } else if (this.measureFrom && p) {
-      if (Number.isNaN(this.measureFrom[0])) words = 'A: first point';
+      if (Number.isNaN(this.measureFrom[0])) words = 'Measure from here';
       else {
         const [x0, z0] = this.measureFrom;
         const len = hyp2(p[0] - x0, p[1] - z0);
@@ -1512,7 +1990,7 @@ export class PadControl {
       // ON2: the stair proposal (the stair itself is previewed in 3D and on the plan); its words at the dot
       const sd = ed.stairDraw;
       bad = !sd.ok;
-      words = sd.ok ? `${sd.words} - ${sd.phase === 'aim' ? 'A: show it' : 'A: accept, B: cancel'}` : sd.words;
+      words = sd.ok ? `${sd.words}${sd.phase === 'aim' ? '' : ' - proposed'}` : sd.words;
       key = `st|${sd.phase}|${sd.words}`;
       const r = ed.model.get<Stair>('stairs', sd.id)?.rect;
       if (r) plan.push({ kind: 'line', a: [r[0], r[1]], b: [r[2], r[1]] }, { kind: 'line', a: [r[2], r[1]], b: [r[2], r[3]] }, { kind: 'line', a: [r[2], r[3]], b: [r[0], r[3]] }, { kind: 'line', a: [r[0], r[3]], b: [r[0], r[1]] });
@@ -1524,6 +2002,17 @@ export class PadControl {
       key = `d|${words}`;
       plan.push(...live.shapes);
     }
+    else if (!d && this.mountAim() && !(s && vAim && this.handleDist(vAim) <= (this.mountAim()?.d ?? Infinity))) {
+      const mk = this.mountAim()!;
+      const pk = parseKey(mk.key);
+      const what = pk?.coll === 'lamps' ? 'Lamp' : pk?.coll === 'devices' ? 'Device' : 'Sign';
+      words = `${what} ${pk?.id ?? ''}: take it and slide it (A)`;
+      key = `m|${mk.key}`;
+    }
+    else if (s && vAim) {
+      words = vAim === 'top' ? (s.coll === 'roofs' ? 'Ridge: higher or lower (A)' : 'Top: taller or shorter (A)') : s.coll === 'lamps' || s.coll === 'devices' ? 'Height: up or down (A)' : 'Bottom: base up or down (A)';
+      key = `v|${ed.selected}|${vAim}`;
+    }
     else if (part && s) {
       words = `${part.words}${s.coll === 'rooms' && ed.wallsFollow ? this.linkedHintFor(s.id, part.handle) : ''} (A)`;
       key = `g|${ed.selected}|${part.handle}|${ed.model.history.length}`;
@@ -1531,7 +2020,7 @@ export class PadControl {
     } else if (ed.tool === 'stair' && p) {
       const to = levelAbove(ed.model.data, ed.view.level);
       bad = !to;
-      words = to ? `A: start corner of a stair (${stairType(ed.stairTypeId).name}) to ${to.name}` : 'No level above: add one on the hub\'s Levels tab';
+      words = to ? `Start corner of a stair (${stairType(ed.stairTypeId).name}) to ${to.name}` : 'No level above: add one on the hub\'s Levels tab';
       key = `s|${p[0]},${p[1]}|${ed.stairTypeId}`;
       marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
       plan.push({ kind: 'ring', p });
@@ -1541,7 +2030,7 @@ export class PadControl {
         bad = true;
         words = r.why;
       } else {
-        words = `A: ${r.words.charAt(0).toLowerCase()}${r.words.slice(1)}`;
+        words = r.words;
         const a = r.ladder.at;
         const h = (ed.model.data.levels.find((l) => l.id === r.ladder.to)?.floor ?? 0) - (ed.model.data.levels.find((l) => l.id === r.ladder.from)?.floor ?? 0);
         const ew = r.ladder.facing === 'E' || r.ladder.facing === 'W';
@@ -1555,19 +2044,43 @@ export class PadControl {
       const pre = ed.objPreset;
       const g = ed.objectGhost(p[0], p[1]);
       if (!g) {
-        words = `A: start a ${pre.name.toLowerCase()} here`;
+        words = `Start a ${pre.name.toLowerCase()} here`;
         key = `s|${p[0]},${p[1]}|${pre.id}`;
         marks.push({ x: p[0], y: f + pre.y + pre.h / 2, z: p[1], sx: 0.2, sy: pre.h, sz: 0.2, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
       } else {
         bad = !!g.why;
         const r = g.rect;
-        words = g.why ?? `A: place ${pre.name}${g.wall ? ` against ${g.wall}` : ''}; RB turns`;
+        words = g.why ?? `${pre.name}${g.wall ? ` against ${g.wall}` : ''}${ed.objYaw ? `, turned ${ed.objYaw} degrees` : ''}`;
         key = `ob|${r.join()}|${pre.id}|${bad}`;
         marks.push({ x: (r[0] + r[2]) / 2, y: f + pre.y + pre.h / 2, z: (r[1] + r[3]) / 2, sx: r[2] - r[0], sy: pre.h, sz: r[3] - r[1], dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if ((ed.tool === 'arrange' || ed.tool === 'sign') && p && !ed.drag) {
+      // ON14: the mirrored or copied outlines; the sign on its wall face or hung
+      const g = ed.tool === 'arrange' ? ed.arrange.ghost(p[0], p[1], f) : ed.signTool.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = g.key;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
+    } else if (ed.tool === 'crawl' && p && !ed.drag) {
+      // ON13: where the crawl would start (a hatch, a vent, an open end) and its clear height
+      const g = ed.crawl.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = `crw|${g.key}`;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
+    } else if (ed.tool === 'security' && p && !ed.drag) {
+      // ON12: the device A would place (on a wall face, under a ceiling, by a door), or why not
+      const g = ed.security.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = `sec|${g.key}`;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
     } else if (ed.tool === 'mission' && p) {
       // ON8: the guard, a stop (its leg from the last stop, red where there is no way), an objective to pick, a marker
       const g = ed.mission.ghost(p[0], p[1], f);
@@ -1583,19 +2096,19 @@ export class PadControl {
         const g = ed.switchGhost(p[0], p[1]);
         if (g.lamp) {
           const l = g.lamp;
-          words = l.circuit === ed.circuitEdit ? `${l.id} is on ${ed.circuitEdit} already; B ends` : `A: put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${ed.circuitEdit}`;
+          words = l.circuit === ed.circuitEdit ? `${l.id} is on ${ed.circuitEdit} already` : `Put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${ed.circuitEdit}`;
           key = `sl|${l.id}|${ed.circuitEdit}|${l.circuit}`;
           const lf = ed.floor(ed.levelOf('lamps', l));
           marks.push({ x: l.at[0], y: fl + lf + l.at[1], z: l.at[2], sx: 0.5, sy: 0.3, sz: 0.5, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p: [l.at[0], l.at[2]] });
         } else if (g.sw) {
-          words = ed.circuitEdit ? `A: a new switch on ${g.sw.wall} (or A on a lamp for ${ed.circuitEdit}); B ends` : `A: a switch on ${g.sw.wall}`;
+          words = ed.circuitEdit ? `A new switch on ${g.sw.wall}, or a lamp for ${ed.circuitEdit}` : `A switch on ${g.sw.wall}`;
           key = `sw|${g.sw.at.join()}|${ed.circuitEdit ?? ''}`;
           marks.push({ x: g.sw.at[0], y: f + g.sw.at[1], z: g.sw.at[2], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p: [g.sw.at[0], g.sw.at[2]] });
         } else {
           bad = !ed.circuitEdit;
-          words = ed.circuitEdit ? `Move onto a lamp to put it on ${ed.circuitEdit}; B ends` : (g.why ?? 'Move onto a wall face');
+          words = ed.circuitEdit ? `Move onto a lamp to put it on ${ed.circuitEdit}` : (g.why ?? 'Move onto a wall face');
           key = `swb|${p[0]},${p[1]}|${ed.circuitEdit ?? ''}`;
           marks.push({ x: p[0], y: f + 1.2, z: p[1], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
           plan.push({ kind: 'ring', p });
@@ -1604,7 +2117,7 @@ export class PadControl {
         const fit = ed.fitting;
         const g = ed.lampGhost(p[0], p[1]);
         if (!g) {
-          words = `A: start a ${(fit?.name ?? '').toLowerCase()} here`;
+          words = `Start a ${(fit?.name ?? '').toLowerCase()} here`;
           key = `ls|${p[0]},${p[1]}|${ed.lampFit}`;
           marks.push({ x: p[0], y: f + 1.5, z: p[1], sx: 0.1, sy: 3, sz: 0.1, dx: 1, dz: 0, look: 'ghost' });
           plan.push({ kind: 'ring', p });
@@ -1616,7 +2129,7 @@ export class PadControl {
           plan.push({ kind: 'ring', p });
         } else {
           const l0 = g.lamps[0]!;
-          words = `A: ${g.lamps.length > 1 ? `${g.lamps.length} x ` : ''}${fit?.name ?? ''} ${fmt(l0.at[1])} m up${g.on ? ` on ${g.on}` : ''}${g.post ? ' with a lamp post' : ''}; RB turns`;
+          words = `${g.lamps.length > 1 ? `${g.lamps.length} x ` : ''}${fit?.name ?? ''}, ${fmt(l0.at[1])} m up${g.on ? ` on ${g.on}` : ''}${g.post ? ' with a lamp post' : ''}`;
           key = `lg|${g.lamps.map((l) => l.at.join()).join(';')}|${ed.lampFit}|${ed.lampYaw}`;
           for (const l of g.lamps) {
             const fx = l.params.fixture;
@@ -1629,16 +2142,18 @@ export class PadControl {
       // ON11: the whole group at the dot; red where the fit check would refuse it, with its words
       const g = ed.stamp.ghost(ed.model.data, ed.view.level, p[0], p[1], ed.grid, ed.model.rev);
       const pre = ed.stamp.preset;
-      bad = !!g.why || g.problems.length > 0;
-      words = g.why ?? (g.problems.length ? `${g.problems[0]!.words}${g.problems.length > 1 ? ` (and ${g.problems.length - 1} more)` : ''}` : `A: stamp ${pre.name} (${fmt(g.size[0])} x ${fmt(g.size[1])} m); RB turns`);
-      key = `sp|${g.key}`;
-      this.stampMarks(g, f, marks, plan);
+      // Michael 2026-10-14: the wall rule before A (only when the ghost moves, turns or the file changes): red, naming the piece
+      const wall = g.why || g.problems.length ? null : ed.stampWallWhy(g.key, p[0], p[1]);
+      bad = !!g.why || g.problems.length > 0 || !!wall;
+      words = g.why ?? (g.problems.length ? `${g.problems[0]!.words}${g.problems.length > 1 ? ` (and ${g.problems.length - 1} more)` : ''}` : wall ?? `${pre.name}, ${fmt(g.size[0])} x ${fmt(g.size[1])} m`);
+      key = `sp|${g.key}|${wall ?? ''}`;
+      this.stampMarks(g, f, marks, plan, !!wall);
     } else if (ed.tool === 'climb' && p) {
       // ON5: the piece's ghost at the dot with what the player can do with it (red where it cannot go)
       const kind = pieceOf(ed.climbKind);
       const g = ed.climbGhost(p[0], p[1]);
       if (!g) {
-        words = `A: start a ${(kind?.name ?? '').toLowerCase()} here`;
+        words = `Start a ${(kind?.name ?? '').toLowerCase()} here`;
         key = `cs|${p[0]},${p[1]}|${ed.climbKind}`;
         marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
@@ -1650,7 +2165,7 @@ export class PadControl {
         plan.push({ kind: 'ring', p });
       } else {
         const e = g.e;
-        words = `A: ${pieceWords(ed.model.data, e)}`;
+        words = pieceWords(ed.model.data, e);
         key = `cg|${e.a.join()}|${e.b.join()}|${e.y0}|${e.y1}|${ed.climbKind}`;
         const y = f - ed.floor() + (e.y0 + e.y1) / 2;
         const h = Math.max(0.05, e.y1 - e.y0);
@@ -1661,10 +2176,15 @@ export class PadControl {
     } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole' || ed.tool === 'roof') {
       if (p) {
         const fp = ed.tool === 'roof' ? footprintAt(ed.model.data, ed.view.level, p[0], p[1]) : null;
-        words = ed.tool === 'roof' ? `A: start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `; A twice: on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `A: start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `A: start a ${ed.tool} here`;
-        key = `s|${p[0]},${p[1]}`;
-        marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: p[0], y: f + 0.03, z: p[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
-        plan.push({ kind: 'ring', p });
+        words = ed.tool === 'roof' ? `Start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `, or on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `Start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `Start a ${ed.tool} here`;
+        // Michael 2026-10-14: a roof corner snaps to the outer face of the wall under the aim and sits on its top
+        const q = ed.tool === 'roof' ? roofCornerSnap(ed.model.data, ed.view.level, p[0], p[1], this.st.down(PAD.LB)).p : p;
+        const top = ed.tool === 'roof' ? wallTopAt(ed.model.data, ed.view.level, q[0], q[1]) : null;
+        const y0 = top !== null ? top + ed.view.offsetOf(ed.view.level) : f;
+        if (top !== null) words += `, on the wall top ${fmt(top - ed.floor())} m up`;
+        key = `s|${q[0]},${q[1]}|${top}`;
+        marks.push({ x: q[0], y: y0 + 0.75, z: q[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: q[0], y: y0 + 0.03, z: q[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
+        plan.push({ kind: 'ring', p: q });
       }
     } else if ((ed.tool === 'door' || ed.tool === 'window') && p) {
       const w = nearestWall(ed.model.list('walls') as Wall[], ed.view.level, p[0], p[1], GHOST.REACH);
@@ -1681,7 +2201,7 @@ export class PadControl {
         const a = wallPoint(w, at - width / 2);
         const b = wallPoint(w, at + width / 2);
         const lo = liveOpening(w, walls, at, width);
-        words = `width ${fmt(width)} m, ${lo.words} - A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
+        words = `${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}, width ${fmt(width)} m, ${lo.words}`;
         key = `o|${w.id}|${at}|${type}`;
         marks.push(this.bar(a, b, f + def.sill + def.h / 2, def.h, w.t + 0.1, 'ghost'));
         plan.push({ kind: 'line', a, b }, ...lo.shapes);
@@ -1700,10 +2220,17 @@ export class PadControl {
     }
     if (this.magnet) key += `|m:${this.magnet.key}`;
     ed.setHover(hover);
-    if (words) text += ` - ${words.endsWith(' (A)') ? `A: ${words.slice(0, -4)}` : words}`;
+    // Michael 2026-10-14: plain words only at the dot; what A does is the hint bar's
+    if (words) text += ` - ${words.endsWith(' (A)') ? words.slice(0, -4) : words}`;
     // ON7: the light meter at the dot (the exact bake) while the light view or the darkness map is on
     const meter = p ? ed.lights.meterAt(p[0], p[1]) : '';
     if (meter) text += ` - ${meter}`;
+    // fix-up 2026-10-14: holding something: Move or Resize and its height, beside the dot (and under the plan in Plan)
+    const tag = d?.source === 'pad' && !d.isNew ? ed.heldWords() : '';
+    if (tag && ed.prefs.layout === 'plan') text = `${tag} - ${text}`;
+    const tagEl = $('heldTag');
+    if (tagEl.textContent !== tag) tagEl.textContent = tag;
+    tagEl.classList.toggle('hidden', !tag);
     // Plan only: the 3D dot is hidden, so its words go under the plan
     $(ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     $('reticle').classList.toggle('bad', bad);
@@ -1713,6 +2240,26 @@ export class PadControl {
       ed.updateHint();
     }
     this.setMarks(marks, plan, `${key}|${f}|${bad}`);
+  }
+
+  /**
+   * Michael 2026-10-14: with a build or add tool in hand, the ghost follows the mouse cursor (not only after a click),
+   * with the dot's words beside it; a click places as A does.
+   */
+  private mouseGhosts(): boolean {
+    const ed = this.ed;
+    return ed.tool !== 'select' && !ed.drag && !ed.groupDrag && !!ed.mouseAt && !ed.controls.walking && !ed.controls.blend && !this.hub.isOpen && !this.menuOpen && ed.prefs.layout !== 'plan';
+  }
+
+  /** The dot's marker and words at the mouse cursor (shown) or hidden. */
+  private mouseReticle(on: boolean): void {
+    const r = $('reticle');
+    const m = this.ed.mouseAt;
+    if (on && m) {
+      r.style.left = `${m[0]}px`;
+      r.style.top = `${m[1]}px`;
+    }
+    if (r.classList.contains('hidden') === on) r.classList.toggle('hidden', !on);
   }
 
   /** Shows the marks in 3D and the dashed shapes on the plan when they changed. */
@@ -1729,7 +2276,8 @@ export class PadControl {
 
   /** A box from a to b at height y (centre), sy tall and sz thick. */
   /** ON11: the stamp ghost's boxes (walls 1.2 m high, floors, objects, red problem areas) and its plan outline. */
-  private stampMarks(g: StampGhost, f: number, marks: Mark[], plan: PlanShape[]): void {
+  private stampMarks(g: StampGhost, f: number, marks: Mark[], plan: PlanShape[], red = false): void {
+    const look: Mark['look'] = red ? 'bad' : 'ghost';
     const d = this.ed.model.data;
     const base = this.ed.floor();
     const lift = (rel: string): number => {
@@ -1742,16 +2290,16 @@ export class PadControl {
       marks.push({ x: (r[0] + r[2]) / 2, y: y + 0.75, z: (r[1] + r[3]) / 2, sx: Math.max(0.1, r[2] - r[0]), sy: 1.5, sz: Math.max(0.1, r[3] - r[1]), dx: 1, dz: 0, look: 'bad' });
     }
     for (const w of g.items.walls) {
-      marks.push(this.bar(w.a, w.b, f + lift(w.level) + 0.6, 1.2, w.t, 'ghost'));
+      marks.push(this.bar(w.a, w.b, f + lift(w.level) + 0.6, 1.2, w.t, look));
       if (w.level === '+0') plan.push({ kind: 'line', a: w.a, b: w.b });
     }
     for (const r of g.items.rooms) {
       const q = r.rect;
-      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(r.level) + 0.02, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: 0.04, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(r.level) + 0.02, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: 0.04, sz: q[3] - q[1], dx: 1, dz: 0, look });
     }
     for (const o of g.items.objects) {
       const q = o.rect;
-      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(o.level) + (o.y ?? 0) + o.h / 2, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: o.h, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(o.level) + (o.y ?? 0) + o.h / 2, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: o.h, sz: q[3] - q[1], dx: 1, dz: 0, look });
     }
   }
 

@@ -12,6 +12,8 @@ import { campusLights } from './kestrelLights';
 import type { CircuitRecord, LampRecord } from './kestrelLights';
 import type { LightInit } from '../lights';
 import type { Dir, RoofBox, RoofData, RoofPane } from './kestrelRoofs';
+import { ceilingBoxes, ceilingType, crawlBoxes, hatchSize } from './kestrelCeilings';
+import type { CeilBox, CeilingRoom, CrawlRecord } from './kestrelCeilings';
 import type { ArchLevel, ArchOpening, ArchRoom, ArchStair, ArchVoid, ArchWall, KestrelArch, Pt, Rect4 } from './kestrelGeo';
 
 export interface CampusLadder {
@@ -50,6 +52,18 @@ export interface CampusFile {
   /** ON6: the play file's lamps and circuits (the editor joins them in; kestrelLights.ts). */
   lamps?: LampRecord[];
   circuits?: CircuitRecord[];
+  /** ON13: crawl spaces (kestrelCeilings.ts). */
+  crawls?: CrawlRecord[];
+  /** ON14: door name plates and signs as thin panels, worked out by the editor for its walk test (src/editor/signs.ts `walkPanels`); never in the file. */
+  panels?: SignPanel[];
+}
+
+/** ON14: a name plate or sign: a thin panel (centre, size [w, h, thickness], yaw radians, colour); it never collides. */
+export interface SignPanel {
+  c: [number, number, number];
+  s: [number, number, number];
+  yaw: number;
+  colour: string;
 }
 
 export interface CampusObject {
@@ -93,6 +107,10 @@ export interface CampusBuild {
   surfaces: FinishArea[];
   /** ON6: every lamp as the game's own light (circuits as switch groups). */
   lights: LightInit[];
+  /** ON13: room ceilings (grid tiles light but do not collide) and crawl spaces' boards. */
+  ceilings: CeilBox[];
+  /** ON14: plates and signs (thin, non-colliding, no ledge). */
+  panels: SignPanel[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -162,7 +180,20 @@ export function campusToBuild(f: CampusFile): CampusBuild {
   });
   // ON5: rooms with a floor finish sound as its game surface; climb pieces as the engine's builders
   const surfaces = finishAreas(f.rooms as readonly (ArchRoom & { finish?: string })[], floor);
-  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces, lights: campusLights(f) };
+  // ON13: ceilings and crawl spaces (a hatch end leaves its hole open below)
+  const ceilings: CeilBox[] = [];
+  const rooms = f.rooms as readonly CeilingRoom[];
+  for (const r of rooms) if (levels.some((l) => l.id === r.level)) ceilings.push(...ceilingBoxes(r, floor(r.level)));
+  for (const c of f.crawls ?? []) {
+    if (!levels.some((l) => l.id === c.level)) continue;
+    const side = (i: number): number => {
+      const e = c.ends[i];
+      const r = e?.kind === 'hatch' ? rooms.find((q) => q.id === e.ref) : undefined;
+      return r ? hatchSize(ceilingType(r)) : 0;
+    };
+    ceilings.push(...crawlBoxes(c, floor(c.level), [side(0), side(c.ends.length - 1)]));
+  }
+  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces, lights: campusLights(f), ceilings, panels: f.panels ?? [] };
 }
 
 /**

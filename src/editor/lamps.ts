@@ -10,8 +10,12 @@ import { hyp2 } from '../core/mathx';
 import { fmt, inRect, roomAt, snap, wallDir } from './geometry';
 import { wallFaces } from './objects';
 import { presetOf } from './catalogue';
-import { aimDir, CIRCUIT_REASON, fittingOf, FITTINGS, KELVIN_STEPS, lightParams, onCeiling, SWITCH } from './lightCatalogue';
+import { aimDir, areaGrid, CIRCUIT_REASON, fittingOf, FITTINGS, KELVIN_STEPS, lightParams, onCeiling, SWITCH } from './lightCatalogue';
 import type { Fitting } from './lightCatalogue';
+import { alongWall, clampToRect, snapAxis, snapSlide } from './mount';
+import type { SlideSnap } from './mount';
+import { roofUnderside } from './roofGeometry';
+import type { RoofData } from './roofGeometry';
 import type { Change } from './model';
 import type { CircuitRecord, Emergency, LampRecord } from '../world/maps/kestrelLights';
 import type { Campus, Elem, Obj, Opening, Pt, Room, Wall } from './types';
@@ -24,7 +28,7 @@ const EPS = 1e-6;
 const r3 = (v: number): number => +v.toFixed(3);
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-export type LampData = Pick<Campus, 'meta' | 'levels' | 'rooms' | 'walls' | 'openings'> & { objects?: Obj[]; exterior?: Campus['exterior']; lamps?: Lamp[]; circuits?: Circuit[] };
+export type LampData = Pick<Campus, 'meta' | 'levels' | 'rooms' | 'walls' | 'openings'> & { objects?: Obj[]; exterior?: Campus['exterior']; lamps?: Lamp[]; circuits?: Circuit[]; roofs?: RoofData[] };
 
 const nextId = (used: readonly { id: string }[], prefix: string): string => {
   const ids = new Set(used.map((e) => e.id));
@@ -49,6 +53,40 @@ export function circuitLevel(d: Pick<LampData, 'walls'>, c: Circuit): string {
 export function ceilingOf(d: Pick<LampData, 'levels'>, r: Room): number {
   const c = typeof r.ceiling === 'number' ? r.ceiling : 0;
   return c > 0 ? c : r3((d.levels.find((l) => l.id === r.level)?.height ?? 0) - facts.room.slab.value);
+}
+
+/** A ceiling surface over a plan point: its height above the level's floor and its outline (the slide snap's lines). */
+export interface CeilingSurface {
+  y: number;
+  rect: [number, number, number, number];
+  /** The room or roof id. */
+  id: string;
+}
+
+/**
+ * Michael 2026-10-14: the ceiling over a plan point on a level, as everything hung from a ceiling reads it (lamps,
+ * devices, signs; the aim): the room's ceiling (`ceilingOf`), or a roof's underside where that is lower (a lowered flat
+ * roof: the roof plane less its deck, as the walk test builds it), with that surface's outline. Null outside rooms.
+ */
+export function ceilingSurface(d: Pick<LampData, 'levels' | 'rooms'> & { roofs?: readonly RoofData[] }, level: string, x: number, z: number): CeilingSurface | null {
+  const room = roomAt(d.rooms, level, x, z);
+  if (!room) return null;
+  const floor = d.levels.find((l) => l.id === level)?.floor ?? 0;
+  let out: CeilingSurface = { y: ceilingOf(d, room), rect: [room.rect[0], room.rect[1], room.rect[2], room.rect[3]], id: room.id };
+  for (const r of d.roofs ?? []) {
+    const u = roofUnderside(r, x, z);
+    if (u === null) continue;
+    const rel = r3(u - floor);
+    // (a roof under this floor belongs to a lower level; one over the ceiling is hidden by it)
+    if (rel <= 0 || rel >= out.y - 1e-6) continue;
+    out = { y: rel, rect: [r.rect[0], r.rect[1], r.rect[2], r.rect[3]], id: r.id };
+  }
+  return out;
+}
+
+/** The ceiling height over a point (above the level's floor), or null outside rooms (ceilingSurface). */
+export function ceilingOver(d: Pick<LampData, 'levels' | 'rooms'> & { roofs?: readonly RoofData[] }, level: string, x: number, z: number): number | null {
+  return ceilingSurface(d, level, x, z)?.y ?? null;
 }
 
 /** How far a light point stands off the ceiling or wall it fixes to: its body, at least facts light.surfaceGap (the bake). */
@@ -84,7 +122,34 @@ export function withParams(l: Lamp): Lamp {
   const oy = onCeiling(f) ? sy / 2 : f.mount === 'desk' ? -sy / 2 : f.mount === 'floor' ? sy / 2 - (f.height ?? 0) : 0;
   const dir: [number, number, number] = f.up ? [0, 1, 0] : l.aim ? aimDir(l.aim) : [0, -1, 0];
   out.params = lightParams({ lumens: f.linear ? (l.lumens ?? f.lumens) * Math.max(len, 0.1) : (l.lumens ?? f.lumens), kelvin: l.kelvin ?? f.kelvin, beam: l.beam ?? f.beam, dir, colour: f.colour, fixture: { sx, sy, sz, oy }, off: f.off });
+  const area = lampArea(l, f, sx, sz);
+  if (area) out.params.area = area;
   return out;
+}
+
+/**
+ * Michael 2026-10-14: the light points across an area fitting's lit face (lightCatalogue `areaGrid`): a grid over a
+ * troffer or panel's footprint (sx by sz, as turned), points along a strip's line; null for a one-point fitting, an
+ * aimed one or a twin spot. Offsets from the lamp's point (a strip's middle), with each point's cell of the face.
+ */
+export function lampArea(l: Pick<Lamp, 'at' | 'b' | 'aim' | 'heads'>, f: Pick<Fitting, 'linear' | 'body'>, sx: number, sz: number): NonNullable<Lamp['params']['area']> | null {
+  if (l.aim || (l.heads ?? 1) > 1) return null;
+  const pts: [number, number][] = [];
+  if (f.linear && l.b) {
+    const lx = l.b[0] - l.at[0];
+    const lz = l.b[2] - l.at[2];
+    const n = areaGrid(hyp2(lx, lz), f.body[0]).nw;
+    if (n < 2) return null;
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n - 0.5;
+      pts.push([r3(lx * t), r3(lz * t)]);
+    }
+    return { pts, sx: r3(Math.max(Math.abs(lx) / n, f.body[0])), sz: r3(Math.max(Math.abs(lz) / n, f.body[0])) };
+  }
+  const g = areaGrid(sx, sz);
+  if (g.nw * g.nd < 2) return null;
+  for (let i = 0; i < g.nw; i++) for (let k = 0; k < g.nd; k++) pts.push([r3(sx * ((i + 0.5) / g.nw - 0.5)), r3(sz * ((k + 0.5) / g.nd - 0.5))]);
+  return { pts, sx: r3(sx / g.nw), sz: r3(sz / g.nd) };
 }
 
 /** The fitting's own defaults on a record (a new lamp, or a Type step): emergency, motion, breakable, heads. */
@@ -192,7 +257,8 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
     const at: Pt = [snap(x, g), snap(z, g)];
     const room = roomOf(at[0], at[1]);
     if (!room) return none('Move into a room or yard');
-    const ceil = ceilingOf(d, room);
+    // Michael 2026-10-14: the surface over the point (a lowered roof's underside too), the same for the ghost and A
+    const ceil = ceilingOver(d, c.level, at[0], at[1]) ?? ceilingOf(d, room);
     let y: number;
     if (f.mount === 'floor') y = f.height ?? 0;
     else if (f.mount === 'pendant') y = Math.min(f.height ?? Infinity, ceil - gapOf((f.drop ?? 0) + f.body[1]));
@@ -273,7 +339,8 @@ export function placeLamp(f: Fitting, x: number, z: number, c: PlaceCtx): LampPl
 export function drawLamp(f: Fitting, a: Pt, b: Pt, c: PlaceCtx): { lamp: NewLamp | null; why: string | null } {
   const room = roomAt(c.data.rooms, c.level, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2) ?? roomAt(c.data.rooms, c.level, a[0], a[1]);
   if (!room) return { lamp: null, why: 'Move into a room or yard' };
-  const y = r3(onCeiling(f) ? ceilingOf(c.data, room) - gapOf(f.body[1]) : (f.height ?? 0));
+  const ceil = ceilingOver(c.data, c.level, a[0], a[1]) ?? ceilingOf(c.data, room);
+  const y = r3(onCeiling(f) ? ceil - gapOf(f.body[1]) : (f.height ?? 0));
   const l = base(f, room, c.data, [a[0], y, a[1]], 0, null);
   l.b = [b[0], y, b[1]];
   return { lamp: finish(f, l), why: null };
@@ -385,7 +452,7 @@ export function circuitLink(d: Pick<LampData, 'circuits' | 'lamps'>, changes: re
   return out;
 }
 
-/** "Troffer 600 x 600 (LP3): 3600 lm, 4000 K, 110 deg beam, reach 4.5 m; on C2 (switch on WG012)". */
+/** "Troffer 600 x 300 (LP3): 1800 lm, 4000 K, 110 deg beam, reach 4.5 m; on C2 (switch on WG012)". */
 export function lampWords(d: LampData, l: Lamp): string {
   const f = fittingOf(l.fixture);
   const c = (d.circuits ?? []).find((q) => q.id === l.circuit);
@@ -505,6 +572,61 @@ export function moveLamp(d: LampData, l: Lamp, dx: number, dz: number): Lamp {
   const r = roomAt(d.rooms, lv, a.at[0], a.at[2]);
   if (r) a.room = r.id;
   return withParams(a);
+}
+
+/** A lamp slid on its surface: the lamp, the lines it snapped to (guides), and the ceiling it is under. */
+export interface LampSlide {
+  lamp: Lamp;
+  snap: SlideSnap | null;
+  surface: CeilingSurface | null;
+  /** A wall fitting: the wall it slides along and the line (along it, from its start) it snapped to. */
+  wall?: { id: string; t: number | null };
+}
+
+/**
+ * Michael 2026-10-14: a placed lamp slid by (dx, dz) across the surface it is mounted on. A ceiling fitting moves over
+ * the ceiling (on the grid `grid`), snapping to the surface's centre and quarter lines within `magnet` (`off`: LB held);
+ * where the ceiling over the new point is another surface (a lowered roof, the next room) it keeps its drop under that
+ * one; off every ceiling it stays at the edge of its own. A wall fitting slides along its wall (its height is the
+ * triggers'), snapping to the wall's centre and quarter points. Linear and other fittings move as `moveLamp`.
+ */
+export function slideLamp(d: LampData, l: Lamp, dx: number, dz: number, opt: { grid: number; magnet: number; off: boolean }): LampSlide {
+  const f = fittingOf(l.fixture);
+  const lv = lampLevel(d, l);
+  const g = opt.grid;
+  if (f && !l.b && onCeiling(f)) {
+    const c0 = lampCentre(l);
+    const s0 = ceilingSurface(d, lv, c0[0], c0[1]);
+    let x = snap(c0[0] + dx, g);
+    let z = snap(c0[1] + dz, g);
+    let s1 = ceilingSurface(d, lv, x, z);
+    if (!s1 && s0) {
+      [x, z] = clampToRect(x, z, s0.rect);
+      s1 = ceilingSurface(d, lv, x, z);
+    }
+    const s = s1 ?? s0;
+    const sn = s ? snapSlide(x, z, s.rect, opt.magnet, opt.off) : null;
+    if (sn) {
+      x = sn.x;
+      z = sn.z;
+    }
+    const m = moveLamp(d, l, r3(x - c0[0]), r3(z - c0[1]));
+    const dy = s0 && s ? s.y - s0.y : 0;
+    if (Math.abs(dy) > 1e-6) m.at = [m.at[0], r3(Math.max(0.05, m.at[1] + dy)), m.at[2]];
+    return { lamp: withParams(m), snap: sn && (sn.lx !== null || sn.lz !== null) ? sn : null, surface: s };
+  }
+  const w = f?.mount === 'wall' && !l.b ? d.walls.find((q) => q.id === l.on) : undefined;
+  if (w) {
+    const dir = wallDir(w);
+    const len = hyp2(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+    const t0 = (l.at[0] - w.a[0]) * dir[0] + (l.at[2] - w.a[1]) * dir[1];
+    let t = Math.min(len, Math.max(0, snap(t0 + alongWall(dx, dz, dir[0], dir[1]), g)));
+    const line = opt.off ? null : snapAxis(t, 0, len, opt.magnet);
+    if (line !== null) t = line;
+    const k = t - t0;
+    return { lamp: moveLamp(d, l, r3(dir[0] * k), r3(dir[1] * k)), snap: null, surface: null, wall: { id: w.id, t: line } };
+  }
+  return { lamp: moveLamp(d, l, snap(dx, g), snap(dz, g)), snap: null, surface: null };
 }
 
 /** The plan point of a lamp (a linear one's middle). */

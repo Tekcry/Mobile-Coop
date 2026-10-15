@@ -80,6 +80,9 @@ const stepMenu = (b) => E(async (b) => {
   for (let k = 0; k < 150 && probe() === v0; k++) await raf();
   window.__pad.set(b, 0); await raf(); await raf(); await raf();
 }, b);
+/** Michael 2026-10-14: groups are tabs on the menu's group row (LT / RT), no longer tiles. */
+const onGroup = () => E(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? null);
+const toGroup = async (name) => { for (let i = 0; i < 10 && (await onGroup()) !== name; i++) await press(BTN.RT); return (await onGroup()) === name; };
 const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await stepMenu(btn); return (await menuState()).tile === name; };
 /** Lights a card row with the D-pad (read back each press). */
 const toRow = async (row) => { for (let i = 0; i < 12 && (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) !== row; i++) await press(BTN.DOWN); return (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) === row; };
@@ -99,6 +102,19 @@ try {
   await E(() => window.__pad.connect());
   await press(BTN.LB);
   assert((await E(() => window.__editor.pad.device)) === 'pad', 'pad input switches the hint bar to the pad');
+  // Michael 2026-10-14: Hub > Settings > Camera is Free fly by default (the pad flies, a crosshair at the centre); the
+  // older steps below were written for the orbit camera, so the hub switches to Orbit here (it is kept over the reload)
+  const cam0 = await E(() => ({ set: window.__editor.pad.settings.camera, mode: window.__editor.controls.mode, cross: getComputedStyle(document.getElementById('reticle'), '::after').content }));
+  assert(cam0.set === 'fly' && cam0.mode === 'fly' && cam0.cross !== 'none', `Camera: Free fly by default; pad input flies, with a crosshair at the centre (${JSON.stringify(cam0)})`);
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('Settings'));
+  await frames(page, 3);
+  for (let i = 0; i < 20 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== 'set.camera'; i++) await press(BTN.DOWN);
+  await press(BTN.RIGHT);
+  const camRow = await E(() => document.querySelector('#hub [data-row="set.camera"]')?.textContent ?? '');
+  await press(BTN.B);
+  await press(BTN.LB);
+  assert((await E(() => window.__editor.pad.settings.camera)) === 'orbit' && /Camera/.test(camRow) && /Orbit/.test(camRow), `Hub > Settings > Camera switches to Orbit ("${camRow}")`);
   assert((await E(() => window.__editor.controls.mode)) === 'orbit', 'pad input starts the builder camera');
   assert(/A Select\s+Y Menu\s+X Undo\s+LS click Walk\s+Menu Hub/.test((await st()).hint), `hint bar shows the pad's building words ("${(await st()).hint.slice(0, 80)}")`);
   await shot('hint-idle');
@@ -106,8 +122,8 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
-  assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,Security,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+LT \/ RT Group\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 80)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
   await press(BTN.LB);
@@ -194,7 +210,7 @@ try {
   await frames(page, 4);
   await wait(200);
   const ghostText = await dotText();
-  assert(/A: place Double door on /.test(ghostText) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `the door ghost and its words before A ("${ghostText.slice(0, 80)}")`);
+  assert(/ - Double door on /.test(ghostText) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `the door ghost and its words before A ("${ghostText.slice(0, 80)}")`);
   await shot('door-ghost');
   const ops0 = s.ops.length;
   await press(BTN.A);
@@ -232,7 +248,7 @@ try {
   const lit = await E(() => document.querySelector('#toolBar .slot.on')?.dataset.slot);
   assert(s.tool === 'room' && lit === 'room', `the Room tile lights Room on the tool bar (tool ${s.tool}, lit ${lit})`);
   const startText = await dotText();
-  assert(/A: start a room here/.test(startText), `Room tool: the start marker's words ("${startText.slice(-22)}")`);
+  assert(/ - Start a room here/.test(startText), `Room tool: the start marker's words ("${startText.slice(-22)}")`);
   await press(BTN.B);
   await E(() => window.__editor.select(null));
   const up = await E(() => { const ed = window.__editor; const ls = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor); const i = ls.findIndex((l) => l.id === ed.view.level); return ls[i + 1] ? { y: ed.viewFloor(ls[i + 1].id), id: ls[i + 1].id, floor: ed.floor(ls[i + 1].id) } : null; });
@@ -341,7 +357,7 @@ try {
   console.log('edge-aware grab: stretch an edge, move from the middle');
   await dotAt(room.cx, room.cz);
   const mid = await dotText();
-  assert(/A: Move( \(\d+ shared walls? stays?\))?$/.test(mid), `the dot at the room's centre says "A: Move" ("${mid.slice(-12)}")`);
+  assert(/ - Move( \(\d+ shared walls? stays?\))?$/.test(mid), `the dot at the room's centre says "Move" ("${mid.slice(-12)}")`);
   await dotAt(room.rect[2] - 0.2, room.cz);
   const edge = await dotText();
   assert(/Stretch east edge/.test(edge) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `0.2 m inside the east edge: "Stretch east edge", the edge lit ("${edge.slice(-24)}")`);
@@ -420,7 +436,7 @@ try {
   const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
   await shot('menu-selected');
   await press(BTN.B);
-  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Save as preset,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Ceiling,Save as preset,Split,Mirror east-west,Mirror north-south,Mirror about a line,Array,Name plates: this level,Name plates: this building,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
   await frames(page, 3);
   assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
@@ -564,6 +580,8 @@ try {
   assert((await E(() => window.__editor.pad.settings.rumble)) === false, 'the rumble setting survives a reload');
 
   console.log('Walk test as the player (ED2 Part B)');
+  // (the reload offers the unsaved draft a moment after the editor is up: wait for the offer before discarding it)
+  await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden'), null, { timeout: 5000 }).catch(() => {});
   if (await E(() => !document.getElementById('ask').classList.contains('hidden'))) await page.click('#discard');
   // (the reload above disconnected the fake pad)
   await E(() => window.__pad.connect());
@@ -727,9 +745,10 @@ try {
   await E((id) => window.__editor.select(`walls:${id}`), wWid);
   for (const minimap of [false, true]) {
   await E((on) => { const ed = window.__editor; ed.prefs.layout = '3d'; ed.prefs.minimap = on; ed.applyLayout?.(); }, minimap);
-  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) for (const mode of ['', 'card', 'menu']) {
+  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) for (const mode of ['', 'card', 'menu', 'car']) {
     await page.setViewportSize({ width: vw, height: vh });
-    await E((m) => { const p = window.__editor.pad; if (m === 'card') p.editCard('type'); else p.cardEditing = false; if (m === 'menu') p.toggleMenu(); }, mode);
+    // 'car' (Michael 2026-10-14): a placing tool in hand, the type carousel over the tool bar
+    await E((m) => { const p = window.__editor.pad; if (m === 'card') p.editCard('type'); else p.cardEditing = false; if (m === 'menu') p.toggleMenu(); if (m === 'car') { window.__editor.select(null); p.runMenu('light.troffer-600'); } }, mode);
     await wait(400);
     await frames(page, 4);
     const r = await E(() => {
@@ -749,17 +768,358 @@ try {
       const hint = document.getElementById('hint');
       const line = parseFloat(getComputedStyle(hint).lineHeight) || parseFloat(getComputedStyle(hint).fontSize) * 1.3;
       const cut = [...document.querySelectorAll('#toolBar .slot b, #toolBar .slot small')].filter((e) => e.scrollWidth > e.clientWidth + 0.5).map((e) => e.textContent);
-      return { shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent };
+      const items = [...document.querySelectorAll('#toolBar .ci')].map((e) => e.getBoundingClientRect());
+      const tb = document.getElementById('toolBar').getBoundingClientRect();
+      const carOut = items.filter((b) => b.left < tb.left - 0.5 || b.right > tb.right + 0.5).length;
+      // Michael 2026-10-14: one compact row: every item on one line, the lit one centred and larger, names on one line
+      const onEl = document.querySelector('#toolBar .ci.on');
+      const ob = onEl?.getBoundingClientRect();
+      const others = items.filter((b) => !ob || b.left !== ob.left);
+      const row = items.length ? { h: tb.height, one: Math.max(...items.map((b) => b.top)) < Math.min(...items.map((b) => b.bottom)), centred: ob ? Math.abs(ob.left + ob.width / 2 - (tb.left + tb.width / 2)) < 2 : false, larger: !!ob && others.every((b) => b.width < ob.width && b.height < ob.height), tall: [...document.querySelectorAll('#toolBar .ci .cn')].filter((e) => e.scrollHeight > e.clientHeight + 1).length, slotShown: [...document.querySelectorAll('#toolBar .slot')].filter((e) => getComputedStyle(e).display !== 'none').length } : null;
+      return { row, shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent, car: items.length, carOut };
     });
-    const want = mode === 'menu' ? r.shown.includes('tileMenu') && !r.shown.includes('selCard') : r.shown.includes('toolBar') && r.shown.includes('selCard') && r.slots === 1 && /^Interior wall /.test(r.card) && (mode !== 'card' || !r.shown.includes('reticleText'));
+    const want = mode === 'menu' ? r.shown.includes('tileMenu') && !r.shown.includes('selCard') : mode === 'car' ? r.shown.includes('toolBar') && r.car >= 3 && r.carOut === 0 && r.slots === 1 && !!r.row && r.row.one && r.row.centred && r.row.larger && r.row.tall === 0 && r.row.slotShown === 0 && r.row.h <= (vw >= 1280 ? 56 : 48) : r.shown.includes('toolBar') && r.shown.includes('selCard') && r.slots === 1 && /^Interior wall /.test(r.card) && (mode !== 'card' || !r.shown.includes('reticleText'));
     assert(want && r.hits.length === 0 && !r.hintCut && !r.hintTall && r.cut.length === 0,
-      `${vw} x ${vh}${minimap ? ', small plan' : ''}${mode ? `, ${mode === 'menu' ? 'menu open' : 'card editing'}` : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slot, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
+      `${vw} x ${vh}${minimap ? ', small plan' : ''}${mode ? `, ${mode === 'menu' ? 'menu open' : mode === 'car' ? `type carousel (${r.car} items in one row ${r.row?.one}, ${r.row?.h.toFixed(0)} px tall, lit one centred ${r.row?.centred} and larger ${r.row?.larger}, names on one line ${r.row?.tall === 0}, no tool slot under it ${r.row?.slotShown === 0})` : 'card editing'}` : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slot, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
     if (mode === 'card' && vw === 1280 && !minimap) await shot('card-editing');
     await shot(`pad-screen-${vw}x${vh}${minimap ? '-small-plan' : ''}${mode ? `-${mode}` : ''}`);
-    await E(() => { const p = window.__editor.pad; p.closeMenu(); p.cardEditing = false; });
+    await E((id) => { const p = window.__editor.pad; p.closeMenu(); p.cardEditing = false; if (window.__editor.tool !== 'select') { window.__editor.setTool('select'); window.__editor.select(`walls:${id}`); } }, wWid);
   }
   }
   await page.setViewportSize({ width: 1600, height: 900 });
+
+  console.log('fix-up 2026-10-14: compact tile menu, group tiles, status strip, screen-size handles, raise and lower, Move / Resize');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('3d'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); });
+    // the status line: hidden on the controller, back with the keyboard, hidden again after pad input
+    await press(BTN.LB);
+    const stat = () => E(() => ({ dev: window.__editor.pad.device, shown: getComputedStyle(document.getElementById('status')).display !== 'none', stage: document.getElementById('stage').getBoundingClientRect().bottom, h: window.innerHeight }));
+    const sp = await stat();
+    await page.keyboard.press('Shift');
+    await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+    const sk = await stat();
+    await press(BTN.LB);
+    await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+    const sp2 = await stat();
+    assert(sp.dev === 'pad' && !sp.shown && sk.dev === 'keys' && sk.shown && sp2.dev === 'pad' && !sp2.shown && sp.stage > sk.stage, `the status line hides on the pad (views to ${sp.stage} of ${sp.h} px), shows with the keyboard (${sk.stage} px), hides again after pad input`);
+
+    // Michael 2026-10-14: the tile menu is one size on every tab and every group (three tile rows on the desktop layout,
+    // two on the small one; a longer tab scrolls inside); the group row shows on Objects, Presets and Lights only; every
+    // tile's words stay inside it; the panel is clear of the strip and the hint bar
+    for (const [vw, vh] of [[1920, 1080], [1280, 720], [1024, 600], [932, 430]]) {
+      await page.setViewportSize({ width: vw, height: vh });
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); });
+      await frames(page, 3);
+      const tabNames = await E(() => [...document.querySelectorAll('#tileMenu [data-mtab]')].map((b) => b.textContent));
+      const seen = [];
+      const bad = [];
+      let rows = '';
+      for (const tab of tabNames) {
+        await E((t) => { const p = window.__editor.pad; p.menu.setTab(t, p.menuInput()); }, tab);
+        await page.waitForFunction((t) => document.querySelector('#tileMenu [data-mtab].on')?.textContent === t, tab, { timeout: 5000 }).catch(() => {});
+        await frames(page, 2);
+        const groups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((b) => b.dataset.mgroup));
+        rows += `${tab}:${groups.length} `;
+        for (const g of groups.length ? groups : [null]) {
+          if (g) {
+            await E((g) => window.__editor.pad.showGroup(g), g);
+            await page.waitForFunction((g) => document.querySelector('#tileMenu [data-mgroup].on')?.dataset.mgroup === g, g, { timeout: 5000 }).catch(() => {});
+          }
+          await frames(page, 2);
+          const m = await E(() => {
+            const el = document.getElementById('tileMenu');
+            const b = el.getBoundingClientRect();
+            const out = [];
+            if (!el.querySelector('.tm-grid.list'))
+              for (const t of el.querySelectorAll('.tile')) {
+                const tb = t.getBoundingClientRect();
+                const sm = t.querySelector('small').getBoundingClientRect();
+                const tn = t.querySelector('.tn').getBoundingClientRect();
+                if (!(sm.width > 4 && sm.height > 4 && sm.top >= tb.top - 0.5 && sm.bottom <= tb.bottom + 0.5 && tn.width > 4 && tn.top >= tb.top - 0.5 && tn.bottom <= tb.bottom + 0.5)) out.push(t.querySelector('.tn').textContent);
+              }
+            const strip = document.getElementById('padStrip').getBoundingClientRect();
+            const hint = document.getElementById('hint').getBoundingClientRect();
+            return { h: Math.round(b.height * 10) / 10, out, clear: b.top >= strip.bottom && b.bottom <= hint.top + 0.5, on: document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? '' };
+          });
+          seen.push(m.h);
+          if (m.out.length || !m.clear) bad.push(`${tab}${g ? `/${m.on}` : ''}: ${m.clear ? '' : 'not clear '}${m.out.join(', ')}`);
+          if (tab === 'Lights' && g === 'lightgroup.interior' && (vw === 1920 || vw === 932)) await shot(`menu-lights-groups-${vw}x${vh}`);
+        }
+      }
+      const same = Math.max(...seen) - Math.min(...seen) <= 0.5;
+      const groupTabs = rows.trim().split(' ').filter((r) => !r.endsWith(':0')).map((r) => r.split(':')[0]).join();
+      assert(same && bad.length === 0 && groupTabs === 'Objects,Presets,Lights', `${vw} x ${vh}: the menu is ${Math.min(...seen)} px high on all ${seen.length} tabs and groups (spread ${(Math.max(...seen) - Math.min(...seen)).toFixed(1)} px); group rows on ${groupTabs}; words cut or panel not clear [${bad.join('; ')}]`);
+      // back to the first groups and Build (later steps open the menu there)
+      await E(() => { const p = window.__editor.pad; for (const g of ['objgroup.dataHall', 'presetfrom.start', 'lightgroup.interior']) p.showGroup(g); p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+    }
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    // Lights: the group row (Interior, Plant and goods, Outside ...) and only fittings as tiles; RT / LT and a click change the group
+    {
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); p.menu.setTab('Lights', p.menuInput()); });
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mtab].on')?.textContent === 'Lights', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const lm = () => E(() => ({ groups: [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((b) => b.textContent), on: document.querySelector('#tileMenu [data-mgroup].on')?.textContent ?? '', tiles: [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent), icons: [...document.querySelectorAll('#tileMenu .tile .ti')].map((t) => t.textContent), head: document.querySelector('#tileMenu .tm-ghead .dim')?.textContent ?? '', hint: document.getElementById('hint').textContent }));
+      const l0 = await lm();
+      await press(BTN.RT);
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Plant and goods', null, { timeout: 5000 }).catch(() => {});
+      const l1 = await lm();
+      await press(BTN.LT);
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Interior', null, { timeout: 5000 }).catch(() => {});
+      const l2 = await lm();
+      await page.click('#tileMenu [data-mgroup="lightgroup.outside"]');
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Outside', null, { timeout: 5000 }).catch(() => {});
+      const l3 = await lm();
+      await page.click('#tileMenu [data-mgroup="lightgroup.tools"]');
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mgroup].on')?.textContent === 'Switch and test', null, { timeout: 5000 }).catch(() => {});
+      const l4 = await lm();
+      const fittingsOnly = (l) => l.tiles.length > 0 && l.icons.every((i) => i === 'L' || i === 'W' || i === 'R') && !l.tiles.some((t) => l.groups.includes(t) || t === 'Switch' || t === 'Guard view');
+      assert(l0.groups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && l0.on === 'Interior' && fittingsOnly(l0) && l0.tiles[0] === 'Downlight 90 mm' && /LT \/ RT group/.test(l0.head) && /LT \/ RT Group/.test(l0.hint), `Lights: the group row ${l0.groups.join(', ')} (on ${l0.on}; header "${l0.head}"); tiles only fittings (${l0.tiles.slice(0, 3).join(', ')} ...); hint "${l0.hint}"`);
+      assert(l1.on === 'Plant and goods' && fittingsOnly(l1) && l1.tiles.join() !== l0.tiles.join() && l2.on === 'Interior' && l2.tiles.join() === l0.tiles.join() && l3.on === 'Outside' && fittingsOnly(l3) && l4.tiles.join() === 'Switch,Guard view', `Lights: RT shows ${l1.on} (${l1.tiles.slice(0, 2).join(', ')} ...), LT back to ${l2.on}; a click on Outside shows ${l3.tiles.slice(0, 2).join(', ')} ...; Switch and test holds ${l4.tiles.join(', ')}`);
+      await E(() => { const p = window.__editor.pad; p.showGroup('lightgroup.interior'); p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+      // (back to the pad layout: the clicks gave the mouse the screen)
+      await page.mouse.move(5, 5);
+      await press(BTN.LB);
+      await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 3);
+    }
+
+    // 2026-10-14 (Michael): tiles centred, at most 4 equal columns; the View list as wide as the grid; D-pad matches columns
+    for (const [vw, vh] of [[1920, 1080], [1280, 720], [1024, 600], [932, 430]]) {
+      await page.setViewportSize({ width: vw, height: vh });
+      await E(() => { const p = window.__editor.pad; if (!p.menu.isOpen) p.toggleMenu(); });
+      let gridW = 0;
+      for (const tab of ['Build', 'Openings', 'Objects', 'View']) {
+        await E((t) => { const p = window.__editor.pad; p.menu.setTab(t, p.menuInput()); }, tab);
+        await page.waitForFunction((t) => document.querySelector('#tileMenu [data-mtab].on')?.textContent === t, tab, { timeout: 5000 }).catch(() => {});
+        await frames(page, 3);
+        const g = await E(() => {
+          const el = document.getElementById('tileMenu');
+          const mb = el.getBoundingClientRect();
+          const grid = el.querySelector('.tm-grid').getBoundingClientRect();
+          const tabs = el.querySelector('.tm-tabs').getBoundingClientRect();
+          const bs = [...el.querySelectorAll('.tm-tabs button')].map((b) => b.getBoundingClientRect());
+          const tb = [...el.querySelectorAll('.tile')].map((t) => t.getBoundingClientRect());
+          const lefts = [...new Set(tb.map((b) => Math.round(b.left)))];
+          const ws = tb.map((b) => b.width), hs = tb.map((b) => b.height);
+          let over = 0;
+          for (let i = 0; i < tb.length; i++) for (let j = i + 1; j < tb.length; j++) { const [a, c] = [tb[i], tb[j]]; if (a.left < c.right - 0.5 && c.left < a.right - 0.5 && a.top < c.bottom - 0.5 && c.top < a.bottom - 0.5) over++; }
+          const cut = tb.filter((b) => b.left < mb.left - 0.5 || b.right > mb.right + 0.5).length;
+          const tabsMid = bs.length ? (bs[0].left + bs[bs.length - 1].right) / 2 : 0;
+          return { cols: lefts.length, n: tb.length, dw: Math.max(...ws) - Math.min(...ws), dh: Math.max(...hs) - Math.min(...hs), w: Math.round(ws[0]), h: Math.round(hs[0]), gl: grid.left - mb.left, gr: mb.right - grid.right, gw: grid.width, over, cut, tabsOff: Math.abs(tabsMid - (mb.left + mb.right) / 2), tabsFit: tabs.width >= bs.reduce((a, b) => a + b.width, 0) - 1 };
+        });
+        if (tab !== 'View') gridW = Math.max(gridW, g.gw);
+        const ok = g.cols <= 4 && g.dw <= 1 && g.dh <= 1 && Math.abs(g.gl - g.gr) <= 2 && g.over === 0 && g.cut === 0 && (!g.tabsFit || g.tabsOff <= 2) && (tab !== 'View' || Math.abs(g.gw - gridW) <= 1);
+        assert(ok, `${vw} x ${vh} ${tab}: ${g.n} tiles in ${g.cols} columns, each ${g.w} x ${g.h} px (spread ${g.dw.toFixed(1)} x ${g.dh.toFixed(1)}), gaps left ${g.gl.toFixed(1)} / right ${g.gr.toFixed(1)}, ${tab === 'View' ? `list ${Math.round(g.gw)} px wide (grid ${Math.round(gridW)})` : `grid ${Math.round(g.gw)} px`}, tabs off centre ${g.tabsOff.toFixed(1)} px, ${g.over} overlaps, ${g.cut} outside`);
+        if ((vw === 1920 || vw === 932) && (tab === 'Openings' || tab === 'View')) await shot(`menu-centred-${tab.toLowerCase()}-${vw}x${vh}`);
+      }
+      // D-pad right then down on Openings: the highlight moves one column, then one visual row (same column)
+      await E(() => { const p = window.__editor.pad; p.menu.setTab('Openings', p.menuInput()); });
+      await page.waitForFunction(() => document.querySelector('#tileMenu [data-mtab].on')?.textContent === 'Openings', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const pos = () => E(() => { const b = document.querySelector('#tileMenu .tile.hl').getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top)]; });
+      await E(() => { window.__editor.pad.menu.index = 0; });
+      await page.waitForFunction(() => window.__editor.pad.menu.index === 0, null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 2);
+      const p0 = await pos();
+      await press(BTN.RIGHT);
+      await frames(page, 2);
+      const p1 = await pos();
+      await press(BTN.DOWN);
+      await frames(page, 2);
+      const p2 = await pos();
+      assert(p1[1] === p0[1] && p1[0] > p0[0] && p2[0] === p1[0] && p2[1] > p1[1], `${vw} x ${vh}: D-pad right moves one visual column (${p0} to ${p1}), down one visual row in the same column (${p2})`);
+      await E(() => { const p = window.__editor.pad; p.menu.setTab('Build', p.menuInput()); p.closeMenu(); });
+    }
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    // an empty patch on the ground floor for a test room (no wall within a metre of a 6 x 5 box)
+    const spot = await E(() => {
+      const ws = window.__editor.model.data.walls.filter((w) => w.level === 'G');
+      for (let z = 4; z < 70; z += 1) for (let x = 4; x < 100; x += 1) {
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 9 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 8);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!spot, `an empty patch for the hold steps at ${spot}`);
+    const [sx, sz] = spot;
+    const hStart = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('room.walls'));
+    await dotAt(sx, sz); await press(BTN.A);
+    await dotAt(sx + 4, sz + 3); await press(BTN.A);
+    const room = await E(() => { const rs = window.__editor.model.data.rooms; return rs[rs.length - 1]; });
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`rooms:${id}`); ed.controls.orbit.s.dist = 18; }, room.id);
+    await frames(page, 4);
+
+    // handles keep about 12 px on screen in 3D at two camera distances, and on the plan at two zooms
+    const px3 = async (dist) => { await E((d) => { window.__editor.controls.orbit.s.dist = d; }, dist); await frames(page, 4); return E(() => window.__editor.view.handlePixels()); };
+    const near = await px3(12);
+    const far = await px3(60);
+    const ok3 = (a) => a.length === 4 && a.every((v) => v > 8 && v < 16);
+    assert(ok3(near) && ok3(far), `3D handles stay about 12 px: camera 12 m [${near.map((v) => v.toFixed(1)).join(', ')}], 60 m [${far.map((v) => v.toFixed(1)).join(', ')}]`);
+    await E(() => window.__editor.setLayout('plan'));
+    await frames(page, 4);
+    const pxPlan = () => E(() => [...document.querySelectorAll('#planSvg rect[data-handle]')].map((r) => r.getBoundingClientRect().width));
+    const p1 = await pxPlan();
+    await E(() => { const svg = document.querySelector('#planSvg svg'); const b = svg.getBoundingClientRect(); for (let i = 0; i < 4; i++) document.getElementById('planSvg').dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true, cancelable: true })); });
+    await frames(page, 3);
+    const p2 = await pxPlan();
+    const vb = await E(() => document.querySelector('#planSvg svg').getAttribute('viewBox'));
+    const okP = (a) => a.length >= 4 && a.every((v) => Math.abs(v - 12) < 1.5);
+    assert(okP(p1) && okP(p2), `plan handles stay 12 px at two zooms: [${p1.map((v) => v.toFixed(1)).join(', ')}] then [${p2.map((v) => v.toFixed(1)).join(', ')}] (view box ${vb})`);
+    await E(() => window.__editor.setLayout('3d'));
+    await frames(page, 3);
+
+    // Y while holding: Resize; the left stick widens the room, the corner opposite the dot stays put; one undo step
+    const r0 = (await E((id) => window.__editor.model.get('rooms', id).rect, room.id)).slice();
+    await dotAt(r0[2] - 0.6, r0[3] - 0.6);
+    const h0 = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await page.waitForFunction(() => window.__editor.drag?.source === 'pad', null, { timeout: 5000 }).catch(() => {});
+    await press(BTN.Y);
+    await page.waitForFunction(() => window.__editor.drag?.mode === 'resize', null, { timeout: 5000 }).catch(() => {});
+    const tag = await E(() => ({ mode: window.__editor.drag?.mode, handle: window.__editor.drag?.handle, tag: document.getElementById('heldTag').textContent, hint: document.getElementById('hint').textContent }));
+    await axes(0.8, 0);
+    await page.waitForFunction(([id, x1]) => window.__editor.model.get('rooms', id).rect[2] >= x1 + 1, [room.id, r0[2]], { timeout: 20000 }).catch(() => {});
+    await axes(0, 0);
+    await frames(page, 3);
+    await press(BTN.A);
+    await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const r1 = await E((id) => window.__editor.model.get('rooms', id).rect, room.id);
+    const h1 = await E(() => window.__editor.model.history.length);
+    assert(tag.mode === 'resize' && tag.handle === 'NE' && /^Resize/.test(tag.tag) && /Y Move \/ Resize/.test(tag.hint) && r1[2] >= r0[2] + 1 && r1[0] === r0[0] && r1[1] === r0[1] && h1 === h0 + 1, `Y switches to Resize (${tag.handle}, tag "${tag.tag}"); the stick widens the room to ${JSON.stringify(r1)} from ${JSON.stringify(r0)}, the south-west corner fixed; ${h1 - h0} undo step`);
+
+    // RT while holding an object raises it (0.1 m steps), A drops it: one undo step; the triggers zoom again after
+    await E(([x, z]) => {
+      const ed = window.__editor;
+      const o = { id: 'OBJ-E2E-LIFT', level: 'G', name: 'Crate', rect: [x + 1, z + 1, x + 2.2, z + 2.2], h: 1.2, y: 0, preset: 'crate-1.2' };
+      ed.model.commit('e2e crate', [{ coll: 'objects', id: o.id, before: null, after: o }]);
+      ed.select('objects:OBJ-E2E-LIFT');
+    }, [sx, sz]);
+    await dotAt(sx + 1.6, sz + 1.6);
+    const oh0 = await E(() => window.__editor.model.history.length);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await page.waitForFunction(() => window.__editor.drag?.source === 'pad', null, { timeout: 5000 }).catch(() => {});
+    const dist0 = await E(() => window.__editor.controls.orbit.s.dist);
+    await set(BTN.RT, 1);
+    await page.waitForFunction(() => (window.__editor.drag?.lift ?? 0) >= 0.5, null, { timeout: 20000 }).catch(() => {});
+    await set(BTN.RT, 0);
+    await frames(page, 3);
+    const lift = await E(() => ({ lift: window.__editor.drag?.lift, tag: document.getElementById('heldTag').textContent, dist: window.__editor.controls.orbit.s.dist }));
+    await press(BTN.A);
+    await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const o1 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+    const oh1 = await E(() => window.__editor.model.history.length);
+    assert(o1.y >= 0.5 && Math.abs(o1.y * 10 - Math.round(o1.y * 10)) < 1e-6 && oh1 === oh0 + 1 && Math.abs(lift.dist - dist0) < 0.01 && /base 0\.[5-9]|base 1/.test(lift.tag), `RT raises the held crate to ${o1.y} m (0.1 m steps; tag "${lift.tag}"); the camera did not zoom (${dist0.toFixed(2)} -> ${lift.dist.toFixed(2)}); A drops it in ${oh1 - oh0} undo step`);
+    // a room stays on its level; Page Up with the crate selected raises it a step (keyboard)
+    await page.keyboard.press('PageUp');
+    const o2 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT').y);
+    assert(Math.abs(o2 - o1.y - 0.1) < 1e-6, `Page Up raises the selected crate 0.1 m (${o1.y} -> ${o2})`);
+    await press(BTN.LB);
+    await E((id) => window.__editor.select(`rooms:${id}`), room.id);
+    await dotAt((r1[0] + r1[2]) / 2, (r1[1] + r1[3]) / 2);
+    await E(() => window.__editor.pad.runMenu('sel.move'));
+    await set(BTN.RT, 1); await frames(page, 6); await set(BTN.RT, 0); await frames(page, 2);
+    const said = await E(() => ({ status: document.getElementById('status').textContent, toast: document.getElementById('padToast').textContent, lift: window.__editor.drag?.lift ?? 0 }));
+    await press(BTN.B);
+    assert(/Stays on its level/.test(said.status) && /Stays on its level/.test(said.toast) && !said.lift, `RT on a held room: "${said.toast}" (no lift)`);
+    // Michael 2026-10-14: top and bottom handles (3D only). The mouse drags the crate's top up: taller, the base stays,
+    // one undo step; the pad's aim on the top handle, A grabs it, RT makes it taller in 0.1 m steps
+    {
+      const cam0 = await E(() => window.__editor.pad.settings.camera);
+      await E(() => { const ed = window.__editor; ed.pad.settings.camera = 'fly'; ed.prefs.minimap = false; ed.setLayout('3d'); ed.setTool('select'); ed.select('objects:OBJ-E2E-LIFT'); });
+      /** The fly camera `back` metres south of the crate and `up` over its top, looking at the top handle. */
+      const lookTop = (back, up) => E(([back, up]) => {
+        const ed = window.__editor;
+        const o = ed.model.get('objects', 'OBJ-E2E-LIFT');
+        const cx = (o.rect[0] + o.rect[2]) / 2;
+        const cz = (o.rect[1] + o.rect[3]) / 2;
+        const ty = ed.viewFloor() + o.y + o.h;
+        const c = ed.controls;
+        c.mode = 'fly';
+        c.setPose({ pos: [cx, ty + up, cz - back], yaw: 0, pitch: 0, fov: c.camera.fov });
+        c.lookAt(cx, ty, cz);
+        c.setPose(c.pose());
+      }, [back, up]);
+      // the mouse first: the keyboard and mouse layout shows the top bar, so the 3D view moves down
+      await page.mouse.move(5, 5);
+      await page.mouse.move(60, 60);
+      await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 4);
+      await lookTop(5, 1.2);
+      await frames(page, 8);
+      const hv = await E(() => ({ ids: window.__editor.handlesFor().map((h) => h.id), px: window.__editor.view.handlePixels(), plan: document.querySelectorAll('#planSvg [data-handle="top"], #planSvg [data-handle="bot"]').length }));
+      await shot('handles-top-bottom');
+      const oA = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hA = await E(() => window.__editor.model.history.length);
+      const at = await E(() => { const p = window.__editor.view.handleScreen('top'); const r = document.getElementById('c').getBoundingClientRect(); return p ? [r.left + p[0], r.top + p[1]] : null; });
+      if (at) {
+        await page.mouse.move(at[0], at[1]);
+        await page.mouse.down();
+        for (let i = 1; i <= 8; i++) { await page.mouse.move(at[0], at[1] - i * 10); await frames(page, 1); }
+        await page.mouse.up();
+      }
+      await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+      const oB = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hB = await E(() => window.__editor.model.history.length);
+      assert(hv.ids.includes('top') && hv.ids.includes('bot') && hv.px.every((p) => p > 8 && p < 16) && hv.plan === 0, `the selected crate has top and bottom handles (${hv.ids.join(', ')}), each ${hv.px.map((p) => p.toFixed(1)).join(' / ')} px on screen; none on the plan (${hv.plan})`);
+      assert(!!at && oB.h > oA.h + 0.05 && Math.abs(oB.h * 10 - Math.round(oB.h * 10)) < 1e-6 && oB.y === oA.y && hB === hA + 1, `the mouse drags the top handle up: ${oA.h} m to ${oB.h} m high, base ${oB.y} m kept, ${hB - hA} undo step`);
+      // the pad: the aim on the top handle, A grabs it, RT taller, A drops it
+      await press(BTN.LB);
+      await page.waitForFunction(() => window.__editor.pad.device === 'pad', null, { timeout: 5000 }).catch(() => {});
+      await lookTop(4, 1);
+      await frames(page, 6);
+      await page.waitForFunction(() => /Top: taller/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const vSaid = await dotText();
+      const hC = await E(() => window.__editor.model.history.length);
+      await press(BTN.A);
+      await page.waitForFunction(() => window.__editor.drag?.handle === 'top', null, { timeout: 5000 }).catch(() => {});
+      const grabbed = await E(() => window.__editor.drag?.handle ?? null);
+      await set(BTN.RT, 1);
+      await page.waitForFunction(() => (window.__editor.drag?.vdy ?? 0) >= 0.3, null, { timeout: 20000 }).catch(() => {});
+      await set(BTN.RT, 0);
+      await frames(page, 3);
+      const vdy = await E(() => window.__editor.drag?.vdy ?? 0);
+      await press(BTN.A);
+      await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+      const oD = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-LIFT'));
+      const hD = await E(() => window.__editor.model.history.length);
+      assert(/Top: taller/.test(vSaid) && grabbed === 'top' && oD.h >= oB.h + 0.3 - 1e-6 && Math.abs(oD.h - oB.h - vdy) < 1e-6 && Math.abs(oD.h * 10 - Math.round(oD.h * 10)) < 1e-6 && oD.y === oB.y && hD === hC + 1, `the pad's aim on the top handle ("${vSaid}"); A grabs it (${grabbed}), RT makes the crate ${oD.h} m high from ${oB.h} m in 0.1 m steps (base ${oD.y} m); ${hD - hC} undo step`);
+      await E((c) => { window.__editor.pad.settings.camera = c; }, cam0);
+    }
+
+    // Michael 2026-10-14: nothing inside walls for nudges too: a crate against a wall's face, Down nudges it 0.1 m into
+    // the wall: pushed back to the face; Shift+Down (1 m) would bury it: refused with "Inside a wall"
+    {
+      const nw = await E(() => {
+        const ed = window.__editor;
+        const d = ed.model.data;
+        const holed = new Set(d.openings.map((o) => o.wall));
+        const w = d.walls.find((q) => q.level === 'G' && q.a[1] === q.b[1] && Math.abs(q.b[0] - q.a[0]) > 6 && !holed.has(q.id) && q.t >= 0.15);
+        if (!w) return null;
+        const mx = Math.round((w.a[0] + w.b[0]) / 2);
+        const face = +(w.a[1] + w.t / 2).toFixed(3);
+        const o = { id: 'OBJ-E2E-NUDGE', level: 'G', name: 'Crate', rect: [mx - 0.6, face, mx + 0.6, +(face + 1.2).toFixed(3)], h: 1.2, y: 0, preset: 'crate-1.2' };
+        ed.model.commit('e2e nudge crate', [{ coll: 'objects', id: o.id, before: null, after: o }]);
+        ed.setTool('select');
+        ed.select('objects:OBJ-E2E-NUDGE');
+        return { wall: w.id, face };
+      });
+      await page.mouse.move(5, 5);
+      await page.keyboard.press('ArrowDown');
+      await frames(page, 2);
+      const n1 = await E(() => window.__editor.model.get('objects', 'OBJ-E2E-NUDGE').rect);
+      await page.keyboard.press('Shift+ArrowDown');
+      await frames(page, 2);
+      const n2 = await E(() => ({ rect: window.__editor.model.get('objects', 'OBJ-E2E-NUDGE').rect, status: document.getElementById('status').textContent }));
+      assert(!!nw && n1[1] >= nw.face - 0.011 && n2.rect[1] >= nw.face - 0.011 && /Inside a wall/.test(n2.status), `a crate on ${nw?.wall}'s face (z ${nw?.face}): a 0.1 m nudge into the wall is pushed back (z ${n1[1]}); a 1 m nudge is refused (z ${n2.rect[1]}): "${n2.status}"`);
+    }
+
+    // put the test pieces back
+    await E((h) => { const ed = window.__editor; ed.select(null); while (ed.model.history.length > h) ed.undo(); }, hStart);
+    await frames(page, 3);
+  }
 
   console.log('rooms make walls, walls follow rooms, Split (ED3-3a)');
   await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setLevel('G'); });
@@ -811,7 +1171,7 @@ try {
   // move the first room 1 m west: its own walls go, the shared wall stays
   const ownWest = await wallAt(s1.a[0], s1.a);
   await dotAt((s1.a[0] + s1.a[2]) / 2, (s1.a[1] + s1.a[3]) / 2);
-  await page.waitForFunction(() => /A: Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(() => / - Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
   const moveText = await dotText();
   await press(BTN.A);
   await dotAt((s1.a[0] + s1.a[2]) / 2 - 1, (s1.a[1] + s1.a[3]) / 2);
@@ -823,14 +1183,14 @@ try {
   const b2 = await E((id) => window.__editor.model.get('rooms', id).rect, r2.id);
   await E(() => window.__editor.pad.runMenu('sel.split'));
   await dotAt(b2[0] + 1.5, (b2[1] + b2[3]) / 2);
-  await page.waitForFunction(() => /split here|Too close/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(() => /Split here|Too close/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
   const splitWords = await dotText();
   await shot('split-ghost');
   const c3 = await cnt();
   await press(BTN.A);
   const c4 = await cnt();
   const parts = await E((id) => { const m = window.__editor.model; const n = m.get('rooms', id).name; return m.data.rooms.filter((r) => r.id === id || r.name === `${n} 2`).map((r) => r.rect); }, r2.id);
-  assert(/A: split here/.test(splitWords) && c4.rooms === c3.rooms + 1 && c4.walls === c3.walls + 1 && c4.h === c3.h + 1 && parts.length === 2, `Split makes 2 rooms and 1 wall in one undo step ("${splitWords.slice(-50)}"; ${parts.map((p) => p.join(' ')).join(' | ')})`);
+  assert(/ - Split here/.test(splitWords) && c4.rooms === c3.rooms + 1 && c4.walls === c3.walls + 1 && c4.h === c3.h + 1 && parts.length === 2, `Split makes 2 rooms and 1 wall in one undo step ("${splitWords.slice(-50)}"; ${parts.map((p) => p.join(' ')).join(' | ')})`);
   await E(() => window.__editor.setLayout('plan'));
   await wait(1200);
   await shot('split-plan');
@@ -899,7 +1259,7 @@ try {
     await E(() => { const ed = window.__editor; if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
     await E((id) => window.__editor.select(`walls:${id}`), wA.id);
     await dotAt(sx + 2, sz);
-    await page.waitForFunction(() => /A: Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => / - Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const nb = await E((id) => window.__editor.model.get('walls', id).a.slice(), wA.id);
     await press(BTN.A);
     // each step: hold the D-pad only until the wall moves (in the page), so a slow frame cannot repeat it
@@ -1083,16 +1443,16 @@ try {
     await press(BTN.A);
     assert((await st()).tool === 'stair', 'ON2: A picks the Stair tool');
     await dotAt(x, z);
-    await page.waitForFunction(() => /start corner of a stair/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => /Start corner of a stair/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const startWords = await dotText();
     await press(BTN.A);
     await dotAt(x + 0.3, z + 3);
     await page.waitForFunction(() => /25 risers/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     await press(BTN.A);
-    await page.waitForFunction(() => window.__editor.stairDraw?.phase === 'proposed' && /A: accept/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => window.__editor.stairDraw?.phase === 'proposed' && / - proposed/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const ghost = await E(() => ({ words: document.getElementById('reticleText').textContent, phase: window.__editor.stairDraw?.phase, id: window.__editor.stairDraw?.id }));
     await shot('on2-stair-ghost');
-    assert(/start corner of a stair \(Main dogleg\) to First/.test(startWords) && ghost.phase === 'proposed' && /25 risers of 0\.168 m, going 0\.285 m, 2 flights \(13 \+ 12\), landing 2 m/.test(ghost.words), `ON2: the proposal in words before A accepts ("${ghost.words.slice(0, 140)}")`);
+    assert(/Start corner of a stair \(Main dogleg\) to First/.test(startWords) && ghost.phase === 'proposed' && /25 risers of 0\.168 m, going 0\.285 m, 2 flights \(13 \+ 12\), landing 2 m/.test(ghost.words), `ON2: the proposal in words before A accepts ("${ghost.words.slice(0, 140)}")`);
     await press(BTN.A);
     await page.waitForFunction((id) => !window.__editor.stairDraw && !!window.__editor.model.get('stairs', id), ghost.id, { timeout: 5000 }).catch(() => {});
     const made = await E((id) => {
@@ -1189,7 +1549,7 @@ try {
       const spot = await freeSpot();
       if (!ok || !spot) return null;
       await dotAt(spot[0], spot[1]);
-      await page.waitForFunction((t) => document.getElementById('reticleText').textContent.includes(`A: place ${t}`), tile, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction((t) => document.getElementById('reticleText').textContent.includes(` - ${t} on `), tile, { timeout: 5000 }).catch(() => {});
       // LB held: no centring between the cross walls (the spot was picked clear of the openings already there)
       await set(BTN.LB, 1);
       await frames(page, 2);
@@ -1348,14 +1708,14 @@ try {
     const gh = await E(() => window.__editor.model.data.rooms.find((r) => r.name === 'Gatehouse')?.rect ?? null);
     assert(!!gh && (await pickTool('Roof: Gable')), `ON10: Build tab > Roof: Gable picks the Roof tool (gatehouse ${JSON.stringify(gh)})`);
     await dotAt((gh[0] + gh[2]) / 2, (gh[1] + gh[3]) / 2);
-    await page.waitForFunction(() => /A: start a gable roof here; A twice: on the Gatehouse/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => / - Start a gable roof here, or on the Gatehouse/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const reticle = await E(() => document.getElementById('reticleText').textContent);
     const n0 = (await roofs()).length;
     await press(BTN.A);
     await press(BTN.A);
     await page.waitForFunction((n) => (window.__editor.model.data.roofs ?? []).length > n, n0, { timeout: 5000 }).catch(() => {});
     const g = (await roofs()).at(-1);
-    assert(!!g && g.type === 'gable' && g.pitch === 25 && g.base === 3 && JSON.stringify(g.rect) === JSON.stringify([0.775, 7.775, 5.725, 11.725]) && /A twice: on the Gatehouse/.test(reticle), `ON10: A twice on the gatehouse puts a gable roof on its walls (${JSON.stringify(g?.rect)}, pitch ${g?.pitch}, eaves ${g?.base} m); the reticle said "${reticle}"`);
+    assert(!!g && g.type === 'gable' && g.pitch === 25 && g.base === 3 && JSON.stringify(g.rect) === JSON.stringify([0.775, 7.775, 5.725, 11.725]) && / - Start a gable roof here, or on the Gatehouse/.test(reticle), `ON10: A twice on the gatehouse puts a gable roof on its walls (${JSON.stringify(g?.rect)}, pitch ${g?.pitch}, eaves ${g?.base} m); the reticle said "${reticle}"`);
     await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`roofs:${id}`); }, g.id);
     await page.waitForFunction(() => /Ridge 3\.92 m/.test(document.querySelector('#selCard [data-roof]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
     const foot = await E(() => document.querySelector('#selCard [data-roof]')?.textContent ?? '');
@@ -1632,14 +1992,12 @@ try {
     }, btn);
     const toTab = async (tab) => { for (let i = 0; i < 8 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
     const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
-    /** Y, the Objects tab, A on the group tile (the menu stays), the preset's tile, A: the Object tool with that preset. */
+    /** Y, the Objects tab, LT / RT to the group on the group row (2026-10-14), the preset's tile, A: the Object tool with that preset. */
     const pickObject = async (group, name, shotName) => {
       await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
       await press(BTN.Y);
       let ok = await toTab('Objects');
-      ok = ok && (await toTileHeld(group));
-      await press(BTN.A);
-      await page.waitForFunction((g) => window.__editor.pad.menu.isOpen && document.querySelector('#tileMenu .tile.lit .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
+      ok = ok && (await toGroup(group));
       ok = ok && (await toTileHeld(name));
       if (shotName) await shot(shotName);
       await press(BTN.A);
@@ -1711,7 +2069,7 @@ try {
     assert(!!yard && (await pickObject('Goods-in', 'Crate 1.2 m')), `ON4: Objects tab > Goods-in > Crate 1.2 m (yard patch at ${yard})`);
     const n1 = (await objs()).length;
     await dotAt(yard[0], yard[1]);
-    await page.waitForFunction(() => /A: place Crate 1\.2 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => / - Crate 1\.2 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     await press(BTN.A);
     await waitObjs(n1);
     const crate = (await objs()).at(-1);
@@ -1971,21 +2329,22 @@ try {
     await press(BTN.Y);
     const pTab = await toTab('Presets');
     const pTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
+    const pGroups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((e) => e.textContent));
     await shot('on11-presets-tab');
     const pOffice = await toTileHeld('4-desk office');
     await press(BTN.A);
-    assert(pTab && pOffice && /^Start set,Module kit,Mine,4-desk office,8-desk open office/.test(pTiles.join()) && pTiles.length === 19 && (await st()).tool === 'stamp', `ON11: Y > Presets shows the sources and the start set (${pTiles.length} tiles: ${pTiles.slice(0, 5).join(', ')} ...); A on 4-desk office picks the Stamp tool`);
+    assert(pTab && pOffice && pGroups.join() === 'Start set,Module kit,Mine' && /^4-desk office,8-desk open office/.test(pTiles.join()) && pTiles.length === 16 && (await st()).tool === 'stamp', `ON11: Y > Presets shows the sources on the group row (${pGroups.join(', ')}) and the start set as tiles (${pTiles.length} tiles: ${pTiles.slice(0, 3).join(', ')} ...); A on 4-desk office picks the Stamp tool`);
     const kitN = await E(() => window.__editor.stamp.kit.length);
     assert(kitN >= 30, `ON11: the module kit is read from modules.json through the editor server (${kitN} presets)`);
 
     // the ghost at the dot, its words; A stamps it against the corridor's north wall
     await E(([x, z]) => { const o = window.__editor.controls.orbit.s; o.yaw = 0.5; o.dist = 22; o.pitch = 0.9; }, [px + 5, pz + 11.5]);
     await dotAt(px + 5, pz + 11.5);
-    await page.waitForFunction(() => /A: stamp 4-desk office \(6 x 5 m\)/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    await page.waitForFunction(() => / - 4-desk office, 6 x 5 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
     const gWords = await dotText();
     const gMarks = await E(() => window.__editor.view.markMeshes.filter((m) => m.isEnabled()).length);
     await shot('on11-office-ghost');
-    assert(/A: stamp 4-desk office \(6 x 5 m\); RB turns/.test(gWords) && gMarks >= 13, `ON11: the office ghost at the dot ("${gWords}", ${gMarks} boxes)`);
+    assert(/ - 4-desk office, 6 x 5 m/.test(gWords) && gMarks >= 13, `ON11: the office ghost at the dot ("${gWords}", ${gMarks} boxes)`);
     const hA = await hist();
     await press(BTN.A);
     await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hA, { timeout: 8000 }).catch(() => {});
@@ -2017,7 +2376,7 @@ try {
     // LB held: the magnet stays off, so the group lands exactly where the dot is put
     await set(BTN.LB, 1);
     await dotSure(px + 13.7, pz + 11.2);
-    await page.waitForFunction(() => /A: stamp WC block/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    await page.waitForFunction(() => / - WC block, /.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
     await press(BTN.A);
     await set(BTN.LB, 0);
     await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hF, { timeout: 8000 }).catch(() => {});
@@ -2064,8 +2423,7 @@ try {
     // Presets > Mine > Office, RB twice back to no turn, stamped south of the corridor (its north wall is the corridor's south wall)
     await press(BTN.Y);
     await toTab('Presets');
-    const pMine = await toTileHeld('Mine');
-    await press(BTN.A);
+    const pMine = await toGroup('Mine');
     const mineTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
     const pO = await toTileHeld('Office');
     await press(BTN.A);
@@ -2074,18 +2432,51 @@ try {
     const t2 = await E(() => ({ tool: window.__editor.tool, id: window.__editor.stamp.id, turns: window.__editor.stamp.turns }));
     await set(BTN.LB, 1);
     await dotSure(px + 5, pz + 3.5);
-    await page.waitForFunction(() => /A: stamp Office \(6 x 5 m\)/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    await page.waitForFunction(() => / - Office, 6 x 5 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
     const hM = await hist();
     await press(BTN.A);
     await set(BTN.LB, 0);
     await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hM, { timeout: 8000 }).catch(() => {});
     const again = await E(() => { const ed = window.__editor; const d = ed.model.data; const r = d.rooms.filter((q) => q.name === 'Office' && q.id.startsWith('G-NEW')).at(-1); return { rect: r?.rect, north: r ? d.walls.filter((w) => w.level === 'G' && w.a[1] === r.rect[3] && w.b[1] === r.rect[3]).map((w) => w.id) : [], text: ed.model.history.at(-1)?.text }; });
-    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.slice(3).join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}" (${await E(() => document.getElementById('status').textContent)})`);
+    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}" (${await E(() => document.getElementById('status').textContent)})`);
 
     // undo all to the file
     await E((h) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.setTool('select'); ed.select(null); }, h0);
     const fileAfter = await E(() => JSON.stringify(window.__editor.model.data));
     assert(fileAfter === fileBefore, 'ON11: undo takes every stamp and the test corridor back: the data is as before');
+    // Michael 2026-10-14: the stamp ghost turns red with "Inside a wall" (naming the piece) before A where the wall rule
+    // would refuse it: a crate saved as a preset, its ghost centred on a free-standing test wall in the patch; A does nothing
+    {
+      const sw = await E(([px, pz]) => {
+        const ed = window.__editor;
+        const h = ed.model.data.levels.find((l) => l.id === 'G').height;
+        const wall = { id: 'WG-E2E-STAMP', level: 'G', a: [px + 2, pz + 1.5], b: [px + 12, pz + 1.5], t: 0.3, h, kind: 'interior' };
+        const crate = { id: 'OBJ-E2E-STAMP', level: 'G', name: 'Crate', rect: [px + 14, pz + 3, px + 15.2, pz + 4.2], h: 1.2, y: 0, preset: 'crate-1.2' };
+        ed.commitText('e2e stamp wall', [{ coll: 'walls', id: wall.id, before: null, after: wall }, { coll: 'objects', id: crate.id, before: null, after: crate }]);
+        const dirty = ed.stamp.dirty;
+        const p = ed.stamp.saveSelection(ed.model.data, ['objects:OBJ-E2E-STAMP'], 'G', 'E2E crate');
+        if (!p) return null;
+        ed.stamp.set(p.id);
+        ed.stamp.turns = 0;
+        ed.setTool('stamp');
+        return { id: p.id, dirty };
+      }, [px, pz]);
+      await set(BTN.LB, 1);
+      await dotSure(px + 7, pz + 1.5);
+      await page.waitForFunction(() => /Inside a wall/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+      const red = await E(() => ({ words: document.getElementById('reticleText').textContent, bad: document.getElementById('reticle').classList.contains('bad'), marks: window.__editor.view.markMeshes.filter((m) => m.isEnabled()).length }));
+      await shot('stamp-ghost-inside-wall');
+      const hR = await hist();
+      await press(BTN.A);
+      await frames(page, 4);
+      const hR2 = await hist();
+      await dotSure(px + 7, pz + 4);
+      await page.waitForFunction(() => / - E2E crate, /.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+      const fine = await E(() => ({ words: document.getElementById('reticleText').textContent, bad: document.getElementById('reticle').classList.contains('bad') }));
+      await set(BTN.LB, 0);
+      assert(!!sw && /Inside a wall: Crate/.test(red.words) && red.bad && red.marks >= 1 && hR2 === hR && / - E2E crate, [0-9.]+ x [0-9.]+ m/.test(fine.words) && !fine.bad, `the stamp ghost across a wall is red before A ("${red.words.slice(-40)}"), A stamps nothing (${hR2 - hR} edits); off the wall it is clear ("${fine.words.slice(-30)}")`);
+      await E(([id, dirty, h]) => { const ed = window.__editor; ed.stamp.remove(id); ed.stamp.dirty = dirty; while (ed.model.history.length > h) ed.undo(); ed.setTool('select'); ed.select(null); }, [sw?.id ?? '', sw?.dirty ?? false, h0]);
+    }
   }
 
   // ---------- ON6: lights ----------
@@ -2103,16 +2494,12 @@ try {
     }, btn);
     const toTab = async (tab) => { for (let i = 0; i < 10 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
     const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
-    /** Y, the Lights tab, a group tile (A shows it, the menu stays), then a tile: A picks it. */
+    /** Y, the Lights tab, a group on the group row (LT / RT, 2026-10-14), then a tile: A picks it. */
     const pick = async (group, tile) => {
       await press(BTN.Y);
       const tab = await toTab('Lights');
       let grp = true;
-      if (group) {
-        grp = await toTileHeld(group);
-        await press(BTN.A);
-        await page.waitForFunction((g) => document.querySelector('#tileMenu .tile.hl .tn')?.textContent === g, group, { timeout: 5000 }).catch(() => {});
-      }
+      if (group) grp = await toGroup(group);
       const t = await toTileHeld(tile);
       return { tab, grp, t };
     };
@@ -2129,14 +2516,91 @@ try {
     };
     const room = await E(() => { const d = window.__editor.model.data; const r = d.rooms.find((q) => q.id === 'G-SEC'); const o = d.openings.find((q) => (q.between ?? []).includes('G-SEC')); const w = d.walls.find((q) => q.id === o.wall); return { rect: r.rect, door: o.id, wall: w.id, wz: w.a[1], t: w.t, dx: w.a[0] + o.at, ow: o.w }; });
 
-    // the Light tool: Y > Lights > Troffer 600 x 600 (the Interior group shows first)
+    // the Light tool: Y > Lights > Troffer 600 x 300 (the Interior group shows first)
     await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
-    const m1 = await pick(null, 'Troffer 600 x 600');
+    const m1 = await pick(null, 'Troffer 600 x 300');
     await shot('on6-light-menu');
     const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
+    const lGroups = await E(() => [...document.querySelectorAll('#tileMenu [data-mgroup]')].map((t) => t.textContent));
     await press(BTN.A);
     const t1 = await E(() => ({ tool: window.__editor.tool, fit: window.__editor.lampFit, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
-    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 600/.test(t1.bar) && tiles.slice(0, 6).join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch', `ON6: Y > Lights shows the groups and Switch (${tiles.slice(0, 7).join(', ')}); Troffer 600 x 600 picks the Light tool ("${t1.bar}")`);
+    assert(m1.tab && m1.t && t1.tool === 'lamp' && t1.fit === 'troffer-600' && /^LightTroffer 600 x 300/.test(t1.bar) && lGroups.join() === 'Interior,Plant and goods,Outside,Emergency,Glow,Switch and test' && tiles[0] === 'Downlight 90 mm' && !tiles.some((t) => lGroups.includes(t) || t === 'Switch'), `ON6: Y > Lights shows the groups on the group row (${lGroups.join(', ')}) and only fittings as tiles (${tiles.slice(0, 3).join(', ')} ...); Troffer 600 x 300 picks the Light tool ("${t1.bar}")`);
+    // Michael 2026-10-14: the type carousel while placing: the current fitting centred and lit, its group's neighbours
+    // either side; D-pad right steps it (the ghost and the dot's words follow at once); a click on a neighbour, ] and the
+    // wheel over it step it with the mouse and keys
+    {
+      await dotAt((room.rect[0] + room.rect[2]) / 2, (room.rect[1] + room.rect[3]) / 2);
+      await page.waitForFunction(() => document.querySelectorAll('#toolBar .ci').length >= 3, null, { timeout: 5000 }).catch(() => {});
+      const car = () => E(() => { const cs = [...document.querySelectorAll('#toolBar .ci')]; const on = cs.findIndex((c) => c.classList.contains('on')); return { n: cs.length, on, name: cs[on]?.querySelector('.cn')?.textContent ?? '', ver: cs[on]?.querySelector('.ver')?.textContent ?? '', fit: window.__editor.lampFit, group: window.__editor.fitting?.group ?? '', dot: document.getElementById('reticleText').textContent, hint: document.getElementById('hint').textContent, slot: document.querySelector('#toolBar .slot small')?.textContent ?? '' }; });
+      const c0 = await car();
+      // the carousel on a big screen (Michael's screenshot request)
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      await wait(400);
+      await frames(page, 4);
+      await shot('carousel-lights-1920x1080');
+      await page.setViewportSize({ width: 1600, height: 900 });
+      await wait(400);
+      await frames(page, 4);
+      await press(BTN.RIGHT);
+      await page.waitForFunction((f) => window.__editor.lampFit !== f, c0.fit, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction((n) => (document.querySelector('#toolBar .ci.on .cn')?.textContent ?? n) !== n, c0.name, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction((d) => document.getElementById('reticleText').textContent !== d, c0.dot, { timeout: 5000 }).catch(() => {});
+      const c1 = await car();
+      await shot('carousel-light-placing');
+      assert(c0.n >= 3 && c0.on === Math.floor(c0.n / 2) && c0.name === 'Troffer 600 x 300' && c0.ver === '1/2' && c1.fit !== c0.fit && c1.fit !== 'troffer-1200' && c1.on === Math.floor(c1.n / 2) && c1.name !== c0.name && c1.dot !== c0.dot, `the type carousel shows ${c0.n} items with ${c0.name} centred (place ${c0.on}, version ${c0.ver}); D-pad right: the next item ${c1.name} centred (${c1.fit}; the 1200 x 300 is a version, not an item), the dot now "${c1.dot.slice(0, 50)}"`);
+      // Michael 2026-10-14: D-pad down / up step the troffer's versions (the ghost and the dot's words follow); on a fitting
+      // with one version they step the group; the hint bar says which
+      await E(() => window.__editor.setLampFit('troffer-600'));
+      await page.waitForFunction(() => document.querySelector('#toolBar .ci.on .cn')?.textContent === 'Troffer 600 x 300', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction(() => /Item . Version/.test(document.getElementById('hint').textContent), null, { timeout: 5000 }).catch(() => {});
+      const v0 = await car();
+      await press(BTN.DOWN);
+      await page.waitForFunction(() => window.__editor.lampFit === 'troffer-1200', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction(() => /Troffer 1200 x 300/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const v1 = await car();
+      const ghostMarks = await E(() => window.__editor.view.markMeshes.filter((m) => m.isEnabled()).map((m) => `${m.scaling.x.toFixed(2)}x${m.scaling.z.toFixed(2)}`).join());
+      await press(BTN.UP);
+      await page.waitForFunction(() => window.__editor.lampFit === 'troffer-600', null, { timeout: 5000 }).catch(() => {});
+      const v2 = await car();
+      await E(() => window.__editor.setLampFit('downlight'));
+      await page.waitForFunction(() => /Item \/ Group/.test(document.getElementById('hint').textContent), null, { timeout: 5000 }).catch(() => {});
+      const g0 = await car();
+      await press(BTN.DOWN);
+      await page.waitForFunction(() => window.__editor.fitting?.group === 'plant', null, { timeout: 5000 }).catch(() => {});
+      const g1 = await car();
+      await page.keyboard.press('Shift+BracketLeft');
+      await page.waitForFunction(() => window.__editor.fitting?.group === 'interior', null, { timeout: 5000 }).catch(() => {});
+      const g2 = await car();
+      await press(BTN.LB);
+      assert(/D-pad Item \/ Version/.test(v0.hint) && v1.fit === 'troffer-1200' && v1.name === 'Troffer 1200 x 300' && v1.ver === '2/2' && v1.on === v0.on && /Troffer 1200 x 300, [0-9.]+ m up/.test(v1.dot) && v2.fit === 'troffer-600' && /D-pad Item \/ Group/.test(g0.hint) && g1.group === 'plant' && g1.fit === 'high-bay' && g2.group === 'interior', `D-pad down: ${v0.name} (${v0.ver}) to ${v1.name} (${v1.ver}), the ghost ${ghostMarks.slice(0, 40)}, the dot "${v1.dot.slice(-40)}"; up: back to ${v2.name}; hint "${v0.hint.slice(0, 60)}"; on ${g0.name} (one version) down steps the group to ${g1.group} (${g1.name}), Shift+[ back to ${g2.group}`);
+      await E((f) => window.__editor.setLampFit(f), c1.fit);
+      await page.waitForFunction((f) => window.__editor.lampFit === f, c1.fit, { timeout: 5000 }).catch(() => {});
+      const centre = (i) => E((i) => { const b = document.querySelectorAll('#toolBar .ci')[i].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, i);
+      // the mouse first (its layout moves the views), then the carousel read again
+      await page.mouse.move(5, 5);
+      await page.mouse.move(60, 60);
+      await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+      await frames(page, 4);
+      await wait(250);
+      const c1m = await car();
+      const left = await centre(c1m.on - 1);
+      await page.mouse.click(left[0], left[1]);
+      await page.waitForFunction((f) => window.__editor.lampFit === f, c0.fit, { timeout: 5000 }).catch(() => {});
+      const c2 = await car();
+      await page.keyboard.press(']');
+      await page.waitForFunction((f) => window.__editor.lampFit === f, c1.fit, { timeout: 5000 }).catch(() => {});
+      const c3 = await car();
+      const mid = await centre(c3.on);
+      await page.mouse.move(mid[0], mid[1]);
+      await page.mouse.wheel(0, 120);
+      await page.waitForFunction((f) => window.__editor.lampFit !== f, c3.fit, { timeout: 5000 }).catch(() => {});
+      const c4 = await car();
+      assert(c2.fit === c0.fit && c3.fit === c1.fit && c4.fit !== c3.fit && c4.on === Math.floor(c4.n / 2), `the mouse and keys: a click on the left neighbour goes back to ${c2.name}, ] forward to ${c3.name}, the wheel over it to ${c4.name}`);
+      await page.mouse.move(5, 5);
+      await E(() => window.__editor.setLampFit('troffer-600'));
+      await press(BTN.LB);
+    }
+
 
     // four troffers in a 2 x 2 grid (each A places one; the tool stays on)
     const [x0, z0, x1, z1] = room.rect;
@@ -2144,25 +2608,100 @@ try {
     const cz = (z0 + z1) / 2;
     const grid = [[cx - 1.5, cz - 1.5], [cx + 1.5, cz - 1.5], [cx - 1.5, cz + 1.5], [cx + 1.5, cz + 1.5]];
     const placed = [];
-    for (const [x, z] of grid) placed.push(await placeAt(x, z, 'A: Troffer 600 x 600'));
+    for (const [x, z] of grid) placed.push(await placeAt(x, z, ' - Troffer 600 x 300, '));
     const troffers = placed.map((p) => p.lamp);
     const ceil = await E(() => window.__editor.model.data.levels.find((l) => l.id === 'G').height);
-    assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && /A: Troffer 600 x 600 [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
+    assert(placed.every((p) => p.n === 1 && p.lamp.fixture === 'troffer-600' && p.lamp.room === 'G-SEC' && Math.abs(p.lamp.at[1] - (ceil - 0.3 - 0.15)) < 1e-6) && / - Troffer 600 x 300, [0-9.]+ m up/.test(placed[0].said), `ON6: A places four troffers under the slab above (${ceil - 0.45} m) of the security room (${troffers.map((l) => `${l.id} ${l.at.join(',')}`).join('; ')}); the dot said "${placed[0].said}"`);
+    // Michael 2026-10-14: a lamp's mounting height (one handle under its body) and a roof's ridge (its pitch): mouse drags
+    // in 3D, the same 12 px handles, one undo step each (both undone after)
+    {
+      const cam0 = await E(() => window.__editor.pad.settings.camera);
+      const view0 = await E(() => { const c = window.__editor.controls; return { mode: c.mode, s: { ...c.orbit.s } }; });
+      const look = (p, back, up) => E(([p, back, up]) => { const c = window.__editor.controls; c.mode = 'fly'; c.setPose({ pos: [p.x, p.y + up, p.z - back], yaw: 0, pitch: 0, fov: c.camera.fov }); c.lookAt(p.x, p.y, p.z); c.setPose(c.pose()); }, [p, back, up]);
+      const handle = (id) => E((id) => window.__editor.handlesFor().find((h) => h.id === id) ?? null, id);
+      const dragHandle = async (id, dyPx) => {
+        const at = await E((id) => { const p = window.__editor.view.handleScreen(id); const r = document.getElementById('c').getBoundingClientRect(); return p ? [r.left + p[0], r.top + p[1]] : null; }, id);
+        if (!at) return false;
+        await page.mouse.move(at[0], at[1]);
+        await page.mouse.down();
+        for (let i = 1; i <= 8; i++) { await page.mouse.move(at[0], at[1] + (i * dyPx) / 8); await frames(page, 1); }
+        await page.mouse.up();
+        await page.waitForFunction(() => !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+        return true;
+      };
+      await E(() => { const ed = window.__editor; ed.pad.settings.camera = 'fly'; ed.prefs.minimap = false; ed.setLayout('3d'); ed.setTool('select'); });
+      await page.mouse.move(5, 5);
+      await page.mouse.move(60, 60);
+      await page.waitForFunction(() => window.__editor.pad.device === 'keys', null, { timeout: 5000 }).catch(() => {});
+      // the lamp: its one handle sits under the troffer; dragged down, the lamp comes down in 0.1 m steps
+      const lid = troffers[0].id;
+      await E((id) => window.__editor.select(`lamps:${id}`), lid);
+      await frames(page, 4);
+      const lh = await handle('bot');
+      if (lh) await look(lh, 1.5, -1);
+      await frames(page, 8);
+      const lIds = await E(() => window.__editor.handlesFor().map((h) => h.id));
+      const lA = await E((id) => window.__editor.model.get('lamps', id), lid);
+      const lhA = await E(() => window.__editor.model.history.length);
+      const lOk = await dragHandle('bot', 60);
+      const lB = await E((id) => window.__editor.model.get('lamps', id), lid);
+      const lhB = await E(() => window.__editor.model.history.length);
+      assert(lOk && lIds.includes('bot') && !lIds.includes('top') && lB.at[1] < lA.at[1] - 0.05 && Math.abs((lA.at[1] - lB.at[1]) * 10 - Math.round((lA.at[1] - lB.at[1]) * 10)) < 1e-6 && lB.at[0] === lA.at[0] && lB.at[2] === lA.at[2] && lhB === lhA + 1, `a lamp has one height handle (${lIds.join(', ')}); the mouse drags it down: ${lA.at[1]} m to ${lB.at[1]} m up, ${lhB - lhA} undo step`);
+      if (lhB === lhA + 1) await E(() => window.__editor.undo());
+      // the roof: a gable over the room; its ridge handle dragged up steepens the pitch, the eaves stay
+      await E(([r, base]) => { const ed = window.__editor; const roof = { id: 'RF-E2E-RIDGE', level: 'G', rect: [r[0], r[1], r[2], r[3]], base, type: 'gable', pitch: 25, ridge: r[2] - r[0] >= r[3] - r[1] ? 'x' : 'z', overhang: 0.5, fascia: 0.2, material: 'tile', colour: 'terracotta', gutter: true, downpipes: true }; ed.model.commit('e2e ridge roof', [{ coll: 'roofs', id: roof.id, before: null, after: roof }]); ed.select('roofs:RF-E2E-RIDGE'); }, [room.rect, ceil + 3]);
+      await frames(page, 4);
+      const rh = await handle('top');
+      if (rh) await look(rh, 9, 3);
+      await frames(page, 8);
+      const rIds = await E(() => window.__editor.handlesFor().map((h) => h.id));
+      const rPx = await E(() => window.__editor.view.handlePixels());
+      await shot('roof-ridge-handle');
+      const rA = await E(() => window.__editor.model.get('roofs', 'RF-E2E-RIDGE'));
+      const rhA = await E(() => window.__editor.model.history.length);
+      const rOk = await dragHandle('top', -60);
+      const rB = await E(() => window.__editor.model.get('roofs', 'RF-E2E-RIDGE'));
+      const rhB = await E(() => window.__editor.model.history.length);
+      const rhAfter = await handle('top');
+      assert(rOk && !!rh && rIds.includes('top') && rIds.includes('bot') && rPx.every((p) => p > 8 && p < 16) && rB.pitch > rA.pitch && rB.pitch <= 60 && rB.base === rA.base && rhAfter.y > rh.y + 0.05 && rhB === rhA + 1, `a gable roof has a ridge handle (${rIds.join(', ')}, ${rPx.map((p) => p.toFixed(1)).join(' / ')} px); the mouse drags it up: pitch ${rA.pitch} to ${rB.pitch} degrees, ridge ${rh?.y} to ${rhAfter?.y} m, eaves ${rB.base} m kept, ${rhB - rhA} undo step`);
+      await E(([h0]) => { const ed = window.__editor; while (ed.model.history.length > h0) ed.undo(); ed.select(null); ed.setTool('select'); }, [rhA - 1]);
+      await E((c) => { window.__editor.pad.settings.camera = c; }, cam0);
+      await E((v) => { const ed = window.__editor; if (v.mode === 'orbit' && ed.controls.mode !== 'orbit') ed.enterOrbit(); if (ed.controls.mode === 'orbit') Object.assign(ed.controls.orbit.s, v.s); }, view0);
+      await page.mouse.move(5, 5);
+      await press(BTN.LB);
+    }
+    // Michael 2026-10-14: the dot's words name no buttons on any placing tool (what A does is the hint bar's); plain
+    // words such as "Troffer 600 x 300, 3.75 m up"
+    {
+      const tools = ['room', 'wall', 'door', 'window', 'stair', 'ladder', 'hole', 'roof', 'object', 'climb', 'lamp', 'security', 'sign', 'stamp', 'mission', 'crawl'];
+      const bad = [];
+      const seen = [];
+      for (const t of tools) {
+        await E((t) => { const ed = window.__editor; ed.select(null); ed.setTool(t); if (t === 'lamp') ed.setLampFit('troffer-600'); }, t);
+        await dotAt(cx + 0.35, cz + 0.45);
+        await page.waitForFunction(() => / - ./.test(document.getElementById('reticleText').textContent), null, { timeout: 3000 }).catch(() => {});
+        const w = await dotText();
+        seen.push(`${t}: ${w.replace(/^x [^,]+, z \S+ - /, '').slice(0, 36)}`);
+        if (!/ - ./.test(w) || /(^|[^a-z])(A|B|X|Y|RB|LB|RT|LT|L3):|\b(RB|LB|RT|LT)\b|\(A\)|\bA (drops|again|twice|here|on)\b|\bB (ends|cancels|back|puts)\b|D-pad|click/.test(w)) bad.push(`${t}: ${w}`);
+      }
+      await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+      assert(bad.length === 0 && seen.length === tools.length, `the dot's words name no buttons on ${seen.length} placing tools (${seen.join('; ').slice(0, 400)})${bad.length ? `; with buttons or none: ${bad.join(' | ')}` : ''}`);
+    }
 
     // Light > Switch: A on the wall face by the door places a switch; A on each troffer puts it on that switch
-    const m2 = await pick(null, 'Switch');
+    const m2 = await pick('Switch and test', 'Switch');
     await press(BTN.A);
     const sx = room.dx + room.ow / 2 + 0.4;
     const sz = room.wz + room.t / 2 + 0.45;
     await dotAt(sx, sz);
-    await page.waitForFunction(() => /A: a switch on/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => / - A switch on/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const swSaid = await dotText();
     const c0 = (await circuits()).length;
     await press(BTN.A);
     await page.waitForFunction((n) => (window.__editor.model.data.circuits ?? []).some((c) => c.switch), c0, { timeout: 5000 }).catch(() => {});
     const sw = (await circuits()).find((c) => c.switch);
     const edit = await E(() => window.__editor.circuitEdit);
-    assert(m2.t && !!sw && sw.switch.wall === room.wall && sw.switch.at[1] === 1.2 && edit === sw.id && /A: a switch on/.test(swSaid), `ON6: Light > Switch, A on the wall by the door (${room.door} on ${room.wall}) places switch ${sw?.id} at ${sw?.switch?.at.join(', ')}; the dot said "${swSaid}"`);
+    assert(m2.t && !!sw && sw.switch.wall === room.wall && sw.switch.at[1] === 1.2 && edit === sw.id && / - A switch on/.test(swSaid), `ON6: Light > Switch, A on the wall by the door (${room.door} on ${room.wall}) places switch ${sw?.id} at ${sw?.switch?.at.join(', ')}; the dot said "${swSaid}"`);
     for (const l of troffers) {
       await dotAt(l.at[0], l.at[2]);
       await page.waitForFunction((id) => new RegExp(`put .*\\(${id}\\) on switch`).test(document.getElementById('reticleText').textContent), l.id, { timeout: 5000 }).catch(() => {});
@@ -2194,7 +2733,7 @@ try {
     await E(() => window.__editor.setTool('select'));
     const m3 = await pick('Outside', 'Floodlight');
     await press(BTN.A);
-    const fl = await placeAt(yard.x, yard.z, 'A: Floodlight');
+    const fl = await placeAt(yard.x, yard.z, ' - Floodlight');
     const flood = fl.lamp;
     const yardRoom = await E((id) => window.__editor.model.data.rooms.find((r) => r.id === id)?.kind, flood?.room);
     const fc = (await circuits()).find((c) => c.id === flood?.circuit);
@@ -2230,7 +2769,7 @@ try {
     await E(() => window.__editor.setTool('select'));
     const m4 = await pick('Emergency', 'Emergency twin spot');
     await press(BTN.A);
-    const sp = await placeAt(fire.x, fire.z, 'A: Emergency twin spot');
+    const sp = await placeAt(fire.x, fire.z, ' - Emergency twin spot');
     const spit = sp.lamp;
     const spc = (await circuits()).find((c) => c.id === spit?.circuit);
     assert(m4.grp && m4.t && spit?.fixture === 'spitfire' && spit.on === fire.wall && spit.room === 'G-NW' && Math.abs(spit.at[2] - fire.z) < 0.051 && spit.at[1] === 2.5 && spit.emergency === 'non-maintained' && spit.heads === 2 && /^Emergency/.test(spc?.unswitchable ?? ''), `ON6: a twin spot over fire exit ${fire.id} on ${fire.wall} (${spit?.at?.join(', ')}), non-maintained, 2 heads, on ${spc?.id}: "${spc?.unswitchable}"`);
@@ -2244,7 +2783,7 @@ try {
     const meter = await gf().evaluate(([t, sp]) => {
       const g = window.__app.current;
       const lights = g.world.level.lights.lights;
-      const near = (x, y, z) => lights.find((l) => Math.abs(l.x - x) < 0.01 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.01);
+      const near = (x, y, z) => lights.find((l) => Math.abs(l.x - x) < 0.35 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.35);
       const tl = near(t.at[0], t.at[1], t.at[2]);
       const spots = lights.filter((l) => Math.abs(l.x - sp.at[0]) < 0.01 && Math.abs(l.z - sp.at[2]) < 0.01);
       const f = g.world.lightField;
@@ -2307,7 +2846,7 @@ try {
       await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
       const m1 = await pick('Interior', 'Downlight 90 mm');
       await press(BTN.A);
-      const dl = await placeAt(spot.x, spot.z, 'A: Downlight');
+      const dl = await placeAt(spot.x, spot.z, ' - Downlight');
       await baked(b0);
       const after = await cell(spot.x, spot.z);
       await E(() => { window.__editor.setTool('select'); window.__editor.select(null); });
@@ -2347,7 +2886,7 @@ try {
       await E(() => window.__editor.setLightMode({ kind: 'normal' }));
 
       // the guard view tester: Y > Lights > Guard view; A puts an eye 6 m west of the downlight; facing it, its lit cells are red
-      const m2 = await pick(null, 'Guard view');
+      const m2 = await pick('Switch and test', 'Guard view');
       await press(BTN.A);
       await dotAt(spot.x - 6, spot.z);
       await press(BTN.A);
@@ -2425,15 +2964,15 @@ try {
     const m1 = await pickTile('Mission', 'Guard');
     const t1 = await E(() => ({ tool: window.__editor.tool, kind: window.__editor.mission.kind, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
     await dotAt(want[0], spine.z);
-    const s0 = await said('A: a guard');
+    const s0 = await said(' - A guard ');
     await press(BTN.A);
     await page.waitForFunction(() => (window.__editor.model.data.guards ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
-    assert(m1 && t1.tool === 'mission' && t1.kind === 'guard' && /^MissionGuard: /.test(t1.bar) && /A: a guard \(/.test(s0) && (await stops()) === 1 && (await E(() => window.__editor.ctx())) === 'path', `ON8: Y > Mission > Guard picks the tool ("${t1.bar}"); the dot said "${s0}"; A places guard GD1 and starts its path`);
+    assert(m1 && t1.tool === 'mission' && t1.kind === 'guard' && /^MissionGuard: /.test(t1.bar) && / - A guard \(/.test(s0) && (await stops()) === 1 && (await E(() => window.__editor.ctx())) === 'path', `ON8: Y > Mission > Guard picks the tool ("${t1.bar}"); the dot said "${s0}"; A places guard GD1 and starts its path`);
     // three more stops along the corridor (each A; the dot names the stop and its leg)
     let s2 = '';
     for (let i = 1; i < 4; i++) {
       await dotAt(want[i], spine.z);
-      const w = await said(`A: stop ${i + 1} here`);
+      const w = await said(` - Stop ${i + 1} here`);
       if (i === 1) s2 = w;
       await press(BTN.A);
       await page.waitForFunction((n) => (window.__editor.model.data.guards?.[0]?.loop.length ?? 0) === n, i + 1, { timeout: 5000 }).catch(() => {});
@@ -2446,10 +2985,10 @@ try {
     await press(BTN.RB);
     await page.waitForFunction((f) => window.__editor.model.data.guards[0].loop.at(-1).face !== f, face0, { timeout: 5000 }).catch(() => {});
     const last = await E(() => window.__editor.model.data.guards[0].loop.at(-1));
-    assert((await stops()) === 4 && last.wait === 2 && last.face === (face0 + 45) % 360 && /A: stop 2 here, [0-9.]+ m from stop 1/.test(s2), `ON8: four stops along the corridor (the dot said "${s2}"); D-pad up twice waits ${last.wait} s; RB turns it from ${face0} to ${last.face} degrees`);
+    assert((await stops()) === 4 && last.wait === 2 && last.face === (face0 + 45) % 360 && / - Stop 2 here, [0-9.]+ m from stop 1/.test(s2), `ON8: four stops along the corridor (the dot said "${s2}"); D-pad up twice waits ${last.wait} s; RB turns it from ${face0} to ${last.face} degrees`);
     // A on the first stop closes the loop: cycle shown, every leg walkable, one undo step, readable words
     await dotAt(want[0] + 0.1, spine.z);
-    const sc = await said('A: close the loop');
+    const sc = await said(' - Close the loop');
     await press(BTN.A);
     await page.waitForFunction(() => window.__editor.model.data.guards?.[0]?.closed === true, null, { timeout: 5000 }).catch(() => {});
     const g1 = await guard();
@@ -2458,7 +2997,7 @@ try {
     const card1 = await E(() => document.querySelector('#selCard [data-mission]')?.textContent ?? '');
     const hist1 = await E(() => window.__editor.model.history.map((h) => h.text));
     const expectCycle = Math.round((g1.length / 0.9 + 2) * 10) / 10;
-    assert(g1.g.closed && g1.path === null && g1.legs.length === 4 && g1.legs.every((l) => l.ok) && Math.abs(g1.cycle - expectCycle) < 0.11 && g1.g.cycle === g1.cycle && /A: close the loop \(Loop/.test(sc) && /^Loop \d+ m, \d+ s; walks 0.9 m\/s/.test(card1) && hist1.length === h0 + 1 && /^Added guard GD1, Rounds officer, 4 stops, \d+ s loop$/.test(hist1.at(-1)), `ON8: A on the first stop closes the loop (dot "${sc}"): ${g1.legs.length} legs all walkable, ${g1.length.toFixed(1)} m, cycle ${g1.cycle} s (expected ${expectCycle}); the card says "${card1}"; one undo step "${hist1.at(-1)}"`);
+    assert(g1.g.closed && g1.path === null && g1.legs.length === 4 && g1.legs.every((l) => l.ok) && Math.abs(g1.cycle - expectCycle) < 0.11 && g1.g.cycle === g1.cycle && / - Close the loop \(Loop/.test(sc) && /^Loop \d+ m, \d+ s; walks 0.9 m\/s/.test(card1) && hist1.length === h0 + 1 && /^Added guard GD1, Rounds officer, 4 stops, \d+ s loop$/.test(hist1.at(-1)), `ON8: A on the first stop closes the loop (dot "${sc}"): ${g1.legs.length} legs all walkable, ${g1.length.toFixed(1)} m, cycle ${g1.cycle} s (expected ${expectCycle}); the card says "${card1}"; one undo step "${hist1.at(-1)}"`);
     await shot('on8-guard-path');
 
     // Selected > Edit path: a stop inside a closed room (no door) is red, with its words; X removes it; the loop closes again
@@ -2474,7 +3013,7 @@ try {
     await press(BTN.X);
     await page.waitForFunction(() => (window.__editor.model.data.guards?.[0]?.loop.length ?? 0) === 4, null, { timeout: 5000 }).catch(() => {});
     await dotAt(want[0] + 0.1, spine.z);
-    await said('A: close the loop');
+    await said(' - Close the loop');
     await press(BTN.A);
     await page.waitForFunction(() => window.__editor.model.data.guards?.[0]?.closed === true, null, { timeout: 5000 }).catch(() => {});
     const g3 = await guard();
@@ -2500,17 +3039,17 @@ try {
     const ins = [want[1] + 0.5, spine.z];
     const m6 = await pickTile('Mission', 'Insertion');
     await dotAt(ins[0], ins[1]);
-    const sIns = await said('A: insertion 1');
+    const sIns = await said(' - Insertion 1');
     await press(BTN.A);
     await page.waitForFunction(() => (window.__editor.model.data.spawns ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
     const m7 = await pickTile('Mission', 'Objective');
     await dotAt(soff[0] + 1, soff[1] + 1);
-    await said('A: objective');
+    await said(' - Objective');
     await press(BTN.A);
     await page.waitForFunction(() => (window.__editor.model.data.objectives ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
     const m8 = await pickTile('Mission', 'Extraction');
     await dotAt(10, 20);
-    await said('A: the extraction zone');
+    await said(' - The extraction zone');
     await press(BTN.A);
     await dotAt(16, 24);
     await press(BTN.A);
@@ -2519,7 +3058,7 @@ try {
     const mk = await E(() => { const d = window.__editor.model.data; return { sp: d.spawns, ob: d.objectives, ex: d.extraction, plan: document.querySelectorAll('#planSvg .missionMark').length, words: [...document.querySelectorAll('#planSvg text')].map((t) => t.textContent).filter((t) => /^Insertion 1|^OBJ1|^Extraction/.test(t)) }; });
     await shot('on8-markers-plan');
     await E(() => window.__editor.setLayout('both'));
-    assert(m6 && m7 && m8 && /A: insertion 1/.test(sIns) && mk.sp.length === 1 && mk.sp[0].at[0] === ins[0] && mk.ob.length === 1 && mk.ob[0].id === 'OBJ1' && mk.ob[0].room === 'G-SOFF' && mk.ex.length === 1 && mk.ex[0].rect.join() === '10,20,16,24' && mk.plan >= 3 && mk.words.length >= 3, `ON8: insertion 1 at ${mk.sp[0]?.at}, objective ${mk.ob[0]?.id} in ${mk.ob[0]?.room}, extraction ${mk.ex[0]?.rect}; the plan labels them (${mk.words.join(', ')})`);
+    assert(m6 && m7 && m8 && / - Insertion 1/.test(sIns) && mk.sp.length === 1 && mk.sp[0].at[0] === ins[0] && mk.ob.length === 1 && mk.ob[0].id === 'OBJ1' && mk.ob[0].room === 'G-SOFF' && mk.ex.length === 1 && mk.ex[0].rect.join() === '10,20,16,24' && mk.plan >= 3 && mk.words.length >= 3, `ON8: insertion 1 at ${mk.sp[0]?.at}, objective ${mk.ob[0]?.id} in ${mk.ob[0]?.room}, extraction ${mk.ex[0]?.rect}; the plan labels them (${mk.words.join(', ')})`);
 
     // Hub > Play > Start at insertion 1, then Tab: the walk test starts there
     await press(BTN.START);
@@ -2539,6 +3078,862 @@ try {
     await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
     await backCheck('F10 after the insertion walk', beforeW8);
     await E(() => { const ed = window.__editor; ed.mission.setStartAtInsertion(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON12: security devices ----------
+  console.log("ON12: a camera covering Building A's main doors (its cone by the light), a card reader on the bridge door at level 2, a beam across the yard gap, the coverage view, the walk test builds the camera");
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a pad button only until `probe` (evaluated in the page) changes, so a slow frame cannot repeat it
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile);
+      await press(BTN.A);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 16 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    const devs = () => E(() => (window.__editor.model.data.devices ?? []).map((d) => JSON.parse(JSON.stringify(d))));
+    // the main doors: Building A's ground opening from a yard into a room of the building, its middle and the room
+    const main = await E(() => {
+      const d = window.__editor.model.data;
+      const room = (id) => d.rooms.find((r) => r.id === id);
+      const fa = d.meta.buildings.find((b) => b.id === 'A').footprint;
+      const inside = (r) => (r.rect[0] + r.rect[2]) / 2 > fa[0] && (r.rect[0] + r.rect[2]) / 2 < fa[2] && (r.rect[1] + r.rect[3]) / 2 > fa[1] && (r.rect[1] + r.rect[3]) / 2 < fa[3];
+      for (const o of d.openings) {
+        const w = d.walls.find((q) => q.id === o.wall);
+        if (!w || w.level !== 'G' || !/door|double/.test(o.type) || o.type === 'door') continue;
+        const [ra, rb] = (o.between ?? []).map(room);
+        const inA = [ra, rb].find((r) => r && inside(r) && r.kind !== 'yard');
+        if (!inA || ![ra, rb].some((r) => r?.kind === 'yard')) continue;
+        const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+        return { id: o.id, x: w.a[0] + ((w.b[0] - w.a[0]) / L) * o.at, z: w.a[1] + ((w.b[1] - w.a[1]) / L) * o.at, room: inA.id, rect: inA.rect };
+      }
+      return null;
+    });
+    // the camera on the room's far wall (the wall to the ground corridor), straight across from the doors
+    // (0.7 m off the wall line: beyond the dot magnet's 0.5 m pull, inside the wall reach)
+    const far = main.z < (main.rect[1] + main.rect[3]) / 2 ? main.rect[3] - 0.7 : main.rect[1] + 0.7;
+    await press(BTN.Y);
+    const secTab = await toTab('Security');
+    const camTile = await toTile('Fixed camera');
+    const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
+    await shot('on12-security-tab');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.tool === 'security' && /^Security/.test(document.querySelector('#toolBar .slot')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const t1 = await E(() => ({ tool: window.__editor.tool, kind: window.__editor.security.kind, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
+    await dotAt(main.x + 1.5, far);
+    const sCam = await said(' - A camera on');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
+    const cam = (await devs())[0];
+    assert(secTab && camTile && tiles.join(',') === 'Fixed camera,Pan camera,Card reader,Keypad,Motion sensor,Beam' && t1.tool === 'security' && /^SecurityFixed camera/.test(t1.bar) && / - A camera on .+ facing \d+ degrees/.test(sCam) && cam?.kind === 'camera' && cam.mount === 'wall' && cam.room === main.room && cam.y >= 2.4 && cam.y <= 3.5 && Math.abs(cam.facing - (main.z < far ? 180 : 0)) < 1 && /^CAM1$/.test(cam.id), `ON12: Y > Security (${tiles.join(', ')}) > Fixed camera ("${t1.bar}"); the dot said "${sCam}"; A puts ${cam?.id} on the wall of ${cam?.room} at ${cam?.y} m facing ${cam?.facing} degrees towards the main doors ${main.id}`);
+
+    // two troffers in the lobby (the Light tool, A) so part of the cone is lit
+    await E(() => { const ed = window.__editor; ed.setLampFit('troffer-600'); ed.setTool('lamp'); });
+    const lampsBefore = await E(() => (window.__editor.model.data.lamps ?? []).length);
+    for (const [lx, lz] of [[main.x + 1, main.z + 3], [main.x + 3, main.z + 5]]) {
+      await dotAt(lx, lz);
+      await press(BTN.A);
+    }
+    await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length >= n + 2, lampsBefore, { timeout: 5000 }).catch(() => {});
+    // selected: the light view's cells show what it sees: the floor inside the main doors is in its frame
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select('devices:CAM1'); });
+    const inside = [main.x, main.z < far ? main.z + 0.75 : main.z - 0.75];
+    await page.waitForFunction((p) => window.__editor.lights.state === 'ready' && window.__editor.lights.securityAt(p[0], p[1]) > 0, inside, { timeout: 180000 }).catch(() => {});
+    const cone = await E((p) => { const l = window.__editor.lights; return { at: l.securityAt(p[0], p[1]), n: l.securityCounts(), plan: !!document.querySelector('#planSvg #secMap'), frame: document.querySelectorAll('#planSvg .camFrame').length, legend: document.querySelector('#lightLegend [data-sec-legend]')?.textContent ?? '', foot: document.querySelector('#selCard [data-security]')?.textContent ?? '' }; }, inside);
+    // behind the camera (the corridor beyond its wall) is never in its frame
+    const behind = await E(([x, z]) => window.__editor.lights.securityAt(x, z), [main.x, main.z < far ? far + 1.5 : far - 1.5]);
+    await shot('on12-camera-cone');
+    assert(cone.at > 0 && behind === 0 && cone.n[1] + cone.n[2] + cone.n[3] > 20 && cone.n[2] + cone.n[3] > 0 && cone.plan && cone.frame >= 1 && /camera sees at once/.test(cone.legend) && /Range 18 m/.test(cone.foot), `ON12: the camera's cone (blue ${cone.n[1]}, amber ${cone.n[2]}, red ${cone.n[3]} cells) covers the floor inside ${main.id} (class ${cone.at}; the troffers light some of it), not the corridor behind its wall (${behind}); plan image and frame outline; card "${cone.foot}"`);
+
+    // a card reader on the bridge door (first floor, Building A side), then its access level to 2 on the card
+    const bridge = await E(() => {
+      const d = window.__editor.model.data;
+      const fa = d.meta.buildings.find((b) => b.id === 'A').footprint;
+      const inA = (id) => { const r = d.rooms.find((q) => q.id === id); return !!r && (r.rect[0] + r.rect[2]) / 2 < fa[2] && (r.rect[0] + r.rect[2]) / 2 > fa[0]; };
+      for (const o of d.openings) {
+        const w = d.walls.find((q) => q.id === o.wall);
+        if (!w || !(o.between ?? []).includes('K-BRIDGE') || !(o.between ?? []).some((r) => r !== 'K-BRIDGE' && inA(r))) continue;
+        const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+        const other = o.between.find((r) => r !== 'K-BRIDGE');
+        const rr = d.rooms.find((q) => q.id === other).rect;
+        return { id: o.id, level: w.level, x: w.a[0] + ((w.b[0] - w.a[0]) / L) * o.at, z: w.a[1] + ((w.b[1] - w.a[1]) / L) * o.at, side: other, cx: (rr[0] + rr[2]) / 2, cz: (rr[1] + rr[3]) / 2 };
+      }
+      return null;
+    });
+    await E((lv) => { const ed = window.__editor; ed.select(null); ed.setLevel(lv); }, bridge.level);
+    const rTile = await pickTile('Security', 'Card reader');
+    // (the dot on the bridge door's Building A side, half a metre off its middle along the wall)
+    const toSide = [Math.sign(bridge.cx - bridge.x) * 0.4, Math.sign(bridge.cz - bridge.z) * 0.4];
+    await dotAt(bridge.x + (Math.abs(toSide[0]) > 0 && Math.abs(bridge.cx - bridge.x) > Math.abs(bridge.cz - bridge.z) ? toSide[0] : 0.5), bridge.z + (Math.abs(bridge.cx - bridge.x) > Math.abs(bridge.cz - bridge.z) ? 0.5 : toSide[1]));
+    const sRd = await said(' - A card reader for door');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).some((d) => d.kind === 'reader'), null, { timeout: 5000 }).catch(() => {});
+    const rd0 = (await devs()).find((d) => d.kind === 'reader');
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`devices:${id}`); ed.pad.editCard('type'); }, rd0.id);
+    const onRow = await toRow('level');
+    for (let i = 0; i < 8; i++) {
+      const lv = await E((id) => window.__editor.model.get('devices', id).accessLevel, rd0.id);
+      if (lv === 2) break;
+      await holdTill(lv > 2 ? BTN.LEFT : BTN.RIGHT, "() => String(window.__editor.model.get('devices', window.__editor.selected.slice(8))?.accessLevel)");
+    }
+    await E(() => { window.__editor.pad.cardEditing = false; });
+    const rd = await E((id) => window.__editor.model.get('devices', id), rd0.id);
+    const door = await E((id) => window.__editor.model.get('openings', id), bridge.id);
+    const rdPlan = await E(() => document.querySelectorAll('#planSvg .readerMark').length);
+    assert(rTile && / - A card reader for door/.test(sRd) && onRow && rd.door === bridge.id && rd.accessLevel === 2 && rd.building === 'A' && door.door?.reader === 'card' && door.door?.level === 2 && door.locked === true && rdPlan >= 1, `ON12: Card reader by the bridge door ${bridge.id} (the dot said "${sRd}"): ${rd.id} binds it, the card's Access level row steps it to ${rd.accessLevel}; the door now has reader ${door.door?.reader}, card level ${door.door?.level}, locked ${door.locked}`);
+
+    // a beam across the yard gap between the buildings (ground): A on Building A's east wall, A on Building B's west wall
+    const gap = await E(() => { const d = window.__editor.model.data; const r = d.rooms.find((q) => q.id === 'S-GAP'); return r ? r.rect : null; });
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setLevel('G'); });
+    const bTile = await pickTile('Security', 'Beam');
+    const bz = gap[1] + 5;
+    await dotAt(gap[0] + 0.4, bz);
+    const sB = await said(' - A beam from');
+    await press(BTN.A);
+    await dotAt(gap[2] - 0.4, bz);
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).some((d) => d.kind === 'beam') && !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const bm = (await devs()).find((d) => d.kind === 'beam');
+    const bLen = bm ? Math.hypot(bm.b[0] - bm.a[0], bm.b[2] - bm.a[2]) : 0;
+    assert(bTile && / - A beam from/.test(sB) && !!bm && bm.room === 'S-GAP' && bm.a[1] === 1.4 && bm.b[1] === 1.4 && bLen > 10 && bLen <= 12 && bm.visible === false, `ON12: Beam across the yard gap: ${bm?.id} from (${bm?.a}) to (${bm?.b}), ${bLen.toFixed(2)} m at ${bm?.a[1]} m in ${bm?.room}`);
+
+    // Y > View > Security coverage: every camera cone and sensor fan of the level, the gaps clear and counted
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); ed.setLayout('plan'); });
+    await press(BTN.Y);
+    const vTab = await toTab('View');
+    const cTile = await toTile('Security coverage', BTN.DOWN);
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.security.coverage && window.__editor.lights.state === 'ready' && window.__editor.security.stats.watched > 0, null, { timeout: 180000 }).catch(() => {});
+    if ((await menuState()).open) await press(BTN.B);
+    const cov = await E((p) => { const ed = window.__editor; return { on: ed.security.coverage, stats: ed.security.stats, at: ed.lights.securityAt(p[0], p[1]), plan: !!document.querySelector('#planSvg #secMap'), legend: document.querySelector('#lightLegend [data-sec-legend]')?.textContent ?? '' }; }, inside);
+    await shot('on12-coverage-plan');
+    assert(vTab && cTile && cov.on && cov.stats.watched > 0 && cov.stats.gaps > cov.stats.watched && cov.at === 1 && cov.plan && /unwatched/.test(cov.legend), `ON12: Y > View > Security coverage: ${cov.stats.watched} watched cells, ${cov.stats.gaps} unwatched on Ground; the doors' floor is watched (${cov.at}); legend "${cov.legend}"`);
+    await E(() => { const ed = window.__editor; ed.setCoverage(false); ed.setLayout('both'); });
+
+    // the walk test builds the camera as the game's own S1 camera (readers and beams wait for S2-S3)
+    await dot(main.x, (main.rect[1] + main.rect[3]) / 2, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const gCams = await gf().evaluate(() => { const s = window.__app.current.security; return s ? s.cameras.map((c) => c.def.id) : null; });
+    const beforeW12 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the security walk', beforeW12);
+    assert(Array.isArray(gCams) && gCams.join() === 'CAM1', `ON12: the walk test builds the editor's camera in the game (${JSON.stringify(gCams)})`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON13: ceilings, voids and crawl spaces ----------
+  console.log('ON13: a corridor ceiling set to 2.4 m grid tiles on its card, the ceiling voids view (clear height), a crawl space from a hatch to a vent, the walk test player crouches in it');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile, btn = BTN.RIGHT) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile, btn);
+      await press(BTN.A);
+      if ((await menuState()).open) await press(BTN.B);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 8 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    // a voided corridor on Ground (the data: the longest corridor with a ceiling)
+    const cor = await E(() => { const d = window.__editor.model.data; const r = d.rooms.filter((q) => q.level === 'G' && q.kind === 'corridor' && q.ceiling > 0).sort((a, b) => (b.rect[2] - b.rect[0]) - (a.rect[2] - a.rect[0]))[0]; return r ? { id: r.id, name: r.name, rect: r.rect } : null; });
+    await E((id) => window.__editor.select(`rooms:${id}`), cor.id);
+    const ceilTile = await pickTile('Selected', 'Ceiling');
+    await page.waitForFunction((id) => window.__editor.selected === `ceilings:${id}`, cor.id, { timeout: 5000 }).catch(() => {});
+    const selC = await E(() => window.__editor.selected);
+    // the card: Height down a step and back (2.4 m), Type to plasterboard and back to the grid
+    const hRow = await toRow('height');
+    await holdTill(BTN.LEFT, cardProbe);
+    await holdTill(BTN.RIGHT, cardProbe);
+    const tRow = await toRow('type');
+    await holdTill(BTN.RIGHT, cardProbe);
+    const mid = await E((id) => window.__editor.model.get('rooms', id).ceilingType, cor.id);
+    await holdTill(BTN.LEFT, cardProbe);
+    await page.waitForFunction((id) => window.__editor.model.get('rooms', id).ceilingType === 'grid', cor.id, { timeout: 5000 }).catch(() => {});
+    const ceil = await E((id) => { const r = window.__editor.model.get('rooms', id); return { h: r.ceiling, type: r.ceilingType }; }, cor.id);
+    await press(BTN.B);
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-ceiling]'), null, { timeout: 5000 }).catch(() => {});
+    const cFoot = await E(() => document.querySelector('#selCard [data-ceiling]')?.textContent ?? '');
+    assert(ceilTile && selC === `ceilings:${cor.id}` && hRow && tRow && mid === 'plasterboard' && ceil.h === 2.4 && ceil.type === 'grid' && /Void \d\.\d+ m clear/.test(cFoot), `ON13: Selected > Ceiling of ${cor.id} (${selC}); its card set it to ${ceil.h} m ${ceil.type} tiles (Type went through ${mid}); card "${cFoot}"`);
+
+    // Y > View > Ceiling voids: the void over the corridor, its clear height and the rule
+    const vTile = await pickTile('View', 'Ceiling voids', BTN.DOWN);
+    await page.waitForFunction(() => window.__editor.crawl.voids && window.__editor.view.voidsShown > 0, null, { timeout: 8000 }).catch(() => {});
+    const vv = await E((id) => ({ on: window.__editor.crawl.voids, shown: window.__editor.view.voidsShown, legend: document.querySelector(`#voidLegend [data-void="${id}"]`)?.textContent ?? '', plan: document.querySelectorAll('#planSvg .voidMark').length }), cor.id);
+    await dotAt((cor.rect[0] + cor.rect[2]) / 2, (cor.rect[1] + cor.rect[3]) / 2);
+    await shot('on13-corridor-void');
+    assert(vTile && vv.on && vv.shown >= 1 && /\d\.\d+ m clear/.test(vv.legend) && vv.plan >= 1, `ON13: Y > View > Ceiling voids: ${vv.shown} void boxes, ${vv.plan} on the plan; legend "${vv.legend}"`);
+
+    // a vent at the corridor's west end, high in the void (an ON5 vent grille record on the file's grid), then Build > Crawl space from a hatch to it
+    const zc = (cor.rect[1] + cor.rect[3]) / 2;
+    const vent = await E(([x, z]) => {
+      const ed = window.__editor;
+      const used = new Set((ed.model.data.exterior ?? []).map((e) => e.id));
+      let i = 1;
+      while (used.has(`E${String(i).padStart(3, '0')}`)) i++;
+      const v = { id: `E${String(i).padStart(3, '0')}`, kind: 'vent', a: [x, z], b: [x, z], y0: 2.8, y1: 3.4, climbable: false, reason: 'e2e: a void vent', level: 'G', facing: 'E', size: [0.6, 0.6] };
+      ed.commitText(`Added vent ${v.id}`, [{ coll: 'exterior', id: v.id, before: null, after: v }]);
+      return v;
+    }, [cor.rect[0] + 0.5, Math.round(zc)]);
+    const cTile = await pickTile('Build', 'Crawl space');
+    const tool = await E(() => window.__editor.tool);
+    const hx = cor.rect[0] + 12.13;
+    await dotAt(hx, zc - 0.4);
+    const sStart = await said(' - A crawl space from a hatch');
+    await press(BTN.A);
+    await dotAt(vent.a[0] + 0.3, zc);
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.crawls ?? []).length === 1 && !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-crawl]'), null, { timeout: 5000 }).catch(() => {});
+    const cr = await E((id) => { const ed = window.__editor; const c = (ed.model.data.crawls ?? [])[0]; return c ? { ...JSON.parse(JSON.stringify(c)), hatches: ed.model.get('rooms', id).hatches ?? [], sel: ed.selected, foot: document.querySelector('#selCard [data-crawl]')?.textContent ?? '', plan: document.querySelectorAll('#planSvg .crawlMark').length } : null; }, cor.id);
+    await shot('on13-crawl-route');
+    const clear = cr ? cr.y1 - cr.y0 : 0;
+    assert(cTile && tool === 'crawl' && / - A crawl space from a hatch in/.test(sStart) && !!cr && cr.ends[0].kind === 'hatch' && cr.ends[0].ref === cor.id && cr.ends[1].kind === 'vent' && cr.ends[1].ref === vent.id && Math.abs(cr.y0 - 2.42) < 1e-6 && clear > 1.4 && clear < 1.6 && cr.hatches.length === 1 && cr.sel === `crawls:${cr.id}` && /Crouch space/.test(cr.foot) && cr.plan === 1, `ON13: Build > Crawl space (the dot said "${sStart}"): ${cr?.id} from a hatch in ${cr?.ends?.[0]?.ref} to vent ${cr?.ends?.[1]?.ref}, ${clear.toFixed(2)} m clear from ${cr?.y0} m; the hatch went into the ceiling (${JSON.stringify(cr?.hatches)}); card "${cr?.foot}"`);
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.setVoidView(false); });
+
+    // the walk test: grid tiles are drawn but do not collide; the crawl boards hold the player, who crouch-moves along them
+    const midX = (cr.path[0][0] + cr.path[1][0]) / 2;
+    await dot(midX, zc, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const walk = await gf().evaluate(async ([x, z, y0, y1, r]) => {
+      const a = window.__app;
+      const g = a.current;
+      const p = g.player;
+      const c = p.controller;
+      const V = p.position.constructor;
+      const st = a.input.state;
+      const boxes = g.world.level.boxes;
+      const tiles = boxes.filter((b) => !b.collide && Math.abs(b.c[1] - b.s[1] / 2 - 2.4) < 0.01 && b.c[0] > r[0] && b.c[0] < r[2] && b.c[2] > r[1] && b.c[2] < r[3]).length;
+      const boards = boxes.filter((b) => b.collide && Math.abs(b.c[1] + b.s[1] / 2 - y0) < 0.01 && Math.abs(b.c[2] - z) < 1).length;
+      const sides = boxes.filter((b) => b.collide && Math.abs(b.c[1] - (y0 + y1) / 2) < 0.01 && Math.abs(b.s[1] - (y1 - y0)) < 0.01 && Math.abs(b.c[2] - z) < 1.5).length;
+      a.loop.manual = true;
+      // crouch on the corridor floor, then into the crawl space on its boards facing west along it
+      c.teleport(new V(x, 0.05, z), -Math.PI / 2);
+      p.cam.yaw = -Math.PI / 2; p.cam.pitch = 0; p.cam.snap();
+      st.move.x = st.move.y = 0;
+      a.loop.stepHeadless(0.3);
+      st.tap('crouch');
+      a.loop.stepHeadless(0.8);
+      c.teleport(new V(x, y0 + 0.05, z), -Math.PI / 2);
+      a.loop.stepHeadless(0.5);
+      const ya = p.position.y;
+      const xa = p.position.x;
+      for (let k = 0; k < 90; k++) { st.move.x = 0; st.move.y = 1; a.loop.stepHeadless(1 / 60); }
+      st.move.x = st.move.y = 0;
+      a.loop.stepHeadless(0.2);
+      const out = { tiles, boards, sides, crouched: c.crouched, ya, yb: p.position.y, xa, xb: p.position.x };
+      st.tap('crouch');
+      a.loop.stepHeadless(0.5);
+      a.loop.manual = false;
+      return out;
+    }, [midX, zc, cr.y0, cr.y1, cor.rect]);
+    await shot('on13-walk-crawl');
+    const beforeW13 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the crawl walk', beforeW13);
+    assert(walk.tiles > 0 && walk.boards > 0 && walk.sides >= 2 && walk.crouched && Math.abs(walk.ya - cr.y0) < 0.15 && Math.abs(walk.yb - cr.y0) < 0.15 && walk.xa - walk.xb > 0.3, `ON13: the walk test builds ${walk.tiles} grid tiles (no collision), ${walk.boards} crawl floor and ${walk.sides} side boards; the player crouches on the boards (y ${walk.ya.toFixed(2)} to ${walk.yb.toFixed(2)}, floor ${cr.y0}) and crouch-moves west ${(walk.xa - walk.xb).toFixed(2)} m`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON14: mirror, align, evenly space, Array; name plates and signs ----------
+  console.log('ON14: three rooms evenly spaced, an office with its door mirrored and an Array copy mirrored into a pair, two desks aligned, plates on every Ground door, a "Building B" sign hung in a corridor, the walk test panels');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 45 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile, btn = BTN.RIGHT) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile, btn);
+      await press(BTN.A);
+      if ((await menuState()).open) await press(BTN.B);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 10 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    // an empty 27 x 12 m patch on Ground: no room but a yard or the lane, no, wall, object, roof, hole, stair, climb piece or sign on it
+    const patch = await E(() => {
+      const d = window.__editor.model.data;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      const taken = [...d.rooms.filter((r) => r.level === 'G' && r.kind !== 'yard' && r.kind !== 'lane').map((r) => r.rect), ...(d.objects ?? []).filter((o) => o.level === 'G').map((o) => o.rect), ...(d.roofs ?? []).map((r) => r.rect), ...d.voids.map((v) => v.rect), ...d.stairs.map((s) => s.rect), ...(d.exterior ?? []).map((e) => [Math.min(e.a[0], e.b[0]), Math.min(e.a[1], e.b[1]), Math.max(e.a[0], e.b[0]), Math.max(e.a[1], e.b[1])]), ...(d.signs ?? []).map((s) => [s.at[0], s.at[1], s.at[0], s.at[1]])];
+      // anywhere on the site (the yards fill up with earlier steps' work): outside rooms or in a yard or the lane
+      const site = d.meta.site ?? [0, 0, 110, 80];
+      for (let x = Math.ceil(site[0]) + 2; x + 27 < site[2]; x += 1) for (let z = Math.ceil(site[1]) + 2; z + 12 < site[3]; z += 1) {
+        const box = [x - 1, z - 1, x + 26, z + 11];
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < box[0] || Math.min(w.a[0], w.b[0]) > box[2] || Math.max(w.a[1], w.b[1]) < box[1] || Math.min(w.a[1], w.b[1]) > box[3])
+          && !taken.some((r) => r[0] <= box[2] && r[2] >= box[0] && r[1] <= box[3] && r[3] >= box[1]);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!patch, `ON14: an empty patch of yard at ${patch}`);
+    const [px, pz] = patch;
+    // three walled rooms in a row with uneven gaps (A 4 x 3, B one metre on, C ten metres on); doors in A and C; a desk in A
+    const trio = await E(([px, pz]) => {
+      const ed = window.__editor;
+      const ch = [];
+      const mk = (id, name, x0) => {
+        const r = { id, level: 'G', name, kind: 'room', rect: [x0, pz, x0 + 4, pz + 3], ring: 2 };
+        ch.push({ coll: 'rooms', id, before: null, after: r });
+        const pts = [[[x0, pz], [x0 + 4, pz]], [[x0 + 4, pz], [x0 + 4, pz + 3]], [[x0 + 4, pz + 3], [x0, pz + 3]], [[x0, pz + 3], [x0, pz]]];
+        pts.forEach(([a, b], i) => ch.push({ coll: 'walls', id: `W-${id}-${i}`, before: null, after: { id: `W-${id}-${i}`, level: 'G', a, b, t: 0.3, h: 4.2, kind: 'interior' } }));
+      };
+      mk('E14-A', 'Office A', px);
+      mk('E14-B', 'Office B', px + 5);
+      mk('E14-C', 'Office C', px + 15);
+      // doors on the south walls 1 m from the west end (hinged at the a end, the west), swinging in
+      for (const id of ['E14-A', 'E14-C']) ch.push({ coll: 'openings', id: `D-${id}`, before: null, after: { id: `D-${id}`, wall: `W-${id}-0`, at: 1, w: 0.9, h: 2.1, sill: 0, type: 'door', between: [id, ''], door: { swing: id } } });
+      ch.push({ coll: 'objects', id: 'E14-K', before: null, after: { id: 'E14-K', level: 'G', rect: [px + 0.2, pz + 1, px + 1, pz + 2.6], h: 0.75, y: 0, preset: 'desk', yaw: 90 } });
+      ed.commitText('e2e: three offices', ch);
+      return true;
+    }, [px, pz]);
+    await E(() => window.__editor.setGroup(['rooms:E14-A', 'rooms:E14-B', 'rooms:E14-C']));
+    await dotAt(px + 10, pz + 1.5);
+    const distTile = await pickTile('Selected', 'Evenly space along x');
+    await page.waitForFunction((x) => window.__editor.model.get('rooms', 'E14-B').rect[0] === x, px + 7.5, { timeout: 5000 }).catch(() => {});
+    const ev = await E(() => { const ed = window.__editor; const r = (id) => ed.model.get('rooms', id).rect; return { a: r('E14-A'), b: r('E14-B'), c: r('E14-C'), bw: ed.model.get('walls', 'W-E14-B-3').a[0], status: document.getElementById('status').textContent }; });
+    assert(trio && distTile && ev.b[0] === px + 7.5 && ev.b[0] - ev.a[2] === ev.c[0] - ev.b[2] && ev.bw === px + 7.5 && ev.a[0] === px && ev.c[0] === px + 15, `ON14: Selected > Evenly space along x: B now at x ${ev.b[0]} (gaps ${ev.b[0] - ev.a[2]} and ${ev.c[0] - ev.b[2]} m), its west wall at ${ev.bw}; "${ev.status}"`);
+
+    // mirror office A east-west about its own centre: its door goes to the east end, hinged at the east, the desk turns
+    await E(() => window.__editor.select('rooms:E14-A'));
+    const mirTile = await pickTile('Selected', 'Mirror east-west');
+    await page.waitForFunction((x) => window.__editor.model.get('objects', 'E14-K').rect[0] === x, px + 3, { timeout: 5000 }).catch(() => {});
+    const mir = await E(() => {
+      const ed = window.__editor;
+      const o = ed.model.get('openings', 'D-E14-A');
+      const w = ed.model.get('walls', o.wall);
+      const L = Math.abs(w.b[0] - w.a[0]) + Math.abs(w.b[1] - w.a[1]);
+      return { doorX: w.a[0] + ((w.b[0] - w.a[0]) * o.at) / L, hinge: o.door?.hinge ?? 'a end', aX: w.a[0], k: ed.model.get('objects', 'E14-K') };
+    });
+    assert(mirTile && Math.abs(mir.doorX - (px + 3)) < 1e-6 && mir.aX === px + 4 && mir.hinge === 'a end' && mir.k.rect[0] === px + 3 && mir.k.yaw === 270, `ON14: Selected > Mirror east-west: the door now at x ${mir.doorX} (was ${px + 1}), hinged at the ${mir.aX === px + 4 ? 'east' : 'west'} end (${mir.hinge}); the desk at x ${mir.k.rect[0]} turned to ${mir.k.yaw}`);
+
+    // Array: one copy of office C five metres east (the dot sets the spacing, D-pad left the count), then the copy mirrored: a mirrored pair
+    await E(() => window.__editor.select('rooms:E14-C'));
+    const arTile = await pickTile('Selected', 'Array');
+    const arTool = await E(() => window.__editor.tool);
+    await holdTill(BTN.LEFT, '() => window.__editor.arrange.count');
+    await dotAt(px + 22, pz + 1.5);
+    const arSaid = await said(' - 1 copy every 5 m east');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.model.data.rooms.some((r) => r.name === 'Office C 2'), null, { timeout: 5000 }).catch(() => {});
+    const copy = await E(() => { const ed = window.__editor; const r = ed.model.data.rooms.find((q) => q.name === 'Office C 2'); return r ? { id: r.id, rect: r.rect, tool: ed.tool, doors: ed.model.data.openings.filter((o) => (o.between ?? []).includes(r.id)).length } : null; });
+    assert(arTile && arTool === 'arrange' && / - 1 copy every 5 m east/.test(arSaid) && !!copy && copy.rect[0] === px + 20 && copy.doors === 1 && copy.tool === 'select', `ON14: Selected > Array (the dot said "${arSaid}"): ${copy?.id} at ${JSON.stringify(copy?.rect)} with ${copy?.doors} door`);
+    await E((id) => window.__editor.select(`rooms:${id}`), copy.id);
+    const mir2 = await pickTile('Selected', 'Mirror east-west');
+    await page.waitForFunction((id) => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => (q.between ?? []).includes(id)); const w = o && ed.model.get('walls', o.wall); return !!w && w.a[0] > w.b[0]; }, copy.id, { timeout: 5000 }).catch(() => {});
+    const pairX = await E((id) => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => (q.between ?? []).includes(id)); const w = ed.model.get('walls', o.wall); return w.a[0] - o.at; }, copy.id);
+    await dot(px + 20, pz + 1.5, 0);
+    await shot('on14-mirrored-pair');
+    assert(mir2 && Math.abs(pairX - (px + 23)) < 1e-6, `ON14: the copy mirrored: its door at x ${pairX} (office C's at ${px + 16}): a mirrored pair`);
+
+    // two desks in the patch, then Align left (west)
+    await E(([px, pz]) => {
+      const ed = window.__editor;
+      const desk = (id, r) => ({ coll: 'objects', id, before: null, after: { id, level: 'G', rect: r, h: 0.75, y: 0, preset: 'desk' } });
+      ed.commitText('e2e: two desks', [desk('E14-D1', [px + 2, pz + 6, px + 3.6, pz + 6.8]), desk('E14-D2', [px + 5.3, pz + 8.5, px + 6.9, pz + 9.3])]);
+      ed.setGroup(['objects:E14-D1', 'objects:E14-D2']);
+    }, [px, pz]);
+    const alTile = await pickTile('Selected', 'Align left (west)');
+    await page.waitForFunction(() => window.__editor.model.get('objects', 'E14-D2').rect[0] === window.__editor.model.get('objects', 'E14-D1').rect[0], null, { timeout: 5000 }).catch(() => {});
+    const al = await E(() => ({ a: window.__editor.model.get('objects', 'E14-D1').rect, b: window.__editor.model.get('objects', 'E14-D2').rect }));
+    assert(alTile && al.b[0] === px + 2 && al.b[2] === px + 3.6 && al.b[1] === pz + 8.5 && al.a[0] === px + 2, `ON14: Selected > Align left (west): the second desk at x ${al.b[0]} (${JSON.stringify(al.b)})`);
+
+    // name plates on every Ground door (Selected on a room: Name plates: this level), one edit
+    await E(() => window.__editor.select('rooms:E14-A'));
+    const before14 = await E(() => window.__editor.model.history.length);
+    const plTile = await pickTile('Selected', 'Name plates: this level');
+    await page.waitForFunction(() => /Name plates on \d+ door/.test(document.getElementById('status').textContent), null, { timeout: 5000 }).catch(() => {});
+    const pl = await E(() => {
+      const ed = window.__editor;
+      const d = ed.model.data;
+      const g = new Set(d.walls.filter((w) => w.level === 'G').map((w) => w.id));
+      const doors = d.openings.filter((o) => g.has(o.wall) && !/window|louvre|rooflight/.test(o.type));
+      return { doors: doors.length, plated: doors.filter((o) => o.plate).length, a: ed.model.get('openings', 'D-E14-A').plate, h: ed.model.history.length, tags: document.querySelectorAll('#planSvg .plateTag').length, status: document.getElementById('status').textContent };
+    });
+    assert(plTile && pl.plated >= 3 && pl.a === 'Office A' && pl.h === before14 + 1 && pl.tags >= 3, `ON14: Selected > Name plates: this level: ${pl.plated} of ${pl.doors} Ground doors have a plate (office A's "${pl.a}"), ${pl.tags} plan tags, one edit; "${pl.status}"`);
+
+    // Y > Objects > Signs > Direction sign, hung in the spine corridor, its card set to "Building B" with a right arrow
+    const cor = await E(() => window.__editor.model.get('rooms', 'G-SPINE')?.rect ?? null);
+    await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+    await press(BTN.Y);
+    let sgOk = await toTab('Objects');
+    sgOk = sgOk && (await toGroup('Signs'));
+    await page.waitForFunction(() => window.__editor.objGroup === 'signs', null, { timeout: 5000 }).catch(() => {});
+    sgOk = sgOk && (await toTile('Direction sign'));
+    await press(BTN.A);
+    if ((await menuState()).open) await press(BTN.B);
+    const sgTool = await E(() => `${window.__editor.tool}|${window.__editor.signTool.kind}`);
+    const sx = Math.round((cor[0] + cor[2]) / 2) + 0.4;
+    const sz = (cor[1] + cor[3]) / 2;
+    await dotAt(sx, sz);
+    // the view looks along the corridor (a hung sign faces back along the look)
+    await E(() => { window.__editor.controls.orbit.s.yaw = Math.PI / 2; });
+    await frames(page, 4);
+    const sgSaid = await said(' - Direction sign');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.signs ?? []).length >= 1, null, { timeout: 5000 }).catch(() => {});
+    await E(() => window.__editor.setTool('select'));
+    const tRow = await toRow('text');
+    for (let i = 0; i < 12 && (await E(() => (window.__editor.model.data.signs ?? [])[0]?.text)) !== 'Building B'; i++) await holdTill(BTN.LEFT, cardProbe);
+    const aRow = await toRow('arrow');
+    for (let i = 0; i < 6 && (await E(() => (window.__editor.model.data.signs ?? [])[0]?.arrow)) !== 'right'; i++) await holdTill(BTN.RIGHT, cardProbe);
+    await press(BTN.B);
+    await page.waitForFunction(() => !!document.querySelector('#selCard [data-sign]'), null, { timeout: 5000 }).catch(() => {});
+    const sg = await E(() => { const ed = window.__editor; const s = (ed.model.data.signs ?? [])[0]; return s ? { ...s, title: document.querySelector('#selCard b')?.textContent ?? '', plan: document.querySelectorAll('#planSvg .signMark').length, label: document.querySelector('#planSvg .signLabel')?.textContent ?? '' } : null; });
+    await dot(sx - 2, sz, Math.PI / 2);
+    await E(() => { const c = window.__editor.controls.orbit.s; c.dist = 6; c.pitch = 0.12; });
+    await frames(page, 6);
+    await shot('on14-corridor-signs');
+    assert(sgOk && sgTool === 'sign|direction' && / - Direction sign .* hung in/.test(sgSaid) && !!sg && sg.hang === true && sg.facing % 180 === 90 && sg.text === 'Building B' && sg.arrow === 'right' && Math.abs(sg.y - 2.2) < 1e-6 && tRow && aRow && /Building B →/.test(sg.title) && sg.plan >= 1 && /Building B/.test(sg.label), `ON14: Objects > Signs > Direction sign (the dot said "${sgSaid}"): ${sg?.id} hung at ${sg?.y} m facing ${sg?.facing}, text "${sg?.text}" arrow ${sg?.arrow}, card "${sg?.title}", plan "${sg?.label}"`);
+
+    // the walk test builds each plate and sign as a thin panel that never collides
+    await dot(sx, sz, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const panels = await gf().evaluate(() => window.__app.current.world.level.boxes.filter((b) => !b.collide && Math.abs(b.s[2] - 0.02) < 1e-6 && b.noLedge).length);
+    const beforeW14 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the signs walk', beforeW14);
+    const want = await E(() => window.__editor.model.data.openings.filter((o) => o.plate).length + (window.__editor.model.data.signs ?? []).length);
+    assert(panels >= want && want >= 4, `ON14: the walk test builds ${panels} thin non-colliding panels for ${want} plates and signs`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON15: moon direction and time-of-night preview ----------
+  console.log('ON15: Y > View > Moon and time; the moon full, moved from east to west, a yard cell of the darkness map changes; Use for the map, saved to the sandbox; the walk test meter agrees');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const valProbe = "() => document.querySelector('#tileMenu .tile.hl .tv')?.textContent ?? ''";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.DOWN) => { for (let i = 0; i < 45 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const val = () => E(() => document.querySelector('#tileMenu .tile.hl .tv')?.textContent ?? '');
+    const M = () => E(() => { const l = window.__editor.lights; return { show: l.moonShow, night: l.night, quick: l.moonQuick, state: l.state, bakes: l.bakes, meta: window.__editor.model.data.meta.night ?? null, legend: document.querySelector('#lightLegend [data-moon-legend]')?.textContent ?? '' }; });
+    const settled = (b) => page.waitForFunction((b) => { const l = window.__editor.lights; return l.bakes > b && l.state === 'ready' && !l.moonQuick; }, b, { timeout: 180000 });
+
+    // the pad: Y > View > Moon and time, A; its rows appear; the brightness to Full, one bearing step
+    await press(BTN.Y);
+    const vTab = await toTab('View');
+    const nTile = await toTile('Moon and time');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.lights.moonShow, null, { timeout: 5000 }).catch(() => {});
+    const rows = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent).slice(-5));
+    const bTile = await toTile('Moon brightness');
+    for (let i = 0; i < 4 && !/Full/.test(await val()); i++) await holdTill(BTN.RIGHT, valProbe);
+    const bright = await val();
+    const dTile = await toTile('Moon bearing', BTN.UP);
+    const b0 = await val();
+    await holdTill(BTN.RIGHT, valProbe);
+    const b1 = await val();
+    // (the legend follows the preview a frame or two later)
+    await page.waitForFunction(() => /preview/.test(document.querySelector('#lightLegend [data-moon-legend]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const quick = await M();
+    if ((await menuState()).open) await press(BTN.B);
+    assert(vTab && nTile && rows.join() === 'Time of night,Moon bearing,Moon height,Moon brightness,Use for the map' && bTile && /Full/.test(bright) && dTile && b0 !== b1 && quick.show && quick.night?.brightness === 'full' && /preview/.test(quick.legend), `ON15: Y > View > Moon and time shows its rows (${rows.join(', ')}); brightness ${bright}; a bearing step ${b0} to ${b1}; the legend "${quick.legend}"`);
+
+    // the moon low in the east, then in the west (the rows' steps, as the pad's), with the darkness map on
+    const stepTo = (row, key, want) => E(([row, key, want]) => { const ed = window.__editor; for (let i = 0; i < 80 && ed.night[key] !== want; i++) ed.stepNight(row, ed.night[key] < want ? 1 : -1); return ed.night[key]; }, [row, key, want]);
+    let bk = (await M()).bakes;
+    await E(() => window.__editor.setDarkMap(true));
+    await stepTo('height', 'height', 25);
+    await stepTo('bearing', 'bearing', 90);
+    await settled(bk);
+    const east = await E(() => { const l = window.__editor.lights; return { v: Array.from(l.values ?? []), g: l.grid ? { x0: l.grid.x0, z0: l.grid.z0, nx: l.grid.nx, cell: l.grid.cell } : null, shadow: document.querySelectorAll('#planSvg .moonShadow').length, arrow: document.querySelectorAll('#planSvg .moonArrow').length, words: document.querySelector('#planSvg .moonWords')?.textContent ?? '' }; });
+    await E(() => window.__editor.setLayout('plan'));
+    await wait(400);
+    await shot('on15-yard-moon-east');
+    await E(() => window.__editor.setLayout('both'));
+    bk = (await M()).bakes;
+    await stepTo('bearing', 'bearing', 270);
+    const moving = await M();
+    await settled(bk);
+    const west = await E(() => Array.from(window.__editor.lights.values ?? []));
+    await E(() => window.__editor.setLayout('plan'));
+    await wait(400);
+    await shot('on15-yard-moon-west');
+    await E(() => window.__editor.setLayout('both'));
+    // the yard cells (Ground's yard rooms) whose darkness value changed most
+    const yard = await E(([east, west, g]) => {
+      const d = window.__editor.model.data;
+      const yards = d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard');
+      let best = null;
+      for (let k = 0; k < west.length; k++) {
+        const a = east[k];
+        const b = west[k];
+        if (a !== a || b !== b || a === null || b === null) continue;
+        const x = g.x0 + (k % g.nx) * g.cell + g.cell / 2;
+        const z = g.z0 + Math.floor(k / g.nx) * g.cell + g.cell / 2;
+        if (!yards.some((r) => x > r.rect[0] && x < r.rect[2] && z > r.rect[1] && z < r.rect[3])) continue;
+        if (!best || Math.abs(b - a) > Math.abs(best.b - best.a)) best = { x, z, a, b, room: yards.find((r) => x > r.rect[0] && x < r.rect[2] && z > r.rect[1] && z < r.rect[3]).id };
+      }
+      return best;
+    }, [east.v, west, east.g]);
+    assert(!!east.g && moving.quick && !!yard && Math.abs(yard.b - yard.a) > 0.02 && east.shadow === 1 && east.arrow === 1 && /Moon 90 \(E\), 25 high, full/.test(east.words), `ON15: the moon from the east (bearing 90, 25 high) to the west (270): a yard cell in ${yard?.room} at (${yard?.x}, ${yard?.z}) goes from ${yard?.a?.toFixed(3)} to ${yard?.b?.toFixed(3)}; quick while it moved (${moving.quick}); the plan draws the shadow lines and the arrow ("${east.words}")`);
+
+    // Use for the map (the pad), saved to the sandbox
+    bk = (await M()).bakes;
+    await press(BTN.Y);
+    await toTab('View');
+    const uTile = await toTile('Use for the map');
+    await press(BTN.A);
+    await page.waitForFunction(() => !!window.__editor.model.data.meta.night, null, { timeout: 5000 }).catch(() => {});
+    if ((await menuState()).open) await press(BTN.B);
+    const used = await M();
+    await settled(bk);
+    await E(() => window.__editor.saveNow());
+    await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
+    const savedNight = JSON.parse(readFileSync(path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json'), 'utf8')).meta.night;
+    assert(uTile && !used.night && used.meta?.bearing === 270 && used.meta?.height === 25 && used.meta?.brightness === 'full' && savedNight?.bearing === 270 && savedNight?.brightness === 'full', `ON15: Use for the map sets meta.night (${JSON.stringify(used.meta)}); the sandbox file has it (${JSON.stringify(savedNight)})`);
+
+    // parity (decision 7): the walk test's light meter at the yard cell equals the darkness map's value there
+    const mapV = await E(([x, z]) => window.__editor.lights.cellValue(x, z), [yard.x, yard.z]);
+    await dot(yard.x, yard.z, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 180000);
+    const game = await gf().evaluate(([x, z]) => { const g = window.__app.current; return { meter: g.world.lightField.bodyLevel(x, 0, z, 1.75), dir: g.world.map.theme.sunDir }; }, [yard.x, yard.z]);
+    const beforeW15 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the moon walk', beforeW15);
+    assert(Math.abs(game.meter - mapV) < 0.05 && game.dir[0] > 0.8, `ON15: the walk test's light meter at (${yard.x}, ${yard.z}) is ${game.meter.toFixed(3)}, the darkness map's ${mapV.toFixed(3)}; the game's moon shines east (${game.dir.map((v) => v.toFixed(2)).join(', ')})`);
+    await E(() => { const ed = window.__editor; ed.setNightPanel(false); ed.setDarkMap(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  {
+    console.log('Free fly (Michael 2026-10-14): keys, wheel, pad; the ghost under the mouse; aiming at ceilings and walls; nothing inside walls');
+    const ex = () => E(() => (window.__editor.model.data.exterior ?? []).length);
+    const hyp = (a, b) => Math.sqrt(a * a + b * b);
+    const pose = () => E(() => { const c = window.__editor.controls; const p = c.pose(); return { x: p.pos[0], y: p.pos[1], z: p.pos[2], yaw: c.yaw, pitch: c.pitch, mode: c.mode, speed: c.flySpeed }; });
+    const setPose = (x, y, z, yaw, pitch) => E(([x, y, z, yaw, pitch]) => { const c = window.__editor.controls; c.blend = null; c.mode = 'fly'; c.setPose({ pos: [x, y, z], yaw, pitch, fov: c.pose().fov }); }, [x, y, z, yaw, pitch]);
+    const centre = () => E(() => { const r = document.getElementById('c').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    /** The mouse to the 3D view's centre (moved in from aside, so the mouse takes over from the pad). */
+    const mouseCentre = async () => { const [cx, cy] = await centre(); await page.mouse.move(cx - 60, cy - 40); await page.mouse.move(cx, cy, { steps: 5 }); await frames(page, 4); return [cx, cy]; };
+    await E(() => { const ed = window.__editor; ed.setLayout('3d'); ed.setLevel('G'); ed.select(null); ed.setTool('select'); window.__pre0 = ed.view.vis.preset; ed.setPreset('single'); const p = ed.pad; p.settings = { ...p.settings, camera: 'fly' }; p.applySettings(); p.savePrefs(); });
+    await press(BTN.LB);
+    const m0 = await pose();
+    assert(m0.mode === 'fly', `Camera Free fly: pad input leaves the orbit camera for the fly camera (${m0.mode})`);
+
+    // keys: W flies along the view; the wheel sets the fly speed
+    await setPose(20, 10, 20, 0, 0.3);
+    await mouseCentre();
+    const k0 = await pose();
+    await page.keyboard.down('KeyW');
+    await wait(400);
+    await page.keyboard.up('KeyW');
+    await frames(page, 2);
+    const k1 = await pose();
+    await page.mouse.wheel(0, -100);
+    await frames(page, 2);
+    const k2 = await pose();
+    assert(k1.z - k0.z > 0.5 && k1.y < k0.y && Math.abs(k1.x - k0.x) < 0.01 && k2.speed > k1.speed && /Fly speed/.test((await st()).status), `Free fly, keys: W flies along the view (z ${k0.z.toFixed(2)} -> ${k1.z.toFixed(2)}, y ${k0.y.toFixed(2)} -> ${k1.y.toFixed(2)}); the wheel sets the speed (${k1.speed} -> ${k2.speed}, "${(await st()).status}")`);
+    await E(() => { window.__editor.controls.flySpeed = 10; });
+
+    // pad: the left stick flies, the right stick turns, RT rises
+    await press(BTN.LB);
+    await setPose(20, 10, 20, 0, 0.3);
+    const p0 = await pose();
+    await axes(0, -1);
+    await E(() => window.__pad.axis(2, 0.8));
+    await set(BTN.RT, 1);
+    await wait(600);
+    await axes(0, 0);
+    await E(() => window.__pad.axis(2, 0));
+    await set(BTN.RT, 0);
+    await wait(400);
+    const p1 = await pose();
+    const crossOn = await E(() => getComputedStyle(document.getElementById('reticle'), '::after').content !== 'none' && !document.getElementById('reticle').classList.contains('hidden'));
+    assert(p1.mode === 'fly' && hyp(p1.x - p0.x, p1.z - p0.z) > 1 && p1.yaw > p0.yaw + 0.2 && p1.y > p0.y && crossOn, `Free fly, pad: the left stick flies (${p0.x.toFixed(1)}, ${p0.z.toFixed(1)} -> ${p1.x.toFixed(1)}, ${p1.z.toFixed(1)}), the right stick turns (yaw ${p0.yaw.toFixed(2)} -> ${p1.yaw.toFixed(2)}), RT rises (y ${p0.y.toFixed(1)} -> ${p1.y.toFixed(1)}); crosshair at the centre (${crossOn})`);
+    // View tap: top-down and back
+    await press(BTN.SELECT);
+    await wait(500);
+    const td = await pose();
+    await press(BTN.SELECT);
+    await wait(500);
+    const tb = await pose();
+    assert(td.pitch > 1.5 && Math.abs(tb.pitch - p1.pitch) < 0.05, `Free fly: View tap looks straight down (pitch ${td.pitch.toFixed(2)}) and back (${tb.pitch.toFixed(2)})`);
+
+    // a Ground room at least 5 m each way with a wall along its west edge, clear of openings near the middle
+    const fr = await E(() => {
+      const d = window.__editor.model.data;
+      for (const r of d.rooms) {
+        if (r.level !== 'G' || r.kind === 'yard' || r.rect[2] - r.rect[0] < 5 || r.rect[3] - r.rect[1] < 5) continue;
+        const zm = (r.rect[1] + r.rect[3]) / 2;
+        const w = d.walls.find((q) => q.level === 'G' && q.a[0] === r.rect[0] && q.b[0] === r.rect[0] && Math.min(q.a[1], q.b[1]) <= zm - 2 && Math.max(q.a[1], q.b[1]) >= zm + 2);
+        if (!w) continue;
+        const sg = Math.sign(w.b[1] - w.a[1]);
+        if (d.openings.some((o) => o.wall === w.id && Math.abs(w.a[1] + sg * o.at - zm) < o.w / 2 + 1.5)) continue;
+        if ((d.objects ?? []).some((o) => o.level === 'G' && o.rect[0] < r.rect[0] + 2.5 && o.rect[2] > r.rect[0] && o.rect[1] < zm + 1 && o.rect[3] > zm - 1)) continue;
+        return { room: r.id, rect: r.rect, wall: w.id, x: w.a[0], t: w.t, zm, cx: (r.rect[0] + r.rect[2]) / 2 };
+      }
+      return null;
+    });
+    assert(!!fr, `a Ground room with a clear west wall for the aiming steps (${JSON.stringify(fr)})`);
+
+    // the Light tool, the mouse over a ceiling area: the ghost sits at ceiling height before any click
+    await E(() => { const ed = window.__editor; ed.setLampFit('troffer-600'); ed.setTool('lamp'); });
+    await setPose(fr.cx, 1.6, fr.zm - 1.5, 0, -0.75);
+    const [mx, my] = await mouseCentre();
+    await page.waitForFunction(() => /m up/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const lg = await E(([mx, my]) => {
+      const ed = window.__editor;
+      const a = ed.mouseAim();
+      const g = a ? ed.lampGhost(a.p[0], a.p[1]) : null;
+      const l = g?.lamps?.[0];
+      const marks = ed.view.markMeshes.filter((m) => m.isEnabled()).map((m) => m.position.y);
+      const r = document.getElementById('reticle');
+      const floorHit = ed.view.planePoint(mx - document.getElementById('c').getBoundingClientRect().left, my - document.getElementById('c').getBoundingClientRect().top, ed.viewFloor());
+      return { surf: a?.surf, p: a?.p, ceil: a?.ceil, at: l?.at, oy: l?.params?.fixture?.oy ?? 0, marks, words: document.getElementById('reticleText').textContent, shown: !r.classList.contains('hidden'), left: r.style.left, floorHit, n: (ed.model.data.lamps ?? []).length, f: ed.viewFloor() };
+    }, [mx, my]);
+    await shot('fly-light-ghost-ceiling');
+    const ghostY = lg.at ? lg.f + lg.at[1] + lg.oy : NaN;
+    assert(lg.surf === 'ceiling' && !!lg.at && lg.at[1] > 2 && Math.abs(lg.at[1] - (lg.ceil - lg.f)) < 0.2 && lg.marks.some((y) => Math.abs(y - ghostY) < 0.02) && lg.shown && lg.left !== '' && /m up/.test(lg.words) && lg.floorHit === null, `Light tool, mouse over the ceiling: aim on the ${lg.surf} at ${JSON.stringify(lg.p)} (the floor plane is not even in view: ${JSON.stringify(lg.floorHit)}); the ghost at ${lg.at?.[1]} m up (ceiling ${(lg.ceil - lg.f).toFixed(2)}), its mark at ${ghostY.toFixed(2)} (${lg.marks.map((y) => y.toFixed(2)).join(', ')}); the words at the cursor ("${lg.words}")`);
+    await page.mouse.click(mx, my);
+    await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length > n, lg.n, { timeout: 5000 }).catch(() => {});
+    const placedL = await E(() => (window.__editor.model.data.lamps ?? []).at(-1));
+    assert(!!placedL && placedL.at[0] === lg.at[0] && placedL.at[2] === lg.at[2] && placedL.at[1] === lg.at[1], `a click places the light exactly where the ghost was (${JSON.stringify(placedL?.at)})`);
+    await E(() => window.__editor.undo());
+
+    // the Climb tool (downpipe), the mouse on a wall face: the ghost and the piece sit on the face, not inside
+    await E(() => { const ed = window.__editor; ed.setClimbKind('downpipe'); ed.setTool('climb'); });
+    await setPose(fr.x + fr.t / 2 + 2, 1.6, fr.zm, -Math.PI / 2, 0.15);
+    await mouseCentre();
+    await page.waitForFunction(() => /Downpipe/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const wg = await E(() => { const a = window.__editor.mouseAim(); return { surf: a?.surf, p: a?.p, words: document.getElementById('reticleText').textContent }; });
+    await shot('fly-climb-on-wall-face');
+    const n1 = await ex();
+    const [wx, wy] = await centre();
+    await page.mouse.click(wx, wy);
+    await page.waitForFunction((n) => (window.__editor.model.data.exterior ?? []).length > n, n1, { timeout: 5000 }).catch(() => {});
+    const dp = await E(() => (window.__editor.model.data.exterior ?? []).at(-1));
+    const face = fr.x + fr.t / 2;
+    assert(wg.surf === 'wall' && /Downpipe/.test(wg.words) && !!dp && dp.kind === 'downpipe' && Math.abs(dp.a[0] - (face + 0.06)) < 1e-6 && dp.wall === fr.wall, `Climb tool, mouse on the face of ${fr.wall}: aim on the ${wg.surf} at ${JSON.stringify(wg.p)} ("${wg.words}"); the click puts the downpipe on the face (x ${dp?.a?.[0]}, face ${face})`);
+    await E(() => window.__editor.undo());
+
+    // aimed at the wall's top from above (the pad): a lamp post is pushed out to the face; a fire escape is refused
+    await E(() => { const ed = window.__editor; ed.setClimbKind('lamp-post'); ed.setTool('climb'); });
+    await press(BTN.LB);
+    await setPose(fr.x, 12, fr.zm - 1, 0, 1.55);
+    await frames(page, 4);
+    await wait(250);
+    const n2 = await ex();
+    const aimTop = await E(() => window.__editor.aimCentre());
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.exterior ?? []).length > n, n2, { timeout: 5000 }).catch(() => {});
+    const lp = await E(() => (window.__editor.model.data.exterior ?? []).at(-1));
+    const off = lp ? Math.abs(lp.a[0] - fr.x) : NaN;
+    assert(aimTop?.surf === 'top' && Math.abs(aimTop.p[0] - fr.x) < 1e-6 && lp?.kind === 'lamp-post' && Math.abs(off - (fr.t / 2 + 0.075)) < 1e-3, `aimed at the top of ${fr.wall} (x ${aimTop?.p?.[0]}, ${aimTop?.surf}), a lamp post is pushed out to the face (${off.toFixed(3)} m off the wall line, wall ${fr.t} m)`);
+    await E(() => window.__editor.undo());
+    await E(() => { const ed = window.__editor; ed.setClimbKind('fire-escape'); ed.setTool('climb'); });
+    await frames(page, 2);
+    const n3 = await ex();
+    await press(BTN.A);
+    await setPose(fr.x, 12, fr.zm + 1, 0, 1.55);
+    await page.waitForFunction(() => /Inside a wall/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const inWords = await E(() => ({ words: document.getElementById('reticleText').textContent, bad: document.getElementById('reticle').classList.contains('bad') }));
+    await press(BTN.A);
+    await frames(page, 3);
+    const n4 = await ex();
+    assert(/Inside a wall/.test(inWords.words) && inWords.bad && n4 === n3 && /Inside a wall/.test((await st()).status), `a fire escape drawn along the wall line: the dot is red, "${inWords.words}"; A refuses it (${n3} -> ${n4} pieces, "${(await st()).status}")`);
+
+    // ---- PARITY START (Michael 2026-10-14: placing matches the ghost, slide and snap lamps, troffers, roofs on walls) ----
+    {
+      console.log('Parity (Michael 2026-10-14): a lamp under a lowered roof commits at the ghost; slide and snap a placed lamp; handles keep their size in a drag; troffers 600 x 300 / 1200 x 300 lit across the face; a roof sits on the walls');
+      // a lowered flat roof over the room (0.6 m under its ceiling)
+      const rf = await E((fr) => {
+        const ed = window.__editor;
+        const d = ed.model.data;
+        const lv = d.levels.find((l) => l.id === 'G');
+        const room = d.rooms.find((r) => r.id === fr.room);
+        const ceil = room.ceiling > 0 ? room.ceiling : lv.height - 0.3;
+        const roof = { id: 'RFT', level: 'G', rect: [...fr.rect], base: +(lv.floor + ceil - 0.6).toFixed(3), type: 'flat', fall: 1, fallsTo: 'S', edge: 'upstand', upstand: 0.3, overhang: 0, fascia: 0.2, material: 'membrane', colour: 'grey', gutter: false, downpipes: false };
+        ed.commitText('test: a lowered flat roof', [{ coll: 'roofs', id: 'RFT', before: null, after: roof }]);
+        return { base: roof.base, floor: lv.floor, ceil };
+      }, fr);
+      await E(() => { const ed = window.__editor; ed.select(null); ed.setLampFit('troffer-1200'); ed.setTool('lamp'); });
+      await press(BTN.LB);
+      await setPose(fr.cx, 1.6, fr.zm - 1.5, 0, -0.75);
+      await frames(page, 4);
+      await page.waitForFunction(() => /m up/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const pg = await E(() => {
+        const ed = window.__editor;
+        const a = ed.aimCentre();
+        const g = a ? ed.lampGhost(a.p[0], a.p[1]) : null;
+        return { surf: a?.surf, ceil: a ? a.ceil - ed.viewFloor() : null, at: g?.lamps?.[0]?.at ?? null, n: (ed.model.data.lamps ?? []).length };
+      });
+      await press(BTN.A);
+      await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length > n, pg.n, { timeout: 5000 }).catch(() => {});
+      const pl = await E(() => (window.__editor.model.data.lamps ?? []).at(-1));
+      const under = rf.base - 0.2 - rf.floor;
+      assert(pg.surf === 'ceiling' && !!pg.at && !!pl && pl.fixture === 'troffer-1200' && Math.abs(pl.at[1] - pg.at[1]) < 0.01 && pl.at[0] === pg.at[0] && pl.at[2] === pg.at[2] && pl.at[1] < under && Math.abs(pl.at[1] - (under - 0.15)) < 0.01, `a lamp aimed at a lowered roof's underside (${pg.surf}, ceiling ${pg.ceil?.toFixed(2)} m, underside ${under.toFixed(2)}) commits where the ghost was (ghost ${JSON.stringify(pg.at)}, placed ${JSON.stringify(pl?.at)})`);
+
+      // the placed lamp: A near it takes it (not the room); the left stick slides it; it snaps to a quarter line, LB frees it
+      await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+      // under it and a metre back, looking up at it
+      await setPose(pl.at[0], rf.floor + 1.0, pl.at[2] - 1, 0, -Math.atan2(pl.at[1] - 1.0, 1));
+      await frames(page, 4);
+      await page.waitForFunction(() => /take it and slide it/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const nearWords = await E(() => document.getElementById('reticleText').textContent);
+      await press(BTN.A);
+      const g0 = await E(() => { const ed = window.__editor; return { drag: ed.drag ? `${ed.drag.coll}:${ed.drag.id}` : null, sel: ed.selected }; });
+      await axes(1, 0);
+      await wait(500);
+      await axes(0, 0);
+      await frames(page, 4);
+      const moved = await E((id) => window.__editor.model.get('lamps', id).at, pl.id);
+      const cam = await pose();
+      // the raw point 0.07 m past the nearest quarter line along x: it snaps onto the line and shows its guide
+      const line = await E(([r, x]) => { const ls = [0.25, 0.5, 0.75].map((f) => +(r[0] + (r[2] - r[0]) * f).toFixed(3)); return ls.sort((a, b) => Math.abs(a - x) - Math.abs(b - x))[0]; }, [fr.rect, moved[0]]);
+      await E(([line, z]) => { const p = window.__editor.pad; const d = window.__editor.drag; p.offset = [line + 0.07 - d.start[0], z - d.start[1]]; }, [line, moved[2]]);
+      await frames(page, 4);
+      const sn = await E((id) => ({ at: window.__editor.model.get('lamps', id).at, guides: window.__editor.guides.length, px: window.__editor.view.handlePixels() }), pl.id);
+      await shot('lamp-slide-snap-guides');
+      await set(BTN.LB, 1);
+      await frames(page, 4);
+      const free = await E((id) => window.__editor.model.get('lamps', id).at, pl.id);
+      await set(BTN.LB, 0);
+      await frames(page, 4);
+      await press(BTN.A);
+      await frames(page, 3);
+      const fin = await E((id) => ({ l: window.__editor.model.get('lamps', id), drag: !!window.__editor.drag }), pl.id);
+      assert(/take it and slide it/.test(nearWords) && g0.drag === `lamps:${pl.id}` && g0.sel === `lamps:${pl.id}` && moved[0] - pl.at[0] > 0.3 && Math.abs(moved[2] - pl.at[2]) < 0.2 && Math.abs(cam.x - pl.at[0]) < 0.05 && Math.abs(moved[1] - pl.at[1]) < 1e-6, `A near the placed lamp takes it ("${nearWords}", ${g0.drag}); the left stick slides it on the roof underside (x ${pl.at[0]} -> ${moved[0]}, z ${pl.at[2]} -> ${moved[2]}, height kept ${moved[1]}), the camera stays (x ${cam.x.toFixed(2)})`);
+      assert(Math.abs(sn.at[0] - line) < 1e-6 && sn.guides >= 1 && sn.px.length > 0 && sn.px.every((v) => v > 8 && v < 16) && Math.abs(free[0] - line) > 0.04 && !fin.drag && Math.abs(fin.l.at[0] - line) < 1e-6 && Math.abs(fin.l.at[1] - pl.at[1]) < 1e-6 && fin.l.room === pl.room, `the lamp snaps to the quarter line x ${line} (${sn.at[0]}, ${sn.guides} guide lines; its handle ${sn.px.map((v) => v.toFixed(1)).join(', ')} px while held); LB held frees it (${free[0]}); A drops it there (${JSON.stringify(fin.l.at)}, ${fin.l.room})`);
+
+      // the roof's handles keep their size on screen while one is dragged (the mouse)
+      await E(() => { const ed = window.__editor; ed.select('roofs:RFT'); });
+      await setPose(fr.cx, rf.base + 9, fr.zm - 9, 0, 0.75);
+      await frames(page, 4);
+      // (the mouse takes over first: the screen's layout may change with the input)
+      await mouseCentre();
+      await frames(page, 4);
+      const hs = await E(() => { const ed = window.__editor; const h = ed.handlesFor().find((q) => q.id === 'W'); const sp = h ? ed.view.handleScreen('W') : null; const r = document.getElementById('c').getBoundingClientRect(); return sp ? [r.left + sp[0], r.top + sp[1]] : null; });
+      const hp0 = await E(() => window.__editor.view.handlePixels());
+      let hpMid = [];
+      if (hs) {
+        await page.mouse.move(hs[0], hs[1]);
+        await page.mouse.down();
+        await page.mouse.move(hs[0] - 40, hs[1] + 10, { steps: 6 });
+        await frames(page, 4);
+        hpMid = await E(() => window.__editor.view.handlePixels());
+        await page.mouse.up();
+        await frames(page, 3);
+      }
+      const hok = (a) => a.length >= 4 && a.every((v) => v > 8 && v < 16);
+      assert(!!hs && hok(hp0) && hok(hpMid), `a roof's handles keep about 12 px while one is dragged: before [${hp0.map((v) => v.toFixed(1)).join(', ')}], mid-drag [${hpMid.map((v) => v.toFixed(1)).join(', ')}]`);
+      const rAfter = await E(() => window.__editor.model.get('roofs', 'RFT').rect);
+      if (rAfter[0] !== fr.rect[0]) await E(() => window.__editor.undo());
+      await press(BTN.LB);
+
+      // troffer versions
+      const tv = await E(() => { const ed = window.__editor; const out = []; for (const id of ['troffer-600', 'troffer-1200']) { ed.setLampFit(id); const f = ed.fitting; out.push(`${f.name}|${f.body[0]}x${f.body[2]}`); } ed.setTool('select'); return out; });
+      assert(tv.join() === 'Troffer 600 x 300|0.6x0.3,Troffer 1200 x 300|1.2x0.3', `troffers come as 600 x 300 and 1200 x 300 (${tv.join(', ')})`);
+
+      // the 1200 troffer lights its whole face: the light view's own field near both ends is similar and not far under
+      // the middle (one point at the middle would leave the ends at about 0.6 of it)
+      await E(() => { const ed = window.__editor; ed.select(null); ed.setLightView(true); });
+      await page.waitForFunction(() => window.__editor.lights.on && window.__editor.lights.state === 'ready', null, { timeout: 180000 });
+      await setPose(fin.l.at[0] - 3, rf.floor + 1.2, fin.l.at[2] - 3, Math.PI / 4, -0.35);
+      await frames(page, 6);
+      const tf = await E((l) => {
+        const c = window.__editor.lights.cur;
+        const idx = c.ids.map((id, i) => (id === l.id ? i : -1)).filter((i) => i >= 0);
+        const fl = c.floor;
+        const y = fl + l.at[1] - 0.4;
+        const at = (x) => idx.reduce((s, i) => s + c.field.lampAt(i, x, y, l.at[2]), 0);
+        return { n: idx.length, mid: at(l.at[0]), a: at(l.at[0] - 0.5), b: at(l.at[0] + 0.5), xs: idx.map((i) => +c.reg.lights[i].x.toFixed(2)) };
+      }, fin.l);
+      await shot('troffer-1200-light-view');
+      const endR = Math.min(tf.a, tf.b) / Math.max(tf.mid, 1e-9);
+      assert(tf.n === 4 && tf.mid > 0 && Math.abs(tf.a - tf.b) / Math.max(tf.a, tf.b) < 0.15 && endR > 0.7, `a 1200 x 300 troffer lights its whole face: ${tf.n} light points at x ${tf.xs.join(', ')}; 0.4 m under it the ends read ${tf.a.toFixed(3)} and ${tf.b.toFixed(3)}, the middle ${tf.mid.toFixed(3)} (ends ${(endR * 100).toFixed(0)} % of the middle)`);
+      await E(() => window.__editor.setLightView(false));
+      // the lamp, its slide and the lowered roof go
+      await E(() => { const ed = window.__editor; ed.undo(); ed.undo(); ed.undo(); });
+      const gone = await E(() => !(window.__editor.model.data.roofs ?? []).some((r) => r.id === 'RFT'));
+      assert(gone, 'the test roof and lamp are undone');
+
+      // a roof drawn over the walls with the pad: the corner snaps to the west wall's outer face, the eaves at its top
+      const wall = await E((id) => { const d = window.__editor.model.data; const w = d.walls.find((q) => q.id === id); const lv = d.levels.find((l) => l.id === w.level); return { top: +(lv.floor + w.h).toFixed(3), x: w.a[0], t: w.t }; }, fr.wall);
+      await E(() => { const ed = window.__editor; ed.select(null); ed.roofTypeId = 'flat'; ed.setTool('roof'); });
+      const nr = await E(() => (window.__editor.model.data.roofs ?? []).length);
+      const ax = +(wall.x - wall.t / 2 + 0.1).toFixed(1);
+      await setPose(ax, wall.top + 6, fr.zm - 2, 0, 1.5707);
+      await frames(page, 4);
+      await page.waitForFunction(() => /wall top/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+      const startWords = await E(() => document.getElementById('reticleText').textContent);
+      const aimTop = await E(() => window.__editor.aimCentre());
+      await press(BTN.A);
+      await setPose(fr.cx, wall.top + 6, fr.zm + 2, 0, 1.5707);
+      await frames(page, 6);
+      await shot('roof-on-walls');
+      const ghost = await E(() => { const ed = window.__editor; const d = ed.drag; return d ? ed.model.get('roofs', d.id) : null; });
+      await press(BTN.A);
+      await frames(page, 3);
+      const roof = await E((n) => (window.__editor.model.data.roofs ?? []).length > n ? window.__editor.model.data.roofs.at(-1) : null, nr);
+      assert(aimTop?.surf === 'top' && /wall top/.test(startWords) && !!ghost && !!roof && Math.abs(roof.base - wall.top) < 1e-6 && Math.abs(roof.rect[0] - (wall.x - wall.t / 2)) < 1e-6 && roof.base === ghost.base && roof.rect.join() === ghost.rect.join(), `a roof drawn from the wall top (${aimTop?.surf}, "${startWords}") snaps its corner to the outer face (x ${roof?.rect?.[0]}, face ${wall.x - wall.t / 2}) and sits on the wall top (eaves ${roof?.base}, wall top ${wall.top}); committed as the ghost showed (${JSON.stringify(ghost?.rect)}, ${ghost?.base})`);
+      if (roof) await E(() => window.__editor.undo());
+      await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); });
+    }
+    // ---- PARITY END ----
+
+    await E(() => { const ed = window.__editor; ed.setTool('select'); const p = ed.pad; p.settings = { ...p.settings, camera: 'orbit' }; p.applySettings(); p.savePrefs(); ed.setLayout('both'); ed.setPreset(window.__pre0 ?? 'upTo'); });
+    await press(BTN.LB);
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
@@ -2562,6 +3957,12 @@ try {
   // ON8: the guard and the markers too, in the file's shapes (spawns as points, the extraction one object)
   const gd = playSaved?.guards?.[0];
   assert(gd?.id === 'GD1' && gd.closed === true && gd.loop.length === 4 && gd.cycle > 0 && !!gd.isolation && playSaved.spawns?.length === 1 && Array.isArray(playSaved.spawns[0]) && playSaved.spawns[0][2] === 'G' && playSaved.objectives?.[0]?.id === 'OBJ1' && playSaved.extraction?.rect?.join() === '10,20,16,24' && !('guards' in campusSaved) && !('spawns' in campusSaved), `ON8: the play file has guard ${gd?.id} (${gd?.loop?.length} stops, ${gd?.cycle} s), spawns ${JSON.stringify(playSaved?.spawns)}, ${playSaved?.objectives?.[0]?.id}, extraction ${JSON.stringify(playSaved?.extraction)}; the campus file none of them`);
+  // ON12: the devices go to the security file beside the campus file (zones and cards empty on its first save); the reader's door is in the campus file
+  const sandSec = path.join(sandbox, 'docs/kestrel/kestrel.security.json');
+  const secSaved = existsSync(sandSec) ? JSON.parse(readFileSync(sandSec, 'utf8')) : null;
+  const secKinds = (secSaved?.devices ?? []).map((d) => d.kind).sort().join(',');
+  const bridgeSaved = campusSaved.openings.find((o) => o.door?.reader === 'card' && o.door?.level === 2 && (o.between ?? []).includes('K-BRIDGE'));
+  assert(!!secSaved && secKinds === 'beam,camera,reader' && Array.isArray(secSaved.zones) && Array.isArray(secSaved.cards) && !('devices' in campusSaved) && !!bridgeSaved && bridgeSaved.locked === true && !existsSync(path.join(process.cwd(), 'docs/kestrel/kestrel.security.json')), `ON12: the save writes the sandbox security file (${secKinds}), the campus file none of them; the bridge door ${bridgeSaved?.id} saved with its reader and level 2`);
 } catch (e) {
 
   failed = true;

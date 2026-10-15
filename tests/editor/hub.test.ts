@@ -62,8 +62,8 @@ describe('hub tabs and rows', () => {
 
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
-    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Lighting: off', 'Darkness map: off', 'Lights preview: Normal', 'Guard paths: All guards', 'Bookmarks: save this view: undefined']);
-    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '0.1 m', '1.00x', '1.00x', 'Medium', '0.15', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
+    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Lighting: off', 'Darkness map: off', 'Lights preview: Normal', 'Guard paths: All guards', 'Security coverage: off', 'Ceiling voids: off', 'Moon and time: off', 'Bookmarks: save this view: undefined']);
+    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '0.1 m', '1.00x', '1.00x', 'Medium', '0.15', '1.00x', 'off', 'Normal', 'Last tab', 'on', 'Free fly']);
     expect(hubRows('Settings', input).map((x) => x.text).slice(1, 6)).toEqual(['Grid', 'Pan speed', 'Orbit speed', 'Smoothing', 'Dead zone']);
     expect(hubRows('Settings', input).find((x) => x.id === 'set.repeat')!.slider).toBeCloseTo((1 - 0.5) / 1.5);
     expect(hubRows('Help', input)).toEqual([]);
@@ -85,6 +85,9 @@ describe('pad settings', () => {
     expect(changeSetting(DEFAULT_SETTINGS, 'set.text', 1).textSize).toBe('large');
     expect(changeSetting(DEFAULT_SETTINGS, 'set.follow', 1).wallsFollow).toBe(false);
     expect(changeSetting(DEFAULT_SETTINGS, 'set.menuOpens', 1).menuOpens).toBe('build');
+    expect(DEFAULT_SETTINGS.camera).toBe('fly');
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.camera', 1).camera).toBe('orbit');
+    expect(changeSetting({ ...DEFAULT_SETTINGS, camera: 'orbit' }, 'set.camera', -1).camera).toBe('fly');
     expect(changeSetting(DEFAULT_SETTINGS, 'set.repeat', 1).repeatSpeed).toBe(1.25);
     let r = DEFAULT_SETTINGS;
     for (let i = 0; i < 10; i++) r = changeSetting(r, 'set.repeat', -1);
@@ -96,6 +99,10 @@ describe('pad settings', () => {
     expect(readSettings({ stickSpeed: 9, textSize: 'huge', invertTilt: 'yes', menuOpens: 'first', repeatSpeed: 5 })).toEqual(DEFAULT_SETTINGS);
     expect(readSettings({ menuOpens: 'build', repeatSpeed: 1.5 })).toEqual({ ...DEFAULT_SETTINGS, menuOpens: 'build', repeatSpeed: 1.5 });
     expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
+    // settings saved before the camera choice existed start in Free fly; a saved Orbit stays
+    expect(readSettings({ rumble: true, grid: 0.25 }).camera).toBe('fly');
+    expect(readSettings({ camera: 'orbit' }).camera).toBe('orbit');
+    expect(readSettings({ camera: 'spin' }).camera).toBe('fly');
     expect(readSettings({ grid: 0.3, deadZone: 0.9, smoothing: 'max', orbitSpeed: 0 })).toEqual(DEFAULT_SETTINGS);
     expect(readSettings({ grid: 0.5, deadZone: 0.25, smoothing: 'high', orbitSpeed: 1.5 })).toEqual({ ...DEFAULT_SETTINGS, grid: 0.5, deadZone: 0.25, smoothing: 'high', orbitSpeed: 1.5 });
   });

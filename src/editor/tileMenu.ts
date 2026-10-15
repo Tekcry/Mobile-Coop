@@ -9,7 +9,7 @@ import { CATALOGUE } from './openingCatalogue';
 import type { Motion } from './openingCatalogue';
 
 /** The Openings tiles' second line, by how the leaf moves. */
-const OPENING_DESC: Record<Motion, string> = { swing: 'Hinged leaf; A on a wall places one', double: 'Two hinged leaves; A on a wall', slide: 'Slides along a track; A on a wall', roll: 'Rolls up; A on a wall', none: 'A on a wall places one', hung: 'Opens out from the top; A on a wall', louvre: 'Tilting glass slats; A on a wall' };
+const OPENING_DESC: Record<Motion, string> = { swing: 'Hinged leaf, on a wall', double: 'Two hinged leaves', slide: 'Slides along a track', roll: 'Rolls up', none: 'Fixed, on a wall', hung: 'Opens out from the top', louvre: 'Tilting glass slats' };
 import { ROOM_OPTIONS } from './roomWalls';
 import { STAIR_TYPES } from './vertical';
 import { ROOF_TYPES } from './roofGeometry';
@@ -22,8 +22,10 @@ import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
 import type { LightGroup } from './lightCatalogue';
 import type { PresetFrom } from './presets';
 import { MISSION_TOOLS } from './missionCatalogue';
+import { SEC_TOOLS } from './securityCatalogue';
+import { SIGN_KINDS } from './signCatalogue';
 
-export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View'] as const;
+export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'Security', 'View'] as const;
 export type MenuTab = (typeof MENU_TABS)[number];
 /** go: A runs it; toggle: A or left / right flips it; cycle: steps a list; slider: A turns it on / off, left / right moves it. */
 export type TileKind = 'go' | 'toggle' | 'cycle' | 'slider';
@@ -36,6 +38,9 @@ export interface Tile {
   kind: TileKind;
   value?: string;
   on?: boolean;
+  /** ON15: a slider's place (0 to 1) and a marker on it (the hub draws them). */
+  frac?: number;
+  mark?: number;
   /** Greyed: A only says why. */
   disabled?: string;
 }
@@ -48,12 +53,14 @@ export interface MenuInput {
   view: ViewState;
   /** ON3: the number of things in a multi-selection (box select or Shift+click); its tiles replace the Selected tab's. */
   group?: number;
-  /** ON4: the Objects tab's group (its presets follow the group tiles). */
-  objGroup?: ObjGroup;
+  /** ON4: the Objects tab's group (its presets follow the group tiles); ON14: or Signs. */
+  objGroup?: ObjGroup | 'signs';
+  /** ON14: Align lines up on the first picked (else the outermost). */
+  alignFirst?: boolean;
   /** ON11: the Presets tab: the source shown, its presets, and the own preset Rename / Delete act on (the one last picked). */
   presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
-  /** ON6: the Lights tab's group (its fittings follow the group tiles and Switch). */
-  lightGroup?: LightGroup;
+  /** ON6: the Lights tab's group (its fittings), or the Switch and test group. */
+  lightGroup?: LightGroup | typeof LIGHT_TOOLS;
   /** ON8: a guard's patrol is playing (Selected: Stop patrol instead of Play patrol). */
   playing?: boolean;
 }
@@ -84,6 +91,12 @@ export interface ViewState {
   circuit?: string | null;
   /** ON8: the guard paths shown: every guard's, or only the selected guard's. */
   paths?: 'all' | 'selected';
+  /** ON12: the security coverage view. */
+  coverage?: boolean;
+  /** ON13: the ceiling voids view. */
+  voids?: boolean;
+  /** ON15: the Moon and time panel: on, and its rows' words (the time, bearing, height, brightness, whether the map uses it). */
+  night?: { on: boolean; time: string; frac: number; brief: number; bearing: string; height: string; brightness: string; used: boolean };
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -96,115 +109,167 @@ const onOff = (b: boolean): string => (b ? 'on' : 'off');
 /** The View items (the tile menu's View tab and the hub's View tab). */
 export function viewTiles(v: ViewState): Tile[] {
   return [
-    { id: 'view.layout', icon: 'V', name: 'Layout', desc: '3D, both side by side, or the plan', kind: 'cycle', value: LAYOUT_WORDS[v.layout] },
-    { id: 'view.ghost', icon: 'G', name: 'Ghost other levels', desc: 'Hidden levels drawn see-through', kind: 'toggle', on: v.ghost, value: onOff(v.ghost) },
-    { id: 'view.exploded', icon: 'X', name: 'Exploded', desc: 'Levels drawn apart; left / right sets the gap', kind: 'slider', on: v.exploded, value: v.exploded ? `${fmt(v.gap)} m gap` : 'off' },
-    { id: 'view.cut', icon: 'C', name: 'Cut walls at', desc: 'Walls drawn up to this height; left / right moves it', kind: 'slider', on: v.cut > 0, value: v.cut > 0 ? `${fmt(v.cut)} m` : 'off' },
-    { id: 'view.levels', icon: 'L', name: 'Levels shown', desc: 'Up to this level, single level, whole building', kind: 'cycle', value: PRESET_WORDS[v.preset] },
-    { id: 'view.building', icon: 'B', name: 'Building filter', desc: 'All, one building, or the site', kind: 'cycle', value: v.building === 'all' ? 'All' : v.building === 'site' ? 'Site' : `Building ${v.building}` },
-    { id: 'view.minimap', icon: 'M', name: 'Small plan', desc: 'A plan in the corner of 3D only', kind: 'toggle', on: v.minimap, value: onOff(v.minimap) },
+    { id: 'view.layout', icon: 'V', name: 'Layout', desc: '3D, both or plan', kind: 'cycle', value: LAYOUT_WORDS[v.layout] },
+    { id: 'view.ghost', icon: 'G', name: 'Ghost other levels', desc: 'Hidden levels see-through', kind: 'toggle', on: v.ghost, value: onOff(v.ghost) },
+    { id: 'view.exploded', icon: 'X', name: 'Exploded', desc: 'Levels drawn apart', kind: 'slider', on: v.exploded, value: v.exploded ? `${fmt(v.gap)} m gap` : 'off' },
+    { id: 'view.cut', icon: 'C', name: 'Cut walls at', desc: 'Walls cut to a height', kind: 'slider', on: v.cut > 0, value: v.cut > 0 ? `${fmt(v.cut)} m` : 'off' },
+    { id: 'view.levels', icon: 'L', name: 'Levels shown', desc: 'Which levels show', kind: 'cycle', value: PRESET_WORDS[v.preset] },
+    { id: 'view.building', icon: 'B', name: 'Building filter', desc: 'All, one or the site', kind: 'cycle', value: v.building === 'all' ? 'All' : v.building === 'site' ? 'Site' : `Building ${v.building}` },
+    { id: 'view.minimap', icon: 'M', name: 'Small plan', desc: 'Plan in the 3D corner', kind: 'toggle', on: v.minimap, value: onOff(v.minimap) },
     { id: 'view.labels', icon: 'T', name: 'Labels', desc: 'Room names on the plan', kind: 'toggle', on: v.labels, value: onOff(v.labels) },
-    { id: 'view.underlay', icon: 'U', name: 'Level below on the plan', desc: 'The floor under this one, faint', kind: 'toggle', on: v.underlay, value: onOff(v.underlay) },
-    { id: 'view.names', icon: 'N', name: 'Room names in 3D', desc: 'On each floor, fading out by 40 m (L)', kind: 'toggle', on: !!v.names, value: onOff(!!v.names) },
-    { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: 'A 1.75 m person and a crouch at the dot (K)', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
-    { id: 'view.stealth', icon: 'J', name: 'Stealth view', desc: 'Objects by what they give the player (J)', kind: 'toggle', on: !!v.stealth, value: onOff(!!v.stealth) },
-    { id: 'view.finish', icon: 'N', name: 'Finish view', desc: 'Floors tinted by finish, with a legend (N)', kind: 'toggle', on: !!v.finish, value: onOff(!!v.finish) },
+    { id: 'view.underlay', icon: 'U', name: 'Level below on the plan', desc: 'Floor below, faint', kind: 'toggle', on: v.underlay, value: onOff(v.underlay) },
+    { id: 'view.names', icon: 'N', name: 'Room names in 3D', desc: 'Names over each floor', kind: 'toggle', on: !!v.names, value: onOff(!!v.names) },
+    { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: '1.75 m person and crouch', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
+    { id: 'view.stealth', icon: 'J', name: 'Stealth view', desc: 'Objects by what they give', kind: 'toggle', on: !!v.stealth, value: onOff(!!v.stealth) },
+    { id: 'view.finish', icon: 'N', name: 'Finish view', desc: 'Floors tinted by finish', kind: 'toggle', on: !!v.finish, value: onOff(!!v.finish) },
     // ON7: the game's own light: night lighting in 3D, the darkness map, the lights preview modes
-    { id: 'view.light', icon: 'Y', name: 'Lighting', desc: "Night, lit by the game's light bake of this level (Y)", kind: 'toggle', on: !!v.light, value: onOff(!!v.light) },
-    { id: 'view.dark', icon: 'B', name: 'Darkness map', desc: 'Floor by the light meter: hidden, grey, lit (B)', kind: 'toggle', on: !!v.dark, value: onOff(!!v.dark) },
-    { id: 'view.lmode', icon: 'P', name: 'Lights preview', desc: 'Normal, mains off, switched off, motion on, shot out', kind: 'cycle', value: v.lmode ?? 'Normal' },
-    ...(v.lmode === 'Switched off' ? [{ id: 'view.circuit', icon: 'C', name: 'Circuit off', desc: 'Left / right picks the circuit', kind: 'cycle' as const, value: v.circuit ?? 'none' }] : []),
+    { id: 'view.light', icon: 'Y', name: 'Lighting', desc: 'Night, the game\'s light', kind: 'toggle', on: !!v.light, value: onOff(!!v.light) },
+    { id: 'view.dark', icon: 'B', name: 'Darkness map', desc: 'Floor by the light meter', kind: 'toggle', on: !!v.dark, value: onOff(!!v.dark) },
+    { id: 'view.lmode', icon: 'P', name: 'Lights preview', desc: 'Mains off, switched off, shot', kind: 'cycle', value: v.lmode ?? 'Normal' },
+    ...(v.lmode === 'Switched off' ? [{ id: 'view.circuit', icon: 'C', name: 'Circuit off', desc: 'Pick the circuit', kind: 'cycle' as const, value: v.circuit ?? 'none' }] : []),
     // ON8: every guard's patrol path, or only the selected guard's
-    { id: 'view.paths', icon: 'G', name: 'Guard paths', desc: 'Every guard, or only the selected one', kind: 'cycle', value: v.paths === 'selected' ? 'Selected guard' : 'All guards' },
+    { id: 'view.paths', icon: 'G', name: 'Guard paths', desc: 'All or the selected guard', kind: 'cycle', value: v.paths === 'selected' ? 'Selected guard' : 'All guards' },
+    // ON12: every camera cone and sensor fan of this level tinted, the unwatched floor clear
+    { id: 'view.coverage', icon: 'S', name: 'Security coverage', desc: 'Camera cones, sensor fans', kind: 'toggle', on: !!v.coverage, value: onOff(!!v.coverage) },
+    { id: 'view.voids', icon: 'V', name: 'Ceiling voids', desc: 'Green meets the crawl rule', kind: 'toggle', on: !!v.voids, value: onOff(!!v.voids) },
+    // ON15: the moon's direction, height and brightness, and the time of night (its rows show while it is on)
+    { id: 'view.night', icon: 'O', name: 'Moon and time', desc: 'Moon arrow and shadows', kind: 'toggle', on: !!v.night?.on, value: onOff(!!v.night?.on) },
+    ...(v.night?.on ? nightTiles(v.night) : []),
   ];
 }
 
+/** ON15: the Moon and time rows (left / right steps them; A on the time goes to the brief's night). */
+function nightTiles(n: NonNullable<ViewState['night']>): Tile[] {
+  return [
+    { id: 'view.ntime', icon: 'T', name: 'Time of night', desc: 'Dusk to dawn', kind: 'slider', on: true, value: n.time, frac: n.frac, mark: n.brief },
+    { id: 'view.nbear', icon: 'D', name: 'Moon bearing', desc: 'Compass, 5 degree steps', kind: 'cycle', value: n.bearing },
+    { id: 'view.nheight', icon: 'H', name: 'Moon height', desc: 'Degrees above the horizon', kind: 'cycle', value: n.height },
+    { id: 'view.nbright', icon: 'M', name: 'Moon brightness', desc: 'New to full', kind: 'cycle', value: n.brightness },
+    { id: 'view.nuse', icon: 'U', name: 'Use for the map', desc: 'Walk test and game', kind: 'go', value: n.used ? 'in use' : 'not yet' },
+  ];
+}
+
+/** ON14: what Mirror and Array take (a room brings its walls, doors and contents: arrange.ts). */
+const ARRANGE_COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'objects', 'signs', 'voids', 'stairs', 'ladders', 'lamps'];
+const mirrorTiles = (): Tile[] => [
+  { id: 'sel.mirrorX', icon: 'M', name: 'Mirror east-west', desc: 'About its own centre', kind: 'go' },
+  { id: 'sel.mirrorZ', icon: 'M', name: 'Mirror north-south', desc: 'About its own centre', kind: 'go' },
+  { id: 'sel.mirrorLine', icon: 'L', name: 'Mirror about a line', desc: 'Two points on the line', kind: 'go' },
+];
+const arrayTile: Tile = { id: 'sel.array', icon: 'Y', name: 'Array', desc: 'Copies along a line', kind: 'go' };
+const ALIGN_TILES: readonly [string, string][] = [
+  ['left', 'Align left (west)'],
+  ['right', 'Align right (east)'],
+  ['top', 'Align top (north)'],
+  ['bottom', 'Align bottom (south)'],
+  ['cx', 'Align centres (x)'],
+  ['cz', 'Align centres (z)'],
+];
+
 /** The tiles of one tab, in order. */
 export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
-  const copyFirst = inp.clipboard ? undefined : 'Copy something first (Selected > Copy)';
+  const copyFirst = inp.clipboard ? undefined : 'Copy something first';
   switch (tab) {
     case 'Selected': {
       if (inp.group)
         return [
-          { id: 'sel.move', icon: 'M', name: `Move ${inp.group} things`, desc: 'Grab them all at the dot, one edit', kind: 'go' },
-          { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Rooms, walls (with their doors) and floor holes', kind: 'go' },
-          { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up, one edit', kind: 'go' },
-          { id: 'sel.del', icon: 'X', name: `Delete ${inp.group} things`, desc: 'One edit; walls take their doors and windows', kind: 'go' },
-          { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'Name it; it shows under Presets > Mine', kind: 'go' },
+          { id: 'sel.move', icon: 'M', name: `Move ${inp.group} things`, desc: 'Grab them all', kind: 'go' },
+          { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Rooms, walls and holes', kind: 'go' },
+          { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, level up', kind: 'go' },
+          { id: 'sel.del', icon: 'X', name: `Delete ${inp.group} things`, desc: 'Walls take their doors', kind: 'go' },
+          { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'Shows under Presets, Mine', kind: 'go' },
+          // ON14: mirror, align, evenly space and Array the set (one undo step each)
+          ...mirrorTiles(),
+          ...ALIGN_TILES.map((a): Tile => ({ id: `sel.align.${a[0]}`, icon: 'A', name: a[1], desc: inp.alignFirst ? 'To the first picked' : 'To the outermost', kind: 'go' })),
+          { id: 'sel.alignFirst', icon: 'F', name: 'Align to', desc: 'Outermost or first picked', kind: 'toggle', on: !!inp.alignFirst, value: inp.alignFirst ? 'First picked' : 'Outermost' },
+          { id: 'sel.distX', icon: 'E', name: 'Evenly space along x', desc: 'Equal gaps, ends stay', kind: 'go', disabled: inp.group < 3 ? 'Select three or more' : undefined },
+          { id: 'sel.distZ', icon: 'E', name: 'Evenly space along z', desc: 'Equal gaps, ends stay', kind: 'go', disabled: inp.group < 3 ? 'Select three or more' : undefined },
+          arrayTile,
         ];
       const s = inp.sel;
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices' || s.coll === 'ceilings';
       // ON8: mission records are not duplicated (a fresh one is placed with its tool)
-      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'].includes(s.coll);
+      // ON12: nor are security devices (a reader binds one door)
+      // ON13: nor are ceilings (a room's own) and crawl spaces; a ceiling moves and is renamed with its room
+      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'ceilings', 'crawls'].includes(s.coll);
+      const own = s.coll !== 'ceilings';
       const t: (Tile | false)[] = [
         // ON8: a guard: its path, the patrol preview and the isolation point first
-        s.coll === 'guards' && { id: 'sel.path', icon: 'P', name: 'Edit path', desc: 'A adds stops, A on the first closes the loop, B ends', kind: 'go' },
-        s.coll === 'guards' && { id: 'sel.patrol', icon: 'W', name: inp.playing ? 'Stop patrol' : 'Play patrol', desc: 'A guard walks the loop at its speed (not saved)', kind: 'go' },
-        s.coll === 'guards' && { id: 'sel.alone', icon: 'I', name: 'Mark alone here', desc: 'The point of the loop nearest the dot (or where the patrol is now)', kind: 'go' },
-        s.coll === 'objectives' && { id: 'sel.requires', icon: 'N', name: 'Needs first', desc: 'A on other objectives: this needs them first; B ends', kind: 'go' },
-        s.coll === 'objectives' && { id: 'sel.unlocks', icon: 'O', name: 'Opens', desc: 'A on other objectives: this opens them; B ends', kind: 'go' },
-        { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
-        !mission && { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
-        turns && { id: 'sel.rotate', icon: 'R', name: 'Rotate 90', desc: 'A quarter turn', kind: 'go' },
-        copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste it from the Build tab', kind: 'go' },
-        copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
-        s.coll === 'rooms' && { id: 'sel.finish', icon: 'F', name: 'Floor finish', desc: "The card's Floor finish row: left / right", kind: 'go' },
-        s.coll === 'rooms' && { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'The room, its walls, doors and objects', kind: 'go' },
-        s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
-        s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
-        s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'The climb turns; the stair stays put', kind: 'go' },
+        s.coll === 'guards' && { id: 'sel.path', icon: 'P', name: 'Edit path', desc: 'Patrol stops, then close', kind: 'go' },
+        s.coll === 'guards' && { id: 'sel.patrol', icon: 'W', name: inp.playing ? 'Stop patrol' : 'Play patrol', desc: 'Walk the loop, unsaved', kind: 'go' },
+        s.coll === 'guards' && { id: 'sel.alone', icon: 'I', name: 'Mark alone here', desc: 'Point nearest the dot', kind: 'go' },
+        s.coll === 'objectives' && { id: 'sel.requires', icon: 'N', name: 'Needs first', desc: 'Objectives it needs', kind: 'go' },
+        s.coll === 'objectives' && { id: 'sel.unlocks', icon: 'O', name: 'Opens', desc: 'Objectives it opens', kind: 'go' },
+        own && { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it whole', kind: 'go' },
+        !mission && { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'Copy beside it', kind: 'go' },
+        turns && { id: 'sel.rotate', icon: 'R', name: 'Rotate 90', desc: 'Quarter turn', kind: 'go' },
+        copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste from Build', kind: 'go' },
+        copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, level up', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.finish', icon: 'F', name: 'Floor finish', desc: 'Floor finish row', kind: 'go' },
+        // ON13: the room's ceiling as a piece (type, height, hatches)
+        s.coll === 'rooms' && { id: 'sel.ceiling', icon: 'C', name: 'Ceiling', desc: 'Type, height and hatches', kind: 'go' },
+        s.coll === 'ceilings' && { id: 'sel.room', icon: 'R', name: 'Room', desc: 'Room under this ceiling', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'Room, walls, doors, objects', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'Line across the room', kind: 'go' },
+        s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'Smallest legal size', kind: 'go' },
+        s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'Climb turns, stair stays', kind: 'go' },
         // ON6: aim a flood or twin spot with the right stick; the circuit row; a switch takes more lamps
-        s.coll === 'lamps' && fittingOf(s.type)?.aimPitch !== undefined && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Right stick aims, A sets, B puts it back', kind: 'go' },
-        s.coll === 'lamps' && { id: 'sel.circuit', icon: 'C', name: 'Circuit', desc: "The card's Circuit row: left / right, or a new one", kind: 'go' },
+        s.coll === 'devices' && (s.type === 'camera' || s.type === 'pir') && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Turn where it looks', kind: 'go' },
+        s.coll === 'lamps' && fittingOf(s.type)?.aimPitch !== undefined && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Point the light', kind: 'go' },
+        s.coll === 'lamps' && { id: 'sel.circuit', icon: 'C', name: 'Circuit', desc: 'Pick or add one', kind: 'go' },
         // ON7: the light view with this lamp out (not saved)
-        s.coll === 'lamps' && s.breakable === true && { id: 'sel.shot', icon: 'O', name: 'Preview shot out', desc: 'The light view with this lamp out (not saved)', kind: 'go' },
-        s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'A on lamps puts them on this switch; B ends', kind: 'go' },
-        { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
-        types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
-        s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
-        { id: 'sel.props', icon: 'P', name: 'Properties', desc: 'Every field in the side panel', kind: 'go' },
-        { id: 'sel.del', icon: 'X', name: 'Delete', desc: 'A wall takes its doors and windows', kind: 'go' },
+        s.coll === 'lamps' && s.breakable === true && { id: 'sel.shot', icon: 'O', name: 'Preview shot out', desc: 'Light view, lamp out', kind: 'go' },
+        s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'Pick lamps for this switch', kind: 'go' },
+        // ON14: mirror and Array; name plates on every door of the room's level or building
+        ...(ARRANGE_COLLS.includes(s.coll) ? mirrorTiles() : []),
+        ARRANGE_COLLS.includes(s.coll) && s.coll !== 'openings' && arrayTile,
+        s.coll === 'rooms' && { id: 'sel.platesLevel', icon: 'N', name: 'Name plates: this level', desc: 'Every door on this level', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.platesBuilding', icon: 'N', name: 'Name plates: this building', desc: 'Every door, every level', kind: 'go' },
+        own && { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'References follow', kind: 'go' },
+        types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'Type row on the card', kind: 'go' },
+        s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'Meet the nearby wall', kind: 'go' },
+        { id: 'sel.props', icon: 'P', name: 'Properties', desc: 'Every field, side panel', kind: 'go' },
+        { id: 'sel.del', icon: 'X', name: 'Delete', desc: 'Walls take their doors', kind: 'go' },
       ];
       return t.filter((x): x is Tile => !!x);
     }
     case 'Build':
       return [
-        { id: 'select', icon: 'S', name: 'Select', desc: 'Pick, grab and move what the dot is on', kind: 'go' },
-        ...ROOM_OPTIONS.map((o): Tile => ({ id: `room.${o.id}`, icon: 'R', name: o.id === 'walls' ? 'Room with walls' : o.id === 'outside' ? 'Room with outside walls' : 'Room only', desc: 'A at one corner, A at the opposite one', kind: 'go' })),
-        { id: 'build.wall', icon: 'W', name: 'Wall', desc: 'A at one end, A at the other', kind: 'go' },
-        ...STAIR_TYPES.map((t): Tile => ({ id: `stair.${t.id}`, icon: 'S', name: t.id === 'main-straight' ? 'Straight stair' : `Stair: ${t.name}`, desc: 'A at the start corner, point the climb, A, A', kind: 'go' })),
-        { id: 'build.ladder', icon: 'L', name: 'Ladder', desc: 'A on a wall face: up to the level above', kind: 'go' },
-        { id: 'build.hole', icon: 'H', name: 'Floor hole', desc: 'A at one corner, A at the other', kind: 'go' },
+        { id: 'select', icon: 'S', name: 'Select', desc: 'Pick, grab and move', kind: 'go' },
+        ...ROOM_OPTIONS.map((o): Tile => ({ id: `room.${o.id}`, icon: 'R', name: o.id === 'walls' ? 'Room with walls' : o.id === 'outside' ? 'Room with outside walls' : 'Room only', desc: 'Two corners', kind: 'go' })),
+        { id: 'build.wall', icon: 'W', name: 'Wall', desc: 'End to end', kind: 'go' },
+        ...STAIR_TYPES.map((t): Tile => ({ id: `stair.${t.id}`, icon: 'S', name: t.id === 'main-straight' ? 'Straight stair' : `Stair: ${t.name}`, desc: 'Corner, then point the climb', kind: 'go' })),
+        { id: 'build.ladder', icon: 'L', name: 'Ladder', desc: 'Wall face, up a level', kind: 'go' },
+        { id: 'build.hole', icon: 'H', name: 'Floor hole', desc: 'Two corners', kind: 'go' },
+        // ON13: a crawl space in a ceiling void, from a hatch or vent to another
+        { id: 'build.crawl', icon: 'C', name: 'Crawl space', desc: 'Hatch or vent to another', kind: 'go' },
         // ON10: one Roof tile per type; A, A on the same spot takes the building (or room) under the dot
-        ...ROOF_TYPES.map((t): Tile => ({ id: `roof.${t.id}`, icon: 'R', name: `Roof: ${t.name}`, desc: 'A at two corners, or A twice on a building', kind: 'go' })),
-        { id: 'build.measure', icon: 'M', name: 'Measure', desc: 'A at one point, A at the other', kind: 'go' },
-        { id: 'build.paste', icon: 'P', name: 'Paste', desc: 'At the dot, on this level', kind: 'go', disabled: copyFirst },
-        { id: 'build.pasteUp', icon: 'P', name: 'Paste to level above', desc: 'Same spot, one level up', kind: 'go', disabled: copyFirst },
+        ...ROOF_TYPES.map((t): Tile => ({ id: `roof.${t.id}`, icon: 'R', name: `Roof: ${t.name}`, desc: 'Two corners, or a building', kind: 'go' })),
+        { id: 'build.measure', icon: 'M', name: 'Measure', desc: 'Point to point', kind: 'go' },
+        { id: 'build.paste', icon: 'P', name: 'Paste', desc: 'At the dot', kind: 'go', disabled: copyFirst },
+        { id: 'build.pasteUp', icon: 'P', name: 'Paste to level above', desc: 'Same spot, level up', kind: 'go', disabled: copyFirst },
       ];
     case 'Openings':
       // ON9: every door and window type of the catalogue, doors first
       return CATALOGUE.map((c): Tile => ({ id: c.id === 'window' ? 'build.window' : `${c.family}.${c.id}`, icon: c.family === 'window' ? 'W' : 'D', name: c.name, desc: OPENING_DESC[c.motion], kind: 'go' }));
     case 'Objects': {
-      // ON4: the five groups first (A changes the group, the menu stays), then that group's presets
+      // ON4: the group is a tab on the group row (Michael 2026-10-14); the tiles are its objects, or ON14's signs
       const g = inp.objGroup ?? 'dataHall';
-      return [
-        ...GROUPS.map((q): Tile => ({ id: `objgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its objects', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
-        ...groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'A at the start, A at the end' : p.mount === 'wall' ? 'A on a wall; RB turns' : 'A places it; RB turns', kind: 'go' })),
-      ];
+      if (g === 'signs') return SIGN_KINDS.map((k): Tile => ({ id: `sign.${k.id}`, icon: k.group === 'way' ? 'W' : 'S', name: k.name, desc: k.mount === 'wall' ? 'On a wall face' : 'On a wall, or hung', kind: 'go' }));
+      return groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'Start to end' : p.mount === 'wall' ? 'On a wall' : 'Place and turn', kind: 'go' }));
     }
     case 'Presets': {
-      // ON11: the three sources first (A shows that list, the menu stays), then its presets (A picks the Stamp tool)
+      // ON11: the source is a tab on the group row; its presets (A picks the Stamp tool); Mine adds Rename and Delete
       const ps = inp.presets ?? { from: 'start' as PresetFrom, list: [], mine: null };
-      const pickFirst = ps.mine ? undefined : 'Pick one of your presets first (A on it), then come back';
+      const pickFirst = ps.mine ? undefined : 'Pick one of yours first';
       return [
-        ...PRESET_FROMS.map((q): Tile => ({ id: `presetfrom.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its presets', kind: 'toggle', on: q.id === ps.from, value: q.id === ps.from ? 'shown' : '' })),
         ...(ps.from === 'mine'
           ? [
-              { id: 'mine.rename', icon: 'I', name: ps.mine ? `Rename ${ps.mine.name}` : 'Rename a preset', desc: 'The name list and keyboard', kind: 'go', disabled: pickFirst } as Tile,
-              { id: 'mine.delete', icon: 'X', name: ps.mine ? `Delete ${ps.mine.name}` : 'Delete a preset', desc: 'Gone from the file at the next Save', kind: 'go', disabled: pickFirst } as Tile,
+              { id: 'mine.rename', icon: 'I', name: ps.mine ? `Rename ${ps.mine.name}` : 'Rename a preset', desc: 'Name list and keyboard', kind: 'go', disabled: pickFirst } as Tile,
+              { id: 'mine.delete', icon: 'X', name: ps.mine ? `Delete ${ps.mine.name}` : 'Delete a preset', desc: 'Gone at the next Save', kind: 'go', disabled: pickFirst } as Tile,
             ]
           : []),
         ...ps.list.map((p): Tile => ({ id: `preset.${p.id}`, icon: 'S', name: p.name, desc: p.desc, kind: 'go' })),
@@ -214,28 +279,77 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       // ON5: climb pieces and exterior features (the catalogue's order)
       return CLIMB_PIECES.map((c): Tile => ({ id: `climb.${c.id}`, icon: c.place === 'draw' ? 'R' : c.place === 'point' ? 'O' : 'W', name: c.name, desc: c.desc, kind: 'go' }));
     case 'Lights': {
-      // ON6: the five groups and Switch first (a group tile shows its fittings, the menu stays), then the group's fittings
+      // ON6: the group is a tab on the group row (Michael 2026-10-14); the tiles are its fittings only. Switch and Guard
+      // view are the "Switch and test" group
       const g = inp.lightGroup ?? 'interior';
-      return [
-        ...LIGHT_GROUPS.map((q): Tile => ({ id: `lightgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its fittings', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
-        { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'A on a wall face, then A on its lamps', kind: 'go' },
-        // ON7: the guard view tester (not saved)
-        { id: 'guard.view', icon: 'E', name: 'Guard view', desc: 'A places a guard eye; red seen at once, amber slowly', kind: 'go' },
-        ...groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'A at the start, A at the end' : f.mount === 'wall' ? 'A on a wall face' : f.mount === 'sign' ? 'A over a door' : f.mount === 'desk' || f.mount === 'object' ? `A on a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'A places it; RB turns', kind: 'go' })),
-      ];
+      if (g === LIGHT_TOOLS)
+        return [
+          { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'Wall, then pick lamps', kind: 'go' },
+          // ON7: the guard view tester (not saved)
+          { id: 'guard.view', icon: 'E', name: 'Guard view', desc: 'What a guard sees', kind: 'go' },
+        ];
+      return groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'Start to end' : f.mount === 'wall' ? 'On a wall face' : f.mount === 'sign' ? 'Over a door' : f.mount === 'desk' || f.mount === 'object' ? `On a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'Place and turn', kind: 'go' }));
     }
     case 'View':
       return viewTiles(inp.view);
     case 'Mission':
       // ON8: the guard and the mission markers (the play file's records)
       return MISSION_TOOLS.map((m): Tile => ({ id: `mission.${m.id}`, icon: m.name[0]!, name: m.name, desc: m.desc, kind: 'go' }));
+    case 'Security':
+      // ON12: cameras, readers, sensors and beams (the security file's records)
+      return SEC_TOOLS.map((t): Tile => ({ id: `security.${t.id}`, icon: t.name[0]!, name: t.name, desc: t.desc, kind: 'go' }));
     default:
       return [];
   }
 }
 
 /** The tabs that show: those with tiles (Selected first, only with a selection). */
-export const menuTabs = (inp: MenuInput): MenuTab[] => MENU_TABS.filter((t) => menuTiles(t, inp).length > 0);
+export const menuTabs = (inp: MenuInput): MenuTab[] => MENU_TABS.filter((t) => menuTiles(t, inp).length > 0 || menuGroups(t).length > 0);
+
+/** The Lights tab's group for Switch and Guard view (not a fitting group). */
+export const LIGHT_TOOLS = 'tools';
+
+/** One tab of the group row (Michael 2026-10-14); its id is the action that shows the group (`objgroup.dataHall`). */
+export interface MenuGroup {
+  id: string;
+  name: string;
+}
+
+/** A tab's group row, in order (empty: the tab has no groups and the row is left blank). */
+export function menuGroups(tab: MenuTab): MenuGroup[] {
+  switch (tab) {
+    case 'Objects':
+      return [...GROUPS.map((g) => ({ id: `objgroup.${g.id}`, name: g.name })), { id: 'objgroup.signs', name: 'Signs' }];
+    case 'Presets':
+      return PRESET_FROMS.map((g) => ({ id: `presetfrom.${g.id}`, name: g.name }));
+    case 'Lights':
+      return [...LIGHT_GROUPS.map((g) => ({ id: `lightgroup.${g.id}`, name: g.name })), { id: `lightgroup.${LIGHT_TOOLS}`, name: 'Switch and test' }];
+    default:
+      return [];
+  }
+}
+
+/** The group a tab shows now (its id), or null on a tab with no groups. */
+export function menuGroup(tab: MenuTab, inp: MenuInput): string | null {
+  switch (tab) {
+    case 'Objects':
+      return `objgroup.${inp.objGroup ?? 'dataHall'}`;
+    case 'Presets':
+      return `presetfrom.${inp.presets?.from ?? 'start'}`;
+    case 'Lights':
+      return `lightgroup.${inp.lightGroup ?? 'interior'}`;
+    default:
+      return null;
+  }
+}
+
+/** LT / RT with the menu open: the previous / next group of the tab (wrapping), or null on a tab with no groups. */
+export function stepGroup(tab: MenuTab, inp: MenuInput, dir: 1 | -1): string | null {
+  const gs = menuGroups(tab);
+  if (!gs.length) return null;
+  const i = Math.max(0, gs.findIndex((g) => g.id === menuGroup(tab, inp)));
+  return gs[(i + dir + gs.length) % gs.length]!.id;
+}
 
 /** Grid navigation with wrap: left / right through the list, up / down by a row (same column, wrapping). */
 export function gridMove(i: number, n: number, cols: number, dx: number, dy: number): number {
@@ -259,7 +373,13 @@ export class TileMenu {
   isOpen = false;
   tab: MenuTab = 'Build';
   index = 0;
-  private readonly last = new Map<MenuTab, number>();
+  /** The highlight per tab and group ("Lights|lightgroup.outside"). */
+  private readonly last = new Map<string, number>();
+  private shownKey = '';
+
+  private keyOf(t: MenuTab, inp: MenuInput): string {
+    return `${t}|${menuGroup(t, inp) ?? ''}`;
+  }
 
   /** Opens on the last tab (or Build when `opens` is 'build', or when the last tab is not shown now). */
   open(inp: MenuInput, opens: 'last' | 'build' = 'last'): void {
@@ -274,10 +394,16 @@ export class TileMenu {
   }
 
   setTab(t: MenuTab, inp: MenuInput): void {
-    this.last.set(this.tab, this.index);
+    if (this.shownKey) this.last.set(this.shownKey, this.index);
     this.tab = t;
+    this.shownKey = this.keyOf(t, inp);
     const n = menuTiles(t, inp).length;
-    this.index = Math.min(this.last.get(t) ?? 0, Math.max(0, n - 1));
+    this.index = Math.min(this.last.get(this.shownKey) ?? 0, Math.max(0, n - 1));
+  }
+
+  /** After the caller changed the tab's group: the highlight that group had last (the old group's is kept). */
+  groupChanged(inp: MenuInput): void {
+    this.setTab(this.tab, inp);
   }
 
   /** LB / RB: the next shown tab, wrapping. */
@@ -293,7 +419,8 @@ export class TileMenu {
     const n = menuTiles(this.tab, inp).length;
     const list = LIST_TABS.includes(this.tab);
     this.index = gridMove(this.index, n, list ? 1 : cols, list ? 0 : dx, dy);
-    this.last.set(this.tab, this.index);
+    this.shownKey = this.keyOf(this.tab, inp);
+    this.last.set(this.shownKey, this.index);
   }
 
   /** The highlighted tile. */

@@ -5,6 +5,9 @@
  */
 import type { Campus, Coll, Elem, Key } from './types';
 import { keyOf } from './types';
+import type { Room } from './types';
+import { applyCeiling, ceilingOf } from './ceilings';
+import type { Ceiling } from './ceilings';
 
 export interface Change {
   coll: Coll;
@@ -59,6 +62,8 @@ export class EditorModel {
   }
 
   list(coll: Coll): Elem[] {
+    // ON13: a ceiling is its room's ceiling fields (never a list in the file)
+    if (coll === 'ceilings') return this.data.rooms.map(ceilingOf);
     if (coll === 'buildings') return (this.data.meta.buildings as Elem[] | undefined) ?? [];
     return (this.data[coll] as Elem[] | undefined) ?? [];
   }
@@ -126,6 +131,16 @@ export class EditorModel {
   /** The file text as last loaded or saved (the walk test's warm game compares against the text it was built from). */
   get savedFileText(): string {
     return this.savedText;
+  }
+
+  /**
+   * ON15: one `meta` field set (the map's own night): unsaved until Save, written in the change log; not an undo step
+   * (setting it again with other values, or the file as saved, puts it back).
+   */
+  setMeta(key: string, value: unknown, text: string): void {
+    this.data.meta[key] = clone(value);
+    this.journal.push({ time: this.now().toISOString(), action: 'edit', text, changes: [] });
+    this.emit([]);
   }
 
   /** Applies a change's `after` without recording it (live preview while dragging). The final commit records it. */
@@ -297,13 +312,22 @@ export class EditorModel {
   }
 
   private put(coll: Coll, id: string, e: Elem): void {
+    if (coll === 'ceilings') return this.putCeiling(id, e as Ceiling);
     const a = this.arr(coll);
     const i = a.findIndex((x) => x.id === id);
     if (i >= 0) a[i] = e;
     else a.push(e);
   }
 
+  /** ON13: a ceiling written back into its room (removing one leaves the room with no ceiling). */
+  private putCeiling(id: string, c: Ceiling | null): void {
+    this.version++;
+    const r = this.data.rooms.find((q) => q.id === id) as Room | undefined;
+    if (r) applyCeiling(r, c ?? { ...ceilingOf(r), ceiling: 0, ceilingType: undefined, hatches: undefined });
+  }
+
   private insert(coll: Coll, e: Elem, index?: number): void {
+    if (coll === 'ceilings') return this.putCeiling(e.id, e as Ceiling);
     const a = this.arr(coll);
     if (a.some((x) => x.id === e.id)) return this.put(coll, e.id, e);
     if (index !== undefined && index >= 0 && index <= a.length) a.splice(index, 0, e);
@@ -311,6 +335,7 @@ export class EditorModel {
   }
 
   private remove(coll: Coll, id: string): void {
+    if (coll === 'ceilings') return this.putCeiling(id, null);
     const a = this.arr(coll);
     const i = a.findIndex((x) => x.id === id);
     if (i >= 0) a.splice(i, 1);

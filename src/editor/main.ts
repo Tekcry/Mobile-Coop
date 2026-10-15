@@ -40,7 +40,7 @@ import type { ProblemSpot } from './overlays';
 import { FindBox } from './findView';
 import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
 import type { StairTypeId } from './vertical';
-import { defaultBase, footprintAt, newRoof, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
+import { defaultBase, footprintAt, newRoof, ridgeHandle, roofCornerSnap, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
 import type { RoofType } from './roofGeometry';
 import { aisleOf, newObject, stealthTint, objectId, placeObject, rowCount, rowRect, turnObject } from './objects';
 import { GROUPS, groupName, presetOf, PRESETS } from './catalogue';
@@ -49,25 +49,53 @@ import { drawPiece, extId, movePiece, pieceLen, pieceName, pieceWords, placePiec
 import { FINISHES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { finishLegend, loudWords } from './finishes';
-import { circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
+import { ceilingOver, ceilingSurface, circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch, slideLamp, withParams } from './lamps';
+import { snapSlide } from './mount';
 import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './lamps';
 import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
 import { LightView } from './lightView';
 import { LIGHT_MODES, modeName, modeWords, type LightMode } from './lightPreview';
+import { bearingWords, BRIEF_FRAC, briefNight, brightnessName, nightWords, panelNight, sameNight, stepNight, timeFrac, timeWords, type NightRow } from './night';
+import { readNight, type NightSetting } from '../world/maps/kestrelNight';
+import type { ViewState } from './tileMenu';
 import type { Fitting, LightGroup } from './lightCatalogue';
 import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
 import { MissionTool } from './missionTool';
+import { SecurityTool } from './securityTool';
+import { CrawlTool } from './crawlTool';
+import { ArrangeTool } from './arrangeTool';
+import { SignTool } from './signTool';
+import { isDoor, moveSign, walkPanels } from './signs';
+import type { SignRecord } from './signs';
+import { ceilingWords, CRAWL_RULE } from './ceilings';
+import type { Ceiling, CrawlRecord } from './ceilings';
+import { hyp2 } from '../core/mathx';
+import facts from '../../scripts/kestrel/facts.json';
+import { aimPoint } from './aim';
+import { FLY } from './fly';
+import type { Aim } from './aim';
+import { clearOfWalls, INSIDE_WALL, pointFoot, rectFoot, segFoot, wallSolids } from './wallClear';
+import type { Foot } from './wallClear';
+import { canLift, cornerPt, cornerResize, CORNERS, GROWS, growElem, heightWords, HELD, HANDLE_PX, isVert, liftElem, nearestCorner, nearestEnd, planHandleUnits, VERT_BOT, VERT_TOP, vertResize } from './held';
+import type { VSide } from './held';
+import type { Corner } from './held';
+import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
+import type { Beam, Device, SecData, SecurityFile } from './security';
 import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission, withCycle } from './mission';
 import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security' | 'crawl' | 'arrange' | 'sign';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
+/** Michael 2026-10-14: the collections the wall rule checks (wallClear.ts). */
+const WALL_COLLS: ReadonlySet<Coll> = new Set<Coll>(['objects', 'exterior', 'lamps', 'devices', 'signs']);
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** Status messages written for the keyboard and mouse (the pad's toast skips them). */
+const KEY_WORDS = /\b(click|drag|Esc|Ctrl|Shift|Space|Page Up|keys?|mouse|wheel|Tab|Delete|Backspace)\b/i;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 
@@ -117,16 +145,20 @@ function loadBookmarks(): Bookmark[] {
 /** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
 export type PlanShape = LiveShape | { kind: 'ring'; p: Pt };
 
-async function loadFile(): Promise<{ data: Campus; text: string; mtime: number; play: PlayData | null; playText: string }> {
+async function loadFile(): Promise<{ data: Campus; text: string; mtime: number; play: PlayData | null; playText: string; sec: SecurityFile | null; secText: string }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
   if (!res.ok) throw new Error(`could not load the campus file (${res.status})`);
   // ON6: the play file's lamps and circuits join the campus data while editing (one document; playFile.ts)
   const pr = await fetch('/__editor/play', { cache: 'no-store' });
   const pText = pr.ok ? await pr.text() : '';
   const play = pText.startsWith('{') ? (JSON.parse(pText) as PlayData) : null;
-  const data = joinPlay(JSON.parse(await res.text()) as Campus, play);
-  const mtime = Math.max(Number(res.headers.get('x-mtime') ?? 0), Number(pr.headers.get('x-mtime') ?? 0));
-  return { data, text: campusText(data), mtime, play, playText: play ? pText : '' };
+  // ON12: the security file's devices join it too (security.ts)
+  const sr = await fetch('/__editor/security', { cache: 'no-store' });
+  const sText = sr.ok ? await sr.text() : '';
+  const sec = sText.startsWith('{') ? (JSON.parse(sText) as SecurityFile) : null;
+  const data = joinSecurity(joinPlay(JSON.parse(await res.text()) as Campus, play), sec);
+  const mtime = Math.max(Number(res.headers.get('x-mtime') ?? 0), Number(pr.headers.get('x-mtime') ?? 0), Number(sr.headers.get('x-mtime') ?? 0));
+  return { data, text: campusText(data), mtime, play, playText: play ? pText : '', sec, secText: sec ? sText : '' };
 }
 
 async function boot(): Promise<void> {
@@ -134,7 +166,10 @@ async function boot(): Promise<void> {
   const ed = new Editor(f.data);
   ed.playBase = f.play;
   ed.playLoaded = f.playText;
+  ed.secBase = f.sec;
+  ed.secLoaded = f.secText;
   void ed.stamp.load();
+  ed.migrateLamps();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
   try {
@@ -161,12 +196,25 @@ interface Drag {
   isNew: boolean;
   /** Walls follow rooms (ED3-3a): the linked changes now previewed (befores are the data at the drag's start). */
   linked?: Change[];
-  /** Why the linked edit cannot be done at this spot, if it cannot. */
+  /** Why the linked edit cannot be done at this spot, if it cannot (or "Inside a wall": the wall rule). */
   refused?: string;
+  /** The held piece was inside a wall before it was taken (old data): the wall rule leaves it be. */
+  inWall?: boolean;
   /** Words of the last linked preview (moved, stretched, neighbours). */
   linkedText?: string;
   /** The rect and setting the linked preview was made for (the work is skipped while they do not change). */
   linkedKey?: string;
+  /** Fix-up 2026-10-14: Move or Resize (Y on the pad, T on the keyboard); the element when the mode last changed. */
+  mode?: 'move' | 'resize';
+  base?: Elem;
+  /** Added to the pointer (a Resize switch puts the dot on the corner it moves); the last pointer, with it. */
+  off?: Pt;
+  last?: Pt;
+  /** Raised (Move) or taller (Resize) by this many metres since the mode last changed (one undo step on the drop). */
+  lift?: number;
+  grow?: number;
+  /** Michael 2026-10-14: a top or bottom handle moved up (+) or down (-) this many metres (one undo step on the drop). */
+  vdy?: number;
 }
 
 export class Editor {
@@ -221,7 +269,7 @@ export class Editor {
   roofTypeId: RoofType = 'gable';
   /** ON4: the Object tool's preset and group (Objects tab, D-pad left / right with the tool) and the ghost's quarter turns. */
   objPresetId = 'rack-row';
-  objGroup: ObjGroup = 'dataHall';
+  objGroup: ObjGroup | 'signs' = 'dataHall';
   objYaw = 0;
   /** ON6: the Light tool's fitting ('switch': Light > Switch), its group, the ghost's quarter turns, and the circuit A on
    *  lamps adds to after a switch is placed (B ends). */
@@ -232,6 +280,16 @@ export class Editor {
   /** ON6: the play file as loaded (its other collections are kept on save) and its text then (null / '': none yet). */
   playBase: PlayData | null = null;
   playLoaded = '';
+  /** ON12: the security file as loaded (its zones and cards are kept on save) and its text then. */
+  secBase: SecurityFile | null = null;
+  secLoaded = '';
+  /** ON12: the Security tool (cameras, readers, sensors, beams) and the coverage view. */
+  readonly security: SecurityTool;
+  /** ON13: the Crawl space tool and the ceiling voids view. */
+  readonly crawl: CrawlTool;
+  /** ON14: mirror about a line and Array (the Arrange tool), align, evenly space, auto plates; the Sign tool. */
+  readonly arrange: ArrangeTool;
+  readonly signTool: SignTool;
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
@@ -259,7 +317,9 @@ export class Editor {
       for (const x of ch)
         if (x.coll === 'objectives' && x.before && !x.after)
           for (const o of dropObjectiveRefs((d.objectives ?? []) as Objective[], x.id)) if (!ch.some((y) => y.coll === 'objectives' && y.id === o.id)) c.push({ coll: 'objectives', id: o.id, before: (d.objectives ?? []).find((q) => q.id === o.id) as Elem, after: o as Elem });
-      return b.length || c.length ? [...a, ...b, ...c] : a;
+      // ON12: a reader keeps its door's reader, card level and lock in step; a deleted door leaves its readers
+      const r = readerLink(d as unknown as SecData, ch);
+      return b.length || c.length || r.length ? [...a, ...b, ...c, ...r] : a;
     };
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
@@ -267,7 +327,14 @@ export class Editor {
     this.lights = new LightView(this);
     this.mission = new MissionTool(this);
     this.view.mission = this.mission;
+    this.security = new SecurityTool(this);
+    this.crawl = new CrawlTool(this);
+    this.arrange = new ArrangeTool(this);
+    this.signTool = new SignTool(this);
+    this.view.security = this.security;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
+    // Free fly (Michael 2026-10-14): the wheel sets the fly speed
+    this.controls.onFlySpeed = (v) => this.status(`Fly speed ${fmt(v)} m/s (mouse wheel; Shift for ${fmt(v * FLY.FAST)})`);
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
     if (this.view.vis.building !== 'all' && this.view.vis.building !== 'site' && !data.meta.buildings?.some((b) => b.id === this.view.vis.building)) this.view.vis.building = 'all';
@@ -331,6 +398,7 @@ export class Editor {
     if (coll === 'lamps') return lampLevel(this.model.data, e as Lamp);
     if (coll === 'circuits') return circuitLevel(this.model.data, e as Circuit);
     if (isMission(coll)) return missionLevel(coll, e);
+    if (coll === 'devices') return (e as unknown as Device).level;
     return (e as Room).level;
   }
 
@@ -377,12 +445,27 @@ export class Editor {
       return sw ? [sw.at[0], sw.at[2]] : [0, 0];
     }
     if (isMission(coll)) return missionCentre(coll, e);
+    if (coll === 'devices') return deviceCentre(e as unknown as Device);
+    if (coll === 'signs') return (e as SignRecord).at;
+    if (coll === 'crawls') {
+      const p = (e as CrawlRecord).path;
+      return p.length ? [(p[0]![0] + p[p.length - 1]![0]) / 2, (p[0]![1] + p[p.length - 1]![1]) / 2] : [0, 0];
+    }
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
 
+  private toastAt = 0;
   status(text: string): void {
     $('status').textContent = text;
+    // fix-up 2026-10-14: on the controller the status line is hidden; a message shows for a moment at the top right
+    // (keyboard and mouse words never show there: those messages stay in the hidden line)
+    if (this.pad?.device !== 'pad' || KEY_WORDS.test(text)) return;
+    const t = $('padToast');
+    t.textContent = text;
+    t.classList.remove('hidden');
+    clearTimeout(this.toastAt);
+    this.toastAt = window.setTimeout(() => t.classList.add('hidden'), 3000);
   }
 
   // ---------- model changes ----------
@@ -398,9 +481,13 @@ export class Editor {
     } else this.view.refresh(keys);
     // ON7: a lamp being edited shows its quick light; the exact bake follows; new meshes take the lit materials
     // (ON8: guards and markers are not building: no rebake)
-    const lk = keys.filter((k) => !MissionTool.isMissionKey(k));
+    // (ON12: nor are security devices: their cells are worked out again on the bake that is there)
+    const lk = keys.filter((k) => !MissionTool.isMissionKey(k) && !k.startsWith('devices:'));
     if (lk.length) this.lights.changed(lk);
+    else if (keys.some((k) => k.startsWith('devices:'))) this.lights.refreshSecurity();
     this.lights.swap();
+    // ON13: the voids legend follows the rooms and ceilings
+    if (this.crawl.voids && keys.some((k) => k.startsWith('rooms:') || k.startsWith('ceilings:') || k.startsWith('levels:'))) this.voidLegend();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
       const alive = this.group.filter((k) => {
@@ -433,6 +520,8 @@ export class Editor {
     // ON8: with only the selected guard's path shown, a new selection redraws the guards
     if (this.mission.paths === 'selected' && was !== key && (was?.startsWith('guards:') || key?.startsWith('guards:'))) this.view.refreshGuards();
     this.view.setSelected(key);
+    // ON12: a selected camera or sensor shows what it sees (the light view's cells)
+    if (was !== key && (was?.startsWith('devices:') || key?.startsWith('devices:'))) this.lights.refreshSecurity();
     const s = this.selectedElem();
     if (s?.coll === 'walls') this.wallTemplate = s.e as Wall;
     this.updateHandles();
@@ -595,6 +684,81 @@ export class Editor {
 
   // ---------- handles ----------
   handlesFor(): { id: string; x: number; z: number; y: number }[] {
+    const hs = this.flatHandles();
+    const v = this.vertHandles();
+    return v.length ? [...hs, ...v] : hs;
+  }
+
+  /**
+   * Michael 2026-10-14: the top and bottom handles (the centre of the top face and of the bottom face; 3D only, the plan
+   * has no height): a top changes the height with the bottom fixed, a bottom the base or sill with the top fixed.
+   */
+  private vertHandles(): { id: VSide; x: number; z: number; y: number }[] {
+    const s = this.selectedElem();
+    if (!s || this.tool !== 'select' || this.group.length) return [];
+    const lvl = this.levelOf(s.coll, s.e);
+    const f = this.viewFloor(lvl);
+    const fl = this.model.data.levels.find((l) => l.id === lvl)?.floor ?? 0;
+    const two = (x: number, z: number, y0: number, y1: number): { id: VSide; x: number; z: number; y: number }[] => [
+      ...(VERT_TOP.includes(s.coll) ? [{ id: 'top' as const, x, z, y: y1 }] : []),
+      ...(VERT_BOT.includes(s.coll) ? [{ id: 'bot' as const, x, z, y: y0 }] : []),
+    ];
+    switch (s.coll) {
+      case 'objects': {
+        const o = s.e as Obj;
+        return two((o.rect[0] + o.rect[2]) / 2, (o.rect[1] + o.rect[3]) / 2, f + o.y, f + o.y + o.h);
+      }
+      case 'walls': {
+        const w = s.e as Wall;
+        return two((w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2, f, f + w.h);
+      }
+      case 'openings': {
+        const o = s.e as Opening;
+        const w = this.model.get<Wall>('walls', o.wall);
+        if (!w) return [];
+        const p = wallPoint(w, o.at);
+        return two(p[0], p[1], f + o.sill, f + o.sill + o.h);
+      }
+      case 'exterior': {
+        const x = s.e as Ext;
+        return two((x.a[0] + x.b[0]) / 2, (x.a[1] + x.b[1]) / 2, f + x.y0 - fl, f + x.y1 - fl);
+      }
+      case 'signs': {
+        const g = s.e as SignRecord;
+        return two(g.at[0], g.at[1], f + g.y - g.size[1] / 2, f + g.y + g.size[1] / 2);
+      }
+      case 'roofs': {
+        const r = (s.e as Roof).rect;
+        const off = this.view.offsetOf(lvl);
+        const b = (s.e as Roof).base + off;
+        // the top handle is the ridge (Michael 2026-10-14; a flat roof has none)
+        const rg = ridgeHandle(s.e as Roof);
+        return [...(rg ? [{ id: 'top' as const, x: rg.x, z: rg.z, y: rg.y + off }] : []), { id: 'bot' as const, x: (r[0] + r[2]) / 2, z: (r[1] + r[3]) / 2, y: b }];
+      }
+      // Michael 2026-10-14: a lamp's and a security device's mounting height, one handle under the body's centre (a
+      // point one 0.3 m under it, clear of its move marker; above it where that would be under the floor)
+      case 'lamps': {
+        const l = s.e as Lamp;
+        const fx = l.params.fixture;
+        const y = l.at[1] + (fx?.oy ?? 0) - (fx?.sy ?? 0) / 2;
+        if (l.b) return two((l.at[0] + l.b[0]) / 2, (l.at[2] + l.b[2]) / 2, f + y + (l.b[1] - l.at[1]) / 2, 0);
+        const yb = y >= 0.3 ? y - 0.3 : y + 0.3;
+        return two(l.at[0], l.at[2], f + yb, f + yb);
+      }
+      case 'devices': {
+        const dv = s.e as unknown as { a?: [number, number, number]; b?: [number, number, number]; at?: [number, number]; y?: number };
+        if (dv.a && dv.b) return two((dv.a[0] + dv.b[0]) / 2, (dv.a[2] + dv.b[2]) / 2, f + (dv.a[1] + dv.b[1]) / 2, 0);
+        if (!dv.at || typeof dv.y !== 'number') return [];
+        const yb = dv.y >= 0.3 ? dv.y - 0.3 : dv.y + 0.3;
+        return two(dv.at[0], dv.at[1], f + yb, 0);
+      }
+      default:
+        return [];
+    }
+  }
+
+  /** The handles the plan shows too: edges, corners, ends and centre markers. */
+  private flatHandles(): { id: string; x: number; z: number; y: number }[] {
     const s = this.selectedElem();
     if (!s || this.tool !== 'select') return [];
     const lvl = this.levelOf(s.coll, s.e);
@@ -637,6 +801,42 @@ export class Editor {
         { id: 'r', x: hi[0], z: hi[1], y },
       ];
     }
+    // fix-up 2026-10-14: objects take corners (Resize), drawn pieces their ends, the rest one centre marker ('c': move)
+    const fl = this.model.data.levels.find((l) => l.id === lvl)?.floor ?? 0;
+    if (s.coll === 'objects') {
+      const o = s.e as Obj;
+      const y = f + o.y + o.h;
+      return (['SW', 'SE', 'NW', 'NE'] as const).map((c) => {
+        const p = cornerPt(o.rect, c);
+        return { id: c, x: p[0], z: p[1], y };
+      });
+    }
+    if (s.coll === 'exterior') {
+      const x = s.e as Ext;
+      const y = f + x.y1 - fl;
+      // a point piece's move marker sits halfway up (its top and bottom handles take the ends)
+      if (hyp2(x.b[0] - x.a[0], x.b[1] - x.a[1]) < 1e-6) return [{ id: 'c', x: x.a[0], z: x.a[1], y: f + (x.y0 + x.y1) / 2 - fl }];
+      return [
+        { id: 'a', x: x.a[0], z: x.a[1], y },
+        { id: 'b', x: x.b[0], z: x.b[1], y },
+      ];
+    }
+    if (s.coll === 'lamps') {
+      const l = s.e as Lamp;
+      if (l.b) return [{ id: 'a', x: l.at[0], z: l.at[2], y: f + l.at[1] }, { id: 'b', x: l.b[0], z: l.b[2], y: f + l.b[1] }];
+      return [{ id: 'c', x: l.at[0], z: l.at[2], y: f + l.at[1] }];
+    }
+    if (s.coll === 'devices') {
+      const dv = s.e as unknown as Device;
+      if (isBeam(dv)) return [{ id: 'a', x: dv.a[0], z: dv.a[2], y: f + dv.a[1] }, { id: 'b', x: dv.b[0], z: dv.b[2], y: f + dv.b[1] }];
+      const at = (dv as { at?: Pt }).at;
+      const y = (dv as { y?: number }).y ?? 0;
+      return at ? [{ id: 'c', x: at[0], z: at[1], y: f + y }] : [];
+    }
+    if (s.coll === 'signs') {
+      const g = s.e as SignRecord;
+      return [{ id: 'c', x: g.at[0], z: g.at[1], y: f + g.y }];
+    }
     return [];
   }
 
@@ -649,14 +849,191 @@ export class Editor {
   beginDrag(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', isNew = false): void {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
+    // ON13: a ceiling moves with its room (it is never dragged)
+    if (coll === 'ceilings') return;
     // the stair's arrow handle is a click, not a drag
     if (coll === 'stairs' && handle === 'turn') return this.turnStairClimb();
-    this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
+    // fix-up 2026-10-14: a centre marker moves the whole thing
+    if (handle === 'c') handle = null;
+    this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew, mode: handle ? 'resize' : 'move', last: start };
+    if (!isNew && WALL_COLLS.has(coll)) this.drag.inWall = this.wallGuard(coll, before).why !== null;
     this.updateHint();
   }
 
-  /** The element as it would be with the pointer at (x, z). */
+  // ---------- holding: raise and lower, Move / Resize (fix-up 2026-10-14) ----------
+  /** The mode and height words of the held element (or the selected one). */
+  heldWords(): string {
+    const d = this.drag;
+    const s = d ? { coll: d.coll, e: this.model.get(d.coll, d.id) } : this.selectedElem();
+    // Michael 2026-10-14: a roof's top handle is its ridge; a lamp's or device's bottom one its mounting height
+    const ridge = d?.handle === 'top' && s?.coll === 'roofs' && s.e ? (s.e as Roof) : null;
+    const rh = ridge ? ridgeHandle(ridge) : null;
+    const h = ridge && rh ? `${fmt(rh.y)} m, ${ridge.type === 'curved' ? `rise ${fmt(ridge.rise ?? 0)} m` : `${ridge.pitch ?? 0} degrees`}` : s?.e ? heightWords(s.coll, s.e) : null;
+    const mount = s?.coll === 'lamps' || s?.coll === 'devices';
+    const m = d && !d.isNew ? (d.handle === 'top' ? (ridge ? 'Ridge' : 'Top') : d.handle === 'bot' ? (mount ? 'Height' : 'Bottom') : d.mode === 'resize' ? 'Resize' : 'Move') : '';
+    return [m, h].filter(Boolean).join(', ');
+  }
+
+  /** Whether the triggers (wheel, Page Up / Down) change the held thing's height in its mode. */
+  heldLifts(): boolean {
+    const d = this.drag;
+    if (d && !d.isNew && isVert(d.handle)) return true;
+    return !!d && !d.isNew && (d.mode === 'resize' ? GROWS.includes(d.coll) : canLift(d.coll));
+  }
+
+  /** Raise (+) or lower (-) what is held by `dy` metres more (taller or shorter in Resize); one undo step on the drop. */
+  heldLift(dy: number): boolean {
+    const d = this.drag;
+    if (!d || d.isNew) return false;
+    if (!this.heldLifts()) {
+      this.status(d.mode === 'resize' ? 'Its height stays (Move raises and lowers)' : 'Stays on its level');
+      return false;
+    }
+    if (isVert(d.handle)) d.vdy = +((d.vdy ?? 0) + dy).toFixed(3);
+    else if (d.mode === 'resize') d.grow = +((d.grow ?? 0) + dy).toFixed(3);
+    else d.lift = +((d.lift ?? 0) + dy).toFixed(3);
+    d.moved = true;
+    d.linkedKey = undefined;
+    const p = d.last ?? d.start;
+    this.moveDrag(p[0] - (d.off?.[0] ?? 0), p[1] - (d.off?.[1] ?? 0), true);
+    if (d.source !== 'pad') this.status(this.heldWords());
+    return true;
+  }
+
+  /** The held lift (growth in Resize) set to `v` metres (the pad's triggers; the caller snaps it). */
+  setHeldLift(v: number): void {
+    const d = this.drag;
+    if (!d || d.isNew || !this.heldLifts()) return;
+    const cur = isVert(d.handle) ? (d.vdy ?? 0) : d.mode === 'resize' ? (d.grow ?? 0) : (d.lift ?? 0);
+    if (Math.abs(v - cur) > 1e-6) this.heldLift(+(v - cur).toFixed(3));
+  }
+
+  /** Y (pad) or T (keyboard) while holding: Move and Resize swap; the element so far becomes the base. */
+  toggleHeldMode(): void {
+    const d = this.drag;
+    if (!d || d.isNew) return;
+    if (isVert(d.handle)) return this.status(d.source === 'pad' ? 'A top or bottom handle: RT / LT or the left stick change it' : 'A top or bottom handle: drag it up or down');
+    const cur = this.model.get(d.coll, d.id);
+    if (!cur) return;
+    const last = d.last ?? d.start;
+    if (d.mode === 'resize') {
+      d.mode = 'move';
+      d.handle = null;
+      d.base = clone(cur) as Elem;
+      d.start = last;
+    } else {
+      const h = this.resizeHandle(d.coll, cur as Elem, last[0], last[1]);
+      if (!h) return this.status(d.source === 'pad' ? 'Nothing to resize: RT / LT raise and lower it' : 'Nothing to resize: the wheel or Page Up / Down raise and lower it');
+      d.mode = 'resize';
+      d.handle = h.id;
+      d.base = clone(cur) as Elem;
+      d.off = [+((d.off?.[0] ?? 0) + h.x - last[0]).toFixed(3), +((d.off?.[1] ?? 0) + h.z - last[1]).toFixed(3)];
+      d.last = [h.x, h.z];
+    }
+    d.lift = 0;
+    d.grow = 0;
+    d.linkedKey = undefined;
+    d.moved = true;
+    this.updateHint();
+    const up = d.source === 'pad' ? 'RT / LT' : 'the wheel';
+    this.status(d.mode === 'resize' ? `Resize: the far ${d.handle && d.handle.length === 2 ? 'corner' : 'end'} stays put; ${up} change${d.source === 'pad' ? '' : 's'} the height` : 'Move');
+  }
+
+  /** The corner or end Resize takes, nearest (x, z); null where nothing resizes. */
+  private resizeHandle(coll: Coll, e: Elem, x: number, z: number): { id: string; x: number; z: number } | null {
+    const seg = (a: Pt, b: Pt, ids: [string, string]): { id: string; x: number; z: number } => {
+      const end = nearestEnd(a, b, x, z);
+      const p = end === 'a' ? a : b;
+      return { id: end === 'a' ? ids[0] : ids[1], x: p[0], z: p[1] };
+    };
+    if ('rect' in e && (coll === 'rooms' || coll === 'stairs' || coll === 'voids' || coll === 'roofs' || coll === 'extraction' || coll === 'objects')) {
+      const c = nearestCorner((e as Room).rect, x, z);
+      const p = cornerPt((e as Room).rect, c);
+      return { id: c, x: p[0], z: p[1] };
+    }
+    if (coll === 'walls') return seg((e as Wall).a, (e as Wall).b, ['a', 'b']);
+    if (coll === 'openings') {
+      const o = e as Opening;
+      const w = this.model.get<Wall>('walls', o.wall);
+      return w ? seg(wallPoint(w, o.at - o.w / 2), wallPoint(w, o.at + o.w / 2), ['l', 'r']) : null;
+    }
+    if (coll === 'exterior') {
+      const t = e as Ext;
+      return hyp2(t.b[0] - t.a[0], t.b[1] - t.a[1]) < 1e-6 ? null : seg(t.a, t.b, ['a', 'b']);
+    }
+    if (coll === 'lamps') {
+      const l = e as Lamp;
+      return l.b ? seg([l.at[0], l.at[2]], [l.b[0], l.b[2]], ['a', 'b']) : null;
+    }
+    if (coll === 'devices' && isBeam(e as unknown as Device)) {
+      const bm = e as unknown as Beam;
+      return seg([bm.a[0], bm.a[2]], [bm.b[0], bm.b[2]], ['a', 'b']);
+    }
+    return null;
+  }
+
+  /** Page Up / Page Down with one thing selected (not held): a step up or down, one undo step; false if it has no height. */
+  liftSelected(dy: number): boolean {
+    const s = this.selectedElem();
+    if (!s || this.group.length || !canLift(s.coll)) return false;
+    const wh = s.coll === 'openings' ? this.model.get<Wall>('walls', (s.e as Opening).wall)?.h : undefined;
+    const after = liftElem(s.coll, clone(s.e) as Elem, dy, wh);
+    if (JSON.stringify(after) === JSON.stringify(s.e)) {
+      this.status(`${heightWords(s.coll, s.e) ?? ''}: as far as it goes`);
+      return true;
+    }
+    this.commit([{ coll: s.coll, id: s.id, before: clone(s.e) as Elem, after }]);
+    this.status(`${dy > 0 ? 'Raised' : 'Lowered'} ${fmt(Math.abs(dy))} m: ${heightWords(s.coll, after) ?? ''}`);
+    return true;
+  }
+
+  /** The element as it would be with the pointer at (x, z): moved or resized from its base, then raised and grown. */
   dragged(d: Drag, x: number, z: number, fine: boolean): Elem {
+    if (isVert(d.handle) && !d.isNew) {
+      // a top or bottom handle: the height (the other end fixed), at least the min size, an opening under its wall's top
+      const wh = d.coll === 'openings' ? this.model.get<Wall>('walls', (d.before as Opening).wall)?.h : undefined;
+      const min = d.coll === 'openings' || d.coll === 'walls' ? 0.5 : this.objectGrid;
+      return vertResize(d.coll, clone(d.before) as Elem, d.handle, d.vdy ?? 0, min, wh);
+    }
+    const dd: Drag = d.base ? { ...d, before: d.base } : d;
+    let e = this.heldEnd(dd, x, z, fine) ?? this.draggedFlat(dd, x, z, fine);
+    const wh = d.coll === 'openings' ? this.model.get<Wall>('walls', (e as Opening).wall)?.h : undefined;
+    if (d.lift) e = liftElem(d.coll, e, d.lift, wh);
+    if (d.grow) e = growElem(d.coll, e, d.grow, d.coll === 'openings' || d.coll === 'walls' ? 0.5 : this.objectGrid, wh);
+    return e;
+  }
+
+  /** Fix-up 2026-10-14: an object corner (the opposite one fixed) or a drawn piece's, linear lamp's or beam's end. */
+  private heldEnd(d: Drag, x: number, z: number, fine: boolean): Elem | null {
+    const h = d.handle;
+    if (!h || d.isNew) return null;
+    const og = fine ? this.fineGrid : this.objectGrid;
+    if (CORNERS.includes(h) && 'rect' in d.before) {
+      const e = clone(d.before) as Room;
+      const min = d.coll === 'objects' ? og : Math.max(this.grid, 0.5);
+      e.rect = cornerResize(e.rect, h as Corner, x, z, d.coll === 'objects' ? og : fine ? this.fineGrid : this.grid, min);
+      return e as Elem;
+    }
+    if (h !== 'a' && h !== 'b') return null;
+    const p: Pt = [snap(x, og), snap(z, og)];
+    if (d.coll === 'exterior') return withRules(this.model.data, { ...(d.before as Ext), [h]: p }) as Elem;
+    if (d.coll === 'lamps') {
+      const l = clone(d.before) as Lamp;
+      if (h === 'a') l.at = [p[0], l.at[1], p[1]];
+      else if (l.b) l.b = [p[0], l.b[1], p[1]];
+      return l as Elem;
+    }
+    if (d.coll === 'devices' && isBeam(d.before as unknown as Device)) {
+      const b = clone(d.before) as unknown as Beam;
+      const q = b[h];
+      b[h] = [p[0], q[1], p[1]];
+      return b as unknown as Elem;
+    }
+    return null;
+  }
+
+  /** The element moved or stretched by its handle (no height changes). */
+  private draggedFlat(d: Drag, x: number, z: number, fine: boolean): Elem {
     const g = fine ? this.fineGrid : this.grid;
     const e = clone(d.before) as Elem & Record<string, unknown>;
     const dx = snap(x - d.start[0], g);
@@ -687,9 +1064,36 @@ export class Editor {
         const r = drawLamp(f, d.start, [snap(x, og), snap(z, og)], { ...this.lampCtx(), level: lampLevel(this.model.data, l0) || this.view.level });
         return r.lamp ? ({ ...r.lamp, id: l0.id, circuit: l0.circuit } as Elem) : e;
       }
-      return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
+      // Michael 2026-10-14: a placed lamp slides across the surface it is on (snapping to its centre and quarter lines)
+      const sl = slideLamp(this.model.data as LampData, l0, x - d.start[0], z - d.start[1], { grid: og, magnet: facts.light.snapMagnet.value, off: fine });
+      this.slideGuides(sl.snap, sl.surface, lampLevel(this.model.data, l0), sl.wall && sl.wall.t !== null ? lampCentre(sl.lamp) : null);
+      return sl.lamp as Elem;
     }
     if (d.coll === 'circuits') return e;
+    // ON13: a crawl's leg follows the pointer at its end; a placed crawl moves whole
+    if (d.coll === 'crawls') return this.crawl.dragged(d.before as unknown as CrawlRecord, d.isNew, d.start, x, z, fine ? this.fineGrid : this.objectGrid);
+    // ON14: a sign moves by its point (a wall sign along its wall)
+    if (d.coll === 'signs') {
+      const og = fine ? this.fineGrid : this.objectGrid;
+      return moveSign(this.model.data, d.before as SignRecord, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
+    }
+    // ON12: a beam being drawn follows the pointer at its far end; a placed device moves by its point
+    if (d.coll === 'devices') {
+      const og = fine ? this.fineGrid : this.objectGrid;
+      const b = d.before as unknown as Device;
+      if (d.isNew && isBeam(b)) return this.security.dragBeam(b, x, z) as unknown as Elem;
+      // Michael 2026-10-14: a ceiling device snaps to its ceiling's centre and quarter lines as the lamps
+      const pt = (b as { at?: Pt }).at;
+      if (pt && (b as { mount?: string }).mount === 'ceiling' && !isBeam(b)) {
+        const tx = snap(pt[0] + x - d.start[0], og);
+        const tz = snap(pt[1] + z - d.start[1], og);
+        const sf = ceilingSurface(this.model.data as LampData, b.level, tx, tz);
+        const sn = sf ? snapSlide(tx, tz, sf.rect, facts.light.snapMagnet.value, fine) : null;
+        this.slideGuides(sn && (sn.lx !== null || sn.lz !== null) ? sn : null, sf, b.level, null);
+        return this.security.move(b, +((sn?.x ?? tx) - pt[0]).toFixed(3), +((sn?.z ?? tz) - pt[1]).toFixed(3)) as unknown as Elem;
+      }
+      return this.security.move(b, snap(x - d.start[0], og), snap(z - d.start[1], og)) as unknown as Elem;
+    }
     // ON8: a guard moves whole (every stop), a marker by its point; the extraction zone is drawn below like a floor hole
     if (isMission(d.coll) && (d.coll !== 'extraction' || !d.isNew)) {
       const m = moveMission(d.coll, d.before, dx, dz) as Elem;
@@ -712,11 +1116,19 @@ export class Editor {
         const span: [number, number] = edge === 'W' || edge === 'E' ? [near[1], near[3]] : [near[0], near[2]];
         return edgeSnap(v, edge, lv, (this.model.list('walls') as Wall[]).filter((w) => !moving.has(`walls:${w.id}`)), (this.model.list('rooms') as Room[]).filter((q) => !moving.has(`rooms:${q.id}`)), d.id, span)?.v ?? v;
       };
-      if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
+      if (d.isNew && d.coll === 'roofs') {
+        // Michael 2026-10-14: the far corner snaps to a wall's outer face under it too (LB / Ctrl: off)
+        const q = roofCornerSnap(this.model.data, lv, snap(x, g), snap(z, g), fine).p;
+        (e as Room).rect = normRect([r[0], r[1], q[0], q[1]]);
+      } else if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
       else if (d.handle) (e as Room).rect = setEdge(r, d.handle as Edge, es(snap(d.handle === 'W' || d.handle === 'E' ? x : z, g), d.handle as Edge), Math.max(g, 0.5));
       else (e as Room).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
       // ON10: a roof being drawn sits on the walls under its outline as it grows
-      if (d.coll === 'roofs' && d.isNew) (e as Roof).base = defaultBase(this.model.data, (e as Roof).level, (e as Roof).rect);
+      if (d.coll === 'roofs' && d.isNew) {
+        (e as Roof).base = defaultBase(this.model.data, (e as Roof).level, (e as Roof).rect);
+        // (the drawing plane follows the eaves)
+        d.planeY = (e as Roof).base + this.view.offsetOf((e as Roof).level);
+      }
       return e;
     }
     if (d.coll === 'walls') {
@@ -768,8 +1180,19 @@ export class Editor {
   moveDrag(x: number, z: number, fine: boolean, turn?: (e: Elem) => Elem): void {
     const d = this.drag;
     if (!d) return;
+    if (d.off) {
+      x += d.off[0];
+      z += d.off[1];
+    }
+    d.last = [x, z];
     let e = this.dragged(d, x, z, fine);
     if (turn) e = turn(e);
+    // Michael 2026-10-14: nothing inside walls; a little way in is pushed out to the face, deeper is refused on the drop
+    if (WALL_COLLS.has(d.coll) && !d.inWall) {
+      const g = this.wallGuard(d.coll, e);
+      e = g.e;
+      d.refused = g.why ?? undefined;
+    }
     if (d.coll !== 'rooms' || d.isNew) return this.model.preview(d.coll, e);
     // a room: the walls, neighbours and doors it takes along (a turned room leaves its walls)
     const follow = this.wallsFollow && !turn;
@@ -868,9 +1291,12 @@ export class Editor {
       return;
     }
     this.drag = null;
+    this.slideGuides(null, null, '', null);
     if (d.source !== 'pad') this.planGhost([], 'ghost');
     this.updateHint();
     if (cancel || !d.moved || d.refused) {
+      // ON13: a cancelled leg of an extended crawl puts the crawl back
+      if (d.coll === 'crawls' && this.crawl.cancel(d.isNew)) return this.renderPanel();
       this.unpreviewLinked(d);
       if (d.isNew) this.model.drop(d.coll, d.id);
       else this.model.preview(d.coll, d.before);
@@ -888,6 +1314,8 @@ export class Editor {
     }
     let after = this.model.snapshot(d.coll, d.id);
     if (!after) return;
+    // ON13: a crawl settled (ends taken, hatches added) in one edit
+    if (d.coll === 'crawls') return this.crawl.drop(d.id, d.isNew, d.before as unknown as CrawlRecord, after as unknown as CrawlRecord);
     if (d.isNew && d.coll === 'exterior') {
       // ON5: a drawn piece is at least one grid step long; the Climb tool stays on for the next
       if (pieceLen(after as Ext) < this.objectGrid - 1e-6) {
@@ -906,6 +1334,16 @@ export class Editor {
       }
       this.commitLamps([after as Lamp], null);
       return;
+    }
+    if (d.isNew && d.coll === 'devices') {
+      // ON12: a beam: its length and height checked (SN40-SN48), its room and reason; the tool stays on
+      const f = this.security.finishBeam(after as unknown as Beam);
+      this.model.drop(d.coll, d.id);
+      if (!f.beam) return this.status(`${f.why ?? 'Cannot go here'} - A (click) at one end, then at the other`);
+      const text = `Added beam ${f.beam.id}: ${fmt(hyp2(f.beam.b[0] - f.beam.a[0], f.beam.b[2] - f.beam.a[2]))} m at ${fmt(f.beam.a[1])} m`;
+      this.commitText(text, [{ coll: 'devices', id: f.beam.id, before: null, after: f.beam as unknown as Elem }]);
+      this.select(keyOf('devices', f.beam.id));
+      return this.status(`${text}: A (click) starts the next`);
     }
     if (d.isNew && d.coll === 'extraction') {
       // ON8: at least one grid step each way; it replaces the old zone in the same edit
@@ -988,9 +1426,12 @@ export class Editor {
       this.beginDrag('voids', v.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'roof') {
       // ON10: A at one corner, A at the other; the same spot twice takes the building (or room) under it
-      const r = newRoof(this.model.data, lvl, [p[0], p[1], p[0], p[1]], this.roofTypeId, roofId(this.model.data));
+      // Michael 2026-10-14: the corner snaps to the outer face of a wall under the aim; the roof sits on the wall tops
+      // and is drawn on the plane of its eaves (the aim on a wall top stays on it as the roof grows)
+      const q = roofCornerSnap(this.model.data, lvl, p[0], p[1], fine).p;
+      const r = newRoof(this.model.data, lvl, [q[0], q[1], q[0], q[1]], this.roofTypeId, roofId(this.model.data));
       this.model.preview('roofs', r);
-      this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
+      this.beginDrag('roofs', r.id, null, q, r.base + this.view.offsetOf(lvl), sx, sy, source, true);
     } else if (this.tool === 'object') {
       this.objectDown(x, z, sx, sy, source);
     } else if (this.tool === 'stamp') {
@@ -1001,6 +1442,14 @@ export class Editor {
       this.lampDown(x, z, sx, sy, source);
     } else if (this.tool === 'mission') {
       this.mission.down(x, z, sx, sy, source);
+    } else if (this.tool === 'security') {
+      this.security.down(x, z, sx, sy, source);
+    } else if (this.tool === 'crawl') {
+      this.crawl.down(x, z, sx, sy, source);
+    } else if (this.tool === 'arrange') {
+      this.arrange.down(x, z);
+    } else if (this.tool === 'sign') {
+      this.signTool.down(x, z);
     } else if (this.tool === 'guard') {
       // ON7: a guard eye at the point, facing the way the camera looks
       const ct = this.view.camera.getTarget();
@@ -1127,7 +1576,232 @@ export class Editor {
   objectGhost(x: number, z: number): { rect: Rect; wall: string | null; why: string | null } | null {
     const p = this.objPreset;
     if (p.draw) return null;
-    return placeObject(p, this.objYaw, x, z, this.objectGrid, this.model.list('walls') as Wall[], this.view.level);
+    const g = placeObject(p, this.objYaw, x, z, this.objectGrid, this.model.list('walls') as Wall[], this.view.level);
+    if (g.why) return g;
+    const w = this.wallGuard('objects', newObject('O-GHOST', this.view.level, p, g.rect, this.objYaw));
+    return w.why ? { ...g, why: w.why } : { ...g, rect: (w.e as Obj).rect };
+  }
+
+  // ---------- nothing inside walls (Michael 2026-10-14; wallClear.ts) ----------
+  /**
+   * The wall rule for an edit made in one step (an arrow or D-pad nudge, a card or side panel step): pushed out to the
+   * nearest face within facts rules.wallPushMax, else null with "Inside a wall" on the status line. A piece that was
+   * already inside a wall (old data) is left be.
+   */
+  wallStep<T extends Elem>(coll: Coll, before: T, after: T): T | null {
+    if (!WALL_COLLS.has(coll) || this.wallGuard(coll, before).why !== null) return after;
+    const g = this.wallGuard(coll, after);
+    if (g.why) {
+      this.status(`${g.why} - not changed`);
+      return null;
+    }
+    return g.e;
+  }
+
+  private stampWallKey = '';
+  private stampWallSays: string | null = null;
+  /**
+   * Michael 2026-10-14: the stamp ghost's wall rule before A, "Inside a wall: Desk" when the stamp would be refused, else
+   * null. Worked out only when the ghost moves, turns or the file changes (its key), not every frame.
+   */
+  stampWallWhy(ghostKey: string, x: number, z: number): string | null {
+    if (ghostKey === this.stampWallKey) return this.stampWallSays;
+    this.stampWallKey = ghostKey;
+    const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
+    const ch = 'why' in r ? null : this.stampWallRule(r.changes);
+    this.stampWallSays = typeof ch === 'string' ? ch : null;
+    return this.stampWallSays;
+  }
+
+  /**
+   * The wall rule for a preset stamp: each new piece against the level's walls and the stamp's own; pushed out within
+   * facts rules.wallPushMax, else the stamp is refused with the piece named.
+   */
+  private stampWallRule(changes: Change[]): Change[] | string {
+    const walls = new Map((this.model.list('walls') as Wall[]).map((w) => [w.id, w]));
+    const opens = new Map((this.model.list('openings') as Opening[]).map((o) => [o.id, o]));
+    for (const c of changes) {
+      if (c.coll === 'walls' && c.after) walls.set(c.id, c.after as Wall);
+      if (c.coll === 'openings' && c.after) opens.set(c.id, c.after as Opening);
+    }
+    const solids = new Map<string, ReturnType<typeof wallSolids>>();
+    const out: Change[] = [];
+    for (const c of changes) {
+      const ft = c.after && WALL_COLLS.has(c.coll) ? this.footOf(c.coll, c.after) : null;
+      if (!ft || !c.after) {
+        out.push(c);
+        continue;
+      }
+      let sl = solids.get(ft.level);
+      if (!sl) solids.set(ft.level, (sl = wallSolids([...walls.values()], [...opens.values()], ft.level)));
+      const r = clearOfWalls(ft.f, sl);
+      if (!r.ok) return `${r.why}: ${String((c.after as { name?: string }).name ?? c.id)}`;
+      out.push(r.dx || r.dz ? { ...c, after: this.shifted(c.coll, c.after, r.dx, r.dz) } : c);
+    }
+    return out;
+  }
+
+  /** The footprint the wall rule checks, heights above its level's floor, and that level (null: not checked). */
+  private footOf(coll: Coll, e: Elem): { f: Foot; level: string } | null {
+    if (coll === 'objects') {
+      const o = e as Obj;
+      return { f: rectFoot(o.rect, o.y, o.y + o.h), level: o.level };
+    }
+    if (coll === 'exterior') {
+      const x = e as Ext;
+      const level = x.level ?? this.view.level;
+      const fl = this.floor(level);
+      const point = x.a[0] === x.b[0] && x.a[1] === x.b[1];
+      // a wall-mounted point (downpipe, vent) is checked at its centre; a line by its section, at least a pipe's
+      const half = point && !x.size ? 0 : Math.max(facts.climb.pipeRadius.value, (x.depth ?? x.size?.[0] ?? 0) / 2);
+      const flat = x.y1 - x.y0 < 1e-6 ? half : 0;
+      return { f: segFoot(x.a, x.b, half, x.y0 - fl - flat, x.y1 - fl + flat), level };
+    }
+    if (coll === 'lamps') {
+      const l = e as Lamp;
+      return { f: segFoot([l.at[0], l.at[2]], l.b ? [l.b[0], l.b[2]] : [l.at[0], l.at[2]], 0, l.at[1], l.at[1]), level: lampLevel(this.model.data, l) };
+    }
+    if (coll === 'devices') {
+      const v = e as unknown as Device & { at?: [number, number]; y?: number };
+      if (isBeam(v) || !Array.isArray(v.at) || typeof v.y !== 'number') return null;
+      return { f: pointFoot(v.at[0], v.at[1], v.y), level: v.level };
+    }
+    if (coll === 'signs') {
+      const g = e as unknown as SignRecord;
+      return { f: pointFoot(g.at[0], g.at[1], g.y), level: g.level };
+    }
+    return null;
+  }
+
+  /** The element moved by (dx, dz) as its own move does (a piece's rules, a lamp's room, a sign along its wall). */
+  private shifted(coll: Coll, e: Elem, dx: number, dz: number): Elem {
+    const d = this.model.data;
+    if (coll === 'objects') {
+      const r = (e as Obj).rect;
+      return { ...(e as Obj), rect: [+(r[0] + dx).toFixed(3), +(r[1] + dz).toFixed(3), +(r[2] + dx).toFixed(3), +(r[3] + dz).toFixed(3)] };
+    }
+    if (coll === 'exterior') return movePiece(d, e as Ext, dx, dz);
+    if (coll === 'lamps') return moveLamp(d as LampData, e as Lamp, dx, dz) as Elem;
+    if (coll === 'devices') return this.security.move(e as unknown as Device, dx, dz) as unknown as Elem;
+    if (coll === 'signs') return moveSign(d, e as unknown as SignRecord, dx, dz) as unknown as Elem;
+    return e;
+  }
+
+  /**
+   * The wall rule for a piece being placed or held: clear as it is; pushed out to the nearest face when it is in by
+   * facts rules.wallPushMax or less; else refused, with why ("Inside a wall").
+   */
+  wallGuard<T extends Elem>(coll: Coll, e: T): { e: T; why: string | null } {
+    const ft = this.footOf(coll, e);
+    if (!ft) return { e, why: null };
+    const c = clearOfWalls(ft.f, wallSolids(this.model.list('walls') as Wall[], this.model.list('openings') as Opening[], ft.level));
+    if (!c.ok) return { e, why: c.why };
+    return c.dx || c.dz ? { e: this.shifted(coll, e, c.dx, c.dz) as T, why: null } : { e, why: null };
+  }
+
+  /**
+   * Michael 2026-10-14: lamps saved before the troffer sizes (600 x 300 and 1200 x 300) and the area lights get their
+   * params again from the catalogue's one conversion: one change with a change-log line (none when all are current).
+   */
+  migrateLamps(): void {
+    const changes: Change[] = [];
+    for (const l of (this.model.list('lamps') as Lamp[] | undefined) ?? []) {
+      const w = withParams(l);
+      if (JSON.stringify(w.params) !== JSON.stringify(l.params)) changes.push({ coll: 'lamps', id: l.id, before: clone(l) as Elem, after: w as Elem });
+    }
+    if (!changes.length) return;
+    const tro = changes.filter((c) => (c.after as Lamp).fixture === 'troffer-600').map((c) => c.id);
+    this.commitText(`Lamps brought up to date (Michael 2026-10-14): ${tro.length ? `Troffer 600 x 600 is now 600 x 300 (${tro.join(', ')}); ` : ''}area fittings light across their whole face (${changes.length} ${changes.length === 1 ? 'lamp' : 'lamps'})`, changes);
+  }
+
+  /**
+   * Michael 2026-10-14: the lamp, security device or sign on the editing level drawn nearest a screen point (CSS px),
+   * within facts light.grabPx: A there takes it (to slide it), rather than the room behind it.
+   */
+  mountNear(px: number, py: number): { key: Key; d: number } | null {
+    const lv = this.view.level;
+    const f = this.viewFloor();
+    const tol = facts.light.grabPx.value;
+    let best: { key: Key; d: number } | null = null;
+    const near = (key: Key, x: number, y: number, z: number): void => {
+      const sp = this.view.screenOf(x, y, z);
+      if (!sp) return;
+      const d = hyp2(sp[0] - px, sp[1] - py);
+      if (d <= tol && (!best || d < best.d)) best = { key, d };
+    };
+    const d = this.model.data as LampData;
+    for (const l of d.lamps ?? []) {
+      if (lampLevel(d, l) !== lv) continue;
+      const c = lampCentre(l);
+      near(keyOf('lamps', l.id), c[0], f + l.at[1], c[1]);
+    }
+    for (const v of (this.model.list('devices') as unknown as Device[] | undefined) ?? []) {
+      if (v.level !== lv) continue;
+      const c = deviceCentre(v);
+      const y = (v as { y?: number }).y ?? (isBeam(v) ? v.a[1] : 0);
+      near(keyOf('devices', v.id), c[0], f + y, c[1]);
+    }
+    for (const g of (this.model.list('signs') as unknown as SignRecord[] | undefined) ?? []) {
+      if (g.level === lv) near(keyOf('signs', g.id), g.at[0], f + g.y, g.at[1]);
+    }
+    return best;
+  }
+
+  // ---------- slide guides (Michael 2026-10-14) ----------
+  /** The lines a slid lamp or device snapped to (shown while snapped), and their key. */
+  guides: { a: [number, number, number]; b: [number, number, number] }[] = [];
+  private guideKey = '';
+
+  /** Shows the guide lines of a snap on a ceiling surface (or a wall point's upright line), or none. */
+  slideGuides(sn: { lx: number | null; lz: number | null } | null, sf: { y: number; rect: readonly number[] } | null, level: string, wallAt: Pt | null): void {
+    const out: { a: [number, number, number]; b: [number, number, number] }[] = [];
+    if (sn && sf && level) {
+      const y = this.viewFloor(level) + sf.y - 0.02;
+      if (sn.lx !== null) out.push({ a: [sn.lx, y, sf.rect[1]!], b: [sn.lx, y, sf.rect[3]!] });
+      if (sn.lz !== null) out.push({ a: [sf.rect[0]!, y, sn.lz], b: [sf.rect[2]!, y, sn.lz] });
+    } else if (wallAt && level) {
+      const f = this.viewFloor(level);
+      out.push({ a: [wallAt[0], f, wallAt[1]], b: [wallAt[0], f + 3, wallAt[1]] });
+    }
+    const key = JSON.stringify(out);
+    if (key === this.guideKey) return;
+    this.guideKey = key;
+    this.guides = out;
+    this.view.setGuides(out);
+  }
+
+  // ---------- surface aiming (Michael 2026-10-14; aim.ts) ----------
+  /** The 3D view's last pointer position (canvas pixels), null off it. */
+  mouseAt: Pt | null = null;
+  private aimKey = '';
+  private aimVal: Aim | null = null;
+
+  /** The aim through a point of the 3D view: the surface of the editing level it meets, as the tools' plan point. */
+  aimAt(px: number, py: number): Aim | null {
+    const cp = this.view.camera.position;
+    const key = `${px}|${py}|${cp.x}|${cp.y}|${cp.z}|${this.controls.yaw}|${this.controls.pitch}|${this.model.rev}|${this.view.level}|${this.grid}|${this.view.offsetOf(this.view.level)}`;
+    if (key === this.aimKey) return this.aimVal;
+    const { ray, hit } = this.view.aimRay(px, py);
+    const fy = this.viewFloor();
+    const d = this.model.data as LampData;
+    const lv = this.view.level;
+    const storey = (d.levels.find((l) => l.id === lv)?.height ?? 0) - facts.room.slab.value;
+    // Michael 2026-10-14: the ceiling the lamps hang from (a lowered roof's underside too: ceilingSurface)
+    const ceilAt = (x: number, z: number): number => fy + (ceilingOver(d, lv, x, z) ?? storey);
+    this.aimVal = aimPoint(ray, hit, fy, ceilAt, this.grid);
+    this.aimKey = key;
+    return this.aimVal;
+  }
+
+  /** The pad's aim in Free fly: the screen centre. */
+  aimCentre(): Aim | null {
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth > 0 ? this.aimAt(cv.clientWidth / 2, cv.clientHeight / 2) : null;
+  }
+
+  /** The mouse's aim: under the cursor (null when the cursor is off the 3D view). */
+  mouseAim(): Aim | null {
+    return this.mouseAt ? this.aimAt(this.mouseAt[0], this.mouseAt[1]) : null;
   }
 
   /** "Rack row (O001, 10 units, 6 m)" / "Desk (O004)". */
@@ -1167,7 +1841,10 @@ export class Editor {
   private stampDown(x: number, z: number): void {
     const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
     if ('why' in r) return this.status(r.why);
-    this.commitText(r.words, r.changes);
+    // Michael 2026-10-14: nothing inside walls, stamps too
+    const ch = this.stampWallRule(r.changes);
+    if (typeof ch === 'string') return this.status(`${ch} - not stamped`);
+    this.commitText(r.words, ch);
     this.status(`${r.words}: A (click) stamps another, RB (R) turns, B (Esc) puts the tool down`);
   }
 
@@ -1191,6 +1868,10 @@ export class Editor {
       return this.status(`${this.fitting?.name ?? 'Light'} turned to ${this.lampYaw} degrees`);
     }
     if (this.tool === 'stamp' && !this.drag) return this.status(`${this.stamp.preset.name} turned to ${this.stamp.turn()} degrees`);
+    if (this.tool === 'security' && !this.drag) {
+      this.security.turn(45);
+      return this.status(`${this.security.toolName} on a ceiling turned ${this.security.yaw} degrees from the view`);
+    }
     if (this.tool === 'object' && !this.drag) {
       if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
       this.objYaw = (this.objYaw + 90) % 360;
@@ -1255,7 +1936,15 @@ export class Editor {
   /** Where A would put the fitting now (null for a linear one: A starts it, or with Switch). */
   lampGhost(x: number, z: number): LampPlace | null {
     const f = this.fitting;
-    return f && !f.linear ? placeLamp(f, x, z, this.lampCtx()) : null;
+    if (!f || f.linear) return null;
+    const g = placeLamp(f, x, z, this.lampCtx());
+    const lamps: Lamp[] = [];
+    for (const l of g.lamps) {
+      const w = this.wallGuard('lamps', l);
+      if (w.why) return { ...g, lamps: [], why: w.why };
+      lamps.push(w.e);
+    }
+    return { ...g, lamps };
   }
 
   /** With Switch: the lamp A would put on the switch's circuit, else the switch A would place (or why not). */
@@ -1283,8 +1972,8 @@ export class Editor {
       this.beginDrag('lamps', id, null, start, this.viewFloor(), sx, sy, source, true);
       return;
     }
-    const g = placeLamp(f, x, z, this.lampCtx());
-    if (!g.lamps.length) return this.status(g.why ?? 'Cannot go here');
+    const g = this.lampGhost(x, z);
+    if (!g?.lamps.length) return this.status(g?.why ?? 'Cannot go here');
     this.commitLamps(g.lamps, g.post);
   }
 
@@ -1400,7 +2089,9 @@ export class Editor {
     const p = pieceOf(this.climbKind);
     if (!p || p.place === 'draw') return null;
     const r = placePiece(p.id, x, z, extId(this.model.data), { data: this.model.data, level: this.view.level, grid: this.objectGrid });
-    return { e: r.e, why: r.why };
+    if (!r.e) return { e: null, why: r.why };
+    const w = this.wallGuard('exterior', r.e);
+    return w.why ? { e: null, why: w.why } : { e: w.e, why: null };
   }
 
   /** A (click) with the Climb tool: a drawn piece starts at the dot; any other is placed (the tool stays on). */
@@ -1415,8 +2106,8 @@ export class Editor {
       this.beginDrag('exterior', id, null, start, this.viewFloor(), sx, sy, source, true);
       return;
     }
-    const r = placePiece(p.id, x, z, id, ctx);
-    if (!r.e) return this.status(r.why ?? 'Cannot go here');
+    const r = this.climbGhost(x, z);
+    if (!r?.e) return this.status(r?.why ?? 'Cannot go here');
     this.commitText(`Added ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`, [{ coll: 'exterior', id, before: null, after: r.e }]);
     this.select(keyOf('exterior', id));
     this.status(`Placed ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`);
@@ -1436,6 +2127,81 @@ export class Editor {
 
   /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
   /** ON8: Hub > View "Guard paths": every guard's, or only the selected guard's. */
+  /** ON13: the ceiling voids view (the tile menu's View): every void as a see-through box in the crawl rule's colour, with a legend. */
+  setVoidView(on: boolean): void {
+    this.crawl.voids = on;
+    this.view.setVoidView(on);
+    this.drawPlanOverlay();
+    this.voidLegend();
+    this.status(on ? `Ceiling voids on: green meets the ${fmt(CRAWL_RULE)} m crawl rule, red does not; the legend gives each clear height` : 'Ceiling voids off');
+  }
+
+  // ---------- ON15: Moon and time ----------
+  /** The panel's setting once it has been stepped (else the map's own, or the brief's night). */
+  private nightSet: NightSetting | null = null;
+
+  /** The Moon and time panel's setting: as stepped, else the map's `meta.night`, else the brief's night. */
+  get night(): NightSetting {
+    return this.nightSet ?? panelNight(this.model.data.meta);
+  }
+
+  /** The panel's rows for the tile menu and the hub. */
+  nightState(): NonNullable<ViewState['night']> {
+    const n = this.night;
+    return { on: this.lights.moonShow, time: timeWords(n), frac: timeFrac(n), brief: BRIEF_FRAC, bearing: bearingWords(n.bearing), height: `${Math.round(n.height)} degrees`, brightness: brightnessName(n.brightness), used: sameNight(n, readNight(this.model.data.meta.night)) };
+  }
+
+  /** Hub > View / the tile menu's View "Moon and time": the panel's rows, the moon's arrow and shadow lines on the plan. */
+  setNightPanel(on: boolean): void {
+    this.lights.setMoonShow(on);
+    this.status(on ? `Moon and time: ${nightWords(this.night)}; left / right steps a row, Use for the map keeps it` : 'Moon and time off');
+    this.pad?.hub.render();
+  }
+
+  /** A row stepped: the light view previews it (quick sky light now, the exact bake on release). */
+  stepNight(row: NightRow, dir: 1 | -1): void {
+    this.setNight(stepNight(this.night, row, dir));
+  }
+
+  /** A on the time of night: back to the brief's night (01-mission-brief.md section 2). */
+  nightBrief(): void {
+    this.setNight(briefNight());
+  }
+
+  private setNight(n: NightSetting): void {
+    this.nightSet = n;
+    this.lights.setNight(sameNight(n, readNight(this.model.data.meta.night)) ? null : n);
+    this.status(`${nightWords(n)}${this.lights.night ? ' (preview; Use for the map keeps it)' : ''}`);
+    this.pad?.hub.render();
+  }
+
+  /** "Use for the map": the setting goes to the campus file's `meta.night` (on Save); the walk test and the game use it. */
+  useNightForMap(): void {
+    const n = this.night;
+    if (sameNight(n, readNight(this.model.data.meta.night))) return this.status(`The map already uses this moon: ${nightWords(n)}`);
+    this.model.setMeta('night', n, `Moon and time for the map: ${nightWords(n)}`);
+    this.lights.setNight(null);
+    this.updateBar();
+    this.status(`Moon and time for the map: ${nightWords(n)}; Save writes it to the campus file`);
+    this.pad?.hub.render();
+  }
+
+  /** The voids legend for the editing level (shown while the view is on). */
+  voidLegend(): void {
+    const lg = document.getElementById('voidLegend');
+    if (!lg) return;
+    lg.hidden = !this.crawl.voids;
+    lg.innerHTML = this.crawl.voids ? this.crawl.legend() : '';
+  }
+
+  /** ON12: the security coverage view (Hub > View, the tile menu's View): every camera and sensor of the level, gaps clear. */
+  setCoverage(on: boolean): void {
+    this.security.coverage = on;
+    this.lights.refreshSecurity();
+    this.status(on ? 'Security coverage: camera cones (blue) and sensor fans (violet) on this level; clear floor is unwatched' : 'Security coverage off');
+    this.pad?.hub.render();
+  }
+
   stepGuardPaths(): void {
     this.mission.paths = this.mission.paths === 'all' ? 'selected' : 'all';
     this.view.refreshGuards();
@@ -1516,9 +2282,9 @@ export class Editor {
   }
 
   /** The Objects tab's group (A on a group tile; the menu stays open). */
-  setObjectGroup(g: ObjGroup): void {
+  setObjectGroup(g: ObjGroup | 'signs'): void {
     this.objGroup = g;
-    this.status(`Objects: ${groupName(g)}`);
+    this.status(`Objects: ${g === 'signs' ? 'Signs' : groupName(g)}`);
   }
 
   /**
@@ -1693,6 +2459,8 @@ export class Editor {
       const r = canvas.getBoundingClientRect();
       return [e.clientX - r.left, e.clientY - r.top];
     };
+    // fix-up 2026-10-14: the wheel while dragging raises and lowers (Shift: 1 m), before the camera's zoom sees it
+    $('view3d').addEventListener('wheel', (e) => this.wheelHeld(e), { capture: true, passive: false });
     canvas.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       canvas.setPointerCapture(e.pointerId);
@@ -1710,7 +2478,10 @@ export class Editor {
         if (h && p?.coll === 'walls') return this.toolDown(h.x, h.z, e.clientX, e.clientY, '3d', fine, p.id);
       }
       if (this.tool !== 'select') {
-        const pt = this.view.planePoint(px, py, this.viewFloor());
+        // Michael 2026-10-14: the click places where the ghost under the cursor shows (surface aiming, aim.ts); a click
+        // while drawing reads the drawing's plane (the piece being drawn is under the cursor)
+        this.mouseAt = [px, py];
+        const pt = this.drag ? this.view.planePoint(px, py, this.drag.planeY) : (this.mouseAim()?.p ?? null);
         if (pt) this.toolDown(pt[0], pt[1], e.clientX, e.clientY, '3d', fine);
         return;
       }
@@ -1730,8 +2501,12 @@ export class Editor {
       const p = parseKey(k)!;
       this.beginDrag(p.coll, p.id, null, [hit.hit.x, hit.hit.z], hit.hit.y, e.clientX, e.clientY, '3d');
     });
+    canvas.addEventListener('pointerleave', () => {
+      this.mouseAt = null;
+    });
     canvas.addEventListener('pointermove', (e) => {
       const [px, py] = local(e);
+      this.mouseAt = [px, py];
       const gd = this.groupDrag;
       if (gd?.source === '3d') {
         const pt = this.view.planePoint(px, py, gd.planeY);
@@ -1742,6 +2517,17 @@ export class Editor {
       if (d && d.source === '3d') {
         if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
         d.moved = true;
+        if (isVert(d.handle)) {
+          // a top or bottom handle follows the pointer up and down (the upright plane through it, facing the camera)
+          const y = this.view.verticalY(px, py, d.start[0], d.start[1]);
+          if (y !== null) {
+            d.vdy = +snap(y - d.planeY, e.ctrlKey ? this.fineGrid : this.grid).toFixed(3);
+            this.moveDrag(d.start[0], d.start[1], e.ctrlKey);
+            this.status(this.heldWords());
+          }
+          this.mouseLive();
+          return;
+        }
         const pt = this.view.planePoint(px, py, d.planeY);
         if (pt) this.moveDrag(pt[0], pt[1], e.ctrlKey);
         this.mouseLive();
@@ -1809,7 +2595,7 @@ export class Editor {
       if (resetView || this.planLevel !== level || !this.planViewBox) this.planViewBox = vb;
       this.planLevel = level;
       this.planFullBox = vb;
-      svg.setAttribute('viewBox', (this.isMinimap() ? vb : this.planViewBox).join(' '));
+      this.setPlanBox(svg, (this.isMinimap() ? vb : this.planViewBox).join(' '));
       const under = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       under.id = 'underlay';
       svg.appendChild(under);
@@ -1850,7 +2636,7 @@ export class Editor {
     if (!svg || !m || !p || !this.planViewBox) return;
     const [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
     this.planViewBox = [p[0] - (p[0] - vx) * k + dx / m.a, p[1] - (p[1] - vy) * k + dy / m.d, vw * k, vh * k];
-    if (!this.isMinimap()) svg.setAttribute('viewBox', this.planViewBox.join(' '));
+    if (!this.isMinimap()) this.setPlanBox(svg, this.planViewBox.join(' '));
   }
 
   /** A plan point in metres -> screen pixels, or null with no plan drawn. */
@@ -1888,7 +2674,7 @@ export class Editor {
     const next = [vx, vy, vw, vh];
     if (next.some((v, i) => Math.abs(v - this.planViewBox![i]!) > 1e-6)) {
       this.planViewBox = next;
-      svg.setAttribute('viewBox', next.join(' '));
+      this.setPlanBox(svg, next.join(' '));
     }
   }
 
@@ -1948,6 +2734,7 @@ export class Editor {
     const d = this.drag;
     const s = d ? this.model.get(d.coll, d.id) : undefined;
     if (!d || !s) return { words: '', shapes: [] };
+    if (d.refused === INSIDE_WALL) return { words: `${INSIDE_WALL}: move it out`, shapes: [], bad: true };
     const walls = this.model.list('walls') as Wall[];
     if (d.coll === 'walls') {
       const lw = liveWall(s as Wall, walls);
@@ -2014,6 +2801,41 @@ export class Editor {
     for (const k of this.selected ? [this.selected, ...this.group] : this.group) for (const el of svg.querySelectorAll(`[data-id="${CSS.escape(k)}"]`)) el.classList.add('sel');
   }
 
+  /** The wheel while a mouse drag holds something: one grid step up or down (Shift: 1 m); true when it took it. */
+  private wheelHeld(e: WheelEvent): boolean {
+    const d = this.drag;
+    if (!d || d.isNew || d.source === 'pad' || !e.deltaY) return false;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    this.heldLift((e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? HELD.BIG : this.grid));
+    return true;
+  }
+
+  /** A plan handle's size in SVG units now (HANDLE_PX on screen). */
+  private planUnits(): number {
+    const svg = this.planSvg();
+    const vb = svg?.getAttribute('viewBox')?.split(/[ ,]+/).map(Number);
+    if (!svg || !vb || vb.length < 4) return 14;
+    const box = svg.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) return 14;
+    return planHandleUnits(HANDLE_PX, vb[2]!, vb[3]!, box.width, box.height);
+  }
+
+  /** Sets the plan's view box and keeps the handles HANDLE_PX on screen. */
+  private setPlanBox(svg: Element, box: string): void {
+    svg.setAttribute('viewBox', box);
+    const u = this.planUnits();
+    for (const r of svg.querySelectorAll<SVGRectElement>('rect[data-handle]')) {
+      const cx = Number(r.dataset.cx);
+      const cy = Number(r.dataset.cy);
+      r.setAttribute('x', String(cx - u / 2));
+      r.setAttribute('y', String(cy - u / 2));
+      r.setAttribute('width', String(u));
+      r.setAttribute('height', String(u));
+      r.setAttribute('stroke-width', String(u / 6));
+    }
+  }
+
   /** Orange outline of the selected element, its handles, and the camera, drawn over the plan. */
   drawPlanOverlay(): void {
     const g = this.planSvg()?.querySelector('#overlay');
@@ -2044,15 +2866,23 @@ export class Editor {
         const a = this.toPlan(...(s.e as Ladder).at);
         out += `<circle cx="${a[0]}" cy="${a[1]}" r="8" fill="none" stroke="#ff7300" stroke-width="3"/>`;
       }
-      for (const h of this.handlesFor()) {
+      // fix-up 2026-10-14: HANDLE_PX on screen at any plan zoom (sizePlanHandles keeps it on zoom)
+      const u = this.planUnits();
+      for (const h of this.flatHandles()) {
         const p = this.toPlan(h.x, h.z);
-        out += `<rect data-handle="${h.id}" x="${p[0] - 7}" y="${p[1] - 7}" width="14" height="14" fill="#ff7300" stroke="#fff" stroke-width="2" style="cursor:move"/>`;
+        out += `<rect data-handle="${h.id}" data-cx="${p[0]}" data-cy="${p[1]}" x="${p[0] - u / 2}" y="${p[1] - u / 2}" width="${u}" height="${u}" fill="#ff7300" stroke="#fff" stroke-width="${u / 6}" style="cursor:move"/>`;
       }
     }
     // ON6: lamps and switches; the selected circuit's lines from its switch to its lamps
     out += this.lampMarks();
     // ON8: guard paths and mission markers
     out += this.mission.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON12: security devices (camera frames, sensor fans, beams, reader plates)
+    out += this.security.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON13: crawl routes, ceiling hatches, voids (when on)
+    out += this.crawl.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON14: signs and door name plates
+    out += this.signTool.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -2091,13 +2921,14 @@ export class Editor {
     let downAt: [number, number] | null = null;
     host.addEventListener('wheel', (e) => {
       e.preventDefault();
+      if (this.wheelHeld(e)) return;
       const svg = this.planSvg();
       const p = this.svgPoint(e);
       if (!svg || !p || !this.planViewBox) return;
       const k = e.deltaY > 0 ? 1.15 : 1 / 1.15;
       const [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
       this.planViewBox = [p[0] - (p[0] - vx) * k, p[1] - (p[1] - vy) * k, vw * k, vh * k];
-      svg.setAttribute('viewBox', this.planViewBox.join(' '));
+      this.setPlanBox(svg, this.planViewBox.join(' '));
     }, { passive: false });
     host.addEventListener('contextmenu', (e) => e.preventDefault());
     host.addEventListener('pointerdown', (e) => {
@@ -2143,7 +2974,7 @@ export class Editor {
         const dx = (e.clientX - pan.x) / m.a;
         const dy = (e.clientY - pan.y) / m.d;
         this.planViewBox = [pan.vb[0]! - dx, pan.vb[1]! - dy, pan.vb[2]!, pan.vb[3]!];
-        svg.setAttribute('viewBox', this.planViewBox.join(' '));
+        this.setPlanBox(svg, this.planViewBox.join(' '));
         return;
       }
       if (p) {
@@ -2183,7 +3014,14 @@ export class Editor {
   goTo(x: number, z: number, floorY = this.viewFloor()): void {
     if (this.controls.walking) this.controls.walkAt(x, z, this.floor());
     else if (this.controls.mode === 'orbit') this.controls.orbit.goTo(x, z, floorY);
-    else this.controls.overlook(x, z, floorY, 22);
+    else if (this.pad?.settings.camera === 'fly') {
+      // Free fly (Michael 2026-10-14): ease so the aim lands on the point, keeping the yaw, from where the aim is now
+      // (within the orbit camera's zoom range; 22 m when the aim is off)
+      const cp = this.view.camera.position;
+      const a = this.dotPoint();
+      const dist = a ? Math.min(ORBIT.DIST_MAX, Math.max(ORBIT.DIST_MIN * 2, hyp2(hyp2(a[0] - cp.x, a[1] - cp.z), cp.y - floorY))) : 22;
+      this.controls.flyTo(x, floorY, z, dist);
+    } else this.controls.overlook(x, z, floorY, 22);
   }
 
   // ---------- walk mode ----------
@@ -2216,16 +3054,41 @@ export class Editor {
 
   /** The orbit as it was before the pad's quick walk; null when not quick walking. */
   private quickFrom: OrbitState | null = null;
+  /** Free fly (Michael 2026-10-14): the fly pose a quick walk comes back to. */
+  private quickPose: CamPose | null = null;
   private quickLevel = '';
 
   get quickWalking(): boolean {
-    if (this.quickFrom && !this.controls.walking) this.quickFrom = null;
-    return this.quickFrom !== null;
+    if ((this.quickFrom || this.quickPose) && !this.controls.walking) this.quickFrom = this.quickPose = null;
+    return this.quickFrom !== null || this.quickPose !== null;
   }
 
   /** Pad quick walk (L3, decision 14): walk at the dot facing the camera's way; again returns to the orbit as it was. */
   quickWalk(): void {
     const c = this.controls;
+    if (this.quickWalking && this.quickPose) {
+      // Free fly: back to the pose the walk started from (at the new level's height when the level changed)
+      const back = this.quickPose;
+      this.quickPose = null;
+      c.mode = 'fly';
+      const dy = this.view.level !== this.quickLevel ? this.viewFloor() - this.viewFloor(this.quickLevel) : 0;
+      c.setPose({ ...back, pos: [back.pos[0], back.pos[1] + dy, back.pos[2]] });
+      this.walkChanged();
+      return;
+    }
+    if (c.mode === 'fly' && this.pad?.settings.camera === 'fly' && this.prefs.layout !== 'plan') {
+      // Free fly: the walk starts at the aim point (the pad's screen centre)
+      const p = this.dotPoint();
+      if (!p) return this.status('Aim at a floor to walk there');
+      this.quickPose = c.pose();
+      this.quickLevel = this.view.level;
+      const yaw = c.yaw;
+      c.walkAt(p[0], p[1], this.floor());
+      c.yaw = yaw;
+      c.padRun = true;
+      this.walkChanged();
+      return;
+    }
     if (this.quickWalking) {
       c.orbit.enter(this.quickFrom!);
       c.mode = 'orbit';
@@ -2256,8 +3119,8 @@ export class Editor {
     const atOrbit = c.mode === 'fly' && Math.abs(p.x - ox) + Math.abs(p.y - oy) + Math.abs(p.z - oz) < 0.01;
     if (c.mode === 'orbit' || atOrbit) return { x: c.orbit.s.tx, z: c.orbit.s.tz, level: this.view.level, yaw: c.orbit.s.yaw };
     if (c.walking) return { x: p.x, z: p.z, level: this.view.level, yaw: c.yaw };
-    const canvas = $<HTMLCanvasElement>('c');
-    const pt = canvas.clientWidth > 0 ? this.view.planePoint(canvas.clientWidth / 2, canvas.clientHeight / 2, this.viewFloor()) : null;
+    // flying: the aim at the screen centre (Free fly, Michael 2026-10-14: on whatever surface it meets)
+    const pt = this.dotPoint();
     return { x: pt?.[0] ?? p.x, z: pt?.[1] ?? p.z, level: this.view.level, yaw: c.yaw };
   }
 
@@ -2273,7 +3136,8 @@ export class Editor {
     this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
     try {
       // ON0b: the game gets the walls grown by their corner joins (the file keeps its centre lines)
-      const how = await this.walk.start(joinedCampus(this.model.data), campusText(this.model.data), spawn);
+      // ON14: name plates and signs go as thin panels (src/editor/signs.ts walkPanels)
+      const how = await this.walk.start({ ...joinedCampus(this.model.data), panels: walkPanels(this.model.data) }, campusText(this.model.data), spawn);
       // ON9 decision 8: sliding and glass doors are gaps in the game until stage DR
       const dr = this.model.data.openings.some((o) => DR_TYPES.has(o.type)) ? ` (${DR_NOTE})` : '';
       this.status(how === 'warm' ? `Walk test: same building, the player moves to the dot${dr}` : `Loading game...${dr}`);
@@ -2306,7 +3170,8 @@ export class Editor {
     if (keep && this.selected !== keep) this.select(keep);
     const floorY = this.viewFloor();
     c.orbit.enter({ tx: r.x, tz: r.z, floorY, dist: this.walkFrom?.dist ?? ORBIT.DIST_START, yaw: from.yaw, pitch: this.walkFrom?.pitch ?? 0.9 });
-    c.mode = 'orbit';
+    // Free fly (Michael 2026-10-14): the same pose round the player, then flying from there
+    c.mode = this.pad?.settings.camera === 'fly' ? 'fly' : 'orbit';
     const [x, y, z] = c.orbit.position();
     c.blend = { from: { ...from, fov: editorFov }, to: { pos: [x, y, z], yaw: c.orbit.s.yaw, pitch: c.orbit.s.pitch, fov: editorFov }, t: 0, dur: 0.4, done: () => undefined };
     this.walkChanged();
@@ -2353,6 +3218,7 @@ export class Editor {
     this.updateHint();
     this.refreshPlan(false);
     this.lights.levelChanged();
+    if (this.crawl.voids) this.voidLegend();
   }
 
   stepLevel(dir: 1 | -1): void {
@@ -2408,6 +3274,14 @@ export class Editor {
       case 'quickWalk': return this.quickWalk();
       case 'levelUp': return this.stepLevel(1);
       case 'levelDown': return this.stepLevel(-1);
+      case 'raise':
+      case 'lower': {
+        const dy = (id === 'raise' ? 1 : -1) * (e?.shiftKey ? HELD.BIG : this.grid);
+        if (this.drag) return void this.heldLift(dy);
+        if (!this.liftSelected(dy)) this.stepLevel(dy > 0 ? 1 : -1);
+        return;
+      }
+      case 'heldMode': return this.toggleHeldMode();
       case 'frame': return this.frameSelected();
       case 'chainRemove': return this.chainRemoveLast();
       // ON8: path editing with the keys
@@ -2433,9 +3307,17 @@ export class Editor {
       case 'lightView': return this.setLightView(!this.lights.on);
       case 'darkMap': return this.setDarkMap(!this.lights.dark);
       case 'duplicate': return this.duplicate();
+      // Michael 2026-10-14: [ and ] step the tool's type on the carousel
+      case 'typeStep': return this.pad?.carouselStep(e?.code === 'BracketLeft' ? -1 : 1);
+      // Shift+[ and Shift+] ({ and }): the item's version, or the group
+      case 'typeAxis':
+        if (!this.pad?.carouselAxis(e?.code === 'BracketLeft' ? -1 : 1)) this.status('This item has no other versions or groups');
+        return;
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
         const c = e?.code ?? '';
+        // ON14: the arrow keys set the Array's count while the Arrange tool makes copies
+        if (this.tool === 'arrange' && this.arrange.mode === 'array' && (c === 'ArrowLeft' || c === 'ArrowRight')) return this.arrange.stepCount(c === 'ArrowLeft' ? -1 : 1);
         return this.nudge(c === 'ArrowLeft' ? [-g, 0] : c === 'ArrowRight' ? [g, 0] : c === 'ArrowUp' ? [0, g] : [0, -g]);
       }
       case 'undo': return this.undo();
@@ -2512,10 +3394,15 @@ export class Editor {
     if (this.group.length) return this.commitText(groupMoveWords(this.group, v[0], v[1]), moveSetChanges(this.groupSnapshots(), v[0], v[1]));
     const s = this.selectedElem();
     if (!s) return;
+    if (s.coll === 'ceilings') return this.status('A ceiling moves with its room');
     const c = this.centreOf(s.coll, s.e);
     const d: Drag = { coll: s.coll, id: s.id, handle: null, before: clone(s.e), start: c, planeY: 0, moved: true, sx: 0, sy: 0, source: '3d', isNew: false };
     let after = this.dragged(d, c[0] + v[0], c[1] + v[1], false);
     if (s.coll === 'rooms') return this.commitRoom(s.id, (after as Room).rect);
+    // Michael 2026-10-14: nothing inside walls, nudges too
+    const ok = this.wallStep(s.coll, d.before, after);
+    if (!ok) return;
+    after = ok;
     if (s.coll === 'openings') after = withBetween(this.model, after as Opening);
     this.commit([{ coll: s.coll, id: s.id, before: d.before, after }]);
   }
@@ -2538,6 +3425,10 @@ export class Editor {
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
     if (s.coll === 'circuits') return this.status('A switch is not duplicated: place another with Light > Switch');
     if (isMission(s.coll)) return this.status('Guards and mission markers are not duplicated: place another with Y > Mission');
+    if (s.coll === 'devices') return this.status('Security devices are not duplicated: place another with Y > Security');
+    if (s.coll === 'ceilings') return this.status('A ceiling belongs to its room: duplicate the room');
+    if (s.coll === 'crawls') return this.status('Crawl spaces are not duplicated: draw another with Y > Build > Crawl space');
+    if (s.coll === 'signs') return this.status('Signs are not duplicated: place another with Y > Objects > Signs, or use Selected > Array');
     if (s.coll === 'lamps') {
       const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
       return this.commitLamps([{ ...l, id: '' }], null);
@@ -2621,11 +3512,14 @@ export class Editor {
     const savedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${localTime(now.toISOString()).slice(0, 5)}`;
     try {
       // ON6: the campus file without the play collections; the play file only when its text changed
-      const split = splitPlay(this.model.data, this.playBase);
+      // ON12: the devices go to the security file (only when its text changed); the rest splits as before
+      const sec = splitSecurity(this.model.data, this.secBase);
+      const sText = sec.security ? securityText(sec.security) : null;
+      const split = splitPlay(sec.data, this.playBase);
       const pText = split.play ? playText(split.play) : null;
       const r = await fetch('/__editor/save', {
         method: 'POST',
-        body: JSON.stringify({ campus: split.campus, playText: pText !== null && pText !== this.playLoaded ? pText : undefined, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
+        body: JSON.stringify({ campus: split.campus, playText: pText !== null && pText !== this.playLoaded ? pText : undefined, securityText: sText !== null && sText !== this.secLoaded ? sText : undefined, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
       });
       const reply = (await r.json()) as { ok?: boolean; error?: string; plans?: number; planLog?: string };
       if (!r.ok || !reply.ok) throw new Error(reply.error ?? String(r.status));
@@ -2633,6 +3527,10 @@ export class Editor {
       if (pText !== null) {
         this.playLoaded = pText;
         this.playBase = JSON.parse(pText) as PlayData;
+      }
+      if (sText !== null) {
+        this.secLoaded = sText;
+        this.secBase = JSON.parse(sText) as SecurityFile;
       }
       const n = this.model.journal.length;
       this.model.markSaved();
@@ -2676,6 +3574,10 @@ export class Editor {
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
       guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
       mission: this.mission.hint(),
+      security: this.security.hint(),
+      crawl: this.crawl.hint(),
+      arrange: this.arrange.hint(),
+      sign: this.signTool.hint(),
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -2857,7 +3759,7 @@ export class Editor {
     // the small plan always shows the whole level; the full plan keeps its own zoom
     const svg = this.planSvg();
     const box = this.isMinimap() ? this.planFullBox : this.planViewBox;
-    if (svg && box) svg.setAttribute('viewBox', box.join(' '));
+    if (svg && box) this.setPlanBox(svg, box.join(' '));
     this.syncViewButtons();
     this.savePrefs();
     this.view.engine.resize();
@@ -3019,7 +3921,7 @@ export class Editor {
     const partWords = this.splitting ? 'Split here' : padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
-    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox', pad?.lbHeld ?? false).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);
+    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox', pad?.lbHeld ?? false).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.id === 'toolVariant' && padOn ? pad.carouselHint() : i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 
@@ -3129,8 +4031,8 @@ export class Editor {
   dotPoint(): Pt | null {
     const c = this.controls;
     if (c.mode === 'orbit') return [c.orbit.s.tx, c.orbit.s.tz];
-    const cv = $<HTMLCanvasElement>('c');
-    return cv.clientWidth > 0 ? this.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, this.viewFloor()) : null;
+    // Free fly (Michael 2026-10-14): the aim at the screen centre, on whatever surface it meets
+    return this.aimCentre()?.p ?? null;
   }
 
   setNames(on: boolean): void {
@@ -3308,6 +4210,7 @@ export class Editor {
       num('rect.3', 'North z', r[3]);
       rows.push(`<div class="row"><span>Size</span>${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m</div>`);
     };
+    const stepRow = (r: { id: string; label: string; value: string }): void => void rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
     if (s.coll === 'rooms') {
       text('name', 'Name');
       sel('kind', 'Kind', ROOM_KINDS.map((k) => [k, k]));
@@ -3316,6 +4219,19 @@ export class Editor {
       sel('finish', 'Floor finish', [['', 'None'], ...FINISHES.map((f): [string, string] => [f.id, f.name])]);
       rows.push(`<p class="dim" data-finish-words>${esc(loudWords((e as Room).finish))}</p>`);
       rect((e as Room).rect);
+      // ON13: the room's ceiling is a piece of its own
+      rows.push('<div class="row"><span>Ceiling</span><button id="toCeiling">Select the ceiling</button></div>');
+    } else if (s.coll === 'ceilings') {
+      // ON13: type, height, hatches (the card's rows), the void and the rule, what the player can do
+      for (const r of cardRows('ceilings', s.e)) stepRow(r);
+      rows.push(`<p id="ceilingWords" class="dim">${esc(ceilingWords(this.model.data, e as Ceiling))}</p>`);
+      rows.push('<div class="row"><button id="toRoom">Select the room</button></div>');
+    } else if (s.coll === 'crawls') {
+      // ON13: a crawl space: its name and reason, width and heights, what the player can do
+      text('name', 'Name');
+      text('reason', 'Reason');
+      for (const r of cardRows('crawls', s.e)) if (r.id === 'width' || r.id === 'y0' || r.id === 'clear') stepRow(r);
+      rows.push(`<p id="crawlWords" class="dim">${esc(this.crawl.footWords('crawls', s.e))}</p>`);
     } else if (s.coll === 'walls') {
       const w = e as Wall;
       sel('kind', 'Kind', WALL_KINDS.map((k) => [k, k === 'boundary' ? 'boundary (fence)' : k]));
@@ -3338,6 +4254,8 @@ export class Editor {
       text('reason', 'Note');
       const names = (o.between ?? []).map((id) => (this.model.get<Room>('rooms', id)?.name as string | undefined) ?? id);
       rows.push(`<div class="row"><span>Between</span>${esc(names.join(' and ') || '-')}</div>`);
+      // ON14: the door's name plate text (empty: no plate); the card's Name plate row toggles it with its default
+      if (isDoor(o)) text('plate', 'Name plate');
     } else if (s.coll === 'stairs') {
       const st = e as Stair;
       const above = this.levelsAbove(st.from);
@@ -3394,6 +4312,19 @@ export class Editor {
       if (s.coll !== 'spawns' && s.coll !== 'extraction') text('name', 'Name');
       rows.push(`<p id="missionWords" class="dim">${esc(this.mission.footWords(s.coll, e) || cardWords(s.coll, e).size)}</p>`);
       if (s.coll === 'guards') rows.push('<div class="row"><button id="mEditPath">Edit path</button><button id="mPatrol">Play patrol</button><button id="mAlone">Mark alone here</button></div>');
+    } else if (s.coll === 'signs') {
+      // ON14: a sign: its text (typed or stepped through the site's names), the card's rows, what the game builds
+      const sg = e as SignRecord;
+      for (const r of cardRows('signs', s.e)) if (r.id !== 'id') stepRow(r);
+      if (cardRows('signs', s.e).some((r) => r.id === 'text')) text('text', 'Text');
+      rows.push(`<p id="signWords" class="dim">${esc(this.signTool.footWords(sg))}</p>`);
+    } else if (s.coll === 'devices') {
+      // ON12: a security device: its name and reason, the card's rows stepped with the mouse, what it does in the game
+      text('name', 'Name');
+      text('reason', 'Reason');
+      const t = cardRows('devices', s.e)[0]!;
+      rows.push(`<div class="row"><span>Type</span><span><button data-cstep="type" data-dir="-1">&#8249;</button> <b>${esc(t.value)}</b> <button data-cstep="type" data-dir="1">&#8250;</button></span></div>`);
+      rows.push(`<p id="securityWords" class="dim">${esc(cardWords('devices', s.e).size)}; ${esc(this.security.footWords(e as unknown as Device))}</p>`);
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -3402,8 +4333,10 @@ export class Editor {
       sel('facing', 'Facing', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
+    // ON12: a security desk lists the cameras whose feeds it shows
+    if (s.coll === 'objects' && (e as Obj).preset === 'security-desk') rows.push(`<p class="dim" data-desk-feeds>${esc(this.security.deskWords(e as Obj))}</p>`);
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
       const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
@@ -3434,6 +4367,8 @@ export class Editor {
       this.mission.markAlone(s.id, t.tx, t.tz);
     });
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
+    document.getElementById('toCeiling')?.addEventListener('click', () => this.select(keyOf('ceilings', s.id)));
+    document.getElementById('toRoom')?.addEventListener('click', () => this.select(keyOf('rooms', s.id)));
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());
     $('frame').addEventListener('click', () => this.frameSelected());
@@ -3451,7 +4386,10 @@ export class Editor {
     if (!before) return;
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
-    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
+    const t = this.controls.orbit.s;
+    const stepped = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data, dot: [t.tx, t.tz] });
+    // Michael 2026-10-14: nothing inside walls, card steps too
+    const after = stepped ? this.wallStep(coll, before, stepped) : null;
     if (after) this.commit([{ coll, id, before, after: coll === 'guards' ? this.mission.recycle(after) : after }]);
   }
 

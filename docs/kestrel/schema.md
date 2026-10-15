@@ -41,6 +41,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "objects": [ { "id": "O001", "level": "G", "name": "", "preset": "crate-1.2", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "yaw": 90, "noLedge": false, "seeThrough": true, "reason": "" } ],
   "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|ledge|sill|fire-escape|lamp-post|gate|fence|parapet|pipe|vent|duct", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
   "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ],
+  "crawls": [ { "id": "CR1", "level": "G", "name": "", "path": [[0, 0], [0, 0]], "width": 1.2, "y0": 2.42, "y1": 3.9, "ends": [ { "kind": "hatch|vent|open", "ref": "G-SPINE", "at": [0, 0] } ], "reason": "" } ],
   "roofs": [ { "id": "RF01", "name": "", "building": "A", "level": "G", "rect": [0, 0, 0, 0], "base": 3.0, "type": "flat|mono|gable|hip|sawtooth|curved", "pitch": 25, "ridge": "x|z", "overhang": 0.5, "fascia": 0.2, "material": "metal|concrete|membrane|tile", "colour": "terracotta", "gutter": true, "downpipes": true } ]
 }
 ```
@@ -53,6 +54,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | meta.site | Site rect (RULES section 2 limit 110 x 80) |
 | meta.footprint | Building footprint rect (limit 48 x 30). Optional and ignored by the checks when `meta.buildings` is set; without `meta.buildings` it is the one building, as before |
 | meta.buildings | Optional list `{ id, name, footprint }`, one per building. Each footprint is at most 48 x 30 and inside the site; no two overlap (A21) |
+| meta.night | Optional (ON15). The map's own night, from the editor's Moon and time "Use for the map": `{ bearing, height, brightness, time }`: the moon's compass bearing (degrees clockwise from north, +Z), its height above the horizon (degrees, 5-85), its brightness (`new`, `quarter`, `half`, `full`: a share 0, 0.25, 0.5, 1 of the theme's moon, `src/world/maps/kestrelNight.ts`) and the time of night the slider set (`HH:MM`, empty when the bearing or height was set by hand; display only). The Kestrel map's theme reads it in the walk test and the game (dev and build); without it the map keeps its own moon |
 | levels[].id, name | Level id (B, U, G, F, H, S, R) and its name |
 | levels[].floor | Floor height above ground floor level, in metres |
 | levels[].height | Floor-to-floor height of that level |
@@ -61,7 +63,9 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].name | Name used on the plan label. Plain words in Title Case, no abbreviations (2g-2) |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
 | rooms[].rect | Wall-centreline rectangle |
-| rooms[].ceiling, finish | Ceiling height and floor finish (level-design 16.8.3). ON5: the editor writes a finish id from `src/world/maps/kestrelExterior.ts` (carpet, vinyl, ceramic, concrete, grating, raised, gravel, grass, asphalt; `linoleum` reads as vinyl), or "" for none; the walk test marks the floor with its game surface (footstep loudness) |
+| rooms[].ceiling, finish | Ceiling height (ON13: 0 = none; the editor edits it as the room's ceiling piece) and floor finish (level-design 16.8.3). ON5: the editor writes a finish id from `src/world/maps/kestrelExterior.ts` (carpet, vinyl, ceramic, concrete, grating, raised, gravel, grass, asphalt; `linoleum` reads as vinyl), or "" for none; the walk test marks the floor with its game surface (footstep loudness) |
+| rooms[].ceilingType | Optional (ON13). `grid` (suspended grid tiles), `plasterboard`, `slab` (exposed slab) or `open`; absent: a corridor with a ceiling is a grid, any other room plasterboard, a room with `ceiling` 0 open (`src/world/maps/kestrelCeilings.ts`, thicknesses with sources). The editor writes it once the type is set |
+| rooms[].hatches | Optional (ON13). Ceiling hatch centres `[x, z]`: on a grid ceiling the tile marked as a hatch (any tile lifts), elsewhere a placed access hatch (only those open). The walk test leaves each hatch open |
 | rooms[].minShort | Minimum clear short side this room must keep |
 | rooms[].open | Edges (`"W"`, `"S"`, `"E"`, `"N"`) left with no wall |
 | rooms[].ring | Access level of the room, 0-5 (see conventions) |
@@ -83,6 +87,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | openings[].h, sill | Opening height and sill height above the floor |
 | openings[].type | Doors (ON9 catalogue, `src/editor/openingCatalogue.ts`): `door` single swing, `fire-door` solid fire door, `double` double swing, `glass-door` glass swing, `slide-auto` sliding glass (automatic), `slide-card` sliding glass (card), `slide` sliding (manual), `roller` roller shutter, `gate` swing gate, `slide-gate` sliding gate, `hatch`, `arch` (no leaf). Windows: `window` fixed, `window-open` opening (top hung), `window-frosted` frosted fixed, `louvre`, `rooflight` (high in the wall). `grille` is kept from older files. A `fire-door` is exit-only: no handle on the lower-zone side (SC02) |
 | openings[].door | Optional door settings (ON9), each optional; absent means the type's default (`typeDefaults`): `hinge` left or right (seen standing on the side the door opens away from, facing it; absent is the `a` end); `stack` the same for a sliding leaf's stack side; `swing` the room id the leaf swings into ('' outside; absent is `between[1]`); `oneWay` the room id of the side that opens freely (push bar; the other side needs the key or card, or cannot open); `reader` none, card, card-pin, keypad or key-switch; `level` the card access level 0-5 (S0 2.3); `closer` self-closing; `alarmed`; `vision` a glass vision panel in a solid leaf. A door with `oneWay` counts as exit-only, and one with a card reader and a `level` as a reader door, in A29 and SC02 |
+| openings[].plate | Optional (ON14), doors only: the name plate's text (absent: no plate). Default the name of the room the door opens into (`src/editor/signs.ts`); drawn in the door's card `level` colour beside the latch edge on the outside face at facts `sign.plateCentre` (1.5 m); the walk test builds a thin non-colliding panel |
 | openings[].glass | Optional glass settings (ON9) on windows and glass leaves: `kind` clear, frosted, wired or tinted; `blinds` none, open, half or closed (windows); `breakable` can be shot or smashed; `opens` the window opens (windows). Frosted glass and closed blinds block sight and pass light (bible 5.1; the game from stage DR) |
 | openings[].between | The two room ids it joins; an empty string means outside |
 | openings[].locked, key | Whether it is locked and which key or card opens it |
@@ -130,6 +135,19 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | services[].path | Route as `[x, y, z]` points (absolute y) |
 | services[].size | Cross-section `[w, h]` |
 | services[].reason | What it serves |
+| crawls[] | Optional (ON13; absent until the first is drawn). Crawl spaces in ceiling voids (or on a floor). The walk test builds floor boards and side boards (`src/world/maps/kestrelCeilings.ts`); the player crouch-moves in them; guards never enter |
+| crawls[].id, level, name | Unique id (`CR1`), its level, an optional plain name |
+| crawls[].path | The route's points `[x, z]`, two or more (one straight leg per pair) |
+| crawls[].width | Clear width, facts `crawl.widthMin`-`widthMax` (0.6-1.2; under 1.2 the words say it is narrower than the crouch width, F32) |
+| crawls[].y0, y1 | The boards' top and the underside above, over the level's floor. Default: the ceiling void under the route (the ceiling plus its thickness up to the slab above less facts `room.slab`); clear height `y1 - y0` against the crawl rule facts `duct.crouchHeight` (1.5, F32) |
+| crawls[].ends | The start and the end: `hatch` (`ref` the room whose ceiling has the hatch, `at` the hatch centre), `vent` (`ref` an ON5 vent piece in `exterior`) or `open` |
+| crawls[].reason | Why it is there |
+| signs[] | Optional (ON14; absent until the first is placed). Wayfinding and safety signs (`src/editor/signs.ts`, kinds in `signCatalogue.ts`); in-world text (docs/story.md section 2). The walk test builds each as a thin non-colliding panel in its colour (no text) |
+| signs[].id, level, name | Unique id (`SG-1`), its level, an optional plain name |
+| signs[].at, y, facing | The face's centre `[x, z]`, its height over the level's floor, the way the face looks (degrees, north 0, east 90) |
+| signs[].wall or hang | `wall` the wall id it is fixed to (moves along it), or `hang: true` (under the ceiling, both faces) |
+| signs[].kind, text, arrow | The catalogue kind (direction, room-sign, exit, extinguisher, first-aid, high-voltage, gas-suppression, no-entry, authorised, cctv); the words (a safety preset's are fixed); the arrow none, left, right, ahead, up or down |
+| signs[].size, room | Face `[width, height]` in metres; the room it is in |
 | roofs[] | Optional (ON10; absent until the first roof is drawn). One roof per axis-aligned outline; geometry in `src/world/maps/kestrelRoofs.ts` (shared by the editor, the walk test and `plans.mjs`) |
 | roofs[].id, name, building | Unique id (`RF01`), optional plain name, the building it sits on (absent on the site) |
 | roofs[].level | The level it was drawn on: the editor shows and selects it there and the plan draws it on that level |
@@ -198,7 +216,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | lamps[].room | Room id the lamp is in |
 | lamps[].at | `[x, y, z]`, y above the room's floor |
 | lamps[].circuit | Circuit id it belongs to |
-| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25); the editor also writes `kind`, `fixture` (the body box) and `on: false` for a light off in its normal state, from the fitting catalogue's one conversion (ON6) |
+| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25); the editor also writes `kind`, `fixture` (the body box) and `on: false` for a light off in its normal state, from the fitting catalogue's one conversion (ON6), and `area` ({ pts: [dx, dz][], sx, sz }: an area fitting's light points across its face with each point's cell; the game builds one light per point, the intensity shared out; Michael 2026-10-14) |
 | lamps[].aim | Optional `[yaw, pitch]` degrees for aimed fittings (floods, twin spots): yaw 0 north, 90 east; pitch below the horizontal (ON6) |
 | lamps[].b | Optional `[x, y, z]`: the other end of a linear fitting (strip, batten, troffer run), `at` being the first (ON6) |
 | lamps[].emergency | Optional: `maintained` (always on, also in mains-off) or `non-maintained` (on only in mains-off) (ON6) |
@@ -260,6 +278,19 @@ Shape and field rules are S0-security-spec.md section 6; they are not repeated h
 | devices[].reason | Why a real operator put it there |
 | zones[].id, rooms, secure | Zone id, its room ids, and whether it is the secure zone |
 | cards[].id, opens, heldBy | Card id, reader ids it opens, and the guard, civilian or object that holds it |
+
+ON12 (the level editor writes `devices`; `zones`, `cards` and the other kinds are kept): fields it adds, all optional for
+the stages that do not need them.
+| Field | On | Meaning |
+| --- | --- | --- |
+| `mount` | camera, pir | `wall` (on a wall face, facing out) or `ceiling` |
+| `desk`, `monitor` | camera | The security desk object (`objects[]`, preset `security-desk`) whose video wall shows it, and the monitor (1-16); the desk's feed list is every camera naming it |
+| `reader` | reader | `card`, `card-pin` or `keypad` (ON9's door reader ids); `pin` is true for the last two (S0 2.3) |
+| `alarm` | pir | true when it reports to the alarm instead of turning on a `lamp` |
+| `visible` | beam | true: the beam line is drawn; false: night vision only (S0 section 3) |
+| `name` | any | A readable name (optional) |
+A reader with a `door` also sets that opening's `door.reader`, `door.level` (its `accessLevel`) and `locked: true` in
+kestrel.arch / campus (one edit). `facing` is yaw degrees (0 = +Z) as S0; `y` and beam heights are above the level floor.
 
 ## 5. Plan renderer (scripts/kestrel/plans.mjs)
 `node scripts/kestrel/plans.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--out docs/kestrel/plans]` writes, for each level `L`:

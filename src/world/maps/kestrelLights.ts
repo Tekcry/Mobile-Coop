@@ -20,6 +20,12 @@ export interface LampParams {
   fixture?: LightFixture | null;
   /** false: off in its normal state (a fridge's door light). */
   on?: boolean;
+  /**
+   * An area fitting (Michael 2026-10-14: a troffer, a strip): its light as points across its lit face, plan offsets
+   * from the lamp's point, each with its cell of the face as the fixture box (sx, sz). The game builds one light per
+   * point with the intensity shared out (the sum is the fitting's), the same reach and cone, so the whole face lights.
+   */
+  area?: { pts: [number, number][]; sx: number; sz: number };
 }
 
 export type Emergency = 'maintained' | 'non-maintained';
@@ -118,6 +124,16 @@ export function campusLights(f: Where & { lamps?: readonly LampRecord[]; circuit
       group: gi >= 0 ? gi + 1 : -1,
       fixture: p.fixture ? { ...p.fixture } : null,
     };
+    const area = p.area && p.area.pts.length > 1 ? p.area : null;
+    if (area) {
+      // an area fitting: a light per point of its face, the intensity shared out, each point's cell its fixture box
+      const n = area.pts.length;
+      for (const [dx, dz] of area.pts) {
+        out.push({ ...base, x: x + dx, z: z + dz, intensity: p.intensity / n, color: [p.color[0], p.color[1], p.color[2]], cone: p.cone ? { ...p.cone } : null, fixture: p.fixture ? { ...p.fixture, sx: area.sx, sz: area.sz } : null });
+        ids?.push(l.id);
+      }
+      continue;
+    }
     out.push(base);
     ids?.push(l.id);
     if ((l.heads ?? 1) > 1 && p.cone) {

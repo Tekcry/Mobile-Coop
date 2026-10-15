@@ -124,11 +124,12 @@ export class EditorOverlays {
     const ed = this.ed;
     const view = ed.view;
     const d = ed.model.data;
-    if ((!d.guards?.length && !d.spawns?.length && !d.objectives?.length && !d.hides?.length && !d.checkpoints?.length && !d.extraction?.length) || ed.prefs.layout === 'plan' || ed.walk.state === 'open') return this.hideMission(0);
+    if ((!d.guards?.length && !d.spawns?.length && !d.objectives?.length && !d.hides?.length && !d.checkpoints?.length && !d.extraction?.length && !d.devices?.length) || ed.prefs.layout === 'plan' || ed.walk.state === 'open') return this.hideMission(0);
     const key = `${ed.dataVersion}|${ed.mission.paths}|${ed.selected ?? ''}|${ed.mission.path?.id ?? ''}`;
     if (key !== this.mKey) {
       this.mKey = key;
-      this.mSpots = ed.mission.labels();
+      // ON12: security device ids join the mission labels
+      this.mSpots = [...ed.mission.labels(), ...ed.security.labels()];
     }
     const cam = view.camera.position;
     const [fx, fy, fz] = ed.controls.forward();

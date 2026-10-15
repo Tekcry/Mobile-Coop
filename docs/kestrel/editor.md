@@ -55,17 +55,22 @@ views are generated from it, so this table and the editor cannot drift apart for
 
 | Input | Does |
 | --- | --- |
-| Right mouse drag | look around |
-| W A S D | move; Q / E down / up (fly); Shift fast; mouse wheel zooms in and out |
+| Right mouse drag | look around (hold the right button and move) |
+| W A S D | move along the view; Q / E down / up (fly); Shift fast (3.5x); mouse wheel: the fly speed (2 to 60 m/s, 10 to start; Settings > Camera Orbit: moves in and out as before) |
+| Mouse over the 3D view, a build or add tool in hand | the tool's ghost follows the cursor, with the dot's words beside it; it aims at real surfaces (below, "Free fly, aiming and walls"); a click places exactly what the ghost shows |
 | Tab | **walk test (game)**: the game's own player at the dot, unsaved edits included (below) |
 | Shift+Tab | **quick walk** at the dot (same as L3 tap; 1.75 m eye, walls block, C crouches to 1.15 m, Shift held runs); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
-| Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
+| Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor). With something selected or held that has a height (objects, lamps, signs, security devices, climb pieces, doors and windows, roofs): raise / lower it one grid step, Shift 1 m, one undo step each (fix-up 2026-10-14); a room or wall stays on its level, so the level changes as before |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
 | 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
-| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
+| Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening, resize an object by a corner (the opposite one stays), move a drawn piece's, strip light's or beam's end; a single centre marker moves the rest; in 3D the top and bottom handles change heights, a lamp's or device's height handle its mounting height and a roof's ridge handle its pitch (Free fly section). Handles keep 12 px on screen (facts `render.handlePx`) |
+| [ / ] (a tool in hand) | the previous / next item on the carousel (also the wheel over it, or a click on one; Michael 2026-10-14) |
+| Shift+[ / Shift+] ({ / }) | the item's next version (Troffer 600 x 300 / 1200 x 300), or the group where it has one version (also Shift and the wheel over the carousel) |
+| Wheel while dragging | raise / lower what is held one grid step (Shift: 1 m); in Resize taller / shorter (fix-up 2026-10-14) |
+| T while dragging | Move or Resize: Resize keeps the corner (or end) opposite the pointer fixed (fix-up 2026-10-14) |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
 | Arrow keys | nudge the selection one grid step, 0.1 m by default (Shift: ten steps) |
@@ -82,6 +87,10 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Y, B | the light view (ON7): the 3D scene at night, lit by the game's own light bake of the editing level; the darkness map: the floor by the light meter's band (both on Hub > View too) |
 | Space > Lights > Guard view | the guard view tester (ON7): a click places a guard eye facing the way the camera looks; R turns the last eye 45 degrees; Esc or Delete removes it (Esc again leaves the tool) |
 | Space > Mission tiles | the Mission tools (ON8): Guard (a click places a guard, then clicks add its patrol stops; a click on the first stop closes the loop; R turns the last stop 45 degrees, + / - its wait, Backspace removes it, Page Up / Down the level of the next stop, Esc ends), Insertion, Extraction (click a corner, click the far corner), Objective, Intel, Checkpoint, Hide |
+| Space > Security tiles | the Security tools (ON12): Fixed camera, Pan camera (a click on a wall face mounts it facing out, elsewhere under the ceiling facing the way the view looks; R turns that ceiling ghost 45 degrees), Card reader and Keypad (a click by a door binds it to the door; on a wall face alone), Motion sensor, Beam (click one end, click the other); the card's rows in the side panel step them; Space > View > Security coverage |
+| Space > Build > Crawl space | the Crawl space tool (ON13): click one end, click the other; a click at the selected crawl's end goes on with another leg; Esc puts the tool down. A room's side panel: Select the ceiling (its type, height and hatches step with the arrows); Space > View > Ceiling voids |
+| Space > Selected: Mirror, Align, Evenly space, Array | ON14: mirror the selection east-west or north-south about its centre, or about a line (click two points on it); align a set by an edge or centre; evenly space three or more; Array: the mouse sets the spacing, Left / Right arrows the count, a click makes the copies; Esc stops |
+| Space > Objects > Signs | the Sign tool (ON14): a click on a wall face fixes the sign there; away from walls a wayfinding sign hangs under the ceiling facing back along the view; the side panel sets its text, arrow, height and width. A door's side panel: Name plate (its text) |
 | 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
@@ -101,9 +110,12 @@ plan and names it in the corner of the 3D view.
 Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the hub's Help tab switch
 to the pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
 
-The pad drives a **builder camera** that circles the **dot**, a point on the editing floor. The first pad input starts
-it from the current view (aimed at the screen centre, or 25 m ahead when that misses); mouse or key input hands back to
-the free camera from the same spot. Nothing jumps either way.
+**Hub > Settings > Camera** (Michael 2026-10-14): **Free fly** (the default, also for settings saved before it existed)
+or **Orbit**. In Free fly the pad flies the same free camera as the mouse (below, "Free fly, aiming and walls"). In
+Orbit the pad drives a **builder camera** that circles the **dot**, a point on the editing floor; the rest of this
+section describes Orbit. The first pad input starts it from the current view (aimed at the screen centre, or 25 m ahead
+when that misses); mouse or key input hands back to the free camera from the same spot. Nothing jumps either way. With
+the layout on Plan only the pad uses the orbit dot in both modes (the 3D view is hidden).
 
 ### Building (the normal state)
 | Button | Does |
@@ -111,7 +123,7 @@ the free camera from the same spot. Nothing jumps either way.
 | Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out, a little slower near a snap |
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
 | LB held + right stick up / down | raise or lower the camera without tilting (the camera keeps its x, z; the dot slides along the view); the hint bar says so while LB is held |
-| LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
+| LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan. While holding something they raise and lower it instead (below) |
 | A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish (Wall: each A ends a wall and starts the next, a chain); door and window tools place one |
 | B | cancel a grab or a drawing; else leave the card; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
@@ -165,6 +177,8 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 | A | drop / finish the corner or wall end |
 | B | put it back / cancel |
 | RB tap | turn the grabbed room, stair, ladder or wall 90 degrees about the dot (shown live; the drop saves move and turn as one change; B puts it back). Doors, windows and floor holes ignore it |
+| RT / LT | raise / lower (analogue, 1 m/s at a full trigger, snapped to 0.1 m; LB held a quarter speed). Objects (base), lamps, signs, security devices, climb pieces, doors and windows (sill, kept inside the wall), roofs (base). A room, wall, stair or ladder says "Stays on its level". The triggers zoom again once it is dropped (fix-up 2026-10-14) |
+| Y | **Move / Resize**. A small tag by the dot says which, with the height ("Resize, base 0.5 m, 1.2 m high"). Resize takes the corner (rooms, stairs, floor holes, roofs, objects) or end (walls, doors and windows, drawn pieces, strip lights, beams) nearest the dot; the opposite one stays put. The left stick and the D-pad (0.1 m) move it; RT / LT change the height (objects, walls, doors and windows, climb pieces). Min sizes and the room rules (walls follow, reuse) hold; Y again goes back to Move from where it is. The drop is one undo step (fix-up 2026-10-14) |
 | LB held | slow and no magnet, as above |
 
 ### Smarter A
@@ -185,28 +199,44 @@ in the editor; the editor never adds dressing. Other maps are unchanged.
 - The constants are one table at the top of `src/editor/grab.ts` (Michael tunes them after his pad test).
 
 ### The tile menu (ON0a: replaces the wheels; Y tap, Space with the mouse)
-A full-width panel over the bottom half of the views; the 3D view stays visible above it, and the dot, tool bar and card
-wait until it closes. A row of tabs, then a grid of large tiles (a letter, the name, one line of what it does).
+A full-width panel along the bottom of the views, **one fixed size on every tab and group** (Michael 2026-10-14): the
+tab row, the group row and a body three tiles tall (two on phones and small windows); a tab with more tiles scrolls
+inside it. The 3D view stays visible above it, and the dot, tool bar and card wait until it closes. A row of tabs, under
+it the **group row** (styled like the tabs; blank on a tab with no groups), then a centred grid of tiles: a letter, the
+name, and under it two to five words of what it does. Every tile is one size: 292 x 80 px (216 x 65 on the small
+layout); long names wrap inside the tile. At most 4 columns, fewer on a narrow panel (never stretched to the edges,
+never overflowing); a tab with fewer tiles than columns draws fewer columns, still centred. The D-pad steps across the
+columns as drawn. The View tab's list is as wide as the grid would be. Tile words never name buttons: the hint bar says
+what A does.
+
+**Group row (Michael 2026-10-14):** groups are tabs, not tiles; the tiles are only the items of the group shown.
+Objects: Data hall, Plant, Office and security, Goods-in, Yard and roof, Signs. Presets: Start set, Module kit, Mine
+(Mine's tiles add Rename and Delete). Lights: Interior, Plant and goods, Outside, Emergency, Glow, and **Switch and test**
+(Switch and Guard view, which are not fittings). Climb, Mission and Security have no groups. LT / RT step the group
+(wrapping; the triggers do not zoom while the menu is open), a click picks one; the header says "LT / RT group". The
+menu remembers the group per tab (picking a fitting or object sets its group) and the highlight per tab and group.
 
 | Button | Does |
 | --- | --- |
 | D-pad or left stick | move the highlight (wraps); on the View tab, left / right change the row's value |
 | A | pick the tile: a tool or an action runs and the menu closes; a View row changes and the menu stays |
 | LB / RB | previous / next tab (wraps) |
+| LT / RT | previous / next group on the group row (wraps) |
 | B or Y | close |
 | Right stick | scroll a long tab |
-| Mouse | Space opens and closes it; click a tab or a tile; Esc closes |
+| Mouse | Space opens and closes it; click a tab, a group or a tile; Esc closes |
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
-| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
+| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Ceiling (rooms, ON13: selects the room's ceiling) and Room (a ceiling: back to its room; a ceiling has no Move, Duplicate or Rename id), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Crawl space (ON13), the Roof types (ON10), Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
-| Objects | the ON4 object groups and presets (below) |
-| Presets (ON11) | Start set, Module kit, Mine (A shows that source, the menu stays), then its presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
+| Objects | group row: the ON4 object groups and Signs; tiles: that group's presets or signs (below) |
+| Presets (ON11) | group row: Start set, Module kit, Mine; tiles: that source's presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
 | Climb (ON5) | Downpipe, Horizontal pipe, Ledge or string course, Window sill, Parapet coping, Vent grille, Duct crawl, Fire escape stair, Lamp post, Chain-link fence |
-| Lights, Mission | shown once a later part adds tiles to them |
-| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5) |
+| Lights (ON6) | group row: Interior, Plant and goods, Outside, Emergency, Glow, Switch and test; tiles: that group's fittings (Switch and test: Switch, Guard view) |
+| Mission, Security | Guard and the markers (ON8); the security devices (ON12) |
+| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5), the light rows (ON7), Guard paths (ON8), Security coverage (ON12), Ceiling voids (ON13) |
 
 - The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
   chooses the last tab (default) or always Build.
@@ -226,6 +256,8 @@ first** (door type, wall kind, room kind), then its own fields.
 | Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5), Floor finish (ON5; the foot gives the footstep loudness) |
 | Climb piece (ON5) | Type (flips between pieces placed the same way: downpipe and vent; the drawn ones), Name, its heights and sizes (Bottom, Top, Height, Depth, Width, Length as the piece has them), Climbable (by hand: an override); the foot says what the player can do |
 | Stair | Type (Main dogleg, Fire dogleg, Straight), Name, Width, Depth, Climbs, To level (risers follow); the foot says whether it fits ("Fits: 25 risers", or "Needs 1.42 m more length for 25 risers") |
+| Ceiling (ON13) | Type (Suspended grid tile, Plasterboard, Exposed slab, Open / none), Height (0.1 m steps up to the slab's underside; below facts `ceiling.min` 2.1 m it becomes none; from none it takes 2.4 m in a corridor, 3.0 m elsewhere), Hatches (right adds one at the dot, or the room's middle; left takes the last off); no Id row (it is the room's); the foot gives the void's clear height against the crawl rule |
+| Crawl space (ON13) | Name, Width (0.6-1.2 m), Floor height, Clear height, Start and End (what each end took: a hatch, a vent or open; redraw to change), Id; the foot gives the clear height against the crawl rule |
 | Floor hole, ladder | Type (stair well, lift shaft, riser, hatch, roof light), Name, Width, Depth (floor hole); Name, Facing, To level (ladder) |
 | Every card | ends with **Id**: A opens the keyboard (capitals kept); Done renames it and every reference (ON2) |
 
@@ -268,17 +300,42 @@ pad, and any grab is put back first.
   saved (an edit after undoing past the save counts both ways). The change log written on save still lists every undo.
 
 ### Screen
-- The **dot** shows the position, the snap, what A would do and, while grabbing or drawing, the live size, length or
-  move. In Plan only its words show under the plan.
+- The **dot** shows the position, the snap, what it would place or take in plain words ("Troffer 1200 x 300, 3.75 m
+  up", "Stretch east edge") and, while grabbing or drawing, the live size, length or move. Its words never name a button
+  (no "A:", "RB turns", "B ends"; Michael 2026-10-14): button prompts are the hint bar's only (e2e checks 16 placing
+  tools). In Plan only its words show under the plan.
 - **Tool bar** (bottom centre): the active tool only (the Y menu picks tools), with its type under it in words (Door:
   Single, Double, Fire door; Room: With walls, Outside walls, Room only). When the selection card shows, the bar centres
   in the width left of it; where that is too narrow the card rises above the bar. Nothing on the pad screen overlaps (e2e
-  checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open and with the card being edited).
+  checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open, with the card being edited and with the carousel).
+- **Type carousel** (Michael 2026-10-14; `src/editor/carousel.ts`): while a placing tool is in hand (doors, windows,
+  rooms, stairs, floor holes, roofs, objects, climb pieces, lights, security devices, signs, presets, guard roles,
+  mission markers) **one compact row** over the tool's place shows its items in the current group, and replaces the
+  tool's slot (48 px tall on the desktop, 36 px on the small layout; e2e: at most 56 px at 1280 x 720). The current item
+  is centred and lit (accent border, full size, its whole name, up to 300 px; 210 small); the others are the same width
+  (132 px; 96 small), scaled to 0.85, greyed, fading toward the ends (0.8 beside it, 0.3 at the ends), wrapping, as
+  many each side (odd, at most 7, as many as fit beside the card and the small plan). Names stay on one line and end in
+  "..." when long (the full name is the item's tooltip and shows when it is lit). A short even list shows the item
+  opposite the current one at both ends, so the lit one stays centred.
+  - **Items and versions**: entries of a catalogue with the same `series` (a field on the entry) are one item with
+    versions; the lit item shows "1/2". Families: lights Troffer 600 x 300 / 1200 x 300 and Round / Oval bulkhead;
+    objects Pallet / Pallet stack, Crate 1.0 / 1.2 m, Wheelie bin 240 L / Bulk bin 1100 L; doors Sliding glass door
+    (automatic / card); windows Fixed / Frosted fixed window; security Fixed / Pan camera and Card reader / Keypad
+    (from each device tool's existing `kind`). No catalogue gives downlight sizes or strip lengths, so none are made up.
+  - **Controls**: D-pad left / right, [ and ], the wheel over it or a click: the item (its first version). D-pad up /
+    down, Shift+[ and Shift+] ({ and }), Shift and the wheel over it: the item's version where it has more than one,
+    else the group where the tool has groups (lights: Interior, Plant and goods, Outside, Emergency, Glow; objects: the
+    object groups; presets: Start set, Module kit, Mine; a group's first entry), else nothing. The hint bar says which:
+    "D-pad Item / Version", "D-pad Item / Group" or "D-pad Item". The ghost and the dot's words follow at once.
+  - It shows with the mouse too. No carousel for Select, Wall, Switch, path editing or the Array count (D-pad left /
+    right still sets the count); with those, D-pad up / down still change the level.
 - **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; its
   first row, size and level; while the D-pad edits it, every row with the lit one between arrows (the dot's words hide).
-- **Hint bar** (controller): one line, at most 5 prompts. Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
+- **Status line**: hidden while the controller was used last (the views take its room); back with the mouse or keyboard.
+  On the pad a new message shows for 3 s at the top right instead (fix-up 2026-10-14).
+- **Hint bar** (controller): one line, at most 5 prompts; holding something: "A Drop, LT/RT Lower / raise, Y Move / Resize, RB Turn 90, B Back". Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
   with a selection: "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; editing the card: "D-pad Edit, A Done, Y Menu, B
-  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close"; LB held: "LB + RS Height, LB Slow". What A would take replaces "Grab" ("Stretch east
+  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB / RB Tab, LT / RT Group, B Close"; LB held: "LB + RS Height, LB Slow"; a placing tool: "A Start / finish, D-pad Item / Version (or Item / Group), Y Menu, LB Slow, B Back". What A would take replaces "Grab" ("Stretch east
   edge"). Full words are in the hub's Help. The keyboard keeps the long words.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
   the same spot); it runs by default, L3 toggles a slow walk, L3 held starts the walk test, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
@@ -289,6 +346,89 @@ pad, and any grab is put back first.
 - **Questions** such as Revert are answered in the editor: A (or click) yes, B no.
 - **Rumble**: once on a new snap, on a drop, and a heavier one on an error. Off in the hub's Settings.
 - Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
+## Free fly, aiming and walls (Michael 2026-10-14)
+- **Free fly (pad)**: left stick flies along the view (looking down, forward goes down toward what you look at), right
+  stick looks (Settings > Invert tilt), RT up / LT down when nothing is held (holding something they raise and lower it
+  as before), LB slow (30 %). Dead zone, response curve, smoothing and rates are the camera table's (`ORBIT` in
+  `orbit.ts`: turn 1.8 rad/s, tilt 1.1 rad/s; Pan speed and Orbit speed scale them); speed is the fly speed (the wheel
+  sets it). A small crosshair marks the screen centre. View tap: straight down, north up, and back; View held: layout.
+- **The aim** (the dot in Free fly): the screen-centre ray on the pad, the cursor ray with the mouse. It meets the real
+  surfaces of the editing level (`src/editor/aim.ts`): a ceiling underside gives the point under it, a wall face a
+  point 0.05 m out of that face (snapped along the face only, so it never lands behind it), a floor or an object top
+  the point there. Looking up at no ceiling the ray meets the ceiling plane of the room it is in (the storey less the
+  slab outside rooms). Ceilings are picked from below only, so from above a ray goes through to the floor, and a
+  ceiling fitting goes to the ceiling over that point. In Free fly the magnet snaps the aim (the camera does not move),
+  only when it is on the floor. The tools still place by that plan point: ceiling fittings at the ceiling, wall
+  fittings, switches, cameras, readers, signs and wall climb pieces on the face hit, facing out of it.
+- **Go to** (RB, F, Find, problem lines, the small plan) eases the fly camera so the aim lands on the place, keeping the
+  yaw, looking down at least 20 degrees, from the distance the aim was. Bookmarks restore the pose. L3 quick walk and
+  the walk test start at the aim; the quick walk's B comes back to the fly pose; back from the walk test the camera
+  eases round the player and flies from there.
+- **Nothing inside walls** (`src/editor/wallClear.ts`): climb pieces, objects, lamps, security devices (not beams) and
+  signs may not overlap a wall's solid part (openings cut out, heights counted). Touching a face (0.01 m, facts
+  `rules.wallTouchTol`) is on it. A piece in by 0.3 m or less (facts `rules.wallPushMax`) is pushed out to the nearest
+  face, ghost and placement alike; deeper, the ghost turns red with "Inside a wall" and A (click) does nothing. Moving,
+  resizing or raising a held piece follows the same rule: pushed out, or red words and the drop puts it back. Points
+  (lamps, devices, signs) are checked at their centre, lines and boxes by their section (at least a pipe's radius).
+  The same rule (Michael 2026-10-14) covers the arrow-key nudges, the card's and side panel's steps (D-pad left / right
+  on a row) and preset stamps: pushed out within `rules.wallPushMax`, else nothing changes and the status says "Inside a
+  wall" (a stamp names the piece). The **Stamp tool's ghost** turns red with "Inside a wall: Desk" (the piece) before A
+  where the rule would refuse the stamp (worked out only when the ghost moves, turns or the file changes; Michael
+  2026-10-14). A piece already inside a wall (old data) is left be.
+- **Top and bottom handles** (Michael 2026-10-14; `held.ts` `vertResize`): a selected object, wall (top only), door
+  or window (head and sill), climb piece (its top and bottom heights), sign (top and bottom edge) and roof (bottom: the
+  eaves; the whole roof rises) has an orange handle at the centre of its top face and of its bottom face, drawn in 3D
+  only (the plan has no height), the same 12 px on screen. A **lamp** or **security device** (no height to size) has
+  one height handle 0.3 m under its body (clear of its move marker; at a linear lamp's or a beam's middle): dragged, the
+  mounting height changes (the whole fitting; never under the floor). A pitched **roof**'s top handle is its **ridge**
+  (the middle of the ridge line the game's roof shape draws; a mono-pitch's high edge): dragged up or down, the eaves
+  stay and the pitch becomes what puts the ridge there (0.1 degree, 1-60; gable, hip, mono, sawtooth: the run from
+  the game's own shape), a curved roof's rise (0.1 m, at most half the span); a flat roof has none (`roofGeometry.ts`
+  `ridgeHandle`, `ridgeResize`). Mouse: drag a top handle up or down to change the height
+  (the bottom stays), a bottom handle to move the base or sill (the top stays), in 0.1 m steps (Ctrl: the fine grid).
+  Pad: with the aim (the screen centre) on one the dot says "Top: taller or shorter" ("Ridge: higher or lower",
+  "Height: up or down") and the hint bar's A prompt takes those words; A grabs it, RT / LT or the
+  left stick up / down change it in 0.1 m steps, A drops, B puts it back. Min sizes: objects, climb pieces and signs
+  one object grid step, walls and openings 0.5 m; a base never below the floor; an opening's head never above its
+  wall. One undo step per drag; the wall rule applies.
+
+## Placing matches the ghost, sliding lamps, area lights, roofs on walls (Michael 2026-10-14)
+- **What A places is what the ghost shows.** The cause of lamps appearing above a lowered roof: every tool worked out
+  the ceiling height from the room (its ceiling, else the storey less the slab) and never saw roofs; the ghost was drawn
+  over everything, so it looked right. Now one function, `ceilingSurface` / `ceilingOver` (`lamps.ts`), gives the
+  ceiling over a point: the room's ceiling, or a roof's underside where that is lower (the roof plane less its 0.2 m deck,
+  `ROOF_BUILD.deck`, as the walk test builds the slab; `roofUnderside` in `roofGeometry.ts`). The aim, the lamp ghost and
+  A, ceiling security devices and hung signs all read it, and the 3D view draws a roof's underside so the aim meets it from
+  below.
+- **Sliding a placed lamp** (also a security device or sign): with Select, the aim within facts `light.grabPx` (48 px) of
+  one says "Lamp LP3: take it and slide it (A)"; A selects and takes it whole (a top or bottom handle nearer the aim still
+  wins). The left stick slides it (the way the camera faces, facts `light.slideSpeed` 1.5 m/s; the camera stays), the
+  D-pad nudges 0.1 m, RT / LT change its height, A drops it, B puts it back. A ceiling fitting stays on its ceiling;
+  onto the next ceiling (another room, a lowered roof) it keeps its drop under that one; off every ceiling it stops at
+  the edge. A wall fitting slides along its wall (the stick's up / down is its height). **Snap**: on a ceiling or roof
+  underside it snaps to the surface's centre line and quarter lines both ways within facts `light.snapMagnet` (0.15 m),
+  green guide lines showing while snapped; a wall fitting to its wall's centre and quarter points. LB held: no snap, a
+  quarter speed. The mouse dragging a lamp or device does the same (Ctrl: no snap). Pure maths: `src/editor/mount.ts`
+  (`tests/editor/mount.test.ts`); `slideLamp` in `lamps.ts`.
+- **Handles keep their size while held**: a held piece remakes its handles every frame from inside the frame; they are now
+  sized as they are made (they showed at 1 m until the drop).
+- **Troffers** are 600 x 300 (1800 lm: a typical product, half the 1200 x 300's) and 1200 x 300 (3600 lm, ON6 decision 4)
+  (Michael, 2026-10-14). The ids stay `troffer-600` and `troffer-1200`; a file's older troffer 600 x 600 lamps (and any
+  area fitting saved before) get their params again on load as one change with a change-log line ("Lamps brought up to
+  date").
+- **Area fittings light across their whole face**: the game has no area light, so the shared conversion (`lampArea` in
+  `lamps.ts`, `areaGrid` in `lightCatalogue.ts`) lays light points over the lit face, one per facts `light.areaCell`
+  (0.3 m) of its width and depth, at most `light.areaMax` (8) (a 1200 x 300 troffer: 4, a 600 x 300: 2; a strip spreads
+  them along its line). The record carries them in `params.area`; `campusLights` (`kestrelLights.ts`) builds one light per
+  point with the same reach and cone and the intensity shared out (the sum is the fitting's), each point's cell of the
+  face as its fixture box, so the light view, the bake, the walk test and the meter all see the same lights. The 3D
+  fitting glows over its whole face. One-point fittings and aimed ones are unchanged; no other map's lights change.
+- **Roofs on walls**: the aim catches wall tops; the Roof tool's corners snap to the outer face of a wall under the aim
+  (facts `roof.cornerMagnet` 0.4 m, each axis; LB / Ctrl off) and a roof started on a wall top says "on the wall top 4.2 m
+  up". The default eaves are the wall top most of the wall length **along the outline** reaches (walls on an edge,
+  counted by their overlap), then the old rule (walls inside it), then a wall top under a corner, then the level top; the
+  roof is drawn on the plane of its eaves, so the aim on a wall top stays there as it grows.
+
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
   choice, the divider and the panel state are remembered (browser storage; a view preference, not a save).
@@ -704,7 +844,7 @@ the walk test builds and later parts read: nothing is entered twice.
   summary and the change log treat them as one. The campus file never holds lamps. A save with no lamp change leaves the
   play file alone; a no-op save writes neither (both byte-identical). `KESTREL_EDITOR_SANDBOX` covers it.
 - **Fitting catalogue** (`src/editor/lightCatalogue.ts`, one data list; Michael adds fittings there only): five groups.
-  Interior (downlight 90 mm, troffers 600 x 600 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
+  Interior (downlight 90 mm, troffers 600 x 300 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
   uplight, stair step light, desk lamp); Plant and goods (high bay, LED batten 1500 mm, round and oval bulkheads, cage
   light); Outside (floodlight, wall pack, pole lantern on a 6 m pole, bollard, PIR security flood); Emergency (twin spot,
   maintained exit sign, maintained emergency bulkhead); Glow (CCTV monitor, video wall, rack status LEDs, vending machine
@@ -863,7 +1003,226 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 - **Walk test** (Hub > Play **Start at insertion 1**, on / off): Tab, L3 held and Hub > Play > Walk test start at
   insertion point 1 (facing north) instead of the dot. The markers are not built in the game yet (P08).
 
+## Security devices (ON12)
+Cameras, card readers and keypads, motion sensors (PIR) and infrared beams are placed as the security file's own records
+(`docs/kestrel/kestrel.security.json`, S0-security-spec.md section 6, schema.md section 4), so the security stages
+(S1-S4) and P04S read them. They ride in the editing document as `devices`, like the play file's records
+(`src/editor/security.ts`): undo, drafts, the save summary and the change log treat them as one with the campus; the save
+writes them to the security file only, and only when its text changed (a no-op save leaves it byte-identical); the file is
+made on the first save with a device, with empty `zones` and `cards`, and its zones, cards and other device kinds (desk,
+panel, mantrap, iris, fault) are kept as they are. Ids are fresh and readable (CAM1, RD1, PIR1, BM1). Every device gets its
+room (the room under it) and a plain reason ("watches G-FRONT", "controls door RA11"), which the side panel edits.
+
+- **Security tab** (Y; Space with the mouse): Fixed camera, Pan camera, Card reader, Keypad, Motion sensor, Beam. The tool
+  bar shows "Security" with the device under it; D-pad left / right with the tool steps the device.
+- **Cameras**: A (a click) on a wall face (within facts `light.wallReach`) mounts it there facing out of the wall; elsewhere
+  it hangs under the ceiling facing the way the view looks (RB / R turns that 45 degrees first). Mount height facts
+  `security.cameraMountDefault` 3.0 m (S0 section 6), kept inside SN04 2.4-3.5 m and at most the ceiling (its bracket);
+  a ceiling under 2.4 m refuses it with the reason; outdoors it needs a wall. A pan camera sweeps facts
+  `security.cameraSweepDefault` 90 degrees round its facing (SN13 caps it at 120). Its frame is the game's own: SN01 70 x
+  SN02 45 degrees, SN03 18 m (`src/config/security.ts` `CAMERA`), looking level.
+- **Aim**: Selected > **Aim** (camera or sensor): the right stick turns it (5 degree steps), A sets, B puts it back; the
+  card's Facing row steps facts `security.cameraAimStep` 5 degrees, Sweep `cameraSweepStep` 10 degrees; with the mouse the
+  side panel's arrows step the same rows. A pan camera's sweep turns with it.
+- **What a camera sees**: a selected camera tints the editing level's floor cells it sees, with the guard view's sight
+  code: a body at a cell is seen when its chest, else its head, is in the camera's frame (the game's `inFrame`, a pan camera
+  at the yaw of its sweep nearest the cell) and the ray from the lens is clear (perception's `losClear` through the
+  game's `Ballistics` on the light view's hidden physics scene: walls, closed doors, objects). The light at the cell then
+  decides (S0 2.1: the camera rate is the guard's `sightRate`, so the guard view's bands apply): red where the body is lit
+  (seen at once), amber between the thresholds (seen slowly), blue where it is in frame but hidden (too dark). In 3D and on
+  the plan, with a legend; the plan also draws every camera's frame outline (dashed, to its range; a pan camera's whole
+  sweep) and 3D draws the same outline on the floor. The cells need the exact light: selecting a camera starts the bake
+  (the light view's legend says "Baking light..." meanwhile).
+- **Readers and keypads**: A by a door (its middle within facts `light.openingReach`) places the reader beside the door on
+  the dot's side, at facts `security.readerHeight` 1.1 m, and binds it: the door gets the reader's type (ON9 `reader`: card,
+  card and PIN, keypad), the reader's access level as its card `level`, and `locked` (S0 2.3), in the same edit. Its card:
+  Type, Access level 0-5 (the plate's colour: grey, green, blue, yellow, orange, red), Building (A or B, from where it is),
+  Door, Height. Stepping the level or type keeps the door in step; deleting the reader sets the door's reader to none (it
+  stays locked); deleting the door drops it from the reader. A away from doors on a wall face: a reader alone.
+- **Motion sensors (PIR)**: on a wall face (facts `security.pirWallHeight` 2.4 m, its fan the half in front of the wall,
+  `pirWallFan`) or under the ceiling (a full circle). Range SN50 6 m on its level (S0 2.6 tests range only). The card's
+  Links to row picks the alarm or a motion (PIR) lamp of ON6 on its level within range; a new sensor links to the nearest
+  such lamp, else the alarm. Selected, its fan is tinted violet; the plan draws every fan dashed.
+- **Beams**: A at one end, A at the other: an end within reach of a wall face sits on the face, else on a post. Length SN48
+  1.5-12 m and height SN40 / SN41 (the card steps only 0.3, 0.4, 1.3, 1.4, 1.5 m; default 1.4, high) are checked on the
+  drop, with the reason when refused. Visible (on the card): drawn bright, else night vision only (S0 section 3, drawn dark
+  red and dashed on the plan). Every beam reports to the desk (the alarm, S0 2.5).
+- **Security desk link**: a camera's Desk row picks a security desk object (ON4 `security-desk`, any level) and takes the
+  next free monitor (Monitor row 1-16, facts `security.monitorMax`); the desk object's card and side panel list its feeds
+  ("Feeds: CAM1 on monitor 1, ...").
+- **Coverage view** (Hub > View and the tile menu's View: **Security coverage**): every camera cone (blue) and sensor fan
+  (violet) of the editing level tinted on the plan and the floor, the unwatched floor left clear, with the count of
+  unwatched cells and square metres in the legend. Change the level to see another. Not saved.
+- **Checks**: the checker's S0 rules (SC01-SC06: ids exist, readers on doors into higher zones, camera mount heights and
+  counts, beam heights, reasons, cards) run on the editor's devices with the file's zones and cards and show in Checks
+  (no new rules). With no device and no file they are skipped as before.
+- **Walk test**: cameras are built in the game as its own S1 cameras (`SecuritySystem`, housing and LED, the frame and the
+  meter). Readers are built by stage S2, beams and motion sensors by S3 (the door's lock and card level already apply).
+- **Card** (D-pad): a camera: Type (fixed / pan), Name, Facing, Sweep (pan), Height, Mount, Desk, Monitor, Id; a reader:
+  Type (card reader, card and PIN, keypad), Name, Access level, Building, Door, Height, Id; a sensor: Type, Name, Links to,
+  Mount, Height, Id; a beam: Type, Name, Height, Visible, Id. The card's foot says what it does in the game and which stage
+  builds it.
+
+## Ceilings, voids and crawl spaces (ON13)
+Every room's ceiling is a piece of its own: `rooms[].ceiling` (height, 0 = none), `ceilingType` and `hatches`
+(schema.md section 2), edited as the element `ceilings:<room id>` (`src/editor/ceilings.ts`; the model writes it back
+into the room, so undo, drafts, the change log and the save treat it as a room change, and a no-op save stays
+byte-identical). Types, thicknesses and hatch sizes are data with sources in `src/world/maps/kestrelCeilings.ts`
+(shared with the walk test): suspended grid tiles (20 mm, 600 mm tiles), plasterboard (15 mm), exposed slab (150 mm),
+open / none. A ceiling with no type of its own is a grid in a corridor and plasterboard elsewhere.
+
+- **Select it**: Selected > **Ceiling** on a room (or the side panel's "Select the ceiling"); in 3D a ceiling is drawn
+  facing down, so it is seen and picked (A, a click) only from below and never hides a room from the builder camera.
+  Selected > Room goes back. Delete takes the ceiling away (open), as the Type row's Open / none does.
+- **Ceiling void**: the space from the ceiling's top to the underside of the slab above (the lowest level above whose
+  rooms cover the room's middle, less facts `room.slab`; else the top of its own level less a slab). Its clear height is
+  the slab underside less the ceiling height less the ceiling's thickness, against the crawl rule facts
+  `duct.crouchHeight` (1.5 m, F32): green when it meets it, red when not. **Y > View > Ceiling voids** draws every void
+  as a see-through box in that colour, tints the plan with "Void 1.48 m" labels, and lists the editing level's voids
+  with their clear heights in a legend (top right). Not saved.
+- **Hatches**: on a grid ceiling any tile pushes up, so a hatch is a marked tile (tiles laid from the room's south-west
+  corner, only whole tiles); on plasterboard or a slab only a placed 600 mm access hatch opens (on the 0.1 m grid, inside
+  the room). The words say what the player can do from below at the ceiling's height: climb up (mantle, facts
+  `traverse.mantleMax` 1.8 m), reach up and grab the edge (facts `reach.grabMax` 2.7 m), jump and grab (`reach.jumpGrab`
+  3.1 m), or out of reach (a ladder or something to stand on).
+- **Crawl space** (Y > Build > Crawl space): A (a click) at one end, A at the other draws a straight leg at the height of
+  the ceiling void under its middle (no void there: on the floor, up to the ceiling or the slab); A at the end of the
+  selected crawl goes on with another leg. An end within facts `ceiling.endReach` (0.6 m) of an ON5 vent piece takes the
+  vent; an end under a ceiling takes a hatch there (a hatch already there, else a new one: the tile on a grid, an access
+  hatch elsewhere, added to the room's ceiling in the same edit); else it is open. Width facts `crawl.widthDefault` 1.2 m,
+  0.6-1.2 on the card. Written as `crawls[]` (schema.md section 2). The dot's words say where it would start and how
+  clear it is; the plan draws each route at its width in the rule's colour, dashed, with its id and clear height.
+- **What the player can do**: the game has a duct move (`duct` in `MOVE_MODES`, a `Duct` anchor), used by the Climb
+  tab's Duct crawl; a crawl space does not use it: it is a crouch space (the crouch height facts `player.crouchHeight`
+  1.15 m under its clear height), and the card says so. No new move.
+- **Guards never enter voids** (handover); the card and the words say so; nothing for guards changes.
+- **Walk test** (decision 6): a ceiling builds as thin boxes over the room less its hatches, at least 0.05 m thick so
+  the light bake sees it (`CANON_MIN_THICK`): grid tiles are drawn and block light but do not collide (a tile pushes up
+  and nobody stands on tiles; one-sided collision is not available); plasterboard and an exposed slab collide (a player
+  can stand on plasterboard in the walk test: no one-sided collision); open builds nothing. A crawl space builds floor
+  boards (top at `y0`, past each bend to cover the corner, stopping short of a hatch end so the hole stays open) and side
+  boards (no ledge); both collide, so the player crouch-moves along the boards and climbs out at a hatch where the grab
+  reaches. Ceilings and boards are light shapes (bible 5.1), so a void is dark unless a lamp is placed in it; the light
+  view (ON7) bakes them too.
+
+## Mirror, align, evenly space; name plates and signs (ON14)
+The rules are `src/editor/arrange.ts` and `src/editor/signs.ts` (pure, `tests/editor/arrange.test.ts`, `signs.test.ts`);
+`arrangeTool.ts` and `signTool.ts` join them to the editor. Every tool here is one commit (one undo step).
+
+- **What a selection brings**: a selected room takes its own walls (lying on its edges, no longer than the edge, ED3-3a
+  `onLine`) with their doors and windows, and what stands inside it: objects, signs, floor holes, stairs, ladders and its
+  lamps. The ED3-3a wall rules are kept: a moved wall landing on a wall that stays is dropped and that wall reused (its
+  doors move onto it); a room edge that had walls and has none at the new place gets new ones (its old kind and height);
+  a wall shared with a room that does not move stays (a wall onto a yard, the lane, a zone or a roof is the room's own);
+  a door on a wall that stays but on the room's edge moves with the room onto whatever wall is at its new place; every
+  moved door's `between` is worked out again (its swing and one-way rooms follow).
+- **Mirror** (Selected, one thing or a set): Mirror east-west, Mirror north-south (about the selection's centre), Mirror
+  about a line (the Arrange tool: A at a point on the line, A at a second; a line running north-south flips east-west).
+  Doors keep their hinge mirrored (a set left / right swaps; the default `a` end mirrors with the wall), stairs their
+  climb (`up`), objects, ladders, lamps (yaw, aim) and signs their facing (a sign's left / right arrow swaps). A lone
+  door mirrors in place (its hinge flips).
+- **Align** (a set of two or more): left (west), right (east), top (north), bottom (south), centres (x), centres (z), to
+  the outermost edge or, with Selected > Align to: First picked, to the first thing picked. Moves step 0.1 m.
+- **Evenly space along x / z** (three or more in a row): the outer two stay, the others move to equal gaps.
+- **Array** (Selected > Array): the Arrange tool; the dot's offset from the selection's centre along its larger
+  direction sets the direction and the spacing (0.1 m steps); D-pad left / right (Left / Right arrows) sets the count
+  (1 to facts `sign.arrayMax`, 20); the ghost shows every copy's outline before A. Copies get fresh ids (rooms
+  `<level>-NEW1`, named "Office 2"...); a copied wall that lands on a wall is not made (it is reused, and the copy's doors
+  go on it). Copies that would overlap are refused.
+- **Box select** now takes objects and signs too.
+- **Door name plates** (decision 5): `openings[].plate` (schema.md section 2), the plate's text. The door card's
+  **Name plate** row turns it on (the name of the room the door opens into: the one that is not a corridor, stair or
+  outside; between two rooms, the one it swings into) or off; **Plate text** steps through the site's names (A types).
+  The plate is in the door's card level colour (ON9, grey with none), 300 x 100 mm, on the wall beside the latch edge on
+  the outside face (away from the room it names) at facts `sign.plateCentre` 1.5 m; on the plan a small tag in that colour.
+  **Selected > Name plates: this level / this building** on a room adds a plate to every door without one (one edit).
+- **Signs** (decision 6, Y > Objects > Signs; the Sign tool): Direction sign, Room sign, Fire exit sign (wall or hung),
+  and the fixed safety presets Fire extinguisher, First aid, High voltage, Gas suppression warning, No entry, Authorised
+  only, CCTV in operation (wall only); sizes and colours with sources in `signCatalogue.ts`. A on a wall face (within
+  facts `sign.wallReach`) fixes it at facts `sign.wallCentre`; elsewhere a wayfinding sign hangs facts `sign.hangGap`
+  under the room's ceiling, facing back along the view, never lower than facts `sign.hangBottomMin` at its bottom. The
+  card: Type, Text (left / right: Building A, Building B, the buildings' names, Exit, Reception, Goods In, every room name;
+  A types), Arrow (none, left, right, ahead, up, down; drawn on the side it points), Height, Width. `signs[]`, schema.md
+  section 2. All sign text is in-world text (docs/story.md section 2: British spelling, the site's names).
+- **Walk test** (decision 8): plates and signs build as thin panels (facts `sign.panelThick`, 0.02 m) in their colour,
+  no collision, no ledge. The game cannot draw text on a panel (LevelBuilder's only DynamicTexture is the fence wire,
+  levelBuilder.ts:305; the detail pass's own signs are plain coloured boxes, detailPass.ts:94), so the words show in the
+  editor only. At 0.02 m they are under the light bake's `CANON_MIN_THICK` (0.05 m), as the detail pass's signs are, so
+  they are not light shapes (bible 5.1 parity).
+
+## Moon and time (ON15)
+The moon over the map: its direction, height and brightness, and a time-of-night slider, previewed with the game's own
+moon bake and kept for the map in the campus file (`meta.night`, schema.md).
+
+- **Moon and time** (Y > View, or Hub > View; A turns it on): its rows appear under it. Left / right steps a row (on the
+  hub, the - / + buttons with the mouse, or the arrow keys):
+  - **Time of night**: dusk (16:00) to dawn (08:00) in 10 minute steps; it sets the bearing and height from a simple sky
+    path for the site, and the hub draws it as a slider with a **Brief** marker at 01:10 (A goes back to the brief's
+    night). The sky path: the site at 54 degrees north (Overnight choice: RULES section 1 says a northern British city and
+    gives no latitude), the moon at a winter full moon's declination (+20) crossing the meridian in the south at
+    midnight: it rises north of east at dusk, stands 56 degrees high in the south at midnight and sets north of west at
+    dawn (heights kept 5-85 degrees). Facts `moon`.
+  - **Moon bearing**: the compass bearing in 5 degree steps; **Moon height**: degrees above the horizon in 5 degree
+    steps. Setting either by hand marks the time "hand set".
+  - **Moon brightness**: new, quarter, half, full: a share 0, 0.25, 0.5 or 1 of the Kestrel theme's moon, which is the
+    game's night-map moon (Embassy's); the sky fill stays as it is, so a new moon leaves the sky fill only.
+  - **Use for the map**: writes the setting to `meta.night` (unsaved until Save; it is in the change log and the save
+    summary, but not an undo step: use it again with other values to change it). The walk test and the game (dev and
+    build) then light the map with it. Without `meta.night` the map keeps its own moon exactly (bearing 228, about 50
+    degrees high, full).
+- **The default is the brief's night** (01-mission-brief.md section 2): a Tuesday in late November, 01:10, a thin waning
+  moon behind cloud, so the yard has no moonlight: brightness **new**. Until a row is stepped, the light view shows the
+  map's own moon (the legend says which: "Moon: the map's own", or the setting with "preview, not yet for the map").
+- **Preview**: with the light view, the darkness map or Moon and time on, a step is quick and the release is exact: at
+  once the 3D's sky light (the moon as the scene's directional light, its strength, the sky fill) follows; 300 ms after
+  the last step the editing level is baked again through the game's own pipeline (the map's theme under the setting, the
+  game's `bakeMoon` through `bakeLevelLight`; the lamps come from the cache), which moves the moon shadows in 3D and the
+  darkness map. The legend says "quick: sky light only" in between.
+- **Moon shadow lines** (the plan, while Moon and time is on): a moon arrow in the top left corner of the level's floor,
+  pointing the way the light travels, with the bearing, height and brightness; and dashed violet lines round the ground
+  in the moon's shadow (the exact bake's moon visibility a hand above the floor, at 0.5), so long dark strips across the
+  yard show. They are drawn from the exact bake only (hidden while a step waits for it).
+- **Light parity**: the light view, the darkness map and the walk test's light meter all read the same theme through the
+  game's own light code; the e2e checks a yard cell's darkness value against the walk test's meter after a moon change
+  (within 0.05).
+- **GPU**: how the moonlit 3D looks is Michael's check on the PC.
+
 ## What it does not do yet (ED2 parts B-H)
+- Michael 2026-10-14 (slide): a slid security device or sign keeps its height when it passes onto another ceiling (lamps
+  follow the new ceiling); a wall fitting stops at its wall's ends (it does not turn the corner onto the next wall);
+  linear lamps move whole without the snap. Lamps placed before this under a lowered roof keep their height (move them
+  once). The ghost-equals-A audit covered lamps, devices, signs and roofs (the ceiling and wall-top heights); climb
+  pieces, objects and openings already shared one function for both and were not changed.
+- Michael 2026-10-14: the wall rule checks placing and holding, not D-pad or arrow-key nudges of a selection, the
+  selection card's steps or the stamp; pieces already inside a wall when taken are left as they are. Mouse ghosts show
+  in 3D only (not under the cursor on the plan). The Orbit camera's dot stays on the floor plane (no surface aiming).
+- Fix-up 2026-10-14: a ceiling is never held, so its height stays on the card (it moves with its room); signs and point
+  devices have no Resize (a centre marker only); a strip light's or beam's end moves without the placing checks (they
+  run again on the next Checks). Resize words show size and height in the tag and the status line, not on the card
+  while held.
+- ON15: the sky path is a simple full-moon arc (the moon's real place on a given date, its phase from the date and cloud
+  are not worked out); the brightness is a share of the game's night moon, not lux. Use for the map is not an undo step.
+  The moon arrow sits in a fixed corner of the plan. Only the editing level is baked (as ON7).
+- ON14: a plate sits on the wall beside the door, not on the leaf (the game's hinged leaf cannot carry a panel). The walk
+  test's plates and signs have no words. Align and Evenly space move each room with its own walls; a wall two moved rooms
+  share goes with the later one. Array does not copy security devices, guards or crawl spaces, and copied lamps keep their
+  circuit. Mirror about a line takes only lines along x or z. The mirror and Array ghosts show outlines only (the pad's dot).
+- ON13: the clear height counts the ceiling's thickness but not the crawl boards' (boards sit on the ceiling). A ceiling
+  is the room's whole rectangle (wall-centreline; no cut round columns, risers or bulkheads), one height, flat. The
+  void's slab is found from the room's middle only. A crawl route's legs are straight; a bend leaves its corner square
+  without side boards; a crawl does not cut walls it crosses (walls to the slab stay solid in the walk test). Ends are
+  taken on the drop (move a crawl and drop it again to retake them); Start and End rows are words only. Hatches cannot
+  be moved (take the last off and add one at the dot); a crawl's hatch stays when the crawl is deleted. Renaming a room
+  or vent does not rename a crawl end's `ref`. Crawl spaces are not boxed, copied, pasted or in presets; the plan images
+  (`plans.mjs`) and `check.mjs` do not read them. The walk test lets the player stand on plasterboard ceilings (no
+  one-sided collision) and fall through grid tiles off the boards; whether the game's ledge grab climbs up through a
+  hatch into a 1.5 m space is the game's (not tested).
+- ON12: the desk, panel, mantrap, iris and fault devices, zones and cards are not placed or edited (kept from the file);
+  the desk link is stored on the camera (`desk`, `monitor`), not as a desk device's `feeds`. Coverage counts the editing
+  level only and needs the light bake; a pan camera's cone is its whole sweep (the time it watches each part is not
+  shown). A sensor fan is range only (no line of sight, as S0 2.6). Moving a reader away from its door keeps the binding.
+  Devices are not duplicated, boxed, copied or pasted, and presets carry none; renaming a door does not rename a reader's
+  `door`.
 - ON8: the walk grid is the editor's own plain rule set, not the game's nav grid (no raycast floors, ledge drops,
   ladder links or door locks; a door opening is open across its whole width); a leg to another level goes by the stair's
   middle (the climb counted along its slope), not its real flights. Guards are not built in the walk test (P07) and the
@@ -898,7 +1257,12 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
   wood). Box select, Copy and Paste do not take climb pieces. A level's storey change does not move them (heights are
   absolute).
 - ON4: objects are axis-aligned boxes (quarter turns only); a boom gate, smoking shelter or desk is one box (the shelter
-  is its roof slab). Box select, Copy and Paste do not take objects. Objects have no handles: change sizes on the card.
+  is its roof slab). Box select, Copy and Paste do not take objects. Objects have corner handles and top and bottom handles (2026-10-14); lamps and security devices have one mounting
+  height handle, not a size (their body size is the catalogue's), and a roof's ridge handle sets the pitch, not the
+  ridge direction or the eaves overhang (the card). The pad has no height handle for a ceiling-recessed lamp's drop
+  below a ceiling (it simply moves down). The carousel's versions are only the families the catalogues name: no
+  downlight sizes or strip lengths exist to step.
+  The stamp ghost does not turn red for the wall rule; the stamp is refused on A with the piece named.
   A row's side across the drawn line is centred on it (no side flip). The walk test draws every object in one grey.
 - ON10: outlines are rectangles along x and z (no L-shapes or angled roofs); one roof per outline, no valleys between
   roofs. A flat roof's fall is drawn, not built (level in 3D and in the walk test). Roof lights cut the walk test's roof
@@ -936,11 +1300,14 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 ## Files
 | File | Role |
 | --- | --- |
+| `src/editor/fly.ts`, `src/editor/aim.ts`, `src/editor/wallClear.ts` | Michael 2026-10-14: the free-fly camera's move, look, wheel speed, pad step and go-to (`FLY` table); surface aiming (hit to plan point, the ceiling plane); nothing inside walls (wall solids, overlap and push-out) (pure, `tests/editor/fly.test.ts`, `wallClear.test.ts`) |
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |
 | `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
-| `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
+| `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, group rows (`menuGroups`, `stepGroup`), tiles (one data list), navigation and memory per tab and group; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
+| `src/editor/held.ts` | fix-up 2026-10-14: raising and lowering what is held, Move / Resize with the opposite corner fixed, min heights, height words, handle size on screen (3D distance, plan zoom); the top and bottom handles' resize (`vertResize`: also a lamp's or device's mounting height and a roof's ridge) (pure, `tests/editor/held.test.ts`, also the tile word rules and the ridge maths) |
+| `src/editor/carousel.ts` | Michael 2026-10-14: the one-row carousel's window (odd, centred), wrap, fit (the lit item wider) and fade; families by `series`, the next item and version, what up / down steps (pure, `tests/editor/carousel.test.ts`, also the catalogues' families) |
 | `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search, guide lines and their constants (`GRAB`, `MAGNET`, `SNAP`); the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: the ORBIT feel table, dead zone and curve, eased pan / orbit / tilt / zoom / height, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |
@@ -955,7 +1322,8 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 | `src/world/maps/kestrelExterior.ts` | ON5: the one copy of the floor finishes and their game surfaces, and of how each climb piece builds in the walk test (the engine's builders or plain collision), shared by the editor and the walk test (pure) |
 | `src/editor/ease.ts`, `src/editor/group.ts` | ON3: the element a check line names, the save summary's net changes and words, the Find list and filter, the bookmark store; multi-select box pick, moving, copying and pasting a set as one edit (pure, `tests/editor/ease.test.ts`) |
 | `src/editor/overlays.ts`, `src/editor/findView.ts` | ON3: floating room names (pooled labels), red problem markers, the scale figure; the Find box and its on-screen keyboard |
-| `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
+| `src/editor/mount.ts` | Michael 2026-10-14: sliding a mounted piece: the ceiling's centre and quarter line snap, the stick's move, clamps (pure, `tests/editor/mount.test.ts`) |
+| `src/editor/roofGeometry.ts` | ON10 (and the roof underside, the wall-top eaves and the corner snap, Michael 2026-10-14): the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |
@@ -964,7 +1332,15 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 | `src/editor/lightPreview.ts` | ON7: the lights preview modes, the light bands at `LIGHT`, the darkness map's cells and contours, the guard view's classes from `PERCEPTION`, the quick light (`contribution`) (pure, `tests/editor/lightPreview.test.ts`) |
 | `src/editor/missionCatalogue.ts`, `src/editor/mission.ts`, `src/editor/missionTool.ts` | ON8: the guard kinds and walk speeds, the brief's roster, objective and hide kinds (data with sources); the mission records, the walk grid and leg search, length and cycle, path edits, the patrol as time, isolation, objective links and loops, the play file shapes (pure, `tests/editor/mission.test.ts`); the Mission tools in the editor: path editing, markers, picking, the patrol preview, plan marks and 3D labels |
 | `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
+| `src/editor/securityCatalogue.ts`, `src/editor/security.ts`, `src/editor/securityTool.ts` | ON12: the Security tab's devices, reader types, access level colours and drawn sizes (data with sources); the device records, placing (wall face, ceiling, by a door), the reader's door link, what a camera sees (`inFrame`, `losClear`), sensor fans, coverage and gaps, the card's rows and steps, the security file split (pure, `tests/editor/security.test.ts`); the Security tool in the editor: ghost and words, plan marks, labels, the light view's security cells |
+| `src/editor/ceilings.ts`, `src/editor/crawlTool.ts` | ON13: the ceiling piece (a room's ceiling fields), the slab underside and the void's clear height against the crawl rule, hatches (tiles and access hatches), the card's rows and steps, crawl records (ends at hatches and vents, heights from the void, legs, settling), words (pure, `tests/editor/ceilings.test.ts`); the Crawl space tool in the editor: drawing and going on, the dot's words, plan marks, the voids legend |
+| `src/editor/night.ts` | ON15: the Moon and time panel: the time-of-night sky path (facts `moon`), the steps, the brief's night, the words (pure, `tests/editor/night.test.ts`); the preview and shadow lines are in `lightView.ts` |
+| `src/world/maps/kestrelNight.ts` | ON15: the one copy of `meta.night`: reading it, the brightness shares (data with sources), the moon's direction, and the Kestrel theme under it (the game's map and the editor) (pure) |
+| `src/editor/arrange.ts`, `src/editor/arrangeTool.ts` | ON14: what a selection brings, mirror, align, evenly space, Array and their ghosts with the ED3-3a wall rules (pure, `tests/editor/arrange.test.ts`); the Selected tab's tools, the Arrange tool's modes, auto name plates |
+| `src/editor/signCatalogue.ts`, `src/editor/signs.ts`, `src/editor/signTool.ts` | ON14: the sign kinds and the plate (data with sources); the plate's room, text, colour and place, auto plates, sign records, the text list, placing on a wall face or hung, the card's rows and steps, the walk test's panels (pure, `tests/editor/signs.test.ts`); the Sign tool, plan marks and plate tags |
+| `src/world/maps/kestrelCeilings.ts` | ON13: the one copy of the ceiling types, tile and hatch sizes and crawl boards (data with sources), and how the walk test builds ceilings (less their hatches) and crawl spaces, shared by the editor's 3D (pure) |
+| `docs/kestrel/kestrel.security.json` | ON12: the security file (S0 section 6, schema.md section 4); the editor writes `devices` |
 | `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |
 | `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file), plan (one level, SVG), checks, save (both files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file; ON12, the security file), plan (one level, SVG), checks (ON12: the S0 security rules on the editor's devices), save (all three files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

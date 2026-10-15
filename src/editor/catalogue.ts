@@ -26,6 +26,8 @@ export interface Preset {
   seeThrough?: boolean;
   /** Drawn as a line; `unit` is the length step along it (absent: the object grid). */
   draw?: { unit?: number };
+  /** Michael 2026-10-14: one kind in other sizes (the carousel's versions: D-pad up / down). */
+  series?: string;
   src: string;
 }
 
@@ -99,23 +101,23 @@ export const PRESETS: readonly Preset[] = [
     { id: 'pot-plant', name: 'Pot plant', w: 0.5, d: 0.5, h: 1.2 },
   ]),
   ...set('goodsIn', [
-    { id: 'pallet', name: 'Pallet', w: 1.165, d: 1.165, h: 0.15, src: 'ON4 brief: Australian standard pallet 1165 x 1165' },
-    { id: 'pallet-stack', name: 'Pallet stack', w: 1.165, d: 1.165, h: 1.5, src: 'ON4 brief: Australian standard pallet, stacked to 1.5' },
+    { id: 'pallet', name: 'Pallet', series: 'pallet', w: 1.165, d: 1.165, h: 0.15, src: 'ON4 brief: Australian standard pallet 1165 x 1165' },
+    { id: 'pallet-stack', name: 'Pallet stack', series: 'pallet', w: 1.165, d: 1.165, h: 1.5, src: 'ON4 brief: Australian standard pallet, stacked to 1.5' },
     { id: 'boxed-equipment', name: 'Boxed equipment', w: 1.2, d: 0.8, h: 1.0 },
     { id: 'packing-bench', name: 'Packing bench', w: 2.0, d: 0.8, h: 0.9 },
     { id: 'roll-cage', name: 'Roll cage', w: 0.8, d: 0.7, h: 1.8, seeThrough: true },
     { id: 'pallet-jack', name: 'Pallet jack', w: 1.6, d: 0.55, h: 1.2, seeThrough: true },
     { id: 'shelving', name: 'Shelving bay', w: 1.8, d: 0.6, h: 2.4, noLedge: true },
-    { id: 'crate-1.0', name: 'Crate 1.0 m', w: 1.0, d: 1.0, h: 1.0 },
-    { id: 'crate-1.2', name: 'Crate 1.2 m', w: 1.2, d: 1.2, h: 1.2 },
+    { id: 'crate-1.0', name: 'Crate 1.0 m', series: 'crate', w: 1.0, d: 1.0, h: 1.0 },
+    { id: 'crate-1.2', name: 'Crate 1.2 m', series: 'crate', w: 1.2, d: 1.2, h: 1.2 },
   ]),
   ...set('yard', [
     { id: 'car', name: 'Car', w: 4.7, d: 1.85, h: 1.45 },
     { id: 'van', name: 'Van', w: 5.3, d: 2.0, h: 2.3 },
     { id: 'ute', name: 'Pickup (ute)', w: 5.3, d: 1.9, h: 1.8 },
     { id: 'skip', name: 'Skip', w: 3.6, d: 1.8, h: 1.5 },
-    { id: 'wheelie-bin', name: 'Wheelie bin 240 L', w: 0.58, d: 0.73, h: 1.07 },
-    { id: 'bulk-bin', name: 'Bulk bin 1100 L', w: 1.37, d: 1.07, h: 1.33 },
+    { id: 'wheelie-bin', name: 'Wheelie bin 240 L', series: 'bin', w: 0.58, d: 0.73, h: 1.07 },
+    { id: 'bulk-bin', name: 'Bulk bin 1100 L', series: 'bin', w: 1.37, d: 1.07, h: 1.33 },
     { id: 'bollard', name: 'Bollard', w: 0.2, d: 0.2, h: 1.0 },
     { id: 'boom-gate', name: 'Boom gate', w: 4.3, d: 0.3, h: 1.1, noLedge: true, seeThrough: true, src: 'ON4 brief: arm 4.0 long at 1.0 high, post 0.3 x 0.3 x 1.1 (one box: post and arm)' },
     { id: 'bike-rack', name: 'Bike rack', w: 2.0, d: 0.6, h: 0.8, seeThrough: true },
