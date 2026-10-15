@@ -19,3 +19,6 @@ Notes for planning:
 - N8 overlaps step 21, which was running when the notes came in (it tunes the holstered ready hands). If N8 is adopted, that part of step 21 is superseded; the D2 no-bob work in step 21 stands either way.
 - N4 and N8 reverse earlier decisions (the brief and the bible), so they need Michael's explicit call and a DECISIONS entry before any step changes.
 - N1-N3 and N5 cluster in the back-to-wall system: a dedicated wall step before or inside step 27 may fit better than spreading them.
+
+## Plan (M14, Michael, 2026-10-16)
+N8 keep holstered; standing holstered = arms relaxed at the sides with swing (step 21). N4 CT back-to-wall polished, no snap cover. N1-N3, N5 in new step 21w (stop at edges, crouch on any wall, ~0.9 m/s shuffle, no pops / camera jerks / misfires). N6 moderate: speeds -15-20%, ~0.3 s ramp up, ~0.25 s stop, slight turn inertia, in step 22. N7 grain on thermal, electro and night vision in step 21v. Pauses after 21w + 21v and after 22.
