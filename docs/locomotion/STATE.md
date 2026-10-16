@@ -106,6 +106,7 @@ Cloud runs through step 20, step 20b net check (D11) and the Block C end, then h
 - step 21v vision grain (1 implementer; desktop).
 
 ## Blocked
+- M18 pause: before step 25, check for the Wren operator model (feature/operators, ?operator=wren); if it is not in the game, stop and ask Michael.
 - 21w (2026-10-16, after 4 implementers): PC-PASS 42 lean-out weapon jump -> step 25 (draw hand path); wall leave pelvis jump -> step 27. Numbers in those step files.
 - 11 RESOLVED at the Block C end (desktop): (a) e2e-wall grenade case passes on the desktop (PC1 run: throws 2, maxT 10.5; every e2e-wall run since, incl. the full e2e): closed. (b) e2e-mouse "losing the capture (Esc) pauses": load flake, logged (passes solo, steps 15-19). (c) remote stopidle@60 pops: A39 noise; desktop pops bands set from six runs (step 15), no gated regression since. Nothing Blocked.
 
