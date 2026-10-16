@@ -258,6 +258,44 @@ elif gname == 'armour':
         RN.area_light('rimR', (-1.3, 2.0, 1.9), (0.0, 0.0, 1.2), 900, 0.08, (0.62, 0.75, 1.0))
         sc.camera = RN.camera('sil', (0.35, -2.6, 1.25), (0.0, 0.0, 1.15), 55)
         out.append(shot('i-silhouette-rim', (1200, 1500), -0.5))
+elif gname == 'chest_rig':
+    # Step 09: the chest rig on the plate, the radio in the back plate with its cable, the PTT with both cables.
+    sg = float(np.sign(J['shL'][0]))
+    closeup('c-closeup-chest-rig', np.array([-sg * 0.015, -0.17, 1.22]), (sg * 0.3, -1.0, 0.15), lens=35, dist=0.6,
+            rake_from=(sg * 0.3, -0.12, 0.3), power=8)
+    closeup('e-closeup-back-radio-cable', np.array([sg * 0.07, 0.1, 1.31]), (sg * 0.25, 1.0, 0.45), lens=35, dist=0.48,
+            rake_from=(sg * 0.3, 0.12, 0.3), power=6)
+    closeup('h-closeup-ptt-cables', np.array([sg * 0.09, -0.07, 1.38]), (sg * 0.35, -1.0, 0.45), lens=35, dist=0.36,
+            rake_from=(sg * 0.25, -0.05, 0.3), power=5)
+    closeup('j-closeup-shoulder-cable', np.array([sg * 0.11, 0.0, 1.43]), (sg * 0.7, 0.3, 0.75), lens=35, dist=0.42,
+            rake_from=(sg * 0.25, 0.05, 0.3), power=5)
+elif gname == 'waist_belt':
+    sg = float(np.sign(J['shL'][0]))
+    closeup('c-closeup-belt-front', np.array([sg * 0.06, -0.12, 0.905]), (sg * 0.3, -1.0, 0.1), lens=35, dist=0.62,
+            rake_from=(sg * 0.3, -0.1, 0.3), power=8)
+    closeup('e-closeup-belt-back', np.array([0.0, 0.1, 0.905]), (sg * 0.1, 1.0, 0.15), lens=35, dist=0.72,
+            rake_from=(-sg * 0.3, 0.12, 0.3), power=8)
+    closeup('f-closeup-belt-left-hip', np.array([sg * 0.17, -0.02, 0.905]), (sg * 1.0, -0.3, 0.1), lens=35, dist=0.55,
+            rake_from=(sg * 0.25, -0.2, 0.3), power=8)
+elif gname == 'leg_kit':
+    sg = float(np.sign(J['shL'][0]))
+    closeup('c-closeup-thigh-right', np.array([-sg * 0.19, -0.03, 0.67]), (-sg * 1.0, -0.45, 0.12), lens=35, dist=0.62,
+            rake_from=(-sg * 0.25, -0.2, 0.3), power=8)
+    closeup('e-closeup-thigh-left', np.array([sg * 0.12, -0.11, 0.66]), (sg * 0.45, -1.0, 0.1), lens=35, dist=0.62,
+            rake_from=(sg * 0.3, -0.1, 0.3), power=8)
+    closeup('f-closeup-holster-top', np.array([-sg * 0.2, -0.04, 0.75]), (-sg * 0.8, -0.5, 0.6), lens=35, dist=0.36,
+            rake_from=(-sg * 0.2, -0.1, 0.25), power=5)
+    if not args.quick:
+        stealth((sg * 3.3, -0.35, 1.05), (0.0, 0.0, 0.92), (sg * 1.2, -2.2, 2.3), (-sg * 1.6, 1.9, 2.0))
+        out.append(shot('g-side-stealth', (1200, 1500), -1.2))
+        stealth((-0.3, 3.4, 1.0), (0.0, 0.0, 0.9), (-2.2, 0.9, 2.3), (1.4, -2.2, 2.0))
+        out.append(shot('k-back-stealth', (1200, 1500), -1.2))
+        clear_rig()
+        RN.world(sc, 0.002, (0.5, 0.55, 0.65))
+        RN.area_light('rimL', (1.3, 2.0, 1.9), (0.0, 0.0, 1.0), 900, 0.08, (0.62, 0.75, 1.0))
+        RN.area_light('rimR', (-1.3, 2.0, 1.9), (0.0, 0.0, 1.0), 900, 0.08, (0.62, 0.75, 1.0))
+        sc.camera = RN.camera('sil', *front_cam, 55)
+        out.append(shot('i-silhouette-rim', (1200, 1500), -0.5))
 elif gname == 'base_layer':
     nk = J['neck']
     closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,

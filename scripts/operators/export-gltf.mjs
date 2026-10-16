@@ -11,7 +11,7 @@ import { OUT_DIR } from './paths.mjs';
  * after the shirt (its hem tucks in). The last one's blend holds the body,
  * the rig and every earlier garment.
  */
-export const GARMENTS = { wren: ['suit', 'gloves', 'boots', 'headwear', 'head_kit', 'armour'], moth: [] };
+export const GARMENTS = { wren: ['suit', 'gloves', 'boots', 'headwear', 'head_kit', 'armour', 'chest_rig', 'waist_belt', 'leg_kit'], moth: [] };
 
 /**
  * Fitted items (step 06, DECISIONS A18): not cloth-simulated. py/build_fitted.py builds them in one stage (gloves:
@@ -22,8 +22,10 @@ export const GARMENTS = { wren: ['suit', 'gloves', 'boots', 'headwear', 'head_ki
  * balaclava tucks inside the shirt collar and the hood skirt laps over it.
  * Step 08b (A53): Wren's armour (composite plates, rib segments, harness straps, magnetic buckles, weapon mount) is
  * fitted over the suit after the head items; the suit is pressed in under it.
+ * Step 09: Wren's storage, all FITTED over the armour: chest_rig (on the plates; the radio and its cable), waist_belt (the
+ * belt and its pouches, pod and medkit), leg_kit (the empty holster, the leg bands, the throwable sleeves, both hangers).
  */
-export const FITTED = new Set(['gloves', 'boots', 'headwear', 'head_kit', 'carrier', 'belt', 'armour']);
+export const FITTED = new Set(['gloves', 'boots', 'headwear', 'head_kit', 'carrier', 'belt', 'armour', 'chest_rig', 'waist_belt', 'leg_kit']);
 
 export function exportGltf(id, blender = findBlender()) {
   const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);

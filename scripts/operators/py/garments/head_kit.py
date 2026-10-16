@@ -34,6 +34,7 @@ import fitted as FT
 import head_common as HC
 
 KIT = 'headHarness'
+PLUG_X = 0.085                  # the earpiece plug's x at the collarbone (step 09: on the PTT)
 KITS = ['crownStrap', 'sideStraps', 'chinStrap', 'goggleBand', 'goggle', 'batteryPack', 'goggleCable', 'earpiece',
         'earpieceCable']
 METHOD = 'hard parts and webbing laid on the hood and balaclava surfaces by rays (no simulation)'
@@ -503,26 +504,54 @@ def build(ctx):
         neck = (np.abs(Vs[:, 0]) < 0.075) & (np.abs(Vs[:, 1] - fr['neck_y']) < 0.09) & (Vs[:, 2] > fr['neck_z'] - 0.08)
         ct = float(Vs[neck, 2].max())
         cd = lambda zz: HC.cable_dir(zz, ct, ear_z)   # noqa: E731  (the same line the hood rides over)
-        p0, n0 = HC.ray_in(sh_tree, (0.07, 0.0, ct - 0.1), (0.0, -1.0, 0.0), 0.3)
-        p1, n1 = HC.ray_in(sh_tree, (0.0, fr['neck_y'], ct - 0.032), cd(ct - 0.032), 0.2)
-        p2, n2 = HC.ray_in(sh_tree, (0.0, fr['neck_y'], ct - 0.006), cd(ct - 0.006), 0.2)
-        # step 08a: the suit's close mock neck can end under the ray that found the shirt collar's rim; the cable then
-        # takes the skin there plus the collar's 4 mm (its route through the neck is step 09's job, 07-fixes-r4)
-        for nm_, zz in (('p1', ct - 0.032), ('p2', ct - 0.006)):
-            if (p1 if nm_ == 'p1' else p2) is None:
-                hs, hn = HC.ray_in(skin, (0.0, fr['neck_y'], zz), cd(zz), 0.2)
-                if hs is not None:
-                    hs = hs + hn * 0.004
-                if nm_ == 'p1':
-                    p1, n1 = hs, hn
-                else:
-                    p2, n2 = hs, hn
+        # step 09: the plug ends on the PTT's top face (chest_rig: the PTT clipped on the left shoulder strap, its body
+        # over the strap's inner edge at the collarbone), so the run starts 8.5 cm left of the centre line
+        p0, n0 = HC.ray_in(sh_tree, (PLUG_X, 0.0, ct - 0.1), (0.0, -1.0, 0.0), 0.3)
+        # every ray below starts on the near (left front) side and stops at the neck axis (far=1.0): it can never pass
+        # the axis and find the collar or the skin on the far side (07-fixes-r4 MUST 1: the old 1.5 x cast looped the
+        # cable through the throat to the right back of the neck). A ray that finds no shirt collar there takes the
+        # skin plus the collar's 4 mm, on the same side.
+        def near(tree, zz, lift):
+            p, n = HC.ray_in(tree, (0.0, fr['neck_y'], zz), cd(zz), 0.2, far=1.0)
+            if p is None and tree is not skin:
+                p, n = HC.ray_in(skin, (0.0, fr['neck_y'], zz), cd(zz), 0.2, far=1.0)
+                if p is not None:
+                    p = p + n * lift
+            return p, n
+        p1, n1 = near(sh_tree, ct - 0.032, 0.004)
+        p2, n2 = near(sh_tree, ct - 0.006, 0.004)
         # under the balaclava edge the cable lies on the skin, up the neck to the earpiece (hidden by the hood)
-        p3, n3 = HC.ray_in(skin, (0.0, fr['neck_y'], ct + 0.012), cd(ct + 0.012), 0.2)
-        p4, n4 = HC.ray_in(skin, (0.0, fr['neck_y'], ear_z - 0.035), cd(ear_z - 0.035), 0.2)
-        ecab = np.array([p0 + n0 * 0.006, p0 + n0 * 0.0016 + Z * 0.012, p1 + n1 * 0.0016, p2 + n2 * 0.0016,
-                         p2 + n2 * 0.0016 + Z * 0.008, p3 + n3 * 0.0006, p4 + n4 * 0.0006, eh + en * 0.0005 - Z * 0.008])
+        p3, n3 = near(skin, ct + 0.012, 0.0)
+        p4, n4 = near(skin, ear_z - 0.035, 0.0)
+        p5, n5 = near(skin, ear_z - 0.022, 0.0)
+        meas['earpieceRays'] = {k: [round(float(v), 4) for v in q] for k, q in
+                                (('p1', p1), ('p2', p2), ('p3', p3), ('p4', p4))}
+        # from the collarbone up to the collar the cable hugs the suit (each chord point taken to the nearest suit point,
+        # 1.6 mm out), so it runs under the hood skirt's hem instead of spanning the hollow at the neck's base
+        hug = []
+        for f_ in (0.15, 0.3, 0.45, 0.6, 0.75, 0.9):
+            q_ = (p0 + Z * 0.012) + (p1 - p0 - Z * 0.012) * f_
+            loc_, nrm_, _, _ = sh_tree.find_nearest(Vector(tuple(q_)))
+            if loc_ is not None:
+                hug.append(np.array(loc_) + FT.unit(np.array(nrm_)) * 0.0014)
+        ecab = np.array([p0 + n0 * 0.006, p0 + n0 * 0.0016 + Z * 0.012] + hug + [p1 + n1 * 0.0016, p2 + n2 * 0.0016,
+                         p2 + n2 * 0.0016 + Z * 0.008, p3 + n3 * 0.0006, p4 + n4 * 0.0006, p5 + n5 * 0.0006,
+                         eh + en * 0.0025 - Z * 0.008])
         ecab = FT.smooth_polyline(HC.resample(ecab, np.tile(Z, (len(ecab), 1)), 0.004)[0], 2)
+        # step 09 (07-fixes-r4): no ring centre inside the skin: each is kept 1.4 mm out (the cable's radius plus
+        # 0.2 mm) along the skin's normal, smoothed and pushed again; it ends on the earpiece's outer face
+        L_ = HC.path_length(ecab)
+        for _ in range(3):
+            for k_ in range(len(ecab)):
+                loc, nrm, _, _ = skin.find_nearest(Vector(tuple(ecab[k_])))
+                if loc is None:
+                    continue
+                loc, nrm = np.array(loc), FT.unit(np.array(nrm))
+                d_ = float((ecab[k_] - loc) @ nrm)
+                s_k = HC.path_length(ecab[:k_ + 1]) if k_ else 0.0
+                if d_ < 0.0014 and k_ < len(ecab) - 1:
+                    ecab[k_] = ecab[k_] + nrm * (0.0014 - d_)
+            ecab[1:-1] = (ecab[:-2] + 2 * ecab[1:-1] + ecab[2:]) / 4 * 0.5 + ecab[1:-1] * 0.5
         Vr, Fr_, _ = pt('cable')
         FT.tube(Vr, Fr_, ecab, 0.0012, sides=8)
         V, F, _ = pt('poly')

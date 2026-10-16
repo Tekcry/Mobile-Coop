@@ -461,10 +461,12 @@ class Ring:
     """Horizontal rows round the body (a cummerbund, a belt): each row is the convex hull (the band's tension: it
     bridges hollows) of the fabric surface pressed in as far as it can go (plus `extra(z)` 2D points: hard parts it runs
     over), sampled at fixed angles from a vertical axis
-    through (0, axis_y). G: inner-face points (rows, cols, 3); Nn: outward normals."""
+    through (axis_x, axis_y). G: inner-face points (rows, cols, 3); Nn: outward normals. A limb ring (step 09: the
+    thigh bands) passes its own axis_x and a short reach, so no ray can pass the axis into the other leg."""
 
-    def __init__(self, tree, under_tree, axis_y, zs, thetas, cap=0.0025, floor_gap=0.0016, reach=0.45, extra=None):
-        self.axis_y, self.zs, self.th = axis_y, np.asarray(zs, float), np.asarray(thetas, float)
+    def __init__(self, tree, under_tree, axis_y, zs, thetas, cap=0.0025, floor_gap=0.0016, reach=0.45, extra=None,
+                 axis_x=0.0):
+        self.axis_x, self.axis_y, self.zs, self.th = axis_x, axis_y, np.asarray(zs, float), np.asarray(thetas, float)
         R, C = len(zs), len(thetas)
         G = np.zeros((R, C, 3))
         Nn = np.zeros((R, C, 3))
@@ -473,14 +475,14 @@ class Ring:
             pts = []
             for t in np.linspace(0, 2 * math.pi, 240, endpoint=False):
                 d = np.array([math.cos(t), math.sin(t), 0.0])
-                o = np.array([0.0, axis_y, z]) + d * reach
+                o = np.array([axis_x, axis_y, z]) + d * reach
                 p, n, _ = ray(tree, o, -d, reach)
                 if p is None:
                     self.misses += 1
                     continue
                 c = compressible(p, n, under_tree, cap, floor_gap)
                 q = p - n * c
-                pts.append((q[0], q[1] - axis_y))
+                pts.append((q[0] - axis_x, q[1] - axis_y))
             # a ray that met a sleeve at the armpit stands out from its neighbours: dropped (radius more than 12 mm
             # over the median of the 31 around it)
             P2 = np.array(pts)
@@ -506,7 +508,7 @@ class Ring:
                     nn = -nn
                 # the exact crossing of the ray with the hull edge near k
                 r_ = float(hull[k] @ d2)
-                G[i, j] = (d2[0] * r_, axis_y + d2[1] * r_, z)
+                G[i, j] = (axis_x + d2[0] * r_, axis_y + d2[1] * r_, z)
                 Nn[i, j] = (nn[0], nn[1], 0.0)
         # smooth the normals a little along each row
         for _ in range(2):

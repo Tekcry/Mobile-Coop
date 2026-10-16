@@ -51,6 +51,7 @@ SIDE_W, SIDE_T = 0.022, 0.0022
 FOLLOW = 0.3                                 # how far a plate follows a hollow (0 bridges it, 1 follows it)
 SLOT_X, SPLAY = 0.07, 0.08                   # carrySlots.ts / weaponModel.ts: BACK_X, BACK_SPLAY
 CLR = 0.0004                                 # a strap's inner face over a plate face or trim
+ANT_X, ANT_Z = 0.018, 1.3170                 # the antenna keeper on the back plate (chest_rig's stub antenna, step 09)
 
 
 class Parts:
@@ -618,11 +619,15 @@ def build(ctx):
     cutV, cutF = prism(sm_bk, rec_ol, T_BK - 0.005, T_BK + 0.004)
     rx0, rx1, rz0, rz1 = -0.084, 0.084, 1.157, 1.191
     meas['radioRecess'] = {'xM': [0.030, 0.086], 'zM': [1.256, 1.317], 'depthM': 0.005}
-    # antenna keeper: a moulded rubber clip over the top edge's trim, left of the centre beside the recess
-    O, Xp, Up, Np = pframe(sm_bk, 0.02, 1.33 - 0.003, T_BK - CD * 0.5)
+    # antenna keeper (step 09): a moulded rubber bridge on the plate face below the top edge, left of the centre beside
+    # the recess; the radio's 4 mm stub antenna (chest_rig.py) runs along the edge under its arch
+    O, Xp, Up, Np = pframe(sm_bk, ANT_X, ANT_Z, T_BK)
     pt.pad('trim')
-    rng = HC.rbox(Vt, Ft, O + Up * 0.0015, [Xp, Up, Np], (0.0065, 0.006, T_BK * 0.5 + 0.0012), 0.0016, step=0.0012)
-    Et.extend(TC.rbox_edge(Vt, rng, O + Up * 0.0015, [Xp, Up, Np], (0.0065, 0.006, T_BK * 0.5 + 0.0012)))
+    kc = O + Np * 0.0008
+    rng = HC.rbox(Vt, Ft, kc, [Up, Xp, Np], (0.0085, 0.0040, 0.0008), 0.0006, step=0.0008,
+                  deform=lambda L: _arch(L, 0.0046, 0.0060))
+    Et.extend(TC.rbox_edge(Vt, rng, kc, [Up, Xp, Np], (0.0085, 0.0040, 0.0008)))
+    meas['antennaKeeper'] = {'x': ANT_X, 'z': ANT_Z, 'archMm': 4.6}
     # the receiver bar: a 1.6 mm gunmetal plate bonded flat on the back plate, three keyhole sockets cut through it
     sm_bar = Shell(back, lambda x, z: T_BK + 0.0 * np.asarray(z))
     Vm, Fm, Em = pt('metal')
@@ -805,11 +810,18 @@ def build(ctx):
             inner = -1.0 if (B3[len(P) // 2] @ X) * sgn > 0 else 1.0
             for sk in (0.07, 0.2, 0.33):
                 i = int(np.searchsorted(s, min(sk, L - 0.02)))
-                cpos = P[i] + B3[i] * inner * (0.5 * STRAP_W - 0.004) + N3[i] * (STRAP_T * 0.85 + 0.0011)
+                # step 09: a moulded rubber bridge over the radio cable (its legs bonded to the strap's top 4 mm in
+                # from the inner edge, an arch KEEP_ARCH high over the cable between them; was a flat block)
+                cpos = P[i] + B3[i] * inner * (0.5 * STRAP_W - 0.004) + N3[i] * (STRAP_T * 0.88 + 0.0008)
                 pt.pad('trim')
-                rng = HC.rbox(Vr, Fr, cpos, [B3[i], T3[i], N3[i]], (0.0062, 0.0035, 0.0012), 0.0009, step=0.0012)
-                Er.extend(TC.rbox_edge(Vr, rng, cpos, [B3[i], T3[i], N3[i]], (0.0062, 0.0035, 0.0012)))
+                rng = HC.rbox(Vr, Fr, cpos, [B3[i], T3[i], N3[i]], (0.0075, 0.0035, 0.0008), 0.0006, step=0.0008,
+                              deform=_arch)
+                Er.extend(TC.rbox_edge(Vr, rng, cpos, [B3[i], T3[i], N3[i]], (0.0075, 0.0035, 0.0008)))
                 keep_at.append(round(float(s[i]), 3))
+        if side == 'L':
+            # the left strap's path for the radio cable (chest_rig.py, step 09): centre line, normal, across, length
+            # along it, the inner (neck-side) edge's sign and the keepers' positions along it
+            left_path = {'P': P, 'N': N3, 'B': B3, 's': s, 'inner': inner, 'keepS': keep_at}
         allp = np.array(Vp[-len(P) * cols * 2:])
         strap_report[side] = {
             'lengthM': round(float(L), 3), 'keepersAtM': keep_at,
@@ -954,6 +966,9 @@ def build(ctx):
         np.array(pt.d['strap'][0]), strap_rng, bframes,
         [([pm.matrix_world @ v.co for v in pm.data.vertices], [tuple(q.vertices) for q in pm.data.polygons]),
          plate_trims])
+    st_ob = objs['strap']
+    for k_, v_ in left_path.items():
+        st_ob['ls_' + k_] = list(np.asarray(v_, float).ravel())
     for ob in objs.values():
         ob.data.shade_smooth()
         ob.data.set_sharp_from_angle(angle=math.radians(50.0))
@@ -1015,6 +1030,17 @@ def strap_into(SV, ranges, bframes, solids):
                 worst, at = hit[3], p
         out[name] = {'mm': round(worst * 1000, 2), 'at': None if at is None else [round(float(v), 3) for v in at]}
     return out
+
+
+KEEP_ARCH = 0.0036            # a cable keeper's arch over the strap (the 3.2 mm radio cable passes under it)
+
+
+def _arch(L, h=KEEP_ARCH, w=0.0048):
+    """A keeper bridge: the middle 2 w across raised h (a cosine arch), the legs flat."""
+    L = np.array(L, float)
+    x = np.clip(L[:, 0] / w, -1.0, 1.0)
+    L[:, 2] += h * 0.5 * (1.0 + np.cos(math.pi * x))
+    return L
 
 
 def _strip_sheet(P, N, B, w):

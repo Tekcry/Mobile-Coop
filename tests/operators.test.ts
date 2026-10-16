@@ -36,7 +36,15 @@ describe('operator kit', () => {
       'magBuckle', 'weaponMount'])).toEqual({ missing: [], errors: [] });
     expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee',
       'carrierRelease']).missing).toEqual(['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee', 'carrierRelease']);
-    expect(kitCoverage(WREN_KIT, ['belt', 'grenadePouches', 'pistolMagPouch', 'dumpPouch', 'knifeSheath']).missing).toEqual([]);
+    // step 09: the storage builds (chest_rig.py, waist_belt.py, leg_kit.py KIT + KITS); the carrier-era pouches are gone
+    expect(kitCoverage(WREN_KIT, ['magPouches', 'gadgetSlot', 'knife', 'ptt', 'radio', 'radioCable'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['waistBelt', 'pistolMagPouch', 'camMinePouch', 'rappelRing', 'slingSocket', 'dronePod',
+      'medPouch', 'magBuckle'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['thighHolster', 'holsterHanger', 'legBands', 'sleevePanel', 'throwableSleeves',
+      'sleeveHanger'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['adminPouch', 'radioPouch', 'belt', 'grenadePouches', 'dumpPouch', 'knifeSheath',
+      'dropHanger', 'legStraps', 'smgSling']).missing).toEqual(['adminPouch', 'radioPouch', 'belt', 'grenadePouches',
+      'dumpPouch', 'knifeSheath', 'dropHanger', 'legStraps', 'smgSling']);
     const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
     expect(kitCoverage(broken, ['suit']).errors.length).toBeGreaterThan(0);
   });

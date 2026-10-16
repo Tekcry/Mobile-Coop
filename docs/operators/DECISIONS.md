@@ -370,6 +370,9 @@ garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `
   Note (round 4 checker): the goggle cable no longer runs to a mount shoe (no mount since D19 / D20; see the A29 update);
   the earpiece cable's 0.44 m comes from a routing bug - it passes through the neck to the right side and back (step 07
   OPEN, steps/07-fixes-r4.md); a direct collarbone-to-ear run is about 0.19 m.
+  Corrected in step 09: the earpiece cable runs from the PTT's top (on the left shoulder strap at the collarbone) under
+  the hood skirt and up the left of the neck to the left ear, every point on the near side; 0.225 m with the collar
+  clip at 0.03, the balaclava edge at 0.11 and under the balaclava at 0.17 m (A65).
 
 **A29 Goggle band, hard pod and the two positions (step 07 fix round 1, PART B; D19, D20).** The band is assumed from
 the scratch options pass (D20): a 22 mm elastic band (1.8 mm) through a D-frame lug on each side of the original square
@@ -614,3 +617,52 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   Note (round 2 checker, recorded by the orchestrator): the chest plate's max gap 12.3 mm sits on the lap band under the
   bust (-0.111, 1.161), outside the sternum hollow the step's wording names; accepted for consistency with round 1's
   10.45 mm on the same band, which rib 1 hides.
+
+## Assumed decisions, step 09 (storage, holster and cables; implementer)
+**A62 The empty holster at the game's thigh slot.** The frame `pistolHolster` is the game's sidearm frame computed by
+  weaponModel.ts's rule with Wren's operatorBody.ts numbers: the sidearm's extents centred 0.25 m below the right hip
+  joint, its inner face CARRY_GAP (12 mm) outside rig.thighOuter (max(r0, 0.95 r0 + 22.5 mm) = 95.8 mm from the hip
+  joint), muzzle down, top forward: (-0.2126, 0, 0.6024). The shell's cavity holds the slide and frame of the widest
+  sidearm (31 x 57 mm, the five-seven), open at the muzzle end so the suppressed pistol's barrel passes. The detailed
+  thigh is thinner than the game's capsule thigh, so the shell sits on a moulded laminate platform (a wedge from the
+  leg bands to the shell's flat back) and the frame is moved in toward the thigh only as far as the platform's
+  thinnest point allows (offset reported in the sim report, limit 1 cm). The holster's outer face stands 4.6 cm off
+  the suit: the cavity and the slot fix it; it is the one exception to ART-DIRECTION 9.1's 2.5 / 4 cm rule.
+  Integration item (locomotion step 25): the game centres each sidearm's extents at the slot, so the pistol's slide
+  rear sits 5.75 cm lower than the suppressed pistol's; anchor the sidearms at the holster mouth instead. Undo:
+  `leg_kit.py` SLOT and `delta`.
+  Step 09 fix round 1: the shell is moulded to the sidearm (a lofted section: 31.6 mm across at the centre, the outer
+  face crowned 2.5 mm toward the slide's top and the trigger guard (31.1 mm at +-15 mm), a trigger-guard step 56 mm
+  below the mouth where the rear edge steps 17 mm forward, the outer face tapering 2.2 mm to the open muzzle end,
+  corners from the 9 mm family), 2.2 mm wall, 155 mm long; a moulded hood cap closed over the whole mouth with an arm
+  down the outer face to a gunmetal pivot and a gunmetal thumb release. The holster and its frame sit 9 mm down the
+  thigh from the slot (`DROP`), the frame within the 1 cm tolerance; standoff in the sim report.
+  For Michael / locomotion step 25 (checker 09-fixes-r1 item 6): the game's thigh slot sits CARRY_GAP outside the
+  capsule thigh (rig.thighOuter 95.8 mm), about 9 mm fatter than Wren's detailed thigh (the shell's back is 9.6 mm off
+  the suit before the platform). Move the game's thigh slot in by about 9 mm (or size it from the detailed thigh) and
+  the holster can sit about 3.5 cm off the suit instead of about 4.5 cm.
+  Round 2 (recorded by the orchestrator): the right holster hanger enters the platform through its top edge and ends
+  inside the platform's back (hidden), 5.8 mm behind its front face. Undo: `leg_kit.py` `bot_R`.
+**A63 Throwable sleeves: oval, 30 x 21 mm.** Each double sleeve holds two oval canisters (25 x 18 mm) end to end, the
+  sleeve 30 mm across and 21 mm out from the panel, so with the panel and the band it stands under the 2.5 cm pouch
+  rule (sim report `standoffFromSuitM.throwableSleeves`). Step 09 fix round 1 (was round, 30 mm, 3.4 cm off the suit).
+  The caps keep their touch codes (knurled ring, dome, two ridges), ovalised with the canister. Undo: `leg_kit.py`
+  `R_N` = `R_S`.
+**A64 The gadget slot over the right bust.** The chest plate's upper right is taken by the right shoulder buckle on its
+  tab and the right side buckle below; the slot sits between them beside the magazines (centre x -0.092, z 1.245), 13
+  mm deep (three 3.3 mm discs). Undo: `chest_rig.py` GAD.
+**A65 PTT, earpiece plug and cable keepers.** The PTT clips over the left shoulder strap's inner edge at the
+  collarbone (10 mm over it) with both sockets on its top: the earpiece plug moves out to x 0.085 (head_kit PLUG_X) and
+  chest_rig carries the plug and the cable's last 4 cm onto the PTT socket (about 11 mm). head_common.ray_in gains
+  `far`: the earpiece cable's rays stop at the neck axis (far 1.0), so they never find the far side (07-fixes-r4); the
+  run from the collarbone to the collar hugs the suit, each ring stays 1.4 mm out of the skin, and the cable ends on the
+  earpiece's outer face. The left strap's three keepers and the antenna keeper become moulded rubber bridges over the
+  cable and the stub antenna (armour.py `_arch`). The radio cable (3.2 mm) leaves the radio's top connector, crosses
+  2 cm of the back plate's face onto the strap's back tab and runs 4 mm in from the strap's inner edge (in the lane
+  only on the plate's face, flush). Undo: PLUG_X 0.07, drop the re-seat in chest_rig.py, the flat keepers.
+**A66 Bonded, silent storage.** Every pouch is bonded to the plate or over the belt (no webbing grid, no hook-and-loop);
+  shock cords are anchored inside the pouch walls and their moulded pull tabs rest on what they hold; the medkit's
+  pull handle is a flat webbing strap bonded at both ends along its bottom edge. One new material only (`kit elastic`
+  for the leg bands and sleeves); everything else reuses Wren's laminate, polymer, rubber, gunmetal, shock cord and
+  cable jacket. The belt and its closure cross the back-carry lane flush on the body (3 mm), with the rappel ring.
+  Undo: the part builders in chest_rig.py / waist_belt.py / leg_kit.py.

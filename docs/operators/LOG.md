@@ -1000,3 +1000,91 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   slot bottoms step slightly on the 0.6 mm grid at 2x zoom. F1-F6 stand (F3 tab corners still show in e).
 - Status: passed the independent check (fix rounds: 1).
 
+
+## Step 09 - Wren: storage, holster and cables (Opus 5.5)
+- Built (all FITTED, A62-A66): `py/garments/kit_common.py` (conformal maps: `HField` for plate faces, `RingMap` on a
+  `TC.Ring`; `cbox` rounded boxes laid on a map, `cord_loop`, standoff and back-lane reports); `chest_rig.py` (kit
+  `magPouches` + `gadgetSlot`, `knife`, `ptt`, `radio`, `radioCable`), `waist_belt.py` (`waistBelt` + `pistolMagPouch`,
+  `camMinePouch`, `rappelRing`, `slingSocket`, `dronePod`, `medPouch`, `magBuckle`), `leg_kit.py` (`thighHolster` +
+  `holsterHanger`, `legBands`, `sleevePanel`, `throwableSleeves`, `sleeveHanger`, `magBuckle`). GARMENTS.wren and
+  FITTED += `chest_rig`, `waist_belt`, `leg_kit`; render views added in `render_garment_test.py`.
+- Shared edits: `head_common.ray_in(far=)`; `torso_common.Ring(axis_x=)` (limb rings, default unchanged); armour.py: the
+  left strap's keepers and the antenna keeper are moulded rubber bridges (`_arch`), the left strap's path stored on
+  `wren-armour-strap` (`ls_*`) for the radio cable; head_kit.py: earpiece cable fix (below).
+- Step 07 cable MUST (07-fixes-r4) fixed here: every earpiece ray stops at the neck axis, the collarbone-to-collar run
+  hugs the suit, each ring 1.4 mm out of the skin, the cable ends on the earpiece's outer face; the plug moved to x
+  0.085 and chest_rig re-seats it on the PTT socket (11 mm). Probe (signed distance of the 58 ring centres against
+  `wren-body`, the hood and balaclava base surfaces, in `wren-leg_kit.blend`): 0 rings inside the body, 0 outside the
+  hood above the skirt hem, min x +0.033 (all near side); length 0.225 m (kit 0.225; A27 corrected). Renders head_kit f
+  (no cord on the neck), e (the cable leaves from under the skirt on the left only).
+- Numbers (sim reports): standoff off the suit - rifle mag pouches 3.65 / 4.02 cm, gadget slot 2.61, knife 2.76, PTT
+  2.1, radio 1.7 (5.3 mm proud of the plate), pistol mag pouch 1.91, cam / mine 2.26, drone pod 2.22, medkit 1.81,
+  sling socket 0.56, rappel ring 1.64, sleeves 3.37 (A63), holster 5.22 (A62), platform 1.72 (first pass;
+  superseded by the fix rounds: holster 4.62, sleeves 2.48, radio 1.26 / 1.3 mm proud, rappel ring 1.50, medkit 1.95). Radio cable 0.27 m,
+  keepers at 0.028 / 0.127 / 0.258 m from the radio (max free span 0.131 m), 9.7 mm clear of the hood. Back lane
+  (A39): only the radio, antenna, radio cable (on the plate), the belt and the rappel ring; pod u 0.247-0.331, medkit
+  -0.331 to -0.241 (lane edge x 0.105). `pistolHolster` origin (-0.2098, 0.0004, 0.6025) vs the game slot (-0.2126, 0,
+  0.6024): 2.8 mm, axis 3.3 degrees off vertical (follows the thigh). Suit press: belt 2.5 mm max (15 capped, 0.6 mm),
+  leg kit 2.5 mm max, 0 capped. Leg bands 0.54 / 0.41 m.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS, 9 items, all checks pass (then leg_kit re-checked after the
+  hanger fix: PASS). `npm run check` PASS (exit 0).
+- Renders (GPU, E2E_GPU=1, 384 samples): docs/operators/mockups/tests/wren-chest_rig-{a,b,c,d,e,h,j}-*.webp,
+  wren-waist_belt-{a,b,c,d,e,f}-*.webp, wren-leg_kit-{a,b,c,d,e,f,g,i,k}-*.webp, re-rendered wren-head_kit-*.webp and
+  wren-armour-*.webp.
+- Open:
+  1. (Fixed in fix round 1 item 7) The leg hangers read weakly in the thigh close-ups (e: a thin line by the groin; the left hanger bridges the hip
+     crease up to 17 mm off the suit); check the strap's width and route at close range.
+  2. Holster stands 5.2 cm (now 4.6 cm) off the suit (A62: the game's slot and the 31 mm cavity); integration item: sidearms anchored
+     at the holster mouth (the game centres each one's extents at the slot).
+  3. Sleeves 3.4 cm (now 2.5 cm) and magazine pouches 4.0 cm off the suit (A63; the about-4 cm class).
+  4. The radio cable crosses about 2 cm of the back plate's face inside the back-carry lane (flush, A65).
+  5. Near-black still renders mid grey in close-ups (OPEN since 05).
+- Fix round 1 (09-fixes-r1, Opus 5.5 fixer):
+  1. Holster (MUST): `leg_kit.py` `holster_shell` / `holster_hood` - a lofted sidearm section (cavity 31.6 mm across at
+     the centre, 31.1 at +-15 mm, outer face crowned 2.5 mm, trigger-guard step 56 mm below the mouth (rear edge 17 mm
+     forward), 2.2 mm taper to the open muzzle end, 9 mm corner family, 2.2 mm wall, 155 mm long); a moulded cap closed
+     over the whole mouth (1.5 mm wall), its arm down the outer face to a gunmetal pivot, a gunmetal thumb release
+     below the cap at the rear edge; the old strap hood and latch lug removed. Shell and frame 9 mm down the thigh
+     (`DROP`): offsetFromSlotMm 9.76 (limit 10), back gap 9.77 mm before the platform, platform 6.8-18.9 mm.
+     `standoffFromSuitM.thighHolster` 0.0462 (was 0.0522; target 0.046: 0.2 mm short, LEFT). A62 updated.
+  2. Rappel ring (MUST): `waist_belt.py` - 2.8 mm wire folded flat on the belt face, legs hidden in a 20 mm tunnel, the
+     bow 8 mm below the tunnel ending 0.5 mm above the belt's lower edge. rappelRing 0.0150 (belt 0.0118 + 4 = 0.0158).
+  3. Radio (MUST): `chest_rig.py` - a 5.6 mm module in the 4.7 mm recess, face crowned 0.4 mm: proudOfPlateMm 1.3;
+     2.4 mm round edges; knob 1.4 mm; the top connector moved onto the face. Antenna: the field's frame normal pointed
+     into the plate, so the run is laid 2.3 mm out of the plate face (probe: before, the antenna lay over the keeper;
+     armour.py's keeper sits inside the plate, only 0.7 mm proud). chest_rig adds a moulded rubber keeper bridge
+     (x 0.016) bonded either side of the antenna, its arch 0.9 mm over it. radio standoff 0.0126 (was 0.017).
+     Follow-up for the armour owner: armour.py's antenna keeper is buried in the plate (`pframe(sm_bk, ..., T_BK)`).
+  4. Medkit (MUST): the dangling tab replaced by a 30 x 8 mm flat webbing pull strap bonded on the outer face along the
+     bottom edge with a bar tack at each end; a dashed moulded tear line across the outer face at the split height
+     (the side-wall bead kept). medPouch 0.0195.
+  5. Sleeves (SHOULD): oval sleeves 30 x 21 mm, oval canisters and caps (touch codes kept), tabs on the caps.
+     throwableSleeves 0.0248 (was 0.0337). A63 rewritten.
+  6. A62: the game's thigh slot is about 9 mm outside Wren's detailed thigh; move it in at locomotion step 25 (Michael).
+  7. Sleeve hanger (SHOULD): below the belt each point is drawn in to 0.8 mm + half the strap off the suit and the
+     strap's normals follow the suit surface; run standoff 0.0060 (was 0.019).
+  - Step 07 cable untouched (head_kit not rebuilt).
+  - Renders (GPU, E2E_GPU=1, 384 samples, 2026-10-17 03:00-03:10): wren-chest_rig-{a,b,c,d,e,h,j}, wren-waist_belt-
+    {a,b,c,d,e,f}, wren-leg_kit-{a,b,c,d,e,f,g,i,k} in docs/operators/mockups/tests/.
+- Fix round 2 (09-fixes-r2, Opus 5.5 fixer; the one MUST, option (b)):
+  1. Holster hanger (MUST): `leg_kit.py` - the right hanger now runs behind the platform, on the bands behind the
+     platform (`bot_R` on the thigh map at H_ON + half the strap + 0.4 mm, 1.6 cm into the platform's top),
+     and its normals turn from the radial `d_` to the platform's `n_h` over the last 1.2 cm above the platform top, so
+     the end enters through the platform's top edge and sits inside the platform's back, 2-4 mm in, hidden (round 3
+     checker; 77 of 98 end vertices inside the platform solid). Island probe (headless Blender on `wren-leg_kit.blend`, holster frame):
+     platform front -21.8 mm, hanger s -72.2 to -27.6 mm (5.8 mm behind the front; was -20.0, 1.8 mm through it),
+     overlap u 141.4-158.3 mm. holsterHanger runStandoffM 0.0055 (limit 0.012); whole-strap standoff 0.0075.
+     Renders f and c: the platform face above the hood is clean, the hanger reads as a strap entering the platform top.
+  - Follow-ups done: A62 now says 4.6 cm (measured 0.0462); unused `sleeve_rr` removed. Holster 0.2 mm left as
+    measurement noise (checker); hood, arm and head kit untouched.
+  - Renders (GPU, E2E_GPU=1, RTX 4090, 2026-10-17 03:40): wren-leg_kit-{a,b,c,d,e,f,g,i,k} in
+    docs/operators/mockups/tests/.
+- Checker round 3: PASS. operators:check "9 item(s), all checks pass"; npm run check exit 0 (73 files, 762 tests).
+  Island probe: no hanger vertex at or past the platform front (ends 5.8 mm behind it). Step 07 cable re-confirmed
+  (58 rings, 0 inside the body, 0 outside the hood above the skirt hem, 0.2254 m) - step 07's OPEN item is closed.
+  Logged follow-ups: armour.py's buried antenna keeper (remove at the next armour rebuild); the platform's 3 cm flat
+  board above the hood (taste); the hanger's rear edge presses about 1.9 mm into the suit mesh (hidden); round 1 open
+  items (near-black mid grey; radio cable across the plate, A65; the suit's wavy centre seams, step 08a; sleeve cord
+  loops read as thin hoops); A62 integration item for locomotion step 25.
+- Status: passed the independent check (fix rounds: 2).
+

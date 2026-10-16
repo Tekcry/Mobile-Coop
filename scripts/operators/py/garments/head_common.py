@@ -24,11 +24,13 @@ NU = 160          # columns round the head: about 3.5 mm apart at the cranium
 ROW = 0.0034      # row spacing (m)
 
 
-def ray_in(tree, origin, d, reach=0.25):
-    """The outermost hit of `tree` along -d, from origin + d * reach: (point, normal) or (None, None)."""
+def ray_in(tree, origin, d, reach=0.25, far=1.5):
+    """The outermost hit of `tree` along -d, from origin + d * reach: (point, normal) or (None, None). The cast is
+    reach * far long; far=1.0 stops it at the origin (an axis), so it can never find the far side (step 09: the
+    earpiece cable rays from the neck axis, 07-fixes-r4)."""
     d = np.asarray(d, float)
     o = np.asarray(origin, float) + d * reach
-    loc, nrm, _, _ = tree.ray_cast(Vector(o), Vector(-d), reach * 1.5)
+    loc, nrm, _, _ = tree.ray_cast(Vector(o), Vector(-d), reach * far)
     if loc is None:
         return None, None
     return np.array(loc), FT.unit(np.array(nrm))
