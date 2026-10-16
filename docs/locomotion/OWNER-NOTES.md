@@ -100,7 +100,7 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 - At the finish (step 34), copy this merge plan and these follow-ups into docs/progress.md so they reach master with the PR.
 
 ## Session method (Michael, 2026-10-16)
-CLAUDE.md now has "How sessions are run" (the orchestrator method) and a doc-index row for docs/systems/session-method.md, at Michael's request (relayed by the operators session, confirmed by Michael here). FOLLOW-UP: copy docs/systems/session-method.md exactly from origin/feature/operators once its step 07 commit is pushed (`git show origin/feature/operators:docs/systems/session-method.md > docs/systems/session-method.md`), so both branches carry identical text into master.
+CLAUDE.md has "How sessions are run" (the orchestrator method) and docs/systems/session-method.md, copied unchanged from origin/feature/operators b3a58ff so both branches carry identical text into master. Done.
 
 ## Playtest branch (2026-10-16, Michael asked to hear music and movement / weapon sounds with the new movement)
 `playtest/combined` = feature/ct-locomotion + origin/feature/music + origin/feature/footsteps + origin/feature/weapon-audio, built in its own worktree C:\NightShift\Mobile-Coop-playtest (never in this folder). For laptop play only: nothing from it is merged back into feature/ct-locomotion; recreate it from the latest heads when a fresh combined build is wanted. The sound branches reach this run through master at the end (merge plan).
