@@ -38,6 +38,10 @@ every phase step.
   and in a match (`TESTING.md`), then his merge into `ct-movement`. Not covered yet: climbing, teammates', guards' steps.
   Full `npm run e2e` on 2026-10-16: all required suites pass except `e2e-touch`, which fails the same way on the base
   commit 082d100 (touchmove "cancelable=false" console errors in the anticlockwise phone check; pre-existing).
+- Weapon sounds (`feature/weapon-audio` off `feature/music`, 2026-10-16, not merged): every gun plays CC0 recordings
+  (near and far), real suppressed shots, brass, pump and bolt, reloads over their real time (`docs/systems/audio.md`,
+  log `docs/audio/weapon-audio-progress.md`). CC0 audio is now allowed for every sound (Michael, 2026-10-16). Waits for
+  Michael's ear check in `?weaponlab=1` and in a match (`TESTING.md`), then his merge.
 
 ### Noted fixes (not scheduled; Michael: "don't do it yet")
 - **Ghost copy of the operator (Epic).** A second copy of the operator's voxel body - its level-of-detail mesh

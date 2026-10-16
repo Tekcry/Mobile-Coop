@@ -39,6 +39,8 @@ export interface Flags {
   musicLab: boolean;
   /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
   foleyLab: boolean;
+  /** `?weaponlab=1` opens the weapon lab (gun sounds, a debug screen) after boot. */
+  weaponLab: boolean;
 }
 
 function readParams(): URLSearchParams {
@@ -74,4 +76,5 @@ export const flags: Flags = {
   legacy: params.get('legacy') === '1',
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
+  weaponLab: params.get('weaponlab') === '1',
 };

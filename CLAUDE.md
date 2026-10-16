@@ -35,7 +35,7 @@
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art or audio, except CC0 textures for desktop detail (bible 5.16), the score's CC0 orchestral recordings (Michael, 2026-10-15: VSCO 2 CE, rendered offline to MP3, `docs/audio/samples.md`) and CC0 movement foley (bible S7, credited in `docs/audio-credits.md`). Other audio is WebAudio synthesis unless the Phase 2 A/B test changes it (bible S7).
+- No external art, except CC0 textures for desktop detail (bible 5.16). Audio may use CC0 recordings for any sound (Michael, 2026-10-16; bible S7): bundled, never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
   side-effect module is missing (it warns: "requires a side-effect import"). Add the side-effect import there.
 - Important data goes to IndexedDB (`src/save`). `localStorage` is never used for saves.

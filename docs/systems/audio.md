@@ -3,7 +3,7 @@ Purpose: the audio engine, voices and game wiring.
 Design authority: docs/design-bible.md (Section 5.2)
 
 ## Audio and quality (the audio part)
-- `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`, `app.foley` (movement foley). Every voice must early-out when the
+- `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`, `app.foley` (movement foley), `app.weaponAudio` (weapon sounds). Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
 
 ## Music (V4, 2026-10-16)
@@ -77,3 +77,47 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
 - **Fades:** `GameMusic.fade()` always sets the current level at the fade's start before the ramp. A Web Audio ramp
   runs from the previous automation event; without the anchor, a fade after an ended fade starts part-way down (a cut).
   The volume default is 15 % (`audio.musicV: 3` moves an untouched old default once).
+
+## Weapon sounds (feature/weapon-audio, 2026-10-16)
+Real CC0 recordings for every gun (Michael: "allow CC0 for everything", 2026-10-16). Sources and licences:
+`docs/audio-credits.md`. Purely cosmetic: guards hear the noise model (`GameState`: `SHOT_NOISE` x the weapon's `noise`
+stat), which nothing here reads or changes.
+- **Sprite.** `src/assets/sfx/weapons.mp3` (one mono MP3, 96 kbps, ~90 s, ~1.06 MB, precached) holds 127 takes in 46
+  banks; `weapons.json` indexes them (`audio/weapons/sprite.ts`). `npm run sfx:fetch-weapons` downloads the files
+  (SHA-256 checked, the 194 MB library unpacked with the system `tar`) into `.sfx-cache/weapons/` (git-ignored);
+  `npm run sfx:render-weapons` (`audio/weapons/render/cli.ts`, pure signal work in `render/dsp.ts`, deterministic) cuts
+  and encodes. Alignment as in the foley (`mark`, `alignShift`).
+- **Banks.**
+  - Shots: 12 recorded guns (`SHOT_SOURCES`), near and `<gun>Far` (mid distance), 2-5 takes each. A single-shot file
+    gives each shot (its berm echo dropped); a burst gives the last round of each burst (its tail rings out).
+  - Suppressed (`sdPistol`, `sdSmg`, `sdRifle`, `sdHeavy`): made from the near takes by `suppress()`. The blast and tail
+    are cut (a 28-55 ms decay after 4 ms), the body low-passed (1.1-1.7 kHz), a puff of gas and the slide or bolt clack
+    added, plus four early reflections (a room, not a field).
+  - Handling: `magOut`, `magIn`, `rifleMagIn`, `slideBack`, `slideFwd`, `shellIn`, `tick` (dry click).
+  - Brass: `case_<pistol|rifle|shell>_<hard|metal|wood>`, three drops each, modelled (`casing()`). Modal rings per
+    bounce, bounces closing up, a contact click, the floor's colour (a deck plate rings, wood knocks), sometimes a roll.
+  - `bow`: the crossbow (string twang, limb thunk, a short whoosh), modelled.
+  - Levels: shots and suppressed shots by body RMS (peaks under 0.97), handling and brass by body RMS.
+- **Planner** (`audio/weapons/guns.ts`, pure, allocation-free per call, tested in `tests/weapons-audio.test.ts`):
+  - `GUNS` maps every weapon id to a recording, rate, level, suppressed bank, casing, action (pump or bolt) and reload
+    kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt AK, heavy LMG,
+    sniper, enforcer semi-auto shotgun, drone operator SMG, officer pistol).
+  - A shot: one take, rate +-3.5 %, level +-12 %, never the same take twice in a row (`TakePicker`). Remote shots
+    crossfade near to far between 8 and 30 m (equal power) and low-pass with distance.
+  - Brass lands 0.42-0.6 s after a shot on the player's floor (`caseFloor`: grate is metal, carpet is muffled wood,
+    gravel dulled hard). The pump and the bolt cycle after the shot, the shell or case dropping after them.
+  - A reload is laid out over `PlayerWeapons.reloadDuration` (`reloadIsEmpty` adds the slide or charging handle; tube
+    shotguns load the missing shells one by one, at most five heard).
+  - Levels: `WEAPON_MIX`. Measured in game (loudest 50 ms): a running step about -33 dB, an open pistol about -21 dB,
+    a suppressed pistol about -31 dB, reloads about -30 dB, brass about -42 dB.
+- **Runtime** (`audio/weapons/weaponAudio.ts`, `app.weaponAudio`): decodes the sprite once audio starts. The player's
+  shots choke each other (the last shot fades 30 ms into the next over 70 ms), so automatic fire stays a clean rattle.
+  Reload sources are kept and cut on a swap or when the match ends. Until the sprite is decoded the old synth plays.
+- **Wiring** (`gameAudio.ts`): `onShot` (suppressed when the live `stats.noise` < 0.6: the 9mm SD's 0.35 or a fitted
+  suppressor's 0.45), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
+  `remoteShot` (by class) through `AudioEngine.spatial` at range 70.
+- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): every gun; single, three-round burst or a second of
+  automatic fire at the gun's rate; suppressed; the player or a guard at 6, 18 or 40 m; reloads, dry fire, brass on
+  each floor, a running footstep for level; "Old synth" for an A/B.
+- Not covered yet: bullet impacts and ricochets (still the synth `impact`), the weapon swap and grenade throw (synth),
+  bullet flybys past the player, guards' reloads, indoor and outdoor reverb tails by room.

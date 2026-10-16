@@ -179,6 +179,15 @@ export class PlayerWeapons {
     return this.reloading ? 1 - this.reloadT / this.reloadTotal : 0;
   }
 
+  /** The current reload's length (s) and whether it is the empty one (the weapon sounds lay it out; read only). */
+  get reloadDuration(): number {
+    return this.reloadTotal;
+  }
+
+  get reloadIsEmpty(): boolean {
+    return this.reloadEmpty;
+  }
+
   get swapping(): boolean {
     return this.swapT >= 0;
   }
