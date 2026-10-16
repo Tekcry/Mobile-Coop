@@ -17,7 +17,9 @@
   the in-game test (the game's tracks are unchanged until Michael picks).
 - The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
   and climbing strings) leads into Alert.
-- The menu theme plays as a whole piece: its quiet opening, its own ending, a 3 s rest, then again (no loop join).
+- The menu theme is twice as long ("Menu theme, extended", 64 bars, 2 min 50 s): the theme as before, then drums, a
+  string pulse and low brass build to a peak, and it comes back down to the low D it opens with, so the loop joins
+  smoothly.
 - Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
   fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu
   fades over 4 s; leaving one the mission music fades over 2.5 s.

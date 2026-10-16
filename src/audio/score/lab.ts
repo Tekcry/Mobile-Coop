@@ -428,9 +428,9 @@ function mixChooser(stealth: OrchPiece[], prefix: string, set: (v: string) => vo
 
 export function mountScoreLab(root: HTMLElement): void {
   const missing = !ORCH.pieces.length;
-  const keepers = ['underfire', 'grandsoft'].map(piece).filter((p): p is OrchPiece => !!p);
+  const keepers = ['underfire', 'grandlong', 'grandsoft'].map(piece).filter((p): p is OrchPiece => !!p);
   const stealth = ORCH.pieces.filter((p) => p.use === 'stealth');
-  const menus = ORCH.pieces.filter((p) => p.use === 'menu' && p.id !== 'grandsoft');
+  const menus = ORCH.pieces.filter((p) => p.use === 'menu' && p.id !== 'grandsoft' && p.id !== 'grandlong');
   root.append(
     el('h1', { textContent: 'Night Shift - music test' }),
     el('p', { className: 'muted', textContent: 'Real orchestra recordings, built around the two keepers. Each piece loads in a second or two the first time.' }),

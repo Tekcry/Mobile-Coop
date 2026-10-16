@@ -7,7 +7,8 @@ Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3
 
 ## Music V4 manual check (feature/music; desktop and iPhone)
 - [ ] The main menu plays the menu theme after the first click or tap (and keeps playing through the menu screens).
-- [ ] Let the menu theme play to its end (about 90 s): it ends on its own, rests about 3 s, then starts again softly.
+- [ ] Let the menu theme play through (about 2 min 50 s): the drums come in at about 1 min 25 s, it builds to a peak,
+  comes back down, and loops into its soft opening with no jump or gap.
 - [ ] Start a match: the menu theme fades out over about 4 s, no cut. Quit back to the menu: no cut, the theme starts
   softly from its opening.
 - [ ] Starting Infiltration on the Warehouse: silence while nobody is aware of you.

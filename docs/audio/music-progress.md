@@ -33,7 +33,30 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
 | 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done |
 | 4d | Round 23: Calm and Cautious alternatives on the hook thread (test page only) | done; waiting for Michael's picks |
+| 4e | Round 24: the menu theme extended to 64 bars (drums, a peak, a seamless loop) | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4e (round 24) - the menu theme, extended
+- **Michael (2026-10-16):** "extend the main menu theme, make it continue and get more epic and upbeat with drums or
+  something, then should loop onto it self smoothly. aim for 100% longer duration."
+- **Done:** "Menu theme, extended" (`grandlong` in `pieces.ts`, `menuLong()`): 64 bars at 90 BPM, 170.7 s, twice the
+  old 85.3 s. The game's menu track is now this piece's Softer mix as a seamless loop with its clean opening (the
+  whole-piece mode from step 4c stays in the code, unused).
+  - Bars 1-32: the theme as kept (the hook, the cellos' melody, then violins and the whole section).
+  - Bar 31: a drum roll and a timpani roll into bar 33.
+  - Bars 33-40: the drums (big drum on 1 and 3, sticks, timpani on the chord changes), a string pulse in 3-3-2
+    eighths, the melody on horns with the cellos.
+  - Bars 41-56: the full drum pattern with the bass drum, a driving bass and sub, low brass swells, the melody on
+    violins an octave up. Bar 49 is the peak (violins, violas, horns and cellos in octaves). Fills lead into 41, 49
+    and 57.
+  - Bars 57-64: one big hit, then the way down. The drums thin out over 4 bars, the pulse fades, soft low brass and
+    chords Dm, B-flat, G minor, the melody once more softly on cellos (its last A leads home). The last two bars
+    breathe on the held low D the theme opens with, still ringing when the loop's own low D swells in.
+  - **Measured per bar:** 0-7 about -29 dB, 16-31 -22 to -18, 33-40 -20, 41-56 -18 to -16, then -22, -22, -24, -25,
+    -26, -28, -30, -28 | back to -29, -29 at the start. The join is level.
+- **Files:** `music-menu.mp3` 2.9 MB (was 1.4 MB); all game tracks 7.2 MB.
+- The test page lists "Menu theme, extended" with the keepers (presets: Softer, strings and drums only, no drums,
+  Full).
 
 ## V4 step 4d (round 23) - Calm and Cautious alternatives on the hook thread
 - **Michael (2026-10-16):** alternatives for the in-game Calm and Cautious that keep Hook A as the thread without

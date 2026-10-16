@@ -8,7 +8,9 @@ Design authority: docs/design-bible.md (Section 5.2)
 
 ## Music (V4, 2026-10-16)
 - **What plays:**
-  - On the menu: "Menu theme, Grand, dialled back" (the Softer mix).
+  - On the menu: "Menu theme, extended" (`grandlong`, the Softer mix): "Grand, dialled back" with a second half
+    (drums, string pulse, low brass, a peak, the way back down). It loops seamlessly. A track can instead be a whole
+    piece (`whole: true` in the cli's GAME list: played once, a 3 s rest, again); none is at the moment.
   - In a match, by the guards' awareness:
 
     | State | Music |
@@ -29,8 +31,7 @@ Design authority: docs/design-bible.md (Section 5.2)
   - `src/audio/music/music.ts` is the facade the app calls: `menu()` from `main.ts`, `mission()` and
     `update(dt, awareness)` from `gameAudio.ts`.
 - **Tracks:** `src/assets/music/game/` holds one MP3 per state (`music-menu`, `-caution`, `-alert`, `-evade`,
-  `-spotted`), each loop with a clean 4-bar opening (`-head`; the menu theme is a whole piece instead: `whole` in
-  `game.json`, played once, a 3 s rest, then again), and `game.json` (pad, loop length, tempo). These files
+  `-spotted`), each loop with a clean 4-bar opening (`-head`), and `game.json` (pad, loop length, tempo). These files
   are committed and precached by the service worker. They decode at 32 kHz.
   - Every loop starts on its clean opening (no tail of its own last bar), then hands over to the loop.
   - Alert and Evasion run in sync and crossfade on bar lines.
