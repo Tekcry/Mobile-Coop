@@ -666,3 +666,30 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   for the leg bands and sleeves); everything else reuses Wren's laminate, polymer, rubber, gunmetal, shock cord and
   cable jacket. The belt and its closure cross the back-carry lane flush on the body (3 mm), with the rappel ring.
   Undo: the part builders in chest_rig.py / waist_belt.py / leg_kit.py.
+**A67 Approach boots are their own item (step 09b).** `py/garments/approach_boots.py` (FITTED `approach_boots`, kit id
+  `boots`, objects `wren-approach_boots-*`) forks `boots.build_foot` instead of parameterising it, so Moth's step 06 boot
+  (`boots.py`) stays byte-identical; it imports `Frame`, `smoothstep` and `_planar_uv` and reuses the boot materials
+  (suede, boot nylon, sole rubber with `wear`, lace, binding, hardware metal; no new material: the rand is the sole's
+  rubber, so a covered or unsampled new material cannot appear). Shape: toe room 12 mm, toe raise 3 mm, plan
+  superellipse 1.9 medial / 1.6 lateral round a toe point 40 % to the medial edge, a quadratic toe spring of 10 mm from
+  82 % of the foot; rand 13 mm round the upper rising 7 mm up the heel and 10 mm toward the toe, with a bumper about
+  30 mm deep over the nose; seven low eyelets a side from 80 % of the foot (no speed hooks); a bellows gusset each side
+  of the tongue; the edging zone is the front 4.6 cm of the sole, flush with the lug faces; lugs 2.9 mm (V-bars and an
+  edge band, original), the heel brake 4.2 mm. Undo: `approach_boots` back to `boots` in GARMENTS.wren, rebuild from it.
+**A68 The suit's hem pressed into the boot under a low heel tab (step 09b; corrected in fix round 1).** The suit (not
+  rebuilt: step 08a's seam gap 9.76 vs 10) settled its ankle hem at 10.1-10.5 cm in front but 13.0 (left) / 14.1 cm
+  (right) at the back, not the 9 cm A38 drafted. The collar no longer follows the hem (the first pass rose to a 15.0 cm
+  stepped tab): its top line is 12.2 cm at the front and rises smoothly round the leg to `BACK_RISE` 10.5 mm more at the
+  back (a cosine ramp, no step), so the top edge is 12.8-13.96 cm all round (14.0 cm limit). As the armour presses the
+  suit (A53), `press_suit_hem` then moves the suit's render objects into the boot: (1) height: the hem goes to 27 mm
+  under the collar's top edge (A38: 25 mm); where the hem is at or over the top edge (the right heel, up to 2.2 mm over)
+  a 2 mm band over it is stretched down inside the boot and the 10 cm of suit above slides down to meet it (visible
+  stretch at most 4.7 %, `suitBandStretch`); (2) radius: every suit vertex under the top edge is drawn in toward the
+  leg's axis to 1.5 mm inside the boot's innermost (lining) surface, smoothed over the mesh and fading out 12 mm over the
+  edge (the first pass only moved z, so the pressed band kept the leg's wider radius and poked out of the narrower
+  shaft at the medial back: 230 + 47 vertices on the left boot, 54 on the right; "nothing visible moves" was wrong);
+  (3) a probe in `-sim.json` (`suitPokeThrough`): suit vertices under the top edge less 4 mm outside the boot's inner
+  surface, or with a clear line of sight out through the wall past every boot object and the leg; both are 0 on both
+  feet. The boot fits a smoothed copy of the suit's lower leg, its push-out moves are dilated and blurred over the ring
+  grid, and its lining is held 3.2 mm inside the outer wall (the first pass crumpled the collar band). Undo: rebuild the
+  suit with the hem drafted lower at the back (the step 08a retry); the press then only moves hidden suit.

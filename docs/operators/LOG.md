@@ -1088,3 +1088,100 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   loops read as thin hoops); A62 integration item for locomotion step 25.
 - Status: passed the independent check (fix rounds: 2).
 
+
+## Step 09b - Wren: approach boots (Opus 5.5)
+- Built: `py/garments/approach_boots.py` (FITTED `approach_boots`, kit id `boots`, objects `wren-approach_boots-*`;
+  A67), forked from `boots.build_foot` (Moth's `boots.py` untouched). An approach-shoe last on Wren's foot: toe room 12
+  mm, toe raise 3 mm, an asymmetric plan (superellipse 1.9 medial / 1.6 lateral round a toe point 40 % to the medial
+  edge), a quadratic toe spring (10.7 mm at the tip, from 82 % of the foot), a close heel cup. Panels (level-set
+  slice): a sticky rubber rand round the whole upper (13 mm, rising 7 mm at the heel and 10 mm toward the toe) with a
+  bumper about 30 mm deep over the toe box; a suede vamp overlay, suede eyestays from 80 % of the foot, a suede heel
+  counter, nylon quarters, a recessed tongue with a bellows gusset each side, a padded collar with a fuller roll and a
+  heel tab (A68). Seven low-profile eyelets a side (0.6 mm proud, no speed hooks), criss-cross laces to a lace garage at
+  the tongue top, the webbing heel pull loop (box-X). Sole: a firm thin midsole (the groove 5.5 mm over the outsole
+  face), a smooth edging zone over the front 4.6 cm flush with the lug faces, 101 lugs a side 2.9 mm deep (an original
+  V-bar pattern inside a perimeter edge band; V toward the toe on the forefoot, toward the heel on the heel block), a
+  recessed arch and a 4.2 mm transverse heel brake. Wear: rand scuffs at the toe and heel, one forefoot flex crease,
+  the edging zone polished, dust in the lugs (AO).
+- A38 / A68 (as corrected in fix round 1): the suit's settled hem rises to 13.0 / 14.1 cm at the back; the collar's top
+  line rises smoothly from 12.2 cm at the front to a low heel tab (top edge 12.8-13.96 cm), and `press_suit_hem` moves
+  the suit's render objects down and in, inside the boot: the hem ends 27 mm or more under the collar's top edge all
+  round and every suit vertex under the edge sits 1.5 mm or more inside the boot's lining (poke-through probe 0).
+- Shared edits: GARMENTS.wren `boots` -> `approach_boots`, FITTED += `approach_boots`; `render_garment_test.py`
+  approach_boots views (c side, e laces, g toe, k collar and cuff, l profile, f heel and sole, h sole from below);
+  kit.ts Wren `boots` renamed "Approach boots" with the new job / attach text; operators.test.ts asserts it. The stale
+  step 06 `wren-boots.*` build outputs were moved out of build/operators/wren (scratchpad) so the check does not
+  re-check them; the step 06 renders stay in docs/operators/mockups/tests as history.
+- The press stretches the hidden band of the suit's render objects; edges it made longer than 2.4 cm are split (bmesh)
+  so the render-mesh edge rule holds (first full check: edgeLength 56.9 mm on `wren-suit-tape`, then 29.02 mm).
+- Numbers (`wren-approach_boots-sim.json`): foot 22.8 cm, boot 25.2 cm, ball 9.9 cm; toe width 2 cm behind the tip 58 %
+  of the ball (step 06: 61 %); toe spring 10.7 mm; 101 lugs a side; collar top edge 12.65 cm front, 13.9 / 14.1 cm
+  lateral, 15.0 cm back; suit hem 10.1-13.0 (L) / 10.5-14.1 cm (R) settled, 9.95-11.9 / 9.94-12.3 cm pressed, so the cuff
+  is 27.0 mm or more inside the collar's top edge all round (before: 8.3 / 9.3 mm at the worst point); the roll's
+  inner edge 0.0-1.8 mm off the suit.
+- Re-confirmed after the rebuild (`wren-leg_kit.blend`): earpiece cable probe 58 rings, 0 inside the body, 0 outside
+  the hood above the skirt hem, length 0.2254 m; holster `offsetFromSlotMm` 9.76 (<= 10).
+- (First-pass Numbers / Checks / Renders bullets are superseded by "Fix round 1": collar top 12.82-13.96 cm, pressed
+  hem 10.12-11.26 cm, edgeLength 29.65 mm, renders from the full chain.)
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS, 9 items, all checks pass (approach_boots edgeLength 29.02
+  mm, seam gap 0, fitted). `npm run check` PASS (exit 0; 73 test files, 762 tests; lint 0 errors).
+- Renders (GPU, E2E_GPU=1, 384 samples, from the build before the edge split, which only changed hidden suit faces):
+  docs/operators/mockups/tests/wren-approach_boots-{a-front-stealth,b-back34-stealth,c-closeup-boot-side,
+  d-front-neutral,e-closeup-boot-laces,f-closeup-boot-sole,g-closeup-boot-toe,h-boot-sole-below,k-boot-collar-cuff,
+  l-boot-profile}.webp; re-rendered wren-head_kit-s4-suit-ankle-boot.webp and every later item's views.
+- Implementer's read of the renders: reads as a light approach shoe with a mid collar (low rounded toe, the rand
+  rising over the toe box as a rubber bumper, lacing from near the toe, low lugs, the heel brake step, the smooth
+  edging zone; l, g, h, f); the suit enters the collar with no gap (k, s4).
+- Open (first pass; 1 and 4 fixed in fix round 1):
+  1. (fixed r1) The collar was 15.0 cm at the heel tab.
+  2. Close-ups still render near-black as mid grey (OPEN since 05): the rand, suede and nylon do not separate by tone in
+     these renders; judge materials on the step 10 / 11 sheets.
+  3. A small dark slit where the collar band, the counter and the quarter meet on the lateral side (k, c); the same
+     split_step junction shows on the step 06 boot.
+  4. (fixed r1) The sole's bottom showed radial shading streaks (h; the concentric-ring fan).
+### Fix round 1 (fixer, Opus 5.5; against steps/09b-fixes-r1.md)
+- Item 1 (the pressed suit poked through the medial-back quarter): `press_suit_hem` now also pulls every suit vertex
+  under the collar's top edge toward the leg's axis (a horizontal ray from the pressed suit's slab centroid) to 1.5 mm
+  inside the boot hero's innermost surface, smoothed over the mesh and fading out 12 mm over the edge. New probe in
+  `wren-approach_boots-sim.json` `measurements.<side>.suitPokeThrough`: L tested 1623 / outsideBoot 0 / seesOpenAir 0,
+  R 1432 / 0 / 0 (outward fan of 12 x 2 directions past every boot object and the leg). New views
+  `m-boot-medial-back-l` and `m-boot-medial-back-r` (0.35 m from the medial back). A68 corrected.
+- Item 2 (collar over 14 cm, stepped tab): the collar no longer follows the suit's hem (`hem_requirement`, `HEM_COVER`
+  removed); the top line rises round the leg as a cosine ramp to `BACK_RISE` 10.5 mm at the back. Top edge 12.85-13.92
+  cm (L) / 12.82-13.96 cm (R); `collarTopM` 13.92 / 13.96. The press now handles a hem at or over the edge: a 2 mm band
+  over the hem is stretched down inside the boot and the 10 cm of suit above slides down to meet it; visible stretch
+  1.000 (L) / 1.047 (R, the hem 2.2 mm over the edge at the heel). Cuff 27.0 mm inside the top edge all round (A38).
+  Pressed hem 10.12-11.22 / 10.12-11.26 cm.
+- Collar band (found with the new view): the boot's push-out off the suit's folds and flared hem crumpled the collar
+  band, and the lining dropped from the top ring outside the drawn-in shaft and showed through it. Now the boot fits a
+  Taubin-smoothed copy of the suit's lower leg (`_smooth_leg`), the push-out moves are dilated and blurred over the ring
+  grid (`_settle`), the lining has 4 rows down the inside and is held 3.2 mm inside the outer wall, and the roll has 5
+  outer rows (rounder, no facets).
+- Item 3 (sole lump and creases): the lump was the body's toe tips (22 vertices at z 1.2-3.2 mm) poking through the
+  sprung sole bottom. The bottom's spring is now capped 1 mm under the lowest body / suit point at each station
+  (nondecreasing to the tip; the top keeps the full 10.7 mm spring); the bottom face is a constrained-Delaunay fill of a
+  2.5 mm grid (no concentric rings, so no fan streaks across the arch and the edging ramp).
+- Item 4 (shading bands): each section ring is Taubin-smoothed along the ring (the hull facets lined up into stripes);
+  shaft rings every 3 mm (was 4); the nylon quarters take a side projection UV (s, z) instead of the ring
+  parameterisation (the fan round the throat stretched the weave into streaks); on the shaft and the collar the v
+  coordinate follows the height (the rise sheared the weave into diagonal bands).
+- Open (follow-ups from the fix list, not worked): 5. lugs read as separate sharp-edged bricks on a flat slab (h, f;
+  step 06 "lug clusters"); 6. the small dark slit where the collar band meets the counter and quarter on the lateral
+  side (k, c); 7. near-black renders mid grey in close-ups (OPEN since 05). Also: the heel pull loop's lower leg is
+  slightly crumpled where it enters the collar (m-l).
+- Re-confirmed after the full chain (`operators:build -- wren --from approach_boots --render`): earpiece cable 58 rings,
+  0 inside the body, 0 outside the hood above the skirt hem, 0.2254 m; holster `offsetFromSlotMm` 9.76 (<= 10).
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS (9 items, all checks pass); `npm run check` PASS (73 test
+  files, 762 tests; lint 0 errors).
+- Renders (GPU, full chain): docs/operators/mockups/tests/wren-approach_boots-{a,b,c,d,e,f,g,h,k,l}-*.webp and the new
+  wren-approach_boots-m-boot-medial-back-{l,r}.webp; every later item's views re-rendered.
+- Checker round 2: PASS. operators:check 9 items pass; npm run check passes. Red-emissive poke-through render from the
+  medial back, both feet: no suit through the quarter, counter or collar band; the checker's unexcluded ray-fan probe
+  found escapes only within 2.1 mm of the collar rim (the suit leaving the boot opening) - the 4 mm band the sim
+  probe skips (A68 (3)) is the collar opening, checked separately here. Earpiece cable 58 rings, 0 inside the body,
+  0 outside the hood, 0.2254 m; holster offsetFromSlotMm 9.76. Watch for steps 10-11: edgeLength 29.65 mm vs 30.
+  OPEN (minor): lugs read as separate bricks; lateral collar / counter / quarter slit; near-black mid grey; heel pull
+  loop's lower end slightly crumpled at the collar (m-l); top lace end curls into a short stub (e, k); the vamp
+  overlay's stitching ragged where it meets the rand (g).
+- Status: passed the independent check (fix rounds: 1).
+

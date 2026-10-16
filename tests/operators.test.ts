@@ -45,6 +45,13 @@ describe('operator kit', () => {
     expect(kitCoverage(WREN_KIT, ['adminPouch', 'radioPouch', 'belt', 'grenadePouches', 'dumpPouch', 'knifeSheath',
       'dropHanger', 'legStraps', 'smgSling']).missing).toEqual(['adminPouch', 'radioPouch', 'belt', 'grenadePouches',
       'dumpPouch', 'knifeSheath', 'dropHanger', 'legStraps', 'smgSling']);
+    // step 09b: approach_boots.py builds kit id 'boots' (A67): approach boots, no speed hooks (D23)
+    expect(kitCoverage(WREN_KIT, ['boots'])).toEqual({ missing: [], errors: [] });
+    const boots = WREN_KIT.items.find((i) => i.id === 'boots');
+    expect(boots?.name).toBe('Approach boots');
+    expect(boots?.job).toMatch(/rand rising over the toe/);
+    expect(boots?.job).toMatch(/edging zone/);
+    expect(boots?.attach).toMatch(/no speed hooks/);
     const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
     expect(kitCoverage(broken, ['suit']).errors.length).toBeGreaterThan(0);
   });

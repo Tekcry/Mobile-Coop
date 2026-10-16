@@ -148,6 +148,33 @@ elif gname == 'boots':
     closeup('f-closeup-boot-sole', np.array([an[0], an[1] + 0.0, 0.01]), (side * 0.35, 0.8, -0.75), lens=30, dist=0.5,
             rake_from=(side * 0.2, 0.25, -0.15), power=8)
     floor.hide_render = False
+elif gname == 'approach_boots':
+    # Step 09b: the step 06 boot views (c side, e laces, f heel and sole) plus a toe close-up (rand over the toe box,
+    # the edging zone), the sole from straight below, the collar over the suit's ankle cuff and a side profile.
+    an, toe = J['anL'], J['toeL']
+    side = np.sign(an[0])
+    bc = np.array([an[0], (an[1] + toe[1]) / 2 + 0.02, 0.06])
+    closeup('c-closeup-boot-side', bc, (side * 1.0, -0.55, 0.3), lens=35, dist=0.55, rake_from=(side * 0.15, -0.3, 0.25), power=6)
+    closeup('e-closeup-boot-laces', np.array([an[0], an[1] - 0.06, 0.08]), (side * 0.25, -1.0, 0.75), lens=35, dist=0.42,
+            rake_from=(side * 0.3, -0.05, 0.2), power=6)
+    tp = np.array([an[0] - side * 0.005, an[1] - 0.17, 0.03])
+    closeup('g-closeup-boot-toe', tp, (side * 0.45, -1.0, 0.18), lens=50, dist=0.36, rake_from=(side * 0.2, -0.12, 0.12), power=6)
+    closeup('k-boot-collar-cuff', np.array([an[0], an[1] + 0.005, 0.11]), (side * 0.7, -0.6, 0.45), lens=50, dist=0.4,
+            rake_from=(side * 0.2, -0.05, 0.25), power=7)
+    closeup('l-boot-profile', np.array([an[0], an[1] - 0.06, 0.065]), (side * 1.0, 0.0, 0.05), lens=35, dist=0.62,
+            rake_from=(side * 0.15, -0.25, 0.3), power=7)
+    # m. Each boot from the medial back (fix round 1): the quarter, counter and collar band where the pressed suit
+    # poked through (A68).
+    for an_, tag in ((J['anL'], 'l'), (J['anR'], 'r')):
+        sd = np.sign(an_[0])
+        closeup(f'm-boot-medial-back-{tag}', np.array([an_[0], an_[1] + 0.02, 0.1]), (-sd * 0.6, 1.0, 0.3), lens=50,
+                dist=0.35, rake_from=(-sd * 0.15, 0.2, 0.2), power=6)
+    floor.hide_render = True
+    closeup('f-closeup-boot-sole', np.array([an[0], an[1] + 0.0, 0.01]), (side * 0.35, 0.8, -0.75), lens=30, dist=0.5,
+            rake_from=(side * 0.2, 0.25, -0.15), power=8)
+    closeup('h-boot-sole-below', np.array([an[0], an[1] - 0.06, 0.0]), (side * 0.12, -0.08, -1.0), lens=35, dist=0.55,
+            rake_from=(side * 0.25, -0.2, -0.06), power=8)
+    floor.hide_render = False
 elif gname in ('headwear', 'head_kit'):
     # Step 07: the head. Front three-quarter, the left side (earpiece side, chin buckle), the back (cradle, battery,
     # the band, the hood's cord lock); for the head kit also the goggle in use (close), stowed on the brow (front and

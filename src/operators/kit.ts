@@ -113,7 +113,7 @@ export const WREN_KIT: Kit = {
     { id: 'sleeveHanger', name: 'Sleeve panel hanger', kind: 'strap', zone: 'legs', where: 'left front, belt to the sleeve panel', job: 'carries the sleeve panel from the belt', attach: 'loop round the belt closed by a magnetic buckle; bonded to the panel top', anchors: [a('waistBelt', 'left front'), a('sleevePanel', 'panel top')] },
     // Hands and feet
     { id: 'gloves', name: 'Gloves', kind: 'garment', zone: 'hands', where: 'hands', job: 'grip and protection: leather palm, stretch back, reinforced trigger finger', attach: 'wrist tab' },
-    { id: 'boots', name: 'Mid boots', kind: 'garment', zone: 'feet', where: 'feet', job: 'quiet footing: suede and nylon, toe rand, quiet lug sole', attach: 'laced; speed hooks, lace garage; the bonded ankle cuff of the suit inside the collar' },
+    { id: 'boots', name: 'Approach boots', kind: 'garment', zone: 'feet', where: 'feet', job: 'light, climbing-capable footing (D23): an approach-shoe last with a toe spring, a sticky rubber rand rising over the toe, a flat edging zone under the toes, low lugs with a heel brake, a firm thin midsole; suede and nylon upper, bellows tongue', attach: 'laced close to the toe through low-profile eyelets (no speed hooks), the bow in a lace garage; a padded collar about 13 cm with a heel pull loop over the bonded ankle cuff of the suit' },
   ],
   wear: [
     'scuffed plate and rib segment edges (the rubber trim and the chamfers)',
