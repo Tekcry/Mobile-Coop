@@ -55,7 +55,7 @@ async function run(label, opts) {
 
     // the decoded loops: the last sample of the loop region runs into its first without a jump
     const seams = await G(page, async () => {
-      // the lab's own sketch stems (the game's menu theme also loads behind the lab since music V4)
+      // the lab's own sketch stems (the game's menu theme and the movement foley sprite also load behind the lab)
       const urls = [...new Set(performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /\/[ABC]-(calm|caution|alert)-[^/]*\.mp3$/.test(n)))];
       const ctx = new OfflineAudioContext(2, 1, 48000);
       const out = [];

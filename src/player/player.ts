@@ -224,6 +224,10 @@ export class Player {
   /** Render-rate update: look, camera, animation. */
   /** Controller teleports seen (each resets the feet). */
   private teleportsSeen = 0;
+  /** Foot plants (heel strikes on the ground) so far, and the side of the last one (-1 left, 1 right). Read by the
+   *  movement foley; cosmetic. */
+  footPlants = 0;
+  footPlantSide = 1;
 
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
@@ -370,7 +374,12 @@ export class Player {
       (cp2.lean !== 0 ? Math.abs(g.leanOut) < 0.85 || !cp2.gunClear : cp2.peekOver > 0.5 ? !this.rig.overClear : cp2.blind && cp2.cover === 'low' ? g.blindOut < 0.85 : false);
     // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
     const pl = this.rig.planner;
-    if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
+    if ((pl.L.landed || pl.R.landed) && c.grounded) {
+      this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
+      // the foley plays real foot plants (audio reads this; nothing in gameplay does)
+      this.footPlants++;
+      this.footPlantSide = pl.L.landed ? -1 : 1;
+    }
     this.cam.applyBodyFade(this.rig);
   }
 

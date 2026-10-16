@@ -37,6 +37,8 @@ export interface Flags {
   legacy: boolean;
   /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
   musicLab: boolean;
+  /** `?foleylab=1` opens the foley lab (movement sounds, a debug screen) after boot. */
+  foleyLab: boolean;
 }
 
 function readParams(): URLSearchParams {
@@ -71,4 +73,5 @@ export const flags: Flags = {
   gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   musicLab: params.get('musiclab') === '1',
+  foleyLab: params.get('foleylab') === '1',
 };
