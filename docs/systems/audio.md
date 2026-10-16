@@ -113,10 +113,10 @@ stat), which nothing here reads or changes.
 - **Runtime** (`audio/weapons/weaponAudio.ts`, `app.weaponAudio`): decodes the sprite once audio starts. The player's
   shots choke each other (the last shot fades 30 ms into the next over 70 ms), so automatic fire stays a clean rattle.
   Reload sources are kept and cut on a swap or when the match ends. Until the sprite is decoded the old synth plays.
-- **Wiring** (`gameAudio.ts`): `onShot` (suppressed when the live `stats.noise` < 0.6: the 9mm SD's 0.35 or a fitted
-  suppressor's 0.45), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
+- **Wiring** (`gameAudio.ts`): `onShot` (suppressed when the live `stats.noise` < 0.6: the suppressed pistol's 0.35 or a
+  fitted suppressor's 0.45, which includes the campaign rifle's issued suppressor on feature/ct-locomotion), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
   `remoteShot` (by class) through `AudioEngine.spatial` at range 70.
-- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): every gun; single, three-round burst or a second of
+- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): every gun, the campaign arsenal's six first (bible 5.6); single, three-round burst or a second of
   automatic fire at the gun's rate; suppressed; the player or a guard at 6, 18 or 40 m; reloads, dry fire, brass on
   each floor, a running footstep for level; "Old synth" for an A/B.
 - Not covered yet: bullet impacts and ricochets (still the synth `impact`), the weapon swap and grenade throw (synth),

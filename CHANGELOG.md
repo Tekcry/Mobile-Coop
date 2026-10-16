@@ -5,7 +5,7 @@
   12 recorded guns (The Free Firearm Sound Library, `docs/audio-credits.md`): .45 pistol, 9 mm and 7.62 SMGs, 5.56
   and 7.62 rifles, a .30-06 bolt rifle, 12-gauge pumps. Each has near takes (the player and close guards) and
   mid-distance takes (far guards), crossfaded and darkened with distance.
-- Suppressed guns finally sound suppressed (before, the 9mm SD and a fitted suppressor played the full report). The
+- Suppressed guns finally sound suppressed (before, the suppressed pistol and a fitted suppressor played the full report). The
   suppressed shots are made from each gun's own recording: the blast and tail cut away, a dull thump, a puff of gas,
   the slide or bolt clack, a little room.
 - Automatic fire chokes each shot into the next, so only the last round rings out. Brass (and shotgun shells) land on
@@ -14,7 +14,7 @@
   empty reload, shell by shell for the tube shotguns) and stop on a swap. A dry click on an empty gun. The crossbow
   has its own string and limb thunk.
 - Gameplay is unchanged: guards hear the noise model (the weapon's `noise` stat), never the audio.
-- `?weaponlab=1`: a listening screen with every gun (single, burst, auto), suppressed, player or guard at 6 / 18 / 40 m,
+- `?weaponlab=1`: a listening screen with every gun, the campaign arsenal's six first (single, burst, auto), suppressed, player or guard at 6 / 18 / 40 m,
   reloads, dry fire, brass per floor, a footstep for level, and an A/B against the old sounds.
 - Tools: `npm run sfx:fetch-weapons`, `npm run sfx:render-weapons`; tests `tests/weapons-audio.test.ts` and
   `scripts/e2e-weapon-audio.mjs` (required).

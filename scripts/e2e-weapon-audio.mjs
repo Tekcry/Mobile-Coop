@@ -33,6 +33,8 @@ const sim = (s, setup) =>
 const stats = () => G(() => ({ ...window.__app.weaponAudio.stats }));
 try {
   await G(() => { window.__pad.connect(); window.__app.settings.update((s) => { s.gamepad.aimAssist = 'off'; }); });
+  // (no hip fire on the locomotion branch: aim held, the gun drawn; harmless where hip fire exists)
+  await G(() => { window.__app.current.player.forceAds = true; window.__app.loop.stepHeadless(0.8); });
   await press(page, BTN.LS);
   // a key press is the user gesture that starts WebAudio (F8 is bound to nothing)
   await page.keyboard.press('F8');
@@ -109,11 +111,13 @@ if (!failed) {
     const shots = () => p.evaluate(() => window.__app.weaponAudio.stats.shots + window.__app.weaponAudio.stats.remote);
     await click('Fire');
     await p.waitForFunction(() => window.__app.weaponAudio.stats.loaded, null, { timeout: 30000 });
-    const guns = await p.locator('.weapon-lab .lab-row').first().locator('.btn').count();
-    assert(guns === 16, `the lab lists every gun (${guns})`);
+    const gunBtns = p.locator('.weapon-lab .lab-gun .btn');
+    const guns = await gunBtns.count();
+    const campaign = await p.locator('.weapon-lab .lab-gun').first().locator('.btn').count();
+    assert(guns === 16 && campaign === 6, `the lab lists every gun, the campaign's six first (${guns}, ${campaign})`);
     for (let i = 0; i < guns; i++) {
       const n0 = await shots();
-      await p.locator('.weapon-lab .lab-row').first().locator('.btn').nth(i).click();
+      await gunBtns.nth(i).click();
       await click('Fire');
       await p.waitForFunction((n) => window.__app.weaponAudio.stats.shots + window.__app.weaponAudio.stats.remote > n, n0, { timeout: 5000 });
     }
