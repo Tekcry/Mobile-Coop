@@ -14,11 +14,13 @@
   offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
 - Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
 - Test page: "Hook thread" (round 23) with four Calm and three Cautious alternatives, and Calm / Cautious choosers in
-  the in-game test (the game's tracks are unchanged until Michael picks).
+  the in-game test (the game's tracks are unchanged until Michael picks). A position slider scrolls through a piece
+  playing alone (with jumps of 8 bars and to the last 4 bars before the loop).
 - The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
   and climbing strings) leads into Alert.
-- The menu theme is twice as long ("Menu theme, extended", 64 bars, 2 min 50 s): the theme as before, then drums, a
-  string pulse and low brass build to a peak, and it comes back down to the low D it opens with, so the loop joins
+- The menu theme is twice as long ("Menu theme, extended", 64 bars, 2 min 50 s): the theme as before, then low drums (no
+  sticks, cymbals or rolls), a string pulse that turns to sixteenths, and an epic brass layer (the hook on tuba and
+  trombones, big brass chords) build to a peak, and it comes back down to the low D it opens with, so the loop joins
   smoothly.
 - Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
   fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu

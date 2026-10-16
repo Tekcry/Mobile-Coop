@@ -237,6 +237,47 @@ export class ScorePlayer {
     this.setMid('calm');
   }
 
+  /** Where the loop playing alone is (s into the loop) and its length; null when none plays. */
+  position(): { sec: number; len: number; bar: number } | null {
+    const g = this.mode === 'menu' ? this.menu : null;
+    if (!g?.running) return null;
+    const len = g.plan.bars * g.bar;
+    const sec = Math.max(0, this.ctx.currentTime - g.t0) % len;
+    return { sec, len, bar: g.bar };
+  }
+
+  /** Jump the loop playing alone to `sec` into the loop (a 40 ms dip, so no click). */
+  seek(sec: number): void {
+    const g = this.mode === 'menu' ? this.menu : null;
+    if (!g?.running) return;
+    const len = g.plan.bars * g.bar;
+    const off = ((sec % len) + len) % len;
+    const now = this.ctx.currentTime;
+    const at = now + 0.04;
+    const p = g.bus.gain;
+    p.cancelScheduledValues(now);
+    p.setValueAtTime(p.value, now);
+    p.linearRampToValueAtTime(0, at);
+    p.linearRampToValueAtTime(1, at + 0.05);
+    for (const l of g.layers) {
+      l.src?.stop(at);
+      l.head?.stop(at);
+      l.head = null;
+      const src = this.ctx.createBufferSource();
+      src.buffer = l.r.buffer;
+      src.loop = true;
+      src.connect(l.user);
+      const { loopStart, loopEnd } = l.r;
+      if (loopStart !== undefined && loopEnd !== undefined) {
+        src.loopStart = loopStart;
+        src.loopEnd = loopEnd;
+        src.start(at, loopStart + off);
+      } else src.start(at, off);
+      l.src = src;
+    }
+    g.t0 = at - off;
+  }
+
   playMission(low: Plan, lowR: Rendered[], alert: Plan, alertR: Rendered[], stinger: Rendered, stingerShort: Rendered): void {
     this.stopAll();
     this.mode = 'mission';

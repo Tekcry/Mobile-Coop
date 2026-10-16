@@ -412,6 +412,56 @@ function gameButton(label: string, state: GameAwareness): HTMLButtonElement {
   return b;
 }
 
+const clock = (t: number): string => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+
+/** Song position for a piece playing alone (the keepers, "Loop alone"): drag to scroll through it, or jump by 8 bars. */
+function seekRow(): HTMLElement {
+  const bar = el('input', { type: 'range', min: '0', max: '1000', value: '0', className: 'seek' });
+  bar.style.flex = '1';
+  bar.style.minWidth = '160px';
+  const label = el('span', { className: 'val', textContent: '-' });
+  let dragging = false;
+  const show = (sec: number, len: number, barLen: number): void => {
+    label.textContent = `${clock(sec)} / ${clock(len)}, bar ${Math.floor(sec / barLen) + 1} of ${Math.round(len / barLen)}`;
+  };
+  bar.onpointerdown = () => (dragging = true);
+  bar.oninput = () => {
+    dragging = true;
+    const p = player?.position();
+    if (p) show((Number(bar.value) / 1000) * p.len, p.len, p.bar);
+  };
+  bar.onchange = () => {
+    dragging = false;
+    const p = player?.position();
+    if (p) player?.seek((Number(bar.value) / 1000) * p.len);
+  };
+  const jump = (bars: number | 'join'): void => {
+    const p = player?.position();
+    if (!p) return;
+    player?.seek(bars === 'join' ? p.len - 4 * p.bar : p.sec + bars * p.bar);
+  };
+  setInterval(() => {
+    const p = player?.position();
+    if (!p) {
+      if (!dragging) label.textContent = 'Play a piece to scroll through it';
+      return;
+    }
+    if (dragging) return;
+    bar.value = String(Math.round((p.sec / p.len) * 1000));
+    show(p.sec, p.len, p.bar);
+  }, 200);
+  return el(
+    'div',
+    { className: 'row' },
+    el('span', { textContent: 'Position ' }),
+    bar,
+    label,
+    button('-8 bars', () => jump(-8)),
+    button('+8 bars', () => jump(8)),
+    button('Last 4 bars (into the loop)', () => jump('join')),
+  );
+}
+
 /** A chooser of every sneaking loop's mixes starting with `prefix` (each piece falls back to its own first). */
 function mixChooser(stealth: OrchPiece[], prefix: string, set: (v: string) => void): HTMLSelectElement {
   const names: string[] = [];
@@ -444,6 +494,7 @@ export function mountScoreLab(root: HTMLElement): void {
       el('h2', { textContent: '1. The keepers' }),
       el('div', { className: 'partners' }, ...keepers.map((pc) => card(pc, button('Play', () => void playLoop(pc), 'big')))),
       el('div', { className: 'row' }, button('Stop', stop)),
+      seekRow(),
     ),
     el(
       'section',

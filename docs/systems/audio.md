@@ -9,7 +9,7 @@ Design authority: docs/design-bible.md (Section 5.2)
 ## Music (V4, 2026-10-16)
 - **What plays:**
   - On the menu: "Menu theme, extended" (`grandlong`, the Softer mix): "Grand, dialled back" with a second half
-    (drums, string pulse, low brass, a peak, the way back down). It loops seamlessly. A track can instead be a whole
+    (low drums, a string pulse into sixteenths, epic brass on the hook, a peak, the way back down). It loops seamlessly. A track can instead be a whole
     piece (`whole: true` in the cli's GAME list: played once, a 3 s rest, again); none is at the moment.
   - In a match, by the guards' awareness:
 

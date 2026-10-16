@@ -33,8 +33,31 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
 | 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done |
 | 4d | Round 23: Calm and Cautious alternatives on the hook thread (test page only) | done; waiting for Michael's picks |
-| 4e | Round 24: the menu theme extended to 64 bars (drums, a peak, a seamless loop) | done; waiting for Michael |
+| 4e | Round 24: the menu theme extended to 64 bars (drums, a peak, a seamless loop) | done |
+| 4f | Round 25: more epic and upbeat (low drums only, sixteenths, epic brass); position slider on the test page | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4f (round 25) - more epic, low drums, a position slider
+- **Michael (2026-10-16):** "not epic enough, and i hate the high pitched drum rolls. should feel more upbeat and have
+  another layer making it absolutely epic. also add a way for me scroll through the song".
+- **Done (`menuLong()`):**
+  - **No high drums:** the stick pattern, the stick rolls into each section, the cymbal swells and the timpani roll are
+    gone. The drums are now only the big mallet drums (some pitched down like toms), the bass drum and timpani.
+    - From bar 41 the groove is busier (16th-note syncopation) with the bass drum on 1 and 3 and timpani on 1 and 4.
+    - The fills are big drums in eighths walking down with timpani (D, C, A, A).
+    - The downbeats of 41, 49 and 57 land hard.
+  - **More upbeat:** the string pulse turns from 3-3-2 eighths into sixteenths (accents 3-3-2) from bar 41 to 56.
+  - **The epic layer (new, `epic`):**
+    - Hook A on tuba and trombones from bar 41, with short horns on top from 49 and a sub hit under every hook note.
+    - Big brass chords (three horns, trombone, tuba) on every chord change at the peak.
+    - Low string risers into 41 and 49, and brass impacts on 41, 49 and 57.
+  - Presets: Softer (the game mix, epic at 75 %), Softer with no epic brass, Softer with strings and drums only,
+    Softer with no drums, Full.
+  - **Measured per bar:** 1-8 about -30 dB, 25-32 -21, 33-40 -21, 41-48 -18, 49-56 -15 (the peak, was -17), then
+    -22, -24, -26, -26, -28, -29, -31, -30 | back to -30, -31. The join is level.
+- **Test page:** "Position" under the keepers. A slider scrolls through any piece playing alone (keepers, "Loop
+  alone"), with time and bar shown, plus -8 bars, +8 bars and "Last 4 bars (into the loop)". `ScorePlayer.position()`
+  and `seek()` restart every layer at the new point behind a 40 ms dip (no click).
 
 ## V4 step 4e (round 24) - the menu theme, extended
 - **Michael (2026-10-16):** "extend the main menu theme, make it continue and get more epic and upbeat with drums or
