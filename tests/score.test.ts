@@ -241,11 +241,14 @@ describe('score synthesis (pure)', () => {
     for (const rate of [24000, 32000]) {
       for (const h of HITS) {
         const d = makeHit(h, rate, new Rng(3));
+        // one expect per hit, not per sample (millions of expects timed out under load)
         let pk = 0;
+        let finite = true;
         for (const x of d) {
-          expect(Number.isFinite(x)).toBe(true);
+          if (!Number.isFinite(x)) finite = false;
           pk = Math.max(pk, Math.abs(x));
         }
+        expect(finite, h).toBe(true);
         expect(pk, h).toBeGreaterThan(0.2);
         expect(pk, h).toBeLessThanOrEqual(1);
       }
