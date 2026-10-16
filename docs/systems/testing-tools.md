@@ -8,6 +8,9 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
+- `npm run sfx:fetch` / `npm run sfx:render` - the movement foley: download the CC0 packs (`scripts/sfx/foley-sources.json`,
+  SHA-256 checked) into `.sfx-cache/`, then cut the takes and write `src/assets/sfx/foley.mp3` + `foley.json` (Windows:
+  Media Foundation MP3; decodes the OGGs in headless Chromium). The sprite is committed, so only a change of takes needs it
 - `npm run e2e` - serves `dist/` and runs the headless e2e suites (needs a prior `npm run build`):
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad; 3.2.0 in a match:
@@ -132,6 +135,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-music.mjs` (music project) the V3 sketch picker (`?musiclab=1`) on phone emulation and desktop: the picker
     comes first, each sketch loads its three MP3 stems, Calm / Alert / Evasion and the ladder move the stem gains, every decoded
     loop joins without a seam, the playback cost (60 s of three stems rendered offline), no console errors. Needs no GPU
+  - `scripts/e2e-foley.mjs` movement foley on Proving Grounds: the sprite decodes and its alignment shift is small,
+    one foley step per real foot plant at a walk and a sprint (a sprint plants faster), silence standing still, a drop
+    plays a landing, the guards' footstep noise unchanged (9 m at a sprint on concrete); then the foley lab
+    (`?foleylab=1`) walks on every surface and plays a vault, a roll and a heavy landing. No console errors. Needs no GPU
   - Music V4 test page (music project, manual, no e2e yet): `npm run dev`, then open `/music-test.html` (linked from
     nowhere in the game). The themes alone, two menu sketches, two mission sketches with live Calm / Cautious / Alert
     switching, the stinger, fake footsteps, guard voice and noise cue, and a volume slider per layer. Unit tests:

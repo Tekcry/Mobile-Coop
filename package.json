@@ -16,7 +16,9 @@
     "check": "npm run lint && npm test && npm run build",
     "music:fetch": "node scripts/music/fetch-samples.mjs",
     "music:render": "node scripts/music/render.mjs",
-    "music:orch": "node scripts/music/render-orch.mjs"
+    "music:orch": "node scripts/music/render-orch.mjs",
+    "sfx:fetch": "node scripts/sfx/fetch-foley.mjs",
+    "sfx:render": "node scripts/sfx/render-foley.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

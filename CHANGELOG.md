@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - Movement foley (feature/footsteps)
+- Sound: the player's footsteps, landings and moves are real CC0 recordings (Kenney Impact Sounds and RPG Audio,
+  `docs/audio-credits.md`) instead of one filtered noise burst per surface. Each step is a heel and a toe from separately
+  picked takes with their own pitch and level, the two feet a touch apart, no take repeated back to back, light gear
+  rustle on some steps. Crouch, walk, run and sprint each sound different (a slow soft roll to a slap); concrete, metal
+  (deck ring), grate (rattle), wood (boots on boards), gravel (crunch) and carpet each have their own takes. Landings
+  (soft, roll, heavy), vaults, mantles, hops, drops and rolls have their own sounds.
+- Steps now follow the animation's real foot plants instead of a timer, so they match what the feet do (turning on
+  the spot, stopping, a stride at any speed gear).
+- Gameplay is unchanged: guards still hear the noise model, never the audio.
+- `?foleylab=1`: a listening screen with every surface and gait, the landings and moves, and an A/B against the old steps.
+- Tools: `npm run sfx:fetch`, `npm run sfx:render`; tests `tests/foley.test.ts` and `scripts/e2e-foley.mjs` (required).
+- Rule: `CLAUDE.md` and the bible (S7) allow CC0 movement foley (Michael, 2026-10-16).
+
 ## 3.5.0 - Chaos Theory foundation
 - Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory
   (`docs/design-bible.md` v1.7, story in `docs/story.md`). This release changes no gameplay and no feel.

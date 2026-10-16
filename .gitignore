@@ -14,3 +14,6 @@ playwright-report
 
 # rendered orchestral audition stems (npm run music:orch rebuilds them from the CC0 samples)
 src/assets/music/orch/
+
+# movement foley: downloaded CC0 packs and the intermediate WAV (scripts/sfx)
+.sfx-cache
