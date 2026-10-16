@@ -22,6 +22,7 @@ import bpy
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'garments'))
 import common  # noqa: E402
 import materials as MAT  # noqa: E402
 from mathutils import Vector  # noqa: E402
@@ -112,6 +113,7 @@ for sl in R['seamLines']:
         offset_loop[sel] = np.maximum(offset_loop[sel], h)
 
 D = R['details']
+BOND = D.get('bonded')                  # step 08a: bonded construction - tape strips, no stitch rows, no plateaus
 FLAT_HEMS = bool(D.get('flatHems'))   # compression knit: coverstitched flat, no folded plateau
 hem_rows = []
 for kind, width, height in (('hems', 0.022, 0.0007), ('cuffs', 0.030, 0.0007), ('bandTops', 0.008, 0.0005)):
@@ -120,11 +122,13 @@ for kind, width, height in (('hems', 0.022, 0.0007), ('cuffs', 0.030, 0.0007), (
     for pn, c0, c1 in D.get(kind) or []:
         pl = panels[pn].run(c0, c1)[0]
         hem_rows.append((pn, pl, kind))
+        if BOND:
+            continue
         sel = np.where(loop_panel == PID[pn])[0]
         d = distance_to_polyline(loop_uv[sel], pl)
         offset_loop[sel] = np.maximum(offset_loop[sel], plateau(d, width, height, 0.002))
 ct = D.get('collarTop')
-if ct:
+if ct and not BOND:
     collar_top = panels[ct[0]].run(ct[1], ct[2])[0]
     sel = np.where(loop_panel == PID[ct[0]])[0]
     offset_loop[sel] = np.maximum(offset_loop[sel], plateau(distance_to_polyline(loop_uv[sel], collar_top), 0.006, 0.0005))
@@ -146,7 +150,7 @@ if fd:
 
 # Seamed-in inserts (the trousers' stretch knee panels): the seam allowance under the outline stands a little proud.
 INSERTS = D.get('inserts') or []
-for ins_ in INSERTS:
+for ins_ in ([] if BOND else INSERTS):
     sel = np.where(loop_panel == PID[ins_['panel']])[0]
     ring_ = np.asarray(ins_['outline'], dtype=np.float64)
     d = distance_to_polyline(loop_uv[sel], np.concatenate([ring_, ring_[:1]]))
@@ -170,6 +174,32 @@ if _ns:
         np.add.at(_acc, _E[:, 1], vert_off[_E[:, 0]])
         vert_off = 0.5 * vert_off + 0.5 * _acc / _dg
 co_d = co + nrm * vert_off[:, None]
+# Lap seal (step 08a): where one block laps over another and the lap is sealed under a bonded tape (the suit's top
+# over its leggings), the over-layer's edge is drawn down onto the under-layer over 'width', so the tape lies over a
+# feathered edge instead of bridging a step.
+LAP = D.get('lapSeal')
+lap_moved = 0
+if LAP:
+    from mathutils.bvhtree import BVHTree as _BVH
+    _under = [PID[n] for n in LAP['under'] if n in PID]
+    _fu = [tuple(p.vertices) for p in dense.polygons if face_panel[p.index] in _under]
+    _tree = _BVH.FromPolygons([tuple(v) for v in co], _fu)
+    _pull = np.zeros(nv)
+    for pn, c0, c1 in LAP['over']:
+        pl = panels[pn].run(c0, c1)[0]
+        sel = np.where(loop_panel == PID[pn])[0]
+        d = distance_to_polyline(loop_uv[sel], pl)
+        w_ = np.clip(1.0 - d / LAP['width'], 0.0, 1.0)
+        w_ = w_ * w_ * (3 - 2 * w_)
+        np.maximum.at(_pull, loop_v[sel], w_)
+    for i in np.where(_pull > 0)[0]:
+        hit = _tree.find_nearest(Vector(co_d[i]))
+        if hit[0] is None:
+            continue
+        gap = float((Vector(co_d[i]) - hit[0]).dot(Vector(nrm[i])))
+        if gap > 0.0004:
+            co_d[i] = co_d[i] - nrm[i] * (gap - 0.0004) * _pull[i]
+            lap_moved += 1
 dense.vertices.foreach_set('co', co_d.ravel())
 dense.update()
 nrm = np.empty(nv * 3)
@@ -188,7 +218,12 @@ m_poly, m_metal, m_bind = reuse(MAT.polymer, 'zip teeth'), reuse(MAT.painted_met
 m_cordura, m_loop = reuse(MAT.cordura, 'cordura'), reuse(MAT.loop, 'loop')
 m_soft_patch = reuse(MAT.softshell, 'softshell patch')
 m_hw = reuse(MAT.painted_metal, 'hardware metal')
-PANEL_MAT = {'knit': lambda: reuse(MAT.knit, 'knit'), 'ripstop': lambda: reuse(MAT.ripstop, 'ripstop'),
+PANEL_MAT = {'suitShell': lambda: reuse(MAT.suit_shell, 'suit shell'),
+             'suitStretch': lambda: reuse(MAT.suit_stretch, 'suit stretch knit'),
+             'suitAbrasion': lambda: reuse(MAT.suit_abrasion, 'suit abrasion weave'),
+             'suitGrip': lambda: reuse(MAT.suit_grip, 'suit grip rubber'),
+             'suitVent': lambda: reuse(MAT.suit_vent, 'suit vent panel'),
+             'knit': lambda: reuse(MAT.knit, 'knit'), 'ripstop': lambda: reuse(MAT.ripstop, 'ripstop'),
              'softshell': lambda: reuse(MAT.softshell, 'softshell'),
              'compression': lambda: reuse(MAT.knit, 'compression knit', colour=(0.035, 0.036, 0.037))}
 used = sorted({R['panels'][n]['material'] for n in PANELS})
@@ -326,10 +361,10 @@ for sl in R['seamLines']:
             stitch_row(surf, p_, offset_into(pl_, 0.0028, outline_poly[p_]), pitch=0.0024, length=0.0021)
         zigzag(surf, pa, offset_into(pla, 0.0012, outline_poly[pa]), 0.0024, 0.0022, outline_poly[pa])
 HEM_DIST = {'hems': (0.016, 0.021), 'cuffs': (0.024, 0.030), 'bandTops': (0.003,)}
-for pn, pl, kind in hem_rows:
+for pn, pl, kind in ([] if BOND else hem_rows):
     for dist in ((0.006, 0.0105) if FLAT_HEMS and kind != 'bandTops' else HEM_DIST[kind]):
         stitch_row(surf, pn, offset_into(pl, dist, outline_poly[pn]))
-if ct:
+if ct and not BOND:
     stitch_row(surf, ct[0], offset_into(collar_top, 0.003, outline_poly[ct[0]]))
 if zd:
     for x in (-0.009, 0.009):
@@ -340,7 +375,7 @@ if fd:
     stitch_row(surf, fd['panel'], np.array(fd['line']))
     zigzag(surf, fd['panel'], np.array(fd['tack']), 0.003, 0.0006, outline_poly[fd['panel']])
 
-for ins_ in INSERTS:   # the insert's seam: a stitch row either side
+for ins_ in ([] if BOND else INSERTS):   # the insert's seam: a stitch row either side
     ring_ = np.asarray(ins_['outline'], dtype=np.float64)
     closed_ = np.concatenate([ring_, ring_[:1]])
     for dist in (0.003, -0.003):
@@ -729,12 +764,13 @@ def add_mesh(name, V, F, mat, smooth=True, bevel=False):
     return ob
 
 
-add_mesh(f'{op_id}-{gname}-stitches', TV, TF, m_thread)
+if TV:   # a bonded garment (the suit, step 08a) has no stitch rows: no empty thread object
+    add_mesh(f'{op_id}-{gname}-stitches', TV, TF, m_thread)
 # Threads that cast no shadow (details 'stitchShadows' False, step 05 fix round 3): under a near-grazing rake (the
 # trousers' waist and seat close-ups) a thread standing 0.3 mm proud of a surface that bends away from the light (the
 # centre-front join, the centre back seam) throws a 5-10 mm spiky shadow, which reads as torn cloth. A real topstitch
 # sinks into the fabric it compresses and throws almost none. Render only: the glTF export does not carry it.
-if D.get('stitchShadows', True) is False:
+if D.get('stitchShadows', True) is False and TV:
     bpy.data.objects[f'{op_id}-{gname}-stitches'].visible_shadow = False
 if BV_:
     add_mesh(f'{op_id}-{gname}-binding', BV_, BF_, m_bind)
@@ -743,6 +779,84 @@ if ZV:
     add_mesh(f'{op_id}-{gname}-zip-slider', MV, MF, m_metal, smooth=False, bevel=True)
 if HV:
     add_mesh(f'{op_id}-{gname}-hardware', HV, HF, m_hw, smooth=True)
+# --- Bonded tapes and the garment's own closures (step 08a) ----------------------------------------------------------
+# Every seam, insert outline, hem and cuff of a bonded garment carries a tonal tape strip (fitted.tape: a low rounded
+# section) laid on the detailed surface; the lap seal's tape is centred on the over-layer's feathered edge.
+finish_report = {}
+if BOND:
+    import fitted as FT
+    from pattern import _points_in_polygon
+    TPV, TPF = [], []
+    tape_m = {'seams': 0.0, 'inserts': 0.0, 'edges': 0.0}
+
+    def lay(panel, pl, width, thick, kind, keep=None, smooth=2):
+        """Map a pattern polyline onto the surface (3 mm steps) and lay a tape on it; runs split where the lookup
+        misses or `keep` (per point) is False."""
+        pl = np.asarray(pl, float)
+        L = polyline_length(pl)
+        if L < 0.006:
+            return
+        q = resample(pl, max(3, int(L / 0.003)))
+        ok = np.ones(len(q), bool) if keep is None else keep(q)
+        run = []
+        for k in range(len(q) + 1):
+            r = surf(panel, q[k]) if k < len(q) and ok[k] else None
+            if r is not None:
+                run.append(r)
+                continue
+            if len(run) >= 3:
+                P_ = FT.smooth_polyline(np.array([p for p, _ in run]), smooth)
+                N_ = np.array([n for _, n in run])
+                T_ = np.gradient(P_, axis=0)
+                B_ = np.cross(N_, T_)
+                B_ /= np.maximum(np.linalg.norm(B_, axis=1, keepdims=True), 1e-12)
+                FT.tape(TPV, TPF, P_ + N_ * 0.00015, N_, B_, width, thick)
+                tape_m[kind] += float(np.sum(np.linalg.norm(np.diff(P_, axis=0), axis=1)))
+            run = []
+    for sl in R['seamLines']:
+        pn, pl = seam_side_uv(sl['a'])
+        lay(pn, pl, BOND['width'], BOND['thick'], 'seams')
+    lap_edges = {(pn, c0, c1) for pn, c0, c1 in (LAP or {}).get('over', [])}
+    cuff_points = {}
+    for pn, pl, kind in hem_rows:
+        if kind == 'bandTops':
+            continue                      # under the lap
+        key = next((e for e in lap_edges if e[0] == pn and np.allclose(panels[e[0]].run(e[1], e[2])[0], pl)), None)
+        if key is not None:
+            lay(pn, offset_into(pl, 0.002, outline_poly[pn]), LAP['tape'], BOND['thick'], 'edges')
+            continue
+        w_ = BOND.get('cuff_width', BOND['width']) if kind == 'cuffs' or pn.startswith(('front', 'back')) else BOND['width']
+        lay(pn, offset_into(pl, w_ / 2 - 0.0005, outline_poly[pn]), w_, BOND['thick'], 'edges')
+        if kind == 'cuffs':
+            pts_ = [surf(pn, x) for x in resample(offset_into(pl, 0.004, outline_poly[pn]), 40)]
+            cuff_points[pn[-1]] = np.array([p for p, _ in (r for r in pts_ if r is not None)])
+    if ct:
+        ctl = panels[ct[0]].run(ct[1], ct[2])[0]
+        lay(ct[0], offset_into(ctl, BOND['width'] / 2 - 0.0005, outline_poly[ct[0]]), BOND['width'], BOND['thick'], 'edges',
+            smooth=6)   # fix round 1, item 3: the collar top's edge waves a few mm; its tape runs straight
+    for ins_ in INSERTS:
+        ring_ = np.asarray(ins_['outline'], dtype=np.float64)
+        poly_ = outline_poly[ins_['panel']]
+        closed_ = np.concatenate([poly_, poly_[:1]])
+
+        def keep(q, poly_=poly_, closed_=closed_):
+            # inside the panel and clear of its outline (the seam there already carries a tape)
+            # 0.55 tape widths: the insert tape ends where it meets the seam tape (0.75 left a visible gap where an
+            # outline meets a seam at a shallow angle; fix round 1, item 4)
+            return _points_in_polygon(q, poly_) & (distance_to_polyline(q, closed_) > BOND['width'] * 0.55)
+        lay(ins_['panel'], np.concatenate([ring_, ring_[:1]]), BOND['width'], BOND['thick'], 'inserts', keep)
+    add_mesh(f'{op_id}-{gname}-tape', TPV, TPF, reuse(MAT.seam_tape, 'suit seam tape'))
+    finish_report['tapeM'] = {k: round(v, 2) for k, v in tape_m.items()}
+    finish_report['lapVertsDrawnDown'] = lap_moved
+    gmod = __import__(gname)
+    if hasattr(gmod, 'finish'):
+        with open(os.path.join(args.out, f'{op_id}-body.json'), encoding='utf-8') as f:
+            _J = {k: np.array(common.game_to_blender(v)) for k, v in json.load(f)['bindJoints'].items()}
+        _dg = bpy.context.evaluated_depsgraph_get()
+        finish_report.update(gmod.finish({
+            'surf': surf, 'FT': FT, 'D': D, 'J': _J, 'op_id': op_id, 'add_mesh': add_mesh, 'reuse': reuse, 'MAT': MAT,
+            'body': body, 'skin': BVHTree.FromObject(body, _dg), 'cuff_points': cuff_points}))
+
 body.hide_render = False
 body.data.materials.clear()
 body.data.materials.append(reuse(MAT.clay, 'mannequin'))
@@ -759,7 +873,7 @@ report = {
     'denseVerts': nv, 'stitches': stats['stitches'], 'stitchRowsM': round(stats['stitchRowsM'], 2),
     'patches': [{k: v for k, v in p.items() if k != 'centre'} for p in R['details']['patches']],
     'zipTeeth': teeth, 'hardwareParts': len(D.get('grommets') or []) + len(D.get('snaps') or []), 'patchLookupMisses': stats.get('patchLookupMisses', {}),
-    'patchPushedClear': stats.get('patchPushedClear', {}), 'heroFacesBeforeSolidify': tri_count,
+    'patchPushedClear': stats.get('patchPushedClear', {}), 'heroFacesBeforeSolidify': tri_count, 'bonded': finish_report,
 }
 with open(stem + '.json', 'w', encoding='utf-8') as f:
     json.dump(report, f, indent=1)

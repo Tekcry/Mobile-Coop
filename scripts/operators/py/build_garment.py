@@ -69,6 +69,10 @@ rig = bpy.data.objects[f'{op_id}-rig']
 J = {k: np.array(common.game_to_blender(v)) for k, v in body_report['bindJoints'].items()}
 H = body_report['height']
 s = H / 1.68
+# A garment may prepare the body before it is measured (step 08a: the suit relaxes the skin over the bust, so the
+# compression suit holds it as one smooth form). The changed body is saved with this garment's blends and every later
+# layer is built over it.
+BODY_PREPARED = garment.prepare_body(body, J, H) if hasattr(garment, 'prepare_body') else 0
 
 # --- 1. Measure -----------------------------------------------------------------------------------------------------
 BV = np.array([v.co[:] for v in body.data.vertices])
@@ -626,7 +630,7 @@ for p in PROPS:
 # collision would hold them apart (the seam gap grew from 9 to 12 mm in the settle phase before this).
 near_seam = np.zeros(len(uv), bool)
 near_seam[[i for pr in pairs for i in pr]] = True
-for _ in range(2):
+for _ in range(int(SIM.get('seam_self_rings', 2))):     # step 08a fix round 2: the suit keeps 4 rings out
     grow = near_seam.copy()
     for a_, b_ in ((0, 1), (1, 2), (2, 0)):
         grow[tri_arr[near_seam[tri_arr[:, a_]], b_]] = True
@@ -866,6 +870,50 @@ def smoothed_skin(iters):
     return BVHTree.FromPolygons([tuple(v) for v in V], [tuple(p.vertices) for p in body.data.polygons])
 
 
+def membrane_zones(P, zones, so, guard, skin):
+    """Membrane zones (SIM 'cling' 'zones', step 08a fix round 3): where a compression knit spans a broad form (the
+    lower belly and the front of the crotch) it is one taut surface, not a copy of the skin and not the solver's
+    bunching. In each zone (a front box in body measurements, with a smooth falloff) the surface between the seams is
+    relaxed as a membrane and only held clear of the cling's faired skin (at 'standoff') and of the real skin (at
+    'guard'): it bridges hollows (the navel, the abdomen's grooves) and convex bunches of excess cloth settle onto the
+    skin. With 'max_off' a vertex standing more than standoff + max_off off the faired skin is also drawn in to it
+    (seam vertices too, which the relax keeps)."""
+    P = P.copy()
+    inner = interior_mask()
+    for zc in zones:
+        z0 = m[zc['z'][0]] + zc['z'][1] * s
+        z1 = m[zc['z'][2]] + zc['z'][3] * s
+        fall, hx = zc.get('fall', 0.02) * s, zc['x'] * s
+
+        def weight(X):
+            w = (np.clip((hx - np.abs(X[:, 0])) / fall, 0, 1) * np.clip((X[:, 2] - z0) / fall, 0, 1)
+                 * np.clip((z1 - X[:, 2]) / fall, 0, 1) * (X[:, 1] < -0.02 * s))
+            return w * w * (3 - 2 * w)
+        w = weight(P)
+        idx = np.where(w > 0)[0]
+        wi = (0.5 * w * inner)[:, None]
+        mo = zc.get('max_off')
+        for it in range(zc.get('relax', 40)):
+            P = P + wi * (neighbour_avg(P) - P)
+            for i in idx:
+                loc, n_, _, d = skin.find_nearest(Vector(P[i]))
+                if loc is None or d > 0.05:
+                    continue
+                h = (Vector(P[i]) - loc).dot(n_)
+                if h < so:
+                    P[i] = P[i] + np.array(n_) * (so - h)
+                elif mo is not None and h > so + mo:
+                    P[i] = P[i] - np.array(n_) * (h - so - mo) * w[i] * w[i]
+                loc, n_, _, d = _skin.find_nearest(Vector(P[i]))
+                if loc is not None and d < 0.05:
+                    h = (Vector(P[i]) - loc).dot(n_)
+                    if h < guard:
+                        P[i] = P[i] + np.array(n_) * (guard - h)
+        print(f"operators: membrane zone {zc['name']}: {len(idx)} vertices, z {z0:.3f}-{z1:.3f}", flush=True)
+    P, gm, first = push_out(P, _skin, guard, reach=0.03)
+    return P
+
+
 def cling(P, cfg):
     """Compression knit (SIM 'cling'): the fabric is drawn onto the skin, not draped over it. Every vertex within
     'reach' of the skin goes to 'standoff' off it (nearest point), the surface between the seams is relaxed
@@ -876,15 +924,20 @@ def cling(P, cfg):
     P = P.copy()
     inner = interior_mask()
     so, reach = cfg.get('standoff', 0.0035), cfg.get('reach', 0.025)
+    # 'reach_panels' (step 08a fix round 2): a panel that bridges further off the skin (the suit's pinned crotch
+    # gusset) is drawn in from further out.
+    reach_v = np.full(len(P), reach)
+    for pn, r_ in (cfg.get('reach_panels') or {}).items():
+        reach_v[ids_of(pn)] = r_
     skin = smoothed_skin(cfg['bridge']) if cfg.get('bridge') else _skin
     moved = 0
     for it in range(cfg.get('iters', 4) + 1):
         for i in range(len(P)):
             loc, n_, _, d = skin.find_nearest(Vector(P[i]))
-            if loc is None or d > reach:
+            if loc is None or d > reach_v[i]:
                 continue
             hgt = (Vector(P[i]) - loc).dot(n_)
-            if hgt < reach:
+            if hgt < reach_v[i]:
                 P[i] = np.array(loc + n_ * so)
                 moved += it == 0
         if it < cfg.get('iters', 4):
@@ -903,6 +956,8 @@ def cling(P, cfg):
         post['clingGuard'] = {'verts': int(gm.sum()), 'maxMm': round(first * 1000, 2)}
         print(f"operators: cling guard: {int(gm.sum())} vertices pushed off the real skin, largest "
               f"{first * 1000:.2f} mm", flush=True)
+    if cfg.get('zones'):
+        P = membrane_zones(P, cfg['zones'], so, cfg.get('guard', 0.0015), skin)
     # A panel that laps over another (the top's hem over the leggings' waistband) lies one layer further out there.
     lap = cfg.get('lap')
     if lap:
@@ -1156,7 +1211,7 @@ report = {
     'details': details,
     'sim': SIM, 'patchStiffVerts': patch_verts, 'seamVertsNoSelfCollision': int(near_seam.sum()),
     'verts': len(uv), 'tris': len(tris), 'weldedVerts': len(me.vertices), 'pushedClear': pushed, 'relaxedAfterWeld': relaxed,
-    'under': UNDER_IDS, 'layerPushed': layer_pushed, 'post': post, 'pinned': int(len(pin_ids)),
+    'under': UNDER_IDS, 'layerPushed': layer_pushed, 'post': post, 'pinned': int(len(pin_ids)), 'bodyPrepared': BODY_PREPARED,
     'weldMoveMaxMm': round(float(moved.max()) * 1000, 1),
     'frames': args.frames, 'simSeconds': round(sim_seconds, 1), 'seamGapByFrame': gaps,
     'outlines': {n: [[c, np.asarray(pl).round(5).tolist()] for c, pl in p.edges] for n, p in pattern.panels.items()},

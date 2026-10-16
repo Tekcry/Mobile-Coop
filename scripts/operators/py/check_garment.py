@@ -15,6 +15,8 @@ checks, each {name, pass, value, limit, detail}. check.mjs adds the kit check an
   the neck, the left thigh and knee, the waist front, the left hand and the left foot (step 06), the head from the
   front left, the back left and the front low (step 07), and the right wrist from below (step 07 fix round 3: up the
   sleeve opening, where the base layer still shows once the hood covers the nape).
+- covered:<material> (A52, covered.py): a material in the COVERED table, from its covering item on, is judged in its
+  owner's check JSON (ownCheck:<material>) and must show 0 px here.
 """
 import json
 import math
@@ -28,6 +30,7 @@ from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.dirname(__file__))
 import common  # noqa: E402
+import covered as CV  # noqa: E402
 import render as RN  # noqa: E402
 
 args = common.parse_args({
@@ -227,6 +230,12 @@ views = [
     (tuple(J['head'] + np.array([0.2, -0.36, 0.04])), tuple(J['head'] + np.array([0.0, -0.05, -0.01])), 50),
     (tuple(J['head'] + np.array([0.24, 0.34, 0.08])), tuple(J['head'] + np.array([0.0, 0.03, 0.0])), 50),
     (tuple(J['head'] + np.array([-0.06, -0.38, -0.08])), tuple(J['head'] + np.array([0.0, -0.08, 0.0])), 50),
+    # the suit's zones that face away from the front views (step 08a): the left underarm vent from the side, and the
+    # back of the left knee and the seat from behind
+    (tuple(J['chest'] + np.array([np.sign(J['shL'][0]) * 0.75, -0.2, -0.12])),
+     tuple(J['chest'] + np.array([np.sign(J['shL'][0]) * 0.15, 0.0, -0.06])), 45),
+    (tuple((J['knL'] + J['hipL']) / 2 + np.array([np.sign(J['knL'][0]) * 0.3, 1.1, 0.1])),
+     tuple((J['knL'] + J['hipL']) / 2 + np.array([0.0, 0.05, 0.0])), 40),
 ]
 samples = {name: {'albedo': [], 'roughness': []} for name in order}
 tmp = os.path.abspath(os.path.join(args.out, 'check-tmp.exr'))  # Blender resolves relative render paths itself
@@ -249,6 +258,14 @@ for name in order:
     a = np.concatenate(samples[name]['albedo'])
     r = np.concatenate(samples[name]['roughness'])
     entry = {'class': cls, 'pixels': int(len(a))}
+    if CV.applies(name, gname, SR.get('under')):
+        # A52: covered by an item at or under this one; judged in its owner's own check, here it must not show.
+        own = CV.owner_report(args.out, op_id, CV.COVERED[name]['owner'])
+        for cn, ok_, val, lim, det in CV.covered_checks(name, len(a), own, LIMITS['minPixels'], LIMITS['albedo']):
+            check(cn, ok_, val, lim, det)
+        entry['covered'] = CV.COVERED[name]['cover']
+        report_mats[name] = entry
+        continue
     if len(a) < LIMITS['minPixels']:
         check(f'sampled:{name}', False, len(a), f">= {LIMITS['minPixels']} pixels over the views")
         report_mats[name] = entry

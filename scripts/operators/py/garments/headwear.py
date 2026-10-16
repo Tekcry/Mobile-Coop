@@ -33,6 +33,10 @@ HOOD_BACK = 0.003     # extra fullness at the back of the head
 DENT = 0.0014         # strap compression of the hood
 COLLAR_CLEAR = 0.0035  # hood skirt off the shirt collar (room for the earpiece cable under it)
 SKIRT_BACK = 0.010     # fix round 3, item 2: the skirt ends this much lower at the back (it covers the collar rim)
+# Step 08a fix round 3, item 2 (A49 amended): the suit's mock neck top is 23 mm lower at the front than at the nape
+# (the neckline's front drop), so a skirt lapping 40 mm under the highest point covered only 16 mm of the collar at the
+# front and the zip garage stood 12 mm below its edge. Over the suit the skirt ends this much lower at the front.
+SKIRT_FRONT_SUIT = 0.020
 PORT = (0.05, 0.0155)  # eye port half width and half height
 OPEN_HW = 0.058       # face opening half width
 SEAM_W = 0.042        # hood centre panel half width
@@ -119,10 +123,11 @@ def build(ctx):
     S = HC.straps(fr)
     c, eye_z, chin_z = fr['c'], fr['eye_z'], fr['chin_z']
     layers = {u: (V, Fl) for u, V, Fl in ctx['layers']}
+    collar = collar_layer(layers)
     tamed = tame_mock_neck(ctx, fr, layers)
     collar_fixed = tame_collar(ctx, fr)
     bl_tree = FT.bvh_outward(*layers['base_layer'], skin) if 'base_layer' in layers else None
-    sh = layers.get('combat_shirt')
+    sh = layers.get(collar)
     sh_tree = FT.bvh_outward(*sh, skin) if sh is not None else None
     if sh is not None:
         Vs = sh[0]
@@ -131,15 +136,17 @@ def build(ctx):
     else:
         collar_top = fr['neck_z'] - 0.006
     z_bal = collar_top - 0.016       # the balaclava neck ends 16 mm inside the collar
-    z_hood = collar_top - 0.024      # the hood skirt laps 24 mm over the collar
-    cap = HC.capsule(fr, skin, z_hood - 0.007 - SKIRT_BACK)
+    z_hood = collar_top - skirt_lap(collar)   # the hood skirt laps 24 mm over the collar (40 mm over the suit's)
+    sk_front = SKIRT_FRONT_SUIT if collar == 'suit' else 0.0
+    cap = HC.capsule(fr, skin, z_hood - 0.007 - max(SKIRT_BACK, sk_front))
 
     def skirt_cut(Pq):
         """The skirt's edge height under each point: z_hood at the front and sides, SKIRT_BACK lower behind the neck
         (fix round 3, item 2: the shirt collar's rim showed wavy and pinched below the skirt at the nape)."""
         d = Pq[:, :2] - np.array([0.0, fr['neck_y']])
         r = np.maximum(np.linalg.norm(d, axis=1), 1e-6)
-        return z_hood - SKIRT_BACK * smoothstep(0.15, 0.8, d[:, 1] / r)
+        return (z_hood - SKIRT_BACK * smoothstep(0.15, 0.8, d[:, 1] / r)
+                - sk_front * smoothstep(0.35, 0.85, -d[:, 1] / r))
     F, rr, tt, O, D = cap['F'], cap['row'], cap['theta'], cap['O'], cap['D']
     nb = FT.neighbours(len(O), F)
 
@@ -315,6 +322,29 @@ def build(ctx):
             np.add.at(Cn, E_[:, 1], 1)
             Ph = Ph + 0.5 * wbk * (Sm / np.maximum(Cn, 1)[:, None] - Ph)
         Ph, _ = FT.push_out(Ph, [bal_tree], 0.0021, reach=0.012, iters=2)
+        # Step 08a fix round 3, item 3: at the left front shoulder the horizontal rays met the suit's shoulder slope
+        # late, so the skirt's last 1-2 cm stood off it as a thin flared lip with a dark gap under it. The skirt's
+        # edge band (14 mm, full at the cut line) is drawn in to lie on the suit (2.6 mm off its render mesh), then
+        # faired, so its edge rolls onto the suit all round as at the nape.
+        zc_ = skirt_cut(Ph)
+        we = smoothstep(zc_ + 0.016, zc_ + 0.002, Ph[:, 2])
+        for _pass in range(3):
+            for i in np.where(we > 0)[0]:
+                loc, n_, _, d_ = hero_tree.find_nearest(Vector(Ph[i]))
+                if loc is None or d_ > 0.04:
+                    continue
+                h_ = float(np.dot(Ph[i] - np.array(loc), np.array(n_)))
+                if h_ > 0.0026:
+                    Ph[i] = Ph[i] - np.array(n_) * (h_ - 0.0026) * we[i]
+            for _ in range(4):
+                Sm, Cn = np.zeros_like(Ph), np.zeros(len(Ph))
+                np.add.at(Sm, E_[:, 0], Ph[E_[:, 1]])
+                np.add.at(Sm, E_[:, 1], Ph[E_[:, 0]])
+                np.add.at(Cn, E_[:, 0], 1)
+                np.add.at(Cn, E_[:, 1], 1)
+                Ph = Ph + 0.5 * we[:, None] * (Sm / np.maximum(Cn, 1)[:, None] - Ph)
+        Ph, _ = FT.push_out(Ph, [hero_tree], 0.0026, reach=0.012, iters=2, mask=Ph[:, 2] < collar_top + 0.03)
+        Ph, _ = FT.push_out(Ph, [bal_tree], 0.0021, reach=0.012, iters=2)
     collar_tucked = tuck_collar(ctx, fr, HC.bvh(Ph, F), skirt_cut, collar_top)
     Nh = FT.vertex_normals(Ph, F)
     Ah = A.copy()
@@ -423,6 +453,26 @@ def build(ctx):
     }
 
 
+SKIRT_LAP_SUIT = 0.040   # step 08a fix round 1, item 3 (A49): over the suit's 5.5 cm mock neck the skirt covers the zip
+                         # garage and the collar's top edge (24 mm left the garage and the nape tape in view)
+
+
+def skirt_lap(collar):
+    """How far the hood skirt laps down over the collar layer's top."""
+    return SKIRT_LAP_SUIT if collar == 'suit' else 0.024
+
+
+def collar_layer(layers):
+    """The layer whose collar the head items meet: Wren's stealth suit (its mock neck, step 08a, A37) or, for a build
+    with the combat shirt, the shirt."""
+    return 'suit' if 'suit' in layers else 'combat_shirt'
+
+
+def mock_layer(layers):
+    """The layer whose mock neck is drawn in to the neck (A25): the suit (step 08a) or the base layer."""
+    return 'suit' if 'suit' in layers else 'base_layer'
+
+
 def tame_mock_neck(ctx, fr, layers):
     """The base layer's mock neck flares out at the back (step 05 build: up to 26 mm outside the shirt collar at the
     nape, through the collar). The balaclava and the hood cover the whole neck now, so it is drawn back to 4 mm off
@@ -430,6 +480,13 @@ def tame_mock_neck(ctx, fr, layers):
     Returns the number of vertices moved."""
     skin, op = ctx['skin'], ctx['op_id']
     z0, z1 = fr['neck_z'] - 0.06, fr['neck_z'] - 0.035     # blend in over 25 mm, full above (well inside the collar)
+    z_skirt = None
+    if mock_layer(layers) == 'suit' and 'suit' in layers:
+        # The suit's mock neck is the visible collar (A46): it is drawn in only where the hood skirt covers it (fix
+        # round 1, item 2: drawn in from 6 cm below the neck it crumpled the visible collar and its tapes at the nape).
+        Vs = layers['suit'][0]
+        nk = (np.abs(Vs[:, 0]) < 0.075) & (np.abs(Vs[:, 1] - fr['neck_y']) < 0.09) & (Vs[:, 2] > fr['neck_z'] - 0.08)
+        z_skirt = float(Vs[nk, 2].max()) - SKIRT_LAP_SUIT
 
     def clamp(P):
         moved = 0
@@ -446,31 +503,60 @@ def tame_mock_neck(ctx, fr, layers):
             if hit is None:
                 continue
             r_max = float(np.linalg.norm((hit - ax)[:2])) + 0.004
-            w = float(smoothstep(z0, z1, p[2]))
+            if z_skirt is None:
+                w = float(smoothstep(z0, z1, p[2]))
+            else:                   # from 4 mm inside the skirt's edge (SKIRT_BACK lower behind the neck), full 12 mm up
+                zs = z_skirt - SKIRT_BACK * float(smoothstep(0.15, 0.8, d[1]))
+                w = float(smoothstep(zs + 0.004, zs + 0.016, p[2]))
             if r > r_max and w > 0:
                 P[i] = ax + d * (r + (r_max - r) * w) + np.array([0.0, 0.0, p[2] - ax[2]])
                 moved += 1
         return moved
     n = 0
-    for nm in (f'{op}-base_layer-hero', f'{op}-base_layer-stitches'):
-        ob = bpy.data.objects.get(nm)
-        if ob is None:
-            continue
+    mk = mock_layer(layers)
+    hero = bpy.data.objects.get(f'{op}-{mk}-hero')
+    follow = [o for o in bpy.data.objects if o.type == 'MESH' and o.name.startswith(f'{op}-{mk}-') and o is not hero
+              and o.name != f'{op}-{mk}']
+    def world(ob):
         mw = np.array(ob.matrix_world)
         co = np.empty(len(ob.data.vertices) * 3)
         ob.data.vertices.foreach_get('co', co)
-        L = co.reshape(-1, 3)
-        W = L @ mw[:3, :3].T + mw[:3, 3]
-        n += clamp(W)
+        return co.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3], mw
+
+    def store(ob, W, mw):
         L = (W - mw[:3, 3]) @ np.linalg.inv(mw[:3, :3]).T
         ob.data.vertices.foreach_set('co', L.ravel())
         ob.data.update()
-    if 'base_layer' in layers:
-        V, Fl = layers['base_layer']
+    if hero is not None:
+        W, mw = world(hero)
+        W0 = W.copy()
+        n += clamp(W)
+        store(hero, W, mw)
+        # every other render mesh of the layer (stitches; the suit's tapes, zip and garage) follows the hero's move at
+        # its nearest hero vertex, so a tape stays on the collar instead of being clamped into it
+        from mathutils import Vector
+        from mathutils.kdtree import KDTree
+        mv = np.where(np.linalg.norm(W - W0, axis=1) > 1e-7)[0]
+        if len(mv):
+            zone = (W0[:, 2] > fr['neck_z'] - 0.08)
+            ids = np.where(zone)[0]
+            kd = KDTree(len(ids))
+            for k, i in enumerate(ids):
+                kd.insert(Vector(W0[i]), k)
+            kd.balance()
+            for ob in follow:
+                Wf, mwf = world(ob)
+                sel = np.where((Wf[:, 2] > fr['neck_z'] - 0.07) & (np.abs(Wf[:, 0]) < 0.12))[0]
+                for i in sel:
+                    _, k, _ = kd.find(Vector(Wf[i]))
+                    Wf[i] = Wf[i] + (W[ids[k]] - W0[ids[k]])
+                store(ob, Wf, mwf)
+    if mk in layers:
+        V, Fl = layers[mk]
         V = np.array(V, float)
         clamp(V)
-        layers['base_layer'] = (V, Fl)
-        shell = bpy.data.objects.get(f'{op}-base_layer')
+        layers[mk] = (V, Fl)
+        shell = bpy.data.objects.get(f'{op}-{mk}')
         if shell is not None and len(shell.data.vertices) == len(V):
             shell.data.vertices.foreach_set('co', V.ravel())   # identity transform: shells are built in world space
             shell.data.update()
@@ -478,7 +564,7 @@ def tame_mock_neck(ctx, fr, layers):
 
 
 def _hero(op):
-    ob = bpy.data.objects.get(f'{op}-combat_shirt-hero')
+    ob = bpy.data.objects.get(f'{op}-suit-hero') or bpy.data.objects.get(f'{op}-combat_shirt-hero')
     if ob is None:
         return None, None, None
     mw = np.array(ob.matrix_world)
@@ -522,12 +608,26 @@ def tuck_collar(ctx, fr, hood_tree, skirt_cut, collar_top):
     edge, eased out over the 5 mm round it (the rolled hem covers the step). Returns the number of vertices moved."""
     op = ctx['op_id']
     moved = 0
-    for ob in [o for o in bpy.data.objects if o.type == 'MESH' and o.name.startswith(f'{op}-combat_shirt-')]:
+    pre = f'{op}-suit-' if bpy.data.objects.get(f'{op}-suit-hero') is not None else f'{op}-combat_shirt-'
+    obs = sorted([o for o in bpy.data.objects if o.type == 'MESH' and o.name.startswith(pre)],
+                 key=lambda o: o.name != f'{pre}hero')
+    hero_move = None
+    for ob in obs:
         mw = np.array(ob.matrix_world)
         co = np.empty(len(ob.data.vertices) * 3)
         ob.data.vertices.foreach_get('co', co)
         W = co.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3]
+        W0 = W.copy()
         n0 = moved
+        if hero_move is not None:
+            # fix round 3, item 2: the zip, its tape, slider and garage and the seam tapes follow the hero's eased
+            # tuck (nearest hero vertex within 1 cm), so they stay on the suit under the skirt
+            kd_, Dh = hero_move
+            for i in range(len(W)):
+                _c, k_, dist = kd_.find(Vector(W[i]))
+                if k_ is not None and dist < 0.01 and Dh[k_] @ Dh[k_] > 1e-12:
+                    W[i] = W[i] + Dh[k_]
+                    moved += 1
         zc = skirt_cut(W)              # the skirt's edge height there (lower at the back, fix round 3)
         for i in np.where((W[:, 2] > zc - 0.003) & (W[:, 2] < collar_top + 0.02) & (np.abs(W[:, 0]) < 0.12)
                           & (np.abs(W[:, 1] - fr['neck_y']) < 0.12))[0]:
@@ -547,11 +647,52 @@ def tuck_collar(ctx, fr, hood_tree, skirt_cut, collar_top):
             if r > r_max and w > 0:
                 W[i] = ax + d * (r + (r_max - r) * w) + np.array([0.0, 0.0, p[2] - ax[2]])
                 moved += 1
+        if moved > n0 and ob.name == f'{pre}hero':
+            W = _ease_tuck(ctx, ob, W0, W)
+            from mathutils.kdtree import KDTree
+            kd_ = KDTree(len(W0))
+            for k_, p_ in enumerate(W0):
+                kd_.insert(Vector(p_), k_)
+            kd_.balance()
+            hero_move = (kd_, W - W0)
         if moved > n0:
             L = (W - mw[:3, 3]) @ np.linalg.inv(mw[:3, :3]).T
             ob.data.vertices.foreach_set('co', L.ravel())
             ob.data.update()
     return moved
+
+
+def _ease_tuck(ctx, ob, W0, W, iters=60):
+    """Step 08a fix round 2, item 5: at the back of the shoulders the skirt's horizontal rays graze the suit's
+    trapezius, so one vertex is tucked up to 34 mm in and its neighbour under the skirt's edge not at all (suit edges
+    stretched to 36 mm). The tuck is spread over the hero mesh as a smooth field (the tucked vertices hold their move,
+    the others relax towards their neighbours' moves, within 4 cm of a tucked vertex), then cleared of the skin."""
+    D0 = W - W0
+    held = np.linalg.norm(D0, axis=1) > 1e-7
+    if not held.any():
+        return W
+    E = np.empty(len(ob.data.edges) * 2, dtype=np.int64)
+    ob.data.edges.foreach_get('vertices', E)
+    E = E.reshape(-1, 2)
+    from mathutils.kdtree import KDTree
+    hv = np.where(held)[0]
+    kd = KDTree(len(hv))
+    for k, i in enumerate(hv):
+        kd.insert(Vector(W0[i]), k)
+    kd.balance()
+    zone = np.array([kd.find(Vector(p))[2] < 0.04 for p in W0]) & ~held
+    deg = np.zeros(len(W0))
+    np.add.at(deg, E[:, 0], 1)
+    np.add.at(deg, E[:, 1], 1)
+    D = D0.copy()
+    for _ in range(iters):
+        S = np.zeros_like(D)
+        np.add.at(S, E[:, 0], D[E[:, 1]])
+        np.add.at(S, E[:, 1], D[E[:, 0]])
+        D[zone] = (S / np.maximum(deg, 1)[:, None])[zone]
+    W = W0 + D
+    P, _ = FT.push_out(W, [ctx['skin']], 0.0015, reach=0.01, iters=1, mask=zone)
+    return P
 
 
 def collar_tree(ctx, collar_top, skin):

@@ -11,7 +11,7 @@ import { OUT_DIR } from './paths.mjs';
  * after the shirt (its hem tucks in). The last one's blend holds the body,
  * the rig and every earlier garment.
  */
-export const GARMENTS = { wren: ['base_layer', 'gloves', 'boots', 'combat_shirt', 'trousers', 'headwear', 'head_kit', 'carrier', 'belt'], moth: [] };
+export const GARMENTS = { wren: ['suit', 'gloves', 'boots', 'headwear', 'head_kit'], moth: [] };
 
 /**
  * Fitted items (step 06, DECISIONS A18): not cloth-simulated. py/build_fitted.py builds them in one stage (gloves:

@@ -49,6 +49,14 @@ def col(x, y):
     return np.stack([np.asarray(x, dtype=np.float64), np.asarray(y, dtype=np.float64)], axis=1)
 
 
+def top_profile(t, o):
+    """The top run's rise profile from the side (t = 0) to the centre (t = 1). Default t^2 (a point at the centre seam);
+    o['top_curve'] == 'smooth' is a smoothstep, flat at both ends, so the left and right tops meet the centre seam
+    level (no V; the suit's waist seam, A51)."""
+    t = np.asarray(t, float)
+    return t * t * (3.0 - 2.0 * t) if o.get('top_curve') == 'smooth' else t ** 2
+
+
 def crotch_lengths(hull, z_top, offset):
     """Front and back lengths of the crotch path (build_garment m['crotch_hull'], the body's midline outline in the
     side view, y front to back): from the front surface at z_top down under the crotch to its lowest point, and from
@@ -188,7 +196,7 @@ def draft_legs(m, o, h):
                       ('DA', col([apex_s[0], float(x_side(part, kb))], [y_k, kb])), ('D2', side(kb, y_top))]
         else:
             edges += [('H_S', side(0.0, kb)), ('K_S', side(kb, y_top))]
-        edges += [('T_S', col(np.linspace(T_S[0], T_I[0], 12), y_top + r * np.linspace(0.0, 1.0, 12) ** 2)),
+        edges += [('T_S', col(np.linspace(T_S[0], T_I[0], 12), y_top + r * top_profile(np.linspace(0.0, 1.0, 12), o))),
                   ('T_I', inner(y_top + r, y_cb[part])),
                   ('C_B', col(np.linspace(CB[0], Gp[0], 12), np.linspace(CB[1], Gp[1], 12)))]
         if darts:

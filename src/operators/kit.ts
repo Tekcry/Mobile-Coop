@@ -67,7 +67,7 @@ export const WREN_KIT: Kit = {
   items: [
     // Head
     { id: 'balaclava', name: 'Fitted balaclava', kind: 'garment', zone: 'head', where: 'head and neck', job: 'covers all skin (D4); one eye port sealed by the goggle eyecups', attach: 'worn under everything' },
-    { id: 'hood', name: 'Close-fitting hood', kind: 'garment', zone: 'head', where: 'over the balaclava', job: 'covers the head and harness base; part of the soft-shell top', attach: 'sewn to the soft-shell top; rear shock-cord volume adjuster with a cord lock' },
+    { id: 'hood', name: 'Close-fitting hood', kind: 'garment', zone: 'head', where: 'over the balaclava', job: 'covers the head and harness base; its skirt laps over the mock neck of the suit', attach: 'pulled on over the balaclava; rear shock-cord volume adjuster with a cord lock' },
     { id: 'headHarness', name: 'Head harness (split crown)', kind: 'mount', zone: 'head', where: 'over the hood', job: 'carries the battery pod and seats the goggle band', attach: 'hard brow plate, two crown straps, two side straps, hard rear battery pod, chin strap' },
     { id: 'crownStrap', name: 'Harness crown straps (split)', kind: 'strap', zone: 'head', where: 'over the crown, forking from the brow plate', job: 'hold the brow plate and the pod up against the goggle and battery weight', attach: 'sewn and bar-tacked to the brow plate and the rear pod', count: 2, anchors: [a('headHarness', 'brow plate'), a('headHarness', 'rear pod')] },
     { id: 'sideStraps', name: 'Harness side straps', kind: 'strap', zone: 'head', where: 'above each ear', job: 'clamp the harness round the head', attach: 'low-profile cam buckles, tails doubled back', count: 2, anchors: [a('headHarness', 'brow plate'), a('headHarness', 'rear pod')] },
@@ -77,13 +77,11 @@ export const WREN_KIT: Kit = {
     { id: 'batteryPack', name: 'Battery pod', kind: 'device', zone: 'head', where: 'rear of the harness, on the occiput', job: 'powers the goggle; counterweight; anchors the crown and side straps', attach: 'hard shell of the harness; screw cap on the right' },
     { id: 'goggleCable', name: 'Goggle cable', kind: 'cable', zone: 'head', where: 'pod along the goggle band, off it before the left lug into a plug on the housing side', job: 'goggle power', attach: 'strain relief boots at both ends', source: 'batteryPack', device: 'goggle', length: 0.29, retention: [{ at: 0.07, by: 'band keeper, rear' }, { at: 0.14, by: 'band keeper, middle' }, { at: 0.22, by: 'band keeper, front' }] },
     { id: 'earpiece', name: 'Earpiece', kind: 'device', zone: 'head', where: 'left ear, under the hood', job: 'radio audio', attach: 'in the ear, under the balaclava' },
-    { id: 'earpieceCable', name: 'Earpiece cable', kind: 'cable', zone: 'head', where: 'PTT up the neck to the left ear', job: 'radio audio to the earpiece', attach: 'plugs into the PTT', source: 'ptt', device: 'earpiece', length: 0.44, retention: [{ at: 0.03, by: 'clip on the shirt collar' }, { at: 0.17, by: 'tucked under the balaclava edge' }, { at: 0.3, by: 'held under the balaclava up the neck' }] },
+    { id: 'earpieceCable', name: 'Earpiece cable', kind: 'cable', zone: 'head', where: 'PTT at the left collarbone up the left of the neck to the left ear', job: 'radio audio to the earpiece', attach: 'plugs into the PTT', source: 'ptt', device: 'earpiece', length: 0.44, retention: [{ at: 0.03, by: 'clip on the suit collar' }, { at: 0.17, by: 'tucked under the balaclava edge' }, { at: 0.3, by: 'held under the balaclava up the neck' }] },
     // Torso
-    { id: 'combatShirt', name: 'Combat shirt', kind: 'garment', zone: 'torso', where: 'torso and arms', job: 'knit torso under the carrier, ripstop raglan sleeves', attach: 'worn' },
-    { id: 'elbowPockets', name: 'Elbow pad pockets', kind: 'pouch', zone: 'torso', where: 'both elbows', job: 'hold the elbow pads', attach: 'sewn into the sleeves', count: 2, contents: ['elbow pad'], closure: 'hook-and-loop opening inside the forearm' },
-    { id: 'armPocketL', name: 'Upper-arm pocket, left', kind: 'pouch', zone: 'torso', where: 'left upper arm', job: 'carries the marker light', attach: 'sewn to the sleeve', contents: ['marker light'], closure: 'flap with hook-and-loop' },
-    { id: 'armPocketR', name: 'Upper-arm pocket, right', kind: 'pouch', zone: 'torso', where: 'right upper arm', job: 'carries a spare goggle battery', attach: 'sewn to the sleeve', contents: ['spare goggle battery'], closure: 'flap with hook-and-loop' },
-    { id: 'softShell', name: 'Soft-shell top (concept option)', kind: 'garment', zone: 'torso', where: 'over the shirt', job: 'wind and weather layer; carries the hood', attach: 'worn; hood attached', when: 'concepts that use it' },
+    { id: 'suit', name: 'Stealth suit', kind: 'garment', zone: 'torso', where: 'whole body under the head items, gloves and boots', job: 'one-piece bonded soft-shell, wetsuit-fitted; taped seams, no stitching; grip (forearms, knees), abrasion (shoulder yokes, elbows, seat), stretch (inner elbows, rear shoulders) and perforated vent (underarm side panels, backs of the knees) zones; no base layer under it', attach: 'worn; mock neck under the hood skirt, ankle cuffs inside the boot collars' },
+    { id: 'suitZip', name: 'Suit chest zip', kind: 'hardware', zone: 'torso', where: 'diagonal, left of the collar to the right ribs', job: 'opens the suit to step into it; the puller parks in a zip garage at the collar so it cannot dig in or snag', attach: 'bonded into the suit front' },
+    { id: 'thumbLoops', name: 'Thumb loops', kind: 'hardware', zone: 'hands', where: 'sleeve ends, under the glove cuffs', job: 'hold the sleeves down over the wrists so no skin shows between sleeve and glove (D4)', attach: 'bonded to the sleeve cuffs', count: 2 },
     { id: 'carrier', name: 'Low-profile plate carrier', kind: 'panel', zone: 'torso', where: 'chest and back', job: 'slim front and back plates; the platform for the torso kit', attach: 'shoulder straps and cummerbund' },
     { id: 'carrierShoulders', name: 'Carrier shoulder straps', kind: 'strap', zone: 'torso', where: 'over each shoulder', job: 'hang the front plate from the back plate; route the radio cable (left)', attach: 'padded; adjustable at the front', count: 2, anchors: [a('carrier', 'front plate top'), a('carrier', 'back plate top')] },
     { id: 'cummerbund', name: 'Elastic cummerbund', kind: 'strap', zone: 'torso', where: 'round the ribs', job: 'closes the carrier round the body; carries the radio and medical pouches', attach: 'closes under a front flap', count: 2, anchors: [a('carrier', 'back plate side'), a('carrier', 'front flap')] },
@@ -97,7 +95,6 @@ export const WREN_KIT: Kit = {
     { id: 'backPanel', name: 'Back panel', kind: 'panel', zone: 'torso', where: 'on the back plate bag', job: 'carries the rifle: moulded butt cup at the bottom; drag handle at the top edge', attach: 'fixed to the back plate bag' },
     { id: 'rifleBungee', name: 'Rifle bungee loop', kind: 'strap', zone: 'torso', where: 'top of the back panel', job: 'holds the rifle barrel against the back panel', attach: 'pull tab release', anchors: [a('backPanel', 'top left'), a('backPanel', 'top right')] },
     { id: 'carrierRelease', name: 'Quick-release cable', kind: 'hardware', zone: 'torso', where: 'front of the carrier: pull loop at the bottom centre of the front flap', job: 'one pull frees the shoulder straps and the cummerbund and drops the carrier', attach: 'cable sleeved inside the plate bags through grommets; the pull loop in a sleeve' },
-    { id: 'buttPatch', name: 'Shoulder reinforcement', kind: 'pad', zone: 'torso', where: 'right shoulder of the shirt', job: 'rifle butt patch', attach: 'sewn on' },
     // Belt
     { id: 'belt', name: 'Inner and outer belt', kind: 'strap', zone: 'belt', where: 'waist', job: 'carries the belt kit and the drop-leg hanger', attach: 'two-part metal quick-release buckle; outer belt hook-and-loop to the inner', anchors: [a('belt', 'buckle male'), a('belt', 'buckle female')] },
     { id: 'grenadePouches', name: 'Grenade pouches', kind: 'pouch', zone: 'belt', where: 'front left of the belt', job: 'grenades (GRENADE_POUCHES)', attach: 'threaded on the belt', count: 3, contents: ['grenade'], closure: 'flap with a quiet snap' },
@@ -106,25 +103,20 @@ export const WREN_KIT: Kit = {
     { id: 'knifeSheath', name: 'Knife sheath', kind: 'pouch', zone: 'belt', where: 'rear centre, horizontal', job: 'the knife (Phase 6 verb)', attach: 'two belt straps', contents: ['knife'], closure: 'friction fit and a snap strap' },
     { id: 'dropHanger', name: 'Drop-leg hanger', kind: 'strap', zone: 'belt', where: 'right side', job: 'carries the holster platform', attach: 'belt loop plus a short adjustable strap', anchors: [a('belt', 'right side loop'), a('thighHolster', 'platform top')] },
     // Legs
-    { id: 'baseLayer', name: 'Base layer', kind: 'garment', zone: 'torso', where: 'torso, arms and legs', job: 'thin compression top and leggings next to the skin; seen only at the collar and cuffs', attach: 'worn under everything; the top laps over the leggings waistband' },
-    { id: 'kneePads', name: 'Knee pad pockets', kind: 'pouch', zone: 'legs', where: 'both knees, inside the trousers', job: 'hold the internal knee pads behind a reinforced outer panel', attach: 'sewn into the trouser knees', count: 2, contents: ['knee pad'], closure: 'opening inside at the top, hook-and-loop' },
-    { id: 'trousers', name: 'Soft-shell trousers', kind: 'garment', zone: 'legs', where: 'legs', job: 'articulated knees, crotch gusset, reinforced seat, internal knee pads', attach: 'worn under the belt' },
-    { id: 'cargoL', name: 'Cargo pocket, left', kind: 'pouch', zone: 'legs', where: 'left thigh, angled', job: 'map card', attach: 'sewn on; drain grommet at the bottom', contents: ['map card'], closure: 'flap with a quiet closure' },
-    { id: 'cargoR', name: 'Cargo pocket, right', kind: 'pouch', zone: 'legs', where: 'right thigh, angled', job: 'spare gloves', attach: 'sewn on; drain grommet at the bottom', contents: ['spare gloves'], closure: 'flap with a quiet closure' },
     { id: 'thighHolster', name: 'Thigh holster', kind: 'pouch', zone: 'legs', where: 'right thigh', job: 'the pistol (suppressed: open muzzle)', attach: 'drop-leg platform on the hanger', contents: ['pistol'], closure: 'retention hood' },
     { id: 'legStraps', name: 'Holster leg straps', kind: 'strap', zone: 'legs', where: 'round the right thigh', job: 'hold the platform against the thigh', attach: 'elastic sections and side-release buckles', count: 2, anchors: [a('thighHolster', 'platform rear edge'), a('thighHolster', 'platform front buckle')] },
     { id: 'smgSling', name: 'SMG sling', kind: 'strap', zone: 'belt', where: 'left hip (sling slot)', job: 'carries the SMG', attach: 'quick-detach swivel on the belt', when: 'an SMG in the loadout', anchors: [a('belt', 'left QD swivel'), a('smg', 'rear sling point')] },
     // Hands and feet
     { id: 'gloves', name: 'Gloves', kind: 'garment', zone: 'hands', where: 'hands', job: 'grip and protection: leather palm, stretch back, reinforced trigger finger', attach: 'wrist tab' },
-    { id: 'boots', name: 'Mid boots', kind: 'garment', zone: 'feet', where: 'feet', job: 'quiet footing: suede and nylon, toe rand, quiet lug sole', attach: 'laced; speed hooks, lace garage' },
+    { id: 'boots', name: 'Mid boots', kind: 'garment', zone: 'feet', where: 'feet', job: 'quiet footing: suede and nylon, toe rand, quiet lug sole', attach: 'laced; speed hooks, lace garage; the bonded ankle cuff of the suit inside the collar' },
   ],
   wear: [
     'scuffed carrier bottom edge',
     'polished glove palms and trigger finger',
     'worn webbing tails',
     'tape on the mount knob',
-    'dust in the boot lugs and trouser cuffs',
-    'abraded rifle-butt patch',
+    'dust in the boot lugs and on the suit knees',
+    'polished grip pebble on the forearms and knees',
   ],
 };
 

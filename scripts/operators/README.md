@@ -28,12 +28,12 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   (4 influences), hero finger and toe bones; `<id>-body.blend` and `<id>-body.json` (measurements against targets).
 - `py/pattern.py` - 2D panels, seams, panel meshing, the pattern-space surface lookup.
 - `py/garments/<name>.py` - a garment drafted from body measurements (`base_layer.py`, `combat_shirt.py`,
-  `trousers.py`; `legwear.py` is the leg block shared by the leggings and the trousers): its panels, seams and
+  `trousers.py`, `suit.py` - Wren's one-piece stealth suit on the base layer's blocks, bonded tapes, zip; `legwear.py` is the leg block shared by the leggings and the trousers): its panels, seams and
   details, the kit item it builds (`KIT`, and `kit` on each detail) and its cloth settings (`SIM`: vertex mass,
   stiffness per material and panel, stiffer sewn layers under pockets and pads). `build_garment.py --sim '<json>'`
   overrides `SIM` for tuning runs.
 - `py/build_garment.py` - stage 2: arrange, sew by cloth simulation (the flat pattern is the rest shape), settle, weld.
-  Multi-layer: garments build in `GARMENTS` order (`export-gltf.mjs`: base layer, gloves, boots, shirt, trousers); `--under a,b` opens
+  Multi-layer: garments build in `GARMENTS` order (`export-gltf.mjs`; Wren since step 08a: suit, gloves, boots, headwear, head_kit - A37); `--under a,b` opens
   the last earlier garment's blend, measures every girth over the body plus the earlier layers and makes each of them
   a collider. Prints the worst seam per sample and refuses a panel arranged inside out.
 - `py/garment_details.py` - stage 3: seam ridges, hems, thread stitches, patches (pads, pockets, flaps, tabs,

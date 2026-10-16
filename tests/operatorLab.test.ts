@@ -161,10 +161,10 @@ describe('lab data', () => {
     expect(d[0]).toBeGreaterThan(0.35);
   });
   it('callouts list only built kit items in the close-up zone', () => {
-    const built = new Set(['combatShirt', 'armPocketL']);
+    const built = new Set(['suit', 'carrierShoulders']);
     const shoulder = CLOSEUPS.find((c) => c.id === 'shoulder')!;
     const ids = calloutsFor(KITS.wren.items, built, shoulder).map((i) => i.id);
-    expect(ids).toContain('armPocketL');
+    expect(ids).toContain('carrierShoulders');
     expect(calloutsFor(KITS.wren.items, built, CLOSEUPS.find((c) => c.id === 'boots')!)).toHaveLength(0);
   });
 });

@@ -241,6 +241,53 @@ elif gname == 'base_layer':
     closeup('e-closeup-cuff', wr, (np.sign(wr[0]) * 0.6, -1.0, 0.3), lens=35, dist=0.36,
             rake_from=(np.sign(wr[0]) * 0.05, -0.05, 0.25))
 
+elif gname == 'suit':
+    # Step 08a: the suit's close-ups at 0.35-0.6 m (the micro-texture reads here, not at full figure), one moderate
+    # rake each (near-black renders mid grey under a strong one, OPEN since step 05), and a rim-light silhouette.
+    sg = float(np.sign(J['shL'][0]))
+    nk, ch, pv = J['neck'], J['chest'], J['pelvis']
+    closeup('c-closeup-collar-zip', nk + np.array([-sg * 0.02, -0.07, -0.07]), (sg * 0.35, -1.0, 0.25), lens=35,
+            dist=0.5, rake_from=(sg * 0.3, -0.1, 0.25), power=10)
+    closeup('e-closeup-chest-waist', np.array([0.0, ch[1] - 0.1, (ch[2] + pv[2]) / 2]), (-sg * 0.25, -1.0, 0.1),
+            lens=35, dist=0.6, rake_from=(-sg * 0.35, -0.1, 0.3), power=10)
+    # fix round 1, item 7: from in front of and below the arm (from the side the A-pose arm hid the vent)
+    closeup('f-closeup-underarm-vent', np.array([sg * 0.15, ch[1] + 0.0, ch[2] - 0.06]), (sg * 0.7, -0.7, -0.2),
+            lens=35, dist=0.45, rake_from=(sg * 0.4, -0.5, 0.3), power=8)
+    el_, wr_ = J['elL'], J['wrL']
+    closeup('g-closeup-forearm-elbow', el_ + (wr_ - el_) * 0.35, (sg * 0.5, 0.35, 0.8), lens=35, dist=0.5,
+            rake_from=(sg * 0.25, -0.2, 0.2), power=8)
+    kn = J['knL']
+    closeup('h-closeup-knee', kn + np.array([0.0, -0.05, 0.0]), (sg * 0.3, -1.0, 0.12), lens=35, dist=0.5,
+            rake_from=(sg * 0.3, -0.1, 0.3), power=10)
+    closeup('j-closeup-knee-back-seat', (kn + J['hipL']) / 2 + np.array([0.0, 0.07, 0.05]), (sg * 0.25, 1.0, 0.05),
+            lens=30, dist=0.75, rake_from=(sg * 0.35, 0.1, 0.35), power=12)
+    an = J['anL']
+    closeup('k-closeup-ankle-cuff', np.array([an[0], an[1], 0.1]), (sg * 0.6, -1.0, 0.25), lens=35, dist=0.42,
+            rake_from=(sg * 0.25, -0.1, 0.25), power=8)
+    if not args.quick:
+        clear_rig()
+        RN.world(sc, 0.002, (0.5, 0.55, 0.65))
+        RN.area_light('rimL', (1.3, 2.0, 1.9), (0.0, 0.0, 1.0), 900, 0.08, (0.62, 0.75, 1.0))
+        RN.area_light('rimR', (-1.3, 2.0, 1.9), (0.0, 0.0, 1.0), 900, 0.08, (0.62, 0.75, 1.0))
+        sc.camera = RN.camera('sil', *front_cam, 55)
+        out.append(shot('i-silhouette-rim', (1200, 1500), -0.5))
+
+if gname == 'head_kit' and bpy.data.objects.get(f'{op_id}-suit-hero') is not None:
+    # Step 08a: the suit with everything over it - the hood skirt over the mock neck and the zip garage (front and
+    # nape), the glove cuff over the sleeve and its thumb loop, the boot collar over the ankle cuff.
+    sg = float(np.sign(J['shL'][0]))
+    nk = J['neck']
+    closeup('s1-suit-collar-hood-front', nk + np.array([-sg * 0.01, -0.06, -0.03]), (sg * 0.3, -1.0, 0.2), lens=35,
+            dist=0.45, rake_from=(sg * 0.3, -0.1, 0.25), power=10)
+    closeup('s2-suit-collar-hood-nape', nk + np.array([0.0, 0.06, -0.03]), (sg * 0.35, 1.0, 0.2), lens=35, dist=0.45,
+            rake_from=(sg * 0.3, 0.1, 0.25), power=10)
+    wr_ = J['wrL']
+    closeup('s3-suit-glove-cuff', wr_, (sg * 0.6, -1.0, 0.3), lens=35, dist=0.36,
+            rake_from=(sg * 0.05, -0.05, 0.25), power=8)
+    an = J['anL']
+    closeup('s4-suit-ankle-boot', np.array([an[0], an[1], 0.11]), (sg * 0.6, -1.0, 0.25), lens=35, dist=0.45,
+            rake_from=(sg * 0.25, -0.1, 0.25), power=8)
+
 # c. Close-up at 0.4 m: the left upper arm from behind and outside, so the back raglan seam (knit to ripstop), the
 # arm pocket and the elbow are in frame. One small light skims along the arm (raking); a faint fill.
 if gname == 'combat_shirt':

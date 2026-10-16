@@ -80,7 +80,8 @@ def build(ctx):
     tree_u = HC.bvh(np.vstack([Vh, Vb]), Fh + [tuple(i + len(Vh) for i in f) for f in Fb])
     bal_tree = HC.bvh(Vb, Fb)
     layers = {u: (V, Fl) for u, V, Fl in ctx['layers']}
-    sh_tree = FT.bvh_outward(*layers['combat_shirt'], skin) if 'combat_shirt' in layers else None
+    collar = 'suit' if 'suit' in layers else 'combat_shirt'      # the collar layer (step 08a: the suit, A37)
+    sh_tree = FT.bvh_outward(*layers[collar], skin) if collar in layers else None
     pt = Parts()
     stV, stF = [], []
     nst = 0
@@ -498,13 +499,24 @@ def build(ctx):
     ecab = []
     if sh_tree is not None:
         ct = None
-        Vs = layers['combat_shirt'][0]
+        Vs = layers[collar][0]
         neck = (np.abs(Vs[:, 0]) < 0.075) & (np.abs(Vs[:, 1] - fr['neck_y']) < 0.09) & (Vs[:, 2] > fr['neck_z'] - 0.08)
         ct = float(Vs[neck, 2].max())
         cd = lambda zz: HC.cable_dir(zz, ct, ear_z)   # noqa: E731  (the same line the hood rides over)
         p0, n0 = HC.ray_in(sh_tree, (0.07, 0.0, ct - 0.1), (0.0, -1.0, 0.0), 0.3)
         p1, n1 = HC.ray_in(sh_tree, (0.0, fr['neck_y'], ct - 0.032), cd(ct - 0.032), 0.2)
         p2, n2 = HC.ray_in(sh_tree, (0.0, fr['neck_y'], ct - 0.006), cd(ct - 0.006), 0.2)
+        # step 08a: the suit's close mock neck can end under the ray that found the shirt collar's rim; the cable then
+        # takes the skin there plus the collar's 4 mm (its route through the neck is step 09's job, 07-fixes-r4)
+        for nm_, zz in (('p1', ct - 0.032), ('p2', ct - 0.006)):
+            if (p1 if nm_ == 'p1' else p2) is None:
+                hs, hn = HC.ray_in(skin, (0.0, fr['neck_y'], zz), cd(zz), 0.2)
+                if hs is not None:
+                    hs = hs + hn * 0.004
+                if nm_ == 'p1':
+                    p1, n1 = hs, hn
+                else:
+                    p2, n2 = hs, hn
         # under the balaclava edge the cable lies on the skin, up the neck to the earpiece (hidden by the hood)
         p3, n3 = HC.ray_in(skin, (0.0, fr['neck_y'], ct + 0.012), cd(ct + 0.012), 0.2)
         p4, n4 = HC.ray_in(skin, (0.0, fr['neck_y'], ear_z - 0.035), cd(ear_z - 0.035), 0.2)

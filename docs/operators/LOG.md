@@ -754,3 +754,158 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
   carrier and belt are expected to be replaced. The generators (`torso_common.py`, `carrier.py`, `belt.py`) and the
   `--only` filter are committed for reuse.
 
+
+## Step 08a - Wren: stealth suit (Opus 5.5)
+- Note (orchestrator): the first record below predates the fix rounds; its waist lap (A43) is superseded by the sewn
+  waist (A48) and its seam gap (7.8 mm) is now 9.76 mm. A43-A47 were committed early, in the D25 doc commit (6f1e536).
+- Built: `py/garments/suit.py` (kit `suit`; `KIT`, `SIM`, `draft`, `prepare_body`, `finish`): the base layer's top and
+  leg blocks in one garment, every seam style `bonded`, zones as pattern-space inserts (A44): grip (forearms, knees),
+  abrasion (shoulder yokes, elbows, seat), stretch (inner elbows, rear shoulders), perforated vents (underarm side
+  panels front and back, backs of the knees). Waist: lapped and sealed under a 10 mm bonded waist tape (A43; not sewn).
+- Pipeline: `build_garment.py` calls a garment's `prepare_body` before the measure (A45: bust relaxed, 174 vertices,
+  inward only); `garment_details.py` 'bonded' mode (no stitch rows or plateaus; tapes via new `fitted.tape`, 8 mm x
+  0.6 mm rounded, along every seam line, insert outline, hem, cuff and the collar top), 'lapSeal' (1 825 vertices of the
+  top's edge drawn down onto the leggings over 12 mm), garment `finish` hook, suit panel materials, no empty stitch
+  object. Materials (`materials.py`): `suit_shell` (1.6 mm diamond emboss, near_fade 0.7-1.6 m), `suit_stretch`,
+  `suit_abrasion`, `suit_grip` (hard), `suit_vent` (1.4 mm holes, 3.2 mm pitch), `seam_tape`; gunmetal anodised slider.
+- Suit numbers: seam gap 7.8 mm before weld (sewing_force 16; 12 gave 10.5-11.3 mm with the longer top); top 3 cm
+  longer than the base layer's, hem girth re-measured at its height (hem 0.846 m front, 0.875 m back, over the band
+  0.919-0.955 m); cling bridge 50 passes; ankle cuffs 8.2-8.9 cm (lowest point; A38). Tapes 8.26 m on seams, 5.81 m on
+  inserts, 0.89 m on edges. Zip 0.385 m, 158 coil elements, slider and flush puller in a garage at the collar top
+  (1.445 m); thumb loops 2 (elastic, 0.3 mm off the skin, under the 2.2 mm glove).
+- Layers (A37): `GARMENTS.wren` = suit, gloves, boots, headwear, head_kit. gloves.py / boots.py read `suit` as the
+  innermost layer; headwear `collar_layer` / `mock_layer` (A46: balaclava inside the suit's mock neck, A25 draw-in on
+  the suit with its tapes, zip and garage following); head_kit reads the suit collar; the earpiece cable falls back to
+  the skin plus 4 mm where the ray misses the suit collar (route still step 09's). Old base_layer, combat_shirt,
+  trousers, carrier and belt outputs moved out of build/operators/wren (they no longer match the layers).
+- Kit (`kit.ts`): `suit`, `suitZip`, `thumbLoops` added; baseLayer, combatShirt, elbowPockets, armPocketL/R, softShell,
+  buttPatch, trousers, kneePads, cargoL/R removed; hood and earpiece text for the suit collar. Tests updated
+  (`operators.test.ts`, `operatorLab.test.ts` callouts now use `carrierShoulders`).
+- Views: `render_garment_test.py` suit a / b / d, c collar-zip, e chest-waist, f underarm vent, g forearm-elbow, h knee,
+  j knee-back-seat, k ankle cuff, i rim silhouette; on head_kit s1 / s2 collar under the hood (front, nape), s3 glove
+  cuff, s4 ankle into the boot. `check_garment.py` +2 views (left underarm side, back of the knee and seat).
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS for gloves, boots, headwear, head_kit (full run) and suit
+  (re-run with `--only suit` after the empty-thread fix: the full run failed `sampled:thread` on the suit's empty
+  stitch object). `npm run check` PASS (762 tests).
+- Open (seen in the renders, not fixed in this pass):
+  1. Nape (s2): a short crumpled stretch of the collar-top tape shows just under the hood skirt at the back.
+  2. Rear-shoulder stretch zone (s2, b): its outline is clipped by the raglan edge and the yoke line into hook shapes;
+     needs a clean ellipse inside the sleeve back, sharing the yoke line.
+  3. Yoke line on the front shoulders (c) shows only as short stubs.
+  4. The waist lap tape reads as a horizontal line at the hips (front d, e): a sealed lap, but close to a waistband
+     line; a sewn waist block (A43 undo) would remove it.
+  5. Centre-back top of the leggings: a small dark pinch where the CB seam meets the band (j; partly under the lap).
+  6. Abdomen relief still faintly reads through the suit at 0.6 m (e).
+  7. Near-black renders mid grey in close-ups (OPEN since step 05); rakes kept at 8-12 W.
+
+### Fix round 1 (fixers, Opus 5.5; two agents, the first ran out of budget)
+Full rebuild `E2E_GPU=1 npm run operators:build -- wren --from suit --render` (RTX 4090), `npm run operators:export`,
+`E2E_GPU=1 npm run operators:check -- wren` and `npm run check`: results below. Renders in docs/operators/mockups/tests/
+(wren-suit-*, wren-head_kit-*), suit-only loop renders in the session scratchpad r1-r4.
+- Item 1 waist (A48, A51): no lap, no lapSeal; the top's hem is split at the centre and sewn to the four leg tops
+  (bonded, 8 mm tape). The "45-50 mm drift" was not a drop (panel heights within 1-2 cm of the base layer's; the
+  centroid figure is the longer legs rising off their hem). The mock-neck collapse had two causes: the straight hem
+  sewn to leg tops with a -3.5 cm front / +5.5 cm back rise (pulled the top's front down, folded a pinch at the CB),
+  and the knit's ~12 % length shortening once the hem is held. Fix (A51): hem halves drafted on the leg tops' rise
+  profile, leg tops on a smoothstep profile (legwear `top_curve`), top `knit_ease_v` +0.04. Collar top 1.447 -> 1.460 m,
+  standing (c, r3/r4). Waist seam halves front 21.8 / back 22.3 cm, leg tops equal. d / a: the waist is one flush taped
+  seam on a smooth curve, low at the CF; it still reads as a seam line at the hips (a bodysuit leg line, not a band).
+- Item 2 nape: done. s2 and head_kit f: the hood skirt (40 mm lap, A49) lies over a smooth mock neck, no crumpled tape.
+- Item 3 garage: done. s1: slider, puller and garage are under the hood skirt; the zip runs up under the skirt edge.
+- Item 4 zones: partly. Rear-shoulder ellipse closed (s2, b); vent one ellipse across the side seam (f); insert tapes
+  stop 0.55 tape widths from a seam (garment_details; was 0.75). LEFT: the yoke's 45-degree flare (suit
+  `_yoke_outline`) leaves a bend and a short hook where its lines meet the raglan seams (s1 right shoulder, s2 both
+  shoulders). Next: one smooth parabola outline y = y0 + k (x / hw)^2 that crosses the raglan seams steeply.
+- Item 5 abdomen: mostly. A45 relax is now plain Laplacian (Taubin kept the 5-7 cm ridges), region up to chest + 2 cm:
+  the ridges are gone in e (r4); two small symmetric dimples remain at about z 0.99 (e, 800 / 990, 740).
+- Item 6 CB: mostly. Level waist seam at the CB, the pinch is gone; a small notch remains where the CB seam meets the
+  waist seam (j, 1130, 185); the lumbar groove fill (prepare_body, outward 10 mm) lightened it but b still shows the
+  lumbar hollow in the rake.
+- Item 7 view f: done (first fixer).
+- New, seen in d: a pale bulge at the crotch (the pinned gusset, A48) - check in round 2.
+- Seam gap before weld: 10.5 mm in the full build (loop runs 9.3-10.5 mm; worst seam on the lower legs, outLoR /
+  inLoR, not the waist).
+- Checks (fix round 1 result): `npm run operators:export` exit 0; `npm run check` exit 0 (73 files, 762 tests, build;
+  lint 38 warnings, 0 errors). `E2E_GPU=1 npm run operators:check -- wren` (full) FAILS, 9 checks, none weakened:
+  1. suit `seamGap` 10.48 mm (< 10): sim variance (loop runs 9.3-10.5 mm), worst seam on the lower legs
+     (outLoR / inLoR). Next: sewing_force 16 -> 18, or more sew frames.
+  2. boots, gloves, headwear, head_kit `sampled:suit thumb loop elastic` 93 px (>= 150): the loops sit under the glove
+     cuffs; fewer pixels than in the implementer's build. Next: widen the loop (9 -> 12 mm) or a view at the thumb web.
+  3. headwear, head_kit `sampled:gunmetal` 0 px: the zip slider (the only gunmetal) is now under the hood skirt, as
+     item 3 asks (A49). The check needs a decision (the material is hidden by design in those items' views); not
+     changed here.
+  4. headwear, head_kit `edgeLength` 36.49 mm (<= 30): new since A49's 40 mm skirt lap (headwear `skirt_lap`); find the
+     stretched edge in the skirt and subdivide it or shorten the lap's reach.
+
+### Fix round 2 (fixer, Opus 5.5; items 1-5 of steps/08a-fixes-r2.md; 6-8 not started, OPEN)
+Full rebuild `E2E_GPU=1 npm run operators:build -- wren --from suit --render` (RTX 4090), `npm run operators:export`
+(exit 0), `E2E_GPU=1 npm run operators:check -- wren` (full) and `npm run check`. Renders in docs/operators/mockups/tests/
+(wren-suit-*, -gloves-*, -boots-*, -headwear-*, -head_kit-* incl. s1-s4); probes and crops in the session scratchpad
+r2fix/ (crotch.png, skirt.png, tl/).
+- Item 1 crotch: NOT DONE. The pinned gusset bridged the crotch past the cling's 25 mm reach; the cling now reaches
+  70 mm for the gusset (`SIM['cling']['reach_panels']`, build_garment `cling`; A48 amended). The single rounded bulge
+  is gone, but d / a (crop r2fix/crotch.png) still show two small lumps on the centre front seam between the waist seam
+  and the crotch, with an under-shadow in a: likely the centre seams' excess length bunching against the pinned gusset.
+  Laying the gusset onto the skin before pinning (`snap`) was tried and dropped: its edges no longer met the leg panels
+  (gusFR 12.4 mm open). Next: shorten the front centre seam / rise by the bunched length, or release the gusset pin in
+  the settle (`'settle': 0.3`) and re-measure the waist height.
+- Item 2 thumb loops: DONE. Every ribbon vertex is laid back on the skin at its profile height (0.3 mm + 0.5 mm dome;
+  width unchanged 9 mm, glove unchanged). tl_probe on wren-gloves.blend: 0 px in all four views; the check's
+  `covered:suit thumb loop elastic` is 0 px in gloves, boots, headwear, head_kit.
+- Item 3 seam gap: PARTLY. 9.76 mm in the full build (passes < 10, but not the 9.5 asked). Sewing force 18 made the
+  settle worse (11.6 mm, inLoL) and is reverted to 16; the suit keeps 4 rings either side of a seam out of self
+  collision (`SIM['seam_self_rings']`, default 2 for every other garment). Frame counts and settle length unchanged.
+- Item 4 covered rule: DONE as specified (A52). `scripts/operators/py/covered.py` (COVERED table, pure logic, dry run
+  `python scripts/operators/py/covered.py` shows `covered:` failing at 12 px and `ownCheck:` failing on a missing or
+  unsampled owner JSON); check_garment.py adds `ownCheck:<name>` and `covered:<name>` from the covering item on. No
+  threshold changed. It immediately caught a real fault: `covered:gunmetal` 773 px in headwear and head_kit (below).
+- Item 5 edgeLength: DONE for the edges. The stretch was headwear `tuck_collar`: at the back-left shoulder the skirt's
+  rays graze the suit's trapezius, so one vertex was tucked 34 mm in and its neighbour not at all. The tuck is now
+  spread over the hero mesh (`_ease_tuck`, 60 relax passes within 4 cm of a tucked vertex, then cleared of the skin).
+  edge_probe: 0 suit edges over 25 mm in suit, boots, headwear, head_kit; head stack longest suit edge 8.4 mm (suit
+  alone 6.2 mm); the worst single edge grows 5.5x (1.2 -> 6.7 mm, back-left collar base). Check: headwear and
+  head_kit `edgeLength` 29.5 mm (pass). Skirt front edge (5b): NOT DONE: s1 (r2fix/skirt.png) still shows the flat
+  plate with a knife-thin edge standing off the suit.
+- Items 6 zones, 7 abdomen dimples, 8 waist notches: not started (budget). The dimples still show in e.
+- Checks: `npm run check` exit 0 (73 files, 762 tests, build; lint 0 errors, 38 warnings). `operators:check -- wren`
+  FAILS 2 checks, none weakened: headwear and head_kit `covered:gunmetal` 773 px (0 required). The zip slider is the
+  only gunmetal part, so it now shows in a check view of the head stack (the suit was re-simulated; the slider was 0 px
+  in round 1). Next: `ck-r2/gm_probe.py` on wren-headwear.blend to find the view, then hold the garage and slider under
+  the skirt (tuck_collar treats every `-suit-` mesh; the slider and garage are not eased with the hero).
+### Fix round 3 (fixer, Opus 5.5; the last round, against steps/08a-fixes-r3.md)
+Full rebuild `E2E_GPU=1 npm run operators:build -- wren --from suit --render` (RTX 4090), `npm run operators:export`
+(exit 0), `E2E_GPU=1 npm run operators:check -- wren` (full: 5 items, all checks pass) and `npm run check`. Renders in
+docs/operators/mockups/tests/ (wren-suit-a..k, -gloves-*, -boots-*, -headwear-*, -head_kit-* incl. s1-s4). Probes in
+the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick renders q1/, q2/).
+- Item 1 crotch: PARTLY. Profile probe: the lumps were cloth, not skin (suit 12-19 mm off the real skin at z 0.80-0.84
+  on the centre line, body monotone there). New membrane zone after the cling (A48 amended again,
+  build_garment `membrane_zones`, suit `SIM['cling']['zones']`). crotch_probe (|x| < 6 cm, z 0.80-0.925, front):
+  max off the faired skin (Taubin 150) 9.8 mm (was 19.3 / 24.3 below 0.82), 79 vertices over 6 mm, all in the lowest
+  band z 0.80-0.82; z 0.82-0.925 at most 5.5 mm. Off the real skin max 13.3 mm (was 20.5). d / a: (crotch still OPEN: a rounded bulge with a cast shadow remains above the gusset in a and head_kit a) the stacked lumps
+  and pinch are gone; a small rounded form remains just above the gusset (d 590-610, 790-830). OPEN: the 6 mm probe
+  fails in the bottom 2 cm above the gusset. Next: widen the zone's draw-in into the gusset's top (z from z_crotch +
+  0.01) or release the gusset pin in the settle (`'settle': 0.3`), re-check the seam gap (9.76 now, limit 10).
+- Items 2 and 3 zip and skirt: DONE for the check, part visual. Cause: the suit's collar top is 23 mm lower at the
+  front than at the nape, so the 40 mm lap covered 16 mm at the front. Skirt 20 mm lower at the front
+  (`SKIRT_FRONT_SUIT`), zip parked higher with a 20 mm garage, the zip / tapes / slider / garage follow the hero's eased
+  tuck, the skirt's edge band drawn onto the suit (A49 amended). `covered:gunmetal` 0 in headwear and head_kit (was
+  773); gm_probe 0 px in all 120 views on wren-headwear.blend and wren-head_kit.blend. s1: no slider, garage or tape
+  end; the left-front lip and gap are gone. OPEN: the lowered front reads as a tab with a corner each side (s1 about
+  800, 600 and 1085, 610). Next: ease the front drop over a wider arc (smoothstep 0.0-0.9 of the front cosine).
+- Item 5 A52: DONE (A52 amended). check.mjs orders items by their `under` lists (the full run checked suit, gloves,
+  boots, headwear, head_kit); covered.py fails `ownCheck:` on an owner JSON older than its sim JSON (dry run case
+  "owner JSON older than its sim JSON" fails). No LIMIT changed.
+- Item 4 abdomen dimples: NOT DONE. An abdomen membrane zone was tried: held off the cling's faired skin the dimples
+  stay (they are in the faired skin); held off the real skin they went but the rectus edges read (q1/e). Dropped.
+  Next: in `prepare_body` raise the abdomen's inward clamp (8 mm) or fair the faired-skin copy there.
+- Items 6 (collar / shoulder panel lines) and 7 (waist notches): NOT STARTED (budget). F12 not reached.
+- Seam gap 9.76 mm (unchanged, < 10). edgeLength: suit 19.4, gloves 23.31, boots / headwear / head_kit 29.5.
+- Checker round 4 (final): FAIL (steps/08a-fixes-r4.md). operators:check 5 items pass (seam gap 9.76; covered:gunmetal 0;
+  ownCheck from this run's suit report); npm run check passes; check.mjs order and covered.py staleness only tighten.
+  Fails on the renders: 1 crotch bulge with a cast shadow above the gusset (a, d, head_kit a; probe 9.8 mm vs 6);
+  2 abdomen dimples (e); 3 broken panel lines (collar-base V, shoulder-yoke hooks, right raglan dog-leg: c, s1, s2);
+  4 waist seam notches (e, j); 5 hood skirt front reads as a tab (s1); 6 lumbar groove and erector ridges read as
+  anatomy (b). Further OPEN: F10 seam gap 9.76 vs 10 (seed risk); F11 5.5x suit edge growth under the skirt; F12 tape
+  stubs (f, h, s3); F13 the side seam through the middle of the vent; a small dark sliver on the right boot collar (s4).
+- Status: OPEN after 3 fix rounds; evidence: steps/08a-fixes-r4.md; remaining: items 1-6 above and F1-F13. Retried at
+  the Wren block end (after step 11).

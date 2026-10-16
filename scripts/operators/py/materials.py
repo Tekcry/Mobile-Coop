@@ -488,3 +488,126 @@ def add_emitter(mat, colour=(1.0, 0.45, 0.12), strength=1.2, attribute='emit'):
     g_nt.links.new(at.outputs['Fac'], m.inputs[0])
     g_nt.links.new(m.outputs[0], bsdf.inputs['Emission Strength'])
     return mat
+
+
+
+# --- Wren's stealth suit (step 08a, ART-DIRECTION 9.1) --------------------------------------------------------------
+# One near-black family told apart by surface, not value (ART-DIRECTION 4): the shell's diamond micro-emboss, the
+# stretch knit's fine ribs, the abrasion weave's dense basket, the grip's rubber pebble, the vent's perforation. Every
+# albedo stays inside 0.02-0.06 linear (the check measures the 1st to 99th percentile), so the dark parts of each
+# pattern (the vent holes, the pebble hollows) are 0.021-0.026, not black: their depth comes from the bump.
+
+def suit_shell(name='suit shell', colour=(0.031, 0.032, 0.034)):
+    """Bonded stretch soft-shell, the suit's main face: a tonal diamond micro-emboss (1.6 mm) that reads only within
+    about a metre (near_fade), smooth and matte beyond; a faint fibre sheen."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    a = g.tri(g.math('ADD', u, v), 0.0016 * 1.4142)
+    b = g.tri(g.math('SUBTRACT', u, v), 0.0016 * 1.4142)
+    dia = g.math('MULTIPLY', g.smoothstep(0.08, 0.3, a), g.smoothstep(0.08, 0.3, b))   # raised diamonds, sunk grooves
+    fade = g.near_fade(0.7, 1.6)
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', dia, fade), 0.6), g.math('MULTIPLY', g.noise(900.0, 2.0), 0.2))
+    nrm = g.bump(h, g.math('ADD', 0.04, g.math('MULTIPLY', fade, 0.28)), 0.0003)
+    col = g.mix_rgb(g.math('MULTIPLY', g.math('SUBTRACT', 1.0, dia), g.math('MULTIPLY', fade, 0.5)), colour,
+                    (0.026, 0.027, 0.028))
+    g.link(g.wear(col, dust_amount=0.15), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.8
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.2
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.45
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat
+
+
+def suit_stretch(name='suit stretch knit', colour=(0.034, 0.035, 0.036)):
+    """Stretch knit (inner elbows, rear shoulders): fine ribs 2 mm apart across the stretch, softer and fuzzier than
+    the shell, a little lighter by its sheen."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    rib = g.math('ABSOLUTE', g.math('SINE', g.math('MULTIPLY', u, 6.2832 / 0.004)))
+    fade = g.near_fade(0.7, 1.6)
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', rib, fade), 0.7), g.math('MULTIPLY', g.noise(2500.0, 1.0), 0.3))
+    g.link(g.wear(colour, dust_amount=0.12), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.9
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.4
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.35
+    g.link(g.bump(h, g.math('ADD', 0.06, g.math('MULTIPLY', fade, 0.3)), 0.0003), g.bsdf.inputs['Normal'])
+    return mat
+
+
+def suit_abrasion(name='suit abrasion weave', colour=(0.034, 0.035, 0.037)):
+    """Abrasion panels (shoulder yokes, elbows, seat): a coarse basket weave (1.4 mm) that reads as a harder, flatter
+    cloth than the shell; matter and a shade lighter, scuffed lighter where it pokes out (pointiness). Step 08a fix
+    round 1, item 4: the 0.9 mm weave in the shell's tone did not read apart from the shell on the shoulder yokes."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    wu = g.math('SINE', g.math('MULTIPLY', u, 6.2832 / 0.0028))
+    wv = g.math('SINE', g.math('MULTIPLY', v, 6.2832 / 0.0028))
+    basket = g.math('ABSOLUTE', g.math('MULTIPLY', wu, wv))
+    fade = g.near_fade(0.7, 1.6)
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', basket, fade), 0.5), g.math('MULTIPLY', g.noise(600.0, 3.0), 0.35))
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.smoothstep(0.53, 0.63, pt)
+    g.link(g.wear(colour, dust_amount=0.25, edge=edge), g.bsdf.inputs['Base Color'])
+    g.link(g.math('SUBTRACT', 0.92, g.math('MULTIPLY', edge, 0.06)), g.bsdf.inputs['Roughness'])
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.1
+    g.link(g.bump(h, g.math('ADD', 0.25, g.math('MULTIPLY', fade, 0.45)), 0.0004), g.bsdf.inputs['Normal'])
+    return mat
+
+
+def suit_grip(name='suit grip rubber', colour=(0.024, 0.024, 0.025)):
+    """Rubberised grip (forearms, knees): a printed micro-pebble (about 1.8 mm) in matte rubber; a little glossier than
+    the cloth, the pebble tops polished by contact."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'hard'
+    g = Graph(mat)
+    _, _, uvv = g.uv()
+    vor = g.node('ShaderNodeTexVoronoi')
+    vor.inputs['Scale'].default_value = 550.0
+    g.link(uvv, vor.inputs['Vector'])
+    peb = g.math('SUBTRACT', 1.0, g.smoothstep(0.25, 0.5, vor.outputs['Distance']))
+    g.link(g.mix_rgb(g.math('MULTIPLY', peb, 0.6), colour, (0.032, 0.032, 0.033)), g.bsdf.inputs['Base Color'])
+    g.link(g.bump(peb, 0.45, 0.0004), g.bsdf.inputs['Normal'])
+    g.link(g.math('SUBTRACT', 0.72, g.math('MULTIPLY', peb, 0.08)), g.bsdf.inputs['Roughness'])
+    g.bsdf.inputs['Specular IOR Level'].default_value = 0.35
+    return mat
+
+
+def suit_vent(name='suit vent panel', colour=(0.033, 0.034, 0.035)):
+    """Laser-perforated vents (underarm side panels, backs of the knees): staggered 1.4 mm holes on a 3.2 mm pitch,
+    the darker mesh behind them; the holes are sunk by the bump."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    p = 0.0032
+    vv = g.math('DIVIDE', v, p * 0.866)
+    row = g.math('FLOOR', vv)
+    fu = g.math('SUBTRACT', g.math('FRACT', g.math('ADD', g.math('DIVIDE', u, p), g.math('MULTIPLY', row, 0.5))), 0.5)
+    fv = g.math('MULTIPLY', g.math('SUBTRACT', g.math('FRACT', vv), 0.5), 0.866)
+    d = g.math('SQRT', g.math('ADD', g.math('MULTIPLY', fu, fu), g.math('MULTIPLY', fv, fv)))
+    hole = g.math('SUBTRACT', 1.0, g.smoothstep(0.19, 0.24, d))          # radius 0.7 mm of the 3.2 mm pitch
+    g.link(g.mix_rgb(hole, colour, (0.021, 0.021, 0.022)), g.bsdf.inputs['Base Color'])
+    g.link(g.bump(g.math('SUBTRACT', 1.0, hole), 0.7, 0.0004), g.bsdf.inputs['Normal'])
+    g.bsdf.inputs['Roughness'].default_value = 0.84
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.15
+    return mat
+
+
+def seam_tape(name='suit seam tape', colour=(0.028, 0.029, 0.03)):
+    """Bonded seam tape: a thin laminated fabric tape heat-pressed over the seams, smoother than the shell (no emboss),
+    a faint satin of the bonding film at a grazing angle. Fabric: it is cloth-backed."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    h = g.math('MULTIPLY', g.noise(1800.0, 2.0), 0.4)
+    g.link(g.wear(colour, dust_amount=0.12), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.74
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.15
+    g.link(g.bump(h, 0.08, 0.0002), g.bsdf.inputs['Normal'])
+    return mat

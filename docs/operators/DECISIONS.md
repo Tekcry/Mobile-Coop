@@ -459,7 +459,7 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   strobe on the back plate's top edge (kit item `strobe`).
 
 ## Assumed decisions, step 08a (stealth suit; implementer)
-**A43 The suit's waist is a sealed lap, not a sewn seam.** The top and leg blocks keep the base layer's lap (the top's
+**A43 (superseded by A48, step 08a fix round 1) The suit's waist is a sealed lap, not a sewn seam.** The top and leg blocks keep the base layer's lap (the top's
   hem over the leggings' inner band, which stays pinned and hidden), and the lap is sealed under a 10 mm bonded waist
   tape: garment_details `lapSeal` draws the top's edge down onto the leggings over 12 mm so the tape lies flat over a
   feathered edge. Why: the pipeline sews equal runs, and the top's hem and the leggings' top differ in length round the
@@ -480,3 +480,76 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
 **A47 Material classes on the suit.** The seam tape is fabric (a cloth-backed laminate tape, roughness 0.74); the grip
   print is hard (rubber, roughness 0.64-0.72); the zip slider and puller are the gunmetal anodised finish. Undo: re-tag
   `operators_class` in materials.py.
+
+## Assumed decisions, step 08a fix round 1 (fixer)
+**A48 The suit's waist is one flush bonded seam (replaces A43).** The leggings lose their waistband and become the waist
+  block: suit.draft drafts the top's hem at the leggings' top height (z_waist - 9 cm), splits it at the centre (corner
+  `hemC`) and sews each half to one leg panel's top run (seams waistFrontL/R, waistBackL/R, style bonded, the 8 mm
+  side-seam tape). The leg tops are solved to the hem halves (hip_split and the top hip ease, 4 passes: 21.4 cm each).
+  No lap, no `lapSeal`, no cling lap. With no band the crotch gusset is pinned on its arranged diamond (A15's pin) and
+  gravity is 0.1. The mock-neck collapse this first caused is fixed by A51 (the "45-50 mm centroid drift" is not a
+  drop: the panels settle within 1-2 cm of the base layer's heights; the drift figure is dominated by the longer legs
+  rising off their drafted hem). Pinning the collar tore its seam (44 mm); a pinned seam row is not possible in the
+  pipeline (a pinned vertex's rest shape is its arranged position). Undo: restore A43 (the step 08a implementer's lap
+  draft and SIM; suit.py is not yet in git).
+**A49 The hood skirt laps 40 mm over the suit's mock neck (24 mm over a shirt collar), and the suit's A25 draw-in acts
+  only under the skirt.** headwear `skirt_lap` / `SKIRT_LAP_SUIT`; tame_mock_neck blends the draw-in in from 4 mm inside the
+  skirt edge (SKIRT_BACK lower behind the neck) to full 12 mm higher. Why: at 24 mm the zip garage and puller and the
+  crumpled nape tape sat below the skirt; drawn in from 6 cm below the neck the visible collar crumpled. The garage,
+  slider and puller sit in the collar's top 2.4 cm. Undo: skirt_lap 0.024 for the suit and the old z0 / z1 blend.
+**A50 Suit zones redrawn (fix round 1, item 4; A44 kept).** The yoke is a band 5.5 cm either side of the shoulder line
+  from the neck to a rounded end on the shoulder point (A2-chest), its lines running into the raglan seams; the rear
+  shoulder is a closed ellipse on the sleeve back below it; each underarm vent is one ellipse centred on the side seam
+  (its halves the front and back inserts). The abrasion weave is coarser (1.4 mm), a shade lighter (0.034) and matter
+  (0.92) so the yokes read apart from the shell. Undo: the A44 rectangles and the 0.9 mm weave.
+  A45 is extended to the abdomen: suit.prepare_body relaxes the front of the torso between the hips and 12 cm under the
+  chest joint (Taubin pairs, 90 passes, at most 8 mm in and 15 mm out; the shipped body is the prepared one).
+**A51 The suit's waist seam follows the leggings' rise, and the top is cut 4 % longer (fix round 1; A48 kept).** Each
+  half of the top's hem is drafted on the leg top's own rise profile (front -3.5 cm, back +5.5 cm at the centre,
+  solved by A15), and the leg tops use a smoothstep profile (legwear `top_curve: 'smooth'`), flat at the side and at the
+  centre seams: the waist seam is drafted level on both sides, so it no longer pulls the top's front down to a V at
+  the centre front or folds a 5.5 cm excess into a pinch at the centre back. The top is cut with `knit_ease_v` +0.04
+  (suit `TOP_CUT`; the base layer's is 0): a free compression top shortens about 12 % along its length in the
+  mass-spring knit, and held at the waist it pulled the neckline down and laid the mock neck over (collar top 1.447 m
+  -> 1.460 m, standing). The rear-shoulder, yoke and vent outlines meet the seam tapes: an insert tape now stops 0.55
+  tape widths from a seam (was 0.75, a gap where an outline meets a seam at a shallow angle) and the yoke's lines
+  flare out at 45 degrees into the raglan seams. The abdomen relax (A45) is plain Laplacian (200 passes, clamped 15 mm
+  out / 8 mm in, 4 mm slide) up to 2 cm above the chest joint (Taubin pairs kept the 5-7 cm rectus ridges), and the
+  lumbar groove is filled outward only (at most 10 mm, 5 cm either side of the spine). Undo: straight hem halves,
+  legwear's t^2 profile, knit_ease_v 0, the 0.75 clearance, the Taubin abdomen pass.
+**A52 The covered-material rule for the `sampled:` check (step 08a fix round 2, item 4; assumed).** A material may skip
+  `sampled:` / `albedo:` / `roughness:` in a later item only if it is in the explicit `COVERED` table
+  (scripts/operators/py/covered.py), which names its owner, the item that covers it and why: `gunmetal` (owner suit,
+  covered by headwear: the zip slider parked in the garage under the hood skirt) and `suit thumb loop elastic` (owner
+  suit, covered by gloves: the loops under the glove at the thumb web). The skip applies in the covering item and every
+  item whose `under` list holds it, nowhere else. It holds only if the material passed in its owner's own check JSON
+  (`ownCheck:<name>`: at least minPixels sampled there, its roughness check passed, and its albedo check where its class
+  is judged; gunmetal is class `hard`, which has no albedo limit); a missing JSON or an unsampled or failing material
+  fails. In those items a new check `covered:<name>` counts the material's pixels over the views and must be 0: a
+  covered part that shows is a clip or a gap and fails. Every other material keeps minPixels 150; LIMITS are unchanged.
+  Why: no real view of the dressed stack sees the slider (checker probe, 0 of 120 views), so A30's route (a real view)
+  does not exist. Watch: 08b hardware that reuses the material name `gunmetal` would count against `covered:gunmetal`
+  from headwear on; give the suit slider its own material name then. Undo: delete COVERED's entries.
+**A48 amended (fix round 2, item 1).** The pinned gusset bridged the crotch more than the cling's 25 mm reach and stayed
+  proud of the body (a bulge with an under-shadow at full figure). The cling now reaches 70 mm for the gusset panel
+  (`SIM['cling']['reach_panels']`, build_garment `cling`), so it is drawn onto the faired skin with the leg panels round
+  it after the simulation. The pin stays (it is what holds the suit up). Laying the gusset onto the skin before pinning
+  was tried: its edges then no longer met the leg panels and the gusset seams stayed 12.4 mm open.
+**A48 amended again (fix round 3, item 1).** Two stacked lumps of excess cloth stood up to 19 mm off the skin on the
+  centre front seam above the gusset (probe: z 0.80-0.84 m, 12-19 mm off the real skin), with a pinch between them.
+  After the cling a membrane zone (`SIM['cling']['zones']`, build_garment `membrane_zones`) relaxes the front of the
+  crotch (|x| < 7 cm, from 2 cm above the crotch to 6 cm under the waist joint, 2 cm falloff) as one taut surface, 60
+  passes, held 3.5 mm off the cling's faired skin and 1.5 mm off the real skin, and draws any vertex more than 3 mm
+  over the standoff back in (seam vertices too). The pin, the gusset reach and the seam gap are unchanged. An abdomen
+  zone (round 3 item 4) was tried and dropped (see LOG.md Step 08a, Fix round 3).
+**A49 amended (fix round 3, items 2 and 3).** The suit's mock neck top is 23 mm lower at the front than at the nape, so
+  the skirt's 40 mm lap under the highest point covered only 16 mm of the collar at the front and the zip garage stood
+  12 mm below its edge. Over the suit the skirt now ends `SKIRT_FRONT_SUIT` = 20 mm lower at the front (headwear
+  `skirt_cut`, eased in from the sides). The zip is parked higher (path from 4 mm under the collar top, slider at 5.5 mm,
+  garage 20 mm long at 9.5 mm). In `tuck_collar` every other suit mesh (zip, zip tape, slider, garage, seam tape)
+  follows the hero's eased tuck (nearest hero vertex within 1 cm) before its own tuck. The skirt's 14 mm edge band is
+  drawn in to 2.6 mm off the suit's render mesh and faired (3 rounds), so the edge lies on the suit all round.
+**A52 amended (fix round 3, item 5).** Tightened, nothing loosened: check.mjs checks each item after the items in its
+  sim report's `under` list (suit, gloves, boots, headwear, head_kit), so the owner's report is this run's; and
+  `ownCheck:` fails when the owner's check JSON is older than the owner's `-sim.json` (a stale report). Dry run:
+  `python scripts/operators/py/covered.py` (the case "owner JSON older than its sim JSON" fails). No LIMIT changed.

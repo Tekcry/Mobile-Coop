@@ -365,6 +365,28 @@ def strip(V, F, pts, nrm, binorm, width, thick, caps=True):
         F.append((e, e + 1, e + 2, e + 3))
 
 
+def tape(V, F, pts, nrm, binorm, width, thick, caps=True):
+    """A bonded tape along a polyline (step 08a): a low rounded section - flat underside, edges feathered to the
+    surface, a domed top `thick` proud - lying on the surface (normal nrm, the width along binorm). Seam tape, zip
+    tape, elastic loops."""
+    pts, nrm, binorm = np.asarray(pts, float), unit(np.asarray(nrm, float)), unit(np.asarray(binorm, float))
+    if len(pts) < 2:
+        return
+    prof = ((-0.5, -0.0002), (-0.44, 0.45), (-0.3, 0.9), (0.0, 1.0), (0.3, 0.9), (0.44, 0.45), (0.5, -0.0002))
+    k = len(prof)
+    base = len(V)
+    for p, n, b in zip(pts, nrm, binorm):
+        for sb, sn in prof:
+            V.append(p + b * sb * width + n * sn * thick)
+    for i in range(len(pts) - 1):
+        for j in range(k - 1):
+            F.append((base + i * k + j, base + i * k + j + 1, base + (i + 1) * k + j + 1, base + (i + 1) * k + j))
+    if caps:
+        F.append(tuple(base + j for j in reversed(range(k))))
+        e = base + (len(pts) - 1) * k
+        F.append(tuple(e + j for j in range(k)))
+
+
 def hash_noise(P, scale, seed=0.0):
     """Smooth-ish value noise in [0, 1] from positions (sums of sines; deterministic, no texture)."""
     P = np.asarray(P, float) * scale

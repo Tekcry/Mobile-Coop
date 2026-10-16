@@ -34,6 +34,10 @@ for (const id of only.length ? only : Object.keys(KITS)) {
   if (!existsSync(out)) continue;
   const built = readdirSync(out).filter((f) => f.endsWith('-sim.json')).map((f) => f.slice(id.length + 1, -'-sim.json'.length))
     .filter((item) => !onlyItems || onlyItems.has(item));
+  // A52: check each item after the items under it (its sim report's `under` list), so a covered material's owner
+  // report is this run's, not a stale one (covered.py also fails an owner report older than its sim JSON).
+  const under = new Map(built.map((item) => [item, JSON.parse(readFileSync(path.join(out, `${id}-${item}-sim.json`), 'utf8')).under ?? []]));
+  built.sort((a, b) => under.get(a).length - under.get(b).length || (under.get(b).includes(a) ? -1 : under.get(a).includes(b) ? 1 : 0));
   for (const item of built) {
     items++;
     runBlender('check_garment.py', ['--operator', id, '--garment', item, '--out', out], { blender });

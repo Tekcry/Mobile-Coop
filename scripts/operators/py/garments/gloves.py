@@ -92,7 +92,7 @@ def build_hand(ctx, side, V_all, F_all, store):
     P = FT.smooth_field(P, nb, 6, 0.5, fixed=rim)   # irons out the nail ridges and the cage's facets
     trees = [skin]
     P, _ = FT.push_out(P, trees, GAP, nb=nb)
-    bl = next(((V, Fl) for u, V, Fl in ctx['layers'] if u == 'base_layer'), None)
+    bl = next(((V, Fl) for u, V, Fl in ctx['layers'] if u in ('suit', 'base_layer')), None)
     pushed_layer = 0
     if bl is not None:
         Vb, Fb = bl

@@ -77,7 +77,7 @@ def build_foot(ctx, side, out, store):
     BVE = ctx['BVE']
     sel = (BVE[:, 2] < z_top + 0.04) & (BVE[:, 0] * sgn > 0.04) & (BVE[:, 0] * sgn < 0.32)
     PC = BVE[sel]
-    bl = next(((V, F) for u, V, F in ctx['layers'] if u == 'base_layer'), None)
+    bl = next(((V, F) for u, V, F in ctx['layers'] if u in ('suit', 'base_layer')), None)
     if bl is not None:
         Vb = bl[0]
         PC = np.vstack([PC, Vb[(Vb[:, 2] < z_top + 0.04) & (Vb[:, 0] * sgn > 0.04) & (Vb[:, 0] * sgn < 0.32)]])

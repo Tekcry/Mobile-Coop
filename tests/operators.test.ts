@@ -24,16 +24,19 @@ describe('operator kit', () => {
   });
 
   it('the pipeline kit check names built items missing from the kit', () => {
-    expect(kitCoverage(WREN_KIT, ['combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR'])).toEqual({ missing: [], errors: [] });
-    // step 05: the base layer and the trousers with what is sewn onto them
-    expect(kitCoverage(WREN_KIT, ['baseLayer', 'trousers', 'kneePads', 'cargoL', 'cargoR']).missing).toEqual([]);
-    expect(kitCoverage(WREN_KIT, ['combatShirt', 'shoulderCape']).missing).toEqual(['shoulderCape']);
+    // step 08a: the stealth suit with its zip and thumb loops (py/garments/suit.py KIT + KITS)
+    expect(kitCoverage(WREN_KIT, ['suit', 'suitZip', 'thumbLoops'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['suit', 'shoulderCape']).missing).toEqual(['shoulderCape']);
+    // A37: the suit replaces the base layer, the combat shirt and the trousers (and what was sewn onto them)
+    expect(kitCoverage(WREN_KIT, ['baseLayer', 'combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR', 'softShell',
+      'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']).missing).toEqual(['baseLayer', 'combatShirt', 'elbowPockets',
+      'armPocketL', 'armPocketR', 'softShell', 'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']);
     // step 08: the carrier and belt builds (py/garments/carrier.py, belt.py KIT + KITS)
     expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'magPouches', 'adminPouch', 'radioPouch',
       'radio', 'medPouch', 'backPanel', 'rifleBungee', 'carrierRelease']).missing).toEqual([]);
     expect(kitCoverage(WREN_KIT, ['belt', 'grenadePouches', 'pistolMagPouch', 'dumpPouch', 'knifeSheath']).missing).toEqual([]);
     const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
-    expect(kitCoverage(broken, ['combatShirt']).errors.length).toBeGreaterThan(0);
+    expect(kitCoverage(broken, ['suit']).errors.length).toBeGreaterThan(0);
   });
 
   it('every cable span is within the limit', () => {
