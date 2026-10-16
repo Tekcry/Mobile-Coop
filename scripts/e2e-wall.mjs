@@ -65,6 +65,13 @@ const HARNESS = () => {
       st.move.x = st.move.y = 0;
       return out;
     },
+    /** (21w) The camera position and whether geometry stands between the head and it. */
+    cam() {
+      const c = g.player.cam.camera.position;
+      const p = g.player.position;
+      const head = new V(p.x, p.y + 1.45, p.z);
+      return { x: c.x, y: c.y, z: c.z, blocked: !!g.ballistics.ray(head, new V(c.x, c.y, c.z), 1).hit };
+    },
     state() {
       const w = g.wallCore;
       const c = g.player.controller;
@@ -99,42 +106,68 @@ async function proving() {
     st = await G(() => window.__w.state());
     assert(st.phase === 'on' && st.seg === seg && Math.abs(st.dist - st.standoff) < 0.04 && st.pose && st.cam === 'wall', `on the wall: body line ${st.dist.toFixed(3)} m (standoff ${st.standoff.toFixed(3)}), pose + camera preset (${st.cam})`);
     assert(st.cover && st.coverT > 0, `localRef.cover set while on the wall (coverT ${st.coverT.toFixed(2)})`);
-    // slide along (+t = the camera's right when facing the wall) at gear 3 standing (2.0 m/s); quieter than walking
+    // (step 21w, M14) slide along (+t = the camera's right when facing the wall) at gear 3 standing: a slow shuffle,
+    // 0.9 m/s at full stick (+-10%), quieter than walking; the camera never jumps a frame and never sits in geometry
     await G(() => window.__app.current.player.controller.gears.set(3));
-    const s0 = st.s;
-    const sl = await G(() => window.__w.run(1.0, 1, 0, null, () => window.__w.state()));
-    // sample mid-slide, away from the stopping end: the core brakes into the end at 5 m/s^2 (A45), so the cap is read at
-    // the last sample with more than 0.5 m to the end (stopping distance at 2 m/s is 0.4 m), 0.5 s or more into the slide
+    const sl = await G(() => window.__w.run(1.6, 1, 0, null, () => ({ ...window.__w.state(), c: window.__w.cam() })));
+    // sample mid-slide, away from the stopping end (the core brakes into the end at 5 m/s^2, A45)
     let km = sl.length - 1;
-    while (km > 30 && sl[km].len - 0.22 - sl[km].s <= 0.5) km--;
+    while (km > 45 && sl[km].len - 0.22 - sl[km].s <= 0.3) km--;
     const mid = sl[km];
-    // pace over the 0.5 s before that sample from the body's own track along the wall (the controller's speed includes
-    // the body-line correction)
     const pace = (sl[km].along - sl[km - 30].along) / 0.5;
-    assert(km > 30 && mid.phase === 'on' && Math.abs(mid.v - 2.0) < 1e-6 && pace > 1.8 && pace < 2.15, `slides at the gear 3 cap (core ${mid.v.toFixed(2)} m/s, body ${pace.toFixed(2)} m/s at ${(km / 60).toFixed(2)} s, ${(mid.len - 0.22 - mid.s).toFixed(2)} m from the end)`);
+    assert(km > 45 && mid.phase === 'on' && Math.abs(mid.v - 0.9) < 1e-6 && pace > 0.81 && pace < 0.99, `slides at the 0.9 m/s shuffle (core ${mid.v.toFixed(2)} m/s, body ${pace.toFixed(2)} m/s at ${(km / 60).toFixed(2)} s, ${(mid.len - 0.22 - mid.s).toFixed(2)} m from the end)`);
     const slideNoise = Math.max(...sl.map((x) => x.noise));
-    const g4 = await G(() => { window.__app.current.player.controller.gears.set(6); return window.__w.run(0.6, 1, 0, null, () => window.__w.state()); });
-    const v6 = Math.max(...g4.map((x) => Math.abs(x.v)));
-    const p6 = (g4[g4.length - 1].along - g4[11].along) / ((g4.length - 12) / 60);
-    assert(v6 <= 2.8 + 1e-6 && (p6 < 2.95 || g4[g4.length - 1].edge !== 0), `gear 6 is capped at gear 4 on the wall (core ${v6.toFixed(2)}, body ${p6.toFixed(2)} m/s <= 2.8)`);
-    // edge stop at the outside end b (the body's left: WALL_SUB.edgeL 4)
-    const ed = await G(() => window.__w.run(5, 1, 0, null, () => window.__w.state()));
-    st = ed[ed.length - 1];
-    assert(st.phase === 'on' && st.edge === 1 && (st.sub & 4) !== 0 && Math.abs(st.s - (st.len - 0.22)) < 0.03 && Math.abs(st.along - st.s) < 0.08, `stops at the outside end (s ${st.s.toFixed(2)} of ${st.len.toFixed(2)}, edge ${st.edge}, sub ${st.sub}, body at ${st.along.toFixed(2)}, ${st.dist.toFixed(2)} out)`);
-    // pull away (stick back = out of the wall) for 0.15 s: leaves
-    await G(() => window.__w.run(0.35, 0, -1));
+    // analog: half stick is slower (past the 0.2 dead band, rescaled)
+    const half = await G(() => window.__w.run(0.6, -0.6, 0, null, () => window.__w.state()));
+    const hv = Math.abs(half[half.length - 1].v);
+    assert(Math.abs(hv - 0.9 * 0.5) < 0.01, `analog below full stick: 0.6 stick slides at ${hv.toFixed(2)} m/s (0.45)`);
+    // crouch on a high wall: the crouch press crouches on the wall (no leave), the crouched shuffle is 0.6 m/s
+    const cr = await G(() => { window.__w.run(1 / 60, 0, 0, 'crouch'); window.__w.run(0.5); return window.__w.run(1.0, -1, 0, null, () => window.__w.state()); });
+    const cm = cr[cr.length - 1];
+    const cpace = (cr[cr.length - 1].along - cr[cr.length - 31].along) / -0.5;
+    assert(cm.phase === 'on' && cm.crouched && (cm.sub & 1) !== 0 && Math.abs(Math.abs(cm.v) - 0.6) < 1e-6 && cpace > 0.54 && cpace < 0.66, `crouched on a high wall, still on it: 0.6 m/s shuffle (core ${Math.abs(cm.v).toFixed(2)}, body ${cpace.toFixed(2)} m/s, sub ${cm.sub})`);
+    await G(() => { window.__w.run(1 / 60, 0, 0, 'crouch'); window.__w.run(0.5); });
     st = await G(() => window.__w.state());
-    assert(st.phase !== 'on' && st.phase !== 'entering' && st.last === 'pull' && !st.cover, `pulling away leaves (${st.phase}, ${st.last})`);
+    assert(st.phase === 'on' && !st.crouched, `stands again on the wall (${st.phase}, crouched ${st.crouched})`);
+    // edge stop at the outside end b (the body's left: WALL_SUB.edgeL 4): pushed 2 s past the end it stays on the wall
+    // within 5 cm of the end; pushing on peeks
+    const tEdge = (st.len - 0.22 - st.s) / 0.9 + 0.6;
+    const ed = await G((t) => window.__w.run(t + 2, 1, 0, null, () => ({ ...window.__w.state(), c: window.__w.cam(), pk: window.__app.current.wallCore.peekOn })), tEdge);
+    st = ed[ed.length - 1];
+    assert(st.phase === 'on' && st.edge === 1 && (st.sub & 4) !== 0 && Math.abs(st.s - (st.len - 0.22)) < 0.03 && Math.abs(st.along - (st.len - 0.22)) < 0.05 && Math.abs(st.dist - st.standoff) < 0.05, `pushed 2 s past the end: stays on the wall at the end (s ${st.s.toFixed(2)} of ${st.len.toFixed(2)}, edge ${st.edge}, sub ${st.sub}, body at ${st.along.toFixed(3)}, ${st.dist.toFixed(2)} out)`);
+    assert(st.pk, `pushing on at the end peeks (peek ${st.pk})`);
+    // the camera over the slide and the edge: per-frame step <= 6 cm (the body's pace plus the eased framing), never
+    // behind geometry from the head
+    const cams = [...sl, ...ed].map((x) => x.c);
+    let jump = 0;
+    let at = -1;
+    for (let k = 1; k < cams.length; k++) {
+      if (k === sl.length) continue;
+      const d = Math.hypot(cams[k].x - cams[k - 1].x, cams[k].y - cams[k - 1].y, cams[k].z - cams[k - 1].z);
+      if (d > jump) (jump = d), (at = k);
+    }
+    const inGeo = cams.filter((c) => c.blocked).length;
+    assert(jump <= 0.06 && inGeo === 0, `camera on the wall: max step ${(jump * 100).toFixed(1)} cm per frame at ${at} (<= 6), ${inGeo} frames behind geometry`);
+    // a brush away (0.15 s) never leaves; pulling away held 0.3 s does
+    await G(() => window.__w.run(0.6));
+    await G(() => window.__w.run(0.15, 0, -1));
+    st = await G(() => window.__w.state());
+    assert(st.phase === 'on', `a brief pull (0.15 s) stays on the wall (${st.phase})`);
+    await G(() => window.__w.run(0.45, 0, -1));
+    st = await G(() => window.__w.state());
+    assert(st.phase !== 'on' && st.phase !== 'entering' && st.last === 'pull' && !st.cover, `pulling away held leaves (${st.phase}, ${st.last})`);
     // free walk at the same gear along the same line: louder than the wall slide
     await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, 1, 0.35 + 1.2); window.__app.current.player.controller.gears.set(3); }, seg);
     const walk = await G(() => window.__w.run(1.2, 1, 0, null, () => window.__w.state()));
     const walkNoise = Math.max(...walk.map((x) => x.noise));
     assert(slideNoise < walkNoise, `the slide is quieter than walking (crouch band: ${slideNoise.toFixed(2)} m < ${walkNoise.toFixed(2)} m)`);
-    // the stick held into the wall for 0.35 s enters too
+    // (21w, A83) the stick held into the wall never enters on its own: only the context press does
     await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.42); }, seg);
-    const into = await G(() => window.__w.run(0.6, 0, 1, null, () => window.__w.state().phase));
-    const k = into.findIndex((p) => p !== 'off');
-    assert(k >= 18 && k <= 26, `the stick into a high face enters after 0.35 s (step ${k})`);
+    const into = await G(() => window.__w.run(0.8, 0, 1, null, () => window.__w.state().phase));
+    assert(into.every((p) => p === 'off'), `the stick into a high face does not enter (${into.find((p) => p !== 'off') ?? 'off'})`);
+    await G(() => window.__w.run(0.6, 0, 0, 'cover'));
+    st = await G(() => window.__w.state());
+    assert(st.phase === 'on', `the context press enters (${st.phase})`);
     await G(() => window.__w.run(0.3, 0, 0, 'cover'));
     st = await G(() => window.__w.state());
     assert(st.phase !== 'on' && st.last === 'context', `the context press again leaves (${st.last})`);
@@ -232,7 +265,7 @@ async function edges() {
     const pk = await G((x) => window.__w.run(0.6, x, 0, null, () => { const w = window.__app.current.wallCore; return { on: w.peekOn, pe: w.peek, ex: Math.hypot(w.exX, w.exZ), cam: window.__app.current.player.cam.wallPeek, sub: w.sub(), lean: window.__app.current.player.pose.lean, s: w.s }; }), sx);
     const kOn = pk.findIndex((p) => p.on);
     const last = pk[pk.length - 1];
-    assert(kOn >= 11 && kOn <= 16 && last.pe === 1 && (last.sub & 16) !== 0 && last.cam === 1 && last.ex <= 0.2501 && Math.abs(last.lean) > 0.3, `peek after 0.2 s held at the end (step ${kOn}): head out ${last.ex.toFixed(3)} m, rig lean ${last.lean.toFixed(2)}, camera swing ${last.cam}`);
+    assert(kOn >= 13 && kOn <= 18 && last.pe === 1 && (last.sub & 16) !== 0 && last.cam === 1 && last.ex <= 0.2501 && Math.abs(last.lean) > 0.3, `peek after 0.25 s held at the end (step ${kOn}): head out ${last.ex.toFixed(3)} m, rig lean ${last.lean.toFixed(2)}, camera swing ${last.cam}`);
     await G(() => window.__w.run(0.3));
     st = await G(() => window.__w.state());
     assert((st.sub & 16) === 0 && st.phase === 'on', `the peek eases back when the stick is released (sub ${st.sub})`);
@@ -277,14 +310,16 @@ async function edges() {
     }, [sx, d.to]);
     assert(sw.phase === 'swat' && Math.abs(sw.dur - Math.max(0.5, Math.min(0.8, (1.1 / 2.4) * 1.15))) < 0.01, `SWAT starts (${sw.phase}, ${sw.dur.toFixed(3)} s)`);
     assert(sw.end === 'on' && sw.seg === d.to && Math.abs(sw.dist - 0.35) < 0.08, `SWAT ends on the far wall (${sw.end}, seg ${sw.seg} / ${d.to}, ${sw.dist.toFixed(3)} m out)`);
-    // step round the corner: the stick toward the edge and into the wall for 0.3 s leaves
+    // (21w, M14) no step round the corner: the stick toward the edge and into the wall stays on the wall and peeks
     await G(() => window.__w.run(0.3, 0, 0, 'cover'));
     await G(([i, k]) => window.__w.place(i, k, 0.35 + 0.5), [d.i, k0]);
     await G(() => window.__w.run(0.6, 0, 0, 'cover'));
     await G((x) => window.__w.run(1.0, x, 0), sx);
-    await G((x) => window.__w.run(0.45, x * 0.8, 0.6), sx);
+    await G((x) => window.__w.run(1.0, x * 0.8, 0.6), sx);
     st = await G(() => window.__w.state());
-    assert(st.phase !== 'on' && st.last === 'round', `stepping round the corner leaves the wall (${st.phase}, ${st.last})`);
+    const rpk = await G(() => window.__app.current.wallCore.peekOn);
+    assert(st.phase === 'on' && st.edge === d.end && rpk, `pushing round the corner stays on the wall at the edge and peeks (${st.phase}, edge ${st.edge}, peek ${rpk})`);
+    await G(() => window.__w.run(0.3, 0, 0, 'cover'));
     // a low wall: aim rises over the top (lean kind 2, standing)
     const lo = await G(() => {
       const g = window.__app.current;
@@ -367,6 +402,8 @@ async function openSide() {
             const m = g.weapons.muzzlePoint();
             const yaw = g.player.controller.yaw;
             o.muzzleSide = (m.x - p.x) * Math.cos(yaw) - (m.z - p.z) * Math.sin(yaw);
+            // (M16) the body's turn from facing out (rad): inside the lean-out arc
+            o.turn = Math.acos(Math.max(-1, Math.min(1, Math.sin(yaw) * s.nx + Math.cos(yaw) * s.nz)));
             const mag0 = g.weapons.current.mag;
             st.set('t', 'fire', true);
             window.__w.run(0.3, low ? e : 0, 0);
@@ -376,6 +413,21 @@ async function openSide() {
             window.__w.run(0.5);
             o.back = rig.weaponHand;
             o.lkAfter = w.lk;
+            if (!low) {
+              // (M16) leaning out, the look 120 deg round past the edge (beyond the 85 deg arc + 15) held: off the wall
+              st.set('t', 'ads', true);
+              window.__w.run(0.6);
+              const th = ((90 + 120) * Math.PI) / 180;
+              const dx = s.nx * Math.cos(th) + e * s.tx * Math.sin(th);
+              const dz = s.nz * Math.cos(th) + e * s.tz * Math.sin(th);
+              g.player.cam.yaw = Math.atan2(dx, dz);
+              window.__w.run(0.2);
+              o.arcHeld = w.active;
+              window.__w.run(0.4);
+              o.arcLeft = !w.active && w.lastLeave === 'arc';
+              st.set('t', 'ads', false);
+              window.__w.run(0.4);
+            }
             if (low) {
               // the stick up: over the top (standing, right hand)
               st.set('t', 'ads', true);
@@ -391,7 +443,7 @@ async function openSide() {
               window.__w.run(0.3);
             }
             out.ends[e] = o;
-            window.__w.run(0.3, 0, 0, 'cover');
+            if (w.active) window.__w.run(0.3, 0, 0, 'cover');
             window.__w.run(0.3);
           }
         }
@@ -411,6 +463,8 @@ async function openSide() {
         assert(Math.sign(o.muzzleSide) === hand, `${name} ${side} edge: the shot leaves the ${side}-held weapon (muzzle ${o.muzzleSide.toFixed(3)} m to the body's right)`);
         assert(o.fired > 0, `${name} ${side} edge: fires while leaning out (${o.fired})`);
         assert(o.back === 1 && o.lkAfter === 0, `${name} ${side} edge: back to the right hand after the release (${o.back})`);
+        assert(o.turn <= ((90 + 85 + 2) * Math.PI) / 180, `${name} ${side} edge: the body turns inside the lean-out arc (${((o.turn * 180) / Math.PI).toFixed(0)} deg from facing out, M16)`);
+        if (!low) assert(o.arcHeld && o.arcLeft, `${name} ${side} edge: looking further round than the arc leaves the wall after the hold (held ${o.arcHeld}, left ${o.arcLeft}, M16)`);
         if (low) {
           assert(o.crouched, `${name} ${side} edge: the side lean stays crouched`);
           assert(o.head < o.top || o.top < 1.07, `${name} ${side} edge: head ${o.head.toFixed(3)} m under the top ${o.top.toFixed(2)} m (A51: walls from 1.07 m)`);
@@ -473,7 +527,9 @@ async function midSwitch() {
           const a = n.getAbsolutePosition();
           const l = rig.wristL.getAbsolutePosition();
           const rr = rig.wristR.getAbsolutePosition();
-          return { b: rig['handBlend'], g: [a.x, a.y, a.z], l: [l.x, l.y, l.z], r: [rr.x, rr.y, rr.z], lk: w.lk };
+          const W = g.weapons;
+          const tq = rig.torso.getAbsolutePosition();
+          return { b: rig['handBlend'], g: [a.x, a.y, a.z], l: [l.x, l.y, l.z], r: [rr.x, rr.y, rr.z], lk: w.lk, t: [tq.x, tq.y, tq.z], p: [p.x, p.y, p.z], x: `${W['swapT'].toFixed(2)},${W['swapPhase']},${W.drawPhase},${w.lean.toFixed(2)},${n.parent?.name ?? '-'},${rig['glideNode'] ? 'G' : ''}` };
         };
         const fr = [probe()];
         const seq = kind === 'release' ? [[0.12, true], [1.0, false]] : kind === 'repush' ? [[0.15, true], [0.1, false], [0.8, true], [0.8, false]] : [[0.8, true], [0.12, false], [0.8, true], [0.8, false]];
@@ -508,7 +564,7 @@ async function midSwitch() {
       const peak = Math.max(...bs.slice(0, rel + 1));
       const cm = (v) => (v * 100).toFixed(1);
       console.log(`  ${kind}: weapon step ${cm(step.g)} cm @${at.g}, wristL ${cm(step.l)} cm @${at.l}, wristR ${cm(step.r)} cm @${at.r}; hand blend at release ${bs[rel].toFixed(2)} (peak ${peak.toFixed(2)}), end ${bs[bs.length - 1].toFixed(2)}`);
-      if (process.env.PC42_DUMP) console.log(r.fr.map((q, i) => `${i}:${q.b.toFixed(2)}/${q.lk}/${i ? cm(d(q.g, r.fr[i - 1].g)) : '-'}/${i ? cm(d(q.l, r.fr[i - 1].l)) : '-'}/${i ? cm(d(q.r, r.fr[i - 1].r)) : '-'}`).join(' '));
+      if (process.env.PC42_DUMP) console.log(r.fr.map((q, i) => `${i}:${q.x}/T${i ? cm(d(q.t, r.fr[i - 1].t)) : '-'}/P${i ? cm(d(q.p, r.fr[i - 1].p)) : '-'}/${q.b.toFixed(2)}/${q.lk}/${i ? cm(d(q.g, r.fr[i - 1].g)) : '-'}/${i ? cm(d(q.l, r.fr[i - 1].l)) : '-'}/${i ? cm(d(q.r, r.fr[i - 1].r)) : '-'}`).join(' '));
       check(step.g <= MAX_STEP && step.l <= MAX_STEP && step.r <= MAX_STEP, `mid-switch ${kind}: no weapon / hand jump (weapon ${cm(step.g)}, wrists ${cm(step.l)} / ${cm(step.r)} cm per frame <= ${cm(MAX_STEP)})`);
       check(bs.every((b) => b >= -1e-6 && b <= 1 + 1e-6), `mid-switch ${kind}: hand blend inside 0..1`);
       if (kind === 'release') {

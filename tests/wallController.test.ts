@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
-import { LEAN_KIND, WALL, WALL_SUB, WallCore, buildWallLinks, emptyWallInput, lowAimKind, openSide, stackClamp, swatDuration, wallHeadCap, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
+import { LEAN_KIND, WALL, WALL_SUB, WallCore, leanBodyTurn, leanPastEdge, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, lowAimKind, openSide, stackClamp, swatDuration, wallHeadCap, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
 import type { MoveOverride } from '../src/player/playerController';
@@ -17,6 +17,12 @@ const lowFront = segs.findIndex((g) => g.low && g.nz > 0.99);
 
 function core(): WallCore {
   return new WallCore(segs, links, SO);
+}
+/** (step 21w, A83) A core with the stick entry turned back on (off by default). */
+function stickCore(): WallCore {
+  const w = core();
+  w.stickEnter = true;
+  return w;
 }
 function inp(x: number, z: number, o: Partial<WallInput> = {}): WallInput {
   return Object.assign(emptyWallInput(), { x, z, lookX: 0, lookZ: -1 }, o);
@@ -96,19 +102,19 @@ describe('back-to-wall core (step 11)', () => {
   });
 
   it('the stick held into a high face for 0.35 s enters (gear <= 4 only)', () => {
-    const w = core();
+    const w = stickCore();
     const i = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3 });
     run(w, i, 0.3);
     expect(w.phase).toBe('off');
     run(w, i, 0.07);
     expect(w.phase).toBe('entering');
-    const fast = core();
+    const fast = stickCore();
     run(fast, inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 5 }), 0.5);
     expect(fast.phase).toBe('off');
   });
 
   it('a stick held through a traversal or a fall does not enter until it is released (A48)', () => {
-    const w = core();
+    const w = stickCore();
     // held forward while blocked (a ladder, an attach) and then airborne, landing against the face
     const i = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3, blocked: true });
     run(w, i, 0.2);
@@ -127,7 +133,7 @@ describe('back-to-wall core (step 11)', () => {
     run(w, i, 0.07);
     expect(w.phase).toBe('entering');
     // a release while blocked re-arms too
-    const r = core();
+    const r = stickCore();
     const j = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3, grounded: false });
     run(r, j, 0.2);
     j.moveZ = 0;
@@ -138,12 +144,13 @@ describe('back-to-wall core (step 11)', () => {
     expect(r.phase).toBe('entering');
   });
 
-  it('slides at the gear cap, capped at gear 4 (2.8 / 1.8 m/s)', () => {
+  it('(21w, M14) slides at the slow shuffle: 0.9 standing / 0.6 crouched, within the gear cap', () => {
     for (const [gear, crouched, want] of [
-      [6, false, 2.8],
-      [4, false, 2.8],
-      [2, false, 1.3],
-      [6, true, 1.8],
+      [6, false, 0.9],
+      [4, false, 0.9],
+      [1, false, 0.8],
+      [6, true, 0.6],
+      [1, true, 0.5],
     ] as const) {
       const w = core();
       const i = inp(0, 0.2 + SO + 0.1, { context: true, crouched, gear });
@@ -159,26 +166,35 @@ describe('back-to-wall core (step 11)', () => {
     const i = inp(1.5, 0.2 + SO + 0.1, { context: true });
     run(w, i, 0.3);
     i.moveX = 1; // towards a (+x): an outside end
-    run(w, i, 1.5);
+    run(w, i, 2.5);
     expect(w.s).toBeCloseTo(EDGE_MARGIN, 3);
     expect(w.edge).toBe(-1);
     expect(w.sub() & WALL_SUB.edgeR).toBeTruthy();
     // sliding towards +x is the body's right (it faces out of the wall, +z)
     expect(w.sub() & WALL_SUB.faceRight).toBeTruthy();
     i.moveX = -1; // towards b: the inside corner, the held stick carries on along the side wall
-    run(w, i, 3.5);
+    run(w, i, 7.5);
     expect(w.seg).toBe(side);
     expect(w.count.wrap).toBe(1);
     expect(w.s).toBeGreaterThan(SO + 0.5);
     expect(w.sub() & WALL_SUB.faceRight).toBeFalsy();
   });
 
-  it('pulling the stick away for 0.15 s leaves; the context press leaves (toggle)', () => {
+  it('pulling the stick away held 0.3 s leaves (a brush never does); the context press leaves (toggle)', () => {
     const w = core();
     const i = inp(0, 0.2 + SO + 0.1, { context: true });
-    run(w, i, 0.3);
+    run(w, i, 0.6);
     i.moveZ = 1;
+    run(w, i, 0.15);
+    expect(w.active).toBe(true);
+    // released, then a weak outward push (under 0.7): stays
+    i.moveZ = 0;
     run(w, i, 0.1);
+    i.moveZ = 0.6;
+    run(w, i, 1);
+    expect(w.active).toBe(true);
+    i.moveZ = 1;
+    run(w, i, 0.25);
     expect(w.active).toBe(true);
     run(w, i, 0.07);
     expect(w.phase).toBe('leaving');
@@ -195,7 +211,7 @@ describe('back-to-wall core (step 11)', () => {
 
   it('hold mode (D7): a stick entry stays while the stick is held; a context entry while the button is held', () => {
     // stick entry, hold mode: no context button at all, no enter / leave loop
-    const w = core();
+    const w = stickCore();
     const i = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3, toggle: false, contextHeld: false });
     run(w, i, 0.4);
     expect(w.phase).toBe('entering');
@@ -225,7 +241,7 @@ describe('back-to-wall core (step 11)', () => {
   });
 
   it('toggle mode (D7): a stick entry stays after the stick is released; the context press leaves', () => {
-    const w = core();
+    const w = stickCore();
     const i = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3, toggle: true, contextHeld: false });
     run(w, i, 1.4);
     expect(w.phase).toBe('on');
@@ -307,14 +323,14 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(b.edge).toBe(0);
   });
 
-  it('peeks after the stick is held toward the edge 0.2 s at the end; eases out when released', () => {
+  it('peeks after the stick is held toward the edge 0.25 s at the end (21w); eases out when released', () => {
     const { w, i } = atA(EDGE_MARGIN + 0.05);
     i.moveX = 1;
     run(w, i, 0.2);
     // now stopped at the end: the hold counts from there
     expect(w.atEnd).toBe(true);
     w.peekT = 0;
-    run(w, i, 0.15);
+    run(w, i, 0.2);
     expect(w.peekOn).toBe(false);
     run(w, i, 0.1);
     expect(w.peekOn).toBe(true);
@@ -362,16 +378,89 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(wallOverride(w, ov)!.crouch).toBe(false);
   });
 
-  it('steps round the corner (stick toward the edge and into the wall 0.3 s), never on its own', () => {
+  it('(21w, M14) at an outside end the body stops and stays on the wall: pushing on (round the corner too) peeks', () => {
     const { w, i } = atA(EDGE_MARGIN);
     run(w, i, 1);
     expect(w.phase).toBe('on');
+    // toward the end and into the wall (round the corner) for 2 s: still on, stopped on the end, peeking
     i.moveX = 0.8;
     i.moveZ = -0.6;
-    run(w, i, 0.25);
+    run(w, i, 2);
     expect(w.phase).toBe('on');
-    run(w, i, 0.08);
-    expect(w.lastLeave).toBe('round');
+    expect(w.s).toBeCloseTo(EDGE_MARGIN, 3);
+    expect(w.peekOn).toBe(true);
+    // straight past the end for 2 s: the same
+    i.moveX = 1;
+    i.moveZ = 0;
+    run(w, i, 2);
+    expect(w.phase).toBe('on');
+    expect(w.s).toBeCloseTo(EDGE_MARGIN, 3);
+    expect(w.count.leave).toBe(0);
+  });
+
+  it('(21w) peek needs a deliberate push: small stick noise never peeks; once on it holds over the keep threshold', () => {
+    expect(wallPeekWanted(false, 1, WALL.peekHold - 0.01)).toBe(false);
+    expect(wallPeekWanted(false, 1, WALL.peekHold)).toBe(true);
+    expect(wallPeekWanted(true, WALL.peekKeep + 0.01, 0)).toBe(true);
+    expect(wallPeekWanted(true, WALL.peekKeep - 0.01, 0)).toBe(false);
+    const { w, i } = atA(EDGE_MARGIN);
+    run(w, i, 1);
+    // noise toward the edge (under the 0.6 push) for 2 s: no peek
+    i.moveX = 0.5;
+    run(w, i, 2);
+    expect(w.peekOn).toBe(false);
+    // a deliberate push: on after the hold; easing the push to 0.4 keeps it
+    i.moveX = 1;
+    run(w, i, WALL.peekHold + 2 / 60);
+    expect(w.peekOn).toBe(true);
+    i.moveX = 0.4;
+    run(w, i, 0.5);
+    expect(w.peekOn).toBe(true);
+    i.moveX = 0;
+    run(w, i, 1 / 60);
+    expect(w.peekOn).toBe(false);
+  });
+
+  it('(21w) wallSlideSpeed: dead band, analog, crouched and the gear cap', () => {
+    expect(wallSlideSpeed(0.15, false, 2)).toBe(0);
+    expect(wallSlideSpeed(1, false, 2)).toBeCloseTo(0.9, 9);
+    expect(wallSlideSpeed(-1, true, 2)).toBeCloseTo(-0.6, 9);
+    expect(wallSlideSpeed(0.6, false, 2)).toBeCloseTo(0.45, 9);
+    expect(wallSlideSpeed(1, false, 0.8)).toBeCloseTo(0.8, 9);
+  });
+
+  it('(21w, M14) crouch on a high wall: the press toggles on the wall (hold mode: the held button), the body stays on', () => {
+    const w = core();
+    const i = inp(0, 0.2 + SO + 0.1, { context: true });
+    run(w, i, 0.6);
+    expect(w.crouch).toBe(false);
+    i.crouchPressed = true;
+    run(w, i, 1 / 60);
+    expect(w.crouch).toBe(true);
+    expect(w.phase).toBe('on');
+    expect(w.sub() & WALL_SUB.crouch).toBeTruthy();
+    i.moveX = -1;
+    run(w, i, 0.2);
+    expect(Math.abs(w.v)).toBeCloseTo(0.6, 6);
+    i.crouchPressed = true;
+    run(w, i, 1 / 60);
+    expect(w.crouch).toBe(false);
+    // hold mode
+    i.crouchHold = true;
+    i.crouchHeld = true;
+    run(w, i, 1 / 60);
+    expect(w.crouch).toBe(true);
+    i.crouchHeld = false;
+    run(w, i, 1 / 60);
+    expect(w.crouch).toBe(false);
+    expect(w.phase).toBe('on');
+  });
+
+  it('(21w, A83) the stick held into a high face never enters on its own (context press only)', () => {
+    const w = core();
+    const i = inp(0, 0.2 + SO + 0.05, { moveX: 0, moveZ: -1, gear: 3 });
+    run(w, i, 1.5);
+    expect(w.phase).toBe('off');
   });
 
   it('SWAT turn across a 0.8-2.0 m coplanar gap: duration clamp, crouched, ends on the far wall', () => {
@@ -597,7 +686,7 @@ describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
     // the peek (look past the edge) at edgeL
     L.i.lookX = L.tx;
     L.i.lookZ = L.tz;
-    run(L.w, L.i, 2 / 60);
+    run(L.w, L.i, WALL.peekHold + 2 / 60);
     expect(L.w.peekOn).toBe(true);
     expect(L.w.leftHand).toBe(true);
     const R = atEnd(hi, 'a');
@@ -659,5 +748,26 @@ describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
   it('wallHeadCap sits under the wall top', () => {
     const g = sg[lo]!;
     expect(wallHeadCap(g.y, g.height)).toBeLessThan(g.y + g.height - 0.1);
+  });
+});
+
+describe('(M16) lean-out arc', () => {
+  // a face with normal +z, the edge toward +x
+  const past = (deg: number) => leanPastEdge(Math.sin((deg * Math.PI) / 180), Math.cos((deg * Math.PI) / 180), 0, 1, 1, 0);
+  it('measures the look round past the edge line', () => {
+    expect(past(0)).toBeCloseTo(-Math.PI / 2); // facing out
+    expect(past(90)).toBeCloseTo(0); // along the wall toward the edge
+    expect(past(180)).toBeCloseTo(Math.PI / 2); // straight into the wall
+    expect(past(-170)).toBeGreaterThan(Math.PI / 2); // round behind the wall on the far side: beyond the arc
+    expect(past(-90)).toBeCloseTo(-Math.PI); // along the wall away from the edge (the room side's far end)
+  });
+  it('turns the body toward the aim inside the arc, never past it', () => {
+    expect(leanBodyTurn(past(0), 1)).toBe(0);
+    expect(leanBodyTurn(past(120), 1)).toBeCloseTo((120 * Math.PI) / 180);
+    expect(leanBodyTurn(past(180), 1)).toBeCloseTo(Math.PI / 2 + WALL.leanArc);
+    expect(leanBodyTurn(past(-170), 1)).toBeCloseTo(Math.PI / 2 + WALL.leanArc);
+    expect(leanBodyTurn(past(120), 0)).toBe(0);
+    expect(WALL.leanArc).toBeGreaterThanOrEqual((70 * Math.PI) / 180);
+    expect(WALL.leanArc).toBeLessThanOrEqual((90 * Math.PI) / 180);
   });
 });

@@ -14,7 +14,7 @@ import { hyp2 } from '../core/mathx';
 import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
-import { WALL_LOOK, wallHandPoint, wallRootPush } from './wallController';
+import { WALL_LOOK, WALL_TURN_RATE, wallHandPoint, wallRootPush } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
@@ -94,6 +94,8 @@ export class Player {
   /** Pose driven by back-to-wall / traversal / takedowns / team moves. */
   /** (step 11) Back-to-wall blend 0..1 (the rig's push onto the face) and the off hand's wall point. */
   private wallK = 0;
+  /** (21w) The rig root's yaw (rate-limited on a wall). */
+  private visYaw = 0;
   private wallHandPt: Vector3 | null = null;
   readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, medkit: -1, tumble: 0 };
   /** Context flags for the ready position (set by the corner systems each step). */
@@ -262,14 +264,23 @@ export class Player {
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);
-    root.rotation.y = c.renderYaw;
+    // (step 21w, A85) on a wall, entering it and leaving it, the body's turn is rate-limited (the 180 deg entry turn
+    // was ~44 deg in one frame): visual only, the capsule and gameplay keep the controller's yaw
+    // (step 21w, A85: WALL_TURN_RATE, shared with the remote copy) keep limiting after the wall until the gap closes,
+    // so a large turn just after leaving never snaps the rest in one frame
+    if (this.pose.wall || this.wallK > 0 || Math.abs(wrapPi(c.renderYaw - this.visYaw)) > 0.05) {
+      const d = wrapPi(c.renderYaw - this.visYaw);
+      const mx = WALL_TURN_RATE * dt;
+      this.visYaw = wrapPi(this.visYaw + Math.max(-mx, Math.min(mx, d)));
+    } else this.visYaw = c.renderYaw;
+    root.rotation.y = this.visYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
     const cp = this.pose;
     // (step 11) back to a wall: the rig's back onto the face (the capsule keeps its standoff), the off hand on it
     this.wallK = Math.max(0, Math.min(1, this.wallK + (cp.wall ? dt : -dt) / 0.2));
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
-      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf) * wk;
+      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.min(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf) * wk;
       root.position.x -= cp.wallNx * push;
       root.position.z -= cp.wallNz * push;
     }
@@ -283,7 +294,7 @@ export class Player {
     } else this.rig.wallHand = null;
     // aiming: the upper body follows the aim; not aiming the view orbits freely and only the head glances
     // towards where the camera looks (spine, arms and gun stay put until an action raises the weapon)
-    const rel = wrapPi(this.cam.yaw - c.renderYaw);
+    const rel = wrapPi(this.cam.yaw - this.visYaw);
     const raise = this.carry.raise;
     const aimYaw = rel * raise;
     const w = this.carry.w;
@@ -343,7 +354,7 @@ export class Player {
     rp.motionT = m.stateT;
     rp.quickStop = c.ct ? CT.stopBlend : 0;
     rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
-    const by = c.renderYaw;
+    const by = this.visYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
     rp.accelSide = m.ax * Math.cos(by) - m.az * Math.sin(by);
     rp.velX = c.override?.kinematic ? undefined : m.outX;

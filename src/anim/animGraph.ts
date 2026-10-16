@@ -380,7 +380,12 @@ export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, r
  */
 /** (step 11) Flat back on a wall: pelvis and spine pitch back (rad; crouched adds), eased in over `tau` (s). */
 export const WALL_BACK = { pel: 0.05, pelCrouch: 0.1, spine: 0.08, spineCrouch: 0.2, tau: 0.1 };
-export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelPitch: 0.05, spPitch: 0.03 };
+/** (step 21w, M14 task 7) Wider feet on a wall (added to the stance width share): crouched the knees stay apart (the
+ *  crouched wall crossed the shanks and thighs), standing a little wider for the sidestep shuffle. */
+export const WALL_WIDTH = { stand: 0.12, crouch: 0.4 };
+/** (21w, M16) `pelYStand`: standing on a wall the pelvis rides higher (the step 21 idle's soft knees put the knees
+ *  ~19 cm out from the hips and the feet ahead of the back: a lean back on the wall); crouched `pelY` as before. */
+export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelYStand: 0, pelPitch: 0.05, spPitch: 0.03 };
 /** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
 const SWAP_FADE = 8;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
@@ -661,18 +666,20 @@ export class AnimGraph {
     }
 
     // --- back to a wall: the flat-back high stance (A6), shoulder to the wall
-    if (atWall) {
-      const ws = this.wallS || 1;
+    // (21w, M16) weighted by the eased wall blend: leaving the wall the stance eases out with it (it dropped in one
+    // frame: the leave's ~8 cm pelvis jump)
+    if (wallW > 1e-4) {
+      const ws = (this.wallS || 1) * wallW;
       const st = WALL_STANCE;
       src[CH.pelX] = src[CH.pelX]! + st.pelX * ws;
       src[CH.spRoll] = src[CH.spRoll]! + st.spRoll * ws;
       src[CH.pelRoll] = src[CH.pelRoll]! + st.pelRoll * ws;
       src[CH.hdRoll] = src[CH.hdRoll]! + st.hdRoll * ws;
-      src[CH.pelY] = src[CH.pelY]! + st.pelY;
-      src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch;
-      src[CH.spPitch] = src[CH.spPitch]! + st.spPitch;
+      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * wallW;
+      src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch * wallW;
+      src[CH.spPitch] = src[CH.spPitch]! + st.spPitch * wallW;
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
-      this.tuckW = approach(this.tuckW, i.reload >= 0 || i.swap >= 0 || i.grenade >= 0 ? 1 : 0, 0.12, dt);
+      this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
       src[CH.pelY] = src[CH.pelY]! - 0.03 * this.tuckW;
       src[CH.spPitch] = src[CH.spPitch]! + 0.06 * this.tuckW;
@@ -682,6 +689,7 @@ export class AnimGraph {
       // straightens (more crouched, where the crouch pose leans the trunk over the knees)
       src[CH.pelPitch] = src[CH.pelPitch]! - (WALL_BACK.pel + WALL_BACK.pelCrouch * crouchK) * wallW;
       src[CH.spPitch] = src[CH.spPitch]! - (WALL_BACK.spine + WALL_BACK.spineCrouch * crouchK) * wallW;
+      src[CH.width] = src[CH.width]! + (WALL_WIDTH.stand + (WALL_WIDTH.crouch - WALL_WIDTH.stand) * crouchK) * wallW;
     }
 
     // --- traversal, slide, air, landing
@@ -776,7 +784,9 @@ export class AnimGraph {
     const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
     src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
-    const handS = i.hand < 0 ? -1 : 1;
+    // (21w, PC-PASS 42) continuous through the open-side hand switch (the sign flipped the chest, head and sight roll
+    // in one frame at the half-way point)
+    const handS = clamp(i.hand, -1, 1);
     src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0) + yl;
     src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;

@@ -689,7 +689,7 @@ try {
         k.step(20);
         const on = k.st();
         window.__pad.axis(0, 1);
-        k.step(40);
+        k.step(75);
         window.__pad.axis(0, 0);
         k.step(5);
         const slid = k.st();

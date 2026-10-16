@@ -405,11 +405,13 @@ export class PlayerWeapons {
         this.setStowed(away);
         this.aimDriven = true;
         if (reverse) {
-          // released and pressed again before the gun reached its slot: it comes straight back up
-          const k = this.swapT / (SWAP_TIME * SWAP_HOLSTER);
-          this.swapPhase = 2;
-          this.slots[this.index]!.model.inHand(this.player.rig);
-          this.swapT = SWAP_TIME * (SWAP_HOLD - k * (SWAP_HOLD - SWAP_TAKE));
+          // released and pressed again before the gun reached its slot: it is still in the hands (the holster beat),
+          // so the holster just stops and it comes straight back up. (21w, PC-PASS 42) No jump into the draw half of
+          // the clip (that moved the hand 12 cm and the gun 30 cm in one frame): the swap overlay fades out from where
+          // it was and the aim pocket takes the gun back.
+          this.swapT = -1;
+          this.swapPhase = 0;
+          this.aimDriven = false;
         }
       }
     }

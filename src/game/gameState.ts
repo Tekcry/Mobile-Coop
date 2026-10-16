@@ -1966,6 +1966,9 @@ export class GameState implements AppState {
     i.context = inp.pressed('cover') && !this.peekTook;
     i.contextHeld = inp.down('cover') && !this.peekTook;
     i.crouchPressed = inp.pressed('crouch');
+    // (21w, D7) hold-to-crouch: on a high wall the stance follows the held button
+    i.crouchHold = !this.app.settings.get().gameplay.crouchToggle;
+    i.crouchHeld = inp.down('crouch');
     const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
     i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
     i.blocked = other || pl.ads;

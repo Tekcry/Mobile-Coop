@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 21w - back-to-wall polish (PC, controller)
+- [ ] A at a wall puts your back to it; pushing the stick into the wall does not.
+- [ ] Slide to the end: you stop at the edge and stay on the wall; push further to peek; pull away (held) or A to leave.
+- [ ] Crouch on a tall wall: stays on the wall, crouched; stand again on the wall.
+- [ ] The slide is a slow shuffle; crouched slower.
+- [ ] Peek and lean-out at an edge: the camera eases, never goes inside the wall; the lean-out aims about 85 deg past the edge; aiming further round leaves the wall.
+- [ ] Known (step 25): a very quick release of the lean-out can still jump the weapon.
+
 ## Locomotion step 21 - no bob, relaxed arms (PC, controller)
 - [ ] Walk, jog, run, sprint: no visible up-and-down bob of the camera or head; one dip per step.
 - [ ] Holstered and standing: arms hang relaxed at the sides, hands by the thighs, swing naturally when walking; pump when sprinting; nothing clips the thigh pistol.

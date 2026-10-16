@@ -75,6 +75,8 @@ export class ShoulderCamera {
   wallLean = 0;
   wallEdgeX = 0;
   wallEdgeZ = 0;
+  /** (21w) Seconds left of the slower wall shoulder-swap rate. */
+  private wallSideT = 0;
   /** (locomotion step 13) Door peek: the view at the crack (0..1, the core's), the eye there (world) and the look's
    *  centre yaw (the look stays within +-35 deg of it). Local only, never sent. */
   doorPeek = 0;
@@ -262,7 +264,9 @@ export class ShoulderCamera {
     if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
     this.doorW = this.doorPeek;
     // framing blends (critically damped: 350-600 ms, no overshoot)
-    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, MOVEMENT.camShoulder, dt);
+    // (21w) on a wall, and for a beat after leaving it, the shoulder swaps at the slower wall rate (no whip)
+    this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
+    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : MOVEMENT.camShoulder, dt);
     this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
     const leanS = this.sLean.step(this.lean, 8, dt);
     const dashS = this.sDash.step(this.dash, 6, dt);

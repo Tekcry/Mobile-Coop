@@ -431,7 +431,7 @@ try {
     await P.evaluate(() => window.__wl.step(20));
     const on = await P.evaluate(() => window.__wl.st());
     await P.keyboard.down('KeyD');
-    await P.evaluate(() => window.__wl.step(40));
+    await P.evaluate(() => window.__wl.step(75));
     await P.keyboard.up('KeyD');
     await P.evaluate(() => window.__wl.step(5));
     const slid = await P.evaluate(() => window.__wl.st());

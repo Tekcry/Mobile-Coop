@@ -286,7 +286,7 @@ export class RemoteAvatar {
     }
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
-      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf) * wk;
+      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.min(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf) * wk;
       r.position.x -= this.wallNx * push;
       r.position.z -= this.wallNz * push;
     }

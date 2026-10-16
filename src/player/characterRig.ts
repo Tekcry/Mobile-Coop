@@ -268,6 +268,26 @@ const HEAD_CAP_MAX = 0.3;
 const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
+/** (21w) Weapon glide scratch. */
+const glideInv = new Matrix();
+const glideLocal = new Matrix();
+const glideS = new Vector3();
+const glideV = new Vector3();
+const glideQ = new Quaternion();
+const glideBodyInv = new Matrix();
+/** (21w, PC-PASS 42) Weapon re-parent glide: seconds per metre of the offset, and its clamp (s). At 0.9 s/m the
+ *  glide's peak speed (smoothstep, 1.5 x mean) stays about 1.7 m/s, under 3 cm per 60 Hz frame. */
+const GLIDE_PER_M = 0.9;
+const GLIDE_MIN = 0.1;
+const GLIDE_MAX = 0.45;
+/** Farther than this (m) the last pose is stale (or a teleport): the weapon is placed, not glided. (21w-3) 0.4 (was
+ *  0.8): a longer straight glide (a wall draw from the back, 0.6-0.85 m) crossed the torso (audit walllow selfUpperArm). */
+const GLIDE_FAR = 0.4;
+/** (21w-3) Larger turns (rad) than this are not glided (set at once). */
+const GLIDE_TURN_MAX = 1.0;
+/** (21w-5) The support hand's wall point must sit this far (m) out on the hand's own side of the body (root frame) to
+ *  take the hand, full over `span` more. */
+const WALL_HAND_SIDE = { min: 0.05, span: 0.15 };
 const axX = new Vector3();
 const axY = new Vector3();
 const axZ = new Vector3();
@@ -401,6 +421,95 @@ export class CharacterRig {
   get weaponHand(): number {
     return this.handBlend > 0.5 ? -1 : 1;
   }
+  /** (step 21w, PC-PASS 42) The weapon gliding from where it was posed onto a new parent (aim pocket, hand, slot):
+   *  its world offset (P0), local target (P1), local start / target rotation, the time and duration (s). One at a time; local and remote rigs alike (D8). */
+  private glideNode: TransformNode | null = null;
+  private readonly glideP0 = new Vector3();
+  private readonly glideP1 = new Vector3();
+  private readonly glideQ0 = new Quaternion();
+  private readonly glideQ1 = new Quaternion();
+  private glideT = 0;
+  private glideDur = 0;
+
+  /**
+   * (step 21w, PC-PASS 42) A weapon node was just re-parented (`WeaponModel.hold / inHand / holster`) with its new local
+   * place set; `prevWorld` is its last posed world matrix. It starts there (no jump) and eases onto the new place over
+   * 0.1-0.45 s (by the distance), so a mid-draw release, a draw taken before the hand reaches the slot or the open-side
+   * hand switch never pops the weapon or the hands on it. No allocation.
+   */
+  glideWeapon(node: TransformNode, prevWorld: Matrix): void {
+    // a re-parent drops any glide still running on this node (an early return below would otherwise leave the old
+    // parent's local place to be written into the new parent)
+    if (this.glideNode === node) this.glideNode = null;
+    const parent = node.parent as TransformNode | null;
+    // on a wall only (the draw / holster elsewhere hands over at the slot and the pocket as authored)
+    if (!parent || !node.rotationQuaternion || !this.input.wall) return;
+    const pw = parent.getWorldMatrix();
+    pw.invertToRef(glideInv);
+    prevWorld.multiplyToRef(glideInv, glideLocal);
+    glideLocal.decompose(glideS, glideQ, glideV);
+    const a = 2 * Math.acos(Math.min(1, Math.abs(Quaternion.Dot(glideQ, node.rotationQuaternion))));
+    // the position offset is kept in the body's frame (21w-3: in world space a body turn, the wall entry or a remote's
+    // snapped yaw, left the gun behind and its straight line crossed the torso; a turning hand or chest still never
+    // swings it round on a lever)
+    Vector3.TransformCoordinatesToRef(node.position, pw, glideS);
+    prevWorld.getTranslationToRef(glideV);
+    glideV.subtractInPlace(glideS);
+    const d = glideV.length();
+    // a stale matrix (not posed since it was last shown) or a teleport: no glide
+
+    if ((d < 0.004 && a < 0.02) || d > GLIDE_FAR) return;
+    // a glide still running on another weapon ends where it was going
+    if (this.glideNode && this.glideNode !== node) this.endGlide();
+    this.glideNode = node;
+    this.glideP1.copyFrom(node.position);
+    this.glideQ1.copyFrom(node.rotationQuaternion);
+    this.body.getWorldMatrix().invertToRef(glideBodyInv);
+    Vector3.TransformNormalToRef(glideV, glideBodyInv, this.glideP0);
+    // (21w-3) a large turn (a draw from the back or the thigh, the open-side hand switch: 70-180 deg) is not slerped:
+    // the muzzle swept through the torso and the arms (audit selfWeapon / selfUpperArm); only the place glides
+    this.glideQ0.copyFrom(a > GLIDE_TURN_MAX ? node.rotationQuaternion : glideQ);
+    this.glideT = 0;
+    this.glideDur = Math.max(GLIDE_MIN, Math.min(GLIDE_MAX, Math.max(d, a * 0.15) * GLIDE_PER_M));
+    // starts exactly where it was posed
+    Vector3.TransformNormalToRef(glideV, glideInv, glideS);
+    node.position.addInPlace(glideS);
+    node.rotationQuaternion.copyFrom(this.glideQ0);
+  }
+
+  private endGlide(): void {
+    const n = this.glideNode;
+    if (!n) return;
+    n.position.copyFrom(this.glideP1);
+    n.rotationQuaternion?.copyFrom(this.glideQ1);
+    this.glideNode = null;
+  }
+
+  /** The glide's world offset (`glideP0`, decaying) mapped into the parent's space each frame. */
+  private stepGlide(dt: number): void {
+    const n = this.glideNode;
+    const parent = n?.parent as TransformNode | null;
+    if (!n || !n.rotationQuaternion || !parent) return;
+    this.glideT += dt;
+    const u = Math.min(1, this.glideT / this.glideDur);
+    if (u >= 1) return this.endGlide();
+    const e = u * u * (3 - 2 * u);
+    parent.getWorldMatrix().invertToRef(glideInv);
+    Vector3.TransformNormalToRef(this.glideP0, this.body.getWorldMatrix(), glideV);
+    Vector3.TransformNormalToRef(glideV, glideInv, glideS);
+    n.position.copyFrom(this.glideP1).addInPlace(glideS.scaleInPlace(1 - e));
+    Quaternion.SlerpToRef(this.glideQ0, this.glideQ1, e, n.rotationQuaternion);
+  }
+
+  /** (21w-5) How far the shoulder line is turned off the wall line: the torso's right axis (last posed frame) along
+   *  the wall normal (nx, nz), 0 square to the wall (back or chest on it) .. 1 side on. No allocation. */
+  shoulderTurnSin(nx: number, nz: number): number {
+    const m = this.torso.getWorldMatrix().m;
+    const rx = m[0]!;
+    const rz = m[2]!;
+    return (rx * nx + rz * nz) / (hyp2(rx, rz) || 1);
+  }
+
   /** World point for the off hand on the wall (back-to-wall contact IK, step 11), or null. */
   wallHand: Vector3 | null = null;
   /**
@@ -909,6 +1018,8 @@ export class CharacterRig {
   /** Animation (clip graph + foot planner + IK). Call every render frame. */
   animate(dt: number, s: RigPose): void {
     if (this.disposed) return;
+    // (21w) a re-parented weapon eases onto its new place (every frame, LOD or not)
+    this.stepGlide(dt);
     // animation LOD: rigs far from the camera solve every other frame
     const cam = this.root.getScene().activeCamera;
     if (cam) {
@@ -1458,8 +1569,20 @@ export class CharacterRig {
     this.readySh = t.readyShoulder;
     // (fix 21-2) the holster-out elbow eases with the gear (a draw clears thighGear while the hands still hang)
     this.holsterW += ((this.thighGear ? 1 : 0) - this.holsterW) * Math.min(1, dt * HOLSTER_OUT_RATE);
-    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
-    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offWall, leftGrips, leftGrips ? 0 : t.offMag);
+    // (21w-5) the support hand on the wall only while its wall point is on the hand's own side of the body: the point is
+    // set for a body facing out, so a body turned by the lean-out arc (M16, up to 175 deg) reached across the chest
+    // for it (audit edge rows selfForearm 5-11 cm as the lean eases back and the lowered weapon hands over to the wall)
+    let offWall = t.offWall;
+    const wh = this.wallHand;
+    if (wh && offWall > 0) {
+      const ry = this.root.rotation.y;
+      const ox = wh.x - this.root.position.x;
+      const oz = wh.z - this.root.position.z;
+      const fu = Math.max(0, Math.min(1, (((ox * Math.cos(ry) - oz * Math.sin(ry)) * (leftGrips ? 1 : -1)) - WALL_HAND_SIDE.min) / WALL_HAND_SIDE.span));
+      offWall *= fu * fu * (3 - 2 * fu);
+    }
+    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
+    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -1519,6 +1642,7 @@ export class CharacterRig {
    * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / wall).
    * `wallW` blends the support hand onto the wall point (`wallHand`).
    */
+
   private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, wallW = 0, isGrip = side > 0, magW = 0): void {
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
     const el = side > 0 ? this.elbowR : this.elbowL;

@@ -498,6 +498,14 @@ try {
   await GB((x) => window.__pad.axis(0, x), door.end);
   await until(B, () => window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 1, null, 4000, 'client peeks');
   await until(A, () => (window.__app.current.net.remotes.values().next().value?.state?.mv?.sub & 16) !== 0, null, 5000, 'host sees the peek bit');
+  // (step 21w, M14) edge stop: the stick still pushed past the end, the client stays on the wall at the end and the
+  // host's copy stands there too (under 10 cm)
+  {
+    await wait(600);
+    const [el, er] = await wallS();
+    const on = await GB(() => window.__app.current.wallCore.phase === 'on' && window.__app.current.wallCore.atEnd);
+    assert(on && Math.abs(el - er) <= 0.1, `edge stop: pushed past the end the client stays on the wall at the end (${on}), host's copy at s ${er.toFixed(3)} (client ${el.toFixed(3)}, <= 10 cm)`);
+  }
   await compare('wall peek', 'wall');
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.25) < 0.01; }, null, 3000, 'host peek offset eased to 0.25 m');
   // (step 12b fix r2, light parity) the host's head point and light sample are its posed copy's head (ref.head) on
