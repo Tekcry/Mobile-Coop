@@ -81,6 +81,12 @@ FLAT = {  # name: (albedo, roughness)
     # gloves and boots (step 06)
     'glove leather': (0.027, 0.80), 'glove knit': (0.029, 0.90), 'glove knuckle': (0.025, 0.80), 'glove cuff': (0.033, 0.90),
     'suede': (0.033, 0.92), 'boot nylon': (0.025, 0.84), 'sole rubber': (0.026, 0.82), 'lace': (0.023, 0.80),
+    # head (step 07); the goggle lens keeps its constant factors and emission (the glow, D13)
+    'balaclava knit': (0.031, 0.90), 'hood softshell': (0.027, 0.80), 'shock cord': (0.026, 0.80),
+    'cord lock': (0.024, 0.72), 'harness webbing': (0.023, 0.80), 'harness polymer': (0.024, 0.70),
+    'cradle cordura': (0.022, 0.88), 'anodised aluminium': (0.026, 0.62), 'goggle polymer': (0.023, 0.64),
+    'eyecup rubber': (0.023, 0.84), 'knob polymer': (0.024, 0.74), 'cloth tape': (0.03, 0.80),
+    'cable jacket': (0.023, 0.72), 'mic foam': (0.028, 0.90),
 }
 for mat in bpy.data.materials:
     if not mat.use_nodes:
@@ -94,6 +100,15 @@ for mat in bpy.data.materials:
             mat.node_tree.links.remove(lk)
     bsdf.inputs['Base Color'].default_value = (a, a * 1.02, a * 1.05, 1.0)
     bsdf.inputs['Roughness'].default_value = r
+
+# the lens glow is weighted per vertex in Cycles (materials.lens); glTF takes a constant emissive strength
+lens_m = bpy.data.materials.get('goggle lens')
+if lens_m is not None and lens_m.use_nodes:
+    lb = next((n for n in lens_m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if lb is not None:
+        for lk in list(lb.inputs['Emission Strength'].links):
+            lens_m.node_tree.links.remove(lk)
+        lb.inputs['Emission Strength'].default_value = 1.0
 
 dest = os.path.join(args.out, f'{op_id}-lab.glb')
 bpy.ops.export_scene.gltf(

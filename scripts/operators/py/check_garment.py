@@ -10,8 +10,11 @@ checks, each {name, pass, value, limit, detail}. check.mjs adds the kit check an
 - albedo / roughness: measured, not read from the node values: every material is rendered as an emission of what
   feeds its Base Color and Roughness (Cycles, one sample per pixel, same rays as an ID render).
   Fabric albedo 0.02-0.06 linear (Rec. 709 luminance, 1st to 99th percentile); roughness 0.7-0.95 on fabric,
-  0.55-0.9 on hard parts. A material with too few pixels to judge fails as unsampled. Eight views: front, back, the left
-  upper arm, the neck, the left thigh and knee, the waist front, the left hand and the left foot (step 06).
+  0.55-0.9 on hard parts, 0.02-0.3 on the goggle lens (class 'lens', step 07: coated glass is glossy; its albedo is not
+  judged). A material with too few pixels to judge fails as unsampled. Twelve views: front, back, the left upper arm,
+  the neck, the left thigh and knee, the waist front, the left hand and the left foot (step 06), the head from the
+  front left, the back left and the front low (step 07), and the right wrist from below (step 07 fix round 3: up the
+  sleeve opening, where the base layer still shows once the hood covers the nape).
 """
 import json
 import math
@@ -44,7 +47,7 @@ LIMITS = {
     'edgeM': 0.03,
     'spikeFactor': 2.0,          # solidify: inner shell within this many thicknesses of the outer
     'albedo': {'fabric': (0.02, 0.06)},
-    'roughness': {'fabric': (0.7, 0.95), 'hard': (0.55, 0.9)},
+    'roughness': {'fabric': (0.7, 0.95), 'hard': (0.55, 0.9), 'lens': (0.02, 0.3)},
     'minPixels': 150,
 }
 checks = []
@@ -121,11 +124,11 @@ check('solidify', not spikes, spikes, f"inner shell within {LIMITS['spikeFactor'
 mats = {}
 for o in items:
     for slot in o.material_slots:
-        if slot.material and slot.material.get('operators_class') in ('fabric', 'hard'):
+        if slot.material and slot.material.get('operators_class') in ('fabric', 'hard', 'lens'):
             mats[slot.material.name] = slot.material
 untagged = sorted({s.material.name for o in items for s in o.material_slots
                    if s.material and s.material.get('operators_class') is None})
-check('materialClass', not untagged, untagged, 'every garment material tagged fabric or hard (materials.py)')
+check('materialClass', not untagged, untagged, 'every garment material tagged fabric, hard or lens (materials.py)')
 
 order = sorted(mats)
 code = {name: k + 1 for k, name in enumerate(order)}
@@ -217,6 +220,13 @@ views = [
     # the left hand from the front-outside and the left foot from the front-outside (gloves, boots: step 06)
     (tuple(J['wrL'] + np.array([np.sign(J['wrL'][0]) * 0.25, -0.45, 0.0])), tuple(J['wrL'] + np.array([0.0, -0.06, -0.06])), 50),
     (tuple(J['anL'] + np.array([np.sign(J['anL'][0]) * 0.4, -0.5, 0.15])), tuple(np.array([J['anL'][0], J['anL'][1] - 0.05, 0.05])), 50),
+    # the right wrist from below, up the sleeve opening (step 07 fix round 3): the base layer's only visible patch in the
+    # full head stack (855 px measured; the lower hood skirt covers the nape, where it showed before)
+    (tuple(J['wrR'] + np.array([0.0, -0.05, -0.3])), tuple(J['wrR']), 50),
+    # the head (step 07): front left (boom mic, the left knob), back left (cradle, battery, cord lock), front low (lenses)
+    (tuple(J['head'] + np.array([0.2, -0.36, 0.04])), tuple(J['head'] + np.array([0.0, -0.05, -0.01])), 50),
+    (tuple(J['head'] + np.array([0.24, 0.34, 0.08])), tuple(J['head'] + np.array([0.0, 0.03, 0.0])), 50),
+    (tuple(J['head'] + np.array([-0.06, -0.38, -0.08])), tuple(J['head'] + np.array([0.0, -0.08, 0.0])), 50),
 ]
 samples = {name: {'albedo': [], 'roughness': []} for name in order}
 tmp = os.path.abspath(os.path.join(args.out, 'check-tmp.exr'))  # Blender resolves relative render paths itself

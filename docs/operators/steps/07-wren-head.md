@@ -18,6 +18,8 @@ head harness, battery and cable, slim earpiece with boom mic. No visible face or
 2. The optic: an original square single-shroud housing over two optics (no three-lens cluster, no real product
    shapes), rubber eyecups, dovetail into a flip mount on the harness front plate with fore-aft and height knobs;
    lenses with a clear green glow in the dark (D13); tiny muted status emitter. Up and down positions.
+   **Superseded by D19 (Michael, during the step):** no flip mount; the goggle rests on the forehead when stowed and
+   sits over the eyes in use; a more tactical head strap; a more futuristic, less square housing.
 3. Head harness (crown strap, side straps, rear cradle, chin strap with side release), battery pack with retention
    strap, the goggle cable on its clips with strain reliefs (kit data routes), earpiece and boom mic with the cable
    under the balaclava edge. Renders (include a darkness view with the glow only) and checks.

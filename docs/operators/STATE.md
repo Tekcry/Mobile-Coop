@@ -1,8 +1,8 @@
 # Operators run - state (resume point)
 
-**Now:** step 07 (Wren: hood, optic, mount and comms head kit), Opus 5.5, High. Step 06 passed the independent check
-after 3 fix rounds (LOG.md "Step 06": OPEN follow-ups, including the knuckle pad crumple and a check gap for inverted
-inner-shell vertices).
+**Now:** step 08 (Wren: plate carrier, harness and belt), Opus 5.5, High. Step 07 is OPEN after 3 fix rounds (LOG.md
+"Step 07"): the earpiece cable runs through the neck (steps/07-fixes-r4.md); retried at the Wren block end after step
+11. Michael's D19-D21 are built (original goggle on a band, no flip, strap-2 harness; hero for menu and close-ups).
 **Run style:** unattended (D15), one orchestrator session like the locomotion run (D18): implementer, independent Opus
 checker, up to 3 fix rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md. Start
 and resume prompts: OWNER-NOTES.md ("Operators run: RESUME (local)").
@@ -20,11 +20,17 @@ and resume prompts: OWNER-NOTES.md ("Operators run: RESUME (local)").
   0.3 (A13). Gloves and boots sit under the shirt cuffs and trouser hems; the hem is drafted from the boot top girth
   plus one layer (26.5 cm) and laps the boot collar (A22). Fitted panels are cut by `fitted.level_slice` and stepped
   by `fitted.split_step` (A19, A20); gloves use `untangle()` (A21). A glove or boot change means rebuilding the shirt
-  and trousers; a full rebuild takes about 50 min, `operators:check` with 5 items over 25 min (run in background).
+  and trousers; a full rebuild takes about 50 min, `operators:check` with 7 items 25-30 min (run in background).
+- Head (step 07, A24-A31): `headwear` (balaclava + hood) and `head_kit` (split-crown harness, hard battery pod, goggle
+  on a band with in-use / stowed poses (`stowM`, `goggle_pos`; the band a relaxed strip, `_relax_band`), cables, boom mic) are `FITTED` items after the trousers; shared head geometry in `garments/head_common.py`. Resume a build
+  at a garment with `operators:build -- wren --from <garment>` (earlier blends must be current). The earpiece cable
+  ends in a plug at the left collarbone: step 09's PTT goes there (kit `earpieceCable` source `ptt`). The headwear stage
+  draws the base layer's flared mock neck in under the collar (A25; real fix is in the base layer). Lens glow: material
+  `goggle lens` (class `lens`); the Lab hides its stand-in box when that material is loaded.
 - Garments: the flat pattern is the cloth's rest shape through Dynamic Mesh (A1); each garment has a `SIM` table and
   kit ids (`KIT`, per-detail `kit`); girths are measured on the body plus 3 mm, plus 4.1 mm per layer under it.
 - Bodies are bound in A-pose on the game skeleton (D13); waist 0.93 of SPEC A4 (D13); the strong goggle glow stays (D13).
 - Lab and sheets: `npm run operators:export`, `npm run operators`, `E2E_GPU=1 E2E_PORT=4191 npm run operators:sheet -- wren`;
   sheets in `docs/operators/mockups/wren/`. Test renders: `docs/operators/mockups/tests/`.
 
-**Open questions for Michael:** none.
+**Open questions for Michael:** none. OPEN steps: 07 (earpiece cable route; retry after step 11).

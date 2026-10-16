@@ -42,8 +42,20 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   adds the sole, lugs, eyelets, speed hooks, laces, lace garage and pull loop. Shared geometry in `py/fitted.py`. It
   writes the same `-sim.json` / `-sim.npz` / blend as a sewn garment (method `fitted`, seam gap 0), so the layers over
   them push clear of their shells and `operators:check` checks them.
+- Head items (step 07, DECISIONS A24), also `FITTED`, after the trousers: `garments/headwear.py` (balaclava and
+  hood: a ray grid round the head stretched as a membrane over the skin and the layers, the hood a looser membrane over
+  it; eye port, flatlock and topstitched seams, rolled hems, the rear shock-cord channel with eyelets and a cord lock)
+  and `garments/head_kit.py` (D20 harness: hard brow plate, split crown straps, side straps with cam buckles, hard
+  rear battery pod, chin strap, all in fixed planes; the square goggle with its glowing lenses on a wide band through
+  side lugs, the band's cable to the pod, the earpiece cable, boom mic). Shared head geometry and the solid builders
+  (`rbox`, `pad`, `taper`, `knurl`) in `garments/head_common.py`. No flip mount (D19): the goggle parts carry `stowM`
+  (a 4x4 rigid transform to the stowed pose on the brow); the band and its cable are built for both positions
+  (`goggle_pos` 'inuse' / 'stowed'), the stowed set hidden from render, export and checks. The renders swap them.
+- `npm run operators:build -- wren --from <garment>` resumes at that garment (the earlier blends must be current).
 - `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the test
-  views (`--render`; per garment: front and back in stealth light, raking close-ups, a neutral front).
+  views (`--render`; per garment: front and back in stealth light, raking close-ups, a neutral front; head items: the
+  head front, side and back, the goggle close (in use), stowed front and side (h, j) and a darkness view lit by the lens glow alone; `--quick`
+  renders the close-ups only).
 
 - `py/export_gltf.py`, `export-gltf.mjs` (`npm run operators:export`) - `<id>-lab.glb`: body and garments skinned to the game
   joint names, flat material factors (baked maps and KTX2 arrive in step 10). Runs at the end of `operators:build`.

@@ -3,8 +3,9 @@ fabric), so weaves and knits follow the grain of each panel. Night-adapted desat
 (SPEC 2). Wear is restrained: dust settles in creases (ambient occlusion), edges polish where they rub (pointiness
 or the 'edge' attribute on patches).
 
-Every material is tagged `operators_class` = 'fabric' or 'hard'; `py/check_garment.py` measures its rendered albedo and
-roughness against the class limits (fabric albedo 0.02-0.06 linear, roughness 0.7-0.95; hard parts 0.55-0.9).
+Every material is tagged `operators_class` = 'fabric' or 'hard' (or 'lens': the goggle's coated glass, step 07);
+`py/check_garment.py` measures its rendered albedo and roughness against the class limits (fabric albedo 0.02-0.06
+linear, roughness 0.7-0.95; hard parts 0.55-0.9; lens roughness 0.02-0.3).
 """
 import bpy
 
@@ -384,4 +385,64 @@ def rubber(name='sole rubber', colour=(0.024, 0.024, 0.025), rough=0.82):
     g.bsdf.inputs['Specular IOR Level'].default_value = 0.3     # r2 item 4: matte moulded rubber (see suede)
     g.link(g.math('SUBTRACT', rough, g.math('MULTIPLY', scuff, 0.12)), g.bsdf.inputs['Roughness'])
     g.link(g.bump(st.outputs['Fac'], 0.15, 0.0002), g.bsdf.inputs['Normal'])
+    return mat
+
+
+def anodised(name='anodised aluminium', colour=(0.024, 0.025, 0.026)):
+    """Hard-anodised aluminium (the flip mount, SPEC 3.3): a fine satin sheen; the sharpest edges are worn through to
+    bright metal."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'hard'
+    g = Graph(mat)
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.math('MULTIPLY', g.smoothstep(0.56, 0.68, pt), g.smoothstep(0.35, 0.6, g.noise(300.0, 3.0)))
+    g.link(g.mix_rgb(edge, colour, (0.42, 0.42, 0.43)), g.bsdf.inputs['Base Color'])
+    g.link(g.math('ADD', 0.7, g.math('MULTIPLY', edge, 0.3)), g.bsdf.inputs['Metallic'])
+    g.link(g.math('SUBTRACT', 0.62, g.math('MULTIPLY', edge, 0.05)), g.bsdf.inputs['Roughness'])
+    return mat
+
+
+def lens(name='goggle lens', glow=(0.004, 1.0, 0.045), strength=1.1, attribute='emit'):
+    """Coated objective glass (SPEC 3.3): near-black, glossy under a clear coat, a thin-film coating that throws a
+    coloured reflection at an angle, and the display leaking through as the signature glow (D13: Wren green, Moth
+    amber). Fix round 1 (step 07, item 4): the glow is scaled by the mesh's `attribute` (head_common.lens_assembly:
+    1 at the centre, 0.25 at the rim, so it reads as coming from deep in the barrel), is a deeper green and weaker
+    (1.8 over a near-white tonemap read pastel and swamped the specular), and the coat adds the glossy sheen over it.
+    Without the attribute (a mesh that has none) the glow is uniform. Visual only."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'lens'
+    g = Graph(mat)
+    b = g.bsdf.inputs
+    b['Base Color'].default_value = (0.004, 0.008, 0.006, 1.0)
+    b['Roughness'].default_value = 0.05
+    b['IOR'].default_value = 1.52
+    b['Specular IOR Level'].default_value = 0.7
+    b['Coat Weight'].default_value = 1.0
+    b['Coat Roughness'].default_value = 0.03
+    b['Coat IOR'].default_value = 1.5
+    b['Thin Film Thickness'].default_value = 380.0
+    b['Thin Film IOR'].default_value = 1.38
+    b['Emission Color'].default_value = (*glow, 1.0)
+    at = g.node('ShaderNodeAttribute')
+    at.attribute_name, at.attribute_type = attribute, 'GEOMETRY'
+    # an absent attribute reads 0: max(attr, 0) would kill the glow, so fall back with the attribute's alpha
+    # (1 where the attribute exists) - weight = attr * alpha + (1 - alpha)
+    wgt = g.math('ADD', g.math('MULTIPLY', at.outputs['Fac'], at.outputs['Alpha']),
+                 g.math('SUBTRACT', 1.0, at.outputs['Alpha']))
+    g.link(g.math('MULTIPLY', wgt, strength), b['Emission Strength'])
+    return mat
+
+
+def add_emitter(mat, colour=(1.0, 0.45, 0.12), strength=1.2, attribute='emit'):
+    """A tiny muted status light on a hard part: emission where the mesh's `attribute` is 1 (ART-DIRECTION 4)."""
+    g_nt = mat.node_tree
+    bsdf = next(n for n in g_nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    at = g_nt.nodes.new('ShaderNodeAttribute')
+    at.attribute_name, at.attribute_type = attribute, 'GEOMETRY'
+    bsdf.inputs['Emission Color'].default_value = (*colour, 1.0)
+    m = g_nt.nodes.new('ShaderNodeMath')
+    m.operation = 'MULTIPLY'
+    m.inputs[1].default_value = strength
+    g_nt.links.new(at.outputs['Fac'], m.inputs[0])
+    g_nt.links.new(m.outputs[0], bsdf.inputs['Emission Strength'])
     return mat

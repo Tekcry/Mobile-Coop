@@ -24,6 +24,23 @@ implement, independent Opus checker, up to 3 fix rounds, then the orchestrator c
 Rules: RULES.md "Step loop". Subagent rules: steps/AGENT-PREAMBLE.md. Earlier tries (history): session chaining
 (retired: sessions cannot start sessions) and a scripted workflow (D17, stopped 2026-10-16 for this).
 
+## Progress renders (Michael, 2026-10-16)
+"show me any scratch renders as theyre made. also whenever renders are being reviewed. i like to see progress."
+The orchestrator watches the scratchpad and `docs/operators/mockups/` for new renders (a Monitor, re-armed when it
+expires) and sends each batch with SendUserFile as it lands (up to 6 per batch, the most telling views first), sends
+the renders a checker is about to review when it starts that checker, and still sends the step's renders at commit.
+
+## Locomotion coupling (Michael, 2026-10-16)
+Both runs go in parallel on two machines. Locomotion step 25 (weapon / holster) and later (27 contact, 30 co-op
+bodies, 32 metrics freeze) should be tuned against the real Wren model; it becomes a game asset at step 10, then a
+short integration session (own branch, dev switch `?operator=wren`). The note was sent to the Locomotion Build session
+(Remote Control) to record in docs/locomotion; delivery is not confirmed.
+
+## Hardware library helper (Michael, 2026-10-16)
+A parallel session on the second machine, after the locomotion run completes, builds the rigid hardware generators
+(new files only, branch feature/operators-hardware); the orchestrator merges it between steps. Prompt:
+`docs/operators/HARDWARE-PROMPT.md` (also given in chat). If the run is past step 09, it serves Moth (step 14).
+
 ## Prompts Michael uses
 - Start prompt: the block below, in a new session in `C:\NightShift\Mobile-Coop-operators`, Opus 5.5, effort High.
 - Resume line (new session or new account, after a stop): **Operators run: RESUME (local)**. The session runs the

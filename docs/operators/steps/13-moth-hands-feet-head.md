@@ -14,7 +14,7 @@ Moth's gloves, boots, hood and the original round amber twin-lens optic on short
 
 1. Gloves (rope-hand wear) and boots from the step 6 generators sized to Moth.
 2. Balaclava and hood; the round twin lenses on short barrels (original), amber glow (D13), mount and cable per the
-   kit data; earpiece and boom mic.
+   kit data (no flip mount: stowed on the forehead, over the eyes in use, D19); earpiece and boom mic.
 3. Renders (darkness glow view) and checks.
 
 ## Out of scope

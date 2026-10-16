@@ -5,6 +5,7 @@ Close-ups: shirt - left upper arm and elbow; base layer - collar and left cuff; 
 the waist (belt loops, fly, tucked shirt) and the seat.
 """
 import json
+import math
 import os
 import sys
 
@@ -22,6 +23,7 @@ args = common.parse_args({
     '--out': {'required': True},
     '--dest': {'required': True},
     '--samples': {'type': int, 'default': 512},
+    '--quick': {'action': 'store_true'},   # close-ups only (the per-item tuning loop, step 07)
 })
 common.check_version()
 op_id, gname = args.operator, args.garment
@@ -69,16 +71,17 @@ floor.data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Base Color'].
 FULL = gname != 'combat_shirt'   # the whole figure (legs) or the upper body (the shirt's own framing)
 front_cam = ((0.3, -3.4, 1.0), (0.0, 0.0, 0.88)) if FULL else ((0.22, -2.45, 1.22), (0.0, 0.0, 1.06))
 
-# a. Front, stealth: the key rakes in hard from the wearer's left and above; the rim from behind right.
-stealth(*front_cam, (2.2, -0.9, 2.3), (-1.4, 2.2, 2.0))
-out.append(shot('a-front-stealth', (1200, 1500), -1.2))
+if not args.quick:
+    # a. Front, stealth: the key rakes in hard from the wearer's left and above; the rim from behind right.
+    stealth(*front_cam, (2.2, -0.9, 2.3), (-1.4, 2.2, 2.0))
+    out.append(shot('a-front-stealth', (1200, 1500), -1.2))
 
-# b. Three-quarter back, stealth (behind the wearer's left shoulder).
-if FULL:
-    stealth((2.1, 2.6, 1.15), (0.03, 0.0, 0.9), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
-else:
-    stealth((1.55, 1.85, 1.45), (0.04, 0.0, 1.1), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
-out.append(shot('b-back34-stealth', (1200, 1500), -1.2))
+    # b. Three-quarter back, stealth (behind the wearer's left shoulder).
+    if FULL:
+        stealth((2.1, 2.6, 1.15), (0.03, 0.0, 0.9), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
+    else:
+        stealth((1.55, 1.85, 1.45), (0.04, 0.0, 1.1), (-1.8, 1.2, 2.4), (1.6, -2.0, 1.9))
+    out.append(shot('b-back34-stealth', (1200, 1500), -1.2))
 
 
 def closeup(name, target, view, lens=35, dist=0.40, rake_from=None, power=30):
@@ -145,6 +148,65 @@ elif gname == 'boots':
     closeup('f-closeup-boot-sole', np.array([an[0], an[1] + 0.0, 0.01]), (side * 0.35, 0.8, -0.75), lens=30, dist=0.5,
             rake_from=(side * 0.2, 0.25, -0.15), power=8)
     floor.hide_render = False
+elif gname in ('headwear', 'head_kit'):
+    # Step 07: the head. Front three-quarter, the left side (earpiece side, chin buckle), the back (cradle, battery,
+    # the band, the hood's cord lock); for the head kit also the goggle in use (close), stowed on the brow (front and
+    # side, D19 / D20) and a darkness view lit by the lens glow alone, in use (D13). Near-black parts: small rake lights (gloves 2 W, boots 6-8 W).
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'garments'))
+    import fitted as FT  # noqa: E402
+    import head_common as HC  # noqa: E402
+    body = bpy.data.objects[f'{op_id}-body']
+    hf = HC.head_frame(FT.bvh_of(body, bpy.context.evaluated_depsgraph_get()))
+    hc, ez = hf['c'], hf['eye_z']
+    face = np.array([0.0, hc[1] - 0.07, ez])
+    closeup('c-closeup-head-front', face + np.array([0.0, 0.0, 0.01]), (0.5, -1.0, 0.15), lens=50, dist=0.55,
+            rake_from=(0.3, -0.12, 0.2), power=3)
+    closeup('e-closeup-head-side', np.array([0.02, hc[1] - 0.02, ez - 0.02]), (1.0, -0.2, 0.08), lens=50, dist=0.55,
+            rake_from=(0.12, -0.25, 0.2), power=3)
+    closeup('f-closeup-head-back', np.array([0.0, hc[1] + 0.05, hc[2] - 0.01]), (-0.45, 1.0, 0.3), lens=50, dist=0.55,
+            rake_from=(0.25, 0.12, 0.22), power=3)
+    stow = [o for o in bpy.data.objects if o.get('stowM')]
+    if gname == 'head_kit' and stow:
+        # g. In use (D19 / D20): the goggle over the eyes, the eyecups sealing on the eye port.
+        closeup('g-closeup-goggle', face + np.array([0.0, -0.06, 0.0]), (0.35, -1.0, -0.12), lens=50, dist=0.36,
+                rake_from=(0.2, -0.1, 0.15), power=2)
+        # h. Stowed: slid up onto the brow over the hood, the band and its cable in their stowed run (A29).
+        from mathutils import Matrix  # noqa: E402
+        M = Matrix([stow[0]['stowM'][r * 4:r * 4 + 4] for r in range(4)])
+        pos = [o for o in bpy.data.objects if o.get('goggle_pos')]
+        for o in stow:
+            o.matrix_world = M @ o.matrix_world
+        for o in pos:
+            o.hide_render = o['goggle_pos'] != 'stowed'
+            o.hide_viewport = False
+        # the hood's band dent follows the band (fix round 2, item 1): head_kit stores the stowed run as a delta
+        dent = [o for o in bpy.data.objects if o.type == 'MESH' and 'stow_delta' in o.data.attributes]
+
+        def shift_dent(sgn):
+            for o in dent:
+                n_ = len(o.data.vertices)
+                co, dl = np.zeros(3 * n_), np.zeros(3 * n_)
+                o.data.vertices.foreach_get('co', co)
+                o.data.attributes['stow_delta'].data.foreach_get('vector', dl)
+                o.data.vertices.foreach_set('co', co + sgn * dl)
+                o.data.update()
+        shift_dent(1.0)
+        closeup('h-closeup-goggle-stowed', face + np.array([0.0, 0.0, 0.035]), (0.55, -1.0, 0.2), lens=50, dist=0.55,
+                rake_from=(0.3, -0.12, 0.2), power=3)
+        closeup('j-closeup-stowed-side', np.array([0.02, hc[1] - 0.02, ez + 0.01]), (1.0, -0.35, 0.15), lens=50,
+                dist=0.6, rake_from=(0.12, -0.25, 0.2), power=3)
+        for o in stow:
+            o.matrix_world = M.inverted() @ o.matrix_world
+        shift_dent(-1.0)
+        for o in pos:
+            o.hide_render = o['goggle_pos'] != 'inuse'
+        # i. Darkness: no lights, no world: what shows is the lens glow and what it lights.
+        clear_rig()
+        RN.world(sc, 0.0)
+        # framed on the head (fix round 1, item 8): the glow's spill on the eyecups, the brow and the hood is judged
+        tgt = face + np.array([0.0, -0.03, -0.005])
+        sc.camera = RN.camera('dark', tuple(tgt + FT.unit(np.array([0.45, -1.0, 0.12])) * 0.42), tuple(tgt), 50)
+        out.append(shot('i-darkness-glow', (1500, 1500), 1.8))
 elif gname == 'base_layer':
     nk = J['neck']
     closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,
@@ -181,12 +243,13 @@ if gname == 'combat_shirt':
 
 
 # d. Front, neutral even light, for checking construction.
-clear_rig()
-RN.world(sc, 0.6, (0.5, 0.5, 0.5))
-RN.studio_rig(centre, 1.7)
-floor.data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.08, 0.08, 0.085, 1)
-sc.camera = RN.camera('front', *front_cam, 55)
-out.append(shot('d-front-neutral', (1200, 1500), 1.4))
+if not args.quick:
+    clear_rig()
+    RN.world(sc, 0.6, (0.5, 0.5, 0.5))
+    RN.studio_rig(centre, 1.7)
+    floor.data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.08, 0.08, 0.085, 1)
+    sc.camera = RN.camera('front', *front_cam, 55)
+    out.append(shot('d-front-neutral', (1200, 1500), 1.4))
 
 print('operators: test renders on', ', '.join(gpus))
 for p in out:

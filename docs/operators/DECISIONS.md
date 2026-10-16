@@ -132,6 +132,36 @@ prompt, i will put it in another session. must operate exactly like the locomoti
 (Opus 5.5 High) runs steps 05-18 with Agent subagents (implementer, Opus checker, up to 3 fix rounds) and commits
 itself. Replaces D17's scripted workflow (stopped; the script is kept as history). Prompts: OWNER-NOTES.md.
 
+**D19 Goggles: no flip mount, a tactical strap, a futuristic housing (2026-10-16, during step 07).** Michael: "the
+goggles shouldn't flip up and down, they should just sit over the forehead, and be over the face when in use. make the
+head strap more tactical looking also. the night vision goggles could be more futuristic, they look very square".
+Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle housing", and step 07 Do item 2:
+- No flip arm, pivot or detent lever. Two worn positions: stowed, resting on the forehead / brow over the hood; in use,
+  pulled down over the eyes (the eye port). Both are rendered (replaces the "optic up" view).
+- The head strap / harness reads more tactical: purpose-built webbing and hardware, not a generic strap set.
+- The goggle housing is more futuristic and less square: original sculpted, rounded forms (still no three-lens goggle,
+  no copied product, D5); the strong glow stays (D13).
+- Scope (orchestrator's reading, A28): Moth's head kit (step 13) follows the same no-flip rule; Moth keeps its round
+  twin-lens amber look from SPEC.
+- Process, Michael: "you can show me scratch renders first with some options if its easier to nail the look". Before
+  the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
+  (stowed and in use); Michael picks; the fix round builds the pick.
+
+**D21 Hero LOD use confirmed (2026-10-16).** Michael, after the hero / LOD0-2 / phone plan (SPEC 6.3-6.4) was
+explained: "i do want hero version for the main menu and for any close up shots". Hero LOD (150-250 k triangles,
+budget unchanged) drives the main menu and every close-up camera; gameplay uses LOD0-2; phones never download it.
+Step 18's integration plan names the close-up cameras that switch to hero.
+
+**D20 Goggle pick: the original housing, no flip; strap option 2 (2026-10-16, step 07).** Shown the scratch options
+(goggles A wraparound visor, B twin pods, C faceted shell; straps 1-3), Michael: goggles - "I don't like any of them, the
+original one looked better but it can't flip up, it would be impractical for stealth operative"; strap - "2 - Split
+crown, hard pod". So: keep the original step 07 goggle housing (the D19 "more futuristic, less square" point is
+withdrawn for now); remove the flip mount (D19 stands: stowed on the brow, over the eyes in use, no flip arm); the head
+harness becomes option 2 (two crown straps forking from a hard brow plate to a hard sculpted rear battery pod,
+low-profile cam buckles on the side straps). The goggle is held by a wide band through side lugs on the housing,
+carrying the power line to the rear pod (from the options pass; assumed, A29). Scratch options and their script:
+the session scratchpad `options/` (OPTIONS.md, opts.py), not kept in git.
+
 ## Assumed decisions (unattended run, D15)
 
 Judgement calls made inside a step without Michael (RULES "Unattended run"): what, why, how to undo. Numbered A1, A2, ...
@@ -269,3 +299,66 @@ garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `
   caps near-white; closed by measurement (boot shafts 0.07 vs leggings 0.06-0.08; the toe-cap brightness is the key
   light on up-facing surfaces, bare feet light the same way). Toe: `TOE_ROOM` 14 mm, superellipse 2.0 medial / 1.7
   lateral, toe width 2 cm behind the tip 61 % of the ball. Undo: `materials.py`, `boots.py`.
+**A24 Head items are fitted, not simulated (step 07).** The step file asks for the balaclava and hood "sewn and
+  simulated on the head"; they are built by `build_fitted.py` like the gloves and boots (A18): a ray grid round the
+  head and neck (`head_common.capsule`) whose vertices only move along their rays, stretched as a membrane over the
+  skin and the layers (`head_common.membrane`: tension bridges the eye sockets, the mouth and behind the ears and tents
+  over the nose; low cling on the face, so no face is modelled under the knit, D4), the hood a looser membrane over the
+  balaclava, both cut along field contours (`level_slice`). Reason: a knit this tight on a face does not drape, and
+  Blender cloth on the face's concavities is the failure the gloves hit (A18); folds that matter (the rear channel's
+  gathers, the strap dents) are placed from the kit that makes them. The head kit is hard parts and webbing laid by
+  rays on the hood surface. Two items in `GARMENTS`, after the trousers: `headwear` (kit hood + balaclava) and
+  `head_kit` (headHarness + the rest). Undo: a sewn `garments/hood.py` through `build_garment.py`.
+  Fix round 1 (item 7) tried that undo for the hood (`py/trials/hood_sim_trial.py`, the fitted hood's three panels
+  flattened as the rest shape, sewn, balaclava and shirt as colliders, six runs): pinned, it blew apart at frame 2;
+  unpinned, the flat dome panels pulled short (seam gap 98 mm at frame 40) and 2359 of 2604 sampled vertices went
+  inside the balaclava. The hood stays fitted; LOG.md "Step 07 fix round 1" has the numbers.
+**A25 Base-layer mock neck drawn in under the head items (step 07).** The step 05 base layer's mock neck flares up to
+  26 mm outside the shirt collar at the nape (through the collar, measured 0.079 vs 0.052 m at z 1.45). The headwear
+  stage draws its render mesh, stitches and shell back to 4 mm off the skin above the collar line (blended in over
+  25 mm, inside the collar), so the balaclava and hood are not pushed out by it; 19k vertices move. It is covered by
+  the balaclava and hood everywhere it moved. Undo: drop `tame_mock_neck` in `headwear.py`; the real fix is the base
+  layer's neck band (follow-up).
+**A26 Lens material class (step 07).** The goggle lenses are coated glass: glossy (roughness 0.06) with a thin-film
+  coating and the emissive glow (D13). The check's fabric/hard classes cannot hold them, so `check_garment.py` gains a
+  third class `lens` with its own roughness limit 0.02-0.3 (albedo not judged); no existing limit changes. Three head
+  measuring views are added (front left, back left, front low). Undo: tag the lens `hard` and accept a frosted lens.
+**A27 Head cable data measured (step 07; partly superseded: see the note at its end).** Kit data cable lengths follow the routed builds: goggle cable 0.28 m (was
+  0.4) with clips at 0.09 and 0.18 m; it runs into the mount shoe and the mount carries power to the goggle through its
+  contacts (so flipping the goggle never pulls the cable). Earpiece cable 0.44 m (was 0.27) from a plug at the left
+  collarbone (the PTT arrives in step 09): collar clip 0.03, under the balaclava edge 0.17, held under the balaclava up
+  the neck 0.3 (every free span under MAX_CABLE_SPAN). The hood rides over it (a soft ridge on the left of the neck).
+  Undo: `kit.ts`.
+  Note (round 4 checker): the goggle cable no longer runs to a mount shoe (no mount since D19 / D20; see the A29 update);
+  the earpiece cable's 0.44 m comes from a routing bug - it passes through the neck to the right side and back (step 07
+  OPEN, steps/07-fixes-r4.md); a direct collarbone-to-ear run is about 0.19 m.
+
+**A29 Goggle band, hard pod and the two positions (step 07 fix round 1, PART B; D19, D20).** The band is assumed from
+the scratch options pass (D20): a 22 mm elastic band (1.8 mm) through a D-frame lug on each side of the original square
+housing runs round the back of the head over the harness; it takes the convex hull of the head section (an elastic
+band under tension bridges hollows) and passes through a channel under the battery pod. It carries the goggle cable:
+pod outlet (left, top) along the band's outer face under three webbing keepers to the left lug, 0.26 m in use
+(keepers 0.07 / 0.14 / 0.21 m; kit data). Two positions: in use (the build's pose, exported and checked) and stowed
+(the goggle slid up 44 mm onto the brow, tipped back 16 degrees, resting on its eyecups 1.6 mm off the hood; a rigid
+transform `stowM` on the goggle parts, the band and cable rebuilt for that pose and hidden from export and checks).
+Further calls: the battery pod is the harness's hard rear shell (D20 "no soft cradle"), so the battery retention strap
+and its hook-and-loop tab are gone (`batteryStrap` removed from Wren's kit; Moth's untouched until step 13); the
+dovetail rail on the housing top went with the mount; the hood's cord lock moved to the centre line between the two
+crown straps (CORD_X 0.0, channel 6 mm higher above the pod). Undo: `garments/head_kit.py` (`band`, `STOW_*`),
+`head_common.straps` (forks), `kit.ts`.
+Updated after fix rounds 2-3 (recorded by the orchestrator from the round 4 checker): the band is no longer a convex
+hull but a relaxed strip (`_relax_band`: shrinks onto hood + face-opening hem + harness, per-edge ray collision, may
+press 0.8 mm into the hood, pinned at the lug bars and a guide point under the pod, the hood dented under it); each end
+is one wrap-and-return webbing with a bar tack; the goggle cable is 0.29 m with keepers at 0.07 / 0.14 / 0.22 m and
+plugs into the housing side above the left lug; the cam buckles sit 32 mm behind the brow plate (was 50); the chin
+buckle sits on the left riser at the jaw, 51 mm below the eye line. Standoff metric: the band underside centre over
+the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 2.5 mm).
+**A30 Twelfth check view (step 07 fix round 3; recorded by the orchestrator).** `check_garment.py` gains a view of the
+  right wrist from below, looking up the sleeve: the longer hood skirt (A31) hid the base layer's compression knit in
+  the head items' views (2547 px at SKIRT_BACK 0, 30 px at 10 mm, limit 150); this view sees 855-885 px of it under the
+  shirt cuff. No limit changed; albedo and roughness are sampled from the shader inputs, so an added real view cannot
+  hide an out-of-band value (round 4 checker). Undo: drop the view and shorten the skirt.
+**A31 Hood skirt lower at the nape (step 07 fix round 3; extends A25).** The hood skirt ends 10 mm lower at the back
+  (`SKIRT_BACK`, `skirt_cut`), is re-faired after the push-out from the shirt mesh, and `tuck_collar` draws the shirt's
+  render mesh inside the skirt to a per-vertex edge height (1251 vertices; the shirt is not rebuilt), so the nape shows
+  the skirt's clean hem. Undo: `SKIRT_BACK` 0 and drop `tuck_collar` in `headwear.py`.

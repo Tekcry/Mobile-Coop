@@ -260,6 +260,8 @@ export class Lab {
       p.directIntensity = Math.PI; // as the game's parts: PBR divides diffuse by pi
       p.backFaceCulling = false;
       p.twoSidedLighting = true;
+      // Step 07: the built goggle's lenses carry the glow (D13); the stand-in box is then hidden.
+      if (m.name === 'goggle lens') p.emissiveColor = new Color3(0.3, 0.85, 0.16);
       return p;
     });
     const meshes: Mesh[] = [];
@@ -463,7 +465,7 @@ export class Lab {
         this.registerCasters();
       }
     }
-    this.glow.setEnabled(r.glow);
+    this.glow.setEnabled(r.glow && !this.hasLens());
     this.glowLight.setEnabled(r.glow);
     if (this.pipeline) {
       this.applyExposure();
@@ -613,6 +615,11 @@ export class Lab {
       }
     }
     this.scene.render();
+  }
+
+  /** The loaded model has the built goggle (step 07): its lens material glows, no stand-in needed. */
+  private hasLens(): boolean {
+    return !!this.loaded?.model.materials.some((m) => m.name === 'goggle lens');
   }
 
   private readonly riggers = new Map<string, RigJoint>();

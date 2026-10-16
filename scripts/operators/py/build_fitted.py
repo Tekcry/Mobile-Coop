@@ -91,7 +91,8 @@ sim = {
     'method': 'fitted', 'methodNote': garment.METHOD, 'under': UNDER_IDS,
     # no simulated seams: the panels are cut from one fitted surface (gloves) or modelled closed (boots)
     'seamGapByFrame': [[0, 'none (fitted, not sewn by simulation)', 0.0]],
-    'details': {'patches': []}, 'measurements': res.get('measurements', {}), 'verts': len(SV),
+    # kit items the build carries besides its own (step 07: the head kit is one built item with many kit parts)
+    'details': {'patches': [{'kit': k} for k in res.get('kits', [])]}, 'measurements': res.get('measurements', {}), 'verts': len(SV),
 }
 with open(stem + '-sim.json', 'w', encoding='utf-8') as f:
     json.dump(sim, f, indent=1)

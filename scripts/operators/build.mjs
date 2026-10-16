@@ -7,6 +7,8 @@
 //    (gloves, boots: FITTED, A18) are built in one stage by build_fitted.py.
 // 4. glTF export for the Operator Lab (<id>-lab.glb).
 // --render also renders the garment test views into docs/operators/mockups/tests/ (Cycles on the GPU).
+// --from <garment> resumes at that garment: the skeleton, the body and the earlier garments are taken as built (their
+// blends in build/operators/<id>/ must be current); used when only the last layers changed (step 07).
 import path from 'node:path';
 import { exportJoints } from './export-joints.mjs';
 import { fetchBaseBody } from './fetch-base-body.mjs';
@@ -16,8 +18,10 @@ import { OUT_DIR, ROOT } from './paths.mjs';
 
 
 const argv = process.argv.slice(2);
-const only = argv.filter((a) => !a.startsWith('-'));
+const only = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--from');
 const render = argv.includes('--render');
+const fromIdx = argv.indexOf('--from');
+const from = fromIdx >= 0 ? argv[fromIdx + 1] : null;
 const blender = findBlender();
 console.info(`operators: ${blender.version} (${blender.exe})`);
 
@@ -28,10 +32,15 @@ console.info(`operators: joints -> ${path.relative(process.cwd(), joints)}`);
 
 for (const id of only.length ? only : ['wren', 'moth']) {
   const out = path.join(OUT_DIR, id);
-  runBlender('build_skeleton.py', ['--joints', joints, '--operator', id, '--out', out], { blender });
-  runBlender('build_body.py', ['--joints', joints, '--operator', id, '--mpfb', mpfb.dir, '--out', out], { blender });
-  const done = [];   // garments already built: the next one is sewn over them (multi-layer simulation)
-  for (const g of GARMENTS[id] ?? []) {
+  const list = GARMENTS[id] ?? [];
+  const start = from ? list.indexOf(from) : 0;
+  if (start < 0) throw new Error(`--from ${from}: not a garment of ${id} (${list.join(', ')})`);
+  if (!from) {
+    runBlender('build_skeleton.py', ['--joints', joints, '--operator', id, '--out', out], { blender });
+    runBlender('build_body.py', ['--joints', joints, '--operator', id, '--mpfb', mpfb.dir, '--out', out], { blender });
+  }
+  const done = list.slice(0, start);   // garments already built: the next one is sewn over them (multi-layer simulation)
+  for (const g of list.slice(start)) {
     const a = ['--operator', id, '--garment', g, '--out', out];
     const under = done.length ? ['--under', done.join(',')] : [];
     if (FITTED.has(g)) {

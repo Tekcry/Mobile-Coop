@@ -51,7 +51,7 @@ What makes the reference game's operator read the way it does, as principles we 
 - **Dark, matched layers.** Top and trousers in close, desaturated darks so the body reads as one form; texture and
   material changes (knit vs ripstop vs webbing vs polymer) carry the detail, not colour.
 - **A harness over the suit.** Load-bearing webbing that shows the body under it, rather than a slab of armour.
-- **The head is the signature.** A covered head under a hood with goggles on a mount, the lenses glowing in the dark.
+- **The head is the signature.** A covered head under a hood with goggles on a band, the lenses glowing in the dark.
 - **Purposeful kit only.** A thigh holster, a back-carried long gun, a few pouches; everything has a job.
 
 What we never take: the reference's three-lens goggle, its suit's panel layout and patterning, any emblem, name or
@@ -142,24 +142,26 @@ polymer buckles. A retention hood or lever over the pistol. An open muzzle end f
 - Dump pouch: rolled and held by elastic until it is needed.
 - Weight shows: full pouches pull their bottom edge out and down; the webbing above them stretches taut.
 
-### 3.3 Head: mount, goggles, comms
+### 3.3 Head: harness, goggles, comms
 
-**Head harness.** Without a helmet, goggles ride on a strap cradle: a crown strap, two side straps to a padded rear
-cradle, a chin strap, and a firm front plate on the forehead. Worn over the hood, its straps compress the hood fabric
-(visible dents and pulled folds).
+**Head harness (D20, split crown).** Without a helmet, the goggles and battery ride on a harness: a hard polymer brow
+plate on the forehead, two 18 mm crown straps forking from the plate over the top of the head to a hard, sculpted rear
+battery pod (no soft cradle), two side straps above the ears (plate to pod) set by low-profile cam buckles, and a chin
+strap under the chin. Worn over the hood, its straps compress the hood fabric (visible dents and pulled folds).
 
-**Mount.**
-- A flip-up arm on the front plate: up (stowed) or down (in use).
-- Knobs set fore-aft and height. A detent lever unlocks the flip.
-- Anodised aluminium body (fine sheen, edges worn to bright metal), polymer knobs with knurling.
+**Goggle band and positions (D19, D20; no flip mount).**
+- A wide elastic band through a lug on each side of the goggle housing runs round the back of the head over the
+  harness (through a channel under the pod) and carries the goggle's power line (A29).
+- Two worn positions: in use, pulled down over the eyes, the eyecups sealing on the eye port; stowed, slid up onto the
+  brow over the hood, above the eye port. No flip arm, pivot or detent.
 
 **Goggle housings.**
 - A housing holds optics and a display behind each lens; a soft rubber eyecup seals against the face.
 - Lens coatings show a coloured reflection at an angle.
 - Our glow is the display leaking through the lens: emissive, visual only (5.14).
 
-**Battery pack.** On the rear cradle as a counterweight. Its cable runs over the crown along the crown strap, held by
-two or three clips or elastic loops, down to the mount; strain relief at both ends.
+**Battery pod.** The harness's hard rear pod is the battery and the counterweight. Its cable runs from an outlet on the
+pod along the goggle band's outer face, held by webbing keepers, to the left lug; strain relief at both ends.
 
 **Comms.**
 - Radio in a pouch (chest left, or the left side of the carrier).
@@ -332,13 +334,15 @@ cable a source, a device and no free span over 15 cm. Writing them as data added
 **Head**
 - Fitted balaclava - head and neck - covers skin; one eye port sealed by the goggle eyecups - worn under everything.
 - Close-fitting hood - over the balaclava - part of the soft-shell top; rear shock-cord volume adjuster with a cord lock.
-- Head harness - over the hood - carries the mount and battery - crown strap, two side straps, rear cradle, chin strap
-  with a side-release buckle.
-- Flip mount - front plate - holds the goggle up or down - bolted to the harness front plate; fore-aft and height knobs.
-- Square goggle housing (green) - on the mount - one square shroud over two optics, rubber eyecups - dovetail into the
-  mount.
-- Battery pack - rear cradle - powers the goggle; counterweight - hook-and-loop to the cradle plus a retention strap.
-- Goggle cable - pack to mount over the crown - power - two clips on the crown strap, strain relief boots at both ends.
+- Head harness (split crown, D20) - over the hood - carries the battery pod, seats the goggle band - hard brow plate,
+  two crown straps, two side straps with cam buckles, hard rear battery pod, chin strap with a side-release buckle.
+- Goggle band - round the back of the head over the harness - holds the goggle in use (over the eyes) or stowed (on
+  the brow), carries the goggle cable - through a lug on each side of the housing (D19, A29).
+- Square goggle housing (green) - over the eyes in use, on the brow when stowed - one square shroud over two optics,
+  rubber eyecups - the goggle band through its side lugs.
+- Battery pod - rear of the harness - powers the goggle; counterweight - the harness's hard shell; screw cap.
+- Goggle cable - pod to the left lug along the band - power - webbing keepers on the band, strain relief boots at both
+  ends.
 - Earpiece - left ear under the hood - radio audio - cable from the PTT up the neck under the balaclava edge.
 
 **Torso**
@@ -382,7 +386,7 @@ cable a source, a device and no free span over 15 cm. Writing them as data added
 - Mid boots - suede and nylon, toe rand, speed hooks, lace garage, quiet lug sole.
 
 **Wear:** a scuffed carrier bottom edge; polished glove palms and trigger finger; worn webbing tails; tape on the
-mount knob; dust in the boot lugs and trouser cuffs; an abraded rifle-butt patch.
+goggle mode switch; dust in the boot lugs and trouser cuffs; an abraded rifle-butt patch.
 
 ### 5.2 MOTH (climber)
 
@@ -390,8 +394,8 @@ mount knob; dust in the boot lugs and trouser cuffs; an abraded rifle-butt patch
 - Fitted balaclava - as Wren.
 - Hood - over the balaclava - part of a lighter knit top, a looser fit than Wren's; drawcord at the face opening.
 - Head harness - over the hood - as Wren, slimmer straps.
-- Flip mount - as Wren, our own different shape.
-- Round twin-lens goggles (amber) - on the mount - two round barrels, joined by a bridge with an interpupillary
+- Goggle band - as Wren (no flip mount, D19).
+- Round twin-lens goggles (amber) - over the eyes in use, on the brow when stowed - two round barrels, joined by a bridge with an interpupillary
   slide; rubber eyecups.
 - Battery pack and cable - as Wren; the cable routed on the right.
 - Earpiece - right ear - from a PTT on the chest rig.
@@ -476,7 +480,7 @@ and the operator's build (Section 4). It is only the form the clothes drape on; 
   Physical rules by method.
 
 **Kit is parametric hard modelling.**
-- Buckles, holster shell, mount, goggle housings, radio, carabiners and descender are generated by Python with
+- Buckles, holster shell, harness plate and pod, goggle housings, radio, carabiners and descender are generated by Python with
   bevels and booleans from dimensioned parameters.
 - Straps and cables are swept profiles along paths that start and end at named anchor points on the body or on other
   kit, pulled taut (or given slack) by a tension value.

@@ -13,6 +13,16 @@ describe('operator kit', () => {
     expect(validateKit(MOTH_KIT)).toEqual([]);
   });
 
+  it('no flip mount (D19): a goggle band with two anchors on the goggle holds it in use or stowed', () => {
+    for (const kit of [WREN_KIT, MOTH_KIT]) {
+      const ids = kit.items.map((i) => i.id);
+      expect(ids).not.toContain('flipMount');
+      const band = kit.items.find((i) => i.id === 'goggleBand');
+      expect(band?.kind).toBe('strap');
+      expect(band?.anchors?.map((x) => x.item)).toEqual(['goggle', 'goggle']);
+    }
+  });
+
   it('the pipeline kit check names built items missing from the kit', () => {
     expect(kitCoverage(WREN_KIT, ['combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR'])).toEqual({ missing: [], errors: [] });
     // step 05: the base layer and the trousers with what is sewn onto them

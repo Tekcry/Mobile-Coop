@@ -493,3 +493,219 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
   8. OPEN - sole lugs are two brick clusters with no distinct heel-brake bar (`wren-boots-f`); on both legs the hem
      sits behind the top of the laces / tongue instead of over it (`wren-trousers-h`).
 - Status: passed the independent check (fix rounds: 3).
+
+## Step 07 - Wren: hood, optic, mount and comms head kit (Opus 5.5)
+- Built (DECISIONS A24: fitted, not simulated): `py/garments/head_common.py` (head frame measured by rays: crown
+  centre, eye and chin heights, neck axis; the ray grid `capsule`; `membrane`, a knit stretched along fixed rays;
+  the harness strap planes `straps` / `strap_spans`; solids `rbox`, `pad`, `taper`, `knurl`; `cable_dir`),
+  `py/garments/headwear.py`, `py/garments/head_kit.py`. `GARMENTS.wren` += `headwear`, `head_kit` (both `FITTED`);
+  `build_fitted.py` writes each item's extra kit ids (`res['kits']`) as the sim report's patches.
+- Headwear (kit hood + balaclava): balaclava 1.6 mm off the skin and the mock neck, bridging the eye sockets and the
+  mouth (low cling on the face: no face under it, D4), its neck tucked 16 mm inside the shirt collar (968 vertices held
+  inside); two panels with a cover-stitched flatlock seam down the centre line; one eye port (100 x 31 mm) with a turned
+  edge, a bound rim and a lining in shadow. Hood 4.5 mm over it (7.5 mm at the back), three panels with topstitched
+  seams, rolled stitched hems at the face opening and the skirt (laps 24 mm over the collar), dented 1.4 mm under the
+  strap planes, a rear shock-cord channel above the cradle with gathered pleats, two eyelets left of the crown strap,
+  cord, cord lock and knotted tail; a soft ridge on the left of the neck over the earpiece cable. 1,591 stitches over
+  1.59 m of seam rows; 72.6k faces. The base layer's flared mock neck is drawn in under the collar (A25, 19k vertices).
+- Head kit (kit headHarness + crownStrap, sideStraps, chinStrap, flipMount, goggle, batteryPack, batteryStrap,
+  goggleCable, earpiece, earpieceCable): polymer front plate, padded Cordura rear cradle (stitched edge), crown strap
+  0.24 m, side straps 0.18 m each through ladder locks with doubled-back tails, chin strap 0.43 m on D-rings with a
+  side-release buckle on the left; anodised flip mount (shoe on two bolts, pivot barrel, detent lever, flip arm with
+  a taped knurled height knob, carriage with the fore-aft knob on the goggle's dovetail rail); the square
+  single-shroud goggle (100 x 46 x 48 mm housing with a nose notch, shroud lip round two objectives, bezels, coated
+  lenses glowing green (class `lens`, A26), rubber eyecups sealing on the eye port (14 mm eye relief), a mode switch,
+  a muted amber status light); flip up -170 deg (largest flip with 5 mm clearance, stored on the flip parts); battery
+  pack with screw cap and a retention strap with a hook-and-loop tab; goggle cable 0.28 m over the crown strap, clips
+  at 0.09 / 0.18 m, strain relief boots, into the mount shoe; earpiece in the left ear, boom mic 0.12 m under the hood
+  edge with a foam windscreen; earpiece cable 0.44 m from a plug at the left collarbone, collar clip, under the hood
+  skirt and the balaclava edge (kit data re-measured, A27). 26.9k faces, 184 stitches.
+- Pipeline: `build.mjs --from <garment>`; `render_garment_test.py` head views (c front, e side, f back; head kit also
+  g goggle, h optic up, i darkness lit by the glow only) and `--quick`; `check_garment.py` class `lens` and three head
+  measuring views (A26); `export_gltf.py` flat factors for the new materials; the Lab hides the glow stand-in when the
+  model has the `goggle lens` material (step 04 open item 4).
+- Results: `npm run operators:check`: 7 items, all checks pass (headwear and head_kit seam gap 0 (fitted), edge length
+  29.5 mm each, no solidify spikes, every new material sampled in band; goggle lens roughness 0.06 in the new `lens`
+  band). `npm run check`: exit 0 (761 tests, 0 lint errors / 38 warnings, build OK; the Lab change re-typechecked and
+  linted on its own after). Renders (RTX 4090, Cycles 384 spp, E2E_GPU=1): `docs/operators/mockups/tests/
+  wren-headwear-*.webp` (6), `wren-head_kit-*.webp` (9).
+- Open (implementer's own read; for the checker):
+  1. The base layer's mock neck flares through the shirt collar at the nape (step 05 build); hidden under the head
+     items by A25, the real fix is the base layer's neck band.
+  2. The goggle sits forward on a long flip arm (eye relief 14 mm plus a 46 mm housing); flipped up (-170 deg) it
+     stands high over the forehead. A shorter arm / lower pivot would read more compact.
+  3. The darkness view frames the head small in the upper half (`wren-head_kit-i`); the lenses read clear green, the
+     glow throws little light on the face.
+  4. Close-ups still render the near-black materials as mid grey (step 06 open item); the hood ridge from the ear
+     down the neck (the knit tenting over the ear) is strong in `wren-headwear-e`.
+  5. The earpiece cable ends in a plug at the left collarbone until step 09 builds the PTT there.
+
+### Step 07 fix round 1, PART A (fixer, Opus 5.5; items 4-9 of steps/07-fixes-r1.md; items 1-3 are PART B, D19 / D20)
+- **4 Lens (done).** New `head_common.lens_assembly` (housing-agnostic, kept by D20): a 7.5 mm barrel out of the
+  housing face with a chamfered lip, a retaining ring, the glass seated 6.5 mm below the lip and domed 2.8 mm.
+  `materials.lens`: clear coat (0.03) over glass (roughness 0.05, IOR 1.52), thin film 380 nm, deeper green
+  (0.004, 1.0, 0.045) at strength 1.1 weighted per vertex (`emit`: 1 at the centre, 0.25 at the rim). The quick render
+  shows a saturated green dome with a specular highlight and the barrel's depth (was a flat pastel disc). Export sets
+  the lens emission strength to a constant 1 (glTF has no per-vertex weight; the Lab sets its own emissive colour).
+- **5 Chin strap (done).** `head_frame` measures the chin point and the skin 13 mm behind it (`chin_pt`,
+  `under_chin`); the chin plane passes there (the old target, neck_y - 0.05, lay on the throat; its 12 mm off-plane
+  shift is gone). Measured at the centre line: 2.8 mm behind and 11.6 mm below the chin point (`chinStrapBehindChinM`,
+  `chinStrapBelowChinM`); the e view shows it along the jaw and under the chin.
+- **6 Clipping (partly).** The shirt's render mesh poked up to 1.9 mm through the hood skirt at z 1.433-1.462 (measured
+  by ray: shirt hero 22 vertices outside the hood). Now the skirt is pushed 2.6 mm clear of the shirt's render mesh
+  (`collar_tree`) and the collar's 126 crumpled vertices at the nape are relaxed (`tame_collar`, like A25). Open: the
+  quick f view still shows a rough skirt / collar edge at the nape; judge on the final f render.
+- **7 Hood (sim attempt failed; fitted hood kept and tuned).** Trial `scripts/operators/py/trials/hood_sim_trial.py`:
+  the hood's three panels (5432 / 3772 / 3815 vertices, 385 seam pairs) flattened (conformal, then minimum stretch)
+  as the rest shape by A1's Dynamic Mesh method, sewn, balaclava and shirt as colliders. Six runs: with the skirt
+  pinned, rest edges between pinned (arranged) and free (flat) vertices blew the cloth 1.1-1.5 m away at frame 2 (seam
+  gap 145-464 mm); vertex mass 0.1 vs 0.004, 12 vs 30 substeps and tension 8-20 changed nothing. Unpinned and stable,
+  the flattened dome panels pull short: seam gap 34 mm at frame 2 and 98 mm at frame 40, and 2359 of 2604 sampled hood
+  vertices end inside the 1.6 mm balaclava (the A18 failure: a thin collider under strained flat panels). So A24 stays
+  for the hood too (evidence added to A24). Fitted hood: behind the ears and down the neck the hood clings to the
+  balaclava (cling 0.16 there, 0.04 elsewhere), the cable fold is 1.6 mm and broad (was a 2.6 mm narrow ridge); the
+  channel gathers are short crisp pleats at an irregular pitch that die out about 1 cm from the channel and stop at
+  its stitch rows (were 18 mm sine streaks across them). Open: the quick f view still has a dark smear on the channel.
+- **8 Darkness view (framing done).** Camera at 0.42 m on the face, exposure 1.8. Open: at the lower lens strength
+  the glow's spill on the eyecups and brow is barely visible; the lenses themselves glow clearly.
+- Quick renders (48 spp, GPU) were the tuning loop; the final renders are the `--render` set in mockups/tests/.
+
+### Step 07 fix round 1, PART B (fixer, Opus 5.5; items 1-3 of steps/07-fixes-r1.md as decided in D19 / D20)
+- **1 No flip mount, two positions (done).** Flip arm, pivot, detent lever, height and fore-aft knobs, tape, the
+  dovetail rail and the `flip` / `pivot` / `upDeg` data are gone (`head_kit.py`); the original square housing, lenses
+  (PART A `lens_assembly`), eyecups, mode switch and amber light are kept (D20). The goggle hangs on a 22 mm elastic
+  band through a D-frame lug on each side (A29): in use over the eyes (eyecups on the eye port, the build's pose) and
+  stowed on the brow (44 mm up, tipped back 16 degrees, resting on its eyecups 1.6 mm off the hood, housing 4.9 mm
+  clear; `stowM`). Band 0.52 m in use, 0.53 m stowed; its cable from the pod outlet to the left lug 0.26 m in use under
+  keepers at 0.07 / 0.14 / 0.21 m (kit data updated). `render_garment_test.py` swaps to the stowed pose for h
+  (`h-closeup-goggle-stowed`, replaces `h-closeup-optic-up`, deleted) and j (`j-closeup-stowed-side`); c, e, f, g and the
+  darkness view i show it in use.
+- **2 Harness = options-pass strap 2 (done).** `head_common.straps` gains two fork planes (`forkL` / `forkR`, 18 mm):
+  from the hard brow plate's top over the crown, 24 mm either side of the centre line, to the hard rear pod's upper
+  corners (0.237 m each). Side straps 20 mm (0.179 m) with low-profile anodised cam buckles 50 mm behind the plate,
+  tails doubled back; bar tacks 30 mm from every anchor plus box stitching; rivets through the side strap tabs on the
+  plate; a fork junction block. The rear is a hard polymer shell with a sculpted bent battery body (84 x 46 x 14 mm),
+  two ribs, a knurled screw cap on the right and a cable outlet boss on the left (no cordura cradle, no retention
+  strap). Chin strap as PART A placed it. The hood dents now follow the forks, side straps and chin strap (the old
+  centre crown strap dent is gone); the cord lock moved to the centre line between the forks (A29).
+- **3 Housing (withdrawn by D20).** The original square housing is kept, as Michael picked.
+- Results: `npm run operators:check -- wren` (E2E_GPU=1): 7 items, all checks pass; `npm run check`: lint 0 errors
+  (38 warnings), 73 files / 762 tests pass, build ok.
+- Docs and data: SPEC 2 / 3.3 / 5.1 (Wren and Moth head rows), the wear line (tape on the mode switch; not modelled
+  yet) and the generated-parts line; SPEC 7 has no flip-mount rows (checked). `kit.ts`: Wren `flipMount` -> `goggleBand`
+  (strap, anchors on the goggle's lugs), harness, crown / side straps, goggle, battery pod and goggle cable rewritten,
+  `batteryStrap` removed; Moth `flipMount` -> `goggleBand`, chin strap job and goggle "where" only. New Vitest
+  (`tests/operators.test.ts`): no flip mount, the band is a strap anchored twice on the goggle. README, export comment.
+- Renders (E2E_GPU=1, 384 spp): docs/operators/mockups/tests/wren-headwear-{a,b,c,d,e,f}-*.webp and
+  wren-head_kit-{a,b,c,d,e,f,g,h,i,j}-*.webp.
+- Open: the band's right rear run bunches slightly where it enters the channel under the pod (f view); the in-use band
+  bridges about 5 mm off the hood over the ear (by design of the hull, reads stiff); PART A's nape skirt / collar edge
+  and the dark smear on the rear channel (view f) were not worked in PART B (budget); the SPEC wear tape on the goggle
+  is not modelled; Moth's kit still says "pack to mount" for its goggle cable and keeps `batteryStrap` (step 13).
+
+### Step 07 fix round 2 (fixer, Opus 5.5; items 1-3 of steps/07-fixes-r2.md; items 4-7 logged OPEN)
+- **1 Goggle band (partly done).** `head_kit.py`: the band's centre line is now the convex hull of its plane section
+  *and the two lugs* (`_band_path`: straight free spans from the lugs to the first contact), pulled back towards the
+  head wherever it bridged by more than `BAND_BRIDGE` (1.8 mm), normals leaned to the surface; its edges may press up
+  to 2.5 mm into the loose hood (`_lift_clear(edge_clear=)`), and the hood (and its stitches) is pressed in under the
+  band (`_dent_field`: 1 mm where it lies on the hood, more where an edge would cut it; 460 hood vertices; not under
+  other harness parts). The stowed run's dent is a per-vertex `stow_delta` attribute that `render_garment_test.py`
+  applies for h / j (not exported: glTF attributes are off). Cable: a 2.6 mm cord (`CABLE_R`, was 4.2 mm) seated on
+  the band's outer face (was 2.4 mm proud); keepers are sewn 8 mm webbing loops arched over the cord with a bar tack at
+  each end (were solid 9 x 18 x 6.6 mm blocks). Measured (`wren-head_kit-sim.json`): in use band 0.54 m, cable
+  0.272 m, keepers at 0.068 / 0.143 / 0.218 m, `maxStandoffM` 6.9 mm (was 10.9 mm before this round's pull);
+  stowed band 0.53 m, cable 0.256 m, `maxStandoffM` 2.8 mm. Kit data (`goggleCable.length` 0.26) kept: within 1.5 cm.
+  Left: the in-use band still reads straight in the side view (its plane is seen edge-on; a real band is planar too)
+  and stands off over the temple between the face opening and the ear, where the hull runs over the balaclava inside
+  the face opening and the hood's face-opening hem (the hem tube is not in the band's surface: it may show through
+  the band there); the rear run right of the pod still bunches where it enters the channel (f). Next: build the band
+  surface from hood + hem + harness (not the balaclava), solve the band as a relaxed strip (shrink plus collision,
+  per edge) instead of a planar hull, and route it under the pod by a guide point.
+- **2 Nape (worked).** `headwear.py`: the hood skirt is faired from the collar line down (14 Laplacian rounds; it had
+  followed the crumpled collar shell along the rays) and the shirt's render meshes inside the skirt are tucked 2.6 mm
+  under it (`tuck_collar`, like A25; 1201 vertices; the shirt is not rebuilt), then the old hero push-out runs as a
+  safety. Render: the crumpled flap left of the nape is gone (`wren-headwear-f`), but the shirt collar's own wavy,
+  lumpy rim still shows below the skirt edge (f, lower third) and a small notch remains at the back of the neck in e.
+  Left: tame the collar rim below the skirt (or extend the skirt a few mm lower at the nape).
+- **3 Streak behind the left ear (worked).** The hood's cling now eases in (`smoothstep` on |D.x| and height) instead
+  of a hard 0.04 / 0.16 step at |D.x| = 0.45 that creased a jagged line down the hood behind the ear. Render
+  (`wren-headwear-e`): the jagged line is softer but a shading crease still follows the back of the ear bulge. Left:
+  smooth the hood normals there or lower the cling behind the ear.
+- Accepted follow-ups (OPEN, from the round 2 checker):
+  4. OPEN - rear channel gathers read as a soft smudge, not pleats (`wren-headwear-f`, above the cord lock). Reason:
+     not a fail; the hood stays fitted (A24 holds the sim attempt). Revisit with the torso kit or a hood pass.
+  5. OPEN - chin strap side-release buckle sits at cheekbone / ear-top height under the band (`wren-head_kit-j`, `e`).
+     Reason: budget went to items 1-3. Next: move the buckle along the chin span to the jaw line (`head_kit.py`, chin
+     strap block).
+  6. OPEN (note) - darkness view `wren-head_kit-i`: the lenses glow (D13 met) but the spill on the eyecups and brow is
+     not visible. Reason: note only.
+  Results: `E2E_GPU=1 npm run operators:check -- wren`: 7 item(s), all checks pass; `npm run check`: lint 0 errors
+  (38 warnings), 73 files / 762 tests pass, build ok. Renders (E2E_GPU=1, 384 spp):
+  docs/operators/mockups/tests/wren-headwear-{a..f}-*.webp and wren-head_kit-{a..j}-*.webp.
+  7. OPEN - Moth kit text for step 13 (`src/operators/kit.ts`, Moth): `goggle.attach` "dovetail into the mount" and
+     `headHarness.job` "carries the goggle mount" (no mount exists, D19), plus `batteryStrap` and goggle cable "pack to
+     mount" (already logged). Reason: Moth is step 13.
+
+### Step 07 fix round 3 (fixer, Opus 5.5; items 1-2 of steps/07-fixes-r3.md; the rest logged OPEN)
+- **1 Goggle band (done).** `head_kit.py`: the band is now a relaxed elastic strip (`_relax_band`), not a planar hull.
+  It starts from the plane section's hull (`_hull_run`, outside everything) and, coarse (12 mm) then fine (5 mm),
+  shrinks (each free point moves halfway to its neighbours' mean: tension) under per-edge collision by rays along its
+  normal (`_band_heights`: left edge, middle, right edge) against the hood (it presses `BAND_SINK` 0.8 mm into it), the
+  hood's face-opening hem (0.1 mm), the harness without the pod (0.2 mm) and the balaclava (2.5 mm; safety only, not
+  the support surface); its normal follows the soft surface under it. Pinned: each end on its lug's bar and 6 mm
+  straight off it along the goggle's side, and a guide point on the hood under the pod (it enters the channel there).
+  Where it still bridges a hood hollow by more than `BAND_BRIDGE` (2 mm) it pulls the loose hood in with it (never
+  closer than 0.2 mm to the harness, 0.1 mm to the hem, 2.4 mm to the balaclava). The hood (and its stitches) is dented
+  under it (`_dent_field`: at least 0.2 mm under its underside, a 1.2 mm pulled dent fading 6 mm off each edge). Each
+  end is one continuous webbing: the run, round the lug's bar, returned 22 mm under the band (gathered to 19.5 mm for
+  the lug's slot), a bar tack through both layers and two stitch rows (`_strip_w`, `LUG_W`, `RET_L`). The cable leaves
+  the band 26 mm before the left lug over its top edge into a plug on the housing's side above the lug (it ended in a
+  knot at the lug). The band's stitches and keepers' tacks are per pose (`band_st`, `band_s_st`: the stowed set floated
+  in front of the face in the in-use renders). Two harness parts the band rode over moved: the chin strap's
+  side-release buckle down the left riser to the jaw (51 mm below the eye line; it was at cheekbone height under the
+  band, which stood 7.5 mm off beside it: item 5 of round 2 closed) and the side straps' cam buckles to 32 mm behind
+  the plate, the nearest point where neither band run crosses them (the stowed band rode over the lever and stood
+  4.2 mm off beside it). Measured (`wren-head_kit-sim.json`; standoff = the band underside's centre above the top
+  surface of hood + hem + harness, along its normal, over the contact run): in use `maxStandoffM` 2.0 mm (was 6.9),
+  mean 0.2 mm, band 0.564 m, contact 0.27 m (0.332 m is the stowed value; corrected by the orchestrator); stowed `maxStandoffM` 2.5 mm (was 2.8 by the old nearest-point metric),
+  band 0.588 m; boom mic 8.9 mm clear of the band (`boomBandClearM`, was 0.2 mm); hood dent 357 vertices. Cable in use
+  0.288 m, keepers at 0.072 / 0.144 / 0.216 m: kit data updated (`goggleCable.length` 0.29, keepers 0.07 / 0.14 / 0.22,
+  "where" says it plugs into the housing side). Renders: in `e` the band lies on the hood from the face opening to the
+  pod with no shadow gap and a slight curve over the temple and ear; in `g` the lug end is one clean wrap and return,
+  the cable leaves over the band's top edge; `f` enters the channel flat beside the side strap.
+- **2 Nape (done).** `headwear.py`: the hood skirt ends `SKIRT_BACK` (10 mm) lower behind the neck (`skirt_cut`, eased
+  in from the sides; the capsule grid runs 10 mm lower), and the skirt's back is faired again after the push-out from
+  the shirt's render mesh (that push raised two small darts over the collar's crumples), then the shirt is tucked under
+  the final skirt (`tuck_collar`, per-vertex edge height; 1251 vertices); the shirt is not rebuilt. Render
+  (`wren-headwear-f`): the edge at the nape is the skirt's own clean hem lying on the shirt; `e`: no notch at the back
+  of the neck.
+- **Check (resolved by an extra measuring view, option (c); no threshold or rule changed).** After item 2 the full
+  check failed on headwear and head_kit: `sampled:compression knit: 30 (>= 150 pixels over the views)`. The base
+  layer's knit had only shown in those items' views at the back of the neck between the old skirt edge and the shirt
+  collar (2547 px at `SKIRT_BACK` 0, 30 px at 10 mm): the "wavy collar rim" was partly the base layer's mock neck.
+  Probed 20 candidate views on the full head stack (base-layer px): right wrist from below 855, waist from low front
+  210, left wrist from below 175, left wrist outside 13, waist front 7; throat, nape, neck side, ankles, armpit,
+  wrists from the front / inside 0. `check_garment.py` gains a twelfth view, the right wrist from below (up the sleeve
+  opening: the base layer under the cuff). Single-item checks: headwear and head_kit compression knit 885 px, albedo
+  P1 / P50 / P99 0.036 / 0.038 / 0.041, roughness 0.9: pass. Recorded as A30 (orchestrator, after the round 4 checker).
+- Results: `E2E_GPU=1 npm run operators:check -- wren`: 7 item(s), all checks pass. `npm run check`: lint 0 errors (38 warnings), 73 files / 762 tests pass, build ok. `npm run
+  operators:export` ok. Renders (E2E_GPU=1, 384 spp): docs/operators/mockups/tests/wren-headwear-{a..f}-*.webp and
+  wren-head_kit-{a..j}-*.webp.
+- Housekeeping: the module global `DBG` and the unused `_band_path` / `_lift_clear` are gone from `head_kit.py`.
+- Open follow-ups (not fails; the round 3 checker's list):
+  3. OPEN (accepted) - behind-ear crease: a soft shading crease still follows the back of the ear bulge
+     (`wren-headwear-e`). Next: smooth the hood normals there or lower the cling behind the ear (`headwear.py`, `side`).
+  4. OPEN - rear channel gathers read as a soft smudge (unchanged, see round 2 item 4).
+  5. CLOSED - chin strap buckle: moved to the jaw in item 1 (above).
+  6. OPEN (note) - darkness view spill on the eyecups and brow not visible (unchanged).
+  7. OPEN - Moth kit text for step 13 (unchanged, see round 2 item 7).
+- Checker round 4 (final): FAIL - the earpiece cable runs through the neck (steps/07-fixes-r4.md, MUST 1): from the
+  left collarbone plug it passes 8-38 mm inside the skin through the throat (z 1.434-1.448), comes out on the right at
+  (-0.064, 0.041, 1.46) 0.3-5.4 mm outside the hood, and goes back through the neck (up to 14 mm inside) to the left
+  ear. Likely cause: `head_kit.py` ~501-507, `HC.ray_in(sh_tree, ..., 0.2)` casts reach 0.3 m and hit the far collar
+  where the left-front collar is low. It predates round 3; round 3's lower skirt made it visible (`wren-head_kit-f`).
+  Round 3's MUST items passed (band in use 2.0 mm, stowed 2.5 mm; nape clean); the twelfth check view is legitimate
+  (A30). operators:check 7 items pass; npm run check passes.
+- Status: OPEN after 3 fix rounds; evidence: steps/07-fixes-r4.md; remaining: the earpiece cable route through the neck
+  (MUST); follow-ups 3 (behind-ear crease), 4 (rear channel smear), 6 (darkness glow spill), 7 (Moth kit text for step
+  13); near-black materials render mid grey in close-ups. Retried at the Wren block end (after step 11).
