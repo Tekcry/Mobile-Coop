@@ -55,7 +55,7 @@ async function run(label, opts) {
 
     // the decoded loops: the last sample of the loop region runs into its first without a jump
     const seams = await G(page, async () => {
-      const urls = [...new Set(performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /\.mp3$/.test(n)))];
+      const urls = [...new Set(performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /\.mp3$/.test(n) && !/\/foley-[^/]*\.mp3$/.test(n)))]; // (the movement foley sprite is not a stem)
       const ctx = new OfflineAudioContext(2, 1, 48000);
       const out = [];
       for (const u of urls) {
