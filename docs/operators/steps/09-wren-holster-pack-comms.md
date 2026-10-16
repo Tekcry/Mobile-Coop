@@ -6,7 +6,7 @@ Model: Opus 5.5, High effort. One session. Unattended (DECISIONS D15). Run by th
 ## Objective
 
 Wren's slimline storage mapped to the game loadout (ART-DIRECTION 9.2 table): the chest rig on the plate, the slim
-waist belt and its pouches, the empty thigh holster, the left-thigh throwable sleeves, the drone pod and medkit, the
+waist belt and its pouches, the empty thigh holster, the left-front-thigh throwable sleeves (D25), the drone pod and medkit, the
 radio in the back plate with its cable to the PTT, and the fix of step 07's OPEN earpiece cable route.
 
 ## Read (only these, plus the common files)

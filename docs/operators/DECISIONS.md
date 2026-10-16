@@ -147,6 +147,12 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D25 Back layout and the left hip (2026-10-16).** Michael, on the re-plan's two calls: drone pod and medkit - "Hips,
+keep game carry" (A39 confirmed: pod rear-left and medkit rear-right on the belt, the back flat for the game's upright
+rifle, no game-code change); the game's compact-gun hip slot vs the throwable sleeves - "Sleeves to the front" (A41
+replaced: the three throwable sleeves sit on the left FRONT of the thigh; the game's left-hip slot stays clear and keeps
+its flush sling socket on the belt).
+
 **D24 Build A2, without the guns (2026-10-16).** Shown the A2 scratch renders (scratchpad stealth/A2, A2.md), Michael:
 "yes build a2, but create without the guns, they will be in game anyway"; rifle carry: "no gun needed, it will be in
 game"; Moth: "Decide at step 12". So: Wren is built as A2 (one-piece premium suit, composite chest plate with three rib
@@ -445,9 +451,32 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   pistolSd), open at the muzzle, retention hood shown closed, frame `pistolHolster` at the game's thigh slot. All frames
   go in the sim reports and, from step 10, into every LOD as glTF empties; the back-plate standoff `backGearM` is
   reported for `rig.backGear`. Undo: drop the empties.
-**A41 Sling slot vs the throwable sleeves.** The game hangs a compact gun at the left hip, 3.5 cm outside the thigh,
+**A41 Sling slot vs the throwable sleeves (superseded by D25: sleeves on the left front thigh).** The game hangs a compact gun at the left hip, 3.5 cm outside the thigh,
   where A2's sleeves sit. Built as A2, with a flush quick-detach sling socket on the belt at the left hip as the slot's
   anchor. The overlap is an integration item for step 18 and locomotion step 25. Undo: move the sleeves to the left
   front thigh.
 **A42 No IR strobe on Wren.** It is not in A2 or in D24's list. ART-DIRECTION 3's strobe stays for Moth. Undo: a flush
   strobe on the back plate's top edge (kit item `strobe`).
+
+## Assumed decisions, step 08a (stealth suit; implementer)
+**A43 The suit's waist is a sealed lap, not a sewn seam.** The top and leg blocks keep the base layer's lap (the top's
+  hem over the leggings' inner band, which stays pinned and hidden), and the lap is sealed under a 10 mm bonded waist
+  tape: garment_details `lapSeal` draws the top's edge down onto the leggings over 12 mm so the tape lies flat over a
+  feathered edge. Why: the pipeline sews equal runs, and the top's hem and the leggings' top differ in length round the
+  body; sewing them needs a new waist block. Undo: draft a waist block whose top run matches the top's hem and sew it.
+**A44 Suit zones as pattern-space inserts on the existing block.** The raglan block has no separate yoke or side panel,
+  so the shoulder yoke is the sleeve cap above half the raglan length, and each underarm vent is two inserts (front and
+  back panels) meeting at the side seam; elbow, inner-elbow, rear-shoulder and forearm zones sit on the sleeves, knee
+  grip and the back-of-knee vent on the leg panels, the seat on the back leg panels (trousers' `seat_outline`). Undo:
+  split the panels into real yoke and side panels in a new suit block.
+**A45 The bust is relaxed on the body under the suit (step 05 OPEN 1).** `suit.prepare_body` smooths the skin inside
+  5.5 cm of each breast's most forward point (25 passes, inward only) before the suit is measured, so the compression
+  suit holds one smooth form. The changed body is saved in the suit's blends and every layer after it is built over
+  it; the body build itself is untouched. Undo: drop `prepare_body` from suit.py.
+**A46 The balaclava tucks inside the suit's mock neck.** With no base layer and no shirt, the suit is both the mock
+  neck the A25 draw-in acts on and the collar the hood skirt laps over (`headwear.collar_layer`, `mock_layer`); the
+  suit's tapes, zip and garage follow the collar's draw-in at their nearest collar vertex. Undo: build the balaclava over
+  the suit collar and drop the draw-in for the suit.
+**A47 Material classes on the suit.** The seam tape is fabric (a cloth-backed laminate tape, roughness 0.74); the grip
+  print is hard (rubber, roughness 0.64-0.72); the zip slider and puller are the gunmetal anodised finish. Undo: re-tag
+  `operators_class` in materials.py.

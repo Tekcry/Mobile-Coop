@@ -157,7 +157,7 @@ it". (D24): "yes build a2, but create without the guns, they will be in game any
 | Armour and harness | Composite chest plate with three rib segments and a slim back plate; slim shoulder straps and 22 mm side straps under the arms, magnetic buckles; a low, flat harness that leaves the shoulders and hips free to climb |
 | Chest rig | On the chest plate: two rifle magazines (right of centre, tops leaning to the left hand), a flapped gadget slot (upper right), the knife (left of centre, handle down), the PTT at the left collarbone |
 | Belt | A slim laminate belt with a flush magnetic front closure: pistol magazines (left front), cam / mine pouch (left hip), one flush rappel ring at the back centre in a low tunnel; no sit harness, leg loops or gear loops |
-| Legs | The empty thigh holster on two elastic leg bands (right); three double throwable sleeves on a laminate panel (left); both hung from the belt |
+| Legs | The empty thigh holster on two elastic leg bands (right); three double throwable sleeves on a laminate panel (left front of the thigh, D25); both hung from the belt |
 | Back | The weapon mount point on the back plate (A36, A40); the radio set into the back plate's upper left; the drone pod and the medkit outside the game's back-carry lane (A39) |
 | Comms | Radio cable over the left shoulder along the strap edge (elastic keepers) to the PTT; the earpiece cable from the PTT up the left of the neck to the left ear |
 | Gloves | As Section 3 Gloves |
@@ -172,7 +172,7 @@ Storage mapped to the game (`src/game/gadgets.ts` carry counts, `src/weapons/car
 | Compact gun (game model) | sling slot | a flush sling socket on the belt, left hip (A41) | right |
 | Rifle magazines | 2 | chest plate, right of centre | left |
 | Pistol magazines | 2 | belt, left front | left |
-| Frag, sleeping gas, flashbang | 2 each | three double sleeves, left thigh (caps differ by touch) | left |
+| Frag, sleeping gas, flashbang | 2 each | three double sleeves, left front thigh (caps differ by touch; D25) | left |
 | EMP, noisemakers | 1, 2 | chest gadget slot (flat stick-on discs) | either |
 | Sticky cams, prox mine | 2, 1 | flat pouch, left hip | left |
 | Tri-rotor drone | 1 | small hard pod, rear left on the belt (A39) | either |

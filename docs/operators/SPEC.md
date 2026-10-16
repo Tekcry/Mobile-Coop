@@ -462,7 +462,7 @@ cable a source, a device and no free span over 15 cm. Writing them as data added
   gunmetal release, a short hanger from the belt.
 - Leg bands (two per thigh) - round each thigh - hold the holster (right) and the sleeve panel (left) to the thigh -
   elastic with a magnetic buckle.
-- Throwable sleeves (three double sleeves) - outer left thigh, on a laminate panel hung from the belt - frag two,
+- Throwable sleeves (three double sleeves) - left front of the thigh (D25), on a laminate panel hung from the belt - frag two,
   sleeping gas two, flashbang two, one type per sleeve - a shock-cord loop and pull tab over each cap; the caps differ
   by touch: knurled ring (frag), dome (gas), two ridges (flash).
 
@@ -734,7 +734,7 @@ The version line goes to 1.15 with a summary of these changes.
   - back-carried guns vs the head when looking up;
   - Wren: the game's back guns vs the back plate, drone pod and medkit (A39: the lane is kept flat; `rig.backGear`
     from the measured back-plate standoff);
-  - Wren: a slung compact gun (left hip) vs the left-thigh sleeves (A41);
+  - Wren: the slung compact gun keeps the left hip; the sleeves moved to the left front thigh (D25);
   - the rope bag vs the right hand's holster draw (Moth).
 - **Voxel world vs smooth characters.**
   - The levels render as 5 cm voxels; detailed meshes will stand out from them.
