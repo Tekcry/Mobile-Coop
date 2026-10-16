@@ -9,6 +9,8 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   measured fabric albedo 0.02-0.06 linear, roughness 0.7-0.95 on fabric and 0.55-0.9 on hard parts, every built item
   named in the kit data with a passing `validateKit`. A JSON report per item in `build/operators/<id>/`
   (`<id>-<item>-check.json`); non-zero exit on any failure. Run it after every build.
+  `npm run operators:check -- wren --only carrier,belt` checks just the named built items (same checks, thresholds
+  and views): for the tuning loop only; the full check runs at the end of every step and fix round.
 - `blender.mjs` - finds Blender (`BLENDER_PATH`, else the standard install folder) and refuses any version but the pinned
   5.2.2. Scripts run with `-b --factory-startup -noaudio --python-exit-code 1`.
 - `export-joints.mjs` - writes `build/operators/joints.json`: each operator's corrected proportions, hit volumes and
@@ -51,6 +53,14 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   (`rbox`, `pad`, `taper`, `knurl`) in `garments/head_common.py`. No flip mount (D19): the goggle parts carry `stowM`
   (a 4x4 rigid transform to the stowed pose on the brow); the band and its cable are built for both positions
   (`goggle_pos` 'inuse' / 'stowed'), the stowed set hidden from render, export and checks. The renders swap them.
+- Torso and belt kit (step 08, DECISIONS A32-A35), also `FITTED`, after the head kit: `garments/carrier.py` (front and
+  back plate bags as rigid curved slabs fitted to the shirt, laser-cut laminate faces, padded shoulder straps on the
+  shoulder's convex hull with a ladder lock and a rolled, banded tail, the elastic cummerbund (`Ring`: a tensioned band
+  on the pressed hull of each row), three magazine pouches, the admin pouch, the radio and medical pouches, the back
+  panel's drag handle, bungee and butt cup, the quick-release loop) and `garments/belt.py` (inner and outer belt over
+  the belt loops, the two-part buckle, grenade, pistol magazine and dump pouches, the knife sheath). Shared:
+  `garments/torso_common.py` (`Plate`, `slab`, `perforated`, `Ring`, `band_slab`, `padded_strap`, `compress`: the
+  shirt and trousers pressed in under the parts, A33).
 - `npm run operators:build -- wren --from <garment>` resumes at that garment (the earlier blends must be current).
 - `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the test
   views (`--render`; per garment: front and back in stealth light, raking close-ups, a neutral front; head items: the

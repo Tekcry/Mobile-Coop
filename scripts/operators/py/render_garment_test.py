@@ -207,6 +207,32 @@ elif gname in ('headwear', 'head_kit'):
         tgt = face + np.array([0.0, -0.03, -0.005])
         sc.camera = RN.camera('dark', tuple(tgt + FT.unit(np.array([0.45, -1.0, 0.12])) * 0.42), tuple(tgt), 50)
         out.append(shot('i-darkness-glow', (1500, 1500), 1.8))
+elif gname in ('carrier', 'belt'):
+    # Step 08: the carrier and the belt. Raking close-ups at 0.45-0.6 m (moderate lights: near-black parts blew out
+    # above about 8 W at this range) and, for the carrier, the silhouette against a rim light (shoulder line, straps).
+    if gname == 'carrier':
+        closeup('c-closeup-carrier-front', np.array([0.0, -0.2, 1.22]), (0.35, -1.0, 0.18), lens=35, dist=0.62,
+                rake_from=(0.32, -0.12, 0.3), power=6)
+        closeup('e-closeup-shoulder', np.array([0.09, -0.05, 1.37]), (0.55, -1.0, 0.65), lens=35, dist=0.42,
+                rake_from=(0.25, -0.02, 0.3), power=4)
+        closeup('f-closeup-carrier-back', np.array([0.0, 0.13, 1.26]), (-0.3, 1.0, 0.2), lens=35, dist=0.62,
+                rake_from=(-0.32, 0.12, 0.3), power=6)
+        closeup('g-closeup-cummerbund-left', np.array([0.15, -0.01, 1.2]), (1.0, -0.3, 0.12), lens=35, dist=0.5,
+                rake_from=(0.22, -0.25, 0.28), power=6)
+        closeup('h-closeup-cummerbund-right', np.array([-0.15, 0.0, 1.2]), (-1.0, -0.3, 0.12), lens=35, dist=0.5,
+                rake_from=(-0.22, -0.25, 0.28), power=6)
+        # i. Silhouette: near-black, only two hard rim lights from behind; the shoulder line and straps must read.
+        clear_rig()
+        RN.world(sc, 0.002, (0.5, 0.55, 0.65))
+        RN.area_light('rimL', (1.3, 2.0, 1.9), (0.0, 0.0, 1.25), 900, 0.08, (0.62, 0.75, 1.0))
+        RN.area_light('rimR', (-1.3, 2.0, 1.9), (0.0, 0.0, 1.25), 900, 0.08, (0.62, 0.75, 1.0))
+        sc.camera = RN.camera('sil', (0.35, -2.6, 1.3), (0.0, 0.0, 1.2), 55)
+        out.append(shot('i-silhouette-rim', (1200, 1500), -0.5))
+    else:
+        closeup('c-closeup-belt-front', np.array([0.03, -0.17, 0.95]), (0.4, -1.0, 0.2), lens=35, dist=0.55,
+                rake_from=(0.3, -0.1, 0.25), power=6)
+        closeup('e-closeup-belt-back', np.array([-0.03, 0.12, 0.95]), (-0.35, 1.0, 0.2), lens=35, dist=0.55,
+                rake_from=(-0.3, 0.1, 0.25), power=6)
 elif gname == 'base_layer':
     nk = J['neck']
     closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,

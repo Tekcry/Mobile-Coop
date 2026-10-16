@@ -709,3 +709,48 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
 - Status: OPEN after 3 fix rounds; evidence: steps/07-fixes-r4.md; remaining: the earpiece cable route through the neck
   (MUST); follow-ups 3 (behind-ear crease), 4 (rear channel smear), 6 (darkness glow spill), 7 (Moth kit text for step
   13); near-black materials render mid grey in close-ups. Retried at the Wren block end (after step 11).
+
+## Step 08 - Wren: plate carrier, harness and belt (Opus 5.5)
+- Built (DECISIONS A32-A35: fitted, not simulated): `py/garments/torso_common.py` (`Plate` map and `fit`-able rigid
+  slab `slab`, laser-cut `perforated` sheet and `slot_mask`, `Ring` - per-row convex hull of the pressed fabric with
+  armpit outlier rays dropped - `band_slab`, `padded_strap`, `compress`), `py/garments/carrier.py`, `py/garments/belt.py`;
+  `GARMENTS.wren` += `carrier`, `belt` (both `FITTED`); materials `laser-cut laminate`, `cummerbund elastic`, `kit polymer`
+  (`materials.py`); kit item `carrierRelease` (`kit.ts`, test line in `tests/operators.test.ts`).
+- Carrier: front plate bag 212 x 273 mm with a shooter's cut, top at 1.358 m, rigid slab fitted to the shirt (tilt 3
+  deg, radius 0.6 m, bow 0.9 /m; mean gap 24.5 mm, up to 58 mm over the upper chest: it rests on the bust); back bag to
+  1.404 m (gap mean 13.7 mm). Laser-cut laminate faces (30 x 5.5 mm slots, 25.4 mm rows, 38 mm pitch), bound rounded
+  edges, stitched. Padded 40 mm shoulder straps on the shoulder's convex hull (length 0.37 m), ladder lock on a 25 mm tab
+  from the front bag's top edge, tail rolled and banded, box-X at the back; inner edge 98 mm off centre, 7.3-8.4 mm from
+  the hood skirt, 13.9 mm from the earpiece plug (left). Elastic cummerbund 140 mm (arc 0.35 m a side), tensioned:
+  each row is the hull of the ribs and the bags' inner faces, so it runs straight from under a bag's side edge to the
+  ribs (bridging the air gap under the plate resting on the bust); its ends tucked under the bags, closing under the
+  front bag's lower flap; quick-release pull loop in a sleeve with its cable into
+  grommets. Front: three magazine pouches (magazines 36 mm proud, shock cord, pull tabs, tipped out 4 mm at the bottom),
+  trapezoid zipped admin pouch (1.29-1.35 m). Left cummerbund: radio pouch, radio (two knobs, connector boss, antenna
+  bent down in an elastic loop). Right: medical pouch (lid strap, quiet buckle, pull tab). Back: flat padded drag
+  handle, bungee loop on two anchors with a pull tab, moulded butt cup low right.
+- Belt: inner belt 38 mm (hook-and-loop face) over the trouser loops (lifted up to 9.0 mm where a loop stands, eased
+  along the row; circumference 0.97 m), outer belt 44 mm with a laminate face and one slot row, bound and stitched; two-part metal quick-release
+  buckle at the front (female frame, sprung latch with grip ridges, male tongue, bars); three grenade pouches front left
+  (flap, snap; the hip one tipped out 9 mm to clear the hip), double pistol magazine pouch front right, rolled dump pouch
+  rear right (two elastic bands), knife sheath along the rear centre (grip to the right, snap strap, two belt straps).
+- Fabric under the kit (A33): shirt pressed at 16 840 vertices (max 2.5 mm; 337 vertices where a part sits up to 4.6
+  mm into the shirt, under the bags); trousers pressed at 4 864 vertices (max 2 mm; 675 vertices
+  where the inner belt sits up to 8.3 mm into the trousers - not located yet, hidden under the belt in the renders).
+- Tooling: `npm run operators:check -- wren --only <item,item>` (check.mjs `--only`; README) for the tuning loop.
+- Renders: render_garment_test.py views for `carrier` (c front pouches, e shoulder strap and hood / plug clearance, f
+  back panel, g / h cummerbund left / right, i silhouette against two rim lights) and `belt` (c front, e back), plus the
+  a / b / d full views; docs/operators/mockups/tests/wren-carrier-*.webp, wren-belt-*.webp.
+- Checks: `npm run operators:check -- wren` 9 items, all checks pass (carrier, belt included; every material sampled);
+  `npm run check` passes (lint 0 errors, 762 tests, build).
+- Open / follow-ups: near-black materials still render mid grey in close-ups (OPEN since step 05); the front plate
+  stands up to 58 mm off the upper chest (rests on the bust, A32) - judge on the sheet; small ripple in the cummerbund
+  where its rows switch from the ribs to a bag's face; the inner belt's 8 mm overlap with the trousers (above) to be
+  located; drop-leg hanger, radio cable and PTT are step 09.
+- Checker round 1: FAIL (steps/08-fixes-r1.md): front plate stands up to 58 mm off the chest (MUST), shirt shows no
+  compression or puff beside the straps and cummerbund (MUST), inner belt up to 8.3 mm into the trousers, cummerbund
+  ripple. operators:check 9 items pass; npm run check passes; the `--only` filter is accepted (selects items only).
+- Status: OPEN, superseded by D22 (Michael's stealth-operative direction, before any fix round): not fixed, because the
+  carrier and belt are expected to be replaced. The generators (`torso_common.py`, `carrier.py`, `belt.py`) and the
+  `--only` filter are committed for reuse.
+

@@ -1,8 +1,9 @@
 # Operators run - state (resume point)
 
-**Now:** step 08 (Wren: plate carrier, harness and belt), Opus 5.5, High. Step 07 is OPEN after 3 fix rounds (LOG.md
-"Step 07"): the earpiece cable runs through the neck (steps/07-fixes-r4.md); retried at the Wren block end after step
-11. Michael's D19-D21 are built (original goggle on a band, no flip, strap-2 harness; hero for menu and close-ups).
+**Now:** PAUSED for D22 (Michael's stealth-operative direction, 2026-10-16). Step 08 is committed OPEN (superseded).
+Next: the scratch options pass (2-3 whole-figure stealth concepts for Wren: fitted suit, slim armour, low-profile
+storage, climbing / rappel harness) -> Michael picks -> re-plan ART-DIRECTION, SPEC, PLAN and steps -> continue. Do
+not start step 09 as written. OPEN steps: 07 (earpiece cable route), 08 (superseded).
 **Run style:** unattended (D15), one orchestrator session like the locomotion run (D18): implementer, independent Opus
 checker, up to 3 fix rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md. Start
 and resume prompts: OWNER-NOTES.md ("Operators run: RESUME (local)").
@@ -33,4 +34,13 @@ and resume prompts: OWNER-NOTES.md ("Operators run: RESUME (local)").
 - Lab and sheets: `npm run operators:export`, `npm run operators`, `E2E_GPU=1 E2E_PORT=4191 npm run operators:sheet -- wren`;
   sheets in `docs/operators/mockups/wren/`. Test renders: `docs/operators/mockups/tests/`.
 
-**Open questions for Michael:** none. OPEN steps: 07 (earpiece cable route; retry after step 11).
+- Torso and belt (step 08, A32-A35): `carrier` and `belt` are `FITTED` items after `head_kit` (`garments/carrier.py`,
+  `belt.py`, shared `garments/torso_common.py`). The shirt and trousers are pressed in under them (`compress`, A33), so
+  the carrier and belt blends hold edited shirt / trouser meshes. Radio: in its pouch on the left cummerbund with its
+  antenna; its cable connector is a boss on the radio's top, toward the front (step 09 runs the radio cable up the
+  left shoulder strap to the PTT at the collarbone, next to the earpiece plug; the strap's inner edge is 10 mm from the
+  plug). The drop-leg hanger and holster go on the belt's right side (step 09; pistol magazine pouch is front right,
+  dump pouch rear right at 128 deg). The back bag's laminate (z 1.10-1.40) is free for the pack (step 09). Check one
+  item while tuning: `npm run operators:check -- wren --only <item,item>` (the full check still ends each step).
+
+**Open questions for Michael:** the stealth concept pick (D22); Moth's direction after Wren's pick.

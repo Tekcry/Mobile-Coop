@@ -284,6 +284,48 @@ def softshell(name='softshell', colour=(0.027, 0.028, 0.025)):
     return mat
 
 
+# --- Torso and belt kit (step 08) -----------------------------------------------------------------------------------
+
+def laminate(name='laser-cut laminate', colour=(0.025, 0.026, 0.026)):
+    """Laser-cut laminate (the carrier's and the belt's webbing panels): a coated nylon face over a stiff core - a matte
+    coating with a faint fine grain, smoother and less fuzzy than Cordura, scuffed lighter on its cut edges
+    (pointiness)."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    # no woven pattern: on curved parts (the belt) a sub-millimetre weave aliased into moire bands (step 08)
+    h = g.math('ADD', g.math('MULTIPLY', g.noise(600.0, 2.0), 0.35), g.math('MULTIPLY', g.noise(3000.0, 2.0), 0.15))
+    nrm = g.bump(h, 0.25, 0.0003)
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.smoothstep(0.56, 0.68, pt)
+    g.link(g.wear(colour, dust_amount=0.15, edge=g.math('MULTIPLY', edge, 0.5)), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.76
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.15
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.5
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat
+
+
+def elastic(name='cummerbund elastic', colour=(0.026, 0.027, 0.028)):
+    """Wide woven elastic (the cummerbund): fine raised ribs across the stretch (about 1.6 mm apart along its height),
+    a soft fibre sheen; matte."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    geo = g.node('ShaderNodeNewGeometry')
+    z = g.node('ShaderNodeSeparateXYZ')
+    g.link(geo.outputs['Position'], z.inputs[0])
+    rib = g.math('ABSOLUTE', g.math('SINE', g.math('MULTIPLY', z.outputs['Z'], 6.2832 / 0.0016)))
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', rib, g.near_fade()), 0.6), g.math('MULTIPLY', g.noise(2500.0, 2.0), 0.3))
+    nrm = g.bump(h, 0.5, 0.0004)
+    g.link(g.wear(colour, dust_amount=0.12), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.86
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.25
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.5
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat
+
+
 # --- Gloves and boots (step 06) -------------------------------------------------------------------------------------
 # These read a per-vertex 'wear' attribute (0..1, written by py/garments/gloves.py and boots.py): where the item is
 # handled or scuffed - the trigger finger and the palm heel polish and darken, the toe rand scuffs lighter.

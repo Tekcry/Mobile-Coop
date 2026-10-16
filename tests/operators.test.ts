@@ -28,6 +28,10 @@ describe('operator kit', () => {
     // step 05: the base layer and the trousers with what is sewn onto them
     expect(kitCoverage(WREN_KIT, ['baseLayer', 'trousers', 'kneePads', 'cargoL', 'cargoR']).missing).toEqual([]);
     expect(kitCoverage(WREN_KIT, ['combatShirt', 'shoulderCape']).missing).toEqual(['shoulderCape']);
+    // step 08: the carrier and belt builds (py/garments/carrier.py, belt.py KIT + KITS)
+    expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'magPouches', 'adminPouch', 'radioPouch',
+      'radio', 'medPouch', 'backPanel', 'rifleBungee', 'carrierRelease']).missing).toEqual([]);
+    expect(kitCoverage(WREN_KIT, ['belt', 'grenadePouches', 'pistolMagPouch', 'dumpPouch', 'knifeSheath']).missing).toEqual([]);
     const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
     expect(kitCoverage(broken, ['combatShirt']).errors.length).toBeGreaterThan(0);
   });

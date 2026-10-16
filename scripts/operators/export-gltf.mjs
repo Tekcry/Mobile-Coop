@@ -11,7 +11,7 @@ import { OUT_DIR } from './paths.mjs';
  * after the shirt (its hem tucks in). The last one's blend holds the body,
  * the rig and every earlier garment.
  */
-export const GARMENTS = { wren: ['base_layer', 'gloves', 'boots', 'combat_shirt', 'trousers', 'headwear', 'head_kit'], moth: [] };
+export const GARMENTS = { wren: ['base_layer', 'gloves', 'boots', 'combat_shirt', 'trousers', 'headwear', 'head_kit', 'carrier', 'belt'], moth: [] };
 
 /**
  * Fitted items (step 06, DECISIONS A18): not cloth-simulated. py/build_fitted.py builds them in one stage (gloves:
@@ -21,7 +21,7 @@ export const GARMENTS = { wren: ['base_layer', 'gloves', 'boots', 'combat_shirt'
  * head_kit (harness, battery pod, goggle on its band, cables, earpiece: hard parts and webbing). They come last: the
  * balaclava tucks inside the shirt collar and the hood skirt laps over it.
  */
-export const FITTED = new Set(['gloves', 'boots', 'headwear', 'head_kit']);
+export const FITTED = new Set(['gloves', 'boots', 'headwear', 'head_kit', 'carrier', 'belt']);
 
 export function exportGltf(id, blender = findBlender()) {
   const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);

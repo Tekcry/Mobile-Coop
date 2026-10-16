@@ -147,6 +147,17 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D22 Stealth operative, not military (2026-10-16, after step 08).** Michael: "I'm thinking the current design is more
+military style, whereas I want more of a stealth operative design. Wetsuit fitted suit, slim body armour, tactical
+ammo storage/holsters. The type of design for someone that would need to remain agile and able to climb in tight
+spaces/climb ropes, rappelling etc." Asked how to proceed: "Pause, options first"; Moth: "Decide after Wren's
+options". So: the run pauses after step 08 (no step 09); a scratch options pass renders 2-3 whole-figure stealth
+concepts for Wren (fitted suit, slim armour, low-profile storage, climbing / rappel harness); Michael picks; then
+ART-DIRECTION, SPEC, PLAN and the step files are re-planned and the run continues. Kept from earlier steps unless the
+pick says otherwise: hood and balaclava, the original goggle on its band (D20), the strap-2 head harness, gloves, and
+every pipeline tool. Expected to be replaced: the combat shirt and cargo trousers (by the suit), the plate carrier and
+belt (step 08, by slim armour, storage and a harness), and step 09's plan. Step 08's generators are committed for reuse.
+
 **D21 Hero LOD use confirmed (2026-10-16).** Michael, after the hero / LOD0-2 / phone plan (SPEC 6.3-6.4) was
 explained: "i do want hero version for the main menu and for any close up shots". Hero LOD (150-250 k triangles,
 budget unchanged) drives the main menu and every close-up camera; gameplay uses LOD0-2; phones never download it.
@@ -362,3 +373,29 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   (`SKIRT_BACK`, `skirt_cut`), is re-faired after the push-out from the shirt mesh, and `tuck_collar` draws the shirt's
   render mesh inside the skirt to a per-vertex edge height (1251 vertices; the shirt is not rebuilt), so the nape shows
   the skirt's clean hem. Undo: `SKIRT_BACK` 0 and drop `tuck_collar` in `headwear.py`.
+**A32 Carrier and belt are fitted items (step 08; extends A18, A24).** `carrier` and `belt` are `FITTED` items after
+  `head_kit` (`py/garments/carrier.py`, `belt.py`, shared geometry in `torso_common.py`): rigid and tensioned parts laid
+  on the shirt and the trousers by rays, not cloth-simulated. Each plate bag is a rigid curved slab whose tilt,
+  horizontal radius and vertical bow are searched to rest on the shirt's high points with the least mean gap (the plate
+  bridges the hollows: front tilt 3 deg, bow 0.9 /m, gap up to 58 mm over Wren's upper chest, which is real for a
+  plate resting on the bust). Straps and bands follow the convex hull of the pressed surface (a loaded strap runs
+  straight between its anchors). Undo: drop the two items from `GARMENTS`.
+**A33 The shirt and trousers are pressed, not re-simulated (step 08 "re-settle the shirt with the carrier as a
+  collider").** `torso_common.compress` moves every shirt vertex that lies above a part's underside in to 0.3 mm under
+  it, at most 2.5 mm (2 mm for the trousers under the belt) and never closer than 1.6 mm to the layer below, the dent
+  eased over 10 mm; the shirt's stitches and zip follow. Why: Blender cloth-on-cloth collision tore the seams (A11), and
+  re-simulating the shirt would mean rebuilding the trousers and head items over it. The pressed area and the few
+  vertices where a part sits deeper than the fabric can give (under the bags' tucked cummerbund ends) are in the sim
+  report (`shirtPress`, `trouserPress`). Undo: skip `compress` (the parts then sit on the unpressed fabric).
+**A34 Wren's harness is the carrier's shoulder straps plus the belt; carrier layout (step 08).** The kit has no
+  separate belt harness for Wren, so none is built (a strap needs two anchors and a job, SPEC 1). The front plate's top
+  is at 1.354 m (cut high, about 5 cm under the throat): the step 07 earpiece plug at the left collarbone sits just
+  above its shooter's cut and must stay clear (measured `plugClearM`). The straps run 94 mm off the centre line at the
+  plates and 118 mm over the shoulder, so their inner edges clear the hood skirt (`hoodClearM`) and the plug. The
+  cummerbund's ends pass under the front bag's sides and close on hook-and-loop under its lower flap (the "front flap").
+  Undo: move the plate top and strap lines in `carrier.py` (`fit` arguments, `x_f`, `x_t`, `x_b`).
+**A35 Kit additions and hand-overs (step 08).** New kit item `carrierRelease` (the quick-release cable: SPEC 3.2 /
+  ART-DIRECTION 3 ask for it and every built part needs a kit entry). The radio's antenna (bent down, elastic loop) is
+  built here with the radio; step 09 adds the radio cable and the PTT to the radio's top connector. The drop-leg hanger
+  (kit `dropHanger`) is left to step 09 with the holster. Undo: remove the item from `kit.ts` and the loop from
+  `carrier.py`.

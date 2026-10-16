@@ -1,4 +1,4 @@
-// npm run operators:check [wren|moth] - the automatic checks on every built operator item (RUNBOOK step 03b).
+// npm run operators:check [wren|moth] [--only <item,item>] - the automatic checks on every built operator item (RUNBOOK step 03b).
 // Per item (a garment and the kit sewn onto it): py/check_garment.py measures the build in Blender (seam gaps,
 // divergence, edge length, solidify spikes, measured albedo and roughness); this script adds the kit check (every
 // built item names a kit item that exists, and validateKit passes) and writes build/operators/<id>/<id>-<item>-check.json.
@@ -20,14 +20,20 @@ function kitChecks(operator, simReport) {
   ];
 }
 
-const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+// --only <item,item> checks just those built items (the per-item tuning loop, step 08): the same checks, thresholds
+// and views; the full check (no --only) still runs at the end of every step and fix round.
+const argv = process.argv.slice(2);
+const onlyIdx = argv.indexOf('--only');
+const onlyItems = onlyIdx >= 0 ? new Set((argv[onlyIdx + 1] ?? '').split(',').filter(Boolean)) : null;
+const only = argv.filter((a, i) => !a.startsWith('-') && (onlyIdx < 0 || i !== onlyIdx + 1));
 const blender = findBlender();
 let failed = 0;
 let items = 0;
 for (const id of only.length ? only : Object.keys(KITS)) {
   const out = path.join(OUT_DIR, id);
   if (!existsSync(out)) continue;
-  const built = readdirSync(out).filter((f) => f.endsWith('-sim.json')).map((f) => f.slice(id.length + 1, -'-sim.json'.length));
+  const built = readdirSync(out).filter((f) => f.endsWith('-sim.json')).map((f) => f.slice(id.length + 1, -'-sim.json'.length))
+    .filter((item) => !onlyItems || onlyItems.has(item));
   for (const item of built) {
     items++;
     runBlender('check_garment.py', ['--operator', id, '--garment', item, '--out', out], { blender });
