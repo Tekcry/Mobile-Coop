@@ -143,11 +143,13 @@ export const START_SHIFT = makeClip({
 /** Settling after a stop (0.55 s): weight comes back over both feet, a small dip and recovery. */
 export const STOP_SETTLE = makeClip({
   name: 'stopSettle',
-  duration: 0.55,
+  // (locomotion step 22, D5.3 / D2, M14) one damped dip, no rebound, back within 0.16 s: Chaos Theory stops now ease
+  // through a 'stop' state and play it at rest (it had a 0.35 s rebound: aimed weapon settle 0.13 -> 0.53 s)
+  duration: 0.16,
   keys: {
-    pelY: [0, 0, 0.15, -0.016, 0.35, 0.003, 0.55, 0],
-    pelPitch: [0, 0, 0.12, -0.04, 0.3, 0.015, 0.55, 0],
-    spPitch: [0, 0, 0.15, 0.02, 0.4, -0.006, 0.55, 0],
+    pelY: [0, 0, 0.06, -0.012, 0.16, 0],
+    pelPitch: [0, 0, 0.05, -0.025, 0.16, 0],
+    spPitch: [0, 0, 0.06, 0.012, 0.16, 0],
   },
 });
 

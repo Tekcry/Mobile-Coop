@@ -485,7 +485,7 @@ async function drive(sc, halt = -1) {
       const s = SURF[sc.surface];
       const crouch = sc.stance === 'crouch';
       t.stance(crouch, sc.gear);
-      const cap = (crouch ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1];
+      const cap = (crouch ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
       // flat: 1.0 s accel + >= 2 strides; ramps and stairs: the accel is short (95% within 0.08 s), so the steady
       // window covers the slope from 0.3 s on and ends 0.4 m before its top
       let accel = 1.0;
@@ -494,7 +494,9 @@ async function drive(sc, halt = -1) {
       let z = s.z;
       if (s.len) {
         accel = 0.3;
-        steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4) / cap - accel + 0.1));
+        // (step 22, M14) released a further 0.1 s of pace before the top: the eased stop (up to 0.36 m) carried the
+        // last swing past the top of the flight onto the floor beyond it (stairs / ramp stand5 pelvis jump 19 cm)
+        steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4 - 0.1 * cap) / cap - accel + 0.1));
       }
       t.tp(x, z, s.yaw, s.y);
       // the drawn subset (A42): aim held from before the start (drawn and raised, 0.4 s draw + raise)
@@ -981,7 +983,44 @@ function steady(rec, hz, out, a, b, band, lateral, cap, surface) {
   res(out, 'headTravel', { ...hv, extra: { pelvis: hv.pelvis } }, 'pelvis p2p', ':1254 / :1275', 'm', a);
   res(out, 'headPitch', hv.pitch, L.HEAD_ANGLE_P2P, ':1254', 'deg', a);
   res(out, 'headRoll', hv.roll, L.HEAD_ANGLE_P2P, ':1254', 'deg', a);
-  if (lateral) res(out, 'lateralSway', M.lateralSway(vec(rec, 'hips', a, b), vec(rec, 'cap', a, b), col(rec, 'yaw', a, b), L.WALK_SWAY), L.WALK_SWAY, ':1255', 'm', a);
+  if (lateral) {
+    // (step 22) over whole strides (left heel strike to left heel strike): the linear detrend of a part stride tilts
+    // the sway and adds up to ~10% (flat-stand2 2.76 cm read as 3.09 at the M14 cadence)
+    // the trend is fitted through the per-stride means (a least-squares line through a few sine periods is itself tilted)
+    const ls = [];
+    const lr = rise(col(rec, 'L.landed', a, b));
+    for (let i = 0; i < lr.length; i++) if (lr[i]) ls.push(i);
+    if (ls.length >= 3) {
+      const hp = vec(rec, 'hips', a, b);
+      const cp = vec(rec, 'cap', a, b);
+      const yw = col(rec, 'yaw', a, b);
+      const lat = yw.map((y, i) => (hp[i * 3] - cp[i * 3]) * Math.cos(y) - (hp[i * 3 + 2] - cp[i * 3 + 2]) * Math.sin(y));
+      const mt = [];
+      const mv = [];
+      for (let k = 0; k + 1 < ls.length; k++) {
+        let sum = 0;
+        for (let i = ls[k]; i < ls[k + 1]; i++) sum += lat[i];
+        mt.push((ls[k] + ls[k + 1] - 1) / 2);
+        mv.push(sum / (ls[k + 1] - ls[k]));
+      }
+      const n = mt.length;
+      const tm = mt.reduce((p, q) => p + q, 0) / n;
+      const vm = mv.reduce((p, q) => p + q, 0) / n;
+      let num = 0;
+      let den = 0;
+      for (let k = 0; k < n; k++) (num += (mt[k] - tm) * (mv[k] - vm)), (den += (mt[k] - tm) ** 2);
+      const sl = den > 0 ? num / den : 0;
+      let mn = Infinity;
+      let mx = -Infinity;
+      let fr = 0;
+      for (let i = ls[0]; i < ls[ls.length - 1]; i++) {
+        const r = lat[i] - (vm + sl * (i - tm));
+        if (r < mn) mn = r;
+        if (r > mx) (mx = r), (fr = i);
+      }
+      res(out, 'lateralSway', { worst: mx - mn, frame: fr, pass: mx - mn <= L.WALK_SWAY }, L.WALK_SWAY, ':1255', 'm', a);
+    } else res(out, 'lateralSway', M.lateralSway(vec(rec, 'hips', a, b), vec(rec, 'cap', a, b), col(rec, 'yaw', a, b), L.WALK_SWAY), L.WALK_SWAY, ':1255', 'm', a);
+  }
   // camera: high-passed over two steps (a slow framing ease, e.g. the sprint framing, is not an oscillation)
   const si = [];
   for (let i = 0, last = -1; i < strikes.length; i++) if (strikes[i]) (last >= 0 && si.push(i - last), (last = i));
@@ -1006,6 +1045,12 @@ function stopMetrics(rec, hz, out, a, stop, end, cap) {
   const ro = M.rootOvershoot(col(rec, 'speed', a, end), cap, vec(rec, 'fix', a, end), 0, stop - a, Math.sin(yaw), Math.cos(yaw));
   res(out, 'rootOvershoot', { ...ro, extra: { backstep: ro.backstep } }, `${L.OVERSHOOT_RATIO} x / backstep ${L.BACKSTEP}`, ':1271', 'ratio', a);
   // the held weapon's grip point in the chest (torso) frame: distance from where it rests
+  // (step 22, M14) timed from the body at rest: the stop now eases over CT.stopTime (0.25 s), and D2's settle is the
+  // sway after the body stops, not the braking itself (it was timed from the release)
+  const spd = col(rec, 'speed', stop, end);
+  let rest = stop;
+  while (rest < end - 2 && spd[rest - stop] > 0.05) rest++;
+  stop = rest;
   const gp = vec(rec, 'grip', stop, end);
   const tp = vec(rec, 'torso', stop, end);
   const tq = quat(rec, 'torso', stop, end);
@@ -1300,14 +1345,14 @@ function remoteSegments(sc) {
   if (sc.kind === 'wall') return [{ d: 0.6, tap: 'cover' }, { d: 1.0, x: 1 }, { d: 1.0 }, { d: 1.0, tap: 'crouch' }, { d: 1.0, x: -1 }, { d: 1.0 }];
   const s = SURF[sc.surface];
   const crouch = sc.stance === 'crouch';
-  const cap = (crouch ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1];
+  const cap = (crouch ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1];
   // as the local drive: flat 1.0 s accel + a steady window; ramps / stairs a short accel and the window up the slope
   // (remote runs in real time: a 1.5 s steady window, about three steps at a walk, and a 1.2 s stop keep it near 60 s)
   let accel = ACCEL;
   let steady = sc.steady ?? 1.5;
   if (s.len) {
     accel = 0.3;
-    steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4) / cap - accel + 0.1));
+    steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4 - 0.1 * cap) / cap - accel + 0.1));
   }
   // stopidle (r1): a 1.5 s idle tail, the breath measured after the stop settles
   // (step 17, A68) stand6: sprint held through accel + steady (gear 6 only with sprint)
@@ -2102,7 +2147,7 @@ async function runRemote() {
         return i;
       };
       const mk = b.marks.map(fa);
-      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
+      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.42, 0.75, 1.08, 1.5, 1.9, 2.3] : [0.65, 1.1, 1.65, 2.3, 3.15, 4.15])[sc.gear - 1] };
       else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
       else if (sc.kind === 'strike') m = { strike: mk[1], end: mk[2] ?? rec.n };
       else if (sc.kind === 'medkit') m = { use: mk[1], end: mk[2] ?? rec.n };

@@ -143,7 +143,8 @@ describe('host checks on networked movement (3.2.0 phase 1)', () => {
     const g2 = { ...emptyMoveState(), g: 2 };
     expect(moveSpeedCap(g2, false, false, false, true)).toBeCloseTo(GEARS.stand[1]! * MOVE_TOLERANCE);
     expect(moveSpeedCap(g2, true, false, false, true)).toBeCloseTo(GEARS.crouch[1]! * MOVE_TOLERANCE);
-    expect(moveSpeedCap(g2, false, true, false, true)).toBeCloseTo(5 * MOVE_TOLERANCE);
+    // (step 22) the sprint is gear 6 standing (4.15 m/s after M14)
+    expect(moveSpeedCap(g2, false, true, false, true)).toBeCloseTo(GEARS.stand[5]! * MOVE_TOLERANCE);
     // driven (cover / traversal), in the air or with no move state: the general cap
     expect(moveSpeedCap(g2, false, false, true, true)).toBe(MAX_FREE_SPEED);
     expect(moveSpeedCap(g2, false, false, false, false)).toBe(MAX_FREE_SPEED);

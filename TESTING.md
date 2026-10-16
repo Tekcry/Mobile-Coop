@@ -5,6 +5,14 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 22 - weight (PC, controller)
+- [ ] Push the stick fully from rest: the operator leans and builds speed over about 0.3 s; release: one closing step, a small settle, no lunge held.
+- [ ] Every gear is slower than before; sprint (L3) about 4 m/s.
+- [ ] Turning at a jog curves rather than snapping; reversing at a run plants and pivots.
+- [ ] Aim, draw, strike, crouch and jump still respond instantly.
+- [ ] A part-pushed stick is a silent walk; a full stick at the default max gear is audible.
+- [ ] Co-op: a team-mate starting and stopping looks the same weight on your screen.
+
 ## Locomotion step 21v - vision grain (PC, phone)
 - [ ] Thermal, electro and night vision each show a fine moving grain; thermal bodies still the brightest thing; electro devices (cameras, panels, lasers) still read.
 - [ ] Phone check: grain visible but not noisy; frame rate holds in each mode.

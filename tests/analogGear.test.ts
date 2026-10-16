@@ -7,8 +7,9 @@ const magFor = (v: number, max: number, crouched: boolean): number => GEARS.dead
 
 describe('analog gear (locomotion step 17, D5.12)', () => {
   it('derives the threshold table from GEARS (midpoint +- 15% of the gap)', () => {
-    const stand = [[1.125, 0.975], [1.755, 1.545], [2.52, 2.28], [3.45, 3.15], [4.58, 4.22]];
-    const crouch = [[0.76, 0.64], [1.16, 1.04], [1.625, 1.475], [2.125, 1.975], [2.625, 2.475]];
+    // (step 22, M14 N6) from the slower caps
+    const stand = [[0.9425, 0.8075], [1.4575, 1.2925], [2.0725, 1.8775], [2.8525, 2.5975], [3.8, 3.5]];
+    const crouch = [[0.6345, 0.5355], [0.9645, 0.8655], [1.353, 1.227], [1.76, 1.64], [2.16, 2.04]];
     stand.forEach(([u, d], i) => {
       expect(GEAR_UP.stand[i]).toBeCloseTo(u!, 9);
       expect(GEAR_DOWN.stand[i]).toBeCloseTo(d!, 9);

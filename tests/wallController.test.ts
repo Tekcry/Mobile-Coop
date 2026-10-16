@@ -148,9 +148,9 @@ describe('back-to-wall core (step 11)', () => {
     for (const [gear, crouched, want] of [
       [6, false, 0.9],
       [4, false, 0.9],
-      [1, false, 0.8],
+      [1, false, 0.65], // (step 22) gear 1 caps after M14: 0.65 / 0.42
       [6, true, 0.6],
-      [1, true, 0.5],
+      [1, true, 0.42],
     ] as const) {
       const w = core();
       const i = inp(0, 0.2 + SO + 0.1, { context: true, crouched, gear });

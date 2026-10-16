@@ -579,7 +579,7 @@ try {
         P.set(10, 0);
         P.axis(1, 0);
         k.step(40);
-        // rocker down twice: maximum 3 caps the full stick at gear 3's 2.0 m/s
+        // rocker down twice: maximum 3 caps the full stick at gear 3's 1.65 m/s (step 22, M14)
         btn(13);
         btn(13);
         out.max3 = c.maxGear;
@@ -654,9 +654,10 @@ try {
       console.log(JSON.stringify(r));
       assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
       assert(r.a50.g === 2 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> gears 2 / 4 / 5 (A63) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      assert(Math.abs(r.a50.v - 1.3) < 0.1 && Math.abs(r.a80.v - 2.8) < 0.15 && Math.abs(r.a100.v - 3.8) < 0.2, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
+      // (step 22, M14 N6) the slower caps: gears 2 / 4 / 5 = 1.1 / 2.3 / 3.15 m/s
+      assert(Math.abs(r.a50.v - 1.1) < 0.1 && Math.abs(r.a80.v - 2.3) < 0.15 && Math.abs(r.a100.v - 3.15) < 0.2, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
       assert(r.sprint.sprinting && r.sprint.g === 6, `L3 with a full stick: sprint, gear 6 (${JSON.stringify(r.sprint)})`);
-      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 1.75, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
       assert(r.rb && r.lb, 'RB next weapon, LB previous');
       assert(r.r3, 'R3 swaps the shoulder');

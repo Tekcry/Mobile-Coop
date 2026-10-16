@@ -25,6 +25,10 @@ export interface FootState {
   swing: number;
   /** Toe pitch from the swing (toe down +). */
   pitch: number;
+  /** (step 22) Toe pitch when a quick stop's set-down or closing step began: it eases flat from there (no toe-off). */
+  fromPitch: number;
+  /** (step 22, A79) Heel-to-toe roll time left after a heel-first landing (s); 0 when flat. */
+  roll: number;
   /** Landed this frame (heel strike). */
   landed: boolean;
   /** Distance a locked foot was dragged (should stay ~0). */
@@ -42,6 +46,8 @@ export interface FootState {
   stepDur: number;
   stepLift: number;
   probeT: number;
+  /** (step 22) Share of the step toward its target the landing spot keeps (1: all; less: held back from a drop's edge). */
+  edgeK: number;
   /** Swing progress when the gait clock's swing window began (an early toe-off already in the air), else -1. */
   swBase: number;
   /** (fix 21-2) Where the foot was minus where the clock's swing put it when the clock took over an early toe-off. */
@@ -54,7 +60,7 @@ export interface FootState {
 }
 
 function newFoot(): FootState {
-  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, landed: false, slide: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, init: false };
+  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, init: false };
 }
 
 export interface PlannerInput {
@@ -123,6 +129,19 @@ export function emptyPlannerInput(): PlannerInput {
 /** A pinned foot further than this (m) from its pin steps onto it. */
 export const PIN_TOL = 0.04;
 
+/**
+ * (locomotion step 22, A79) Heel-to-toe roll: at a walking pace (standing gears 1-3, crouched gears 1-4) a foot lands
+ * heel first with the toe `pitch` up and rolls flat over `time` s after contact (the rig keeps the heel on the
+ * floor while it does). Faster gaits land flatter, as before.
+ */
+export const HEEL_ROLL = { pitch: 0.12, time: 0.1, maxSpeed: 1.7 } as const;
+
+/**
+ * (step 22, M14) The eased stop's closing step: a leftover swing more than `min` m behind its stance spot carries on
+ * to it at `lift` x the idle lift, over the idle step time scaled by its distance (all of it from `full` m).
+ */
+const CLOSE_STEP = { min: 0.05, lift: 0.6, full: 0.3 } as const;
+
 /** Idle stepping thresholds. */
 export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6, swingGap: 0.1, swingNear: 0.18 };
 
@@ -134,16 +153,35 @@ const wrap = (a: number): number => {
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
 const START_TOE_OFF = 1.2;
+/**
+ * (locomotion step 22, M14) A planted foot turned more than `PIVOT_TURN` (rad) from the body: the reversal pivot (A88)
+ * has turned the body over it and pushes off the other way (the travel within 60 deg of the foot's heel). While the other foot is in the air it holds its spot out
+ * to `PIVOT_REACH` x its reach instead of being dragged after the body (turn180 footSlideR 6.7 cm); a toe-off there
+ * would be a flight phase (pelvis jump 29 cm).
+ */
+const PIVOT_TURN = 1.2;
+const PIVOT_REACH = 1.15;
 /** (fix 21-2) Still this long (s) before a move counts as a new start. */
 const START_STILL = 0.25;
 /** (fix 21-2) Time (s) over which a taken-over early toe-off's gap to the clock's swing fades out. */
 const OFF_FADE = 0.15;
+/** (step 22) A fresh swing the clock starts further into its window than this fades in from the foot (`OFF_FADE`). */
+const FRESH_LATE = 0.2;
+/** (step 22) Shares of a step tried, in turn, when its landing spot has no ground under it (0: back where it left). */
+const EDGE_PULL = [0.6, 0.3, 0] as const;
+/** (step 22) A stance staggered more than `min` m front to back: its front foot holds up to `hold` m short of its spot. */
+const STAGGER = { min: 0.4, hold: 0.3 } as const;
 
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
   /** Moving on the last update (a quick stop acts on the change to still). */
   private wasMoving = false;
+  /** (step 22, A79) Landings this frame roll heel to toe. */
+  private rollOn = false;
+  /** (step 22) Per foot (L, R): its swing target was held back to the stop's rest spot last update. */
+  private restL = false;
+  private restR = false;
   /** (locomotion step 21, A80) Time since moving began (s). */
   private moveT = 0;
   /** (fix 21-2) Time since the last move (s). */
@@ -189,11 +227,22 @@ export class FootPlanner {
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
     this.L.landed = this.R.landed = false;
+    this.rollOn = i.moving && hyp2(i.velX, i.velZ) <= HEEL_ROLL.maxSpeed;
+    for (let k = 0; k < 2; k++) {
+      const f = k === 0 ? this.L : this.R;
+      if (f.roll <= 0) continue;
+      if (!f.contact) f.roll = 0;
+      else {
+        f.roll = Math.max(0, f.roll - i.dt);
+        f.pitch = -HEEL_ROLL.pitch * smooth(f.roll / HEEL_ROLL.time);
+      }
+    }
     if (!i.moving && this.wasMoving && i.quickStop > 0) {
       // instant stop: a swing left over from moving sets down within `quickStop` where it was aiming
       for (let k = 0; k < 2; k++) {
         const f = k === 0 ? this.L : this.R;
         if (f.contact || f.swing < 0) continue;
+        if (this.closeStep(f, i, k === 0 ? -1 : 1)) continue;
         this.setDown(f, i);
       }
       this.quick = true;
@@ -245,19 +294,48 @@ export class FootPlanner {
         const lead = toLand + (v > 1e-3 ? ahead / v : 0);
         let rx = i.rootX + i.velX * lead;
         let rz = i.rootZ + i.velZ * lead;
+        let clamped = false;
         if (i.rest) {
           // distance matching: do not land beyond where the body will stop
           const ahead = (rx - i.restX) * i.velX + (rz - i.restZ) * i.velZ;
           if (ahead > 0) {
             rx = i.restX;
             rz = i.restZ;
+            clamped = true;
           }
         }
+        const prevToX = f.toX;
+        const prevToZ = f.toZ;
         this.aim(f, i, side, rx, rz, i.yaw);
         // an early toe-off already in the air goes on from its progress to land on the clock (restarting from
         // the clock's 0 snaps the foot back to where it left the ground and the pelvis drops to reach it)
         const sp = f.swBase + (1 - f.swBase) * s;
+        // (step 22, M14) a swing re-aimed at the stop's rest spot (or let go of it) mid-air: the jump in its target
+        // fades out over OFF_FADE instead of moving the foot in one frame (a stop from gear 4-6 snapped the swing
+        // foot back up to 27 cm: knee and hip 33-45 deg in a frame)
+        const wasClamped = side < 0 ? this.restL : this.restR;
+        if (clamped !== wasClamped && !fresh && !takeover) {
+          const h = smooth(sp);
+          const k = f.offBase >= 0 ? 1 - smooth(f.offBase / OFF_FADE) : 0;
+          f.offX = f.offX * k - (f.toX - prevToX) * h;
+          f.offY = f.offY * k;
+          f.offZ = f.offZ * k - (f.toZ - prevToZ) * h;
+          f.offBase = 0;
+        }
+        if (side < 0) this.restL = clamped;
+        else this.restR = clamped;
         this.swingTo(f, i, sp);
+        // (step 22, M14) a swing the clock starts late in its window (the first frame moving after a landing: the pace
+        // now carries over a drop) starts from where the foot is and fades onto the clock's swing over OFF_FADE (it
+        // jumped 0.4 m in one frame, drop24 ankle 43 deg a frame); along the ground only (its height follows the swing)
+        if (fresh && s > FRESH_LATE) {
+          f.offX = f.fromX - f.x;
+          f.offY = 0;
+          f.offZ = f.fromZ - f.z;
+          f.offBase = 0;
+          f.x = f.fromX;
+          f.z = f.fromZ;
+        }
         // (only in a start's first START_TOE_OFF s, the early toe-offs A80 adds, and not turning: in a turn's
         // reversal the held offset put the swing foot across the planted one, turn180 selfShanks 1.3 -> 8 cm).
         // (A82) Not when the travel has reversed against the foot's heading: the body's yaw has only begun to turn on
@@ -340,8 +418,12 @@ export class FootPlanner {
       // sideways one
       const ex = f.x - this.ix;
       const ez = f.z - this.iz;
-      const fwd = ex * Math.sin(i.goalYaw) + ez * Math.cos(i.goalYaw);
+      let fwd = ex * Math.sin(i.goalYaw) + ez * Math.cos(i.goalYaw);
       const lat = ex * Math.cos(i.goalYaw) - ez * Math.sin(i.goalYaw);
+      // (step 22) a staggered stance (the kneel) is entered by the rear foot only: the front foot short of its spot
+      // stays planted (lifting it after the rear foot stepped back left the body over nothing: an eased stop ends with
+      // the feet square, so both stepped; flat-crouch3-aim balance 36 cm)
+      if (fwd < 0 && (side < 0 ? i.lZ - i.rZ : i.rZ - i.lZ) > STAGGER.min) fwd = Math.min(0, fwd + STAGGER.hold);
       const err = hyp2(fwd / PLANNER.idleStagger, lat / PLANNER.idleErr) + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
       if (err > worstErr) {
         worstErr = err;
@@ -385,10 +467,16 @@ export class FootPlanner {
       this.aim(f, i, side, i.rootX + i.velX * f.stepDur, i.rootZ + i.velZ * f.stepDur, i.yaw);
       return;
     }
-    if (hyp2(dx, dz) > reach) {
+    // (step 22, M14) the reversal pivot: the planted foot turned back under a body pushing off the other way holds its
+    // spot to a longer reach while the other foot is still in the air (no flight phase; the clock lifts it next)
+    const pivotReach =
+      !o.contact && Math.abs(wrap(f.yaw - i.yaw)) > PIVOT_TURN && i.velX * Math.sin(f.yaw) + i.velZ * Math.cos(f.yaw) < -0.5 * hyp2(i.velX, i.velZ)
+        ? reach * PIVOT_REACH
+        : reach;
+    if (hyp2(dx, dz) > pivotReach) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
       const d = hyp2(dx, dz);
-      const k = reach / d;
+      const k = pivotReach / d;
       const nx = hx + dx * k;
       const nz = hz + dz * k;
       f.slide += hyp2(nx - f.x, nz - f.z);
@@ -447,15 +535,29 @@ export class FootPlanner {
         tz -= behind * i.wallNz;
       }
     }
-    f.toX = tx;
-    f.toZ = tz;
-    f.toYaw = yaw;
     // ground under the landing spot (refreshed a few times per swing)
     f.probeT -= i.dt;
     if (f.probeT <= 0) {
       f.probeT = 0.08;
-      f.toY = this.groundAt(i, tx, tz);
+      // (step 22) never past a drop's edge: a spot with no ground in the probe's reach (walking off a ledge) is pulled
+      // back toward where the foot left (`EDGE_PULL`); landing there at the root's height left the foot planted in
+      // the air past the edge (drop09 footFloat 29-92 cm)
+      let k = 1;
+      let g = this.groundHit(i, tx, tz);
+      for (let n = 0; n < EDGE_PULL.length && Number.isNaN(g); n++) {
+        k = EDGE_PULL[n] ?? 0;
+        g = this.groundHit(i, f.fromX + (tx - f.fromX) * k, f.fromZ + (tz - f.fromZ) * k);
+      }
+      f.edgeK = k;
+      f.toY = Number.isNaN(g) ? i.rootY : g;
     }
+    if (f.edgeK < 1) {
+      tx = f.fromX + (tx - f.fromX) * f.edgeK;
+      tz = f.fromZ + (tz - f.fromZ) * f.edgeK;
+    }
+    f.toX = tx;
+    f.toZ = tz;
+    f.toYaw = yaw;
   }
 
   /**
@@ -465,13 +567,19 @@ export class FootPlanner {
    * takes only ground the first one started under.
    */
   private groundAt(i: PlannerInput, x: number, z: number): number {
+    const g = this.groundHit(i, x, z);
+    return Number.isNaN(g) ? i.rootY : g;
+  }
+
+  /** `groundAt`, NaN when neither probe finds ground (a drop: past a ledge's edge). */
+  private groundHit(i: PlannerInput, x: number, z: number): number {
     if (!i.ground) return i.rootY;
     let g = i.ground(x, z, i.rootY + 0.6);
     if (g === null) {
       g = i.ground(x, z, i.rootY + 1.1);
       if (g !== null && g < i.rootY + 0.6) g = null;
     }
-    return g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
+    return g === null ? Number.NaN : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
   }
 
   private pinned(i: PlannerInput, side: -1 | 1): boolean {
@@ -497,6 +605,37 @@ export class FootPlanner {
     }
   }
 
+  /**
+   * (locomotion step 22, M14) The closing step of an eased Chaos Theory stop: a swing left over when the feet stop
+   * stepping that is still behind its stance spot under the stopping body carries on to it, so the stop ends with the
+   * body over both feet. Setting it down where it was left it mid-stride behind the body (a 0.6 m stagger) and the
+   * idle squaring step then lifted the front foot while the body stood over the gap (flat-stand5 balance 20 cm). A
+   * swing already at or past its spot sets down where it is (`setDown`, never pulled back down a stair).
+   */
+  private closeStep(f: FootState, i: PlannerInput, side: -1 | 1): boolean {
+    if (i.hold || this.pinned(i, side)) return false;
+    const v = hyp2(i.velX, i.velZ);
+    const dx = v > 1e-3 ? i.velX / v : Math.sin(i.goalYaw);
+    const dz = v > 1e-3 ? i.velZ / v : Math.cos(i.goalYaw);
+    this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
+    const behind = (this.ix - f.x) * dx + (this.iz - f.z) * dz;
+    if (behind < CLOSE_STEP.min) return false;
+    f.fromX = f.x;
+    f.fromY = f.y;
+    f.fromZ = f.z;
+    f.fromYaw = f.yaw;
+    f.probeT = 0;
+    this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
+    f.stepLift = PLANNER.idleLift * CLOSE_STEP.lift;
+    f.fromPitch = f.pitch;
+    f.stepT = 0;
+    f.stepDur = Math.max(i.quickStop, PLANNER.idleStepTime * Math.min(1, behind / CLOSE_STEP.full));
+    f.swing = 0;
+    f.swBase = -1;
+    f.offBase = -1;
+    return true;
+  }
+
   /** Instant stop: a foot in the air sets straight down where it is, over `quickStop` (the stride it stopped in). */
   private setDown(f: FootState, i: PlannerInput): void {
     f.fromX = f.toX = f.x;
@@ -507,6 +646,7 @@ export class FootPlanner {
     f.stepLift = 0;
     f.stepT = 0;
     f.stepDur = Math.max(1e-3, i.quickStop);
+    f.fromPitch = f.pitch;
     f.swing = 0;
     f.swBase = -1;
     f.offBase = -1;
@@ -553,7 +693,10 @@ export class FootPlanner {
     // toe-off then heel strike: toe down early, toe up just before landing
     // (locomotion step 21, A80) the toe-off pitch eases in over the first tenth of the swing: it started at 0.45 rad
     // (26 deg) on the lift frame, an ankle snap of 25-36 deg a frame once the pelvis stopped dropping for the swing
-    f.pitch = s < 0.3 ? 0.45 * (1 - s / 0.3) * smooth(s / 0.1) : s > 0.72 ? -0.22 * smooth((s - 0.72) / 0.2) * (1 - smooth((s - 0.92) / 0.08)) : 0;
+    // (step 22) a quick stop's set-down or closing step eases the toe flat from where it was (restarting the toe-off
+    // there tipped the ankle 22 deg in a frame at 120 Hz, flat-stand4)
+    if (this.quick) f.pitch = f.fromPitch * (1 - smooth(s));
+    else f.pitch = s < 0.3 ? 0.45 * (1 - s / 0.3) * smooth(s / 0.1) : s > 0.72 ? -0.22 * smooth((s - 0.72) / 0.2) * (1 - (this.rollOn ? 1 - HEEL_ROLL.pitch / 0.22 : 1) * smooth((s - 0.92) / 0.08)) : 0;
   }
 
   private land(f: FootState): void {
@@ -569,7 +712,9 @@ export class FootPlanner {
     f.yaw = f.toYaw;
     f.contact = true;
     f.swing = -1;
-    f.pitch = 0;
+    // (step 22, A79) heel first at a walking pace: the toe comes down over HEEL_ROLL.time
+    f.roll = this.rollOn ? HEEL_ROLL.time : 0;
+    f.pitch = this.rollOn ? -HEEL_ROLL.pitch : 0;
     f.landed = true;
   }
 }

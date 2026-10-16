@@ -34,6 +34,7 @@ import {
 import { DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
+import { effortSpeed } from './effort';
 
 
 export const FADE = 0.2;
@@ -486,6 +487,8 @@ export class AnimGraph {
   private readyFz = 0;
   /** (step 21, M14) Relaxed arm counter swing amplitude (m), eased by READY_HANDS.settle. */
   private armSwingA = 0;
+  /** (step 22, D5.1) The effort pace this frame (m/s in GAIT_REF units). */
+  private effortS = 0;
   /** (fix 21-2) Eased share of READY_HANDS.xHolster: on with thigh gear on foot, out on a traverse / attach and a draw. */
   private holsterK = 0;
   private bobResidual = 0;
@@ -548,7 +551,8 @@ export class AnimGraph {
     const bw = Math.max(0, -this.dirZ);
     const sw = Math.abs(this.dirX);
     const tot = fw + bw + sw || 1;
-    const s = Math.max(0, this.locoSpeed);
+    // (step 22, D5.1) posed at the effort pace: each gear keeps its gait at the slower M14 caps
+    const s = effortSpeed(this.locoSpeed, crouched);
     this.moveAcc = 0;
     this.tmpMove.set(out);
     // forward: between the neighbouring speed nodes of the posture's set
@@ -604,6 +608,9 @@ export class AnimGraph {
     // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
     const locoSpeed = i.holdSpeed > 0 ? i.holdSpeed : i.speed;
     this.locoSpeed = locoSpeed;
+    // (step 22, D5.1) the effort pace (GAIT_REF units), stance-blended, for the speed-scaled arm swing
+    const ck = clamp(i.crouch, 0, 1);
+    this.effortS = effortSpeed(i.speed, false) * (1 - ck) + effortSpeed(i.speed, true) * ck;
     const moveTarget = smoothstep(locoSpeed / 0.22);
     this.moveW = approach(this.moveW, moveTarget, i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
@@ -722,7 +729,13 @@ export class AnimGraph {
     // --- acceleration lean (into acceleration, back against braking); the chest stays steadier
     // anticipation: a first-order (not spring) response so it moves on the first frame
     this.intentLean += (clamp(i.intent, -1, 1) * 0.1 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
-    const lean = this.accelLean.step(clamp(i.accelFwd * 0.025, -0.14, 0.14), 14, dt) + this.intentLean;
+    // (step 22, D5.2, A88) M14 momentum holds an acceleration for ~0.3 s (it was a few frames): a softer gain and cap
+    // (5 deg at a walk start or stop and above), on the critically damped spring; the capsule never overshoots
+    // the back-to-wall entry and shuffle are a verb on the cover motion (no M14 momentum): they keep the 3.2.0 lean,
+    // whose forward lean as the entry brakes holds the upper back off the wall (wall wallClip 2.5 -> 3.1 cm without)
+    const lg = i.wall ? LEAN_WALL.gain : LEAN_GAIN;
+    const lm = i.wall ? LEAN_WALL.max : LEAN_MAX;
+    const lean = this.accelLean.step(clamp(i.accelFwd * lg, -lm, lm), 14, dt) + this.intentLean;
     // (a Chaos Theory sprint turns at 720 deg/s: its roll is held a little lower so the sprint's hunch and the turn
     // still bank within 8 deg)
     const rollMax = i.quickStop > 0 ? 0.08 - 0.03 * this.dashS : 0.08;
@@ -865,7 +878,8 @@ export class AnimGraph {
     // wall takes it back to the weapon
     src[CH.offWall] = atWall ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
     // free hands hang at the sides (swing a little with the gait when unarmed)
-    const swing = 0.1 * this.moveW * Math.sin(ph * Math.PI * 2);
+    // (step 22, D5.1) the swing grows with the effort: 7.5 cm at a walk, 11 at a jog, 15 at the sprint (was 10 always)
+    const swing = Math.min(0.15, 0.04 + 0.025 * this.effortS) * this.moveW * Math.sin(ph * Math.PI * 2);
     const shY = p.y.shoulder - 0.04 * k;
     const armLen = p.upperArm.len + p.forearm.len;
     src[CH.hLX] = -p.shoulderHalf - 0.06;
@@ -879,7 +893,7 @@ export class AnimGraph {
     const rw = this.readyW;
     const RH = READY_HANDS;
     const dash = this.dashS;
-    const swingT = (Math.min(RH.swingMax, RH.swing * i.speed) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - dash) + RH.pump * dash) * smoothstep(i.speed / 0.22);
+    const swingT = (Math.min(RH.swingMax, RH.swing * this.effortS) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - dash) + RH.pump * dash) * smoothstep(i.speed / 0.22);
     this.armSwingA = approach(this.armSwingA, swingT, RH.settle, dt);
     this.holsterK = approach(this.holsterK, i.thighGear && i.traverse === 'none' ? 1 : 0, HOLSTER_TAU, dt);
     if (rw > 0) {
@@ -1136,10 +1150,12 @@ export class AnimGraph {
     g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
     g.cycleTime = s > 0.05 ? (2 * stepLength(s, undefined, lateralShare(i))) / s : 1.2;
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
-    const a = fwdNode(nodes, s);
+    // (step 22, D5.1) duty and lift at the effort pace, as the clips the pose blends
+    const es = effortSpeed(s, i.crouch > 0.5);
+    const a = fwdNode(nodes, es);
     const na = nodes[a]!;
     const nb = nodes[a + 1]!;
-    const kk = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
+    const kk = clamp((es - na.speed) / (nb.speed - na.speed), 0, 1);
     const duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
     const lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
     g.duty = clamp(duty, 0.4, 0.75);
@@ -1172,6 +1188,12 @@ function lateralShare(i: AnimInput): number {
 }
 
 /** Index of the lower node bracketing a speed in a forward node set. */
+/** (step 22, D5.2) Acceleration lean: rad per m/s^2 along the body, and its cap (rad). */
+const LEAN_GAIN = 0.012;
+const LEAN_MAX = 0.09;
+/** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
+const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;
+
 function fwdNode(nodes: readonly { speed: number }[], s: number): number {
   let a = 0;
   while (a < nodes.length - 2 && s > nodes[a + 1]!.speed) a++;

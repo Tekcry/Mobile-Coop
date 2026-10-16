@@ -13,6 +13,7 @@ import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
+import { gearCap } from './speedGears';
 import { G } from '../physics/groups';
 import { WALL_LOOK, WALL_TURN_RATE, wallHandPoint, wallRootPush } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
@@ -367,12 +368,14 @@ export class Player {
       const wx = Math.cos(cy) * move.x + Math.sin(cy) * move.y;
       const wz = -Math.sin(cy) * move.x + Math.cos(cy) * move.y;
       const along = mag > 0.05 ? (wx * Math.sin(by) + wz * Math.cos(by)) / mag : 0;
-      const top = c.sprinting ? MOVEMENT.sprintSpeed : c.crouched ? MOVEMENT.crouchRunSpeed : MOVEMENT.jogSpeed;
+      // (step 22) the tops follow the M14 gear caps: the sprint, crouched gear 6, standing gear 4 (the 3.2.0 jog)
+      const top = c.sprinting ? gearCap(6, false) : c.crouched ? gearCap(6, true) : gearCap(4, false);
       rp.intent = mag * Math.max(0, along) - c.speed / top;
     } else rp.intent = 0;
     // stopping: the last steps land where the body will come to rest
     const sp = m.speed;
-    const stopD = sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
+    // (step 22) a Chaos Theory stop eases out through the pace spring (M14 momentum): its remaining travel
+    const stopD = c.ct ? m.ctStopDistance() : sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
     rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
     rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
     // a teleport (respawn, insertion) puts the feet straight into a stance at the new spot (the rig only notices

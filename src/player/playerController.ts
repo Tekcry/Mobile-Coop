@@ -122,6 +122,13 @@ export class PlayerController {
   stopHold = false;
   holdSpeed = 0;
   private holdCrouch = false;
+  /**
+   * (locomotion step 22, M14) A Chaos Theory stop from moving (now eased over `CT.stopTime`, so the stop hold above no
+   * longer engages) blocks the kneel until the next input, as the hold did: the kneel began mid-way through the stop's
+   * squaring step and reversed it (crouched stops: a 74 cm kneel stagger, balance 13-36 cm out).
+   */
+  private stopNoKneel = false;
+  private noKneelCrouch = false;
   /** A stick springing back reads as a release from its full deflection (free movement only). */
   private release = new StickRelease();
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
@@ -299,6 +306,7 @@ export class PlayerController {
     // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
     this.motion.phase = 0;
     this.stopHold = false;
+    this.stopNoKneel = false;
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -378,7 +386,7 @@ export class PlayerController {
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
-      this.stopHold = false;
+      this.stopHold = this.stopNoKneel = false;
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
@@ -493,6 +501,11 @@ export class PlayerController {
       this.holdCrouch = this.crouched;
     }
     const moving = hyp2(tx, tz) > 0.05;
+    if (this.ct && this.grounded && wasMoving && this.motion.state !== 'move' && spBefore > 0.02 && !moving) {
+      this.stopNoKneel = true;
+      this.noKneelCrouch = this.crouched;
+    }
+    if (this.stopNoKneel && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.noKneelCrouch)) this.stopNoKneel = false;
     if (this.stopHold && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.holdCrouch)) this.stopHold = false;
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
@@ -572,8 +585,9 @@ export class PlayerController {
     this.localMove.z = (v.x * s + v.z * c) * invS;
     // kneel: crouched and still for a moment
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
-    this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > 0.25 && !this.stopHold;
+    // (step 22, M14) a Chaos Theory stop counts from rest, not from the eased stop's last 0.4 m/s
+    this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
+    this.kneeling = this.stillT > 0.25 && !this.stopHold && !this.stopNoKneel;
     this.updateStance(dt);
   }
 

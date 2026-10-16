@@ -164,7 +164,8 @@ export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprin
   // (step 12) the SWAT turn: its eased path peaks at 1.5x its average pace
   if (mv?.m === 'swat') return SWAT_MAX_PACE * 1.5 * MOVE_TOLERANCE;
   if (!mv || mv.m !== 'ground' || driven || !grounded) return MAX_FREE_SPEED;
-  const pace = sprint ? Math.max(5, gearCap(mv.g, false)) : gearCap(mv.g, crouched);
+  // (step 22) the sprint is gear 6 standing (its cap, whatever gear the state carries)
+  const pace = sprint ? Math.max(gearCap(6, false), gearCap(mv.g, false)) : gearCap(mv.g, crouched);
   return pace * MOVE_TOLERANCE;
 }
 

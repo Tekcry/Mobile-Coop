@@ -9,6 +9,7 @@ import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind 
 import { solveTwoBone } from '../anim/rigMath';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
+import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 
@@ -144,6 +145,17 @@ export function avatarStyle(): AvatarStyle {
 
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
+
+/**
+ * (locomotion step 22, A79) A planted foot rolling heel to toe (toe up, `pitch` < 0) turns about its heel, not the
+ * ankle: the ankle rises by the heel's lever behind it so the heel stays on the floor.
+ */
+const HEEL_BACK = 0.05;
+/** (step 22) The sole's depth under the ankle: turning about the ankle drops the heel by it times (1 - cos pitch) too. */
+const HEEL_DOWN = 0.08;
+function heelLift(f: { contact: boolean; pitch: number }): number {
+  return f.contact && f.pitch < 0 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
+}
 
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
@@ -534,6 +546,8 @@ export class CharacterRig {
   private prevRootZ = 0;
   private velX = 0;
   private velZ = 0;
+  /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
+  private derive = new MotionDerive();
   private pelvisDrop = 0;
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
   private softL = 1;
@@ -1092,10 +1106,24 @@ export class CharacterRig {
       const jump = jx * jx + jz * jz > 4;
       this.velX = s.velX ?? (jump ? 0 : approachTo(this.velX, jx / dt, dt, 0.06));
       this.velZ = s.velZ ?? (jump ? 0 : approachTo(this.velZ, jz / dt, dt, 0.06));
-      if (jump) this.planner.L.init = this.planner.R.init = false;
+      if (jump) {
+        this.planner.L.init = this.planner.R.init = false;
+        this.derive.reset();
+      }
     }
     this.prevRootX = rp.x;
     this.prevRootZ = rp.z;
+    // (locomotion step 22, D8) no motion driver (a remote copy): the acceleration lean and the stop settle from the
+    // measured velocity's own edges, as the owner's driver gives them (no extra bandwidth)
+    if (s.accelFwd === undefined) {
+      this.derive.update(dt, this.velX, this.velZ, yaw);
+      i.accelFwd = this.derive.accelFwd;
+      i.accelSide = this.derive.accelSide;
+      if (s.motion === undefined) {
+        i.motion = this.derive.motion;
+        i.motionT = this.derive.motionT;
+      }
+    }
     if (s.yawRate !== undefined) i.yawRate = s.yawRate;
     else if (this.prevYaw !== null && dt > 0) {
       let d = yaw - this.prevYaw;
@@ -1166,7 +1194,10 @@ export class CharacterRig {
     pin.lZ = t.stance.lZ;
     pin.rX = t.stance.rX;
     pin.rZ = t.stance.rZ;
-    pin.rest = s.restX !== undefined && s.restZ !== undefined && s.motion === 'stop';
+    // (step 22, M14) not on a Chaos Theory stop (quickStop): its eased stop is short (<= 0.36 m) and its rest spot
+    // pulled a swing already over the next stair back down one (stairs-stand5 pelvis jump 7 -> 19 cm); the leftover
+    // swing sets down where it is and the idle steps square up, as in 3.2.0
+    pin.rest = s.restX !== undefined && s.restZ !== undefined && s.motion === 'stop' && !((s.quickStop ?? 0) > 0);
     pin.restX = s.restX ?? 0;
     pin.restZ = s.restZ ?? 0;
     pin.reach = (this.p.thigh.len + this.p.calf.len) * 0.62;
@@ -1478,8 +1509,8 @@ export class CharacterRig {
     }
     // legs first (onto the planner's world feet: ankle above the sole; heel raise and pitch from the pose),
     // so the weapon below is placed against this frame's legs
-    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
-    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
+    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
@@ -1488,16 +1519,16 @@ export class CharacterRig {
       fresh(this.hips);
       fresh(this.spine);
       fresh(this.torso);
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
     if (kneeGap < KNEE_GAP) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
     }
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);

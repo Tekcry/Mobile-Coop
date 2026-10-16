@@ -20,9 +20,10 @@ function strikes(n: number, every: number): number[] {
 describe('anim audit limits', () => {
   it('pelvis jump limits follow speed x dt + 2 cm and the gear caps', () => {
     const s60 = L.pelvisJumpByGear('stand', 60).map((v) => +(v * 100).toFixed(2));
-    expect(s60).toEqual([3.33, 4.17, 5.33, 6.67, 8.33, 10.33]);
+    // (step 22, M14 N6) the slower caps
+    expect(s60).toEqual([3.08, 3.83, 4.75, 5.83, 7.25, 8.92]);
     const c120 = L.pelvisJumpByGear('crouch', 120).map((v) => +(v * 100).toFixed(2));
-    expect(c120).toEqual([2.42, 2.75, 3.08, 3.5, 3.92, 4.33]);
+    expect(c120).toEqual([2.35, 2.63, 2.9, 3.25, 3.58, 3.92]);
   });
   it('D2 gait bands (A7)', () => {
     expect([1, 2, 3, 4, 5, 6].map((g) => L.gaitBand('stand', g))).toEqual(['walk', 'walk', 'walk', 'run', 'run', 'sprint']);

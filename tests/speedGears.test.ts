@@ -5,8 +5,9 @@ import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 
 describe('speed gears (3.2.0)', () => {
   it('six gears with the spec caps, crouched and standing', () => {
-    expect(GEARS.crouch).toEqual([0.5, 0.9, 1.3, 1.8, 2.3, 2.8]);
-    expect(GEARS.stand).toEqual([0.8, 1.3, 2.0, 2.8, 3.8, 5.0]);
+    // (locomotion step 22, M14 N6 / A88) about 17 % under the 3.2.0 caps (GAIT_REF)
+    expect(GEARS.crouch).toEqual([0.42, 0.75, 1.08, 1.5, 1.9, 2.3]);
+    expect(GEARS.stand).toEqual([0.65, 1.1, 1.65, 2.3, 3.15, 4.15]);
     for (let g = 1; g <= 6; g++) {
       expect(gearCap(g, true)).toBe(GEARS.crouch[g - 1]);
       expect(gearCap(g, false)).toBe(GEARS.stand[g - 1]);
@@ -51,10 +52,10 @@ describe('speed gears (3.2.0)', () => {
   });
   it('aiming is capped at the aim paces; the sprint is gear 6 standing', () => {
     expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed);
-    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 1)).toBeCloseTo(0.8);
+    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 1)).toBeCloseTo(GEARS.stand[0]!);
     expect(targetSpeed(1, 'adsCrouch', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsCrouchSpeed);
     expect(targetSpeed(1, 'ads', 0, -1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed * MOVEMENT.backMult);
-    expect(targetSpeed(0.3, 'sprint', 0, 1, MOVEMENT, 2)).toBeCloseTo(5.0);
+    expect(targetSpeed(0.3, 'sprint', 0, 1, MOVEMENT, 2)).toBeCloseTo(GEARS.stand[5]!);
   });
   it('noise: crouched gears 1-4 and standing gears 1-2 are silent (with the stride swell); faster gears are heard', () => {
     const swell = 1 + MOVEMENT.rootDip;

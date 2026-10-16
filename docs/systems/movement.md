@@ -8,22 +8,37 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   speed gears (`player/speedGears.ts` pure, `GEARS` in `config/movement.ts`): 6 gears, spawn / respawn gear 3
   (`GameState` resets it when the player comes back alive; `?gear=N` for tests, `e2e-lib` adds `gear=4` = the 2.x jog
   unless a suite names a gear), kept through stance changes; `PlayerController.gears`, `speedUp` / `speedDown`
-  (pad D-pad up / down, wheel + `=` / `-`, touch rocker). Target = gear cap (crouched 0.5 / 0.9 / 1.3 / 1.8 / 2.3 /
-  2.8, standing 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0) x `stickCurve` (dead zone 0.05, linear); `targetSpeed(.., gear)`
-  replaces the stick bands for the player; aiming capped at 1.4 / 1.0; the sprint is gear 6 standing.
-  `NOISE_QUIET` (crouched <= 1.9, standing <= 1.45 m/s silent: crouched gears 1-4, standing 1-2). Chaos Theory feel
+  (pad D-pad up / down, wheel + `=` / `-`, touch rocker). Target = gear cap x `stickCurve` (dead zone 0.05, linear); `targetSpeed(.., gear)` replaces the stick bands for the
+  player; aiming capped at 1.4 / 1.0; the sprint is gear 6 standing.
+
+  | Gear | 1 | 2 | 3 | 4 | 5 | 6 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Standing (m/s) | 0.65 | 1.1 | 1.65 | 2.3 | 3.15 | 4.15 (sprint) |
+  | Crouched (m/s) | 0.42 | 0.75 | 1.08 | 1.5 | 1.9 | 2.3 |
+  | 3.2.0 (`GAIT_REF`), standing / crouched | 0.8 / 0.5 | 1.3 / 0.9 | 2.0 / 1.3 | 2.8 / 1.8 | 3.8 / 2.3 | 5.0 / 2.8 |
+
+  Locomotion step 22 (M14 N6 "too arcadey and fast", A88): every cap ~17 % lower. `NOISE_QUIET` (crouched <= 1.7,
+  standing <= 1.45 m/s silent: crouched gears 1-4, standing 1-2; standing gear 3 at full stick, the spawn maximum, is
+  audible; the hearing radius formula is unchanged, so slower gears carry a little less far). D5.1 effort curve
+  (`anim/effort.ts` `effortSpeed`): a pace is posed at its place between the `GAIT_REF` caps (clip mix, duty, lift,
+  arm swing), while the stride length and gait clock stay on the real pace. Chaos Theory feel with moderate momentum
   (`MotionInput.ct`, set by `PlayerController` when no override drives the step; `CT` table + `CT_RANGES` in the
-  Tune panel): stick released = zero velocity on that step (the controller's `maxAcceleration` is 600 then so Havok
-  follows in one step), gait clock frozen, `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`: a foot
-  in the air sets straight down where it is within it, planted feet locked). Stop hold (approved spec change):
-  `PlayerController.stopHold` / `holdSpeed` from any stop (> 0.02 m/s) until the next input (a stick that moves the
-  operator again, aim, stance change, an override, leaving the ground; teleport clears it; no kneel while held);
-  `StickRelease` (`speedGears.ts`, pure; `CT.releaseRate` / `releaseFrom` / `releaseWindow`) keeps a springing-back
-  stick's deflection so the stop is from the full pace. `RigPose.holdSpeed`: the graph keeps
-  the locomotion pose at the frozen gait clock for that pace (`locoSpeed`; released, it blends out over `quickStop`),
-  the planner `hold` takes no settling / idle steps (`anim-sheet` `crouchstop` / `walkstop`); starts
-  reach 95% within `CT.startTime` 0.08 s (`ctTau` = startTime / 4), direction / gear changes re-target at once, no
-  pivots, travel turns at `CT.turnRate` 720 deg/s (sprint roll lean held to 0.05 rad so the bank stays <= 8 deg).
+  Tune panel; `MotionDriver.stepCt`): the pace follows the stick through a critically damped spring (95% within
+  `CT.startTime` 0.3 s, 98% gone within `CT.stopTime` 0.25 s, under `CT_REST` 0.1 m/s at rest; never overshoots;
+  a sprint stops in <= 0.4 m), the travel direction swings toward the stick over `CT.turnTime` 0.15 s from
+  `turnFullSpeed` 1.6 m/s (none under `turnSnapSpeed` 0.4), a reversal (cos < -0.7) over `pivotSpeed` 1.2 m/s brakes
+  into a planted `pivot` (>= `pivotTime` 0.3 s, the PIVOT clip) and pushes off the new way. States `move` / `stop`
+  (released, sliding) / `pivot` / `idle`; `RigPose.restX` from `ctStopDistance()`. Aim, draw, strike, crouch and
+  jump stay instant. `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`: a foot in the air when the
+  feet stop stepping, under 0.3 m/s in a stop, sets down within it); then at most one closing step squares the feet.
+  The 3.2.0 stop hold (`PlayerController.stopHold` / `holdSpeed`) only fires on a move straight to idle, which the
+  momentum stop no longer produces. `StickRelease` (`speedGears.ts`, pure; `CT.releaseRate` / `releaseFrom` /
+  `releaseWindow`) keeps a springing-back stick's deflection so the stop is from the full pace. Travel facing turns at
+  `CT.turnRate` 720 deg/s (sprint roll lean held to 0.05 rad so the bank stays <= 8 deg). D5.2 acceleration lean
+  0.012 rad per m/s^2, capped 0.09 rad, on the critically damped spring. Remotes (D8): `anim/motionDerive.ts` derives
+  the acceleration and `move` / `stop` / `idle` from the measured velocity in `CharacterRig.animate` (no wire field).
+  Heel-to-toe roll (A79): at <= 1.7 m/s (`HEEL_ROLL`) a foot lands heel first, toe 0.12 rad up, and rolls flat over
+  0.1 s (the rig lifts the ankle by the heel's 5 cm lever so the heel stays on the floor).
   Forward roll: crouch tapped standing at gear >= 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`, the `drop` alias of the press) = `startRoll(true)`: `kind 'roll'`, `ROLL`
   clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m (shortened by a wall), comes up crouched (`setCrouchToggle`) at the

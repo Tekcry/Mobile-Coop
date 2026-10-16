@@ -284,27 +284,45 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
     i.faceTravel = true;
     i.ct = true;
   };
+  // (locomotion step 22, M14 N6) moderate momentum: ~0.3 s up, ~0.25 s down, no overshoot, braking <= 0.6 m
   for (const hz of [60, 90, 120]) {
-    it(`${hz} Hz: 95% of the target within CT.startTime; zero velocity on the step after release`, () => {
+    it(`${hz} Hz: 95% of the target within CT.startTime, no overshoot; released, at rest within CT.stopTime`, () => {
       const d = new MotionDriver();
       let reached = -1;
       let firstMove = -1;
-      run(d, 0.5, (i) => {
+      let top = 0;
+      run(d, 0.6, (i) => {
         ct(i);
-        i.vz = 2.8;
+        i.vz = 4.15;
       }, hz, (t) => {
         if (firstMove < 0 && d.speed > 0.001) firstMove = t;
-        if (reached < 0 && d.speed >= 2.8 * 0.95) reached = t;
+        if (reached < 0 && d.speed >= 4.15 * 0.95) reached = t;
+        top = Math.max(top, d.speed);
       });
       expect(firstMove).toBeLessThanOrEqual(1 / hz + 1e-9);
-      expect(reached).toBeGreaterThan(0);
-      expect(reached).toBeLessThanOrEqual(CT.startTime + 1e-9);
-      // release: stopped on that very step, gait clock frozen, no stop / pivot state
-      const phase = d.phase;
-      run(d, 1 / hz, ct, hz);
-      expect(d.speed).toBe(0);
-      expect(d.outX === 0 && d.outZ === 0).toBe(true);
+      expect(reached).toBeGreaterThan(CT.startTime * 0.7);
+      expect(reached).toBeLessThanOrEqual(CT.startTime + 1 / hz + 1e-9);
+      expect(top).toBeLessThanOrEqual(4.15 + 1e-9);
+      // release: a 'stop' that eases to rest, never reversing, within CT.stopTime and 0.6 m (bible 5.12.1)
+      let rest = -1;
+      let dist = 0;
+      let minVz = 0;
+      let stopState = false;
+      const predicted = d.ctStopDistance();
+      run(d, 0.5, ct, hz, (t) => {
+        dist += d.outZ / hz;
+        minVz = Math.min(minVz, d.vz);
+        stopState ||= d.state === 'stop';
+        if (rest < 0 && d.speed === 0) rest = t;
+      });
+      expect(stopState).toBe(true);
+      expect(rest).toBeGreaterThan(0);
+      expect(rest).toBeLessThanOrEqual(CT.stopTime + 1 / hz + 1e-9);
+      expect(dist).toBeLessThanOrEqual(0.6);
+      expect(Math.abs(dist - predicted)).toBeLessThan(0.08);
+      expect(minVz).toBeGreaterThanOrEqual(0);
       expect(d.state).toBe('idle');
+      const phase = d.phase;
       run(d, 0.3, ct, hz);
       expect(d.phase).toBe(phase);
       expect(d.speed).toBe(0);
@@ -341,33 +359,71 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
       for (let k = 0; k < a.length; k++) expect(Math.abs(a[k]! - b[k]!)).toBeLessThan(0.03);
     }
   });
-  it('a gear change mid-move re-targets within CT.startTime; a reversal is not a planted pivot', () => {
+  it('a gear change mid-move re-targets within CT.startTime; a reversal at pace is a planted pivot', () => {
     const d = new MotionDriver();
-    run(d, 0.5, (i) => {
+    run(d, 0.6, (i) => {
       ct(i);
-      i.vz = 2.0;
+      i.vz = 1.65;
     }, 60);
     let reached = -1;
-    run(d, 0.3, (i) => {
-      ct(i);
-      i.vz = 3.8;
-    }, 60, (t) => {
-      if (reached < 0 && d.speed >= 2.0 + (3.8 - 2.0) * 0.95) reached = t;
-    });
-    expect(reached).toBeGreaterThan(0);
-    expect(reached).toBeLessThanOrEqual(CT.startTime + 1e-9);
-    // reverse at speed: no pivot state, heading back the other way at once
-    let pivot = false;
-    let back = -1;
     run(d, 0.4, (i) => {
       ct(i);
-      i.vz = -3.8;
+      i.vz = 3.15;
+    }, 60, (t) => {
+      if (reached < 0 && d.speed >= 1.65 + (3.15 - 1.65) * 0.95) reached = t;
+    });
+    expect(reached).toBeGreaterThan(0);
+    expect(reached).toBeLessThanOrEqual(CT.startTime + 1 / 60 + 1e-9);
+    // (step 22, D5.4) reverse at pace: brake into a planted pivot (never sliding backwards before the plant), then
+    // push off the new way
+    let pivot = false;
+    let back = -1;
+    let slidBack = false;
+    run(d, 0.8, (i) => {
+      ct(i);
+      i.vz = -3.15;
     }, 60, (t) => {
       pivot ||= d.state === 'pivot';
-      if (back < 0 && d.vz <= -3.8 * 0.95) back = t;
+      if (d.vz < -1e-9 && d.speed > CT.turnSnapSpeed && back < 0 && d.state === 'pivot' && d.stateT < 0.05) slidBack = true;
+      if (back < 0 && d.vz <= -3.15 * 0.95) back = t;
     });
-    expect(pivot).toBe(false);
-    expect(back).toBeLessThanOrEqual(0.12);
+    expect(pivot).toBe(true);
+    expect(slidBack).toBe(false);
+    expect(back).toBeGreaterThan(0);
+    expect(back).toBeLessThanOrEqual(CT.stopTime + CT.startTime + 0.05);
+  });
+  it('(step 22, M14) turn inertia: at pace the travel swings to the stick over CT.turnTime, at a sneak at once', () => {
+    const d = new MotionDriver();
+    run(d, 0.6, (i) => {
+      ct(i);
+      i.vz = 2.3;
+    }, 60);
+    const angles: number[] = [];
+    let minSp = 9;
+    run(d, 0.3, (i) => {
+      ct(i);
+      i.vx = 2.3;
+    }, 60, () => {
+      angles.push(Math.atan2(d.vx, d.vz));
+      minSp = Math.min(minSp, d.speed);
+    });
+    expect(angles[0]!).toBeGreaterThan(0.05);
+    expect(angles[0]!).toBeLessThan(Math.PI / 4);
+    const k95 = angles.findIndex((a) => a >= (Math.PI / 2) * 0.95);
+    expect(k95).toBeGreaterThan(0);
+    expect((k95 + 1) / 60).toBeLessThanOrEqual(CT.turnTime + 1 / 60);
+    expect(minSp).toBeGreaterThan(2.3 * 0.95);
+    // a sneak turns with the stick at once
+    const e = new MotionDriver();
+    run(e, 0.6, (i) => {
+      ct(i);
+      i.vz = 0.3;
+    }, 60);
+    run(e, 1 / 60, (i) => {
+      ct(i);
+      i.vx = 0.3;
+    }, 60);
+    expect(Math.atan2(e.vx, e.vz)).toBeCloseTo(Math.PI / 2, 6);
   });
   it('travel turns at up to CT.turnRate (720 deg/s), faster than the 2.x travel rate', () => {
     const d = new MotionDriver();

@@ -637,7 +637,7 @@ try {
         g.player.controller.teleport(new t.V(x, y, z), yaw);
         g.player.cam.yaw = yaw;
         t.step(0.3);
-        st.setMove('t', 0, 1); // full stick: max gear 4 (2.8 m/s); since step 17 a 0.6 stick snaps to the silent gear-2 walk
+        st.setMove('t', 0, 1); // full stick: max gear 4 (2.3 m/s since step 22); since step 17 a 0.6 stick snaps to the silent gear-2 walk
         let n = 0;
         let surf = '';
         for (let i = 0; i < 12; i++) {
