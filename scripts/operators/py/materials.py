@@ -281,3 +281,107 @@ def softshell(name='softshell', colour=(0.027, 0.028, 0.025)):
     g.bsdf.inputs['Sheen Roughness'].default_value = 0.45
     g.link(nrm, g.bsdf.inputs['Normal'])
     return mat
+
+
+# --- Gloves and boots (step 06) -------------------------------------------------------------------------------------
+# These read a per-vertex 'wear' attribute (0..1, written by py/garments/gloves.py and boots.py): where the item is
+# handled or scuffed - the trigger finger and the palm heel polish and darken, the toe rand scuffs lighter.
+
+def _wear_attr(g):
+    at = g.node('ShaderNodeAttribute', attribute_name='wear', attribute_type='GEOMETRY')
+    return at.outputs['Fac']
+
+
+def leather(name='glove leather', colour=(0.03, 0.029, 0.027)):
+    """Thin goatskin (glove palm): a fine pebbled grain (cells about 0.5 mm) and creases; where it is handled ('wear')
+    the grain polishes flat, darker and a little less rough. Matte, never glossy."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    _, _, uvv = g.uv()
+    vor = g.node('ShaderNodeTexVoronoi', feature='DISTANCE_TO_EDGE')
+    vor.inputs['Scale'].default_value = 2000.0
+    g.link(uvv, vor.inputs['Vector'])
+    wear = _wear_attr(g)
+    fade = g.near_fade(0.6, 1.6)
+    grain = g.math('MULTIPLY', g.smoothstep(0.0, 0.12, vor.outputs['Distance']), g.math('SUBTRACT', 1.0, g.math('MULTIPLY', wear, 0.6)))
+    h = g.math('ADD', g.math('MULTIPLY', grain, fade), g.math('MULTIPLY', g.noise(300.0, 3.0), 0.35))
+    nrm = g.bump(h, 0.45, 0.0002)
+    polished = g.mix_rgb(g.math('MULTIPLY', wear, 0.8), colour, (0.021, 0.0205, 0.02))
+    base = g.wear(polished, ao_dist=0.01, dust_amount=0.12)
+    g.link(base, g.bsdf.inputs['Base Color'])
+    g.link(g.math('SUBTRACT', 0.84, g.math('MULTIPLY', wear, 0.1)), g.bsdf.inputs['Roughness'])
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.1
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat
+
+
+def suede(name='suede', colour=(0.027, 0.026, 0.024)):     # r2 item 4: darker (was 0.034)
+    """Suede (boot overlays): a short raised nap - no weave, soft blotchy value shifts where the nap lies differently,
+    a broad sheen at grazing angles, fully matte; scuffs ('wear') flatten the nap a little darker."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    _, _, uvv = g.uv()
+    nap = g.node('ShaderNodeTexNoise')
+    nap.inputs['Scale'].default_value = 40.0
+    nap.inputs['Detail'].default_value = 4.0
+    g.link(uvv, nap.inputs['Vector'])
+    fine = g.noise(6000.0, 2.0, uvv)
+    wear = _wear_attr(g)
+    col = g.mix_rgb(g.math('MULTIPLY', g.smoothstep(0.35, 0.7, nap.outputs['Fac']), 0.35), colour, (0.033, 0.032, 0.029))
+    col = g.mix_rgb(g.math('MULTIPLY', wear, 0.6), col, (0.024, 0.023, 0.022))
+    base = g.wear(col, ao_dist=0.02, dust_amount=0.3)
+    g.link(base, g.bsdf.inputs['Base Color'])
+    g.link(g.math('SUBTRACT', 0.93, g.math('MULTIPLY', wear, 0.08)), g.bsdf.inputs['Roughness'])
+    # step 06 r2: a modest nap sheen (0.6 / 0.6 lit the toe caps near-white in the stealth view)
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.22
+    g.bsdf.inputs['Sheen Roughness'].default_value = 0.5
+    g.bsdf.inputs['Sheen Tint'].default_value = (0.3, 0.3, 0.29, 1)
+    # r2 item 4: a napped surface has a weak, broken specular; at the default level the rough Fresnel lobe lit the
+    # upward-facing toe caps near-white under a back light (the floor's own grazing glare)
+    g.bsdf.inputs['Specular IOR Level'].default_value = 0.2
+    g.link(g.bump(g.math('MULTIPLY', fine, g.near_fade()), 0.25, 0.0002), g.bsdf.inputs['Normal'])
+    return mat
+
+
+def nylon(name='boot nylon', colour=(0.025, 0.026, 0.027)):
+    """Boot-upper nylon (1000-denier class): a tight plain weave, threads about 0.6 mm, matte with a faint sheen."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'fabric'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    wu = g.math('SINE', g.math('MULTIPLY', u, 6.2832 / 0.0006))
+    wv = g.math('SINE', g.math('MULTIPLY', v, 6.2832 / 0.0006))
+    fade = g.near_fade()
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', g.math('MULTIPLY', wu, wv), fade), 0.5), g.math('MULTIPLY', g.noise(1200.0, 2.0), 0.4))
+    nrm = g.bump(h, 0.6, 0.0003)
+    base = g.wear(colour, ao_dist=0.02, dust_amount=0.3)
+    g.link(base, g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Roughness'].default_value = 0.84
+    g.bsdf.inputs['Sheen Weight'].default_value = 0.15
+    g.bsdf.inputs['Specular IOR Level'].default_value = 0.3     # r2 item 4 (see suede)
+    g.link(nrm, g.bsdf.inputs['Normal'])
+    return mat
+
+
+def rubber(name='sole rubber', colour=(0.024, 0.024, 0.025), rough=0.82):
+    """Soft matte rubber (sole, rand): a faint moulded stipple; dust packs into the hollows (AO) and the 'wear'
+    attribute scuffs it lighter and a little smoother (the toe rand)."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'hard'
+    g = Graph(mat)
+    gm = g.node('ShaderNodeNewGeometry')
+    st = g.node('ShaderNodeTexNoise')
+    st.inputs['Scale'].default_value = 1500.0
+    st.inputs['Detail'].default_value = 1.0
+    g.link(gm.outputs['Position'], st.inputs['Vector'])
+    wear = _wear_attr(g)
+    scuff = g.math('MULTIPLY', wear, g.smoothstep(0.3, 0.75, g.noise(120.0, 4.0, gm.outputs['Position'])))
+    col = g.mix_rgb(g.math('MULTIPLY', scuff, 0.8), colour, (0.038, 0.037, 0.036))   # r2 item 4: was 0.055
+    base = g.wear(col, ao_dist=0.006, dust=(0.07, 0.065, 0.058), dust_amount=0.55)
+    g.link(base, g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Specular IOR Level'].default_value = 0.3     # r2 item 4: matte moulded rubber (see suede)
+    g.link(g.math('SUBTRACT', rough, g.math('MULTIPLY', scuff, 0.12)), g.bsdf.inputs['Roughness'])
+    g.link(g.bump(st.outputs['Fac'], 0.15, 0.0002), g.bsdf.inputs['Normal'])
+    return mat

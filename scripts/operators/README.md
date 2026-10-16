@@ -31,11 +31,17 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   stiffness per material and panel, stiffer sewn layers under pockets and pads). `build_garment.py --sim '<json>'`
   overrides `SIM` for tuning runs.
 - `py/build_garment.py` - stage 2: arrange, sew by cloth simulation (the flat pattern is the rest shape), settle, weld.
-  Multi-layer: garments build in `GARMENTS` order (`export-gltf.mjs`: base layer, shirt, trousers); `--under a,b` opens
+  Multi-layer: garments build in `GARMENTS` order (`export-gltf.mjs`: base layer, gloves, boots, shirt, trousers); `--under a,b` opens
   the last earlier garment's blend, measures every girth over the body plus the earlier layers and makes each of them
   a collider. Prints the worst seam per sample and refuses a panel arranged inside out.
 - `py/garment_details.py` - stage 3: seam ridges, hems, thread stitches, patches (pads, pockets, flaps, tabs,
   reinforcement panels, belt loops), zip, fly, snaps and grommets, materials (reused by name across garments).
+- `py/build_fitted.py` - the fitted items (`FITTED`: gloves, boots; DECISIONS A18) in one stage instead of stages 2
+  and 3: `garments/gloves.py` shrink-fits panels on the hand surface (palm, knit back, fourchettes, knuckle pad, tip
+  and palm-heel patches, ribbed cuff, wrist tab); `garments/boots.py` lofts a last from the foot's section hulls and
+  adds the sole, lugs, eyelets, speed hooks, laces, lace garage and pull loop. Shared geometry in `py/fitted.py`. It
+  writes the same `-sim.json` / `-sim.npz` / blend as a sewn garment (method `fitted`, seam gap 0), so the layers over
+  them push clear of their shells and `operators:check` checks them.
 - `py/materials.py`, `py/render.py`, `py/render_garment_test.py` - procedural materials, the GPU render setup, the test
   views (`--render`; per garment: front and back in stealth light, raking close-ups, a neutral front).
 

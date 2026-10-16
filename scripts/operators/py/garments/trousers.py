@@ -68,7 +68,7 @@ def cut(m):
     return {
         # The legs are drafted on the vertical and settle about 4 cm shorter on the spread A-pose legs (the leg path is
         # longer than the drop, and the band is pinned): the hem is cut below the ankle joint and settles above it.
-        'z_hem': m['z_ankle'] - 0.015 * s,
+        'z_hem': m['z_ankle'] - 0.055 * s,         # r2 item 2: 4 cm longer, the narrow hem settles higher
         'z_top': m['z_waist'] - 0.05 * s,           # mid rise: the band top sits just under the navel
         'knee_up': -0.03,                           # drafted 3 cm low: the thigh shortens about 4 cm in the settle,
                                                     # the darts and the pad land on the kneecap
@@ -76,7 +76,10 @@ def cut(m):
         'front_share': 0.46,
         'hip_split': 0.012,                         # the back is wider over the seat
         'leg_ease': (1.30, 1.16, 1.10),             # hem, knee (room for the pad), crotch
-        'hem_circ': 0.34 * s,                       # tapered ankle: a boot-top girth
+        # tapered ankle (step 06 fix 1): the boot's measured top girth (24.0 cm on Wren) plus a layer's allowance
+        # (build_garment), 26.5 cm, not the earlier 34 cm tube that stood off the boot; the leg settles about 4 cm, so
+        # the hem laps 3-5 cm down over the boot shaft
+        'hem_circ': m.get('boot_top_girth', 0.265 * s),
         'hip_ease': (1.07, 1.03),
         'smooth': 0.08,
         # rise solved from the measured crotch path plus this ease (front, back; legwear.draft_legs); o['rise'] is the

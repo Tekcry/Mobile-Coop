@@ -3,14 +3,15 @@
 // 2. Export each operator's corrected joints to build/operators/joints.json.
 // 3. Blender stages, headless on the pinned Blender:
 //    skeleton check -> base body (shaped, rigged, skinned) -> garments in GARMENTS order, each sewn by cloth simulation
-//    over the body, then pushed clear of every earlier garment (layer_push, A11) -> garment detail.
+//    over the body, then pushed clear of every earlier garment (layer_push, A11) -> garment detail; the fitted items
+//    (gloves, boots: FITTED, A18) are built in one stage by build_fitted.py.
 // 4. glTF export for the Operator Lab (<id>-lab.glb).
 // --render also renders the garment test views into docs/operators/mockups/tests/ (Cycles on the GPU).
 import path from 'node:path';
 import { exportJoints } from './export-joints.mjs';
 import { fetchBaseBody } from './fetch-base-body.mjs';
 import { findBlender, runBlender } from './blender.mjs';
-import { exportGltf, GARMENTS } from './export-gltf.mjs';
+import { exportGltf, FITTED, GARMENTS } from './export-gltf.mjs';
 import { OUT_DIR, ROOT } from './paths.mjs';
 
 
@@ -32,9 +33,14 @@ for (const id of only.length ? only : ['wren', 'moth']) {
   const done = [];   // garments already built: the next one is sewn over them (multi-layer simulation)
   for (const g of GARMENTS[id] ?? []) {
     const a = ['--operator', id, '--garment', g, '--out', out];
-    runBlender('build_garment.py', [...a, '--frames', '120', ...(done.length ? ['--under', done.join(',')] : [])], { blender });
+    const under = done.length ? ['--under', done.join(',')] : [];
+    if (FITTED.has(g)) {
+      runBlender('build_fitted.py', [...a, ...under], { blender });   // gloves, boots: fitted, not sewn (A18)
+    } else {
+      runBlender('build_garment.py', [...a, '--frames', '120', ...under], { blender });
+      runBlender('garment_details.py', a, { blender });
+    }
     done.push(g);
-    runBlender('garment_details.py', a, { blender });
     if (render) {
       runBlender('render_garment_test.py', [...a, '--dest', path.join(ROOT, 'docs', 'operators', 'mockups', 'tests'),
         '--samples', '384'], { blender });

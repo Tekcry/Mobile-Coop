@@ -6,11 +6,19 @@ import { OUT_DIR } from './paths.mjs';
 
 /**
  * Garments built per operator, in build (layer) order: each is drafted over the earlier ones, simulated over the body
- * only, then pushed clear of the earlier layers (layer_push, A11), so the base layer comes first and the trousers after
- * the shirt (its hem tucks in). The last one's blend holds the body,
+ * only, then pushed clear of the earlier layers (layer_push, A11), so the base layer comes first, the gloves and boots
+ * before the shirt (its cuffs close over the gloves) and the trousers (their hems seal over the boots), and the trousers
+ * after the shirt (its hem tucks in). The last one's blend holds the body,
  * the rig and every earlier garment.
  */
-export const GARMENTS = { wren: ['base_layer', 'combat_shirt', 'trousers'], moth: [] };
+export const GARMENTS = { wren: ['base_layer', 'gloves', 'boots', 'combat_shirt', 'trousers'], moth: [] };
+
+/**
+ * Fitted items (step 06, DECISIONS A18): not cloth-simulated. py/build_fitted.py builds them in one stage (gloves:
+ * shrink-fitted panels on the hand; boots: a parametric hard model sized from the foot) and leaves the same files a
+ * sewn garment does, so the layers over them (the shirt cuffs, the trouser hems) are drafted over and pushed clear of them.
+ */
+export const FITTED = new Set(['gloves', 'boots']);
 
 export function exportGltf(id, blender = findBlender()) {
   const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);

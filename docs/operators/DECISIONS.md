@@ -232,3 +232,40 @@ garages are parts of `combatShirt` (they hold nothing of their own). Undo: the `
   cannot resolve sub-millimetre casters. Seam plateaus are ramped (`offsetSmooth: 3`, exported). Proper fix (LOG
   step 05 OPEN 6): a stitch channel in the offset map. Undo: `SIM.bridge`, `stitchShadows`, `offsetSmooth` in
   `trousers.py`.
+
+## Assumed decisions, step 06 (D15 unattended)
+
+**A18 Gloves and boots are fitted, not sewn (step 06).** Neither is cloth-simulated: a glove's fourchettes are a few
+  millimetres wide and a boot is a hard, moulded shape, which Blender cloth cannot sew over fingers or hold as a last.
+  `py/build_fitted.py` builds both in one stage (no `build_garment.py` / `garment_details.py`), listed in `FITTED` in
+  `export-gltf.mjs`. Gloves (`garments/gloves.py`): the body's hand faces, subdivided twice, offset 2.2 mm off the skin
+  and pushed clear of the base-layer cuff ("shrink-fitted panels", step 06 Do 1); panels are cut on that surface from
+  the hand frame (wrist, knuckle line, palm normal from the finger curl). Boots (`garments/boots.py`): a last lofted
+  from the foot's section hulls plus 4.5 mm clearance and 14 mm toe room, flattened onto a moulded sole (step 06 Do 2).
+  Both leave the files a sewn garment leaves (`-sim.json` with `method: fitted` and a 0 seam gap - nothing is sewn by a
+  simulation; `-sim.npz` with the shell; the item blend), so `operators:check` runs every other check on them unchanged.
+  Layer order (A11): base_layer, gloves, boots, combat_shirt, trousers - the shirt cuffs and the trouser hems are
+  pushed clear of the gloves' and boots' shells. The check gains a hand and a foot view so their materials are sampled.
+  Suede and goatskin are shader-only (no CC0 scan; the step allows one only if a shader cannot reach the look).
+  Undo: drop 'gloves' and 'boots' from `GARMENTS`, rebuild the shirt and trousers.
+**A19 Panel cutting by level-set slice (step 06 fix round 2; recorded by the orchestrator).** `fitted.level_slice`
+  cuts the fitted shell along each panel field's zero contour (boots: counter, toe cap, collar, eyestay, tongue, rand;
+  gloves: knuckle, fingertip); crossings within 18 % of a vertex move onto the contour. Replaces the Newton snap, which
+  left torn, sawtoothed panel edges. Undo: restore the snap in `boots.py` / `gloves.py`.
+**A20 Overlays are stepped panels (step 06 fix round 2).** `fitted.split_step` gives each overlay its own vertices
+  and a flat-shaded wall quad to its neighbour, so a panel ends on a real turned edge; stitches and hardware sit on the
+  overlay top. Undo: drop `split_step` from the panel blocks.
+**A21 Glove fit repair (step 06 fix round 3).** `untangle()` relaxes folded vertex fans before and after the overlay
+  lift (folded fans pushed the solidify's inner wall out through the glove: the fingertip dot). The last finger segment
+  is smoothed and re-cleared 1.3 mm off the skin (no nail print). Every fingertip is capped by leather with a U edge
+  (10 mm on the nail, 22 mm on the pad), no seam at the tip; tip step 0.3 mm; overlays lift along smoothed normals.
+  Undo: `gloves.py`.
+**A22 Trouser hem drafted from the boot (step 06 fix rounds 1-2).** `build_garment.py` reads `-boots-sim.json` and
+  drafts the trousers' `hem_circ` to the boot top girth plus one layer (26.5 cm on Wren, was a fixed 34 cm); `z_hem`
+  is ankle minus 5.5 cm (was 1.5) so the settled hem laps the boot collar. Couples the trousers to the boots' build
+  output. Undo: the fixed `hem_circ` and `z_hem` in `trousers.py`.
+**A23 Boot materials and toe (step 06 fix round 2).** Suede albedo 0.027 (nap 0.033), sheen 0.22, tint 0.3, Specular
+  IOR Level 0.2; nylon and rubber Specular IOR Level 0.3; rubber scuff 0.038. Reason: the stealth key lit up-facing toe
+  caps near-white; closed by measurement (boot shafts 0.07 vs leggings 0.06-0.08; the toe-cap brightness is the key
+  light on up-facing surfaces, bare feet light the same way). Toe: `TOE_ROOM` 14 mm, superellipse 2.0 medial / 1.7
+  lateral, toe width 2 cm behind the tip 61 % of the ball. Undo: `materials.py`, `boots.py`.

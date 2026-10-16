@@ -78,6 +78,9 @@ FLAT = {  # name: (albedo, roughness)
     'loop': (0.023, 0.95), 'binding': (0.023, 0.80), 'zip teeth': (0.022, 0.70), 'zip slider': (0.022, 0.60),
     'softshell': (0.027, 0.80), 'softshell patch': (0.027, 0.80), 'compression knit': (0.035, 0.90),
     'hardware metal': (0.022, 0.60), 'thread': (0.036, 0.72),
+    # gloves and boots (step 06)
+    'glove leather': (0.027, 0.80), 'glove knit': (0.029, 0.90), 'glove knuckle': (0.025, 0.80), 'glove cuff': (0.033, 0.90),
+    'suede': (0.033, 0.92), 'boot nylon': (0.025, 0.84), 'sole rubber': (0.026, 0.82), 'lace': (0.023, 0.80),
 }
 for mat in bpy.data.materials:
     if not mat.use_nodes:

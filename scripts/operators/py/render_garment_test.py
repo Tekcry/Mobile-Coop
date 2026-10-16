@@ -114,6 +114,37 @@ if gname == 'trousers':
     # round 2: the earlier front-and-below view left it in the thighs' shadow). The light skims in from the front.
     closeup('g-closeup-gusset', (0.0, J['pelvis'][1] + 0.01, hp[2] - 0.13), (0.05, -0.12, -1.0), lens=30,
             dist=0.32, rake_from=(0.1, -0.2, -0.15), power=12)
+    # h. The hem sealed over the boot top, from the front-outside at ankle height (step 06).
+    an = J['anL']
+    closeup('h-closeup-hem-boot', an + np.array([0.0, -0.03, 0.03]), (side * 0.7, -1.0, 0.25), lens=35, dist=0.45,
+            rake_from=(side * 0.25, -0.15, 0.3), power=8)
+elif gname == 'gloves':
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'garments'))
+    from gloves import hand_frame  # noqa: E402
+    rig = bpy.data.objects[f'{op_id}-rig']
+    bones = {b.name: (np.array(rig.matrix_world @ b.head_local), np.array(rig.matrix_world @ b.tail_local)) for b in rig.data.bones}
+    fr = hand_frame(bones, 'L')
+    hc = fr['wr'] + fr['a'] * 0.06
+    # c. The back of the left hand: knuckle panel, knit back, fourchettes, the wrist tab; light along the fingers.
+    closeup('c-closeup-glove-back', hc, fr['back'] * 1.0 - fr['af'] * 0.35 + np.array([0.0, -0.3, 0.0]), lens=35, dist=0.36,
+            rake_from=-fr['l'] * 0.28 + fr['back'] * 0.06 + fr['a'] * 0.08, power=2)
+    # e. The palm: goatskin, the palm-heel patch, fingertip patches and the polished trigger finger.
+    closeup('e-closeup-glove-palm', hc, -fr['back'] * 1.0 + np.array([0.0, -0.45, 0.1]), lens=35, dist=0.34,
+            rake_from=fr['a'] * 0.3 - fr['back'] * 0.1, power=2)
+elif gname == 'boots':
+    an, toe = J['anL'], J['toeL']
+    side = np.sign(an[0])
+    bc = np.array([an[0], (an[1] + toe[1]) / 2 + 0.02, 0.06])
+    # c. The left boot from the outside front: rand, toe cap, heel counter, sole, eyestays.
+    closeup('c-closeup-boot-side', bc, (side * 1.0, -0.55, 0.3), lens=35, dist=0.55, rake_from=(side * 0.15, -0.3, 0.25), power=6)
+    # e. The lacing from the front and above: eyelets, speed hooks, laces, tongue, lace garage, the forefoot crease.
+    closeup('e-closeup-boot-laces', np.array([an[0], an[1] - 0.06, 0.08]), (side * 0.25, -1.0, 0.75), lens=35, dist=0.42,
+            rake_from=(side * 0.3, -0.05, 0.2), power=6)
+    # f. Heel and sole from behind and below (floor hidden): heel counter, pull loop, heel brake, lugs.
+    floor.hide_render = True
+    closeup('f-closeup-boot-sole', np.array([an[0], an[1] + 0.0, 0.01]), (side * 0.35, 0.8, -0.75), lens=30, dist=0.5,
+            rake_from=(side * 0.2, 0.25, -0.15), power=8)
+    floor.hide_render = False
 elif gname == 'base_layer':
     nk = J['neck']
     closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,

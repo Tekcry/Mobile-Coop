@@ -188,6 +188,14 @@ m['torso_rows'] = [(float(zz), perimeter(ring_cut(zz, is_torso))) for zz in np.a
 # Each layer under this garment adds its own thickness and collision gap (LAYER_T) round the body.
 GAP = SIM['collision']['body'] + SIM['collision']['cloth']
 LAYER_T = GAP + 0.0011
+# The boots under a garment (step 06): their measured top girth plus one layer's allowance, so a hem can be drafted to
+# seal over the boot shaft (trousers.cut 'hem_circ').
+_boots_json = os.path.join(args.out, f'{op_id}-boots-sim.json')
+if 'boots' in UNDER_IDS and os.path.exists(_boots_json):
+    with open(_boots_json, encoding='utf-8') as _f:
+        _bm = json.load(_f).get('measurements', {})
+    if _bm:
+        m['boot_top_girth'] = max(v['topGirthM'] for v in _bm.values()) + 2 * math.pi * (GAP + LAYER_T)
 
 
 def allowance(k, z=None):
