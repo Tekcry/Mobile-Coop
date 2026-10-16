@@ -94,13 +94,15 @@ export const PIECES: readonly PieceMeta[] = [
   {
     id: 'brokenpluck',
     name: 'Broken hook: plucked',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm: the broken hook softly every 4 bars over a quiet low bed (no rub, no heartbeat). Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
+      { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
       S('frag2', 'Broken hook, in between (every 2 bars together)'),
       S('walk', 'Walk-up into the next bar (every 8 bars)'),
@@ -108,22 +110,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { bed: 0.4, frag: 0.55 },
+      Calm: { whisper: 0.5 },
       Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
-      'Calm, near silence': { bed: 0.3, frag: 0.4 },
-      'Everything on': { bed: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Calm, fog': { whisper: 0.45, fog: 0.35 },
+      'Calm, near silence': { whisper: 0.3 },
+      'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
+      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokenbow',
     name: 'Broken hook: bowed',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm: the broken hook softly every 4 bars over a quiet low bed (no rub, no heartbeat). Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
+      { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
       S('frag2', 'Broken hook, in between (every 2 bars together)'),
       S('walk', 'Walk-up into the next bar (every 8 bars)'),
@@ -131,22 +137,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { bed: 0.4, frag: 0.55 },
+      Calm: { whisper: 0.5 },
       Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
-      'Calm, near silence': { bed: 0.3, frag: 0.4 },
-      'Everything on': { bed: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Calm, fog': { whisper: 0.45, fog: 0.35 },
+      'Calm, near silence': { whisper: 0.3 },
+      'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
+      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokentimp',
     name: 'Broken hook: timpani',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm: the broken hook softly every 4 bars over a quiet low bed (no rub, no heartbeat). Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
+      { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
       S('frag2', 'Broken hook, in between (every 2 bars together)'),
       S('walk', 'Walk-up into the next bar (every 8 bars)'),
@@ -154,10 +164,12 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { bed: 0.4, frag: 0.55 },
+      Calm: { whisper: 0.5 },
       Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
-      'Calm, near silence': { bed: 0.3, frag: 0.4 },
-      'Everything on': { bed: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Calm, fog': { whisper: 0.45, fog: 0.35 },
+      'Calm, near silence': { whisper: 0.3 },
+      'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
+      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
@@ -800,6 +812,13 @@ function brokenSet(s: Score, kind: BrokenKind): void {
     note(s.L('bed'), s.bank, 'bassSus', D, s.t(b), dur, { vel: 0.35, attack: dur * 0.5, release: dur * 0.4 });
     note(s.L('bed'), s.bank, 'celloSus', D, s.t(b), dur, { vel: 0.3, attack: dur * 0.5, release: dur * 0.4 });
     subBass(s.L('bed'), s.t(b), dur, D - 12, 0.15, dur * 0.4);
+  }
+  // round 19 Calm: the broken hook far away once every 8 bars, and a faint high string swell now and then (no bed)
+  for (let b = 1; b < N; b += 8) broken(s, 'whisper', b, kind, 0.5);
+  for (const [b, m] of [[4, 'A5'], [20, 'F5']] as const) {
+    const dur = s.d(40);
+    note(s.L('fog'), s.bank, 'violinSus', n(m), s.t(b), dur, { vel: 0.28, attack: dur * 0.5, release: dur * 0.45 });
+    note(s.L('fog'), s.bank, 'violaSus', n(m) - 12, s.t(b + 1), dur, { vel: 0.2, attack: dur * 0.5, release: dur * 0.45 });
   }
   for (let b = 1; b < N; b += 4) broken(s, 'frag', b, kind, 0.6);
   for (let b = 3; b < N; b += 4) if (b % 8 !== 7) broken(s, 'frag2', b, kind, 0.55);

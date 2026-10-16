@@ -200,3 +200,31 @@ the end.
 - [EA: Apex Legends audio update (multiband sidechain)](https://www.ea.com/th/games/apex-legends/apex-legends/news/showdown-audio-update)
 - [Game Developer: leitmotifs in Undertale](https://www.gamedeveloper.com/audio/an-examination-of-leitmotifs-and-their-use-to-shape-narrative-in-undertale-part-1-of-2)
 - [Metal Gear Wiki: the exclamation point](https://metalgear.fandom.com/wiki/Exclamation_point)
+
+## Addendum (round 19, 2026-10-16): ambient music for sneaking
+
+Michael asked for a search on ambient music in stealth games after hearing that a constant low bed in Calm "will get
+annoying".
+- **Mostly world, little music.** Metal Gear Solid V's composer says the team leaned on soundscapes and sound
+  effects so the player feels the place, rather than scoring open-world play with tracks.
+- **Fog, not a pulse.** Dishonored's music is described as a fog that descends over the player. Its later game wrote
+  each section in exploration, suspense and "vortex" (very ambient) versions.
+- **Sparse in the sneaking phase, fast to escalate.** Stealth composers (Ryan Ike, Gunpoint) build vertically from one
+  focal melody. The hard part is keeping the sneaking mood from becoming dull or distracting. Guides describe the
+  undetected state as subdued: ambience and very sparse texture. Detection escalates at once.
+- **Chaos Theory's permutative score** remixed its parts live by player action. Silence and the player's own sounds
+  carry the sneaking.
+
+**Rules adopted for Calm:**
+- No continuous bed or drone.
+- One soft, distant motif event (the broken Hook A) about every 8 bars, with silence between, so the theme keeps a
+  thread to Cautious and Alert.
+- Optional: a faint, slow high string swell now and then ("fog").
+- Tension belongs to Cautious.
+
+**Links:**
+- [Ryan Ike on stealth music](https://www.alekhines-gun.com/blog/video-game-music-creating-a-stealthy-atmosphere-with-composer-ryan-ike/)
+- [Bolair stealth soundtrack guide](https://academy.bolair.ca/bolair-news/the-ultimate-stealth-soundtrack-guide-1764797803)
+- [Kojima Productions on MGSV music and sound](https://www.metalgearinformer.com/kojima-productions-discusses-music-and-sound-of-metal-gear-solid-v/)
+- [The Sound Architect (Dishonored)](https://www.thesoundarchitect.co.uk/?p=19589)
+- [CDM: Splinter Cell permutative music](https://cdm.link/music-that-changes-splinter-cell-permutative-music-and-games/)

@@ -50,6 +50,8 @@ const solo = new Set<LayerRt>();
 const log: string[] = [];
 /** Which of Under fire's mixes plays as Alert (its first preset unless chosen). */
 let alertMixName = '';
+/** Which of the sneaking loop's Calm mixes plays as Calm (round 19). */
+let calmMixName = 'Calm';
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -173,7 +175,7 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
     const sb = await load(stealth, keep);
     const ab = await load(alert, keep);
     const hb = await load(hitPc, keep);
-    const calm = stealth.presets['Calm'] ?? {};
+    const calm = stealth.presets[calmMixName] ?? stealth.presets['Calm'] ?? {};
     const caution = stealth.presets['Cautious'] ?? {};
     const lowR = wrap(stealth, sb, (id) => ({ calm: calm[id] ?? 0, caution: caution[id] ?? 0, alert: 0, evade: 0 }), 'low');
     const name = alertMixName || Object.keys(alert.presets)[0]!;
@@ -439,6 +441,20 @@ export function mountScoreLab(root: HTMLElement): void {
       el(
         'div',
         { className: 'row' },
+        el(
+          'label',
+          {},
+          'Calm mix ',
+          (() => {
+            const names = ['Calm', 'Calm, fog', 'Calm, near silence', 'Calm, with low bed (round 18)'];
+            const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
+            sel.onchange = () => {
+              calmMixName = sel.value;
+              note(`Calm mix: ${sel.value} (press Play again)`);
+            };
+            return sel;
+          })(),
+        ),
         el(
           'label',
           {},

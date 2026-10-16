@@ -26,8 +26,30 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3o | Round 15: keepers chosen; adaptive sets around Under fire; menu alternatives; everything else removed | done |
 | 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done |
 | 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done |
-| 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; waiting for Michael's feedback |
+| 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; Michael: plucked is good; the low bed in Calm is too much; Cautious change good |
+| 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 19 - subtler Calm
+- **Michael (2026-10-16):**
+  - The plucked broken hook is good.
+  - The quiet low bed is too much in every Calm ("it will get annoying"). The change to Cautious is good.
+  - Calm needs to be a lot more subtle. He asked for a search on ambient music in stealth games.
+- **Research:** summarised in the `docs/music/research.md` addendum. Sneaking is mostly world sound, music as "fog",
+  sparse texture, no constant drone.
+- **Done (all three broken-hook sets):**
+  - New layers:
+    - **whisper:** the broken hook far away (reverb send 0.5), once every 8 bars.
+    - **fog:** a faint high violin and viola swell, twice per loop (reverb send 0.6).
+  - New Calm mixes:
+    - **Calm** (new default): whisper only.
+    - **Calm, fog:** whisper and fog.
+    - **Calm, near silence.**
+    - **Calm, with low bed (round 18):** kept for comparison.
+  - Cautious is unchanged.
+  - The page has a "Calm mix" chooser for the in-game test.
+- **Measured:** the new Calm sounds only when the whisper plays, at about -34 dB (about 6 dB quieter than round 18's
+  Calm), and is silent the rest of the time.
 
 ## V4 round 18 - hook forward; broken-hook sets; lighter menus
 - **Michael (2026-10-16):**
