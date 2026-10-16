@@ -31,8 +31,43 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done |
 | 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; Michael played it |
 | 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
-| 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done; waiting for Michael |
+| 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done |
+| 4d | Round 23: Calm and Cautious alternatives on the hook thread (test page only) | done; waiting for Michael's picks |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4d (round 23) - Calm and Cautious alternatives on the hook thread
+- **Michael (2026-10-16):** alternatives for the in-game Calm and Cautious that keep Hook A as the thread without
+  burning it out. Calm very subtle (footsteps and guard voices first, no constant low bed, sparse but catchy, broken),
+  still epic and film-like. The game's tracks stay as they are until he picks.
+- **Done:** a new piece, "Hook thread: Calm and Cautious alternatives" (`thread` in `pieces.ts`, 88 BPM, 32 bars, the
+  same timeline as the plucked broken hook), so any Calm pairs with any Cautious.
+  - **Calm 1, far cello, the hook at half speed:** one cello (basses under the Ds), dark and far. Half of the hook
+    every 8 bars (the whole hook every 16), each eighth a quarter.
+  - **Calm 2, plucked call with echoes:** the call (D . D3 D) plucked, two echoes half a bar apart, each softer and
+    darker. The answer (C . A) 4 bars later, also echoed. A soft walk-up into the call every 16 bars.
+  - **Calm 3, low piano, broken:** soft, pedalled, darkened piano. The call, the answer, the walk-up phrase, a low
+    fifth left ringing; 8 notes or fewer per 4 bars.
+  - **Calm 4, plucked call, harp answer:** the plucked call, answered 2 bars later by the harp (C . A in two octaves).
+    A harp walk-up leads into every other call.
+  - **Cautious 1, the hook takes shape:** the broken hook every 2 bars, the whole hook on soft spiccato in bars 6-7 of
+    every 8 (it completes before the next call), a quiet off-beat clock and the heartbeat.
+  - **Cautious 2, climbing tremolo:** the broken hook every 2 bars, the walk-up, tremolo violas climbing a semitone
+    every 2 bars, a timpani heartbeat. No bed and no rub.
+  - **Cautious 3, spiccato drive:** the broken hook, the walk-up, a low spiccato drive on D (1, the "and" of 2, 4) with
+    basses on the downbeat, a faint rub. It previews Alert's energy.
+  - **References:** "Calm: silence (in game now)" and "Cautious (in game now)" (the current game mix, re-rendered in this
+    piece).
+  - **Levels:** measured gated levels from the rendered stems. Every Calm option is at -30 dB (round 20's Calm was -27,
+    "near silence" -35). Every Cautious option is at -22.5 dB (the in-game Cautious is -22).
+- **Test page:** section 2 has Calm and Cautious choosers next to the Alert one. They list every sneaking loop's
+  options; each piece falls back to its own first. A change replays at once. Hook thread is the first card.
+- **Game:** unchanged (game tracks not re-rendered).
+- **Tests:**
+  - Unit 688 pass. `score.test`'s hit check now uses one expect per hit; it timed out under load with one per sample.
+    Other suites only time out under load and pass on rerun.
+  - Lint and build are clean. `e2e-score` and `e2e-music` pass (`E2E_PORT=4183`).
+- **Next:** Michael picks a Calm and a Cautious. They become the game's `caution` track and, if Calm is no longer
+  silence, a new `calm` track that the player fades in for Calm.
 
 ## V4 step 4c - footsteps, 15 %, the fade cut, the menu as a whole piece
 - **Michael (2026-10-16):** "menu blend is rough, doesnt line up well. music also still cuts out abruptly entering or

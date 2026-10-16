@@ -33,6 +33,8 @@
 - The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
   offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
 - Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+- Test page: "Hook thread" (round 23) with four Calm and three Cautious alternatives, and Calm / Cautious choosers in
+  the in-game test (the game's tracks are unchanged until Michael picks).
 - The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
   and climbing strings) leads into Alert.
 - The menu theme plays as a whole piece: its quiet opening, its own ending, a 3 s rest, then again (no loop join).
