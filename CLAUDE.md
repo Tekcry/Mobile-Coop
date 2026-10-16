@@ -14,6 +14,11 @@
 4. Open only the files and `docs/systems/*` sections the spec lists. Use `grep` and line ranges, not whole large files.
 5. Authority order: Michael > bible > phase spec > `docs/level-design.md` and the map's documents > these docs > code.
 
+## How sessions are run
+Multi-step jobs (runs, phases, map projects, helper and cloud sessions) use the orchestrator method, Michael's
+preferred way to prompt and set up sessions: one orchestrator session plans, decides and commits; subagents implement,
+a fresh checker reviews, up to 3 fix rounds; the job's docs live in git. Details: `docs/systems/session-method.md`.
+
 ## Commands
 - `npm run dev` - dev server (LAN-exposed for phone testing)
 - `npm run build` - typecheck + production build into `dist/`
@@ -113,3 +118,4 @@
 | `docs/systems/graphics-quality.md` | Presets, governor, renderer, voxels, TAAU, weather | Render work |
 | `docs/systems/performance.md` | Frame, CPU, draw and memory budgets; perf script budgets | Every phase end |
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |
+| `docs/systems/session-method.md` | The orchestrator method: how jobs, prompts and sessions are set up | Starting or writing the prompt for any multi-step job |
