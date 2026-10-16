@@ -233,6 +233,31 @@ elif gname in ('carrier', 'belt'):
                 rake_from=(0.3, -0.1, 0.25), power=6)
         closeup('e-closeup-belt-back', np.array([-0.03, 0.12, 0.95]), (-0.35, 1.0, 0.2), lens=35, dist=0.55,
                 rake_from=(-0.3, 0.1, 0.25), power=6)
+elif gname == 'armour':
+    # Step 08b: the composite armour and harness. Raking close-ups at 0.4-0.65 m with moderate lights (near-black
+    # renders mid grey under a strong one, OPEN since step 05), a full side view and the rim-light silhouette.
+    sg = float(np.sign(J['shL'][0]))
+    closeup('c-closeup-chest-plate', np.array([0.0, -0.17, 1.24]), (sg * 0.35, -1.0, 0.2), lens=35, dist=0.62,
+            rake_from=(sg * 0.32, -0.12, 0.3), power=8)
+    closeup('e-closeup-back-recess-mount', np.array([sg * 0.02, 0.1, 1.245]), (-sg * 0.25, 1.0, 0.15), lens=35,
+            dist=0.5, rake_from=(-sg * 0.3, 0.12, 0.3), power=8)
+    closeup('f-closeup-rib-segments', np.array([sg * 0.06, -0.14, 1.07]), (sg * 0.95, -0.75, 0.12), lens=35,
+            dist=0.45, rake_from=(sg * 0.15, -0.25, 0.3), power=6)
+    closeup('h-closeup-shoulder-buckle', np.array([sg * 0.095, -0.1, 1.335]), (sg * 0.45, -1.0, 0.55), lens=35,
+            dist=0.4, rake_from=(sg * 0.25, -0.05, 0.3), power=5)
+    closeup('j-closeup-side-strap', np.array([sg * 0.14, -0.04, 1.2]), (1.0 * sg, -0.25, 0.1), lens=35, dist=0.45,
+            rake_from=(sg * 0.2, -0.25, 0.28), power=6)
+    if not args.quick:
+        stealth((sg * 3.3, -0.35, 1.05), (0.0, 0.0, 0.92), (sg * 1.2, -2.2, 2.3), (-sg * 1.6, 1.9, 2.0))
+        out.append(shot('g-side-stealth', (1200, 1500), -1.2))
+        stealth((-0.3, 3.4, 1.0), (0.0, 0.0, 0.9), (-2.2, 0.9, 2.3), (1.4, -2.2, 2.0))
+        out.append(shot('k-back-stealth', (1200, 1500), -1.2))
+        clear_rig()
+        RN.world(sc, 0.002, (0.5, 0.55, 0.65))
+        RN.area_light('rimL', (1.3, 2.0, 1.9), (0.0, 0.0, 1.2), 900, 0.08, (0.62, 0.75, 1.0))
+        RN.area_light('rimR', (-1.3, 2.0, 1.9), (0.0, 0.0, 1.2), 900, 0.08, (0.62, 0.75, 1.0))
+        sc.camera = RN.camera('sil', (0.35, -2.6, 1.25), (0.0, 0.0, 1.15), 55)
+        out.append(shot('i-silhouette-rim', (1200, 1500), -0.5))
 elif gname == 'base_layer':
     nk = J['neck']
     closeup('c-closeup-collar', nk + np.array([0.0, -0.05, -0.02]), (0.3, -1.0, 0.15), lens=35, dist=0.42,

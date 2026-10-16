@@ -611,3 +611,28 @@ def seam_tape(name='suit seam tape', colour=(0.028, 0.029, 0.03)):
     g.bsdf.inputs['Sheen Weight'].default_value = 0.15
     g.link(g.bump(h, 0.08, 0.0002), g.bsdf.inputs['Normal'])
     return mat
+
+
+# --- Wren's armour (step 08b) ---------------------------------------------------------------------------------------
+def composite(name='armour composite', colour=(0.03, 0.032, 0.035)):
+    """Moulded composite plate (ART-DIRECTION 9.1): a matte resin face over a faint fine twill of fibre (2.4 mm, read
+    only within about 1 m; it fades out before it can alias), a fine resin stipple; the chamfers catch a little lighter
+    (pointiness) and the 'edge' attribute (distance to the plate's rim) scuffs the outer few millimetres. Hard part:
+    roughness 0.6-0.64."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'hard'
+    g = Graph(mat)
+    u, v, _ = g.uv()
+    tw = g.tri(g.math('ADD', u, g.math('MULTIPLY', v, 0.5)), 0.0024)
+    fade = g.near_fade(0.6, 1.6)
+    h = g.math('ADD', g.math('MULTIPLY', g.math('MULTIPLY', tw, fade), 0.25), g.math('MULTIPLY', g.noise(500.0, 2.0), 0.3))
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.smoothstep(0.54, 0.66, pt)
+    at = g.node('ShaderNodeAttribute', attribute_name='edge')
+    rim = g.math('MULTIPLY', g.smoothstep(0.012, 0.004, at.outputs['Fac']), g.smoothstep(0.4, 0.7, g.noise(260.0, 3.0)))
+    col = g.mix_rgb(g.math('MULTIPLY', edge, 0.45), colour, (0.07, 0.072, 0.075))
+    col = g.mix_rgb(g.math('MULTIPLY', rim, 0.35), col, (0.06, 0.061, 0.062))
+    g.link(g.wear(col, ao_dist=0.01, dust_amount=0.12), g.bsdf.inputs['Base Color'])
+    g.link(g.bump(h, 0.12, 0.0003), g.bsdf.inputs['Normal'])
+    g.link(g.math('SUBTRACT', 0.64, g.math('MULTIPLY', rim, 0.04)), g.bsdf.inputs['Roughness'])
+    return mat

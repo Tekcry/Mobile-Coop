@@ -31,9 +31,11 @@ describe('operator kit', () => {
     expect(kitCoverage(WREN_KIT, ['baseLayer', 'combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR', 'softShell',
       'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']).missing).toEqual(['baseLayer', 'combatShirt', 'elbowPockets',
       'armPocketL', 'armPocketR', 'softShell', 'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']);
-    // step 08: the carrier and belt builds (py/garments/carrier.py, belt.py KIT + KITS)
-    expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'magPouches', 'adminPouch', 'radioPouch',
-      'radio', 'medPouch', 'backPanel', 'rifleBungee', 'carrierRelease']).missing).toEqual([]);
+    // step 08b: the armour build (py/garments/armour.py KIT + KITS); the step 08 carrier's own items are gone (D22-D24)
+    expect(kitCoverage(WREN_KIT, ['chestPlate', 'ribSegments', 'backPlate', 'harnessShoulders', 'torsoSideStraps',
+      'magBuckle', 'weaponMount'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee',
+      'carrierRelease']).missing).toEqual(['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee', 'carrierRelease']);
     expect(kitCoverage(WREN_KIT, ['belt', 'grenadePouches', 'pistolMagPouch', 'dumpPouch', 'knifeSheath']).missing).toEqual([]);
     const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
     expect(kitCoverage(broken, ['suit']).errors.length).toBeGreaterThan(0);
@@ -49,7 +51,7 @@ describe('operator kit', () => {
   });
 
   it('rejects a strap with one anchor', () => {
-    const e = validateKit(withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [{ item: 'carrier', point: 'top' }] }));
+    const e = validateKit(withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [{ item: 'chestPlate', point: 'top' }] }));
     expect(e.some((x) => x.includes('two anchors'))).toBe(true);
   });
 

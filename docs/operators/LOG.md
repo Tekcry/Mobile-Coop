@@ -909,3 +909,94 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   stubs (f, h, s3); F13 the side seam through the middle of the vent; a small dark sliver on the right boot collar (s4).
 - Status: OPEN after 3 fix rounds; evidence: steps/08a-fixes-r4.md; remaining: items 1-6 above and F1-F13. Retried at
   the Wren block end (after step 11).
+
+## Step 08b - Wren: composite armour and harness (Opus 5.5)
+- Built: `py/garments/armour.py` (FITTED item `armour` after `head_kit`, A53; kit `chestPlate` + `ribSegments`,
+  `backPlate`, `harnessShoulders`, `torsoSideStraps`, `magBuckle`, `weaponMount`) and `py/garments/mag_buckle.py` (kit
+  `magBuckle`: two crowned gunmetal halves, 0.7 mm split line across the strap, on a rubber-edged base; `size(strap_w)`
+  clamps 20-40 mm; reusable by steps 09 / 09b). `materials.composite` (matte resin, 2.4 mm fibre twill fading out past
+  1.6 m, chamfers and the rim scuffed lighter via pointiness and the `edge` attribute; hard, roughness 0.60-0.64).
+- Moulding (A54): the suit as a 3 mm height field front and back; features under 2 cm bridged on the ray-facing
+  surfaces, row envelopes blended 30 % back, smoothed, never under the fabric's pressable depth; each plate a shell along
+  that surface's normal. Chest plate 8 mm (neck scoop between two shoulder tabs), three 5 mm rib segments lapping as
+  shingles (A55: 14 mm overlap, 5.8 mm step, internal two-strap web hidden), back plate 7 mm with top tabs. Edges: 2.8 mm
+  ledge under a moulded rubber trim, 5 mm chamfer; radii 9 / 18 / 36 mm (A56).
+- Back: radio recess x 0.030-0.086, z 1.256-1.317, 5 mm deep (boolean, triangulated); antenna keeper clip on the top
+  edge at x 0.02; receiver bar 168 x 34 x 1.6 mm gunmetal on the spine (A57), three keyhole sockets through it (a fine
+  snapped grid, `bar_mesh`, no boolean slivers), frames `weaponMount.backL/.backC/.backR` as empties and in the sim report.
+- Harness (A58, A60): 25 mm laminate shoulder straps on the suit's convex hull (0.318 m), front magnetic buckle on each
+  chest tab, bonded on the back tabs; three flat keepers on the left strap's neck edge at 0.07 / 0.20 / 0.30 m; 22 mm side
+  straps (z 1.163-1.185, 0.24 m arcs, rows eased together) from a buckle on the chest plate's side to the back plate's
+  side. Four buckles. Suit pressed in under everything (`suitPress`: 3 581 verts, max 2.5 mm, 0 capped, 0 mm into fabric).
+- Numbers (`wren-armour-sim.json` measurements): `plateGap` chest mean 2.73 mm, max 10.45 mm (the bottom band that laps
+  rib 1, by design 6.8 mm off), max above that band 6.05 mm at the sternum (0.001, 1.221), over the sternum 7.37 mm, into
+  the suit 0.09 mm; ribs mean 4.80 / 4.76 / 1.75 mm, max 8.7 mm, 0 into the suit; back mean 3.98 mm, max 15.0 mm (spine
+  groove at z 1.186), 0.12 mm into the suit. `ribLaps` 14 mm overlap, clearance 0.78-3.8 mm, each lower segment
+  narrower than the one above. `plugClearM` chest plate 41.8 mm, left strap 14.5 mm; `hoodClearM` 32.1 / 7.2 mm.
+  `backGearM` 0.022 m (receiver face behind the suit on the spine), plate 13.4 mm at z 1.25. Frames: origins on the bar
+  at x +0.0736 / 0 / -0.0725, z 1.176, Z splayed +-0.08 rad, Y = +Y (out from the back).
+- Pipeline: GARMENTS.wren += `armour`, FITTED += `armour`; `render_garment_test.py` armour views a / b / d plus c chest
+  plate, e back recess and mount, f rib segments, h shoulder buckle, j side strap, g side, k back, i rim silhouette;
+  `torso_common.compress` also reports `cappedAt` (additive). Kit (`kit.ts`): the seven items above; `carrier`,
+  `carrierShoulders`, `cummerbund`, `backPanel`, `rifleBungee`, `carrierRelease` removed (Moth's untouched); tests updated.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS, 6 items, all checks pass (armour: seam gap 0 fitted, edge length,
+  solidify, every material sampled, albedo and roughness in class, `covered:gunmetal` 0 px, kitItems, validateKit).
+  `npm run check` PASS.
+- Renders (GPU, 384 samples): docs/operators/mockups/tests/wren-armour-{a,b,c,d,e,f,g,h,i,j,k}-*.webp.
+- Open:
+  1. The shoulder straps' front ends: a sliver of the strap end shows over the buckle's near half (h, wearer's left).
+  2. The two outer keyhole sockets show small dark wall artefacts at close range (e), where the snapped grid walls fold.
+  3. The back plate's lower band (under the receiver) reads slightly wavy in the raking close-up (e).
+  4. The bust points still read faintly through the chest plate in the raking close-up (c); a plate cannot sit lower
+     there without entering the suit (the suit lies on the skin at the bust).
+  5. Wren's step 08 pouch items (`magPouches`, `adminPouch`, `radioPouch`, `radio`, `radioCable`, `ptt`, `medPouch`)
+     still describe the carrier; step 09 rewrites them for the chest rig.
+- Fix round 1 (fixer, against `steps/08b-fixes-r1.md`; armour only, the suit not rebuilt; A61):
+  1. Side straps: each row's hull now holds the plates' outer surface every 1 mm (face, the chord over the chamfer to
+     the trim, the trim's top out to its outer side), lifted to the row's world height (the face under the bust tilts
+     down, so the map's z is corrected); the six easing passes never let a point inside its row's hull (radial clamp);
+     the band's slab is extruded along its own surface normal (not the rows' horizontal one); the side buckle sits at
+     the map z whose face point is at the band's mid height (it sat 5-8 mm low); the band's end is bonded past the near
+     half's centre. `strapIntoPlateMm` added to the sim report (ray parity against the plates and their rim trims,
+     buckle footprints left out): shoulderL / R and sideL / R all 0.0 (was 3.2 side, 1.1 shoulder). Renders f and c:
+     the band leaves the near half in line with it and runs on the plate over its side edge as one band.
+  2. Shoulder straps: from inside the near half (its centre) the strap runs straight up the buckle's axis on the
+     face in the face's frame to the chamfer, then eases into the hull path (position 15 mm, frame 25 mm); the back end
+     lies flat on the back tab the same way (it dipped 1.5 mm into the tab). Render h: no strap on either half, the
+     strap's edges inside the buckle's sides, its end gone into the near half; the same on the right in c. Strap length
+     0.315 m, keepers 0.071 / 0.201 / 0.297 m, plugClear 14.2 mm, hoodClear 32.1 / 7.2 mm.
+  3. Keyhole sockets: cut upright on the bar's grid and turned whole with their neighbourhood (`twist`, easing out
+     13.4-16.5 mm from the centre and 3 mm from the outline); in 2D the outer sockets are exact rigid copies of the
+     centre one (0.0 mm). A 0.3 mm gunmetal floor under each socket: the composite no longer shows through, every
+     socket is the same even-depth pocket. Render e: the three outlines match, walls continuous; the outer ones show
+     their near wall from the oblique view.
+  4. Back plate: rows below z 1.205-1.245 faired across x (each row's convex envelope, spine groove bridged, eased,
+     lifted clear of the floor per row, rows eased together). Render e / k / b: the bottom band and trim read as one
+     smooth even edge, the bar parallel to it. Back mean 3.70 mm (was 3.98), max 11.51 (was 15.0) at the spine, 0.12
+     mm into the suit; `backGearM` 0.0222.
+  5. Bust: a quadratic dome fitted round each apex (30 mm), lifted clear of the floor (1.74 / 1.91 mm), faded out by
+     50 mm, raises the floor the plate rests on (`bustCaps`). Render c / d: one smooth convex form over each breast, no
+     point. Chest mean 3.30 mm (was 2.73), max 12.3 mm (was 10.45) at (-0.111, 1.161) on the lap band under the bust (the
+     dome's fade may not clear the floor fully there; under 15), over the sternum 7.78, into the suit 0.09 mm.
+  - Unchanged: ribs mean 4.86 / 4.76 / 1.75 mm, 0 into the suit; laps 14 mm, clearance 0.76-3.8 mm; `plugClearM` 41.8
+    mm; frames at x +0.0738 / 0 / -0.0724, splay +-0.08 rad; `suitPress` 3 172 verts, max 2.5 mm, 0 capped.
+  - Renders (GPU, `E2E_GPU=1`): docs/operators/mockups/tests/wren-armour-{a..k}-*.webp, 2026-10-17.
+  - Follow-ups accepted by the checker (not fixed here):
+    F1. Wren's step 08 pouch items (`magPouches`, `adminPouch`, `radioPouch`, `radio`, `radioCable` "elastic loop,
+        cummerbund", `ptt`, `medPouch`) still describe the carrier; step 09 rewrites them (open 5).
+    F2. The empty radio recess reads as a bracket glyph at full-figure distance (b, k); step 09's radio fills it.
+    F3. Small back tab corners beside the back strap ends (e). The back ends now lie flat on the tabs; the corners
+        beside them remain (the 25 mm strap on the tab's chamfer).
+    F4. Composite, rubber trim, gunmetal and suit sit close in value under the close-up rigs (near-black reads grey,
+        OPEN since 05); the materials still separate by texture and sheen.
+    F5. weaponMount handedness (blend +x = wearer's left = game backL at game x -0.07, A57) confirmed at integration
+        (A36, locomotion step 25).
+    F6. The step 07 earpiece cable still ends in a free plug at the left collarbone (c, h); step 09's PTT takes it.
+- Checker round 2: PASS. operators:check 6 items pass; npm run check passes. Re-measured: `strapIntoPlateMm` 0.0 on all
+  four straps; 199 of the 205 vertices behind a plate face are the two hidden internal web straps (A55; up to 1.7 mm deep,
+  visible from 0 of 7 directions), 6 are rim sign artefacts outside by ray parity; shoulder strap ends bonded inside the
+  buckle (20 vertices, up to 1.2 mm), no strap on top of either half. Notes: N1 chest max gap 12.3 mm on the lap band
+  under the bust (A61 note); N2 lower the internal web straps' tops about 2 mm if they deform with the rig; N3 socket
+  slot bottoms step slightly on the 0.6 mm grid at 2x zoom. F1-F6 stand (F3 tab corners still show in e).
+- Status: passed the independent check (fix rounds: 1).
+

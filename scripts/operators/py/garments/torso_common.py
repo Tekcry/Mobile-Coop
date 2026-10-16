@@ -349,6 +349,7 @@ def compress(objs, pressers, under_tree, cap=0.0025, floor_gap=0.0016, falloff=0
     Nw = FT.vertex_normals(W, Fm)
     D = np.zeros(n)
     capped, excess = 0, 0.0
+    capped_at = []
     # candidates: near any presser (inside the pressers' box, grown by the reach and the falloff)
     if region is not None:
         lo, hi = np.asarray(region[0]) - reach - falloff, np.asarray(region[1]) + reach + falloff
@@ -380,6 +381,8 @@ def compress(objs, pressers, under_tree, cap=0.0025, floor_gap=0.0016, falloff=0
         if best > lim + 0.0005:      # the part sits more than 0.5 mm into the fabric here (it cannot press further)
             capped += 1
             excess = max(excess, best - lim)
+            if len(capped_at) < 12:
+                capped_at.append([round(float(v), 3) for v in p] + [round(float(best - lim) * 1000, 2), round(float(lim) * 1000, 2)])
         D[i] = min(best, lim)
     pressed = D > 1e-6
     # smooth falloff: the dent spreads into its neighbours (no step at its edge)
@@ -417,7 +420,7 @@ def compress(objs, pressers, under_tree, cap=0.0025, floor_gap=0.0016, falloff=0
         ob.data.update()
     return {'pressedVerts': int(pressed.sum()), 'dentVerts': int((S > 1e-6).sum()),
             'maxPressMm': round(float(D.max()) * 1000, 2), 'cappedVerts': capped,
-            'maxIntoFabricMm': round(excess * 1000, 2)}
+            'maxIntoFabricMm': round(excess * 1000, 2), 'cappedAt': capped_at}
 
 
 def rbox_edge(V, rng, c, axes, half):

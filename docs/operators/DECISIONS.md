@@ -553,3 +553,64 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   sim report's `under` list (suit, gloves, boots, headwear, head_kit), so the owner's report is this run's; and
   `ownCheck:` fails when the owner's check JSON is older than the owner's `-sim.json` (a stale report). Dry run:
   `python scripts/operators/py/covered.py` (the case "owner JSON older than its sim JSON" fails). No LIMIT changed.
+
+## Assumed decisions, step 08b (composite armour and harness; implementer)
+**A53 The armour is one FITTED item, `armour`, after `head_kit` (extends A32).** `py/garments/armour.py` builds the
+  chest plate, three rib segments, the back plate (radio recess, antenna keeper, weapon mount), the shoulder and side
+  straps and their magnetic buckles (`py/garments/mag_buckle.py`) over `wren-suit-hero`, then presses the suit in
+  under them (`torso_common.compress`, A33; the suit's tape and zip follow). The step 08 carrier.py / belt.py stay in
+  the tree for Moth and as reference; nothing in GARMENTS.wren runs them. Undo: drop `armour` from GARMENTS.wren.
+**A54 How a plate is moulded.** The suit (with its tape and zip) is sampled as a height field (3 mm, rays along Y);
+  narrow features under about 2 cm (the bust points, tape ridges) are bridged on the surfaces that face the ray (a
+  15 mm window maximum, eased), each row's outer envelope is blended 30 % back toward that floor (the plate bridges
+  the sternum hollow and the spine groove and follows the broad forms), smoothed and never allowed below the fabric's
+  pressable depth (at most 0.5 mm, measured on the suit itself, with 0.4 mm slack). Each plate is a shell offset along
+  that faired surface's normal. Why: a rigid slab (A32) stood up to 58 mm off the bust; the step asks for moulded
+  plates with mean gaps under 6 mm. Undo: `FOLLOW`, the window and `SINK` in armour.py.
+**A55 Rib segments lap like shingles.** Each segment is a flat 5 mm composite panel tilted out from its top (tucked
+  0.7 mm under the one above, on the internal web) to its bottom band, which stands 5.8 mm out over the next one's top
+  (14 mm overlap, the lower one narrower); the chest plate tilts out over its lowest 44 mm the same way. The internal
+  elastic web is two 25 mm straps under the segments (fully hidden, in the visible strap material so no hidden
+  material needs a COVERED entry). Undo: `LAP`, `BAND`, `RAMP`, `ribs` in armour.py.
+**A56 Plate edge and corner family.** Every plate edge is a 2.8 mm flat ledge under a moulded rubber trim (a rounded
+  U section, 0.6 mm over both faces, 1.2 mm out from the rim) and a 5 mm chamfer 3 mm deep up to the face. Corner radii
+  9 / 18 / 36 mm (1:2:4) on every plate, segment, the radio recess and the receiver bar. Undo: `LEDGE`, `CW`, `CD`,
+  `R1-R3`.
+**A57 The weapon mount is a bonded receiver bar with keyhole sockets.** A 168 x 34 mm, 1.6 mm gunmetal bar on the
+  back plate's spine (z 1.157-1.191 m), three keyhole sockets through it at x = +0.07 (backL, the wearer's left; game x
+  -0.07), 0 (backC) and -0.07 (backR), each socket and frame splayed 0.08 rad outward (muzzle up). Frames
+  `weaponMount.backL/.backC/.backR` are empties in the blend and in the sim report (`weaponMount`): origin on the bar
+  face at the socket, Z = muzzle up (splayed), Y = straight out from the back (the game holds the gun's thin side flat
+  to the back), X = Y x Z. `backGearM` is the bar face's standoff behind the suit on the spine (about 22 mm).
+  A boolean-cut inlay was tried first and smeared the shading; the bar sits on the face instead (1.6 mm proud, still
+  flush in the sense of A40). Undo: `bar_ol`, `SLOT_X`, `SPLAY` in armour.py.
+**A58 Strap anchors at the lane's edge (A39).** The shoulder straps end bonded on two top tabs of the back plate at
+  |x| 0.093-0.119 m and the side straps end bonded on the back plate's sides at |x| 0.09-0.10 m: the plate's edges,
+  2.4 mm proud of it, at the edge of the about-0.10 m back-carry lane. Inside |x| < 0.09 the lane holds only the plate,
+  the radio recess and the receiver bar. Undo: `x_b` and the side strap's `pb` in armour.py, `bk_ol`'s tabs.
+**A59 One metal finish, its own material name.** Every metal part here (buckle halves, receiver bar) uses
+  `hardware gunmetal`: the same anodised finish and colour as the suit zip slider's `gunmetal` (materials.anodised,
+  0.05 / 0.052 / 0.056), under another name so A52's `covered:gunmetal` (the slider hidden in its garage) still holds.
+  Undo: rename to `gunmetal` and drop the slider's COVERED entry.
+**A60 Harness geometry.** Shoulder straps 25 mm bonded laminate, 2.4 mm, from a magnetic buckle on each chest plate
+  tab (centre 90 mm off the centre line) over the shoulder (118 mm) to the back plate tab (106 mm); the left one has
+  three flat moulded keepers on its neck-side edge, 0.07 / 0.20 / 0.30 m from the front buckle, for step 09's radio
+  cable. Side straps 22 mm, 2.2 mm, at z 1.163-1.185 m, from a buckle on the chest plate's side (x 94 mm) round under
+  the arm to the back plate's side. Every buckle is mag_buckle sized from its strap width. Undo: the constants in
+  armour.py.
+
+**A61 Plate fairing and strap runs (step 08b fix round 1).** Amends A54 and A60. (1) Over each bust apex the floor a
+  chest plate rests on is raised by a quadratic dome fitted to it within 30 mm of the apex and lifted clear of it
+  (`Field(caps=...)`, lift about 1.8 mm, faded out by 50 mm): a rigid shell bridges the apex as one convex form. (2)
+  The back plate's rows below z 1.205-1.245 m are faired across x: each row's convex envelope (the spine groove
+  bridged), eased, lifted clear of the floor by a row constant, rows eased together (`Field(fair=...)`), so the bottom
+  band and the receiver bar read straight and parallel. (3) Straps are laid on the plates: a shoulder strap runs from
+  inside its buckle's near half straight up the buckle's axis on the face (the face's frame) and lies flat on the back
+  tab the same way, easing into the hull path over 15 mm (position) and 25 mm (frame); a side strap's rows hold the
+  plates' faces, the chamfer chords and the trims every 1 mm and are never eased inside that hull; its end is bonded
+  past the near half's centre. Strap inner face 0.4 mm over a plate (`CLR`); `strapIntoPlateMm` in the sim report
+  (ray parity, buckle footprints left out). (4) The splayed keyhole sockets are cut upright on the bar's grid and then
+  turned whole with their neighbourhood (`twist`). Undo: drop `caps` / `fair` / `tw`, restore the old pinned runs.
+  Note (round 2 checker, recorded by the orchestrator): the chest plate's max gap 12.3 mm sits on the lap band under the
+  bust (-0.111, 1.161), outside the sternum hollow the step's wording names; accepted for consistency with round 1's
+  10.45 mm on the same band, which rib 1 hides.
