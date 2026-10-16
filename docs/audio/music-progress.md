@@ -66,6 +66,7 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
   - Unit 688 pass. `score.test`'s hit check now uses one expect per hit; it timed out under load with one per sample.
     Other suites only time out under load and pass on rerun.
   - Lint and build are clean. `e2e-score` and `e2e-music` pass (`E2E_PORT=4183`).
+- **Pending copy:** `docs/systems/session-method.md` (linked from CLAUDE.md) is copied exactly from origin/feature/operators once its step 07 commit is pushed: `git show origin/feature/operators:docs/systems/session-method.md > docs/systems/session-method.md`.
 - **Next:** Michael picks a Calm and a Cautious. They become the game's `caution` track and, if Calm is no longer
   silence, a new `calm` track that the player fades in for Calm.
 
