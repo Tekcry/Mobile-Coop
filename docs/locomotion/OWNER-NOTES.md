@@ -98,3 +98,6 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 - Full network tuning (D11 full) is Phase 5.
 - The nine modernisation proposals are in BIBLE-PROPOSALS.md.
 - At the finish (step 34), copy this merge plan and these follow-ups into docs/progress.md so they reach master with the PR.
+
+## Session method (Michael, 2026-10-16)
+CLAUDE.md now has "How sessions are run" (the orchestrator method) and a doc-index row for docs/systems/session-method.md, at Michael's request (relayed by the operators session, confirmed by Michael here). FOLLOW-UP: copy docs/systems/session-method.md exactly from origin/feature/operators once its step 07 commit is pushed (`git show origin/feature/operators:docs/systems/session-method.md > docs/systems/session-method.md`), so both branches carry identical text into master.
