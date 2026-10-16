@@ -1,6 +1,7 @@
 import type { GameState } from '../game/gameState';
 import type { App } from '../core/app';
 import { Vector3 } from '../core/babylon';
+import { awareness } from './score/game/adapter';
 
 /** Connects a play session's events to the synth (positional where it matters). */
 export function attachGameAudio(app: App, g: GameState): { frame(dt: number): void; dispose(): void } {
@@ -90,8 +91,10 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       if (s.gain > 0.03) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
     }),
   ];
-  app.music.start();
+  app.music.mission();
   const frame = (dt: number): void => {
+    // the score follows the guards' awareness (read only; the music never feeds back into gameplay)
+    app.music.update(dt, awareness(g.enemyMgr?.enemies));
     const cam = g.player.cam.camera;
     const L = a.listener;
     L.x = cam.position.x;

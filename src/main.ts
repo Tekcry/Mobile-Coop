@@ -94,7 +94,7 @@ async function boot(): Promise<void> {
         showSavedOperator(app);
       }
     };
-    app.music.start();
+    app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));

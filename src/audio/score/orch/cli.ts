@@ -114,6 +114,35 @@ try {
 }
 const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 const entries: Entry[] = [];
+
+/**
+ * The game's tracks (Michael, 2026-10-16): each is one piece mixed down with one of its presets into a single stereo
+ * loop (and its clean opening), so the game plays one file per state instead of a dozen layers. Committed, unlike the
+ * audition stems. Evasion shares Alert's gain (they crossfade on the same timeline).
+ */
+interface GameTrack {
+  name: string;
+  piece: string;
+  preset: string;
+  /** Loudness target (dB, gated); or `sameGainAs` another track. */
+  target?: number;
+  sameGainAs?: string;
+}
+const GAME: GameTrack[] = [
+  { name: 'menu', piece: 'grandsoft', preset: 'Softer', target: -19 },
+  { name: 'caution', piece: 'brokenpluck', preset: 'Cautious', target: -23 },
+  { name: 'alert', piece: 'underfire', preset: 'Alert: hook forward', target: -16 },
+  { name: 'evade', piece: 'underfire', preset: 'Evasion', sameGainAs: 'alert' },
+  { name: 'spotted', piece: 'spotted', preset: 'Hit', target: -16 },
+];
+interface GameMix {
+  gt: GameTrack;
+  meta: PieceMeta;
+  loop: Stereo;
+  head: Stereo | null;
+  headSec: number;
+}
+const gameMixes: GameMix[] = [];
 for (const meta of PIECES) {
   if (only.length && !only.includes(meta.id)) {
     const old = previous.find((e) => e.id === meta.id);
@@ -145,6 +174,13 @@ for (const meta of PIECES) {
     if (heads[l.id]) scale(heads[l.id]!, g);
   }
   const full = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
+  for (const gt of GAME.filter((x) => x.piece === meta.id)) {
+    const mix = meta.presets[gt.preset];
+    if (!mix) throw new Error(`${meta.id} has no preset ${gt.preset}`);
+    const loopMix = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, mix[l.id] ?? 0]));
+    const headMix = loopPiece ? sum(...meta.layers.map((l): [Stereo, number] => [heads[l.id]!, mix[l.id] ?? 0])) : null;
+    gameMixes.push({ gt, meta, loop: loopMix, head: headMix, headSec });
+  }
   const pairs: string[] = [];
   const outs: LayerOut[] = [];
   for (const l of meta.layers) {
@@ -197,3 +233,66 @@ entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 writeFileSync(manifestPath, JSON.stringify({ pad: PAD, kbps: KBPS, pieces: entries }, null, 1) + '\n');
 const total = entries.reduce((a, e) => a + e.layers.reduce((b, l) => b + l.bytes, 0), 0);
 console.info(`total ${(total / 1e6).toFixed(2)} MB`);
+
+// ---- the game's tracks (src/assets/music/game, committed)
+if (gameMixes.length) {
+  const gameDir = join(root, 'src', 'assets', 'music', 'game');
+  mkdirSync(gameDir, { recursive: true });
+  const gamePath = join(gameDir, 'game.json');
+  interface GameOut {
+    file: string;
+    head?: string;
+    headSec: number;
+    loop: number;
+    bpm: number;
+    bars: number;
+    loudness: number;
+    bytes: number;
+  }
+  let prev: Record<string, GameOut> = {};
+  try {
+    prev = (JSON.parse(readFileSync(gamePath, 'utf8')) as { tracks: Record<string, GameOut> }).tracks ?? {};
+  } catch {
+    // first time
+  }
+  const gains: Record<string, number> = {};
+  const ordered = [...gameMixes].sort((a, b) => (a.gt.sameGainAs ? 1 : 0) - (b.gt.sameGainAs ? 1 : 0));
+  const pairs: string[] = [];
+  const outs: Record<string, GameOut> = { ...prev };
+  for (const m of ordered) {
+    let g = m.gt.sameGainAs ? (gains[m.gt.sameGainAs] ?? 1) : Math.pow(10, ((m.gt.target ?? -18) - loudness(m.loop)) / 20);
+    g = Math.min(g, PEAK / Math.max(peakOf(m.loop), m.head ? peakOf(m.head) : 0));
+    gains[m.gt.name] = g;
+    scale(m.loop, g);
+    if (m.head) scale(m.head, g);
+    const name = `music-${m.gt.name}`;
+    const wav = join(wavDir, `${name}.wav`);
+    const shot = m.meta.use === 'shot';
+    writeFileSync(wav, encodeWav(shot ? [m.loop.l, m.loop.r] : padded(m.loop), RATE));
+    pairs.push(wav, join(gameDir, `${name}.mp3`));
+    const out: GameOut = { file: `${name}.mp3`, headSec: m.headSec, loop: (m.meta.bars * 4 * 60) / m.meta.bpm, bpm: m.meta.bpm, bars: m.meta.bars, loudness: Math.round(loudness(m.loop) * 10) / 10, bytes: 0 };
+    if (m.head) {
+      const p = secs(PAD);
+      const hl = new Float32Array(m.head.l.length + p);
+      const hr = new Float32Array(m.head.r.length + p);
+      hl.set(m.head.l, p);
+      hr.set(m.head.r, p);
+      const hw = join(wavDir, `${name}-head.wav`);
+      writeFileSync(hw, encodeWav([hl, hr], RATE));
+      pairs.push(hw, join(gameDir, `${name}-head.mp3`));
+      out.head = `${name}-head.mp3`;
+    }
+    outs[m.gt.name] = out;
+  }
+  execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'scripts', 'music', 'encode-mp3.ps1'), '-Kbps', String(KBPS), ...pairs], {
+    stdio: 'ignore',
+  });
+  let bytes = 0;
+  for (const m of ordered) {
+    const o = outs[m.gt.name]!;
+    o.bytes = statSync(join(gameDir, o.file)).size + (o.head ? statSync(join(gameDir, o.head)).size : 0);
+  }
+  for (const o of Object.values(outs)) bytes += o.bytes;
+  writeFileSync(gamePath, JSON.stringify({ pad: PAD, kbps: KBPS, tracks: outs }, null, 1) + '\n');
+  console.info(`game tracks: ${Object.entries(outs).map(([k, o]) => `${k} ${o.loudness} dB`).join(', ')}; ${(bytes / 1e6).toFixed(2)} MB`);
+}

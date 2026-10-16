@@ -58,7 +58,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}'],
+        // the game's music tracks are precached too (offline play); the music lab's older sketches are not
+        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}', '**/music-*.mp3'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',

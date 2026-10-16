@@ -1,5 +1,19 @@
 # Changelog
 
+## Music V4 (feature/music, not yet released)
+- The game has a score. The main menu plays the menu theme ("Grand, dialled back": Hook A on strings, the melody
+  on cellos, then violins). In a match the music follows the guards:
+  - **Calm (nobody aware): silence.**
+  - **Cautious** (a guard suspicious, investigating or searching): the plucked broken hook, a heartbeat and a faint
+    tremolo.
+  - **Alert:** a spotted hit, then "Alert, under fire" on its downbeat.
+  - **Coming down:** Evasion, then a slow step down through Cautious to silence.
+- The music director has hysteresis, so a glance does not flip the music. The music never reads guard count,
+  distance or direction, and gameplay never reads the music.
+- The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
+  offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
+- Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+
 ## 3.5.0 - Chaos Theory foundation
 - Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory
   (`docs/design-bible.md` v1.7, story in `docs/story.md`). This release changes no gameplay and no feel.

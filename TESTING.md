@@ -5,6 +5,16 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Music V4 manual check (feature/music; desktop and iPhone)
+- [ ] The main menu plays the menu theme after the first click or tap (and keeps playing through the menu screens).
+- [ ] Starting Infiltration on the Warehouse: silence while nobody is aware of you.
+- [ ] Make a guard suspicious (noise, or let him half-see you): the plucked broken hook comes in within about a second.
+- [ ] Get spotted: the spotted hit plays at once, then "Alert, under fire" starts on its beat.
+- [ ] Break contact and hide: the music thins out (Evasion), then steps down to Cautious and, after a while, silence.
+- [ ] Footsteps and guard voices stay clear over the music in every state.
+- [ ] Settings > Audio > Music volume changes the music, and 0 silences it.
+- [ ] Offline (airplane mode, installed app): the music still plays.
+
 ## 3.5.0 manual check - Night Shift foundation (iPhone at the /ct/ preview, desktop, two devices)
 On the iPhone, at the `/ct/` preview:
 - [ ] The app and menu are titled Night Shift. The installed home-screen app may keep its old name until it is re-added.

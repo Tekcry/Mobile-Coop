@@ -28,8 +28,46 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done |
 | 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; Michael: plucked is good; the low bed in Calm is too much; Cautious change good |
 | 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; Michael: near silence OK but too far apart and too quiet; wants it catchier, still broken |
-| 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done; waiting for Michael's feedback |
+| 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done |
+| 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; waiting for Michael's play test |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4a - in the game
+- **Michael (2026-10-16):**
+  - "Commit Alert under fire and main menu theme Grand to the game for now. I want to work on the others."
+  - Then he chose: **Cautious = the plucked broken hook's Cautious mix**, **Calm = silence** for now.
+  - "The hook is still really good but we should try some alternatives" (for the in-game Calm and Cautious; next).
+- **Done:**
+  - **Game tracks:**
+    - `npm run music:orch` now also mixes the chosen pieces down to one stereo track each, with clean openings, into
+      `src/assets/music/game/` (committed, 5.9 MB).
+    - The mixes: menu = Grand dialled back (Softer); caution = Broken hook plucked (Cautious); alert = Under fire
+      (Alert: hook forward); evade = Under fire (Evasion, same gain as alert); spotted.
+  - **Player:** `src/audio/score/game/gameMusic.ts` decodes at 32 kHz, plays on the game's music bus (the Music
+    volume applies), and runs the director at 10 Hz.
+    - Fades on bar lines.
+    - The spotted hit, with Alert two beats later.
+    - Alert and Evasion in sync.
+    - Cautious starts from its clean opening.
+  - **Adapter:** `src/audio/score/game/adapter.ts` (read only) folds every guard's alert level into calm, caution or
+    alert.
+  - **Director:** reuses its result array and skips work when nothing can change (it now runs every frame tick).
+  - **Wiring:** `main.ts` calls `app.music.menu()`; `gameAudio.ts` calls `app.music.mission()` and
+    `update(dt, awareness(enemies))`. The service worker precaches `music-*.mp3`; the old lab sketches are not
+    precached.
+  - **Rules:** `CLAUDE.md` records the CC0 orchestral exception Michael chose on 2026-10-15.
+  - **Docs:** `CHANGELOG`, `TESTING.md` (manual check), `docs/systems/audio.md` and `testing-tools.md` updated.
+- **Tests:**
+  - Unit: 666 pass (the adapter added).
+  - Lint and build are clean.
+  - e2e: `e2e-score` (new, 13 checks), `smoke`, `e2e-offline` and `e2e-music` pass. `e2e-music`'s file count is now
+    limited to the lab's own stems.
+  - Port 4179 was held by another session's server, so suites were run with `E2E_PORT=4183`.
+  - The full `npm run e2e` was not run (shared PC).
+- **Open:**
+  - Calm is silent until Michael chooses a Calm.
+  - On the phone, the four mission tracks decode in the background at match start (about 60 MB at 32 kHz).
+  - Phone check pending Michael's run.
 
 ## V4 round 20 - a catchier broken Calm
 - **Michael (2026-10-16):** "Calm, near silence" is OK, but very far between and too quiet. He wants it catchier
