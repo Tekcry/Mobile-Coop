@@ -150,7 +150,7 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 **D26 KTX2 encoder installed (2026-10-17, during step 10).** Asked whether to install the KTX2 texture compression
 tool, Michael: "Install toktx (Recommended)". The orchestrator installed KTX-Software 4.4.2 (Khronos, Apache 2.0) from
 the official GitHub release `KTX-Software-4.4.2-Windows-x64.exe` (6.4 MB, SHA-256 1f323b0f...957fe, matching GitHub's
-digest) to `C:\Program Files\KTX-Softwarein	oktx.exe` - an offline build tool, never shipped. Step 11 starts by
+digest) to `C:/Program Files/KTX-Software/bin/toktx.exe` - an offline build tool, never shipped. Step 11 starts by
 encoding every LOD to KTX2 and repacking the GLBs (closes A73).
 
 **D25 Back layout and the left hip (2026-10-16).** Michael, on the re-plan's two calls: drone pod and medkit - "Hips,
