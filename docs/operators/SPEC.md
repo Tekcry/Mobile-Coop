@@ -2,6 +2,11 @@
 
 Status: Stage 1 done and answered (D7-D11). Stage 3 replaces this with the final character detail sheet.
 Decisions: `DECISIONS.md` (D1-D11 Michael; S1-S2 setup). Sources read: Section 9.
+**Wren re-planned (D22-D24, 2026-10-16):** Wren is the A2 stealth operative (`docs/operators/concepts/A2/A2.md`,
+ART-DIRECTION Section 9): one-piece suit, composite plates, slimline storage mapped to the game loadout, no rifle or
+pistol modelled. Sections 3.1-3.5 mark what is Wren's and what is now Moth's or history; 5.1 is rewritten. Moth's
+sections (3.4, 5.2) are unchanged until step 12, which starts by asking Michael Moth's direction (D24: "Decide at
+step 12").
 
 ---
 
@@ -58,7 +63,8 @@ What we never take: the reference's three-lens goggle, its suit's panel layout a
 logo, its exact harness design, or any real product's shape.
 
 Our signatures: Wren's square single-shroud goggle housing (green), Moth's round twin lenses on short barrels (amber),
-Moth's climbing harness and rolled sleeves.
+Moth's climbing harness and rolled sleeves. Wren's bonded one-piece suit and her composite chest plate with three rib
+segments (D22-D24).
 
 ---
 
@@ -66,7 +72,21 @@ Moth's climbing harness and rolled sleeves.
 
 ### 3.1 Garments
 
-**Combat shirt** (worn under a carrier or harness).
+**Stealth suit (Wren, D22-D24; ART-DIRECTION 9).**
+- A one-piece suit in a bonded stretch soft-shell, fitted like a wetsuit: it is under tension everywhere, so it shows
+  tension lines and compression under straps, not slack folds.
+- Panels where the body bends or wears: shoulder yokes, side panels, sleeves, knees, seat. Seams are bonded and sealed
+  with a narrow tonal tape; no stitching shows.
+- Zones: rubberised micro-pebble grip on the forearms and knees; a denser abrasion weave at the shoulder yokes, elbows
+  and seat; stretch knit at the inner elbows and rear shoulders; laser-perforated vents (1.4 mm holes, 3.2 mm pitch)
+  at the underarm side panels and the backs of the knees.
+- The main shell carries a fine tonal diamond micro-emboss (about 1.6 mm) visible only up close.
+- A diagonal chest zip from the left of the collar down to the right ribs, with a zip garage at the collar; a close
+  mock neck; thumb loops under the glove cuffs; bonded ankle cuffs worn inside the boot collars.
+- Under a chest plate the bust is held by the suit as one smooth form (a compression garment), with no anatomical
+  detail.
+
+**Combat shirt** (Moth until step 12; Wren: the stealth suit) (worn under a carrier or harness).
 - Torso in a fine elastic knit: it breathes under the load and stretches flat, so it shows few folds; it puckers only
   where a strap crosses it.
 - Sleeves in ripstop (a grid of heavier threads woven into light nylon/cotton: a faint square texture at 0.3 m).
@@ -80,7 +100,7 @@ Moth's climbing harness and rolled sleeves.
 under raking light. Folds are broad and soft. Pit zips for venting, a fitted hood with a rear volume adjuster
 (shock-cord through a cord lock at the back of the head).
 
-**Trousers.**
+**Trousers** (Moth until step 12; Wren: the stealth suit).
 - Ripstop or soft-shell with a stretch gusset at the crotch and stretch panels behind the knees.
 - Articulated knees: darts (stitched tucks) pre-shape the knee so it bends without pulling.
 - Knee pad pockets (foam inserts) or slim external pads strapped on.
@@ -98,7 +118,14 @@ outside), one eye port. Under D4 the goggles' rubber seal covers the eye port fu
 - A knuckle panel of thin padded fabric; a wrist tab with hook-and-loop or a pull loop.
 - Wear: the trigger finger, the palm heel and the rope hand polish and darken first.
 
-**Boots.**
+**Approach boots (Wren, D23 "Lighter approach boots").**
+- An approach-shoe last: low volume, a slight toe spring, a close heel.
+- A sticky rubber rand round the sole that rises over the toe box (toe jams and edging); a flat edging zone under the
+  toes; low lugs (about 3 mm) with a heel brake; a firm, thin midsole.
+- A padded collar about 12-13 cm high, a heel pull loop, lacing that runs close to the toe with low eyelets.
+- Wear: the rand scuffed at the toe, dust in the lugs, a flex crease across the forefoot.
+
+**Boots** (Moth until step 12; Wren: the approach boots above).
 - Mid-height and light: suede and nylon upper, a rubber rand round the toe, a heel counter.
 - Laced through eyelets, then speed hooks at the top; a lace garage pocket on the tongue.
 - A quiet low-profile lug sole with a heel brake; a heel pull loop.
@@ -106,7 +133,26 @@ outside), one eye port. Under D4 the goggles' rubber seal covers the eye port fu
 
 ### 3.2 Load bearing
 
-**Low-profile plate carrier.**
+**Composite plates and harness (Wren, D22-D24).**
+- A contoured composite chest plate with a neck scoop, and three overlapping rib segments below it on an internal
+  elastic web, each lapping the one below so the torso can bend and reach without a gap opening.
+- A slim back plate ending at the ribs, with a recess for the radio (upper left) and the weapon mount point (below).
+- Matte resin with a faint fibre texture; chamfered edges with a rubber trim; one corner-radius family. The plates are
+  moulded to the torso, so they follow it rather than bridging it like a flat slab.
+- Slim shoulder straps (plate top to plate top) and 22 mm side straps under the arms (plate side to plate side).
+- Every closure is a flush gunmetal magnetic quick-release: two halves with a split line on a rubber-edged base. No
+  hook-and-loop, no ladder locks or side-release buckles, nothing that rattles.
+
+**Weapon mount point (Wren, D24, A36).** No gun is modelled. The back plate carries a flush gunmetal receiver where
+the game's back carry slots attach the long gun (`carrySlots.ts` / `weaponModel.ts`: upright, muzzle up; backC on the
+spine, backL / backR at 7 cm either side splayed 0.08 rad). The back of the torso inside that lane stays flat (A39).
+
+**Wren's belt and leg kit (D22-D24).** A slim laminate waist belt with a flush magnetic front closure; one flush
+rappel ring in a low tunnel at the back centre (no sit harness, leg loops or gear loops). The empty thigh holster
+(right) and the throwable sleeve panel (left) each hang from the belt on a short hanger and sit on two elastic leg
+bands with magnetic buckles.
+
+**Low-profile plate carrier** (Moth / history for Wren).
 - Front and back plate bags (slim plates or soft panels), joined by padded shoulder straps and an elastic cummerbund.
 - The cummerbund closes at the front under a flap with hook-and-loop; the shoulder straps adjust by a buckle or a
   webbing tail under a cover.
@@ -117,15 +163,17 @@ outside), one eye port. Under D4 the goggles' rubber seal covers the eye port fu
 **Chest rig.** An H- or X-shaped harness over the shoulders carrying a front panel of pouches, closed round the ribs
 by a side strap. Lighter than a carrier, it leaves the ribs and back free (a climber's choice).
 
-**Belts.** Two layers: a soft inner belt through the trouser loops, the stiff outer belt hook-and-loop to it. A
+**Belts** (Moth / history for Wren). Two layers: a soft inner belt through the trouser loops, the stiff outer belt hook-and-loop to it. A
 two-part metal quick-release buckle with a sprung latch closes it (our own shape). The outer belt carries the holster
 hanger, grenade pouches, a dump pouch and a knife sheath.
 
-**Thigh holster.** A rigid moulded polymer holster on a drop-leg platform, hung from the belt by a short strap (so the
+**Thigh holster.** (Wren: built empty, shaped for the game's sidearm, on leg bands with magnetic buckles; A40.) A
+rigid moulded polymer holster on a drop-leg platform, hung from the belt by a short strap (so the
 grip sits at the relaxed hand's height), held to the thigh by two leg straps with elastic sections and side-release
 polymer buckles. A retention hood or lever over the pistol. An open muzzle end for a suppressed pistol.
 
-**Back long-gun carry** (`carrySlots.ts`: long guns vertical on the back, muzzle up, splayed a little from the spine).
+**Back long-gun carry** (`carrySlots.ts`: long guns vertical on the back, muzzle up, splayed a little from the spine;
+Wren: the weapon mount point above, nothing below modelled).
 - Real equivalent: a retention on the back panel.
 - A moulded butt cup at the bottom of the back plate bag holds the stock.
 - A bungee loop with a pull tab round the handguard at the top holds the gun.
@@ -135,12 +183,15 @@ polymer buckles. A retention hood or lever over the pistol. An open muzzle end f
 **Pouches.**
 - Rifle magazine pouches: open top with a shock-cord retention loop and a pull tab (quiet, fast).
 - Pistol magazine pouches: the same, smaller.
-- Radio pouch: open top with an adjustable strap and a hole for the antenna; cable exits at the top.
+- Radio pouch: open top with an adjustable strap and a hole for the antenna; cable exits at the top. (Wren: the radio
+  sits in a recess in the back plate.)
 - Admin pouch: a zipped flat pouch on the chest (notebook, marker, multitool, light).
 - Medical pouch: a pull-out tab and a quiet buckle (it holds the medkit the game uses).
 - Grenade pouches: a flap over each, held by a quiet snap.
 - Dump pouch: rolled and held by elastic until it is needed.
 - Weight shows: full pouches pull their bottom edge out and down; the webbing above them stretches taut.
+- Wren's pouches (D23): slim moulded or laminate shells, open-top with shock cord and pull tabs, or flaps with a
+  magnetic tab; no hook-and-loop; nothing more than about 2.5 cm proud (magazine pouches about 4 cm).
 
 ### 3.3 Head: harness, goggles, comms
 
@@ -164,7 +215,8 @@ strap under the chin. Worn over the hood, its straps compress the hood fabric (v
 pod along the goggle band's outer face, held by webbing keepers, to the left lug; strain relief at both ends.
 
 **Comms.**
-- Radio in a pouch (chest left, or the left side of the carrier).
+- Radio in a pouch (chest left, or the left side of the carrier). Wren: set into a recess in the back plate's upper
+  left; its cable runs over the left shoulder along the strap edge to the PTT at the left collarbone.
 - A cable from the radio runs up the shoulder strap, held every 10-15 cm by an elastic loop or clip, to a
   push-to-talk (PTT) button mounted on the strap or the chest.
 - From the PTT a thin cable runs up the neck, under the hood, to an in-ear piece or bone-conduction pad.
@@ -202,6 +254,8 @@ pod along the goggle band's outer face, held by webbing keepers, to the left lug
 - A loaded strap runs straight between its anchors; slack tails are folded and held by an elastic keeper.
 - Full pouches tip outward at the bottom. The holster platform bows slightly round the thigh.
 - The harness waist belt pulls the trouser waistband down at the front where the belay loop hangs.
+- Wren's suit is under tension, so it does not fold at the waist or knee in the bind pose: straps, bands and the belt
+  dent it, and it shows short tension lines where a strap pulls it.
 
 ---
 
@@ -303,14 +357,14 @@ team:
 
 | | Shoulders | Chest | Waist | Hips | Girth (limbs) |
 | --- | --- | --- | --- | --- | --- |
-| Wren (thirties, compact, ex-military woman) | 0.97 | 1.03 (bust under the carrier) | 0.96 | 1.08 | 0.98 |
+| Wren (thirties, compact, ex-military woman) | 0.97 | 1.03 (bust under the chest plate) | 0.96 | 1.08 | 0.98 |
 | Moth (twenties, lean, ex-steeplejack man) | 1.03 | 0.98 | 0.96 | 0.97 | 0.96 (long, ropey forearms) |
 
 Changed after the ANSUR II check: Wren's chest 1.00 -> 1.03 and hips 1.04 -> 1.08 (the survey's female ratios, a
 little leaner).
 
 What tells them apart: height (10 cm), silhouette and kit:
-- Wren: square goggle and a close hood; a plate carrier; a compact, upright stance.
+- Wren: square goggle and a close hood; a one-piece suit with a composite chest plate; a compact, upright stance.
 - Moth: round lenses; a chest rig plus harness; rolled sleeves; a lean, loose stance (gait differences per 5.12.2.8,
   within fairness).
 
@@ -323,17 +377,20 @@ Notation: item - where - what it holds or does - how it attaches.
 The lists are data in `src/operators/kit.ts` (`WREN_KIT`, `MOTH_KIT`), checked by `validateKit` in
 `tests/operators.test.ts`: every item has a job, every strap two anchors, every pouch its contents and closure, every
 cable a source, a device and no free span over 15 cm. Writing them as data added cable fixings this text left open:
-- Wren's earpiece cable: a clip on the shirt collar, then tucked under the balaclava edge.
+- Wren's earpiece cable: a clip on the suit collar, then tucked under the balaclava edge (shirt collar before D22).
 - Moth's goggle cable: two clips on the right side strap.
 - Moth's earpiece cable: an elastic loop on the right H-strap, a collar clip, then under the balaclava edge.
 - Routed lengths (estimates, checked against the base body in step 3): goggle cables 0.40 / 0.42 m, Wren's radio
-  cable 0.45 m (three loops), Moth's 0.30 m (two loops), earpiece cables 0.27 / 0.36 m.
+  cable 0.45 m (three loops), Moth's 0.30 m (two loops), earpiece cables 0.27 / 0.36 m. Wren after D22: radio cable
+  about 0.40 m from the back-plate recess over the left shoulder (three keepers), earpiece cable about 0.19-0.22 m
+  from the PTT to the left ear; both measured in step 09.
 
 ### 5.1 WREN (lead)
 
 **Head**
 - Fitted balaclava - head and neck - covers skin; one eye port sealed by the goggle eyecups - worn under everything.
-- Close-fitting hood - over the balaclava - part of the soft-shell top; rear shock-cord volume adjuster with a cord lock.
+- Close-fitting hood - over the balaclava - a fitted hood whose skirt laps over the suit's mock neck; rear shock-cord
+  volume adjuster with a cord lock.
 - Head harness (split crown, D20) - over the hood - carries the battery pod, seats the goggle band - hard brow plate,
   two crown straps, two side straps with cam buckles, hard rear battery pod, chin strap with a side-release buckle.
 - Goggle band - round the back of the head over the harness - holds the goggle in use (over the eyes) or stowed (on
@@ -343,52 +400,95 @@ cable a source, a device and no free span over 15 cm. Writing them as data added
 - Battery pod - rear of the harness - powers the goggle; counterweight - the harness's hard shell; screw cap.
 - Goggle cable - pod to the left lug along the band - power - webbing keepers on the band, strain relief boots at both
   ends.
-- Earpiece - left ear under the hood - radio audio - cable from the PTT up the neck under the balaclava edge.
+- Earpiece - left ear under the hood - radio audio - cable from the PTT at the left collarbone up the left of the neck,
+  a clip on the suit collar, then under the balaclava edge (step 09 fixes the route: steps/07-fixes-r4.md).
 
-**Torso**
-- Combat shirt - knit torso, ripstop raglan sleeves - elbow pad pockets with pads, upper-arm pockets with flaps (one
-  holds a marker light, one a spare battery for the goggle).
-- Soft-shell top (concept option) - over the shirt, hood attached.
-- Low-profile plate carrier - slim front and back plates, padded shoulder straps, elastic cummerbund closing under a
-  front flap.
-- Three rifle magazine pouches - front of the carrier - one magazine each - woven into the webbing; shock-cord
-  retention with pull tabs.
-- Admin pouch - above the magazine pouches - notebook, marker, multitool, small white/IR light - zip with a pull loop.
-- Radio pouch and radio - left side of the cummerbund - the team radio - woven in; antenna bent down and held by an
-  elastic loop.
-- Radio cable - radio up the left shoulder strap - three elastic loops - to the PTT on the left strap at the
-  collarbone.
-- PTT button - left shoulder strap - transmits - strap mount; then the earpiece cable up the neck.
-- Medical pouch - right side of the cummerbund - the medkit - pull tab, quiet buckle.
-- Back panel - back plate bag - rifle retention: moulded butt cup at the bottom, bungee loop with a pull tab at the top;
-  drag handle at the top edge.
-- Shoulder reinforcement - right shoulder of the shirt - rifle butt patch.
+**Suit (D22-D24, A37)**
+- Stealth suit - whole body under the head items, gloves and boots - one-piece bonded soft-shell, no base layer under
+  it - diagonal chest zip with a zip garage at the collar, mock neck under the hood skirt, thumb loops under the glove
+  cuffs, bonded ankle cuffs inside the boot collars (A38).
+- Suit zones - bonded panels with tonal seam tape, no visible stitching - grip (forearms, knees), abrasion (shoulder
+  yokes, elbows, seat), stretch (inner elbows, rear shoulders), perforated vents (underarm side panels, backs of the
+  knees); the main shell micro-embossed.
+
+**Armour and harness**
+- Composite chest plate - chest, its neck scoop clear of the PTT and the earpiece plug - protection; the platform for
+  the chest rig - shoulder and side straps.
+- Rib segments (three) - below the chest plate, each lapping the one below - protection that bends with the torso - on
+  an internal elastic web under the chest plate.
+- Back plate - upper back, ending at the ribs - protection; carries the radio recess (upper left) and the weapon mount
+  point - shoulder and side straps.
+- Shoulder straps (two) - chest plate top to back plate top - carry the plates; the left one carries the radio cable
+  keepers and the PTT - magnetic buckle at the front.
+- Side straps (two, 22 mm) - under the arms, chest plate side to back plate side - close the plates round the ribs -
+  magnetic buckle.
+- Magnetic quick-release buckle - every strap closure on Wren - opens with one pull, silent - two flush gunmetal halves
+  with a split line on a rubber-edged base.
+- Weapon mount point - back plate, on the spine - where the game's back carry slots attach the long gun (backL / backC
+  / backR frames, upright, muzzle up; A36, A40) - a flush gunmetal receiver plate; no gun modelled (D24).
+
+**Chest rig (on the chest plate)**
+- Rifle magazine pouches (two) - right of centre - one rifle magazine each, tops leaning toward the left hand - open
+  top, shock cord with a pull tab.
+- Gadget slot - upper right - EMP (one) and noisemakers (two): flat stick-on discs - flap with a magnetic tab.
+- Knife - left of centre, handle down - the knife (Phase 6 verb); the right hand draws it across the body, pulling
+  down - moulded sheath with a gunmetal release; rubber handle, gunmetal guard and pommel.
+- PTT button - left shoulder strap at the collarbone - transmits; the earpiece cable plugs into it - strap mount.
+
+**Comms**
+- Team radio - set flush into the back plate's recess, upper left - team comms - held by the recess; a short stub
+  antenna along the plate's top edge in a keeper.
+- Radio cable - radio over the left shoulder along the strap edge to the PTT - radio to the PTT - three elastic
+  keepers (no free span over 15 cm).
+- Earpiece cable - see Head (PTT up the left of the neck to the left ear).
 
 **Belt**
-- Inner and outer belt - waist - two-part metal quick-release buckle.
-- Three grenade pouches - front left of the belt - one grenade each (`GRENADE_POUCHES`) - flap with a quiet snap.
-- Pistol magazine pouch - front right of the belt - two magazines - shock-cord retention.
-- Dump pouch - rear right - empty magazines - rolled, held by elastic.
-- Knife sheath - rear centre, horizontal - the knife (Phase 6 verb) - two belt straps.
-- Drop-leg hanger - right side - carries the holster platform - belt loop plus a short adjustable strap.
+- Waist belt - waist - carries the belt kit and the two leg hangers - slim laminate belt, flush magnetic front
+  closure.
+- Pistol magazine pouch - left front - two pistol magazines - open top, shock cord.
+- Cam and mine pouch - left hip - two sticky cams, one prox mine - flat, flap with a magnetic tab.
+- Rappel ring - back centre, in a low tunnel on the belt - the rope work Wren needs without a sit harness - one
+  gunmetal D folded flat, only its bow showing.
+- Sling socket - left hip - the anchor of the game's compact-gun sling slot (A41) - a flush quick-detach socket; no
+  sling modelled.
+- Drone pod - rear left on the belt, outside the back-carry lane (A39) - the folded tri-rotor and its battery - small
+  hard pod with a rubber lid seal and a gunmetal latch.
+- Medkit pouch - rear right on the belt, outside the back-carry lane (A39) - the medkit - flat tear-away pouch with a
+  webbing pull handle at the bottom edge and a visible tear seam.
 
 **Legs**
-- Soft-shell trousers - articulated knees, crotch gusset, reinforced seat, internal knee pads.
-- Cargo pockets - both thighs, angled - map card (left), spare gloves (right) - flap with a quiet closure; drain
-  grommet at the bottom.
-- Thigh holster - right thigh - the pistol (suppressed: open muzzle) - drop-leg platform; two leg straps with elastic
-  sections and side-release buckles; retention hood.
-- SMG sling (only when an SMG is in the loadout) - left hip (`sling` slot) - clipped to the belt on a quick-detach
-  swivel.
+- Thigh holster - right thigh, at the game's thigh slot - empty: the game's sidearm sits in it (D24); shaped for the
+  largest thigh-slot sidearm in `weaponDefs.ts`, open muzzle end (A40) - slim polymer shell, retention hood with a
+  gunmetal release, a short hanger from the belt.
+- Leg bands (two per thigh) - round each thigh - hold the holster (right) and the sleeve panel (left) to the thigh -
+  elastic with a magnetic buckle.
+- Throwable sleeves (three double sleeves) - outer left thigh, on a laminate panel hung from the belt - frag two,
+  sleeping gas two, flashbang two, one type per sleeve - a shock-cord loop and pull tab over each cap; the caps differ
+  by touch: knurled ring (frag), dome (gas), two ridges (flash).
 
 **Hands and feet**
-- Gloves - leather palm, stretch back, reinforced trigger finger, wrist tab.
-- Mid boots - suede and nylon, toe rand, speed hooks, lace garage, quiet lug sole.
+- Gloves - leather palm, stretch back, reinforced trigger finger, wrist tab (step 06, unchanged); the cuff over the
+  suit's thumb loop.
+- Approach boots - feet - light, climbing-capable footing (D23) - approach-shoe last, sticky rubber rand rising over
+  the toe, flat edging zone under the toes, low lugs with a heel brake, padded collar about 12-13 cm, heel pull loop,
+  lacing close to the toe.
 
-**Wear:** a scuffed carrier bottom edge; polished glove palms and trigger finger; worn webbing tails; tape on the
-goggle mode switch; dust in the boot lugs and trouser cuffs; an abraded rifle-butt patch.
+**Wear:** scuffed plate and rib-segment trims; polished grip panels on the forearms and knees; dust on the knee grips,
+the boot rands and in the lugs; polished glove palms and trigger finger; worn shock-cord pull tabs; a bright edge on
+the rappel ring's bow; tape on the goggle mode switch.
+
+**Not modelled (D24):** the rifle (any long gun), the pistol, any SMG and its sling. The game's weapon models attach
+at the weapon mount point, the holster and the sling socket.
+
+**Removed by D22-D24 (history):** base layer, combat shirt (elbow and upper-arm pockets, butt patch), soft-shell top,
+trousers (knee pad pockets, cargo pockets), plate carrier (cummerbund, admin, radio and medical pouches, back panel
+with the butt cup and bungee, quick-release cable), battle belt (grenade and dump pouches, knife
+sheath, drop-leg hanger), SMG sling, mid boots, IR strobe (A42).
 
 ### 5.2 MOTH (climber)
+
+Unchanged by D22-D24: step 12 starts by asking Michael Moth's direction (D24: "Decide at step 12"), then this list
+is re-planned if needed.
 
 **Head**
 - Fitted balaclava - as Wren.
@@ -481,7 +581,8 @@ and the operator's build (Section 4). It is only the form the clothes drape on; 
 
 **Kit is parametric hard modelling.**
 - Buckles, holster shell, harness plate and pod, goggle housings, radio, carabiners and descender are generated by Python with
-  bevels and booleans from dimensioned parameters.
+  bevels and booleans from dimensioned parameters. Wren adds the composite plates and rib segments, the magnetic
+  buckle, the empty holster shell, the drone pod and the weapon mount receiver.
 - Straps and cables are swept profiles along paths that start and end at named anchor points on the body or on other
   kit, pulled taut (or given slack) by a tension value.
 
@@ -621,8 +722,9 @@ The version line goes to 1.15 with a summary of these changes.
 
 - **Rig.**
   - No clavicle, one spine joint plus the chest, no fingers or toes.
-  - Shoulder shrugs and deep reaches stretch the carrier's shoulder straps; this needs a corrective weight pass and
-    the hero finger bones.
+  - Shoulder shrugs and deep reaches stretch the carrier's shoulder straps (Wren: the harness shoulder straps); this
+    needs a corrective weight pass and the hero finger bones.
+  - Wren's rib segments must keep overlapping (never gap) when the torso bends; they ride on the chest joint.
   - The rig changes wait for the locomotion merge (Section 4.3).
 - **Clipping (5.12.2.3).** To be checked in the Lab's poses:
   - goggle housing vs the rifle's cheek weld when aiming (the rig sets the gun beside the head: `SIGHT_RAISE`);
@@ -630,6 +732,9 @@ The version line goes to 1.15 with a summary of these changes.
   - the holster vs the thigh in a deep crouch;
   - the harness leg loops at hip flexion;
   - back-carried guns vs the head when looking up;
+  - Wren: the game's back guns vs the back plate, drone pod and medkit (A39: the lane is kept flat; `rig.backGear`
+    from the measured back-plate standoff);
+  - Wren: a slung compact gun (left hip) vs the left-thigh sleeves (A41);
   - the rope bag vs the right hand's holster draw (Moth).
 - **Voxel world vs smooth characters.**
   - The levels render as 5 cm voxels; detailed meshes will stand out from them.

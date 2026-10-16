@@ -2,6 +2,11 @@
 
 Model: Opus 5.5, High effort. One session. Unattended (DECISIONS D15).
 
+**Before this step (D24, Michael: "Decide at step 12"):** the orchestrator stops and asks Michael Moth's direction
+(native multiple-choice UI, recommendation first: keep this plan, or follow Wren's stealth direction (ART-DIRECTION 9)
+in Moth's own way), records the answer in DECISIONS.md, and if it changes the plan has a replan subagent update
+steps 12-16, PLAN.md and SPEC 5.2 first. This file is the plan until then.
+
 ## Objective
 
 Moth's garments: combat shirt variant with rolled sleeves over a knit base layer (no skin, D4), base layer and

@@ -147,6 +147,27 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D24 Build A2, without the guns (2026-10-16).** Shown the A2 scratch renders (scratchpad stealth/A2, A2.md), Michael:
+"yes build a2, but create without the guns, they will be in game anyway"; rifle carry: "no gun needed, it will be in
+game"; Moth: "Decide at step 12". So: Wren is built as A2 (one-piece premium suit, composite chest plate with three rib
+segments and a slim back plate, magnetic buckles, chest rig with two rifle magazines, a gadget slot, knife and PTT,
+thigh holster, left-thigh throwable sleeves, belt with pistol magazines, cam / mine pouch, one flush rappel ring, drone
+pod, medkit and radio, lighter approach boots), with NO rifle and NO pistol modelled: the game's weapon models attach
+in game. The holster is built empty (shaped for the game's sidearm) and the back plate carries a weapon mount point
+where the game's carry slot attaches the long gun; its orientation follows the game's carry slots (assumed A36:
+src/weapons carry slots today carry long guns upright on the back; revisit with locomotion step 25). Moth stays open
+until step 12.
+
+**D23 Concept A, made logical for the game (2026-10-16).** Shown concepts A (infiltration suit), B (two-piece) and C
+(armoured skin), Michael: "I like A, but can you make it more logical based off the requirements of the game, for
+example somewhere to holster pistol and store longer rifle on back? not fussed on rope attachment points, should be
+tactical storage (pistol mags, rifle mags) and any other suggestions by you. must all be slimline, well designed,
+practical for a stealth operative to use. this suit would be very expensive and should look it". Boots: "Lighter
+approach boots". So: concept A's one-piece suit and slim segmented armour, with storage mapped to the game's loadout
+(rifle on the back, pistol holster, rifle and pistol magazines, the gadget set in game/gadgets.ts, medkits), no
+climbing sit harness or rope attachment points, premium materials and finish, new lighter approach boots. The
+orchestrator's loadout proposal (A2) is rendered in scratch for Michael to confirm before the re-plan.
+
 **D22 Stealth operative, not military (2026-10-16, after step 08).** Michael: "I'm thinking the current design is more
 military style, whereas I want more of a stealth operative design. Wetsuit fitted suit, slim body armour, tactical
 ammo storage/holsters. The type of design for someone that would need to remain agile and able to climb in tight
@@ -399,3 +420,34 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   built here with the radio; step 09 adds the radio cable and the PTT to the radio's top connector. The drop-leg hanger
   (kit `dropHanger`) is left to step 09 with the holster. Undo: remove the item from `kit.ts` and the loop from
   `carrier.py`.
+
+## Assumed decisions, the A2 re-plan (D22-D24; planner, recorded by the orchestrator)
+**A36 Weapon mount orientation (from D24).** The back plate's mount follows the game's carry slots: long guns upright,
+  muzzle up, backC on the spine, backL / backR 7 cm either side, splayed 0.08 rad (carrySlots.ts, weaponModel.ts).
+  Revisit with locomotion step 25. Undo: re-aim the mount frames.
+**A37 The suit replaces the base layer (step 08a).** One garment, `suit`, first in GARMENTS, built from base_layer.py's
+  top and leg blocks with `cling`. Gloves and boots are rebuilt over it: thumb loops and sleeve cuffs under the glove
+  cuffs, ankle cuffs inside the boots. Why: no base layer would ever show (the suit has its own mock neck and cuffs),
+  and it is one layer fewer to simulate and push. base_layer, combat_shirt, trousers, carrier and belt leave GARMENTS;
+  their modules stay for Moth and for reuse. Undo: put base_layer back first and build the suit over it with one more
+  UNDER_LAYERS allowance (4.1 mm girth).
+**A38 Suit cuff inside the boot (step 08a).** A bonded ankle cuff about 9 cm above the ground, at least 25 mm inside
+  both the step 06 collar and the 09b collar (12-13 cm). A22 (trouser hem over the boot collar) no longer applies, and
+  09b rebuilds from the boots on, not the suit. Undo: a gaiter cuff over the collar, which needs the suit after the
+  boots in GARMENTS.
+**A39 Back-carry lane.** The game's upright back guns (BACK_X 0.07, butt 0.40 m below the chest joint, CARRY_GAP 12 mm,
+  `rig.backGear`) need the back flat at about |x| <= 0.10 m from the belt to the shoulders. Only the plate, the
+  recessed radio, the mount receiver and the flush rappel ring sit in it. The drone pod moves to rear left on the belt
+  and the medkit to rear right (A2 had both low on the centre-left back, placed round its diagonal rifle). Undo: if
+  Michael chooses a diagonal back carry (a game change), put them back where A2 had them.
+**A40 Weapon anchors and the empty holster.** The mount is a flush gunmetal receiver with frames `weaponMount.backL /
+  .backC / .backR`. The holster cavity fits the largest thigh-slot sidearm in weaponDefs.ts (pistol, fiveseven,
+  pistolSd), open at the muzzle, retention hood shown closed, frame `pistolHolster` at the game's thigh slot. All frames
+  go in the sim reports and, from step 10, into every LOD as glTF empties; the back-plate standoff `backGearM` is
+  reported for `rig.backGear`. Undo: drop the empties.
+**A41 Sling slot vs the throwable sleeves.** The game hangs a compact gun at the left hip, 3.5 cm outside the thigh,
+  where A2's sleeves sit. Built as A2, with a flush quick-detach sling socket on the belt at the left hip as the slot's
+  anchor. The overlap is an integration item for step 18 and locomotion step 25. Undo: move the sleeves to the left
+  front thigh.
+**A42 No IR strobe on Wren.** It is not in A2 or in D24's list. ART-DIRECTION 3's strobe stays for Moth. Undo: a flush
+  strobe on the back plate's top edge (kit item `strobe`).

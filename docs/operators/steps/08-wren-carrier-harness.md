@@ -1,5 +1,7 @@
 # Step 08 - Wren: plate carrier, harness and belt
 
+**SUPERSEDED (D22-D24, 2026-10-16): replaced by steps 08a, 08b and 09; kept as history, never run or retried.**
+
 Model: Opus 5.5, High effort. One session. Unattended (DECISIONS D15).
 
 ## Objective
