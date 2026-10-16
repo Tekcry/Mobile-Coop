@@ -94,11 +94,14 @@ async function boot(): Promise<void> {
         showSavedOperator(app);
       }
     };
-    app.music.start();
+    app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    // music project: `?musiclab=1` opens the lab over the menu (debug)
+    if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
+    if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
     // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
     if (!app.settings.get().video.brightnessSet && !navigator.webdriver) app.screens.push(new BrightnessScreen(app));
   };

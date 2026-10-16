@@ -35,6 +35,11 @@ every phase step.
 - Bible 1.9: desktop visual target and CC0 textures (5.16), Phase 6b.
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
+- Movement foley (`feature/footsteps`, 2026-10-16, not merged): the player's steps, landings and moves are CC0
+  recordings driven by the rig's foot plants (`docs/systems/audio.md`). Waits for Michael's ear check in `?foleylab=1`
+  and in a match (`TESTING.md`), then his merge into `ct-movement`. Not covered yet: climbing, teammates', guards' steps.
+  Full `npm run e2e` on 2026-10-16: all required suites pass except `e2e-touch`, which fails the same way on the base
+  commit 082d100 (touchmove "cancelable=false" console errors in the anticlockwise phone check; pre-existing).
 
 ### Decisions of 2026-10-10 (Michael)
 1. The 1934 Kestrel Exchange is retired as Mission 1; the Trunk Annex and Dead Line v1 and v2 map designs are retired too (archived in `docs/archive/maps/`).

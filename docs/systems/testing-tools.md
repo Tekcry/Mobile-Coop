@@ -9,6 +9,9 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
+- `npm run sfx:fetch` / `npm run sfx:render` - the movement foley: download the CC0 packs (`scripts/sfx/foley-sources.json`,
+  SHA-256 checked) into `.sfx-cache/`, then cut the takes and write `src/assets/sfx/foley.mp3` + `foley.json` (Windows:
+  Media Foundation MP3; decodes the OGGs in headless Chromium). The sprite is committed, so only a change of takes needs it
 - `npm run e2e` (`scripts/run-e2e.mjs`) - serves `dist/` once and runs the suites in a pool (default 4 at a time, `--jobs=N` / `E2E_JOBS`), each suite its own process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run), each suite's output printed as one block and kept in `test-results/e2e/`. `e2e-desktop` runs as four jobs (`e2e-desktop:1`..`:4`, `--part=N`; its sections are independent). A suite past 600 s (`E2E_SUITE_TIMEOUT`) is killed and fails. `--serial` (`npm run e2e:serial`): one at a time, output live. `--quick` (`npm run e2e:quick`, `--since=<ref>`): `smoke` + the suites mapped to the changed folders (`COVERS` in the runner; an unmapped `src/` path, `e2e-lib`, `package.json` run a core set); `--list` prints what would run. `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, first frames, rendered frames, fixed waits, `stepHeadless`, screenshots). Known-flaky suites: see below. The suites:
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad; 3.2.0 in a match:
@@ -131,6 +134,22 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
+  - `scripts/e2e-music.mjs` (music project) the V3 sketch picker (`?musiclab=1`) on phone emulation and desktop: the picker
+    comes first, each sketch loads its three MP3 stems, Calm / Alert / Evasion and the ladder move the stem gains, every decoded
+    loop joins without a seam, the playback cost (60 s of three stems rendered offline), no console errors. Needs no GPU
+  - `scripts/e2e-score.mjs` (music V4) the score in the game: after the first click the menu theme plays (only the menu
+    track decoded), and entering a match it fades from full (not from part-way down); in a Warehouse match the four mission tracks decode in the background, Calm is silent, a suspicious
+    guard turns the music Cautious, a guard on alert gives Alert (with its Evasion mix running alongside). Needs no GPU.
+    Note: if another server holds port 4179, run with `E2E_PORT=4183`.
+  - Music V4 test page (music project, manual): `npm run dev`, then open `/music-test.html` (linked from
+  - `scripts/e2e-foley.mjs` movement foley on Proving Grounds: the sprite decodes and its alignment shift is small,
+    one foley step per real foot plant at a walk and a sprint (a sprint plants faster), silence standing still, a drop
+    plays a landing, the guards' footstep noise unchanged (9 m at a sprint on concrete); then the foley lab
+    (`?foleylab=1`) walks on every surface and plays a vault, a roll and a heavy landing. No console errors. Needs no GPU
+  - Music V4 test page (music project, manual, no e2e yet): `npm run dev`, then open `/music-test.html` (linked from
+    nowhere in the game). The themes alone, two menu sketches, two mission sketches with live Calm / Cautious / Alert
+    switching, the stinger, fake footsteps, guard voice and noise cue, and a volume slider per layer. Unit tests:
+    `tests/score.test.ts` (themes, arrangements, the director's hysteresis, the pure synthesis)
   Speed rules for suites: a wait for N simulated seconds is `stepHeadless` (or, where a suite wraps `state.fixedUpdate` and resolves when its condition holds, `window.__ff()` right after the wrapper is installed: it steps the loop until the wrapper takes itself off). `e2e-move` 112 s -> 12 s, `e2e-combat` 27 -> 4 s with the same checks. Fixed pauses after a match starts are `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites (`e2e-coop`, `e2e-netmove`: network sync and interpolation between two renderers), `e2e-stealth` (real-time camera), `e2e-mouse`, `e2e-pad`, `e2e-touch` (input timing), `e2e-desktop` (the benchmark flights, the 15 s resolution revert, shader compiles), `e2e-offline`, and the `rAF`-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page load and the voxel (Epic) bake cache is 190 MB, so neither is shared between browsers; `e2e-lightbake` bakes cold in four browsers at once on purpose.
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
   `?gfx=min` (every graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user`

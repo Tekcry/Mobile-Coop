@@ -40,6 +40,42 @@
 - S1b: the Exchange's first floor, roof and rear goods yard: switchroom, offices, server hall with its cage, gallery and motor-room stairs, roof with parapets and the steel stair to the yard, yard with cover. Nine rooms.
 - R1: Exchange layout v2, basement and ground floor: cable chamber, rectifier, battery, generator, boiler, riser base, service tunnel, MDF hall, test and transmission rooms, foyer, security, canteen, meeting room, cleaners, goods-in, workshop, light well, ring corridor, with the C ladder, B, V and R stairs, the plant ramp and the coke stair. The first floor and roof are rebuilt in R2.
 
+## Music V4 (feature/music, not yet released)
+- The game has a score. The main menu plays the menu theme ("Grand, dialled back": Hook A on strings, the melody
+  on cellos, then violins). In a match the music follows the guards:
+  - **Calm (nobody aware): silence.**
+  - **Cautious** (a guard suspicious, investigating or searching): the plucked broken hook, a heartbeat and a faint
+    tremolo.
+  - **Alert:** a spotted hit, then "Alert, under fire" on its downbeat.
+  - **Coming down:** Evasion, then a slow step down through Cautious to silence.
+- The music director has hysteresis, so a glance does not flip the music. The music never reads guard count,
+  distance or direction, and gameplay never reads the music.
+- The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
+  offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
+- Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+- Test page: "Hook thread" (round 23) with four Calm and three Cautious alternatives, and Calm / Cautious choosers in
+  the in-game test (the game's tracks are unchanged until Michael picks).
+- The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
+  and climbing strings) leads into Alert.
+- The menu theme plays as a whole piece: its quiet opening, its own ending, a 3 s rest, then again (no loop join).
+- Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
+  fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu
+  fades over 4 s; leaving one the mission music fades over 2.5 s.
+
+## Unreleased - Movement foley (feature/footsteps)
+- Sound: the player's footsteps, landings and moves are real CC0 recordings (Kenney Impact Sounds and RPG Audio,
+  `docs/audio-credits.md`) instead of one filtered noise burst per surface. Each step is a heel and a toe from separately
+  picked takes with their own pitch and level, the two feet a touch apart, no take repeated back to back, no gear
+  sound at all: the suit is built not to make noise. Crouch, walk, run and sprint each sound different (a slow soft roll to a slap); concrete, metal
+  (deck ring), grate (rattle), wood (boots on boards), gravel (crunch) and carpet each have their own takes. Landings
+  (soft, roll, heavy), vaults, mantles, hops and rolls have their own sounds, all damped by the suit (dull, short, quiet).
+- Steps now follow the animation's real foot plants instead of a timer, so they match what the feet do (turning on
+  the spot, stopping, a stride at any speed gear).
+- Gameplay is unchanged: guards still hear the noise model, never the audio.
+- `?foleylab=1`: a listening screen with every surface and gait, the landings and moves, and an A/B against the old steps.
+- Tools: `npm run sfx:fetch`, `npm run sfx:render`; tests `tests/foley.test.ts` and `scripts/e2e-foley.mjs` (required).
+- Rule: `CLAUDE.md` and the bible (S7) allow CC0 movement foley (Michael, 2026-10-16).
+
 ## 3.5.0 - Chaos Theory foundation
 - Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory
   (`docs/design-bible.md` v1.7, story in `docs/story.md`). This release changes no gameplay and no feel.

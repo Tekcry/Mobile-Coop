@@ -1,13 +1,23 @@
 import type { GameState } from '../game/gameState';
 import type { App } from '../core/app';
 import { Vector3 } from '../core/babylon';
+import { awareness } from './score/game/adapter';
+import { gaitOf, type FoleyMove } from './foley/steps';
+
+const FOLEY_MOVES: readonly string[] = ['vault', 'mantle', 'hop', 'drop', 'roll'] satisfies FoleyMove[];
 
 /** Connects a play session's events to the synth (positional where it matters). */
 export function attachGameAudio(app: App, g: GameState): { frame(dt: number): void; dispose(): void } {
   const sfx = app.sfx;
   const a = app.audio;
+  const fo = app.foley;
   const tmp = new Vector3();
-  let stepT = 0;
+  // movement foley: foot plants from the rig, landings and committed moves from their counters
+  let plantsSeen = g.player.footPlants;
+  let landSeen = g.player.controller.landings;
+  let moveSeen = 0;
+  /** After a landing the next plants are part of it (s). */
+  let quietT = 0;
   const w = g.weapons.events;
   const prevShot = w.onShot;
   w.onShot = (def) => {
@@ -89,8 +99,10 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       if (s.gain > 0.03) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
     }),
   ];
-  app.music.start();
+  app.music.mission();
   const frame = (dt: number): void => {
+    // the score follows the guards' awareness (read only; the music never feeds back into gameplay)
+    app.music.update(dt, awareness(g.enemyMgr?.enemies));
     const cam = g.player.cam.camera;
     const L = a.listener;
     L.x = cam.position.x;
@@ -98,23 +110,35 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     L.z = cam.position.z;
     L.rx = Math.cos(g.player.cam.yaw);
     L.rz = -Math.sin(g.player.cam.yaw);
-    const c = g.player.controller;
-    if (c.grounded && c.speed > 1.2 && g.player.alive) {
-      stepT -= dt;
-      if (stepT <= 0) {
-        stepT = c.sprinting ? 0.27 : c.crouched ? 0.5 : 0.36;
-        sfx.footstep(c.crouched ? 0.5 : 1, 0, g.surface);
+    const p = g.player;
+    const c = p.controller;
+    quietT -= dt;
+    if (c.landings !== landSeen) {
+      landSeen = c.landings;
+      if (p.alive && c.lastLanding !== 'none') {
+        if (!fo.landing(g.surface, c.lastLanding)) sfx.footstep(1.4, 0, g.surface);
+        quietT = 0.15;
       }
     }
-    let alive = em?.alive ?? 0;
-    if (!em && g.puppet) for (const _ of g.registry.hostiles('player')) alive++;
-    app.music.setIntensity(g.opts.mode === 'sandbox' ? 0 : Math.min(1, alive / 5));
+    const cm = g.traversal.committed;
+    if (cm && cm.n !== moveSeen) {
+      moveSeen = cm.n;
+      if (p.alive && FOLEY_MOVES.includes(cm.kind)) fo.move(g.surface, cm.kind as FoleyMove, cm.dur);
+    }
+    if (p.footPlants !== plantsSeen) {
+      plantsSeen = p.footPlants;
+      if (p.alive && quietT <= 0 && (!cm || cm.kind === 'step')) {
+        const crouch = c.crouched || c.steps === 'crouched';
+        // cover glides are 'silent' to guards: barely there; shuffles on the spot are soft
+        const scale = (c.steps === 'silent' ? 0.4 : 1) * (c.speed < 0.3 ? 0.5 : 1);
+        if (!fo.step(g.surface, gaitOf(c.speed, crouch, c.sprinting), c.speed, p.footPlantSide, scale)) sfx.footstep(crouch ? 0.5 : scale, 0, g.surface);
+      }
+    }
   };
   return {
     frame,
     dispose: () => {
       for (const o of offs) o();
-      app.music.setIntensity(0);
     },
   };
 }
