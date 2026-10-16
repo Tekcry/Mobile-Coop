@@ -2,7 +2,7 @@
 
 ## Michael's play-check notes (2026-10-16): docs/locomotion/PLAY-NOTES.md (N1-N8), recorded, not planned yet. Wait for his planning call.
 
-- Current: Block C end done; play check done (PLAY-NOTES.md N1-N8, plan M14, M15). Order now: steps 21 and 21w done; next step 21v vision grain, step 22 (weight: slower + momentum + gait), then PAUSE for Michael (laptop play test of all four), then 23-32 and the Block D laptop check as planned.
+- Current: Block C end done; play check done (PLAY-NOTES.md N1-N8, plan M14, M15). Order now: steps 21, 21w, 21v done; next step 22 (weight: slower + momentum + gait), then PAUSE for Michael (laptop play test of all four), then 23-32 and the Block D laptop check as planned.
 Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the URL it prints in Chrome on the desktop, pad connected. Solo: Play > Free Roam > Proving Grounds; guards: Play > Hunter > Warehouse. Co-op: tab 1 `<url>/?net=local` > Co-op > Host a room (pad stays in this tab); tab 2 same URL > Join room with the code. Watch tab 2 to see your operator from outside.
 1. Movement: push the stick a little, halfway, fully (silent slow walk, walk, jog), L3 sprint; D-pad up / down sets the max gear (HUD pips). Does the body feel weighty, any bob? (Step 21 targets bob.)
 2. Holstered by default: LT draws (pistol 0.3 s, rifle 0.4 s), release holsters; RT while holstered = elbow strike (knocks out from behind, staggers from the front).
@@ -103,6 +103,7 @@ Cloud runs through step 20, step 20b net check (D11) and the Block C end, then h
 - step 20 bot partner: dropped (M12).
 - step 21 b1-bob (3 implementers, 2 fix rounds; M14 arms; desktop).
 - step 21w wall polish (5 implementers + regression pass; M14 / M16; PC-PASS 42 to 25, leave hop to 27; desktop).
+- step 21v vision grain (1 implementer; desktop).
 
 ## Blocked
 - 21w (2026-10-16, after 4 implementers): PC-PASS 42 lean-out weapon jump -> step 25 (draw hand path); wall leave pelvis jump -> step 27. Numbers in those step files.

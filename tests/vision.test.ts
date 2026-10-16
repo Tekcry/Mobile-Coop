@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { VISION, VISION_CYCLE, VisionState, visionKind, visionLabel } from '../src/game/vision';
-import { ELECTRO_KINDS, electroColor, thermalColor, VISION_GLSL } from '../src/vfx/visionLook';
+import { ELECTRO_KINDS, electroColor, SENSOR_GRAIN, sensorGrainAmp, thermalColor, VISION_GLSL } from '../src/vfx/visionLook';
 import { luma709 } from '../src/vfx/nightVision';
+
+/** The top of thermal's cold ramp (THERMAL.hotFrom). */
+const THERMAL_COOL = 0.55;
 
 const run = (v: VisionState, sec: number, dt = 1 / 60): void => {
   for (let t = 0; t < sec; t += dt) v.step(dt);
@@ -74,6 +77,27 @@ describe('vision modes', () => {
     expect(luma709(electroColor(1))).toBeGreaterThan(0.85);
     expect(VISION_GLSL).toContain('thermalColor');
     expect(VISION_GLSL).toContain('electroColor');
+  });
+  it('step 21v: sensor grain on every goggle mode, luminance-weighted, moderate, animated', () => {
+    // M14 N7: grainier than step 14 (0.04 thermal / electro, 0.075 night), still readable (under 0.15 peak to peak)
+    for (const m of ['thermal', 'electro', 'night'] as const) {
+      const dark = sensorGrainAmp(m, 0);
+      expect(dark).toBeGreaterThan(m === 'night' ? 0.075 : 0.04);
+      expect(dark).toBeLessThanOrEqual(0.15);
+      // the bright end (hot bodies, live devices, lit phosphor) carries less grain, but some
+      expect(sensorGrainAmp(m, 1)).toBeLessThan(dark * 0.6);
+      expect(sensorGrainAmp(m, 1)).toBeGreaterThan(0);
+      expect(sensorGrainAmp(m, 2)).toBe(sensorGrainAmp(m, 1));
+    }
+    // thermal: a white-hot body plus its worst grain stays brighter than the coolest scene plus its best
+    const hot = luma709(thermalColor(1)) - sensorGrainAmp('thermal', luma709(thermalColor(1))) / 2;
+    const cool = luma709(thermalColor(THERMAL_COOL)) + sensorGrainAmp('thermal', luma709(thermalColor(THERMAL_COOL))) / 2;
+    expect(hot).toBeGreaterThan(cool + 0.3);
+    // a new field at least every second frame at 60 Hz; the size is per screen height, not per pixel
+    expect(SENSOR_GRAIN.rate).toBeGreaterThanOrEqual(30);
+    expect(SENSOR_GRAIN.cells).toBeGreaterThan(300);
+    expect(VISION_GLSL).toContain('sensorNoise');
+    expect(VISION_GLSL).not.toContain('sin(');
   });
   it('only the flip time is a constant', () => {
     expect(Object.keys(VISION)).toEqual(['flip']);

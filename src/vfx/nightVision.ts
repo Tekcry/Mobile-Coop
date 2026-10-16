@@ -34,9 +34,8 @@ export const NV_TONE = {
   /** The light a bright source scatters over the whole tube (x veil). */
   veilLift: 0.02,
   gainKeep: 0.75,
-  /** Grain (intensifier noise): amplitude in the dark, and how much of it is left at full drive. */
-  grain: 0.075,
-  grainLit: 0.35,
+  // Grain (intensifier noise) and the tube's softening: `SENSOR_GRAIN` in visionLook.ts (step 21v, shared with thermal
+  // and electro; the night grain was 0.075, 0.35 left at full drive).
 } as const;
 
 /** The bloom (`NightBloom`): the scene's bright parts, blurred at low resolution, join the tube's drive. */

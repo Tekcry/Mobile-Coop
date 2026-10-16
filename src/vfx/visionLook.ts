@@ -40,6 +40,44 @@ export const ELECTRO = {
 } as const;
 
 /**
+ * (Step 21v, M14 N7, A87) the goggles' sensor grain and softening: thermal, electro and night vision read as a
+ * sensor image, not a clean render. Grain strength is a constant here, no setting (Michael: "cycling through thermal
+ * vision is too clear, should be a bit more grainy"). Rendering only: perception, the light meter and the wire never
+ * read it. All of it runs inside the cinematic pass (desktop and the phone's grade pass): a sine-free hash per cell,
+ * no texture, no extra target; the soften is a few taps of the scene the pass already samples.
+ */
+export const SENSOR_GRAIN = {
+  /** Noise cells per screen height (width = height x aspect): the grain's size is the same at any resolution. */
+  cells: 640,
+  /** A new noise field this many times a second (every second frame at 60 Hz, every fourth at 120). */
+  rate: 30,
+  /** Peak-to-peak grain in output colour at black, per mode (step 14 had 0.04 thermal / electro, 0.075 night). */
+  thermal: 0.13,
+  electro: 0.11,
+  night: 0.12,
+  /** Share of the grain left at full output luma (luminance-weighted: hot bodies, live devices and lit phosphor stay
+   *  clean enough to read; the cold / dark scene carries the noise). */
+  litThermal: 0.45,
+  litElectro: 0.45,
+  litNight: 0.35,
+  /** Electro's grain is tinted with the phosphor (a grey grain over the green read as dirt). */
+  electroTint: [0.7, 1.0, 0.75] as const,
+  /** Softening: the share of the tap average mixed into the pixel's luma (thermal keeps step 14's 0.6). Night uses
+   *  two diagonal taps, thermal and electro four, all at `THERMAL.blur`. */
+  softThermal: 0.6,
+  softElectro: 0.35,
+  softNight: 0.3,
+} as const;
+
+/** The grain's amplitude (peak to peak) for a mode's output luma 0..1 (GLSL mirror: `sensorAmp`). */
+export function sensorGrainAmp(mode: 'thermal' | 'electro' | 'night', l: number): number {
+  const g = SENSOR_GRAIN;
+  const amp = mode === 'thermal' ? g.thermal : mode === 'electro' ? g.electro : g.night;
+  const lit = mode === 'thermal' ? g.litThermal : mode === 'electro' ? g.litElectro : g.litNight;
+  return amp * (1 - (1 - lit) * Math.min(1, Math.max(0, l)));
+}
+
+/**
  * Electro: the interactable kinds that are powered devices and glow (switches, alarm panels, terminals, placed
  * charges). Intel folders, cache crates, extract beacons, hide spots, doors, bodies, VIPs and revives do not.
  */
@@ -87,4 +125,16 @@ vec3 electroColor(float l) {
   float d = min(l * ${f(ELECTRO.dim)}, 1.0);
   float g = smoothstep(${f(ELECTRO.glowFrom)}, ${f(ELECTRO.glowTo)}, l);
   return mix(${v3(ELECTRO.dark)} + ${v3(ELECTRO.tint)} * d, ${v3(ELECTRO.glow)}, g);
+}
+// (step 21v) the sensor grain: -0.5..0.5 per cell, a new field 'rate' times a second ('time' runs at 24 / s);
+// the frame index wraps at 61 so the hash input stays small (highp precision on phones)
+float sensorNoise(highp vec2 uv, highp float aspect, highp float time) {
+  highp vec2 p = floor(uv * vec2(aspect, 1.0) * ${f(SENSOR_GRAIN.cells)})
+    + mod(floor(time * ${f(SENSOR_GRAIN.rate / 24)}), 61.0) * vec2(37.0, 17.0);
+  highp vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z) - 0.5;
+}
+float sensorAmp(float amp, float lit, float l) {
+  return amp * (1.0 - (1.0 - lit) * clamp(l, 0.0, 1.0));
 }`;

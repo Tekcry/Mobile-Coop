@@ -5,6 +5,10 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 21v - vision grain (PC, phone)
+- [ ] Thermal, electro and night vision each show a fine moving grain; thermal bodies still the brightest thing; electro devices (cameras, panels, lasers) still read.
+- [ ] Phone check: grain visible but not noisy; frame rate holds in each mode.
+
 ## Locomotion step 21w - back-to-wall polish (PC, controller)
 - [ ] A at a wall puts your back to it; pushing the stick into the wall does not.
 - [ ] Slide to the end: you stop at the edge and stay on the wall; push further to peek; pull away (held) or A to leave.

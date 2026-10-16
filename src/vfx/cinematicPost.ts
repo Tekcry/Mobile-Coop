@@ -1,8 +1,8 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 import type { NightBloom } from './nightBloom';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
-import { NV_GLSL, NV_TONE } from './nightVision';
-import { THERMAL, VISION_GLSL } from './visionLook';
+import { NV_GLSL } from './nightVision';
+import { SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 
 export { PHONE_DARK_FLOOR } from '../core/quality';
 
@@ -32,6 +32,8 @@ ${NV_GLSL}
 ${VISION_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
+  // (step 21v) the pixel's luma before the grade: night vision's soften adds its taps' difference from it
+  float l0 = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
   // the map's colour grade: tint, saturation, contrast round mid grey
   vec3 gr = c.rgb * tint;
   float gl = dot(gr, vec3(0.299, 0.587, 0.114));
@@ -49,12 +51,16 @@ void main(void) {
     // (\`nightVision.ts\`): the bloom of the bright parts (\`NightBloom\`) joins the drive, the phosphor is a pale
     // grey-green that clips to white, intensifier grain is strongest in the dark, and the eyepiece darkens the edge
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    // (step 21v) the tube's softening: two diagonal taps of the scene, their difference from the raw pixel added to
+    // the graded luma (the grade and the brightness offset stay as they were)
+    vec2 so = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
+    float sl = dot(texture2D(textureSampler, vUV + so).rgb + texture2D(textureSampler, vUV - so).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.5;
+    l = max(l + (sl - l0) * bright * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
     float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
     float drive = nvDrive(l, veil) + g;
     vec3 p = nvColor(drive, veil);
-    highp vec2 gc = floor(vUV * vec2(aspect, 1.0) * 900.0) + time * vec2(37.0, 17.0);
-    highp float ng = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
-    p += (ng - 0.5) * ${NV_TONE.grain.toFixed(3)} * (1.0 - ${(1 - NV_TONE.grainLit).toFixed(3)} * min(drive, 1.0));
+    // (step 21v) intensifier grain (SENSOR_GRAIN), strongest in the dark
+    p += sensorNoise(vUV, aspect, time) * sensorAmp(${SENSOR_GRAIN.night.toFixed(3)}, ${SENSOR_GRAIN.litNight.toFixed(3)}, drive);
     vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
     p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
     c.rgb = mix(c.rgb, max(p, 0.0), nv);
@@ -63,19 +69,21 @@ void main(void) {
     // (step 14) thermal (vk 1) / electro (vk 2): post branches of this pass (desktop and the phone's grade pass alike,
     // no extra target); warm bodies and live devices are bright through render-only emissive flags (\`visionLook.ts\`)
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    // softened: four taps round the pixel (sensor images are soft; step 21v adds electro's)
+    vec2 o = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
+    float s = dot(texture2D(textureSampler, vUV + o).rgb + texture2D(textureSampler, vUV - o).rgb
+      + texture2D(textureSampler, vUV + vec2(o.x, -o.y)).rgb + texture2D(textureSampler, vUV - vec2(o.x, -o.y)).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.25;
     vec3 p;
+    vec3 ga;
     if (vk < 1.5) {
-      // softened: four taps round the pixel (thermal images are soft)
-      vec2 o = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
-      float s = dot(texture2D(textureSampler, vUV + o).rgb + texture2D(textureSampler, vUV - o).rgb
-        + texture2D(textureSampler, vUV + vec2(o.x, -o.y)).rgb + texture2D(textureSampler, vUV - vec2(o.x, -o.y)).rgb, vec3(0.2126, 0.7152, 0.0722));
-      p = thermalColor(mix(l, s * 0.25, 0.6));
+      p = thermalColor(mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)}));
+      ga = vec3(sensorAmp(${SENSOR_GRAIN.thermal.toFixed(3)}, ${SENSOR_GRAIN.litThermal.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722))));
     } else {
-      p = electroColor(l);
+      p = electroColor(mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)}));
+      ga = vec3(${SENSOR_GRAIN.electroTint.map((x) => x.toFixed(3)).join(", ")}) * sensorAmp(${SENSOR_GRAIN.electro.toFixed(3)}, ${SENSOR_GRAIN.litElectro.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722)));
     }
-    highp vec2 gc = floor(vUV * vec2(aspect, 1.0) * 900.0) + time * vec2(37.0, 17.0);
-    highp float ng = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
-    p += (ng - 0.5) * 0.04;
+    // (step 21v, A87) animated sensor grain, luminance-weighted (SENSOR_GRAIN)
+    p += sensorNoise(vUV, aspect, time) * ga;
     vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
     p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
     c.rgb = max(p, 0.0);
