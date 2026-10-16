@@ -44,6 +44,15 @@ describe('settings sanitising', () => {
     expect(s.gamepad.invertY).toBe(true);
     expect(s.audio.music).toBe(0.25);
   });
+  it('moves an untouched old music default to 15 % once', () => {
+    expect(sanitizeSettings({}).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.5 } }).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 2 } }).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.3 } }).audio.music).toBe(0.3);
+    expect(sanitizeSettings({ audio: { music: 0.5, musicV: 2 } }).audio.music).toBe(0.5);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 3 } }).audio.music).toBe(0.3);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 2 } }).audio.musicV).toBe(3);
+  });
 });
 
 describe('spatial focus: multi-column panels', () => {

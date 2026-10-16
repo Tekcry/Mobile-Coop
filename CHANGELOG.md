@@ -13,9 +13,12 @@
 - The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
   offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
 - Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
-- The music volume defaults to 30 % (an untouched old 50 % moves to 30 % once). The menu theme fades gently once a
-  match is running, a short build (a roll and climbing strings) leads into Alert, and the menu loop tapers into its
-  quiet start.
+- The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
+  and climbing strings) leads into Alert.
+- The menu theme plays as a whole piece: its quiet opening, its own ending, a 3 s rest, then again (no loop join).
+- Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
+  fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu
+  fades over 4 s; leaving one the mission music fades over 2.5 s.
 
 ## Unreleased - Movement foley (feature/footsteps)
 - Sound: the player's footsteps, landings and moves are real CC0 recordings (Kenney Impact Sounds and RPG Audio,

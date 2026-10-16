@@ -141,7 +141,8 @@ export interface Settings {
     /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
     avatarStyleV: number;
   };
-  /** `musicV` 2: the music default moved from 50 % to 30 % (music V4, 2026-10-16); an untouched 50 % follows once. */
+  /** `musicV` 3: the music default moved from 50 % to 30 % and then to 15 % (music V4, 2026-10-16); an untouched old
+   *  default (50 % or 30 %) follows once. */
   audio: { master: number; sfx: number; music: number; ui: number; musicV: number };
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
   /** Accessibility and HUD. */
@@ -265,7 +266,7 @@ export function defaultSettings(): Settings {
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
-    audio: { master: 0.8, sfx: 1, music: 0.3, ui: 0.7, musicV: 2 },
+    audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
@@ -306,6 +307,10 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, d: number, lo: number, hi: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d;
+/** The music volume through its default moves (50 % to 30 % to 15 %): a value still at the default of its time follows
+ *  the new default once; anything a player chose stays. */
+const musicKept = (v: unknown, music: number, d: number): number =>
+  v === 3 ? music : (v === 2 ? music === 0.3 : music === 0.5) ? d : music;
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 const pick = <T>(v: unknown, allowed: readonly T[], d: T): T => (allowed.includes(v as T) ? (v as T) : d);
 const sub = (o: Obj, k: string): Obj => (isObj(o[k]) ? (o[k] as Obj) : {});
@@ -459,9 +464,9 @@ export function sanitizeSettings(raw: unknown): Settings {
     audio: {
       master: num(a.master, d.audio.master, 0, 1),
       sfx: num(a.sfx, d.audio.sfx, 0, 1),
-      music: a.musicV === 2 || num(a.music, d.audio.music, 0, 1) !== 0.5 ? num(a.music, d.audio.music, 0, 1) : d.audio.music,
+      music: musicKept(a.musicV, num(a.music, d.audio.music, 0, 1), d.audio.music),
       ui: num(a.ui, d.audio.ui, 0, 1),
-      musicV: 2,
+      musicV: 3,
     },
     gameplay: {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),

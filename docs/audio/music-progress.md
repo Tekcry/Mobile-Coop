@@ -30,8 +30,32 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; Michael: near silence OK but too far apart and too quiet; wants it catchier, still broken |
 | 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done |
 | 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; Michael played it |
-| 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done; waiting for Michael |
+| 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
+| 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4c - footsteps, 15 %, the fade cut, the menu as a whole piece
+- **Michael (2026-10-16):** "menu blend is rough, doesnt line up well. music also still cuts out abruptly entering or
+  exiting match. cautious works very well. reduce music to 15% default". Then: bring in the footstep and movement
+  sounds from the other session.
+- **Done:**
+  - **Footsteps:** `feature/footsteps` (movement foley, CC0 recordings) merged into `feature/music`. `gameAudio.ts`
+    runs both the foley and the score; the service worker precaches both; `e2e-foley` and `e2e-score` are required.
+  - **Music 15 %:** settings `audio.musicV: 3`. An untouched old default (50 % before V4, 30 % from step 4b) moves to
+    15 % once; a volume a player chose stays (unit test).
+  - **The cut, found:** a probe logged the menu voice's gain through menu -> match -> menu. At the match's first frame
+    the gain fell from 1.0 to 0.28 at once, then faded. Cause: a Web Audio ramp runs from the previous automation event.
+    After the menu's fade-in had ended, `cancelAndHoldAtTime` added no event, so the fade-out ramp started from the
+    fade-in's end (minutes earlier) and was already three quarters down. Every music fade had this bug (the Alert and
+    Cautious changes too). Fixed: each fade first sets the current level at its start. The test page's player had the
+    same bug and is fixed too. `e2e-score` now checks the menu fade starts from full.
+  - **Fade lengths:** into a match the menu fades over 4 s; leaving a match the mission music fades over 2.5 s.
+  - **Menu theme as a whole piece:** no loop join to line up. The game plays the full linear render (its quiet opening,
+    the diminuendo, the final chord ringing out, a 1.5 s fade on its last tail), rests 3 s, then plays it again. The
+    file is 91 s. Measured: it opens from silence (-50, -35, -29 dB per second) and ends -24, -33, -36, -46 dB.
+- **Tests:** unit 688 pass, lint and build clean; `e2e-score`, `e2e-foley`, `e2e-music`, `smoke`, `e2e-offline` pass
+  (`E2E_PORT=4184`; another session held 4179).
+- **Open:** alternatives for Calm and Cautious (the hook as the thread). Phone check pending Michael's run.
 
 ## V4 step 4b - fixes from the first play
 - **Michael (2026-10-16):**

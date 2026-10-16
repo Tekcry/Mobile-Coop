@@ -7,6 +7,9 @@ Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3
 
 ## Music V4 manual check (feature/music; desktop and iPhone)
 - [ ] The main menu plays the menu theme after the first click or tap (and keeps playing through the menu screens).
+- [ ] Let the menu theme play to its end (about 90 s): it ends on its own, rests about 3 s, then starts again softly.
+- [ ] Start a match: the menu theme fades out over about 4 s, no cut. Quit back to the menu: no cut, the theme starts
+  softly from its opening.
 - [ ] Starting Infiltration on the Warehouse: silence while nobody is aware of you.
 - [ ] Make a guard suspicious (noise, or let him half-see you): the plucked broken hook comes in within about a second.
 - [ ] Get spotted: the spotted hit plays at once, then "Alert, under fire" starts on its beat.

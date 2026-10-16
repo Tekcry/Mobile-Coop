@@ -23,6 +23,18 @@ async function menu() {
     assert(await becomes(page, () => window.__app.audio.ctx?.state === 'running'), 'the first click unlocks audio');
     assert(await becomes(page, () => window.__app.music.debug.menu, null, 60000), 'the menu theme plays');
     assert(await G(page, () => window.__app.music.debug.ready === 'menu'), 'only the menu track is decoded on the menu');
+    // a match starts: the menu theme fades from full, never from part-way down (a ramp anchored on an old event cuts)
+    const fade = await G(page, async () => {
+      const m = window.__app.music;
+      const g = m.score.menuV.gain.gain;
+      m.mission();
+      m.update(0.016, 'calm');
+      await new Promise((r) => setTimeout(r, 300));
+      const v = g.value;
+      m.menu();
+      return v;
+    });
+    assert(fade > 0.8, `entering a match the menu theme fades smoothly (gain ${fade.toFixed(2)} after 0.3 s of a 4 s fade)`);
     const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
     assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   } catch (e) {

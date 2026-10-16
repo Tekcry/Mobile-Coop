@@ -534,7 +534,7 @@ export function mountScoreLab(root: HTMLElement): void {
       el(
         'div',
         { className: 'row' },
-        el('label', {}, 'Music volume ', slider('musicVol', 50, 100), el('small', { textContent: ' (game default 50)' })),
+        el('label', {}, 'Music volume ', slider('musicVol', 50, 100), el('small', { textContent: ' (game default 15)' })),
         el('label', {}, 'Gameplay sounds ', slider('sfxVol', 100, 150)),
       ),
     ),

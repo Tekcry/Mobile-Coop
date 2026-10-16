@@ -702,8 +702,9 @@ function taper(s: Score, from: number, to: number, end: number): void {
   const a = Math.round(s.t(from) * RATE);
   const b = Math.round(s.t(to) * RATE);
   for (const c of Object.values(s.layers)) {
-    for (let i = a; i < Math.min(b, c.l.length); i++) {
-      const g = 1 - (1 - end) * ((i - a) / (b - a));
+    for (let i = a; i < c.l.length; i++) {
+      // past `to` (only a linear render reaches there: the final chord's own ring) the level stays at `end`
+      const g = i < b ? 1 - (1 - end) * ((i - a) / (b - a)) : end;
       c.l[i]! *= g;
       c.r[i]! *= g;
     }

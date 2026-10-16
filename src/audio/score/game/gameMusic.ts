@@ -14,6 +14,8 @@ interface TrackMeta {
   head?: string;
   headSec: number;
   loop: number;
+  /** A whole piece (the menu theme): its length (s); played once, a rest, then again. */
+  whole?: number;
   bpm: number;
   bars: number;
 }
@@ -28,6 +30,11 @@ const URLS = import.meta.glob('../../../assets/music/game/*.mp3', { query: '?url
 const DECODE_RATE = 32000;
 /** How often the director looks at the game (s). */
 const TICK = 0.1;
+/** The rest between two plays of the menu theme (s). */
+const MENU_REST = 3;
+/** Fades into and out of a match (s): long enough to read as a fade, never as a cut. */
+const MENU_OUT = 4;
+const MISSION_OUT = 2.5;
 
 type Name = 'menu' | 'caution' | 'alert' | 'evade' | 'spotted';
 
@@ -76,13 +83,19 @@ export class GameMusic {
   /** The main menu: the menu theme, from its opening. */
   menu(): void {
     this.mode = 'menu';
-    this.stopMission(1);
+    this.stopMission(MISSION_OUT);
     this.audio.whenReady(() => {
       void this.load('menu').then((d) => {
         if (!d || this.mode !== 'menu' || this.menuV) return;
         const ctx = this.audio.ctx!;
-        this.menuV = this.start(d, ctx.currentTime + 0.1, 0);
-        this.fade(this.menuV, 1, ctx.currentTime + 0.1, 2.5);
+        if (d.meta.whole) {
+          // the whole piece from its own quiet opening (nothing to fade in), then again after a rest
+          this.menuV = this.voice(1, ctx.currentTime + 0.1, d.meta.bpm);
+          this.playWhole(d, this.menuV, ctx.currentTime + 0.1);
+        } else {
+          this.menuV = this.start(d, ctx.currentTime + 0.1, 0);
+          this.fade(this.menuV, 1, ctx.currentTime + 0.1, 2.5);
+        }
       });
     });
   }
@@ -109,7 +122,7 @@ export class GameMusic {
       // the first frame of the running match: the menu theme fades out gently
       this.menuFadePending = false;
       const c = this.audio.ctx;
-      if (this.menuV && c) this.release(this.menuV, c.currentTime, 3.5);
+      if (this.menuV && c) this.release(this.menuV, c.currentTime, MENU_OUT);
       this.menuV = null;
     }
     this.game = game;
@@ -125,9 +138,9 @@ export class GameMusic {
   /** Leaving: everything fades out. */
   stop(): void {
     this.mode = 'off';
-    this.stopMission(1);
+    this.stopMission(MISSION_OUT);
     const ctx = this.audio.ctx;
-    if (this.menuV && ctx) this.release(this.menuV, ctx.currentTime, 1);
+    if (this.menuV && ctx) this.release(this.menuV, ctx.currentTime, MISSION_OUT);
     this.menuV = null;
   }
 
@@ -220,12 +233,32 @@ export class GameMusic {
     }
   }
 
-  /** Start a loop at `at`: the clean opening first, then the loop from the same point. */
-  private start(d: Decoded, at: number, gain: number): Voice {
+  private voice(gain: number, t0: number, bpm: number): Voice {
     const ctx = this.audio.ctx!;
     const g = ctx.createGain();
     g.gain.value = gain;
     g.connect(this.output() ?? ctx.destination);
+    return { gain: g, srcs: [], t0, beat: 60 / bpm };
+  }
+
+  /** A whole piece once from `at`; when it has ended (and is still wanted) again after a rest. */
+  private playWhole(d: Decoded, v: Voice, at: number): void {
+    const ctx = this.audio.ctx!;
+    const s = ctx.createBufferSource();
+    s.buffer = d.loop;
+    s.connect(v.gain);
+    s.start(at, MANIFEST?.pad ?? 0.5);
+    v.srcs.length = 0;
+    v.srcs.push(s);
+    s.onended = () => {
+      if (this.menuV === v && this.mode === 'menu') this.playWhole(d, v, ctx.currentTime + MENU_REST);
+    };
+  }
+
+  /** Start a loop at `at`: the clean opening first, then the loop from the same point. */
+  private start(d: Decoded, at: number, gain: number): Voice {
+    const ctx = this.audio.ctx!;
+    const g = this.voice(gain, at, d.meta.bpm).gain;
     const pad = MANIFEST?.pad ?? 0.5;
     const srcs: AudioBufferSourceNode[] = [];
     const loop = ctx.createBufferSource();
@@ -250,13 +283,13 @@ export class GameMusic {
   private fade(v: Voice, to: number, at: number, dur: number): void {
     const p = v.gain.gain as AudioParam & { cancelAndHoldAtTime?: (t: number) => AudioParam };
     const now = this.audio.ctx!.currentTime;
+    const from = Math.max(at, now);
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now);
-    else {
-      p.cancelScheduledValues(now);
-      p.setValueAtTime(p.value, now);
-    }
-    if (at > now) p.setValueAtTime(p.value, at);
-    p.linearRampToValueAtTime(to, Math.max(at, now) + Math.max(0.02, dur));
+    else p.cancelScheduledValues(now);
+    // always anchor the ramp where it starts: a ramp runs from the previous event, and once an earlier fade has ended
+    // that event is long past (the ramp then starts part-way down, heard as a cut)
+    p.setValueAtTime(p.value, from);
+    p.linearRampToValueAtTime(to, from + Math.max(0.02, dur));
   }
 
   /** Fade a voice out from `at` over `dur` and stop it. */

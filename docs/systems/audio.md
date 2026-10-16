@@ -29,7 +29,8 @@ Design authority: docs/design-bible.md (Section 5.2)
   - `src/audio/music/music.ts` is the facade the app calls: `menu()` from `main.ts`, `mission()` and
     `update(dt, awareness)` from `gameAudio.ts`.
 - **Tracks:** `src/assets/music/game/` holds one MP3 per state (`music-menu`, `-caution`, `-alert`, `-evade`,
-  `-spotted`), each loop with a clean 4-bar opening (`-head`), and `game.json` (pad, loop length, tempo). These files
+  `-spotted`), each loop with a clean 4-bar opening (`-head`; the menu theme is a whole piece instead: `whole` in
+  `game.json`, played once, a 3 s rest, then again), and `game.json` (pad, loop length, tempo). These files
   are committed and precached by the service worker. They decode at 32 kHz.
   - Every loop starts on its clean opening (no tail of its own last bar), then hands over to the loop.
   - Alert and Evasion run in sync and crossfade on bar lines.
@@ -73,3 +74,6 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
 - **Foley lab** (`?foleylab=1`, `audio/foley/foleyLab.ts`): every surface and gait as a looping walk, the landings and
   moves on buttons, and "Old synth" for an A/B against the previous steps.
 - Not covered yet: climbing (ladders, pipes, fences, ledges), co-op teammates' steps, guards' steps.
+- **Fades:** `GameMusic.fade()` always sets the current level at the fade's start before the ramp. A Web Audio ramp
+  runs from the previous automation event; without the anchor, a fade after an ended fade starts part-way down (a cut).
+  The volume default is 15 % (`audio.musicV: 3` moves an untouched old default once).
