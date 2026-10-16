@@ -50,7 +50,8 @@ try {
   // a walk (gear 3 = jog cap; half stick)
   const w = await walk(0, -0.5, 2.5);
   console.log(`  walk: ${w.plants} plants, ${w.steps} foley steps, speed ${w.speed.toFixed(2)}, noise ${w.noise.toFixed(2)} m`);
-  assert(w.plants >= 4, `walking plants feet (${w.plants})`);
+  // (playtest merge) locomotion step 22 slowed the walk (0.64 m/s at half stick, 0.3 s to full pace): 3 plants in 2.5 s
+  assert(w.plants >= 3, `walking plants feet (${w.plants})`);
   assert(Math.abs(w.steps - w.plants) <= 1, `one foley step per foot plant (${w.steps} / ${w.plants})`);
   await walk(0, 0, 0.8);
   // standing still: no steps at all after the settle
@@ -64,7 +65,8 @@ try {
   await press(page, BTN.LS);
   const s = await walk(0, -1, 2.5);
   console.log(`  sprint: ${s.plants} plants, ${s.steps} foley steps, speed ${s.speed.toFixed(2)}, noise ${s.noise.toFixed(2)} m`);
-  assert(s.plants > w.plants && s.speed > 4, `a sprint (${s.speed.toFixed(1)} m/s) plants faster than a walk (${s.plants} > ${w.plants})`);
+  // (playtest merge) step 22 sprint reads ~4.0 m/s here, so the sprint check uses 3.5 m/s (a jog tops out at 3.15)
+  assert(s.plants > w.plants && s.speed > 3.5, `a sprint (${s.speed.toFixed(1)} m/s) plants faster than a walk (${s.plants} > ${w.plants})`);
   assert(Math.abs(s.steps - s.plants) <= 1, `one foley step per sprint plant (${s.steps} / ${s.plants})`);
   // the noise model is untouched: a sprint is 9 m x surface x suit, as before
   const n = await G(() => { const st = window.__app.current; return { surface: st.surface }; });
