@@ -13,6 +13,9 @@
 - The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
   offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
 - Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+- The music volume defaults to 30 % (an untouched old 50 % moves to 30 % once). The menu theme fades gently once a
+  match is running, a short build (a roll and climbing strings) leads into Alert, and the menu loop tapers into its
+  quiet start.
 
 ## 3.5.0 - Chaos Theory foundation
 - Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory

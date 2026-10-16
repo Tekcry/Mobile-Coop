@@ -29,8 +29,36 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; Michael: plucked is good; the low bed in Calm is too much; Cautious change good |
 | 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; Michael: near silence OK but too far apart and too quiet; wants it catchier, still broken |
 | 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done |
-| 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; waiting for Michael's play test |
+| 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; Michael played it |
+| 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4b - fixes from the first play
+- **Michael (2026-10-16):**
+  - Default the music to 30 %.
+  - The menu music cuts out aggressively when loading into a match.
+  - The Alert music cuts in very abruptly and still has "some sort of different sound at the start that doesn't seem
+    right".
+  - Make the main menu music blend into its start and end better.
+- **Done:**
+  - **Music default 30 %** (was 50 %). Settings get `audio.musicV: 2`; a stored music volume still at the old 50 %
+    default moves to 30 % once, and a volume he chose stays.
+  - **Menu to match:** the menu theme now keeps playing through loading and fades out over 3.5 s on the first
+    running frame of the match. A fade scheduled while the page is busy loading sounded like a cut. The mission tracks
+    now decode one after another instead of all at once.
+  - **Into Alert:**
+    - The "different sound at the start" was most likely the spotted hit itself (a brass D / E-flat cluster with a
+      string rip, unlike anything in Under fire). It is gone.
+    - The spotted sound is now a two-beat build that rises from soft: timpani roll, sticks in sixteenths, violins and
+      violas climbing, low strings swelling, a cymbal swell landing on the downbeat.
+    - Cautious fades out under the build. Alert starts at 55 % on its downbeat and settles to full over two beats.
+  - **Menu loop blends:**
+    - The low strings breathe in for two bars before the hook enters softly and builds.
+    - The held chords stop two bars earlier, the last four bars taper (a diminuendo down to 40 %), and the final
+      chord swells in softly and fades long.
+    - Measured per bar at the join: -15, -18, -20, -22, -22, then -22.5 at the start, then -25 (before: a fall of
+      more than 10 dB).
+- **Tests:** unit 666 pass, lint and build clean, `e2e-score` passes.
 
 ## V4 step 4a - in the game
 - **Michael (2026-10-16):**

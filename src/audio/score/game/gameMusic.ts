@@ -57,6 +57,9 @@ export class GameMusic {
   private readonly director = new Director();
   private game: GameAwareness = 'calm';
   private sinceTick = 0;
+  /** The menu theme keeps playing through loading and fades once the match is running (a fade while the page is busy
+   *  loading sounds like a cut). */
+  private menuFadePending = false;
 
   constructor(private readonly audio: AudioEngine) {}
 
@@ -88,18 +91,27 @@ export class GameMusic {
   mission(): void {
     this.mode = 'mission';
     const ctx = this.audio.ctx;
-    if (this.menuV && ctx) this.release(this.menuV, ctx.currentTime, 1.5);
-    this.menuV = null;
+    this.menuFadePending = !!this.menuV;
     this.game = 'calm';
     this.director.reset(ctx?.currentTime ?? 0);
+    // one at a time, so the decoding does not pile onto the match's loading
     this.audio.whenReady(() => {
-      for (const n of ['caution', 'alert', 'evade', 'spotted'] as const) void this.load(n);
+      void (async () => {
+        for (const n of ['caution', 'alert', 'spotted', 'evade'] as const) await this.load(n);
+      })();
     });
   }
 
   /** Every frame in a mission, with the game's awareness (from `awareness()`). Cheap: the director runs at 10 Hz. */
   update(dt: number, game: GameAwareness): void {
     if (this.mode !== 'mission') return;
+    if (this.menuFadePending) {
+      // the first frame of the running match: the menu theme fades out gently
+      this.menuFadePending = false;
+      const c = this.audio.ctx;
+      if (this.menuV && c) this.release(this.menuV, c.currentTime, 3.5);
+      this.menuV = null;
+    }
     this.game = game;
     this.sinceTick += dt;
     if (this.sinceTick < TICK) return;
@@ -127,17 +139,20 @@ export class GameMusic {
     const alert = this.ready.get('alert');
     const evade = this.ready.get('evade');
     if (a.kind === 'stinger') {
-      const hit = this.ready.get('spotted');
+      // the spotted build: a two-beat roll and climbing violins that rise into Alert's first downbeat
+      const rise = this.ready.get('spotted');
       const at = now + 0.03;
-      if (hit) this.oneShot(hit.loop, at, a.restart ? 1 : 0.6);
+      if (rise) this.oneShot(rise.loop, at, a.restart ? 1 : 0.6);
       if (!alert || !evade) return;
       if (a.restart || !this.alertV) {
-        // Calm / Cautious dip out under the hit; Alert lands on its downbeat two beats later
-        if (this.cautionV) this.release(this.cautionV, now, 0.3);
+        // Cautious fades under the build; Alert lands on its downbeat two beats later and settles in over two beats
+        const beat = 60 / alert.meta.bpm;
+        const start = at + 2 * beat;
+        if (this.cautionV) this.release(this.cautionV, now, 2 * beat);
         this.cautionV = null;
         this.stopAlert(now);
-        const start = at + 2 * (60 / alert.meta.bpm);
-        this.alertV = this.start(alert, start, 1);
+        this.alertV = this.start(alert, start, 0.55);
+        this.fade(this.alertV, 1, start, 2 * beat);
         this.evadeV = this.start(evade, start, 0);
       } else {
         // spotted again during Evasion: back to the full mix on the next bar

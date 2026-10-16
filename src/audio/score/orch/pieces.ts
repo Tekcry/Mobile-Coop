@@ -82,12 +82,12 @@ export const PIECES: readonly PieceMeta[] = [
   },
   {
     id: 'spotted',
-    name: 'Spotted (the hit into Alert)',
-    about: 'The instant hit when a guard spots you, with a two-beat run-in that lands on Under fire\'s first downbeat.',
+    name: 'Spotted (the build into Alert)',
+    about: 'When a guard spots you: a two-beat build (a roll and climbing strings) that rises into the first downbeat of Under fire.',
     use: 'shot',
     bpm: 132,
     bars: 1,
-    layers: [{ id: 'all', name: 'Spotted hit', kind: 'brass' }],
+    layers: [{ id: 'all', name: 'Spotted build', kind: 'brass' }],
     presets: { Hit: { all: 1 } },
     target: -15,
   },
@@ -600,25 +600,19 @@ function underFire(s: Score): void {
 
 function spotted(s: Score): void {
   const A = s.L('all');
-  // the hit: low brass and short horns on a D / E-flat cluster, strings ripping into a tremolo rub, drums, cymbal
-  for (const m of [D, D + 12]) note(A, s.bank, 'tbnSus', m, 0, s.d(1.2), { vel: 1, loud: true, attack: 0.02, release: 0.9 });
-  note(A, s.bank, 'tubaSus', D, 0, s.d(1.2), { vel: 1, loud: true, attack: 0.02, release: 0.9 });
-  for (const m of [n('D4'), n('Eb4'), n('A4')]) note(A, s.bank, 'hornStac', m, 0, s.d(0.4), { vel: 1, release: 0.15 });
-  for (const m of [n('D5'), n('Eb5')]) note(A, s.bank, 'violinTrem', m, 0, s.d(1.6), { vel: 0.9, attack: 0.01, release: 0.6 });
-  note(A, s.bank, 'celloSpic', n('D3'), 0, s.d(0.3), { vel: 1, release: 0.1 });
-  note(A, s.bank, 'bassSpic', D, 0, s.d(0.3), { vel: 1, release: 0.1 });
-  timp(A, s.bank, D + 12, 0, 1);
-  hit(A, s.bank, 'giant', 1, 0, 1);
-  hit(A, s.bank, 'bdrum', 2, 0, 0.9);
-  hit(A, s.bank, 'cym', 0, 0, 0.6);
-  subBass(A, 0, 1.2, D - 12, 0.6, 0.005);
-  // the run-in: a drum roll crescendo and violins climbing in sixteenths, landing on the Alert downbeat (beat 2)
-  for (let k = 2; k < 8; k++) {
+  // round 22: no hit (the brass cluster and string rip sounded out of place); a two-beat build that rises from soft
+  // into Alert's first downbeat: a timpani roll, a drum roll in sixteenths, violins and violas climbing, low strings
+  // swelling, a cymbal swell landing on the downbeat
+  timp(A, s.bank, D + 12, 0, 0.75, true);
+  for (let k = 0; k < 8; k++) {
     const t = s.d(k / 4);
-    hit(A, s.bank, 'giantStick', k % 2 ? 0 : 1, t, 0.35 + 0.1 * (k - 2));
-    note(A, s.bank, 'violinSpic', n('A4') + (k - 2), t, s.d(0.2), { vel: 0.5 + 0.08 * (k - 2), release: 0.06 });
+    const v = 0.3 + 0.09 * k;
+    hit(A, s.bank, 'giantStick', k % 2 ? 0 : 1, t, v);
+    note(A, s.bank, 'violinSpic', n('A4') + k, t, s.d(0.2), { vel: 0.4 + 0.07 * k, release: 0.06 });
+    note(A, s.bank, 'violaSpic', n('D4') + k, t, s.d(0.2), { vel: 0.35 + 0.06 * k, release: 0.06 });
   }
-  timp(A, s.bank, D + 12, s.d(0.5), 0.6, true);
+  for (const [inst, m] of [['celloTrem', n('D3')], ['bassSus', D]] as const) note(A, s.bank, inst, m, 0, s.d(2), { vel: 0.7, attack: s.d(1.9), release: 0.05 });
+  swellInto(A, s.bank, 'cym', 1, s.d(2), 0.55);
 }
 
 // ------------------------------------------------------------------ sneaking loops
@@ -681,21 +675,39 @@ function heartbeatLoop(s: Score): void {
 
 function menuGrand(s: Score, hookFrom = 0): void {
   const N = s.meta.bars;
-  const dyn = (b: number): number => (b < 8 ? 0.45 + b * 0.03 : b < 16 ? 0.68 : b < 24 ? 0.82 : 0.92);
-  hookLine(s, 'hookLow', 'celloSpic', 0, hookFrom, N - 2, dyn);
-  hookLine(s, 'hookLow', 'bassSpic', -12, hookFrom, N - 2, dyn);
-  hookLine(s, 'hookHigh', 'violaSpic', 12, 16, N - 2, dyn);
+  // round 22 (blend in and out): the low strings breathe in for two bars before the hook enters softly; the last bars
+  // taper and the final chord swells in gently and fades long, so the loop's end flows into its quiet start
+  const first = Math.max(hookFrom, 2);
+  const dyn = (b: number): number =>
+    b < 8 ? 0.28 + (b - first) * 0.045 : b < 16 ? 0.68 : b < 24 ? 0.82 : b < 28 ? 0.9 : b === 28 ? 0.75 : 0.6;
+  hookLine(s, 'hookLow', 'celloSpic', 0, first, N - 2, dyn);
+  hookLine(s, 'hookLow', 'bassSpic', -12, first, N - 2, dyn);
+  hookLine(s, 'hookHigh', 'violaSpic', 12, 16, N - 4, dyn);
   lowD(s, 'lowSus', hookFrom, 16, 8, 0.5);
-  chords(s, 'chords', 16, N - 2, 2, 0.75, 0.4, true);
-  // the final chord, ringing into the quiet start
-  for (const m of [...CH.Dm.tones, D]) note(s.L('chords'), s.bank, m < n('C3') ? 'bassSus' : m < n('C4') ? 'celloSus' : 'violinSus', m, s.t(N - 2), s.d(8), { vel: 0.85, attack: 0.1, release: 2.5 });
+  chords(s, 'chords', 16, N - 4, 2, 0.75, 0.4, true);
+  // the final chord: swells in softly and dies away over the loop's quiet start
+  for (const m of [...CH.Dm.tones, D]) note(s.L('chords'), s.bank, m < n('C3') ? 'bassSus' : m < n('C4') ? 'celloSus' : 'violinSus', m, s.t(N - 2), s.d(8), { vel: 0.42, attack: 1.6, release: 5 });
   trem(s, 'trem', 8, 24, 8, 0.45);
-  trem(s, 'trem', 24, N - 2, 6, 0.7, false);
+  trem(s, 'trem', 24, N - 2, 6, 0.55, true);
   motif(s, 'celloMel', 'celloSus', 8, 0.75, -12);
   motif(s, 'celloMel', 'celloSus', 24, 0.85, -12);
   motif(s, 'violinMel', 'violinSus', 16, 0.75);
   motif(s, 'violinMel', 'violinSus', 24, 0.9, 12);
   motif(s, 'violinMel', 'violaSus', 24, 0.8);
+  taper(s, N - 4, N, 0.4);
+}
+
+/** A diminuendo on every layer from bar `from` to bar `to` (down to `end`), before the reverb (its tail decays naturally). */
+function taper(s: Score, from: number, to: number, end: number): void {
+  const a = Math.round(s.t(from) * RATE);
+  const b = Math.round(s.t(to) * RATE);
+  for (const c of Object.values(s.layers)) {
+    for (let i = a; i < Math.min(b, c.l.length); i++) {
+      const g = 1 - (1 - end) * ((i - a) / (b - a));
+      c.l[i]! *= g;
+      c.r[i]! *= g;
+    }
+  }
 }
 
 function grandNight(s: Score): void {

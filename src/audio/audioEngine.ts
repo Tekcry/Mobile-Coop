@@ -19,7 +19,7 @@ export class AudioEngine {
   ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private buses: Partial<Record<Bus, GainNode>> = {};
-  private vol: Volumes = { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 };
+  private vol: Volumes = { master: 0.8, sfx: 1, music: 0.3, ui: 0.7 };
   private voices = 0;
   private noiseBuf: AudioBuffer | null = null;
   private lastPlay = new Map<string, number>();
