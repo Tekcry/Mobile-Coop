@@ -1,0 +1,70 @@
+{
+  "about": "CC0 source recordings for the weapon sounds (docs/audio-credits.md). Fetched by scripts/sfx/fetch-weapons.mjs into .sfx-cache/weapons/ (git-ignored); only the rendered sprite in src/assets/sfx/ ships.",
+  "files": {
+    "firearms.7z": {
+      "name": "The Free Firearm Sound Library, prepared set (Still North Media: Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney)",
+      "licence": "CC0 1.0",
+      "page": "https://opengameart.org/content/the-free-firearm-sound-library",
+      "url": "https://opengameart.org/sites/default/files/Prepared%20SFX%20Library.7z",
+      "sha256": "cc1ab5a99a0a365105c7c5dd783f4b0b1fe90938114d3ceec53856bfe005f7d6",
+      "unpack": "lib"
+    },
+    "reload.wav": {
+      "name": "Handgun Reload Sound Effect (zer0_sol)",
+      "licence": "CC0 1.0",
+      "page": "https://opengameart.org/content/handgun-reload-sound-effect",
+      "url": "https://opengameart.org/sites/default/files/reload.wav",
+      "sha256": "091399145b174ac3b2e0df245b4712a13ce85df072e37256b0fc32658718be53"
+    },
+    "clipload1.wav": {
+      "name": "Gun Reload Sound Effects (BMacZero, Brian MacIntosh)",
+      "licence": "CC0 1.0",
+      "page": "https://opengameart.org/content/gun-reload-sound-effects",
+      "url": "https://opengameart.org/sites/default/files/clipload1.wav",
+      "sha256": "1cdc10c50a26834ce7562a5f2925b9aa1118e3bb58a86fea80f34558bf2c5101"
+    },
+    "clipload2.wav": {
+      "name": "Gun Reload Sound Effects (BMacZero, Brian MacIntosh)",
+      "licence": "CC0 1.0",
+      "page": "https://opengameart.org/content/gun-reload-sound-effects",
+      "url": "https://opengameart.org/sites/default/files/clipload2.wav",
+      "sha256": "a5441641e7e9ede24f3ac311642e06265c6f480e3b1ba4b92c19c81c3a5e4d86"
+    },
+    "singlebullet1.wav": {
+      "name": "Gun Reload Sound Effects (BMacZero, Brian MacIntosh)",
+      "licence": "CC0 1.0",
+      "page": "https://opengameart.org/content/gun-reload-sound-effects",
+      "url": "https://opengameart.org/sites/default/files/singlebullet1.wav",
+      "sha256": "422bb2b92072cf8ecb77fda83e70d27bdcb7fa8cee33415ef66985a8cc14dde2"
+    }
+  },
+  "shots": {
+    "p1911": { "dir": "1911", "near": [["A_42P", false]], "far": [["A_34P", false]] },
+    "ppq": { "dir": "Walther PPQ", "near": [["X_39P", false]], "far": [["X_31P", false]] },
+    "ruger": { "dir": "Ruger Mark III", "near": [["R_35P", false]], "far": [["R_30P", false]] },
+    "m45": { "dir": "Carl Gustav M45", "near": [["G_31P", false], ["G_33P", true], ["G_35P", true]], "far": [["G_20P", false], ["G_22P", true], ["G_24P", true]] },
+    "ppsh": { "dir": "PPSh", "near": [["P_30P", false], ["P_32P", true], ["P_34P", true]], "far": [["P_16P", true], ["P_18P", true]] },
+    "ar15": { "dir": "AR-15", "near": [["D_32P", false]], "far": [["D_24P", false]] },
+    "ak": { "dir": "AK-47", "near": [["C_28P", false], ["C_29P", true], ["C_27P", true]], "far": [["C_31P", false], ["C_34P", true], ["C_36P", true]] },
+    "sks": { "dir": "SKS", "near": [["U_14P", false]], "far": [["U_19P", false]] },
+    "tikka": { "dir": "Tikka", "near": [["W_29P", false]], "far": [["W_24P", false]] },
+    "nova": { "dir": "Nova", "near": [["O_21P", false]], "far": [["O_17P", false]] },
+    "model12": { "dir": "Model 12", "near": [["K_22P", false]], "far": [["K_17P", false]] },
+    "cd": { "dir": "CD", "near": [["H_21P", false]], "far": [["H_16P", false]] }
+  },
+  "sd": {
+    "sdPistol": { "from": ["ruger", "ppq", "p1911"], "mech": "slideFwd" },
+    "sdSmg": { "from": ["m45", "ppsh"], "mech": "slideFwd" },
+    "sdRifle": { "from": ["ar15", "ak"], "mech": "bolt" },
+    "sdHeavy": { "from": ["sks", "tikka"], "mech": "bolt" }
+  },
+  "mech": {
+    "magOut": [["reload.wav", 0.095, 0.45]],
+    "magIn": [["reload.wav", 0.595, 0.98]],
+    "slideBack": [["reload.wav", 1.02, 1.172]],
+    "slideFwd": [["reload.wav", 1.176, 1.55]],
+    "rifleMagIn": [["clipload1.wav", 0, 0.26], ["clipload2.wav", 0, 0.21]],
+    "shellIn": [["singlebullet1.wav", 0.11, 0.3]],
+    "tick": [["clipload1.wav", 0.02, 0.07]]
+  }
+}

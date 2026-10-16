@@ -158,6 +158,20 @@ Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3
 - [ ] Footsteps and guard voices stay clear over the music in every state.
 - [ ] Settings > Audio > Music volume changes the music, and 0 silences it.
 - [ ] Offline (airplane mode, installed app): the music still plays.
+## Weapon sounds (feature/weapon-audio) - PC with headphones, then iPhone
+On the PC, `npm run dev`, open `/?weaponlab=1`:
+- [ ] The campaign arsenal first (Heron Carbine with Suppressed on, as issued; Marten 9 SMG; Mason 12 Pump; Spotter 7.62 Marksman; Hush 9 SD; Warden .45), then the rest. Fire each single and auto. Each sounds like a real gun of its kind (pistols snap, SMGs rattle, rifles crack, shotguns boom, the sniper is the biggest); no two shots in a row sound the same; auto fire is a clean rattle, not a smear.
+- [ ] Suppressed on: a dull thump with the slide or bolt clack, about as loud as a running step (press Footstep to compare). The Hush 9 SD (`pistolSd`) is always suppressed.
+- [ ] Guard 6 m / 18 m / 40 m: closer is fuller, far is thinner and darker, never louder than your own gun.
+- [ ] Reload and Empty reload: magazine out and in, the slide or charging handle on an empty one, shells one by one on the shotguns. Dry fire clicks.
+- [ ] Brass on each floor: a light tinkle under the steps; rings on metal, knocks on wood, almost nothing on carpet.
+- [ ] "Old synth" on and off: the new sounds are clearly better. Say which gun or level is off and what to change.
+In a match (Proving Grounds and the Warehouse), controller:
+- [ ] Your shots, reloads and brass match what you see; a weapon swap mid-reload cuts the reload sound.
+- [ ] Guards' gunfire sounds like their weapons and gets darker with distance. Footsteps and the music stay clear around single shots.
+- [ ] The noise meter and guards react as before (a suppressor still makes guards hear you less).
+On the iPhone (`/ct/` preview after Michael merges): shots play from the first trigger pull after the audio starts, with no hitch.
+
 ## Movement foley (feature/footsteps) - PC with headphones, then iPhone
 On the PC, `npm run dev`, open `/?foleylab=1`:
 - [ ] Press Walk. Try every surface at every gait. Steps sound like boots, not noise; no two steps in a row sound the same; no clicks at the end of a step.

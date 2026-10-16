@@ -61,9 +61,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // the game's music tracks and the movement foley sprite are precached (offline play); the music lab's audition
+        // the game's music tracks and the movement foley and weapon sprites are precached (offline play); the music lab's audition
         // MP3s (debug only) stay out of the cache
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}', '**/music-*.mp3', 'assets/foley-*.mp3'],
+        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}', '**/music-*.mp3', 'assets/foley-*.mp3', 'assets/weapons-*.mp3'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',

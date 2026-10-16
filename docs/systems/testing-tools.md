@@ -142,6 +142,12 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     guard turns the music Cautious, a guard on alert gives Alert (with its Evasion mix running alongside). Needs no GPU.
     Note: if another server holds port 4179, run with `E2E_PORT=4183`.
   - Music V4 test page (music project, manual): `npm run dev`, then open `/music-test.html` (linked from
+  - `scripts/e2e-weapon-audio.mjs` weapon sounds on Proving Grounds: the sprite decodes and its alignment shift is
+    small; the rifle's automatic fire plays one shot per round with brass for each and stays under 24 voices; a
+    suppressed rifle plays its suppressed bank and guards hear it less (the noise model, unchanged); a reload, a dry
+    click and a shot 20 m away play; then the weapon lab (`?weaponlab=1`) fires all 16 guns, an automatic run, a
+    suppressed guard shot at 18 m, both reloads, brass and dry fire. No console errors. Needs no GPU. If other servers
+    hold the default port, run with `E2E_PORT=4185`.
   - `scripts/e2e-foley.mjs` movement foley on Proving Grounds: the sprite decodes and its alignment shift is small,
     one foley step per real foot plant at a walk and a sprint (a sprint plants faster), silence standing still, a drop
     plays a landing, the guards' footstep noise unchanged (9 m at a sprint on concrete); then the foley lab

@@ -3,6 +3,7 @@ import type { App } from '../core/app';
 import { Vector3 } from '../core/babylon';
 import { awareness } from './score/game/adapter';
 import { gaitOf, type FoleyMove } from './foley/steps';
+import { CLASS_GUN, GUARD_GUN } from './weapons/guns';
 
 const FOLEY_MOVES: readonly string[] = ['vault', 'mantle', 'hop', 'drop', 'roll'] satisfies FoleyMove[];
 
@@ -20,13 +21,24 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   let quietT = 0;
   const w = g.weapons.events;
   const prevShot = w.onShot;
+  // weapons: the CC0 sprite (`WeaponAudio`), the synth until it has decoded
+  const wa = app.weaponAudio;
   w.onShot = (def) => {
     prevShot?.(def);
-    sfx.gunshot(def.class, 1, 0.12);
+    // a suppressor (or a built-in one) halves the noise stat or more: that gun sounds suppressed
+    if (!wa.shot(def.id, g.weapons.current.stats.noise < 0.6, g.surface)) sfx.gunshot(def.class, 1, 0.12);
   };
-  w.onReload = (def) => sfx.reload(g.weapons.current.stats.reloadTime || def.reloadTime);
-  w.onDryFire = () => sfx.dryFire();
-  w.onSwap = () => sfx.swap();
+  w.onReload = (def) => {
+    const s = g.weapons.current;
+    if (!wa.reload(def.id, g.weapons.reloadDuration, g.weapons.reloadIsEmpty, s.stats.magSize - s.mag)) sfx.reload(s.stats.reloadTime || def.reloadTime);
+  };
+  w.onDryFire = () => {
+    if (!wa.dry()) sfx.dryFire();
+  };
+  w.onSwap = () => {
+    wa.cancelReload();
+    sfx.swap();
+  };
   w.onGrenade = () => sfx.grenadeThrow();
   const prevHit = w.onHit;
   w.onHit = (kind, weapon, dmg) => {
@@ -55,7 +67,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       prevEnemyShot?.(e, from, to);
       e.center(tmp);
       const s = a.spatial(tmp.x, tmp.y, tmp.z, 70);
-      if (s.gain > 0.03) sfx.gunshot(e.def.kind === 'heavy' ? 'heavy' : 'rifle', s.gain, s.pan, Math.max(1, s.dist));
+      if (s.gain > 0.03 && !wa.remoteShot(GUARD_GUN[e.def.kind] ?? 'rifle', s.dist, s.gain, s.pan)) sfx.gunshot(e.def.kind === 'heavy' ? 'heavy' : 'rifle', s.gain, s.pan, Math.max(1, s.dist));
     };
     em.onEnemyMelee = (e) => {
       e.center(tmp);
@@ -96,7 +108,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     // coop: shots fired by teammates or host-simulated enemies
     g.events.on('remoteShot', ({ cls, x, y, z }) => {
       const s = a.spatial(x, y, z, 70);
-      if (s.gain > 0.03) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
+      if (s.gain > 0.03 && !wa.remoteShot(CLASS_GUN[cls] ?? 'rifle', s.dist, s.gain, s.pan)) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
     }),
   ];
   app.music.mission();
@@ -138,6 +150,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   return {
     frame,
     dispose: () => {
+      wa.cancelReload();
       for (const o of offs) o();
     },
   };
