@@ -185,7 +185,7 @@ async function closeups(op) {
   const W = 1920, H = 1080, panel = 520;
   for (const c of CLOSEUPS) {
     if (c.id === 'harness' && op !== 'moth') continue;
-    const src = await render({ op, rig: 'raking', pose: 'apose', preset: 'epic', view: { closeup: c.id }, size: [3840, 2160], frames: 40 });
+    const src = await render({ op, rig: 'raking', pose: 'apose', preset: 'epic', lod: 'source', view: { closeup: c.id }, size: [3840, 2160], frames: 40 });
     const here = calloutsFor(kit.items, built, c);
     const zone = kit.items.filter((i) => c.zones.includes(i.zone) && (c.match.length === 0 || c.match.some((m) => `${i.where} ${i.name}`.toLowerCase().includes(m))));
     const pending = zone.filter((i) => !built.has(i.id));
@@ -270,15 +270,33 @@ async function lods(op) {
   const lodList = await page.evaluate(async (o) => { const l = window.__lab; if (l.loadedId !== o) await l.load(o); return l.lods; }, op);
   const W = 520, H = 820;
   const cols = [];
-  for (const lod of lodList) cols.push({ lod, preset: lod === 'phone' ? 'phone' : 'epic', name: lod === 'hero' ? 'Hero LOD, Epic' : lod === 'phone' ? 'Phone LOD, phone look' : `In-game ${lod}` });
-  cols.push({ lod: 'hero', preset: 'phone', name: 'Hero mesh, phone look (render only)' });
-  const items = titleBar(op, 'Each in-game LOD and the phone look at gameplay distance (7 m)', W * cols.length + 12 * (cols.length + 1), `LODs built so far: ${lodList.join(', ')}. In-game LODs 1-2 and the phone LOD arrive in step 10.`);
+  for (const lod of lodList) cols.push({ lod, preset: lod === 'phone' ? 'phone' : 'epic', name: lod === 'source' ? 'Build (unbaked), Epic' : lod === 'hero' ? 'Hero (baked), Epic' : lod === 'phone' ? 'Phone LOD, phone look' : `In-game ${lod}, Epic` });
+  const items = titleBar(op, 'Each in-game LOD and the phone look at gameplay distance (7 m)', W * cols.length + 12 * (cols.length + 1), `LODs: ${lodList.join(', ')} (step 10: npm run operators:lods)`);
   for (let i = 0; i < cols.length; i++) {
     const src = await render({ op, rig: 'hollowmere', pose: 'sneak', preset: cols[i].preset, lod: cols[i].lod, view: { target: [0, 0.9, 0], radius: 7, yaw: 0.5, pitch: 0.08 }, size: [W, H], frames: 40 });
     items.push({ type: 'image', src, x: 12 + i * (W + 12), y: 100, w: W, h: H, border: '#2c3f4a' }, label(20 + i * (W + 12), 100 + H + 6, cols[i].name));
   }
   save(op, 'sheet-lods', await sheet({ width: W * cols.length + 12 * (cols.length + 1), height: 100 + H + 40, items }, 0.88));
-  if (lodList.length === 1) skipped.push(`${op}: in-game LOD 1, LOD 2 and phone LOD (step 10)`);
+  if (lodList.length === 1) { skipped.push(`${op}: baked LODs (npm run operators:lods)`); return; }
+  // Step 10 fix round 1: the baked maps as Babylon draws them, raking light (a dent must read as a dent, no seams along
+  // UV islands), and the torso bent in the sneak pose (the rib segments must not gap at LOD0 / LOD1).
+  const baked = lodList.filter((l) => l !== 'source');
+  const rows = [
+    { name: 'Chest, raking light', pose: 'apose', view: { closeup: 'chestFront' } },
+    { name: 'Boot, raking light', pose: 'apose', view: { closeup: 'boots' } },
+    { name: 'Torso bent (sneak), ribs', pose: 'sneak', view: { joint: ['chest', [0, -0.15, 0]], radius: 0.9, yaw: 0.35, pitch: -0.35 } },
+  ];
+  const S = 560;
+  const cw = S * baked.length + 12 * (baked.length + 1);
+  const it2 = titleBar(op, 'Baked LODs in Babylon: close-ups under a raking light and the torso bent', cw, `Columns: ${baked.join(', ')} (glTF tangents, ORM, tangent normal maps as shipped).`);
+  for (let r = 0; r < rows.length; r++) {
+    for (let i = 0; i < baked.length; i++) {
+      const src = await render({ op, rig: 'raking', pose: rows[r].pose, preset: baked[i] === 'phone' ? 'phone' : 'epic', lod: baked[i], view: rows[r].view, size: [S * 2, S * 2], frames: 30 });
+      const y = 100 + r * (S + 40);
+      it2.push({ type: 'image', src, x: 12 + i * (S + 12), y, w: S, h: S, border: '#2c3f4a' }, label(20 + i * (S + 12), y + S + 6, `${baked[i]}: ${rows[r].name}`));
+    }
+  }
+  save(op, 'sheet-lods-closeups', await sheet({ width: cw, height: 100 + rows.length * (S + 40), items: it2 }, 0.9));
 }
 
 async function wire(op) {
@@ -294,11 +312,11 @@ async function wire(op) {
     items.push({ type: 'image', src, x, y: 100, w: W, h: H, border: '#2c3f4a' }, label(x + 8, 100 + H + 6, `${lod}: ${s.triangles.toLocaleString()} triangles, ${s.meshes} meshes, ${s.materials} materials`));
     x += W + 12;
   }
-  const close = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'wire', lod: 'hero', view: { joint: ['chest', [0, 0.02, 0.1]], radius: 0.5, yaw: 0.3, pitch: 0.05 }, size: [W, H], frames: 30 });
+  const close = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'wire', lod: 'source', view: { joint: ['chest', [0, 0.02, 0.1]], radius: 0.5, yaw: 0.3, pitch: 0.05 }, size: [W, H], frames: 30 });
   items.push({ type: 'image', src: close, x, y: 100, w: W, h: H, border: '#2c3f4a' }, label(x + 8, 100 + H + 6, 'Wireframe, chest at 0.5 m'));
   x += W + 12;
-  const nrm = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'normals', lod: 'hero', view: { turnaround: TURNAROUND[1], radius: 5.5 }, size: [W, H], frames: 20 });
-  const mid = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'matid', lod: 'hero', view: { turnaround: TURNAROUND[1], radius: 5.5 }, size: [W, H], frames: 20 });
+  const nrm = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'normals', lod: 'source', view: { turnaround: TURNAROUND[1], radius: 5.5 }, size: [W, H], frames: 20 });
+  const mid = await render({ op, rig: 'studio', pose: 'apose', preset: 'epic', debug: 'matid', lod: 'source', view: { turnaround: TURNAROUND[1], radius: 5.5 }, size: [W, H], frames: 20 });
   items.push({ type: 'image', src: nrm, x, y: 100, w: W, h: H, border: '#2c3f4a' }, label(x + 8, 100 + H + 6, 'Normals (bind space)'));
   x += W + 12;
   items.push({ type: 'image', src: mid, x, y: 100, w: W, h: H, border: '#2c3f4a' }, label(x + 8, 100 + H + 6, 'Material IDs'));

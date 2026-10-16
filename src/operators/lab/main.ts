@@ -14,8 +14,8 @@ const fill = (id: string, rows: readonly { id: string; label: string }[], value:
 };
 
 function lodRows(): { id: string; label: string }[] {
-  const names: Record<string, string> = { hero: 'Hero (LOD 0)', lod1: 'In-game LOD 1', lod2: 'In-game LOD 2', phone: 'Phone' };
-  return ['hero', 'lod1', 'lod2', 'phone'].map((l) => ({ id: l, label: lab.lods.includes(l) ? names[l]! : `${names[l]} (built in step 10)` }));
+  const names: Record<string, string> = { source: 'Build (unbaked, every triangle)', hero: 'Hero (baked)', lod0: 'In-game LOD 0', lod1: 'In-game LOD 1', lod2: 'In-game LOD 2', phone: 'Phone' };
+  return ['source', 'hero', 'lod0', 'lod1', 'lod2', 'phone'].map((l) => ({ id: l, label: lab.lods.includes(l) ? names[l]! : `${names[l]} (npm run operators:lods)` }));
 }
 
 const params = new URLSearchParams(location.search);

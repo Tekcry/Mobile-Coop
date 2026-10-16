@@ -147,6 +147,12 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D26 KTX2 encoder installed (2026-10-17, during step 10).** Asked whether to install the KTX2 texture compression
+tool, Michael: "Install toktx (Recommended)". The orchestrator installed KTX-Software 4.4.2 (Khronos, Apache 2.0) from
+the official GitHub release `KTX-Software-4.4.2-Windows-x64.exe` (6.4 MB, SHA-256 1f323b0f...957fe, matching GitHub's
+digest) to `C:\Program Files\KTX-Softwarein	oktx.exe` - an offline build tool, never shipped. Step 11 starts by
+encoding every LOD to KTX2 and repacking the GLBs (closes A73).
+
 **D25 Back layout and the left hip (2026-10-16).** Michael, on the re-plan's two calls: drone pod and medkit - "Hips,
 keep game carry" (A39 confirmed: pod rear-left and medkit rear-right on the belt, the back flat for the game's upright
 rifle, no game-code change); the game's compact-gun hip slot vs the throwable sleeves - "Sleeves to the front" (A41
@@ -693,3 +699,109 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   feet. The boot fits a smoothed copy of the suit's lower leg, its push-out moves are dilated and blurred over the ring
   grid, and its lining is held 3.2 mm inside the outer wall (the first pass crumpled the collar band). Undo: rebuild the
   suit with the hem drafted lower at the back (the step 08a retry); the press then only moves hidden suit.
+
+## Assumed decisions, step 10 (baked maps, LODs, glTF; implementer)
+**A69 The hero is the build decimated to the hero budget, the build stays in the Lab as "source".** The built blend
+  holds 2.45 M render triangles (the suit shell alone 1.05 M), ten times SPEC 6.4's hero budget (150-250 k). SPEC 6.3's
+  "Hero: the full mesh" is read as full detail: the hero is the build collapse-decimated to 230 k with every map baked
+  from the 2.45 M source (selected to active, Cycles on the GPU), so stitches, folds and the procedural detail are in
+  its maps. The unbaked build stays the Lab's `source` LOD (`<id>-lab.glb`) for pipeline checks; it is never a game
+  asset. Undo: export the source as the hero (2.45 M triangles, about 94 MB) and accept the overrun.
+**A70 What leaves each LOD's geometry.** Stitch thread from LOD0 down and zip teeth from LOD1 down live only in the
+  maps; pieces smaller than 12 mm (LOD1) / 45 mm (LOD2) across (keepers, cord locks, rivets, small buckles) are
+  dropped; faces covered by another surface within 3 cm (LOD1) / 4 cm (LOD2) along their normal (layers under layers,
+  the inner walls of solidified cloth) are culled before decimation so the budget goes to what can be seen. The goggle
+  lens (the glow, D13) is never dropped and is protected in the collapse. The rib segments are separate pieces at
+  the hero and LOD0 (collapse decimation never merges pieces) and part of the shell from LOD1 down (A74; fix round 2). Split vertices are welded at 0.2 mm below the hero (the split
+  rims stalled the collapse at about twice the budget). Undo: the tables DROP_MATS, DROP_SMALL, CULL_COVERED in
+  py/bake_lods.py.
+**A71 LOD1 has its own 1K set (SPEC 6.4: "shares LOD0's").** Sharing needs LOD1 to keep LOD0's atlas UVs through the
+  collapse, which then stalls far over the LOD1 budget; LOD1 is re-unwrapped and baked at 1K (cloth, kit): its own six
+  1K maps cost about 8 MB of BC7 VRAM more per operator than sharing (6 x 1.33 MB with mips, export report.json). Undo: a UV-preserving decimator, or LOD1 at LOD0's UVs with the
+  overrun.
+**A72 The 3 cm render-edge rule applies to the built items, not the LODs.** `operators:check` runs it on every built
+  item as before; a 4-6 k triangle figure cannot meet it (the LODs' longest edges are reported in the export report).
+  The hero is a decimation too (longest edge about 16 cm); it is held by its comparison with the source instead
+  (silhouette IoU against the source, the close-up columns of sheets b / c), not by an edge rule. Undo: none needed
+  (information only).
+**A73 Textures ship as WebP inside the GLBs and as PNG beside them until KTX2.** No `toktx` / `basisu` on the PC and
+  the run may not install software (RULES): the KTX2 encode is one command in the export README (UASTC, Zstd 18, linear
+  for normal and ORM), OPEN for Michael's OK to install KTX-Software. The texture costs report BC7 / ASTC 4x4 VRAM
+  (1 byte per texel, mips 4/3) next to the PNG sizes. Undo: none (the KTX2 step replaces the WebP).
+**A74 LOD1, LOD2 and the phone are closed shells (fix round 1).** The step 10 cull decided a face from one ray at its
+  centre, so partly covered faces of outer layers went and the collapse pulled the inner layers through (shards on the
+  head and shoulders, holes in the boots; open edges LOD1 131 m, LOD2 91 m against the hero's 35 m). LOD1 and LOD2 are
+  now the hero without the lens, the stitches, the zip teeth and the pieces under 12 / 45 mm, voxel-remeshed at 2.5 mm
+  (the union of every layer: no inside surface left to poke through, no holes), decimated to the budget less the lens,
+  each face given the source material of the nearest hero face (so LOD1 keeps its cloth and kit sets), and the lens
+  (protected, D13) joined again; every map is baked from the source as before. The rib segments are separate pieces at
+  the hero and LOD0 and part of the shell at LOD1 and below, where they bend with it and cannot gap: a trial keeping the
+  plates separate at LOD1 let the shell under them show through the decimated plates (striped ribs in the chest
+  close-up). This departs from the step text (step 10 Do 2: the rib segments separate so they "must not gap when the
+  torso bends", also SPEC 8): a shell cannot gap, and the read holds. Evidence (round-2 checker, Lab on the RTX 4090,
+  ANGLE D3D11, sneak pose, low front view, shadows off): LOD0's separate segments overlap with no gap; LOD1's shell keeps
+  three lapped bands with their edges and stitch lines in the maps; the Cycles `wren-chest-lod1.png` shows the same;
+  the Babylon `wren-sheet-lods-closeups.webp` row "Torso bent (sneak), ribs" now frames the front rib laps (fix round 2).
+  The fixer's "striped ribs" trial was not kept as a render; the checker's renders stand in for it. The covered-face
+  cull is kept for a layered level but now needs a face covered at its centre and near
+  every corner (CULL_COVERED is empty). The export report measures each LOD's open edge length and its visible
+  back-face pixels per view; operators:check fails a LOD over 1.5x the hero's open edges (LOD1, LOD2, phone) or over the
+  hero's back-face pixels + 0.2 % of the figure. Undo: SHELL_KEEP, SHELL_VOXEL and CULL_COVERED in py/bake_lods.py.
+**A75 The goggle glow is one extra draw at every LOD below LOD0 (SPEC 6.4 LOD2's "+ glow" read for LOD1 too).** The
+  lens is the D13 glow with constant emissive factors and no maps; folding it into the kit material needs an emissive
+  map per LOD set (more VRAM than the draw costs). LOD1 is 2 + glow = 3 draws, LOD2 and the phone 1 + glow = 2;
+  lodChecks writes the budget `draws: 2, glow: 1` with the limit "SPEC 6.4 <= 2 + glow (A75)". Undo: the lens as an
+  emissive map in the kit / atlas material.
+**A76 Bake errors inside the outline: the shells split sharp edges, and operators:check compares every LOD's render
+  with the hero's (fix round 2).** Round 2 found dark diagonal slashes over the pistol holster face (LOD1, LOD2,
+  phone) and a torn wedge in the back plate's radio recess (LOD2, phone) that neither IoU nor the back-face count sees.
+  Cause: the decimated shell's flat faces meet their sides at near right angles, its smooth vertex normals there tilt
+  up to 45 deg, and interpolated across long sliver triangles they send the selected-to-active cage rays (3 / 6 cm out)
+  sideways onto the holster sides, the pistol and the plate rim. Fix: edges of LOD1 / LOD2 sharper than 30 deg are split
+  (`set_sharp_from_angle`, SHELL_SHARP_DEG), so a flat face bakes along its own normal (the glTF carries the split
+  normals and the MikkTSpace tangents built on them; triangles unchanged). Result: the wide slashes and the radio wedge
+  are gone (side 31-40 -> 9-14 px, back 146-151 -> 17 px, front 208-212 -> 15-17 px at LOD2 / phone), but thin dark
+  arcs stay on the LOD1 / LOD2 / phone holster face and LOD1's front view keeps a dark groove down the holster (31 px,
+  over the front limit 24: bakeDiff FAILs LOD1). 50 deg and 30 deg render the same, so the arcs are not normal tilt;
+  hypothesis: near-zero UV-area sliver triangles of the decimated holster face (too few texels for the map to correct
+  the geometric shading) - OPEN, needs a decimation that keeps the holster face's triangles fat (or the holster kept
+  as a separate piece below LOD0). Measure (bakeDiff, FAIL): a LOD pixel is
+  "new dark" when it is darker than every hero pixel within 3 px by more than 0.2 luminance (an edge or crease that
+  moved a few pixels is not an error); per view (front, side, back, chest, head, boot) the largest 8-connected patch
+  must stay within DARK_PATCH_LIMIT = 1.1x the round-2 LOD0's patch, at least 24 px: front 24, side 24, back 142,
+  chest 173, head 141, boot 404. On the round-2 renders (kept in build/operators/wren/export/renders-r2) it fails LOD1
+  front 78 / side 40, LOD2 front 212 / side 32 / back 151, phone front 208 / side 31 / back 146; LOD0 passes. A mean
+  luminance per 8 or 16 px block was tried first (the fix list's example) and does not separate those errors from
+  LOD0's spread of small differences (LOD0 chest 47 blocks over 0.1, LOD1 side 5). LOD0's back (129 px, the thigh-band
+  lower edge) and boot (367 px, the OPEN toe streaks) set those two limits high: a tighter limit waits for those two
+  LOD0 bakes. Undo: SHELL_SHARP_DEG in py/bake_lods.py; DARK_PATCH_LIMIT in src/operators/lodChecks.ts.
+  **Fix round 3 (A76 amended).** The limits can no longer hide a defect: the shells (LOD1, LOD2, phone) are held to
+  SHELL_DARK_LIMIT = 24 px in every view (`darkPatchLimit`), and the per-view DARK_PATCH_LIMIT is LOD0's only. A new
+  close-up view `holster` (right thigh, the chest view's scale; `wren-holster-<lod>.png`, sheet
+  `wren-lods-d-closeup-holster.webp`) feeds backFaces and bakeDiff (24 px at every level). bakeDiff and backFaces FAIL
+  "stale" when a LOD's render (or the hero's) is older than that LOD's GLB (`staleViews`). On the renders-r2 set every
+  shell still fails (LOD1 front 78, chest 64, head 80; LOD2 front 212, back 151; phone front 208, back 146). The same
+  sharp-edge split on LOD0 (SHARP_SPLIT 30 deg, not below z 0.20 m: on the boots it lengthened the toe streaks, boot
+  367 -> 491 px) removed LOD0's thigh-band line (back 128 -> 1 px), the thigh-band buckle blotches (front 18 -> 1) and
+  the plate-top smear (chest 157 -> 1, head 125 -> 0), so those limits are 24 again. The one loose LOD0 limit left:
+  boot 404 px, the OPEN toe streaks (`wren-boot-lod0.png` 189,373, 367 px; rays meeting the rand / toe-cap walls).
+  LOD1's cage went 3 -> 2 cm (no change at the notch below; nothing worse elsewhere). OPEN, a shell defect the check
+  FAILs: LOD1 chest 36 px (`wren-chest-lod1.png` 404,347), a dark hooked notch where the plate's lower band meets the
+  cummerbund on the left side; the same spot is 18 px at LOD2 / phone. Undo: SHARP_SPLIT = {} and the round-2
+  DARK_PATCH_LIMIT (back 142, chest 173, head 141); SHELL_DARK_LIMIT in src/operators/lodChecks.ts.
+
+**A77 Rigid polymer pieces stay separate below LOD0 (fix round 3).** Cause of the holster arcs and groove (LOD1 /
+  LOD2 / phone) and of the torn knife sheath with its wedge into the mag pouch (LOD2 / phone), confirmed by removing
+  it: inside the voxel shell the holster's flat face and the sheath were one surface with the thigh / the plate, so the
+  collapse ran long sliver triangles from them into their neighbours and the bake sent rays across the gap. Keeping
+  the pieces out of the remesh (the rest unchanged) took LOD1 front 31 -> 0 px, side 11 -> 0, LOD2 / phone side
+  14 / 9 -> 7, holster view 0-4 px, chest 47 -> 18 px, and the holster face reads flat with its strap like the hero's
+  in front, side and holster views. Rule (py/bake_lods.py RIGID_*): a piece is a 0.2 mm-welded connected component of
+  the hero whose faces are all `harness polymer`, bounding-box diagonal 0.05-0.25 m (9 pieces: holster shell and hood,
+  knife sheath, two mag pouches, goggle housing and mount, the back and the belt polymer holders). It is cut from the
+  hero, decimated on its own (LOD1 keeps 75 % of its triangles, LOD2 55 %; the lens whole, as before) and joined to the
+  shell, which is remeshed without it. At LOD2 / phone only the front torso and thigh pieces stay separate (holster,
+  hood, sheath, mag pouches: centre forward of the body, below the head): decimated jointly to LOD2's budget every
+  piece lost its shape (flaps on the pouches, a twisted belt holder, back view 106 px). LOD2's target went 5,200 ->
+  5,600 triangles (SPEC 6.4 4-6 k; measured 5,557) so the shell keeps its share. Undo: RIGID_MATS = set() and
+  TARGET_TRIS lod2 5200 (the round-2 shells).

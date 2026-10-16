@@ -3,7 +3,7 @@
 // divergence, edge length, solidify spikes, measured albedo and roughness); this script adds the kit check (every
 // built item names a kit item that exists, and validateKit passes) and writes build/operators/<id>/<id>-<item>-check.json.
 // Exits non-zero on any failure, or when nothing is built.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { findBlender, runBlender } from './blender.mjs';
 import { OUT_DIR } from './paths.mjs';
@@ -52,6 +52,65 @@ for (const id of only.length ? only : Object.keys(KITS)) {
     const bad = report.checks.filter((c) => !c.pass);
     failed += bad.length;
     console.info(`operators check: ${id} ${item}: ${report.pass ? 'PASS' : `FAIL (${bad.map((c) => c.name).join(', ')})`} -> ${path.relative(process.cwd(), file)}`);
+  }
+}
+// Step 10: the baked LODs (npm run operators:lods), when built: anchors on their joints in every LOD file, game joints
+// only below the hero, tangents with every normal map, SPEC 6.4 costs flagged (an overrun prints FLAG and does not
+// fail); against the hero (fix round 1, FAIL): visible back faces per view and the open edge length.
+// Fix round 2 (A76, FAIL): bake errors inside the outline, each LOD's Cycles render against the hero's per view
+// (largest new-dark patch); written to report.json as bakeDiff.
+// Fix round 3: shells (LOD1, LOD2, phone) 24 px in every view, LOD0's loose limits named in A76; a `holster` view; a
+// render older than its LOD's GLB FAILs "stale".
+const { glbJson, lodChecks, lodReportChecks, bakeDiffCheck, staleViews, BACKFACE_VIEWS } = await import('../../src/operators/lodChecks.ts');
+const { decodePng, darkPatches } = await import('../../src/operators/bakeDiff.ts');
+const { inflateSync } = await import('node:zlib');
+/** Each LOD's new-dark patches per view, from the renders in `dir` (missing renders are left out: "not measured"). */
+function measureBakeDiff(id, dir, lods) {
+  const png = (f) => decodePng(new Uint8Array(readFileSync(f)), (b) => new Uint8Array(inflateSync(b)));
+  const out = {};
+  for (const v of BACKFACE_VIEWS) {
+    const hf = path.join(dir, `${id}-${v}-hero.png`);
+    if (!existsSync(hf)) continue;
+    const hero = png(hf);
+    for (const lod of lods) {
+      const f = path.join(dir, `${id}-${v}-${lod}.png`);
+      if (lod === 'hero' || !existsSync(f)) continue;
+      (out[lod] ??= {})[v] = darkPatches(hero, png(f));
+    }
+  }
+  return out;
+}
+/** Per LOD: the views whose render (`suffix`: '' or '-backfaces') is older than the LOD's GLB, or the hero's. */
+function staleFor(id, dir, lods, suffix) {
+  const mt = (f) => (existsSync(f) ? statSync(f).mtimeMs : undefined);
+  const renders = (lod) => Object.fromEntries(BACKFACE_VIEWS.map((v) => [v, mt(path.join(dir, `${id}-${v}-${lod}${suffix}.png`))]).filter(([, t]) => t !== undefined));
+  const glb = (lod) => mt(path.join(OUT_DIR, id, 'export', lods[lod].glb)) ?? Infinity;
+  const hero = renders('hero');
+  return Object.fromEntries(Object.keys(lods).map((lod) => [lod, staleViews(glb(lod), glb('hero'), renders(lod), hero)]));
+}
+for (const id of only.length ? only : Object.keys(KITS)) {
+  const rep = path.join(OUT_DIR, id, 'export', 'report.json');
+  if (onlyItems || !existsSync(path.join(OUT_DIR, id))) continue;
+  if (!existsSync(rep)) {
+    console.info(`operators check: ${id} FLAG lods: not built (no export/report.json; npm run operators:lods -- ${id} --render)`);
+    continue;
+  }
+  const report = JSON.parse(readFileSync(rep, 'utf8'));
+  const rdir = path.join(OUT_DIR, id, 'export', 'renders');
+  report.bakeDiff = measureBakeDiff(id, rdir, Object.keys(report.lods));
+  const staleRender = staleFor(id, rdir, report.lods, '');
+  const staleBack = staleFor(id, rdir, report.lods, '-backfaces');
+  writeFileSync(rep, JSON.stringify(report, null, 1));
+  for (const [lod, r] of Object.entries(report.lods)) {
+    const cs = [
+      ...lodChecks(lod, glbJson(new Uint8Array(readFileSync(path.join(OUT_DIR, id, 'export', r.glb)))), r.triangles),
+      ...lodReportChecks(lod, r, report.lods.hero ?? {}, report.backFacePx, staleBack[lod]),
+      ...bakeDiffCheck(lod, report.bakeDiff[lod], staleRender[lod]),
+    ];
+    for (const c of cs) {
+      console.info(`operators check: ${id} ${lod} ${c.pass ? 'PASS' : c.flag ? 'FLAG' : 'FAIL'} ${c.name}: ${JSON.stringify(c.value)} (${c.limit})`);
+      if (!c.pass && !c.flag) failed++;
+    }
   }
 }
 if (!items) {

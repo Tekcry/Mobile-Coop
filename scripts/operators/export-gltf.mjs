@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findBlender, runBlender } from './blender.mjs';
-import { OUT_DIR } from './paths.mjs';
+import { OUT_DIR, ROOT } from './paths.mjs';
 
 /**
  * Garments built per operator, in build (layer) order: each is drafted over the earlier ones, simulated over the body
@@ -34,7 +34,29 @@ export function exportGltf(id, blender = findBlender()) {
   runBlender('export_gltf.py', ['--operator', id, ...g, '--out', path.join(OUT_DIR, id)], { blender });
 }
 
+/**
+ * Step 10 (SPEC 6.3-6.4, A69-A71): baked texture sets, hero / LOD0-2 / phone glTF with the integration anchors, the
+ * export report and README under build/operators/<id>/export/, the Lab copies <id>-lab-<lod>.glb. `render` adds the
+ * hero / LOD side-by-side renders (Cycles, OptiX) into docs/operators/mockups/tests/. `scale` shrinks every texture
+ * (iteration only). About 15-25 min for Wren on the RTX 4090.
+ */
+export function exportLods(id, { render = false, scale = 1, blender = findBlender() } = {}) {
+  const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);
+  if (!g.length) return;
+  const dest = path.join(ROOT, 'docs', 'operators', 'mockups', 'tests');
+  runBlender('bake_lods.py', ['--operator', id, ...g, '--out', path.join(OUT_DIR, id), '--scale', String(scale),
+    ...(render ? ['--render', '--dest', dest] : [])], { blender });
+}
+
+// npm run operators:export [wren|moth]            the Lab source glb (unbaked, every build triangle)
+// npm run operators:lods [wren] [--render] [--scale 0.25]   step 10's baked LODs (needs the built blends)
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-  for (const id of only.length ? only : ['wren', 'moth']) exportGltf(id);
+  const argv = process.argv.slice(2);
+  const si = argv.indexOf('--scale');
+  const scale = si >= 0 ? Number(argv[si + 1]) : 1;
+  const only = argv.filter((a, i) => !a.startsWith('-') && (si < 0 || i !== si + 1));
+  for (const id of only.length ? only : ['wren', 'moth']) {
+    if (argv.includes('--lods')) exportLods(id, { render: argv.includes('--render'), scale });
+    else exportGltf(id);
+  }
 }

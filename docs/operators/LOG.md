@@ -1185,3 +1185,202 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   overlay's stitching ragged where it meets the rand (g).
 - Status: passed the independent check (fix rounds: 1).
 
+
+## Step 10 - Wren: baked maps, LODs, glTF and costs (Opus 5.5)
+- Built: `scripts/operators/py/bake_lods.py` and `npm run operators:lods -- wren [--render] [--scale s]`
+  (`export-gltf.mjs` `exportLods`; about 5 min). From `wren-leg_kit.blend` (2,449,661 render triangles, 41 materials,
+  64 items) the render meshes are joined into one source that keeps every procedural material; hero, LOD0, LOD1, LOD2
+  are collapse-decimated in a chain (A69-A70: stitches leave the geometry from LOD0, zip teeth from LOD1; pieces under
+  12 / 45 mm dropped at LOD1 / LOD2; covered faces culled at LOD1 / LOD2; split vertices welded below the hero; the
+  goggle lens protected); faces regroup into atlases (hero cloth 4K / kit 2K / hardware 2K / glow; LOD0 cloth 2K / kit
+  2K / glow; LOD1 cloth 1K / kit 1K / glow, A71; LOD2 one 1K atlas / glow; phone = LOD2 at 512), unwrapped from the
+  garments' pattern panels (smart projection where a piece has none) and packed per group; baked from the source on
+  the GPU, selected to active: tangent normal and occlusion with the source's own shading, then albedo, roughness,
+  metal and a coverage pass through an Emission swap; ORM packed glTF-style. Texels no ray reached take the group mean;
+  normals turned more than ~70 degrees (rays meeting a strip's underside: seam tape, binding, strap edges) are
+  flattened. Skinned by nearest body vertex (game LODs: finger / toe weights to the wrist / ankle, the finger and toe
+  bones removed); the five anchors as empties on their joints; glTF per LOD with WebP inside, PNG sets beside them.
+- Lab: LOD list `source` (the unbaked build, `<id>-lab.glb`), hero, lod0, lod1, lod2, phone (`<id>-lab-<lod>.glb`);
+  `glb.ts` reads the embedded base colour / ORM / normal images and the emissive factor, `lab.ts` binds them
+  (PBR metallic texture with occlusion R, roughness G, metal B; normal axes inverted for the reader's mirror). The
+  `wire` sheet keeps the unbaked build (`source`); the `lods` sheet lists every level.
+- Checks added: `src/operators/lodChecks.ts` (pure) + `tests/operatorLods.test.ts` (7 tests: anchors on their joints,
+  missing / wrong joint, no hero bones below the hero, SPEC 6.4 overruns flagged not failed, GLB JSON; the glb reader's
+  images and glow). `operators:check` checks every LOD file of `export/report.json` (FAIL on anchors / game joints;
+  FLAG on SPEC 6.4 costs).
+- Numbers (`export/report.json`): hero 229,348 tris, 4 draws, 63 skin joints (57 weighted), textures PNG 48.4 MB /
+  BC7 96 MB VRAM, GLB 21.7 MB; LOD0 39,809, 3, 23 (17), 18.3 / 32 MB, 5.6 MB; LOD1 13,497, 3, 23 (17), 4.2 / 8 MB,
+  1.6 MB; LOD2 5,200, 2, 23 (17), 2.7 / 4 MB, 0.8 MB; phone 5,200, 2, 23 (17), 0.8 / 1 MB ASTC, 0.5 MB. Silhouette IoU
+  vs hero (front / side / back): LOD0 0.996 / 0.995 / 0.996, LOD1 0.991 / 0.988 / 0.991, LOD2 and phone 0.979 / 0.967 /
+  0.979; hero vs source 0.999. backGearM 0.0222. Anchors in every file: weaponMount.backL/C/R on chest, pistolHolster
+  on hipR, slingSocket on pelvis. Full table: docs/operators/mockups/wren/DESIGN.md.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` PASS, 9 items, all checks pass; 5 LOD files: anchors and game
+  joints PASS, one FLAG (hero bones 63). `npm run check` PASS (exit 0; 74 test files, 769 tests; lint 0 errors).
+- SPEC 6.4 flags: hero bones 63 vs ~30 (three bones per finger in the rig); LOD1 3 draws vs 2 (the glow) and its own 1K
+  set instead of LOD0's (A71). Texture VRAM is computed (BC7 / ASTC 1 byte per texel, mips), not measured on a GPU.
+- Renders (Cycles, OptiX, RTX 4090; columns source, hero, LOD0, LOD1, LOD2, phone): docs/operators/mockups/tests/
+  wren-lods-a-silhouettes.webp, wren-lods-b-closeups-chest-head.webp, wren-lods-c-closeup-boot.webp. Hero vs LOD0 keep
+  the same silhouette (IoU 0.995+); hero keeps the harness, laces, rib segments, stitches. Render check: 1 silhouette
+  holds at every level; 2 fabric matte (rough 0.7-0.95 baked from the source); 3-4 material zones and taped seams read
+  in hero / LOD0 maps; 5-7 nothing added. Studio light: near-black fabric reads mid grey (OPEN since 05).
+- OPEN: KTX2 - neither `toktx` nor `basisu` is installed; needs Michael's OK to install KTX-Software (the one-line
+  encode is in build/operators/wren/export/README.md and scripts/operators/README.md); until then WebP in the GLBs (A73).
+- OPEN (taste, distance levels): LOD1 / LOD2 close-ups show faceted pouch flaps and hood / balaclava layering and small
+  gaps where the boot rand meets the upper; at their distances (8-25 m, > 25 m) a few pixels; LOD0 shows faint lighter
+  scuffs on the boot toe from the bake.
+- Not done here: the game integration (step 18), Moth.
+
+### Step 10 - Fix round 1 (fixer, Opus 5.5; fix list steps/10-fixes-r1.md)
+- 1 Shards and holes (done): the one-ray covered-face cull was the cause. LOD1 and LOD2 / phone are now closed shells
+  (A74): the hero without the lens, stitches, zip teeth and small pieces, voxel-remeshed at 2.5 mm (about 890 k
+  triangles), decimated, each face given the nearest hero face's material, the lens (protected) joined. The rib
+  segments are separate at the hero and LOD0 and part of the shell below (a trial with the plates kept separate at LOD1
+  showed the shell through the decimated plates: striped ribs). The cull stays for a layered level but needs centre +
+  every corner covered (CULL_COVERED empty). New measures in report.json and operators:check (FAIL):
+  `backFaces` (Cycles flag renders, back faces red, six views; limit hero + 0.2 % of the figure) and `openEdges`
+  (<= 1.5x the hero's). Measured: open edges hero 35.1 m, LOD0 36.0, LOD1 0.18, LOD2 / phone 0.44 (before 131 / 91);
+  back-face px per view (front / side / back / chest / boot / head) hero 2,822 / 2,063 / 3,542 / 11,385 / 4,078 /
+  6,843, LOD1 0 / 0 / 0 / 1 / 0 / 0, LOD2 and phone 0 / 5 / 0 / 2 / 0 / 0. Silhouette IoU vs hero (front / side /
+  back): LOD1 0.9954 / 0.9938 / 0.9953 (was 0.991 / 0.988 / 0.991), LOD2 and phone 0.9907 / 0.9835 / 0.9907 (was
+  0.979 / 0.967 / 0.979), LOD0 unchanged 0.9956 / 0.9946 / 0.9957. Triangles: LOD1 13,487, LOD2 / phone 5,158.
+- 3 Tangents (done): `export_tangents=True`; every LOD glb has TANGENT (report `tangents: true` in all five);
+  lodChecks FAILs a primitive with a normal texture and no TANGENT (unit test); the Lab reader takes TANGENT (x and w
+  negated for its mirror) and Babylon uses it (the invert flags only apply without tangents).
+- 2 Babylon renders (done, partly judged): `E2E_GPU=1 E2E_PORT=4191 npm run operators:sheet -- wren --only
+  lods,closeups` on the RTX 4090 (ANGLE D3D11): docs/operators/mockups/wren/wren-sheet-lods.webp (sneak pose, 7 m) and
+  the new wren-sheet-lods-closeups.webp (hero, LOD0, LOD1, LOD2, phone: chest and boot under the raking light, torso
+  bent in the sneak pose). Hero / LOD0 boot: the sole tread reads as relief; no seam lines along UV islands are
+  visible at any level. LOD1 / LOD2 / phone show blocky light patches that follow the triangles (the chest and the bent
+  torso; worst on the phone at its low shadow-map size): not a map or tangent error. Cause (verified by the round-2
+  checker, corrected in fix round 2): the Lab's 1 cm shadow normal bias opens holes in the arm's shadow on the single
+  coarse shell; the hero's stacked layers keep it closed (shadows off: hero and LOD1 shade alike; normalBias 0: LOD1
+  goes dark like the hero). Step 18: per-LOD shadow normalBias (the shell LODs need a smaller one), checked with the
+  game's shadow generator. Rib
+  segments: no gap line shows in the bent torso at LOD0 (separate pieces) or LOD1 (shell, cannot gap), but that row is
+  dark. OPEN: the raking-light close-ups are too dark to call dent-versus-bump with confidence on the near-black suit
+  (needs a brighter close-up rig or a normals debug view of the baked LODs).
+- 5 Draws (done): A75, the glow is the "+ glow" draw at LOD1 too; lodChecks `lod1: draws 2, glow 1`, limit "SPEC 6.4
+  <= 2 + glow (A75)", DESIGN.md says the same (no FLAG).
+- 6 (done / open): A71 now says 8 MB; the phone glow material is `wren-phone-glow`; A72 says the hero is held by its
+  comparison with the source. LOD0 boot toe streaks: OPEN - still in wren-lods-c-closeup-boot.webp LOD0 column (toe
+  and heel); cause: the LOD0 kit set has 24 % of its hit texels flattened (bake rays meeting the rand / toe-cap edge
+  walls at a grazing angle are set to a flat normal and the set's mean occlusion, which reads lighter) - a cage /
+  per-island fix in the bake, not done this round. LOD1 / LOD2 boots: the laces read only faintly in the maps.
+- Other: check.mjs prints `FLAG lods: not built` when export/report.json is missing. The closeups sheet now renders
+  the source LOD explicitly (it rendered the last LOD the lods sheet left loaded).
+- Render check (file and view): 1 silhouette holds - IoU above, wren-lods-a-silhouettes.webp front / side / back,
+  no dark slivers over shoulders, arms, back, thighs or calves in the LOD1 / LOD2 / phone columns; head and shoulders
+  clean at LOD1 / LOD2 / phone in wren-lods-b-closeups-chest-head.webp (head row, chest row: no shards, no torn flaps);
+  boots whole at LOD1 / LOD2 / phone in wren-lods-c-closeup-boot.webp (no holes through the upper or rand); 2 fabric
+  matte (roughness means 0.76-0.83 in every set); 6 nothing lumpy at LOD1 / LOD2 beyond the softened pouch edges a
+  5-13 k figure has. OPEN: the LOD0 toe streaks (above); the low-poly shadow patches under a grazing light in Babylon
+  (step 18: shadow normal bias per LOD).
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` exit 0, "9 item(s), all checks pass"; LOD files: tangents,
+  anchors, game joints, backFaces, openEdges PASS in all five, one FLAG (hero bones 63). `npm run check` exit 0 (74
+  files, 772 tests, lint 0 errors, build OK). Port 4191 freed.
+- Logged for step 18 / the next SPEC update: hero bones 63 vs SPEC ~30 (SPEC's own sum: 17 game joints + 30 finger
+  segments is already 47); Wren's ten toe bones sit in a rigid boot - one ball bone per foot is right for booted
+  operators (63 -> 55). The game LODs carry 23 skin joints (17 weighted + root, body, handL / R, toeL / R unweighted):
+  strip the six unweighted helpers in step 18. KTX2 stays OPEN (Michael); the GLBs then need repacking with
+  KHR_texture_basisu and the Basis transcoder bundled locally. Step 18 must test that the phone never fetches
+  `*-hero*` files.
+
+### Step 10 - Fix round 2 (fixer, Opus 5.5; fix list steps/10-fixes-r2.md)
+- 1 Holster slashes (partly done, item left OPEN): cause - the decimated shell's flat holster face meets its sides at
+  near right angles; smooth vertex normals tilt up to 45 deg there and, interpolated across long sliver triangles, sent
+  the cage rays (LOD1 3 cm, LOD2 6 cm out) sideways onto the holster sides and the pistol. Fix: shell edges over 30 deg
+  are split before the bake (SHELL_SHARP_DEG, A76). The wide black slashes are gone; thin dark arcs stay on the
+  holster face at LOD1 / LOD2 / phone (`wren-side-lod1.png`, `wren-side-lod2.png`, `wren-side-phone.png`, right thigh)
+  and LOD1's front view keeps a dark groove down the holster (`wren-front-lod1.png`, 122,525). 50 deg and 30 deg render
+  the same, so the arcs are not normal tilt; hypothesis: near-zero UV-area sliver triangles on the decimated holster
+  face (too few texels for the map to correct the shading). Next: a decimation that keeps that face's triangles fat,
+  or the holster kept as a separate piece below LOD0.
+- 2 Radio recess wedge (done): the same split removes it; `wren-back-lod2.png` / `wren-back-phone.png` show the plate
+  clean with a faint lighter triangle only (bakeDiff back 151 / 146 -> 17 / 17 px).
+- 3 New FAIL measure (done; A76): `bakeDiff` - per view, the largest 8-connected patch of LOD pixels darker than every
+  hero pixel within 3 px by more than 0.2 luminance; limits 1.1x the round-2 LOD0 (min 24 px): front 24, side 24,
+  back 142, chest 173, head 141, boot 404. Pure module src/operators/bakeDiff.ts (PNG decoder + measure), check
+  `bakeDiffCheck` in src/operators/lodChecks.ts, wired in scripts/operators/check.mjs (writes `bakeDiff` into
+  export/report.json), tests/operatorBakeDiff.test.ts (10 tests). Proof on the round-2 renders (kept in
+  build/operators/wren/export/renders-r2): LOD1 front 78 / side 40, LOD2 front 212 / side 32 / back 151, phone front
+  208 / side 31 / back 146 - all FAIL; LOD0 passes. Block mean luminance (the fix list's example) was tried and does
+  not separate the errors from LOD0's spread (A76). The measure also shows LOD0's own bake errors: the thigh-band lower
+  edge in `wren-back-lod0.png` (128 px, jagged dark triangles over the seat) and the toe streaks in `wren-boot-lod0.png`
+  (367 px); those set the back and boot limits, so a tighter limit waits for those two LOD0 bakes.
+- 4 Render check, round 2 (Cycles, OptiX, build/operators/wren/export/renders/; bakeDiff largest patch / limit):
+  - front: LOD0 18/24 clean; LOD1 31/24 FAIL (holster groove, `wren-front-lod1.png`); LOD2 15/24, phone 17/24 clean.
+  - side: LOD0 9/24 clean; LOD1 11, LOD2 14, phone 9 under the limit but thin dark arcs visible on the holster face
+    (`wren-side-lod1.png`, `-lod2`, `-phone`) - not clean by eye.
+  - back: LOD0 128/142 (thigh-band edge, see 3); LOD1 12, LOD2 17, phone 17: plate and radio recess clean, holster back
+    clean (`wren-back-lod1.png`, `-lod2`, `-phone`).
+  - chest / head / boot: LOD1 36 / 21 / 0, LOD2 47 / 2 / 0, phone 47 / 2 / 0, all under the limits;
+    wren-lods-b / -c sheets as round 1.
+  - Silhouette IoU unchanged (LOD1 0.9954 / 0.9938 / 0.9953, LOD2 / phone 0.9907 / 0.9835 / 0.9907).
+- Record items (done): A70 says ribs separate at the hero and LOD0, shell from LOD1 down; A74 notes the step 10 Do 2
+  departure and the checker's render evidence; the Babylon patch cause in round 1 item 2 is corrected (shadow normal
+  bias; step 18 per-LOD normalBias). The lods-closeups row "Torso bent (sneak), ribs" now uses `joint ['chest',
+  [0,-0.15,0]], radius 0.9, yaw 0.35, pitch -0.35` and frames the front rib laps at every level
+  (docs/operators/mockups/wren/wren-sheet-lods-closeups.webp, row 3, RTX 4090 ANGLE D3D11).
+- LOD0 toe streaks (OPEN, hypothesis): the bake rays at the toe-cap / rand edges slide sideways (the A76 mechanism:
+  smooth normals tilted at a near right-angle edge, a 2 cm cage) and hit the rand walls. The 24 % flattened share
+  alone does not explain it - the hero kit set has 22 % and no streaks. Not changed this round (LOD0 untouched).
+- OPEN list adds: LOD1 / LOD2 boot laces read only faintly (sheet c columns 4-6; not a fail at 8 m+). Unchanged: hero
+  bones 63, six unweighted helper joints, KTX2 (Michael), the phone never fetching `*-hero*` (step 18).
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` exit 1, "1 failed check(s)": `wren lod1 FAIL bakeDiff: front 31 px
+  at 122,525 > 24`; every other LOD check PASS (one FLAG, hero bones 63). `npm run check` exit 0 (75 files, 782 tests,
+  lint 0 errors / 38 warnings, build OK; a first run hit three 5 s timeouts in unrelated suites - detailPass, pvp,
+  voxel - under load, clean on the re-run). Port 4191 freed.
+
+### Step 10 - Fix round 3 (fixer, Opus 5.5; the last round, fix list steps/10-fixes-r3.md)
+- 1 Holster face (done): cause confirmed - the holster was part of the voxel shell, so its flat face and the thigh were
+  one surface and the collapse ran slivers from the face into the thigh (and the bake's rays across the gap). Kept out
+  of the remesh as separate pieces (A77: rigid `harness polymer` components 0.05-0.25 m, decimated alone, joined to
+  the shell; the rest unchanged) the arcs and the groove are gone: bakeDiff LOD1 front 31 -> 0 px, side 11 -> 0,
+  holster 0; LOD2 front 15 -> 2, side 14 -> 7, holster 4; phone side 9 -> 7, holster 3. By eye the holster face is
+  flat with its strap and hood like the hero's in every level (docs/operators/mockups/tests/wren-lods-d-closeup-holster.webp;
+  wren-lods-a-silhouettes.webp side row; renders build/operators/wren/export/renders/wren-{front,side,holster}-{lod1,lod2,phone}.png).
+- 2 bakeDiff limits (done; A76 amended): shells 24 px in every view (`SHELL_DARK_LIMIT`, `darkPatchLimit`); the
+  per-view limits are LOD0's only and each loose one is named in A76; new `holster` close-up view in the renders,
+  backFaces and bakeDiff (24 px); bakeDiff and backFaces FAIL "stale" when a render is older than its LOD's GLB (or the
+  hero's render than the hero's GLB; `staleViews`, wired in check.mjs). Unit tests (tests/operatorBakeDiff.test.ts, 4
+  new): shell limits, the round-2 chest defects failing, the holster view, stale. On renders-r2 every shell still FAILs
+  (LOD1 front 78 / side 40 / back 53 / chest 64 / head 80; LOD2 front 212 / back 151 / chest 55 / head 59; phone
+  front 208 / back 146 / chest 41 / head 56).
+- 3 Chest (LOD2 / phone done, LOD1 OPEN): the knife sheath (the "tall pouch") and the mag pouches are rigid pieces
+  (A77), so the sheath is whole and the wedge into the mag pouch gone: chest 47 -> 18 px at LOD2 / phone
+  (wren-chest-lod2.png, -phone.png; sheet b). At LOD2 only the front torso / thigh pieces stay separate (all nine at
+  LOD2's budget lost their shape: pouch flaps, a twisted belt holder, back 106 px) and LOD2's target is 5,600 (A77).
+  LOD1 notch NOT fixed: `wren-chest-lod1.png` 404,347, 36 px (> 24, operators:check FAILs it), a dark hooked notch where
+  the plate's lower band meets the cummerbund on the left side; the same spot is 18 px at LOD2 / phone. A 2 cm LOD1
+  cage (was 3) did not change it, so it is the shell's geometry there (a step in the remeshed band edge), not ray
+  reach; next: inspect the hero / shell at about (0.12, -0.13, 1.17) m and keep that band edge in the decimation
+  (vertex-group weight) or the band separate.
+- 4 LOD0 bake errors (mostly done): the A76 split on LOD0 above z 0.20 m (SHARP_SPLIT; on the boots it made the toe
+  streaks worse, 367 -> 491 px) removed the thigh-band line (back 128 -> 1 px), the buckle blotches (front 18 -> 1)
+  and the plate-top smear (chest 157 -> 1, head 125 -> 0); those LOD0 limits are 24 again. OPEN: the toe streaks,
+  boot 367 px at `wren-boot-lod0.png` 189,373, the only loose limit (404).
+- Numbers (report.json): triangles hero 229,348, LOD0 39,809, LOD1 13,484 (rigid pieces 3,507 -> 2,930 with the
+  lens), LOD2 / phone 5,557 (5 pieces + lens 2,383 -> 1,850); IoU front / side / back LOD1 0.9953 / 0.9936 / 0.9954,
+  LOD2 / phone 0.9910 / 0.9832 / 0.9911; GLB LOD1 1.87, LOD2 0.84, phone 0.57 MB. DESIGN.md rows updated.
+- Renders (Cycles, OptiX, RTX 4090; `npm run operators:lods -- wren --render`, about 6 min): sheets
+  docs/operators/mockups/tests/wren-lods-a-silhouettes.webp, -b-closeups-chest-head.webp, -c-closeup-boot.webp and the
+  new -d-closeup-holster.webp; per-view PNGs in build/operators/wren/export/renders/.
+- KTX2 not in this round (step 11's first task; A73 open). Logged follow-ups as the fix list (LOD2 / phone head shell,
+  radio blotch, boot laces, hero bones 63, helper joints, shadow normalBias, phone never fetching `*-hero*`).
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` exit 1, "1 failed check(s)": `wren lod1 FAIL bakeDiff: chest 36 px
+  at 404,347 > 24`; 9 items PASS; every other LOD check PASS (bakeDiff LOD0 front 1 / side 9 / back 1 / chest 1 /
+  head 0 / boot 367 / holster 8; LOD2 2 / 7 / 0 / 18 / 13 / 0 / 4; phone 1 / 7 / 0 / 18 / 3 / 0 / 3); one FLAG (hero
+  bones 63). `npm run check` exit 0 (75 files, 785 tests, lint 0 errors / 38 warnings, build OK; a first run hit the
+  same three 5 s timeouts under load as round 2 - detailPass, pvp, voxel - clean on the re-run). Port 4191 freed.
+- Checker round 4 (final): FAIL (steps/10-fixes-r4.md). operators:check: 1 failed check - `wren lod1 FAIL bakeDiff:
+  chest 36 px at 404,347 > 24`; all 9 items and every other LOD check pass (tangents, anchors, gameJoints, triangles,
+  draws, bones, backFaces incl. holster, openEdges, bakeDiff for LOD0 / LOD2 / phone); FLAG hero bones 63. npm run check
+  passes (75 files, 785 tests). A76 (amended) and A77 accepted; renders-r2 still fail every LOD with the current code.
+  Round-3 numbers: LOD1 13,484 tris, LOD2 / phone 5,557; IoU LOD1 0.9953 / 0.9936 / 0.9954, LOD2 / phone
+  0.9910 / 0.9832 / 0.9911.
+- Status: OPEN after 3 fix rounds; evidence: steps/10-fixes-r4.md; remaining: 1. LOD1 chest notch where the plate's
+  lower band meets the cummerbund (wren-chest-lod1.png 404,347, 36 px vs 24); 2. LOD0 toe streaks (wren-boot-lod0.png
+  189,373, 367 px; the one loose limit, 404). Notes: boot laces gone below LOD0; dashed suit front seam on LOD1 / LOD2;
+  short knife clip on LOD2 / phone; carried: LOD2 / phone head shell, radio blotch, hero bones 63, helper joints,
+  per-LOD shadow normalBias, the phone never fetching `*-hero*`. KTX2 is step 11's first task (D26, A73 open).
+

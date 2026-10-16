@@ -1,7 +1,8 @@
 /**
  * Minimal GLB reader for the Operator Lab (pure, no Babylon, no dependency). Reads what `py/export_gltf.py` writes: a
  * node tree with one skin, skinned triangle meshes (POSITION, NORMAL, TEXCOORD_0, JOINTS_0, WEIGHTS_0, indices) and
- * metallic-roughness factors. Everything comes out in the game frame (+X right, +Y up, +Z forward, left-handed): the
+ * metallic-roughness factors, and (step 10's baked LODs) the embedded images of the base colour, packed occlusion /
+ * roughness / metal and normal textures. Everything comes out in the game frame (+X right, +Y up, +Z forward, left-handed): the
  * glTF model faces +Z with its right on -X, so x is negated and the triangle winding flipped.
  */
 
@@ -16,12 +17,23 @@ export interface GlbNode {
   r: Quat;
 }
 
+/** One image embedded in the GLB's binary chunk (PNG, JPEG or WebP). */
+export interface GlbImage {
+  mime: string;
+  data: Uint8Array;
+}
+
 export interface GlbMaterial {
   name: string;
   /** Linear base colour factor. */
   base: V3;
   roughness: number;
   metallic: number;
+  emissive: V3;
+  /** Baked maps (step 10): base colour (sRGB), packed occlusion R / roughness G / metal B, tangent normal. */
+  baseTex?: GlbImage;
+  ormTex?: GlbImage;
+  normalTex?: GlbImage;
 }
 
 export interface GlbMesh {
@@ -30,6 +42,8 @@ export interface GlbMesh {
   positions: Float32Array;
   normals: Float32Array;
   uvs: Float32Array;
+  /** MikkTSpace tangents (x, y, z, w) in the reader's mirrored frame, when the file has them (step 10 baked LODs). */
+  tangents?: Float32Array;
   /** Skin joint slots (4 per vertex) and weights. */
   joints: Uint16Array;
   weights: Float32Array;
@@ -47,7 +61,14 @@ export interface GlbModel {
 interface Json {
   nodes: { name?: string; children?: number[]; translation?: number[]; rotation?: number[] }[];
   skins?: { joints: number[] }[];
-  materials?: { name?: string; pbrMetallicRoughness?: { baseColorFactor?: number[]; roughnessFactor?: number; metallicFactor?: number } }[];
+  materials?: {
+    name?: string;
+    pbrMetallicRoughness?: { baseColorFactor?: number[]; roughnessFactor?: number; metallicFactor?: number; baseColorTexture?: { index: number }; metallicRoughnessTexture?: { index: number } };
+    normalTexture?: { index: number };
+    emissiveFactor?: number[];
+  }[];
+  images?: { bufferView?: number; mimeType?: string }[];
+  textures?: { source?: number; extensions?: { EXT_texture_webp?: { source: number } } }[];
   meshes: { name?: string; primitives: { attributes: Record<string, number>; indices?: number; material?: number }[] }[];
   accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number; type: string }[];
   bufferViews: { byteOffset?: number; byteLength: number; byteStride?: number }[];
@@ -98,10 +119,23 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
     return { name: n.name ?? `node${i}`, parent: parent[i]!, t: [-t[0]!, t[1]!, t[2]!], r: [r[0]!, -r[1]!, -r[2]!, r[3]!] };
   });
 
+  const image = (tex: { index: number } | undefined): GlbImage | undefined => {
+    if (!tex) return undefined;
+    const t = json.textures?.[tex.index];
+    const src = t?.extensions?.EXT_texture_webp?.source ?? t?.source;
+    const im = src !== undefined ? json.images?.[src] : undefined;
+    if (!im || im.bufferView === undefined) return undefined;
+    const bv = json.bufferViews[im.bufferView]!;
+    return { mime: im.mimeType ?? 'image/png', data: new Uint8Array(buf, binStart + (bv.byteOffset ?? 0), bv.byteLength) };
+  };
   const materials: GlbMaterial[] = (json.materials ?? []).map((m, i) => {
     const p = m.pbrMetallicRoughness ?? {};
     const b = p.baseColorFactor ?? [0.8, 0.8, 0.8, 1];
-    return { name: m.name ?? `mat${i}`, base: [b[0]!, b[1]!, b[2]!], roughness: p.roughnessFactor ?? 1, metallic: p.metallicFactor ?? 1 };
+    const e = m.emissiveFactor ?? [0, 0, 0];
+    return {
+      name: m.name ?? `mat${i}`, base: [b[0]!, b[1]!, b[2]!], roughness: p.roughnessFactor ?? 1, metallic: p.metallicFactor ?? 1,
+      emissive: [e[0]!, e[1]!, e[2]!], baseTex: image(p.baseColorTexture), ormTex: image(p.metallicRoughnessTexture), normalTex: image(m.normalTexture),
+    };
   });
 
   const meshes: GlbMesh[] = [];
@@ -111,6 +145,7 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       const pos = read(at.POSITION!);
       const nor = at.NORMAL !== undefined ? read(at.NORMAL) : null;
       const uv = at.TEXCOORD_0 !== undefined ? read(at.TEXCOORD_0) : null;
+      const tan = at.TANGENT !== undefined ? read(at.TANGENT) : null;
       const jn = at.JOINTS_0 !== undefined ? read(at.JOINTS_0) : null;
       const wt = at.WEIGHTS_0 !== undefined ? read(at.WEIGHTS_0) : null;
       const idx = read(prim.indices!);
@@ -137,7 +172,19 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       const joints = new Uint16Array(pos.n * 4);
       const weights = new Float32Array(pos.n * 4);
       if (jn && wt) for (let i = 0; i < pos.n * 4; i++) { joints[i] = jn.data[i]!; weights[i] = wt.data[i]!; }
-      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, joints, weights, indices });
+      // tangents: x mirrored with the positions; the mirror flips the frame's handedness, so w flips too (the v flip
+      // is undone by the texture's own flip at upload, so it changes nothing)
+      let tangents: Float32Array | undefined;
+      if (tan) {
+        tangents = new Float32Array(pos.n * 4);
+        for (let i = 0; i < pos.n; i++) {
+          tangents[i * 4] = -tan.data[i * 4]!;
+          tangents[i * 4 + 1] = tan.data[i * 4 + 1]!;
+          tangents[i * 4 + 2] = tan.data[i * 4 + 2]!;
+          tangents[i * 4 + 3] = -tan.data[i * 4 + 3]!;
+        }
+      }
+      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, joints, weights, indices });
     }
   }
   return { nodes, joints: json.skins?.[0]?.joints ?? [], materials, meshes };

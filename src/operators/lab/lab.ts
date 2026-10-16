@@ -7,12 +7,12 @@
 import {
   ArcRotateCamera, Bone, Camera, Color3, Color4, Constants, CreateBox, CreateDisc, DefaultRenderingPipeline, DirectionalLight,
   Effect, Engine, HemisphericLight, ImageProcessingConfiguration, Matrix, Mesh, PBRMaterial, PointLight, PostProcess, Quaternion, Scene,
-  ShadowGenerator, Skeleton, SSAO2RenderingPipeline, StandardMaterial, TransformNode, Vector3, VertexData, VertexBuffer,
+  ShadowGenerator, Skeleton, SSAO2RenderingPipeline, StandardMaterial, Texture, TransformNode, Vector3, VertexData, VertexBuffer,
 } from '../../core/babylon';
 import type { AbstractMesh } from '../../core/babylon';
 import { defaultLook } from '../../cosmetics/avatarLook';
 import { CharacterRig } from '../../player/characterRig';
-import { bindWorld, parseGlb, type GlbModel, type Quat, type V3 } from './glb';
+import { bindWorld, parseGlb, type GlbImage, type GlbModel, type Quat, type V3 } from './glb';
 import { CLOSEUPS, LIGHT_RIGS, POSES, PRESETS, type CamView, type LightRig, type PoseDef, type QualityPreset } from './labData';
 import { buildRetarget, JOINT_TO_RIG, poseSkeleton, type Retarget, type RigJoint } from './retarget';
 
@@ -68,13 +68,13 @@ export class Lab {
   readonly scene: Scene;
   readonly camera: ArcRotateCamera;
   readonly state: LabState = {
-    operator: 'wren', pose: 'apose', rig: 'studio', preset: 'epic', lod: 'hero', debug: 'none',
+    operator: 'wren', pose: 'apose', rig: 'studio', preset: 'epic', lod: 'source', debug: 'none',
     turntable: false, ortho: false, silhouette: false, gameRig: false, weapon: true,
   };
   /** Operators with a built glTF. */
   available: string[] = [];
   /** LODs found for the loaded operator (hero first). */
-  lods: string[] = ['hero'];
+  lods: string[] = ['source'];
   private loaded: Loaded | null = null;
   private rig!: CharacterRig;
   private rigRest = new Map<string, { pos: Vector3 }>();
@@ -208,7 +208,8 @@ export class Lab {
   /** Loads an operator's glTF into a skinned, retargeted figure. */
   async load(id: string): Promise<void> {
     if (this.loaded) this.unload();
-    const file = this.state.lod === 'hero' ? `${id}-lab.glb` : `${id}-lab-${this.state.lod}.glb`;
+    // 'source': the unbaked build (every triangle, procedural factors); the rest are step 10's baked LODs
+    const file = this.state.lod === 'source' ? `${id}-lab.glb` : `${id}-lab-${this.state.lod}.glb`;
     const buf = await (await fetch(`/__operators/${id}/${file}`)).arrayBuffer();
     const model = parseGlb(buf);
     let height = 1.68;
@@ -251,17 +252,44 @@ export class Lab {
     model.joints.forEach((nodeIdx, s) => slot.set(s, skeleton.bones.indexOf(bones.get(nodeIdx)!)));
     for (const [i, b] of bones) b.linkTransformNode(nodes[i]!);
 
+    const tex = (im: GlbImage | undefined, srgb: boolean): Texture | null => {
+      if (!im) return null;
+      const url = URL.createObjectURL(new Blob([im.data as BlobPart], { type: im.mime }));
+      const t = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => URL.revokeObjectURL(url));
+      t.gammaSpace = srgb;
+      return t;
+    };
     const materials = model.materials.map((m) => {
       const p = new PBRMaterial(`${id}-${m.name}`, this.scene);
       p.albedoColor = new Color3(...m.base);
       p.metallic = m.metallic > 0.5 ? 0.9 : 0;
       p.roughness = m.roughness;
+      // Step 10 baked sets: base colour, packed occlusion / roughness / metal (glTF channels), tangent normal. With the
+      // file's tangents (every baked LOD) Babylon uses them and ignores the invert flags; without them it derives a
+      // frame from the mirrored, v-flipped reader, so both normal-map axes are inverted relative to the file.
+      const albedo = tex(m.baseTex, true);
+      if (albedo) p.albedoTexture = albedo;
+      const orm = tex(m.ormTex, false);
+      if (orm) {
+        p.metallicTexture = orm;
+        p.useAmbientOcclusionFromMetallicTextureRed = true;
+        p.useRoughnessFromMetallicTextureGreen = true;
+        p.useMetallnessFromMetallicTextureBlue = true;
+        p.metallic = m.metallic;
+        p.roughness = m.roughness;
+      }
+      const nrm = tex(m.normalTex, false);
+      if (nrm) {
+        p.bumpTexture = nrm;
+        p.invertNormalMapX = true;
+        p.invertNormalMapY = true;
+      }
       p.environmentIntensity = 0.25;
       p.directIntensity = Math.PI; // as the game's parts: PBR divides diffuse by pi
       p.backFaceCulling = false;
       p.twoSidedLighting = true;
       // Step 07: the built goggle's lenses carry the glow (D13); the stand-in box is then hidden.
-      if (m.name === 'goggle lens') p.emissiveColor = new Color3(0.3, 0.85, 0.16);
+      if (m.name === 'goggle lens' || m.name.endsWith('-glow')) p.emissiveColor = new Color3(0.3, 0.85, 0.16);
       return p;
     });
     const meshes: Mesh[] = [];
@@ -272,6 +300,7 @@ export class Lab {
       vd.positions = g.positions;
       vd.normals = g.normals;
       vd.uvs = g.uvs;
+      if (g.tangents) vd.tangents = g.tangents;
       vd.indices = g.indices as unknown as number[];
       const idx = new Float32Array(g.joints.length);
       for (let i = 0; i < idx.length; i++) idx[i] = g.weights[i]! > 0 ? slot.get(g.joints[i]!) ?? 0 : 0;
@@ -292,8 +321,8 @@ export class Lab {
     this.state.operator = id;
     this.posePos = w.pos.map((p) => [...p] as V3);
     this.poseRot = w.rot.map((r) => [...r] as Quat);
-    const found: string[] = ['hero'];
-    for (const l of ['lod1', 'lod2', 'phone']) {
+    const found: string[] = ['source'];
+    for (const l of ['hero', 'lod0', 'lod1', 'lod2', 'phone']) {
       const r = await fetch(`/__operators/${id}/${id}-lab-${l}.glb`, { method: 'HEAD' });
       if (r.ok) found.push(l);
     }

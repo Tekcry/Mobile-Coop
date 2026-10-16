@@ -68,10 +68,21 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   renders the close-ups only).
 
 - `py/export_gltf.py`, `export-gltf.mjs` (`npm run operators:export`) - `<id>-lab.glb`: body and garments skinned to the game
-  joint names, flat material factors (baked maps and KTX2 arrive in step 10). Runs at the end of `operators:build`.
+  joint names, flat material factors: the unbaked build (the Lab's `source` LOD). Runs at the end of `operators:build`.
+- `py/bake_lods.py`, `export-gltf.mjs` (`npm run operators:lods -- wren [--render] [--scale 0.125]`, step 10, A69-A73) -
+  the game assets from the last garment's blend: hero (230 k), LOD0 (40 k), LOD1 (13.5 k), LOD2 and phone (5.2 k)
+  decimated in a chain, regrouped into atlases (hero: cloth 4K, kit 2K, hardware 2K, glow; LOD0: cloth 2K, kit 2K,
+  glow; LOD1: cloth 1K, kit 1K, glow; LOD2: one 1K atlas, glow; phone: LOD2 at 512), unwrapped from the garments'
+  pattern panels, baked from the 2.45 M source on the GPU (albedo, tangent normal, ORM), skinned (game LODs: 17 game
+  joints), with the anchors `weaponMount.backL/.backC/.backR` (chest), `pistolHolster` (hipR), `slingSocket` (pelvis).
+  Writes `build/operators/<id>/export/{<lod>/<id>-<lod>.glb, textures/<lod>/*.png, report.json, README.md}` (the README
+  holds the KTX2 command, OPEN until `toktx` is installed), the Lab copies `<id>-lab-<lod>.glb`, `<id>-lods.blend`,
+  and with `--render` the side-by-side sheets `docs/operators/mockups/tests/<id>-lods-*.webp` (columns: source, hero,
+  LOD0, LOD1, LOD2, phone). About 15-20 min for Wren. `operators:check` then checks every LOD file (anchors on their
+  joints, game joints only) and flags SPEC 6.4 overruns.
 - `npm run operators` - the dev-only Operator Lab (`operators.html`, `src/operators/lab/`, `vite.operators.config.ts`): builds
   into `build/operators-lab/` and serves at `http://127.0.0.1:4191/operators.html` (E2E_PORT). Never in `dist/`.
 - `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
   (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4191`) - the contact sheets, into `docs/operators/mockups/<id>/`.
 
-Stages still to come (PLAN.md): more garments and kit, baked maps, LODs.
+Stages still to come (PLAN.md): Moth; KTX2 (needs `toktx`); the game integration (step 18).

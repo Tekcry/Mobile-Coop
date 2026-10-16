@@ -19,6 +19,7 @@
     "operators:build": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/build.mjs",
     "operators": "vite build --config vite.operators.config.ts && vite preview --config vite.operators.config.ts",
     "operators:export": "node scripts/operators/export-gltf.mjs",
+    "operators:lods": "node scripts/operators/export-gltf.mjs --lods",
     "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
     "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs"
   },
