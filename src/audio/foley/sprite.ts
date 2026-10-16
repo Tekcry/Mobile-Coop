@@ -5,6 +5,9 @@
  * MP3 encoders and decoders add a short delay at the start, and browsers differ in how much they trim. The render
  * records `mark`, the time of the first sample above `MARK_LEVEL` in the WAV it encoded; at load the same search on the
  * decoded buffer gives the decoder's shift, applied to every take.
+ *
+ * Gear is plain fabric only: the operator carries nothing loose (Michael, 2026-10-16: no buckle, belt or leather takes,
+ * nothing that jingles).
  */
 
 /** Bank ids (the render's `foley-sources.json` keys; `bootHeel` / `bootToe` are the split boot takes). */
@@ -21,11 +24,9 @@ export type FoleyBank =
   | 'thump'
   | 'thumpHeavy'
   | 'hand'
-  | 'cloth'
-  | 'buckle'
-  | 'leather';
+  | 'cloth';
 
-export const FOLEY_BANKS: readonly FoleyBank[] = ['concrete', 'carpet', 'board', 'gravel', 'bootHeel', 'bootToe', 'ring', 'plate', 'tin', 'thump', 'thumpHeavy', 'hand', 'cloth', 'buckle', 'leather'];
+export const FOLEY_BANKS: readonly FoleyBank[] = ['concrete', 'carpet', 'board', 'gravel', 'bootHeel', 'bootToe', 'ring', 'plate', 'tin', 'thump', 'thumpHeavy', 'hand', 'cloth'];
 
 /** A take in the sprite: start and length (s). */
 export type Take = readonly [start: number, dur: number];

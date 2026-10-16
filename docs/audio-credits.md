@@ -11,6 +11,6 @@ checked 2026-10-16). No attribution is required; it is given here anyway.
 | Pack | Page | Zip SHA-256 | Used |
 | --- | --- | --- | --- |
 | Impact Sounds | https://kenney.nl/assets/impact-sounds | `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8` | footstep_concrete / carpet / wood / snow (gravel), impactMetal_light, impactPlate_light, impactTin_medium, impactSoft_medium / heavy, impactGeneric_light |
-| RPG Audio | https://kenney.nl/assets/rpg-audio | `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b` | footstep00-09 (split heel / toe), cloth1-4, clothBelt, clothBelt2, beltHandle1-2, handleSmallLeather 1-2 |
+| RPG Audio | https://kenney.nl/assets/rpg-audio | `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b` | footstep00-09 (split heel / toe), cloth1-4 |
 
-Size: 264 KB of the proposed 8 MB audio budget (bible S7).
+Size: 233 KB of the proposed 8 MB audio budget (bible S7).

@@ -3,10 +3,10 @@
 ## Unreleased - Movement foley (feature/footsteps)
 - Sound: the player's footsteps, landings and moves are real CC0 recordings (Kenney Impact Sounds and RPG Audio,
   `docs/audio-credits.md`) instead of one filtered noise burst per surface. Each step is a heel and a toe from separately
-  picked takes with their own pitch and level, the two feet a touch apart, no take repeated back to back, light gear
-  rustle on some steps. Crouch, walk, run and sprint each sound different (a slow soft roll to a slap); concrete, metal
+  picked takes with their own pitch and level, the two feet a touch apart, no take repeated back to back, no gear
+  sound at all: the suit is built not to make noise. Crouch, walk, run and sprint each sound different (a slow soft roll to a slap); concrete, metal
   (deck ring), grate (rattle), wood (boots on boards), gravel (crunch) and carpet each have their own takes. Landings
-  (soft, roll, heavy), vaults, mantles, hops, drops and rolls have their own sounds.
+  (soft, roll, heavy), vaults, mantles, hops and rolls have their own sounds, all damped by the suit (dull, short, quiet).
 - Steps now follow the animation's real foot plants instead of a timer, so they match what the feet do (turning on
   the spot, stopping, a stride at any speed gear).
 - Gameplay is unchanged: guards still hear the noise model, never the audio.

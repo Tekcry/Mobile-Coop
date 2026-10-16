@@ -57,7 +57,7 @@ export class FoleyLabScreen extends Screen {
       h('div', { class: 'screen-title', text: 'Foley lab: movement sounds' }),
       this.status,
       section('Steps', h('div', { class: 'lab-row' }, this.walkBtn, this.synthBtn), surfRow, gaitRow),
-      section('Landings and moves', moveRow, h('div', { class: 'row-note', text: 'Real CC0 recordings (Kenney Impact Sounds and RPG Audio): heel and toe from separate takes, random pitch and level, light gear rustle. Tell Claude what to change (level, surface, gait, a sound that is off).' })),
+      section('Landings and moves', moveRow, h('div', { class: 'row-note', text: 'Real CC0 recordings (Kenney Impact Sounds and RPG Audio): heel and toe from separate takes, random pitch and level. The suit is silent and soaks up impacts. Tell Claude what to change (level, surface, gait, a sound that is off).' })),
     );
     this.mark();
   }

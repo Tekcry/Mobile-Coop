@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import index from '../src/assets/sfx/foley.json';
 import { dedupe, fadeOut, layout, normalize, onsets, peakOf, splitHeelToe, trim } from '../src/audio/foley/render/process';
 import { alignShift, firstAbove, FOLEY_BANKS, missingBanks, type FoleyIndex } from '../src/audio/foley/sprite';
-import { FOLEY_MIX, FoleyPlanner, GAITS, gaitOf, MAX_LAYERS, newPlan, RUN_FROM, SURFACES, TakePicker, VARY, type FoleyPlan, type Gait } from '../src/audio/foley/steps';
+import { FOLEY_MIX, FoleyPlanner, GAITS, gaitOf, MAX_LAYERS, newPlan, RUN_FROM, SUIT, SURFACES, TakePicker, VARY, type FoleyPlan, type Gait } from '../src/audio/foley/steps';
 import { Rng } from '../src/audio/music/rng';
 import type { Surface } from '../src/world/surfaces';
 
@@ -233,28 +233,40 @@ describe('step planner', () => {
     expect(banks('wood')).toEqual(expect.arrayContaining(['bootHeel', 'bootToe', 'board']));
   });
 
-  it('gear rustle rides on some steps, more at a sprint, as slices from inside a cloth take', () => {
-    const rate = (g: Gait): number => {
-      const fp = new FoleyPlanner(INDEX, new Rng(6));
-      const plan = newPlan();
-      let n = 0;
-      for (let i = 0; i < 500; i++) {
+  it('the suit is silent: no gear layer on any step', () => {
+    const fp = new FoleyPlanner(INDEX, new Rng(6));
+    const plan = newPlan();
+    for (const g of GAIT_LIST) {
+      for (let i = 0; i < 300; i++) {
         fp.step(plan, 'concrete', g, 3, 1);
-        for (let k = 0; k < plan.n; k++) {
-          const L = plan.layers[k]!;
-          if (L.bank !== 'cloth') continue;
-          n++;
-          expect(L.fadeIn).toBeGreaterThan(0);
-          expect(L.offset).toBeGreaterThanOrEqual(0);
-        }
+        for (let k = 0; k < plan.n; k++) expect(plan.layers[k]!.bank).not.toBe('cloth');
       }
-      return n / 500;
-    };
-    expect(rate('walk')).toBeCloseTo(GAITS.walk.gear, 1);
-    expect(rate('sprint')).toBeGreaterThan(rate('walk'));
+    }
   });
 
-  it('landings: two feet and a thump; a heavy one is louder and rattles the gear', () => {
+  it('the suit damps impacts: landings and moves are low-passed and short; the only fabric is a faint brush', () => {
+    const fp = new FoleyPlanner(INDEX, new Rng(13));
+    const plans: FoleyPlan[] = [];
+    for (const k of ['soft', 'roll', 'heavy'] as const) plans.push(fp.landing(newPlan(), 'metal', k));
+    for (const k of ['vault', 'mantle', 'hop', 'roll'] as const) plans.push(fp.move(newPlan(), 'metal', k, 0.7));
+    for (const p of plans) {
+      for (let i = 0; i < p.n; i++) {
+        const L = p.layers[i]!;
+        expect(L.lowpass).toBeGreaterThan(0);
+        expect(L.lowpass).toBeLessThanOrEqual(SUIT.impactLowpass * 1.5);
+        if (L.bank === 'cloth') {
+          expect(L.gain).toBeLessThanOrEqual(FOLEY_MIX.move * SUIT.brushGain * (1 + VARY.gain) + 1e-9);
+          expect(L.fadeIn > 0 || L.offset === 0).toBe(true);
+        } else expect(L.dur * L.rate).toBeLessThanOrEqual(0.3 + 1e-9);
+      }
+    }
+    // a landing is quieter than an undamped pair of run steps would be
+    const land = fp.landing(newPlan(), 'concrete', 'soft');
+    const steps = fp.step(newPlan(), 'concrete', 'run', 3.4, 1);
+    expect(land.layers[0]!.gain).toBeLessThan(steps.layers[0]!.gain * (FOLEY_MIX.landing / FOLEY_MIX.step) * 1.1 * (1 + VARY.gain));
+  });
+
+  it('landings: two feet and a thump; a heavy one is louder', () => {
     const fp = new FoleyPlanner(INDEX, new Rng(8));
     const soft = fp.landing(newPlan(), 'concrete', 'soft');
     const sb = soft.layers.slice(0, soft.n).map((l) => l.bank);
@@ -262,22 +274,41 @@ describe('step planner', () => {
     expect(sb).toContain('thump');
     const heavy = fp.landing(newPlan(), 'concrete', 'heavy');
     const hb = heavy.layers.slice(0, heavy.n).map((l) => l.bank);
-    expect(hb).toEqual(expect.arrayContaining(['thumpHeavy', 'buckle', 'cloth']));
+    expect(hb).toContain('thumpHeavy');
+    expect(hb).not.toContain('cloth');
     expect(sumGain(heavy)).toBeGreaterThan(sumGain(soft));
   });
 
-  it('moves: hands on a vault and a mantle, the roll tumbles, every move lands inside its duration', () => {
+  it('moves: hands on a vault and a mantle, the roll tumbles, going over an edge is silent, all inside the move', () => {
     const fp = new FoleyPlanner(INDEX, new Rng(10));
     for (const [kind, dur] of [['vault', 0.7], ['mantle', 1], ['hop', 0.5], ['drop', 0.35], ['roll', 0.62]] as const) {
       const p = fp.move(newPlan(), 'concrete', kind, dur);
+      if (kind === 'drop') {
+        expect(p.n).toBe(0);
+        continue;
+      }
       expect(p.n).toBeGreaterThan(0);
       for (let i = 0; i < p.n; i++) expect(p.layers[i]!.at).toBeLessThanOrEqual(dur);
       const b = p.layers.slice(0, p.n).map((l) => l.bank);
       if (kind === 'vault' || kind === 'mantle') expect(b).toContain('hand');
       if (kind === 'roll') expect(b.filter((x) => x === 'thump').length).toBe(2);
-      expect(b).toContain('cloth');
+      if (kind !== 'hop') expect(b).toContain('cloth');
     }
     expect(FOLEY_MIX.move).toBeGreaterThan(0);
+  });
+
+  it('nothing jingles: the only gear sound is fabric (no buckle, belt or leather takes)', () => {
+    const fp = new FoleyPlanner(INDEX, new Rng(12));
+    const plans: FoleyPlan[] = [];
+    for (const s of SURF) {
+      for (const g of GAIT_LIST) for (let i = 0; i < 50; i++) plans.push(fp.step(newPlan(), s, g, GAITS[g].top, 1));
+      for (const k of ['soft', 'roll', 'heavy'] as const) plans.push(fp.landing(newPlan(), s, k));
+      for (const k of ['vault', 'mantle', 'hop', 'drop', 'roll'] as const) plans.push(fp.move(newPlan(), s, k, 0.7));
+    }
+    const gear = new Set<string>();
+    for (const p of plans) for (let i = 0; i < p.n; i++) if (!['concrete', 'carpet', 'board', 'gravel', 'bootHeel', 'bootToe', 'ring', 'plate', 'tin', 'thump', 'thumpHeavy', 'hand'].includes(p.layers[i]!.bank)) gear.add(p.layers[i]!.bank);
+    expect([...gear]).toEqual(['cloth']);
+    expect(Object.keys(INDEX.banks).sort()).toEqual([...FOLEY_BANKS].sort());
   });
 
   it('is deterministic for a seed (the variation is the RNG, nothing else)', () => {
