@@ -94,13 +94,14 @@ export const PIECES: readonly PieceMeta[] = [
   {
     id: 'brokenpluck',
     name: 'Broken hook: plucked',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -110,24 +111,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokenbow',
     name: 'Broken hook: bowed',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -137,24 +140,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokentimp',
     name: 'Broken hook: timpani',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -164,12 +169,13 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
@@ -794,6 +800,15 @@ function broken(s: Score, layer: string, b: number, kind: BrokenKind, vel: numbe
   else note(s.L(layer), s.bank, 'bassPizz', D - 12, s.t(b), s.d(1), { vel: vel * 0.8, release: 0.3 });
 }
 
+/** The answer: the rest of Hook A's first bar (C3 on the "and" of 3, A2 on the "and" of 4), on the set's sound. */
+function answer(s: Score, layer: string, b: number, kind: BrokenKind, vel: number): void {
+  for (const [i, m, v] of [[5, n('C3'), 1], [7, n('A2'), 0.9]] as const) {
+    const t = s.t(b, i / 2);
+    if (kind === 'bow') note(s.L(layer), s.bank, 'celloSpic', m, t, s.d(0.7), { vel: vel * v * 1.15, release: 0.15 });
+    else note(s.L(layer), s.bank, 'celloPizz', m, t, s.d(1), { vel: vel * v, release: 0.3 });
+  }
+}
+
 /** The walk-up (F G A-flat A) in the last two beats of a bar, leading into D. */
 function walkUp(s: Score, layer: string, b: number, kind: BrokenKind, vel: number): void {
   ['F2', 'G2', 'Ab2', 'A2'].forEach((m, k) => {
@@ -813,6 +828,14 @@ function brokenSet(s: Score, kind: BrokenKind): void {
     note(s.L('bed'), s.bank, 'celloSus', D, s.t(b), dur, { vel: 0.3, attack: dur * 0.5, release: dur * 0.4 });
     subBass(s.L('bed'), s.t(b), dur, D - 12, 0.15, dur * 0.4);
   }
+  // round 20 Calm: the broken hook as a call and answer (D . D3 D, two bars later C3 . A2), a soft walk-up every 16 bars
+  for (let b = 0; b < N; b += 8) {
+    broken(s, 'tune', b + 1, kind, 0.6);
+    answer(s, 'tune', b + 3, kind, 0.55);
+    broken(s, 'tune', b + 5, kind, 0.58);
+    answer(s, 'tune', b + 7, kind, 0.5);
+  }
+  for (let b = 15; b < N; b += 16) walkUp(s, 'tune', b, kind, 0.42);
   // round 19 Calm: the broken hook far away once every 8 bars, and a faint high string swell now and then (no bed)
   for (let b = 1; b < N; b += 8) broken(s, 'whisper', b, kind, 0.5);
   for (const [b, m] of [[4, 'A5'], [20, 'F5']] as const) {

@@ -446,7 +446,7 @@ export function mountScoreLab(root: HTMLElement): void {
           {},
           'Calm mix ',
           (() => {
-            const names = ['Calm', 'Calm, fog', 'Calm, near silence', 'Calm, with low bed (round 18)'];
+            const names = ['Calm', 'Calm, distant (round 19)', 'Calm, fog', 'Calm, near silence', 'Calm, with low bed (round 18)'];
             const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
             sel.onchange = () => {
               calmMixName = sel.value;

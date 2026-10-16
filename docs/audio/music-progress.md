@@ -27,8 +27,23 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done |
 | 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done |
 | 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; Michael: plucked is good; the low bed in Calm is too much; Cautious change good |
-| 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; waiting for Michael's feedback |
+| 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; Michael: near silence OK but too far apart and too quiet; wants it catchier, still broken |
+| 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done; waiting for Michael's feedback |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 round 20 - a catchier broken Calm
+- **Michael (2026-10-16):** "Calm, near silence" is OK, but very far between and too quiet. He wants it catchier
+  but still broken.
+- **Done (all three broken-hook sets):**
+  - **New layer "tune":** the broken hook as a call and answer.
+    - D . D3 D in bar 1, then the rest of Hook A's first bar (C3 on the "and" of 3, A2 on the "and" of 4) in bar 3.
+    - The same in bars 5 and 7, and a soft walk-up every 16 bars.
+    - Space between. Reverb send 0.38, so it is closer than the distant whisper.
+  - **"Calm" now uses it.** The round 19 versions stay as "Calm, distant (round 19)", "Calm, fog" and
+    "Calm, near silence".
+  - **Cautious lifted 2.3 dB.** Adding the layer lowered the set's master gain (the all-layers mix hit its peak
+    limit); this keeps Cautious where Michael liked it.
+- **Measured:** the new Calm plays every 2 bars (was every 8) and about 4 dB louder than round 19's Calm.
 
 ## V4 round 19 - subtler Calm
 - **Michael (2026-10-16):**
