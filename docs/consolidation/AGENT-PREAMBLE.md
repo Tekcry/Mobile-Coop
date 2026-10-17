@@ -35,11 +35,11 @@ You are a subagent of the consolidation orchestrator (docs/systems/session-metho
 - `npm run lint`, `npm test`, `npm run build` (or `npm run check`, which is all three).
 - E2E suites only after a build, one runner at a time, on port 4191 only:
   1. Free the port: `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4191 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
-  2. Run: `cd /c/NightShift/Mobile-Coop-integrate && E2E_PORT=4191 E2E_JOBS=2 node scripts/run-e2e.mjs <suite> <suite> ...`
+  2. Run: `cd /c/NightShift/Mobile-Coop-integrate && E2E_PORT=4191 E2E_JOBS=2 E2E_SUITE_TIMEOUT=900 node scripts/run-e2e.mjs <suite> <suite> ...`
      (the runner starts and stops its own server; never start one yourself).
   3. When done: step 1 again, then check `netstat -ano | grep ":4191 .*LISTENING"` prints nothing.
 - Known flaky suites (print KNOWN FLAKY, do not fail): e2e-coop, e2e-netmove, e2e-darkness, e2e-weapons-carry, e2e-pad.
-  Kestrel-owned pre-existing failures: e2e-editor, e2e-kestrel, e2e-camera-bounds level U. Another failure counts only if
+  e2e-foley is known flaky too. Kestrel-owned pre-existing failures: e2e-editor, e2e-kestrel, e2e-camera-bounds level U. Another failure counts only if
   it also fails in a solo rerun.
 
 ## Deletion log
