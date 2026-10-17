@@ -2,7 +2,7 @@
 
 ## Michael's play-check notes (2026-10-16): docs/locomotion/PLAY-NOTES.md (N1-N8), recorded, not planned yet. Wait for his planning call.
 
-- Current: PAUSED for research (M19). Play test 2 notes P1-P14 in PLAY-NOTES.md. Research agents write docs/locomotion/research/*.md, then a synthesis writes docs/locomotion/CT-RESEARCH.md for Michael's review; then the remaining steps are rewritten. Nothing is being built.
+- Current: PAUSED (M19, M20 pure CT). Michael answered CT-RESEARCH Section 3 (M20). Waiting for his CT footage (docs/locomotion/CT-SHOTLIST.md, files in pc/ct-ref/). Then: analyse the footage, write the locomotion update prompt and rewrite the remaining steps, Michael reviews, then build (first pause after 22c, M20 Q12).
 Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the URL it prints in Chrome on the desktop, pad connected. Solo: Play > Free Roam > Proving Grounds; guards: Play > Hunter > Warehouse. Co-op: tab 1 `<url>/?net=local` > Co-op > Host a room (pad stays in this tab); tab 2 same URL > Join room with the code. Watch tab 2 to see your operator from outside.
 1. Movement: push the stick a little, halfway, fully (silent slow walk, walk, jog), L3 sprint; D-pad up / down sets the max gear (HUD pips). Does the body feel weighty, any bob? (Step 21 targets bob.)
 2. Holstered by default: LT draws (pistol 0.3 s, rifle 0.4 s), release holsters; RT while holstered = elbow strike (knocks out from behind, staggers from the front).
