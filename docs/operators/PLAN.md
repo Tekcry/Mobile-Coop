@@ -37,6 +37,7 @@ Each step file has: objective, the only files to read, what to do, what is out o
 | 09b | Wren: approach boots (`steps/09b-wren-approach-boots.md`) | Opus 5.5 | High |
 | 10 | Wren: baked maps, LODs, glTF and costs | Opus 5.5 | High |
 | 11 | Wren: full render set and self-review pass | Opus 5.5 | High |
+| 11b | Wren: rigid kit and desktop only (D28, D29; `steps/11b-wren-rigid-kit.md`) | Opus 5.5 | High |
 | 12 | Moth: shirt with rolled sleeves, base layer, trousers (ask Michael Moth's direction first, D24) | Opus 5.5 | High |
 | 13 | Moth: gloves, boots, hood and round optic | Opus 5.5 | High |
 | 14 | Moth: climbing harness, chest rig, hardware, pack, comms | Opus 5.5 | High |
@@ -45,7 +46,7 @@ Each step file has: objective, the only files to read, what to do, what is out o
 | 17 | Shared sheets and the review page | Sonnet 5.5 | Medium |
 | 18 | Final spec and integration plan (the run ends) | Opus 5.5 | High |
 
-Wren block: 05-11 (with 08a, 08b, 09b). Block end (after 11): step 08 is not retried (superseded); step 07's OPEN
+Wren block: 05-11b (with 08a, 08b, 09b). Block end (after 11b; retries 08a, 10, 11): step 08 is not retried (superseded); step 07's OPEN
 cable item is fixed and re-checked inside step 09.
 
 Each step's model id for chaining: Opus 5.5 = `claude-opus-5-5`, Sonnet 5.5 = `claude-sonnet-5-5`.

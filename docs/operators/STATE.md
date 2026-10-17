@@ -1,6 +1,6 @@
 # Operators run - state (resume point)
 
-**Now:** step 11b - Wren: rigid kit (D28) and desktop only (D29). It waits for Michael's layout pick: options pass 1
+**Now:** step 11b - Wren: rigid kit (D28, Michael picked the layout) and desktop only (D29), steps/11b-wren-rigid-kit.md. Options pass 1
 (scratchpad d28/D28-OPTIONS.md, copied into steps/11b when the step file is written) and a layout + pose-check pass
 (d28/layout/LAYOUT.md). Then the Wren block end (RULES.md), after 11b because 11b changes garments and rebuilds the
 LODs: retry step 08a (steps/08a-fixes-r4.md), step 10 (steps/10-fixes-r4.md) and step 11 (steps/11-fixes-r4.md:

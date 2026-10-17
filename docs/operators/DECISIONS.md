@@ -194,6 +194,20 @@ of each item and ensure it is realistically reflected. Ask me questions if you n
 - Process (as D19-D20): a survey lists every rigid item, how it is built now and how bent it is; scratch renders show
   placement options for the items that must move; Michael picks; a step 11b builds the pick, then the Wren LODs and
   bakes are rebuilt and the step 11 sheets re-rendered.
+- Options: `concepts/D28/` (D28-OPTIONS.md: survey, physical characteristics, options; LAYOUT.md: the full layout in
+  four movement poses - prone crawl, rope climb, deep crouch, rappel seat - with interference renders). Michael asked
+  "What are the most realistic and practical locations for a stealth operative, considering how they need to move
+  freely?"; the orchestrator's principles: front flat enough to crawl, hinge zones clear, weight tight to the body,
+  rigid items only on flat hard surfaces, back carries only the rifle mount, belt front centre clear.
+- Michael's picks (2026-10-17): pistol mags "9 o'clock, socket to 8 (Recommended)" - two horizontal pistol mags on the
+  left hip side at 9 o'clock, rows raised about 20 mm, on a moulded seat; the compact-gun sling socket moves back to
+  about 8 o'clock (changes D25 / A41's slot). Sleeves "Outer thigh (Recommended)" - the three throwable sleeves move
+  to the outer left thigh, straight (replaces D25's front pick); the knife on the outer-front thigh, handle up,
+  left-hand draw. Knife "190 mm true size (Recommended)".
+- Orchestrator's calls from the pose checks (no question needed): rifle mags 2, vertical, low on the chest plate (R1),
+  true 178 mm with their design curve; drone pod rear-left on a flat saddle (D1), 20-30 mm higher or 10-15 mm further
+  back so the knee-up crawl clears it; medkit stays soft (rear-right); cam pouch to the old front-left pistol spot;
+  holster hipR and the rifle mount unchanged.
 
 **D27 Babylon's KTX2 decoder bundled (2026-10-17, during step 11).** Asked whether to add Babylon's KTX2 decoder
 files to the project (the official Babylon decoder package, Apache 2.0, bundled locally, no CDN), Michael: "Yes, add it
