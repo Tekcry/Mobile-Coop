@@ -502,7 +502,7 @@ export class Enemy implements Damageable {
     return glint(this.yaw, this.aimPitch, this.tmpEye.x, this.tmpEye.y, this.tmpEye.z, x, y, z);
   }
 
-  /** A training target: sees and hears nothing (the training course). */
+  /** A passive guard: sees and hears nothing (the benchmark flight, tests). */
   passive = false;
 
   /** The perception multiplier: difficulty, plus an officer close by. */

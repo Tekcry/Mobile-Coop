@@ -3,17 +3,17 @@ import { campaignUnlocked, defaultMode, isParkedMode, PARKED_MODES, showEconomy,
 import { applyPreset, ownsOrOpen, setAttachment, setLoadout } from '../src/progression/profile';
 import { defaultSave, sanitizeSave } from '../src/save/schema';
 
-const PLAY = [{ id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'training' }, { id: 'sandbox' }];
+const PLAY = [{ id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'sandbox' }];
 const LOBBY = [{ value: 'clear' }, { value: 'infiltration' }, { value: 'sandbox' }, { value: 'course' }];
 
 describe('legacy (3.5 parked content)', () => {
   it('parks Mission and Hunter only', () => {
     expect([...PARKED_MODES].sort()).toEqual(['clear', 'mission']);
-    for (const m of ['infiltration', 'training', 'sandbox', 'course']) expect(isParkedMode(m)).toBe(false);
+    for (const m of ['infiltration', 'sandbox', 'course']) expect(isParkedMode(m)).toBe(false);
   });
-  it('the Play screen lists Infiltration, Training and Free Roam without legacy', () => {
-    expect(visibleModes(PLAY, false).map((m) => m.id)).toEqual(['infiltration', 'training', 'sandbox']);
-    expect(visibleModes(PLAY, true)).toHaveLength(5);
+  it('the Play screen lists Infiltration and Free Roam without legacy', () => {
+    expect(visibleModes(PLAY, false).map((m) => m.id)).toEqual(['infiltration', 'sandbox']);
+    expect(visibleModes(PLAY, true)).toHaveLength(4);
   });
   it('the co-op lobby lists Infiltration and Free Roam without legacy (4 players max stays elsewhere)', () => {
     expect(visibleModes(LOBBY, false).map((m) => m.value)).toEqual(['infiltration', 'sandbox', 'course']);

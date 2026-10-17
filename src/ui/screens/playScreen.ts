@@ -19,11 +19,10 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'mission', label: 'Mission', desc: 'Hack two terminals, steal the intel, hold the extraction point.' },
   { id: 'clear', label: 'Hunter', desc: 'Clear every hostile in the area, starting undetected. If they raise the alarm, their numbers double.' },
   { id: 'infiltration', label: 'Infiltration', desc: 'Objective missions: uploads, bugs, rescues, sabotage, intel and extraction. Choose your way in.' },
-  { id: 'training', label: 'Training', desc: 'Learn each move, one at a time: cover, vaults, ladders, goggles, takedowns, gadgets.' },
   { id: 'sandbox', label: 'Free Roam', desc: 'No guards: explore the map with every weapon (Proving Grounds adds training targets).' },
 ];
 
-/** 3.5: Infiltration, Training and Free Roam; Mission and Hunter only with `?legacy=1`. */
+/** 3.5: Infiltration and Free Roam (the old solo Training was deleted, G116); Mission and Hunter only with `?legacy=1`. */
 const shownModes = (): typeof MODES => visibleModes(MODES, flags.legacy);
 
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
@@ -52,7 +51,7 @@ export class PlayScreen extends Screen {
     this.build();
   }
 
-  /** A mode change starts on that mode's default map (Warehouse; Training: Proving Grounds). */
+  /** A mode change starts on that mode's default map (Warehouse). */
   private setMode(v: ModeId): void {
     this.mode = v;
     const maps = this.mapsForMode();

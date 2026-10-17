@@ -224,7 +224,7 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
   assert((await G(() => window.__h.hud().room)) === '', 'no room tag in Clear mode on the mini set');
 });
 await run('', async ({ page, G }) => {
-  // play screen (3.0): Warehouse is the default for every mode but Training; only its missions are offered
+  // play screen (3.0): Warehouse is the default for every mode; only its missions are offered
   await page.locator('.btn', { hasText: 'Play' }).first().click();
   await page.waitForSelector('.play-screen');
   const seen = [];
@@ -238,7 +238,7 @@ await run('', async ({ page, G }) => {
   assert(byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Mission / Hunter (${seen.join('; ')})`);
   assert(/Cold Storage.*Ledger.*Courier.*Blackout/.test(byMode['Infiltration'] ?? '') && !/Pouch|Vault|Manifest|Flare/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the Warehouse missions only (${byMode['Infiltration']})`);
   assert(byMode['Free Roam'] === 'Warehouse', `Free Roam defaults to Warehouse (${byMode['Free Roam']})`);
-  assert(byMode['Training'] === 'Proving Grounds', 'Training stays on Proving Grounds');
+  assert(!('Training' in byMode), `the old solo Training is gone (G116) (${seen.join('; ')})`);
 });
 
 const real = all.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
