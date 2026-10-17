@@ -19,8 +19,7 @@ positions are reliable; colours and hand detail are not.
 - Do not touch: kestrel files, src/editor, src/security, docs/kestrel. No Splinter Cell IP (mechanics only).
 
 ## P1 - Body: speeds, starts, stops, turns, posture (P1-P4 in PLAY-NOTES)
-1. Speeds (M20 Q8: no sprint). 5 analog speeds standing and crouched, the stick picks the speed (no gear rocker HUD
-   needed; keep the rocker as a max cap only if trivial). Standing about 0.2 / 0.75 / 2.0 / 3.0 / 4.0-4.6 m/s,
+1. Speeds (M20 Q8: no sprint). 5 analog speeds standing and crouched, the stick picks the speed; D-pad up / down (wheel on KBM) steps the max speed cap, with NO on-screen indicator: remove the HUD gear pips (M25). Standing about 0.2 / 0.75 / 2.0 / 3.0 / 4.0-4.6 m/s,
    crouched about 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s (+-20 %, ct-measure-speeds-stops-posture.md; the run is uncertain
    3.5-5: start at 4.2 m/s (SC1) and tune by feel). Remove sprint (L3 / gear 6) and its stop rules. Noise: slow notches
    silent, then rising (CT meter bands: 4 standing, 3 crouched).
@@ -80,22 +79,15 @@ positions are reliable; colours and hand detail are not.
 ## P4 - Strike and vision (P5, P11)
 1. Palm strike (M20 Q4 / Q4b): offered only with a guard within ~0.8-1.0 m in front; 0.10-0.15 s wind-up to contact,
    a 0.3-0.5 m lunge, one-hit knockout from any side (front: face, behind: back of the head); the guard is down
-   1.2-1.4 s after contact; Sam is free ~1.4 s after contact (open: keep or shorten). No strike without a target.
+   1.2-1.4 s after contact; Sam is free ~1.4 s after contact (M25). No strike without a target.
 2. Vision (M20 Q5 "CT-pure"): thermal = CT colour ramp (indigo background, blue rim, cyan, green, yellow, red core),
    the room nearly invisible at any range, people full brightness at 15 m with no fade, heavy grain only on warm areas
    (clean background), soft bodies with a blue glow. Night vision: green-grey, ~1 % grain, bloom on lights. EMF: flat
    navy, no grain, devices as white glowing blobs. Mode switch is an instant cut. Render only (perception unchanged).
-   Open: whether thermal shows people through closed doors (CT footage: a dim blue silhouette; A26 says never).
+   Thermal shows people behind closed doors as a dim blue silhouette (M25), never through walls.
 
-## Open questions for Michael (answer before or at the P1 play test)
-1. Thermal palette: the CT colour ramp (the footage) or white-hot greyscale (real FLIR)? Plan default: CT ramp (M20).
-2. Thermal through closed doors: dim silhouette like CT (reverses A26) or never? Plan default: never, until he says.
-3. Pulling the stick away from the wall: leaves the wall, or only the button leaves? (Not seen in footage.) Default:
-   both leave.
-4. Strike recovery ~1.4 s (CT) or shorter? Default: CT.
-5. Standing wall stance: CT's flat back (the footage) or sideways (his Q3 answer)? Default: as CT (flat standing,
-   sideways crouched), since M20 says pure CT and the footage shows it.
-6. Run speed 4.2 m/s to start (footage 3.5-5): confirm by feel at the P1 play test.
+## Answered (M25, 2026-10-17)
+Thermal: CT colour ramp. Thermal through closed doors: a dim blue silhouette like CT (A26 reversed for doors). Leaving the wall: the button (or aiming) only, not pulling away. Wall stance: as CT (flat back standing, sideways crouched). Strike recovery: CT ~1.4 s. Run speed: start 4.2 m/s, tune by feel. Rocker kept as a max-speed cap without an indicator.
 
 ## Not in the prototype (later, after Michael approves)
 Quick 180 as a separate move (the flick covers it), exertion breathing, guard body language, traversal polish,
