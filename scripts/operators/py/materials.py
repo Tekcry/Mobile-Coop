@@ -444,6 +444,24 @@ def anodised(name='anodised aluminium', colour=(0.024, 0.025, 0.026)):
     return mat
 
 
+def gunmetal(name='hardware gunmetal', colour=(0.15, 0.155, 0.165), rough=0.60):
+    """The one metal finish (A59) as a real metal (step 11b, D28 list; A86): dark anodised grey - a metal whose F0 (base
+    colour, linear) is about 0.155, so it reads dark under a flat light yet a key still throws a broad satin hot spot
+    (at 0.05 its F0 was a dark plastic's, at 0.3 it read light silver-grey); roughness 0.60 (the hard class's band
+    starts at 0.55) with a fine grain, the sharpest edges worn through to bright aluminium, a little smoother."""
+    mat = bpy.data.materials.new(name)
+    mat['operators_class'] = 'hard'
+    g = Graph(mat)
+    pt = g.node('ShaderNodeNewGeometry').outputs['Pointiness']
+    edge = g.math('MULTIPLY', g.smoothstep(0.56, 0.68, pt), g.smoothstep(0.35, 0.6, g.noise(300.0, 3.0)))
+    g.link(g.mix_rgb(edge, colour, (0.48, 0.49, 0.5)), g.bsdf.inputs['Base Color'])
+    g.bsdf.inputs['Metallic'].default_value = 1.0
+    grain = g.math('MULTIPLY', g.math('SUBTRACT', g.noise(900.0, 2.0), 0.5), 0.03)
+    # the hard class's roughness band is 0.55-0.9 (check_garment.py): 0.60 with the grain and the worn edges stays in it
+    g.link(g.math('ADD', g.math('SUBTRACT', rough, g.math('MULTIPLY', edge, 0.03)), grain), g.bsdf.inputs['Roughness'])
+    return mat
+
+
 def lens(name='goggle lens', glow=(0.004, 1.0, 0.045), strength=1.1, attribute='emit'):
     """Coated objective glass (SPEC 3.3): near-black, glossy under a clear coat, a thin-film coating that throws a
     coloured reflection at an angle, and the display leaking through as the signature glow (D13: Wren green, Moth

@@ -36,7 +36,7 @@ export function exportGltf(id, blender = findBlender()) {
 }
 
 /**
- * Step 10 (SPEC 6.3-6.4, A69-A71): baked texture sets, hero / LOD0-2 / phone glTF with the integration anchors, the
+ * Step 10 (SPEC 6.3-6.4, A69-A71): baked texture sets, hero / LOD0-2 glTF (desktop only, D29: no phone LOD) with the integration anchors, the
  * export report and README under build/operators/<id>/export/, the Lab copies <id>-lab-<lod>.glb. `render` adds the
  * hero / LOD side-by-side renders (Cycles, OptiX) into docs/operators/mockups/tests/. `scale` shrinks every texture
  * (iteration only). About 15-25 min for Wren on the RTX 4090. Step 11: ends with ktx2.mjs (KTX2 textures in the GLBs).

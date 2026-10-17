@@ -208,6 +208,9 @@ of each item and ensure it is realistically reflected. Ask me questions if you n
   true 178 mm with their design curve; drone pod rear-left on a flat saddle (D1), 20-30 mm higher or 10-15 mm further
   back so the knee-up crawl clears it; medkit stays soft (rear-right); cam pouch to the old front-left pistol spot;
   holster hipR and the rifle mount unchanged.
+- Drone pod side (A88, step 11b): with the pistol mags at 9 o'clock and the socket at 8, the left rear belt has 117 mm
+  free against the pod's 171 mm. Asked, Michael: "Pod rear right (Recommended)" - the hard pod rear right on a flat
+  mount, the soft medkit on the right side (changes D25's sides).
 
 **D27 Babylon's KTX2 decoder bundled (2026-10-17, during step 11).** Asked whether to add Babylon's KTX2 decoder
 files to the project (the official Babylon decoder package, Apache 2.0, bundled locally, no CDN), Michael: "Yes, add it
@@ -940,3 +943,91 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   `URLConfig.jsDecoderModule` at import, so an unconfigured KTX2 load fails instead of fetching; the game loads no KTX2
   before step 18. Step 18 still needs: the KHR_texture_basisu glTF path in the game, ktx2.ts's setup (or its
   equivalent) before the first operator texture, and the same flip if it reads the GLB with a v-flipping reader.
+
+## Assumed decisions, step 11b (rigid kit and desktop only; implementer)
+
+**A81 How a rigid part is built and checked (D28).** A rigid part is laid on a `KC.Flat` frame: the plane fitted to
+the surface under its footprint (`flat_on`, optionally only the plate it is bonded to), moved out until no surface point
+is in front of it; anything laid through `cbox` / `mpts` / `cord_loop` on a Flat is one rigid transform of its design.
+Each part's vertices carry `_rigid` (its id: chest_rig 1xx, waist_belt 2xx, leg_kit 3xx, armour 4xx, head 5xx) and
+their design coordinates (`rdx/rdy/rdz`). Fix round 1: the design coordinates are recorded BEFORE the map, never
+derived from the built points - `cbox` and `mpts` record the map-space input (u, v, h) of each vertex (a `tube` along
+`mpts` on a Flat is built in map space and mapped), and parts built in one frame (buckles: `KC.buckle`; the PTT, the
+holster, the canisters, the sling socket's ring, the radio's knob, the brow rivets) are built at the origin of their
+own `KC.Frame` and placed by `Parts.place`, which records the local coordinates; a hard part's vertex with no record
+stops the build. So a part laid through a curved map fails `rigidKit:shape` (proved once: rifleMag0 laid through the
+chest plate's HField `Mf` instead of `Fmag` -> `rigidKit:shape` FAIL, rifleMag0 22.09 mm; reverted). The registry (sim report `measurements.rigid`) declares bones and a role:
+`hard` (shape, depth, size, host gap and skin judged), `mount` (a moulded seat, `KC.seat`: its back follows the body,
+its front is the item's flat back), `carrier` (a soft carrier skinned with its item: pouches, placard panels, the medkit,
+the cam pouch, the sleeve panel). The plates and rib segments are tagged per connected piece after the recess cut (armour.py `tag_rigid`)
+and keep their as-built shape as the design (they are body-shaped by design): `shapeRef: 'asBuilt'`, so rigidKit does
+not judge their shape (reported as `asBuilt` in the shape line), only their depth, bones and skin;
+the head kit's hard parts by rule (every head_kit vertex above 1.48 m except the cables, `rigid_skin.HEAD`). Shape is
+judged in each item's own blend (check_garment.py); a later item never moves an earlier item's rigid part (the presses
+act on the suit only). The `_rigid` attribute ships in every GLB as `_RIGID` (a float per vertex; about 4 bytes x
+vertices) so operators:check can read the skin; step 18 may strip it. Undo: drop the attribute and the checks.
+
+**A82 LOD shells and rigid parts.** Below LOD0 every `hard` rigid piece in RIGID_DIAG (5-25 cm) stays a separate
+piece (A77 extended from 'harness polymer' to the `_rigid` attribute); the plates and rib segments (and the head kit) stay in
+the voxel shell as A74 decided (kept separate, they starved LOD2's shell: six bakeDiff views failed, boot 358 px), and every shell vertex within 4 mm of a rigid part's source takes that part's id and weights, so
+the shell over a plate moves with it. `rigidSkin:<lod>` judges every tagged vertex in each file: one weight vector
+(spread <= 0.001) equal to the part's declared weights within 0.01 per bone, and every registry `hard` part present.
+Fix round 1: hard parts under 5 cm that a LOD's voxel shell absorbs (no shell vertex within 4 mm of their source, so
+no vertex carries their id) are listed here and in `rigidKit.LOD_ABSORBED`; any other absence fails. Measured on the
+fix round 1 LODs (vertices of the LOD within 10 mm of the part's hero vertices): LOD1 browRivetL / browRivetR (the
+shell over the brow plate adopted the head kit's id 501: head 1.00, the rivets' own bone); LOD2 gadgetTab (nearest
+shell vertex 8.4 mm: chest 1.00), camTab (nearest 25 mm, none within 10 mm: the cam pouch's shell), slingSocket (4
+vertices: pelvis 0.78, hipL 0.20, spine 0.02 - nearest-body weights over the left hip), rappelRing (pelvis 0.92, spine
+0.05, hipL 0.03), browRivetL / browRivetR (head 1.00 where any lies within 10 mm). legBandBuckleL0, missing from the
+implementer's LOD1, is present after the fix round's rebuild (the buckle now built in its own frame).
+
+**A83 Rifle magazine pair as one placard (R1).** The two magazines stand side by side (centres 78 mm apart: the
+62-70 mm width plus the 16 mm curve leave 4 mm between them) on one flat laminate placard panel with slim pouches over
+their lower 122 mm; the placard is bonded only to the chest plate through a moulded saddle and stands off the rib
+segments below (it does not bridge two bones). The curve runs toward the wearer's left (both magazines the same way).
+
+**A84 Pistol magazines, cam pouch and hanger order on the left belt.** From the front: the closure, the cam pouch,
+the left leg hanger's loop, the pistol magazines (centred at 9 o'clock, base plates forward, front end 66 mm ahead of
+9 o'clock), the sling socket (8 o'clock or just behind the magazines' rear end, whichever is further back), the pod.
+The hanger gap is laid out by waist_belt.py at build time and read by leg_kit.py from the belt object (`hangU`).
+The hip map now runs to 1.012 m so the upper row's seat is fitted to the flank above the belt.
+
+**A85 Thigh packing A.** Knife at -60 deg (outer front), sleeves at -35 / -13 / +9 deg on a panel from -74 to +21
+deg (LAYOUT.md "Recommended changes" 2, packing A, so the rear sleeve stays off the calf in a deep crouch); the panel
+runs to 0.785 m so the sleeve hanger ends on it above the caps. The top canister of each sleeve is modelled true size
+(90 mm with its cap, the lower one hidden). Knife: sheath 100 x 34 x 14, guard 6, grip 78, pommel 6 (190 overall).
+
+**A86 Gunmetal as a metal.** `materials.gunmetal`: metallic 1, roughness with a +-0.015 grain and worn edges a little
+smoother (the hard class's roughness band, 0.55-0.9, is not loosened). Implementer: base colour (F0) 0.30-0.33 linear,
+roughness 0.61; on `wren-sheet-closeup-buckle.webp` that read as flat light silver-grey, lighter than ART-DIRECTION's
+"dark anodised grey" (checker note). Fix round 1: base colour (F0) (0.15, 0.155, 0.165) linear, roughness 0.60, worn
+edges 0.03 smoother (bright aluminium (0.48-0.5) where the sharpest edges wear through); the Lab's flat factor
+(0.155, 0.60). Measured: on `wren-sheet-closeup-buckle.webp` (calibrated panel, sRGB luma) the halves read median 0.155 / 0.159 (p10-p90 0.152-0.160) against the belt's 0.118: dark anodised grey, a step lighter than the laminate; the satin lobe shows only on the bevels and worn edges (p99 0.30, max 0.38), the flat faces carry none (flat planes under the calibrated key; the hard band's floor, roughness 0.55, would barely tighten it). Left for Michael's eye at the block end. Undo: colour (0.30, 0.31, 0.33), roughness 0.61, edges 0.04.
+
+**A87 Brow plate rivets (Michael, via the orchestrator, during 11b).** Each rivet sits on the side strap's sewn end
+under the brow plate, 8 mm in from the strap's front end, clamped 10 mm inside the plate's edge where the strap runs
+past the plate's flat; it is seated along the plate's local normal (head from 1.2 mm under to 0.5 mm over the top,
+a shank down through the plate and strap). head_kit reports `browRivets` (host gap of the head's lower rim, distance
+to the strap's centre line) and registers both rivets (502 / 503) for rigidKit. Fix round 1: their vertices carry
+`_rigid` 502 / 503 and design coordinates (built in their own frame), so check_garment.py judges their shape and depth
+and measures their host gap itself (no registry bypass; the builder's rim gap stays as `builderGapMm`). Small hardware elsewhere
+(diagonal under 6 cm) gets the same test as its closest approach to any other surface.
+
+**A88 Drone pod to the rear right, medkit to the right side (a conflict between D28's picks; for Michael at the block
+end).** With the pistol magazines centred at 9 o'clock (128 mm long) and the sling socket at 8 o'clock, the left belt
+from 9 o'clock to the back-carry lane edge (A39, |x| 0.105 m, u 0.331 m) is 117 mm of arc, but the magazines' rear half,
+the socket boss and the 84 mm pod need 171 mm; above the belt the lane edge comes further round (u 0.295 at 1.0 m), so
+the pod cannot sit over the socket either. Built as picked, the pod was squeezed to 19 mm. So the drone pod (D1, true
+84 x 80 x 19, flat on a moulded saddle, a laminate tab round the belt) takes the rear right, outside the lane, and the
+soft medkit moves to the right side of the belt in front of the holster hanger. D25's words ("Hips, keep game carry")
+hold: both stay on the hips and out of the lane; the knee-up crawl (left knee) no longer reaches the pod. Undo: pod
+rear-left again needs the magazines forward of 9 o'clock (LAYOUT.md PA fails the raised thigh) or the socket back
+under them.
+
+**A89 LOD1 decimation target 13,600 (fix round 1 of 11b).** The voxel shell's decimation is global, so the fix round's
+leg kit changes (the canisters built in their own frame) moved LOD1's edge collapses everywhere: a 30 px dark crease
+appeared along the goggle housing's lower edge (`wren-head-lod1.png` at 198, 320; bakeDiff limit 24, not loosened).
+`TARGET_TRIS.lod1` 13,500 to 13,600 (SPEC 6.4 12,000-15,000; built 13,577) removes it: head 16 px; the other LOD1 views front 0, side 0, back 0, boot 0, holster 8 (was 0) px
+(chest stays the known step 10 line, 31 px). The canisters' design record sits on their own oval
+axes (`leg_kit.py`, frame `fa`: width, depth, length) so `rigidKit:size` reads 25 x 18 x 90; the world geometry is
+the one built in the world-x frame (the ring phase that cleared LOD2's holster view, 26 to 13 px). Undo: 13,500.

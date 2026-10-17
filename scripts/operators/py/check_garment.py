@@ -123,6 +123,93 @@ check('edgeLength', worst_edge <= LIMITS['edgeM'], round(worst_edge * 1000, 2), 
       f'longest edge: {worst_obj}')
 check('solidify', not spikes, spikes, f"inner shell within {LIMITS['spikeFactor']} x thickness")
 
+# --- Rigid kit (D28, step 11b): raw data for operators:check's rigidKit (src/operators/rigidKit.ts judges it) ---------
+RIGID_REG = (SR.get('measurements') or {}).get('rigid') or []
+rigid_out = []
+if RIGID_REG:
+    def tris_world(o):
+        ev = o.evaluated_get(dg)
+        me = ev.to_mesh()
+        me.calc_loop_triangles()
+        co = np.empty(len(me.vertices) * 3)
+        me.vertices.foreach_get('co', co)
+        W = co.reshape(-1, 3) @ np.array(o.matrix_world)[:3, :3].T + np.array(o.matrix_world)[:3, 3]
+        T = np.empty(len(me.loop_triangles) * 3, dtype=np.int64)
+        me.loop_triangles.foreach_get('vertices', T)
+        att = {}
+        for k in ('_rigid', 'rdx', 'rdy', 'rdz'):
+            a = me.attributes.get(k)
+            if a is not None and a.domain == 'POINT' and len(me.vertices):
+                v = np.empty(len(me.vertices), dtype=np.float32)
+                a.data.foreach_get('value', v)
+                att[k] = v
+        ev.to_mesh_clear()
+        return W, T.reshape(-1, 3), att
+    GEO = {o.name: tris_world(o) for o in items}
+    suit_ob = bpy.data.objects.get(f'{op_id}-suit-hero')
+    suit_tree = None
+    if suit_ob is not None:
+        Ws, Ts, _ = GEO.get(suit_ob.name) or tris_world(suit_ob)
+        suit_tree = BVHTree.FromPolygons([tuple(v) for v in Ws], [tuple(t) for t in Ts])
+    mine = [n for n in GEO if n.startswith(f'{op_id}-{gname}-') and '_rigid' in GEO[n][2]]
+    rng = np.random.default_rng(11)
+    for e in RIGID_REG:
+        rid = int(e['id'])
+        Wp, Dp, own = [], [], []
+        for n in mine:
+            W, T, att = GEO[n]
+            m = np.rint(att['_rigid']).astype(int) == rid
+            if m.any():
+                Wp.append(W[m])
+                if 'rdx' in att:
+                    Dp.append(np.column_stack([att['rdx'][m], att['rdy'][m], att['rdz'][m]]))
+                own.append(n)
+        out = {k: e[k] for k in e}
+        if not Wp:
+            rigid_out.append(out)
+            continue
+        W = np.vstack(Wp)
+        out['builtVerts'] = int(len(W))
+        if Dp and sum(len(d) for d in Dp) == len(W):
+            D = np.vstack(Dp)
+            pick = rng.choice(len(W), size=min(len(W), 200), replace=False)
+            out['design'] = [[round(float(x), 6) for x in D[i]] for i in pick]
+            out['world'] = [[round(float(x), 6) for x in W[i]] for i in pick]
+        if e.get('role', 'hard') == 'hard' and suit_tree is not None:
+            depth = 0.0
+            for p in W[rng.choice(len(W), size=min(len(W), 600), replace=False)]:
+                loc, nrm, _, d = suit_tree.find_nearest(Vector(tuple(p)), 0.05)
+                if loc is not None and (Vector(tuple(p)) - loc).dot(nrm) < 0 and d < 0.03:
+                    depth = max(depth, d)
+            out['depthIntoSuitMm'] = round(depth * 1000, 2)
+        diag = float(np.linalg.norm(W.max(axis=0) - W.min(axis=0)))
+        if e.get('role', 'hard') == 'hard' and diag < 0.06:
+            # small hardware: its closest approach to any other surface (it must sit on its host, not float); measured
+            # here for every small hard part (a builder's own number, e.g. head_kit's builderGapMm, is information only)
+            lo, hi = W.min(axis=0) - 0.02, W.max(axis=0) + 0.02
+            Vs, Fs = [], []
+            for n, (Wn, Tn, att) in GEO.items():
+                if not len(Tn):
+                    continue
+                C = Wn[Tn].mean(axis=1)
+                keep = np.all((C >= lo) & (C <= hi), axis=1)
+                if n in own:
+                    ids = np.rint(att['_rigid']).astype(int)
+                    keep &= ~np.all(ids[Tn] == rid, axis=1)
+                if keep.any():
+                    off = sum(len(v) for v in Vs)
+                    Vs.append(Wn)
+                    Fs += [tuple(int(i) + off for i in t) for t in Tn[keep]]
+            gap = 0.05
+            if Fs:
+                tr = BVHTree.FromPolygons([tuple(v) for v in np.vstack(Vs)], Fs)
+                for p in W:
+                    loc, _, _, d = tr.find_nearest(Vector(tuple(p)), 0.05)
+                    if loc is not None:
+                        gap = min(gap, d)
+            out['hostGapMm'] = round(gap * 1000, 2)
+        rigid_out.append(out)
+
 # --- Measured albedo and roughness ----------------------------------------------------------------------------------
 mats = {}
 for o in items:
@@ -281,7 +368,7 @@ for name in order:
     check(f'roughness:{name}', lo <= pr[0] and pr[2] <= hi, pr, f'{lo}-{hi} ({cls}; P1, P50, P99)')
 
 report = {'operator': op_id, 'item': gname, 'pass': all(c['pass'] for c in checks), 'checks': checks,
-          'materials': report_mats}
+          'materials': report_mats, 'rigid': rigid_out}
 with open(stem + '-check.json', 'w', encoding='utf-8') as f:
     json.dump(report, f, indent=1)
 for c in checks:

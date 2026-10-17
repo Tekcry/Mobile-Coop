@@ -70,15 +70,25 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
 - `py/export_gltf.py`, `export-gltf.mjs` (`npm run operators:export`) - `<id>-lab.glb`: body and garments skinned to the game
   joint names, flat material factors: the unbaked build (the Lab's `source` LOD). Runs at the end of `operators:build`.
 - `py/bake_lods.py`, `export-gltf.mjs` (`npm run operators:lods -- wren [--render] [--scale 0.125]`, step 10, A69-A73) -
-  the game assets from the last garment's blend: hero (230 k), LOD0 (40 k), LOD1 (13.5 k), LOD2 and phone (5.2 k)
+  the game assets from the last garment's blend: hero (230 k), LOD0 (40 k), LOD1 (13.5 k), LOD2 (5.6 k; desktop only, D29: no phone LOD)
   decimated in a chain, regrouped into atlases (hero: cloth 4K, kit 2K, hardware 2K, glow; LOD0: cloth 2K, kit 2K,
-  glow; LOD1: cloth 1K, kit 1K, glow; LOD2: one 1K atlas, glow; phone: LOD2 at 512), unwrapped from the garments'
+  glow; LOD1: cloth 1K, kit 1K, glow; LOD2: one 1K atlas, glow), unwrapped from the garments'
   pattern panels, baked from the 2.45 M source on the GPU (albedo, tangent normal, ORM), skinned (game LODs: 17 game
   joints), with the anchors `weaponMount.backL/.backC/.backR` (chest), `pistolHolster` (hipR), `slingSocket` (pelvis).
   Writes `build/operators/<id>/export/{<lod>/<id>-<lod>.glb, textures/<lod>/*.png, report.json, README.md}`, the Lab copies `<id>-lab-<lod>.glb`, `<id>-lods.blend`,
   and with `--render` the side-by-side sheets `docs/operators/mockups/tests/<id>-lods-*.webp` (columns: source, hero,
-  LOD0, LOD1, LOD2, phone). About 15-20 min for Wren. `operators:check` then checks every LOD file (anchors on their
-  joints, game joints only) and flags SPEC 6.4 overruns.
+  LOD0, LOD1, LOD2). Rigid kit (D28, step 11b, `py/rigid_skin.py`): every rigid part rides its declared bone(s) with
+  one weight vector, stays a separate piece below LOD0 and carries its id as the `_RIGID` glTF attribute. About 15-20 min for Wren. `operators:check` then checks every LOD file (anchors on their
+  joints, game joints only, `rigidSkin`: one weight vector per rigid part on its declared bones) and flags SPEC 6.4
+  overruns. Per built item it judges `rigidKit` (src/operators/rigidKit.ts: shape within 1 mm of the design after a
+  best-fit rigid alignment, depth into the suit, seats over 3 mm mounted, small hardware on its host, true sizes, the
+  D28 bone rule) from check_garment.py's `rigid` data.
+- `py/pose_check.py` (step 11b, D28): the built Wren in four movement poses (prone knee-up crawl, rope climb, deep
+  crouch, rappel seat), every rigid item measured against the body, the other items, the ground, a modelled sit harness
+  and its draw path; `blender -b build/operators/wren/wren-leg_kit.blend --python scripts/operators/py/pose_check.py --
+  build/operators/wren docs/operators/mockups/wren` (via scripts/operators/blender.mjs) writes `wren-pose-*.webp` and
+  `build/operators/wren/wren-poses.json`; with `<id>-game-poses.json` present (operators:sheet `--only gamePoses`) it
+  also measures the game's own crouch and sneak.
 - `npm run operators:ktx2 [wren]` (step 11, D26, A79; the last stage of `operators:lods`): KTX-Software `toktx`
   (C:/Program Files/KTX-Software/bin, or `KTX_BIN`) encodes every LOD's PNG set to KTX2 (UASTC q2 + Zstd 18, mips;
   albedo sRGB, normal / ORM linear), validates and decodes each back (`ktx extract`, PSNR into report.json, the decoded
@@ -89,5 +99,8 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   into `build/operators-lab/` and serves at `http://127.0.0.1:4191/operators.html` (E2E_PORT). Never in `dist/`.
 - `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
   (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4191`) - the contact sheets, into `docs/operators/mockups/<id>/`.
+  `--only gamePoses` (no sheet) writes `build/operators/<id>/<id>-game-poses.json`: the game rig's crouch and sneak
+  (labData POSES through the Lab's retarget) as the operator's posed skeleton; pose_check.py then adds the poses
+  `gameCrouch` / `gameSneak` (step 11b fix round 1).
 
 Stages still to come (PLAN.md): Moth; Babylon's KTX2 transcoder files in vendor/ktx2/ (A79, OPEN); the game integration (step 18).

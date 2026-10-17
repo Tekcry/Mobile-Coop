@@ -139,7 +139,7 @@ describe('lab data', () => {
   it('lighting rigs, presets and poses have unique ids and the BRIEF lists', () => {
     // the BRIEF's six rigs, plus step 11's calibrated close-up rigs and the rim silhouette (A78) (and the whole-figure rig, fix round 1)
     expect(LIGHT_RIGS.map((r) => r.id)).toEqual(['studio', 'raking', 'detail', 'detailRear', 'detailFront', 'figure', 'rim', 'menu', 'hollowmere', 'dark', 'nightvision']);
-    expect(PRESETS.map((p) => p.id)).toEqual(['low', 'high', 'epic', 'phone']);
+    expect(PRESETS.map((p) => p.id)).toEqual(['low', 'high', 'epic']);
     expect(POSES.map((p) => p.id)).toEqual(['apose', 'idle', 'crouch', 'sneak', 'aimPistol', 'aimRifle', 'climbReach']);
     expect(TURNAROUND).toHaveLength(5);
   });
@@ -183,8 +183,18 @@ describe('lab data', () => {
     // a kit item from another zone that is in frame (the belt closure) is called out through `include`
     expect(ids('beltFront')).toEqual(expect.arrayContaining(['magBuckle', 'waistBelt', 'pistolMagPouch']));
     expect(ids('beltFront')).not.toContain('slingSocket');
-    // the sling socket's own view (DESIGN.md loadout table): the left hip from the side
-    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'dronePod', 'slingSocket']);
+    // the sling socket's own view (DESIGN.md loadout table): the left hip from the side (step 11b, D28: the 9 o'clock
+    // pistol magazines, the socket behind them, the pod; the belt and the cam pouch at the front edge called out too)
+    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'pistolMagPouch', 'slingSocket', 'waistBelt']);
+    // every identifiable item in frame is called out (11-fixes-r4 item 1), one assertion per changed close-up
+    expect(ids('collar')).toContain('harnessShoulders');
+    expect(ids('chestFront')).toEqual(expect.arrayContaining(['harnessShoulders', 'magBuckle', 'torsoSideStraps', 'magPouches']));
+    expect(ids('ptt')).toContain('suitZip');
+    expect(ids('beltFront')).toContain('ribSegments');
+    expect(ids('thighL')).toEqual(expect.arrayContaining(['knife', 'throwableSleeves', 'sleevePanel']));
+    expect(ids('thighR')).not.toContain('knife');
+    expect(ids('buckle')).not.toContain('pistolMagPouch');
+    expect(ids('buckle')).toEqual(expect.arrayContaining(['magBuckle', 'camMinePouch', 'medPouch', 'ribSegments']));
     expect(calloutsFor(KITS.wren.items, new Set(['suit']), CLOSEUPS.find((c) => c.id === 'beltFront')!)).toHaveLength(0);
   });
 });

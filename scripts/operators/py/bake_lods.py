@@ -4,11 +4,13 @@ The source is the last garment's blend (the body, the rig and every built item, 
 render meshes are joined into one source mesh that keeps every procedural material. Each LOD is decimated from the one
 above it (hero from the source, LOD0 from the hero, LOD1 from LOD0, LOD2 from LOD1), so the silhouette is the same
 family; per LOD the faces are regrouped by material group into atlases (hero: cloth, kit, hardware, glow; LOD0 / LOD1:
-cloth, kit, glow; LOD2 and phone: one atlas, glow), unwrapped, and baked from the source in Cycles on the GPU
+cloth, kit, glow; LOD2: one atlas, glow), unwrapped, and baked from the source in Cycles on the GPU
 (selected to active): albedo, tangent normal (the procedural micro-emboss, perforation, pebble, tape edges and the
 source's stitches and folds) and packed occlusion / roughness / metal (glTF: R occlusion, G roughness, B metal). LOD1
-has its own 1K set (A71: decimating with LOD0's atlas UVs kept stalls at twice the LOD1 budget). The phone LOD is LOD2's mesh with its atlas at
-512. Every LOD is skinned by nearest body vertex (the Lab export's rule); the game LODs carry the game joints only
+has its own 1K set (A71: decimating with LOD0's atlas UVs kept stalls at twice the LOD1 budget). Desktop only (D29): no
+phone LOD. Every LOD is skinned by nearest body vertex (the Lab export's rule) except the rigid parts (D28, step 11b,
+rigid_skin.py: one bone or one fixed blend per part, identical on every vertex; they stay separate pieces below LOD0
+and carry their part id as the '_rigid' glTF attribute for operators:check); the game LODs carry the game joints only
 (finger weights go to the wrist, toe weights to the ankle). Every LOD carries the integration anchors (A40, A41) as
 empties parented to the joints that carry them.
 
@@ -32,6 +34,7 @@ from mathutils.kdtree import KDTree
 sys.path.insert(0, os.path.dirname(__file__))
 import common  # noqa: E402
 import render as R  # noqa: E402
+import rigid_skin  # noqa: E402
 
 args = common.parse_args({
     '--operator': {'required': True},
@@ -64,9 +67,8 @@ GROUPS = {  # LOD: atlas groups (texture size, before --scale); 'glow' is the go
     'lod0': [('cloth', 2048), ('kit', 2048), ('glow', 0)],
     'lod1': [('cloth', 1024), ('kit', 1024), ('glow', 0)],   # own set (A71: UV-keeping decimation stalls at 2x)
     'lod2': [('atlas', 1024), ('glow', 0)],
-    'phone': None,                                  # LOD2's mesh, the atlas at 512
 }
-TARGET_TRIS = {'hero': 230000, 'lod0': 40000, 'lod1': 13500, 'lod2': 5600}  # lod2 5200 -> 5600 in fix round 3 (A77)
+TARGET_TRIS = {'hero': 230000, 'lod0': 40000, 'lod1': 13600, 'lod2': 5600}  # lod2 5200 -> 5600 in fix round 3 (A77); lod1 13500 -> 13600 in 11b r1 (A89)
 # Cage (selected to active): the ray starts this far outside the LOD surface and looks twice as far inward.
 CAGE = {'hero': 0.010, 'lod0': 0.020, 'lod1': 0.020, 'lod2': 0.060}  # lod1 3 -> 2 cm in fix round 3 (A76)
 # Faces left to the maps (A70): stitches from LOD0 down, zip teeth from LOD1 down; pieces smaller than this
@@ -77,7 +79,7 @@ DROP_SMALL = {'lod1': 0.012, 'lod2': 0.045}
 # walls of solidified cloth) leave LOD1 and LOD2, so their budget goes to what can be seen (A70).
 # (fix round 1: LOD1 and LOD2 are shells now, so no level culls; the multi-ray cull stays for a layered level)
 CULL_COVERED = {}
-# LOD1 and LOD2 (and the phone) are closed shells (fix round 1, A74): the hero minus the pieces kept separate,
+# LOD1 and LOD2 are closed shells (fix round 1, A74): the hero minus the pieces kept separate,
 # voxel-remeshed at SHELL_VOXEL (the union of every layer: nothing inside can poke through, no holes), then decimated;
 # the separate pieces (their share of the budget at most) join it again. Only the lens stays separate: kept separate at
 # LOD1, the decimated plates and rib segments let the shell under them show through (fix round 1 trial), so below LOD0
@@ -93,7 +95,6 @@ SHELL_SHARP_DEG = 30.0
 # (thigh-band lower edge, buckles, chest-plate top edge, boot toe). Undo: SHARP_SPLIT = {}.
 SHARP_SPLIT = {'lod0': 30.0}
 SHARP_ABOVE_Z = 0.20   # m: the LOD0 split stops at the boots (their tops are below 0.2 m)
-PHONE_TEX = 512
 GAME_JOINTS = ['pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
                'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR']
 
@@ -111,6 +112,9 @@ SHELL_KEEP = {'lod1': GLOW, 'lod2': GLOW}
 # whose faces are all RIGID_MATS, with a bounding-box diagonal in RIGID_DIAG (m): smaller pieces stay in the shell or
 # drop (DROP_SMALL). Undo: RIGID_MATS = set() (the round-2 shells: the lens alone kept, about 5 % of the budget).
 RIGID_MATS = {'harness polymer'}
+# step 11b (D28): every hard rigid part (its '_rigid' id, role 'hard' in the registry) is such a piece too, whatever its
+# material; shell vertices within RIGID_ADOPT of a rigid part's source take its id and its weights (rigid_skin.py)
+RIGID_ADOPT = 0.004
 RIGID_DIAG = (0.05, 0.25)
 # The pieces keep this share of their hero triangles (the lens keeps all of its own). At LOD2 only the front torso and
 # thigh pieces (holster, hood, knife sheath, magazine pouches: centre forward of the body, below the head) stay separate:
@@ -150,6 +154,11 @@ SKIP = {f'{op_id}-body', 'floor'}
 items = [o for o in bpy.data.objects
          if o.type == 'MESH' and not o.hide_render and o.name not in SKIP and o.parent is None
          and not o.name.startswith('collider')]
+RIGID_REG = rigid_skin.registry(OUT, op_id)
+# the plates and rib segments stay in the shell below LOD0 (A74: decimated alone they let the shell show through) and
+# the head kit as before (A77's polymer rule): they ride their bones through the shell vertices that adopt them (A82)
+HARD_IDS = {i for i, e in RIGID_REG.items() if e.get('role', 'hard') == 'hard' and e.get('item') not in ('armour', 'head_kit')}
+rigid_skin.tag_head(items, op_id)
 dg = bpy.context.evaluated_depsgraph_get()
 parts = []
 for o in items:
@@ -301,14 +310,18 @@ def rigid_mask(hero_me, lod):
     bm = bmesh.new()
     bm.from_mesh(hero_me)
     lay = bm.faces.layers.int.get('srcmat')
+    rl = bm.verts.layers.float.get('_rigid')
     fi = bm.faces.layers.int.new('fidx')
     for f in bm.faces:
         f[fi] = f.index
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0002)
+
+    def hard(g):
+        return SRC_NAMES[g[lay]] in RIGID_MATS or (rl is not None and all(int(round(v[rl])) in HARD_IDS for v in g.verts))
     seen = set()
     n = 0
     for f in bm.faces:
-        if f in seen or SRC_NAMES[f[lay]] not in RIGID_MATS:
+        if f in seen or not hard(f):
             continue
         stack, comp = [f], []
         seen.add(f)
@@ -320,7 +333,7 @@ def rigid_mask(hero_me, lod):
                     if h not in seen:
                         seen.add(h)
                         stack.append(h)
-        if not all(SRC_NAMES[g[lay]] in RIGID_MATS for g in comp):
+        if not all(hard(g) for g in comp):
             continue
         vs = {v for g in comp for v in g.verts}
         lo = Vector((min(v.co.x for v in vs), min(v.co.y for v in vs), min(v.co.z for v in vs)))
@@ -607,23 +620,31 @@ def weight_table(game):
 BW = {False: weight_table(False), True: weight_table(True)}
 
 
-def skin(obj, arm, game):
-    for g in list(obj.vertex_groups):
-        obj.vertex_groups.remove(g)
+SRC_IDS = rigid_skin.ids_of(src.data)
+_sc = np.empty(len(src.data.vertices) * 3, dtype=np.float32)
+src.data.vertices.foreach_get('co', _sc)
+_rig = SRC_IDS > 0
+ADOPT = rigid_skin.adopter(_sc.reshape(-1, 3)[_rig], SRC_IDS[_rig], RIGID_ADOPT)
+RIGID_COUNT = {}
+
+
+def skin(obj, arm, game, lod=None):
+    """Nearest-body weights; rigid parts (D28) their declared bone(s) on every vertex; shell vertices near a rigid
+    part's source take its id (rigid_skin.py)."""
     table = BW[game]
-    groups = {}
-    used = set()
-    for v in obj.data.vertices:
-        _, idx, _ = kd.find(v.co)
-        for n, w in table[idx]:
-            g = groups.get(n) or groups.setdefault(n, obj.vertex_groups.new(name=n))
-            g.add([v.index], w, 'REPLACE')
-            used.add(n)
+
+    def nearest(p):
+        _, idx, _ = kd.find(p)
+        return table[idx]
+    shell_lod = lod in SHELL_KEEP
+    used, count = rigid_skin.apply(obj, RIGID_REG, nearest, [v.co.copy() for v in obj.data.vertices],
+                                   adopt=ADOPT if shell_lod else None, joint=game_joint if game else (lambda n: n))
+    RIGID_COUNT[lod] = {str(k): v for k, v in sorted(count.items())}
     am = obj.modifiers.new('rig', 'ARMATURE')
     am.object = arm
     obj.parent = arm
     obj.matrix_parent_inverse = arm.matrix_world.inverted()
-    return sorted(used)
+    return used
 
 
 def game_rig():
@@ -953,42 +974,17 @@ for lod, sets in BAKED.items():
     for i, (g, _) in enumerate(GROUPS[lod]):
         finish_material(obj.data.materials[i], sets[g], sets[g] is None)
 
-# phone: LOD2's mesh copy with the atlas scaled to 512
-phone_me = lods['lod2']['obj'].data.copy()
-phone_me.name = f'{op_id}-phone'
-phone = bpy.data.objects.new(f'{op_id}-phone', phone_me)
-scene.collection.objects.link(phone)
-lods['phone'] = {'obj': phone, 'dropped': lods['lod2']['dropped']}
-pa = BAKED['lod2']['atlas']
-psize = max(64, int(PHONE_TEX * args.scale))
-pset = {'size': psize}
-for k in ('albedo', 'normal', 'orm'):
-    im = new_img(f'{op_id}-phone-atlas-{k}', psize, k != 'albedo')
-    f = pa['size'] // psize
-    a = px(pa[k]).reshape(psize, f, psize, f, 4).mean(axis=(1, 3))
-    im.pixels.foreach_set(a.ravel())
-    pset[k] = im
-pm = lods['lod2']['obj'].data.materials[0].copy()
-pm.name = f'{op_id}-phone-atlas'
-for n in pm.node_tree.nodes:
-    if n.type == 'TEX_IMAGE':
-        n.image = pset['albedo' if n.image == pa['albedo'] else 'orm' if n.image == pa['orm'] else 'normal']
-phone_me.materials[0] = pm
-pg = phone_me.materials[1].copy()  # the glow keeps its factors under the phone's own name (the Lab matches '-glow')
-pg.name = f'{op_id}-phone-glow'
-phone_me.materials[1] = pg
-BAKED['phone'] = {'atlas': pset, 'glow': None}
-
 # ---------------------------------------------------------------- skin and anchors, export per LOD
 os.makedirs(EXP, exist_ok=True)
 report = {'operator': op_id, 'source': os.path.basename(src_blend), 'sourceTriangles': src_tris,
           'textureScale': args.scale, 'gpus': gpus, 'backGearM': back_gear,
-          'anchorsBone': ANCHOR_BONE, 'budgets': 'SPEC 6.4', 'lods': {}}
+          'anchorsBone': ANCHOR_BONE, 'budgets': 'SPEC 6.4', 'lods': {},
+          'rigid': {str(k): {'name': e['name'], 'bones': e['bones'], 'role': e.get('role', 'hard'), 'item': e.get('item')}
+                    for k, e in sorted(RIGID_REG.items())}}
 SPEC = {'hero': {'tris': [150000, 250000], 'draws': 4, 'bones': 30, 'texDesktopMB': [30, 40]},
         'lod0': {'tris': [35000, 45000], 'draws': 3, 'bones': 17, 'texDesktopMB': [0, 8]},
         'lod1': {'tris': [12000, 15000], 'draws': 2, 'bones': 17, 'texDesktopMB': "shares LOD0's"},
-        'lod2': {'tris': [4000, 6000], 'draws': 1, 'bones': 17, 'texDesktopMB': [0, 1.5]},
-        'phone': {'tris': [4000, 6000], 'draws': 1, 'bones': 17, 'texPhoneMB': [0, 1.0]}}
+        'lod2': {'tris': [4000, 6000], 'draws': 1, 'bones': 17, 'texDesktopMB': [0, 1.5]}}
 hero_arm = rig
 anchor_objs = {'hero': anchors_for(hero_arm, 'hero'), 'game': anchors_for(game_arm, 'game')}
 tex_root = os.path.join(EXP, 'textures')
@@ -1004,11 +1000,11 @@ def max_edge(me):
     return float(np.linalg.norm(co[ev[:, 0]] - co[ev[:, 1]], axis=1).max()) if len(ev) else 0.0
 
 
-for lod in ('hero', 'lod0', 'lod1', 'lod2', 'phone'):
+for lod in ('hero', 'lod0', 'lod1', 'lod2'):
     obj = lods[lod]['obj']
     game = lod != 'hero'
     arm = game_arm if game else hero_arm
-    used = skin(obj, arm, game)
+    used = skin(obj, arm, game, lod)
     tex_set = BAKED[lod]
     files = []
     tex = {'desktopVramMB_rgba8': 0.0, 'bc7MB': 0.0, 'astc4x4MB': 0.0, 'pngMB': 0.0}
@@ -1046,7 +1042,7 @@ for lod in ('hero', 'lod0', 'lod1', 'lod2', 'phone'):
         filepath=dest, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
         export_skins=True, export_def_bones=False, export_influence_nb=4, export_normals=True, export_tangents=True, export_texcoords=True,
         export_materials='EXPORT', export_image_format='WEBP', export_image_quality=92, export_animations=False,
-        export_cameras=False, export_lights=False, export_extras=False)
+        export_cameras=False, export_lights=False, export_extras=False, export_attributes=True)
     shutil.copyfile(dest, os.path.join(OUT, f'{op_id}-lab-{lod}.glb'))
     # read back what the file holds: anchors, joints, primitives, materials
     with open(dest, 'rb') as fh:
@@ -1072,7 +1068,7 @@ for lod in ('hero', 'lod0', 'lod1', 'lod2', 'phone'):
         'anchors': anchors, 'anchorsMissing': [n for n in ANCHOR_BONE if n not in anchors],
         'maxEdgeM': round(max_edge(obj.data), 4), 'openEdgeM': open_edge_m(obj.data), 'piecesDropped': lods[lod]['dropped'],
         'tangents': all('TANGENT' in p.get('attributes', {}) for m in gj['meshes'] for p in m['primitives']),
-        'cageExtrusionM': CAGE['lod2' if lod == 'phone' else lod],
+        'cageExtrusionM': CAGE[lod], 'rigidVerts': RIGID_COUNT.get(lod, {}),
         'spec': SPEC[lod],
     }
     for o in sel:
@@ -1092,7 +1088,7 @@ if args.render and args.dest:
     R.world(scene)
     R.studio_rig((0, 0, 0.9), 1.75)
     cols = [('source', src), ('hero', lods['hero']['obj']), ('lod0', lods['lod0']['obj']),
-            ('lod1', lods['lod1']['obj']), ('lod2', lods['lod2']['obj']), ('phone', phone)]
+            ('lod1', lods['lod1']['obj']), ('lod2', lods['lod2']['obj'])]
     for _, o in cols:
         for attr in RAYS:
             setattr(o, attr, True)
@@ -1233,7 +1229,7 @@ for lod, r in report['lods'].items():
     lines.append(f'| {lod} | {r["triangles"]:,} | {r["draws"]} | {r["materials"]} | {r["textureMB"]["pngMB"]} / '
                  f'{r["textureMB"]["bc7MB"]} | {r["skinJoints"]} ({r["weightedJoints"]}) | '
                  f'{", ".join(f"{k}->{v}" for k, v in r["anchors"].items())} | {r["glbMB"]} |')
-lines += ['', 'KTX2 (Basis UASTC, BC7 on desktop / ASTC on the phone at transcode), one command from the repo root '
+lines += ['', 'KTX2 (Basis UASTC, BC7 on desktop at transcode), one command from the repo root '
           '(scripts/operators/ktx2.mjs runs it next and replaces this paragraph with the measured table, step 11):', '', '```sh', KTX, '```', '']
 with open(os.path.join(EXP, 'README.md'), 'w', encoding='utf-8') as fh:
     fh.write('\n'.join(lines))

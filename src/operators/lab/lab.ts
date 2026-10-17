@@ -363,7 +363,7 @@ export class Lab {
     this.posePos = w.pos.map((p) => [...p] as V3);
     this.poseRot = w.rot.map((r) => [...r] as Quat);
     const found: string[] = ['source'];
-    for (const l of ['hero', 'lod0', 'lod1', 'lod2', 'phone']) {
+    for (const l of ['hero', 'lod0', 'lod1', 'lod2']) {
       const r = await fetch(`/__operators/${id}/${id}-lab-${l}.glb`, { method: 'HEAD' });
       if (r.ok) found.push(l);
     }
@@ -652,7 +652,7 @@ export class Lab {
       for (const m of l.model.materials.keys()) {
         const mat = l.materials[m]!;
         const fabric = l.model.materials[m]!.roughness > 0.75 && (mat.metallic ?? 0) < 0.5;
-        mat.sheen.isEnabled = fabric && !p.phoneLook;
+        mat.sheen.isEnabled = fabric;
         if (mat.sheen.isEnabled) { mat.sheen.intensity = 0.35; mat.sheen.color = new Color3(0.5, 0.52, 0.55); }
       }
     }

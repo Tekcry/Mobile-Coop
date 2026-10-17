@@ -40,7 +40,7 @@ The look itself (identity, silhouette, layers, colour, materials, the combat shi
 **Two levels.**
 - The hero LOD (menus, close cameras) carries full detail.
 - The in-game LODs keep the same silhouette and read, with detail moved into normal and texture maps.
-- The phone gets the lowest LOD of the same design.
+- Desktop only (D29): no phone LOD; LOD2 is the far desktop band.
 
 **Render checklist (per close-up, Stage 2 onward).** For every visible item the callout names: what it is, its anchors
 (straps), its contents (pouches), its route and retention (cables), its job (hardware). An item with no answer is cut.
@@ -604,13 +604,15 @@ and the operator's build (Section 4). It is only the form the clothes drape on; 
 
 **LODs.**
 - Hero: the full mesh.
-- In-game LOD0-2 and phone: the same generators at lower resolution plus decimation, the same silhouette, maps baked
-  from the hero.
+- In-game LOD0-2: the same generators at lower resolution plus decimation, the same silhouette, maps baked from the
+  hero. Desktop only (D29): no phone LOD.
+- Rigid kit (D28, step 11b): every rigid item keeps its design shape at every LOD (a separate piece below LOD0) and is
+  skinned to one bone or one fixed blend, identical on every vertex (`rigidKit`, `rigidSkin` in operators:check).
 - Every LOD is skinned to the game's joints (pelvis, spine, chest, neck, head, shoulders, elbows, wrists, hips,
   knees, ankles). The hero adds visual-only finger and toe bones (posed by grip presets: no gameplay).
 
-**Output.** `.glb` per operator per LOD and KTX2 textures (Basis compressed: BC7 on desktop, ASTC on the phone) under
-a bundled asset folder. Loaded by platform: phones load only the phone LOD.
+**Output.** `.glb` per operator per LOD and KTX2 textures (Basis compressed: BC7 on desktop) under
+a bundled asset folder. Desktop only (D29).
 
 **Reproducible.**
 - `npm run operators:build` runs Blender headless (pinned version) on the scripts.
@@ -641,12 +643,12 @@ a bundled asset folder. Loaded by platform: phones load only the phone LOD.
 
 ### 6.4 Cost estimates per operator (to be measured in Stage 2)
 
-| LOD | Used for | Triangles | Draws (materials) | Textures (desktop) | Textures (phone) | Skinning |
-| --- | --- | --- | --- | --- | --- | --- |
-| Hero | Menus, close cameras (1-2 on screen) | 150-250 k | 4 (cloth, kit, head, hardware + glow) | 4K cloth set, 2K x 3 kit sets: ~30-40 MB disk, ~90 MB VRAM | Never downloaded | ~30 bones (game joints + fingers, toes) |
-| LOD0 | Gameplay < 8 m, desktop | 35-45 k | 2-3 | 2K sets, ~8 MB | - | 17 game joints |
-| LOD1 | 8-25 m | 12-15 k | 2 | shares LOD0's | - | 17 |
-| LOD2 | > 25 m; the phone in game and in the menu | 4-6 k | 1 (+ glow) | 1K atlas, ~1.5 MB | 512-1K atlas, ~1 MB | 17 |
+| LOD | Used for | Triangles | Draws (materials) | Textures (desktop) | Skinning |
+| --- | --- | --- | --- | --- | --- |
+| Hero | Menus, close cameras (1-2 on screen) | 150-250 k | 4 (cloth, kit, head, hardware + glow) | 4K cloth set, 2K x 3 kit sets: ~30-40 MB disk, ~90 MB VRAM | ~30 bones (game joints + fingers, toes) |
+| LOD0 | Gameplay < 8 m, desktop | 35-45 k | 2-3 | 2K sets, ~8 MB | 17 game joints |
+| LOD1 | 8-25 m | 12-15 k | 2 | shares LOD0's | 17 |
+| LOD2 | > 25 m (the far desktop band; no phone LOD, D29) | 4-6 k | 1 (+ glow) | 1K atlas, ~1.5 MB | 17 |
 
 **Against the budgets:**
 - Four operators at LOD0 cost about 180 k triangles and 12 draws, plus shadow passes.
@@ -743,7 +745,7 @@ The version line goes to 1.15 with a summary of these changes.
 - **Menu spec.** The menu redesign (`feature/menu-ui-spec`) frames the operator medium or wide because "the model is
   low detail". Once the operators pass, closer shots become possible; that is the menu run's call.
 - **Repo size.** Only approved outputs are committed. Mockup renders are WebP at sensible sizes.
-- **The phone (D9).** The phone gets LOD2 in game and in the menu, never hero assets; no fps gate (bible 1.14).
+- **The phone (D9, superseded by D29).** Desktop only: no phone LOD, phone budgets or phone checks.
 - **Different heights (D10, D11).**
   - Paired moves (takedowns, team moves, carry, drag) must align hands within 3 cm for a 1.68 m and a 1.78 m
     operator (5.12.2.11).

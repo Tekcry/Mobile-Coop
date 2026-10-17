@@ -12,11 +12,15 @@ from `build/operators/wren/wren-leg_kit.blend` (every Wren item, 2,449,661 rende
 | LOD0 | Gameplay < 8 m, desktop | from the hero; stitches in the maps only | cloth 2K, kit + hardware 2K; glow |
 | LOD1 | 8-25 m | closed shell (A74): the hero without stitches, zip teeth and pieces < 12 mm, voxel-remeshed at 2.5 mm, decimated; the lens joined | cloth 1K, kit 1K; glow (A71: own set) |
 | LOD2 | > 25 m | closed shell (A74) as LOD1, pieces < 45 mm dropped | one 1K atlas; glow |
-| Phone | the phone, in game and menu | LOD2's mesh | the LOD2 atlas at 512; glow |
+Desktop only (D29, step 11b): no phone LOD; LOD2 is the far desktop band.
+
 
 Every map is baked from the 2.45 M source on the GPU (Cycles, selected to active), so the micro-emboss, perforation,
 grip pebble, tape edges, stitches and the simulated folds live in each level's maps. The rib segments are separate
 pieces at the hero and LOD0 and part of the shell below (A74). The goggle glow is kept at every level.
+Rigid kit (D28, step 11b, A81, A82): every rigid item rides one bone or one fixed blend (identical weights on every
+vertex), carries its part id as the `_RIGID` attribute and stays a separate piece below LOD0 (5-25 cm pieces); shell
+vertices within 4 mm of a rigid part take its weights.
 
 ## Measured costs vs SPEC 6.4
 
@@ -49,7 +53,7 @@ pieces at the hero and LOD0 and part of the shell below (A74). The goggle glow i
 | `weaponMount.backC` | chest | (0.0000, 0.0892, 1.1783) |
 | `weaponMount.backR` | chest | (-0.0724, 0.0878, 1.1779), splay 0.08 rad |
 | `pistolHolster` | hipR | (-0.2083, 0.0005, 0.5936), 9.76 mm off the game slot |
-| `slingSocket` | pelvis | (0.1661, 0.0009, 0.9260) |
+| `slingSocket` | pelvis | (0.1349, 0.0690, 0.9274), about 8 o'clock behind the pistol magazines (D28, step 11b) |
 
 `backGearM` for `rig.backGear`: **0.0222 m** (the back plate's standoff, from the armour sim report).
 
@@ -85,11 +89,11 @@ reference decode (`wren-sheet-ktx2-compare.webp`, mean difference under 1 / 255 
 ## Design notes (step 11; A2, D22-D25)
 
 - Silhouette: a fitted one-piece in near-black soft-shell; under a rim the read is the head with the square goggle,
-  the plate's shoulder line and slim straps, the narrow belt, the empty holster on the right thigh and the three
-  sleeves on the left front thigh (wren-sheet-rim-silhouette.webp).
+  the plate's shoulder line and slim straps, the narrow belt, the empty holster on the right thigh, the knife and
+  the three sleeves on the outer left thigh (D28) (wren-sheet-rim-silhouette.webp).
 - Materials (albedo / roughness): suit shell 0.032 / 0.80, abrasion weave 0.035 / 0.92, stretch knit 0.035 / 0.90,
   vents 0.034 / 0.84, grip rubber 0.024 / 0.72, seam tape 0.029 / 0.74; composite 0.032 / 0.64; rubber trim
-  0.021 / 0.78; gunmetal 0.051 / 0.62, the one metal.
+  0.021 / 0.78; gunmetal a real metal, base colour (F0) 0.30-0.33 / 0.61 (step 11b, A86), the one metal.
 - Review lighting: the Lab close-ups use the calibrated `detail` rig (A78): near-black reads near-black (her masked
   sRGB medians about 0.05-0.13 per close-up, printed on each sheet) and each close-up adds a +2 EV detail-read panel of
   the same view, where the zones separate by value step, relief and sheen. The `buckle` close-up uses `detailFront`.
@@ -100,20 +104,21 @@ reference decode (`wren-sheet-ktx2-compare.webp`, mean difference under 1 / 255 
 | --- | --- | --- | --- |
 | Long gun (game model, not modelled) | back slots | weapon mount receiver on the back plate, on the spine (A36, A40); anchors weaponMount.backL / C / R on chest | backPlate |
 | Sidearm (game model, not modelled) | thigh slot | the empty holster, right thigh (A40, A62); anchor pistolHolster on hipR | thighR |
-| Compact gun (game model, not modelled) | sling slot | flush sling socket on the belt, left hip (A41); anchor slingSocket on pelvis | hipL |
-| Rifle magazines | 2 | two open-top pouches, chest plate right of centre, shock cord and pull tabs | chestFront |
-| Pistol magazines | 2 | belt, left front | beltFront |
-| Frag, sleeping gas, flashbang | 2 each | three double sleeves, left front thigh; caps knurled / dome / two ridges (D25) | thighL |
+| Compact gun (game model, not modelled) | sling slot | flush sling socket on the belt at about 8 o'clock, behind the pistol magazines (D28, A41); anchor slingSocket on pelvis | hipL |
+| Rifle magazines | 2 | true 178 mm, vertical, base plates up, low on the chest plate on one placard and a moulded saddle (D28 R1, A83) | chestFront |
+| Pistol magazines | 2 | true 128 mm, two horizontal rows at 9 o'clock on the left hip, base plates forward, on a moulded seat (D28) | hipL |
+| Frag, sleeping gas, flashbang | 2 each | three straight double sleeves, outer left thigh, caps up; caps knurled / dome / two ridges (D28, A85) | thighL |
 | EMP, noisemakers | 1, 2 | gadget slot, chest plate upper right, magnetic tab flap | chestFront |
-| Sticky cams, prox mine | 2, 1 | flat pouch, left hip, magnetic tab flap | beltFront, hipL |
-| Tri-rotor drone | 1 | hard pod, rear left of the belt (A39) | beltBack, hipL |
-| Medkit | 1 | tear-away pouch, rear right of the belt (A39) | beltBack |
-| Knife | 1 | moulded sheath, chest plate left of centre, handle down | chestFront |
+| Sticky cams, prox mine | 2, 1 | flat pouch, front left of the belt, magnetic tab flap (D28) | beltFront, hipL |
+| Tri-rotor drone | 1 | flat hard pod on a saddle, rear right of the belt (A39, A88) | beltBack |
+| Medkit | 1 | soft tear-away pouch, right side of the belt in front of the holster hanger (A88) | belt |
+| Knife | 1 | true 190 mm, moulded sheath on a seat, outer front of the left thigh, handle up, left-hand draw (D28) | thighL |
 
 Comms: the radio in the back plate's upper-left recess, its cable over the left shoulder strap (three keepers) to the
 PTT at the left collarbone, the earpiece cable from the PTT up the left of the neck to the left ear (backPlate, ptt,
 collar); the earpiece itself sits in the ear under the hood and balaclava, never visible, so no close-up calls it
-out. Nothing else is carried. Not modelled (D24): every gun and its sling; the game attaches them at the anchors
+out. Callouts: every item clearly identifiable in a close-up's frame is called out (its `include` list); items cut
+by the frame edge past recognition are left out (step 11b, 11-fixes-r4). Nothing else is carried. Not modelled (D24): every gun and its sling; the game attaches them at the anchors
 above.
 
 ## Render set (step 11, `E2E_GPU=1 E2E_PORT=4191 npm run operators:sheet -- wren`, RTX 4090, ANGLE D3D11)

@@ -19,7 +19,8 @@ const argv = process.argv.slice(2);
 const operators = argv.filter((a) => !a.startsWith('-') && ['wren', 'moth'].includes(a));
 const onlyArg = argv.find((a) => a.startsWith('--only='))?.split('=')[1] ?? (argv.includes('--only') ? argv[argv.indexOf('--only') + 1] : '');
 const ALL = ['turnaround', 'closeups', 'menu', 'context', 'compare', 'lods', 'wire', 'colourblind', 'rim', 'goggle'];
-// not in ALL: `--only diag` prints the turnaround's front / back value diagnosis (fix round 2, item 7), no sheet
+// not in ALL: `--only diag` prints the turnaround's front / back value diagnosis (fix round 2, item 7), no sheet;
+// `--only gamePoses` writes the game rig's crouch / sneak skeleton for pose_check.py (step 11b fix round 1)
 const only = onlyArg ? onlyArg.split(',') : ALL;
 const PORT = Number(process.env.E2E_PORT ?? 4191);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -388,7 +389,7 @@ async function lods(op) {
   const lodList = await page.evaluate(async (o) => { const l = window.__lab; if (l.loadedId !== o) await l.load(o); return l.lods; }, op);
   const W = 520, H = 820;
   const cols = [];
-  for (const lod of lodList) cols.push({ lod, preset: lod === 'phone' ? 'phone' : 'epic', name: lod === 'source' ? 'Build (unbaked), Epic' : lod === 'hero' ? 'Hero (baked), Epic' : lod === 'phone' ? 'Phone LOD, phone look' : `In-game ${lod}, Epic` });
+  for (const lod of lodList) cols.push({ lod, preset: 'epic', name: lod === 'source' ? 'Build (unbaked), Epic' : lod === 'hero' ? 'Hero (baked), Epic' : `In-game ${lod}, Epic` });
   const shots = [];
   const paths = [];
   for (let i = 0; i < cols.length; i++) {
@@ -396,7 +397,7 @@ async function lods(op) {
     paths.push(await page.evaluate(() => window.__lab.ktx2Path));
   }
   const ktx = paths.includes('decoded') ? ' Baked LODs: KTX2 textures (KHR_texture_basisu) shown as the reference transcoder decoded them.' : paths.includes('babylon') ? ' Baked LODs: KTX2 (KHR_texture_basisu) transcoded by Babylon on load from the bundled @babylonjs/ktx2decoder (D27; BC7 on this GPU, no network).' : '';
-  const items = titleBar(op, 'Each in-game LOD and the phone look at gameplay distance (7 m)', W * cols.length + 12 * (cols.length + 1), `LODs: ${lodList.join(', ')} (step 10: npm run operators:lods).${ktx}`);
+  const items = titleBar(op, 'Each in-game LOD at gameplay distance (7 m)', W * cols.length + 12 * (cols.length + 1), `LODs: ${lodList.join(', ')} (step 10: npm run operators:lods).${ktx}`);
   for (let i = 0; i < cols.length; i++) items.push({ type: 'image', src: shots[i], x: 12 + i * (W + 12), y: 100, w: W, h: H, border: '#2c3f4a' }, label(20 + i * (W + 12), 100 + H + 6, `${cols[i].name}${paths[i] === 'none' ? '' : ` (${paths[i] === 'decoded' ? 'KTX2, decoded' : 'KTX2'})`}`));
   save(op, 'sheet-lods', await sheet({ width: W * cols.length + 12 * (cols.length + 1), height: 100 + H + 40, items }, 0.88));
   if (lodList.length === 1) { skipped.push(`${op}: baked LODs (npm run operators:lods)`); return; }
@@ -413,7 +414,7 @@ async function lods(op) {
   const it2 = titleBar(op, 'Baked LODs in Babylon: close-ups under a raking light and the torso bent', cw, `Columns: ${baked.join(', ')} (glTF tangents, ORM, tangent normal maps as shipped).`);
   for (let r = 0; r < rows.length; r++) {
     for (let i = 0; i < baked.length; i++) {
-      const src = await render({ op, rig: 'raking', pose: rows[r].pose, preset: baked[i] === 'phone' ? 'phone' : 'epic', lod: baked[i], view: rows[r].view, size: [S * 2, S * 2], frames: 30 });
+      const src = await render({ op, rig: 'raking', pose: rows[r].pose, preset: 'epic', lod: baked[i], view: rows[r].view, size: [S * 2, S * 2], frames: 30 });
       const y = 100 + r * (S + 40);
       it2.push({ type: 'image', src, x: 12 + i * (S + 12), y, w: S, h: S, border: '#2c3f4a' }, label(20 + i * (S + 12), y + S + 6, `${baked[i]}: ${rows[r].name}`));
     }
@@ -425,7 +426,7 @@ async function lods(op) {
     const pair = [];
     for (const mode of ['babylon', 'decoded']) {
       await page.evaluate(async ({ m, o, lod }) => { const l = window.__lab; l.state.ktx2 = m; l.state.lod = lod; await l.load(o); }, { m: mode, o: op, lod: baked[i] });
-      pair.push(await render({ op, rig: 'raking', pose: 'apose', preset: baked[i] === 'phone' ? 'phone' : 'epic', lod: baked[i], view: { closeup: 'chestFront' }, size: [S * 2, S * 2], frames: 30 }));
+      pair.push(await render({ op, rig: 'raking', pose: 'apose', preset: 'epic', lod: baked[i], view: { closeup: 'chestFront' }, size: [S * 2, S * 2], frames: 30 }));
     }
     await page.evaluate(async (o) => { const l = window.__lab; l.state.ktx2 = 'babylon'; await l.load(o); }, op);
     const diff = await compose.evaluate(async ([a, b]) => {
@@ -565,7 +566,26 @@ async function diag(op) {
   }
 }
 
-const runners = { turnaround, closeups, menu, context, compare, lods, wire, colourblind, rim, goggle, diag };
+// Step 11b fix round 1 (item 4): the game rig's own crouch and sneak (labData POSES, CharacterRig through retarget.ts)
+// as the operator's posed skeleton - per node: name, parent, bind and posed world position / rotation, the game frame -
+// for pose_check.py's game-pose interference check. Writes build/operators/<op>/<op>-game-poses.json, no sheet.
+async function gamePoses(op) {
+  await page.evaluate(async (o) => { const l = window.__lab; l.state.lod = 'source'; await l.load(o); }, op);
+  const out = {};
+  for (const id of ['crouch', 'sneak']) {
+    out[id] = await page.evaluate((pid) => {
+      const l = window.__lab;
+      l.setPose(pid);
+      const m = l.loaded;
+      return { names: m.model.nodes.map((n) => n.name), parent: m.model.nodes.map((n) => n.parent), bindPos: m.bindPos, bindRot: m.bindRot, pos: l.posePos, rot: l.poseRot };
+    }, id);
+  }
+  const file = path.join(OUT_DIR, op, `${op}-game-poses.json`);
+  writeFileSync(file, JSON.stringify(out));
+  console.log(`  game poses -> ${path.relative(ROOT, file)}`);
+}
+
+const runners = { turnaround, closeups, menu, context, compare, lods, wire, colourblind, rim, goggle, diag, gamePoses };
 for (const op of operators.length ? operators : ['wren', 'moth']) {
   const built = existsSync(path.join(OUT_DIR, op, `${op}-lab.glb`));
   if (!built) { skipped.push(`${op}: not built (no ${op}-lab.glb)`); console.log(`operator-sheet: ${op} is not built yet, skipped`); continue; }

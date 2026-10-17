@@ -20,7 +20,6 @@ export const LOD_BUDGET: Record<string, { tris: [number, number]; draws: number;
   lod0: { tris: [35_000, 45_000], draws: 3, glow: 0, bones: 17 },
   lod1: { tris: [12_000, 15_000], draws: 2, glow: 1, bones: 17 },
   lod2: { tris: [4_000, 6_000], draws: 1, glow: 1, bones: 17 },
-  phone: { tris: [4_000, 6_000], draws: 1, glow: 1, bones: 17 },
 };
 
 export interface GltfJson {
@@ -143,8 +142,8 @@ export function staleViews(glbMs: number, heroGlbMs: number, renderMs: Partial<R
 
 /**
  * Report checks against the hero (fix round 1, both FAIL): visible back-face pixels (holes and the interiors seen
- * through them) per view no more than the hero's count + 0.2 % of the LOD's figure pixels; open edge length of LOD1,
- * LOD2 and the phone no more than 1.5x the hero's.
+ * through them) per view no more than the hero's count + 0.2 % of the LOD's figure pixels; open edge length of LOD1
+ * and LOD2 no more than 1.5x the hero's.
  */
 export function lodReportChecks(lod: string, r: LodReport, hero: LodReport, back?: Record<string, Record<string, BackFaceView>>, stale: readonly string[] = []): LodCheck[] {
   const out: LodCheck[] = [];
@@ -163,7 +162,7 @@ export function lodReportChecks(lod: string, r: LodReport, hero: LodReport, back
     if (a.px > limit) over.push(`${v}: ${a.px} px > ${Math.round(limit)}`);
   }
   out.push({ name: 'backFaces', pass: over.length === 0, value: over.length ? over : seen, limit: "per view <= hero's + 0.2 % of the figure (run operators:lods --render)" });
-  if (lod === 'lod1' || lod === 'lod2' || lod === 'phone') {
+  if (lod === 'lod1' || lod === 'lod2') {
     const ok = r.openEdgeM !== undefined && hero.openEdgeM !== undefined && r.openEdgeM <= 1.5 * hero.openEdgeM;
     out.push({ name: 'openEdges', pass: ok, value: r.openEdgeM ?? 'not measured', limit: `<= 1.5x the hero's ${hero.openEdgeM ?? '?'} m` });
   }
@@ -178,7 +177,7 @@ export interface DarkPatchView {
 }
 
 /** The shell LODs (A74): one closed decimated shell each; no bake error of theirs is accepted. */
-export const SHELL_LODS = ['lod1', 'lod2', 'phone'] as const;
+export const SHELL_LODS = ['lod1', 'lod2'] as const;   // desktop only (D29): no phone LOD
 /** The shells' limit in every view (fix round 3, A76): the smallest patch the eye reads as a defect at 420-560 px. */
 export const SHELL_DARK_LIMIT = 24;
 
@@ -187,7 +186,7 @@ export const SHELL_DARK_LIMIT = 24;
  * loose limit is named in A76 with its defect and file / pixel and goes back to 24 when that error is fixed. Fix round
  * 3 fixed the thigh-band line (back 128 px), the buckle blotches and the plate-top smear (chest 157, head 125) with
  * the sharp-edge split on LOD0, so back, chest and head are 24 again. The one loose limit left: boot 404, the OPEN toe
- * streaks (`wren-boot-lod0.png` 189,373, 367 px). Shells (LOD1, LOD2, phone) always get SHELL_DARK_LIMIT: a shell view
+ * streaks (`wren-boot-lod0.png` 189,373, 367 px). Shells (LOD1, LOD2) always get SHELL_DARK_LIMIT: a shell view
  * over it is a defect to fix, never a limit.
  */
 export const DARK_PATCH_LIMIT: Record<LodView, number> = {

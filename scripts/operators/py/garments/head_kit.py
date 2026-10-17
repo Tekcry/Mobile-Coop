@@ -32,6 +32,7 @@ from mathutils import Vector
 
 import fitted as FT
 import head_common as HC
+import kit_common as KC
 
 KIT = 'headHarness'
 PLUG_X = 0.085                  # the earpiece plug's x at the collarbone (step 09: on the PTT)
@@ -148,10 +149,67 @@ def build(ctx):
     pf_top = top_p[0].mean(axis=0)
     pj, nj = HC.ray_in(tree_u, (0.0, c[1], S['plate']['z'] + 0.016), (0.0, -1.0, 0.0))   # the fork junction block
     HC.rbox(V, F, pj + nj * 0.004, [X, FT.unit(np.cross(nj, X)), nj], (0.012, 0.007, 0.0028), 0.0018, step=0.0012)
+    # rivets through the side straps' tabs (step 11b: they were laid on a straight line from the plate's centre and
+    # stood off the curved plate): each at the side strap's sewn end under the plate, 8 mm in from its front end,
+    # seated on the plate's top along the local normal (head 0.5 mm proud), its shank down through the plate and the
+    # strap; the gap from its head rim to the plate's top is reported (rigidKit hostGap, <= 0.5 mm)
+    Vp, Fp, _ = pt('poly')
+    plate_tree = HC.bvh(np.asarray(Vp, float), [tuple(f) for f in Fp])
     V, F, _ = pt('metal')
-    for sx in (-1, 1):           # rivets through the side straps' tabs
-        b0 = pf_top + X * sx * 0.026
-        HC.taper(V, F, [b0, b0 + nf * 0.0018], 0.0032, 0.003, sides=8)
+    riv = {}
+    rivets = []                                         # (b0, b1, id, design): the rivets' vertex ranges in 'metal'
+    hw = S['plate']['hw']
+    for sx, nm in ((1, 'sideL'), (-1, 'sideR')):
+        Ps, Ns = spans[nm]
+        q = Ps[HC.at_length(Ps, 0.008)].copy()
+        clamped = abs(q[0]) > hw - 0.010
+        if clamped:                                     # the strap's end runs past the plate's flat: 10 mm in from its edge
+            q[0] = np.sign(q[0]) * (hw - 0.010)
+        p_, n_ = HC.ray_in(tree_u, (q[0], c[1], q[2]), (0.0, -1.0, 0.0))
+        if clamped:
+            # the side strap's sewn tab: 14 mm webbing from the strap's end forward under the plate past the rivet, so
+            # the rivet goes through it (step 11b; before, the rivet stood on nothing)
+            q0 = Ps[0]
+            tp, tn = [], []
+            for f_ in np.linspace(0.0, 1.0, 8):
+                a_ = q0 + (q - q0) * f_ * 1.25
+                h_, hn_ = HC.ray_in(tree_u, (a_[0], c[1], a_[2]), (0.0, -1.0, 0.0))
+                tp.append(h_)
+                tn.append(hn_)
+            Vw, Fw, _ = pt('web')
+            HC.strap_mesh(Vw, Fw, np.array(tp), np.array(tn), 0.014, WEB_T)
+            tab_line = np.array(tp)
+        else:
+            tab_line = Ps
+        top = p_ + n_ * (WEB_T + 0.0002 + 0.0038)
+        hit = plate_tree.ray_cast(Vector(tuple(top + n_ * 0.01)), Vector(tuple(-n_)), 0.03)
+        if hit[0] is not None:
+            top = np.array(hit[0])
+        t1 = FT.unit(np.cross(n_, Z))
+        t2 = np.cross(n_, t1)
+        # built in its own frame (head centre, the plate's normal +z) and placed: its design record (D28, rigidKit)
+        rfr = KC.Frame(top, t1, t2)
+        b0 = len(V)
+        ez = np.array([0.0, 0.0, 1.0])
+        HC.taper(V, F, [-ez * 0.0012, ez * 0.0005], 0.0032, 0.003, sides=8)                     # the head
+        FT.tube(V, F, np.array([-ez * 0.0012, rfr.p(p_ + n_ * (WEB_T * 0.5))]), 0.0014, sides=8)  # the shank
+        Lr = np.asarray(V[b0:], float).reshape(-1, 3)
+        V[b0:] = list(rfr.world(Lr))
+        rivets.append((b0, len(V), 502 if nm == 'sideL' else 503, Lr))
+        gap = 0.0                                       # the head's lower rim: its height over the plate's top
+        for a in np.linspace(0, 2 * math.pi, 12, endpoint=False):
+            r_ = top - n_ * 0.0012 + (t1 * math.cos(a) + t2 * math.sin(a)) * 0.0032
+            h_ = plate_tree.ray_cast(Vector(tuple(r_ + n_ * 0.005)), Vector(tuple(-n_)), 0.02)
+            gap = max(gap, (h_[3] - 0.005) if h_[0] is not None else 0.02)
+        d_strap = float(np.min(np.linalg.norm(HC.resample(tab_line, np.tile(n_, (len(tab_line), 1)), 0.001)[0] - p_, axis=1)))
+        riv[nm] = {'at': [round(float(v), 4) for v in top], 'hostGapMm': round(gap * 1000, 2),
+                   'tabCentreMm': round(d_strap * 1000, 1), 'tabAdded': bool(clamped)}
+    meas['browRivets'] = riv
+    # registered for rigidKit (check_garment.py measures their shape, depth and host gap itself; the builder's
+    # head-rim gap above stays as information)
+    meas['rigid'] = [{'id': 502 + i, 'name': f'browRivet{k[-1]}', 'bones': {'head': 1.0}, 'role': 'hard',
+                      'item': 'head_kit', 'builderGapMm': v['hostGapMm'], 'host': 'brow plate'}
+                     for i, (k, v) in enumerate(sorted(riv.items()))]
     cz = S['cradle']['z']
     pb, _ = HC.ray_in(tree_u, (0.0, c[1], cz), (0.0, 1.0, 0.0))
     V, F, _ = pt('pod')
@@ -595,6 +653,12 @@ def build(ctx):
         attrs = {'wear': np.zeros(len(V))}
         if E:
             attrs['emit'] = np.asarray(E, float)
+        if key == 'metal' and rivets:                   # the brow rivets: '_rigid' 502 / 503 and their design record
+            rg, Dg = np.zeros(len(V)), np.zeros((len(V), 3))
+            for b0_, b1_, rid_, L_ in rivets:
+                rg[b0_:b1_] = rid_
+                Dg[b0_:b1_] = L_
+            attrs.update({'_rigid': rg, 'rdx': Dg[:, 0], 'rdy': Dg[:, 1], 'rdz': Dg[:, 2]})
         ob = FT.add_mesh(scene, f'{op}-head_kit-{key}', V, F, mats[key], uv=uv, attrs=attrs)
         _recalc(ob)
         _poly_uv(ob)

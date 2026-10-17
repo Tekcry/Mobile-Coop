@@ -9,6 +9,7 @@ import { findBlender, runBlender } from './blender.mjs';
 import { OUT_DIR } from './paths.mjs';
 
 const { KITS, kitCoverage } = await import('../../src/operators/kit.ts');
+const { rigidItemChecks, glbRigidSkin, rigidSkinCheck, slingClockCheck } = await import('../../src/operators/rigidKit.ts');
 
 /** The kit checks for one built item, from its simulation report: [{ name, pass, value, limit, detail }]. */
 function kitChecks(operator, simReport) {
@@ -44,7 +45,10 @@ for (const id of only.length ? only : Object.keys(KITS)) {
     const file = path.join(out, `${id}-${item}-check.json`);
     const report = JSON.parse(readFileSync(file, 'utf8'));
     const sim = JSON.parse(readFileSync(path.join(out, `${id}-${item}-sim.json`), 'utf8'));
-    const kc = kitChecks(id, sim);
+    // step 11b (D28): the rigid kit (shape, depth, seats, small hardware on its host, true sizes, the bone rule) and
+    // the compact-gun sling socket at about 8 o'clock (A41's slot moved behind the 9 o'clock pistol magazines)
+    const kc = [...kitChecks(id, sim), ...rigidItemChecks(report.rigid ?? [])];
+    if (sim.measurements?.slingSocket) kc.push(slingClockCheck(sim.measurements.slingSocket.clock));
     for (const c of kc) console.info(`operators check: ${id} ${item} ${c.pass ? 'PASS' : 'FAIL'} ${c.name}: ${JSON.stringify(c.value)} (${c.limit}) ${c.detail}`);
     report.checks.push(...kc);
     report.pass = report.checks.every((c) => c.pass);
@@ -59,7 +63,7 @@ for (const id of only.length ? only : Object.keys(KITS)) {
 // fail); against the hero (fix round 1, FAIL): visible back faces per view and the open edge length.
 // Fix round 2 (A76, FAIL): bake errors inside the outline, each LOD's Cycles render against the hero's per view
 // (largest new-dark patch); written to report.json as bakeDiff.
-// Fix round 3: shells (LOD1, LOD2, phone) 24 px in every view, LOD0's loose limits named in A76; a `holster` view; a
+// Fix round 3: shells (LOD1, LOD2) 24 px in every view, LOD0's loose limits named in A76; a `holster` view; a
 // render older than its LOD's GLB FAILs "stale".
 const { glbJson, lodChecks, lodReportChecks, bakeDiffCheck, staleViews, BACKFACE_VIEWS } = await import('../../src/operators/lodChecks.ts');
 const { decodePng, darkPatches } = await import('../../src/operators/bakeDiff.ts');
@@ -108,8 +112,10 @@ for (const id of only.length ? only : Object.keys(KITS)) {
   const staleBack = staleFor(id, rdir, report.lods, '-backfaces');
   writeFileSync(rep, JSON.stringify(report, null, 1));
   for (const [lod, r] of Object.entries(report.lods)) {
+    const glbBuf = new Uint8Array(readFileSync(path.join(OUT_DIR, id, 'export', r.glb)));
     const cs = [
-      ...lodChecks(lod, glbJson(new Uint8Array(readFileSync(path.join(OUT_DIR, id, 'export', r.glb)))), r.triangles),
+      ...lodChecks(lod, glbJson(glbBuf), r.triangles),
+      rigidSkinCheck(lod, glbRigidSkin(glbBuf), report.rigid ?? {}),
       ...lodReportChecks(lod, r, report.lods.hero ?? {}, report.backFacePx, staleBack[lod]),
       ...bakeDiffCheck(lod, report.bakeDiff[lod], staleRender[lod]),
     ];

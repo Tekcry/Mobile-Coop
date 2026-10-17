@@ -2,18 +2,19 @@
 "Comms"; ART-DIRECTION 9.2; concept A2, D24, A39). A FITTED item over the armour: every part is bonded to a plate or
 clipped to a strap, so nothing presses the suit.
 
-- Two rifle magazine pouches right of centre (laminate, open top, a bound top edge), turned so their tops lean toward
-  the left hand; in each a short swept magazine whose base plate stands out of the top, a shock-cord loop over it with
-  a moulded rubber pull tab resting on the base plate (no dangling tab).
+- Two rifle magazines low on the chest plate (D28, R1): true 178 mm 5.56 magazines with their own forward curve,
+  vertical, base plates up (the left hand grips a base plate and pulls up), side by side on one flat laminate placard
+  panel; slim open-top pouches hold their lower 122 mm, a shock-cord loop over each base plate with a moulded rubber
+  pull tab. The placard is one rigid piece on a moulded saddle bonded to the chest plate (its lower half stands off the
+  rib segments); everything on it is skinned to the chest bone (D28).
 - The gadget slot (upper right, over the right bust beside the magazines; the shoulder and side buckles take the
   corners): a flat laminate slot whose flap closes with a gunmetal magnetic tab; inside, the EMP and the two
   noisemakers as three flat stick-on discs.
-- The knife left of centre, handle down (the right hand draws it across the body): a moulded polymer sheath tapering to
-  the tip with a gunmetal release at the throat; gunmetal guard and pommel, rubber handle.
+- The knife moved to the left thigh (D28, leg_kit.py).
 - The PTT clipped on the left shoulder strap at the collarbone: its body over the strap's inner edge, a rubber press
   pad, the earpiece plug's socket (step 07's cable ends on it) and the radio cable's socket on its top, a moulded clip
   round the strap's outer edge.
-- The radio set into the back plate's recess (upper left), 1.8 mm clear of its walls; a low knurled channel knob, a
+- The radio set into the back plate's recess (upper left; the recess floor is planar, D28), 1.8 mm clear of its walls; a low knurled channel knob, a
   rubber button; its 4 mm stub antenna runs along the plate's top edge under the moulded keeper (armour.py); its cable
   leaves the top connector, crosses the plate face onto the left shoulder strap's back tab, runs along the strap 4 mm in
   from its inner edge under the three keeper bridges and over the shoulder to the PTT, with strain-relief boots at both
@@ -31,14 +32,16 @@ import kit_common as KC
 import torso_common as TC
 
 KIT = 'magPouches'
-KITS = ['gadgetSlot', 'knife', 'ptt', 'radio', 'radioCable']
+KITS = ['gadgetSlot', 'ptt', 'radio', 'radioCable']
 METHOD = ('hard and laminate parts laid on conformal maps of the chest and back plates (height fields) and the left '
           'shoulder strap path; the cable routed on the strap by its own frame (no simulation)')
-MAG_ROT = 0.2
-MAGS = [(-0.043, 1.222), (0.003, 1.222)]
-MAG_HALF = (0.022, 0.0375, 0.012)
+# D28 R1: the rifle magazine pair (true 5.56 x 45 30-round: 178 mm overall, 62 mm fore-aft at the lips to 70 at the
+# base, 24 mm thick, the base 16 mm forward of the lip line); lips 80 mm above the belt's top edge (z 0.941)
+MAG_L, MAG_T, MAG_W0, MAG_W1, MAG_CURVE = 0.178, 0.024, 0.062, 0.070, 0.016
+MAG_X, MAG_Z = 0.039, 0.941 + 0.080 + 0.089          # each magazine's centre x (+-), the pair's centre z
+POUCH_Y = (-0.092, 0.030)                            # the pouch's bottom and top (magazine frame, y up from its centre)
+PLATE_Z = 1.152                                      # the chest plate's lower edge zone (the saddle bonds above it)
 GAD, GAD_HALF = (-0.0915, 1.245), (0.018, 0.025, 0.0065)
-KNIFE = (0.048, 1.256)
 CABLE_R = 0.0016
 STRAP_W, STRAP_T = 0.025, 0.0024
 CAB_IN = 0.004                 # the cable runs this far in from the strap's inner edge (the keepers' line)
@@ -64,7 +67,7 @@ def soft(half, bulge=0.0015):
 def build(ctx):
     scene, reuse, MAT, skin, op = ctx['scene'], ctx['reuse'], ctx['MAT'], ctx['skin'], ctx['op_id']
     dg = bpy.context.evaluated_depsgraph_get()
-    pt, reg, meas = KC.Parts(), {}, {}
+    pt, reg, meas = KC.Parts(base=100), {}, {}
     mats = KC.materials(reuse, MAT)
 
     def add(name, key, rng):
@@ -75,39 +78,72 @@ def build(ctx):
     Vp, Fp = TC.mesh_world(plate, dg)
     t_front = TC.bvh(Vp, [f for f in Fp if Vp[list(f), 1].mean() < -0.02])
     t_back = TC.bvh(Vp, [f for f in Fp if Vp[list(f), 1].mean() > 0.0])
-    Mf = KC.HField(t_front, -1.0, np.arange(-0.125, 0.12501, 0.002), np.arange(1.13, 1.3451, 0.002))
+    Mf = KC.HField(t_front, -1.0, np.arange(-0.125, 0.12501, 0.002), np.arange(1.0, 1.3451, 0.002))
     rx0, rx1, rz0, rz1 = 0.0285, 0.0875, 1.2545, 1.3185          # armour.py's radio recess, 1.5 mm grown
     Mb = KC.HField(t_back, 1.0, np.arange(-0.01, 0.1301, 0.002), np.arange(1.23, 1.3451, 0.002),
                    skip=lambda x, z: rx0 < x < rx1 and rz0 < z < rz1)
     suit_tree, _, _ = KC.suit_trees(op, dg)
     H0 = 0.0003                    # parts are bonded on the plate face
 
-    # --- Rifle magazine pouches -----------------------------------------------------------------------------------
-    hx, hy, hz = MAG_HALF
-    for k, (cu, cv) in enumerate(MAGS):
+    # --- Rifle magazines (D28 R1): one rigid placard on the chest plate --------------------------------------------
+    CH = {'chest': 1.0}
+    hy = MAG_L / 2
+    Fmag, seat_g = KC.flat_on(Mf, 0.0, MAG_Z, (MAG_X + 0.0395, hy + 0.003), support=lambda P: P[:, 2] > PLATE_Z)
+    meas['rifleMagSeat'] = {**seat_g, 'frame': Fmag.report()}
+    r_pan = pt.part('rifleMagPlacard', CH, 'carrier', item='magPouches')
+    n0 = pt.count('lam', 'cord', 'rubber')
+    _, r_ = KC.cbox(pt('lam'), Fmag, 0.0, MAG_Z, (MAG_X + 0.0395, hy + 0.0015, 0.001), 0.0015, 0.0)   # the back panel
+    add('magPouches', 'lam', r_)
+
+    def mag_shape(L):
+        L = np.array(L, float)
+        t = np.clip((L[:, 1] + hy) / (2 * hy), 0, 1)                  # 0 at the lips (down), 1 at the base (up)
+        half_w = 0.5 * (MAG_W0 + (MAG_W1 - MAG_W0) * t)
+        L[:, 0] = L[:, 0] / (MAG_W1 / 2) * half_w + MAG_CURVE * t ** 2 - 0.004
+        return L
+    for k, cu in enumerate((-MAG_X, MAG_X)):
         nm = f'magPouch{k}'
-        _, r_ = KC.cbox(pt('lam'), Mf, cu, cv, MAG_HALF, 0.005, H0, MAG_ROT, deform=soft(MAG_HALF))
+        # the slim pouch (soft, open top, a bound top edge) round the magazine's lower 122 mm
+        ph, pc = (POUCH_Y[1] - POUCH_Y[0]) / 2, (POUCH_Y[1] + POUCH_Y[0]) / 2
+        half = (0.0385, ph, 0.0135)
+        _, r_ = KC.cbox(pt('lam'), Fmag, cu, MAG_Z, half, 0.004, 0.002, off=(0.0, pc, 0.0), deform=soft(half, 0.001))
         add(nm, 'lam', r_)
-        # the bound top edge (a folded laminate binding round the open top)
-        rim = [(-hx + 0.0016, hy - 0.0009, 0.0018), (hx - 0.0016, hy - 0.0009, 0.0018),
-               (hx - 0.0016, hy - 0.0009, 2 * hz - 0.0006), (-hx + 0.0016, hy - 0.0009, 2 * hz - 0.0006)]
-        loop = TC.densify_closed(np.array([(p[0], p[2]) for p in rim]), 0.002)
-        lp = [(a, hy - 0.0009, b) for a, b in loop] + [(loop[0][0], hy - 0.0009, loop[0][1])]
-        KC.tube(pt('lam'), KC.mpts(Mf, lp, cu, cv, MAG_ROT, H0), 0.0011, sides=6, step=0.002)
-        # the magazine: a short swept body and its base plate standing out of the top
-        sweep = (lambda L: np.column_stack([L[:, 0] + 0.003 * ((L[:, 1] + 0.011) / 0.022) ** 2, L[:, 1], L[:, 2]]))
-        _, r_ = KC.cbox(pt('poly'), Mf, cu, cv, (0.0175, 0.011, 0.0085), 0.003, H0, MAG_ROT,
-                        off=(0.0, hy + 0.003, hz - 0.0085), deform=sweep)
+        hx, hz = half[0], half[2]
+        rim = [(-hx + 0.0016, 0.0018), (hx - 0.0016, 0.0018), (hx - 0.0016, 2 * hz - 0.0006), (-hx + 0.0016, 2 * hz - 0.0006)]
+        loop = TC.densify_closed(np.array(rim), 0.002)
+        yt = POUCH_Y[1] - 0.0009
+        lp = [(a, yt, 0.002 + b) for a, b in loop] + [(loop[0][0], yt, 0.002 + loop[0][1])]
+        KC.tube(pt('lam'), KC.mpts(Fmag, lp, cu, MAG_Z, 0.0, 0.0), 0.0011, sides=6, step=0.002)
+        # the magazine: one rigid part (body and base plate), its back on the panel
+        rid = pt.part(f'rifleMag{k}', CH, item='magPouches', size='rifleMag')
+        nm0 = pt.count('poly')
+        _, r_ = KC.cbox(pt('poly'), Fmag, cu, MAG_Z, (MAG_W1 / 2, hy - 0.004, MAG_T / 2), 0.003, 0.0025,
+                        off=(0.0, -0.004, 0.0), step=0.004, deform=mag_shape)
         add(nm + 'Mag', 'poly', r_)
-        _, r_ = KC.cbox(pt('poly'), Mf, cu, cv, (0.0188, 0.0026, 0.0094), 0.0022, H0, MAG_ROT,
-                        off=(0.003, hy + 0.0166, hz - 0.0094))
+        bx = MAG_CURVE - 0.004 + 0.0005
+        _, r_ = KC.cbox(pt('poly'), Fmag, cu, MAG_Z, (MAG_W1 / 2 + 0.002, 0.004, MAG_T / 2 + 0.0008), 0.0022, 0.0017,
+                        off=(bx, hy - 0.004, 0.0))
         add(nm + 'Mag', 'poly', r_)
-        y_top = hy + 0.0192 + CABLE_R + 0.0004
-        KC.cord_loop(pt('cord'), Mf, cu + 0.0, cv, MAG_ROT, H0, hx + 0.001, hy - 0.012, y_top, hz, r=0.0016,
-                     rise=0.012, cx=0.0015)
-        _, r_ = KC.cbox(pt('rubber'), Mf, cu, cv, (0.0058, 0.0048, 0.0013), 0.0011, H0, MAG_ROT,
-                        off=(0.003, hy + 0.0168, hz + 0.0094 + 0.0002))
+        pt.tag_since(nm0, rid)
+        # the shock-cord loop over the base plate (anchored inside the pouch's sides) and its pull tab
+        KC.cord_loop(pt('cord'), Fmag, cu, MAG_Z, 0.0, 0.002, hx + 0.001, POUCH_Y[1] - 0.012, hy + 0.0016 + 0.0004, hz,
+                     r=0.0016, rise=0.014, cx=bx)
+        _, r_ = KC.cbox(pt('rubber'), Fmag, cu, MAG_Z, (0.0058, 0.0013, 0.0048), 0.0011, 0.0025 + MAG_T / 2 - 0.0048,
+                        off=(bx, hy + 0.0013 + 0.0002, 0.0))
         add(nm + 'Tab', 'rubber', r_)
+    pt.tag_since(n0, r_pan)
+    # the moulded saddle: the panel's back on the chest plate (it stands off the rib segments below, D28)
+    zc = 0.5 * (PLATE_Z + MAG_Z + hy)
+    hs = 0.5 * (MAG_Z + hy - PLATE_Z)
+    if seat_g['maxMm'] > 3.0:
+        r_seat = pt.part('rifleMagSeat', CH, 'mount', item='magPouches', gapMm=seat_g['maxMm'])
+        nseat = pt.count('lam')
+        rs = KC.seat(pt('lam'), Fmag, Mf, 0.0, zc, (MAG_X + 0.0365, hs - 0.002), h_top=-0.0002, h_base=0.0004)
+        add('magPouches', 'lam', rs)
+        pt.tag_since(nseat, r_seat)
+    pt.seat_of('rifleMag', seat_g['maxMm'], 'rifleMagSeat' if seat_g['maxMm'] > 3.0 else None)
+    meas['rifleMags'] = {'centresX': [-MAG_X, MAG_X], 'zLips': round(MAG_Z - hy, 3), 'zBase': round(MAG_Z + hy, 3),
+                         'lengthMm': MAG_L * 1000, 'seatGapMm': seat_g, 'baseUp': True}
 
     # --- Gadget slot: EMP 1, noisemakers 2 (flat stick-on discs) ----------------------------------------------------
     gx_, gy_, gz_ = GAD_HALF
@@ -119,44 +155,19 @@ def build(ctx):
     _, r_ = KC.cbox(pt('lam'), Mf, GAD[0], GAD[1], (gx_ + 0.0006, 0.0011, gz_ + 0.0011), 0.0009, H0, 0.0,
                     off=(0.0, gy_ + 0.0011, -0.0002))
     add('gadgetSlot', 'lam', r_)
-    _, r_ = KC.cbox(pt('metal'), Mf, GAD[0], GAD[1], (0.0058, 0.0032, 0.0010), 0.0008, H0, 0.0,
-                    off=(0.0, gy_ - 0.0195, 2 * gz_ + 0.0031))
+    Fg, _ = KC.flat_on(Mf, GAD[0], GAD[1] + gy_ - 0.0195, (0.006, 0.0035))
+    Fg = Fg.lifted(-0.0005)
+    rid = pt.part('gadgetTab', CH, item='gadgetSlot')
+    nt = pt.count('metal')
+    _, r_ = KC.cbox(pt('metal'), Fg, GAD[0], GAD[1] + gy_ - 0.0195, (0.0058, 0.0032, 0.0010), 0.0008, H0, 0.0,
+                    off=(0.0, 0.0, 2 * gz_ + 0.0031))
     add('gadgetTab', 'metal', r_)
+    pt.tag_since(nt, rid)
     for k in range(3):             # the three discs inside (stacked face to face)
         z0 = 0.0013 + k * 0.0037
         KC.tube(pt('poly'), KC.mpts(Mf, [(0.0, -0.002, z0), (0.0, -0.002, z0 + 0.0033)], GAD[0], GAD[1], 0.0, H0),
                 0.0148, sides=24)
     meas['gadgetSlot'] = {'contents': ['emp', 'noise', 'noise'], 'centre': list(GAD)}
-
-    # --- Knife (left of centre, handle down) ---------------------------------------------------------------------------
-    sh_y = 0.035
-
-    def sheath(L):
-        L = np.array(L, float)
-        t = np.clip((L[:, 1] + sh_y) / (2 * sh_y), 0, 1)
-        L[:, 0] *= 1 - 0.28 * t ** 1.5
-        L[:, 2] += 0.0012 * np.clip(L[:, 2] / 0.0058, 0, 1) * np.clip(1 - (L[:, 0] / 0.0115) ** 2, 0, 1)
-        return L
-    ku, kv = KNIFE
-    _, r_ = KC.cbox(pt('poly'), Mf, ku, kv, (0.0115, sh_y, 0.0058), 0.004, H0, 0.0, deform=sheath)
-    add('knife', 'poly', r_)
-    _, r_ = KC.cbox(pt('metal'), Mf, ku, kv, (0.0045, 0.0055, 0.0010), 0.0008, H0, 0.0,
-                    off=(0.0, -sh_y + 0.009, 0.0128))
-    add('knife', 'metal', r_)
-    _, r_ = KC.cbox(pt('metal'), Mf, ku, kv, (0.0135, 0.0022, 0.0066), 0.0012, H0, 0.0, off=(0.0, -sh_y - 0.0022, -0.0003))
-    add('knife', 'metal', r_)
-
-    def grip(L):
-        L = np.array(L, float)
-        L[:, 0] *= 1 - 0.1 * np.cos(math.pi * L[:, 1] / 0.024) ** 2
-        return L
-    _, r_ = KC.cbox(pt('rubber'), Mf, ku, kv, (0.0095, 0.024, 0.0064), 0.0045, H0, 0.0,
-                    off=(0.0, -sh_y - 0.0044 - 0.024, -0.0001), deform=grip)
-    add('knife', 'rubber', r_)
-    _, r_ = KC.cbox(pt('metal'), Mf, ku, kv, (0.0088, 0.0025, 0.0062), 0.002, H0, 0.0,
-                    off=(0.0, -sh_y - 0.0044 - 0.048 - 0.0025, 0.0))
-    add('knife', 'metal', r_)
-    meas['knife'] = {'centre': list(KNIFE), 'tipZ': round(kv + sh_y, 4), 'pommelZ': round(kv - sh_y - 0.0574, 4)}
 
     # --- The left shoulder strap's path (armour.py) and the earpiece plug (head_kit.py) --------------------------------
     st = bpy.data.objects[f'{op}-armour-strap']
@@ -186,23 +197,27 @@ def build(ctx):
     a_ear = float((pb - O_s) @ ac)
     c_ptt = O_s + nn * (hpz + 0.0003) + ac * (a_ear - inner * 0.0035) + al * (float((pb - O_s) @ al) - hpy - 0.0032)
     AX = [ac, al, nn]
+    r_ptt = pt.part('ptt', CH, item='ptt')
+    nptt = pt.count('poly', 'rubber')
+    fr = KC.Frame(c_ptt, ac, al)                      # the PTT built in its own frame (design record)
+    AXl = [fr.v(ac), fr.v(al), fr.v(nn)]
     Vq, Fq, Eq = pt('poly')
     pt.pad('poly')
-    rng = HC.rbox(Vq, Fq, c_ptt, AX, (hpx, hpy, hpz), 0.003, step=0.0015)
-    Eq.extend(TC.rbox_edge(Vq, rng, c_ptt, AX, (hpx, hpy, hpz)))
+    rng = HC.rbox(Vq, Fq, fr.p(c_ptt), AXl, (hpx, hpy, hpz), 0.003, step=0.0015)
+    Eq.extend(TC.rbox_edge(Vq, rng, fr.p(c_ptt), AXl, (hpx, hpy, hpz)))
     add('ptt', 'poly', rng)
     Vr, Fr, Er = pt('rubber')
     pt.pad('rubber')
     cpad = c_ptt + nn * (hpz + 0.0008)
-    rng = HC.rbox(Vr, Fr, cpad, AX, (0.0075, 0.0058, 0.0011), 0.001, step=0.001)
-    Er.extend(TC.rbox_edge(Vr, rng, cpad, AX, (0.0075, 0.0058, 0.0011)))
+    rng = HC.rbox(Vr, Fr, fr.p(cpad), AXl, (0.0075, 0.0058, 0.0011), 0.001, step=0.001)
+    Er.extend(TC.rbox_edge(Vr, rng, fr.p(cpad), AXl, (0.0075, 0.0058, 0.0011)))
     top = c_ptt + al * hpy
     socks = {}
     for nm, sx in (('ear', inner * 0.0035), ('radio', -inner * 0.0035)):
         cb = top + ac * sx + al * 0.0016
         pt.pad('poly')
-        rng = HC.rbox(Vq, Fq, cb, AX, (0.0032, 0.0018, 0.0032), 0.0011, step=0.001)
-        Eq.extend(TC.rbox_edge(Vq, rng, cb, AX, (0.0032, 0.0018, 0.0032)))
+        rng = HC.rbox(Vq, Fq, fr.p(cb), AXl, (0.0032, 0.0018, 0.0032), 0.0011, step=0.001)
+        Eq.extend(TC.rbox_edge(Vq, rng, fr.p(cb), AXl, (0.0032, 0.0018, 0.0032)))
         socks[nm] = cb + al * 0.0018
     # the clip: a moulded tongue from the PTT's back across the strap's top to its outer edge, a lip over that edge
     P_out = SP[i_p] - ac * inner * 0.0 + SB[i_p] * (-inner) * (0.5 * STRAP_W)
@@ -210,12 +225,14 @@ def build(ctx):
     cc = c_ptt + ac * (span / 2 + np.sign(span) * 0.0008) - nn * (hpz - 0.0005)
     hc = (abs(span) / 2 + 0.0012, 0.0055, 0.0007)
     pt.pad('poly')
-    rng = HC.rbox(Vq, Fq, cc, AX, hc, 0.0005, step=0.0012)
-    Eq.extend(TC.rbox_edge(Vq, rng, cc, AX, hc))
+    rng = HC.rbox(Vq, Fq, fr.p(cc), AXl, hc, 0.0005, step=0.0012)
+    Eq.extend(TC.rbox_edge(Vq, rng, fr.p(cc), AXl, hc))
     cl = c_ptt + ac * (span + np.sign(span) * 0.0016) - nn * (hpz + 0.0004)
     pt.pad('poly')
-    rng = HC.rbox(Vq, Fq, cl, AX, (0.0008, 0.0055, 0.0024), 0.0005, step=0.001)
-    Eq.extend(TC.rbox_edge(Vq, rng, cl, AX, (0.0008, 0.0055, 0.0024)))
+    rng = HC.rbox(Vq, Fq, fr.p(cl), AXl, (0.0008, 0.0055, 0.0024), 0.0005, step=0.001)
+    Eq.extend(TC.rbox_edge(Vq, rng, fr.p(cl), AXl, (0.0008, 0.0055, 0.0024)))
+    pt.place(nptt, fr)
+    pt.tag_since(nptt, r_ptt)
     # step 07's earpiece cable ends on the PTT's earpiece socket: its plug and its last 4 cm (cable, plug, collar clip)
     # are carried onto the socket, the move easing out along the cable (head_kit.py routes it from the collar)
     d_seat = socks['ear'] - pb
@@ -248,28 +265,48 @@ def build(ctx):
     rhx, rhy, rhz = RADIO_HALF
     dome = (lambda L: np.column_stack([L[:, 0], L[:, 1], L[:, 2] + RADIO_DOME * np.clip(L[:, 2] / rhz, 0, 1)
                                        * np.clip(1 - (L[:, 0] / rhx) ** 2, 0, 1) * np.clip(1 - (L[:, 1] / rhy) ** 2, 0, 1)]))
-    _, r_ = KC.cbox(pt('poly'), Mb, rcu, rcv, RADIO_HALF, 0.0024, -0.0047, 0.0, deform=dome)   # 2.4 mm round edges
+    # the recess floor (planar, armour.py): a plane fitted to the plate's back faces inside the recess; the radio's
+    # frame Fr has h = 0 at the plate face's level (the floor is 4.7 mm under it), so the old heights carry over
+    fl = []
+    for x_ in np.linspace(rx0 + 0.006, rx1 - 0.006, 7):
+        for z_ in np.linspace(rz0 + 0.006, rz1 - 0.006, 7):
+            h_, _, _ = TC.ray(t_back, (x_, 0.6, z_), (0.0, -1.0, 0.0), 1.2)
+            if h_ is not None:
+                fl.append(np.array(h_))
+    fl = np.array(fl)
+    fc = fl.mean(axis=0)
+    fn = np.linalg.svd(fl - fc)[2][2]
+    fn = fn if fn[1] > 0 else -fn
+    fA = FT.unit(np.array([1.0, 0.0, 0.0]) - fn * fn[0])
+    fU = FT.unit(np.cross(fn, fA))
+    p0, dr = np.array([rcu, 0.6, rcv]), np.array([0.0, -1.0, 0.0])
+    O_r = p0 + dr * float(((fc - p0) @ fn) / (dr @ fn)) + fn * 0.0047
+    Fr = KC.Flat(O_r, fA, fU, fn, rcu, rcv)
+    meas['radioFloor'] = {'planeFitMaxMm': round(float(np.abs((fl - fc) @ fn).max()) * 1000, 2), 'frame': Fr.report()}
+    r_rad = pt.part('radio', CH, item='radio')
+    nrad = pt.count('poly', 'metal', 'rubber')
+    _, r_ = KC.cbox(pt('poly'), Fr, rcu, rcv, RADIO_HALF, 0.0024, -0.0047 + 0.0003, 0.0, deform=dome)   # 2.4 mm round edges
     add('radio', 'poly', r_)
-    O, A_, U_, N_ = KC.frame(Mb, rcu + 0.016, rcv + 0.018, 2 * rhz - 0.0047 + 0.0006)
-    out_b = FT.unit(KC.mpts(Mb, [(rcu + 0.016, rcv + 0.018, 0.001)])[0] - KC.mpts(Mb, [(rcu + 0.016, rcv + 0.018, 0.0)])[0])
-    N_ = N_ * (1.0 if N_ @ out_b > 0 else -1.0)            # the knob's axis out of the face
+    fr = KC.Frame.of_flat(Fr, rcu + 0.016, rcv + 0.018, 2 * rhz - 0.0047 + 0.0003 + 0.0006)
     Vm, Fm, Em = pt('metal')
     pt.pad('metal')
     b0 = len(Vm)
-    HC.knurl(Vm, Fm, O + N_ * 0.0006, N_, 0.0042, 0.0014, ridges=20, rings=3)           # a low knob, 1.4 mm
+    HC.knurl(Vm, Fm, np.array([0.0, 0.0, 0.0006]), np.array([0.0, 0.0, 1.0]), 0.0042, 0.0014, ridges=20, rings=3)  # 1.4 mm
     Em.extend([0.0] * (len(Vm) - len(Em)))
+    pt.place({'metal': b0}, fr)
     add('radio', 'metal', (b0, len(Vm)))
-    _, r_ = KC.cbox(pt('rubber'), Mb, rcu - 0.012, rcv + 0.018, (0.0045, 0.0028, 0.0006), 0.0005, 2 * rhz - 0.0047,
-                    0.0)
+    _, r_ = KC.cbox(pt('rubber'), Fr, rcu - 0.012, rcv + 0.018, (0.0045, 0.0028, 0.0006), 0.0005,
+                    2 * rhz - 0.0047 + 0.0003, 0.0)
     add('radio', 'rubber', r_)
     # the top connector: a polymer boss on the radio's top end, a gunmetal collar, the cable's boot
     bx = 0.080
-    Bc = KC.mpts(Mb, [(bx, rcv + rhy - 0.0058, 0.0028), (bx, rcv + rhy - 0.0016, 0.0028)])
+    Bc = KC.mpts(Fr, [(bx, rcv + rhy - 0.0058, 0.0028), (bx, rcv + rhy - 0.0016, 0.0028)])
     KC.tube(pt('poly'), Bc, 0.0024, sides=16, step=0.002)
     add('radio', 'poly', tube_last(pt, 'poly'))
-    Bm = KC.mpts(Mb, [(bx, rcv + rhy - 0.0026, 0.0028), (bx, rcv + rhy - 0.0006, 0.0028)])
+    Bm = KC.mpts(Fr, [(bx, rcv + rhy - 0.0026, 0.0028), (bx, rcv + rhy - 0.0006, 0.0028)])
     KC.tube(pt('metal'), Bm, 0.0028, sides=16, step=0.002)
     add('radio', 'metal', tube_last(pt, 'metal'))
+    pt.tag_since(nrad, r_rad)
     # the stub antenna along the plate's top edge, under armour.py's keeper (x 0.018, z 1.317)
     face_r = 2 * rhz - 0.0047
     a0 = KC.mpts(Mb, [(0.0365, rcv + rhy - 0.004, face_r + 0.0021), (0.0335, rcv + rhy + 0.0004, 0.0026),
@@ -351,6 +388,12 @@ def build(ctx):
         so[name] = KC.standoff(KC.reg_verts(pt, reg, [name, name + 'Mag', name + 'Tab']), suit_tree)
     meas['standoffFromSuitM'] = so
     meas['backLane'] = KC.lane_report(pt, reg, {'radio', 'antenna', 'radioCable'})
+    # the gadget slot (soft, on the chest plate) rides the chest bone with its tab (D28)
+    r_gs = pt.part('gadgetSlotCarrier', CH, 'carrier', item='gadgetSlot')
+    for k_, a_, b_ in reg.get('gadgetSlot', []):
+        if not any(pt.rid.get(k_, [0] * b_)[a_:b_]):
+            pt.tag(k_, (a_, b_), r_gs)
+    meas['rigid'] = pt.report()
     objs = KC.write_objects(scene, op, 'chest_rig', pt, mats)
     return {'shell': KC.shell_of(pt), 'objects': list(objs.values()), 'kits': KITS, 'measurements': meas,
             'report': {'parts': {k: len(v[1]) for k, v in pt.d.items()}}}

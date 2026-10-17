@@ -422,6 +422,92 @@ def grid_faces(sm, ol, h, step=0.006):
     return P.reshape(-1, 3), Fq
 
 
+class FloorShell:
+    """A plate map whose heights at or below h_floor lie on one plane (the radio recess's planar floor, D28): the
+    plane fitted to the map at h_floor over the outline, each point moved onto it along the map's normal."""
+
+    def __init__(self, sm, ol, h_floor):
+        P = sm.S(ol[:, 0], ol[:, 1], h_floor).reshape(-1, 3)
+        c = ol.mean(axis=0)
+        P = np.vstack([P, sm.S(c[0], c[1], h_floor).reshape(-1, 3)])
+        self.c = P.mean(axis=0)
+        n = np.linalg.svd(P - self.c)[2][2]
+        self.n = n if n @ sm.normal(c[0], c[1]).reshape(3) > 0 else -n
+        self.sm, self.h = sm, h_floor
+
+    def S(self, x, y, h=0.0):
+        P = self.sm.S(x, y, h)
+        if np.all(np.asarray(h) <= self.h + 1e-9):
+            N = self.sm.normal(x, y).reshape(P.shape)
+            t = ((self.c - P) @ self.n) / (N @ self.n)
+            P = P + N * np.asarray(t)[..., None]
+        return P
+
+    def normal(self, x, y):
+        return self.sm.normal(x, y)
+
+
+RIGID_BONES = {'chestPlate': {'chest': 1.0}, 'rib1': {'chest': 1.0}, 'rib2': {'chest': 0.5, 'spine': 0.5},
+               'rib3': {'spine': 1.0}, 'backPlate': {'chest': 1.0}}
+RIGID_BASE = 400
+
+
+def tag_rigid(objs, ribs):
+    """D28: the chest plate, the rib segments and the back plate (each with its rim trim, keepers and hardware) are
+    rigid parts, one bone or one fixed blend each (RIGID_BONES); every connected piece of the plate, trim and metal
+    objects is assigned by where it sits. Writes the '_rigid' id and the design coordinates (as built: body-shaped by
+    design, so 'shapeRef' 'asBuilt' and rigidKit does not judge their shape, A81) on the objects;
+    returns the registry for the sim report."""
+    import bmesh
+    names = list(RIGID_BONES)
+    ids = {n: RIGID_BASE + i + 1 for i, n in enumerate(names)}
+    rc = [0.5 * (z0 + z1) for _, z0, z1 in ribs]
+    count = {n: 0 for n in names}
+    ext = {n: [np.full(3, np.inf), np.full(3, -np.inf)] for n in names}
+    for key in ('plate', 'trim', 'metal'):
+        ob = objs.get(key)
+        if ob is None:
+            continue
+        me = ob.data
+        W = np.array([ob.matrix_world @ v.co for v in me.vertices])
+        lab = np.zeros(len(W))
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        seen = np.zeros(len(W), dtype=bool)
+        for v0 in bm.verts:
+            if seen[v0.index]:
+                continue
+            comp, stack = [], [v0]
+            seen[v0.index] = True
+            while stack:
+                v = stack.pop()
+                comp.append(v.index)
+                for e in v.link_edges:
+                    w = e.other_vert(v)
+                    if not seen[w.index]:
+                        seen[w.index] = True
+                        stack.append(w)
+            c = W[comp].mean(axis=0)
+            if c[1] > 0.0:
+                n = 'backPlate'
+            elif key == 'metal' or abs(c[0]) > 0.11 or c[2] > 1.16:
+                n = 'chestPlate'
+            else:
+                n = f'rib{int(np.argmin([abs(c[2] - z) for z in rc])) + 1}'
+            lab[comp] = ids[n]
+            count[n] += len(comp)
+            ext[n][0] = np.minimum(ext[n][0], W[comp].min(axis=0))
+            ext[n][1] = np.maximum(ext[n][1], W[comp].max(axis=0))
+        bm.free()
+        for k_, vals in (('_rigid', lab), ('rdx', W[:, 0]), ('rdy', W[:, 1]), ('rdz', W[:, 2])):
+            at = me.attributes.get(k_) or me.attributes.new(k_, 'FLOAT', 'POINT')
+            at.data.foreach_set('value', np.asarray(vals, np.float32))
+    return [{'id': ids[n], 'name': n, 'bones': RIGID_BONES[n], 'role': 'hard', 'item': 'armour', 'shapeRef': 'asBuilt', 'verts': count[n],
+             'extentMm': [round(float(x) * 1000, 1) for x in (ext[n][1] - ext[n][0])] if count[n] else None}
+            for n in names]
+
+
 def prism(sm, ol, h0, h1, V=None, F=None):
     """A closed conformal prism over the outline between map heights h0 and h1 (a boolean cutter), ring caps."""
     V = [] if V is None else V
@@ -616,7 +702,7 @@ def build(ctx):
     meas['plateGap'] = plate_gap
     # cutters (boolean differences, applied on the plate object below)
     rec_ol = rrect(0.030, 0.086, 1.256, 1.317, R1)
-    cutV, cutF = prism(sm_bk, rec_ol, T_BK - 0.005, T_BK + 0.004)
+    cutV, cutF = prism(FloorShell(sm_bk, rec_ol, T_BK - 0.005), rec_ol, T_BK - 0.005, T_BK + 0.004)   # planar floor (D28)
     rx0, rx1, rz0, rz1 = -0.084, 0.084, 1.157, 1.191
     meas['radioRecess'] = {'xM': [0.030, 0.086], 'zM': [1.256, 1.317], 'depthM': 0.005}
     # antenna keeper (step 09): a moulded rubber bridge on the plate face below the top edge, left of the centre beside
@@ -946,7 +1032,7 @@ def build(ctx):
     mats = {
         'plate': reuse(MAT.composite, 'armour composite'),
         'trim': reuse(MAT.rubber, 'armour edge rubber', colour=(0.021, 0.021, 0.022), rough=0.8),
-        'metal': reuse(MAT.anodised, 'hardware gunmetal', colour=(0.05, 0.052, 0.056)),
+        'metal': reuse(MAT.gunmetal, 'hardware gunmetal'),
         'strap': reuse(MAT.laminate, 'armour strap', colour=(0.024, 0.025, 0.025)),
     }
     objs = {}
@@ -961,6 +1047,7 @@ def build(ctx):
         _recalc(ob)
         objs[key] = ob
     _cut(scene, objs['plate'], cutV, cutF, 'recess')
+    meas['rigid'] = tag_rigid(objs, ribs)
     pm = objs['plate']
     meas['strapIntoPlateMm'] = strap_into(
         np.array(pt.d['strap'][0]), strap_rng, bframes,

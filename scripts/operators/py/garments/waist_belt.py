@@ -2,12 +2,17 @@
 item over the armour: a tensioned laminate band round the suit (TC.Ring: each row the hull of the suit pressed in as
 far as it gives), closed at the front by a flush magnetic buckle; the suit pressed in under it (TC.compress, A33).
 
-- Pistol magazine pouch, left front: a double open-top laminate pouch, two magazines, shock cord and pull tabs.
-- Cam and mine pouch, left hip: flat, a flap closed by a gunmetal magnetic tab (two sticky cams, one prox mine inside).
-- Sling socket, left hip behind the cam pouch: a flush gunmetal quick-detach socket on a laminate boss (the game's
-  compact-gun sling slot's anchor, A41; no sling modelled, D24).
+- Pistol magazines (D28): two true 128 mm 9 mm magazines, horizontal, one above the other at 9 o'clock on the left hip
+  side (the lower row's bottom at the belt's lower edge, so the raised thigh clears them), base plates forward (the left
+  hand pulls each forward along its axis); a slim double pouch open at the front with a shock-cord loop and pull tab
+  per magazine, on one flat laminate panel; the panel on a moulded seat over the belt and the hip (one rigid piece,
+  skinned to the pelvis).
+- Cam and mine pouch, front left (D28: the old pistol spot): flat, a flap closed by a gunmetal magnetic tab (two
+  sticky cams, one prox mine inside).
+- Sling socket, about 8 o'clock behind the pistol magazines (D28; A41's slot moved back): a flush gunmetal
+  quick-detach socket on a laminate boss (the game's compact-gun sling slot's anchor; no sling modelled, D24).
 - Drone pod, rear left, and medkit, rear right: both outside the game's back-carry lane (|x| >= 0.105 m, A39). The pod
-  a small hard polymer shell with a rubber lid seal and a gunmetal latch; the medkit a flat tear-away laminate pouch
+  (D28, D1) a flat hard polymer shell on a moulded saddle, raised 25 mm so the knee-up crawl clears it, with a rubber lid seal and a gunmetal latch; the medkit a flat tear-away laminate pouch
   with a visible tear seam and a flat webbing pull handle bonded along its bottom edge.
 - Rappel ring at the back centre: a gunmetal D folded flat in a low laminate tunnel, only its bow showing.
 - No sit harness, leg loops or gear loops. The two leg hangers (leg_kit.py) loop round the belt in the gaps left here.
@@ -23,7 +28,6 @@ import numpy as np
 import fitted as FT
 import head_common as HC
 import kit_common as KC
-import mag_buckle as MB
 import torso_common as TC
 
 KIT = 'waistBelt'
@@ -34,8 +38,16 @@ BELT_W, BELT_T, Z_MID = 0.030, 0.003, 0.926
 T_SPLIT = -84.0                 # the closure's angle (degrees; the front is -90, the wearer's left 0)
 H_POUCH = BELT_T + 0.0006       # a pouch's back over the belt's outer face
 LANE_X = 0.105                  # the back-carry lane's edge (A39) plus 5 mm
-U_PISTOL, U_CAM, U_SOCKET = 0.072, 0.178, 0.224
-U_HANG_L, U_HANG_R = 0.1220, -0.188      # the leg hangers' gaps (leg_kit.py)
+U_HANG_R = -0.188                       # the right leg hanger's gap (leg_kit.py); the left one is laid out in build()
+# D28 pistol magazines (9 mm double stack: 128 x 34 x 24 mm, straight), the rows and the clock positions
+PMAG_L, PMAG_W, PMAG_T = 0.128, 0.034, 0.024
+PMAG_Z0 = Z_MID - BELT_W / 2 + 0.0005    # the lower row's bottom: at the belt's lower edge
+SOCKET_DEG = 30.0                        # the sling socket at about 8 o'clock (0 = 9 o'clock, the wearer's left)
+# A88: the 9 o'clock magazines and the 8 o'clock socket fill the left belt up to the back-carry lane, so the drone pod
+# (D1, flat on a saddle, true 84 x 80 x 19 mm) takes the rear right and the soft medkit the right side in front of the
+# holster hanger
+POD_W, POD_H, POD_T = 0.084, 0.080, 0.019
+PB = {'pelvis': 1.0}
 
 
 def soft(half, bulge=0.0012):
@@ -52,20 +64,20 @@ def soft(half, bulge=0.0012):
 
 def hip_tree(op, dg):
     return KC.suit_trees(op, dg, keep=lambda P: np.all(np.abs(P[:, 0]) < 0.24) and P[:, 2].min() > 0.70
-                         and P[:, 2].max() < 1.02)
+                         and P[:, 2].max() < 1.06)
 
 
 def hip_map(op, dg, skin):
     tree, _, _ = hip_tree(op, dg)
-    ring = TC.Ring(tree, skin, -0.01, np.arange(0.76, 0.9761, 0.004), np.radians(np.arange(-275.0, 96.0, 1.0)),
+    ring = TC.Ring(tree, skin, -0.01, np.arange(0.76, 1.0521, 0.004), np.radians(np.arange(-275.0, 96.0, 1.0)),
                    reach=0.30)
     return KC.RingMap(ring, math.radians(-90.0), Z_MID), ring
 
 
-def lane_u(M, sign):
-    """The arc position (u) on the back where the hips' surface crosses x = sign * LANE_X."""
+def lane_u(M, sign, z=Z_MID):
+    """The arc position (u) on the back where the hips' surface at height z crosses x = sign * LANE_X."""
     us = np.arange(0.0, 0.5, 0.001) * sign
-    P = M(us, np.full_like(us, Z_MID), np.zeros_like(us)).reshape(-1, 3)
+    P = M(us, np.full_like(us, z), np.zeros_like(us)).reshape(-1, 3)
     ok = (P[:, 1] > 0.0) & (np.abs(P[:, 0]) <= LANE_X)
     return float(us[np.argmax(ok)])
 
@@ -73,7 +85,7 @@ def lane_u(M, sign):
 def build(ctx):
     scene, reuse, MAT, skin, op = ctx['scene'], ctx['reuse'], ctx['MAT'], ctx['skin'], ctx['op_id']
     dg = bpy.context.evaluated_depsgraph_get()
-    pt, reg, meas = KC.Parts(), {}, {}
+    pt, reg, meas = KC.Parts(base=200), {}, {}
     mats = KC.materials(reuse, MAT)
 
     def add(name, key, rng):
@@ -114,33 +126,73 @@ def build(ctx):
     u_c = float(np.interp(math.radians(T_SPLIT), Mh.th, Mh.s))
     O, A_, U_, N_ = KC.frame(Mh, u_c, Z_MID, BELT_T + 0.0002)
     pt.pad('metal'), pt.pad('rubber')
-    MB.build(pt('metal'), pt('rubber'), O, A_, None, N_, BELT_W)
+    KC.buckle(pt, O, A_, N_, BELT_W, pt.part('beltBuckle', PB, item='magBuckle'))
     meas['closure'] = {'u': round(u_c, 4), 'at': [round(float(v), 4) for v in O]}
 
-    # --- Pistol magazine pouch (left front): two cells, two magazines ---------------------------------------------------
-    half = (0.0152, 0.036, 0.0085)
-    hx, hy, hz = half
-    cv = Z_MID + BELT_W / 2 + 0.003 - hy
-    for k, du in enumerate((-0.0157, 0.0157)):
-        cu = U_PISTOL + du
-        _, r_ = KC.cbox(pt('lam'), Mh, cu, cv, half, 0.004, H_POUCH, deform=soft(half))
+    # --- Pistol magazines (D28): 9 o'clock, horizontal, two rows, base plates forward ------------------------------------
+    u9 = float(np.interp(0.0, Mh.th, Mh.s))
+    z_lo = PMAG_Z0 + 0.0025 + PMAG_W / 2                  # the rows' centres (pouch wall 2.5 mm)
+    z_hi = z_lo + PMAG_W + 0.0035
+    cvp = 0.5 * (z_lo + z_hi)
+    hxp, hyp = PMAG_L / 2 + 0.003, 0.5 * (z_hi - z_lo) + PMAG_W / 2 + 0.003
+    Fp0, seat_p = KC.flat_on(Mh, u9, cvp, (hxp, hyp))
+    Fp = Fp0.lifted(H_POUCH)                               # clear of the belt's face
+    meas['pistolMagSeat'] = {**seat_p, 'liftMm': H_POUCH * 1000, 'frame': Fp.report()}
+    r_pan = pt.part('pistolMagPanel', PB, 'carrier', item='pistolMagPouch')
+    n0 = pt.count('lam', 'cord', 'rubber')
+    _, r_ = KC.cbox(pt('lam'), Fp, u9, cvp, (hxp, hyp, 0.001), 0.002, 0.0)
+    add('pistolMagPouch', 'lam', r_)
+    for k, zr in enumerate((z_lo, z_hi)):
+        dv = zr - cvp
+        # the pouch: closed at the rear, open at the front (the base plate and 25 mm of the magazine out of it)
+        ph = (0.0475, PMAG_W / 2 + 0.0025, PMAG_T / 2 + 0.0015)
+        _, r_ = KC.cbox(pt('lam'), Fp, u9, cvp, ph, 0.004, 0.002, off=(0.0165, dv, 0.0), deform=soft(ph, 0.0008))
         add('pistolMagPouch', 'lam', r_)
-        rim = TC.densify_closed(np.array([(-hx + 0.0016, 0.0018), (hx - 0.0016, 0.0018), (hx - 0.0016, 2 * hz - 0.0006),
-                                          (-hx + 0.0016, 2 * hz - 0.0006)]), 0.002)
-        lp = [(a, hy - 0.0009, b) for a, b in rim] + [(rim[0][0], hy - 0.0009, rim[0][1])]
-        KC.tube(pt('lam'), KC.mpts(Mh, lp, cu, cv, 0.0, H_POUCH), 0.001, sides=6, step=0.002)
-        _, r_ = KC.cbox(pt('poly'), Mh, cu, cv, (0.0112, 0.008, 0.006), 0.0025, H_POUCH, off=(0.0, hy + 0.002, hz - 0.006))
+        x_m = 0.0165 - ph[0] + 0.0009
+        ring_ = TC.densify_closed(np.array([(-ph[1] + 0.0016, 0.0018), (ph[1] - 0.0016, 0.0018),
+                                            (ph[1] - 0.0016, 2 * ph[2] - 0.0006), (-ph[1] + 0.0016, 2 * ph[2] - 0.0006)]), 0.002)
+        lp = [(x_m, dv + a, 0.002 + b) for a, b in ring_] + [(x_m, dv + ring_[0][0], 0.002 + ring_[0][1])]
+        KC.tube(pt('lam'), KC.mpts(Fp, lp, u9, cvp, 0.0, 0.0), 0.001, sides=6, step=0.002)
+        # the magazine (one rigid part): body 120 mm and base plate 8 mm, the base plate forward (local -x)
+        rid = pt.part(f'pistolMag{k}', PB, item='pistolMagPouch', size='pistolMag')
+        nm0 = pt.count('poly')
+        zc_ = 0.0025 + PMAG_T / 2
+        _, r_ = KC.cbox(pt('poly'), Fp, u9, cvp, (0.060, PMAG_W / 2 - 0.0004, PMAG_T / 2 - 0.0006), 0.0025,
+                        zc_ - PMAG_T / 2 + 0.0006, off=(0.004, dv, 0.0))
         add('pistolMagPouch', 'poly', r_)
-        _, r_ = KC.cbox(pt('poly'), Mh, cu, cv, (0.0126, 0.0022, 0.0066), 0.0018, H_POUCH,
-                        off=(0.0, hy + 0.0122, hz - 0.0066))
+        _, r_ = KC.cbox(pt('poly'), Fp, u9, cvp, (0.004, PMAG_W / 2, PMAG_T / 2), 0.0018, zc_ - PMAG_T / 2,
+                        off=(-0.060, dv, 0.0))
         add('pistolMagPouch', 'poly', r_)
-        KC.cord_loop(pt('cord'), Mh, cu, cv, 0.0, H_POUCH, hx + 0.0008, hy - 0.01, hy + 0.0144 + 0.002, hz, r=0.0014,
-                     rise=0.009)
-        _, r_ = KC.cbox(pt('rubber'), Mh, cu, cv, (0.0048, 0.0042, 0.0012), 0.001, H_POUCH,
-                        off=(0.0, hy + 0.0128, hz + 0.0066 + 0.0002))
+        pt.tag_since(nm0, rid)
+        # the shock-cord loop round the base plate (from the pouch's top and bottom faces) and its pull tab
+        yt = PMAG_W / 2 + 0.0016
+        cl = [(x_m + 0.006, dv + yt, zc_), (-0.050, dv + yt, zc_)]
+        for a in np.linspace(0.5 * math.pi, 1.5 * math.pi, 19):
+            c_, s_ = math.cos(a), math.sin(a)
+            cl.append((-0.058 + 0.0076 * math.copysign(abs(c_) ** 0.35, c_), dv + yt * math.copysign(abs(s_) ** 0.35, s_), zc_))
+        cl += [(-0.050, dv - yt, zc_), (x_m + 0.006, dv - yt, zc_)]
+        KC.tube(pt('cord'), KC.mpts(Fp, cl, u9, cvp, 0.0, 0.0), 0.0014, sides=8, step=0.002)
+        _, r_ = KC.cbox(pt('rubber'), Fp, u9, cvp, (0.0012, 0.0045, 0.0042), 0.001, zc_ - 0.0042,
+                        off=(-0.0682, dv, 0.0))
         add('pistolMagPouch', 'rubber', r_)
+    pt.tag_since(n0, r_pan)
+    if seat_p['maxMm'] + H_POUCH * 1000 > 3.0:
+        r_seat = pt.part('pistolMagSeat', PB, 'mount', item='pistolMagPouch', gapMm=round(seat_p['maxMm'] + H_POUCH * 1000, 1))
+        ns = pt.count('lam')
+        rs = KC.seat(pt('lam'), Fp, Mh, u9, cvp, (hxp - 0.002, hyp - 0.002), h_top=-0.0002, h_base=0.0004)
+        add('pistolMagPouch', 'lam', rs)
+        pt.tag_since(ns, r_seat)
+    pt.seat_of('pistolMag', seat_p['maxMm'] + H_POUCH * 1000, 'pistolMagSeat' if seat_p['maxMm'] + H_POUCH * 1000 > 3.0 else None)
+    u_mf = u9 - 0.066                                     # the magazines' front end (base plates and cord)
+    U_HANG_L = u_mf - 0.016                               # the left leg hanger's gap, in front of them
+    U_CAM = U_HANG_L - 0.011 - 0.004 - 0.032              # the cam pouch in front of the hanger
+    meas['pistolMags'] = {'u9': round(u9, 4), 'rowsZ': [round(z_lo, 4), round(z_hi, 4)],
+                          'lowerRowBottomZ': round(z_lo - PMAG_W / 2, 4), 'beltLowerEdgeZ': round(Z_MID - BELT_W / 2, 4),
+                          'lengthMm': PMAG_L * 1000, 'baseForward': True}
 
-    # --- Cam and mine pouch (left hip): flat, flap with a magnetic tab --------------------------------------------------
+    # --- Cam and mine pouch (front left, D28): flat, flap with a magnetic tab --------------------------------------------
+    r_cam = pt.part('camMinePouchCarrier', PB, 'carrier', item='camMinePouch')
+    n0 = pt.count('lam', 'poly')
     half = (0.032, 0.033, 0.0085)
     hx, hy, hz = half
     cv = Z_MID + BELT_W / 2 + 0.005 - hy
@@ -152,48 +204,95 @@ def build(ctx):
     _, r_ = KC.cbox(pt('lam'), Mh, U_CAM, cv, (hx + 0.0006, 0.0011, hz + 0.0011), 0.0009, H_POUCH,
                     off=(0.0, hy + 0.0011, -0.0002))
     add('camMinePouch', 'lam', r_)
-    _, r_ = KC.cbox(pt('metal'), Mh, U_CAM, cv, (0.0065, 0.0034, 0.001), 0.0008, H_POUCH,
-                    off=(0.0, hy - 0.023, 2 * hz + 0.003))
-    add('camMinePouch', 'metal', r_)
     for (x0, y0, rr, d) in ((-0.017, 0.012, 0.0105, 0.014), (0.017, 0.012, 0.0105, 0.014), (0.0, -0.014, 0.0145, 0.012)):
         KC.tube(pt('poly'), KC.mpts(Mh, [(x0, y0, 0.0015), (x0, y0, 0.0015 + d)], U_CAM, cv, 0.0, H_POUCH), rr, sides=20)
-    meas['camMinePouch'] = {'contents': ['stickyCam', 'stickyCam', 'mine'], 'u': U_CAM}
+    pt.tag_since(n0, r_cam)
+    Ft, _ = KC.flat_on(Mh, U_CAM, cv + hy - 0.023, (0.007, 0.0035))
+    Ft = Ft.lifted(-0.0005)                            # bonded into the soft flap (its crown under the tab)
+    rid = pt.part('camTab', PB, item='camMinePouch')
+    nt = pt.count('metal')
+    _, r_ = KC.cbox(pt('metal'), Ft, U_CAM, cv + hy - 0.023, (0.0065, 0.0034, 0.001), 0.0008, H_POUCH + 2 * hz + 0.003)
+    add('camMinePouch', 'metal', r_)
+    pt.tag_since(nt, rid)
+    meas['camMinePouch'] = {'contents': ['stickyCam', 'stickyCam', 'mine'], 'u': round(U_CAM, 4)}
 
-    # --- Sling socket (left hip): a flush quick-detach socket on a laminate boss ---------------------------------------
-    _, r_ = KC.cbox(pt('lam'), Mh, U_SOCKET, Z_MID, (0.0115, 0.0125, 0.0011), 0.0009, BELT_T + 0.0001)
+    # --- Sling socket (about 8 o'clock, behind the pistol magazines): a flush quick-detach socket on a boss -------------
+    U_SOCKET = max(float(np.interp(math.radians(SOCKET_DEG), Mh.th, Mh.s)), u9 + PMAG_L / 2 + 0.006 + 0.0115)
+    Fs, _ = KC.flat_on(Mh, U_SOCKET, Z_MID, (0.0115, 0.0125))
+    Fs = Fs.lifted(BELT_T + 0.0001)
+    rid = pt.part('slingSocket', PB, item='slingSocket')
+    ns = pt.count('lam', 'metal', 'rubber')
+    _, r_ = KC.cbox(pt('lam'), Fs, U_SOCKET, Z_MID, (0.0115, 0.0125, 0.0011), 0.0009, 0.0)
     add('slingSocket', 'lam', r_)
-    O, A_, U_, N_ = KC.frame(Mh, U_SOCKET, Z_MID, BELT_T + 0.0023)
+    fr = KC.Frame.of_flat(Fs, U_SOCKET, Z_MID, 0.0022)  # the socket and its stud built in Fs's own map space
+    O = fr.O
+    nf = pt.count('metal', 'rubber')
     Vm, Fm, Em = pt('metal')
     pt.pad('metal')
     b0 = len(Vm)
-    FT.ring(Vm, Fm, O, N_, 0.0034, 0.0078, 0.0026, seg=32)
-    FT.ring(Vm, Fm, O + N_ * 0.0006, N_, 0.0, 0.0036, 0.0004, seg=24)            # the bore's floor, 2 mm down
+    ez = np.array([0.0, 0.0, 1.0])
+    FT.ring(Vm, Fm, np.zeros(3), ez, 0.0034, 0.0078, 0.0026, seg=32)
+    FT.ring(Vm, Fm, ez * 0.0006, ez, 0.0, 0.0036, 0.0004, seg=24)               # the bore's floor, 2 mm down
     Em.extend([0.0] * (len(Vm) - len(Em)))
     add('slingSocket', 'metal', (b0, len(Vm)))
-    KC.tube(pt('rubber'), [O + A_ * 0.0098 + U_ * 0.0 + N_ * 0.0, O + A_ * 0.0098 + N_ * 0.0016], 0.0016, sides=12)
-    meas['slingSocket'] = {'u': U_SOCKET, 'at': [round(float(v), 4) for v in O]}
+    KC.tube(pt('rubber'), [np.array([0.0098, 0.0, 0.0]), np.array([0.0098, 0.0, 0.0016])], 0.0016, sides=12)
+    pt.place(nf, fr)
+    pt.tag_since(ns, rid)
+    th_s = float(np.interp(U_SOCKET, Mh.s, Mh.th))
+    meas['slingSocket'] = {'u': round(U_SOCKET, 4), 'at': [round(float(v), 4) for v in O],
+                           'clockDeg': round(math.degrees(th_s), 1), 'clock': round(9.0 - math.degrees(th_s) / 30.0, 2)}
 
-    # --- Drone pod (rear left) and medkit (rear right), outside the back-carry lane ------------------------------------
+    # --- Drone pod (rear right, A88) and medkit (right side), outside the back-carry lane ------------------------------------
     uL, uR = lane_u(Mh, 1.0), lane_u(Mh, -1.0)
-    pod_w = min(0.084, uL - (U_SOCKET + 0.0125 + 0.003))
-    half = (pod_w / 2, 0.040, 0.0095)
+    z_pod0 = Z_MID + BELT_W / 2 + 0.005 - POD_H          # its top 5 mm over the belt (as the step 09 pod)
+    uLp = max(lane_u(Mh, -1.0, z) for z in np.linspace(z_pod0, z_pod0 + POD_H, 6))   # the right lane edge (u < 0)
+    pod_w = POD_W
+    half = (pod_w / 2, POD_H / 2, POD_T / 2)
     hx, hy, hz = half
-    pu = uL - hx
-    cv = Z_MID + BELT_W / 2 + 0.005 - hy
-    _, r_ = KC.cbox(pt('poly'), Mh, pu, cv, half, 0.006, H_POUCH)
+    pu = uLp + hx
+    cv = z_pod0 + hy
+    Fd, seat_d = KC.flat_on(Mh, pu, cv, (hx, hy))
+    Fd = Fd.lifted(H_POUCH)
+    rid = pt.part('dronePod', PB, item='dronePod', size='dronePod')
+    npd = pt.count('poly', 'rubber', 'metal')
+    _, r_ = KC.cbox(pt('poly'), Fd, pu, cv, half, 0.006, 0.0)
     add('dronePod', 'poly', r_)
+    pt.tag_since(npd, rid)                         # the shell (true size); its seal and latch: one more part
+    rid = pt.part('dronePodLatch', PB, item='dronePod')
+    npd = pt.count('poly', 'rubber', 'metal')
     seal = TC.densify_closed(TC.fillet(np.array([(-hx - 0.0004, -0.0004), (hx + 0.0004, -0.0004),
                                                  (hx + 0.0004, 2 * hz + 0.0004), (-hx - 0.0004, 2 * hz + 0.0004)]),
                                        [0.004, 0.006, 0.006, 0.004], seg=6), 0.002)
     lp = [(a, hy - 0.017, b) for a, b in seal] + [(seal[0][0], hy - 0.017, seal[0][1])]
-    KC.tube(pt('rubber'), KC.mpts(Mh, lp, pu, cv, 0.0, H_POUCH), 0.0009, sides=6, step=0.002)
-    _, r_ = KC.cbox(pt('metal'), Mh, pu, cv, (0.009, 0.0062, 0.0013), 0.001, H_POUCH, off=(0.0, hy - 0.017, 2 * hz + 0.0001))
+    KC.tube(pt('rubber'), KC.mpts(Fd, lp, pu, cv, 0.0, 0.0), 0.0009, sides=6, step=0.002)
+    _, r_ = KC.cbox(pt('metal'), Fd, pu, cv, (0.009, 0.0062, 0.0013), 0.001, 0.0, off=(0.0, hy - 0.017, 2 * hz + 0.0001))
     add('dronePod', 'metal', r_)
-    meas['dronePod'] = {'u': [round(pu - hx, 4), round(pu + hx, 4)], 'widthM': round(pod_w, 4), 'laneU': round(uL, 4)}
+    pt.tag_since(npd, rid)
+    gap_d = seat_d['maxMm'] + H_POUCH * 1000
+    if gap_d > 3.0:                                    # D1: the flat pod on a moulded saddle
+        r_seat = pt.part('dronePodSeat', PB, 'mount', item='dronePod', gapMm=round(gap_d, 1))
+        ns = pt.count('lam')
+        rs = KC.seat(pt('lam'), Fd, Mh, pu, cv, (hx - 0.003, hy - 0.003), h_top=-0.0002, h_base=0.0004)
+        add('dronePod', 'lam', rs)
+        pt.tag_since(ns, r_seat)
+    pt.seat_of('dronePod', gap_d, 'dronePodSeat' if gap_d > 3.0 else None)
+    # the pod's laminate tab: up the belt's face under the pod and round the belt's top (it hangs the pod)
+    r_tab = pt.part('dronePodTab', PB, 'carrier', item='dronePod')
+    nt = pt.count('lam')
+    ut = pu
+    v0t, v1t = z_pod0 + 0.006, Z_MID + BELT_W / 2 + 0.004
+    _, r_ = KC.cbox(pt('lam'), Mh, ut, 0.5 * (v0t + v1t), (0.012, 0.5 * (v1t - v0t), 0.0008), 0.0007, BELT_T + 0.0001)
+    add('dronePod', 'lam', r_)
+    pt.tag_since(nt, r_tab)
+    meas['dronePod'] = {'u': [round(pu - hx, 4), round(pu + hx, 4)], 'widthM': round(pod_w, 4), 'laneU': round(uLp, 4),
+                        'sizeMm': [round(pod_w * 1000, 1), POD_H * 1000, POD_T * 1000],
+                        'z': [round(cv - hy, 4), round(cv + hy, 4)], 'seatGapMm': round(gap_d, 1)}
     half = (0.045, 0.036, 0.008)
     hx, hy, hz = half
-    mu = uR + hx
+    mu = U_HANG_R + 0.011 + 0.004 + hx                   # A88: the right side, in front of the holster hanger
     cv = Z_MID + BELT_W / 2 + 0.005 - hy
+    r_med = pt.part('medPouch', PB, 'carrier', item='medPouch')          # soft (D28): skinned to the pelvis
+    nmed = pt.count('lam', 'rubber')
     _, r_ = KC.cbox(pt('lam'), Mh, mu, cv, half, 0.006, H_POUCH, deform=soft(half, 0.0015))
     add('medPouch', 'lam', r_)
     loop = []
@@ -225,6 +324,7 @@ def build(ctx):
         tack = [(xt, y_s + yy, 2 * hz + 0.0013 + face_h(xt, y_s + yy) - hz) for yy in np.linspace(-0.003, 0.003, 4)]
         KC.tube(pt('rubber'), KC.mpts(Mh, tack, mu, cv, 0.0, H_POUCH), 0.0004, sides=6, step=0.001)
         add('medPouch', 'rubber', KC.tube.last)
+    pt.tag_since(nmed, r_med)
     meas['medPouch'] = {'u': [round(mu - hx, 4), round(mu + hx, 4)], 'laneU': round(uR, 4), 'contents': ['medkit'],
                         'pullStrapM': [0.030, 0.008], 'tearLineAtY': round(y_t, 4)}
 
@@ -242,8 +342,12 @@ def build(ctx):
         bow.append((0.0125 * math.cos(a), -depth * sa ** 0.6, BELT_T + WR + 0.0001))
     leg = T_V1 - 0.004 - (T_V0 + 0.002)
     bow = [(0.0125, leg, BELT_T + WR + 0.0001)] + bow + [(-0.0125, leg, BELT_T + WR + 0.0001)]
-    KC.tube(pt('metal'), KC.mpts(Mh, bow, ub, T_V0 + 0.002), WR, sides=12, step=0.0015)
+    Fr, _ = KC.flat_on(Mh, ub, T_V0 + 0.002 - depth / 2, (0.014, depth / 2 + 0.003))
+    rid = pt.part('rappelRing', PB, item='rappelRing')
+    nr = pt.count('metal')
+    KC.tube(pt('metal'), KC.mpts(Fr, bow, ub, T_V0 + 0.002), WR, sides=12, step=0.0015)
     add('rappelRing', 'metal', KC.tube.last)
+    pt.tag_since(nr, rid)
     meas['rappelRing'] = {'u': round(ub, 4), 'wireDiaMm': WR * 2000, 'bowBelowTunnelMm': round((T_V0 - v_bot + WR) * 1000, 1),
                           'bowAboveBeltEdgeMm': round((v_bot - WR - (Z_MID - BELT_W / 2)) * 1000, 1)}
 
@@ -251,10 +355,12 @@ def build(ctx):
     so = {n: KC.standoff(KC.reg_verts(pt, reg, [n]), suit_tree) for n in reg}
     meas['standoffFromSuitM'] = so
     meas['backLane'] = KC.lane_report(pt, reg, {'rappelRing', 'waistBelt'})
-    meas['hangerGapsU'] = {'left': U_HANG_L, 'right': U_HANG_R}
+    meas['hangerGapsU'] = {'left': round(U_HANG_L, 4), 'right': U_HANG_R}
+    meas['rigid'] = pt.report()
     PV, PF = KC.merge(press)
     meas['suitPress'] = TC.compress(KC.suit_follow(op), [TC.bvh(PV, PF)], skin, cap=0.0025,
                                     region=(PV.min(axis=0), PV.max(axis=0)))
     objs = KC.write_objects(scene, op, 'waist_belt', pt, mats)
+    objs['lam']['hangU'] = [float(U_HANG_L), float(U_HANG_R)]          # leg_kit.py loops its hangers round these
     return {'shell': KC.shell_of(pt), 'objects': list(objs.values()), 'kits': KITS, 'measurements': meas,
             'report': {'parts': {k: len(v[1]) for k, v in pt.d.items()}}}

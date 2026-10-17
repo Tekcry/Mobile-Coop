@@ -42,6 +42,19 @@ for v in body.data.vertices:
 kd.balance()
 bw = [[(names[g.group], g.weight) for g in v.groups] for v in body.data.vertices]
 
+import numpy as np  # noqa: E402
+import rigid_skin  # noqa: E402
+
+# D28 (step 11b): rigid parts take their declared bone(s), identical on every vertex (rigid_skin.py)
+RIGID = rigid_skin.registry(args.out, op_id)
+rigid_skin.tag_head(items, op_id)
+
+
+def nearest_w(p):
+    _, idx, _ = kd.find(p)
+    return bw[idx]
+
+
 bpy.ops.object.select_all(action='DESELECT')
 for o in items:
     bpy.context.view_layer.objects.active = o
@@ -49,17 +62,8 @@ for o in items:
     for m in list(o.modifiers):  # solidify, bevel: baked into the exported mesh
         bpy.ops.object.modifier_apply(modifier=m.name)
     o.select_set(False)
-    for g in list(o.vertex_groups):
-        o.vertex_groups.remove(g)
-    groups = {}
     mw = o.matrix_world
-    for v in o.data.vertices:
-        _, idx, _ = kd.find(mw @ v.co)
-        for name, w in bw[idx]:
-            if w <= 0.0:
-                continue
-            g = groups.get(name) or groups.setdefault(name, o.vertex_groups.new(name=name))
-            g.add([v.index], w, 'REPLACE')
+    rigid_skin.apply(o, RIGID, nearest_w, [mw @ v.co for v in o.data.vertices])
     am = o.modifiers.new('rig', 'ARMATURE')
     am.object = rig
     o.parent = rig
@@ -89,7 +93,7 @@ FLAT = {  # name: (albedo, roughness)
     'cable jacket': (0.023, 0.72), 'mic foam': (0.028, 0.90),
     # step 11 (A78): hard parts of steps 08b-09 (no albedo check: their materials.py / garment colours, roughness P50
     # measured by check_garment.py)
-    'armour composite': (0.032, 0.64), 'armour edge rubber': (0.021, 0.78), 'hardware gunmetal': (0.051, 0.62),
+    'armour composite': (0.032, 0.64), 'armour edge rubber': (0.021, 0.78), 'hardware gunmetal': (0.155, 0.60),
     'gunmetal': (0.051, 0.62), 'pod polymer': (0.021, 0.58), 'suit grip rubber': (0.024, 0.72),
 }
 # Step 11 (A78): every other procedural material (the step 08b-09b suit zones, composite, rubber trim, gunmetal, kit
@@ -140,5 +144,5 @@ bpy.ops.export_scene.gltf(
     filepath=dest, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
     export_skins=True, export_def_bones=False, export_influence_nb=4, export_normals=True, export_texcoords=True,
     export_materials='EXPORT', export_image_format='NONE', export_animations=False, export_cameras=False,
-    export_lights=False, export_extras=False)
+    export_lights=False, export_extras=False, export_attributes=True)
 print('exported', dest, os.path.getsize(dest), [o.name for o in items])

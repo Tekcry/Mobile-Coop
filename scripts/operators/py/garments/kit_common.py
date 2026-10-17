@@ -26,11 +26,140 @@ import torso_common as TC
 from torso_common import Z
 
 
-class Parts:
-    """Per-material vertex, face and edge-distance lists."""
+_PRE = {}        # id(V) -> (V, [(b0, b1, map-space points)]): the design record of every vertex built through a map
 
-    def __init__(self):
+
+def record(V, b0, b1, S):
+    """Records the map-space input S of vertices [b0, b1) of list V (their design coordinates, D28)."""
+    e = _PRE.setdefault(id(V), (V, []))
+    e[1].append((b0, b1, np.asarray(S, float).reshape(-1, 3).copy()))
+
+
+def pre(V, b0, b1):
+    """The recorded design coordinates of V[b0:b1] (NaN where none; a later record wins)."""
+    out = np.full((b1 - b0, 3), np.nan)
+    e = _PRE.get(id(V))
+    if e is not None and e[0] is V:
+        for a, b, S in e[1]:
+            lo, hi = max(a, b0), min(b, b1)
+            if lo < hi:
+                out[lo - b0:hi - b0] = S[lo - a:hi - a]
+    return out
+
+
+class Frame:
+    """A part's own frame for parts built in one frame (buckles, the PTT, the holster, canisters, sockets): origin O,
+    axes X, Y and Z = X x Y (a rotation). Build at the origin with `p` / `v` (world points / vectors to local), then
+    Parts.place moves the vertices out and records their local coordinates (plus `off`) as the design."""
+
+    def __init__(self, O, X, Y, off=(0.0, 0.0, 0.0)):
+        X = FT.unit(np.asarray(X, float))
+        Y = FT.unit(np.asarray(Y, float) - X * float(np.dot(X, Y)))
+        self.O = np.asarray(O, float).reshape(3)
+        self.R = np.column_stack([X, Y, np.cross(X, Y)])
+        self.off = np.asarray(off, float)
+
+    @classmethod
+    def of_flat(cls, F, u, v, h):
+        """The frame at (u, v, h) on a Flat, its local coordinates continuing the Flat's map space (one design frame
+        for a part built partly with cbox and partly in a frame)."""
+        return cls(F(u, v, h).reshape(3), F.A, F.U, off=(u, v, h))
+
+    def p(self, P):
+        return (np.asarray(P, float) - self.O) @ self.R
+
+    def v(self, D):
+        return np.asarray(D, float) @ self.R
+
+    def world(self, L):
+        return self.O + np.asarray(L, float) @ self.R.T
+
+
+class Parts:
+    """Per-material vertex, face and edge-distance lists, and the rigid-part registry (D28): `tag` marks a vertex range
+    of a key as rigid part `rid` and records its design coordinates (the part's own frame), `part` registers a part."""
+
+    def __init__(self, base=0):
         self.d = {}
+        self.rid, self.design, self.rigid, self.base = {}, {}, [], base
+
+    def part(self, name, bones, role='hard', **kw):
+        """Registers a rigid part: bones {bone: weight} (one bone or one fixed blend, D28); role 'hard' (shape, depth,
+        size and skin checked), 'mount' (a moulded seat: skin), 'carrier' (a soft carrier skinned with its hard item).
+        Returns its id (global per operator: the item's base plus its index)."""
+        rid = self.base + len(self.rigid) + 1
+        self.rigid.append({'id': rid, 'name': name, 'bones': bones, 'role': role, **kw})
+        return rid
+
+    def tag(self, key, rng, rid):
+        """Marks vertices [b0, b1) of `key` as part `rid` with their design coordinates: the map-space input each vertex
+        was built from (`cbox`, a `tube` on a Flat, `place`; recorded before the map, so a part laid through a curved
+        map keeps its straight design and the shape check sees the bend). A hard part's vertex with no record raises."""
+        V = self.d[key][0]
+        R = self.rid.setdefault(key, [])
+        D = self.design.setdefault(key, [])
+        R.extend([0] * (len(V) - len(R)))
+        D.extend([(0.0, 0.0, 0.0)] * (len(V) - len(D)))
+        b0, b1 = rng
+        L = pre(V, b0, b1)
+        miss = ~np.isfinite(L).all(axis=1)
+        if miss.any():
+            e = next(x for x in self.rigid if x['id'] == rid)
+            if e['role'] == 'hard':
+                raise ValueError(f"rigid part {e['name']}: {int(miss.sum())} '{key}' vertices built with no design record")
+            L[miss] = 0.0
+        for i in range(b0, b1):
+            R[i] = rid
+        D[b0:b1] = [tuple(map(float, x)) for x in L]
+
+    def seat_of(self, prefix, gap_mm, mount):
+        """Records a hard part's seat gap (mm, its flat back to the surface under it) and the mount that fills it."""
+        for e in self.rigid:
+            if e['name'].startswith(prefix) and e['role'] == 'hard':
+                e['seatGapMm'] = round(float(gap_mm), 1)
+                e['mount'] = mount
+
+    def count(self, *keys):
+        return {k: len(self(k)[0]) for k in keys}
+
+    def tag_since(self, counts, rid):
+        """Tags every vertex added to each key since `counts` (from count())."""
+        for k, n0 in counts.items():
+            if len(self.d[k][0]) > n0:
+                self.tag(k, (n0, len(self.d[k][0])), rid)
+
+    def place(self, counts, fr):
+        """Moves every vertex added to each key since `counts` - built in the part's own frame `fr` (a Frame: at the
+        origin on the x, y, z axes) - to the world, and records the local coordinates (plus fr.off) as their design."""
+        for k, n0 in counts.items():
+            V = self.d[k][0]
+            if len(V) > n0:
+                L = np.asarray(V[n0:], float).reshape(-1, 3)
+                V[n0:] = list(fr.world(L))
+                record(V, n0, len(V), L + fr.off)
+
+    def rigid_attrs(self, key):
+        n = len(self.d[key][0])
+        R = list(self.rid.get(key, []))
+        R += [0] * (n - len(R))
+        D = list(self.design.get(key, []))
+        D += [(0.0, 0.0, 0.0)] * (n - len(D))
+        D = np.asarray(D, float).reshape(-1, 3)
+        return {'_rigid': np.asarray(R[:n], float), 'rdx': D[:n, 0], 'rdy': D[:n, 1], 'rdz': D[:n, 2]}
+
+    def report(self):
+        """The registry with each part's design extents (mm, along its own x, y, z) for the sim report."""
+        out = []
+        for e in self.rigid:
+            pts = [np.asarray(self.design[k], float).reshape(-1, 3)[np.asarray(self.rid[k]) == e['id']] for k in self.rid]
+            pts = [p for p in pts if len(p)]
+            r = dict(e)
+            if pts:
+                P = np.vstack(pts)
+                r['extentMm'] = [round(float(x) * 1000, 1) for x in (P.max(axis=0) - P.min(axis=0))]
+                r['verts'] = int(len(P))
+            out.append(r)
+        return out
 
     def __call__(self, k):
         if k not in self.d:
@@ -50,7 +179,7 @@ def materials(reuse, MAT):
         'elastic': reuse(MAT.elastic, 'kit elastic', colour=(0.026, 0.027, 0.028)),
         'poly': reuse(MAT.polymer, 'harness polymer', colour=(0.022, 0.022, 0.023), rough=0.7),
         'rubber': reuse(MAT.rubber, 'armour edge rubber', colour=(0.021, 0.021, 0.022), rough=0.8),
-        'metal': reuse(MAT.anodised, 'hardware gunmetal', colour=(0.05, 0.052, 0.056)),
+        'metal': reuse(MAT.gunmetal, 'hardware gunmetal'),
         'cord': reuse(MAT.webbing, 'shock cord', colour=(0.026, 0.027, 0.028)),
         'cable': reuse(MAT.rubber, 'cable jacket', colour=(0.022, 0.022, 0.023), rough=0.72),
     }
@@ -181,29 +310,116 @@ def cbox(part, M, cu, cv, half, r, h0=0.0, rot=0.0, off=(0.0, 0.0, 0.0), step=0.
     L = np.array(V[b0:b1], float)
     lx, ly = L[:, 0] + off[0], L[:, 1] + off[1]
     du, dv = rot2(lx, ly, rot)
-    W = M(cu + du, cv + dv, h0 + off[2] + half[2] + L[:, 2])
+    S = np.column_stack([cu + du, cv + dv, h0 + off[2] + half[2] + L[:, 2]])
+    W = M(S[:, 0], S[:, 1], S[:, 2])
     V[b0:b1] = list(W.reshape(-1, 3))
+    record(V, b0, b1, S)
     E.extend(edge_local(np.array(L), half))
     return L, (b0, b1)
+
+
+class Flat:
+    """A rigid map (D28): F(u, v, h) = O + A (u - cu) + U (v - cv) + N h. Anything laid on it through cbox / mpts /
+    cord_loop keeps its design shape exactly (one rigid transform); the conformal maps stay for soft parts. A part's
+    design record is the map-space input (u, v, h), never derived from the built points."""
+
+    def __init__(self, O, A, U, N, cu, cv):
+        self.O, self.A, self.U, self.N = (np.asarray(x, float).reshape(3) for x in (O, A, U, N))
+        self.cu, self.cv = float(cu), float(cv)
+
+    def __call__(self, u, v, h=0.0):
+        u, v, h = np.broadcast_arrays(np.asarray(u, float), np.asarray(v, float), np.asarray(h, float))
+        return (self.O + self.A * (u - self.cu)[..., None] + self.U * (v - self.cv)[..., None]
+                + self.N * h[..., None])
+
+    def lifted(self, dh):
+        return Flat(self.O + self.N * dh, self.A, self.U, self.N, self.cu, self.cv)
+
+    def report(self):
+        return {'O': [round(float(x), 5) for x in self.O], 'A': [round(float(x), 4) for x in self.A],
+                'U': [round(float(x), 4) for x in self.U], 'N': [round(float(x), 4) for x in self.N]}
+
+
+def flat_on(M, cu, cv, half, rot=0.0, support=None, step=0.004, inset=0.002):
+    """The rigid frame for a straight item over map M at (cu, cv): the plane fitted to the surface under its footprint
+    (local half sizes (x, y), turned by rot; `support(P)` limits the fit to the points of the surface it is bonded to,
+    e.g. one plate), moved out until no surface point under the footprint is in front of it. h = 0 on that plane.
+    Returns (Flat, seat): seat {'maxMm', 'minMm'} the gap between the plane and the surface (the inner footprint)."""
+    hx, hy = half
+    xs = np.arange(-hx, hx + 1e-9, step)
+    ys = np.arange(-hy, hy + 1e-9, step)
+    gx, gy = np.meshgrid(xs, ys)
+    du, dv = rot2(gx.ravel(), gy.ravel(), rot)
+    P = M(cu + du, cv + dv, np.zeros_like(du)).reshape(-1, 3)
+    _, A0, _, N0 = frame(M, cu, cv, 0.0)
+    S = P[support(P)] if support is not None else P
+    if len(S) < 3:
+        S = P
+    c = S.mean(axis=0)
+    n = np.linalg.svd(S - c)[2][2]
+    n = n if n @ N0 > 0 else -n
+    A = FT.unit(A0 - n * (A0 @ n))
+    U = FT.unit(np.cross(n, A))
+    h = (P - c) @ n
+    d = float(h.max())
+    Pc = M(cu, cv, 0.0).reshape(3)
+    O = Pc + n * (d - float((Pc - c) @ n))
+    inner = (np.abs(gx.ravel()) <= hx - inset) & (np.abs(gy.ravel()) <= hy - inset)
+    g = d - (h[inner] if inner.any() else h)
+    return Flat(O, A, U, n, cu, cv), {'maxMm': round(float(g.max()) * 1000, 1), 'minMm': round(float(g.min()) * 1000, 1)}
+
+
+def seat(part, F, M, cu, cv, half, rot=0.0, h_top=0.0, h_base=0.0, r=0.002, step=0.003):
+    """A moulded seat (D28): a wedge under a straight item, its back on the surface (map M at h_base: it follows the
+    body) and its front the item's flat back (F at h_top). half = (x, y) of its footprint. Returns the vertex range."""
+    V, Fc, E = part
+    E.extend([0.05] * (len(V) - len(E)))
+    hz = 0.002
+    b0, b1 = HC.rbox(V, Fc, np.zeros(3), np.eye(3), (half[0], half[1], hz), min(r, hz * 0.9), step=step)
+    L = np.array(V[b0:b1], float)
+    du, dv = rot2(L[:, 0], L[:, 1], rot)
+    t = np.clip((L[:, 2] + hz) / (2 * hz), 0, 1)[:, None]
+    back = M(cu + du, cv + dv, np.full(len(L), h_base)).reshape(-1, 3)
+    front = F(cu + du, cv + dv, np.full(len(L), h_top)).reshape(-1, 3)
+    V[b0:b1] = list(back * (1 - t) + front * t)
+    E.extend(edge_local(L, (half[0], half[1], hz)))
+    return b0, b1
+
+
+class Mapped(np.ndarray):
+    """World points from mpts that remember their map and map-space input (`src`), so `tube` can build a part laid on a
+    Flat in map space (its design record)."""
+    src = None
 
 
 def mpts(M, pts, cu=0.0, cv=0.0, rot=0.0, h0=0.0):
     """Local polyline points (x, y, z) mapped like cbox (no centre offset)."""
     P = np.asarray(pts, float)
     du, dv = rot2(P[:, 0], P[:, 1], rot)
-    return M(cu + du, cv + dv, h0 + P[:, 2]).reshape(-1, 3)
+    S = np.column_stack([cu + du, cv + dv, h0 + P[:, 2]])
+    W = M(S[:, 0], S[:, 1], S[:, 2]).reshape(-1, 3).view(Mapped)
+    W.src = (M, S)
+    return W
 
 
 def tube(part, pts, r, sides=8, step=0.004, smooth=0):
-    """A tube along a world polyline, resampled so no edge is long."""
+    """A tube along a world polyline, resampled so no edge is long. Points from mpts on a Flat: the tube is built in
+    map space and mapped (one rigid transform), and its map-space vertices are recorded as their design."""
     V, F, E = part
     E.extend([0.05] * (len(V) - len(E)))
     b0 = len(V)
-    P = np.asarray(pts, float)
+    src = getattr(pts, 'src', None)
+    flat = src is not None and isinstance(src[0], Flat)
+    P = np.asarray(src[1] if flat else pts, float)
     P = TC.resample(P, step) if len(P) > 1 and TC.path_length(P) > step else P
     if smooth:
         P = FT.smooth_polyline(P, smooth)
     FT.tube(V, F, P, r, sides=sides)
+    if flat:
+        S = np.asarray(V[b0:], float).reshape(-1, 3)
+        V[b0:] = list(src[0](S[:, 0], S[:, 1], S[:, 2]).reshape(-1, 3))
+        record(V, b0, len(V), S)
+        P = src[0](P[:, 0], P[:, 1], P[:, 2]).reshape(-1, 3)
     E.extend([0.0] * (len(V) - len(E)))
     tube.last = (b0, len(V))
     return P
@@ -220,6 +436,18 @@ def cord_loop(part, M, cu, cv, rot, h0, half_w, y_lo, y_top, z_c, r=0.0016, rise
         pts.append((cx * s + half_w * math.copysign(abs(c) ** ex, c), y_top - rise + rise * abs(s) ** ex, z_c))
     pts += [(half_w + r * 0.6, y_lo + 0.003, z_c), (half_w - 0.0022, y_lo, z_c)]
     return tube(part, mpts(M, pts, cu, cv, rot, h0), r, sides=8, step=0.002)
+
+
+def buckle(pt, O, along, n, strap_w, rid):
+    """A flush magnetic buckle (mag_buckle.build) built in its own frame and placed (its design record, D28): `along`
+    the strap, `n` out from the surface at O; tags it as part rid."""
+    import mag_buckle as MB
+    along, n = FT.unit(np.asarray(along, float)), FT.unit(np.asarray(n, float))
+    fr = Frame(O, np.cross(n, along), along)          # local: across +x, along +y, out -z (Z = across x along = -n)
+    nb = pt.count('metal', 'rubber')
+    MB.build(pt('metal'), pt('rubber'), np.zeros(3), (0.0, 1.0, 0.0), None, (0.0, 0.0, -1.0), strap_w)
+    pt.place(nb, fr)
+    pt.tag_since(nb, rid)
 
 
 def presser_grid(M, u0, u1, v0, v1, h, step=0.004):
@@ -279,7 +507,7 @@ def write_objects(scene, op, item, pt, mats):
         Ek = np.asarray(Ek[:len(Vk)], float)
         wear = np.clip(1.0 - Ek / 0.004, 0.0, 1.0) * 0.6
         ob = FT.add_mesh(scene, f'{op}-{item}-{key}', Vk, Fk, mats[key], smooth=True, uv=TC.box_uv(Vk, Fk),
-                         attrs={'edge': Ek, 'wear': wear})
+                         attrs={'edge': Ek, 'wear': wear, **pt.rigid_attrs(key)})
         bm = bmesh.new()
         bm.from_mesh(ob.data)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -324,4 +552,5 @@ def reg_verts(pt, reg, names):
     return [v for n in names if n in reg for k, a, b in reg[n] for v in pt.d[k][0][a:b]]
 
 
-__all__ = ['Parts', 'materials', 'HField', 'RingMap', 'frame', 'cbox', 'mpts', 'tube', 'cord_loop', 'Z']
+__all__ = ['Parts', 'Frame', 'buckle', 'record', 'pre', 'materials', 'HField', 'RingMap', 'Flat', 'flat_on', 'seat', 'frame', 'cbox', 'mpts',
+           'tube', 'cord_loop', 'Z']

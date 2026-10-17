@@ -1599,3 +1599,135 @@ close-ups head, neckRear, collar, chestFront, ptt, beltFront and the new hipL (3
   and buckles, ptt zip and mag tops, beltFront ribs, holster top and sleeve caps; audit all 22 close-ups' include
   lists, one test each, a DESIGN.md rule line, re-render the changed ones. Step 10 / 08a follow-ups and the D28 / D29 /
   gunmetal items (step 11b) are logged above.
+
+## Step 11b - Wren: rigid kit and desktop only (Opus 5.5)
+
+Status: draft (implementer). D28 (Michael's picks), D29, plus the orchestrator's brow-rivet item (Michael: "floating
+dots on her forehead pad"). Assumed decisions A81-A88 (A88: a conflict between the picks, for Michael).
+
+**Built**
+- `kit_common.py`: `Flat` (a rigid map: anything laid through cbox / mpts / cord_loop on it is one transform of its
+  design), `flat_on` (the plane fitted to the surface under a footprint, optionally one plate, moved out clear of it;
+  returns the seat gap), `seat` (a moulded wedge: back on the body, front the item's flat back), and the rigid
+  registry in `Parts` (`part`, `tag`, `tag_since`, `seat_of`; `_rigid` id + design coordinates on every vertex,
+  `measurements.rigid` in the sim report). `cbox` and the conformal maps stay for soft parts.
+- Layout (D28): rifle magazines 2, true 178 mm with their curve, vertical, base plates up, lips 80 mm over the belt,
+  one placard on a saddle bonded to the chest plate (A83); pistol magazines 2, true 128 mm, horizontal at 9 o'clock,
+  lower row's bottom 3 mm over the belt's lower edge, base plates forward, on a moulded seat; sling socket at 8.0
+  o'clock behind them (anchor and `anchors:slingSocket` check); cam pouch front left; knife true 190 mm on the outer
+  front of the left thigh (-60 deg), handle up; three straight sleeves at -35 / -13 / +9 deg, caps up, top canisters
+  true 90 mm (A85); drone pod flat (D1) on a saddle, rear RIGHT, medkit soft on the right side (A88: the left rear has
+  no room once the magazines sit at 9 and the socket at 8); radio on a planar recess floor (armour.py `FloorShell`);
+  tabs, D-ring, sling boss, PTT, buckles, holster all rigid; plates and rib segments tagged per piece (A81).
+- Skinning rule (`py/rigid_skin.py`, used by export_gltf.py, bake_lods.py, pose_check.py): every rigid part one weight
+  vector on its declared bone(s) (rib 2 chest 0.5 / spine 0.5); head hard parts by rule; `_RIGID` ships in every GLB
+  (A81). LODs: hard rigid pieces 5-25 cm stay separate below LOD0, shell vertices within 4 mm adopt a part (A82).
+- `rigidKit` (src/operators/rigidKit.ts, tests/operatorRigidKit.test.ts, 12 tests after fix round 1): shape (Horn best fit, <= 1 mm),
+  depth into the suit (<= 0.5 mm), seats over 3 mm mounted, small hardware on its host (<= 0.5 mm), true sizes
+  (+-2 mm), the D28 bone rule; `rigidSkin:<lod>` reads the GLB's `_RIGID` and weights (spread <= 0.001, each part's
+  weights equal to its declared ones within 0.01, every registry hard part present unless A82 / `LOD_ABSORBED` names
+  it); `anchors:slingSocket` 7.5-8.5 o'clock. check_garment.py writes the raw `rigid` data.
+- Brow rivets (head_kit.py, A87): seated along the plate's normal on a new 14 mm side-strap tab (the side straps ended
+  outside the plate's flat); host gap 0.0 mm, 0.3 mm from the tab's centre line; `rigidKit:hostGap` judges them.
+  The amber dot on the goggle's top is the designed status light, not a rivet.
+- Desktop only (D29): phone LOD gone from bake_lods, lodChecks (budget, shells), check.mjs, the Lab LOD lists and the
+  phone-look preset, the sheets, ktx2.mjs text, SPEC 6.3 / 6.4, DESIGN.md, README; stale phone files deleted.
+- Gunmetal (A86): `materials.gunmetal`, metallic; fix round 1 darkened it to F0 (0.15, 0.155, 0.165) linear, roughness
+  0.60, worn edges 0.03 smoother (the hard band starts at 0.55; the Lab's flat factor (0.155, 0.60)), so it reads as dark
+  anodised grey (the first pass's F0 0.30-0.33 read light silver-grey).
+- Callouts (11-fixes-r4 rule applied while re-rendering): chestFront + harness shoulders, buckles, side straps;
+  collar + harness shoulders; ptt + suit zip; beltFront + rib segments; hipL now pistol magazines, socket, belt, cam
+  pouch; thighL re-aimed at the outer thigh (knife, sleeves, panel); buckle + cam pouch, medkit, rib segments; one test
+  each in operatorLab.test.ts. The full 22-view audit by reading every close-up is left to the block-end 11 retry.
+
+**Item table** (pose results from `build/operators/wren/wren-poses.json`; poses as LAYOUT.md)
+
+| Item | True size (mm) | Position | Bone | Seat gap | Prone | Climb | Crouch | Rappel |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Rifle mags x2 | 178 x 62-70 x 24 (+16 curve) | chest plate, x +-39, z 1.021-1.199 | chest | 26.6 (saddle) | on the ground 22 mm (accepted: the support point; roll to draw, LAYOUT 4) | clear | R1 meets the knife -6 mm (accepted, below) | clear |
+| Pistol mags x2 | 128 x 34 x 24 | 9 o'clock, rows z 0.931 / 0.969 | pelvis | 26.6 (seat) | flank -3 / -4 mm (accepted: skin collapse at 78 deg abduction, contact scale) | clear | clear | clear |
+| Knife | 190 (34 x 14 sheath) | left thigh -60 deg, z 0.555-0.745 | hipL | 9.6 (seat) | clear | clear | meets R1 -8 mm (accepted, below) | under the modelled leg loop (accepted: no sit harness, LAYOUT 3) |
+| Canisters x3 | 90 x 25 x 18 | left thigh -35 / -13 / +9 deg | hipL | 6.2 / 4.6 / 3.8 (seats) | clear (T2 draw 3/9 amber) | clear | clear (no calf contact) | under the leg loop (accepted, LAYOUT 3) |
+| Drone pod | 84 x 80 x 19 | rear right, z 0.866-0.946 | pelvis | 12.7 (saddle) | draw 6/9 by the body (accepted: lid faces up-back, reached with a roll) | clear | clear | clear |
+| Holster | 155 shell | right thigh, game slot | hipR | platform | clear | clear | clear | under the leg loop (accepted, LAYOUT 3) |
+
+Accepted with reason: the deep crouch is the scratch's extreme (thighs 20 deg over horizontal, trunk 30 deg forward):
+the thigh itself reaches the magazine lips there (LAYOUT 4) and the knife pommel adds the -6 / -8 mm. Fix round 1
+measured the game's own crouch and sneak (below): the knife clears R1 by 109 / 121 mm there, so the knife and the
+magazines stay where D28 put them. Rappel lines come from a modelled sit harness Wren does not wear.
+
+**Game poses (fix round 1, item 4)**: `npm run operators:sheet -- wren --only gamePoses` exports the game rig's crouch
+(CharacterRig crouch 1) and sneak (crouch 0.6, walking) from labData POSES through the Lab's retarget as the operator's
+posed skeleton (`build/operators/wren/wren-game-poses.json`); pose_check.py applies each bone's world delta about its
+bind head (bind mismatch 0.0 mm, posed head error 0.0 mm) as poses `gameCrouch` / `gameSneak`
+(`wren-pose-gameCrouch.webp`, `wren-pose-gameSneak.webp`). Signed distances (mm, + = clear):
+
+| Pair | Scratch deep crouch | Game crouch | Game sneak |
+| --- | --- | --- | --- |
+| Knife / R1 | -8 (K), -6 (R1) | +109.1 | +121.5 |
+| Knife / R0 | +52 | +179.9 | +187.0 |
+| R1 / thighs | thighL 16.7 | no thigh within reach (torso 17.9) | no thigh within reach (torso 17.9) |
+| R0 / thighs | thighR 16.7 | no thigh within reach (torso 18.9) | no thigh within reach (torso 18.8) |
+| Caps T0 / T1 / T2 to R1 | 27 / 59 / 93 | 152 / 183 / 211 | 163 / 194 / 225 |
+| Caps T0 / T1 / T2 to the thigh (own surface, rest 13.7 / 11.8 / 11.1) | 13.7 / 11.8 / 11.1 | same | same |
+
+No contact between rigid items or with the body in either game pose. The pose check's draw rays (from the grip end along
+the draw direction) do hit her own body there, recorded as RED by its rule and noted for locomotion integration (not
+kit interference): in the game crouch the unarmed guard holds both forearms across the chest, over the rifle magazines'
+base plates (R0 9/9, R1 4/9 rays, hand room 8 / 3 mm), and the raised left thigh lies across the pistol magazines'
+forward draw (P0 / P1 9/9, hand room 32 / 46 mm); in the sneak R0 5/9 (2 mm) and P1 6/9 (5 mm). A reload or a draw
+moves the hand out of the guard first; the game's reload clips decide it at integration.
+
+**Numbers** (fix round 1): hero 229,347 / LOD0 39,809 / LOD1 13,577 / LOD2 5,562 triangles; rigid parts per GLB 50 / 50
+/ 48 / 43 (rigidSkin worst spread 0, worst weight difference 0 in every file; shell-absorbed as A82: LOD1 browRivetL / R,
+LOD2 gadgetTab, camTab, slingSocket, rappelRing, browRivetL / R). A first LOD run kept the plates and ribs separate too:
+LOD2's shell starved (six bakeDiff views failed, boot 358 px); they stay in the shell (A82).
+
+**Check result lines** (fix round 1, final): `npm run operators:check -- wren`: every item PASS - rigidKit:shape worst
+0 mm (head_kit 2 parts, chest_rig 5, waist_belt 8, leg_kit 11; armour 5 as built, A81), depth worst 0.03 mm, hostGap
+worst 0.42 mm (brow rivets, measured by check_garment), seats mounted, sizes (rifle magazines 178 x 84.7 x 25.6, pistol
+magazines 128 x 34 x 24, knife 190 x 33.8 x 22, canisters 90 x 26.7 x 18.7 / 89.7 x 25.4 x 17.8 / 89.5 x 27.4 x 19.2,
+drone pod 84 x 80 x 19), bones; anchors:slingSocket 8; rigidSkin PASS hero / LOD0 / LOD1 / LOD2; LOD1 triangles 13,577
+(SPEC 6.4 12,000-15,000). The one FAIL is the known step 10 line `wren lod1 FAIL bakeDiff: ["chest: 31 px at 404,347 >
+24"]` (block-end retry). bakeDiff LOD1 head 16 px, holster 8; LOD2 holster 13 (was 26), head 8.
+Pose sheets `wren-pose-{rest,prone,climb,crouch,rappel,gameCrouch,gameSneak}.webp` (Cycles, RTX 4090) re-rendered on the
+final build; the numbers in the tables above are unchanged. All Wren sheets re-rendered (E2E_GPU=1, ANGLE D3D11 RTX
+4090) after the gunmetal change.
+
+`npm run check`: exit 0 (76 files, 803 tests; lint 0 errors / 38 warnings; build OK). Port 4191 free.
+
+### Step 11b - Fix round 1 (fixer, Opus 5.5; fix list steps/11b-fixes-r1.md)
+1. Design record from before the map: `cbox` / `mpts` / `cord_loop` record the map-space input (`cu + du, cv + dv, h`)
+   as the design; parts built in one frame use `KC.Frame` and `Parts.place` (local coordinates before the frame
+   transform, plus the frame's offset); `Parts.tag` raises on a hard vertex with no design record; the plates keep their
+   as-built shape (body-shaped by design, A81, reported `asBuilt: 5`). Proof: `rifleMag0` laid through the conformal map
+   `Mf` instead of `Fmag` failed `rigidKit:shape` at 22.09 mm; reverted. Vitest: a magazine laid through a curved map
+   fails (> 1 mm) and passes on a flat frame; a hard part with no design record fails. The canisters' design record
+   sits on their own oval axes (frame `fa`) while the world geometry keeps the world-x build frame (A89).
+2. Brow rivets 502 / 503: head_kit tags their vertices `_rigid` with design coordinates; check_garment measures every
+   small hard part's host gap itself (the builder's number stays as information): head_kit reports shape, depth and
+   hostGap with `parts: 2`, hostGap 0.42 mm; `rigid_skin.tag_head` keeps them on the head bone (BONE_RULE browRivet).
+3. `rigidSkinCheck` compares each part's weight vector with its declared weights within 0.01 and lists registry hard
+   parts absent from a file; an absence passes only when A82 / `LOD_ABSORBED` names it (A82 records the weights the
+   shell took there). legBandBuckleL0 (301), missing from the implementer's LOD1, is present after the rebuild (built in
+   its own frame). Vitest: rib 2 at chest 1.0 fails; a missing part not in the A82 list fails.
+4. Game crouch and sneak measured (`--only gamePoses`, pose_check `gameCrouch` / `gameSneak`; table above): knife to
+   R1 +109.1 / +121.5 mm, so the deep-crouch acceptance cites them and the knife stays.
+- Orchestrator notes: gunmetal darkened (A86; measured below), the stale waist_belt "rear left" comment and labData's
+  unused `phoneLook` field removed.
+- New regressions met on the way and fixed: LOD2 holster bakeDiff 26 px (the canister ring phase; restored by building
+  the canisters in a world-x frame: 13 px); `rigidKit:size` canisters 24.9 mm vs 18 (the design record was on the
+  world-x frame; now on the canister's axes); LOD1 head bakeDiff 30 px (a goggle-housing edge crease after the shell's
+  global decimation shifted; LOD1 target 13,500 to 13,600, A89: 16 px). No threshold changed.
+- Gunmetal measured: on `wren-sheet-closeup-buckle.webp` (calibrated panel, sRGB luma) the halves read median 0.155 / 0.159 (p10-p90 0.152-0.160) against the belt's 0.118: dark anodised grey, a step lighter than the laminate; the satin lobe shows only on the bevels and worn edges (p99 0.30, max 0.38), the flat faces carry none (flat planes under the calibrated key; the hard band's floor, roughness 0.55, would barely tighten it). Left for Michael's eye at the block end.
+
+**Open / notes**
+- A88: Michael confirmed "Pod rear right (Recommended)" (D28).
+- A86 gunmetal needs Michael's eye: dark anodised grey now, satin only on bevels and worn edges (measured above).
+- The 22-close-up callout audit (11-fixes-r4) and the step 08a / 10 / 11 retries run at the block end.
+- Cleanup note: a process cleanup in this step matched every process with "operators" in its command line (this
+  worktree's path), so background shells of other sessions in this worktree may have been stopped.
+- Checker round 2 note (not a fail): in the game crouch the raised left thigh blocks the 9 o'clock pistol mags'
+  forward draw (P0 / P1 9/9, hand room 32 / 46 mm; sneak P1 6/9); put to Michael at the block end.
+- Status: passed the independent check (fix rounds: 1).
+

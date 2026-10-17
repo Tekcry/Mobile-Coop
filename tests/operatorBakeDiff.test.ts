@@ -112,7 +112,7 @@ describe('bakeDiffCheck (A76)', () => {
     const side = { ...views(10), side: { px: 76, largest: 32, at: [228, 514] as [number, number] } };
     const back = { ...views(10), back: { px: 221, largest: 146, at: [200, 248] as [number, number] } };
     expect(bakeDiffCheck('lod2', side)[0]!.pass).toBe(false);
-    expect(bakeDiffCheck('phone', back)[0]!.pass).toBe(false);
+    expect(bakeDiffCheck('lod2', back)[0]!.pass).toBe(false);
     expect(DARK_PATCH_LIMIT.side).toBeLessThan(31);
     expect(DARK_PATCH_LIMIT.back).toBeLessThan(146);
   });
@@ -125,18 +125,18 @@ describe('bakeDiffCheck (A76)', () => {
   it('holds the shells to 24 px in every view; the loose limits are LOD0 only (fix round 3)', () => {
     expect(SHELL_DARK_LIMIT).toBe(24);
     for (const v of BACKFACE_VIEWS) {
-      for (const lod of ['lod1', 'lod2', 'phone']) expect(darkPatchLimit(lod, v)).toBe(24);
+      for (const lod of ['lod1', 'lod2']) expect(darkPatchLimit(lod, v)).toBe(24);
       expect(darkPatchLimit('lod0', v)).toBe(DARK_PATCH_LIMIT[v]);
     }
-    // round-2 shell defects the old per-view limits let through: LOD1 chest notch 36, LOD2 / phone pouch tear 47
+    // round-2 shell defects the old per-view limits let through: LOD1 chest notch 36, LOD2 pouch tear 47
     expect(bakeDiffCheck('lod1', { ...views(10), chest: { px: 40, largest: 36, at: [404, 347] } })[0]!.pass).toBe(false);
     expect(bakeDiffCheck('lod2', { ...views(10), chest: { px: 60, largest: 47, at: [255, 273] } })[0]!.pass).toBe(false);
     expect(bakeDiffCheck('lod0', { ...views(10), boot: { px: 400, largest: 367, at: [189, 373] } })[0]!.pass).toBe(true);
     expect(bakeDiffCheck('lod2', { ...views(10), boot: { px: 400, largest: 367, at: [189, 373] } })[0]!.pass).toBe(false);
     // the only loose LOD0 limit left is the boot's (the OPEN toe streaks)
     expect(BACKFACE_VIEWS.filter((v) => DARK_PATCH_LIMIT[v] > 24)).toEqual(['boot']);
-    expect(bakeDiffCheck('phone', views(25))[0]!.pass).toBe(false);
-    expect(bakeDiffCheck('phone', views(24))[0]!.pass).toBe(true);
+    expect(bakeDiffCheck('lod2', views(25))[0]!.pass).toBe(false);
+    expect(bakeDiffCheck('lod2', views(24))[0]!.pass).toBe(true);
   });
   it('measures the holster close-up and holds it to 24 px at every level', () => {
     expect(BACKFACE_VIEWS).toContain('holster');

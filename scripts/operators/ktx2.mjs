@@ -202,7 +202,7 @@ export function encodeKtx2(id) {
   if (existsSync(readme)) {
     const head = readFileSync(readme, 'utf8').split('\nKTX2 (')[0].trimEnd();
     const rows = Object.entries(report.lods).map(([lod, r]) => `| ${lod} | ${r.ktx2.files.length} | ${r.textureMB.pngMB} | ${r.ktx2.diskMB} | ${r.ktx2.vramMB.bc7} | ${r.ktx2.vramMB.rgba8Fallback} | ${r.ktx2.glbMBBefore} -> ${r.ktx2.glbMB} | ${Math.min(...r.ktx2.files.map((f) => f.psnrDb))} |`);
-    writeFileSync(readme, [head, '', 'KTX2 (step 11, `npm run operators:ktx2`, D26): Basis UASTC quality 2 + Zstd 18 with mips, albedo sRGB, normal and ORM linear; every GLB carries `KHR_texture_basisu` (required) and no WebP / PNG. VRAM is the transcoded size (BC7 on desktop, ASTC 4x4 on the phone, 16 bytes per 4x4 block, full mip chain). PSNR: level 0 decoded by `ktx extract --transcode rgba8` against the baked PNG.', '',
+    writeFileSync(readme, [head, '', 'KTX2 (step 11, `npm run operators:ktx2`, D26): Basis UASTC quality 2 + Zstd 18 with mips, albedo sRGB, normal and ORM linear; every GLB carries `KHR_texture_basisu` (required) and no WebP / PNG. VRAM is the transcoded size (BC7 on desktop, 16 bytes per 4x4 block, full mip chain; desktop only, D29). PSNR: level 0 decoded by `ktx extract --transcode rgba8` against the baked PNG.', '',
       '| LOD | Textures | PNG MB | KTX2 MB (disk) | VRAM BC7 / ASTC MB | VRAM RGBA8 fallback MB | GLB MB (WebP -> KTX2) | Lowest PSNR dB |',
       '| --- | --- | --- | --- | --- | --- | --- | --- |', ...rows, ''].join('\n'));
   }

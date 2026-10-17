@@ -38,6 +38,10 @@ Then the LODs, bakes, KTX2 and the step 11 sheets are rebuilt.
    - Also straighten every other hard part the survey found bent: radio (planar recess floor in the back plate), metal
      tabs, rappel D-ring and sling boss.
    - Holster hipR and the rifle mount unchanged.
+   - Brow plate rivets (Michael, 2026-10-17: "What are the floating dots on her forehead pad"): `head_kit.py` places
+     them on a straight line from the plate's centre (`pf_top + X * ±0.026`), so they float in front of the curved
+     plate. Seat them on the plate surface through the side-strap tabs; `rigidKit` also fails any small hardware more
+     than about 0.5 mm off its host surface.
 3. **Skinning rule** in `export_gltf.py` and `bake_lods.py`: every vertex of a rigid part gets the same weights -
    chest kit, chest and back plates, radio, PTT, rib 1 on chest; rib 2 a fixed chest 0.5 / spine 0.5; rib 3 spine;
    belt kit, pod, medkit, belt and hanger buckles on pelvis; thigh kit, holster, sleeves, leg-band buckles on hipL /

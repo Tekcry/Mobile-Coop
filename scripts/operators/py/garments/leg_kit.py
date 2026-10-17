@@ -7,9 +7,12 @@
   the rear of the slide with a gunmetal release; the shell on a moulded laminate platform (its back on the leg bands,
   its front the shell's flat back) on two elastic leg bands with magnetic buckles; a short hanger from the belt.
   The frame `pistolHolster` (empty) is the game's sidearm frame; its offset from the game's slot is reported.
-- Left thigh, front (D25: the left hip's compact-gun sling slot stays clear): three double throwable sleeves on a
-  laminate panel (frag 2, sleeping gas 2, flashbang 2, one type per sleeve), each top canister's cap different by touch
-  (knurled ring, dome, two ridges) under a shock-cord loop with a pull tab; the panel on two leg bands and a hanger.
+- Left thigh, outer side (D28: nothing on the front of the thigh reaches the groin or the abdomen when the knee rises):
+  the knife at the panel's front edge (true 190 mm, handle up, left-hand draw straight up) and three straight double
+  throwable sleeves behind it (frag 2, sleeping gas 2, flashbang 2, one type per sleeve), each top canister's cap
+  different by touch (knurled ring, dome, two ridges) under a shock-cord loop with a pull tab; every hard item on its
+  own rigid frame with a moulded seat where the thigh falls away under it; the panel on two leg bands and a hanger.
+- Skinning (D28): the holster, its platform, the thigh kit and the leg-band buckles ride one thigh bone each.
 - The bands are tensioned rows on each thigh's pressed hull (TC.Ring on the thigh's own axis, a short reach, so no ray
   meets the other leg); the suit is pressed in under them (TC.compress), so they bow round the thigh and dent it.
 """
@@ -22,12 +25,11 @@ from mathutils import Vector
 import fitted as FT
 import head_common as HC
 import kit_common as KC
-import mag_buckle as MB
 import torso_common as TC
 import waist_belt as WB
 
 KIT = 'thighHolster'
-KITS = ['holsterHanger', 'legBands', 'sleevePanel', 'throwableSleeves', 'sleeveHanger', 'magBuckle']
+KITS = ['holsterHanger', 'legBands', 'sleevePanel', 'throwableSleeves', 'sleeveHanger', 'magBuckle', 'knife']
 METHOD = ('tensioned elastic bands on each thigh\'s pressed hull, a rigid moulded holster shell on a lofted platform, '
           'laminate and elastic parts on conformal thigh maps; the suit pressed in under the bands (no simulation)')
 BAND_W, BAND_T = 0.025, 0.0022
@@ -44,6 +46,15 @@ DROP = 0.009                            # the holster (and its frame) set 9 mm d
 FWD_OFF = 0.0415                        # the slide-and-frame centre forward of the extents centre
 R_S, R_N = 0.015, 0.0105                # throwable sleeve: an oval 30 mm across, 21 mm out from the panel
 STRAP_W, STRAP_T = 0.022, 0.0022
+# D28 thigh layout (left thigh map angles: -90 the front, 0 the outer side): the knife at the panel's front edge, the
+# three sleeves behind it (LAYOUT.md "Recommended changes" 2, packing A: nothing reaches the calf in a deep crouch)
+KNIFE_DEG, SLEEVE_DEG, PANEL_DEG = -60.0, (-35.0, -13.0, 9.0), (-74.0, 21.0)
+KNIFE_TOP = 0.745                        # the pommel's top (under the hip crease, level with the sleeve caps)
+SHEATH_L, GUARD_L, GRIP_L, POMMEL_L = 0.100, 0.006, 0.078, 0.006   # 190 mm overall (a 90 mm handle)
+PANEL_Z = (0.535, 0.785)                 # the panel runs 3 cm above the caps: the hanger ends there
+HL = {'hipL': 1.0}
+HR = {'hipR': 1.0}
+PELV = {'pelvis': 1.0}
 
 
 def leg_tree(op, dg, side):
@@ -75,7 +86,7 @@ def eased_band(ring, side):
 def build(ctx):
     scene, reuse, MAT, skin, op = ctx['scene'], ctx['reuse'], ctx['MAT'], ctx['skin'], ctx['op_id']
     dg = bpy.context.evaluated_depsgraph_get()
-    pt, reg, meas = KC.Parts(), {}, {}
+    pt, reg, meas = KC.Parts(base=300), {}, {}
     mats = KC.materials(reuse, MAT)
     press = []
 
@@ -112,7 +123,7 @@ def build(ctx):
             u_b = float(np.interp(math.radians(t_buckle[s]), maps[s].th, maps[s].s))
             O, A_, U_, N_ = KC.frame(maps[s], u_b, zc, BAND_T + 0.0002)
             pt.pad('metal'), pt.pad('rubber')
-            MB.build(pt('metal'), pt('rubber'), O, A_, None, N_, BAND_W)
+            KC.buckle(pt, O, A_, N_, BAND_W, pt.part(f'legBandBuckle{s}{k}', HL if s == 'L' else HR, item='magBuckle'))
             bands[f'{s}{k}'] = {'z': zc, 'arcM': round(TC.path_length(G[R_ // 2]), 3)}
     meas['legBands'] = bands
 
@@ -147,32 +158,38 @@ def build(ctx):
     need = BAND_T + 0.0035 + 0.0003              # band, the platform's thinnest, a clearance
     delta = float(np.clip(need - g0, -0.0095, 0.02))
     C = C0 + n_h * delta
+    r_hol = pt.part('holster', HR, item='thighHolster')
+    nhol = pt.count('poly', 'metal')
+    fr = KC.Frame(C, fwd_h, up_h)                     # the holster built in its own frame (design record)
+    Cl, fl, ul, nl = np.zeros(3), fr.v(fwd_h), fr.v(up_h), fr.v(n_h)
     Vp_, Fp_, Ep_ = pt('poly')
     pt.pad('poly')
-    rng = holster_shell(Vp_, Fp_, C, fwd_h, up_h, n_h)
+    rng = holster_shell(Vp_, Fp_, Cl, fl, ul, nl)
     Ep_.extend([0.002] * (len(Vp_) - len(Ep_)))
     add('thighHolster', 'poly', rng)
     # the retention hood: a moulded cap closed over the whole mouth, its arm down the outer face to a gunmetal pivot,
     # latched by the gunmetal thumb release at the rear edge below the cap
     pt.pad('poly')
-    rng = holster_hood(Vp_, Fp_, C, fwd_h, up_h, n_h)
+    rng = holster_hood(Vp_, Fp_, Cl, fl, ul, nl)
     Ep_.extend([0.002] * (len(Vp_) - len(Ep_)))
     add('thighHolster', 'poly', rng)
     s_arm = SHELL_HL - HOOD_SKIRT - 0.0095
-    arm_c = C + fwd_h * 0.004 + up_h * s_arm + n_h * (outer_b(0.004) + 0.0008 + 0.0001)
+    arm_c = Cl + fl * 0.004 + ul * s_arm + nl * (outer_b(0.004) + 0.0008 + 0.0001)
     pt.pad('poly')
-    rr = HC.rbox(Vp_, Fp_, arm_c, [fwd_h, up_h, n_h], (0.0065, 0.0105, 0.0008), 0.0007, step=0.0012)
-    Ep_.extend(TC.rbox_edge(Vp_, rr, arm_c, [fwd_h, up_h, n_h], (0.0065, 0.0105, 0.0008)))
+    rr = HC.rbox(Vp_, Fp_, arm_c, [fl, ul, nl], (0.0065, 0.0105, 0.0008), 0.0007, step=0.0012)
+    Ep_.extend(TC.rbox_edge(Vp_, rr, arm_c, [fl, ul, nl], (0.0065, 0.0105, 0.0008)))
     add('thighHolster', 'poly', rr)
     Vm, Fm, Em = pt('metal')
     pt.pad('metal')
-    rel_c = C + fwd_h * -0.0205 + up_h * (SHELL_HL - HOOD_SKIRT - 0.0072) + n_h * (outer_b(-0.0205) + 0.0006 - 0.0003)
-    rr = HC.rbox(Vm, Fm, rel_c, [fwd_h, up_h, n_h], (0.0045, 0.0065, 0.0006), 0.0005, step=0.001)
-    Em.extend(TC.rbox_edge(Vm, rr, rel_c, [fwd_h, up_h, n_h], (0.0045, 0.0065, 0.0006)))
+    rel_c = Cl + fl * -0.0205 + ul * (SHELL_HL - HOOD_SKIRT - 0.0072) + nl * (outer_b(-0.0205) + 0.0006 - 0.0003)
+    rr = HC.rbox(Vm, Fm, rel_c, [fl, ul, nl], (0.0045, 0.0065, 0.0006), 0.0005, step=0.001)
+    Em.extend(TC.rbox_edge(Vm, rr, rel_c, [fl, ul, nl], (0.0045, 0.0065, 0.0006)))
     add('thighHolster', 'metal', rr)
-    piv = C + fwd_h * 0.004 + up_h * (s_arm - 0.0055) + n_h * (outer_b(0.004) + 0.0012)
-    KC.tube(pt('metal'), [piv, piv + n_h * 0.0008], 0.0032, sides=20)
+    piv = Cl + fl * 0.004 + ul * (s_arm - 0.0055) + nl * (outer_b(0.004) + 0.0012)
+    KC.tube(pt('metal'), [piv, piv + nl * 0.0008], 0.0032, sides=20)
     add('thighHolster', 'metal', KC.tube.last)
+    pt.place(nhol, fr)
+    pt.tag_since(nhol, r_hol)
     # the platform: its back on the bands (the thigh map), its front the shell's flat back (a moulded wedge)
     face = C - n_h * (CAV_W + WALL)
     hp = (CAV_FA + WALL + 0.004, SHELL_HL + 0.018, 0.003)
@@ -188,6 +205,7 @@ def build(ctx):
     Vl[b0:b1] = list(backP * (1 - t_) + frontP * t_)
     El.extend(KC.edge_local(L, hp))
     add('holsterPlatform', 'lam', (b0, b1))
+    pt.tag('lam', (b0, b1), pt.part('holsterPlatform', HR, 'carrier', item='thighHolster'))
     thick = np.linalg.norm(frontP - backP, axis=1)
     origin = SLOT + n_h * delta - up_h * DROP
     za, ya = -up_h, fwd_h
@@ -203,53 +221,142 @@ def build(ctx):
         'backGapNoPlatformMm': round(g0 * 1000, 2), 'platformThickMm': [round(float(thick.min()) * 1000, 1), round(float(thick.max()) * 1000, 1)],
         'contents': "the game's sidearm (not modelled)"}
 
-    # --- Throwable sleeves (left front thigh) ------------------------------------------------------------------------
+    # --- Left thigh (D28): the panel, the knife at its front edge, three straight sleeves behind it ---------------------
     Ml = maps['L']
-    u_p = float(np.interp(math.radians(-72.0), Ml.th, Ml.s))
-    v0, v1 = 0.535, 0.755
-    _, r_ = KC.cbox(pt('lam'), Ml, u_p, (v0 + v1) / 2, (0.062, (v1 - v0) / 2, 0.0015), 0.0012, H_ON)
+
+    def u_at(deg):
+        return float(np.interp(math.radians(deg), Ml.th, Ml.s))
+    u0p, u1p = u_at(PANEL_DEG[0]), u_at(PANEL_DEG[1])
+    u_p = 0.5 * (u0p + u1p)
+    v0, v1 = PANEL_Z
+    r_pan = pt.part('sleevePanel', HL, 'carrier', item='sleevePanel')
+    npan = pt.count('lam')
+    _, r_ = KC.cbox(pt('lam'), Ml, u_p, (v0 + v1) / 2, (0.5 * (u1p - u0p), (v1 - v0) / 2, 0.0015), 0.0012, H_ON)
     add('sleevePanel', 'lam', r_)
+    pt.tag_since(npan, r_pan)
+    H_PAN = H_ON + 0.003                     # the panel's outer face
+    seats = {}
+
+    def mount(name, Fk, uk, vc, half, gap, item):
+        """A moulded seat under a straight item where the thigh falls away more than 3 mm (D28)."""
+        seats[name] = gap
+        pt.seat_of(name if name == 'knife' else 'canister' + name[-1], gap, name + 'Seat' if gap > 3.0 else None)
+        if gap > 3.0:
+            r_s = pt.part(name + 'Seat', HL, 'mount', item=item, gapMm=gap)
+            n_s = pt.count('lam')
+            rs = KC.seat(pt('lam'), Fk, Ml, uk, vc, half, h_top=-0.0002, h_base=H_PAN - 0.0004)
+            add(item, 'lam', rs)
+            pt.tag_since(n_s, r_s)
+
+    # the knife: a moulded polymer sheath (100 x 34 x 14 mm, tapering to the tip, a gunmetal release at the throat),
+    # a gunmetal guard and pommel, a rubber grip; handle up, the left hand draws it straight up
+    uk = u_at(KNIFE_DEG)
+    k_len = SHEATH_L + GUARD_L + GRIP_L + POMMEL_L
+    vk = KNIFE_TOP - k_len / 2
+    Fk0, sg = KC.flat_on(Ml, uk, vk, (0.017, k_len / 2))
+    Fk = Fk0.lifted(H_PAN)
+    gap_k = round(sg['maxMm'] + 0.4, 1)
+    r_kn = pt.part('knife', HL, item='knife', size='knife')
+    nkn = pt.count('poly', 'metal', 'rubber')
+    y_sh = -k_len / 2 + SHEATH_L / 2                       # the sheath's centre (the tip down at -k_len / 2)
+
+    def sheath(L):
+        L = np.array(L, float)
+        t = np.clip((SHEATH_L / 2 - L[:, 1]) / SHEATH_L, 0, 1)        # 0 at the throat, 1 at the tip
+        L[:, 0] *= 1 - 0.32 * t ** 1.5
+        L[:, 2] += 0.0012 * np.clip(L[:, 2] / 0.007, 0, 1) * np.clip(1 - (L[:, 0] / 0.017) ** 2, 0, 1)
+        return L
+    _, r_ = KC.cbox(pt('poly'), Fk, uk, vk, (0.017, SHEATH_L / 2, 0.007), 0.004, 0.0, off=(0.0, y_sh, 0.0),
+                    deform=sheath)
+    add('knife', 'poly', r_)
+    _, r_ = KC.cbox(pt('metal'), Fk, uk, vk, (0.0045, 0.0055, 0.0010), 0.0008, 0.0,
+                    off=(0.0, y_sh + SHEATH_L / 2 - 0.009, 0.0142))
+    add('knife', 'metal', r_)
+    y_g = -k_len / 2 + SHEATH_L + GUARD_L / 2
+    _, r_ = KC.cbox(pt('metal'), Fk, uk, vk, (0.015, GUARD_L / 2, 0.009), 0.0015, 0.0, off=(0.0, y_g, 0.0))
+    add('knife', 'metal', r_)
+
+    def grip(L):
+        L = np.array(L, float)
+        L[:, 0] *= 1 - 0.1 * np.cos(math.pi * L[:, 1] / GRIP_L) ** 2
+        return L
+    y_r = -k_len / 2 + SHEATH_L + GUARD_L + GRIP_L / 2
+    _, r_ = KC.cbox(pt('rubber'), Fk, uk, vk, (0.013, GRIP_L / 2, 0.011), 0.006, 0.0, off=(0.0, y_r, 0.0),
+                    deform=grip)
+    add('knife', 'rubber', r_)
+    _, r_ = KC.cbox(pt('metal'), Fk, uk, vk, (0.012, POMMEL_L / 2, 0.0105), 0.0025, 0.0,
+                    off=(0.0, k_len / 2 - POMMEL_L / 2, 0.0))
+    add('knife', 'metal', r_)
+    pt.tag_since(nkn, r_kn)
+    mount('knife', Fk, uk, vk, (0.015, k_len / 2 - 0.004), gap_k, 'knife')
+    meas['knife'] = {'deg': KNIFE_DEG, 'u': round(uk, 4), 'z': [round(KNIFE_TOP - k_len, 4), KNIFE_TOP],
+                     'lengthMm': round(k_len * 1000, 1), 'handleUp': True, 'seatGapMm': gap_k, 'frame': Fk.report()}
+
     sl0, sl1 = 0.558, 0.737
     caps = {}
-    for k, (du, kind) in enumerate(((-0.037, 'frag'), (0.0, 'gas'), (0.037, 'flash'))):
-        uk = u_p + du
+    for k, (deg, kind) in enumerate(zip(SLEEVE_DEG, ('frag', 'gas', 'flash'))):
+        uk = u_at(deg)
+        vc = 0.5 * (sl0 + sl1)
+        Fs0, sg = KC.flat_on(Ml, uk, vc, (R_S, (sl1 - sl0) / 2))
+        Fs = Fs0.lifted(H_PAN)
+        gap_s = round(sg['maxMm'] + 0.4, 1)
         vs = np.linspace(sl0, sl1, 30)
-        axp = Ml(np.full_like(vs, uk), vs, np.full_like(vs, H_ON + 0.003 + R_N)).reshape(-1, 3)
-        Nax = np.array([FT.unit(KC.frame(Ml, uk, v_, 0.0)[3]) for v_ in vs])
+        axp = KC.mpts(Fs, [(0.0, v_ - vc, 0.003 + R_N) for v_ in vs], uk, vc, 0.0, 0.0)
+        Nax = np.repeat(Fs.N[None], len(vs), axis=0)
+        r_sl = pt.part(f'sleeve{k}', HL, 'carrier', item='throwableSleeves')
+        nsl = pt.count('elastic', 'lam', 'cord', 'rubber')
         KC.tube(pt('elastic'), axp, R_S, sides=28, step=0.004)
         ovalize(pt('elastic')[0], KC.tube.last, axp, Nax, R_N / R_S)
         add('throwableSleeves', 'elastic', KC.tube.last)
-        ax = FT.unit(axp[-1] - axp[-4])
+        ax = FT.unit(axp[-1] - axp[0])
         top = axp[-1]
-        nk = FT.unit(KC.frame(Ml, uk, sl1, 0.0)[3])
+        nk = Fs.N
         sk = FT.unit(np.cross(ax, nk))
         nk = FT.unit(np.cross(sk, ax))
         nk1 = (np.array([top]), np.array([nk]))
         KC.tube(pt('lam'), [top - ax * 0.003, top + ax * 0.0005], R_S + 0.0007, sides=28, step=0.002)  # bound top
         ovalize(pt('lam')[0], KC.tube.last, *nk1, (R_N + 0.0007) / (R_S + 0.0007))
         add('throwableSleeves', 'lam', KC.tube.last)
-        KC.tube(pt('poly'), [top - ax * 0.004, top + ax * 0.009], 0.0127, sides=24, step=0.002)          # canister
-        ovalize(pt('poly')[0], KC.tube.last, *nk1, R_N / R_S)
+        # the top canister, true size (25 x 18 x 90 mm with its cap; the lower one hidden in the sleeve): one rigid part
+        r_can = pt.part(f'canister{k}', HL, item='throwableSleeves', size='canister', kind=kind)
+        ncan = pt.count('poly', 'metal')
+        # the canister built in its own frame (design record); x kept on the world's x, so FT.tube / HC.knurl pick the
+        # same reference axis as a build in world coordinates (the same ring phase as before the frame)
+        fr = KC.Frame(top, np.array([1.0, 0.0, 0.0]), FT.unit(np.cross(ax, np.array([1.0, 0.0, 0.0]))))
+        top_l, ax_l, sk_l, nk_l = np.zeros(3), fr.v(ax), fr.v(sk), fr.v(nk)
+        nk1_l = (np.zeros((1, 3)), np.array([nk_l]))
+        KC.tube(pt('poly'), [top_l - ax_l * 0.074, top_l + ax_l * 0.009], 0.0127, sides=24, step=0.004)
+        ovalize(pt('poly')[0], KC.tube.last, *nk1_l, R_N / R_S)
         add('throwableSleeves', 'poly', KC.tube.last)
-        Vk, Fk, Ek = pt('metal' if kind == 'frag' else 'poly')
+        Vk, Fk_, Ek = pt('metal' if kind == 'frag' else 'poly')
         key = 'metal' if kind == 'frag' else 'poly'
         pt.pad(key)
         b0 = len(Vk)
         if kind == 'frag':                 # a knurled ring
-            HC.knurl(Vk, Fk, top + ax * 0.0125, ax, 0.0134, 0.007, ridges=28, rings=3)
+            HC.knurl(Vk, Fk_, top_l + ax_l * 0.0125, ax_l, 0.0134, 0.007, ridges=28, rings=3)
             cap_top = 0.016
         elif kind == 'gas':                # a dome
-            HC.rbox(Vk, Fk, top + ax * 0.0115, [sk, nk, ax], (0.0127, 0.0127, 0.0042), 0.0042, step=0.0015)
+            HC.rbox(Vk, Fk_, top_l + ax_l * 0.0115, [sk_l, nk_l, ax_l], (0.0127, 0.0127, 0.0042), 0.0042, step=0.0015)
             cap_top = 0.0157
         else:                              # two ridges
             for z_ in (0.0105, 0.0145):
-                FT.tube(Vk, Fk, np.array([top + ax * (z_ - 0.0008), top + ax * (z_ + 0.0008)]), 0.0137, sides=28)
-            FT.tube(Vk, Fk, np.array([top + ax * 0.009, top + ax * 0.0155]), 0.0124, sides=28)
+                FT.tube(Vk, Fk_, np.array([top_l + ax_l * (z_ - 0.0008), top_l + ax_l * (z_ + 0.0008)]), 0.0137, sides=28)
+            FT.tube(Vk, Fk_, np.array([top_l + ax_l * 0.009, top_l + ax_l * 0.0155]), 0.0124, sides=28)
             cap_top = 0.0155
         Ek.extend([0.0] * (len(Vk) - len(Ek)))
-        ovalize(Vk, (b0, len(Vk)), *nk1, R_N / R_S)                  # the oval canister's cap
+        ovalize(Vk, (b0, len(Vk)), *nk1_l, R_N / R_S)                  # the oval canister's cap
         add('throwableSleeves', key, (b0, len(Vk)))
-        caps[kind] = {'cap': {'frag': 'knurled ring', 'gas': 'dome', 'flash': 'two ridges'}[kind], 'count': 2}
+        # the design record on the canister's own oval axes (sk width, nk depth, ax length) so its design extents are
+        # its true 25 x 18 x 90; the world geometry stays exactly as built in `fr` (the same ring phase)
+        fa = KC.Frame(top, sk, nk)
+        for k_, n0 in ncan.items():
+            V_ = pt.d[k_][0]
+            if len(V_) > n0:
+                V_[n0:] = list(fa.p(fr.world(np.asarray(V_[n0:], float).reshape(-1, 3))))
+        pt.place(ncan, fa)
+        pt.tag_since(ncan, r_can)
+        caps[kind] = {'cap': {'frag': 'knurled ring', 'gas': 'dome', 'flash': 'two ridges'}[kind], 'count': 2,
+                      'deg': deg, 'seatGapMm': gap_s}
         # the shock-cord loop over the cap (anchored in the sleeve's sides below the bound top) and its pull tab
         hw = R_S + 0.0013
         arc = []
@@ -267,7 +374,11 @@ def build(ctx):
         rr = HC.rbox(Vr, Fr, tc, [sk, nk, ax], (0.0045, 0.0045, 0.0009), 0.0008, step=0.001)
         Er.extend(TC.rbox_edge(Vr, rr, tc, [sk, nk, ax], (0.0045, 0.0045, 0.0009)))
         add('throwableSleeves', 'rubber', rr)
-    meas['throwableSleeves'] = {'u': round(u_p, 4), 'z': [sl0, sl1], 'ovalM': [2 * R_S, 2 * R_N], 'types': caps}
+        pt.tag_since(nsl, r_sl)
+        mount(f'sleeve{k}', Fs, uk, vc, (R_S - 0.002, (sl1 - sl0) / 2 - 0.004), gap_s, 'throwableSleeves')
+    meas['throwableSleeves'] = {'u': round(u_p, 4), 'z': [sl0, sl1], 'ovalM': [2 * R_S, 2 * R_N], 'types': caps,
+                                'straight': True, 'panelDeg': list(PANEL_DEG)}
+    meas['thighSeatsMm'] = seats
 
     # --- Hangers from the belt (right: to the holster platform; left: to the sleeve panel) ----------------------------
     belt_ob = bpy.data.objects.get(f'{op}-waist_belt-lam')
@@ -279,11 +390,12 @@ def build(ctx):
     PL_TOP = SHELL_HL + 0.018 + PL_UP                  # the platform's top edge, up the holster axis from C
     bot_R = Mr(u_s, v_c + SHELL_HL + 0.014, H_ON + STRAP_T * 0.5 + 0.0004).reshape(3)
     z_pl = float((C + up_h * PL_TOP)[2])
-    for s, u_h, bot, hax in (('R', WB.U_HANG_R, bot_R, AXIS['R']),
-                             ('L', WB.U_HANG_L, None, AXIS['L'])):
+    hang_u = list(belt_ob['hangU']) if belt_ob is not None and 'hangU' in belt_ob else [0.122, WB.U_HANG_R]
+    for s, u_h, bot, hax in (('R', float(hang_u[1]), bot_R, AXIS['R']),
+                             ('L', float(hang_u[0]), None, AXIS['L'])):
         sg = 1.0 if s == 'L' else -1.0
         if bot is None:
-            bot = Ml(u_p, v1 - 0.016, H_ON + 0.003).reshape(3)
+            bot = Ml(u_p, v1 - 0.014, H_ON + 0.003).reshape(3)        # the panel's top band, above the caps
         keep = [f for f in Fsu if np.all(Vsu[list(f), 0] * sg > 0.0) and 0.7 < Vsu[list(f), 2].mean() < 0.96]
         off = len(Vsu)
         tr = TC.bvh(np.vstack([Vsu, Vbt]), keep + [tuple(i + off for i in f) for f in Fbt])
@@ -352,7 +464,7 @@ def build(ctx):
         # the loop round the belt closes with a magnetic buckle on the belt's face
         j = int(np.argmin(np.abs(out[:, 2] - (WB.Z_MID - 0.002))))
         pt.pad('metal'), pt.pad('rubber')
-        MB.build(pt('metal'), pt('rubber'), out[j] + Nh[j] * STRAP_T, -Tn[j], None, Nh[j], STRAP_W)
+        KC.buckle(pt, out[j] + Nh[j] * STRAP_T, -Tn[j], Nh[j], STRAP_W, pt.part(f'hangerBuckle{s}', PELV, item='magBuckle'))
         us_ = np.arange(-0.4, 0.4, 0.002)
         Pu = Mh(us_, np.full_like(us_, WB.Z_MID), np.zeros_like(us_)).reshape(-1, 3)
         ideal = float(us_[np.argmin(np.linalg.norm(Pu[:, :2] - bot[:2], axis=1))])
@@ -369,6 +481,7 @@ def build(ctx):
     PV, PF = KC.merge(press)
     meas['suitPress'] = TC.compress(KC.suit_follow(op), [TC.bvh(PV, PF)], skin, cap=0.0025,
                                     region=(PV.min(axis=0), PV.max(axis=0)))
+    meas['rigid'] = pt.report()
     objs = KC.write_objects(scene, op, 'leg_kit', pt, mats)
     return {'shell': KC.shell_of(pt), 'objects': list(objs.values()), 'kits': KITS, 'measurements': meas,
             'report': {'parts': {k: len(v[1]) for k, v in pt.d.items()}}}

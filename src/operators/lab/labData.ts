@@ -169,15 +169,12 @@ export interface QualityPreset {
   fxaa: boolean;
   ssao: boolean;
   bloom: boolean;
-  /** Sheen, anisotropy and clear-coat off; the cheaper look a phone gets. */
-  phoneLook: boolean;
 }
 
 export const PRESETS: readonly QualityPreset[] = [
-  { id: 'low', label: 'Low', scale: 0.75, shadowMap: 512, msaa: 1, fxaa: true, ssao: false, bloom: false, phoneLook: false },
-  { id: 'high', label: 'High', scale: 1, shadowMap: 2048, msaa: 4, fxaa: false, ssao: false, bloom: true, phoneLook: false },
-  { id: 'epic', label: 'Epic', scale: 1, shadowMap: 4096, msaa: 8, fxaa: false, ssao: true, bloom: true, phoneLook: false },
-  { id: 'phone', label: 'Phone look', scale: 0.6, shadowMap: 512, msaa: 1, fxaa: true, ssao: false, bloom: false, phoneLook: true },
+  { id: 'low', label: 'Low', scale: 0.75, shadowMap: 512, msaa: 1, fxaa: true, ssao: false, bloom: false },
+  { id: 'high', label: 'High', scale: 1, shadowMap: 2048, msaa: 4, fxaa: false, ssao: false, bloom: true },
+  { id: 'epic', label: 'Epic', scale: 1, shadowMap: 4096, msaa: 8, fxaa: false, ssao: true, bloom: true },
 ];
 
 export interface PoseDef {
@@ -300,34 +297,36 @@ export const CLOSEUPS: readonly CloseUp[] = [
   // under the hood skirt and the balaclava above the collar, so head and neckRear leave it out).
   { id: 'head', label: 'Head, hood and goggle housing', joint: 'head', offset: [0, 0.02, 0.06], distance: 0.7, yaw: 0.35, pitch: 0.05, zones: ['head'], match: [], exclude: ['batteryPack', 'earpiece', 'earpieceCable'], suit: [] },
   { id: 'neckRear', label: 'Hood rear, harness and battery', joint: 'head', offset: [0, 0, -0.05], distance: 0.7, yaw: Math.PI - 0.4, pitch: 0.1, zones: ['head'], match: ['rear', 'battery', 'hood'], include: ['goggleBand', 'goggleCable'], exclude: ['earpiece', 'earpieceCable'], suit: [] },
-  { id: 'chestFront', label: 'Chest rig, front', joint: 'chest', offset: [0, 0.02, 0.1], distance: 0.9, yaw: 0.25, pitch: 0.05, zones: ['torso'], match: ['front', 'chest', 'shirt', 'zip', 'collar'], exclude: ['backPlate', 'radio', 'weaponMount', 'ptt'], suit: ['shell', 'seams', 'yoke'] },
+  { id: 'chestFront', label: 'Chest rig, front', joint: 'chest', offset: [0, 0.02, 0.1], distance: 0.9, yaw: 0.25, pitch: 0.05, zones: ['torso'], match: ['front', 'chest', 'shirt', 'zip', 'collar'], include: ['harnessShoulders', 'magBuckle', 'torsoSideStraps'], exclude: ['backPlate', 'radio', 'weaponMount', 'ptt'], suit: ['shell', 'seams', 'yoke'] },
   { id: 'chestRear', label: 'Chest rig, rear', joint: 'chest', offset: [0, 0.02, -0.1], distance: 0.9, yaw: Math.PI - 0.25, pitch: 0.05, zones: ['torso'], match: ['back', 'rear', 'rifle'], exclude: ['magPouches', 'gadgetSlot', 'knife', 'suitZip'], suit: ['shell', 'seams', 'stretch', 'yoke'] },
   // fix round 2 (item 2): from above and left of the left shoulder: the strap's run from behind the shoulder over its top
   // down to the chest-plate tab and its magnetic buckle, with the PTT, the radio and earpiece cables on the strap
   { id: 'shoulder', label: 'Shoulder strap and buckle', joint: 'shL', offset: [0.02, 0.02, 0.03], distance: 0.7, yaw: 1.0, pitch: 0.75, zones: ['torso', 'head'], match: ['shoulder', 'buckle'], exclude: ['knife', 'magPouches', 'gadgetSlot'], suit: ['yoke', 'shell', 'seams'] },
   { id: 'handPalm', label: 'Hand and glove, palm', joint: 'wrR', offset: [0, -0.07, 0.03], distance: 0.4, yaw: 0.3, pitch: -0.2, zones: ['hands'], match: [], suit: [] },
   { id: 'handBack', label: 'Hand and glove, back', joint: 'wrL', offset: [0, -0.07, 0], distance: 0.4, yaw: -0.6, pitch: 0.4, zones: ['hands'], match: [], suit: [] },
-  { id: 'belt', label: 'Belt and holster hanger, front right', joint: 'pelvis', offset: [0.12, -0.04, 0.05], distance: 0.85, yaw: -0.75, pitch: 0.1, zones: ['belt', 'legs'], match: [], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket', 'camMinePouch', 'sleevePanel', 'throwableSleeves', 'sleeveHanger'], suit: ['shell'] },
+  { id: 'belt', label: 'Belt and holster hanger, front right', joint: 'pelvis', offset: [0.12, -0.04, 0.05], distance: 0.85, yaw: -0.75, pitch: 0.1, zones: ['belt', 'legs'], match: [], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket', 'camMinePouch', 'sleevePanel', 'throwableSleeves', 'sleeveHanger', 'knife', 'pistolMagPouch'], suit: ['shell'] },
   { id: 'knee', label: 'Knee', joint: 'knR', offset: [0.02, 0, 0.06], distance: 0.6, yaw: 0.4, pitch: 0.05, zones: ['legs'], match: ['knee', 'trouser'], suit: ['kneeGrip', 'shell', 'seams'] },
   { id: 'boots', label: 'Boots and soles', joint: 'anL', offset: [0, -0.06, 0.08], distance: 0.7, yaw: -0.7, pitch: -0.1, zones: ['feet'], match: [], suit: [] },
   // Step 11: Wren's review close-ups (A2, D22-D25)
-  { id: 'collar', label: 'Collar, zip garage and hood skirt', joint: 'neck', offset: [0, -0.02, 0.07], distance: 0.45, yaw: 0.35, pitch: 0.12, zones: ['head', 'torso'], match: ['collar', 'zip', 'hood', 'neck', 'balaclava', 'earpiece'], exclude: ['headHarness', 'earpiece'], suit: ['zip', 'shell'] },
+  { id: 'collar', label: 'Collar, zip garage and hood skirt', joint: 'neck', offset: [0, -0.02, 0.07], distance: 0.45, yaw: 0.35, pitch: 0.12, zones: ['head', 'torso'], match: ['collar', 'zip', 'hood', 'neck', 'balaclava', 'earpiece'], include: ['harnessShoulders'], exclude: ['headHarness', 'earpiece'], suit: ['zip', 'shell'] },
   { id: 'ribsSide', label: 'Rib segments from the side', joint: 'chest', offset: [0.1, -0.1, 0.06], distance: 0.55, yaw: -1.2, pitch: 0.05, zones: ['torso'], match: ['rib', 'chest plate', 'side strap'], exclude: ['backPlate', 'radio', 'weaponMount', 'suitZip', 'magPouches', 'gadgetSlot', 'knife'], suit: ['shell', 'seams', 'underarmVent'] },
   { id: 'backPlate', label: 'Back plate: radio, cable and mount point', joint: 'chest', offset: [0, 0.02, -0.1], distance: 0.75, yaw: Math.PI - 0.15, pitch: 0.12, zones: ['torso'], match: ['back', 'radio', 'mount', 'antenna'], suit: ['shell', 'stretch', 'yoke'] },
-  { id: 'ptt', label: 'Left shoulder: PTT and both cables', joint: 'shL', offset: [0.04, -0.04, 0.06], distance: 0.5, yaw: -0.45, pitch: 0.25, zones: ['torso', 'head'], match: ['ptt', 'shoulder', 'cable', 'earpiece'], exclude: ['goggleCable', 'earpiece'], suit: ['yoke'] },
+  { id: 'ptt', label: 'Left shoulder: PTT and both cables', joint: 'shL', offset: [0.04, -0.04, 0.06], distance: 0.5, yaw: -0.45, pitch: 0.25, zones: ['torso', 'head'], match: ['ptt', 'shoulder', 'cable', 'earpiece'], include: ['suitZip'], exclude: ['goggleCable', 'earpiece'], suit: ['yoke'] },
   // fix round 3 (item 2): the belt's magnetic closure (a torso-zone kit item) is in frame and called out
-  { id: 'beltFront', label: 'Belt, front', joint: 'pelvis', offset: [0, 0.03, 0.1], distance: 0.75, yaw: 0.15, pitch: 0.1, zones: ['belt'], match: [], include: ['magBuckle'], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket'], suit: ['shell'] },
-  // fix round 3 (item 2): the left hip from its side, where the sling socket sits on the belt between the cam pouch and
-  // the drone pod (hidden behind the cam pouch from the front)
-  { id: 'hipL', label: 'Left hip: cam pouch, sling socket and drone pod', joint: 'pelvis', offset: [-0.15, 0.02, 0], distance: 0.6, yaw: 1.45, pitch: 0.1, zones: ['belt'], match: ['left hip', 'rear left'], suit: ['shell'] },
-  { id: 'beltBack', label: 'Belt, back: rappel ring, pod and medkit', joint: 'pelvis', offset: [0, 0.03, -0.1], distance: 0.75, yaw: Math.PI, pitch: 0.12, zones: ['belt'], match: ['back', 'rear', 'rappel'], suit: ['seat', 'shell'] },
-  { id: 'thighR', label: 'Right thigh: the empty holster', joint: 'hipR', offset: [0.12, -0.18, 0.01], distance: 0.85, yaw: -1.3, pitch: 0.05, zones: ['legs'], match: ['holster', 'right', 'band', 'hanger'], exclude: ['sleeveHanger', 'sleevePanel', 'throwableSleeves'], suit: ['shell'] },
-  { id: 'thighL', label: 'Left thigh: throwable sleeves and caps', joint: 'hipL', offset: [-0.01, -0.16, 0.07], distance: 0.6, yaw: -0.35, pitch: 0.1, zones: ['legs'], match: ['sleeve', 'left', 'band', 'panel'], exclude: ['thighHolster', 'holsterHanger'], suit: ['shell'] },
+  { id: 'beltFront', label: 'Belt, front', joint: 'pelvis', offset: [0, 0.03, 0.1], distance: 0.75, yaw: 0.15, pitch: 0.1, zones: ['belt'], match: [], include: ['magBuckle', 'ribSegments'], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket'], suit: ['shell'] },
+  // step 11b (D28, A88): the left hip from its side: the pistol magazines at 9 o'clock, the sling socket behind them at
+  // about 8 o'clock, the cam pouch at the front edge, all on the waist belt (the drone pod moved to the rear right)
+  { id: 'hipL', label: "Left hip: pistol magazines and the 8 o'clock sling socket", joint: 'pelvis', offset: [-0.15, 0.02, 0], distance: 0.6, yaw: 1.45, pitch: 0.1, zones: ['belt'], match: ['left hip', 'rear left'], include: ['waistBelt', 'camMinePouch'], suit: ['shell'] },
+  { id: 'beltBack', label: 'Belt, back: rappel ring and drone pod', joint: 'pelvis', offset: [0, 0.03, -0.1], distance: 0.75, yaw: Math.PI, pitch: 0.12, zones: ['belt'], match: ['back', 'rear', 'rappel'], suit: ['seat', 'shell'] },
+  { id: 'thighR', label: 'Right thigh: the empty holster', joint: 'hipR', offset: [0.12, -0.18, 0.01], distance: 0.85, yaw: -1.3, pitch: 0.05, zones: ['legs'], match: ['holster', 'right', 'band', 'hanger'], exclude: ['sleeveHanger', 'sleevePanel', 'throwableSleeves', 'knife'], suit: ['shell'] },
+  // step 11b (D28): the outer left thigh from the left front: the knife at the panel's front edge, the three straight
+  // sleeves behind it
+  { id: 'thighL', label: 'Left thigh: knife, throwable sleeves and caps', joint: 'hipL', offset: [0.0, -0.16, 0.02], distance: 0.65, yaw: 1.0, pitch: 0.1, zones: ['legs'], match: ['sleeve', 'left', 'band', 'panel'], exclude: ['thighHolster', 'holsterHanger'], suit: ['shell'] },
   { id: 'forearm', label: 'Forearm grip panel', joint: 'elL', offset: [0, -0.1, 0.02], distance: 0.5, yaw: 0.7, pitch: 0.15, zones: ['torso', 'hands'], match: ['grip', 'forearm', 'thumb'], suit: ['forearmGrip', 'elbow', 'stretch', 'seams'] },
   { id: 'underarm', label: 'Underarm vent and side strap', joint: 'shR', offset: [-0.04, -0.17, 0.01], distance: 0.65, yaw: -1.35, pitch: -0.15, zones: ['torso'], match: ['vent', 'side strap', 'underarm'], suit: ['underarmVent', 'shell', 'seams'] },
   // fix round 2 (item 5): the belt's flush magnetic closure at about 0.3 m (gunmetal halves, split line, rubber edge),
   // seen from the mirror direction of the detailFront key (from below left), where the satin lobe peaks
-  { id: 'buckle', label: 'Belt closure: magnetic buckle', joint: 'pelvis', offset: [0.01, 0.03, 0.12], distance: 0.3, yaw: 0.3, pitch: -0.4, zones: ['torso', 'belt'], match: ['buckle', 'waist belt', 'pistol magazine'], suit: [], rig: 'detailFront' },
+  { id: 'buckle', label: 'Belt closure: magnetic buckle', joint: 'pelvis', offset: [0.01, 0.03, 0.12], distance: 0.3, yaw: 0.3, pitch: -0.4, zones: ['torso', 'belt'], match: ['buckle', 'waist belt'], include: ['camMinePouch', 'medPouch', 'ribSegments'], suit: [], rig: 'detailFront' },
   { id: 'harness', label: 'Climbing harness and hardware (Moth)', joint: 'pelvis', offset: [0, 0, 0.08], distance: 0.9, yaw: 0.3, pitch: 0.05, zones: ['climbing'], match: [] },
 ];
 
