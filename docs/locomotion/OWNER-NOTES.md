@@ -110,13 +110,30 @@ Phones and touch are dropped project-wide (Michael). Follow-up when building res
 M21 relayed on 2026-10-17 to the live sessions Character Creation (operators), Music, Weapon Sounds and Movement Sounds (delivery not confirmed: they run on another machine). Not reachable (no live session): feature/kestrel, feature/training-bunker, feature/menu-ui-spec and master: tell them when their sessions next start.
 - ffmpeg 9.0.2 installed on the secondary desktop (2026-10-17, winget Gyan.FFmpeg, Michael approved) for frame extraction from the CT footage: C:\Users\Micha\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.2-full_build\bin\ffmpeg.exe (on PATH in new shells). Footage goes in pc\ct-ref\ (gitignored, local only).
 
-## Consolidation start prompt (M26, 2026-10-17; Opus 5.5, High effort; new conversation in C:\NightShift\Mobile-Coop-locomotion)
+## Consolidation start prompt (M26 + M27, 2026-10-17; Opus 5.5, High effort; new conversation, folder C:NightShiftMobile-Coop-locomotion on branch feature/ct-locomotion)
     Consolidation run: START (local).
-    You are the orchestrator (docs/systems/session-method.md). Work from C:\NightShift\Mobile-Coop-locomotion only to read the plan; do the merge work in a NEW worktree.
-    1. cd /c/NightShift/Mobile-Coop-locomotion && git pull --ff-only. Read CLAUDE.md, docs/locomotion/CONSOLIDATE.md (the plan, follow it exactly), docs/locomotion/DECISIONS.md M20-M26, docs/locomotion/RULES.md sections "Port 4189", "Speed on the desktop", "Desktop tuning".
-    2. Create the worktree and branch from CONSOLIDATE.md step 1 (C:\NightShift\Mobile-Coop-integrate, branch integrate/consolidate from origin/master), npm ci. Branch guard before every git write: branch integrate/consolidate, toplevel C:/NightShift/Mobile-Coop-integrate. Push only `git push -u origin integrate/consolidate`. Never touch the Mobile-Coop, Mobile-Coop-kestrel, Mobile-Coop-music or operators folders, and never push any other branch.
-    3. Merge in the CONSOLIDATE.md order, one merge commit each; resolve conflicts by its rules (subagents may do large resolutions, one code-changing agent at a time, opus); npm run check after each merge.
-    4. Full checks: npm run build, then the full npm run e2e in the background (E2E_PORT=4191, E2E_JOBS=2). Known flaky and kestrel-owned failures as RULES.md; fix only what the merges broke.
-    5. Version bump and one CHANGELOG entry (CONSOLIDATE.md step 5). Open the PR integrate/consolidate -> master with gh. Do NOT merge it. Record the PR link and results in docs/locomotion/STATE.md on feature/ct-locomotion (branch guard for that folder) and in the PR body.
-    6. Stop and tell me in plain English: the PR link, what merged, conflicts and how they were resolved, test results, anything unclear. Ask me with multiple-choice questions only when a decision is mine.
-    Run unattended until step 6. Plain English, no em dashes.
+    You are the orchestrator (docs/systems/session-method.md). Michael's decisions M26 and M27 apply.
+
+    0. Location and branch, check before anything else:
+       - Start folder: C:\NightShift\Mobile-Coop-locomotion. It MUST be on branch feature/ct-locomotion tracking origin/feature/ct-locomotion: run `cd /c/NightShift/Mobile-Coop-locomotion && git rev-parse --abbrev-ref HEAD` (expect feature/ct-locomotion) and `git pull --ff-only`. This folder is only for reading the plan and for updating docs/locomotion/STATE.md at the end.
+       - Work folder: a NEW worktree C:\NightShift\Mobile-Coop-integrate on a NEW branch integrate/consolidate made from origin/master (CONSOLIDATE.md step 1), then npm ci there.
+       - Branch guard before every git write: in the work folder, branch integrate/consolidate and toplevel C:/NightShift/Mobile-Coop-integrate; in the start folder, branch feature/ct-locomotion and toplevel C:/NightShift/Mobile-Coop-locomotion. Push only `git push -u origin integrate/consolidate` (and `git push origin feature/ct-locomotion` for the STATE note). Never touch the Mobile-Coop, Mobile-Coop-kestrel, Mobile-Coop-music or operators folders. Never push, merge into or delete any other branch. Never merge into master.
+
+    1. Read: CLAUDE.md, docs/locomotion/CONSOLIDATE.md (the plan: follow it exactly, including the "Documentation audit and vision questions" section), docs/locomotion/DECISIONS.md M12-M27, docs/locomotion/RULES.md sections "Port 4189", "Speed on the desktop", "Desktop tuning".
+
+    2. Merges: in the CONSOLIDATE.md order, one merge commit each, conflicts resolved by its rules (subagents may do large resolutions, one code-changing agent at a time, all opus); npm run check after each merge.
+
+    3. Documentation audit (M27): parallel read-only opus agents audit every branch's documentation as CONSOLIDATE.md describes and write docs/consolidation/AUDIT.md with file:line findings.
+
+    4. Vision questions (M27): turn every finding and every unconfirmed (ASSUMED) decision into plain-English multiple-choice questions, recommended option first, grouped by area. Ask me with the native multiple-choice UI in rounds of 4, as many rounds as needed, and also publish them as a phone page (Artifact with a db) so I can answer away from the desk. Ask as many questions as it takes for my vision to be clear. Do not guess my answers.
+
+    5. Write my answers into docs/DECISIONS.md (new, master-level, each entry quotes me) and rewrite CLAUDE.md, the design bible and the system docs on integrate/consolidate so master states one clear, current vision with no contradictions. Run-specific decision files stay as history and point to docs/DECISIONS.md.
+
+    6. Full checks: npm run build, then the full npm run e2e in the background (E2E_PORT=4191, E2E_JOBS=2). Known flaky and kestrel-owned failures as RULES.md; fix only what the merges broke.
+
+    7. Version bump and one CHANGELOG entry (CONSOLIDATE.md step 5). Open the PR integrate/consolidate -> master with gh. Do NOT merge it. Record the PR link and results in the PR body and in docs/locomotion/STATE.md on feature/ct-locomotion.
+
+    8. Stop and tell me in plain English: the PR link, what merged, conflicts and how they were resolved, the audit summary, the decisions recorded, test results, anything unclear.
+
+    Run unattended except for the questions in step 4. Plain English, no em dashes.
+

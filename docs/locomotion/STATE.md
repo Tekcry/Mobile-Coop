@@ -1,7 +1,7 @@
 # Locomotion run - state
 
 ## RESUME HERE (2026-10-17, M26): FIRST CONSOLIDATE, THEN THE CT PROTOTYPE
-1. Consolidation to master: follow docs/locomotion/CONSOLIDATE.md (new worktree C:/NightShift/Mobile-Coop-integrate, branch integrate/consolidate, one PR; Michael merges).
+1. Consolidation to master with a documentation audit and Michael's vision questions (M26, M27): follow docs/locomotion/CONSOLIDATE.md (new worktree C:/NightShift/Mobile-Coop-integrate, branch integrate/consolidate, one PR; Michael merges). Start prompt in OWNER-NOTES.md.
 2. After Michael merges: the CT prototype on a fresh branch feature/ct-prototype from master, per the plan below.
 
 ## CT prototype (M19-M25)
