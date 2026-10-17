@@ -71,10 +71,10 @@ assets or names"; the option to drop the IP rule was not chosen.)
 
 **G6. No reference names anywhere.** Reference-game names (the hero, his gear, organisations) appear nowhere: not in
 code, UI, specs, docs or research notes. Michael: "Banned everywhere" (VIS-06, 2026-10-17; replaces the research-notes
-allowance in loco docs). Scope for the game's title and Michael's quoted words is open (U2).
+allowance in loco docs). The title may name the reference and Michael's quotes stay verbatim (G114).
 
 **G7. Hunter is the one non-CT mode; drone and difficulty sliders removed.** Hunter mode is kept (its code is not deleted)
-and comes back later. The tri-rotor drone and the custom difficulty sliders are removed. Michael: "Remove all except
+and comes back later. The tri-rotor drone and the custom difficulty sliders are removed in this merge (G115). Michael: "Remove all except
 hunter mode." and "Only Hunter returns" (chat 35 and VIS-03, 2026-10-17; replaces page answers ART-08 "Bring drone back"
 and STEALTH-11 "Alarms count too"; FU-05 and FU-13 settled; replaces loco D7's custom difficulty sliders and loco A31,
 A32, A72, A73, A74, and the kestrel 2026-10-11 modes entry.)
@@ -91,9 +91,10 @@ STEALTH-05 "No, front shoves" and the Confrontation part of AUDIO-09; replaces b
 **G10. The bible is rewritten now.** The bible follows the current decisions now; numbers are marked as starting values,
 tuned after Michael plays the prototype. Michael: "Rewrite it now" (VIS-02, 2026-10-17.)
 
-**G11. The nine movement-run ideas wait in the backlog.** The nine ideas (guards relight lamps, paired searches, a
-last-known-position marker, eavesdropping, adaptive music and the rest) are decided one by one when their part of the
-game is planned. Michael: "Backlog, decide later" (VIS-05, 2026-10-17; loco BIBLE-PROPOSALS 1-9.) See U9.
+**G11. The nine movement-run ideas: only CT ones survive.** Of the nine ideas (guards relight lamps, paired searches, a
+last-known-position marker, eavesdropping, adaptive music and the rest), the CT co-op research keeps those CT has; the
+rest are dropped. Michael: "Backlog, decide later" (VIS-05), then "Keep only CT ones" (U9, chat, 2026-10-17; loco
+BIBLE-PROPOSALS 1-9.)
 
 ### Platform and performance
 
@@ -140,8 +141,9 @@ aim draws; a swap button works while aiming; grenades and gadgets work holstered
 menu. There is no stealth / kill selector. Michael: "CT grab menu" (chat 34, 2026-10-17; replaces page answer CTRL-09
 "Add a kill input" and its selector note; voids FU-07 and FU-08; replaces loco A70.)
 
-**G24. Emote inputs unbound.** Emotes free their pad button (View held) and keys (J, K, L). Michael: "Unbind until
-return" (CTRL-10, 2026-10-17.) See U3.
+**G24. Emotes deleted.** Emotes are deleted in this merge (code, bindings, tests); their pad button (View held) and keys
+(J, K, L) are free. Michael: "Unbind until return" (CTRL-10), then "Delete both" (U3 / U4, chat, 2026-10-17; replaces the
+CTRL-10 return.) See G116.
 
 ### Movement and camera
 
@@ -237,7 +239,8 @@ loco D8 and D11, bible 5.9 C20.)
 **G49. The research decides friendly fire, heavies and similar details.** Friendly fire, heavies and similar details
 follow what CT co-op does; earlier answers on these are replaced by the research findings. Michael: "The research
 decides" (chat 7, 2026-10-17; replaces page answer COOP-02 "On everywhere" and the heavies part of STEALTH-04's note;
-settles FU-10.) See U5 for training D38.
+settles FU-10.) It also replaces training D38 (friendly fire on in the bunker): Michael: "Research decides" (U5, chat,
+2026-10-17.)
 
 **G50. Two players maximum; no 3-4 player test.** Michael: "No, focus on 2 player maximum only." (COOP-03, 2026-10-17;
 replaces loco D8's 4-player run and loco A19.)
@@ -335,14 +338,15 @@ with vision on. Michael: "Brow off, eyes on" (ART-07, 2026-10-17.)
 
 **G75. Operators' remaining items stay on the operators branch.** feature/operators keeps its own decisions and open
 items; master records only that the operators are realistic and that Wren and Moth are the two built. Michael: "On its
-own branch" (chat 28, 2026-10-17.) See U1.
+own branch" (chat 28) and "Operators branch" (U1, chat, 2026-10-17; replaces page answer ART-01 "Copy them now".)
 
 ### Weapons and gadgets
 
 **G76. CT kit only.** One rifle with attachments (sniper, shotgun, launcher), one pistol with a light / electronics
 disruptor, and the knife. Every other gun is removed in the clean-up. Gadgets and attachments are CT's set, settled by
 the research. Michael: "CT kit only" (chat 33, 2026-10-17; settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and
-its disruptor / jammer split, the kestrel V0 kit list of 2026-10-11, loco A60 and A62.) See U10 for the timing.
+its disruptor / jammer split, the kestrel V0 kit list of 2026-10-11, loco A60 and A62.) The other guns go in this merge
+(G115).
 
 ### UI and HUD
 
@@ -482,7 +486,8 @@ exist." (settles ART-09.)
 
 **G111. Two players settles the solo, 3-4 player and bot questions.** No solo route, no solo training course (Fallow is
 the only course), no 3-4 player play, no bot. Directive: "2 player coop campaign only, unable to be completed solo."
-(settles FU-01, TRAIN-01 and the solo option of UI-04; consistent with COOP-01, COOP-03, ART-05.) See U4.
+(settles FU-01, TRAIN-01 and the solo option of UI-04; consistent with COOP-01, COOP-03, ART-05.) The old solo Training
+mode is deleted in this merge (G116).
 
 **G112. Tally and Sexton become radio crew.** They stay in the story as radio and briefing characters, not playable.
 Directive: "2 player coop campaign only, unable to be completed solo." (settles FU-03.)
@@ -507,7 +512,7 @@ To the prototype (decided or tuned after Michael plays it):
 - Wren integration, then the weapon step (ART-04, G70).
 
 To the menu job (after the prototype, G113; "menu calls decided in the menu job", chat 32):
-- UI-04 where players find Fallow; UI-05 how the lobby picks the course; UI-06 what mission cards show (see U8).
+- UI-04 where players find Fallow; UI-05 how the lobby picks the course; UI-06 what mission cards show (by reading of chat 32; not asked separately).
 - UI-07 prompt font; UI-08 title screen text; UI-09 Feedback item on the main menu; UI-10 the three menu-plan calls
   (menu MD11 key mapping, MD15 cinematic shots, MD19 removals).
 
@@ -524,7 +529,7 @@ To the operators branch (chat 28, G75):
 
 To Kestrel, after the research (chat 4, chat 30):
 - LEVEL-01 Mission 1 size: Michael picked "Kestrel size" with the note "Will require review once all questions are
-  answered. A full vertical slice plan must be made." (see U7).
+  answered. A full vertical slice plan must be made." The bible does not take Kestrel's Mission 1 numbers now: Michael: "No, wait" (U7, G118).
 - LEVEL-08-1 to LEVEL-08-5 (editor items), LEVEL-09-1 to LEVEL-09-11 (mission details), LEVEL-10-1 to LEVEL-10-10 (level
   technical items): Michael: "Defer with Kestrel" (chat 30; replaces his page picks "One by one" and "Show me each").
 - Kestrel's open ASK rows and its own map decisions (docs/kestrel/progress.md).
@@ -541,7 +546,6 @@ To the missions (chat 27):
 
 Still unanswered and not settled by the directive or chat (asked again later, nothing lost):
 - FU-11 how to set the awake limit (G46 stands meanwhile).
-- FU-12 scope of the name ban (see U2).
 - MOVE-15 and MOVE-15-1 to MOVE-15-4: head look-at order, muzzle rule near a team-mate, body cooling in thermal, the
   electro device list (Michael picked "One by one"; the items were never answered).
 - WEAP-09 which gun comes out first.
@@ -580,7 +584,7 @@ Still in force:
 - loco M26: one consolidation PR to master.
 - loco M27: documentation audit and vision questions (this file).
 - training D1, D2, D4, D5 (as changed by D46), D8, D9, D10 (E1-E9), D11, D12, D13, D14, D16, D17, D18, D19, D20, D21, D22,
-  D23, D24, D25 (narrowed by D42), D28, D30, D31, D32, D33, D34, D36, D37, D39, D40, D41 (see U6), D42, D43, D44, D45,
+  D23, D24, D25 (narrowed by D42), D28, D30, D31, D32, D33, D34, D36, D37, D39, D40, D41 (bunker only, G117), D42, D43, D44, D45,
   D46, D47, D49.
 - ops D1-D29 stand on feature/operators (G75), with D10 / D11 replacing D3 and D29 replacing D9; D19 / D20 match G69.
 - menu MD1-MD10, MD12, MD17, MD18 stand under G77; MD13 approved by G22; MD14 stands without its phone clause.
@@ -597,33 +601,33 @@ Void, and what voided them:
 - loco M17 (step 22b items): G30, G33 and the prototype (M22). loco M18: G70.
 - loco A0-A89 rows in the 62-item list: G39. Other open loco A rows: settled by the G entries that cite them.
 - training D3: D34. training D6: G83. training D7: G53, G95. training D15, D50: G79. training D26: D31. training D27,
-  D29, D48: history. training D35: G48. training D38: G49 (see U5).
+  D29, D48: history. training D35: G48. training D38: G49 (U5).
 - menu MD16 (touch): M21 / G12. menu MD20 start condition: G113, G83.
 - kestrel 2026-10-11 modes entry (Hunter, Wave, PvP Mission unparked): G7, G8 (Hunter only). kestrel V0 kit list: G76.
   kestrel wall hug (V1): G37. Kestrel stage order: G53.
 - audio AS12 (V0 / V1 veto choices): superseded by the V4 score. audio AS13: G62.
 
-## Unclear, ask Michael
+## Unclear items, answered (U1-U10)
 
-- U1. ART-01 vs chat 28: on the page Michael picked "Copy them now" (copy the approved operator rules into master: Blender
-  pipeline on a CC0 base body, real heights, hit volumes and light samples following each body). In chat he picked "On its
-  own branch: master records only realistic operators, Wren and Moth." Does master's bible get the operator rules now, or
-  only "realistic, Wren and Moth"?
-- U2. FU-12 is unanswered: does VIS-06's "Banned everywhere" also cover the reference game's title ("Chaos Theory", "CT")
-  in docs and Michael's own quoted words? This file uses the title and quotes him verbatim.
-- U3. Emotes: CTRL-10 "Unbind until return" implies emotes come back, but the directive says anything not in CT should not
-  exist. Are emotes deleted?
-- U4. The old solo Training mode: with no solo play (G111) and Fallow as the only course, is the old solo Training mode
-  deleted in this merge or kept?
-- U5. Training D38 (friendly fire on in the bunker): is it replaced by the research (chat 7: "earlier answers on these are
-  replaced by the findings"), or does the bunker keep it as a drill?
-- U6. Training D41 says "redesign the map, including future ones, to take on all these rules. MUST BE UNAVOIDABLE." Do the
-  linear, unavoidable rules still apply to campaign maps now they recreate the CT co-op levels (G3)?
-- U7. LEVEL-01: Michael picked "Kestrel size" (update the bible to the Kestrel plan), but Kestrel is now decided after the
-  research (chat 4). Does the bible take Kestrel's Mission 1 numbers now, or wait?
-- U8. UI-04, UI-05 and UI-06 were filed under chat 32 ("menu calls decided in the menu job") by reading; confirm they go
-  to the menu job.
-- U9. VIS-05 parks the nine movement-run ideas in the backlog. Are ideas that CT does not have dropped under the directive,
-  or still decided one by one?
-- U10. Timing of removals not named in chat 8: the other guns (chat 33 "removed in the clean-up"), the drone and the
-  difficulty sliders (chat 35). In this merge, or in a later clean-up job?
+The DECISIONS draft listed ten unclear items. Michael answered them in chat on 2026-10-17 (native multiple-choice;
+verbatim in docs/consolidation/chat-answers.md, last section). U1, U3, U4, U5, U9 and U10 are applied in the entries they
+touch (G75, G24, G111, G49, G11, G76); the new rules are below.
+
+**G114. The name ban covers names, not the title or Michael's quotes.** Character, gear and organisation names from the
+reference game are scrubbed everywhere (G6). "Chaos Theory" (and "CT") may name the reference in docs; Michael's quoted
+words stay verbatim. Michael: "Title ok, quotes kept" (U2, settles FU-12, 2026-10-17.)
+
+**G115. Non-CT removals happen in this merge.** Every gun outside the CT kit (G76), the tri-rotor drone, the custom
+difficulty sliders (back to fixed difficulties, G106) and carried medkits (wall stations only, G98) are deleted in this
+merge, each in its own commit. Michael: "In this merge" (U10, 2026-10-17.)
+
+**G116. Emotes and the old solo Training mode are deleted in this merge.** Michael: "Delete both" (U3 / U4, 2026-10-17;
+replaces CTRL-10's "Unbind until return"; with G111 the Fallow course is the only training.)
+
+**G117. Training D41 binds only the bunker.** Its linear, unavoidable map rules apply to the Fallow bunker; campaign maps
+follow the CT co-op research (G3). Michael: "CT research replaces it" (U6, 2026-10-17.)
+
+**G118. The bible waits for Kestrel's Mission 1 size.** The bible does not take Kestrel's Mission 1 numbers until Kestrel
+is decided after the research (G53). Michael: "No, wait" (U7, 2026-10-17; LEVEL-01 stays deferred.)
+
+U8 (UI-04 to UI-06 go to the menu job) was not asked; chat 32 ("menu calls decided in the menu job") covers it.

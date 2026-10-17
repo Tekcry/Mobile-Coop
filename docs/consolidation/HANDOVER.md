@@ -31,7 +31,7 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
    entries, each quoting Michael verbatim with the question id; sections: vision in one page, decisions by area,
    settled by the directive, deferred (with where decided), earlier decisions that still stand / void, unclear.
 
-## Unclear items: ANSWERED (chat-answers.md, last section). Apply them to DECISIONS-draft.md, then move it to docs/DECISIONS.md.
+## Unclear items: ANSWERED and APPLIED. docs/DECISIONS.md is final (G1-G118; U answers in G11, G24, G49, G75, G76, G111, G114-G118).
 
 ## Still to do (in order)
 3. Deletions in this merge (Michael: "In this merge"), one code agent at a time (opus):
