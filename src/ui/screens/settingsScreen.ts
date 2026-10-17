@@ -3,17 +3,15 @@ import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
-import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button, choice, refreshWidgets, section, slider, TabView, toggle, type TabDef } from '../widgets';
-import { LayoutEditorScreen } from './layoutEditor';
 import { bindPanel, ControlsScreen } from './controlsScreen';
 import { BrightnessScreen } from './brightnessScreen';
-import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
+import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
@@ -70,11 +68,6 @@ const AA_OPTS: { value: AaMode; label: string }[] = [
   { value: 'msaa', label: 'MSAA 4x' },
   { value: 'taa', label: 'TAA' },
 ];
-const PLATFORM_OPTS: { value: PlatformChoice; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'desktop', label: 'Desktop' },
-  { value: 'mobile', label: 'Mobile' },
-];
 const HUD_OPTS: { value: HudWidth; label: string }[] = [
   { value: 'auto', label: 'Auto (16:9 on 32:9)' },
   { value: '16:9', label: '16:9 centred' },
@@ -105,40 +98,7 @@ export class SettingsScreen extends Screen {
         app.nav.refresh();
       }, { class: 'subtle' });
 
-    const desktop = app.platform.platform === 'desktop';
     const tabs: TabDef[] = [
-      {
-        id: 'touch',
-        label: 'Touch',
-        icon: 'hand',
-        build: () =>
-          h(
-            'div',
-            { class: 'rows' },
-            section(
-              'Look',
-              slider('Camera stick speed', { min: 0.8, max: 6, step: 0.1, get: () => s().touch.lookSpeed, set: (v) => upd((d) => void (d.touch.lookSpeed = v)), format: (v) => `${v.toFixed(1)}` }),
-              slider('Camera stick dead zone', { min: 0, max: 0.4, step: 0.02, get: () => s().touch.lookDeadzone, set: (v) => upd((d) => void (d.touch.lookDeadzone = v)), format: pct }),
-              toggle('Camera stick acceleration', () => s().touch.lookAccel, (v) => upd((d) => void (d.touch.lookAccel = v))),
-              toggle('Drag to look (upper right)', () => s().touch.dragLook, (v) => upd((d) => void (d.touch.dragLook = v))),
-              slider('Drag-look sensitivity', { min: 0.2, max: 3, step: 0.05, get: () => s().touch.lookSensitivity, set: (v) => upd((d) => void (d.touch.lookSensitivity = v)), format: mult }),
-              slider('Aim (ADS) sensitivity', { min: 0.2, max: 1.2, step: 0.05, get: () => s().touch.adsMultiplier, set: (v) => upd((d) => void (d.touch.adsMultiplier = v)), format: mult }),
-              toggle('Invert Y', () => s().touch.invertY, (v) => upd((d) => void (d.touch.invertY = v))),
-              choice('Aim assist', AIM_OPTS, () => s().touch.aimAssist, (v) => upd((d) => void (d.touch.aimAssist = v))),
-            ),
-            section(
-              'Buttons',
-              slider('Opacity', { min: 0.1, max: 1, step: 0.05, get: () => s().touch.opacity, set: (v) => upd((d) => void (d.touch.opacity = v)), format: pct }),
-              slider('Size', { min: 0.6, max: 1.6, step: 0.05, get: () => s().touch.scale, set: (v) => upd((d) => void (d.touch.scale = v)), format: pct }),
-              toggle('Haptics (vibration)', () => s().touch.haptics, (v) => upd((d) => void (d.touch.haptics = v))),
-              toggle('Left fire button', () => s().touch.fireLeft, (v) => upd((d) => void (d.touch.fireLeft = v))),
-              toggle('Fire button also drags to look', () => s().touch.fireDragLook, (v) => upd((d) => void (d.touch.fireDragLook = v))),
-              toggle('Flick move stick to sprint', () => s().touch.dashFlick, (v) => upd((d) => void (d.touch.dashFlick = v))),
-              button('Edit button layout', () => this.manager.push(new LayoutEditorScreen(app)), { icon: 'move' }),
-            ),
-            resetBtn('touch', 'touch'),
-          ),
-      },
       {
         id: 'kbm',
         label: 'Mouse & Keyboard',
@@ -154,7 +114,7 @@ export class SettingsScreen extends Screen {
           const refresh = (): void => {
             status.textContent = app.input.gamepad.connected
               ? 'Controller connected.'
-              : 'No controller detected. On iPhone/iPad, press any button on the controller after pairing.';
+              : 'No controller detected. Press any button on the controller after pairing.';
           };
           refresh();
           status.addEventListener('nav-focus', refresh);
@@ -189,8 +149,7 @@ export class SettingsScreen extends Screen {
       },
       {
         id: 'video',
-        // (3.3 phones: no graphics options - a Display page)
-        label: app.platform.platform === 'desktop' ? 'Graphics' : 'Display',
+        label: 'Graphics',
         icon: 'monitor',
         build: () => this.graphicsTab(),
       },
@@ -253,52 +212,17 @@ export class SettingsScreen extends Screen {
       },
     ];
     for (const extra of extraSettingsTabs) tabs.push(extra(app, this));
-    // desktop: no touch settings (a touchscreen laptop keeps them); mobile: no mouse & keyboard page
-    const shown = tabs.filter((t) => (t.id === 'touch' ? !desktop || app.platform.touch : t.id === 'kbm' ? desktop : true));
-    if (desktop) {
-      // mouse & keyboard first on desktop
-      const i = shown.findIndex((t) => t.id === 'kbm');
-      if (i > 0) shown.unshift(...shown.splice(i, 1));
-    }
-    this.tabs = new TabView(shown, { side: true });
+    // mouse & keyboard first
+    const i = tabs.findIndex((t) => t.id === 'kbm');
+    if (i > 0) tabs.unshift(...tabs.splice(i, 1));
+    this.tabs = new TabView(tabs, { side: true });
     this.tabs.onChange = () => app.nav.refresh();
     this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
   }
 
-  /**
-   * 3.3 phones: one fixed look, so no graphics options - the field of view, the FPS overlay, the avatar style, the
-   * interface and the Phone check (the benchmark that says what the phone holds at 60).
-   */
-  private phoneDisplayTab(): HTMLElement {
-    const app = this.app;
-    const st = app.settings;
-    const s = (): Settings => st.get();
-    const upd = st.update.bind(st);
-    return h(
-      'div',
-      { class: 'rows' },
-      section(
-        'Display',
-        h('div', { class: 'row-note', text: 'Graphics are set for this phone: 60 fps, 75 - 100% of the screen resolution (sharpened to full resolution), adapting in a match.' }),
-        slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
-        toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
-        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
-        choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
-        choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
-        button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
-      ),
-      section(
-        'Phone check',
-        h('div', { class: 'row-note', text: 'About 9 minutes, best started with the phone cool: six 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with night vision, with the flashlight and moon shadows, the old voxel look, the first again), then 3 minutes held at 60 fps, night vision in the second minute (does 60 hold once warm?). Saved as feedback - send it.' }),
-        button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
-      ),
-    );
-  }
-
-  /** Graphics: platform, preset and every feature, display options (3.0: one renderer, PC presets). */
+  /** Graphics: preset and every feature, display options (3.0: one renderer, PC presets). */
   private graphicsTab(): HTMLElement {
     const app = this.app;
-    if (app.platform.platform !== 'desktop') return this.phoneDisplayTab();
     const st = app.settings;
     const s = (): Settings => st.get();
     const upd = st.update.bind(st);
@@ -334,7 +258,6 @@ export class SettingsScreen extends Screen {
       const f = feat(k);
       return toggle(label, f.get, f.set);
     };
-    const desktop = app.platform.platform === 'desktop';
     panel = h(
       'div',
       { class: 'rows' },
@@ -343,15 +266,15 @@ export class SettingsScreen extends Screen {
         choice('Preset', PRESET_OPTS, () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
           // (Custom is where hand changes land; picking it keeps the current features)
           if (v === 'auto') {
-            upd((d) => setAuto(d, d.video.device.tier, !desktop));
+            upd((d) => setAuto(d, d.video.device.tier));
             app.detectGraphics();
-          } else if (v !== 'custom') upd((d) => setPreset(d, v, !desktop));
+          } else if (v !== 'custom') upd((d) => setPreset(d, v));
           else upd((d) => void (d.video.auto = false));
           refresh();
         }),
         autoNote,
         button('Detect again', () => {
-          upd((d) => setAuto(d, d.video.device.tier, !desktop));
+          upd((d) => setAuto(d, d.video.device.tier));
           app.detectGraphics(true);
           refresh();
         }, { class: 'subtle' }),
@@ -392,7 +315,6 @@ export class SettingsScreen extends Screen {
         toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
         toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
         choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
-        choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
         button('Fullscreen', () => void toggleFullscreen(), { class: 'subtle' }),
       ),
       section(
@@ -449,17 +371,6 @@ export class SettingsScreen extends Screen {
         app.nav.refresh();
       }, { class: 'subtle' }),
     );
-  }
-
-  override onShow(): void {
-    // the interface choice (or a window resize) flipping the platform rebuilds the tabs
-    this.app.onPlatform = () => {
-      if (this.manager.top === this) this.manager.replace(new SettingsScreen(this.app));
-    };
-  }
-
-  override onHide(): void {
-    this.app.onPlatform = null;
   }
 
   override initialFocus(): HTMLElement | null {

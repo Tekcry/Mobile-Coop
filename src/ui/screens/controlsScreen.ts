@@ -13,27 +13,6 @@ type Dev = 'pad' | 'kbm';
 /** (locomotion step 18) A "press a button / key" capture gives up after this long (ms). */
 export const CAPTURE_TIMEOUT_MS = 5000;
 
-/** Touch bindings (fixed: touch has no remap, D1). Pad and keyboard rows come from the bindings (`bindPanel`). */
-export const CONTROLS: Record<'touch', { label: string; rows: Row[] }> = {
-  touch: {
-    label: 'Touch',
-    rows: [
-      ['Left half', 'Move stick (floating)'],
-      ['Camera stick', 'Look (never fires)'],
-      ['Fire / Aim', 'Fire, aim down sights'],
-      ['Action button', 'Does what the world prompts show: vault, climb, grab, use'],
-      ['Jump', 'Grabs ledges, pipes and ladders in reach; double tap between two tall walls: split jump'],
-      ['Takedown button', 'When one is on offer: tap knocks out, hold is lethal'],
-      ['Gadget / wheel', 'Hold to aim a gadget, release to throw; the wheel picks one'],
-      ['Crouch / Sprint', 'Toggles; crouch at speed (gear 5-6): forward roll'],
-      ['Speed rocker', 'Speed gear up / down; the pips show the gear'],
-      ['Goggles', 'Night vision'],
-      ['Ping', 'Co-op: marks what the camera looks at for the team'],
-      ['Settings > Touch', 'Layout editor: presets, size, opacity'],
-    ],
-  },
-};
-
 const LABELS: Record<Dev, string> = { pad: 'Controller', kbm: 'Keyboard & mouse' };
 
 /** Fixed (not remappable) rows shown above the remappable ones. */
@@ -213,24 +192,19 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
 }
 
 /** Every binding, per input type (Settings > Accessibility > Controls, and the pause menu's settings): remap the pad
- *  and the keyboard (locomotion step 18, D7; local only, D8), touch is listed. */
+ *  and the keyboard (locomotion step 18, D7; local only, D8). */
 export class ControlsScreen extends Screen {
   override readonly showBack = true;
   private tabs: TabView;
 
   constructor(private app: App) {
     super('controls-screen');
-    const all: ('pad' | 'kbm' | 'touch')[] = app.input.mode === 'touch' ? ['touch', 'pad', 'kbm'] : app.input.mode === 'kbm' ? ['kbm', 'pad', 'touch'] : ['pad', 'kbm', 'touch'];
-    const desktop = app.platform.platform === 'desktop';
-    const order = all.filter((k) => (k === 'touch' ? !desktop || app.platform.touch : true));
+    const order: Dev[] = app.input.mode === 'kbm' ? ['kbm', 'pad'] : ['pad', 'kbm'];
     this.tabs = new TabView(
       order.map((k) => ({
         id: k,
-        label: k === 'touch' ? CONTROLS.touch.label : LABELS[k],
-        build: () =>
-          k === 'touch'
-            ? h('div', { class: 'controls-list' }, ...CONTROLS.touch.rows.map(([a, b]) => h('div', { class: 'controls-row', focus: true }, h('b', { text: a }), h('span', { text: b }))))
-            : bindPanel(app, k),
+        label: LABELS[k],
+        build: () => bindPanel(app, k),
       })),
     );
     this.tabs.onChange = () => app.nav.refresh();

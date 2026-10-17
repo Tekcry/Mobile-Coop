@@ -1,6 +1,6 @@
-// Training course on Proving Grounds (Play > Training), played by touch: hints for the device in use, each verb
-// advances the course (move, sneak, vault, ladder, goggles, the touch context button takedown on a passive guard,
-// the gadget step skipped by touch, A67), then TRAINING COMPLETE and the results. Also the HUD v3 defaults: no
+// Training course on Proving Grounds (Play > Training), played by keyboard: hints for the device in use, each verb
+// advances the course (move, sneak, vault, ladder, goggles, the E key takedown on a passive guard, the gadget
+// throw), then TRAINING COMPLETE and the results. Also the HUD v3 defaults: no
 // health bar, the ammo readout fades, the hold ring, subtitles.
 import { launch, assert } from './e2e-lib.mjs';
 
@@ -14,7 +14,7 @@ try {
   await page.waitForFunction(() => window.__app.current?.mode?.id === 'training' && window.__app.current.player, null, { timeout: 60000 });
   await wait(500);
   const obj = await G(() => window.__app.current.hud['objective'].textContent);
-  assert(/Move to the marker/.test(obj) && /left half/.test(obj), `the step and the touch hint ("${obj}")`);
+  assert(/Move to the marker/.test(obj) && /W A S D/.test(obj), `the step and the keyboard hint ("${obj}")`);
   const marker = await G(() => window.__app.current.mode.blips().length);
   assert(marker === 1, 'a marker on the target');
   // HUD v3 defaults
@@ -95,11 +95,8 @@ try {
   });
   assert((await step()) === 'takedown', `goggles advance (${await step()})`);
 
-  // the takedown by the touch context button (locomotion step 17, D1: no separate takedown button): it offers the
-  // takedown only while one is on offer
-  const actLabel = () => G(() => document.querySelector('.tc-action')?.textContent?.trim() ?? '');
-  const offBefore = !/Takedown/.test(await actLabel());
-  const noTdButton = await G(() => !document.querySelector('.tc-takedown'));
+  // the takedown by the context key E (locomotion step 17, D1: no separate takedown button): offered only from behind
+  const offBefore = await G(() => window.__app.current.takedown.offer === null);
   await G(() => {
     const a = window.__app;
     const g = a.current;
@@ -109,18 +106,23 @@ try {
     g.player.cam.yaw = e.yaw;
     a.loop.stepHeadless(0.4);
   });
-  await page.waitForFunction(() => /Takedown/.test(document.querySelector('.tc-action')?.textContent ?? ''), null, { timeout: 8000 });
-  assert(offBefore && noTdButton, 'no takedown button; the context button offers it only when on offer');
-  await page.locator('.tc-action').tap();
-  // (3.2.0: from behind the first tap grabs him; the second takes him down)
+  await page.waitForFunction(() => window.__app.current.takedown.offer !== null, null, { timeout: 8000 });
+  assert(offBefore, 'the takedown is offered only from behind the guard');
+  await page.keyboard.press('KeyE');
+  // (3.2.0: from behind the first press grabs him; the second, a tap, takes him down)
   await page.waitForFunction(() => window.__app.current.takedown.hostage !== null, null, { timeout: 8000 });
-  await page.locator('.tc-action').tap();
+  await page.keyboard.press('KeyE');
   await page.waitForFunction(() => window.__app.current.mode.course.step?.id !== 'takedown', null, { timeout: 15000 });
-  // (A67) the gadget step has no touch control in the basic scheme: played by touch it is skipped, the course ends
+  assert((await step()) === 'gadget', `the takedown advances to the gadget step (${await step()})`);
+  // the gadget: G held, then released, throws the selected gadget
+  await page.keyboard.down('KeyG');
+  await wait(400);
+  await page.keyboard.up('KeyG');
+  await page.waitForFunction(() => window.__app.current.mode.course.done || window.__app.current.mode.course.step?.id !== 'gadget', null, { timeout: 15000 });
   await G(() => window.__app.loop.stepHeadless(0.5));
   await page.waitForFunction(() => !!document.querySelector('.results-screen'), null, { timeout: 15000 });
   const res = await G(() => ({ title: document.querySelector('.results-title')?.textContent, sub: document.querySelector('.results-sub')?.textContent }));
-  assert(res.title === 'VICTORY' && /Training complete/.test(res.sub ?? ''), `the touch takedown takes the guard down; the gadget step is skipped by touch; the course ends with the results (${JSON.stringify(res)})`);
+  assert(res.title === 'VICTORY' && /Training complete/.test(res.sub ?? ''), `the E takedown takes the guard down; the gadget throw ends the course with the results (${JSON.stringify(res)})`);
 } catch (e) {
   failed = true;
   console.error(String(e));

@@ -82,7 +82,7 @@ interface Drone {
 
 /**
  * Gadgets at run time (phase 5): the wheel (hold to open: time slows, the stick / mouse picks a slot, release
- * selects; touch opens it with the gadget button and taps a slot), the gadget button (held: the predicted arc;
+ * selects; an unlocked mouse may click a slot), the gadget button (held: the predicted arc;
  * released: thrown), and what each does once out - sleeping gas clouds (knock-outs), flashbangs (blind, then
  * alert; white-out for the player when facing it), EMP (lights out for a while), noisemakers (lure pulses), sticky
  * cams and the tri-rotor drone (remote views with the camera feed look: lure ping / gas / marking from a cam,
@@ -179,22 +179,19 @@ export class GadgetSystem {
       inp.gadgetPick = -1;
       if (id) this.select(id);
     }
-    // the wheel: pad / keyboard hold it open (release selects); touch toggles it (a tap on a slot selects)
-    const touch = g.app.input.mode === 'touch';
+    // the wheel: pad / keyboard hold it open (release selects)
     if (this.wheelOpen) {
-      if (!touch) {
-        const mx = inp.move.x;
-        const my = inp.move.y;
-        if (hyp2(mx, my) > 0.5) {
-          this.cursorX = mx;
-          this.cursorY = my;
-        }
-        this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
-        if (!inp.down('gadgetWheel')) this.closeWheel(true);
-      } else if (inp.pressed('gadgetWheel')) this.closeWheel(false);
+      const mx = inp.move.x;
+      const my = inp.move.y;
+      if (hyp2(mx, my) > 0.5) {
+        this.cursorX = mx;
+        this.cursorY = my;
+      }
+      this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
+      if (!inp.down('gadgetWheel')) this.closeWheel(true);
       return this.wheelOpen;
     }
-    if (touch ? inp.pressed('gadgetWheel') : inp.down('gadgetWheel') && inp.heldTime('gadgetWheel') >= WHEEL_HOLD) {
+    if (inp.down('gadgetWheel') && inp.heldTime('gadgetWheel') >= WHEEL_HOLD) {
       this.openWheel();
       return true;
     }
@@ -739,33 +736,19 @@ export class GadgetSystem {
   }
 
   /** Remote feed overlay text: what it is and its controls for the input mode (null: no remote view). */
-  feedText(mode: 'touch' | 'gamepad' | 'kbm'): string | null {
+  feedText(mode: 'gamepad' | 'kbm'): string | null {
     if (!this.remote) return null;
     const pad = mode === 'gamepad';
-    const kb = mode === 'kbm';
     if (this.remote === 'cam') {
       const c = this.cams[this.camIdx];
       const n = `CAM ${this.camIdx + 1}/${this.cams.length}`;
-      const gas = c && !c.gas ? (pad ? '  Y gas' : kb ? '  E gas' : '  Gas') : '';
-      const next = this.cams.length > 1 ? (pad ? '  X next' : kb ? '  R next' : '') : '';
-      return pad ? `${n}  RT lure${gas}${next}  B back` : kb ? `${n}  LMB lure${gas}${next}  C back` : `${n}  Fire lure${gas ? '  Action gas' : ''}  Crouch back`;
+      const gas = c && !c.gas ? (pad ? '  Y gas' : '  E gas') : '';
+      const next = this.cams.length > 1 ? (pad ? '  X next' : '  R next') : '';
+      return pad ? `${n}  RT lure${gas}${next}  B back` : `${n}  LMB lure${gas}${next}  C back`;
     }
     const d = this.drone;
     const bat = d ? `${Math.ceil(d.s.battery)} s` : '';
-    return pad ? `DRONE ${bat}  RT dart  Y shock  B back` : kb ? `DRONE ${bat}  LMB dart  E shock  C back` : `DRONE ${bat}  Fire dart  Action shock  Crouch back`;
-  }
-
-  private actGas = { action: 'interact' as const, label: 'Gas', icon: 'gas' };
-  private actShock = { action: 'interact' as const, label: 'Shock', icon: 'drone' };
-
-  /** Touch action button in a remote view (gas from a cam, the drone's shock). */
-  touchAction(): { action: 'interact'; label: string; icon: string } | null {
-    if (this.remote === 'drone') return this.actShock;
-    if (this.remote === 'cam') {
-      const c = this.cams[this.camIdx];
-      return c && !c.gas ? this.actGas : null;
-    }
-    return null;
+    return pad ? `DRONE ${bat}  RT dart  Y shock  B back` : `DRONE ${bat}  LMB dart  E shock  C back`;
   }
 
   // ---- render frame ----

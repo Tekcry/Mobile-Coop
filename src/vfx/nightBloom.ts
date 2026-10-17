@@ -39,8 +39,8 @@ void main(void) {
  * downsampled to `BLOOM.scale`, blurred (`BLOOM.passes` x a horizontal and a vertical 9-tap Gaussian) into `glow`, which
  * `CinematicPost` adds to the tube's drive. Off, it does nothing (the post pass does not read it then).
  *
- * The source is the first post process's input: the scene as rendered (the phone look: gamma-space 0..1, the
- * cinematic pass being first; desktop: linear 0..1 in an 8-bit target, before TAA and tone mapping). The targets are half float where the
+ * The source is the first post process's input: the scene as rendered (linear 0..1 in an 8-bit target, before TAA
+ * and tone mapping). The targets are half float where the
  * GPU renders them, else 8-bit with the glow divided by `BLOOM.range` (`glowScale` undoes it).
  */
 export class NightBloom {
@@ -61,7 +61,7 @@ export class NightBloom {
   private readonly bright: EffectWrapper;
   private readonly blur: EffectWrapper;
   private obs: Observer<PostProcessManager> | null;
-  private look = BLOOM.phone as { threshold: number; knee: number; strength: number };
+  private readonly look = BLOOM.bright;
 
   constructor(
     private readonly scene: Scene,
@@ -74,11 +74,6 @@ export class NightBloom {
     this.bright = new EffectWrapper({ engine, name: 'nvBright', fragmentShader: BRIGHT, uniformNames: ['srcTexel', 'bright'], samplerNames: ['src'] });
     this.blur = new EffectWrapper({ engine, name: 'nvBlur', fragmentShader: BLUR, uniformNames: ['dir'], samplerNames: ['src'] });
     this.obs = scene.postProcessManager.onBeforeRenderObservable.add(() => this.run());
-  }
-
-  /** The look's bright pass: the phone's gamma-space image or the desktop's linear HDR. */
-  setLook(phone: boolean): void {
-    this.look = phone ? BLOOM.phone : BLOOM.desktop;
   }
 
   private run(): void {

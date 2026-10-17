@@ -147,7 +147,7 @@ export class InputState {
     }
   }
 
-  /** Drop all held state for a source (e.g. gamepad disconnected, touch layer hidden). */
+  /** Drop all held state for a source (e.g. gamepad disconnected). */
   releaseSource(source: string): void {
     for (const a of BUTTON_ACTIONS) if (this.holders[a].has(source)) this.set(source, a, false);
     this.setMove(source, 0, 0);

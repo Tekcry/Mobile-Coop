@@ -175,12 +175,12 @@ try {
   await tp(0, 0, 4, 0);
   await run(0.4);
 
-  console.log('manual jump (3.2.0)');
+  console.log('manual jump (3.2.0; the jump action when nothing else is offered)');
   // open floor: up and down again (the pace carried)
   await tp(0, 0, 4, 0);
   await run(0.4);
   let ly = 0;
-  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await page.evaluate(() => window.__app.input.state.tap('jump'));
   for (let k = 0; k < 12; k++) {
     await run(0.05);
     ly = Math.max(ly, (await I()).y);
@@ -191,7 +191,7 @@ try {
   // under the 2.5 m pipe: the hands take it
   await tp(0.5, 0, 23, Math.PI / 2);
   await run(0.4);
-  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await page.evaluate(() => window.__app.input.state.tap('jump'));
   await run(0.8);
   i = await I();
   assert(i.attached && i.kind === 'pipeH', `Jump under a pipe grabs it (${i.kind})`);
@@ -200,7 +200,7 @@ try {
   // at the 2.3 m hang block (x 26..29, z 14.5..17.5): the lip
   await tp(27.5, 0, 13.8, 0);
   await run(0.4);
-  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await page.evaluate(() => window.__app.input.state.tap('jump'));
   await run(0.8);
   i = await I();
   assert(i.attached && i.kind === 'ledge' && Math.abs(i.top - 2.3) < 0.05, `Jump at a lip grabs it (${i.kind}, top ${f2(i.top)})`);
@@ -209,7 +209,7 @@ try {
   // beside the tower's drainpipe (27.8, 9.42, on its south face): it is grabbed in the air
   await tp(27.8, 0, 8.9, 0);
   await run(0.4);
-  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await page.evaluate(() => window.__app.input.state.tap('jump'));
   await run(0.6);
   i = await I();
   assert(i.attached && i.kind === 'pipeV', `Jump at a drainpipe grabs it (${i.kind})`);

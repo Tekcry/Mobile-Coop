@@ -381,7 +381,7 @@ export const FENCE = {
 // --- 3.2.0 phase 5: co-op team moves (`game/teamMoves.ts`)
 
 /**
- * (3.2.0) The manual jump (touch Jump button; Y / E with nothing else on offer): a hop straight up keeping the run's
+ * (3.2.0) The manual jump (Y / E with nothing else on offer): a hop straight up keeping the run's
  * pace, the hands grabbing what passes within reach (lips, drainpipes, ladders, pipes); a second press in the air over a
  * split gap braces in it.
  */

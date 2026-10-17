@@ -1,7 +1,7 @@
 /**
  * Chaos Theory speed gears (3.2.0, pure, unit-tested): six gears stepped up / down by a button, kept through stance
  * changes, reset at spawn and respawn. The target speed is the gear's cap for the stance times the stick curve, so a
- * keyboard or a touch stick pushed to its rim gives exactly the cap.
+ * keyboard or a stick pushed to its rim gives exactly the cap.
  */
 import { CT, GEARS } from '../config/movement';
 import { hyp2 } from '../core/mathx';

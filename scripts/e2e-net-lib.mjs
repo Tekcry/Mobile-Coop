@@ -5,10 +5,13 @@ import { launch, openPage } from './e2e-lib.mjs';
 
 /** Wait for `fn(arg)` to be truthy on `page` (polled every 100 ms), else throw "timed out waiting for <what>". */
 export async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  try {
-    await page.waitForFunction(fn, arg, { timeout, polling: 100 });
-  } catch {
-    throw new Error(`timed out waiting for ${what}`);
+  // (G13) polled from here: on a desktop context the in-page polling of waitForFunction stops on a page in the
+  // background (another page in front), so a condition that holds there was never seen
+  const t0 = Date.now();
+  for (;;) {
+    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
+    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 100));
   }
 }
 

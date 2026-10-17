@@ -88,7 +88,7 @@ await browser.close();
 
 // the foley lab (`?foleylab=1`): Walk loops steps on every surface; the moves play
 if (!failed) {
-  const lab = await launch({ url, params: 'foleylab=1', touch: false });
+  const lab = await launch({ url, params: 'foleylab=1' });
   try {
     const p = lab.page;
     await p.waitForSelector('.foley-lab', { timeout: 90000 });

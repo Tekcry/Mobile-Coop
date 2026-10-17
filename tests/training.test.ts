@@ -19,7 +19,7 @@ describe('training course', () => {
     expect(c.fraction).toBeGreaterThan(0.5);
   });
   it('every step has a hint for each input type; skipping ends the course', () => {
-    for (const t of TRAINING_STEPS) expect(t.hint.pad && t.hint.kbm && t.hint.touch).toBeTruthy();
+    for (const t of TRAINING_STEPS) expect(t.hint.pad && t.hint.kbm).toBeTruthy();
     const c = new TrainingCourse();
     for (let i = 0; i < TRAINING_STEPS.length; i++) c.skip(emptyTrainingStatus());
     expect(c.done).toBe(true);

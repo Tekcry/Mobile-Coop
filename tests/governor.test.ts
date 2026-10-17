@@ -80,15 +80,6 @@ describe('frame governor (3.1)', () => {
     for (let i = 0; i < 40; i++) g.frame(1000, 1000 / 60);
     expect(g.level).toBeGreaterThanOrEqual(3);
   });
-  it('Low Power Mode: a phone at ~30 Hz', () => {
-    const g = new Governor();
-    g.display(30, true);
-    expect(g.lowPower).toBe(true);
-    g.display(120, true);
-    expect(g.lowPower).toBe(false);
-    g.display(30, false);
-    expect(g.lowPower).toBe(false);
-  });
   it('thermal: frames slowing at the same level for minutes', () => {
     const g = new Governor();
     let t = 0;

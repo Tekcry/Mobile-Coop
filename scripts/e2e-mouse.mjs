@@ -5,12 +5,12 @@
 import { launch, openPage, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving', touch: false });
+const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 let failed = false;
 
 /** (locomotion step 10) A Hunter match on the Warehouse (guards), the loop stepped by hand, a strike harness. */
-async function strikePage(launch, url, touch) {
-  const S = await launch({ url, params: 'autostart=warehouse&mode=clear', touch });
+async function strikePage(launch, url) {
+  const S = await launch({ url, params: 'autostart=warehouse&mode=clear' });
   await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   return S;
 }
@@ -340,7 +340,7 @@ try {
   assert(s.locked && !s.paused && !s.hint, `clicking Resume captures the mouse again (${JSON.stringify(s)})`);
 
   console.log('elbow strike (LMB while holstered)');
-  const S = await strikePage(launch, url, false);
+  const S = await strikePage(launch, url);
   try {
     const P = S.page;
     await P.waitForTimeout(1200);
@@ -446,7 +446,7 @@ try {
   }
   console.log('custom difficulty (step 19, D7): mouse drags set the sliders, a preset click restores its values, the match resolves them');
   {
-    const D = await launch({ url, params: '', touch: false });
+    const D = await launch({ url, params: '' });
     try {
       const P = D.page;
       await P.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 60000 });
@@ -505,7 +505,7 @@ try {
   }
   console.log('wall edge verbs (step 12, D1): D / A to the edge peeks, RMB lean-out, LMB fire, Space SWAT, E corner takedown');
   {
-    const E = await launch({ url, params: 'autostart=proving', touch: false });
+    const E = await launch({ url, params: 'autostart=proving' });
     try {
       const P = E.page;
       await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
@@ -576,7 +576,7 @@ try {
       await E.browser.close();
     }
     console.log('door peek (step 13, D1): Space cracks the Proving shed door, the mouse looks within +-35 deg, Space closes');
-    const DP = await launch({ url, params: 'autostart=proving', touch: false });
+    const DP = await launch({ url, params: 'autostart=proving' });
     try {
       const P = DP.page;
       await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
@@ -638,7 +638,7 @@ try {
     } finally {
       await DP.browser.close();
     }
-    const C = await launch({ url, params: 'autostart=warehouse&mode=clear', touch: false });
+    const C = await launch({ url, params: 'autostart=warehouse&mode=clear' });
     try {
       const P = C.page;
       await P.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
@@ -655,7 +655,7 @@ try {
 
   console.log('campaign loadout (step 16, bible 5.6): mouse clicks pick from the 6 curated guns; Infiltration starts on the campaign set');
   {
-    const LO = await launch({ url, touch: false });
+    const LO = await launch({ url });
     try {
       const P = LO.page;
       const labels = () => P.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
@@ -710,7 +710,7 @@ try {
   }
   console.log('remap (step 18, D7): Controls > Keyboard & mouse: crouch to U, a conflict warns, reset (confirm), 5 s timeout, play; sprint hold vs toggle');
   {
-    const R = await launch({ url, touch: false });
+    const R = await launch({ url });
     try {
       const P = R.page;
       const G = (f, a) => P.evaluate(f, a);

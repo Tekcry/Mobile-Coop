@@ -103,7 +103,7 @@ await browser.close();
 
 // the weapon lab (`?weaponlab=1`): every gun fires; burst and auto, suppressed, distances, reloads and brass play
 if (!failed) {
-  const lab = await launch({ url, params: 'weaponlab=1', touch: false });
+  const lab = await launch({ url, params: 'weaponlab=1' });
   try {
     const p = lab.page;
     await p.waitForSelector('.weapon-lab', { timeout: 90000 });

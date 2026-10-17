@@ -21,7 +21,6 @@ import { promptHtml } from '../prompts';
 import { icon } from '../icons';
 import { button, choice } from '../widgets';
 import { showSavedOperator } from './operator';
-import { vx } from '../../core/viewRotation';
 import { arsenalSlot, CAMPAIGN_ISSUED, campaignAttachments, campaignKit, campaignList, campaignLoadout } from '../../config/arsenal';
 
 /** Weapon order in the lists (sandbox and `?legacy=1`: all 16; the campaign lists `CAMPAIGN_ARSENAL`, bible 5.6). */
@@ -140,14 +139,14 @@ export class LoadoutScreen extends Screen {
     // the operator in the middle: drag (or the right stick) turns them
     const stage = h('div', { class: 'lo-stage' });
     stage.addEventListener('pointerdown', (e) => {
-      this.dragX = vx(e);
+      this.dragX = e.clientX;
       stage.setPointerCapture(e.pointerId);
     });
     stage.addEventListener('pointermove', (e) => {
       const m = this.menu();
       if (this.dragX === null || !m) return;
-      m.previewYaw -= (vx(e) - this.dragX) * 0.012;
-      this.dragX = vx(e);
+      m.previewYaw -= (e.clientX - this.dragX) * 0.012;
+      this.dragX = e.clientX;
     });
     const end = (): void => void (this.dragX = null);
     stage.addEventListener('pointerup', end);

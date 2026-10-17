@@ -36,7 +36,7 @@ const ORCH_JSON = import.meta.glob('../../assets/music/orch/orch.json', { eager:
 const ORCH = Object.values(ORCH_JSON)[0] ?? { pad: 0.5, pieces: [] };
 const ORCH_URLS = import.meta.glob('../../assets/music/orch/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 const piece = (id: string): OrchPiece | undefined => ORCH.pieces.find((p) => p.id === id);
-/** Decode at 24 kHz: half the memory of 48 kHz (a phone holds a whole adaptive set this way). */
+/** Decode at 24 kHz: half the memory of 48 kHz (a whole adaptive set stays small). */
 const DECODE_RATE = 24000;
 
 let player: ScorePlayer | null = null;

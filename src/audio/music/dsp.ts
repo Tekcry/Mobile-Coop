@@ -103,7 +103,7 @@ export function svfSweep(data: Float32Array, rate: number, mode: 'lp' | 'bp', q:
   }
 }
 
-/** tanh-style soft clip with a drive; adds the harmonics a phone speaker needs. */
+/** tanh-style soft clip with a drive; adds the harmonics small speakers need. */
 export function softClip(data: Float32Array, drive: number): void {
   const norm = 1 / Math.tanh(drive);
   for (let i = 0; i < data.length; i++) data[i] = Math.tanh(data[i]! * drive) * norm;

@@ -17,11 +17,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const Y = 16; // the Upper level floor
 let failed = false;
 
+// (G13) polled from here: on a desktop context the in-page polling of waitForFunction does not run on the host page
+// once it is in the background (the client page in front), so a condition that holds was never seen
 async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  try {
-    await page.waitForFunction(fn, arg, { timeout, polling: 50 });
-  } catch {
-    throw new Error(`timed out waiting for ${what}`);
+  const t0 = Date.now();
+  for (;;) {
+    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
+    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 50));
   }
 }
 

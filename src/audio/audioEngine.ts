@@ -2,7 +2,7 @@ import { hyp3 } from '../core/mathx';
 /**
  * WebAudio engine: buses (sfx, music, ui) -> compressor -> destination.
  * Everything is synthesised; no audio files. The context is created/resumed on the first
- * user gesture (required on iOS). Voice count is capped so heavy fights cannot overload phones.
+ * user gesture (browsers require one). Voice count is capped so heavy fights cannot overload the mix.
  */
 export interface Volumes {
   master: number;

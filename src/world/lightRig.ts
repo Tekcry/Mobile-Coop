@@ -22,8 +22,6 @@ const BAKED_SHADOWS = 2;
  * one took the shader to 17 and the level's near chunks stopped drawing as guards alerted.
  */
 const MICRO_SHADOWS = 1;
-/** 3.6 the phone light look with baked lamps: plain pool lights for the flashlights only. */
-const BAKED_PLAIN_POOL = 2;
 /** Sun + hemisphere already light every material. */
 const BASE_LIGHTS = 2;
 /** Omni lamps render as a spot pointing down with this cone (rad): everything below the lamp is lit, and one
@@ -44,8 +42,6 @@ export interface LightRigConfig {
   volumetric: boolean;
   /** Tests (`?gfx=min`): a short plain pool, no clustering. */
   minimal?: boolean;
-  /** 3.4 phones' light look: plain per-pixel lights (no clustering: a few lights, no light texture per pixel). */
-  plain?: boolean;
   /** The voxel level draws micro detail (`VoxelWorld.micro`): the shadow pool shrinks to `MICRO_SHADOWS`. */
   micro?: boolean;
 }
@@ -202,10 +198,10 @@ export class LightRig {
    */
   configure(cfg: LightRigConfig, force = false): void {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
-    if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, cfg.plain ? BAKED_PLAIN_POOL : BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
+    if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     // (every shadowed spot is a texture unit in every lit shader, used or idle: the largest one sets the pool)
     if (cfg.micro) cfg = { ...cfg, shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, MICRO_SHADOWS) } };
-    const same = !force && cfg.minimal === this.cfg.minimal && cfg.plain === this.cfg.plain && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
+    const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;
     this.disposePools();
@@ -235,7 +231,7 @@ export class LightRig {
     }
     // clustered lighting when the GPU has it, else a short plain pool
     const probe = make('maplight-probe');
-    const clustered = !cfg.minimal && !cfg.plain && ClusteredLightContainer.IsLightSupported(probe);
+    const clustered = !cfg.minimal && ClusteredLightContainer.IsLightSupported(probe);
     probe.dispose();
     const n = clustered ? cfg.lights : Math.min(cfg.lights, cfg.minimal ? 4 : PLAIN_LIGHTS);
     const lights: SpotLight[] = [];

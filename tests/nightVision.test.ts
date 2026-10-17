@@ -86,7 +86,7 @@ describe('night vision auto-gain (the lamps in view)', () => {
 
 describe('night vision bloom (round 4)', () => {
   it('nothing dark glows; past the threshold the glow grows towards the whole pixel', () => {
-    for (const look of [BLOOM.phone, BLOOM.desktop]) {
+    for (const look of [BLOOM.bright]) {
       expect(brightShare(0, look.threshold, look.knee)).toBe(0);
       expect(brightShare(look.threshold - look.knee - 0.01, look.threshold, look.knee)).toBe(0);
       let last = 0;
@@ -99,7 +99,7 @@ describe('night vision bloom (round 4)', () => {
     }
   });
   it('the knee is smooth: no jump at the threshold', () => {
-    const { threshold: t, knee: k } = BLOOM.phone;
+    const { threshold: t, knee: k } = BLOOM.bright;
     const below = brightShare(t + k - 1e-4, t, k) * (t + k - 1e-4);
     const above = brightShare(t + k + 1e-4, t, k) * (t + k + 1e-4);
     expect(Math.abs(above - below)).toBeLessThan(1e-3);

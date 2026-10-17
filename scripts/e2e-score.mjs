@@ -14,7 +14,7 @@ const unlock = async (page) => {
 
 async function menu() {
   console.log('\n-- menu');
-  const { browser, page, errors } = await launch({ url, touch: false });
+  const { browser, page, errors } = await launch({ url });
   let ok = true;
   try {
     await page.waitForFunction(() => window.__app?.music?.state === 'menu', null, { timeout: 90000 });
@@ -47,7 +47,7 @@ async function menu() {
 
 async function match() {
   console.log('\n-- match (warehouse)');
-  const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear', touch: false });
+  const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
   let ok = true;
   try {
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });

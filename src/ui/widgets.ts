@@ -3,7 +3,6 @@ import { icon } from './icons';
 import type { NavAdjustDetail } from './focusNav';
 import { Screen } from './screen';
 import type { Hint } from './prompts';
-import { viewRect, vx } from '../core/viewRotation';
 
 export interface ButtonOpts {
   icon?: string;
@@ -95,8 +94,8 @@ export function slider(label: string, o: SliderOpts): HTMLElement {
   };
   el.addEventListener('nav-adjust', (e) => setV(o.get() + (e as CustomEvent<NavAdjustDetail>).detail.delta * o.step));
   const fromPointer = (e: PointerEvent): void => {
-    const r = viewRect(track);
-    setV(o.min + ((vx(e) - r.left) / r.width) * (o.max - o.min));
+    const r = track.getBoundingClientRect();
+    setV(o.min + ((e.clientX - r.left) / r.width) * (o.max - o.min));
   };
   track.addEventListener('pointerdown', (e) => {
     track.setPointerCapture(e.pointerId);

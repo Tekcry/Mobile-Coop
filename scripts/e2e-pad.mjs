@@ -9,8 +9,8 @@ const settings = () => page.evaluate(() => window.__app.settings.get());
 let failed = false;
 
 /** (locomotion step 10) A Hunter match on the Warehouse (guards), the loop stepped by hand, a strike harness. */
-async function strikePage(launch, url, touch) {
-  const S = await launch({ url, params: 'autostart=warehouse&mode=clear', touch });
+async function strikePage(launch, url) {
+  const S = await launch({ url, params: 'autostart=warehouse&mode=clear' });
   await S.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   return S;
 }
@@ -232,28 +232,6 @@ try {
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
 
-  console.log('layout editor');
-  await press(page, BTN.A);
-  for (let i = 0; i < 24 && !/Edit button layout/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  await press(page, BTN.A);
-  assert(await q('.layout-editor'), 'layout editor opens');
-  const fx = (await settings()).touch.layout;
-  const focusedCtl = await page.evaluate(() => document.querySelector('.le-handle.focused .le-label')?.textContent);
-  await press(page, BTN.A); // grab
-  await press(page, BTN.RIGHT);
-  await press(page, BTN.RIGHT);
-  await press(page, BTN.A); // drop
-  const fx2 = (await settings()).touch.layout;
-  const moved = Object.keys(fx).filter((k) => fx[k].x !== fx2[k].x);
-  assert(moved.length === 1, `grab+move+drop moved one control (${focusedCtl}: ${moved})`);
-  await press(page, BTN.RB);
-  const fx3 = (await settings()).touch.layout;
-  assert(Object.keys(fx).some((k) => fx3[k].scale > fx2[k].scale), 'RB enlarges selected control');
-  await press(page, BTN.B);
-  await press(page, BTN.B);
-  await press(page, BTN.B);
-  assert(await q('.main-menu') && !(await q('.settings-screen')), 'B backs out to main menu');
-
   console.log('campaign loadout (step 16, bible 5.6): pad lists only the 6 curated guns, defaults Heron Carbine + Hush 9 SD');
   {
     const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
@@ -314,7 +292,6 @@ try {
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 0.5 && rd.l === 'Custom' && (rd.m === null || rd.m === 0.5), `the match resolves Custom with perception 0.5 (${JSON.stringify(rd)})`);
-  assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
   // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
   // goggles, View held an emote
   const G = (f) => page.evaluate(f);
@@ -480,7 +457,7 @@ try {
 
   console.log('elbow strike (RT while holstered)');
   {
-    const S = await strikePage(launch, url, true);
+    const S = await strikePage(launch, url);
     try {
       await S.page.evaluate(STRIKE_HARNESS);
       const r = await S.page.evaluate(() => {
@@ -539,7 +516,7 @@ try {
   }
   console.log('analog gear, rocker cap, rumble, pad verbs (step 17)');
   {
-    const S = await strikePage(launch, url, false);
+    const S = await strikePage(launch, url);
     try {
       await S.page.evaluate(STRIKE_HARNESS);
       const r = await S.page.evaluate(() => {
@@ -1048,7 +1025,7 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /disconnected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
   const t2 = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
   assert(/disconnected/.test(t2), 'disconnect toast');
-  assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'mode reverts to touch');
+  assert(await page.evaluate(() => document.body.classList.contains('input-kbm')), 'mode reverts to keyboard and mouse');
 } catch (e) {
   failed = true;
   console.error(String(e));

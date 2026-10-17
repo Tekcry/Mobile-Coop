@@ -51,11 +51,12 @@ describe('settings in feedback (3.1.7)', () => {
     expect(d0.video).toContain('renderScale=');
     expect(d0.video).toContain('upscaler=');
     s.gameplay.sprintHold = !s.gameplay.sprintHold;
-    s.touch.layout.fire = { ...s.touch.layout.fire, x: 0.5 };
+    s.keys.ping = ['KeyX'];
     const d1 = settingsDigest(s);
     expect(d1.changed).toContain(`gameplay.sprintHold=${s.gameplay.sprintHold ? 'on' : 'off'}`);
-    expect(d1.changed).toContain('touch.layout=custom');
-    expect(d1.changed).not.toContain('touch.lookSensitivity');
+    expect(d1.changed).toContain('keys=custom');
+    expect(d1.changed).not.toContain('keys.ping');
+    expect(d1.changed).not.toContain('gamepad.lookSensitivityX');
   });
   it('long context values survive (the digest is ~1 KB)', () => {
     const e = sanitizeFeedback([{ id: 'x', context: { settings: 'a'.repeat(1500) } }])[0]!;

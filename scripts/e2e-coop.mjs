@@ -12,9 +12,15 @@ let failed = false;
 const errs = [];
 
 async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  try {
-    await page.waitForFunction(fn, arg, { timeout, polling: 100 });
-  } catch {
+  // (G13) polled from here: on a desktop context the in-page polling of waitForFunction stops on a page in the
+  // background (another page in front), so a condition that holds there was never seen
+  const t0 = Date.now();
+  for (;;) {
+    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
+    if (Date.now() - t0 <= timeout) {
+      await wait(100);
+      continue;
+    }
     const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|') }; }).catch((e) => String(e));
     throw new Error(`timed out waiting for ${what} (${JSON.stringify(st)})`);
   }

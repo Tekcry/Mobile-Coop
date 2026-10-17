@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aspectLabel, classifyGpu, desktopResolutions, hfovDeg, hudInset, resolutionScale, shownResolution, vfovFor } from '../src/core/display';
+import { aspectLabel, classifyGpu, desktopResolutions, hfovDeg, hudInset, resolutionScale, shownResolution, uiScale, vfovFor } from '../src/core/display';
 
 describe('ultrawide field of view', () => {
   it('is Hor+ from the 16:9 setting: same vertical angle, wider sides', () => {
@@ -64,5 +64,15 @@ describe('desktop resolutions (3.2.1)', () => {
     expect(shownResolution('5120x1440', 5120, 1440)).toBe('5120x1440');
     expect(shownResolution('5120x1440', 1707, 1005)).toBe('5120x1440 (window 1707x1005)');
     expect(shownResolution('', 2560, 1508)).toBe('2560x1508');
+  });
+});
+
+describe('UI scale', () => {
+  it('menus scale to the window', () => {
+    expect(uiScale(1280, 720)).toBe(1);
+    expect(uiScale(1920, 1080)).toBe(1.5);
+    expect(uiScale(2560, 1440)).toBe(2);
+    expect(uiScale(3840, 2160)).toBe(3);
+    expect(uiScale(1024, 600)).toBe(1);
   });
 });

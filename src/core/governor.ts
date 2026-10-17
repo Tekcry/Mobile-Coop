@@ -1,6 +1,6 @@
 /**
  * Frame governor (3.1, pure): in a match, steps detail down when frames are missed and back up when there is room,
- * so a preset holds its frame rate on any device (a phone getting hot included). Visual only - nothing it touches
+ * so a preset holds its frame rate on any machine (a hot laptop included). Visual only - nothing it touches
  * changes what can be seen or hit (fog, the structure voxels and every gameplay rule stay as they are; crossplay
  * fairness). Each step is cheap to apply at run time (no shader recompiles):
  *
@@ -16,7 +16,7 @@
  * Down: the 90th percentile frame interval over `window` s above the budget x `missSlack` (after `cooldown` s since
  * the last change). Up (vsync hides spare time): after `probeAfter` s on a level, one step up on trial; a miss within
  * `probeTime` s goes back down and doubles the wait (up to `probeMax`). Thermal: frames getting slower at the same
- * level for minutes or three missed tries back up in a row (`thermal`); Low Power Mode: the display rate dropping to ~30 Hz on a phone (`lowPower`).
+ * level for minutes or three missed tries back up in a row (`thermal`).
  */
 export const GOVERNOR = {
   window: 1,
@@ -64,25 +64,10 @@ export function adaptiveAt(level: number, out: Adaptive = { ...FULL }): Adaptive
 
 export const MAX_LEVEL = 10;
 
-/**
- * 3.3 phones: the ladder is the render resolution only - `scales` (x native, from the top) relative to the match's
- * `base`, then one more level that holds 30 fps (`capped`). Everything else stays as built.
- */
-export function phoneAdaptiveAt(level: number, scales: readonly number[], base: number, out: Adaptive = { ...FULL }): Adaptive {
-  Object.assign(out, FULL);
-  const l = Math.max(0, Math.min(scales.length - 1, Math.round(level)));
-  out.scale = scales[l]! / base;
-  return out;
-}
-
 export class Governor {
   level = 0;
-  /** The top level (the cheapest): 10, or a phone's ladder length (3.3). */
-  max = MAX_LEVEL;
   /** Frames are slowing at a steady level (a hot device). */
   thermal = false;
-  /** The display rate fell to ~30 Hz on a phone (iOS Low Power Mode). */
-  lowPower = false;
   private buf = new Float32Array(256);
   private n = 0;
   private head = 0;
@@ -98,9 +83,9 @@ export class Governor {
   private failed = 0;
   private readonly tmp = new Float32Array(256);
 
-  /** Reset (a new match, a new preset): back to the preset's full detail (or `start`: a phone starts at its floor). */
-  reset(start = 0): void {
-    this.level = Math.max(0, Math.min(this.max, start));
+  /** Reset (a new match, a new preset): back to the preset's full detail. */
+  reset(): void {
+    this.level = 0;
     this.n = 0;
     this.head = 0;
     this.sinceChange = 0;
@@ -108,11 +93,6 @@ export class Governor {
     this.wait = GOVERNOR.probeAfter;
     this.sum = this.count = this.t = this.firstAvg = this.levelT = this.failed = 0;
     this.thermal = false;
-  }
-
-  /** The display's rate (Hz) and whether it is a phone: iOS Low Power Mode caps the page at 30. */
-  display(hz: number, mobile: boolean): void {
-    this.lowPower = mobile && hz > 0 && hz < 40;
   }
 
   /**
@@ -155,7 +135,7 @@ export class Governor {
       }
       return false;
     }
-    if (miss && this.sinceChange > GOVERNOR.cooldown && this.level < this.max) return this.set(this.level + 1);
+    if (miss && this.sinceChange > GOVERNOR.cooldown && this.level < MAX_LEVEL) return this.set(this.level + 1);
     if (!miss && this.level > 0 && this.sinceChange > this.wait) {
       this.probing = true;
       this.probeT = 0;
@@ -165,7 +145,7 @@ export class Governor {
   }
 
   private set(l: number): boolean {
-    const v = Math.max(0, Math.min(this.max, l));
+    const v = Math.max(0, Math.min(MAX_LEVEL, l));
     if (v === this.level) return false;
     this.level = v;
     this.sinceChange = 0;

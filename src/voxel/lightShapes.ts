@@ -1,8 +1,7 @@
 /**
  * The canonical light-bake shapes (3.6, pure): what the lamp and moon bakes see, identical on every device, preset
  * and detail tier (bible 5.1, L1). Built straight from the level's pieces - never from what a renderer draws:
- * every visible blockout box and cylinder at least `CANON_MIN_THICK` thick, plus the Medium box dressing the phone
- * look also draws. Anything that exists only at higher tiers (the voxel art layer's dressing, the fine layer's
+ * every visible blockout box and cylinder at least `CANON_MIN_THICK` thick, plus the Medium box dressing. Anything that exists only at higher tiers (the voxel art layer's dressing, the fine layer's
  * props, the Ultra / Epic wall and floor clutter) is left out; gameplay never reads it either.
  */
 import type { BoxPiece, CylPiece } from '../world/levelBuilder';
@@ -11,7 +10,7 @@ import { packShapes, shapeBounds, SHAPE_STRIDE, type VoxelShape } from './shapes
 
 /** Thinner pieces (skirting, decals, wire) are left out: the bake grows every shape by half a cell anyway. */
 export const CANON_MIN_THICK = 0.05;
-/** The dressing tier every device agrees on (the phone look's). */
+/** The dressing tier every preset agrees on. */
 export const CANON_DRESSING = 'medium' as const;
 /** Bump when the canonical set changes (part of the bake keys). */
 export const CANON_VERSION = 1;

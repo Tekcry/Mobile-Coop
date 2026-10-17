@@ -10,19 +10,17 @@ export interface TrainingStep {
   /** Objective line (the HUD shows the input glyph from the Controls screen). */
   text: string;
   /** Short hint per input type. */
-  hint: { pad: string; kbm: string; touch: string };
-  /** (locomotion step 17, A67) No touch control for it in the D1 basic scheme: skipped while playing by touch. */
-  noTouch?: boolean;
+  hint: { pad: string; kbm: string };
 }
 
 export const TRAINING_STEPS: readonly TrainingStep[] = [
-  { id: 'move', text: 'Move to the marker', hint: { pad: 'Left stick', kbm: 'W A S D', touch: 'Drag on the left half' } },
-  { id: 'sneak', text: 'Crouch and sneak forward', hint: { pad: 'B to crouch', kbm: 'C to crouch', touch: 'Crouch button' } },
-  { id: 'vault', text: 'Vault over the low crate', hint: { pad: 'Y at the crate', kbm: 'E at the crate', touch: 'Tap "Vault"' } },
-  { id: 'ladder', text: 'Climb the ladder', hint: { pad: 'Y at the ladder', kbm: 'E at the ladder', touch: 'Tap "Climb"' } },
-  { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'Tap the View button', kbm: 'N', touch: 'Goggles button' } },
-  { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold', touch: 'Action button: grab, then again' } },
-  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release', touch: 'Pad or keyboard only' }, noTouch: true },
+  { id: 'move', text: 'Move to the marker', hint: { pad: 'Left stick', kbm: 'W A S D' } },
+  { id: 'sneak', text: 'Crouch and sneak forward', hint: { pad: 'B to crouch', kbm: 'C to crouch' } },
+  { id: 'vault', text: 'Vault over the low crate', hint: { pad: 'Y at the crate', kbm: 'E at the crate' } },
+  { id: 'ladder', text: 'Climb the ladder', hint: { pad: 'Y at the ladder', kbm: 'E at the ladder' } },
+  { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'Tap the View button', kbm: 'N' } },
+  { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold' } },
+  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release' } },
 ];
 
 /** What the game reports each step. */

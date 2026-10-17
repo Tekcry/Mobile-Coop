@@ -1,8 +1,8 @@
 /**
  * Thermal and electro vision's looks (step 14; pure, rendering only - gameplay never reads them).
  *
- * Both are branches of the cinematic post shader (`vk` 1 thermal, 2 electro; the phone's grade pass is the same
- * pass), with no extra render target. The scene arrives already lit; what makes a body warm or a device live is a
+ * Both are branches of the cinematic post shader (`vk` 1 thermal, 2 electro), with no extra render
+ * target. The scene arrives already lit; what makes a body warm or a device live is a
  * render-only emissive flag on its material (`PatternPlugin`, the per-instance `pattern.w`, set from gameState's
  * render frame): warm bodies and electrical devices are what is bright on screen, then the ramp below colours it.
  * Thermal does not see through walls (A26). The ramps are mirrored in GLSL from the same constants
@@ -43,7 +43,7 @@ export const ELECTRO = {
  * (Step 21v, M14 N7, A87) the goggles' sensor grain and softening: thermal, electro and night vision read as a
  * sensor image, not a clean render. Grain strength is a constant here, no setting (Michael: "cycling through thermal
  * vision is too clear, should be a bit more grainy"). Rendering only: perception, the light meter and the wire never
- * read it. All of it runs inside the cinematic pass (desktop and the phone's grade pass): a sine-free hash per cell,
+ * read it. All of it runs inside the cinematic pass: a sine-free hash per cell,
  * no texture, no extra target; the soften is a few taps of the scene the pass already samples.
  */
 export const SENSOR_GRAIN = {
@@ -127,7 +127,7 @@ vec3 electroColor(float l) {
   return mix(${v3(ELECTRO.dark)} + ${v3(ELECTRO.tint)} * d, ${v3(ELECTRO.glow)}, g);
 }
 // (step 21v) the sensor grain: -0.5..0.5 per cell, a new field 'rate' times a second ('time' runs at 24 / s);
-// the frame index wraps at 61 so the hash input stays small (highp precision on phones)
+// the frame index wraps at 61 so the hash input stays small (precision)
 float sensorNoise(highp vec2 uv, highp float aspect, highp float time) {
   highp vec2 p = floor(uv * vec2(aspect, 1.0) * ${f(SENSOR_GRAIN.cells)})
     + mod(floor(time * ${f(SENSOR_GRAIN.rate / 24)}), 61.0) * vec2(37.0, 17.0);

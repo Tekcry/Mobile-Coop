@@ -4,16 +4,14 @@ export const BUTTON_ACTIONS = [
   'fire',
   'ads',
   'reload',
-  /** (locomotion step 15) Use a medkit (pad: X held while not aiming; KBM H; no touch control, D1). */
+  /** (locomotion step 15) Use a medkit (pad: X held while not aiming; KBM H). */
   'medkit',
   'jump',
-  /** (3.2.0) The manual jump (touch Jump button; Y / E jump when nothing else is offered). */
-  'leap',
   'crouch',
   'swapNext',
   'swapPrev',
   'interact',
-  /** Let go while attached (ladder, pipe, ledge, zipline): the crouch control (B / C / Ctrl / touch crouch)
+  /** Let go while attached (ladder, pipe, ledge, zipline): the crouch control (B / C / Ctrl)
    *  raises it too, so it needs no binding of its own. */
   'drop',
   /** Hold-to-use (doors, downloads, hacking): down once `interact` has been held `INTERACT_HOLD` s. */
@@ -23,7 +21,7 @@ export const BUTTON_ACTIONS = [
   'pause',
   /** The gadget button: held = aim the arc, released = throw (placed / flown gadgets go on the press). */
   'grenade',
-  /** Gadget wheel: held open (pad / keyboard), toggled (touch). */
+  /** Gadget wheel: held open (pad / keyboard). */
   'gadgetWheel',
   'shoulderSwap',
   'dash',
@@ -65,4 +63,4 @@ export interface Vec2 {
   y: number;
 }
 
-export type InputMode = 'touch' | 'gamepad' | 'kbm';
+export type InputMode = 'gamepad' | 'kbm';

@@ -7,7 +7,7 @@ import { launch, openPage, frames, assert } from './e2e-lib.mjs';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = false;
-const { browser, ctx, page, errors } = await launch({ url, params: 'net=local', touch: false });
+const { browser, ctx, page, errors } = await launch({ url, params: 'net=local' });
 const G = (f, a) => page.evaluate(f, a);
 
 /** The labels of the Play screen's Mode choice, by stepping it round once. */

@@ -1,6 +1,6 @@
 /**
  * The ambient grid (3.6, pure): `LightRegistry.zones` (the map's per-room ambient boxes) sampled once at load into
- * 1 m cells, one byte each. Gameplay (`LightField`) and the phone's lamp volume read this grid and nothing else,
+ * 1 m cells, one byte each. Gameplay (`LightField`) and the lamp shader read this grid and nothing else,
  * so the number a guard sees and the number the shader draws are the same byte. A lookup takes the nearest cell
  * (clamped to the grid); zone edges are therefore as sharp as a 1 m cell.
  */

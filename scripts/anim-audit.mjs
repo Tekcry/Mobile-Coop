@@ -1628,9 +1628,9 @@ async function runRemote() {
   const E0 = Date.now();
   const rep = { started: new Date().toISOString(), quick: QUICK, scenarios: [] };
   // B keeps its real-time loop while A is in front: no background timer / renderer throttling
-  // (a small desktop viewport, DPR 1: software GL composites both pages' canvases in one GPU process; at the phone
-  // viewport (DPR 2.6) that alone held each page to 7 frames/s)
-  const net = await hostAndJoin(url, 2, { touch: false, viewport: { width: 640, height: 360 }, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  // (a small viewport, DPR 1: software GL composites both pages' canvases in one GPU process; a large or high-DPR
+  // viewport alone held each page to 7 frames/s)
+  const net = await hostAndJoin(url, 2, { viewport: { width: 640, height: 360 }, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const { browser: rb, A, B } = net;
   try {
     await startMode(net.pages, 'sandbox', 'proving');
@@ -2292,7 +2292,7 @@ if (DO_LOCAL) try {
     // scenarios); one render per
     // (scenario, hz, frame), shared by the metrics failing on that frame.
     mkdirSync(OUT, { recursive: true });
-    await page.addStyleTag({ content: 'body > :not(#game), .hud, .touch-layer, .screens, .toasts, .toast { display: none !important; }' });
+    await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
     const MAX = Number(opt('shots-max') ?? 500);
     const want = new Map();
     for (const f of [...fails].sort((p, q) => (p.hz === 60 ? 0 : 1) - (q.hz === 60 ? 0 : 1))) {

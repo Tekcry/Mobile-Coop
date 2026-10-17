@@ -225,14 +225,14 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
 });
 await run('', async ({ page, G }) => {
   // play screen (3.0): Warehouse is the default for every mode but Training; only its missions are offered
-  await page.locator('.btn', { hasText: 'Play' }).first().tap();
+  await page.locator('.btn', { hasText: 'Play' }).first().click();
   await page.waitForSelector('.play-screen');
   const seen = [];
   for (let i = 0; i < 6; i++) {
     // Infiltration lists the missions as cards (their names stand in for the map)
     const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].slice(0, 1).map((e) => e.textContent).concat([...document.querySelectorAll('.play-screen .mission-card .mc-name')].map((e) => e.textContent).join(', ') || [...document.querySelectorAll('.play-screen .choice-val')][1]?.textContent));
     seen.push(t.join(' / '));
-    await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().tap();
+    await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().click();
   }
   const byMode = Object.fromEntries(seen.map((s) => s.split(' / ')));
   assert(byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Mission / Hunter (${seen.join('; ')})`);

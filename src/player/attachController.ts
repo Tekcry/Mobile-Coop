@@ -124,14 +124,12 @@ export class AttachController {
   vent: { duct: Duct; t: number; progress: number } | null = null;
   /** What traverse would attach to from the ground (prompt), refreshed with the traversal probe. */
   hint: ReachResult | null = null;
-  /** A lip to lower into a hang from (the drop control held, or its prompt), refreshed with the probe. */
+  /** A lip to lower into a hang from (the drop control held), refreshed with the probe. */
   lower: ReachResult | null = null;
   /** Anchor ids locked at run time (a course anchorLock gate): the probes never offer them. */
   readonly disabled = new Set<number>();
   /** While attached: the anchor a traverse press would jump to (stick pointing at it), or null. */
   jump: JumpTarget | null = null;
-  /** Lower into the hang at the edge on the next step (the touch prompt). */
-  lowerRequest = false;
   /** While hanging: climbing up is possible here. */
   canClimb = false;
   /** Where the attach blend starts, where the exit blend ends. */

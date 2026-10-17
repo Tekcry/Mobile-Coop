@@ -4,8 +4,6 @@ import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { NV_GLSL } from './nightVision';
 import { SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 
-export { PHONE_DARK_FLOOR } from '../core/quality';
-
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
 varying vec2 vUV;
@@ -21,7 +19,6 @@ uniform float feed;
 uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
-uniform float darkFloor;
 uniform float bright;
 uniform sampler2D glowSampler;
 uniform float glowScale;
@@ -41,8 +38,6 @@ void main(void) {
   c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
   // (Step 4b) the player's brightness calibration: a small, clamped exposure offset
   c.rgb *= bright;
-  // (3.6) the phone's black floor (OLED smear), white kept
-  if (darkFloor > 0.0) c.rgb = darkFloor + min(c.rgb, 1.0) * (1.0 - darkFloor);
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
@@ -66,8 +61,7 @@ void main(void) {
     c.rgb = mix(c.rgb, max(p, 0.0), nv);
   }
   if (vk > 0.5) {
-    // (step 14) thermal (vk 1) / electro (vk 2): post branches of this pass (desktop and the phone's grade pass alike,
-    // no extra target); warm bodies and live devices are bright through render-only emissive flags (\`visionLook.ts\`)
+    // (step 14) thermal (vk 1) / electro (vk 2): post branches of this pass (no extra target); warm bodies and live devices are bright through render-only emissive flags (\`visionLook.ts\`)
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
     // softened: four taps round the pixel (sensor images are soft; step 21v adds electro's)
     vec2 o = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
@@ -135,19 +129,10 @@ export class CinematicPost {
   private tint: [number, number, number] = [1, 1, 1];
   private sat = 1;
   private contrast = 1;
-  /** Black lifted to this (3.6; `PHONE_DARK_FLOOR` on the phone look, 0 elsewhere). */
-  private floor = 0;
   /** The brightness calibration's exposure multiplier (Step 4b; 1 = default). */
   private bright = 1;
 
   constructor(private camera: Camera) {}
-
-  /** The readable-darkness floor (0 = none). */
-  setDarkFloor(k: number): void {
-    if (k === this.floor) return;
-    this.floor = k;
-    this.sync();
-  }
 
   /** The brightness calibration (Settings > Display > Brightness), clamped to `BRIGHTNESS_MIN` .. `BRIGHTNESS_MAX`
    *  so it cannot lift the dark band out of dark (bible L7). */
@@ -160,11 +145,6 @@ export class CinematicPost {
 
   get brightness(): number {
     return this.bright;
-  }
-
-  /** The floor in use (tests). */
-  get darkFloor(): number {
-    return this.floor;
   }
 
   /** Apply settings; creates or removes the pass as needed. */
@@ -183,7 +163,7 @@ export class CinematicPost {
   }
 
   private get graded(): boolean {
-    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.floor > 0 || this.bright !== 1;
+    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.bright !== 1;
   }
 
   /** Night-vision goggles blend (0 off .. 1). */
@@ -245,7 +225,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glowScale', 'veil', 'flip', 'vk'], ['glowSampler'], 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk'], ['glowSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -258,7 +238,6 @@ export class CinematicPost {
         e.setFloat3('tint', this.tint[0], this.tint[1], this.tint[2]);
         e.setFloat('sat', this.sat);
         e.setFloat('contrast', this.contrast);
-        e.setFloat('darkFloor', this.floor);
         e.setFloat('bright', this.bright);
         // the glow (always bound: an unbound sampler could read the target being drawn); the scene stands in before the
         // first bloom, unread then (night vision off)

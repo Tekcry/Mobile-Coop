@@ -661,7 +661,9 @@ try {
     }
     await GB(() => window.__pad.axis(0, 1));
     await until(B, () => window.__app.current.wallCore.edge === 1, null, 6000, 'client at the left edge');
-    await wait(400);
+    // (G13) the stick held until the body is at the end (the lean-out needs it there), not a fixed 400 ms
+    await until(B, () => window.__app.current.wallCore.atEnd, null, 4000, 'client at the end of the wall');
+    await wait(100);
     // high wall: the aim alone leans out; low wall: the stick held toward the end with the aim (the side lean)
     if (!low) await GB(() => window.__pad.axis(0, 0));
     await wait(300);

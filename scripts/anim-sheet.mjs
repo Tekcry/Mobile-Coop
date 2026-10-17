@@ -60,7 +60,7 @@ const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 // (PC1) the toasts too ("Ready to play offline", graphics tier)
-await page.addStyleTag({ content: 'body > :not(#game), .hud, .touch-layer, .screens, .toasts, .toast { display: none !important; }' });
+await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
 await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
   const a = window.__app;
   const g = a.current;

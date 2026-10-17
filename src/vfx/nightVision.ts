@@ -42,13 +42,10 @@ export const NV_TONE = {
 export const BLOOM = {
   /** The glow's resolution (a share of the scene's). */
   scale: 0.25,
-  /** Bright pass per look: the phone's image is gamma-space 0..1; the desktop's linear 0..1 (an 8-bit target before
-   *  TAA and tone mapping: linear 0.5 shows as gamma 0.73). A soft knee round the threshold; `strength` scales the
-   *  glow into the drive. */
-  phone: { threshold: 0.88, knee: 0.08, strength: 1.4 },
-  desktop: { threshold: 0.85, knee: 0.1, strength: 1.4 },
-  /** Blur passes (each horizontal then vertical, a 9-tap Gaussian) and the tap spacing in glow pixels: about 4% of the
-   *  screen height of soft glow on the phone. */
+  /** The bright pass: the scene's linear 0..1 (an 8-bit target before TAA and tone mapping: linear 0.5 shows as gamma
+   *  0.73). A soft knee round the threshold; `strength` scales the glow into the drive. */
+  bright: { threshold: 0.85, knee: 0.1, strength: 1.4 },
+  /** Blur passes (each horizontal then vertical, a 9-tap Gaussian) and the tap spacing in glow pixels. */
   passes: 3,
   spread: 1.3,
   /** The glow is stored in 8 bits when the GPU cannot render half floats: divided by this, multiplied back after. */

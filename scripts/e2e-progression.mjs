@@ -103,20 +103,20 @@ try {
     });
   });
   await page.waitForTimeout(300);
-  await page.locator('.btn', { hasText: 'Loadout' }).first().tap();
+  await page.locator('.btn', { hasText: 'Loadout' }).first().click();
   await page.waitForSelector('.loadout-screen');
   // a tap previews a row; the action bar (A) acts on it
   const tapRow = async (k, act = true) => {
-    await page.locator(`[data-key="${k}"]`).tap();
+    await page.locator(`[data-key="${k}"]`).click();
     await page.waitForTimeout(200);
     // (a tap on the row already focused acts at once)
     if (act && (await G((x) => window.__app.nav.focused?.dataset.key === x, k))) {
-      await page.locator('.lo-act').first().tap();
+      await page.locator('.lo-act').first().click();
       await page.waitForTimeout(200);
     }
   };
   const tapAct = async (re) => {
-    await page.locator('.lo-act', { hasText: re }).first().tap();
+    await page.locator('.lo-act', { hasText: re }).first().click();
     await page.waitForTimeout(150);
   };
   await tapRow('suit');
@@ -141,9 +141,9 @@ try {
     d.loadout.primary = 'ak';
   }));
   await G(() => window.__app.screens.pop());
-  await page.locator('.btn', { hasText: 'Play' }).first().tap();
+  await page.locator('.btn', { hasText: 'Play' }).first().click();
   await page.waitForSelector('.play-screen');
-  await page.locator('.btn', { hasText: 'Deploy' }).tap();
+  await page.locator('.btn', { hasText: 'Deploy' }).click();
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   await page.waitForTimeout(500);
   const live = await G(() => {

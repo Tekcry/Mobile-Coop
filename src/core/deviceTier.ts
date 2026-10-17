@@ -1,7 +1,7 @@
 /**
  * Device performance tier (3.1, pure): which graphics preset a device starts on when Graphics > Preset is Auto.
- * First the GPU's name (`tierFromRenderer`: unmasked renderer strings of known desktop and phone GPUs); when the name
- * says nothing (iOS reports "Apple GPU" for every iPhone), a short calibration on the menu stage (`Calibration`): the
+ * First the GPU's name (`tierFromRenderer`: unmasked renderer strings of known desktop GPUs); when the name
+ * says nothing, a short calibration on the menu stage (`Calibration`): the
  * presets from the top down, each rendered at its own resolution x `CALIBRATION.load` (the menu stage costs far less
  * than a match; more pixels stand in for the difference) until one holds the frame budget. The frame governor adapts
  * from there in a match.
@@ -38,37 +38,19 @@ const DESKTOP: readonly Rule[] = [
   [/intel.*(uhd|hd) graphics|intel.*iris/i, 'low', 'older integrated'],
 ];
 
-/** Phone / tablet GPUs. */
-const MOBILE: readonly Rule[] = [
-  [/swiftshader|llvmpipe|software/i, 'low', 'software renderer'],
-  [/adreno.*\b(8[3-9]\d|7[5-9]\d)\b/i, 'ultra', 'Adreno 750+'],
-  [/adreno.*\b(7[34]\d)\b/i, 'high', 'Adreno 730 / 740'],
-  [/adreno.*\b(7[0-2]\d|6[4-9]\d)\b/i, 'medium', 'Adreno 640 - 725'],
-  [/adreno/i, 'low', 'older Adreno'],
-  [/immortalis|mali-g9\d\d/i, 'ultra', 'Immortalis / Mali G9xx'],
-  [/mali-g7[1-9]\d/i, 'high', 'Mali G710+'],
-  [/mali-g(5[7-9]|6\d|7\d)\b/i, 'medium', 'Mali G57 - G78'],
-  [/mali/i, 'low', 'older Mali'],
-  [/xclipse\s*9\d\d/i, 'high', 'Xclipse 900'],
-  [/powervr|maleoon|xclipse/i, 'low', 'other mobile GPU'],
-  [/apple m\d/i, 'ultra', 'Apple M (iPad)'],
-];
-
-export function tierFromRenderer(renderer: string, mobile: boolean): DeviceGuess {
+export function tierFromRenderer(renderer: string): DeviceGuess {
   const r = renderer.trim();
   if (!r) return { tier: null, confident: false, reason: 'renderer hidden' };
-  for (const [re, tier, reason] of mobile ? MOBILE : DESKTOP) {
-    // (an M-series chip on a "mobile" iPad keeps its own rule; Epic stays PC only)
-    if (re.test(r)) return { tier: mobile && tier === 'epic' ? 'ultra' : tier, confident: true, reason };
-  }
+  for (const [re, tier, reason] of DESKTOP) if (re.test(r)) return { tier, confident: true, reason };
   return { tier: null, confident: false, reason: /apple gpu/i.test(r) ? 'Apple GPU (model hidden)' : 'unknown GPU' };
 }
 
-/** What a detection is for: re-detect when the GPU, the platform or the screen changes. */
-export function deviceKey(renderer: string, platform: string, w: number, h: number, dpr: number): string {
+/** What a detection is for: re-detect when the GPU or the screen changes. (The middle field is the platform the
+ *  key carried before the game became desktop only: kept, so saved keys still match.) */
+export function deviceKey(renderer: string, w: number, h: number, dpr: number): string {
   const a = Math.max(w, h);
   const b = Math.min(w, h);
-  return `${renderer.trim().slice(0, 96)}|${platform}|${Math.round(a * dpr)}x${Math.round(b * dpr)}`;
+  return `${renderer.trim().slice(0, 96)}|desktop|${Math.round(a * dpr)}x${Math.round(b * dpr)}`;
 }
 
 export const CALIBRATION = {

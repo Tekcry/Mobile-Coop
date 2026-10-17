@@ -117,7 +117,7 @@ describe('InputState', () => {
   });
   it('move takes the strongest source and clamps to unit length', () => {
     const s = new InputState();
-    s.setMove('touch', 0.2, 0);
+    s.setMove('kbm', 0.2, 0);
     s.setMove('pad', 1, 1);
     expect(Math.hypot(s.move.x, s.move.y)).toBeCloseTo(1);
     s.setMove('pad', 0, 0);

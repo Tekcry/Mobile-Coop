@@ -262,8 +262,7 @@ export class PlayerController {
     return this.analog.moving ? this.analog.gear : this.maxGear;
   }
 
-  /** The maximum gear (rocker / wheel, 1..5; step 17). Touch has no rocker: the game sets it to 5 on real touch-stick
-   *  input (A66), a plain set that later gear sets and the rocker override. */
+  /** The maximum gear (rocker / wheel, 1..5; step 17). */
   get maxGear(): number {
     return this.gears.gear;
   }

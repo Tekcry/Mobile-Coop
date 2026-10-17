@@ -2,7 +2,6 @@ import type { InputMode } from './actions';
 import { InputState } from './inputState';
 import { GamepadSource } from './gamepadSource';
 import { KeyboardMouseSource } from './keyboardMouseSource';
-import { TouchControls } from './touchControls';
 import type { PadStyle } from './gamepadMapping';
 import type { SettingsStore } from '../core/settings';
 import { EventBus } from '../core/events';
@@ -15,17 +14,16 @@ export interface InputEvents {
 }
 
 /**
- * Owns all input sources and the active input mode. Touch, gamepad and keyboard/mouse
- * all write into one InputState; consumers never see which device produced an action.
+ * Owns all input sources and the active input mode. Gamepad and keyboard/mouse
+ * both write into one InputState; consumers never see which device produced an action.
  */
 export class InputManager {
   readonly state = new InputState();
   readonly events = new EventBus<InputEvents>();
   readonly gamepad: GamepadSource;
   readonly kbm: KeyboardMouseSource;
-  readonly touch: TouchControls;
   private _mode: InputMode;
-  /** Gameplay wants touch controls shown (in game, no menu open). */
+  /** In live gameplay (in game, no menu open). */
   private gameplayActive = false;
 
   private readonly getSettings: () => ReturnType<SettingsStore['get']>;
@@ -36,14 +34,12 @@ export class InputManager {
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement, settings: SettingsStore) {
     const get = (): ReturnType<SettingsStore['get']> => settings.get();
     this.getSettings = get;
-    this._mode = matchMedia('(pointer: coarse)').matches ? 'touch' : 'kbm';
+    this._mode = 'kbm';
     this.gamepad = new GamepadSource(this.state, get, {
       onConnect: (id, style) => this.events.emit('padConnected', { id, style }),
       onDisconnect: (id) => {
         this.events.emit('padDisconnected', { id });
-        if (!this.gamepad.connected && this._mode === 'gamepad') {
-          this.setMode(matchMedia('(pointer: coarse)').matches ? 'touch' : 'kbm');
-        }
+        if (!this.gamepad.connected && this._mode === 'gamepad') this.setMode('kbm');
       },
       onActive: () => this.setMode('gamepad'),
     });
@@ -52,15 +48,12 @@ export class InputManager {
     this.kbm.onLockLost = () => {
       if (this.gameplayActive && this._mode === 'kbm') this.state.tap('pause');
     };
-    this.touch = new TouchControls(this.state, get, uiRoot, () => this.setMode('touch'));
-    settings.subscribe(() => this.touch.applyLayout());
 
-    // Any touch anywhere (menus included) reverts to touch mode.
+    // Any mouse press anywhere (menus included) reverts to keyboard / mouse mode.
     window.addEventListener(
       'pointerdown',
       (e) => {
-        if (e.pointerType === 'touch') this.setMode('touch');
-        else if (e.pointerType === 'mouse') this.setMode('kbm');
+        if (e.pointerType === 'mouse') this.setMode('kbm');
       },
       { capture: true },
     );
@@ -81,13 +74,12 @@ export class InputManager {
     if (m !== 'kbm') this.kbm.releasePointerLock();
     this.applyModeClass();
     this.kbm.refreshHint();
-    this.refreshTouchVisibility();
     this.events.emit('mode', m);
   }
 
   private applyModeClass(): void {
     const c = document.body.classList;
-    c.remove('input-touch', 'input-gamepad', 'input-kbm');
+    c.remove('input-gamepad', 'input-kbm');
     c.add(`input-${this._mode}`);
     c.toggle('pad-ps', this.gamepad?.style === 'playstation');
     c.toggle('pad-nin', this.gamepad?.style === 'nintendo');
@@ -101,25 +93,18 @@ export class InputManager {
     if (active && this._mode === 'kbm') this.kbm.requestLock();
     if (!active) this.kbm.releasePointerLock();
     this.kbm.refreshHint();
-    this.refreshTouchVisibility();
     if (!active) this.state.releaseAll();
-  }
-
-  private refreshTouchVisibility(): void {
-    this.touch.setVisible(this.gameplayActive && this._mode === 'touch');
   }
 
   setAds(on: boolean): void {
     this.gamepad.adsActive = on;
     this.kbm.adsActive = on;
-    this.touch.adsActive = on;
   }
 
   /** Poll devices. Call once per render frame before reading input. */
   poll(now: number, dt: number): void {
     const style = this.gamepad.style;
     this.gamepad.poll(now, dt);
-    this.touch.update(dt);
     this.state.tick(dt);
     if (style !== this.gamepad.style) this.applyModeClass();
   }
@@ -137,6 +122,5 @@ export class InputManager {
 
   rumble(strong: number, weak: number, ms: number): void {
     if (this._mode === 'gamepad') this.gamepad.rumble(strong, weak, ms);
-    else if (this._mode === 'touch') navigator.vibrate?.(Math.min(ms, 40));
   }
 }

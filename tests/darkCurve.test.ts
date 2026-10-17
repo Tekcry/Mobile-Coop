@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { bandOf, BRIGHTNESS_MAX, BRIGHTNESS_MIN, CALIBRATION_GREY, calibrationGrey, DARK_DESKTOP, DARK_GLSL, DARK_PHONE, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_GAIN, VISION_TARGETS } from '../src/world/darkCurve';
+import { bandOf, BRIGHTNESS_MAX, BRIGHTNESS_MIN, CALIBRATION_GREY, calibrationGrey, DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_GAIN, VISION_TARGETS } from '../src/world/darkCurve';
 import { LIGHT } from '../src/world/lights';
 import { LAMP_LEVEL_GAIN, LIGHT_GAIN } from '../src/world/lampMath';
 
 const SETS = [
-  ['phone', DARK_PHONE],
+  ['standard', DARK_STANDARD],
   ['desktop', DARK_DESKTOP],
 ] as const;
 
@@ -61,7 +61,7 @@ describe('the darkness curve (3.6 Step 4b, bible L5 / L7)', () => {
   it('brightness calibration is clamped to a small range', () => {
     expect(BRIGHTNESS_MIN).toBeLessThan(1);
     expect(BRIGHTNESS_MAX).toBeGreaterThan(1);
-    // (the dark band's measured top - 6.7% on Epic, 4.3% on the phone at 0.27 - stays under 9% at the maximum)
+    // (the dark band's measured top - 6.7% on Epic, 4.3% on standard materials at 0.27 - stays under 9% at the maximum)
     expect(0.067 * BRIGHTNESS_MAX).toBeLessThanOrEqual(0.09);
     expect(calibrationGrey(1)).toBe(Math.round(255 * CALIBRATION_GREY));
     expect(calibrationGrey(9)).toBe(calibrationGrey(BRIGHTNESS_MAX));

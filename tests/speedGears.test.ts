@@ -42,7 +42,7 @@ describe('speed gears (3.2.0)', () => {
     // linear above the dead zone
     expect(stickCurve(0.6) - stickCurve(0.4)).toBeCloseTo(stickCurve(0.8) - stickCurve(0.6));
   });
-  it('target speed = gear cap x stick curve; full deflection (keyboard / touch rim) gives the cap', () => {
+  it('target speed = gear cap x stick curve; full deflection (keyboard / stick rim) gives the cap', () => {
     for (let g = 1; g <= 6; g++) {
       expect(targetSpeed(1, 'stand', 0, 1, MOVEMENT, g)).toBeCloseTo(GEARS.stand[g - 1]!);
       expect(targetSpeed(1, 'crouch', 0, 1, MOVEMENT, g)).toBeCloseTo(GEARS.crouch[g - 1]!);

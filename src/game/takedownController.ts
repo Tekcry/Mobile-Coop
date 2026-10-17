@@ -73,7 +73,7 @@ export class TakedownController {
   shovePressed = false;
   /** Grabs: held / knocked out / killed / shoved (stats, tests). */
   grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0 };
-  /** The press that started it is still held (pad / keyboard, or the touch prompt). */
+  /** The press that started it is still held (pad / keyboard). */
   holding = false;
   /** Counts (stats / tests). */
   done = { lethal: 0, nonLethal: 0, aborted: 0, byKind: {} as Record<string, number> };
@@ -112,9 +112,8 @@ export class TakedownController {
   fixedUpdate(dt: number, pressed: boolean, held: boolean): boolean {
     const g = this.g;
     if (this.active) {
-      this.holding = held || this.touchHeld;
-      this.pressedNow = pressed || this.touchPressed;
-      this.touchPressed = false;
+      this.holding = held;
+      this.pressedNow = pressed;
       this.run(dt);
       return true;
     }
@@ -129,18 +128,6 @@ export class TakedownController {
 
   /** Suit gloves: takedowns take this much of the time. */
   handsMul = 1;
-
-  /** Touch: the takedown prompt is pressed (starts it) / released. */
-  touchHeld = false;
-  touchPress(down: boolean): void {
-    this.touchHeld = down;
-    if (down && this.active?.grab) this.touchPressed = true;
-    if (down && !this.active) {
-      this.holding = true;
-      this.start();
-    }
-  }
-  private touchPressed = false;
 
   /** Start the offered takedown now; `lethal` forces the choice (else tap / hold decides). */
   start(lethal?: boolean): void {
@@ -450,6 +437,5 @@ export class TakedownController {
     this.abort();
     this.offer = null;
     this.holding = false;
-    this.touchHeld = false;
   }
 }

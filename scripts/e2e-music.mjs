@@ -1,4 +1,4 @@
-// Music lab (music project, V3 sketch picker): the lab boots on phone emulation and on desktop with no console errors,
+// Music lab (music project, V3 sketch picker): the lab boots on desktop with no console errors,
 // each sketch loads and plays its three stems, the threat controls crossfade them, the decoded MP3 loops join without a
 // seam, and the playback cost is measured (an offline render of the three-stem graph). Headless (null audio sink).
 import { launch, assert, frames } from './e2e-lib.mjs';
@@ -113,7 +113,6 @@ async function run(label, opts) {
   return !failed;
 }
 
-const phone = await run('phone', { touch: true });
-const desktop = await run('desktop', { touch: false });
-if (phone && desktop) console.log('music e2e passed');
-process.exit(phone && desktop ? 0 : 1);
+const desktop = await run('desktop', {});
+if (desktop) console.log('music e2e passed');
+process.exit(desktop ? 0 : 1);

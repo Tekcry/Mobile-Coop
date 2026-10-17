@@ -7,7 +7,7 @@ import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
+import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
@@ -24,14 +24,13 @@ import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
-import { levelLabel, MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
+import { PRESET_IDS } from './core/quality';
 import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
-import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -42,8 +41,6 @@ function setBoot(progress: number, status: string): void {
 
 async function boot(): Promise<void> {
   suppressBrowserGestures();
-  // (3.1.6: a phone held upright gets the page turned to landscape; listeners measuring on resize see it turned)
-  setupForcedLandscape(() => window.dispatchEvent(new Event('resize')));
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -164,7 +161,7 @@ async function boot(): Promise<void> {
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
-    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${levelLabel(app.quality.level)})` : `${opts.map.id} / ${opts.mode}`;
+    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
     app.crashLog?.stage(`loading ${what}`);
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
@@ -189,20 +186,19 @@ async function boot(): Promise<void> {
 
   // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
   // measures)
-  // (3.2.1: Resolutions measures the monitor's resolutions on desktop, the screen on a phone)
-  const benchOutput = (a: App): [number, number] =>
-    a.platform.platform === 'desktop' ? [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)] : [Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio)];
+  // (3.2.1: Resolutions measures the monitor's resolutions)
+  const benchOutput = (): [number, number] => [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)];
   app.benchmark = (kind = 'current') => {
     const s: BenchSession =
       typeof kind === 'string'
-        ? { kind, runs: benchPlan(kind, ...benchOutput(app), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
+        ? { kind, runs: benchPlan(kind, ...benchOutput(), PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;
     s.note ??= `fb-bench-${Date.now().toString(36)}`;
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
-    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts, cap: run.cap, look: run.look }, false);
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
   // tests: a shorter flight
@@ -236,13 +232,6 @@ async function boot(): Promise<void> {
     void loadCoop().then((m) => m.openJoinLink(app, coopApi, room));
   }
   app.start();
-
-  // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
-  // (desktop: fullscreen is the player's choice, Settings > Graphics)
-  // (3.2.4: an installed app locks too - it needs no fullscreen)
-  if (app.platform.platform === 'mobile') {
-    window.addEventListener('pointerup', () => void (isStandalone() ? lockLandscape() : enterFullscreenLandscape()), { once: true });
-  }
 
   setBoot(1, 'Ready');
   document.getElementById('boot')?.classList.add('done');

@@ -1,7 +1,7 @@
 // Soak test: plays a Warehouse Hunter operation in real time for N minutes (default 10) with the full render
 // loop and reports, per interval, frame pacing, CPU per frame, adaptive quality / resolution, heap and
 // enemy count. Fails on page errors, a heap that keeps growing (leak) or CPU per frame creeping up.
-// SwiftShader cannot show thermal throttling; on a phone use the debug overlay (F3 / 3-finger tap)
+// SwiftShader cannot show thermal throttling; on the PC use the debug overlay (F3)
 // pacing graph for the 10-minute thermal soak (TESTING.md).
 //   node scripts/soak.mjs [minutes=10] [url]
 import { launch } from './e2e-lib.mjs';

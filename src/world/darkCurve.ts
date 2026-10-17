@@ -11,11 +11,11 @@
  * `g` is the night-vision gain (1 off, `VISION_GAIN` on): it multiplies the static light before the curve, so night
  * vision reveals real detail in the dark and blows out in light. Flashlights are added after the curve.
  *
- * Two parameter sets, one function: the phone light look shades in gamma space (standard materials); the desktop in
- * linear space, then the neutral tone map (whose toe crushes the lowest light) and the sRGB encode. Each set is tuned
- * so its pipeline meets the same display targets (`DARK_TARGETS`, bible L5), measured on real pixels by
- * `scripts/e2e-darkness.mjs`. Both read under the lit target before Step 4b (phone 44%, Epic 37% at 0.70), so `top`
- * lifts the lit band a little on the phone and more on desktop.
+ * Two parameter sets, one function: the game shades in linear space (PBR), then the neutral tone map (whose toe
+ * crushes the lowest light) and the sRGB encode; the standard-material look (the Kestrel editor's light view, from the
+ * retired phone look) shades in gamma space. Each set is tuned so its pipeline meets the same display targets
+ * (`DARK_TARGETS`, bible L5), measured on real pixels by `scripts/e2e-darkness.mjs`. Both read under the lit target
+ * before Step 4b (standard 44%, Epic 37% at 0.70), so `top` lifts the lit band a little there and more in the game.
  */
 import { LAMP_LEVEL_GAIN, LIGHT_GAIN } from './lampMath';
 import { LIGHT } from './lights';
@@ -33,9 +33,9 @@ export interface DarkParams {
   top: number;
 }
 
-/** The phone light look (gamma-space standard materials). */
-export const DARK_PHONE: DarkParams = { centre: 0.33, steep: 8, floor: 0.2, top: 1.12 };
-/** The desktop (linear PBR, sRGB encode and the neutral tone map after it). */
+/** The standard-material look (gamma space; the Kestrel editor's light view). */
+export const DARK_STANDARD: DarkParams = { centre: 0.33, steep: 8, floor: 0.2, top: 1.12 };
+/** The game (linear PBR, sRGB encode and the neutral tone map after it). */
 export const DARK_DESKTOP: DarkParams = { centre: 0.37, steep: 12, floor: 0.3, top: 1.55 };
 
 /** Night vision: the static light's gain inside the lighting (bible L7). */
@@ -43,7 +43,7 @@ export const VISION_GAIN = 8;
 
 /**
  * Display brightness targets (bible L5): a matte 50% grey card facing the strongest light, at default brightness,
- * after tone mapping and grade, as display luminance 0..1 (Rec. 709 luma of the output pixel). Phone and desktop.
+ * after tone mapping and grade, as display luminance 0..1 (Rec. 709 luma of the output pixel).
  */
 export const DARK_TARGETS: readonly { level: number; band: 'dark' | 'mid' | 'lit'; min: number; max: number }[] = [
   { level: 0.12, band: 'dark', min: 0, max: 0.04 },

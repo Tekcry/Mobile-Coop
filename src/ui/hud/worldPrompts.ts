@@ -1,5 +1,4 @@
 import { h } from '../dom';
-import { icon } from '../icons';
 import { keyLabels, verbPromptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
@@ -34,60 +33,22 @@ function glyph(id: WorldPromptId): string {
       return '';
   }
 }
-const TOUCH_ICON: Record<WorldPromptId, string> = {
-  vault: icon('jump', 18),
-  jumpTo: icon('jump', 18),
-  drop: icon('crouch', 18),
-  takedown: icon('interact', 18),
-  state: icon('cover', 16),
-};
 
 /**
- * World-anchored prompts in their own layer above the touch controls: take cover (on the face the
+ * World-anchored prompts in their own layer: take cover (on the face the
  * press would snap to), vault / climb / step (on the obstacle), the cover type badge (on the face being
  * used) and the cover-to-cover marker. Each sits at one fixed height per surface, low on it so it never
- * covers the view. By touch every prompt is the button: a tap does what it says (`onTap`); by pad or
- * keyboard they show the glyph. Positions are written as transforms only when they move.
+ * covers the view. They show the pad or keyboard glyph. Positions are written as transforms only when they move.
  */
 export class WorldPrompts {
   readonly el: HTMLElement;
   private items = {} as Record<WorldPromptId, Item>;
-  onTap: ((id: WorldPromptId) => void) | null = null;
-  /** Touch down / up on a prompt (hold interactions: unscrewing a vent). */
-  onDown: ((id: WorldPromptId) => void) | null = null;
-  onUp: ((id: WorldPromptId) => void) | null = null;
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-world' });
     for (const id of PROMPT_IDS) {
       const el = h('div', { class: `wp wp-${id}` });
       el.dataset.prompt = id;
-      // acts on release over the prompt; never reaches the touch layer below (no stick, no look)
-      el.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        // the label may change while held (hold progress): keep the pointer on the prompt itself
-        try {
-          el.setPointerCapture(e.pointerId);
-        } catch {
-          /* synthetic events have no active pointer */
-        }
-        el.classList.add('active');
-        if (el.classList.contains('show')) this.onDown?.(id);
-      });
-      el.addEventListener('pointerup', (e) => {
-        e.stopPropagation();
-        this.onUp?.(id);
-        if (!el.classList.contains('active')) return;
-        el.classList.remove('active');
-        if (el.classList.contains('show')) this.onTap?.(id);
-      });
-      const cancel = (): void => {
-        if (el.classList.contains('active')) this.onUp?.(id);
-        el.classList.remove('active');
-      };
-      el.addEventListener('pointerleave', cancel);
-      el.addEventListener('pointercancel', cancel);
       this.el.appendChild(el);
       this.items[id] = { el, key: '', x: -1, y: -1, sx: -1, sy: -1 };
     }
@@ -104,7 +65,7 @@ export class WorldPrompts {
     if (key !== it.key) {
       it.key = key;
       it.el.innerHTML = label
-        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-touch">${TOUCH_ICON[id]}</span><span class="wp-label">${label}</span></span>`
+        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-label">${label}</span></span>`
         : '';
       it.el.classList.toggle('show', !!label);
     }

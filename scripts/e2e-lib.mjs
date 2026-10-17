@@ -1,5 +1,5 @@
-// Shared helpers for headless end-to-end tests (mobile-emulated Chromium + fake gamepad).
-import { chromium, devices } from 'playwright-core';
+// Shared helpers for headless end-to-end tests (desktop Chromium + fake gamepad).
+import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 
 /** E2E_GPU=1 (Michael's PC only): the hardware GPU instead of software GL. Cloud runs leave it unset. */
@@ -80,13 +80,12 @@ if (PROFILE) {
 }
 let warmed = true;
 
-export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 }, touchViewport = null, args = [] } = {}) {
+/** A desktop context (no touch, no mobile user agent): the game is desktop only (pad, keyboard and mouse). */
+export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [] } = {}) {
   // (`args`: extra Chromium switches, e.g. anim-audit's remote run keeps a background page's timers unthrottled)
   const lo = launchOptions();
   const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
-  const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
-  // (`touchViewport`: the phone held another way, e.g. upright)
-  const ctx = await browser.newContext({ ...(touch ? { ...dev, ...(touchViewport ? { viewport: touchViewport, screen: touchViewport } : {}) } : { viewport }), acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport, acceptDownloads: true });
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
   await ctx.addInitScript(fakePointerLock);
   const { page, errors } = await openPage(ctx, url, params);
@@ -323,23 +322,4 @@ function netsimProbe() {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-}
-
-/** Multi-touch via CDP. points: [{x,y,id}] */
-export async function touch(page, type, points) {
-  const cdp = page.__cdp ?? (page.__cdp = await page.context().newCDPSession(page));
-  await cdp.send('Input.dispatchTouchEvent', {
-    type,
-    touchPoints: points.map((p) => ({ x: p.x, y: p.y, id: p.id ?? 0, radiusX: 5, radiusY: 5, force: 1 })),
-  });
-}
-
-export async function drag(page, from, to, steps = 6, id = 0) {
-  await touch(page, 'touchStart', [{ ...from, id }]);
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    await touch(page, 'touchMove', [{ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, id }]);
-    await frames(page, 1);
-  }
-  return async () => touch(page, 'touchEnd', []);
 }

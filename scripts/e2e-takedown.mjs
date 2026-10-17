@@ -541,7 +541,7 @@ try {
     assert(r.on2 && r.offer2 !== 'corner', `a guard in front of the face: not a corner takedown (${r.offer2})`);
   });
 
-  // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (touch fire, D1)
+  // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (fire, D1)
   await scen('elbow strike: heavy from the front', async () => {
     const r = await G(() => {
       const t = window.__t;

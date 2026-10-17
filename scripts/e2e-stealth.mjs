@@ -1,5 +1,5 @@
 // Stealth movement and the free-orbit camera, in the real-time loop where it matters
-// (look input is injected every rendered frame, like the touch camera stick / right stick / mouse).
+// (look input is injected every rendered frame, like the right stick / mouse).
 //  - camera: never stuck - 360 deg looks standing, crouched, moving and after a sprint; the body does not turn
 //    with the camera while standing still; no residual offset after sprint / traversal (framing back to
 //    default); 360 deg looks while aiming. (The player cover checks left with locomotion step 05.)
@@ -27,7 +27,6 @@ await G(() => {
   g.target.damageMul = 0;
   // aim assist deliberately slows the look over targets (the Free Roam dummies): off for exact sums
   a.settings.update((d) => {
-    d.touch.aimAssist = 'off';
     d.gamepad.aimAssist = 'off';
   });
   const st = a.input.state;

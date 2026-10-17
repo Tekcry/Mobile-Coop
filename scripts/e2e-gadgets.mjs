@@ -1,5 +1,5 @@
 // Gadgets on the night Warehouse (Clear rules): the wheel (hold opens it, time slows, the stick picks, release
-// selects; touch taps a slot), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
+// selects; a clicked slot selects), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
 // then alert, white-out when facing it), EMP (lights out, back after), noisemaker (lure), sticky cam (feed view,
 // lure ping, gas, exit), tri-rotor drone (flies, dart knock-out, battery), proximity mine.
 // `node scripts/e2e-gadgets.mjs [url] [--only=name]`
@@ -100,21 +100,23 @@ try {
       st.set('t', 'gadgetWheel', false);
       t.step(0.1);
       const tapOpen = g.gadgets.wheelOpen;
-      // touch: the wheel opens on a press and a tapped slot selects
-      a.input.setMode('touch');
+      // mouse: with the wheel open, a clicked slot selects
+      a.input.setMode('kbm');
       g.gadgets.openWheel();
       g.gadgets.wheelSlot = -1;
       g.frameUpdate(0, 1);
       document.querySelector('.gw-slot[data-id="emp"]').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-      const touchSel = g.weapons.gadgets.selected;
-      const touchClosed = !g.gadgets.wheelOpen;
-      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, touchSel, touchClosed };
+      const clickSel = g.weapons.gadgets.selected;
+      const clickClosed = !g.gadgets.wheelOpen;
+      // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
+      a.input.setMode('gamepad');
+      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, clickSel, clickClosed };
     });
     assert(r.open && r.shown && r.slow < 0.5, `holding the wheel button opens the wheel and slows time (x${r.slow})`);
     assert(r.slot === 2 && r.hl === 'flash' && r.moved < 0.05, `the stick picks a slot (${r.slot} ${r.hl}); the operator stays put (${r.moved.toFixed(2)} m)`);
     assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}), closes and restores time (x${r.back})`);
     assert(!r.tapOpen, 'a quick tap does not open the wheel');
-    assert(r.touchSel === 'emp' && r.touchClosed, `touch: tapping a slot selects it (${r.touchSel})`);
+    assert(r.clickSel === 'emp' && r.clickClosed, `mouse: clicking a slot selects it (${r.clickSel})`);
   });
 
   await scen('arc', async () => {

@@ -5,7 +5,7 @@ import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampV
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
-import { DARK_DESKTOP, DARK_GLSL, DARK_PHONE, LEVEL_TO_RENDER, VISION_GAIN, type DarkParams } from './darkCurve';
+import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 
@@ -26,12 +26,13 @@ export interface BakeExtras {
   /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
   doors?: readonly FieldDoor[];
   /** The ambient grid (gameplay's own) and the fill colour: the darkness curve reads the grid everywhere; it is the
-   *  fill on the phone light look and on desktop's non-voxel surfaces (characters, props), in place of the
+   *  fill on the standard-material look and on the game's non-voxel surfaces (characters, props), in place of the
    *  hemisphere (Step 4b; the voxels keep the sky bake's fill). */
   fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
   /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
   moonLight?: number;
-  /** The phone light look: the plugin goes on the lit standard materials (else on the PBR ones). */
+  /** The standard-material look (the Kestrel editor's light view; the game never sets it): the plugin goes on the lit
+   *  standard materials (else on the PBR ones). */
   standard?: boolean;
 }
 /** Character capsules (two texels each) and how many one lamp tests. */
@@ -63,7 +64,7 @@ export class BakedLamps {
   readonly moon: MoonGrid | null;
   readonly fillTex: RawTexture3D | null = null;
   readonly fill: BakeExtras['fill'];
-  /** The plugin goes on standard materials (the phone light look). */
+  /** The plugin goes on standard materials (the editor's light view). */
   private readonly standard: boolean;
   get standardLook(): boolean {
     return this.standard;
@@ -90,7 +91,7 @@ export class BakedLamps {
   remixes = 0;
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
-  /** 3.3 phones: the lamps mixed into one light volume (two taps a pixel) instead of the per-lamp loop; re-mixed on
+  /** Volume mode (3.3; now only the Kestrel editor's light view - the game never makes one): the lamps mixed into one light volume (two taps a pixel) instead of the per-lamp loop; re-mixed on
    *  the GPU from the data above when lamps change. */
   readonly volume: LampVolume | null = null;
   /** Volume mode: the nearest characters' capsules (two vec4 each), for shadows along the light's direction. */
@@ -113,7 +114,7 @@ export class BakedLamps {
     this.fill = extra.fill ?? null;
     this.standard = !!extra.standard;
     this.moonLight = extra.moonLight ?? 0;
-    this.dark = { ...(this.standard ? DARK_PHONE : DARK_DESKTOP) };
+    this.dark = { ...(this.standard ? DARK_STANDARD : DARK_DESKTOP) };
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
     this.lampDoors = lampDoorLists(baked.lights, this.doors);
@@ -191,7 +192,7 @@ export class BakedLamps {
 
   attach(m: Material): void {
     if (this.plugins.has(m)) return;
-    // (the phone light look: the lit standard materials - level, characters, weapons, props; not the sky, bulbs or
+    // (the standard-material look: the lit standard materials - level, characters, weapons, props; not the sky, bulbs or
     // effects, which draw unlit)
     const cls = m.getClassName();
     if (this.standard ? cls !== 'StandardMaterial' || (m as Material & { disableLighting?: boolean }).disableLighting : cls !== 'PBRMaterial') return;
@@ -272,7 +273,7 @@ export class BakedLamps {
   }
 
   /**
-   * Doors' shut flags into the data texture; true when one changed. On the phone volume the lamps that list a changed
+   * Doors' shut flags into the data texture; true when one changed. In volume mode the lamps that list a changed
    * door are re-mixed over their regions (a door is a light change, bible L12).
    */
   private writeDoors(): boolean {
@@ -344,7 +345,7 @@ export class BakedLamps {
   }
 }
 
-/** Capsules the phone volume's shadows test (the nearest characters). */
+/** Capsules the light volume's shadows test (the nearest characters). */
 export const VOL_CAPS = 4;
 
 /** A closed door leaf between a lamp `a` and a point `b` (the same test as `LightField.doorBlocksOne`). Door texels:
@@ -439,7 +440,7 @@ void main(void) {
 }`;
 
 /**
- * The phone light volume (3.3): two RGBA8 3D render targets (`lampVolume.ts`: light, direction) drawn slice by slice
+ * The light volume (3.3; the Kestrel editor's light view): two RGBA8 3D render targets (`lampVolume.ts`: light, direction) drawn slice by slice
  * by `MIX_GLSL` from the baked lamps' data - at load and over the cells of lamps that change. A few milliseconds of GPU
  * once per change instead of the per-lamp loop in every pixel of every frame.
  */
@@ -615,7 +616,7 @@ export class LampPlugin extends MaterialPluginBase {
     this._enable(true);
   }
 
-  /** On a standard material (the phone light look): the light goes into `diffuseBase`. (Read from the material, not a
+  /** On a standard material (the editor's light view): the light goes into `diffuseBase`. (Read from the material, not a
    *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
   private get std(): boolean {
     return this._material.getClassName() === 'StandardMaterial';
@@ -666,7 +667,7 @@ export class LampPlugin extends MaterialPluginBase {
   override bindForSubMesh(ubo: UniformBuffer, _scene: Scene, _engine: unknown, _subMesh: SubMesh): void {
     const l = this.lamps;
     const v = l.volume;
-    // (3.6) the baked moon, on both paths; the ambient-grid fill on the phone light look
+    // (3.6) the baked moon, on both paths; the ambient-grid fill
     const m = l.moon;
     const f = l.fill;
     ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
@@ -730,7 +731,7 @@ ${DARK_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
 uniform highp sampler3D lampVolB;
-// 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps (gn: the geometric normal,
+// 3.3 volume mode: the lamps pre-mixed - their light and the direction it comes from, two taps (gn: the geometric normal,
 // n: the shading normal)
 // (Step 4b: also the light without N.L or shadows, \`nsVolRaw\`: the darkness curve's lamp term)
 vec3 nsVolRaw = vec3(0.0);
@@ -874,7 +875,7 @@ ${level('nsLampRaw')}
 #endif`,
     };
     if (!this.std) return code;
-    // the phone light look's standard materials: the volume and the ambient-grid fill join the lights' diffuse sum
+    // the standard materials (the editor's light view): the volume and the ambient-grid fill join the lights' diffuse sum
     // (the material's colour and albedo multiply it after), and the curve scales the static part
     delete code['CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION'];
     code['!vec3 emissiveColor=vEmissiveColor;'] = `#ifdef BAKED_LAMPS
