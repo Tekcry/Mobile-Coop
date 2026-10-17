@@ -1,5 +1,7 @@
 # Menu UI redesign - decisions
 
+**History.** Michael's current decisions are in `docs/DECISIONS.md` (G1 onward), which wins where this file differs; this file is kept as the record of its run.
+
 MD = design decisions. "Michael" = chosen by Michael (multiple choice or his written brief, 2026-10-15). "Step 1 -
 for review" = proposed in step 1 inside Michael's brief; it stands until he changes it. The implementation run logs its
 own calls as A1, A2, ... "ASSUMED - for review" below the MD list (RULES.md).

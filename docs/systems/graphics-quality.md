@@ -1,18 +1,22 @@
 # Graphics and quality
 Purpose: presets, auto graphics, the frame governor, the benchmark, the renderer, materials, voxels, TAAU and weather.
-Design authority: docs/design-bible.md (Section 8)
+Design authority: docs/DECISIONS.md (G12, G14, G68, G99-G102), then docs/design-bible.md (Section 8).
 
-## Audio and quality (graphics, presets, auto graphics, governor, phone look settings)
-- Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`;
-  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra on mobile and applies `MOBILE_OFF` (3.1.9: no AO, reflections, DOF, motion blur, lens; Panini 0, bloom kernel 32 at quarter size via `QualityLevel.mobile`), `QualityManager.setMobile`
-  from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
+Desktop only (G12): one preset ladder, no phone preset, no phone look and no phone benchmark (deleted with the phone
+code). Graphics never change gameplay: gameplay reads collision, occupancy, anchors, the light bake and the noise model
+only. The world is drawn as voxels; characters and weapons become realistic from the operators pipeline (G68).
+Budgets: performance.md.
+
+## Presets, auto graphics, governor
+- Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`)
+  fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
   cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
   shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
   the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16, at the start
   and again with the guards alerted. PC1 fix: since the lamp bake the voxel level's micro-detail shader takes 15 without a
   lamp shadow, and a spot's shadow joins a shader only once its map has casters - a guard's flashlight - so two shadowed
   flashlights took the near chunks to 17 and they stopped drawing as guards alerted; `LightRig` caps the pool at one with
-  micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=warehouse&mode=clear&gfx=epic&platform=desktop` with E2E_GPU=1, call
+  micro detail (`MICRO_SHADOWS`). Repro on a GPU: `?autostart=warehouse&mode=clear&gfx=epic` with E2E_GPU=1, call
   `alert()` on every `enemyMgr.enemies`, then count `MAX_TEXTURE_IMAGE_UNITS` console errors - 7 before the fix, 0 after), map
   size, sun filtering quality; lights 8-48; ao,
   bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
@@ -32,33 +36,33 @@ Design authority: docs/design-bible.md (Section 8)
   frames last whole refresh periods), `FrameStats` and, only with dynamic resolution, the
   `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
-- Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer, mobile)` (desktop / phone GPU tables,
-  confident or not; iOS "Apple GPU" is not), `deviceKey`, `Calibration` (the ladder top down on the menu stage, each at
+- Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer)` (the desktop GPU table, confident or
+  not; a hidden GPU name is not), `deviceKey` (its `|desktop|` part keeps old saved keys valid), `Calibration` (the ladder top down on the menu stage, each at
   its render scale x `CALIBRATION.load` 1.4, warm-up 0.6 s + 1.2 s measured, p90 interval <= budget x 1.12; <= 6 s).
   Settings `video.auto` (default; 3.0 settings on Epic move to it; `setPreset` / `setGfx` turn it off, `setAuto(s,
   tier)`), `video.device {key, tier, source gpu | calibrated | none}`. `App.detectGraphics(force)` after
-  `loadSettings` and on a platform change: known key -> its tier; else the GPU name; else `calibKey` and
+  `loadSettings`: known key -> its tier; else the GPU name; else `calibKey` and
   `calibFrame` runs it on `MenuState` (`menuStage`) through `QualityManager.setOverride`, aborted off the menu,
   toast + `onDetected`. Under automation only with `?detect=1` (`?renderer=` fakes the GPU name).
 - Frame governor (3.1, `core/governor.ts` pure): `Governor.frame(interval, budget)` levels 0-10 (`adaptiveAt` ->
   `Adaptive`: scale 0.92 / 0.84 / 0.76, shadowEvery 2, volLights x0.5, voxelLod x0.75, effects x0.6, lights x0.75,
   partLod x0.75, scale 0.68), down on a p90 miss (> budget x 1.08, >= 8 frames, 1 s cooldown), up by a trial after
   6 s doubling to 96 s on a miss; `thermal` (a minute's average 12% over the first at one level, or three failed
-  tries), `lowPower` (a phone at < 40 Hz; App toasts once). `QualityManager` runs it in a match when `video.adaptive`
+  tries). `QualityManager` runs it in a match when `video.adaptive`
   (default; replaces `dynamicRes`) and not under `?gfx=` / a benchmark override; `applyAdaptive` -> canvas scale
   (no TAAU) and `QualityTarget.applyAdaptive` (GameState: `World.applyAdaptive` - `LightRig.setAdaptive(lit share,
   shadow refresh)`, sun CSM refresh, voxel / part / anim LOD; `PostStack.setAdaptive` - `Taau.setScale` (the post
   process's ratio), volumetric light count; vfx / weather density). Reset on a new target or a settings change.
-  Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p> [--mobile]` (phone budgets per preset).
+  Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p>` (budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
-  Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
+  Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Hunter (`clear`, parked) match on the Warehouse with `opts.benchmark`;
   `GameState` flies the camera along `benchFlight` (3.2.5, pure, `FLIGHT`: the room middles in a short tour (nearest
   neighbour + 2-opt on walking distance), joined by nav A* routes with `NavGrid.walkOnly` (doorways, stairs; no ladders
   / drops), a dead-end visit circled (`orbit`) instead of reversed, Taubin-smoothed and pushed off walls within
   `FLIGHT.drift` while every sample-to-sample line stays walkable, the eye `FLIGHT.eye` 1.9 m over the smoothed floor
   (lowered under anything overhead: `GameState.headroom` ray), the view a smoothed look ahead bent towards open space
   where it meets a wall (`FlightNav.see`, sight rays); `flightAt(dist)` at `FLIGHT.speed` 2.8 m/s, so every run sees
-  the same views; doors open, leaves hidden (`Doors.setVisible`)), guards passive, one flight per run (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
+  the same views; doors open, leaves hidden (`Doors.setVisible`)), guards passive, one flight per run (`current`, `presets` (3.1: Low .. Epic), `features` (3.1.2: `featureRuns(current features)`:
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
   `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match; 3.2: a 'render scale 75%' run second
   (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;
@@ -66,7 +70,7 @@ Design authority: docs/design-bible.md (Section 8)
   the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
   saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = the monitor's resolutions (3.2.1), `sustained` 10 min with per-minute averages), then a Dialog with a line per run
   (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
-  `_compiledEffects`; 3.3: the run's spike log; phones: `phone` - the Phone check), saved as a performance feedback note. Every run sets an override, so the frame governor is
+  `_compiledEffects`; 3.3: the run's spike log), saved as a performance feedback note. Every run sets an override, so the frame governor is
   off while measuring.
 - Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
   without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the
@@ -89,10 +93,13 @@ Design authority: docs/design-bible.md (Section 8)
   that at full output luma (night: the tube drive) so hot bodies, live devices and lit phosphor stay readable. Soften:
   thermal 4 taps (0.6), electro 4 taps (0.35), night 2 diagonal taps (0.3), at `THERMAL.blur` 0.0018 of screen
   height. Cost per pixel over step 14: +4 taps electro, +2 night, thermal unchanged; no texture, no target. Perception,
-  the light meter and the wire never read any of it (`tests/visionIsolation.test.ts`). The passes ahead of tone mapping (TAA, SSAO2,
-  SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float on desktop
-  (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew contour bands and blocky
-  speckle. Phones (`q.mobile`) keep 8 bits.
+  the light meter and the wire never read any of it (`tests/visionIsolation.test.ts`). Decided, not built yet: the
+  goggle modes are night, thermal and electro (G99), switched by an instant cut in CT's order (thermal, electro, night,
+  off; no flip, G100); grain as in CT (G101); thermal follows CT's colour ramp and shows people behind closed doors as a
+  dim silhouette (G102). The passes ahead of tone mapping (TAA, SSAO2,
+  SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float when the
+  GPU can render it (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew
+  contour bands and blocky speckle.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`
@@ -172,8 +179,7 @@ Design authority: docs/design-bible.md (Section 8)
 - Voxel weapons / gadgets (3.0 phase 4, `voxel/voxelGroup.ts`): `VoxelGroup` merges the parts under one node into one
   rigid voxel mesh there (parts at `size`, parts thinner than `small` on a second grid at `fineSize`; a coarser LOD).
   `setVoxelWeapons` (`WeaponModel.voxel`, `renderMeshes` for shadow casters; 1 cm, 5 mm small parts, 2 cm LOD) and
-  `setVoxelProps` + `voxeliseParts` (thrown grenades - the LED stays a part to blink - and the drone body, the rotors
-  stay parts to spin). `VoxelSink` (`voxelBody.ts`) is the shared vertex builder.
+  `setVoxelProps` + `voxeliseParts` (thrown grenades - the LED stays a part to blink). `VoxelSink` (`voxelBody.ts`) is the shared vertex builder.
 - Chips (3.0 phase 4, cosmetic): `Ballistics.onWorldHit` (GameState, 5 cm voxels or finer) -> `VoxelWorld.chip`: the
   voxel behind a world hit (the prop layer first) turns to `LevelVoxels.chip` (a dark pock, the palette's last
   entry): one `texSubImage3D` texel, or for a uniform brick a new explicit slot from the GPU pool's spare capacity
@@ -204,7 +210,8 @@ Design authority: docs/design-bible.md (Section 8)
 - Panini (3.0 phase 5, `video.panini` 0..1, `QualityLevel.panini`): `core/panini.ts` (pure: `paniniView`,
   `paniniScale` fit to the width) and `vfx/paniniPass.ts` (after the default pipeline, before the grade). World
   prompts and markers are projected rectilinear (they drift a little near the sides with a strong Panini).
-- Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
+- Weather (3.0, `MapTheme.weather`: set only on the parked Port (rain), Dust Depot (dust) and Refinery (haze); the
+  weather choice above works on any map): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's
   `shimmer` (heat haze: distant, low pixels displaced).

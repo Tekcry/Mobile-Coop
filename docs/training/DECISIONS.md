@@ -1,5 +1,7 @@
 # Training bunker - decisions
 
+**History.** Michael's current decisions are in `docs/DECISIONS.md` (G1 onward), which wins where this file differs; this file is kept as the record of its run.
+
 Authority: Michael > this file > `docs/design-bible.md` > `docs/training/SPEC.md` > `docs/level-design.md` > other docs > code.
 Every answer below is Michael's, given on 2026-10-13 in the design session (cloud, documents only), through the
 multiple-choice tool. His own words are quoted where he typed them; otherwise the option he picked is quoted.

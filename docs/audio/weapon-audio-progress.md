@@ -1,5 +1,7 @@
 # Weapon sounds - progress log (feature/weapon-audio)
 
+**History.** Michael's current decisions are in `docs/DECISIONS.md` (G1 onward), which wins where this file differs; this file is kept as the record of its run.
+
 | Step | What | Status |
 | --- | --- | --- |
 | 1 | Audit the guns and their sounds | done |

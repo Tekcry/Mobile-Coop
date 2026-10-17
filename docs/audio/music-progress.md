@@ -1,5 +1,7 @@
 # Night Shift - music progress
 
+**History.** Michael's current decisions are in `docs/DECISIONS.md` (G1 onward), which wins where this file differs; this file is kept as the record of its run.
+
 **Current direction: V4** (Michael's brief of 2026-10-15): one main theme, a menu theme and one adaptive mission score,
 all synthesised in code. Research `docs/music/research.md`, design `docs/music/score-design.md`, code
 `src/audio/score/`, test page `/music-test.html`. Everything below the V4 report is history.

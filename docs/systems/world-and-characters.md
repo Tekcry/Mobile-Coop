@@ -1,22 +1,29 @@
 # World, level design pointers and characters
 Purpose: maps, the level builder, the Warehouse, and the shared character rig (proportions, animation, foot planner, weapons).
-Design authority: docs/design-bible.md (Sections 5.12 and 7)
+Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 
 ## Level design
 - `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
   encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
   jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
-  pacing, co-op layered on a complete solo level, engine constraints, required design deliverables (section 13),
-  phases (section 14) and acceptance tests (section 15).
+  pacing, co-op layering (Section 11; its solo-first rules are an open item against G2), engine facts (Section 12),
+  required design deliverables (section 13), phases (section 14) and acceptance tests (section 15).
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
-- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`.
+- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`; Kestrel
+  in `docs/kestrel/`, the bunker in `docs/training/`. Decided, not built yet (G55): one folder per map under one maps
+  folder, Kestrel and the bunker moved there after the merge. Kestrel is paused until the CT co-op research (G53).
+  The retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in
+  `docs/archive/maps/`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts` (`MAPS`: Warehouse, Proving Grounds; `listed.ts` `LISTED_MAP_IDS` is the pure list that
-  content filters on: `MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a mode is its default
-  (Warehouse for every mode but Training; a mode change on the Play screen starts on its default map). Free Roam
+  `world/maps/index.ts` (`MAPS`: `warehouse`, `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every
+  menu), `courselab` and `bunker` (the Fallow bunker, built from `bunkerUpper` / `bunkerPlant` / `bunkerShaft` /
+  `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts` `LISTED_MAP_IDS` (`warehouse`, `proving`,
+  `kestrel`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
+  mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
+  `maps/parked.ts` (not imported). Free Roam
   (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
 - Warehouse (`world/maps/warehouse.ts`): truck yard, loading dock, dispatch, workshop, a 2.2 m service corridor,
   racking aisles, factory floor, a mezzanine deck (stairs) and two offices; roofed (visual only: roof and lights
@@ -35,7 +42,10 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
   `DoorState.cracked`; the swing `open` stays 0, so the collision body, the light field and baked lamps (`DOOR_SHUT`
   0.05) and guard sight see a closed door (nothing in `src/ai`, the light bake or the lamp bake reads `cracked`). A
   full open (`open` / `setOpen`, anyone, guards walking through included) clears `cracked` and swings on from the
-  cracked angle. The door-peek core (pure, Babylon-free) is `world/doorPeek.ts` (see movement.md).
+  cracked angle. The door-peek core (pure, Babylon-free) is `world/doorPeek.ts` (see movement.md). Decided, not built
+  yet: the CT door menu replaces the crack peek (G97: open, stealth open, bash, optic cable; bash can knock out a guard
+  behind the door); doors pass light, sound and sight past about 15% open, one threshold (G41, loco M20 Q10; code:
+  `DOOR_SHUT` 0.05); guards close doors behind them on a calm patrol and notice a door open that should be shut (G41).
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
 - Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one
@@ -71,8 +81,15 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
 - Avatar style (`video.avatarStyle`, `setAvatarStyle`): `detailed` (default since 2.0; `avatarStyleV` 2 moves older
   settings once) or `stick` (capsule limbs, sphere joints and head, pill feet on the same skeleton). Saves and
   cosmetics are unchanged (colours apply to both). The default look is the operator (`torso: 'operator'`: suit,
-  carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + tri-lens, `rig.setLensGlow` from the vision
-  mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
+  carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + a three-lens goggle, `rig.setLensGlow` from the
+  vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
+- Decided, not built yet: the three-lens goggle breaks the IP rule; a small job swaps in a simple original goggle and
+  the menu uses an original symbol (G69); goggles sit on the brow with a dim glow when vision is off and over the eyes,
+  full glow, when on (G73). Realistic characters everywhere (G68): only two operators, Wren and Moth, are built and
+  playable (G71); they move the same and differ in look and height only (G109; Wren 1.68 m, G74); the camera height is
+  the same for every operator (G38). After Michael approves the prototype a short job puts Wren in behind a dev switch
+  (G70); the shared-body proportion fixes then apply to every character (G72). Operator details stay on
+  feature/operators (G75).
 - Rendering extras: `LightRig` light cones (additive, thin-instanced, `CONE_*`), `vfx/blobShadows.ts` contact
   shadows (`GameState.drawShadows`, `NetAttachment.shadows`), `CinematicPost.setGrade(MapTheme.grade)`.
 - Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, kneel, aim = weapon raise 0..1,
@@ -96,7 +113,9 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
 - Gait style: `GAIT_STYLE` (`clips/locomotion.ts`) keeps height smooth (small loading dip and rise, smaller still at
   jog / sprint) and shows the weight in hip sway and twist; armed, the body carries a tactical `HUNCH` (chest well
   forward over the hips, knees bent, head up; deeper at a wall; `crouch`: bent over the knees, half of it
-  straightening into a raised weapon). Footfalls: a small `MOVEMENT.rootDip` speed check, `HEEL_KICK` and a tiny
+  straightening into a raised weapon). Decided, not built yet: the CT prototype replaces this posture with the one in
+  the footage (loco M20 Q9, M25 (4)) and removes the sprint, the planted pivot (G25), the lean-out and the open-left
+  weapon switch (loco M20 Q1); the CT movement rules are in movement.md. Footfalls: a small `MOVEMENT.rootDip` speed check, `HEEL_KICK` and a tiny
   camera footstep kick.
 - `FootPlanner` (world space): contacts from the gait clock while moving (landing spot = where the hip will be
   mid-stance; distance-matched to the stop point), locked while planted (< 1 cm), swing arcs with toe-off and
@@ -114,12 +133,15 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
   of the trunk, head and leg capsules (`rig.gunSpan` from `WeaponModel.hold`). `rig.openLeft` (dormant, D9 at
   step 12b) mirrors the aim pocket (weapon x, yaw, roll) and swaps the grip and support arms. A per-joint angular rate limit (`JOINT_RATE`) is the safety net
   (`rig.limited`). The rig refreshes world matrices top-down once per node (`fresh`), never
-  `computeWorldMatrix(true)` per joint (it re-forces the whole chain). Emotes return an `FkPose` slerped over the
-  result. Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at half rate; `animate` is a no-op after `dispose`.
-- Weapons (`config/weapons.json`, real sizes: rifle 0.84 m, SMG 0.60, shotgun 1.00, sniper 1.15, pistol 0.19;
+  `computeWorldMatrix(true)` per joint (it re-forces the whole chain). The FK pose override slot (`rig.emote` /
+  `emoteTime`: grabbed and hostage guards, the VIP, the co-op enemy puppet, bodies) returns an `FkPose` slerped over
+  the result; player emotes are deleted (G24). Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at half rate; `animate` is a no-op after `dispose`.
+- Weapons (`config/weapons.json`: the CT kit (G76), the rifle 0.84 m and the suppressed pistol; guards carry these two
+  models too;
   parts carry a `role`: barrel, receiver, grip, mag, ...; `modelExtents`): `WeaponModel.hold(rig)` (aim pocket,
   hands IK'd to `grip` / `foregrip` within 2 cm, magazine well from the mag part) / `holster(rig, slot)` /
-  `inHand(rig)` (mid-swap). `weapons/carrySlots.ts` (pure) gives every loadout weapon its own slot: long guns
+  `inHand(rig)` (mid-swap). `weapons/carrySlots.ts` (pure; class-keyed, so the compact-gun and second-long-gun slots
+  stay for CT's rifle attachments) gives every loadout weapon its own slot: long guns
   vertical on the back (`backL/backC/backR`, muzzle up, thin side to the back, splayed from the butt, standing
   off `rig.backGear` = vest / hood / backpack depth measured from the parts), compact guns on the left-hip
   `sling` (pushed out by the thigh after each pose via `rig.onPosed`), the pistol low on the right `thigh`

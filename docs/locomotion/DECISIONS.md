@@ -1,5 +1,7 @@
 # Locomotion run - decisions
 
+**History.** Michael's current decisions are in `docs/DECISIONS.md` (G1 onward), which wins where this file differs; this file is kept as the record of its run.
+
 Authority: this file > docs/design-bible.md > PLAN.md > other docs > code.
 
 ## Michael's decisions (2026-10-13), verbatim

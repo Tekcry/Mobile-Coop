@@ -1,8 +1,17 @@
 # Audio
 Purpose: the audio engine, voices and game wiring.
-Design authority: docs/design-bible.md (Section 5.2)
+Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Section 5.2).
 
-## Audio and quality (the audio part)
+## Rules
+- CC0 recordings may be used for any sound wherever they cut build time and sound better: bundled, never fetched at
+  runtime, each credited in `docs/audio-credits.md` (G58). WebAudio synthesis stays as the fallback and for sounds not
+  recorded yet. No audio size limit (G59).
+- Guards hear the noise model, never the audio: the foley and gun sounds read nothing from it and change nothing in it.
+- Missing sounds come after the prototype: guards' footsteps first, then ambience, then the rest (G66).
+- Music (the V4 score) is in and provisional: its direction, briefing / results / pause music, the long menu theme
+  (G64) and the Calm / Cautious alternatives are decided in the music job (DECISIONS "Deferred").
+
+## Engine
 - `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`, `app.foley` (movement foley), `app.weaponAudio` (weapon sounds). Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
 
@@ -15,12 +24,13 @@ Design authority: docs/design-bible.md (Section 5.2)
 
     | State | Music |
     | --- | --- |
-    | Calm | Silence |
+    | Calm | Silence (until the music job, audio AS4) |
     | Cautious | The plucked broken hook (its Cautious mix) |
-    | Alert | The spotted hit, then "Alert, under fire" (the "hook forward" mix) |
+    | Alert | The spotted build (`-spotted`), then "Alert, under fire" (the "hook forward" mix) |
     | Evasion | The same loop, stripped back |
 
-  - Then the ladder steps back down.
+  - Then the ladder steps back down. Searching guards play Cautious; the chase music (Alert) only after the player
+    was seen (G63). Music follows every guard's state, never count, distance or direction (audio AS8).
 - **Files:**
   - `src/audio/score/game/gameMusic.ts` plays the tracks. `src/audio/score/director.ts` decides the state (hysteresis:
     Cautious after 0.6 s, Alert at once; Alert holds 10 s, Evasion 12 s, Cautious 8 s; one rung at a time).
@@ -42,7 +52,10 @@ Design authority: docs/design-bible.md (Section 5.2)
     `src/audio/score/orch/pieces.ts`.
 - **Test page:** `/music-test.html` on the dev server. It holds the audition stems (git-ignored, rebuilt by the same
   command), layer sliders, and the in-game state test.
-## Movement foley (feature/footsteps, 2026-10-16)
+- **Old V3 lab:** `?musiclab=1` (`audio/music/musicLab.ts`) and its committed stems (`src/assets/music/sketches/`) stay
+  (G65: music folders kept as they are); `e2e-music` tests it.
+
+## Movement foley (2026-10-16)
 Real CC0 recordings for the player's own movement (Michael chose recordings over synthesis, 2026-10-16). Sources and
 licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model (`GameState`: `noiseRadius` x
 `SURFACE_NOISE` x suit), which nothing here reads or changes.
@@ -74,12 +87,17 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
   fails) the old synthesised `Sfx.footstep` plays instead.
 - **Foley lab** (`?foleylab=1`, `audio/foley/foleyLab.ts`): every surface and gait as a looping walk, the landings and
   moves on buttons, and "Old synth" for an A/B against the previous steps.
+- Decided, not built yet: one run sound for every running speed, the walk / run switch reset to the CT speeds and the
+  `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them,
+  and the sound meter shows what guards hear (G61); a separate Footsteps volume slider for testing (G60); one shared
+  foot-touched-the-ground event for footsteps and rumble (G67; today foley counts `Player.footPlants` beside the
+  rumble's `onFootPlant`).
 - Not covered yet: climbing (ladders, pipes, fences, ledges), co-op teammates' steps, guards' steps.
 - **Fades:** `GameMusic.fade()` always sets the current level at the fade's start before the ramp. A Web Audio ramp
   runs from the previous automation event; without the anchor, a fade after an ended fade starts part-way down (a cut).
   The volume default is 15 % (`audio.musicV: 3` moves an untouched old default once).
 
-## Weapon sounds (feature/weapon-audio, 2026-10-16)
+## Weapon sounds (2026-10-16)
 Real CC0 recordings for every gun (Michael: "allow CC0 for everything", 2026-10-16). Sources and licences:
 `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model (`GameState`: `SHOT_NOISE` x the weapon's `noise`
 stat), which nothing here reads or changes.
@@ -97,16 +115,17 @@ stat), which nothing here reads or changes.
   - Handling: `magOut`, `magIn`, `rifleMagIn`, `slideBack`, `slideFwd`, `shellIn`, `tick` (dry click).
   - Brass: `case_<pistol|rifle|shell>_<hard|metal|wood>`, three drops each, modelled (`casing()`). Modal rings per
     bounce, bounces closing up, a contact click, the floor's colour (a deck plate rings, wood knocks), sometimes a roll.
-  - `bow`: the crossbow (string twang, limb thunk, a short whoosh), modelled.
+  - `bow` (the deleted crossbow's take) and the takes only deleted guns used stay in the sprite until it is next
+    rendered.
   - Levels: shots and suppressed shots by body RMS (peaks under 0.97), handling and brass by body RMS.
 - **Planner** (`audio/weapons/guns.ts`, pure, allocation-free per call, tested in `tests/weapons-audio.test.ts`):
-  - `GUNS` maps every weapon id to a recording, rate, level, suppressed bank, casing, action (pump or bolt) and reload
-    kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt AK, heavy LMG,
+  - `GUNS` maps the two CT kit guns (`rifle`, `pistolSd`) and the guns the guards sound like to a recording, rate,
+    level, suppressed bank, casing, action (bolt or none) and reload kind. `CLASS_GUN` serves co-op shots (class only); `GUARD_GUN` maps the armed archetypes (grunt AK, heavy LMG,
     sniper, enforcer semi-auto shotgun, drone operator SMG, officer pistol).
   - A shot: one take, rate +-3.5 %, level +-12 %, never the same take twice in a row (`TakePicker`). Remote shots
     crossfade near to far between 8 and 30 m (equal power) and low-pass with distance.
   - Brass lands 0.42-0.6 s after a shot on the player's floor (`caseFloor`: grate is metal, carpet is muffled wood,
-    gravel dulled hard). The pump and the bolt cycle after the shot, the shell or case dropping after them.
+    gravel dulled hard). A bolt cycles after the shot, the shell or case dropping after them.
   - A reload is laid out over `PlayerWeapons.reloadDuration` (`reloadIsEmpty` adds the slide or charging handle; tube
     shotguns load the missing shells one by one, at most five heard).
   - Levels: `WEAPON_MIX`. Measured in game (loudest 50 ms): a running step about -33 dB, an open pistol about -21 dB,
@@ -115,9 +134,9 @@ stat), which nothing here reads or changes.
   shots choke each other (the last shot fades 30 ms into the next over 70 ms), so automatic fire stays a clean rattle.
   Reload sources are kept and cut on a swap or when the match ends. Until the sprite is decoded the old synth plays.
 - **Wiring** (`gameAudio.ts`): `onShot` (suppressed when the live `stats.noise` < 0.6: the suppressed pistol's 0.35 or a
-  fitted suppressor's 0.45, which includes the campaign rifle's issued suppressor on feature/ct-locomotion), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
+  fitted suppressor's 0.45, which includes the campaign rifle's issued suppressor), `onReload`, `onDryFire`, `onSwap`; guards' shots (`onEnemyShot`, by archetype) and co-op
   `remoteShot` (by class) through `AudioEngine.spatial` at range 70.
-- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): every gun, the campaign arsenal's six first (bible 5.6); single, three-round burst or a second of
+- **Weapon lab** (`?weaponlab=1`, `audio/weapons/weaponLab.ts`): the two CT kit guns; single, three-round burst or a second of
   automatic fire at the gun's rate; suppressed; the player or a guard at 6, 18 or 40 m; reloads, dry fire, brass on
   each floor, a running footstep for level; "Old synth" for an A/B.
 - Not covered yet: bullet impacts and ricochets (still the synth `impact`), the weapon swap and grenade throw (synth),
