@@ -44,6 +44,11 @@ After D22-D24 Wren uses only the flush magnetic buckle (`garments/mag_buckle.py`
 cam or ladder-lock hardware on the body, so the helper's parts serve Moth; HARDWARE-PROMPT.md still lists the old
 Wren parts (radio and holster shell included) and is not updated yet.
 
+## Wren into the game first (Michael, 2026-10-18, D30)
+After the Wren block end the run pauses for Michael's merges, merges his base branch into feature/operators (11c),
+then builds the runtime (11d) and puts Wren in the game behind `?operator=wren` (11e), all locally in this run. Moth
+starts after that. The cloud runtime session is not needed.
+
 ## Prompts Michael uses
 - Start prompt: the block below, in a new session in `C:\NightShift\Mobile-Coop-operators`, Opus 5.5, effort High.
 - Resume line (new session or new account, after a stop): **Operators run: RESUME (local)**. The session runs the

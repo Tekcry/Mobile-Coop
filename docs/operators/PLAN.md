@@ -38,6 +38,9 @@ Each step file has: objective, the only files to read, what to do, what is out o
 | 10 | Wren: baked maps, LODs, glTF and costs | Opus 5.5 | High |
 | 11 | Wren: full render set and self-review pass | Opus 5.5 | High |
 | 11b | Wren: rigid kit and desktop only (D28, D29; `steps/11b-wren-rigid-kit.md`) | Opus 5.5 | High |
+| 11c | Sync: merge Michael's merged base branch into feature/operators (waits for his word, D30) | Opus 5.5 | High |
+| 11d | Wren: game runtime (`steps/11d-wren-game-runtime.md`, D30) | Opus 5.5 | High |
+| 11e | Wren in the game behind `?operator=wren` (`steps/11e-wren-in-game.md`, D30) | Opus 5.5 | High |
 | 12 | Moth: shirt with rolled sleeves, base layer, trousers (ask Michael Moth's direction first, D24) | Opus 5.5 | High |
 | 13 | Moth: gloves, boots, hood and round optic | Opus 5.5 | High |
 | 14 | Moth: climbing harness, chest rig, hardware, pack, comms | Opus 5.5 | High |
