@@ -46,7 +46,7 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
 - RUNNING: fixer for e2e-anim (deterministic: pose channels continuous through every transition, max 0.137) - likely
   from 3c7c2a5 (medkit state / anim graph) or e9ac457. If the session died: git status shows its work; rerun e2e-anim solo.
 - NEXT: commit the fix, rerun e2e-anim + e2e-bunker solo, then gh pr create (body drafted in the orchestrator's
-  scratchpad pr-body.md; if lost, rebuild from the merge commits, deleted-*.md, AUDIT.md Summary, DECISIONS.md), then
+  docs/consolidation/PR-BODY.md; fill E2E_RESULTS), then
   STATE.md on feature/ct-locomotion.
 - Known: e2e-course failed once under load (lever door 1994 ms > 500), passed solo; legacy e2e-progression fails at
   "Y customises the weapon" (report only); kbm flashbang white-out 0.00 (pre-existing); full runs use E2E_SUITE_TIMEOUT=900.
