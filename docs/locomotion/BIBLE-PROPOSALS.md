@@ -19,3 +19,4 @@ Michael decides each. Suggested phase and a one-line reason.
   - ClockSync: the fast-pull / slow-release offset tracks the fastest packet, so jitter adds up to ~20 ms of lag; consider a percentile window if a worse preset shows stutter.
   - Holster on remotes: tighten the 10-370 ms receipt-to-stow spread (REVIEW-NOTES 20b) so a holster reads within one frame of receipt on every host frame rate.
   - Add a `poor` preset and run e2e-netmove / e2e-coop under it in the Phase 5 co-op work, with the probe's pop and clamp counts as the bar.
+- M21 (Michael, 2026-10-17): the game is desktop only (pad, then keyboard and mouse). Proposal: rewrite the bible's platform pillar, Section 8 (performance: desktop budgets only), the touch / phone control and phone-look sections as history, and the First Playable / phase rows that name the iPhone target.

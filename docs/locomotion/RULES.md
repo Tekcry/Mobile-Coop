@@ -11,9 +11,9 @@ Condensed from BRIEF.md sections 2-4. The brief wins if they differ.
 DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 holds D1-D8) > PLAN.md > other docs > code.
 
 ## Decisions in one line each (full text: DECISIONS.md)
-- D1: pad first, then keyboard and mouse; touch is a basic fallback (move, look, aim, fire / elbow, crouch, jump, one context button, vision toggle). e2e-pad and e2e-mouse cover every verb; e2e-touch stays green.
+- D1 (as changed by M21): pad first, then keyboard and mouse; desktop only. Touch is retired (no touch work; e2e-touch report-only). e2e-pad and e2e-mouse cover every verb.
 - D2: no bobble. Pelvis p-p: crouch 2.5 cm, walk 4, run 6, sprint 8; one low / one high per step. Head travel <= pelvis, pitch / roll <= 2 deg. Walk sway <= 3 cm. Camera follows the smoothed capsule, vertical osc <= 0.5 cm, landing: one damped dip. Sway settles <= 0.2 s. Idle breathing <= 1 cm. All gears, both stances, flat / stairs / slopes, 60 and 120 Hz, local and remote. Final values frozen in config with unit tests.
-- D3: First Playable S3a / S3b absorbed. D4: phone budgets and 0.04 ms per character anim (remotes too) hold. D6: one final review.
+- D3: First Playable S3a / S3b absorbed. D4 (as changed by M21): desktop budgets (performance.md, the RTX 4090 laptop) and the per-character animation budget (remotes too) hold; no phone budgets. D6: one final review.
 - D5: the modern layer (13 items, batches noted). Never motion matching, captured data, root motion driving control, stamina, player ragdoll.
 - D7: full remap (pad, KBM) with conflicts and reset; hold / toggle for aim, crouch, back-to-wall, sprint, grab; custom difficulty sliders (perception speed, aim, alarm tolerance), host's applies in co-op; persisted through src/save.
 - D9: at a back-to-wall edge, lean-out and peek use the open side (left edge: pistol left hand, rifle left shoulder, camera follows), switched inside the 0.2-0.3 s draw / lean via the Inertializer; exposure from the real mirrored pose; WALL_SUB leftHand from the edge side.

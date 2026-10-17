@@ -9,7 +9,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
 - Story, setting and in-game text: `docs/story.md`.
 - It has a solo campaign that is also playable in 2-4 player co-op. Light and shadow is the core.
-- It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages: iPhone 17 Pro Max at 60 fps and desktop.
+- It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages for desktop only (pad first, then keyboard and mouse; M21, 2026-10-17: phones and touch are dropped; the phone look and mobile paths get no new work).
 - `docs/design-bible.md` decides design questions. Text anywhere describing Blacklist systems (snap cover, Mark & Execute, sonar, Ghost / Panther / Assault, PvP, Wave) is history.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
@@ -69,10 +69,10 @@ a fresh checker reviews, up to 3 fix rounds; the job's docs live in git. Details
 
 ## Definition of done (every phase, bible 9)
 - `npm run check` passes; the e2e suites the spec names pass, and the full required suite (`npm run e2e`) passes at the end.
-- Performance budgets pass (`docs/systems/performance.md`); visual changes on the phone list a Phone check in `TESTING.md`.
+- Performance budgets pass (`docs/systems/performance.md`, desktop only).
 - Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system has an e2e suite or extends one.
 - New or changed animations meet the realism standard (bible 5.12.2).
-- Docs updated: `CHANGELOG.md` (one minor version per phase), `TESTING.md` (a short manual phone and desktop checklist), the relevant `docs/systems/*.md`, `docs/progress.md`.
+- Docs updated: `CHANGELOG.md` (one minor version per phase), `TESTING.md` (a short manual desktop checklist), the relevant `docs/systems/*.md`, `docs/progress.md`.
 - A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save.
 - Commit and push `ct-movement`, report in bible Appendix B format, then STOP.
 

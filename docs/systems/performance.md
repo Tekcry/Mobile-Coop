@@ -1,6 +1,7 @@
 # Performance budget
 Purpose: frame-rate targets, CPU / draw / memory budgets and the perf script budgets (desktop, phone and test path).
 Design authority: docs/design-bible.md (Section 8)
+n**M21 (2026-10-17): desktop only.** Phones are dropped: ignore every phone budget, `--phone` run and phone look below; they are history. Desktop budgets (the RTX 4090 laptop) are the target.
 
 ## Performance budget (3.0: the gaming laptop; desktop first)
 - Frame-rate targets (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average):

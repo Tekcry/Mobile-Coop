@@ -1,4 +1,5 @@
 # PC pass (Michael's PC, E2E_GPU=1)
+n**M21 (2026-10-17): desktop only.** Every phone, touch and `--phone` item below is dropped (not run, not a pass condition). L2 / L3 run `--budget` and `--desktop --budget` only.
 
 One ordered checklist for everything built in locomotion steps 01-14 (BRIEF section 7.3). Run top to bottom. Every
 result here is pending a hardware-GPU run: cloud sessions never claim these results. Any contact sheet or screenshot

@@ -104,3 +104,6 @@ CLAUDE.md has "How sessions are run" (the orchestrator method) and docs/systems/
 
 ## Playtest branch (2026-10-16, Michael asked to hear music and movement / weapon sounds with the new movement)
 `playtest/combined` = feature/ct-locomotion + origin/feature/music + origin/feature/footsteps + origin/feature/weapon-audio, built in its own worktree C:\NightShift\Mobile-Coop-playtest (never in this folder). For laptop play only: nothing from it is merged back into feature/ct-locomotion; recreate it from the latest heads when a fresh combined build is wanted. The sound branches reach this run through master at the end (merge plan).
+
+## Desktop only (M21, 2026-10-17)
+Phones and touch are dropped project-wide (Michael). Follow-up when building restarts: move e2e-touch from REQUIRED / KNOWN_FLAKY to report-only in scripts/run-e2e.mjs; later cleanup (with Michael's go-ahead): remove the phone look, touch controls and mobile paths.
