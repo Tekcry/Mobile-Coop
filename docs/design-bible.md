@@ -340,6 +340,9 @@ The Phase column refers to Section 10.
     - Use a format iOS Safari plays (AAC or MP3).
     - Total audio stays within a size budget set in the test (proposal 8 MB) so the offline app stays light.
     - Each file's source and licence goes in `docs/audio-credits.md`.
+  - **Movement foley (Michael, 2026-10-16):** the player's movement sounds (footsteps, landings, vaults, rolls) use CC0
+    recordings, bundled as one MP3 sprite and credited in `docs/audio-credits.md` (`docs/systems/audio.md`). The rest
+    of the test stands.
 
 ### 5.3 Movement, stances, camera and traversal (P4)
 
@@ -1344,7 +1347,7 @@ Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of t
 
 - Splinter Cell IP of any kind.
 - Recorded or synthesised voice.
-- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7).
+- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7); CC0 movement foley is allowed (S7, 2026-10-16).
 - Random patrols that defeat planning.
 - Forced timers in stealth sections.
 - World waypoints.

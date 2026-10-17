@@ -235,6 +235,10 @@ export class Player {
   /** Render-rate update: look, camera, animation. */
   /** Controller teleports seen (each resets the feet). */
   private teleportsSeen = 0;
+  /** Foot plants (heel strikes on the ground) so far, and the side of the last one (-1 left, 1 right). Read by the
+   *  movement foley; cosmetic. */
+  footPlants = 0;
+  footPlantSide = 1;
 
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
@@ -387,7 +391,12 @@ export class Player {
     this.rig.animate(dt, rp);
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
     const pl = this.rig.planner;
-    if ((pl.L.landed || pl.R.landed) && c.grounded) this.onFootPlant?.();
+    if ((pl.L.landed || pl.R.landed) && c.grounded) {
+      this.onFootPlant?.();
+      // the foley plays real foot plants (audio reads this; nothing in gameplay does)
+      this.footPlants++;
+      this.footPlantSide = pl.L.landed ? -1 : 1;
+    }
     this.cam.applyBodyFade(this.rig);
   }
 

@@ -14,7 +14,8 @@ import { h } from '../ui/dom';
 import { uiHooks } from '../ui/widgets';
 import { AudioEngine } from '../audio/audioEngine';
 import { Sfx } from '../audio/sfx';
-import { Music } from '../audio/music';
+import { Music } from '../audio/music/music';
+import { Foley } from '../audio/foley/foley';
 import { QualityManager, type QualityTarget } from './qualityManager';
 import { FeedbackStore } from '../feedback/feedbackStore';
 import { keyLabels, padButtons } from '../ui/prompts';
@@ -62,6 +63,8 @@ export class App {
   readonly audio = new AudioEngine();
   readonly sfx = new Sfx(this.audio);
   readonly music = new Music(this.audio);
+  /** Movement foley from CC0 recordings (footsteps, landings, vaults, rolls). */
+  readonly foley = new Foley(this.audio);
   readonly quality: QualityManager;
   /** Playtest feedback notes (Settings > Feedback, pause menu). */
   readonly feedback = new FeedbackStore();
