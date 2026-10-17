@@ -1,20 +1,34 @@
 # Locomotion run - state
 
-## CONSOLIDATION IN PROGRESS (2026-10-17, account switch): resume from the integrate branch
-Six merges done and pushed on integrate/consolidate (C:\NightShift\Mobile-Coop-integrate). Michael answered the audit:
-pure Chaos Theory mechanics and look, 2-player co-op campaign only, CT co-op levels researched and recreated, prototype
-first. Resume point and prompt: docs/consolidation/HANDOVER.md on integrate/consolidate (`git -C
-C:/NightShift/Mobile-Coop-integrate show HEAD:docs/consolidation/HANDOVER.md`). The CT prototype plan below waits
-until Michael merges the consolidation PR, and is redone against the new decisions (docs/DECISIONS.md).
+## CONSOLIDATION PR OPEN (2026-10-18): waiting for Michael to merge
+PR https://github.com/Tekcry/Mobile-Coop/pull/3 (integrate/consolidate -> master, version 4.0.0). Claude never merges.
+- Merged in: this branch (with feature/kestrel), feature/footsteps, feature/weapon-audio, feature/music,
+  feature/training-bunker, feature/menu-ui-spec. Not included: feature/operators (own PR); ct-movement 99da75b skipped.
+- Deleted (Michael, "In this merge"): Wave / deathmatch / free-for-all / PvP, retired maps (Exchange, Trunk Annex,
+  Dead Line v1 / v2), phones and touch (e2e now runs as a desktop browser), emotes, the old solo Training, 14 non-CT
+  guns (kept rifle + pistolSd), the player drone, custom difficulty sliders, carried medkits. Protocol 13, save 9.
+- Decisions: docs/DECISIONS.md G1-G118 on integrate/consolidate (master after the merge) replace this run's
+  DECISIONS.md as the authority; docs rewritten to one vision.
+- Tests: npm run check passes; full e2e: 38 pass, Kestrel-owned failures only, known flaky (coop, foley, bunker);
+  e2e-anim reports the draw / sprint-holster pop as KNOWN ISSUE for the CT prototype (G103).
+- Run docs: docs/consolidation/ on integrate/consolidate (HANDOVER, AUDIT, deleted-*.md, checks/, PR-BODY.md).
 
-## RESUME HERE (2026-10-17, M26): FIRST CONSOLIDATE, THEN THE CT PROTOTYPE
+## RESUME HERE after Michael merges
+1. Branch clean-up only with Michael's go-ahead (docs/locomotion/CONSOLIDATE.md "After Michael merges").
+2. CT co-op research job (G3, G95), then the CT prototype on feature/ct-prototype from master: docs/locomotion/
+   PROTOTYPE-PLAN.md redone against docs/DECISIONS.md, plus the code-vs-decision gaps listed in the PR body
+   ("Known gaps") and docs/progress.md.
+
+## History (before the PR)
+
+### RESUME HERE (2026-10-17, M26): FIRST CONSOLIDATE, THEN THE CT PROTOTYPE
 1. Consolidation to master with a documentation audit and Michael's vision questions (M26, M27): follow docs/locomotion/CONSOLIDATE.md (new worktree C:/NightShift/Mobile-Coop-integrate, branch integrate/consolidate, one PR; Michael merges). Start prompt in OWNER-NOTES.md.
 2. After Michael merges: the CT prototype on a fresh branch feature/ct-prototype from master, per the plan below.
 
-## CT prototype (M19-M25)
+### CT prototype (M19-M25)
 Footage processed and measured (docs/locomotion/research/ct-measure-*.md, ct-footage-catalogue.md). The plan to build is docs/locomotion/PROTOTYPE-PLAN.md (slices P1 body, P2 camera, P3 wall + doors, P4 strike + vision; light checks; Michael plays after P1 and after P4; open questions at its end). Start with P1 unless Michael says otherwise. Older notes below.
 
-## Earlier (2026-10-17, M19-M21): research and CT footage
+### Earlier (2026-10-17, M19-M21): research and CT footage
 Read first: DECISIONS.md M12-M21 (M20 = pure Chaos Theory without exception; M21 = desktop only), PLAY-NOTES.md (play test 2, P1-P16), CT-RESEARCH.md (comparison, 12 questions; Michael's answers are M20), CT-SHOTLIST.md (capture list), research/*.md.
 Status:
 - Building is PAUSED since step 22 (last code commit aede1b0). No code changes since.
@@ -28,7 +42,7 @@ Next, in order (M22: playable prototype first):
 Michael's footage notes: rifle / pistol out = aiming only (no rifle-out walk); slowest speed walks backwards instead of turning; no aiming in cover (over or round a crate); wall jump not found; skipped F6, H4, I7, I8, J5, J7, J10, L1.
 
 
-## Michael's play-check notes (2026-10-16): docs/locomotion/PLAY-NOTES.md (N1-N8), recorded, not planned yet. Wait for his planning call.
+### Michael's play-check notes (2026-10-16): docs/locomotion/PLAY-NOTES.md (N1-N8), recorded, not planned yet. Wait for his planning call.
 
 - Current: PAUSED (M19, M20 pure CT). Michael answered CT-RESEARCH Section 3 (M20). Waiting for his CT footage (docs/locomotion/CT-SHOTLIST.md, files in pc/ct-ref/). Then: analyse the footage, write the locomotion update prompt and rewrite the remaining steps, Michael reviews, then build (first pause after 22c, M20 Q12).
 Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the URL it prints in Chrome on the desktop, pad connected. Solo: Play > Free Roam > Proving Grounds; guards: Play > Hunter > Warehouse. Co-op: tab 1 `<url>/?net=local` > Co-op > Host a room (pad stays in this tab); tab 2 same URL > Join room with the code. Watch tab 2 to see your operator from outside.
@@ -43,7 +57,7 @@ Start: in C:/NightShift/Mobile-Coop-locomotion run `npm run dev` and open the UR
 9. Co-op (two tabs): from tab 2 watch tab 1 draw / holster, strike, back to wall, peek, door peek, medkit; stack both on one wall; brace + boost.
 10. Note anything that feels wrong, slow or floaty; reply "Locomotion: go" with notes (they steer steps 21-34).
 
-## On the secondary desktop (M7, 2026-10-15)
+### On the secondary desktop (M7, 2026-10-15)
 - The M6 PC session crashed before step 15 (docs only, nothing half-done). The run resumes on the secondary desktop under another Claude account: RULES.md "On the secondary desktop (M7)". Resume line: "Locomotion run: RESUME (local)".
 - Current: steps 15-19 and 20b done (step 20 dropped, M12). Next: the Block C end (full e2e running, perf trend, kestrel merge: 24 commits, no conflicts predicted, Blocked 11a-c retries, former step 20 reruns), the play-check list, then step 21 in its own commit (M13), then the play-check pause for "Locomotion: go".
 - Blocked 11a (e2e-wall grenade): passed on the desktop (throws 2); retry at the Block C end as planned.
@@ -62,12 +76,12 @@ Done at the Block C end (desktop, 2026-10-16):
 3. Step 19: "rerun after 20" items are this list (no extra check).
 4. Step 08 carried items (remote stance / weapon settle vs the owner's curve, paired-move alignment palm vs ball-of-foot, remote runtime, 120 Hz jitter): moved to step 30 task 12, not a Block C end item.
 
-## On the PC (M6, 2026-10-15)
+### On the PC (M6, 2026-10-15)
 - Resumed locally on Michael's PC (worktree C:\NightShift\Mobile-Coop-locomotion, E2E_PORT=4189, E2E_GPU=1). Rules: RULES.md "On Michael's PC". Setup and prompts: OWNER-NOTES.md. Resume line: "Locomotion run: RESUME (local)".
 - Current: PC1 GPU catch-up (PC-PASS items for steps 01-14), then steps 15-20, 20b, Block C end, play-check list, the single pause.
 - PC perf-trend baseline: (pending, first PC1 task).
 
-## Handover to PC (M5, 2026-10-14)
+### Handover to PC (M5, 2026-10-14)
 
 **Ready to move to the PC.**
 
@@ -89,22 +103,22 @@ Done at the Block C end (desktop, 2026-10-16):
 Current step: 15 medkits (next, on the PC)
 Last commit: see git log (locomotion 00)
 
-## Baseline (step 0, this VM)
+### Baseline (step 0, this VM)
 - npm run build: pass. smoke e2e: pass (9 s).
 - npm run check: lint 0 errors / 38 warnings; tests 1015 / 1016 pass. Pre-existing failure, kestrel-owned:
   tests/kestrelMap.test.ts "the map copy equals docs/kestrel/kestrel.blocks.json".
 - Perf trend baseline (node scripts/perf-trend.mjs, calib 9.9 ms): sim p95 2.65 ms, anim 0.0504 ms/char, alloc 11245 KB/s, draws 42, tris 0.14 M. +25% trip: sim 3.31, anim 0.063.
 - e2e-netmove baseline (limit 10 cm, 121 s): worst joint errors cm: low cover 0.5, low peek 3.7, high cover 1.9, high edge peek 3.5, ladder 0.3, pipeV 0.2, pipeH 0.2, ledge 0, duct 0.2, split 0, split aim 1.1, wall-jump hang 0.2, pipe legs 0.4, inverted 0.1, rappel 0.2, fence 0.8.
 
-## Resume note (2026-10-14)
+### Resume note (2026-10-14)
 - Last pushed: step 13 (cfc565f) plus docs. Step 14 (vision) was being implemented in the old session's container and was NOT committed: a new session starts step 14 fresh from steps/14-vision.md.
 - Loop per RULES.md: implement (opus) -> check (opus) -> up to 3 fix rounds -> commit 'locomotion NN' and push. Commit docs with path-limited commits while code is uncommitted.
 - Remaining in the cloud: 14, 15, 16, 17, 18, 19, Block C end (full e2e, perf trend, kestrel merge, retry Blocked 11a-c), 20, 20b (D11), then the PC handover (M3) and stop.
 
-## Plan change M3 (Michael, 2026-10-14)
+### Plan change M3 (Michael, 2026-10-14)
 Cloud runs through step 20, step 20b net check (D11) and the Block C end, then hands over (handover includes the D11 'Play check before step 21' list) to Michael's PC (GPU) before step 21. Do not start step 21 in the cloud.
 
-## Done
+### Done
 - 00 setup: branch, BRIEF, RULES, DECISIONS, BIBLE-PROPOSALS, bible 1.13 (Section 5.17), CLAUDE.md resume line, scripts/perf-trend.mjs.
 
 - 01 audit: AUDIT.md + audit/*.
@@ -134,20 +148,20 @@ Cloud runs through step 20, step 20b net check (D11) and the Block C end, then h
 - step 21v vision grain (1 implementer; desktop).
 - step 22 weight + gait (4 implementers, check PASS; M14 / M17; rest in 22b; desktop).
 
-## Blocked
+### Blocked
 - M18 pause: before step 25, check for the Wren operator model (feature/operators, ?operator=wren); if it is not in the game, stop and ask Michael.
 - 21w (2026-10-16, after 4 implementers): PC-PASS 42 lean-out weapon jump -> step 25 (draw hand path); wall leave pelvis jump -> step 27. Numbers in those step files.
 - 11 RESOLVED at the Block C end (desktop): (a) e2e-wall grenade case passes on the desktop (PC1 run: throws 2, maxT 10.5; every e2e-wall run since, incl. the full e2e): closed. (b) e2e-mouse "losing the capture (Esc) pauses": load flake, logged (passes solo, steps 15-19). (c) remote stopidle@60 pops: A39 noise; desktop pops bands set from six runs (step 15), no gated regression since. Nothing Blocked.
 
-## Pending PC
+### Pending PC
 (see PC-PASS.md)
 
-## Open ASSUMED decisions
+### Open ASSUMED decisions
 - A1-A32 in DECISIONS.md (all open for review).
 - A0: the audit document lives in docs/locomotion/AUDIT.md (brief) rather than docs/animation-audit.md (bible 5.12.4); bible text left as is.
 
-## Next action
+### Next action
 Loop: implement -> check -> commit for steps 01..34 (PLAN.md). Step numbering in commits: 'locomotion NN'.
 
-## PC-PASS gaps (tooling, for the PC session)
+### PC-PASS gaps (tooling, for the PC session)
 PC-PASS.md has 51 ordered items. Items without an exact command yet: 7 (no vision switch in perf.mjs for thermal / electro), 8 (perf.mjs has no ?net=local remotes), 28 (no holstered-then-draw anim-sheet scenario), 30 (no strike anim-sheet scenario), 40 (edge sheets are rifle only), remote contact sheets in general (anim-sheet cannot show a remote). The proposed PC audit baseline file is docs/locomotion/audit/anim-baseline-pc.json.
