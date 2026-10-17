@@ -288,6 +288,16 @@ export class StealthSystems {
     rig.reachL.w = 0.8;
   }
 
+  /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */
+  syncGroup(group: number, on: boolean): void {
+    for (const o of this.switches) {
+      if (o.group !== group || o.on === on) continue;
+      o.on = on;
+      o.it.label = on ? 'Lights off' : 'Lights on';
+      this.ints.setIndicator(o.it, on ? '#ffe08a' : '#3a3f45');
+    }
+  }
+
   /** Lamps on a circuit are on (tests / HUD). */
   switchOn(group: number): boolean {
     return this.switches.find((s) => s.group === group)?.on ?? true;

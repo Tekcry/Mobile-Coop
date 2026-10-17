@@ -15,6 +15,7 @@ import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
+import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
@@ -211,7 +212,19 @@ async function boot(): Promise<void> {
   // build drops this branch and its module
   const editorWalk = import.meta.env.DEV && flags.devDraft ? await import('./dev/editorBridge') : null;
   if (editorWalk) await editorWalk.loadDraft();
-  if (flags.autostart) {
+  // the training course over `?net=local` (dev tabs, tests): the first tab hosts the map's room, the next joins it; the
+  // dev solo flag (`&course=solo`) boots it single player instead
+  const localCourse = !!flags.autostart && flags.mode === 'course' && flags.coop && flags.net === 'local' && !courseSoloFlag();
+  if (localCourse) {
+    goToMenu();
+    const mapId = getMap(flags.autostart!).id;
+    void loadCoop()
+      .then((m) => m.autoLocalCourse(app, coopApi, mapId))
+      .catch((e: unknown) => {
+        console.error(e);
+        app.toasts.show('Co-op unavailable', 'warn');
+      });
+  } else if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
     startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), customDifficulty: parseDifficulty(flags.difficulty) === 'custom' ? { ...app.settings.get().gameplay.customDifficulty } : undefined, missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });

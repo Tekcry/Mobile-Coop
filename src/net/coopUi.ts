@@ -10,6 +10,7 @@ import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { sanitizeCustom } from '../ai/archetypes';
 import { customSummary, difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
+import { isListedMap } from '../world/maps/listed';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, isPvp, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { TEAM_COLORS, TEAM_NAMES } from './pvp';
@@ -19,6 +20,8 @@ import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
+import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { courseAllBaysFlag } from '../game/modes/courseMode';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
 export interface CoopApi {
@@ -97,6 +100,7 @@ class CoopController {
         customDifficulty: s.difficulty === 'custom' ? (s.custom ?? undefined) : undefined,
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
+        courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         net: {
           role: session.role,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
@@ -258,10 +262,12 @@ const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'sandbox', label: 'Free Roam' },
   { value: 'tdm', label: 'Team Deathmatch' },
   { value: 'ffa', label: 'Free-for-all' },
+  { value: 'course', label: 'Training course' },
 ];
 /** 3.5: Infiltration and Free Roam; Wave, Hunter, Team Deathmatch and Free-for-all only with `?legacy=1` (the mode already set stays listed). */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  const shown = visibleModes(MODE_OPTS, flags.legacy);
+  // the training course only when a listed map offers it (D22)
+  const shown = visibleModes(MODE_OPTS, flags.legacy).filter((m) => m.value !== 'course' || MAPS.some((x) => isListedMap(x.id) && x.modes.includes('course')));
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
@@ -296,6 +302,9 @@ class LobbyScreen extends Screen {
   }
 
   override onShow(): void {
+    // back from a course's results: read the course record again (the bays just finished are offered, D20)
+    if (this.courseRec !== undefined) this.courseRec = null;
+    if (this.c.session.isHost && this.c.session.mode === 'course') this.buildOpts();
     const ev = this.c.session.events;
     this.off.push(
       ev.on('lobby', () => {
@@ -406,8 +415,30 @@ class LobbyScreen extends Screen {
             ),
           ]
         : []),
+      ...(s.mode === 'course' ? [this.bayChoice()] : []),
     );
   }
+
+  /** Course mode: "Start at bay N" for the bays in the host's course record (every bay with the dev flag; D20, C9). */
+  private bayChoice(): HTMLElement {
+    const s = this.c.session;
+    if (this.courseRec === null) {
+      this.courseRec = undefined;
+      void loadCourseRecord().then((r) => {
+        this.courseRec = r;
+        if (this.c.session.mode === 'course') this.buildOpts();
+      });
+    }
+    const map = MAPS.find((m) => m.id === s.map);
+    const entry = this.courseRec?.courses[s.map];
+    const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? (map ? 9 : 0) : 0);
+    if (!bays.includes(s.courseBay)) s.courseBay = 1;
+    return choice('Start at', bays.map((n) => ({ value: String(n), label: n === 1 ? 'Bay 1' : `Bay ${n}${entry?.bays[n - 1] ? ` (${entry.bays[n - 1]})` : ''}` })), () => String(s.courseBay), (v) => {
+      s.courseBay = Number(v) || 1;
+    });
+  }
+  /** The host's course record (null: not read yet; undefined: loading). */
+  private courseRec: CourseRecord | null | undefined = null;
 
   private buildActions(keepFocus = false): void {
     const s = this.c.session;
@@ -509,10 +540,7 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     const m = MISSIONS[0]!;
     session.setSettings('infiltration', m.map, session.difficulty, m.id);
   }
-  const c = new CoopController(app, api, session);
-  current = c;
-  (window as unknown as { __coop?: CoopController }).__coop = c;
-  c.showLobby();
+  const c = adopt(app, api, session);
   if (role === 'client') {
     setTimeout(() => {
       if (!session.hostId && current === c && !c.inGame) {
@@ -522,6 +550,64 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
       }
     }, JOIN_TIMEOUT_MS);
   }
+}
+
+/** The room's controller and lobby for a connected session. */
+function adopt(app: App, api: CoopApi, session: NetSession): CoopController {
+  const c = new CoopController(app, api, session);
+  current = c;
+  (window as unknown as { __coop?: CoopController }).__coop = c;
+  c.showLobby();
+  return c;
+}
+
+/** `?net=local` autostart: how long a new tab listens for a host's lobby before it hosts itself (ms). */
+const AUTO_PROBE_MS = 1500;
+
+/** The fixed room code of a map's `?net=local` autostart room (every tab with the same URL finds the same room). */
+export function autoRoomCode(map: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < map.length; i++) h = Math.imul(h ^ map.charCodeAt(i), 16777619) >>> 0;
+  let s = '';
+  for (let i = 0; i < 5; i++) {
+    s += CODE_ALPHABET[h % CODE_ALPHABET.length]!;
+    h = Math.floor(h / CODE_ALPHABET.length) + 7919 * (i + 1);
+  }
+  return s;
+}
+
+/**
+ * `?net=local&autostart=<map>&mode=course` (dev builds and tests, same-device tabs only): the first tab hosts the map's
+ * fixed room with Course mode set, every later tab joins it and readies; the host starts the course once a partner is
+ * in and everyone is ready (once: a later match starts from the lobby as usual).
+ */
+export async function autoLocalCourse(app: App, api: CoopApi, map: string): Promise<void> {
+  const code = autoRoomCode(map);
+  // a client session hears an open room's lobby (the host answers its hello) within the probe window
+  const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile());
+  let full = false;
+  probe.events.on('full', () => (full = true));
+  await new Promise((r) => setTimeout(r, AUTO_PROBE_MS));
+  if (full) {
+    await probe.leave();
+    app.screens.push(new Dialog('Room full', `The local course room ${code} already has its players.`, [{ label: 'OK', action: () => {}, primary: true }]));
+    return;
+  }
+  if (probe.hostId) {
+    adopt(app, api, probe);
+    probe.setReady(true);
+    return;
+  }
+  await probe.leave();
+  const session = new NetSession(createLocalTransport(roomId(code)), 'host', code, api.profile());
+  session.setSettings('course', map, session.difficulty, '');
+  adopt(app, api, session);
+  const off = session.events.on('lobby', () => {
+    if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity) return;
+    off();
+    // (after the lobby handler that announced the partner: the match starts on the next task)
+    setTimeout(() => session.startMatch(), 0);
+  });
 }
 
 export function hostRoom(app: App, api: CoopApi): Promise<void> {

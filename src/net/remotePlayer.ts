@@ -12,6 +12,7 @@ import { attachedClamp, swatCommitOk, hostDrawPhase, hostWeapon, MAX_FREE_SPEED,
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
+import type { PartnerBlocker } from './partnerBlocker';
 import { hyp2 } from '../core/mathx';
 import type { CoverSegment } from '../cover/coverData';
 import type { CoverSpot } from '../game/tactics';
@@ -244,6 +245,8 @@ export class RemotePlayer implements Damageable {
     return true;
   }
 
+  /** The host's own bullets may hit it (course mode friendly fire, D38); `friendly` still decides the damage. */
+  shootable = false;
   /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
   /** The last hit taken (PvP credit). */
@@ -275,7 +278,11 @@ export class RemotePlayer implements Damageable {
     this.sync();
   }
 
+  /** (T5b2, D49) A co-op partner's body on the host (null for a PvP opponent); synced by `CoopHost.frameUpdate`. */
+  blocker: PartnerBlocker | null = null;
+
   dispose(): void {
+    this.blocker?.dispose();
     this.registry.removeTarget(this);
     this.body.dispose();
     this.shape.dispose();

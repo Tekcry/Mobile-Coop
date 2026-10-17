@@ -126,6 +126,8 @@ export class AttachController {
   hint: ReachResult | null = null;
   /** A lip to lower into a hang from (the drop control held, or its prompt), refreshed with the probe. */
   lower: ReachResult | null = null;
+  /** Anchor ids locked at run time (a course anchorLock gate): the probes never offer them. */
+  readonly disabled = new Set<number>();
   /** While attached: the anchor a traverse press would jump to (stick pointing at it), or null. */
   jump: JumpTarget | null = null;
   /** Lower into the hang at the edge on the next step (the touch prompt). */
@@ -196,7 +198,7 @@ export class AttachController {
     // lowering into a hang is the drop control's: a separate hint, never in the way of a climb / grab
     const low = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, LOWER_KINDS, isAbove);
     this.lower = null;
-    if (low) {
+    if (low && !this.disabled.has(low.anchor.id)) {
       // the hang spot below the lip must be clear of the floor and walls
       const p = attachPose(low.anchor, low.s, 1, this.player.rig.height, this.ap);
       if (this.roomAt(p.x, p.y + 0.3, p.z)) this.lower = low;
@@ -204,7 +206,7 @@ export class AttachController {
     // (3.2.0) between two tall walls facing along them: a split jump - a double jump, kept apart from the traverse hint
     this.split = this.splitProbe(feet, dx, dz);
     const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, GROUND_KINDS, notAbove);
-    if (r) return r;
+    if (r) return this.disabled.size && this.disabled.has(r.anchor.id) ? null : r;
     // facing a wall under a high lip: a wall jump
     return this.wallJumpProbe(feet, dx, dz);
   }

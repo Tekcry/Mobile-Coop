@@ -227,6 +227,7 @@ export class SettingsScreen extends Screen {
             choice('Back to wall', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))),
             choice('Grab (from behind)', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.grabToggle, (v) => upd((d) => void (d.gameplay.grabToggle = v))),
             toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
+            toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))),
             toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
             resetBtn('gameplay', 'gameplay'),
           ),

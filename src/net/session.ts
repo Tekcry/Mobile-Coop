@@ -24,6 +24,8 @@ export interface StartInfo {
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
   weather: WeatherChoice;
+  /** Course mode: the bay to start at (1-based, D20). */
+  bay?: number;
 }
 
 export interface SessionEvents {
@@ -51,6 +53,8 @@ export class NetSession {
   custom: CustomDifficulty | null = null;
   mission = '';
   weather: WeatherChoice = 'clear';
+  /** Course mode: "Start at bay N" (host, 1-based; D20). */
+  courseBay = 1;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -128,7 +132,7 @@ export class NetSession {
       if (this.phase === 'lobby') this.setTeam(from, msg.team);
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -163,7 +167,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, custom: msg.difficulty === 'custom' ? fromWire(msg.dc) : null, mission: msg.mission, weather: msg.weather };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, custom: msg.difficulty === 'custom' ? fromWire(msg.dc) : null, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
       this.events.emit('start', this.start);
       return;
     }
@@ -259,7 +263,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, custom: this.difficulty === 'custom' ? this.custom : null, mission: this.mission, weather: this.weather };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, custom: this.difficulty === 'custom' ? this.custom : null, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
@@ -296,5 +300,5 @@ function toWire(c: CustomDifficulty | null): WireCustom {
 
 /** The `start` message for a match (`dc` only with Custom). */
 function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, ...(s.difficulty === 'custom' ? { dc: toWire(s.custom) } : {}) };
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, ...(s.difficulty === 'custom' ? { dc: toWire(s.custom) } : {}) };
 }

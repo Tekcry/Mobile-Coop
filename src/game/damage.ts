@@ -40,6 +40,8 @@ export interface Damageable {
   /** Head position, when it can be seen on its own (a player ducked behind low cover but peeking). */
   headPoint?(out: Vector3): Vector3;
   applyDamage(h: HitInfo): DamageResult;
+  /** A player-team target the local player's bullets still reach (a course partner, D38); its own rules decide. */
+  readonly shootable?: boolean;
 }
 
 /** Maps physics bodies (hit volumes) to the damageable they belong to. */

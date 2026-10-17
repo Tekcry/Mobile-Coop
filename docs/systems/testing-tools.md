@@ -107,6 +107,17 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     the quick map for `src/player/` and `src/cover/`. e2e-netmove adds "wall", "wall crouch" (joints <= 10 cm, the copy's
     `s` within 5 cm) and "stack" (both pages on one wall >= 0.6 m apart); e2e-pad (A / stick / A) and e2e-mouse (Space / D
     / Space) cover the verb.
+  - `scripts/e2e-course.mjs` (T1b) two pages `?net=local`, Course on courselab: the airlock refuses one player (the client sees its
+    own refusal), cycles with both, the near door stays locked; every gate kind by the host, a forced both-down restart (both in
+    the airlock, gates reset), every gate kind by the client; door locks and the lamp group reach the client within 0.5 s;
+    friendly fire: a host shot and a client grenade down the partner, who is revived.
+    T5b: automatic airlock (no Cycle button; "Waiting for partner" on both pages; the refusal names the open objectives;
+    the rear door shut and locked on both pages) and a measured walk into the locked rear door against a free control walk.
+  - `scripts/e2e-bunker.mjs` (T5b; T8a / T8b add bays) two pages on the walk URL `?net=local&autostart=bunker&mode=course`,
+    Fallow by bay. B1: the objective list on both pages at spawn; every course prompt (`c-` items, past the old 48-item
+    cap) shows on the client with its label and state; one player on the A1 pad shows "Waiting for partner" on both;
+    both seal it (rear door shut and locked on both pages); the locked rear door blocks the client (walk vs control).
+    B2: the client pulls a lane lever through `use` and the doors unlock on both pages.
   - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client on a
     ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
     10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +

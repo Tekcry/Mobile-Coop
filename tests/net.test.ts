@@ -1,7 +1,9 @@
 import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
-import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, PROTOCOL_VERSION } from '../src/net/protocol';
+import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, MAX_DOORS, capacity, PROTOCOL_VERSION } from '../src/net/protocol';
+import { TickLimiter } from '../src/game/course/courseWire';
+import { playersHostile, PvpScore } from '../src/net/pvp';
 import { mulberry } from '../src/core/rng';
 
 const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 };
@@ -121,16 +123,86 @@ describe('snapshot interpolation', () => {
   it('interpolates between bracketing states and holds before the first', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>();
     b.push(1, st(0));
-    b.push(2, st(10));
-    expect(b.sample(1.5)!.x).toBeCloseTo(5);
+    b.push(2, st(1.5));
+    expect(b.sample(1.5)!.x).toBeCloseTo(0.75);
     expect(b.sample(0)!.x).toBe(0);
   });
   it('extrapolates a little past the newest state, then holds', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
     b.push(1, st(0));
-    b.push(2, st(10));
-    expect(b.sample(2.1)!.x).toBeCloseTo(11);
-    expect(b.sample(5)!.x).toBeCloseTo(12);
+    b.push(2, st(1.5));
+    expect(b.sample(2.1)!.x).toBeCloseTo(1.65);
+    expect(b.sample(5)!.x).toBeCloseTo(1.8);
+  });
+  it('snaps a teleport instead of sliding through the points between (T5b2)', () => {
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
+    b.push(1, st(0));
+    b.push(1.05, st(0.3));
+    b.push(1.1, st(8));
+    expect(b.sample(1.025)!.x).toBeCloseTo(0.15);
+    expect(b.sample(1.09)!.x).toBeCloseTo(0.3);
+    expect(b.sample(1.1)!.x).toBeCloseTo(8);
+    expect(b.sample(1.2)!.x).toBeCloseTo(8);
+    // a standing partner teleported after a 2 s pause in its states snaps too (slow on paper, a jump in fact)
+    b.push(3.1, st(11));
+    expect(b.sample(2.5)!.x).toBeCloseTo(8);
+    expect(b.sample(3.1)!.x).toBeCloseTo(11);
+  });
+  it('runs a sprinter on smoothly across a stalled sender, never backwards (T5b2)', () => {
+    // 5 m/s (sprint), states every 50 ms, then a 0.45 s stall (0.2 -> 0.65) while the sprinter keeps running
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(40, 0.25);
+    const times: number[] = [];
+    for (let t = 0; t <= 0.2 + 1e-9; t += 0.05) times.push(t);
+    for (let t = 0.65; t <= 1 + 1e-9; t += 0.05) times.push(t);
+    let next = 0;
+    let prev = -Infinity;
+    for (let f = 0; f <= 72; f++) {
+      const rt = f / 60;
+      while (next < times.length && times[next]! <= rt + 1e-9) {
+        b.push(times[next]!, st(5 * times[next]!));
+        next++;
+      }
+      const x = b.sample(rt - 0.1)!.x;
+      expect(x).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = x;
+      // while stalled, extrapolation clamps at 1.0 + 5 * 0.25 = 2.25
+      if (rt > 0.55 && rt < 0.65) expect(x).toBeCloseTo(2.25);
+    }
+    // after the late state (0.65, 3.25) lands, 0.2 s before it interpolates 1.0 + 2.25 * (0.25 / 0.45) = 2.25
+    expect(b.sample(0.45)!.x).toBeCloseTo(2.25);
+    expect(b.sample(0.65)!.x).toBeCloseTo(3.25);
+  });
+  it('runs a partner on smoothly round a corner turned during a stall, no hold (T5b2)', () => {
+    // 5 m/s along +x, states every 50 ms to t 1.0, then a 0.6 s stall; 0.1 s into it the runner turns 90 degrees to +z
+    const p3 = (x: number, z: number) => ({ x, y: 0, z, yaw: 0 });
+    const b = new SnapshotBuffer<ReturnType<typeof p3>>(40, 0.2);
+    for (let i = 0; i <= 20; i++) b.push(i * 0.05, p3(5 * i * 0.05, 0));
+    // at 1.6: x 5 + 0.5, z 5 * 0.5 (3.54 m off the straight-line prediction (8, 0), under sqrt(2) * 5 * 0.6 = 4.24)
+    b.push(1.6, p3(5.5, 2.5));
+    const mid = b.sample(1.3)!;
+    expect(mid.k).toBeCloseTo(0.5);
+    expect(mid.x).toBeCloseTo(5.25);
+    expect(mid.z).toBeCloseTo(1.25);
+    let prevZ = 0;
+    for (let t = 1.0; t <= 1.6 + 1e-9; t += 0.05) {
+      const z = b.sample(t)!.z;
+      expect(z).toBeGreaterThanOrEqual(prevZ - 1e-9);
+      prevZ = z;
+    }
+    // a standing partner teleported the same way after the same stall still snaps
+    const s = new SnapshotBuffer<ReturnType<typeof p3>>(40, 0.2);
+    s.push(0.95, p3(5, 0));
+    s.push(1, p3(5, 0));
+    s.push(1.6, p3(5.5, 2.5));
+    expect(s.sample(1.3)!.z).toBe(0);
+    expect(s.sample(1.6)!.z).toBeCloseTo(2.5);
+  });
+  it('interpolates a fast run (2.5 m over 0.15 s) instead of snapping it (T5b2)', () => {
+    const b = new SnapshotBuffer<ReturnType<typeof st>>(30, 0.2);
+    b.push(1, st(0));
+    b.push(1.15, st(2.5));
+    expect(b.sample(1.075)!.x).toBeCloseTo(1.25);
+    expect(b.sample(1.03)!.x).toBeCloseTo(0.5);
   });
   it('drops out-of-order states and caps its size', () => {
     const b = new SnapshotBuffer<ReturnType<typeof st>>(3);
@@ -318,14 +390,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 9 is refused; version 10 joins (step 19)', () => {
-    expect(PROTOCOL_VERSION).toBe(10);
+  it('a peer on protocol version 10 is refused; version 11 joins (step 19; 11 = locomotion + training course)', () => {
+    expect(PROTOCOL_VERSION).toBe(11);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 9, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 10, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 10, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 11, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -403,7 +475,7 @@ import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, pose
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(10);
+    expect(PROTOCOL_VERSION).toBe(11);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -600,7 +672,7 @@ import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate'
 describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
   it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(10);
+    expect(PROTOCOL_VERSION).toBe(11);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
@@ -662,7 +734,7 @@ describe('step 13: door peek on the wire', () => {
     expect(parseMessage({ t: 'door', i: 3, crack: true })).toEqual({ t: 'door', i: 3, crack: true });
     expect(parseMessage({ t: 'door', i: 0, crack: false })).toEqual({ t: 'door', i: 0, crack: false });
     expect(parseMessage({ t: 'door', i: -1, crack: true })).toBeNull();
-    expect(parseMessage({ t: 'door', i: 96, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: MAX_DOORS, crack: true })).toBeNull();
     expect(parseMessage({ t: 'door', i: 1.5, crack: true })).toBeNull();
     expect(parseMessage({ t: 'door', i: 2, crack: 1 })).toBeNull();
     expect(parseMessage({ t: 'door', i: '2', crack: true })).toBeNull();
@@ -675,11 +747,11 @@ describe('step 13: door peek on the wire', () => {
     expect(dcr.slice(0, 3)).toEqual([2, 7, 0]);
     const m2 = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], dcr: [-1, 4096] });
     expect((m2 as Extract<typeof m2, { t: 'snap' }>).dcr).toEqual([]);
-    expect(dcr.length).toBeLessThanOrEqual(96);
+    expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 8', () => {
-    expect(PROTOCOL_VERSION).toBe(10);
+    expect(PROTOCOL_VERSION).toBe(11);
   });
 });
 
@@ -700,5 +772,72 @@ describe('custom difficulty on the wire (locomotion step 19)', () => {
     expect((l as { dc?: unknown }).dc).toBeUndefined();
     const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
     expect((s as { dc?: unknown }).dc).toBeUndefined();
+  });
+});
+
+describe('course messages (T1b)', () => {
+  it('parses a course message with clamps and caps', () => {
+    const m = parseMessage({
+      t: 'course',
+      s: { bay: 99, done: [true, 1], cp: 'A1<x>', clock: 5, over: false, air: [{ phase: 'bogus', t: 900 }], gates: [{ open: true, t: -4, holders: 9, ta: 1, tb: -1, pa: 0, pb: 5 }], flags: ['key'], flagBay: [['key', 1], [3, 1]], groupsOff: ['mains'], ticks: [[1, 200]], stats: [{ time: 2 }], locks: ['d0'], anchors: [] },
+      locks: [0, 3, 500, 'x'],
+      anchors: [12],
+      lights: { groups: [[7, false], [8, 'on']], dead: [4] },
+    });
+    expect(m).toMatchObject({ t: 'course', locks: [0, 3, MAX_DOORS - 1], anchors: [12], lights: { groups: [[7, false]], dead: [4] } });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.s.bay).toBe(64);
+    expect(m.s.done).toEqual([true, false]);
+    expect(m.s.cp).toBe('A1x');
+    expect(m.s.air[0]).toEqual({ phase: 'open', t: 60 });
+    expect(m.s.gates[0]).toMatchObject({ open: true, t: 0, holders: 3, pb: 1 });
+    expect(m.s.flagBay).toEqual([['key', 1]]);
+    expect(m.s.ticks[0]).toEqual([1, 99]);
+    expect(m.s.stats[0]).toMatchObject({ time: 2, kills: 0 });
+    expect(m.ref).toBe('');
+    expect(m.rn).toBe(0);
+    expect(parseMessage({ t: 'course', s: 1, lights: {} })).toBeNull();
+  });
+  it('carries the client refusal (text cleaned and capped, counter clamped)', () => {
+    const m = parseMessage({ t: 'course', s: {}, lights: {}, locks: [], anchors: [], ref: '<b>Bring your partner</b>' + 'x'.repeat(300), rn: -5 });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.ref.startsWith('bBring your partner/b')).toBe(true);
+    expect(m.ref.length).toBeLessThanOrEqual(160);
+    expect(m.rn).toBe(0);
+  });
+  it("carries LANTERN's radio line (cleaned and capped) and the takedown kind", () => {
+    const m = parseMessage({ t: 'course', s: {}, lights: {}, locks: [], anchors: [], ref: '', rn: 0, rl: 'LANTERN: <i>Mind the gap</i>' + 'x'.repeat(300), rln: 3.4 });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.rl?.startsWith('LANTERN: iMind the gap/i')).toBe(true);
+    expect(m.rl?.length).toBeLessThanOrEqual(160);
+    expect(m.rln).toBe(3);
+    expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' });
+    expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: '<x>' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false });
+  });
+  it('friendly fire (D38): course partners hurt each other, never themselves; co-op never; PvP by sides', () => {
+    expect(playersHostile(null, true, 'a', 'b')).toBe(true);
+    expect(playersHostile(null, true, 'a', 'a')).toBe(false);
+    expect(playersHostile(null, false, 'a', 'b')).toBe(false);
+    const sc = new PvpScore('tdm');
+    sc.add('a', 0);
+    sc.add('b', 0);
+    sc.add('c', 1);
+    expect(playersHostile(sc, true, 'a', 'b')).toBe(false);
+    expect(playersHostile(sc, false, 'a', 'c')).toBe(true);
+  });
+  it('parses ctick for client-only verbs only', () => {
+    expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });
+    expect(parseMessage({ t: 'ctick', verb: 'takedown' })).toBeNull();
+  });
+  it('the course takes two players and the protocol was bumped', () => {
+    expect(capacity('course')).toBe(2);
+    expect(PROTOCOL_VERSION).toBe(11);
+  });
+  it('the ctick limiter allows 4 a second', () => {
+    const l = new TickLimiter();
+    let n = 0;
+    for (let i = 0; i < 20; i++) if (l.take(i * 0.05)) n++;
+    expect(n).toBeLessThanOrEqual(8);
+    expect(n).toBeGreaterThanOrEqual(4);
   });
 });

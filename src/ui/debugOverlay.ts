@@ -93,6 +93,26 @@ export class DebugOverlay {
     engine.onEndFrameObservable.add(() => this.onFrame());
   }
 
+  private toggles = new Map<string, HTMLButtonElement>();
+
+  /** A dev tool toggle (e.g. the course solo flag); `fn` null removes it. */
+  setToggle(id: string, label: string, on: boolean, fn: ((on: boolean) => void) | null): void {
+    this.toggles.get(id)?.remove();
+    this.toggles.delete(id);
+    if (!fn) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.classList.toggle('on', on);
+    b.addEventListener('click', () => {
+      const next = !b.classList.contains('on');
+      b.classList.toggle('on', next);
+      fn(next);
+    });
+    this.tools.append(b);
+    this.toggles.set(id, b);
+  }
+
   /**
    * Teleport menu (greybox maps): a "Teleport" tool button opens grouped buttons (chapter starts, spawns, objectives).
    * Pass `null` to remove it (leaving a match).

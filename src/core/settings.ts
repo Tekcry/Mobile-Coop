@@ -139,7 +139,9 @@ export interface Settings {
   /** `musicV` 3: the music default moved from 50 % to 30 % and then to 15 % (music V4, 2026-10-16); an untouched old
    *  default (50 % or 30 %) follows once. */
   audio: { master: number; sfx: number; music: number; ui: number; musicV: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number; /** (locomotion step 19, D7, A3) the custom difficulty sliders and their base preset (defaults Normal; a co-op client never applies its own). */ customDifficulty: CustomDifficulty };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number; /** (locomotion step 19, D7, A3) the custom difficulty sliders and their base preset (defaults Normal; a co-op client never applies its own). */ customDifficulty: CustomDifficulty;
+    /** Training course: the next drill's marker (D19; default on). */
+    courseMarkers: boolean };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -248,7 +250,7 @@ export function defaultSettings(): Settings {
     pad: defaultPadBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, customDifficulty: presetSliders('normal') },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, customDifficulty: presetSliders('normal'), courseMarkers: true },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -464,6 +466,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
       rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
       customDifficulty: sanitizeCustom(gp.customDifficulty),
+      courseMarkers: bool(gp.courseMarkers, d.gameplay.courseMarkers),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),

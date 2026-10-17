@@ -12,12 +12,14 @@ import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
 import type { NetSession } from './session';
+import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
+import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
-import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
+import { pickSpawn, playersHostile, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
@@ -30,6 +32,7 @@ import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { addKit, MEDKIT, MedkitUse, SELF_TARGET } from '../game/medkit';
 import type { PickupKind } from '../game/pickups';
 import type { TeamMate } from '../game/teamController';
+import type { PlayerRef } from '../ai/enemy';
 
 /** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
 const PTD_REACH = 2.5;
@@ -88,6 +91,10 @@ function alertCode(e: Enemy): number {
  */
 export class CoopHost implements NetAttachment {
   private remotes = new Map<string, RemotePlayer>();
+  /** The remotes' refs in join order, kept on join / leave so `g.remotePlayers()` never allocates. */
+  private readonly remoteRefs: PlayerRef[] = [];
+  /** The solo accessor this host replaced (restored on dispose). */
+  private readonly soloRemotes: () => readonly PlayerRef[];
   private queue: NetEvent[] = [];
   private time = 0;
   private snapT = 0;
@@ -116,6 +123,10 @@ export class CoopHost implements NetAttachment {
   /** PvP: the score; per player hit volumes the host's own shots resolve against; respawn timers. */
   readonly score: PvpScore | null;
   private pvpBoxes = new Map<string, Hitboxes>();
+  /** Course mode (D38): team damage on through the PvP hit paths, co-op rules otherwise (downed, revivable, no frags). */
+  private readonly ff: boolean;
+  /** Course mode: `ctick` rate limit per client. */
+  private ctickLim = new Map<string, TickLimiter>();
   private respawnIn = new Map<string, number>();
   private ended = false;
   private infoT = 0;
@@ -127,12 +138,11 @@ export class CoopHost implements NetAttachment {
   ) {
     const mode = g.opts.mode;
     this.score = isPvp(mode) ? new PvpScore(mode as PvpMode) : null;
+    this.ff = mode === 'course';
+    if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
-    g.remotePlayers = () => {
-      const out = [];
-      for (const r of this.remotes.values()) out.push(r.ref);
-      return out;
-    };
+    this.soloRemotes = g.remotePlayers;
+    g.remotePlayers = () => this.remoteRefs;
     if (this.score) {
       this.score.add(s.selfId, s.players.get(s.selfId)?.team ?? 0);
       g.target.friendly = (h) => this.friendly(h, s.selfId);
@@ -164,10 +174,15 @@ export class CoopHost implements NetAttachment {
     return id === 'local' || id === '' ? this.s.selfId : id;
   }
 
-  /** PvP: hits that do not hurt `victim` (its own, a team-mate's). */
+  /** Can `a` hurt `b`? PvP: the match's sides; course mode (D38): anyone but themselves; co-op: never. */
+  private hostile(a: string, b: string): boolean {
+    return playersHostile(this.score, this.ff, a, b);
+  }
+
+  /** PvP and course mode: hits that do not hurt `victim` (its own; a team-mate's in team PvP). */
   private friendly(h: HitInfo, victim: string): boolean {
     if (h.attackerTeam !== 'player') return false;
-    return !this.score!.hostile(this.who(h.attackerId), victim);
+    return !this.hostile(this.who(h.attackerId), victim);
   }
 
   private hookHud(): void {
@@ -278,13 +293,21 @@ export class CoopHost implements NetAttachment {
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
     r.loadout = p.loadout;
-    if (sc) {
+    if (sc || this.ff) {
       r.friendly = (h) => this.friendly(h, p.id);
-      r.allowTeleport(3);
-      // the host's own shots hit opponents through their own hit volumes (head / body)
-      if (sc.hostile(this.s.selfId, p.id)) this.pvpBoxes.set(p.id, new Hitboxes(g.scene, g.registry, r, 1, 'average'));
+      if (sc) r.allowTeleport(3);
+      // the host's own shots hit opponents (course mode: the partner) through their own hit volumes (head / body)
+      if (this.hostile(this.s.selfId, p.id)) this.pvpBoxes.set(p.id, new Hitboxes(g.scene, g.registry, r, 1, 'average'));
+      r.shootable = this.ff;
+    }
+    // (T5b2, D49) a partner (anyone but a PvP opponent) blocks the host's body as the host blocks theirs on the client;
+    // course friendly fire's hit boxes then take bullets only
+    if (!sc || !sc.hostile(this.s.selfId, p.id)) {
+      r.blocker = new PartnerBlocker(g.scene, p.id);
+      this.pvpBoxes.get(p.id)?.setSolid(false);
     }
     this.remotes.set(p.id, r);
+    this.remoteRefs.push(r.ref);
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
   }
 
@@ -297,6 +320,8 @@ export class CoopHost implements NetAttachment {
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
     r.dispose();
     this.remotes.delete(id);
+    const i = this.remoteRefs.indexOf(r.ref);
+    if (i >= 0) this.remoteRefs.splice(i, 1);
     // a leaver can end a co-op match if everyone left standing is down
     if (this.g.mode && !this.g.anyPlayerAlive()) this.g.mode.onPlayerDeath();
   }
@@ -435,9 +460,10 @@ export class CoopHost implements NetAttachment {
       case 'pstate':
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
+        if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         break;
       case 'shot':
-        if (this.score && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
+        if ((this.score || this.ff) && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
         else this.onShot(r, msg);
         break;
       case 'blast':
@@ -457,6 +483,12 @@ export class CoopHost implements NetAttachment {
       case 'door':
         this.onDoorCrack(r, msg.i, msg.crack);
         break;
+      case 'ctick': {
+        let lim = this.ctickLim.get(r.id);
+        if (!lim) this.ctickLim.set(r.id, (lim = new TickLimiter()));
+        if (r.alive && lim.take(this.time)) this.g.mode?.onRemoteVerb?.(r.id, msg.verb);
+        break;
+      }
       case 'td':
         this.onTakedown(r, msg);
         break;
@@ -475,6 +507,7 @@ export class CoopHost implements NetAttachment {
         if (!r.alive || this.time - last < 1 || hyp2(msg.x - r.feet.x, msg.z - r.feet.z) > 40) return;
         this.gadgetAt.set(r.id, this.time);
         this.g.gadgets.remoteEffect(msg.kind, new Vector3(msg.x, msg.y, msg.z));
+        this.g.mode?.onRemoteGadget?.(r.id, msg.kind);
         this.push({ e: 'gadget', player: r.id, kind: msg.kind, x: msg.x, y: msg.y, z: msg.z });
         break;
       }
@@ -500,8 +533,17 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
+    // course mode: what the item does is the client's (a door it opens is its door verb, DECISIONS A23)
+    const mode = this.g.mode;
+    mode?.onRemoteUse?.(r.id, true);
     if (it.onUse) it.onUse(it, r.id);
-    else this.g.mode?.onInteract?.(it);
+    else mode?.onInteract?.(it);
+    mode?.onRemoteUse?.(r.id, false);
+  }
+
+  /** Course mode: the course state, locks and lights to every client. */
+  course(w: CourseWire): void {
+    this.s.send({ t: 'course', ...w });
   }
 
   /** (locomotion step 13) A client's door-peek crack: in reach (door centre within 1.5 m of its feet), closed and
@@ -549,6 +591,7 @@ export class CoopHost implements NetAttachment {
     else e.knockOut(hit);
     this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
     this.takedownDone(r.id);
+    this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
 
   // --- (3.2.0 phase 5) team moves ---
@@ -630,6 +673,7 @@ export class CoopHost implements NetAttachment {
     const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
+    this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
   }
 
   // --- (locomotion step 10, A5 / H3) committed moves: the elbow strike ---
@@ -902,10 +946,9 @@ export class CoopHost implements NetAttachment {
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }
 
-  /** PvP: a client's hit on another player (the host or a client), rewound to what the shooter saw. */
+  /** PvP and course mode: a client's hit on another player (the host or a client), rewound to what the shooter saw. */
   private onPlayerShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
-    const sc = this.score!;
-    if (!r.alive || !sc.hostile(r.id, m.target)) return;
+    if (!r.alive || !this.hostile(r.id, m.target)) return;
     const self = m.target === this.s.selfId;
     const victim = self ? null : this.remotes.get(m.target)!;
     if (self ? !this.g.player.alive : !victim!.alive) return;
@@ -977,11 +1020,17 @@ export class CoopHost implements NetAttachment {
   /** Usable things clients mirror (bodies and hiding spots stay with whoever is carrying). */
   private items(): NetItem[] {
     const out: NetItem[] = [];
-    for (const it of this.g.interactables?.items ?? []) {
-      if (out.length >= MAX_ITEMS) break;
-      const k = it.kind as NetItem['k'];
-      if (!ITEM_KINDS.includes(k)) continue;
-      out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });
+    // course devices (`c-` ids: switches, levers, pickups, bolts, the finish) first, so the cap never drops them (D48:
+    // a map's door items filled the list before them and the client saw no course prompts)
+    const list = this.g.interactables?.items ?? [];
+    for (let pass = 0; pass < 2; pass++) {
+      for (const it of list) {
+        if (out.length >= MAX_ITEMS) break;
+        if (it.id.startsWith('c-') !== (pass === 0)) continue;
+        const k = it.kind as NetItem['k'];
+        if (!ITEM_KINDS.includes(k)) continue;
+        out.push({ id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done });
+      }
     }
     return out;
   }
@@ -1199,6 +1248,7 @@ export class CoopHost implements NetAttachment {
         // (step 12b fix r2, light parity) on a wall: perception's head point and the light meter read the posed head
         r.setPosedHead(r.state?.mv?.m === 'wall' ? rig.posedHead(this.posedHeadTmp) : null);
       } else r.setPosedHead(null);
+      r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {
@@ -1298,7 +1348,8 @@ export class CoopHost implements NetAttachment {
     this.pvpBoxes.clear();
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
-    this.g.remotePlayers = () => [];
+    this.remoteRefs.length = 0;
+    this.g.remotePlayers = this.soloRemotes;
     this.g.gadgets.onLocal = null;
   }
 }

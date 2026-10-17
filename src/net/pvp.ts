@@ -64,6 +64,15 @@ export function pickSpawn(cands: readonly V2[], foes: readonly V2[], allies: rea
   return best;
 }
 
+/**
+ * Can player `a` hurt player `b`? PvP: the match's sides; course mode friendly fire (D38): anyone but themselves (a
+ * partner hit to zero is downed under co-op rules, never a frag); plain co-op: never.
+ */
+export function playersHostile(score: Pick<PvpScore, 'hostile'> | null, friendlyFire: boolean, a: string, b: string): boolean {
+  if (score) return score.hostile(a, b);
+  return friendlyFire && a !== b;
+}
+
 /** Kills, deaths and team scores; the host owns it and sends `lines()` in snapshots. */
 export class PvpScore {
   private rows = new Map<string, ScoreLine>();

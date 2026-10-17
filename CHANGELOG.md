@@ -73,6 +73,83 @@
 - 01: Mark & Execute removed (marks, execute, chevrons, charge pips, `ex` shot field, RB / T / Y bindings, touch buttons; touch layout v6).
 - 03: regenerating shield removed: `Health(maxHp)`, no regen; effective player toughness 150 -> 100 (-33%). HUD shield bar and `PlayerState.sh` off the wire (no PROTOCOL_VERSION bump yet, step 06). Pistol guard at Normal: 26 per hit, 4 hits to down 100 hp.
 - 04: style tracker and style cash removed (`StealthRating` counters stub), results style bars gone, HQ sonar / marks and challenge executes removed; SAVE_VERSION 8 with a v7 -> v8 migration (mission style keys, hq.sonar / marks, executes dropped). HQ credits spent on sonar / marks are not refunded (parked economy). Default presets renamed Silent / Flash / Loud.
+## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5g: the Deep level rebuilt to BAYS v2 at its own offsets (the T5f shift is gone): B7 The House (a 30 x 30 cavern round
+  the two-storey kill house, its office behind glass, annex roof, water main, bench, sandbags, the store door into A7),
+  B8 The Range (60 x 16: glass firing-line screen, six lanes, shoot-house, glazed tower, catwalk and its caged stair,
+  sniper scaffold), A8 with its medkit, B9 The Plot (a three-floor well with glass balcony fronts, cabins, bridge, rope,
+  zipline and tube duct to the lift lobby) and the exit lift. Objectives listed by name; relief doors placed.
+- T5f: B5 Standby Plant, A5, B6 Mock Site, S6 and A6 rebuilt to BAYS v2; B4 / A4 at their v2 offsets (66, 14) / (70, 8)
+  (the T5e passage is gone) and A4's wall medkit. B5: one 30 x 24 guarded hall: EL (screened but for its stair), gensets
+  (wall-jump roofs), trench, cable gallery, glazed switch room (MB, the mains gate on A5), fuel bay. B6: one line RC ->
+  AH -> plant ladder -> supply duct -> vent drop -> records -> corridor (2.0 clear), then the operator / runner split
+  (lockers, CR stair, mezzanine / L-leg, mantrap, server room) -> keypad -> S6 (rising north) -> A6. Relief doors (A62)
+  placed as visual leaves with course data. v1 Deep moved by (+17.5, -29) until T5g (A74). New R1 / R2 nav tests.
+- T5e: B3 The Intake and B4 The Cistern rebuilt to BAYS v2. B3 sits against A2 (no more passage): one line up the shaft
+  (riser slot, two wall jumps, the damper bar) and down again (two rope stages, the control-room window, the zipline,
+  the fan guard, twin ducts). B4: three cells, W1 boost and bolt door, W2 human ladder and sluice, outlet platform; it
+  stands at an interim offset with a passage from A3 until the Plant rebuild.
+- T5b walk-1 fixes: airlocks are automatic (R6, D46): a marked 4 x 4 m floor pad set 1 m in from the walls; one player
+  on it shows "Waiting for partner" on both screens, both on it with the bay's objectives done seal it (the rear door
+  shuts and locks for good, a 4 s cycle, the front door opens). The Cycle button is gone. The cycle holds while anyone
+  stands in the rear doorway. The client now gets every course prompt (course items are sent first; `MAX_ITEMS` 128,
+  `MAX_DOORS` 256) and shuts any rear door the host locks. The objective list is always on screen for both players
+  (R5, D45) with the airlock status under it. New two-page suite `e2e-bunker` (B1, B2).
+- T5b2 partners block each other (D49) in every co-op mode, on both screens (a partner capsule in its own collision
+  group; off while the partner is down or in a boost or human ladder). Remote players snap on a teleport instead of
+  sliding through the space between (a jump over 2 m faster than 25 m/s, or across a stall that a 90-degree turn at
+  the earlier speed cannot explain), so a teleported partner no longer shoves anyone.
+- T5d Upper rebuilt to the v2 bay plans: B1 Muster is five small rooms in a chain (lift lobby, kit room, briefing room
+  with a glass wall onto the gear run, the 20 m gear run, the dark store), B2 The Lanes is one 52 m lane both players
+  run in order (plinth, rail, block wall, caged ladder, pipe over a pit, hang-drop, trench, downpipe and beam ledge
+  round a column, gap jump to the portal sill, three drop pads, the window wall). Glass is see-through and not
+  climbable; every bay's objectives are listed by name.
+
+## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
+- T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks
+  A1 and A2 (locked blast doors the course opens, bench, vision slot), B2 The Lanes (two mirrored obstacle lanes with
+  every ground and climbing verb, glass walkway, lever-gated lane doors, drop pads and pit). Map `bunker` ("Fallow",
+  `?autostart=bunker&mode=course`, not listed) with a course stub (B1, B2). `scripts/plan-svg.mjs` draws a map's
+  storey plans headless. Tests: `tests/bunkerMap.test.ts`.
+- T3 shaft and reservoir (Plant level, y 6): B3 The Intake (24 m shaft with galleries G1-G3, riser-casing split slot,
+  wall-jump lip, damper bar, hoist rope past the control-room window, spoil zipline, fan guard and discharge duct, catch
+  nets), airlock A3, B4 The Cistern (three cells, 4.4 co-op walls, inspection door, sluice, valve gallery, overflow
+  channel, float shaft, sump, outlet platform) and airlock A4 on the outlet platform. Course stub B1-B4 with the fan
+  isolator, bolts, the sluice hold and the outlet ladder.
+- T4 Plant level, rest (y 6) and Stair 6: B5 Standby Plant (three gensets with wall-jump roofs, grating walkway over a
+  secret cable trench with lift-out panels, cable gallery with a hang-drop, glazed switch room with the mains breaker
+  switch, fuel bay and day tank, duty desk, entry landing and stair at A4's door), airlock A5 and its service passage
+  (plant platform under the supply duct), B6 Mock Site (reception, corridor and L, open office with partitions and the
+  glazed manager's office, control-room mezzanine at 3.6 behind a reader door, lockers, records with the duct's
+  ceiling grille, mantrap, server room, exit keypad lobby), S6 (33-riser enclosed stair to y 0) and airlock A6.
+  `BUNKER_DEVICES` mount points for T7a. Course stub B1-B6: the mains gate on A5, card readers, keypad, egress, S6's
+  one-way top door; Finish in A6.
+- T5 Deep level (y 0): B7 The House (rock cavern, two-storey kill house with roof parapet and hatch, kitchen annex,
+  water main, rock-bolting bench, sandbags, skip, recesses, the store door), airlock A7, B8 The Range (firing line, kit
+  lockers, lane stands, penetration wall, barrels, lamp gantry, shoot-house barricades, catwalk, control tower, caged
+  catwalk stair bolted from below, sniper scaffold), airlock A8 (medkit), B9 The Plot (plot floor and map table,
+  balconies 4.5 / 9.0 with cabins, bridge, stair towers, the north-west boost gap, bridge rope, zipline to the lift
+  lobby, message-tube duct) and the exit lift L9. Course stub B1-B9: store key, catwalk bolt, keys A / B, the case and
+  the two-key lift; the course ends in the lift. e2e-anchors covers the bunker.
+
+## 3.7.0 - Training course framework (Block A, branch `feature/training-bunker`)
+- Course mode (T1a, T1b): `CourseState` (pure, host only) runs bays, airlocks and gates (lever, bolt, hold, timed hold,
+  pair, egress, mains, pickup / flag, anchor lock), checkpoints and bay restarts; `CourseMode` puts down the devices,
+  keeps door, anchor and lamp locks in step and speaks LANTERN's radio (text only, held while guards are alerted).
+  Co-op "Training course" takes two players (host P1, client P2): the `course` message mirrors state, locks and lights;
+  friendly fire is on (D38). Debug map `courselab` (`?autostart=courselab&mode=course`, not listed); dev solo flag
+  `?course=solo`.
+- Drills and tutorial (T1c): `drillDetect` derives every drill verb in one place (edge-triggered); the client reports
+  its local-only verbs as `ctick`; takedowns, thrown gadgets, doors and team moves resolve and tick on the host. The
+  tutorial HUD lists the bay's drills with P1 / P2 tick columns and the current step in LANTERN's voice; drill-done
+  toasts and radio on both pages; next-drill markers (Settings > Gameplay "Course markers"). Airlocks and the course
+  end device ("Finish", `devices.end`) refuse while drills are open, naming them. No skip path (D30).
+- Results: a course panel (per-bay and total time, detections, alarms, knock-outs, kills, revives, team moves, per
+  player and team; the finale's Ghost / Silent / Loud tier). Course record `course:fallow` (IndexedDB kv; no save
+  version change); the co-op lobby offers "Start at bay N" for finished bays, and both players start in that bay's
+  entry airlock.
+- Net: `PROTOCOL_VERSION` 3 (`course`, `ctick`, `start.bay`, `td.kind`). Tests: `tests/course*.test.ts`,
+  `tests/courseTutorial.test.ts`, e2e `e2e-course`.
 
 ## 3.6.x - First Playable (in progress)
 - Docs: 2026-10-10 cleanup (retired maps archived, docs match the new campaign).

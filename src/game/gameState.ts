@@ -99,6 +99,8 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { TrainingMode } from './modes/trainingMode';
+import { CourseMode } from './modes/courseMode';
+import type { CourseWire } from './course/courseWire';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
@@ -133,6 +135,8 @@ export interface GameOptions {
    * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
    */
   benchmark?: BenchSession;
+  /** Course mode: the bay to start at (1-based, D20; the lobby's "Start at bay N"). */
+  courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
 }
@@ -171,6 +175,8 @@ export interface NetAttachment {
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
   shadows?(b: BlobShadows): void;
+  /** Host, course mode: send the `course` message to every client. */
+  course?(w: CourseWire): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -194,6 +200,8 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
+/** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
+const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 const SHOT_NOISE = 28;
@@ -313,7 +321,7 @@ export class GameState implements AppState {
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
-  remotePlayers: () => PlayerRef[] = () => [];
+  remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -519,7 +527,7 @@ export class GameState implements AppState {
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
-      w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers);
+      w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
       w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefs());
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
@@ -554,7 +562,9 @@ export class GameState implements AppState {
               ? new InfiltrationMode(this)
               : opts.mode === 'training'
                 ? new TrainingMode(this)
-                : new MissionMode(this);
+                : opts.mode === 'course'
+                  ? new CourseMode(this)
+                  : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -840,6 +850,11 @@ export class GameState implements AppState {
     this.app.input.setGameplayActive(true);
     this.app.input.touch.setAction(null);
     this.mode?.start();
+    // the course's dev solo flag (D21, A6): a debug-overlay toggle in dev builds only, never in the menus
+    if (import.meta.env.DEV && this.mode instanceof CourseMode) {
+      const cm = this.mode;
+      this.app.debug.setToggle('courseSolo', 'Course solo', cm.state?.solo ?? false, (on) => cm.setSolo(on));
+    }
     if (this.opts.benchmark) {
       // the flight (3.2.5): the rooms joined by the guards' walking routes - through the doorways, never through a wall,
       // at a steady eye height (the doors open and their leaves hidden: an open leaf stands out into the corridor)
@@ -886,6 +901,7 @@ export class GameState implements AppState {
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
     this.app.debug.setTeleports(null);
+    this.app.debug.setToggle('courseSolo', '', false, null);
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
     this.enemyMgr?.clear();
@@ -2258,7 +2274,8 @@ export class GameState implements AppState {
   private readonly dofTo = new Vector3();
 
   private markerPt = new Vector3();
-  private scr = { x: 0, y: 0 };
+  /** The last `project` result (percent of the view). */
+  readonly scr = { x: 0, y: 0 };
 
   /** Co-op pings showing (one per player; the newest replaces that player's last). */
   readonly pings: { by: string; x: number; y: number; z: number; target: string; color: string; t: number }[] = [];
@@ -2279,6 +2296,7 @@ export class GameState implements AppState {
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
+    this.mode?.onLocalPing?.();
     this.net?.ping?.(hit.point.x, hit.point.y, hit.point.z, t);
   }
 
@@ -2323,7 +2341,8 @@ export class GameState implements AppState {
     v.end();
   }
 
-  private project(x: number, y: number, z: number): boolean {
+  /** World point to percent of the view in `scr`; false when off screen (HUD markers). */
+  project(x: number, y: number, z: number): boolean {
     const m = this.markerPt.set(x, y, z);
     Vector3.TransformCoordinatesToRef(m, this.scene.getTransformMatrix(), m);
     if (!(m.z > 0 && m.z < 1 && Math.abs(m.x) < 1.05 && Math.abs(m.y) < 1.05)) return false;

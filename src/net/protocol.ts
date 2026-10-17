@@ -10,8 +10,10 @@ import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { MEDKIT } from '../game/medkit';
+import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -19,19 +21,21 @@ export const TEAM_MAX = 4;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
 /** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */
-export const MAX_ITEMS = 48;
-export const MAX_DOORS = 96;
+export const MAX_ITEMS = 128;
+export const MAX_DOORS = 256;
 const WORLD = 400;
 
 /** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
-export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa';
-export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa'];
+export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'course';
+export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa', 'course'];
+/** The training course takes exactly two players (P1 host, P2 client). */
+export const COURSE_MAX = 2;
 export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
 /** Players a mode takes. */
-export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : COOP_MAX);
+export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : m === 'course' ? COURSE_MAX : COOP_MAX);
 import { clampCustom, DIFFICULTIES, parseDifficulty, type Difficulty, type DifficultyPreset } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -151,7 +155,7 @@ export type Msg =
   | { t: 'ready'; ready: boolean }
   /** Ask the host for a TDM side. */
   | { t: 'team'; team: number }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; dc?: WireCustom }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; dc?: WireCustom; bay?: number }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -161,7 +165,7 @@ export type Msg =
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
-  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
+  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
   | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
@@ -190,6 +194,10 @@ export type Msg =
   | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
+  /** Training course state (host -> all): when it changes or every COURSE_SEND. */
+  | ({ t: 'course' } & CourseWire)
+  /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
+  | { t: 'ctick'; verb: ClientVerb }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -422,6 +430,74 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
+const COURSE_LIST = 256;
+const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
+const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
+  const out: number[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const n = num(x, lo, hi);
+    if (n !== null) out.push(Math.round(n));
+  }
+  return out;
+};
+const strs = (v: unknown, max = COURSE_LIST): string[] => {
+  const out: string[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const s = safeText(x, 48);
+    if (s) out.push(s);
+  }
+  return out;
+};
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v.slice(0, COURSE_LIST) : []);
+const n0 = (v: unknown, lo: number, hi: number): number => num(v, lo, hi) ?? 0;
+
+/** The `course` message: every field clamped, lists capped, unknown shapes dropped. */
+function parseCourse(raw: Obj): Msg | null {
+  const s = raw.s;
+  const lights = raw.lights;
+  if (!isObj(s) || !isObj(lights)) return null;
+  const stat = (q: unknown) => {
+    const o = isObj(q) ? q : {};
+    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4) };
+  };
+  const ps = arr(s.pstats);
+  const packed: PackedCourse = {
+    bay: Math.round(n0(s.bay, 0, 64)),
+    done: arr(s.done).map((b) => b === true),
+    cp: safeText(s.cp, 48) ?? 'start',
+    clock: n0(s.clock, 0, 1e6),
+    over: s.over === true,
+    air: arr(s.air).map((a) => {
+      const o = isObj(a) ? a : {};
+      return { phase: oneOf(o.phase, PHASES) ?? 'open', t: n0(o.t, 0, 60) };
+    }),
+    gates: arr(s.gates).map((x) => {
+      const o = isObj(x) ? x : {};
+      return { open: o.open === true, t: n0(o.t, 0, 600), holders: Math.round(n0(o.holders, 0, 3)), ta: n0(o.ta, -1, 1e6), tb: n0(o.tb, -1, 1e6), pa: Math.round(n0(o.pa, -1, 1)), pb: Math.round(n0(o.pb, -1, 1)) };
+    }),
+    flags: strs(s.flags),
+    flagBay: arr(s.flagBay).flatMap((x): [string, number][] => {
+      const f = Array.isArray(x) ? safeText(x[0], 48) : null;
+      return f ? [[f, Math.round(n0((x as unknown[])[1], 0, 64))]] : [];
+    }),
+    groupsOff: strs(s.groupsOff),
+    ticks: arr(s.ticks).map((x): [number, number] => (Array.isArray(x) ? [Math.round(n0(x[0], 0, 99)), Math.round(n0(x[1], 0, 99))] : [0, 0])),
+    stats: arr(s.stats).map(stat),
+    pstats: [stat(ps[0]), stat(ps[1])],
+    locks: strs(s.locks),
+    anchors: strs(s.anchors),
+  };
+  const groups: [number, boolean][] = [];
+  for (const x of arr(lights.groups)) {
+    if (!Array.isArray(x)) continue;
+    const g = num(x[0], -1, 4096);
+    if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
+  }
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)) };
+}
+
 /** Validate an incoming message. Returns null for anything malformed. */
 /**
  * (locomotion step 19, D7) The host's custom difficulty on `lobby` / `start` (only when `difficulty` is 'custom'):
@@ -479,6 +555,12 @@ export function parseMessage(raw: unknown): Msg | null {
       const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
+    }
+    case 'course':
+      return parseCourse(raw);
+    case 'ctick': {
+      const verb = oneOf(raw.verb, CLIENT_VERBS);
+      return verb ? { t: 'ctick', verb } : null;
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);
@@ -548,7 +630,8 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'td': {
       const target = id(raw.target);
       const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
-      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true } : null;
+      const kind = id(raw.kind);
+      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true, ...(kind ? { kind } : {}) } : null;
     }
     case 'start': {
       const mode = oneOf(raw.mode, MODES);
@@ -557,7 +640,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
       const dc = difficulty === 'custom' ? wireCustom(raw.dc) : undefined;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', ...(dc ? { dc } : {}) };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), ...(dc ? { dc } : {}) };
     }
     case 'pstate': {
       const s = playerState(raw.s);

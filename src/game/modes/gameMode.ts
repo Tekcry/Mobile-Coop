@@ -1,3 +1,4 @@
+import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
@@ -6,7 +7,7 @@ import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`. */
-export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training';
+export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training' | 'course';
 
 export interface SessionStats {
   mode: ModeId;
@@ -36,6 +37,8 @@ export interface SessionStats {
   alarms?: number;
   /** PvP: deaths (eliminations are `kills`). */
   deaths?: number;
+  /** Training course: the results panel (T1c). */
+  course?: CourseSummary;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
@@ -73,6 +76,20 @@ export interface GameMode {
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */
   onInteract?(it: Interactable): void;
+  /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
+  onRemoteVerb?(id: string, verb: string): void;
+  /** The local player sent a ping (course drills). */
+  onLocalPing?(): void;
+  /** Co-op host: a client's movement mode (from its `pstate`). */
+  onRemoteMove?(id: string, mode: string): void;
+  /** Co-op host: a team move started between `a` and `b` (player ids; undefined = the host). */
+  onTeamMove?(a: string | undefined, b: string | undefined): void;
+  /** Co-op host: a client's `use` of an item is running (`active` true before its `onUse`, false after). */
+  onRemoteUse?(id: string, active: boolean): void;
+  /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
+  onRemoteTakedown?(id: string, kind: string): void;
+  /** Co-op host: a client's thrown gadget took effect (host-checked). */
+  onRemoteGadget?(id: string, kind: string): void;
   blips(): Blip[];
   dispose(): void;
 }

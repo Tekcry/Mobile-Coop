@@ -40,6 +40,21 @@ Design authority: docs/design-bible.md (Section 5.9)
   kill tallies sent in `end`. `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with
   `SnapshotBuffer`/`ClockSync` (`interp.ts`), sends `pstate` at 20 Hz and hits as `shot`; rewards come from
   `clampEnd` + `coopSessionStats` of the host report.
+- Partners block each other (T5b2, D49 / A49): every page gives each partner (anyone but a PvP opponent) a
+  `PartnerBlocker` (`partnerBlocker.ts`): an upright capsule at their shown (interpolated) feet in `G.PARTNER`, which
+  only the local controller collides with (`MASK.PLAYER_COLLIDE`). Host: `RemotePlayer.blocker`; client: per
+  `RemoteAvatar`. Parked while the partner is down or in a boost / human ladder (`partnerPassable`: wire mode `boost`
+  or `stacked`); brace keeps it (reach 1.2 m). Course friendly fire's partner hit boxes (`PvpTarget`, host
+  `pvpBoxes`) are `setSolid(false)`: bullets only. PvP opponents still block through their `G.ENEMY` hit boxes.
+  TDM team-mates are partners (they block each other). Teleports: `SnapshotBuffer` (`interp.ts`) holds the old spot and
+  then shows the new one when two states are more than `SNAP_MIN` (2 m) apart and either faster than `SNAP_SPEED`
+  (25 m/s) or, across a gap of more than `SNAP_GAP` (0.3 s, a stalled sender), further than max(`SNAP_MIN`,
+  sqrt(2) x |v| x gap) from where the velocity v before the gap would carry the partner (the most a 90-degree turn
+  during the gap can deviate; compared squared). A standing partner teleported after a pause snaps; a sprinter whose
+  sender stalled runs on smoothly, round a corner too; a moving partner teleported during a stall within that bound
+  slides instead of snapping. Across a short gap anything slower interpolates. The
+  blocker also parks for 3 frames when the shown feet jump more than 0.6 m between syncs, so a teleported partner never
+  sweeps through the points between.
 - Modes (`NetMode`): co-op `wave | clear | infiltration | sandbox` (`COOP_MAX` 4), PvP `tdm | ffa` (`MAX_PLAYERS`
   8, `TEAM_MAX` 4 a side); `capacity(mode)` gates joins and `startMatch` (`overCapacity`). Lobby/start carry
   `mission` (Infiltration); `PlayerInfo.team` (balanced on join, `team` message / `requestTeam`).
@@ -82,3 +97,32 @@ Design authority: docs/design-bible.md (Section 5.9)
   copy (`RemotePlayer.avatar.rig`) with the local player's metrics (bible :858 "remote poses obey the same continuity
   limits") plus pose error vs the owner at matched timestamps (`INTERP_DELAY` shifted, <= 10 cm), pops (rubber-banding)
   and the brace + boost pair (<= 3 cm, :859). Report only in `npm run e2e` until step 32; `docs/systems/testing-tools.md`.
+- Course mode (T1b, `NetMode` 'course', `COURSE_MAX` 2: host P1, client P2; the lobby lists "Training course" only for listed
+  maps with the mode): the host runs `CourseMode` (`game/modes/courseMode.ts`) and sends `course` (host -> all; `CourseWire`
+  in `game/course/courseWire.ts`) when it changes or every `COURSE_SEND`: the packed `CourseState`, locked door indices
+  (`Doors.setLocked`), locked anchor ids (`AttachController.disabled`), light state (`lights.groups` [group, on] and
+  `lights.dead` destroyed lamp ids: clients `setGroup` / `kill` / `restore` their own registry) and `ref` / `rn` (P2's last
+  refusal and its counter: the client shows its own refusal). Clients press and hold course devices through `use`.
+  T5b (D48): the host's `items` list sends the course devices (`c-` ids) first, then the rest, so the cap never drops
+  them (a map's door items had filled it); `MAX_ITEMS` is 128 and `MAX_DOORS` 256 (no protocol bump: both peers run one
+  build). A door the host reports locked is shut on the client too (leaf closed, body back); nothing on the client
+  unlocks a course door by itself. The host shuts a locked course door the same way (`setLocked` only sets the flag).
+  `ctick` (client -> host, `{ verb }`, `TickLimiter` 4 a second) reports the drill verbs only the client sees (gear,
+  stance, vision, ping, aim, reload, swap; `VerbEdges`); the host ticks traversal modes (`pstate.mv`), team moves,
+  takedowns, gadgets and gates itself. Friendly fire (D38): `playersHostile` (pure, `net/pvp.ts`) makes partners hostile
+  in course mode, so the PvP paths carry team damage (`friendly` flags, host `Hitboxes` + `RemotePlayer.shootable`,
+  client `PvpTarget`, `blast`), with co-op rules otherwise: a partner at zero is downed and revivable, never a frag.
+
+## Course drill ticks (`ctick`, T1c)
+`src/game/course/drillDetect.ts` is the single place course verbs are derived (edge-triggered, one tick per
+occurrence); `CourseFeed` fills its snapshot from the game each fixed step. The host runs it for itself and on the
+remote's `pstate` mode (host-visible verbs, C10); the client runs it on its own snapshot and sends only the
+`CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, and gadget for a placed gadget) as
+`ctick` (rate-limited by `TickLimiter`). What resolves on the host ticks there (DECISIONS A23): a client's takedown
+(`td` done, with the client's takedown `kind`: `onRemoteTakedown`), thrown gadget (`gadget`: gadget and throw,
+`onRemoteGadget`), door (a door moved inside its `use`: `onRemoteUse`, `CourseFeed.remote`) and team moves (every
+`tstart`: `onTeamMove`, a teamMove verb and stat for each player in it). The client mirrors the course from the `course`
+message (HUD, markers, toasts, results) and says LANTERN's radio from its `rl` / `rln` (the host's last line and counter).
+At the end the host sends a final `course` before `end`, so the client's results read the final state. The `start`
+message carries `bay` (course "Start at bay N", D20); both players start in that bay's entry airlock
+(`courseStartPos`: the client moves there before its first `pstate`, which the host takes anywhere).

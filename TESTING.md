@@ -158,6 +158,17 @@ On the iPhone (`/ct/` preview after Michael merges): shots play from the first t
 - [ ] RT / LMB held while holstered: the body does not twist or turn as if aiming. Reload while aiming, then release aim mid-reload: the reload finishes, then the gun goes back. Reload while holstered: the gun comes out low, reloads, goes back; holding fire meanwhile never shoots.
 - [ ] On a ladder, pipe or lip the gun stays stowed while aiming; from a split / inverted pipe aiming draws the sidearm.
 - [ ] Co-op (two devices): the other player's gun is in their hands only while they aim, and goes back within about half a second of releasing; shots fired while holstered do nothing on the host.
+## 3.7.0 - Training course framework, Block A (desktop only, D24; two browser tabs)
+- [ ] Tab 1 `?net=local&autostart=courselab&mode=course`, tab 2 the same URL (or Co-op > Host / Join with the code,
+      mode "Training course", map Courselab): both start in L1; the drill panel shows three drills with P1 and P2 columns.
+- [ ] Each tab: step the speed gear; one player vaults the low wall, one presses the panel. Ticks appear in both tabs,
+      with a toast and LANTERN's line ("Moth: vault - done") in both.
+- [ ] Press Cycle in the airlock with a drill open: refused, naming the open drills. With all done and both inside:
+      it cycles; the near door stays locked behind you.
+- [ ] Settings > Gameplay "Course markers" off: the next-drill marker and edge arrow disappear; on again: back.
+- [ ] L2: work each gate; take the key, climb the ladder, press Finish (before the ladder: refused). Both tabs show the
+      results with the course panel (bay times, team / P1 / P2 numbers, the tier).
+- [ ] Play again: the lobby offers "Start at: Bay 2 (L2)"; start it: both players stand in the A1 airlock.
 
 ## Dead Line v2 G1 - Area 1 greybox (PC and phone)
 - [ ] Main menu, Play, "Dead Line v2", Deploy: you start on Viaduct Road in the dark, facing south, under the railway bridge; walk to the lane mouth.

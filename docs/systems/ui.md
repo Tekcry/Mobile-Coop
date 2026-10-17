@@ -116,3 +116,18 @@ Design authority: docs/design-bible.md (Section 5.10)
 - Used by the play screen (both builds; hidden in Free Roam) and the co-op host's lobby (`compact`: the sliders and
   base show only on Custom, so the lobby actions stay clear of the hints bar). A co-op client sees one
   read-only row (`customSummary`: "Custom (Normal base): perception 0.50, aim 1.00, alarm 2.00").
+## Course HUD (training course, T1c)
+`src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the
+drill is not that player's), and this player's current step in large type (LANTERN's line; `{Y}` / `{Y:traverse}`
+tokens become prompt glyphs that follow the input mode). DOM is written only when the bay, the ticks
+(`CourseState.gen`) or the end change. A drill done shows a toast and LANTERN's line ("Moth: vault - done"). The next
+drill's marker is drawn by `PingView.marker` (on screen or on the edge); Settings > Gameplay "Course markers"
+(`gameplay.courseMarkers`, default on) hides it. The results screen shows a course panel (`SessionStats.course`:
+per-bay time, team and per-player numbers, the finale's Ghost / Silent / Loud tier, `courseRating.ts`) on the host and
+the client; it is reached through the course end device ("Finish", `devices.end` in the last bay), refused while that
+bay's drills are open. The co-op lobby reads the course record again whenever it is shown ("Start at bay N").
+T5b (R5, R6): the objective list is always on screen for both players from spawn ("B<n> - objectives": each drill
+named, ticked per player, the current one highlighted, then the airlock row); it has no toggle. Below it the airlock status
+line (`.ch-air`, `CourseState.airlockStatus`) shows "Waiting for partner" with one player on the pad, the refusal naming
+the open objectives (or "Revive first") with both on it, and the cycle while it runs; it is hidden otherwise. Airlocks have
+no Cycle button: each has an emissive floor pad outline (`buildAirlockPads`, visual only).

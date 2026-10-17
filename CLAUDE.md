@@ -4,6 +4,8 @@ Project knowledge lives in git, never only in Claude memory: Michael swaps accou
 
 On branch feature/ct-locomotion, follow docs/locomotion/RULES.md and resume from docs/locomotion/STATE.md (brief: BRIEF.md).
 
+On branch feature/training-bunker, follow docs/training/RULES.md and resume from docs/training/STATE.md (brief: docs/training/BRIEF.md).
+
 On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading below: follow docs/kestrel/RULES.md and read only the files the prompt lists. Planner sessions (message begins 'Planner:') follow docs/kestrel/PLANNER.md.
 
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
@@ -12,6 +14,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 - It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages for desktop only (pad first, then keyboard and mouse; M21, 2026-10-17: phones and touch are dropped; the phone look and mobile paths get no new work).
 - `docs/design-bible.md` decides design questions. Text anywhere describing Blacklist systems (snap cover, Mark & Execute, sonar, Ghost / Panther / Assault, PvP, Wave) is history.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
+- Fallow (map `bunker`, `src/world/maps/bunker*.ts`, run docs `docs/training/`): the two-player training bunker, course mode, `?autostart=bunker&mode=course`, not listed. Upper level (y 16, B1 / A1 / B2 / A2) built; `node scripts/plan-svg.mjs` draws its plans.
 
 ## Every session
 1. Read this file.
@@ -82,7 +85,7 @@ a fresh checker reviews, up to 3 fix rounds; the job's docs live in git. Details
 | `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, settings, quality / governor / display / platform (pure parts) |
 | `input/` | Action map; touch, gamepad, keyboard / mouse sources write one `InputState` |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (wave, clear / Hunter, mission / Infiltration, sandbox, training), takedowns, gadgets, tactics |
+| `game/` | `GameState`, modes (wave, clear / Hunter, mission / Infiltration, sandbox, training, course), the training course framework (`course/`), takedowns, gadgets, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |

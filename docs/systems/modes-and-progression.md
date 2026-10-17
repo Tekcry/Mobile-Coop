@@ -62,6 +62,10 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
 - `avatarFactory` puts the look's pattern on torso/legs slots; `WeaponModel` puts the camo pattern on
   `body` parts. Emotes are pose overrides (`cosmetics/emotes.ts`) run via `CharacterRig.emote`.
 
+## Course mode (training bunker, T1b)
+- `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's `MapLayout.course`; co-op only (two players, lobby "Training course"; `?autostart=courselab&mode=course` single player for tests); radio as LANTERN barks.
+- Everyone down restarts the bay at the checkpoint airlock (squad, gates, light groups and shot-out lamps); friendly fire is on (D38); the dev solo flag (`?course=solo`, F3) lets one player work both halves.
+
 ## 3.5 parked content (`?legacy=1`)
 - `flags.legacy` (`?legacy=1`, URL only, never saved) and `core/legacy.ts` (pure, `tests/legacy.test.ts`): `PARKED_MODES` (Wave `wave`,
   Mission `mission`, Hunter `clear`, Team Deathmatch `tdm`, Free-for-all `ffa`), `visibleModes(all, legacy)`, `defaultMode(legacy)` (Infiltration, or Wave with

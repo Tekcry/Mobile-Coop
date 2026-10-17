@@ -149,6 +149,11 @@ export class Doors {
     d.node = null;
   }
 
+  /** Lock or unlock a door at run time (pure state on the anchor; a locked door refuses `open`, `setOpen` ignores it). */
+  setLocked(d: DoorState, on: boolean): void {
+    d.anchor.locked = on;
+  }
+
   /** Open a door (`how` sets the swing speed and the sound). False when locked or already opening. */
   open(d: DoorState, how: 'quiet' | 'bash' | 'enemy'): boolean {
     if (d.anchor.locked || d.target === 1) return false;
