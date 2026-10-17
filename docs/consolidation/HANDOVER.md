@@ -31,14 +31,18 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
    entries, each quoting Michael verbatim with the question id; sections: vision in one page, decisions by area,
    settled by the directive, deferred (with where decided), earlier decisions that still stand / void, unclear.
 
+## Unclear items: ANSWERED (chat-answers.md, last section). Apply them to DECISIONS-draft.md, then move it to docs/DECISIONS.md.
+
 ## Still to do (in order)
 3. Deletions in this merge (Michael: "In this merge"), one code agent at a time (opus):
    a. retired maps: Exchange, Trunk Annex, Dead Line v1 and v2 (code, map list, e2e suites); their design docs
       move to docs/archive (Michael: archive the docs; tests deleted with the code).
    b. phone and touch: touch input and layout editor, touch settings, phone look and phone render paths, phone
       budgets / perf --phone, e2e-touch; switch the e2e launcher from Pixel 7 phone emulation to desktop (PLAT-02).
-   Not in this merge (CT conversion, later jobs): extra guns (CT kit only), drone, custom difficulty sliders,
-   carried medkits, grab selector, HUD gear / stance icons. Record them as the clean-up / prototype job list.
+   c. Michael (U3, U4, U10): ALSO in this merge: emotes, the old solo Training mode, every gun outside the CT kit
+      (one rifle with attachments, one pistol, the knife), the tri-rotor drone, custom difficulty sliders (back to
+      fixed difficulties), carried medkits (wall stations only). Hunter stays. Each its own commit, check + affected e2e.
+   Later (CT prototype / conversion): grab menu, HUD gear / stance icons, door menu, CT pad layout, goggle changes.
 4. Rewrite docs on integrate/consolidate to one current vision from docs/DECISIONS.md: CLAUDE.md (incl. a "Running a
    job" section, branch flow main-only, authority order, desktop only, CT co-op directive), docs/design-bible.md,
    docs/progress.md (ordered job list: CT co-op research, CT prototype, then the rest), docs/systems/*.md, TESTING.md

@@ -48,3 +48,14 @@ We must get a working prototype working, only the basics required to make it wor
 ## Derived from the directive (Claude listed these as settled in chat before the questions; Michael then asked only the open ones)
 Goggles: night, thermal, electro, instant cut in CT order, CT grain, thermal as CT. CT draw timings. Marksman scope with hold breath as CT. Loadouts Stealth / Assault / Recommended. Wall medkit stations only, no carried kits. CT door menu (open, stealth open, bash, optic cable). No stance or gear HUD icons; objectives in the menu. CT's exact pad layout. Operators move the same (one CT set). No prone crawl, no rope climb. Solo / 3-4 player / bot questions settled (two players only). Tally and Sexton become radio crew. Menus, music revision, art guide and Kestrel floor plans wait until after the prototype. Order: CT co-op research, then the prototype, then the rest.
 Overturned page answers: VIS-03 (Hunter returns: still stands, Michael's exception), CTRL-09 note (selector: replaced by CT grab menu), ART-08 (drone: removed), STEALTH-11 (custom difficulty and alarm tolerance: removed with the sliders; CT fixed difficulties), COOP-02 and STEALTH-04 note (friendly fire, heavies: the research decides).
+
+## Unclear items U1-U9 from the DECISIONS draft (native multiple-choice, 2026-10-17)
+- U1 operator rules: "Operators branch" (master records only realistic operators, Wren and Moth; replaces page ART-01).
+- U2 name ban: "Title ok, quotes kept" (character, gear, organisation names scrubbed; "Chaos Theory" may name the reference; Michael's quotes stay verbatim).
+- U3 / U4 emotes and the old solo Training mode: "Delete both" (in this merge).
+- U10 extra guns (CT kit only), drone, custom difficulty sliders, carried medkits: "In this merge".
+- U5 bunker friendly fire: "Research decides".
+- U6 training D41 map rule: "CT research replaces it" (D41 binds only the bunker).
+- U7 Kestrel Mission 1 size in the bible: "No, wait".
+- U9 the nine waiting ideas: "Keep only CT ones" (the research keeps what CT has; the rest are dropped).
+- U8 lobby and mission-card questions (UI-04 to UI-06): not asked; covered by chat answer 32 (menu calls decided in the menu job).
