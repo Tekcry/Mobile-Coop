@@ -1,6 +1,10 @@
 # Locomotion run - state
 
-## RESUME HERE (2026-10-17, M19-M24): BUILD THE CT PROTOTYPE
+## RESUME HERE (2026-10-17, M26): FIRST CONSOLIDATE, THEN THE CT PROTOTYPE
+1. Consolidation to master: follow docs/locomotion/CONSOLIDATE.md (new worktree C:/NightShift/Mobile-Coop-integrate, branch integrate/consolidate, one PR; Michael merges).
+2. After Michael merges: the CT prototype on a fresh branch feature/ct-prototype from master, per the plan below.
+
+## CT prototype (M19-M25)
 Footage processed and measured (docs/locomotion/research/ct-measure-*.md, ct-footage-catalogue.md). The plan to build is docs/locomotion/PROTOTYPE-PLAN.md (slices P1 body, P2 camera, P3 wall + doors, P4 strike + vision; light checks; Michael plays after P1 and after P4; open questions at its end). Start with P1 unless Michael says otherwise. Older notes below.
 
 ## Earlier (2026-10-17, M19-M21): research and CT footage
