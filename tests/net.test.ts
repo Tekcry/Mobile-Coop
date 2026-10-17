@@ -596,7 +596,8 @@ describe('step 09: host-authoritative drawn state (D8)', () => {
 describe('step 10: committed-move messages (A5, PLAN H3)', () => {
   it('parses cmove / cstart / cdeny', () => {
     expect(parseMessage({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' })).toEqual({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' });
-    expect(parseMessage({ t: 'cmove', kind: 'medkit', id: 1, target: '' })).toEqual({ t: 'cmove', kind: 'medkit', id: 1, target: '' });
+    // the carried medkit is gone (G98)
+    expect(parseMessage({ t: 'cmove', kind: 'medkit', id: 1, target: '' })).toBeNull();
     expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 })).toEqual({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 });
     expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' })).toEqual({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' });
     expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'hit' })).toMatchObject({ reason: 'hit' });
@@ -749,15 +750,16 @@ describe('step 13: door peek on the wire', () => {
   });
 });
 
-describe('custom difficulty on the wire (locomotion step 19)', () => {
-  it('lobby / start with dc parse and clamp; base must be a preset', () => {
-    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
-    expect(s).toMatchObject({ difficulty: 'custom', dc: { b: 'rookie', p: 0.5, a: 1.3, t: 2 } });
+describe('difficulty on the wire (G106: fixed levels, no custom sliders)', () => {
+  it('lobby / start carry a level only; an old custom reads Normal and its dc is dropped', () => {
+    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'realistic' });
+    expect(s).toMatchObject({ difficulty: 'realistic' });
+    const old = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
+    expect(old).toMatchObject({ difficulty: 'normal' });
+    expect('dc' in (old as object)).toBe(false);
     const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
-    expect(l).toMatchObject({ difficulty: 'custom', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
-    const bad = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'custom', p: 0.5, a: 1, t: 2 } });
-    expect(bad).not.toBeNull();
-    expect((bad as { dc?: unknown }).dc).toBeUndefined();
+    expect(l).toMatchObject({ difficulty: 'normal' });
+    expect('dc' in (l as object)).toBe(false);
   });
 
   it('a non-custom lobby / start ignores dc', () => {

@@ -272,13 +272,12 @@ try {
   await press(page, BTN.A);
   assert(await q('.play-screen'), 'A opens the play setup');
   assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
-  // (locomotion step 19, D7) custom difficulty by pad: d-pad down to Guard perception, left x5 = 0.5 -> Custom
-  for (let i = 0; i < 14 && !/Guard perception/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Guard perception/.test(await focusedText(page)), `the pad reaches the Guard perception slider (${await focusedText(page)})`);
-  for (let i = 0; i < 5; i++) await press(page, BTN.LEFT);
-  const cd = await page.evaluate(() => ({ c: window.__app.settings.get().gameplay.customDifficulty, choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', base: !document.querySelector('.play-screen [data-diff="base"]')?.hidden }));
-  assert(cd.c.perception === 0.5 && cd.c.aim === 1 && cd.c.alarm === 1 && cd.c.base === 'normal', `pad left x5 sets perception 0.5 from Normal (${JSON.stringify(cd.c)})`);
-  assert(/Custom/.test(cd.choice) && cd.base, `moving a slider on a preset switches to Custom and shows its base (${cd.choice})`);
+  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad down to Difficulty, right = Normal -> Realistic
+  for (let i = 0; i < 14 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
+  await press(page, BTN.RIGHT);
+  const cd = await page.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
+  assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
   for (let i = 0; i < 14 && !/Mode/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   await press(page, BTN.LEFT);
   assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
@@ -287,7 +286,7 @@ try {
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
-  assert(rd.p === 0.5 && rd.l === 'Custom' && (rd.m === null || rd.m === 0.5), `the match resolves Custom with perception 0.5 (${JSON.stringify(rd)})`);
+  assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
   // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
   // goggles, View held nothing (emotes deleted, G24)
   const G = (f) => page.evaluate(f);
@@ -821,59 +820,6 @@ try {
       await C.browser.close();
     }
   }
-  console.log('medkit (pad X held 0.4 s; locomotion step 15): 60 -> 100 hp in 1.5 s, kits 2 -> 1; damage mid-use stops the heal');
-  {
-    const M = await launch({ url, params: 'autostart=proving' });
-    try {
-      const P = M.page;
-      await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
-      await P.evaluate(() => {
-        const a = window.__app;
-        a.loop.manual = true;
-        a.loop.stepHeadless(0.3, 120);
-        a.current.target.health.hp = 60;
-        window.__mk = { step: (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); } };
-      });
-      await P.evaluate(() => {
-        window.__pad.connect();
-        window.__pad.set(2, 1);
-        window.__mk.step(30);
-      });
-      await P.waitForTimeout(500);
-      await P.evaluate(() => {
-        window.__mk.step(2);
-        window.__pad.set(2, 0);
-        window.__mk.step(1);
-      });
-      const r = await P.evaluate(() => {
-        const g = window.__app.current;
-        const out = { started: g.medkit.active, kits0: g.medkit.kits, dw: g.weapons.drawPhase };
-        let t = 0;
-        while (g.medkit.active && t < 3) {
-          window.__mk.step(1);
-          t += 1 / 60;
-        }
-        Object.assign(out, { t, hp: g.target.health.hp, kits: g.medkit.kits });
-        // damage mid-use: the heal stops, the kit is spent
-        g.target.health.hp = 60;
-        g.medkit.begin();
-        window.__mk.step(45);
-        g.target.health.damage(5);
-        window.__mk.step(2);
-        const hpHit = g.target.health.hp;
-        window.__mk.step(60);
-        Object.assign(out, { hitActive: g.medkit.active, hpHit, hpAfter: g.target.health.hp, kitsHit: g.medkit.kits, lastDenied: g.medkit.lastDenied });
-        return out;
-      });
-      console.log('  ', JSON.stringify(r));
-      assert(r.started && r.kits0 === 2 && r.dw === 0, `the medkit starts holstered with 2 kits (${JSON.stringify(r)})`);
-      assert(r.hp >= 99.9 && r.kits === 1 && r.t > 1.2 && r.t < 1.6, `60 -> ${r.hp.toFixed(1)} hp in ${r.t.toFixed(2)} s, kits ${r.kits}`);
-      assert(!r.hitActive && Math.abs(r.hpAfter - r.hpHit) < 0.01 && r.hpHit > 70 && r.hpHit < 80 && r.kitsHit === 0, `damage mid-use stops the heal at ${r.hpHit.toFixed(1)} hp (kit spent: ${r.kitsHit})`);
-    } finally {
-      await M.browser.close();
-    }
-  }
-
   console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, reload X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
   {
     const R = await launch({ url });

@@ -1,8 +1,7 @@
 import { EventBus } from '../core/events';
 import type { WeatherChoice } from '../world/mapDef';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo, type WireCustom } from './protocol';
-import { sanitizeCustom, type CustomDifficulty } from '../ai/archetypes';
+import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 
@@ -18,8 +17,6 @@ export interface StartInfo {
   map: string;
   seed: number;
   difficulty: Difficulty;
-  /** (locomotion step 19) The host's custom sliders when `difficulty` is 'custom' (null = Normal sliders). */
-  custom: CustomDifficulty | null;
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
   weather: WeatherChoice;
@@ -49,8 +46,6 @@ export class NetSession {
   mode: NetMode = 'infiltration';
   map = 'warehouse';
   difficulty: Difficulty = 'normal';
-  /** (locomotion step 19, D7) The host's custom sliders (host: from its settings; client: from the lobby, read-only). */
-  custom: CustomDifficulty | null = null;
   mission = '';
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
@@ -146,7 +141,6 @@ export class NetSession {
       this.mode = msg.mode;
       this.map = msg.map;
       this.difficulty = msg.difficulty;
-      this.custom = fromWire(msg.dc);
       this.mission = msg.mission;
       this.weather = msg.weather;
       this.phase = msg.phase;
@@ -162,7 +156,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, custom: msg.difficulty === 'custom' ? fromWire(msg.dc) : null, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
       this.events.emit('start', this.start);
       return;
     }
@@ -190,7 +184,7 @@ export class NetSession {
   broadcastLobby(): void {
     if (!this.isHost) return;
     const players = [...this.players.values()];
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather, ...this.wireDc() });
+    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather });
     this.events.emit('lobby', { players });
   }
 
@@ -199,19 +193,6 @@ export class NetSession {
     me.ready = ready;
     if (this.isHost) this.broadcastLobby();
     else this.toHost({ t: 'ready', ready });
-  }
-
-  /** (locomotion step 19) Host: the custom sliders sent with Custom (its own stored values); re-broadcasts the lobby. */
-  setCustom(c: CustomDifficulty | null): void {
-    if (!this.isHost) return;
-    this.custom = c ? sanitizeCustom(c) : null;
-    this.broadcastLobby();
-  }
-
-  /** `dc` for `lobby` / `start` (only with Custom). */
-  private wireDc(): { dc?: WireCustom } {
-    if (this.difficulty !== 'custom') return {};
-    return { dc: toWire(this.custom) };
   }
 
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
@@ -238,7 +219,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, custom: this.difficulty === 'custom' ? this.custom : null, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
@@ -262,18 +243,7 @@ export class NetSession {
   }
 }
 
-/** A received `dc` as custom sliders (null when absent). */
-function fromWire(dc: WireCustom | undefined): CustomDifficulty | null {
-  return dc ? { base: dc.b, perception: dc.p, aim: dc.a, alarm: dc.t } : null;
-}
-
-/** Custom sliders on the wire (null = Normal sliders). */
-function toWire(c: CustomDifficulty | null): WireCustom {
-  const v = c ?? sanitizeCustom(null);
-  return { b: v.base, p: v.perception, a: v.aim, t: v.alarm };
-}
-
-/** The `start` message for a match (`dc` only with Custom). */
+/** The `start` message for a match. */
 function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, ...(s.difficulty === 'custom' ? { dc: toWire(s.custom) } : {}) };
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1 };
 }

@@ -1,8 +1,8 @@
 import { TransformNode, Vector3, type AbstractMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 
-/** (locomotion step 15) `medkit`: one kit up to the carry max (was `health`, +50 hp). */
-export type PickupKind = 'ammo' | 'medkit';
+/** Ammo crates (medkit crates are gone: health comes back only at wall medkit stations, G20 / G98). */
+export type PickupKind = 'ammo';
 
 interface Pickup {
   kind: PickupKind;
@@ -36,15 +36,8 @@ export class Pickups {
         m.position.set(...p);
         ps.push(m);
       };
-      if (s.kind === 'medkit') {
-        add('box', '#f1f1ef', [0.5, 0.32, 0.36], [0, 0.16, 0]);
-        add('box', '#d9363e', [0.36, 0.1, 0.38], [0, 0.18, 0]);
-        add('box', '#d9363e', [0.1, 0.1, 0.38], [0, 0.18, 0]);
-        add('box', '#d9363e', [0.1, 0.34, 0.37], [0, 0.17, 0]);
-      } else {
-        add('box', '#4b5a3a', [0.6, 0.3, 0.38], [0, 0.15, 0]);
-        add('box', '#f2c230', [0.62, 0.06, 0.4], [0, 0.22, 0]);
-      }
+      add('box', '#4b5a3a', [0.6, 0.3, 0.38], [0, 0.15, 0]);
+      add('box', '#f2c230', [0.62, 0.06, 0.4], [0, 0.22, 0]);
       this.items.push({ kind: s.kind, node, parts: ps, active: true, respawnT: 0, base: s.pos.clone() });
     }
   }

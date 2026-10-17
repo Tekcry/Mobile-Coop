@@ -223,7 +223,7 @@ export function hostHandsFree(mv: MoveState, downed: boolean): boolean {
   if (downed) return false;
   const m = mv.m;
   if (m === 'brace' || m === 'boost' || (m === 'stacked' && mv.sub !== 1)) return false;
-  if (m === 'takedown' || m === 'medkit') return false;
+  if (m === 'takedown') return false;
   if (isAttachedMode(m)) {
     return m === 'split' || m === 'rappel' || (m === 'pipeH' && unpackAttachSub(mv.sub).pipe === 'inverted');
   }

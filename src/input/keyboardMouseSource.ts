@@ -249,10 +249,10 @@ export class KeyboardMouseSource {
     }
     this.syncBinds();
     for (const a of this.map.get(e.code) ?? []) this.state.set(SRC, a, down);
-    // 1-8 pick a gadget (wheel order)
+    // 1-7 pick a gadget (wheel order)
     if (down && e.code.startsWith('Digit')) {
       const n = Number(e.code.slice(5));
-      if (n >= 1 && n <= 8) this.state.gadgetPick = n - 1;
+      if (n >= 1 && n <= 7) this.state.gadgetPick = n - 1;
     }
     const m = this.moveCodes;
     const alt = this.moveAlt;

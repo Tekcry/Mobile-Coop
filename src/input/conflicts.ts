@@ -1,7 +1,7 @@
 /**
  * (locomotion step 18, D7) Binding conflicts (pure, unit-tested; pad and keyboard / mouse alike). Two verbs of one
  * group on the same input are a conflict unless the pair is allowed. Contextual verbs that share one input by design
- * (Y = jump + use + takedown, X = reload tap + medkit hold, the context button, fire = shot or elbow strike) are a
+ * (Y = jump + use + takedown, X = reload tap + next weapon hold while aiming, the context button, fire = shot or elbow strike) are a
  * single binding row, so they never show here. Menu actions are their own group: a menu key on a gameplay verb is
  * never a conflict. A conflict is a warning: the bindings still save.
  */

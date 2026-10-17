@@ -64,7 +64,6 @@ and the code together.
 | Aim (draws) | `ads` | LT | L2 / ZL | RMB | Aim button |
 | Fire / elbow strike (holstered) | `fire` | RT | R2 / ZR | LMB | Fire button (elbow while holstered) |
 | Reload | `reload` | X (tap) | Square / Y | `reload` (R) | Reload button (A65) |
-| Medkit | `medkit` | X (hold 0.4 s, not aiming, A55) | Square / Y | `medkit` (H) | - |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Crouch button (toggle) |
 | Jump / interact / takedown | `jump` `interact` | Y | Triangle / X | `traverse` (E) | Jump button; takedown and use on the context button |
 | Use | `interact` | Y | Triangle / X | `use` (F) | Context button |

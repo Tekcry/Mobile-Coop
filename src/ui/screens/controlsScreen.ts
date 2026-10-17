@@ -28,7 +28,7 @@ function fixedRows(dev: Dev): Row[] {
         ['Mouse', 'Look (click to capture)'],
         ['Right / left button', 'Aim / fire (fire while holstered: elbow strike)'],
         ['Wheel', 'Speed gear up / down'],
-        ['1-8', 'Pick a gadget'],
+        ['1-7', 'Pick a gadget'],
         ['Esc', 'Pause, menus back'],
       ];
 }

@@ -4,6 +4,7 @@ import { MAX_UPGRADE, type WeaponUpgrades } from '../weapons/weaponStats';
 import { MAX_LEVEL, totalXpForLevel } from '../progression/levels';
 import { sanitizeAttachments } from '../progression/attachments';
 import { STARTER_UNLOCKS } from '../progression/unlocks';
+import { GADGET_IDS } from '../game/gadgets';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
@@ -179,7 +180,8 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
         name: str(p.name, 16, presets[i]!.name).replace(/[<>]/g, '') || presets[i]!.name,
         primary: isWeapon(p.primary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.primary}`)) ? p.primary : presets[i]!.primary,
         secondary: isWeapon(p.secondary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.secondary}`)) ? p.secondary : presets[i]!.secondary,
-        gadget: str(p.gadget, 16, presets[i]!.gadget),
+        // (G7 / G115) only a gadget that still exists (the tri-rotor drone is gone)
+        gadget: (GADGET_IDS as readonly string[]).includes(p.gadget as string) ? (p.gadget as string) : presets[i]!.gadget,
       };
     });
   }

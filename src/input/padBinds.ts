@@ -3,7 +3,7 @@
  * (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons (`UI_BINDINGS`)
  * stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire). The defaults
  * are `GAME_BINDINGS` (the binding table in docs/systems/input-and-loop.md). Contextual verbs that share one button by
- * design are one row here: Y is jump + use + takedown, X is reload (tap) + medkit (hold, A55), the context button
+ * design are one row here: Y is jump + use + takedown, X is reload (tap) + next weapon (hold while aiming, A55), the context button
  * carries back-to-wall / door peek / SWAT.
  */
 import type { ButtonAction } from './actions';
@@ -36,7 +36,7 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'cover', label: 'Context action (back to wall, peek, SWAT)', actions: ['cover'], defaults: [PAD.A] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: [PAD.B] },
   { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: [PAD.Y] },
-  { id: 'reload', label: 'Reload (tap) / medkit (hold)', actions: ['reload'], defaults: [PAD.X] },
+  { id: 'reload', label: 'Reload (tap) / next weapon (hold, aiming)', actions: ['reload'], defaults: [PAD.X] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: [PAD.RB] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: [PAD.LB] },
   { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: [PAD.LS] },

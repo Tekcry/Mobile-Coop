@@ -17,7 +17,6 @@ const P: Record<string, string> = {
   flash: '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
   emp: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
   stickyCam: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
-  drone: '<circle cx="12" cy="13" r="2.5"/><circle cx="5" cy="7" r="2.5"/><circle cx="19" cy="7" r="2.5"/><circle cx="12" cy="20.5" r="1.5"/><path d="M7 8l3.5 3.5M17 8l-3.5 3.5M12 15.5v3.5"/>',
   mine: '<ellipse cx="12" cy="15" rx="8" ry="3"/><path d="M4 15v-2c0-1.7 3.6-3 8-3s8 1.3 8 3v2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/>',
   frag: '<circle cx="11" cy="14" r="6"/><path d="M11 8V5h4l2 2"/><circle cx="18" cy="4" r="1.5"/>',
   goggles: '<circle cx="6.5" cy="13" r="3.2"/><circle cx="17.5" cy="13" r="3.2"/><circle cx="12" cy="7" r="2.6"/><path d="M9.7 13h4.6"/>',

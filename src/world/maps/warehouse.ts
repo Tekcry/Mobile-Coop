@@ -420,11 +420,8 @@ export const warehouse: MapDef = {
       ],
       pickups: [
         { pos: v(-12.5, -16), kind: 'ammo' },
-        { pos: v(-2.5, -12.2), kind: 'medkit' },
         { pos: v(-14.5, 5.2), kind: 'ammo' },
-        { pos: v(12, -0.5), kind: 'medkit' },
         { pos: v(8.5, -15.5), kind: 'ammo' },
-        { pos: v(21, 14.5, 2.6), kind: 'medkit' },
       ],
       rooms: ROOMS,
       switches: [

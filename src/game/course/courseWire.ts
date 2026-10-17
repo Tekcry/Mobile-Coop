@@ -22,7 +22,7 @@ export interface CourseWire {
 
 /**
  * Verbs only the client can see (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, and `gadget` for a
- * placed gadget: a sticky cam, mine or drone never reaches the host): derived by `DrillDetect` on the client and sent as
+ * placed gadget: a sticky cam or mine never reaches the host): derived by `DrillDetect` on the client and sent as
  * `ctick` (C10). Everything else the host derives from what it sees: movement modes, team moves, takedowns (`td`),
  * thrown gadgets (`gadget`: gadget and throw) and doors (`use`) resolve on the host (DECISIONS A23).
  */

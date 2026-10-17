@@ -381,7 +381,6 @@ export const refinery: MapDef = {
       ],
       pickups: [
         { pos: v(7.2, -29, 0.95), kind: 'ammo' },
-        { pos: v(29, 6.6, 1.9), kind: 'medkit' },
         { pos: v(4, 27, UNIT + 1.2), kind: 'ammo' },
       ],
       rooms: ROOMS,

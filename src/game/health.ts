@@ -1,4 +1,4 @@
-/** Health, no regeneration (bible 6); medkits in step 15. Pure logic (unit-tested). */
+/** Health, no regeneration (bible 6); wall medkit stations heal (G20). Pure logic (unit-tested). */
 export class Health {
   hp: number;
 

@@ -86,8 +86,7 @@ export class CoopClient implements NetAttachment {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
     g.takedownVictims = () => this.puppetList;
-    // (locomotion step 15) medkits: the host heals and counts (`mk`); the wall stations are the host's, mirrored
-    g.medkit.authority = false;
+    // wall medkit stations are the host's, mirrored (the host heals: health is host-authoritative)
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
     if (g.opts.mode !== 'sandbox' || !own) {
@@ -129,12 +128,10 @@ export class CoopClient implements NetAttachment {
       case 'cstart':
         if (msg.a !== this.s.selfId) break;
         if (msg.kind === 'strike') this.g.strike.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
-        else if (msg.kind === 'medkit') this.g.medkit.accepted(msg.id, this.clock.now(performance.now() / 1000) - msg.t0);
         break;
       case 'cdeny':
         if (msg.a !== this.s.selfId) break;
         if (msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
-        else if (msg.kind === 'medkit') this.g.medkit.denied(msg.id, msg.reason);
         break;
       case 'tend':
         if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
@@ -149,8 +146,7 @@ export class CoopClient implements NetAttachment {
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
   commitRequest(kind: CKind, id: number, target: string): void {
-    // (step 15) a medkit on yourself names your own id (H2: a team-mate's id later)
-    this.s.toHost({ t: 'cmove', kind, id, target: kind === 'medkit' && !target ? this.s.selfId : target });
+    this.s.toHost({ t: 'cmove', kind, id, target });
   }
 
   teamEnd(): void {
@@ -337,8 +333,6 @@ export class CoopClient implements NetAttachment {
     if (p.mv && clientForcedHolster(p.mv.dw, g.weapons.drawPhase, this.mvNow, p.hp <= 0)) g.weapons.forceHolster();
     const h = g.target.health;
     h.hp = p.hp;
-    // (step 15) kits held: the host's count
-    if (p.mk !== undefined) g.medkit.kits = p.mk;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
       g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
@@ -450,7 +444,7 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         if (e.kind === 'ammo') g.weapons.addAmmo(0.5);
         g.events.emit('pickup', { kind: e.kind });
-        g.hud.feedItem(e.kind === 'medkit' ? '+1 medkit' : 'Ammo refilled');
+        g.hud.feedItem('Ammo refilled');
         break;
       case 'hurt': {
         if (e.player !== me) break;

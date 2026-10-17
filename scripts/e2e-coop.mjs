@@ -532,29 +532,22 @@ try {
   await until(A, () => window.__app.current.player.alive, null, 5000, 'host revived by the client');
   assert(true, 'client revives the downed host');
   await toLobby();
-
-  console.log("custom difficulty (step 19, D7): the host's sliders reach the client lobby read-only and run the match; the client's own stay");
+  console.log("difficulty (G106: fixed levels): the host's level reaches the client lobby read-only and runs the match on both");
   {
-    const mine = await GB(() => JSON.stringify(window.__app.settings.get().gameplay.customDifficulty));
-    await GA(() => {
-      const s = window.__coop.session;
-      s.setCustom({ base: 'normal', perception: 0.5, aim: 1, alarm: 2 });
-      s.setSettings('clear', 'warehouse', 'custom', '');
-    });
-    await until(B, () => window.__coop.session.difficulty === 'custom' && window.__coop.session.custom?.perception === 0.5, null, 8000, 'the custom lobby reaches the client');
-    await until(B, () => /perception 0\.50.*alarm 2\.00/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host sliders');
-    const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff="perception"]'));
-    assert(ro, 'the client lobby shows the host values read-only (no sliders)');
+    await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'realistic', ''));
+    await until(B, () => window.__coop.session.difficulty === 'realistic', null, 8000, 'the level reaches the client');
+    await until(B, () => /Realistic/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host level');
+    const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff]'));
+    assert(ro, 'the client lobby shows the host level read-only');
     for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
     await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
     await GA(() => window.__coop.session.startMatch());
     await until(A, () => !!window.__app.current?.enemyMgr && !!window.__app.current.net, null, 40000, 'host match up');
     await until(B, () => !!window.__app.current?.net, null, 40000, 'client match up');
     const hd = await GA(() => { const d = window.__app.current.enemyMgr.diff; return { p: d.perception, t: d.reaction, l: d.label }; });
-    assert(hd.p === 0.5 && hd.t === 2 && hd.l === 'Custom', `the host's manager runs the host sliders (${JSON.stringify(hd)})`);
-    const cd = await GB(() => ({ p: window.__app.current.diff.perception, t: window.__app.current.diff.reaction, own: JSON.stringify(window.__app.settings.get().gameplay.customDifficulty) }));
-    assert(cd.p === 0.5 && cd.t === 2, `the client's match takes the host's values (${JSON.stringify(cd)})`);
-    assert(cd.own === mine, `the client's own stored sliders are unchanged (${cd.own})`);
+    assert(hd.p === 1.3 && hd.t === 0.8 && hd.l === 'Realistic', `the host's manager runs Realistic (${JSON.stringify(hd)})`);
+    const cd = await GB(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label }));
+    assert(cd.p === 1.3 && cd.l === 'Realistic', `the client's match takes the host's level (${JSON.stringify(cd)})`);
     await toLobby();
     await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'normal', ''));
   }
@@ -604,31 +597,14 @@ try {
   await shut(A);
   await shut(C);
   assert(true, 'closing clears the crack on the host and the third page');
-  // (locomotion step 15) medkits: a client heal runs on the host (hp and mk change, the client mirrors them); at 0 kits
-  // the host refuses (cdeny none); a wall medkit gives one kit, then shows spent on both pages
-  console.log('medkits: host-authoritative heal and counts, cdeny none, a wall medkit');
+  // wall medkit stations (G20 / G98; carried kits are gone): a client uses the host's station, the host heals its
+  // host-authoritative health (+40), the client mirrors it and both pages show the station spent
+  console.log('wall medkit station: the host heals a client, shown spent on both pages');
   {
     // (three pages here: the remote the host runs for this client, by its id)
     await GA((id) => { window.__bid = id; }, await GB(() => window.__app.current.net.s.selfId));
-    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 60; r.mk = 2; });
-    await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01 && window.__app.current.medkit.kits === 2, null, 8000, 'client mirrors 60 hp, 2 kits');
-    await wait(400);
-    const mk = await GB(() => { const g = window.__app.current; return { ok: g.medkit.begin(), alive: g.player.alive, grounded: g.player.controller.grounded }; });
-    assert(mk.ok, `the client starts a medkit (${JSON.stringify(mk)})`);
-    try {
-      await until(A, () => { const r = window.__app.current.net.remotes.get(window.__bid); return r.health.hp >= 99.9 && r.mk === 1; }, null, 10000, 'host heals the client to 100 and spends a kit');
-    } catch (e) {
-      const dA = await GA(() => { const n = window.__app.current.net; const r = n.remotes.get(window.__bid); return { lastCommit: n.lastCommit, hp: r?.health.hp, mk: r?.mk, m: r?.state?.mv?.m, ids: [...n.remotes.keys()], bid: window.__bid, medkits: n.medkits?.size }; });
-      const dB = await GB(() => { const g = window.__app.current; return { lastDenied: g.medkit.lastDenied, count: g.medkit.count, active: g.medkit.active, kits: g.medkit.kits, hp: g.target.health.hp }; });
-      console.log('   medkit diag host', JSON.stringify(dA), 'client', JSON.stringify(dB));
-      throw e;
-    }
-    await until(B, () => { const g = window.__app.current; return g.target.health.hp >= 99.9 && g.medkit.kits === 1 && !g.medkit.active; }, null, 8000, 'client mirrors 100 hp, 1 kit');
-    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 50; r.mk = 0; });
-    await until(B, () => window.__app.current.medkit.kits === 0, null, 8000, 'client mirrors 0 kits');
-    await wait(400);
-    await GB(() => { const g = window.__app.current; g.medkit.id = 777; g.net.commitRequest('medkit', 777, ''); });
-    await until(B, () => window.__app.current.medkit.lastDenied === 'none', null, 8000, 'client at 0 kits gets cdeny none');
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 50; });
+    await until(B, () => Math.abs(window.__app.current.target.health.hp - 50) < 0.01, null, 8000, 'client mirrors 50 hp');
     // a wall medkit next to the client (the station Proving places, added on this map by hand)
     await GA(() => {
       const g = window.__app.current;
@@ -639,10 +615,10 @@ try {
     });
     await until(B, () => !!window.__app.current.interactables?.items.find((i) => i.id === 'medkit-e2e' && i.enabled), null, 8000, 'client mirrors the wall medkit');
     await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'medkit-e2e').onUse());
-    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return r.mk === 1 && it.done && !it.enabled; }, null, 8000, 'host: one kit, the station spent');
-    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return g.medkit.kits === 1 && (!it || !it.enabled); }, null, 8000, 'client: 1 kit, the station shown spent');
+    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(r.health.hp - 90) < 0.01 && it.done && !it.enabled; }, null, 8000, 'host: the client healed to 90, the station spent');
+    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(g.target.health.hp - 90) < 0.01 && (!it || !it.enabled); }, null, 8000, 'client: 90 hp, the station shown spent');
     await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
-    assert(true, 'the host heals the client (hp, mk mirrored), cdeny none at 0 kits, the wall medkit refills one kit and shows spent on both pages');
+    assert(true, 'a client at a wall medkit is healed by the host (+40, mirrored) and the station shows spent on both pages');
   }
 
   await toLobby();

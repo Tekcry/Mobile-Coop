@@ -148,9 +148,9 @@ export function radioCheck(members: readonly { id: string; up: boolean }[], out:
 
 /** The four presets. */
 export type DifficultyPreset = 'rookie' | 'normal' | 'realistic' | 'perfectionist';
-/** (locomotion step 19, D7) A preset or the custom sliders (`CustomDifficulty`). */
-export type Difficulty = DifficultyPreset | 'custom';
-/** The presets, in menu order (Custom is offered separately). */
+/** CT's fixed difficulty levels (G106: no custom sliders). */
+export type Difficulty = DifficultyPreset;
+/** The presets, in menu order. */
 export const DIFFICULTIES: readonly DifficultyPreset[] = ['rookie', 'normal', 'realistic', 'perfectionist'];
 
 export interface DifficultyDef {
@@ -161,22 +161,19 @@ export interface DifficultyDef {
   reward: number;
   /** Sight / smell meter rates. */
   perception: number;
-  /** Reaction delays (radio call-in, first shot settle, alarm panel raise): the custom "alarm tolerance" slider. */
+  /** Reaction delays (radio call-in, first shot settle, alarm panel raise). */
   reaction: number;
-  /** (locomotion step 15) Medkits carried (bible 5.13: 2, 3 at Rookie); the host's applies in co-op. */
-  medkits: number;
 }
 
 export const DIFFICULTY: Record<DifficultyPreset, DifficultyDef> = {
-  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35, medkits: 3 },
-  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1, medkits: 2 },
-  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8, medkits: 2 },
-  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7, medkits: 2 },
+  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35 },
+  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1 },
+  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8 },
+  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7 },
 };
 
-/** A stored / received difficulty, including the 1.x names (easy / hard) and 'custom' (step 19). */
+/** A stored / received difficulty, including the 1.x names (easy / hard); the old 'custom' (G106) reads as Normal. */
 export function parseDifficulty(v: unknown): Difficulty {
-  if (v === 'custom') return 'custom';
   return parsePreset(v);
 }
 
@@ -187,54 +184,7 @@ export function parsePreset(v: unknown): DifficultyPreset {
   return DIFFICULTIES.includes(v as DifficultyPreset) ? (v as DifficultyPreset) : 'normal';
 }
 
-/**
- * (locomotion step 19, D7) Custom difficulty: three multipliers, 0.5-2.0 in 0.1 steps, Normal = 1.0.
- * `perception` = sight / smell meter rates, `aim` = guard accuracy, `alarm` = alarm tolerance (higher = guards
- * take longer to call in and to raise a panel; DifficultyDef.reaction). Damage, hp, medkits and reward come from
- * `base`, the last preset picked.
- */
-export interface CustomDifficulty {
-  base: DifficultyPreset;
-  perception: number;
-  aim: number;
-  alarm: number;
-}
-
-export const CUSTOM_MIN = 0.5;
-export const CUSTOM_MAX = 2;
-export const CUSTOM_STEP = 0.1;
-
-/** One slider value: clamped to 0.5-2.0 and snapped to 0.05 (the sliders step 0.1; 0.05 keeps Rookie's 1.35). Non-numbers read as 1. */
-export function clampCustom(v: unknown): number {
-  const n = typeof v === 'number' && Number.isFinite(v) ? v : 1;
-  return Math.round(Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, n)) * 20) / 20;
-}
-
-/** A preset's slider values (Rookie 0.7 / 0.7 / 1.35 ... Perfectionist 1.5 / 1.3 / 0.7). */
-export function presetSliders(p: DifficultyPreset): CustomDifficulty {
-  const d = DIFFICULTY[p];
-  return { base: p, perception: d.perception, aim: d.accuracy, alarm: d.reaction };
-}
-
-/** Sanitizes stored / received custom values (missing or bad = Normal sliders). */
-export function sanitizeCustom(v: unknown): CustomDifficulty {
-  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
-  return { base: parsePreset(o.base), perception: clampCustom(o.perception), aim: clampCustom(o.aim), alarm: clampCustom(o.alarm) };
-}
-
-/** The preset that pays rewards and gives damage / hp / medkits: the preset itself, or Custom's base. */
-export function basePreset(d: Difficulty, custom: CustomDifficulty | null): DifficultyPreset {
-  return d === 'custom' ? (custom?.base ?? 'normal') : d;
-}
-
-/**
- * (locomotion step 19) The match's difficulty, resolved once at match start. A preset returns its shared def
- * (custom ignored); Custom takes damage, hp, medkits and reward from its base preset and the three sliders
- * (clamped) from `custom` (null = Normal sliders).
- */
-export function resolveDifficulty(d: Difficulty, custom: CustomDifficulty | null): DifficultyDef {
-  if (d !== 'custom') return DIFFICULTY[d];
-  const c = sanitizeCustom(custom);
-  const b = DIFFICULTY[c.base];
-  return { ...b, label: 'Custom', perception: c.perception, accuracy: c.aim, reaction: c.alarm };
+/** The match's difficulty, resolved once at match start: the preset's shared def (G106: no custom sliders). */
+export function resolveDifficulty(d: Difficulty): DifficultyDef {
+  return DIFFICULTY[d];
 }

@@ -107,8 +107,6 @@ export interface AnimInput {
   traverseT: number;
   /** Melee swing 0..1, or < 0. */
   melee: number;
-  /** (locomotion step 15) Medkit use 0..1, or < 0. */
-  medkit: number;
   /** (3.2.0) Whole-body tumble about the hips (rad) set by the caller (pipe legs up / inverted). */
   tumble: number;
   /** Doorway check sweep 0..1, or < 0. */
@@ -136,10 +134,6 @@ export interface AnimInput {
   /** Which hand holds the weapon: 1 right .. -1 left (the rig mirrors weapon x / yaw / roll by it). */
   hand: number;
 }
-
-/** (locomotion step 15) Medkit hand targets (m, body frame): the kit in the off hand in front of the belt, the injector at
- *  the right thigh (x as a share of the shoulder half-width). */
-export const MEDKIT_HANDS = { kitX: 0.07, kitY: 0.42, kitZ: 0.26, thighX: 0.8, thighY: 0.55, thighZ: 0.15, crouchUp: 0.08, crouchFwd: 0.06 } as const;
 
 /** (locomotion step 10) The elbow arc's hand overlay weight at melee phase `ph` 0..1 (in by 0.17, out from 0.62). */
 export function meleeHandW(ph: number): number {
@@ -192,7 +186,6 @@ export function defaultInput(): AnimInput {
     traverse: 'none',
     traverseT: 0,
     melee: -1,
-    medkit: -1,
     tumble: 0,
     check: -1,
     phase: -1,
@@ -1007,37 +1000,6 @@ export class AnimGraph {
       src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
       src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
       src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
-    }
-
-    if (i.medkit >= 0) {
-      // (locomotion step 15) the medkit (bible 5.13): the off hand brings the kit in front of the belt, the right hand
-      // takes the injector from it and presses it to the right thigh (0.25 - 0.7), then back to the kit; in and out
-      // over 0.15 of the use from the hands' own pose, so it starts and ends without a jump. The head looks down at it.
-      const ph = clamp(i.medkit, 0, 1);
-      const w = smoothstep(ph / 0.15) * (1 - smoothstep((ph - 0.85) / 0.15));
-      const inj = smoothstep((ph - 0.25) / 0.2) * (1 - smoothstep((ph - 0.7) / 0.15));
-      const fwM = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
-      // the kit and the thigh follow the pelvis (its crouch drop, not the chest's pitch), holstered or not: the late pass
-      // adds the ready share of readyFy / Fz (fwM), this takes it back and adds the pelvis offset (the kit was pinned at
-      // the standing height: crouched the arms reached through the torso, step 15 audit)
-      const fy = this.readyFy * fwM - src[CH.pelY]!;
-      const fz = this.readyFz * fwM - src[CH.pelZ]!;
-      const kx = -MEDKIT_HANDS.kitX;
-      // crouched, the kit and the injector ride up and out over the folded thighs
-      const cu = MEDKIT_HANDS.crouchUp * crouchK;
-      const cf = MEDKIT_HANDS.crouchFwd * crouchK;
-      const ky = shY - MEDKIT_HANDS.kitY - fy + cu;
-      const kz = MEDKIT_HANDS.kitZ - fz + cf;
-      src[CH.hLX] = src[CH.hLX]! + (kx - src[CH.hLX]!) * w;
-      src[CH.hLY] = src[CH.hLY]! + (ky - src[CH.hLY]!) * w;
-      src[CH.hLZ] = src[CH.hLZ]! + (kz - src[CH.hLZ]!) * w;
-      const rx = MEDKIT_HANDS.kitX + (p.shoulderHalf * MEDKIT_HANDS.thighX - MEDKIT_HANDS.kitX) * inj;
-      const ry = ky + 0.02 + (shY - MEDKIT_HANDS.thighY - fy + cu - ky - 0.02) * inj;
-      const rz = kz + (MEDKIT_HANDS.thighZ - fz + cf - kz) * inj;
-      src[CH.hRX] = src[CH.hRX]! + (rx - src[CH.hRX]!) * w;
-      src[CH.hRY] = src[CH.hRY]! + (ry - src[CH.hRY]!) * w;
-      src[CH.hRZ] = src[CH.hRZ]! + (rz - src[CH.hRZ]!) * w;
-      src[CH.offGrip] = src[CH.offGrip]! * (1 - w);
     }
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot

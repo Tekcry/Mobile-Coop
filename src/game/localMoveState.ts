@@ -64,16 +64,6 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
-  // (locomotion step 15) a medkit in use: progress, the target ('' = self; H2 a team-mate's id)
-  const mk = g.medkit;
-  if (mk.active) {
-    out.m = 'medkit';
-    out.tid = '';
-    out.ph = mk.ph;
-    out.dw = 0;
-    delete out.c;
-    return out;
-  }
   // (locomotion step 13) the door peek: the door, the hinge side, the door's drawn crack
   const dp = g.doorPeek;
   if (dp.active) {

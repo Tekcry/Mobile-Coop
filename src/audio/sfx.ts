@@ -202,9 +202,9 @@ export class Sfx {
     else this.burst('ui', 0.15, 0, 'bandpass', 2600, 4, 0.03);
   }
 
-  /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip, a dart pop,
+  /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip,
    *  a beep (place / stick / select). */
-  gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'dart' | 'beep', gain = 1): void {
+  gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'beep', gain = 1): void {
     if (!this.a.allow(`gadget-${kind}`, 0.06)) return;
     switch (kind) {
       case 'flash':
@@ -224,9 +224,6 @@ export class Sfx {
         break;
       case 'feed':
         this.burst('ui', 0.12 * gain, 0, 'bandpass', 2400, 0.6, 0.18);
-        break;
-      case 'dart':
-        this.burst('sfx', 0.2 * gain, 0, 'bandpass', 1400, 2, 0.06, 600);
         break;
       default:
         this.tone('ui', 0.1 * gain, 0, 'sine', 1500, 1500, 0.06);

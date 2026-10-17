@@ -34,7 +34,7 @@ import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
-import { resolveDifficulty, type CustomDifficulty, type DifficultyDef } from '../ai/archetypes';
+import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -79,8 +79,7 @@ import { SecuritySystem } from '../security/securitySystem';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
-import { MedkitController } from './medkitController';
-import { addKit, MEDKIT } from './medkit';
+import { MEDKIT, stationHeal } from './medkit';
 import type { PickupKind } from './pickups';
 import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
@@ -107,8 +106,6 @@ export interface GameOptions {
   mode: ModeId;
   seed: number;
   difficulty?: Difficulty;
-  /** (locomotion step 19) The custom sliders when `difficulty` is 'custom' (the host's in co-op). */
-  customDifficulty?: CustomDifficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
@@ -160,8 +157,8 @@ export interface NetAttachment {
   commitRequest?(kind: CKind, id: number, target: string): void;
   /** (step 10) Host: its own committed move was interrupted (damage): tell the others. */
   commitCancel?(id: number, reason: string, kind?: CKind): void;
-  /** (step 15) Host: a wall medkit gives player `who` one kit (false: already at the carry max). */
-  giveMedkit?(who: string): boolean;
+  /** Host: a wall medkit station heals player `who` (false: down or at full health). */
+  healAtStation?(who: string): boolean;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -285,8 +282,6 @@ export class GameState implements AppState {
   readonly takedown: TakedownController;
   /** (locomotion step 10) The elbow strike (fire while holstered). */
   readonly strike: StrikeController;
-  /** (locomotion step 15) Medkits: the kits held and the use (host-authoritative counts in co-op). */
-  readonly medkit: MedkitController;
   /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
   readonly team: TeamController;
   /** Suit and HQ effects for this session. */
@@ -409,9 +404,7 @@ export class GameState implements AppState {
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.strike = new StrikeController(this);
-    this.medkit = new MedkitController(this);
-    this.diff = resolveDifficulty(opts.difficulty ?? 'normal', opts.customDifficulty ?? null);
-    this.medkit.init(this.diff);
+    this.diff = resolveDifficulty(opts.difficulty ?? 'normal');
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
     // suit and HQ: armour, hands, gadget carry
@@ -704,10 +697,8 @@ export class GameState implements AppState {
       return;
     }
     this.events.emit('pickup', { kind: k });
-    // (step 15) a medkit crate: one kit, up to the carry max (a full carrier never picks it up)
-    if (k === 'medkit') this.medkit.kits = addKit(this.medkit.kits, this.medkit.max);
-    else this.weapons.addAmmo(0.5);
-    this.hud.feedItem(k === 'medkit' ? '+1 medkit' : 'Ammo refilled');
+    this.weapons.addAmmo(0.5);
+    this.hud.feedItem('Ammo refilled');
   }
 
   /** (locomotion step 15) The map's wall medkit stations (test maps; a co-op client mirrors the host's). */
@@ -719,18 +710,21 @@ export class GameState implements AppState {
     }
   }
 
-  /** (locomotion step 15) A wall medkit station used by `who` ('local' or a client on the host): one kit up to the carry
-   *  max, single use (shown spent). A full carrier leaves it. */
+  /** A wall medkit station used by `who` ('local' or a client on the host): heals `MEDKIT.heal` (G20 / G98), single use
+   *  (shown spent). At full health it is left for later. */
   private useWallMedkit(it: Interactable, who: string): void {
     if (who === 'local') {
-      if (this.medkit.kits >= this.medkit.max) {
-        this.hud.feedItem('Medkits full');
+      const h = this.target.health;
+      const hp = stationHeal(h.hp, h.maxHp, this.player.alive);
+      if (hp === null) {
+        this.hud.feedItem('Health full');
         it.progress = 0;
         return;
       }
-      this.medkit.kits = addKit(this.medkit.kits, this.medkit.max);
-      this.hud.feedItem('+1 medkit');
-    } else if (!this.net?.giveMedkit?.(who)) {
+      h.heal(hp - h.hp);
+      this.events.emit('pickup', { kind: 'medkit' });
+      this.hud.feedItem('Healed');
+    } else if (!this.net?.healAtStation?.(who)) {
       it.progress = 0;
       return;
     }
@@ -778,7 +772,7 @@ export class GameState implements AppState {
     this.stats.detections = this.style.detections;
     this.stats.alarms = this.style.alarms;
     this.stats.takedownsByKind = { ...this.takedown.done.byKind };
-    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.darts + this.gadgets.stats.shocked + this.gadgets.stats.mineKills;
+    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.mineKills;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
       this.paused = true;
@@ -1124,7 +1118,7 @@ export class GameState implements AppState {
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
     this.aliveWas = this.player.alive;
-    // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
+    // the gadget wheel / a remote view (sticky cam) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     // a body on the shoulder: no traversal, weapon stowed, slow
@@ -1183,7 +1177,7 @@ export class GameState implements AppState {
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
     // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
     // remotes never see)
-    this.weapons.handsBusy = this.strike.active || this.medkit.active;
+    this.weapons.handsBusy = this.strike.active;
     this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
@@ -1203,9 +1197,6 @@ export class GameState implements AppState {
     }
     // (locomotion step 10) fire while holstered: the elbow strike
     this.strike.fixedUpdate(dt, inp.pressed('fire') && this.weapons.drawPhase === 0 && !inp.down('ads'));
-    // (locomotion step 15) the medkit: aim, jump or sprint cancels it without spending the kit
-    this.medkit.fixedUpdate(dt, inp.pressed('medkit'), inp.down('ads') || inp.pressed('jump') || inp.down('dash'));
-    this.player.pose.medkit = this.medkit.active ? this.medkit.ph : -1;
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -1251,7 +1242,7 @@ export class GameState implements AppState {
         {
           id: 'local',
           feet: this.player.position,
-          needs: (k) => this.player.alive && (k === 'medkit' ? this.medkit.kits < this.medkit.max : true),
+          needs: () => this.player.alive,
         },
         ...(this.net?.pickers?.() ?? []),
       ]);
@@ -1267,7 +1258,6 @@ export class GameState implements AppState {
         this.wallCore?.reset();
         this.doorPeek.reset();
         this.strike.reset();
-        this.medkit.reset();
         // (step 14) goggles up on respawn
         this.vision.reset();
         this.gadgets.reset();
@@ -2412,9 +2402,6 @@ export class GameState implements AppState {
       ads: this.player.cam.ads > 0.5,
       yaw: cam.yaw,
       markers: [],
-      // (step 15) kits held and the heal in progress
-      kits: this.medkit.kits,
-      heal: this.medkit.active ? this.medkit.ph : -1,
     };
     const blips: Blip[] = [];
     // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)

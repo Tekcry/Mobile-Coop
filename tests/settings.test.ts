@@ -56,20 +56,23 @@ describe('settings: remap and hold / toggle (step 18)', () => {
     expect(back.get().gameplay.grabToggle).toBe(false);
     expect(back.get().gameplay.wallToggle).toBe(false);
   });
-});
-
-describe('settings: custom difficulty (step 19)', () => {
-  it('a literal settings object without customDifficulty sanitizes to Normal sliders', () => {
-    const s = sanitizeSettings(structuredClone(PRE_STEP_18));
-    expect(s.gameplay.customDifficulty).toEqual({ base: 'normal', perception: 1, aim: 1, alarm: 1 });
-    expect(defaultSettings().gameplay.customDifficulty).toEqual({ base: 'normal', perception: 1, aim: 1, alarm: 1 });
-  });
-
-  it('stored sliders clamp to 0.5-2.0 and a bad base reads Normal', () => {
-    const s = sanitizeSettings({ ...PRE_STEP_18, gameplay: { ...PRE_STEP_18.gameplay, customDifficulty: { base: 'godlike', perception: 0.1, aim: 9, alarm: 'x' } } });
-    expect(s.gameplay.customDifficulty).toEqual({ base: 'normal', perception: 0.5, aim: 2, alarm: 1 });
-    const r = sanitizeSettings({ ...PRE_STEP_18, gameplay: { ...PRE_STEP_18.gameplay, customDifficulty: { base: 'rookie', perception: 0.5, aim: 1.3, alarm: 2 } } });
-    expect(r.gameplay.customDifficulty).toEqual({ base: 'rookie', perception: 0.5, aim: 1.3, alarm: 2 });
+});describe('settings: removed fields load (consolidation: custom difficulty G106, carried medkit G98)', () => {
+  it('a literal old record with customDifficulty and a medkit key binding loads without them', () => {
+    const OLD = {
+      ...structuredClone(PRE_STEP_18),
+      keys: { reload: ['KeyT'], medkit: ['KeyJ'] },
+      gameplay: { ...PRE_STEP_18.gameplay, grabToggle: false, customDifficulty: { base: 'rookie', perception: 0.5, aim: 1.3, alarm: 2 }, courseMarkers: false },
+    };
+    const s = sanitizeSettings(OLD);
+    expect('customDifficulty' in s.gameplay).toBe(false);
+    expect('customDifficulty' in defaultSettings().gameplay).toBe(false);
+    expect('medkit' in s.keys).toBe(false);
+    // the rest of the record survives
+    expect(s.keys.reload).toEqual(['KeyT']);
+    expect(s.gameplay.defaultShoulder).toBe('left');
+    expect(s.gameplay.grabToggle).toBe(false);
+    expect(s.gameplay.courseMarkers).toBe(false);
+    expect(s.gameplay.rumble).toBe(0.5);
   });
 });
 

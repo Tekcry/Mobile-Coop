@@ -49,8 +49,8 @@ export interface MapLayout {
   /** Mission objective sites (terminals, caches, extraction). */
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
   /** Supply crates (ammo / health pickups). */
-  pickups: { pos: Vector3; kind: 'ammo' | 'medkit' }[];
-  /** (locomotion step 15) Wall medkit stations (test maps): hold to take one kit, single use. `yaw` faces the room. */
+  pickups: { pos: Vector3; kind: 'ammo' }[];
+  /** Wall medkit stations (G20 / G98; test maps so far): hold to heal, single use. `yaw` faces the room. */
   medkitWalls?: { pos: Vector3; yaw: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];

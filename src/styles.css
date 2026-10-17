@@ -824,35 +824,10 @@ body {
   height: 10px;
   position: relative;
 }
-/* (locomotion step 15) the heal still to come while a medkit is in use, and the kit count beside the bar */
-.bar-fill.heal {
-  position: absolute;
-  top: 0;
-  width: 0;
-  background: rgba(190, 255, 205, 0.75);
-  opacity: 0;
-  transition: none;
-}
-.bar-fill.heal.on {
-  opacity: 1;
-}
 .vital-row {
   display: flex;
   gap: 8px;
   align-items: baseline;
-}
-.vital-kits {
-  font-size: 12px;
-  font-weight: 800;
-  color: #ff8a80;
-}
-.vital-kits::after {
-  content: ' kits';
-  font-weight: 600;
-  opacity: 0.75;
-}
-.vital-kits.none {
-  opacity: 0.45;
 }
 .bar-fill {
   height: 100%;
@@ -1872,7 +1847,7 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
 }
-/* remote camera feed (sticky cam / drone) */
+/* remote camera feed (sticky cam) */
 .gadget-feed {
   position: fixed;
   inset: 0;

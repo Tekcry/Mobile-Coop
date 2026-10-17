@@ -8,8 +8,7 @@ import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
-import { sanitizeCustom } from '../ai/archetypes';
-import { customSummary, difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
+import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { isListedMap } from '../world/maps/listed';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
@@ -95,8 +94,6 @@ class CoopController {
         mode: s.mode,
         seed: s.seed,
         difficulty: s.difficulty,
-        // (locomotion step 19, D7) the host's sliders: a client gets them from start and never applies its own
-        customDifficulty: s.difficulty === 'custom' ? (s.custom ?? undefined) : undefined,
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
@@ -359,7 +356,7 @@ class LobbyScreen extends Screen {
       this.opts.replaceChildren(
         row('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
         infil ? row('Mission', missionById(s.mission)?.name ?? '') : row('Map', map?.name ?? s.map),
-        row('Difficulty', s.difficulty === 'custom' ? customSummary(s.custom ?? sanitizeCustom(null)) : (DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? '')),
+        row('Difficulty', DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''),
         ...(map?.weathers ? [row('Weather', WEATHER_LABEL[s.weather])] : []),
       );
       return;
@@ -382,16 +379,11 @@ class LobbyScreen extends Screen {
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
         : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
-      // (locomotion step 19) the host's difficulty rows update in place (no rebuild, so a slider drag keeps going)
+      // the host's difficulty row updates in place (no rebuild)
       ...difficultyRows(
-        this.c.app,
         () => s.difficulty,
         (v) => s.setSettings(s.mode, s.map, v),
-        () => {
-          s.setCustom({ ...this.c.app.settings.get().gameplay.customDifficulty });
-          this.renderPlayers();
-        },
-        true,
+        () => this.renderPlayers(),
       ),
       ...(MAPS.find((m) => m.id === s.map)?.weathers
         ? [

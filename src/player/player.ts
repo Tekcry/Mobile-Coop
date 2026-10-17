@@ -44,8 +44,6 @@ export interface PlayerPose {
   check: number;
   /** Takedown strike progress 0..1, or < 0. */
   melee: number;
-  /** (locomotion step 15) Medkit use 0..1, or < 0. */
-  medkit: number;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
 }
@@ -98,7 +96,7 @@ export class Player {
   /** (21w) The rig root's yaw (rate-limited on a wall). */
   private visYaw = 0;
   private wallHandPt: Vector3 | null = null;
-  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, medkit: -1, tumble: 0 };
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -351,7 +349,6 @@ export class Player {
     rp.slide = cp.slide;
     rp.check = cp.check;
     rp.melee = cp.melee;
-    rp.medkit = cp.medkit;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;

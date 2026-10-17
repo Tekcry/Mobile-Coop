@@ -418,7 +418,6 @@ export const mansion: MapDef = {
       ],
       pickups: [
         { pos: v(6.8, -24.4, 0.95), kind: 'ammo' },
-        { pos: v(-26.2, 2.6, 1.8), kind: 'medkit' },
         { pos: v(-15.4, 9.5, 2.1), kind: 'ammo' },
       ],
       rooms: ROOMS,

@@ -551,7 +551,7 @@ export class PlayerWeapons {
     if (this.grenadeCd > 0 || this.throwing || (this.stowed ? this.attachMode : this.swapping)) return false;
     const g = this.gadgets;
     const def = GADGETS[g.selected];
-    if (def.use === 'place' || def.use === 'fly') {
+    if (def.use === 'place') {
       if (!this.onPlace || !g.take()) return false;
       this.grenadeCd = GRENADE.cooldown;
       this.onPlace(g.selected);

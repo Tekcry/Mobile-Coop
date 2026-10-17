@@ -4,7 +4,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from '../../game/gadgets';
 
 /**
  * The gadget wheel (eight slots clockwise from the top; the highlighted one is selected on release, or clicked by
- * an unlocked mouse) and the remote feed overlay (sticky cam / drone: a label, the controls, battery). DOM is written only
+ * an unlocked mouse) and the remote feed overlay (sticky cam: a label and the controls). DOM is written only
  * when something changes.
  */
 export class GadgetWheel {

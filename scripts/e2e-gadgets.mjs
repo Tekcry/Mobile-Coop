@@ -1,7 +1,7 @@
 // Gadgets on the night Warehouse (Clear rules): the wheel (hold opens it, time slows, the stick picks, release
 // selects; a clicked slot selects), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
 // then alert, white-out when facing it), EMP (lights out, back after), noisemaker (lure), sticky cam (feed view,
-// lure ping, gas, exit), tri-rotor drone (flies, dart knock-out, battery), proximity mine.
+// lure ping, gas, exit), proximity mine.
 // `node scripts/e2e-gadgets.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
@@ -262,49 +262,6 @@ try {
     assert(r.moved < 0.1, `the operator stays put while watching (${r.moved.toFixed(2)} m)`);
     assert(r.pings === 1 && r.gasKo, `fire pings a lure (${r.pings}), Y releases its gas`);
     assert(r.back, 'B returns to the operator');
-  });
-
-  await scen('drone', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const a = window.__app;
-      const g = a.current;
-      const st = a.input.state;
-      t.tp(2, 0, -6, 0);
-      t.step(0.3);
-      g.weapons.gadgets.select('drone');
-      const p0 = g.player.position.clone();
-      t.tap('grenade');
-      const view = g.gadgets.remote;
-      const d = g.gadgets.drone;
-      const s0 = { x: d.s.x, z: d.s.z };
-      d.pitch = 0;
-      st.setMove('t', 0, 1);
-      t.step(0.8);
-      st.setMove('t', 0, 0);
-      t.step(0.3);
-      const flew = Math.hypot(d.s.x - s0.x, d.s.z - s0.z);
-      const moved = Math.hypot(g.player.position.x - p0.x, g.player.position.z - p0.z);
-      // a guard ahead: look at him and dart
-      const e = t.spawn(d.s.x, d.s.z + 4, Math.PI);
-      t.step(0.3);
-      const dx = e.pos.x - d.s.x;
-      const dz = e.pos.z - d.s.z;
-      const dy = e.pos.y + 1.2 - d.s.y;
-      d.s.yaw = Math.atan2(dx, dz);
-      d.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-      t.tap('fire');
-      t.step(0.2);
-      const darted = !e.alive;
-      // flat battery: it drops, the view comes back
-      d.s.battery = 0.05;
-      t.step(0.2);
-      return { view, flew, moved, darted, gone: g.gadgets.drone === null, back: g.gadgets.remote === null, darts: g.gadgets.stats.darts };
-    });
-    assert(r.view === 'drone', 'the drone launches into its view');
-    assert(r.flew > 2.5 && r.moved < 0.1, `it flies on the stick (${r.flew.toFixed(2)} m), the operator stays (${r.moved.toFixed(2)} m)`);
-    assert(r.darted && r.darts === 1, 'a stun dart knocks a guard out');
-    assert(r.gone && r.back, 'a flat battery drops it and returns to the operator');
   });
 
   await scen('mine', async () => {

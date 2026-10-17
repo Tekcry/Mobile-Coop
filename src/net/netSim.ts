@@ -8,7 +8,7 @@
  * transport (one Trystero action over a WebRTC data channel) is reliable and ordered, so the simulator keeps those
  * semantics: a "lost" packet (probability `loss`) is not dropped but retransmitted, arriving `2 * oneWayMs + jitterMs`
  * later, and every message on a link waits for the one before it (head-of-line blocking, as SCTP ordered delivery).
- * Nothing is dropped: committed moves, cstart / cdeny, medkit, takedowns and snapshots all keep their delivery.
+ * Nothing is dropped: committed moves, cstart / cdeny, takedowns and snapshots all keep their delivery.
  * Seeded (mulberry32): the same seed gives the same delay sequence. Babylon-free, pure.
  */
 export interface NetSimPreset {

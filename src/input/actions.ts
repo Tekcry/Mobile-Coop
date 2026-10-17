@@ -4,8 +4,6 @@ export const BUTTON_ACTIONS = [
   'fire',
   'ads',
   'reload',
-  /** (locomotion step 15) Use a medkit (pad: X held while not aiming; KBM H). */
-  'medkit',
   'jump',
   'crouch',
   'swapNext',

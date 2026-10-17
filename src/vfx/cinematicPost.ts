@@ -122,7 +122,7 @@ export class CinematicPost {
   private flip = -9;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;
-  /** Remote camera feed look (sticky cam, drone) 0..1. */
+  /** Remote camera feed look (sticky cam) 0..1. */
   private feed = 0;
   private t = 0;
   /** Colour grade (identity = off). */
@@ -209,7 +209,7 @@ export class CinematicPost {
     this.sync();
   }
 
-  /** Remote camera feed look (sticky cam / drone view). */
+  /** Remote camera feed look (sticky cam view). */
   setFeed(k: number): void {
     if (k === this.feed) return;
     this.feed = k;

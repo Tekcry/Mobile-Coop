@@ -278,7 +278,7 @@ try {
     const KBM = [
       ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['Space', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
       ['ShiftLeft', 'dash'], ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
-      ['KeyH', 'medkit'], ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
+      ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
       ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyP', 'pause'],
     ];
     await page.evaluate(() => {
@@ -369,47 +369,30 @@ try {
   } finally {
     await S.browser.close();
   }
-  console.log('medkit (H key; locomotion step 15): 60 -> 100 hp in 1.5 s, kits 2 -> 1; damage mid-use stops the heal');
+  console.log('wall medkit station (G20 / G98, the only healing): +40 hp, single use, refused at full health');
   {
     const M = await launch({ url, params: 'autostart=proving' });
     try {
       const P = M.page;
       await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
-      await P.evaluate(() => {
+      const r = await P.evaluate(() => {
         const a = window.__app;
         a.loop.manual = true;
         a.loop.stepHeadless(0.3, 120);
-        a.current.target.health.hp = 60;
-        window.__mk = { step: (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); } };
-      });
-      await P.keyboard.down('KeyH');
-      await P.evaluate(() => window.__mk.step(2));
-      await P.keyboard.up('KeyH');
-      await P.evaluate(() => window.__mk.step(1));
-      const r = await P.evaluate(() => {
-        const g = window.__app.current;
-        const out = { started: g.medkit.active, kits0: g.medkit.kits, dw: g.weapons.drawPhase };
-        let t = 0;
-        while (g.medkit.active && t < 3) {
-          window.__mk.step(1);
-          t += 1 / 60;
-        }
-        Object.assign(out, { t, hp: g.target.health.hp, kits: g.medkit.kits });
-        // damage mid-use: the heal stops, the kit is spent
-        g.target.health.hp = 60;
-        g.medkit.begin();
-        window.__mk.step(45);
-        g.target.health.damage(5);
-        window.__mk.step(2);
-        const hpHit = g.target.health.hp;
-        window.__mk.step(60);
-        Object.assign(out, { hitActive: g.medkit.active, hpHit, hpAfter: g.target.health.hp, kitsHit: g.medkit.kits, lastDenied: g.medkit.lastDenied });
-        return out;
+        const g = a.current;
+        const it = g.interactables?.items.find((i) => i.kind === 'medkitWall');
+        if (!it) return { found: false };
+        const kits = 'medkit' in g;
+        // at full health it is left for later
+        it.onUse(it);
+        const fullDone = it.done;
+        g.target.health.hp = 50;
+        it.onUse(it);
+        return { found: true, kits, fullDone, hp: g.target.health.hp, done: it.done, enabled: it.enabled };
       });
       console.log('  ', JSON.stringify(r));
-      assert(r.started && r.kits0 === 2 && r.dw === 0, `the medkit starts holstered with 2 kits (${JSON.stringify(r)})`);
-      assert(r.hp >= 99.9 && r.kits === 1 && r.t > 1.2 && r.t < 1.6, `60 -> ${r.hp.toFixed(1)} hp in ${r.t.toFixed(2)} s, kits ${r.kits}`);
-      assert(!r.hitActive && Math.abs(r.hpAfter - r.hpHit) < 0.01 && r.hpHit > 70 && r.hpHit < 80 && r.kitsHit === 0, `damage mid-use stops the heal at ${r.hpHit.toFixed(1)} hp (kit spent: ${r.kitsHit})`);
+      assert(r.found && !r.kits, `Proving has a wall medkit station and no carried kits (${JSON.stringify(r)})`);
+      assert(!r.fullDone && Math.abs(r.hp - 90) < 0.01 && r.done && !r.enabled, `full health leaves it; at 50 hp it heals to ${r.hp} and shows spent`);
     } finally {
       await M.browser.close();
     }
@@ -444,7 +427,7 @@ try {
   } finally {
     await W.browser.close();
   }
-  console.log('custom difficulty (step 19, D7): mouse drags set the sliders, a preset click restores its values, the match resolves them');
+  console.log('difficulty (G106: fixed levels, no sliders): a mouse click on the row picks the next level, the match runs it');
   {
     const D = await launch({ url, params: '' });
     try {
@@ -464,41 +447,23 @@ try {
       });
       assert(!!playBtn, 'the main menu has Play');
       await P.mouse.click(playBtn.x, playBtn.y);
-      await P.waitForFunction(() => !!document.querySelector('.play-screen [data-diff="perception"]'), null, { timeout: 10000 });
-      const drag = async (key, t) => {
-        await P.evaluate((k) => document.querySelector(`.play-screen [data-diff="${k}"]`)?.scrollIntoView({ block: 'center' }), key);
-        const b = await box(`.play-screen [data-diff="${key}"] .slider-track`);
-        await P.mouse.move(b.x + b.w * 0.5, b.y + b.h / 2);
-        await P.mouse.down();
-        await P.mouse.move(b.x + b.w * 0.3, b.y + b.h / 2, { steps: 4 });
-        await P.mouse.move(b.x + b.w * t, b.y + b.h / 2, { steps: 4 });
-        await P.mouse.up();
-      };
-      const st = () => P.evaluate(() => ({ c: window.__app.settings.get().gameplay.customDifficulty, choice: document.querySelector('.play-screen [data-diff="choice"] .choice-val')?.textContent ?? '', shown: document.querySelector('.play-screen [data-diff="perception"] .slider-val')?.textContent ?? '' }));
-      // perception: drag to the far left (0.5); the alarm slider to the far right (2.0)
-      await drag('perception', -0.2);
-      await drag('alarm', 1.2);
+      await P.waitForFunction(() => !!document.querySelector('.play-screen [data-diff="choice"]'), null, { timeout: 10000 });
+      const st = () => P.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"] .choice-val')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
       const a = await st();
-      assert(a.c.perception === 0.5 && a.c.alarm === 2 && a.c.aim === 1 && a.choice === 'Custom', `mouse drags set perception 0.5, alarm 2.0 and switch to Custom (${JSON.stringify(a)})`);
-      // click the Difficulty row: Custom -> Rookie (a preset): the sliders show Rookie's values
+      assert(a.choice === 'Normal' && a.sliders === 0, `Normal by default, no custom sliders (${JSON.stringify(a)})`);
       await P.evaluate(() => document.querySelector('.play-screen [data-diff="choice"]')?.scrollIntoView({ block: 'center' }));
       const cb = await box('.play-screen [data-diff="choice"] .choice-val');
       await P.mouse.click(cb.x + cb.w / 2, cb.y + cb.h / 2);
       const b = await st();
-      assert(b.choice === 'Rookie' && b.shown === '0.70' && b.c.base === 'rookie', `a preset click restores its values (${JSON.stringify(b)})`);
-      // a drag on Rookie: Custom from Rookie (aim 0.7, alarm 1.35 kept)
-      await drag('perception', -0.2);
-      const c = await st();
-      assert(c.choice === 'Custom' && JSON.stringify(c.c) === JSON.stringify({ base: 'rookie', perception: 0.5, aim: 0.7, alarm: 1.35 }), `a drag on a preset is Custom from that preset (${JSON.stringify(c)})`);
-      // the stored sliders reach a match (Proving, mission: guards on): the manager's resolved def (after the 250 ms save)
-      await P.waitForTimeout(800);
-      const Q = await openPage(D.ctx, url, 'autostart=proving&mode=mission&difficulty=custom');
+      assert(b.choice === 'Realistic', `a click picks the next level (${JSON.stringify(b)})`);
+      // a level reaches a match (Proving, mission: guards on): the manager's resolved def
+      const Q = await openPage(D.ctx, url, 'autostart=proving&mode=mission&difficulty=rookie');
       await Q.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
       const r = await Q.page.evaluate(() => {
         const d = window.__app.current.enemyMgr.diff;
-        return { p: d.perception, a: d.accuracy, t: d.reaction, k: d.medkits, l: d.label };
+        return { p: d.perception, a: d.accuracy, t: d.reaction, l: d.label };
       });
-      assert(r.p === 0.5 && r.a === 0.7 && r.t === 1.35 && r.k === 3 && r.l === 'Custom', `the match's manager resolves the stored Custom (${JSON.stringify(r)})`);
+      assert(r.p === 0.7 && r.a === 0.7 && r.t === 1.35 && r.l === 'Rookie', `the match's manager resolves Rookie (${JSON.stringify(r)})`);
     } finally {
       await D.browser.close();
     }

@@ -145,14 +145,21 @@ export const MIGRATIONS: Record<number, Migration> = {
   // The guns outside the CT kit are gone (G76 / G115): a deleted gun in the loadout or a preset becomes the kept gun
   // of its slot (`DELETED_GUNS`), its progress entry and its unlocks (`weapon:`, its mastery `camo:<gun>:` ids, the
   // crossbow's `att:lethalBolts`) are dropped. Spent credits are not refunded.
+  // The tri-rotor drone is gone (G7 / G115): a preset's `drone` gadget is dropped (the sanitizer gives the preset's default).
   8: (s) => {
     const { emotes: _e, ...rest } = s;
     const unlocks = Array.isArray(s.unlocks) ? s.unlocks.filter((u) => !(typeof u === 'string' && u.startsWith('emote:')) && !gunUnlock(u)) : s.unlocks;
     const gun = (w: unknown): unknown => (typeof w === 'string' && w in DELETED_GUNS ? DELETED_GUNS[w] : w);
     const kit = (p: unknown): unknown => (isObj(p) ? { ...p, primary: gun(p.primary), secondary: gun(p.secondary) } : p);
+    const preset = (p: unknown): unknown => {
+      const k = kit(p);
+      if (!isObj(k) || k.gadget !== 'drone') return k;
+      const { gadget: _g, ...rest } = k;
+      return rest;
+    };
     let weapons = s.weapons;
     if (isObj(weapons)) weapons = Object.fromEntries(Object.entries(weapons).filter(([w]) => !(w in DELETED_GUNS)));
-    const presets = Array.isArray(s.presets) ? s.presets.map(kit) : s.presets;
+    const presets = Array.isArray(s.presets) ? s.presets.map(preset) : s.presets;
     return { ...rest, version: 9, unlocks, weapons, loadout: kit(s.loadout), presets };
   },
 };

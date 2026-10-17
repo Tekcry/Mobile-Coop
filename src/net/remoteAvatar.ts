@@ -285,11 +285,6 @@ export class RemoteAvatar {
       const ph0 = sa?.m === 'strike' && sa.ph < sb.ph + 0.5 ? sa.ph : 0;
       mp.melee = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
     }
-    // (locomotion step 15) the medkit's progress eased the same way (a use starting eases in from 0)
-    if (sb?.m === 'medkit' && mv?.m === 'medkit') {
-      const ph0 = sa?.m === 'medkit' && sa.ph <= sb.ph ? sa.ph : 0;
-      mp.medkit = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
-    }
     if (attached && this.world.level.anchors.all[mv!.a]) {
       const a = this.world.level.anchors.all[mv!.a]!;
       const from = s.from.mv;
@@ -375,7 +370,6 @@ export class RemoteAvatar {
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,
-      medkit: mp.medkit,
     });
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
     const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;

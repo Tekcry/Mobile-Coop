@@ -23,8 +23,9 @@ export interface GameEvents {
   /** A door opened / closed (audio). */
   door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number; vol?: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
-  gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
-  pickup: { kind: PickupKind };
+  gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'view' | 'exit' | 'trigger' };
+  /** A crate picked up, or (`medkit`) a wall medkit station's heal. */
+  pickup: { kind: PickupKind | 'medkit' };
   /** An enemy callout (a radio line chirps). */
   bark: { radio: boolean };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */

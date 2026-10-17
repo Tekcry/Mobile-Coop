@@ -55,7 +55,9 @@ try {
     document.querySelector('.main-menu .btn')?.dispatchEvent(new Event('click'));
   });
   await page.waitForSelector('.play-screen');
-  for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  // down until Deploy has focus (any number of rows, capped)
+  for (let i = 0; i < 12 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/Deploy/.test(await focusedText(page)), `focus reaches Deploy (${await focusedText(page)})`);
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.enemyMgr, null, { timeout: 30000 });
   const xp0 = await G(() => window.__app.save.get().profile.xp);

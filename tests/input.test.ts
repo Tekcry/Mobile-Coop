@@ -212,7 +212,7 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
 
   it('has a row per verb', () => {
-    expect(rows.length).toBeGreaterThanOrEqual(21);
+    expect(rows.length).toBeGreaterThanOrEqual(20);
     for (const r of rows) expect(ticks(r[1]!).length, r[0]).toBeGreaterThan(0);
   });
 

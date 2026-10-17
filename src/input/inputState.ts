@@ -23,7 +23,7 @@ export class InputState {
   private blocked = new Set<ButtonAction>();
   /** Move vector, x right, y forward, magnitude <= 1. Max across sources. */
   readonly move: Vec2 = { x: 0, y: 0 };
-  /** Keyboard 1-8: pick that gadget (wheel slot), -1 none. Consumed by the gadget system. */
+  /** Keyboard 1-7: pick that gadget (wheel slot), -1 none. Consumed by the gadget system. */
   gadgetPick = -1;
   private moveBySource = new Map<string, Vec2>();
   /** Accumulated look delta in radians (yaw, pitch). Consumed per render frame. */

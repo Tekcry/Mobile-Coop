@@ -9,8 +9,8 @@ import type { Settings } from '../core/settings';
 export const CAPTURE_CANCEL_HOLD = 1;
 /** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
 export const SWAP_HOLD = 0.35;
-/** (locomotion step 15) X held this long (s) while not aiming uses a medkit (`MEDKIT.padHold`). */
-export const MEDKIT_HOLD = 0.4;
+/** X held this long (s) counts as a hold (aiming: the next weapon, A55; not aiming: free, the carried medkit is gone, G98). */
+export const X_HOLD = 0.4;
 const SRC = 'pad';
 const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
 /** Radians per second at sensitivity 1, full deflection. */
@@ -32,8 +32,8 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold a medkit (aiming: swap, A55); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
-  private xBtn = new TapHold(MEDKIT_HOLD);
+  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
+  private xBtn = new TapHold(X_HOLD);
   private leftBtn = new TapHold(WHEEL_HOLD);
   private viewBtn = new TapHold(SWAP_HOLD);
   private activeIndex = -1;
@@ -149,9 +149,11 @@ export class GamepadSource {
     for (const d of NAV_DIRS) {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
-    // X: tap = reload (on release); hold = a medkit (locomotion step 15), or while aiming the next weapon (A55)
+    // X: tap = reload (on release); hold while aiming = the next weapon (A55); a hold not aiming does nothing (G98)
     const x = this.xBtn.update(frame.buttons.reload === true, now);
-    if (x === 'hold') this.state.tap(this.adsActive ? 'swapNext' : 'medkit');
+    if (x === 'hold') {
+      if (this.adsActive) this.state.tap('swapNext');
+    }
     else if (x === 'tap') this.state.tap('reload');
     // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
     if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');

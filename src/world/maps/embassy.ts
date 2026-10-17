@@ -427,7 +427,6 @@ export const embassy: MapDef = {
       ],
       pickups: [
         { pos: v(-12.4, -18.8, 0.95), kind: 'ammo' },
-        { pos: v(24.2, 16, 1.8), kind: 'medkit' },
       ],
       rooms: ROOMS,
       switches: [

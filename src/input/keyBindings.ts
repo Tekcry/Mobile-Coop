@@ -1,7 +1,7 @@
 /**
  * Keyboard / mouse bindings (pure, unit-tested). Every gameplay action has up to two inputs: a keyboard `code`
  * (`KeyboardEvent.code`) or an extra mouse button (`Mouse1` middle, `Mouse3` back, `Mouse4` forward). The left /
- * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-8 (gadgets) and the menu keys (Esc, Enter, Backspace,
+ * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-7 (gadgets) and the menu keys (Esc, Enter, Backspace,
  * arrows, Q / E tabs) are fixed.
  */
 import type { ButtonAction } from './actions';
@@ -19,7 +19,6 @@ export type BindId =
   | 'traverse'
   | 'use'
   | 'reload'
-  | 'medkit'
   | 'nextWeapon'
   | 'prevWeapon'
   | 'gadget'
@@ -50,7 +49,6 @@ export const BINDS: readonly BindDef[] = [
   { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },
   { id: 'use', label: 'Use', actions: ['interact'], defaults: ['KeyF'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
-  { id: 'medkit', label: 'Use medkit', actions: ['medkit'], defaults: ['KeyH'] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: ['KeyX'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
   { id: 'gadget', label: 'Gadget (hold to aim)', actions: ['grenade'], defaults: ['KeyG'] },
@@ -87,7 +85,7 @@ export function defaultBinds(): KeyBinds {
 /** A code that may be bound at all. */
 export function bindable(code: string): boolean {
   if (RESERVED.has(code)) return false;
-  if (/^Digit[1-8]$/.test(code)) return false;
+  if (/^Digit[1-7]$/.test(code)) return false;
   return /^(Key[A-Z]|Digit\d|Numpad\w+|F\d{1,2}|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|CapsLock|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|Insert|Delete|Home|End|PageUp|PageDown)$/.test(code) || (MOUSE_CODES as readonly string[]).includes(code);
 }
 

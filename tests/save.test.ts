@@ -111,7 +111,7 @@ describe('save migrations', () => {
     }
   });
 
-  it('v8 -> v9 drops the emote slots and the emote unlocks (G24) and the guns outside the CT kit (G115), keeping everything else', () => {
+  it('v8 -> v9 drops the emote slots and the emote unlocks (G24), the guns outside the CT kit (G115) and the drone gadget (G7), keeping everything else', () => {
     const V8 = {
       version: 8,
       createdAt: 1,
@@ -131,7 +131,7 @@ describe('save migrations', () => {
       challenges: { progress: {}, done: [] },
       presets: [
         { name: 'Silent', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
-        { name: 'Close', primary: 'shotgun', secondary: 'fiveseven', gadget: 'flash' },
+        { name: 'Close', primary: 'shotgun', secondary: 'fiveseven', gadget: 'drone' },
         { name: 'Loud', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
       ],
       preset: 0,
@@ -155,6 +155,9 @@ describe('save migrations', () => {
     expect(Object.keys(s.weapons).sort()).toEqual(['pistolSd', 'rifle']);
     expect(s.unlocks).toEqual(expect.arrayContaining(['att:suppressor', 'camo:rifle:gold']));
     for (const u of ['weapon:pistol', 'weapon:smg', 'weapon:crossbow', 'att:lethalBolts', 'camo:smg:gold']) expect(s.unlocks).not.toContain(u);
+    // G7: the drone preset gadget is dropped; the preset's default comes back
+    expect('gadget' in ((data.presets as Record<string, unknown>[])[1] as object)).toBe(false);
+    expect(s.presets.map((p) => p.gadget)).toEqual(['gas', 'flash', 'frag']);
     expect(s.presets.map((p) => [p.primary, p.secondary])).toEqual([
       ['pistolSd', 'rifle'],
       ['rifle', 'pistolSd'],
