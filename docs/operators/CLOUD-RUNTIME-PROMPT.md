@@ -9,6 +9,16 @@ Operators runtime groundwork (cloud session). Read all of this before acting. Yo
 overview, plan and decide; subagents (Agent tool) do the reading and writing in focused phases. Keep your own context
 small: read their reports and the docs you write, not whole source files.
 
+# 0a. Updates since this prompt was written (read first; they override anything below)
+- D29 (2026-10-17): Night Shift is DESKTOP ONLY. Ignore every phone requirement below: there is no phone LOD, no
+  phone gating, no phone smoke check. The operator LODs are hero, LOD0, LOD1 and LOD2 (LOD2 = the far desktop band).
+- Step 10 / 11b assets exist on feature/operators: one skinned .glb per LOD with KTX2 textures (KHR_texture_basisu,
+  UASTC + Zstd) - see docs/operators/LOG.md steps 10 and 11b and scripts/operators/README.md for names and folders.
+  Babylon's KTX2 decoder is already bundled locally (D27, A79: @babylonjs/ktx2decoder, src/operators/lab/ktx2.ts,
+  core/babylon.ts blanks the CDN URL) - reuse it.
+- Rigid kit (D28): each rigid part carries a _RIGID vertex attribute and one weight vector; the runtime must keep
+  4-influence GPU skinning and must not re-weight them.
+
 # 0. Goal in one paragraph
 Night Shift (Vite + TypeScript + Babylon.js 9 PWA stealth game) is replacing its code-built voxel player bodies with
 detailed operator models (Wren, then Moth) generated offline in Blender by the operators run on branch
