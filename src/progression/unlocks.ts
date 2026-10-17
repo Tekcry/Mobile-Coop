@@ -1,6 +1,6 @@
 import type { WeaponId } from '../weapons/weaponDefs';
 
-export type UnlockKind = 'weapon' | 'attachment' | 'camo' | 'part' | 'pattern' | 'emote' | 'tag' | 'color';
+export type UnlockKind = 'weapon' | 'attachment' | 'camo' | 'part' | 'pattern' | 'tag' | 'color';
 
 export interface UnlockReq {
   level?: number;

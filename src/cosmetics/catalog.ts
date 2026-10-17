@@ -126,17 +126,7 @@ export function camoUnlockId(w: WeaponId, camo: string): string {
   return `camo:${w}:${camo}`;
 }
 
-// ---------- emotes / tags / emblems ----------
-export const EMOTES: { id: string; name: string; req?: UnlockReq }[] = [
-  { id: 'wave', name: 'Wave' },
-  { id: 'salute', name: 'Salute' },
-  { id: 'point', name: 'Point', req: { level: 2, price: 300 } },
-  { id: 'dance', name: 'Dance', req: { level: 4 } },
-  { id: 'flex', name: 'Flex', req: { level: 7 } },
-  { id: 'clap', name: 'Clap', req: { level: 10 } },
-  { id: 'laugh', name: 'Laugh', req: { level: 3, price: 500 } },
-];
-
+// ---------- tags / emblems ----------
 export const TAGS: { id: string; req?: UnlockReq }[] = [
   { id: 'Rookie' },
   { id: 'Operator', req: { level: 5 } },
@@ -175,7 +165,6 @@ for (const w of WEAPON_IDS) {
     items.push({ id: `camo:${w}:${camo}`, kind: 'camo', name: `${camoById(camo).name} ${w.toUpperCase()}`, req: { mastery: { weapon: w, level: Number(lvl) } } });
   }
 }
-for (const e of EMOTES) items.push({ id: `emote:${e.id}`, kind: 'emote', name: `${e.name} emote`, req: e.req ?? {} });
 for (const t of TAGS) items.push({ id: `tag:${t.id}`, kind: 'tag', name: `"${t.id}" title`, req: t.req ?? {} });
 for (const e of EMBLEMS) items.push({ id: `emblem:${e.id}`, kind: 'tag', name: `${e.id[0]!.toUpperCase()}${e.id.slice(1)} emblem`, req: e.req ?? {} });
 registerUnlocks(items);

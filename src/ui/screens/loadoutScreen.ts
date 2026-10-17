@@ -13,7 +13,7 @@ import { MASTERY_KILLS } from '../../progression/levels';
 import { canBuyHq, canBuySuit, CHALLENGES, HQ, HQ_IDS, SUIT, SUIT_PIECES, suitLook, suitStats, type HqId, type SuitLoadout, type SuitPiece } from '../../progression/suit';
 import { GADGETS, GADGET_IDS, type GadgetId } from '../../game/gadgets';
 import { PALETTE_COLORS, SKIN_TONES, sanitizeLook, type AvatarColors, type AvatarLook } from '../../cosmetics/avatarLook';
-import { CAMOS, camoUnlockId, EMBLEMS, EMOTES, emblemSvg, LOOK_FIELD, PART_OPTIONS, partUnlockId, TAGS, type PartCategory } from '../../cosmetics/catalog';
+import { CAMOS, camoUnlockId, EMBLEMS, emblemSvg, LOOK_FIELD, PART_OPTIONS, partUnlockId, TAGS, type PartCategory } from '../../cosmetics/catalog';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
@@ -499,7 +499,7 @@ export class LoadoutScreen extends Screen {
           { key: 'gadget', label: 'Gadget', value: GADGETS[gadget]?.name ?? '', go: true, detail: () => this.gadgetDetail(gadget), act: { label: 'Change gadget', run: () => this.open(this.gadgetsPage()) } },
           { key: 'suit', group: 'OPERATOR', label: 'Suit', value: SUIT[ 'vest'][s.suit.worn.vest]!.name, go: true, detail: () => this.suitDetail(s.suit.worn), act: { label: 'Open suit', run: () => this.open(this.suitPage()) } },
           { key: 'look', label: 'Appearance', go: true, detail: () => this.panel('APPEARANCE', this.note('Build, head, hair, outfit, headgear, backpack, pattern and colours. Locked parts preview on the operator.')), act: { label: 'Open appearance', run: () => this.open(this.lookPage()) } },
-          { key: 'tag', label: 'Tag & emotes', value: s.profile.name, go: true, detail: () => this.panel('TAG & EMOTES', this.note('Callsign, title, emblem and colour; emote slots (View held, J / K / L).')), act: { label: 'Open tag & emotes', run: () => this.open(this.tagPage()) } },
+          { key: 'tag', label: 'Tag', value: s.profile.name, go: true, detail: () => this.panel('TAG', this.note('Callsign, title, emblem and colour.')), act: { label: 'Open tag', run: () => this.open(this.tagPage()) } },
           { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
           { key: 'challenges', label: 'Challenges', value: `${s.challenges.done.length}/${CHALLENGES.length}`, go: true, detail: () => this.panel('CHALLENGES', this.note('Finish them in any mode for credits and XP.')), act: { label: 'Open challenges', run: () => this.open(this.challengesPage()) } },
         ];
@@ -948,14 +948,14 @@ export class LoadoutScreen extends Screen {
     };
   }
 
-  // ------------------------------------------------------------------ tag & emotes
+  // ------------------------------------------------------------------ tag
 
   private tagPage(): Page {
     return {
       id: 'tag',
       crumb: 'TAG',
-      title: 'TAG & EMOTES',
-      sub: 'CALLSIGN, TITLE, EMOTES',
+      title: 'TAG',
+      sub: 'CALLSIGN, TITLE, EMBLEM',
       framing: 'loadout',
       rows: () => [],
       body: () => this.tagForm(),
@@ -996,30 +996,6 @@ export class LoadoutScreen extends Screen {
       });
       colors.append(sw);
     }
-    // emotes: four slots; picking one plays it on the operator
-    const owned = EMOTES.filter((e) => owns(s, `emote:${e.id}`));
-    const opts = [{ value: '', label: 'Empty' }, ...owned.map((e) => ({ value: e.id, label: e.name }))];
-    // (3.2.0: the d-pad is the speed gear, gadget and wheel; slot 1 is View held, every slot has a key)
-    const slots = ['View hold · J', 'K', 'L', 'Menu only'];
-    const emoteRows = slots.map((label, i) => {
-      const c = choice(`${i + 1} · ${label}`, opts, () => this.s().emotes[i] ?? '', (v) => {
-        this.save((d) => void (d.emotes[i] = v));
-        if (v) this.menu()?.emote(v);
-      });
-      c.dataset.key = `emote-${i}`;
-      return c;
-    });
-    const tryOut = h('div', { class: 'emote-grid', attrs: { 'data-wrap': '' } });
-    for (const e of EMOTES) {
-      const has = owns(s, `emote:${e.id}`);
-      const u = has ? null : this.unlockRow(`emote:${e.id}`);
-      const b = button(`${has ? '' : '\u{1F512} '}${e.name}${u && u.mark === 'buyable' ? ` · ${u.value}` : ''}`, () => {
-        this.menu()?.emote(e.id);
-        if (u?.mark === 'buyable') this.buy(`emote:${e.id}`);
-      }, { class: 'small' });
-      b.dataset.key = `try-${e.id}`;
-      tryOut.append(b);
-    }
     this.tagPreview = h('div', { class: 'tag-preview' });
     this.renderTag();
     return h(
@@ -1030,10 +1006,6 @@ export class LoadoutScreen extends Screen {
       title,
       emblem,
       h('div', { class: 'swatch-field' }, h('span', { class: 'swatch-label', text: 'Colour' }), colors),
-      h('div', { class: 'lo-group', text: 'EMOTE SLOTS' }),
-      ...emoteRows,
-      h('div', { class: 'lo-group', text: 'TRY AN EMOTE' }),
-      tryOut,
     );
   }
 

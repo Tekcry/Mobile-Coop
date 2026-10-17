@@ -21,5 +21,5 @@ export const campaignUnlocked = (legacy: boolean): boolean => !legacy;
 /** The mode the Play screen and the co-op lobby start on. */
 export const defaultMode = (legacy: boolean): 'clear' | 'infiltration' => (legacy ? 'clear' : 'infiltration');
 
-/** Whether the economy and cosmetics (credits, XP, suit, HQ, challenges, appearance, emotes, camos) are shown. */
+/** Whether the economy and cosmetics (credits, XP, suit, HQ, challenges, appearance, camos) are shown. */
 export const showEconomy = (legacy: boolean): boolean => legacy;

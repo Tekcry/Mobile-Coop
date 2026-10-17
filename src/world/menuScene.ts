@@ -27,7 +27,6 @@ import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
-import { playEmote } from '../cosmetics/emotes';
 import type { QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -247,10 +246,6 @@ export class MenuState implements AppState {
     this.weapon.hold(this.rig);
     // the tri-lens glows in the dark
     this.rig.setLensGlow(true);
-  }
-
-  emote(id: string): void {
-    if (this.rig) playEmote(this.rig, id);
   }
 
   setFraming(f: MenuFraming): void {

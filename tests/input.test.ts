@@ -59,8 +59,8 @@ describe('gamepad mapping', () => {
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.speedUp && f.buttons.speedDown && f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
-    // ping (D-pad left tap) and the emote (View hold) come from the source's tap / hold, not the raw mapping
-    expect(f.buttons.ping || f.buttons.quick2 || f.buttons.quick4).toBeFalsy();
+    // ping (D-pad left tap) comes from the source's tap / hold, not the raw mapping
+    expect(f.buttons.ping).toBeFalsy();
     expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBe(true);
   });
   it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
@@ -212,7 +212,7 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
 
   it('has a row per verb', () => {
-    expect(rows.length).toBeGreaterThanOrEqual(24);
+    expect(rows.length).toBeGreaterThanOrEqual(21);
     for (const r of rows) expect(ticks(r[1]!).length, r[0]).toBeGreaterThan(0);
   });
 

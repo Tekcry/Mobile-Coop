@@ -293,7 +293,7 @@ try {
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 0.5 && rd.l === 'Custom' && (rd.m === null || rd.m === 0.5), `the match resolves Custom with perception 0.5 (${JSON.stringify(rd)})`);
   // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
-  // goggles, View held an emote
+  // goggles, View held nothing (emotes deleted, G24)
   const G = (f) => page.evaluate(f);
   const gear0 = await G(() => window.__app.current.player.controller.maxGear);
   await press(page, BTN.UP);
@@ -307,7 +307,7 @@ try {
     await page.waitForTimeout(ms);
     // (the hold is read from the polls: on a slow software-GL frame it lands late)
     if (until) await page.waitForFunction(until, null, { timeout: 6000 }).catch(() => {});
-    const r = await G(() => ({ wheel: window.__app.current.gadgets.wheelOpen, emote: !!window.__app.current.player.rig.emote }));
+    const r = await G(() => ({ wheel: window.__app.current.gadgets.wheelOpen }));
     await page.evaluate((b) => window.__pad.set(b, 0), b);
     await page.waitForTimeout(150);
     return r;
@@ -325,9 +325,10 @@ try {
   const v1 = await G(() => window.__app.current.vision.mode);
   assert(v0 === 'off' && v1 === 'night', `View tap: goggles (${v0} -> ${v1})`);
   const vBefore = await G(() => window.__app.current.vision.mode);
-  const em = await holdBtn(BTN.SELECT, 500, () => !!window.__app.current.player.rig.emote);
+  // (wait until the source has read the hold: its tap / hold detector fired, so the release is no tap)
+  await holdBtn(BTN.SELECT, 500, () => window.__app.input.gamepad.viewBtn?.fired === true);
   const v2 = await G(() => window.__app.current.vision.mode);
-  assert(em.emote && v2 === vBefore, `View held: an emote, goggles untouched (${em.emote}, ${vBefore} -> ${v2})`);
+  assert(v2 === vBefore, `View held: goggles untouched (${vBefore} -> ${v2})`);
   // (step 14) View cycles off -> night -> thermal -> electro -> off; the post pass's vision kind follows at mid-flip
   {
     const vis = () => G(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
@@ -340,7 +341,7 @@ try {
       return r;
     };
     const seq = [];
-    // (let the held-View emote release settle before the next tap)
+    // (let the held-View release settle before the next tap)
     await page.waitForTimeout(400);
     const start = (await vis()).mode;
     if (start !== 'night') throw new Error(`vision start ${start}`);

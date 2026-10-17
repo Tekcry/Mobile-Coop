@@ -32,7 +32,7 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold a medkit (aiming: swap, A55); D-pad left: tap ping / hold the gadget wheel; View: tap goggles / hold an emote. */
+  /** X: tap reload / hold a medkit (aiming: swap, A55); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
   private xBtn = new TapHold(MEDKIT_HOLD);
   private leftBtn = new TapHold(WHEEL_HOLD);
   private viewBtn = new TapHold(SWAP_HOLD);
@@ -155,10 +155,8 @@ export class GamepadSource {
     else if (x === 'tap') this.state.tap('reload');
     // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
     if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
-    // View: tap = goggles (on release), hold = the first emote
-    const view = this.viewBtn.update(frame.buttons.vision === true, now);
-    if (view === 'tap') this.state.tap('vision');
-    else if (view === 'hold') this.state.tap('quick2');
+    // View: tap = goggles (on release); a hold is free (emotes deleted, G24)
+    if (this.viewBtn.update(frame.buttons.vision === true, now) === 'tap') this.state.tap('vision');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);

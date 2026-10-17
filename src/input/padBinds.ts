@@ -45,7 +45,7 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'speedDown', label: 'Speed gear down', actions: ['speedDown'], defaults: [PAD.DOWN] },
   { id: 'gadget', label: 'Gadget (hold to aim)', actions: ['grenade'], defaults: [PAD.RIGHT] },
   { id: 'wheel', label: 'Ping (tap) / gadget wheel (hold)', actions: ['gadgetWheel'], defaults: [PAD.LEFT] },
-  { id: 'goggles', label: 'Goggles (tap) / emote (hold)', actions: ['vision'], defaults: [PAD.SELECT] },
+  { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: [PAD.SELECT] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: [PAD.START] },
 ];
 

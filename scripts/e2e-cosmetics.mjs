@@ -1,4 +1,4 @@
-// Loadout appearance by controller: parts, colours, locked previews on the operator, rotation, emotes, camo, tag;
+// Loadout appearance by controller: parts, colours, locked previews on the operator, rotation, camo, tag;
 // in-game look.
 import { launch, frames, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
@@ -50,14 +50,9 @@ try {
   assert(Math.abs(yaw1 - yaw0) > 0.05, `right stick rotates the preview (${yaw0.toFixed(2)} -> ${yaw1.toFixed(2)})`);
   await press(page, BTN.B);
   await press(page, BTN.B);
-  // tag & emotes: assign emote slot 1
-  await focusTo(page, /Tag & emotes/);
+  // tag (emotes deleted, G24)
+  await focusTo(page, /Tag/);
   await press(page, BTN.A);
-  await focusTo(page, /1 · View hold/, 24);
-  await press(page, BTN.RIGHT);
-  const em = await G(() => window.__app.save.get().emotes[0]);
-  assert(!!em, `emote slot 1 set (${em})`);
-  assert(await G(() => !!window.__app.current['rig']?.emote), 'preview plays the emote');
   const rnd = await G(() => { const b = [...document.querySelectorAll('.loadout-screen .lo-form .btn')].find((x) => /Random/.test(x.textContent)); b.click(); return window.__app.save.get().profile.name; });
   assert(rnd !== 'Operator', `random callsign (${rnd})`);
   await press(page, BTN.B);
@@ -78,7 +73,7 @@ try {
   assert((await G(() => window.__app.save.get().weapons.rifle.camo)) === 'woodland', 'A equips it');
   for (let i = 0; i < 4; i++) await press(page, BTN.B);
 
-  // in game: avatar look + camo carried, emote 1 on View held (3.2.0; the d-pad is the speed gear, gadget and wheel)
+  // in game: avatar look + camo carried
   await G(() => window.__app.screens.top);
   await page.goto(url + '?autostart=proving&gfx=min');
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 60000 });
@@ -86,12 +81,6 @@ try {
   await press(page, BTN.LS);
   const look = await G(() => ({ skin: window.__app.current.opts.look.colors.skin, camo: window.__app.current.opts.loadout.find((e) => e.id === 'rifle')?.pattern?.name }));
   assert(look.skin === skin1 && look.camo === 'camo', `match uses saved avatar + weapon camo (${JSON.stringify(look)})`);
-  await G(() => window.__pad.set(8, 1));
-  // (the hold is read from the polls: on a slow software-GL frame it lands late)
-  await page.waitForFunction(() => !!window.__app.current.player.rig.emote, null, { timeout: 6000 }).catch(() => {});
-  const emoted = await G(() => !!window.__app.current.player.rig.emote);
-  await G(() => window.__pad.set(8, 0));
-  assert(emoted, 'View held plays emote slot 1 in game');
 } catch (e) {
   failed = true;
   console.error(String(e));

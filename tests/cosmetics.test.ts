@@ -9,7 +9,7 @@ import { autoGrant, unlockContext } from '../src/progression/profile';
 import { PATTERN_ID } from '../src/cosmetics/patterns';
 
 describe('cosmetics catalogue', () => {
-  it('registers unique unlock ids for every part, camo, emote and tag', () => {
+  it('registers unique unlock ids for every part, camo and tag', () => {
     expect(new Set(UNLOCKS.map((u) => u.id)).size).toBe(UNLOCKS.length);
     for (const [cat, opts] of Object.entries(PART_OPTIONS)) for (const o of opts) expect(unlockById(partUnlockId(cat as never, o.value))).toBeDefined();
     for (const w of ['rifle', 'smg', 'sniper'] as const) for (const camo of Object.values(MASTERY_CAMOS)) expect(unlockById(camoUnlockId(w, camo))).toBeDefined();
@@ -29,7 +29,8 @@ describe('cosmetics catalogue', () => {
     expect(own(partUnlockId('hair', s.avatar.hair))).toBe(true);
     expect(own(partUnlockId('torso', s.avatar.torso))).toBe(true);
     expect(own(partUnlockId('helmet', s.avatar.helmet))).toBe(true);
-    expect(own('emote:wave') && own('tag:Rookie') && own('camo:factory')).toBe(true);
+    expect(own('tag:Rookie') && own('camo:factory')).toBe(true);
+    expect(s.unlocks.some((u) => u.startsWith('emote:'))).toBe(false);
     expect(own('part:hair:spikes')).toBe(false);
   });
   it('mastery camos unlock with weapon kills', () => {

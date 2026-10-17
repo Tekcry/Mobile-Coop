@@ -5,7 +5,6 @@ import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
-import { playEmote } from '../cosmetics/emotes';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { assignCarrySlots } from '../weapons/carrySlots';
@@ -143,10 +142,6 @@ export class RemoteAvatar {
     this.weapon = id;
   }
 
-  emote(id: string): void {
-    playEmote(this.rig, id);
-  }
-
   /** Render-rate update at `renderTime` (in the buffer's clock). */
   update(dt: number, renderTime: number): void {
     const s = this.buf.sample(renderTime);
@@ -260,7 +255,6 @@ export class RemoteAvatar {
     const r = this.rig.root;
     r.position.copyFrom(this.pos);
     r.rotation.y = this.yaw;
-    if (this.rig.emote && (this.speed > 0.5 || f & PF.firing)) this.rig.emote = null;
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
     const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
     this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;

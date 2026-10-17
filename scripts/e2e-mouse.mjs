@@ -279,7 +279,7 @@ try {
       ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['Space', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
       ['ShiftLeft', 'dash'], ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
       ['KeyH', 'medkit'], ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
-      ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyJ', 'quick2'], ['KeyK', 'quick3'], ['KeyL', 'quick4'], ['KeyP', 'pause'],
+      ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyP', 'pause'],
     ];
     await page.evaluate(() => {
       const s = window.__app.input.state;
@@ -490,9 +490,9 @@ try {
       await drag('perception', -0.2);
       const c = await st();
       assert(c.choice === 'Custom' && JSON.stringify(c.c) === JSON.stringify({ base: 'rookie', perception: 0.5, aim: 0.7, alarm: 1.35 }), `a drag on a preset is Custom from that preset (${JSON.stringify(c)})`);
-      // the stored sliders reach a match (Proving, training: guards on): the manager's resolved def (after the 250 ms save)
+      // the stored sliders reach a match (Proving, mission: guards on): the manager's resolved def (after the 250 ms save)
       await P.waitForTimeout(800);
-      const Q = await openPage(D.ctx, url, 'autostart=proving&mode=training&difficulty=custom');
+      const Q = await openPage(D.ctx, url, 'autostart=proving&mode=mission&difficulty=custom');
       await Q.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
       const r = await Q.page.evaluate(() => {
         const d = window.__app.current.enemyMgr.diff;

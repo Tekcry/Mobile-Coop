@@ -119,7 +119,7 @@ export interface WorldTarget {
 }
 
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
-/** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
+/** Forward-kinematics override (Euler x, y, z) per joint: scripted poses (a grabbed or hostage guard, the VIP). */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
 /** Tri-lens goggle lens colours (off / glowing). */
@@ -402,7 +402,8 @@ export class CharacterRig {
   private holsterW = 0;
   /** Called after each solved pose (carried gear that reacts to the body, e.g. a sling pushed by the thigh). */
   readonly onPosed: (() => void)[] = [];
-  /** Extra emote overrides (set by the emote player). */
+  /** A scripted FK pose over the procedural result (a grabbed or hostage guard, the VIP; the player emotes that
+   *  also used it were deleted, G24). */
   emote: ((rig: CharacterRig, t: number) => FkPose | void) | null = null;
   emoteTime = 0;
   private emoteW = 0;
@@ -1236,7 +1237,7 @@ export class CharacterRig {
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
-    // emote overrides blend in/out
+    // scripted FK poses blend in / out
     let fk: FkPose | null = null;
     if (this.emote) {
       this.emoteTime += dt;
@@ -1622,7 +1623,7 @@ export class CharacterRig {
 
   /**
    * Realism limit + blend continuity: a joint's local rotation may not change faster than its max
-   * angular speed. Any abrupt pose change (state switch, IK flip, emote) is spread over a few frames,
+   * angular speed. Any abrupt pose change (state switch, IK flip, scripted pose) is spread over a few frames,
    * so motion stays continuous (an inertialization-style safety net under the weighted blends).
    */
   private jointRate = new Map<TransformNode, number>();
@@ -1798,7 +1799,7 @@ export class CharacterRig {
     freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
-  /** Blend an FK pose (emotes) over the procedural result. */
+  /** Blend an FK pose (scripted poses) over the procedural result. */
   private applyFk(fk: FkPose, w: number): void {
     const map: Record<JointName, TransformNode> = {
       pelvis: this.hips,
@@ -1826,7 +1827,7 @@ export class CharacterRig {
       Quaternion.SlerpToRef(node.rotationQuaternion!, tmpQ, w, node.rotationQuaternion!);
     }
     if (fk.shoulderL || fk.shoulderR) {
-      // emote arms let go of the weapon: straighten the wrists
+      // posed arms let go of the weapon: straighten the wrists
       if (fk.shoulderR) this.wristR.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
       if (fk.shoulderL) this.wristL.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     }

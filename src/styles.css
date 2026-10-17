@@ -1538,16 +1538,6 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
-.emote-grid,
-.emote-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.emote-bar {
-  justify-content: center;
-  margin-bottom: 6px;
-}
 .badge-emblem {
   display: inline-flex;
 }

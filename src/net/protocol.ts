@@ -13,7 +13,7 @@ import { MEDKIT } from '../game/medkit';
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 12;
+export const PROTOCOL_VERSION = 13;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -112,7 +112,6 @@ export type NetEvent =
   | { e: 'banner'; title: string; sub: string }
   | { e: 'feed'; text: string }
   | { e: 'pickup'; player: string; kind: 'ammo' | 'medkit' }
-  | { e: 'emote'; player: string; id: string }
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
@@ -170,7 +169,6 @@ export type Msg =
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
   | { t: 'gadget'; kind: NetGadget; x: number; y: number; z: number }
   | { t: 'ev'; events: NetEvent[] }
-  | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
   /** Training course state (host -> all): when it changes or every COURSE_SEND. */
@@ -301,11 +299,6 @@ function netEvent(v: unknown): NetEvent | null {
       const player = id(v.player);
       const kind = oneOf(v.kind, ['ammo', 'medkit'] as const);
       return player && kind ? { e: 'pickup', player, kind } : null;
-    }
-    case 'emote': {
-      const player = id(v.player);
-      const eid = safeText(v.id, 16);
-      return player && eid ? { e: 'emote', player, id: eid } : null;
     }
     case 'hitConfirm': {
       const player = id(v.player);
@@ -663,10 +656,6 @@ export function parseMessage(raw: unknown): Msg | null {
       if (!Array.isArray(raw.events)) return null;
       const events = raw.events.slice(0, MAX_EVENTS).map(netEvent).filter((e): e is NetEvent => !!e);
       return { t: 'ev', events };
-    }
-    case 'emote': {
-      const e = safeText(raw.id, 16);
-      return e ? { t: 'emote', id: e } : null;
     }
     case 'blast': {
       const x = num(raw.x, -WORLD, WORLD);

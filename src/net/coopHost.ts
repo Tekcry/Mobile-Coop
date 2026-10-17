@@ -208,7 +208,6 @@ export class CoopHost implements NetAttachment {
       prevBoom?.(pos, r);
       this.push({ e: 'boom', x: pos.x, y: pos.y, z: pos.z, r });
     };
-    g.onEmote = (id) => this.push({ e: 'emote', player: this.s.selfId, id });
     // the host's own gas / flash / EMP / noisemaker: everyone sees it
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') this.push({ e: 'gadget', player: this.s.selfId, kind, x: at.x, y: at.y, z: at.z });
@@ -377,12 +376,6 @@ export class CoopHost implements NetAttachment {
       case 'blast':
         if (r.alive && checkBlast(msg, r.feet) && r.takeBlast(this.time)) {
           this.g.explosions.explode(new Vector3(msg.x, msg.y, msg.z), GRENADE.radius, GRENADE.damage, GRENADE.force, 'player', from);
-        }
-        break;
-      case 'emote':
-        if (r.alive) {
-          r.avatar.emote(msg.id);
-          this.push({ e: 'emote', player: from, id: msg.id });
         }
         break;
       case 'use':

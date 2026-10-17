@@ -42,7 +42,6 @@ import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
 import { ResultsScreen } from '../ui/screens/resultsScreen';
-import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -94,7 +93,6 @@ import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, se
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
-import { TrainingMode } from './modes/trainingMode';
 import { CourseMode } from './modes/courseMode';
 import type { CourseWire } from './course/courseWire';
 import { StealthRating } from './playstyle';
@@ -113,8 +111,6 @@ export interface GameOptions {
   customDifficulty?: CustomDifficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
-  /** Equipped emote ids (quick slots). */
-  emotes?: string[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
   net?: NetHooks;
   /** Infiltration: the mission and the insertion point chosen. */
@@ -523,11 +519,9 @@ export class GameState implements AppState {
           ? new ClearMode(this)
           : opts.mode === 'infiltration'
             ? new InfiltrationMode(this)
-            : opts.mode === 'training'
-              ? new TrainingMode(this)
-              : opts.mode === 'course'
-                ? new CourseMode(this)
-                : new MissionMode(this);
+            : opts.mode === 'course'
+              ? new CourseMode(this)
+              : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -893,21 +887,9 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        this.emoteBar(),
       ),
     );
   }
-
-  /** Play an emote on the local player (also broadcast in coop). */
-  emote(id: string): void {
-    if (!id || !this.player.alive) return;
-    if (playEmote(this.player.rig, id)) {
-      this.onEmote?.(id);
-      this.events.emit('emote', { id });
-    }
-  }
-
-  onEmote: ((id: string) => void) | null = null;
 
   private onPlayerDeath(): void {
     if (this.net?.onLocalDeath()) return;
@@ -917,28 +899,6 @@ export class GameState implements AppState {
     }
     this.hud.banner('DOWN', 'Respawning…', 2500);
     this.scheduleRespawn(this.world.layout.playerSpawns[0]!.pos, 3);
-  }
-
-  private emoteBar(): HTMLElement | null {
-    const ids = (this.opts.emotes ?? []).filter(Boolean);
-    if (!ids.length) return null;
-    const bar = document.createElement('div');
-    bar.className = 'emote-bar';
-    for (const id of ids) {
-      const b = document.createElement('button');
-      b.className = 'btn small';
-      b.dataset.focus = '';
-      b.textContent = id[0]!.toUpperCase() + id.slice(1);
-      b.addEventListener('click', () => {
-        this.app.screens.pop();
-        this.paused = false;
-        this.menuOpen = false;
-        this.app.input.setGameplayActive(true);
-        this.emote(id);
-      });
-      bar.appendChild(b);
-    }
-    return bar;
   }
 
   /** The held item latched by a tap (`access.holdToggle`). */
@@ -1166,11 +1126,7 @@ export class GameState implements AppState {
     this.aliveWas = this.player.alive;
     // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
-    // quick emotes (View held on a pad, J / K / L)
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
-    const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
-    if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
-    if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside

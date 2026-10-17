@@ -114,6 +114,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return { ...s, version: 8, missions: 'missions' in s ? missions : s.missions, hq, challenges };
   },
+  // v8 -> v9: emotes are gone (DECISIONS G24 / G116): the equipped slots and every owned `emote:` unlock are dropped
+  // (spent credits are not refunded)
+  8: (s) => {
+    const { emotes: _e, ...rest } = s;
+    const unlocks = Array.isArray(s.unlocks) ? s.unlocks.filter((u) => !(typeof u === 'string' && u.startsWith('emote:'))) : s.unlocks;
+    return { ...rest, version: 9, unlocks };
+  },
 };
 
 export class SaveVersionError extends Error {}

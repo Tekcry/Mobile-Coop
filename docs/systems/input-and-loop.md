@@ -78,9 +78,6 @@ and the code together.
 | Gadget wheel | `gadgetWheel` | D-pad left (hold) | D-pad left | `wheel` (Tab, hold) | - |
 | Ping (co-op) | `ping` | D-pad left (tap) | D-pad left | `ping` (Z) | - |
 | Vision (goggles) | `vision` | View (tap) | Create / Minus | `goggles` (N) | Vision button |
-| Emote 1 | `quick2` | View (hold) | Create / Minus | `emote1` (J) | - |
-| Emote 2 | `quick3` | - | - | `emote2` (K) | - |
-| Emote 3 | `quick4` | - | - | `emote3` (L) | - |
 | Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | - |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | Pause button |
 

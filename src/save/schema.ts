@@ -7,7 +7,7 @@ import { STARTER_UNLOCKS } from '../progression/unlocks';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -54,8 +54,6 @@ export interface SaveData {
   weapons: Record<WeaponId, WeaponProgress>;
   loadout: { primary: WeaponId; secondary: WeaponId };
   avatar: AvatarLook;
-  /** Equipped emotes (4 quick slots). */
-  emotes: string[];
   /** Infiltration records by mission id (v5). */
   missions: Record<string, MissionRecord>;
   /** Suit: highest tier owned and the tier worn per piece (v6). */
@@ -87,11 +85,10 @@ export function defaultSave(now = Date.now()): SaveData {
       tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' },
       stats: { matches: 0, wins: 0, kills: 0, headshots: 0, bestWave: 0, timePlayed: 0 },
     },
-    unlocks: [...STARTER_UNLOCKS, 'emote:wave', 'emote:salute', 'tag:Rookie', 'camo:factory', 'pattern:solid'],
+    unlocks: [...STARTER_UNLOCKS, 'tag:Rookie', 'camo:factory', 'pattern:solid'],
     weapons,
     loadout: { primary: 'pistolSd', secondary: 'rifle' },
     avatar: defaultLook(),
-    emotes: ['wave', 'salute', '', ''],
     missions: {},
     suit: { owned: defaultSuit(), worn: defaultSuit() },
     hq: defaultHq(),
@@ -186,8 +183,6 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
       };
     });
   }
-  const emotes = Array.isArray(raw.emotes) ? raw.emotes.slice(0, 4).map((e) => (typeof e === 'string' ? e.slice(0, 24) : '')) : d.emotes;
-  while (emotes.length < 4) emotes.push('');
   return {
     version: SAVE_VERSION,
     createdAt: int(raw.createdAt, 0, 8.64e15, d.createdAt),
@@ -214,7 +209,6 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
     weapons,
     loadout: { primary, secondary },
     avatar: sanitizeLook(raw.avatar),
-    emotes,
     missions,
     suit: { owned, worn },
     hq,

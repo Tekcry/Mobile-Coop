@@ -127,7 +127,7 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
       this.events.emit('game', { msg, from });
     }
   }

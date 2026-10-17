@@ -79,7 +79,6 @@ export class CoopClient implements NetAttachment {
       this.lastBlast = { p: p.clone(), t: this.time };
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
     };
-    g.onEmote = (id) => s.toHost({ t: 'emote', id });
     // (locomotion step 10) the host resolves committed moves (strike contact) on its guards
     g.strike.authority = false;
     // our gas / flash / EMP / noisemaker: the host applies it to the guards
@@ -452,9 +451,6 @@ export class CoopClient implements NetAttachment {
         if (e.kind === 'ammo') g.weapons.addAmmo(0.5);
         g.events.emit('pickup', { kind: e.kind });
         g.hud.feedItem(e.kind === 'medkit' ? '+1 medkit' : 'Ammo refilled');
-        break;
-      case 'emote':
-        if (e.player !== me) this.avatars.get(e.player)?.emote(e.id);
         break;
       case 'hurt': {
         if (e.player !== me) break;

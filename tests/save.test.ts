@@ -36,7 +36,7 @@ describe('save migrations', () => {
     // out-of-range upgrade clamped
     expect(s.weapons.smg.upgrades.damage).toBe(5);
     expect(s.avatar.body).toBe(defaultLook().body);
-    expect(s.emotes).toHaveLength(4);
+    expect('emotes' in s).toBe(false);
   });
   it('v2 -> v3 adds cosmetics without losing data', () => {
     const s = loadRaw(MIGRATE_TO_V2()).save;
@@ -109,6 +109,38 @@ describe('save migrations', () => {
     }
   });
 
+  it('v8 -> v9 drops the emote slots and the emote unlocks (G24), keeping everything else', () => {
+    const V8 = {
+      version: 8,
+      createdAt: 1,
+      updatedAt: 2,
+      profile: { name: 'Eight', xp: 1200, credits: 340, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 5, wins: 2, kills: 30, headshots: 4, bestWave: 0, timePlayed: 1800 } },
+      unlocks: ['weapon:rifle', 'weapon:pistol', 'emote:wave', 'emote:salute', 'emote:point', 'tag:Rookie', 'camo:factory'],
+      weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' } },
+      loadout: { primary: 'rifle', secondary: 'pistol' },
+      avatar: { body: 'broad', head: 'oval', hair: 'swept', torso: 'vest', legs: 'cargo', backpack: 'bedroll', helmet: 'headset', pattern: 'solid', colors: { skin: '#c68a5e' } },
+      emotes: ['wave', 'point', '', ''],
+      missions: {},
+      suit: { owned: { vest: 1, gloves: 0, boots: 0, goggles: 0, pouches: 0 }, worn: { vest: 1, gloves: 0, boots: 0, goggles: 0, pouches: 0 } },
+      hq: { radar: 1, restock: 0, revive: 0 },
+      challenges: { progress: {}, done: [] },
+      presets: [],
+      preset: 0,
+    };
+    const { data, from, steps } = migrate(V8);
+    expect(from).toBe(8);
+    expect(steps).toBe(SAVE_VERSION - 8);
+    expect('emotes' in data).toBe(false);
+    const s = sanitizeSave(data);
+    expect(s.version).toBe(SAVE_VERSION);
+    expect('emotes' in s).toBe(false);
+    expect(s.unlocks.some((u) => u.startsWith('emote:'))).toBe(false);
+    expect(s.unlocks).toEqual(expect.arrayContaining(['weapon:rifle', 'tag:Rookie', 'camo:factory']));
+    expect(s.profile.xp).toBe(1200);
+    expect(s.profile.credits).toBe(340);
+    expect(s.weapons.rifle.kills).toBe(12);
+  });
+
   it('current saves pass through untouched', () => {
     const d = defaultSave(123);
     d.profile.xp = 777;
@@ -172,8 +204,8 @@ describe('v7 -> v8', () => {
     };
     const { data, from, steps } = migrate(V7);
     expect(from).toBe(7);
-    expect(steps).toBe(1);
-    expect(data.version).toBe(8);
+    expect(steps).toBe(SAVE_VERSION - 7);
+    expect(data.version).toBe(SAVE_VERSION);
     const m = (data.missions as Record<string, Record<string, unknown>>)['embassy-pouch']!;
     expect(m).toEqual({ rating: 2, score: 1200, plays: 3, wins: 2 });
     expect(data.hq).toEqual({ radar: 1, restock: 0, revive: 0 });
@@ -184,7 +216,7 @@ describe('v7 -> v8', () => {
     expect(s.challenges.progress.executes).toBeUndefined();
   });
   it('does not throw on missing fields', () => {
-    expect(migrate({ version: 7 }).data.version).toBe(8);
+    expect(migrate({ version: 7 }).data.version).toBe(SAVE_VERSION);
   });
 });
 

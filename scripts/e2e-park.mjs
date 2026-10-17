@@ -1,4 +1,4 @@
-// 3.5 parked content: with ?legacy off (the default) the Play screen lists Infiltration, Training and Free Roam, the
+// 3.5 parked content: with ?legacy off (the default) the Play screen lists Infiltration and Free Roam, the
 // co-op lobby Infiltration and Free Roam, the Loadout screen weapons / attachments / gadget / presets only (every weapon
 // and attachment selectable, nothing bought, saved or unlocked), the menu says Night Shift and shows no level or
 // credits; with ?legacy=1 everything is as before 3.5.
@@ -42,7 +42,7 @@ try {
   await menuClick(page, 'Play');
   await page.waitForSelector('.play-screen');
   const modes = await playModes(page);
-  assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration', 'Training']), `the Play screen lists Infiltration, Training and Free Roam (${modes})`);
+  assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the Play screen lists Infiltration and Free Roam (${modes})`);
   assert((await G(() => window.__app.screens.top.mode)) === 'infiltration' || modes[0] === 'Infiltration', 'the default mode is Infiltration');
   await G(() => window.__app.screens.pop());
 
@@ -139,14 +139,14 @@ try {
   await menuClick(L, 'Play');
   await L.waitForSelector('.play-screen');
   const lmodes = await playModes(L);
-  assert(lmodes.length === 5 && ['Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Mission and Hunter are back (${lmodes})`);
+  assert(lmodes.length === 4 && ['Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Mission and Hunter are back (${lmodes})`);
   assert(lmodes[0] === 'Hunter', 'the default mode is Hunter');
   await GL(() => window.__app.screens.pop());
   await menuClick(L, 'Loadout');
   await L.waitForSelector('.loadout-screen .lo-row');
   await frames(L, 3);
   const llabels = await rowLabels(L);
-  assert(['Suit', 'Appearance', 'Tag & emotes', 'HQ upgrades', 'Challenges'].every((x) => llabels.includes(x)), `the Loadout economy is back (${llabels})`);
+  assert(['Suit', 'Appearance', 'Tag', 'HQ upgrades', 'Challenges'].every((x) => llabels.includes(x)), `the Loadout economy is back (${llabels})`);
   await openLoadoutPage(L, 'weaponsPage', 'primary');
   await frames(L, 3);
   const lw = await GL(() => document.querySelectorAll('.lo-list .lo-row.m-locked, .lo-list .lo-row.m-buyable').length);

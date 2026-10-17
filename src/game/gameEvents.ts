@@ -27,7 +27,6 @@ export interface GameEvents {
   pickup: { kind: PickupKind };
   /** An enemy callout (a radio line chirps). */
   bark: { radio: boolean };
-  emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */
   remoteShot: { cls: string; x: number; y: number; z: number };
 }

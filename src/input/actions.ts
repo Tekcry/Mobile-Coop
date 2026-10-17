@@ -32,10 +32,6 @@ export const BUTTON_ACTIONS = [
   /** Chaos Theory speed gears (3.2.0): one gear up / down. */
   'speedUp',
   'speedDown',
-  'quick1',
-  'quick2',
-  'quick3',
-  'quick4',
   // ui
   'uiUp',
   'uiDown',

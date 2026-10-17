@@ -53,7 +53,7 @@ const BTN_THRESHOLD = 0.5;
  * separately. A context action, B crouch, Y traverse + interact
  * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder. 3.2.0: D-pad up /
  * down the speed gear, right the gadget (hold to aim), left the gadget wheel (the source: a tap is a co-op ping, a
- * hold opens the wheel); View goggles (the source: a tap is goggles, a hold an emote).
+ * hold opens the wheel); View goggles (the source: a tap is goggles; a hold does nothing).
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'cover'],

@@ -16,7 +16,6 @@ export class PauseScreen extends Screen {
     app: App,
     private onResume: () => void,
     private onQuit: () => void,
-    extra: HTMLElement | null = null,
   ) {
     super('pause-screen');
     const list = h(
@@ -38,7 +37,7 @@ export class PauseScreen extends Screen {
       ),
     );
     for (const r of pauseExtraRows) list.append(button(r.label, r.act, { icon: 'back', class: 'big' }));
-    this.el.append(h('div', { class: 'pause-panel' }, h('div', { class: 'screen-title', text: 'Paused' }), extra, list));
+    this.el.append(h('div', { class: 'pause-panel' }, h('div', { class: 'screen-title', text: 'Paused' }), list));
   }
 
   /** Closes the menu and resumes (B, Resume, or a dev tool resuming the match from outside). */

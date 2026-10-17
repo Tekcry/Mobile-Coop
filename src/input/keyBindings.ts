@@ -27,9 +27,6 @@ export type BindId =
   | 'shoulder'
   | 'goggles'
   | 'ping'
-  | 'emote1'
-  | 'emote2'
-  | 'emote3'
   | 'pause';
 
 export interface BindDef {
@@ -61,9 +58,6 @@ export const BINDS: readonly BindDef[] = [
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
   { id: 'ping', label: 'Ping (co-op)', actions: ['ping'], defaults: ['KeyZ'] },
-  { id: 'emote1', label: 'Emote 1', actions: ['quick2'], defaults: ['KeyJ'] },
-  { id: 'emote2', label: 'Emote 2', actions: ['quick3'], defaults: ['KeyK'] },
-  { id: 'emote3', label: 'Emote 3', actions: ['quick4'], defaults: ['KeyL'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 

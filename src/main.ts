@@ -108,7 +108,7 @@ async function boot(): Promise<void> {
   MainMenuScreen.entries.push(
     (a) => ({
       label: 'Play',
-      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Training · Free roam',
+      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Free roam',
       icon: 'play',
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
@@ -152,7 +152,6 @@ async function boot(): Promise<void> {
       ...base,
       loadout: base.loadout ?? loadoutEntries(sv, base.mode, campaignUnlocked(flags.legacy), skin),
       look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
-      emotes: sv.emotes,
       suit: base.suit ?? (coop ? undefined : sv.suit.worn),
       hq: base.hq ?? (coop ? undefined : sv.hq),
       gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
