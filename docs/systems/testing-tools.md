@@ -33,9 +33,9 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - REPORT list: `anim-audit` runs in `npm run e2e` and prints REPORT ONLY (never fails the run). LEGACY list (`--legacy`,
   `LEGACY=1`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`; `e2e-lib` `openPage` then appends `legacy=1`.
 - Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-coop`, `e2e-netmove`, `e2e-darkness`,
-  `e2e-weapons-carry`, `e2e-pad`, `e2e-foley`. They always run; a failure prints KNOWN FLAKY and does not fail the run.
+  `e2e-weapons-carry`, `e2e-pad`, `e2e-foley`, `e2e-bunker`. They always run; a failure prints KNOWN FLAKY and does not fail the run.
   Any other failure counts only if it also fails in a solo rerun. Decided, not built yet (G51): a short job makes the two
-  co-op suites reliable, then they leave the list. e2e-foley leaves it when the CT prototype retunes its walk check.
+  co-op suites reliable, then they leave the list. e2e-foley leaves it when the CT prototype retunes its walk check; e2e-bunker (teleported-partner check) with the co-op test fixes. e2e-anim reports the draw / sprint-holster pop as KNOWN ISSUE until the CT prototype draw (docs/backlog.md).
 - Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`; `--legacy` for `LEGACY=1`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
