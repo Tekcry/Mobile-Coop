@@ -42,3 +42,5 @@ Good: bob ("camera works well"), music ("works well"). Skipped: medkit, loadout,
 | P12 | Controls | "Works, but it should prevent you from remapping onto a shared button. It should ask you to remap the original button as well which automatically pops up." |
 | P13 | Footsteps | "Works but the steps are just too loud in game. Worked in time with feet." (audio branch, not this run) |
 | P14 | Overall | "Movement doesn't feel exactly like chaos theory. Needs comprehensive research into the chaos theory movement system, a comparison between that and our current system, and what needs to change to match it. Taking into consideration I think the wall/crouch cover system should be updated to be more realistic." |
+| P15 | Aim camera | "Any camera view when aiming weapons should be from shoulder, much closer than the current camera, similar to CT" |
+| P16 | Shoulder swap | "Swapping shoulder should also change the weapon to the next shoulder, but it should be a realistic change, right now it just changes shoulder but the weapon is still in one hand" |
