@@ -23,21 +23,7 @@ const A = (id: string, name: string, level: number, price: number): UnlockItem =
 /** Every unlockable in the game. Cosmetic entries are added by the cosmetics catalogue. */
 export const UNLOCKS: UnlockItem[] = [
   W('rifle', 'Heron Carbine', 1, 0),
-  W('pistol', 'Warden .45', 1, 0),
   W('pistolSd', 'Hush 9 SD', 1, 0),
-  W('smg', 'Marten 9 SMG', 2, 600),
-  W('fiveseven', 'Kite 5.7', 3, 700),
-  W('shotgun', 'Mason 12 Pump', 4, 1200),
-  W('ak', 'Steppe 5.45 Rifle', 4, 1100),
-  W('vector', 'Ferret .45 SMG', 5, 1400),
-  W('breacher', 'Breacher', 5, 900),
-  W('sniper', 'Ridgeline Bolt', 6, 2000),
-  W('crossbow', 'Silent Crossbow', 6, 1600),
-  W('p90', 'Swift 5.7 PDW', 7, 1800),
-  W('tavor', 'Ibex Bullpup', 8, 2200),
-  W('semiShotgun', 'Talon 12 Semi', 9, 2400),
-  W('dmr', 'Spotter 7.62 Marksman', 10, 2800),
-  W('lmg', 'Anvil 5.56 LMG', 12, 3200),
   A('reddot', 'Red Dot', 2, 250),
   A('laser', 'Laser Sight', 3, 300),
   A('grip', 'Vertical Grip', 4, 400),
@@ -46,10 +32,9 @@ export const UNLOCKS: UnlockItem[] = [
   A('extmag', 'Extended Mag', 8, 600),
   A('suppressor', 'Suppressor', 10, 800),
   A('scope4x', '4x Scope', 12, 900),
-  A('lethalBolts', 'Lethal Bolts', 6, 400),
 ];
 
-export const STARTER_UNLOCKS = ['weapon:rifle', 'weapon:pistol', 'weapon:pistolSd'];
+export const STARTER_UNLOCKS = ['weapon:rifle', 'weapon:pistolSd'];
 
 export function registerUnlocks(items: UnlockItem[]): void {
   for (const it of items) if (!UNLOCKS.some((u) => u.id === it.id)) UNLOCKS.push(it);

@@ -14,10 +14,9 @@ import { gunOf } from './guns';
 
 type Mode = 'single' | 'burst' | 'auto';
 /**
- * The campaign arsenal (bible 5.6; `CAMPAIGN_ARSENAL` in `src/config/arsenal.ts` on feature/ct-locomotion): rifle (issued
- * suppressed), SMG, pump shotgun, marksman rifle; the suppressed pistol and the heavy pistol.
+ * The CT kit (G76; `CAMPAIGN_ARSENAL` in `src/config/arsenal.ts`): the rifle (issued suppressed) and the suppressed pistol.
  */
-const CAMPAIGN: readonly WeaponId[] = ['rifle', 'smg', 'shotgun', 'dmr', 'pistolSd', 'pistol'];
+const CAMPAIGN: readonly WeaponId[] = ['rifle', 'pistolSd'];
 const SURFACES: Surface[] = ['concrete', 'metal', 'grate', 'wood', 'gravel', 'carpet'];
 /** Listening distances (m): 0 is the player's own gun. */
 const DISTANCES: [number, string][] = [
@@ -48,13 +47,12 @@ export class WeaponLabScreen extends Screen {
 
   constructor(private app: App) {
     super('weapon-lab');
-    // the campaign's six first (bible 5.6), the other ten (sandbox and `?legacy=1`) after them
+    // the CT kit (G76): every gun there is
     const campaignRow = h('div', { class: 'lab-row lab-gun' });
-    const otherRow = h('div', { class: 'lab-row lab-gun' });
     for (const id of [...CAMPAIGN, ...WEAPON_IDS.filter((w) => !CAMPAIGN.includes(w))]) {
       const b = button(WEAPONS[id].name, () => this.setGun(id), { class: 'subtle', sub: WEAPONS[id].class });
       this.gunBtns.set(id, b);
-      (CAMPAIGN.includes(id) ? campaignRow : otherRow).append(b);
+      campaignRow.append(b);
     }
     const modeRow = h('div', { class: 'lab-row' });
     for (const [m, label] of [
@@ -94,7 +92,6 @@ export class WeaponLabScreen extends Screen {
       h('div', { class: 'screen-title', text: 'Weapon lab: gun sounds' }),
       this.status,
       section('Campaign arsenal', campaignRow),
-      section('Sandbox and legacy', otherRow),
       section('Fire', h('div', { class: 'lab-row' }, fire, this.sdBtn, this.synthBtn), modeRow, distRow),
       section(
         'Handling and brass',

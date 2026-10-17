@@ -10,22 +10,17 @@ describe('weapon data', () => {
   });
   it('rejects broken content', () => {
     const bad = structuredClone(raw) as Record<string, Record<string, unknown>>;
-    bad.smg!.rpm = 'fast';
-    expect(() => validateWeaponDefs(bad)).toThrow(/smg\.rpm/);
+    bad.rifle!.rpm = 'fast';
+    expect(() => validateWeaponDefs(bad)).toThrow(/rifle\.rpm/);
     const bad2 = structuredClone(raw) as Record<string, Record<string, unknown>>;
     bad2.rifle!.falloffEnd = 1;
     expect(() => validateWeaponDefs(bad2)).toThrow(/falloffEnd/);
   });
-  it('roles: shotgun fires pellets, sniper is a projectile and hits hardest per shot', () => {
-    expect(WEAPONS.shotgun.pellets).toBeGreaterThan(1);
-    expect(WEAPONS.sniper.kind).toBe('projectile');
-    const perShot = (id: keyof typeof WEAPONS) => WEAPONS[id].damage * WEAPONS[id].pellets;
-    for (const id of WEAPON_IDS) if (id !== 'sniper') expect(perShot('sniper')).toBeGreaterThan(perShot(id));
-  });
-  it('SMG has the highest close range DPS, pistol the lowest of the automatics/primary', () => {
+  it('the CT kit (G76): an automatic rifle and a semi-automatic pistol, the rifle the higher DPS', () => {
+    expect(WEAPONS.rifle.fireMode).toBe('auto');
+    expect(WEAPONS.pistolSd.fireMode).toBe('semi');
     const d = (id: keyof typeof WEAPONS) => dps(WEAPONS[id], computeStats(WEAPONS[id]));
-    expect(d('smg')).toBeGreaterThan(d('rifle'));
-    expect(d('rifle')).toBeGreaterThan(d('pistol'));
+    expect(d('rifle')).toBeGreaterThan(d('pistolSd'));
   });
 });
 
@@ -54,8 +49,9 @@ describe('weapon stats maths', () => {
     expect(over.magSize).toBe(base.magSize);
   });
   it('small magazines still gain at least one round per level', () => {
-    const s = computeStats(WEAPONS.sniper, { damage: 0, magazine: 2, recoil: 0, reload: 0 });
-    expect(s.magSize).toBe(WEAPONS.sniper.magSize + 2);
+    const five = { ...WEAPONS.pistolSd, magSize: 5 };
+    const s = computeStats(five, { damage: 0, magazine: 2, recoil: 0, reload: 0 });
+    expect(s.magSize).toBe(7);
   });
   it('spread: ADS tighter than hip, movement and bloom widen, capped', () => {
     const s = computeStats(rifle);

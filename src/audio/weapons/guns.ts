@@ -35,30 +35,23 @@ export interface GunSound {
 }
 
 /**
- * Every gun in `weapons.json`. Live-tunable by ear (Michael). The recordings are real guns of the same type and calibre
- * where the library has one (.45 pistol, 9 mm SMG, 5.56 and 7.62 rifles, 12 gauge pumps, .30-06 bolt rifle).
+ * The two CT kit guns in `weapons.json` (rifle, pistolSd) and the guns the guards sound like (`GUARD_GUN`; the guards
+ * keep their sounds, G115). Live-tunable by ear (Michael). The recordings are real guns of the same type and calibre
+ * where the library has one (.45 pistol, 9 mm SMG, 5.56 and 7.62 rifles, 12 gauge semi-auto, .30-06 bolt rifle).
  */
 export const GUNS: Record<string, GunSound> = {
   pistol: { shot: 'p1911', rate: 1, gain: 1, sd: 'sdPistol', casing: 'pistol', action: 'none', reload: 'pistol' },
-  fiveseven: { shot: 'ppq', rate: 1.07, gain: 0.95, sd: 'sdPistol', casing: 'pistol', action: 'none', reload: 'pistol' },
   pistolSd: { shot: 'ruger', rate: 1, gain: 0.9, sd: 'sdPistol', casing: 'pistol', action: 'none', reload: 'pistol' },
   smg: { shot: 'm45', rate: 1.03, gain: 0.9, sd: 'sdSmg', casing: 'pistol', action: 'none', reload: 'rifle' },
-  vector: { shot: 'm45', rate: 0.94, gain: 0.95, sd: 'sdSmg', casing: 'pistol', action: 'none', reload: 'rifle' },
-  p90: { shot: 'ppsh', rate: 1.08, gain: 0.85, sd: 'sdSmg', casing: 'pistol', action: 'none', reload: 'rifle' },
   rifle: { shot: 'ar15', rate: 1, gain: 1, sd: 'sdRifle', casing: 'rifle', action: 'none', reload: 'rifle' },
-  tavor: { shot: 'ar15', rate: 1.05, gain: 0.95, sd: 'sdRifle', casing: 'rifle', action: 'none', reload: 'rifle' },
   ak: { shot: 'ak', rate: 1, gain: 1.05, sd: 'sdRifle', casing: 'rifle', action: 'none', reload: 'rifle' },
   lmg: { shot: 'ak', rate: 0.93, gain: 1.1, sd: 'sdRifle', casing: 'rifle', action: 'none', reload: 'lmg' },
-  dmr: { shot: 'sks', rate: 0.94, gain: 1.1, sd: 'sdHeavy', casing: 'rifle', action: 'none', reload: 'rifle' },
   sniper: { shot: 'tikka', rate: 1, gain: 1, sd: 'sdHeavy', casing: 'rifle', action: 'bolt', reload: 'bolt' },
-  shotgun: { shot: 'nova', rate: 1, gain: 1.15, sd: 'sdHeavy', casing: 'shell', action: 'pump', reload: 'shotgun' },
   semiShotgun: { shot: 'model12', rate: 1.02, gain: 1.1, sd: 'sdHeavy', casing: 'shell', action: 'none', reload: 'shotgun' },
-  breacher: { shot: 'cd', rate: 0.95, gain: 1.2, sd: 'sdHeavy', casing: 'shell', action: 'pump', reload: 'shotgun' },
-  crossbow: { shot: null, rate: 1, gain: 1, sd: 'sdPistol', casing: 'none', action: 'none', reload: 'crossbow' },
 };
 
-/** A weapon class (co-op shots carry only the class) to its gun. */
-export const CLASS_GUN: Record<string, string> = { pistol: 'pistol', smg: 'smg', rifle: 'rifle', shotgun: 'shotgun', sniper: 'sniper', dmr: 'dmr', lmg: 'lmg', crossbow: 'crossbow', heavy: 'lmg' };
+/** A weapon class (co-op shots carry only the class) to its gun. The CT kit has the rifle and pistol classes only. */
+export const CLASS_GUN: Record<string, string> = { pistol: 'pistol', rifle: 'rifle', heavy: 'lmg' };
 
 /** Guard archetypes to the gun they sound like (`enemies.json`). */
 export const GUARD_GUN: Record<string, string> = { grunt: 'ak', heavy: 'lmg', sniper: 'sniper', enforcer: 'semiShotgun', droneOp: 'smg', officer: 'pistol' };

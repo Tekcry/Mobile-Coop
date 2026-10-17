@@ -23,8 +23,8 @@ import { button, choice } from '../widgets';
 import { showSavedOperator } from './operator';
 import { arsenalSlot, CAMPAIGN_ISSUED, campaignAttachments, campaignKit, campaignList, campaignLoadout } from '../../config/arsenal';
 
-/** Weapon order in the lists (sandbox and `?legacy=1`: all 16; the campaign lists `CAMPAIGN_ARSENAL`, bible 5.6). */
-export const WEAPON_ORDER: WeaponId[] = ['pistolSd', 'pistol', 'fiveseven', 'smg', 'vector', 'p90', 'rifle', 'ak', 'tavor', 'dmr', 'sniper', 'crossbow', 'shotgun', 'semiShotgun', 'breacher', 'lmg'];
+/** Weapon order in the lists (sandbox and `?legacy=1`; the campaign lists `CAMPAIGN_ARSENAL`): the CT kit (G76). */
+export const WEAPON_ORDER: WeaponId[] = ['pistolSd', 'rifle'];
 
 const SLOTS: { slot: AttachmentSlot; label: string }[] = [
   { slot: 'optic', label: 'Optic' },

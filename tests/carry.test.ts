@@ -16,24 +16,10 @@ function dims(id: WeaponId): { length: number; height: number; barrel: number; r
   return { length: e.z1 - e.z0, height: e.y1 - e.y0, barrel: barrel?.size[0] ?? 0, receiver: receiver?.size[0] ?? 0 };
 }
 
-// realistic sizes (m): length, barrel diameter, receiver width, height with the magazine (sniper: with scope)
+// realistic sizes (m): length, barrel diameter, receiver width, height with the magazine (the CT kit, G76)
 const REAL: Record<WeaponId, [number, number, number, number]> = {
   rifle: [0.84, 0.016, 0.055, 0.24],
-  smg: [0.6, 0.014, 0.05, 0.22],
-  shotgun: [1.0, 0.022, 0.06, 0.18],
-  sniper: [1.15, 0.02, 0.06, 0.2],
-  pistol: [0.19, 0.012, 0.03, 0.14],
-  fiveseven: [0.22, 0.012, 0.031, 0.14],
   pistolSd: [0.31, 0.03, 0.03, 0.14],
-  vector: [0.55, 0.016, 0.055, 0.235],
-  p90: [0.48, 0.014, 0.06, 0.21],
-  ak: [0.9, 0.017, 0.055, 0.25],
-  tavor: [0.74, 0.016, 0.06, 0.245],
-  semiShotgun: [0.98, 0.022, 0.06, 0.18],
-  breacher: [0.6, 0.022, 0.06, 0.18],
-  dmr: [1.02, 0.019, 0.058, 0.217],
-  crossbow: [0.81, 0.012, 0.05, 0.22],
-  lmg: [1.1, 0.02, 0.07, 0.273],
 };
 
 describe('weapon dimensions', () => {
@@ -68,6 +54,8 @@ describe('weapon dimensions', () => {
 
 describe('carry slots', () => {
   const item = (id: WeaponId) => ({ cls: WEAPONS[id].class, length: dims(id).length });
+  // the slot assigner is keyed by class: classes no CT kit gun has any more (G115) are literal items
+  const cls = (c: string, length: number) => ({ cls: c, length });
   it('kinds: long guns, compact SMG, pistol', () => {
     expect(carryKind('rifle')).toBe('long');
     expect(carryKind('sniper')).toBe('long');
@@ -76,26 +64,26 @@ describe('carry slots', () => {
     expect(carryKind('pistol')).toBe('pistol');
   });
   it('rifle + pistol: the rifle centred on the back, the pistol on the thigh', () => {
-    expect(assignCarrySlots([item('rifle'), item('pistol')])).toEqual(['backC', 'thigh']);
+    expect(assignCarrySlots([item('rifle'), item('pistolSd')])).toEqual(['backC', 'thigh']);
+    expect(assignCarrySlots([item('pistolSd'), item('rifle')])).toEqual(['thigh', 'backC']);
   });
-  it('SMG + pistol: side sling and thigh', () => {
-    expect(assignCarrySlots([item('smg'), item('pistol')])).toEqual(['sling', 'thigh']);
+  it('compact + pistol: side sling and thigh', () => {
+    expect(assignCarrySlots([cls('smg', 0.6), item('pistolSd')])).toEqual(['sling', 'thigh']);
   });
   it('two long guns go left and right', () => {
-    expect(assignCarrySlots([item('shotgun'), item('rifle')])).toEqual(['backL', 'backR']);
+    expect(assignCarrySlots([cls('shotgun', 1.0), item('rifle')])).toEqual(['backL', 'backR']);
   });
-  it('the full Free Roam loadout: every weapon has its own slot, the longest in the centre', () => {
-    const ids: WeaponId[] = ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'];
-    const s = assignCarrySlots(ids.map(item));
+  it('five guns: every weapon has its own slot, the longest in the centre', () => {
+    const s = assignCarrySlots([item('rifle'), cls('smg', 0.6), cls('shotgun', 1.0), cls('sniper', 1.15), item('pistolSd')]);
     expect(new Set(s).size).toBe(5);
     expect(s).not.toContain(null);
-    expect(s[ids.indexOf('sniper')]).toBe('backC');
-    expect(s[ids.indexOf('smg')]).toBe('sling');
-    expect(s[ids.indexOf('pistol')]).toBe('thigh');
-    expect(isBackSlot(s[ids.indexOf('rifle')]!) && isBackSlot(s[ids.indexOf('shotgun')]!)).toBe(true);
+    expect(s[3]).toBe('backC');
+    expect(s[1]).toBe('sling');
+    expect(s[4]).toBe('thigh');
+    expect(isBackSlot(s[0]!) && isBackSlot(s[2]!)).toBe(true);
   });
   it('a second compact or pistol falls back to a free slot', () => {
-    expect(assignCarrySlots([item('pistol'), item('pistol')])).toEqual(['thigh', 'sling']);
-    expect(assignCarrySlots([item('smg'), item('smg')])).toEqual(['sling', 'backR']);
+    expect(assignCarrySlots([item('pistolSd'), item('pistolSd')])).toEqual(['thigh', 'sling']);
+    expect(assignCarrySlots([cls('smg', 0.6), cls('smg', 0.6)])).toEqual(['sling', 'backR']);
   });
 });

@@ -44,23 +44,28 @@ describe('campaign loadout (nothing bought, nothing saved as unlocked)', () => {
     const s = defaultSave();
     const unlocks = [...s.unlocks];
     const credits = s.profile.credits;
-    expect(setLoadout(s, 'primary', 'sniper')).toBe(false);
-    expect(setLoadout(s, 'primary', 'sniper', true)).toBe(true);
-    expect(s.loadout.primary).toBe('sniper');
-    s.presets[1]!.primary = 'shotgun';
+    // both CT kit guns are issued (G76): the locked choice is an attachment
+    expect(setAttachment(s, 'rifle', 'scope4x', true)).toBe(false);
+    expect(setAttachment(s, 'rifle', 'scope4x', true, true)).toBe(true);
+    expect(setLoadout(s, 'primary', 'rifle', true)).toBe(true);
+    expect(s.loadout.primary).toBe('rifle');
+    s.presets[1]!.primary = 'pistolSd';
+    s.presets[1]!.secondary = 'rifle';
     expect(applyPreset(s, 1, true)).toBe(true);
-    expect(s.loadout.primary).toBe('shotgun');
+    expect(s.loadout.primary).toBe('pistolSd');
     expect(setAttachment(s, 'rifle', 'zzz-unknown', true, true)).toBe(true);
     expect(s.unlocks).toEqual(unlocks);
     expect(s.profile.credits).toBe(credits);
   });
-  it('the sanitiser keeps a campaign loadout only when asked, and the default sanitising is unchanged', () => {
+  it('the sanitiser keeps the CT kit loadout and repairs unknown or doubled guns in both modes', () => {
     const d = defaultSave() as unknown as Record<string, unknown>;
+    d.loadout = { primary: 'rifle', secondary: 'pistolSd' };
+    expect(sanitizeSave(d).loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
+    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
     d.loadout = { primary: 'sniper', secondary: 'shotgun' };
     expect(sanitizeSave(d).loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
-    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'sniper', secondary: 'shotgun' });
-    expect(sanitizeSave(d, true).unlocks).not.toContain('weapon:sniper');
-    d.loadout = { primary: 'sniper', secondary: 'sniper' };
-    expect(sanitizeSave(d, true).loadout.secondary).not.toBe('sniper');
+    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
+    d.loadout = { primary: 'rifle', secondary: 'rifle' };
+    expect(sanitizeSave(d, true).loadout.secondary).toBe('pistolSd');
   });
 });

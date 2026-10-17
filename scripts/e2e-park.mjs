@@ -59,42 +59,32 @@ try {
   await frames(page, 3);
   const wp = await G(() => ({ rows: document.querySelectorAll('.lo-list .lo-row').length, locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, buy: document.querySelectorAll('.lo-list .lo-row.m-buyable').length, price: document.querySelectorAll('.lo-list .lo-val.price').length }));
   const wpNames = await G(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-  assert(JSON.stringify(wpNames) === JSON.stringify(['Heron Carbine', 'Marten 9 SMG', 'Mason 12 Pump', 'Spotter 7.62 Marksman']), `the campaign primaries only, bible 5.6 (${wpNames})`);
-  assert(wp.rows === 4 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
-  // equip a weapon the profile does not own: the marksman rifle
-  // (a row tapped within 350 ms of gaining focus only previews: on a fast renderer the page is that young, so wait it out, then tap twice)
-  const tapBolt = () => G(() => [...document.querySelectorAll('.lo-list .lo-row')].find((r) => /Spotter 7.62/.test(r.textContent)).click());
-  await page.waitForTimeout(450);
-  await tapBolt();
-  await page.waitForTimeout(450);
-  await tapBolt();
-  // (until the save has it: a fixed frame count only passed because software GL frames are seconds long)
-  await page.waitForFunction(() => window.__app.save.get().loadout.secondary === 'dmr', null, { timeout: 10000 }).catch(() => {});
-  const eq = await G(() => { const s = window.__app.save.get(); return { primary: s.loadout.secondary, unlocks: [...s.unlocks], credits: s.profile.credits, xp: s.profile.xp }; });
-  assert(eq.primary === 'dmr', `the locked marksman equips as the primary (the long gun; the sidearm stays in hand) (${eq.primary})`);
-  assert(JSON.stringify(eq.unlocks) === JSON.stringify(before.unlocks) && eq.credits === before.credits && eq.xp === before.xp, 'nothing was unlocked, bought or paid for in the save');
-  await openLoadoutPage(page, 'customizePage', 'dmr');
+  assert(JSON.stringify(wpNames) === JSON.stringify(['Heron Carbine']), `the CT kit rifle only, G76 (${wpNames})`);
+  assert(wp.rows === 1 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
+  // (G115: both CT kit guns are issued, so there is no locked gun left to equip; the locked choice is an attachment)
+  await openLoadoutPage(page, 'customizePage', 'rifle');
   await frames(page, 3);
   const cp = await G(() => ({ labels: [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent), groups: [...document.querySelectorAll('.lo-list .lo-group')].map((e) => e.textContent), locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, price: document.querySelectorAll('.lo-list .lo-val.price').length, sub: document.querySelector('.lo-sub')?.textContent }));
   assert(cp.labels.length > 0 && cp.locked === 0 && cp.price === 0 && !cp.groups.some((g) => /UPGRADES|CAMO/.test(g)) && !/UPGRADES/.test(cp.sub), `attachments only: no upgrades, camo, locks or prices (${JSON.stringify(cp)})`);
-  // (same 350 ms rule as the marksman above: wait it out, tap, wait, tap)
+  // (a row tapped within 350 ms of gaining focus only previews: wait it out, tap, wait, tap)
   const tapFirst = () => G(() => { const row = [...document.querySelectorAll('.lo-list .lo-row')][0]; row.click(); return row.querySelector('.lo-label').textContent; });
   // (a tap on an unfocused row only previews, a focused one acts - and a second tap would toggle it off again: tap until it is on)
-  const attsOn = () => G(() => window.__app.save.get().weapons.dmr.attachments.length);
+  const attsOn = () => G(() => window.__app.save.get().weapons.rifle.attachments.length);
   let att = '';
   for (let i = 0; i < 3 && (await attsOn()) === 0; i++) {
     await page.waitForTimeout(450);
     att = await tapFirst();
   }
   await frames(page, 4);
-  const sa = await G(() => ({ atts: window.__app.save.get().weapons.dmr.attachments, unlocks: window.__app.save.get().unlocks.length }));
+  const sa = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments, unlocks: window.__app.save.get().unlocks.length, credits: window.__app.save.get().profile.credits, xp: window.__app.save.get().profile.xp }));
   assert(sa.atts.length === 1 && sa.unlocks === before.unlocks.length, `an attachment equips without an unlock (${att}: ${sa.atts})`);
+  assert(sa.credits === before.credits && sa.xp === before.xp, 'nothing was bought or paid for in the save');
   // it persists (the sanitiser keeps the campaign's choice)
   await G(() => window.__app.save.flush());
   await page.reload();
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
-  const kept = await G(() => ({ primary: window.__app.save.get().loadout.secondary, unlocks: window.__app.save.get().unlocks.length }));
-  assert(kept.primary === 'dmr' && kept.unlocks === before.unlocks.length, `the choice survives a reload (${kept.primary})`);
+  const kept = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments.length, unlocks: window.__app.save.get().unlocks.length }));
+  assert(kept.atts === 1 && kept.unlocks === before.unlocks.length, `the choice survives a reload (${kept.atts})`);
 
   // co-op lobby
   await menuClick(page, 'Co-op');
@@ -126,9 +116,9 @@ try {
     o.data.profile.name = 'Imported';
     await window.__app.save.importText(JSON.stringify(o));
     const s = window.__app.save.get();
-    return { name: s.profile.name, primary: s.loadout.secondary };
+    return { name: s.profile.name, atts: s.weapons.rifle.attachments.length };
   }, ex);
-  assert(imp.name === 'Imported' && imp.primary === 'dmr', `importing an exported file restores it (${JSON.stringify(imp)})`);
+  assert(imp.name === 'Imported' && imp.atts === 1, `importing an exported file restores it (${JSON.stringify(imp)})`);
 
   console.log('legacy on (?legacy=1)');
   const L = (await openPage(ctx, url, 'legacy=1')).page;
@@ -147,10 +137,11 @@ try {
   await frames(L, 3);
   const llabels = await rowLabels(L);
   assert(['Suit', 'Appearance', 'Tag', 'HQ upgrades', 'Challenges'].every((x) => llabels.includes(x)), `the Loadout economy is back (${llabels})`);
-  await openLoadoutPage(L, 'weaponsPage', 'primary');
+  // (G115: both CT kit guns are starter guns, so the locks show on the attachments)
+  await openLoadoutPage(L, 'customizePage', 'rifle');
   await frames(L, 3);
   const lw = await GL(() => document.querySelectorAll('.lo-list .lo-row.m-locked, .lo-list .lo-row.m-buyable').length);
-  assert(lw > 0, `locked / buyable weapons show again (${lw})`);
+  assert(lw > 0, `locked / buyable attachments show again (${lw})`);
   await L.close();
 } catch (e) {
   failed = true;

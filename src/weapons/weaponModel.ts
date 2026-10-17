@@ -69,7 +69,7 @@ export class WeaponModel {
     }
     // finer detail on long guns: an ejection port on the right of the receiver and a top rail under the optic
     const rec = def.model.find((p) => p.role === 'receiver');
-    if (rec && def.class !== 'pistol' && def.class !== 'crossbow') {
+    if (rec && def.class !== 'pistol') {
       const [w, h, l] = rec.size;
       const [x, y, z] = rec.pos;
       const detail = (hex: string, sx: number, sy: number, sz: number, px: number, py: number, pz: number): void => {

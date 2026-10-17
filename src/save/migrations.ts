@@ -16,6 +16,33 @@ type Migration = (s: Raw) => Raw;
 
 const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/**
+ * The guns deleted with the CT kit (G76 / G115), each to the kept gun of its slot: sidearms to the suppressed pistol,
+ * long guns to the rifle. Literal ids: the deleted guns are no longer `WeaponId`s.
+ */
+export const DELETED_GUNS: Readonly<Record<string, 'rifle' | 'pistolSd'>> = {
+  pistol: 'pistolSd',
+  fiveseven: 'pistolSd',
+  smg: 'rifle',
+  shotgun: 'rifle',
+  sniper: 'rifle',
+  vector: 'rifle',
+  p90: 'rifle',
+  ak: 'rifle',
+  tavor: 'rifle',
+  semiShotgun: 'rifle',
+  breacher: 'rifle',
+  dmr: 'rifle',
+  crossbow: 'rifle',
+  lmg: 'rifle',
+};
+const gunUnlock = (u: unknown): boolean => {
+  if (typeof u !== 'string') return false;
+  if (u === 'att:lethalBolts') return true;
+  const m = /^(?:weapon|camo):([A-Za-z0-9]+)/.exec(u);
+  return !!m && m[1]! in DELETED_GUNS;
+};
+
 export const MIGRATIONS: Record<number, Migration> = {
   1: (s) => {
     const ups = isObj(s.upgrades) ? s.upgrades : {};
@@ -114,12 +141,19 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return { ...s, version: 8, missions: 'missions' in s ? missions : s.missions, hq, challenges };
   },
-  // v8 -> v9: emotes are gone (DECISIONS G24 / G116): the equipped slots and every owned `emote:` unlock are dropped
-  // (spent credits are not refunded)
+  // v8 -> v9: emotes are gone (DECISIONS G24 / G116): the equipped slots and every owned `emote:` unlock are dropped.
+  // The guns outside the CT kit are gone (G76 / G115): a deleted gun in the loadout or a preset becomes the kept gun
+  // of its slot (`DELETED_GUNS`), its progress entry and its unlocks (`weapon:`, its mastery `camo:<gun>:` ids, the
+  // crossbow's `att:lethalBolts`) are dropped. Spent credits are not refunded.
   8: (s) => {
     const { emotes: _e, ...rest } = s;
-    const unlocks = Array.isArray(s.unlocks) ? s.unlocks.filter((u) => !(typeof u === 'string' && u.startsWith('emote:'))) : s.unlocks;
-    return { ...rest, version: 9, unlocks };
+    const unlocks = Array.isArray(s.unlocks) ? s.unlocks.filter((u) => !(typeof u === 'string' && u.startsWith('emote:')) && !gunUnlock(u)) : s.unlocks;
+    const gun = (w: unknown): unknown => (typeof w === 'string' && w in DELETED_GUNS ? DELETED_GUNS[w] : w);
+    const kit = (p: unknown): unknown => (isObj(p) ? { ...p, primary: gun(p.primary), secondary: gun(p.secondary) } : p);
+    let weapons = s.weapons;
+    if (isObj(weapons)) weapons = Object.fromEntries(Object.entries(weapons).filter(([w]) => !(w in DELETED_GUNS)));
+    const presets = Array.isArray(s.presets) ? s.presets.map(kit) : s.presets;
+    return { ...rest, version: 9, unlocks, weapons, loadout: kit(s.loadout), presets };
   },
 };
 

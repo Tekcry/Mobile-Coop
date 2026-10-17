@@ -346,7 +346,7 @@ export class GameState implements AppState {
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
     const loadout: LoadoutEntry[] =
-      opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistol' }]);
+      opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'pistolSd'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistolSd' }]);
     this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (suppressed) =>
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );

@@ -232,7 +232,7 @@ try {
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
 
-  console.log('campaign loadout (step 16, bible 5.6): pad lists only the 6 curated guns, defaults Heron Carbine + Hush 9 SD');
+  console.log('campaign loadout (G76, the CT kit): pad lists only the rifle and the suppressed pistol, defaults Heron Carbine + Hush 9 SD');
   {
     const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
     const labels = () => page.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
@@ -246,25 +246,21 @@ try {
     for (let i = 0; i < 4 && (await key()) !== 'primary'; i++) await press(page, BTN.DOWN);
     await press(page, BTN.A);
     const prim = await labels();
-    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine', 'Marten 9 SMG', 'Mason 12 Pump', 'Spotter 7.62 Marksman']), `the primary list is the 4 campaign primaries (${prim})`);
+    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
     const seen = new Set([await key()]);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 2; i++) {
       await press(page, BTN.DOWN);
       seen.add(await key());
     }
-    assert(['w-rifle', 'w-smg', 'w-shotgun', 'w-dmr'].every((k) => seen.has(k)) && seen.size === 4, `the d-pad reaches each of them and nothing else (${[...seen]})`);
-    for (let i = 0; i < 4 && (await key()) !== 'w-dmr'; i++) await press(page, BTN.DOWN);
-    await press(page, BTN.A);
+    assert(seen.has('w-rifle') && seen.size === 1, `the d-pad reaches the rifle and nothing else (${[...seen]})`);
     const lo = await page.evaluate(() => window.__app.save.get().loadout);
-    assert(lo.secondary === 'dmr' && lo.primary === 'pistolSd', `A equips the marksman as the primary, the sidearm stays in hand (${JSON.stringify(lo)})`);
+    assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `the rifle is the primary, the sidearm in hand (${JSON.stringify(lo)})`);
     await press(page, BTN.B);
-    assert((await value('primary')) === 'Spotter 7.62 Marksman', `B returns to the root with it (${await value('primary')})`);
+    assert((await value('primary')) === 'Heron Carbine', `B returns to the root with it (${await value('primary')})`);
     for (let i = 0; i < 4 && (await key()) !== 'secondary'; i++) await press(page, BTN.DOWN);
     await press(page, BTN.A);
     const side = await labels();
-    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD', 'Warden .45']), `the sidearm list is the 2 built sidearms (${side})`);
-    // put the default back (the rest of the suite expects a fresh profile)
-    await page.evaluate(() => window.__app.save.update((d) => void (d.loadout.secondary = 'rifle')));
+    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
     await press(page, BTN.B);
     await press(page, BTN.B);
     assert(await q('.main-menu') && !(await q('.loadout-screen')), 'B backs out to the main menu');
@@ -915,7 +911,8 @@ try {
       await focusSlot('reload:1');
       await press(P, BTN.A);
       await G(() => window.__pad.set(1, 1));
-      await P.waitForTimeout(1500);
+      // hold B until the capture ends (a fixed 1.5 s hold was stale: the cancel hold can outlast it on a slow frame)
+      await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 });
       await G(() => window.__pad.set(1, 0));
       await P.waitForTimeout(300);
       v = await view();

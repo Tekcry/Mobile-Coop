@@ -1,5 +1,5 @@
-// Weapon carry on Free Roam (all five weapons): every carried weapon visible in its own slot (back
-// left / centre / right, left-hip sling, right-thigh holster), long guns vertical on the back (within
+// Weapon carry on Free Roam (the CT kit, G76: the rifle and the suppressed pistol): every carried weapon visible in its
+// own slot (the rifle centred on the back, the pistol on the right thigh), long guns vertical on the back (within
 // 10 deg of the spine, muzzle up) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
 // body, with and without a backpack, both avatar styles), the hands on the grip points (within 2 cm) for
 // every weapon, the swap reaching to the right slot, grenade pouches, and the draw-call budget.
@@ -84,7 +84,7 @@ await G(install);
 
 try {
   let r;
-  // every weapon of the arsenal: the Free Roam five, then the rest in loadouts that fill the body's slots
+  // every weapon of the arsenal: the Free Roam kit, then the same two in the other order (the pistol in hand first)
   const checkLoadout = async (label, n) => {
     console.log('slots');
     r = await G(() => {
@@ -230,8 +230,8 @@ try {
   };
   // (the 2.x gaits: gear 4 = the 2.8 m/s jog; a crouch walk near 1 m/s grazes the thigh pistol with the right elbow pad,
   // as on 3.1 - an open issue in docs/ct-movement-progress.md)
-  await checkLoadout('Free Roam', 5);
-  for (const lo of ['ak,dmr,lmg,vector,fiveseven', 'tavor,semiShotgun,crossbow,p90,pistolSd', 'breacher,pistol']) {
+  await checkLoadout('Free Roam', 2);
+  for (const lo of ['pistolSd,rifle']) {
     console.log(`loadout ${lo}`);
     await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min&gear=4`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });

@@ -114,7 +114,7 @@ if (!failed) {
     const gunBtns = p.locator('.weapon-lab .lab-gun .btn');
     const guns = await gunBtns.count();
     const campaign = await p.locator('.weapon-lab .lab-gun').first().locator('.btn').count();
-    assert(guns === 16 && campaign === 6, `the lab lists every gun, the campaign's six first (${guns}, ${campaign})`);
+    assert(guns === 2 && campaign === 2, `the lab lists the CT kit, the rifle and the suppressed pistol (${guns}, ${campaign})`);
     for (let i = 0; i < guns; i++) {
       const n0 = await shots();
       await gunBtns.nth(i).click();

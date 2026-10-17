@@ -1,7 +1,7 @@
 import { defaultLook } from '../src/cosmetics/avatarLook';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { migrate, detectVersion, SaveVersionError } from '../src/save/migrations';
+import { migrate, detectVersion, MIGRATIONS, SaveVersionError } from '../src/save/migrations';
 import { defaultSave, sanitizeSave, SAVE_VERSION } from '../src/save/schema';
 import { SaveManager, parseExport, serializeExport, loadRaw } from '../src/save/saveManager';
 import { dbGet, dbKeys, dbPut, resetDbCache } from '../src/save/db';
@@ -12,7 +12,7 @@ const V1 = {
   xp: 4321,
   money: 950,
   unlocked: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'],
-  upgrades: { rifle: { damage: 2, magazine: 1, recoil: 0, reload: 3 }, smg: { damage: 9 } },
+  upgrades: { rifle: { damage: 2, magazine: 1, recoil: 0, reload: 3 }, smg: { damage: 9 }, pistolSd: { damage: 9 } },
 };
 
 describe('save migrations', () => {
@@ -31,10 +31,12 @@ describe('save migrations', () => {
     expect(s.profile.name).toBe('OldTimer');
     expect(s.profile.xp).toBe(4321);
     expect(s.profile.credits).toBe(950);
-    expect(s.unlocks).toContain('weapon:smg');
+    // the SMG was deleted with the CT kit (G115, v8 -> v9)
+    expect(s.unlocks).not.toContain('weapon:smg');
+    expect('smg' in s.weapons).toBe(false);
     expect(s.weapons.rifle.upgrades).toEqual({ damage: 2, magazine: 1, recoil: 0, reload: 3 });
     // out-of-range upgrade clamped
-    expect(s.weapons.smg.upgrades.damage).toBe(5);
+    expect(s.weapons.pistolSd.upgrades.damage).toBe(5);
     expect(s.avatar.body).toBe(defaultLook().body);
     expect('emotes' in s).toBe(false);
   });
@@ -109,22 +111,29 @@ describe('save migrations', () => {
     }
   });
 
-  it('v8 -> v9 drops the emote slots and the emote unlocks (G24), keeping everything else', () => {
+  it('v8 -> v9 drops the emote slots and the emote unlocks (G24) and the guns outside the CT kit (G115), keeping everything else', () => {
     const V8 = {
       version: 8,
       createdAt: 1,
       updatedAt: 2,
       profile: { name: 'Eight', xp: 1200, credits: 340, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 5, wins: 2, kills: 30, headshots: 4, bestWave: 0, timePlayed: 1800 } },
-      unlocks: ['weapon:rifle', 'weapon:pistol', 'emote:wave', 'emote:salute', 'emote:point', 'tag:Rookie', 'camo:factory'],
-      weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' } },
-      loadout: { primary: 'rifle', secondary: 'pistol' },
+      unlocks: ['weapon:rifle', 'weapon:pistol', 'weapon:smg', 'weapon:crossbow', 'att:lethalBolts', 'att:suppressor', 'camo:smg:gold', 'camo:rifle:gold', 'emote:wave', 'emote:salute', 'emote:point', 'tag:Rookie', 'camo:factory'],
+      weapons: {
+        rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' },
+        smg: { upgrades: { damage: 3, magazine: 0, recoil: 0, reload: 0 }, kills: 40, attachments: ['suppressor'], camo: 'gold' },
+      },
+      loadout: { primary: 'smg', secondary: 'pistol' },
       avatar: { body: 'broad', head: 'oval', hair: 'swept', torso: 'vest', legs: 'cargo', backpack: 'bedroll', helmet: 'headset', pattern: 'solid', colors: { skin: '#c68a5e' } },
       emotes: ['wave', 'point', '', ''],
       missions: {},
       suit: { owned: { vest: 1, gloves: 0, boots: 0, goggles: 0, pouches: 0 }, worn: { vest: 1, gloves: 0, boots: 0, goggles: 0, pouches: 0 } },
       hq: { radar: 1, restock: 0, revive: 0 },
       challenges: { progress: {}, done: [] },
-      presets: [],
+      presets: [
+        { name: 'Silent', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
+        { name: 'Close', primary: 'shotgun', secondary: 'fiveseven', gadget: 'flash' },
+        { name: 'Loud', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
+      ],
       preset: 0,
     };
     const { data, from, steps } = migrate(V8);
@@ -139,6 +148,18 @@ describe('save migrations', () => {
     expect(s.profile.xp).toBe(1200);
     expect(s.profile.credits).toBe(340);
     expect(s.weapons.rifle.kills).toBe(12);
+    // G115: a deleted gun becomes the kept gun of its slot; its progress and unlocks are dropped
+    expect(data.loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
+    expect(s.loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
+    expect(Object.keys(data.weapons as object)).toEqual(['rifle']);
+    expect(Object.keys(s.weapons).sort()).toEqual(['pistolSd', 'rifle']);
+    expect(s.unlocks).toEqual(expect.arrayContaining(['att:suppressor', 'camo:rifle:gold']));
+    for (const u of ['weapon:pistol', 'weapon:smg', 'weapon:crossbow', 'att:lethalBolts', 'camo:smg:gold']) expect(s.unlocks).not.toContain(u);
+    expect(s.presets.map((p) => [p.primary, p.secondary])).toEqual([
+      ['pistolSd', 'rifle'],
+      ['rifle', 'pistolSd'],
+      ['rifle', 'pistolSd'],
+    ]);
   });
 
   it('current saves pass through untouched', () => {
@@ -175,8 +196,11 @@ describe('save migrations', () => {
     expect(s.loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
     expect(s.presets[0]!.primary).toBe('pistolSd');
     expect(s.presets[2]!.primary).toBe('rifle');
-    const chosen = sanitizeSave(migrate({ ...v6, unlocks: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'], loadout: { primary: 'smg', secondary: 'pistol' } }).data);
-    expect(chosen.loadout).toEqual({ primary: 'smg', secondary: 'pistol' });
+    const chosenV6 = { ...v6, unlocks: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'], loadout: { primary: 'smg', secondary: 'pistol' } };
+    expect(MIGRATIONS[6]!(chosenV6).loadout).toEqual({ primary: 'smg', secondary: 'pistol' });
+    // v8 -> v9 then maps the deleted guns onto the CT kit (G115)
+    const chosen = sanitizeSave(migrate(chosenV6).data);
+    expect(chosen.loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
   });
 });
 

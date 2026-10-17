@@ -653,7 +653,7 @@ try {
     }
   }
 
-  console.log('campaign loadout (step 16, bible 5.6): mouse clicks pick from the 6 curated guns; Infiltration starts on the campaign set');
+  console.log('campaign loadout (G76, the CT kit): the lists hold the rifle and the suppressed pistol; Infiltration starts on the kit');
   {
     const LO = await launch({ url });
     try {
@@ -675,21 +675,21 @@ try {
       assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
       await pick('.lo-list .lo-row[data-key="primary"]', async () => /PRIMARY WEAPON/.test(await title()));
       const prim = await labels();
-      assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine', 'Marten 9 SMG', 'Mason 12 Pump', 'Spotter 7.62 Marksman']), `the primary list is the 4 campaign primaries (${prim})`);
-      await pick('.lo-list .lo-row[data-key="w-shotgun"]', () => P.evaluate(() => window.__app.save.get().loadout.secondary === 'shotgun'));
+      assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
+      await pick('.lo-list .lo-row[data-key="w-rifle"]', () => P.evaluate(() => window.__app.save.get().loadout.secondary === 'rifle'));
       const lo = await P.evaluate(() => window.__app.save.get().loadout);
-      assert(lo.secondary === 'shotgun' && lo.primary === 'pistolSd', `a click equips the Mason 12 Pump as the primary (${JSON.stringify(lo)})`);
+      assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `a click on the rifle keeps it the primary, the sidearm in hand (${JSON.stringify(lo)})`);
       // back to the root (a second click on the now-equipped row may have opened Customize)
       await P.evaluate(() => { for (let i = 0; i < 4 && !document.querySelector('.lo-list .lo-row[data-key="secondary"]'); i++) window.__app.screens.top.onBack(); });
       await P.waitForTimeout(150);
       await pick('.lo-list .lo-row[data-key="secondary"]', async () => /SIDEARM WEAPON/.test(await title()));
       const side = await labels();
-      assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD', 'Warden .45']), `the sidearm list is the 2 built sidearms (${side})`);
-      // a loadout left over from ?legacy=1 (two guns outside the set): Infiltration maps it onto the defaults at use
+      assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
+      // the kit in the other order (rifle in hand): Infiltration issues the same two guns
       await P.evaluate(async () => {
         window.__app.save.update((d) => {
-          d.loadout.primary = 'p90';
-          d.loadout.secondary = 'sniper';
+          d.loadout.primary = 'rifle';
+          d.loadout.secondary = 'pistolSd';
         });
         await window.__app.save.flush();
       });

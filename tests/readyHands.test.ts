@@ -104,8 +104,8 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     const scene = new Scene(new NullEngine());
     const lib = new PartLibrary(scene);
     const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
-    const pistol = new WeaponModel(scene, lib, WEAPONS.pistol, DEFAULT_WEAPON_COLORS, rig.root);
-    const smg = new WeaponModel(scene, lib, WEAPONS.smg, DEFAULT_WEAPON_COLORS, rig.root);
+    const pistol = new WeaponModel(scene, lib, WEAPONS.pistolSd, DEFAULT_WEAPON_COLORS, rig.root);
+    const rifle = new WeaponModel(scene, lib, WEAPONS.rifle, DEFAULT_WEAPON_COLORS, rig.root);
     pistol.holster(rig, 'thigh');
     expect(rig.thighGear).toBe(true);
     // hidden in its slot: no gear on the thigh
@@ -114,8 +114,8 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     pistol.setVisible(true);
     expect(rig.thighGear).toBe(true);
     // another model's hold / holster elsewhere never clears it
-    smg.holster(rig, 'sling');
-    smg.hold(rig);
+    rifle.holster(rig, 'sling');
+    rifle.hold(rig);
     expect(rig.thighGear).toBe(true);
     // drawn: cleared; holstered again: set
     pistol.inHand(rig);
@@ -124,7 +124,7 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     expect(rig.thighGear).toBe(true);
     pistol.dispose();
     expect(rig.thighGear).toBe(false);
-    smg.dispose();
+    rifle.dispose();
     scene.dispose();
   }, 60000);
 });

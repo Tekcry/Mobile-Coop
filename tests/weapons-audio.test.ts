@@ -120,12 +120,6 @@ describe('weapon planner', () => {
     expect(g2).toBeLessThan(g1 * 0.4);
   });
 
-  it('the crossbow plays its own release', () => {
-    const plan = newWeaponPlan();
-    expect(banksOf(planner().shot(plan, 'crossbow', false))).toEqual(['bow']);
-    expect(banksOf(planner().shot(plan, 'crossbow', true))).toEqual(['bow']);
-  });
-
   it('drops brass on the floor family of the surface; carpet is barely there', () => {
     const p = planner();
     const plan = newWeaponPlan();
@@ -144,10 +138,9 @@ describe('weapon planner', () => {
     expect(carpet).toBeLessThan(concrete * 0.5);
   });
 
-  it('pumps the shotgun and works the sniper bolt after a shot, with the case after; self-loaders do nothing', () => {
+  it('works the bolt after a shot (the guards\' bolt rifle), with the case after; self-loaders do nothing', () => {
     const p = planner();
     const plan = newWeaponPlan();
-    expect(banksOf(p.action(plan, 'shotgun', 'concrete'))).toEqual(['slideBack', 'slideFwd', 'case_shell_hard']);
     expect(banksOf(p.action(plan, 'sniper', 'metal'))).toEqual(['slideBack', 'slideFwd', 'case_rifle_metal']);
     expect(p.action(plan, 'rifle', 'concrete').n).toBe(0);
   });
@@ -171,10 +164,10 @@ describe('weapon planner', () => {
     expect(banksOf(p.reload(plan, 'pistol', 1.2, false))).toEqual(['magOut', 'magIn']);
     expect(banksOf(p.reload(plan, 'pistol', 1.2, true))).toEqual(['magOut', 'magIn', 'slideFwd']);
     expect(banksOf(p.reload(plan, 'rifle', 2, true))).toEqual(['magOut', 'rifleMagIn', 'slideBack', 'slideFwd']);
-    // the tube shotgun loads shell by shell (at most five heard)
-    expect(banksOf(p.reload(plan, 'shotgun', 2.6, false, 3))).toEqual(['shellIn', 'shellIn', 'shellIn']);
-    expect(banksOf(p.reload(plan, 'shotgun', 2.6, false, 9)).length).toBe(5);
-    expect(banksOf(p.reload(plan, 'shotgun', 2.6, false, 0))).toEqual(['shellIn']);
+    // a shotgun loads shell by shell (at most five heard; the guards' semi-auto, the one shotgun left in the table)
+    expect(banksOf(p.reload(plan, 'semiShotgun', 2.6, false, 3))).toEqual(['shellIn', 'shellIn', 'shellIn']);
+    expect(banksOf(p.reload(plan, 'semiShotgun', 2.6, false, 9)).length).toBe(5);
+    expect(banksOf(p.reload(plan, 'semiShotgun', 2.6, false, 0))).toEqual(['shellIn']);
   });
 
   it('reuses one plan without growing it', () => {

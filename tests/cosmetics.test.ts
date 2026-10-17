@@ -12,7 +12,7 @@ describe('cosmetics catalogue', () => {
   it('registers unique unlock ids for every part, camo and tag', () => {
     expect(new Set(UNLOCKS.map((u) => u.id)).size).toBe(UNLOCKS.length);
     for (const [cat, opts] of Object.entries(PART_OPTIONS)) for (const o of opts) expect(unlockById(partUnlockId(cat as never, o.value))).toBeDefined();
-    for (const w of ['rifle', 'smg', 'sniper'] as const) for (const camo of Object.values(MASTERY_CAMOS)) expect(unlockById(camoUnlockId(w, camo))).toBeDefined();
+    for (const w of ['rifle', 'pistolSd'] as const) for (const camo of Object.values(MASTERY_CAMOS)) expect(unlockById(camoUnlockId(w, camo))).toBeDefined();
     expect(AVATAR_KEYS_OK).toBe(true);
   });
   it('part options cover every look value', () => {
@@ -35,9 +35,9 @@ describe('cosmetics catalogue', () => {
   });
   it('mastery camos unlock with weapon kills', () => {
     const s = defaultSave();
-    const item = unlockById('camo:smg:desert')!;
+    const item = unlockById('camo:rifle:desert')!;
     expect(unlockState(item, unlockContext(s))).toBe('locked');
-    s.weapons.smg.kills = 30;
+    s.weapons.rifle.kills = 30;
     expect(unlockState(item, unlockContext(s))).toBe('free');
   });
   it('camo patterns reference shader pattern ids', () => {

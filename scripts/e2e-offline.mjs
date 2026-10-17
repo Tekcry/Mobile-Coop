@@ -123,7 +123,8 @@ console.log('old save migration on boot');
     const s = await pg.evaluate(() => window.__app.save.get());
     assert(s.version >= 4, `migrated to v${s.version}`);
     assert(s.profile.xp === 4321 && s.profile.credits === 950, 'xp and credits kept');
-    assert(s.weapons.rifle.upgrades.damage === 2 && s.unlocks.includes('weapon:smg'), 'upgrades and unlocks kept');
+    // (the SMG was deleted with the CT kit, G115: the v8 -> v9 step drops its unlock)
+    assert(s.weapons.rifle.upgrades.damage === 2 && s.unlocks.includes('weapon:rifle') && !s.unlocks.includes('weapon:smg'), 'upgrades and unlocks kept, the deleted gun dropped');
     assert(s.avatar.body === 'average', 'new fields defaulted');
     const backups = await pg.evaluate(() => new Promise((res) => {
       const r = indexedDB.open('shoulder-strike', 1);

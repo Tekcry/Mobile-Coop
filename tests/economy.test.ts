@@ -10,16 +10,13 @@ import { computeStats } from '../src/weapons/weaponStats';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 
 describe('arsenal', () => {
-  it('sixteen weapons validate; the new classes are there', () => {
-    expect(WEAPON_IDS.length).toBe(16);
-    const classes = new Set(WEAPON_IDS.map((w) => WEAPONS[w].class));
-    for (const c of ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'dmr', 'crossbow', 'lmg']) expect(classes.has(c)).toBe(true);
-    expect(() => validateWeaponDefs({ ...WEAPONS, ak: { ...WEAPONS.ak, rpm: 'fast' } })).toThrow(/ak.rpm/);
+  it('the CT kit validates: one rifle and one pistol (G76)', () => {
+    expect(WEAPON_IDS.length).toBe(2);
+    expect(new Set(WEAPON_IDS.map((w) => WEAPONS[w].class))).toEqual(new Set(['rifle', 'pistol']));
+    expect(() => validateWeaponDefs({ ...WEAPONS, rifle: { ...WEAPONS.rifle, rpm: 'fast' } })).toThrow(/rifle.rpm/);
   });
-  it('an integral suppressor and the crossbow are quiet; the crossbow knocks out', () => {
+  it('an integral suppressor is quiet', () => {
     expect(computeStats(WEAPONS.pistolSd).noise).toBeLessThan(0.5);
-    expect(computeStats(WEAPONS.crossbow).noise).toBeLessThan(0.15);
-    expect(WEAPONS.crossbow.nonLethal).toBe(true);
     expect(computeStats(WEAPONS.rifle).noise).toBe(1);
   });
 });
@@ -98,12 +95,11 @@ describe('profile ops and save v6', () => {
     expect(wearSuit(s, 'vest', 3)).toBe(false);
     expect(buyHq(s, 'restock').ok).toBe(true);
     expect(s.hq.restock).toBe(1);
-    s.unlocks.push('weapon:smg');
-    s.loadout.primary = 'smg';
+    s.loadout = { primary: 'rifle', secondary: 'pistolSd' };
     expect(savePreset(s, 2, 'gas')).toBe(true);
-    s.loadout.primary = 'rifle';
+    s.loadout = { primary: 'pistolSd', secondary: 'rifle' };
     expect(applyPreset(s, 2)).toBe(true);
-    expect(s.loadout.primary).toBe('smg');
+    expect(s.loadout.primary).toBe('rifle');
     expect(s.preset).toBe(2);
     const st = emptyStats('clear', 'warehouse');
     st.won = true;

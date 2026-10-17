@@ -10,7 +10,7 @@ export const TRACK_LABEL: Record<UpgradeTrack, string> = {
   reload: 'Reload speed',
 };
 
-const TIER: Partial<Record<WeaponId, number>> = { pistol: 0.7, fiveseven: 0.75, pistolSd: 0.75, smg: 1, vector: 1.05, p90: 1.05, rifle: 1.1, ak: 1.1, tavor: 1.15, shotgun: 1.1, semiShotgun: 1.15, breacher: 1, sniper: 1.3, dmr: 1.25, crossbow: 1.2, lmg: 1.3 };
+const TIER: Partial<Record<WeaponId, number>> = { pistolSd: 0.75, rifle: 1.1 };
 
 /** Credits to buy the next level of a track (current level -> level + 1). */
 export function upgradeCost(weapon: WeaponId, current: number): number {

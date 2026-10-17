@@ -40,8 +40,6 @@ export interface WeaponSlot {
   mag: number;
   reserve: number;
   model: WeaponModel;
-  /** Bolts knock out instead of killing (the crossbow without lethal bolts). */
-  nonLethal: boolean;
   /** Thin material a round goes through (m; 0 = none) and what it keeps. */
   pen: number;
   /** Has a magnifying scope. */
@@ -152,7 +150,7 @@ export class PlayerWeapons {
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
-      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, nonLethal: def.nonLethal === true && !(e.attachments ?? []).includes('lethalBolts'), pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
+      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
@@ -697,7 +695,6 @@ export class PlayerWeapons {
         weapon: s.def.id,
         sourcePos: this.player.cam.pivot.clone(),
         impulse: s.def.impulse,
-        nonLethal: s.nonLethal,
       });
       const t = this.tallyFor(s.def.id);
       t.hits++;

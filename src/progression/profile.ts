@@ -237,7 +237,7 @@ export function loadoutEntries(
   skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
 ): LoadoutEntry[] {
   const campaign = mode === 'infiltration' && campaignOpen;
-  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : lobbyLoadout(s, campaign);
+  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'pistolSd'] : lobbyLoadout(s, campaign);
   return ids.map((id) => {
     const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];
     return { id, upgrades: s.weapons[id].upgrades, mods: combinedMods(att), attachments: att, ...(skin?.(id, s.weapons[id].camo) ?? {}) };

@@ -3,18 +3,18 @@ import { attachmentById } from '../progression/attachments';
 import raw from './weapons.json';
 
 /**
- * The campaign arsenal (design bible 5.6, pure). One primary and one sidearm, curated from the 16 weapons in
- * `weapons.json`; the other ten stay in code for sandbox and `?legacy=1`, unused by the campaign.
+ * The campaign arsenal (G76, pure): the CT kit, one rifle and one pistol (the CT knife is not built). Every other gun was
+ * deleted (G115, docs/consolidation/deleted-guns.md); the rifle's sniper / shotgun / launcher attachments and the
+ * pistol's disruptor are settled by a later research job.
  *
- * - primary: suppressed rifle (default), suppressed SMG, shotgun (close, loud), marksman rifle (zoom).
- * - sidearm: suppressed pistol (default, carries the light disruptor), heavy pistol (louder, stops armour).
- *   Reserved, not built: the non-lethal dart sidearm (it needs a knockout hit kind first; A28).
+ * - primary: the suppressed rifle.
+ * - sidearm: the suppressed pistol (carries the light disruptor).
  *
- * The save keeps any weapon id (no save-shape change): `campaignLoadout` maps a loadout onto the set at use.
+ * `campaignLoadout` keeps one primary and one sidearm whatever order the save holds them in.
  */
 export const CAMPAIGN_ARSENAL = {
-  primary: ['rifle', 'smg', 'shotgun', 'dmr'],
-  sidearm: ['pistolSd', 'pistol'],
+  primary: ['rifle'],
+  sidearm: ['pistolSd'],
   defaults: { primary: 'rifle', sidearm: 'pistolSd' },
 } as const satisfies {
   primary: readonly WeaponId[];

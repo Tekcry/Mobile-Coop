@@ -220,6 +220,6 @@ export function defaultPresets(): LoadoutPreset[] {
   return [
     { name: 'Silent', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
     { name: 'Flash', primary: 'pistolSd', secondary: 'rifle', gadget: 'flash' },
-    { name: 'Loud', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
+    { name: 'Loud', primary: 'rifle', secondary: 'pistolSd', gadget: 'frag' },
   ];
 }

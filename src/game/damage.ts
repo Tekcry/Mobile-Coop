@@ -20,7 +20,7 @@ export interface HitInfo {
   weapon?: WeaponId;
   sourcePos: Vector3;
   impulse: number;
-  /** Knock out instead of killing (crossbow sleep bolts). */
+  /** Knock out instead of killing (no gun sets it since the non-CT guns were deleted, G115). */
   nonLethal?: boolean;
 }
 

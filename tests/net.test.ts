@@ -50,8 +50,9 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'sniper', 'shotgun', 'smg'] });
-    expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistol', 'smg', 'sniper', 'shotgun']);
+    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
+    // the deleted guns (G115) are unknown ids now
+    expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistolSd']);
     const n = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
     expect(n?.t === 'hello' && n.loadout).toEqual([]);
   });
@@ -239,7 +240,7 @@ describe('host validation', () => {
     expect(r.take(1.1)).toBe(true);
   });
   it('weapon budgets allow the real fire rate but not double', () => {
-    const def = WEAPONS.smg;
+    const def = WEAPONS.rifle;
     const lim = shotLimiter(def);
     const interval = 60 / def.rpm;
     let ok = 0;
@@ -251,8 +252,8 @@ describe('host validation', () => {
     expect(ok2).toBeLessThan(150);
   });
   it('damage claims are capped by fully upgraded stats', () => {
-    expect(maxHitDamage(WEAPONS.sniper, true)).toBeGreaterThan(maxHitDamage(WEAPONS.sniper, false));
-    expect(maxHitDamage(WEAPONS.pistol, false)).toBeLessThan(200);
+    expect(maxHitDamage(WEAPONS.rifle, true)).toBeGreaterThan(maxHitDamage(WEAPONS.rifle, false));
+    expect(maxHitDamage(WEAPONS.pistolSd, false)).toBeLessThan(200);
   });
   it('ray/point distance', () => {
     const r = rayPointDistance({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 5 });
@@ -288,7 +289,7 @@ describe('host validation', () => {
         won: false,
         subtitle: '',
         score: 1e7,
-        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
+        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, pistolSd: 400 } } },
       },
       60,
     );
@@ -296,7 +297,7 @@ describe('host validation', () => {
     expect(me.kills).toBeLessThanOrEqual(92);
     expect(me.headshots).toBeLessThanOrEqual(me.kills);
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
-    expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.smg ?? 0)).toBeLessThanOrEqual(me.kills);
+    expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.pistolSd ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
     const honest = clampEnd({ won: false, subtitle: '', score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
     expect(honest.score).toBe(1500);
@@ -345,7 +346,7 @@ function hub() {
   return { make };
 }
 
-const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistol'] as WeaponId[] });
+const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistolSd'] as WeaponId[] });
 
 describe('net session', () => {
   it('lobby handshake, ready-up and start', () => {
@@ -485,7 +486,7 @@ describe('step 09: host-authoritative drawn state (D8)', () => {
   });
   it('(step 11 r3) the receive path drops a wall `a` outside the level (the wire keeps anything under 4096)', () => {
     const mv = packMoveState({ ...emptyMoveState(), m: 'wall' as const, a: 40, s: 1, sub: 1 });
-    const ps = { id: 'peerA', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistol', hp: 100, mv };
+    const ps = { id: 'peerA', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistolSd', hp: 100, mv };
     const msg = parseMessage({ t: 'pstate', s: ps });
     const s = msg?.t === 'pstate' ? msg.s : null;
     expect(s?.mv).toMatchObject({ m: 'wall', a: 40 });
@@ -514,17 +515,17 @@ describe('step 09: host-authoritative drawn state (D8)', () => {
     expect(poseFromMoveState({ ...emptyMoveState(), dw: 0 }, 1, emptyMovePose()).drawn).toBe(false);
   });
   it('a literal pstate with an off-loadout weapon keeps the last valid id', () => {
-    const lobby: WeaponId[] = ['pistol', 'smg'];
-    const first = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'smg', hp: 100, mv: { m: 0, a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0, dw: 2 } } });
+    const lobby: WeaponId[] = ['pistolSd'];
+    const first = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistolSd', hp: 100, mv: { m: 0, a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0, dw: 2 } } });
     expect(first?.t).toBe('pstate');
     if (first?.t !== 'pstate') return;
     let last = hostWeapon(first.s.w, lobby, null);
-    expect(last).toBe('smg');
+    expect(last).toBe('pistolSd');
     const off = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'rifle', hp: 100 } });
     if (off?.t !== 'pstate') throw new Error('pstate expected');
     last = hostWeapon(off.s.w, lobby, last);
-    expect(last).toBe('smg');
-    expect(hostWeapon('rifle' as WeaponId, lobby, null)).toBe('pistol');
+    expect(last).toBe('pistolSd');
+    expect(hostWeapon('rifle' as WeaponId, lobby, null)).toBe('pistolSd');
     expect(first.s.mv?.dw).toBe(2);
   });
   it('the host forces holstered while hands are busy or downed', () => {
@@ -548,14 +549,14 @@ describe('step 09: host-authoritative drawn state (D8)', () => {
     expect(hostShotAllowed(2)).toBe(true);
   });
   it('fix 3: a shot counts only with the held weapon or one from the lobby loadout', () => {
-    const lobby: WeaponId[] = ['pistol', 'smg'];
-    expect(hostShotWeapon('smg' as WeaponId, 'smg', lobby)).toBe(true);
-    expect(hostShotWeapon('pistol' as WeaponId, 'smg', lobby)).toBe(true);
-    expect(hostShotWeapon('rifle' as WeaponId, 'smg', lobby)).toBe(false);
+    const lobby: WeaponId[] = ['pistolSd'];
+    expect(hostShotWeapon('pistolSd' as WeaponId, 'pistolSd', lobby)).toBe(true);
+    expect(hostShotWeapon('pistolSd' as WeaponId, 'rifle', lobby)).toBe(true);
+    expect(hostShotWeapon('rifle' as WeaponId, 'pistolSd', lobby)).toBe(false);
     expect(hostShotWeapon('rifle' as WeaponId, undefined, lobby)).toBe(false);
     // no lobby loadout sent: only the weapon the host holds for it (hostWeapon kept the claim)
     expect(hostShotWeapon('rifle' as WeaponId, 'rifle', [])).toBe(true);
-    expect(hostShotWeapon('rifle' as WeaponId, 'smg', [])).toBe(false);
+    expect(hostShotWeapon('rifle' as WeaponId, 'pistolSd', [])).toBe(false);
     expect(hostShotWeapon('rifle' as WeaponId, undefined, [])).toBe(false);
   });
   it('fix 2: with >= 300 ms injected delay a legitimate draw is never cancelled', () => {
