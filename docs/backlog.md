@@ -36,6 +36,7 @@ reliable and then required (G51; the test fixes job in `docs/progress.md`).
 - **e2e-weapons-carry** - failed once (reason not captured), passed in every other run. Next step if it recurs: read `test-results/e2e/e2e-weapons-carry.log`.
 - **e2e-pad** - failed once, passed on rerun. Cause not investigated.
 - **e2e-foley** - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
+- **e2e-anim (not flaky, a known issue)** - the draw from holstered pops: the rifle from the back slot and the pistol from the thigh reach the hand inside the 8-frame swap fade (`src/anim/animGraph.ts` draw path, `SWAP_FADE`), up to ~0.14 per frame on the right hand. Live in the campaign rifle draw since before the merge; exposed when the sandbox lost the SMG (it drew from the sling). The holster to the back when a sprint starts pops the same way (sprint is removed, loco M20 Q8). The transitions check reports the 'aim' (draw) and 'sprint' steps as KNOWN ISSUE and asserts every other step. Fixed by the CT prototype's draw (G103: 0.6 / 0.75 s raise), then the step is asserted again.
 
 ## Pending input
 
