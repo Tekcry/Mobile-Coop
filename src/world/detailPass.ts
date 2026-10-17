@@ -35,6 +35,9 @@ export function shade(hex: string, k: number): string {
 
 const SIGN_COLORS = ['#d8b22c', '#c9cdd1', '#2f6fb3', '#b33a2f', '#3a8f4f'];
 
+/** False for a map that opts out of the detail pass (MapDef `detail: false`, ON0b): no dressing at any tier, none in the light shapes. */
+export const dressingOn = (map: { readonly detail?: boolean }): boolean => map.detail !== false;
+
 /** The dressing pieces for `boxes` (not modifying them). */
 export function detailPieces(boxes: readonly BoxPiece[], mapId: string, tier: TierQuality): BoxPiece[] {
   if (tier === 'high') return [];

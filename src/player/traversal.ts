@@ -298,7 +298,7 @@ export class TraversalController {
   fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null, leapPressed = false): boolean {
     const p = this.player;
     const c = p.controller;
-    const pose = p.coverPose;
+    const pose = p.pose;
     if (this.attachCtl.active) {
       this.attachCtl.fixedUpdate(dt, jumpPressed);
       return true;
@@ -559,6 +559,8 @@ export class TraversalController {
   private teleports = 0;
 
   reset(): void {
+    // a committed move owns the controller's kinematic override: hand it back
+    if (this.kind !== 'none') this.player.controller.override = null;
     this.leapT = -1;
     this.leapSplit = null;
     this.kind = 'none';

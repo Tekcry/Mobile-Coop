@@ -4,6 +4,7 @@ import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
+import type { SecurityData } from '../security/data';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -47,7 +48,9 @@ export interface MapLayout {
   /** Mission objective sites (terminals, caches, extraction). */
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
   /** Supply crates (ammo / health pickups). */
-  pickups: { pos: Vector3; kind: 'ammo' | 'health' }[];
+  pickups: { pos: Vector3; kind: 'ammo' | 'medkit' }[];
+  /** (locomotion step 15) Wall medkit stations (test maps): hold to take one kit, single use. `yaw` faces the room. */
+  medkitWalls?: { pos: Vector3; yaw: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
@@ -58,6 +61,10 @@ export interface MapLayout {
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
+  /** Debug-menu teleport points (greybox maps): grouped, labelled, with the feet position and facing. */
+  debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
+  /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */
+  security?: SecurityData;
 }
 
 export interface MapDef {
@@ -72,4 +79,12 @@ export interface MapDef {
   art?: VoxelArt;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
+  /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
+  navLayers?: number;
+  /**
+   * ON0b: false turns the detail pass off (no generated skirting, conduits, junction boxes, vents, signs or floor
+   * clutter at any tier, and none in the light-bake shapes, so light parity holds): everything on a wall is placed on
+   * purpose. Default true.
+   */
+  detail?: boolean;
 }

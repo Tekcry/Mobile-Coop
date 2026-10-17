@@ -2,6 +2,8 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // host-validated client hits + kill credit, downed/revive, results with rewards, back to lobby,
 // host leaving, malformed messages, and the offline state.
+// 3.5: the lobby walk-through hosts Wave / Hunter / TDM / FFA rooms, which are parked behind ?legacy=1, so these pages open
+// with it (the legacy-off lobby, Infiltration and Free Roam only, is checked by e2e-park).
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -18,7 +20,7 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   }
 }
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local&legacy=1' });
 let B = null;
 let C = null;
 let eB = [];
@@ -35,7 +37,7 @@ try {
   assert(link?.includes(code), 'lobby shows the code');
 
   console.log('client joins by typing the code');
-  const opened = await openPage(ctx, url, 'net=local');
+  const opened = await openPage(ctx, url, 'net=local&legacy=1');
   B = opened.page;
   eB = opened.errors;
   const GB = (f, a) => B.evaluate(f, a);
@@ -88,13 +90,13 @@ try {
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
-  // the client's whole loadout shows on its avatar: one in the hands, the rest carried in their slots
+  // the client's whole loadout shows on its avatar: (step 09) holstered unless aiming, so every weapon in its slot
   const carried = await GA(() => {
     const av = window.__app.current.net.remotes.values().next().value.avatar;
     const ms = [...av['models'].values()];
     return { n: ms.length, held: ms.filter((m) => m.slot === null && m.node.isEnabled()).length, slotted: ms.filter((m) => m.slot !== null && m.node.isEnabled()).map((m) => m.slot), loadout: av.info.loadout };
   });
-  assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 1 && carried.slotted.length === 1, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
+  assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 0 && carried.slotted.length === 2, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
 
   console.log('client hit is validated by the host and credited');
   // a humanoid on the ground (dogs and drones vary with the wave's draw)
@@ -102,7 +104,9 @@ try {
     const ps = [...window.__app.current.net.puppets.values()];
     return (ps.find((p) => p.def.kind === 'grunt' || p.def.kind === 'runner') ?? ps[0]).id;
   });
-  // a shot from far away must be rejected
+  // a shot from far away must be rejected (step 09: drawn, so the host's validation, not the holster gate, refuses it)
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn');
   const bogus = await GB((id) => {
     const g = window.__app.current;
     const p = g.net.puppets.get(id);
@@ -130,6 +134,32 @@ try {
     g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
   }, victim);
   await wait(500);
+  // (step 09, D8) no hip fire on the host: a client shot while holstered is refused (the host enemy keeps its hp)
+  await GB(() => { window.__app.current.player.forceAds = false; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state?.mv?.dw === 0), null, 5000, 'host sees the client holstered');
+  {
+    await GA(() => {
+      for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2);
+    });
+    const hostHp = (id) => GA((v) => window.__app.current.enemyMgr.enemies.find((e) => e.id === v)?.health.hp ?? -1, id);
+    const hp0 = await hostHp(victim);
+    const dw = await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      if (!p) return -1;
+      const src = g.player.position.add(new p.pos.constructor(0, 1.58, 0));
+      const pt = p.center(new p.pos.constructor());
+      p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
+      return g.weapons.drawPhase;
+    }, victim);
+    await wait(600);
+    const hp1 = await hostHp(victim);
+    assert(dw === 0 && hp1 === hp0, `a client shot while holstered is refused by the host (dw ${dw}, hp ${hp0} -> ${hp1})`);
+  }
+  // aim (drawn) for the shots that count
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn');
+  await until(A, () => { const av = window.__app.current.net.remotes.values().next().value.avatar; const ms = [...av['models'].values()]; return ms.filter((m) => m.slot === null && m.node.isEnabled()).length === 1 && ms.filter((m) => m.slot !== null && m.node.isEnabled()).length === 1; }, null, 3000, 'drawn: one weapon in the remote avatar\'s hands, the other slotted');
   let killed = false;
   for (let i = 0; i < 40 && !killed; i++) {
     // keep the host's teleport grace open until the client's moved state arrives (slow under a loaded
@@ -153,6 +183,7 @@ try {
     console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); return JSON.stringify({ puppet: p && [p.pos.x, p.pos.y, p.pos.z].map((n) => n.toFixed(2)), me: [g.player.position.x, g.player.position.y, g.player.position.z].map((n) => n.toFixed(2)) }); }, victim));
   }
   assert(killed, 'client shots kill the host enemy');
+  await GB(() => { window.__app.current.player.forceAds = false; });
   const selfB = await GB(() => window.__coop.session.selfId);
   const tally = await GA((id) => window.__app.current.net.tallies.get(id)?.kills ?? 0, selfB);
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
@@ -308,6 +339,65 @@ try {
   await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); if (b) b.hidden = true; }, tdv);
   await until(B, (id) => !window.__app.current.net.kept.has(id), tdv, 8000, 'client drops the hidden body');
   assert(true, 'a body hidden on the host leaves the client');
+  // (locomotion step 10) a client elbow strike: approved by the host, the knock-out applied on the host's guard and
+  // the client's puppet; a strike on a guard the host already holds is refused (cdeny), no knock-out
+  const skv = await GB((no) => [...window.__app.current.net.puppets.values()].find((p) => p.alive && p.id !== no && p.def.kind === 'grunt')?.id ?? '', tdv);
+  assert(!!skv, `a second calm guard for the strike (${skv})`);
+  const pinSk = (id) => GA((id) => {
+    const g = window.__app.current;
+    for (const e of g.enemyMgr.enemies) e['stagger'] = 99;
+    for (const r of g.net.remotes.values()) r.allowTeleport(1);
+    const v = g.enemyMgr.enemies.find((e) => e.id === id);
+    if (v?.alive && !v.taken) {
+      v.pos.set(8, 0, -6);
+      v.yaw = 0;
+    }
+  }, id);
+  await pinSk(skv);
+  await wait(600);
+  await moveClient(B, 8, 0.1, -6.9, 0);
+  let skKo = false;
+  let skInfo = '';
+  for (let attempt = 0; attempt < 6 && !skKo; attempt++) {
+    // (step 10 check) a retry only after the client's strike ended and the host's record of it cleared
+    if (attempt > 0) {
+      await until(B, () => !window.__app.current.strike.active, null, 5000, 'client strike ended').catch(() => {});
+      await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record cleared').catch(() => {});
+    }
+    await pinSk(skv);
+    skInfo = await GB((id) => {
+      const g = window.__app.current;
+      g.player.cam.yaw = 0;
+      if (g.strike.active) return `busy ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied} t ${g.strike.t.toFixed(2)} ok ${g.strike.approved}`;
+      const t = g.strike.pickTarget();
+      g.strike.begin();
+      return `target ${t || 'none'} want ${id} ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied}`;
+    }, skv);
+    for (let i = 0; i < 8 && !skKo; i++) {
+      await wait(300);
+      await pinSk(skv);
+      skKo = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, skv);
+    }
+  }
+  const hostSk = await GA(() => ({ last: window.__app.current.net.lastCommit, n: window.__app.current.strike.count }));
+  assert(skKo, `a client elbow strike knocks the host's guard out (${skInfo}; host ${JSON.stringify(hostSk)})`);
+  await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !p || !p.alive; }, skv, 8000, 'client puppet down');
+  assert(true, 'the strike knock-out reaches the client puppet');
+  // denied: the host seizes the target first
+  const skd = await GB((no) => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !no.includes(p.id) && p.def.kind === 'grunt')?.id ?? '', [tdv, skv]);
+  if (skd) {
+    await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); e.pos.set(8, 0, -6); e.yaw = 0; e.taken = true; }, skd);
+    await wait(1200);
+    // (the host's sim runs slow under software GL: its record of the last strike ends 0.9 s of host time after t0)
+    await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record ends');
+    const d0 = await GB(() => window.__app.current.strike.count.denied);
+    await GB((id) => window.__app.current.strike.begin(id), skd);
+    await until(B, (n) => window.__app.current.strike.count.denied > n && !window.__app.current.strike.active, d0, 5000, 'client strike denied');
+    const dn = await GB(() => ({ why: window.__app.current.strike.lastDenied, back: window.__app.current.strike.lastBackT }));
+    const alive = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); e.taken = false; return e.alive; }, skd);
+    const hl = await GA(() => window.__app.current.net.lastCommit);
+    assert(dn.why === 'noTarget' && alive && dn.back <= 0.3, `a strike on a guard the host holds: refused (${dn.why}; host ${hl}), no knock-out, back in ${dn.back.toFixed(2)} s`);
+  }
   // pings: the client marks a spot, the host shows it in the client's colour
   const clientId = await GB(() => window.__coop.session.selfId);
   await GB(() => window.__app.current.net.ping(6, 0.5, -3, ''));
@@ -316,35 +406,6 @@ try {
   await GA(() => window.__app.current.net.ping(4, 0.5, -3, ''));
   await until(B, (id) => window.__app.current.pings.some((p) => p.by === id), hostId0, 5000, 'client shows the host ping');
   assert(true, 'a host ping reaches the client');
-  // Mark & Execute: the client's takedown earned it a charge; an execute shot downs a guard outright
-  const charges = await GA(() => [...window.__app.current.net.remotes.values()][0].execCharges);
-  assert(charges >= 1, `a client takedown earns an execute charge (${charges})`);
-  const exv = await GA(() => {
-    const g = window.__app.current;
-    const e = g.enemyMgr.enemies.find((x) => x.alive && x.def.kind === 'grunt') ?? g.enemyMgr.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
-    e.pos.set(6, 0, -3.8);
-    return e.id;
-  });
-  await wait(600);
-  let executed = false;
-  for (let i = 0; i < 30 && !executed; i++) {
-    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
-    await GB((id) => {
-      const g = window.__app.current;
-      const p = g.net.puppets.get(id);
-      if (!p) return;
-      const src = g.player.position.add(new p.pos.constructor(0, 1.58, 0));
-      const pt = p.center(new p.pos.constructor());
-      p.applyDamage({ amount: 5, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3, execute: true });
-    }, exv);
-    await wait(250);
-    executed = await GA((id) => !window.__app.current.enemyMgr.enemies.some((e) => e.id === id && e.alive), exv);
-  }
-  if (!executed) {
-    console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ kind: e?.def.kind, pos: e && [e.pos.x, e.pos.z], hp: e?.health.hp, client: [r.feet.x, r.feet.z], viol: r.violations, ch: r.execCharges, left: r.execLeft, until: r.execUntil, t: g.net.time }); }, exv));
-    console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); return JSON.stringify({ puppet: p && [p.pos.x, p.pos.z], me: [g.player.position.x, g.player.position.z] }); }, exv));
-  }
-  assert(executed, 'a client execute shot downs the guard (host checks the charge)');
   // gadgets: a client's gas cloud acts on the host's guards
   const gv = await GA(() => {
     const g = window.__app.current;
@@ -357,16 +418,51 @@ try {
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || e.gas > 0; }, gv, 6000, 'host guard breathes the client gas');
   assert(true, "a client's gas cloud reaches the host's guards");
   // (3.2.0 phase 4) a client grab: the host holds its guard in front of the client (a shield there), then a tap
-  // knocks him out
-  const gg = await GB(() => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !p.taken && p.def.kind !== 'dog')?.id ?? '');
+  // knocks him out. (3.6: the gas cloud above is cleared first on both sides - the grab spot is inside its 3.6 m, a
+  // guard breathing it is knocked out in 0.8 s, racing the grab; the cloud lasts 6 s of sim time, far longer than
+  // that in wall time at software-GL frame rates)
+  for (const P of [A, B]) {
+    await P.evaluate(() => {
+      const g = window.__app.current;
+      g.gadgets.clouds.length = 0;
+      for (const e of g.enemyMgr?.enemies ?? []) e.gas = 0;
+    });
+  }
+  // (3.6: the guard is chosen on the host - the client's puppets can still show one the host has just removed, the
+  // gassed guard knocked out a moment ago - then the client waits for its puppet)
+  // (diagnosis: every host kill / knock-out from here on, dumped if the grab fails)
+  await GA(() => {
+    const em = window.__app.current.enemyMgr;
+    const prev = em.onKilled;
+    window.__kills = [];
+    em.onKilled = (e, h) => {
+      window.__kills.push({ id: e.id, ko: !!e.ko, kind: h.kind, part: h.part, by: h.attackerId, team: h.attackerTeam, t: window.__app.current.net?.time });
+      prev?.(e, h);
+    };
+  });
+  // (a plain grunt, never the guard the gas cloud above is putting to sleep: the match's guards are a different mix each run, and a drone
+  // operator or an enforcer is taken differently - the grab from behind is the grunt's)
+  const gg = await GA((gv) => {
+    const guards = window.__app.current.enemyMgr.enemies.filter((e) => e.alive && !e.taken && !e.ko && !e.dog && e.def.kind !== 'dog' && e.id !== gv);
+    return (guards.find((e) => e.def.kind === 'grunt') ?? guards[0])?.id ?? '';
+  }, gv);
+  if (gg) await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && p.alive; }, gg, 15000, 'the client has the chosen guard');
   if (gg) {
     let grabbed = false;
     for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
       await GA((id) => {
         const g = window.__app.current;
         for (const r of g.net.remotes.values()) r.allowTeleport(2);
+        // (3.6: the checks above - a gas cloud - can leave guards in combat having spotted the client, and a
+        // guard in combat who knows an operator is there cannot be taken by surprise (by design): calm the host first)
+        for (const e of g.enemyMgr.enemies) e.aware.set('unaware');
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
+          // (a statue while the client lines up: the guard's brain is off - the match's guards re-alert at once after the steps above, turn round
+          // and offer the front takedown, which is a race the test cannot win by calming them. The grab, the hold and the knock-out are
+          // the real code: his brain is back on as soon as the grab is held)
+          v.update = () => {};
           v['stagger'] = 99;
           v.pos.set(6, 0, -6);
           v.yaw = 0;
@@ -376,12 +472,19 @@ try {
       for (let i = 0; i < 30 && !grabbed; i++) {
         grabbed = await GB((id) => {
           const g = window.__app.current;
-          if (g.takedown.offer?.e.id === id && !g.takedown.active) g.takedown.start();
+          // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
+          if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
           return g.takedown.hostage?.id === id;
         }, gg);
         if (!grabbed) await wait(150);
       }
     }
+    if (!grabbed) {
+      console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, gas: e?.gas, stagger: e?.['stagger'], pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, client: [r.feet.x, r.feet.z], mv: r.state?.mv?.m }); }, gg));
+      console.log('    host kills since the pick:', gg, await GA(() => JSON.stringify(window.__kills)));
+      console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], yaw: g.player.cam.yaw, offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active, hostage: g.takedown.hostage?.id ?? null, alive: g.player.alive, move: g.player.controller.motion.state }); }, gg));
+    }
+    await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, gg);
     assert(grabbed, 'client grabs a host guard from behind');
     await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
     const held = await GA((id) => {
@@ -422,6 +525,32 @@ try {
   assert(true, 'client revives the downed host');
   await toLobby();
 
+  console.log("custom difficulty (step 19, D7): the host's sliders reach the client lobby read-only and run the match; the client's own stay");
+  {
+    const mine = await GB(() => JSON.stringify(window.__app.settings.get().gameplay.customDifficulty));
+    await GA(() => {
+      const s = window.__coop.session;
+      s.setCustom({ base: 'normal', perception: 0.5, aim: 1, alarm: 2 });
+      s.setSettings('clear', 'warehouse', 'custom', '');
+    });
+    await until(B, () => window.__coop.session.difficulty === 'custom' && window.__coop.session.custom?.perception === 0.5, null, 8000, 'the custom lobby reaches the client');
+    await until(B, () => /perception 0\.50.*alarm 2\.00/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host sliders');
+    const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff="perception"]'));
+    assert(ro, 'the client lobby shows the host values read-only (no sliders)');
+    for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
+    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
+    await GA(() => window.__coop.session.startMatch());
+    await until(A, () => !!window.__app.current?.enemyMgr && !!window.__app.current.net, null, 40000, 'host match up');
+    await until(B, () => !!window.__app.current?.net, null, 40000, 'client match up');
+    const hd = await GA(() => { const d = window.__app.current.enemyMgr.diff; return { p: d.perception, t: d.reaction, l: d.label }; });
+    assert(hd.p === 0.5 && hd.t === 2 && hd.l === 'Custom', `the host's manager runs the host sliders (${JSON.stringify(hd)})`);
+    const cd = await GB(() => ({ p: window.__app.current.diff.perception, t: window.__app.current.diff.reaction, own: JSON.stringify(window.__app.settings.get().gameplay.customDifficulty) }));
+    assert(cd.p === 0.5 && cd.t === 2, `the client's match takes the host's values (${JSON.stringify(cd)})`);
+    assert(cd.own === mine, `the client's own stored sliders are unchanged (${cd.own})`);
+    await toLobby();
+    await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'normal', ''));
+  }
+
   console.log('infiltration co-op: the mission and its objectives reach the client');
   await startMode('infiltration', 'warehouse', 'warehouse-ledger');
   const inf = await GB(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));
@@ -432,7 +561,7 @@ try {
   await toLobby();
 
   console.log('pvp: team deathmatch and free-for-all with three');
-  const opened3 = await openPage(ctx, url, 'net=local');
+  const opened3 = await openPage(ctx, url, 'net=local&legacy=1');
   C = opened3.page;
   eC = opened3.errors;
   await C.click('.main-menu .btn:has-text("Co-op")');
@@ -476,6 +605,9 @@ try {
     return [p.x, p.y, p.z - 2.5];
   });
   await moveClient(B, hpos[0], hpos[1] + 0.1, hpos[2], 0);
+  // (step 09) no hip fire: the client aims (drawn on the host) before its shots count
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (PvP)');
   let down = false;
   for (let i = 0; i < 40 && !down; i++) {
     await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
@@ -490,6 +622,7 @@ try {
     down = await GA(() => (window.__app.current.stats.deaths ?? 0) >= 1);
   }
   assert(down, 'client shots eliminate the host (validated, rewound)');
+  await GB(() => { window.__app.current.player.forceAds = false; });
   const sc = await GA((b) => window.__app.current.net.score.lines().find((l) => l.id === b), ids[1]);
   assert(sc?.k === 1, `the elimination is scored (${JSON.stringify(sc)})`);
   await until(B, () => /1/.test(document.querySelector('.hud-mode')?.textContent ?? ''), null, 5000, 'client HUD shows the score');
@@ -511,6 +644,76 @@ try {
   await GA(() => (window.__app.current.net.score.elapsed = 1e5));
   for (const P of pages()) await until(P, () => !!document.querySelector('.results-screen'), null, 15000, 'ffa results');
   assert(true, 'free-for-all ends on time');
+  await toLobby();
+
+  // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host and on a third page (the
+  // snapshot's dcr), and its close clears it everywhere
+  console.log('door peek: a client crack shows on the host and a third page; close clears it');
+  await startMode('sandbox', 'proving');
+  const dpos = await GB(() => {
+    const d = window.__app.current.world.doors.list[0];
+    if (!d) return null;
+    const an = d.anchor;
+    const nx = Math.cos(an.yaw);
+    const nz = -Math.sin(an.yaw);
+    return [an.hinge.x + Math.sin(an.yaw) * an.width * 0.5 + nx * 0.7, an.hinge.y + 0.05, an.hinge.z + Math.cos(an.yaw) * an.width * 0.5 + nz * 0.7, Math.atan2(-nx, -nz)];
+  });
+  assert(!!dpos, 'Proving has a door');
+  await moveClient(B, dpos[0], dpos[1], dpos[2], dpos[3]);
+  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; window.__app.input.state.tap('cover'); }, dpos[3]);
+  await until(B, () => window.__app.current.doorPeek.phase !== 'off', null, 5000, 'client starts the peek');
+  const cracked = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return d.cracked && d.target === 0 && d.ajar > 0.06; }, null, 10000, 'the door cracked');
+  await cracked(A);
+  await cracked(C);
+  const dcC = await C.evaluate(() => { const d = window.__app.current.world.doors.list[0]; return { cracked: d.cracked, ajar: d.ajar, target: d.target, mode: [...window.__app.current.net.avatars.values()].map((a) => a.mode) }; });
+  assert(dcC.cracked && dcC.target === 0, `the client's crack shows on the host and a third page (${JSON.stringify(dcC)})`);
+  await until(B, () => window.__app.current.doorPeek.phase === 'peek', null, 5000, 'client peeking');
+  await GB(() => window.__app.input.state.tap('cover'));
+  const shut = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return !d.cracked && d.ajar < 0.01; }, null, 10000, 'the crack closed');
+  await shut(A);
+  await shut(C);
+  assert(true, 'closing clears the crack on the host and the third page');
+  // (locomotion step 15) medkits: a client heal runs on the host (hp and mk change, the client mirrors them); at 0 kits
+  // the host refuses (cdeny none); a wall medkit gives one kit, then shows spent on both pages
+  console.log('medkits: host-authoritative heal and counts, cdeny none, a wall medkit');
+  {
+    // (three pages here: the remote the host runs for this client, by its id)
+    await GA((id) => { window.__bid = id; }, await GB(() => window.__app.current.net.s.selfId));
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 60; r.mk = 2; });
+    await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01 && window.__app.current.medkit.kits === 2, null, 8000, 'client mirrors 60 hp, 2 kits');
+    await wait(400);
+    const mk = await GB(() => { const g = window.__app.current; return { ok: g.medkit.begin(), alive: g.player.alive, grounded: g.player.controller.grounded }; });
+    assert(mk.ok, `the client starts a medkit (${JSON.stringify(mk)})`);
+    try {
+      await until(A, () => { const r = window.__app.current.net.remotes.get(window.__bid); return r.health.hp >= 99.9 && r.mk === 1; }, null, 10000, 'host heals the client to 100 and spends a kit');
+    } catch (e) {
+      const dA = await GA(() => { const n = window.__app.current.net; const r = n.remotes.get(window.__bid); return { lastCommit: n.lastCommit, hp: r?.health.hp, mk: r?.mk, m: r?.state?.mv?.m, ids: [...n.remotes.keys()], bid: window.__bid, medkits: n.medkits?.size }; });
+      const dB = await GB(() => { const g = window.__app.current; return { lastDenied: g.medkit.lastDenied, count: g.medkit.count, active: g.medkit.active, kits: g.medkit.kits, hp: g.target.health.hp }; });
+      console.log('   medkit diag host', JSON.stringify(dA), 'client', JSON.stringify(dB));
+      throw e;
+    }
+    await until(B, () => { const g = window.__app.current; return g.target.health.hp >= 99.9 && g.medkit.kits === 1 && !g.medkit.active; }, null, 8000, 'client mirrors 100 hp, 1 kit');
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 50; r.mk = 0; });
+    await until(B, () => window.__app.current.medkit.kits === 0, null, 8000, 'client mirrors 0 kits');
+    await wait(400);
+    await GB(() => { const g = window.__app.current; g.medkit.id = 777; g.net.commitRequest('medkit', 777, ''); });
+    await until(B, () => window.__app.current.medkit.lastDenied === 'none', null, 8000, 'client at 0 kits gets cdeny none');
+    // a wall medkit next to the client (the station Proving places, added on this map by hand)
+    await GA(() => {
+      const g = window.__app.current;
+      const r = g.net.remotes.get(window.__bid);
+      const it = g.interactables.add('medkit-e2e', 'medkitWall', r.feet.clone().addInPlaceFromFloats(0.5, 0, 0), 'Medkit station', 0.6, 0);
+      g.interactables.setEnabled(it, true);
+      it.onUse = (x, who) => g['useWallMedkit'](x, who ?? 'local');
+    });
+    await until(B, () => !!window.__app.current.interactables?.items.find((i) => i.id === 'medkit-e2e' && i.enabled), null, 8000, 'client mirrors the wall medkit');
+    await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'medkit-e2e').onUse());
+    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return r.mk === 1 && it.done && !it.enabled; }, null, 8000, 'host: one kit, the station spent');
+    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return g.medkit.kits === 1 && (!it || !it.enabled); }, null, 8000, 'client: 1 kit, the station shown spent');
+    await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
+    assert(true, 'the host heals the client (hp, mk mirrored), cdeny none at 0 kits, the wall medkit refills one kit and shows spent on both pages');
+  }
+
   await toLobby();
 
   console.log('host leaves');

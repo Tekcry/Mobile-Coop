@@ -17,7 +17,7 @@ import { Sfx } from '../audio/sfx';
 import { Music } from '../audio/music';
 import { QualityManager, type QualityTarget } from './qualityManager';
 import { FeedbackStore } from '../feedback/feedbackStore';
-import { keyLabels } from '../ui/prompts';
+import { keyLabels, padButtons } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
 import type { BenchKind, BenchSession } from '../game/benchmark';
@@ -160,6 +160,12 @@ export class App {
     keyLabels.reload = bindLabel(k, 'reload');
     keyLabels.speedUp = bindLabel(k, 'speedUp');
     keyLabels.speedDown = bindLabel(k, 'speedDown');
+    // (locomotion step 18) pad prompts follow the pad bindings
+    const p = this.settings.get().pad;
+    padButtons.cover = p.cover[0] ?? -1;
+    padButtons.traverse = p.traverse[0] ?? -1;
+    padButtons.crouch = p.crouch[0] ?? -1;
+    padButtons.reload = p.reload[0] ?? -1;
   }
 
   /** The GPU the browser renders with (the unmasked renderer string where allowed). */

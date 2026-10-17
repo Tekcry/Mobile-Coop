@@ -25,13 +25,13 @@ interface Volume {
 export const PLAYER_PART_MULT = { head: 1.3, torso: 1, legs: 0.75 };
 
 /**
- * Makes the local player damageable: health/shield + split kinematic hit volumes (legs, torso, head)
+ * Makes the local player damageable: health + split kinematic hit volumes (legs, torso, head)
  * that follow the pose. Crouching lowers them; leaning moves the torso and head out past the edge, so
  * exposure in cover is physical: only what actually sticks out can be hit.
  */
 export class PlayerTarget implements Damageable {
   readonly team = 'player' as const;
-  readonly health = new Health(100, 50, 4, 30);
+  readonly health = new Health(100);
   private legs: Volume;
   private torso: Volume;
   private head: Volume;

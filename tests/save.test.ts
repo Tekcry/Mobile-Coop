@@ -87,8 +87,8 @@ describe('save migrations', () => {
     const s = sanitizeSave(data);
     expect(s.missions).toEqual({});
     expect(s.profile.xp).toBe(900);
-    const bad = sanitizeSave({ ...data, missions: { 'embassy-pouch': { rating: 9, score: -5, ghost: 10 }, 'BAD ID!': { rating: 1 } } });
-    expect(bad.missions['embassy-pouch']).toMatchObject({ rating: 3, score: 0, ghost: 10, plays: 0 });
+    const bad = sanitizeSave({ ...data, missions: { 'embassy-pouch': { rating: 9, score: -5 }, 'BAD ID!': { rating: 1 } } });
+    expect(bad.missions['embassy-pouch']).toMatchObject({ rating: 3, score: 0, plays: 0 });
     expect(bad.missions['BAD ID!']).toBeUndefined();
   });
 
@@ -138,7 +138,7 @@ describe('save migrations', () => {
   it('v6 -> v7: the issued 552 + P45 becomes 9mm SD + 552; a chosen kit stays', () => {
     const v6 = { ...defaultSave(5), version: 6, loadout: { primary: 'rifle', secondary: 'pistol' }, presets: [{ name: 'Ghost', primary: 'rifle', secondary: 'pistol', gadget: 'gas' }, { name: 'Panther', primary: 'rifle', secondary: 'pistol', gadget: 'flash' }, { name: 'Assault', primary: 'rifle', secondary: 'pistol', gadget: 'frag' }], unlocks: ['weapon:rifle', 'weapon:pistol'] };
     const s = sanitizeSave(migrate(v6).data);
-    expect(s.version).toBe(7);
+    expect(s.version).toBe(SAVE_VERSION);
     expect(s.unlocks).toContain('weapon:pistolSd');
     expect(s.loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
     expect(s.presets[0]!.primary).toBe('pistolSd');
@@ -160,6 +160,33 @@ function MIGRATE_TO_V2(): Record<string, unknown> {
     loadout: { primary: 'rifle', secondary: 'pistol' },
   };
 }
+
+describe('v7 -> v8', () => {
+  it('drops style points, sonar / marks and executes', () => {
+    const V7 = {
+      ...defaultSave(),
+      version: 7,
+      missions: { 'embassy-pouch': { rating: 2, score: 1200, ghost: 800, panther: 300, assault: 100, plays: 3, wins: 2 } },
+      hq: { radar: 1, sonar: 2, marks: 1, restock: 0, revive: 0 },
+      challenges: { progress: { executes: 4, knockouts: 3 }, done: ['executes'] },
+    };
+    const { data, from, steps } = migrate(V7);
+    expect(from).toBe(7);
+    expect(steps).toBe(1);
+    expect(data.version).toBe(8);
+    const m = (data.missions as Record<string, Record<string, unknown>>)['embassy-pouch']!;
+    expect(m).toEqual({ rating: 2, score: 1200, plays: 3, wins: 2 });
+    expect(data.hq).toEqual({ radar: 1, restock: 0, revive: 0 });
+    expect(data.challenges).toEqual({ progress: { knockouts: 3 }, done: [] });
+    const s = sanitizeSave(data);
+    expect(s.hq).toEqual({ radar: 1, restock: 0, revive: 0 });
+    expect(s.missions['embassy-pouch']).toEqual({ rating: 2, score: 1200, plays: 3, wins: 2 });
+    expect(s.challenges.progress.executes).toBeUndefined();
+  });
+  it('does not throw on missing fields', () => {
+    expect(migrate({ version: 7 }).data.version).toBe(8);
+  });
+});
 
 describe('export / import', () => {
   it('round-trips through the export format', () => {

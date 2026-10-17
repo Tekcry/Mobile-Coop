@@ -5,7 +5,7 @@ Paste into Claude Code (Sonnet 5.5):
 > Read CLAUDE.md, docs/progress.md and docs/prompts/phase-1-light-parity.md, and follow it from Step 1.
 
 - **Draft:** by Opus on 2026-10-08, from `ct-movement` at `1f4fba4` (Phase 0 Step 4 in progress).
-- **Before the first Sonnet session:** an Opus session checks every path and claim against the code after Phase 0 Step 5, fixes mismatches, and commits this file (see `APPLY.md` in the decisions bundle).
+- **Checked against the code** by Opus on 2026-10-08 at `27b6871` (3.5.0, Phase 0 done). Mismatches fixed; the decisions and scope are unchanged.
 
 ---
 
@@ -24,7 +24,7 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 | --- | --- | --- |
 | 1 | Desktop rendering | The baked lamp atlas (`voxel/lampBake.ts`, `world/bakedLamps.ts`), built only when voxels are on. Its input includes the 2.5 cm prop layer, which exists only from High up. |
 | 2 | Phone rendering | The 3.4 light renderer: the nearest six lamps as plain unshadowed lights, so lamps light through walls. |
-| 3 | Gameplay | The analytic `LightRegistry` plus one static-geometry ray per light (`GameState.updateLight`), with a different falloff and cone formula from the shaders. |
+| 3 | Gameplay | The analytic `LightRegistry` (`lightLevelAt`), with a different falloff and cone formula from the shaders. Only the player meter adds one static-geometry ray per light (`GameState.updateLight`, `lightOccluder`); guards' target light (`Enemy.perceive`) and body light (`EnemyManager`) use no ray, so lamps reach them through walls. |
 | 4 | Co-op clients | No light state in the protocol. A lamp shot, switched or EMP'd on one machine may not change on another. |
 
 **After this phase:**
@@ -115,8 +115,8 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
    - List every object that is dropped. Any dropped object larger than 0.3 m in two dimensions is a STOP-and-report: it would cast a visible shadow on desktop that gameplay ignores.
 2. **Bake everywhere.** `World.create` runs `bakeLevelLamps` and the moon visibility bake on every device when a map has lights, independent of `opts.cheap`, `vo`, `flags.baked` and presets.
    - The bake's cache key (`lampKey` and its moon counterpart) depends only on the map, seed, canonical shapes and lights.
-3. **Ambient grid.** Build a coarse ambient grid (1 m cells, R8) from `LightRegistry.zones` (`ambientZone`) at load. CPU and GPU use the same values.
-4. **Doors.** Leave door leaves out of the canonical shapes (Decision 7).
+3. **Ambient grid.** Build a coarse ambient grid (1 m cells, R8) from `LightRegistry.zones` (added by `LevelBuilder.ambientZone`, read today by `LightRegistry.ambientAt`) at load. CPU and GPU use the same values.
+4. **Doors.** Leave door leaves out of the canonical shapes (Decision 7). Today they are already outside the shapes: leaves are `Door` anchors drawn by `world/doors.ts`, not level boxes. Keep it so.
 5. **Cost.** Measure the bake time:
    - headless (the e2e VM)
    - in phone emulation
@@ -206,10 +206,12 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 
 ### Step 4 - Phones render the field (STOP for Michael's iPhone check)
 
+Then Step 4b (`phase-1-step-4b-darkness.md`) before Step 5.
+
 **Read:**
 
-- `src/core/quality.ts` (`PHONE_FEATURES`, `QualityLevel.lite`, `phoneCuts`)
-- `src/core/qualityManager.ts`
+- `src/core/quality.ts` (`PHONE_FEATURES`, `QualityLevel.lite`, `PhoneCuts`)
+- `src/core/qualityManager.ts` (`QualityManager.phoneCuts`)
 - `src/world/world.ts`, `src/world/lightRig.ts` (`LightRigConfig.plain`)
 - the `LampVolume` code in `bakedLamps.ts`
 - `src/game/benchmark.ts` (`phoneCheckRuns`)
@@ -246,9 +248,9 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 
 ### Step 5 - The parity test (Opus review)
 
-**Read:** `scripts/e2e-lib.mjs`, `scripts/e2e-stealth-ai.mjs` (patterns), `tests/losParity.test.ts` (patterns).
+**Read:** `scripts/e2e-lib.mjs`, `scripts/run-e2e.mjs` (`REQUIRED`), `scripts/e2e-stealth-ai.mjs` (patterns), `tests/losParity.test.ts` (patterns).
 
-**Change:** add `scripts/e2e-lightparity.mjs` to the REQUIRED suites, and a light debug view (`?lightdebug=1`) that renders only the raw light term in greyscale: no albedo, no N.L, no post.
+**Change:** add `scripts/e2e-lightparity.mjs` to the REQUIRED suites (`REQUIRED` in `scripts/run-e2e.mjs`), and a light debug view (`?lightdebug=1`) that renders only the raw light term in greyscale: no albedo, no N.L, no post.
 
 **Checks:**
 
@@ -259,8 +261,9 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
    - Its band (dark / mid / lit by the `LIGHT` thresholds) must equal the CPU field's band.
    - Points within 0.04 of a threshold are skipped.
    - 100% agreement is the target. Report any failures with screenshots.
+   - The bands use the display brightness targets of bible L5 (Step 4b).
 3. **State changes.** Switch a group off, shoot a lamp, EMP an area, close a door. After each remix, checks 1 and 2 pass again on the affected points.
-4. **The meter guarantee (L6).** With the player's meter reading dark, no guard's sight rate exceeds the dark-rate bound (`perception.ts`) at any distance or stance.
+4. **The meter guarantee (L6).** With the player's meter reading dark, no guard's sight rate exceeds the dark-rate bound at any distance or stance. `perception.ts` has no named bound: it is `sightRate` with `light = LIGHT.shadow` and the same distance, angle, stance, motion and exposure (the light term is `lightFactor`; the close-range rule ignores light by design).
 
 **Acceptance:** the suite passes on both looks; the debug view is documented in `docs/systems/testing-tools.md`.
 
@@ -284,7 +287,7 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
    - per light: on, destroyed, disrupted-until
    - per group: on / off
    - fuse box state (Step 8)
-   - **When sent:** on any change as an event, plus a compact checksum in snapshots every 2 s, so clients resync if they drift (the same pattern as doors).
+   - **When sent:** the same pattern as doors: in the snapshot whenever it changes (a signature compare, like `doorsSig`), and re-sent at least every 2 s (`ITEMS_EVERY` in `coopHost.ts`) for late joiners and drift. Doors send their open list (`snap.doors`); light state is sent the same way.
 2. **Requests, not actions.** A client's lamp shot, switch use and EMP are requests the host validates and applies, then broadcasts.
 3. **Clients rebuild** their field and remix their volume from the host's state.
 4. **Door state** already syncs. Confirm its open / closed changes trigger the field and remix on clients.
@@ -302,7 +305,9 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 
 ### Step 7 - The continuous light meter (L6)
 
-**Read:** `src/ui/hud/hud.ts` (`setLight`), `src/styles.css` (the light meter), `docs/systems/ui.md`.
+**Read:** `src/ui/hud/hud.ts` (`setLight`), `src/styles.css` (the light meter, `.tac-light`), `docs/systems/ui.md`.
+
+**Today:** `Hud.setLight(level, shadow)` already draws a fill bar, redrawn in 5% steps (`Math.round(level * 20)`), with a `shadow` class below `LIGHT.shadow`. There are no marks and no lit state.
 
 **Change:** the meter shows the continuous level (0-1) as a bar, with marks at `LIGHT.shadow` and `LIGHT.lit`.
 
@@ -322,12 +327,13 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 - `src/game/interactables.ts`
 - `src/ai/enemyManager.ts` (`lightsOut`, `assignAlarm` as the pattern for a job)
 - `src/ai/enemy.ts`
-- `src/world/mapDef.ts` (`MapLayout`)
+- `src/world/mapDef.ts` (`MapLayout`, `switches` as the pattern)
 - `src/world/maps/warehouse.ts`
+- `src/net/protocol.ts` (`NetItem['k']`, `ITEM_KINDS`)
 
 **Change:**
 
-1. **Map data and interactable.** `MapLayout.fuses`: a position, the groups it controls, and a reset time. Add an interactable kind `fuse`: a hold to trip it (noise like a switch), which turns its groups off.
+1. **Map data and interactable.** `MapLayout.fuses`: a position, the groups it controls, and a reset time. Add an interactable kind `fuse` (`InteractKind` in `interactables.ts`; also `NetItem['k']` and `ITEM_KINDS` in `protocol.ts`, so clients see and use it): a hold to trip it (noise like a switch), which turns its groups off.
 2. **AI job.** Like `assignAlarm`:
    - After 8-15 s, the nearest calm guard walks to the fuse box with his torch on and resets it, unless he is knocked out or alerted.
    - Guards near the dark area `notice` as with `lightsOut`.

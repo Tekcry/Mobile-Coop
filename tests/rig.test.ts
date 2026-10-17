@@ -144,15 +144,15 @@ describe('gait and blending', () => {
     expect(h.weights.crouch).toBeGreaterThan(0.2);
     expect(h.weights.locomotion).toBeGreaterThan(0.2);
   });
-  it('state priority: traverse > slide > air > cover > kneel/crouch > locomotion', () => {
+  it('state priority: traverse > slide > air > wall > kneel/crouch > locomotion', () => {
     const i = defaultInput();
     expect(pickLower(i)).toBe('locomotion');
     i.crouch = 1;
     expect(pickLower(i)).toBe('crouch');
     i.kneel = true;
     expect(pickLower(i)).toBe('kneel');
-    i.cover = 'low';
-    expect(pickLower(i)).toBe('cover');
+    i.wall = true;
+    expect(pickLower(i)).toBe('wall');
     i.grounded = false;
     expect(pickLower(i)).toBe('air');
     i.slide = 0.2;
@@ -182,5 +182,250 @@ describe('gait and blending', () => {
     }
     expect(x).toBeCloseTo(1, 3);
     expect(max).toBeLessThanOrEqual(1 + 1e-6);
+  });
+});
+
+describe('open-left weapon hand (D9, dormant until step 12b)', () => {
+  it('mirrors the aim pocket and swaps the grip arm when openLeft is set', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, TransformNode, Vector3, Quaternion } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig, EDGE_HAND_TIME } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const scene = new Scene(new NullEngine());
+    const lib = new PartLibrary(scene);
+    const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+    const gun = new TransformNode('gun', scene);
+    gun.parent = rig.weaponPivot;
+    gun.rotationQuaternion = Quaternion.Identity();
+    rig.heldWeapon = gun;
+    const pose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.3, kick: 0, armed: true };
+    const tmp = new Vector3();
+    const sample = (): { x: number; yaw: number; gripR: number; gripL: number } => {
+      const m = gun.getWorldMatrix();
+      const g = Vector3.TransformCoordinates(rig.grip, m);
+      const yawLocal = rig.weaponPivot.rotationQuaternion!.toEulerAngles().y;
+      return {
+        x: rig.weaponPivot.position.x,
+        yaw: yawLocal,
+        gripR: rig.wristR.getAbsolutePosition().subtractToRef(g, tmp).length(),
+        gripL: rig.wristL.getAbsolutePosition().subtractToRef(g, tmp).length(),
+      };
+    };
+    for (let k = 0; k < 90; k++) rig.animate(1 / 60, pose);
+    const right = sample();
+    rig.openLeft = true;
+    for (let k = 0; k < Math.ceil(EDGE_HAND_TIME * 60) + 90; k++) rig.animate(1 / 60, pose);
+    expect(rig.handSwap).toBe(-1);
+    const left = sample();
+    // the aim pocket mirrors to the left shoulder: pivot x flips sign
+    expect(right.x).toBeGreaterThan(0.02);
+    expect(left.x).toBeLessThan(-0.02);
+    expect(left.x).toBeCloseTo(-right.x, 2);
+    // the weapon's yaw offset flips with it
+    expect(Math.abs(right.yaw)).toBeGreaterThan(0.01);
+    expect(Math.sign(left.yaw)).toBe(-Math.sign(right.yaw));
+    // the grip arm swaps: the right wrist takes the trigger grip right-handed, the left wrist when open-left
+    // (grip accuracy on the mirrored side is step 12b's job: harness grips < 2 cm)
+    expect(right.gripR).toBeLessThan(right.gripL);
+    expect(left.gripL).toBeLessThan(left.gripR);
+    // and back: clearing the flag returns to the right hand
+    rig.openLeft = false;
+    for (let k = 0; k < Math.ceil(EDGE_HAND_TIME * 60) + 90; k++) rig.animate(1 / 60, pose);
+    expect(rig.weaponPivot.position.x).toBeCloseTo(right.x, 2);
+    scene.dispose();
+  });
+});
+
+describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
+  async function setup() {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, TransformNode, Vector3, Quaternion } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig, WRIST_TRIGGER, WRIST_SUPPORT } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const scene = new Scene(new NullEngine());
+    const lib = new PartLibrary(scene);
+    const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+    const gun = new TransformNode('gun', scene);
+    gun.parent = rig.weaponPivot;
+    gun.rotationQuaternion = Quaternion.Identity();
+    rig.heldWeapon = gun;
+    /** World matrices from the root down (the harness's refresh), then the wrist errors to the weapon-space targets. */
+    const force = (n: { parent: unknown; computeWorldMatrix(f: boolean): unknown }): void => {
+      const ch: { computeWorldMatrix(f: boolean): unknown }[] = [];
+      for (let x = n as { parent: unknown; computeWorldMatrix(f: boolean): unknown } | null; x; x = x.parent as typeof x) ch.unshift(x);
+      for (const x of ch) x.computeWorldMatrix(true);
+    };
+    const errs = (left: boolean): { grip: number; fore: number } => {
+      force(gun);
+      force(rig.wristL);
+      force(rig.wristR);
+      const m = gun.getWorldMatrix();
+      const side = left ? -1 : 1;
+      const gt = Vector3.TransformCoordinates(rig.grip.add(new Vector3(WRIST_TRIGGER[0] * side, WRIST_TRIGGER[1], WRIST_TRIGGER[2])), m);
+      const ft = Vector3.TransformCoordinates(rig.foregrip.add(new Vector3(-WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2])), m);
+      const gw = left ? rig.wristL : rig.wristR;
+      const fw = left ? rig.wristR : rig.wristL;
+      return { grip: gw.getAbsolutePosition().subtract(gt).length(), fore: fw.getAbsolutePosition().subtract(ft).length() };
+    };
+    return { scene, rig, Vector3, errs, force };
+  }
+  // pistol and rifle grip data (weapons.ts shapes: pistol foregrip just ahead of the grip, rifle on the handguard)
+  const WEAPONS = { pistol: { grip: [0, -0.05, 0], fore: [0, -0.06, 0.05] }, rifle: { grip: [0, -0.05, 0], fore: [0, -0.04, 0.3] } } as const;
+  const edgePose = (left: boolean, crouch: number) => ({
+    speed: 0, localX: 0, localZ: 0, grounded: true, crouch, aimPitch: 0, aim: 1, kick: 0, armed: true,
+    wall: true, wallSide: left ? -1 : 1, wallNx: 0, wallNz: 1, wallFace: -0.35, lean: left ? -0.3 : 0.3,
+  });
+
+  it('mirrored grips: the left hand on the grip, the right on the support, within 2 cm (pistol and rifle)', async () => {
+    const { scene, rig, errs } = await setup();
+    for (const [name, w] of Object.entries(WEAPONS)) {
+      rig.grip.set(w.grip[0], w.grip[1], w.grip[2]);
+      rig.foregrip.set(w.fore[0], w.fore[1], w.fore[2]);
+      for (const left of [false, true]) {
+        rig.openLeft = left;
+        for (let k = 0; k < 90; k++) rig.animate(1 / 60, edgePose(left, 0));
+        const e = errs(left);
+        expect(e.grip, `${name} ${left ? 'left' : 'right'} grip`).toBeLessThan(0.02);
+        expect(e.fore, `${name} ${left ? 'left' : 'right'} support`).toBeLessThan(0.06);
+      }
+    }
+    scene.dispose();
+  });
+
+  it('the hand switch blends over EDGE_HAND_TIME (no pop) and ends on the mirrored pocket', async () => {
+    const { scene, rig } = await setup();
+    const { EDGE_HAND_TIME } = await import('../src/player/characterRig');
+    expect(EDGE_HAND_TIME).toBeGreaterThanOrEqual(0.2);
+    expect(EDGE_HAND_TIME).toBeLessThanOrEqual(0.3);
+    for (let k = 0; k < 60; k++) rig.animate(1 / 60, edgePose(false, 0));
+    rig.openLeft = true;
+    const x0 = rig.weaponPivot.position.x;
+    let px = x0;
+    let worst = 0;
+    let prevStep = 0;
+    let worstJerk = 0;
+    for (let k = 0; k < 40; k++) {
+      rig.animate(1 / 60, edgePose(true, 0));
+      const st = Math.abs(rig.weaponPivot.position.x - px);
+      worst = Math.max(worst, st);
+      worstJerk = Math.max(worstJerk, Math.abs(st - prevStep));
+      prevStep = st;
+      px = rig.weaponPivot.position.x;
+    }
+    // spread over EDGE_HAND_TIME (0.25 s, inside D9's 0.2-0.3 s, about 15 frames for the 0.26 m across): no frame
+    // jumps against its neighbours (no pop)
+    expect(Math.abs(x0 - px)).toBeGreaterThan(0.2);
+    expect(worst).toBeLessThan(0.05);
+    expect(worstJerk).toBeLessThan(0.012);
+    expect(rig.weaponPivot.position.x).toBeLessThan(-0.05);
+    scene.dispose();
+  });
+
+  it('the hand switch reversing mid-blend restarts from the current blend (no pop, 12b fix r1)', async () => {
+    const { scene, rig } = await setup();
+    const { EDGE_HAND_TIME } = await import('../src/player/characterRig');
+    const half = Math.round((EDGE_HAND_TIME * 60) / 2);
+    // reverse early, at the middle and late in the switch, both directions
+    for (const at of [3, half, half + 4]) {
+      for (const startLeft of [false, true]) {
+        rig.openLeft = startLeft;
+        for (let k = 0; k < 90; k++) rig.animate(1 / 60, edgePose(startLeft, 0));
+        expect(rig.handSwap).toBe(-1);
+        const p = rig.weaponPivot.position;
+        let px = p.x;
+        let py = p.y;
+        let pz = p.z;
+        let prevStep = 0;
+        let worst = 0;
+        let worstJerk = 0;
+        for (let k = 0; k < 60; k++) {
+          const left = k < at ? !startLeft : startLeft;
+          rig.openLeft = left;
+          rig.animate(1 / 60, edgePose(startLeft, 0));
+          // across the switch axis (x): the plain switch's step and jerk limits every frame; height and depth (the
+          // tuck) under the step limit while the hands are changing (the lean-out after a finished switch is the
+          // edge peek's own move)
+          const st = Math.abs(p.x - px);
+          worst = Math.max(worst, st);
+          if (rig.handSwap >= 0) worst = Math.max(worst, Math.abs(p.y - py), Math.abs(p.z - pz));
+          worstJerk = Math.max(worstJerk, Math.abs(st - prevStep));
+          prevStep = st;
+          px = p.x;
+          py = p.y;
+          pz = p.z;
+        }
+        // the pose stays on the starting edge; only the hand target flips and flips back. The same limits as a
+        // plain switch: no frame jumps, and it ends back where it started
+        expect(worst, `reverse at ${at} from ${startLeft ? 'left' : 'right'}`).toBeLessThan(0.05);
+        expect(worstJerk, `reverse at ${at} from ${startLeft ? 'left' : 'right'} (jerk)`).toBeLessThan(0.012);
+        expect(rig.handSwap).toBe(-1);
+        expect(Math.sign(p.x)).toBe(startLeft ? -1 : 1);
+      }
+    }
+    scene.dispose();
+  });
+
+  it('low-wall side lean: the head centre stays under the wall top (headCap), both edges', async () => {
+    const { scene, rig, Vector3 } = await setup();
+    const { wallHeadCap } = await import('../src/player/wallController');
+    // (A51) a 1.1 m low wall: the deepest crouch sink (0.3 m) keeps the head under walls from about 1.07 m up
+    const top = 1.1;
+    for (const left of [false, true]) {
+      rig.openLeft = left;
+      for (let k = 0; k < 120; k++) rig.animate(1 / 60, { ...edgePose(left, 1), headCap: wallHeadCap(0, top) });
+      const h = rig.posedHead(new Vector3());
+      expect(h.y).toBeLessThan(top - 0.1);
+    }
+    scene.dispose();
+  });
+
+  it('exposure: the left-edge lean exposes no more body than the right-edge lean (perception and light meter)', async () => {
+    const { scene, rig, Vector3 } = await setup();
+    const { exposureFraction, exposurePointsPosed } = await import('../src/game/tactics');
+    // a symmetric wall x -2..2, z -0.2..0.2, 2.5 m: the body leans out 0.35 m past an end; the threats beyond it
+    const blocked = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }): boolean => {
+      let t0 = 0;
+      let t1 = 1;
+      const lo = [-2, 0, -0.2];
+      const hi = [2, 2.5, 0.2];
+      const A = [a.x, a.y, a.z];
+      const D = [b.x - a.x, b.y - a.y, b.z - a.z];
+      for (let k = 0; k < 3; k++) {
+        if (Math.abs(D[k]!) < 1e-9) {
+          if (A[k]! < lo[k]! || A[k]! > hi[k]!) return false;
+          continue;
+        }
+        let u = (lo[k]! - A[k]!) / D[k]!;
+        let v = (hi[k]! - A[k]!) / D[k]!;
+        if (u > v) [u, v] = [v, u];
+        t0 = Math.max(t0, u);
+        t1 = Math.min(t1, v);
+        if (t0 > t1) return false;
+      }
+      return true;
+    };
+    for (const [name, w] of Object.entries(WEAPONS)) {
+      rig.grip.set(w.grip[0], w.grip[1], w.grip[2]);
+      rig.foregrip.set(w.fore[0], w.fore[1], w.fore[2]);
+      const res: Record<string, { exp: number; out: number }> = {};
+      for (const left of [false, true]) {
+        const sx = left ? -1 : 1;
+        rig.root.position.set(sx * (2 - 0.22 + 0.35), 0, 0.55);
+        rig.openLeft = left;
+        for (let k = 0; k < 120; k++) rig.animate(1 / 60, edgePose(left, 0));
+        const feet = { x: rig.root.position.x, y: 0, z: 0.55 };
+        const head = rig.posedHead(new Vector3());
+        const chest = rig.posedChest(new Vector3());
+        const pts = exposurePointsPosed(feet, 0, 1, 0, left ? -0.3 : 0.3, head, chest, []);
+        const eyes = [{ x: sx * 6, y: 1.55, z: -3 }, { x: sx * 4, y: 1.55, z: -6 }];
+        // the light meter's head sample: how far past the end (x = +-2) the head is
+        res[left ? 'L' : 'R'] = { exp: exposureFraction(pts, eyes, blocked), out: sx * head.x - 2 };
+      }
+      expect(res.L!.exp, `${name} exposure`).toBeLessThanOrEqual(res.R!.exp + 1e-6);
+      expect(res.L!.out, `${name} head past the edge`).toBeLessThanOrEqual(res.R!.out + 0.005);
+    }
+    scene.dispose();
   });
 });

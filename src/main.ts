@@ -1,13 +1,15 @@
 import './styles.css';
+import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
 import { suitLook } from './progression/suit';
-import { parseDifficulty } from './ai/archetypes';
+import { basePreset, parseDifficulty } from './ai/archetypes';
 import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
 import { flags } from './core/flags';
+import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
@@ -26,7 +28,7 @@ import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
-import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
+import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
 import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
@@ -52,6 +54,7 @@ async function boot(): Promise<void> {
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
+  app.save.openLoadout = campaignUnlocked(flags.legacy);
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
@@ -64,10 +67,11 @@ async function boot(): Promise<void> {
   });
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
-    app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
+    app.save.update((d) => void (report = applySession(d, stats, basePreset(opts.difficulty ?? 'normal', opts.customDifficulty ?? null))));
     await app.save.flush();
     if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
-    return report ? rewardsPanel(report) : null;
+    // (3.5: progression still records; the credits / XP panel is shown only with `?legacy=1`)
+    return report && showEconomy(flags.legacy) ? rewardsPanel(report) : null;
   };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
@@ -95,17 +99,19 @@ async function boot(): Promise<void> {
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
+    if (!app.settings.get().video.brightnessSet && !navigator.webdriver) app.screens.push(new BrightnessScreen(app));
   };
 
   MainMenuScreen.entries.push(
     (a) => ({
       label: 'Play',
-      sub: 'Waves · Mission · Free roam',
+      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Training · Free roam',
       icon: 'play',
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Loadout', sub: 'Weapons · Gear · Appearance · HQ', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
+    (a) => ({ label: 'Loadout', sub: flags.legacy ? 'Weapons · Gear · Appearance · HQ' : 'Weapons · Attachments · Gadget', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
@@ -115,7 +121,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: [sv.loadout.primary, sv.loadout.secondary] };
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, campaignUnlocked(flags.legacy)) };
     },
   };
   const loadCoop = () => import('./net/coopUi');
@@ -142,7 +148,7 @@ async function boot(): Promise<void> {
     const coop = !!base.net;
     const opts: GameOptions = {
       ...base,
-      loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin),
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, campaignUnlocked(flags.legacy), skin),
       look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
       emotes: sv.emotes,
       suit: base.suit ?? (coop ? undefined : sv.suit.worn),
@@ -197,12 +203,17 @@ async function boot(): Promise<void> {
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 
+  // dev only (the level editor's walk test): the editor's unsaved campus, fetched before the map builds; the production
+  // build drops this branch and its module
+  const editorWalk = import.meta.env.DEV && flags.devDraft ? await import('./dev/editorBridge') : null;
+  if (editorWalk) await editorWalk.loadDraft();
   if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), customDifficulty: parseDifficulty(flags.difficulty) === 'custom' ? { ...app.settings.get().gameplay.customDifficulty } : undefined, missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
+  editorWalk?.attach(app);
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;
     void loadCoop().then((m) => m.openJoinLink(app, coopApi, room));

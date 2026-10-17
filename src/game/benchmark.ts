@@ -44,6 +44,8 @@ export interface BenchRun {
   cap?: number;
   /** 3.4 Phone check: the 3.3 voxel look for a comparison run (default the light look). */
   look?: PhoneLook;
+  /** 3.6 Step 4b: night vision on for the whole run, or for the middle third of it (the hold's second minute). */
+  vision?: 'night' | 'middle';
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -93,16 +95,20 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
 export function phoneCheckRuns(): BenchRun[] {
   const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: 1, seconds: FEATURE_SECONDS, sustained: false, ...extra });
   return [
-    run('phone look, 100%'),
-    run('phone look, 75%', { scale: PHONE_FLOOR }),
-    // (3.4: is the moon's shadow affordable - moonlight stopped by the roof)
-    run('+ moon shadow (1 cascade)', { gfx: { shadows: 'low' } }),
+    // (3.6: the light look draws the lamps from the baked light volume, the ambient grid and the baked moon)
+    run('light look + lamp volume, 100%'),
+    run('light look + lamp volume, 75%', { scale: PHONE_FLOOR }),
+    // (3.6 Step 4b: night vision is a gain in the lighting - its cost, and it is in the hold's second minute)
+    run('light look + night vision, 100%', { vision: 'night' }),
+    // (3.6: is a shadow map affordable - the nearest flashlight at 512, the moon's cascade on moving characters; the
+    // level's moon shadows are baked)
+    run('+ flashlight shadow (512), moon on characters', { gfx: { shadows: 'medium' } }),
     // (3.4: the comparison - the 3.3 voxel phone look, TAAU from 75%)
     run('3.3 voxel look, 75%', { look: 'voxel', scale: PHONE_FLOOR }),
     // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
-    run('phone look, 100% again (heat check)'),
+    run('light look + lamp volume, 100% again (heat check)'),
     // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
-    { ...run('phone look held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
+    { ...run('light look + lamp volume held at 60, 3 min (night vision in minute 2)'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60, vision: 'middle' },
   ];
 }
 

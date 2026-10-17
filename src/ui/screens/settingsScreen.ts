@@ -2,7 +2,6 @@ import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
-import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
@@ -11,7 +10,8 @@ import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button, choice, refreshWidgets, section, slider, TabView, toggle, type TabDef } from '../widgets';
 import { LayoutEditorScreen } from './layoutEditor';
-import { ControlsScreen } from './controlsScreen';
+import { bindPanel, ControlsScreen } from './controlsScreen';
+import { BrightnessScreen } from './brightnessScreen';
 import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
@@ -179,7 +179,8 @@ export class SettingsScreen extends Screen {
             section(
               'Haptics',
               toggle('Vibration', () => s().gamepad.vibration, (v) => upd((d) => void (d.gamepad.vibration = v))),
-              button('Test vibration', () => app.input.gamepad.rumble(0.8, 0.5, 300), { class: 'subtle' }),
+              slider('Rumble strength', { min: 0, max: 1, step: 0.05, get: () => s().gameplay.rumble, set: (v) => upd((d) => void (d.gameplay.rumble = v)), format: pct }),
+              button('Test vibration', () => void app.input.testHaptic(), { class: 'subtle' }),
             ),
             resetBtn('gamepad', 'pad'),
           );
@@ -218,8 +219,10 @@ export class SettingsScreen extends Screen {
             choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))),
             choice('Aim down sights', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))),
             choice('Crouch', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))),
-            toggle('Cover-to-cover moves', () => s().gameplay.coverDash, (v) => upd((d) => void (d.gameplay.coverDash = v))),
             choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))),
+            // (locomotion step 18, D7) back-to-wall and the grab from behind: hold or toggle
+            choice('Back to wall', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))),
+            choice('Grab (from behind)', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.grabToggle, (v) => upd((d) => void (d.gameplay.grabToggle = v))),
             toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
             toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
             resetBtn('gameplay', 'gameplay'),
@@ -275,13 +278,14 @@ export class SettingsScreen extends Screen {
         h('div', { class: 'row-note', text: 'Graphics are set for this phone: 60 fps, 75 - 100% of the screen resolution (sharpened to full resolution), adapting in a match.' }),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
         toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
+        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
         choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
         choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
         button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
       ),
       section(
         'Phone check',
-        h('div', { class: 'row-note', text: 'About 8 minutes, best started with the phone cool: five 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with the moon shadow, the old voxel look, the first again), then 3 minutes held at 60 fps (does 60 hold once warm?). Saved as feedback - send it.' }),
+        h('div', { class: 'row-note', text: 'About 9 minutes, best started with the phone cool: six 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with night vision, with the flashlight and moon shadows, the old voxel look, the first again), then 3 minutes held at 60 fps, night vision in the second minute (does 60 hold once warm?). Saved as feedback - send it.' }),
         button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
       ),
     );
@@ -372,6 +376,7 @@ export class SettingsScreen extends Screen {
         'Display',
         // (3.1.7: a list of real resolutions, applied on a pick and kept only when confirmed)
         resolutionRow(app),
+        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
         toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
         slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
@@ -422,44 +427,7 @@ export class SettingsScreen extends Screen {
     const s = (): Settings => st.get();
     const upd = st.update.bind(st);
     const mult = (v: number): string => `${v.toFixed(2)}x`;
-    const keyBtns: { id: BindId; slot: 0 | 1; el: HTMLElement }[] = [];
-    const render = (): void => {
-      for (const k of keyBtns) {
-        const code = s().keys[k.id][k.slot];
-        k.el.textContent = code ? keyName(code) : '-';
-        k.el.classList.toggle('empty', !code);
-        k.el.classList.remove('listening');
-      }
-    };
-    const keyBtn = (id: BindId, slot: 0 | 1): HTMLElement => {
-      const el = h('button', { class: 'kb-key', focus: true });
-      (el as HTMLButtonElement).type = 'button';
-      el.dataset.bind = `${id}:${slot}`;
-      el.addEventListener('click', () => {
-        if (app.input.kbm.capturing) return;
-        render();
-        el.textContent = 'Press a key';
-        el.classList.add('listening');
-        app.input.kbm.captureNext((code) => {
-          if (code === '') upd((d) => clearBind(d.keys, id, slot));
-          else if (code !== null) {
-            if (!bindable(code)) {
-              app.toasts.show(`${keyName(code)} can't be bound`, 'warn', 1600);
-            } else {
-              let from: BindId | null = null;
-              upd((d) => void (from = assignBind(d.keys, id, slot, code)));
-              const f = BINDS.find((b) => b.id === from);
-              if (f) app.toasts.show(`${keyName(code)} moved from ${f.label}`, 'info', 1800);
-            }
-          }
-          render();
-        });
-      });
-      keyBtns.push({ id, slot, el });
-      return el;
-    };
-    const rows = BINDS.map((b) => h('div', { class: 'row kb-row' }, h('span', { class: 'row-label', text: b.label }), h('span', { class: 'kb-keys' }, keyBtn(b.id, 0), keyBtn(b.id, 1))));
-    render();
+    /* (locomotion step 18) the key rows are the controls screen's binding panel (conflict warnings, reset) */
     return h(
       'div',
       { class: 'rows' },
@@ -470,11 +438,7 @@ export class SettingsScreen extends Screen {
         toggle('Invert Y', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))),
         toggle('Raw input (no pointer acceleration)', () => s().mouse.raw, (v) => upd((d) => void (d.mouse.raw = v))),
       ),
-      section('Keys', h('div', { class: 'row-note', text: 'Click a key, then press the new key or mouse button. Esc cancels, Backspace clears. Left / right mouse: fire / aim; wheel: weapons; 1-8: gadgets.' }), ...rows),
-      button('Reset keys to defaults', () => {
-        st.reset('keys');
-        render();
-      }, { class: 'subtle' }),
+      section('Keys', bindPanel(app, 'kbm')),
       button('Reset mouse to defaults', () => {
         st.reset('mouse');
         this.tabs.rebuild('kbm');

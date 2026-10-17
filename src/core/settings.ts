@@ -1,8 +1,11 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { defaultPadBinds, sanitizePadBinds, type PadBinds } from '../input/padBinds';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PHONE_OUTPUT_DEFAULT, PHONE_OUTPUTS, PRESET_IDS, presetDisplay, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
+import { presetSliders, sanitizeCustom, type CustomDifficulty } from '../ai/archetypes';
 
 export const TOUCH_CONTROL_IDS = [
   'move',
@@ -13,23 +16,14 @@ export const TOUCH_CONTROL_IDS = [
   'reload',
   'action',
   'crouch',
-  'swap',
-  'grenade',
-  'dash',
-  'shoulder',
   'pause',
   'vision',
-  'mark',
-  'execute',
-  'gadgets',
-  'takedown',
-  'ping',
-  'speed',
   'jump',
 ] as const;
 /** Touch layout format version (2: camera stick, contextual action button; 3: takedown button; 4: speed rocker; 5: jump
- *  button). */
-export const TOUCH_LAYOUT_VERSION = 5;
+ *  button; 6: Mark and Execute buttons removed; 7: the D1 basic scheme, locomotion step 17: swap, gadget, wheel, sprint,
+ *  shoulder, ping, speed rocker and takedown buttons removed (the takedown is on the context button), stored layouts reset). */
+export const TOUCH_LAYOUT_VERSION = 7;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -89,6 +83,8 @@ export interface Settings {
   };
   /** Keyboard / mouse bindings (`input/keyBindings.ts`). */
   keys: KeyBinds;
+  /** (locomotion step 18, D7) Controller bindings (`input/padBinds.ts`; local only, D8). */
+  pad: PadBinds;
   video: {
     /** UI and input platform (auto-detected; never changes rendering). */
     platform: PlatformChoice;
@@ -131,13 +127,17 @@ export interface Settings {
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
     filmGrain: boolean;
+    /** Brightness calibration (3.6 Step 4b, render only): the grade's exposure multiplier (`BRIGHTNESS_MIN` ..
+     *  `BRIGHTNESS_MAX`), and whether the calibration screen has been shown (once, after the update). */
+    brightness: number;
+    brightnessSet: boolean;
     /** Characters drawn as the detailed smooth body (the 2.0 operator; default) or classic stick figures. */
     avatarStyle: 'stick' | 'detailed';
     /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
     avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number; /** (locomotion step 19, D7, A3) the custom difficulty sliders and their base preset (defaults Normal; a co-op client never applies its own). */ customDifficulty: CustomDifficulty };
   /** Accessibility and HUD. */
   access: {
     /** HUD size multiplier (0.8 .. 1.4). */
@@ -171,19 +171,8 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   reload: { x: 0.78, y: 0.27, scale: 1 },
   action: { x: 0.6, y: 0.8, scale: 1 },
   crouch: { x: 0.965, y: 0.53, scale: 1 },
-  swap: { x: 0.49, y: 0.88, scale: 1 },
-  grenade: { x: 0.585, y: 0.5, scale: 1 },
-  dash: { x: 0.35, y: 0.88, scale: 1 },
-  shoulder: { x: 0.68, y: 0.09, scale: 1 },
   pause: { x: 0.79, y: 0.09, scale: 1 },
   vision: { x: 0.655, y: 0.27, scale: 1 },
-  mark: { x: 0.965, y: 0.3, scale: 1 },
-  execute: { x: 0.44, y: 0.42, scale: 1 },
-  gadgets: { x: 0.515, y: 0.62, scale: 1 },
-  takedown: { x: 0.6, y: 0.62, scale: 1 },
-  ping: { x: 0.57, y: 0.09, scale: 1 },
-  // 3.2.0 speed rocker (gear up / down): just right of the move stick's zone
-  speed: { x: 0.445, y: 0.67, scale: 1 },
   // 3.2.0 jump (the action button beside it does what the world prompts show)
   jump: { x: 0.7, y: 0.78, scale: 1 },
 };
@@ -194,12 +183,8 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   fire: { x: 0.9, y: 0.2, scale: 1 },
   ads: { x: 0.76, y: 0.2, scale: 1 },
   reload: { x: 0.64, y: 0.2, scale: 1 },
-  grenade: { x: 0.69, y: 0.48, scale: 1 },
-  shoulder: { x: 0.5, y: 0.09, scale: 1 },
   pause: { x: 0.585, y: 0.09, scale: 1 },
   vision: { x: 0.57, y: 0.33, scale: 1 },
-  mark: { x: 0.9, y: 0.36, scale: 1 },
-  gadgets: { x: 0.6, y: 0.62, scale: 1 },
 };
 
 /** Left-handed: everything mirrored. */
@@ -258,10 +243,11 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    pad: defaultPadBinds(),
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
-    access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, customDifficulty: presetSliders('normal') },
+    access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
 
@@ -371,14 +357,17 @@ export function sanitizeSettings(raw: unknown): Settings {
   const layout = {} as Record<TouchControlId, ControlPlacement>;
   // layouts from before the camera stick: keep customised placements of controls that still exist;
   // untouched (v1 default) ones and the new controls take the new defaults
-  // (v2 -> v3, v3 -> v4 and v4 -> v5 only add controls: every stored placement is kept, the new one takes its default spot)
+  // (v2 -> v3, v3 -> v4 and v4 -> v5 only add controls: every stored placement is kept, the new one takes its default spot;
+  // v5 -> v6 only removes the Mark and Execute buttons: their stored placements are dropped, every other one is kept)
   const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
+  // (locomotion step 17) v6 -> v7: the D1 basic scheme; every stored placement resets to the defaults
+  const reset = num(t.layoutVersion, 1, 1, 99) < 7;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);
     const dp = d.touch.layout[id];
     const v1 = V1_DEFAULT_LAYOUT[id];
     // v1 "fire" was the right aim-and-fire stick; its spot now belongs to the camera stick, so it resets
-    const isNew = !isObj(lay[id]);
+    const isNew = reset || !isObj(lay[id]);
     const untouched = isNew || (fromV1 && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale)));
     const place: ControlPlacement = untouched ? { ...dp } : { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
     if (!untouched && typeof p.alpha === 'number') place.alpha = num(p.alpha, 1, 0.2, 1.6);
@@ -422,6 +411,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       raw: bool(m.raw, d.mouse.raw),
     },
     keys: sanitizeBinds(r.keys),
+    pad: sanitizePadBinds(r.pad),
     video: {
       platform: pick(v.platform, ['auto', 'desktop', 'mobile'] as const, d.video.platform),
       ...videoGfx(v),
@@ -444,6 +434,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),
+      brightness: num(v.brightness, d.video.brightness, BRIGHTNESS_MIN, BRIGHTNESS_MAX),
+      brightnessSet: bool(v.brightnessSet, false),
       // settings from before 2.0 move to the operator once (the stick style stays a choice)
       avatarStyle: v.avatarStyleV === 2 ? pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle) : 'detailed',
       avatarStyleV: 2,
@@ -458,10 +450,13 @@ export function sanitizeSettings(raw: unknown): Settings {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),
       adsToggle: bool(gp.adsToggle, d.gameplay.adsToggle),
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
-      coverDash: bool(gp.coverDash, d.gameplay.coverDash),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
+      wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),
+      grabToggle: bool(gp.grabToggle, d.gameplay.grabToggle),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
+      rumble: num(gp.rumble, d.gameplay.rumble, 0, 1),
+      customDifficulty: sanitizeCustom(gp.customDifficulty),
     },
     access: {
       hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),
@@ -557,6 +552,6 @@ export function settingsDigest(s: Settings): { video: string; changed: string } 
   const c: string[] = [];
   const rest = { ...s, video: undefined } as Record<string, unknown>;
   const restD = { ...d, video: undefined } as Record<string, unknown>;
-  digestLeaves(rest, restD, '', c, true, new Set(['touch.layout', 'keys']));
+  digestLeaves(rest, restD, '', c, true, new Set(['touch.layout', 'keys', 'pad']));
   return { video: v.join(' '), changed: c.length ? c.join(' ') : 'defaults' };
 }

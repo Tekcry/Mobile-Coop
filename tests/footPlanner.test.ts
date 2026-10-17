@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPlannerInput, FootPlanner } from '../src/anim/footPlanner';
+import { emptyPlannerInput, FootPlanner, PLANNER } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
 import { CT, MOVEMENT } from '../src/config/movement';
 
@@ -12,7 +12,7 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
   let x = 0;
   let z = 0;
   const dt = 1 / hz;
-  const frames: { lx: number; lz: number; rx: number; rz: number; lc: boolean; rc: boolean; latL: number; latR: number; landed: number; x: number; z: number }[] = [];
+  const frames: { lx: number; lz: number; rx: number; rz: number; lc: boolean; rc: boolean; latL: number; latR: number; landed: number; mv: boolean; x: number; z: number }[] = [];
   let landings = 0;
   for (let t = 0; t < seconds; t += dt) {
     mi.vx = mi.vz = 0;
@@ -30,7 +30,8 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
     pi.goalYaw = d.state === 'turn' ? mi.yaw : d.yaw;
     pi.velX = d.vx;
     pi.velZ = d.vz;
-    pi.moving = sp > 0.05;
+    // (step 22) as the graph's gait: a stop hands the last step to idle stepping under 0.3 m/s
+    pi.moving = sp > (d.state === 'stop' ? 0.3 : 0.05);
     pi.phase = d.phase;
     pi.duty = 0.63;
     pi.cycleTime = sp > 0.05 ? (2 * stepLength(sp)) / sp : 1;
@@ -52,11 +53,23 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
       latL: (p.L.x - x) * c - (p.L.z - z) * s,
       latR: (p.R.x - x) * c - (p.R.z - z) * s,
       landed: landings,
+      mv: pi.moving,
       x,
       z,
     });
   }
   return { frames, planner: p, driver: d };
+}
+
+/** (step 22) First frame from `k` where the planner's moving flag clears (the graph's 0.3 m/s in a stop). */
+function stopFrame(frames: ReturnType<typeof simulate>['frames'], k: number): number {
+  for (let j = Math.max(1, k); j < frames.length; j++) if (!frames[j]!.mv) return j;
+  return frames.length - 1;
+}
+/** (step 22) First frame from `k` where the root no longer moves. */
+function restFrame(frames: ReturnType<typeof simulate>['frames'], k: number): number {
+  for (let j = Math.max(1, k); j < frames.length; j++) if (Math.hypot(frames[j]!.x - frames[j - 1]!.x, frames[j]!.z - frames[j - 1]!.z) < 1e-6) return j;
+  return frames.length - 1;
 }
 
 /** Largest movement of a planted foot between consecutive frames while it stays planted. */
@@ -72,7 +85,7 @@ function maxPlantedSlide(frames: ReturnType<typeof simulate>['frames']): number 
 }
 
 describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
-  it('a swing left over from moving sets down within CT.stopBlend; planted feet stay locked (< 1 cm)', () => {
+  it('a swing left over from moving lands within CT.stopBlend, or closes up under the body within an idle step; planted feet stay locked (< 1 cm)', () => {
     let swinging = 0;
     for (const release of [1.0, 1.07, 1.13, 1.21]) {
       let releasedAt = -1;
@@ -87,22 +100,28 @@ describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
         120,
         CT.stopBlend,
       );
-      const k0 = Math.round(releasedAt * 120);
-      // the root stops on the release step
-      expect(Math.hypot(frames[k0 + 1]!.x - frames[k0]!.x, frames[k0 + 1]!.z - frames[k0]!.z)).toBeLessThan(1e-6);
-      // the foot in the air at the release lands within the blend (a settling step may follow, in place)
-      const f0 = frames[k0]!;
+      // (step 22, M14 momentum) the root eases to rest within CT.stopTime of the release; the feet stop stepping
+      // once the pace is under 0.05 m/s (k0)
+      const k0 = stopFrame(frames, Math.round(releasedAt * 120));
+      expect((k0 - Math.round(releasedAt * 120)) / 120).toBeLessThanOrEqual(CT.stopTime + 2 / 120);
+      const kr = restFrame(frames, k0);
+      // the leftover swing is the one in the air on the last moving frame (an idle settling step may start on the next)
+      const kM = k0 - 1;
+      expect((kr - Math.round(releasedAt * 120)) / 120).toBeLessThanOrEqual(CT.stopTime + 2 / 120);
+      // the foot in the air at the release lands within the blend, or (step 22, M14) still behind its stance spot under
+      // the stopping body, carries on to it as the closing step within an idle step time
+      const f0 = frames[kM]!;
       if (!f0.lc || !f0.rc) {
         swinging++;
         let down = -1;
-        for (let k = k0 + 1; k < frames.length; k++) {
-          if (frames[k]!.landed > frames[k0]!.landed) {
-            down = (k - k0) / 120;
+        for (let k = kM + 1; k < frames.length; k++) {
+          if (frames[k]!.landed > frames[kM]!.landed) {
+            down = (k - kM) / 120;
             break;
           }
         }
         expect(down).toBeGreaterThanOrEqual(0);
-        expect(down).toBeLessThanOrEqual(CT.stopBlend + 2 / 120);
+        expect(down).toBeLessThanOrEqual(Math.max(CT.stopBlend, PLANNER.idleStepTime) + 2 / 120);
       }
       expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
     }
@@ -127,7 +146,7 @@ describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
         CT.stopBlend,
         (t) => t >= release,
       );
-      const k0 = Math.round(releasedAt * 120);
+      const k0 = stopFrame(frames, Math.round(releasedAt * 120));
       const f0 = frames[k0]!;
       const last = frames[frames.length - 1]!;
       // the foot that was in the air lands within a centimetre of where it was (horizontally)

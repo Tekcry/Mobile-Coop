@@ -3,15 +3,16 @@
  * aiming, eased velocity, the sprint, contextual traversal and footstep noise). Unit-tested.
  */
 import { MOVEMENT, NOISE_QUIET } from '../config/movement';
+import { LANDING_NOISE_RADIUS } from '../config/noise';
 import { springStep } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
 import { gearCap, stickCurve } from './speedGears';
 
 /**
  * Movement stance: standing / crouched free movement (the body faces where it goes), aiming (strafe-
- * locked, standing or crouched), cover shuffle (standing or crouched) and the sprint.
+ * locked, standing or crouched), and the sprint.
  */
-export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch' | 'cover' | 'coverCrouch' | 'sprint';
+export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch' | 'sprint';
 
 const band = (m: number, m0: number, m1: number, v0: number, v1: number): number => v0 + (v1 - v0) * ((m - m0) / (m1 - m0));
 
@@ -53,10 +54,6 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
       return M.adsSpeed * m * directionMult(localX, localZ, M);
     case 'adsCrouch':
       return M.adsCrouchSpeed * m * directionMult(localX, localZ, M);
-    case 'cover':
-      return M.coverSpeed * m;
-    case 'coverCrouch':
-      return M.coverCrouchSpeed * m;
     case 'sprint':
       return M.sprintSpeed;
   }
@@ -164,6 +161,27 @@ export class SprintGate {
   }
 }
 
+/** (locomotion step 18, D7) Crouch hold / toggle (pure): the stance wanted from the toggle latch or the held button. */
+export function crouchWanted(toggle: boolean, toggled: boolean, held: boolean): boolean {
+  return toggle ? toggled : held;
+}
+
+/** (step 18) A crouch press in toggle mode: from a sprint it always crouches, else it flips the latch. */
+export function crouchToggleNext(toggled: boolean, sprinting: boolean): boolean {
+  return sprinting ? true : !toggled;
+}
+
+/** (step 18, D7) Sprint hold / toggle (pure): 1 start, -1 stop, 0 keep. Toggle: a press starts (stick past 0.3) or
+ *  stops; hold: sprinting while held with the stick past 0.3. */
+export function sprintEdge(toggle: boolean, pressed: boolean, held: boolean, sprinting: boolean, stickMag: number): -1 | 0 | 1 {
+  if (toggle) {
+    if (!pressed) return 0;
+    return sprinting ? -1 : stickMag > 0.3 ? 1 : 0;
+  }
+  if (held && stickMag > 0.3) return sprinting ? 0 : 1;
+  return sprinting ? -1 : 0;
+}
+
 /** What the contextual jump does with the obstacle in front (heights relative to the feet, m). */
 export type Traversal = 'vault' | 'mantle' | 'step' | 'none';
 
@@ -212,5 +230,5 @@ export function landingKind(fall: number): LandingKind {
 
 /** Noise radius of a landing (m): a soft drop is quiet, a heavy landing carries. */
 export function landingNoise(kind: LandingKind): number {
-  return kind === 'heavy' ? 11 : kind === 'roll' ? 5 : kind === 'soft' ? 1.2 : 0;
+  return LANDING_NOISE_RADIUS[kind];
 }

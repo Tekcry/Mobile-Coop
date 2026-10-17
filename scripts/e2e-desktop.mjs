@@ -7,9 +7,13 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// `--part=N[,M]` runs only those sections (the runner starts 1 to 4 side by side: each is its own browser; no argument: all four, as before)
+const PARTS = (process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? '1,2,3,4').split(',');
+const part = (n) => PARTS.includes(String(n));
 let failed = false;
 let browser;
 try {
+  if (part(1)) {
   // no ?platform=: detection on its own (no touch points, a fine pointer, 1920 x 1080)
   const l = await launch({ url, params: '', touch: false, viewport: { width: 1920, height: 1080 } });
   browser = l.browser;
@@ -35,12 +39,12 @@ try {
   await frames(page, 2);
   let k = await G(() => ({ r: window.__app.settings.get().keys.reload, label: document.querySelector('.kb-key[data-bind="reload:0"]').textContent }));
   assert(k.r[0] === 'KeyU' && k.label === 'U', `reload rebound to U (${k.label})`);
-  // a key already in use moves over: G (gadget) onto reload's second slot
+  // (locomotion step 18, D7) a key already in use is shared and warned about: G (gadget) onto reload's second slot
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('KeyG');
   await frames(page, 2);
-  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '' }));
-  assert(k.r.join() === 'KeyU,KeyG' && k.g.length === 0 && /moved from Gadget/.test(k.toast), `a key in use moves over (${k.toast.trim()})`);
+  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '', rows: [...document.querySelectorAll('.bind-row.conflict')].map((r) => r.dataset.row).sort().join() }));
+  assert(k.r.join() === 'KeyU,KeyG' && k.g.join() === 'KeyG' && /also Gadget/.test(k.toast) && k.rows === 'gadget,reload', `a key in use is shared with a conflict warning (${k.toast.trim()}; rows ${k.rows})`);
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('Backspace');
   await frames(page, 2);
@@ -198,16 +202,26 @@ try {
   // 3.1.7: no match outlives its scene (the shader cache held every one: the phone ran out of memory)
   {
     const leak = await page.context().newCDPSession(page);
-    await leak.send('HeapProfiler.collectGarbage');
-    const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
-    const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
-    const { result } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
-    await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+    // (the release is asynchronous: a slow renderer takes seconds to drop the last match, so count until it reaches 0 or stays)
+    const count = async () => {
+      await leak.send('HeapProfiler.collectGarbage');
+      const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
+      const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
+      const { result: r } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
+      await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+      return r.value;
+    };
+    const result = { value: await count() };
+    for (let i = 0; i < 20 && result.value !== 0; i++) {
+      await page.waitForTimeout(500);
+      result.value = await count();
+    }
     assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
   }
   assert(bm.tags.includes('Run 2/4 · without bloom') && bm.tags.includes('Run 4/4 · shadows rebuilt') && !bm.tagLeft, `the run tag names each run, gone at the end (${bm.tags.join(' | ')})`);
   assert(/^Benchmark \(\d of 4 runs so far\)$/.test(bm.partial), `the note is saved after every run (${bm.partial})`);
-  const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
+  // (the hardware driver warns once per released match: Babylon polls a program the match's teardown already deleted)
+  const errs = errors.filter((e) => !/GPU stall|GL Driver|glGetProgramiv: Program object expected/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
   await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
@@ -230,6 +244,9 @@ try {
   assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
 
+  }
+
+  if (part(2)) {
   // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap
   for (const [w, hh, label] of [[1280, 800, '16:10'], [2520, 1080, '21:9'], [2560, 720, '32:9']]) {
     const a = await launch({ url, params: '', touch: false, viewport: { width: w, height: hh } });
@@ -274,7 +291,8 @@ try {
 
   // 3.1 Auto graphics: from the GPU's name (software GL = Low), else measured on the menu stage
   {
-    const d = await launch({ url, params: 'detect=1&platform=desktop', touch: false, viewport: { width: 1280, height: 720 } });
+    // (the software renderer is named explicitly: with E2E_GPU=1 the real name is the PC's RTX)
+    const d = await launch({ url, params: 'detect=1&platform=desktop&renderer=Google%20SwiftShader', touch: false, viewport: { width: 1280, height: 720 } });
     browser = d.browser;
     await d.page.waitForFunction(() => window.__app?.settings.get().video.device.source !== 'none', null, { timeout: 60000 });
     const v = await d.page.evaluate(() => window.__app.settings.get().video);
@@ -286,8 +304,9 @@ try {
     await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
     const during = await c.page.evaluate(() => window.__app.quality.level.name);
     await c.page.waitForFunction(() => window.__app.settings.get().video.device.source === 'calibrated', null, { timeout: 60000 });
-    const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
+    const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: [...document.querySelectorAll('.toast')].map((t) => t.textContent).join(' | '), ov: window.__app.quality.level.name }));
     assert(['low', 'medium', 'high', 'ultra', 'epic'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: an unknown GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
+    // (all toasts: on a fast renderer the service worker's "Ready to play offline" is still up beside the result)
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
     // (the settings save is debounced: wait until IndexedDB has the result; page.evaluate awaits the promise,
     // waitForFunction would take the promise itself as truthy)
@@ -334,7 +353,7 @@ try {
     assert(lt.phone && lt.lite && lt.up === 1 && [60, 30].includes(lt.cap), `phone: the light look, native, capped at ${lt.cap} (governor level ${lt.gov})`);
     // (a match starts native; software GL is slow, so the governor may already have stepped: the canvas follows it)
     assert(Math.abs(lt.scale - [1, 0.92, 0.84, 0.75][Math.min(3, lt.gov)]) < 0.02, `phone: the canvas at the governor's step (x${lt.scale.toFixed(2)}, level ${lt.gov})`);
-    assert(!lt.voxels && !lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters (${JSON.stringify(lt)})`);
+    assert(!lt.voxels && lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters, the lamps from the baked volume (3.6) (${JSON.stringify(lt)})`);
     assert(!lt.sun && lt.casters === 0 && !lt.pps.some((n) => /taau|ssao|bloom|default|volum/i.test(n)), `phone: no shadow maps, no post stack (${lt.pps.join(',')})`);
     // the governor steps the canvas: 100 -> 92 -> 84 -> 75%, then 30 fps
     const steps = await p.page.evaluate(() => {
@@ -391,6 +410,9 @@ try {
     await browser.close();
   }
 
+  }
+
+  if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
   const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = e.browser;
@@ -536,27 +558,64 @@ try {
   assert(lb && lb.pbr > 0 && lb.plugged === lb.pbr, `the lamp plugin is on every PBR material (${lb?.plugged} / ${lb?.pbr})`);
   assert(lb && lb.before > 0 && lb.after === 0, `a shot-out lamp goes dark in the baked lighting (${lb?.before} -> ${lb?.after}); bake ${lb?.ms} ms`);
   // 3.1.7: every material fits WebGL's guaranteed 16 textures per shader (software GL allows 32; on the laptop's
-  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog)
-  const tex = await e.page.evaluate(() => {
+  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog).
+  // An effect's sampler list is trimmed to the textures its program uses only once it has compiled (an uncompiled one
+  // lists every candidate: partSkinMat showed 61). D3D11 takes several seconds on the voxel characters' shaders, so
+  // the check waits for the effects of every drawn mesh, then counts.
+  const texProbe = () => e.page.evaluate(() => {
     const scene = window.__app.current.scene;
     let max = 0;
     let who = '';
-    for (const m of scene.meshes) for (const sm of m.subMeshes ?? []) {
-      const n = sm.effect?._samplerList?.length ?? 0;
-      if (n > max) {
-        max = n;
-        who = sm.getMaterial?.()?.name ?? '?';
+    let pending = 0;
+    for (const m of scene.meshes) {
+      if (!m.isEnabled() || !m.isVisible) continue;
+      for (const sm of m.subMeshes ?? []) {
+        if (!sm.getMaterial?.() || !sm.effect) continue;
+        if (!sm.effect.isReady()) {
+          pending++;
+          continue;
+        }
+        const n = sm.effect._samplerList?.length ?? 0;
+        if (n > max) {
+          max = n;
+          who = sm.getMaterial().name;
+        }
       }
     }
-    return { max, who };
+    return { max, who, pending };
   });
+  let tex = await texProbe();
+  for (let i = 0; i < 120 && tex.pending > 0; i++) {
+    await wait(500);
+    tex = await texProbe();
+  }
+  assert(tex.pending === 0, `Epic: every drawn mesh's shader compiled (${tex.pending} pending)`);
   assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
+  // (PC1 fix) a spot's shadow joins a shader only once its map has casters: idle at the start, a guard's flashlight
+  // fills it when the guards alert (the near level chunks reached 17 textures and stopped drawing). Alert them and count again.
+  const flash = await e.page.evaluate(() => {
+    const g = window.__app.current;
+    for (const en of g.enemyMgr.enemies) en.alert();
+    return g.world.lightRig.shadowPool.length;
+  });
+  await frames(e.page, 240);
+  tex = await texProbe();
+  for (let i = 0; i < 120 && tex.pending > 0; i++) {
+    await wait(500);
+    tex = await texProbe();
+  }
+  const lit = await e.page.evaluate(() => window.__app.current.world.lightRig.shadowPool.filter((s) => s.id >= 0 && s.list.length > 0).length);
+  assert(lit > 0, `alerted guards' flashlights take the shadow pool (${lit} of ${flash} shadowed with casters)`);
+  assert(tex.pending === 0 && tex.max <= 16, `Epic, guards alerted: every material shader within 16 textures (${tex.max}, ${tex.who}, ${tex.pending} pending)`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(eerrs.length === 0, `Epic renders without console errors${eerrs.length ? ': ' + eerrs.slice(0, 4).join(' | ') : ''}`);
   await browser.close();
 
+  }
+
+  if (part(4)) {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
   const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = u.browser;
@@ -610,8 +669,45 @@ try {
   });
   assert(rb.rebuilt && rb.before > 0 && rb.thawed < rb.before && rb.after >= rb.before, `a rebuilt post stack refreshes the frozen materials, then freezes them again (${JSON.stringify(rb)})`);
   assert(rb.enabled === true && rb.depthFrames >= 3, `without the G-buffer the fog / TAAU depth pass renders every frame (${JSON.stringify(rb)})`);
+  // 3.6 desktop blur: with ray tracing off, depth of field's depth pass pauses when not aiming; the field must then be
+  // fully sharp (it blurred the whole frame off the paused depth), and only open while that depth renders
+  const df = await u.page.evaluate(async () => {
+    const a = window.__app;
+    const g = a.current;
+    const scene = g.scene;
+    const wait = (n) => new Promise((r) => { let k = 0; const o = scene.onAfterRenderObservable.add(() => { if (++k >= n) { scene.onAfterRenderObservable.remove(o); r(); } }); });
+    a.quality.setOverride({ preset: 'high', scale: null, gfx: { reflections: 'off' } });
+    await wait(4);
+    const s = g.stack;
+    const dof = () => s.def.depthOfField;
+    const own = s.dofDepth && s.dofDepth !== s.depth ? s.dofDepth : null;
+    const idle = { fStop: dof().fStop, depth: own?.enabled ?? null };
+    // every frame while aiming and after: never a shallow field without a live depth
+    let bad = 0, aimed = 1e9, frames = 0;
+    const o = scene.onBeforeRenderObservable.add(() => {
+      frames++;
+      const f = dof().fStop;
+      aimed = Math.min(aimed, f);
+      if (f < 1e6 && own && !own.enabled) bad++;
+    });
+    g.player.forceAds = true;
+    const t0 = performance.now();
+    while (dof().fStop > 4 && performance.now() - t0 < 120000) await wait(1);
+    g.player.forceAds = false;
+    const t1 = performance.now();
+    while (dof().fStop < 1e6 && performance.now() - t1 < 120000) await wait(1);
+    await wait(2);
+    scene.onBeforeRenderObservable.remove(o);
+    const back = { fStop: dof().fStop, depth: own?.enabled ?? null };
+    a.quality.setOverride(null);
+    return { own: !!own, idle, aimed, bad, frames, back };
+  });
+  assert(df.own && df.idle.fStop >= 1e6 && df.idle.depth === false, `RT off, not aiming: depth of field fully sharp with its depth paused (${JSON.stringify(df)})`);
+  assert(df.aimed < 4 && df.bad === 0, `aiming opens the field only while its depth renders (${JSON.stringify(df)})`);
+  assert(df.back.fStop >= 1e6 && df.back.depth === false, `after aiming: sharp again, depth paused (${JSON.stringify(df)})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
+  }
   console.log('desktop e2e passed');
 } catch (err) {
   failed = true;

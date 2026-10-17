@@ -176,3 +176,23 @@ describe('wave composition', () => {
     expect(killScore('grunt', false, 5)).toBeGreaterThan(killScore('grunt', false, 1));
   });
 });
+
+describe('NavGrid layers per column', () => {
+  // five storeys over the same columns (Dead Line v2 A block: basement, ground, first, second, roof)
+  const stack = (layers?: number) => new NavGrid({
+    minX: -4, maxX: 4, minZ: -4, maxZ: 4, cell: 0.5,
+    sample: () => ({ h: 0, ok: true }),
+    sampleLayers: (): NavSample[] => [-4, 0, 4.5, 9, 12.6].map((h) => ({ h, ok: true })),
+    ...(layers ? { layers } : {}), blockers: [], agentRadius: 0.3, stepHeight: 0.45,
+  });
+  it('keeps three surfaces by default and drops the ones above', () => {
+    const g = stack();
+    expect(g.layers).toBe(3);
+    expect(g.heightAt(0, 0, 12.6)).toBeCloseTo(4.5);
+  });
+  it('keeps every storey when the map raises the limit', () => {
+    const g = stack(5);
+    expect(g.layers).toBe(5);
+    for (const h of [-4, 0, 4.5, 9, 12.6]) expect(g.heightAt(0, 0, h)).toBeCloseTo(h);
+  });
+});

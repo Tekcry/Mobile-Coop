@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { clampGear, coverPace, gearCap, gearSpeed, GearState, StickRelease, stickCurve } from '../src/player/speedGears';
+import { clampGear, gearCap, gearSpeed, GearState, StickRelease, stickCurve } from '../src/player/speedGears';
 import { noiseRadius, targetSpeed } from '../src/player/movement';
 import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 
 describe('speed gears (3.2.0)', () => {
   it('six gears with the spec caps, crouched and standing', () => {
-    expect(GEARS.crouch).toEqual([0.5, 0.9, 1.3, 1.8, 2.3, 2.8]);
-    expect(GEARS.stand).toEqual([0.8, 1.3, 2.0, 2.8, 3.8, 5.0]);
+    // (locomotion step 22, M14 N6 / A88) about 17 % under the 3.2.0 caps (GAIT_REF)
+    expect(GEARS.crouch).toEqual([0.42, 0.75, 1.08, 1.5, 1.9, 2.3]);
+    expect(GEARS.stand).toEqual([0.65, 1.1, 1.65, 2.3, 3.15, 4.15]);
     for (let g = 1; g <= 6; g++) {
       expect(gearCap(g, true)).toBe(GEARS.crouch[g - 1]);
       expect(gearCap(g, false)).toBe(GEARS.stand[g - 1]);
@@ -21,7 +22,7 @@ describe('speed gears (3.2.0)', () => {
     expect(g.step(1)).toBe(true);
     expect(g.gear).toBe(4);
     for (let i = 0; i < 5; i++) g.step(1);
-    expect(g.gear).toBe(6);
+    expect(g.gear).toBe(5); // (locomotion step 17: the rocker sets the maximum gear 1-5; gear 6 is the sprint)
     expect(g.step(1)).toBe(false);
     for (let i = 0; i < 9; i++) g.step(-1);
     expect(g.gear).toBe(1);
@@ -51,10 +52,10 @@ describe('speed gears (3.2.0)', () => {
   });
   it('aiming is capped at the aim paces; the sprint is gear 6 standing', () => {
     expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed);
-    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 1)).toBeCloseTo(0.8);
+    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 1)).toBeCloseTo(GEARS.stand[0]!);
     expect(targetSpeed(1, 'adsCrouch', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsCrouchSpeed);
     expect(targetSpeed(1, 'ads', 0, -1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed * MOVEMENT.backMult);
-    expect(targetSpeed(0.3, 'sprint', 0, 1, MOVEMENT, 2)).toBeCloseTo(5.0);
+    expect(targetSpeed(0.3, 'sprint', 0, 1, MOVEMENT, 2)).toBeCloseTo(GEARS.stand[5]!);
   });
   it('noise: crouched gears 1-4 and standing gears 1-2 are silent (with the stride swell); faster gears are heard', () => {
     const swell = 1 + MOVEMENT.rootDip;
@@ -72,15 +73,6 @@ describe('speed gears (3.2.0)', () => {
     expect(noiseRadius(5, false, true)).toBeGreaterThan(last);
     expect(NOISE_QUIET.crouch).toBeLessThan(GEARS.crouch[4]! * (1 - MOVEMENT.rootDip));
     expect(NOISE_QUIET.stand).toBeLessThan(GEARS.stand[2]! * (1 - MOVEMENT.rootDip));
-  });
-  it('cover strafe: the gear pace, capped along the wall (gear 3 ~ the 2.x cover pace)', () => {
-    expect(coverPace(1, false)).toBeCloseTo(0.8);
-    expect(coverPace(3, false)).toBeCloseTo(2.0);
-    expect(coverPace(6, false)).toBeCloseTo(GEARS.coverMax.stand);
-    expect(coverPace(1, true)).toBeCloseTo(0.5);
-    expect(coverPace(3, true)).toBeCloseTo(1.3);
-    expect(coverPace(6, true)).toBeCloseTo(GEARS.coverMax.crouch);
-    for (let g = 1; g < 6; g++) expect(coverPace(g + 1, false)).toBeGreaterThanOrEqual(coverPace(g, false));
   });
 });
 

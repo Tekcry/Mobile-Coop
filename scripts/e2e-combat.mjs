@@ -13,6 +13,7 @@ async function sim(s, setup) {
     const orig = st.fixedUpdate.bind(st);
     if (setup) for (const [k, v] of setup) window.__pad.set(k, v);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; if (setup) for (const [k] of setup) window.__pad.set(k, 0); res(); } };
+    window.__ff();
   }), [s, setup ?? null]);
   await frames(page, 2);
 }
@@ -33,6 +34,8 @@ const aimAt = (x, y, z) => G(([x, y, z]) => {
 }, [x, y, z]);
 try {
   await G(() => { window.__pad.connect(); window.__app.settings.update((s) => { s.gamepad.aimAssist = 'off'; }); });
+  // (step 09) no hip fire: aim held (drawn) for the firing checks
+  await G(() => { window.__app.current.player.forceAds = true; window.__app.loop.stepHeadless(0.8); });
   await press(page, BTN.LS);
   await sim(0.4);
   const w0 = await G(() => window.__app.current.weapons.current.def.id);
@@ -133,7 +136,7 @@ try {
   assert(barrels1 < barrels0, `shooting an explosive barrel detonates it (${barrels0} -> ${barrels1})`);
 
   // player damage + death + respawn: blow a barrel next to the player
-  const hpBefore = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hpBefore = await G(() => window.__app.current.target.health.hp);
   await G(() => { const g = window.__app.current; g.explosions.explode(g.player.position.add(new g.player.position.constructor(1, 0.3, 0)), 6, 400, 50, 'neutral', ''); });
   await sim(0.2);
   const alive = await G(() => window.__app.current.target.alive);

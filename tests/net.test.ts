@@ -1,10 +1,10 @@
 import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
-import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
+import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, PROTOCOL_VERSION } from '../src/net/protocol';
 import { mulberry } from '../src/core/rng';
 
-const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80, sh: 20 };
+const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 };
 
 describe('net message validation', () => {
   it('accepts well-formed messages', () => {
@@ -84,8 +84,7 @@ describe('net message validation', () => {
     const ev = parseMessage({ t: 'ev', events: [{ e: 'ping', player: 'p1', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'emp', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'nuke', x: 0, y: 0, z: 0 }] });
     expect(ev?.t === 'ev' && ev.events.map((e) => e.e)).toEqual(['ping', 'gadget']);
     const shot = { t: 'shot', w: 'rifle', ox: 0, oy: 1, oz: 0, dx: 0, dy: 0, dz: 1, target: 'e3', part: 'head', rt: 10, dist: 12 };
-    expect(parseMessage({ ...shot, ex: true })).toMatchObject({ ex: true });
-    expect(parseMessage({ ...shot, ex: 'yes' })).toMatchObject({ ex: false });
+    expect(parseMessage({ ...shot, ex: true })).not.toHaveProperty('ex');
     const snap = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, bodies: ['e1', '../x', 7, 'e2'] });
     expect(snap?.t === 'snap' && snap.bodies).toEqual(['e1', 'e2']);
   });
@@ -302,12 +301,32 @@ describe('net session', () => {
     let got = false;
     late.events.on('start', () => (got = true));
     // the late client subscribed after construction: a re-hello (reconnect) triggers the start again
-    late.transport.send({ t: 'hello', v: 2, name: 'Late', tag: {}, look: {} });
+    late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} });
     expect(got).toBe(true);
     let left = '';
     host.events.on('peerLeft', (p) => (left = p.name));
     void late.leave();
     expect(left).toBe('Late');
+  });
+  it("(step 13) a client's door crack request reaches the host's game", () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    host.startMatch();
+    const got: unknown[] = [];
+    host.events.on('game', (e) => got.push(e.msg));
+    cli.toHost({ t: 'door', i: 0, crack: true });
+    expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
+  });
+  it('a peer on protocol version 9 is refused; version 10 joins (step 19)', () => {
+    expect(PROTOCOL_VERSION).toBe(10);
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const old = h.make('O');
+    old.send({ t: 'hello', v: 9, name: 'Old', tag: {}, look: {} }, 'H');
+    expect(host.players.has('O')).toBe(false);
+    old.send({ t: 'hello', v: 10, name: 'New', tag: {}, look: {} }, 'H');
+    expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
     const h = hub();
@@ -333,7 +352,7 @@ describe('net session', () => {
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
+    fifth.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
     expect(host.players.size).toBe(4);
     expect(full).toBe(true);
   });
@@ -375,5 +394,311 @@ describe('team moves (3.2.0 phase 5)', () => {
     expect(parseMessage({ t: 'tdeny', a: 'peerA', reason: 'notBraced' })).toEqual({ t: 'tdeny', a: 'peerA', reason: 'notBraced' });
     expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB' });
     expect(parseMessage({ t: 'tend', a: 'peerA' })).toBeNull();
+  });
+});
+
+import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
+import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
+import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+
+describe('step 09: host-authoritative drawn state (D8)', () => {
+  it('protocol 7 (step 12 raised it)', () => {
+    expect(PROTOCOL_VERSION).toBe(10);
+  });
+  it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
+    const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
+    expect(wire.m).toBe(1);
+    expect(sanitizeMoveState(wire, 4096, 10)).toMatchObject({ m: 'wall', a: 3, s: 2.25, sub: 67 });
+    expect(sanitizeMoveState({ ...wire, a: 10 }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, a: -1 }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, a: 'x' }, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ ...wire, sub: 0x1ff })!.sub).toBe(0xff);
+    expect(sanitizeMoveState({ ...wire, sub: -3 })!.sub).toBe(0);
+    // an attached anchor bound does not apply to a wall segment
+    expect(sanitizeMoveState(wire, 1, 10)!.a).toBe(3);
+  });
+  it('(step 11 r3) the receive path drops a wall `a` outside the level (the wire keeps anything under 4096)', () => {
+    const mv = packMoveState({ ...emptyMoveState(), m: 'wall' as const, a: 40, s: 1, sub: 1 });
+    const ps = { id: 'peerA', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistol', hp: 100, mv };
+    const msg = parseMessage({ t: 'pstate', s: ps });
+    const s = msg?.t === 'pstate' ? msg.s : null;
+    expect(s?.mv).toMatchObject({ m: 'wall', a: 40 });
+    // a level with 12 segments: dropped (posed as ground), not kept with a stale face
+    expect(dropBadWallMove(s!, 12)).toBe(true);
+    expect(s!.mv).toBeUndefined();
+    // in range: kept; other modes: untouched
+    const ok = { mv: { ...emptyMoveState(), m: 'wall' as const, a: 11 } };
+    expect(dropBadWallMove(ok, 12)).toBe(false);
+    expect(ok.mv.a).toBe(11);
+    const gr = { mv: { ...emptyMoveState(), a: 99 } };
+    expect(dropBadWallMove(gr, 12)).toBe(false);
+    expect(gr.mv).toBeDefined();
+    expect(dropBadWallMove({}, 12)).toBe(false);
+  });
+  it('dw packs and sanitizes (clamped 0-3, default 0)', () => {
+    const mv = { ...emptyMoveState(), dw: 2 };
+    expect(packMoveState(mv).dw).toBe(2);
+    expect(sanitizeMoveState(packMoveState(mv))!.dw).toBe(2);
+    expect(sanitizeMoveState({ m: 0, dw: 9 })!.dw).toBe(3);
+    expect(sanitizeMoveState({ m: 0, dw: -4 })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0, dw: 'x' })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0 })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0, dw: 1.4 })!.dw).toBe(1);
+    expect(poseFromMoveState({ ...emptyMoveState(), dw: 2 }, 1, emptyMovePose()).drawn).toBe(true);
+    expect(poseFromMoveState({ ...emptyMoveState(), dw: 0 }, 1, emptyMovePose()).drawn).toBe(false);
+  });
+  it('a literal pstate with an off-loadout weapon keeps the last valid id', () => {
+    const lobby: WeaponId[] = ['pistol', 'smg'];
+    const first = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'smg', hp: 100, mv: { m: 0, a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0, dw: 2 } } });
+    expect(first?.t).toBe('pstate');
+    if (first?.t !== 'pstate') return;
+    let last = hostWeapon(first.s.w, lobby, null);
+    expect(last).toBe('smg');
+    const off = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'rifle', hp: 100 } });
+    if (off?.t !== 'pstate') throw new Error('pstate expected');
+    last = hostWeapon(off.s.w, lobby, last);
+    expect(last).toBe('smg');
+    expect(hostWeapon('rifle' as WeaponId, lobby, null)).toBe('pistol');
+    expect(first.s.mv?.dw).toBe(2);
+  });
+  it('the host forces holstered while hands are busy or downed', () => {
+    const g = { ...emptyMoveState(), dw: 2 };
+    expect(hostDrawPhase(g, false)).toBe(2);
+    expect(hostDrawPhase(g, true)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'ladder', a: 0 }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'takedown' }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'brace' }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'stacked', sub: 2 }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'stacked', sub: 1 }, false)).toBe(2);
+    expect(hostDrawPhase({ ...g, m: 'split', a: 0 }, false)).toBe(2);
+    expect(hostDrawPhase({ ...g, m: 'grab' }, false)).toBe(2);
+    expect(hostDrawPhase(undefined, false)).toBe(0);
+  });
+  it('the host refuses a shot unless drawn', () => {
+    expect(hostShotAllowed(0)).toBe(false);
+    expect(hostShotAllowed(1)).toBe(false);
+    expect(hostShotAllowed(3)).toBe(false);
+    expect(hostShotAllowed(undefined)).toBe(false);
+    expect(hostShotAllowed(2)).toBe(true);
+  });
+  it('fix 3: a shot counts only with the held weapon or one from the lobby loadout', () => {
+    const lobby: WeaponId[] = ['pistol', 'smg'];
+    expect(hostShotWeapon('smg' as WeaponId, 'smg', lobby)).toBe(true);
+    expect(hostShotWeapon('pistol' as WeaponId, 'smg', lobby)).toBe(true);
+    expect(hostShotWeapon('rifle' as WeaponId, 'smg', lobby)).toBe(false);
+    expect(hostShotWeapon('rifle' as WeaponId, undefined, lobby)).toBe(false);
+    // no lobby loadout sent: only the weapon the host holds for it (hostWeapon kept the claim)
+    expect(hostShotWeapon('rifle' as WeaponId, 'rifle', [])).toBe(true);
+    expect(hostShotWeapon('rifle' as WeaponId, 'smg', [])).toBe(false);
+    expect(hostShotWeapon('rifle' as WeaponId, undefined, [])).toBe(false);
+  });
+  it('fix 2: with >= 300 ms injected delay a legitimate draw is never cancelled', () => {
+    for (const delay of [0.3, 0.45, 0.8]) {
+      const dt = 1 / 60;
+      const draw = new DrawState();
+      const sent: { t: number; dw: number }[] = [];
+      let sendT = 0;
+      let forced = 0;
+      let echoed = 0;
+      for (let i = 0; i < 180; i++) {
+        const t = i * dt;
+        const aim = t >= 0.1 && t < 2.2;
+        draw.update(dt, aim, DRAW_TIME_PRIMARY);
+        const mv = { ...emptyMoveState(), dw: draw.phase };
+        sendT -= dt;
+        if (sendT <= 0) {
+          sendT = 1 / 20;
+          sent.push({ t, dw: hostDrawPhase(mv, false) });
+        }
+        // the host's echo of this client is what it saw `delay` seconds ago (holstered before any pstate)
+        while (sent.length && sent[0]!.t <= t - delay) echoed = sent.shift()!.dw;
+        if (clientForcedHolster(echoed, draw.phase, mv, false)) forced++;
+      }
+      expect(forced).toBe(0);
+    }
+    // a real force: the host sees this client downed, or its own mode says the hands are busy
+    const g = { ...emptyMoveState(), dw: 2 };
+    expect(clientForcedHolster(0, 2, g, true)).toBe(true);
+    expect(clientForcedHolster(0, 2, { ...g, m: 'takedown' }, false)).toBe(true);
+    expect(clientForcedHolster(0, 2, g, false)).toBe(false);
+    expect(clientForcedHolster(0, 0, g, true)).toBe(false);
+    expect(clientForcedHolster(2, 2, g, true)).toBe(false);
+  });
+});
+
+describe('step 10: committed-move messages (A5, PLAN H3)', () => {
+  it('parses cmove / cstart / cdeny', () => {
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' })).toEqual({ t: 'cmove', kind: 'strike', id: 7, target: 'e12' });
+    expect(parseMessage({ t: 'cmove', kind: 'medkit', id: 1, target: '' })).toEqual({ t: 'cmove', kind: 'medkit', id: 1, target: '' });
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 })).toEqual({ t: 'cstart', kind: 'strike', a: 'peerA', id: 3, target: '', t0: 12.5 });
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' })).toEqual({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'busy' });
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 3, kind: 'strike', reason: 'hit' })).toMatchObject({ reason: 'hit' });
+  });
+  it('clamps ids and rejects bad fields', () => {
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 1e9, target: '' })).toMatchObject({ id: 0xffff });
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 2.7, target: '' })).toMatchObject({ id: 2 });
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 'x', target: '' })).toBeNull();
+    expect(parseMessage({ t: 'cmove', kind: 'strike', id: 1, target: '<bad>' })).toBeNull();
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'bad id!', id: 1, target: '', t0: 1 })).toBeNull();
+    expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 1, kind: 'strike', reason: 'because' })).toBeNull();
+  });
+  it('unknown and reserved kinds are rejected', () => {
+    for (const kind of ['nope', 'takedown', 'grab', 'drag', 'splitBoost', 'backToBack', 'pullUp', 'rappelAnchor', 'clutch']) {
+      expect(parseMessage({ t: 'cmove', kind, id: 1, target: '' })).toBeNull();
+      expect(parseMessage({ t: 'cstart', kind, a: 'peerA', id: 1, target: '', t0: 1 })).toBeNull();
+      expect(parseMessage({ t: 'cdeny', a: 'peerA', id: 1, kind, reason: 'busy' })).toBeNull();
+    }
+  });
+  it('t0 must be a finite host time in range', () => {
+    for (const t0 of [-1, 1e8, NaN, Infinity, '3', undefined]) expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 1, target: '', t0 })).toBeNull();
+    expect(parseMessage({ t: 'cstart', kind: 'strike', a: 'peerA', id: 1, target: '', t0: 0 })).toMatchObject({ t0: 0 });
+  });
+  it('MoveState strike is mode 25 and poses the elbow arc', () => {
+    const mv = { ...emptyMoveState(), m: 'strike' as const, ph: 0.4, tid: 'e3', dw: 2 };
+    const w = packMoveState(mv);
+    expect(w.m).toBe(25);
+    const back = sanitizeMoveState(w)!;
+    expect(back.m).toBe('strike');
+    expect(back.tid).toBe('e3');
+    const pose = poseFromMoveState(back, 0, emptyMovePose());
+    expect(pose.melee).toBeCloseTo(0.4);
+    expect(pose.drawn).toBe(false);
+  });
+});
+
+describe('step 12: wall lean kind and the SWAT turn', () => {
+  it('lk packs and sanitizes 0-2; 3 and non-integers are not carried', () => {
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 32 | 8, lk: 1 };
+    const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
+    expect(back.lk).toBe(1);
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 2 }, 4096, 8)!.lk).toBe(2);
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 3 }, 4096, 8)!.lk).toBeUndefined();
+    expect(sanitizeMoveState({ m: 1, a: 2, lk: 1.5 }, 4096, 8)!.lk).toBeUndefined();
+    expect(sanitizeMoveState({ m: 0, lk: 1 })!.lk).toBeUndefined();
+  });
+  it('swat is mode 26, committed, and carries its MoveCommit', () => {
+    const r = sanitizeMoveState({ m: 26, c: { n: 3, x0: 0, y0: 0, z0: 0, x1: 1.5, y1: 0, z1: 0, top: 0, v: 0, dur: 0.53 } })!;
+    expect(r.m).toBe('swat');
+    expect(r.c?.dur).toBeCloseTo(0.53, 6);
+  });
+  it('peek / lean bits pose the rig lean toward the edge side', () => {
+    const p = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 16 | 4 }, 0, emptyMovePose());
+    expect(p.lean).toBeCloseTo(-0.45, 6);
+    const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(q.lean).toBeCloseTo(0.3, 6);
+  });
+  it('the host drops an implausible SWAT commit and caps its pace', () => {
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.54, z1: 0, dur: 0.527 })).toBe(true);
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 6, z1: 0, dur: 0.8 })).toBe(false);
+    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.5, z1: 0, dur: 0.2 })).toBe(false);
+    expect(moveSpeedCap({ ...emptyMoveState(), m: 'swat' }, true, false, false, true)).toBeLessThan(MAX_FREE_SPEED);
+  });
+});
+import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate';
+
+describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
+  it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
+    const { PROTOCOL_VERSION } = await import('../src/net/protocol');
+    expect(PROTOCOL_VERSION).toBe(10);
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
+    const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
+    expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
+    expect(back.lk).toBe(1);
+    const hi = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 4 | 16 | 128 };
+    expect(sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(hi))), 4096, 8)!.sub).toBe(4 | 16 | 128);
+  });
+  it('poseFromMoveState: leftHand only with the left edge bit; the low side lean leans toward the edge', () => {
+    const l = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 4 | 32 | 64 | 128, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(l.leftHand).toBe(true);
+    expect(l.lean).toBeCloseTo(-0.3, 6);
+    const r = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 32 | 64, lk: 1, r: 1 }, 0, emptyMovePose());
+    expect(r.leftHand).toBe(false);
+    expect(r.lean).toBeCloseTo(0.3, 6);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: 4 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
+  });
+  it('remote head cap (fix r1, light parity): the low-wall side lean caps the head sample like the local one', async () => {
+    const { remoteWallHeadCap, wallHeadCap, WALL_SUB } = await import('../src/player/wallController');
+    const seg = { y: 0.5, height: 1.1 };
+    // the low side lean: the wall top less LOW_HEAD_CLEAR, the same value the local rig and sample use
+    const cap = remoteWallHeadCap('wall', 1, WALL_SUB.crouch | WALL_SUB.edgeL | WALL_SUB.lean | WALL_SUB.low, seg);
+    expect(cap).toBe(wallHeadCap(seg.y, seg.height));
+    expect(cap).toBeLessThan(seg.y + seg.height);
+    // the crouched head centre (feet + 1.05 m) is under a 1.1 m top, but only by 5 cm, less than the head's half
+    // height (the head shows); capped it sits LOW_HEAD_CLEAR under the top, and a standing sample (1.6 m) too
+    expect(seg.y + seg.height - (seg.y + 1.05)).toBeLessThan(0.14);
+    expect(Math.min(seg.y + 1.05, cap)).toBeCloseTo(seg.y + seg.height - 0.14, 9);
+    expect(Math.min(seg.y + 1.6, cap)).toBeLessThan(seg.y + seg.height);
+    // no cap: rising over the top (lk 2), a high wall's lean-out, not on a wall, no segment
+    expect(remoteWallHeadCap('wall', 2, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', 1, WALL_SUB.edgeL | WALL_SUB.lean, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', undefined, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('ladder', 1, WALL_SUB.low, seg)).toBe(Infinity);
+    expect(remoteWallHeadCap('wall', 1, WALL_SUB.low, undefined)).toBe(Infinity);
+  });
+  it('posed head sample (fix r2, light parity): local and remote light samples land on the posed head', async () => {
+    const { posedHeadSample, wallHeadCap } = await import('../src/player/wallController');
+    // a 1.00 m wall (under 1.07 m): the posed heads seen in e2e-netmove, local 0.941 m and the host's copy 0.953 m
+    const feet = { x: 2, y: 0.5, z: -1 };
+    const top = feet.y + 1.0;
+    const local = posedHeadSample(feet.x, feet.y, feet.z, 2.3, feet.y + 0.941, -0.9, { ox: 0, oz: 0, h: 0 });
+    const remote = posedHeadSample(feet.x, feet.y, feet.z, 2.31, feet.y + 0.953, -0.9, { ox: 0, oz: 0, h: 0 });
+    // the light meter samples at feet + 0.95 h (LightField.bodyLevel): exactly the posed head
+    expect(feet.y + local.h * 0.95).toBeCloseTo(feet.y + 0.941, 9);
+    expect(feet.y + remote.h * 0.95).toBeCloseTo(feet.y + 0.953, 9);
+    expect(local.ox).toBeCloseTo(0.3, 9);
+    expect(local.oz).toBeCloseTo(0.1, 9);
+    // local vs remote within 2 cm; the old remote sample (crouched model height 1.1375 m: 1.08 m) sat over the top
+    expect(Math.abs(local.h * 0.95 - remote.h * 0.95)).toBeLessThan(0.02);
+    expect(feet.y + 1.75 * 0.65 * 0.95).toBeGreaterThan(top);
+    // and the fix-r1 cap (0.86 m) was 8-9 cm under the posed copy
+    expect(feet.y + 0.953 - wallHeadCap(feet.y, 1.0)).toBeGreaterThan(0.08);
+  });
+});
+
+describe('step 13: door peek on the wire', () => {
+  it('parses `door` with an index bound and a bool', () => {
+    expect(parseMessage({ t: 'door', i: 3, crack: true })).toEqual({ t: 'door', i: 3, crack: true });
+    expect(parseMessage({ t: 'door', i: 0, crack: false })).toEqual({ t: 'door', i: 0, crack: false });
+    expect(parseMessage({ t: 'door', i: -1, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 96, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 1.5, crack: true })).toBeNull();
+    expect(parseMessage({ t: 'door', i: 2, crack: 1 })).toBeNull();
+    expect(parseMessage({ t: 'door', i: '2', crack: true })).toBeNull();
+  });
+  it('bounds the snapshot `dcr` list: out-of-range entries dropped (never clamped to door 0), duplicates, MAX_DOORS', () => {
+    const many = Array.from({ length: 200 }, (_, i) => i);
+    const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], dcr: [2, 2, -1, 'x', 5000, 1.5, 7, ...many] });
+    expect(m && m.t === 'snap').toBe(true);
+    const dcr = (m as Extract<typeof m, { t: 'snap' }>).dcr!;
+    expect(dcr.slice(0, 3)).toEqual([2, 7, 0]);
+    const m2 = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], dcr: [-1, 4096] });
+    expect((m2 as Extract<typeof m2, { t: 'snap' }>).dcr).toEqual([]);
+    expect(dcr.length).toBeLessThanOrEqual(96);
+    expect(new Set(dcr).size).toBe(dcr.length);
+  });
+  it('PROTOCOL_VERSION is 8', () => {
+    expect(PROTOCOL_VERSION).toBe(10);
+  });
+});
+
+describe('custom difficulty on the wire (locomotion step 19)', () => {
+  it('lobby / start with dc parse and clamp; base must be a preset', () => {
+    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'custom', dc: { b: 'rookie', p: 0.1, a: 1.3, t: 5 } });
+    expect(s).toMatchObject({ difficulty: 'custom', dc: { b: 'rookie', p: 0.5, a: 1.3, t: 2 } });
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect(l).toMatchObject({ difficulty: 'custom', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    const bad = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'custom', phase: 'lobby', dc: { b: 'custom', p: 0.5, a: 1, t: 2 } });
+    expect(bad).not.toBeNull();
+    expect((bad as { dc?: unknown }).dc).toBeUndefined();
+  });
+
+  it('a non-custom lobby / start ignores dc', () => {
+    const l = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'realistic', phase: 'lobby', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect(l).toMatchObject({ difficulty: 'realistic' });
+    expect((l as { dc?: unknown }).dc).toBeUndefined();
+    const s = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', dc: { b: 'normal', p: 0.5, a: 1, t: 2 } });
+    expect((s as { dc?: unknown }).dc).toBeUndefined();
   });
 });

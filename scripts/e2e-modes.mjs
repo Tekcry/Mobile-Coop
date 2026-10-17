@@ -98,9 +98,9 @@ await run('autostart=proving&mode=wave', async ({ G, sim }) => {
     g.enemyMgr.spawn('heavy', new V(P.x - 10, 0, P.z + 6), true);
     return g.enemyMgr.alive; });
   assert(r >= 2, 'runner and heavy spawn');
-  const hp0 = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hp0 = await G(() => window.__app.current.target.health.hp);
   await sim(4);
-  const hp1 = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hp1 = await G(() => window.__app.current.target.health.hp);
   assert(hp1 < hp0, `runner closes in and deals melee damage (${hp0} -> ${hp1.toFixed(0)})`);
   // plates in front, an exposed back (a round from in front travels against the facing)
   const heavy = await G(() => {

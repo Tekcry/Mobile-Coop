@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { balanceTeam, canJoinTeam, pickSpawn, PvpScore, pvpInfo, PVP } from '../src/net/pvp';
-import { capacity, isPvp, parseMessage, MAX_ITEMS } from '../src/net/protocol';
+import { capacity, isPvp, parseMessage, MAX_ITEMS, PROTOCOL_VERSION } from '../src/net/protocol';
 import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
@@ -149,7 +149,7 @@ describe('pvp lobby', () => {
     const ninth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     ninth.events.on('full', () => (full = true));
-    ninth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
+    ninth.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
     expect(full).toBe(true);
     // a full side refuses a switch; a client sees its side
     cs[0]!.requestTeam(1 - host.players.get('A')!.team);

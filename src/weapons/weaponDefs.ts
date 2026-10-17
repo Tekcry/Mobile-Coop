@@ -1,7 +1,7 @@
 import raw from '../config/weapons.json';
 import grenadeRaw from '../config/grenade.json';
 
-/** The 1.x five keep their ids (now the P45 Compact, MP5 Kurz, 552 Commando, M870 Pump and M700 Bolt). */
+/** The 1.x five keep their ids (now the Warden .45, Marten 9 SMG, Heron Carbine, Mason 12 Pump and Ridgeline Bolt). */
 export type WeaponId =
   | 'pistol'
   | 'smg'

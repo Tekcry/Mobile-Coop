@@ -1,8 +1,11 @@
 import type { Transport } from './transport';
+import { NetSim, netSimPreset } from './netSim';
 
 /**
  * Same-device transport over BroadcastChannel (several tabs/windows of the game). Used for
  * development and automated tests where WebRTC signalling relays are unreachable. `?net=local`.
+ * (locomotion step 20b, D11) `&netsim=typical` delays incoming game messages through `NetSim` (reliable, ordered, as
+ * the shipped transport); presence (hi / ack / bye) is not delayed. Only this transport reads the param.
  */
 export function createLocalTransport(roomId: string): Transport {
   const selfId = `L${Math.random().toString(36).slice(2, 10)}`;
@@ -10,6 +13,11 @@ export function createLocalTransport(roomId: string): Transport {
   const peers = new Map<string, number>();
   type Wire = { k: 'hi' | 'bye' | 'msg' | 'ack'; from: string; to?: string; data?: string };
   const post = (w: Wire): void => ch.postMessage(w);
+  const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const preset = netSimPreset(q?.get('netsim'));
+  const sim = preset ? new NetSim(preset, Number(q?.get('netseed')) || 1) : null;
+  // the e2e report reads its counters (only with ?netsim=)
+  if (sim) (globalThis as { __netsim?: NetSim }).__netsim = sim;
   const t: Transport = {
     selfId,
     onMessage: null,
@@ -43,10 +51,18 @@ export function createLocalTransport(roomId: string): Transport {
       if (peers.delete(w.from)) t.onPeerLeave?.(w.from);
     } else if (w.k === 'msg' && typeof w.data === 'string') {
       seen(w.from);
-      try {
-        t.onMessage?.(JSON.parse(w.data), w.from);
-      } catch {
-        /* ignore */
+      const data = w.data;
+      const deliver = (): void => {
+        try {
+          t.onMessage?.(JSON.parse(data), w.from);
+        } catch {
+          /* ignore */
+        }
+      };
+      if (!sim) deliver();
+      else {
+        const now = performance.now();
+        setTimeout(deliver, sim.deliverAt(w.from, now) - now);
       }
     }
   };

@@ -3,7 +3,7 @@
 // 10 deg of the spine, muzzle up) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
 // body, with and without a backpack, both avatar styles), the hands on the grip points (within 2 cm) for
 // every weapon, the swap reaching to the right slot, grenade pouches, and the draw-call budget.
-import { launch, assert as hard } from './e2e-lib.mjs';
+import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -28,8 +28,6 @@ const install = () => {
   const fwd = new V(0, 0, 1);
   window.__w = {
     tp(x, z, yaw) {
-      g.cover.reset();
-      g.corners.reset();
       c.teleport(new V(x, 0, z), yaw);
       p.cam.yaw = yaw;
       p.cam.snap();
@@ -98,13 +96,14 @@ try {
         n: w.slots.length,
         slots: w.carrySlots,
         visible: w.slots.every((sl) => sl.model.node.isEnabled()),
-        held: rig.heldWeapon === w.current.model.node,
+        // (step 09) holstered unless aiming: every gun in its slot, the hands free
+        held: rig.heldWeapon === null && w.drawPhase === 0,
         parents: s.carried().map((e) => `${e.id}:${e.slot}:${e.model.node.parent?.name}`),
         pouches: window.__app.current.weapons.pouches.count,
       };
     });
     assert(r.n === n && new Set(r.slots).size === n && !r.slots.includes(null), `${label}: ${n} weapons, ${n} distinct slots (${r.slots.join(', ')})`);
-    assert(r.visible && r.held, `every weapon visible: one in the hands, the rest carried (${r.parents.join(' ')})`);
+    assert(r.visible && r.held, `every weapon visible: holstered (not aiming), all carried in their slots (${r.parents.join(' ')})`);
     assert(r.pouches >= 1, `grenade pouches on the belt (${r.pouches})`);
 
     console.log('back carry: vertical, muzzle up, within 10 deg of the spine');
@@ -183,6 +182,9 @@ try {
       const rig = g.player.rig;
       const w = g.weapons;
       s.tp(8, -14, -Math.PI / 2);
+      // (step 09) swaps from the hands: aim (drawn) through the whole section
+      const st = window.__app.input.state;
+      s.run(1.0, { ads: true });
       const out = [];
       for (let k = 0; k < w.slots.length; k++) {
         const from = w.slots[w.index].model;
@@ -194,8 +196,9 @@ try {
         let nearFrom = 9;
         let nearTo = 9;
         let dur = 0;
-        s.run(1 / 60, { taps: { 1: 'swapNext' } });
+        s.run(1 / 60, { ads: true, taps: { 1: 'swapNext' } });
         while (w.swapping && t < 2) {
+          st.set('carry', 'ads', true);
           window.__app.loop.stepHeadless(1 / 60, 120);
           t += 1 / 60;
           rig.wristR.computeWorldMatrix(true);
@@ -214,9 +217,10 @@ try {
           }
         }
         dur = t + 1 / 60;
-        s.run(0.3);
+        s.run(0.3, { ads: true });
         out.push({ from: fromSlot, to: toSlot, nearFrom, nearTo, dur });
       }
+      st.set('carry', 'ads', false);
       return out;
     });
     for (const sw of r) {
@@ -231,7 +235,7 @@ try {
     console.log(`loadout ${lo}`);
     await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min&gear=4`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
-    await page.waitForTimeout(800);
+    await frames(page, 10);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }

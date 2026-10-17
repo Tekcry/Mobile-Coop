@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyTrainingStatus, stepDone, TrainingCourse, TRAINING_STEPS } from '../src/game/training';
+import { emptyTrainingStatus, TrainingCourse, TRAINING_STEPS } from '../src/game/training';
 
 describe('training course', () => {
   it('runs the verbs in order, each done once the game reports it', () => {
@@ -24,6 +24,6 @@ describe('training course', () => {
     for (let i = 0; i < TRAINING_STEPS.length; i++) c.skip(emptyTrainingStatus());
     expect(c.done).toBe(true);
     expect(c.step).toBeNull();
-    expect(stepDone('mark', { ...emptyTrainingStatus(), marks: 2 }, emptyTrainingStatus())).toBe(true);
+    expect(TRAINING_STEPS.map((t) => t.id)).not.toContain('mark');
   });
 });

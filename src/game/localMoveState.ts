@@ -1,35 +1,33 @@
 /**
- * The local player's movement state (3.2.0 phase 1) for the co-op / PvP wire: which mode the body is in (free, cover,
+ * The local player's movement state (3.2.0 phase 1) for the co-op / PvP wire: which mode the body is in (free, wall,
  * attached, a committed move, a takedown) and the few numbers a remote needs to pose it with the same code
  * (`poseFromMoveState`, `AttachGrips`, `traversePath`). Built every fixed step a net session runs.
  */
 import { wrapPi } from '../anim/motion';
-import { COVER_SUB, footOffsets, packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
+import { packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
 import type { GameState } from './gameState';
+import { WALL_SUB } from '../player/wallController';
 
 const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle: 'mantle', ventDrop: 'ventDrop', drop: 'drop' };
 
 let gpBuf: number[] | null = null;
-let fpBuf: [number, number, number, number] | null = null;
 
 export function localMoveState(g: GameState, out: MoveState): MoveState {
   const p = g.player;
   const c = p.controller;
-  const pose = p.coverPose;
+  const pose = p.pose;
   const tr = g.traversal;
   out.g = c.gear;
   out.r = p.carry.raise;
   const w = p.carry.w;
   out.rd = w.high > w.low && w.high >= w.compressed ? 1 : w.compressed > w.low ? 2 : 0;
   out.ay = wrapPi(p.cam.yaw - c.yaw);
+  out.dw = g.weapons.drawPhase;
   out.a = -1;
   out.s = 0;
   out.sub = 0;
   out.ph = 0;
   out.tid = '';
-  delete out.cu;
-  delete out.lf;
-  delete out.fp;
   delete out.gp;
   delete out.u;
   // (3.2.0 phase 5) a team move: braced, boosted, the human ladder
@@ -38,7 +36,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.m = tm;
     out.tid = g.team.partner;
     out.sub = tm === 'stacked' ? (g.team.state === 'bottom' ? 2 : 1) : 0;
-    out.ph = g.player.coverPose.traverse === 'climbUp' ? g.player.coverPose.traverseT : 0;
+    out.ph = pose.traverse === 'climbUp' ? pose.traverseT : 0;
     delete out.c;
     return out;
   }
@@ -57,6 +55,73 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
+  // (locomotion step 10) the elbow strike: after a takedown, before attached
+  const sk = g.strike;
+  if (sk.active) {
+    out.m = 'strike';
+    out.tid = sk.tid;
+    out.ph = sk.ph;
+    delete out.c;
+    return out;
+  }
+  // (locomotion step 15) a medkit in use: progress, the target ('' = self; H2 a team-mate's id)
+  const mk = g.medkit;
+  if (mk.active) {
+    out.m = 'medkit';
+    out.tid = '';
+    out.ph = mk.ph;
+    out.dw = 0;
+    delete out.c;
+    return out;
+  }
+  // (locomotion step 13) the door peek: the door, the hinge side, the door's drawn crack
+  const dp = g.doorPeek;
+  if (dp.active) {
+    out.m = 'doorPeek';
+    out.a = dp.door;
+    out.sub = g.peekFrame.hingeRight ? 1 : 0;
+    out.ph = Math.max(0, Math.min(1, g.world.doors.list[dp.door]?.ajar ?? 0));
+    delete out.lk;
+    delete out.c;
+    return out;
+  }
+  // (locomotion step 11) back to a wall: the segment (level order), metres along it, WALL_SUB; `ph` the settle
+  const wc = g.wallCore;
+  // (locomotion step 12) the SWAT turn: a committed move (from, to, dur) the remotes replay (A24)
+  if (wc && wc.phase === 'swat') {
+    out.m = 'swat';
+    out.a = -1;
+    out.s = 0;
+    out.sub = 0;
+    out.ph = Math.max(0, Math.min(1, wc.swatT / Math.max(1e-3, wc.swatDur)));
+    delete out.lk;
+    const k = (out.c ??= { n: 0, x0: 0, y0: 0, z0: 0, x1: 0, y1: 0, z1: 0, top: 0, v: 0, dur: 1 });
+    k.n = wc.swatN;
+    k.x0 = wc.swatFrom.x;
+    k.y0 = wc.swatFrom.y;
+    k.z0 = wc.swatFrom.z;
+    k.x1 = wc.swatTo.x;
+    k.y1 = wc.swatTo.y;
+    k.z1 = wc.swatTo.z;
+    k.top = wc.swatTo.y;
+    k.v = 0;
+    k.dur = wc.swatDur;
+    return out;
+  }
+  if (wc && wc.active) {
+    out.m = 'wall';
+    out.a = wc.seg;
+    // (step 12) leaning out: the body's own place past the edge
+    out.s = wc.s + wc.leanS;
+    // (step 12b, D9) leftHand from the edge side: peeking or leaning out at edgeL (remotes pose the mirrored grip)
+    out.sub = wc.sub() | (wc.leftHand ? WALL_SUB.leftHand : 0);
+    out.ph = wc.phase === 'entering' ? Math.min(1, wc.t / wc.enterDur) : 1;
+    if (wc.lk) out.lk = wc.lk;
+    else delete out.lk;
+    delete out.c;
+    return out;
+  }
+  delete out.lk;
   if (tr.attached) {
     const m = tr.attach;
     const ac = tr.attachCtl;
@@ -96,30 +161,6 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     return out;
   }
   delete out.c;
-  if (pose.cover !== 'none') {
-    out.m = 'cover';
-    let sub = 0;
-    if (pose.cover === 'low') sub |= COVER_SUB.low;
-    if (pose.wallSide > 0) sub |= COVER_SUB.wallRight;
-    if (pose.peekOver > 0.5) sub |= COVER_SUB.over;
-    if (pose.blind) sub |= COVER_SUB.blind;
-    if (pose.gunClear) sub |= COVER_SUB.gunClear;
-    if (c.kneeling) sub |= COVER_SUB.kneel;
-    if (pose.edgeLook < -0.5) sub |= COVER_SUB.edgeL;
-    else if (pose.edgeLook > 0.5) sub |= COVER_SUB.edgeR;
-    if (p.rig.leftHanded) sub |= COVER_SUB.leftHand;
-    out.sub = sub;
-    out.s = pose.top;
-    out.ph = (Math.max(-1, Math.min(1, pose.lean)) + 1) / 2;
-    if (pose.top > 0) {
-      out.cu = p.rig.curl;
-      out.lf = p.rig.lift;
-    }
-    const L = p.rig.planner.L;
-    const R = p.rig.planner.R;
-    if (c.speed < 0.05) out.fp = footOffsets(c.pos.x, c.pos.z, c.yaw, L.x, L.z, R.x, R.z, (fpBuf ??= [0, 0, 0, 0]));
-    return out;
-  }
   if (c.landT > 0.15 && c.lastLanding === 'heavy') {
     out.m = 'landing';
     out.ph = Math.max(0, Math.min(1, 1 - c.landT));

@@ -40,7 +40,7 @@ export const provingGrounds: MapDef = {
     b.block(0, 16, 10, 0.2, 6, C.concrete, 2.4);
     b.ramp(-8.5, 16, 3, 7, 2.6, C.wall, Math.PI / 2); // rises toward +X onto platform
     b.stairs(8.5, 16, 3, 7, 2.6, 9, C.wall, -Math.PI / 2);
-    b.lowCover(0, 13.6, 4, C.wallDark, Math.PI / 2, 1, 0.3); // parapet
+    b.lowWall(0, 13.6, 4, C.wallDark, Math.PI / 2, 1, 0.3); // parapet
     // step test row (west)
     [0.15, 0.3, 0.42, 0.6, 0.9].forEach((h, i) => b.block(-22, -14 + i * 3.2, 2.4, h, 2.4, i < 3 ? C.hazard : C.red));
     // slope test (east): 20, 35, 55 degrees
@@ -55,13 +55,13 @@ export const provingGrounds: MapDef = {
     b.block(-10.75, -22, 3, 0.4, 6, C.wall, 1.4);
 
     // cover garden (centre / south)
-    b.lowCover(-5, -6, 4, C.wall);
-    b.lowCover(5, -6, 4, C.wall);
-    b.lowCover(-5, -1.2, 2.4, C.wall); // in line with the one above, 1.6 m gap: SWAT turn
-    b.lowCover(0, -12, 6, C.wall, Math.PI / 2);
-    b.highCover(-10, 2, 4, C.wallDark);
-    b.highCover(10, 2, 4, C.wallDark);
-    b.highCover(0, -20, 8, C.wallDark, Math.PI / 2);
+    b.lowWall(-5, -6, 4, C.wall);
+    b.lowWall(5, -6, 4, C.wall);
+    b.lowWall(-5, -1.2, 2.4, C.wall); // in line with the one above, 1.6 m gap: SWAT turn
+    b.lowWall(0, -12, 6, C.wall, Math.PI / 2);
+    b.highWall(-10, 2, 4, C.wallDark);
+    b.highWall(10, 2, 4, C.wallDark);
+    b.highWall(0, -20, 8, C.wallDark, Math.PI / 2);
     b.pillar(-6, 6, 0.5, 4, C.concrete);
     b.pillar(6, 6, 0.5, 4, C.concrete);
     b.pillar(-14, -6, 0.6, 4, C.concrete);
@@ -81,7 +81,7 @@ export const provingGrounds: MapDef = {
     b.wallZ(-22, 12, 20, [[15.5, 16.6]], 3, C.wallDark);
     b.wallX(20, -30, -15.5, [[-19, -17.9]], 3, C.wall);
     b.wallZ(-15.5, 12, 30, [[24, 25.1]], 3, C.wall);
-    b.lowCover(-26, 15, 1.6, C.wallDark, Math.PI / 2);
+    b.lowWall(-26, 15, 1.6, C.wallDark, Math.PI / 2);
     b.block(-18, 22.5, 1.2, 1.1, 1.2, C.crate);
 
     // traversal course (north east, driven by e2e-traverse): a 3.6 m tower with a ladder (west face) and a
@@ -111,6 +111,8 @@ export const provingGrounds: MapDef = {
     b.windowAt(26, 1.5, -8, 1.2, 1.2, 0, { sill: 0.9, open: true });
     b.wall(23, -2, 24.4, -2, SH, C.wall, 0.3);
     b.wall(25.6, -2, 27, -2, SH, C.wall, 0.3);
+    // (locomotion step 13) a hinged door in the shed's north doorway (the door-peek e2e cases), swinging in
+    b.door(27.0, 0, -2, 1.2, Math.PI / 2, { swing: 1 });
     b.wall(28.2, -2, 29, -2, SH, C.wall, 0.3);
     b.box(25, 0.45, -2, 1.2, 0.9, 0.3, C.wall);
     b.box(25, 2.55, -2, 1.2, 0.9, 0.3, C.wall);
@@ -202,9 +204,11 @@ export const provingGrounds: MapDef = {
       objectives: [],
       pickups: [
         { pos: v(-6, -2), kind: 'ammo' },
-        { pos: v(6, -2), kind: 'health' },
+        { pos: v(6, -2), kind: 'medkit' },
         { pos: v(0, 16, 2.6), kind: 'ammo' },
       ],
+      // (locomotion step 15) a wall medkit station on the south perimeter wall, facing the yard
+      medkitWalls: [{ pos: v(4, -29.6), yaw: 0 }],
       rooms: ROOMS,
     };
   },

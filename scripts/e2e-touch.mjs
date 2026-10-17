@@ -80,12 +80,17 @@ try {
   assert(Math.abs((await state()).yaw - y1) < 0.01, 'camera stops when the stick is released');
   // fire button hold: fires, and the camera does not move
   const fire = await page.locator('.tc-fire').boundingBox();
+  // (locomotion step 10, D1) holstered: the fire button is shown and strikes (the elbow strike)
+  const sk0 = await page.evaluate(() => { const g = window.__app.current; return { dp: g.weapons.drawPhase, n: g.strike.count.started }; });
+  assert(sk0.dp === 0 && !!fire && fire.width > 0, `fire button shown while holstered (draw phase ${sk0.dp})`);
   const fy0 = (await state()).yaw;
   await touch(page, 'touchStart', [{ x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 3 }]);
   await touch(page, 'touchMove', [{ x: fire.x + fire.width / 2 + 30, y: fire.y + fire.height / 2, id: 3 }]);
   await frames(page, 3);
   const fs = await state();
   assert(fs.fire, 'fire held');
+  const sk1 = await page.evaluate(() => window.__app.current.strike.count.started);
+  assert(sk1 > sk0.n, `the touch fire button strikes while holstered (${sk0.n} -> ${sk1})`);
   assert(Math.abs(fs.yaw - fy0) < 0.01, 'fire button never moves the camera (default)');
   await touch(page, 'touchEnd', []);
   // sizes: fire >= 76 px, secondary >= 56 px
@@ -93,42 +98,55 @@ try {
     Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
   );
   assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
-  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision', 'speed']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
-  // 3.2.0 speed rocker: the up half steps the gear up, the down half down; its pips always show the gear, the HUD
-  // pips show after a change
-  const gearNow = () => page.evaluate(() => ({ gear: window.__app.current.player.controller.gear, pips: document.querySelectorAll('.tc-speed .tc-sp-pips i.on').length, hud: document.querySelector('.tac-gear')?.classList.contains('show') ?? false }));
+  // (locomotion step 17, D1) the basic scheme: move, look, aim, fire / elbow, crouch, jump, one context button, vision
+  // (plus reload and pause, A65); the swap, gadget, wheel, sprint, shoulder, ping, speed and takedown buttons are gone
+  for (const id of ['reload', 'crouch', 'ads', 'vision', 'jump', 'action']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  const gone = await page.evaluate(() => ['swap', 'grenade', 'gadgets', 'dash', 'shoulder', 'ping', 'speed', 'takedown'].filter((id) => !!document.querySelector(`.touch-layer .tc-${id}`)));
+  assert(gone.length === 0, `the removed buttons are absent (${gone.join(', ') || 'none'})`);
   const tapIn = async (sel) => {
     const b = await page.locator(sel).boundingBox();
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     await frames(page, 4);
   };
-  const g0 = await gearNow();
-  assert(g0.pips === g0.gear, `rocker pips show the gear (${g0.pips} lit, gear ${g0.gear})`);
-  await tapIn('.tc-speed .tc-sp-up');
-  const g1 = await gearNow();
-  await tapIn('.tc-speed .tc-sp-down');
-  await tapIn('.tc-speed .tc-sp-down');
-  const g2 = await gearNow();
-  assert(g1.gear === g0.gear + 1 && g1.pips === g1.gear && g1.hud && g2.gear === g0.gear - 1 && g2.pips === g2.gear, `rocker: up ${g0.gear} -> ${g1.gear}, down -> ${g2.gear}; HUD pips shown after a change (${g1.hud})`);
-  await page.waitForTimeout(2200);
-  assert(!(await gearNow()).hud, 'HUD gear pips fade after 1.5 s');
-  // forward roll by touch: top gear on the rocker, push the stick, tap crouch
-  for (let i = 0; i < 4; i++) await tapIn('.tc-speed .tc-sp-up');
+  // (step 14, D1) the vision toggle cycles off -> night -> thermal -> electro -> off
+  {
+    const seq = [];
+    for (let i = 0; i < 4; i++) {
+      await tapIn('.tc-vision');
+      let m = await page.evaluate(() => window.__app.current.vision.mode);
+      for (let k = 0; k < 20 && m === (seq[seq.length - 1] ?? 'off'); k++) {
+        await frames(page, 2);
+        m = await page.evaluate(() => window.__app.current.vision.mode);
+      }
+      seq.push(m);
+    }
+    assert(seq.join(' ') === 'night thermal electro off', `the touch vision button cycles the four modes (${seq.join(' ')})`);
+  }
+  // (step 17, A66) no rocker on touch: the stick spans gears 1-5 (analog snapping); a small push walks, a full push
+  // runs at gear 5; crouch tapped at gear 5 while moving rolls
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
   await frames(page, 4);
+  const endS = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 22 });
+  await frames(page, 6);
+  const small = await page.evaluate(() => ({ g: window.__app.current.player.controller.gear, max: window.__app.current.player.controller.maxGear }));
+  await endS();
+  await frames(page, 3);
+  await page.evaluate(() => { const p = window.__app.current.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
+  await frames(page, 4);
   const rolls0 = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
-  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 70 });
+  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 120 });
   await page.waitForFunction(() => window.__app.current.player.controller.speed > 3, null, { timeout: 8000 }).catch(() => {});
+  const full = await page.evaluate(() => window.__app.current.player.controller.gear);
+  assert(small.max === 5 && small.g >= 1 && small.g < 5 && full === 5, `touch stick: maximum gear 5, a small push gear ${small.g}, a full push gear ${full}`);
   const cr = await page.locator('.tc-crouch').boundingBox();
-  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
+  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 120, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
   await frames(page, 2);
-  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }]);
+  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 120, id: 0 }]);
   await page.waitForFunction((r) => window.__app.current.traversal.forwardRolls > r, rolls0, { timeout: 6000 }).catch(() => {});
   await endR();
   const rolled = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
-  assert(rolled === rolls0 + 1, `touch: crouch at gear 6 while moving rolls (${rolled - rolls0})`);
+  assert(rolled === rolls0 + 1, `touch: crouch at gear 5 while moving rolls (${rolled - rolls0})`);
   await page.waitForFunction(() => window.__app.current.traversal.kind === 'none', null, { timeout: 6000 }).catch(() => {});
-  await page.evaluate(() => { const c = window.__app.current.player.controller; c.gears.set(4); });
   await frames(page, 4);
   if (await page.evaluate(() => window.__app.current.player.controller.crouched)) await tapIn('.tc-crouch');
   // (3.2.0) the action button is always there, dimmed with nothing on offer
@@ -141,39 +159,16 @@ try {
   const leaps1 = await page.evaluate(() => window.__app.current.traversal.leaps);
   assert(leaps1 === leaps0 + 1, `touch: the jump button jumps (${leaps1 - leaps0})`);
   await page.waitForFunction(() => window.__app.current.player.controller.grounded, null, { timeout: 5000 }).catch(() => {});
-  // cover by touch: the take-cover prompt on the wall is the indicator, the action button takes it
-  await page.evaluate(() => { const g = window.__app.current; const p = g.player; g.cover.reset(); p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2); p.cam.yaw = -Math.PI / 2; p.cam.pitch = -0.1; });
-  let cst = 'none';
-  // (retried: the prompt can blink while the camera springs settle after the teleport, and moves with the view)
-  for (let i = 0; i < 5 && cst !== 'in'; i++) {
-    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 15000 }).catch(async (e) => {
-      const st = await page.evaluate(() => { const g = window.__app.current; const p = g.player.position; return { map: g.opts.map.id, pos: [p.x, p.y, p.z].map((v) => v.toFixed(2)), cover: g.cover.state, cand: !!g.cover.candidate, prompts: [...document.querySelectorAll('.hud-world > *')].map((x) => x.className).join('|') }; });
-      throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(st)}`);
-    });
-    await page.waitForTimeout(600);
-    const lbl = await page.evaluate(() => document.querySelector('.tc-action .tc-label')?.textContent ?? '');
-    if (i === 0) assert(/cover/i.test(lbl), `the action button reads the prompt ("${lbl}")`);
-    await tapIn('.tc-action');
-    await page.waitForTimeout(900);
-    // (under load the glide into cover can still be running: wait for it to land)
-    await page.waitForFunction(() => window.__app.current.cover.state !== 'enter', null, { timeout: 8000 }).catch(() => {});
-    cst = await page.evaluate(() => window.__app.current.cover.state);
-  }
-  assert(cst === 'in', `the action button takes cover at the prompted wall (${cst})`);
   // the prompts are indicators: a touch on one never reaches the game (no pointer events)
-  const pe = await page.evaluate(() => getComputedStyle(document.querySelector('.wp-cover') ?? document.querySelector('.wp')).pointerEvents);
+  const pe = await page.evaluate(() => {
+    let el = document.querySelector('.wp');
+    let made = false;
+    if (!el) { el = document.createElement('div'); el.className = 'wp'; (document.querySelector('.hud-world') ?? document.body).appendChild(el); made = true; }
+    const v = getComputedStyle(el).pointerEvents;
+    if (made) el.remove();
+    return v;
+  });
   assert(pe === 'none', `world prompts are indicators only (pointer-events ${pe})`);
-  await page.waitForTimeout(300);
-  const badge = await page.evaluate(() => !!document.querySelector('.wp-state.show'));
-  assert(!badge, 'no cover badge or button on the wall in use');
-  // leaving by touch: push the move stick away from the wall
-  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, -1));
-  await page.waitForTimeout(700);
-  // (held until it lets go: under load the game clock runs behind the wall clock)
-  await page.waitForFunction(() => window.__app.current.cover.state === 'none', null, { timeout: 6000 }).catch(() => {});
-  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 0));
-  cst = await page.evaluate(() => window.__app.current.cover.state);
-  assert(cst === 'none', `pushing away from the wall leaves cover (${cst})`);
   // pause via touch
   await page.locator('.tc-pause').tap();
   await page.waitForSelector('.pause-screen', { timeout: 5000 });
@@ -182,6 +177,47 @@ try {
   await page.locator('.dialog .btn', { hasText: 'Quit' }).tap();
   await page.waitForSelector('.main-menu', { timeout: 10000 });
   assert(true, 'quit by touch');
+  // (locomotion step 17, A65, D1) the context button carries the takedown: behind a guard it reads "Takedown"; a tap
+  // starts it (a grab from behind, then a second tap knocks out)
+  console.log('touch takedown on the context button (step 17, A65)');
+  {
+    const tk = await launch({ url, params: 'autostart=warehouse&mode=clear' });
+    try {
+      const P = tk.page;
+      await P.waitForFunction(() => !!window.__app?.current?.enemyMgr && !!window.__app.current.player, null, { timeout: 60000 });
+      await frames(P, 5);
+      await P.evaluate(() => {
+        const g = window.__app.current;
+        g.target.health.invulnerable = true;
+        g.mode.pending.length = 0;
+        const V = g.player.position.constructor;
+        g.enemyMgr.clear();
+        g.player.controller.teleport(new V(2, 0, -1.9), 0);
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0);
+        e['stagger'] = 99;
+        e.yaw = 0;
+        window.__tdE = e;
+      });
+      await P.waitForFunction(() => !!window.__app.current.takedown.offer && document.querySelector('.tc-action')?.textContent === 'Takedown', null, { timeout: 8000 }).catch(() => {});
+      const label = await P.evaluate(() => ({ offer: !!window.__app.current.takedown.offer, text: document.querySelector('.tc-action')?.textContent ?? '' }));
+      const tapAct = async () => {
+        const b = await P.locator('.tc-action').boundingBox();
+        await P.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+        await frames(P, 4);
+      };
+      await tapAct();
+      const started = await P.evaluate(() => { const t = window.__app.current.takedown; return !!t.active || t.hostage !== null || !window.__tdE.alive; });
+      await P.waitForFunction(() => { const t = window.__app.current.takedown; return t.hostage !== null || !window.__tdE.alive; }, null, { timeout: 4000 }).catch(() => {});
+      if (await P.evaluate(() => window.__tdE.alive && window.__app.current.takedown.hostage !== null)) await tapAct();
+      await P.waitForFunction(() => !window.__tdE.alive, null, { timeout: 8000 }).catch(() => {});
+      const down = await P.evaluate(() => !window.__tdE.alive);
+      assert(label.offer && label.text === 'Takedown' && started && down, `touch: the context button reads Takedown behind a guard and a tap takes them down (${JSON.stringify(label)}, started ${started}, down ${down})`);
+    } finally {
+      await tk.browser.close();
+    }
+  }
   // 3.1.6 forced landscape: a phone held upright (rotation locked) gets the page turned, not a "rotate" screen; taps
   // and sticks act in the turned space (hold the phone turned left: the screen's top is the game's left)
   const pt = await launch({ url, touchViewport: { width: 390, height: 844 } });
@@ -243,6 +279,45 @@ try {
     assert(errs.length === 0, `anticlockwise: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   } finally {
     await pc.browser.close();
+  }
+  console.log('door peek (step 13, D1 basic scheme): the context button cracks the Proving shed door, again closes');
+  const dp = await launch({ url, params: 'autostart=proving' });
+  try {
+    const P = dp.page;
+    await P.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+    const ok = await P.evaluate(() => {
+      const g = window.__app.current;
+      const d = g.world.doors.list[0];
+      if (!d) return false;
+      const an = d.anchor;
+      const nx = Math.cos(an.yaw);
+      const nz = -Math.sin(an.yaw);
+      const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+      const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+      const yaw = Math.atan2(-nx, -nz);
+      g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+      g.player.cam.yaw = yaw;
+      g.player.cam.pitch = 0;
+      return true;
+    });
+    assert(ok, 'Proving has a door');
+    await frames(P, 20);
+    const st = () => P.evaluate(() => { const g = window.__app.current; const d = g.world.doors.list[0]; const b = document.querySelector('.tc-action'); return { phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, idle: b.classList.contains('tc-idle'), label: b.textContent?.trim() ?? '' }; });
+    const offer = await st();
+    assert(!offer.idle && offer.phase === 'off', `the context button offers the peek at the closed door (${JSON.stringify(offer)})`);
+    await P.locator('.tc-action').tap();
+    await P.waitForFunction(() => window.__app.current.doorPeek.phase === 'peek', null, { timeout: 8000 }).catch(() => {});
+    const on = await st();
+    assert(on.phase === 'peek' && on.cracked && on.target === 0, `the touch context button cracks the door and peeks (${JSON.stringify(on)})`);
+    await frames(P, 4);
+    await P.locator('.tc-action').tap();
+    await P.waitForFunction(() => { const g = window.__app.current; return g.doorPeek.phase === 'off' && !g.world.doors.list[0].cracked; }, null, { timeout: 8000 }).catch(() => {});
+    const off = await st();
+    assert(off.phase === 'off' && !off.cracked && off.target === 0, `the context button again closes it (${JSON.stringify(off)})`);
+    const errs = dp.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(errs.length === 0, `door peek: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  } finally {
+    await dp.browser.close();
   }
 } catch (e) {
   failed = true;

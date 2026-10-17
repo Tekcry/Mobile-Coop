@@ -1,6 +1,8 @@
+> **Current milestone (2026-10-10): the vertical slice - Mission 1 "Dead Line", a colocation data centre, built through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`). Retired map designs are in `docs/archive/maps/`.**
+
 # Night Shift - Design Bible
 
-Version 1.7 - 2026-10-08 (1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.13 - 2026-10-13 (1.13: Michael's decisions D1-D8 for the locomotion run (Phase 3 + 3b, branch feature/ct-locomotion) in new Section 5.17: controller first and touch a basic fallback, no bobble, S3a / S3b absorbed, phone budgets hold, the modern movement layer, one final review, remapping / hold-toggle / custom difficulty, co-op parity; 5.17 overrides older text. 1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -108,7 +110,7 @@ The heart of the game is the light and shadow system. If a feature makes light l
 ### P7 - Phone and desktop are both first class
 
 - Phone: 60 fps sustained on a warm iPhone 17 Pro Max.
-- Every action is possible on touch through contextual prompts.
+- Touch is a basic fallback scheme (D1, Section 5.17): move and look, aim, fire, crouch, jump, one contextual action button and the vision toggle.
 - Gameplay never depends on graphics settings (crossplay fairness).
 
 ---
@@ -199,6 +201,9 @@ The Phase column refers to Section 10.
 | Takedowns: behind, front, side, corner, above (drop), below (pull down), window, over low obstacle | Tap = non-lethal, hold = lethal | Have | - |
 | Knife | Lethal close takedown. Cuts cloth and tarps to make new paths. | Add | 6 |
 | Dual takedown (co-op) | | Have | - |
+| Elbow strike | Fire button while the weapon is holstered. Knocks out an unaware guard; staggers an aware one (5.4). | Add | 3 |
+| Holster / draw | The weapon comes out only while aiming and goes away when aiming stops (5.6) | Add | 3 |
+| Hip fire | Removed (Michael, 2026-10-09) | Remove | 3 |
 | Mark & Execute | Blacklist | Remove | 3 |
 
 ### Vision
@@ -263,14 +268,30 @@ The Phase column refers to Section 10.
   - The phone version must pass the Phone check 3-minute hold at 60 fps.
 - **L4 - Real-time shadows only for what the bake cannot know:** flashlights, moving lights and characters (capsule / contact shadows near the camera). Static lamps never need a shadow map.
 - **L5 - Parity test.** A test samples a grid of points per map and compares the gameplay level against the rendered band (dark / mid / lit) on the phone light look and on Epic. Any mismatch fails.
+  - **Rendered bands have display brightness targets** (2026-10-09). Measured on a matte 50% grey surface facing the light, after tone mapping and grade:
+
+    | Gameplay level | Band | Display brightness |
+    | --- | --- | --- |
+    | 0.12 | dark | 4% or less |
+    | 0.27 | dark | 9% or less |
+    | 0.40 | mid | 12-35% |
+    | 0.70 | lit | 45% or more |
+
+  - Desktop and phone share the targets.
 - **L6 - The meter.**
   - Continuous 0-1, updated at 10 Hz or more, with the existing thresholds (`LIGHT.shadow` 0.28, `LIGHT.lit` 0.6).
   - The HUD shows a continuous bar with the threshold marks.
   - It samples chest and head; crouching lowers the samples.
   - If the meter reads dark, no guard can detect the player faster than the dark rate allows.
-- **L7 - Readable darkness.**
-  - Dark areas are never pure black on a phone at default brightness. Walls, exits and the player's own silhouette stay readable without night vision.
-  - Night vision shows detail and guards; it is never required just to find the way.
+- **L7 - Darkness is dark (Michael, 2026-10-09; replaces "readable darkness").** As in Chaos Theory: if a guard cannot see you, you can hardly see yourself.
+  - **The dark band renders near-black** (L5 targets). A darkness curve applied in the lighting, before tone mapping, makes it so on every device.
+  - **Finding your way in the dark:**
+    - **Night vision:** a gain inside the lighting that reveals real detail in the dark and blows out in light, so the player toggles it.
+    - **The goggle glow:** the operator's emissive lenses, visual only, never seen by guards (5.14).
+    - the light meter and the sound meter
+    - faint light from moon, windows and lamp pools where it really reaches
+  - **A phone black floor of 0.008** only stops OLED smear; it is not enough to see by.
+  - **A brightness calibration screen** ("barely visible" symbol) sets a small, clamped exposure offset per device. Render only; locked in the Confrontation.
 - **L8 - Controllable light.** Every lit space offers at least two ways to change the light:
   - switch
   - breakable lamp
@@ -279,7 +300,12 @@ The Phase column refers to Section 10.
 - **L9 - Guards notice light changes in their view** (existing `lightsOut`). A fuse box trip sends a guard to the box. Investigating guards in darkness take torches (existing).
 - **L10 - Co-op.** Light state (on / off / destroyed / disrupted) is host-authoritative and synced. Clients re-mix the volume locally.
 - **L11 - Characters and bodies do not occlude gameplay light.** This is deliberate: simple and symmetrical.
-- **L12 - Doors.** How open and closed doors affect the bake is decided in Phase 1 and recorded in `docs/systems/lighting.md`.
+- **L12 - Doors (decided by Michael, 2026-10-08):** closed doors block light, on screen and in gameplay.
+  - Door leaves are left out of the bake and applied at runtime: gameplay rays against closed doors, and the lamp volume's remix includes closed doors near each lamp.
+  - Opening or closing a door updates the lighting like a switch.
+- **L14 - The moon is baked (decided by Michael, 2026-10-08).**
+  - Its visibility is baked like a lamp's, so outdoor moon shadows match the meter on every device.
+  - Real-time moon shadow maps remain only for moving characters on desktop.
 - **L13 - Cost.** No per-frame per-lamp loops on phones. Re-mixing on a light change stays a one-off of a few milliseconds (existing remix).
 
 ### 5.2 Sound (P2)
@@ -401,7 +427,18 @@ The Phase column refers to Section 10.
 
 ### 5.4 Takedowns, grabs, interrogation
 
-- **Contextual takedowns only.** There is no free melee button (Michael, 2026-10-08). Spotted up close, the player shoots or runs.
+- **Contextual takedowns plus one melee strike** (Michael, 2026-10-09; replaces "contextual takedowns only").
+- **The elbow strike, as in Chaos Theory:** the fire button while the weapon is holstered.
+  - **Reach and speed:** about 1.2 m; about 0.5 s from press to hit, a committed move.
+  - **On an unaware guard** (from any side), or one taken from behind or the side: knocked out, the same result as a non-lethal takedown.
+  - **On an aware guard facing you:**
+    - staggered for about 1 s, his aim broken
+    - a second strike within the stagger knocks him out
+  - **Heavies:** a frontal strike only staggers them, never a knock-out.
+  - **Noise:** a small noise event (about 4 m).
+  - **A miss** leaves you exposed for its recovery (about 0.4 s).
+  - **Co-op:** approved by the host, like takedowns.
+  - Contextual takedowns (action button) stay for the full set of positions and the lethal / non-lethal choice.
 - **Quick, CT style:** about 1-1.5 s from press to victim down, every kind. That keeps exposure short and co-op sync simple.
 - **Keep** every existing takedown kind. Tap = knock out, hold = lethal.
 - **Offered from every state:**
@@ -420,7 +457,7 @@ The Phase column refers to Section 10.
 
 ### 5.5 Gadgets and vision
 
-- **Vision modes** cycle: off, night, thermal, electro.
+- **Vision modes** cycle: off, night, thermal, electro. Night vision is a gain in the lighting (L7), so it reveals real detail and blows out near lamps.
   - Thermal and electro are post passes on `CinematicPost` (or the phone grade pass).
   - The phone cost must pass the Phone check.
   - Vision modes never change detection.
@@ -432,7 +469,9 @@ The Phase column refers to Section 10.
 **Locked decisions (Michael, 2026-10-08):**
 
 - A small choice per class, 3-4 guns each.
-- Hip fire is allowed but inaccurate.
+- **Holstered unless aiming** (Michael, 2026-10-09):
+  - The weapon comes out only while aiming and is put away as soon as aiming stops, in every state, alert and combat included.
+  - **No hip fire.** The fire button is the elbow strike while the weapon is holstered (5.4).
 
 **Slots:** one primary and one sidearm, plus gadgets.
 
@@ -448,8 +487,13 @@ The Phase column refers to Section 10.
 
 **Gunplay:**
 
-- **Aim (ADS)** over the shoulder is the accurate way to shoot. Crouched and still is steadiest. Speed gear and motion widen spread.
-- **Hip fire** works but with wide spread: a panic option, not a tactic.
+- **Aiming is the only way to shoot.**
+  - **Hold aim:** the weapon is drawn (about 0.3 s for a pistol, 0.4 s for a primary, per the realism standard 5.12), then raised over the shoulder.
+  - **Fire** shoots only while aiming.
+  - **Release aim:** the weapon is put away (about 0.4 s); the hands are free again.
+  - Crouched and still is steadiest. Speed gear and motion widen spread.
+- **Holstered look:** the primary slung on the back, the pistol in its holster. The silhouette stays clean, as in Chaos Theory.
+- **Co-op:** the drawn / holstered state is in `MoveState`, so partners see it.
 - **Marksman zoom** has sway and hold breath. Breath is limited and recovers.
 - **Noise:** every shot is a noise event (Phase 2). Suppressed shots are quiet, not silent. Impacts are heard nearby.
 - **Lights:** every shot can kill a lamp (P1). The gun is also a light tool.
@@ -461,7 +505,7 @@ The Phase column refers to Section 10.
 
 **Phases:**
 
-- Phase 3: arsenal curation and renaming; hip fire and ADS spread tuning.
+- Phase 3: arsenal curation and renaming; holster and draw; no hip fire; the elbow strike; ADS spread tuning.
 - Phase 6: the launcher and its rounds.
 
 ### 5.7 AI (P5)
@@ -491,6 +535,7 @@ The Phase column refers to Section 10.
   - laser trip beams
   - optional turrets
 - **No randomness that defeats planning.** Patrol cycles are fixed per map (level design rule 6).
+- **Per-stop facing (Phase 6):** a guard's patrol stop can set the direction he faces while waiting (`SquadSlot`). Today a stopped guard always faces his next leg, which forces layout compromises (Exchange self-critique, item 2).
 - **Awareness arcs** stay for readability (decided 2026-10-08):
   - on by default at Rookie and Normal
   - off by default at Realistic and Perfectionist
@@ -501,7 +546,7 @@ The Phase column refers to Section 10.
   - They can be grabbed, interrogated, and knocked out (a rating penalty).
   - Killing a civilian fails the mission.
   - A distinct look and body language make them readable at a glance.
-  - The Kestrel Exchange's contracted watchman (G1) becomes the first civilian.
+  - The data centre's night duty engineer (Mission 1) is the first civilian.
 - **Drone operator** is parked: kept in code, not placed in campaign maps.
 
 ### 5.8 Missions and campaign
@@ -604,15 +649,15 @@ It is validated by a schema with a unit test (extend `validateMissions`).
 
 **Difficulty:** one per session, chosen by the host. Player count never changes it (C7).
 
-**Vertical slice:** Kestrel Exchange, a 1934 telephone exchange now used by a data broker. Its mission is "Dead Line": 8 spaces and 9 guards.
+**Vertical slice (decided 2026-10-10):** Mission 1 "Dead Line", set in the present day (2026 onwards) at a modern colocation data centre. The 1934 Kestrel Exchange, the Trunk Annex and Dead Line v1 / v2 are retired (archived in `docs/archive/maps/`).
 
-- Design documents:
-  - `docs/prompts/exchange-design.md` (Part 1 building, Part 2 gameplay)
-  - `docs/prompts/exchange-plans/` (floor plans and gameplay overlays)
-  - `docs/prompts/exchange-map.md` (spec)
-  - `docs/prompts/exchange-map-progress.md` (log)
-- Map phases 0-2 (paper) are done. Phase 2 is awaiting Michael's approval.
-- The map's build phases (3-6) are held until roadmap Phase 3b is done and the design has passed the alignment pass in `docs/prompts/exchange-alignment.md` (Section 10, Phase 7).
+- A 30-40 minute solo and 1-4 player co-op stealth mission.
+- A chain of seven ordered objectives and two optional ones.
+- 6 guarded spaces, 16 guards and 1 civilian (the night duty engineer).
+- Systems it exercises: CCTV cameras, a security desk, card readers with keycards, a mantrap, an iris scanner, infrared beams and PIR motion-sensor lights.
+- Built through the prompt pack in `docs/kestrel/` (P00 onward) on branch `feature/kestrel`. The map id is `kestrel` (internal name only).
+- Engine step S5 will let every guard spawn at the start with at most 12 awake at once. Until it lands the code limits are SQUAD_CAP 9 and MAX_ALIVE 12.
+- Story: Mission 1 is Dead Line; Mission 5 is "The Strongroom", a Victorian bank turned private vault. `docs/story.md` is rewritten to match (prompt D1).
 
 ### 5.9 Co-op (P6)
 
@@ -953,6 +998,7 @@ Each batch:
   - Each is identifiable at 20 m in the dark by silhouette and goggle colour.
   - Original goggle design: not the series' three-lens look.
 - **Fairness:** identical skeleton, capsule, speeds, hit volumes and light sample heights. Visible build differences stay within a few percent.
+- **The goggle glow arrives early** (Phase 1 Step 4b, green for every operator until Phase 5): emissive lenses, visual only, never a light, never seen by guards. It is how a player finds their operator in darkness (L7).
 - **Choosing:** solo, the player picks one. In co-op each player picks a different one; the host resolves duplicates.
 - **Cosmetics:** they replace appearance editing in the campaign. Cosmetics stay parked.
 - **The four operators** (story Section 4):
@@ -1041,9 +1087,13 @@ Each batch:
 3. **Takedowns on a traitor:**
    - Only from outside his front cone (about 120 deg), from above or below (gantries, pipes, grates), or while he is staggered (a hit by a thrown object, the shocker, a steam valve).
    - A frontal attempt shoves both apart. Nobody wins it.
+   - **The elbow strike in the Confrontation:**
+     - From outside the traitor's front cone it knocks him out, like a takedown.
+     - From the front it is a shove: both pushed apart, a 0.6 s stagger that does **not** open a takedown window.
+     - A second frontal strike is not a knock-out here.
 4. **Pistol limits:**
    - Every shot is heard across the arena, and the muzzle flash lights the shooter.
-   - Hip fire is wide (5.6). The first shot after moving fast is inaccurate.
+   - The traitor's pistol is always drawn (first person, Act 2 only). The first shot after moving fast is inaccurate.
    - Reloading takes 2.2 s and is loud: a takedown window.
    - 3 body hits or 2 head hits down a protagonist.
 5. **Information pulses every ~45 s:**
@@ -1133,6 +1183,143 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
   - thrown objects (Phase 6)
 - **After the campaign:** a standalone **Confrontation** mode (roles chosen or swapped, any arena) becomes the on-brand replacement for the parked PvP modes.
 
+### 5.16 Desktop visual target
+
+**Goal (Michael, 2026-10-09):** the desktop version surpasses Splinter Cell: Chaos Theory visually.
+
+- The phone keeps "one palette, two fidelities" (Section 8).
+- Visual work never changes gameplay (hard rule).
+
+**Where to win:** lighting and atmosphere, where modern real-time rendering beats 2005 by far. CT's strengths were hand-made characters and textures, which are hard to match from code.
+
+**CC0 textures (decided by Michael, 2026-10-09):**
+
+- Free CC0 texture files are allowed for desktop surface detail: brick, concrete, rust, tiles, fabric and gear.
+- **Rules:**
+  - Bundled with the game, never fetched from third parties at runtime.
+  - Downloaded only by desktop builds and presets that use them. Phones never download them.
+  - Cached for offline play after the first desktop load.
+  - A size budget is set in Phase 6b (proposal: 60 MB of compressed textures for the whole campaign).
+  - Every file's source and licence goes in `docs/art-credits.md`.
+- Geometry, characters and animation stay code-built (5.12).
+
+**Pillars of the look:**
+
+1. **Lighting:**
+   - soft shadows shaped by the lamp fixture (the baked lamps)
+   - one-bounce light
+   - visible light cones in fog and rain
+   - flickering and failing lamps
+   - flashlight beams in haze
+2. **Atmosphere:**
+   - rain with wet surfaces, puddle reflections and drips
+   - steam, dust in light shafts, layered fog
+3. **Hollowmere's identity:** orange sodium lamps against blue moonlight, rain-wet stone and metal, deep but readable blacks.
+4. **The operators:**
+   - detailed code-built silhouettes: fabric folds, straps, pouches, harnesses, kit detail
+   - CC0 fabric and gear textures
+   - the goggle glow as the signature light
+5. **Vision modes as a showpiece:** night, thermal and electro, each with its own grain, bloom and noise character.
+6. **Camera finish:** filmic tone mapping and grading per district, subtle grain, restrained lens effects.
+
+**The art direction doc** (`docs/art-direction.md`, written before Phase 6b; can be drafted in chat at any time):
+
+- the palette and lighting key per district
+- the material list
+- the character detail sheet
+- the rules for what may differ on phone
+
+**Beauty shots:**
+
+- A fixed set of camera positions per map (`scripts/beauty-shots.mjs`), captured at Epic after every phase from Phase 6b on, so progress is visible and regressions are caught.
+- Michael compares them privately against Chaos Theory screenshots. Those never go in the repo.
+
+**Budget:** desktop targets stay as in `docs/systems/performance.md` (the gaming-laptop target at Epic). High must still run well on mid-range desktop GPUs.
+
+### 5.17 Michael's decisions D1-D8 (2026-10-13, locomotion run)
+
+These override older bible text. Copy kept in `docs/locomotion/DECISIONS.md`.
+
+#### D1 Controls:
+
+- The controller is the primary design target, then keyboard and mouse.
+- Every verb is designed and tuned on the pad first, and is covered in e2e-pad and e2e-mouse.
+- Touch is a basic test and fallback scheme only: move and look, aim, fire (elbow strike while holstered), crouch, jump, one contextual action button (it carries back-to-wall, door peek, takedown, interact and traverse), and the vision toggle. No other touch work.
+- Keep e2e-touch passing for that basic scheme. Readability is judged on desktop first.
+- This replaces the bible's "touch and controller are equal" text and the Phase 3 touch control scheme spec.
+
+#### D2 No bobble. Starting limits; the audit may refine them only with cited biomechanics sources; the final values are frozen in config with unit tests:
+
+- Pelvis vertical travel, peak to peak per stride: crouch gears 2.5 cm or less, walk 4 cm, run 6 cm, sprint 8 cm. Exactly one low and one high point per step; no double bounce.
+- Head: vertical travel no more than the pelvis; pitch and roll oscillation 2 deg or less.
+- Lateral pelvis sway at walk: 3 cm or less.
+- Camera: no camera bob. The camera follows the smoothed capsule, never the head or pelvis. Vertical oscillation 0.5 cm or less in steady movement. A landing gets one damped dip and no rebound.
+- Weapon and kit sway settle within 0.2 s after a stop, with no secondary wobble. Idle breathing 1 cm or less.
+- Measured on every gear, in both stances, on flat floor, stairs and slopes, at 60 and 120 Hz, for local and remote poses.
+
+#### D3
+First Playable steps S3a and S3b are absorbed into this run.
+
+
+#### D4
+The phone perf budgets stay; nothing may regress them. The 0.04 ms per character animation budget holds, for remotes too.
+
+
+#### D5 Modern layer. Control stays instant (bible 5.12.1); weight lives in the body.
+
+1. Speed-scaled gait: stride length, pelvis height, arm swing and forward lean scale with speed; gears read as effort levels, never as playback rate (batch 1).
+2. Acceleration and turn lean on the upper body, through a damped spring; the root never overshoots (batch 1).
+3. Compression and one damped settle on stops, landings, drops and vault exits (batches 1 and 3).
+4. Plant-and-pivot steps on sharp direction changes; stride warping so the feet always match the capsule (batch 1).
+5. Exertion breathing after a sprint or climb, chest and shoulders only, cosmetic, no stamina (batch 1).
+6. Trained posture: soft knees, a stabilised level head, ready hands while holstered; heel-to-toe foot roll at the stealth gears, matching the noise model (batch 1).
+7. Weapon discipline when aiming: the muzzle never sweeps team-mates; low-ready in tight spaces (batch 2).
+8. Head and eye look-at toward noises, visible guards, nearby team-mates and the aim point, within neck limits (batch 1; guards in batch 5).
+9. Hand contact IK on door frames, corners and ledges; ducking under low geometry; turning sideways through tight gaps (batches 3-4).
+10. Full-body IK on stairs and slopes: pelvis drop, feet on treads, spine compensation (batch 1).
+11. Momentum-scaled traversal: the same input gives a fast, low vault from a sprint and a careful one from a walk.
+12. Pad: analog speed with gear snapping and hysteresis; a bumper or the rocker sets the maximum gear; Gamepad API rumble on landings, takedowns, shots and heavy footfalls.
+13. Camera: spring-damper follow of the capsule, slight look-ahead, smooth pull-in near walls, automatic shoulder swap at corners, a small field-of-view change by gear and stance, never a bob.
+Never: motion matching or captured data, root motion driving control, stamina penalties, player ragdoll beyond hit reactions.
+
+#### D6
+Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of the whole run.
+
+
+#### D7 Input options:
+
+- Full remapping of every action, for the pad and for keyboard and mouse, with conflict warnings and a reset to defaults.
+- Every hold action gets a hold or toggle setting (aim, crouch, back-to-wall, sprint, grab).
+- Custom difficulty: separate sliders for guard perception speed, guard aim and alarm tolerance, plus the existing presets. In co-op, the host's difficulty applies.
+- Settings persist in IndexedDB through src/save; a save-shape change follows the SAVE_VERSION rule.
+- Covered in e2e-pad and e2e-mouse (remap, then play) and in unit tests.
+
+#### D8 Co-op parity. Every feature in this run works smoothly in 2-4 player co-op, to bible 5.9 C11:
+
+- Networking:
+  - Every new or changed movement state, verb and clip has a networked MoveState mode, and remotes pose from it, never from position alone. Back-to-wall, door peek, holster / draw, elbow strike, medkit use, the dedicated clips and drag are included.
+  - Committed moves (elbow strike, takedowns, team moves, drag) are host-approved with a shared start time; the host decides interruptions.
+  - Health, medkit counts, the drawn / holstered state and the weapon in hand are host-authoritative.
+  - Vision modes, the camera, rumble, remapping and hold / toggle stay local and are never sent.
+  - The D5 layer runs on remotes from MoveState plus velocity, computed locally, with no extra bandwidth. Remote bodies look as weighty as the local one.
+- Avatar-to-avatar interaction:
+  - players never interpenetrate (capsule separation)
+  - shoulders turn to pass in tight spaces
+  - head look-at includes nearby team-mates
+  - muzzle discipline avoids team-mates
+  - two players can stack on one wall in back-to-wall
+  - every existing team move (boost, human ladder, split-jump boost, back-to-back, pull-up, rappel anchor, dual takedown) gets the D5 layer and contact IK, with no clipping between the two bodies
+- Hooks for Phase 5, not built now: drag and medkit use accept any target, including a downed team-mate (record it in PLAN.md as a hook). Sync, clutch saves, typed pings, new team moves and team results stay in Phase 5.
+- Tests:
+  - every new state adds an e2e-netmove case, with the remote pose error under its limit
+  - the bot partner exercises every team move and verb
+  - one ?net=local 4-player run covers back-to-wall stacking, takedowns, the elbow strike and medkits
+  - the anim-audit harness also runs on remote poses
+  - rubber-banding, or pose error above the e2e-netmove limits, fails the step
+
+
+---
+
 ## 6. Out of scope
 
 **Removed in Phase 3** (code deleted, tests and docs updated):
@@ -1144,8 +1331,8 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 
 **Parked** (code kept behind `?legacy=1` from Phase 0; no new work; their e2e suites are optional):
 
-- Hunter and Wave Survival - Michael wants both back after the vertical slice, rebuilt on campaign maps.
-- The old Mission mode.
+- Hunter and Wave Survival - Michael wants both back after the vertical slice, rebuilt on campaign maps (unparked, Michael 2026-10-11; game-wide backlog 26; Cinder Yard after its campaign mission is ready).
+- The old Mission mode (retired 2026-10-11: Mission returns as PvP attack and defend, one team defends while the other attacks several objectives one at a time; Michael).
 - PvP: Team Deathmatch and Free-for-all. The Confrontation (5.15) reuses their network code but is its own design.
 - Credits, XP-gated unlocks, shop, suit upgrades, HQ, challenges, weapon mastery.
 - Camos, outfits, emotes, appearance editing beyond the default operator.
@@ -1156,7 +1343,8 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 **Never:**
 
 - Splinter Cell IP of any kind.
-- Recorded or synthesised voice. External audio or art files (existing hard rule).
+- Recorded or synthesised voice.
+- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7).
 - Random patrols that defeat planning.
 - Forced timers in stealth sections.
 - World waypoints.
@@ -1191,7 +1379,7 @@ The standard's existing content stays. This bible adds the following:
   - at least one more co-op moment (light control as teamwork, a sync opportunity, or a split-and-converge pair of objectives)
   - its `coopExtras`
 - **Medkit and civilian plan.** Wall medkits about every second space. Where civilians work and why they are there at night.
-- **Every map ships with a map spec** in `docs/maps/<map>.md` written before blockout. The Exchange prompt and plan are the template.
+- **Every map ships with a map spec** in `docs/maps/<map>.md` written before blockout. `docs/templates/map-spec.md` is the template.
 
 ---
 
@@ -1209,12 +1397,12 @@ The standard's existing content stays. This bible adds the following:
   - the noise model
 - **Gameplay never reads** graphics presets, LOD, voxel layers or the governor.
 - **Offline:** the solo campaign works fully offline. Co-op needs internet.
-- **Controls (Michael, 2026-10-08):** touch and controller are equal on phone. Mouse and keyboard are equal on desktop.
+- **Controls (Michael, 2026-10-13, D1 in 5.17; replaces the 2026-10-08 "touch and controller are equal" rule):** the controller is the primary design target, then keyboard and mouse. Touch is a basic test and fallback scheme only.
   - Every verb works on all three and has e2e coverage (`e2e-touch`, `e2e-pad`, `e2e-mouse`).
   - Button prompts swap at once when a controller connects or disconnects.
 - **Touch control scheme (spec written in Phase 3)** - few buttons, the rest contextual:
   - move stick and look area
-  - fire, aim, crouch, jump
+  - aim, fire (the elbow strike while holstered: the button's icon changes), crouch, jump
   - one contextual action button (takedown, interact, traverse, grab)
   - the speed rocker
   - a comms wheel: pings, Sync, whistle
@@ -1224,7 +1412,7 @@ The standard's existing content stays. This bible adds the following:
 - **Release intent (Michael, 2026-10-08):** a personal project.
   - No store builds and no paid infrastructure unless it is cheap.
   - The originality rules stay anyway: no Splinter Cell IP, no real gun brands.
-- **Art direction default: one palette, two fidelities.**
+- **Art direction: one palette, two fidelities.** Desktop aims to surpass Chaos Theory visually (5.16).
   - Each map's design document defines its palette and lighting key: lamp colours, moon, the colours of dark and lit areas.
   - The phone look uses the same palette and light colours with simpler materials; desktop adds detail, never a different mood.
   - Readability is judged on the phone look first.
@@ -1300,13 +1488,14 @@ The standard's existing content stays. This bible adds the following:
 | --- | --- | --- |
 | 0 | Foundation | Merge `dev` (3.2.1-3.4.0 phone work) into `ct-movement`; this bible installed; `CLAUDE.md` cut to a lean core with `docs/systems/`; old changelog / testing archived; parked modes behind `?legacy=1`; player-facing title renamed to Night Shift; `docs/story.md` installed; `docs/progress.md`. Spec: `docs/prompts/phase-0-foundation.md`. |
 | 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (Phone check gate); parity test; continuous meter HUD; fuse boxes; door decision. |
-| 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and Exchange. |
-| 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
-| 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
+| 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and the Dead Line map. |
+| 3 | Pure CT conversion | The control scheme per D1 (5.17: pad first, then keyboard and mouse, basic touch); D7 remapping, hold / toggle and custom difficulty; holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
+| 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches with the D5 modern layer and D8 co-op parity, one final review by Michael (D6). Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
-| 6 | CT verbs for the slice | Civilians (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
-| 7 | Vertical slice | Kestrel Exchange as Mission 1 "Dead Line". First the alignment pass in `docs/prompts/exchange-alignment.md` (map Phase 2b) on `exchange-design.md`: replace cover-to-cover and Mark & Execute in Spaces 5-7, re-check engine facts changed by Phases 1-3b (including the frozen movement metrics), add the light, sound, checkpoint and co-op plans. Then the map's own build phases 3-6 (ground floor; first floor, roof and yard; guards and mission; dressing and verification), then the Dead Line radio script (story Section 8), checkpoints and rating. Finally a playtest pass on iPhone, desktop and 2-player co-op. |
+| 6 | CT verbs for the slice | Civilians (5.7); per-stop guard facing (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
+| 6b | Visual target | Section 5.16: the CC0 texture pipeline (desktop-only download, offline cache, size budget, credits); the material library; operator detail; rain and wetness; light cones, haze, flicker; vision mode beauty pass; district grading; beauty shot script and baseline. Works from `docs/art-direction.md`. |
+| 7 | Vertical slice | Mission 1 "Dead Line", a modern colocation data centre, through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`): 30-40 minutes, 7 ordered and 2 optional objectives, 6 guarded spaces, 16 guards, 1 civilian; CCTV, security desk, keycards, mantrap, iris scanner, infrared beams, PIR lights. Engine step S5 first lets every guard spawn with at most 12 awake. Then the radio script, checkpoints and rating, and a playtest pass on iPhone, desktop and 2-player co-op. |
 
 **After the slice:**
 
@@ -1319,18 +1508,26 @@ The standard's existing content stays. This bible adds the following:
 
 ## 11. Open decisions (Michael)
 
-**Decided on 2026-10-08** (no longer open): story, setting and tone; title; the traitor finale (5.15); input parity; personal project; shared co-op progress; the operator team; awareness arcs; quicksave; civilians; health numbers; the run / sprint braking stop.
+**Decided on 2026-10-08 and 2026-10-09** (no longer open):
+
+- weapon holstered unless aiming; no hip fire; the elbow strike
+
+- the desktop visual target; CC0 textures for desktop detail; Phase 6b
+
+- story, setting and tone; title; the traitor finale (5.15)
+- input parity; personal project; shared co-op progress
+- the operator team and their real names; the Client (Alistair Crane)
+- awareness arcs; quicksave; civilians; health numbers; the run / sprint braking stop
+- Kestrel Exchange Phase 2 (all final); the Space 8 lane camera
+- doors block light; the baked moon
 
 **Still open:**
 
-1. Kestrel Exchange Phase 2 approval: decisions D10-D27 in `exchange-design.md` Section 13, and the self-critique in Section 18.
-   - Space 8 secret route: the neighbour's roof is uncovered by guards. Moving the sniper to cover the lane makes it harder, but he then covers the loaders less.
-2. Door handling in the light bake (Phase 1 proposes, Michael approves).
-3. Whether the LKP becomes per player in co-op (Phase 5 proposes).
-4. Story items in `docs/story.md` Section 9: the Client's identity, the operators' real names, the epilogue lines, Mission 6's location.
-5. Confrontation tuning numbers (5.15), settled in the prototype.
-6. Audio source: code-synthesised or CC0 files (decided by the Phase 2 A/B test).
-7. A relay (TURN) server for co-op (decided after real sessions with friends, C19).
+1. Whether the LKP becomes per player in co-op (Phase 5 proposes).
+2. Story items in `docs/story.md` Section 9: the epilogue lines, the betrayal and last lines, Mission 6's location.
+3. Confrontation tuning numbers (5.15), settled in the prototype.
+4. Audio source: code-synthesised or CC0 files (decided by the Phase 2 A/B test).
+5. A relay (TURN) server for co-op (decided after real sessions with friends, C19).
 
 ---
 

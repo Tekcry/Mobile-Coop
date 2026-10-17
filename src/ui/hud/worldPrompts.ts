@@ -1,9 +1,9 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { keyLabels, promptHtml } from '../prompts';
+import { keyLabels, verbPromptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
-export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner' | 'jumpTo' | 'drop' | 'takedown';
+export type WorldPromptId = 'vault' | 'state' | 'jumpTo' | 'drop' | 'takedown';
 
 interface Item {
   el: HTMLElement;
@@ -15,7 +15,7 @@ interface Item {
   sy: number;
 }
 
-const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner', 'jumpTo', 'drop', 'takedown'];
+const PROMPT_IDS: readonly WorldPromptId[] = ['vault', 'state', 'jumpTo', 'drop', 'takedown'];
 /** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
 const CHAR_VW = 1.25;
 const PAD_VW = 4;
@@ -24,24 +24,17 @@ const MIN_DY = 7;
 /** Pad glyph and the bound key per prompt (keys follow the player's bindings). */
 function glyph(id: WorldPromptId): string {
   switch (id) {
-    case 'cover':
-    case 'move':
-    case 'corner':
-      return promptHtml('A', keyLabels.cover);
     case 'vault':
     case 'jumpTo':
     case 'takedown':
-      return promptHtml('Y', keyLabels.traverse);
+      return verbPromptHtml('traverse', keyLabels.traverse);
     case 'drop':
-      return promptHtml('B', keyLabels.crouch);
+      return verbPromptHtml('crouch', keyLabels.crouch);
     case 'state':
       return '';
   }
 }
 const TOUCH_ICON: Record<WorldPromptId, string> = {
-  cover: icon('cover', 18),
-  move: icon('cover', 18),
-  corner: icon('cover', 18),
   vault: icon('jump', 18),
   jumpTo: icon('jump', 18),
   drop: icon('crouch', 18),

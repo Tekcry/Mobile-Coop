@@ -8,3 +8,7 @@ dev-dist
 coverage
 test-results
 playwright-report
+.kestrel-cert/
+
+# PC pass pictures (locomotion M6)
+/pc/

@@ -4,7 +4,6 @@
 // turn rate), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
 // every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
 // bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 / 120 / 144 / 165 / 240 Hz parity.
-// (Cover choreography bars live in e2e-stealth.)
 import { launch, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -33,8 +32,6 @@ await G(() => {
   const st = a.input.state;
   window.__t = {
     tp(x, z, yaw) {
-      g.cover.reset();
-      g.corners.reset();
       c.teleport(new V(x, 0, z), yaw);
       p.cam.yaw = yaw;
       p.cam.pitch = 0;
@@ -104,12 +101,13 @@ try {
       const end = r.at(-1)[1];
       return end > target * 0.9 ? (r.find(([, v]) => v >= end * 0.95)?.[0] ?? 99) : 98;
     }, [inp, target, gear]);
-  const walkT = await reach({ y: 1 }, 1.3, 2);
-  const jogT = await reach({ y: 1 }, 2.8, 4);
-  const sprintT = await reach({ y: 1, taps: { 1: 'dash' } }, 5.0, 4);
-  assert(walkT <= 0.08, `gear 2: 95% speed in ${f2(walkT)} s (<= 0.08)`);
-  assert(jogT <= 0.08, `gear 4: 95% speed in ${f2(jogT)} s (<= 0.08)`);
-  assert(sprintT <= 0.08 + 1 / 60, `sprint: 95% speed in ${f2(sprintT)} s (<= 0.08 from the press)`);
+  // (step 22, M14 N6) slower caps and a weighted start: 95% of the pace in ~0.3 s (CT.startTime), every gear
+  const walkT = await reach({ y: 1 }, 1.1, 2);
+  const jogT = await reach({ y: 1 }, 2.3, 4);
+  const sprintT = await reach({ y: 1, taps: { 1: 'dash' } }, 4.15, 4);
+  assert(walkT > 0.2 && walkT <= 0.3 + 1 / 60, `gear 2: 95% speed in ${f2(walkT)} s (0.2-0.32)`);
+  assert(jogT > 0.2 && jogT <= 0.3 + 1 / 60, `gear 4: 95% speed in ${f2(jogT)} s (0.2-0.32)`);
+  assert(sprintT > 0.2 && sprintT <= 0.3 + 2 / 60, `sprint: 95% speed in ${f2(sprintT)} s (0.2-0.33 from the press)`);
   const stop = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
@@ -130,9 +128,10 @@ try {
     });
   });
   const stoppedAt = stop.find(([, v]) => v < 0.02)?.[0] ?? 99;
-  assert(stoppedAt <= 1 / 60 + 1e-6, `stop from a jog on the release step (${f2(stoppedAt)} s)`);
-  // 3.2.0: the stop holds the stride it stopped in - only a foot that was in the air sets down
-  assert(within(stop.at(-1)[2], 0, 1), `the stride holds: no settling step (${stop.at(-1)[2]} plant${stop.at(-1)[2] === 1 ? ', the foot in the air' : 's'})`);
+  // (step 22, M14 N6) a weighted stop: at rest within CT.stopTime (0.25 s), then the feet square up with at most
+  // a set-down and one closing step each
+  assert(stoppedAt > 0.1 && stoppedAt <= 0.25 + 2 / 60 + 1e-6, `stop from a jog eases to rest in ${f2(stoppedAt)} s (0.1-0.28)`);
+  assert(within(stop.at(-1)[2], 0, 3), `the stop squares up in at most 3 plants (${stop.at(-1)[2]})`);
   const pivot = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;
@@ -145,8 +144,9 @@ try {
     });
     return { pt, end: r.at(-1), yaw: c.yaw };
   });
-  // (instantaneous speed: the step pulse dips each footfall under the 2.8 m/s pace)
-  assert(pivot.pt === 0 && pivot.end > 2.4, `reversing at a jog: no planted pivot (${f2(pivot.pt)} s), straight off the other way (${f2(pivot.end)} m/s)`);
+  // (step 22, D5.4) reversing at a jog (2.3 m/s) brakes into a planted pivot (>= MOVEMENT.pivotTime 0.3 s), then
+  // goes off the other way at the pace (the step pulse dips each footfall a little under it)
+  assert(pivot.pt >= 0.28 && pivot.pt < 0.6 && pivot.end > 1.95, `reversing at a jog: a planted pivot (${f2(pivot.pt)} s), then off the other way (${f2(pivot.end)} m/s)`);
   const turns = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;
@@ -214,15 +214,21 @@ try {
     t.run(0.8, { y: 1 });
     const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
     t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
-    const raise = t.run(0.5, { ads: true }, (s) => [s, p.carry.raise]);
+    // (step 09) holstered unless aiming: aim draws first (0.3-0.4 s), the raise runs from the drawn hands
+    const raise = t.run(1.0, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
     const lower = t.run(0.6, {}, (s) => [s, p.carry.raise]);
     return { down, up, minMoving: Math.min(...moving), raise, lower };
   });
   const crouchT = stance.down.find(([, v]) => v >= 0.999)?.[0] ?? 99;
   const standT = stance.up.find(([, v]) => v <= 0.001)?.[0] ?? 99;
   assert(within(crouchT, 0.2, 0.3) && within(standT, 0.2, 0.3), `stance change: crouch ${f2(crouchT)} s, stand ${f2(standT)} s (0.2-0.3)`);
-  assert(stance.minMoving > 1.6, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
-  const raiseT = stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99;
+  // (step 22, M14 N6) gear 4 crouched is 1.5 m/s now (was 1.8): the pace eases down onto it, minus the stride dip
+  assert(stance.minMoving > 1.3, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
+  const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
+  assert(drawnT <= 0.45, `aim draws first: drawn in ${f2(drawnT)} s (<= 0.45)`);
+  // the raise starts while the draw finishes: timed from the last frame the weapon was still low
+  const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
+  const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;
   const lowerT = stance.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99;
   assert(within(raiseT, 0.1, 0.2), `aim raise ${f2(raiseT)} s (120-200 ms)`);
   assert(within(lowerT, 0.22, 0.36), `aim lower ${f2(lowerT)} s (250-350 ms)`);
@@ -234,11 +240,13 @@ try {
     const g = window.__app.current;
     const w = g.weapons;
     t.tp(8, -14, -Math.PI / 2);
-    const dur = (flag, tap, prep) => {
+    // (step 09) reload and swap run drawn (aim held: holstered unless aiming); the grenade from holstered
+    const dur = (flag, tap, prep, ads = true) => {
+      if (ads) t.run(0.6, { ads });
       prep?.();
       let on = -1;
       let off = -1;
-      t.run(4.5, { taps: { 1: tap } }, (s) => {
+      t.run(4.5, { ads, taps: { 1: tap } }, (s) => {
         const v = flag();
         if (v && on < 0) on = s;
         if (!v && on >= 0 && off < 0) off = s;
@@ -250,7 +258,7 @@ try {
     const empty = dur(() => w.reloading, 'reload', () => (w.current.mag = 0));
     const swap = dur(() => w.swapping, 'swapNext');
     t.run(1, {});
-    const grenade = dur(() => w.throwing, 'grenade');
+    const grenade = dur(() => w.throwing, 'grenade', undefined, false);
     return { tactical, empty, swap, grenade };
   });
   assert(within(wpn.tactical, 2.45, 2.75), `tactical reload ${f2(wpn.tactical)} s (2.6 s)`);

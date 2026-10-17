@@ -24,17 +24,14 @@ export interface SessionStats {
   damageTaken: number;
   /** Kills per weapon (mastery). */
   weaponKills: Record<string, number>;
-  /** Play-style points (Ghost / Panther / Assault) and detections. */
-  style: { ghost: number; panther: number; assault: number };
   detections: number;
   knockouts: number;
   /** Infiltration: the mission, its rating (0-3) and the bonus rules kept. */
   missionId?: string;
   rating?: number;
   bonuses?: string[];
-  /** Challenge inputs: takedowns by kind, executes, gadget knock-outs / kills, alarms raised. */
+  /** Challenge inputs: takedowns by kind, gadget knock-outs / kills, alarms raised. */
   takedownsByKind?: Record<string, number>;
-  executes?: number;
   gadgetKos?: number;
   alarms?: number;
   /** PvP: deaths (eliminations are `kills`). */
@@ -57,7 +54,6 @@ export function emptyStats(mode: ModeId, mapId: string): SessionStats {
     hits: 0,
     damageTaken: 0,
     weaponKills: {},
-    style: { ghost: 0, panther: 0, assault: 0 },
     detections: 0,
     knockouts: 0,
   };

@@ -1,0 +1,4737 @@
+{
+ "meta": {
+  "id": "kestrel",
+  "version": 2,
+  "grid": 0.5,
+  "objectGrid": 0.1,
+  "entry": [
+   84,
+   4
+  ],
+  "bay": [
+   6,
+   6
+  ],
+  "site": [
+   0,
+   0,
+   108,
+   76
+  ],
+  "buildings": [
+   {
+    "id": "A",
+    "name": "Offices and Security",
+    "footprint": [
+     4,
+     30,
+     40,
+     60
+    ]
+   },
+   {
+    "id": "B",
+    "name": "Data Centre Hall",
+    "footprint": [
+     52,
+     30,
+     100,
+     60
+    ]
+   }
+  ],
+  "stage": "P03B Part 2: campus zones and corridors only",
+  "editor": "level editor (docs/kestrel/editor.md)"
+ },
+ "levels": [
+  {
+   "id": "B",
+   "name": "Under the yard",
+   "floor": -3.6,
+   "height": 3.6,
+   "footprint": [
+    [
+     41,
+     24,
+     49,
+     30
+    ],
+    [
+     40,
+     30,
+     43,
+     47.5
+    ],
+    [
+     49,
+     27,
+     74,
+     30
+    ],
+    [
+     49,
+     24,
+     50.5,
+     25.5
+    ],
+    [
+     72,
+     30,
+     74,
+     32
+    ],
+    [
+     38,
+     45,
+     40,
+     47
+    ]
+   ]
+  },
+  {
+   "id": "U",
+   "name": "Underfloor void",
+   "floor": -1.6,
+   "height": 1.6,
+   "footprint": [
+    [
+     70,
+     36,
+     100,
+     50.5
+    ]
+   ]
+  },
+  {
+   "id": "G",
+   "name": "Ground",
+   "floor": 0,
+   "height": 4.2,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     100,
+     60
+    ],
+    [
+     52,
+     62,
+     76,
+     74
+    ]
+   ]
+  },
+  {
+   "id": "F",
+   "name": "First",
+   "floor": 4.2,
+   "height": 4.2,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     70,
+     60
+    ],
+    [
+     40,
+     40,
+     52,
+     43.5
+    ]
+   ]
+  },
+  {
+   "id": "H",
+   "name": "Low roof",
+   "floor": 6.6,
+   "height": 1.1,
+   "footprint": [
+    [
+     70,
+     30,
+     100,
+     60
+    ],
+    [
+     52,
+     62,
+     76,
+     74
+    ]
+   ]
+  },
+  {
+   "id": "L",
+   "name": "Bridge roof",
+   "floor": 7.8,
+   "height": 0.3,
+   "source": "Michael 2026-10-11",
+   "footprint": [
+    [
+     40,
+     40,
+     52,
+     43.5
+    ]
+   ]
+  },
+  {
+   "id": "R",
+   "name": "Roof",
+   "floor": 8.4,
+   "height": 1.1,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     70,
+     60
+    ]
+   ]
+  }
+ ],
+ "rooms": [
+  {
+   "id": "G-FRONT",
+   "level": "G",
+   "name": "Reception and Front Offices",
+   "kind": "zone",
+   "rect": [
+    4,
+    30,
+    22,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1,
+   "building": "A"
+  },
+  {
+   "id": "G-SOFF",
+   "level": "G",
+   "name": "Admin Office",
+   "kind": "zone",
+   "rect": [
+    22,
+    30,
+    28.5,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-GOODS",
+   "level": "G",
+   "name": "Goods In and Goods Lobby",
+   "kind": "zone",
+   "rect": [
+    28.5,
+    30,
+    40,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1,
+   "building": "A"
+  },
+  {
+   "id": "G-SPINE",
+   "level": "G",
+   "name": "Ground Floor Spine Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    40,
+    40,
+    43.5
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-WLINK",
+   "level": "G",
+   "name": "Ground West Link Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    43.5,
+    7.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-SEC",
+   "level": "G",
+   "name": "Security Room and Key Safe",
+   "kind": "zone",
+   "rect": [
+    7.5,
+    43.5,
+    19.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-CORE",
+   "level": "G",
+   "name": "Main Stair and Lift Core",
+   "kind": "zone",
+   "rect": [
+    19.5,
+    43.5,
+    31,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-ELINK",
+   "level": "G",
+   "name": "Ground East Link Corridor",
+   "kind": "corridor",
+   "rect": [
+    31,
+    43.5,
+    34.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-EAST",
+   "level": "G",
+   "name": "Communications Room",
+   "kind": "zone",
+   "rect": [
+    34.5,
+    43.5,
+    40,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-NCOR",
+   "level": "G",
+   "name": "Ground North Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    50.5,
+    40,
+    54
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-NW",
+   "level": "G",
+   "name": "Fire Stair and Manager Office",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    20,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-NE",
+   "level": "G",
+   "name": "Locker Room and Switchroom",
+   "kind": "zone",
+   "rect": [
+    20,
+    54,
+    40,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-SW",
+   "level": "F",
+   "name": "Customer Services Office",
+   "kind": "zone",
+   "rect": [
+    4,
+    30,
+    11,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-OPS",
+   "level": "F",
+   "name": "Operations and Tape Library",
+   "kind": "zone",
+   "rect": [
+    11,
+    30,
+    40,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-SPINE",
+   "level": "F",
+   "name": "First Floor Spine Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    40,
+    36.5,
+    43.5
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-VEST",
+   "level": "F",
+   "name": "Bridge Vestibule",
+   "kind": "zone",
+   "rect": [
+    36.5,
+    40,
+    40,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-WLINK",
+   "level": "F",
+   "name": "First Floor West Link Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    43.5,
+    7.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-BW",
+   "level": "F",
+   "name": "Records Room",
+   "kind": "zone",
+   "rect": [
+    7.5,
+    43.5,
+    19.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-CORE",
+   "level": "F",
+   "name": "First Floor Main Stair Core",
+   "kind": "zone",
+   "rect": [
+    19.5,
+    43.5,
+    31,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-ELINK",
+   "level": "F",
+   "name": "First Floor East Link Corridor",
+   "kind": "corridor",
+   "rect": [
+    31,
+    43.5,
+    34.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-E",
+   "level": "F",
+   "name": "Pipe Riser",
+   "kind": "zone",
+   "rect": [
+    34.5,
+    43.5,
+    36.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-PLANT",
+   "level": "F",
+   "name": "Plant Gallery",
+   "kind": "zone",
+   "rect": [
+    36.5,
+    43.5,
+    40,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-NCOR",
+   "level": "F",
+   "name": "First Floor North Corridor",
+   "kind": "corridor",
+   "rect": [
+    4,
+    50.5,
+    36.5,
+    54
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-NW",
+   "level": "F",
+   "name": "Offices and Fire Stair",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    21,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "F-NE",
+   "level": "F",
+   "name": "Kitchen and Pump Room",
+   "kind": "zone",
+   "rect": [
+    21,
+    54,
+    36.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "R-BULK",
+   "level": "R",
+   "name": "Fire Stair Roof Bulkhead",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "R-PLANT",
+   "level": "R",
+   "name": "Chillers and Roof Air Handler",
+   "kind": "zone",
+   "rect": [
+    28,
+    43.5,
+    40,
+    54.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [
+    "W",
+    "S",
+    "N"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "B-GW",
+   "level": "G",
+   "name": "Building B Entrance Lobby",
+   "kind": "zone",
+   "rect": [
+    52,
+    30,
+    57,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-GCOR",
+   "level": "G",
+   "name": "Building B Ground Corridor",
+   "kind": "corridor",
+   "rect": [
+    57,
+    30,
+    60.5,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-GGOODS",
+   "level": "G",
+   "name": "Staging and Shipping Rooms",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    30,
+    70,
+    43
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1,
+   "building": "B"
+  },
+  {
+   "id": "B-GE",
+   "level": "G",
+   "name": "Gallery Stair and Switchroom",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    43,
+    70,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-GN",
+   "level": "G",
+   "name": "Fire Stair and Plant Corridor",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    70,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-GHCAR",
+   "level": "G",
+   "name": "Meet-Me Room and Carriers",
+   "kind": "zone",
+   "rect": [
+    70,
+    30,
+    96,
+    36
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 5,
+   "building": "B"
+  },
+  {
+   "id": "B-GHALL",
+   "level": "G",
+   "name": "Data Hall",
+   "kind": "zone",
+   "rect": [
+    70,
+    36,
+    96,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-GHPLANT",
+   "level": "G",
+   "name": "Power, Battery and Gas Rooms",
+   "kind": "zone",
+   "rect": [
+    70,
+    50.5,
+    96,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-GHCOOL",
+   "level": "G",
+   "name": "Cooling Gallery",
+   "kind": "zone",
+   "rect": [
+    96,
+    30,
+    100,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "W-GEN",
+   "level": "G",
+   "name": "Generator Hall",
+   "kind": "zone",
+   "rect": [
+    52,
+    62,
+    76,
+    74
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2
+  },
+  {
+   "id": "B-FS",
+   "level": "F",
+   "name": "Tenant Work Room",
+   "kind": "zone",
+   "rect": [
+    52,
+    30,
+    60.5,
+    35
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FLOBBY",
+   "level": "F",
+   "name": "Bridge Lobby and Post Desk",
+   "kind": "zone",
+   "rect": [
+    52,
+    35,
+    60.5,
+    48.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FBW",
+   "level": "F",
+   "name": "Building B First Floor Stair",
+   "kind": "zone",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FCOR",
+   "level": "F",
+   "name": "Building B Staff Corridor",
+   "kind": "corridor",
+   "rect": [
+    57,
+    48.5,
+    60.5,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FNW",
+   "level": "F",
+   "name": "Building B Fire Stair",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    60.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FNE",
+   "level": "F",
+   "name": "Valve Room",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    53,
+    70,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-FSEC",
+   "level": "F",
+   "name": "Mantrap and Secure Corridor",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    30,
+    70,
+    53
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-HSUPPLY",
+   "level": "H",
+   "name": "Hall Air Handler and Shaft",
+   "kind": "zone",
+   "rect": [
+    70,
+    44.5,
+    82,
+    54
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-RBULK",
+   "level": "R",
+   "name": "Building B Roof Bulkhead",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "K-BRIDGE",
+   "level": "F",
+   "name": "Link Bridge",
+   "kind": "corridor",
+   "rect": [
+    40,
+    40,
+    52,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2
+  },
+  {
+   "id": "S-LANE",
+   "level": "G",
+   "name": "Lane and Footway",
+   "kind": "lane",
+   "rect": [
+    0,
+    0,
+    108,
+    8
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDA-1",
+   "level": "G",
+   "name": "Building A Yard South-West",
+   "kind": "yard",
+   "rect": [
+    0,
+    8,
+    1,
+    11.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDA-2",
+   "level": "G",
+   "name": "Building A Yard South",
+   "kind": "yard",
+   "rect": [
+    5.5,
+    8,
+    52,
+    11.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDA-3",
+   "level": "G",
+   "name": "Building A Yard Centre",
+   "kind": "yard",
+   "rect": [
+    0,
+    11.5,
+    52,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDB-1",
+   "level": "G",
+   "name": "Building B Yard South",
+   "kind": "yard",
+   "rect": [
+    52,
+    8,
+    108,
+    22
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDB-2",
+   "level": "G",
+   "name": "Building B Yard North-West",
+   "kind": "yard",
+   "rect": [
+    52,
+    22,
+    60,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-YARDB-3",
+   "level": "G",
+   "name": "Building B Yard North",
+   "kind": "yard",
+   "rect": [
+    70,
+    22,
+    108,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-GAP",
+   "level": "G",
+   "name": "Service Way Under the Bridge",
+   "kind": "yard",
+   "rect": [
+    40,
+    30,
+    52,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-REAR-1",
+   "level": "G",
+   "name": "Rear Yard South",
+   "kind": "yard",
+   "rect": [
+    0,
+    60,
+    52,
+    63
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-REAR-2",
+   "level": "G",
+   "name": "Rear Yard South-West",
+   "kind": "yard",
+   "rect": [
+    0,
+    63,
+    8,
+    66.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-REAR-3",
+   "level": "G",
+   "name": "Rear Yard South-East",
+   "kind": "yard",
+   "rect": [
+    12.5,
+    63,
+    52,
+    66.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-REAR-4",
+   "level": "G",
+   "name": "Rear Yard North",
+   "kind": "yard",
+   "rect": [
+    0,
+    66.5,
+    52,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-REAR2",
+   "level": "G",
+   "name": "Strip Behind the Wing",
+   "kind": "yard",
+   "rect": [
+    52,
+    74,
+    76,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-PASS",
+   "level": "G",
+   "name": "Service Passage",
+   "kind": "yard",
+   "rect": [
+    52,
+    60,
+    76,
+    62
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.2,
+   "open": [
+    "W",
+    "E"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-DRIVE",
+   "level": "G",
+   "name": "East Service Drive",
+   "kind": "yard",
+   "rect": [
+    100,
+    30,
+    108,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-COMP",
+   "level": "G",
+   "name": "Transformer Compound",
+   "kind": "yard",
+   "rect": [
+    76,
+    60,
+    100,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "E",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "S-WPATH",
+   "level": "G",
+   "name": "West Path",
+   "kind": "yard",
+   "rect": [
+    0,
+    30,
+    4,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "N"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "SI-GATE",
+   "level": "G",
+   "name": "Gatehouse",
+   "kind": "zone",
+   "rect": [
+    1,
+    8,
+    5.5,
+    11.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 0
+  },
+  {
+   "id": "SI-BIN",
+   "level": "G",
+   "name": "Bin Store",
+   "kind": "zone",
+   "rect": [
+    8,
+    63,
+    12.5,
+    66.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 0
+  },
+  {
+   "id": "SI-APRON",
+   "level": "G",
+   "name": "Loading Apron",
+   "kind": "yard",
+   "rect": [
+    60,
+    22,
+    70,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "E"
+   ],
+   "ring": 0
+  },
+  {
+   "id": "L-ROOF",
+   "level": "L",
+   "name": "Link Bridge Roof",
+   "kind": "roof",
+   "rect": [
+    40,
+    40,
+    52,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "E"
+   ],
+   "ring": 2
+  },
+  {
+   "id": "T-VAULT",
+   "level": "B",
+   "name": "Carrier Vault",
+   "kind": "zone",
+   "rect": [
+    41,
+    24,
+    49,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-MH",
+   "level": "B",
+   "name": "Carrier Manhole",
+   "kind": "shaft",
+   "rect": [
+    49,
+    24,
+    50.5,
+    25.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.2,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-TUNA",
+   "level": "B",
+   "name": "Building A Tunnel",
+   "kind": "zone",
+   "rect": [
+    40,
+    30,
+    43,
+    47.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-TUNB",
+   "level": "B",
+   "name": "Building B Tunnel",
+   "kind": "zone",
+   "rect": [
+    49,
+    27,
+    74,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-RISER",
+   "level": "B",
+   "name": "Carrier Riser Shaft",
+   "kind": "shaft",
+   "rect": [
+    72,
+    30,
+    74,
+    32
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 5,
+   "building": "B"
+  },
+  {
+   "id": "U-HALL",
+   "level": "U",
+   "name": "Hall Underfloor Void",
+   "kind": "zone",
+   "rect": [
+    70,
+    36,
+    96,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "U-COOL",
+   "level": "U",
+   "name": "Cooling Plenum",
+   "kind": "zone",
+   "rect": [
+    96,
+    36,
+    100,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "V-AG23",
+   "level": "B",
+   "name": "Tunnel Access Shaft",
+   "kind": "shaft",
+   "rect": [
+    38,
+    45,
+    40,
+    47
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 4,
+   "building": "A"
+  },
+  {
+   "id": "RF-A-1",
+   "level": "R",
+   "name": "Building A Roof South",
+   "kind": "roof",
+   "rect": [
+    4,
+    30,
+    40,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "N"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "RF-A-2",
+   "level": "R",
+   "name": "Building A Roof North-West",
+   "kind": "roof",
+   "rect": [
+    4,
+    43.5,
+    28,
+    54
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "RF-A-3",
+   "level": "R",
+   "name": "Building A Roof Strip",
+   "kind": "roof",
+   "rect": [
+    10.5,
+    54,
+    28,
+    54.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "E",
+    "N"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "RF-A-4",
+   "level": "R",
+   "name": "Building A Roof North-East",
+   "kind": "roof",
+   "rect": [
+    10.5,
+    54.5,
+    40,
+    57.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S",
+    "N"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "RF-A-5",
+   "level": "R",
+   "name": "Building A Roof North",
+   "kind": "roof",
+   "rect": [
+    4,
+    57.5,
+    40,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S"
+   ],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "RF-BS-1",
+   "level": "R",
+   "name": "Building B Roof Centre",
+   "kind": "roof",
+   "rect": [
+    52,
+    30,
+    70,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "N"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "RF-BS-2",
+   "level": "R",
+   "name": "Building B Roof North-East",
+   "kind": "roof",
+   "rect": [
+    58.5,
+    56.5,
+    70,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "S"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "RF-BH-1",
+   "level": "H",
+   "name": "Hall Roof South",
+   "kind": "roof",
+   "rect": [
+    70,
+    30,
+    100,
+    44.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "N"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "RF-BH-2",
+   "level": "H",
+   "name": "Hall Roof East",
+   "kind": "roof",
+   "rect": [
+    82,
+    44.5,
+    100,
+    54
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S",
+    "N"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "RF-BH-3",
+   "level": "H",
+   "name": "Hall Roof North",
+   "kind": "roof",
+   "rect": [
+    70,
+    54,
+    100,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [
+    "W",
+    "S"
+   ],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "RF-W",
+   "level": "H",
+   "name": "Generator Wing Roof",
+   "kind": "roof",
+   "rect": [
+    52,
+    62,
+    76,
+    74
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0,
+   "open": [],
+   "ring": 2
+  }
+ ],
+ "walls": [
+  {
+   "id": "WB001",
+   "level": "B",
+   "a": [
+    41,
+    24
+   ],
+   "b": [
+    50.5,
+    24
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB002",
+   "level": "B",
+   "a": [
+    49,
+    25.5
+   ],
+   "b": [
+    50.5,
+    25.5
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB003",
+   "level": "B",
+   "a": [
+    49,
+    27
+   ],
+   "b": [
+    74,
+    27
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB004",
+   "level": "B",
+   "a": [
+    40,
+    30
+   ],
+   "b": [
+    74,
+    30
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB005",
+   "level": "B",
+   "a": [
+    72,
+    32
+   ],
+   "b": [
+    74,
+    32
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB006",
+   "level": "B",
+   "a": [
+    38,
+    45
+   ],
+   "b": [
+    40,
+    45
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB007",
+   "level": "B",
+   "a": [
+    38,
+    47
+   ],
+   "b": [
+    40,
+    47
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB008",
+   "level": "B",
+   "a": [
+    40,
+    47.5
+   ],
+   "b": [
+    43,
+    47.5
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB009",
+   "level": "B",
+   "a": [
+    38,
+    45
+   ],
+   "b": [
+    38,
+    47
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB010",
+   "level": "B",
+   "a": [
+    40,
+    30
+   ],
+   "b": [
+    40,
+    47.5
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB011",
+   "level": "B",
+   "a": [
+    41,
+    24
+   ],
+   "b": [
+    41,
+    30
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB012",
+   "level": "B",
+   "a": [
+    43,
+    30
+   ],
+   "b": [
+    43,
+    47.5
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB013",
+   "level": "B",
+   "a": [
+    49,
+    24
+   ],
+   "b": [
+    49,
+    30
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB014",
+   "level": "B",
+   "a": [
+    50.5,
+    24
+   ],
+   "b": [
+    50.5,
+    25.5
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB015",
+   "level": "B",
+   "a": [
+    72,
+    30
+   ],
+   "b": [
+    72,
+    32
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WB016",
+   "level": "B",
+   "a": [
+    74,
+    27
+   ],
+   "b": [
+    74,
+    32
+   ],
+   "t": 0.3,
+   "h": 3.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WU001",
+   "level": "U",
+   "a": [
+    70,
+    36
+   ],
+   "b": [
+    100,
+    36
+   ],
+   "t": 0.3,
+   "h": 1.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WU002",
+   "level": "U",
+   "a": [
+    70,
+    50.5
+   ],
+   "b": [
+    100,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 1.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WU003",
+   "level": "U",
+   "a": [
+    70,
+    36
+   ],
+   "b": [
+    70,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 1.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WU004",
+   "level": "U",
+   "a": [
+    96,
+    36
+   ],
+   "b": [
+    96,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 1.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WU005",
+   "level": "U",
+   "a": [
+    100,
+    36
+   ],
+   "b": [
+    100,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 1.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG001",
+   "level": "G",
+   "a": [
+    0,
+    8
+   ],
+   "b": [
+    1,
+    8
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG002",
+   "level": "G",
+   "a": [
+    1,
+    8
+   ],
+   "b": [
+    5.5,
+    8
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG003",
+   "level": "G",
+   "a": [
+    5.5,
+    8
+   ],
+   "b": [
+    108,
+    8
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG004",
+   "level": "G",
+   "a": [
+    1,
+    11.5
+   ],
+   "b": [
+    5.5,
+    11.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG005",
+   "level": "G",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    40,
+    30
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG006",
+   "level": "G",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    70,
+    30
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG007",
+   "level": "G",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    100,
+    30
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG008",
+   "level": "G",
+   "a": [
+    70,
+    36
+   ],
+   "b": [
+    96,
+    36
+   ],
+   "t": 0.3,
+   "h": 6.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG009",
+   "level": "G",
+   "a": [
+    4,
+    40
+   ],
+   "b": [
+    40,
+    40
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG010",
+   "level": "G",
+   "a": [
+    60.5,
+    43
+   ],
+   "b": [
+    70,
+    43
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG011",
+   "level": "G",
+   "a": [
+    4,
+    43.5
+   ],
+   "b": [
+    40,
+    43.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG012",
+   "level": "G",
+   "a": [
+    4,
+    50.5
+   ],
+   "b": [
+    40,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG013",
+   "level": "G",
+   "a": [
+    70,
+    50.5
+   ],
+   "b": [
+    96,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 6.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG014",
+   "level": "G",
+   "a": [
+    4,
+    54
+   ],
+   "b": [
+    40,
+    54
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG015",
+   "level": "G",
+   "a": [
+    52,
+    56.5
+   ],
+   "b": [
+    70,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG016",
+   "level": "G",
+   "a": [
+    4,
+    60
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG017",
+   "level": "G",
+   "a": [
+    52,
+    60
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG018",
+   "level": "G",
+   "a": [
+    70,
+    60
+   ],
+   "b": [
+    100,
+    60
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG019",
+   "level": "G",
+   "a": [
+    52,
+    62
+   ],
+   "b": [
+    76,
+    62
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG020",
+   "level": "G",
+   "a": [
+    8,
+    63
+   ],
+   "b": [
+    12.5,
+    63
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG021",
+   "level": "G",
+   "a": [
+    8,
+    66.5
+   ],
+   "b": [
+    12.5,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG022",
+   "level": "G",
+   "a": [
+    52,
+    74
+   ],
+   "b": [
+    76,
+    74
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG023",
+   "level": "G",
+   "a": [
+    0,
+    8
+   ],
+   "b": [
+    0,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG024",
+   "level": "G",
+   "a": [
+    1,
+    8
+   ],
+   "b": [
+    1,
+    11.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG025",
+   "level": "G",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    4,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG026",
+   "level": "G",
+   "a": [
+    5.5,
+    8
+   ],
+   "b": [
+    5.5,
+    11.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG027",
+   "level": "G",
+   "a": [
+    7.5,
+    43.5
+   ],
+   "b": [
+    7.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG028",
+   "level": "G",
+   "a": [
+    8,
+    63
+   ],
+   "b": [
+    8,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG029",
+   "level": "G",
+   "a": [
+    12.5,
+    63
+   ],
+   "b": [
+    12.5,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG030",
+   "level": "G",
+   "a": [
+    19.5,
+    43.5
+   ],
+   "b": [
+    19.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG031",
+   "level": "G",
+   "a": [
+    20,
+    54
+   ],
+   "b": [
+    20,
+    60
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG032",
+   "level": "G",
+   "a": [
+    22,
+    30
+   ],
+   "b": [
+    22,
+    40
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG033",
+   "level": "G",
+   "a": [
+    28.5,
+    30
+   ],
+   "b": [
+    28.5,
+    40
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG034",
+   "level": "G",
+   "a": [
+    31,
+    43.5
+   ],
+   "b": [
+    31,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG035",
+   "level": "G",
+   "a": [
+    34.5,
+    43.5
+   ],
+   "b": [
+    34.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG036",
+   "level": "G",
+   "a": [
+    40,
+    30
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG037",
+   "level": "G",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    52,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG038",
+   "level": "G",
+   "a": [
+    52,
+    60
+   ],
+   "b": [
+    52,
+    62
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG039",
+   "level": "G",
+   "a": [
+    52,
+    62
+   ],
+   "b": [
+    52,
+    74
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG040",
+   "level": "G",
+   "a": [
+    57,
+    30
+   ],
+   "b": [
+    57,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG041",
+   "level": "G",
+   "a": [
+    60.5,
+    30
+   ],
+   "b": [
+    60.5,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG042",
+   "level": "G",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.3,
+   "h": 6.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG043",
+   "level": "G",
+   "a": [
+    76,
+    60
+   ],
+   "b": [
+    76,
+    62
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG044",
+   "level": "G",
+   "a": [
+    76,
+    62
+   ],
+   "b": [
+    76,
+    74
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG045",
+   "level": "G",
+   "a": [
+    76,
+    74
+   ],
+   "b": [
+    76,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG046",
+   "level": "G",
+   "a": [
+    96,
+    30
+   ],
+   "b": [
+    96,
+    60
+   ],
+   "t": 0.3,
+   "h": 6.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG047",
+   "level": "G",
+   "a": [
+    100,
+    30
+   ],
+   "b": [
+    100,
+    60
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG048",
+   "level": "G",
+   "a": [
+    100,
+    60
+   ],
+   "b": [
+    100,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG049",
+   "level": "G",
+   "a": [
+    108,
+    8
+   ],
+   "b": [
+    108,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WF001",
+   "level": "F",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    40,
+    30
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF002",
+   "level": "F",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    70,
+    30
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF003",
+   "level": "F",
+   "a": [
+    52,
+    35
+   ],
+   "b": [
+    60.5,
+    35
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF004",
+   "level": "F",
+   "a": [
+    4,
+    40
+   ],
+   "b": [
+    40,
+    40
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF005",
+   "level": "F",
+   "a": [
+    40,
+    40
+   ],
+   "b": [
+    52,
+    40
+   ],
+   "t": 0.45,
+   "h": 3.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF006",
+   "level": "F",
+   "a": [
+    4,
+    43.5
+   ],
+   "b": [
+    40,
+    43.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF007",
+   "level": "F",
+   "a": [
+    40,
+    43.5
+   ],
+   "b": [
+    52,
+    43.5
+   ],
+   "t": 0.45,
+   "h": 3.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF008",
+   "level": "F",
+   "a": [
+    52,
+    48.5
+   ],
+   "b": [
+    60.5,
+    48.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF009",
+   "level": "F",
+   "a": [
+    4,
+    50.5
+   ],
+   "b": [
+    36.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF010",
+   "level": "F",
+   "a": [
+    60.5,
+    53
+   ],
+   "b": [
+    70,
+    53
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF011",
+   "level": "F",
+   "a": [
+    4,
+    54
+   ],
+   "b": [
+    36.5,
+    54
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF012",
+   "level": "F",
+   "a": [
+    52,
+    56.5
+   ],
+   "b": [
+    60.5,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF013",
+   "level": "F",
+   "a": [
+    4,
+    60
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF014",
+   "level": "F",
+   "a": [
+    52,
+    60
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF015",
+   "level": "F",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    4,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF016",
+   "level": "F",
+   "a": [
+    7.5,
+    43.5
+   ],
+   "b": [
+    7.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF017",
+   "level": "F",
+   "a": [
+    11,
+    30
+   ],
+   "b": [
+    11,
+    40
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF018",
+   "level": "F",
+   "a": [
+    19.5,
+    43.5
+   ],
+   "b": [
+    19.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF019",
+   "level": "F",
+   "a": [
+    21,
+    54
+   ],
+   "b": [
+    21,
+    60
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF020",
+   "level": "F",
+   "a": [
+    31,
+    43.5
+   ],
+   "b": [
+    31,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF021",
+   "level": "F",
+   "a": [
+    34.5,
+    43.5
+   ],
+   "b": [
+    34.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF022",
+   "level": "F",
+   "a": [
+    36.5,
+    40
+   ],
+   "b": [
+    36.5,
+    60
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF023",
+   "level": "F",
+   "a": [
+    40,
+    30
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF024",
+   "level": "F",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    52,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WF025",
+   "level": "F",
+   "a": [
+    57,
+    48.5
+   ],
+   "b": [
+    57,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF026",
+   "level": "F",
+   "a": [
+    60.5,
+    30
+   ],
+   "b": [
+    60.5,
+    60
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WF027",
+   "level": "F",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WH001",
+   "level": "H",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    100,
+    30
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH002",
+   "level": "H",
+   "a": [
+    70,
+    60
+   ],
+   "b": [
+    100,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH003",
+   "level": "H",
+   "a": [
+    52,
+    62
+   ],
+   "b": [
+    76,
+    62
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH004",
+   "level": "H",
+   "a": [
+    52,
+    74
+   ],
+   "b": [
+    76,
+    74
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH005",
+   "level": "H",
+   "a": [
+    52,
+    62
+   ],
+   "b": [
+    52,
+    74
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH006",
+   "level": "H",
+   "a": [
+    76,
+    62
+   ],
+   "b": [
+    76,
+    74
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WH007",
+   "level": "H",
+   "a": [
+    100,
+    30
+   ],
+   "b": [
+    100,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WL001",
+   "level": "L",
+   "a": [
+    40,
+    40
+   ],
+   "b": [
+    52,
+    40
+   ],
+   "t": 0.45,
+   "h": 0.3,
+   "kind": "parapet"
+  },
+  {
+   "id": "WL002",
+   "level": "L",
+   "a": [
+    40,
+    43.5
+   ],
+   "b": [
+    52,
+    43.5
+   ],
+   "t": 0.45,
+   "h": 0.3,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR001",
+   "level": "R",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    40,
+    30
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR002",
+   "level": "R",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    70,
+    30
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR003",
+   "level": "R",
+   "a": [
+    4,
+    54
+   ],
+   "b": [
+    10.5,
+    54
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR004",
+   "level": "R",
+   "a": [
+    52,
+    56.5
+   ],
+   "b": [
+    58.5,
+    56.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR005",
+   "level": "R",
+   "a": [
+    4,
+    57.5
+   ],
+   "b": [
+    10.5,
+    57.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR006",
+   "level": "R",
+   "a": [
+    4,
+    60
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR007",
+   "level": "R",
+   "a": [
+    52,
+    60
+   ],
+   "b": [
+    58.5,
+    60
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR008",
+   "level": "R",
+   "a": [
+    58.5,
+    60
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR009",
+   "level": "R",
+   "a": [
+    4,
+    30
+   ],
+   "b": [
+    4,
+    54
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR010",
+   "level": "R",
+   "a": [
+    4,
+    54
+   ],
+   "b": [
+    4,
+    57.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR011",
+   "level": "R",
+   "a": [
+    4,
+    57.5
+   ],
+   "b": [
+    4,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR012",
+   "level": "R",
+   "a": [
+    10.5,
+    54
+   ],
+   "b": [
+    10.5,
+    57.5
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR013",
+   "level": "R",
+   "a": [
+    40,
+    30
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR014",
+   "level": "R",
+   "a": [
+    52,
+    30
+   ],
+   "b": [
+    52,
+    56.5
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  },
+  {
+   "id": "WR015",
+   "level": "R",
+   "a": [
+    52,
+    56.5
+   ],
+   "b": [
+    52,
+    60
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR016",
+   "level": "R",
+   "a": [
+    58.5,
+    56.5
+   ],
+   "b": [
+    58.5,
+    60
+   ],
+   "t": 0.45,
+   "h": 3,
+   "kind": "exterior"
+  },
+  {
+   "id": "WR017",
+   "level": "R",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.45,
+   "h": 1.1,
+   "kind": "parapet"
+  }
+ ],
+ "openings": [
+  {
+   "id": "RA01-P",
+   "wall": "WG003",
+   "at": 2,
+   "w": 1,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDA-2"
+   ],
+   "locked": true,
+   "key": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases",
+   "reason": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases (03B 7.1 RA01-P)"
+  },
+  {
+   "id": "RA01-V",
+   "wall": "WG003",
+   "at": 7,
+   "w": 6,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDA-2"
+   ],
+   "locked": true,
+   "key": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases",
+   "reason": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases (03B 7.1 RA01-V)"
+  },
+  {
+   "id": "RA02",
+   "wall": "WG003",
+   "at": 98.5,
+   "w": 5,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDB-1"
+   ],
+   "locked": true,
+   "key": "East service gate, chain and padlock",
+   "reason": "East service gate, chain and padlock (03B 7.1 RA02)"
+  },
+  {
+   "id": "RA03",
+   "wall": "WG005",
+   "at": 9,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "S-YARDA-3",
+    "G-FRONT"
+   ],
+   "locked": true,
+   "key": "Main door, locked out of hours, intercom",
+   "reason": "Main door, locked out of hours, intercom (03B 7.1 RA03)"
+  },
+  {
+   "id": "RA04",
+   "wall": "WG005",
+   "at": 29,
+   "w": 3,
+   "h": 3,
+   "sill": 0,
+   "type": "roller",
+   "between": [
+    "S-YARDA-3",
+    "G-GOODS"
+   ],
+   "locked": true,
+   "key": "Roller door by key switch inside; wicket door reader",
+   "reason": "Roller door by key switch inside; wicket door reader (03B 7.1 RA04)"
+  },
+  {
+   "id": "RA05",
+   "wall": "WG009",
+   "at": 9,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-FRONT",
+    "G-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA05)"
+  },
+  {
+   "id": "RA06",
+   "wall": "WG009",
+   "at": 30,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-GOODS",
+    "G-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA06)"
+  },
+  {
+   "id": "RA07",
+   "wall": "WG011",
+   "at": 12.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-SPINE",
+    "G-SEC"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier; key safe PIN inside AG13",
+   "reason": "Reader, master card tier; key safe PIN inside AG13 (03B 7.1 RA07)"
+  },
+  {
+   "id": "RA08",
+   "wall": "WF004",
+   "at": 20,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-OPS",
+    "F-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier (AF02 through AF03)",
+   "reason": "Reader, master card tier (AF02 through AF03) (03B 7.1 RA08)"
+  },
+  {
+   "id": "RA09",
+   "wall": "WF006",
+   "at": 9.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-SPINE",
+    "F-BW"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier",
+   "reason": "Reader, master card tier (03B 7.1 RA09)"
+  },
+  {
+   "id": "RA10",
+   "wall": "WF022",
+   "at": 12,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-NCOR",
+    "F-PLANT"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier",
+   "reason": "Reader, master card tier (03B 7.1 RA10)"
+  },
+  {
+   "id": "RA11",
+   "wall": "WF023",
+   "at": 12,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "F-VEST",
+    "K-BRIDGE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA11)"
+  },
+  {
+   "id": "RA12",
+   "wall": "WF024",
+   "at": 12,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "K-BRIDGE",
+    "B-FLOBBY"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier card or escort PIN; bridge post",
+   "reason": "Reader, B-tier card or escort PIN; bridge post (03B 7.1 RA12)"
+  },
+  {
+   "id": "RA13",
+   "wall": "WG025",
+   "at": 26,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "S-WPATH",
+    "G-NW"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.1 RA13)",
+   "ringExempt": "Fire exit, exit only, no outside hardware (brief ASK-2)"
+  },
+  {
+   "id": "RA14",
+   "wall": "WR003",
+   "at": 1,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "RF-A-2",
+    "R-BULK"
+   ],
+   "locked": true,
+   "key": "Roof door, key outside, thumb-turn inside (AF15 below)",
+   "reason": "Roof door, key outside, thumb-turn inside (AF15 below) (03B 7.1 RA14)"
+  },
+  {
+   "id": "RA17",
+   "wall": "WB004",
+   "at": 33,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "T-TUNB",
+    "T-RISER"
+   ],
+   "locked": true,
+   "key": "Riser door at the tunnel end, reader B-tier or PIN",
+   "reason": "Riser door at the tunnel end, reader B-tier or PIN (03B 7.1 RA17)"
+  },
+  {
+   "id": "RB01",
+   "wall": "WG006",
+   "at": 2.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "S-YARDB-2",
+    "B-GW"
+   ],
+   "locked": true,
+   "key": "Staff door reader, B or contractor card",
+   "reason": "Staff door reader, B or contractor card (03B 7.2 RB01)"
+  },
+  {
+   "id": "RB02",
+   "wall": "WG006",
+   "at": 15,
+   "w": 3,
+   "h": 3,
+   "sill": 0,
+   "type": "roller",
+   "between": [
+    "SI-APRON",
+    "B-GGOODS"
+   ],
+   "locked": true,
+   "key": "Roller door, key switch inside, locked at night",
+   "reason": "Roller door, key switch inside, locked at night (03B 7.2 RB02)"
+  },
+  {
+   "id": "RB03",
+   "wall": "WG040",
+   "at": 3,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GW",
+    "B-GCOR"
+   ],
+   "locked": true,
+   "key": "Reader, B or contractor card",
+   "reason": "Reader, B or contractor card (03B 7.2 RB03)"
+  },
+  {
+   "id": "RB04",
+   "wall": "WG041",
+   "at": 6.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GCOR",
+    "B-GGOODS"
+   ],
+   "locked": true,
+   "key": "Reader, B or contractor card",
+   "reason": "Reader, B or contractor card (03B 7.2 RB04)"
+  },
+  {
+   "id": "RB05",
+   "wall": "WG015",
+   "at": 7.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GCOR",
+    "B-GN"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier or contractor card (the door the technician wedges)",
+   "reason": "Reader, B-tier or contractor card (the door the technician wedges) (03B 7.2 RB05)"
+  },
+  {
+   "id": "RB06",
+   "wall": "WG042",
+   "at": 28,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GN",
+    "B-GHPLANT"
+   ],
+   "locked": true,
+   "key": "Key",
+   "reason": "Key (03B 7.2 RB06)"
+  },
+  {
+   "id": "RB07",
+   "wall": "WG017",
+   "at": 12,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GN",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Passage door, exit only, key cylinder outside",
+   "reason": "Passage door, exit only, key cylinder outside (03B 7.2 RB07)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB07)"
+  },
+  {
+   "id": "RB08",
+   "wall": "WG019",
+   "at": 8,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "S-PASS",
+    "W-GEN"
+   ],
+   "locked": true,
+   "key": "Wing personnel door, key; push-bar exit",
+   "reason": "Wing personnel door, key; push-bar exit (03B 7.2 RB08)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB08)"
+  },
+  {
+   "id": "RB09",
+   "wall": "WG044",
+   "at": 6,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "W-GEN",
+    "S-COMP"
+   ],
+   "locked": true,
+   "key": "Double doors, key; push-bar exit",
+   "reason": "Double doors, key; push-bar exit (03B 7.2 RB09)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB09)"
+  },
+  {
+   "id": "RB10",
+   "wall": "WG048",
+   "at": 8,
+   "w": 3,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-COMP",
+    "S-DRIVE"
+   ],
+   "locked": true,
+   "key": "Compound gate, padlock",
+   "reason": "Compound gate, padlock (03B 7.2 RB10)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB10)"
+  },
+  {
+   "id": "RB11",
+   "wall": "WG043",
+   "at": 1,
+   "w": 1,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-PASS",
+    "S-COMP"
+   ],
+   "locked": true,
+   "key": "Compound gate from the passage, padlock",
+   "reason": "Compound gate from the passage, padlock (03B 7.2 RB11)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB11)"
+  },
+  {
+   "id": "RB12",
+   "wall": "WG013",
+   "at": 13,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GHALL",
+    "B-GHPLANT"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier; free exit",
+   "reason": "Reader, B-tier; free exit (03B 7.2 RB12)"
+  },
+  {
+   "id": "RB13",
+   "wall": "WG042",
+   "at": 9.5,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "B-GGOODS",
+    "B-GHALL"
+   ],
+   "locked": true,
+   "key": "Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11",
+   "reason": "Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 (03B 7.2 RB13)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB13)"
+  },
+  {
+   "id": "RB14",
+   "wall": "WG047",
+   "at": 15,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "B-GHCOOL",
+    "S-DRIVE"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.2 RB14)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB14)"
+  },
+  {
+   "id": "RB15",
+   "wall": "WG017",
+   "at": 5.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "B-GN",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.2 RB15)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB15)"
+  },
+  {
+   "id": "RB17",
+   "wall": "WR016",
+   "at": 1.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-RBULK",
+    "RF-BS-2"
+   ],
+   "locked": true,
+   "key": "Roof door, key outside, thumb-turn inside (BF11 below)",
+   "reason": "Roof door, key outside, thumb-turn inside (BF11 below) (03B 7.2 RB17)"
+  },
+  {
+   "id": "XG01",
+   "wall": "WG038",
+   "at": 1,
+   "w": 1,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-REAR-1",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Chain-link gate, push-bar on the passage side",
+   "reason": "Chain-link gate, push-bar on the passage side (03B 7.2 notes: X06 to X07 gate, escape way from RB15)"
+  },
+  {
+   "id": "O-NEW1",
+   "wall": "WG026",
+   "at": 1,
+   "w": 1.7,
+   "h": 1.7,
+   "sill": 0.9,
+   "type": "window",
+   "between": [
+    "SI-GATE",
+    "S-YARDA-2"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
+  },
+  {
+   "id": "O-NEW2",
+   "wall": "WG002",
+   "at": 2.2,
+   "w": 3.7,
+   "h": 1.7,
+   "sill": 0.9,
+   "type": "window",
+   "between": [
+    "SI-GATE",
+    "S-LANE"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
+  },
+  {
+   "id": "O-NEW3",
+   "wall": "WG026",
+   "at": 2.7,
+   "w": 1.2,
+   "h": 2.6,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "SI-GATE",
+    "S-YARDA-2"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
+  }
+ ],
+ "stairs": [
+  {
+   "id": "V-ASTAIR",
+   "name": "Building A Main Stair",
+   "kind": "main",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    19.5,
+    43.5,
+    27.5,
+    47.5
+   ],
+   "up": "W",
+   "width": 1.85,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-AFS-GF",
+   "name": "Building A Fire Stair to First",
+   "kind": "fire",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "up": "E",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-AFS-FR",
+   "name": "Building A Fire Stair to Roof",
+   "kind": "fire",
+   "from": "F",
+   "to": "R",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "up": "E",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BSTAIR",
+   "name": "Building B Main Stair",
+   "kind": "main",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "up": "N",
+   "width": 1.85,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BFS-GF",
+   "name": "Building B Fire Stair to First",
+   "kind": "fire",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "up": "W",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BFS-FR",
+   "name": "Building B Fire Stair to Roof",
+   "kind": "fire",
+   "from": "F",
+   "to": "R",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "up": "W",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-GAL",
+   "name": "Gallery Stair to the Hall",
+   "kind": "feature",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    67,
+    43,
+    70,
+    52
+   ],
+   "up": "S",
+   "width": 2.4,
+   "risers": 25,
+   "flights": 2
+  }
+ ],
+ "ladders": [
+  {
+   "id": "LD-AG23",
+   "name": "Tunnel Shaft Ladder",
+   "room": "V-AG23",
+   "at": [
+    38.5,
+    46
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "W",
+   "reason": "Fixed ladder in the tunnel shaft up to AG22's hatch; the TB03 door is in the east wall"
+  },
+  {
+   "id": "LD-BG32",
+   "name": "Carrier Riser Ladder",
+   "room": "T-RISER",
+   "at": [
+    73,
+    31.5
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "N",
+   "reason": "Fixed ladder in the carrier riser up to BG31's hatch; the TB04 door is in the south wall"
+  },
+  {
+   "id": "LD-TB02",
+   "name": "Manhole Ladder",
+   "room": "T-MH",
+   "at": [
+    50,
+    25
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "E",
+   "reason": "Fixed ladder in the carrier manhole up to the yard lid; the TB01 door is in the west wall"
+  },
+  {
+   "id": "V-LAD1",
+   "name": "Bridge Roof Ladder West",
+   "room": "L-ROOF",
+   "at": [
+    40.5,
+    41.5
+   ],
+   "from": "L",
+   "to": "R",
+   "facing": "W",
+   "reason": "Hooped access ladder from the bridge roof up A's east parapet (0.6)"
+  },
+  {
+   "id": "V-LAD2",
+   "name": "Bridge Roof Ladder East",
+   "room": "L-ROOF",
+   "at": [
+    51.5,
+    41.5
+   ],
+   "from": "L",
+   "to": "R",
+   "facing": "E",
+   "reason": "Hooped access ladder from the bridge roof up B's west parapet (0.6)"
+  },
+  {
+   "id": "V-LAD3",
+   "name": "Hall Roof Ladder",
+   "room": "RF-BH-3",
+   "at": [
+    70.5,
+    57.5
+   ],
+   "from": "H",
+   "to": "R",
+   "facing": "W",
+   "reason": "Access ladder from the hall roof up the B strip's east parapet (1.8)"
+  }
+ ],
+ "voids": [
+  {
+   "id": "VF-ASTAIR",
+   "name": "Building A Main Stair Well",
+   "level": "F",
+   "rect": [
+    19.5,
+    43.5,
+    27.5,
+    47.5
+   ],
+   "kind": "stairwell",
+   "reason": "Main stair A well (V-ASTAIR)"
+  },
+  {
+   "id": "VF-ALIFT",
+   "name": "Building A Lift Shaft",
+   "level": "F",
+   "rect": [
+    27.5,
+    46,
+    30,
+    48.5
+   ],
+   "kind": "liftshaft",
+   "reason": "Passenger lift A shaft, locked off at night (V-ALIFT)"
+  },
+  {
+   "id": "VF-AFS",
+   "name": "Building A Fire Stair Well",
+   "level": "F",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair A well (V-AFS)"
+  },
+  {
+   "id": "VR-AFS",
+   "name": "Building A Stair Roof Well",
+   "level": "R",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair A up to the roof bulkhead AR04 (V-AFS)"
+  },
+  {
+   "id": "VF-ARISER",
+   "name": "Building A Cable Riser",
+   "level": "F",
+   "rect": [
+    7.5,
+    49,
+    9.5,
+    50.5
+   ],
+   "kind": "riser",
+   "reason": "Cable riser A (V-ARISER)"
+  },
+  {
+   "id": "VR-APIPE",
+   "name": "Pipe Riser Roof Hatch",
+   "level": "R",
+   "rect": [
+    34.5,
+    43.5,
+    36.5,
+    45
+   ],
+   "kind": "hatch",
+   "reason": "Pipe riser roof hatch into R-PLANT (V-APIPE)"
+  },
+  {
+   "id": "VF-BSTAIR",
+   "name": "Building B Main Stair Well",
+   "level": "F",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "kind": "stairwell",
+   "reason": "Main stair B well (V-BSTAIR)"
+  },
+  {
+   "id": "VF-BLIFT",
+   "name": "Building B Lift Shaft",
+   "level": "F",
+   "rect": [
+    54.5,
+    46,
+    57,
+    48.5
+   ],
+   "kind": "liftshaft",
+   "reason": "Passenger lift B shaft, locked off at night (V-BLIFT)"
+  },
+  {
+   "id": "VF-BFS",
+   "name": "Building B Fire Stair Well",
+   "level": "F",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair B well (V-BFS)"
+  },
+  {
+   "id": "VR-BFS",
+   "name": "Building B Stair Roof Well",
+   "level": "R",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair B up to the roof bulkhead BR02 (V-BFS)"
+  },
+  {
+   "id": "VF-BRISER",
+   "name": "Building B Cable Riser",
+   "level": "F",
+   "rect": [
+    55,
+    44.5,
+    57,
+    46
+   ],
+   "kind": "riser",
+   "reason": "Cable riser B (V-BRISER)"
+  },
+  {
+   "id": "VF-GAL",
+   "name": "Gallery Stair Well",
+   "level": "F",
+   "rect": [
+    67,
+    43,
+    70,
+    52
+   ],
+   "kind": "stairwell",
+   "reason": "Gallery stair down into the hall (V-GAL)"
+  },
+  {
+   "id": "VG-AG23",
+   "name": "Tunnel Shaft Hatch",
+   "level": "G",
+   "rect": [
+    38,
+    45,
+    40,
+    47
+   ],
+   "kind": "hatch",
+   "reason": "Floor hatch in AG22 over the tunnel shaft (V-AG23)"
+  },
+  {
+   "id": "VG-BG32",
+   "name": "Carrier Riser Hatch",
+   "level": "G",
+   "rect": [
+    72,
+    30,
+    74,
+    32
+   ],
+   "kind": "hatch",
+   "reason": "Floor hatch in BG31 over the carrier riser (V-BG32)"
+  },
+  {
+   "id": "VG-TB02",
+   "name": "Manhole Lid",
+   "level": "G",
+   "rect": [
+    49,
+    24,
+    50.5,
+    25.5
+   ],
+   "kind": "hatch",
+   "reason": "Manhole lid in the yard over the carrier manhole (V-TB02)"
+  },
+  {
+   "id": "VH-BR05",
+   "name": "Cooling Supply Shaft",
+   "level": "H",
+   "rect": [
+    80,
+    48,
+    82,
+    50
+   ],
+   "kind": "riser",
+   "reason": "Cooling supply shaft from the roof AHU into the hall, bolted alarmed grille (V-BR05)"
+  }
+ ],
+ "objects": [],
+ "exterior": [],
+ "services": [
+  {
+   "id": "SI-RACK",
+   "kind": "water",
+   "path": [
+    [
+     40,
+     5.75,
+     45.5
+    ],
+    [
+     52,
+     5.75,
+     45.5
+    ]
+   ],
+   "size": [
+    2,
+    1.5
+   ],
+   "reason": "Chilled-water flow and return and a cable tray from AF10 to B's first floor, on two steel portal frames over the gap (X13)"
+  }
+ ]
+}

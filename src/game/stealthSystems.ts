@@ -88,6 +88,11 @@ export class StealthSystems {
       this.doorIts.push({ d, it });
     }
     doors.onSound = (d, how) => {
+      // (step 13) a door-peek crack / close: the quiet-open sound at 30%, no noise for the guards (quiet floors)
+      if (how === 'crack') {
+        g.events.emit('door', { how: 'quiet', x: d.cx, z: d.cz, vol: 0.3 });
+        return;
+      }
       g.events.emit('door', { how, x: d.cx, z: d.cz });
       if (how === 'enemy') return;
       const r = how === 'bash' ? DOOR_BASH_NOISE : DOOR_QUIET_NOISE;
@@ -128,7 +133,7 @@ export class StealthSystems {
   }
 
   private pickUp(b: Body): void {
-    if (this.carry || !b.present || this.g.traversal.active || this.g.cover.state !== 'none') return;
+    if (this.carry || !b.present || this.g.traversal.active) return;
     const rig = this.g.player.rig;
     const p = rig.p;
     const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
@@ -165,7 +170,6 @@ export class StealthSystems {
     this.release();
     this.g.hud.feedItem('Body hidden');
     this.g.events.emit('body', { action: 'hide' });
-    this.g.style.record('bodyHidden', this.g.detected);
   }
 
   private release(): void {

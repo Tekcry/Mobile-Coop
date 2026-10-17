@@ -1,0 +1,11 @@
+{
+  "meta": { "id": "sample-kit", "version": 1, "grid": 0.5, "objectGrid": 0.1, "entry": [1, 1], "bay": [6, 6], "site": [0, 0, 20, 10], "footprint": [2, 2, 15.5, 6.5] },
+  "levels": [
+    { "id": "G", "name": "Ground", "floor": 0, "height": 3.3 }
+  ],
+  "placements": [
+    { "id": "W1", "module": "staff-wc", "level": "G", "at": [2, 2], "rot": 0, "label": "Staff WC" },
+    { "id": "J1", "module": "janitor", "level": "G", "at": [7.5, 2], "rot": 0, "label": "Janitor" },
+    { "id": "T1", "module": "storage", "level": "G", "at": [10, 2], "rot": 180, "label": "Store" }
+  ]
+}

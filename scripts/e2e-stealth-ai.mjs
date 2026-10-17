@@ -2,7 +2,7 @@
 // warning before detection, no sight through walls, noise -> suspicious -> investigating, the squad radio,
 // LKP set + ghost + search that converges and ends, patrols walking their routes.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -10,7 +10,7 @@ let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
-  await page.waitForTimeout(800);
+  await frames(page, 10);
   await G(() => {
     const a = window.__app;
     const g = a.current;
@@ -52,7 +52,7 @@ try {
         }
         doors['mesh']?.thinInstanceBufferUpdated('matrix');
         g.noise = 0;
-        g.cover.reset();
+        g.player.controller.override = null;
         g.traversal.reset();
         st.releaseAll();
         st.setMove('t', 0, 0);
@@ -152,6 +152,85 @@ try {
     assert(r.light > 0.6, `the lamp pool lights the player (${r.light.toFixed(2)})`);
     assert(r.alertAt > 0 && r.alertAt < 3, `walking in the light in view at 8 m is detected (${r.alertAt.toFixed(2)} s)`);
     assert(r.firstArc >= 0 && r.alertAt - r.firstArc > 0.25, `the awareness arc shows first (arc at ${r.firstArc.toFixed(2)} s, detected at ${r.alertAt.toFixed(2)} s)`);
+  });
+
+  await scen('vision-detect', async () => {
+    // (step 14) vision is rendering only: the same scripted approach is detected on the same frame with thermal (and
+    // electro) on as off (the light level is sampled, not pinned)
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const rnd = Math.random;
+      const run = (mode) => {
+        // the same random draws every run (guard reaction jitter): only the vision mode differs
+        let seed = 12345;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        t.reset();
+        t.light(null);
+        g.vision.reset();
+        g.vision.set(mode);
+        const e = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, -3, 0);
+        t.step(0.4);
+        g.frameUpdate(0.4, 1);
+        let alertAt = -1;
+        for (let k = 0; k < 240 && alertAt < 0; k++) {
+          st.setMove('t', k % 60 < 30 ? 0.6 : -0.6, 0);
+          t.step(1 / 60);
+          g.frameUpdate(1 / 60, 1);
+          if (e.alerted) alertAt = k;
+        }
+        st.setMove('t', 0, 0);
+        const out = { mode: g.vision.shown, vk: g.post.visionKind, alertAt, light: +g.lightLevel.toFixed(3) };
+        g.vision.reset();
+        g.frameUpdate(1 / 60, 1);
+        return out;
+      };
+      try {
+        return { off: run('off'), thermal: run('thermal'), electro: run('electro') };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    assert(r.off.alertAt > 0, `the approach is detected with vision off (${JSON.stringify(r.off)})`);
+    assert(r.thermal.vk === 1 && Math.abs(r.thermal.alertAt - r.off.alertAt) <= 1, `thermal on: detected on the same frame +-1 (${JSON.stringify(r)})`);
+    assert(r.electro.vk === 2 && Math.abs(r.electro.alertAt - r.off.alertAt) <= 1, `electro on: detected on the same frame +-1 (${JSON.stringify(r)})`);
+  });
+
+  await scen('vision-dog', async () => {
+    // (step 14) the dog's own body (its humanoid rig is hidden) is warm in thermal, cold otherwise, and cools once dead
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const e = t.spawn('dog', 0, 5, Math.PI);
+      // the mode changes at the middle of the goggle flip (fixed step), then the render frame paints
+      const frame = () => {
+        t.step(0.3);
+        for (let k = 0; k < 3; k++) g.frameUpdate(1 / 60, 1);
+      };
+      g.vision.reset();
+      frame();
+      const off0 = e.dog.partHeat();
+      g.vision.set('thermal');
+      frame();
+      const on = e.dog.partHeat();
+      t.kill(e);
+      frame();
+      const dead0 = e.dog.partHeat();
+      e.dog.downAge = 30 - 0.4;
+      frame();
+      const dead30 = e.dog.partHeat();
+      e.dog.downAge = 61 - 0.4;
+      frame();
+      const dead61 = e.dog.partHeat();
+      g.vision.reset();
+      frame();
+      return { off0, on, dead0, dead30, dead61, off1: e.dog.partHeat(), vk: g.post.visionKind };
+    });
+    assert(r.off0 === 0 && r.on > 0.5, `a live dog's part: pattern.w 0 with thermal off, > 0 with it on (${JSON.stringify(r)})`);
+    assert(r.dead0 > 0.5 && r.dead30 > 0.3 && r.dead30 < r.dead0 && r.dead61 === 0, `a dead dog cools over 60 s (${JSON.stringify(r)})`);
+    assert(r.off1 === 0, `thermal off again: the dog is cold (${JSON.stringify(r)})`);
   });
 
   await scen('walls', async () => {
@@ -445,8 +524,16 @@ try {
       // it looks for ALERT.hearLook (2.4 s), then walks over
       t.step(2.8);
       const lv = e.level;
-      t.step(0.3);
-      const torch = em.torchesOn;
+      // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - not where the ambient
+      // alone is. He walks to the second lamp shot out, at (9, -9), through the pool of the lamp at (9, 3) (0.44-0.51
+      // at his head: no torch) and lights it once he leaves the light, a few metres on at an investigating walk)
+      let torch = 0;
+      let torchLevel = -1;
+      for (let k = 0; k < 150 && !torch; k++) {
+        t.step(0.1);
+        torch = em.torchesOn;
+        if (torch) torchLevel = g.world.lightField.levelAt(e.pos.x, e.pos.y + 1.4, e.pos.z);
+      }
       // switch: the floor circuit off at its wall switch
       t.reset();
       t.light(0);
@@ -462,12 +549,12 @@ try {
       t.step(2.8);
       const lv2 = e2.level;
       t.light(null);
-      return { before, out, end, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
     assert(r.lv === 'investigating', `the nearest guard comes to look (${r.lv})`);
-    assert(r.torch >= 1, `with a flashlight in the dark (${r.torch} on)`);
+    assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
     assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
@@ -550,7 +637,7 @@ try {
         g.player.controller.teleport(new t.V(x, y, z), yaw);
         g.player.cam.yaw = yaw;
         t.step(0.3);
-        st.setMove('t', 0, 0.6);
+        st.setMove('t', 0, 1); // full stick: max gear 4 (2.3 m/s since step 22); since step 17 a 0.6 stick snaps to the silent gear-2 walk
         let n = 0;
         let surf = '';
         for (let i = 0; i < 12; i++) {
@@ -592,7 +679,7 @@ try {
       t.tp(0, -5, Math.PI);
       const e2 = t.spawn('grunt', 0, 5, 0);
       t.step(0.3);
-      // (an unsuppressed report: the issued 9mm SD is quiet)
+      // (an unsuppressed report: the issued Hush 9 SD is quiet)
       const st2 = g.weapons.current.stats;
       const n1 = st2.noise;
       st2.noise = 1;
@@ -686,6 +773,106 @@ try {
     assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
   });
 
+  // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
+  // camera); the lean-out exposes the chest
+  await scen('wall peek exposes the head', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const V = t.V;
+      const P = window.__pad;
+      P.connect();
+      t.light(1);
+      const segs = g.world.level.coverSegments;
+      const L = g.wallCore.links;
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i];
+        if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y) > 0.3) continue;
+        if (g.wallCore.active) g.wallCore.leave('test');
+        t.step(0.3);
+        g.player.controller.clearCrouchToggle();
+        const yaw = Math.atan2(-s.nx, -s.nz);
+        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+        t.step(0.3);
+        window.__app.input.state.tap('cover');
+        t.step(0.6);
+        if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
+        P.axis(0, 1);
+        t.step(1.0);
+        P.axis(0, 0);
+        t.step(0.3);
+        if (g.wallCore.edge !== 1) continue;
+        // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
+        const pt = new V();
+        let gx = 0;
+        let gz = 0;
+        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head
+        const see = () => {
+          const eye = new V(gx, s.y + 1.55, gz);
+          // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
+          const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
+          return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
+        };
+        const place = (x, z) => {
+          gx = x;
+          gz = z;
+        };
+        const spots = [];
+        for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
+        const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
+        P.axis(0, 1);
+        // (step 12b, D9) at a left edge the weapon goes to the left hand (EDGE_HAND_TIME 0.25 s) before the lean
+        // starts: the head is out past the edge about 0.6 s after the push (0.2 s hold + the switch + the lean)
+        t.step(0.9);
+        const peekOn = g.wallCore.peekOn;
+        const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
+        if (!peekOn || !only.length) {
+          P.axis(0, 0);
+          t.reset();
+          continue;
+        }
+        // the guard's own perception there: head only
+        g.enemyMgr.clear();
+        let e = null;
+        // the spawn settles the guard on the nav grid: keep one whose own eye (where it stands) sees the head only
+        for (const [x, z] of only) {
+          e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
+          if (!e) continue;
+          place(e.pos.x, e.pos.z);
+          const v = see();
+          if (!v.chest && v.head) break;
+          g.enemyMgr.clear();
+          e = null;
+        }
+        if (!e) {
+          P.axis(0, 0);
+          t.reset();
+          continue;
+        }
+        t.step(0.3);
+        const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
+        P.axis(0, 0);
+        t.step(0.5);
+        const back = { los: e.los };
+        // the lean-out (aim at the edge): the chest is out too
+        window.__app.input.state.set('t', 'ads', true);
+        t.step(0.7);
+        const lean = { lk: g.wallCore.lk, los: e.los, head: e.losHead };
+        window.__app.input.state.set('t', 'ads', false);
+        t.step(0.4);
+        if (g.wallCore.active) g.wallCore.leave('test');
+        return { i, hidden: hidden.length, only: only.length, peek, back, lean };
+      }
+      return null;
+    });
+    assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
+    assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
+    assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
+    assert(r.lean.lk === 1 && r.lean.los && !r.lean.head, `leaning out: the chest is in view (${JSON.stringify(r.lean)})`);
+  });
+
   await scen('vision', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -704,28 +891,24 @@ try {
       st.tap('vision');
       t.step(0.1);
       g.frameUpdate(0.1, 1);
-      const sonar = { mode: v.mode, marks: g.sonarMarks.count, vis: g.sonarMarks['limbs'].isEnabled() };
-      t.step(3);
-      g.frameUpdate(0.1, 1);
-      const faded = g.sonarMarks['limbs'].isEnabled();
-      // runs out, then recharges
-      t.step(16);
-      const out = { mode: v.mode, cool: v.cooldown };
+      // (step 14) the second press: thermal, then electro, then off
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const thermal = { mode: v.mode, vk: g.post.visionKind, nv: g.post['nv'] };
       st.tap('vision');
-      t.step(0.1);
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const electro = { mode: v.mode, vk: g.post.visionKind };
       st.tap('vision');
-      t.step(0.1);
-      const skip = v.mode;
-      st.tap('vision');
-      t.step(0.1);
-      g.frameUpdate(0.1, 1);
-      return { night, sonar, faded, out, skip, nvOff: g.post['nv'] };
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind, thermal, electro };
+      return { night, off, nvOff: g.post['nv'] };
     });
     assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.sonar.mode === 'sonar' && r.sonar.marks === 1 && r.sonar.vis, `again: sonar marks the guard behind the wall (${JSON.stringify(r.sonar)})`);
-    assert(!r.faded, 'the marks fade after the pulse');
-    assert(r.out.mode === 'off' && r.out.cool > 0, `sonar runs out and recharges (${JSON.stringify(r.out)})`);
-    assert(r.skip === 'off', `while recharging the cycle skips sonar (${r.skip})`);
+    assert(r.off.thermal.mode === 'thermal' && r.off.thermal.vk === 1 && r.off.thermal.nv < 0.01 && r.off.electro.mode === 'electro' && r.off.electro.vk === 2, `then thermal, then electro (${JSON.stringify(r.off)})`);
+    assert(r.off.mode === 'off' && r.off.hud === '' && r.off.vk === 0, `then off (${JSON.stringify(r.off)})`);
+    assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

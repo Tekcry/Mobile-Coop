@@ -1,4 +1,6 @@
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
+import { showEconomy } from '../../core/legacy';
 import { levelInfo } from '../../progression/profile';
 import { h } from '../dom';
 import { emblemSvg } from '../../cosmetics/catalog';
@@ -11,6 +13,11 @@ export function profileBadge(app: App): HTMLElement {
     const li = levelInfo(s);
     const pct = li.need ? Math.round((li.into / li.need) * 100) : 100;
     el.innerHTML = '';
+    // (3.5: the name and tag only; level, XP and credits are parked with the economy)
+    if (!showEconomy(flags.legacy)) {
+      el.append(h('div', { class: 'badge-top' }, h('span', { class: 'badge-emblem', html: emblemSvg(s.profile.tag.emblem, 22, s.profile.tag.color) }), h('div', { class: 'badge-name' }, h('b', { text: s.profile.name }), h('span', { class: 'badge-tag', text: s.profile.tag.title, style: { color: s.profile.tag.color } }))));
+      return;
+    }
     el.append(
       h('div', { class: 'badge-top' }, h('span', { class: 'badge-level', text: String(li.level) }), h('span', { class: 'badge-emblem', html: emblemSvg(s.profile.tag.emblem, 22, s.profile.tag.color) }), h('div', { class: 'badge-name' },
         h('b', { text: s.profile.name }),

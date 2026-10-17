@@ -16,15 +16,14 @@ export interface GameEvents {
   bodyFound: { x: number; z: number };
   /** The player picked up / put down / hid a body. */
   body: { action: 'pickup' | 'drop' | 'hide' };
-  /** A takedown started / finished / was broken off; Mark & Execute. */
+  /** A takedown started / finished / was broken off. */
   takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
-  mark: { on: boolean };
-  execute: { phase: 'start' | 'shot' | 'done' };
-  /** Goggles switched (audio) / a sonar pulse went out. */
-  vision: { mode: 'off' | 'night' | 'sonar' };
-  sonar: Record<string, never>;
+  /** (locomotion step 10) An elbow strike landed (or missed) at contact. */
+  strike: { result: 'ko' | 'stagger' | 'miss' };
+  /** Goggles switched (audio). */
+  vision: { mode: 'off' | 'night' | 'thermal' | 'electro' };
   /** A door opened / closed (audio). */
-  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
+  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number; vol?: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
   gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
   pickup: { kind: PickupKind };

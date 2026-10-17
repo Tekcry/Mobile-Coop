@@ -2,9 +2,9 @@
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
 // mark, relocates after its shots), dog (smells a hidden crouched operator in the dark, a non-lethal takedown),
 // drone operator (its recon drone spots and alerts; shot down; EMP drops it), officer (buffs squadmates, runs the
-// alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist (no Mark &
-// Execute, no sonar). `node scripts/e2e-enemies.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+// alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist
+// (difficulty autostart). `node scripts/e2e-enemies.mjs [url] [--only=name]`
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -24,11 +24,8 @@ const setup = () => {
     V,
     reset() {
       g.takedown.reset();
-      g.execute.reset();
       g.gadgets.clearWorld();
       em.clear();
-      g.marks.clear();
-      g.cover.reset();
       g.traversal.reset();
       st.releaseAll();
       st.setMove('t', 0, 0);
@@ -60,7 +57,7 @@ const run = async (params, scenarios) => {
   const { browser, page, errors } = await launch({ url, params });
   const G = (f, a) => page.evaluate(f, a);
   try {
-    await page.waitForTimeout(800);
+    await frames(page, 10);
     await G(setup);
     for (const [name, f] of scenarios) {
       if (only && !name.includes(only)) continue;
@@ -159,26 +156,12 @@ await run('autostart=warehouse&mode=clear', [
         const p0 = e.pos.clone();
         let laser = false;
         let glintMax = 0;
-        let refused = 0;
         for (let i = 0; i < 90 && e.relocations === 0; i++) {
           t.step(0.1);
           g.frameUpdate(1 / 120, 1);
           laser = laser || e['laser'].isVisible;
           const cp = g.player.cam.camera.position;
           glintMax = Math.max(glintMax, e.glintFor(cp.x, cp.y, cp.z));
-          // try to mark him while his scope is on us
-          if (!refused && e.glintFor(cp.x, cp.y, cp.z) > 0.3) {
-            const dx = e.pos.x - g.player.position.x;
-            const dz = e.pos.z - g.player.position.z;
-            g.player.cam.yaw = Math.atan2(dx, dz);
-            g.player.cam.pitch = Math.atan2(e.pos.y + 1.2 - (g.player.position.y + 1.6), Math.hypot(dx, dz));
-            g.player.forceAds = true;
-            t.step(0.3);
-            window.__app.input.state.tap('mark');
-            t.step(0.05);
-            g.player.forceAds = false;
-            refused = g.execute.glintRefused;
-          }
         }
         const shots = g.weapons ? e.relocations : 0;
         // the walk to the new perch (its path length varies with the perch picked)
@@ -187,11 +170,10 @@ await run('autostart=warehouse&mode=clear', [
           t.step(0.5);
           moved = Math.hypot(e.pos.x - p0.x, e.pos.z - p0.z);
         }
-        return { laser, glintMax, refused, marked: g.marks.has(e.id), relocations: e.relocations, moved, shots };
+        return { laser, glintMax, relocations: e.relocations, moved, shots };
       });
       assert(r.laser, 'its laser shows while it aims');
       assert(r.glintMax > 0.3, `its scope glints at you (${r.glintMax.toFixed(2)})`);
-      assert(r.refused >= 1 && !r.marked, 'it cannot be marked through the glint');
       assert(r.relocations >= 1 && r.moved > 3, `it relocates after its shots (${r.relocations}, moved ${r.moved.toFixed(1)} m)`);
     },
   ],
@@ -363,23 +345,9 @@ await run('autostart=warehouse&mode=clear&difficulty=perfectionist', [
       const r = await G(() => {
         const t = window.__t;
         const g = window.__app.current;
-        const v = g.vision;
-        const modes = [v.cycle(), v.cycle(), v.cycle()];
-        // a takedown earns no usable charge: marks do nothing
-        g.marks.charges = 1;
-        t.tp(8, 0, 0, 0);
-        const e = t.spawn('grunt', 8, 6, Math.PI);
-        t.freeze(e);
-        g.player.forceAds = true;
-        t.step(0.3);
-        window.__app.input.state.tap('mark');
-        t.step(0.3);
-        g.player.forceAds = false;
-        return { modes, marks: g.marks.ids.length, ready: g.execute.ready, def: g.difficultyDef.label };
+        return { def: g.difficultyDef.label };
       });
       assert(r.def === 'Perfectionist', `autostart takes the difficulty (${r.def})`);
-      assert(!r.modes.includes('sonar'), `no sonar (${r.modes.join(' -> ')})`);
-      assert(r.marks === 0 && !r.ready, 'no Mark & Execute');
     },
   ],
 ]);

@@ -16,7 +16,8 @@ export interface AttachmentDef {
 export const ATTACHMENTS: AttachmentDef[] = [
   { id: 'reddot', name: 'Red Dot', slot: 'optic', desc: 'Tighter ADS spread', mods: { spreadAds: 0.8 }, weapons: [] },
   { id: 'scope4x', name: '4x Scope', slot: 'optic', desc: 'Stronger zoom, steadier aim', mods: { adsZoom: 0.7, spreadAds: 0.7 }, weapons: ['rifle', 'sniper'] },
-  { id: 'suppressor', name: 'Suppressor', slot: 'barrel', desc: 'Enemies hear you less, -5% damage', mods: { noise: 0.45, damage: 0.95 }, weapons: [] },
+  // bible 5.6: suppressible where it makes sense - every firearm but the shotguns (and the crossbow, already quiet)
+  { id: 'suppressor', name: 'Suppressor', slot: 'barrel', desc: 'Enemies hear you less, -5% damage', mods: { noise: 0.45, damage: 0.95 }, weapons: ['rifle', 'smg', 'dmr', 'pistolSd', 'pistol', 'fiveseven', 'vector', 'p90', 'ak', 'tavor', 'sniper', 'lmg'] },
   { id: 'comp', name: 'Compensator', slot: 'barrel', desc: '-15% recoil', mods: { recoil: 0.85 }, weapons: ['smg', 'rifle', 'pistol'] },
   { id: 'grip', name: 'Vertical Grip', slot: 'underbarrel', desc: '-12% recoil, tighter hip fire', mods: { recoil: 0.88, spreadHip: 0.9 }, weapons: ['smg', 'rifle', 'shotgun'] },
   { id: 'laser', name: 'Laser Sight', slot: 'underbarrel', desc: '-20% hip fire spread', mods: { spreadHip: 0.8 }, weapons: [] },

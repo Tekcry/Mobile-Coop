@@ -50,7 +50,7 @@ const BTN_THRESHOLD = 0.5;
 
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
- * separately. A cover / cover-to-cover, B crouch (stand / crouch at high cover), Y traverse + interact
+ * separately. A context action, B crouch, Y traverse + interact
  * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder. 3.2.0: D-pad up /
  * down the speed gear, right the gadget (hold to aim), left the gadget wheel (the source: a tap is a co-op ping, a
  * hold opens the wheel); View goggles (the source: a tap is goggles, a hold an emote).
@@ -62,7 +62,6 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.Y, 'jump'],
   [PAD.Y, 'interact'],
   [PAD.RB, 'swapNext'],
-  [PAD.RB, 'mark'],
   [PAD.LB, 'swapPrev'],
   [PAD.START, 'pause'],
   [PAD.SELECT, 'vision'],
@@ -119,12 +118,14 @@ export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
 
 const STICK_NAV_THRESHOLD = 0.55;
 
-export function mapPad(p: PadSnapshot, t: PadTuning): PadFrame {
+/** `table`: the active gameplay bindings (locomotion step 18: `padBindTable(settings.pad)`, rebuilt only when the
+ *  bindings change); the defaults are GAME_BINDINGS. */
+export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readonly [number, ButtonAction]> = GAME_BINDINGS): PadFrame {
   const b = (i: number): number => p.buttons[i] ?? 0;
   const ax = (i: number): number => p.axes[i] ?? 0;
   const out: PadFrame['buttons'] = {};
 
-  for (const [i, a] of GAME_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
+  for (const [i, a] of table) if (b(i) > BTN_THRESHOLD) out[a] = true;
   for (const [i, a] of UI_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
 
   const lt = applyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);

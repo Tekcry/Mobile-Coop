@@ -31,6 +31,7 @@ export class DebugOverlay {
   private lines: LinesMesh | null = null;
   private tools: HTMLDivElement;
   private tune: HTMLDivElement;
+  private warp: HTMLDivElement;
   /** Live traces (e.g. weapon bob): sampled every frame, drawn as a line graph. */
   private traces = new Map<string, { fn: () => number; scale: number; buf: number[]; color: string }>();
   private traceCanvas: HTMLCanvasElement;
@@ -48,6 +49,9 @@ export class DebugOverlay {
     this.tune = document.createElement('div');
     this.tune.className = 'debug-tune';
     this.tune.hidden = true;
+    this.warp = document.createElement('div');
+    this.warp.className = 'debug-warp';
+    this.warp.hidden = true;
     this.traceCanvas = document.createElement('canvas');
     this.traceCanvas.width = 120;
     this.traceCanvas.height = 32;
@@ -78,7 +82,7 @@ export class DebugOverlay {
       }),
     );
     this.buildTune();
-    this.el.append(this.text, this.graph, this.traceCanvas, this.tools, this.tune);
+    this.el.append(this.text, this.graph, this.traceCanvas, this.tools, this.tune, this.warp);
     document.body.appendChild(this.el);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
@@ -87,6 +91,45 @@ export class DebugOverlay {
       if (e.touches.length === 3) this.toggle();
     });
     engine.onEndFrameObservable.add(() => this.onFrame());
+  }
+
+  /**
+   * Teleport menu (greybox maps): a "Teleport" tool button opens grouped buttons (chapter starts, spawns, objectives).
+   * Pass `null` to remove it (leaving a match).
+   */
+  setTeleports(points: { group: string; label: string; go: () => void }[] | null): void {
+    this.warp.replaceChildren();
+    this.warp.hidden = true;
+    this.tools.querySelector('.debug-warp-btn')?.remove();
+    if (!points || !points.length) return;
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'debug-warp-btn';
+    open.textContent = 'Teleport';
+    open.addEventListener('click', () => {
+      this.warp.hidden = !this.warp.hidden;
+      open.classList.toggle('on', !this.warp.hidden);
+    });
+    this.tools.append(open);
+    const groups = new Map<string, typeof points>();
+    for (const p of points) groups.set(p.group, [...(groups.get(p.group) ?? []), p]);
+    for (const [name, list] of groups) {
+      const h = document.createElement('b');
+      h.className = 'debug-tune-title';
+      h.textContent = name;
+      const row = document.createElement('div');
+      row.className = 'debug-tools';
+      row.style.flexWrap = 'wrap';
+      for (const p of list) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = p.label;
+        b.dataset.tp = p.label;
+        b.addEventListener('click', p.go);
+        row.append(b);
+      }
+      this.warp.append(h, row);
+    }
   }
 
   /** Add a live trace (value per frame; `scale` = value at the top of the graph). */

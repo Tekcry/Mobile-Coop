@@ -1,9 +1,11 @@
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
+import { campaignUnlocked, showEconomy } from '../../core/legacy';
 import type { SaveData } from '../../save/schema';
 import { MenuState, type MenuFraming } from '../../world/menuScene';
 import { WEAPONS, type WeaponDef, type WeaponId } from '../../weapons/weaponDefs';
 import { computeStats, MAX_UPGRADE, type EffectiveStats } from '../../weapons/weaponStats';
-import { applyPreset, buyHq, buySuit, buyUnlock, buyUpgrade, levelInfo, owns, savePreset, setAttachment, setLoadout, unlockContext, wearSuit, weaponMastery } from '../../progression/profile';
+import { campaignOpens, ownsOrOpen, applyPreset, buyHq, buySuit, buyUnlock, buyUpgrade, levelInfo, owns, savePreset, setAttachment, setLoadout, unlockContext, wearSuit, weaponMastery } from '../../progression/profile';
 import { canUpgrade, TRACKS, TRACK_LABEL, type UpgradeTrack } from '../../progression/upgrades';
 import { attachmentsFor, combinedMods, type AttachmentDef, type AttachmentSlot } from '../../progression/attachments';
 import { describeReq, unlockById, unlockState } from '../../progression/unlocks';
@@ -20,8 +22,9 @@ import { icon } from '../icons';
 import { button, choice } from '../widgets';
 import { showSavedOperator } from './operator';
 import { vx } from '../../core/viewRotation';
+import { arsenalSlot, CAMPAIGN_ISSUED, campaignAttachments, campaignKit, campaignList, campaignLoadout } from '../../config/arsenal';
 
-/** Weapon order in the lists. */
+/** Weapon order in the lists (sandbox and `?legacy=1`: all 16; the campaign lists `CAMPAIGN_ARSENAL`, bible 5.6). */
 export const WEAPON_ORDER: WeaponId[] = ['pistolSd', 'pistol', 'fiveseven', 'smg', 'vector', 'p90', 'rifle', 'ak', 'tavor', 'dmr', 'sniper', 'crossbow', 'shotgun', 'semiShotgun', 'breacher', 'lmg'];
 
 const SLOTS: { slot: AttachmentSlot; label: string }[] = [
@@ -39,7 +42,7 @@ const GADGET_DESC: Record<GadgetId, string> = {
   flash: 'Blinds guards facing it for a few seconds, then they come looking.',
   emp: 'Kills lights and electronics for a while; dazes guards close by.',
   noise: 'Sticks on and calls guards over to it. Draw them away.',
-  stickyCam: 'Stick it up and watch the room: ping to lure, gas once, mark.',
+  stickyCam: 'Stick it up and watch the room: ping to lure, gas once.',
   drone: 'Fly in through the gaps: stun dart and one shock burst.',
   mine: 'Placed, arms after 1.5 s: a frag-strength blast when a guard walks past.',
 };
@@ -118,10 +121,14 @@ export class LoadoutScreen extends Screen {
   private look: AvatarLook;
   private suit: SuitLoadout;
 
+  /** 3.5: the campaign opens every weapon and attachment (nothing is bought or saved); the economy and cosmetics only with `?legacy=1`. */
+  private readonly campaign = campaignUnlocked(flags.legacy);
+  private readonly eco = showEconomy(flags.legacy);
+
   constructor(private app: App) {
     super('loadout-screen');
     const s = this.s();
-    this.weapon = s.loadout.primary;
+    this.weapon = this.shownLoadout().primary;
     this.look = structuredClone(s.avatar);
     this.suit = { ...s.suit.worn };
     this.tickerEl = h('div', { class: 'net-ticker' });
@@ -148,7 +155,7 @@ export class LoadoutScreen extends Screen {
     this.listEl.addEventListener('nav-focus', (e) => this.onFocus(e.target as HTMLElement));
     this.listEl.addEventListener('nav-confirm', () => void (this.viaNav = true), { capture: true });
     this.el.append(
-      h('div', { class: 'lo-top' }, h('div', { class: 'net-brand', text: 'SBD-NET' }), this.tickerEl, this.walletEl),
+      h('div', { class: 'lo-top' }, h('div', { class: 'net-brand', text: this.eco ? 'SBD-NET' : 'NIGHT SHIFT' }), this.tickerEl, this.walletEl),
       h('div', { class: 'lo-main' }, h('div', { class: 'lo-left' }, this.headEl, this.listEl), stage, this.detailEl),
       this.actsEl,
     );
@@ -156,6 +163,23 @@ export class LoadoutScreen extends Screen {
     this.unsub = app.save.subscribe(() => this.renderTop());
     this.renderTop();
     this.render();
+  }
+
+  /**
+   * The save field a loadout row edits. Legacy: the field itself. The campaign (bible 5.6): the 'primary' row is the
+   * long gun and the 'secondary' row the sidearm, wherever the save keeps them (the issued kit starts on the
+   * sidearm, so the save's first field holds it).
+   */
+  private field(slot: 'primary' | 'secondary'): 'primary' | 'secondary' {
+    if (!this.campaign) return slot;
+    const lo = campaignLoadout(this.s().loadout);
+    return arsenalSlot(lo.primary) === (slot === 'primary' ? 'primary' : 'sidearm') ? 'primary' : 'secondary';
+  }
+
+  /** The loadout as shown: the campaign maps it onto the curated arsenal (`campaignLoadout`, applied at use). */
+  private shownLoadout(): SaveData['loadout'] {
+    const lo = this.s().loadout;
+    return this.campaign ? campaignLoadout(lo) : lo;
   }
 
   private s(): SaveData {
@@ -175,6 +199,7 @@ export class LoadoutScreen extends Screen {
 
   /** Level, credits and the challenge ticker (the next one to finish). */
   private renderTop(): void {
+    if (!this.eco) return;
     const s = this.s();
     this.walletEl.innerHTML = `<span>LV ${levelInfo(s).level}</span><b class="credits">${s.profile.credits} cr</b>`;
     const next = CHALLENGES.find((c) => !s.challenges.done.includes(c.id));
@@ -301,7 +326,13 @@ export class LoadoutScreen extends Screen {
   }
 
   private attOf(w: WeaponId): string[] {
-    return this.att[w] ?? this.s().weapons[w].attachments;
+    return this.att[w] ?? this.savedAtt(w);
+  }
+
+  /** A gun's saved attachments as the match issues them (the campaign adds its issued parts, A62). */
+  private savedAtt(w: WeaponId): string[] {
+    const a = this.s().weapons[w].attachments;
+    return this.campaign ? campaignAttachments(w, a) : a;
   }
 
   /** Back to what is saved (a focused row then sets its own preview). */
@@ -313,7 +344,7 @@ export class LoadoutScreen extends Screen {
     this.suit = { ...s.suit.worn };
     // the weapon in hand: the one this list is about, else the primary
     const w = this.stack.map((e) => e.page.id).reverse().find((id) => id.startsWith('w:'));
-    this.weapon = w ? (w.slice(2) as WeaponId) : this.page.id === 'slot:secondary' ? s.loadout.secondary : s.loadout.primary;
+    this.weapon = w ? (w.slice(2) as WeaponId) : this.page.id === 'slot:secondary' ? this.shownLoadout()[this.field('secondary')] : this.shownLoadout()[this.field('primary')];
   }
 
   private preview(): void {
@@ -341,7 +372,7 @@ export class LoadoutScreen extends Screen {
   /** How an unlockable stands: owned, buyable now (its price), or locked (what it needs). */
   private unlockRow(id: string): { mark: Mark; value: string; act?: Action; need: string } {
     const item = unlockById(id);
-    if (!item) return { mark: 'owned', value: '', need: '' };
+    if (!item || (this.campaign && campaignOpens(id))) return { mark: 'owned', value: '', need: '' };
     const s = this.s();
     const st = unlockState(item, unlockContext(s));
     if (st === 'owned') return { mark: 'owned', value: '', need: '' };
@@ -408,7 +439,7 @@ export class LoadoutScreen extends Screen {
 
   private savedStats(w: WeaponId): EffectiveStats {
     const wp = this.s().weapons[w];
-    return computeStats(WEAPONS[w], wp.upgrades, combinedMods(wp.attachments));
+    return computeStats(WEAPONS[w], wp.upgrades, combinedMods(this.savedAtt(w)));
   }
 
   private upgradeCount(w: WeaponId): number {
@@ -447,17 +478,22 @@ export class LoadoutScreen extends Screen {
         const gadget = (preset?.gadget ?? 'frag') as GadgetId;
         const hqLv = HQ_IDS.reduce((n, id) => n + s.hq[id], 0);
         const hqMax = HQ_IDS.reduce((n, id) => n + HQ[id].prices.length, 0);
-        const wRow = (slot: 'primary' | 'secondary'): Row => ({
-          key: slot,
-          label: slot === 'primary' ? 'Primary' : 'Secondary',
-          value: WEAPONS[s.loadout[slot]].name,
-          go: true,
-          preview: () => void (this.weapon = s.loadout[slot]),
-          detail: () => this.weaponDetail(s.loadout[slot]),
-          act: { label: `Change ${slot}`, run: () => this.open(this.weaponsPage(slot)) },
-          alt: { label: 'Customize', run: () => this.open(this.customizePage(s.loadout[slot])) },
-        });
-        return [
+        const lo = this.shownLoadout();
+        const wRow = (slot: 'primary' | 'secondary'): Row => {
+          const w = lo[this.field(slot)];
+          const name = slot === 'primary' ? 'primary' : this.campaign ? 'sidearm' : 'secondary';
+          return {
+            key: slot,
+            label: name[0]!.toUpperCase() + name.slice(1),
+            value: WEAPONS[w].name,
+            go: true,
+            preview: () => void (this.weapon = w),
+            detail: () => this.weaponDetail(w),
+            act: { label: `Change ${name}`, run: () => this.open(this.weaponsPage(slot)) },
+            alt: { label: 'Customize', run: () => this.open(this.customizePage(w)) },
+          };
+        };
+        const rows: Row[] = [
           { key: 'preset', group: 'KIT', label: 'Loadout', value: preset?.name ?? '', go: true, detail: () => this.presetDetail(s.preset), act: { label: 'Change loadout', run: () => this.open(this.presetsPage()) } },
           wRow('primary'),
           wRow('secondary'),
@@ -465,9 +501,11 @@ export class LoadoutScreen extends Screen {
           { key: 'suit', group: 'OPERATOR', label: 'Suit', value: SUIT[ 'vest'][s.suit.worn.vest]!.name, go: true, detail: () => this.suitDetail(s.suit.worn), act: { label: 'Open suit', run: () => this.open(this.suitPage()) } },
           { key: 'look', label: 'Appearance', go: true, detail: () => this.panel('APPEARANCE', this.note('Build, head, hair, outfit, headgear, backpack, pattern and colours. Locked parts preview on the operator.')), act: { label: 'Open appearance', run: () => this.open(this.lookPage()) } },
           { key: 'tag', label: 'Tag & emotes', value: s.profile.name, go: true, detail: () => this.panel('TAG & EMOTES', this.note('Callsign, title, emblem and colour; emote slots (View held, J / K / L).')), act: { label: 'Open tag & emotes', run: () => this.open(this.tagPage()) } },
-          { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, sonar, Execute capacity, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
+          { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
           { key: 'challenges', label: 'Challenges', value: `${s.challenges.done.length}/${CHALLENGES.length}`, go: true, detail: () => this.panel('CHALLENGES', this.note('Finish them in any mode for credits and XP.')), act: { label: 'Open challenges', run: () => this.open(this.challengesPage()) } },
         ];
+        // (3.5: weapons, attachments, gadget and presets; the suit, appearance, tag, HQ and challenges only with `?legacy=1`)
+        return this.eco ? rows : rows.filter((r) => !['suit', 'look', 'tag', 'hq', 'challenges'].includes(r.key));
       },
     };
   }
@@ -475,7 +513,16 @@ export class LoadoutScreen extends Screen {
   private presetDetail(i: number): HTMLElement {
     const p = this.s().presets[i];
     if (!p) return h('div');
-    return this.panel(p.name.toUpperCase(), this.line('PRIMARY', WEAPONS[p.primary as WeaponId]?.name ?? p.primary), this.line('SECONDARY', WEAPONS[p.secondary as WeaponId]?.name ?? p.secondary), this.line('GADGET', GADGETS[p.gadget as GadgetId]?.name ?? p.gadget));
+    const name = (w: string): string => WEAPONS[w as WeaponId]?.name ?? w;
+    // the campaign shows the kit it issues, by role (bible 5.6)
+    const kit = this.presetKit(p);
+    const guns = kit ? [this.line('PRIMARY', name(kit.primary)), this.line('SIDEARM', name(kit.sidearm))] : [this.line('PRIMARY', name(p.primary)), this.line('SECONDARY', name(p.secondary))];
+    return this.panel(p.name.toUpperCase(), ...guns, this.line('GADGET', GADGETS[p.gadget as GadgetId]?.name ?? p.gadget));
+  }
+
+  /** A preset's campaign kit (long gun, sidearm), or null outside the campaign. */
+  private presetKit(p: { primary: string; secondary: string }): { primary: WeaponId; sidearm: WeaponId } | null {
+    return this.campaign ? campaignKit({ primary: p.primary as WeaponId, secondary: p.secondary as WeaponId }) : null;
   }
 
   private presetsPage(): Page {
@@ -487,41 +534,52 @@ export class LoadoutScreen extends Screen {
       framing: 'loadout',
       rows: () => {
         const s = this.s();
-        return s.presets.map((p, i) => ({
-          key: `preset-${i}`,
-          label: p.name,
-          value: `${WEAPONS[p.primary as WeaponId]?.name ?? ''}`,
-          mark: s.preset === i ? 'equipped' : 'owned',
-          preview: () => void (this.weapon = (WEAPONS[p.primary as WeaponId] ? p.primary : s.loadout.primary) as WeaponId),
-          detail: () => this.presetDetail(i),
-          act: s.preset === i ? undefined : { label: `Use ${p.name}`, run: () => {
-            this.save((d) => applyPreset(d, i));
-            this.refresh();
-          } },
-        }));
+        return s.presets.map((p, i) => {
+          const gun = this.presetKit(p)?.primary ?? p.primary;
+          return {
+            key: `preset-${i}`,
+            label: p.name,
+            value: `${WEAPONS[gun as WeaponId]?.name ?? ''}`,
+            mark: s.preset === i ? 'equipped' as const : 'owned' as const,
+            preview: () => void (this.weapon = (WEAPONS[gun as WeaponId] ? gun : this.shownLoadout()[this.field('primary')]) as WeaponId),
+            detail: () => this.presetDetail(i),
+            act: s.preset === i ? undefined : { label: `Use ${p.name}`, run: () => {
+              this.save((d) => applyPreset(d, i, this.campaign));
+              this.refresh();
+            } },
+          };
+        });
       },
     };
   }
 
   private weaponsPage(slot: 'primary' | 'secondary'): Page {
+    const name = slot === 'secondary' && this.campaign ? 'sidearm' : slot;
     return {
       id: `slot:${slot}`,
-      crumb: slot.toUpperCase(),
-      title: `${slot.toUpperCase()} WEAPON`,
+      crumb: name.toUpperCase(),
+      title: `${name.toUpperCase()} WEAPON`,
       sub: 'SELECT A WEAPON',
       framing: 'weapon',
       rows: () => {
-        const s = this.s();
-        const cur = s.loadout[slot];
-        return WEAPON_ORDER.map((w) => {
+        // the campaign edits the field that holds this slot's gun, from the curated list only (bible 5.6)
+        const field = this.field(slot);
+        const lo = this.shownLoadout();
+        const cur = lo[field];
+        const list = this.campaign ? campaignList(slot === 'primary' ? 'primary' : 'sidearm') : WEAPON_ORDER;
+        const setSlot = (d: SaveData, w: WeaponId): void => {
+          if (this.campaign) d.loadout = campaignLoadout(d.loadout);
+          setLoadout(d, field, w, this.campaign);
+        };
+        return list.map((w) => {
           const def = WEAPONS[w];
           const u = this.unlockRow(`weapon:${w}`);
           const owned = u.mark === 'owned';
           const equipped = cur === w;
-          const other = s.loadout[slot === 'primary' ? 'secondary' : 'primary'] === w;
+          const other = !this.campaign && lo[slot === 'primary' ? 'secondary' : 'primary'] === w;
           const equip: Action = { label: `Equip ${def.name}`, run: () => {
             this.save((d) => {
-              setLoadout(d, slot, w);
+              setSlot(d, w);
               savePreset(d, d.preset);
             });
             this.refresh();
@@ -539,10 +597,10 @@ export class LoadoutScreen extends Screen {
               return d;
             },
             act: owned ? (equipped ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : equip) : u.act && u.mark === 'buyable' ? { ...u.act, run: () => this.buy(`weapon:${w}`, (d) => {
-              setLoadout(d, slot, w);
+              setSlot(d, w);
               savePreset(d, d.preset);
             }) } : u.act,
-            alt: owned ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : undefined,
+            alt: owned && !equipped ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : undefined,
           };
         });
       },
@@ -555,19 +613,20 @@ export class LoadoutScreen extends Screen {
       id: `w:${w}`,
       crumb: def.name.toUpperCase(),
       title: def.name.toUpperCase(),
-      sub: 'EQUIP ATTACHMENTS & UPGRADES',
+      sub: this.eco ? 'EQUIP ATTACHMENTS & UPGRADES' : 'EQUIP ATTACHMENTS',
       framing: 'weapon',
       rows: () => {
         const s = this.s();
-        const ownsW = owns(s, `weapon:${w}`);
+        const ownsW = ownsOrOpen(s, `weapon:${w}`, this.campaign);
         const rows: Row[] = [];
-        const saved = s.weapons[w].attachments;
+        const saved = this.savedAtt(w);
         for (const sl of SLOTS) {
           const opts = attachmentsFor(w).filter((a) => a.slot === sl.slot);
           if (!opts.length) continue;
           const on = opts.filter((a) => saved.includes(a.id)).length;
           opts.forEach((a, i) => rows.push(this.attachmentRow(w, a, opts, i === 0 ? `${sl.label.toUpperCase()} [${on}/1]` : undefined, ownsW)));
         }
+        if (!this.eco) return rows;
         const lvl = levelInfo(s).level;
         TRACKS.forEach((t, i) => rows.push(this.upgradeRow(w, t, lvl, ownsW, i === 0 ? `UPGRADES [${this.upgradeCount(w)}/${TRACKS.length * MAX_UPGRADE}]` : undefined)));
         const camo = CAMOS.find((c) => c.id === s.weapons[w].camo);
@@ -579,17 +638,21 @@ export class LoadoutScreen extends Screen {
 
   private attachmentRow(w: WeaponId, a: AttachmentDef, slotOpts: AttachmentDef[], group: string | undefined, ownsW: boolean): Row {
     const s = this.s();
-    const saved = s.weapons[w].attachments;
+    const saved = this.savedAtt(w);
     const on = saved.includes(a.id);
+    // (A62) the campaign's issued part fills an empty slot: it is swapped for another part, not removed
+    const issued = on && this.campaign && CAMPAIGN_ISSUED[w] === a.id && !s.weapons[w].attachments.includes(a.id);
     const u = this.unlockRow(`att:${a.id}`);
     const others = slotOpts.map((o) => o.id);
     const withIt = (): string[] => [a.id, ...saved.filter((id) => !others.includes(id))];
     const set = (d: SaveData, v: boolean): void => {
-      for (const id of others) setAttachment(d, w, id, false);
-      if (v) setAttachment(d, w, a.id, true);
+      for (const id of others) setAttachment(d, w, id, false, this.campaign);
+      if (v) setAttachment(d, w, a.id, true, this.campaign);
     };
     const act: Action | undefined = !ownsW
       ? { label: 'Unlock the weapon first', run: () => undefined, blocked: 'Unlock the weapon first' }
+      : issued
+        ? { label: `Issued ${a.name}`, run: () => undefined, blocked: 'Issued with the rifle: equip another barrel part to swap it' }
       : u.mark === 'owned'
         ? on
           ? { label: `Remove ${a.name}`, run: () => {
@@ -643,7 +706,7 @@ export class LoadoutScreen extends Screen {
         const def = WEAPONS[w];
         const was = this.savedStats(w);
         const up = { ...wp.upgrades, [t]: Math.min(MAX_UPGRADE, n + 1) };
-        const now = computeStats(def, up, combinedMods(wp.attachments));
+        const now = computeStats(def, up, combinedMods(this.savedAtt(w)));
         return h('div', {}, this.panel(`${TRACK_LABEL[t].toUpperCase()} ${n}/${MAX_UPGRADE}`, this.note(n >= MAX_UPGRADE ? 'Fully upgraded.' : `Next level: ${value}.`)), this.panel(`${def.name.toUpperCase()} TOTAL`, ...this.weaponStats(def, n >= MAX_UPGRADE ? was : now, was, this.upgradeCount(w))));
       },
       act: !c.ok && c.reason === 'maxed' ? undefined : { label: `Upgrade ${TRACK_LABEL[t]} · ${c.cost} cr`, run: () => {
@@ -723,7 +786,6 @@ export class LoadoutScreen extends Screen {
       this.bar('ARMOR', 1 - st.damage, b && 1 - b.damage),
       this.bar('STEALTH', 1 - (st.noise - 0.6), b && 1 - (b.noise - 0.6)),
       this.bar('HANDLING', 1 - (st.hands - 0.7) * 2, b && 1 - (b.hands - 0.7) * 2),
-      this.bar('SONAR', (st.sonarRange - 0.8) / 0.8, b && (b.sonarRange - 0.8) / 0.8),
       this.line('EXTRA GADGETS', String(st.gadgets), b && String(b.gadgets)),
     );
   }

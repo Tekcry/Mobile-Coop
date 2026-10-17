@@ -121,6 +121,8 @@ export class Taau {
     private camera: Camera,
     private scale: number,
     depth: DepthSource,
+    /** The texture type ahead of tone mapping (half float on desktop: `PostStack.hdr`). */
+    textureType: number,
   ) {
     const engine = scene.getEngine();
     // first in the chain: its input (the scene) is `scale` of the canvas
@@ -176,7 +178,7 @@ export class Taau {
       this.prevVP.copyFrom(this.curVP);
     };
     this.pp = pp;
-    const pass = new PassPostProcess('taauPass', 1, camera);
+    const pass = new PassPostProcess('taauPass', 1, camera, undefined, undefined, false, textureType);
     pass.autoClear = false;
     this.pass = pass;
   }

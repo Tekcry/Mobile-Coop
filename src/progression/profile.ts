@@ -1,6 +1,6 @@
 import type { SaveData } from '../save/schema';
 import type { SessionStats } from '../game/modes/gameMode';
-import type { Difficulty } from '../ai/enemyDefs';
+import type { DifficultyPreset } from '../ai/archetypes';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import type { LoadoutEntry } from '../weapons/playerWeapons';
 import { computeRewards, type SessionRewards } from './rewards';
@@ -8,6 +8,7 @@ import { levelFromXp, masteryLevel, type LevelInfo } from './levels';
 import { canUpgrade, type UpgradeTrack } from './upgrades';
 import { UNLOCKS, unlockById, unlockState, type UnlockContext, type UnlockItem } from './unlocks';
 import { combinedMods, sanitizeAttachments } from './attachments';
+import { campaignAttachments, issuedLoadout } from '../config/arsenal';
 import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, PRESETS, type HqId, type SuitPiece } from './suit';
 
 /** Pure operations on a SaveData (callers clone via SaveManager.update). */
@@ -26,6 +27,14 @@ export function unlockContext(s: SaveData): UnlockContext {
 
 export function owns(s: SaveData, id: string): boolean {
   return s.unlocks.includes(id);
+}
+
+/** 3.5: what the campaign opens without buying (weapons and attachments; `core/legacy.ts` `campaignUnlocked`). Nothing is written to the save. */
+export const campaignOpens = (id: string): boolean => id.startsWith('weapon:') || id.startsWith('att:');
+
+/** `owns`, or opened by the campaign. */
+export function ownsOrOpen(s: SaveData, id: string, campaign: boolean): boolean {
+  return s.unlocks.includes(id) || (campaign && campaignOpens(id));
 }
 
 /** Grant every unlock whose requirements are met and price is 0. Returns what was granted. */
@@ -58,7 +67,7 @@ export interface SessionReport {
 export const LEVEL_UP_CREDITS = 200;
 
 /** Apply a finished session to the save. Mutates `s`. */
-export function applySession(s: SaveData, stats: SessionStats, difficulty: Difficulty): SessionReport {
+export function applySession(s: SaveData, stats: SessionStats, difficulty: DifficultyPreset): SessionReport {
   const before = levelInfo(s);
   const ctxBefore = unlockContext(s);
   const buyableBefore = new Set(UNLOCKS.filter((u) => unlockState(u, ctxBefore) === 'buyable').map((u) => u.id));
@@ -91,16 +100,13 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
   }
   // Infiltration: the best run per mission
   if (stats.missionId && /^[a-z0-9-]{1,48}$/.test(stats.missionId)) {
-    const r = (s.missions[stats.missionId] ??= { rating: 0, score: 0, ghost: 0, panther: 0, assault: 0, plays: 0, wins: 0 });
+    const r = (s.missions[stats.missionId] ??= { rating: 0, score: 0, plays: 0, wins: 0 });
     r.plays++;
     if (stats.won) r.wins++;
     const rating = Math.max(0, Math.min(3, Math.floor(stats.rating ?? 0)));
     if (rating > r.rating || (rating === r.rating && stats.score > r.score)) {
       r.rating = rating;
       r.score = Math.min(1e9, Math.max(0, Math.floor(stats.score)));
-      r.ghost = Math.floor(stats.style.ghost);
-      r.panther = Math.floor(stats.style.panther);
-      r.assault = Math.floor(stats.style.assault);
     }
   }
   // challenges: progress, paid once on completion
@@ -109,7 +115,6 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     takedownsByKind: stats.takedownsByKind ?? {},
     knockouts: stats.knockouts,
     headshots: stats.headshots,
-    executes: stats.executes ?? 0,
     gadgetKos: stats.gadgetKos ?? 0,
     mode: stats.mode,
     won: stats.won,
@@ -158,8 +163,8 @@ export function buyUpgrade(s: SaveData, w: WeaponId, track: UpgradeTrack): { ok:
   return { ok: true };
 }
 
-export function setAttachment(s: SaveData, w: WeaponId, attId: string, on: boolean): boolean {
-  if (on && !owns(s, `att:${attId}`)) return false;
+export function setAttachment(s: SaveData, w: WeaponId, attId: string, on: boolean, campaign = false): boolean {
+  if (on && !ownsOrOpen(s, `att:${attId}`, campaign)) return false;
   const cur = s.weapons[w].attachments.filter((a) => a !== attId);
   const next = on ? [attId, ...cur] : cur;
   s.weapons[w].attachments = sanitizeAttachments(w, next);
@@ -203,32 +208,49 @@ export function savePreset(s: SaveData, i: number, gadget?: string): boolean {
 }
 
 /** Use preset `i`: its weapons become the loadout (if still owned). */
-export function applyPreset(s: SaveData, i: number): boolean {
+export function applyPreset(s: SaveData, i: number, campaign = false): boolean {
   const p = s.presets[i];
   if (!p) return false;
-  const ok = (w: string): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w) && owns(s, `weapon:${w}`);
+  const ok = (w: string): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w) && ownsOrOpen(s, `weapon:${w}`, campaign);
   if (ok(p.primary)) s.loadout.primary = p.primary;
   if (ok(p.secondary) && p.secondary !== s.loadout.primary) s.loadout.secondary = p.secondary;
   s.preset = i;
   return true;
 }
 
-export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: WeaponId): boolean {
-  if (!owns(s, `weapon:${w}`)) return false;
+export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: WeaponId, campaign = false): boolean {
+  if (!ownsOrOpen(s, `weapon:${w}`, campaign)) return false;
   const other = slot === 'primary' ? 'secondary' : 'primary';
   if (s.loadout[other] === w) s.loadout[other] = s.loadout[slot];
   s.loadout[slot] = w;
   return true;
 }
 
-/** Weapons for a match from the profile (sandbox: every weapon, still with your upgrades). */
-export function loadoutEntries(s: SaveData, mode: SessionStats['mode'], skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>): LoadoutEntry[] {
-  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : [s.loadout.primary, s.loadout.secondary];
-  return ids.map((id) => ({
-    id,
-    upgrades: s.weapons[id].upgrades,
-    mods: combinedMods(s.weapons[id].attachments),
-    attachments: [...s.weapons[id].attachments],
-    ...(skin?.(id, s.weapons[id].camo) ?? {}),
-  }));
+/**
+ * Weapons for a match from the profile (sandbox: a fixed set, still with your upgrades; Infiltration, the campaign:
+ * the loadout mapped onto the curated arsenal at use, `config/arsenal.ts`, bible 5.6). `campaignOpen`:
+ * `campaignUnlocked(flags.legacy)`, so ?legacy=1 Infiltration issues the save as is, the same as its lobby loadout (D8).
+ */
+export function loadoutEntries(
+  s: SaveData,
+  mode: SessionStats['mode'],
+  campaignOpen: boolean,
+  skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
+): LoadoutEntry[] {
+  const campaign = mode === 'infiltration' && campaignOpen;
+  const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : lobbyLoadout(s, campaign);
+  return ids.map((id) => {
+    const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];
+    return { id, upgrades: s.weapons[id].upgrades, mods: combinedMods(att), attachments: att, ...(skin?.(id, s.weapons[id].camo) ?? {}) };
+  });
+}
+
+/**
+ * The two weapon ids a match issues, in hand first (pure). Co-op sends this as the lobby loadout (`main.ts`, with
+ * `campaignUnlocked`), so the host's weapon checks (`hostWeapon`, `hostShotWeapon`) and remote avatars see the
+ * guns Infiltration issues (D8).
+ */
+export function lobbyLoadout(s: SaveData, campaign: boolean): WeaponId[] {
+  const lo = issuedLoadout(s.loadout, campaign);
+  return [lo.primary, lo.secondary];
 }

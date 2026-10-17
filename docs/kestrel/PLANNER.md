@@ -1,0 +1,47 @@
+# Kestrel planner sessions
+Rules for planner sessions (Michael, 2026-10-11). A planner session starts when Michael's message begins "Planner:".
+
+## Checklist before writing any prompt (Michael, 2026-10-11)
+- Say the model for each prompt (RULES 7 Model use); Haiku only if the prompt meets the closed rule there.
+- (a) Is any file I am changing APPROVED? Then write a Revision prompt.
+- (b) Does the next job need Opus? Then a Sonnet session stops before writing it.
+- (c) Is every capability claim cited (RULES 5)?
+- (d) Did any handover line become stale?
+- (e) Does the End block carry the plain-English report rules (RULES 9 4c)? This session's own report follows them too (Michael, 2026-10-11).
+- Current plan wins: once a stage document records a deviation from the brief, prompts take positions, ids and wording from that document, not the brief. Any id or point a prompt uses must exist as placed in the current stage document.
+- Fix now, don't defer: a problem in a DRAFT document is fixed in the current stage. Only wording in APPROVED documents goes to a review or revision stage.
+- Review step (Michael, 2026-10-11): rerun the last run's check scripts; look for lines added twice in progress.md and lessons.md; for every value Michael or the run changed, grep the brief and recorded decisions for the old value and list any clash as a P03R item (03B section 10 and handover P03R notes). Compare each recorded decision's value with the generated data (the JSON), not only the run's own claim that decisions matched (Michael, 2026-10-11).
+- Review routing (Michael, 2026-10-11): every prompt's End block, and this session's report, ends with the RULES 9 4b line "Review chat: SEND - <reason>" or "Review chat: SKIP" just before the Next step block.
+- Reviewer (Michael, 2026-10-11): a SEND report means Michael types /clear and sends `Reviewer: next` with the report pasted under it (Opus, medium); see docs/kestrel/REVIEW.md. On SEND the Next step block is that review step in full: its code block holds `Reviewer: next` and the whole report under it, ready to copy (RULES 9 4b). Every prompt's End block says so.
+- "Planner: APPROVED" runs on Opus, medium, because it does the next planner job.
+
+## Start
+- git checkout feature/kestrel && git pull; confirm the branch.
+- Read this file, docs/kestrel/handover.md, docs/kestrel/routes.md, and docs/kestrel/progress.md (status table and newest 5 log entries only).
+- Capability rule (RULES 5): any statement that a move, tool or system is or is not available cites RULES 1 or V0 by line, or a grep of src/world/anchors.ts; otherwise write it as ASK. Open other files only for the section the job needs (grep -n '^#', then line ranges).
+
+## Jobs (one per session, then stop)
+- "Planner: next": First review the last session's output, judging it first on realism and flow: would a real architect lay it out this way, and does it flow for stealth play (Michael, 2026-10-11). Then check it against the brief and RULES: check its self-check covered the universal checks, and that each recommended option meets the brief. List anything you disagree with, with your own recommendation, before writing the next prompt. Then read what the last session committed (its document section, progress row and log line), update handover.md (Status, Order, Notes), and write the next prompt file. If the last session left an unanswered question, stop and list it with its recommended option instead.
+- "Planner: APPROVED <stage>": follow RULES section 10 for that stage, update handover.md Status, then do the "next" job if the next prompt file does not exist yet.
+- "Planner: <anything else>": answer Michael's question from the repo; record any decision he makes, dated, in progress.md "Decisions by Michael" and in handover.md when it affects later stages.
+- "Planner: split this smaller": rewrite the last prompt file not yet run (or the one that stalled) as smaller parts per RULES 7, as new files; leave the old file unchanged.
+Never run while a stage session is running. Never edit a stage's output files except status lines on approval.
+
+## Prompt files
+- Path docs/kestrel/prompts/<stage>.md, or <stage>-<part>.md (1a, 1b, 2, 3 ...). Line 1 the title, line 2 "Model: <model>, <effort> effort." (RULES 7 model use and task size).
+- Complete and standalone: branch switch and check, preconditions, the exact files and line ranges to read, task, outputs, self-check, end per RULES section 9.
+- Follow RULES 7 task size: one deliverable per session, capped at about 15-20 decisions; split anything bigger into parts. Precompute simple positions and sizes from approved documents into a table for the session to verify, with sources.
+- Line 3 of every prompt is 'Decisions: N' (count of placements or decisions). If N is over 20, split before writing the prompt. Never set high effort.
+- Never edit a prompt file after its session has run; write a new one with -r2, -r3.
+- Before writing a prompt, check its task matches the stage's definition in its document header and RULES; never add a later stage's detail. Layout prompts include the candidate-first method and a ready self-check script.
+- Feasibility first: before writing any layout or puzzle prompt, test with simple arithmetic that its constraints can all be met (areas against the space, door frontage against corridor length, widths against depths) and write the sums into the prompt. If a building size makes them fail, resize it within RULES 2's caps (RULES 7 Building sizes), record the reason and carry on; an APPROVED document changes through a Revision prompt. Bring Michael only conflicts that sizing cannot solve, and questions about realism and flow, as options with the recommended first.
+
+## Talking to Michael
+- Answer his question first, then ask. At most 5 questions, each as native multiple choice with 2-4 options, the recommended option first marked "(Recommended)" with a one-line reason.
+- Show one step at a time.
+- Plain English, short sentences, hyphens not em dashes.
+- When he must check something on PC or phone (a walk, a camera test), give numbered steps.
+
+## Ending
+- Commit only files you changed: "kestrel planner: <summary>". Push. Budget about 20 tool calls.
+- The session ends with a "Next step" block in exactly this format: "Next step:" then "1. Type /clear." "2. Switch to <model>, <effort> (or "Stay on <model>, <effort>" if unchanged)." "3. Send the prompt below:" followed by the exact message in its own fenced code block (nothing else in the block) so Michael can tap copy. Any other prompt or command Michael must paste also goes in a code block. "Planner: next" and approvals always use Opus, medium; recording decisions and simple questions use Sonnet, medium, or Haiku when Opus writes the message closed (RULES 7 Model use).

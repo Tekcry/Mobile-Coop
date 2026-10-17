@@ -29,6 +29,13 @@ export interface SquadSlot {
   route?: [number, number][];
   /** Pause at each route point (s). */
   wait?: number;
+  /** Pause per route point (s), overriding `wait`; facing per point (rad) while paused; where in the timed loop to begin (`PatrolRoute`). */
+  waits?: number[];
+  faces?: number[];
+  start?: { idx: number; wait: number };
+  loop?: { period: number; leave: number[]; t0: number };
+  /** The route leaves its room (a patrol that spans rooms): the guard does not hold the room. */
+  free?: boolean;
 }
 
 export interface RoomDef extends RoomRect {

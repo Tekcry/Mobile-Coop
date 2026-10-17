@@ -16,7 +16,7 @@ describe('team moves (3.2.0 phase 5)', () => {
     expect(checkTeamRequest(req({ b: side({ id: 'b', mode: 'brace', team: 1 }) }))).toBe('notMates');
     expect(checkTeamRequest(req({ b: side({ id: 'a', mode: 'brace' }) }))).toBe('notMates');
     expect(checkTeamRequest(req({ b: side({ id: 'b', mode: 'ground' }) }))).toBe('notBraced');
-    expect(checkTeamRequest(req({ a: side({ id: 'a', z: 0.9, mode: 'cover' }) }))).toBe('busy');
+    expect(checkTeamRequest(req({ a: side({ id: 'a', z: 0.9, mode: 'wall' }) }))).toBe('busy');
     // the partner moved away mid-request
     expect(checkTeamRequest(req({ a: side({ id: 'a', z: TEAM.partnerReach + 0.3 }) }))).toBe('far');
     expect(checkTeamRequest(req({ target: -1 }))).toBe('noTarget');

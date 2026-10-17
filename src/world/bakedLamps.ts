@@ -3,30 +3,40 @@ import { dropCpuCopy } from '../voxel/voxelWorld';
 import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, packLampAtlas, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
+import { bakedLights, type MoonGrid } from './lightBake';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { DARK_DESKTOP, DARK_GLSL, DARK_PHONE, LEVEL_TO_RENDER, VISION_GAIN, type DarkParams } from './darkCurve';
+import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
+import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 
-/** Omni lamps light everything below them through this cone (rad; as `LightRig`'s lamps did). */
-const LAMP_CONE = Math.PI * 0.97;
-/** Map lights were Babylon lights at this x their gameplay intensity. */
-const LIGHT_GAIN = 1.6;
+export { bakedLights };
+
 /** Texels per lamp in the data texture: position + range, colour + exponent, direction + cos, box origin + ny,
- *  atlas tile + nx / nz, character capsule ids. */
-const LAMP_TEXELS = 6;
+ *  atlas tile + nx / nz, character capsule ids, door ids (3.6). */
+const LAMP_TEXELS = 7;
+/** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
+const DOOR_TEXELS = 2;
+
+export { LEVEL_TO_RENDER };
+
+/** What the canonical bake adds to the baked lamps (3.6). */
+export interface BakeExtras {
+  /** The baked moon: the sun light is multiplied by it (static moon shadows). */
+  moon?: MoonGrid | null;
+  /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
+  doors?: readonly FieldDoor[];
+  /** The ambient grid (gameplay's own) and the fill colour: the darkness curve reads the grid everywhere; it is the
+   *  fill on the phone light look and on desktop's non-voxel surfaces (characters, props), in place of the
+   *  hemisphere (Step 4b; the voxels keep the sky bake's fill). */
+  fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
+  /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
+  moonLight?: number;
+  /** The phone light look: the plugin goes on the lit standard materials (else on the PBR ones). */
+  standard?: boolean;
+}
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
-
-/** Pure: the lights that are baked (every fixed one; flashlights move) packed for the bake (`LAMP_STRIDE`). */
-export function bakedLights(reg: LightRegistry): { lights: Float32Array; ids: number[] } {
-  const ids: number[] = [];
-  for (const l of reg.lights) if (l.kind !== 'flashlight') ids.push(l.id);
-  const lights = new Float32Array(ids.length * LAMP_STRIDE);
-  ids.forEach((id, i) => {
-    const l = reg.lights[id]!;
-    const f = l.fixture;
-    lights.set([l.x, l.y, l.z, l.reach ?? l.radius, l.cone?.dx ?? 0, l.cone?.dy ?? -1, l.cone?.dz ?? 0, l.cone ? l.cone.cosOuter : -2, f?.sx ?? 0, f?.sz ?? 0], i * LAMP_STRIDE);
-  });
-  return { lights, ids };
-}
 
 /**
  * Baked lamps (3.2): every fixed light shaded through its baked visibility (`voxel/lampBake.ts`) by `LampPlugin` on
@@ -44,9 +54,29 @@ export class BakedLamps {
   readonly atlasDims: [number, number, number];
   readonly gridInfo: { lox: number; loz: number; cols: number; rows: number };
   readonly width: number;
-  /** Texel index where the lamps / the capsules start. */
+  /** Texel index where the lamps / the capsules / the doors start. */
   readonly lampBase: number;
   readonly capBase: number;
+  readonly doorBase: number;
+  /** 3.6: the baked moon (R8, linear). */
+  readonly moonTex: RawTexture3D | null = null;
+  readonly moon: MoonGrid | null;
+  readonly fillTex: RawTexture3D | null = null;
+  readonly fill: BakeExtras['fill'];
+  /** The plugin goes on standard materials (the phone light look). */
+  private readonly standard: boolean;
+  get standardLook(): boolean {
+    return this.standard;
+  }
+  readonly moonLight: number;
+  /** Step 4b, rendering only: the night-vision gain (1 off; `GameState` eases it) and the curve's shape (the look's
+   *  set; tests may tune it). Gameplay never reads either. */
+  visionGain = 1;
+  dark: DarkParams;
+  private readonly doors: readonly FieldDoor[];
+  private readonly doorShut: Uint8Array;
+  /** Per lamp its door indices (`lampDoorLists`). */
+  private readonly lampDoors: Int16Array;
   private readonly buf: Float32Array;
   private readonly order: number[];
   private version = -1;
@@ -54,7 +84,6 @@ export class BakedLamps {
   private readonly capA = new Float32Array(MAX_CAPSULES * 4);
   private readonly capB = new Float32Array(MAX_CAPSULES * 4);
   private readonly plugins = new Set<Material>();
-  private obs: { remove(): void } | null = null;
   /** Load time: the bake (or the cache read), ms. */
   bakeMs = 0;
   /** Volume re-mixes so far (3.3 spike log). */
@@ -77,8 +106,17 @@ export class BakedLamps {
     lo: readonly number[],
     hi: readonly number[],
     volume: { floorY: number } | null = null,
+    extra: BakeExtras = {},
   ) {
     this.order = baked.ids;
+    this.moon = extra.moon ?? null;
+    this.fill = extra.fill ?? null;
+    this.standard = !!extra.standard;
+    this.moonLight = extra.moonLight ?? 0;
+    this.dark = { ...(this.standard ? DARK_PHONE : DARK_DESKTOP) };
+    this.doors = extra.doors ?? [];
+    this.doorShut = new Uint8Array(this.doors.length).fill(2);
+    this.lampDoors = lampDoorLists(baked.lights, this.doors);
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
@@ -95,14 +133,15 @@ export class BakedLamps {
     this.width = w;
     this.lampBase = grid.cols * 2 * grid.rows;
     this.capBase = this.lampBase + n * LAMP_TEXELS;
-    const texels = this.capBase + MAX_CAPSULES * 2;
+    this.doorBase = this.capBase + MAX_CAPSULES * 2;
+    const texels = this.doorBase + this.doors.length * DOOR_TEXELS;
     const h = Math.ceil(texels / w);
     const buf = new Float32Array(w * h * 4);
     this.buf = buf;
     // the grid: ids + 1 as floats (row-major in texel order)
     for (let i = 0; i < grid.data.length; i++) buf[i] = grid.data[i]!;
     // the lamps' fixed texels
-    const cosLamp = Math.cos(LAMP_CONE / 2);
+    const cosLamp = LAMP_CONE_COS;
     for (let i = 0; i < n; i++) {
       const o = (this.lampBase + i * LAMP_TEXELS) * 4;
       const L = baked.lights;
@@ -110,26 +149,52 @@ export class BakedLamps {
       buf.set([L[li]!, L[li + 1]!, L[li + 2]!, L[li + 3]!], o);
       const cone = L[li + 7]! > -1.5;
       // t1 (colour) is written by `update`; its w: the spot exponent
-      buf[o + 7] = cone ? 2 : 1;
+      buf[o + 7] = cone ? SPOT_EXP : LAMP_EXP;
       buf.set([L[li + 4]!, L[li + 5]!, L[li + 6]!, cone ? L[li + 7]! : cosLamp], o + 8);
       const b = i * BOX_STRIDE;
       buf.set([r.boxes[b]!, r.boxes[b + 1]!, r.boxes[b + 2]!, r.boxes[b + 4]!], o + 12);
       buf.set([atlas.offsets[i * 2]!, atlas.offsets[i * 2 + 1]!, r.boxes[b + 3]!, r.boxes[b + 5]!], o + 16);
+      // (t6: the doors this lamp tests, ids + 1)
+      for (let k = 0; k < DOORS_PER_LAMP; k++) buf[o + 24 + k] = this.lampDoors[i * DOORS_PER_LAMP + k]! + 1;
     }
+    // the doors' fixed texels (their shut flag is written by `writeDoors`)
+    this.doors.forEach((d, k) => {
+      const a = d.anchor;
+      const o = (this.doorBase + k * DOOR_TEXELS) * 4;
+      buf.set([a.hinge.x, a.hinge.y, a.hinge.z, a.width, Math.sin(a.yaw), Math.cos(a.yaw), a.height, 0], o);
+    });
+    this.writeDoors();
+    const mk3 = (data: Uint8Array, nx: number, ny: number, nz: number): RawTexture3D => {
+      const t = new RawTexture3D(data, nx, ny, nz, Constants.TEXTUREFORMAT_R, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      t.wrapU = t.wrapV = t.wrapR = Texture.CLAMP_ADDRESSMODE;
+      dropCpuCopy(t);
+      return t;
+    };
+    if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
+    if (this.fill) this.fillTex = mk3(this.fill.grid.data, this.fill.grid.n[0], this.fill.grid.n[1], this.fill.grid.n[2]);
+
     this.data = new RawTexture(buf, w, h, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT);
     if (volume) this.volume = new LampVolume(scene, this, lampVolumeGrid(r.boxes, volume.floorY));
     this.update();
   }
 
-  /** Put the plugin on every PBR material in the scene, now and as they are made. */
+  /** Put the plugin on every lit material in the scene, now and as they are made. */
   attachAll(): void {
     for (const m of this.scene.materials) this.attach(m);
-    const o = this.scene.onNewMaterialAddedObservable.add((m) => this.attach(m));
-    this.obs = { remove: () => this.scene.onNewMaterialAddedObservable.remove(o) };
+    // (Step 4b: a material made later is attached on the next frame (`frame`), once its constructor has run - the
+    // scene's new-material event fires inside Babylon's base constructor, too early for a plugin)
+    this.matCount = this.scene.materials.length;
   }
 
+  /** Materials in the scene at the last check (a change: attach the new ones). */
+  private matCount = -1;
+
   attach(m: Material): void {
-    if (this.plugins.has(m) || m.getClassName() !== 'PBRMaterial') return;
+    if (this.plugins.has(m)) return;
+    // (the phone light look: the lit standard materials - level, characters, weapons, props; not the sky, bulbs or
+    // effects, which draw unlit)
+    const cls = m.getClassName();
+    if (this.standard ? cls !== 'StandardMaterial' || (m as Material & { disableLighting?: boolean }).disableLighting : cls !== 'PBRMaterial') return;
     this.plugins.add(m);
     const frozen = m.isFrozen;
     if (frozen) m.unfreeze();
@@ -168,7 +233,16 @@ export class BakedLamps {
   /** Per render frame: lamp changes and the characters' capsules (each lamp lists the nearest few in its reach). */
   frame(): void {
     let dirty = false;
+    const mats = this.scene.materials;
+    if (this.matCount >= 0 && mats.length !== this.matCount) {
+      this.matCount = mats.length;
+      for (let i = 0; i < mats.length; i++) this.attach(mats[i]!);
+    }
     if (this.version !== this.reg.version) this.update();
+    if (this.doors.length && this.writeDoors()) {
+      if (this.volume) this.data.update(this.buf);
+      else dirty = true;
+    }
     const nc = this.capsules ? Math.min(MAX_CAPSULES, this.capsules(this.capA, this.capB, MAX_CAPSULES)) : 0;
     if (this.volume) {
       // (the first few capsules: the operator and the guards nearest the camera)
@@ -190,6 +264,41 @@ export class BakedLamps {
       dirty = true;
     }
     if (dirty) this.data.update(this.buf);
+  }
+
+  /** Tests (3.6): the volume's cell at a world point (`LampVolume.readCell`), or null without a volume. */
+  volumeAt(x: number, y: number, z: number): { a: number[]; b: number[] } | null {
+    return this.volume ? this.volume.readCell(x, y, z) : null;
+  }
+
+  /**
+   * Doors' shut flags into the data texture; true when one changed. On the phone volume the lamps that list a changed
+   * door are re-mixed over their regions (a door is a light change, bible L12).
+   */
+  private writeDoors(): boolean {
+    // (per frame: nothing allocated unless a door changed)
+    let changed = false;
+    let regions: number[][] | null = null;
+    for (let k = 0; k < this.doors.length; k++) {
+      const shut = this.doors[k]!.open <= DOOR_SHUT ? 1 : 0;
+      if (this.doorShut[k] === shut) continue;
+      const first = this.doorShut[k] === 2;
+      this.doorShut[k] = shut;
+      this.buf[(this.doorBase + k * DOOR_TEXELS) * 4 + 7] = shut;
+      changed = true;
+      if (this.volume && !first) {
+        for (let i = 0; i < this.order.length; i++) {
+          for (let j = 0; j < DOORS_PER_LAMP; j++) if (this.lampDoors[i * DOORS_PER_LAMP + j] === k) (regions ??= []).push(lampVolumeRegion(this.boxes, i, this.volume.grid));
+        }
+      }
+    }
+    const region = regions ? unionRegion(regions) : null;
+    if (region && this.volume) {
+      this.data.update(this.buf);
+      this.volume.mix(region);
+      this.remixes++;
+    }
+    return changed;
   }
 
   private writeCapsules(nc: number): void {
@@ -227,15 +336,30 @@ export class BakedLamps {
   }
 
   dispose(): void {
-    this.obs?.remove();
     this.vis.dispose();
     this.data.dispose();
+    this.moonTex?.dispose();
+    this.fillTex?.dispose();
     this.volume?.dispose();
   }
 }
 
 /** Capsules the phone volume's shadows test (the nearest characters). */
 export const VOL_CAPS = 4;
+
+/** A closed door leaf between a lamp `a` and a point `b` (the same test as `LightField.doorBlocksOne`). Door texels:
+ *  d0 = hinge + width, d1 = (sin yaw, cos yaw, height, shut). */
+const DOOR_GLSL = `
+bool nsDoorBlocks(vec3 a, vec3 b, vec4 d0, vec4 d1) {
+  if (d1.w < 0.5) return false;
+  float sa = (a.x - d0.x) * d1.y - (a.z - d0.z) * d1.x;
+  float sb = (b.x - d0.x) * d1.y - (b.z - d0.z) * d1.x;
+  if ((sa > 0.0 && sb > 0.0) || (sa < 0.0 && sb < 0.0) || sa == sb) return false;
+  vec3 q = a + (b - a) * (sa / (sa - sb));
+  float s = (q.x - d0.x) * d1.x + (q.z - d0.z) * d1.y;
+  return s >= 0.0 && s <= d0.w && q.y >= d0.y && q.y <= d0.y + d1.z;
+}
+`;
 
 /** The volume mix (GLSL): per cell, the lamps in its 2 m column as the per-lamp loop lights them, without N.L. */
 const MIX_GLSL = `
@@ -250,10 +374,13 @@ uniform vec4 volO;
 uniform float slice;
 uniform float outB;
 uniform float volMax;
+uniform vec4 lampMore;
+${LAMP_MATH_GLSL}
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
   return texelFetch(lampData, ivec2(k - (k / w) * w, k / w), 0);
 }
+${DOOR_GLSL}
 void main(void) {
   vec3 p = volO.xyz + vec3(gl_FragCoord.xy, slice + 0.5) * volO.w;
   vec3 e = vec3(0.0);
@@ -278,11 +405,23 @@ void main(void) {
       vec4 t2 = lampTexel(lb + 2);
       float ca = dot(-L, t2.xyz);
       if (ca < t2.w) continue;
-      float k = (1.0 - d / t0.w) * pow(max(ca, 1e-4), t1.w);
+      float k = nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
       vec3 q = clamp((p - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
       k *= texture(lampVis, (q + vec3(t4.x, 0.0, t4.y)) / lampAtlas.xyz).r;
+      if (k <= 0.0) continue;
+      // (3.6) closed doors near the lamp
+      vec4 t6 = lampTexel(lb + 6);
+      for (int c = 0; c < ${DOORS_PER_LAMP}; c++) {
+        float did = t6[c];
+        if (did < 0.5) break;
+        int db = int(lampMore.x) + (int(did + 0.5) - 1) * ${DOOR_TEXELS};
+        if (nsDoorBlocks(t0.xyz, p, lampTexel(db), lampTexel(db + 1))) {
+          k = 0.0;
+          break;
+        }
+      }
       if (k <= 0.0) continue;
       vec3 c = t1.rgb * k;
       e += c;
@@ -335,7 +474,7 @@ class LampVolume {
     this.a = wrap(this.rtA);
     this.b = wrap(this.rtB);
     this.renderer = new EffectRenderer(engine);
-    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL, uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax'], samplerNames: ['lampVis', 'lampData'] });
+    this.wrapper = new EffectWrapper({ engine, name: 'lampVolumeMix', fragmentShader: MIX_GLSL, uniformNames: ['lampInfo', 'lampGridO', 'lampAtlas', 'volO', 'slice', 'outB', 'volMax', 'lampMore'], samplerNames: ['lampVis', 'lampData'] });
   }
 
   /** Mix a region of cells (i0, j0, k0, i1, j1, k1) into both targets. */
@@ -370,12 +509,35 @@ class LampVolume {
         e.setFloat('slice', k);
         e.setFloat('outB', pass);
         e.setFloat('volMax', LAMP_VOL_MAX);
+        e.setFloat4('lampMore', l.doorBase, 0, 0, 0);
         r.draw();
         engine.unBindFramebuffer(rt, true);
       }
     }
     r.restoreStates();
     this.mixes++;
+  }
+
+  /**
+   * Tests (3.6, parity probes): the cell containing a world point read back from the GPU - light (A: rgb =
+   * sqrt(light / `LAMP_VOL_MAX`)) and direction (B) - or null outside the volume or while a mix waits.
+   */
+  readCell(x: number, y: number, z: number): { a: number[]; b: number[] } | null {
+    const g = this.grid;
+    const i = Math.floor((x - g.o[0]) / g.cell);
+    const j = Math.floor((y - g.o[1]) / g.cell);
+    const k = Math.floor((z - g.o[2]) / g.cell);
+    if (i < 0 || j < 0 || k < 0 || i >= g.dims[0] || j >= g.dims[1] || k >= g.dims[2] || this.pending) return null;
+    const engine = this.renderer.engine as unknown as { _gl: WebGL2RenderingContext; bindFramebuffer(rt: RenderTargetWrapper, face?: number, w?: number, h?: number, force?: boolean, lod?: number, layer?: number): void; unBindFramebuffer(rt: RenderTargetWrapper, disableGen?: boolean): void };
+    const gl = engine._gl;
+    const read = (rt: RenderTargetWrapper): number[] => {
+      const px = new Uint8Array(4);
+      engine.bindFramebuffer(rt, 0, undefined, undefined, true, 0, k);
+      gl.readPixels(i, j, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      engine.unBindFramebuffer(rt, true);
+      return [px[0]!, px[1]!, px[2]!, px[3]!];
+    };
+    return { a: read(this.rtA), b: read(this.rtB) };
   }
 
   /** Run a mix that was waiting for its shader. */
@@ -397,12 +559,25 @@ class LampVolume {
 }
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. */
-const LAMP_GLSL = `
+const LAMP_GLSL = `${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
+#ifdef LAMP_MOON
+uniform highp sampler3D lampMoon;
+#endif
+#ifdef LAMP_FILL
+uniform highp sampler3D lampAmb;
+#endif
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
   return texelFetch(lampData, ivec2(k - (k / w) * w, k / w), 0);
+}
+${DOOR_GLSL}
+// a baked grid (origin + cell, counts): 1 outside it
+float nsGrid(highp sampler3D t, vec3 p, vec4 o, vec4 n) {
+  vec3 q = (p - o.xyz) / (o.w * n.xyz);
+  if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
+  return texture(t, q).r;
 }
 // a character's capsule between the shaded point and the lamp: a soft shadow widening with the distance behind it
 float lampCapsule(vec3 p, vec3 l, vec3 a, vec3 b, float r) {
@@ -436,8 +611,14 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
     this._enable(true);
+  }
+
+  /** On a standard material (the phone light look): the light goes into `diffuseBase`. (Read from the material, not a
+   *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
+  private get std(): boolean {
+    return this._material.getClassName() === 'StandardMaterial';
   }
 
   override getClassName(): string {
@@ -451,10 +632,13 @@ export class LampPlugin extends MaterialPluginBase {
   override prepareDefines(defines: MaterialDefines, _scene: Scene, mesh: AbstractMesh): void {
     defines.BAKED_LAMPS = !!mesh;
     defines.LAMP_VOLUME = !!mesh && !!this.lamps.volume;
+    // (only a texture that exists: an unbound sampler3D falls on a 2D texture's unit, a draw error)
+    defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
+    defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -466,14 +650,40 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampVolO', size: 4, type: 'vec4' },
         { name: 'lampVolD', size: 4, type: 'vec4' },
         { name: 'lampCaps', size: 4, type: 'vec4', arraySize: VOL_CAPS * 2 },
+        { name: 'lampMore', size: 4, type: 'vec4' },
+        { name: 'lampMoonO', size: 4, type: 'vec4' },
+        { name: 'lampMoonN', size: 4, type: 'vec4' },
+        { name: 'lampAmbO', size: 4, type: 'vec4' },
+        { name: 'lampAmbN', size: 4, type: 'vec4' },
+        { name: 'lampFillC', size: 4, type: 'vec4' },
+        { name: 'lampDark', size: 4, type: 'vec4' },
+        { name: 'lampDarkP', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\n#endif`,
     };
   }
 
   override bindForSubMesh(ubo: UniformBuffer, _scene: Scene, _engine: unknown, _subMesh: SubMesh): void {
     const l = this.lamps;
     const v = l.volume;
+    // (3.6) the baked moon, on both paths; the ambient-grid fill on the phone light look
+    const m = l.moon;
+    const f = l.fill;
+    ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
+    // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, 0, 0);
+    ubo.updateFloat4('lampDarkP', l.dark.centre, l.dark.steep, l.dark.floor, l.dark.top);
+    if (f && l.fillTex) {
+      ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
+      ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
+      ubo.updateFloat4('lampFillC', f.color[0], f.color[1], f.color[2], 0);
+      ubo.setTexture('lampAmb', l.fillTex);
+    }
+    if (m && l.moonTex) {
+      ubo.updateFloat4('lampMoonO', m.origin[0], m.origin[1], m.origin[2], m.cell);
+      ubo.updateFloat4('lampMoonN', m.n[0], m.n[1], m.n[2], 0);
+      ubo.setTexture('lampMoon', l.moonTex);
+    }
     if (v) {
       const g = v.grid;
       ubo.updateFloat4('lampVolO', g.o[0], g.o[1], g.o[2], g.cell);
@@ -493,49 +703,107 @@ export class LampPlugin extends MaterialPluginBase {
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
     if (shaderType !== 'fragment') return null;
-    return {
+    // Step 4b: the darkness curve. Each light's diffuse is told apart as it is summed: the moon (static), the
+    // hemisphere (replaced by the ambient grid where the grid is the fill) and the rest - flashlights and other moving
+    // lights, added after the curve unchanged.
+    const settle = `if (nsKind > 0.5) {
+  vec3 nsD = diffuseBase - nsSnap;
+  if (nsKind < 1.5) nsDyn += nsD;
+  else nsHemi += nsD;
+}
+nsKind = 0.0;`;
+    // the curve's input: the gameplay level here - fill, moon, lamps (as `LightField` sums them; no N.L)
+    const level = (lamps: string): string => `#ifdef LAMP_FILL
+float nsFillL = nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN);
+#else
+float nsFillL = 0.0;
+#endif
+float nsS = nsFillL + lampDark.y * nsMoon + max(${lamps}.r, max(${lamps}.g, ${lamps}.b)) / lampMore.w;
+// (a degenerate normal must not light a surface: a NaN level counts as none)
+if (!(nsS >= 0.0)) nsS = 0.0;
+float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
+    const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
 ${LAMP_GLSL}
+${DARK_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
 uniform highp sampler3D lampVolB;
+// 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps (gn: the geometric normal,
+// n: the shading normal)
+// (Step 4b: also the light without N.L or shadows, \`nsVolRaw\`: the darkness curve's lamp term)
+vec3 nsVolRaw = vec3(0.0);
+vec3 nsVolume(vec3 lp, vec3 gn, vec3 n) {
+  vec3 q = (lp + gn * lampVolO.w - lampVolO.xyz) / (lampVolO.w * lampVolD.xyz);
+  if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) return vec3(0.0);
+  vec4 la = texture(lampVolA, q);
+  if (la.r + la.g + la.b <= 0.002) return vec3(0.0);
+  nsVolRaw = la.rgb * la.rgb * lampVolD.w;
+  vec4 lb = texture(lampVolB, q);
+  vec3 ld = lb.rgb * 2.0 - 1.0;
+  float dl = length(ld);
+  ld = dl > 1e-3 ? ld / dl : vec3(0.0, 1.0, 0.0);
+  float nd = dot(n, ld);
+  // one lamp: N.L; light from every side: wrapped
+  float k = mix(0.5 + 0.5 * nd, max(nd, 0.0), lb.a);
+  // the nearest characters shade it, along the light's direction
+  vec3 lpos = lp + ld * 3.0;
+  for (int c = 0; c < ${VOL_CAPS}; c++) {
+    vec4 ca4 = lampCaps[c * 2];
+    if (ca4.w <= 0.0) break;
+    k *= mix(1.0, lampCapsule(lp, lpos, ca4.xyz, lampCaps[c * 2 + 1].xyz, ca4.w), lb.a);
+  }
+  return la.rgb * la.rgb * lampVolD.w * k;
+}
 #endif
 #endif`,
+      // 3.6: the baked moon - the sun light (the one directional light) x the moon's visibility a little off the
+      // surface; its cascades hold only moving casters (\`World\`)
+      CUSTOM_FRAGMENT_BEFORE_LIGHTS: `
+#ifdef BAKED_LAMPS
+#ifdef LAMP_MOON
+float nsMoon = nsGrid(lampMoon, vPositionW + normalize(vNormalW) * lampMoonO.w * 0.5, lampMoonO, lampMoonN);
+#else
+float nsMoon = 1.0;
+#endif
+vec3 nsDyn = vec3(0.0);
+vec3 nsHemi = vec3(0.0);
+vec3 nsSnap = vec3(0.0);
+float nsKind = 0.0;
+#endif`,
+      '!#define CUSTOM_LIGHT(\\d+)_COLOR': `#ifdef BAKED_LAMPS
+${settle}
+nsSnap = diffuseBase;
+#if defined(DIRLIGHT$1)
+diffuse$1.rgb *= nsMoon;
+#elif defined(HEMILIGHT$1)
+nsKind = 2.0;
+#else
+nsKind = 1.0;
+#endif
+#endif
+#define CUSTOM_LIGHT$1_COLOR`,
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
 #ifdef BAKED_LAMPS
+${settle}
+{
+  vec3 nsAlb = surfaceAlbedo.rgb * vLightingIntensity.x;
+  vec3 nsDynD = nsDyn * nsAlb;
+  // the static light so far: the moon (and the voxels' own fill and bounce); the hemisphere goes where the grid fills
+  vec3 nsStat = finalDiffuse - nsDynD;
+#if defined(LAMP_FILL) && !defined(VOXELS)
+  nsStat -= nsHemi * nsAlb;
+#endif
 #ifdef LAMP_VOLUME
-{
-  // 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps
-  vec3 lp = vPositionW;
-  vec3 q = (lp + normalize(vNormalW) * lampVolO.w - lampVolO.xyz) / (lampVolO.w * lampVolD.xyz);
-  if (all(greaterThanEqual(q, vec3(0.0))) && all(lessThanEqual(q, vec3(1.0)))) {
-    vec4 la = texture(lampVolA, q);
-    if (la.r + la.g + la.b > 0.002) {
-      vec4 lb = texture(lampVolB, q);
-      vec3 ld = lb.rgb * 2.0 - 1.0;
-      float dl = length(ld);
-      ld = dl > 1e-3 ? ld / dl : vec3(0.0, 1.0, 0.0);
-      float nd = dot(normalW, ld);
-      // one lamp: N.L; light from every side: wrapped
-      float k = mix(0.5 + 0.5 * nd, max(nd, 0.0), lb.a);
-      // the nearest characters shade it, along the light's direction
-      vec3 lpos = lp + ld * 3.0;
-      for (int c = 0; c < ${VOL_CAPS}; c++) {
-        vec4 ca4 = lampCaps[c * 2];
-        if (ca4.w <= 0.0) break;
-        k *= mix(1.0, lampCapsule(lp, lpos, ca4.xyz, lampCaps[c * 2 + 1].xyz, ca4.w), lb.a);
-      }
-      finalDiffuse += la.rgb * la.rgb * lampVolD.w * k * surfaceAlbedo.rgb;
-    }
-  }
-}
+  nsStat += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbedo.rgb;
+  vec3 nsLampRaw = nsVolRaw;
 #else
-{
   vec3 lp = vPositionW;
   vec3 lgn = normalize(vNormalW);
   vec2 gq = floor((lp.xz - lampGridO.xy) / lampGridO.z);
   vec3 lsum = vec3(0.0);
+  vec3 nsLampRaw = vec3(0.0);
   if (gq.x >= 0.0 && gq.y >= 0.0 && gq.x < lampInfo.y && gq.y < lampInfo.z) {
     int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * 2;
     vec4 ga = lampTexel(gk);
@@ -551,17 +819,33 @@ uniform highp sampler3D lampVolB;
       float d = length(L);
       if (d >= t0.w) continue;
       L /= max(d, 1e-4);
-      float ndl = dot(normalW, L);
-      if (ndl <= 0.0) continue;
       vec4 t2 = lampTexel(lb + 2);
       float ca = dot(-L, t2.xyz);
       if (ca < t2.w) continue;
-      float k = ndl * (1.0 - d / t0.w) * pow(max(ca, 1e-4), t1.w);
+      float k = nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
-      vec3 q = clamp((lp + lgn * lampAtlas.w - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
+      vec3 dq = lp + lgn * lampAtlas.w;
+      vec3 q = clamp((dq - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
       k *= texture(lampVis, (q + vec3(t4.x, 0.0, t4.y)) / lampAtlas.xyz).r;
       if (k <= 0.0) continue;
+      // (3.6) closed doors near the lamp, tested from the same point as the visibility
+      vec4 t6 = lampTexel(lb + 6);
+      for (int c = 0; c < ${DOORS_PER_LAMP}; c++) {
+        float did = t6[c];
+        if (did < 0.5) break;
+        int db = int(lampMore.x) + (int(did + 0.5) - 1) * ${DOOR_TEXELS};
+        if (nsDoorBlocks(t0.xyz, dq, lampTexel(db), lampTexel(db + 1))) {
+          k = 0.0;
+          break;
+        }
+      }
+      if (k <= 0.0) continue;
+      // (Step 4b: the curve's lamp term, as gameplay sums it: no N.L, no character shadows)
+      nsLampRaw += t1.rgb * k;
+      float ndl = dot(normalW, L);
+      if (ndl <= 0.0) continue;
+      k *= ndl;
       vec4 t5 = lampTexel(lb + 5);
       for (int c = 0; c < ${CAPS_PER_LAMP}; c++) {
         float cid = t5[c];
@@ -574,10 +858,48 @@ uniform highp sampler3D lampVolB;
       lsum += t1.rgb * k;
     }
   }
-  finalDiffuse += lsum * surfaceAlbedo.rgb;
-}
+  nsStat += lsum * surfaceAlbedo.rgb;
 #endif
+${level('nsLampRaw')}
+#if defined(LAMP_FILL) && !defined(VOXELS)
+  nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
+#endif
+  finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
+  finalAmbient *= nsR;
+#ifdef REFLECTION
+  finalIrradiance *= nsR;
+  finalRadianceScaled *= nsR;
+#endif
+}
 #endif`,
     };
+    if (!this.std) return code;
+    // the phone light look's standard materials: the volume and the ambient-grid fill join the lights' diffuse sum
+    // (the material's colour and albedo multiply it after), and the curve scales the static part
+    delete code['CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION'];
+    code['!vec3 emissiveColor=vEmissiveColor;'] = `#ifdef BAKED_LAMPS
+${settle}
+{
+  vec3 nsStat = diffuseBase - nsDyn - nsHemi;
+#ifdef LAMP_VOLUME
+  nsStat += nsVolume(vPositionW, normalize(vNormalW), normalW);
+  vec3 nsLampRaw = nsVolRaw;
+#else
+  vec3 nsLampRaw = vec3(0.0);
+#endif
+${level('nsLampRaw')}
+#ifdef LAMP_FILL
+  nsStat += nsFillL * lampMore.w * lampFillC.rgb;
+#endif
+  diffuseBase = max(nsStat, vec3(0.0)) * nsR + nsDyn;
+}
+#endif
+vec3 emissiveColor=vEmissiveColor;`;
+    // night vision blows out in light (bible L7): the standard material clamps the light before the surface colour, so
+    // a lit wall would stop at its own colour - the light over twice full joins the colour, faded in with the gain
+    code['CUSTOM_FRAGMENT_BEFORE_FOG'] = `#ifdef BAKED_LAMPS
+if (lampDark.x > 1.0) color.rgb += vec3(max(dot(diffuseBase * diffuseColor, vec3(0.3, 0.59, 0.11)) - 2.0, 0.0) * 0.2 * min((lampDark.x - 1.0) / ${(VISION_GAIN - 1).toFixed(1)}, 1.0));
+#endif`;
+    return code;
   }
 }

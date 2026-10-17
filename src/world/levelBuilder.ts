@@ -35,6 +35,7 @@ import { hyp2 } from '../core/mathx';
 import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Fence, type RappelPoint, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
+import { canonicalLightSet } from '../voxel/lightShapes';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -96,6 +97,8 @@ export interface BuiltLevel {
   surfacePlugin: SurfacePlugin | null;
   /** 3.0 voxels: the pieces rendered as voxels (their shapes, palette and grid); they are left out of `meshes`. */
   voxels: LevelVoxels | null;
+  /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
+  light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
   dispose(): void;
 }
 
@@ -196,12 +199,12 @@ export class LevelBuilder {
   }
 
   /** Waist-high cover (cover faces are generated for every solid piece at build time). */
-  lowCover(x: number, z: number, len: number, color: string, yaw = 0, h = 1.05, thick = 0.6): this {
+  lowWall(x: number, z: number, len: number, color: string, yaw = 0, h = 1.05, thick = 0.6): this {
     return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 
   /** Full-height cover wall chunk. */
-  highCover(x: number, z: number, len: number, color: string, yaw = 0, h = 2.6, thick = 0.5): this {
+  highWall(x: number, z: number, len: number, color: string, yaw = 0, h = 2.6, thick = 0.5): this {
     return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 
@@ -398,11 +401,13 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
+  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; dressing?: boolean; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
     // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path)
-    if (opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    // (a map with `detail: false` (MapDef, ON0b) gets none at any tier; the light shapes below agree)
+    const dressing = opts.dressing !== false;
+    if (dressing && opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
     // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
     const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
     let mat: StandardMaterial | PBRMaterial;
@@ -559,6 +564,7 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       voxels,
+      light: canonicalLightSet(this.boxes, this.cylinders, name, dressing),
       dispose: () => {
         body.dispose();
         container.dispose();

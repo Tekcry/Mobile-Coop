@@ -7,7 +7,7 @@ import { STARTER_UNLOCKS } from '../progression/unlocks';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -25,13 +25,10 @@ export interface LifetimeStats {
   timePlayed: number;
 }
 
-/** Best result per Infiltration mission (rating 0-3 stars, play-style points of that run). */
+/** Best result per Infiltration mission (rating 0-3 stars). */
 export interface MissionRecord {
   rating: number;
   score: number;
-  ghost: number;
-  panther: number;
-  assault: number;
   plays: number;
   wins: number;
 }
@@ -114,7 +111,7 @@ const isWeapon = (v: unknown): v is WeaponId => WEAPON_IDS.includes(v as WeaponI
 const unlocksRaw = (raw: Obj): string[] => (Array.isArray(raw.unlocks) ? raw.unlocks.filter((x): x is string => typeof x === 'string') : []).concat(STARTER_UNLOCKS);
 
 /** Clamp/repair a current-version save (after migration). Never throws. */
-export function sanitizeSave(raw: unknown): SaveData {
+export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
   const d = defaultSave();
   if (!isObj(raw)) return d;
   const p = isObj(raw.profile) ? raw.profile : {};
@@ -143,8 +140,10 @@ export function sanitizeSave(raw: unknown): SaveData {
   const lo = isObj(raw.loadout) ? raw.loadout : {};
   let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
   let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'rifle';
-  if (!unlocks.includes(`weapon:${primary}`)) primary = 'pistolSd';
-  if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
+  // (3.5: with `openLoadout` - the campaign, `core/legacy.ts` - any known weapon may be chosen; nothing is unlocked)
+  const has = (id: string): boolean => openLoadout || unlocks.includes(id);
+  if (!has(`weapon:${primary}`)) primary = 'pistolSd';
+  if (!has(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
   const missions: Record<string, MissionRecord> = {};
   if (isObj(raw.missions)) {
     for (const [id, r] of Object.entries(raw.missions).slice(0, 64)) {
@@ -152,9 +151,6 @@ export function sanitizeSave(raw: unknown): SaveData {
       missions[id] = {
         rating: int(r.rating, 0, 3, 0),
         score: int(r.score, 0, 1e9, 0),
-        ghost: int(r.ghost, 0, 1e9, 0),
-        panther: int(r.panther, 0, 1e9, 0),
-        assault: int(r.assault, 0, 1e9, 0),
         plays: int(r.plays, 0, 1e9, 0),
         wins: int(r.wins, 0, 1e9, 0),
       };
@@ -184,8 +180,8 @@ export function sanitizeSave(raw: unknown): SaveData {
       if (!isObj(p)) return;
       presets[i] = {
         name: str(p.name, 16, presets[i]!.name).replace(/[<>]/g, '') || presets[i]!.name,
-        primary: isWeapon(p.primary) && unlocksRaw(raw).includes(`weapon:${p.primary}`) ? p.primary : presets[i]!.primary,
-        secondary: isWeapon(p.secondary) && unlocksRaw(raw).includes(`weapon:${p.secondary}`) ? p.secondary : presets[i]!.secondary,
+        primary: isWeapon(p.primary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.primary}`)) ? p.primary : presets[i]!.primary,
+        secondary: isWeapon(p.secondary) && (openLoadout || unlocksRaw(raw).includes(`weapon:${p.secondary}`)) ? p.secondary : presets[i]!.secondary,
         gadget: str(p.gadget, 16, presets[i]!.gadget),
       };
     });

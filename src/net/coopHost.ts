@@ -10,20 +10,25 @@ import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { G } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
-import { hqStats } from '../progression/suit';
+import { defaultHq, hqStats } from '../progression/suit';
 import type { NetSession } from './session';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
-import { checkBlast, checkShot, maxHitDamage } from './validate';
+import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
+import { hostCrackOk } from '../world/doorPeek';
 import { GRAB } from '../game/takedown';
 import { PvpVictim } from './pvpVictim';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
+import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { addKit, MEDKIT, MedkitUse, SELF_TARGET } from '../game/medkit';
+import type { PickupKind } from '../game/pickups';
 import type { TeamMate } from '../game/teamController';
 
 /** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
@@ -46,9 +51,6 @@ const TD_REACH = 3;
 const TD_MAX = 6;
 /** Two takedowns by different players this close together (s) make a dual takedown. */
 const DUAL_WINDOW = 1.5;
-/** A client's execute: open this long (s) for this many kill shots once a charge is spent. */
-const EXEC_WINDOW = 5;
-const EXEC_SHOTS = 5;
 
 interface Hist {
   t: number;
@@ -125,7 +127,7 @@ export class CoopHost implements NetAttachment {
   ) {
     const mode = g.opts.mode;
     this.score = isPvp(mode) ? new PvpScore(mode as PvpMode) : null;
-    this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? { radar: 0, sonar: 0, marks: 0, restock: 0, revive: 0 }).reviveSpeed;
+    this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     g.remotePlayers = () => {
       const out = [];
       for (const r of this.remotes.values()) out.push(r.ref);
@@ -228,9 +230,6 @@ export class CoopHost implements NetAttachment {
   duals = 0;
 
   private takedownDone(by: string): void {
-    // a remote's takedown earns it an execute charge (the host checks its execute shots against it)
-    const rr = this.remotes.get(by);
-    if (rr) rr.execCharges = Math.min(3, rr.execCharges + 1);
     const l = this.lastTd;
     if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
       const sub = `${this.name(l.by)} + ${this.name(by)}`;
@@ -278,6 +277,7 @@ export class CoopHost implements NetAttachment {
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, sc ? this.spawnFor(p.id) : this.spawnPoint(this.remotes.size + 1));
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
+    r.loadout = p.loadout;
     if (sc) {
       r.friendly = (h) => this.friendly(h, p.id);
       r.allowTeleport(3);
@@ -433,7 +433,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         break;
       case 'shot':
@@ -454,6 +454,9 @@ export class CoopHost implements NetAttachment {
       case 'use':
         this.onUse(r, msg.id);
         break;
+      case 'door':
+        this.onDoorCrack(r, msg.i, msg.crack);
+        break;
       case 'td':
         this.onTakedown(r, msg);
         break;
@@ -462,6 +465,9 @@ export class CoopHost implements NetAttachment {
         break;
       case 'tmove':
         this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy);
+        break;
+      case 'cmove':
+        this.onCommitted(r.id, msg.kind, msg.id, msg.target);
         break;
       case 'gadget': {
         // thrown from near the sender, one a second at most
@@ -494,8 +500,21 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
-    if (it.onUse) it.onUse(it);
+    if (it.onUse) it.onUse(it, r.id);
     else this.g.mode?.onInteract?.(it);
+  }
+
+  /** (locomotion step 13) A client's door-peek crack: in reach (door centre within 1.5 m of its feet), closed and
+   *  unlocked; the same `Doors.crack` the host's own player uses. A request on an open door is ignored. */
+  private onDoorCrack(r: RemotePlayer, i: number, on: boolean): void {
+    const doors = this.g.world.doors;
+    const d = doors.list[i];
+    if (!r.alive || !d || Math.abs(d.anchor.hinge.y - r.feet.y) > 2) return;
+    if (!hostCrackOk(d, r.feet.x, r.feet.z, on)) {
+      if (d.target === 0) r.violations++;
+      return;
+    }
+    doors.crack(d, on);
   }
 
   /** A client's takedown on a host enemy: seize it (in reach, calm or not facing), finish it, or let go. */
@@ -542,6 +561,16 @@ export class CoopHost implements NetAttachment {
 
   teamEnd(): void {
     this.onTeamMove(this.s.selfId, 'end', '', -1, 0, 0);
+  }
+
+  /** (step 11, D8) Clients with their back to segment `seg` (metres along it) for the host's own stacking. */
+  wallOthers(seg: number, out: Float64Array): number {
+    let n = 0;
+    for (const r of this.remotes.values()) {
+      const mv = r.state?.mv;
+      if (n < out.length && r.alive && mv?.m === 'wall' && mv.a === seg) out[n++] = mv.s;
+    }
+    return n;
   }
 
   private mateOut: TeamMate[] = [];
@@ -601,6 +630,151 @@ export class CoopHost implements NetAttachment {
     const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
+  }
+
+  // --- (locomotion step 10, A5 / H3) committed moves: the elbow strike ---
+
+  private commitLast = new Map<string, number>();
+  /** The last committed-move decision (tests, debugging). */
+  lastCommit = '';
+  /** Clients' strikes the host is running: contact at t0 + 0.5 s, done at t0 + 0.9 s. */
+  private strikes = new Map<string, { id: number; target: string; t0: number; hp0: number; hit: boolean }>();
+
+  /** The host's own request: the same check, no message (the start / refusal still goes out to everyone). */
+  commitRequest(kind: CKind, id: number, target: string): void {
+    this.onCommitted(this.s.selfId, kind, id, target);
+  }
+
+  /** The host's own strike or medkit was interrupted (damage). */
+  commitCancel(id: number, reason: string, kind: CKind = 'strike'): void {
+    if (reason === 'hit') this.s.send({ t: 'cdeny', a: this.s.selfId, id, kind, reason: 'hit' });
+  }
+
+  // --- (locomotion step 15) medkits: host-authoritative counts and heals ---
+
+  /** Clients' medkit uses the host runs on their health (heal over 1.5 s, damage interrupts). */
+  private medkits = new Map<string, { id: number; use: MedkitUse; last: PlayerState | null; states: number; seen: boolean }>();
+
+  /** A remote's kits (first read: the host's carry for its difficulty). */
+  private kitsOf(r: RemotePlayer): number {
+    if (r.mk < 0) r.mk = this.g.medkit.max;
+    return r.mk;
+  }
+
+  /** A wall medkit used by client `who`: one kit up to the carry max. */
+  giveMedkit(who: string): boolean {
+    const r = this.remotes.get(who);
+    if (!r) return false;
+    const n = this.kitsOf(r);
+    if (n >= this.g.medkit.max) return false;
+    r.mk = addKit(n, this.g.medkit.max);
+    return true;
+  }
+
+  /** Clients' medkits: done (a kit spent), interrupted by damage (spent, `cdeny hit`), or cancelled by the client
+   *  (its MoveState left `medkit`: the heal so far taken back, not spent; A56). The cancel is read only from snapshots
+   *  that arrived after the start (a fixed host-time grace raced the client's 20 Hz pstate under load), and not in the
+   *  last `hostEndSlack` s, where the client's own end may arrive first. */
+  private runMedkits(dt: number): void {
+    for (const [by, k] of this.medkits) {
+      const r = this.remotes.get(by);
+      if (!r) {
+        this.medkits.delete(by);
+        continue;
+      }
+      const st = r.state;
+      if (st && st !== k.last) {
+        k.last = st;
+        k.states++;
+        if (st.mv?.m === 'medkit') k.seen = true;
+        else if ((k.seen || k.states >= MEDKIT.hostStates) && k.use.t < MEDKIT.time - MEDKIT.hostEndSlack) {
+          k.use.cancel(r.health);
+          this.medkits.delete(by);
+          continue;
+        }
+      }
+      const res = k.use.step(dt, r.health);
+      if (res === 'run') continue;
+      this.medkits.delete(by);
+      r.mk = Math.max(0, this.kitsOf(r) - 1);
+      if (res === 'hit') this.s.send({ t: 'cdeny', a: by, id: k.id, kind: 'medkit', reason: 'hit' });
+    }
+  }
+
+  private onCommitted(by: string, kind: CKind, id: number, target: string): void {
+    const self = by === this.s.selfId;
+    const r = self ? null : this.remotes.get(by);
+    if (!self && !r) return;
+    const now = this.time;
+    const feet = self ? this.g.player.position : r!.feet;
+    let tv: CTargetView | null = null;
+    // (step 15) a medkit's target is a player (self only is wired: '' or the requester's own id; H2 a team-mate)
+    if (kind === 'medkit') {
+      if (target && target !== by) tv = { alive: false, seized: false, ko: false, dist: Infinity };
+    } else if (target) {
+      const e = this.g.enemyMgr?.enemies.find((x) => x.id === target);
+      tv = e ? { alive: e.alive, seized: e.taken || this.seized.has(e.id), ko: e.ko, dist: hyp2(e.pos.x - feet.x, e.pos.z - feet.z) } : { alive: false, seized: false, ko: false, dist: Infinity };
+    }
+    const alive = self ? this.g.player.alive : r!.alive;
+    const mode = self ? 'ground' : (r!.state?.mv?.m ?? 'ground');
+    const active = !self && (this.strikes.has(by) || this.medkits.has(by));
+    const hp = self ? this.g.target.health : r!.health;
+    const why = checkCommitted({
+      kind,
+      alive,
+      downed: !alive,
+      mode,
+      active,
+      sinceLast: now - (this.commitLast.get(by) ?? -99),
+      target: tv,
+      slack: self ? 0 : STRIKE.lagSlack,
+      kits: self ? this.g.medkit.kits : this.kitsOf(r!),
+      hp: hp.hp,
+      maxHp: hp.maxHp,
+    });
+    this.commitLast.set(by, now);
+    this.lastCommit = `${kind} ${target || '-'} ${why ?? 'ok'} (${mode}${active ? ', running' : ''})`;
+    if (why) {
+      this.s.send({ t: 'cdeny', a: by, id, kind, reason: why });
+      if (self && kind === 'strike') this.g.strike.denied(id, why);
+      if (self && kind === 'medkit') this.g.medkit.denied(id, why);
+      return;
+    }
+    this.s.send({ t: 'cstart', kind, a: by, id, target, t0: now });
+    if (kind === 'medkit') {
+      if (self) this.g.medkit.accepted(id, 0);
+      else {
+        const use = new MedkitUse();
+        use.start(SELF_TARGET, r!.health.hp);
+        this.medkits.set(by, { id, use, last: r!.state, states: 0, seen: false });
+      }
+      return;
+    }
+    if (kind !== 'strike') return;
+    if (self) this.g.strike.accepted(id, 0);
+    else this.strikes.set(by, { id, target, t0: now, hp0: r!.health.hp, hit: false });
+  }
+
+  /** Clients' strikes: interrupted by damage before contact, contact at t0 + 0.5 s (reach and cone again). */
+  private runStrikes(): void {
+    for (const [by, k] of this.strikes) {
+      const r = this.remotes.get(by);
+      const el = this.time - k.t0;
+      if (!r || !r.alive || el >= STRIKE_DUR) {
+        this.strikes.delete(by);
+        continue;
+      }
+      if (k.hit) continue;
+      if (r.health.hp < k.hp0) {
+        k.hit = true;
+        this.s.send({ t: 'cdeny', a: by, id: k.id, kind: 'strike', reason: 'hit' });
+        continue;
+      }
+      if (el < STRIKE.hitAt) continue;
+      k.hit = true;
+      const yaw = r.state?.yaw ?? 0;
+      this.g.strike.applyHit(by, r.feet, yaw, yaw + (r.state?.mv?.ay ?? 0), k.target, STRIKE.lagSlack);
+    }
   }
 
   /** (3.2.0) PvP: hostile players as takedown victims for the host's own takedowns. */
@@ -716,24 +890,14 @@ export class CoopHost implements NetAttachment {
     if (!r.alive || this.score) return;
     const enemy = this.g.enemyMgr?.enemies.find((e) => e.id === m.target);
     if (!enemy || !enemy.alive) return;
-    if (!r.takeShot(m.w, this.time)) return;
+    // (step 09, D8) no hip fire: the host's draw phase for the shooter must be drawn
+    // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
+    if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
     const feet = new Vector3();
     const pose = this.rewindHist(this.history.get(enemy.id), m.rt, feet);
     if (!pose) enemy.center(feet).addInPlaceFromFloats(0, -1, 0);
-    let dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
+    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
     if (dmg <= 0) return;
-    // Mark & Execute: a kill shot while an execute is open (a charge opens one; a few shots, a few seconds)
-    if (m.ex) {
-      if (r.execUntil < this.time && r.execCharges > 0) {
-        r.execCharges--;
-        r.execUntil = this.time + EXEC_WINDOW;
-        r.execLeft = EXEC_SHOTS;
-      }
-      if (r.execUntil >= this.time && r.execLeft > 0) {
-        r.execLeft--;
-        dmg = 9999;
-      }
-    }
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }
@@ -745,7 +909,9 @@ export class CoopHost implements NetAttachment {
     const self = m.target === this.s.selfId;
     const victim = self ? null : this.remotes.get(m.target)!;
     if (self ? !this.g.player.alive : !victim!.alive) return;
-    if (!r.takeShot(m.w, this.time)) return;
+    // (step 09, D8) no hip fire: the host's draw phase for the shooter must be drawn
+    // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
+    if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
     const feet = new Vector3();
     const pose = this.rewindHist(self ? this.selfHist : victim!.history, m.rt, feet);
     if (!pose) feet.copyFrom(self ? this.g.player.position : victim!.feet);
@@ -790,7 +956,7 @@ export class CoopHost implements NetAttachment {
       f: localFlags(g),
       w: g.weapons.current.def.id,
       hp: th.hp,
-      sh: th.shield,
+      mk: this.g.medkit.kits,
     };
   }
 
@@ -826,11 +992,18 @@ export class CoopHost implements NetAttachment {
     return out;
   }
 
+  /** (step 13) Cracked doors (door peek), capped at MAX_DOORS. */
+  private cracked(): number[] {
+    const out: number[] = [];
+    for (const d of this.g.world.doors.list) if (d.cracked && out.length < MAX_DOORS) out.push(d.index);
+    return out;
+  }
+
   private snapshot(): void {
     const players: PlayerState[] = [this.selfState()];
     for (const r of this.remotes.values()) {
       if (!r.state) continue;
-      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, sh: r.health.shield, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
+      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, mk: this.kitsOf(r), f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
     }
     const enemies: EnemyState[] = [];
     for (const e of this.g.enemyMgr?.enemies ?? []) {
@@ -846,7 +1019,8 @@ export class CoopHost implements NetAttachment {
     for (const b of this.g.enemyMgr?.bodies ?? []) if (b.enemyId && !b.hidden && !b.carried && bodies.length < MAX_ENEMIES) bodies.push(b.enemyId);
     const bsig = bodies.join();
     const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}`).join();
-    const dsig = doors.join();
+    const dcr = this.cracked();
+    const dsig = `${doors.join()}/${dcr.join()}`;
     if (isig !== this.itemsSig || dsig !== this.doorsSig || bsig !== this.bodiesSig || this.itemsT <= 0) {
       this.itemsSig = isig;
       this.doorsSig = dsig;
@@ -854,6 +1028,7 @@ export class CoopHost implements NetAttachment {
       this.itemsT = ITEMS_EVERY;
       snap.items = items;
       snap.doors = doors;
+      snap.dcr = dcr;
       snap.bodies = bodies;
     }
     if (this.score) {
@@ -906,7 +1081,8 @@ export class CoopHost implements NetAttachment {
       const st = r.state;
       if (!r.alive || !st) continue;
       if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0, (st.f & PF.sprint) !== 0);
+        // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
+        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall', (st.f & PF.sprint) !== 0);
         if (n > 0) em.hear(r.feet, n);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;
@@ -921,6 +1097,8 @@ export class CoopHost implements NetAttachment {
 
   fixedUpdate(dt: number): void {
     this.time += dt;
+    if (this.strikes.size) this.runStrikes();
+    if (this.medkits.size) this.runMedkits(dt);
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes
@@ -971,7 +1149,7 @@ export class CoopHost implements NetAttachment {
       this.recordHistory();
     }
     this.snapT -= dt;
-    // the host's own mode / sub-state changed (cover, a ladder, a vault): snapshot now
+    // the host's own mode / sub-state changed (a ladder, a vault): snapshot now
     const mv = localMoveState(this.g, this.mvNow);
     if (moveChanged(this.mvSent, mv)) {
       Object.assign(this.mvSent, mv);
@@ -1008,6 +1186,7 @@ export class CoopHost implements NetAttachment {
     this.g.endSession(sc.won(this.s.selfId), sub);
   }
 
+  private readonly posedHeadTmp = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     for (const r of this.remotes.values()) {
@@ -1017,7 +1196,9 @@ export class CoopHost implements NetAttachment {
         rig.hips.computeWorldMatrix(true);
         rig.headNode.computeWorldMatrix(true);
         r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
-      }
+        // (step 12b fix r2, light parity) on a wall: perception's head point and the light meter read the posed head
+        r.setPosedHead(r.state?.mv?.m === 'wall' ? rig.posedHead(this.posedHeadTmp) : null);
+      } else r.setPosedHead(null);
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {
@@ -1072,19 +1253,20 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) if (!r.alive) this.reviveOne(r.id, this.spawnPoint([...this.remotes.keys()].indexOf(r.id) + 1));
   }
 
-  pickers(): { id: string; feet: Vector3; needs: (k: 'ammo' | 'health') => boolean }[] {
+  pickers(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[] {
     const out = [];
     for (const r of this.remotes.values()) {
       if (!r.alive) continue;
-      out.push({ id: r.id, feet: r.feet, needs: (k: 'ammo' | 'health') => (k === 'health' ? r.health.hp < r.health.maxHp : true) });
+      out.push({ id: r.id, feet: r.feet, needs: (k: PickupKind) => (k === 'medkit' ? this.kitsOf(r) < this.g.medkit.max : true) });
     }
     return out;
   }
 
-  onPickup(kind: 'ammo' | 'health', who: string): void {
+  onPickup(kind: PickupKind, who: string): void {
     const r = this.remotes.get(who);
     if (!r) return;
-    if (kind === 'health') r.health.heal(50);
+    // (step 15) a medkit crate: one kit up to the carry max (host-authoritative)
+    if (kind === 'medkit') r.mk = addKit(this.kitsOf(r), this.g.medkit.max);
     this.push({ e: 'pickup', player: who, kind });
   }
 

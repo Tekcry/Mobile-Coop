@@ -15,9 +15,6 @@ export const MOVEMENT = {
   /** Aiming (strafe-locked to the aim). */
   adsSpeed: 1.4,
   adsCrouchSpeed: 1.0,
-  /** Shuffling along cover (standing / crouched). */
-  coverSpeed: 2.3,
-  coverCrouchSpeed: 1.25,
   /** Cover-to-cover run (low, fast). */
   coverRunSpeed: 3.6,
   /** Moving while reloading / swapping. */
@@ -64,7 +61,7 @@ export const MOVEMENT = {
   /** Stance transition times (s): stand -> crouch, crouch -> kneel, crouch -> stand. */
   crouchTime: 0.25,
   kneelTime: 0.3,
-  standTime: 0.28,
+  standTime: 0.3,
   /** Fraction of ground control kept in the air (drops / vault exits only). */
   airControl: 0.05,
   standHeight: 1.75,
@@ -94,8 +91,6 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   sprintSpeed: 5.0,
   adsSpeed: 1.4,
   adsCrouchSpeed: 1.0,
-  coverSpeed: 2.3,
-  coverCrouchSpeed: 1.25,
   coverRunSpeed: 3.6,
   reloadMult: 0.75,
   sneakBand: 0.4,
@@ -127,7 +122,7 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   pivotMinSpeed: 0.45,
   crouchTime: 0.25,
   kneelTime: 0.3,
-  standTime: 0.28,
+  standTime: 0.3,
   airControl: 0.05,
   standHeight: 1.75,
   crouchHeight: 1.15,
@@ -155,27 +150,51 @@ export const ENEMY_CALM_MOTION: typeof MOVEMENT = {
 export const GEARS = {
   count: 6,
   spawn: 3,
-  /** Gear caps (m/s), gear 1..6. */
-  crouch: [0.5, 0.9, 1.3, 1.8, 2.3, 2.8],
-  stand: [0.8, 1.3, 2.0, 2.8, 3.8, 5.0],
+  /**
+   * Gear caps (m/s), gear 1..6. (locomotion step 22, M14 N6 "too arcadey and fast", A88) about 17 % under the 3.2.0
+   * caps (`GAIT_REF`: stand 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0, crouch 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8).
+   */
+  crouch: [0.42, 0.75, 1.08, 1.5, 1.9, 2.3],
+  stand: [0.65, 1.1, 1.65, 2.3, 3.15, 4.15],
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
   /** HUD gear pips stay this long after a change (s), then fade. */
   pipsShow: 1.5,
-  /** Cover strafe (3.2.0, approved change): the gear's pace, no faster than these along a wall (m/s). Gear 3 is about
-   *  the 2.x cover pace (2.3 / 1.25). */
-  coverMax: { stand: 2.8, crouch: 1.8 },
 } as const;
 
 /**
- * Chaos Theory locomotion feel (3.2.0, player free movement only; `MotionInput.ct`): instant stops, near-instant
- * starts, no planted pivots, quick travel turns, the committed forward roll.
+ * (locomotion step 22, D5.1, A88) The effort curve's reference: the gear caps the gait clips were authored at (the
+ * 3.2.0 caps). A pace is read as an effort by its place between the stance's `GEARS` caps and posed at the same place
+ * between these (`effortSpeed`), so every gear keeps its gait (clip mix, arm swing) at the slower M14 speeds; the
+ * stride length and the gait clock stay on the real pace (no foot slide).
+ */
+export const GAIT_REF = {
+  crouch: [0.5, 0.9, 1.3, 1.8, 2.3, 2.8],
+  stand: [0.8, 1.3, 2.0, 2.8, 3.8, 5.0],
+} as const;
+
+/**
+ * Chaos Theory locomotion feel (3.2.0, player free movement only; `MotionInput.ct`): quick travel turns, the
+ * committed forward roll. (locomotion step 22, M14 N6, A88) moderate momentum on the pace only: it eases up and down
+ * through a critically damped spring (never overshoots), the travel direction swings toward the stick at speed, and
+ * a reversal at pace brakes into a planted pivot before pushing off the new way. Aim, draw, strike, crouch and jump
+ * stay instant.
  */
 export const CT = {
-  /** Release the stick: velocity is zero by the next fixed step; the pose blends to idle over this (s). */
+  /** A swing left over when the feet stop stepping sets down over this (s); the stride blends to idle over it. */
   stopBlend: 0.12,
-  /** 95% of the target speed within this (s) from a standstill, after a direction or gear change too. */
-  startTime: 0.08,
+  /** 95% of the target pace within this (s) from a standstill, after a gear change too (M14: ~0.3 s). */
+  startTime: 0.3,
+  /** Stick released: 98% of the pace is gone within this (s) at any gear (M14 ~0.25 s; bible 5.12.1 <= 0.3 s). */
+  stopTime: 0.25,
+  /** Turn inertia: the travel direction swings 95% of the way to the stick within this (s) at `turnFullSpeed`+. */
+  turnTime: 0.15,
+  /** Pace (m/s) where the turn inertia is full; under `turnSnapSpeed` the direction follows the stick at once. */
+  turnFullSpeed: 1.6,
+  turnSnapSpeed: 0.4,
+  /** Reversal (stick against travel, cos < `reverseDot`) above `pivotSpeed` m/s: brake into a planted pivot. */
+  reverseDot: -0.7,
+  pivotSpeed: 1.2,
   /** Travel-facing turn rate (rad/s, 720 deg/s) and its angular acceleration (rad/s^2). */
   turnRate: (720 * Math.PI) / 180,
   turnAccel: 240,
@@ -200,7 +219,9 @@ export const CT = {
 /** Debug Tune panel ranges for the `CT` feel values. */
 export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]>> = {
   stopBlend: [0.03, 0.4, 0.01],
-  startTime: [0.02, 0.3, 0.01],
+  startTime: [0.05, 0.6, 0.01],
+  stopTime: [0.05, 0.6, 0.01],
+  turnTime: [0, 0.4, 0.01],
   turnRate: [4, 20, 0.1],
   turnAccel: [40, 600, 10],
   rollTime: [0.4, 1.2, 0.02],
@@ -208,11 +229,12 @@ export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]
 };
 
 /**
- * Footstep noise (`noiseRadius`, 3.2.0): the fastest pace that is still silent. Crouched gears 1-4 (<= 1.8 m/s) and
- * standing gears 1-2 (<= 1.3 m/s) are silent, with room for the stride's speed swell (`rootDip`).
+ * Footstep noise (`noiseRadius`, 3.2.0): the fastest pace that is still silent. Crouched gears 1-4 (<= 1.5 m/s) and
+ * standing gears 1-2 (<= 1.1 m/s) are silent, with room for the stride's speed swell (`rootDip`); standing gear 3 at
+ * full stick (1.65 m/s, the spawn maximum) is audible. (step 22, A88: crouch 1.9 -> 1.7 so crouched gear 5 stays audible.)
  */
 export const NOISE_QUIET = {
-  crouch: 1.9,
+  crouch: 1.7,
   stand: 1.45,
 };
 
@@ -228,8 +250,6 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   sprintSpeed: [3, 7, 0.1],
   adsSpeed: [0.5, 2.5, 0.05],
   adsCrouchSpeed: [0.4, 2, 0.05],
-  coverSpeed: [0.4, 3.5, 0.05],
-  coverCrouchSpeed: [0.4, 3, 0.05],
   strafeMult: [0.5, 1, 0.01],
   backMult: [0.4, 1, 0.01],
   accelMax: [2, 25, 0.5],

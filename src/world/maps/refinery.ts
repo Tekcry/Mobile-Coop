@@ -136,7 +136,7 @@ export const refinery: MapDef = {
     b.block(7.2, -29, 1.4, 0.95, 0.6, '#6b6f73');
     b.box(-1.5, 0.55, -24, 7, 0.12, 0.12, YELLOW, 0, 0, false);
     // a jersey barrier west of the gate lane; razor wire along the fence tops (visual)
-    b.lowCover(-7.5, -28, 2.4, '#b8b0a0', 0, 0.85, 0.6);
+    b.lowWall(-7.5, -28, 2.4, '#b8b0a0', 0, 0.85, 0.6);
     b.box(0, 3.15, -30.5, 70, 0.3, 0.3, '#3a342c', 0, 0, false).box(0, 3.15, 30.5, 70, 0.3, 0.3, '#3a342c', 0, 0, false);
     b.box(-34.5, 3.15, 0, 0.3, 0.3, 60, '#3a342c', 0, 0, false).box(34.5, 3.15, 0, 0.3, 0.3, 60, '#3a342c', 0, 0, false);
 
@@ -151,7 +151,7 @@ export const refinery: MapDef = {
     b.ladder(-26 + TANK_R + 0.15, -18, 0, TANK_H, -Math.PI / 2, STEEL);
     b.ladder(-26 + TANK_R + 0.15, 18, 0, TANK_H, -Math.PI / 2, STEEL);
     // the bund wall (low cover) and valve stations
-    b.lowCover(-16, -9, 6, PAD, 0, 1.0, 0.5).lowCover(-16, 9, 6, PAD, 0, 1.0, 0.5);
+    b.lowWall(-16, -9, 6, PAD, 0, 1.0, 0.5).lowWall(-16, 9, 6, PAD, 0, 1.0, 0.5);
     b.block(-31, 5, 1.4, 1.3, 1.2, RED).block(-31, -5, 1.4, 1.3, 1.2, RED);
     // zipline: the north tank's top -> the process units
     b.pillar(-23.2, 18, 0.06, 2.2, STEEL, TANK_H);
@@ -176,7 +176,7 @@ export const refinery: MapDef = {
     b.box(2, RACK + 0.5, -0.85, 24, 1.0, 0.08, YELLOW).box(2, RACK + 0.5, 0.85, 24, 1.0, 0.08, YELLOW);
     // pipe runs under the walkway (visual) and alongside it at knee height (cover)
     for (const [y, z] of [[3.6, -0.45], [3.6, 0.45], [3.1, 0]] as const) b.box(2, y, z, 24, 0.35, 0.35, PIPE, 0, 0, false);
-    b.lowCover(2, -2.6, 20, PIPE, Math.PI / 2, 0.8, 0.5).lowCover(2, 2.6, 20, PIPE, Math.PI / 2, 0.8, 0.5);
+    b.lowWall(2, -2.6, 20, PIPE, Math.PI / 2, 0.8, 0.5).lowWall(2, 2.6, 20, PIPE, Math.PI / 2, 0.8, 0.5);
     // up at the west end by stairs, the east end by a ladder
     b.stairs(-14, 0, 1.4, 8, RACK, 18, STEEL, Math.PI / 2);
     b.ladder(14.15, 0, 0, RACK, -Math.PI / 2, STEEL);
@@ -231,7 +231,7 @@ export const refinery: MapDef = {
     b.mark(ph0, { overhead: true });
     b.block(-8.5, -18.5, 2.4, 1.3, 1.4, RED).block(-4.6, -18.6, 1.4, 1.3, 1.6, RED);
     for (const x of [2, 6]) b.block(x, -18, 1.6, 1.2, 1.6, STEEL);
-    b.lowCover(-1, -10, 8, PIPE, Math.PI / 2, 0.9, 0.5);
+    b.lowWall(-1, -10, 8, PIPE, Math.PI / 2, 0.9, 0.5);
     // motors on the pump skids, an MCC cabinet, a gas cylinder cage, drums and a skip in the pump house's lee
     for (const x of [2, 6]) b.box(x, 1.5, -18, 0.6, 0.6, 1.0, '#3d4a5a', 0, 0, false);
     b.block(8.6, -19.6, 0.7, 1.9, 1.6, '#6b6f73').block(9, -14, 0.8, 1.6, 1.6, '#4a5a3a');
@@ -292,7 +292,7 @@ export const refinery: MapDef = {
     b.block(29, -21, 3, 3.0, 4, '#4f565c');
     b.stairs(29, -25.25, 1.4, 4.5, 3.0, 10, STEEL, 0);
     b.block(32.5, -14, 1.2, 1.1, 1.2, CRATE).block(31.6, -27.6, 2.4, 2.2, 1.2, STEEL);
-    b.lowCover(19, -13.5, 6, PAD, Math.PI / 2, 1.0, 0.5);
+    b.lowWall(19, -13.5, 6, PAD, Math.PI / 2, 1.0, 0.5);
     // the tankers' cabs, the gantry's loading arms (visual), drums by the gate hut, a skip by the fence
     for (const x of [16, 22]) {
       b.block(x, -25.5, 2.4, 2.7, 2.0, '#8a3a2a');
@@ -381,7 +381,7 @@ export const refinery: MapDef = {
       ],
       pickups: [
         { pos: v(7.2, -29, 0.95), kind: 'ammo' },
-        { pos: v(29, 6.6, 1.9), kind: 'health' },
+        { pos: v(29, 6.6, 1.9), kind: 'medkit' },
         { pos: v(4, 27, UNIT + 1.2), kind: 'ammo' },
       ],
       rooms: ROOMS,

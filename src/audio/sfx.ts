@@ -202,12 +202,6 @@ export class Sfx {
     else this.burst('ui', 0.15, 0, 'bandpass', 2600, 4, 0.03);
   }
 
-  /** Sonar pulse: a soft low ping with a falling tail. */
-  sonar(): void {
-    this.tone('ui', 0.12, 0, 'sine', 1300, 1250, 0.5, 0, 0.01);
-    this.tone('ui', 0.06, 0, 'sine', 650, 420, 0.9, 0.05, 0.05);
-  }
-
   /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip, a dart pop,
    *  a beep (place / stick / select). */
   gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'dart' | 'beep', gain = 1): void {
@@ -258,8 +252,8 @@ export class Sfx {
     this.tone('sfx', 0.18 * gain, pan, 'sawtooth', 70, 300, 0.6, 0, 0.3);
   }
 
-  pickup(kind: 'ammo' | 'health'): void {
-    const base = kind === 'health' ? 660 : 520;
+  pickup(kind: 'ammo' | 'medkit'): void {
+    const base = kind === 'medkit' ? 660 : 520;
     this.tone('ui', 0.22, 0, 'triangle', base, base, 0.08);
     this.tone('ui', 0.22, 0, 'triangle', base * 1.5, base * 1.5, 0.12, 0.07);
   }

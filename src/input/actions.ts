@@ -4,6 +4,8 @@ export const BUTTON_ACTIONS = [
   'fire',
   'ads',
   'reload',
+  /** (locomotion step 15) Use a medkit (pad: X held while not aiming; KBM H; no touch control, D1). */
+  'medkit',
   'jump',
   /** (3.2.0) The manual jump (touch Jump button; Y / E jump when nothing else is offered). */
   'leap',
@@ -16,7 +18,7 @@ export const BUTTON_ACTIONS = [
   'drop',
   /** Hold-to-use (doors, downloads, hacking): down once `interact` has been held `INTERACT_HOLD` s. */
   'interactHold',
-  /** Take/leave cover (touch button, controller B-hold, keyboard C). */
+  /** Context: back-to-wall (step 11). */
   'cover',
   'pause',
   /** The gadget button: held = aim the arc, released = throw (placed / flown gadgets go on the press). */
@@ -25,11 +27,8 @@ export const BUTTON_ACTIONS = [
   'gadgetWheel',
   'shoulderSwap',
   'dash',
-  /** Goggles: cycle off -> night vision -> sonar. */
+  /** Goggles: cycle off / night / thermal / electro. */
   'vision',
-  /** Mark the enemy under the crosshair (aiming) / run Mark & Execute when ready. */
-  'mark',
-  'execute',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
   /** Chaos Theory speed gears (3.2.0): one gear up / down. */

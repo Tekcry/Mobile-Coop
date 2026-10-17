@@ -89,12 +89,12 @@ const setup = () =>
       return {
         x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw, grounded: c.grounded,
         attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, nx: a?.nx ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, v: ac.m.v,
-        held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.coverPose.traverse,
+        held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.pose.traverse,
         hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : ac.lower ? `${ac.lower.anchor.kind}:${ac.lower.entry}` : null,
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
         jump: ac.jump ? ac.jump.anchor.id : -1,
         landing: c.lastLanding, fall: c.lastFall, landT: c.landT, noise: st.noise, tkind: st.traversal.kind,
-        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null, cover: st.cover.state, coverCand: !!st.cover.candidate,
+        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null,
       };
     },
   };
@@ -160,7 +160,12 @@ try {
   assert(!i.attached && i.y > 3.5, `steps off at the top onto the tower (y ${f2(i.y)})`);
   await run(1.2);
   i = await I();
-  assert(i.held, 'weapon back in the hands after the ladder');
+  // (step 09) holstered unless aiming: off the ladder the weapon stays in its slot until aim draws it
+  assert(!i.held, 'weapon holstered after the ladder (drawn only while aiming)');
+  await run(0.8, 0, 0, [BTN.LT]);
+  i = await I();
+  assert(i.held, 'aim draws the weapon back into the hands after the ladder');
+  await run(0.8);
 
   // --- ladder from the top: turn round and step on, climb down, step off at the bottom
   await tp(26.7, 3.6, 11, -Math.PI / 2);
@@ -471,7 +476,8 @@ try {
       const b = await page.evaluate((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; }, sel);
       if (b) {
         await page.touchscreen.tap(b.x, b.y);
-        await page.waitForTimeout(700);
+        // (until the prompt's action shows, at most 0.7 s)
+        for (let w = 0; w < 18 && !(await done()); w++) await page.waitForTimeout(40);
         if (await done()) return true;
       } else await frames(page, 2);
     }
@@ -481,7 +487,7 @@ try {
   await page.touchscreen.tap(640, 60);
   await frames(page, 4);
   assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the grab prompt shows on the ledge');
-  // (a cover face there too: the stick pushed at the wall picks the grab, standing still would take cover)
+  // (the stick pushed at the wall picks the grab)
   await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 1));
   await frames(page, 4);
   assert(await tapPrompt('.tc-action', attachedNow), 'touch: the action button grabs the ledge (stick pushed at it)');

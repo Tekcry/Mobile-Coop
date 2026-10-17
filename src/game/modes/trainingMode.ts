@@ -6,15 +6,14 @@ import type { GameMode } from './gameMode';
 import type { Blip } from '../../ui/hud/minimap';
 import { emptyTrainingStatus, TRAINING_STEPS, TrainingCourse, type TrainingStatus } from '../training';
 import { hyp2 } from '../../core/mathx';
-import { G } from '../../physics/groups';
 
 /** A step not done in this long is skipped (a stuck player is never trapped). */
 const STEP_SKIP = 90;
 
 /**
  * The training course on Proving Grounds (Play > Training): one verb at a time with a marker on the target and the
- * input for the device in use - move, sneak, cover, vault, ladder, goggles, a takedown on a passive guard, Mark &
- * Execute on two more, a gadget. The operator cannot be hurt; guards see and hear nothing. Optional and replayable.
+ * input for the device in use - move, sneak, vault, ladder, goggles, a takedown on a passive guard, a
+ * gadget. The operator cannot be hurt; guards see and hear nothing. Optional and replayable.
  */
 export class TrainingMode implements GameMode {
   readonly id = 'training' as const;
@@ -25,8 +24,6 @@ export class TrainingMode implements GameMode {
   private target: Vector3 | null = null;
   private targets: Partial<Record<string, Vector3>> = {};
   private guards: Enemy[] = [];
-  /** Where the takedown guard spawned (the Mark guards spawn next to it). */
-  private tdAt: Vector3 | null = null;
   private offs: (() => void)[] = [];
   private ended = false;
 
@@ -62,9 +59,6 @@ export class TrainingMode implements GameMode {
     this.offs.push(
       ev.on('takedown', (e) => {
         if (e.phase === 'done') this.status.takedowns++;
-      }),
-      ev.on('execute', (e) => {
-        if (e.phase === 'done') this.status.executes++;
       }),
       ev.on('gadget', (e) => {
         if (e.phase === 'throw' || e.phase === 'place') this.status.thrown++;
@@ -102,7 +96,6 @@ export class TrainingMode implements GameMode {
       case 'move':
         this.target = t.move ?? null;
         break;
-      case 'cover':
       case 'vault':
         this.target = t.cover ?? null;
         break;
@@ -112,42 +105,12 @@ export class TrainingMode implements GameMode {
       case 'takedown': {
         const e = this.guard(p, 0);
         this.target = e ? e.pos : null;
-        if (e) this.tdAt = e.pos.clone();
-        break;
-      }
-      case 'mark': {
-        // the next spawns from the takedown guard's (where the operator ends up depends on the takedown: a grab)
-        // two spawns with a clear line between them (both executable from one spot)
-        const near = this.tdAt ?? p;
-        const pair = this.markPair(near);
-        const a = this.guard(near, 1, pair?.[0]);
-        this.guard(near, 2, pair?.[1]);
-        this.target = a ? a.pos : null;
         break;
       }
       default:
         this.target = null;
     }
     this.updateHud();
-  }
-
-  /** The nearest two spawns to `near` (past the takedown guard's own) that see each other at chest height. */
-  private markPair(near: Vector3): [Vector3, Vector3] | null {
-    const g = this.g;
-    const spawns = [...g.world.layout.enemySpawns].sort((a, b) => hyp2(a.x - near.x, a.z - near.z) - hyp2(b.x - near.x, b.z - near.z)).slice(1, 12);
-    const a = new Vector3();
-    const b = new Vector3();
-    for (let i = 0; i < spawns.length; i++) {
-      for (let j = i + 1; j < spawns.length; j++) {
-        const p = spawns[i]!;
-        const q = spawns[j]!;
-        if (hyp2(p.x - q.x, p.z - q.z) > 30) continue;
-        a.set(p.x, p.y + 1.4, p.z);
-        b.set(q.x, q.y + 1.4, q.z);
-        if (!g.ballistics.ray(a, b, G.STATIC).hit) return [p, q];
-      }
-    }
-    return null;
   }
 
   private updateHud(): void {
@@ -170,18 +133,22 @@ export class TrainingMode implements GameMode {
     const p = g.player.position;
     s.moved = hyp2(p.x - this.stepStart.x, p.z - this.stepStart.z);
     s.crouchedMoving = c.crouched && c.speed > 0.3 && s.moved > 1;
-    s.inCover = g.cover.state !== 'none';
     const k = g.traversal.kind;
-    if (k === 'vault' || k === 'mantle' || k === 'step' || g.cover.state === 'vault') s.vaulted = true;
+    if (k === 'vault' || k === 'mantle' || k === 'step') s.vaulted = true;
     s.onLadder = g.traversal.attached && g.traversal.attachCtl.m.kind === 'ladder';
     s.goggles = g.vision.mode !== 'off';
-    let marked = 0;
-    for (const e of this.guards) if (e.alive && g.marks.has(e.id)) marked++;
-    s.marks = marked;
     // the hint follows the device in use
     if (g.app.input.mode !== this.hintMode) {
       this.hintMode = g.app.input.mode;
       this.updateHud();
+    }
+    // (locomotion step 17, A67) the touch basic scheme has no gadget button (D1): that step is skipped by touch
+    if (this.course.step?.noTouch && g.app.input.mode === 'touch') {
+      g.hud.feedItem('Step skipped: no touch control');
+      this.course.skip(s);
+      this.enter();
+      if (this.course.done) this.finish();
+      return;
     }
     this.stepT += dt;
     const done = this.course.update(s);

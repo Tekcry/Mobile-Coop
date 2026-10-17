@@ -1,3 +1,7 @@
+import { crackedHandle } from '../world/doorPeek';
+import { DOOR } from '../world/doors';
+import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
+import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -17,7 +21,7 @@ import { TEAM_COLORS } from './pvp';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { RAPPEL } from '../config/movement';
-import { attachGripWeight, COVER_SUB, emptyMovePose, footPoints, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 
@@ -26,12 +30,15 @@ let ropeKeys = 0;
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed / flags and (3.2.0) their
- * movement state - cover, attached grips, committed moves replayed from their start, takedowns - posed by the same
+ * movement state - attached grips, committed moves replayed from their start, takedowns - posed by the same
  * code as the local player (`poseFromMoveState`, `AttachGrips`, `traversePath`); their weapon (stowed while both
  * hands are busy), and muzzle flashes + tracers while their firing flag is set.
  */
 export class RemoteAvatar {
   readonly rig: CharacterRig;
+  /** (step 13) The door-peek handle reach (world) and whether it is set. */
+  private readonly doorHand = { x: 0, y: 0, z: 0 };
+  private doorHandOn = false;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
   readonly pos = new Vector3();
   yaw = 0;
@@ -55,8 +62,24 @@ export class RemoteAvatar {
   private gripFace = 1;
   private sPrev = 0;
   private mp = emptyMovePose();
+  /** (PC1 fix) The head-first peek eased as the owner's (`WALL.peekBlend` each way, from the peek bit). */
+  private peekK = 0;
+  /** (step 11) Back to a wall: the body-line point, `s` shown (tests), the rig's push onto the face, the hand point. */
+  private wp = { x: 0, z: 0, yaw: 0 };
+  /** (step 12 r1) The eased wall yaw and whether it was set last frame. */
+  private wallYaw = 0;
+  private wallYawOn = false;
+  wallS = 0;
+  private wallK = 0;
+  private wallNx = 0;
+  private wallNz = 0;
+  private wallFace = 0;
+  private wallHandPt = new Vector3();
   private replay: { t: number; c: MoveCommit; path: PathKind; pose: TraverseKind } | null = null;
   private lastCommit = -1;
+  /** (step 12 r1) The mode of the last replayed commit: the SWAT turn counts its own commits (`swatN`), so the same
+   *  `n` in another committed mode is a new move. */
+  private lastCommitM = '';
   private stowed = false;
   private kin = { x: 0, y: 0, z: 0 };
   private pa = { x: 0, y: 0, z: 0 };
@@ -79,6 +102,7 @@ export class RemoteAvatar {
     readonly info: PlayerInfo,
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
+    this.rig.carrier = true;
     for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pouches = new GrenadePouches(world.parts, this.rig);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
@@ -145,6 +169,7 @@ export class RemoteAvatar {
       this.rig.setEnabled(true);
       this.prev.set(s.x, s.y, s.z);
       this.lastCommit = s.state.mv?.c?.n ?? -1;
+      this.lastCommitM = s.state.mv?.c ? s.state.mv.m : '';
     }
     this.pos.set(s.x, s.y, s.z);
     this.yaw = s.yaw;
@@ -154,10 +179,11 @@ export class RemoteAvatar {
     this.flags = st.f;
     this.mode = mv?.m ?? 'ground';
     // a committed move (vault, mantle, roll, ...) replays from its start along the same path
-    if (mv?.c && mv.c.n !== this.lastCommit) {
+    if (mv?.c && (mv.c.n !== this.lastCommit || (mv.m === 'swat') !== (this.lastCommitM === 'swat'))) {
       this.lastCommit = mv.c.n;
+      this.lastCommitM = mv.m;
       const path: PathKind = mv.m === 'windowVault' ? 'vault' : mv.m === 'landing' ? 'drop' : (mv.m as PathKind);
-      this.replay = { t: 0, c: mv.c, path, pose: mv.m as TraverseKind };
+      this.replay = { t: 0, c: mv.c, path, pose: mv.m === 'swat' ? 'none' : (mv.m as TraverseKind) };
     }
     const rp = this.replay;
     let replayK = -1;
@@ -176,9 +202,54 @@ export class RemoteAvatar {
       if (replayK >= 1) this.replay = null;
     }
     const attached = !!mv && isAttachedMode(mv.m) && !rp;
-    // attached both hands are busy (the gun stowed), except a sidearm aimed from a split / an inverted hang
-    const sidearmOut = !!mv && mv.r > 0.05 && (mv.m === 'split' || mv.m === 'rappel' || (mv.m === 'pipeH' && unpackAttachSub(mv.sub).pipe === 'inverted'));
-    this.setWeapon(st.w, (attached && !sidearmOut) || mv?.m === 'takedown');
+    // (locomotion step 11) back to a wall, settled: the body line from the segment and `s` (interpolated on the same
+    // segment, as the attached `s`), the yaw from the face normal
+    const wseg = mv?.m === 'wall' && !rp ? this.world.level.coverSegments[mv.a] : undefined;
+    if (wseg && mv!.ph >= 1) {
+      const from = s.from.mv;
+      const to = s.to.mv;
+      const sv = from && to && from.m === 'wall' && to.m === 'wall' && from.a === to.a ? from.s + (to.s - from.s) * Math.max(0, Math.min(1, s.k)) : mv!.s;
+      wallPoint(wseg, sv, COVER_STANDOFF, this.wp);
+      // across the wall: where the owner's capsule actually rests (its collision skin keeps it a little out)
+      const off = Math.max(-0.05, Math.min(0.1, (this.pos.x - this.wp.x) * wseg.nx + (this.pos.z - this.wp.z) * wseg.nz));
+      this.pos.x = this.wp.x + wseg.nx * off;
+      this.pos.z = this.wp.z + wseg.nz * off;
+      // (step 12, D8) leaning out / rising to aim: the body turns with the aim (the owner's yaw), else it faces out
+      // (r1) eased at the owner's wall turn rate, never snapped: the lean bit dropping (or the settle starting) turns the
+      // copy back toward the face normal as the owner's body turns
+      const target = mv!.sub & WALL_SUB.lean ? s.yaw : this.wp.yaw;
+      if (!this.wallYawOn) this.wallYaw = s.yaw;
+      const d = wrapPi(target - this.wallYaw);
+      const step = WALL_TURN_RATE * dt;
+      this.wallYaw = wrapPi(this.wallYaw + (Math.abs(d) <= step ? d : Math.sign(d) * step));
+      this.yaw = this.wallYaw;
+      this.wallYawOn = true;
+      this.wallS = sv;
+    } else this.wallYawOn = false;
+    // (locomotion step 13, D8) a door peek: the hand away from the hinge on the handle of the leaf as cracked (`ph`),
+    // the side from where the body stands
+    const pd = mv?.m === 'doorPeek' && !rp ? this.world.doors.list[mv.a] : undefined;
+    if (pd) {
+      const a = pd.anchor;
+      const side = (this.pos.x - a.hinge.x) * Math.cos(a.yaw) - (this.pos.z - a.hinge.z) * Math.sin(a.yaw) >= 0 ? 1 : -1;
+      crackedHandle(a, side, mv!.ph, DOOR.openAngle, this.doorHand);
+      const reach = mv!.sub & 1 ? this.rig.reachL : this.rig.reachR;
+      const other = mv!.sub & 1 ? this.rig.reachR : this.rig.reachL;
+      reach.x = this.doorHand.x;
+      reach.y = this.doorHand.y;
+      reach.z = this.doorHand.z;
+      reach.w = Math.min(1, reach.w + dt / 0.25);
+      other.w = 0;
+      this.doorHandOn = true;
+    } else if (this.doorHandOn) {
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      this.doorHandOn = false;
+    }
+    // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
+    // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
+    // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
+    // of the 0.4 s holster, so the remote stows within 0.6 s of the release)
+    this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
     // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)
@@ -204,7 +275,40 @@ export class RemoteAvatar {
     r.rotation.y = this.yaw;
     if (this.rig.emote && (this.speed > 0.5 || f & PF.firing)) this.rig.emote = null;
     // the pose families from the movement state; on an anchor the hands and feet grip it like the player's
-    const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp) : emptyMovePose();
+    const pk = wseg && mv!.sub & WALL_SUB.peek ? 1 : 0;
+    this.peekK = wseg ? (pk ? Math.min(1, this.peekK + dt / WALL.peekBlend) : Math.max(0, this.peekK - dt / WALL.peekBlend)) : 0;
+    const mp = mv ? poseFromMoveState(mv, this.grips.cadence(), this.mp, this.peekK) : emptyMovePose();
+    // (step 11) on a wall: the rig's back onto the face and the off hand on it (as the player's rig)
+    this.wallK = Math.max(0, Math.min(1, this.wallK + (wseg ? dt : -dt) / 0.2));
+    if (wseg) {
+      this.wallNx = wseg.nx;
+      this.wallNz = wseg.nz;
+    }
+    const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
+    if (wk > 0) {
+      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.min(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf) * wk;
+      r.position.x -= this.wallNx * push;
+      r.position.z -= this.wallNz * push;
+    }
+    if (wseg && mp.wall) {
+      this.wallFace = wseg.nx * wseg.ax + wseg.nz * wseg.az;
+      wallHandPoint(this.pos.x, this.pos.y, this.pos.z, wseg.nx, wseg.nz, wseg.tx, wseg.tz, this.wallFace, this.rig.weaponHand, this.crouch, this.wallHandPt);
+      this.rig.wallHand = this.wallHandPt;
+    } else this.rig.wallHand = null;
+    // (locomotion step 10) the strike's phase eased between the two states around the render time (the sampled state is
+    // the older one: a 20 Hz step in `ph` would jerk the elbow arc); a strike starting eases in from phase 0
+    const sa = s.from.mv;
+    const sb = s.to.mv;
+    if (sb?.m === 'strike' && (mv?.m === 'strike' || mv?.m === 'ground') && !rp) {
+      // (a denial blends back down; a queued second strike restarts from 0)
+      const ph0 = sa?.m === 'strike' && sa.ph < sb.ph + 0.5 ? sa.ph : 0;
+      mp.melee = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
+    }
+    // (locomotion step 15) the medkit's progress eased the same way (a use starting eases in from 0)
+    if (sb?.m === 'medkit' && mv?.m === 'medkit') {
+      const ph0 = sa?.m === 'medkit' && sa.ph <= sb.ph ? sa.ph : 0;
+      mp.medkit = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
+    }
     if (attached && this.world.level.anchors.all[mv!.a]) {
       const a = this.world.level.anchors.all[mv!.a]!;
       const from = s.from.mv;
@@ -253,15 +357,9 @@ export class RemoteAvatar {
       mp.traverse = rp.pose;
       mp.traverseT = replayK;
     }
-    // weapon hand: the owner's (the cover controller swaps it at a left edge)
-    this.rig.leftHanded = mv?.m === 'cover' && (mv.sub & COVER_SUB.leftHand) !== 0;
-    // hiding at low cover: the owner's curl (its own height control is history dependent)
-    this.rig.curlHold = mv?.m === 'cover' && mv.cu !== undefined ? mv.cu : null;
-    this.rig.liftHold = mv?.m === 'cover' && mv.lf !== undefined ? mv.lf : null;
-    // still in cover: the feet step onto the owner's planted spots
-    const pins = this.rig.footPins;
-    if (mv?.m === 'cover' && mv.fp && st.speed < 0.05) footPoints(r.position.x, r.position.z, r.rotation.y, mv.fp, pins);
-    else pins[0] = pins[1] = pins[2] = pins[3] = NaN;
+    // (step 12b, D9) weapon hand from WALL_SUB.leftHand (the open side at a left edge): the rig blends the switch
+    // over EDGE_HAND_TIME as the owner's did
+    this.rig.openLeft = !!mv && !rp && mp.leftHand && (mv.sub & WALL_SUB.leftHand) !== 0;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -273,31 +371,30 @@ export class RemoteAvatar {
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
       crouch: this.crouch,
-      kneel: mp.kneel,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,
       aimWorldYaw: upside && mv ? this.yaw + mv.ay : undefined,
       aimWorldPitch: upside ? this.pitch : undefined,
       tumble: mp.tumble,
       // lowered: only the head glances where the owner looks (as the player's rig)
-      lookYaw: mv ? Math.max(-1.1, Math.min(1.1, mv.ay)) * 0.5 * (1 - this.aim) : 0,
+      lookYaw: mp.wall ? mp.wallSide * WALL_LOOK * (1 - this.aim) : mv ? Math.max(-1.1, Math.min(1.1, mv.ay)) * 0.5 * (1 - this.aim) : 0,
       lookPitch: Math.max(-0.6, Math.min(0.6, this.pitch)) * 0.5 * (1 - this.aim),
       aim: this.aim,
       carry: this.carryW,
       kick: this.kick,
       dash: (f & PF.sprint) !== 0 ? 1 : 0,
-      cover: mp.cover,
+      wall: mp.wall,
       wallSide: mp.wallSide,
+      wallNx: this.wallNx,
+      wallNz: this.wallNz,
+      wallFace: this.wallFace,
       lean: mp.lean,
-      peekOver: mp.peekOver,
-      coverTop: mp.coverTop,
-      coverMode: mp.coverMode,
-      blind: mp.blind,
-      edgeLook: mp.edgeLook,
-      peekClear: mp.peekClear,
+      // (step 12b, D10) the low-wall side lean (`lk` 1 with `low`): the head stays under the wall top, as the owner's
+      headCap: mv && wseg ? finiteOrUndef(remoteWallHeadCap(mv.m, mv.lk, mv.sub, wseg)) : undefined,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,
+      medkit: mp.medkit,
     });
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
     const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;
@@ -345,4 +442,9 @@ export class RemoteAvatar {
     this.models.clear();
     this.rig.dispose();
   }
+}
+
+/** A finite cap, else undefined (the rig's "no cap"). */
+function finiteOrUndef(v: number): number | undefined {
+  return Number.isFinite(v) ? v : undefined;
 }

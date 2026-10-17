@@ -90,9 +90,9 @@ export class InfiltrationMode implements GameMode {
       const e = em.spawn(q.slot.kind, new Vector3(q.slot.x, q.slot.y ?? Number.NaN, q.slot.z), false, q.slot.yaw);
       if (!e) break;
       const r = rooms[q.room];
-      if (r) e.hold = r;
+      if (r && !q.slot.free) e.hold = r;
       em.joinSquad(e, q.room);
-      if (q.slot.route) e.setPatrol({ points: q.slot.route, wait: q.slot.wait });
+      if (q.slot.route) e.setPatrol({ points: q.slot.route, wait: q.slot.wait, waits: q.slot.waits, faces: q.slot.faces, start: q.slot.start, loop: q.slot.loop });
       this.pending.splice(i, 1);
     }
   }
@@ -155,19 +155,20 @@ export class InfiltrationMode implements GameMode {
       case 'extract':
         this.extractT = 0;
         add(o.id, 'extract', site, o.label, 0, () => {});
+        o.alt.forEach((a, k) => add(`${o.id}-alt${k}`, 'extract', new Vector3(a.x, a.y, a.z), o.label, 0, () => {}));
         break;
     }
     this.updateObjective();
   }
 
-  /** An objective done: score, play style, checkpoint, the next one. */
+  /** An objective done: score, checkpoint, the next one. */
   private completed(o: ObjectiveDef): void {
     const g = this.g;
     g.stats.objectives++;
     g.stats.score += 500;
     const unseen = !g.detected;
     if (unseen) this.unseenObjectives++;
-    g.style.record(unseen ? 'objectiveUnseen' : 'objective', g.detected);
+    g.style.record('objective', g.detected);
     g.events.emit('objective', { id: o.id });
     this.checkpoint.copyFrom(g.player.position);
     if (o.type === 'sabotage') g.hud.banner('CHARGE ARMED', 'Get out', 2000);
@@ -193,7 +194,6 @@ export class InfiltrationMode implements GameMode {
       // the sabotage charge goes off as you leave
       for (const o of this.def.objectives) if (o.type === 'sabotage') g.vfx.explosion(new Vector3(o.x, o.y + 0.6, o.z), 5);
     }
-    if (!g.detected && g.style.detections === 0) g.style.record('ghostExtract', false);
     g.events.emit('operationComplete', {});
     g.hud.banner('MISSION COMPLETE', this.def.name, 2600);
     g.slowBeat(0.4, 0.5);
@@ -264,7 +264,7 @@ export class InfiltrationMode implements GameMode {
       }
     }
     if (o.type === 'extract') {
-      const inZone = near(o.radius, 6);
+      const inZone = near(o.radius, 6) || o.alt.some((a) => refs.some((r) => r.target.alive && hyp2(r.feet.x - a.x, r.feet.z - a.z) < a.radius && Math.abs(r.feet.y - a.y) < 6));
       const vipOk = !this.vip || !this.vip.free || hyp2(this.vip.pos.x - o.x, this.vip.pos.z - o.z) < o.radius * 2;
       this.extractT = inZone && vipOk ? this.extractT + dt : 0;
       if (this.extractT >= EXTRACT_HOLD && this.chain.reach()) this.complete();

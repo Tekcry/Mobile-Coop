@@ -206,10 +206,12 @@ body {
 }
 .input-gamepad .g-xbox,
 .input-gamepad.pad-ps .g-ps,
+.input-gamepad.pad-nin .g-nin,
 .input-kbm .g-key {
   display: inline-flex;
 }
-.input-gamepad.pad-ps .g-xbox {
+.input-gamepad.pad-ps .g-xbox,
+.input-gamepad.pad-nin .g-xbox {
   display: none;
 }
 .gx-A { background: #2f9e44; }
@@ -430,6 +432,10 @@ body {
   border-radius: 10px;
   padding: 8px 14px;
   min-height: 44px;
+}
+/* (locomotion step 19) a hidden row (the difficulty sliders off Custom in the lobby, Free Roam's difficulty) */
+.row[hidden] {
+  display: none;
 }
 .row-label {
   font-weight: 600;
@@ -946,42 +952,9 @@ body {
 .tac-vision {
   color: #7dff9b;
 }
-.tac-vision[data-mode='sonar'] {
-  color: #ffb36b;
-}
-.tac-vision[data-mode='cool'] {
-  color: rgba(255, 255, 255, 0.4);
-}
-.tac-charge {
-  color: #ffffff;
-  font-size: 11px;
-}
-.tac-charge.ready {
-  color: #ff4433;
-}
-.hud-marks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.hud-marks .mark {
-  position: absolute;
-  width: 18px;
-  height: 14px;
-  transform: translate(-50%, -100%);
-}
-.hud-marks .mark i {
-  display: block;
-  width: 0;
-  height: 0;
-  margin: 0 auto;
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-top: 12px solid rgba(255, 255, 255, 0.92);
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
-}
-.hud-marks .mark.ready i {
-  border-top-color: #ff4433;
+/* (empty, it would still hold a flex gap in the tactical row) */
+.tac-vision:empty {
+  display: none;
 }
 .hud-awareness {
   position: absolute;
@@ -1016,14 +989,42 @@ body {
 }
 .bar.health {
   height: 10px;
+  position: relative;
+}
+/* (locomotion step 15) the heal still to come while a medkit is in use, and the kit count beside the bar */
+.bar-fill.heal {
+  position: absolute;
+  top: 0;
+  width: 0;
+  background: rgba(190, 255, 205, 0.75);
+  opacity: 0;
+  transition: none;
+}
+.bar-fill.heal.on {
+  opacity: 1;
+}
+.vital-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.vital-kits {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ff8a80;
+}
+.vital-kits::after {
+  content: ' kits';
+  font-weight: 600;
+  opacity: 0.75;
+}
+.vital-kits.none {
+  opacity: 0.45;
 }
 .bar-fill {
   height: 100%;
   width: 100%;
   transition: width 0.15s;
-}
-.bar-fill.sh {
-  background: linear-gradient(90deg, #3fa9ff, #7fd0ff);
 }
 .bar-fill.hp {
   background: linear-gradient(90deg, #39c46b, #7ae69a);
@@ -1883,6 +1884,12 @@ body {
   margin-top: 6px;
   color: #8fd3ff;
 }
+.debug-warp {
+  pointer-events: auto;
+  margin-top: 4px;
+  max-height: calc(60 * var(--vh));
+  overflow-y: auto;
+}
 .debug-trace {
   display: block;
   margin-top: 2px;
@@ -2172,46 +2179,7 @@ body {
 .hud-barks .bark[hidden] {
   display: none;
 }
-/* results: play style bars and mission rating (phase 7) */
-.style-bars {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0;
-}
-.style-bar {
-  display: grid;
-  grid-template-columns: 70px 1fr 50px;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.style-bar i {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  position: relative;
-  overflow: hidden;
-}
-.style-bar i::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: var(--w, 0%);
-  border-radius: 4px;
-  background: #9bb2c8;
-}
-.style-bar.ghost i::after {
-  background: #7fd0ff;
-}
-.style-bar.panther i::after {
-  background: #b07cff;
-}
-.style-bar.assault i::after {
-  background: #ff7a5a;
-}
-.style-bar b {
-  text-align: right;
-}
+/* results: mission rating (phase 7) */
 .mission-rating {
   margin: 8px 0 2px;
   font-size: 18px;
@@ -2269,7 +2237,6 @@ body {
 }
 /* health as the screen-edge vignette only (Blacklist): the bars hidden */
 .hud.no-hbar .bar.health,
-.hud.no-hbar .bar.shield,
 .hud.no-hbar .vital-text {
   display: none;
 }
@@ -3274,6 +3241,53 @@ body {
 .input-kbm .kb-key.focused {
   outline: 2px solid var(--focus);
 }
+/* (locomotion step 18) remap rows: pad slots share the key look; conflicts warn on both rows and in a summary */
+.pad-key {
+  min-width: 74px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pad-key.empty {
+  color: var(--muted);
+}
+.pad-key.listening {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.input-gamepad .pad-key.focused,
+.input-kbm .pad-key.focused {
+  outline: 2px solid var(--focus);
+}
+.controls-row.bind-row {
+  grid-template-columns: minmax(120px, 34%) auto 1fr;
+}
+.controls-row.conflict {
+  background: rgba(255, 170, 60, 0.12);
+  box-shadow: inset 3px 0 0 #ffaa3c;
+}
+.controls-row .bind-warn {
+  color: #ffc27a;
+  font-size: 12px;
+}
+.bind-summary {
+  color: #ffc27a;
+}
+@media (max-width: 520px) {
+  .controls-row.bind-row {
+    grid-template-columns: 1fr auto;
+  }
+  .controls-row .bind-warn {
+    grid-column: 1 / -1;
+  }
+}
 .platform-desktop .tab-strip.side-nav {
   width: 210px;
 }
@@ -3453,6 +3467,10 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   border-radius: 1px;
   background: rgba(255, 255, 255, 0.18);
 }
+/* (locomotion step 17) pips up to the maximum gear (rocker / wheel) dim, up to the current (stick) gear lit */
+.tac-gear i.cap {
+  background: rgba(255, 255, 255, 0.45);
+}
 .tac-gear i.on {
   background: var(--accent);
 }
@@ -3553,4 +3571,18 @@ body.rotated.ccw {
 }
 .res-dialog .res-list .btn {
   justify-content: flex-start;
+}
+
+/* 3.6 Step 4b: brightness calibration - the symbol on true black */
+.brightness-stage {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+  margin: 8px 0;
+}
+.brightness-symbol {
+  width: min(36vw, 200px);
+  height: auto;
 }
