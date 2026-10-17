@@ -107,3 +107,4 @@ CLAUDE.md has "How sessions are run" (the orchestrator method) and docs/systems/
 
 ## Desktop only (M21, 2026-10-17)
 Phones and touch are dropped project-wide (Michael). Follow-up when building restarts: move e2e-touch from REQUIRED / KNOWN_FLAKY to report-only in scripts/run-e2e.mjs; later cleanup (with Michael's go-ahead): remove the phone look, touch controls and mobile paths.
+M21 relayed on 2026-10-17 to the live sessions Character Creation (operators), Music, Weapon Sounds and Movement Sounds (delivery not confirmed: they run on another machine). Not reachable (no live session): feature/kestrel, feature/training-bunker, feature/menu-ui-spec and master: tell them when their sessions next start.
