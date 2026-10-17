@@ -183,8 +183,8 @@ On the iPhone (`/ct/` preview after Michael merges): shots play from the first t
 - [ ] Repeat at Ultra and High.
 - [ ] Aim: the background softens behind what the sight is on, with no full-frame blur flash as aiming starts; release:
       sharp again.
-- [ ] Phone (`/ct/`): the phone look is unchanged (no depth of field there).
 ## Movement foley (feature/footsteps) - PC with headphones, then iPhone
+## Movement foley (feature/footsteps) - desktop with headphones (desktop only: Michael, 2026-10-17)
 On the PC, `npm run dev`, open `/?foleylab=1`:
 - [ ] Press Walk. Try every surface at every gait. Steps sound like boots, not noise; no two steps in a row sound the same; no clicks at the end of a step.
 - [ ] Crouch is a soft roll, walk a clear heel-toe, run firmer, sprint slaps. No gear sounds at all: the suit is silent (no rustle, nothing that jingles).
@@ -195,7 +195,6 @@ In a match (Free Roam, Proving Grounds and the Warehouse), controller:
 - [ ] Each step lands with the foot on screen (watch the feet at gear 1 and gear 6). Turning on the spot makes soft steps; standing still is silent.
 - [ ] Footsteps sit under the music and well under gunshots. Landings from a ledge, a vault and a roll sound right.
 - [ ] The noise meter and guards react as before (nothing about hearing changed).
-On the iPhone (`/ct/` preview after Michael merges): steps play from the first step after the audio starts, with no hitch.
 
 ## 3.5.0 manual check - Night Shift foundation (iPhone at the /ct/ preview, desktop, two devices)
 On the iPhone, at the `/ct/` preview:
