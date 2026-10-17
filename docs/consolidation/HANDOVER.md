@@ -41,10 +41,13 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
   3c(ii) non-CT guns + e2e-pad capture fix (e9ac457, clean; guards carry the kept models).
   3c(iii) drone + difficulty sliders + carried medkits (3c7c2a5, one commit: shared files; PASS; station heal +40 ASSUMED).
   Step 4 docs D1-D4 (e1657f4).
-- RUNNING: D5 name scrub + stale cross-references + story.md Mission 8 back to OPEN (uncommitted). If the session died:
-  git status shows its edits; finish per DOCS-PLAN.md D5, npm run check, commit.
-- NEXT: step 5 full e2e (E2E_PORT=4191 E2E_JOBS=2 E2E_SUITE_TIMEOUT=900, background), 6 version 4.0.0 + CHANGELOG, 7 PR,
-  8 STATE.md. PR body: also the code-vs-decision gaps D3 / D4 found (docs mark them "Decided, not built yet").
+  D5 name scrub (5bd3634); version 4.0.0 + CHANGELOG (6a28eaf). Full e2e: check passes; kestrel + camera-bounds U
+  (Kestrel-owned); mouse, course pass solo; bunker failed solo on its logged-flaky teleport check; coop, foley known flaky.
+- RUNNING: fixer for e2e-anim (deterministic: pose channels continuous through every transition, max 0.137) - likely
+  from 3c7c2a5 (medkit state / anim graph) or e9ac457. If the session died: git status shows its work; rerun e2e-anim solo.
+- NEXT: commit the fix, rerun e2e-anim + e2e-bunker solo, then gh pr create (body drafted in the orchestrator's
+  scratchpad pr-body.md; if lost, rebuild from the merge commits, deleted-*.md, AUDIT.md Summary, DECISIONS.md), then
+  STATE.md on feature/ct-locomotion.
 - Known: e2e-course failed once under load (lever door 1994 ms > 500), passed solo; legacy e2e-progression fails at
   "Y customises the weapon" (report only); kbm flashbang white-out 0.00 (pre-existing); full runs use E2E_SUITE_TIMEOUT=900.
 
