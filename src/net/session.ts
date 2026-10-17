@@ -45,7 +45,8 @@ export class NetSession {
   readonly events = new EventBus<SessionEvents>();
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
-  mode: NetMode = 'clear';
+  /** A new room's mode: Infiltration (the host's lobby sets its mission; `?legacy=1` hosts switch to the parked Hunter). */
+  mode: NetMode = 'infiltration';
   map = 'warehouse';
   difficulty: Difficulty = 'normal';
   /** (locomotion step 19, D7) The host's custom sliders (host: from its settings; client: from the lobby, read-only). */

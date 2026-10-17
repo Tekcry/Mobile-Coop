@@ -2,7 +2,7 @@ import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
 import type { GameOptions, SessionCallbacks } from '../game/gameState';
 import { flags } from '../core/flags';
-import { isParkedMode, visibleModes } from '../core/legacy';
+import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
 import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
@@ -521,10 +521,11 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   if (app.screens.top === wait) app.screens.pop();
   const session = new NetSession(transport, role, code, api.profile());
-  // (3.5: a new room starts on Infiltration, not the parked Hunter)
-  if (role === 'host' && !flags.legacy && isParkedMode(session.mode)) {
+  // a new room starts on Infiltration (the session default) with the first mission; `?legacy=1` keeps the parked Hunter
+  if (role === 'host') {
     const m = MISSIONS[0]!;
-    session.setSettings('infiltration', m.map, session.difficulty, m.id);
+    if (flags.legacy) session.setSettings('clear', session.map, session.difficulty);
+    else session.setSettings('infiltration', m.map, session.difficulty, m.id);
   }
   const c = adopt(app, api, session);
   if (role === 'client') {

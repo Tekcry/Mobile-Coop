@@ -1,6 +1,6 @@
 /**
  * Noise radii and muffling (pure). One home for the numbers gameplay and the map design scripts
- * (`docs/design/map-dead-line-*.mjs`) both read, so a design check never re-types an engine value.
+ * (the retired Dead Line design scripts, now in `docs/archive/maps/design/`) both read, so a design check never re-types an engine value.
  */
 
 /** Share of a noise's reach heard through a wall or a floor (`EnemyManager.hear`). */

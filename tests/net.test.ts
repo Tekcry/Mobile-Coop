@@ -355,6 +355,9 @@ describe('net session', () => {
     expect(cli.hostId).toBe('H');
     expect(host.players.size).toBe(2);
     expect(host.allReady).toBe(false);
+    // a new room defaults to Infiltration, not the parked Hunter (the client hears it in the lobby)
+    expect(host.mode).toBe('infiltration');
+    expect(cli.mode).toBe('infiltration');
     cli.setReady(true);
     expect(host.allReady).toBe(true);
     let started: unknown = null;

@@ -39,9 +39,8 @@ describe('voxel fit and parity (3.0)', () => {
         const span = l!.dims.map((d) => d * l!.size);
         // (the bunker stacks its storeys in one hill: the B3 shaft alone is 24 m, A31; T9a revisits its voxel grid)
         expect(span[1], `${map.id} ${l!.size} height`).toBeLessThan(map.id === 'bunker' ? 40 : 20);
-        // (Dead Line v2 is one 232 x 90 m lane: its footprint is the design JSON's, so its bound is the footprint plus 15 %)
         // (the bunker: a fixed limit 166 x 162 m since T5g restored the BAYS v2 Deep offsets (A74 undone); T9a sizes it)
-        expect(span[0]! * span[2]!, `${map.id} ${l!.size} area`).toBeLessThan(map.id === 'dead-line-v2' ? 232 * 90 * 1.15 : map.id === 'bunker' ? 166 * 162 : 110 * 110);
+        expect(span[0]! * span[2]!, `${map.id} ${l!.size} area`).toBeLessThan(map.id === 'bunker' ? 166 * 162 : 110 * 110);
       }
 
       const packed = packShapes(lv.shapes);
