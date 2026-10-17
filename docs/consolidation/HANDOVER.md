@@ -37,11 +37,10 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
 - Subagent preamble: docs/consolidation/AGENT-PREAMBLE.md. Checker verdicts: docs/consolidation/checks/.
 - DONE: DECISIONS.md final (9cbc9bc). 3a retired maps + lobby default Infiltration (f485ae3, PASS). 3b phone and touch,
   e2e as desktop (11dfad9, PASS; e2e-foley now known flaky). Late docs merges footsteps (5135538) and music (a5d2cfe).
-- RUNNING: 3c batch (i) emotes + old solo Training mode implementer (uncommitted tree; log
-  docs/consolidation/deleted-emotes-training.md). If the session died: run a fresh checker on the tree, then commit
-  emotes and Training as two commits (the log lists which files belong to which).
-- NEXT: 3c (ii) non-CT guns; (iii) drone + difficulty sliders + carried medkits; one commit per item, one checker per batch.
-  Then step 4 docs rewrite.
+  3c(i) emotes (2b8758e; PROTOCOL 13, SAVE 9) and old solo Training (94be374), PASS.
+- RUNNING: 3c (ii) non-CT guns + e2e-pad capture-step test fix (uncommitted tree; log docs/consolidation/deleted-guns.md).
+  If the session died: fresh checker on the tree, then commit (guns; the e2e-pad fix may share the commit, say so).
+- NEXT: 3c (iii) drone + difficulty sliders + carried medkits (one commit each, one checker); then step 4 docs rewrite.
 - Known: e2e-course failed once under load (lever door 1994 ms > 500), passed solo; legacy e2e-progression fails at
   "Y customises the weapon" (report only); kbm flashbang white-out 0.00 (pre-existing); full runs use E2E_SUITE_TIMEOUT=900.
 
