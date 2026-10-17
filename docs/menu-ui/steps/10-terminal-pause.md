@@ -4,7 +4,7 @@ Deps: 06. Model: Opus 5.5 / Opus 5.5. Net: co-op pause must not freeze the simul
 
 ## Read
 - SPEC.md 7.19-7.21, 7.25, 4.3 (controller disconnect); DECISIONS MD7, MD12, MD14; bible 5.8 (no quicksave, Restart
-  from checkpoint, results categories), 5.10 field terminal, 5.15 Act 2 locks.
+  from checkpoint, results categories), 5.10 field terminal (the old 5.15 Act 2 locks are void since G9).
 - `src/ui/screens/pauseScreen.ts`, `resultsScreen.ts`, `src/game/gameState.ts` (`pause`, `menuOpen`),
   `src/core/app.ts` `onVisibility`, `src/input/inputManager.ts` (disconnect), `src/vfx` post stack:
   `DefaultRenderingPipeline` DOF setup, `vfx/dofAperture.ts`, `CinematicPost` vignette; `docs/systems/graphics-quality.md`

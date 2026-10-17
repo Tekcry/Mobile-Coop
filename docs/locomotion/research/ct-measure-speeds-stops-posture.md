@@ -5,11 +5,11 @@ Measured 2026-10-17 from Michael's Chaos Theory footage (M20: copy pure CT). Cli
 ## Method and how far to trust it
 
 - **Noise meter as a gear signature.** The second HUD bar (footstep noise, 22 pips) holds a steady level for each gait and drops to 0 about 0.1-0.2 s after the body stops. Read per frame at 30 fps from the HUD crop (x 1840-2340, y 1448-1458). Levels are exact; they lag the body by about 0.1-0.15 s.
-- **Speed from camera scroll.** The CT camera tracks Sam, so the wall behind him scrolls. A block-matching tracker measured the scroll in px/s per frame (wall band y 350-780, also a floor band at foot depth for checks), plus Sam's on-screen drift. Speed = (scroll + Sam's drift) / scale.
-- **Scale reference: Sam himself**, ~790-830 px head to sole standing in the side-tracking clips (050259, 050827), taken as 1.8 m, so **~460 px/m at Sam's depth**. The floor band at foot depth scrolled at the same rate as the wall band at speed (050259 10-11 s: floor 1080-1150, wall 1005-1040 px/s), so the scroll is converted at Sam's scale. The door (~2 m) and tiles were not usable in these clips (door in another wall plane, no tiles beside the hallway wall).
+- **Speed from camera scroll.** The CT camera tracks the hero, so the wall behind him scrolls. A block-matching tracker measured the scroll in px/s per frame (wall band y 350-780, also a floor band at foot depth for checks), plus the hero's on-screen drift. Speed = (scroll + the hero's drift) / scale.
+- **Scale reference: the hero himself**, ~790-830 px head to sole standing in the side-tracking clips (050259, 050827), taken as 1.8 m, so **~460 px/m at the hero's depth**. The floor band at foot depth scrolled at the same rate as the wall band at speed (050259 10-11 s: floor 1080-1150, wall 1005-1040 px/s), so the scroll is converted at the hero's scale. The door (~2 m) and tiles were not usable in these clips (door in another wall plane, no tiles beside the hallway wall).
 - **Cross-check:** cadence x step length for the fast walk (050259 9.0-10.07 s: ~2 steps/s, toe-to-toe spread ~1.0 m, so ~1.7-2.0 m/s against 2.2 m/s by scroll). For the run the stride says ~3 m/s (step every 0.4 s, toe-to-toe spread ~0.95 m, 050259 15.65-16.7 s) against ~4.6 m/s by scroll: either CT's run slides the feet or the camera yaws while following. The scroll number is the world speed if the camera translates; treat the run as **4.6 m/s, plausible range 3.5-5**.
-- **Uncertainty:** absolute speeds +-20-25% (scale, camera distance, camera lag). Ratios between gears in one clip are better (+-10%). The camera lags at slow speed: in 050718 and 050827 it stays still while Sam walks slowly, then catches up, so slow speeds are averaged over long windows.
-- Nearly everything is night vision with the camera orbited by hand; Sam's feet are often at the frame edge. Leg detail (does the swing foot drop) is at the edge of what the footage shows.
+- **Uncertainty:** absolute speeds +-20-25% (scale, camera distance, camera lag). Ratios between gears in one clip are better (+-10%). The camera lags at slow speed: in 050718 and 050827 it stays still while the hero walks slowly, then catches up, so slow speeds are averaged over long windows.
+- Nearly everything is night vision with the camera orbited by hand; the hero's feet are often at the frame edge. Leg detail (does the swing foot drop) is at the edge of what the footage shows.
 
 ## 1. Speeds
 
@@ -17,16 +17,16 @@ Noise levels seen (pips lit, per 0.25 s): standing **0-1, 2, 7, 11-12**; crouche
 
 | Gait | Pips | m/s | +- | Reference (clip, s) |
 | --- | --- | --- | --- | --- |
-| Standing creep (slowest) | 0 | 0.1-0.3 | 0.1 | 050718 1.0-11.5 avg 0.3 (camera still 3.5-7 while Sam crosses the screen at ~0.1); 050827 6.7-9.7 ~0.1-0.2 |
-| Standing walk | 0 | 0.75 | 0.15 | 050649 11.5-16.5 steady scroll 320-348 px/s, Sam fixed on screen; 050649 2.0-3.0 and 050259 6.5-8.0 give 0.9 |
+| Standing creep (slowest) | 0 | 0.1-0.3 | 0.1 | 050718 1.0-11.5 avg 0.3 (camera still 3.5-7 while the hero crosses the screen at ~0.1); 050827 6.7-9.7 ~0.1-0.2 |
+| Standing walk | 0 | 0.75 | 0.15 | 050649 11.5-16.5 steady scroll 320-348 px/s, the hero fixed on screen; 050649 2.0-3.0 and 050259 6.5-8.0 give 0.9 |
 | Standing fast walk | 2 | 2.0 | 0.4 | 050259 9.0-10.0 (1005 px/s); stride check 1.7-2.0 |
 | Standing jog | 7 | 3.0 | 0.6 | 050827 18.4-19.2 and 22.0-22.9 (1350-1520 px/s peaks); 050259 10.2-11.8 reads 2.2 but the camera is still catching up |
-| Standing run (full speed) | 11-12 | 4.6 | 0.9 | 050259 15.5-17.5 run back, steady 2020-2190 px/s, Sam drifts back 60 px/s; 050649 short bursts peak 3.9-4.4 |
+| Standing run (full speed) | 11-12 | 4.6 | 0.9 | 050259 15.5-17.5 run back, steady 2020-2190 px/s, the hero drifts back 60 px/s; 050649 short bursts peak 3.9-4.4 |
 | Crouched slow | 0 | 0.4 | 0.1 | 050330 0.5-2.5 (160-231 px/s) |
 | Crouched walk | 0 | 0.85 | 0.2 | 050330 3.0-5.5 (311-468 px/s) |
 | Crouched fast walk | 0 | 1.5 | 0.3 | 050330 5.5-8.0 (653-744 px/s) |
 | Crouched brisk | 4 | 2.1 | 0.4 | 050330 8.0-9.0 (981-993 px/s) |
-| Crouched run | 9-10 | 2.6 | 0.5 | 050330 13.5-16.0 (1220-1520 px/s, Sam drifts back ~45 px/s); 053816 3.6-4.5 after the roll (1135-1185 px/s) agrees |
+| Crouched run | 9-10 | 2.6 | 0.5 | 050330 13.5-16.0 (1220-1520 px/s, the hero drifts back ~45 px/s); 053816 3.6-4.5 after the roll (1135-1185 px/s) agrees |
 
 Distinct speeds: **about 5 standing and 5 crouched** (B1 and B2 were stepped up one notch at a time). The noise meter only separates 4 standing / 3 crouched bands; the slow notches are all silent (0-1 pip). Run / walk ratio ~6; crouched run / standing run ~0.55.
 
@@ -106,5 +106,5 @@ What the body does (frame-stepped at 60 fps, 050827 28.05-28.45; 30 fps 22.75-23
 
 ## Open items
 
-- Running jump (053849 12-13 s) and crouching while walking (053800 8-14 s) need a 60 fps frame-step with Sam's screen position.
+- Running jump (053849 12-13 s) and crouching while walking (053800 8-14 s) need a 60 fps frame-step with the hero's screen position.
 - A top-down floor-tile count (051339) would confirm the run speed (scroll 4.6 against stride 3 m/s).

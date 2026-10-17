@@ -10,10 +10,10 @@ Where things are (local only, `pc/` is never committed):
 
 General notes for anyone measuring:
 - Nearly all footage is in night vision (green), on two test levels: a hotel corridor with a door and a marble-wall hallway (A-G), a hotel floor (H, I, K), outdoor yards and alleys (J).
-- The CT camera follows Sam, so "side view" clips track him: measure speed against the background (wall seams, the checkerboard floor tiles, the door ~2 m tall), not screen motion.
+- The CT camera follows the hero, so "side view" clips track him: measure speed against the background (wall seams, the checkerboard floor tiles, the door ~2 m tall), not screen motion.
 - The PC CT camera has no free side lock: Michael orbited it by hand, so the angle drifts inside most clips.
 - Michael's notes (checklist): rifle out exists only while aiming over the shoulder (A2, A3, B3, C6); the slowest stick speed walks backwards without turning, anything faster turns round 180 deg (D2); no aiming in cover, on a wall or over a low wall (G6, G8, G9).
-- Weapon in hand at idle: none visible (the HUD shows the SC-20K or pistol selected, but Sam is empty-handed unless aiming).
+- Weapon in hand at idle: none visible (the HUD shows the rifle or pistol selected, but the hero is empty-handed unless aiming).
 
 ## A. Standing still and posture
 
@@ -23,7 +23,7 @@ General notes for anyone measuring:
 | A1 | 20261017145524_1.jpg | still | front | standing, weapon away | yes |
 | A1 | 20261017145515_1.jpg, 145529, 145533, 145538, 145519 | still | 3/4 high side, behind, front-high, far side, top-down | standing, weapon away; extra angles | yes |
 | A1 | 20261017143430_1.jpg | still | behind, outdoors | normal vision, very dark, launcher selected; test shot before the session | no |
-| A1 | 035847 | 0-24 s, 33-35, 39-41 | camera orbits round standing Sam (front, high, side, behind) | weapon away; Sam repositions 24-31 s | partial (camera moves) |
+| A1 | 035847 | 0-24 s, 33-35, 39-41 | camera orbits round the standing hero (front, high, side, behind) | weapon away; the hero repositions 24-31 s | partial (camera moves) |
 | A2 | 20261017145602_1.jpg (left shoulder), 145605 (right shoulder) | still | over-the-shoulder aim | rifle out = aiming only (Michael); no side or front still possible | partial |
 | A3 | 20261017145628_1.jpg (left), 145631 (right) | still | over-the-shoulder aim | pistol aimed; no side still possible | partial |
 | A4 | 20261017145708_1.jpg, 145726, 145730 | still | side (both sides) | crouched, weapon away; best side profiles | yes |
@@ -58,7 +58,7 @@ General notes for anyone measuring:
 
 | code | file(s) | time range | view | notes | usable |
 | --- | --- | --- | --- | --- | --- |
-| D1 | 051044 | 0-35 s | behind / low 3/4, fixed | slow stick circle, turn on the spot; front, side and back of Sam all shown | yes |
+| D1 | 051044 | 0-35 s | behind / low 3/4, fixed | slow stick circle, turn on the spot; front, side and back of the hero all shown | yes |
 | D2 / D3 | 051250 | 0-28 s | top-down | flick behind and fast spins; slowest speed walks backwards, faster turns 180 (Michael); D3 has no separate clip | yes |
 | D4 | 051401 | 0-10 s | behind, high | walking slowly, curves left then right | yes |
 | D4 / D5 | 051339 | slow curves 0-16, fast turns and reversals 17-34 | top-down | good for foot placement in turns | yes |
@@ -96,12 +96,12 @@ General notes for anyone measuring:
 
 | code | file(s) | time range | view | notes | usable |
 | --- | --- | --- | --- | --- | --- |
-| G1 | 20261017161921_1.jpg, 161923, 161926, 161932, 161940 (+ png) | still | front / front-high (camera between Sam and the room), one near the door frame | standing on wall | yes |
+| G1 | 20261017161921_1.jpg, 161923, 161926, 161932, 161940 (+ png) | still | front / front-high (camera between the hero and the room), one near the door frame | standing on wall | yes |
 | G2 | 20261017161937_1.jpg, 161944, 161947 (+ png) | still | front-side | crouched on wall | yes |
 | G1 / G3 / G4 / G5 | 051917 | approach 0-4, on wall front view 2-10, step off 9-12, standing slide 13-20, wall end at door frame (corner, peek) 21-28, crouched slide 29-37, stand 38-41 | front (camera faces the wall), drifts | the CT camera does not stay behind on the wall | yes |
 | G3 / G4 / G5 | 052021 | standing slide 0-8 with corner at 3-5, crouched slide 9-16 with corner 13-16 | front-side | slide speeds and corner stop / peek | yes |
 | G5 | - | - | - | no STILL of the camera while peeking | partial |
-| G6 / G7 | 052059 | crouched on wall 0, aim attempt 1-5 (camera goes over-shoulder, Sam leaves the wall), standing on wall 6-11, leave 12-13, again 14-19 | front, then over-shoulder | no aim on the wall (Michael) | yes |
+| G6 / G7 | 052059 | crouched on wall 0, aim attempt 1-5 (camera goes over-shoulder, the hero leaves the wall), standing on wall 6-11, leave 12-13, again 14-19 | front, then over-shoulder | no aim on the wall (Michael) | yes |
 | G8 / G9 | 052206 | crouched along a waist-high counter 0-20, standing walk along it and at its end 21-37 | side (tracking) | cant: no aiming in cover; still useful for low-cover crouch-walk | partial |
 
 ## H. Doors
@@ -122,7 +122,7 @@ General notes for anyone measuring:
 | --- | --- | --- | --- | --- | --- |
 | I1 | 052527 | strike 2-3, guard down 4-5 | side | non-lethal strike on a guard at a door; best side view of a strike | yes |
 | I1 / I6 | 052441 | guard walks 0-6, save menu 7-11, approach behind 12-16, grab 16-17, hold / walk with guard 18-29, 30-32 after | behind / high | grab from behind and walk | yes |
-| I2 / I3 | 052502 | approach 0-1, strike 2-3, guard down 4-6 | behind | guard facing Sam | yes |
+| I2 / I3 | 052502 | approach 0-1, strike 2-3, guard down 4-6 | behind | guard facing the hero | yes |
 | I2 / I3 | 054824 | strike 0-2, guard down, crouch 3-4 | side-behind, alley level | short | partial |
 | I1 / I2 | 055600 | 0-3.5 s | behind-side, alley by a car | strike / takedown | partial |
 | I4 | - | - | - | ticked done, no clip found (strike with no guard) | no (missing) |
@@ -145,7 +145,7 @@ General notes for anyone measuring:
 | J3 | 054411 | drainpipe up 2-12, drop 13-16, up again 17-26 | behind / side | | yes |
 | J3 | 055717 | fire-escape ladder down 0-6, land 7 | high side | | yes |
 | J4 | 054411 | 27-32 s | behind | hanging hand-over-hand from a horizontal pipe, then drop 33-34; no legs-up or upside-down aim | partial |
-| J5 | 20261017164437_1.jpg (+ png) | still | behind | Sam in a narrow corridor (split-jump spot); no split jump done (skipped) | no |
+| J5 | 20261017164437_1.jpg (+ png) | still | behind | The hero in a narrow corridor (split-jump spot); no split jump done (skipped) | no |
 | J6 | 054702 | 0-14, pause 15-20, 21-30 | behind, alley | wall jump attempt, not achieved (Michael: couldn't do it) | no |
 | J7 | - | - | - | skipped | no (missing) |
 | J8 | - | - | - | not attempted | no (missing) |
@@ -158,8 +158,8 @@ General notes for anyone measuring:
 | code | file(s) | time range | view | notes | usable |
 | --- | --- | --- | --- | --- | --- |
 | K1 | 053251 | guard close / walking 4-17, guard far (~15 m) and static 18-44 | behind, thermal | no separate stills; grab frames from the clip | yes |
-| K1 | 053200, 053323 | 0-1 s, 0-2 s | thermal | Sam only; 053200 then pause menu | partial |
-| K2 | 053437 | Sam walking in thermal 2-35, window / lamps hot 36-44 | behind, thermal | no wall-with-person-behind shot | partial |
+| K1 | 053200, 053323 | 0-1 s, 0-2 s | thermal | The hero only; 053200 then pause menu | partial |
+| K2 | 053437 | The hero walking in thermal 2-35, window / lamps hot 36-44 | behind, thermal | no wall-with-person-behind shot | partial |
 | K2 | 052901 | 4-15 s | thermal through a door | guard visible through the door | partial |
 | K3 | 053525 | 0-36 s | behind, night vision | NV walk through rooms; no dedicated still | yes |
 | K3 / K4 | 054201 | thermal 0-1.5, EMF 1.75-2.25, NV 2.5-3, normal 3.25 | behind | vision-mode cycle | partial |
@@ -185,7 +185,7 @@ Good (usable footage for the item):
 
 Partial:
 - A2, A3 (aim view only, by design of CT); B4 (aim view, legs out of frame); G5 (peek in video, no peek still); G6, G8, G9 (CT has no aiming in cover, the clips show that); H3, H4 (break lock, no bash); J4 (hand-hang only); K2, K4.
-- Camera moved: A1 video 035847 (orbit), G clips (camera faces the wall, drifts), all B-E "side" clips track Sam.
+- Camera moved: A1 video 035847 (orbit), G clips (camera faces the wall, drifts), all B-E "side" clips track the hero.
 - Too dark: 043832 / 043858 (A6, usable but dim), 053709 0-8 s and 26-31 s, 053617 (EMF).
 
 Missing:

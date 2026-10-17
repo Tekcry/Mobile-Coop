@@ -1305,7 +1305,7 @@ export class GameState implements AppState {
     look.y = look.y * this.assistScale + r.dPitch;
   }
 
-  /** The brightness calibration is held at its default (bible 5.15: the Confrontation; set by that mission). */
+  /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
 
   /** Photo mode (feedback screenshots): the camera is flown by the photo screen, the world holds still. */
@@ -2103,7 +2103,7 @@ export class GameState implements AppState {
       this.postKey = key;
       this.post.configure(v.vignette, v.filmGrain);
     }
-    // (Step 4b) the brightness calibration; the Confrontation locks it (bible 5.15)
+    // (Step 4b) the brightness calibration (the lock is unused since G9: no Confrontation)
     this.post.setBrightness(this.brightnessLocked ? 1 : v.brightness);
     const scale = this.app.loop.timeScale || 1;
     const real = dt / scale;

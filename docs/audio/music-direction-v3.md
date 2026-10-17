@@ -124,11 +124,11 @@ that loop in sync**; the game moves their gains by threat. **Alert adds percussi
 - **Size: 0.96 MB per minute** of stereo stem at 128 kbps (measured: 8.79 MB for 9 stems of 61 s). 96 kbps would be
   0.72 MB per minute; 128 is kept for the sketches so Michael judges them at full quality.
 
-### 8.3 Proposed audio budget
+### 8.3 Audio sizes (no size limit, G59)
 
-| Item | Budget |
+| Item | Size |
 | --- | --- |
-| Shipped music, total | **16 MB** (precached for offline play) |
+| Shipped music, total | about **16 MB** (precached for offline play; an estimate, not a limit) |
 | Per track (three stems, 60 s loops) | 2.9 MB at 128 kbps, 2.2 MB at 96 kbps |
 | Example game score | Menu + 4 map tracks + results = 6 tracks x 3 stems x 75 s = 22.5 stem-minutes: 21.6 MB at 128 kbps, **16.2 MB at 96 kbps**. So: 96 kbps for calm and caution stems, 128 for alert stems, about 18 MB; or 75 s loops capped to 60 s, about 14 MB. |
 | Decoded memory (one track live) | **47 MB** at 32 kHz (three 61 s stereo stems); 70 MB at 48 kHz |

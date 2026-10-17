@@ -375,7 +375,7 @@ automated tests (where testable), the full e2e suite passes, perf is within budg
 - **Insertion and extraction:** a choice of 2-3 insertion points per mission (rooftop via zipline, sewer via
   ladder, front gate). Extraction is at a marked zone with a short helicopter-or-van style stinger: letterbox and
   slow beat.
-- **Mission select:** a "Grim board" style map list showing each map's modes, best ratings and the play-style
+- **Mission select:** a mission-board style map list showing each map's modes, best ratings and the play-style
   split. Difficulty is chosen per mission.
 - **Maps** (keep Warehouse, Dust Depot and Proving Grounds, rebuilt for verticality):
   - **Embassy** (night): offices, a courtyard, a roof with pipes and ledges, a server room and vents.
@@ -416,7 +416,7 @@ automated tests (where testable), the full e2e suite passes, perf is within budg
 - **Suit and equipment** (Blacklist "suit" system): vest/armour (armour vs noise trade-off), gloves (draw/swap and
   takedown speed), boots (noise), goggles (sonar or NV upgrades), pouches (gadget capacity).
   - Each piece has 3-4 tiers with stats and a distinct procedural look on the operator.
-- **HQ upgrades** (Paladin-style hub menu): a radar on the HUD minimap; sonar range; Execute charge capacity
+- **HQ upgrades** (mobile-base hub menu): a radar on the HUD minimap; sonar range; Execute charge capacity
   (+1 mark); gadget restock between checkpoints; co-op revive speed.
 - **Economy:**
   - Cash from missions, split by Ghost, Panther and Assault, with mission multipliers.

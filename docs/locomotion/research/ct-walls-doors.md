@@ -25,30 +25,30 @@ Labels used below:
 | GR-FAQ | [GameRevolution CT FAQ (VampireHorde)](https://www.gamerevolution.com/guides/29920-splinter-cell-chaos-theorysplinter-cell-chaos-theory-splinter-cell-chaos-theory-faq) | Fan walkthrough with control list. |
 | 80LV | [80.lv: CT animations](https://80.lv/articles/a-look-back-at-tom-clancy-s-splinter-cell-chaos-theory-s-animations/) | Outside analysis of CT crouch animation. |
 
-Not reached: GameFAQs (search is script-loaded), GameSpot walkthrough (403), the Fandom pages directly (402; the API worked). No developer interview on CT animation or wall moves was found; the Shacknews Q&As ([1](https://www.shacknews.com/article/33053/splinter-cell-chaos-theory-qa), [2](https://shacknews.com/article/33566/splinter-cell-chaos-theory-qa)) only list topics. No source describes **how Sam's body looks** on the wall or what the **camera** does at a corner in CT. Those points are marked Unverified.
+Not reached: GameFAQs (search is script-loaded), GameSpot walkthrough (403), the Fandom pages directly (402; the API worked). No developer interview on CT animation or wall moves was found; the Shacknews Q&As ([1](https://www.shacknews.com/article/33053/splinter-cell-chaos-theory-qa), [2](https://shacknews.com/article/33566/splinter-cell-chaos-theory-qa)) only list topics. No source describes **how the hero's body looks** on the wall or what the **camera** does at a corner in CT. Those points are marked Unverified.
 
 ## 1. Back to wall
 
 Source:
-- CT: "Click the left thumbstick when standing or crouched to put Sam's back to the wall. Sam is less visible with his back to a wall." (M-CT p. 9). Xbox: click left stick; PC: Q (W-CTRL).
+- CT: "Click the left thumbstick when standing or crouched to put [the hero]'s back to the wall. [The hero] is less visible with his back to a wall." (M-CT p. 9). Xbox: click left stick; PC: Q (W-CTRL).
 - So CT has a **crouched** back-to-wall as well as a standing one. Crouch is a separate toggle (B / C) (M-CT p. 9, W-CTRL).
-- Same wording and same button in PT (M-PT) and SC1 (M-SC1: "Back to Wall (Q by default). Sam is less visible with his back to a wall.").
-- The purpose is visibility: "crouching, moving slowly, and keeping your back to the wall also contribute to Sam's invisibility" (M-SC1, M-PT).
+- Same wording and same button in PT (M-PT) and SC1 (M-SC1: "Back to Wall (Q by default). [The hero] is less visible with his back to a wall.").
+- The purpose is visibility: "crouching, moving slowly, and keeping your back to the wall also contribute to [the hero]'s invisibility" (M-SC1, M-PT).
 - In CT the same button becomes **Switch shoulder** when a weapon is out (M-CT p. 11, W-CTRL).
 - CT: drawing and aiming a weapon ends back-to-wall: "When the player upholsters and aims their weapon, they deactivate the cover action and move around freely" (W-COVER).
 - PT spy multiplayer (different mode, same studio era): face the wall, press A; move with the stick; B crouches; leave by pressing A again or by drawing the weapon (M-PT).
-- PC speed was analogue via the mouse wheel: "Accelerate (mouse wheel up) / Decelerate (mouse wheel down)" (M-SC1); "Sam's walk/run is handled by the forward/backward movement of the mouse wheel" (TE-R).
+- PC speed was analogue via the mouse wheel: "Accelerate (mouse wheel up) / Decelerate (mouse wheel down)" (M-SC1); "[The hero]'s walk/run is handled by the forward/backward movement of the mouse wheel" (TE-R).
 
 Not found: wall slide speed, the exact stance (flat back or shoulder), and what happens at the end of a wall in CT.
 
-Unverified (memory): in SC1-CT Sam stands flat with his shoulder blades and the back of his head to the wall, arms down and slightly back. He shuffles sideways, head turned to the direction of travel. At an edge he stops.
+Unverified (memory): in SC1-CT the hero stands flat with his shoulder blades and the back of his head to the wall, arms down and slightly back. He shuffles sideways, head turned to the direction of travel. At an edge he stops.
 
 ## 2. Corners: peek and lean out to shoot
 
 Source:
-- SC1: "When Sam approaches a corner with his back to the wall, he will automatically peek around the corner. Press Use/Equip while peeking to equip the selected weapon and allow him to shoot around the corner." (M-SC1).
+- SC1: "When [the hero] approaches a corner with his back to the wall, he will automatically peek around the corner. Press Use/Equip while peeking to equip the selected weapon and allow him to shoot around the corner." (M-SC1).
 - PT: the same, plus throwing from the peek (M-PT). PT spy mode: keep pushing the stick toward the corner and "he will poke his head around the side of the wall to see what is going on" (M-PT).
-- **CT removed shooting from back-to-wall.** "the ability to shoot around corners has been removed, although this is balanced by being able to switch the side of Sam's body the gun is on while in a firing position" (W-CT; same in WP-CT). "the ability to shoot while pressed against a wall has been removed" (TE-R).
+- **CT removed shooting from back-to-wall.** "the ability to shoot around corners has been removed, although this is balanced by being able to switch the side of [the hero]'s body the gun is on while in a firing position" (W-CT; same in WP-CT). "the ability to shoot while pressed against a wall has been removed" (TE-R).
 - CT's replacement is Switch Shoulder: "While in the Aiming mode, click the left thumbstick to switch your weapon from one shoulder to another. That way you will be able to aim at any angle." (M-CT p. 11). Reviews: "quickly switch shoulders by pressing in on the left stick" (GS-R); "switch the over the shoulder view from right to left" (TE-R).
 - So in CT you shoot round a corner by standing off the wall, aiming, and putting the gun and camera on the corner side.
 
@@ -61,9 +61,9 @@ Unverified (memory): during the SC1 / PT back-to-wall peek the camera swings out
 ## 3. Low cover and aiming over it
 
 Source:
-- CT back-to-wall works crouched (M-CT p. 9). Crouching is "slower, but quieter, and Sam is less visible" (M-CT p. 9).
+- CT back-to-wall works crouched (M-CT p. 9). Crouching is "slower, but quieter, and [the hero] is less visible" (M-CT p. 9).
 - CT holds a crouch frame with only a slight breathing motion rather than switching to an idle (80LV, quoting artist Thomas Ripoll Kobayashi).
-- Wiki photo caption: "Sam Fisher fires while taking cover behind barrels" (W-COVER). It does not say whether he is crouched or standing.
+- Wiki photo caption: "[The hero] fires while taking cover behind barrels" (W-COVER). It does not say whether he is crouched or standing.
 
 Not found: any CT rule for aiming over low cover (auto-rise, pop-up height). CT has no cover system beyond back-to-wall. Cover snapping came with Conviction and Blacklist (W-COVER).
 
@@ -72,17 +72,17 @@ Inference: in CT, aiming from a crouch behind low cover means aiming crouched. W
 ## 4. SWAT turn
 
 Source:
-- Added in PT: "When clinging to a wall near an open doorway, Sam can do a 'swat turn' manoeuvre to move past the open door while remaining hidden from view." (W-PT).
-- PT manual: "While Sam is peeking at an open door or a small corridor, press the A button to perform a SWAT Turn." (M-PT). PC: Space / Enter (W-CTRL).
-- **Not in console / PC CT.** "The SWAT turn was taken out of Sam's repertoire." (GS-R). The wiki lists PT, CT DS and Essentials as the only SWAT-turn games (W-PT). The CT control tables have no SWAT entry (W-CTRL).
+- Added in PT: "When clinging to a wall near an open doorway, [the hero] can do a 'swat turn' manoeuvre to move past the open door while remaining hidden from view." (W-PT).
+- PT manual: "While [the hero] is peeking at an open door or a small corridor, press the A button to perform a SWAT Turn." (M-PT). PC: Space / Enter (W-CTRL).
+- **Not in console / PC CT.** "The SWAT turn was taken out of [the hero]'s repertoire." (GS-R). The wiki lists PT, CT DS and Essentials as the only SWAT-turn games (W-PT). The CT control tables have no SWAT entry (W-CTRL).
 
 ## 5. Doors
 
 Source:
 - CT door interactions: "open door, open door stealth, bash door, and optic cable" (TE-R). The FAQ also lists SLIDE OPEN, BREAK OPEN, BREAK LOCK and PICK LOCK (GR-FAQ).
-- **Open Door Stealth (CT):** "If you want to make sure no one hears you, open the door in a stealthy way. You can make Sam open/close the door as fast as you want by playing with the left thumbstick." (M-CT p. 11). "Stealth allows the player to manually push the door ajar being careful of not disturbing whoever's inside." (TE-R).
+- **Open Door Stealth (CT):** "If you want to make sure no one hears you, open the door in a stealthy way. You can make [the hero] open/close the door as fast as you want by playing with the left thumbstick." (M-CT p. 11). "Stealth allows the player to manually push the door ajar being careful of not disturbing whoever's inside." (TE-R).
 - **Door Peek (SC1):** "To peek through a door before entering, select the Peek Door interaction. Move Forward to go through the door or move Backward close it." (M-SC1).
-- **Bash Door (CT):** "Sam will break through to another room by hitting the door with his feet... this move will make some noise, but it can knock out an enemy on the other side." (M-CT p. 11). "Bashing will result in a one-hit takedown of the foe." (GS-R).
+- **Bash Door (CT):** "[The hero] will break through to another room by hitting the door with his feet... this move will make some noise, but it can knock out an enemy on the other side." (M-CT p. 11). "Bashing will result in a one-hit takedown of the foe." (GS-R).
 - **Break Lock (CT):** knife; "this is noisy, and broken locks will cause guards to become curious." (M-CT p. 11).
 - **Lock picking (CT):** rotate the left stick until the pad rumbles, then hold it steady for a few seconds per pin. Quiet and cannot be detected (M-CT pp. 11, 19).
 - **Optic cable:** "used to peek under doors ... without being exposed"; CT can cycle normal, night, thermal and EMF views (W-OPTIC). In CT it is an interaction on the door (W-PT: "simply approach a door and select to use your optic cable or lockpick").
@@ -136,4 +136,4 @@ Reasons:
 4. Gameplay stays the same. CT's back-to-wall benefit is lower visibility (M-CT), and Night Shift gameplay reads collision, occupancy and light, not pose (CLAUDE.md). Changing the pose doesn't change the stealth rules.
 5. It reuses the existing wall state, slide and edge logic. Only the pose, the head clamp, the camera offset and the lean pivot change.
 
-Open questions for footage (Unverified above): how far the SC1 / PT / CT camera swings out on a peek, the CT wall slide speed, and Sam's exact CT wall pose.
+Open questions for footage (Unverified above): how far the SC1 / PT / CT camera swings out on a peek, the CT wall slide speed, and the hero's exact CT wall pose.

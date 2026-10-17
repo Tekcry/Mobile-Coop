@@ -13,8 +13,8 @@ Written sources gave no CT timings, distances or poses (docs/locomotion/research
    `C:\NightShift\Mobile-Coop-locomotion\pc\ct-ref\` on the desktop (that folder stays local, it is never committed).
 7. In each clip, do the action once, then repeat it once more. Hold still for 2 s before and after.
 
-"Side view" = turn the camera until Sam is seen exactly side-on, then do not touch the camera.
-"Front view" = camera in front of Sam, facing him. "Behind" = the normal play camera.
+"Side view" = turn the camera until the hero is seen exactly side-on, then do not touch the camera.
+"Front view" = camera in front of the hero, facing him. "Behind" = the normal play camera.
 
 ## Z. Game files (PC only, 2 minutes, saves hours)
 Z1. Copy the CT install's `System` folder `.ini` files (e.g. `SplinterCell3.ini`, `SplinterCell3User.ini`, any
@@ -44,7 +44,7 @@ C6. Same, rifle out. One video.
 
 ## D. Turning
 D1. Standing still, push the stick slowly round a full circle (camera behind, then side). Video.
-D2. Standing still, flick the stick to directly behind Sam. Video.
+D2. Standing still, flick the stick to directly behind the hero. Video.
 D3. Standing still, spin the stick fast in circles for 5 s; watch the feet. Video, side view and from above if the camera allows.
 D4. Walking slowly: curve left, then right. Video from behind.
 D5. Full speed: turn 90 deg, then reverse direction completely. Video from behind and side.
@@ -67,7 +67,7 @@ F6. Sniper / zoom view in and out, and hold breath. Video.
 F7. Crouched aim (rifle): aim STILL from 3 m to the door.
 
 ## G. Back to wall
-G1. Put Sam's back to a wall, standing: side STILL, front STILL, and from above if possible.
+G1. Put the hero's back to a wall, standing: side STILL, front STILL, and from above if possible.
 G2. Same crouched: side STILL, front STILL.
 G3. Slide along the wall left and right, standing then crouched, slow then full speed. Video from behind.
 G4. Slide to the end of the wall at an outside corner and keep pushing the stick. Video.

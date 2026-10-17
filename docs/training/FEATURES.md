@@ -119,7 +119,7 @@ bay (R3: one shared course); team moves and the split drills keep their roles (s
 | Proximity mine | exists | B8 gate (either) | host blast | e2e-gadgets | - |
 | Throw an object (bottle, can) | P6 | B5, B8 (each, greyed lines until Phase 6) | thrown object state | e2e-bunker (when live) | Noisemaker covers the lure |
 | Pistol secondary (camera jammer + light disruptor) | V3 | B8 lamp gantry and CAM-R (each, greyed line until V3); B5 EM1, B6 CAM3, B9 CAM-P2 (placed) | host range / line / charge check; light state; `sec` (S4) | e2e-toolkit, e2e-bunker B8 | Shoot the lamp (destroyed, not timed) |
-| Sticky shocker | V3 | B8 dummy (each, greyed line until V3); B8-E, B9 (placed) | weapon path; host knock-out | e2e-toolkit | Gas or takedown |
+| Shock round | V3 | B8 dummy (each, greyed line until V3); B8-E, B9 (placed) | weapon path; host knock-out | e2e-toolkit | Gas or takedown |
 | Ring airfoil | backlog 23 | B8 lane (each, greyed line until the backlog item lands) | weapon path | - | Not a drill until it lands (D30) |
 | Knife (lethal takedown, cut tarps) | backlog 24 | B7: a dust sheet over the cavern's north-east recess (cut: a hide spot) | `use` kind `cut` | - | Recess open |
 | Wall hug (toolkit row) | loco 11 | see section 1 | - | - | - (merged before Block C, D15) |
@@ -238,7 +238,7 @@ bay (R3: one shared course); team moves and the split drills keep their roles (s
 | Camos, outfits, emotes, appearance editing | Parked (bible 6). |
 | Tri-rotor drone gadget, recon drone, drone operator | Parked (bible 6). |
 | Minimap | Parked (bible 6). |
-| The Confrontation (traitor finale, versus) | Mission 8 only (bible 5.15); versus content, not a co-op course. |
+| The Confrontation (traitor finale, versus) | Removed (G9): Mission 8 has no traitor and no versus finale (bible 5.15). |
 | 3-4 players, `coopExtras` | The bunker is exactly 2 players (D2). The bible's 4-player e2e stays on other maps. |
 | Solo play, solo routes | Co-op only (D1). Solo teaching is Training mode; solo testing uses the bot. |
 | Quicksave | Decided against (bible 11, 2026-10-08). |

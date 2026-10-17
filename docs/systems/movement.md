@@ -4,7 +4,7 @@ Design authority: docs/DECISIONS.md (G1, G25-G39), then docs/design-bible.md (Se
 
 Every number in this file is a starting value, tuned after Michael plays the CT prototype (G4, G10). The CT research is
 docs/locomotion/CT-RESEARCH.md; the prototype plan is docs/locomotion/PROTOTYPE-PLAN.md. History of how the code got here:
-docs/ct-movement.md and the git log.
+docs/archive/ct-movement.md and the git log.
 
 ## Decided direction (the CT prototype builds it)
 The code below is the locomotion run's build. Where Michael has decided otherwise, the line says so:

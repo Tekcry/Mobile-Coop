@@ -48,4 +48,4 @@ Follow-ups, after the research and the prototype (one line each; their order is 
   the player drone, the custom difficulty sliders, carried medkits.
 - `package.json` says 3.5.1 until the PR's version commit sets 4.0.0 (G84). `SAVE_VERSION` 9, `PROTOCOL_VERSION` 13.
 - Known test state: e2e-course failed once under load (lever door 1994 ms > 500) and passed solo; legacy e2e-progression
-  fails at "Y customises the weapon" (report only); the items in the "Test fixes" row above.
+  passes (fixed in 3c7c2a5); the items in the "Test fixes" row above.

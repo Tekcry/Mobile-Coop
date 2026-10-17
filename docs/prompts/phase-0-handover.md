@@ -96,7 +96,7 @@ These are fixed. Do not reopen them.
       - at least 50% on reload
       - a revive restores 35%
 
-21. **The finale (bible 5.15):** Mission 8 reveals a random, hidden traitor among the players (an AI one in solo).
+21. **The finale (bible 5.15):** Mission 8 reveals a random, hidden traitor among the players (an AI one in solo). (Void: G9 dropped the traitor.)
     - Act 2 is a hunt: unarmed protagonists against first-person traitors with a loud pistol.
     - 1v1, 1v2 with three players, 2v2 with four.
     - Always versus in co-op.

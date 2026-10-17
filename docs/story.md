@@ -197,14 +197,14 @@ Looks and personality only. Both move the same; they differ in look and height (
 **Why it fits:**
 
 - He knows where Peg will be. That is how she is taken (Mission 6).
-- He hears every briefing. That is how Pell knows the team is coming (Mission 5) and how SUNDOWN can start early (Mission 7).
+- He hears every briefing. That is how SUNDOWN can start early (Mission 7).
 
 **How the reveals land:**
 
 1. Missions 1-5: Crane appears only in passing, as Peg's calm, supportive boss in a briefing or two.
 2. **Mission 6:** while rescuing Peg, intel proves Crane authorised her transfer. The Client has a face, and it is their own side.
 3. **Mission 7:** Crane, exposed, starts SUNDOWN early.
-4. **Mission 8:** the team restores the grid; Peg delivers the evidence and Crane is arrested.
+4. **Mission 8:** Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
 **What SUNDOWN is:**
 
@@ -229,15 +229,13 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The m
 | 5 | **The Strongroom** | Victorian bank, old town, now a private vault company | Take Pell's escrow and records from the old vault. Pell sells the team out. **Ends:** the Client learns who Peg is. | Old building meets modern security: the vault, beams, cameras, time locks | Both players on the vault and the alarm at once |
 | 6 | **Lantern Out** | Private clinic, old town | Peg has been taken. Rescue her. **Ends:** intel proves Crane, the Office's own director, is the Client. | **No radio.** Objectives come only from intel found in the level. | Coordination by pings alone: the purest co-op mission |
 | 7 | **Substation Zero** | Ashgrove substation | Exposed, Crane starts SUNDOWN early, mid-mission. Optional: stop the last failover hardware arriving by rail at the Ashgrove siding. **Ends:** the city is dark and grid control is the only way back. | **The blackout:** lights fail across the map in real time; guards switch to torches and night vision; the main mechanic flips. Optional set piece on the siding. | Holding a dark map against torches; clutch saves |
-| 8 | **Sundown** | Ashgrove grid control | Restore the grid together and end SUNDOWN. **Ends:** the lights come back; Crane is arrested. | Restoring breakers brings the lights back room by room | Decided with the missions (Section 9) |
+| 8 | **Sundown** | Ashgrove grid control | Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written. | Open (Section 9) | Decided with the missions (Section 9) |
 
-**The leaks in Missions 5-7 come from Crane**, who hears every briefing (written ambiguously until Mission 6):
+**The leaks in Missions 5-7** (Pell knows the team is coming to the vault and whom to sell them to, Mission 5; the
+Client knows where Peg is, Mission 6; SUNDOWN starts early, Mission 7) were the traitor's doing. Who leaks now:
+Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
-- Pell knows the team is coming to the vault, and knows whom to sell them to (Mission 5).
-- The Client knows where Peg is (Mission 6).
-- SUNDOWN starts early (Mission 7).
-
-**The ending (Lights On):** the rooftop, the city lighting up block by block, LANTERN and the team.
+**The ending:** Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
 **Rules for mission writing:**
 
@@ -348,7 +346,7 @@ LANTERN: Then we've nine nights. Come home.
 Decided with the missions (Michael: "Decide with missions", STORY-03, STORY-04):
 
 1. **The site and company names** Cinder Yard and Ostler Colocation (working names until then).
-2. **The epilogue lines** for the ending.
+2. **The epilogue lines** for the ending (once the ending is written, item 9).
 3. **Mission 6's location detail** and how Peg is held.
 4. **The guarding firm's name** in Mission 1 (and whether it recurs in Halcyon's buildings).
 5. **What the van in the Mission 1 yard carries** (spares for Pell's cage, or a first glimpse of the failover units).
@@ -358,7 +356,11 @@ Decided with the missions (Michael: "Decide with missions", STORY-03, STORY-04):
 
 Opened by dropping the traitor finale (G9) and the solo route (G2), for the missions:
 
-9. **Mission 8's shape** now it has no betrayal or Confrontation: its co-op highlight and how the grid is restored.
-10. **The leaks in Missions 5-7:** written here as Crane's doing; Michael confirms.
+9. **Mission 8 and the ending** (Sections 5 and 6): Open, decided with missions (STORY-04, G9): no traitor;
+    replacement plot to be written. Its story beat, gameplay showcase, co-op highlight and ending are all open.
+    Nothing after the Mission 7 blackout is decided.
+10. **The leaks in Missions 5-7** (Section 6): Open, decided with missions (STORY-04, G9): no traitor;
+    replacement plot to be written. Who leaks to Pell (Mission 5) is open;
+    Crane knowing where Peg is (Mission 6) and starting SUNDOWN early (Mission 7) stand from Section 5.
 11. **The operators' dossier secrets** (a sealed file, a debt letter, a message to a journalist, an old case number)
     were motives for the traitor: keep them as found intel or drop them.

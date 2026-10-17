@@ -312,8 +312,7 @@ stands: music follows every guard's state, never count, distance or direction.
 - No count, no distance, no direction; nothing panned toward a guard.
 - A guard's meter rising while still `unaware` changes nothing.
 - Stingers fire only on events that also show on screen or on the radio.
-- **The Confrontation** (bible 5.15) follows only the escalation value (0-1), never positions, and plays no stingers:
-  0-0.3 Infiltration, 0.3-0.6 Caution, 0.6-0.85 Evasion, 0.85-1 Alert without the stinger. Changes at phrase ends.
+- No Confrontation mode: Mission 8 has no traitor and no versus finale (G9; bible 5.15).
 
 ---
 

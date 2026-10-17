@@ -108,7 +108,7 @@ States: calm, suspicious, searching, combat.
   - Each is quantised to the beat and ducks the stems briefly.
 - **Music never reveals what the player could not know.**
   - It reacts only to states the game already shows: awareness arcs, alerts, alarms, the radio.
-  - In the Confrontation (bible 5.15) it follows only the escalation timer, never anyone's position. Add a `confrontation` mode stub that takes only a 0-1 escalation value.
+  - There is no Confrontation mode and no `confrontation` stub (G9: no traitor, no versus finale; bible 5.15).
 
 ### Adapter
 
@@ -198,7 +198,6 @@ STOP with the lab ready for Michael.
 
 - All four states, up / down transitions on beats and phrases, hysteresis, stingers.
 - The adapter wired to the game, replacing the old music.
-- The Confrontation stub.
 - Unit tests for the state machine.
 - e2e on the Warehouse: alert a guard and the state rises; break line of sight and it falls back over time.
 

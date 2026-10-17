@@ -984,7 +984,7 @@ Unavoidable elements:
 | Size, shape | 60 x 16, 8 high (960 m2, 48% of v1): 60 m long because the sniper target is at 50 m. Lanes z 0..12; the dark walk z 12..16 under the catwalk. |
 | Verticality | Catwalk and tower (4.0) over the dark walk. |
 | Colour | 5600 K LED high bays over the lanes; floods in the shoot-house. |
-| New mechanics | Weapons (pistol, SMG, rifle, shotgun, sniper), ADS, no hip fire, reload, swap, suppressed vs loud, penetration, headshots, barrels; every gadget; pistol secondary and sticky shocker (V3); throwables (Phase 6); ring airfoil (backlog); enemy attacks: guards shooting, a grenade, a flanker, suppression, a sniper laser, a shield. |
+| New mechanics | Weapons (pistol, SMG, rifle, shotgun, sniper), ADS, no hip fire, reload, swap, suppressed vs loud, penetration, headshots, barrels; every gadget; pistol secondary and shock round (V3); throwables (Phase 6); ring airfoil (backlog); enemy attacks: guards shooting, a grenade, a flanker, suppression, a sniper laser, a shield. |
 | Guards | 3 (B8-S sniper, B8-E enforcer, B8-F grunt flanker), alerted when "live fire" starts. |
 | Lead / second | P2 (catwalk overwatch) / P1 (floor). |
 
@@ -1029,7 +1029,7 @@ Objectives (R5):
 | 20 | Advance through the shoot-house to the far end | P1 | SH | reach the far end |
 | 21 | Throw the cease-fire switch and unbolt the catwalk stair | P1 | CS foot | switch, bolt gate |
 | 22 | Both on the airlock pad | both | A8 | airlock |
-| - | Pistol secondary on a lamp and CAM-R (each); sticky shocker on a dummy (each; B8-E: placed) (V3); throw a bottle (each, Phase 6); ring airfoil (each, backlog) | - | - | not drills until they land |
+| - | Pistol secondary on a lamp and CAM-R (each); shock round on a dummy (each; B8-E: placed) (V3); throw a bottle (each, Phase 6); ring airfoil (each, backlog) | - | - | not drills until they land |
 
 Sequence: weapons and gadget drills on the firing line (both, side by side, 1-17); the lead climbs to RT for the
 sniper (18). Then "live fire": the three role-players at the far end are alerted. Split (listed in 0.2): the lead

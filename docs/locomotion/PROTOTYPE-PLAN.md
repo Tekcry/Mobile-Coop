@@ -28,7 +28,7 @@ positions are reliable; colours and hand detail are not.
    closing step: the feet freeze where they are mid-stride, the frozen split stance holds ~1.7 s, then blends to idle
    over ~0.3-0.4 s. Torso keeps its lean until the root stops, then comes upright over ~0.15 s. Moving again resumes
    from the held pose. Remove step 22's eased stop, closeStep, the 0.25 s stop spring and stopNoKneel workarounds as
-   needed (3.2.0's frozen stop, docs/ct-movement.md Phase 0, is the closest older code).
+   needed (3.2.0's frozen stop, docs/archive/ct-movement.md Phase 0, is the closest older code).
 4. Turns (M20 Q7, ct-measure-turns.md): no stationary turn: any stick input walks, so spinning on the spot is the walk
    cycle on a tiny circle (radius <= 0.2 m, ~1 step per 90 deg, no pivot pose, no leg twist). Max yaw ~450 deg/s at
    walk and crouch, 300-400 deg/s at run; the flick 180 is one smooth ~0.4 s turn while the cycle keeps playing; the
@@ -44,7 +44,7 @@ positions are reliable; colours and hand detail are not.
    run. Jump: standing 0.27 s wind-up, ~0.7 s air; walking no wind-up, ~0.5 s air (Y stays contextual where it is).
 
 ## P2 - Camera (P15, P16, P14; ct-measure-camera.md)
-1. Explore: camera ~1.8 m from Sam's head, ~2.3 m high, pitched ~17 deg down, aimed at his head (head top at screen
+1. Explore: camera ~1.8 m from the operator's head, ~2.3 m high, pitched ~17 deg down, aimed at his head (head top at screen
    centre), lateral offset only ~0.1-0.2 m. Rigid follow: no lag, no settle, no bob. Lead room (M20 Q11): +-12-15 deg
    away from the travel direction, blended over ~1.0-1.2 s, exploring only.
 2. Aim (rifle and pistol same framing): camera ~0.4 m from the head, 0.35-0.45 m behind, ~0.16 m to the weapon side,
@@ -59,7 +59,7 @@ positions are reliable; colours and hand detail are not.
 ## P3 - Back to wall and doors (P6-P10; ct-measure-walls-doors-combat-vision.md)
 1. Remove (M20 Q1): the lean-out aim at wall edges, D9 / D10 side leans, the low-wall over-the-top rise, and the SWAT
    turn. Aiming on the wall LEAVES the wall (camera to aim view in ~0.27 s, rifle up ~0.4 s).
-2. Entry: one button press; facing the wall Sam spins 180 deg in place in 0.3-0.45 s (no glide).
+2. Entry: one button press; facing the wall the operator spins 180 deg in place in 0.3-0.45 s (no glide).
 3. Stance standing (M20 Q3 says sideways; the footage shows CT standing is flat back, square to the wall): flat back
    square to the wall, chest ~10 deg forward, shoulders rolled forward, head off the wall, dropped and turned 45-70
    deg toward travel, knees 25-35 deg, feet 0.5-0.6 m apart, hands at mid-thigh. Crouched: sideways, torso turned
@@ -68,10 +68,10 @@ positions are reliable; colours and hand detail are not.
 4. Slide: ~0.35 m/s standing (+-0.1), ~0.25-0.35 crouched, 1.1 s shuffle cycle, no lean.
 5. Wall end: stop at the edge; peek = head turns 80-90 deg, head and shoulder lean out 0.15-0.25 m; the camera moves
    in 0.3-0.4 s past the corner line to ~1.0-1.5 m from the head and turns 40-60 deg into the hidden space; returns in
-   0.25 s. Wall camera: on the room side facing the wall and Sam's front, whole body in frame.
+   0.25 s. Wall camera: on the room side facing the wall and the operator's front, whole body in frame.
 6. Low cover: no special pose; crouch beside it, aim crouched (no rise).
 7. Doors (M20 Q10): stealth open = the door angle follows the stick: slow push ~12-18 deg/s, fast up to ~200 deg/s
-   (~75 deg in 0.75 s, drifts to 85-90); Sam steps to the latch side first (0.4-0.65 s) and keeps his palm on the door
+   (~75 deg in 0.75 s, drifts to 85-90); the operator steps to the latch side first (0.4-0.65 s) and keeps his palm on the door
    to ~65 deg; close camera at the crack while slow; back on the stick closes. Past ~15 % open the door passes light,
    sound and guard sight, and guards notice doors left open (host-owned angle in co-op). Normal open, optic cable and
    lockpick stay as they are for the prototype.
@@ -79,7 +79,7 @@ positions are reliable; colours and hand detail are not.
 ## P4 - Strike and vision (P5, P11)
 1. Palm strike (M20 Q4 / Q4b): offered only with a guard within ~0.8-1.0 m in front; 0.10-0.15 s wind-up to contact,
    a 0.3-0.5 m lunge, one-hit knockout from any side (front: face, behind: back of the head); the guard is down
-   1.2-1.4 s after contact; Sam is free ~1.4 s after contact (M25). No strike without a target.
+   1.2-1.4 s after contact; the operator is free ~1.4 s after contact (M25). No strike without a target.
 2. Vision (M20 Q5 "CT-pure"): thermal = CT colour ramp (indigo background, blue rim, cyan, green, yellow, red core),
    the room nearly invisible at any range, people full brightness at 15 m with no fade, heavy grain only on warm areas
    (clean background), soft bodies with a blue glow. Night vision: green-grey, ~1 % grain, bloom on lights. EMF: flat

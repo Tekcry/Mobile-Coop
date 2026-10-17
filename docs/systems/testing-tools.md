@@ -193,7 +193,7 @@ behind a VPN adapter).
   known flaky: the walk check reads 3 or 4 plants against >= 4 at the step-22 speed), silence standing still, a drop
   plays a landing, the guards' footstep noise unchanged; the foley lab (`?foleylab=1`) walks every surface
 - LEGACY (`npm run e2e:legacy`, report only): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
-  export / import; open: times out waiting for the Hunter match after the upgrade purchase), `e2e-cosmetics` (Loadout
+  export / import), `e2e-cosmetics` (Loadout
   appearance by controller, live / locked previews, the Tag page, camo, in-game look), `e2e-clear` (Hunter on the
   Warehouse: "Enemies left N", "DOWN", the OPERATION COMPLETE stinger, results; doorway checks on Mission; no Training
   mode)

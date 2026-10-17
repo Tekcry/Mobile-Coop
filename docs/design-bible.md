@@ -713,7 +713,7 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 - **Vision modes** as CT (5.5).
 - **Camera finish:** filmic tone mapping and grading, subtle grain, restrained lens effects.
 - **CC0 textures:** free CC0 texture files are allowed for surface detail, bundled with the game (never fetched from third
-  parties at runtime), cached for offline play, each source and licence in `docs/art-credits.md`. The texture budget is
+  parties at runtime), cached for offline play, each source and licence in `docs/art-credits.md` (created with the first texture). The texture budget is
   set in its job (G94).
 - **Each map's documents** define its palette and lighting key (lamp colours, moon, the colours of dark and lit areas).
 - **Beauty shots:** a fixed set of camera positions per map (`scripts/shot.mjs`, GPU runs on Michael's PC). Michael

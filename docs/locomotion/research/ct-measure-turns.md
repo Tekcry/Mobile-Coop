@@ -6,14 +6,14 @@ Method: clips in `pc/ct-work/clips/clip_13570_20261017_<HHMMSS>.mp4` (HEVC, vari
 
 Limits of the footage:
 - No input overlay: the delay between stick and body cannot be measured directly. Capture is from the PC version; whether Michael used a pad or keyboard and mouse is not recorded (a keyboard makes the flick a key press and the circles mouse-driven).
-- The camera tracks Sam, so travel speed and path radius come from room references (bench, door, guard's body) or from radius = speed / yaw rate. They are estimates.
+- The camera tracks the hero, so travel speed and path radius come from room references (bench, door, guard's body) or from radius = speed / yaw rate. They are estimates.
 - Feet are out of frame in the behind views (051044, 051543), and night vision hides foot detail top-down. Foot order is not readable.
 - The "slow" parts of 051339 and 051501 are not slow: Michael spun the stick in circles throughout, so they give near-maximum rates.
 
 ## 1. Turn in place, standing (D1 051044, D3 051339)
 
-- **CT has no stationary turn in place.** Any stick input moves Sam, and he faces his travel direction. A "turn on the spot" is the normal walk cycle on a very tight circle.
-  - 051339 at 5.2-6.03 s [d4_feet, d4_d]: one full 360 deg turn in 0.83 s (about 430 deg/s). Sam stays within about 0.25 m of one spot (path radius about 0.15-0.2 m).
+- **CT has no stationary turn in place.** Any stick input moves the hero, and he faces his travel direction. A "turn on the spot" is the normal walk cycle on a very tight circle.
+  - 051339 at 5.2-6.03 s [d4_feet, d4_d]: one full 360 deg turn in 0.83 s (about 430 deg/s). The hero stays within about 0.25 m of one spot (path radius about 0.15-0.2 m).
   - Same clip at 5.2-8.0 s: turns take 0.8-0.9 s each, so 400-450 deg/s.
 - **Footwork while spinning:** the walk cycle keeps its normal cadence of about one step per 0.2-0.25 s. There is no separate turn-in-place clip and no pivot on a planted foot.
   - At about 430 deg/s that is about 4 steps per 360: about 1 step per 90 deg, 2 per 180.
@@ -22,12 +22,12 @@ Limits of the footage:
 - **Slow stick circle (051044, fixed camera behind) [d1_overview, d1_a, d1_b]:**
   - From standing at about 1.6 s, the body swings about 90 deg in about 0.25 s (+-0.1 s). That is roughly 360 deg/s at the start, with no snap.
   - After that, yaw follows the stick at 45-75 deg/s: 0 to 180 deg over 1.6-4.0 s, 180 to 360 over 4-8 s, then 8-11.25 s.
-  - Sam walks a small circle (radius about 0.5-1 m) across the room.
+  - The hero walks a small circle (radius about 0.5-1 m) across the room.
 - **Stick-to-body delay:** not measurable (no input overlay). There is no visible wind-up pose. The head leads the shoulders by 1-2 frames (about 0.03 s) at the start of every flick (051250 at 5.93 and 22.08 s).
 
 ## 2. Flick 180 and the slowest-speed back walk (D2 051250)
 
-- **Slow back walk confirmed:** from 0 to 5.75 s and 12.5 to 18 s, Sam keeps facing away from the camera but drifts back and forth about 1 m every 2 s [d2_pos, d2_a, d2_b]. The guard's body behind him moves in and out of frame.
+- **Slow back walk confirmed:** from 0 to 5.75 s and 12.5 to 18 s, the hero keeps facing away from the camera but drifts back and forth about 1 m every 2 s [d2_pos, d2_a, d2_b]. The guard's body behind him moves in and out of frame.
   - This is a backwards walk without turning, as Michael noted.
   - His threshold is "lowest speed only": every faster step turns. In Night Shift terms that is gear 1 (0.65 m/s standing).
   - Back-walk speed: about 0.5 m/s (+-0.3), slow-walk class. The tracking camera prevents a better value.
@@ -38,8 +38,8 @@ Limits of the footage:
   - 26.97-27.37 s [d2_rev].
   - 51421 at 7.28-7.67 s (at run, see section 5).
 - **Flick profile:** about 0.05 s ease-in, then a near-constant ~450 deg/s (peak about 600 deg/s in the first 0.1 s), then about 0.05 s ease-out. This is a rate-capped turn, not an exponential approach.
-- **Flick footwork:** the walk cycle continues through the turn, about 2 steps per 180. Sam starts travelling in the new direction while still turning (22.2 s on: he moves toward the camera from about 90 deg of turn onward). He does not stop first and there is no pivot pose.
-- **Camera:** the camera does not swing round after the flick. Sam ends facing the camera.
+- **Flick footwork:** the walk cycle continues through the turn, about 2 steps per 180. The hero starts travelling in the new direction while still turning (22.2 s on: he moves toward the camera from about 90 deg of turn onward). He does not stop first and there is no pivot pose.
+- **Camera:** the camera does not swing round after the flick. The hero ends facing the camera.
 
 ## 3. Fast spinning (D3 051339, D6 051501)
 
@@ -84,9 +84,9 @@ Limits of the footage:
 - **Crouched (D6 051501):**
   - Same cap as standing, 400-450 deg/s.
   - The crouch-walk (or crouch-run, 19-22 s) cycle keeps playing on a tight circle. No separate crouched turn clip is visible.
-  - 11.5-17 s keeps facing roughly up while Sam drifts, which is possibly a crouched slow back walk (unconfirmed).
+  - 11.5-17 s keeps facing roughly up while the hero drifts, which is possibly a crouched slow back walk (unconfirmed).
 - **Aiming (D7 051543):**
-  - Sam's body is locked to the camera yaw: his framing on screen does not change during pans, so there is no lag and no catch-up.
+  - The hero's body is locked to the camera yaw: his framing on screen does not change during pans, so there is no lag and no catch-up.
   - Legs are out of frame, so stepping is not visible.
   - Turn rate:
     - Pan 4.9-6.3 s [d7_fast]: the chair and door move about 0.75 frame widths per second, about 60 deg/s.

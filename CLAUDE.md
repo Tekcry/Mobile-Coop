@@ -160,7 +160,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
 | `docs/research/` | Night vision and lamp research | Vision and light work |
 | `docs/kestrel/` | The Kestrel map project and editor (paused until after the CT co-op research, G53) | Kestrel work only |
-| `docs/ct-movement.md`, `docs/ct-movement-progress.md` | The pre-prototype CT movement build (history; current rules: `docs/systems/movement.md`) | Only for movement history |
+| `docs/archive/ct-movement.md`, `docs/archive/ct-movement-progress.md` | The pre-prototype CT movement build (history; current rules: `docs/systems/movement.md`) | Only for movement history |
 | `docs/prompts/` | Old phase specs (Phase 0-1) and the music spec (history) | Do not read unless a job names them |
 | `docs/archive/` | Retired maps, old changelog, testing and progress history | Do not read |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |

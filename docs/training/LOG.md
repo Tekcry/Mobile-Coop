@@ -275,7 +275,7 @@ redone. PLAN.md section 4: T5b-T5g rows. DECISIONS A50-A60.
 - v1's rule made every "(both)" placement a drill; v2 marks these "placed" (systems or situations, not a verb a player
   can be asked to perform on demand): friendly fire, B9 ghost tier, ADS spread tuning, medkits (A4 / A6 / A8 / B9),
   enemy attacks in B9, the gadget wheel (used by B8's gadget lines), CCTV in B8 / B9, and the secondary placements of
-  sleeping gas (B9 dog), EMP (B9), noisemaker (B7 skip), pistol secondary (B5 / B6 / B9), sticky shocker (B8-E, B9),
+  sleeping gas (B9 dog), EMP (B9), noisemaker (B7 skip), pistol secondary (B5 / B6 / B9), shock round (B8-E, B9),
   optic cable (B7), thermal (B9), back-to-wall / door peek / doors (B6 or B7), low-wall lean (B6). For Michael:
   REVIEW-NOTES.
 

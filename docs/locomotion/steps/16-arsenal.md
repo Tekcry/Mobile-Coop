@@ -54,7 +54,7 @@ No network or save-shape change (weapon ids are unchanged). Line numbers verifie
   replaces an off-set id, every id exists in weapons.json.
 - tests/weaponNames.test.ts: no weapon `name` matches a banned-pattern list (MP5, Kurz, Commando, M870, M700, FN,
   Five-7, Vector, P-90, P90, AK, TAR, Tavor, M1014, M14, M249, SAW, Glock, Beretta, Colt, SIG, H&K, Remington, Benelli,
-  SC-20K and similar).
+  the reference game's gear names and similar).
 - e2e-pad: the campaign loadout screen shows only the 6 curated guns, navigable by pad; play starts with the
   defaults. e2e-mouse: the same with mouse clicks.
 - e2e-weapons-carry still green with the new names.

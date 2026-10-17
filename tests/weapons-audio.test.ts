@@ -43,7 +43,7 @@ describe('weapon sprite index (the shipped weapons.json)', () => {
       expect(INDEX.banks[`${s}Far`].length).toBeGreaterThanOrEqual(2);
     }
     expect(INDEX.mark).toBeGreaterThan(0);
-    // the sprite stays small (bible S7 budget: all audio within about 8 MB)
+    // the sprite stays short (no audio size limit since G59; this only guards against a runaway sprite)
     expect(INDEX.length).toBeLessThan(120);
   });
 });

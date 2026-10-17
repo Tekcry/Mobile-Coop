@@ -218,7 +218,7 @@ export const DEEP_ELEMENTS: Record<'B7' | 'B8' | 'B9', ElementFlag[]> = {
     { id: 'B8-guards', feature: 'B8-S / E / F posts, the live-fire trigger and relief through B8-relief (A62): T7b', final: false },
     { id: 'B8-lights', feature: 'L8 circuits R1-R5, gantry lamps L8-G1..4 and the A61 re-lamp (T6 / T7a): one work lamp now', final: false },
     { id: 'B8-props', feature: 'dummies (B8_TARGETS), barrels (B8_BARRELS), CAM-R: placed by T7a', final: false },
-    { id: 'B8-greyed', feature: 'greyed lines: pistol secondary, sticky shocker (V3), bottle (Phase 6), ring airfoil (backlog) (T7a)', final: false },
+    { id: 'B8-greyed', feature: 'greyed lines: pistol secondary, shock round (V3), bottle (Phase 6), ring airfoil (backlog) (T7a)', final: false },
   ],
   B9: [
     { id: 'B9-guards', feature: 'B9-1..5, the dog and B9-O, relief through B9-relief / B9-relief-lobby (A62): T7b', final: false },

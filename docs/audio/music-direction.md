@@ -367,19 +367,10 @@ maps it:
   does.
 - **Stingers** fire only on events that also show on screen or on the radio.
 
-### 7.3 The Confrontation (bible 5.15)
+### 7.3 No Confrontation mode
 
-A separate `confrontation` mode takes only an escalation value from 0 to 1 (the match's escalation timer). Both sides
-hear the same music. No stingers.
-
-| Escalation | Music |
-| --- | --- |
-| 0-0.3 | Calm stems, with the `bowed` Ab3 drone at -12 (the tritone hangs) |
-| 0.3-0.6 | Suspicious harmony and sub, no pulse |
-| 0.6-0.85 | Searching machine pattern at 50 % density, 84 BPM |
-| 0.85-1 | Combat half-time at 168, no fills |
-
-Changes still happen on phrase ends. The heartbeat is a sound effect, not music.
+Mission 8 has no traitor and no player-versus-player finale (G9; bible 5.15), so there is no `confrontation` music
+mode. The old escalation-only design is in the git history.
 
 ---
 

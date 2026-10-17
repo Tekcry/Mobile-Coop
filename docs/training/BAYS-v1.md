@@ -586,7 +586,7 @@ Sketch:
 | Size, shape | 62 x 32, 8 high; the firing line at x 4..8, lanes x 8..58, the catwalk on the north wall at 4.0. |
 | Verticality | Catwalk and tower (4.0) over the lanes. |
 | Colour | 5600 K daylight high bays over the lanes; floods in the shoot-house. |
-| New mechanics | Weapons (pistol, SMG, rifle, shotgun, sniper), ADS, no hip fire, reload, swap, suppressed vs loud, penetration, headshots, barrels; every gadget; pistol secondary and sticky shocker (V3); throwables (Phase 6); ring airfoil (backlog); enemy attacks: guards shooting, a grenade, a flanker, suppression, a sniper laser, a shield. |
+| New mechanics | Weapons (pistol, SMG, rifle, shotgun, sniper), ADS, no hip fire, reload, swap, suppressed vs loud, penetration, headshots, barrels; every gadget; pistol secondary and shock round (V3); throwables (Phase 6); ring airfoil (backlog); enemy attacks: guards shooting, a grenade, a flanker, suppression, a sniper laser, a shield. |
 | Guards | 3 (B8-S sniper, B8-E enforcer, B8-F grunt flanker), alerted when "live fire" starts. |
 | Lead / second | P2 (catwalk overwatch) / P1 (floor). |
 
@@ -610,7 +610,7 @@ Sequence: weapons drills on the firing line (both): pistol (draw by aiming, no h
 25 m, shotgun at 10, reload and swap, headshots, suppressed vs loud (LANTERN shows the noise ring on the HUD meter when
 Phase 2 lands), penetration at PW, barrels; the lead climbs to RT for the sniper at 50 m. Gadgets: frag at BR, sleeping
 gas on a dummy group, flashbang (white-out when facing it), EMP on LG and CAM-R, noisemaker on a barricade, sticky cam on
-the shoot-house corner (lure ping, gas), proximity mine at the shoot-house gate, sticky shocker on a dummy (V3), pistol
+the shoot-house corner (lure ping, gas), proximity mine at the shoot-house gate, shock round on a dummy (V3), pistol
 secondary on a lamp and CAM-R (V3), a thrown bottle at a lamp (Phase 6) and the ring airfoil (backlog) once they land (not drills until then, D30). Then "live
 fire": the three role-players at the far end are alerted (course trigger). The lead covers from the catwalk (sniper
 rifle: B8-S first, laser and glint warn); the floor player advances through SH against B8-E (shield: flank, shock, or

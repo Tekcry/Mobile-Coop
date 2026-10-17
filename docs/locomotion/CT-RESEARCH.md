@@ -18,7 +18,7 @@ How to read the citations:
 ## 1. Summary
 
 The five biggest differences:
-1. **Stops.** CT freezes Sam mid-stride, drops the swinging foot and lets the hips settle with a small bounce. That
+1. **Stops.** CT freezes the hero mid-stride, drops the swinging foot and lets the hips settle with a small bounce. That
    frozen pose is the idle. We slide to a stop and blend to a stock idle (P1). Night Shift 3.2.0 had the freeze;
    step 22 removed it.
 2. **Posture.** We hunch about 33 deg forward when standing and about 62 deg when crouched. Sources describe CT
@@ -60,9 +60,9 @@ parts of 21w and 27, and step 24 (camera) takes P15 and P16.
 
 | Topic | CT | Night Shift now (C 7) | Gap | Note |
 | --- | --- | --- | --- | --- |
-| Explore | Third person, "slightly over your shoulder", Sam near the screen centre. It swings side to side automatically toward where you look (Source, L S11 S12 S15). FOV 75 Hor+ (snippet, L S17). | Boom 2.2 m, shoulder 0.62 m, FOV 75 Hor+, no bob. Auto shoulder swap planned in step 24 only when one side is blocked (A12). | We sit wider (bible 5.3: whole body in frame). There is no automatic side swing by look direction. | Bob "works well" |
+| Explore | Third person, "slightly over your shoulder", the hero near the screen centre. It swings side to side automatically toward where you look (Source, L S11 S12 S15). FOV 75 Hor+ (snippet, L S17). | Boom 2.2 m, shoulder 0.62 m, FOV 75 Hor+, no bob. Auto shoulder swap planned in step 24 only when one side is blocked (A12). | We sit wider (bible 5.3: whole body in frame). There is no automatic side swing by look direction. | Bob "works well" |
 | Aim | A separate, tighter over-the-shoulder mode. SC1 turns at half speed while aiming and strafes at walk speed. The sniper scope is first person (Source L S11 S23, SC1 L S2). Exact offsets are unsourced. | ADS boom 1.5 m, shoulder 0.58 m, FOV x0.75. | Far wider than CT. | P15 "from shoulder, much closer" |
-| Shoulder swap | A button, **only while aiming**. "Sam can move the gun to the other side of his body", changing hands (Source, L S1 S6 S13). Separate from the exploration side swing. | Moves the camera only. The weapon stays right-handed, except at left wall edges (D9) (C 7). | The weapon does not change hand. | P16 "should be a realistic change" |
+| Shoulder swap | A button, **only while aiming**. "[The hero] can move the gun to the other side of his body", changing hands (Source, L S1 S6 S13). Separate from the exploration side swing. | Moves the camera only. The weapon stays right-handed, except at left wall edges (D9) (C 7). | The weapon does not change hand. | P16 "should be a realistic change" |
 | Wall peek | The camera swings out past the corner (Unverified, W 2). | The pivot swings 0.6 m to the edge and turns up to 25 deg over 0.45 s (C 4). | Michael "can't see around the corner". | P7 |
 
 ### 2.3 Walls and corners
@@ -82,7 +82,7 @@ parts of 21w and 27, and step 24 (camera) takes P15 and P16.
 
 | Topic | CT | Night Shift now | Gap | Note |
 | --- | --- | --- | --- | --- |
-| Stealth open | "You can make Sam open / close the door as fast as you want by playing with the left thumbstick" (Source, W M-CT). SC1 peek: forward goes through, back closes (Source, W M-SC1). | Crack 12% over 0.6 s. Stick in = opens fully. Stick back 0.2 s = closes (C 5). | The door angle does not follow the stick. | P10 "push the door open slowly ... walk backwards to slowly close" |
+| Stealth open | "You can make [the hero] open / close the door as fast as you want by playing with the left thumbstick" (Source, W M-CT). SC1 peek: forward goes through, back closes (Source, W M-SC1). | Crack 12% over 0.6 s. Stick in = opens fully. Stick back 0.2 s = closes (C 5). | The door angle does not follow the stick. | P10 "push the door open slowly ... walk backwards to slowly close" |
 | Bash | Kicks through. Knocks out a guard behind (Source, T S4 S6, W GS-R). | Bash at a sprint 0.22 s. No knockout (T 2). | A missing knockout. | - |
 | Guards | Notice "doors being left open" (Source, W W-CT). | A cracked door counts as closed (A25). | No open-door awareness. | - |
 | Lockpick, optic cable | Stick lockpick. Optic cable under doors (Source, W 5). | Not in this run (gadgets). | Out of scope. | - |
@@ -254,7 +254,7 @@ height or door rules change a map fact.
 
 ## 5. Open research: what only footage or Michael can settle
 
-No text source gives CT timings, camera distances or Sam's wall pose. Three short clips settle most of it.
+No text source gives CT timings, camera distances or the hero's wall pose. Three short clips settle most of it.
 
 **Suggested method.** Michael records about 3 clips of CT (PC or console, 60 fps, a plain lit room, the camera held
 still where possible). An agent or Michael steps through them frame by frame (VLC "E" key, or mpv with "."), and the
@@ -263,11 +263,11 @@ numbers go into this file with the frame counts.
 | Clip | Do | Measure |
 | --- | --- | --- |
 | 1. Body (about 60 s) | Walk, release the stick at each speed, standing and crouched. Run and release. Spin the stick in slow and fast circles, standing still and moving. Flick a 180 at a run. Roll. | Stop: frames from release to still, foot drop, hip settle and overshoot. Turn rate in deg per frame. The yaw rate where the step-turn starts. Bank angle. Spine angle standing and crouched (a still frame side on). |
-| 2. Walls and doors (about 60 s) | Back to a high wall, slide, peek both edges. Crouch on a low wall, peek both ends, try to aim. Stealth-open a door slowly, then close it. | Sam's wall pose (flat or bladed, head on the wall?). How far the peek camera swings out. Slide speed. Door angle versus stick. |
-| 3. Aim and strike (about 45 s) | Aim the pistol and the rifle. Swap shoulder both ways. Scope. Palm strike an unaware guard and an aware one. Press strike with no guard near. | Aim camera distance (Sam's head width on screen against the explore view). Swap duration and hand order. Strike frames to contact. Whether an empty press does anything. |
+| 2. Walls and doors (about 60 s) | Back to a high wall, slide, peek both edges. Crouch on a low wall, peek both ends, try to aim. Stealth-open a door slowly, then close it. | The hero's wall pose (flat or bladed, head on the wall?). How far the peek camera swings out. Slide speed. Door angle versus stick. |
+| 3. Aim and strike (about 45 s) | Aim the pistol and the rifle. Swap shoulder both ways. Scope. Palm strike an unaware guard and an aware one. Press strike with no guard near. | Aim camera distance (the hero's head width on screen against the explore view). Swap duration and hand order. Strike frames to contact. Whether an empty press does anything. |
 
 Other leads:
-- The GDC 2005 talk "Concepts & Animating Sam Fisher in Splinter Cell: Chaos Theory" (Bibeau, Monteil) exists as
+- The GDC 2005 talk "Concepts & Animating [the hero] in Splinter Cell: Chaos Theory" (Bibeau, Monteil) exists as
   audio on archive.org (L S16). It is the best unread source on the stop, turn and posture system.
 - If Michael owns CT on PC, its `.ini` files may hold the camera distances per mode (SC1 keeps them in an ini; L S2).
   Reading them is quicker than measuring footage (Inference).

@@ -368,13 +368,13 @@ Scope: docs/locomotion, ct-movement docs, movement / input / takedowns / gadgets
 - Found by: MV24 (Movement, camera, controls, takedowns and gadgets audit, low); AR29 (Art, characters, operators and weapons audit, low).
 
 **MV24: Reference-game names in docs**
-- Where: `docs/design-bible.md:30-34` (do not use "Sam Fisher", "SC-20K" and similar "in code, UI or docs"); vs `docs/locomotion/research/ct-footage-catalogue.md:16` ("SC-20K"), `research/ct-locomotion.md:11, :131, :142, :159`, `docs/locomotion/CT-RESEARCH.md:270` ("Sam Fisher"), "Sam" throughout PROTOTYPE-PLAN.md (e.g. `:33-37`) and research/*; `docs/systems/movement.md:163` ("Splinter Cell: Blacklist framing").
+- Where: `docs/design-bible.md:30-34` (do not use the hero's name, the rifle's name and similar "in code, UI or docs"); vs `docs/locomotion/research/ct-footage-catalogue.md:16` (the rifle's name), `research/ct-locomotion.md:11, :131, :142, :159`, `docs/locomotion/CT-RESEARCH.md:270` (the hero's name), the hero's name throughout PROTOTYPE-PLAN.md (e.g. `:33-37`) and research/*; `docs/systems/movement.md:163` ("Splinter Cell: Blacklist framing").
 - What: The research and the prototype plan name the reference character and weapon, which the bible bans in docs.
-- Options: (1) Allow reference names only inside research / footage notes about the reference game, never in specs, system docs, code or UI; replace "Sam" with "the operator" in PROTOTYPE-PLAN (recommended; Q-move-19). (2) Scrub them everywhere.
+- Options: (1) Allow reference names only inside research / footage notes about the reference game, never in specs, system docs, code or UI; replace the hero's name with "the operator" in PROTOTYPE-PLAN (recommended; Q-move-19). (2) Scrub them everywhere.
 
 **AR29: Old `character-model` branch and the CT character's name in docs**
 - Where: `origin/character-model` (an earlier operator attempt, "do not merge it": `OPS:docs/operators/BRIEF.md:27`), not in
-  the M26 branch list; `LOCO:docs/locomotion/PROTOTYPE-PLAN.md:74,81` and M23 / M24 refer to the player as "Sam".
+  the M26 branch list; `LOCO:docs/locomotion/PROTOTYPE-PLAN.md:74,81` and M23 / M24 refer to the player by the hero's name.
 - Options: (1) Archive or delete `character-model` after the merge; say "the operator" in master-level docs (CT's character
   named only in research files). (2) Leave both.
 
