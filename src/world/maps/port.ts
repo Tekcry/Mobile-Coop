@@ -122,7 +122,7 @@ export const port: MapDef = {
   id: 'port',
   name: 'Port',
   description: 'Night: a container terminal, a customs shed and a moored cargo ship with a bridge.',
-  modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
+  modes: ['infiltration', 'clear'],
   theme: {
     sky: '#060a12',
     horizon: '#1a2430',

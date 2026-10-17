@@ -52,8 +52,6 @@ export interface TakedownVictim {
   setSolid?(on: boolean): void;
   /** (3.2.0) Upright in the operator's hold (a human shield). */
   holdAsHostage?(): void;
-  /** (3.2.0) Another player (PvP): only the drop, the ledge pull and the inverted choke, and never a grab. */
-  readonly pvp?: boolean;
   applyDamage(h: HitInfo): DamageResult;
   knockOut(h: HitInfo): void;
 }
@@ -157,7 +155,7 @@ export class TakedownController {
       if (g.traversal.attached) g.traversal.reset();
     }
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
-    const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && this.grabAllowed && lethal === undefined;
+    const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
     o.e.beginTakedown(lethal !== true);
     this.active = {
       e: o.e,
@@ -251,15 +249,11 @@ export class TakedownController {
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
     const plan = pickTakedown(i);
     if (!plan) return null;
-    // (3.2.0) another player: only from a hang / pipe / split / rope above, the lip pull or upside down
-    if (best.pvp && plan.kind !== 'drop' && plan.kind !== 'below' && plan.kind !== 'inverted') return null;
     // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
     const rule = grabRule(best.def.kind, plan.kind);
     return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
   }
 
-  /** Grabs are allowed (not against other players: PvP turns them off). */
-  grabAllowed = true;
   /** (locomotion step 18, D7) `gameplay.grabToggle` (local only, D8). */
   grabToggle = true;
 

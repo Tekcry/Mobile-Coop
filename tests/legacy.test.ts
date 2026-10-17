@@ -3,25 +3,25 @@ import { campaignUnlocked, defaultMode, isParkedMode, PARKED_MODES, showEconomy,
 import { applyPreset, ownsOrOpen, setAttachment, setLoadout } from '../src/progression/profile';
 import { defaultSave, sanitizeSave } from '../src/save/schema';
 
-const PLAY = [{ id: 'wave' }, { id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'training' }, { id: 'sandbox' }];
-const LOBBY = [{ value: 'wave' }, { value: 'clear' }, { value: 'infiltration' }, { value: 'sandbox' }, { value: 'tdm' }, { value: 'ffa' }];
+const PLAY = [{ id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'training' }, { id: 'sandbox' }];
+const LOBBY = [{ value: 'clear' }, { value: 'infiltration' }, { value: 'sandbox' }, { value: 'course' }];
 
 describe('legacy (3.5 parked content)', () => {
-  it('parks Wave, Mission, Hunter, TDM and FFA only', () => {
-    expect([...PARKED_MODES].sort()).toEqual(['clear', 'ffa', 'mission', 'tdm', 'wave']);
-    for (const m of ['infiltration', 'training', 'sandbox']) expect(isParkedMode(m)).toBe(false);
+  it('parks Mission and Hunter only', () => {
+    expect([...PARKED_MODES].sort()).toEqual(['clear', 'mission']);
+    for (const m of ['infiltration', 'training', 'sandbox', 'course']) expect(isParkedMode(m)).toBe(false);
   });
   it('the Play screen lists Infiltration, Training and Free Roam without legacy', () => {
     expect(visibleModes(PLAY, false).map((m) => m.id)).toEqual(['infiltration', 'training', 'sandbox']);
-    expect(visibleModes(PLAY, true)).toHaveLength(6);
+    expect(visibleModes(PLAY, true)).toHaveLength(5);
   });
   it('the co-op lobby lists Infiltration and Free Roam without legacy (4 players max stays elsewhere)', () => {
-    expect(visibleModes(LOBBY, false).map((m) => m.value)).toEqual(['infiltration', 'sandbox']);
-    expect(visibleModes(LOBBY, true)).toHaveLength(6);
+    expect(visibleModes(LOBBY, false).map((m) => m.value)).toEqual(['infiltration', 'sandbox', 'course']);
+    expect(visibleModes(LOBBY, true)).toHaveLength(4);
   });
-  it('the default mode is Infiltration, or Wave with legacy', () => {
+  it('the default mode is Infiltration, or Hunter with legacy', () => {
     expect(defaultMode(false)).toBe('infiltration');
-    expect(defaultMode(true)).toBe('wave');
+    expect(defaultMode(true)).toBe('clear');
   });
   it('the campaign is unlocked and the economy hidden when legacy is off, and the reverse with it', () => {
     expect(campaignUnlocked(false)).toBe(true);

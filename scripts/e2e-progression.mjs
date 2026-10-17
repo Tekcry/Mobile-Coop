@@ -60,7 +60,7 @@ try {
   await press(page, BTN.B);
   await press(page, BTN.B);
 
-  // Play a quick wave match, score kills, die -> rewards
+  // Play a quick Hunter match (the legacy default), score kills, die on the last life -> rewards
   await G(() => window.__app.screens.top?.manager);
   await page.evaluate(() => {
     const app = window.__app;
@@ -76,6 +76,7 @@ try {
     const g = window.__app.current;
     for (const e of [...g.enemyMgr.enemies]) e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: g.player.position.clone(), impulse: 1 });
     g.stats.weaponKills.rifle = 3;
+    if (g.mode && 'lives' in g.mode) g.mode.lives = 1;
     g.target.damageMul = 1;
     g.target.applyDamage({ amount: 9999, point: g.player.position.clone(), dir: g.player.position.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: g.player.position.clone(), impulse: 0 });
   });

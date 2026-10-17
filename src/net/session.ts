@@ -1,9 +1,8 @@
 import { EventBus } from '../core/events';
 import type { WeatherChoice } from '../world/mapDef';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { capacity, isPvp, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo, type WireCustom } from './protocol';
+import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo, type WireCustom } from './protocol';
 import { sanitizeCustom, type CustomDifficulty } from '../ai/archetypes';
-import { balanceTeam, canJoinTeam } from './pvp';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 
@@ -46,7 +45,7 @@ export class NetSession {
   readonly events = new EventBus<SessionEvents>();
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
-  mode: NetMode = 'wave';
+  mode: NetMode = 'clear';
   map = 'warehouse';
   difficulty: Difficulty = 'normal';
   /** (locomotion step 19, D7) The host's custom sliders (host: from its settings; client: from the lobby, read-only). */
@@ -66,7 +65,7 @@ export class NetSession {
     private me: LocalProfile,
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
-    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', team: 0 });
+    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host' });
     transport.onMessage = (raw, from) => this.receive(raw, from);
     transport.onPeerJoin = (id) => {
       // introduce ourselves to every newcomer
@@ -114,8 +113,7 @@ export class NetSession {
         return;
       }
       const prev = this.players.get(from);
-      const team = prev?.team ?? balanceTeam([...this.players.values()].map((p) => p.team));
-      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, team });
+      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false });
       this.broadcastLobby();
       // late join / reconnect during a match
       if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), from);
@@ -128,11 +126,7 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'team') {
-      if (this.phase === 'lobby') this.setTeam(from, msg.team);
-      return;
-    }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -221,32 +215,12 @@ export class NetSession {
 
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
-    // switching into team deathmatch: even the sides out
-    if (isPvp(mode) && mode !== this.mode) {
-      const ps = [...this.players.values()];
-      ps.forEach((p, i) => (p.team = i % 2));
-    }
     this.mode = mode;
     this.map = map;
     this.difficulty = difficulty;
     this.mission = mode === 'infiltration' ? mission : '';
     this.weather = weather;
     this.broadcastLobby();
-  }
-
-  /** Change side (host: anyone; clients ask with `requestTeam`). Refused when that side is full. */
-  setTeam(id: string, team: number): boolean {
-    if (!this.isHost) return false;
-    const p = this.players.get(id);
-    if (!p || p.team === team || !canJoinTeam([...this.players.values()].map((q) => q.team), team)) return false;
-    p.team = team;
-    this.broadcastLobby();
-    return true;
-  }
-
-  requestTeam(team: number): void {
-    if (this.isHost) this.setTeam(this.selfId, team);
-    else this.toHost({ t: 'team', team });
   }
 
   get allReady(): boolean {

@@ -2,7 +2,7 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // host-validated client hits + kill credit, downed/revive, results with rewards, back to lobby,
 // host leaving, malformed messages, and the offline state.
-// 3.5: the lobby walk-through hosts Wave / Hunter / TDM / FFA rooms, which are parked behind ?legacy=1, so these pages open
+// 3.5: the lobby walk-through hosts Hunter rooms, which are parked behind ?legacy=1, so these pages open
 // with it (the legacy-off lobby, Infiltration and Free Roam only, is checked by e2e-park).
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 
@@ -65,14 +65,14 @@ try {
   const bText = await GB(() => document.querySelector('.lobby-actions .btn')?.textContent ?? '');
   assert(/Not ready/.test(bText), 'client button toggles to Not ready');
 
-  console.log('host starts a wave match');
+  console.log('host starts a Hunter match');
   await A.click('.lobby-actions .btn:has-text("Start match")');
   await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 60000, 'host match');
   await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 60000, 'client match');
   // host + client players invulnerable while we test hits
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await until(A, () => window.__app.current.net.remotes.values().next().value?.state, null, 10000, 'client states reach host');
-  // fast-forward the host to the first wave
+  // fast-forward the host a little (the squads fill in)
   await GA(() => window.__app.loop.stepHeadless(7.5));
   await until(A, () => window.__app.current.enemyMgr.alive > 0, null, 10000, 'enemies spawn');
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
@@ -85,7 +85,7 @@ try {
   const counts = await Promise.all([GA(() => window.__app.current.enemyMgr.alive), GB(() => window.__app.current.net.puppets.size)]);
   assert(Math.abs(counts[0] - counts[1]) <= 1, `client mirrors host enemies (${counts})`);
   const info = await GB(() => document.querySelector('.hud-mode, .mode-info')?.textContent ?? window.__app.current.net.info);
-  assert(/Wave/.test(info), `wave info replicated (${info})`);
+  assert(/Enemies left/.test(info), `mode info replicated (${info})`);
   const avatar = await GB(() => window.__app.current.net.avatars.size);
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
@@ -99,7 +99,7 @@ try {
   assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 0 && carried.slotted.length === 2, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
 
   console.log('client hit is validated by the host and credited');
-  // a humanoid on the ground (dogs and drones vary with the wave's draw)
+  // a humanoid on the ground (dogs and drones vary with the squads)
   const victim = await GB(() => {
     const ps = [...window.__app.current.net.puppets.values()];
     return (ps.find((p) => p.def.kind === 'grunt' || p.def.kind === 'runner') ?? ps[0]).id;
@@ -215,6 +215,8 @@ try {
   await GA(() => {
     const g = window.__app.current;
     const r = g.net.remotes.values().next().value;
+    // Hunter's last life: the wipe ends the operation
+    g.mode.lives = 1;
     const kill = (t, p) => { t.damageMul = 1; t.applyDamage({ amount: 9999, point: p.clone(), dir: p.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: p.clone(), impulse: 0 }); };
     kill(r, r.feet);
     kill(g.target, g.player.position);
@@ -560,7 +562,7 @@ try {
   assert(true, `client sees the mission's objectives (${obj})`);
   await toLobby();
 
-  console.log('pvp: team deathmatch and free-for-all with three');
+  console.log('a third player joins');
   const opened3 = await openPage(ctx, url, 'net=local&legacy=1');
   C = opened3.page;
   eC = opened3.errors;
@@ -569,83 +571,6 @@ try {
   await C.keyboard.type(code.toLowerCase());
   await C.keyboard.press('Enter');
   await until(A, () => window.__coop.session.players.size === 3, null, 15000, 'third player joins');
-  // (3.1.9: no PvP caps - the host on a wide FOV, a client on a narrow one, each keeps their own)
-  await GA(() => window.__app.settings.update((d) => { d.video.fovH = 115; d.video.maxFov = 150; }));
-  await C.evaluate(() => window.__app.settings.update((d) => { d.video.fovH = 70; }));
-  await startMode('tdm', 'warehouse');
-  const fovs = await Promise.all([A, C].map((P) => P.evaluate(() => ({ h: window.__app.current.player.cam.baseFovDeg, max: window.__app.current.player.cam.maxFovDeg }))));
-  assert(fovs[0].h === 115 && fovs[0].max === 150 && fovs[1].h === 70 && fovs[1].max === 120, `PvP: each player's own FOV, no cap (${JSON.stringify(fovs)})`);
-  const ids = await Promise.all(pages().map((P) => P.evaluate(() => window.__coop.session.selfId)));
-  const teams = await GA((ids) => ids.map((id) => window.__coop.session.players.get(id).team), ids);
-  assert(teams[0] === teams[2] && teams[0] !== teams[1], `teams split 2v1 (${teams})`);
-  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 20000, 'every avatar seen');
-  const tB = await GB(() => [...window.__app.current.net.targets.keys()].length);
-  const tC = await C.evaluate(() => [...window.__app.current.net.targets.keys()].length);
-  const boxes = await GA(() => window.__app.current.net.pvpBoxes.size);
-  assert(tB === 2 && tC === 1 && boxes === 1, `only opponents have hit volumes (B ${tB}, C ${tC}, host ${boxes})`);
-  const ff = await GA(([b, c]) => {
-    const g = window.__app.current;
-    const hit = (r) => r.applyDamage({ amount: 20, point: r.feet.clone(), dir: r.feet.clone(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: r.feet.clone(), impulse: 0 }).dealt;
-    return { mate: hit(g.net.remotes.get(c)), foe: hit(g.net.remotes.get(b)) };
-  }, [ids[1], ids[2]]);
-  assert(ff.mate === 0 && ff.foe > 0, `no friendly fire; opponents take damage (${JSON.stringify(ff)})`);
-  // B eliminates the host with validated shots
-  // stand B 2.5 m from the host where the line between them is clear of the level
-  const hpos = await GA(() => {
-    const g = window.__app.current;
-    const p = g.player.position;
-    const V = p.constructor;
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      const at = new V(p.x + Math.sin(a) * 2.5, p.y, p.z + Math.cos(a) * 2.5);
-      const h1 = g.ballistics.ray(p.add(new V(0, 1.2, 0)), at.add(new V(0, 1.2, 0)), 1);
-      const h2 = g.ballistics.ray(at.add(new V(0, 0.5, 0)), at.add(new V(0, -0.6, 0)), 1);
-      if (!h1.hit && h2.hit) return [at.x, at.y, at.z];
-    }
-    return [p.x, p.y, p.z - 2.5];
-  });
-  await moveClient(B, hpos[0], hpos[1] + 0.1, hpos[2], 0);
-  // (step 09) no hip fire: the client aims (drawn on the host) before its shots count
-  await GB(() => { window.__app.current.player.forceAds = true; });
-  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (PvP)');
-  let down = false;
-  for (let i = 0; i < 40 && !down; i++) {
-    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
-    await GB((id) => {
-      const g = window.__app.current;
-      const t = g.net.targets.get(id);
-      const src = g.player.position.add(new g.player.position.constructor(0, 1.58, 0));
-      const pt = t.center(new g.player.position.constructor());
-      t.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
-    }, ids[0]);
-    await wait(200);
-    down = await GA(() => (window.__app.current.stats.deaths ?? 0) >= 1);
-  }
-  assert(down, 'client shots eliminate the host (validated, rewound)');
-  await GB(() => { window.__app.current.player.forceAds = false; });
-  const sc = await GA((b) => window.__app.current.net.score.lines().find((l) => l.id === b), ids[1]);
-  assert(sc?.k === 1, `the elimination is scored (${JSON.stringify(sc)})`);
-  await until(B, () => /1/.test(document.querySelector('.hud-mode')?.textContent ?? ''), null, 5000, 'client HUD shows the score');
-  // (three SwiftShader pages render slowly: the host's real-time sim lags, so step it)
-  await GA(() => window.__app.loop.stepHeadless(5));
-  await until(A, () => window.__app.current.player.alive, null, 10000, 'host respawns');
-  assert(true, 'eliminated players respawn');
-  await GA(() => (window.__app.current.net.score.elapsed = 1e5));
-  for (const P of pages()) await until(P, () => !!document.querySelector('.results-screen'), null, 15000, 'pvp results');
-  const titles = await Promise.all(pages().map((P) => P.evaluate(() => document.querySelector('.results-title')?.textContent)));
-  assert(titles[1] === 'VICTORY' && titles[0] === 'DEFEAT' && titles[2] === 'DEFEAT', `team result on every page (${titles})`);
-  const elim = await GB(() => document.querySelector('.results-screen .stat-grid')?.textContent ?? '');
-  assert(/Eliminations1/.test(elim.replace(/\s/g, '')), `PvP results show eliminations (${elim})`);
-  await toLobby();
-  await startMode('ffa', 'warehouse');
-  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 20000, 'every avatar seen');
-  const ffa = await Promise.all([GA(() => window.__app.current.net.pvpBoxes.size), GB(() => window.__app.current.net.targets.size), C.evaluate(() => window.__app.current.net.targets.size)]);
-  assert(ffa.every((n) => n === 2), `free-for-all: everyone is an opponent (${ffa})`);
-  await GA(() => (window.__app.current.net.score.elapsed = 1e5));
-  for (const P of pages()) await until(P, () => !!document.querySelector('.results-screen'), null, 15000, 'ffa results');
-  assert(true, 'free-for-all ends on time');
-  await toLobby();
-
   // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host and on a third page (the
   // snapshot's dcr), and its close clears it everywhere
   console.log('door peek: a client crack shows on the host and a third page; close clears it');

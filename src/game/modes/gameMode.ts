@@ -7,7 +7,7 @@ import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`. */
-export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training' | 'course';
+export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'training' | 'course';
 
 export interface SessionStats {
   mode: ModeId;
@@ -17,7 +17,6 @@ export interface SessionStats {
   kills: number;
   headshots: number;
   byKind: Record<EnemyKind, number>;
-  waves: number;
   objectives: number;
   time: number;
   shots: number;
@@ -35,8 +34,6 @@ export interface SessionStats {
   takedownsByKind?: Record<string, number>;
   gadgetKos?: number;
   alarms?: number;
-  /** PvP: deaths (eliminations are `kills`). */
-  deaths?: number;
   /** Training course: the results panel (T1c). */
   course?: CourseSummary;
 }
@@ -50,7 +47,6 @@ export function emptyStats(mode: ModeId, mapId: string): SessionStats {
     kills: 0,
     headshots: 0,
     byKind: emptyKinds(),
-    waves: 0,
     objectives: 0,
     time: 0,
     shots: 0,

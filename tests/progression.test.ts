@@ -34,19 +34,19 @@ describe('levels', () => {
 });
 
 describe('rewards', () => {
-  const s = emptyStats('wave', 'depot');
+  const s = emptyStats('mission', 'depot');
   s.byKind = { ...emptyKinds(), grunt: 10, runner: 4, heavy: 1 };
   s.kills = 15;
   s.headshots = 3;
-  s.waves = 3;
+  s.objectives = 3;
   s.shots = 100;
   s.hits = 50;
-  it('sums kill, headshot, wave and accuracy rewards', () => {
+  it('sums kill, headshot, objective and accuracy rewards', () => {
     const r = computeRewards(s, 'normal');
     const kills = 10 * 100 + 4 * 80 + 260;
     expect(r.lines.find((l) => l.label === 'Kills')?.xp).toBe(kills);
     expect(r.lines.find((l) => l.label === 'Headshots')?.xp).toBe(75);
-    expect(r.lines.find((l) => l.label.startsWith('Waves'))?.xp).toBe(150 * 3 + 25 * 9);
+    expect(r.lines.find((l) => l.label.startsWith('Objectives'))?.xp).toBe(300 * 3);
     expect(r.lines.some((l) => l.label.startsWith('Accuracy'))).toBe(true);
     expect(r.xp).toBe(r.lines.reduce((a, l) => a + l.xp, 0));
     expect(r.credits).toBeGreaterThan(0);
@@ -127,10 +127,10 @@ import { applySession, buyUnlock, buyUpgrade, loadoutEntries, setAttachment, set
 describe('profile operations', () => {
   it('applySession awards xp/credits, level-ups, mastery and lifetime stats', () => {
     const s = defaultSave();
-    const st = emptyStats('wave', 'depot');
+    const st = emptyStats('mission', 'depot');
     st.byKind = { ...emptyKinds(), grunt: 12, runner: 0, heavy: 0 };
     st.kills = 12;
-    st.waves = 2;
+    st.objectives = 2;
     st.weaponKills = { rifle: 12 };
     const credits0 = s.profile.credits;
     const r = applySession(s, st, 'normal');
@@ -139,7 +139,8 @@ describe('profile operations', () => {
     expect(s.profile.credits).toBe(credits0 + r.rewards.credits + r.levelUps * LEVEL_UP_CREDITS);
     expect(r.masteryUps).toEqual([{ weapon: 'rifle', level: 1 }]);
     expect(s.profile.stats.matches).toBe(1);
-    expect(s.profile.stats.bestWave).toBe(2);
+    // the old Wave record stays readable in the save; nothing writes it any more
+    expect(s.profile.stats.bestWave).toBe(0);
     // smg becomes buyable at level 2
     expect(r.nowBuyable.some((u) => u.id === 'weapon:smg')).toBe(true);
   });
@@ -162,7 +163,7 @@ describe('profile operations', () => {
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(false); // not owned
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
-    const lo = loadoutEntries(s, 'wave', true);
+    const lo = loadoutEntries(s, 'mission', true);
     expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
     expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
     expect(buyUpgrade(s, 'smg', 'damage').ok).toBe(false); // smg locked

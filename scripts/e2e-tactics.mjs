@@ -1,4 +1,4 @@
-// Close-quarters and combat checks on Proving Grounds: hit volumes following crouch, and in a wave match:
+// Close-quarters and combat checks on Proving Grounds: hit volumes following crouch, and in a fight:
 // suppression, exposure HUD, and footstep noise investigation. (Player cover checks left with step 05.)
 import { launch, frames, assert } from './e2e-lib.mjs';
 
@@ -47,9 +47,9 @@ try {
 }
 await browser?.close();
 
-// wave match: suppression, exposure and noise
+// a fight: suppression, exposure and noise (alerted grunts on Proving Grounds; the mission squads cleared)
 try {
-  const l = await launch({ url, params: 'autostart=proving&mode=wave' });
+  const l = await launch({ url, params: 'autostart=proving&mode=mission' });
   browser = l.browser;
   errors = errors.concat(l.errors);
   const page = l.page;
@@ -60,6 +60,11 @@ try {
     const g = a.current;
     const p = g.player;
     g.target.damageMul = 0;
+    // what Wave mode did: hunters, no stealth rules, five alerted grunts at the enemy spawns
+    g.enemyMgr.clear();
+    g.enemyMgr.stealth = false;
+    const sp = g.world.layout.enemySpawns;
+    for (let i = 0; i < 5 && sp.length; i++) g.enemyMgr.spawn('grunt', sp[i % sp.length].clone(), true);
     p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2);
     p.cam.yaw = -Math.PI / 2;
     a.loop.stepHeadless(0.3);

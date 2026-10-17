@@ -139,8 +139,8 @@ try {
   await menuClick(L, 'Play');
   await L.waitForSelector('.play-screen');
   const lmodes = await playModes(L);
-  assert(lmodes.length === 6 && ['Wave Survival', 'Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Wave, Mission and Hunter are back (${lmodes})`);
-  assert(lmodes[0] === 'Wave Survival', 'the default mode is Wave Survival again');
+  assert(lmodes.length === 5 && ['Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Mission and Hunter are back (${lmodes})`);
+  assert(lmodes[0] === 'Hunter', 'the default mode is Hunter');
   await GL(() => window.__app.screens.pop());
   await menuClick(L, 'Loadout');
   await L.waitForSelector('.loadout-screen .lo-row');

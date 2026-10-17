@@ -4,7 +4,7 @@
  */
 import type { WeaponDef } from '../weapons/weaponDefs';
 import { computeStats, damageAt, MAX_UPGRADE } from '../weapons/weaponStats';
-import { killScore, waveClearBonus } from '../game/modes/waveLogic';
+import { killScore } from '../game/modes/score';
 import type { EndStats } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
 import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
@@ -20,6 +20,10 @@ export interface V3 {
   y: number;
   z: number;
 }
+
+/** Can player `a` hurt player `b`? Course mode friendly fire (D38): anyone but themselves (a partner hit to zero is
+ * downed under co-op rules); plain co-op: never. */
+export const playersHostile = (friendlyFire: boolean, a: string, b: string): boolean => friendlyFire && a !== b;
 
 /** Token bucket: `capacity` burst, refilled at `perSecond`. */
 export class RateLimiter {
@@ -48,9 +52,8 @@ export function shotLimiter(def: WeaponDef): RateLimiter {
 }
 
 /** Highest per-hit damage possible with full upgrades and no falloff. */
-export function maxHitDamage(def: WeaponDef, head: boolean, upgraded = true): number {
-  // PvP plays every weapon at base damage, so its cap is the base
-  const u = upgraded ? MAX_UPGRADE : 0;
+export function maxHitDamage(def: WeaponDef, head: boolean): number {
+  const u = MAX_UPGRADE;
   const st = computeStats(def, { damage: u, magazine: u, recoil: u, reload: u });
   return damageAt(def, st, 0, head) * 1.02;
 }
@@ -102,12 +105,11 @@ type PlayerEnd = EndStats['players'][string];
 
 /**
  * Clamp a host-reported result to what is physically possible in `time` seconds: kill rate,
- * headshots <= kills, per-kind/per-weapon totals <= kills, waves by minimum wave length, and a
- * score bounded by the best possible kill scores plus wave bonuses.
+ * headshots <= kills, per-kind/per-weapon totals <= kills, and a score bounded by the best possible kill scores
+ * (tier 2, what Mission and Infiltration score at).
  */
 export function clampEnd(stats: EndStats, time: number): EndStats {
   const t = Math.max(0, time);
-  const waves = Math.min(stats.waves, Math.floor(t / 10) + 1);
   const players: EndStats['players'] = {};
   let totalKills = 0;
   for (const [id, p] of Object.entries(stats.players)) {
@@ -129,10 +131,8 @@ export function clampEnd(stats: EndStats, time: number): EndStats {
     }
     players[id] = { kills, headshots, byKind, weaponKills } satisfies PlayerEnd;
   }
-  let bonus = 0;
-  for (let w = 1; w <= waves; w++) bonus += waveClearBonus(w);
-  const maxScore = totalKills * killScore('heavy', true, waves + 1) + bonus;
-  return { ...stats, waves, score: Math.min(stats.score, maxScore), players };
+  const maxScore = totalKills * killScore('heavy', true, 2);
+  return { ...stats, score: Math.min(stats.score, maxScore), players };
 }
 
 /** Build the local SessionStats for rewards from the host's (clamped) end report. */
@@ -141,7 +141,6 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
   return {
     ...base,
     won: end.won,
-    waves: end.waves,
     score: end.score,
     kills: me?.kills ?? 0,
     headshots: me?.headshots ?? 0,

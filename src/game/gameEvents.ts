@@ -2,8 +2,6 @@ import type { PickupKind } from './pickups';
 
 /** Session-level events (audio, coop broadcast, analytics). */
 export interface GameEvents {
-  wave: { n: number };
-  waveCleared: { n: number };
   objective: { id: string };
   /** Clear mode: a room was secured (n of total). */
   /** Clear mode: every hostile down (the only feedback the mode gives). */

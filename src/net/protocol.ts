@@ -13,11 +13,10 @@ import { MEDKIT } from '../game/medkit';
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 11;
-/** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
-export const MAX_PLAYERS = 8;
+export const PROTOCOL_VERSION = 12;
+/** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
+export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
-export const TEAM_MAX = 4;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
 /** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */
@@ -25,17 +24,16 @@ export const MAX_ITEMS = 128;
 export const MAX_DOORS = 256;
 const WORLD = 400;
 
-/** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */
+/** Co-op: free roam, Hunter (`clear`), Infiltration, the training course. */
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
-export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'course';
-export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa', 'course'];
+export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course';
+export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course'];
 /** The training course takes exactly two players (P1 host, P2 client). */
 export const COURSE_MAX = 2;
-export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
 /** Players a mode takes. */
-export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : m === 'course' ? COURSE_MAX : COOP_MAX);
+export const capacity = (m: NetMode): number => (m === 'course' ? COURSE_MAX : COOP_MAX);
 import { clampCustom, DIFFICULTIES, parseDifficulty, type Difficulty, type DifficultyPreset } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -48,8 +46,6 @@ export interface PlayerInfo {
   loadout: WeaponId[];
   ready: boolean;
   host: boolean;
-  /** Team deathmatch side (0 / 1); co-op and free-for-all ignore it. */
-  team: number;
 }
 
 /** Bit flags in player state. */
@@ -109,14 +105,6 @@ export interface NetItem {
 }
 export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall'];
 
-/** PvP scoreboard line. */
-export interface ScoreLine {
-  id: string;
-  k: number;
-  d: number;
-  team: number;
-}
-
 export type NetEvent =
   | { e: 'tracer'; ax: number; ay: number; az: number; bx: number; by: number; bz: number; c: string }
   | { e: 'boom'; x: number; y: number; z: number; r: number }
@@ -129,8 +117,6 @@ export type NetEvent =
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
-  /** PvP: `victim` eliminated by `by` (equal = self / world). */
-  | { e: 'frag'; victim: string; by: string; head: boolean }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
   | { e: 'tdDenied'; player: string; enemy: string }
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
@@ -141,25 +127,20 @@ export type NetEvent =
 export interface EndStats {
   won: boolean;
   subtitle: string;
-  waves: number;
   score: number;
   /** Per player id. */
   players: Record<string, { kills: number; headshots: number; byKind: Record<EnemyKind, number>; weaponKills: Record<string, number> }>;
-  /** PvP: the winner ('team0' / 'team1' / a player id; '' = draw). */
-  winner: string;
 }
 
 export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice; dc?: WireCustom }
   | { t: 'ready'; ready: boolean }
-  /** Ask the host for a TDM side. */
-  | { t: 'team'; team: number }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; dc?: WireCustom; bay?: number }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). */
   | { t: 'use'; id: string }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
@@ -184,8 +165,6 @@ export type Msg =
   | { t: 'cdeny'; a: string; id: number; kind: CKind; reason: CDenyReason }
   /** The human ladder of `a` (top) and `b` (bottom) ended. */
   | { t: 'tend'; a: string; b: string }
-  /** (3.2.0) PvP: a client's takedown on another player finished (the host checks it, then it is a kill). */
-  | { t: 'ptd'; target: string; kind: 'drop' | 'below' | 'inverted' }
   /** Client ping (the host relays it to everyone). */
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
@@ -284,18 +263,11 @@ function netItem(v: unknown): NetItem | null {
   return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
 }
 
-function scoreLine(v: unknown): ScoreLine | null {
-  if (!isObj(v)) return null;
-  const pid = id(v.id);
-  if (!pid) return null;
-  return { id: pid, k: Math.floor(num(v.k, 0, 999) ?? 0), d: Math.floor(num(v.d, 0, 999) ?? 0), team: Math.floor(num(v.team, 0, 1) ?? 0) };
-}
-
 function playerInfo(p: unknown): PlayerInfo | null {
   if (!isObj(p)) return null;
   const pid = id(p.id);
   if (!pid) return null;
-  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, team: p.team === 1 ? 1 : 0 };
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true };
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -352,11 +324,6 @@ function netEvent(v: unknown): NetEvent | null {
       const y = num(v.y, -50, 100);
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
-    }
-    case 'frag': {
-      const victim = id(v.victim);
-      const by = id(v.by);
-      return victim && by ? { e: 'frag', victim, by, head: v.head === true } : null;
     }
     case 'tdDenied': {
       const player = id(v.player);
@@ -419,10 +386,8 @@ function endStats(v: unknown): EndStats | null {
   return {
     won: v.won === true,
     subtitle: safeText(v.subtitle, 60) ?? '',
-    waves: Math.floor(num(v.waves, 0, 200) ?? 0),
     score: Math.floor(num(v.score, 0, 1e7) ?? 0),
     players,
-    winner: id(v.winner) ?? '',
   };
 }
 
@@ -545,8 +510,6 @@ export function parseMessage(raw: unknown): Msg | null {
       const r = bool(raw.ready);
       return r === null ? null : { t: 'ready', ready: r };
     }
-    case 'team':
-      return raw.team === 0 || raw.team === 1 ? { t: 'team', team: raw.team } : null;
     case 'use': {
       const iid = id(raw.id);
       return iid ? { t: 'use', id: iid } : null;
@@ -622,11 +585,6 @@ export function parseMessage(raw: unknown): Msg | null {
       const b = id(raw.b);
       return a && b ? { t: 'tend', a, b } : null;
     }
-    case 'ptd': {
-      const target = id(raw.target);
-      const kind = oneOf(raw.kind, ['drop', 'below', 'inverted'] as const);
-      return target && kind ? { t: 'ptd', target, kind } : null;
-    }
     case 'td': {
       const target = id(raw.target);
       const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
@@ -698,10 +656,7 @@ export function parseMessage(raw: unknown): Msg | null {
         }
         out.dcr = cs;
       }
-      if (Array.isArray(raw.score)) out.score = raw.score.slice(0, MAX_PLAYERS).map(scoreLine).filter((l): l is ScoreLine => !!l);
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
-      const tl = num(raw.tl, 0, 3600);
-      if (tl !== null) out.tl = tl;
       return out;
     }
     case 'ev': {

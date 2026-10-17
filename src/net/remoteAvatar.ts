@@ -2,7 +2,7 @@ import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
 import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
-import { Vector3, type InstancedMesh } from '../core/babylon';
+import { Vector3 } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { playEmote } from '../cosmetics/emotes';
@@ -17,7 +17,6 @@ import type { Ballistics } from '../weapons/ballistics';
 import { SnapshotBuffer } from './interp';
 import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
-import { TEAM_COLORS } from './pvp';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { RAPPEL } from '../config/movement';
@@ -146,18 +145,6 @@ export class RemoteAvatar {
 
   emote(id: string): void {
     playEmote(this.rig, id);
-  }
-
-  private marker: InstancedMesh | null = null;
-
-  /** Team-mate marker (team deathmatch): a small diamond over the head in the team's colour. */
-  markTeam(team: number): void {
-    if (this.marker) return;
-    const m = this.world.parts.instance('sphere', TEAM_COLORS[team === 1 ? 1 : 0], 'team-mark');
-    m.parent = this.rig.root;
-    m.scaling.set(0.09, 0.14, 0.09);
-    m.position.set(0, 2.08, 0);
-    this.marker = m;
   }
 
   /** Render-rate update at `renderTime` (in the buffer's clock). */
@@ -435,8 +422,6 @@ export class RemoteAvatar {
   }
 
   dispose(): void {
-    this.marker?.dispose();
-    this.marker = null;
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();

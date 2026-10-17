@@ -16,7 +16,6 @@ import type { Hint } from '../prompts';
 import { button, choice } from '../widgets';
 
 const MODES: { id: ModeId; label: string; desc: string }[] = [
-  { id: 'wave', label: 'Wave Survival', desc: 'Endless waves of guards, dogs, enforcers and heavies. How long can you last?' },
   { id: 'mission', label: 'Mission', desc: 'Hack two terminals, steal the intel, hold the extraction point.' },
   { id: 'clear', label: 'Hunter', desc: 'Clear every hostile in the area, starting undetected. If they raise the alarm, their numbers double.' },
   { id: 'infiltration', label: 'Infiltration', desc: 'Objective missions: uploads, bugs, rescues, sabotage, intel and extraction. Choose your way in.' },
@@ -24,7 +23,7 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'sandbox', label: 'Free Roam', desc: 'No guards: explore the map with every weapon (Proving Grounds adds training targets).' },
 ];
 
-/** 3.5: Infiltration, Training and Free Roam; Wave, Mission and Hunter only with `?legacy=1`. */
+/** 3.5: Infiltration, Training and Free Roam; Mission and Hunter only with `?legacy=1`. */
 const shownModes = (): typeof MODES => visibleModes(MODES, flags.legacy);
 
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };

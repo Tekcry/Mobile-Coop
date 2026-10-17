@@ -4,10 +4,10 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { RemoteAvatar } from './remoteAvatar';
 
 /**
- * PvP on a client: an opponent's avatar gets head / body hit volumes so the local player's shots resolve at once
- * (hit marker, flash); the hit is sent to the host, which rewinds the target and decides the damage.
+ * Course friendly fire (D38) on a client: the partner's avatar gets head / body hit volumes so the local player's shots
+ * resolve at once (hit marker, flash); the hit is sent to the host, which decides the damage.
  */
-export class PvpTarget implements Damageable {
+export class PartnerTarget implements Damageable {
   readonly team = 'enemy' as const;
   private boxes: Hitboxes;
   private head = new Vector3();

@@ -8,17 +8,15 @@ import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine, wirePlayerState } from './protocol';
+import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
-import { PvpTarget } from './pvpTarget';
+import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { PvpVictim } from './pvpVictim';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
-import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
@@ -34,7 +32,7 @@ const INTERP_DELAY = 0.12;
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
- * and health come from host snapshots. Own hits are resolved against local puppets (PvP: opponents' hit volumes)
+ * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
  * for instant feedback and sent to the host for the real outcome; objectives, doors and revives are used through
  * mirrored interactables (`use`); takedowns seize a puppet here and the host's enemy there (`td`).
  */
@@ -42,7 +40,7 @@ export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
-  private targets = new Map<string, PvpTarget>();
+  private targets = new Map<string, PartnerTarget>();
   /** (T5b2, D49) The co-op partners' bodies (every non-opponent): they block the local player as he blocks them. */
   private blockers: { id: string; a: RemoteAvatar; b: PartnerBlocker }[] = [];
   private ragdolls: Ragdoll[] = [];
@@ -59,15 +57,11 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
-  private readonly pvp: PvpMode | null;
-  private score: ScoreLine[] = [];
-  private deaths = 0;
 
   constructor(
     private g: GameState,
     private s: NetSession,
   ) {
-    this.pvp = isPvp(g.opts.mode) ? (g.opts.mode as PvpMode) : null;
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
     if (g.opts.mode === 'course') {
       // a bay-N start (D20): beside the host in that bay's entry airlock, before our first `pstate` (the host takes a
@@ -92,19 +86,17 @@ export class CoopClient implements NetAttachment {
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
-    g.takedownVictims = () => (this.pvp ? this.pvpVictimList() : this.puppetList);
+    g.takedownVictims = () => this.puppetList;
     // (locomotion step 15) medkits: the host heals and counts (`mk`); the wall stations are the host's, mirrored
     g.medkit.authority = false;
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
-    if (!this.pvp) {
-      if (g.opts.mode !== 'sandbox' || !own) {
-        this.ints = new Interactables(g.scene, g.world.parts);
-        (g as { interactables: Interactables | null }).interactables = this.ints;
-      } else this.ints = own;
-      // (free roam mirrors only the host's wall medkits)
-      if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
-    }
+    if (g.opts.mode !== 'sandbox' || !own) {
+      this.ints = new Interactables(g.scene, g.world.parts);
+      (g as { interactables: Interactables | null }).interactables = this.ints;
+    } else this.ints = own;
+    // (free roam mirrors only the host's wall medkits)
+    if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
     g.hud.setObjective('Connecting to host…');
   }
 
@@ -181,17 +173,10 @@ export class CoopClient implements NetAttachment {
     const out = this.mateOut;
     out.length = 0;
     for (const [id, a] of this.avatars) {
-      if (a.dead || this.hostile(id)) continue;
+      if (a.dead) continue;
       out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode });
     }
     return out;
-  }
-
-  /** Opponent in this match? (PvP: free-for-all everyone, team deathmatch the other side) */
-  private hostile(id: string): boolean {
-    if (!this.pvp) return false;
-    if (this.pvp === 'ffa') return true;
-    return (this.s.players.get(id)?.team ?? 0) !== (this.s.players.get(this.s.selfId)?.team ?? 0);
   }
 
   private avatar(st: PlayerState): RemoteAvatar | null {
@@ -202,39 +187,21 @@ export class CoopClient implements NetAttachment {
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
       a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
-      if (this.pvp === 'tdm' && !this.hostile(st.id)) a.markTeam(info.team);
       this.avatars.set(st.id, a);
-      // PvP opponents; course mode (D38): the partner too (the host decides the damage, co-op rules)
-      if (this.hostile(st.id) || g.opts.mode === 'course') {
-        const t = new PvpTarget(g.scene, g.registry, st.id, a);
+      // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
+      if (g.opts.mode === 'course') {
+        const t = new PartnerTarget(g.scene, g.registry, st.id, a);
         t.onShot = (h) => this.sendShot(st.id, h);
         this.targets.set(st.id, t);
         // a partner's hit boxes take bullets only: its body is the blocker below (the same on the host)
-        if (!this.hostile(st.id)) t.setSolid(false);
+        t.setSolid(false);
       }
-      if (!this.hostile(st.id)) this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
+      this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
     }
     return a;
   }
 
-  /** (3.2.0) PvP: opponents as takedown victims (the end is a kill the host checks). */
-  private pvpVictims = new Map<string, PvpVictim>();
-  private pvpVictimOut: PvpVictim[] = [];
-  private pvpVictimList(): readonly PvpVictim[] {
-    const out = this.pvpVictimOut;
-    out.length = 0;
-    for (const id of this.targets.keys()) {
-      const a = this.avatars.get(id);
-      if (!a) continue;
-      let v = this.pvpVictims.get(id);
-      if (!v) this.pvpVictims.set(id, (v = new PvpVictim(id, a, (target, kind) => this.s.toHost({ t: 'ptd', target, kind: kind as 'drop' | 'below' | 'inverted' }))));
-      out.push(v.sync());
-    }
-    return out;
-  }
-
   private dropAvatar(id: string): void {
-    this.pvpVictims.delete(id);
     this.avatars.get(id)?.dispose();
     this.avatars.delete(id);
     this.targets.get(id)?.dispose();
@@ -295,10 +262,7 @@ export class CoopClient implements NetAttachment {
       this.obj = m.obj;
       g.hud.setObjective(m.obj);
     }
-    if (this.pvp) {
-      if (m.score) this.score = m.score;
-      g.hud.setModeInfo(pvpInfo(this.pvp, this.score, this.s.selfId, m.tl ?? 0));
-    } else if (m.info !== this.info) {
+    if (m.info !== this.info) {
       this.info = m.info;
       g.hud.setModeInfo(infoToHtml(m.info));
     }
@@ -378,7 +342,7 @@ export class CoopClient implements NetAttachment {
     if (p.mk !== undefined) g.medkit.kits = p.mk;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
-      if (!this.pvp) g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
+      g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
     }
   }
 
@@ -470,17 +434,6 @@ export class CoopClient implements NetAttachment {
         }
         break;
       }
-      case 'frag': {
-        if (e.victim === me) this.deaths++;
-        if (e.by === me && e.victim !== me) {
-          g.hud.hitMarker('kill');
-          g.app.sfx.hitMarker('kill');
-          g.app.input.haptic('kill');
-          g.hud.feedItem(`${this.name(e.victim)} eliminated${e.head ? ' (headshot)' : ''}`, 'kill');
-        } else if (e.victim === me) g.hud.banner('ELIMINATED', e.by === me ? '' : `by ${this.name(e.by)}`, 2500);
-        else g.hud.feedItem(e.by === e.victim ? `${this.name(e.victim)} died` : `${this.name(e.by)} > ${this.name(e.victim)}`);
-        break;
-      }
       case 'tdDenied': {
         if (e.player !== me) break;
         const p = this.puppets.get(e.enemy);
@@ -518,7 +471,7 @@ export class CoopClient implements NetAttachment {
         g.traversal.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
-        if (!this.pvp) g.hud.banner('BACK IN', '', 1500);
+        g.hud.banner('BACK IN', '', 1500);
         break;
       case 'hitConfirm':
         break;
@@ -534,12 +487,7 @@ export class CoopClient implements NetAttachment {
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
     const end = clampEnd(raw, this.time);
-    if (this.pvp) {
-      const team = this.s.players.get(this.s.selfId)?.team ?? 0;
-      end.won = end.winner !== '' && (end.winner === this.s.selfId || end.winner === `team${team}`);
-    }
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
-    if (this.pvp) this.g.stats.deaths = this.deaths;
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);
   }
@@ -644,7 +592,7 @@ export class CoopClient implements NetAttachment {
 
   blips(): Blip[] {
     const out: Blip[] = [];
-    for (const [id, a] of this.avatars) if (!this.hostile(id)) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
+    for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
     return out;
   }
 

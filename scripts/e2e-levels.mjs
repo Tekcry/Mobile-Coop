@@ -2,7 +2,7 @@
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=wave' });
+const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=mission' });
 let failed = false;
 try {
   await page.waitForFunction(() => window.__app.current?.enemyMgr, null, { timeout: 60000 });

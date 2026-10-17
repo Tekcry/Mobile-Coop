@@ -9,7 +9,7 @@ import { hyp2 } from '../../core/mathx';
 import { DOWNLOAD, evaluateRules, MISSIONS, missionById, missionRating, ObjectiveChain, type MissionDef, type ObjectiveDef } from '../missions';
 import { Vip } from '../vip';
 import type { SquadSlot } from '../../world/rooms';
-import { killScore } from './waveLogic';
+import { killScore } from './score';
 
 const SQUAD_CAP = 9;
 const SPAWN_MIN_DIST = 7;

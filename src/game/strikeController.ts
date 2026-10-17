@@ -77,7 +77,7 @@ export class StrikeController {
     let best = '';
     let bestD = Infinity;
     for (const e of g.takedownVictims()) {
-      if (!e.alive || e.taken || e.pvp) continue;
+      if (!e.alive || e.taken) continue;
       if (Math.abs(e.pos.y - pp.y) > 1) continue;
       const d = strikeReach(e.pos.x - pp.x, e.pos.z - pp.z, yaw);
       if (d >= 0 && d < bestD) {

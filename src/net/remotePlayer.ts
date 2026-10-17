@@ -247,16 +247,11 @@ export class RemotePlayer implements Damageable {
 
   /** The host's own bullets may hit it (course mode friendly fire, D38); `friendly` still decides the damage. */
   shootable = false;
-  /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
+  /** Hits that do not hurt (team-mates); course friendly fire (D38) replaces it. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
-  /** The last hit taken (PvP credit). */
-  lastHit: HitInfo | null = null;
-  /** Feet / posed head and hips / mode history for lag-compensated PvP shots. */
-  readonly history: { t: number; x: number; y: number; z: number; c: number; hx: number; hy: number; hz: number; bx: number; by: number; bz: number; m: string }[] = [];
 
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
-    this.lastHit = h;
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
     const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
     if (dealt > 0) this.onDamaged?.(h, dealt);
@@ -269,7 +264,6 @@ export class RemotePlayer implements Damageable {
   }
 
   revive(at: Vector3, protect = 2): void {
-    this.lastHit = null;
     this.health.reset();
     this.feet.copyFrom(at);
     this.allowTeleport();
@@ -278,7 +272,7 @@ export class RemotePlayer implements Damageable {
     this.sync();
   }
 
-  /** (T5b2, D49) A co-op partner's body on the host (null for a PvP opponent); synced by `CoopHost.frameUpdate`. */
+  /** (T5b2, D49) A co-op partner's body on the host ; synced by `CoopHost.frameUpdate`. */
   blocker: PartnerBlocker | null = null;
 
   dispose(): void {

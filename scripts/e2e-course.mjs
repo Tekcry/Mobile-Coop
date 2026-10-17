@@ -111,7 +111,6 @@ try {
   await until(B, () => !!window.__course?.wire, null, 8000, 'client has the course state');
   const hostId = await GA(() => window.__coop.session.selfId);
   const clientId = await GB(() => window.__coop.session.selfId);
-  assert((await GA(() => window.__app.current.net.score)) === null, 'course mode is co-op (no PvP score)');
 
   console.log('objective list and automatic airlock (R5, R6)');
   const near = await doorIndex('A1-near');
@@ -224,7 +223,7 @@ try {
     }, [yaw, secs]);
   const [ndx, ndz] = await GA((n) => { const x = window.__app.current.world.doors.list[n]; return [x.cx, x.cz]; }, near);
   // the host steps clear of both walk lines first (he stood at (11.6, 3.2), beside them): the client page's hit boxes
-  // of its partner (PvpTarget, course friendly fire D38) block the client's body
+  // of its partner (PartnerTarget, course friendly fire D38) block the client's body
   await moveHost(13, 6);
   await moveClient(ndx + 3, 1.7);
   const c0 = await walkClient(0, 2.8);
@@ -346,7 +345,7 @@ try {
   const shoot = () => GA(() => {
     const g = window.__app.current;
     const r = g.net.remotes.values().next().value;
-    const bn = g.net.pvpBoxes.get(r.id)['bodyNode'];
+    const bn = g.net.partnerBoxes.get(r.id)['bodyNode'];
     const V = g.player.position.constructor;
     const from = new V(35.3, 1.2, 4);
     let last = null;

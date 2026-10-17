@@ -3,7 +3,6 @@ import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, MAX_DOORS, capacity, PROTOCOL_VERSION } from '../src/net/protocol';
 import { TickLimiter } from '../src/game/course/courseWire';
-import { playersHostile, PvpScore } from '../src/net/pvp';
 import { mulberry } from '../src/core/rng';
 
 const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 };
@@ -29,7 +28,11 @@ describe('net message validation', () => {
     expect(a && a.t === 'start' && a.weather).toBe('rain');
     const b = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'blizzard' });
     expect(b && b.t === 'start' && b.weather).toBe('clear');
-    const c = parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'warehouse', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
+    const c = parseMessage({ t: 'lobby', players: [], mode: 'clear', map: 'warehouse', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
+    expect(parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'warehouse', difficulty: 'normal', phase: 'lobby' })).toBeNull();
+    expect(parseMessage({ t: 'start', mode: 'tdm', map: 'warehouse', seed: 1, difficulty: 'normal' })).toBeNull();
+    expect(parseMessage({ t: 'team', team: 1 })).toBeNull();
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'drop' })).toBeNull();
     expect(c && c.t === 'lobby' && c.weather).toBe('fog');
   });
   it('clamps numbers to sane ranges', () => {
@@ -64,11 +67,10 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'shot', w: 'rifle', ox: 0, oy: 1, oz: 0, dx: 0, dy: 0, dz: 0, target: 'e3', part: 'head', rt: 10, dist: 1 })).toBeNull();
   });
   it('end-of-match stats are clamped before they reach rewards', () => {
-    const m = parseMessage({ t: 'end', stats: { won: 'yes', waves: 1e9, score: -5, subtitle: 'x', players: { me: { kills: 1e9, headshots: 3, byKind: { grunt: 5, dragon: 9 }, weaponKills: { rifle: 4, bfg: 99 } } } } });
+    const m = parseMessage({ t: 'end', stats: { won: 'yes', score: -5, subtitle: 'x', players: { me: { kills: 1e9, headshots: 3, byKind: { grunt: 5, dragon: 9 }, weaponKills: { rifle: 4, bfg: 99 } } } } });
     expect(m?.t).toBe('end');
     if (m?.t !== 'end') return;
     expect(m.stats.won).toBe(false);
-    expect(m.stats.waves).toBe(200);
     expect(m.stats.score).toBe(0);
     expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { ...emptyKinds(), grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
   });
@@ -110,7 +112,7 @@ describe('room codes', () => {
 
 // ---------------------------------------------------------------------------------------------
 import { SnapshotBuffer, ClockSync, lerpAngle } from '../src/net/interp';
-import { RateLimiter, checkShot, checkBlast, clampEnd, coopSessionStats, maxHitDamage, shotLimiter, rayPointDistance } from '../src/net/validate';
+import { RateLimiter, checkShot, checkBlast, clampEnd, coopSessionStats, maxHitDamage, playersHostile, shotLimiter, rayPointDistance } from '../src/net/validate';
 import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
 import { WEAPONS } from '../src/weapons/weaponDefs';
@@ -285,29 +287,26 @@ describe('host validation', () => {
       {
         won: false,
         subtitle: '',
-        waves: 50,
         score: 1e7,
         players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
-        winner: '',
       },
       60,
     );
     const me = end.players.me!;
-    expect(end.waves).toBeLessThanOrEqual(7);
     expect(me.kills).toBeLessThanOrEqual(92);
     expect(me.headshots).toBeLessThanOrEqual(me.kills);
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
     expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.smg ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
-    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } }, winner: '' }, 120);
+    const honest = clampEnd({ won: false, subtitle: '', score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
     expect(honest.score).toBe(1500);
     expect(honest.players.me!.kills).toBe(9);
   });
   it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } }, winner: '' }, 'b');
+    const s = coopSessionStats(emptyStats('clear', 'depot'), { won: false, subtitle: '', score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
     expect(s.kills).toBe(7);
-    expect(s.waves).toBe(3);
-    expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {}, winner: '' }, 'zz').kills).toBe(0);
+    expect(s.score).toBe(900);
+    expect(coopSessionStats(emptyStats('clear', 'depot'), { won: false, subtitle: '', score: 0, players: {} }, 'zz').kills).toBe(0);
   });
   it('mode info round-trips through plain text', () => {
     const html = '<span>Wave <b>3</b></span><span>Hostiles <b>5</b></span><span>Score <b>1200</b></span>';
@@ -390,14 +389,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 10 is refused; version 11 joins (step 19; 11 = locomotion + training course)', () => {
-    expect(PROTOCOL_VERSION).toBe(11);
+  it('a peer on protocol version 11 is refused; version 12 joins (12 = Wave and PvP removed)', () => {
+    expect(PROTOCOL_VERSION).toBe(12);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 10, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 11, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 11, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 12, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -405,12 +404,12 @@ describe('net session', () => {
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const a = new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
     const evil = h.make('E');
-    evil.send({ t: 'lobby', players: [{ id: 'E', name: 'Evil', host: true }], mode: 'wave', map: 'depot', difficulty: 'easy', phase: 'lobby' });
+    evil.send({ t: 'lobby', players: [{ id: 'E', name: 'Evil', host: true }], mode: 'clear', map: 'depot', difficulty: 'easy', phase: 'lobby' });
     expect(a.hostId).toBe('H');
     expect(a.players.has('E')).toBe(false);
     let started = false;
     a.events.on('start', () => (started = true));
-    evil.send({ t: 'start', mode: 'wave', map: 'depot', seed: 1, difficulty: 'easy', time: 0 });
+    evil.send({ t: 'start', mode: 'clear', map: 'depot', seed: 1, difficulty: 'easy', time: 0 });
     expect(started).toBe(false);
     let gone = false;
     a.events.on('hostLeft', () => (gone = true));
@@ -442,15 +441,6 @@ describe('pstate movement state (3.2.0)', () => {
   });
 });
 
-describe('PvP takedowns (3.2.0 phase 4)', () => {
-  it('ptd: only the drop, the ledge pull and the inverted choke, on a valid id', () => {
-    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'drop' })).toEqual({ t: 'ptd', target: 'peerB', kind: 'drop' });
-    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'inverted' })).not.toBeNull();
-    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'behind' })).toBeNull();
-    expect(parseMessage({ t: 'ptd', target: '../x', kind: 'drop' })).toBeNull();
-  });
-});
-
 describe('team moves (3.2.0 phase 5)', () => {
   it('tmove: boost / ladder / end, a valid partner id, clamped numbers', () => {
     expect(parseMessage({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 })).toEqual({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 });
@@ -475,7 +465,7 @@ import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, pose
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(11);
+    expect(PROTOCOL_VERSION).toBe(12);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -672,7 +662,7 @@ import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate'
 describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
   it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(11);
+    expect(PROTOCOL_VERSION).toBe(12);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
@@ -751,7 +741,7 @@ describe('step 13: door peek on the wire', () => {
     expect(new Set(dcr).size).toBe(dcr.length);
   });
   it('PROTOCOL_VERSION is 8', () => {
-    expect(PROTOCOL_VERSION).toBe(11);
+    expect(PROTOCOL_VERSION).toBe(12);
   });
 });
 
@@ -814,16 +804,10 @@ describe('course messages (T1b)', () => {
     expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' });
     expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: '<x>' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false });
   });
-  it('friendly fire (D38): course partners hurt each other, never themselves; co-op never; PvP by sides', () => {
-    expect(playersHostile(null, true, 'a', 'b')).toBe(true);
-    expect(playersHostile(null, true, 'a', 'a')).toBe(false);
-    expect(playersHostile(null, false, 'a', 'b')).toBe(false);
-    const sc = new PvpScore('tdm');
-    sc.add('a', 0);
-    sc.add('b', 0);
-    sc.add('c', 1);
-    expect(playersHostile(sc, true, 'a', 'b')).toBe(false);
-    expect(playersHostile(sc, false, 'a', 'c')).toBe(true);
+  it('friendly fire (D38): course partners hurt each other, never themselves; co-op never', () => {
+    expect(playersHostile(true, 'a', 'b')).toBe(true);
+    expect(playersHostile(true, 'a', 'a')).toBe(false);
+    expect(playersHostile(false, 'a', 'b')).toBe(false);
   });
   it('parses ctick for client-only verbs only', () => {
     expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });
@@ -831,7 +815,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(11);
+    expect(PROTOCOL_VERSION).toBe(12);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

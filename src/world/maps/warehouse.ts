@@ -134,7 +134,7 @@ export const warehouse: MapDef = {
   id: 'warehouse',
   name: 'Warehouse',
   description: 'Close quarters: dock, racking aisles, offices, corridors and a factory floor.',
-  modes: ['clear', 'sandbox', 'wave', 'mission', 'infiltration', 'tdm', 'ffa'],
+  modes: ['clear', 'sandbox', 'mission', 'infiltration'],
   art: warehouseArt,
   weathers: ['clear', 'rain', 'fog'],
   theme: {

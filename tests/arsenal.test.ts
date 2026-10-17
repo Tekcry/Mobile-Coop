@@ -53,7 +53,7 @@ describe('campaign arsenal (bible 5.6, locomotion step 16)', () => {
     const s = defaultSave();
     s.loadout = { primary: 'p90', secondary: 'sniper' };
     expect(loadoutEntries(s, 'infiltration', true).map((e) => e.id)).toEqual(['rifle', 'pistolSd']);
-    expect(loadoutEntries(s, 'wave', true).map((e) => e.id)).toEqual(['p90', 'sniper']);
+    expect(loadoutEntries(s, 'mission', true).map((e) => e.id)).toEqual(['p90', 'sniper']);
     expect(s.loadout).toEqual({ primary: 'p90', secondary: 'sniper' });
   });
 
@@ -80,7 +80,7 @@ describe('campaign arsenal (bible 5.6, locomotion step 16)', () => {
     expect(rifle.attachments).toContain('suppressor');
     expect(rifle.mods?.noise).toBeLessThan(1);
     expect(s.weapons.rifle.attachments).toEqual([]);
-    expect(loadoutEntries(s, 'wave', true).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
+    expect(loadoutEntries(s, 'mission', true).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
     // pistolSd keeps its integral suppressor (quiet with no part fitted)
     expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, loadoutEntries(s, 'infiltration', true).find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThan(1);
   });

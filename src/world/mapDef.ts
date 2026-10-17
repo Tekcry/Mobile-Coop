@@ -81,7 +81,7 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training' | 'course')[];
+  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'training' | 'course')[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
   art?: VoxelArt;

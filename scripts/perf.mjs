@@ -76,7 +76,7 @@ const stealth = !!process.env.STEALTH;
 const MAP = process.env.MAP ?? 'warehouse';
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${phone ? '&detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user' : preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
+  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'mission'}&debug=1${phone ? '&detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user' : preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
   ...(desktop || phone ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });

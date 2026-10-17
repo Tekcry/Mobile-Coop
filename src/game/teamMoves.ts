@@ -17,8 +17,6 @@ export interface TeamSide {
   /** Movement mode on the wire (`MoveState.m`). */
   mode: string;
   alive: boolean;
-  /** Team (PvP: the same side only; co-op: everyone 0). */
-  team: number;
 }
 
 export interface TeamRequest {
@@ -39,7 +37,7 @@ export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'far' | 'b
 export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.sinceLast < 1 / TEAM.rate) return 'rate';
   if (!r.a.alive || !r.b.alive) return 'dead';
-  if (r.a.id === r.b.id || r.a.team !== r.b.team) return 'notMates';
+  if (r.a.id === r.b.id) return 'notMates';
   if (r.b.mode !== 'brace') return 'notBraced';
   if (r.a.mode !== 'ground') return 'busy';
   if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.partnerReach || Math.abs(r.a.y - r.b.y) > 0.4) return 'far';

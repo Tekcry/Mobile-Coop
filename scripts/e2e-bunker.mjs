@@ -165,7 +165,7 @@ try {
 
   console.log('B1: a locked door blocks the client');
   // the host steps clear of both walk lines first: he stood at (4, 57), the rear walk's start, and the client page's
-  // partner body (PartnerBlocker, D49; before T5b2 the PvpTarget hit boxes) blocks the client's body there, so the client
+  // partner body (PartnerBlocker, D49; before T5b2 the partner hit boxes) blocks the client's body there, so the client
   // teleported into the host and was pinned (x 27.0 -> 27.25 in failed runs, camera and stick correct)
   await moveHost(2.2, 55);
   // control: the same walk along the airlock (+z, clear floor from the south wall) covers more than 3 m

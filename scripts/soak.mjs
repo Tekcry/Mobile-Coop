@@ -1,4 +1,4 @@
-// Soak test: plays a Warehouse wave fight in real time for N minutes (default 10) with the full render
+// Soak test: plays a Warehouse Hunter operation in real time for N minutes (default 10) with the full render
 // loop and reports, per interval, frame pacing, CPU per frame, adaptive quality / resolution, heap and
 // enemy count. Fails on page errors, a heap that keeps growing (leak) or CPU per frame creeping up.
 // SwiftShader cannot show thermal throttling; on a phone use the debug overlay (F3 / 3-finger tap)
@@ -9,8 +9,8 @@ import { launch } from './e2e-lib.mjs';
 const minutes = Number(process.argv[2] ?? 10);
 const url = process.argv[3] ?? 'http://localhost:4173/';
 const INTERVAL = Math.min(30, Math.max(10, (minutes * 60) / 10));
-// MAP / MODE: any map and mode (default the Warehouse in Wave)
-const { browser, page, errors } = await launch({ url, params: `autostart=${process.env.MAP ?? 'warehouse'}&mode=${process.env.MODE ?? 'wave'}` });
+// MAP / MODE: any map and mode (default the Warehouse in Hunter)
+const { browser, page, errors } = await launch({ url, params: `autostart=${process.env.MAP ?? 'warehouse'}&mode=${process.env.MODE ?? 'clear'}` });
 await page.evaluate(() => {
   const g = window.__app.current;
   g.target.damageMul = 0;
@@ -38,12 +38,11 @@ while (Date.now() - t0 < minutes * 60_000) {
       res: app.quality.res.scale,
       heapMB: heap / 1048576,
       alive: g.enemyMgr?.alive ?? 0,
-      wave: g.mode?.wave ?? 0,
     };
   });
   rows.push(r);
   const m = ((Date.now() - t0) / 60000).toFixed(1);
-  console.log(`${m.padStart(5)} min  frame p50 ${r.p50.toFixed(1)} p95 ${r.p95.toFixed(1)} ms  cpu p50 ${r.cpu.toFixed(2)} p95 ${r.cpu95.toFixed(2)} ms  ${r.q} x${r.res.toFixed(2)}  heap ${r.heapMB.toFixed(1)} MB  wave ${r.wave} alive ${r.alive}`);
+  console.log(`${m.padStart(5)} min  frame p50 ${r.p50.toFixed(1)} p95 ${r.p95.toFixed(1)} ms  cpu p50 ${r.cpu.toFixed(2)} p95 ${r.cpu95.toFixed(2)} ms  ${r.q} x${r.res.toFixed(2)}  heap ${r.heapMB.toFixed(1)} MB  alive ${r.alive}`);
 }
 const real = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
 await browser.close();

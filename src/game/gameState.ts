@@ -21,7 +21,7 @@ import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
 import { Grenades } from '../weapons/grenades';
-import { PlayerWeapons, pvpLoadout, type LoadoutEntry } from '../weapons/playerWeapons';
+import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
@@ -39,7 +39,6 @@ import { resolveDifficulty, type CustomDifficulty, type DifficultyDef } from '..
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
-import { WaveMode } from './modes/waveMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
@@ -350,8 +349,6 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
-  /** PvP (team deathmatch / free-for-all): no AI or mode; the net host keeps the score. */
-  readonly pvp: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
   takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? [];
 
@@ -363,7 +360,6 @@ export class GameState implements AppState {
   ) {
     this.scene = world.scene;
     this.puppet = opts.net?.role === 'client';
-    this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     this.vfx = new Vfx(this.scene);
@@ -372,11 +368,8 @@ export class GameState implements AppState {
     if (world.voxels && world.voxels.lv.size <= 0.05) this.ballistics.onWorldHit = (p, n) => world.voxelsFine?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? world.voxels?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? null;
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
-    const pvpMatch = opts.mode === 'tdm' || opts.mode === 'ffa';
-    const base: LoadoutEntry[] =
+    const loadout: LoadoutEntry[] =
       opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistol' }]);
-    // PvP is fair: no damage upgrades or damage mods (and below: no suit armour, no HQ perks)
-    const loadout = pvpMatch ? pvpLoadout(base) : base;
     this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (suppressed) =>
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
@@ -450,8 +443,8 @@ export class GameState implements AppState {
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
     // suit and HQ: armour, hands, gadget carry
-    this.suit = suitStats(opts.suit && !pvpMatch ? opts.suit : defaultSuit());
-    this.hq = hqStats(opts.hq && !pvpMatch ? opts.hq : defaultHq());
+    this.suit = suitStats(opts.suit ?? defaultSuit());
+    this.hq = hqStats(opts.hq ?? defaultHq());
     this.target.armorMul = this.suit.damage;
     this.weapons.handsMul = this.suit.hands;
     this.takedown.handsMul = this.suit.hands;
@@ -521,10 +514,6 @@ export class GameState implements AppState {
       if (opts.mode !== 'sandbox') w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       // health is host-authoritative: local damage never applies
       this.target.damageMul = 0;
-    } else if (this.pvp) {
-      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
-      w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
-      w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
@@ -554,17 +543,15 @@ export class GameState implements AppState {
       w.interactables = new Interactables(this.scene, world.parts);
       this.addMedkitWalls(w.interactables);
       w.mode =
-        opts.mode === 'wave'
-          ? new WaveMode(this)
-          : opts.mode === 'clear'
-            ? new ClearMode(this)
-            : opts.mode === 'infiltration'
-              ? new InfiltrationMode(this)
-              : opts.mode === 'training'
-                ? new TrainingMode(this)
-                : opts.mode === 'course'
-                  ? new CourseMode(this)
-                  : new MissionMode(this);
+        opts.mode === 'clear'
+          ? new ClearMode(this)
+          : opts.mode === 'infiltration'
+            ? new InfiltrationMode(this)
+            : opts.mode === 'training'
+              ? new TrainingMode(this)
+              : opts.mode === 'course'
+                ? new CourseMode(this)
+                : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -590,7 +577,7 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox' || this.pvp) {
+    if (this.puppet || opts.mode === 'sandbox') {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
@@ -612,7 +599,7 @@ export class GameState implements AppState {
     if (opts.mode === 'sandbox') {
       // (locomotion step 15) free roam on a test map keeps its wall medkit stations (Proving); a co-op client mirrors
       // the host's
-      if (!this.puppet && !this.pvp && world.layout.medkitWalls?.length) {
+      if (!this.puppet && world.layout.medkitWalls?.length) {
         const w = this as { -readonly [K in keyof GameState]: GameState[K] };
         w.interactables = new Interactables(this.scene, world.parts);
         this.addMedkitWalls(w.interactables);
@@ -1211,7 +1198,7 @@ export class GameState implements AppState {
     // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
     // quick emotes (View held on a pad, J / K / L)
-    if (inp.pressed('ping') && this.net && !this.pvp && this.player.alive) this.sendPing();
+    if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
@@ -1282,12 +1269,10 @@ export class GameState implements AppState {
     this.security?.fixedUpdate(dt);
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
-    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab)
     {
       // (3.2.0) B shoves a held hostage away (and is not a crouch then)
       this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
       if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
-      this.takedown.grabAllowed = !this.pvp;
       this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
@@ -2378,7 +2363,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped && !this.pvp ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.active?.grab?.strikeT === -1) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills

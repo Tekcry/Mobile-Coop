@@ -2,7 +2,7 @@
 // room counts, lives, score, objective or enemy blips; squads hold their rooms; clearing a room gives no
 // feedback (no banner, stinger, slow beat, feed or XP); going down shows "DOWN" with no lives counter;
 // the last hostile down completes the operation (OPERATION COMPLETE banner, stinger, slow beat,
-// letterbox); results have no rooms row and one completion reward. Room tags still show in Wave mode;
+// letterbox); results have no rooms row and one completion reward.
 // doorway checks by chasing enemies; Proving Grounds mini room set; Warehouse as the default map.
 import { launch, frames, assert } from './e2e-lib.mjs';
 
@@ -188,21 +188,13 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   assert(/Operation complete/.test(res) && !/Room/.test(res), 'results: one completion reward, no per-room rewards');
 });
 
-console.log('wave mode keeps its HUD (room tags)');
-await run('autostart=warehouse&mode=wave', async ({ G, sim }) => {
-  await G(HELPERS);
-  await sim(0.5);
-  await G(() => window.__h.tp(-12, -14, 0));
-  await sim(0.6);
-  const hud = await G(() => window.__h.hud());
-  assert(hud.room === 'Loading Dock' && /wave/i.test(hud.mode), `room tag and wave info in Wave mode (${hud.room}, ${hud.mode})`);
-});
-
 console.log('chasing enemies check doorways');
-await run('autostart=warehouse&mode=wave', async ({ G, sim }) => {
+await run('autostart=warehouse&mode=mission', async ({ G, sim }) => {
   await G(HELPERS);
   const r = await G(() => {
     const g = window.__app.current;
+    g.enemyMgr.clear();
+    g.enemyMgr.stealth = false;
     const e = g.enemyMgr.spawn('grunt', new g.player.position.constructor(-12, 0, -14), true, 0);
     window.__h.tp(3.2, 16.8, Math.PI);
     return e.id;
@@ -243,7 +235,7 @@ await run('', async ({ page, G }) => {
     await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().tap();
   }
   const byMode = Object.fromEntries(seen.map((s) => s.split(' / ')));
-  assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Wave / Mission / Hunter (${seen.join('; ')})`);
+  assert(byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Mission / Hunter (${seen.join('; ')})`);
   assert(/Cold Storage.*Ledger.*Courier.*Blackout/.test(byMode['Infiltration'] ?? '') && !/Pouch|Vault|Manifest|Flare/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the Warehouse missions only (${byMode['Infiltration']})`);
   assert(byMode['Free Roam'] === 'Warehouse', `Free Roam defaults to Warehouse (${byMode['Free Roam']})`);
   assert(byMode['Training'] === 'Proving Grounds', 'Training stays on Proving Grounds');

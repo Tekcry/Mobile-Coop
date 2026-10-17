@@ -21,7 +21,7 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
   with no fine-tuning, Hunter the one non-CT exception, menus keep the Arkham plan, version 4.0.0, main is the only base.
 
 ## Was running when the account switched (check before continuing)
-1. Code deletion agent: remove Wave, deathmatch ('tdm'), free-for-all ('ffa') and any PvP / traitor-versus code;
+1. DONE (commit "consolidate: remove Wave, deathmatch, free-for-all"; log docs/consolidation/deleted-modes.md; PROTOCOL_VERSION 12, MAX_PLAYERS 4, save unchanged). Follow-ups for the next session: the co-op lobby default mode became Hunter (parked) - set it to the mission / infiltration mode; legacy e2e-progression fails at "Y customises the weapon" (before the edited code: check if it fails on the pre-deletion commit too, report only); lost coverage: solo death -> DEFEAT -> Play again, netmove shot at a client on a ledge (re-add in another mode if cheap). Original task: remove Wave, deathmatch ('tdm'), free-for-all ('ffa') and any PvP / traitor-versus code;
    KEEP Hunter ('clear', parked behind ?legacy=1), sandbox, infiltration, course, training. Docs untouched by it; it
    was to write a deletion log in the old scratchpad (lost). CHECK `git status` in the work folder: uncommitted src /
    tests / scripts changes are its partial work. Finish or redo it, `npm run check`, run smoke e2e-modes e2e-coop

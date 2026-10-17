@@ -110,7 +110,7 @@ export const mansion: MapDef = {
   id: 'mansion',
   name: 'Mansion',
   description: 'Night: a walled estate and a two-storey house with a grand staircase, a balcony and a vault office.',
-  modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
+  modes: ['infiltration', 'clear'],
   theme: {
     sky: '#080a12',
     horizon: '#20242e',

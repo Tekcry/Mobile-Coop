@@ -146,30 +146,9 @@ describe('NavGrid', () => {
   });
 });
 
-import { waveComposition, killScore, waveMaxAlive } from '../src/game/modes/waveLogic';
-import { mulberry } from '../src/core/rng';
+import { killScore } from '../src/game/modes/score';
 
-describe('wave composition', () => {
-  it('grows each wave and introduces runners then heavies', () => {
-    const w1 = waveComposition(1, mulberry(1));
-    const w2 = waveComposition(2, mulberry(1));
-    const w3 = waveComposition(3, mulberry(1));
-    expect(w1.length).toBe(6);
-    expect(w1.every((k) => k === 'grunt')).toBe(true);
-    expect(w2.length).toBeGreaterThan(w1.length);
-    expect(w2.includes('runner')).toBe(true);
-    expect(w2.includes('heavy')).toBe(false);
-    expect(w3.filter((k) => k === 'heavy').length).toBe(1);
-  });
-  it('caps size and heavies late', () => {
-    const w = waveComposition(40, mulberry(2));
-    expect(w.length).toBe(28);
-    expect(w.filter((k) => k === 'heavy').length).toBe(4);
-    expect(waveMaxAlive(50)).toBe(10);
-  });
-  it('is deterministic for a seeded rng', () => {
-    expect(waveComposition(5, mulberry(9))).toEqual(waveComposition(5, mulberry(9)));
-  });
+describe('kill score', () => {
   it('scores heavies and headshots higher', () => {
     expect(killScore('heavy', false, 1)).toBeGreaterThan(killScore('grunt', false, 1));
     expect(killScore('grunt', true, 1)).toBeGreaterThan(killScore('grunt', false, 1));

@@ -95,7 +95,6 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     if (stats.won) st.wins++;
     st.kills += Math.min(5000, stats.kills);
     st.headshots += Math.min(5000, stats.headshots);
-    st.bestWave = Math.max(st.bestWave, stats.waves);
     st.timePlayed += Math.min(36000, stats.time);
   }
   // Infiltration: the best run per mission
