@@ -1,0 +1,629 @@
+# Night Shift - decisions
+
+Date: 2026-10-17 (consolidation run, M26 / M27).
+
+This file is the single source of Michael's current decisions for Night Shift. Authority order: Michael > this file >
+`docs/design-bible.md` > job and map docs > code. Every entry below is also written into the bible; where the bible and
+this file disagree, this file wins until the bible is fixed.
+
+How entries are numbered:
+- G1, G2, ... are new global numbers, used from now on. A job that merges adds Michael's new decisions here with the next
+  free G number.
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D29), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+- Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
+  multiple-choice answer in chat the same day; "directive" is his written directive the same day.
+
+The old run decision files (docs/locomotion/DECISIONS.md, docs/training/DECISIONS.md, the kestrel progress decisions,
+docs/menu-ui/DECISIONS.md and the audio progress logs) are history. They point here.
+
+Each entry: the decision as a rule, then Michael's words quoted verbatim (his picked option label, his own note, or his
+chat words), then the source and what it replaces.
+
+## The vision in one page
+
+- Pure Chaos Theory. Michael: "I want the game to be pure chaos theory. Anything that isn't a part of the original chaos
+  theory shouldn't exist." CT's mechanics, timing, camera, HUD layout and visual style are the authority (G1, G5).
+- A 2-player co-op campaign only: "2 player coop campaign only, unable to be completed solo." No bot partner, no 3-4
+  player play (G2, G48, G50).
+- The CT co-op levels are researched (design, flow, moves) and that experience is recreated (G3). This research is the
+  first job (G95).
+- Prototype first: "only the basics required to make it work and functional to test features and gameplay ...
+  Refinement can come later." (G4).
+- Desktop only: pad first, then keyboard and mouse. Phone and touch code is deleted in this merge (G12, loco D1, loco M21).
+- IP rule as Michael bounded it: "Mechanics plus look". CT's mechanics, visual style and HUD layout are copied closely;
+  names, story, characters, art assets, the goggle and the music are original; no reference names anywhere (G5, G6, G69).
+- Hunter is the one non-CT mode kept; Wave, deathmatch, free-for-all, team-versus-team, the drone and the difficulty
+  sliders go (G7, G8, G12). The Fallow training bunker stays as the co-op tutorial (G78).
+- No traitor and no player-versus-player finale (G9).
+- Menus follow the Arkham Knight style plan; only the in-game HUD follows CT (G77).
+- Story is text radio and subtitles now, written so it can be voiced later (G82).
+- Realistic characters (Wren and Moth) and a realistic look everywhere (G68, G71).
+- Work runs as one branch per job from main, prototype then orchestrator, and only Michael merges (G83, G87).
+
+## Decisions by area
+
+### Vision and pillars
+
+**G1. Pure Chaos Theory.** The game is pure Chaos Theory (CT): anything that is not part of the original CT does not
+exist. CT behaviour, measured from Michael's footage and the research, overrides every doc where they differ. Michael:
+"I want the game to be pure chaos theory. Anything that isn't a part of the original chaos theory shouldn't exist."
+(directive, 2026-10-17; extends loco M20 from movement to the whole game; replaces bible pillars and sections where they
+differ.)
+
+**G2. Two-player co-op campaign only.** The campaign is played by exactly two players and cannot be completed solo.
+Michael: "2 player coop campaign only, unable to be completed solo." (directive, 2026-10-17; settles FU-01; replaces page
+answer VIS-01 "Coop campaign first. 2 players maximum.", the bible's solo-first pillar and the 2-4 player wording of bible
+5.9 and loco D8.)
+
+**G3. Recreate the CT co-op levels.** All CT co-op levels are researched (their design, flow and moves) and that
+experience is recreated. Michael: "We will research all the chaos theory coop levels, their design, flow, moves, etc.,
+and recreate that experience." (directive, 2026-10-17.)
+
+**G4. Working prototype first, refinement later.** Build only the basics needed to make a feature work and test it; no
+hours or days of fine tuning on things that may not be used. Michael: "We must get a working prototype working, only the
+basics required to make it work and functional to test features and gameplay. I don't want to spend hours or days fine
+tuning things that may not be used. Refinement can come later." (directive, 2026-10-17; extends loco M22.)
+
+**G5. IP rule: mechanics plus look.** The IP rule stays. CT's mechanics are matched and its visual style and HUD layout
+are copied closely, with original art assets; names, characters, story, logos and UI art stay original. Michael:
+"Mechanics plus look" (chat 1, 2026-10-17; bounds the bible IP rule and loco M20's "mechanics and feel are matched, never
+assets or names"; the option to drop the IP rule was not chosen.)
+
+**G6. No reference names anywhere.** Reference-game names (the hero, his gear, organisations) appear nowhere: not in
+code, UI, specs, docs or research notes. Michael: "Banned everywhere" (VIS-06, 2026-10-17; replaces the research-notes
+allowance in loco docs). Scope for the game's title and Michael's quoted words is open (U2).
+
+**G7. Hunter is the one non-CT mode; drone and difficulty sliders removed.** Hunter mode is kept (its code is not deleted)
+and comes back later. The tri-rotor drone and the custom difficulty sliders are removed. Michael: "Remove all except
+hunter mode." and "Only Hunter returns" (chat 35 and VIS-03, 2026-10-17; replaces page answers ART-08 "Bring drone back"
+and STEALTH-11 "Alarms count too"; FU-05 and FU-13 settled; replaces loco D7's custom difficulty sliders and loco A31,
+A32, A72, A73, A74, and the kestrel 2026-10-11 modes entry.)
+
+**G8. Wave stays history; no team-versus-team mode.** Wave Survival does not return. The old Mission mode does not come
+back as team-versus-team attack and defend. Michael: "Only Hunter returns" and "No" (VIS-03, VIS-04, 2026-10-17;
+replaces the kestrel 2026-10-11 modes entry and backlog item 26.)
+
+**G9. No traitor, no player-versus-player finale.** Mission 8 has no traitor and there is no Confrontation or other
+player-versus-player finale. Michael: "Drop it" (chat 2, 2026-10-17; settles FU-02 and STORY-02; voids page answer
+STEALTH-05 "No, front shoves" and the Confrontation part of AUDIO-09; replaces bible 5.15's traitor finale and the
+"Bible 5.15 3-player traitor" row.)
+
+**G10. The bible is rewritten now.** The bible follows the current decisions now; numbers are marked as starting values,
+tuned after Michael plays the prototype. Michael: "Rewrite it now" (VIS-02, 2026-10-17.)
+
+**G11. The nine movement-run ideas wait in the backlog.** The nine ideas (guards relight lamps, paired searches, a
+last-known-position marker, eavesdropping, adaptive music and the rest) are decided one by one when their part of the
+game is planned. Michael: "Backlog, decide later" (VIS-05, 2026-10-17; loco BIBLE-PROPOSALS 1-9.) See U9.
+
+### Platform and performance
+
+**G12. Deletions happen in this merge.** Inside this consolidation, before the merge request opens, delete: the phone and
+touch code, the touch test, the retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) and the Wave,
+deathmatch and free-for-all code, docs and tests. Hunter is excepted (G7). Michael: "In this merge" (chat 8 / FU-04),
+"Delete code in merge" (PLAT-01), "Delete now" (PLAT-03, LEVEL-07), "Delete completely" (COOP-05) (2026-10-17; replaces
+loco M21's "removed in a later cleanup" and loco A65, A66, A67.)
+
+**G13. Tests run as a desktop.** Automatic tests switch from phone emulation to desktop with controller, keyboard and
+mouse when the phone code goes, which is in this merge (G12). Michael: "When phone code goes" (PLAT-02, 2026-10-17.)
+
+**G14. Performance goals set to the laptop's numbers.** The performance goals are rewritten to today's target-laptop
+numbers. Michael: "Lower the goals" (PLAT-04, 2026-10-17.)
+
+**G15. Editor phone launcher kept, no new work.** The level editor keeps its phone launcher as a dev tool, with no new
+phone work. Michael: "Keep, no new work" (PLAT-05, 2026-10-17.)
+
+### Controls
+
+**G16. No aim assist.** No aim assist on any input. Michael: "None, like CT" (CTRL-02, 2026-10-17; replaces "light, touch
+only" aim assist.)
+
+**G17. Shoulder swap only while aiming.** The shoulder swap works only while aiming; the exploring camera swings by
+itself. Michael: "Nothing (CT)" (CTRL-03, 2026-10-17.)
+
+**G18. Back-to-wall on L3.** Back-to-wall goes on L3, as in CT; A stays for doors and other actions. The exact CT layout
+(G96) governs. Michael: "Back to wall" (CTRL-04, 2026-10-17.)
+
+**G19. Door actions from a pop-up list.** At a door a CT-style list offers the door actions (see G97). Michael: "Pop-up
+list" (CTRL-05, 2026-10-17.)
+
+**G20. Medkits only at stations in the map.** Health comes back only from stationary medkits placed in the map. Michael:
+"Stationary medkits within the map only" (CTRL-06, 2026-10-17; replaces loco A55; details in G98.)
+
+**G21. Holstered rules approved, CT style.** A mission starts holstered; swapping while holstered picks the gun the next
+aim draws; a swap button works while aiming; grenades and gadgets work holstered. Buttons follow the exact CT layout
+(G96). Michael: "Approve" with the note "Pure CT style." (CTRL-07, 2026-10-17; approves loco A41.)
+
+**G22. Remap capture cancels with Menu / Start or Esc.** B stays bindable. Michael: "Menu/Start or Esc" (CTRL-08,
+2026-10-17; approves menu MD13; replaces loco A69.)
+
+**G23. CT grab menu, no selector.** The player grabs first, then chooses knock out, kill or interrogate from CT's grab
+menu. There is no stealth / kill selector. Michael: "CT grab menu" (chat 34, 2026-10-17; replaces page answer CTRL-09
+"Add a kill input" and its selector note; voids FU-07 and FU-08; replaces loco A70.)
+
+**G24. Emote inputs unbound.** Emotes free their pad button (View held) and keys (J, K, L). Michael: "Unbind until
+return" (CTRL-10, 2026-10-17.) See U3.
+
+### Movement and camera
+
+**G25. Turning as the footage shows.** On-the-spot turns are a tight walking circle; run reversals are one smooth turn of
+about 0.4 s; no planted pivot. Michael: "The footage" with the note "Pure CT" (MOVE-01, 2026-10-17; replaces loco M20 Q7's
+step-turn on the spot and loco A88's planted pivot.)
+
+**G26. Stops freeze mid-stride at every speed.** The feet freeze mid-stride at every speed; from a run the body slides up
+to about 0.3 m. Michael: "Freeze at every speed" with the note "Pure CT" (MOVE-02, 2026-10-17; replaces loco M20 Q2's
+braking step at run and the bible's braking step.)
+
+**G27. Ease to idle after about 1.7 s.** After a stop the frozen stride holds about 1.7 s, then eases to a feet-together
+idle. Michael: "Ease after 1.7 s" with the note "Pure CT" (MOVE-03, 2026-10-17; replaces the 3.2.0 "hold until you move"
+approval.)
+
+**G28. CT camera framing.** The exploring camera sits closer (about 1.8 m), the head at screen centre, the legs partly out
+of frame. Michael: "CT framing" with the note "Pure CT" (MOVE-04, 2026-10-17; replaces the bible's whole-body framing.)
+
+**G29. CT camera behaviour.** Rigid follow, a gentle swing toward travel, no bob, no zoom when aiming. Michael: "CT
+camera" with the note "Pure CT" (MOVE-05, 2026-10-17; replaces loco D5.13's spring, look-ahead, corner swaps and speed
+zoom.)
+
+**G30. Modern layer: only what CT shows.** Keep only start lean, head look-at, hands on doors and ledges, feet on stairs
+and faster vaults from a run. Michael: "Only what CT shows" with the note "Pure CT" (MOVE-06, 2026-10-17; replaces the
+rest of loco D5 and the loco M17 step-22b items.)
+
+**G31. Sprint-only moves removed.** The fast ladder climb, fast rappel descent, small gap hops and sprint door bashes are
+removed. A door bash survives only as a door-menu choice (G97). Michael: "Remove them all" (MOVE-07, 2026-10-17; replaces
+loco A15.)
+
+**G32. Roll on held crouch.** Holding crouch while running rolls; a tap just crouches. Michael: "Hold crouch (CT)"
+(MOVE-08, 2026-10-17.)
+
+**G33. No special quick 180.** A stick flick turns the operator round in about 0.4 s while walking, as in CT. Michael:
+"Normal flick turn" with the note "Pure CT" (MOVE-09, 2026-10-17; replaces the bible quick 180 and loco M17's quick 180.)
+
+**G34. Wall entry by button only.** Michael: "Button only" (MOVE-10, 2026-10-17; approves loco A83.)
+
+**G35. Wall slide is the CT shuffle.** About 0.35 m/s, a little slower at the lower speed settings. Michael: "CT shuffle
+0.35 m/s" (MOVE-11, 2026-10-17; replaces loco M14 (3)'s 0.9 m/s and loco A84.)
+
+**G36. Wall peek at once.** Peek as soon as the operator reaches the edge while pushing. Michael: "Peek at once (CT)"
+(MOVE-12, 2026-10-17; replaces the 0.25 s push in loco A84.)
+
+**G37. One wall move.** Kestrel's own wall hug is cancelled; the CT back-to-wall is the only wall move; the Kestrel toolkit
+step keeps the optic cable. Michael: "One wall move" (MOVE-13, 2026-10-17; replaces ct-toolkit.md 3.1 and kestrel V1's
+wall-hug half.)
+
+**G38. Same camera height for every operator.** The camera is tied to the shared body capsule, so maps read the same for
+every player. Michael: "Same for everyone" (MOVE-14, 2026-10-17.)
+
+**G39. The movement run's 62-item review list is void.** The 62 rows (39 technical assumptions, 22 struck rows, 1 implied;
+MOVE-16-1 to MOVE-16-62) are superseded by the CT prototype. Michael: "Void it" (chat 29, 2026-10-17; replaces page
+answer MOVE-16 "Show me the list".)
+
+### Stealth and AI
+
+**G40. CT silent speed bands.** The two slowest standing and the three slowest crouched speeds are silent. The level
+rules (level-design Section 12), Kestrel timings and sensor rules are re-checked. Michael: "CT bands" with the note "Pure
+CT" (STEALTH-01, 2026-10-17; replaces "four crouched silent" and loco A88's noise thresholds.)
+
+**G41. Guards close doors behind them.** Guards close doors on a calm patrol and notice any door open that should be shut;
+one 15% threshold for light, sound and sight. Michael: "Close behind them" (STEALTH-02, 2026-10-17; replaces the 5% light
+cut in code and loco A25.)
+
+**G42. Palm strike knocks out human guards.** The palm strike is a one-hit knockout from any side on every human guard;
+dogs cannot be palm-struck. How heavies are handled follows the research (G49). Michael: "Every human guard" with the
+note "Everyone except dogs and heavies. Heavies cannot be hit with a palm strike." (STEALTH-04, 2026-10-17; the heavies
+part is replaced by chat 7, G49.)
+
+**G43. Ground takedown grabs first.** The ground takedown button grabs, then knock out, kill or (later) interrogate (G23);
+drop, ledge, window and pipe takedowns keep tap / hold. Michael: "Grab first (CT)" (STEALTH-06, 2026-10-17.)
+
+**G44. Guards see poorly above them.** A player well above a guard is hard to spot, as in CT. Michael: "Limited up-down
+view" (STEALTH-07, 2026-10-17.)
+
+**G45. Glass rule.** Clear glass passes light and sight; frosted glass and blinds pass light only; thermal never sees
+through glass. Michael: "Clear sees, frosted not" (STEALTH-08, 2026-10-17.)
+
+**G46. Awake limit reviewed for desktop.** The 12-awake-characters limit is reviewed against desktop performance, without
+phone limits. Michael: "Review this limit against desktop performance allowances without phone." (STEALTH-09,
+2026-10-17.) How it is set (FU-11) is open.
+
+**G47. Light parity work sorted out when built.** The parity test, long lamps and motion lights keep their current plans
+and are sorted out when built. Michael: "Sort out when building" (STEALTH-10, 2026-10-17.)
+
+### Co-op
+
+**G48. No bot partner anywhere.** Testing uses two browser tabs, the automatic two-player tests and the bunker's solo
+switch. Michael: "No bot anywhere" (COOP-01, 2026-10-17; confirms loco M12; replaces training D35 and the bot lines of
+loco D8 and D11, bible 5.9 C20.)
+
+**G49. The research decides friendly fire, heavies and similar details.** Friendly fire, heavies and similar details
+follow what CT co-op does; earlier answers on these are replaced by the research findings. Michael: "The research
+decides" (chat 7, 2026-10-17; replaces page answer COOP-02 "On everywhere" and the heavies part of STEALTH-04's note;
+settles FU-10.) See U5 for training D38.
+
+**G50. Two players maximum; no 3-4 player test.** Michael: "No, focus on 2 player maximum only." (COOP-03, 2026-10-17;
+replaces loco D8's 4-player run and loco A19.)
+
+**G51. Co-op tests made reliable, then required.** A short job makes the two co-op suites reliable; then they must pass
+like every other test. Michael: "Fix, then required" (COOP-04, 2026-10-17.)
+
+**G52. Co-op technical items approved.** Network version 11 for the merge (both earlier uses of 3 noted); the SWAT-turn
+and lean-out network fields are removed when the CT prototype is built; "every team move" means the four that exist
+(brace, boost, human ladder, dual takedown) and the other four wait for the co-op phase; partners block each other in
+every co-op mode, using the bunker's built version. Michael: "Approve as written" (chat 31 / COOP-06-1 to COOP-06-4,
+2026-10-17; replaces page answer COOP-06 "One by one"; approves loco A4 and training A49.)
+
+### Levels and maps
+
+**G53. Kestrel paused until after the research.** Kestrel stops; what happens to it is decided after the CT co-op level
+research. Michael: "Pause Kestrel" and "Decide after research" (LEVEL-02 and chat 4, 2026-10-17; replaces kestrel's stage
+order.)
+
+**G54. Room sizes re-measured for the CT camera.** Corridor widths, crawl heights and aisles are re-measured right after
+the camera part of the prototype, and the size sheet is updated before new floor plans. Michael: "Re-measure" (LEVEL-03,
+2026-10-17.)
+
+**G55. One folder per map.** Every map gets its own folder under one maps folder; Kestrel and the bunker move there after
+the merge. Michael: "One folder per map" (LEVEL-04, 2026-10-17.)
+
+**G56. Crawl spaces are crouch-walked.** Automatic crawl only in real duct ends inside plant shafts. Michael: "Crouch-walk
+spaces" (LEVEL-05, 2026-10-17.)
+
+**G57. The human ladder reaches 4.5 m.** One co-op ledge band (4.3-4.5 m) serves the boost and the human ladder; the
+bunker lip can go back up. Michael: "Ladder reaches 4.5 m" (LEVEL-06, 2026-10-17; replaces training A35.)
+
+### Audio and music
+
+**G58. CC0 sound allowed for the whole game.** CC0 recordings may be used for any sound wherever they cut build time and
+sound better; bundled, never fetched, each credited. Michael: "Whole game, we can use CC0 wherever required if it reduces
+build time and achieves a better result." (AUDIO-01, 2026-10-17; confirms the 2026-10-16 "allow CC0 for everything" and
+audio AS9; replaces the "WebAudio synthesis" hard rule and bible S7 / open decision 4.)
+
+**G59. No audio size limit.** Michael: "No limit" (AUDIO-02, 2026-10-17; replaces the 8 MB proposal.)
+
+**G60. Footsteps slider for testing.** A separate Footsteps volume slider, used during testing. Michael: "Footsteps
+slider" with the note "Footsteps slider during testing." (AUDIO-04, 2026-10-17.)
+
+**G61. Own footsteps very soft when guards cannot hear them.** As in CT; the sound meter shows what guards hear. Michael:
+"Yes, very softly" (AUDIO-05, 2026-10-17.)
+
+**G62. One run sound.** One run sound for all running speeds; the walk / run switch is reset to the new speeds; the
+sprint gait goes. Michael: "Normal run sound" (AUDIO-06, 2026-10-17; replaces audio AS13.)
+
+**G63. Searching plays Cautious.** The chase music plays only after the player was seen. Michael: "Cautious, as now"
+(AUDIO-07, 2026-10-17; approves audio AS1.)
+
+**G64. The long menu theme ships.** The 2 min 50 s version ships; Michael confirms or changes it in the music job.
+Michael: "Long version" (AUDIO-08, 2026-10-17; audio AS6.)
+
+**G65. Music folders kept as they are.** The old music plans, the old test lab and the unused music files stay. Michael:
+"Keep everything" (AUDIO-11, 2026-10-17; audio AS11.)
+
+**G66. Missing sounds after the prototype.** After the prototype: guards' footsteps first, then ambience, then the rest.
+Michael: "After the prototype" (chat 36 / AUDIO-10, 2026-10-17; replaces the AUDIO-10 note "To be reviewed after all
+questions have been answered".)
+
+**G67. Audio technical items approved.** Music steps (Cautious after 0.6 s of suspicion, Alert at once, Alert holds 10 s,
+Evasion 12 s, Cautious 8 s, one step down at a time); cooldown counts as calm; music decoded at 32 kHz and shipped as MP3
+(footsteps and guns at 96 kbps), rendered only on Michael's PC; a shot sounds suppressed under live noise 0.6; wall slides
+at 0.4, on-the-spot shuffles at 0.5, steps within 0.15 s of a landing merge into it; suit damping (high cut above
+1.6-2.4 kHz, level 0.6, 0.25 s tails); one shared foot-touched-the-ground event for footsteps and rumble. Michael:
+"Approve as written" (chat 31 / AUDIO-12-1 to AUDIO-12-7, 2026-10-17; replaces page answer AUDIO-12 "One by one";
+approves audio AS2, AS3, AS10, AS14, AS16 and AU7.)
+
+### Art and characters
+
+**G68. Realistic everywhere.** Operators now, guards and weapons later from the same pipeline; voxels only as the way the
+world is drawn. Michael: "Realistic everywhere" (ART-02, 2026-10-17.)
+
+**G69. Original goggle, swapped soon.** No three-lens look: a small job swaps in a simple original goggle, and the menu
+uses an original symbol. Michael: "Original goggle" and "Soon" (chat 17 and ART-03, 2026-10-17; consistent with ops D19,
+D20.)
+
+**G70. Wren integration job first.** After Michael approves the prototype, a short job puts Wren in behind a dev switch;
+then the weapon step. Michael: "Wren job first" (ART-04, 2026-10-17; replaces loco M18's pause rule.)
+
+**G71. Two operators: Wren and Moth.** Only Wren and Moth are built and playable; no four-operator plan. Michael: "2 player
+game only." (ART-05, 2026-10-17; replaces bible 5.14's four playable operators.)
+
+**G72. Body proportions fixed for every character.** The shared-body fixes apply to every character when Wren goes in;
+movement and climbing tests re-run. Michael: "Fix all characters" (ART-06, 2026-10-17; approves ops SPEC 4.3 A1, A3-A7.)
+
+**G73. Goggles on the brow when off, over the eyes when on.** Dim glow on the brow with vision off; full glow over the eyes
+with vision on. Michael: "Brow off, eyes on" (ART-07, 2026-10-17.)
+
+**G74. Wren stays 1.68 m.** The story line that calls her small is reworded. Michael: "Keep 1.68 m" (chat 26 / ART-12,
+2026-10-17; confirms ops D11.)
+
+**G75. Operators' remaining items stay on the operators branch.** feature/operators keeps its own decisions and open
+items; master records only that the operators are realistic and that Wren and Moth are the two built. Michael: "On its
+own branch" (chat 28, 2026-10-17.) See U1.
+
+### Weapons and gadgets
+
+**G76. CT kit only.** One rifle with attachments (sniper, shotgun, launcher), one pistol with a light / electronics
+disruptor, and the knife. Every other gun is removed in the clean-up. Gadgets and attachments are CT's set, settled by
+the research. Michael: "CT kit only" (chat 33, 2026-10-17; settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and
+its disruptor / jammer split, the kestrel V0 kit list of 2026-10-11, loco A60 and A62.) See U10 for the timing.
+
+### UI and HUD
+
+**G77. Menus Arkham Knight style; the in-game HUD follows CT.** The menus keep the Arkham Knight style menu plan
+(feature/menu-ui-spec); only the in-game HUD follows CT's layout. Michael: "Keep Arkham plan" (chat 25, 2026-10-17.)
+
+### Training
+
+**G78. Fallow stays as the co-op tutorial.** The Fallow bunker is kept as the co-op tutorial although CT has none.
+Michael: "Keep it" (chat 3, 2026-10-17.)
+
+**G79. The bunker is rebuilt after the prototype.** Its drills are rebuilt on the CT moves and every jump and reach is
+re-checked. Michael: "After the prototype" (chat 21 / TRAIN-02, 2026-10-17; replaces training D15 and D50.)
+
+**G80. Bunker anti-stuck resets kept.** Windows re-glaze, one-way turnstiles, lamps re-lamp and knocked-out role-players
+are replaced after 10-30 s. Michael: "Keep the resets" (chat 22 / TRAIN-11, 2026-10-17; approves training A54, A61, A62.)
+
+**G81. Boosts only at marked spots.** Two-player boosts work only at marked spots, as CT's co-op spots do. Michael:
+"Marked boost spots" (chat 23 / TRAIN-08, 2026-10-17; replaces training A51's drill-tick backstop.)
+
+### Story
+
+**G82. Text now, voice later.** Text radio and subtitles for the prototype; lines written to be voiceable; the voice test
+stays a later idea. Michael: "Text now, voice later" (chat 6 / STORY-01, 2026-10-17; replaces "no voice ever" in
+CLAUDE.md, the bible and story.md.)
+
+### Process and branches
+
+**G83. Main is the only base.** One branch per job from main, one merge request each; only Michael merges; ct-movement and
+dev are retired. Michael: "Main is the only base" (chat 9 / PROC-01, 2026-10-17; replaces the ct-movement -> dev -> master
+flow in CLAUDE.md, deploy.md and every run's rules.)
+
+**G84. The merged version is 4.0.0.** Michael: "4.0.0" (chat 10 / PROC-08, 2026-10-17; replaces loco A18's 3.7.0 / 3.8.0
+and the training 3.7.0-3.9.0 headings.)
+
+**G85. One chosen preview.** The live game plus one test copy showing the job branch Michael chooses. Michael: "One chosen
+preview" (chat 11 / PROC-10, 2026-10-17; replaces the /preview/, /ct/ and /kestrel/ slots.)
+
+**G86. Authority order.** Michael, then docs/DECISIONS.md, then the bible, then job and map docs, then code; every
+decision is also written into the bible. Michael: "You, then decisions" (chat 12 / PROC-05, 2026-10-17; replaces the
+CLAUDE.md order and the run files' own orders.)
+
+**G87. Prototype, then orchestrator.** Every multi-step job builds a quick prototype first for feel or look, then runs
+the orchestrator method; older ways (the bible's Opus / Sonnet loop, Kestrel's planner method) become history. Michael:
+"Prototype, then orchestrator" (chat 13 / PROC-03, 2026-10-17.)
+
+**G88. Helper models.** The strongest model (Opus) builds and checks; a lighter model only for mechanical chores.
+Michael: "Opus, light for chores" (chat 14 / PROC-04, 2026-10-17; replaces the bible's Sonnet-builds rule.)
+
+**G89. One decisions file.** docs/DECISIONS.md holds Michael's decisions; old job files stay as history and point to it;
+each job adds Michael's new decisions when it merges. Michael: "One decisions file" (chat 15 / PROC-06, 2026-10-17.)
+
+**G90. Ordered job list.** The progress file lists jobs in order with branch, folder and status (CT co-op research,
+prototype, then the rest); phase numbers stay only as chapter names. Michael: "Ordered job list" (chat 16 / PROC-07,
+2026-10-17; replaces the Phase 0-7 status table.)
+
+**G91. Old docs archived.** The retired maps' design docs and map data and the Blacklist-era docs move to the archive
+folder; their tests are deleted with the code. Michael: "Archive the docs" (chat 18 / PROC-12, 2026-10-17.)
+
+**G92. Short current checklist.** TESTING.md becomes one desktop checklist plus a release checklist; old lists are
+archived. Michael: "Short current list" (chat 19 / PROC-11, 2026-10-17.)
+
+**G93. Versions set at merge.** Notes say Unreleased until the merge; one minor step per merged job; fixes are patches.
+Michael: "Set at merge" (chat 20 / PROC-09, 2026-10-17; replaces "one minor version per phase".)
+
+**G94. Housekeeping approved.** A test port table, job folders named after each job (C:/NightShift/Mobile-Coop-<job>; the
+plain folder stays on master), two test suites at a time, the merged test list, a "Running a job" section, and the plain
+doc fixes; the texture budget and network notes are left for their jobs. Michael: "Approve, menus later" (chat 32 /
+PROC-13, 2026-10-17.)
+
+## Settled by the directive
+
+Claude derived these from the directive and listed them in chat as settled before the questions; Michael then asked only
+the open ones. Each quotes the directive line it comes from. Directive paragraph 1: "I want the game to be pure chaos
+theory. Anything that isn't a part of the original chaos theory shouldn't exist." Paragraph 2: "2 player coop campaign
+only, unable to be completed solo. We will research all the chaos theory coop levels, their design, flow, moves, etc.,
+and recreate that experience." Paragraph 3: "We must get a working prototype working, only the basics required to make
+it work and functional to test features and gameplay. I don't want to spend hours or days fine tuning things that may not
+be used. Refinement can come later."
+
+**G95. Work order.** First the CT co-op research, then the prototype, then the rest. Directive: "We will research all the
+chaos theory coop levels, their design, flow, moves, etc., and recreate that experience." and "We must get a working
+prototype working" (settles PROC-02; replaces its "prototype first" order and loco M26's "prototype next".)
+
+**G96. Exact CT pad layout.** CT's default layout is copied button for button. Directive: "Anything that isn't a part of
+the original chaos theory shouldn't exist." (settles FU-14; sharpens page answer CTRL-01 "Move toward CT".)
+
+**G97. CT door menu.** The door list offers open, stealth open, bash and the optic cable; bash can knock out a guard behind
+the door; running into a door does nothing special. Directive: "Anything that isn't a part of the original chaos theory
+shouldn't exist." (settles FU-09; replaces page answer STEALTH-03 "Run push knocks out".)
+
+**G98. Wall medkit stations only.** No carried medkits and no kit count on the HUD; the X hold is freed; stations are
+placed in every map. Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles
+FU-06, follows G20; voids loco A27, A55, A56, A57, A58 and the carried-medkit counts.)
+
+**G99. Goggle modes night, thermal, electro.** Directive: "Anything that isn't a part of the original chaos theory
+shouldn't exist." (settles WEAP-08; replaces the "camera feed" mode in the ops art notes.)
+
+**G100. Instant goggle switch in CT order.** An instant cut in CT's order (thermal, electro, night, off); no flip.
+Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-07; replaces the 0.2 s
+goggle flip.)
+
+**G101. CT grain.** Grain as in CT. Directive: "Anything that isn't a part of the original chaos theory shouldn't exist."
+(settles WEAP-06; replaces loco M14 (5)'s grain on all three modes and loco A87.)
+
+**G102. Thermal as CT.** Thermal follows CT (loco M25 (1)-(2): CT colour ramp, people behind closed doors as a dim
+silhouette). Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-05;
+replaces the door part of loco A26.)
+
+**G103. CT draw timings.** About 0.6 s (pistol) and 0.75 s (rifle) to raise, 0.5-0.6 s to lower. Directive: "Anything
+that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-02; replaces the bible's 0.3 / 0.4 s and the
+draw part of loco A41.)
+
+**G104. Marksman scope with hold breath, as CT.** Normal aiming has no zoom; the marksman (sniper) scope has hold breath,
+as in CT. Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-03;
+replaces loco A61.)
+
+**G105. Loadouts Stealth / Assault / Recommended.** Used everywhere. Directive: "Anything that isn't a part of the
+original chaos theory shouldn't exist." (settles WEAP-04; replaces loco A33's Silent / Flash / Loud.)
+
+**G106. CT fixed difficulties.** Difficulty uses CT's fixed levels; no sliders and no alarm-tolerance setting (G7).
+Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles STEALTH-11; replaces loco
+D7's custom difficulty.)
+
+**G107. No stance or gear icons on the HUD.** The operator's body shows the stance, as in CT. Directive: "Anything that
+isn't a part of the original chaos theory shouldn't exist." (settles UI-01; with loco M25 (7).)
+
+**G108. Objectives in the menu.** Mission objectives live in the menu, as in CT; the Fallow course keeps its always-on list
+(training D45). Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles UI-02.)
+
+**G109. Operators move the same.** One CT movement set; operators differ in look and height only. Directive: "Anything
+that isn't a part of the original chaos theory shouldn't exist." (settles ART-11; replaces the bible's small gait
+differences.)
+
+**G110. No prone crawl, no rope climb.** Directive: "Anything that isn't a part of the original chaos theory shouldn't
+exist." (settles ART-09.)
+
+**G111. Two players settles the solo, 3-4 player and bot questions.** No solo route, no solo training course (Fallow is
+the only course), no 3-4 player play, no bot. Directive: "2 player coop campaign only, unable to be completed solo."
+(settles FU-01, TRAIN-01 and the solo option of UI-04; consistent with COOP-01, COOP-03, ART-05.) See U4.
+
+**G112. Tally and Sexton become radio crew.** They stay in the story as radio and briefing characters, not playable.
+Directive: "2 player coop campaign only, unable to be completed solo." (settles FU-03.)
+
+**G113. Menus, the music revision, the art guide and Kestrel floor plans wait until after the prototype.** Directive:
+"We must get a working prototype working, only the basics required to make it work and functional to test features and
+gameplay." (settles UI-03 and ART-13; consistent with LEVEL-02; replaces menu MD20's start condition.)
+
+## Deferred
+
+Where each deferred question will be decided.
+
+To the CT co-op research:
+- Friendly fire in missions (COOP-02), how heavies are taken out (FU-10, STEALTH-04 note) and similar details (chat 7, G49).
+- CT's gadget and attachment set (chat 33, G76), including the ring airfoil and the knife's role.
+- Kestrel's future (chat 4, G53).
+
+To the prototype (decided or tuned after Michael plays it):
+- Every movement, camera and timing number, marked as a starting value (G10).
+- Room, corridor and crawl sizes (LEVEL-03, G54).
+- Missing sounds: guards' footsteps, then ambience, then the rest (AUDIO-10, G66).
+- Wren integration, then the weapon step (ART-04, G70).
+
+To the menu job (after the prototype, G113; "menu calls decided in the menu job", chat 32):
+- UI-04 where players find Fallow; UI-05 how the lobby picks the course; UI-06 what mission cards show (see U8).
+- UI-07 prompt font; UI-08 title screen text; UI-09 Feedback item on the main menu; UI-10 the three menu-plan calls
+  (menu MD11 key mapping, MD15 cinematic shots, MD19 removals).
+
+To the music job (chat 5):
+- AUDIO-03 music direction (Michael picked "Dark orchestral" with the note "Will review this as music progresses. No firm
+  decision has been made.").
+- AUDIO-09 music on briefing, results and pause ("Music revision decides"; the Confrontation part is void by G9).
+- Confirming the long menu theme (G64) and the Calm / Cautious alternatives (audio AS7).
+
+To the operators branch (chat 28, G75):
+- ART-10 operator file size limit.
+- ART-14 the operators run's 67 technical assumptions.
+- Re-checking Wren's kit on the real CT poses (ART-09 option text).
+
+To Kestrel, after the research (chat 4, chat 30):
+- LEVEL-01 Mission 1 size: Michael picked "Kestrel size" with the note "Will require review once all questions are
+  answered. A full vertical slice plan must be made." (see U7).
+- LEVEL-08-1 to LEVEL-08-5 (editor items), LEVEL-09-1 to LEVEL-09-11 (mission details), LEVEL-10-1 to LEVEL-10-10 (level
+  technical items): Michael: "Defer with Kestrel" (chat 30; replaces his page picks "One by one" and "Show me each").
+- Kestrel's open ASK rows and its own map decisions (docs/kestrel/progress.md).
+
+To the bunker rebuild (after the prototype, G79):
+- TRAIN-03 bay 6 lean-out and SWAT drills, TRAIN-04 sprint drills, TRAIN-05 strike drills, TRAIN-06 quick 180 and
+  momentum drills, TRAIN-07 speed drill: rebuilt on CT moves (chat 21); drills for removed moves cannot stay.
+- TRAIN-12 the bunker's exceptions (E5-E10, new E13), TRAIN-13 small design calls, TRAIN-14 the 42 technical
+  assumptions: Michael: "Defer to rebuild" (chat 24).
+
+To the missions (chat 27):
+- STORY-03 site and company names (Cinder Yard, Ostler Colocation); STORY-04 the seven open story items. Michael: "Decide
+  with missions".
+
+Still unanswered and not settled by the directive or chat (asked again later, nothing lost):
+- FU-11 how to set the awake limit (G46 stands meanwhile).
+- FU-12 scope of the name ban (see U2).
+- MOVE-15 and MOVE-15-1 to MOVE-15-4: head look-at order, muzzle rule near a team-mate, body cooling in thermal, the
+  electro device list (Michael picked "One by one"; the items were never answered).
+- WEAP-09 which gun comes out first.
+- WEAP-10 how guns are carried when put away.
+- WEAP-11 what Wren's kit shows (the medkit pouch goes with G98; the magazine look is open).
+- TRAIN-09 course callsigns (own operator or fixed Wren / Moth).
+- TRAIN-10 the bunker's solo test switch (training D21 stands meanwhile).
+- What Wren's hip pod holds now the drone is removed (ART-08, ops D25).
+
+## Earlier decisions that still stand
+
+Still in force:
+- loco D1: the pad is the primary target, then keyboard and mouse (touch part void, G12).
+- loco D2: no-bob limits as starting limits (the sprint value is void).
+- loco D7: full remapping with conflict warnings and reset; hold or toggle for every hold action; settings in
+  IndexedDB (sprint and custom difficulty parts void, G7).
+- loco D8: co-op parity: every feature works in co-op, committed moves host-approved, vision / camera / rumble local,
+  partners never interpenetrate (2-4 players now 2, G2; bot and 4-player lines void, G48, G50).
+- loco D11: the network simulator lives in the test transport only (bot parts void).
+- loco M4: A38 (no stride phase on the wire) and A43 (releasing aim never cancels a reload).
+- loco M12: no bot partner (extended by G48).
+- loco M14 (1)-(3): holstered by default with relaxed arms (numbers retuned at the prototype); CT back-to-wall, no snap
+  cover; crouch on any wall; the body stays on the wall at an edge (slide speed and pull-away void, G35, M25 (3)).
+- loco M19: the CT research basis (CT-RESEARCH.md).
+- loco M20: pure CT (now game-wide, G1): lean-out aim and the SWAT turn removed (Q1), palm strike (Q4, Q4b), thermal
+  from footage (Q5), warn-and-save bindings (Q6, A30, A71), no sprint (Q8), posture from footage (Q9), doors past about
+  15% open and guards notice (Q10), gentle explore swing (Q11), Michael reviews each revision (Q12). Q2 is replaced by
+  G26, Q3 by M25 (4), Q7 by G25.
+- loco M21: desktop only (clean-up now in this merge, G12).
+- loco M22: playable prototype first (G4, G87).
+- loco M23: footage facts (at the slowest speed the operator walks backwards).
+- loco M24: footage is mostly night vision; not a style cue for the normal view.
+- loco M25 (1)-(7): CT thermal ramp; people behind closed doors in thermal; only the button or aiming leaves a wall; flat
+  back standing, sideways crouched; palm strike recovery about 1.4 s; run starts at 4.2 m/s; speed rocker kept with no
+  on-screen indicator (A29).
+- loco M26: one consolidation PR to master.
+- loco M27: documentation audit and vision questions (this file).
+- training D1, D2, D4, D5 (as changed by D46), D8, D9, D10 (E1-E9), D11, D12, D13, D14, D16, D17, D18, D19, D20, D21, D22,
+  D23, D24, D25 (narrowed by D42), D28, D30, D31, D32, D33, D34, D36, D37, D39, D40, D41 (see U6), D42, D43, D44, D45,
+  D46, D47, D49.
+- ops D1-D29 stand on feature/operators (G75), with D10 / D11 replacing D3 and D29 replacing D9; D19 / D20 match G69.
+- menu MD1-MD10, MD12, MD17, MD18 stand under G77; MD13 approved by G22; MD14 stands without its phone clause.
+- audio: Calm is silence until the music job (AS4); music volume default 15% (AS5); music follows every guard's state,
+  never count, distance or direction (AS8); gun sounds approved (AS15); footsteps follow real foot plants (AS18); the
+  quiet suit muffles the player's own sounds (2026-10-16).
+- kestrel 2026-10-11: one pistol tool for disruptor and jammer (now G76); snap cover replaced by back-to-wall; the
+  player-facing mode "Infiltration" renamed "Campaign".
+
+Void, and what voided them:
+- loco D3, D6, M1-M3, M5-M11, M13, M15: run process for that run (history).
+- loco D4: M21. loco D5: G30. loco D9, D10, M16: M20 Q1 (lean-out removed).
+- loco M14 (4) weight and pivot: M20, M25, G25, G26. loco M14 (5) grain: G101. loco M14 (6) pauses: history.
+- loco M17 (step 22b items): G30, G33 and the prototype (M22). loco M18: G70.
+- loco A0-A89 rows in the 62-item list: G39. Other open loco A rows: settled by the G entries that cite them.
+- training D3: D34. training D6: G83. training D7: G53, G95. training D15, D50: G79. training D26: D31. training D27,
+  D29, D48: history. training D35: G48. training D38: G49 (see U5).
+- menu MD16 (touch): M21 / G12. menu MD20 start condition: G113, G83.
+- kestrel 2026-10-11 modes entry (Hunter, Wave, PvP Mission unparked): G7, G8 (Hunter only). kestrel V0 kit list: G76.
+  kestrel wall hug (V1): G37. Kestrel stage order: G53.
+- audio AS12 (V0 / V1 veto choices): superseded by the V4 score. audio AS13: G62.
+
+## Unclear, ask Michael
+
+- U1. ART-01 vs chat 28: on the page Michael picked "Copy them now" (copy the approved operator rules into master: Blender
+  pipeline on a CC0 base body, real heights, hit volumes and light samples following each body). In chat he picked "On its
+  own branch: master records only realistic operators, Wren and Moth." Does master's bible get the operator rules now, or
+  only "realistic, Wren and Moth"?
+- U2. FU-12 is unanswered: does VIS-06's "Banned everywhere" also cover the reference game's title ("Chaos Theory", "CT")
+  in docs and Michael's own quoted words? This file uses the title and quotes him verbatim.
+- U3. Emotes: CTRL-10 "Unbind until return" implies emotes come back, but the directive says anything not in CT should not
+  exist. Are emotes deleted?
+- U4. The old solo Training mode: with no solo play (G111) and Fallow as the only course, is the old solo Training mode
+  deleted in this merge or kept?
+- U5. Training D38 (friendly fire on in the bunker): is it replaced by the research (chat 7: "earlier answers on these are
+  replaced by the findings"), or does the bunker keep it as a drill?
+- U6. Training D41 says "redesign the map, including future ones, to take on all these rules. MUST BE UNAVOIDABLE." Do the
+  linear, unavoidable rules still apply to campaign maps now they recreate the CT co-op levels (G3)?
+- U7. LEVEL-01: Michael picked "Kestrel size" (update the bible to the Kestrel plan), but Kestrel is now decided after the
+  research (chat 4). Does the bible take Kestrel's Mission 1 numbers now, or wait?
+- U8. UI-04, UI-05 and UI-06 were filed under chat 32 ("menu calls decided in the menu job") by reading; confirm they go
+  to the menu job.
+- U9. VIS-05 parks the nine movement-run ideas in the backlog. Are ideas that CT does not have dropped under the directive,
+  or still decided one by one?
+- U10. Timing of removals not named in chat 8: the other guns (chat 33 "removed in the clean-up"), the drone and the
+  difficulty sliders (chat 35). In this merge, or in a later clean-up job?

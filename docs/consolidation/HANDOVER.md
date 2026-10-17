@@ -26,7 +26,7 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
    was to write a deletion log in the old scratchpad (lost). CHECK `git status` in the work folder: uncommitted src /
    tests / scripts changes are its partial work. Finish or redo it, `npm run check`, run smoke e2e-modes e2e-coop
    e2e-netmove e2e-missions (port 4191), commit "consolidate: remove Wave, deathmatch, free-for-all (Michael)".
-2. DECISIONS draft agent (read-only): its draft is lost. Redo it: write docs/DECISIONS.md from chat-answers.md
+2. DECISIONS draft: DONE, saved as docs/consolidation/DECISIONS-draft.md (G1-G113, deferred and unanswered lists, and an "Unclear, ask Michael" section U1-U10). Review it, ask Michael U1-U10 (native multiple-choice, rounds of 4), then move it to docs/DECISIONS.md. It was built this way: write docs/DECISIONS.md from chat-answers.md
    (highest), page-answers.json + questions.json, and still-current M12-M27 / training D entries. Format: G1, G2, ...
    entries, each quoting Michael verbatim with the question id; sections: vision in one page, decisions by area,
    settled by the directive, deferred (with where decided), earlier decisions that still stand / void, unclear.
