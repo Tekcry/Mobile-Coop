@@ -813,7 +813,62 @@ if BOND:
                 FT.tape(TPV, TPF, P_ + N_ * 0.00015, N_, B_, width, thick)
                 tape_m[kind] += float(np.sum(np.linalg.norm(np.diff(P_, axis=0), axis=1)))
             run = []
+    def run3d(panel, pl):
+        """A pattern polyline mapped onto the surface (3 mm steps): (points, normals); the lookup's misses dropped."""
+        pl = np.asarray(pl, float)
+        q = resample(pl, max(3, int(polyline_length(pl) / 0.003)))
+        rr = [r for r in (surf(panel, x) for x in q) if r is not None]
+        return np.array([p for p, _ in rr]).reshape(-1, 3), np.array([n for _, n in rr]).reshape(-1, 3)
+
+    def lay_joined(parts, smooth, closed, smooth_n=0):
+        """08a retry, items 3-4: seams that meet end to end (the neckline either side of the centre front, the waist
+        seam's four halves) laid as one tape run, chained by their nearest ends and smoothed along the surface only
+        (the normal offset of every point is kept), so the joins carry no notch, step or V corner."""
+        runs = [run3d(pn_, pl_) for pn_, pl_ in parts]
+        runs = [r for r in runs if len(r[0]) >= 2]
+        if not runs:
+            return
+        P_, N_ = runs.pop(0)
+        while runs:
+            # the run whose end is nearest either end of the chain: appended (chain end) or prepended (chain start)
+            best = min((np.linalg.norm(P_[ce] - r[0][re]), k, ce, re)
+                       for k, r in enumerate(runs) for ce in (0, -1) for re in (0, -1))
+            Pr, Nr = runs.pop(best[1])
+            if best[2] == -1:
+                if best[3] == -1:
+                    Pr, Nr = Pr[::-1], Nr[::-1]
+                P_, N_ = np.vstack([P_, Pr]), np.vstack([N_, Nr])
+            else:
+                if best[3] == 0:
+                    Pr, Nr = Pr[::-1], Nr[::-1]
+                P_, N_ = np.vstack([Pr, P_]), np.vstack([Nr, N_])
+        k_ = np.r_[True, np.linalg.norm(np.diff(P_, axis=0), axis=1) > 0.0005]   # the shared end points once
+        P_, N_ = P_[k_], N_[k_]
+        if closed and np.linalg.norm(P_[-1] - P_[0]) < 0.0015:
+            P_, N_ = P_[:-1], N_[:-1]
+        if smooth_n:     # retry fix round 1, item 2: the normals eased along the run (no twist at a crease)
+            N_ = FT.smooth_polyline(N_, smooth_n, closed=closed)
+            N_ /= np.maximum(np.linalg.norm(N_, axis=1, keepdims=True), 1e-12)
+        Ps = FT.smooth_polyline(P_, smooth, closed=closed)
+        Ps = Ps - N_ * np.einsum('ij,ij->i', Ps - P_, N_)[:, None]
+        if closed:
+            Ps, N_ = np.vstack([Ps, Ps[:1]]), np.vstack([N_, N_[:1]])
+        T_ = np.gradient(Ps, axis=0)
+        B_ = np.cross(N_, T_)
+        B_ /= np.maximum(np.linalg.norm(B_, axis=1, keepdims=True), 1e-12)
+        FT.tape(TPV, TPF, Ps + N_ * 0.00015, N_, B_, BOND['width'], BOND['thick'])
+        tape_m['seams'] += float(np.sum(np.linalg.norm(np.diff(Ps, axis=0), axis=1)))
+    joined = {}
+    for grp in BOND.get('join', []):
+        for nm in grp['seams']:
+            joined[nm] = grp
+    by_name = {sl['name']: sl for sl in R['seamLines']}
+    for grp in BOND.get('join', []):
+        lay_joined([seam_side_uv(by_name[nm][grp.get('side', 'a')]) for nm in grp['seams'] if nm in by_name],
+                   grp.get('smooth', 12), grp.get('closed', False), grp.get('smooth_n', 0))
     for sl in R['seamLines']:
+        if sl['name'] in joined:
+            continue
         pn, pl = seam_side_uv(sl['a'])
         lay(pn, pl, BOND['width'], BOND['thick'], 'seams')
     lap_edges = {(pn, c0, c1) for pn, c0, c1 in (LAP or {}).get('over', [])}

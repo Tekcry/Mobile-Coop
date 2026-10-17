@@ -1,10 +1,12 @@
 # Operators run - state (resume point)
 
-**Now:** the Wren block end (RULES.md), step 11b passed: retry step 08a (steps/08a-fixes-r4.md), then step 10
-(steps/10-fixes-r4.md plus the hero-bake confetti, LOD greys, LOD1 chest bakeDiff 31 px; A89's LOD1 target is fragile),
-then step 11 (steps/11-fixes-r4.md: the full 22-close-up callout audit; 11b applied the rule to 8 views). Michael's
-eye: A86 gunmetal and the pistol-mag draw were answered (keep both, D28). Then step 12
-(Moth) starts by asking Michael Moth's direction (D24). Opus 5.5, High.
+**Now:** Wren block end: the step 08a retry passed. Next the step 10 retry (steps/10-fixes-r4.md plus: hero-bake
+confetti, the LOD1/LOD2 mid-grey suit, rigidSkin:lod2 with 6 parts absorbed by the LOD2 shell, lod0 bakeDiff boot
+431 px > 404 (toe streaks), lod2 bakeDiff chest 44 px > 24; A89's LOD1 target is fragile). Then the step 11 retry
+(steps/11-fixes-r4.md: callouts for every visible item on all 22 close-ups; re-render every Lab sheet). Then D30:
+11c merges Michael's merged base branch into feature/operators - only once he names it (ask with the native
+multiple-choice UI if he has not), 11d game runtime, 11e Wren in the game behind ?operator=wren. Then ask Michael
+whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
@@ -22,6 +24,9 @@ rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAM
 - Sheets: 33 in docs/operators/mockups/wren/ (22 close-ups incl. buckle and hipL, rim-silhouette, goggle, ktx2-compare). SHEET_CLOSEUPS=a,b
   limits them. Stats use an operator mask (lab.maskShot); each close-up has a +2 EV detail-read panel; `--only diag`
   prints the front / back value diagnosis. Lab shadow bias 0.004 (acne fix, A80); goggle spill never lights her.
+
+**After the 08a retry:** suit membrane zones crotch / abdomen / lumbar (A90; `support: 'subdiv'` = the cage with a
+light Taubin, `support: 'fit'` = an MLS-fitted, lifted support for the abdomen, A93), joined tape runs (`D['bonded']['join']`, A92), suit `seam_self_rings` 6 (seam gap 9.6 mm).
 
 **After 11b (D28 / D29):** rigid parts on `KC.Flat` frames with `_rigid` ids (chest 1xx, belt 2xx, legs 3xx, armour
 4xx, head 5xx), skinned by `py/rigid_skin.py` (one weight vector per part), `_RIGID` in every GLB; operators:check

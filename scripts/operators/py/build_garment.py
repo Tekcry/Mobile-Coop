@@ -870,6 +870,90 @@ def smoothed_skin(iters):
     return BVHTree.FromPolygons([tuple(v) for v in V], [tuple(p.vertices) for p in body.data.polygons])
 
 
+def subdivided_skin(taubin=10):
+    """The body as rendered (its subdivision surface, bind pose) with a light Taubin fairing: a smooth support. The
+    cling's skin is the coarse cage, whose convex corners a relaxed membrane tents over (step 08a retry, item 2: the two
+    abdomen 'dimples' were the suit tented on two cage vertices of the lower belly)."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    ev = body.evaluated_get(dg)
+    me_ = ev.to_mesh()
+    mw = np.array(body.matrix_world)
+    V = np.array([v.co[:] for v in me_.vertices]) @ mw[:3, :3].T + mw[:3, 3]
+    E = np.array([e.vertices[:] for e in me_.edges])
+    F = [tuple(p_.vertices) for p_ in me_.polygons]
+    ev.to_mesh_clear()
+    dg_ = np.bincount(E.ravel(), minlength=len(V)).astype(np.float64)
+    for _ in range(taubin):
+        for f in (0.5, -0.53):
+            acc = np.zeros_like(V)
+            np.add.at(acc, E[:, 0], V[E[:, 1]])
+            np.add.at(acc, E[:, 1], V[E[:, 0]])
+            V = V + f * (acc / np.maximum(dg_, 1)[:, None] - V)
+    return BVHTree.FromPolygons([tuple(v) for v in V], F)
+
+
+def _evaluated_body():
+    """The body as rendered (its subdivision surface, bind pose): world vertices, vertex normals, faces."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    ev = body.evaluated_get(dg)
+    me_ = ev.to_mesh()
+    mw = np.array(body.matrix_world)
+    V = np.array([v.co[:] for v in me_.vertices]) @ mw[:3, :3].T + mw[:3, 3]
+    N = np.array([v.normal[:] for v in me_.vertices]) @ mw[:3, :3].T
+    F = [tuple(p_.vertices) for p_ in me_.polygons]
+    ev.to_mesh_clear()
+    return V, N / np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9), F
+
+
+def fitted_skin(win, sig, so, guard):
+    """A support with no relief smaller than 'sig' (fix round 1 of the 08a retry, item 1): the subdivided body inside the
+    zone's window 'win' (a weight per body vertex, 0-1) is replaced by its moving-least-squares surface (a quadratic
+    height field in each vertex's own frame, Gaussian weights of radius 'sig'). A quadratic keeps the belly's broad
+    curvature and drops the rectus ridges, the linea alba and the navel, which a Taubin fairing of the fine mesh keeps
+    (a band-pass: 5-7 cm features pass). The fitted part is lifted evenly so that nothing of the body comes nearer than
+    'guard' to cloth held 'so' off it (a membrane over the ridges, not between them). Returns (BVH, lift in m)."""
+    V, N, F = _evaluated_body()
+    R = np.where(win > 0)[0]
+    if not len(R):
+        return BVHTree.FromPolygons([tuple(v) for v in V], F), 0.0
+    c_ = V[R].mean(axis=0)
+    rad = np.linalg.norm(V[R] - c_, axis=1).max() + 3 * sig
+    nR = N[R].mean(axis=0)
+    nR /= np.linalg.norm(nR)
+    S_ = np.where((np.linalg.norm(V - c_, axis=1) < rad) & (N @ nR > 0.0))[0]
+    Q, NS = V[S_], N[S_]
+    proj, nrm = np.empty((len(R), 3)), np.empty((len(R), 3))
+    up = np.array([0.0, 0.0, 1.0])
+    for k in range(0, len(R), 160):
+        p = V[R[k:k + 160]]
+        d2 = ((Q[None, :, :] - p[:, None, :]) ** 2).sum(-1)
+        g = np.exp(-d2 / (2 * sig * sig)) * (d2 < 9 * sig * sig)
+        n = np.einsum('cn,ni->ci', g, NS)                       # the frame: the Gaussian-averaged normal
+        n /= np.linalg.norm(n, axis=1, keepdims=True)
+        g = g * (np.einsum('ci,ni->cn', n, NS) > 0.3)            # nothing from a surface facing away
+        t1 = np.cross(n, up)
+        t1 /= np.linalg.norm(t1, axis=1, keepdims=True)
+        t2 = np.cross(n, t1)
+        D = Q[None, :, :] - p[:, None, :]
+        u, v, h = (np.einsum('cni,ci->cn', D, t) for t in (t1, t2, n))
+        A = np.stack([np.ones_like(u), u, v, u * u, u * v, v * v], -1)
+        M = np.einsum('cn,cni,cnj->cij', g, A, A) + 1e-12 * np.eye(6)
+        r = np.einsum('cn,cni,cn->ci', g, A, h)
+        c0 = np.linalg.solve(M, r[..., None])[:, 0, 0]
+        proj[k:k + 160] = p + c0[:, None] * n
+        nrm[k:k + 160] = n
+    w = win[R]
+    exc = np.einsum('ri,ri->r', V[R] - proj, nrm)               # + = the body outside the fitted surface
+    lift = max(0.0, float(exc[w > 0.3].max()) - (so - guard)) if (w > 0.3).any() else 0.0
+    V = V.copy()
+    V[R] = V[R] + w[:, None] * (proj - V[R] + lift * nrm)
+    print(f"operators: fitted support: {len(R)} vertices, relief removed up to {exc.max() * 1000:.1f} mm out / "
+          f"{-exc.min() * 1000:.1f} mm in, lift {lift * 1000:.1f} mm", flush=True)
+    return BVHTree.FromPolygons([tuple(v) for v in V], F), lift
+
+
 def membrane_zones(P, zones, so, guard, skin):
     """Membrane zones (SIM 'cling' 'zones', step 08a fix round 3): where a compression knit spans a broad form (the
     lower belly and the front of the crotch) it is one taut surface, not a copy of the skin and not the solver's
@@ -880,38 +964,117 @@ def membrane_zones(P, zones, so, guard, skin):
     (seam vertices too, which the relax keeps)."""
     P = P.copy()
     inner = interior_mask()
+    # 'seams' (step 08a retry, item 1): the zone relaxes its seams with the cloth, each seam as one line (its paired
+    # vertices, welded later, are held together at their mean and relaxed over both sides' neighbours), so a seam the
+    # simulation left wavy (the centre front above the gusset) is drawn straight with the membrane.
+    par = np.arange(len(P))
+
+    def _root(a):
+        while par[a] != a:
+            par[a] = par[par[a]]
+            a = par[a]
+        return a
+    for a_, b_ in pairs:
+        ra, rb = _root(a_), _root(b_)
+        if ra != rb:
+            par[max(ra, rb)] = min(ra, rb)
+    root = np.array([_root(i) for i in range(len(P))])
+    paired = np.bincount(root, minlength=len(P))[root] > 1
+
+    def welded_avg(X):
+        acc = np.zeros_like(X)
+        cnt = np.zeros(len(X))
+        for a_, b_ in ((0, 1), (1, 2), (2, 0)):
+            np.add.at(acc, tri_arr[:, a_], X[tri_arr[:, b_]])
+            np.add.at(acc, tri_arr[:, b_], X[tri_arr[:, a_]])
+            np.add.at(cnt, tri_arr[:, a_], 1.0)
+            np.add.at(cnt, tri_arr[:, b_], 1.0)
+        accR = np.zeros_like(X)
+        np.add.at(accR, root, acc)
+        cR = np.bincount(root, weights=cnt, minlength=len(X))
+        return accR[root] / np.maximum(cR[root], 1.0)[:, None]
+
+    def snap_pairs(X, sel):
+        S_ = np.zeros_like(X)
+        np.add.at(S_, root, X)
+        c_ = np.bincount(root, minlength=len(X)).astype(float)
+        X = X.copy()
+        X[sel] = (S_[root] / c_[root][:, None])[sel]
+        return X
+    final_guard = []
     for zc in zones:
         z0 = m[zc['z'][0]] + zc['z'][1] * s
         z1 = m[zc['z'][2]] + zc['z'][3] * s
         fall, hx = zc.get('fall', 0.02) * s, zc['x'] * s
+        side_ = zc.get('side', -1)
 
-        def weight(X):
+        def weight(X, hx=hx, z0=z0, z1=z1, fall=fall, side_=side_):
             w = (np.clip((hx - np.abs(X[:, 0])) / fall, 0, 1) * np.clip((X[:, 2] - z0) / fall, 0, 1)
-                 * np.clip((z1 - X[:, 2]) / fall, 0, 1) * (X[:, 1] < -0.02 * s))
+                 * np.clip((z1 - X[:, 2]) / fall, 0, 1) * (X[:, 1] * side_ > 0.02 * s))   # side -1 front, +1 back
             return w * w * (3 - 2 * w)
         w = weight(P)
         idx = np.where(w > 0)[0]
-        wi = (0.5 * w * inner)[:, None]
+        # 'support' (step 08a retry, item 2): 'subdiv' holds the zone off the subdivided, lightly faired body (both the
+        # standoff and the guard) instead of the coarse cage, so the membrane does not tent on the cage's corners.
+        zskin, zreal = (skin, _skin)
+        if zc.get('support') == 'subdiv':
+            zskin = zreal = subdivided_skin(zc.get('support_fair', 10))
+        elif zc.get('support') == 'fit':
+            # fix round 1 of the 08a retry, item 1: the subdivided body (lightly faired) kept the rectus relief and the
+            # membrane copied it (a six-pack in e); the fitted support has none.
+            Vb, _, _ = _evaluated_body()
+            zskin, _lift = fitted_skin(weight(Vb), zc.get('fit_sigma', 0.04) * s, so, guard)
+            zreal = zskin
+        final_guard.append((weight, zskin if zc.get('support') == 'fit' else None))
+        seams_ = bool(zc.get('seams'))
+        movable = (inner | paired) if seams_ else inner
+        if seams_:
+            wr = np.zeros(len(P))
+            np.maximum.at(wr, root, w)
+            w = np.maximum(w, wr[root] * paired)     # a seam's two sides carry the same weight
+            idx = np.where(w > 0)[0]
+            jsel = paired & (w > 0)
+        wi = (0.5 * w * movable)[:, None]
         mo = zc.get('max_off')
+        # 'draw_from' (step 08a retry, item 1): the draw-in to max_off only above this height (smooth over 'fall'),
+        # so the membrane can run down over the gusset's front without being pulled into the gap between the thighs.
+        dfz = m[zc['draw_from'][0]] + zc['draw_from'][1] * s if zc.get('draw_from') else None
         for it in range(zc.get('relax', 40)):
-            P = P + wi * (neighbour_avg(P) - P)
+            if seams_:
+                P = snap_pairs(P, jsel)
+                P = P + wi * (welded_avg(P) - P)
+            else:
+                P = P + wi * (neighbour_avg(P) - P)
             for i in idx:
-                loc, n_, _, d = skin.find_nearest(Vector(P[i]))
+                loc, n_, _, d = zskin.find_nearest(Vector(P[i]))
                 if loc is None or d > 0.05:
                     continue
                 h = (Vector(P[i]) - loc).dot(n_)
                 if h < so:
                     P[i] = P[i] + np.array(n_) * (so - h)
                 elif mo is not None and h > so + mo:
-                    P[i] = P[i] - np.array(n_) * (h - so - mo) * w[i] * w[i]
-                loc, n_, _, d = _skin.find_nearest(Vector(P[i]))
+                    dw = 1.0 if dfz is None else float(np.clip((P[i][2] - dfz) / fall, 0.0, 1.0))
+                    P[i] = P[i] - np.array(n_) * (h - so - mo) * w[i] * w[i] * dw
+                loc, n_, _, d = zreal.find_nearest(Vector(P[i]))
                 if loc is not None and d < 0.05:
                     h = (Vector(P[i]) - loc).dot(n_)
                     if h < guard:
                         P[i] = P[i] + np.array(n_) * (guard - h)
         print(f"operators: membrane zone {zc['name']}: {len(idx)} vertices, z {z0:.3f}-{z1:.3f}", flush=True)
-    P, gm, first = push_out(P, _skin, guard, reach=0.03)
-    return P
+    # 08a retry, item 2: zones held off the subdivided body take their final guard off it too (the coarse cage's convex
+    # corners stand up to a few mm outside the rendered body; a guard off them tented the abdomen on two cage vertices).
+    # Fix round 1 of the 08a retry, item 1: only the zones' own vertices take that guard (each zone's weight, blended);
+    # the rest of the suit keeps the guard off the cage, as before the zones had supports.
+    base, _, _ = push_out(P, _skin, guard, reach=0.03)
+    sub = subdivided_skin(0) if any(zc.get('support') for zc in zones) else _skin
+    out = base.copy()
+    for wfn, tree in final_guard:
+        wz = wfn(P)
+        if not (wz > 0).any():
+            continue
+        Pz, _, _ = push_out(P, tree if tree is not None else sub, guard, reach=0.03)
+        out = out + wz[:, None] * (Pz - out)
+    return out
 
 
 def cling(P, cfg):

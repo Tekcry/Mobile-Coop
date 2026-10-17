@@ -55,16 +55,38 @@ SIM['pin'] = {'panels': ['gusset'], 'sew': 1.0, 'settle': 1.0}
 # Fix round 2 (A48 amended): held on its arranged diamond the gusset bridges the crotch more than the cling's 25 mm
 # reach off the skin, so it stayed proud and read as a bulge at full figure. The cling reaches 70 mm for the gusset
 # panel: it is drawn onto the faired skin with the leg panels round it, one smooth surface into the inner thighs.
-SIM['cling']['reach_panels'] = {'gusset': 0.07}
+SIM['cling']['reach_panels'] = {'gusset': 0.07, 'collar': 0.045}
+# Retry fix round 1, item 3: the mock neck's top edge stood more than the 25 mm reach off the neck in places, so the
+# cling left it where the solver did (a folded wing on the left, spikes on the right); 45 mm draws all of it on.
+# The collar is then faired (Taubin, its edges along themselves, corners held): the spikes the solver left on the
+# top edge at the back right are single hem vertices.
+SIM['fair'] = {'iters': 30, 'panels': ['collar']}
 # Fix round 3 (A48 amended again, A45): the cling's faired skin left two stacked lumps of excess cloth on the centre
 # front seam above the gusset (up to 19 mm off the skin). Membrane zones
 # (build_garment.membrane_zones): the front of the crotch is relaxed as one taut surface held clear of the faired skin
 # and drawn in to 3 mm over the standoff. An abdomen zone was tried and dropped: held off the cling's faired skin it
 # kept the two dimples (they are in the faired skin), held off the real skin it removed them but showed the rectus
 # edges (round 3 item 4, OPEN).
+# Retry after fix round 3 (item 1; A48 amended): the zone ran from 2 cm above the crotch with a 2 cm falloff, so the
+# bottom of it (z 0.78-0.82, right above the proud gusset) was barely relaxed and kept a rounded bulge with a cast
+# shadow; its seams were held where the simulation left them, so the centre front seam waved. Now the zone starts 1 cm
+# below the crotch (the gusset's front is part of the membrane), its seams relax with the cloth as single lines
+# ('seams'), the draw-in to max_off acts only from 2.5 cm above the crotch ('draw_from': nothing is pulled into the
+# gap between the thighs), and it relaxes twice as long.
 SIM['cling']['zones'] = [
-    {'name': 'crotch front', 'x': 0.07, 'z': ('z_crotch', 0.02, 'z_waist', -0.06), 'fall': 0.02, 'relax': 60,
-     'max_off': 0.003},
+    {'name': 'crotch front', 'x': 0.07, 'z': ('z_crotch', -0.01, 'z_waist', -0.06), 'fall': 0.02, 'relax': 120,
+     'max_off': 0.003, 'seams': True, 'draw_from': ('z_crotch', 0.025)},
+    # 08a retry, item 2: on the cling's coarse faired cage the relaxed suit tented on two convex cage vertices of the
+    # lower belly (x +-0.035, z 0.985), the two 'dimples' in e. Held off the subdivided body (A90) it copied the rectus
+    # relief instead (a six-pack, retry fix round 1 item 1: a light Taubin keeps 5-7 cm features). Now held off a fitted
+    # support (A93): the subdivided body's moving-least-squares quadratic (4 cm Gaussian), lifted evenly clear of it.
+    {'name': 'abdomen', 'x': 0.12, 'z': ('z_waist', -0.07, 'z_bust', -0.05), 'fall': 0.03, 'relax': 160,
+     'seams': True, 'support': 'fit', 'fit_sigma': 0.04},
+    # 08a retry, item 6: the lower back as one taut surface over the spine groove and the erector ridges (the A51 body
+    # fill, 10 mm, stopped at the ridges; widening it to 16 mm over 8.5 cm was tried and left a pit where the groove
+    # deepens below the fill). Held off the subdivided body, relaxed with the centre back and waist seams.
+    {'name': 'lumbar', 'side': 1, 'x': 0.11, 'z': ('z_hem', 0.0, 'z_bust', -0.02), 'fall': 0.03, 'relax': 140,
+     'seams': True, 'support': 'subdiv'},
 ]
 SIM['gravity'] = 0.1                # the one piece hangs its legs from the waist ring and the shoulders; the cling seats it
 # The base layer's 12 left the settle phase's worst seam at 10.5-11.3 mm on the suit: sewn firmer.
@@ -72,7 +94,7 @@ SIM['sewing_force'] = 16.0     # fix round 2: 18 was tried and left the settle's
 # Fix round 2, item 3: the lower-leg seams (inLo / outLo) opened from 8-9 mm to 10.5 mm in the settle, where self
 # collision comes on; on the narrow calf the band kept out of it (2 rings each side of a seam) is too thin and self
 # collision held the seam's two sides apart. 4 rings on the suit.
-SIM['seam_self_rings'] = 4
+SIM['seam_self_rings'] = 6   # 08a retry (F10): 4 left inLoL oscillating 8.4-10.7 mm through the settle
 
 # The top's cut (A51): the base layer's, 4 % longer. A free compression top shortens about 12 % along its length in the
 # mass-spring knit (its girth stretch pulls the length in: the base layer's hem rode 7-8 cm up); sewn to the leggings
@@ -91,17 +113,14 @@ def _rounded_rect(x0, x1, y0, y1, r, n=6):
 
 
 def _yoke_outline(hw, y0, r, n=8):
-    """The shoulder yoke on a raglan sleeve (fix round 1, item 4): a rounded end at y0 on the shoulder point, its front
-    and back lines rising straight for r and then flaring out at 45 degrees, so they cross the raglan seams steeply
-    and meet their tape (a line nearly parallel to the converging raglan edge stopped centimetres short of it, under
-    the tape-clearance rule, and read as a stub). The outline closes far outside the panel, where it has no tape."""
-    pts = []
-    for a in np.radians(np.linspace(180.0, 270.0, n)):           # back-bottom corner (x < 0)
-        pts.append([-hw + r + r * math.cos(a), y0 + r + r * math.sin(a)])
-    for a in np.radians(np.linspace(270.0, 360.0, n)):           # front-bottom corner (x > 0)
-        pts.append([hw - r + r * math.cos(a), y0 + r + r * math.sin(a)])
-    ys = y0 + r + 0.01
-    pts += [[hw, ys], [hw + 0.12, ys + 0.12], [-hw - 0.12, ys + 0.12], [-hw, ys]]
+    """The shoulder yoke on a raglan sleeve: one smooth parabola y = y0 + r (x / hw)^2 under the shoulder point, run
+    out on both sides until it leaves the panel, so its front and back lines rise ever more steeply into the raglan seams
+    with no bend (08a retry, item 3: fix round 1's rounded end, straight rise and 45-degree flare read as a wave ending
+    in a hook where the tape met the raglan tape). The outline closes far outside the panel, where it has no tape."""
+    xs = np.linspace(-3.2 * hw, 3.2 * hw, 8 * n + 1)
+    pts = [[x, y0 + r * (x / hw) ** 2] for x in xs]
+    top = y0 + r * 3.2 ** 2 + 0.05
+    pts += [[3.2 * hw, top], [-3.2 * hw, top]]
     return np.array(pts)
 
 
@@ -274,7 +293,18 @@ def draft(m, h=0.011):
         'patches': [],
         'flatHems': True,
         'inserts': inserts,
-        'bonded': {'width': TAPE_W, 'thick': TAPE_T, 'cuff_width': 0.012},
+        'bonded': {'width': TAPE_W, 'thick': TAPE_T, 'cuff_width': 0.012,
+                   # 08a retry, items 3-4: one tape run each for the front neckline (either side of the centre front:
+                   # it read as a broken V) and the waist seam's four halves (a notch at the centre front, a step at
+                   # the hip, a gap at the centre back)
+                   'join': [{'seams': ['collarFL', 'collarFR'], 'side': 'b', 'smooth': 24},
+                            {'seams': ['waistFrontL', 'waistFrontR', 'waistBackR', 'waistBackL'], 'side': 'a',
+                             'smooth': 16, 'closed': True},
+                            {'seams': ['cf'], 'smooth': 12}, {'seams': ['cb'], 'smooth': 12},
+                            # retry fix round 1, item 2: the front raglan tapes each as one smoothed run with smoothed
+                            # normals (the right one kinked and swelled where it met the underarm's crease)
+                            {'seams': ['raglanFR'], 'smooth': 30, 'smooth_n': 12},
+                            {'seams': ['raglanFL'], 'smooth': 30, 'smooth_n': 12}]},
         'suit': {
             'zip': {'front': _zip_path_front(top.panels['front'], hw_b, y_b, s).tolist(),
                     'collar_x': 0.03 * s, 'collar_h': mt['collar_h']},
@@ -334,12 +364,15 @@ def prepare_body(body, J, H):
         # Plain Laplacian passes, clamped to 8 mm in and 15 mm out (fix round 1: Taubin pairs are a band-pass that keeps
         # features as broad as the rectus ridges, 5-7 cm, and left them reading in e): the suit spans the ridges as one
         # membrane, the grooves and the navel fill.
-        for _ in range(200):
+        # 08a retry, item 2: two small dimples stayed at about z 0.99 (e) through every round: the 8 mm inward clamp
+        # held the rectus ridges either side of them, so the relax could not span them. 14 mm in, 320 passes (24 mm
+        # was tried: the lower belly then dropped as a broad shelf under the ribs in e).
+        for _ in range(320):
             acc = np.zeros_like(V)
             np.add.at(acc, E[:, 0], V[E[:, 1]])
             np.add.at(acc, E[:, 1], V[E[:, 0]])
             V = V + (0.5 * Wa)[:, None] * (acc / deg[:, None] - V)
-            V[:, 1] = np.clip(V[:, 1], V0[:, 1] - 0.015, V0[:, 1] + 0.008)
+            V[:, 1] = np.clip(V[:, 1], V0[:, 1] - 0.015, V0[:, 1] + 0.014)
             V[:, [0, 2]] = np.clip(V[:, [0, 2]], V0[:, [0, 2]] - 0.004, V0[:, [0, 2]] + 0.004)   # little slide
     # The lumbar groove (fix round 1, item 6): the suit spans the spine's groove between the sacrum and the shoulder
     # blades, so the centre-back seam runs down it straight. The back of the torso within 5 cm of the spine is relaxed

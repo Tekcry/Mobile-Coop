@@ -172,6 +172,14 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D30 Wren goes into the game before Moth (2026-10-18).** Michael: "i want to move the completed character into the
+game also before starting on the next one." He is merging all other branches (not operators) and changing the build
+first. Asked who builds the integration, Michael: "This run, locally (Recommended)". So after the Wren block end:
+step 11c merges Michael's merged base branch into feature/operators (only after he names it; ask with the native
+multiple-choice UI if he has not), 11d builds the game runtime (new modules, tests), 11e puts Wren in the game behind
+`?operator=wren` with GPU checks; then Moth (step 12, D24). The cloud runtime prompt (CLOUD-RUNTIME-PROMPT.md) is not
+run; 11d reuses its rules and facts.
+
 **D29 Desktop only (2026-10-17).** Michael's project decision, relayed from the locomotion session (its M21, commit
 c22e816): "I want to focus on desktop only performance, ignore phones." Scope: drop phones entirely - no phone
 budgets or `--phone` perf runs, no phone look or phone checks, no touch-control work; desktop pad first, then keyboard
@@ -1034,3 +1042,55 @@ appeared along the goggle housing's lower edge (`wren-head-lod1.png` at 198, 320
 (chest stays the known step 10 line, 31 px). The canisters' design record sits on their own oval
 axes (`leg_kit.py`, frame `fa`: width, depth, length) so `rigidKit:size` reads 25 x 18 x 90; the world geometry is
 the one built in the world-x frame (the ring phase that cleared LOD2's holster view, 26 to 13 px). Undo: 13,500.
+
+## Assumed decisions, step 08a retry (Wren block end; fixer)
+
+**A90 Membrane zones over the crotch, the abdomen and the lumbar (A48 amended again).** build_garment
+`membrane_zones` (suit `SIM['cling']['zones']`): (1) the crotch zone now starts 1 cm below the crotch (was 2 cm above),
+relaxes 120 passes (was 60), and with `'seams': True` relaxes the seams inside it as single lines (each seam's paired
+vertices held at their mean and averaged over both sides' neighbours), so the centre front seam is drawn with the cloth;
+`'draw_from'` limits the draw-in to `max_off` to 2.5 cm above the crotch, so nothing is pulled into the gap between the
+thighs. (2) New zones `abdomen` (front, z_waist - 7 cm to z_bust - 5 cm, 160 passes) and `lumbar` (`'side': 1`, the
+back, z_hem to z_bust - 2 cm, 140 passes), both with seams and `'support': 'subdiv'`: held off the body as rendered (its
+subdivision surface, lightly faired) instead of the coarse cage, whose convex corners a membrane tents on; zones on that
+support take their final guard off the subdivided body too. Why: round 4 items 1, 2 and 6 (crotch bulge and waving
+centre seam, abdomen dimples, lumbar groove between lit ridges). Undo: the round 3 zone list in suit.py.
+
+**A91 The abdomen's body relax settles the rectus ridges up to 14 mm (A45 amended).** `prepare_body`: 14 mm in (was
+8 mm), 320 passes (was 200). Why: the 8 mm clamp held the ridge tops either side of the dimples. Tried and dropped:
+24 mm (the lower belly dropped as a broad shelf under the ribs in e); the lumbar fill widened to 8.5 cm at 16 mm and down
+to the hips (a pit where the gluteal cleft, deeper than the cap, met the fill; A51's 10 mm fill is kept and the lumbar
+zone does the rest). The suit's `seam_self_rings` 4 to 6: with 4 the settle left inLoL oscillating 8.4-10.7 mm (10.4 at
+the last frame in the first loop), with 6 it ends 8.4-9.8 mm. Undo: the old clamp and ring count in suit.py.
+
+**A92 Joined tape runs, a parabolic shoulder yoke and an eased hood-skirt front (08a retry, items 3-5).** The bonded
+details (`garment_details.py`, `D['bonded']['join']`) lay seams that meet end to end as one tape run, chained by their
+nearest ends and smoothed along the surface only (each point keeps its normal offset): the front neckline either side of
+the centre front (`collarFL` + `collarFR`, smooth 24) the waist seam's four halves as one closed ring (smooth 16), and the leg block's centre front and centre back seams
+(`cf`, `cb`, smooth 12).
+The shoulder yoke outline (`suit._yoke_outline`) is one parabola y = y0 + r (x / hw)^2 run out past the raglan seams
+(was a rounded end, a straight rise and a 45-degree flare). The hood skirt's 20 mm front drop (headwear
+`SKIRT_FRONT_SUIT`) is eased over 0.0-0.9 of the front cosine (was 0.35-0.85), still full over the zip and garage.
+Undo: remove `join`, the old outline and smoothstep bounds.
+
+**A93 The abdomen zone held off a fitted support; zone guards local; front raglan runs; the collar drawn on and faired
+(08a retry fix round 1; A90 amended).** (1) build_garment `fitted_skin` (zone `'support': 'fit'`, `'fit_sigma'` 0.04):
+the body inside the zone's window is replaced by its moving-least-squares surface (a quadratic height field in each
+vertex's own frame, 4 cm Gaussian), which keeps the belly's broad curvature and drops the rectus ridges, the linea alba
+and the navel; the fitted part is lifted evenly (4.3 mm) so that no body vertex comes nearer than the guard to cloth
+held the standoff off it. The abdomen zone uses it (was `'subdiv'`, which copied the rectus relief into a six-pack in e).
+Note on A90: in build_garment the body has no subdivision modifier (13,380 evaluated vertices = the cage), so
+`subdivided_skin(n)` is the cage with n Taubin pairs, and a light Taubin keeps 5-7 cm features. (2) The membrane zones'
+final guard acts on each zone's own vertices only (blended by the zone weight); the rest of the suit takes the guard off
+the cage as before A90. (3) The front raglan tapes are joined runs of one seam each (`raglanFR`, `raglanFL`; smooth 30,
+normals eased over 12 passes with the new `'smooth_n'`): the right one kinked and swelled at the underarm crease.
+(4) Suit cling `reach_panels` collar 45 mm (the mock neck's top edge stood past the 25 mm reach: a folded wing) and
+`SIM['fair']` on the collar panel only (30 Taubin pairs, edges along themselves): spikes on the top edge at the back.
+Undo: `'support': 'subdiv'` on the abdomen, the global final guard, the four entries.
+
+**A94 The crotch probe's 0.6 mm over the 6 mm target is accepted (08a retry fix round 1).** r3/crotch_probe.py (suit
+hero against a faired skin, z 0.80-0.925) reads max 6.6 mm, 17 vertices over 6 mm, all at z 0.800-0.818 (the gusset's
+front edge, where the body's own relief is 7.4 mm forward); from z 0.818 up at most 5.4 mm. The probe is not a step
+Check or a check.mjs limit; the visual Done is met (a, head_kit a: one smooth surface into the inner thighs, no bulge, no
+cast shadow; crops in the session scratchpad f1/fin-crotch-a.png against ck5/old-crotch-a.png). Undo: reopen the
+crotch zone (A90) if Michael wants the number.

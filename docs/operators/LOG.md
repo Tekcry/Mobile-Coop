@@ -912,6 +912,82 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   stubs (f, h, s3); F13 the side seam through the middle of the vent; a small dark sliver on the right boot collar (s4).
 - Status: OPEN after 3 fix rounds; evidence: steps/08a-fixes-r4.md; remaining: items 1-6 above and F1-F13. Retried at
   the Wren block end (after step 11).
+### Block-end retry (fixer, Opus 5.5; against steps/08a-fixes-r4.md; A90-A92)
+Suit loop (sim + details + 96-sample renders, session scratchpad w4/q1-q6, crops w4/*.png), then the full chain:
+`E2E_GPU=1 npm run operators:build -- wren --from suit --render`, `npm run operators:lods -- wren --render`,
+`E2E_GPU=1 npm run operators:check -- wren`, `npm run check`, pose_check.py. Renders (RTX 4090, 384 samples) in
+docs/operators/mockups/tests/ (wren-suit-a..k, wren-head_kit-a, s1-s4 and every later item), pose sheets in
+docs/operators/mockups/wren/wren-pose-*.webp.
+- Item 1 crotch: DONE in the renders, probe just over. A90: the crotch membrane zone starts 1 cm below the crotch,
+  relaxes 120 passes with its seams as single lines, draw-in only from 2.5 cm above the crotch. a / head_kit a: one
+  smooth surface into the inner thighs, no bulge, no cast shadow. Probe (r3/crotch_probe.py, z 0.80-0.925): max 6.6 mm
+  off the faired skin (was 9.8), 17 vertices over 6 mm (was 79), all at z 0.800-0.818; z 0.818 up at most 5.4 mm.
+  The centre front tape is laid as one smoothed run (`cf`, A92): straight but for a slight wobble just above the gusset.
+- Item 2 abdomen: NOT MET (corrected by the retry checker, round 1: the renders were not softer). A91 (14 mm settle,
+  320 passes) and an abdomen zone held off the "subdivided" body (A90; in fact the cage with a light Taubin, A93) made it
+  worse: the membrane copied the rectus relief (a six-pack: linea alba groove, segment steps, a navel pit), and a small form remains at about x +-0.035, z 0.985 (e, about 800, 760): the suit lies 3.3 mm off the body
+  there, so the form is the prepared body's own (a crease of the coarse cage at the lower belly). 24 mm was tried: the
+  lower belly dropped as a broad shelf (worse). Next: reshape the cage there (prepare_body: a local fill of the crease
+  below those two vertices) rather than a larger clamp.
+- Item 3 panel lines: DONE. c: the front neckline is one continuous curve either side of the zip (joined run, A92); the
+  collar's centre seam ends on it as a clean T; both yoke boundaries are single curves into the raglan seams (parabola).
+  s1: no V, no stub. The right raglan dog-leg (c 1720-1760, 930-1000) was not touched; check it in the new c.
+- Item 4 waist notches: DONE. The waist seam's four halves are one closed tape ring (A92): e has no notch at the centre
+  front and no step at the hip; j has no gap where the centre back seam meets it (one slight wave left of it).
+- Item 5 hood skirt front: DONE. s1: the skirt's lower edge is one smooth curve from the sides to the front
+  (smoothstep 0.0-0.9; A92). covered:gunmetal 0 px in headwear, head_kit and every later item.
+- Item 6 lumbar: DONE. A lumbar zone (A90) relaxes the lower back over the groove and the erector ridges, held off the
+  subdivided body: b is one taut surface with a shallow spine channel, no lit ridge, no rim oval. (Widening A51's body
+  fill to 16 mm / 8.5 cm was tried first and dropped: a pit where the gluteal cleft met it.)
+- Seam gap (F10): with `seam_self_rings` 4 the first loop ended at 10.4 mm (inLoL oscillating 8.4-10.7 in the settle);
+  6 rings: 9.8 / 9.6 / 9.6 / 8.4 mm in the loops, 9.6 mm in the full build.
+- Checks: `operators:check -- wren`: every item check passes (suit seamGap 9.59, edgeLength suit 19.4, others 23.31-29.67; every
+  rigidKit line passes); LODs: bakeDiff passes on every view
+  (LOD1 chest 5 px, was the known 31 px; LOD0 back 14, boot 119/404; LOD1 head 17; LOD2 side 9, chest 8); ONE FAIL:
+  `rigidSkin:lod2` - legBandBuckleL0 and legBandBuckleL1 are missing from LOD2 (absorbed by its voxel shell after the
+  suit's re-simulated legs moved the leg kit; spread 0, weights exact for the 42 parts present). Not changed: adding them
+  to `rigidKit.LOD_ABSORBED.lod2` (A82's own procedure for absorbed parts under 5 cm) is the orchestrator's call; the
+  alternative is the step 10 retry's LOD work. `npm run check` exit 0 (76 files, 803 tests, build; lint 0 errors, 38
+  warnings). pose_check.py: 7 sheets re-rendered (game crouch / sneak head error 0.0 mm). The Lab sheets
+  (`operators:sheet -- wren`) were not re-rendered (budget): the step 10 / 11 retries re-render them.
+- Open: item 2 (above); F11-F13 and the s4 boot-collar sliver not reached; right raglan dog-leg unverified.
+
+### Block-end retry, fix round 1 (fixer, Opus 5.5; against steps/08a-retry-fixes-r1.md; A93, A94)
+Suit loop (`w4/loop.mjs`, 96 samples) four times into the session scratchpad f1/r1-r4 (crops f1/r*-*.png), then
+`E2E_GPU=1 npm run operators:build -- wren --from suit --render`, `operators:lods -- wren --render`, `operators:check`,
+`npm run check`, pose_check.py. Final crops of the shipped renders: f1/fin-*.png.
+- Item 1 abdomen: DONE. Found: in build_garment the body has no subdivision modifier (13,380 evaluated vertices), so
+  A90's "subdivided" support was the cage with 10 Taubin pairs, which keeps the rectus relief; the membrane copied it.
+  The abdomen zone is now held off a fitted support (A93: moving-least-squares quadratic of the body, 4 cm Gaussian;
+  189 cage vertices replaced, relief removed up to 6.3 mm out / 6.8 mm in, lifted evenly 4.3 mm). The zones' final guard
+  now acts on each zone's own vertices only. e: one smooth surface from the ribs to the waist seam, no groove, no
+  segment steps, no navel, no dimples (f1/fin-e-abd.png against ck5/e-abd.png and ck5/old-e-abd.png); a and armour d:
+  no banding. Lumbar (b) and crotch (a) unchanged against the retry's renders.
+- Item 2 right raglan: DONE. The front raglan tapes are joined single-seam runs (smooth 30, normals eased 12; A93): c
+  shows one smooth curve into the underarm with no dog-leg (f1/fin-c-raglanR2.png). A slight widening remains in the
+  last few mm where the tape meets the underarm crease and the gusset tapes.
+- Item 3 collar: DONE on the left, near-done on the right. Collar cling reach 45 mm and a collar-only Taubin fair
+  (30 pairs, edges along themselves; A93). c: the left wing is gone, the top edge is one clean line either side of the
+  zip; at the back right the spikes are gone, a smooth sliver of the collar's inner face shows over the top edge
+  (f1/fin-c-collar.png, f1/r4-c-right2.png). s1 / s2: the hood skirt still laps the collar cleanly.
+- Crotch probe: max 6.6 mm (17 vertices, z 0.800-0.818), unchanged; recorded as A94 (renders clean).
+- Seam gap 9.59 mm, edge length 19.4 mm (unchanged).
+- Checks: `operators:check -- wren` exit 1 with THREE FAILs (run twice, lods rebuilt between: identical, so
+  deterministic): `rigidSkin:lod2` (allowed; now 6 parts absorbed by the LOD2 shell: gadgetTab, camTab, slingSocket,
+  rappelRing, browRivetL / R), `lod0 bakeDiff` boot 431 px > 404 (the retry had 119; HEAD 367: the toe streaks of
+  steps/10-fixes-r4.md item 2, wren-boot-lod0.png 186,359) and `lod2 bakeDiff` chest 44 px > 24 (the retry had 8; it
+  was 36 in 10-fixes-r4: a dark line on the chest-rig pouch top in the LOD2 shell bake, wren-chest-lod2.png 138,425).
+  Both are LOD bake defects already open for the step 10 retry, flipped by the new suit geometry; not chased here.
+  Every rigidKit line (30), rigidSkin hero / lod0 / lod1 and LOD1 bakeDiff pass. `npm run check` exit 0 (76 files,
+  803 tests; lint 0 errors / 38 warnings; a first run timed out three unrelated tests at 5 s while the PC was slow).
+  pose_check.py: 7 sheets re-rendered, game crouch / sneak head error 0.0 mm.
+- Open: the two bakeDiff FAILs (orchestrator: route to the step 10 retry or loosen nothing and fix there); the raglan's
+  last few mm at the underarm; the collar's inner-face sliver at the back right in c (hidden by the hood skirt in s2).
+
+- Block-end retry status: passed the independent check (fix rounds: 1). Routed to the step 10 retry: rigidSkin:lod2
+  (6 parts absorbed by the LOD2 shell), lod0 bakeDiff boot 431 px > 404 (toe streaks), lod2 bakeDiff chest 44 px > 24
+  (LOD2 shell bake line on the chest-rig pouch top); the hero is clean in all three. Notes for later: s1 hood-skirt left
+  side edge slightly proud over a dark collar wedge; tape-end caps and knot (F12); lumbar shelf at zoom; F11-F13.
 
 ## Step 08b - Wren: composite armour and harness (Opus 5.5)
 - Built: `py/garments/armour.py` (FITTED item `armour` after `head_kit`, A53; kit `chestPlate` + `ribSegments`,

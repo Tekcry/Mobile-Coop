@@ -146,7 +146,9 @@ def build(ctx):
         d = Pq[:, :2] - np.array([0.0, fr['neck_y']])
         r = np.maximum(np.linalg.norm(d, axis=1), 1e-6)
         return (z_hood - SKIRT_BACK * smoothstep(0.15, 0.8, d[:, 1] / r)
-                - sk_front * smoothstep(0.35, 0.85, -d[:, 1] / r))
+                # 08a retry, item 5: the front drop eased over the whole front arc (was 0.35-0.85 of the front cosine,
+                # which read as a tab with a corner each side in s1); still full over the zip and garage (cos > 0.9)
+                - sk_front * smoothstep(0.0, 0.9, -d[:, 1] / r))
     F, rr, tt, O, D = cap['F'], cap['row'], cap['theta'], cap['O'], cap['D']
     nb = FT.neighbours(len(O), F)
 
