@@ -183,7 +183,6 @@ On the iPhone (`/ct/` preview after Michael merges): shots play from the first t
 - [ ] Repeat at Ultra and High.
 - [ ] Aim: the background softens behind what the sight is on, with no full-frame blur flash as aiming starts; release:
       sharp again.
-## Movement foley (feature/footsteps) - PC with headphones, then iPhone
 ## Movement foley (feature/footsteps) - desktop with headphones (desktop only: Michael, 2026-10-17)
 On the PC, `npm run dev`, open `/?foleylab=1`:
 - [ ] Press Walk. Try every surface at every gait. Steps sound like boots, not noise; no two steps in a row sound the same; no clicks at the end of a step.
