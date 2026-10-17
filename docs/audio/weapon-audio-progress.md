@@ -64,3 +64,11 @@
   - With those: typecheck, lint and all unit tests pass; `e2e-weapon-audio`, `e2e-foley`, `e2e-score` and `e2e-combat`
     pass.
 
+## Note - desktop only (M21, 2026-10-17)
+- Michael (relayed from feature/ct-locomotion, logged there as M21, c22e816): "I want to focus on desktop only
+  performance, ignore phones." Phones and touch are dropped; desktop pad first, then keyboard and mouse.
+- This branch: the weapon-sound manual check is desktop only (the iPhone line removed from `TESTING.md`); the lab is
+  checked on the PC. The weapon sprite's size and decode cost are judged for desktop only.
+- `CLAUDE.md`'s platform line and definition of done are not changed here: locomotion's wording (c22e816) arrives with
+  the locomotion merge.
+
