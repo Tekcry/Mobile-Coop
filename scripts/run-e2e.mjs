@@ -21,7 +21,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 
 // 3.5: REQUIRED = the suites `npm run e2e` runs; LEGACY = suites whose every check is about parked content (Wave, Hunter,
 // Mission, PvP, the economy and cosmetics behind `?legacy=1`): `npm run e2e:legacy` runs them with LEGACY=1 (report only).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu', 'e2e-security', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-music', 'e2e-foley'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu', 'e2e-security', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear'];
 // REPORT = suites `npm run e2e` runs whose result is printed as REPORT ONLY and never fails the run: the animation audit
 // harness (locomotion step 08; it becomes REQUIRED at step 32). A quick run passes it `--quick`.
@@ -64,7 +64,7 @@ const COVERS = {
   'src/cosmetics/': ['e2e-park'],
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback'],
   'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-modes', 'e2e-foley', 'e2e-music'],
+  'src/audio/': ['e2e-modes', 'e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
   'src/config/': CORE,
 };

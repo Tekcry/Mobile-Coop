@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alertPlan, HITS, hookShot, lowPlan, melodyShot, menuPlan, missionPlans, type LayerDef } from '../src/audio/score/arrange';
+import { awareness } from '../src/audio/score/game/adapter';
 import { DEFAULT_TIMES, Director, type DirectorAction } from '../src/audio/score/director';
 import { gatedDb, makeHit, pluck, spiccato } from '../src/audio/score/synth';
 import { SKETCHES, SKETCH_A, SKETCH_B } from '../src/audio/score/themes';
@@ -157,6 +158,20 @@ describe('arrangements', () => {
   });
 });
 
+describe('game adapter', () => {
+  const g = (level: string, alive = true) => ({ alive, aware: { level } }) as Parameters<typeof awareness>[0] extends readonly (infer W)[] | undefined ? W : never;
+  it('folds the guards into calm, caution and alert, ignoring the dead', () => {
+    expect(awareness(undefined)).toBe('calm');
+    expect(awareness([])).toBe('calm');
+    expect(awareness([g('unaware'), g('cooldown')])).toBe('calm');
+    expect(awareness([g('unaware'), g('suspicious')])).toBe('caution');
+    expect(awareness([g('investigating')])).toBe('caution');
+    expect(awareness([g('searching')])).toBe('caution');
+    expect(awareness([g('suspicious'), g('alert')])).toBe('alert');
+    expect(awareness([g('alert', false), g('unaware')])).toBe('calm');
+  });
+});
+
 describe('director', () => {
   const run = (d: Director, steps: [number, 'calm' | 'caution' | 'alert'][]): DirectorAction[] => {
     const out: DirectorAction[] = [];
@@ -226,11 +241,14 @@ describe('score synthesis (pure)', () => {
     for (const rate of [24000, 32000]) {
       for (const h of HITS) {
         const d = makeHit(h, rate, new Rng(3));
+        // one expect per hit, not per sample (millions of expects timed out under load)
         let pk = 0;
+        let finite = true;
         for (const x of d) {
-          expect(Number.isFinite(x)).toBe(true);
+          if (!Number.isFinite(x)) finite = false;
           pk = Math.max(pk, Math.abs(x));
         }
+        expect(finite, h).toBe(true);
         expect(pk, h).toBeGreaterThan(0.2);
         expect(pk, h).toBeLessThanOrEqual(1);
       }

@@ -82,25 +82,64 @@ export const PIECES: readonly PieceMeta[] = [
   },
   {
     id: 'spotted',
-    name: 'Spotted (the hit into Alert)',
-    about: 'The instant hit when a guard spots you, with a two-beat run-in that lands on Under fire\'s first downbeat.',
+    name: 'Spotted (the build into Alert)',
+    about: 'When a guard spots you: a two-beat build (a roll and climbing strings) that rises into the first downbeat of Under fire.',
     use: 'shot',
     bpm: 132,
     bars: 1,
-    layers: [{ id: 'all', name: 'Spotted hit', kind: 'brass' }],
+    layers: [{ id: 'all', name: 'Spotted build', kind: 'brass' }],
     presets: { Hit: { all: 1 } },
     target: -15,
   },
   {
+    id: 'thread',
+    name: 'Hook thread: Calm and Cautious alternatives',
+    about: 'Round 23 (88 BPM, the same timeline as the plucked broken hook, so any Calm pairs with any Cautious). Calm 1: the hook at half speed on one far cello, a half every 8 bars. Calm 2: the plucked call with soft echoes, the answer 4 bars later. Calm 3: low piano, broken. Calm 4: the plucked call answered by the harp, a harp walk-up into the next call. Cautious 1: the broken hook every 2 bars, the whole hook every 8, a quiet clock. Cautious 2: the broken hook with tremolo violas climbing and a timpani heartbeat. Cautious 3: the broken hook over a low spiccato drive. "Cautious (in game now)" is the current game mix.',
+    use: 'stealth',
+    bpm: 88,
+    bars: 32,
+    target: -22,
+    layers: [
+      { id: 'c1far', name: 'Calm 1: the hook at half speed, far cello', kind: 'strings', wet: 0.55 },
+      { id: 'c2echo', name: 'Calm 2: plucked call with echoes', kind: 'strings', wet: 0.45 },
+      { id: 'c3piano', name: 'Calm 3: low piano, broken', kind: 'strings', wet: 0.45 },
+      { id: 'c4harp', name: 'Calm 4: plucked call, harp answer', kind: 'strings', wet: 0.45 },
+      S('bed', 'Quiet low bed (held D, deep sub)'),
+      S('frag', 'Broken hook, every 4 bars'),
+      S('frag2', 'Broken hook, in between (every 2 bars together)'),
+      S('walk', 'Walk-up into the next bar (every 8 bars)'),
+      { id: 'heart', name: 'Heartbeat drum', kind: 'perc' },
+      S('rub', 'Faint high rub'),
+      S('shape', 'The whole hook, soft spiccato (every 8 bars)'),
+      S('tick', 'Quiet clock (off-beat spiccato)'),
+      S('climb', 'Tremolo violas climbing'),
+      { id: 'timpHeart', name: 'Timpani heartbeat', kind: 'perc' },
+      S('drive', 'Low spiccato drive'),
+    ],
+    presets: {
+      'Calm 1: far cello, the hook at half speed': { c1far: 0.6 },
+      'Calm 2: plucked call with echoes': { c2echo: 0.62 },
+      'Calm 3: low piano, broken': { c3piano: 1 },
+      'Calm 4: plucked call, harp answer': { c4harp: 0.5 },
+      'Calm: silence (in game now)': {},
+      'Cautious (in game now)': { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Cautious 1: the hook takes shape': { frag: 1.24, frag2: 1.08, shape: 0.93, tick: 0.78, heart: 0.78 },
+      'Cautious 2: climbing tremolo': { frag: 1.2, frag2: 1.05, walk: 0.9, climb: 0.83, timpHeart: 0.83 },
+      'Cautious 3: spiccato drive': { frag: 1.34, walk: 1, drive: 1, rub: 0.42 },
+      'Everything on': { c1far: 1, c2echo: 1, c3piano: 1, c4harp: 1, bed: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1, shape: 1, tick: 1, climb: 1, timpHeart: 1, drive: 1 },
+    },
+  },
+  {
     id: 'brokenpluck',
     name: 'Broken hook: plucked',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A (D . D3 D) plucked on cellos and basses. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -110,24 +149,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokenbow',
     name: 'Broken hook: bowed',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A played with short, soft bows on cellos and basses: darker and smoother. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -137,24 +178,26 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
     id: 'brokentimp',
     name: 'Broken hook: timpani',
-    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm (round 19): only the broken hook, soft and far away, once every 8 bars, with silence between (no bed, no rub, no heartbeat); a fog variant adds a faint high swell now and then. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
+    about: 'The broken hook as the thread from Calm to Alert (88 BPM). The opening of Hook A on tuned timpani with a plucked high D: cinematic and percussive. Calm (round 20): the broken hook as a call and answer every 2 bars (D . D D, then C . A), a soft walk-up every 16 bars, space between; the distant, fog and near-silence versions are still there. Cautious: it comes every 2 bars, the walk-up appears, the heartbeat and a faint rub join. Alert: the full hook in Under fire.',
     use: 'stealth',
     bpm: 88,
     bars: 32,
     target: -22,
     layers: [
       S('bed', 'Quiet low bed (held D, deep sub)'),
+      { id: 'tune', name: 'Broken hook, call and answer (every 2 bars)', kind: 'strings', wet: 0.38 },
       { id: 'whisper', name: 'Broken hook, far away (every 8 bars)', kind: 'strings', wet: 0.5 },
       { id: 'fog', name: 'Faint high string swell (now and then)', kind: 'strings', wet: 0.6 },
       S('frag', 'Broken hook, every 4 bars'),
@@ -164,12 +207,13 @@ export const PIECES: readonly PieceMeta[] = [
       S('rub', 'Faint high rub'),
     ],
     presets: {
-      Calm: { whisper: 0.5 },
-      Cautious: { bed: 0.5, frag: 0.65, frag2: 0.6, walk: 0.55, heart: 0.45, rub: 0.22 },
+      Calm: { tune: 0.6 },
+      Cautious: { bed: 0.65, frag: 0.85, frag2: 0.78, walk: 0.72, heart: 0.58, rub: 0.29 },
+      'Calm, distant (round 19)': { whisper: 0.5 },
       'Calm, fog': { whisper: 0.45, fog: 0.35 },
       'Calm, near silence': { whisper: 0.3 },
       'Calm, with low bed (round 18)': { bed: 0.4, frag: 0.55 },
-      'Everything on': { bed: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
+      'Everything on': { bed: 1, tune: 1, whisper: 1, fog: 1, frag: 1, frag2: 1, walk: 1, heart: 1, rub: 1 },
     },
   },
   {
@@ -594,25 +638,19 @@ function underFire(s: Score): void {
 
 function spotted(s: Score): void {
   const A = s.L('all');
-  // the hit: low brass and short horns on a D / E-flat cluster, strings ripping into a tremolo rub, drums, cymbal
-  for (const m of [D, D + 12]) note(A, s.bank, 'tbnSus', m, 0, s.d(1.2), { vel: 1, loud: true, attack: 0.02, release: 0.9 });
-  note(A, s.bank, 'tubaSus', D, 0, s.d(1.2), { vel: 1, loud: true, attack: 0.02, release: 0.9 });
-  for (const m of [n('D4'), n('Eb4'), n('A4')]) note(A, s.bank, 'hornStac', m, 0, s.d(0.4), { vel: 1, release: 0.15 });
-  for (const m of [n('D5'), n('Eb5')]) note(A, s.bank, 'violinTrem', m, 0, s.d(1.6), { vel: 0.9, attack: 0.01, release: 0.6 });
-  note(A, s.bank, 'celloSpic', n('D3'), 0, s.d(0.3), { vel: 1, release: 0.1 });
-  note(A, s.bank, 'bassSpic', D, 0, s.d(0.3), { vel: 1, release: 0.1 });
-  timp(A, s.bank, D + 12, 0, 1);
-  hit(A, s.bank, 'giant', 1, 0, 1);
-  hit(A, s.bank, 'bdrum', 2, 0, 0.9);
-  hit(A, s.bank, 'cym', 0, 0, 0.6);
-  subBass(A, 0, 1.2, D - 12, 0.6, 0.005);
-  // the run-in: a drum roll crescendo and violins climbing in sixteenths, landing on the Alert downbeat (beat 2)
-  for (let k = 2; k < 8; k++) {
+  // round 22: no hit (the brass cluster and string rip sounded out of place); a two-beat build that rises from soft
+  // into Alert's first downbeat: a timpani roll, a drum roll in sixteenths, violins and violas climbing, low strings
+  // swelling, a cymbal swell landing on the downbeat
+  timp(A, s.bank, D + 12, 0, 0.75, true);
+  for (let k = 0; k < 8; k++) {
     const t = s.d(k / 4);
-    hit(A, s.bank, 'giantStick', k % 2 ? 0 : 1, t, 0.35 + 0.1 * (k - 2));
-    note(A, s.bank, 'violinSpic', n('A4') + (k - 2), t, s.d(0.2), { vel: 0.5 + 0.08 * (k - 2), release: 0.06 });
+    const v = 0.3 + 0.09 * k;
+    hit(A, s.bank, 'giantStick', k % 2 ? 0 : 1, t, v);
+    note(A, s.bank, 'violinSpic', n('A4') + k, t, s.d(0.2), { vel: 0.4 + 0.07 * k, release: 0.06 });
+    note(A, s.bank, 'violaSpic', n('D4') + k, t, s.d(0.2), { vel: 0.35 + 0.06 * k, release: 0.06 });
   }
-  timp(A, s.bank, D + 12, s.d(0.5), 0.6, true);
+  for (const [inst, m] of [['celloTrem', n('D3')], ['bassSus', D]] as const) note(A, s.bank, inst, m, 0, s.d(2), { vel: 0.7, attack: s.d(1.9), release: 0.05 });
+  swellInto(A, s.bank, 'cym', 1, s.d(2), 0.55);
 }
 
 // ------------------------------------------------------------------ sneaking loops
@@ -675,21 +713,40 @@ function heartbeatLoop(s: Score): void {
 
 function menuGrand(s: Score, hookFrom = 0): void {
   const N = s.meta.bars;
-  const dyn = (b: number): number => (b < 8 ? 0.45 + b * 0.03 : b < 16 ? 0.68 : b < 24 ? 0.82 : 0.92);
-  hookLine(s, 'hookLow', 'celloSpic', 0, hookFrom, N - 2, dyn);
-  hookLine(s, 'hookLow', 'bassSpic', -12, hookFrom, N - 2, dyn);
-  hookLine(s, 'hookHigh', 'violaSpic', 12, 16, N - 2, dyn);
+  // round 22 (blend in and out): the low strings breathe in for two bars before the hook enters softly; the last bars
+  // taper and the final chord swells in gently and fades long, so the loop's end flows into its quiet start
+  const first = Math.max(hookFrom, 2);
+  const dyn = (b: number): number =>
+    b < 8 ? 0.28 + (b - first) * 0.045 : b < 16 ? 0.68 : b < 24 ? 0.82 : b < 28 ? 0.9 : b === 28 ? 0.75 : 0.6;
+  hookLine(s, 'hookLow', 'celloSpic', 0, first, N - 2, dyn);
+  hookLine(s, 'hookLow', 'bassSpic', -12, first, N - 2, dyn);
+  hookLine(s, 'hookHigh', 'violaSpic', 12, 16, N - 4, dyn);
   lowD(s, 'lowSus', hookFrom, 16, 8, 0.5);
-  chords(s, 'chords', 16, N - 2, 2, 0.75, 0.4, true);
-  // the final chord, ringing into the quiet start
-  for (const m of [...CH.Dm.tones, D]) note(s.L('chords'), s.bank, m < n('C3') ? 'bassSus' : m < n('C4') ? 'celloSus' : 'violinSus', m, s.t(N - 2), s.d(8), { vel: 0.85, attack: 0.1, release: 2.5 });
+  chords(s, 'chords', 16, N - 4, 2, 0.75, 0.4, true);
+  // the final chord: swells in softly and dies away over the loop's quiet start
+  for (const m of [...CH.Dm.tones, D]) note(s.L('chords'), s.bank, m < n('C3') ? 'bassSus' : m < n('C4') ? 'celloSus' : 'violinSus', m, s.t(N - 2), s.d(8), { vel: 0.42, attack: 1.6, release: 5 });
   trem(s, 'trem', 8, 24, 8, 0.45);
-  trem(s, 'trem', 24, N - 2, 6, 0.7, false);
+  trem(s, 'trem', 24, N - 2, 6, 0.55, true);
   motif(s, 'celloMel', 'celloSus', 8, 0.75, -12);
   motif(s, 'celloMel', 'celloSus', 24, 0.85, -12);
   motif(s, 'violinMel', 'violinSus', 16, 0.75);
   motif(s, 'violinMel', 'violinSus', 24, 0.9, 12);
   motif(s, 'violinMel', 'violaSus', 24, 0.8);
+  taper(s, N - 4, N, 0.4);
+}
+
+/** A diminuendo on every layer from bar `from` to bar `to` (down to `end`), before the reverb (its tail decays naturally). */
+function taper(s: Score, from: number, to: number, end: number): void {
+  const a = Math.round(s.t(from) * RATE);
+  const b = Math.round(s.t(to) * RATE);
+  for (const c of Object.values(s.layers)) {
+    for (let i = a; i < c.l.length; i++) {
+      // past `to` (only a linear render reaches there: the final chord's own ring) the level stays at `end`
+      const g = i < b ? 1 - (1 - end) * ((i - a) / (b - a)) : end;
+      c.l[i]! *= g;
+      c.r[i]! *= g;
+    }
+  }
 }
 
 function grandNight(s: Score): void {
@@ -794,6 +851,15 @@ function broken(s: Score, layer: string, b: number, kind: BrokenKind, vel: numbe
   else note(s.L(layer), s.bank, 'bassPizz', D - 12, s.t(b), s.d(1), { vel: vel * 0.8, release: 0.3 });
 }
 
+/** The answer: the rest of Hook A's first bar (C3 on the "and" of 3, A2 on the "and" of 4), on the set's sound. */
+function answer(s: Score, layer: string, b: number, kind: BrokenKind, vel: number): void {
+  for (const [i, m, v] of [[5, n('C3'), 1], [7, n('A2'), 0.9]] as const) {
+    const t = s.t(b, i / 2);
+    if (kind === 'bow') note(s.L(layer), s.bank, 'celloSpic', m, t, s.d(0.7), { vel: vel * v * 1.15, release: 0.15 });
+    else note(s.L(layer), s.bank, 'celloPizz', m, t, s.d(1), { vel: vel * v, release: 0.3 });
+  }
+}
+
 /** The walk-up (F G A-flat A) in the last two beats of a bar, leading into D. */
 function walkUp(s: Score, layer: string, b: number, kind: BrokenKind, vel: number): void {
   ['F2', 'G2', 'Ab2', 'A2'].forEach((m, k) => {
@@ -813,6 +879,14 @@ function brokenSet(s: Score, kind: BrokenKind): void {
     note(s.L('bed'), s.bank, 'celloSus', D, s.t(b), dur, { vel: 0.3, attack: dur * 0.5, release: dur * 0.4 });
     subBass(s.L('bed'), s.t(b), dur, D - 12, 0.15, dur * 0.4);
   }
+  // round 20 Calm: the broken hook as a call and answer (D . D3 D, two bars later C3 . A2), a soft walk-up every 16 bars
+  for (let b = 0; b < N; b += 8) {
+    broken(s, 'tune', b + 1, kind, 0.6);
+    answer(s, 'tune', b + 3, kind, 0.55);
+    broken(s, 'tune', b + 5, kind, 0.58);
+    answer(s, 'tune', b + 7, kind, 0.5);
+  }
+  for (let b = 15; b < N; b += 16) walkUp(s, 'tune', b, kind, 0.42);
   // round 19 Calm: the broken hook far away once every 8 bars, and a faint high string swell now and then (no bed)
   for (let b = 1; b < N; b += 8) broken(s, 'whisper', b, kind, 0.5);
   for (const [b, m] of [[4, 'A5'], [20, 'F5']] as const) {
@@ -825,6 +899,124 @@ function brokenSet(s: Score, kind: BrokenKind): void {
   for (let b = 7; b < N; b += 8) walkUp(s, 'walk', b, kind, 0.55);
   heartbeat(s, 'heart', 0, N, 0.45);
   rub(s, 'rub', 0, N, 8, 0.3);
+}
+
+// ------------------------------------------------------------------ round 23: the hook thread (Calm and Cautious alternatives)
+
+/** Half of Hook A (0: D . D3 D . C3 . A2, 1: D . D3 D F G A-flat A) at half speed from bar `b`: each eighth becomes a quarter. */
+function slowHalf(s: Score, layer: string, b: number, half: 0 | 1, vel: number): void {
+  for (let i = 0; i < 8; i++) {
+    const name = HOOK_A[half * 8 + i];
+    if (!name) continue;
+    let j = i + 1;
+    while (j < 8 && !HOOK_A[half * 8 + j]) j++;
+    const m = n(name);
+    note(s.L(layer), s.bank, 'celloSus', m, s.t(b, i), s.d(j - i) * 0.95, { vel: vel * (i === 0 ? 1 : 0.88), attack: 0.3, release: 1.4, lp: 1800 });
+    if (m === D) note(s.L(layer), s.bank, 'bassSus', D, s.t(b, i), s.d(j - i) * 0.95, { vel: vel * 0.6, attack: 0.4, release: 1.4, lp: 1200 });
+  }
+}
+
+/** A plucked note on cello pizzicato, darker when `lp` is set. */
+function pz(s: Score, layer: string, m: number, t: number, vel: number, lp = 0): void {
+  note(s.L(layer), s.bank, 'celloPizz', m, t, s.d(1), { vel, release: 0.3, ...(lp ? { lp } : {}) });
+}
+
+/** The call (D . D3 D) at bar `b`, then two echoes half a bar apart, softer and darker. */
+function echoCall(s: Score, layer: string, b: number, vel: number): void {
+  for (const [k, g, lp] of [[0, 1, 0], [2, 0.42, 1400], [4, 0.18, 900]] as const) {
+    for (const [i, m, v] of [[0, D, 1], [2, D + 12, 0.8], [3, D, 0.85]] as const) pz(s, layer, m, s.t(b, k + i / 2), vel * g * v, lp);
+  }
+  note(s.L(layer), s.bank, 'bassPizz', D - 12, s.t(b), s.d(1), { vel: vel * 0.7, release: 0.3 });
+}
+
+/** The answer (C3 . A2) on the "and" of 3 and 4 of bar `b`, then two echoes. */
+function echoAnswer(s: Score, layer: string, b: number, vel: number): void {
+  for (const [k, g, lp] of [[0, 1, 0], [2, 0.42, 1400], [4, 0.18, 900]] as const) {
+    for (const [i, m, v] of [[5, n('C3'), 1], [7, n('A2'), 0.9]] as const) pz(s, layer, m, s.t(b, k + i / 2), vel * g * v, lp);
+  }
+}
+
+function threadSet(s: Score): void {
+  const N = s.meta.bars;
+  // Calm 1: the hook at half speed on one far cello, a half every 8 bars (the whole hook every 16)
+  for (let b = 1; b < N; b += 8) slowHalf(s, 'c1far', b, ((b - 1) / 8) % 2 === 0 ? 0 : 1, 0.42);
+  // Calm 2: the plucked call with echoes, the answer 4 bars later; a walk-up into the call every 16 bars
+  for (let b = 1; b < N; b += 8) {
+    echoCall(s, 'c2echo', b, 0.55);
+    echoAnswer(s, 'c2echo', b + 4, 0.5);
+  }
+  walkUp(s, 'c2echo', 16, 'pluck', 0.38);
+  // Calm 3: low piano, broken: the call, the answer, the walk-up phrase, a low fifth left ringing
+  const pn = (m: number, b: number, beat: number, v: number): void =>
+    note(s.L('c3piano'), s.bank, 'piano', m, s.t(b, beat), s.d(2), { vel: v, release: 2.6, lp: 2200 });
+  for (const b of [1, 17]) {
+    pn(D, b, 0, 0.34);
+    pn(D + 12, b, 0, 0.26);
+    pn(D + 12, b, 1, 0.28);
+    pn(D, b, 1.5, 0.3);
+  }
+  for (const b of [5, 21]) {
+    pn(n('C3'), b, 2.5, 0.3);
+    pn(n('A2'), b, 3.5, 0.28);
+    pn(n('A1'), b, 3.5, 0.2);
+  }
+  for (const b of [9, 25]) {
+    pn(D, b, 0, 0.32);
+    pn(D + 12, b, 1, 0.26);
+    pn(D, b, 1.5, 0.28);
+    ['F2', 'G2', 'Ab2', 'A2'].forEach((m, k) => pn(n(m), b, 2 + k / 2, 0.24 + 0.02 * k));
+  }
+  for (const b of [13, 29]) {
+    pn(D - 12, b, 0, 0.22);
+    pn(n('A1'), b, 0, 0.18);
+  }
+  // Calm 4: the plucked call answered by the harp (an octave up, with its lower octave), a harp walk-up into the next call
+  const hp = (m: number, b: number, beat: number, v: number): void =>
+    note(s.L('c4harp'), s.bank, 'harp', m, s.t(b, beat), s.d(2), { vel: v, release: 1.6, lp: 3000 });
+  for (let b = 1; b < N; b += 8) {
+    for (const [i, m, v] of [[0, D, 1], [2, D + 12, 0.8], [3, D, 0.85]] as const) pz(s, 'c4harp', m, s.t(b, i / 2), 0.52 * v);
+    note(s.L('c4harp'), s.bank, 'bassPizz', D - 12, s.t(b), s.d(1), { vel: 0.38, release: 0.3 });
+    hp(n('C4'), b + 2, 2.5, 0.42);
+    hp(n('C3'), b + 2, 2.5, 0.28);
+    hp(n('A3'), b + 2, 3.5, 0.4);
+    hp(n('A2'), b + 2, 3.5, 0.26);
+  }
+  for (const b of [8, 24]) ['F3', 'G3', 'Ab3', 'A3'].forEach((m, k) => hp(n(m), b, 2 + k / 2, 0.3 + 0.03 * k));
+
+  // the current Cautious (the plucked broken hook's layers, as in the game)
+  for (let b = 0; b < N; b += 8) {
+    const dur = s.d(32);
+    note(s.L('bed'), s.bank, 'bassSus', D, s.t(b), dur, { vel: 0.35, attack: dur * 0.5, release: dur * 0.4 });
+    note(s.L('bed'), s.bank, 'celloSus', D, s.t(b), dur, { vel: 0.3, attack: dur * 0.5, release: dur * 0.4 });
+    subBass(s.L('bed'), s.t(b), dur, D - 12, 0.15, dur * 0.4);
+  }
+  for (let b = 1; b < N; b += 4) broken(s, 'frag', b, 'pluck', 0.6);
+  for (let b = 3; b < N; b += 4) if (b % 8 !== 7) broken(s, 'frag2', b, 'pluck', 0.55);
+  for (let b = 7; b < N; b += 8) walkUp(s, 'walk', b, 'pluck', 0.55);
+  heartbeat(s, 'heart', 0, N, 0.45);
+  rub(s, 'rub', 0, N, 8, 0.3);
+  // Cautious 1: the whole hook, soft spiccato, in bars 6-7 of every 8 (it completes before the next call); a quiet clock
+  for (let b = 6; b < N; b += 8) {
+    hookLine(s, 'shape', 'celloSpic', 0, b, b + 2, () => 0.42);
+    hookLine(s, 'shape', 'bassSpic', -12, b, b + 2, () => 0.3, true);
+  }
+  for (let b = 0; b < N; b++) {
+    if (resting(b)) continue;
+    for (const i of [3, 7]) note(s.L('tick'), s.bank, 'violinSpic', n('A4'), s.t(b, i / 2), s.d(0.2), { vel: 0.32, release: 0.05 });
+  }
+  // Cautious 2: tremolo violas climbing, a timpani heartbeat
+  climb(s, 'climb', 0, N, 0.5);
+  for (let b = 0; b < N; b++) {
+    if (resting(b)) continue;
+    timp(s.L('timpHeart'), s.bank, D, s.t(b), 0.45);
+    timp(s.L('timpHeart'), s.bank, D, s.t(b, 0.5), 0.3);
+  }
+  // Cautious 3: a low spiccato drive (1, the "and" of 2, 4) on D, basses on the downbeat
+  for (let b = 0; b < N; b++) {
+    if (resting(b)) continue;
+    for (const [i, v] of [[0, 1], [3, 0.8], [6, 0.8]] as const) note(s.L('drive'), s.bank, 'celloSpic', D + 12, s.t(b, i / 2), s.d(0.45), { vel: 0.45 * v, release: 0.1 });
+    note(s.L('drive'), s.bank, 'bassSpic', D, s.t(b), s.d(0.45), { vel: 0.4, release: 0.1 });
+  }
 }
 
 /** A lighter menu on Grand's shape: the hook from the start, chords from bar 8, the melody at 8 (first voice), then violins at 16 and 24. */
@@ -859,6 +1051,9 @@ export function renderPiece(bank: Bank, meta: PieceMeta, linear = false): Piece 
       break;
     case 'heartbeat':
       heartbeatLoop(s);
+      break;
+    case 'thread':
+      threadSet(s);
       break;
     case 'brokenpluck':
       brokenSet(s, 'pluck');

@@ -16,6 +16,7 @@ import { AudioEngine } from '../audio/audioEngine';
 import { Sfx } from '../audio/sfx';
 import { Music } from '../audio/music/music';
 import { Foley } from '../audio/foley/foley';
+import { WeaponAudio } from '../audio/weapons/weaponAudio';
 import { QualityManager, type QualityTarget } from './qualityManager';
 import { FeedbackStore } from '../feedback/feedbackStore';
 import { keyLabels, padButtons } from '../ui/prompts';
@@ -65,6 +66,8 @@ export class App {
   readonly music = new Music(this.audio);
   /** Movement foley from CC0 recordings (footsteps, landings, vaults, rolls). */
   readonly foley = new Foley(this.audio);
+  /** Weapon sounds from CC0 recordings (shots, suppressed shots, reloads, brass). */
+  readonly weaponAudio = new WeaponAudio(this.audio);
   readonly quality: QualityManager;
   /** Playtest feedback notes (Settings > Feedback, pause menu). */
   readonly feedback = new FeedbackStore();

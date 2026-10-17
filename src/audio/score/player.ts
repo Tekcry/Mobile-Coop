@@ -40,10 +40,9 @@ class Fader {
     const p = this.param;
     const vAt = this.valueAt(at);
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now);
-    else {
-      p.cancelScheduledValues(now);
-      p.setValueAtTime(this.valueAt(now), now);
-    }
+    else p.cancelScheduledValues(now);
+    // anchor at now: a ramp runs from the previous event, which after an ended fade is long past
+    p.setValueAtTime(this.valueAt(now), now);
     if (at > now) p.linearRampToValueAtTime(vAt, at);
     const end = at + Math.max(0.01, dur);
     p.linearRampToValueAtTime(target, end);

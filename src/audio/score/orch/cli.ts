@@ -114,6 +114,53 @@ try {
 }
 const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 const entries: Entry[] = [];
+
+/**
+ * The game's tracks (Michael, 2026-10-16): each is one piece mixed down with one of its presets into a single stereo
+ * loop (and its clean opening), so the game plays one file per state instead of a dozen layers. Committed, unlike the
+ * audition stems. Evasion shares Alert's gain (they crossfade on the same timeline).
+ */
+interface GameTrack {
+  name: string;
+  piece: string;
+  preset: string;
+  /** Loudness target (dB, gated); or `sameGainAs` another track. */
+  target?: number;
+  sameGainAs?: string;
+  /** Played as a whole piece (its natural start and its own ending, then a rest) instead of a seamless loop. */
+  whole?: boolean;
+}
+const GAME: GameTrack[] = [
+  { name: 'menu', piece: 'grandsoft', preset: 'Softer', target: -19, whole: true },
+  { name: 'caution', piece: 'brokenpluck', preset: 'Cautious', target: -23 },
+  { name: 'alert', piece: 'underfire', preset: 'Alert: hook forward', target: -16 },
+  { name: 'evade', piece: 'underfire', preset: 'Evasion', sameGainAs: 'alert' },
+  { name: 'spotted', piece: 'spotted', preset: 'Hit', target: -16 },
+];
+interface GameMix {
+  gt: GameTrack;
+  meta: PieceMeta;
+  loop: Stereo;
+  head: Stereo | null;
+  headSec: number;
+}
+/** The end of a whole piece: its last audible sample (-60 dB under the peak), then a short fade (s). */
+const WHOLE_FADE = 1.5;
+function trimWhole(x: Stereo): Stereo {
+  const floor = peakOf(x) * 1e-3;
+  let n = x.l.length;
+  while (n > 0 && Math.abs(x.l[n - 1]!) < floor && Math.abs(x.r[n - 1]!) < floor) n--;
+  n = Math.min(x.l.length, n + secs(0.2));
+  const out = { l: x.l.slice(0, n), r: x.r.slice(0, n) };
+  const f = Math.min(n, secs(WHOLE_FADE));
+  for (let i = 0; i < f; i++) {
+    const g = 0.5 - 0.5 * Math.cos((Math.PI * i) / f);
+    out.l[n - 1 - i]! *= g;
+    out.r[n - 1 - i]! *= g;
+  }
+  return out;
+}
+const gameMixes: GameMix[] = [];
 for (const meta of PIECES) {
   if (only.length && !only.includes(meta.id)) {
     const old = previous.find((e) => e.id === meta.id);
@@ -128,12 +175,16 @@ for (const meta of PIECES) {
   const loopPiece = meta.use !== 'shot';
   const headSec = loopPiece ? (HEAD_BARS * 4 * 60) / meta.bpm : 0;
   const heads: Record<string, Stereo> = {};
+  // a whole-piece game track keeps the full linear render (start to the last chord's ring)
+  const wantWhole = GAME.some((x) => x.piece === meta.id && x.whole);
+  const wholes: Record<string, Stereo> = {};
   if (loopPiece) {
     const lin = renderPiece(bank, meta, true);
     for (const l of meta.layers) {
       const wet = withRoom(lin.layers[l.id]!, l.kind, l.wet);
       const k = secs(headSec);
       heads[l.id] = { l: wet.l.slice(0, k), r: wet.r.slice(0, k) };
+      if (wantWhole) wholes[l.id] = wet;
     }
   }
   // one gain for every layer, so the balance is kept: everything on hits TARGET, peaks stay under PEAK
@@ -143,8 +194,21 @@ for (const meta of PIECES) {
   for (const l of meta.layers) {
     scale(layers[l.id]!, g);
     if (heads[l.id]) scale(heads[l.id]!, g);
+    if (wholes[l.id]) scale(wholes[l.id]!, g);
   }
   const full = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, 1]));
+  for (const gt of GAME.filter((x) => x.piece === meta.id)) {
+    const mix = meta.presets[gt.preset];
+    if (!mix) throw new Error(`${meta.id} has no preset ${gt.preset}`);
+    if (gt.whole) {
+      const w = trimWhole(sum(...meta.layers.map((l): [Stereo, number] => [wholes[l.id]!, mix[l.id] ?? 0])));
+      gameMixes.push({ gt, meta, loop: w, head: null, headSec: 0 });
+      continue;
+    }
+    const loopMix = sum(...meta.layers.map((l): [Stereo, number] => [layers[l.id]!, mix[l.id] ?? 0]));
+    const headMix = loopPiece ? sum(...meta.layers.map((l): [Stereo, number] => [heads[l.id]!, mix[l.id] ?? 0])) : null;
+    gameMixes.push({ gt, meta, loop: loopMix, head: headMix, headSec });
+  }
   const pairs: string[] = [];
   const outs: LayerOut[] = [];
   for (const l of meta.layers) {
@@ -197,3 +261,77 @@ entries.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 writeFileSync(manifestPath, JSON.stringify({ pad: PAD, kbps: KBPS, pieces: entries }, null, 1) + '\n');
 const total = entries.reduce((a, e) => a + e.layers.reduce((b, l) => b + l.bytes, 0), 0);
 console.info(`total ${(total / 1e6).toFixed(2)} MB`);
+
+// ---- the game's tracks (src/assets/music/game, committed)
+if (gameMixes.length) {
+  const gameDir = join(root, 'src', 'assets', 'music', 'game');
+  mkdirSync(gameDir, { recursive: true });
+  const gamePath = join(gameDir, 'game.json');
+  interface GameOut {
+    file: string;
+    head?: string;
+    headSec: number;
+    loop: number;
+    /** A whole piece: its length (s, after PAD seconds of silence), played once, then a rest, then again. */
+    whole?: number;
+    bpm: number;
+    bars: number;
+    loudness: number;
+    bytes: number;
+  }
+  let prev: Record<string, GameOut> = {};
+  try {
+    prev = (JSON.parse(readFileSync(gamePath, 'utf8')) as { tracks: Record<string, GameOut> }).tracks ?? {};
+  } catch {
+    // first time
+  }
+  const gains: Record<string, number> = {};
+  const ordered = [...gameMixes].sort((a, b) => (a.gt.sameGainAs ? 1 : 0) - (b.gt.sameGainAs ? 1 : 0));
+  const pairs: string[] = [];
+  const outs: Record<string, GameOut> = { ...prev };
+  for (const m of ordered) {
+    let g = m.gt.sameGainAs ? (gains[m.gt.sameGainAs] ?? 1) : Math.pow(10, ((m.gt.target ?? -18) - loudness(m.loop)) / 20);
+    g = Math.min(g, PEAK / Math.max(peakOf(m.loop), m.head ? peakOf(m.head) : 0));
+    gains[m.gt.name] = g;
+    scale(m.loop, g);
+    if (m.head) scale(m.head, g);
+    const name = `music-${m.gt.name}`;
+    const wav = join(wavDir, `${name}.wav`);
+    const shot = m.meta.use === 'shot';
+    if (m.gt.whole) {
+      // silence in front like every other track (the encoder's delay), no wrap
+      const p = secs(PAD);
+      const wl = new Float32Array(m.loop.l.length + p);
+      const wr = new Float32Array(m.loop.r.length + p);
+      wl.set(m.loop.l, p);
+      wr.set(m.loop.r, p);
+      writeFileSync(wav, encodeWav([wl, wr], RATE));
+    } else writeFileSync(wav, encodeWav(shot ? [m.loop.l, m.loop.r] : padded(m.loop), RATE));
+    pairs.push(wav, join(gameDir, `${name}.mp3`));
+    const out: GameOut = { file: `${name}.mp3`, headSec: m.headSec, loop: (m.meta.bars * 4 * 60) / m.meta.bpm, bpm: m.meta.bpm, bars: m.meta.bars, loudness: Math.round(loudness(m.loop) * 10) / 10, bytes: 0 };
+    if (m.gt.whole) out.whole = Math.round((m.loop.l.length / RATE) * 1000) / 1000;
+    if (m.head) {
+      const p = secs(PAD);
+      const hl = new Float32Array(m.head.l.length + p);
+      const hr = new Float32Array(m.head.r.length + p);
+      hl.set(m.head.l, p);
+      hr.set(m.head.r, p);
+      const hw = join(wavDir, `${name}-head.wav`);
+      writeFileSync(hw, encodeWav([hl, hr], RATE));
+      pairs.push(hw, join(gameDir, `${name}-head.mp3`));
+      out.head = `${name}-head.mp3`;
+    }
+    outs[m.gt.name] = out;
+  }
+  execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'scripts', 'music', 'encode-mp3.ps1'), '-Kbps', String(KBPS), ...pairs], {
+    stdio: 'ignore',
+  });
+  let bytes = 0;
+  for (const m of ordered) {
+    const o = outs[m.gt.name]!;
+    o.bytes = statSync(join(gameDir, o.file)).size + (o.head ? statSync(join(gameDir, o.head)).size : 0);
+  }
+  for (const o of Object.values(outs)) bytes += o.bytes;
+  writeFileSync(gamePath, JSON.stringify({ pad: PAD, kbps: KBPS, tracks: outs }, null, 1) + '\n');
+  console.info(`game tracks: ${Object.entries(outs).map(([k, o]) => `${k} ${o.loudness} dB`).join(', ')}; ${(bytes / 1e6).toFixed(2)} MB`);
+}

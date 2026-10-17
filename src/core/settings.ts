@@ -136,7 +136,9 @@ export interface Settings {
     /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
     avatarStyleV: number;
   };
-  audio: { master: number; sfx: number; music: number; ui: number };
+  /** `musicV` 3: the music default moved from 50 % to 30 % and then to 15 % (music V4, 2026-10-16); an untouched old
+   *  default (50 % or 30 %) follows once. */
+  audio: { master: number; sfx: number; music: number; ui: number; musicV: number };
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number; /** (locomotion step 19, D7, A3) the custom difficulty sliders and their base preset (defaults Normal; a co-op client never applies its own). */ customDifficulty: CustomDifficulty };
   /** Accessibility and HUD. */
   access: {
@@ -245,7 +247,7 @@ export function defaultSettings(): Settings {
     keys: defaultBinds(),
     pad: defaultPadBinds(),
     video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
-    audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
+    audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, customDifficulty: presetSliders('normal') },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
@@ -286,6 +288,10 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, d: number, lo: number, hi: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d;
+/** The music volume through its default moves (50 % to 30 % to 15 %): a value still at the default of its time follows
+ *  the new default once; anything a player chose stays. */
+const musicKept = (v: unknown, music: number, d: number): number =>
+  v === 3 ? music : (v === 2 ? music === 0.3 : music === 0.5) ? d : music;
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 const pick = <T>(v: unknown, allowed: readonly T[], d: T): T => (allowed.includes(v as T) ? (v as T) : d);
 const sub = (o: Obj, k: string): Obj => (isObj(o[k]) ? (o[k] as Obj) : {});
@@ -443,8 +449,9 @@ export function sanitizeSettings(raw: unknown): Settings {
     audio: {
       master: num(a.master, d.audio.master, 0, 1),
       sfx: num(a.sfx, d.audio.sfx, 0, 1),
-      music: num(a.music, d.audio.music, 0, 1),
+      music: musicKept(a.musicV, num(a.music, d.audio.music, 0, 1), d.audio.music),
       ui: num(a.ui, d.audio.ui, 0, 1),
+      musicV: 3,
     },
     gameplay: {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),

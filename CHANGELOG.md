@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased - Weapon sounds (feature/weapon-audio)
+- Sound: every gun now plays real CC0 recordings instead of a filtered noise burst. The 16 guns borrow the closest of
+  12 recorded guns (The Free Firearm Sound Library, `docs/audio-credits.md`): .45 pistol, 9 mm and 7.62 SMGs, 5.56
+  and 7.62 rifles, a .30-06 bolt rifle, 12-gauge pumps. Each has near takes (the player and close guards) and
+  mid-distance takes (far guards), crossfaded and darkened with distance.
+- Suppressed guns finally sound suppressed (before, the suppressed pistol and a fitted suppressor played the full report). The
+  suppressed shots are made from each gun's own recording: the blast and tail cut away, a dull thump, a puff of gas,
+  the slide or bolt clack, a little room.
+- Automatic fire chokes each shot into the next, so only the last round rings out. Brass (and shotgun shells) land on
+  the floor you stand on (concrete, deck plate, wood; muffled on carpet). The pump and the sniper bolt cycle after
+  each shot. Reloads are laid out over the real reload time (magazine out and in, the slide or charging handle on an
+  empty reload, shell by shell for the tube shotguns) and stop on a swap. A dry click on an empty gun. The crossbow
+  has its own string and limb thunk.
+- Gameplay is unchanged: guards hear the noise model (the weapon's `noise` stat), never the audio.
+- `?weaponlab=1`: a listening screen with every gun, the campaign arsenal's six first (single, burst, auto), suppressed, player or guard at 6 / 18 / 40 m,
+  reloads, dry fire, brass per floor, a footstep for level, and an A/B against the old sounds.
+- Tools: `npm run sfx:fetch-weapons`, `npm run sfx:render-weapons`; tests `tests/weapons-audio.test.ts` and
+  `scripts/e2e-weapon-audio.mjs` (required).
+- Rule: CC0 audio is now allowed for every sound (Michael, 2026-10-16; `CLAUDE.md`, bible S7).
+
+## Music V4 (feature/music, not yet released)
+- The game has a score. The main menu plays the menu theme ("Grand, dialled back": Hook A on strings, the melody
+  on cellos, then violins). In a match the music follows the guards:
+  - **Calm (nobody aware): silence.**
+  - **Cautious** (a guard suspicious, investigating or searching): the plucked broken hook, a heartbeat and a faint
+    tremolo.
+  - **Alert:** a spotted hit, then "Alert, under fire" on its downbeat.
+  - **Coming down:** Evasion, then a slow step down through Cautious to silence.
+- The music director has hysteresis, so a glance does not flip the music. The music never reads guard count,
+  distance or direction, and gameplay never reads the music.
+- The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
+  offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
+- Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+- Test page: "Hook thread" (round 23) with four Calm and three Cautious alternatives, and Calm / Cautious choosers in
+  the in-game test (the game's tracks are unchanged until Michael picks).
+- The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
+  and climbing strings) leads into Alert.
+- The menu theme plays as a whole piece: its quiet opening, its own ending, a 3 s rest, then again (no loop join).
+- Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
+  fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu
+  fades over 4 s; leaving one the mission music fades over 2.5 s.
+
 ## Locomotion run (Phase 3 + 3b, in progress, branch feature/ct-locomotion)
 - PC1 (desktop GPU catch-up): Epic desktop no longer fails the voxel shader compile when guards alert (one flashlight shadow at a time with micro detail on, A54; e2e-desktop re-counts samplers after alerting); remote wall peek eases in like the local one (no foot re-plant); empty goggles slot no longer leaves a gap in the HUD tactical row. Harness: anim-audit per-scenario reset and usable `--shots` (side camera, no HUD, no TAAU ghosting, one per scenario + metric); anim-sheet drawn reload / swap, movement turn, aimed wall-edge sheets; e2e-wall mid-switch reversal case (report-only until step 27); anim-audit runs on Windows.
 - 22: weight (Michael's play check, M14 / M17): every speed about 17% lower (standing 0.65 / 1.1 / 1.65 / 2.3 / 3.15 / 4.15 m/s), 0.3 s to full pace, 0.25 s to stop with one closing step and a single settle, turn inertia at speed, a planted pivot on a reversal above 1.2 m/s; aim, draw, strike, crouch and jump stay instant. Gait posed by gear with stride from the real pace, arm swing with effort, acceleration lean, heel-to-toe roll at walking pace, remotes derive acceleration from their velocity. Noise: part stick stays a silent walk. A88, A89.

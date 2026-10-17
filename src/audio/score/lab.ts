@@ -50,8 +50,17 @@ const solo = new Set<LayerRt>();
 const log: string[] = [];
 /** Which of Under fire's mixes plays as Alert (its first preset unless chosen). */
 let alertMixName = '';
-/** Which of the sneaking loop's Calm mixes plays as Calm (round 19). */
-let calmMixName = 'Calm';
+/** Which of the sneaking loop's mixes play as Calm and as Cautious (round 23); '' = the piece's first of each. */
+let calmMixName = '';
+let cautionMixName = '';
+/** The sneaking loop playing in the in-game test (a chooser change replays it). */
+let adaptivePc: OrchPiece | null = null;
+
+/** The chosen mix if the piece has it, else its first mix whose name starts with `prefix` (none: silence). */
+function mixOf(pc: OrchPiece, chosen: string, prefix: string): { name: string; mix: Record<string, number> } {
+  const name = chosen && pc.presets[chosen] ? chosen : (Object.keys(pc.presets).find((k) => k.startsWith(prefix)) ?? '');
+  return { name: name || 'silence', mix: pc.presets[name] ?? {} };
+}
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -175,8 +184,10 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
     const sb = await load(stealth, keep);
     const ab = await load(alert, keep);
     const hb = await load(hitPc, keep);
-    const calm = stealth.presets[calmMixName] ?? stealth.presets['Calm'] ?? {};
-    const caution = stealth.presets['Cautious'] ?? {};
+    const calmPick = mixOf(stealth, calmMixName, 'Calm');
+    const cautionPick = mixOf(stealth, cautionMixName, 'Cautious');
+    const calm = calmPick.mix;
+    const caution = cautionPick.mix;
     const lowR = wrap(stealth, sb, (id) => ({ calm: calm[id] ?? 0, caution: caution[id] ?? 0, alert: 0, evade: 0 }), 'low');
     const name = alertMixName || Object.keys(alert.presets)[0]!;
     const alertMix = alert.presets[name] ?? {};
@@ -185,10 +196,11 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
     const hitR = wrap(hitPc, hb, () => ALL, 'shot')[0]!;
     p.playMission(planOf(stealth, 'low'), lowR, planOf(alert, 'alert'), alertR, hitR, hitR);
     current = null;
+    adaptivePc = stealth;
     solo.clear();
     setGameButtons('calm');
     buildLayers();
-    note(`Adaptive: ${stealth.name} for Calm and Cautious, ${alert.name} (${name}) for Alert and Evasion`);
+    note(`Adaptive: ${stealth.name}, Calm = ${calmPick.name}, Cautious = ${cautionPick.name}; ${alert.name} (${name}) for Alert and Evasion`);
   } finally {
     setBusy(false, '');
   }
@@ -196,6 +208,7 @@ async function playAdaptive(stealth: OrchPiece): Promise<void> {
 
 function stop(): void {
   current = null;
+  adaptivePc = null;
   solo.clear();
   player?.stopAll();
   world?.stop();
@@ -399,6 +412,20 @@ function gameButton(label: string, state: GameAwareness): HTMLButtonElement {
   return b;
 }
 
+/** A chooser of every sneaking loop's mixes starting with `prefix` (each piece falls back to its own first). */
+function mixChooser(stealth: OrchPiece[], prefix: string, set: (v: string) => void): HTMLSelectElement {
+  const names: string[] = [];
+  for (const pc of stealth) for (const k of Object.keys(pc.presets)) if (k.startsWith(prefix) && !names.includes(k)) names.push(k);
+  const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
+  set(names[0] ?? '');
+  sel.onchange = () => {
+    set(sel.value);
+    if (adaptivePc) void playAdaptive(adaptivePc);
+    else note(`${prefix}: ${sel.value} (press "Play with Under fire")`);
+  };
+  return sel;
+}
+
 export function mountScoreLab(root: HTMLElement): void {
   const missing = !ORCH.pieces.length;
   const keepers = ['underfire', 'grandsoft'].map(piece).filter((p): p is OrchPiece => !!p);
@@ -425,7 +452,7 @@ export function mountScoreLab(root: HTMLElement): void {
       el('p', {
         className: 'muted',
         textContent:
-          'Pick a sneaking loop, then use the buttons as the game would. CALM is almost silent; CAUTIOUS adds tension; ALERT plays the spotted hit and Under fire lands on its downbeat; when the game calms down the music steps down slowly through Evasion and Cautious. Keys: 1 2 3, G glance.',
+          'Round 23: "Hook thread" holds four new Calm options and three new Cautious options on one timeline, so any Calm pairs with any Cautious. Choose a Calm and a Cautious below, press "Play with Under fire", then use CALM / CAUTIOUS / ALERT as the game would (changing a choice replays). ALERT plays the spotted build and Under fire lands on its downbeat; calming down steps back through Evasion and Cautious. "(in game now)" marks what the game plays today. Keys: 1 2 3, G glance.',
       }),
       el('div', { className: 'partners' }, ...stealth.map((pc) => card(pc, button('Play with Under fire', () => void playAdaptive(pc), 'big'), button('Loop alone', () => void playLoop(pc))))),
       el(
@@ -444,16 +471,14 @@ export function mountScoreLab(root: HTMLElement): void {
         el(
           'label',
           {},
-          'Calm mix ',
-          (() => {
-            const names = ['Calm', 'Calm, fog', 'Calm, near silence', 'Calm, with low bed (round 18)'];
-            const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
-            sel.onchange = () => {
-              calmMixName = sel.value;
-              note(`Calm mix: ${sel.value} (press Play again)`);
-            };
-            return sel;
-          })(),
+          'Calm ',
+          mixChooser(stealth, 'Calm', (v) => (calmMixName = v)),
+        ),
+        el(
+          'label',
+          {},
+          'Cautious ',
+          mixChooser(stealth, 'Cautious', (v) => (cautionMixName = v)),
         ),
         el(
           'label',
@@ -464,11 +489,11 @@ export function mountScoreLab(root: HTMLElement): void {
             const sel = el('select', {}, ...names.map((v) => el('option', { value: v, textContent: v })));
             sel.onchange = () => {
               alertMixName = sel.value;
-              note(`Alert mix: ${sel.value} (press Play again)`);
+              if (adaptivePc) void playAdaptive(adaptivePc);
+              else note(`Alert mix: ${sel.value} (press "Play with Under fire")`);
             };
             return sel;
           })(),
-          el('small', { textContent: ' (press Play again after changing)' }),
         ),
       ),
       el('div', { id: 'state', className: 'status' }),
@@ -534,7 +559,7 @@ export function mountScoreLab(root: HTMLElement): void {
       el(
         'div',
         { className: 'row' },
-        el('label', {}, 'Music volume ', slider('musicVol', 50, 100), el('small', { textContent: ' (game default 50)' })),
+        el('label', {}, 'Music volume ', slider('musicVol', 50, 100), el('small', { textContent: ' (game default 15)' })),
         el('label', {}, 'Gameplay sounds ', slider('sfxVol', 100, 150)),
       ),
     ),

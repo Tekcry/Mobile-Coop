@@ -46,6 +46,8 @@ export class Director {
   private game: GameAwareness = 'calm';
   private gameSince = 0;
   private lastStinger = -Infinity;
+  /** Reused for every update (the game calls this every few frames): only a transition allocates. */
+  private readonly out: DirectorAction[] = [];
 
   constructor(private readonly times: DirectorTimes = DEFAULT_TIMES) {}
 
@@ -83,7 +85,22 @@ export class Director {
     }
   }
 
-  /** Feed the current game state; returns what the music should do now (usually nothing). */
+  /** Nothing can change this update (the common case): saves building the transition closures. */
+  private quiet(game: GameAwareness, inGame: number, held: number): boolean {
+    const t = this.times;
+    switch (this.state) {
+      case 'calm':
+        return game === 'calm' || (game === 'caution' && inGame < t.cautionRise);
+      case 'caution':
+        return game === 'caution' || (game === 'calm' && (inGame < t.calmAfter || held < t.cautionHold));
+      case 'alert':
+        return game === 'alert' || inGame < t.alertDrop || held < t.alertHold;
+      default:
+        return game !== 'alert' && held < t.evadeHold;
+    }
+  }
+
+  /** Feed the current game state; returns what the music should do now (usually nothing). The array is reused. */
   update(now: number, game: GameAwareness): DirectorAction[] {
     if (game !== this.game) {
       this.game = game;
@@ -92,7 +109,9 @@ export class Director {
     const t = this.times;
     const held = now - this.enteredAt;
     const inGame = now - this.gameSince;
-    const out: DirectorAction[] = [];
+    const out = this.out;
+    out.length = 0;
+    if (inGame > 0 && held > 0 && this.quiet(game, inGame, held)) return out;
     const go = (to: MusicState): void => {
       out.push({ kind: 'state', from: this.state, to });
       this.state = to;

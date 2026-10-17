@@ -341,8 +341,11 @@ The Phase column refers to Section 10.
     - Total audio stays within a size budget set in the test (proposal 8 MB) so the offline app stays light.
     - Each file's source and licence goes in `docs/audio-credits.md`.
   - **Movement foley (Michael, 2026-10-16):** the player's movement sounds (footsteps, landings, vaults, rolls) use CC0
-    recordings, bundled as one MP3 sprite and credited in `docs/audio-credits.md` (`docs/systems/audio.md`). The rest
-    of the test stands.
+    recordings, bundled as one MP3 sprite and credited in `docs/audio-credits.md` (`docs/systems/audio.md`).
+  - **All audio (Michael, 2026-10-16):** "allow CC0 for everything". Any sound may use CC0 recordings, bundled and never
+    fetched at runtime, each source credited in `docs/audio-credits.md`; synthesis stays where it sounds better. The
+    weapons were the first after the foley (`feature/weapon-audio`). The size budget stands (about 8 MB of audio in
+    all).
 
 ### 5.3 Movement, stances, camera and traversal (P4)
 
@@ -1347,7 +1350,7 @@ Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of t
 
 - Splinter Cell IP of any kind.
 - Recorded or synthesised voice.
-- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7); CC0 movement foley is allowed (S7, 2026-10-16).
+- External art files, except CC0 textures for desktop detail (5.16). External audio files other than CC0 (CC0 audio is allowed for every sound: S7, Michael, 2026-10-16).
 - Random patrols that defeat planning.
 - Forced timers in stealth sections.
 - World waypoints.
@@ -1529,7 +1532,7 @@ The standard's existing content stays. This bible adds the following:
 1. Whether the LKP becomes per player in co-op (Phase 5 proposes).
 2. Story items in `docs/story.md` Section 9: the epilogue lines, the betrayal and last lines, Mission 6's location.
 3. Confrontation tuning numbers (5.15), settled in the prototype.
-4. Audio source: code-synthesised or CC0 files (decided by the Phase 2 A/B test).
+4. Audio source: settled (Michael, 2026-10-16): CC0 recordings are allowed for every sound (S7).
 5. A relay (TURN) server for co-op (decided after real sessions with friends, C19).
 
 ---

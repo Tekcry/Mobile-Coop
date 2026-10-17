@@ -27,8 +27,148 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 3p | Round 16: Heartbeat only; quieter Calm; heartbeat and broken hook as Cautious; clean loop openings | done |
 | 3q | Round 17: two cinematic sneaking sets (Shadows, Gathering storm) | done |
 | 3r | Round 18: hook forward in Alert; broken-hook sets; lighter menus without cello | done; Michael: plucked is good; the low bed in Calm is too much; Cautious change good |
-| 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; waiting for Michael's feedback |
+| 3s | Round 19: research on stealth ambience; much subtler Calm mixes | done; Michael: near silence OK but too far apart and too quiet; wants it catchier, still broken |
+| 3t | Round 20: catchy broken Calm (call and answer every 2 bars) | done |
+| 4a | Integration: menu theme, Cautious, Alert and Evasion in the game | done; Michael played it |
+| 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
+| 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done |
+| 4d | Round 23: Calm and Cautious alternatives on the hook thread (test page only) | done; waiting for Michael's picks |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4d (round 23) - Calm and Cautious alternatives on the hook thread
+- **Michael (2026-10-16):** alternatives for the in-game Calm and Cautious that keep Hook A as the thread without
+  burning it out. Calm very subtle (footsteps and guard voices first, no constant low bed, sparse but catchy, broken),
+  still epic and film-like. The game's tracks stay as they are until he picks.
+- **Done:** a new piece, "Hook thread: Calm and Cautious alternatives" (`thread` in `pieces.ts`, 88 BPM, 32 bars, the
+  same timeline as the plucked broken hook), so any Calm pairs with any Cautious.
+  - **Calm 1, far cello, the hook at half speed:** one cello (basses under the Ds), dark and far. Half of the hook
+    every 8 bars (the whole hook every 16), each eighth a quarter.
+  - **Calm 2, plucked call with echoes:** the call (D . D3 D) plucked, two echoes half a bar apart, each softer and
+    darker. The answer (C . A) 4 bars later, also echoed. A soft walk-up into the call every 16 bars.
+  - **Calm 3, low piano, broken:** soft, pedalled, darkened piano. The call, the answer, the walk-up phrase, a low
+    fifth left ringing; 8 notes or fewer per 4 bars.
+  - **Calm 4, plucked call, harp answer:** the plucked call, answered 2 bars later by the harp (C . A in two octaves).
+    A harp walk-up leads into every other call.
+  - **Cautious 1, the hook takes shape:** the broken hook every 2 bars, the whole hook on soft spiccato in bars 6-7 of
+    every 8 (it completes before the next call), a quiet off-beat clock and the heartbeat.
+  - **Cautious 2, climbing tremolo:** the broken hook every 2 bars, the walk-up, tremolo violas climbing a semitone
+    every 2 bars, a timpani heartbeat. No bed and no rub.
+  - **Cautious 3, spiccato drive:** the broken hook, the walk-up, a low spiccato drive on D (1, the "and" of 2, 4) with
+    basses on the downbeat, a faint rub. It previews Alert's energy.
+  - **References:** "Calm: silence (in game now)" and "Cautious (in game now)" (the current game mix, re-rendered in this
+    piece).
+  - **Levels:** measured gated levels from the rendered stems. Every Calm option is at -30 dB (round 20's Calm was -27,
+    "near silence" -35). Every Cautious option is at -22.5 dB (the in-game Cautious is -22).
+- **Test page:** section 2 has Calm and Cautious choosers next to the Alert one. They list every sneaking loop's
+  options; each piece falls back to its own first. A change replays at once. Hook thread is the first card.
+- **Game:** unchanged (game tracks not re-rendered).
+- **Tests:**
+  - Unit 688 pass. `score.test`'s hit check now uses one expect per hit; it timed out under load with one per sample.
+    Other suites only time out under load and pass on rerun.
+  - Lint and build are clean. `e2e-score` and `e2e-music` pass (`E2E_PORT=4183`).
+- **Next:** Michael picks a Calm and a Cautious. They become the game's `caution` track and, if Calm is no longer
+  silence, a new `calm` track that the player fades in for Calm.
+
+## V4 step 4c - footsteps, 15 %, the fade cut, the menu as a whole piece
+- **Michael (2026-10-16):** "menu blend is rough, doesnt line up well. music also still cuts out abruptly entering or
+  exiting match. cautious works very well. reduce music to 15% default". Then: bring in the footstep and movement
+  sounds from the other session.
+- **Done:**
+  - **Footsteps:** `feature/footsteps` (movement foley, CC0 recordings) merged into `feature/music`. `gameAudio.ts`
+    runs both the foley and the score; the service worker precaches both; `e2e-foley` and `e2e-score` are required.
+  - **Music 15 %:** settings `audio.musicV: 3`. An untouched old default (50 % before V4, 30 % from step 4b) moves to
+    15 % once; a volume a player chose stays (unit test).
+  - **The cut, found:** a probe logged the menu voice's gain through menu -> match -> menu. At the match's first frame
+    the gain fell from 1.0 to 0.28 at once, then faded. Cause: a Web Audio ramp runs from the previous automation event.
+    After the menu's fade-in had ended, `cancelAndHoldAtTime` added no event, so the fade-out ramp started from the
+    fade-in's end (minutes earlier) and was already three quarters down. Every music fade had this bug (the Alert and
+    Cautious changes too). Fixed: each fade first sets the current level at its start. The test page's player had the
+    same bug and is fixed too. `e2e-score` now checks the menu fade starts from full.
+  - **Fade lengths:** into a match the menu fades over 4 s; leaving a match the mission music fades over 2.5 s.
+  - **Menu theme as a whole piece:** no loop join to line up. The game plays the full linear render (its quiet opening,
+    the diminuendo, the final chord ringing out, a 1.5 s fade on its last tail), rests 3 s, then plays it again. The
+    file is 91 s. Measured: it opens from silence (-50, -35, -29 dB per second) and ends -24, -33, -36, -46 dB.
+- **Tests:** unit 688 pass, lint and build clean; `e2e-score`, `e2e-foley`, `e2e-music`, `smoke`, `e2e-offline` pass
+  (`E2E_PORT=4184`; another session held 4179).
+- **Open:** alternatives for Calm and Cautious (the hook as the thread). Phone check pending Michael's run.
+
+## V4 step 4b - fixes from the first play
+- **Michael (2026-10-16):**
+  - Default the music to 30 %.
+  - The menu music cuts out aggressively when loading into a match.
+  - The Alert music cuts in very abruptly and still has "some sort of different sound at the start that doesn't seem
+    right".
+  - Make the main menu music blend into its start and end better.
+- **Done:**
+  - **Music default 30 %** (was 50 %). Settings get `audio.musicV: 2`; a stored music volume still at the old 50 %
+    default moves to 30 % once, and a volume he chose stays.
+  - **Menu to match:** the menu theme now keeps playing through loading and fades out over 3.5 s on the first
+    running frame of the match. A fade scheduled while the page is busy loading sounded like a cut. The mission tracks
+    now decode one after another instead of all at once.
+  - **Into Alert:**
+    - The "different sound at the start" was most likely the spotted hit itself (a brass D / E-flat cluster with a
+      string rip, unlike anything in Under fire). It is gone.
+    - The spotted sound is now a two-beat build that rises from soft: timpani roll, sticks in sixteenths, violins and
+      violas climbing, low strings swelling, a cymbal swell landing on the downbeat.
+    - Cautious fades out under the build. Alert starts at 55 % on its downbeat and settles to full over two beats.
+  - **Menu loop blends:**
+    - The low strings breathe in for two bars before the hook enters softly and builds.
+    - The held chords stop two bars earlier, the last four bars taper (a diminuendo down to 40 %), and the final
+      chord swells in softly and fades long.
+    - Measured per bar at the join: -15, -18, -20, -22, -22, then -22.5 at the start, then -25 (before: a fall of
+      more than 10 dB).
+- **Tests:** unit 666 pass, lint and build clean, `e2e-score` passes.
+
+## V4 step 4a - in the game
+- **Michael (2026-10-16):**
+  - "Commit Alert under fire and main menu theme Grand to the game for now. I want to work on the others."
+  - Then he chose: **Cautious = the plucked broken hook's Cautious mix**, **Calm = silence** for now.
+  - "The hook is still really good but we should try some alternatives" (for the in-game Calm and Cautious; next).
+- **Done:**
+  - **Game tracks:**
+    - `npm run music:orch` now also mixes the chosen pieces down to one stereo track each, with clean openings, into
+      `src/assets/music/game/` (committed, 5.9 MB).
+    - The mixes: menu = Grand dialled back (Softer); caution = Broken hook plucked (Cautious); alert = Under fire
+      (Alert: hook forward); evade = Under fire (Evasion, same gain as alert); spotted.
+  - **Player:** `src/audio/score/game/gameMusic.ts` decodes at 32 kHz, plays on the game's music bus (the Music
+    volume applies), and runs the director at 10 Hz.
+    - Fades on bar lines.
+    - The spotted hit, with Alert two beats later.
+    - Alert and Evasion in sync.
+    - Cautious starts from its clean opening.
+  - **Adapter:** `src/audio/score/game/adapter.ts` (read only) folds every guard's alert level into calm, caution or
+    alert.
+  - **Director:** reuses its result array and skips work when nothing can change (it now runs every frame tick).
+  - **Wiring:** `main.ts` calls `app.music.menu()`; `gameAudio.ts` calls `app.music.mission()` and
+    `update(dt, awareness(enemies))`. The service worker precaches `music-*.mp3`; the old lab sketches are not
+    precached.
+  - **Rules:** `CLAUDE.md` records the CC0 orchestral exception Michael chose on 2026-10-15.
+  - **Docs:** `CHANGELOG`, `TESTING.md` (manual check), `docs/systems/audio.md` and `testing-tools.md` updated.
+- **Tests:**
+  - Unit: 666 pass (the adapter added).
+  - Lint and build are clean.
+  - e2e: `e2e-score` (new, 13 checks), `smoke`, `e2e-offline` and `e2e-music` pass. `e2e-music`'s file count is now
+    limited to the lab's own stems.
+  - Port 4179 was held by another session's server, so suites were run with `E2E_PORT=4183`.
+  - The full `npm run e2e` was not run (shared PC).
+- **Open:**
+  - Calm is silent until Michael chooses a Calm.
+  - On the phone, the four mission tracks decode in the background at match start (about 60 MB at 32 kHz).
+  - Phone check pending Michael's run.
+
+## V4 round 20 - a catchier broken Calm
+- **Michael (2026-10-16):** "Calm, near silence" is OK, but very far between and too quiet. He wants it catchier
+  but still broken.
+- **Done (all three broken-hook sets):**
+  - **New layer "tune":** the broken hook as a call and answer.
+    - D . D3 D in bar 1, then the rest of Hook A's first bar (C3 on the "and" of 3, A2 on the "and" of 4) in bar 3.
+    - The same in bars 5 and 7, and a soft walk-up every 16 bars.
+    - Space between. Reverb send 0.38, so it is closer than the distant whisper.
+  - **"Calm" now uses it.** The round 19 versions stay as "Calm, distant (round 19)", "Calm, fog" and
+    "Calm, near silence".
+  - **Cautious lifted 2.3 dB.** Adding the layer lowered the set's master gain (the all-layers mix hit its peak
+    limit); this keeps Cautious where Michael liked it.
+- **Measured:** the new Calm plays every 2 bars (was every 8) and about 4 dB louder than round 19's Calm.
 
 ## V4 round 19 - subtler Calm
 - **Michael (2026-10-16):**
