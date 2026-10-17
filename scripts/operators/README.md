@@ -75,14 +75,19 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   glow; LOD1: cloth 1K, kit 1K, glow; LOD2: one 1K atlas, glow; phone: LOD2 at 512), unwrapped from the garments'
   pattern panels, baked from the 2.45 M source on the GPU (albedo, tangent normal, ORM), skinned (game LODs: 17 game
   joints), with the anchors `weaponMount.backL/.backC/.backR` (chest), `pistolHolster` (hipR), `slingSocket` (pelvis).
-  Writes `build/operators/<id>/export/{<lod>/<id>-<lod>.glb, textures/<lod>/*.png, report.json, README.md}` (the README
-  holds the KTX2 command, OPEN until `toktx` is installed), the Lab copies `<id>-lab-<lod>.glb`, `<id>-lods.blend`,
+  Writes `build/operators/<id>/export/{<lod>/<id>-<lod>.glb, textures/<lod>/*.png, report.json, README.md}`, the Lab copies `<id>-lab-<lod>.glb`, `<id>-lods.blend`,
   and with `--render` the side-by-side sheets `docs/operators/mockups/tests/<id>-lods-*.webp` (columns: source, hero,
   LOD0, LOD1, LOD2, phone). About 15-20 min for Wren. `operators:check` then checks every LOD file (anchors on their
   joints, game joints only) and flags SPEC 6.4 overruns.
+- `npm run operators:ktx2 [wren]` (step 11, D26, A79; the last stage of `operators:lods`): KTX-Software `toktx`
+  (C:/Program Files/KTX-Software/bin, or `KTX_BIN`) encodes every LOD's PNG set to KTX2 (UASTC q2 + Zstd 18, mips;
+  albedo sRGB, normal / ORM linear), validates and decodes each back (`ktx extract`, PSNR into report.json, the decoded
+  level 0 in `textures/<lod>/ktx2-decoded/` for the Lab), repacks every GLB with `KHR_texture_basisu` (no WebP / PNG
+  left) and refreshes the Lab copies; costs into report.json `ktx2` and README.md. `operators:check` FAILs a LOD file
+  with any other texture format (`ktx2`).
 - `npm run operators` - the dev-only Operator Lab (`operators.html`, `src/operators/lab/`, `vite.operators.config.ts`): builds
   into `build/operators-lab/` and serves at `http://127.0.0.1:4191/operators.html` (E2E_PORT). Never in `dist/`.
 - `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
   (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4191`) - the contact sheets, into `docs/operators/mockups/<id>/`.
 
-Stages still to come (PLAN.md): Moth; KTX2 (needs `toktx`); the game integration (step 18).
+Stages still to come (PLAN.md): Moth; Babylon's KTX2 transcoder files in vendor/ktx2/ (A79, OPEN); the game integration (step 18).

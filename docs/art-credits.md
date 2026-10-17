@@ -12,6 +12,7 @@ proportions) is listed under "Reference data" and kept out of the repo.
 | File (repo path) | What it is | Source (URL) | Author | Licence | Date added | Used by |
 | --- | --- | --- | --- | --- | --- | --- |
 | `build/operators/cache/mpfb2/` (git-ignored, fetched by `scripts/operators/fetch-base-body.mjs`; list in `scripts/operators/data/mpfb2-files.txt`) | MakeHuman hm08 base mesh, body shape targets, vertex groups, default rig weights (data only, no MPFB code) | https://github.com/makehumancommunity/mpfb2 at commit 3af0cd5a2ffba072e93a34e5f6f494fdc4813ddf (`src/mpfb/data/`, `LICENSE.ASSETS.md`) | Data Collection AB, Joel Palmius, Jonas Hauquier (MakeHuman community) | CC0 1.0 Universal | 2026-10-15 | Operator base bodies (`scripts/operators/py/build_body.py`); never shipped as is |
+| `node_modules/@babylonjs/ktx2decoder/` (npm devDependency 9.29.0; `wasm/*.wasm` and `msc_basis_transcoder.js` bundled into the Operator Lab via `?url`) | Babylon.js KTX2 decoder and its UASTC / Zstd / Basis transcoders (code, not art) | https://www.npmjs.com/package/@babylonjs/ktx2decoder | Babylon.js contributors | Apache 2.0 | 2026-10-17 | Operator Lab KTX2 textures (`src/operators/lab/ktx2.ts`, D27); not in the game bundle |
 
 ## Reference data (not in the repo, not shipped)
 

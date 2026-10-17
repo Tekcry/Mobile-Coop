@@ -6,12 +6,13 @@
  */
 import {
   ArcRotateCamera, Bone, Camera, Color3, Color4, Constants, CreateBox, CreateDisc, DefaultRenderingPipeline, DirectionalLight,
-  Effect, Engine, HemisphericLight, ImageProcessingConfiguration, Matrix, Mesh, PBRMaterial, PointLight, PostProcess, Quaternion, Scene,
+  CreateSphere, Effect, Engine, HemisphericLight, ImageProcessingConfiguration, Matrix, Mesh, PBRMaterial, PointLight, PostProcess, Quaternion, ReflectionProbe, Scene,
   ShadowGenerator, Skeleton, SSAO2RenderingPipeline, StandardMaterial, Texture, TransformNode, Vector3, VertexData, VertexBuffer,
 } from '../../core/babylon';
-import type { AbstractMesh } from '../../core/babylon';
+import type { AbstractMesh, BaseTexture } from '../../core/babylon';
 import { defaultLook } from '../../cosmetics/avatarLook';
 import { CharacterRig } from '../../player/characterRig';
+import { ktx2Setup } from './ktx2';
 import { bindWorld, parseGlb, type GlbImage, type GlbModel, type Quat, type V3 } from './glb';
 import { CLOSEUPS, LIGHT_RIGS, POSES, PRESETS, type CamView, type LightRig, type PoseDef, type QualityPreset } from './labData';
 import { buildRetarget, JOINT_TO_RIG, poseSkeleton, type Retarget, type RigJoint } from './retarget';
@@ -30,6 +31,8 @@ export interface LabState {
   silhouette: boolean;
   gameRig: boolean;
   weapon: boolean;
+  /** KTX2 textures: Babylon's transcoder (default) or the reference transcoder's decode (comparison). */
+  ktx2: 'babylon' | 'decoded';
 }
 
 interface Loaded {
@@ -69,12 +72,14 @@ export class Lab {
   readonly camera: ArcRotateCamera;
   readonly state: LabState = {
     operator: 'wren', pose: 'apose', rig: 'studio', preset: 'epic', lod: 'source', debug: 'none',
-    turntable: false, ortho: false, silhouette: false, gameRig: false, weapon: true,
+    turntable: false, ortho: false, silhouette: false, gameRig: false, weapon: true, ktx2: 'babylon',
   };
   /** Operators with a built glTF. */
   available: string[] = [];
   /** LODs found for the loaded operator (hero first). */
   lods: string[] = ['source'];
+  /** How the loaded file's KTX2 textures reached the GPU (step 11): none, Babylon's transcoder, or the decoded stand-ins. */
+  ktx2Path: 'none' | 'babylon' | 'decoded' = 'none';
   private loaded: Loaded | null = null;
   private rig!: CharacterRig;
   private rigRest = new Map<string, { pos: Vector3 }>();
@@ -85,6 +90,8 @@ export class Lab {
   private ground: Mesh;
   private glow: Mesh;
   private glowLight: PointLight;
+  /** Step 11 (A78): a generated studio environment (no file, no network) the metals reflect; built on first use. */
+  private env: BaseTexture | null = null;
   private weapon: TransformNode;
   private silMesh: Mesh | null = null;
   private scaleBar: TransformNode;
@@ -92,12 +99,17 @@ export class Lab {
   private ssao: SSAO2RenderingPipeline | null = null;
   private nv: PostProcess | null = null;
   private debugMat: PBRMaterial;
+  /** Fix round 3 (item 1): the wire view's solid underlay (clones sharing geometry and skeleton) and its material. */
+  private wireUnder: Mesh[] = [];
+  private wireSolidMat: PBRMaterial;
   private colourCache = new Map<string, Float32Array>();
   private posePos: V3[] = [];
   private poseRot: Quat[] = [];
   private poseFrames = 0;
   private poseDef: PoseDef = POSES[0]!;
   private time = 0;
+  /** Step 11 fix round 2 (item 6): exposure lift in EV on top of the rig's (the close-ups' detail-read panel). */
+  private evBoost = 0;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: false }, false);
@@ -124,6 +136,13 @@ export class Lab {
     this.debugMat.unlit = true;
     this.debugMat.albedoColor = Color3.White();
     this.debugMat.backFaceCulling = false;
+    // WebGL does not cull lines, so a bare wire shows every layer through the figure; the underlay draws her as a flat
+    // near-black solid pushed back in depth (zOffset), so only the edges of the surfaces facing the camera stay visible
+    this.wireSolidMat = new PBRMaterial('wireSolid', this.scene);
+    this.wireSolidMat.unlit = true;
+    this.wireSolidMat.albedoColor = new Color3(0.012, 0.013, 0.015);
+    this.wireSolidMat.backFaceCulling = false;
+    this.wireSolidMat.zOffset = 2;
     this.glow = CreateBox('glow', { width: 0.095, height: 0.032, depth: 0.02 }, this.scene);
     const glowMat = new StandardMaterial('glowMat', this.scene);
     glowMat.disableLighting = true;
@@ -210,6 +229,7 @@ export class Lab {
     if (this.loaded) this.unload();
     // 'source': the unbaked build (every triangle, procedural factors); the rest are step 10's baked LODs
     const file = this.state.lod === 'source' ? `${id}-lab.glb` : `${id}-lab-${this.state.lod}.glb`;
+    this.ktx2Path = 'none';
     const buf = await (await fetch(`/__operators/${id}/${file}`)).arrayBuffer();
     const model = parseGlb(buf);
     let height = 1.68;
@@ -254,8 +274,24 @@ export class Lab {
 
     const tex = (im: GlbImage | undefined, srgb: boolean): Texture | null => {
       if (!im) return null;
+      // step 11 (D27): KTX2 (KHR_texture_basisu) through Babylon's own transcoder from the bundled decoder (ktx2.ts), on
+      // the GPU as BC7 / ASTC. `ktx2: 'decoded'` instead draws the reference transcoder's level-0 decode (written beside
+      // the KTX2 by scripts/operators/ktx2.mjs), the comparison the lods sheet makes.
+      if (im.mime === 'image/ktx2') this.ktx2Path = this.state.ktx2;
+      if (im.mime === 'image/ktx2' && this.state.ktx2 === 'decoded') {
+        const t = new Texture(`/__operators/${id}/export/textures/${this.state.lod}/ktx2-decoded/${im.name}.png`, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+        t.gammaSpace = srgb;
+        return t;
+      }
+      if (im.mime === 'image/ktx2') ktx2Setup(this.engine);
       const url = URL.createObjectURL(new Blob([im.data as BlobPart], { type: im.mime }));
-      const t = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => URL.revokeObjectURL(url));
+      const ext = im.mime === 'image/ktx2' ? '.ktx2' : undefined;
+      // The reader v-flips the UVs and relies on the upload flip (invertY). A compressed KTX2 cannot be flipped at
+      // upload and Babylon 9.29 does not compensate for KTX2 (it does for KTX1), so the Lab flips it in the texture
+      // matrix (vScale -1, vOffset 1): measured against the reference decode, mean abs difference 3.20 -> 0.09 / 255.
+      const isKtx2 = im.mime === 'image/ktx2';
+      const t = new Texture(url, this.scene, false, !isKtx2, Texture.TRILINEAR_SAMPLINGMODE, () => URL.revokeObjectURL(url), null, null, false, undefined, im.mime, undefined, undefined, ext);
+      if (isKtx2) { t.vScale = -1; t.vOffset = 1; }
       t.gammaSpace = srgb;
       return t;
     };
@@ -284,7 +320,9 @@ export class Lab {
         p.invertNormalMapX = true;
         p.invertNormalMapY = true;
       }
-      p.environmentIntensity = 0.25;
+      // Step 11 fix round 2 (item 5, A78): the metals (gunmetal, anodised, hardware sets) take the full environment, so the
+      // studio env's soft boxes give their satin highlight; everything else keeps the quarter fill.
+      p.environmentIntensity = /metal|aluminium|hardware/.test(m.name) ? 1 : 0.25;
       p.directIntensity = Math.PI; // as the game's parts: PBR divides diffuse by pi
       p.backFaceCulling = false;
       p.twoSidedLighting = true;
@@ -316,6 +354,9 @@ export class Lab {
       meshes.push(mesh);
       triangles += g.indices.length / 3;
     }
+    // Step 11 fix round 2 (item 1): the goggle's spill light reaches the scene ahead of her, never her own meshes (it sits
+    // a few cm in front of the housing: it flooded her face, hood and chest green and blew the housing out to white).
+    this.glowLight.excludedMeshes = [...meshes];
     const retarget = buildRetarget(model.nodes, w.pos, model.joints);
     this.loaded = { id, root, model, nodes, meshes, materials, bindPos: w.pos, bindRot: w.rot, retarget, height, triangles };
     this.state.operator = id;
@@ -329,6 +370,9 @@ export class Lab {
     this.lods = found;
     this.rebuildShadows();
     this.setPose(this.state.pose);
+    // Step 11 fix round 3 (item 1): the new materials start solid; re-apply the current debug view, or a LOD switch
+    // while 'wire' (or a colour view) is on draws shaded (the sheet's LOD strip only calls setDebug when it changes).
+    this.setDebug(this.state.debug);
   }
 
   private unload(): void {
@@ -336,6 +380,7 @@ export class Lab {
     if (!l) return;
     this.silMesh?.dispose();
     this.silMesh = null;
+    this.setWireUnderlay(false);
     for (const m of l.meshes) m.dispose();
     for (const m of l.materials) m.dispose();
     l.meshes[0]?.skeleton?.dispose();
@@ -379,7 +424,21 @@ export class Lab {
       }
     }
     for (const mat of l.materials) mat.wireframe = v === 'wire';
+    this.setWireUnderlay(v === 'wire');
     this.applyExposure();
+  }
+
+  private setWireUnderlay(on: boolean): void {
+    for (const u of this.wireUnder) u.dispose();
+    this.wireUnder = [];
+    const l = this.loaded;
+    if (!on || !l) return;
+    for (const m of l.meshes) {
+      const u = m.clone(`${m.name}-wireSolid`, m.parent, true);
+      u.material = this.wireSolidMat;
+      u.receiveShadows = false;
+      this.wireUnder.push(u);
+    }
   }
 
   /** Colour debug views are unlit data: no key-light exposure, no bloom. */
@@ -387,8 +446,85 @@ export class Lab {
     const r = LIGHT_RIGS.find((x) => x.id === this.state.rig) ?? LIGHT_RIGS[0]!;
     const data = this.state.debug === 'normals' || this.state.debug === 'uv' || this.state.debug === 'matid';
     if (!this.pipeline) return;
-    this.pipeline.imageProcessing.exposure = data ? 0.35 : r.exposure;
-    this.pipeline.bloomEnabled = !data && (PRESETS.find((p) => p.id === this.state.preset)?.bloom ?? false);
+    this.pipeline.imageProcessing.exposure = data ? 0.35 : r.exposure * 2 ** this.evBoost;
+    this.pipeline.bloomEnabled = !data && r.bloom !== false && (PRESETS.find((p) => p.id === this.state.preset)?.bloom ?? false);
+  }
+
+  /**
+   * Step 11 (A78): a studio environment generated in the scene, never a file: a dark room with a broad soft box
+   * overhead in front, a strip on each side and a dim floor bounce, captured once into a cube by a reflection probe.
+   * The metals (gunmetal buckles, closures, anodised mounts: base colour 0.02-0.05, metallic) have nothing to reflect
+   * without it and draw as flat black; with it their bevels and split lines carry a satin highlight.
+   */
+  private studioEnv(): BaseTexture {
+    if (this.env) return this.env;
+    const probe = new ReflectionProbe('studioEnv', 128, this.scene, true, true);
+    probe.position.set(0, 1.2, 0);
+    probe.refreshRate = 1; // RENDER_ONCE after the first frame
+    const parts: Mesh[] = [];
+    const panel = (name: string, w: number, h: number, pos: V3, rotX: number, rotY: number, lum: number): void => {
+      const b = CreateBox(name, { width: w, height: h, depth: 0.01 }, this.scene);
+      b.position.set(...pos);
+      b.rotation.set(rotX, rotY, 0);
+      const m = new StandardMaterial(`${name}Mat`, this.scene);
+      m.disableLighting = true;
+      m.emissiveColor = new Color3(lum, lum, lum * 1.02);
+      m.backFaceCulling = false;
+      b.material = m;
+      b.setEnabled(false);
+      parts.push(b);
+    };
+    panel('envRoom', 30, 30, [0, 1.2, 12], 0, 0, 0.012);
+    panel('envRoomB', 30, 30, [0, 1.2, -12], 0, 0, 0.012);
+    panel('envRoomL', 30, 30, [12, 1.2, 0], 0, Math.PI / 2, 0.012);
+    panel('envRoomR', 30, 30, [-12, 1.2, 0], 0, Math.PI / 2, 0.012);
+    panel('envFloor', 30, 30, [0, -2, 0], Math.PI / 2, 0, 0.02);
+    panel('envTop', 30, 30, [0, 9, 0], Math.PI / 2, 0, 0.02);
+    panel('envSoftbox', 4, 2.5, [0, 4.2, 2.8], Math.PI / 3, 0, 3);
+    panel('envStripR', 0.8, 4, [3.2, 1.6, 1.2], 0, Math.PI / 2.6, 1.6);
+    panel('envStripL', 0.8, 4, [-3.2, 1.6, -1.2], 0, -Math.PI / 2.6, 1.2);
+    // fix round 2 (item 5): a soft panel in front of the figure, above the camera line, so metal facing the camera
+    // (belt closure, leg-band and strap buckles) reflects a satin highlight instead of the dark room
+    panel('envFront', 6, 4, [0, 1.6, 4.5], 0, 0, 1.2);
+    for (const m of parts) probe.renderList!.push(m);
+    probe.cubeTexture.onBeforeRenderObservable.add(() => { for (const m of parts) m.setEnabled(true); });
+    probe.cubeTexture.onAfterRenderObservable.add(() => { for (const m of parts) m.setEnabled(false); });
+    this.env = probe.cubeTexture;
+    return this.env;
+  }
+
+  /**
+   * Step 11 (A78): the sRGB value an 18 % grey Lambert card facing the current rig's key light renders at (the rig's
+   * exposure, tone mapping and ambient), so a sheet can print its calibration instead of a remembered number.
+   */
+  async greyCard(): Promise<number> {
+    const r = LIGHT_RIGS.find((x) => x.id === this.state.rig) ?? LIGHT_RIGS[0]!;
+    const key = r.lights.find((l) => l.kind === 'dir');
+    if (!key) return 0;
+    const v = new Vector3(...key.v).normalize();
+    const card = CreateBox('greyCard', { width: 0.6, height: 0.6, depth: 0.002 }, this.scene);
+    const m = new PBRMaterial('greyCardMat', this.scene);
+    m.albedoColor = new Color3(0.18, 0.18, 0.18);
+    m.metallic = 0;
+    m.roughness = 1;
+    m.environmentIntensity = 0.25;
+    m.directIntensity = Math.PI;
+    card.material = m;
+    const at = new Vector3(0, 1.1, 0).subtract(v.scale(2));
+    card.position.copyFrom(at);
+    card.lookAt(at.add(v)); // +Z of the box along the light's travel: its -Z face looks at the light
+    const saved = { a: this.camera.alpha, b: this.camera.beta, r: this.camera.radius, t: this.camera.target.clone() };
+    const camPos = at.subtract(v.scale(0.5));
+    this.camera.setTarget(at);
+    this.camera.setPosition(camPos);
+    await this.frames(12);
+    const px = await this.engine.readPixels(Math.floor(this.engine.getRenderWidth() / 2), Math.floor(this.engine.getRenderHeight() / 2), 1, 1);
+    card.dispose();
+    m.dispose();
+    this.camera.setTarget(saved.t);
+    this.camera.alpha = saved.a; this.camera.beta = saved.b; this.camera.radius = saved.r;
+    const d = px as Uint8Array;
+    return (0.2126 * d[0]! + 0.7152 * d[1]! + 0.0722 * d[2]!) / 255;
   }
 
   private setColours(m: Mesh, v: 'normals' | 'uv' | 'matid'): void {
@@ -424,6 +560,68 @@ export class Lab {
       this.colourCache.set(key, c);
     }
     m.setVerticesData(VertexBuffer.ColorKind, c, false);
+  }
+
+  /** Step 11 fix round 2 (item 6): lift the exposure by `ev` stops over the rig's (0 = the calibrated value). */
+  setExposureBoost(ev: number): void {
+    this.evBoost = ev;
+    this.applyExposure();
+  }
+
+  /**
+   * Step 11 fix round 2 (item 4): a mask of the operator alone in the current view (unlit material-id colours on black;
+   * floor, backdrop, grey human, scale bar, glow stand-in and the game rig hidden), so a sheet measures her pixels only.
+   */
+  async maskShot(): Promise<string> {
+    const prevDebug = this.state.debug;
+    const r = LIGHT_RIGS.find((x) => x.id === this.state.rig) ?? LIGHT_RIGS[0]!;
+    this.ground.setEnabled(false);
+    this.scaleBar.setEnabled(false);
+    this.silMesh?.setEnabled(false);
+    this.glow.setEnabled(false);
+    this.rig.setEnabled(false);
+    this.weapon.setEnabled(false);
+    const nv = this.nv;
+    if (nv) nv.dispose(this.camera);
+    this.nv = null;
+    this.scene.clearColor = new Color4(0, 0, 0, 1);
+    this.setDebug('matid');
+    if (this.ssao) this.scene.postProcessRenderPipelineManager.detachCamerasFromRenderPipeline('ssao', this.camera);
+    await this.frames(4);
+    const url = this.canvas.toDataURL('image/png');
+    if (this.ssao) this.scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline('ssao', this.camera);
+    this.setDebug(prevDebug);
+    this.scene.clearColor = new Color4(...r.background, 1);
+    this.ground.setEnabled(!this.state.ortho);
+    this.setSilhouette(this.state.silhouette);
+    this.setGameRig(this.state.gameRig);
+    this.glow.setEnabled(r.glow && !this.hasLens());
+    if (r.nightVision) this.setRig(r.id);
+    return url;
+  }
+
+  /**
+   * Step 11 fix round 2 (item 7): an 18 % grey Lambert sphere alone at chest height in the operator's place (operator
+   * hidden), to show which side the current rig lights brighter. Off restores the operator.
+   */
+  probeSphere(on: boolean): void {
+    const l = this.loaded;
+    if (l) for (const m of l.meshes) m.setEnabled(!on);
+    this.silMesh?.setEnabled(!on && this.state.silhouette);
+    this.scaleBar.setEnabled(!on && this.state.silhouette);
+    let s = this.scene.getMeshByName('probeSphere') as Mesh | null;
+    if (on && !s) {
+      s = CreateSphere('probeSphere', { diameter: 0.4, segments: 48 }, this.scene);
+      const m = new PBRMaterial('probeSphereMat', this.scene);
+      m.albedoColor = new Color3(0.18, 0.18, 0.18);
+      m.metallic = 0;
+      m.roughness = 1;
+      m.environmentIntensity = 0.25;
+      m.directIntensity = Math.PI;
+      s.material = m;
+      s.receiveShadows = true;
+    }
+    if (s) { s.position.set(this.offsetX, 1.1, 0); s.setEnabled(on); }
   }
 
   setPreset(id: string): void {
@@ -488,14 +686,19 @@ export class Lab {
         const g = new ShadowGenerator(preset.shadowMap, light);
         g.usePercentageCloserFiltering = true;
         g.filteringQuality = preset.shadowMap > 1024 ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_LOW;
-        g.bias = 0.0008;
+        // fix round 2 (item 7): shadow acne. At bias 0.0008 every face turned to the key shadowed itself (two-sided
+        // materials put both faces in the map): the turnaround's front legs read sRGB 0.02 under the key, 0.08 with
+        // shadows off, while the back under the weaker rim read 0.07. Bias 0.004 (about 5 cm over the 13 m depth range)
+        // gives 0.08, the no-shadow value; a larger normal bias made it worse (0.01), back-faces-only had no effect.
+        g.bias = 0.004;
         g.normalBias = 0.01;
         this.shadow = g;
         this.registerCasters();
       }
     }
     this.glow.setEnabled(r.glow && !this.hasLens());
-    this.glowLight.setEnabled(r.glow);
+    this.glowLight.setEnabled(r.glow && r.glowLight !== false);
+    this.scene.environmentTexture = r.env ? this.studioEnv() : null;
     if (this.pipeline) {
       this.applyExposure();
       this.pipeline.imageProcessing.contrast = r.contrast;
@@ -556,6 +759,7 @@ export class Lab {
         mat.disableLighting = true;
         mat.emissiveColor = new Color3(0.2, 0.21, 0.23);
         const c = body.clone('silhouette');
+        this.glowLight.excludedMeshes.push(c);
         c.material = mat;
         c.skeleton = body.skeleton;
         c.scaling.setAll(1.75 / l.height);
@@ -648,7 +852,7 @@ export class Lab {
 
   /** The loaded model has the built goggle (step 07): its lens material glows, no stand-in needed. */
   private hasLens(): boolean {
-    return !!this.loaded?.model.materials.some((m) => m.name === 'goggle lens');
+    return !!this.loaded?.model.materials.some((m) => m.name === 'goggle lens' || m.name.endsWith('-glow'));
   }
 
   private readonly riggers = new Map<string, RigJoint>();
@@ -702,9 +906,12 @@ export class Lab {
 
   stats(): { operator: string; lod: string; triangles: number; meshes: number; materials: number; textures: string; drawCalls?: number } {
     const l = this.loaded;
+    // fix round 2 (item 8): the textures the loaded file really carries (the sheet prints the measured sizes and VRAM)
+    const imgs = new Set<string>();
+    for (const m of l?.model.materials ?? []) for (const t of [m.baseTex, m.ormTex, m.normalTex]) if (t) imgs.add(`${t.name} (${t.mime.replace('image/', '')})`);
     return {
       operator: l?.id ?? '', lod: this.state.lod, triangles: l?.triangles ?? 0, meshes: l?.meshes.length ?? 0,
-      materials: l?.materials.length ?? 0, textures: 'none yet (flat material factors; baked maps arrive in step 10)',
+      materials: l?.materials.length ?? 0, textures: imgs.size ? `${imgs.size} maps` : 'none (flat material factors)',
     };
   }
 

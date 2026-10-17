@@ -2,6 +2,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findBlender, runBlender } from './blender.mjs';
+import { encodeKtx2 } from './ktx2.mjs';
 import { OUT_DIR, ROOT } from './paths.mjs';
 
 /**
@@ -38,7 +39,7 @@ export function exportGltf(id, blender = findBlender()) {
  * Step 10 (SPEC 6.3-6.4, A69-A71): baked texture sets, hero / LOD0-2 / phone glTF with the integration anchors, the
  * export report and README under build/operators/<id>/export/, the Lab copies <id>-lab-<lod>.glb. `render` adds the
  * hero / LOD side-by-side renders (Cycles, OptiX) into docs/operators/mockups/tests/. `scale` shrinks every texture
- * (iteration only). About 15-25 min for Wren on the RTX 4090.
+ * (iteration only). About 15-25 min for Wren on the RTX 4090. Step 11: ends with ktx2.mjs (KTX2 textures in the GLBs).
  */
 export function exportLods(id, { render = false, scale = 1, blender = findBlender() } = {}) {
   const g = (GARMENTS[id] ?? []).flatMap((n) => ['--garment', n]);
@@ -46,6 +47,7 @@ export function exportLods(id, { render = false, scale = 1, blender = findBlende
   const dest = path.join(ROOT, 'docs', 'operators', 'mockups', 'tests');
   runBlender('bake_lods.py', ['--operator', id, ...g, '--out', path.join(OUT_DIR, id), '--scale', String(scale),
     ...(render ? ['--render', '--dest', dest] : [])], { blender });
+  encodeKtx2(id); // step 11 (D26): KTX2 textures and KHR_texture_basisu GLBs
 }
 
 // npm run operators:export [wren|moth]            the Lab source glb (unbaked, every build triangle)

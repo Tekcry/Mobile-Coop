@@ -3,7 +3,9 @@
  * node tree with one skin, skinned triangle meshes (POSITION, NORMAL, TEXCOORD_0, JOINTS_0, WEIGHTS_0, indices) and
  * metallic-roughness factors, and (step 10's baked LODs) the embedded images of the base colour, packed occlusion /
  * roughness / metal and normal textures. Everything comes out in the game frame (+X right, +Y up, +Z forward, left-handed): the
- * glTF model faces +Z with its right on -X, so x is negated and the triangle winding flipped.
+ * glTF model faces +Z with its right on -X, so x is negated. The index order is kept (A80): the mirror turns glTF's
+ * counter-clockwise front faces into the clockwise ones Babylon's default side orientation treats as front. (Flipping
+ * it as well, as before A80, made every visible face a back face, and two-sided lighting then lit it from inside.)
  */
 
 export type V3 = [number, number, number];
@@ -17,9 +19,11 @@ export interface GlbNode {
   r: Quat;
 }
 
-/** One image embedded in the GLB's binary chunk (PNG, JPEG or WebP). */
+/** One image embedded in the GLB's binary chunk (PNG, JPEG, WebP or, from step 11, KTX2 through KHR_texture_basisu). */
 export interface GlbImage {
   mime: string;
+  /** The glTF image name (the baked set's file stem, e.g. wren-lod0-cloth-albedo). */
+  name: string;
   data: Uint8Array;
 }
 
@@ -67,8 +71,8 @@ interface Json {
     normalTexture?: { index: number };
     emissiveFactor?: number[];
   }[];
-  images?: { bufferView?: number; mimeType?: string }[];
-  textures?: { source?: number; extensions?: { EXT_texture_webp?: { source: number } } }[];
+  images?: { bufferView?: number; mimeType?: string; name?: string }[];
+  textures?: { source?: number; extensions?: { EXT_texture_webp?: { source: number }; KHR_texture_basisu?: { source: number } } }[];
   meshes: { name?: string; primitives: { attributes: Record<string, number>; indices?: number; material?: number }[] }[];
   accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number; type: string }[];
   bufferViews: { byteOffset?: number; byteLength: number; byteStride?: number }[];
@@ -122,11 +126,11 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
   const image = (tex: { index: number } | undefined): GlbImage | undefined => {
     if (!tex) return undefined;
     const t = json.textures?.[tex.index];
-    const src = t?.extensions?.EXT_texture_webp?.source ?? t?.source;
+    const src = t?.extensions?.KHR_texture_basisu?.source ?? t?.extensions?.EXT_texture_webp?.source ?? t?.source;
     const im = src !== undefined ? json.images?.[src] : undefined;
     if (!im || im.bufferView === undefined) return undefined;
     const bv = json.bufferViews[im.bufferView]!;
-    return { mime: im.mimeType ?? 'image/png', data: new Uint8Array(buf, binStart + (bv.byteOffset ?? 0), bv.byteLength) };
+    return { mime: im.mimeType ?? 'image/png', name: im.name ?? `image${src}`, data: new Uint8Array(buf, binStart + (bv.byteOffset ?? 0), bv.byteLength) };
   };
   const materials: GlbMaterial[] = (json.materials ?? []).map((m, i) => {
     const p = m.pbrMetallicRoughness ?? {};
@@ -164,8 +168,8 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       const indices = new Uint32Array(idx.data.length);
       for (let i = 0; i < indices.length; i += 3) {
         indices[i] = idx.data[i]!;
-        indices[i + 1] = idx.data[i + 2]!;
-        indices[i + 2] = idx.data[i + 1]!;
+        indices[i + 1] = idx.data[i + 1]!;
+        indices[i + 2] = idx.data[i + 2]!;
       }
       const uvs = new Float32Array(pos.n * 2);
       if (uv) for (let i = 0; i < pos.n; i++) { uvs[i * 2] = uv.data[i * 2]!; uvs[i * 2 + 1] = 1 - uv.data[i * 2 + 1]!; }

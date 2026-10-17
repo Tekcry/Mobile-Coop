@@ -30,33 +30,108 @@ export interface LightRig {
   glow: boolean;
   /** Night vision: a green monochrome image through the goggle. */
   nightVision: boolean;
+  /** The goggle's small point light (glow spill); false keeps only the lens glow. Default on when `glow`. */
+  glowLight?: boolean;
+  /** The generated studio environment the metals reflect (lab.ts studioEnv, A78). */
+  env?: boolean;
+  /** False turns bloom off whatever the preset (calibrated rigs: no halo). */
+  bloom?: boolean;
 }
+
+/*
+ * Light directions (step 11 fix round 1, A80): `v` is the direction the light travels in the Lab frame, the figure
+ * facing +Z and the camera at +Z for yaw 0. A front key travels -Z, a back rim travels +Z, a light from above has
+ * v.y < 0. Before A80 the reader's winding made Babylon light every face from its inside (two-sided lighting flipped
+ * the normals), so each rig acted as if its lights came from -v; the rigs below are re-aimed for the corrected faces.
+ */
 
 export const LIGHT_RIGS: readonly LightRig[] = [
   {
     id: 'studio', label: 'Neutral studio', background: [0.09, 0.095, 0.105],
     ambient: { sky: [0.8, 0.82, 0.86], ground: [0.35, 0.35, 0.37], intensity: 0.65 },
     lights: [
-      { kind: 'dir', v: [-0.45, -0.6, 0.65], color: [1, 0.98, 0.95], intensity: 2.2, shadows: true },
-      { kind: 'dir', v: [0.7, -0.3, -0.5], color: [0.7, 0.78, 0.95], intensity: 0.9 },
+      { kind: 'dir', v: [-0.45, -0.6, -0.65], color: [1, 0.98, 0.95], intensity: 2.2, shadows: true },
+      { kind: 'dir', v: [0.7, -0.3, 0.5], color: [0.7, 0.78, 0.95], intensity: 0.9 },
     ],
-    exposure: 4.5, contrast: 1.05, glow: false, nightVision: false,
+    exposure: 1.0, contrast: 1.05, glow: false, nightVision: false, env: true,
   },
   {
     id: 'raking', label: 'Raking light (detail check)', background: [0.03, 0.03, 0.035],
     ambient: { sky: [0.4, 0.45, 0.55], ground: [0.12, 0.12, 0.14], intensity: 0.4 },
     lights: [
-      { kind: 'dir', v: [-1, -0.12, 0.35], color: [1, 0.93, 0.82], intensity: 7, shadows: true },
-      { kind: 'dir', v: [0.5, -0.1, -0.85], color: [0.62, 0.75, 1], intensity: 1.2 },
+      { kind: 'dir', v: [-1, -0.12, -0.35], color: [1, 0.93, 0.82], intensity: 7, shadows: true },
+      { kind: 'dir', v: [0.5, -0.1, 0.85], color: [0.62, 0.75, 1], intensity: 1.2 },
     ],
-    exposure: 4.5, contrast: 1.15, glow: false, nightVision: false,
+    exposure: 0.6, contrast: 1.15, glow: false, nightVision: false,
+  },
+  {
+    // Step 11 (A78, fix round 1): the close-up rig. Calibrated so values keep their order (ACES): an 18 % grey card
+    // facing the key renders sRGB 0.50 (measured by lab.greyCard() and printed on every close-up), the suit's
+    // 0.02-0.06 albedo facing the key about sRGB 0.12-0.24 and mostly below that under the raking key (near-black); the
+    // raking key, the back rim and the generated environment separate the materials by relief and sheen.
+    id: 'detail', label: 'Close-up detail (calibrated raking)', background: [0.02, 0.022, 0.026],
+    ambient: { sky: [0.45, 0.5, 0.6], ground: [0.12, 0.12, 0.14], intensity: 0.35 },
+    lights: [
+      { kind: 'dir', v: [-1, -0.25, -0.45], color: [1, 0.94, 0.85], intensity: 2.0, shadows: true },
+      { kind: 'dir', v: [0.45, -0.3, -0.85], color: [0.62, 0.75, 1], intensity: 0.6 },
+      { kind: 'dir', v: [0.35, -0.2, 1], color: [0.85, 0.9, 1], intensity: 2.2 },
+    ],
+    exposure: 0.72, contrast: 1, glow: false, nightVision: false, env: true, bloom: false,
+  },
+  {
+    // Step 11 (A78): the same rig mirrored front to back, for the close-ups seen from behind (back plate, belt back)
+    id: 'detailRear', label: 'Close-up detail, rear key', background: [0.02, 0.022, 0.026],
+    ambient: { sky: [0.45, 0.5, 0.6], ground: [0.12, 0.12, 0.14], intensity: 0.35 },
+    lights: [
+      { kind: 'dir', v: [1, -0.25, 0.45], color: [1, 0.94, 0.85], intensity: 2.0, shadows: true },
+      { kind: 'dir', v: [-0.45, -0.3, 0.85], color: [0.62, 0.75, 1], intensity: 0.6 },
+      { kind: 'dir', v: [-0.35, -0.2, -1], color: [0.85, 0.9, 1], intensity: 2.2 },
+    ],
+    exposure: 0.72, contrast: 1, glow: false, nightVision: false, env: true, bloom: false,
+  },
+  {
+    // Step 11 fix round 2 (item 5, A78): the close-up rig with the key from the front above, for metal facing the camera:
+    // the key's mirror direction lands near the camera, so the satin gunmetal shows its highlight and split line
+    id: 'detailFront', label: 'Close-up detail, front key (metal)', background: [0.02, 0.022, 0.026],
+    ambient: { sky: [0.45, 0.5, 0.6], ground: [0.12, 0.12, 0.14], intensity: 0.35 },
+    lights: [
+      { kind: 'dir', v: [-0.3, -0.4, -0.87], color: [1, 0.94, 0.85], intensity: 2.0, shadows: true },
+      { kind: 'dir', v: [0.6, -0.3, -0.7], color: [0.62, 0.75, 1], intensity: 0.5 },
+      { kind: 'dir', v: [0.35, -0.2, 1], color: [0.85, 0.9, 1], intensity: 2.2 },
+    ],
+    exposure: 0.72, contrast: 1, glow: false, nightVision: false, env: true, bloom: false,
+  },
+  {
+    // Step 11 fix round 1 (A78): the calibrated whole-figure rig for the turnaround and the compare sheet: a front key
+    // from above, a cool back rim, the generated environment, no bloom; an 18 % grey card facing the key renders sRGB
+    // 0.50 (printed on the sheet), so the near-black suit reads near black beside the game operator's flat navy.
+    id: 'figure', label: 'Whole figure (calibrated)', background: [0.05, 0.055, 0.06],
+    ambient: { sky: [0.45, 0.5, 0.6], ground: [0.12, 0.12, 0.14], intensity: 0.35 },
+    lights: [
+      { kind: 'dir', v: [-0.45, -0.6, -0.65], color: [1, 0.97, 0.92], intensity: 2.0, shadows: true },
+      { kind: 'dir', v: [0.6, -0.3, 0.7], color: [0.7, 0.8, 1], intensity: 1.4 },
+    ],
+    exposure: 0.7, contrast: 1, glow: false, nightVision: false, env: true, bloom: false,
+  },
+  {
+    // Step 11: the rim-light silhouette (ART-DIRECTION 2): back rims, no front light, a faint ambient. Fix round 2
+    // (item 4): the two side rims come in flatter from the sides (they graze the edges a front view sees) and stronger,
+    // and a third from above behind outlines the head, optic and the plate's shoulder line.
+    id: 'rim', label: 'Rim light silhouette', background: [0.01, 0.012, 0.016],
+    ambient: { sky: [0.2, 0.25, 0.35], ground: [0, 0, 0], intensity: 0.05 },
+    lights: [
+      { kind: 'dir', v: [0.75, -0.15, 0.65], color: [0.75, 0.85, 1], intensity: 3.6 },
+      { kind: 'dir', v: [-0.75, -0.15, 0.65], color: [1, 0.9, 0.78], intensity: 3.6 },
+      { kind: 'dir', v: [0, -0.6, 0.8], color: [0.85, 0.9, 1], intensity: 2.5 },
+    ],
+    exposure: 1.4, contrast: 1.05, glow: true, nightVision: false, glowLight: false,
   },
   {
     id: 'menu', label: 'Menu scene', background: [0.02, 0.03, 0.035],
     ambient: { sky: [0.25, 0.32, 0.4], ground: [0.05, 0.06, 0.07], intensity: 0.2 },
     lights: [
-      { kind: 'dir', v: [-0.6, -0.5, 0.6], color: [0.95, 0.85, 0.7], intensity: 3, shadows: true },
-      { kind: 'dir', v: [0.7, -0.2, -0.6], color: [0.35, 0.5, 0.8], intensity: 1.6 },
+      { kind: 'dir', v: [-0.6, -0.5, -0.6], color: [0.95, 0.85, 0.7], intensity: 3, shadows: true },
+      { kind: 'dir', v: [0.7, -0.2, 0.6], color: [0.35, 0.5, 0.8], intensity: 1.6 },
     ],
     exposure: 2, contrast: 1.1, glow: true, nightVision: false,
   },
@@ -71,14 +146,15 @@ export const LIGHT_RIGS: readonly LightRig[] = [
   },
   {
     id: 'dark', label: 'Full darkness, goggle glow only', background: [0, 0, 0],
-    ambient: { sky: [0.02, 0.03, 0.05], ground: [0, 0, 0], intensity: 0.02 },
+    // fix round 2 (item 1): a starlight-level fill so a faint silhouette reads behind the lens glow
+    ambient: { sky: [0.12, 0.15, 0.25], ground: [0, 0, 0], intensity: 0.4 },
     lights: [],
     exposure: 1, contrast: 1, glow: true, nightVision: false,
   },
   {
     id: 'nightvision', label: 'Night vision', background: [0, 0.02, 0],
     ambient: { sky: [0.5, 0.6, 0.5], ground: [0.2, 0.25, 0.2], intensity: 0.9 },
-    lights: [{ kind: 'dir', v: [-0.3, -0.8, 0.5], color: [0.9, 1, 0.9], intensity: 1.2, shadows: true }],
+    lights: [{ kind: 'dir', v: [-0.3, -0.8, -0.5], color: [0.9, 1, 0.9], intensity: 1.2, shadows: true }],
     exposure: 1.4, contrast: 1, glow: false, nightVision: true,
   },
 ];
@@ -158,19 +234,100 @@ export interface CloseUp {
   zones: readonly KitZone[];
   /** Words that must appear in an item's `where` or `name` for it to be called out here (any); empty = the zone. */
   match: readonly string[];
+  /** Kit ids out of frame in this view, never called out (fix round 1, item 4). */
+  exclude?: readonly string[];
+  /** Kit ids from other zones that are in frame here, always called out when built (fix round 3, item 2). */
+  include?: readonly string[];
+  /** Suit zones (SUIT_FEATURES ids) visible in this view, called out when the suit build has them. */
+  suit?: readonly string[];
+  /** Light rig for this close-up (default: `detail`, or `detailRear` for views from behind). */
+  rig?: string;
+}
+
+/**
+ * Step 11 fix round 1 (item 4): the suit's built zones, which the kit data holds as one item ("Stealth suit"). Each is
+ * built when the suit's sim report has it: `inserts` = insert-name prefixes (details.inserts), `detail` = a key of
+ * details (or details.suit) that must be set. ART-DIRECTION 9.1 gives the jobs.
+ */
+export interface SuitFeature {
+  id: string;
+  name: string;
+  where: string;
+  job: string;
+  inserts?: readonly string[];
+  detail?: string;
+}
+
+export const SUIT_FEATURES: readonly SuitFeature[] = [
+  { id: 'shell', name: 'Suit shell', where: 'the whole suit outside the zones below', job: 'matte stretch-woven shell with a 1.6 mm tonal diamond micro-emboss that reads only at 0.3-1 m', detail: 'suit' },
+  { id: 'seams', name: 'Bonded, taped seams', where: 'every panel seam', job: 'an 8 mm bonded tape instead of stitching: smooth tension, silent, nothing to snag', detail: 'bonded' },
+  { id: 'zip', name: 'Chest zip and garage (suit)', where: 'diagonal, left of the collar to the right ribs; garage at the collar under the hood skirt', job: 'the suit closure; the garage hides the puller', detail: 'zip' },
+  { id: 'forearmGrip', name: 'Forearm grip panels', where: 'outer forearms, bonded into the sleeves', job: 'rubberised micro-pebble grip for crawling and wall contact', inserts: ['forearmGrip'] },
+  { id: 'kneeGrip', name: 'Knee grip panels', where: 'front of each knee, bonded into the legs', job: 'rubberised micro-pebble grip for kneeling and crawling', inserts: ['kneeGrip'] },
+  { id: 'elbow', name: 'Elbow abrasion panels', where: 'elbows, bonded into the sleeves', job: 'denser weave where the elbows take the wear', inserts: ['elbow'] },
+  { id: 'yoke', name: 'Shoulder yoke abrasion panels', where: 'shoulder yokes, under the harness straps', job: 'denser weave where the straps and wall contact rub', inserts: ['yoke'] },
+  { id: 'seat', name: 'Seat abrasion panels', where: 'seat, either side of the centre seam', job: 'denser weave for sitting, sliding and the rappel ring', inserts: ['seat'] },
+  { id: 'stretch', name: 'Stretch knit zones', where: 'inner elbows and rear shoulders', job: 'free movement for reaching and climbing', inserts: ['innerElbow', 'rearShoulder'] },
+  { id: 'underarmVent', name: 'Underarm vent panels', where: 'torso sides under the arms, front and back', job: 'laser-perforated (1.4 mm holes, 3.2 mm pitch, darker mesh behind) to dump heat', inserts: ['vent'] },
+  { id: 'kneeVent', name: 'Knee-back vent panels', where: 'backs of the knees', job: 'laser-perforated, dumps heat where the leg bends', inserts: ['kneeVent'] },
+  { id: 'thumbLoops', name: 'Thumb loops (suit)', where: 'sleeve ends, under the glove cuffs', job: 'keep the sleeves down when the arms reach', detail: 'thumbLoops' },
+];
+
+/** The suit features the build has (pure: `report` is the suit's sim.json, `materials` its exported material names). */
+export function builtSuitFeatures(report: { details?: Record<string, unknown> } | null, materials: readonly string[] = []): Set<string> {
+  const out = new Set<string>();
+  if (!report?.details) return out;
+  const d = report.details;
+  const suit = (d.suit ?? {}) as Record<string, unknown>;
+  const names = ((d.inserts ?? []) as { name: string }[]).map((i) => i.name);
+  for (const f of SUIT_FEATURES) {
+    if (f.inserts) {
+      if (f.inserts.some((p) => names.some((n) => n.startsWith(p)))) out.add(f.id);
+      continue;
+    }
+    if (f.detail === 'suit') out.add(f.id);
+    else if (f.detail === 'thumbLoops') { if (materials.some((m) => m.includes('thumb loop'))) out.add(f.id); }
+    else if (f.detail && (d[f.detail] || suit[f.detail])) out.add(f.id);
+  }
+  return out;
 }
 
 export const CLOSEUPS: readonly CloseUp[] = [
-  { id: 'head', label: 'Head, hood and goggle housing', joint: 'head', offset: [0, 0.02, 0.06], distance: 0.7, yaw: 0.35, pitch: 0.05, zones: ['head'], match: [] },
-  { id: 'neckRear', label: 'Hood rear, harness and battery', joint: 'head', offset: [0, 0, -0.05], distance: 0.7, yaw: Math.PI - 0.4, pitch: 0.1, zones: ['head'], match: ['rear', 'battery', 'hood'] },
-  { id: 'chestFront', label: 'Chest rig, front', joint: 'chest', offset: [0, 0.02, 0.1], distance: 0.9, yaw: 0.25, pitch: 0.05, zones: ['torso'], match: ['front', 'chest', 'shirt', 'zip', 'collar'] },
-  { id: 'chestRear', label: 'Chest rig, rear', joint: 'chest', offset: [0, 0.02, -0.1], distance: 0.9, yaw: Math.PI - 0.25, pitch: 0.05, zones: ['torso'], match: ['back', 'rear', 'rifle'] },
-  { id: 'shoulder', label: 'Shoulder strap and buckle', joint: 'shL', offset: [-0.02, 0.04, 0], distance: 0.6, yaw: -0.6, pitch: 0.2, zones: ['torso'], match: ['shoulder', 'strap', 'arm', 'sleeve', 'elbow'] },
-  { id: 'handPalm', label: 'Hand and glove, palm', joint: 'wrR', offset: [0, -0.07, 0.03], distance: 0.4, yaw: 0.3, pitch: -0.2, zones: ['hands'], match: [] },
-  { id: 'handBack', label: 'Hand and glove, back', joint: 'wrL', offset: [0, -0.07, 0], distance: 0.4, yaw: -0.6, pitch: 0.4, zones: ['hands'], match: [] },
-  { id: 'belt', label: 'Belt and holster', joint: 'pelvis', offset: [0.12, 0, 0.04], distance: 0.8, yaw: 0.9, pitch: 0.05, zones: ['belt', 'legs'], match: [] },
-  { id: 'knee', label: 'Knee', joint: 'knR', offset: [0.02, 0, 0.06], distance: 0.6, yaw: 0.4, pitch: 0.05, zones: ['legs'], match: ['knee', 'trouser'] },
-  { id: 'boots', label: 'Boots and soles', joint: 'anL', offset: [0, -0.06, 0.08], distance: 0.7, yaw: -0.7, pitch: -0.1, zones: ['feet'], match: [] },
+  // Lab frame (fix round 1, A80): the figure faces +Z with its RIGHT on +X, so a camera yaw > 0 looks at its LEFT side
+  // and yaw < 0 at its right side.
+  // fix round 3 (item 2): the earpiece sits in the ear under the hood and balaclava and is never visible, so no close-up
+  // calls it out (its cable shows on collar and ptt); each list names only what its own frame shows (the cable runs
+  // under the hood skirt and the balaclava above the collar, so head and neckRear leave it out).
+  { id: 'head', label: 'Head, hood and goggle housing', joint: 'head', offset: [0, 0.02, 0.06], distance: 0.7, yaw: 0.35, pitch: 0.05, zones: ['head'], match: [], exclude: ['batteryPack', 'earpiece', 'earpieceCable'], suit: [] },
+  { id: 'neckRear', label: 'Hood rear, harness and battery', joint: 'head', offset: [0, 0, -0.05], distance: 0.7, yaw: Math.PI - 0.4, pitch: 0.1, zones: ['head'], match: ['rear', 'battery', 'hood'], include: ['goggleBand', 'goggleCable'], exclude: ['earpiece', 'earpieceCable'], suit: [] },
+  { id: 'chestFront', label: 'Chest rig, front', joint: 'chest', offset: [0, 0.02, 0.1], distance: 0.9, yaw: 0.25, pitch: 0.05, zones: ['torso'], match: ['front', 'chest', 'shirt', 'zip', 'collar'], exclude: ['backPlate', 'radio', 'weaponMount', 'ptt'], suit: ['shell', 'seams', 'yoke'] },
+  { id: 'chestRear', label: 'Chest rig, rear', joint: 'chest', offset: [0, 0.02, -0.1], distance: 0.9, yaw: Math.PI - 0.25, pitch: 0.05, zones: ['torso'], match: ['back', 'rear', 'rifle'], exclude: ['magPouches', 'gadgetSlot', 'knife', 'suitZip'], suit: ['shell', 'seams', 'stretch', 'yoke'] },
+  // fix round 2 (item 2): from above and left of the left shoulder: the strap's run from behind the shoulder over its top
+  // down to the chest-plate tab and its magnetic buckle, with the PTT, the radio and earpiece cables on the strap
+  { id: 'shoulder', label: 'Shoulder strap and buckle', joint: 'shL', offset: [0.02, 0.02, 0.03], distance: 0.7, yaw: 1.0, pitch: 0.75, zones: ['torso', 'head'], match: ['shoulder', 'buckle'], exclude: ['knife', 'magPouches', 'gadgetSlot'], suit: ['yoke', 'shell', 'seams'] },
+  { id: 'handPalm', label: 'Hand and glove, palm', joint: 'wrR', offset: [0, -0.07, 0.03], distance: 0.4, yaw: 0.3, pitch: -0.2, zones: ['hands'], match: [], suit: [] },
+  { id: 'handBack', label: 'Hand and glove, back', joint: 'wrL', offset: [0, -0.07, 0], distance: 0.4, yaw: -0.6, pitch: 0.4, zones: ['hands'], match: [], suit: [] },
+  { id: 'belt', label: 'Belt and holster hanger, front right', joint: 'pelvis', offset: [0.12, -0.04, 0.05], distance: 0.85, yaw: -0.75, pitch: 0.1, zones: ['belt', 'legs'], match: [], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket', 'camMinePouch', 'sleevePanel', 'throwableSleeves', 'sleeveHanger'], suit: ['shell'] },
+  { id: 'knee', label: 'Knee', joint: 'knR', offset: [0.02, 0, 0.06], distance: 0.6, yaw: 0.4, pitch: 0.05, zones: ['legs'], match: ['knee', 'trouser'], suit: ['kneeGrip', 'shell', 'seams'] },
+  { id: 'boots', label: 'Boots and soles', joint: 'anL', offset: [0, -0.06, 0.08], distance: 0.7, yaw: -0.7, pitch: -0.1, zones: ['feet'], match: [], suit: [] },
+  // Step 11: Wren's review close-ups (A2, D22-D25)
+  { id: 'collar', label: 'Collar, zip garage and hood skirt', joint: 'neck', offset: [0, -0.02, 0.07], distance: 0.45, yaw: 0.35, pitch: 0.12, zones: ['head', 'torso'], match: ['collar', 'zip', 'hood', 'neck', 'balaclava', 'earpiece'], exclude: ['headHarness', 'earpiece'], suit: ['zip', 'shell'] },
+  { id: 'ribsSide', label: 'Rib segments from the side', joint: 'chest', offset: [0.1, -0.1, 0.06], distance: 0.55, yaw: -1.2, pitch: 0.05, zones: ['torso'], match: ['rib', 'chest plate', 'side strap'], exclude: ['backPlate', 'radio', 'weaponMount', 'suitZip', 'magPouches', 'gadgetSlot', 'knife'], suit: ['shell', 'seams', 'underarmVent'] },
+  { id: 'backPlate', label: 'Back plate: radio, cable and mount point', joint: 'chest', offset: [0, 0.02, -0.1], distance: 0.75, yaw: Math.PI - 0.15, pitch: 0.12, zones: ['torso'], match: ['back', 'radio', 'mount', 'antenna'], suit: ['shell', 'stretch', 'yoke'] },
+  { id: 'ptt', label: 'Left shoulder: PTT and both cables', joint: 'shL', offset: [0.04, -0.04, 0.06], distance: 0.5, yaw: -0.45, pitch: 0.25, zones: ['torso', 'head'], match: ['ptt', 'shoulder', 'cable', 'earpiece'], exclude: ['goggleCable', 'earpiece'], suit: ['yoke'] },
+  // fix round 3 (item 2): the belt's magnetic closure (a torso-zone kit item) is in frame and called out
+  { id: 'beltFront', label: 'Belt, front', joint: 'pelvis', offset: [0, 0.03, 0.1], distance: 0.75, yaw: 0.15, pitch: 0.1, zones: ['belt'], match: [], include: ['magBuckle'], exclude: ['rappelRing', 'dronePod', 'medPouch', 'slingSocket'], suit: ['shell'] },
+  // fix round 3 (item 2): the left hip from its side, where the sling socket sits on the belt between the cam pouch and
+  // the drone pod (hidden behind the cam pouch from the front)
+  { id: 'hipL', label: 'Left hip: cam pouch, sling socket and drone pod', joint: 'pelvis', offset: [-0.15, 0.02, 0], distance: 0.6, yaw: 1.45, pitch: 0.1, zones: ['belt'], match: ['left hip', 'rear left'], suit: ['shell'] },
+  { id: 'beltBack', label: 'Belt, back: rappel ring, pod and medkit', joint: 'pelvis', offset: [0, 0.03, -0.1], distance: 0.75, yaw: Math.PI, pitch: 0.12, zones: ['belt'], match: ['back', 'rear', 'rappel'], suit: ['seat', 'shell'] },
+  { id: 'thighR', label: 'Right thigh: the empty holster', joint: 'hipR', offset: [0.12, -0.18, 0.01], distance: 0.85, yaw: -1.3, pitch: 0.05, zones: ['legs'], match: ['holster', 'right', 'band', 'hanger'], exclude: ['sleeveHanger', 'sleevePanel', 'throwableSleeves'], suit: ['shell'] },
+  { id: 'thighL', label: 'Left thigh: throwable sleeves and caps', joint: 'hipL', offset: [-0.01, -0.16, 0.07], distance: 0.6, yaw: -0.35, pitch: 0.1, zones: ['legs'], match: ['sleeve', 'left', 'band', 'panel'], exclude: ['thighHolster', 'holsterHanger'], suit: ['shell'] },
+  { id: 'forearm', label: 'Forearm grip panel', joint: 'elL', offset: [0, -0.1, 0.02], distance: 0.5, yaw: 0.7, pitch: 0.15, zones: ['torso', 'hands'], match: ['grip', 'forearm', 'thumb'], suit: ['forearmGrip', 'elbow', 'stretch', 'seams'] },
+  { id: 'underarm', label: 'Underarm vent and side strap', joint: 'shR', offset: [-0.04, -0.17, 0.01], distance: 0.65, yaw: -1.35, pitch: -0.15, zones: ['torso'], match: ['vent', 'side strap', 'underarm'], suit: ['underarmVent', 'shell', 'seams'] },
+  // fix round 2 (item 5): the belt's flush magnetic closure at about 0.3 m (gunmetal halves, split line, rubber edge),
+  // seen from the mirror direction of the detailFront key (from below left), where the satin lobe peaks
+  { id: 'buckle', label: 'Belt closure: magnetic buckle', joint: 'pelvis', offset: [0.01, 0.03, 0.12], distance: 0.3, yaw: 0.3, pitch: -0.4, zones: ['torso', 'belt'], match: ['buckle', 'waist belt', 'pistol magazine'], suit: [], rig: 'detailFront' },
   { id: 'harness', label: 'Climbing harness and hardware (Moth)', joint: 'pelvis', offset: [0, 0, 0.08], distance: 0.9, yaw: 0.3, pitch: 0.05, zones: ['climbing'], match: [] },
 ];
 
@@ -210,9 +367,24 @@ export function calloutsFor<T extends { id: string; zone: string; where: string;
   items: readonly T[], built: ReadonlySet<string>, c: CloseUp,
 ): T[] {
   return items.filter((i) => {
-    if (!built.has(i.id) || !c.zones.includes(i.zone as KitZone)) return false;
+    if (!built.has(i.id) || c.exclude?.includes(i.id)) return false;
+    if (c.include?.includes(i.id)) return true;
+    if (!c.zones.includes(i.zone as KitZone)) return false;
     if (c.match.length === 0) return true;
     const text = `${i.where} ${i.name}`.toLowerCase();
     return c.match.some((m) => text.includes(m));
   });
+}
+
+/**
+ * Step 11 (D27): every KTX2 decoder URL that would leave the page (absolute http(s) on another origin, e.g. Babylon's
+ * cdn.babylonjs.com defaults). Empty means the decoder runs from bundled files only. Pure, tested.
+ */
+export function ktx2RemoteUrls(urls: Readonly<Record<string, unknown>>, origin: string): string[] {
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(urls)) {
+    if (typeof v !== 'string' || !v) continue;
+    if (/^(https?:)?\/\//i.test(v) && !v.startsWith(`${origin}/`)) out.push(`${k}=${v}`);
+  }
+  return out;
 }

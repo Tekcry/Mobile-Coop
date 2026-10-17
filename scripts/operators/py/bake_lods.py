@@ -1234,7 +1234,7 @@ for lod, r in report['lods'].items():
                  f'{r["textureMB"]["bc7MB"]} | {r["skinJoints"]} ({r["weightedJoints"]}) | '
                  f'{", ".join(f"{k}->{v}" for k, v in r["anchors"].items())} | {r["glbMB"]} |')
 lines += ['', 'KTX2 (Basis UASTC, BC7 on desktop / ASTC on the phone at transcode), one command from the repo root '
-          '(needs KTX-Software `toktx`, not installed: OPEN, Michael\'s OK first):', '', '```sh', KTX, '```', '']
+          '(scripts/operators/ktx2.mjs runs it next and replaces this paragraph with the measured table, step 11):', '', '```sh', KTX, '```', '']
 with open(os.path.join(EXP, 'README.md'), 'w', encoding='utf-8') as fh:
     fh.write('\n'.join(lines))
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, f'{op_id}-lods.blend'), compress=False)

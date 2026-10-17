@@ -706,8 +706,10 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
   where the left-front collar is low. It predates round 3; round 3's lower skirt made it visible (`wren-head_kit-f`).
   Round 3's MUST items passed (band in use 2.0 mm, stowed 2.5 mm; nape clean); the twelfth check view is legitimate
   (A30). operators:check 7 items pass; npm run check passes.
-- Status: OPEN after 3 fix rounds; evidence: steps/07-fixes-r4.md; remaining: the earpiece cable route through the neck
-  (MUST); follow-ups 3 (behind-ear crease), 4 (rear channel smear), 6 (darkness glow spill), 7 (Moth kit text for step
+- Status: CLOSED at the Wren block end (step 11): the earpiece cable route was fixed in step 09 and confirmed by step
+  09's checker (PTT at the left collarbone, cable up the left of the neck; seen again in step 11's collar and ptt
+  close-ups); the mid-grey close-ups are fixed (A78). Was: OPEN after 3 fix rounds; evidence: steps/07-fixes-r4.md;
+  remaining: the earpiece cable route through the neck (MUST); follow-ups 3 (behind-ear crease), 4 (rear channel smear), 6 (darkness glow spill), 7 (Moth kit text for step
   13); near-black materials render mid grey in close-ups. Retried at the Wren block end (after step 11).
 
 ## Step 08 - Wren: plate carrier, harness and belt (Opus 5.5)
@@ -750,6 +752,7 @@ bodies and the first garment test, Opus 5.5). `RUNBOOK.md` holds every step's mo
 - Checker round 1: FAIL (steps/08-fixes-r1.md): front plate stands up to 58 mm off the chest (MUST), shirt shows no
   compression or puff beside the straps and cummerbund (MUST), inner belt up to 8.3 mm into the trousers, cummerbund
   ripple. operators:check 9 items pass; npm run check passes; the `--only` filter is accepted (selects items only).
+- Block end (step 11): superseded by D22-D24; not retried (ART-DIRECTION 9.3).
 - Status: OPEN, superseded by D22 (Michael's stealth-operative direction, before any fix round): not fixed, because the
   carrier and belt are expected to be replaced. The generators (`torso_common.py`, `carrier.py`, `belt.py`) and the
   `--only` filter are committed for reuse.
@@ -1384,3 +1387,215 @@ the session scratchpad r3/ (crotch_probe.py, profile.py, neck_probe.py; quick re
   short knife clip on LOD2 / phone; carried: LOD2 / phone head shell, radio blotch, hero bones 63, helper joints,
   per-LOD shadow normalBias, the phone never fetching `*-hero*`. KTX2 is step 11's first task (D26, A73 open).
 
+## Step 11 - Wren: full render set and self-review pass (Opus 5.5)
+- KTX2 (step 10 carry-over, D26; A73 closed, A79): `scripts/operators/ktx2.mjs` (`npm run operators:ktx2`, the last
+  stage of `operators:lods`): toktx UASTC q2 + Zstd 18 with mips (albedo sRGB, normal normalised and ORM linear),
+  `ktx validate`, a level-0 decode with `ktx extract` (PSNR into report.json; the decoded PNG kept for the Lab), GLBs
+  repacked with `KHR_texture_basisu` (required; no WebP / PNG left), Lab copies refreshed, report.json `ktx2` and the
+  export README table. Check: lodChecks `ktx2Check` + check.mjs (`ktx2` PASS on all five LODs) + 3 new unit tests
+  (non-KTX2 fails, repack round trip through the Lab reader, the Lab transcoder file map). check.mjs judges render
+  staleness by the Blender export time the repack keeps (`ktx2.sourceGlbMs`).
+- Costs (report.json `ktx2`): VRAM BC7 / ASTC 96 / 32 / 8 / 4 / 1 MB (hero / LOD0 / LOD1 / LOD2 / phone; RGBA8 from
+  WebP would be 384 / 128 / 32 / 16 / 4); KTX2 on disk 38.3 / 14.5 / 3.6 / 1.8 / 0.55 MB; GLB 25.3 -> 55.3, 6.6 -> 18.0,
+  1.9 -> 4.7, 0.8 -> 2.2, 0.6 -> 1.0 MB; PSNR 35.5-60.1 dB. RDO lambda 1 would cut about 21 % on disk (not used).
+- Lab: `src/operators/lab/ktx2.ts` points KhronosTextureContainer2 (exported from core/babylon.ts) at `vendor/ktx2/*`
+  through `?url` - no CDN. [Superseded by fix round 1 (D27): `@babylonjs/ktx2decoder` installed, Babylon transcodes
+  KTX2 on the GPU; the rest of this item is the first pass.] OPEN (A79): Babylon's decoder files (babylon.ktx2Decoder.js, uastc_bc7 / uastc_astc /
+  uastc_rgba8_unorm_v2 / uastc_rgba8_srgb_v2 wasm, zstddec.wasm, from the Babylon release matching @babylonjs/core,
+  Apache 2.0) are not on the PC or in node_modules and the run may not download: Michael's OK needed. Until then the
+  Lab draws each KTX2 texture as the reference transcoder decoded it; every LOD loads and renders on the RTX 4090 that
+  way (wren-sheet-lods.webp, wren-sheet-lods-closeups.webp, labelled "KTX2, decoded"); Babylon's own transcode is not
+  yet seen on the GPU. Phones still load only the phone LOD.
+- Mid-grey close-ups (OPEN since 05): fixed, A78. Cause 1: the Lab source export flattened only the step 05-07
+  materials; the suit zones, composite, rubber trim, gunmetal, elastic and pod exported glTF's default 0.8 base
+  colour. Now every material has its measured (or garment) albedo and roughness (no Lab material above 0.1). Cause 2:
+  the raking rig's exposure; the close-ups use the calibrated `detail` rig (`detailRear` for views from behind).
+  Lit-figure sRGB medians now 0.18-0.27 (collar 0.18, ptt 0.20, back plate 0.21, left thigh 0.27). [Superseded by fix
+  round 2 item 4: measured on an operator mask, the close-up medians are 0.05-0.13.] Materials, check
+  limits and the `raking` rig unchanged. tests/operatorLab.test.ts lists the three new rigs after the BRIEF's six.
+- Sheets (E2E_GPU=1, ANGLE D3D11 on the RTX 4090 Laptop GPU): 30 in docs/operators/mockups/wren/ [superseded: 32
+  after ktx2-compare (fix round 1) and closeup-buckle (fix round 2)]: turnaround, menu,
+  context, compare, lods, lods-closeups, wireframe, colourblind, the new rim-silhouette and goggle (in use from the
+  Lab; stowed from the step 09 chain's Cycles renders, labelled), and 20 close-ups (head, neckRear, chestFront,
+  chestRear, shoulder, handPalm, handBack, belt, knee, boots, and new collar, ribsSide, backPlate, ptt, beltFront,
+  beltBack, thighR, thighL, forearm, underarm).
+- Self-review (SPEC 1 checklist, render check 1-7, the 9.2 table), judged by eye on collar, ptt, backPlate,
+  chestFront, thighL, rim-silhouette and lods: every called-out item has anchors / contents / route / job in the
+  callouts; the 9.2 loadout is carried (rifle mags, gadget slot and knife on the plate, PTT at the left collarbone,
+  radio in the back plate recess with its cable over the left strap, weapon mount receiver on the spine, empty holster
+  right thigh, three double sleeves left front thigh, pod / medkit / rappel ring at the belt back) and nothing else;
+  1 the silhouette reads under the rims (head with optic, plate shoulder line, holster and sleeves); 2 fabric matte;
+  3 suit shell / seam tape / plate / rubber trim / gunmetal separate by value step, relief and sheen; 4 taped seams,
+  no stitching on the suit; 5-7 nothing shiny, loose or snagging seen. No fix needed a garment rebuild.
+- [Superseded: the zip callout is fixed (fix round 1 item 4, round 2 item 3), the rim glow wash (round 1 item 3,
+  round 2 item 1), the thighL caps are in frame (round 1; small, a note) and the lods sheet reads at 7 m (round 2
+  verdicts).] OPEN (sheets, not fixed): the close-up callouts list "Suit chest zip: not built yet" although the zip, slider and
+  garage are built and visible (collar, chestFront): builtKit() reads only sim.json kit / patch ids; the thighL framing
+  cuts the sleeve caps at the frame's top right; the rim sheet's goggle glow light (a Lab point light) washes the back
+  green in the 3/4 back view; the Hollowmere 7 m LOD sheet is too dark to judge maps.
+- Rendered but not reviewed by eye this step (left for the checker): beltFront, beltBack, thighR, forearm, underarm,
+  ribsSide, knee, boots, neckRear, chestRear, shoulder, hands, head, goggle, turnaround, menu, context, compare,
+  wireframe, colourblind.
+- Step 10 OPEN items as the sheets show them: the LOD1 chest notch shows only in the Cycles bake renders
+  (operators:check FAIL, 36 px > 24, unchanged); the LOD0 toe streaks are not visible at the lods sheet's 7 m. Step
+  08a OPEN items: not re-judged.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` exit 1, "1 failed check(s)": `wren lod1 FAIL bakeDiff: ["chest:
+  36 px at 404,347 > 24"]` (step 10, expected); every item and every other LOD check PASS incl. `ktx2` x5; FLAG hero
+  bones 63. `npm run check` PASS (exit 0; 75 test files, 788 tests; lint 0 errors, 38 warnings; build OK).
+
+### Step 11 - Fix round 1 (fixer, Opus 5.5; fix list steps/11-fixes-r1.md)
+- Root cause found on the way (A80): the Lab reader flipped the triangle winding on top of the x mirror, so every
+  visible face was a back face and two-sided lighting lit it from inside (every light acted from -v). Measured: rim
+  rig front sRGB 0.13 -> 0.03 with two-sided lighting off. glb.ts keeps the glTF index order (unit test updated);
+  labData.ts documents the frame (figure faces +Z, its right on +X, yaw > 0 views its left) and re-aims every rig.
+- 1 DONE. Close-ups render the hero LOD (`lod: 'hero'`, KTX2 through Babylon); captions say so. New finding: the hero
+  bake shows blotchy light / dark patches on the suit (forearm, thighR, rim 3/4 back) - in the step 10 bake itself,
+  not the transcode (Babylon vs reference decode 0.08 / 255); with the source LOD they were hidden. OPEN, step 10
+  block-end retry (bake), not a Lab fix.
+- 2 DONE (yaw signs). thighR (yaw -1.3, 0.85 m): holster mouth, shell, platform, leg bands and the hanger fill the
+  frame. underarm (yaw -1.35, pitch -0.15): arm, vent zone and the 22 mm side strap with its buckle. ribsSide (yaw
+  -1.2): chest plate and the three rib segments overlapping in profile. belt: front right with the holster hanger.
+  shoulder (yaw +0.35, left side): strap over the shoulder to the chest-plate tab. forearm now the left arm's outer side.
+- 3 DONE. Rim rig (hero LOD): back rims only, goggle spill light off (`glowLight: false`, labelled), lenses glow. Lit
+  figure median 0.06 in every view (front p90 0.06); edges at head, optic, plate line, holster and sleeves read but
+  are thin in Front / 3/4 front; 3/4 back is lit by the rims as expected.
+- 4 DONE. Suit zones from the suit sim report (`SUIT_FEATURES`, `builtSuitFeatures`, unit-tested: shell, seams, zip,
+  forearm / knee grip, elbow / yoke / seat abrasion, stretch, underarm / knee-back vents, thumb loops); suitZip and
+  thumbLoops count as built; per close-up `suit` and `exclude` lists (beltFront no longer lists the back items); no
+  "bare mannequin" or "not built" for built items.
+- 5 DONE in the Lab, partly judged. Generated studio environment (`studioEnv()`, ReflectionProbe of emissive boxes,
+  no file, no network) on studio / detail / detailRear / figure; materials.py and limits unchanged (A78). The metal
+  snaps on the belt pouch show a highlight (forearm sheet); the buckle split lines were not judged by eye this round.
+- 6 DONE. `figure` rig for turnaround and compare (grey card sRGB 0.50, no bloom): Wren reads near black and darker
+  than the game operator, whole figure in frame; compare no longer claims moth is built. A78, the labData comment and
+  every caption now print the measured grey card (`lab.greyCard()`; detail 0.49, figure 0.50).
+- KTX2 (D27): `@babylonjs/ktx2decoder@9.29.0` installed (npm, carries every wasm; nothing from a CDN). Lab uses real
+  KTX2, Babylon transcode on the GPU, flipped in the texture matrix (Babylon 9.29 does not compensate KTX2 for
+  invertY). Babylon vs reference decode, mean abs difference per LOD: hero 0.08, LOD0 0.07, LOD1 0.12, LOD2 0.13, phone
+  0.14 (/255; `wren-sheet-ktx2-compare.webp`). Game bundle: `babylon-*.js` still holds the CDN default string (Babylon's
+  built-in .ktx2 loader pulls the class in), unreachable: core/babylon.ts blanks `URLConfig.jsDecoderModule` at import
+  (`URLConfig.jsDecoderModule=""` in the index chunk); no decoder or wasm in dist. A79, D27, DESIGN.md, art-credits.
+- 7 PARTLY. Verdicts by eye (render check 1-7 / SPEC 1):
+  - rim-silhouette: PASS 1 (near black front, glow on lenses only); edges thin; 3/4 back shows the bake blotches.
+  - compare: PASS 6 (near black, darker than the navy game operator, plates a hair lighter).
+  - closeup-thighR: PASS (holster, mouth, bands, hanger); FAIL 3 (bake blotches on the thigh).
+  - closeup-underarm: PASS subject (side strap, buckle, vent zone); the vent perforation does not read at 0.65 m.
+  - closeup-ribsSide: PASS subject (three segments lapping in profile).
+  - closeup-forearm: subject PASS; FAIL 3 (grip panel reads as blotchy patches, the bake).
+  - closeup-shoulder (pre-tune render): strap over the shoulder shown; final framing not re-judged.
+  - Rendered on the RTX 4090 this round, not judged by eye (budget): turnaround, menu, context, lods, lods-closeups,
+    ktx2-compare (numbers above), wireframe, colourblind, goggle, and close-ups head, neckRear, chestFront, chestRear,
+    handPalm, handBack, belt, knee, boots, collar, backPlate, ptt, beltFront, beltBack, thighL. OPEN for round 2.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren`: "1 failed check(s)", `wren lod1 FAIL bakeDiff: ["chest: 36 px
+  at 404,347 > 24"]` (step 10, expected); every other item / LOD check PASS incl. `ktx2` x5; FLAG hero bones 63.
+  `npm run check` PASS (75 files, 790 tests; lint 0 errors, 38 warnings; build OK). A second run after the last
+  data-only change (close-up framing, thumb-loop callouts) had 4 timeouts at 5 s in files this round does not touch
+  (detailPass, pvp, voxel x2) while the machine was loaded; the three files pass when re-run (25 / 25); the operator
+  test files pass (29 / 29); lint 0 errors. Port 4191 free.
+
+### Step 11 - Fix round 2 (fixer, Opus 5.5; fix list steps/11-fixes-r2.md)
+Lab and sheet fixes only (src/operators/lab/*, scripts/operator-sheet.mjs, labData, tests/operatorLab.test.ts, docs);
+no garment module, pipeline or build/operators/wren change (D28 / step 11b pending). Full set re-rendered on the RTX
+4090 (E2E_GPU=1, ANGLE D3D11): 32 sheets (new: closeup-buckle).
+- 1 DONE. The goggle spill light excludes every operator mesh and the grey human (`glowLight.excludedMeshes`): it
+  lights only the scene ahead. Goggle: housing keeps its value, no white blow-out; colourblind / menu / lods / context:
+  no green flood or halo over the head. Darkness rig fill 0.4 x sky 0.12-0.25, so a faint silhouette reads behind the
+  two lenses (goggle, context 20 m). Stale "stand-in" captions gone (colourblind, context). A80.
+- 2 DONE. shoulder: from above and left (yaw 1.0, pitch 0.75, 0.7 m), the left strap from behind the shoulder over its
+  top down to the chest-plate tab and buckle, with the PTT and both cables. Callouts now list the PTT, radio cable and
+  earpiece cable, which this frame shows.
+- 3 DONE. chestRear excludes the front items (mags, gadget slot, knife, zip); ribsSide excludes zip, mags, gadget
+  slot, knife; a suit zone that is also a kit item (zip, thumb loops) is called out once, as the kit item (collar now
+  one zip entry). Checked against each final frame in the montage review below.
+- 4 DONE. `figureStats` uses an operator mask (`lab.maskShot()`: material-id colours on black, floor / backdrop / grey
+  human / scale bar hidden). Rim rig: flatter side rims 3.6 + a rim from above behind 2.5: masked Front median 0.00
+  (p90 0.30), 3/4 front 0.07 (p90 0.26); bright edges at head and optic, shoulder line, sleeves, holster; Side 0.19
+  and 3/4 back 0.32 are lit by the rims as a back rig must. Close-up captions re-measured: masked medians 0.05-0.13.
+- 5 PARTLY. New `buckle` close-up (belt closure, 0.3 m, rig `detailFront`, seen from the key's mirror direction);
+  metals (hardware set) take env intensity 1; studio env gains a 6 x 4 m front panel. The two gunmetal halves, the
+  0.7 mm split line and the rubber edge read (detail-read panel: halves a step lighter than the belt and base); the
+  satin highlight is a broad sheen, no hot spot, at base colour 0.051 (F0 5 %). Other buckles: thin edge highlights
+  only. Not the Lab any more but the material's value (materials.py, out of scope here): left open. A78.
+- 6 DONE. Every close-up has a labelled +2 EV detail-read panel of the same view and LOD (`lab.setExposureBoost`).
+  Per-zone judgement in the verdicts below.
+- 7 DONE (fix). Cause: shadow acne (A80): faces turned to the key shadowed themselves at bias 0.0008. Diagnosis
+  (`operators:sheet -- --only diag`, masked medians front / back): baseline front legs 0.02 / back 0.07; no shadows
+  0.08 / 0.07; sheen, normal maps, environment off: no change. Bias 0.004: Front torso 0.10 / legs 0.08, 3/4 front
+  0.08 / 0.06, Side 0.07 / 0.07, 3/4 back 0.08 / 0.07, Back 0.07 / 0.07; grey sphere in her place: front 0.40, back
+  0.32. Printed on the turnaround. The fix also lifts every key-lit close-up.
+- 8 DONE. Wireframe footer prints, per LOD from report.json: triangles, draws, texture sets (cloth / kit / hardware),
+  sizes, KTX2 disk MB, VRAM (BC7 / ASTC and RGBA8 fallback), GLB MB; chest wire tile uses LOD0. Lab `stats()` no
+  longer says "baked maps arrive in step 10".
+- 9 Verdicts (by eye on the round 2 renders; render check 1-7 / SPEC 1). "Bake" = the step 10 hero ORM confetti.
+  - turnaround: PASS 1, 6 (near black, key side brighter after item 7; whole figure in frame).
+  - menu: PASS (no green flood; figure reads mid-dark under the menu rig; strips hold detail); note: last strip
+    column cut by the right edge.
+  - context: PASS 1 (Hollowmere: sodium vs moon; darkness 20 m: faint silhouette and the two lenses only).
+  - compare: PASS 6 (Wren darker than the navy game operator); moth tile waits (not built).
+  - lods: PASS (every LOD loads, KTX2, readable at 7 m). lods-closeups: OPEN (LOD1 / LOD2 / phone mid grey, step 10).
+  - ktx2-compare: PASS (Babylon vs reference 0.11-0.14 / 255).
+  - wireframe: PASS (costs measured; LOD0 wire reads). [Superseded by fix round 3 item 1: that render drew no wire.]
+  - colourblind: PASS (lens glow only; green moves to yellow in protan / deutan, distinct from sodium by hue / value).
+  - goggle: PASS 1, 5 (housing its own value; darkness: lenses and faint silhouette; stowed from Cycles, labelled).
+  - rim-silhouette: PASS 1 (Front / 3/4 front near black with edges at head, optic, shoulder line, holster, sleeves).
+  - closeup-head: PASS 3, 4 (housing, hood, harness, brow plate separate in detail read).
+  - closeup-neckRear: PASS (pod, crown straps, band; detail read shows the hood seams); bake on the neck.
+  - closeup-collar: PASS 4 (zip and garage, hood skirt, earpiece cable; one zip callout); bake on the shoulder.
+  - closeup-chestFront: PASS 2, 3, 4 (plate, mags, gadget slot, knife, ribs, seam tape separate in detail read).
+  - closeup-chestRear: PASS (back plate, radio recess, mount, straps; callouts match the frame); 08a lumbar patch.
+  - closeup-ribsSide: PASS (three segments lapping, side strap, vent zone); vent holes do not resolve (bake texel).
+  - closeup-backPlate: PASS (radio in the recess, cable, mount bar with keyholes); 08a lumbar patch.
+  - closeup-shoulder: PASS (item 2 subject in frame).
+  - closeup-ptt: PASS (PTT on the strap, both cables plug into its top).
+  - closeup-handPalm: PASS 3 in detail read (palm darker, glossier leather vs back); wrist tab small.
+  - closeup-handBack: FAIL 3 (bake: confetti over the stretch back); shape and wrist tab read.
+  - closeup-forearm: subject PASS (pouch snap highlight, belt); FAIL 3 (grip panel = bake confetti).
+  - closeup-underarm: PASS subject (vent zone, side strap, buckle); vent holes do not resolve (bake texel); bake.
+  - closeup-belt: PASS (hanger, holster mouth, belt); 08a crotch patch.
+  - closeup-beltFront: PASS (belt, closure, pistol mag pouch, cam pouch); closure flat dark (item 5).
+  - closeup-beltBack: PASS (pod, medkit, belt); rappel ring bow does not read (note).
+  - closeup-buckle: PARTLY (item 5).
+  - closeup-thighR: PASS (empty holster, mouth, bands, hanger); bake on the thigh.
+  - closeup-thighL: PASS (panel, three double sleeves, caps, bands); caps small (note).
+  - closeup-knee: FAIL 3 (knee grip panel not identifiable: bake confetti over the knee); band buckle reads.
+  - closeup-boots: PASS shape (rand, lugs, collar, laces); FAIL 3 (bake: glossy patches on the upper).
+  Loadout (9.2): every game item has its place, nothing else carried (unchanged since the implementer's review).
+- Checks: `npm run check` PASS (exit 0; 75 files, 790 tests; lint 0 errors, 38 warnings; build OK), run after the
+  full sheet run; the last change after it is data only (rim intensities, rim sheet re-rendered). operators:check not
+  re-run: no pipeline or build change this round (still expected: `wren lod1 FAIL bakeDiff: chest 36 px > 24`).
+
+### Step 11 - Fix round 3 (fixer, Opus 5.5; fix list steps/11-fixes-r3.md)
+Lab, sheet script, tests and docs only; no garment, materials.py, pipeline or build/operators/wren change (D28 / D29
+and the gunmetal value are step 11b). Re-rendered on the RTX 4090 (E2E_GPU=1, ANGLE D3D11): wireframe and the
+close-ups head, neckRear, collar, chestFront, ptt, beltFront and the new hipL (33 sheets now).
+- 1 DONE. Cause: `lab.load()` builds fresh (solid) materials and the sheet's render() calls `setDebug` only when the
+  view changes, so after the first LOD every tile of the strip and the chest tile drew shaded. load() now re-applies
+  the current debug view. WebGL does not cull lines, so a bare wire showed every layer through the figure: the wire
+  view adds a flat near-black underlay (clones sharing geometry and skeleton, zOffset 2), so only the edges of the
+  surfaces facing the camera show. Verdict (by eye): wireframe PASS - LOD0, LOD1, LOD2 and phone show their triangle
+  edges; the chest tile shows LOD0's wire over the plate, rib segments and pouches; source (2.5 M) and hero read dense.
+- 2 DONE. Callouts per frame (labData `include` / `exclude`, unit-tested): the earpiece (in the ear under the hood and
+  balaclava) is never called out; its cable is on collar and ptt, not head or neckRear (under the skirt and
+  balaclava there). head: no battery pod. collar: no head harness (only the chin is in frame). chestFront: no PTT
+  (above the frame's top edge). beltFront: the magnetic closure is called out (`include: magBuckle`). The sling socket
+  is hidden behind the cam pouch from the front, so a new close-up `hipL` (left hip from the side, 0.6 m) shows it
+  between the cam pouch and the drone pod; DESIGN.md's loadout table names hipL for the sling socket (and adds it for
+  the cam pouch and the pod). neckRear adds the goggle band and cable, which it shows.
+  Verdicts (by eye): head, neckRear, collar, chestFront, ptt, beltFront, hipL: PASS (each list names only what its
+  frame shows; the sling socket's flush QD socket on its boss reads in hipL).
+- 3 DONE. The implementer's superseded lines are marked (KTX2 decoder OPEN, the 0.18-0.27 medians, 30 sheets, the
+  "OPEN (sheets, not fixed)" item) and the round 2 wireframe verdict. STATE.md: step 11b list with the gunmetal target.
+- Checks: `npm run check` PASS (exit 0; 75 files, 791 tests; lint 0 errors, 38 warnings; build OK), run after the last
+  code change and after the GPU sheet runs. operators:check not re-run: no pipeline or build change this round (still
+  expected: `wren lod1 FAIL bakeDiff: chest 36 px > 24`). Port 4191 free.
+  Port 4191 free.
+- Open (step 10 / 08a block-end retry, not fixed here): hero bake confetti (handBack, forearm, knee, boots, thighs,
+  underarm, neck); LOD1 / LOD2 / phone mid grey; LOD1 chest bakeDiff; vent holes below bake resolution; 08a lumbar and
+  crotch patches. Gunmetal value too low for a clear satin highlight under any Lab light (materials.py; item 5).
+  Notes: menu last column cut; compare figures in the left of the tile; beltBack rappel ring bow; thighL caps small.
+
+- Status: OPEN after 3 fix rounds; evidence: steps/11-fixes-r4.md; remaining: 1. close-up callouts name only each
+  frame's subject, not every visible item (SPEC 1): hipL belt and pistol pouch, collar and chestFront harness straps
+  and buckles, ptt zip and mag tops, beltFront ribs, holster top and sleeve caps; audit all 22 close-ups' include
+  lists, one test each, a DESIGN.md rule line, re-render the changed ones. Step 10 / 08a follow-ups and the D28 / D29 /
+  gunmetal items (step 11b) are logged above.

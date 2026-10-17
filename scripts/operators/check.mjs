@@ -84,7 +84,13 @@ function measureBakeDiff(id, dir, lods) {
 function staleFor(id, dir, lods, suffix) {
   const mt = (f) => (existsSync(f) ? statSync(f).mtimeMs : undefined);
   const renders = (lod) => Object.fromEntries(BACKFACE_VIEWS.map((v) => [v, mt(path.join(dir, `${id}-${v}-${lod}${suffix}.png`))]).filter(([, t]) => t !== undefined));
-  const glb = (lod) => mt(path.join(OUT_DIR, id, 'export', lods[lod].glb)) ?? Infinity;
+  // step 11: a KTX2 repack (ktx2.mjs) rewrites the file but not its geometry: judge by the Blender export's time it kept,
+  // unless the file changed after the repack
+  const glb = (lod) => {
+    const t = mt(path.join(OUT_DIR, id, 'export', lods[lod].glb)) ?? Infinity;
+    const k = lods[lod].ktx2;
+    return k && t <= k.repackedMs + 1000 ? k.sourceGlbMs : t;
+  };
   const hero = renders('hero');
   return Object.fromEntries(Object.keys(lods).map((lod) => [lod, staleViews(glb(lod), glb('hero'), renders(lod), hero)]));
 }

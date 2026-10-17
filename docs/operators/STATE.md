@@ -1,25 +1,35 @@
 # Operators run - state (resume point)
 
-**Now:** step 11 (Wren: full render set and self-review), Opus 5.5, High. Its FIRST task is step 10's carry-over KTX2
-(D26: toktx 4.4.2 installed; A73 open). Step 10 is OPEN after 3 fix rounds (LOG.md "Step 10", steps/10-fixes-r4.md:
-LOD1 chest notch, LOD0 toe streaks). Step 08a (suit) is OPEN. Both are retried at the Wren block end after step 11.
+**Now:** step 11b - Wren: rigid kit (D28) and desktop only (D29). It waits for Michael's layout pick: options pass 1
+(scratchpad d28/D28-OPTIONS.md, copied into steps/11b when the step file is written) and a layout + pose-check pass
+(d28/layout/LAYOUT.md). Then the Wren block end (RULES.md), after 11b because 11b changes garments and rebuilds the
+LODs: retry step 08a (steps/08a-fixes-r4.md), step 10 (steps/10-fixes-r4.md) and step 11 (steps/11-fixes-r4.md:
+callouts for every visible item). Step 07 is closed, step 08 superseded (not retried). Then step 12 (Moth) starts by
+asking Michael Moth's direction (D24). Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
-rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md. Step 12 starts by asking
-Michael (D24).
+rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
-**Key facts (after 10)**
-- `GARMENTS.wren` = suit, gloves, approach_boots, headwear, head_kit, armour, chest_rig, waist_belt, leg_kit. The chain
-  from approach_boots with renders is about 25 min; then `npm run operators:lods -- wren --render` (about 5 min) bakes
-  the game assets into build/operators/wren/export/ (report.json, README.md, <lod>/<id>-<lod>.glb, textures/) and the
-  Lab copies `<id>-lab-<lod>.glb`. Rebuilding any item means re-running operators:lods.
-- LODs (A69-A71, A74-A75): hero 229 k / 4 draws, LOD0 40 k / 3, LOD1 13.5 k / 3 (closed shell), LOD2 and phone 5.6 k
-  / 2 (closed shell, edges over 30 deg split, A76; rigid polymer pieces separate, A77); every glb has tangents; operators:check FAILs back faces / open edges over the hero's and bakeDiff (largest new-dark patch per view against the hero's render, A76; src/operators/bakeDiff.ts); anchors on chest /
-  hipR / pelvis in every file; backGearM 0.0222; costs in docs/operators/mockups/wren/DESIGN.md. `operators:check` now
-  also checks every LOD file (anchors, game joints) and FLAGs SPEC 6.4 overruns.
-- Lab LOD ids: source (the unbaked build), hero, lod0, lod1, lod2, phone; the default is source.
-- `kit_common.py`, `waist_belt.hip_map`, the A62 holster slot formula: as before. Near-black renders mid grey in
-  close-ups (OPEN since 05).
+**Key facts (after 11)**
+- `GARMENTS.wren` = suit, gloves, approach_boots, headwear, head_kit, armour, chest_rig, waist_belt, leg_kit. Rebuild
+  chain about 25 min, then `npm run operators:lods -- wren --render` (about 6 min; now ends with `operators:ktx2`).
+- KTX2 (A79, D27): every LOD GLB is UASTC + Zstd 18 via `KHR_texture_basisu`; operators:check `ktx2` FAILs otherwise.
+  VRAM 96 / 32 / 8 / 4 / 1 MB. Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (devDependency) on the
+  main thread, wasm via `?url`, no network (lab/ktx2.ts); the Lab flips KTX2 in the texture matrix (Babylon cannot at
+  upload). core/babylon.ts blanks KhronosTextureContainer2's CDN decoder URL. The game's KTX2 path is step 18's.
+- Lab lighting (A80): the reader's winding flip lit every face from inside until step 11 fix round 1; fixed, rigs
+  re-aimed (figure faces +Z, right on +X, yaw > 0 views its left). Generated studio environment for the metals (A78).
+- The Lab source export flattens every procedural material to its measured albedo / roughness (A78); close-ups render
+  the hero LOD under `detail` / `detailRear` (grey card sRGB 0.49, measured each run); turnaround / compare use `figure`.
+- Sheets: 33 in docs/operators/mockups/wren/ (22 close-ups incl. buckle and hipL, rim-silhouette, goggle, ktx2-compare). SHEET_CLOSEUPS=a,b
+  limits them. Stats use an operator mask (lab.maskShot); each close-up has a +2 EV detail-read panel; `--only diag`
+  prints the front / back value diagnosis. Lab shadow bias 0.004 (acne fix, A80); goggle spill never lights her.
 
-**Open questions for Michael:** Moth's direction (asked at step 12, D24). Integration items for locomotion step 25:
-upright back carry vs A2's diagonal (A36, A39), a slung SMG over the left hip (A41), sidearms anchored at the holster
-mouth (A62).
+**Step 11b list (D28 / D29, after Michael picks the kit layout):** build the picked layout (bent throwable sleeves
+and mag pouches), remove the phone LOD and its checks (D29), then rebuild the Wren LODs. Gunmetal (step 11 fix round 2 item 5 / round 3):
+at base colour 0.051, metallic, its F0 is about 5 % (dark plastic), so no Lab light gives it a satin hot spot. Target
+in materials.py: a metal with base colour (F0) about 0.25-0.45 linear and roughness near 0.55, or a dielectric
+coating (Cerakote-like) whose "one metal finish" read comes from the edge wear; recheck on
+`wren-sheet-closeup-buckle.webp`.
+
+**Open questions for Michael:** Moth's direction (step 12, D24). Integration items for locomotion step 25: upright back carry vs
+A2's diagonal (A36, A39), a slung SMG over the left hip (A41), sidearms anchored at the holster mouth (A62).

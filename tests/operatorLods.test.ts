@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
 import { parseGlb } from '../src/operators/lab/glb';
-import { BACKFACE_VIEWS, glbJson, LOD_ANCHORS, lodChecks, lodReportChecks, type BackFaceView, type GltfJson } from '../src/operators/lodChecks';
+// @ts-expect-error plain .mjs build script without types
+import { mipBytes, repackGlb } from '../scripts/operators/ktx2.mjs';
+import { BACKFACE_VIEWS, glbJson, ktx2Check, LOD_ANCHORS, lodChecks, lodReportChecks, type BackFaceView, type GltfJson } from '../src/operators/lodChecks';
 
 /** A GLB holding `json` and one binary chunk (the exporter's layout: 4-byte aligned chunks). */
 function glb(json: object, bin: Uint8Array): Uint8Array {
@@ -71,6 +74,36 @@ describe('LOD export checks (step 10)', () => {
     j.meshes[0]!.primitives[0]!.attributes!.TANGENT = 3;
     expect(lodChecks('lod1', j, 13_000).find((x) => x.name === 'tangents')!.pass).toBe(true);
   });
+  it('fails a LOD whose textures are not KTX2 through KHR_texture_basisu (step 11, D26)', () => {
+    const webp = (): GltfJson => ({
+      ...lodJson(), images: [{ name: 'a', mimeType: 'image/webp' }, { name: 'b', mimeType: 'image/png' }],
+      textures: [{ extensions: { EXT_texture_webp: { source: 0 } } }, { source: 1 }], extensionsUsed: ['EXT_texture_webp'], extensionsRequired: ['EXT_texture_webp'],
+    });
+    const bad = ktx2Check(webp());
+    expect(bad.pass).toBe(false);
+    expect(bad.value).toEqual(expect.arrayContaining(['image a: image/webp', 'image b: image/png', 'texture 1: plain source 1', 'texture 0: EXT_texture_webp', 'KHR_texture_basisu not in extensionsRequired']));
+    expect(lodChecks('lod0', webp(), 40_000).find((x) => x.name === 'ktx2')!.pass).toBe(false);
+    const ok: GltfJson = { ...lodJson(), images: [{ name: 'a', mimeType: 'image/ktx2' }], textures: [{ extensions: { KHR_texture_basisu: { source: 0 } } }], extensionsUsed: ['KHR_texture_basisu'], extensionsRequired: ['KHR_texture_basisu'] };
+    expect(ktx2Check(ok).pass).toBe(true);
+    expect(ktx2Check({ ...ok, extensionsRequired: [] }).pass).toBe(false);
+  });
+  it('repacks a WebP GLB to KTX2 images the check and the Lab reader accept', () => {
+    const json = {
+      asset: { version: '2.0' }, nodes: [], meshes: [], accessors: [], buffers: [{ byteLength: 12 }],
+      bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 8 }, { buffer: 0, byteOffset: 8, byteLength: 4 }],
+      images: [{ name: 'wren-lod0-kit-albedo', mimeType: 'image/webp', bufferView: 1 }],
+      textures: [{ sampler: 0, extensions: { EXT_texture_webp: { source: 0 } } }], extensionsUsed: ['EXT_texture_webp'], extensionsRequired: ['EXT_texture_webp'],
+      materials: [{ name: 'kit', pbrMetallicRoughness: { baseColorTexture: { index: 0 } } }],
+    };
+    const ktx = new Uint8Array([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 1, 2, 3]);
+    const out = repackGlb(Buffer.from(glb(json, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9]))), (n: string) => (n === 'wren-lod0-kit-albedo' ? ktx : undefined)) as Uint8Array;
+    const j = glbJson(out);
+    expect(ktx2Check(j)).toMatchObject({ pass: true, value: [] });
+    const m = parseGlb(out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer);
+    expect(m.materials[0]!.baseTex!.mime).toBe('image/ktx2');
+    expect([...m.materials[0]!.baseTex!.data]).toEqual([...ktx]);
+    expect(mipBytes(4, 4)).toEqual({ block: 16 * 3, rgba: 64 + 16 + 4 });
+  });
   it('reads the goggle glow as the extra draw below LOD0 (A75)', () => {
     const j = lodJson();
     j.meshes = [{ primitives: [{}, {}, {}] }];
@@ -122,5 +155,17 @@ describe('glb reader: baked maps (step 10)', () => {
     expect(g.emissive).toEqual([0.3, 0.85, 0.16]);
     expect(g.baseTex).toBeUndefined();
     expect(g.normalTex).toBeUndefined();
+  });
+});
+
+describe('Lab KTX2 transcoder files (step 11, D27)', () => {
+  it('bundles every transcoder from the installed @babylonjs/ktx2decoder, matching @babylonjs/core, never a URL', () => {
+    const src = readFileSync('src/operators/lab/ktx2.ts', 'utf8');
+    const files = [...src.matchAll(/from '@babylonjs\/ktx2decoder\/(wasm\/[^?']+)\?url'/g)].map((x) => x[1]!);
+    expect(files.length).toBe(9);
+    for (const f of files) expect(existsSync(`node_modules/@babylonjs/ktx2decoder/${f}`)).toBe(true);
+    expect(src).not.toMatch(/https?:\/\//);
+    const ver = (p: string) => (JSON.parse(readFileSync(`node_modules/${p}/package.json`, 'utf8')) as { version: string }).version;
+    expect(ver('@babylonjs/ktx2decoder')).toBe(ver('@babylonjs/core'));
   });
 });

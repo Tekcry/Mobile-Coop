@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bindWorld, parseGlb, qmul, rotate, type GlbNode, type Quat, type V3 } from '../src/operators/lab/glb';
 import { arc, buildRetarget, poseSkeleton } from '../src/operators/lab/retarget';
-import { CLOSEUPS, COLOUR_BLIND, LIGHT_RIGS, POSES, PRESETS, TURNAROUND, calloutsFor, simulate } from '../src/operators/lab/labData';
+import { CLOSEUPS, COLOUR_BLIND, LIGHT_RIGS, POSES, PRESETS, TURNAROUND, calloutsFor, ktx2RemoteUrls, simulate } from '../src/operators/lab/labData';
 import { KITS } from '../src/operators/kit';
 
 /** A one-triangle skinned GLB written the way Blender's exporter writes it (right-handed, +Z forward). */
@@ -65,8 +65,8 @@ describe('glb reader', () => {
     expect(m.nodes[1]!.t).toEqual([0.5, 1, 0]);
     expect(m.nodes[2]!.r[1]).toBeCloseTo(-0.2);
   });
-  it('flips the winding with the handedness', () => {
-    expect([...m.meshes[0]!.indices]).toEqual([0, 2, 1]);
+  it('keeps the glTF index order: the x mirror already makes the front faces clockwise, as Babylon draws them (A80)', () => {
+    expect([...m.meshes[0]!.indices]).toEqual([0, 1, 2]);
   });
   it('reads skin order, joints, weights and material factors', () => {
     expect(m.joints).toEqual([2, 1]);
@@ -137,7 +137,8 @@ describe('retarget', () => {
 
 describe('lab data', () => {
   it('lighting rigs, presets and poses have unique ids and the BRIEF lists', () => {
-    expect(LIGHT_RIGS.map((r) => r.id)).toEqual(['studio', 'raking', 'menu', 'hollowmere', 'dark', 'nightvision']);
+    // the BRIEF's six rigs, plus step 11's calibrated close-up rigs and the rim silhouette (A78) (and the whole-figure rig, fix round 1)
+    expect(LIGHT_RIGS.map((r) => r.id)).toEqual(['studio', 'raking', 'detail', 'detailRear', 'detailFront', 'figure', 'rim', 'menu', 'hollowmere', 'dark', 'nightvision']);
     expect(PRESETS.map((p) => p.id)).toEqual(['low', 'high', 'epic', 'phone']);
     expect(POSES.map((p) => p.id)).toEqual(['apose', 'idle', 'crouch', 'sneak', 'aimPistol', 'aimRifle', 'climbReach']);
     expect(TURNAROUND).toHaveLength(5);
@@ -148,6 +149,7 @@ describe('lab data', () => {
     expect(d.glow).toBe(true);
   });
   it('close-ups sit between 0.3 and 1 m', () => {
+    for (const c of CLOSEUPS) if (c.rig) expect(LIGHT_RIGS.some((r) => r.id === c.rig)).toBe(true);
     for (const c of CLOSEUPS) expect(c.distance).toBeGreaterThanOrEqual(0.3);
     for (const c of CLOSEUPS) expect(c.distance).toBeLessThanOrEqual(1);
   });
@@ -166,5 +168,40 @@ describe('lab data', () => {
     const ids = calloutsFor(KITS.wren.items, built, shoulder).map((i) => i.id);
     expect(ids).toContain('harnessShoulders');
     expect(calloutsFor(KITS.wren.items, built, CLOSEUPS.find((c) => c.id === 'boots')!)).toHaveLength(0);
+  });
+  it('callouts name only what each frame shows (fix round 3, item 2)', () => {
+    const all = new Set(KITS.wren.items.map((i) => i.id));
+    const ids = (id: string) => calloutsFor(KITS.wren.items, all, CLOSEUPS.find((c) => c.id === id)!).map((i) => i.id);
+    // the earpiece is in the ear under the hood: never called out; its cable is
+    for (const c of CLOSEUPS) expect(ids(c.id)).not.toContain('earpiece');
+    expect(ids('collar')).toContain('earpieceCable');
+    expect(ids('head')).not.toContain('batteryPack');
+    expect(ids('neckRear')).toEqual(expect.arrayContaining(['batteryPack', 'goggleBand', 'goggleCable']));
+    expect(ids('neckRear')).not.toContain('earpieceCable');
+    expect(ids('collar')).not.toContain('headHarness');
+    expect(ids('chestFront')).not.toContain('ptt');
+    // a kit item from another zone that is in frame (the belt closure) is called out through `include`
+    expect(ids('beltFront')).toEqual(expect.arrayContaining(['magBuckle', 'waistBelt', 'pistolMagPouch']));
+    expect(ids('beltFront')).not.toContain('slingSocket');
+    // the sling socket's own view (DESIGN.md loadout table): the left hip from the side
+    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'dronePod', 'slingSocket']);
+    expect(calloutsFor(KITS.wren.items, new Set(['suit']), CLOSEUPS.find((c) => c.id === 'beltFront')!)).toHaveLength(0);
+  });
+});
+
+describe('operator lab, step 11 fix round 1', () => {
+  it('the KTX2 decoder never keeps a CDN URL (D27, no runtime network)', () => {
+    const o = 'http://127.0.0.1:4191';
+    expect(ktx2RemoteUrls({ jsDecoderModule: 'https://cdn.babylonjs.com/babylon.ktx2Decoder.js', wasmZSTDDecoder: null }, o)).toEqual(['jsDecoderModule=https://cdn.babylonjs.com/babylon.ktx2Decoder.js']);
+    expect(ktx2RemoteUrls({ a: '//cdn.babylonjs.com/x.wasm' }, o)).toHaveLength(1);
+    expect(ktx2RemoteUrls({ a: '/assets/uastc_bc7-abc.wasm', b: `${o}/assets/zstddec.wasm`, c: '', d: null }, o)).toEqual([]);
+  });
+  it('the rim rig has back rims only and no goggle spill; the calibrated rigs key from the front (A80)', () => {
+    const rig = (id: string) => LIGHT_RIGS.find((r) => r.id === id)!;
+    expect(rig('rim').lights.every((l) => l.kind === 'dir' && l.v[2] > 0)).toBe(true);
+    expect(rig('rim').glowLight).toBe(false);
+    for (const id of ['studio', 'detail', 'figure', 'menu']) expect(rig(id).lights[0]!.v[2]).toBeLessThan(0);
+    expect(rig('detailRear').lights[0]!.v[2]).toBeGreaterThan(0);
+    for (const id of ['detail', 'detailRear', 'detailFront', 'figure']) expect(rig(id).bloom).toBe(false);
   });
 });

@@ -21,6 +21,12 @@ export { PointLight } from '@babylonjs/core/Lights/pointLight';
 export { SpotLight } from '@babylonjs/core/Lights/spotLight';
 export type { Light } from '@babylonjs/core/Lights/light';
 export { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+// KTX2 (Basis) textures: the operator LODs (step 11, D26, D27); the .ktx2 loader registers itself. No runtime network:
+// Babylon's default decoder URL (cdn.babylonjs.com) is blanked here, so a KTX2 load that nobody configured fails instead
+// of fetching it; the operator Lab points the decoder at bundled files (src/operators/lab/ktx2.ts).
+import { KhronosTextureContainer2 } from '@babylonjs/core/Misc/khronosTextureContainer2';
+KhronosTextureContainer2.URLConfig.jsDecoderModule = '';
+export { KhronosTextureContainer2 };
 export { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
 export { ClusteredLightContainer } from '@babylonjs/core/Lights/Clustered/clusteredLightContainer';
 export { DefaultRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline';

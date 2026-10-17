@@ -23,7 +23,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 - Original design only: no Splinter Cell IP, no three-lens goggle, no real brands, logos, patches or copied products.
   Splinter Cell inspired in feel (D5), original in every shape.
 - Every external file (CC0 texture, CC0 base body) is listed with source and licence in `docs/art-credits.md`.
-- Phones never download hero or desktop-only assets. No runtime network.
+- Desktop only (D29): no phone LOD, phone budgets or phone checks. No runtime network.
 - Babylon only through `src/core/babylon.ts`. Strict TS. Pure logic in Babylon-free modules with Vitest tests. Hot paths
   do not allocate.
 - The detail standard (SPEC.md Section 1) is checked against every render before it goes to Michael.

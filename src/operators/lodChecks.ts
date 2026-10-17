@@ -28,6 +28,10 @@ export interface GltfJson {
   skins?: { joints: number[] }[];
   meshes?: { primitives: { attributes?: Record<string, number>; material?: number }[] }[];
   materials?: { name?: string; normalTexture?: unknown }[];
+  images?: { name?: string; mimeType?: string; uri?: string }[];
+  textures?: { source?: number; extensions?: Record<string, { source?: number } | undefined> }[];
+  extensionsUsed?: string[];
+  extensionsRequired?: string[];
 }
 
 export interface LodCheck {
@@ -72,6 +76,7 @@ export function lodChecks(lod: string, json: GltfJson, triangles: number): LodCh
     .filter((p) => p.material !== undefined && json.materials?.[p.material]?.normalTexture !== undefined && p.attributes?.TANGENT === undefined)
     .map((p) => `mesh ${mi} ${json.materials?.[p.material!]?.name ?? p.material}`));
   const out: LodCheck[] = [
+    ktx2Check(json),
     { name: 'tangents', pass: noTangent.length === 0, value: noTangent, limit: 'every primitive with a normal map has TANGENT' },
     { name: 'anchors', pass: wrong.length === 0, value: wrong, limit: `${LOD_ANCHORS.join(', ')} on their joints` },
     { name: 'gameJoints', pass: lod === 'hero' || heroBones.length === 0, value: heroBones.length, limit: 'game LODs: no finger or toe bones' },
@@ -84,6 +89,28 @@ export function lodChecks(lod: string, json: GltfJson, triangles: number): LodCh
     );
   }
   return out;
+}
+
+/**
+ * Step 11 (D26, A73 closed): every texture of a LOD file is KTX2 through KHR_texture_basisu (required), and the file
+ * holds no WebP, PNG or JPEG image and no texture without the extension.
+ */
+export function ktx2Check(json: GltfJson): LodCheck {
+  const bad: string[] = [];
+  for (const [i, im] of (json.images ?? []).entries()) {
+    if (im.mimeType !== 'image/ktx2' || im.uri !== undefined) bad.push(`image ${im.name ?? i}: ${im.mimeType ?? im.uri ?? 'no mime'}`);
+  }
+  for (const [i, t] of (json.textures ?? []).entries()) {
+    const src = t.extensions?.KHR_texture_basisu?.source;
+    if (src === undefined) bad.push(`texture ${i}: no KHR_texture_basisu`);
+    else if (json.images?.[src]?.mimeType !== 'image/ktx2') bad.push(`texture ${i}: basisu source ${src} not KTX2`);
+    if (t.source !== undefined) bad.push(`texture ${i}: plain source ${t.source}`);
+    if (t.extensions?.EXT_texture_webp) bad.push(`texture ${i}: EXT_texture_webp`);
+  }
+  const textured = (json.textures ?? []).length > 0;
+  if (textured && !json.extensionsRequired?.includes('KHR_texture_basisu')) bad.push('KHR_texture_basisu not in extensionsRequired');
+  if (json.extensionsUsed?.includes('EXT_texture_webp')) bad.push('EXT_texture_webp in extensionsUsed');
+  return { name: 'ktx2', pass: bad.length === 0, value: bad, limit: 'every texture KTX2 via KHR_texture_basisu, no WebP / PNG' };
 }
 
 /** The export report's measures for one LOD (py/bake_lods.py): open edge length, visible back-face pixels per view. */

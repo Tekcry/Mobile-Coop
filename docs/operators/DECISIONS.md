@@ -1,3 +1,28 @@
+**A80 The Lab lit every face from inside; reader winding fixed, rigs re-aimed (step 11 fix round 1).** The Lab's GLB
+  reader negated x (glTF's right-handed frame to the game's left-handed one) and also flipped the triangle winding. The
+  mirror alone already turns glTF's counter-clockwise front faces into the clockwise ones Babylon treats as front, so
+  with both every visible face was a back face, and two-sided lighting flipped its normal: every light acted from -v.
+  Measured: under the rim rig (two back rims) the front read sRGB 0.13 and went to 0.03 with two-sided lighting off;
+  with back-face culling on the visible faces vanished. Effects seen in step 11's sheets: the rim sheet's front evenly
+  lit, the goggle glow washing the back green, the rigs tuned by eye against the inversion. Fix: glb.ts keeps the index
+  order (its unit test now expects [0, 1, 2]); `labData.ts` documents the frame (figure faces +Z, its right on +X; `v`
+  is the light's travel; yaw > 0 views the figure's left) and re-aims the rigs: front keys travel -Z (studio, raking,
+  detail, menu, night vision), back rims +Z (rim, detail's rim, figure's rim); detailRear mirrored. A unit test pins it.
+  The right-side close-ups (thighR, belt, ribsSide, underarm) now use negative yaw. Every Lab sheet before this round
+  was lit inside out. Undo: restore the index swap in glb.ts and the old rig vectors. Fix round 2 (step 11): two more
+  Lab effects of the corrected faces. (1) The goggle's spill point light (a few cm in front of the housing) now lit her
+  own face, hood and chest green and blew the housing to white: `glowLight.excludedMeshes` holds every loaded operator
+  mesh and the grey human, so it lights only the scene ahead; the darkness rig's starlight fill is 0.12 so a faint
+  silhouette reads behind the lenses. (2) The turnaround's back read lighter than its front: masked medians (her pixels
+  only) front torso 0.07 / legs 0.02, back 0.07 / 0.07, while an 18 % grey sphere in her place read front 0.40, back
+  0.32 (the rig is right). Switching one Lab feature off at a time (`operators:sheet -- --only diag`): sheen, normal
+  maps, environment, ambient changed nothing; shadows off gave front legs 0.08. Cause: shadow acne, every face turned
+  to the key shadowed itself at depth bias 0.0008 (the two-sided materials put both faces in the map;
+  forceBackFacesOnly had no effect, normal bias 0.05 made it worse). Bias 0.004 (about 5 cm over the 13 m shadow depth
+  range): front torso 0.10 / legs 0.08, 3/4 front 0.08 / 0.06, side 0.07 / 0.07, 3/4 back 0.08 / 0.07, back 0.07 /
+  0.07 - the key side is now the brighter one. It also lifts every key-lit close-up, which the acne had darkened.
+  (3) The rim rig: side rims flatter (v x 0.75, z 0.65, intensity 3.6) plus a rim from above behind (2.5), so the
+  front views get bright edges while the body stays near black. Undo: excludedMeshes empty, bias 0.0008.
 # Operators run - decisions
 
 Numbered. Michael's words are quoted. Newest at the bottom of each list.
@@ -146,6 +171,36 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 - Process, Michael: "you can show me scratch renders first with some options if its easier to nail the look". Before
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
+
+**D29 Desktop only (2026-10-17).** Michael's project decision, relayed from the locomotion session (its M21, commit
+c22e816): "I want to focus on desktop only performance, ignore phones." Scope: drop phones entirely - no phone
+budgets or `--phone` perf runs, no phone look or phone checks, no touch-control work; desktop pad first, then keyboard
+and mouse. Asked how the operators run applies it, Michael: "Yes, drop phone LOD (Recommended)". So: the phone LOD,
+its checks and its SPEC 6.4 targets are removed from the operator pipeline; hero, LOD0, LOD1 and LOD2 stay for the
+desktop distance bands (LOD2 no longer serves phones). Done in step 11b (it rebuilds the LODs anyway); CLAUDE.md
+platform line and definition of done and RULES.md updated now.
+
+**D28 Rigid kit stays rigid (2026-10-17, during step 11).** Michael: "any attachments (magazines, knife etc) can't
+be bent which they currently are. They are rigid and must be reflected that way on the character. Rethink positioning
+of each item and ensure it is realistically reflected. Ask me questions if you need to."
+- Rule: every rigid item (magazines, knife, holster shell, pod, medkit case, buckles, radio, PTT, mount plates, plates,
+  throwables) keeps its true straight shape on the body: no shrinkwrap, curve or surface-conform deformation of the
+  item itself. Soft carriers (pouch fabric, elastic, straps) may wrap the body; the rigid item inside or on them sits
+  straight, with a standoff or mount where the body curves under it. Skinning: each rigid item is weighted to one
+  bone (or one rigid blend) so animation never bends it.
+- Michael, follow-up: "Consider the physical characteristics of each item before placing them". Placement starts from
+  each item's real size, own design shape (a curved rifle mag keeps its design curve), weight, draw hand and path,
+  retention, snag risk when climbing or crawling, and what it must not press into.
+- Process (as D19-D20): a survey lists every rigid item, how it is built now and how bent it is; scratch renders show
+  placement options for the items that must move; Michael picks; a step 11b builds the pick, then the Wren LODs and
+  bakes are rebuilt and the step 11 sheets re-rendered.
+
+**D27 Babylon's KTX2 decoder bundled (2026-10-17, during step 11).** Asked whether to add Babylon's KTX2 decoder
+files to the project (the official Babylon decoder package, Apache 2.0, bundled locally, no CDN), Michael: "Yes, add it
+(Recommended)". The decoder version matches the installed @babylonjs/core; the files live under vendor/ktx2 (or are
+imported from the npm package via `?url`); URLConfig never keeps Babylon's CDN defaults. If a needed transcoder file
+is only published on a CDN, it is not fetched at runtime - the step reports it. Done in step 11 fix round 1:
+`@babylonjs/ktx2decoder@9.29.0` from npm carries the decoder and every wasm; nothing is fetched at runtime (A79).
 
 **D26 KTX2 encoder installed (2026-10-17, during step 10).** Asked whether to install the KTX2 texture compression
 tool, Michael: "Install toktx (Recommended)". The orchestrator installed KTX-Software 4.4.2 (Khronos, Apache 2.0) from
@@ -724,7 +779,7 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   The hero is a decimation too (longest edge about 16 cm); it is held by its comparison with the source instead
   (silhouette IoU against the source, the close-up columns of sheets b / c), not by an edge rule. Undo: none needed
   (information only).
-**A73 Textures ship as WebP inside the GLBs and as PNG beside them until KTX2.** No `toktx` / `basisu` on the PC and
+**A73 Textures ship as WebP inside the GLBs and as PNG beside them until KTX2.** CLOSED in step 11 (D26, A79). No `toktx` / `basisu` on the PC and
   the run may not install software (RULES): the KTX2 encode is one command in the export README (UASTC, Zstd 18, linear
   for normal and ORM), OPEN for Michael's OK to install KTX-Software. The texture costs report BC7 / ASTC 4x4 VRAM
   (1 byte per texel, mips 4/3) next to the PNG sizes. Undo: none (the KTX2 step replaces the WebP).
@@ -805,3 +860,69 @@ the contact run only, measured over hood + hem + harness (in use 2.0 mm, stowed 
   piece lost its shape (flaps on the pouches, a twisted belt holder, back view 106 px). LOD2's target went 5,200 ->
   5,600 triangles (SPEC 6.4 4-6 k; measured 5,557) so the shell keeps its share. Undo: RIGID_MATS = set() and
   TARGET_TRIS lod2 5200 (the round-2 shells).
+
+## Assumed decisions, step 11 (full render set and self-review; implementer)
+
+**A78 Close-up lighting: the near-black suit read mid grey for two reasons, both fixed outside the materials (OPEN
+  since step 05, closed).** (1) The Lab source export (`py/export_gltf.py`) flattens procedural materials to constant
+  factors from a table (FLAT) that stopped at step 07: every material added since (the suit zones, composite, rubber
+  trim, gunmetal, kit elastic, pod, goggle band) exported the glTF default base colour 0.8, so the Lab drew them light
+  grey. Every such material now takes the median albedo and roughness `check_garment.py` measured from the render
+  (`<op>-<item>-check.json`); the Blender materials and the check limits are unchanged. (2) The raking rig's exposure
+  (key 7 x exposure 4.5) lifted a 0.03 albedo to about sRGB 0.8. The close-ups use a new calibrated rig `detail`
+  (raking key 2.0, cool fill 0.6, back rim 2.2, ACES, no bloom). Fix round 1 (step 11): after A80 corrected the
+  Lab's lighting the exposure is 0.72 and `lab.greyCard()` measures the calibration on every sheet run (an 18 % grey
+  Lambert card facing the key; sRGB 0.49 measured on the RTX 4090, printed in each close-up caption); the 0.02-0.06
+  albedos render about sRGB 0.12-0.24 facing the key, the lit-figure medians are 0.06-0.09. The turnaround and the
+  compare sheet use the same calibration in a whole-figure rig `figure` (front key 2.0, cool back rim 1.4, exposure
+  0.7, no bloom; grey card sRGB 0.50) instead of `studio` (exposure 4.5 had lifted the suit to light grey with a bloom
+  halo). Close-ups render the hero LOD (D21: its baked normal / ORM maps carry the emboss, perforations, pebble,
+  weave, fibre and wear; the unbaked source is the flat factors above). Metals: the gunmetal, hardware metal and
+  anodised materials are metallic with a 0.02-0.05 base colour (materials.py), so with no environment they reflected
+  nothing and drew as flat black. The Lab now builds a studio environment in the scene (`lab.ts studioEnv()`: a dark
+  room, an overhead soft box and two side strips, emissive boxes captured once by a ReflectionProbe; no file, no
+  network) for the studio, detail, detailRear and figure rigs (`env: true`); the dark rigs (rim, menu, Hollowmere,
+  darkness, night vision) keep none. materials.py and the check limits unchanged. Each close-up caption prints the lit
+  figure's sRGB median / p10 / p90. Undo: the close-ups' `rig: 'detail'` back to `'raking'`; MEASURED in export_gltf.py
+  off; `env` off. Fix round 2 (step 11): the statistics come from an operator mask (`lab.maskShot()`: the same view in
+  unlit material-id colours on black, floor, backdrop, grey human and scale bar hidden), not from "away from the clear
+  colour" (which counted the floor and wall: every rim view had printed the wall's 0.06). Every close-up adds a detail-read
+  panel, the same view and LOD at +2 EV (`lab.setExposureBoost`), labelled, beside the calibrated one. Metals: the
+  materials named metal / aluminium / hardware (the hero and LOD `hardware` set) take environment intensity 1 (the rest
+  0.25), the studio environment gains a 6 x 4 m front panel (1.2) so metal facing the camera reflects something, and a
+  `detailFront` rig (the detail rig with its key from the front above) serves the new `buckle` close-up (the belt's
+  magnetic closure at 0.3 m, seen from the key's mirror direction). The shadow bias (A80 fix round 2) lifted the
+  key-lit faces of every close-up. materials.py, the garment builders and the check limits unchanged.
+**A79 KTX2: UASTC + Zstd 18 in every LOD GLB; the Lab shows the reference transcoder's decode until Babylon's
+  transcoder is bundled.** `scripts/operators/ktx2.mjs` (`npm run operators:ktx2`, run by `operators:lods`): toktx
+  UASTC quality 2, Zstd 18, full mips, albedo sRGB, normal (normalised) and ORM linear; `ktx validate` on each; GLBs
+  repacked with `KHR_texture_basisu` (required, no WebP / PNG left; operators:check `ktx2` FAILs otherwise). Measured
+  (report.json `ktx2`): VRAM BC7 / ASTC hero 96 MB, LOD0 32, LOD1 8, LOD2 4, phone 1 (RGBA8 from WebP would be 384 /
+  128 / 32 / 16 / 4); KTX2 on disk 38.3 / 14.5 / 3.6 / 1.8 / 0.55 MB; GLB WebP -> KTX2 25.3 -> 55.3, 6.6 -> 18.0, 1.9 ->
+  4.7, 0.8 -> 2.2, 0.6 -> 1.0 MB (UASTC is bigger on disk than q92 WebP; the trade is 4x less VRAM and no decode on
+  the main thread); lowest PSNR of a level-0 decode against the baked PNG 35.5 dB (hero normal), every set 35-60 dB.
+  A trial with RDO (`--uastc_rdo_l 1`) cut the LOD0 cloth set 21 % on disk; not used (the checker's encode is UASTC +
+  Zstd 18; a step 18 choice if the download matters). Babylon's KTX2 decoder (babylon.ktx2Decoder.js and the uastc /
+  zstd wasm) is not on the PC and is not in node_modules, and the run may not download (RULES): the Lab is wired for
+  bundled files (`src/operators/lab/ktx2.ts`: `vendor/ktx2/*` through `?url`, KhronosTextureContainer2.URLConfig, no
+  CDN; `KhronosTextureContainer2` exported from core/babylon.ts) and until then draws each KTX2 texture as `ktx extract
+  --transcode rgba8` decoded it (`export/textures/<lod>/ktx2-decoded/`), labelled on the LOD sheet. OPEN for Michael:
+  OK to add the decoder files (from the Babylon release matching @babylonjs/core, Apache 2.0) to vendor/ktx2/. Undo:
+  restore the step 10 GLBs with `npm run operators:lods -- wren` minus the encodeKtx2 call.
+  **Update, step 11 fix round 1 (D27):** the decoder is bundled. `@babylonjs/ktx2decoder@9.29.0` (devDependency, the
+  official package, Apache 2.0, same version as @babylonjs/core; it ships every transcoder wasm in `wasm/`, nothing came
+  from a CDN). `src/operators/lab/ktx2.ts` imports the decoder as an ES module and runs it on the main thread
+  (`numWorkers: 0`, the module passed as `binariesAndModulesContainer.jsDecoderModule`, so no `babylon.ktx2Decoder.js`
+  script URL exists), points every transcoder at the package's wasm through Vite `?url`, and throws if any URL would
+  leave the page (`ktx2RemoteUrls`, unit-tested; a test also pins the package version to @babylonjs/core's). The Lab
+  now draws every baked LOD from real KTX2 textures transcoded by Babylon (BC7 on the RTX 4090); no request leaves
+  127.0.0.1 (probe). Orientation: Babylon 9.29 does not compensate a KTX2 for invertY (it does for KTX1), so the Lab
+  flips KTX2 textures in the texture matrix (vScale -1, vOffset 1); against the reference decode the LOD0 chest
+  close-up differs by 0.09 / 255 mean (3.20 without the flip). `wren-sheet-ktx2-compare.webp` shows Babylon's transcode
+  over the reference decode for every baked LOD with the per-LOD difference. The decoded stand-ins stay as the
+  comparison (`state.ktx2 = 'decoded'`). The game bundle: `dist/assets/babylon-*.js` holds KhronosTextureContainer2
+  with Babylon's `cdn.babylonjs.com/babylon.ktx2Decoder.js` default string (Babylon's built-in .ktx2 loader pulls the
+  class in; manualChunks puts it in the babylon chunk). The path is no longer reachable: core/babylon.ts blanks
+  `URLConfig.jsDecoderModule` at import, so an unconfigured KTX2 load fails instead of fetching; the game loads no KTX2
+  before step 18. Step 18 still needs: the KHR_texture_basisu glTF path in the game, ktx2.ts's setup (or its
+  equivalent) before the first operator texture, and the same flip if it reads the GLB with a v-flipping reader.

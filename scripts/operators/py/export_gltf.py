@@ -87,13 +87,38 @@ FLAT = {  # name: (albedo, roughness)
     'cradle cordura': (0.022, 0.88), 'anodised aluminium': (0.026, 0.62), 'goggle polymer': (0.023, 0.64),
     'eyecup rubber': (0.023, 0.84), 'knob polymer': (0.024, 0.74), 'cloth tape': (0.03, 0.80),
     'cable jacket': (0.023, 0.72), 'mic foam': (0.028, 0.90),
+    # step 11 (A78): hard parts of steps 08b-09 (no albedo check: their materials.py / garment colours, roughness P50
+    # measured by check_garment.py)
+    'armour composite': (0.032, 0.64), 'armour edge rubber': (0.021, 0.78), 'hardware gunmetal': (0.051, 0.62),
+    'gunmetal': (0.051, 0.62), 'pod polymer': (0.021, 0.58), 'suit grip rubber': (0.024, 0.72),
 }
+# Step 11 (A78): every other procedural material (the step 08b-09b suit zones, composite, rubber trim, gunmetal, kit
+# elastic, pod) exported the glTF default 0.8 base colour, so the Lab showed the near-black suit and plates as light
+# grey. They take the median albedo and roughness check_garment.py measured from the render (<op>-<item>-check.json).
+import json  # noqa: E402
+MEASURED = {}
+for g in args.garment or []:
+    f = os.path.join(args.out, f'{op_id}-{g}-check.json')
+    if not os.path.exists(f):
+        continue
+    with open(f, encoding='utf-8') as fh:
+        for c in json.load(fh).get('checks', []):
+            kind, _, name = c.get('name', '').partition(':')
+            if kind in ('albedo', 'roughness') and name and isinstance(c.get('value'), list) and len(c['value']) == 3:
+                MEASURED.setdefault(name, {})[kind] = c['value'][1]
 for mat in bpy.data.materials:
     if not mat.use_nodes:
         continue
     bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
-    if bsdf is None or mat.name not in FLAT:
+    if bsdf is None:
         continue
+    if mat.name not in FLAT:
+        m = MEASURED.get(mat.name, {})
+        linked = bsdf.inputs['Base Color'].is_linked or bsdf.inputs['Roughness'].is_linked
+        if not linked or 'albedo' not in m:
+            continue
+        FLAT[mat.name] = (m['albedo'], m.get('roughness', bsdf.inputs['Roughness'].default_value))
+        print('export_gltf: measured factors', mat.name, FLAT[mat.name])
     a, r = FLAT[mat.name]
     for sock in ('Base Color', 'Roughness'):
         for lk in list(bsdf.inputs[sock].links):
