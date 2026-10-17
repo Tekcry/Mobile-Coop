@@ -211,6 +211,9 @@ of each item and ensure it is realistically reflected. Ask me questions if you n
 - Drone pod side (A88, step 11b): with the pistol mags at 9 o'clock and the socket at 8, the left rear belt has 117 mm
   free against the pod's 171 mm. Asked, Michael: "Pod rear right (Recommended)" - the hard pod rear right on a flat
   mount, the soft medkit on the right side (changes D25's sides).
+- After step 11b (Michael, 2026-10-17): the 9 o'clock pistol mags' forward draw is blocked by the raised thigh in
+  the game crouch - "Keep, reload anim handles it (Recommended)": they stay; locomotion's reload animation lifts the
+  mag up and out (integration note). Gunmetal A86 - "Keep dark anodised (Recommended)".
 
 **D27 Babylon's KTX2 decoder bundled (2026-10-17, during step 11).** Asked whether to add Babylon's KTX2 decoder
 files to the project (the official Babylon decoder package, Apache 2.0, bundled locally, no CDN), Michael: "Yes, add it

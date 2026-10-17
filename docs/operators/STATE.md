@@ -3,7 +3,7 @@
 **Now:** the Wren block end (RULES.md), step 11b passed: retry step 08a (steps/08a-fixes-r4.md), then step 10
 (steps/10-fixes-r4.md plus the hero-bake confetti, LOD greys, LOD1 chest bakeDiff 31 px; A89's LOD1 target is fragile),
 then step 11 (steps/11-fixes-r4.md: the full 22-close-up callout audit; 11b applied the rule to 8 views). Michael's
-eye at the block end: A86 gunmetal and the 9 o'clock pistol-mag draw in the game crouch (LOG Step 11b). Then step 12
+eye: A86 gunmetal and the pistol-mag draw were answered (keep both, D28). Then step 12
 (Moth) starts by asking Michael Moth's direction (D24). Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
