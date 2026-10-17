@@ -7,10 +7,10 @@ Status:
 - Michael recorded CT footage on the laptop and copied it to the desktop: pc/ct-ref/ (local only, gitignored): 64 Steam game-recording clips (DASH: clip_13570_<UTC>/video/*/session.mpd) and 113 screenshots (<local time UTC+11>_1.jpg, 13570_*.png duplicates).
 - Converted with scripts/ct-ref/convert-clips.sh (ffmpeg 9.0.2, OWNER-NOTES) to pc/ct-work/clips/*.mp4 (HEVC 2420x1668, ~55-60 fps). Michael's capture checklist (artifact https://claude.ai/artifact/GzeZnb5kDqcebbHX56hEUY, collection captures) exported to pc/ct-work/checklist/; scripts/ct-ref/map-footage.mjs writes the rough time mapping pc/ct-work/index.md.
 - A cataloguing agent labels every clip / screenshot with its checklist code and time range: pc/ct-work/catalogue.md, copied to docs/locomotion/research/ct-footage-catalogue.md (check it exists; if not, rerun that cataloguing).
-Next, in order:
+Next, in order (M22: playable prototype first):
 1. Measuring agents (read-only, parallel by area) extract frames with ffmpeg and measure from the catalogue: stops, speeds, turns (incl. D2: slowest speed walks backwards, faster turns round), posture (spine / knee angles), camera (explore and aim distances, shoulder swap), back-to-wall pose / slide / peek / leave, doors, palm strike timing, vision looks. Output docs/locomotion/research/ct-footage-*.md with numbers and frame refs.
-2. Write the locomotion update prompt / plan from the measurements (pure CT, M20; desktop only, M21) and rewrite the remaining steps (22c, 22b, 23, 24, 24w, 24d, 24q, 24v, then 25 with the Wren check M18). Michael reviews it.
-3. Build; pause after 22c for Michael (M20 Q12), and he reviews each revision.
+2. Write a comprehensive, clear plan from the measurements (pure CT, M20; desktop only, M21) and discuss it with Michael. He then clears the conversation.
+3. Build a PLAYABLE CT-movement prototype fast (M22): core feel only, light checks, no audit fix rounds. Michael play-tests it on the laptop and decides before any fine tuning.
 Michael's footage notes: rifle / pistol out = aiming only (no rifle-out walk); slowest speed walks backwards instead of turning; no aiming in cover (over or round a crate); wall jump not found; skipped F6, H4, I7, I8, J5, J7, J10, L1.
 
 
