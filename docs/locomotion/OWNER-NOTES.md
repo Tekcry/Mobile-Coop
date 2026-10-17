@@ -25,7 +25,7 @@ Project knowledge lives in git, never only in Claude memory or chat: Michael swa
 - M12: the bot partner (step 20) was dropped; the play check and co-op checks use two browser tabs with `?net=local`. The verbatim prompts below still mention it.
 
 ## Prompts Michael uses
-- Resume line (new session or new account): **Locomotion run: RESUME (local)**. The session runs the branch guard in the worktree and resumes from STATE.md "RESUME HERE" (2026-10-17: research and CT footage phase, building paused).
+- Resume line (new session or new account): **Locomotion run: RESUME (local)**. The session runs the branch guard and resumes from STATE.md "RESUME HERE" (2026-10-17: build the CT prototype per PROTOTYPE-PLAN.md, slice P1 first).
 - After the play-check pause: **Locomotion: go** (with or without notes).
 - The standby prompt and its addition, verbatim:
 

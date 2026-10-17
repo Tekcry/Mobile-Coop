@@ -1,6 +1,9 @@
 # Locomotion run - state
 
-## RESUME HERE (2026-10-17, M19-M21): research and CT footage, no building
+## RESUME HERE (2026-10-17, M19-M24): BUILD THE CT PROTOTYPE
+Footage processed and measured (docs/locomotion/research/ct-measure-*.md, ct-footage-catalogue.md). The plan to build is docs/locomotion/PROTOTYPE-PLAN.md (slices P1 body, P2 camera, P3 wall + doors, P4 strike + vision; light checks; Michael plays after P1 and after P4; open questions at its end). Start with P1 unless Michael says otherwise. Older notes below.
+
+## Earlier (2026-10-17, M19-M21): research and CT footage
 Read first: DECISIONS.md M12-M21 (M20 = pure Chaos Theory without exception; M21 = desktop only), PLAY-NOTES.md (play test 2, P1-P16), CT-RESEARCH.md (comparison, 12 questions; Michael's answers are M20), CT-SHOTLIST.md (capture list), research/*.md.
 Status:
 - Building is PAUSED since step 22 (last code commit aede1b0). No code changes since.
