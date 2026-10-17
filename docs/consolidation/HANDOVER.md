@@ -33,23 +33,9 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
 
 ## Unclear items: ANSWERED and APPLIED. docs/DECISIONS.md is final (G1-G118; U answers in G11, G24, G49, G75, G76, G111, G114-G118).
 
-## Live state (2026-10-18, update at every commit)
-- Subagent preamble: docs/consolidation/AGENT-PREAMBLE.md. Checker verdicts: docs/consolidation/checks/.
-- DONE: DECISIONS.md final (9cbc9bc). 3a retired maps + lobby default Infiltration (f485ae3, PASS). 3b phone and touch,
-  e2e as desktop (11dfad9, PASS; e2e-foley now known flaky). Late docs merges footsteps (5135538) and music (a5d2cfe).
-  3c(i) emotes (2b8758e; PROTOCOL 13, SAVE 9) and old solo Training (94be374), PASS.
-  3c(ii) non-CT guns + e2e-pad capture fix (e9ac457, clean; guards carry the kept models).
-  3c(iii) drone + difficulty sliders + carried medkits (3c7c2a5, one commit: shared files; PASS; station heal +40 ASSUMED).
-  Step 4 docs D1-D4 (e1657f4).
-  D5 name scrub (5bd3634); version 4.0.0 + CHANGELOG (6a28eaf). Full e2e: check passes; kestrel + camera-bounds U
-  (Kestrel-owned); mouse, course pass solo; bunker failed solo on its logged-flaky teleport check; coop, foley known flaky.
-- RUNNING: fixer for e2e-anim (deterministic: pose channels continuous through every transition, max 0.137) - likely
-  from 3c7c2a5 (medkit state / anim graph) or e9ac457. If the session died: git status shows its work; rerun e2e-anim solo.
-- NEXT: commit the fix, rerun e2e-anim + e2e-bunker solo, then gh pr create (body drafted in the orchestrator's
-  docs/consolidation/PR-BODY.md; fill E2E_RESULTS), then
-  STATE.md on feature/ct-locomotion.
-- Known: e2e-course failed once under load (lever door 1994 ms > 500), passed solo; legacy e2e-progression fails at
-  "Y customises the weapon" (report only); kbm flashbang white-out 0.00 (pre-existing); full runs use E2E_SUITE_TIMEOUT=900.
+## Live state (2026-10-18): DONE
+- PR https://github.com/Tekcry/Mobile-Coop/pull/3 open (integrate/consolidate -> master). STATE.md on feature/ct-locomotion
+  updated (ba2a332). Nothing left in this run; Michael merges. Steps 1-8 below are complete.
 
 ## Still to do (in order)
 3. Deletions in this merge (Michael: "In this merge"), one code agent at a time (opus):
