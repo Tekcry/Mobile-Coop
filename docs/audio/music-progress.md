@@ -37,6 +37,15 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 4f | Round 25: more epic and upbeat (low drums only, sixteenths, epic brass); position slider on the test page | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
 
+## Note (2026-10-17) - desktop only (relayed)
+- The Locomotion Build session relayed Michael's decision (feature/ct-locomotion M21, commit c22e816): Night Shift is
+  desktop only ("I want to focus on desktop only performance, ignore phones"). Pad first, then keyboard and mouse.
+  No phone budgets, phone checks or touch work.
+- For the music: phone checks are no longer pending, and test links are PC only. The game tracks keep decoding at
+  32 kHz (it saves memory on desktop too).
+- `CLAUDE.md` on this branch is unchanged: Michael gave no preference when asked, and the text reaches this branch when
+  feature/ct-locomotion merges.
+
 ## V4 step 4f (round 25) - more epic, low drums, a position slider
 - **Michael (2026-10-16):** "not epic enough, and i hate the high pitched drum rolls. should feel more upbeat and have
   another layer making it absolutely epic. also add a way for me scroll through the song".
