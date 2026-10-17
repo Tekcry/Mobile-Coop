@@ -131,7 +131,7 @@ interface GameTrack {
   whole?: boolean;
 }
 const GAME: GameTrack[] = [
-  { name: 'menu', piece: 'grandsoft', preset: 'Softer', target: -19, whole: true },
+  { name: 'menu', piece: 'grandlong', preset: 'Softer', target: -19 },
   { name: 'caution', piece: 'brokenpluck', preset: 'Cautious', target: -23 },
   { name: 'alert', piece: 'underfire', preset: 'Alert: hook forward', target: -16 },
   { name: 'evade', piece: 'underfire', preset: 'Evasion', sameGainAs: 'alert' },

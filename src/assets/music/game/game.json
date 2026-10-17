@@ -33,13 +33,13 @@
   },
   "menu": {
    "file": "music-menu.mp3",
-   "headSec": 0,
-   "loop": 85.33333333333333,
+   "headSec": 10.666666666666666,
+   "loop": 170.66666666666666,
    "bpm": 90,
-   "bars": 32,
-   "loudness": -20.8,
-   "bytes": 1464239,
-   "whole": 90.938
+   "bars": 64,
+   "loudness": -21.2,
+   "bytes": 2927710,
+   "head": "music-menu-head.mp3"
   },
   "evade": {
    "file": "music-evade.mp3",

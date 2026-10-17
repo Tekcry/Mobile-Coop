@@ -93,8 +93,8 @@ export class GameMusic {
           this.menuV = this.voice(1, ctx.currentTime + 0.1, d.meta.bpm);
           this.playWhole(d, this.menuV, ctx.currentTime + 0.1);
         } else {
-          this.menuV = this.start(d, ctx.currentTime + 0.1, 0);
-          this.fade(this.menuV, 1, ctx.currentTime + 0.1, 2.5);
+          // the loop's clean opening swells in from silence by itself (the low D breathing in)
+          this.menuV = this.start(d, ctx.currentTime + 0.1, 1);
         }
       });
     });

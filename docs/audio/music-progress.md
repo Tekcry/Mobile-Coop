@@ -33,7 +33,53 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 | 4b | Fixes from the first play: music default 30 %, gentle menu fade, a build into Alert, menu loop blends | done |
 | 4c | Footsteps merged; music 15 %; the fade cut fixed; the menu theme as a whole piece | done |
 | 4d | Round 23: Calm and Cautious alternatives on the hook thread (test page only) | done; waiting for Michael's picks |
+| 4e | Round 24: the menu theme extended to 64 bars (drums, a peak, a seamless loop) | done |
+| 4f | Round 25: more epic and upbeat (low drums only, sixteenths, epic brass); position slider on the test page | done; waiting for Michael |
 | 4 | Refine the chosen sketch; wire the mission score to guard awareness and the menu theme to the menu | not started |
+
+## V4 step 4f (round 25) - more epic, low drums, a position slider
+- **Michael (2026-10-16):** "not epic enough, and i hate the high pitched drum rolls. should feel more upbeat and have
+  another layer making it absolutely epic. also add a way for me scroll through the song".
+- **Done (`menuLong()`):**
+  - **No high drums:** the stick pattern, the stick rolls into each section, the cymbal swells and the timpani roll are
+    gone. The drums are now only the big mallet drums (some pitched down like toms), the bass drum and timpani.
+    - From bar 41 the groove is busier (16th-note syncopation) with the bass drum on 1 and 3 and timpani on 1 and 4.
+    - The fills are big drums in eighths walking down with timpani (D, C, A, A).
+    - The downbeats of 41, 49 and 57 land hard.
+  - **More upbeat:** the string pulse turns from 3-3-2 eighths into sixteenths (accents 3-3-2) from bar 41 to 56.
+  - **The epic layer (new, `epic`):**
+    - Hook A on tuba and trombones from bar 41, with short horns on top from 49 and a sub hit under every hook note.
+    - Big brass chords (three horns, trombone, tuba) on every chord change at the peak.
+    - Low string risers into 41 and 49, and brass impacts on 41, 49 and 57.
+  - Presets: Softer (the game mix, epic at 75 %), Softer with no epic brass, Softer with strings and drums only,
+    Softer with no drums, Full.
+  - **Measured per bar:** 1-8 about -30 dB, 25-32 -21, 33-40 -21, 41-48 -18, 49-56 -15 (the peak, was -17), then
+    -22, -24, -26, -26, -28, -29, -31, -30 | back to -30, -31. The join is level.
+- **Test page:** "Position" under the keepers. A slider scrolls through any piece playing alone (keepers, "Loop
+  alone"), with time and bar shown, plus -8 bars, +8 bars and "Last 4 bars (into the loop)". `ScorePlayer.position()`
+  and `seek()` restart every layer at the new point behind a 40 ms dip (no click).
+
+## V4 step 4e (round 24) - the menu theme, extended
+- **Michael (2026-10-16):** "extend the main menu theme, make it continue and get more epic and upbeat with drums or
+  something, then should loop onto it self smoothly. aim for 100% longer duration."
+- **Done:** "Menu theme, extended" (`grandlong` in `pieces.ts`, `menuLong()`): 64 bars at 90 BPM, 170.7 s, twice the
+  old 85.3 s. The game's menu track is now this piece's Softer mix as a seamless loop with its clean opening (the
+  whole-piece mode from step 4c stays in the code, unused).
+  - Bars 1-32: the theme as kept (the hook, the cellos' melody, then violins and the whole section).
+  - Bar 31: a drum roll and a timpani roll into bar 33.
+  - Bars 33-40: the drums (big drum on 1 and 3, sticks, timpani on the chord changes), a string pulse in 3-3-2
+    eighths, the melody on horns with the cellos.
+  - Bars 41-56: the full drum pattern with the bass drum, a driving bass and sub, low brass swells, the melody on
+    violins an octave up. Bar 49 is the peak (violins, violas, horns and cellos in octaves). Fills lead into 41, 49
+    and 57.
+  - Bars 57-64: one big hit, then the way down. The drums thin out over 4 bars, the pulse fades, soft low brass and
+    chords Dm, B-flat, G minor, the melody once more softly on cellos (its last A leads home). The last two bars
+    breathe on the held low D the theme opens with, still ringing when the loop's own low D swells in.
+  - **Measured per bar:** 0-7 about -29 dB, 16-31 -22 to -18, 33-40 -20, 41-56 -18 to -16, then -22, -22, -24, -25,
+    -26, -28, -30, -28 | back to -29, -29 at the start. The join is level.
+- **Files:** `music-menu.mp3` 2.9 MB (was 1.4 MB); all game tracks 7.2 MB.
+- The test page lists "Menu theme, extended" with the keepers (presets: Softer, strings and drums only, no drums,
+  Full).
 
 ## V4 step 4d (round 23) - Calm and Cautious alternatives on the hook thread
 - **Michael (2026-10-16):** alternatives for the in-game Calm and Cautious that keep Hook A as the thread without
@@ -66,6 +112,7 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
   - Unit 688 pass. `score.test`'s hit check now uses one expect per hit; it timed out under load with one per sample.
     Other suites only time out under load and pass on rerun.
   - Lint and build are clean. `e2e-score` and `e2e-music` pass (`E2E_PORT=4183`).
+- **Session method:** `docs/systems/session-method.md` copied exactly from origin/feature/operators (b3a58ff).
 - **Next:** Michael picks a Calm and a Cautious. They become the game's `caution` track and, if Calm is no longer
   silence, a new `calm` track that the player fades in for Calm.
 

@@ -269,6 +269,36 @@ export const PIECES: readonly PieceMeta[] = [
     },
   },
   {
+    id: 'grandlong',
+    name: 'Menu theme, extended (round 25)',
+    about: 'The menu theme twice as long (64 bars, about 2 min 50 s, 90 BPM), a seamless loop. Bars 1-32 as "Grand, dialled back"; at 33 the low drums come in with a 3-3-2 string pulse and the melody on horns; at 41 everything (sixteenths in the strings, the hook on tuba and trombones, violins an octave up, a driving bass); at 49 the peak (big brass chords, horns on the hook); round 25: no sticks, cymbals or rolls; from 57 it comes down, the melody once more on cellos, and the last two bars breathe on the low D the theme opens with, so it loops back into its start.',
+    use: 'menu',
+    bpm: 90,
+    bars: 64,
+    target: -20,
+    layers: [
+      S('hookLow', 'Hook A, cellos and basses'),
+      S('hookHigh', 'Hook A, violas an octave up'),
+      S('lowSus', 'Low held D'),
+      S('chords', 'Held chords'),
+      S('trem', 'High tremolo'),
+      S('celloMel', 'Melody on cellos'),
+      S('violinMel', 'Melody on violins'),
+      S('pulse', 'String pulse (eighths from bar 33, sixteenths from 41)'),
+      S('bass', 'Driving bass and sub (from bar 41)'),
+      { id: 'brass', name: 'Melody on horns, low brass swells', kind: 'brass' },
+      { id: 'drums', name: 'Low drums and timpani (from bar 33)', kind: 'perc' },
+      { id: 'epic', name: 'Epic brass: the hook on tuba and trombones, big brass chords (from bar 41)', kind: 'brass', wet: 0.22 },
+    ],
+    presets: {
+      Softer: { hookLow: 0.9, hookHigh: 0.5, lowSus: 0.6, chords: 0.65, trem: 0.45, celloMel: 0.9, violinMel: 0.8, pulse: 0.9, bass: 0.6, brass: 0.55, drums: 0.9, epic: 0.75 },
+      'Softer, no epic brass': { hookLow: 0.9, hookHigh: 0.5, lowSus: 0.6, chords: 0.65, trem: 0.45, celloMel: 0.9, violinMel: 0.8, pulse: 0.9, bass: 0.6, brass: 0.55, drums: 0.9 },
+      'Softer, strings and drums': { hookLow: 0.9, hookHigh: 0.5, lowSus: 0.6, chords: 0.65, trem: 0.45, celloMel: 0.9, violinMel: 0.8, pulse: 0.9, bass: 0.6, drums: 0.9 },
+      'Softer, no drums': { hookLow: 0.9, hookHigh: 0.5, lowSus: 0.6, chords: 0.65, trem: 0.45, celloMel: 0.9, violinMel: 0.8, pulse: 0.9, bass: 0.6, brass: 0.55, epic: 0.75 },
+      Full: { hookLow: 1, hookHigh: 1, lowSus: 1, chords: 1, trem: 1, celloMel: 1, violinMel: 1, pulse: 1, bass: 1, brass: 1, drums: 1, epic: 1 },
+    },
+  },
+  {
     id: 'grandsoft',
     name: 'Menu theme, Grand, dialled back',
     about: 'The menu theme (kept): 90 BPM, the hook alone, then the melody on cellos, then violins and the whole section, a long final chord. Starts on the softer mix; "Full" is the original balance.',
@@ -735,6 +765,150 @@ function menuGrand(s: Score, hookFrom = 0): void {
   taper(s, N - 4, N, 0.4);
 }
 
+/**
+ * Round 24 (Michael: "extend the main menu theme, make it continue and get more epic and upbeat with drums, then loop
+ * onto itself smoothly"): 64 bars. 0-31 the menu theme as kept; 32-55 the drums, the pulse and the brass build to the
+ * peak; 56-63 the way down, ending on the held low D the theme opens with, so the loop joins at the same level.
+ */
+function menuLong(s: Score): void {
+  const first = 2;
+  const dyn = (b: number): number =>
+    b < 8 ? 0.28 + (b - first) * 0.045 : b < 16 ? 0.68 : b < 24 ? 0.82 : b < 32 ? 0.86 : b < 48 ? 0.92 : b < 56 ? 0.98 : Math.max(0.3, 0.86 - (b - 56) * 0.11);
+  const chordAt = (b: number): ChordName => PROG[Math.floor(b / 2) % 4]!;
+  hookLine(s, 'hookLow', 'celloSpic', 0, first, 62, dyn);
+  hookLine(s, 'hookLow', 'bassSpic', -12, first, 62, dyn);
+  hookLine(s, 'hookHigh', 'violaSpic', 12, 16, 58, dyn);
+  lowD(s, 'lowSus', 0, 16, 8, 0.5);
+  // the way back: a held low D from bar 56 that swells in and is still ringing when the loop's own low D swells in
+  for (const [inst, m, v] of [['bassSus', D, 1], ['celloSus', D, 1], ['celloSus', D + 7, 0.7]] as const) {
+    note(s.L('lowSus'), s.bank, inst, m, s.t(56), s.d(32), { vel: 0.46 * v, attack: s.d(8), release: s.d(6) });
+  }
+  chords(s, 'chords', 16, 56, 2, 0.75, 0.4, true);
+  ['Dm', 'Bb', 'Gm'].forEach((name, k) => {
+    const c = CH[name as ChordName];
+    const b = 56 + 2 * k;
+    const vel = 0.6 - 0.1 * k;
+    const o = { vel, attack: 0.6, release: 1.4 };
+    note(s.L('chords'), s.bank, 'celloSus', c.tones[1]!, s.t(b), s.d(8), o);
+    note(s.L('chords'), s.bank, 'violaSus', c.tones[2]!, s.t(b), s.d(8), { ...o, vel: vel * 0.9 });
+    note(s.L('chords'), s.bank, 'violinSus', c.tones[3]!, s.t(b), s.d(8), { ...o, vel: vel * 0.85 });
+  });
+  trem(s, 'trem', 8, 24, 8, 0.45);
+  trem(s, 'trem', 24, 32, 8, 0.5);
+  trem(s, 'trem', 32, 56, 8, 0.58);
+  // the melody: cellos at 8, violins at 16, everything at 24 (as kept), horns at 32, violins up high at 40,
+  // the peak at 48 (violins, violas, horns, cellos in octaves), once more softly on cellos from 56 (its A leads home)
+  motif(s, 'celloMel', 'celloSus', 8, 0.75, -12);
+  motif(s, 'celloMel', 'celloSus', 24, 0.85, -12);
+  motif(s, 'violinMel', 'violinSus', 16, 0.75);
+  motif(s, 'violinMel', 'violinSus', 24, 0.9, 12);
+  motif(s, 'violinMel', 'violaSus', 24, 0.8);
+  motif(s, 'brass', 'hornSus', 32, 0.62);
+  motif(s, 'celloMel', 'celloSus', 32, 0.8, -12);
+  motif(s, 'violinMel', 'violinSus', 40, 0.9, 12);
+  motif(s, 'violinMel', 'violinSus', 40, 0.8);
+  motif(s, 'celloMel', 'celloSus', 40, 0.85, -12);
+  motif(s, 'violinMel', 'violinSus', 48, 0.95, 12);
+  motif(s, 'violinMel', 'violaSus', 48, 0.88);
+  motif(s, 'brass', 'hornSus', 48, 0.75);
+  motif(s, 'celloMel', 'celloSus', 48, 0.9, -12);
+  motif(s, 'celloMel', 'celloSus', 56, 0.42, -12);
+  brassSwells(s, 'brass', 40, 56, 0.4);
+  // the pulse: 3-3-2 eighths on the chord, cellos and violas, from bar 32 (lighter for the first 8 bars)
+  for (let b = 32; b < 60; b++) {
+    const c = CH[chordAt(b)];
+    const lift = b < 40 ? 0.85 : b < 56 ? 1 : 0.75 - (b - 56) * 0.15;
+    if (b >= 40 && b < 56) {
+      // round 25: sixteenths from 40 (upbeat), accents in 3-3-2
+      for (let i = 0; i < 16; i++) {
+        const v = 0.55 * (i === 0 || i === 3 || i === 6 || i === 8 || i === 11 || i === 14 ? 1 : 0.55);
+        note(s.L('pulse'), s.bank, 'celloSpic', c.root + 12, s.t(b, i / 4), s.d(0.24), { vel: v, release: 0.06 });
+        note(s.L('pulse'), s.bank, 'violaSpic', c.tones[2]!, s.t(b, i / 4), s.d(0.24), { vel: v * 0.85, release: 0.06 });
+      }
+      continue;
+    }
+    for (let i = 0; i < 8; i++) {
+      const v = 0.55 * lift * (i === 0 || i === 3 || i === 6 ? 1 : 0.62);
+      note(s.L('pulse'), s.bank, 'celloSpic', c.root + 12, s.t(b, i / 2), s.d(0.45), { vel: v, release: 0.08 });
+      note(s.L('pulse'), s.bank, 'violaSpic', c.tones[2]!, s.t(b, i / 2), s.d(0.45), { vel: v * 0.85, release: 0.08 });
+    }
+  }
+  // the driving bass and a sub, from bar 40
+  for (let b = 40; b < 56; b++) {
+    const r = CH[chordAt(b)].root;
+    for (const [i, v] of [[0, 1], [3, 0.8], [4, 0.6], [6, 0.85]] as const) note(s.L('bass'), s.bank, 'bassSpic', r, s.t(b, i / 2), s.d(0.45), { vel: 0.7 * v, release: 0.08 });
+    if (b % 2 === 0) subBass(s.L('bass'), s.t(b), s.d(8), r - 12, 0.35);
+  }
+  // round 25 (Michael: "i hate the high pitched drum rolls"): no sticks, no cymbals, no rolls - only the low drums
+  // (big mallet drums, some pitched lower like toms), the bass drum and timpani, in a faster groove; fills are low
+  // drums and timpani walking down
+  const P = s.L('drums');
+  const big = (b: number, i: number, which: number, semis: number, v: number): void => hit(P, s.bank, 'giant', which, s.t(b, i / 4), v, semis);
+  // into bar 32: big drums in eighths, growing, timpani on the beats
+  for (let k = 0; k < 4; k++) big(31, 8 + 2 * k, k % 2 ? 0 : 1, -5, 0.4 + 0.1 * k);
+  for (let k = 0; k < 2; k++) timp(P, s.bank, D + 12, s.t(31, 2 + k), 0.45 + 0.15 * k);
+  const LIGHT = [[0, 1, 0, 0.85], [6, 1, -5, 0.55], [8, 2, 0, 0.75], [14, 1, -5, 0.5]] as const;
+  const FULL = [[0, 1, 0, 1], [3, 0, -3, 0.55], [6, 1, -5, 0.7], [8, 2, 0, 0.9], [10, 0, -3, 0.5], [11, 0, -5, 0.55], [14, 1, -5, 0.65]] as const;
+  for (let b = 32; b < 56; b++) {
+    const full = b >= 40;
+    const fill = b === 39 || b === 47 || b === 55;
+    for (const [i, which, semis, v] of full ? FULL : LIGHT) {
+      if (fill && i >= 8) continue;
+      big(b, i, which, semis, (full ? 0.78 : 0.66) * v);
+    }
+    if (full) {
+      hit(P, s.bank, 'bdrum', 1, s.t(b), 0.6);
+      if (!fill) hit(P, s.bank, 'bdrum', 0, s.t(b, 2), 0.45);
+    }
+    const r = CH[chordAt(b)].root + 12;
+    if (full || b % 2 === 0) timp(P, s.bank, r, s.t(b), full ? 0.66 : 0.58);
+    if (full && !fill) timp(P, s.bank, r, s.t(b, 3), 0.45);
+    if (fill) {
+      // the fill: eighths on the big drums, lower and louder, timpani walking down D, C, A, A
+      for (let k = 0; k < 4; k++) {
+        big(b, 8 + 2 * k, k % 2 ? 0 : 1, -2 * k, 0.55 + 0.1 * k);
+        timp(P, s.bank, [D + 12, D + 10, D + 7, D + 7][k]!, s.t(b, 2 + k / 2), 0.5 + 0.1 * k);
+      }
+    }
+  }
+  // the downbeats of 40, 48 and 56 land hard
+  for (const b of [40, 48, 56]) {
+    big(b, 0, 2, -3, 0.9);
+    hit(P, s.bank, 'bdrum', 2, s.t(b), 0.65);
+  }
+  timp(P, s.bank, D + 12, s.t(56), 0.65);
+  for (const [b, v] of [[57, 0.5], [58, 0.42], [59, 0.34], [60, 0.26]] as const) {
+    big(b, 0, 1, 0, v);
+    if (b % 2 === 0) timp(P, s.bank, D + 12, s.t(b), v);
+  }
+  // the epic layer (round 25): Hook A on tuba and trombones from 40, short horns on top from 48, a sub under every hook
+  // note, big brass chords on every chord change at the peak, low string risers into 40 and 48, brass impacts on 40, 48, 56
+  hookLine(s, 'epic', 'tubaSus', 0, 40, 56, (b) => (b < 48 ? 0.75 : 0.85));
+  hookLine(s, 'epic', 'tbnSus', 12, 40, 56, (b) => (b < 48 ? 0.7 : 0.82));
+  hookLine(s, 'epic', 'hornStac', 12, 48, 56, () => 0.78);
+  for (let b = 40; b < 56; b++) {
+    for (let i = 0; i < 8; i++) {
+      const name = HOOK_A[(b % 2) * 8 + i];
+      if (name) subBass(s.L('epic'), s.t(b, i / 2), 0.16, n(name) - 12, i === 0 ? 0.24 : 0.16, 0.004);
+    }
+  }
+  for (let b = 48; b < 56; b += 2) {
+    const c = CH[chordAt(b)];
+    for (const [inst, m, v] of [['hornSus', c.tones[0]!, 0.72], ['hornSus', c.tones[1]!, 0.66], ['hornSus', c.tones[2]!, 0.62], ['tbnSus', c.root + 12, 0.7], ['tubaSus', c.root, 0.68]] as const) {
+      note(s.L('epic'), s.bank, inst, m, s.t(b), s.d(7), { vel: v, attack: 0.18, release: 0.9 });
+    }
+  }
+  for (const b of [40, 48]) {
+    for (const [inst, m] of [['celloTrem', D + 12], ['bassSus', D]] as const) note(s.L('epic'), s.bank, inst, m, s.t(b - 1, 2), s.d(2), { vel: 0.72, attack: s.d(1.9), release: 0.05 });
+  }
+  for (const b of [40, 48, 56]) {
+    for (const [inst, m] of [['tubaSus', D], ['tbnSus', D + 12], ['tbnSus', D + 19]] as const) note(s.L('epic'), s.bank, inst, m, s.t(b), s.d(0.7), { vel: 0.85, release: 0.5 });
+  }
+  // a soft low brass chord under the way down
+  for (const m of [n('D3'), n('A3'), n('F3')]) note(s.L('brass'), s.bank, 'hornSus', m, s.t(56), s.d(16), { vel: 0.36, attack: 0.8, release: s.d(4) });
+  note(s.L('brass'), s.bank, 'tbnSus', D + 12, s.t(56), s.d(12), { vel: 0.34, attack: 0.8, release: s.d(4) });
+}
+
 /** A diminuendo on every layer from bar `from` to bar `to` (down to `end`), before the reverb (its tail decays naturally). */
 function taper(s: Score, from: number, to: number, end: number): void {
   const a = Math.round(s.t(from) * RATE);
@@ -1078,6 +1252,9 @@ export function renderPiece(bank: Bank, meta: PieceMeta, linear = false): Piece 
       break;
     case 'grandnight':
       grandNight(s);
+      break;
+    case 'grandlong':
+      menuLong(s);
       break;
     case 'grandhorns':
       grandHorns(s);
