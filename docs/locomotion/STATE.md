@@ -1,5 +1,12 @@
 # Locomotion run - state
 
+## CONSOLIDATION IN PROGRESS (2026-10-17, account switch): resume from the integrate branch
+Six merges done and pushed on integrate/consolidate (C:\NightShift\Mobile-Coop-integrate). Michael answered the audit:
+pure Chaos Theory mechanics and look, 2-player co-op campaign only, CT co-op levels researched and recreated, prototype
+first. Resume point and prompt: docs/consolidation/HANDOVER.md on integrate/consolidate (`git -C
+C:/NightShift/Mobile-Coop-integrate show HEAD:docs/consolidation/HANDOVER.md`). The CT prototype plan below waits
+until Michael merges the consolidation PR, and is redone against the new decisions (docs/DECISIONS.md).
+
 ## RESUME HERE (2026-10-17, M26): FIRST CONSOLIDATE, THEN THE CT PROTOTYPE
 1. Consolidation to master with a documentation audit and Michael's vision questions (M26, M27): follow docs/locomotion/CONSOLIDATE.md (new worktree C:/NightShift/Mobile-Coop-integrate, branch integrate/consolidate, one PR; Michael merges). Start prompt in OWNER-NOTES.md.
 2. After Michael merges: the CT prototype on a fresh branch feature/ct-prototype from master, per the plan below.
