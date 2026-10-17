@@ -33,6 +33,18 @@ C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md poi
 
 ## Unclear items: ANSWERED and APPLIED. docs/DECISIONS.md is final (G1-G118; U answers in G11, G24, G49, G75, G76, G111, G114-G118).
 
+## Live state (2026-10-18 01:20, update at every commit)
+- Subagent preamble: docs/consolidation/AGENT-PREAMBLE.md. Checker verdicts: docs/consolidation/checks/.
+- DONE: DECISIONS.md final (9cbc9bc). 3a retired maps + lobby default Infiltration (f485ae3, checker PASS).
+- RUNNING: 3b phone and touch implementer (uncommitted tree in the work folder; log docs/consolidation/deleted-phone-touch.md).
+  If the session died: `git status` in the work folder shows its partial work. Run a fresh checker on it (as 3a), fix
+  rounds, then commit "consolidate: delete phone and touch code; e2e runs as desktop".
+- NEXT after 3b: merge the late docs-only commits `git merge --no-ff origin/feature/footsteps` (60da81f TESTING line) and
+  `origin/feature/music` (515fb06 music-progress note); then 3c batched to save time: (i) emotes + old solo Training mode,
+  (ii) non-CT guns, (iii) drone + difficulty sliders + carried medkits; one commit per item, one checker per batch.
+- Known: e2e-course failed once in a parallel run (lever door 1994 ms > 500), passed solo; legacy e2e-progression fails at
+  "Y customises the weapon" (report only).
+
 ## Still to do (in order)
 3. Deletions in this merge (Michael: "In this merge"), one code agent at a time (opus):
    a. retired maps: Exchange, Trunk Annex, Dead Line v1 and v2 (code, map list, e2e suites); their design docs
