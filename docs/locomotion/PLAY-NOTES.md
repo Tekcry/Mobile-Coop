@@ -22,3 +22,23 @@ Notes for planning:
 
 ## Plan (M14, Michael, 2026-10-16)
 N8 keep holstered; standing holstered = arms relaxed at the sides with swing (step 21). N4 CT back-to-wall polished, no snap cover. N1-N3, N5 in new step 21w (stop at edges, crouch on any wall, ~0.9 m/s shuffle, no pops / camera jerks / misfires). N6 moderate: speeds -15-20%, ~0.3 s ramp up, ~0.25 s stop, slight turn inertia, in step 22. N7 grain on thermal, electro and night vision in step 21v. Pauses after 21w + 21v and after 22.
+
+## Play test 2 (2026-10-17, laptop, playtest/combined = step 22 + audio; Michael's checklist answers, verbatim notes)
+Good: bob ("camera works well"), music ("works well"). Skipped: medkit, loadout, difficulty, weapon sounds, co-op.
+
+| # | Check | Michael's note |
+| --- | --- | --- |
+| P1 | Start / stop | "the mid animation system has been removed, the player should stop mid animation when walking/crouching, just not when sprinting. Cant really tell that there's a lean. Arms are awkward standing still as the character is leant over, he should be standing up straight and arms should move naturally as you walk/crouching/sprint." |
+| P2 | Speeds | "Speeds are good, the moves don't feel weighted/realistic enough" |
+| P3 | Turns | "All turning movements snap and are unrealistic, you can spin in circles and the legs go all bendy and confused. Reverse at run works." |
+| P4 | Arms | "Arms work but the overall characters bent over pose is unrealistic. He needs to stand up straight." |
+| P5 | Draw / strike | "works, elbow strike is too slow, and shouldn't work unless in range with an enemy." |
+| P6 | Wall enter | "Cover works, not good crouching on low surfaces as head sticks over and its an unrealistic stance, needs to be more of a sideways crouch with back/shoulder on the wall. It's not believable. I think the whole animation should actually look like that instead of literally back to wall, no one would move that way." |
+| P7 | Wall edge | "Wall strafe works well, has an awkward lean to it when moving. Looking around the corner doesn't work, head bends the wrong way depending on where you look and twists unrealistically, the camera also doesn't slide out properly and is not helpful at all, can't see around the corner." |
+| P8 | Wall crouch | "Functionally works, but is very awkward and doesn't lean out enough on ends. Aiming over cover is also a full stand which is too much, he should only just lean over the cover and still look like he's crouching." |
+| P9 | Wall lean | "Character is clipping inside the wall, doesn't lean out enough. Same animation issue as above, its just not believable" |
+| P10 | Door peek | "Doesn't work well, it should also [let] the character push the door open slowly to see inside, and walk backwards to slowly close the door as well. Needs refinement." |
+| P11 | Vision | "Night vision is good, thermal should be much more blurry, it should be difficult to see very far ahead as its a full thermal view. Research FLIR thermal cameras and their result on a high resolution version camera." |
+| P12 | Controls | "Works, but it should prevent you from remapping onto a shared button. It should ask you to remap the original button as well which automatically pops up." |
+| P13 | Footsteps | "Works but the steps are just too loud in game. Worked in time with feet." (audio branch, not this run) |
+| P14 | Overall | "Movement doesn't feel exactly like chaos theory. Needs comprehensive research into the chaos theory movement system, a comparison between that and our current system, and what needs to change to match it. Taking into consideration I think the wall/crouch cover system should be updated to be more realistic." |
