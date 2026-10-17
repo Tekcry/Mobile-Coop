@@ -1,5 +1,43 @@
 # Changelog
 
+## 4.0.0 - Consolidation (Unreleased until Michael merges; G84, G93)
+One branch with all finished and paused work, one vision (docs/DECISIONS.md, G1-G118). The entries below this one are
+the merged branches' own notes, kept as their history.
+
+Came in:
+- Locomotion run (feature/ct-locomotion, paused at step 22, with feature/kestrel inside it): Chaos Theory movement,
+  back-to-wall, traversal, holstered carry, goggles, the anim audit, Kestrel's level editor and Mission 1 work (paused,
+  G53).
+- Movement foley (feature/footsteps), weapon sounds (feature/weapon-audio), Music V4 (feature/music, as is; revised in
+  its own job).
+- Fallow training bunker (feature/training-bunker; the co-op tutorial, G78; rebuilt on CT moves after the prototype,
+  G79).
+- Menu and HUD plan (feature/menu-ui-spec, docs only).
+- Not included: feature/operators (its own PR, G75); ct-movement's 99da75b "phone loads and plays on Low" (superseded
+  by desktop only).
+
+Deleted (Michael, "In this merge"; logs in docs/consolidation/deleted-*.md):
+- Wave, Team Deathmatch, Free-for-all and all player-versus-player code (G8, G9).
+- Retired maps: the 1934 Exchange, Trunk Annex, Dead Line v1 and v2, with their missions and suites; design data
+  archived (G12, G91).
+- Phones and touch: touch input, the layout editor, the phone look and phone render paths, phone budgets; the e2e
+  suites now run in a desktop browser (G12, G13).
+- Emotes and the old solo Training mode (G24, G116); the Fallow course is the only training.
+- Every gun outside the CT kit: 14 player guns removed; kept the rifle and the suppressed pistol (G76, G115).
+- The player drone, the custom difficulty sliders (fixed difficulties again) and carried medkits (wall stations only)
+  (G7, G98, G106, G115).
+
+Changed:
+- Co-op lobby defaults to Infiltration (Hunter under `?legacy=1`). PROTOCOL_VERSION 11 -> 13, MAX_PLAYERS 8 -> 4.
+- SAVE_VERSION 8 -> 9: old saves migrate (emotes, deleted guns and drone presets dropped or mapped to the kept gun);
+  old settings records load and drop touch, phone, custom difficulty and medkit-bind fields.
+- The one wall medkit station (Proving Grounds) heals +40 directly (starting value, ASSUMED).
+- Docs rewritten to one current vision: docs/DECISIONS.md (new), CLAUDE.md, the design bible 2.0, story 2.1,
+  docs/progress.md as an ordered job list, every docs/systems file, level-design Section 12, TESTING.md (one desktop
+  checklist plus a release checklist). Old lists and phase logs are in docs/archive.
+- Tests: e2e-foley is known flaky (walk threshold since the step-22 speeds); e2e-pad's capture step waits for the
+  capture to end; legacy e2e-progression steps to Deploy.
+
 ## Unreleased - Weapon sounds (feature/weapon-audio)
 - Sound: every gun now plays real CC0 recordings instead of a filtered noise burst. The 16 guns borrow the closest of
   12 recorded guns (The Free Firearm Sound Library, `docs/audio-credits.md`): .45 pistol, 9 mm and 7.62 SMGs, 5.56
