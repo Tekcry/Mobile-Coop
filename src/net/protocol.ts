@@ -12,7 +12,7 @@ import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/com
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;

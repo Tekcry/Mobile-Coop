@@ -13,6 +13,8 @@ import { hyp2 } from '../core/mathx';
 /** Noise radii (m): a bulb shot out, a body put down. */
 const SHOT_LIGHT_NOISE = 5;
 const DROP_NOISE = 3;
+/** (A3, G41) A guard's door is shut this long (s) after he is clear of it. Starting value. */
+const DOOR_GUARD_CLOSE = 1.5;
 /** Door noise radii (m): eased open / shut by hand, bashed open at a sprint. */
 const DOOR_QUIET_NOISE = 2;
 const DOOR_BASH_NOISE = 10;
@@ -35,6 +37,8 @@ export class StealthSystems {
   private dropIt: Interactable;
   private kneeL = new Vector3();
   private doorIts: { d: DoorState; it: Interactable }[] = [];
+  /** (A3, G41) Seconds a door a guard opened has stood open and clear (index -> s). A calm guard's door is shut behind him. */
+  private guardOpened = new Map<number, number>();
   private kneeR = new Vector3();
 
   constructor(
@@ -94,7 +98,10 @@ export class StealthSystems {
         return;
       }
       g.events.emit('door', { how, x: d.cx, z: d.cz });
-      if (how === 'enemy') return;
+      if (how === 'enemy') {
+        this.guardOpened.set(d.index, 0);
+        return;
+      }
       const r = how === 'bash' ? DOOR_BASH_NOISE : DOOR_QUIET_NOISE;
       this.noise(r, new Vector3(d.cx, d.anchor.hinge.y, d.cz));
     };
@@ -246,14 +253,21 @@ export class StealthSystems {
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. */
   fixedUpdate(): void {
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
-    // running (top speed) into a closed door bashes it open
-    const pc = this.g.player.controller;
-    if (!pc.crouched && pc.gear >= 5 && pc.speed > 3.5) {
-      const dr = this.g.world.doors.nearest(pc.pos.x, pc.pos.z, 1.1);
-      if (dr && dr.target === 0) {
-        const vx = Math.sin(pc.yaw);
-        const vz = Math.cos(pc.yaw);
-        if ((dr.cx - pc.pos.x) * vx + (dr.cz - pc.pos.z) * vz > 0) this.g.world.doors.open(dr, 'bash');
+    // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
+    // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
+    if (this.guardOpened.size && !this.em.anyAlerted) {
+      for (const [i, t] of this.guardOpened) {
+        const d = this.g.world.doors.list[i];
+        if (!d || d.target === 0) {
+          this.guardOpened.delete(i);
+          continue;
+        }
+        if (this.occupied(d.cx, d.cz, 2.2)) {
+          this.guardOpened.set(i, 0);
+          continue;
+        }
+        this.guardOpened.set(i, t + 1 / 60);
+        if (t > DOOR_GUARD_CLOSE && this.g.world.doors.close(d, (x, z, r) => this.occupied(x, z, r))) this.guardOpened.delete(i);
       }
     }
     for (const [b, it] of this.bodyIts) {

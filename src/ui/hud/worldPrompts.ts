@@ -25,8 +25,9 @@ function glyph(id: WorldPromptId): string {
   switch (id) {
     case 'vault':
     case 'jumpTo':
-    case 'takedown':
       return verbPromptHtml('traverse', keyLabels.traverse);
+    case 'takedown':
+      return verbPromptHtml('interact', keyLabels.interact);
     case 'drop':
       return verbPromptHtml('crouch', keyLabels.crouch);
     case 'state':

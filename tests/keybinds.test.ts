@@ -4,9 +4,12 @@ import { assignBind, bindable, bindLabel, BINDS, clearBind, defaultBinds, keyAct
 describe('key bindings', () => {
   it('defaults match the documented keyboard layout', () => {
     const m = keyActionMap(defaultBinds());
-    expect(m.get('Space')).toEqual(['cover']);
-    expect(m.get('KeyE')).toEqual(['jump', 'interact', 'uiTabNext', 'uiAlt']);
-    expect(m.get('ShiftLeft')).toBeUndefined(); // (CT prototype M1: no sprint)
+    // (CT prototype A3, G96) Space jump, E interact / context, Shift back-to-wall, F / PageDown co-op action
+    expect(m.get('Space')).toEqual(['jump']);
+    expect(m.get('KeyE')).toEqual(['interact', 'uiTabNext', 'uiAlt']);
+    expect(m.get('ShiftLeft')).toEqual(['cover']);
+    expect(m.get('KeyF')).toEqual(['ping']);
+    expect(m.get('PageDown')).toEqual(['ping']);
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);
     expect(m.get('KeyQ')).toEqual(['swapPrev', 'uiTabPrev']);
     // 3.2.0 speed gears (the wheel steps them too, fixed in the source)
@@ -15,9 +18,9 @@ describe('key bindings', () => {
   });
   it('(step 18, D7) a key already in use stays there too (a conflict, warned) and the other action is named', () => {
     const b = defaultBinds();
-    expect(assignBind(b, 'reload', 0, 'KeyE')).toBe('traverse');
+    expect(assignBind(b, 'reload', 0, 'KeyE')).toBe('interact');
     expect(b.reload).toEqual(['KeyE']);
-    expect(b.traverse).toEqual(['KeyE']);
+    expect(b.interact).toEqual(['KeyE']);
     expect(assignBind(b, 'crouch', 1, 'Mouse3')).toBeNull();
     expect(b.crouch).toEqual(['KeyC', 'Mouse3']);
     clearBind(b, 'crouch', 0);
@@ -31,10 +34,10 @@ describe('key bindings', () => {
     expect(b.reload).toEqual(['KeyR']);
   });
   it('stored binds are sanitised: two per action, duplicates in one action dropped, missing ones defaulted', () => {
-    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], cover: ['Bogus'] });
+    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], wall: ['Bogus'] });
     expect(b.reload).toEqual(['KeyT', 'KeyR']);
     expect(b).not.toHaveProperty('bogus');
-    expect(b.cover).toEqual([]);
+    expect(b.wall).toEqual([]);
     expect(b).not.toHaveProperty('sprint');
     expect(Object.keys(b).length).toBe(BINDS.length);
     expect(sanitizeBinds(null)).toEqual(defaultBinds());
@@ -45,6 +48,6 @@ describe('key bindings', () => {
     expect(keyName('KeyW')).toBe('W');
     expect(keyName('ControlLeft')).toBe('Ctrl');
     expect(keyName('Mouse3')).toBe('Mouse 4');
-    expect(bindLabel(defaultBinds(), 'cover')).toBe('Space');
+    expect(bindLabel(defaultBinds(), 'wall')).toBe('Shift');
   });
 });

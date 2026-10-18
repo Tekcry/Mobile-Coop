@@ -138,9 +138,10 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
  * sent; bible "guards detect the body, never the camera"); the camera's pivot safety keeps it out of geometry.
  */
 export const WALL_CAMERA = {
-  /** (21w) the peek swing (offset and view turn) eases over 0.45 s (was 0.2: a 7-10 cm per-frame camera jump mid-swing). */
-  peek: { offset: 0.6, yaw: (25 * Math.PI) / 180, blend: 0.45 },
-  lean: { offset: 0.2, yaw: 0, blend: 0.2 },
+  /** (A3, G137) Strict peek: the camera pivot swings only 0.4 m past the body (was 0.6; the head itself goes out 0.35,
+   *  `WALL.peekOut`) and the view turns 12 deg (was 25), so the camera sees only a small slice past the corner. Starting
+   *  values (G10). Eases over 0.3 s. */
+  peek: { offset: 0.4, yaw: (12 * Math.PI) / 180, blend: 0.3 },
   /** (21w) The shoulder swap on a wall (the slide reversing, an edge's open side): a slower critically damped rate
    *  (1/s) than the free camera's `camShoulder` 15.5, so the swap is an ease, never a 10 cm per-frame whip. */
   side: 5,

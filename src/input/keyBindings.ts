@@ -11,12 +11,12 @@ export type BindId =
   | 'back'
   | 'left'
   | 'right'
-  | 'cover'
+  | 'wall'
   | 'crouch'
   | 'speedUp'
   | 'speedDown'
-  | 'traverse'
-  | 'use'
+  | 'jump'
+  | 'interact'
   | 'reload'
   | 'nextWeapon'
   | 'prevWeapon'
@@ -24,7 +24,7 @@ export type BindId =
   | 'wheel'
   | 'shoulder'
   | 'goggles'
-  | 'ping'
+  | 'coop'
   | 'pause';
 
 export interface BindDef {
@@ -40,12 +40,12 @@ export const BINDS: readonly BindDef[] = [
   { id: 'back', label: 'Move back', actions: [], defaults: ['KeyS'] },
   { id: 'left', label: 'Move left', actions: [], defaults: ['KeyA'] },
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
-  { id: 'cover', label: 'Context action', actions: ['cover'], defaults: ['Space'] },
+  { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: ['ShiftLeft'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
   { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
   { id: 'speedDown', label: 'Speed down (gear)', actions: ['speedDown'], defaults: ['Minus'] },
-  { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },
-  { id: 'use', label: 'Use', actions: ['interact'], defaults: ['KeyF'] },
+  { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: ['Space'] },
+  { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: ['KeyE'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: ['KeyX'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
@@ -53,7 +53,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'ping', label: 'Ping (co-op)', actions: ['ping'], defaults: ['KeyZ'] },
+  { id: 'coop', label: 'Co-op action', actions: ['ping'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 

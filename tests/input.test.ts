@@ -44,24 +44,27 @@ describe('stick maths', () => {
 
 describe('gamepad mapping', () => {
   it('maps the standard layout to gameplay and UI actions', () => {
+    // (A3, G96) the CT pad: A interact, X reload, RB co-op action, Start pause
     const f = mapPad(snap({ [PAD.A]: 1, [PAD.X]: 1, [PAD.RB]: 1, [PAD.START]: 1 }), tuning);
-    expect(f.buttons.cover).toBe(true);
+    expect(f.buttons.interact).toBe(true);
+    expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.jump).toBeUndefined();
     expect(f.buttons.uiConfirm).toBe(true);
     expect(f.buttons.reload).toBe(true);
-    expect(f.buttons.swapNext).toBe(true);
+    expect(f.buttons.ping).toBe(true);
     expect(f.buttons.uiTabNext).toBe(true);
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y traverse + interact; d-pad speed gears, gadget and wheel (3.2.0)', () => {
+  it('B is crouch in game and back in menus; Y jump only; L3 back-to-wall; d-pad vision, gadget and speed gears (A3)', () => {
     const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1, [PAD.RIGHT]: 1 }), tuning);
-    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
+    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.jump).toBe(true);
+    expect(f.buttons.interact).toBeUndefined();
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.speedUp && f.buttons.speedDown && f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
-    // ping (D-pad left tap) comes from the source's tap / hold, not the raw mapping
-    expect(f.buttons.ping).toBeFalsy();
-    expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBe(true);
+    expect(f.buttons.vision && f.buttons.grenade && f.buttons.speedUp && f.buttons.speedDown && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(mapPad(snap({ [PAD.LS]: 1 }), tuning).buttons.cover).toBe(true);
+    expect(mapPad(snap({ [PAD.LB]: 1 }), tuning).buttons.gadgetWheel).toBe(true);
+    expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBeUndefined();
   });
   it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
     const t = new TapHold(0.15);
@@ -73,7 +76,7 @@ describe('gamepad mapping', () => {
     expect(t.update(true, 1.2)).toBe('hold');
     expect(t.update(true, 1.5)).toBeNull();
     expect(t.update(false, 1.6)).toBeNull();
-    // the wheel hold is the D-pad left's tap window; the View hold is the swap hold
+    // the wheel hold: LB held this long opens the gadget wheel
     expect(WHEEL_HOLD).toBeCloseTo(0.15);
   });
   it('triggers: RT fires, LT aims, respecting dead zone', () => {

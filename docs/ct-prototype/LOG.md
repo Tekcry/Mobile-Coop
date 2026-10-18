@@ -39,3 +39,16 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   (known flaky). Open: a swinging foot can cross for a few frames in a fast spin; enemy turns share the planner, check
   in play.
 - Status: A1.1 BUILT, awaiting Michael's play.
+
+## 2026-10-18 - A3 wall, doors, CT pad (prototype)
+- Michael: "Continue, I haven't tried yet".
+- Built (Sonnet): CT pad (A interact, B crouch, Y jump, X equip, L3 wall, RB co-op action, LB quick inventory, D-pad up
+  goggles / down gadget, View mission device, speed rocker on D-pad left / right); wall entry L3 only, shuffle 0.35 /
+  0.3 m/s, peek at once with a stricter peek camera (pivot 0.4 m, turn 12 deg); SWAT and lean-out removed incl. wire;
+  door menu on A (open, stealth open, bash, optic cable stub); guards close doors they opened on calm patrols.
+  PROTOCOL_VERSION 15. Report `A3-WALL-DOORS.md`.
+- Stubs: stealth-open crack fixed 0.12 (not analog); client bash is a plain open; no lock picking in code; guards do not
+  yet notice doors left open.
+- Checks: lint 0, vitest 1457 pass, build ok; e2e smoke, wall, pad, mouse, netmove (solo rerun), stealth-ai pass.
+  Not run: e2e-coop, modes, traverse, takedown; anim-audit / anim-sheet and e2e-ct still use removed verbs.
+- Status: A3 BUILT, awaiting Michael's play.

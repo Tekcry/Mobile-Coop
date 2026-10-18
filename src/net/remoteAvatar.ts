@@ -1,6 +1,6 @@
 import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
-import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
+import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
@@ -77,7 +77,6 @@ export class RemoteAvatar {
   private lastCommit = -1;
   /** (step 12 r1) The mode of the last replayed commit: the SWAT turn counts its own commits (`swatN`), so the same
    *  `n` in another committed mode is a new move. */
-  private lastCommitM = '';
   private stowed = false;
   private kin = { x: 0, y: 0, z: 0 };
   private pa = { x: 0, y: 0, z: 0 };
@@ -151,7 +150,6 @@ export class RemoteAvatar {
       this.rig.setEnabled(true);
       this.prev.set(s.x, s.y, s.z);
       this.lastCommit = s.state.mv?.c?.n ?? -1;
-      this.lastCommitM = s.state.mv?.c ? s.state.mv.m : '';
     }
     this.pos.set(s.x, s.y, s.z);
     this.yaw = s.yaw;
@@ -161,11 +159,10 @@ export class RemoteAvatar {
     this.flags = st.f;
     this.mode = mv?.m ?? 'ground';
     // a committed move (vault, mantle, roll, ...) replays from its start along the same path
-    if (mv?.c && (mv.c.n !== this.lastCommit || (mv.m === 'swat') !== (this.lastCommitM === 'swat'))) {
+    if (mv?.c && mv.c.n !== this.lastCommit) {
       this.lastCommit = mv.c.n;
-      this.lastCommitM = mv.m;
       const path: PathKind = mv.m === 'windowVault' ? 'vault' : mv.m === 'landing' ? 'drop' : (mv.m as PathKind);
-      this.replay = { t: 0, c: mv.c, path, pose: mv.m === 'swat' ? 'none' : (mv.m as TraverseKind) };
+      this.replay = { t: 0, c: mv.c, path, pose: mv.m as TraverseKind };
     }
     const rp = this.replay;
     let replayK = -1;
@@ -196,10 +193,8 @@ export class RemoteAvatar {
       const off = Math.max(-0.05, Math.min(0.1, (this.pos.x - this.wp.x) * wseg.nx + (this.pos.z - this.wp.z) * wseg.nz));
       this.pos.x = this.wp.x + wseg.nx * off;
       this.pos.z = this.wp.z + wseg.nz * off;
-      // (step 12, D8) leaning out / rising to aim: the body turns with the aim (the owner's yaw), else it faces out
-      // (r1) eased at the owner's wall turn rate, never snapped: the lean bit dropping (or the settle starting) turns the
-      // copy back toward the face normal as the owner's body turns
-      const target = mv!.sub & WALL_SUB.lean ? s.yaw : this.wp.yaw;
+      // (A3) the body faces out from the wall, eased at the owner's wall turn rate (never snapped)
+      const target = this.wp.yaw;
       if (!this.wallYawOn) this.wallYaw = s.yaw;
       const d = wrapPi(target - this.wallYaw);
       const step = WALL_TURN_RATE * dt;
@@ -364,8 +359,6 @@ export class RemoteAvatar {
       wallNz: this.wallNz,
       wallFace: this.wallFace,
       lean: mp.lean,
-      // (step 12b, D10) the low-wall side lean (`lk` 1 with `low`): the head stays under the wall top, as the owner's
-      headCap: mv && wseg ? finiteOrUndef(remoteWallHeadCap(mv.m, mv.lk, mv.sub, wseg)) : undefined,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,
@@ -414,9 +407,4 @@ export class RemoteAvatar {
     this.models.clear();
     this.rig.dispose();
   }
-}
-
-/** A finite cap, else undefined (the rig's "no cap"). */
-function finiteOrUndef(v: number): number | undefined {
-  return Number.isFinite(v) ? v : undefined;
 }

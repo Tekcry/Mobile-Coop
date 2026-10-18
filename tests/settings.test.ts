@@ -32,10 +32,10 @@ describe('settings: remap and hold / toggle (step 18)', () => {
   });
 
   it('garbage button indices are dropped', () => {
-    const s = sanitizeSettings({ ...PRE_STEP_18, pad: { reload: [99, 'X', 1.5, PAD.RB], crouch: [-1], cover: null } });
+    const s = sanitizeSettings({ ...PRE_STEP_18, pad: { reload: [99, 'X', 1.5, PAD.RB], crouch: [-1], wall: null } });
     expect(s.pad.reload).toEqual([PAD.RB]);
     expect(s.pad.crouch).toEqual([]);
-    expect(s.pad.cover).toEqual([PAD.A]);
+    expect(s.pad.wall).toEqual([PAD.LS]);
     const g = sanitizeSettings({ ...PRE_STEP_18, gameplay: { ...PRE_STEP_18.gameplay, grabToggle: 'yes' } });
     expect(g.gameplay.grabToggle).toBe(true);
   });

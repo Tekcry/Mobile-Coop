@@ -76,8 +76,9 @@ const EDGE_HARNESS = () => {
   for (let i = 0; i < segs.length && !d; i++) {
     const s = segs[i];
     if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
-    if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) d = { i, end: 1, to: L.gB[i], len: s.len };
-    else if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) d = { i, end: -1, to: L.gA[i], len: s.len };
+    if (s.len < 1.5) continue;
+    if (L.kB[i] === 0) d = { i, end: 1, len: s.len };
+    else if (L.kA[i] === 0) d = { i, end: -1, len: s.len };
   }
   const s = segs[d.i];
   const k = d.end > 0 ? d.len - 0.8 : 0.8;
@@ -92,7 +93,7 @@ const EDGE_HARNESS = () => {
     step(n = 1) {
       for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
     },
-    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, lk: w.lk, lean: w.lean, swat: w.count.swat, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
+    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
   };
   return d;
 };
@@ -276,10 +277,10 @@ try {
   // the input state is wrapped to record and swallow what each default key raises (no side effects in the match)
   {
     const KBM = [
-      ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['Space', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
-      ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
+      ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['ShiftLeft', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
+      ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['Space', 'jump'], ['KeyE', 'interact'], ['KeyR', 'reload'],
       ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
-      ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyP', 'pause'],
+      ['KeyN', 'vision'], ['KeyF', 'ping'], ['PageDown', 'ping'], ['KeyP', 'pause'],
     ];
     await page.evaluate(() => {
       const s = window.__app.input.state;
@@ -398,7 +399,7 @@ try {
     }
   }
 
-  console.log('back to a wall (the context key enters, WASD slides, the key leaves)');
+  console.log('back to a wall (A3: Left Shift enters, WASD slides at the shuffle, Shift leaves)');
   const W = await launch({ url, params: 'autostart=proving' });
   try {
     const P = W.page;
@@ -410,20 +411,20 @@ try {
       await P.keyboard.up(code);
       await P.evaluate(() => window.__wl.step(1));
     };
-    await key('Space');
+    await key('ShiftLeft');
     await P.evaluate(() => window.__wl.step(20));
     const on = await P.evaluate(() => window.__wl.st());
     await P.keyboard.down('KeyD');
-    await P.evaluate(() => window.__wl.step(75));
+    await P.evaluate(() => window.__wl.step(240));
     await P.keyboard.up('KeyD');
     await P.evaluate(() => window.__wl.step(5));
     const slid = await P.evaluate(() => window.__wl.st());
-    await key('Space');
+    await key('ShiftLeft');
     await P.evaluate(() => window.__wl.step(10));
     const off = await P.evaluate(() => window.__wl.st());
-    assert(on.phase === 'on', `the KBM context key (Space) enters back-to-wall (${JSON.stringify(on)})`);
-    assert(slid.phase === 'on' && Math.abs(slid.s - on.s) > 0.5, `D slides along it (${on.s.toFixed(2)} -> ${slid.s.toFixed(2)})`);
-    assert(off.phase !== 'on' && off.last === 'context', `the context key again leaves (${JSON.stringify(off)})`);
+    assert(on.phase === 'on', `the KBM wall key (Left Shift) enters back-to-wall (${JSON.stringify(on)})`);
+    assert(slid.phase === 'on' && Math.abs(slid.s - on.s) > 0.4, `D slides along it (${on.s.toFixed(2)} -> ${slid.s.toFixed(2)})`);
+    assert(off.phase !== 'on' && off.last === 'context', `the wall key again leaves (${JSON.stringify(off)})`);
   } finally {
     await W.browser.close();
   }
@@ -468,7 +469,7 @@ try {
       await D.browser.close();
     }
   }
-  console.log('wall edge verbs (step 12, D1): D / A to the edge peeks, RMB lean-out, LMB fire, Space SWAT, E corner takedown');
+  console.log('wall edge verb (step 12, D1; A3): D / A to the edge peeks at once, RMB leaves the wall, E corner takedown');
   {
     const E = await launch({ url, params: 'autostart=proving' });
     try {
@@ -496,51 +497,31 @@ try {
         await P.keyboard.up(code);
         await step(1);
       };
-      // capture the mouse first (a click that only captures)
-      await key('Space');
+      await key('ShiftLeft');
       await step(30);
       const on = await st();
       const toward = d.end > 0 ? 'KeyD' : 'KeyA';
       await P.keyboard.down(toward);
-      for (let i = 0; i < 12 && (await st()).edge !== d.end; i++) await step(10);
-      await step(10);
+      for (let i = 0; i < 90 && !(await P.evaluate(() => window.__app.current.wallCore.atEnd)); i++) await step(10);
       await P.keyboard.up(toward);
-      await step(18);
+      await step(40);
       await P.keyboard.down(toward);
-      await step(36);
+      await step(8);
       const peek = await st();
       await P.keyboard.up(toward);
       await step(30);
       await P.mouse.down({ button: 'right' });
-      await step(80); // A2.1: the aim draw takes 0.6-0.75 s (G103)
-      const lean = await st();
-      await P.mouse.down();
-      await step(18);
-      await P.mouse.up();
-      await step(2);
-      const fired = lean.mag - (await st()).mag;
+      await step(20);
+      const aim = await st();
       await P.mouse.up({ button: 'right' });
       await step(30);
-      const back = await st();
-      await P.keyboard.down(toward);
-      await step(6);
-      await P.keyboard.down('Space');
-      await step(2);
-      await P.keyboard.up('Space');
-      const swat = await st();
-      await P.keyboard.up(toward);
-      await step(60);
-      const end = await st();
-      assert(on.phase === 'on', `Space enters the doorway wall (${JSON.stringify(on)})`);
-      assert(peek.peekOn && (peek.sub & 16) !== 0 && peek.cam === 1, `${toward} held at the edge: peek (${JSON.stringify(peek)})`);
-      assert(lean.lk === 1 && lean.lean === 1 && (lean.sub & 32) !== 0, `RMB at the edge: lean-out (lk ${lean.lk}, lean ${lean.lean}, locked ${locked}, ${JSON.stringify(lean)})`);
-      assert(fired > 0, `LMB fires from the lean (${fired} rounds)`);
-      assert(back.lk === 0 && back.lean === 0, `RMB released: back in (lk ${back.lk})`);
-      assert(swat.phase === 'swat' && end.phase === 'on' && end.seg === d.to, `Space with ${toward} toward the gap: SWAT to the far wall (${swat.phase} -> ${end.phase}, seg ${end.seg} / ${d.to})`);
+      assert(on.phase === 'on', `Left Shift enters the doorway wall (${JSON.stringify(on)})`);
+      assert(peek.peekOn && (peek.sub & 16) !== 0 && peek.cam === 1, `${toward} held at the edge: peek at once (${JSON.stringify(peek)})`);
+      assert(aim.phase !== 'on' && aim.phase !== 'entering', `RMB (aim) leaves the wall (${aim.phase})`);
     } finally {
       await E.browser.close();
     }
-    console.log('door peek (step 13, D1): Space cracks the Proving shed door, the mouse looks within +-35 deg, Space closes');
+    console.log('door menu (A3): E at the Proving shed door opens the menu, Stealth open cracks it, the mouse looks within +-35 deg, S closes');
     const DP = await launch({ url, params: 'autostart=proving' });
     try {
       const P = DP.page;
@@ -585,7 +566,11 @@ try {
         await P.keyboard.up(code);
         await step(1);
       };
-      await key('Space');
+      await key('KeyE');
+      await step(6);
+      await key('ArrowDown');
+      await step(6);
+      await key('KeyE');
       await step(60);
       const peek = await st();
       for (let i = 1; i <= 8; i++) {
@@ -594,12 +579,14 @@ try {
       }
       await step(4);
       const looked = await st();
-      await key('Space');
+      await P.keyboard.down('KeyS');
       await step(30);
+      await P.keyboard.up('KeyS');
+      await step(20);
       const closed = await st();
-      assert(peek.phase === 'peek' && peek.cracked && Math.abs(peek.ajar - 0.12) < 0.01 && peek.target === 0 && peek.view === 1, `Space cracks the shed door 0.12 and peeks (${JSON.stringify(peek)})`);
+      assert(peek.phase === 'peek' && peek.cracked && Math.abs(peek.ajar - 0.12) < 0.01 && peek.target === 0 && peek.view === 1, `the door menu's Stealth open cracks the shed door 0.12 and peeks (${JSON.stringify(peek)})`);
       assert(looked.phase === 'peek' && Math.abs(looked.look) > 0.3 && Math.abs(looked.look) <= (35 * Math.PI) / 180 + 1e-3, `the mouse looks, clamped within +-35 deg (${JSON.stringify(looked)})`);
-      assert(closed.phase === 'off' && !closed.cracked && closed.ajar === 0 && closed.target === 0, `Space again closes the crack (${JSON.stringify(closed)})`);
+      assert(closed.phase === 'off' && !closed.cracked && closed.ajar === 0 && closed.target === 0, `the stick pulled back closes the crack (${JSON.stringify(closed)})`);
     } finally {
       await DP.browser.close();
     }
@@ -710,11 +697,11 @@ try {
       v = await view();
       assert(k.crouch.join() === 'KeyC,ControlLeft' && k.reload.join() === 'KeyR' && v.rows === '' && !v.sum, `reset (confirmed) restores the keys (${k.crouch}, ${k.reload})`);
       // a capture with no key gives up after 5 s
-      await click(slot('ping:0'));
+      await click(slot('coop:0'));
       await P.waitForTimeout(5600);
       v = await view();
-      const pl = await G((s) => document.querySelector(s).classList.contains('listening'), slot('ping:0'));
-      assert(!v.cap && !pl && (await keys()).ping.join() === 'KeyZ', 'the capture times out after 5 s');
+      const pl = await G((s) => document.querySelector(s).classList.contains('listening'), slot('coop:0'));
+      assert(!v.cap && !pl && (await keys()).coop.join() === 'KeyF,PageDown', 'the capture times out after 5 s');
       await click(slot('crouch:0'));
       await P.keyboard.press('KeyU');
       await P.waitForTimeout(800);

@@ -73,7 +73,6 @@ export class ShoulderCamera {
   wallSide = 0;
   /** (step 12) Back to a wall at an edge: peek / lean-out targets (0..1) and the direction past the edge (unit XZ). */
   wallPeek = 0;
-  wallLean = 0;
   wallEdgeX = 0;
   wallEdgeZ = 0;
   /** (21w) Seconds left of the slower wall shoulder-swap rate. */
@@ -87,7 +86,6 @@ export class ShoulderCamera {
   private readonly doorPt = new Vector3();
   /** Eased peek / lean amounts (capped rate) and the edge direction they swing toward. */
   private peekW = 0;
-  private leanW = 0;
   private edgeX = 0;
   private edgeZ = 0;
   /** Body facing while attached: the orbit stays within the preset's cone around it. */
@@ -277,19 +275,15 @@ export class ShoulderCamera {
     // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
     // keeps it on the head's side of any wall)
     const wp = WALL_CAMERA.peek;
-    const wl = WALL_CAMERA.lean;
     const onWall = this.attach === 'wall';
     if (this.wallEdgeX !== 0 || this.wallEdgeZ !== 0) {
       this.edgeX = this.wallEdgeX;
       this.edgeZ = this.wallEdgeZ;
     }
     const pT = onWall ? this.wallPeek : 0;
-    const lT = onWall ? this.wallLean : 0;
     this.peekW += Math.max(-dt / wp.blend, Math.min(dt / wp.blend, pT - this.peekW));
-    this.leanW += Math.max(-dt / wl.blend, Math.min(dt / wl.blend, lT - this.leanW));
     const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
-    const le = this.leanW * this.leanW * (3 - 2 * this.leanW);
-    const swing = wp.offset * pe + wl.offset * le;
+    const swing = wp.offset * pe;
     this.pivot.set(feet.x + this.edgeX * swing, footY + fr.pivot, feet.z + this.edgeZ * swing);
     // the head: the pivot height on the operator's own axis, always in the operator's space
     const head = this.head.set(feet.x, this.pivot.y, feet.z);

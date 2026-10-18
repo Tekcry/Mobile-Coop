@@ -12,7 +12,7 @@ Updated 2026-10-18.
   first, G158 Sonnet medium implementers. The "findings for Michael to confirm" list is not decisions.
 - Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
 - A2.1 (cleanup + camera rewrite) built and committed (`A2-CAMERA.md`). STOPPED for Michael to play the camera.
-- A1.1 turn follow built (`A1-TURN.md`), on /ct/, awaiting Michael's play. Next: A3 wall, doors, pad; A4 strike and grab; A5 goggles;
+- A1.1 turn follow and A3 wall, doors, pad built (`A1-TURN.md`, `A3-WALL-DOORS.md`), on /ct/, awaiting Michael's play. Next: A4 strike and grab; A5 goggles;
   then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G161). One stop per slice while Michael is awake;
   overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
 - Wren: feature/operators has no PR yet; posture waits.

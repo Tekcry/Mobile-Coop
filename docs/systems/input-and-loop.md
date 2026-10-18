@@ -37,9 +37,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `kbm`) and sets the `body.input-*` classes; CSS uses them for the focus ring and glyph prompts.
 - `GamepadSource` scans for pads on every poll, not just on `gamepadconnected` (some browsers expose a pad only after its
   first button press).
-- Pad: `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). `GamepadSource` turns X tap / hold into reload / next weapon
-  (`X_HOLD` 0.4 s; the hold swaps only while aiming), D-pad left tap / hold into ping / gadget wheel (`WHEEL_HOLD`), and
-  View tap into goggles (`SWAP_HOLD` 0.35 s; a hold does nothing), all with `TapHold`. In menus Y = `uiAlt`
+- Pad (CT co-op layout, A3, G96): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). `GamepadSource` turns X tap / hold into
+  reload / next weapon (`X_HOLD` 0.4 s; the hold swaps only while aiming) with `TapHold`; the other buttons are plain. In menus Y = `uiAlt`
   (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
 - Keyboard (rebindable, D7): `input/keyBindings.ts` (pure): `BINDS` defaults, two inputs per action incl. Mouse 3/4/5,
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
@@ -63,31 +62,32 @@ and the code together.
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
 | Aim (draws) | `ads` | LT | L2 / ZL | RMB | Hold or toggle (`adsToggle`) |
 | Fire / elbow strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire |
-| Reload | `reload` | X (tap) | Square / Y | `reload` (R) | X held not aiming does nothing (G98) |
+| Reload / equip | `reload` | X (tap) | Square / Y | `reload` (R) | X held while aiming = next weapon (A55); held not aiming does nothing (G98) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
-| Jump / interact / takedown | `jump` `interact` | Y | Triangle / X | `traverse` (E) | Takedown > team move > traversal > interact |
-| Use | `interact` | Y | Triangle / X | `use` (F) | KBM only as its own key |
-| Context (back-to-wall, door peek, SWAT) | `cover` | A | Cross / B | `cover` (Space) | G18 moves back-to-wall to L3 |
-| Maximum gear up | `speedUp` | D-pad up | D-pad up | `speedUp` (=); wheel up | Gears 1-5 |
-| Maximum gear down | `speedDown` | D-pad down | D-pad down | `speedDown` (-); wheel down | - |
-| Next weapon | `swapNext` | RB; X (held while aiming, A55) | R1 / R | `nextWeapon` (X) | Works while aiming (G21) |
-| Previous weapon | `swapPrev` | LB | L1 / L | `prevWeapon` (Q) | - |
-| Gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | Works holstered (G21) |
-| Gadget wheel | `gadgetWheel` | D-pad left (hold) | D-pad left | `wheel` (Tab, hold) | 7 slots |
-| Ping (co-op) | `ping` | D-pad left (tap) | D-pad left | `ping` (Z) | - |
-| Vision (goggles) | `vision` | View (tap) | Create / Minus | `goggles` (N) | View held is free (G24) |
-| Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | G17: only while aiming (not built yet) |
+| Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | CT pad (A3, G96): team move > traversal; no longer shares a button with interact |
+| Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | Takedown > interactable; at a closed door A opens the door menu (G19, G97) |
+| Back to wall | `cover` | L3 | L3 / LS | `wall` (Left Shift) | G18, entry by button only (G34); the button again or aiming leaves |
+| Speed gear up | `speedUp` | D-pad right | D-pad right | `speedUp` (=); wheel up | Gears 1-5. CT's D-pad is vision; the rocker moved to left / right |
+| Speed gear down | `speedDown` | D-pad left | D-pad left | `speedDown` (-); wheel down | - |
+| Next weapon | `swapNext` | X (held while aiming, A55) | Square / Y | `nextWeapon` (X) | Works while aiming (G21) |
+| Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button (LB is the quick inventory) |
+| Gadget (hold aims, release throws) | `grenade` | D-pad down | D-pad down | `gadget` (G) | Works holstered (G21); CT's throw-cam slot |
+| Quick inventory / gadget wheel | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | 7 slots; CT's White button |
+| Co-op action | `ping` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button; today the ping, the free moves come with the co-op slices |
+| Vision (goggles) | `vision` | D-pad up | D-pad up | `goggles` (N) | One button cycles the modes (CT's D-pad vision) |
+| Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | G17: only while aiming |
+| Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
 
 ### Remapping and hold / toggle (step 18, D7; local only, D8)
-- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs, at
+- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply), at
   most 2 buttons each, defaults = `GAME_BINDINGS`); `GamepadSource` rebuilds the flat `padBindTable` only when
   `settings.pad` changes and `mapPad(p, t, table)` reads it. Sticks, the triggers' analog aim / fire and the menu buttons
   (`UI_BINDINGS`) are fixed; LT / RT can take a button verb. Keyboard: `Settings.keys` / `BINDS`.
-- Shared-by-design verbs are one row: Y = traverse + use + takedown, X = reload (tap) + next weapon (held while aiming),
-  A = the context action, RT = fire / elbow strike. The tap / hold splits follow the button.
+- Shared-by-design verbs are one row: X = reload (tap) + next weapon (held while aiming), RT = fire / elbow strike.
+  The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
 - Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
-  menu keys are their own group; keyboard Traverse + Use may share (both interact). A conflict is shared, warned on both
+  menu keys are their own group; no pair may share (A3 removed the Traverse + Use pair). A conflict is shared, warned on both
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
   Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
@@ -97,7 +97,7 @@ and the code together.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
 
 ### Analog speed and the maximum gear (step 17)
-- The rocker (D-pad up / down, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
+- The rocker (D-pad left / right since A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
   (the sprint is gone, CT prototype M1). The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure): v = cap(max) x
   `stickCurve(mag)`; the gear is the highest g <= max whose up threshold v has passed, kept until v drops under its down
   threshold; speed = cap(g). Thresholds (`GEAR_UP` / `GEAR_DOWN`) are the midpoint of adjacent caps +- 15% of the gap,

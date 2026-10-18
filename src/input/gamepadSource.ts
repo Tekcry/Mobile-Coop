@@ -1,14 +1,12 @@
 import type { ButtonAction } from './actions';
 import { detectPadStyle, GAME_BINDINGS, mapPad, PAD, TapHold, type PadStyle } from './gamepadMapping';
 import { PAD_BUTTON_COUNT, padBindTable, type PadBinds } from './padBinds';
-import { WHEEL_HOLD, type InputState } from './inputState';
+import type { InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
 /** (locomotion step 18) Holding B this long (s) while a button is being captured cancels the capture. */
 export const CAPTURE_CANCEL_HOLD = 1;
-/** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
-export const SWAP_HOLD = 0.35;
 /** X held this long (s) counts as a hold (aiming: the next weapon, A55; not aiming: free, the carried medkit is gone, G98). */
 export const X_HOLD = 0.4;
 const SRC = 'pad';
@@ -32,10 +30,8 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
+  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free). */
   private xBtn = new TapHold(X_HOLD);
-  private leftBtn = new TapHold(WHEEL_HOLD);
-  private viewBtn = new TapHold(SWAP_HOLD);
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -140,7 +136,7 @@ export class GamepadSource {
     if (frame.active) this.events.onActive();
 
     for (const a of [
-      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
+      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause', 'ping', 'vision',
       'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt',
     ] as const) {
@@ -155,10 +151,6 @@ export class GamepadSource {
       if (this.adsActive) this.state.tap('swapNext');
     }
     else if (x === 'tap') this.state.tap('reload');
-    // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
-    if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
-    // View: tap = goggles (on release); a hold is free (emotes deleted, G24)
-    if (this.viewBtn.update(frame.buttons.vision === true, now) === 'tap') this.state.tap('vision');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);

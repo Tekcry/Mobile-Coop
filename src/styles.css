@@ -1163,6 +1163,46 @@ body {
 .hud-interact.show {
   display: flex;
 }
+.hud-doormenu {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  background: rgba(10, 13, 18, 0.78);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.hud-doormenu.show {
+  display: flex;
+}
+.hud-doormenu .dm-title {
+  font-size: 0.8em;
+  opacity: 0.6;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hud-doormenu .dm-opt {
+  padding: 4px 10px;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+.hud-doormenu .dm-opt.sel {
+  background: rgba(63, 193, 255, 0.28);
+  opacity: 1;
+}
+.hud-doormenu .dm-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-top: 2px;
+}
 .hud-feed {
   position: absolute;
   right: calc(var(--sar) + 12px);

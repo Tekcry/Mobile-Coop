@@ -57,6 +57,7 @@ export class Hud {
   private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
+  private doorMenuEl: HTMLElement;
   /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
   readonly world: WorldPrompts;
   private feed: HTMLElement;
@@ -138,6 +139,7 @@ export class Hud {
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
+    this.doorMenuEl = h('div', { class: 'hud-doormenu' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
@@ -154,6 +156,7 @@ export class Hud {
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
+      this.doorMenuEl,
       this.feed,
     );
     parent.appendChild(this.el);
@@ -297,10 +300,20 @@ export class Hud {
     this.set('mode', html, () => (this.modeInfo.innerHTML = html));
   }
 
+  /** (A3, G19) The CT door menu: the option labels with `sel` highlighted; null hides it. */
+  setDoorMenu(labels: readonly string[] | null, sel = 0): void {
+    this.set('dmenu', labels ? `${sel}|${labels.join('|')}` : '', () => {
+      this.doorMenuEl.classList.toggle('show', !!labels);
+      this.doorMenuEl.innerHTML = labels
+        ? `<div class="dm-title">Door</div>` + labels.map((l, i) => `<div class="dm-opt${i === sel ? ' sel' : ''}">${l}</div>`).join('') + `<div class="dm-hint">${verbPromptHtml('interact', keyLabels.interact)}<span>select</span> ${verbPromptHtml('crouch', keyLabels.crouch)}<span>cancel</span></div>`
+        : '';
+    });
+  }
+
   /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */
   setInteract(text: string | null, progress = -1): void {
     this.set('int', text ?? '', () => {
-      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('traverse', keyLabels.traverse)}<span>${text}</span>` : '';
+      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('interact', keyLabels.interact)}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
     });
     const p = Math.round(progress * 40);

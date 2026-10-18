@@ -2,13 +2,13 @@ import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, Transf
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
 import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
-import { WALL, WALL_SUB, remoteWallHeadCap, wallPeekOffset } from '../player/wallController';
+import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { WEAPONS } from '../weapons/weaponDefs';
-import { attachedClamp, swatCommitOk, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
+import { attachedClamp, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
@@ -92,14 +92,9 @@ export class RemotePlayer implements Damageable {
   headPoint(out: Vector3): Vector3 {
     // (step 12b fix r2) on a wall: the host's posed copy's head, the sample the light meter reads too (light parity)
     if (this.ref.head) return out.copyFrom(this.ref.head);
-    // (step 12b fix r1) the low-wall side lean keeps the head under the wall top, as the posed remote and the local
-    // player's sample do (light parity)
-    const y = Math.min(this.feet.y + (this.crouched ? 1.05 : 1.6), this.headCap);
+    const y = this.feet.y + (this.crouched ? 1.05 : 1.6);
     return out.set(this.feet.x + (this.ref.peekX ?? 0), y, this.feet.z + (this.ref.peekZ ?? 0));
   }
-
-  /** (step 12b fix r1) The head centre's ceiling from the MoveState (low-wall side lean), else +Infinity. */
-  private headCap = Infinity;
 
   /**
    * Accept a client state. Positions that move faster than humanly possible are clamped
@@ -111,11 +106,6 @@ export class RemotePlayer implements Damageable {
     if (segs) dropBadWallMove(s, segs.length);
     // (step 13) a door peek on a door this level does not have: no door pose
     if (doorCount !== null) dropBadDoorMove(s, doorCount);
-    // (step 12) a SWAT turn's commit within the turn's range and pace, else dropped (A24: client-owned, host-checked)
-    if (s.mv?.m === 'swat' && (!s.mv.c || !swatCommitOk(s.mv.c))) {
-      delete s.mv;
-      this.violations++;
-    }
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
@@ -163,7 +153,6 @@ export class RemotePlayer implements Damageable {
     wallPeekOffset(s.mv?.m ?? '', s.mv?.sub ?? 0, wseg ? wseg.tx : 0, wseg ? wseg.tz : 0, this.peekTmp, this.peekK);
     this.ref.peekX = this.peekTmp.x;
     this.ref.peekZ = this.peekTmp.z;
-    this.headCap = remoteWallHeadCap(s.mv?.m ?? '', s.mv?.lk, s.mv?.sub ?? 0, wseg);
     // (step 12b carry-over) off the wall the posed head sample goes at once (not at the next frame's setPosedHead)
     if (!wseg) this.ref.head = null;
     this.state = s;

@@ -147,16 +147,18 @@ export class App {
   /** In-game key prompts follow the bindings. */
   private applyKeyLabels(): void {
     const k = this.settings.get().keys;
-    keyLabels.cover = bindLabel(k, 'cover');
-    keyLabels.traverse = bindLabel(k, 'traverse');
+    keyLabels.cover = bindLabel(k, 'wall');
+    keyLabels.traverse = bindLabel(k, 'jump');
+    keyLabels.interact = bindLabel(k, 'interact');
     keyLabels.crouch = bindLabel(k, 'crouch');
     keyLabels.reload = bindLabel(k, 'reload');
     keyLabels.speedUp = bindLabel(k, 'speedUp');
     keyLabels.speedDown = bindLabel(k, 'speedDown');
     // (locomotion step 18) pad prompts follow the pad bindings
     const p = this.settings.get().pad;
-    padButtons.cover = p.cover[0] ?? -1;
-    padButtons.traverse = p.traverse[0] ?? -1;
+    padButtons.cover = p.wall[0] ?? -1;
+    padButtons.traverse = p.jump[0] ?? -1;
+    padButtons.interact = p.interact[0] ?? -1;
     padButtons.crouch = p.crouch[0] ?? -1;
     padButtons.reload = p.reload[0] ?? -1;
   }

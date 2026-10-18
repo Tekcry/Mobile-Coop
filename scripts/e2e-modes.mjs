@@ -55,11 +55,11 @@ await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
     await sim(0.3);
     const prompt = await G(() => document.querySelector('.hud-interact')?.textContent ?? '');
     assert(/Hack terminal/.test(prompt), `interact prompt near ${t} ("${prompt.trim()}")`);
-    await G(() => window.__pad.set(3, 1));
+    await G(() => window.__pad.set(0, 1));
     await sim(3.4);
-    await G(() => window.__pad.set(3, 0));
+    await G(() => window.__pad.set(0, 0));
     await sim(0.2);
-    assert(await G((t) => window.__app.current.interactables.items.find((i) => i.id === t).done, t), `holding Y hacks ${t}`);
+    assert(await G((t) => window.__app.current.interactables.items.find((i) => i.id === t).done, t), `holding A hacks ${t}`);
   }
   await go('cache');
   await sim(0.4);
