@@ -14,3 +14,23 @@ docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Micha
 
 Resume: `git status` in C:\NightShift\Mobile-Coop-menu shows a running slice's uncommitted work; finish it from its
 SLICE<n>.md / the brief above, check, commit, push, then the next slice.
+
+## Main session coordination (resume point, 2026-10-18 evening)
+The "Night Shift | v4 Rebuild" session coordinated the consolidation (4.0.0, PR #3), the research (PR #4, G124-G160),
+this menu job and the other sessions. Open items it was holding:
+1. Review the operators PR (Wren for both players, G123; the session said it opens about 21:30-22:00 Sydney) before
+   Michael merges: Wren in both slots, gameplay unchanged (G38), goggle glow colour per player (G135), its decisions
+   renumbered after G160, check / e2e results.
+2. After Wren merges: menu slice 6 (cinematic background with Wren's poses, menu steps 11-13; edits
+   src/world/menuScene.ts, now free), on Sonnet medium; then open the menu PR feature/menu -> master (Michael's menu
+   notes first). Move the preview with `git push origin feature/menu:dev`.
+3. After Wren merges: the operators session builds the Blender placeholder weapons (rifle with launcher tube and
+   suppressor, suppressed pistol with jammer emitter, knife; docs/progress.md row on this branch).
+4. Scratch Moth (estimated half a day to a day in the operators pipeline after the weapons; Michael asked "don't
+   action yet").
+5. Michael has not answered whether to delete the merged branch feature/ct-research (the raw research is kept as the tag
+   archive/ct-research-raw).
+6. Preview slots: `dev` = this branch (/preview/), `ct-movement` = feature/ct-prototype (/ct/, moved by CT Core Works).
+   Both are pointer branches only (G83: no direct work on them).
+7. The CT Core Works session (feature/ct-prototype, docs/ct-prototype/FEEL-PLAN.md) owns pure-CT movement then the
+   Fallow co-op training bunker (G161, G162 on that branch); it stops after each slice while Michael is awake.
