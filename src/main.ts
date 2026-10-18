@@ -93,6 +93,11 @@ async function boot(): Promise<void> {
     app.releaseState();
     const ms = new MenuState(app.engine);
     app.setState(ms);
+    // (menu-ui slice 6) the cinematic background follows the screen on top: the title holds S1, the lobby keeps the stage
+    ms.screenContext = () => {
+      const c = app.screens.top?.el.classList;
+      return c?.contains('title-screen') ? 'title' : c?.contains('lobby-screen') ? 'lobby' : 'main';
+    };
     showSavedOperator(app);
     app.onAvatarStyle = () => {
       // (a new avatar style rebuilds the same request: clear what the preview remembers)

@@ -1,4 +1,5 @@
 import {
+  type AbstractMesh,
   ArcRotateCamera,
   Color3,
   Color4,
@@ -6,14 +7,11 @@ import {
   CreateCylinder,
   CreateDisc,
   HemisphericLight,
-  type Mesh,
   Quaternion,
   Scene,
   ShadowGenerator,
   SpotLight,
-  StandardMaterial,
   Vector3,
-  VertexBuffer,
   type Engine,
 } from '../core/babylon';
 import type { AppState } from '../core/app';
@@ -30,12 +28,15 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
+import { carryKind } from '../weapons/carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
 import type { QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { flags } from '../core/flags';
+import { buildVoid, HERO_SHOTS, idleSway, lightCone, VOID_ORIGIN, VOID_YAW, type HeroShot, type SetLight, type VoidSet } from './menuSets';
+import { createDirector, easeInOut, goggleLevel, parseShotHooks, type Director, type MenuContext } from './menuShots';
 
 /** The diorama's lights: a warm key overhead in front of the operator, a cool rim behind, a lamp in the distance. */
 const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; angle: number; intensity: number; color: [number, number, number]; cone: number }[] = [
@@ -44,36 +45,14 @@ const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; ang
   { pos: [6, 5.2, 7], at: [6, 0, 7], angle: 0.5, intensity: 1.3, color: [1, 0.78, 0.5], cone: 0.08 },
 ];
 
-/** A visible light cone: additive, fading from the lamp to its far end (apex at the origin, along -Y). */
-function lightCone(scene: Scene, name: string, len: number, half: number, color: [number, number, number], glow: number): Mesh {
-  const cone = CreateCylinder(name, { height: len, diameterTop: 0.08, diameterBottom: 2 * len * Math.tan(half), tessellation: 32, subdivisions: 10, cap: 0 }, scene);
-  const pos = cone.getVerticesData(VertexBuffer.PositionKind)!;
-  const cols = new Float32Array((pos.length / 3) * 4);
-  for (let i = 0; i < pos.length / 3; i++) {
-    // brightest just below the lamp, fading out towards the floor
-    const t = (pos[i * 3 + 1]! + len / 2) / len;
-    cols.set([1, 1, 1, Math.pow(t, 2) * (1 - Math.pow(t, 12))], i * 4);
-  }
-  cone.setVerticesData(VertexBuffer.ColorKind, cols);
-  cone.hasVertexAlpha = true;
-  const mat = new StandardMaterial(`${name}-mat`, scene);
-  mat.disableLighting = true;
-  mat.diffuseColor = Color3.Black();
-  mat.specularColor = Color3.Black();
-  mat.emissiveColor = new Color3(color[0] * glow, color[1] * glow, color[2] * glow);
-  mat.alphaMode = 1; // ALPHA_ADD
-  mat.disableDepthWrite = true;
-  mat.backFaceCulling = false;
-  cone.material = mat;
-  cone.isPickable = false;
-  return cone;
-}
-
 /** Camera framings: the main menu (operator right of the buttons), the Loadout screen (operator between the
  *  category list and the options, full body) and its weapon view (closer, the weapon raised). */
 export type MenuFraming = 'menu' | 'loadout' | 'weapon';
 
-/** Lightweight diorama behind the menus: a dark stage, the operator in pools of light. No physics. */
+/** Lightweight diorama behind the menus: a dark stage, the operator in pools of light. No physics. (menu-ui slice 6)
+ *  On the title and main menu a shot director (`menuShots.ts`) cycles hero close-ups of Wren in a black void
+ *  (`menuSets.ts`); the loadout and
+ *  the lobby keep today's stage. */
 export class MenuState implements AppState {
   /** The menu stage (3.1: Auto graphics calibrates here). */
   readonly menuStage = true;
@@ -90,6 +69,7 @@ export class MenuState implements AppState {
   /** (operators 11e) Wren on the preview rig: the hero LOD (D21, D33 "Yes use hero for menu"). */
   private figure: OperatorFigure | null = null;
   private weapon: WeaponModel | null = null;
+  private weaponId: WeaponId = 'rifle';
   /** Avatar yaw (rotated by stick / drag in the customiser). */
   previewYaw = Math.PI;
   private framing: MenuFraming = 'menu';
@@ -102,6 +82,36 @@ export class MenuState implements AppState {
   private shadowKey = '';
   /** Bloom on the bulbs, depth of field on the operator, AO, tone mapping (Settings > Graphics). */
   private stack: PostStack;
+
+  // ---- (slice 6) the cinematic background
+  /** Which screen is on top (set by `main.ts`); null = main. The loadout framing overrides it. */
+  screenContext: (() => MenuContext) | null = null;
+  private readonly director: Director;
+  private readonly clock: number;
+  private readonly sets = new Map<string, HeroShot>();
+  private readonly voidSet: VoidSet;
+  /** The goggle's full glow (read once a body has loaded) and the scaled colour handed to the figure. */
+  private glowFull: [number, number, number] | null = null;
+  private readonly glowNow: [number, number, number] = [0, 0, 0];
+  private glowK = -1;
+  /** (slice 6) A shot change with no black between (title into the main menu): the camera eases from where it was. */
+  private lastChanges = 0;
+  /** `?gfx=min` (software-GL tests): the hardware scaling before the void halved the resolution, or 0. */
+  private minScale = 0;
+  private blend = 1;
+  private readonly prevTarget = new Vector3();
+  private prevAlpha = 0;
+  private prevBeta = 0;
+  private prevRadius = 1;
+  private prevFov = 0.8;
+  private prevOffset = 0;
+  private readonly stageMeshes: AbstractMesh[];
+  private activeSet = '';
+  private snap = true;
+  private readonly fadeEl: HTMLDivElement;
+  private fadeShown = -1;
+  /** Holstered in the void; in the hands on the stage (loadout, lobby). null = not applied yet. */
+  private holstered: boolean | null = null;
 
   constructor(engine: Engine) {
     const scene = new Scene(engine);
@@ -177,6 +187,10 @@ export class MenuState implements AppState {
       b.material = big ? wall : crate;
       b.freezeWorldMatrix();
     }
+    this.stageMeshes = scene.meshes.slice();
+    // (slice 6) the void, built now: a shot change only moves the lights and the camera
+    this.voidSet = buildVoid(scene);
+    for (const h of HERO_SHOTS) this.sets.set(h.id, h);
     for (const m of scene.meshes) {
       m.isPickable = false;
       m.freezeWorldMatrix();
@@ -191,6 +205,31 @@ export class MenuState implements AppState {
       if (!m.name.startsWith('menuBeam')) m.receiveShadows = true;
     });
     this.stack = new PostStack(scene, this.camera, { fogColor: [0.02, 0.03, 0.04], fogDensity: 0, lights: null });
+
+    const hooks = parseShotHooks(location.search);
+    this.clock = hooks.clock;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.director = createDirector({ seed: navigator.webdriver ? 1 : Date.now() & 0xffff, reducedMotion: reduced, context: 'main', force: hooks.force, freezeT: hooks.freezeT });
+    // the fade through black between shots: a DOM layer right above the canvas, under the menus
+    this.fadeEl = document.createElement('div');
+    this.fadeEl.className = 'menu-fade';
+    this.fadeEl.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:0';
+    const canvas = engine.getRenderingCanvas();
+    if (canvas?.parentElement) canvas.after(this.fadeEl);
+  }
+
+  /** (slice 6, debug hook) The shot on screen, its changes so far and the fade (e2e-menus). */
+  get shotId(): string {
+    return this.director.shot.id;
+  }
+  get shotChanges(): number {
+    return this.director.changes;
+  }
+  get shotFade(): number {
+    return this.director.fade;
+  }
+  get shotContext(): MenuContext {
+    return this.director.context;
   }
 
   /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
@@ -205,7 +244,7 @@ export class MenuState implements AppState {
       if (sh.casters > 0) {
         for (const l of this.spots.slice(0, 2)) {
           l.shadowMinZ = 0.5;
-          l.shadowMaxZ = 12;
+          if (!this.activeSet || this.activeSet === 'stage') l.shadowMaxZ = 12;
           const g = new ShadowGenerator(Math.max(1024, sh.size), l);
           if (sh.soft) {
             g.useContactHardeningShadow = true;
@@ -214,7 +253,7 @@ export class MenuState implements AppState {
           g.filteringQuality = ShadowGenerator.QUALITY_HIGH;
           g.bias = 0.0008;
           g.normalBias = 0.01;
-          g.darkness = 0.1;
+          g.darkness = this.activeSet && this.activeSet !== 'stage' ? 0 : 0.1;
           const sm = g.getShadowMap();
           if (sm) {
             // every mesh but the beams and the floor itself (null list = the whole scene)
@@ -253,10 +292,18 @@ export class MenuState implements AppState {
     const fig = (this.figure = op.figure);
     fig.setVision('night', 1);
     loadMenuLods(fig, loadModel);
+    // (slice 6) the close-ups need the hero body: ask for it now, beside the progressive chain (the asset loads once;
+    // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen.
+    fig.loadCloseUp().catch(() => {});
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
+    this.weaponId = weapon;
     this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
     this.weapon.hold(this.rig);
+    this.holstered = null;
+    this.glowFull = null;
+    this.glowK = -1;
+    this.weaponLight();
     // the goggle over the eyes, glowing in the dark (G73: in use)
     this.rig.setLensGlow(true);
   }
@@ -292,50 +339,267 @@ export class MenuState implements AppState {
     this.stack.dispose();
     this.atlas?.dispose();
     for (const g of this.shadows) g.dispose();
+    this.fadeEl.remove();
+    this.minResolution(false);
   }
   fixedUpdate(): void {}
+
+  /** Light one of the shared spots for a set. */
+  private light(s: SpotLight, l: SetLight, o: Vector3): void {
+    s.position.set(o.x + l.pos[0], o.y + l.pos[1], o.z + l.pos[2]);
+    s.direction.set(l.at[0] - l.pos[0], l.at[1] - l.pos[1], l.at[2] - l.pos[2]).normalize();
+    s.angle = l.angle;
+    s.exponent = l.exponent;
+    s.intensity = l.intensity;
+    s.diffuse.set(l.color[0], l.color[1], l.color[2]);
+    s.specular.set(l.color[0] * 0.3, l.color[1] * 0.3, l.color[2] * 0.3);
+    s.range = 40;
+  }
+
+  /** Switch between the stage and the void and move the shared lights (no geometry is built). */
+  private showSet(id: string): void {
+    this.activeSet = id;
+    this.snap = true;
+    const set = this.sets.get(id);
+    this.minResolution(!!set);
+    for (const m of this.stageMeshes) m.setEnabled(!set);
+    for (const m of this.voidSet.meshes) m.setEnabled(!!set);
+    const bg = set?.backGlow;
+    this.voidSet.glow.setEnabled(!!bg);
+    if (bg) {
+      this.voidSet.glow.position.set(VOID_ORIGIN.x + bg.pos[0], VOID_ORIGIN.y + bg.pos[1], VOID_ORIGIN.z + bg.pos[2]);
+      this.voidSet.glow.scaling.setAll(bg.size);
+      this.voidSet.glowTex.level = bg.level;
+    }
+    if (set) {
+      for (let i = 0; i < 3; i++) {
+        const s = this.spots[i]!;
+        this.light(s, set.lights[i]!, VOID_ORIGIN);
+        // no shadows on the close-ups: at this range the body's self-shadow turns it black (acne); polish list
+        s.shadowEnabled = false;
+      }
+      this.hemi.intensity = 0;
+      this.scene.clearColor.set(0, 0, 0, 1);
+    } else {
+      LIGHTS.forEach((l, i) => {
+        const s = this.spots[i]!;
+        s.position.set(...l.pos);
+        s.direction.set(l.at[0] - l.pos[0], l.at[1] - l.pos[1], l.at[2] - l.pos[2]).normalize();
+        s.angle = l.angle * 2;
+        s.exponent = 1.2;
+        s.intensity = l.intensity;
+        s.diffuse.set(...l.color);
+        s.specular.set(0.2, 0.2, 0.2);
+        s.range = 16;
+        s.shadowMaxZ = 12;
+        s.shadowEnabled = true;
+      });
+      this.scene.clearColor.set(0.02, 0.027, 0.043, 1);
+      this.camera.fov = 0.8;
+      this.setGlow(1);
+    }
+    for (const g of this.shadows) g.darkness = set ? 0 : 0.1;
+    this.weaponLight();
+  }
+
+  /** `?gfx=min` only (the software-GL test path): the void's full-frame close-ups shade every pixel with PBR, which
+   *  SwiftShader draws at about 3 fps at 1080p and starves the menu's input timing; the void renders at a third of the resolution
+   *  there. Every real preset renders at full resolution. */
+  private minResolution(on: boolean): void {
+    if (flags.gfx !== 'min') return;
+    const e = this.scene.getEngine();
+    if (on && !this.minScale) {
+      this.minScale = e.getHardwareScalingLevel();
+      e.setHardwareScalingLevel(this.minScale * 3);
+    } else if (!on && this.minScale) {
+      e.setHardwareScalingLevel(this.minScale);
+      this.minScale = 0;
+    }
+  }
+
+  /** The weapon is hidden in the void (Michael 2026-10-19: the old voxel guns do not hold up in close-up; the Blender
+   *  weapons come later); on the stage it shows as before. */
+  private weaponLight(): void {
+    if (!this.weapon) return;
+    const show = !this.sets.has(this.activeSet);
+    this.weapon.node.setEnabled(show);
+    // (the voxel group is not always under the node: hide what renders)
+    for (const m of this.weapon.renderMeshes) m.isVisible = show;
+  }
+
+  /** Holster in the void, the weapon in the hands on the stage. */
+  private setHolstered(on: boolean): void {
+    if (on === this.holstered || !this.rig || !this.weapon) return;
+    this.holstered = on;
+    if (on) {
+      const k = carryKind(WEAPONS[this.weaponId].class);
+      this.weapon.holster(this.rig, k === 'pistol' ? 'thigh' : k === 'compact' ? 'sling' : 'backL');
+    } else this.weapon.hold(this.rig);
+  }
 
   frameUpdate(dt: number): void {
     if (this.photo) return;
     this.t += dt;
     this.t2 += dt;
+    const ctx: MenuContext = this.framing !== 'menu' ? 'loadout' : (this.screenContext?.() ?? 'main');
+    const d = this.director;
+    d.setContext(ctx);
+    d.update(dt * this.clock);
+    if (d.changes !== this.lastChanges) {
+      this.lastChanges = d.changes;
+      // no black over the change (the title carried into the main menu): ease the camera across
+      if (d.fade < 0.05 && this.sets.has(this.activeSet) && this.sets.has(d.shot.setup)) {
+        const c = this.camera;
+        this.prevAlpha = c.alpha;
+        this.prevBeta = c.beta;
+        this.prevRadius = c.radius;
+        this.prevTarget.copyFrom(c.target);
+        this.prevFov = c.fov;
+        this.prevOffset = c.targetScreenOffset.x;
+        this.blend = 0;
+      }
+    }
+    if (d.shot.setup !== this.activeSet) this.showSet(d.shot.setup);
+    const fade = Math.round(d.fade * 100) / 100;
+    if (fade !== this.fadeShown) {
+      this.fadeShown = fade;
+      this.fadeEl.style.opacity = `${fade}`;
+    }
+    const set = this.sets.get(this.activeSet);
+    if (set) this.cinematicFrame(dt, set);
+    else this.stageFrame(dt);
+    this.snap = false;
+    for (const fn of this.frameHooks) fn(dt);
+    // a portrait lens on the operator: the stage behind falls soft
+    this.stack.focusOn = true;
+    this.stack.focus = this.camera.radius;
+    this.stack.frame(dt);
+  }
+
+  /** The goggle glow level 0..1 (the power-on), through the figure's per-player colour (no allocation). */
+  private setGlow(k: number): void {
+    const f = this.figure;
+    if (!f) return;
+    if (!this.glowFull) {
+      const c = f.glowColour;
+      if (!c) return;
+      this.glowFull = c;
+    }
+    if (k === this.glowK) return;
+    this.glowK = k;
+    const g = this.glowNow;
+    const b = this.glowFull;
+    g[0] = b[0] * k;
+    g[1] = b[1] * k;
+    g[2] = b[2] * k;
+    f.setGlowColour(g);
+  }
+
+  /** (slice 6) A hero shot: the camera pass eased from its start to its end pose on the shot's lens, the moving lights,
+   *  the goggle power-on; Wren idle (breathing) and holstered. */
+  private cinematicFrame(dt: number, set: HeroShot): void {
+    const cam = this.camera;
+    const o = VOID_ORIGIN;
+    const t = this.director.t;
+    const e = easeInOut(t);
+    const a = set.from;
+    const b = set.to;
+    // a slow hand-held drift on top so even a held frame breathes
+    cam.alpha = -Math.PI / 2 + a.alpha + (b.alpha - a.alpha) * e + Math.sin(this.t * 0.21) * 0.005;
+    cam.beta = a.beta + (b.beta - a.beta) * e + Math.sin(this.t * 0.17) * 0.004;
+    const radius = a.radius + (b.radius - a.radius) * e;
+    cam.radius = radius;
+    cam.target.set(
+      o.x + a.target[0] + (b.target[0] - a.target[0]) * e,
+      o.y + a.target[1] + (b.target[1] - a.target[1]) * e,
+      o.z + a.target[2] + (b.target[2] - a.target[2]) * e,
+    );
+    cam.fov = set.fov;
+    // Wren sits right of centre, the menu list over black on the left (the offset is in view units at the target)
+    const aspect = this.scene.getEngine().getAspectRatio(cam);
+    cam.targetScreenOffset.x = set.frameX * radius * Math.tan(set.fov / 2) * aspect;
+    cam.targetScreenOffset.y = 0;
+    // light passes: a light with `to` / `atTo` travels over the shot (the sweep, the rim swing)
+    for (let i = 0; i < 3; i++) {
+      const l = set.lights[i]!;
+      const to = l.to ?? l.pos;
+      const at = l.atTo ?? l.at;
+      if (!l.to && !l.atTo) continue;
+      const s = this.spots[i]!;
+      const px = l.pos[0] + (to[0] - l.pos[0]) * t;
+      const py = l.pos[1] + (to[1] - l.pos[1]) * t;
+      const pz = l.pos[2] + (to[2] - l.pos[2]) * t;
+      s.position.set(o.x + px, o.y + py, o.z + pz);
+      s.direction.set(l.at[0] + (at[0] - l.at[0]) * t - px, l.at[1] + (at[1] - l.at[1]) * t - py, l.at[2] + (at[2] - l.at[2]) * t - pz).normalize();
+    }
+    if (this.blend < 1) {
+      this.blend = Math.min(1, this.blend + dt / 1.6);
+      const k = 1 - easeInOut(this.blend);
+      cam.alpha += (this.prevAlpha - cam.alpha) * k;
+      cam.beta += (this.prevBeta - cam.beta) * k;
+      cam.radius += (this.prevRadius - cam.radius) * k;
+      cam.fov += (this.prevFov - cam.fov) * k;
+      cam.targetScreenOffset.x += (this.prevOffset - cam.targetScreenOffset.x) * k;
+      cam.target.x += (this.prevTarget.x - cam.target.x) * k;
+      cam.target.y += (this.prevTarget.y - cam.target.y) * k;
+      cam.target.z += (this.prevTarget.z - cam.target.z) * k;
+    }
+    const on = set.goggleOn;
+    // (a blended change keeps the glow where it was going: on)
+    const glow = on ? goggleLevel(t, on[0], on[1]) : 1;
+    this.setGlow(glow);
+    if (set.glowLight !== undefined) this.spots[set.glowLight]!.intensity = set.lights[set.glowLight]!.intensity * glow;
+    if (this.rig) {
+      this.setHolstered(true);
+      const r = this.rig;
+      r.root.position.copyFrom(o);
+      // the rig's idle breathes; a slow weight shift on top
+      r.root.rotation.y = VOID_YAW + idleSway(this.t2);
+      r.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 });
+      this.figure?.update(this.scene.activeCamera);
+    }
+  }
+
+  /** Today's stage (loadout S6, lobby S7 until it is built). */
+  private stageFrame(dt: number): void {
     // customising needs to see the colours: a brighter fill there, the dark stage elsewhere
     const fill = this.framing === 'menu' ? 0.14 : 0.7;
     this.hemi.intensity += (fill - this.hemi.intensity) * Math.min(1, dt * 3);
     // the key light breathes a touch (a hanging lamp)
     if (this.key) this.key.intensity = 2.6 * (1 + Math.sin(this.t * 1.3) * 0.02 + Math.sin(this.t * 3.7) * 0.01);
     const cam = this.camera;
+    const snap = this.snap;
     // the menu fills the left: the operator stands in the open right side of the screen
     // (the Loadout screen: centred between the category list on the left and the options on the right)
     const ox = this.framing === 'menu' ? 1.6 : this.framing === 'weapon' ? -0.05 : -0.1;
-    cam.targetScreenOffset.x += (ox - cam.targetScreenOffset.x) * Math.min(1, dt * 4);
+    cam.targetScreenOffset.x += (ox - cam.targetScreenOffset.x) * (snap ? 1 : Math.min(1, dt * 4));
     if (this.framing === 'menu') {
       // a slow sway round the front, never behind
-      cam.alpha += (-Math.PI / 2 + 0.35 + Math.sin(this.t * 0.07) * 0.3 - cam.alpha) * Math.min(1, dt * 2);
-      cam.radius += (5.4 - cam.radius) * Math.min(1, dt * 3);
-      cam.target.x += (0 - cam.target.x) * Math.min(1, dt * 3);
-      cam.beta += (1.4 - cam.beta) * Math.min(1, dt * 3);
-      cam.target.y += (1.45 - cam.target.y) * Math.min(1, dt * 3);
+      const k = snap ? 1 : Math.min(1, dt * 3);
+      cam.alpha += (-Math.PI / 2 + 0.35 + Math.sin(this.t * 0.07) * 0.3 - cam.alpha) * (snap ? 1 : Math.min(1, dt * 2));
+      cam.radius += (5.4 - cam.radius) * k;
+      cam.target.x += (0 - cam.target.x) * k;
+      cam.target.z += (0 - cam.target.z) * k;
+      cam.beta += (1.4 - cam.beta) * k;
+      cam.target.y += (1.45 - cam.target.y) * k;
     } else {
       // front view of the full figure; the weapon view comes in to the chest and raises the gun
-      const k = Math.min(1, dt * 4);
+      const k = snap ? 1 : Math.min(1, dt * 4);
       const w = this.framing === 'weapon';
       cam.alpha += (-Math.PI / 2 - cam.alpha) * k;
       cam.radius += ((w ? 2.9 : 3.5) - cam.radius) * k;
       cam.beta += ((w ? 1.5 : 1.42) - cam.beta) * k;
       cam.target.x += (0 - cam.target.x) * k;
+      cam.target.z += (0 - cam.target.z) * k;
       cam.target.y += ((w ? 1.3 : 1.0) - cam.target.y) * k;
     }
     this.aimW += ((this.framing === 'weapon' ? 0.9 : 0.05) - this.aimW) * Math.min(1, dt * 5);
     if (this.rig) {
+      this.setHolstered(false);
+      this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
       this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.25 + Math.sin(this.t2 * 0.3) * 0.2 : this.previewYaw;
       this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: this.aimW, kick: 0 });
       this.figure?.update(this.scene.activeCamera);
     }
-    for (const fn of this.frameHooks) fn(dt);
-    // a portrait lens on the operator: the stage behind falls soft
-    this.stack.focusOn = true;
-    this.stack.focus = cam.radius;
-    this.stack.frame(dt);
   }
 }
