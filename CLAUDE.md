@@ -9,6 +9,20 @@ Project knowledge lives in git, never only in Claude memory: Michael swaps accou
   The CT co-op levels are researched and that experience is recreated (G3).
 - Work order: the CT co-op research, then the CT prototype, then the rest (G95). Prototype first: only the basics
   needed to test a feature; refinement later (G4). The ordered job list is in `docs/progress.md`.
+
+## Current goal (Michael, 2026-10-19) - every job and session, overrides slower wording elsewhere
+A fully functional 2-player co-op training level, playable end to end, as soon as possible:
+- Wren as the character for both players, with basic animations.
+- Basic weapons: Blender scratch builds, realistic at a glance but quick.
+- All co-op moves and the required CT moves; lights and shadows working (light parity).
+- Pure CT (G1, `docs/ct-research`, G124-G160) except Michael's recorded decisions, including a Blacklist-style
+  selection wheel for weapons, gadgets and vision modes (no time slow).
+- A visual pass comes last, to make it prettier.
+
+Do not spend time refining (feel tuning, animation polish, perf tuning, detail art) until Michael has playtested the
+core gameplay loop. Checkers block only on broken or unplayable work; cosmetic notes go on a polish list in the job's
+docs. At most 1 fix round per slice unless the work is broken. Quick e2e per slice, the full e2e at the PR. This holds
+until Michael lifts it.
 - A PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages, desktop only: pad first, then keyboard and mouse (G12).
 - Michael's decisions: `docs/DECISIONS.md` (G1, G2, ...). Design: `docs/design-bible.md`. Story and in-game text: `docs/story.md`.
 - Fallow (map `bunker`, `src/world/maps/bunker*.ts`, run docs `docs/training/`) is the co-op tutorial bunker and the
