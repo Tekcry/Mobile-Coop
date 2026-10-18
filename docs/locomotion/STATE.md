@@ -14,8 +14,9 @@ PR https://github.com/Tekcry/Mobile-Coop/pull/3 (integrate/consolidate -> master
 - Run docs: docs/consolidation/ on integrate/consolidate (HANDOVER, AUDIT, deleted-*.md, checks/, PR-BODY.md).
 
 ## RESUME HERE after Michael merges
-1. Branch clean-up only with Michael's go-ahead (docs/locomotion/CONSOLIDATE.md "After Michael merges").
-2. CT co-op research job (G3, G95), then the CT prototype on feature/ct-prototype from master: docs/locomotion/
+1. Branch clean-up: Michael approved (G121): delete dev, feature/exchange-map, feature/kestrel, feature/footsteps,
+   feature/weapon-audio, ct-movement, playtest/combined, claude/new-session-* once the PR is merged.
+2. CT co-op research job: Michael brings his own completed research after the merge (G122); start from it. Then the CT prototype on feature/ct-prototype from master: docs/locomotion/
    PROTOTYPE-PLAN.md redone against docs/DECISIONS.md, plus the code-vs-decision gaps listed in the PR body
    ("Known gaps") and docs/progress.md.
 
