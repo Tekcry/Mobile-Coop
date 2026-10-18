@@ -61,3 +61,19 @@ go. Slices, each built once, two-player e2e, pushed to `/ct/`:
 | B6 Paired scanners | Two-key sync with a forgiving window | Opus (sync) |
 | B7 Two-person rope | Partner climbs the held rope (G162, replaces G110 for this move) | Sonnet |
 | B8 Revive and finish | 30 s revive, two per mission (G126), both extract (G138), wall medkits by difficulty (G162) | Opus (sync) |
+
+### Phase 2 after the B0 survey (Michael, 2026-10-18)
+Michael: relay "CT hanging ladder", other bays "Park behind a flag", level "Fresh compact level", fail cost "Health hit
+(CT)". So the CT training course is a NEW compact level (`ctcourse`, original names), laid out like CT's obstacle course
+with 8 stations in CT's order; the old Fallow bunker is parked behind a dev flag (not deleted). It follows the bunker's
+own map rules (G117, training D41) and a short spec from `docs/templates/map-spec.md`. Slices (replace the table above):
+| Slice | Built | Model |
+| --- | --- | --- |
+| B1 Spec and greybox | Spec `docs/ct-prototype/CTCOURSE-SPEC.md`; greybox of 8 stations plus start and exit, panels, two players start, both must reach the exit (G138), wall medkits by difficulty (G162), the course mode points at it, Fallow behind a flag; two-page e2e `scripts/e2e-ctcourse.mjs` | Sonnet |
+| B2 Leg-up and CT relay | Leg-up on co-op action (brace removed), CT hanging-body ledge relay | Sonnet |
+| B3 Jammer, camera, laser | Held pistol jammer on a camera (EMP removed), laser device; touching it costs health plus a radio line | Sonnet |
+| B4 Partner throw | Throw over the laser, far-side release | Opus |
+| B5 Hang-down | Lower the partner head-first, hack while hanging | Opus |
+| B6 Paired scanners | Two-key sync, forgiving window; a failed hack costs health (CT) | Opus |
+| B7 Two-person rope | Partner climbs the held rope | Opus |
+| B8 Revive and finish | 30 s revive, 2 per mission, both extract, end screen | Opus |

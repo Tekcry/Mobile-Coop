@@ -16,6 +16,7 @@ Michael's words quoted verbatim; they move to `docs/DECISIONS.md` as G entries a
 | 2026-10-18 | Orchestrator model | "Keep Opus orchestrator"; implementers stay Sonnet, medium | - |
 | 2026-10-18 | Stops | "After each area (Recommended)": five short stops (camera, body, wall and doors, strike and grab, goggles) | - |
 | 2026-10-18 | Goal (G161) | "Prototype movement focus first ct-pure, then full coop loop"; "It can run overnight but not yet. I'm still awake. Also we should focus on the ct training coop session."; "Yes, push to ct-movement"; "Yes, Opus for those"; "Rebuild Fallow on it" | G150 tune-until-sign-off; Pumphouse Nine |
+| 2026-10-18 | Bunker (B0 questions) | Relay "CT hanging ladder (Recommended)"; other bays "Park behind a flag (Recommended)"; level "Fresh compact level"; fail cost "Health hit (CT) (Recommended)" | B0 survey mapping onto bays 1-4 |
 | 2026-10-18 | Turn follow plan | "Build 3 fixes, then play": after the camera round, scale turn rate with speed, planted feet follow the body in every state, remove reversal-pivot leftovers and fix the crossing guard (A1-TURN-FOOTAGE.md) | - |
 | 2026-10-18 | Wall, doors, pad (review) | "Adjust, new pad (Recommended)": adjust wall and doors; rewrite the pad and key tables to CT's layout | - |
 | 2026-10-18 | Other areas (review) | "Adjust all (Recommended)": body, anim graph, strike and grab, goggles, co-op wire are adjusted | - |
