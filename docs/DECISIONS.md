@@ -631,3 +631,20 @@ follow the CT co-op research (G3). Michael: "CT research replaces it" (U6, 2026-
 is decided after the research (G53). Michael: "No, wait" (U7, 2026-10-17; LEVEL-01 stays deferred.)
 
 U8 (UI-04 to UI-06 go to the menu job) was not asked; chat 32 ("menu calls decided in the menu job") covers it.
+
+## After the PR opened (2026-10-18, native multiple-choice)
+
+**G119. Wall medkit heal: the research decides.** The +40 single-use station heal is a placeholder; the CT co-op research
+sets the amount and whether stations are reusable. Michael: "Research decides" (2026-10-18; G98 stands.)
+
+**G120. Mission 8 is written with the missions.** The replacement for the removed traitor plot stays open until the
+missions are planned (STORY-04, G9). Michael: "With the missions" (2026-10-18.)
+
+**G121. Stale branches deleted after the merge.** Once Michael merges the consolidation PR, Claude deletes dev,
+feature/exchange-map, feature/kestrel, feature/footsteps, feature/weapon-audio, ct-movement, playtest/combined and the
+claude/new-session-* branches; feature/ct-locomotion and feature/training-bunker stay until nothing is left on them.
+Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/locomotion/CONSOLIDATE.md asks for.)
+
+**G122. Michael brings his own CT co-op research.** Michael already ran a comprehensive research task outside the game
+and git; he brings it in after the merge, and the research job starts from it. Michael: "I've already run a comprehensive
+research task not linked to the game or git, I'll bring it in after the merge" (2026-10-18.)
