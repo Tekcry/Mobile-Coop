@@ -1,5 +1,7 @@
 # CT co-op research - decisions to record at merge (2026-10-18)
 
+Recorded in docs/DECISIONS.md as G124-G160 (2026-10-18); this file is history.
+
 These become G entries in docs/DECISIONS.md, with the next free G numbers, when this branch merges (another branch,
 feature/operators, is also adding G123 onward, so numbers are assigned at merge time). Michael chose "today's answers
 win": where an entry below differs from G1 ("pure CT") or an earlier G entry, the entry below wins. Each must also be

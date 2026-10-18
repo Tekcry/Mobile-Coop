@@ -1,8 +1,9 @@
 # Night Shift - Design Bible
 
 Version 2.0 - 2026-10-18. Rewritten to Michael's current decisions (docs/DECISIONS.md G1-G118, "Rewrite it now", G10).
-The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`. Owner:
-Michael. Location in the repo: `docs/design-bible.md`.
+G124-G160 (the CT co-op research, 2026-10-18) are written into the sections they belong to. The 1.13 text, with the
+removed systems and the old process, is in `docs/archive/design-bible-history.md`. Owner: Michael. Location in the repo:
+`docs/design-bible.md`.
 
 ---
 
@@ -24,6 +25,8 @@ value, tuned after Michael plays the CT prototype (G4, G10). Section 11 lists wh
 **Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, measured
 from Michael's footage and the CT research, wins. Several systems below are marked "research": the CT co-op research job
 (G3, G95) keeps those CT has and removes the rest (G1, G11).
+Where a 2026-10-18 decision departs from CT on purpose (revive and encounter checkpoints, world pings, both players
+extract, the perfect rating, any partner rejoins: G126, G135, G138, G146, G147), that decision wins.
 
 **History.** Older docs, prompts and code describe earlier directions: a Blacklist-style game (snap cover, Mark & Execute,
 sonar, the Ghost / Panther / Assault economy), phones and touch, Wave and PvP, a traitor finale, a solo campaign and a
@@ -35,7 +38,8 @@ bot partner. That is history. Do not extend it. Section 6 lists what was removed
 timing, camera, HUD layout and visual style are matched closely. Names, characters, story, organisations, logos, art
 assets, the goggle and the music are original. No reference-game character, gear or organisation name appears anywhere:
 code, UI, specs, docs or research notes (G6). "Chaos Theory" and "CT" may name the reference, and Michael's quoted words
-stay verbatim (G114).
+stay verbatim (G114). The raw CT research is kept only as the tag `archive/ct-research-raw`; master holds the scrubbed
+digests in `docs/ct-research/` (G154).
 
 ---
 
@@ -49,17 +53,20 @@ game that recreates Splinter Cell: Chaos Theory's co-op campaign: its mechanics 
 names and story.
 
 - **A 2-player co-op campaign only.** Michael: "2 player coop campaign only, unable to be completed solo." Exactly two
-  players; no solo route, no bot partner, no 3-4 player play (G2, G48, G50, G111).
+  players; no solo route, no bot partner, no 3-4 player play (G2, G48, G50, G111, G132).
 - **The CT co-op levels are recreated.** Their design, flow and moves are researched, and that experience is rebuilt
   with original maps and story (G3). The research is the first job (G95).
 - **Prototype first.** Michael: "We must get a working prototype working, only the basics required to make it work and
-  functional to test features and gameplay. ... Refinement can come later." (G4)
-- **Story** (`docs/story.md`): a grounded techno-thriller with dry humour. Two operators, Wren and Moth, of the deniable
-  unit NIGHT SHIFT, with the handler LANTERN and the radio crew Tally and Sexton (G112), have nine nights to stop
-  SUNDOWN, a staged blackout of the port city of Hollowmere. The team that lives in shadow has to keep the city's lights
-  on. Story is text radio and subtitles now, written so it can be voiced later (G82).
-- Darkness, silence, acrobatic movement, teamwork and patience are the tools. Combat is possible, but it is a sign that
-  something went wrong.
+  functional to test features and gameplay. ... Refinement can come later." (G4) The core feel comes first: CT movement,
+  camera, back-to-wall, doors, palm strike and goggles are rebuilt and fine-tuned on Wren until Michael signs off, then
+  the co-op slices follow (G149, G150).
+- **Story** (`docs/story.md`): a present-day (G124), standalone co-op story (G136); a grounded techno-thriller with dry
+  humour. Two operators, Wren and Moth, of the deniable unit NIGHT SHIFT, with the handler LANTERN and the radio crew
+  Tally and Sexton (G112), have nine nights to stop SUNDOWN, a staged blackout of the port city of Hollowmere. The team
+  that lives in shadow has to keep the city's lights on. Story is text radio and subtitles now, written so it can be
+  voiced later (G82).
+- Darkness, silence, acrobatic movement (heightened: showpiece two-player moves beside grounded ones, G130), teamwork
+  and patience are the tools. Combat is possible, but it is a sign that something went wrong.
 - **Desktop only** (G12): an installable PWA in the browser, pad first, then keyboard and mouse.
 - **Realistic** characters and a realistic look everywhere (G68).
 
@@ -75,7 +82,8 @@ controllable, it is wrong.
 - Darkness is safety. Light is danger. The player can always read which is which.
 - The light meter never lies. What the player sees, what the meter shows and what guards perceive come from one source
   (Section 5.1).
-- Light is a toy: switches, breakable lamps, the pistol's disruptor, flashlights that guards carry into the dark.
+- Light is a toy: switches, breakable lamps, the pistol and its held jammer (G152), flashlights that guards carry into
+  the dark.
 - **Test:** stand anywhere in any map at any graphics preset. The rendered brightness of the player, the meter and the
   guards' detection rate agree.
 
@@ -89,8 +97,10 @@ controllable, it is wrong.
 ### P3 - The players author the approach
 
 - Every space offers more than one route (high / traversal, low / shadow, loud) and lethal and non-lethal options.
-  Ghosting (never seen, nobody harmed) is always possible.
-- **Test:** each mission can be completed with no kills and no alarms.
+  Ghosting (never seen, nobody harmed) is always possible. Violence is scored: non-lethal and ghost play are rewarded,
+  and no mission forces a kill (G127).
+- **Test:** each mission can be completed with no kills, no alarms and every primary objective: the perfect rating
+  (G146).
 
 ### P4 - Physical, deliberate CT movement
 
@@ -123,22 +133,25 @@ controllable, it is wrong.
 
 ### Mission flow
 
-1. **Briefing:** text, an annotated top-down map and a loadout choice (Stealth, Assault or Recommended, G105).
+1. **Briefing:** text, an annotated top-down map and the pair's complementary kits, fixed per mission (G134, G153).
 2. **Insertion:** where the mission offers more than one.
 3. **Space by space**, following the level design spine: scout from the entry vantage, plan, execute together, reach
    the next checkpoint.
 4. **Radio:** the handler and crew talk through text radio. Radio never blocks input.
 5. **Objectives** live in the menu, as in CT (G108). Primary objectives complete the mission; secondary and opportunity
    objectives raise the rating.
-6. **Extraction.**
+6. **Extraction:** both players must reach the exit (G138).
 7. **Results:** the stealth rating and its breakdown (Section 5.8).
 
 ### Failure and recovery
 
 - **Detection** escalates: suspicious, then investigating, then alert, then search.
-- **Breaking line of sight** works. Guards search the last known position, not the real one.
-- **Alarms** raise the mission alarm level. Some missions fail at a set alarm count.
-- **Downed:** a downed partner can be revived. Both players down reloads the last checkpoint.
+- **Breaking line of sight** works. Guards search the last known position, not the real one. Guards know only what
+  they saw: no one knows a second intruder exists until one is seen or evidence suggests it (G139).
+- **Alarms** raise a shared alert tier that escalates the response; no mission fails on an alarm count. A mission has
+  at most one hard rule, and it is signposted (G125).
+- **Downed:** the partner can revive within 30 seconds, at most twice per mission; both players down reloads the last
+  checkpoint. Encounter checkpoints cap replay loss at about 10 minutes (G126).
 
 ### A good session feels like
 
@@ -161,7 +174,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | --- | --- | --- |
 | Analog speed | Stick deflection sets the pace; the speed rocker sets the top speed with no on-screen indicator. No sprint. Noise rises with speed; the slowest speeds are silent. | loco M20 Q8, M25 (7), G40 |
 | Stops and turns | Feet freeze mid-stride; a run reversal is one smooth turn; a stick flick turns round in about 0.4 s. | G25-G27, G33 |
-| Crouch / stand, roll | Standing and crouched only. Holding crouch while running rolls; a tap just crouches. | G32, G110 |
+| Crouch / stand, roll | Standing and crouched only. Holding crouch while running rolls; a tap just crouches. Sneaking slowly near an enemy, the crouch turns tense: on the toes, exaggerated balancing. | G32, G110, G160 |
 | Jump, split jump, wall jump | Narrow corridors, lips | Research |
 | Pipes (hang, shimmy, legs up), drainpipes, ladders, ledges (shimmy, drop, climb) | No fast ladder climb. | G31, Research |
 | Ducts, windows, ziplines, vault / mantle, fences, rappel | No fast rappel descent, no small gap hops. Crawl spaces are crouch-walked. | G31, G56, Research |
@@ -176,9 +189,9 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | Carry and hide bodies | Standing, footsteps louder | Research |
 | Drag bodies | Crouched, slow | Research |
 | Lockpick | Short minigame on doors and cases. Silent but takes time. | Research |
-| Hack | Short minigame on terminals and keypads | Research |
+| Hack | Short minigame on terminals and keypads; hands-on only, no remote hacking tool | G142, Research |
 | Optic cable | Look under a closed door before opening it (a door-list choice) | G37, G97 |
-| Interrogation | From a grab: question the guard for intel (subtitled) | G23 |
+| Interrogation | From a grab: question the guard for intel (subtitled). Two-person questioning, non-violent: one player distracts or bluffs, the other reads a device or a reaction. | G23, G148 |
 | Use a held guard on a scanner | Opportunity objective device | Research |
 | Grab, human shield | The grab is the hub (5.4) | G23 |
 | Whistle, fuse boxes, thrown objects | | Research |
@@ -189,7 +202,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | --- | --- | --- |
 | Grab, then choose | Grab first, then knock out, kill or interrogate from CT's grab menu. No stealth / kill selector. | G23, G43 |
 | Drop, ledge, window and pipe takedowns | Tap = knock out, hold = kill | G43 |
-| Palm strike | One-hit knockout from any side on every human guard; dogs cannot be palm-struck; heavies follow the research. | loco M20 Q4, G42, G49 |
+| Palm strike | One-hit knockout from any side on every human guard; co-op missions have no heavies or dogs. | loco M20 Q4, G42, G155 |
 | Knife | Close lethal takedown; its full role follows the research. | G76 |
 | Dual takedown (co-op) | | G52 |
 | Holster / draw | A mission starts holstered; the weapon comes out to aim (5.6). No hip fire. | G21, G103 |
@@ -208,18 +221,18 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
 | Rifle with attachments | Sniper (scope with hold breath), shotgun, launcher | G76, G104 |
-| Pistol with disruptor | Temporarily kills lights and electronics it hits | G76 |
+| Pistol with held jammer | Shoots out lights; the held jammer disables one light, camera or laser while the player stands still, and its charge drains. No thrown EMP. | G76, G152 |
 | Gadgets and launcher rounds | CT's set, settled by the research (the ring airfoil and the knife's role included) | G76 |
 
 ### Co-op team moves
 
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
-| Brace, boost, human ladder | Boosts only at marked spots, as CT's co-op spots. One ledge band of 4.3-4.5 m serves boost and human ladder. | G52, G57, G81 |
+| Brace, boost, human ladder | Free wherever the space allows, with a prompt naming the move. One ledge band of 4.3-4.5 m serves boost and human ladder. | G52, G57, G151 |
 | Dual takedown | | G52 |
-| CT's other team moves | Split-jump boost, back-to-back climb, pull-up, rappel anchor and any others CT has: added in the co-op job | G3, G52 |
-| Revive, carry a downed partner | | Research |
-| Pings, Sync, clutch-save markers | | Research |
+| CT's other team moves | Split-jump boost, back-to-back climb, pull-up, rappel anchor and any others CT has: added in the co-op job. Showpiece moves (partner launch, drop line) sit beside grounded ones. | G3, G52, G130 |
+| Revive, carry a downed partner | Revive within 30 s, at most twice per mission; carrying: research | G126, Research |
+| Pings, Sync, clutch-save markers | World pings stay; sync windows never scale with difficulty; the rest: research | G131, G135, Research |
 
 ---
 
@@ -263,7 +276,7 @@ Implementation: `docs/systems/lighting.md`.
   - a brightness calibration screen that sets a small, clamped exposure offset (render only; its symbol is original,
     G69)
 - **L8 - Controllable light.** Every lit space offers at least two ways to change the light (switch, breakable lamp,
-  disruptor, and whatever else the research keeps).
+  the pistol and its held jammer (G152), and whatever else the research keeps).
 - **L9 - Guards notice light changes in their view.** Investigating guards in darkness take torches.
 - **L10 - Co-op.** Light state (on / off / destroyed / disrupted) is host-authoritative and synced. Clients re-mix the
   lighting locally.
@@ -275,6 +288,8 @@ Implementation: `docs/systems/lighting.md`.
 - **L14 - The moon is baked** like a lamp, so outdoor moon shadows match the meter.
 - **L15 - Glass (G45).** Clear glass passes light and sight; frosted glass and blinds pass light only; thermal never sees
   through glass.
+- **L16 - Lit windows (G144).** Lit windows are systemic: a lit window exposes anyone in it, from either side; dark
+  rooms hide.
 
 ### 5.2 Sound (P2)
 
@@ -301,13 +316,18 @@ Implementation: `docs/systems/audio.md`.
   (G67). The long menu theme ships (G64); the old music plans, test lab and unused music files are kept (G65). The
   music direction, briefing / results / pause music and the Calm alternatives are decided in the music job (Section 11).
 - **S9 - Missing sounds** come after the prototype: guards' footsteps first, then ambience, then the rest (G66).
+- **S10 - Voice (G129, G140, G156).** Partner voice is an earpiece: always clear, never fading with distance. Proximity
+  voice (guards hear the players' voice chat) is an opt-in modifier: off by default, visible when on, tunable. Both are
+  built after the prototype.
 
 ### 5.3 Movement, stances, camera and traversal (P4)
 
 CT movement, measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/locomotion/`). Implementation:
-`docs/systems/movement.md`. All numbers are starting values (Section 0).
+`docs/systems/movement.md`. All numbers are starting values (Section 0). The core-feel job rebuilds and fine-tunes
+movement, camera, back-to-wall, doors, palm strike and goggles on Wren until Michael signs off (G150).
 
-**Stances:** standing and crouched only. No prone, no rope climb (G110).
+**Stances:** standing and crouched only. No prone, no rope climb (G110). Sneaking slowly near an enemy, the crouch
+turns tense: quieter, on the toes, with exaggerated balancing (G160).
 
 **Speed:**
 
@@ -350,19 +370,20 @@ guard behind the door. Running into a door does nothing special. Guards notice a
 **Bodies:** carry (standing, footsteps louder; no climbing or traversal while carrying); drag (crouched, slow) if the
 research keeps it. Put the body down gently (quiet) or drop it (noise); hide spots remove the body.
 
-**Camera (G28, G29, G17, G38):**
+**Camera (G28, G29, G17, G38, G137, G159):**
 
-- **Exploring:** about 1.8 m behind, the head at screen centre, the legs partly out of frame. Rigid follow with a gentle
-  swing toward travel; no bob.
+- **Exploring:** about 1.8 m behind, the head at screen centre, the legs partly out of frame. Rigid follow, no bob. The
+  camera never moves or adjusts by itself: the player controls it (G159).
 - **Aiming:** over the shoulder with no zoom (the sniper scope is the exception, 5.6). The shoulder swap works only while
-  aiming; the exploring camera swings by itself.
+  aiming.
 - **The same camera height for every operator:** the camera is tied to the shared body capsule, so maps read the same for
   every player.
 - **Attached states** (hang, pipes, split, rappel, ladder) get their own framing.
 - **Collision:** the camera pulls in smoothly near walls and ceilings at a capped rate, never pops, fades geometry that
   blocks the operator, and holds a usable view in tight corridors and ducts. Test: sampled positions on every map; the
   camera is never inside geometry and never jumps more than a set distance per frame.
-- **Corner peeking** with the camera is allowed, as in CT. Guards detect the body, never the camera.
+- **Over the shoulder, strict corner peek (G137):** the camera sees little the character cannot. Guards detect the
+  body, never the camera.
 
 **Metrics.** Speeds, grab reach, mantle / step / vault heights, the wall jump band, split widths and heights, pipe heights,
 boost and human ladder reach, rappel and fence limits, landing bands and camera distances are written into
@@ -374,8 +395,8 @@ changing a metric needs Michael's approval and a review of every map built on it
 
 Implementation: `docs/systems/takedowns.md`.
 
-- **The palm strike** (loco M20 Q4, G42): a one-hit knockout from any side on every human guard. Dogs cannot be
-  palm-struck. How heavies are handled follows the research (G49). Recovery about 1.4 s (loco M25 (5)). A small noise
+- **The palm strike** (loco M20 Q4, G42): a one-hit knockout from any side on every human guard. Co-op missions have
+  no heavies or dogs (G155). Recovery about 1.4 s (loco M25 (5)). A small noise
   event. Host-approved in co-op.
 - **The grab is the hub (G23, G43).** The ground takedown button grabs first; CT's grab menu then offers knock out, kill
   or interrogate. There is no stealth / kill selector. From the grab: carry, human shield, interrogate, use on a
@@ -387,6 +408,8 @@ Implementation: `docs/systems/takedowns.md`.
   (pull-down), window, from above, over a low obstacle, through a doorway; the research confirms the set.
 - **Interrogation:** 1-3 subtitled lines per guard type, data-driven per mission. It can reveal an opportunity objective,
   a code or a patrol. The intel goes into the field menu (5.10).
+- **Two-person questioning (G148):** non-violent: one player distracts or bluffs while the other reads a device or a
+  reaction.
 - **Dual takedown (co-op):** both players act on a host-approved shared start (5.9 C11).
 
 ### 5.5 Gadgets and vision
@@ -403,10 +426,11 @@ Implementation: `docs/systems/gadgets.md`.
 - **The goggle** is original: no three-lens look (G69). It sits on the brow with a dim glow when vision is off and over
   the eyes with full glow when on (G73).
 - **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). The gadget wheel
-  stays. There is no time slow (a two-player game).
-- **Kit per mission** comes from the chosen loadout (5.6). No credits.
+  stays. There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
+  thrown EMP is gone: the pistol's held jammer replaces it (G152).
+- **Kit per mission** is fixed by the mission: the pair get complementary kits (G134, G153). No credits.
 
-### 5.6 Weapons, gunplay and loadout
+### 5.6 Weapons, gunplay and kit
 
 Implementation: `docs/systems/combat.md`.
 
@@ -415,11 +439,13 @@ Implementation: `docs/systems/combat.md`.
 | Slot | Weapon |
 | --- | --- |
 | Primary | One rifle (suppressed) with attachments: sniper, shotgun, launcher |
-| Sidearm | One pistol (suppressed) with the light / electronics disruptor |
+| Sidearm | One pistol (suppressed) with the held jammer |
 | Melee | The knife |
 
 - Every other gun is deleted (G115). Attachments, gadgets and launcher rounds are CT's set, settled by the research.
 - Original names only; no real gun brands.
+- **The held jammer (G152):** held on one light, camera or laser; its charge drains and the player must stand still. It
+  replaces the thrown EMP.
 
 **Holstered (G21):**
 
@@ -437,33 +463,37 @@ Implementation: `docs/systems/combat.md`.
 - Crouched and still is steadiest; speed and motion widen spread.
 - Every shot is a noise event; suppressed shots are quiet, not silent; impacts are heard nearby.
 - Every shot can kill a lamp (P1). The gun is also a light tool.
-- One headshot downs an unarmoured guard. Helmets and armour appear with alarm levels (5.7). Heavies follow the research
-  (G49).
+- One headshot downs an unarmoured guard. Helmets and armour appear with alarm levels (5.7). Co-op missions have no
+  heavies (G155).
 - Aiming from attached states stays (split, pipes, rappel, ledge, human ladder top).
 - **Co-op:** the drawn / holstered state and the weapon in hand are in `MoveState`, so the partner sees them.
 - **Holstered look:** the rifle slung on the back, the pistol in its holster, a clean silhouette. Which gun comes out
   first and how guns are carried when put away are open (Section 11).
 
-**Loadouts (G105):** Stealth, Assault and Recommended, chosen at the briefing and used everywhere. Nothing is bought.
+**Kits (G134, G153):** fixed per mission; each mission issues the two players complementary kits. Players do not choose
+a loadout, and nothing is bought.
 
 ### 5.7 AI (P5)
 
 Implementation: `docs/systems/ai.md`.
 
 - **Keep:** perception (sight x light x stance x motion x exposure), `AlertMachine`, radio windows, shared last known
-  position (LKP), search, torches, bodies, alarms, doors, archetypes (guard, runner, heavy, sniper, enforcer, dog,
-  officer), barks (shown as text), difficulty.
+  position (LKP), search, torches, bodies, alarms, doors, archetypes (guard, runner, sniper, enforcer,
+  officer; the heavy and dog archetypes are not placed in co-op missions, G155), barks (shown as text), difficulty.
 - **Mission alarm level 0-3.** Each raised alarm adds one level. Level 1: guards draw torches in the dark. Level 2: more
-  guards wear helmets and armour, patrols tighten. Level 3: reinforcements. A mission rule can fail the mission at a set
-  level.
+  guards wear helmets and armour, patrols tighten. Level 3: reinforcements. No mission fails on an alarm count; a
+  mission has at most one hard rule, signposted (G125). The alert tier is shared, but guards know only what they saw:
+  no one knows a second intruder exists until one is seen or evidence suggests it (G139).
 - **Environmental change** alerts guards: lights changed in view, a missing patrol partner (radio check), bodies, broken
   glass heard, and doors (G41): guards close doors behind them on a calm patrol and notice any door open that should be
   shut. One 15% threshold covers light, sound and sight through a door.
 - **Guards see poorly above them (G44):** a player well above a guard is hard to spot, as in CT.
 - **Glass (L15, G45).**
 - **Sensors:** security cameras (sweep cone, light-dependent like guards, raise an alarm, can be shot or disrupted,
-  visible in electro vision) and laser trip beams; the research confirms the set.
-- **No randomness that defeats planning.** Patrol cycles are fixed per map.
+  visible in electro vision) and laser trip beams; the research confirms the set. Lethal automated defences appear only
+  at military or private compounds; elsewhere security responds realistically (G128).
+- **No randomness that defeats planning.** Patrol cycles are fixed per map. Some codes, items or rooms vary per run and are
+  read in the world (G143).
 - **Per-stop facing:** a guard's patrol stop can set the direction he faces while waiting (`SquadSlot`).
 - **Civilians:** unarmed non-combatants (night watchmen, cleaners, night-shift technicians). Same perception rules as
   guards. When they see a player they flee to the nearest guard or alarm and raise it; they never fight. They can be
@@ -471,7 +501,8 @@ Implementation: `docs/systems/ai.md`.
 - **Awake limit:** at most 12 guards awake at once, reviewed against desktop performance (G46). How it is set (FU-11) is
   open.
 - **Difficulty (G106):** CT's fixed difficulty levels, one per session, chosen by the host. No sliders and no
-  alarm-tolerance setting.
+  alarm-tolerance setting. Difficulty scales guard perception, alert tolerance and resources; sync timing windows
+  never scale (G131).
 - **Awareness arcs:** shown today; research (G1).
 
 ### 5.8 Missions and campaign
@@ -479,13 +510,16 @@ Implementation: `docs/systems/ai.md`.
 Implementation: `docs/systems/modes-and-progression.md`.
 
 **A mission is data:** map, spaces (the spine from `docs/level-design.md`), insertions, objectives, rules, triggers,
-radio script, checkpoints, loadouts and co-op moments. It is validated by a schema with a unit test (`validateMissions`).
+radio script, checkpoints, kits (G153) and co-op moments. It is validated by a schema with a unit test (`validateMissions`).
 
 **Objectives:** primary (required), secondary (optional, rated), opportunity (revealed mid-mission by intel,
 interrogation or radio; optional, rated). Types: terminal / download, plant, intel, rescue / escort, sabotage, extract,
 interrogate a named target. They are read in the menu (G108).
 
-**Rules:** `noAlarms`, `noKills`, `noBodiesFound`, `maxAlarmLevel`. Each rule is either bonus or fail.
+**Rules:** `noAlarms`, `noKills`, `noBodiesFound`, `maxAlarmLevel`. Each rule is either bonus or fail; a mission has at
+most one fail rule, and it is signposted (G125). Story-critical characters are protected until their role is done:
+killing one earlier fails the mission, with a clear warning first (G145). Both players must reach the exit to finish
+(G138).
 
 **Triggers and actions.** Triggers: enter area, objective state, alert level, alarm level, interrogation, item taken,
 light group state. Actions: radio line, add / complete / fail objective, enable / disable a squad, lock / unlock door, set
@@ -493,16 +527,20 @@ light group, spawn reinforcements, checkpoint, end mission. No timers in stealth
 
 **No quicksave.** Checkpoints only. The pause menu offers "Restart from checkpoint".
 
-**Checkpoints:** one before each space. Autosave to IndexedDB with the full mission state (objectives, alarm level, every
-guard's state, bodies, doors, lights, pickups taken, both players' health and kit). The main menu shows Continue.
+**Checkpoints:** encounter checkpoints, one before each space, capping replay loss at about 10 minutes (G126). Autosave
+to IndexedDB with the full mission state (objectives, alarm level, every guard's state, bodies, doors, lights, pickups
+taken, both players' health and kit). The main menu shows Continue.
 
 **Radio:** text lines with a speaker label and colour, shown as subtitles, queued with priority, never blocking input,
 logged in the field menu. Lines are written so they can be voiced later (G82).
 
-**Results:** a stealth rating of 0-100% from alarms, detections, bodies found, kills, knock-outs, and secondary and
-opportunity objectives, each category shown, plus each player's stats.
+**Results:** a stealth rating of 0-100%. 100% is no kills, no alarms and every primary objective; secondary and
+opportunity objectives are a bonus; every mission must be testably 100%-able (G146). Violence is scored: lethal and
+non-lethal play are allowed, non-lethal and ghost play are rewarded, and no mission forces a kill (G127). Each category
+is shown, plus each player's stats.
 
-**Campaign progress:** fully shared. The lobby lists every mission; finishing one records it, with its rating, for both
+**Campaign progress:** fully shared. A saved mission's progress belongs to the host, and any partner can join it
+(G147). The lobby lists every mission; finishing one records it, with its rating, for both
 players. Choosing a mission beyond your own progress shows "Story spoilers ahead". Saved per player, per mission:
 completed, best rating, intel found.
 
@@ -517,22 +555,28 @@ take Kestrel's Mission 1 size until Kestrel is decided after the research (G53, 
 Implementation: `docs/systems/coop.md`.
 
 - **C1 - Two players, exactly.** The campaign needs two players and cannot be completed solo (G2, G50). No bot partner
-  (G48).
+  (G48). Strictly two humans: no AI partner, no solo variants (G132).
 - **C2 - Host authority.** The host is authoritative. There is no host migration: if the host leaves, the session ends;
-  the host can resume from their checkpoint and re-invite. Clients keep no mission save.
+  the host can resume from their checkpoint and re-invite. Clients keep no mission save. Any partner can join a saved
+  mission; its progress belongs to the host (G147).
 - **C3 - Team moves.** The four that exist: brace, boost, human ladder, dual takedown. CT's other team moves (split-jump
   boost, back-to-back climb, pull-up, rappel anchor and any others the research finds) come in the co-op job (G52).
-  Boosts work only at marked spots (G81); one ledge band of 4.3-4.5 m serves the boost and the human ladder (G57).
+  Team moves are free wherever the space allows, with a prompt naming the move (G151); showpiece moves sit beside
+  grounded ones (G130); one ledge band of 4.3-4.5 m serves the boost and the human ladder (G57).
 - **C4 - Levels need the pair.** Spaces are built around team moves and coordination, as in CT's co-op levels (G3).
 - **C5 - Detection.** Guards see each player separately (`PlayerRef.spotted` per player). Radio calls and alarms affect
-  both. Whether the LKP becomes per player is open (Section 11).
-- **C6 - Downed.** A downed player can be revived. Both down reloads the checkpoint. No bleed-out.
-- **C7 - Difficulty.** One per session, chosen by the host (5.7).
-- **C8 - Friendly fire and heavies** follow what CT co-op does (G49).
+  both. Guards know only what they saw: the shared alert tier rises, but no guard knows a second intruder exists until
+  one is seen or evidence suggests it (G139). Whether the LKP becomes per player is open (Section 11).
+- **C6 - Downed.** The partner can revive a downed player within 30 seconds, at most twice per mission; both down
+  reloads the last checkpoint (G126).
+- **C7 - Difficulty.** One per session, chosen by the host (5.7). Sync timing windows never scale (G131).
+- **C8 - Friendly fire** is a host option, on by default (G141). Co-op missions have no heavies or dogs (G155).
 - **C9 - Tests.** Two browser tabs, the automatic two-player tests (`?net=local`) and the bunker's solo test switch; no
   bot (G48). The co-op suites are made reliable, then required like every other suite (G51).
-- **C10 - Operators:** each player is a different operator, Wren or Moth (5.14). Team-mates see each other with a soft
-  outline; guards never do.
+- **C10 - Operators:** each player is a different operator, Wren or Moth (5.14). Partners find each other by the partner
+  beacon (each goggle light a distinct colour) and world pings; there is no partner marker and no live partner position
+  on any map (G135). Whether the soft team-mate outline stays is checked against G135 when the co-op slices are built;
+  guards never see it.
 - **C11 - Movement sync rules** (every new move meets them):
   - Every movement state has a networked `MoveState` mode, and remotes pose from it, never from position alone.
   - Takedowns, team moves and other committed moves are approved by the host with a shared start time; both machines
@@ -543,24 +587,28 @@ Implementation: `docs/systems/coop.md`.
   - Partners block each other (capsule separation) in every co-op mode (G52).
 - **C12-C18 - Engagement systems** (Sync countdowns, clutch-save markers, dragging a downed partner, split-and-converge
   spaces, typed pings with quick lines, team results and highlights): research (G1, G11). What CT has stays; the rest
-  goes.
-- **C19 - Connection.** Direct connections only for now. A connection test on the co-op screen (peers connected,
+  goes. World pings stay (G135).
+- **C19 - Connection.** Online, split-screen and LAN; no cross-play commitment (G133). Online uses direct connections
+  for now. A connection test on the co-op screen (peers connected,
   round-trip time, failed direct path) and network stats in feedback notes; a relay (TURN) server is decided after real
   sessions with friends (Section 11).
 - **C20 - No bot partner.** The old dev bot partner is void (G48); co-op is tested as in C9.
 - **C21 - Network version.** Every wire change bumps `PROTOCOL_VERSION`. The SWAT-turn and lean-out network fields go
   when the CT prototype is built (G52).
+- **C22 - Voice.** Partner voice is always clear (G140); proximity voice is an opt-in modifier (G129); both come after
+  the prototype (G156, 5.2 S10).
 
 ### 5.10 HUD and UI
 
 Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 
 - **The in-game HUD follows CT's layout (G77):** light meter, sound meter, health bar, ammo, selected gadget, contextual
-  prompts, radio subtitles, team-mate markers. No stance or gear icons: the operator's body shows the stance (G107). No
-  medkit count (G98). Objectives live in the menu (G108); the Fallow course keeps its always-on list.
+  prompts (a team move names itself, G151), radio subtitles. No partner marker (G135). No stance or gear icons: the
+  operator's body shows the stance (G107). No medkit count (G98). Objectives live in the menu (G108); the Fallow course
+  keeps its always-on list.
 - **Menus follow the Arkham Knight style plan** (feature/menu-ui-spec, G77). The menu job comes after the prototype
   (G113); its open calls are in Section 11.
-- **No minimap and no world waypoints in the campaign.**
+- **No minimap and no world waypoints in the campaign.** No live partner position on any map (G135).
 - **Field menu** (pause): objectives, radio log, map with known intel, interrogation notes.
 - **Remapping:** full remapping with conflict warnings and a reset; remap capture cancels with Menu / Start or Esc, and B
   stays bindable (G22, 5.17 D7).
@@ -664,11 +712,11 @@ CT model: a health bar, no regeneration, wall medkit stations only (G20, G98).
 | Health | 100 |
 | Medkit station | Fixed in the map, hold to use, heals 40, single use. Stations are placed in every map. No carried medkits. |
 | Checkpoint | Saves current health. Reloading after death or failure restores at least 50%. |
-| Revive | Restores 35%. No bleed-out. |
+| Revive | Within 30 s of going down, at most twice per mission (G126). Restores 35%. |
 
-**Damage taken scales with difficulty** (5.7, G106). Guard rifle hits to down a player from full health, today's
-presets: about 8 (lowest), about 6, 4, 3 (highest). Other weapons scale from the rifle; headshots on a player do double
-damage.
+**Damage taken scales with difficulty** (5.7, G106; resources also scale, G131). Guard rifle hits to down a player from
+full health, today's presets: about 8 (lowest), about 6, 4, 3 (highest). Other weapons scale from the rifle; headshots
+on a player do double damage.
 
 ### 5.14 Operators
 
@@ -678,15 +726,15 @@ and briefing crew, not playable (G112).
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
   weapons follow later from the same pipeline. Voxels are only the way the world is drawn. That branch keeps its own
   decisions and open items (G75).
-- **Wren integration** is the first job after Michael approves the prototype, behind a dev switch; then the weapon step
-  (G70). The shared-body proportion fixes apply to every character when Wren goes in, and movement and climbing tests
-  re-run (G72).
+- **Wren integration:** the core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch,
+  then the weapon step, G70). The shared-body proportion fixes apply to every character when Wren goes in, and movement
+  and climbing tests re-run (G72).
 - **Sizes:** Wren stays 1.68 m (G74). Operators differ in look and height only: one movement set, one capsule, one camera
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with
   full glow when on (G73). The glow is visual only, never a light, never seen by guards; it is how a player finds their
   operator in darkness (L7). Wren's goggle light is green, Moth's amber; both must stay distinguishable for common colour
-  blindness.
+  blindness. The goggle light colour is also the partner beacon (G135).
 - **Choosing:** each player picks a different operator; the host resolves duplicates. Cosmetics stay parked.
 
 | Callsign | Role | Goggle light |
@@ -694,7 +742,8 @@ and briefing crew, not playable (G112).
 | Wren | Lead | Green |
 | Moth | Climber | Amber |
 
-Roles are personality and story only, never stats (story Section 4).
+Roles are personality and story only, never stats (story Section 4). Both operators play the same; each mission issues
+the pair complementary kits (G134, G153).
 
 ### 5.15 Mission 8 finale
 
@@ -789,6 +838,10 @@ Every feature works smoothly in 2-player co-op, to 5.9 C11:
 - The elbow strike (replaced by the palm strike, loco M20 Q4); the stealth / kill selector (G23).
 - Aim assist (G16); the exploring-camera shoulder swap and camera zoom on aim (G17, G29); the goggle flip (G100).
 - Prone and rope climbing (G110); stance and gear icons on the HUD (G107).
+- Decided out on 2026-10-18 (code goes when its job runs): the thrown EMP gadget (G152), player-chosen loadouts
+  (G153), heavies and dogs in co-op missions (G155), the exploring camera's automatic swing (G159), marked-spot-only
+  boosts (G151), remote hacking tools (G142), failing a mission on an alarm count (G125), a partner marker or live
+  partner position (G135).
 - The non-CT ideas from the movement run (guards relighting lamps, paired searches and the rest, unless CT has them; G11)
   and the movement run's 62-item review list (G39).
 
@@ -808,7 +861,8 @@ Every feature works smoothly in 2-player co-op, to 5.9 C11:
 - External art files, except CC0 textures (5.16); the operators pipeline's sources are decided on `feature/operators`
   (G75). Audio may use CC0 recordings for any sound (S7).
 - Random patrols that defeat planning; forced timers in stealth sections; world waypoints; kill cams; monetisation.
-- Voice chat. Voiced story lines are a later idea (G82).
+- Voiced story lines now: they are a later idea (G82). Voice chat is not out of scope: it comes after the prototype
+  (G156, 5.2 S10).
 
 ---
 
@@ -822,6 +876,8 @@ spec template) and the standard's phases and gates.
 - **The Fallow bunker** is the co-op tutorial (G78), rebuilt on the CT moves after the prototype with every jump and reach
   re-checked (G79). Its anti-stuck resets stay (G80). Training D41's linear, unavoidable map rules bind only the bunker
   (G117).
+- **Level standard changes:** the 12 changes the research proposes (design-kit-digest appendix) go to Michael item
+  by item before the first real mission map (G157).
 - **One folder per map** under one maps folder; Kestrel and the bunker move there after the merge (G55).
 - **Engine facts.** The standard's Section 12 lists the engine facts maps are designed against (5.3 metrics, S5 silent
   speeds, the co-op ledge band). A job that changes one must update `docs/level-design.md` and list, in its report, every
@@ -832,7 +888,7 @@ Each map's documents also include:
 
 - **Light plan per space:** every lamp, its switch or group, the dark pockets, and which route each light change opens.
 - **Sound plan per space:** ambient zones and loud / quiet floors.
-- **Checkpoint plan:** one checkpoint before each space.
+- **Checkpoint plan:** one encounter checkpoint before each space; replay loss about 10 minutes at most (G126).
 - **Co-op plan per space:** the team-move routes and the other moments that need the pair.
 - **Medkit and civilian plan:** wall medkit stations in every map (G98); where civilians work and why they are there at
   night.
@@ -847,7 +903,8 @@ Each map's documents also include:
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD, voxel layers or the governor.
-- **Offline:** the game installs and loads offline; the campaign needs a two-player co-op session.
+- **Offline:** the game installs and loads offline; the campaign needs a two-player co-op session, online,
+  split-screen or over LAN (G133).
 - **Release intent:** a personal project. No store builds and no paid infrastructure unless it is cheap. The originality
   rules hold anyway.
 - **Accessibility defaults:** subtitles always on (they are the story); operator goggle colours distinguishable for
@@ -865,6 +922,7 @@ set up and run). In short:
   One chosen preview beside the live game (G85).
 - **Prototype, then orchestrator:** every multi-step job builds a quick prototype for feel or look first, then runs the
   orchestrator method (G87). Opus builds and checks; a lighter model only for mechanical chores (G88).
+  Menu and gameplay prototype slices are built with Sonnet at medium effort; Opus does the fine tuning (G158, G150).
 - **Decisions:** Michael's decisions go into `docs/DECISIONS.md` with the next free G number when a job merges, and into
   this bible (G86, G89).
 - **Jobs:** `docs/progress.md` lists the jobs in order with branch, folder and status (G90).
@@ -881,13 +939,17 @@ set up and run). In short:
 The ordered job list, with branches and status, is `docs/progress.md` (G90). The order (G95):
 
 1. **CT co-op research:** every CT co-op level (design, flow, moves), CT's gadget and attachment set, friendly fire and
-   heavies, and which of this bible's "research" items CT has.
-2. **CT prototype:** only the basics to make each feature work and test it (G4): CT movement, camera, back-to-wall, door
-   and grab menus, palm strike, goggles, CT pad layout, HUD layout; the SWAT-turn and lean-out network fields removed.
-   Michael plays it; numbers are tuned after.
-3. **Then the rest**, each its own job: room sizes re-measured (G54); Wren integration, then the weapon step (G70); the
+   heavies, and which of this bible's "research" items CT has. Done 2026-10-18: digests in `docs/ct-research/`,
+   decisions G124-G160.
+2. **Core feel first (G149, G150):** one job rebuilds and fine-tunes CT movement, camera, back-to-wall, doors, palm
+   strike and goggles on Wren (Opus for the tuning) until Michael signs off.
+3. **CT prototype slices:** the menu and co-op gameplay slices C1-C7 (`docs/ct-prototype/PLAN.md`), only the basics to
+   make each feature work and test it (G4), built with Sonnet at medium effort (G158), with the remaining basics (grab
+   menu, CT pad layout, HUD layout) where the plan places them; the SWAT-turn and lean-out network fields removed.
+   Michael plays them; their numbers are tuned after.
+4. **Then the rest**, each its own job: room sizes re-measured (G54); Wren integration, then the weapon step (G70); the
    goggle swap (G69, soon); the co-op suites made reliable (G51); missing sounds (G66); the bunker rebuild (G79); menus,
-   the music revision and the art guide (G113); Kestrel decided after the research (G53); the missions.
+   the music revision and the art guide (G113); Kestrel decided after the research (G53); voice chat (G156); the missions.
 
 ---
 
@@ -895,14 +957,19 @@ The ordered job list, with branches and status, is `docs/progress.md` (G90). The
 
 From `docs/DECISIONS.md` "Deferred", with where each is decided.
 
-**The CT co-op research:**
-- Friendly fire in missions, how heavies are taken out and similar details (G49).
-- CT's gadget and attachment set, including the ring airfoil and the knife's role (G76).
-- Every "research" item in this bible (Section 4, 5.7, 5.9 C12-C18, awareness arcs).
+**After the CT co-op research** (done 2026-10-18, G124-G160; friendly fire G141 and heavies G155 are settled):
+- The research findings Michael has not yet confirmed (`docs/DECISIONS.md`, "Research findings for Michael to
+  confirm"): the co-op tutorial wording (G78), the two-person rope (G110), alert tolerance per level (G106, G131),
+  medkit heal and reuse (G119), brace and dual takedown (G52), the G11 keep list.
+- CT's full gadget and attachment set, including the ring airfoil and the knife's role (G76; held jammer G152, no
+  remote hacking G142).
+- Every remaining "research" item in this bible (Section 4, 5.9 C12-C18, awareness arcs).
+- Whether the soft team-mate outline stays under G135 (5.9 C10).
+- The 12 proposed level standard changes, item by item before the first real mission map (G157).
 - Kestrel's future (G53).
 
 **The prototype** (decided or tuned after Michael plays it):
-- Every movement, camera and timing number (G10).
+- Every movement, camera and timing number (G10); the core-feel systems are tuned in the core-feel job (G150).
 - Room, corridor and crawl sizes (G54).
 - Missing sounds (G66); Wren integration, then the weapon step (G70).
 
