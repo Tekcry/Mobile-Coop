@@ -10,6 +10,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { assignCarrySlots } from '../weapons/carrySlots';
+import { classWeight } from '../weapons/weaponCarry';
 import { GrenadePouches } from '../weapons/grenadePouches';
 import { MASK } from '../physics/groups';
 import type { World } from '../world/world';
@@ -368,6 +369,8 @@ export class RemoteAvatar {
       lookPitch: Math.max(-0.6, Math.min(0.6, this.pitch)) * 0.5 * (1 - this.aim),
       aim: this.aim,
       carry: this.carryW,
+      // (feature/weapons) the held gun's mass factor, as the owner's rig (a raised sidearm is held out: PISTOL_REACH)
+      weight: this.weapon ? (WEAPONS[this.weapon].weight ?? classWeight(WEAPONS[this.weapon].class)) : 1,
       kick: this.kick,
       dash: (f & PF.sprint) !== 0 ? 1 : 0,
       wall: mp.wall,

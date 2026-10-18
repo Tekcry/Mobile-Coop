@@ -417,6 +417,14 @@ export class CharacterRig {
    * (feature/weapons) An operator body's hands (their rest frames, e.g. WREN_HANDS): the weapon holds then put that
    * hand's palm on the grip with the knuckles round it (handHold.ts) instead of the rig's generic wrist offsets.
    */
+  /**
+   * (feature/weapons) The wrist's offset from the weapon point for a hand in a hold (weapon space), or null when the body
+   * has no hands of its own (the rig's WRIST_TRIGGER / WRIST_SUPPORT apply). Tests and tools.
+   */
+  wristOffset(side: 1 | -1, hold: HoldName): Vector3 | null {
+    return this.holds ? this.holds[side > 0 ? 0 : 1]![hold].w : null;
+  }
+
   setHands(h: { readonly L: HandFrame; readonly R: HandFrame } | null): void {
     if (!h) {
       this.holds = null;

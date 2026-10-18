@@ -159,9 +159,12 @@ try {
         window.__app.loop.stepHeadless(0.3, 120);
         const m = rig.heldWeapon.getWorldMatrix();
         // the wrist sits behind / under the palm point in weapon space (characterRig WRIST_TRIGGER /
-        // WRIST_SUPPORT; right hand on the grip, left on the foregrip)
-        const gp = V.TransformCoordinates(rig.grip.add(new V(0.01, -0.015, -0.065)), m);
-        const fp = V.TransformCoordinates(rig.foregrip.add(new V(-0.015, -0.055, -0.035)), m);
+        // WRIST_SUPPORT; right hand on the grip, left on the foregrip); (feature/weapons) an operator body with its own
+        // hands: the solved hold's wrist offset (palm on the grip)
+        const oR = rig.wristOffset?.(1, 'trigger') ?? new V(0.01, -0.015, -0.065);
+        const oL = rig.wristOffset?.(-1, rig.supportStyle ?? 'tube') ?? new V(-0.015, -0.055, -0.035);
+        const gp = V.TransformCoordinates(rig.grip.add(oR), m);
+        const fp = V.TransformCoordinates(rig.foregrip.add(oL), m);
         rig.wristR.computeWorldMatrix(true);
         rig.wristL.computeWorldMatrix(true);
         const wr = rig.wristR.getAbsolutePosition();
