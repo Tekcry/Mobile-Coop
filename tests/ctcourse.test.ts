@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, CT_EXIT_ZONE } from '../src/world/maps/ctcourse';
+import { ctcourse, CT_EXIT_ZONE, S5_HATCH, S5_PANEL } from '../src/world/maps/ctcourse';
 import { exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import { getMap } from '../src/world/maps';
-import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors';
-import { inBoostBand } from '../src/game/teamMoves';
+import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
+import { hangReaches, inBoostBand } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { isListedMap } from '../src/world/maps/listed';
 
@@ -117,5 +117,46 @@ describe('ctcourse panels (F1b: one optional panel per station)', () => {
   it('station 1 has no drill at all: the airlock pad is its only step', () => {
     expect(c.def.bays[0]!.drills).toHaveLength(0);
     expect(c.def.bays[0]!.gates.every((g) => g.kind === 'pickup')).toBe(true);
+  });
+});
+
+describe('ctcourse (CT prototype B5: hang-down hack at station 5)', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const anchors = generateLedges(b.boxes);
+  const c = lay.course!;
+  const [hx0, hz0, hx1, hz1] = S5_HATCH;
+  const hx = (hx0 + hx1) / 2;
+  const hz = (hz0 + hz1) / 2;
+  const solidAt = (x: number, y: number, z: number): boolean =>
+    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
+
+  it('the roof has a hatch over the back room, narrower than a body (0.6 m), roof all round it', () => {
+    expect(solidAt(hx, 4.2, hz)).toBe(false);
+    expect(hx1 - hx0).toBeLessThan(0.6);
+    expect(hz1 - hz0).toBeLessThan(0.6);
+    for (const [x, z] of [[hx0 - 0.1, hz], [hx1 + 0.1, hz], [hx, hz0 - 0.1], [hx, hz1 + 0.1], [hx, hz1 + 0.5]] as const) expect(solidAt(x, 4.2, z)).toBe(true);
+    // behind the grid wall (x +12.5) and inside the annex (front of the airlock at +16)
+    expect(hx0).toBeGreaterThan(22 * 4 + 12.65);
+    expect(hx1).toBeLessThan(22 * 4 + 16);
+    // no generated ledge at the hatch (nobody hangs off its rim and drops in)
+    suppressLedgesNear(anchors, hx, hz, 1.0);
+    for (const l of anchors.ledges) {
+      const mx = (l.a.x + l.b.x) / 2;
+      const mz = (l.a.z + l.b.z) / 2;
+      if (Math.hypot(mx - hx, mz - hz) < 0.5) expect(l.canHang).toBe(false);
+    }
+  });
+  it('the hack panel is the grid lever, in the back room, reached hanging from the hatch, not from the roof or the front room', () => {
+    const gate = c.def.bays[4]!.gates.find((g) => g.kind === 'lever');
+    expect(gate && gate.kind === 'lever' && gate.switchId).toBe('sw-s5-hack');
+    const d = c.devices['sw-s5-hack']!;
+    expect([d.x, d.y, d.z]).toEqual([S5_PANEL.x, S5_PANEL.y, S5_PANEL.z]);
+    // hanging under the hatch, lowered: in reach; at the start height: not
+    expect(hangReaches(hx, hz - 0.1, 4.4, TEAM.hangMax, d.x, d.y, d.z)).toBe(true);
+    expect(hangReaches(hx, hz - 0.1, 4.4, TEAM.hangStart, d.x, d.y, d.z)).toBe(false);
+    // the game's reach rule (1.8 m across, 1.5 m up / down): not from the roof, not from the front room (west of the grid wall)
+    expect(Math.abs(d.y - 4.4)).toBeGreaterThan(1.5);
+    expect(d.x - (22 * 4 + 12.35)).toBeGreaterThan(1.8);
   });
 });

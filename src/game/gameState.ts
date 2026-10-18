@@ -162,6 +162,8 @@ export interface NetAttachment {
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
+  /** (CT prototype B5) End the hang-down (either player): pull the partner up or (the holder) drop them. */
+  teamHangEnd?(k: 'pull' | 'drop'): void;
   /** (locomotion step 10, A5) Ask the host for a committed move (`cmove`; the host's own: checked at once). The
    *  answer comes back through `GameState.strike.accepted` / `denied`. */
   commitRequest?(kind: CKind, id: number, target: string): void;
@@ -1402,7 +1404,7 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'));
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
     // the relay hanger holds the hang still while the partner climbs their body
     if (this.team.hangLock) {
       ti.moveX = 0;

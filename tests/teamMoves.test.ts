@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, HANG_SUB, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangLanding, hangPointOk, hangReaches, hangRootY, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
-import { ATTACH_SUB } from '../src/player/moveState';
+import { ATTACH_SUB, emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
 
 const side = (o: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: 0, y: 0, z: 0, mode: 'ground', alive: true, ...o });
 const req = (o: Partial<TeamRequest> = {}): TeamRequest => ({ kind: 'boost', a: side({ id: 'a', z: 0.9 }), b: side({ id: 'b', mode: 'brace' }), target: 4, targetUp: 4.2, sinceLast: 5, ...o });
@@ -150,5 +150,88 @@ describe('partner throw (CT prototype B4, CT 1.3)', () => {
     expect(throwRoom(true, NaN, 1.8)).toBe('floor');
     expect(throwRoom(true, -(TEAM.throwDrop + 0.3), 1.8)).toBe('floor');
     expect(throwRoom(true, 0, 0.8)).toBe('head');
+  });
+});
+
+describe('hang-down (CT prototype B5, CT 1.5 Drop Line)', () => {
+  /** `b` crouches at a roof edge (y 4.4) offering the hang-down; `a` stands beside them; the hang point is 1 m ahead. */
+  const hang = (o: Partial<TeamRequest> = {}, b: Partial<TeamSide> = {}): TeamRequest => ({
+    kind: 'hang',
+    a: side({ id: 'a', y: 4.4, z: 1.2 }),
+    b: side({ id: 'b', y: 4.4, mode: 'brace', sub: HANG_SUB, ...b }),
+    target: -1,
+    targetUp: 0,
+    sinceLast: 5,
+    land: { x: 0, y: 4.4, z: -1 },
+    ...o,
+  });
+  it('allowed onto a holder offering it; denied when not offering, far, or the hang point is off', () => {
+    expect(checkTeamRequest(hang())).toBeNull();
+    expect(checkTeamRequest(hang({}, { sub: 0 }))).toBe('notOffering');
+    expect(checkTeamRequest(hang({}, { sub: THROW_SUB }))).toBe('notOffering');
+    expect(checkTeamRequest(hang({ a: side({ id: 'a', y: 4.4, z: TEAM.hangReach + 0.2 }) }))).toBe('far');
+    expect(checkTeamRequest(hang({ a: side({ id: 'a', y: 0, z: 1 }) }))).toBe('far');
+    expect(checkTeamRequest(hang({ land: undefined }))).toBe('noTarget');
+    expect(checkTeamRequest(hang({ land: { x: 0, y: 4.4, z: -3 } }))).toBe('noTarget');
+    expect(checkTeamRequest(hang({ land: { x: 0, y: 0, z: -1 } }))).toBe('noTarget');
+    // a hang-down offer is no leg-up or throw offer
+    expect(checkTeamRequest(req({ b: side({ id: 'b', mode: 'brace', sub: HANG_SUB }) }))).toBe('notBraced');
+    expect(hangPointOk(0, 4.4, 0, 0, 4.4, -1.5)).toBe(true);
+  });
+  it('height: the holder\'s stick moves the head 1-2.5 m under the edge, never into the floor', () => {
+    expect(TEAM.hangMin).toBe(1.0);
+    expect(TEAM.hangMax).toBe(2.5);
+    // stick down (y < 0) lowers at the rate, stick up raises, clamped both ways
+    expect(hangDepth(1.5, -1, 0.5)).toBeCloseTo(1.5 + TEAM.hangRate * 0.5);
+    expect(hangDepth(1.5, 1, 0.5)).toBeCloseTo(1.5 - TEAM.hangRate * 0.5);
+    expect(hangDepth(2.4, -1, 5)).toBe(TEAM.hangMax);
+    expect(hangDepth(1.1, 1, 5)).toBe(TEAM.hangMin);
+    expect(hangDepth(1.5, 0, 1)).toBe(1.5);
+    // a low room: the head stops 0.3 m off the floor; no floor found = the full range
+    expect(hangDepthMax(4.4, 2.6)).toBeCloseTo(1.5);
+    expect(hangDepthMax(4.4, 0)).toBe(TEAM.hangMax);
+    expect(hangDepthMax(4.4, NaN)).toBe(TEAM.hangMax);
+    expect(hangDepth(2.0, -1, 5, hangDepthMax(4.4, 2.6))).toBeCloseTo(1.5);
+    // turned over, the head is lowest: the root sits 0.62 m over it
+    expect(hangRootY(4.4, 2)).toBeCloseTo(4.4 - 2 + 0.62);
+    // the hanging player follows the holder's depth smoothly (no snap on the wire's steps)
+    const d1 = hangFollow(1.5, 2.5, 1 / 60);
+    expect(d1).toBeGreaterThan(1.5);
+    expect(d1).toBeLessThan(1.6);
+    expect(hangFollow(2.49, 2.5, 1 / 60)).toBe(2.5);
+  });
+  it('reach: the station 5 panel (1.2 m up, 0.8 m from the hang) is reached only lowered past about 2.3 m', () => {
+    const at = (d: number): boolean => hangReaches(0, 1.15, 4.4, d, 0, 1.2, 0.4);
+    expect(at(TEAM.hangStart)).toBe(false);
+    expect(at(2.2)).toBe(false);
+    expect(at(2.4)).toBe(true);
+    expect(at(TEAM.hangMax)).toBe(true);
+    // too far across: never
+    expect(hangReaches(0, 3, 4.4, 2.5, 0, 1.2, 0.4)).toBe(false);
+  });
+  it('release: Co-op (either) pulls up, only the holder\'s B drops; the drop lands crouched, harmless under 3 m', () => {
+    expect(hangEndOf(true, true, false)).toBe('pull');
+    expect(hangEndOf(false, true, false)).toBe('pull');
+    expect(hangEndOf(true, false, true)).toBe('drop');
+    expect(hangEndOf(false, false, true)).toBeNull();
+    expect(hangEndOf(true, false, false)).toBeNull();
+    expect(hangLanding(1.9)).toEqual({ crouch: true, harm: false });
+    expect(hangLanding(2.99).harm).toBe(false);
+    expect(hangLanding(3.2).harm).toBe(true);
+    // from the station 5 hatch at the deepest hold the head is 1.9 m up: a harmless drop
+    expect(hangLanding(4.4 - TEAM.hangMax).harm).toBe(false);
+  });
+});
+
+describe('hang-down remote pose (B5)', () => {
+  it('remotes turn the hanging player over (boost + sub 2) and pose the holder braced (brace + sub 2)', () => {
+    const hanging = poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: HANG_SUB }, 1, emptyMovePose());
+    expect(hanging.tumble).toBeCloseTo(Math.PI);
+    expect(hanging.traverse).toBe('none');
+    const holder = poseFromMoveState({ ...emptyMoveState(), m: 'brace', sub: HANG_SUB, s: 2 }, 1, emptyMovePose());
+    expect(holder.traverse).toBe('brace');
+    expect(holder.tumble).toBe(0);
+    // the leg-up boost is unchanged
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: 0 }, 1, emptyMovePose()).traverse).toBe('climbUp');
   });
 });

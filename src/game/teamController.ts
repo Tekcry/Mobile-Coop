@@ -5,7 +5,7 @@ import { TEAM } from '../config/movement';
 import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
-import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, type TeamKind } from './teamMoves';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, type TeamKind } from './teamMoves';
 import type { GameState } from './gameState';
 
 /** A team-mate as the team moves see them (from the net layer). */
@@ -32,7 +32,27 @@ export interface TeamStart {
   l?: [number, number, number];
 }
 
-export type TeamState = 'none' | 'offer' | 'relayOffer' | 'boost' | 'assist' | 'relayUp' | 'relayHold' | 'throwOffer' | 'throwAssist' | 'throw';
+export type TeamState =
+  | 'none'
+  | 'offer'
+  | 'relayOffer'
+  | 'boost'
+  | 'assist'
+  | 'relayUp'
+  | 'relayHold'
+  | 'throwOffer'
+  | 'throwAssist'
+  | 'throw'
+  // (B5) the hang-down: the holder offers / holds; the partner is lowered, hangs, is pulled up or dropped
+  | 'hangOffer'
+  | 'hangHold'
+  | 'hangDown'
+  | 'hanging'
+  | 'hangPull'
+  | 'hangDrop';
+
+const HOLDER_STATES: readonly TeamState[] = ['hangOffer', 'hangHold'];
+const HANGER_STATES: readonly TeamState[] = ['hangDown', 'hanging', 'hangPull', 'hangDrop'];
 
 const REFUSE_SHOW = 2;
 
@@ -53,7 +73,11 @@ export class TeamController {
   /** The partner in the current move (or the offering team-mate). */
   partner = '';
   /** What the Co-op action would complete now: a crouched mate offering (a boost target or none) or a hanging mate. */
-  offer: { mate: TeamMate; boost: JumpTarget | null; relay: boolean; toss?: boolean } | null = null;
+  offer: { mate: TeamMate; boost: JumpTarget | null; relay: boolean; toss?: boolean; hang?: boolean } | null = null;
+  /** (B5) The hang-down: the hang point (x / z), the edge's height, the floor under the hang (NaN = none), the head's
+   *  depth under the edge (the holder's own; the hanger follows the holder's), the deepest it may go. */
+  readonly hang = { x: 0, z: 0, edgeY: 0, floorY: NaN, depth: 0, max: 0, lostT: 0, sent: false, vy: 0, yaw: 0 };
+  private hp2 = { x: 0, z: 0, floorY: NaN };
   /** The world prompt now (names the move and who starts it) and where it is drawn; null = none. */
   prompt: string | null = null;
   readonly promptAt = new Vector3();
@@ -65,7 +89,7 @@ export class TeamController {
   private pt = { x: 0, y: 0, z: 0 };
   private hp = { x: 0, y: 0, z: 0, yaw: 0 };
   /** Counts (tests): offers, boosts, relays, denials. */
-  readonly count = { offers: 0, boosts: 0, ladders: 0, throws: 0, denied: 0, ends: 0 };
+  readonly count = { offers: 0, boosts: 0, ladders: 0, throws: 0, hangs: 0, pulls: 0, drops: 0, denied: 0, ends: 0 };
   /** (B4) The last throw's landing check ('ok' or why not; tests). */
   lastThrowRoom = '';
   lastDenied = '';
@@ -97,7 +121,12 @@ export class TeamController {
   }
 
   get busy(): boolean {
-    return this.active && this.state !== 'offer';
+    return this.active && this.state !== 'offer' && this.state !== 'hangOffer';
+  }
+
+  /** (B5) Hanging head-first from the partner's hands (the interact button stays free: the hack). */
+  get hangingDown(): boolean {
+    return HANGER_STATES.includes(this.state);
   }
 
   /** Free air over the head and the four side clearances (m): the leg-up's room (G151). */
@@ -135,7 +164,7 @@ export class TeamController {
    * Fixed step (before traversal). `coopPressed` the Co-op action, `bPressed` the crouch / B control (cancels an offer).
    * Returns true when the team move took the press.
    */
-  fixedUpdate(dt: number, coopPressed: boolean, bPressed: boolean): boolean {
+  fixedUpdate(dt: number, coopPressed: boolean, bPressed: boolean, moveY = 0): boolean {
     const g = this.g;
     const c = g.player.controller;
     if (!g.player.alive) {
@@ -204,7 +233,181 @@ export class TeamController {
       case 'relayUp':
         this.runRelay(dt);
         return true;
+      case 'hangOffer':
+        // (B5) crouched at the edge, braced; the partner comes to us (B / Co-op cancels, a timeout lets go)
+        this.t += dt;
+        this.hold();
+        this.prompt = 'Hang-down offered: your partner presses Co-op';
+        this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
+        if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
+          c.swallowCrouch = bPressed;
+          this.end(false);
+        }
+        return true;
+      case 'hangHold':
+        this.runHold(dt, coopPressed, bPressed, moveY);
+        return true;
+      case 'hangDown':
+      case 'hanging':
+      case 'hangPull':
+      case 'hangDrop':
+        this.runHang(dt, coopPressed, bPressed);
+        return true;
     }
+  }
+
+  // ---- (CT prototype B5) the hang-down (CT 1.5 Drop Line) ----
+
+  /**
+   * A drop ahead of a player at (`px`, `py`, `pz`) facing `yaw` (G151: any edge with room): looked for `TEAM.hangProbe` m
+   * ahead, the air clear to it at waist height and no floor within `TEAM.hangDrop` m under it. Writes the hang point (a
+   * little past the edge) and the floor under it; null = no drop there.
+   */
+  hangPoint(px: number, py: number, pz: number, yaw: number): { x: number; z: number; floorY: number } | null {
+    const g = this.g;
+    const dx = Math.sin(yaw);
+    const dz = Math.cos(yaw);
+    const out = this.hp2;
+    for (let d = 0.4; d <= TEAM.hangProbe + 1e-3; d += 0.3) {
+      const x = px + dx * d;
+      const z = pz + dz * d;
+      this.a.set(px, py + 0.5, pz);
+      this.b.set(x, py + 0.5, z);
+      if (g.ballistics.ray(this.a, this.b, G.STATIC).hit) return null;
+      this.a.set(x, py + 0.5, z);
+      this.b.set(x, py - TEAM.hangDrop, z);
+      if (g.ballistics.ray(this.a, this.b, G.STATIC).hit) continue;
+      // over the drop: a little further in when that is still clear (the middle of a hatch)
+      let hx = x + dx * 0.15;
+      let hz = z + dz * 0.15;
+      this.a.set(hx, py + 0.5, hz);
+      this.b.set(hx, py - TEAM.hangDrop, hz);
+      if (g.ballistics.ray(this.a, this.b, G.STATIC).hit) {
+        hx = x;
+        hz = z;
+      }
+      this.a.set(hx, py - 0.2, hz);
+      this.b.set(hx, py - 30, hz);
+      const fh = g.ballistics.ray(this.a, this.b, G.STATIC);
+      out.x = hx;
+      out.z = hz;
+      out.floorY = fh.hit ? fh.point.y : NaN;
+      return out;
+    }
+    return null;
+  }
+
+  /** The holder: braced at the edge, the stick moves the partner up / down; Co-op pulls them up, B lets them drop. */
+  private runHold(dt: number, coopPressed: boolean, bPressed: boolean, moveY: number): void {
+    const h = this.hang;
+    this.t += dt;
+    this.hold();
+    h.depth = hangDepth(h.depth, moveY, dt, h.max);
+    const c = this.g.player.controller;
+    this.prompt = h.sent ? null : 'Holding: stick up / down; Co-op pulls up, B lets go';
+    this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
+    if (!this.partnerPos()) {
+      this.endWhy = 'hang: partner gone';
+      this.end(true);
+      return;
+    }
+    const k = hangEndOf(true, coopPressed, bPressed);
+    if (k && !h.sent) {
+      h.sent = true;
+      c.swallowCrouch = bPressed;
+      this.g.net?.teamHangEnd?.(k);
+    }
+    // the host's reply lost: free again after a while (the partner lets go on their own, `TEAM.hangLost`)
+    if (h.sent && (h.lostT += dt) > 3) {
+      this.endWhy = 'hang: no end reply';
+      this.end(true);
+    }
+  }
+
+  /** The hanging partner: lowered head-first, follows the holder's depth, pulled up or dropped at the end. */
+  private runHang(dt: number, coopPressed: boolean, bPressed: boolean): void {
+    const g = this.g;
+    const c = g.player.controller;
+    const h = this.hang;
+    this.t += dt;
+    g.player.pose.traverse = 'none';
+    if (this.state === 'hangDrop') {
+      // head-first drop: turned feet-down at once, falls to the floor under the hang, lands crouched
+      g.player.pose.tumble = 0;
+      h.vy += 9.8 * dt;
+      const y = c.pos.y - h.vy * dt;
+      const floor = Number.isFinite(h.floorY) ? h.floorY : c.pos.y - 3;
+      this.kin.set(h.x, Math.max(floor, y), h.z);
+      c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: true };
+      if (y <= floor) this.finishHang('drop');
+      return;
+    }
+    if (this.state === 'hangPull') {
+      // back up over the edge to where we stood beside the holder; the body turns upright half way
+      const k = Math.min(1, this.t / TEAM.hangPull);
+      const e = k * k * (3 - 2 * k);
+      const y0 = hangRootY(h.edgeY, h.depth);
+      this.kin.set(h.x + (this.from.x - h.x) * e, y0 + (this.from.y - y0) * Math.min(1, e * 1.6), h.z + (this.from.z - h.z) * e);
+      c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: true };
+      g.player.pose.tumble = k < 0.5 ? Math.PI : 0;
+      if (k >= 1) this.finishHang('pull');
+      return;
+    }
+    // the holder's depth (their MoveState `s`), eased; a holder no longer holding lets go after a while
+    const m = this.mate(this.partner);
+    if (m && m.mode === 'brace' && ((m.sub ?? 0) & HANG_SUB) !== 0) {
+      h.lostT = 0;
+      h.depth = hangFollow(h.depth, Math.max(TEAM.hangMin, Math.min(TEAM.hangMax, m.s ?? h.depth)), dt);
+    } else if ((h.lostT += dt) > TEAM.hangLost) {
+      this.endWhy = 'hang: holder let go';
+      this.dropNow();
+      return;
+    }
+    const ry = hangRootY(h.edgeY, h.depth);
+    if (this.state === 'hangDown') {
+      const k = Math.min(1, this.t / TEAM.hangLower);
+      const e = k * k * (3 - 2 * k);
+      this.kin.set(this.from.x + (h.x - this.from.x) * e, this.from.y + (ry - this.from.y) * e, this.from.z + (h.z - this.from.z) * e);
+      if (k >= 1) this.state = 'hanging';
+    } else this.kin.set(h.x, ry, h.z);
+    c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: false };
+    g.player.pose.tumble = Math.PI;
+    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach; Co-op to be pulled up';
+    this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
+    const k = hangEndOf(false, coopPressed, bPressed);
+    if (k && !h.sent) {
+      h.sent = true;
+      g.net?.teamHangEnd?.(k);
+    }
+  }
+
+  private dropNow(): void {
+    const c = this.g.player.controller;
+    this.state = 'hangDrop';
+    this.t = 0;
+    this.hang.vy = 0;
+    // turned feet-down where the head was
+    this.kin.set(this.hang.x, c.pos.y - HANG_HEAD, this.hang.z);
+    c.override = { kinematic: this.kin, yaw: this.hang.yaw, turnRate: 20, crouch: true };
+    this.g.player.pose.tumble = 0;
+  }
+
+  private finishHang(k: 'pull' | 'drop'): void {
+    const g = this.g;
+    const c = g.player.controller;
+    if (k === 'pull') this.count.pulls++;
+    else this.count.drops++;
+    c.override = null;
+    g.player.pose.tumble = 0;
+    c.setCrouchToggle();
+    this.state = 'none';
+    this.start = null;
+    this.partner = '';
+  }
+
+  private mate(id: string): TeamMate | null {
+    for (const m of this.mates()) if (m.id === id) return m;
+    return null;
   }
 
   /** No move running: find what a Co-op press would complete, show the prompt, start an offer on a press. */
@@ -223,7 +426,13 @@ export class TeamController {
       for (const m of mates) {
         const d = hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z);
         const toss = m.mode === 'brace' && ((m.sub ?? 0) & THROW_SUB) !== 0;
-        if (toss && d < TEAM.throwReach && Math.abs(m.pos.y - c.pos.y) < 0.4 && d < bd) {
+        const hang = m.mode === 'brace' && ((m.sub ?? 0) & HANG_SUB) !== 0;
+        if (hang) {
+          if (d < TEAM.hangReach && Math.abs(m.pos.y - c.pos.y) < 0.4 && d < bd) {
+            bd = d;
+            this.offer = { mate: m, boost: null, relay: false, hang: true };
+          }
+        } else if (toss && d < TEAM.throwReach && Math.abs(m.pos.y - c.pos.y) < 0.4 && d < bd) {
           bd = d;
           this.offer = { mate: m, boost: null, relay: false, toss: true };
         } else if (!toss && m.mode === 'brace' && d < TEAM.partnerReach && Math.abs(m.pos.y - c.pos.y) < 0.4 && d < bd) {
@@ -236,6 +445,20 @@ export class TeamController {
       }
     }
     const o = this.offer;
+    if (o && o.hang) {
+      // (B5) the partner's hang-down offer: be lowered head-first over the edge in front of them
+      this.prompt = 'Co-op: be lowered head-first (hang-down)';
+      this.promptAt.set(o.mate.pos.x, o.mate.pos.y + 1.3, o.mate.pos.z);
+      if (coopPressed) {
+        const p = this.hangPoint(o.mate.pos.x, o.mate.pos.y, o.mate.pos.z, o.mate.yaw);
+        if (!p) this.refused('No drop in front of your partner');
+        else {
+          this.partner = o.mate.id;
+          this.g.net?.teamRequest?.('hang', o.mate.id, -1, 0, o.mate.pos.y, p.x, p.z);
+        }
+      }
+      return coopPressed;
+    }
     if (o) {
       this.prompt = o.toss ? 'Co-op: get thrown over (partner throw)' : o.relay ? 'Co-op: climb your partner up to the ledge' : o.boost ? 'Co-op: take the leg-up' : 'Leg-up offered: no ledge in reach here';
       this.promptAt.set(o.mate.pos.x, o.mate.pos.y + (o.relay ? 0.5 : o.toss ? 1.9 : 1.3), o.mate.pos.z);
@@ -264,11 +487,26 @@ export class TeamController {
     }
     if (!free) return false;
     // the standing offer is named only with the partner close by (else it would sit over the head all the time)
+    // (B5) crouched facing a drop (a roof edge, a hatch): the hang-down instead of the leg-up
+    const drop = c.crouched && near < 12 ? this.hangPoint(c.pos.x, c.pos.y, c.pos.z, c.yaw) : null;
     if (near < (c.crouched ? 12 : 4) && !this.prompt) {
-      this.prompt = c.crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
+      this.prompt = drop ? 'Co-op: offer a hang-down (lower your partner)' : c.crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
       this.promptAt.set(c.pos.x, c.pos.y + (c.crouched ? 1.5 : 1.9), c.pos.z);
     }
     if (!coopPressed) return false;
+    if (drop) {
+      const h = this.hang;
+      h.x = drop.x;
+      h.z = drop.z;
+      h.edgeY = c.pos.y;
+      h.floorY = drop.floorY;
+      h.max = hangDepthMax(c.pos.y, drop.floorY);
+      this.state = 'hangOffer';
+      this.t = 0;
+      this.count.offers++;
+      this.partner = '';
+      return true;
+    }
     if (c.crouched) {
       if (!this.room()) this.refused('No room for a leg-up here');
       else {
@@ -378,6 +616,31 @@ export class TeamController {
     this.t = 0;
     this.from.copyFrom(c.pos);
     const boost = s.kind === 'boost';
+    if (s.kind === 'hang') {
+      // (B5) `a` is lowered head-first at the hang point `l` (x, edge y, z) by the holder `b`
+      const h = this.hang;
+      h.sent = false;
+      h.lostT = 0;
+      h.depth = TEAM.hangStart;
+      if (s.a === self && s.l) {
+        this.partner = s.b;
+        this.state = 'hangDown';
+        h.x = s.l[0];
+        h.edgeY = s.l[1];
+        h.z = s.l[2];
+        h.yaw = Math.atan2(h.x - c.pos.x, h.z - c.pos.z);
+        h.vy = 0;
+        this.a.set(h.x, h.edgeY - 0.2, h.z);
+        this.b.set(h.x, h.edgeY - 30, h.z);
+        const fh = g.ballistics.ray(this.a, this.b, G.STATIC);
+        h.floorY = fh.hit ? fh.point.y : NaN;
+        this.count.hangs++;
+      } else if (s.b === self && this.state === 'hangOffer') {
+        this.partner = s.a;
+        this.state = 'hangHold';
+      }
+      return;
+    }
     if (s.kind === 'throw') {
       if (s.a === self && s.l) {
         this.partner = s.b;
@@ -411,7 +674,19 @@ export class TeamController {
   }
 
   /** The partner (or the host) ended the move. */
-  ended(): void {
+  ended(k?: 'pull' | 'drop'): void {
+    if (k) {
+      // (B5) the hang-down ended: the holder is free; the partner is pulled up or drops
+      if (HOLDER_STATES.includes(this.state)) this.end(false);
+      else if (this.state === 'hangDown' || this.state === 'hanging') {
+        if (k === 'drop') this.dropNow();
+        else {
+          this.state = 'hangPull';
+          this.t = 0;
+        }
+      }
+      return;
+    }
     if (this.state === 'relayUp') {
       this.endWhy = 'relay: partner ended it';
       this.end(true);
@@ -505,6 +780,10 @@ export class TeamController {
   end(_aborted: boolean): void {
     const g = this.g;
     if (this.state !== 'none') this.count.ends++;
+    if (HANGER_STATES.includes(this.state)) {
+      g.player.pose.tumble = 0;
+      g.player.controller.override = null;
+    }
     this.state = 'none';
     this.start = null;
     this.offer = null;
@@ -519,10 +798,16 @@ export class TeamController {
       case 'assist':
       case 'throwOffer':
       case 'throwAssist':
+      case 'hangOffer':
+      case 'hangHold':
         return 'brace';
       case 'boost':
       case 'relayUp':
       case 'throw':
+      case 'hangDown':
+      case 'hanging':
+      case 'hangPull':
+      case 'hangDrop':
         return 'boost';
       default:
         return null;
@@ -531,7 +816,13 @@ export class TeamController {
 
   /** (B4) The team mode's sub on the wire: `THROW_SUB` for the throw (offer, throwing, thrown), else 0. */
   get wireSub(): number {
+    if (HOLDER_STATES.includes(this.state) || HANGER_STATES.includes(this.state)) return HANG_SUB;
     return this.state === 'throwOffer' || this.state === 'throwAssist' || this.state === 'throw' ? THROW_SUB : 0;
+  }
+
+  /** (B5) The team mode's `s` on the wire: the holder's hang depth (m), else 0. */
+  get wireS(): number {
+    return this.state === 'hangHold' ? this.hang.depth : this.state === 'hangOffer' ? TEAM.hangStart : 0;
   }
 
   /** The attach sub bits to add while hanging (the relay offer, held while the partner climbs). */

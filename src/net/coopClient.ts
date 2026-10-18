@@ -138,19 +138,24 @@ export class CoopClient implements NetAttachment {
         if (msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
         break;
       case 'tend':
-        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended(msg.k);
         break;
     }
   }
 
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
   teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
-    this.s.toHost(kind === 'throw' && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
+    this.s.toHost((kind === 'throw' || kind === 'hang') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
   }
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
   commitRequest(kind: CKind, id: number, target: string): void {
     this.s.toHost({ t: 'cmove', kind, id, target });
+  }
+
+  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. */
+  teamHangEnd(k: 'pull' | 'drop'): void {
+    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: 0, gy: 0 });
   }
 
   teamEnd(): void {

@@ -379,6 +379,11 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       if (!(mv.sub & 1)) out.traverse = 'brace';
       return out;
     case 'boost':
+      // (B5) sub bit 2 = hanging head-first from the partner's hands (hang-down): the body turned over
+      if (mv.sub & 2) {
+        out.tumble = Math.PI;
+        return out;
+      }
       // (B4) sub bit 1 = thrown over the partner: the vault pose along the arc
       out.traverse = mv.sub & 1 ? 'vault' : 'climbUp';
       out.traverseT = mv.ph;

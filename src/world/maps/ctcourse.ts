@@ -59,6 +59,10 @@ export const S4_GAP: [number, number] = [4, 10];
  * other over it (CT 1.3); the thrown one presses the release on the far side (CT's far-side release) and the band goes off.
  */
 export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST, z1: S4_GAP[0], x2: bayX(3) + CT_OBST, z2: S4_GAP[1], ys: [0.35, 0.9, 1.45], label: 'Laser', offFlag: S4_FLAG };
+/** Station 5 (B5): the roof hatch (a skylight narrower than a body, 0.55 m: nobody walks or drops in, only a partner lowered
+ *  head-first fits) over the annex's back room [x0, z0, x1, z1], and the hack panel under it (y = its reach height). */
+export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
+export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
 const SECURITY: SecurityData = {
   devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
 };
@@ -88,7 +92,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Wall: crouch + Co-op Action boosts your partner up; they open the far door',
   'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
   'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
-  'Annex: boost up, relay your partner, press both roof plates, then hack',
+  'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
   'Scanners: press both within a second of each other',
   'Wire wall: one holds the rope post while the other crosses',
   'Last wall: one holds the lift, then both into the lit zone',
@@ -124,7 +128,7 @@ function courseDef(): CourseDef {
     2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
     3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
     4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
-    5: 'Annex roof: leg-up, then relay the other up. Both plates, then hack.',
+    5: 'Annex roof: leg-up and relay. Both plates. Then lower one through the hatch: hack.',
     6: 'Two scanners, ten metres apart. Press both within a second.',
     7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
     8: 'Last wall. Cross, then both of you into the lit zone.',
@@ -241,7 +245,16 @@ export const ctcourse: MapDef = {
     // 5 Annex: roofed (top 4.4), internal grid wall at +12.5, computer, wall medkit
     x0 = bayX(4);
     // the roof slab starts flush with the front wall face so the lip hangs over a flat face (B2: leg-up + relay target)
-    b.box(x0 + 12.425, 4.2, MID, 7.15, 0.4, CT_W, DARK);
+    // (B5) a roof hatch over the back room (behind the grid wall, reached only from above): the slab in four pieces round it
+    const [hx0, hz0, hx1, hz1] = S5_HATCH;
+    b.box((x0 + 8.85 + hx0) / 2, 4.2, MID, hx0 - x0 - 8.85, 0.4, CT_W, DARK);
+    b.box((hx1 + x0 + 16) / 2, 4.2, MID, x0 + 16 - hx1, 0.4, CT_W, DARK);
+    b.box((hx0 + hx1) / 2, 4.2, hz0 / 2, hx1 - hx0, 0.4, hz0, DARK);
+    b.box((hx0 + hx1) / 2, 4.2, (hz1 + CT_W) / 2, hx1 - hx0, 0.4, CT_W - hz1, DARK);
+    b.noLedge((hx0 + hx1) / 2, (hz0 + hz1) / 2, 1.0);
+    // the tell: a striped frame round the hatch and the holder's square beside it (CT's marked spot)
+    b.box((hx0 + hx1) / 2, LEDGE + 0.01, hz1 + 0.05, hx1 - hx0 + 0.2, 0.02, 0.1, WARN, 0, 0, false);
+    b.box((hx0 + hx1) / 2, LEDGE + 0.01, hz1 + 0.75, 1.2, 0.02, 1.0, WARN, 0, 0, false);
     doors['S5-grid'] = crossWall(b, x0 + 12.5, 4.0);
     b.light({ x: x0 + 11, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
     b.light({ x: x0 + 14.2, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
@@ -250,7 +263,10 @@ export const ctcourse: MapDef = {
     devices['sw-s5-b'] = dev(x0 + 11, CT_W - 3.6, NORTH, 'Roof plate B (press with A)', LEDGE);
     b.box(x0 + 11, LEDGE + 0.01, 3.6, 1.2, 0.02, 1.2, WARN, 0, 0, false);
     b.box(x0 + 11, LEDGE + 0.01, CT_W - 3.6, 1.2, 0.02, 1.2, WARN, 0, 0, false);
-    devices['sw-s5-hack'] = dev(x0 + 11, CT_W - 0.4, NORTH, 'Hack computer (placeholder: hang-down, B5)');
+    // (B5) the hack panel low on the back room's south wall, under the hatch: the hanging partner reaches it head-first
+    // (lowered past about 2.3 m); a player dropped into the room can press it from the floor (never stuck there)
+    devices['sw-s5-hack'] = dev(S5_PANEL.x, S5_PANEL.z, SOUTH, 'Hack panel (hang down through the roof hatch)', S5_PANEL.y);
+    b.box(S5_PANEL.x, 1.4, 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
 
     // 6 Paired scanners, ten metres apart
     x0 = bayX(5);
