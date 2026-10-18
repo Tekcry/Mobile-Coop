@@ -519,6 +519,11 @@ export class CoopHost implements NetAttachment {
     this.onTeamMove(this.s.selfId, 'end', '', -1, 0, 0);
   }
 
+  /** (CT prototype B5) The host's own end of a hang-down (pull up or drop). */
+  teamHangEnd(k: 'pull' | 'drop'): void {
+    this.onTeamMove(this.s.selfId, 'hangEnd', '', k === 'drop' ? 1 : 0, 0, 0);
+  }
+
   /** (step 11, D8) Clients with their back to segment `seg` (metres along it) for the host's own stacking. */
   wallOthers(seg: number, out: Float64Array): number {
     let n = 0;
@@ -556,8 +561,19 @@ export class CoopHost implements NetAttachment {
   }
 
   /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
-  private onTeamMove(by: string, kind: TeamKind | 'end', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+  private onTeamMove(by: string, kind: TeamKind | 'end' | 'hangEnd', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
     const self = this.s.selfId;
+    if (kind === 'hangEnd') {
+      // (CT prototype B5) either player ends the hang-down: pulled up (0) or dropped (1, the holder's release)
+      const other = this.teamPairs.get(by);
+      if (!other) return;
+      this.teamPairs.delete(by);
+      this.teamPairs.delete(other);
+      const k = target === 1 ? 'drop' : 'pull';
+      this.s.send({ t: 'tend', a: by, b: other, k });
+      if (by === self || other === self) this.g.team.ended(k);
+      return;
+    }
     if (kind === 'end') {
       const other = this.teamPairs.get(by);
       if (!other) return;
@@ -576,13 +592,18 @@ export class CoopHost implements NetAttachment {
     if (!a || !b) return deny('far');
     const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
     const now = this.time;
-    const toss = kind === 'throw';
+    const toss = kind === 'throw' || kind === 'hang';
     const land = toss && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
     const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
     this.teamLast.set(by, now);
     if (why) return deny(why);
     if (toss && land) {
-      // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing
+      // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing; (B5) the
+      // hang-down: `a` is lowered head-first at the claimed (bounded) hang point by the holder `b` (a pair until it ends)
+      if (kind === 'hang') {
+        this.teamPairs.set(by, partner);
+        this.teamPairs.set(partner, by);
+      }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);

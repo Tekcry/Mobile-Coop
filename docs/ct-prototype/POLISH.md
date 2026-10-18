@@ -58,3 +58,6 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - Crouched hands reach toward the ground ahead of the knees: handed to the Character Build session (feature/anim-cleanup
   finishing session tunes animGraph xCrouch / zCrouch / flexCrouch for hands on the thighs, plus the wrist). This
   branch does not touch those three constants.
+- B4 check polish (B4-CHECK.md, PASS): the host checks the throw landing ring (2.2-4.2 m, within 1 m of the floor) but
+  not direction or geometry (a cheating client could land through a thin wall); some test titles still say protocol 17
+  (asserts say 19); an unanswered throw offer holds the thrower still up to 20 s (B cancels).

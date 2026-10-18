@@ -202,3 +202,14 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - READY_HANDS xCrouch 0, flexCrouch 0.9 (elbow about 52 deg): crouched and holstered, the hands come in by the thighs
   just above the knees. tests/readyHands.test.ts crouched elbow cap 50 -> 60 deg. Applied by hand (not a merge: the
   branch also carries unmerged weapons work). `npm run check` passes (1673 tests).
+
+## 2026-10-19 - B5 hang-down hack (Opus)
+- Built: crouch facing a drop + co-op offers; the partner presses co-op and is lowered head-first; the holder's stick
+  sets the depth (1.0-2.5 m, starts 1.5, 0.8 m/s); co-op from either pulls up, the holder's B drops (land crouched, no
+  damage); A interacts while hanging. Station 5: a 0.55 m roof hatch over the back room; the hack panel opens the grid
+  door, in reach only lowered past about 2.3 m (replaces the lever placeholder). Remote: inverted hanging pose and the
+  holder's brace, depth eased. Protocol 19 -> 20. Report `B5-HANGDOWN.md`.
+- Stubs: no bespoke animations (holder uses the leg-up brace pose); no hiding, takedown or pistol while hanging; only
+  the facing direction is checked for a drop.
+- Checks: `npm run check` passes (1679 tests); e2e ctcourse (536 s: lowered, hacked, grid opened, pulled up), smoke,
+  netmove pass.

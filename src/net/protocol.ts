@@ -13,8 +13,8 @@ import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/c
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 
-/** 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 19;
+/** 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 20;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -147,10 +147,10 @@ export type Msg =
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
-  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
+  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
   /** The host started a team move: `a` climbs, `b` is braced. (CT prototype B4, protocol 19) `throw`: `a` is thrown
    *  over the standing `b` to the landing `l` (feet; a `tmove` throw claims it as `lx`, `gy`, `lz`). */
-  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
+  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw' | 'hang'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
   /**
@@ -162,8 +162,8 @@ export type Msg =
   | { t: 'cmove'; kind: CKind; id: number; target: string }
   | { t: 'cstart'; kind: CKind; a: string; id: number; target: string; t0: number }
   | { t: 'cdeny'; a: string; id: number; kind: CKind; reason: CDenyReason }
-  /** The human ladder of `a` (top) and `b` (bottom) ended. */
-  | { t: 'tend'; a: string; b: string }
+  /** The human ladder of `a` (top) and `b` (bottom) ended. (B5, protocol 20) `k`: a hang-down ended: pulled up or dropped. */
+  | { t: 'tend'; a: string; b: string; k?: 'pull' | 'drop' }
   /** Client ping (the host relays it to everyone). */
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
@@ -535,11 +535,11 @@ export function parseMessage(raw: unknown): Msg | null {
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
     }
     case 'tmove': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'end'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'hangEnd', 'end'] as const);
       const partner = raw.partner === '' ? '' : id(raw.partner);
       if (!kind || partner === null) return null;
       const out: Extract<Msg, { t: 'tmove' }> = { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
-      if (kind === 'throw') {
+      if (kind === 'throw' || kind === 'hang') {
         const lx = num(raw.lx, -WORLD, WORLD);
         const lz = num(raw.lz, -WORLD, WORLD);
         if (lx === null || lz === null) return null;
@@ -549,12 +549,12 @@ export function parseMessage(raw: unknown): Msg | null {
       return out;
     }
     case 'tstart': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang'] as const);
       const a = id(raw.a);
       const b = id(raw.b);
       if (!kind || !a || !b) return null;
       const out: Extract<Msg, { t: 'tstart' }> = { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
-      if (kind === 'throw') {
+      if (kind === 'throw' || kind === 'hang') {
         const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
         const lx = la ? num(la[0], -WORLD, WORLD) : null;
         const ly = la ? num(la[1], -50, 100) : null;
@@ -595,7 +595,9 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'tend': {
       const a = id(raw.a);
       const b = id(raw.b);
-      return a && b ? { t: 'tend', a, b } : null;
+      if (!a || !b) return null;
+      const k = oneOf(raw.k, ['pull', 'drop'] as const);
+      return k ? { t: 'tend', a, b, k } : { t: 'tend', a, b };
     }
     case 'td': {
       const target = id(raw.target);

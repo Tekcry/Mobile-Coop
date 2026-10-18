@@ -425,6 +425,20 @@ export const TEAM = {
   throwTime: 1.0,
   throwDrop: 1.0,
   throwUp: 2.2,
+  /** (CT prototype B5) Hang-down (CT 1.5 Drop Line): the partner's reach to the crouched holder at the edge (m); the
+   *  drop the edge must have under it (m below the holder's floor); how far ahead of the holder the drop is looked for
+   *  (m); the hanging head's depth under the edge: least, most, at the start (m); how fast the holder's stick moves it
+   *  (m/s); the lowering and the pull-up (s); a hanging player whose holder stopped holding is let go after (s). */
+  hangReach: 1.6,
+  hangDrop: 2.2,
+  hangProbe: 1.0,
+  hangMin: 1.0,
+  hangMax: 2.5,
+  hangStart: 1.5,
+  hangRate: 0.8,
+  hangLower: 0.8,
+  hangPull: 0.9,
+  hangLost: 1.5,
   /** Requests a player may make (host rate limit, per second). */
   rate: 1,
 } as const;

@@ -393,14 +393,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 18 is refused; version 19 joins (19 = the partner throw, B4; 18 the left-shoulder weapon bit, anim-cleanup)', () => {
-    expect(PROTOCOL_VERSION).toBe(19);
+  it('a peer on protocol version 19 is refused; version 20 joins (20 = the hang-down, B5)', () => {
+    expect(PROTOCOL_VERSION).toBe(20);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 18, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 19, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 19, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 20, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -455,6 +455,13 @@ describe('team moves (3.2.0 phase 5)', () => {
     expect(parseMessage({ t: 'tmove', kind: 'throw', partner: 'peerB', target: -1, s: 0, gy: 0 })).toBeNull();
     expect(parseMessage({ t: 'tstart', kind: 'throw', a: 'peerA', b: 'peerB', target: -1, s: 0, t0: 3, l: [80, 0.1, 7] })).toMatchObject({ kind: 'throw', l: [80, 0.1, 7] });
     expect(parseMessage({ t: 'tstart', kind: 'throw', a: 'peerA', b: 'peerB', target: -1, s: 0, t0: 3 })).toBeNull();
+    // (CT prototype B5, protocol 20) the hang-down: the request carries the hang point, the start echoes it; the end says pull / drop
+    expect(parseMessage({ t: 'tmove', kind: 'hang', partner: 'peerB', target: -1, s: 0, gy: 4.4, lx: 102, lz: 1.2 })).toMatchObject({ kind: 'hang', lx: 102, lz: 1.2, gy: 4.4 });
+    expect(parseMessage({ t: 'tmove', kind: 'hang', partner: 'peerB', target: -1, s: 0, gy: 4.4 })).toBeNull();
+    expect(parseMessage({ t: 'tstart', kind: 'hang', a: 'peerA', b: 'peerB', target: -1, s: 0, t0: 3, l: [102, 4.4, 1.2] })).toMatchObject({ kind: 'hang', l: [102, 4.4, 1.2] });
+    expect(parseMessage({ t: 'tmove', kind: 'hangEnd', partner: '', target: 1, s: 0, gy: 0 })).toMatchObject({ kind: 'hangEnd', target: 1 });
+    expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB', k: 'drop' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB', k: 'drop' });
+    expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB', k: 'fly' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB' });
     expect(parseMessage({ t: 'tmove', kind: 'boost', partner: '../x' })).toBeNull();
     const big = parseMessage({ t: 'tmove', kind: 'ladder', partner: 'peerB', target: 1e9, s: 1e9, gy: 1e9 });
     expect(big && big.t === 'tmove' && big.target <= 1e5 && Math.abs(big.s) <= 500 && big.gy <= 200).toBe(true);
@@ -474,7 +481,7 @@ import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMov
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(19);
+    expect(PROTOCOL_VERSION).toBe(20);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -658,7 +665,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(19);
+    expect(PROTOCOL_VERSION).toBe(20);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -702,8 +709,8 @@ describe('step 13: door peek on the wire', () => {
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
   });
-  it('PROTOCOL_VERSION is 19', () => {
-    expect(PROTOCOL_VERSION).toBe(19);
+  it('PROTOCOL_VERSION is 20', () => {
+    expect(PROTOCOL_VERSION).toBe(20);
   });
 });
 
@@ -778,7 +785,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(19);
+    expect(PROTOCOL_VERSION).toBe(20);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

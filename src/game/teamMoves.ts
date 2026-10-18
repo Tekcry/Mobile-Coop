@@ -8,11 +8,14 @@ import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
 
-/** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19). */
-export type TeamKind = 'boost' | 'ladder' | 'throw';
+/** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19); 'hang' = the hang-down (B5, protocol 20). */
+export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang';
 
 /** (B4) The `brace` mode's sub bit for a STANDING throw offer (a crouched leg-up offer has sub 0). */
 export const THROW_SUB = 1;
+
+/** (B5) The `brace` (holder) and `boost` (hanging partner) sub bit for the hang-down. */
+export const HANG_SUB = 2;
 
 /** What the host knows of a player for a team move. */
 export interface TeamSide {
@@ -58,6 +61,16 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.relayReach || up < 0.3 || up > TEAM.relayMax) return 'far';
     return r.b.anchor === undefined || r.b.anchor < 0 ? 'noTarget' : null;
   }
+  const hangOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & HANG_SUB) !== 0;
+  if (r.kind === 'hang') {
+    // (B5) the hang-down: the partner crouches at an edge offering it; the hanger is in reach; the hang point is by them
+    if (!hangOffer) return 'notOffering';
+    if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.hangReach || Math.abs(r.a.y - r.b.y) > 0.4) return 'far';
+    const l = r.land;
+    if (!l || !hangPointOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
+    return null;
+  }
+  if (hangOffer) return 'notBraced';
   const throwOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & THROW_SUB) !== 0;
   if (r.kind === 'throw') {
     // the throw: the partner stands offering it; the runner is in reach; the landing lies the throw's length past them
@@ -191,4 +204,62 @@ export function throwRoom(arcClear: boolean, floorDy: number, headroom: number):
   if (!Number.isFinite(floorDy) || Math.abs(floorDy) > TEAM.throwDrop) return 'floor';
   if (headroom < 1.2) return 'head';
   return 'ok';
+}
+
+// ---- (CT prototype B5) the hang-down (CT 1.5 Drop Line) ----
+
+/** The hanging head's height under the rig root when the body is turned over (m at 1.75 m: 1.75 - 2 x the tumble pivot). */
+export const HANG_HEAD = 0.62;
+
+/** The holder's bound on a claimed hang point: within `TEAM.hangProbe` + 0.6 m of the holder and at their floor height. */
+export function hangPointOk(bx: number, by: number, bz: number, hx: number, hy: number, hz: number): boolean {
+  return hyp2(hx - bx, hz - bz) <= TEAM.hangProbe + 0.6 && Math.abs(hy - by) <= 0.4;
+}
+
+/** The deepest the head may go under an edge at `edgeY` over a floor at `floorY` (head 0.3 m off the floor; NaN floor = the most). */
+export function hangDepthMax(edgeY: number, floorY: number): number {
+  const room = Number.isFinite(floorY) ? edgeY - floorY - 0.3 : Infinity;
+  return Math.max(TEAM.hangMin, Math.min(TEAM.hangMax, room));
+}
+
+/** The holder's stick moves the depth (`stickY` > 0, forward = up), `TEAM.hangRate` m/s, inside `TEAM.hangMin`..`max`. */
+export function hangDepth(depth: number, stickY: number, dt: number, max: number = TEAM.hangMax): number {
+  const d = depth - stickY * TEAM.hangRate * dt;
+  return Math.max(TEAM.hangMin, Math.min(max, d));
+}
+
+/** The hanging player's rig root (feet reference) for the head `depth` m under an edge at `edgeY` (turned over, the head is lowest). */
+export function hangRootY(edgeY: number, depth: number): number {
+  return edgeY - depth + HANG_HEAD;
+}
+
+/** The hanging player's own depth eases to the holder's (as received) at the holder's rate: no snapping on the wire's steps. */
+export function hangFollow(cur: number, target: number, dt: number): number {
+  const step = TEAM.hangRate * 1.5 * dt;
+  return Math.abs(target - cur) <= step ? target : cur + Math.sign(target - cur) * step;
+}
+
+/**
+ * An interactable within the hanging player's reach (the game's own rule on the feet reference: 1.8 m across, 1.5 m up
+ * or down): the panel at (`px`, `py`, `pz`) from a hang at (`hx`, `hz`) under an edge at `edgeY` with the head `depth` down.
+ */
+export function hangReaches(hx: number, hz: number, edgeY: number, depth: number, px: number, py: number, pz: number): boolean {
+  return hyp2(px - hx, pz - hz) < 1.8 && Math.abs(py - hangRootY(edgeY, depth)) < 1.5;
+}
+
+export type HangEnd = 'pull' | 'drop';
+
+/**
+ * How a hang-down ends (either player's press): the Co-op action pulls the partner back up beside the holder; the
+ * holder's release (B) drops them to the floor under the hang. Only the holder can drop the partner.
+ */
+export function hangEndOf(holder: boolean, coopPressed: boolean, bPressed: boolean): HangEnd | null {
+  if (coopPressed) return 'pull';
+  if (bPressed && holder) return 'drop';
+  return null;
+}
+
+/** A head-first drop from the hang (head `fall` m over the floor): lands crouched; no harm under 3 m (and the game has no fall damage). */
+export function hangLanding(fall: number): { crouch: true; harm: boolean } {
+  return { crouch: true, harm: fall >= 3 };
 }

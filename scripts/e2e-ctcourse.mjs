@@ -277,6 +277,58 @@ async function throwOver(x0) {
   await moveHost(x0 + 11, 7);
 }
 
+/** (B5) The hang-down at station 5: the host crouches at the roof hatch and offers, the client is lowered head-first
+ *  through it; the host's stick lowers them to the hack panel; the client presses A on it (the grid opens); the client
+ *  presses Co-op and is pulled back up onto the roof. */
+async function hangDown(x0) {
+  const hatchZ1 = 1.55;
+  const hx = x0 + 14.4;
+  await GA(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 4.5, z), Math.PI); }, [hx, hatchZ1 + 0.45]);
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4; }, [hx, hatchZ1 + 0.45], 15000, 'course sees the host at the hatch');
+  await moveClient(hx, hatchZ1 + 1.4, 4.5);
+  await new Promise((r) => setTimeout(r, 500));
+  await padReady(A);
+  await padReady(B);
+  await crouch(A);
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'hangOffer', 'station 5: the host offers the hang-down at the hatch').catch(async (e) => {
+    console.error(await GA(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ prompt: g.team.prompt, st: g.team.state, crouched: c.crouched, yaw: c.yaw, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
+    throw e;
+  });
+  await until(B, () => !!window.__app.current.team.offer?.hang, null, 8000, 'station 5: the client is offered the hang-down');
+  const prompt = await GB(() => window.__app.current.team.prompt);
+  assert(/hang-down/.test(prompt ?? ''), `station 5: the client's prompt names the move (${prompt})`);
+  await holdUntil(B, RB, () => window.__app.current.team.count.hangs >= 1, 'station 5: the client takes the hang-down');
+  await until(B, () => window.__app.current.team.state === 'hanging', null, 15000, 'station 5: the client hangs head-first in the hatch');
+  await until(A, () => window.__app.current.team.state === 'hangHold', null, 8000, 'station 5: the host holds');
+  const hi = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, tumble: g.player.pose.tumble, near: g.interactables?.nearest(g.player.position)?.id ?? '' }; });
+  assert(hi.y > 2.8 && hi.y < 4.4 && hi.tumble > 3, `station 5: the client hangs head-first under the roof (root y ${hi.y.toFixed(2)}, tumble ${hi.tumble.toFixed(2)})`);
+  assert(hi.near !== 'c-sw-s5-hack', 'station 5: the panel is out of reach at the starting height');
+  // the remote views: the host sees the client hanging turned over, the client sees the host holding
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; const mv = r.state?.mv; return mv?.m === 'boost' && (mv.sub & 2) !== 0 && r.feet.y > 2.5 && r.feet.y < 4.4; }, null, 8000, 'station 5: the host sees the client hanging');
+  await until(B, () => window.__app.current.net.teamMates().some((m) => m.mode === 'brace' && (m.sub & 2) !== 0), null, 8000, 'station 5: the client sees the host holding');
+  // the holder's stick lowers the partner (stick down)
+  await A.evaluate(() => window.__pad.axis(1, 1));
+  try {
+    await until(B, () => window.__app.current.interactables?.nearest(window.__app.current.player.position)?.id === 'c-sw-s5-hack', null, 20000, 'station 5: the holder lowers the client to the panel');
+  } finally {
+    await A.evaluate(() => window.__pad.axis(1, 0));
+  }
+  const d = await GA(() => window.__app.current.team.hang.depth);
+  assert(d > 2.2 && d <= 2.5, `station 5: lowered to ${d.toFixed(2)} m under the edge`);
+  // A on the panel, hanging
+  await B.evaluate(() => window.__pad.set(0, 1));
+  try {
+    await until(A, () => window.__course.debug().gates['g-s5-grid'], null, 10000, 'station 5: the hanging client hacks the panel (A), the grid opens');
+  } finally {
+    await B.evaluate(() => window.__pad.set(0, 0));
+  }
+  // pulled back up (the client's Co-op)
+  await holdUntil(B, RB, () => window.__app.current.team.count.pulls >= 1, 'station 5: the client is pulled back up');
+  await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 5: the holder is free');
+  const up = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, tumble: g.player.pose.tumble, st: g.team.state }; });
+  assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
+}
+
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
 async function openGate(n, i) {
   const x0 = PITCH * i;
@@ -335,11 +387,7 @@ async function openGate(n, i) {
     assert((await use(A, `c-h-s${n}`)) === 'ok', `station ${n}: the host holds the console`);
     await until(A, (g) => window.__course.debug().gates[g], `g-s${n}`, 8000, `station ${n} hold gate opens`);
   }
-  if (n === 5) {
-    await moveHost(x0 + 11, 12.4);
-    assert((await use(A, 'c-sw-s5-hack')) === 'ok', 'station 5: the grid computer is hacked');
-    await until(A, () => window.__course.debug().gates['g-s5-grid'], null, 8000, 'the grid gate opens');
-  }
+  if (n === 5) await hangDown(x0);
   const di = await doorIndex(door);
   await until(B, (i) => !window.__course.wire.locks.includes(i), di, 8000, `client sees ${door} unlock`);
 }
@@ -374,6 +422,7 @@ try {
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
     console.log(`station ${n}: ${[2, 3, 4, 5].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    if (n === 5) console.log('  (B5) leg-up, relay, roof plates, then the hang-down through the hatch: hack the panel, pulled back up');
     if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
     await openGate(n, i);
     if (n < 8) await throughAirlock(i);
