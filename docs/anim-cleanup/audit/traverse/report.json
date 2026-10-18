@@ -1,189 +1,25 @@
 {
- "ladder-climb": [
+ "rappel": [
   {
-   "t": 0.6,
-   "file": "ladder-climb-0.6.png",
-   "contact": {
-    "L": {
-     "skinMm": 37,
-     "geomMm": 46,
-     "targetMm": 94,
-     "palmToTargetDeg": 63
-    },
-    "R": {
-     "skinMm": 6,
-     "geomMm": 36,
-     "targetMm": 60,
-     "palmToTargetDeg": 29
-    }
-   },
-   "kind": "ladder",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.4,
-   "file": "ladder-climb-1.4.png",
+   "t": 0.8,
+   "file": "rappel-0.8.png",
    "contact": {
     "L": {
      "skinMm": 0,
      "geomMm": 0,
-     "targetMm": 40,
-     "palmToTargetDeg": 30
+     "targetMm": 127,
+     "palmToTargetDeg": 71,
+     "planted": true
     },
     "R": {
      "skinMm": 0,
      "geomMm": 0,
-     "targetMm": 48,
-     "palmToTargetDeg": 16
+     "targetMm": 20,
+     "palmToTargetDeg": 0,
+     "planted": true
     }
    },
-   "kind": "ladder",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 2.4,
-   "file": "ladder-climb-2.4.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 19,
-     "palmToTargetDeg": 77
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 45,
-     "palmToTargetDeg": 23
-    }
-   },
-   "kind": "ladder",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 3.6,
-   "file": "ladder-climb-3.6.png",
-   "contact": {},
-   "kind": "none",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    0,
-    0
-   ]
-  }
- ],
- "ladder-slide": [
-  {
-   "t": 0.5,
-   "file": "ladder-slide-0.5.png",
-   "contact": {
-    "L": {
-     "skinMm": 53,
-     "geomMm": 116,
-     "targetMm": 94,
-     "palmToTargetDeg": 145
-    },
-    "R": {
-     "skinMm": 104,
-     "geomMm": 193,
-     "targetMm": 192,
-     "palmToTargetDeg": 89
-    }
-   },
-   "kind": "ladder",
-   "phase": "enter",
-   "wall": "off",
-   "grip": [
-    0.8737997256515774,
-    0.8737997256515774
-   ]
-  },
-  {
-   "t": 1.2,
-   "file": "ladder-slide-1.2.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 43,
-     "palmToTargetDeg": 78
-    },
-    "R": {
-     "skinMm": 21,
-     "geomMm": 44,
-     "targetMm": 70,
-     "palmToTargetDeg": 47
-    }
-   },
-   "kind": "ladder",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 2,
-   "file": "ladder-slide-2.0.png",
-   "contact": {
-    "L": {
-     "skinMm": 5,
-     "geomMm": 73,
-     "targetMm": 67,
-     "palmToTargetDeg": 115
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 45,
-     "palmToTargetDeg": 23
-    }
-   },
-   "kind": "ladder",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "drainpipe": [
-  {
-   "t": 0.6,
-   "file": "drainpipe-0.6.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 88,
-     "palmToTargetDeg": 31
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 101,
-     "palmToTargetDeg": 32
-    }
-   },
-   "kind": "pipeV",
+   "kind": "rappel",
    "phase": "on",
    "wall": "off",
    "grip": [
@@ -193,22 +29,24 @@
   },
   {
    "t": 1.6,
-   "file": "drainpipe-1.6.png",
+   "file": "rappel-1.6.png",
    "contact": {
     "L": {
      "skinMm": 0,
      "geomMm": 0,
-     "targetMm": 90,
-     "palmToTargetDeg": 30
+     "targetMm": 122,
+     "palmToTargetDeg": 82,
+     "planted": true
     },
     "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 145,
-     "palmToTargetDeg": 43
+     "skinMm": 17,
+     "geomMm": 17,
+     "targetMm": 37,
+     "palmToTargetDeg": 28,
+     "planted": true
     }
    },
-   "kind": "pipeV",
+   "kind": "rappel",
    "phase": "on",
    "wall": "off",
    "grip": [
@@ -217,304 +55,25 @@
    ]
   },
   {
-   "t": 3,
-   "file": "drainpipe-3.0.png",
+   "t": 2.6,
+   "file": "rappel-2.6.png",
    "contact": {
     "L": {
      "skinMm": 0,
      "geomMm": 0,
-     "targetMm": 87,
-     "palmToTargetDeg": 31
+     "targetMm": 124,
+     "palmToTargetDeg": 74,
+     "planted": true
     },
     "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 90,
-     "palmToTargetDeg": 29
-    }
-   },
-   "kind": "pipeV",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "hang-shimmy": [
-  {
-   "t": 0.5,
-   "file": "hang-shimmy-0.5.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 34,
-     "palmToTargetDeg": 45
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 40,
-     "palmToTargetDeg": 126
-    }
-   },
-   "kind": "ledge",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.2,
-   "file": "hang-shimmy-1.2.png",
-   "contact": {},
-   "kind": "ledge",
-   "phase": "enter",
-   "wall": "off",
-   "grip": [
-    0,
-    0
-   ]
-  },
-  {
-   "t": 2.2,
-   "file": "hang-shimmy-2.2.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 46,
-     "palmToTargetDeg": 58
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 46,
-     "palmToTargetDeg": 58
-    }
-   },
-   "kind": "ledge",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "hang-climb": [
-  {
-   "t": 0.4,
-   "file": "hang-climb-0.4.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 46,
-     "palmToTargetDeg": 58
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 46,
-     "palmToTargetDeg": 58
-    }
-   },
-   "kind": "ledge",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 0.9,
-   "file": "hang-climb-0.9.png",
-   "contact": {},
-   "kind": "ledge",
-   "phase": "exit",
-   "wall": "off",
-   "grip": [
-    0.49369762734555,
-    0.49369762734555
-   ]
-  },
-  {
-   "t": 1.3,
-   "file": "hang-climb-1.3.png",
-   "contact": {},
-   "kind": "ledge",
-   "phase": "exit",
-   "wall": "off",
-   "grip": [
-    0,
-    0
-   ]
-  },
-  {
-   "t": 1.8,
-   "file": "hang-climb-1.8.png",
-   "contact": {},
-   "kind": "none",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    0,
-    0
-   ]
-  }
- ],
- "pipe-hands": [
-  {
-   "t": 0.5,
-   "file": "pipe-hands-0.5.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 50,
-     "palmToTargetDeg": 65
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 43,
-     "palmToTargetDeg": 16
-    }
-   },
-   "kind": "pipeH",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.2,
-   "file": "pipe-hands-1.2.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 45,
-     "palmToTargetDeg": 59
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 43,
-     "palmToTargetDeg": 16
-    }
-   },
-   "kind": "pipeH",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 2,
-   "file": "pipe-hands-2.0.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 35,
-     "palmToTargetDeg": 18
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 54,
-     "palmToTargetDeg": 69
-    }
-   },
-   "kind": "pipeH",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "zipline": [
-  {
-   "t": 0.4,
-   "file": "zipline-0.4.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
+     "skinMm": -2,
+     "geomMm": 41,
      "targetMm": 32,
-     "palmToTargetDeg": 19
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 25,
-     "palmToTargetDeg": 24
+     "palmToTargetDeg": 166,
+     "planted": true
     }
    },
-   "kind": "zipline",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1,
-   "file": "zipline-1.0.png",
-   "contact": {
-    "L": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 32,
-     "palmToTargetDeg": 19
-    },
-    "R": {
-     "skinMm": 0,
-     "geomMm": 0,
-     "targetMm": 25,
-     "palmToTargetDeg": 24
-    }
-   },
-   "kind": "zipline",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.8,
-   "file": "zipline-1.8.png",
-   "contact": {
-    "L": {
-     "skinMm": 15,
-     "geomMm": 35,
-     "targetMm": 38,
-     "palmToTargetDeg": 42
-    },
-    "R": {
-     "skinMm": 2,
-     "geomMm": 11,
-     "targetMm": 31,
-     "palmToTargetDeg": 44
-    }
-   },
-   "kind": "zipline",
+   "kind": "rappel",
    "phase": "on",
    "wall": "off",
    "grip": [

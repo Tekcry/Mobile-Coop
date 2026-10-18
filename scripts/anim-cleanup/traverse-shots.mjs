@@ -23,6 +23,8 @@ const MOVES = {
   'duct': { at: [21.75, 3.2, -5, Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 2.5], cam: [1.2, 0.6, 0.3, 0.3] },
   'window-vault': { at: [26, 0, -9.2, 0], tap: 'jump', times: [0.25, 0.55, 0.9], cam: [1.8, 1.0, 0.2, 0.8] },
   'zipline': { at: [26.5, 3.6, 10.2, Math.PI], tap: 'jump', times: [0.4, 1.0, 1.8], cam: [1.6, 1.0, 0.0, 1.1] },
+  'rappel': { at: [24, 'RH', 27.0, Math.PI], tap: 'jump', move: [0, -1], times: [0.8, 1.6, 2.6], cam: [-1.5, 1.1, -0.2, 1.0] },
+  'fence': { at: [-9, 0, 25.4, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.2, 2.0], cam: [1.4, 1.4, -0.8, 1.3] },
   'wall-stand': { at: [-8.3, 0, 0.5, 0], wall: true, times: [0.8], cam: [0.3, 1.4, 1.8, 1.0] },
   'wall-crouch': { at: [-8.3, 0, 0.5, 0], wall: true, crouch: true, times: [0.8], cam: [0.3, 1.0, 1.8, 0.6] },
   'wall-slide': { at: [-8.3, 0, 0.5, 0], wall: true, move: [1, 0], times: [0.6, 1.2], cam: [0.3, 1.4, 1.8, 1.0] },
@@ -68,7 +70,8 @@ try {
       g.traversal.reset();
       st.releaseAll();
       if (c.crouched) c.clearCrouchToggle();
-      c.teleport(new V(m.at[0], m.at[1], m.at[2]), m.at[3]);
+      const y = m.at[1] === 'RH' ? 5.7 : m.at[1];
+      c.teleport(new V(m.at[0], y, m.at[2]), m.at[3]);
       p.cam.yaw = m.camYaw ?? m.at[3];
       p.cam.pitch = 0;
       window.__cam = null;

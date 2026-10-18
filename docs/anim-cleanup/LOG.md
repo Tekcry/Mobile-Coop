@@ -63,3 +63,6 @@
   every non-grip reach writer; holdInto tests and a 3-degree degenerate guard. Settled palms sit on the surfaces (skin
   0 mm; the shot script now measures against the anchor geometry). e2e-traverse reach 0.2 cm, with a two-frame settle
   window per plant (arrival + one body pull; documented in the suite).
+- Rappel and fence audited (traverse-shots set-ups on Proving): the fence hands sit over the top rail (skin 0); the
+  rappel hands were off the rope (70-104 mm, palms away): the rope is now the grip axis (harness to anchor, 12 mm), both
+  palms on it (skin 0), feet on the wall. e2e-anim: the draw / holster continuity asserted (0.083 per frame).

@@ -112,6 +112,8 @@ export class AttachGrips {
   readonly feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1, overlap: false });
   /** Foot plants fade out over 0.2 s when the anchor has none (a drainpipe onto a lip): no snapping legs. */
   private plantFade = 0;
+  /** (anim-cleanup) The rappel rope this frame: a point at the harness and its unit direction up to the anchor. */
+  private readonly rope = { x: 0, y: 0, z: 0, dx: 0, dy: 1, dz: 0 };
   /** (step 11e) Ladder / drainpipe: the shortest hand swing the rig's arm can follow (`minReachSwing`). */
   private handSwingMin = 0;
   private ap: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
@@ -360,6 +362,14 @@ export class AttachGrips {
         ax = a.tx; az = a.tz; rad = 0.004;
         ox = a.a.x; oz = a.a.z; flat = true;
         break;
+      case 'rappel': {
+        // the rope from the harness up to the anchor (both hands on it: the upper hand up the rope, the brake hand at the
+        // hip), a 12 mm rope
+        const r = this.rope;
+        ax = r.dx; ay = r.dy; az = r.dz; rad = 0.006;
+        ox = r.x; oy = r.y; oz = r.z;
+        break;
+      }
       default:
         break;
     }
@@ -491,6 +501,8 @@ export class AttachGrips {
         dx /= dl;
         dy /= dl;
         dz /= dl;
+        this.rope.x = hx; this.rope.y = hy; this.rope.z = hz;
+        this.rope.dx = dx; this.rope.dy = dy; this.rope.dz = dz;
         R.x = hx + dx * 0.42 * k;
         R.y = hy + dy * 0.42 * k;
         R.z = hz + dz * 0.42 * k;
