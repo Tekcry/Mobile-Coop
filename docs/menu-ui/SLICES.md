@@ -1,6 +1,6 @@
 # Menu job - slices and resume point (2026-10-18)
 
-Michael: "Proceed with 1-4. 5 can proceed when wren has been pushed." Each slice: one implementer (Opus,
+Michael: "Proceed with 1-4. 5 can proceed when wren has been pushed." Each slice: one implementer (Sonnet, medium effort from slice 3; Michael 2026-10-18: prototype slices run lighter, fine tuning later on Opus;
 docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Michael, then the next slice.
 
 | Slice | Content (menu steps) | Status |
