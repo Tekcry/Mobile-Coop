@@ -25,3 +25,15 @@ kept in the repo: reference-game art, G5 / G6). What it shows, described for the
 - The lethal / non-lethal centre toggle is NOT built: the CT scheme already has both on the triggers (LT knockout, RT
   lethal, Michael "Yes, CT scheme"). Open question for Michael.
 - Original art: our own icons and colour; condensed caps text uses the bundled Barlow Condensed (menu font).
+
+## Second reference (PC, keyboard and mouse; Michael, 2026-10-19)
+- Opens on a held Tab key on keyboard and mouse: use Tab hold here (mouse picks the segment, release selects).
+- The vision segment at the top expands outward into a short stack of options above it (in the reference a second
+  mode sits above the goggle mode with its own key hint). Here: night, thermal and electro stack in that top slot;
+  the stack's other reference mode (a pulse-scan) is a non-CT system and is not built (G1).
+- A label to the right of the wheel names the highlighted item and its mode in two lines (item name in white caps,
+  mode in teal caps underneath).
+- A hint box at the left in plain sentence case explains the key ("Press and hold [Tab] to access your gadgets ...").
+- The centre lethal / non-lethal toggle shows its key hint inside the disc on keyboard ([B]); still not built here
+  (open question, see above).
+- Gun segments show the loaded count only (`13`, `31`, `03`); gadgets show `x3`.
