@@ -4096,3 +4096,249 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   60% { transform: translateX(-3px); }
   80% { transform: translateX(3px); }
 }
+
+/* =====================================================================================================
+   Menu UI (menu-ui slice 3): the dialog band (SPEC 7.23), toasts (7.24), the on-screen keyboard (MD3) and the co-op
+   screens (7.15-7.18) on the template. One dialog style for confirm, error and info; the safe option is first.
+   ===================================================================================================== */
+.dialog-screen {
+  background: rgba(4, 7, 8, 0.72);
+  align-items: flex-start;
+  justify-content: flex-start;
+  font-family: var(--font-menu);
+}
+.dialog-screen .dialog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 230px;
+  max-width: none;
+  max-height: none;
+  padding: 26px var(--sp-list-x) 22px;
+  gap: 8px;
+  border: none;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--ink-2);
+}
+.dialog-screen .dialog-title {
+  font-size: calc(30px * var(--ts));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+.dialog-screen .dialog-msg {
+  max-width: 760px;
+  max-height: 240px;
+  font-size: calc(20px * var(--ts));
+  line-height: 1.35;
+  color: #c3ccc8;
+}
+.dialog-screen .dialog-buttons {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.dialog-screen .dialog-buttons .btn {
+  min-width: 150px;
+  height: calc(40px * var(--ts));
+  padding: 0 22px;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-menu);
+  font-size: var(--fs-item);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.dialog-screen .dialog-buttons .btn.focused {
+  color: var(--text-hi);
+  border-color: var(--hl);
+  background: linear-gradient(90deg, rgba(var(--hl-rgb), 0.34) 0, rgba(var(--hl-rgb), 0.12) 100%);
+  box-shadow: inset 3px 0 0 var(--hl);
+}
+.dialog-screen .hints {
+  display: none;
+}
+.toasts {
+  font-family: var(--font-menu);
+}
+.toast {
+  min-width: 260px;
+  padding: 9px 18px;
+  border: none;
+  border-left: 3px solid var(--hl);
+  border-radius: 0;
+  background: var(--ctx-bg);
+  font-size: var(--fs-toast);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--text-hi);
+}
+.toast-ok {
+  border-left-color: var(--hl);
+}
+.toast-warn {
+  border-left-color: var(--warn);
+}
+
+/* on-screen keyboard */
+.osk {
+  display: grid;
+  grid-template-columns: repeat(var(--osk-cols, 8), 52px);
+  gap: 6px;
+  margin-top: 14px;
+}
+.screen.menu-screen .osk .btn.osk-key {
+  position: relative;
+  justify-content: center;
+  height: 46px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-menu);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+}
+.screen.menu-screen .osk .btn.osk-key.wide {
+  grid-column: span 2;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.screen.menu-screen .osk .btn.osk-key.focused {
+  color: var(--text-hi);
+  border-color: var(--hl);
+  background: linear-gradient(180deg, rgba(var(--hl-rgb), 0.34) 0, rgba(var(--hl-rgb), 0.12) 100%);
+}
+.osk .btn-icon {
+  display: none;
+}
+
+/* co-op screens */
+.coop-screen.menu-screen {
+  background: transparent;
+}
+.coop-screen.menu-screen .coop-offline {
+  margin: 0 0 14px;
+  padding: 10px 16px;
+  border: none;
+  border-left: 3px solid var(--warn);
+  border-radius: 0;
+  background: var(--ctx-bg);
+  font-size: var(--fs-row);
+}
+.coop-screen.menu-screen .coop-offline b {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--warn);
+}
+.coop-screen.menu-screen .coop-connecting {
+  margin: 0 0 18px;
+  font-size: calc(26px * var(--ts));
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.join-screen.menu-screen .join-note {
+  font-size: var(--fs-row);
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.join-screen.menu-screen .code-display {
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.join-screen.menu-screen .code-slot {
+  width: 58px;
+  height: 66px;
+  border-radius: 2px;
+  background: transparent;
+  border: 1px solid var(--line);
+  font-size: 38px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.join-screen.menu-screen .code-slot.next {
+  border-color: var(--hl);
+  box-shadow: inset 0 -3px 0 var(--hl);
+  animation: ms-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ms-pulse {
+  50% { box-shadow: inset 0 -3px 0 rgba(var(--hl-rgb), 0.25); }
+}
+.lobby-screen.menu-screen .ms-body {
+  width: 720px;
+  top: 196px;
+}
+.lobby-screen.menu-screen .ms-ctx {
+  top: 196px;
+}
+.lobby-screen.menu-screen .lobby-head {
+  margin: 0 0 10px;
+  padding: 0 16px;
+  font-size: calc(26px * var(--ts));
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+.lobby-screen.menu-screen .lobby-players {
+  gap: 4px;
+  padding: 0 0 4px;
+}
+.lobby-screen.menu-screen .lobby-player {
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-left: 3px solid var(--line);
+  border-radius: 0;
+  background: var(--ctx-bg);
+  font-size: var(--fs-row);
+}
+.lobby-screen.menu-screen .lobby-player.me {
+  border-left-color: var(--hl);
+}
+.lobby-screen.menu-screen .lobby-player.empty {
+  border-left-style: dashed;
+  background: transparent;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.lobby-screen.menu-screen .lp-state {
+  font-size: var(--fs-row);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.lobby-screen.menu-screen .lp-tag {
+  font-size: calc(15px * var(--ts));
+}
+.lobby-screen.menu-screen .lobby-status {
+  padding: 4px 16px 8px;
+  font-size: calc(16px * var(--ts));
+  color: var(--muted);
+}
+.lobby-screen.menu-screen .lobby-opts,
+.lobby-screen.menu-screen .lobby-actions {
+  display: contents;
+}
+.lobby-screen.menu-screen .lobby-actions .btn {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.screen.menu-screen .ms-rows .row-locked .locked-val {
+  color: var(--muted);
+}

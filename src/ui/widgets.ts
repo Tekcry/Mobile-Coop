@@ -325,6 +325,7 @@ export class Dialog extends Screen {
     private onCancel?: () => void,
   ) {
     super('dialog-screen');
+    this.safeAction = buttons.find((b) => b.safe)?.action;
     const box = h(
       'div',
       { class: 'dialog' },
@@ -348,8 +349,11 @@ export class Dialog extends Screen {
     box.append(bar);
     this.el.append(box);
   }
+  /** Back / B / Esc pick the safe option (MD18). */
+  private safeAction: (() => void) | undefined;
   override onBack(): boolean {
     this.manager.pop();
+    this.safeAction?.();
     this.onCancel?.();
     return true;
   }

@@ -7,8 +7,8 @@ docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Micha
 | --- | --- | --- |
 | 1 | Tokens, font, MenuScreen template, title, main menu (01, 02, 04) | Done 1ac6053 (SLICE1.md) |
 | 2 | Input parity, settings, remap (03, 05), e2e-menus | Done (SLICE2.md) |
-| 3 | Co-op lobby (2 players) and dialogs / on-screen keyboard (06, 09) | Running |
-| 4 | Missions, briefing, issued-kit view (07, 08; fixed kits D-11) | - |
+| 3 | Co-op lobby (2 players) and dialogs / on-screen keyboard (06, 09) | Done (SLICE3.md) |
+| 4 | Missions, briefing, issued-kit view (07, 08; fixed kits D-11) | Running |
 | 5 | Pause (blur, player sharp, objectives G108) and results (10) | - |
 | 6 | Cinematic background with Wren's poses (11-13) | After the operators PR (Wren) merges |
 

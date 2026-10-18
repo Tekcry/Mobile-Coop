@@ -72,7 +72,7 @@ try {
   assert(/Not ready/.test(bText), 'client button toggles to Not ready');
 
   console.log('host starts a Hunter match');
-  await A.click('.lobby-actions .btn:has-text("Start match")');
+  await A.click('.lobby-actions .btn:has-text("Start mission")');
   await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 60000, 'host match');
   await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 60000, 'client match');
   // host + client players invulnerable while we test hits
