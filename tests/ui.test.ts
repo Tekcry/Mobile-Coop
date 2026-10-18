@@ -69,3 +69,30 @@ describe('accessibility settings', () => {
     expect(sanitizeSettings({ access: { healthBar: false } }).access.healthBar).toBe(false);
   });
 });
+
+describe('menu focus rules (menu-ui slice 2, SPEC 4.3)', () => {
+  it('a held adjust turns fast after 1 s of chained repeats; a pause or a new direction restarts it', async () => {
+    const { adjustHold, ADJUST_FAST_S } = await import('../src/ui/focusNav');
+    let st = adjustHold(0, -1, 0, 1, 10);
+    expect(st.fast).toBe(false);
+    let at = 10;
+    for (let t = 10.11; t < 10 + ADJUST_FAST_S + 0.2; t += 0.11) {
+      st = adjustHold(1, at, st.start, 1, t);
+      at = t;
+    }
+    expect(st.fast).toBe(true);
+    expect(adjustHold(1, at, st.start, -1, at + 0.1).fast).toBe(false);
+    expect(adjustHold(1, at, st.start, 1, at + 2).fast).toBe(false);
+  });
+  it('wrap picks the far end of the same column; a grid (no data-wrap) has no wrap in pickSpatial', () => {
+    const col: Rect[] = [0, 1, 2, 3].map((i) => ({ x: 0, y: i * 40, w: 200, h: 32 }));
+    const from = col[3]!;
+    expect(pickSpatial(from, col.slice(0, 3), 'down')).toBe(-1);
+    expect(pickWrap(from, col.slice(0, 3), 'down')).toBe(0);
+  });
+  it('slugs give stable keys', async () => {
+    const { slug } = await import('../src/ui/widgets');
+    expect(slug('Look sensitivity (horizontal)')).toBe('look-sensitivity-horizontal');
+    expect(slug('Export report (HTML with photos)')).toBe('export-report-html-with-photos');
+  });
+});

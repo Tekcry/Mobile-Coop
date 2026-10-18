@@ -3798,3 +3798,301 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   letter-spacing: 0.06em;
   color: var(--muted);
 }
+
+/* =====================================================================================================
+   Menu UI (menu-ui slice 2): settings (SPEC 7.11) and remap (7.12) on the template - a tab strip under the title with
+   clickable LB / RB glyphs, rows with value cyclers, section labels, the capture overlay, the locked shake (MD18).
+   ===================================================================================================== */
+.settings-screen.menu-screen .ms-body,
+.controls-screen.menu-screen .ms-body {
+  top: 196px;
+  width: 740px;
+}
+.settings-screen.menu-screen .ms-ctx,
+.controls-screen.menu-screen .ms-ctx {
+  top: 250px;
+}
+.screen.menu-screen .tabview {
+  display: block;
+  width: 100%;
+}
+.screen.menu-screen .tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 10px;
+  padding: 0 0 2px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  overflow: visible;
+}
+.screen.menu-screen .tab {
+  appearance: none;
+  padding: 6px 10px 7px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-menu);
+  font-size: var(--fs-tab);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: none;
+}
+.screen.menu-screen .tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.screen.menu-screen .tab.active {
+  color: var(--text-hi);
+  border-bottom-color: var(--hl);
+  background: transparent;
+}
+.screen.menu-screen .tab-bumper.ms-bump {
+  display: inline-flex;
+  align-items: center;
+  appearance: none;
+  padding: 0;
+  margin: 0 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.screen.menu-screen .tab-body {
+  max-height: 404px;
+  overflow-y: auto;
+  padding: 0 8px 0 0;
+  background: none;
+  border: none;
+}
+.screen.menu-screen .ms-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.screen.menu-screen .ms-rows .section {
+  display: contents;
+}
+.screen.menu-screen .grp,
+.screen.menu-screen .ms-rows .section-title {
+  padding: 12px 16px 3px;
+  font-size: var(--fs-grp);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.screen.menu-screen .ms-rows .row-note {
+  padding: 3px 16px 5px;
+  font-size: calc(15px * var(--ts));
+  color: var(--muted);
+}
+/* a row: label left, value right; focused = the item highlight (bar, edge marker, white label) */
+.screen.menu-screen .ms-rows .row,
+.screen.menu-screen .ms-rows .btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: var(--sp-row-h);
+  min-height: 0;
+  margin: 0;
+  padding: 0 14px 0 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+  font-family: var(--font-menu);
+  font-size: var(--fs-row);
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.screen.menu-screen .ms-rows .btn .btn-sub {
+  font-size: 0.75em;
+  color: var(--muted);
+}
+.screen.menu-screen .ms-rows .btn .btn-icon {
+  display: none;
+}
+.screen.menu-screen .ms-rows .row:hover,
+.screen.menu-screen .ms-rows .btn:hover {
+  background: transparent;
+}
+.screen.menu-screen .ms-rows .row.focused,
+.screen.menu-screen .ms-rows .btn.focused,
+.screen.menu-screen .bind-panel .bind-key.focused {
+  background: linear-gradient(90deg, rgba(var(--hl-rgb), 0.34) 0, rgba(var(--hl-rgb), 0.14) 70%, rgba(var(--hl-rgb), 0) 100%);
+  box-shadow: inset 3px 0 0 var(--hl);
+  outline: none;
+}
+.screen.menu-screen .ms-rows .row.focused .row-label,
+.screen.menu-screen .ms-rows .btn.focused .btn-label {
+  color: var(--text-hi);
+  font-weight: 700;
+}
+.screen.menu-screen .ms-rows .row .row-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.screen.menu-screen .ms-rows .choice,
+.screen.menu-screen .ms-rows .slider,
+.screen.menu-screen .ms-rows .locked-val {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 250px;
+  flex: none;
+}
+.screen.menu-screen .ms-rows .choice-val {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.screen.menu-screen .ms-rows .choice-arrow {
+  width: 26px;
+  font-size: 0.7em;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+.screen.menu-screen .ms-rows .row.focused .choice-arrow {
+  color: var(--hl);
+}
+.screen.menu-screen .ms-rows .slider-track {
+  flex: 1;
+}
+.screen.menu-screen .ms-rows .slider-val {
+  width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.screen.menu-screen .ms-rows .locked-val {
+  justify-content: center;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.screen.menu-screen .ms-rows .row-locked .row-label::after {
+  content: '  LOCKED';
+  font-size: 0.65em;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+/* remap: label, two slots, the conflict mark */
+.screen.menu-screen .bind-panel {
+  display: flex;
+  flex-direction: column;
+}
+.screen.menu-screen .bind-panel .controls-row {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  align-items: center;
+  min-height: var(--sp-row-h);
+  padding: 0 14px 0 16px;
+  font-size: var(--fs-row);
+  border: none;
+  background: none;
+}
+.screen.menu-screen .bind-panel .controls-row.fixed {
+  font-size: calc(15px * var(--ts));
+  color: var(--muted);
+}
+.screen.menu-screen .bind-panel .controls-row .bind-warn {
+  grid-column: 1 / -1;
+  font-size: calc(13px * var(--ts));
+  color: var(--warn);
+}
+.screen.menu-screen .bind-panel .controls-row .bind-warn:empty {
+  display: none;
+}
+.screen.menu-screen .bind-panel .controls-row.conflict .row-label::before {
+  content: '⚠ ';
+  color: var(--warn);
+}
+.screen.menu-screen .bind-panel .kb-keys {
+  display: flex;
+  gap: 8px;
+}
+.screen.menu-screen .bind-panel .bind-key {
+  appearance: none;
+  min-width: 120px;
+  height: calc(28px * var(--ts));
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  font-family: var(--font-menu);
+  font-size: var(--fs-row);
+  font-weight: 600;
+  color: var(--text-hi);
+  cursor: pointer;
+}
+.screen.menu-screen .bind-panel .bind-key.empty {
+  color: var(--muted);
+}
+.screen.menu-screen .bind-panel .bind-key.listening {
+  border-color: var(--hl);
+  color: var(--hl);
+}
+.screen.menu-screen .bind-panel .row-note.bind-summary {
+  color: var(--warn);
+}
+.screen.menu-screen .bind-panel .bind-reset {
+  margin-top: 8px;
+}
+/* the capture overlay (SPEC 4.3): a dark band with the action, the countdown and Cancel */
+.cap-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 250px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 26px 0 20px;
+  background: rgba(4, 6, 7, 0.95);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-menu);
+  text-transform: uppercase;
+}
+.cap-overlay .cap-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-hi);
+}
+.cap-overlay .cap-action {
+  font-size: 19px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+.cap-overlay .cap-count {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--hl);
+  font-variant-numeric: tabular-nums;
+}
+/* locked: a 5 px shake on confirm (MD18) */
+.shake {
+  animation: ms-shake 0.3s ease;
+}
+@keyframes ms-shake {
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}

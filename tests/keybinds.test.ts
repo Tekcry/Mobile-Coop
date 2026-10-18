@@ -4,8 +4,11 @@ import { assignBind, bindable, bindLabel, BINDS, clearBind, defaultBinds, keyAct
 describe('key bindings', () => {
   it('defaults match the documented keyboard layout', () => {
     const m = keyActionMap(defaultBinds());
-    expect(m.get('Space')).toEqual(['cover']);
-    expect(m.get('KeyE')).toEqual(['jump', 'interact', 'uiTabNext', 'uiAlt']);
+    expect(m.get('Space')).toEqual(['cover', 'uiConfirm']);
+    expect(m.get('KeyE')).toEqual(['jump', 'interact', 'uiTabNext']);
+    // (menu-ui slice 2, MD11) R = the X action, F = the Y action in menus
+    expect(m.get('KeyR')).toEqual(['reload', 'uiX']);
+    expect(m.get('KeyF')).toEqual(['interact', 'uiAlt']);
     expect(m.get('ShiftLeft')).toEqual(['dash']);
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);
     expect(m.get('KeyQ')).toEqual(['swapPrev', 'uiTabPrev']);

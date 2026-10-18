@@ -120,7 +120,7 @@ export function shownResolution(setting: string, renderW: number, renderH: numbe
   return Math.abs(w! - renderW) <= 2 && Math.abs(h! - renderH) <= 2 ? setting : `${setting} (window ${real})`;
 }
 /** Seconds a new resolution waits for Keep before it reverts. */
-export const RES_CONFIRM_S = 15;
+export const RES_CONFIRM_S = 10;
 
 /** The render resolution a scale gives on a native output (even pixel counts, as the engine rounds). */
 export function renderSize(nativeW: number, nativeH: number, scale: number): { w: number; h: number } {

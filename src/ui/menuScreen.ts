@@ -20,7 +20,8 @@ const ACT_BTN: Record<LegendItem['act'], PromptButton> = {
   any: 'A',
 };
 
-const ACT_KEY: Partial<Record<LegendItem['act'], string>> = { any: 'Any key' };
+/** Keyboard glyphs of the menu actions (SPEC 4.2: Esc back, Enter confirm, R = X, F = Y, Q / E tabs). */
+const ACT_KEY: Partial<Record<LegendItem['act'], string>> = { any: 'Any key', back: 'Esc', confirm: 'Enter', x: 'R', y: 'F', lb: 'Q', rb: 'E' };
 
 /**
  * One glyph for an action in a fixed-width slot (SPEC 2: 38 px). Every device's glyph is emitted and the body class
@@ -84,6 +85,8 @@ export abstract class MenuScreen extends Screen {
     if (act === 'confirm' || act === 'any') m.nav.confirm();
     else if (act === 'back') m.back(this);
     else if (act === 'y') this.onAlt();
+    else if (act === 'x') this.onX();
+    else if (act === 'start') this.onStart();
     else if (act === 'lb') this.onTab(-1);
     else if (act === 'rb') this.onTab(1);
   }

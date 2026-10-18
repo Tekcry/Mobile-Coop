@@ -106,7 +106,8 @@ export class TapHold {
 export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'uiConfirm'],
   [PAD.B, 'uiBack'],
-  [PAD.START, 'uiBack'],
+  [PAD.START, 'uiStart'],
+  [PAD.X, 'uiX'],
   [PAD.LB, 'uiTabPrev'],
   [PAD.RB, 'uiTabNext'],
   [PAD.Y, 'uiAlt'],

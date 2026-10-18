@@ -1,0 +1,215 @@
+// Menu parity (menu-ui steps 03 and 05, SPEC 4 and 9): the main menu and GAME / SETTINGS driven by keyboard, mouse and a
+// fake pad - default focus, moves (arrows, WASD, d-pad), wrap, confirm (Enter, Space, click, A), Back targets (Esc,
+// Backspace, B, mouse button 4, the legend), every legend item by click, tabs (Q / E, LB / RB, header and glyph clicks)
+// with focus memory, cyclers and sliders (hold accelerates), Defaults (Cancel first), a locked row, the remap capture
+// (Esc / Start cancel), and a device switch that moves no element (bounding boxes within 0.5 px).
+import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const url = process.argv[2] ?? 'http://localhost:4173/';
+let failed = false;
+const { browser, page, errors } = await launch({ url, viewport: { width: 1920, height: 1080 } });
+const G = (f, a) => page.evaluate(f, a);
+const key = async (k) => {
+  await page.keyboard.press(k);
+  await frames(page, 3);
+};
+const fk = () => G(() => window.__app.nav.focused?.dataset.key ?? '(none)');
+const top = () => G(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
+const tab = () => G(() => document.querySelector('.settings-screen .tab.active')?.textContent ?? '');
+const centre = (sel) => G((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, sel);
+const hover = async (sel) => {
+  const [x, y] = await centre(sel);
+  await page.mouse.move(x - 3, y, { steps: 1 });
+  await page.mouse.move(x, y, { steps: 2 });
+  await frames(page, 2);
+};
+const clickAt = async (sel) => {
+  const [x, y] = await centre(sel);
+  await page.mouse.move(x, y, { steps: 2 });
+  await page.mouse.click(x, y);
+  await frames(page, 3);
+};
+const mouseBack = async () => {
+  await G(() => document.body.dispatchEvent(new PointerEvent('pointerdown', { button: 3, pointerType: 'mouse', bubbles: true })));
+  await G(() => document.body.dispatchEvent(new PointerEvent('pointerup', { button: 3, pointerType: 'mouse', bubbles: true })));
+  await frames(page, 3);
+};
+const boxes = (scope) =>
+  G((s) => [...document.querySelectorAll(`${s} .ms-lg, ${s} [data-focus], ${s} .ms-bump, ${s} .tab`)].filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), scope);
+const sameBoxes = async (scope) => {
+  await G(() => window.__app.input.setMode('kbm'));
+  await frames(page, 2);
+  const a = await boxes(scope);
+  await G(() => window.__app.input.setMode('gamepad'));
+  await frames(page, 2);
+  const b = await boxes(scope);
+  await G(() => window.__app.input.setMode('kbm'));
+  await frames(page, 2);
+  const moved = a.filter((r, i) => !b[i] || r.some((v, j) => Math.abs(v - b[i][j]) > 0.5)).length;
+  return { n: a.length, moved: a.length === b.length ? moved : -1 };
+};
+
+try {
+  await page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
+  await frames(page, 5);
+
+  console.log('main menu: keyboard');
+  assert((await fk()) === 'missions', `default focus Missions (${await fk()})`);
+  await key('ArrowDown');
+  const k1 = await fk();
+  await key('KeyS');
+  const k2 = await fk();
+  await key('KeyW');
+  assert(k1 !== 'missions' && k2 !== k1 && (await fk()) === k1, `arrows and WASD move the focus (${k1}, ${k2}, back to ${await fk()})`);
+  await key('ArrowUp');
+  await key('ArrowUp');
+  const wrapped = await fk();
+  assert(wrapped === (await G(() => [...document.querySelectorAll('.main-menu .ms-item')].at(-1).dataset.key)), `up from the first item wraps to the last (${wrapped})`);
+  for (let i = 0; i < 10 && (await fk()) !== 'settings'; i++) await key('ArrowUp');
+  await key('Space');
+  assert((await top()) === 'settings-screen', 'Space confirms (Settings opens)');
+  await key('Backspace');
+  assert((await top()) === 'main-menu' && (await fk()) === 'settings', `Backspace returns, focus restored on Settings (${await fk()})`);
+  await key('Enter');
+  assert((await top()) === 'settings-screen', 'Enter confirms');
+  await key('Escape');
+  assert((await top()) === 'main-menu', 'Esc returns to the main menu');
+
+  console.log('main menu: mouse');
+  await hover('.main-menu [data-key="loadout"]');
+  assert((await fk()) === 'loadout', `hover moves the focus (${await fk()})`);
+  await clickAt('.main-menu [data-key="settings"]');
+  assert((await top()) === 'settings-screen', 'a click confirms the item under the cursor');
+  await mouseBack();
+  assert((await top()) === 'main-menu' && (await fk()) === 'settings', 'mouse button 4 is Back');
+  const mm = await sameBoxes('.main-menu');
+  assert(mm.n > 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`);
+  // every legend item by click: Back (the title is off under automation: stays), Select opens the focused item
+  await clickAt('.main-menu .ms-lg[data-legend="back"]');
+  assert((await top()) === 'main-menu', 'the Back legend on the root menu stays (no title under automation)');
+  await clickAt('.main-menu .ms-lg[data-legend="confirm"]');
+  assert((await top()) === 'settings-screen', 'the Select legend confirms the focused item');
+
+  console.log('settings: tabs, rows, legend');
+  assert((await tab()) === 'Controls' && (await fk()) === 'remap', `Controls first, Remap focused (${await tab()}, ${await fk()})`);
+  const ctx = await G(() => ({ shown: !document.querySelector('.settings-screen .ms-ctx').hidden, t: document.querySelector('.settings-screen .ms-ctx').textContent }));
+  assert(ctx.shown && /Remap controls/.test(ctx.t) && ctx.t.length > 30, `the focused row's description is in the context panel (${ctx.t.slice(0, 60)})`);
+  const missing = await G(() => [...document.querySelectorAll('.settings-screen .tab-panel [data-focus]')].filter((e) => !e.dataset.ctx && !e.closest('.feedback-list')).map((e) => e.dataset.key));
+  assert(missing.length === 0, `every row has a description (${missing.join(', ')})`);
+  for (let i = 0; i < 8 && (await fk()) !== 'crouch'; i++) await key('ArrowDown');
+  assert((await fk()) === 'crouch', 'focus on Crouch');
+  await key('KeyE');
+  assert((await tab()) === 'Gameplay', 'E: next tab');
+  await key('KeyQ');
+  assert((await tab()) === 'Controls' && (await fk()) === 'crouch', `Q: back to Controls, its focus remembered (${await fk()})`);
+  // a cycler: arrows, A / D, Enter, Space, click the row, click the arrows
+  const ct = () => G(() => window.__app.settings.get().gameplay.crouchToggle);
+  const c0 = await ct();
+  await key('ArrowRight');
+  const c1 = await ct();
+  await key('KeyD');
+  const c2 = await ct();
+  await key('Enter');
+  const c3 = await ct();
+  await key('Space');
+  const c4 = await ct();
+  assert(c1 !== c0 && c2 === c0 && c3 !== c0 && c4 === c0, `cycler: right, D, Enter and Space each step it (${[c0, c1, c2, c3, c4]})`);
+  await clickAt('.settings-screen [data-key="crouch"] .choice-arrow:last-child');
+  const c5 = await ct();
+  await clickAt('.settings-screen [data-key="crouch"] .row-label');
+  assert(c5 !== c0 && (await ct()) === c0 && (await fk()) === 'crouch', 'cycler: clicking the arrow and the row step it');
+  // Defaults: X / R opens the confirm with Cancel focused; Esc keeps everything; Reset restores the tab
+  await key('ArrowRight');
+  const changed = await ct();
+  await key('KeyR');
+  let dg = await G(() => ({ d: !!document.querySelector('.dialog-screen'), t: document.querySelector('.dialog-title')?.textContent, f: window.__app.nav.focused?.textContent }));
+  assert(dg.d && /Reset Controls to defaults/.test(dg.t) && /Cancel/.test(dg.f), `R: Defaults asks first, Cancel focused (${JSON.stringify(dg)})`);
+  await key('Escape');
+  assert(!(await G(() => !!document.querySelector('.dialog-screen'))) && (await ct()) === changed, 'Esc in the dialog is Cancel: nothing reset');
+  await clickAt('.settings-screen .ms-lg[data-legend="x"]');
+  assert(await G(() => !!document.querySelector('.dialog-screen')), 'the Defaults legend item opens the same dialog');
+  await key('ArrowRight');
+  await key('Enter');
+  assert((await ct()) === true && (await top()) === 'settings-screen', 'Reset restores the tab defaults');
+  // tab clicks: the RB glyph, a header, the LB legend item
+  await clickAt('.settings-screen .ms-bump[data-bump="rb"]');
+  assert((await tab()) === 'Gameplay', 'clicking the RB glyph: next tab');
+  await clickAt('.settings-screen .tab[data-tab="access"]');
+  assert((await tab()) === 'Accessibility' && (await fk()) === 'subtitles', `clicking a header opens that tab, first row focused (${await fk()})`);
+  await key('Enter');
+  const toast = await G(() => document.querySelector('.toasts')?.textContent ?? '');
+  assert(/always on/.test(toast) && (await fk()) === 'subtitles', 'a locked row stays focusable and toasts its reason');
+  await clickAt('.settings-screen .ms-lg[data-legend="lb"]');
+  assert((await tab()) === 'Audio', 'the LB legend item: previous tab');
+  const st = await sameBoxes('.settings-screen');
+  assert(st.n > 6 && st.moved === 0, `settings: a device switch moves nothing (${st.n} boxes, ${st.moved} moved)`);
+  await clickAt('.settings-screen .ms-lg[data-legend="back"]');
+  assert((await top()) === 'main-menu', 'the Back legend item returns to the main menu');
+
+  console.log('settings: pad');
+  await G(() => window.__pad.connect());
+  await press(page, BTN.A);
+  assert((await top()) === 'settings-screen' && (await G(() => document.body.classList.contains('input-gamepad'))), 'A opens Settings, glyphs switch to the pad');
+  await press(page, BTN.START);
+  assert((await top()) === 'settings-screen', 'Start is not Back outside pause');
+  await press(page, BTN.RB);
+  await press(page, BTN.RB);
+  assert((await tab()) === 'Graphics', 'RB twice: Graphics');
+  await press(page, BTN.X);
+  dg = await G(() => ({ d: !!document.querySelector('.dialog-screen'), f: window.__app.nav.focused?.textContent }));
+  await press(page, BTN.B);
+  assert(dg.d && /Cancel/.test(dg.f) && !(await G(() => !!document.querySelector('.dialog-screen'))), 'X: Defaults, Cancel focused; B cancels');
+  await press(page, BTN.RB);
+  assert((await tab()) === 'Audio', 'RB: Audio');
+  await press(page, BTN.DOWN);
+  assert((await fk()) === 'effects', `d-pad down: Effects (${await fk()})`);
+  // hold right: repeats after 0.4 s, x5 steps after 1 s (SPEC 4.2)
+  await G(() => {
+    window.__fast = 0;
+    window.__app.nav.focused.addEventListener('nav-adjust', (e) => void (window.__fast += e.detail.fast ? 1 : 0));
+    window.__app.settings.update((d) => void (d.audio.sfx = 0));
+  });
+  await G((b) => window.__pad.set(b, 1), BTN.RIGHT);
+  await page.waitForTimeout(1800);
+  await G((b) => window.__pad.set(b, 0), BTN.RIGHT);
+  await frames(page, 3);
+  const hold = await G(() => ({ fast: window.__fast, v: window.__app.settings.get().audio.sfx }));
+  assert(hold.fast > 0 && hold.v > 0.2, `holding right repeats and accelerates (${JSON.stringify(hold)})`);
+  await press(page, BTN.B);
+  assert((await top()) === 'main-menu', 'B returns to the main menu');
+
+  console.log('remap: keyboard Esc and pad Start cancel a capture');
+  await press(page, BTN.A);
+  for (let i = 0; i < 6 && (await tab()) !== 'Controls'; i++) await press(page, BTN.LB);
+  await G(() => [...document.querySelectorAll('.settings-screen .tab-panel.active .btn')].find((b) => /Remap controls/.test(b.textContent)).click());
+  await frames(page, 3);
+  assert((await top()) === 'controls-screen' && (await G(() => document.querySelector('.controls-screen .tab.active')?.dataset.tab)) === 'pad', 'Remap opens on the current device (Controller)');
+  await press(page, BTN.A);
+  assert(await G(() => window.__app.input.gamepad.capturing && !!document.querySelector('.cap-overlay')), 'A starts a capture with the overlay');
+  await press(page, BTN.START);
+  await frames(page, 3);
+  assert(!(await G(() => window.__app.input.gamepad.capturing)) && (await top()) === 'controls-screen', 'Start cancels it, the screen stays');
+  await press(page, BTN.RB);
+  await G(() => window.__app.input.setMode('kbm'));
+  await G(() => window.__app.nav.focus(document.querySelector('.controls-screen .tab-panel.active .kb-key[data-bind="ping:0"]')));
+  await key('Enter');
+  const capK = await G(() => window.__app.input.kbm.capturing);
+  await key('Escape');
+  const after = await G(() => ({ cap: window.__app.input.kbm.capturing, ping: window.__app.settings.get().keys.ping.join() }));
+  assert(capK && !after.cap && after.ping === 'KeyZ' && (await top()) === 'controls-screen', `keyboard: Esc cancels a capture (${JSON.stringify(after)})`);
+  const rm = await sameBoxes('.controls-screen');
+  assert(rm.n > 10 && rm.moved === 0, `remap: a device switch moves nothing (${rm.n} boxes, ${rm.moved} moved)`);
+  await key('Escape');
+  assert((await top()) === 'settings-screen', 'Esc: Remap back to Settings');
+} catch (e) {
+  failed = true;
+  console.error(String(e));
+  await page.screenshot({ path: process.env.SHOT ?? join(tmpdir(), 'e2e-menus-fail.png') }).catch(() => {});
+} finally {
+  const bad = errors.filter((e) => !e.includes('GPU stall') && !e.includes('swiftshader'));
+  console.log(bad.length ? 'console problems:\n' + bad.join('\n') : 'no console errors');
+  await browser.close();
+  process.exit(failed || bad.some((e) => e.startsWith('[error]') || e.startsWith('[pageerror]')) ? 1 : 0);
+}

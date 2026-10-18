@@ -683,9 +683,7 @@ try {
       await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
       await click('.main-menu .btn', 'Settings');
       await P.waitForTimeout(300);
-      await click('.settings-screen .tab', 'Accessibility');
-      await P.waitForTimeout(200);
-      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await click('.settings-screen .tab-panel.active .btn', '^Remap controls');
       await P.waitForTimeout(300);
       await click('.controls-screen .tab', 'Keyboard');
       await P.waitForTimeout(200);

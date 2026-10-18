@@ -94,8 +94,9 @@ export class KeepResolution extends Dialog {
     private onDone: () => void,
   ) {
     super('Keep this resolution?', '', [
+      // (SPEC 7.14, MD18) the safe option first and focused
+      { label: 'Revert', safe: true, action: () => this.revert() },
       { label: 'Keep', primary: true, action: () => void (/* kept */ 0) },
-      { label: 'Revert', action: () => this.revert() },
     ], () => this.revert());
     this.msg = this.el.querySelector('.dialog-msg');
     this.tick();

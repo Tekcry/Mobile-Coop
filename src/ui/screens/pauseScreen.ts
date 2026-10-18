@@ -46,6 +46,11 @@ export class PauseScreen extends Screen {
     this.onResume();
   }
 
+  /** (MD11) Menu / Start resumes in the pause menu (it is not a Back anywhere else). */
+  override onStart(): void {
+    this.resume();
+  }
+
   override onBack(): boolean {
     this.resume();
     return true;
