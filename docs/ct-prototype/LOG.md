@@ -7,4 +7,5 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   camera manual only; tense tiptoe crouch near enemies.
 - Job docs created. Step 0 code review started (read-only, Sonnet).
 - Review done: ADJUST body, anim, strike, goggles, wire; REWRITE camera framing core; wall and doors ADJUST, pad tables REWRITE.
-- Status: STEP 0 DONE, awaiting Michael.
+- Michael: camera core rewrite; wall and doors adjust, pad tables rewrite; adjust the rest; first round cleanup + camera.
+- Status: STEP 0 DONE. A2.1 started.
