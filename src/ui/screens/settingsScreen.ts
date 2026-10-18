@@ -1,7 +1,7 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
-import { defaultSettings, setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
+import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
@@ -13,12 +13,6 @@ import { BrightnessScreen } from './brightnessScreen';
 import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
-const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'low', label: 'Low' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'high', label: 'High' },
-];
 const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'classic', label: 'Classic' },
@@ -98,7 +92,7 @@ export function desc<T extends HTMLElement>(el: T, text: string): T {
 }
 
 /** The gameplay fields the Controls tab owns (hold or toggle, rumble): its Defaults resets these. */
-const CONTROL_GAMEPLAY = ['adsToggle', 'crouchToggle', 'sprintHold', 'wallToggle', 'grabToggle', 'rumble'] as const;
+const CONTROL_GAMEPLAY = ['adsToggle', 'crouchToggle', 'sprintHold', 'wallToggle', 'rumble'] as const;
 
 /**
  * GAME / SETTINGS (menu-ui SPEC 7.11, MD9) on the MenuScreen template: a tab strip (LB / RB, Q / E, clicks), rows with
@@ -132,7 +126,6 @@ export class SettingsScreen extends MenuScreen {
             desc(choice('Crouch', hold, () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))), 'Hold: crouch while the button is held. Toggle: one press crouches, the next stands.'),
             desc(choice('Back to wall', hold, () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))), 'Hold: stay on the wall while the button is held. Toggle: one press goes to the wall, the next leaves it.'),
             desc(choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))), 'Toggle: one press sprints until you stop. Hold: sprint only while the button is held.'),
-            desc(choice('Grab', hold, () => s().gameplay.grabToggle, (v) => upd((d) => void (d.gameplay.grabToggle = v))), 'How you keep a guard grabbed from behind. Hold keeps him while the button is held; Toggle keeps him until the next press.'),
             grp('Controller'),
             status,
             desc(slider('Look sensitivity (horizontal)', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityX, set: (v) => upd((d) => void (d.gamepad.lookSensitivityX = v)), format: mult }), 'How fast the right stick turns the camera left and right.'),
@@ -143,7 +136,6 @@ export class SettingsScreen extends MenuScreen {
             desc(slider('Dead zone (right stick)', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.deadzoneRight, set: (v) => upd((d) => void (d.gamepad.deadzoneRight = v)), format: pct }), 'How far the right stick moves before the camera turns. Raise it if the view creeps on its own.'),
             desc(slider('Dead zone (triggers)', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.triggerDeadzone, set: (v) => upd((d) => void (d.gamepad.triggerDeadzone = v)), format: pct }), 'How far a trigger travels before it aims or fires.'),
             desc(toggle('Invert Y (controller)', () => s().gamepad.invertY, (v) => upd((d) => void (d.gamepad.invertY = v))), 'Pushing the right stick up looks down, like a flight stick.'),
-            desc(choice('Aim assist', AIM_OPTS, () => s().gamepad.aimAssist, (v) => upd((d) => void (d.gamepad.aimAssist = v))), 'Slows the aim a little over a target on the controller. The mouse never gets it.'),
             desc(toggle('Vibration', () => s().gamepad.vibration, (v) => upd((d) => void (d.gamepad.vibration = v))), 'Rumble for shots, hits, takedowns and footsteps close by.'),
             desc(slider('Rumble strength', { min: 0, max: 1, step: 0.05, get: () => s().gameplay.rumble, set: (v) => upd((d) => void (d.gameplay.rumble = v)), format: pct }), 'How strong every rumble is.'),
             desc(button('Test vibration', () => void app.input.testHaptic(), { class: 'subtle' }), 'Plays one rumble at the strength above.'),
@@ -161,7 +153,6 @@ export class SettingsScreen extends MenuScreen {
         build: () =>
           rowList(
             desc(choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))), 'The shoulder the camera sits over at the start of a mission. You can swap it at any time.'),
-            desc(toggle('Camera recentres', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))), 'The camera drifts back behind you while you move and leave the stick alone.'),
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
           ),
@@ -218,7 +209,6 @@ export class SettingsScreen extends MenuScreen {
     this.resets.set('gameplay', () =>
       fromDefaults((d, def) => {
         d.gameplay.defaultShoulder = def.gameplay.defaultShoulder;
-        d.gameplay.autoRecentre = def.gameplay.autoRecentre;
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
       }),

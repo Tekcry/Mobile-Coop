@@ -1,0 +1,139 @@
+{
+ "id": "knife",
+ "parts": [
+  "blade",
+  "blade-edge",
+  "guard",
+  "grip",
+  "pommel"
+ ],
+ "triangles": 1820,
+ "bounds": {
+  "min": [
+   -0.011,
+   -0.015,
+   -0.045
+  ],
+  "max": [
+   0.011,
+   0.015,
+   0.145
+  ]
+ },
+ "textureSize": 512,
+ "points": {
+  "grip": [
+   0,
+   0,
+   0
+  ],
+  "tip": [
+   0,
+   0.0015,
+   0.14500000000000002
+  ]
+ },
+ "surface": {
+  "grip": {
+   "inside": "grip",
+   "mm": 11
+  },
+  "tip": {
+   "inside": null,
+   "mm": 0
+  }
+ },
+ "partBounds": {
+  "blade": [
+   [
+    -0.002,
+    -0.004,
+    0.041
+   ],
+   [
+    0.002,
+    0.0125,
+    0.145
+   ]
+  ],
+  "blade-edge": [
+   [
+    -0.0019,
+    -0.0135,
+    0.041
+   ],
+   [
+    0.0019,
+    0.0014,
+    0.1449
+   ]
+  ],
+  "guard": [
+   [
+    -0.009,
+    -0.015,
+    0.039
+   ],
+   [
+    0.009,
+    0.015,
+    0.045
+   ]
+  ],
+  "grip": [
+   [
+    -0.011,
+    -0.013,
+    -0.039
+   ],
+   [
+    0.011,
+    0.013,
+    0.039
+   ]
+  ],
+  "pommel": [
+   [
+    -0.0105,
+    -0.012,
+    -0.045
+   ],
+   [
+    0.0105,
+    0.012,
+    -0.0385
+   ]
+  ]
+ },
+ "glb": {
+  "vertices": 1688,
+  "triangles": 1820,
+  "bytes": 604712
+ },
+ "textures": {
+  "albedo": "knife-albedo.png",
+  "orm": "knife-orm.png",
+  "normal": "knife-normal.png"
+ },
+ "ktx2": {
+  "files": [
+   {
+    "kind": "albedo",
+    "bytes": 150114,
+    "pngBytes": 142541
+   },
+   {
+    "kind": "orm",
+    "bytes": 203015,
+    "pngBytes": 201734
+   },
+   {
+    "kind": "normal",
+    "bytes": 120658,
+    "pngBytes": 155617
+   }
+  ],
+  "glbBytes": 578804
+ },
+ "builtSeconds": 11
+}

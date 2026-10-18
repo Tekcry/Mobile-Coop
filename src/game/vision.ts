@@ -13,7 +13,7 @@ export type VisionMode = 'off' | 'night' | 'thermal' | 'electro';
 /** The button's cycle order (CT: thermal, electro, night, off). */
 export const VISION_CYCLE: readonly VisionMode[] = ['off', 'thermal', 'electro', 'night'];
 
-/** (F1a, G179) The wheel's stack order, top to bottom: night first (CT), then thermal, electro. */
+/** (F1a, G181) The wheel's stack order, top to bottom: night first (CT), then thermal, electro. */
 export const VISION_WHEEL: readonly Exclude<VisionMode, 'off'>[] = ['night', 'thermal', 'electro'];
 
 /** The post shader's mode index (`CinematicPost` uniform `vk`): 0 off / night, 1 thermal, 2 electro. */
@@ -32,7 +32,7 @@ export const VISION_FLIP = 0.28;
 export class VisionState {
   /** The mode the button chose; the image is that mode at once. */
   mode: VisionMode = 'off';
-  /** (F1a, G179) The mode the wheel picked: what the vision button turns on and off (night first, as in CT). */
+  /** (F1a, G181) The mode the wheel picked: what the vision button turns on and off (night first, as in CT). */
   selected: Exclude<VisionMode, 'off'> = 'night';
   /** (F1a, gog-1) What the last change was: the goggle flip belongs to 'on' / 'off' only, never to a 'switch' between modes
    *  (the flip visual itself is not rebuilt in this slice: A5 made every change an instant cut). */

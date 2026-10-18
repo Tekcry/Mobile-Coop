@@ -321,7 +321,7 @@ export const ctcourse: MapDef = {
       props: [],
       objectives: [],
       pickups: [],
-      // wall medkit stations (G178): the annex (north wall, station 5) and before the last wall
+      // wall medkit stations (G180): the annex (north wall, station 5) and before the last wall
       medkitWalls: [
         { pos: new Vector3(bayX(4) + 15, 0, CT_W - 0.4), yaw: NORTH },
         { pos: new Vector3(bayX(7) + 2, 0, CT_W - 0.4), yaw: NORTH },

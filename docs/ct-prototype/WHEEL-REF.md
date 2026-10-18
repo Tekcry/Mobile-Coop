@@ -1,11 +1,11 @@
-# Selection wheel - reference (G179)
+# Selection wheel - reference (G181)
 
 Michael sent a reference screenshot of the Blacklist-style selection wheel (2026-10-19, chat; the image itself is not
 kept in the repo: reference-game art, G5 / G6). What it shows, described for the build:
 
 ## Layout
 - A ring centred on screen over the dimmed game view, translucent teal panels with thin light borders; the game keeps
-  running behind it (G179: no time slow).
+  running behind it (G181: no time slow).
 - Outer ring: about 10 equal segments, each one item: an icon, and under it a count (`x3`) for gadgets or
   `loaded / reserve` ammo (`11/020`, `03/003`) for guns. Empty slots are blank dimmed segments.
 - Items seen: the vision mode (a three-dot goggle icon labelled with the mode, at the top), throwables with counts,

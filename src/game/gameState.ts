@@ -1045,7 +1045,7 @@ export class GameState implements AppState {
   }
 
   /**
-   * (A4, G23, G43, G178) The CT grab menu: opens as the hold starts, the selection moves on the menu / stick up and down,
+   * (A4, G23, G43, G180) The CT grab menu: opens as the hold starts, the selection moves on the menu / stick up and down,
    * A picks (Knock out, Kill, Carry work; Force to device and Interrogate are stubs), B (crouch) lets the guard go.
    * The operator stands still while it is open.
    */
@@ -1380,7 +1380,7 @@ export class GameState implements AppState {
     if (this.grabMenu.open) this.mirrorGrabInput(real);
     const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open || this.grabMenu.open ? this.blankInp : real);
     // the gadget wheel / a remote view / the door menu takes the input: the operator stands still (F1a: except under the
-    // selection wheel, which runs over the live game: the left stick still walks, G179)
+    // selection wheel, which runs over the live game: the left stick still walks, G181)
     const wheelWalk = this.gadgets.wheelOpen && !this.gadgets.remote && !this.doorMenu.open && !this.grabMenu.open;
     this.blankInp.setMove('wheel', wheelWalk ? real.move.x : 0, wheelWalk ? real.move.y : 0);
     const inp = takes || this.doorMenu.open ? this.blankInp : this.grabMenu.open ? this.grabInp : real;

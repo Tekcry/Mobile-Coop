@@ -75,7 +75,7 @@ interface Mine {
  * cams (a remote view with the camera feed look: lure ping / gas / marking from a cam), proximity mines.
  */
 export class GadgetSystem {
-  /** (F1a, G179) The selection wheel: LB / Tab held opens it over the live game (no time slow), the right stick / mouse
+  /** (F1a, G181) The selection wheel: LB / Tab held opens it over the live game (no time slow), the right stick / mouse
    *  moves the cursor, release picks (vision mode, gun or gadget); a tap of the button switches weapon. */
   readonly sel = new SelectionWheel();
   /** The ring while the wheel is open (rebuilt each step: counts and ammo move). */
@@ -240,7 +240,7 @@ export class GadgetSystem {
     this.refreshRing();
   }
 
-  /** Close the wheel (no time scale to restore, G179); `pick` applies the highlighted item. */
+  /** Close the wheel (no time scale to restore, G181); `pick` applies the highlighted item. */
   closeWheel(pick: boolean): void {
     if (!this.wheelOpen) return;
     const p = pick ? this.sel.pick(this.ring) : null;

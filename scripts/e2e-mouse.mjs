@@ -319,7 +319,7 @@ try {
     });
     assert(missed.length === 0, `every KBM verb raises its action (${KBM.length} keys; missed: ${missed.join(', ') || 'none'})`);
   }
-  // (F1a, G179) the KBM vision key (N) toggles the mode picked on the wheel (night first), on then off; post.vk follows
+  // (F1a, G181) the KBM vision key (N) toggles the mode picked on the wheel (night first), on then off; post.vk follows
   {
     const vis = () => page.evaluate(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
     const seq = [];

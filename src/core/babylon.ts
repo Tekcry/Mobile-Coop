@@ -9,6 +9,9 @@ export { EngineStore } from '@babylonjs/core/Engines/engineStore';
 export { Vector3, Vector2, Vector4, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
 export { Skeleton } from '@babylonjs/core/Bones/skeleton';
 export { Bone } from '@babylonjs/core/Bones/bone';
+// (feature/weapons) the operators' finger-grip morph targets
+export { MorphTarget } from '@babylonjs/core/Morph/morphTarget';
+export { MorphTargetManager } from '@babylonjs/core/Morph/morphTargetManager';
 export { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 export { Scalar } from '@babylonjs/core/Maths/math.scalar';
 export { Ray } from '@babylonjs/core/Culling/ray';
@@ -151,6 +154,8 @@ import '@babylonjs/core/Shaders/shadowMap.fragment';
 import '@babylonjs/core/Shaders/rgbdDecode.fragment';
 import '@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent';
 import '@babylonjs/core/Materials/Textures/Procedurals/proceduralTextureSceneComponent';
+// (menu-ui slice 6) the procedural textures' vertex shader (the surface atlas): without it Babylon fetches it by URL
+import '@babylonjs/core/Shaders/procedural.vertex';
 import '@babylonjs/core/Rendering/depthRendererSceneComponent';
 import '@babylonjs/core/Rendering/geometryBufferRendererSceneComponent';
 import '@babylonjs/core/Rendering/prePassRendererSceneComponent';

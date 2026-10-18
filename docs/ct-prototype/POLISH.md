@@ -24,7 +24,7 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - Thermal thresholds tuned on the GPU (A5).
 
 ## Doors and wall
-- Lock picking (CT had it, G178; no code yet).
+- Lock picking (CT had it, G180; no code yet).
 - Optic cable (stub).
 
 ## Tests and tools

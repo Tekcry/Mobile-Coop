@@ -32,6 +32,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
+  fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
   guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).

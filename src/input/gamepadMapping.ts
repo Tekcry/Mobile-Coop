@@ -50,7 +50,7 @@ const BTN_THRESHOLD = 0.5;
 
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled separately. The
- * Chaos Theory pad (F1a, G96, G179): A interact / context (the source turns it into reload while drawn), B crouch, Y jump,
+ * Chaos Theory pad (F1a, G96, G181): A interact / context (the source turns it into reload while drawn), B crouch, Y jump,
  * X draw / holster toggle, L3 back-to-wall (and shoulder swap: the player only swaps while aiming, the wall only
  * enters while not), R3 zoom, RB co-op action (Black), LB selection wheel (hold) / switch weapon (tap), D-pad up / down
  * the speed rocker, left the selected vision mode on / off, right quick-use of the selected gadget, View mission

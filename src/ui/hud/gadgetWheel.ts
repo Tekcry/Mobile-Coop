@@ -23,7 +23,7 @@ export interface WheelView {
 const SHORT: Record<WheelVision, string> = { night: 'NV', thermal: 'TH', electro: 'EM' };
 
 /**
- * (CT prototype F1a, G179; layout WHEEL-REF.md) The selection wheel and the remote feed overlay. A ring of teal
+ * (CT prototype F1a, G181; layout WHEEL-REF.md) The selection wheel and the remote feed overlay. A ring of teal
  * translucent tiles over the live game (the game does not slow): the vision slot at the top with its three-mode stack
  * above it, the guns (loaded / reserve), the kit gadgets (counts); a label right of the ring names the highlighted item
  * and its kind, a hint box at the left names the key. The tile art is our own (glyphs and the gadget icons). DOM is

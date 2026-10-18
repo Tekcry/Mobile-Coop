@@ -1,5 +1,5 @@
 /**
- * (CT prototype A4, G23, G43, G178) The Chaos Theory grab menu, Babylon-free. The ground takedown button grabs a guard
+ * (CT prototype A4, G23, G43, G180) The Chaos Theory grab menu, Babylon-free. The ground takedown button grabs a guard
  * from behind; while holding him this short list opens in the HUD: Knock out, Kill, Carry (knock out and shoulder the
  * body), and the stubs Force to device (no scanner hook yet) and Interrogate (later). The game reads `pick()` and
  * acts; the HUD draws `labels()`. Stub entries do nothing but say so (the menu stays open).

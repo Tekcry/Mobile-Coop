@@ -235,7 +235,7 @@ export interface WallInput {
   /** (step 21w, D7) `gameplay.crouchToggle` false (hold to crouch): on a high face the stance follows `crouchHeld`. */
   crouchHold?: boolean;
   crouchHeld?: boolean;
-  /** Something else wants the body: aiming (G178, CT: aiming leaves the wall), a takedown, traversal (leaves at once). */
+  /** Something else wants the body: aiming (G180, CT: aiming leaves the wall), a takedown, traversal (leaves at once). */
   leave: boolean;
   /** Entering is not allowed now (aiming down sights is fine; a committed move, an attach, a takedown is not). */
   blocked: boolean;

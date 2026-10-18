@@ -183,11 +183,20 @@ describe('operator runtime: poser (rig -> operator skeleton)', () => {
     expect(setup.self[slot('pelvis')]).toBe(1);
     expect(setup.self[slot('handL')]).toBe(0);
     expect(setup.self[slot('root')]).toBe(0);
-    // the hang turns the bind upper arm onto -Y
+    // the hang turns the bind upper arm onto -Y, and (feature/weapons) the forearm chain by the forearm's own
+    // direction: the bent bind elbow straightened as the rig's rest arm, so the wrists land on the rig's
     const sh = slot('shL');
     const h = setup.hang.subarray(sh * 4, sh * 4 + 4);
     expect(Math.abs(h[3]!)).toBeLessThan(0.99);
-    expect([...setup.hang.subarray(slot('fingerL_1_1') * 4, slot('fingerL_1_1') * 4 + 4)]).toEqual([...h]);
+    const el = slot('elL');
+    const wr = slot('wrL');
+    const hf = setup.hang.subarray(el * 4, el * 4 + 4);
+    expect([...setup.hang.subarray(slot('fingerL_1_1') * 4, slot('fingerL_1_1') * 4 + 4)]).toEqual([...hf]);
+    expect([...setup.hang.subarray(wr * 4, wr * 4 + 4)]).toEqual([...hf]);
+    const fore: V3 = [0, 1, 2].map((k) => setup.bindPos[wr * 3 + k]! - setup.bindPos[el * 3 + k]!) as V3;
+    const down = rotateV([hf[0]!, hf[1]!, hf[2]!, hf[3]!], fore);
+    const len = Math.hypot(...fore);
+    expect(down[1] / len).toBeLessThan(-0.9999);
     expect([...setup.hang.subarray(slot('hipL') * 4, slot('hipL') * 4 + 4)]).toEqual([0, 0, 0, 1]);
   });
 

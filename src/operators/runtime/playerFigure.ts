@@ -18,6 +18,7 @@ import { pageLeaving, warmPlayLods } from './offline';
 import { OperatorFigure, OperatorLibrary } from './figure';
 import { goggleColour, goggleSlot } from './goggle';
 import { wrenManifest } from './assets';
+import { WREN_BACK_MOUNT, WREN_HANDS, WREN_HOLSTER } from '../handFrame';
 
 type VoxelOpts = Parameters<typeof setVoxelBodies>[0];
 
@@ -68,6 +69,12 @@ export function operatorRig(scene: Scene, make: PartFactory, look: AvatarLook, n
     m.setEnabled(false);
     m.isPickable = false;
   }
+  // (feature/weapons) her own hands for the weapon holds: the palm on the grip, the knuckles round it
+  rig.setHands(WREN_HANDS);
+  // (feature/weapons) the sidearm in her own built holster, not the generic thigh slot
+  rig.thighMount = WREN_HOLSTER;
+  // (feature/weapons) the long gun hangs from her back plate's receiver bar by its back stud
+  rig.backMount = WREN_BACK_MOUNT;
   const figure = new OperatorFigure(operatorLibrary(scene), rig, wrenManifest(), name);
   if (casters) figure.onMeshes = (ms) => { for (const m of ms) casters(m); };
   return { rig, figure };
