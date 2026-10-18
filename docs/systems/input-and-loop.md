@@ -73,7 +73,7 @@ and the code together.
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button (LB is the quick inventory) |
 | Gadget (hold aims, release throws) | `grenade` | D-pad down | D-pad down | `gadget` (G) | Works holstered (G21); CT's throw-cam slot |
 | Quick inventory / gadget wheel | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | 7 slots; CT's White button |
-| Co-op action | `ping` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button; today the ping, the free moves come with the co-op slices |
+| Co-op action | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button; today the ping, the free moves come with the co-op slices |
 | Vision (goggles) | `vision` | D-pad up | D-pad up | `goggles` (N) | One button cycles the modes (CT's D-pad vision) |
 | Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | G17: only while aiming |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |

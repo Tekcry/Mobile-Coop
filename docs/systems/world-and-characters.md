@@ -56,15 +56,16 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
-- `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m:
+- `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m (with the ANSUR II
+  corrections of ops SPEC 4.3 A1, A3-A7 since operators step 11e, G72, every character):
 
   | Landmark | Value | | Limb (len, r0 -> r1) | Value |
   | --- | --- | --- | --- | --- |
-  | Head h / w / d | 0.229 / 0.158 / 0.19 (7.5 heads tall) | | Upper arm | 0.30, 0.050 -> 0.038 |
-  | Shoulder joint y / outer width | 1.435 / 0.46 (~2 head heights) | | Forearm | 0.26, 0.040 -> 0.028 |
-  | Neck base / waist / hip joint y | 1.48 / 1.05 / 0.915 | | Thigh | 0.415, 0.082 -> 0.054 |
+  | Head h / w / d | 0.229 / 0.158 / 0.20 (7.5 heads tall) | | Upper arm | 0.30, 0.050 -> 0.038 |
+  | Shoulder joint y / outer width | 1.40 / 0.49 | | Forearm | 0.26, 0.040 -> 0.028 |
+  | Neck base / waist / hip joint y | 1.48 / 1.05 / 0.915 | | Thigh | 0.39, 0.082 -> 0.054 |
   | Knee / ankle y | 0.50 / 0.075 | | Calf | 0.425, 0.057 -> 0.036 |
-  | Chest w x d / waist w x d | 0.34 x 0.22 / 0.28 x 0.185 | | Hand / foot | 0.17 / 0.27 long |
+  | Chest w x d / waist w x d / pelvis w | 0.34 x 0.24 / 0.30 x 0.215 / 0.35 | | Hand / foot | 0.19 / 0.27 long |
 
   Builds (`average | lean | athletic | broad`) only scale girth (0.88-1.15), shoulders (0.95-1.10), waist and
   chest within that range (`BUILD_MODS`). Enemies: runner lean 1.74 m, grunt average 1.77 m, heavy broad
@@ -83,13 +84,42 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   cosmetics are unchanged (colours apply to both). The default look is the operator (`torso: 'operator'`: suit,
   carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + a three-lens goggle, `rig.setLensGlow` from the
   vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
-- Decided, not built yet: the three-lens goggle breaks the IP rule; a small job swaps in a simple original goggle and
-  the menu uses an original symbol (G69); goggles sit on the brow with a dim glow when vision is off and over the eyes,
-  full glow, when on (G73). Realistic characters everywhere (G68): only two operators, Wren and Moth, are built and
-  playable (G71); they move the same and differ in look and height only (G109; Wren 1.68 m, G74); the camera height is
-  the same for every operator (G38). After Michael approves the prototype a short job puts Wren in behind a dev switch
-  (G70); the shared-body proportion fixes then apply to every character (G72). Operator details stay on
-  feature/operators (G75).
+- **Players are Wren (operators step 11e, G123: "Both play as Wren").** The local player, the co-op partner and the
+  main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); guards,
+  dummies and the VIP keep the part bodies above (G68: realistic guards later). No dev switch.
+  - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
+    G74; build `average`, style `detailed`, no voxel body) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
+    on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as
+    before), the light-meter samples (`game/bodyHeight.ts` `lightSampleHeight(rig.height, crouch)`, local and partner
+    via `PlayerRef.height`; the cover exposure points scale the same way) and the hit volumes (`playerTarget.ts`,
+    `net/remotePlayer.ts`: `hitVolumes(rig.p)`) follow Wren's size. Its part meshes are still built (back gear and thigh widths are measured from them for the
+    weapon carry) but disabled; Wren is what renders. The controller capsule, speeds, noise, traversal anchors and the
+    camera are unchanged (G38). Traversal positions use `GAMEPLAY_HEIGHT` 1.75 for every player (G176); while attached
+    the rig root is drawn at the gameplay root plus `attachLift` (`AttachGrips.lift`, `Player.rootLift`; visual only),
+    so Wren's hands meet the lip, rung or pipe. An elbow inside the trunk after the arm IK swivels out
+    (`characterRig.keepElbowOut`, `rigMath.elbowSwivelClear`).
+  - Wren's files: `src/operators/assets/wren/wren-{hero,lod0,lod1,lod2}.glb` (skinned, KTX2 UASTC textures, 81.4 MB;
+    `assets.ts` imports them with Vite `?url`, same-origin fetch only). Play uses LOD0 (< 8 m), LOD1 (8-25 m), LOD2
+    (beyond), 10 % hysteresis, LOD2 loaded first; the hero (55.5 MB) only for the main menu and registered close-up
+    cameras (photo mode; `setCloseCamera`, D21, D33 "Yes use hero for menu"), loaded lazily after the game LODs.
+    `HERO_CLOSE_UPS` in `figure.ts` switches it off. The service worker caches every `assets/*.glb` fetched through
+    it (CacheFirst, cache `operators`); they are not precached. The first visit loads Wren before the worker controls
+    the page, so once it does `operators/runtime/offline.ts` `warmPlayLods` fetches each missing play LOD through it
+    (`playLodUrls`: LOD2, LOD0, LOD1; `?gfx=min`: LOD2): one online start that reaches the menu is enough for offline
+    play (ops A109). A load cut off by a reload or a disposed scene is not reported (`pageLeaving`, A110).
+  - Two Wren bodies share geometry, materials and textures per scene (`OperatorLibrary`); each has its own skeleton
+    and goggle glow. Goggle (G73): the glow is dim with vision off, full with a vision mode on (`setVision(shown)`);
+    the stowed goggle on the brow waits for its export (cleanup), so the goggle sits over the eyes in both states.
+    Colour per player (G135, ops A112): `goggleSlot` / `goggleColour` (goggle.ts, pure) give the host (and solo) the
+    lens's own green and the partner cyan; the co-op host and client apply it with `setPlayerGlow` (playerFigure.ts)
+    through `OperatorFigure.setGlowColour` (the per-body glow material).
+    The partner's vision is not sent: its glow stays dim. The glow is emissive only, never a light (light parity).
+    Thermal warms Wren with a white per-mesh overlay (`setHeat`, from the rig's `heat`). The camera fade's head hide
+    scales her head joint to zero.
+- Decided, not built yet: the old three-lens goggle stays only on parked looks (G69). Realistic characters everywhere
+  (G68): only two operators, Wren and Moth, are built and playable (G71); they move the same and differ in look and
+  height only (G109; Wren 1.68 m, G74); the camera height is the same for every operator (G38). Operator details stay
+  on feature/operators (G75).
 - Rendering extras: `LightRig` light cones (additive, thin-instanced, `CONE_*`), `vfx/blobShadows.ts` contact
   shadows (`GameState.drawShadows`, `NetAttachment.shadows`), `CinematicPost.setGrade(MapTheme.grade)`.
 - Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, kneel, aim = weapon raise 0..1,

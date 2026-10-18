@@ -3,7 +3,7 @@
 Prototype greybox under G117: every number is a starting value (G10). The level standard review (G157, `docs/level-design.md`) comes later; this spec follows the map-spec template only where it applies (id, setting, flow, footprints, gates, tests). Map rules are the bunker's (G117 / training D41): linear, no station skippable, anti-stuck resets (G80: the course framework restarts a bay when both are down; the thrown / hung partner always gets a way back, built in B4 / B5).
 
 - **Id / name / setting:** `ctcourse`, Marlow Yard. An operator training yard at night: an open obstacle course between 6 m fences, and a cheap cinderblock / plywood annex with a flat roof at station 5. Sodium lamps, dark between them (`lightLevel` 0.3). Not listed; course mode only.
-- **Purpose:** the co-op training course of CT (G161 / G162): 8 stations in CT's order, one lesson each, every station splits the pair and reunites them through an airlock. Target 3-4 min for a practised pair, 9-16 casual.
+- **Purpose:** the co-op training course of CT (G177 / G178): 8 stations in CT's order, one lesson each, every station splits the pair and reunites them through an airlock. Target 3-4 min for a practised pair, 9-16 casual.
 - **Players:** 2 (`COURSE_MAX = 2`). Both start at x 2, z 6 / 8, facing +x. Solo is the dev flag only (`?course=solo`, dev builds).
 
 ## Plan (x east, z north, floor y 0)
@@ -22,7 +22,7 @@ Yard 14 m wide (z 0-14), 170 m long. Bay `i` (0-7) spans `x = 22 i .. 22 i + 16`
 
 ## Rules and rulings used
 - The course ends only when BOTH players stand in the exit zone and the drills are done (G138); a downed player refuses it ("Revive first"). The dev solo flag lets one player end it.
-- Wall medkit stations (G162) at the annex (station 5) and before the last wall; they heal by difficulty: Normal / Rookie full, Hard (Realistic) 50% of max, Expert (Perfectionist) 25%; single use (existing station code).
+- Wall medkit stations (G178) at the annex (station 5) and before the last wall; they heal by difficulty: Normal / Rookie full, Hard (Realistic) 50% of max, Expert (Perfectionist) 25%; single use (existing station code).
 - A thrown / lifted player's return path and 2.4 m screens on skip routes are B2-B8 work, not present in B1 (the placeholder doors are the only way through).
 - Panels are the interactable labels plus the bay's radio line (text only, no voice). Names and text are original.
 

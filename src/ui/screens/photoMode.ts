@@ -4,6 +4,7 @@ import { h } from '../dom';
 import { Screen } from '../screen';
 import { promptHtml, type Hint } from '../prompts';
 import { hyp2 } from '../../core/mathx';
+import { setCloseCamera } from '../../operators/runtime/figure';
 
 /** A state that can hand its camera to photo mode and hold still meanwhile (the game, the menu stage). */
 export interface PhotoHost {
@@ -114,6 +115,8 @@ export class PhotoModeScreen extends Screen {
       this.prevActive = this.host.scene.activeCamera;
       this.host.scene.activeCamera = this.stand;
     }
+    // (operators 11e, D21 / D33) a close-up camera: Wren's hero LOD while the photo camera flies
+    setCloseCamera(c, true);
     // yaw / pitch from where the camera looks now
     const f = this.forward();
     this.yaw = Math.atan2(f.x, f.z);
@@ -273,10 +276,9 @@ export class PhotoModeScreen extends Screen {
     c.position.copyFrom(this.saved.pos);
     c.rotation.copyFrom(this.saved.rot);
     this.saved = null;
-    if (this.stand) {
-      this.host.scene.activeCamera = this.prevActive;
-      this.stand.dispose();
-    }
+    if (this.stand) this.host.scene.activeCamera = this.prevActive;
+    setCloseCamera(c, false);
+    this.stand?.dispose();
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKey);
     if (this.shotUrl) URL.revokeObjectURL(this.shotUrl);
@@ -288,6 +290,7 @@ export class PhotoModeScreen extends Screen {
   override onHide(): void {
     // (popped from elsewhere: leave nothing behind)
     if (this.saved) {
+      setCloseCamera(this.cam, false);
       document.body.classList.remove('photo-mode');
       this.host.photoFreeze(false);
     }

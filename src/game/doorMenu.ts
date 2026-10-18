@@ -2,7 +2,7 @@
  * (CT prototype A3, G19, G97) The Chaos Theory door context menu, Babylon-free. A at a closed door opens a short list
  * (the player stands still): Open, Stealth open (the door peek: a slow crack, the stick pushes it further), Bash (loud;
  * knocks out a guard right behind the door) and the Optic cable (a stub: not built yet). The game reads `pick()` and
- * acts; the HUD draws `labels()`. Locked doors get no menu (no lock picking or breaking in the game yet, G162 note).
+ * acts; the HUD draws `labels()`. Locked doors get no menu (no lock picking or breaking in the game yet, G178 note).
  */
 
 export type DoorOpt = 'open' | 'stealth' | 'bash' | 'optic';

@@ -18,6 +18,13 @@
     "e2e:serial": "node scripts/run-e2e.mjs --serial",
     "e2e:quick": "node scripts/run-e2e.mjs --quick",
     "check": "npm run lint && npm test && npm run build",
+    "operators:build": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/build.mjs",
+    "operators": "vite build --config vite.operators.config.ts && vite preview --config vite.operators.config.ts",
+    "operators:export": "node scripts/operators/export-gltf.mjs",
+    "operators:lods": "node scripts/operators/export-gltf.mjs --lods",
+    "operators:ktx2": "node scripts/operators/ktx2.mjs",
+    "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
+    "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs",
     "music:fetch": "node scripts/music/fetch-samples.mjs",
     "music:render": "node scripts/music/render.mjs",
     "music:orch": "node scripts/music/render-orch.mjs",
@@ -44,6 +51,7 @@
   "dependencies": {
     "@babylonjs/core": "^9.29.0",
     "@babylonjs/havok": "^1.3.14",
+    "@babylonjs/ktx2decoder": "^9.29.0",
     "trystero": "^0.26.0"
   }
 }

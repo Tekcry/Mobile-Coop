@@ -1,8 +1,8 @@
-# CT core feel job - plan (2026-10-18; goal changed by G161)
+# CT core feel job - plan (2026-10-18; goal changed by G177)
 
-**Goal now (G161):** phase 1 pure-CT movement (the areas below, built once), then phase 2 the Fallow bunker rebuilt as
+**Goal now (G177):** phase 1 pure-CT movement (the areas below, built once), then phase 2 the Fallow bunker rebuilt as
 CT's co-op training level, playable start to finish by two players. Pumphouse Nine and C1-C7 in `PLAN.md` are
-replaced by phase 2 below. G162: if CT had it, we use it.
+replaced by phase 2 below. G178: if CT had it, we use it.
 
 The job plan for the core feel job (G150). `PLAN.md` in this folder is the whole prototype plan from the research
 (movement M1-M4, co-op C1-C7); this file is how the core feel job runs inside it.
@@ -43,7 +43,7 @@ The held pistol jammer (G152) is kit work after core feel, unless it touches the
 - Wren (feature/operators, G123): no PR open yet (2026-10-18). Logic goes first; posture and pose work wait for it.
 - The menu job owns menu screens and the menu scene.
 
-## Phase 2 - the co-op training bunker (G161, G162)
+## Phase 2 - the co-op training bunker (G177, G178)
 The Fallow bunker (`src/world/maps/bunker*.ts`, the `course` mode, `docs/training/`) rebuilt as CT's co-op training
 level on the pure-CT moves (G78, G79: every jump and reach re-checked; G80 resets kept; G117 its own map rules; G130
 heightened moves; G151 team moves anywhere with room). CT's drill order (moves-mechanics digest, "Training order (M0)";
@@ -59,8 +59,8 @@ go. Slices, each built once, two-player e2e, pushed to `/ct/`:
 | B4 Partner throw | Throw over the laser, far-side release | Opus (sync) |
 | B5 Hang-down hack | Lower the partner head-first, hack while hanging | Opus (sync) |
 | B6 Paired scanners | Two-key sync with a forgiving window | Opus (sync) |
-| B7 Two-person rope | Partner climbs the held rope (G162, replaces G110 for this move) | Sonnet |
-| B8 Revive and finish | 30 s revive, two per mission (G126), both extract (G138), wall medkits by difficulty (G162) | Opus (sync) |
+| B7 Two-person rope | Partner climbs the held rope (G178, replaces G110 for this move) | Sonnet |
+| B8 Revive and finish | 30 s revive, two per mission (G126), both extract (G138), wall medkits by difficulty (G178) | Opus (sync) |
 
 ### Phase 2 after the B0 survey (Michael, 2026-10-18)
 Michael: relay "CT hanging ladder", other bays "Park behind a flag", level "Fresh compact level", fail cost "Health hit
@@ -69,7 +69,7 @@ with 8 stations in CT's order; the old Fallow bunker is parked behind a dev flag
 own map rules (G117, training D41) and a short spec from `docs/templates/map-spec.md`. Slices (replace the table above):
 | Slice | Built | Model |
 | --- | --- | --- |
-| B1 Spec and greybox | Spec `docs/ct-prototype/CTCOURSE-SPEC.md`; greybox of 8 stations plus start and exit, panels, two players start, both must reach the exit (G138), wall medkits by difficulty (G162), the course mode points at it, Fallow behind a flag; two-page e2e `scripts/e2e-ctcourse.mjs` | Sonnet |
+| B1 Spec and greybox | Spec `docs/ct-prototype/CTCOURSE-SPEC.md`; greybox of 8 stations plus start and exit, panels, two players start, both must reach the exit (G138), wall medkits by difficulty (G178), the course mode points at it, Fallow behind a flag; two-page e2e `scripts/e2e-ctcourse.mjs` | Sonnet |
 | B2 Leg-up and CT relay | Leg-up on co-op action (brace removed), CT hanging-body ledge relay | Sonnet |
 | B3 Jammer, camera, laser | Held pistol jammer on a camera (EMP removed), laser device; touching it costs health plus a radio line | Sonnet |
 | B4 Partner throw | Throw over the laser, far-side release | Opus |

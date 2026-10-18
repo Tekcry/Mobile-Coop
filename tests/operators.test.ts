@@ -1,0 +1,161 @@
+import { describe, expect, it } from 'vitest';
+import { KITS, kitCoverage, MAX_CABLE_SPAN, MOTH_KIT, validateKit, WREN_KIT } from '../src/operators/kit';
+import type { Kit, KitItem } from '../src/operators/kit';
+import { BASE_CORRECTIONS, JOINT_NAMES, OPERATORS, operatorBodyExport, operatorJoints, operatorProportions } from '../src/operators/operatorBody';
+import { proportions } from '../src/player/proportions';
+
+const withItem = (kit: Kit, item: KitItem): Kit => ({ ...kit, items: [...kit.items, item] });
+const base = { kind: 'strap', zone: 'torso', where: 'x', job: 'holds', attach: 'sewn' } as const;
+
+describe('operator kit', () => {
+  it('both kits are logical', () => {
+    expect(validateKit(WREN_KIT)).toEqual([]);
+    expect(validateKit(MOTH_KIT)).toEqual([]);
+  });
+
+  it('no flip mount (D19): a goggle band with two anchors on the goggle holds it in use or stowed', () => {
+    for (const kit of [WREN_KIT, MOTH_KIT]) {
+      const ids = kit.items.map((i) => i.id);
+      expect(ids).not.toContain('flipMount');
+      const band = kit.items.find((i) => i.id === 'goggleBand');
+      expect(band?.kind).toBe('strap');
+      expect(band?.anchors?.map((x) => x.item)).toEqual(['goggle', 'goggle']);
+    }
+  });
+
+  it('the pipeline kit check names built items missing from the kit', () => {
+    // step 08a: the stealth suit with its zip and thumb loops (py/garments/suit.py KIT + KITS)
+    expect(kitCoverage(WREN_KIT, ['suit', 'suitZip', 'thumbLoops'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['suit', 'shoulderCape']).missing).toEqual(['shoulderCape']);
+    // A37: the suit replaces the base layer, the combat shirt and the trousers (and what was sewn onto them)
+    expect(kitCoverage(WREN_KIT, ['baseLayer', 'combatShirt', 'elbowPockets', 'armPocketL', 'armPocketR', 'softShell',
+      'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']).missing).toEqual(['baseLayer', 'combatShirt', 'elbowPockets',
+      'armPocketL', 'armPocketR', 'softShell', 'buttPatch', 'trousers', 'kneePads', 'cargoL', 'cargoR']);
+    // step 08b: the armour build (py/garments/armour.py KIT + KITS); the step 08 carrier's own items are gone (D22-D24)
+    expect(kitCoverage(WREN_KIT, ['chestPlate', 'ribSegments', 'backPlate', 'harnessShoulders', 'torsoSideStraps',
+      'magBuckle', 'weaponMount'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee',
+      'carrierRelease']).missing).toEqual(['carrier', 'carrierShoulders', 'cummerbund', 'backPanel', 'rifleBungee', 'carrierRelease']);
+    // step 09: the storage builds (chest_rig.py, waist_belt.py, leg_kit.py KIT + KITS); the carrier-era pouches are gone
+    expect(kitCoverage(WREN_KIT, ['magPouches', 'gadgetSlot', 'knife', 'ptt', 'radio', 'radioCable'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['waistBelt', 'pistolMagPouch', 'camMinePouch', 'rappelRing', 'slingSocket', 'dronePod',
+      'medPouch', 'magBuckle'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['thighHolster', 'holsterHanger', 'legBands', 'sleevePanel', 'throwableSleeves',
+      'sleeveHanger'])).toEqual({ missing: [], errors: [] });
+    expect(kitCoverage(WREN_KIT, ['adminPouch', 'radioPouch', 'belt', 'grenadePouches', 'dumpPouch', 'knifeSheath',
+      'dropHanger', 'legStraps', 'smgSling']).missing).toEqual(['adminPouch', 'radioPouch', 'belt', 'grenadePouches',
+      'dumpPouch', 'knifeSheath', 'dropHanger', 'legStraps', 'smgSling']);
+    // step 09b: approach_boots.py builds kit id 'boots' (A67): approach boots, no speed hooks (D23)
+    expect(kitCoverage(WREN_KIT, ['boots'])).toEqual({ missing: [], errors: [] });
+    const boots = WREN_KIT.items.find((i) => i.id === 'boots');
+    expect(boots?.name).toBe('Approach boots');
+    expect(boots?.job).toMatch(/rand rising over the toe/);
+    expect(boots?.job).toMatch(/edging zone/);
+    expect(boots?.attach).toMatch(/no speed hooks/);
+    const broken = withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [] });
+    expect(kitCoverage(broken, ['suit']).errors.length).toBeGreaterThan(0);
+  });
+
+  it('every cable span is within the limit', () => {
+    for (const kit of Object.values(KITS)) {
+      for (const c of kit.items.filter((i) => i.kind === 'cable')) {
+        const pts = [0, ...(c.retention ?? []).map((r) => r.at), c.length ?? 0];
+        for (let i = 1; i < pts.length; i++) expect(pts[i]! - pts[i - 1]!).toBeLessThanOrEqual(MAX_CABLE_SPAN + 1e-9);
+      }
+    }
+  });
+
+  it('rejects a strap with one anchor', () => {
+    const e = validateKit(withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [{ item: 'chestPlate', point: 'top' }] }));
+    expect(e.some((x) => x.includes('two anchors'))).toBe(true);
+  });
+
+  it('rejects a strap anchored to nothing or twice to one point', () => {
+    const e = validateKit(withItem(WREN_KIT, { ...base, id: 'bad', name: 'bad', anchors: [{ item: 'nowhere', point: 'a' }, { item: 'nowhere', point: 'a' }] }));
+    expect(e.some((x) => x.includes('unknown item'))).toBe(true);
+    expect(e.some((x) => x.includes('same point'))).toBe(true);
+  });
+
+  it('rejects a pouch without contents or closure', () => {
+    const e = validateKit(withItem(MOTH_KIT, { ...base, kind: 'pouch', id: 'bad', name: 'bad', contents: [] }));
+    expect(e.some((x) => x.includes('contents'))).toBe(true);
+    expect(e.some((x) => x.includes('closure'))).toBe(true);
+  });
+
+  it('rejects an item without a job', () => {
+    const e = validateKit(withItem(MOTH_KIT, { ...base, kind: 'hardware', id: 'bad', name: 'bad', job: ' ' }));
+    expect(e).toContain('moth.bad: no job');
+  });
+
+  it('rejects a cable without a source or with a long free span', () => {
+    const e = validateKit(
+      withItem(WREN_KIT, { ...base, kind: 'cable', id: 'bad', name: 'bad', device: 'goggle', length: 0.5, retention: [{ at: 0.1, by: 'clip' }, { at: 0.3, by: 'clip' }] }),
+    );
+    expect(e.some((x) => x.includes('source'))).toBe(true);
+    expect(e.some((x) => x.includes('0.20 m free before "clip"'))).toBe(true);
+    expect(e.some((x) => x.includes('before the device'))).toBe(true);
+  });
+
+  it('rejects duplicate ids', () => {
+    const first = WREN_KIT.items[0]!;
+    expect(validateKit(withItem(WREN_KIT, first))).toContain(`${first.id}: duplicate id`);
+  });
+});
+
+describe('operator bodies', () => {
+  it('uses each operator\'s height', () => {
+    expect(operatorProportions(OPERATORS.wren).height).toBe(1.68);
+    expect(operatorProportions(OPERATORS.moth).height).toBe(1.78);
+  });
+
+  it('applies the ANSUR II corrections, which proportions.ts now carries for every character (G72, step 11e)', () => {
+    const p = operatorProportions(OPERATORS.moth);
+    const k = 1.78 / 1.75;
+    expect(p.y.shoulder).toBeCloseTo(BASE_CORRECTIONS.shoulderY * k, 6);
+    expect(p.hand.len).toBeCloseTo(BASE_CORRECTIONS.handLen * k, 6);
+    expect(p.upperArm.len).toBeCloseTo(0.3 * k, 6);
+    const base = proportions('average');
+    const c = BASE_CORRECTIONS;
+    expect(base.y.shoulder).toBeCloseTo(c.shoulderY, 9);
+    expect(base.hand.len).toBeCloseTo(c.handLen, 9);
+    expect(base.pelvis.w).toBeCloseTo(c.pelvisW, 9);
+    expect(base.waist.w).toBeCloseTo(c.waistW, 9);
+    expect(base.waist.d).toBeCloseTo(c.waistD, 9);
+    expect(base.chest.d).toBeCloseTo(c.chestD, 9);
+    expect(base.head.d).toBeCloseTo(c.headD, 9);
+    expect(base.shoulderWidth).toBeCloseTo(c.shoulderWidth, 9);
+    expect(base.thigh.len).toBeCloseTo(c.thighLen, 9);
+  });
+
+  it('puts fingertips near the survey ratio (~0.37 of stature)', () => {
+    for (const def of Object.values(OPERATORS)) {
+      const hand = operatorJoints(operatorProportions(def)).find((j) => j.name === 'handR')!;
+      expect(hand.pos[1] / def.height).toBeGreaterThan(0.36);
+      expect(hand.pos[1] / def.height).toBeLessThan(0.38);
+    }
+  });
+
+  it('exports every joint once, parents first, symmetric left and right', () => {
+    const joints = operatorJoints(operatorProportions(OPERATORS.wren));
+    expect(joints.map((j) => j.name)).toEqual([...JOINT_NAMES].sort((a, b) => joints.findIndex((j) => j.name === a) - joints.findIndex((j) => j.name === b)));
+    expect(new Set(joints.map((j) => j.name)).size).toBe(JOINT_NAMES.length);
+    const seen = new Set<string>();
+    for (const j of joints) {
+      if (j.parent) expect(seen.has(j.parent)).toBe(true);
+      seen.add(j.name);
+    }
+    const by = (n: string) => joints.find((j) => j.name === n)!.pos;
+    expect(by('shL')[0]).toBeCloseTo(-by('shR')[0], 9);
+    // Straight legs reach the ground: the ankle sits at the table's ankle height.
+    const p = operatorProportions(OPERATORS.wren);
+    expect(Math.abs(by('anL')[1] - p.y.ankle)).toBeLessThan(0.01);
+    expect(Math.abs(by('knL')[1] - p.y.knee)).toBeLessThan(0.01);
+  });
+
+  it('Wren is shorter with a lower head sample than Moth', () => {
+    const w = operatorBodyExport(OPERATORS.wren);
+    const m = operatorBodyExport(OPERATORS.moth);
+    expect(m.hitVolumes.headY - w.hitVolumes.headY).toBeGreaterThan(0.05);
+    expect(w.proportions.pelvis.w / w.proportions.shoulderWidth).toBeGreaterThan(m.proportions.pelvis.w / m.proportions.shoulderWidth);
+  });
+});

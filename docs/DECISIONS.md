@@ -9,7 +9,7 @@ this file disagree, this file wins until the bible is fixed.
 How entries are numbered:
 - G1, G2, ... are new global numbers, used from now on. A job that merges adds Michael's new decisions here with the next
   free G number.
-- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D29), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
 
@@ -328,7 +328,8 @@ uses an original symbol. Michael: "Original goggle" and "Soon" (chat 17 and ART-
 D20.)
 
 **G70. Wren integration job first.** After Michael approves the prototype, a short job puts Wren in behind a dev switch;
-then the weapon step. Michael: "Wren job first" (ART-04, 2026-10-17; replaces loco M18's pause rule.)
+then the weapon step. Michael: "Wren job first" (ART-04, 2026-10-17; replaces loco M18's pause rule.) Timing and the dev switch
+replaced by G123.
 
 **G71. Two operators: Wren and Moth.** Only Wren and Moth are built and playable; no four-operator plan. Michael: "2 player
 game only." (ART-05, 2026-10-17; replaces bible 5.14's four playable operators.)
@@ -823,9 +824,99 @@ These come from the research digests. Michael has not decided them; they go to h
   lock picking with a noise cost, adaptive music. Dropped: the last-known-position marker, the remote digital layer, the
   under-3-second retry target, the after-action route map (kit-design-digest section 5).
 
-### Prototype goal (feature/ct-prototype, 2026-10-18; G numbers confirmed at merge)
+## Operators run (feature/operators), recorded when Wren went in (step 11e, 2026-10-18)
 
-**G161. Pure-CT movement prototype, then the co-op training bunker.** The prototype is (1) pure-CT movement built once
+The operators run's own file (feature/operators docs/operators/DECISIONS.md, ops D1-D33 and its assumed A-decisions)
+is history for Michael's decisions: the ones still current are below. Ops D3 (identical skeleton), D9 (phone LOD),
+D17 (scripted workflow) and D19's "more futuristic housing" are replaced and not carried. G123 was reserved for this
+run on master; the rest were G124-G139 on feature/operators and were renumbered G161-G176, in the same order, when
+master's G124-G160 (the CT co-op research) merged in.
+
+**G123. Wren is the player character now, for both players.** Wren replaces the player body for solo, the local co-op
+player and the co-op partner, before the prototype is done and with no dev switch; guards keep their bodies (G68);
+gameplay does not change (G38). Michael: "I want wren in to replace the existing character anyway; before the
+prototype is done" and, until Moth is finished, "Both play as Wren" (2026-10-18, ops D31; replaces G70's "after the
+prototype, behind a dev switch".)
+
+**G161. Wren in first, polish later.** Wren goes into the game now; the remaining polish (kit relabels, the stowed
+goggle export, doc fixes) is cleanup while the game is built. Michael: "I want wren in the game first. We will clean up
+changes later while the game is built." Until the stowed goggle is exported it stays over the eyes in both states and
+only the glow follows G73: "Yes, fix in cleanup (Recommended)" (2026-10-18, ops D33.)
+
+**G162. The hero model in the main menu and close-ups; it ships.** The hero LOD drives the main menu and every
+close-up camera (photo mode, later close shots); gameplay uses LOD0-2. The 55.5 MB hero file ships in the game build,
+loaded only when a close-up camera needs it. Michael: "i do want hero version for the main menu and for any close up
+shots" (2026-10-16, ops D21) and, after seeing hero against LOD0 close-ups, "Yes use hero for menu" (2026-10-18, ops
+D33.)
+
+**G163. Operators look AAA-real, up close.** No code-built look: believable fabric, folds, seams, stitching, wear,
+straps under tension, hard kit with real material response; they must hold up at 0.3-1 m in menus. Michael: "the
+operators must NOT look code-built. They must look as detailed and realistic as a modern AAA stealth game character"
+and "they must hold up when used up close in menu animations" (2026-10-15, ops D1, D2.)
+
+**G164. Faces fully covered.** Fitted balaclava or hood plus goggles; no visible face or skin. Michael: "fully covered,
+full stealth gear (fitted balaclava/hood plus goggles). No visible face or skin." (2026-10-15, ops D4.)
+
+**G165. Splinter Cell inspired, original in every shape.** Michael: "I am expecting splinter cell inspired models that
+are original" (2026-10-15, ops D5; the no-IP rule stands.)
+
+**G166. Each operator has their own size; hit boxes follow the body.** Skeleton, hit volumes and light sample heights
+match each operator's real size; the capsule, speeds, camera rules and every traversal move stay shared. Michael:
+"operators can be slightly different sizes, i would prefer realism over fairness. the games focus is mostly coop" and
+"Hit boxes follow the body (Recommended)" (2026-10-15, ops D10, D11; replaces ops D3's identical skeleton. With G74.)
+
+**G167. Built offline in Blender on a CC0 base body.** In-repo scripts run Blender headless: sewn garment panels draped
+by cloth simulation, bevelled kit, baked maps, glTF out; the base body is MPFB2's CC0 data (no MPFB code). Michael:
+"Blender pipeline (Recommended)" and "Download it (Recommended)" (2026-10-15, ops D7, D12.)
+
+**G168. A stealth operative, not military: Wren's concept.** A one-piece fitted stealth suit, slim segmented armour,
+slimline tactical storage mapped to the game's loadout, lighter approach boots, no climbing sit harness; no guns
+modelled (the game's weapon models attach in game). Michael: "I want more of a stealth operative design. Wetsuit fitted
+suit, slim body armour, tactical ammo storage/holsters" (ops D22), "I like A, but can you make it more logical based
+off the requirements of the game" (ops D23) and "yes build a2, but create without the guns, they will be in game
+anyway" (ops D24) (2026-10-16.)
+
+**G169. Goggles: no flip, the original housing, a tactical strap.** The goggle sits over the forehead when stowed and
+over the eyes in use (no flip arm); the original housing stays; the head harness is option 2 (split crown, hard rear
+pod). Michael: "the goggles shouldn't flip up and down, they should just sit over the forehead, and be over the face
+when in use" (ops D19), "the original one looked better but it can't flip up" and "2 - Split crown, hard pod" (ops
+D20) (2026-10-16. With G69, G73.)
+
+**G170. Rigid kit stays rigid.** Magazines, knife, holster shell, pods, buckles and plates keep their true straight
+shape on the body, each skinned to one bone; placement starts from each item's size, weight, draw and movement.
+Michael: "any attachments (magazines, knife etc) can't be bent which they currently are. They are rigid and must be
+reflected that way on the character" (2026-10-17, ops D28; his placement picks are in ops D28.)
+
+**G171. Kit after master's deletions.** The hip pod stays as a utility pouch, the medkit pouch as a plain pouch, the
+thigh holster as is (pistolSd draws from it), the left-hip socket carries the rifle sling. Michael: "Keep as utility
+pouch", "Keep as plain pouch", "Leave as is", "Keep for the rifle sling" (2026-10-18, ops D32; relabels are cleanup,
+G161.)
+
+**G172. KTX2 textures: encoder offline, decoder bundled.** Operator textures are KTX2 (UASTC); the KTX-Software
+encoder is an offline tool, Babylon's KTX2 decoder is bundled from npm, nothing fetched at runtime. Michael: "Install
+toktx (Recommended)" and "Yes, add it (Recommended)" (2026-10-17, ops D26, D27.)
+
+**G173. No phone LOD.** Hero, LOD0, LOD1 and LOD2 serve desktop distance bands only. Michael: "Yes, drop phone LOD
+(Recommended)" (2026-10-17, ops D29; follows G12.)
+
+**G174. Wren goes in before Moth.** Michael: "i want to move the completed character into the game also before
+starting on the next one" (2026-10-18, ops D30.)
+
+**G175. Operator jobs run as small steps in one orchestrator session, with screenshots.** One focused step at a time
+(implementer, an independent checker, up to three fix rounds), unattended, with progress renders at each step's end.
+Michael: "i would prefer to do smaller steps that keep claude focused and on task", "i still want to see screenshot at
+end of each step so i can see progress" and "Orchestrator session" (2026-10-16, ops D15, D16, D18; the session
+method in docs/systems/session-method.md.)
+
+**G176. Traversal gameplay is fixed at the 1.75 m body for every player.** Ledge hangs, wall jumps, climbs, ladders,
+pipes and every other attached position use one gameplay height (the old 1.75 m body's values), whatever the drawn
+body's height; Wren's body is lifted onto her grips visually (arms and IK adjust so her hands meet the ledge) and
+gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm higher: "Keep gameplay fixed
+(Recommended)" (2026-10-18, ops D34; with G38; replaces ops A105.)
+
+### Prototype goal (feature/ct-prototype, 2026-10-18; first written as G161-G162, renumbered at the Wren merge)
+
+**G177. Pure-CT movement prototype, then the co-op training bunker.** The prototype is (1) pure-CT movement built once
 to the footage numbers (M1-M4: body, manual camera, back-to-wall, doors and the CT pad layout, palm strike and grab,
 goggles), then (2) the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish
 by two players, with the co-op moves it needs (leg-up and ledge relay, held jammer on a camera, partner throw over a
@@ -843,7 +934,7 @@ ct coop bunker / coop training level." (Replaces G150's tune-until-sign-off and 
 loop; replaces Pumphouse Nine as the prototype level in docs/ct-prototype/PLAN.md; applies G78, G79, G80, G117, G130,
 G151, G152.)
 
-**G162. Pure CT: if CT had it, we use it.** Michael: "Pure ct, if it had it, we will use it." (relayed from the main
+**G178. Pure CT: if CT had it, we use it.** Michael: "Pure ct, if it had it, we will use it." (relayed from the main
 session, 2026-10-18.) It settles the research findings listed above for Michael to confirm:
 - CT's two-person rope (the partner climbs the held rope) is built in the bunker; it replaces G110's "no rope climb" for
   this move.
@@ -854,3 +945,12 @@ session, 2026-10-18.) It settles the research findings listed above for Michael 
   together); the CT moves stay: leg-up, ledge relay, partner throw, hang-down, rope.
 - G11: the five ideas CT has stay (guards relight lamps and investigate dead lights, paired searches, eavesdropping,
   lock picking with a noise cost, adaptive music); the four it does not have go.
+
+**G179. Selection wheel for weapons, gadgets and vision mode.** A Blacklist-style selection menu picks the weapon, the
+gadget and the vision mode; one button only turns the selected vision mode on and off (the goggle flip plays only on
+on / off, never between modes). No time slow while it is open. This one menu is Michael's exception to G1 and to the
+"Blacklist systems are history" rule. Michael: "incorporate blacklist style menu that allows selection of weapons,
+gadgets, and vision mode. Single button only toggles that one vision selected." (native multiple choice, core feel
+session, 2026-10-18); "no time slow" relayed from the main session (2026-10-19). Assumed placement (feel A1): the menu
+on LB hold, LB tap switches weapon, the vision toggle on D-pad left. (Replaces G100's cycle order and the goggle part
+of G96's exact CT layout.)

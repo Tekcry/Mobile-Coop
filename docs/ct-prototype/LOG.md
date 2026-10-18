@@ -23,11 +23,11 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   cross the chest on a shoulder swap (aim side not on the wire).
 - Status: A2.1 BUILT, awaiting Michael's play.
 
-## 2026-10-18 - goal change (G161, G162)
+## 2026-10-18 - goal change (G177, G178)
 - Michael (native multiple choice): "Prototype movement focus first ct-pure, then full coop loop"; overnight "It can run
   overnight but not yet. I'm still awake. Also we should focus on the ct training coop session."; "Yes, push to
   ct-movement"; "Yes, Opus for those"; co-op level "Rebuild Fallow on it". Main session relayed his wider direction and
-  "Pure ct, if it had it, we will use it." Recorded as G161, G162 in docs/DECISIONS.md; FEEL-PLAN phase 2 added.
+  "Pure ct, if it had it, we will use it." Recorded as G177, G178 in docs/DECISIONS.md; FEEL-PLAN phase 2 added.
 - Status: A2.1 awaiting Michael's play (now on /ct/).
 
 ## 2026-10-18 - A1.1 turn follow (prototype)
@@ -83,7 +83,7 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Built (Sonnet): `ctcourse` "Marlow Yard" (spec `CTCOURSE-SPEC.md`), 14 x 170 m night training yard, 8 stations in CT
   order with airlocks; placeholder gates (pair plates, held consoles, hack lever) labelled with the slice that replaces
   them; station 1 panels; exit completes only with both players in (G138); wall medkits full / 50 % / 25 % by
-  difficulty, single use (G162). Course default map is ctcourse; Fallow only with `?legacy=1`; e2e-bunker moved to the
+  difficulty, single use (G178). Course default map is ctcourse; Fallow only with `?legacy=1`; e2e-bunker moved to the
   legacy list. Report `B1-CTCOURSE.md`.
 - Checks: lint 0, vitest 1473 pass, build ok; e2e smoke, ctcourse (392 s), course (solo rerun after a latency limit)
   pass. Not done: real mechanics (B2-B8), menu listing, testing-tools.md.
@@ -99,3 +99,15 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   sections (its team section passed trimmed); e2e-coop not run. anim-audit and e2e-ct-warehouse still use the brace and
   old stack (polish list).
 - Status: B2 BUILT (partly verified).
+
+## 2026-10-19 - merged origin/master (Wren, PR #5)
+- Conflicts and resolutions:
+  - `src/game/gameState.ts` imports: master's (bodyHeight); `hyp3` dropped (unused).
+  - `src/game/teamController.ts`: B2's imports and relay code, master's `GAMEPLAY_HEIGHT` (G176) for hang poses,
+    kept the allocation-free scratch pose.
+  - `src/net/remoteAvatar.ts`: Wren's `loadPlayLods` and pouches; kept the A5 partner beacon.
+  - `docs/DECISIONS.md`: master's operators section (G123, G161-G176) kept; this branch's G161 / G162 renumbered to
+    G177 / G178 everywhere on the branch; the selection wheel added as G179 (and in the bible).
+  - `docs/art-credits.md`: master's file plus the menu fonts section.
+- `npm install` for master's `@babylonjs/ktx2decoder` (G172).
+- Goal (PR #6, not yet on master) copied into RULES and STATE from origin/docs/prototype-goal.

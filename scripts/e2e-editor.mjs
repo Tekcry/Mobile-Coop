@@ -13,8 +13,8 @@ const port = await freePort();
 // ED3-3a: the server reads and saves a copy of the campus in a temp folder, never docs/kestrel
 const sandbox = mkdtempSync(path.join(tmpdir(), 'kestrel-e2e-'));
 // docs/kestrel as it was before the run (a session's own uncommitted edits are not the test's)
-const docsBefore = execSync('git status --porcelain docs/kestrel', { encoding: 'utf8' });
-const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, KESTREL_EDITOR_SANDBOX: sandbox } });
+const docsBefore = execSync('git status --porcelain docs/kestrel', { windowsHide: true, encoding: 'utf8' });
+const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, KESTREL_EDITOR_SANDBOX: sandbox } });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite did not start')), 60000);
   vite.stdout.on('data', (b) => { if (/ready in/.test(String(b))) { clearTimeout(t); res(); } });
@@ -3942,7 +3942,7 @@ try {
   await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden') && /Save\?/.test(document.getElementById('ask').textContent), null, { timeout: 60000 });
   await press(BTN.A);
   await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
-  const gitDocs = execSync('git status --porcelain docs/kestrel', { encoding: 'utf8' }) === docsBefore ? '' : 'changed';
+  const gitDocs = execSync('git status --porcelain docs/kestrel', { windowsHide: true, encoding: 'utf8' }) === docsBefore ? '' : 'changed';
   const sandFile = path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json');
   const sandSaved = existsSync(sandFile) && /level editor/.test(readFileSync(sandFile, 'utf8'));
   assert(gitDocs === '' && sandSaved && existsSync(path.join(sandbox, 'docs/kestrel/plans')), `a save writes the sandbox copy and its plans; docs/kestrel unchanged ("${gitDocs}")`);

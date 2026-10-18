@@ -2,7 +2,7 @@
  * Co-op team moves (pure, unit-tested): the CT leg-up (a crouched player offers, the partner runs in and is boosted to a
  * ledge) and the CT ledge relay (a hanging player offers, the partner climbs up the hanging body to the ledge). The
  * rules a request must pass (checked by the host on both players' movement states) and the timing both sides play
- * from the host's start time. (G151: anywhere with room; G162: CT had it; G52's brace is gone.)
+ * from the host's start time. (G151: anywhere with room; G178: CT had it; G52's brace is gone.)
  */
 import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';

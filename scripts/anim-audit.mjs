@@ -68,7 +68,7 @@ const BOOST_CONTACT_K = 0.35;
 // ---------------------------------------------------------------- pure metrics for node
 const LIB = resolve('test-results/anim-audit/lib');
 // node + esbuild's JS entry, not node_modules/.bin/esbuild: on Windows .bin holds a .cmd shim execFileSync cannot spawn.
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 
@@ -83,7 +83,7 @@ const up = async () => {
 };
 if (!(await up())) {
   if (urlArg) throw new Error(`${url} is not reachable`);
-  server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', PORT, '--strictPort', '--host', '127.0.0.1'], { stdio: 'ignore' });
+  server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', PORT, '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
   process.on('exit', () => server?.kill());
   let ok = false;
   for (let i = 0; i < 60 && !ok; i++) {

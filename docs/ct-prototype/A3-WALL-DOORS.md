@@ -1,6 +1,6 @@
 # A3 - Wall, doors, CT pad layout (CT core feel job)
 
-Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every number is a starting value (G10). G162: pure CT, if it had it.
+Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every number is a starting value (G10). G178: pure CT, if it had it.
 
 ## Built
 
@@ -44,7 +44,7 @@ Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every num
 - Bash = `Doors.open('bash')` (0.22 s, loud, `DOOR_BASH_NOISE`) and knocks out any guard within 1.3 m behind the leaf and inside its span (`guardBehindDoor`, `e.knockOut`). **Stub for co-op:** a client's bash is a plain host-routed open (bash is not on the wire).
 - Running into a door does nothing (G97): the gear-5 run-bash in `StealthSystems.fixedUpdate` is deleted.
 - Optic cable: **stub** (feed message "not built yet"); there is no optic code in the repo.
-- Lock picking / breaking (G162): **not in the codebase**, so locked doors get no menu (their item is disabled, as before). Noted for the kit job.
+- Lock picking / breaking (G178): **not in the codebase**, so locked doors get no menu (their item is disabled, as before). Noted for the kit job.
 - Guards close doors (G41): `StealthSystems` tracks doors a guard opened (`Doors.onSound` `'enemy'`) and shuts them 1.5 s after nobody is within 2.2 m, only while nobody is alerted. **Stub:** guards noticing a door left open that "should be shut" is not built (no AI door-awareness hook).
 
 **4. Co-op wire** (`PROTOCOL_VERSION` 14 -> **15**, once): removed the SWAT mode (`MOVE_MODES` index of `swat` deleted, so `doorPeek` is now 26: reorder allowed by the bump), the SWAT commit, `MoveState.lk` (pack / sanitize / `moveChanged`), `WALL_SUB.lean`, the remote head cap, `moveSpeedCap`'s swat branch. Nothing added: remotes show the wall stance and the peek from the existing `wall` mode (`a`, `s`, `sub` edge / peek / crouch / low / leftHand bits). Doors were already synced (`doors` open list, `dcr` crack list, the `door` crack request, item `use`).

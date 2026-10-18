@@ -1,6 +1,6 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { hitVolumes, proportions } from '../player/proportions';
+import { hitVolumes } from '../player/proportions';
 import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
@@ -17,8 +17,6 @@ import { hyp2 } from '../core/mathx';
 import type { CoverSegment } from '../cover/coverData';
 import type { CoverSpot } from '../game/tactics';
 
-/** Hip joint height (m) of the average build the capsule is fitted to. */
-const HIP_Y = proportions('average').y.hip;
 
 /** Max plausible horizontal speed (top run + roll burst + slack), m/s (free movement: the speed gear's, `moveSpeedCap`). */
 const MAX_SPEED = MAX_FREE_SPEED;
@@ -34,6 +32,8 @@ export class RemotePlayer implements Damageable {
   readonly ref: PlayerRef;
   state: PlayerState | null = null;
   damageMul = 1;
+  /** Hip joint height (m) of the body the capsule is fitted to. */
+  private hipY = 0;
   private lastT = -1;
   /** Seconds during which a large position jump is accepted (after a host-driven respawn). */
   private teleportGrace = 0;
@@ -59,7 +59,10 @@ export class RemotePlayer implements Damageable {
   ) {
     this.feet.copyFrom(spawn);
     this.node = new TransformNode(`remote-hitbox-${id}`, scene);
-    const hv = hitVolumes(proportions('average'));
+    // (operators 11e) fitted to the body shown: Wren's rig (1.68 m, G72 proportions)
+    const p = avatar.rig.p;
+    this.hipY = p.y.hip;
+    const hv = hitVolumes(p);
     this.shape = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.headY - hv.bodyR * 0.5, 0), hv.bodyR, scene);
     this.shape.filterMembershipMask = G.PLAYER_HITBOX;
     this.shape.filterCollideMask = G.PROJECTILE;
@@ -67,7 +70,8 @@ export class RemotePlayer implements Damageable {
     this.body.shape = this.shape;
     this.body.disablePreStep = false;
     registry.register(this.body, this, 'body');
-    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false };
+    // (operators 11e r1) the partner's light is sampled at its body's height (host and client alike, nothing sent)
+    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false, height: avatar.rig.height };
     this.sync();
   }
 
@@ -183,7 +187,7 @@ export class RemotePlayer implements Damageable {
       // (3.2.0) along the posed hips -> head line (hanging, crawling, leaning), set by `followPose`
       const h = this.poseHips;
       const u = this.poseUp;
-      n.position.set(h.x - u.x * HIP_Y, h.y - u.y * HIP_Y, h.z - u.z * HIP_Y);
+      n.position.set(h.x - u.x * this.hipY, h.y - u.y * this.hipY, h.z - u.z * this.hipY);
     } else {
       n.position.copyFrom(this.feet);
       if (this.crouched) n.position.y -= 0.5;

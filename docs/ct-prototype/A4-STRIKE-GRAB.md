@@ -1,6 +1,6 @@
 # A4 - Palm strike and grab (CT core feel job)
 
-Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every number is a starting value (G10). G42, G155 (palm strike drops every guard), G23, G43, G162. No wire change (protocol stays 15).
+Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every number is a starting value (G10). G42, G155 (palm strike drops every guard), G23, G43, G178. No wire change (protocol stays 15).
 
 ## Built
 

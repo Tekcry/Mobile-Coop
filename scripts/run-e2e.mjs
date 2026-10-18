@@ -88,7 +88,7 @@ const named = argv.filter((a) => !a.startsWith('--'));
 
 function git(...a) {
   try {
-    return execFileSync('git', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').map((s) => s.trim()).filter(Boolean);
+    return execFileSync('git', a, { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').map((s) => s.trim()).filter(Boolean);
   } catch {
     return [];
   }
@@ -131,7 +131,7 @@ if (flag('list')) {
   process.exit(0);
 }
 
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', HOST], { stdio: 'ignore' });
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', HOST], { windowsHide: true, stdio: 'ignore' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 process.on('exit', () => server.kill());
 let up = false;
@@ -170,7 +170,7 @@ async function runOne(s) {
   if (streamed) console.log(`\n=== ${s}${report(s) ? " (REPORT ONLY: never fails the run)" : ""} ===`);
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
@@ -180,7 +180,7 @@ async function runOne(s) {
   const timer = setTimeout(() => {
     timedOut = true;
     // (the suite's browsers are its children: the whole tree goes)
-    if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    if (process.platform === 'win32') spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
     else child.kill('SIGKILL');
   }, SUITE_TIMEOUT);
   let code = await new Promise((res) => child.on('exit', res));

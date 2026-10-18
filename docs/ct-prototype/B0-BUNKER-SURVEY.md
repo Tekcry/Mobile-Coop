@@ -1,6 +1,6 @@
 # B0 - bunker survey (read-only, 2026-10-18)
 
-Goal (G161, G162): the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish by two players. Sources read: FEEL-PLAN phase 2, levels digest 2.1 and 3.1, moves digest 1.0-1.8, 1.14, 1.17, 2.2-2.3, 2.15, DECISIONS G57, G78-G80, G117, G126, G130, G138, G151, G152, G155, G161, G162, docs/training (BAYS, FEATURES, STATE, DECISIONS, RULES), `src/world/maps/bunker*.ts`, `src/game/course`, the team and net code, the e2e suites.
+Goal (G177, G178): the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish by two players. Sources read: FEEL-PLAN phase 2, levels digest 2.1 and 3.1, moves digest 1.0-1.8, 1.14, 1.17, 2.2-2.3, 2.15, DECISIONS G57, G78-G80, G117, G126, G130, G138, G151, G152, G155, G177, G178, docs/training (BAYS, FEATURES, STATE, DECISIONS, RULES), `src/world/maps/bunker*.ts`, `src/game/course`, the team and net code, the e2e suites.
 
 ## 1. CT's co-op training
 
@@ -33,7 +33,7 @@ State: nine bays B1-B9, airlocks A1-A8, exit lift L9, about 2840 lines of map co
 | B4 Cistern 12x26 | Brace, boost onto W1 (4.4), bolt door, human ladder W2 (4.25), timed-hold sluice, C3 ladder, boost to OP (4.4), lowered ladder | Closest to CT: it already is leg-up plus relay plus a one-holds-one-passes hold. Keep |
 | B5 Plant | Thermal, circuits, shoot lamp, EMP, noisemaker, takedown, breaker | Cut (guards; EMP removed, G152) |
 | B6 Mock Site | Duct, back-to-wall, peek, lean-out, SWAT turn, door peek, cards, cameras, takedowns | Cut (lean-out and SWAT removed; guards) |
-| B7 House | Takedown variants, dual takedown, grab, question, carry, drag | Cut (dedicated dual takedown removed, G162; CT training has no guards) |
+| B7 House | Takedown variants, dual takedown, grab, question, carry, drag | Cut (dedicated dual takedown removed, G178; CT training has no guards) |
 | B8 Range | Weapons, gadgets incl. EMP, live fire | Cut |
 | B9 Plot | Keys, case, lift with the pair gate K-A / K-B | Cut; keep only the idea of an exit lift or zone |
 

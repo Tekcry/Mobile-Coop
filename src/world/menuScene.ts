@@ -20,7 +20,12 @@ import type { AppState } from '../core/app';
 import { flatMat } from './materials';
 import { mulberry } from '../core/rng';
 import { PartLibrary } from './partLibrary';
-import { CharacterRig, setVoxelBodies } from '../player/characterRig';
+import type { CharacterRig } from '../player/characterRig';
+import { CLOSE_CAMERAS } from '../operators/runtime/lodPick';
+import { LOD_HERO } from '../operators/runtime/manifest';
+import { forgetModel, loadModel, type OperatorFigure } from '../operators/runtime/figure';
+import { loadMenuLods, operatorRig } from '../operators/runtime/playerFigure';
+import { wrenManifest } from '../operators/runtime/assets';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
@@ -82,6 +87,8 @@ export class MenuState implements AppState {
   readonly frameHooks = new Set<(dt: number) => void>();
   readonly parts: PartLibrary;
   private rig: CharacterRig | null = null;
+  /** (operators 11e) Wren on the preview rig: the hero LOD (D21, D33 "Yes use hero for menu"). */
+  private figure: OperatorFigure | null = null;
   private weapon: WeaponModel | null = null;
   /** Avatar yaw (rotated by stick / drag in the customiser). */
   previewYaw = Math.PI;
@@ -143,6 +150,8 @@ export class MenuState implements AppState {
     this.camera = new ArcRotateCamera('menuCam', -Math.PI / 2 + 0.5, 1.25, 7, new Vector3(0, 1.1, 0), scene);
     this.camera.fov = 0.8;
     this.camera.minZ = 0.1;
+    // the menu is a close-up camera: Wren's hero LOD (LOD2, then LOD0 stand in while it loads)
+    CLOSE_CAMERAS.add(this.camera.uniqueId);
 
     const ground = CreateDisc('ground', { radius: 40, tessellation: 24 }, scene);
     ground.rotation.x = Math.PI / 2;
@@ -234,17 +243,21 @@ export class MenuState implements AppState {
     if (key === this.shown && this.rig) return;
     this.shown = key;
     this.weapon?.dispose();
+    this.figure?.dispose();
     this.rig?.dispose();
-    // voxel operator (3.0; `?gfx=min`: the smooth parts)
+    // voxel weapon (3.0; `?gfx=min`: the smooth parts); the operator is Wren (operators 11e, D31 / G123)
     const vox = flags.voxels && flags.gfx !== 'min';
-    setVoxelBodies(vox ? { size: 0.02, lodSize: 0.04, lodDistance: 1000 } : null);
     setVoxelWeapons(vox ? { size: 0.01, fineSize: 0.005, lodSize: 0.02, lodDistance: 1000, small: 0.03 } : null);
-    this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.75, 'preview');
+    const op = operatorRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 'preview');
+    this.rig = op.rig;
+    const fig = (this.figure = op.figure);
+    fig.setVision('night', 1);
+    loadMenuLods(fig, loadModel);
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
     this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
     this.weapon.hold(this.rig);
-    // the tri-lens glows in the dark
+    // the goggle over the eyes, glowing in the dark (G73: in use)
     this.rig.setLensGlow(true);
   }
 
@@ -270,6 +283,12 @@ export class MenuState implements AppState {
 
   enter(): void {}
   exit(): void {
+    CLOSE_CAMERAS.remove(this.camera.uniqueId);
+    this.figure?.dispose();
+    this.figure = null;
+    // the 55 MB hero's parsed file is not kept through a match (a photo-mode close-up reads it again from the cache)
+    const hero = wrenManifest().urls[LOD_HERO];
+    if (hero) forgetModel(hero);
     this.stack.dispose();
     this.atlas?.dispose();
     for (const g of this.shadows) g.dispose();
@@ -311,6 +330,7 @@ export class MenuState implements AppState {
     if (this.rig) {
       this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.25 + Math.sin(this.t2 * 0.3) * 0.2 : this.previewYaw;
       this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: this.aimW, kick: 0 });
+      this.figure?.update(this.scene.activeCamera);
     }
     for (const fn of this.frameHooks) fn(dt);
     // a portrait lens on the operator: the stage behind falls soft

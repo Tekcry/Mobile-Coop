@@ -211,7 +211,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
-| Goggle modes | Night, thermal, electro, cycled thermal, electro, night, off with an instant cut | G99, G100 |
+| Goggle modes | Night, thermal, electro, picked on the selection wheel, one button toggles the picked mode | G99, G179 |
 | Night vision | A gain in the lighting; CT grain | L7, G101 |
 | Thermal | CT colour ramp; people behind closed doors as a dim silhouette; never through glass | G45, G102 |
 | Electro | Shows powered devices | G99 |
@@ -416,8 +416,8 @@ Implementation: `docs/systems/takedowns.md`.
 
 Implementation: `docs/systems/gadgets.md`.
 
-- **Goggle modes (G99-G102):** night, thermal and electro. The switch is an instant cut in CT's order: thermal, electro,
-  night, off; there is no flip.
+- **Goggle modes (G99-G102, G179):** night, thermal and electro. The selection wheel (G179) picks the mode; one button
+  turns the selected mode on and off, and the goggle flip plays only on on / off, never between modes.
   - Night vision is a gain in the lighting (L7): it reveals real detail and blows out near lamps.
   - Thermal follows CT: CT's colour ramp; people behind closed doors show as a dim silhouette; never through glass (L15).
   - Electro shows powered devices.
@@ -425,8 +425,9 @@ Implementation: `docs/systems/gadgets.md`.
   - Vision modes never change detection.
 - **The goggle** is original: no three-lens look (G69). It sits on the brow with a dim glow when vision is off and over
   the eyes with full glow when on (G73).
-- **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). The gadget wheel
-  stays. There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
+- **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). A Blacklist-style
+  selection wheel picks weapons, gadgets and the vision mode (G179, Michael's exception to G1).
+  There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
   thrown EMP is gone: the pistol's held jammer replaces it (G152).
 - **Kit per mission** is fixed by the mission: the pair get complementary kits (G134, G153). No credits.
 
@@ -726,15 +727,18 @@ and briefing crew, not playable (G112).
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
   weapons follow later from the same pipeline. Voxels are only the way the world is drawn. That branch keeps its own
   decisions and open items (G75).
-- **Wren integration:** the core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch,
-  then the weapon step, G70). The shared-body proportion fixes apply to every character when Wren goes in, and movement
-  and climbing tests re-run (G72).
+- **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
+  G70's "after the prototype, behind a dev switch"); the core-feel job tunes movement on her (G150); then the weapon
+  step. The shared-body proportion fixes apply to every character since Wren went in, and movement and climbing tests
+  re-run (G72).
 - **Sizes:** Wren stays 1.68 m (G74). Operators differ in look and height only: one movement set, one capsule, one camera
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with
   full glow when on (G73). The glow is visual only, never a light, never seen by guards; it is how a player finds their
   operator in darkness (L7). Wren's goggle light is green, Moth's amber; both must stay distinguishable for common colour
-  blindness. The goggle light colour is also the partner beacon (G135).
+  blindness. The goggle light colour is also the partner beacon (G135). While both players are Wren (G123) the colour
+  follows the player, not the operator: player 1 (the host, and solo) green, player 2 cyan (ops A112: amber is the
+  HUD's exposure warning and green / amber is the pair red-green colour blindness confuses).
 - **Choosing:** each player picks a different operator; the host resolves duplicates. Cosmetics stay parked.
 
 | Callsign | Role | Goggle light |
@@ -859,7 +863,7 @@ Every feature works smoothly in 2-player co-op, to 5.9 C11:
 
 - Reference-game names (G6, G114), story, characters, logos, UI art or art assets (G5).
 - External art files, except CC0 textures (5.16); the operators pipeline's sources are decided on `feature/operators`
-  (G75). Audio may use CC0 recordings for any sound (S7).
+  (G75): a CC0 base human body, built into each operator offline by in-repo Blender scripts and bundled. Audio may use CC0 recordings for any sound (S7).
 - Random patrols that defeat planning; forced timers in stealth sections; world waypoints; kill cams; monetisation.
 - Voiced story lines now: they are a later idea (G82). Voice chat is not out of scope: it comes after the prototype
   (G156, 5.2 S10).

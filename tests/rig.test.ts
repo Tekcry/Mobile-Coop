@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDS, headsTall, hitVolumes, proportions } from '../src/player/proportions';
-import { solveTwoBone, springStep, v3, type V3 } from '../src/anim/rigMath';
+import { elbowSwivelClear, segDist, solveTwoBone, springStep, v3, type V3 } from '../src/anim/rigMath';
 import { AnimGraph, defaultInput, LOWER_STATES, pickLower, FADE } from '../src/anim/animGraph';
 import { MOVEMENT } from '../src/config/movement';
 import { coverStandoff } from '../src/cover/coverData';
@@ -426,5 +426,42 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
       expect(res.L!.out, `${name} head past the edge`).toBeLessThanOrEqual(res.R!.out + 0.005);
     }
     scene.dispose();
+  });
+});
+
+describe('elbow swivel clear of the trunk (operators step 11e)', () => {
+  const s = v3(0.2, 1.23, 0.04);
+  const w = v3(0.06, 1.21, 0.1);
+  const p0 = v3(0, 0.95, 0);
+  const p1 = v3(0, 1.45, 0);
+  const swivel = (e: V3, th: number): V3 => {
+    // Rodrigues about the shoulder -> wrist axis
+    const u = { x: w.x - s.x, y: w.y - s.y, z: w.z - s.z };
+    const l = Math.hypot(u.x, u.y, u.z);
+    u.x /= l;
+    u.y /= l;
+    u.z /= l;
+    const v = { x: e.x - s.x, y: e.y - s.y, z: e.z - s.z };
+    const d = u.x * v.x + u.y * v.y + u.z * v.z;
+    const c = Math.cos(th);
+    const sn = Math.sin(th);
+    const cx = u.y * v.z - u.z * v.y;
+    const cy = u.z * v.x - u.x * v.z;
+    const cz = u.x * v.y - u.y * v.x;
+    return v3(s.x + v.x * c + cx * sn + u.x * d * (1 - c), s.y + v.y * c + cy * sn + u.y * d * (1 - c), s.z + v.z * c + cz * sn + u.z * d * (1 - c));
+  };
+  it('leaves a clear elbow alone', () => {
+    expect(elbowSwivelClear(s, w, v3(0.3, 1.0, 0.1), p0, p1, 0.135)).toBe(0);
+  });
+  it('turns an elbow inside the chest out, keeping its distances to shoulder and wrist', () => {
+    const e = v3(0.0, 1.11, -0.02);
+    expect(segDist(e.x, e.y, e.z, p0, p1)).toBeLessThan(0.05);
+    const th = elbowSwivelClear(s, w, e, p0, p1, 0.135);
+    expect(th).not.toBe(0);
+    const e2 = swivel(e, th);
+    expect(segDist(e2.x, e2.y, e2.z, p0, p1)).toBeGreaterThanOrEqual(0.135);
+    const dist = (a: V3, b: V3): number => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    expect(dist(e2, s)).toBeCloseTo(dist(e, s), 6);
+    expect(dist(e2, w)).toBeCloseTo(dist(e, w), 6);
   });
 });

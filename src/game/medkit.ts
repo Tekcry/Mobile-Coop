@@ -12,7 +12,7 @@ export const MEDKIT = {
 } as const;
 
 /**
- * (CT prototype, G162) The share of max health a station restores by difficulty (starting values): full on Normal (and
+ * (CT prototype, G178) The share of max health a station restores by difficulty (starting values): full on Normal (and
  * Rookie), 50% on Hard (Realistic), 25% on Expert (Perfectionist).
  */
 export const MEDKIT_FRACTION: Record<string, number> = { rookie: 1, normal: 1, realistic: 0.5, perfectionist: 0.25 };

@@ -6,7 +6,7 @@ import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
-import { solveTwoBone } from '../anim/rigMath';
+import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
@@ -240,6 +240,15 @@ function freshBelow(n: TransformNode, anchor: TransformNode): void {
 }
 
 const tmpQ = new Quaternion();
+/**
+ * (operators step 11e) An elbow keeps this far (m) outside the trunk's half depth from the trunk line (pelvis -> neck
+ * base). A rate-limited arm swinging from a back draw to the grip (G72's lower shoulder) passed the elbow through the
+ * chest for a frame (e2e-clip "aim walking + crouched" -6.9 cm).
+ */
+const ELBOW_TRUNK_MARGIN = 0.02;
+const elbQ = new Quaternion();
+const elbAxis = new Vector3();
+const elbHand = new Quaternion();
 const clrDir = new Vector3();
 const clrM = new Matrix();
 /** Body capsules for the weapon push-out, 8 floats each: start xyz, segment xyz, 1/|segment|^2, radius. */
@@ -549,8 +558,9 @@ export class CharacterRig {
   private derive = new MotionDerive();
   private pelvisDrop = 0;
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
-  private softL = 1;
-  private softR = 1;
+  /** Soft-knee share per foot [L, R] (0..1). (operators step 11e) A Float64Array, not two fields: the fields started as
+   *  the integer 1 and turned fractional mid-match, a representation change that deoptimised the rig's hot update. */
+  private readonly soft = new Float64Array([1, 1]);
   /** (fix 21-3) Per foot: the pelvis drop (m) it needed on its last planted frame (let go over its early swing). */
   private liftL = 0;
   private liftR = 0;
@@ -1452,10 +1462,8 @@ export class CharacterRig {
       const air = !free && !f.contact && f.swing >= 0;
       const reversed = air && this.velX * Math.sin(f.fromYaw) + this.velZ * Math.cos(f.fromYaw) < -0.7 * hyp2(this.velX, this.velZ);
       const stepping = air && !reversed;
-      let soft = k === 0 ? this.softL : this.softR;
-      soft = stepping ? 0 : reversed ? 1 : approachTo(soft, 1, dt, 0.035);
-      if (k === 0) this.softL = soft;
-      else this.softR = soft;
+      const soft = stepping ? 0 : reversed ? 1 : approachTo(this.soft[k]!, 1, dt, 0.035);
+      this.soft[k] = soft;
       let len = legFull - (legFull - legLen) * soft;
       if (stepping) {
         const u = Math.max(0, Math.min(1, (f.swing - 0.5) * 2));
@@ -1630,6 +1638,38 @@ export class CharacterRig {
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
     this.limitJoint(this.elbowR, dt);
+    this.keepElbowOut(1);
+    this.keepElbowOut(-1);
+  }
+
+  /**
+   * (operators step 11e) Self-collision for an elbow after the IK and the joint-rate limit: an elbow inside the trunk
+   * (closer than its half depth plus `ELBOW_TRUNK_MARGIN` to the pelvis -> neck line) swivels round the shoulder ->
+   * wrist axis until it is out (`elbowSwivelClear`); the shoulder and wrist stay put and the hand keeps its world
+   * rotation, so the grip holds. Allocates nothing; does nothing on a clear frame beyond one distance test.
+   */
+  private keepElbowOut(side: 1 | -1): void {
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    const wr = side > 0 ? this.wristR : this.wristL;
+    fresh(sh);
+    fresh(el);
+    fresh(wr);
+    const r = this.p.chest.d * 0.5 + ELBOW_TRUNK_MARGIN;
+    const S = sh.getAbsolutePosition();
+    const th = elbowSwivelClear(S, wr.getAbsolutePosition(), el.getAbsolutePosition(), this.hips.getAbsolutePosition(), this.neck.getAbsolutePosition(), r);
+    if (th === 0) return;
+    elbHand.copyFrom(wr.absoluteRotationQuaternion);
+    wr.getAbsolutePosition().subtractToRef(S, elbAxis);
+    elbAxis.normalize();
+    Quaternion.RotationAxisToRef(elbAxis, th, elbQ);
+    elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
+    this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
+    this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+    fresh(sh);
+    fresh(el);
+    this.setWorldRot(wr, el, elbHand);
+    fresh(wr);
   }
 
   /**

@@ -12,6 +12,7 @@ import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerSt
 import { ClockSync } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
+import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
 import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
@@ -63,6 +64,9 @@ export class CoopClient implements NetAttachment {
     private s: NetSession,
   ) {
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
+    // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
+    this.recolour();
+    this.offs.push(s.events.on('lobby', () => this.recolour()));
     if (g.opts.mode === 'course') {
       // a bay-N start (D20): beside the host in that bay's entry airlock, before our first `pstate` (the host takes a
       // first state anywhere)
@@ -183,6 +187,7 @@ export class CoopClient implements NetAttachment {
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
       a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
       this.avatars.set(st.id, a);
+      setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
       if (g.opts.mode === 'course') {
         const t = new PartnerTarget(g.scene, g.registry, st.id, a);
@@ -194,6 +199,13 @@ export class CoopClient implements NetAttachment {
       this.blockers.push({ id: st.id, a, b: new PartnerBlocker(g.scene, st.id) });
     }
     return a;
+  }
+
+  /** (G135) Every body's goggle colour from its player slot: the partner beacon. */
+  private recolour(): void {
+    const ps = [...this.s.players.values()];
+    setPlayerGlow(this.g.player.figure, ps, this.s.selfId);
+    for (const [id, a] of this.avatars) setPlayerGlow(a.figure, ps, id);
   }
 
   private dropAvatar(id: string): void {
