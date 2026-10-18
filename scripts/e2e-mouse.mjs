@@ -440,12 +440,12 @@ try {
         return { x: r.left, y: r.top, w: r.width, h: r.height };
       }, sel);
       const playBtn = await P.evaluate(() => {
-        const b = [...document.querySelectorAll('.main-menu button')].find((x) => /^\s*Play/.test(x.textContent ?? ''));
+        const b = [...document.querySelectorAll('.main-menu button')].find((x) => /^\s*Missions/.test(x.textContent ?? ''));
         if (!b) return null;
         const r = b.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       });
-      assert(!!playBtn, 'the main menu has Play');
+      assert(!!playBtn, 'the main menu has Missions');
       await P.mouse.click(playBtn.x, playBtn.y);
       await P.waitForFunction(() => !!document.querySelector('.play-screen [data-diff="choice"]'), null, { timeout: 10000 });
       const st = () => P.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"] .choice-val')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));

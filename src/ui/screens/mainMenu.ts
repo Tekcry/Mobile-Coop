@@ -1,67 +1,81 @@
 import type { App } from '../../core/app';
 import { h } from '../dom';
-import { Screen } from '../screen';
-import type { Hint } from '../prompts';
+import { MenuScreen } from '../menuScreen';
 import { button } from '../widgets';
-import { icon } from '../icons';
 
 export interface MenuEntry {
+  /** Stable id for focus memory and tests (`data-key`): continue, missions, coop, training, freeroam, ... */
+  key: string;
   label: string;
-  icon: string;
-  sub?: string;
   order: number;
   action: () => void;
-  disabled?: () => boolean;
+  /** Small counter beside the label (42%, 1 / 8, Offline). */
+  counter?: () => string;
+  /** Context panel html for the focused item. */
+  ctx?: string;
+  /** Hidden this time (Continue without a checkpoint). */
+  hidden?: () => boolean;
+  /** Locked: still focusable, the reason shows in the context and toasts on confirm (MD18). */
+  locked?: () => string | null;
 }
 
-/** Root menu. Systems register entries so the menu grows with each phase without edits here. */
-export class MainMenuScreen extends Screen {
+export const versionText = (): string => `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__.toUpperCase() : '') : ''}`;
+
+/** Root menu (menu-ui MD6: a flat list). Systems register entries so the menu grows without edits here. */
+export class MainMenuScreen extends MenuScreen {
   override readonly root = true;
   static entries: ((app: App) => MenuEntry)[] = [];
+  /** Back on the main menu (MD2): set by main.ts when the title screen may show; null keeps Back a no-op. */
+  static onBackToTitle: (() => void) | null = null;
   private list: HTMLElement;
   readonly badge: HTMLElement;
 
   constructor(private app: App) {
-    super('main-menu');
-    this.list = h('div', { class: 'menu-list scrollable', attrs: { 'data-wrap': '' } });
+    super('main-menu', ['Main', 'Menu']);
+    this.list = h('div', { class: 'menu-list ms-list', attrs: { 'data-wrap': '' } });
     this.badge = h('div', { class: 'profile-badge' });
+    this.body.append(this.list);
     this.el.append(
-      h(
-        'div',
-        { class: 'menu-left' },
-        h('div', { class: 'game-title', html: '<span class="t1">NIGHT</span><span class="t3">SHIFT</span>' }),
-        this.list,
-        h('div', { class: 'tagline', text: 'Observe  /  Infiltrate  /  Complete' }),
-        h('div', { class: 'version', text: `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__.toUpperCase() : '') : ''}` }),
-      ),
+      h('div', { class: 'tagline', text: 'Observe  /  Infiltrate  /  Complete' }),
+      h('div', { class: 'version', text: versionText() }),
       this.badge,
     );
     this.build();
   }
 
   private build(): void {
-    // Rebuilding replaces the buttons; keep focus on the same slot.
-    const prevIdx = this.lastFocus ? Array.from(this.list.children).indexOf(this.lastFocus) : -1;
+    // Rebuilding replaces the buttons; keep focus on the same entry.
+    const prevKey = this.lastFocus?.dataset.key ?? null;
     this.list.replaceChildren();
-    const entries = MainMenuScreen.entries.map((f) => f(this.app)).sort((a, b) => a.order - b.order);
+    const entries = MainMenuScreen.entries
+      .map((f) => f(this.app))
+      .filter((e) => !(e.hidden?.() ?? false))
+      .sort((a, b) => a.order - b.order);
     entries.forEach((e, i) => {
-      // a plain list: the first entry (Play) is lit, every entry shows a chevron when focused
-      const b = button(e.label, e.action, {
-        autofocus: i === 0,
-        disabled: e.disabled?.() ?? false,
-        class: i === 0 ? 'menu-item lit' : 'menu-item',
-      });
-      b.insertAdjacentHTML('beforeend', `<span class="menu-chev">${icon('chevron', 18)}</span>`);
+      const lock = e.locked?.() ?? null;
+      const b = button(e.label, e.action, { autofocus: i === 0, class: 'menu-item ms-item', ...(lock ? { blocked: lock } : {}) });
+      b.dataset.key = e.key;
+      if (lock) b.dataset.locked = lock;
+      b.append(h('span', { class: 'ms-ctr', text: e.counter?.() ?? '' }));
+      const ctx = (e.ctx ? `<p>${e.ctx}</p>` : '') + (lock ? `<p class="why">${lock}</p>` : '');
+      if (ctx) b.dataset.ctx = ctx;
       this.list.append(b);
     });
-    if (prevIdx >= 0) this.lastFocus = (this.list.children[prevIdx] as HTMLElement | undefined) ?? null;
+    if (prevKey) this.lastFocus = this.list.querySelector<HTMLElement>(`[data-key="${prevKey}"]`);
+  }
+
+  /** Updates one entry's counter (async counts: open feedback notes). */
+  setCounter(key: string, text: string): void {
+    const c = this.list.querySelector(`[data-key="${key}"] .ms-ctr`);
+    if (c) c.textContent = text;
   }
 
   override onShow(): void {
     this.build();
   }
 
-  override hints(): Hint[] {
-    return [{ btn: 'A', label: 'Select' }];
+  override onBack(): boolean {
+    MainMenuScreen.onBackToTitle?.();
+    return true;
   }
 }

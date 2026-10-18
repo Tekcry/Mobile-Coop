@@ -1,15 +1,80 @@
+/* menu-ui MD1: the menu font, bundled (never fetched); Vite resolves and hashes the files. TTF for now: the Latin-subset
+   woff2 conversion (step 01) waits for fonttools. */
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('./ui/fonts/barlow-condensed-500.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('./ui/fonts/barlow-condensed-600.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('./ui/fonts/barlow-condensed-700.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
-  /* Silent But Deadly: near-black, night-vision green */
+  /* menu-ui tokens (SPEC 2): colour */
+  --ink: #040607;
+  --ink-2: #0a0f10;
+  --text: #d6dfdb;
+  --text-hi: #ffffff;
+  --muted: #7d8a86;
+  --ghost: rgba(196, 208, 204, 0.2);
+  --line: rgba(214, 223, 219, 0.16);
+  --hl: #38e08c;
+  --hl-rgb: 56, 224, 140;
+  --warn: #f0b43b;
+  --ctx-bg: linear-gradient(90deg, rgba(4, 6, 7, 0.86), rgba(4, 6, 7, 0.62));
+  /* type: the menu face and scale (logical px in the 1280 x 720 frame) times --ts (menu text size, MD17; 1 until the
+     accessibility setting lands) */
+  --ts: 1;
+  --font-menu: 'Barlow Condensed', 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --fs-ghost: calc(86px * min(var(--ts), 1.15));
+  --fs-title-name: 96px;
+  --fs-title-kicker: 46px;
+  --fs-item: calc(22px * var(--ts));
+  --fs-row: calc(19px * var(--ts));
+  --fs-card: calc(21px * var(--ts));
+  --fs-card-meta: calc(14px * var(--ts));
+  --fs-ctx-head: calc(15px * var(--ts));
+  --fs-ctx: calc(18px * var(--ts));
+  --fs-legend: calc(19px * var(--ts));
+  --fs-grp: calc(14px * var(--ts));
+  --fs-tab: calc(17px * var(--ts));
+  --fs-toast: calc(18px * var(--ts));
+  /* spacing and frame */
+  --sp-ghost-x: 58px;
+  --sp-ghost-y: 34px;
+  --sp-list-x: 96px;
+  --sp-list-y: 226px;
+  --sp-rows-y: 262px;
+  --sp-item-h: calc(34px * var(--ts));
+  --sp-row-h: calc(32px * var(--ts));
+  --sp-card-h: calc(62px * var(--ts));
+  --sp-ctx-x: 870px;
+  --sp-ctx-w: 350px;
+  --sp-legend-x: 58px;
+  --sp-legend-y: 30px;
+  --sp-legend-gap: 18px;
+  --sp-glyph-slot: 38px;
+  /* Silent But Deadly: near-black, night-vision green (pre menu-ui; --accent is an alias of --hl until step 05) */
   --bg: #070b0c;
   --panel: rgba(8, 14, 14, 0.88);
   --panel-2: rgba(14, 24, 23, 0.94);
-  --line: rgba(140, 255, 205, 0.13);
-  --text: #dfe9e4;
-  --muted: #7f948b;
-  --accent: #38e08c;
+  --accent: var(--hl);
   --accent-dim: rgba(56, 224, 140, 0.14);
   --accent-2: #3fc1ff;
-  --danger: #ff4d4d;
+  --danger: #ff5a4f;
   --ok: #4fdc7c;
   --focus: #38e08c;
   --gold: #f0c24b;
@@ -3311,3 +3376,425 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 .course-panel table.course-stats { border-collapse: collapse; }
 .course-panel table.course-stats th, .course-panel table.course-stats td { padding: 2px 10px; text-align: right; }
 .course-panel table.course-stats td:first-child { text-align: left; }
+
+/* =====================================================================================================
+   Menu UI (menu-ui slice 1): the MenuScreen template (SPEC 3), the main menu (7.4), the title screen (7.2) and the
+   boot overlay (7.1). Positions are logical px in the 1280 x 720 menu frame (`:root .screens`, scaled by --ui-scale).
+   Desktop only (G12). The older "Silent But Deadly - menu theme" block still styles the screens not on the template.
+   ===================================================================================================== */
+.screens,
+.boot {
+  font-family: var(--font-menu);
+}
+.screen.menu-screen {
+  padding: 0;
+  display: block;
+  color: var(--text);
+}
+.screen.menu-screen[hidden],
+.screen.title-screen[hidden] {
+  display: none;
+}
+.menu-screen .ms-ghost {
+  position: absolute;
+  left: var(--sp-ghost-x);
+  top: var(--sp-ghost-y);
+  font-size: var(--fs-ghost);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  pointer-events: none;
+  animation: ms-ghost-in 0.35s ease both;
+}
+.menu-screen .ms-ghost span {
+  display: block;
+}
+.menu-screen .ms-ghost span + span {
+  padding-left: 0.5em;
+}
+@keyframes ms-ghost-in {
+  from { opacity: 0; transform: translateX(-14px); }
+}
+.menu-screen .ms-hair {
+  position: absolute;
+  left: -20px;
+  top: 150px;
+  width: 230px;
+  height: 1px;
+  background: var(--line);
+  transform: rotate(-48deg);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.menu-screen .ms-body {
+  position: absolute;
+  left: var(--sp-list-x);
+  top: var(--sp-list-y);
+  width: 440px;
+}
+.screen.menu-screen .ms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  width: 100%;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+}
+/* the item: condensed caps, a highlight bar (gradient fading at both ends, faint scanlines), a 3 px edge marker, the
+   label white, bold and 6 px right when focused (four cues, never hue alone: MD4) */
+.screen.menu-screen .btn.ms-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: var(--sp-item-h);
+  min-height: 0;
+  padding: 0 14px 0 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+  font-family: var(--font-menu);
+  font-size: var(--fs-item);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 1;
+  overflow: visible;
+  transition: none;
+}
+.screen.menu-screen .btn.ms-item .btn-label {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.12s ease;
+}
+.screen.menu-screen .btn.ms-item .ms-ctr {
+  position: relative;
+  z-index: 1;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.screen.menu-screen .btn.ms-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 -40px 0 -60px;
+  opacity: 0;
+  transform: scaleX(0.6);
+  transform-origin: 20% 50%;
+  background:
+    linear-gradient(90deg, rgba(var(--hl-rgb), 0) 0, rgba(var(--hl-rgb), 0.42) 22%, rgba(var(--hl-rgb), 0.16) 70%, rgba(var(--hl-rgb), 0) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px);
+  transition: opacity 0.12s ease, transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.screen.menu-screen .btn.ms-item::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--hl);
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.screen.menu-screen .btn.ms-item.focused::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+.screen.menu-screen .btn.ms-item.focused::after {
+  opacity: 1;
+}
+.screen.menu-screen .btn.ms-item.focused,
+.screen.menu-screen .btn.ms-item:hover {
+  background: transparent;
+}
+.screen.menu-screen .btn.ms-item.focused .btn-label {
+  color: var(--text-hi);
+  font-weight: 700;
+  transform: translateX(6px);
+}
+.screen.menu-screen .btn.ms-item.focused .ms-ctr {
+  color: #e9fff3;
+}
+/* locked: dimmed with a lock mark, still focusable (MD18) */
+.screen.menu-screen .btn.ms-item.blocked .btn-label {
+  color: #5d6865;
+}
+.screen.menu-screen .btn.ms-item.blocked .ms-ctr::before {
+  content: 'LOCKED';
+  font-size: 0.7em;
+  letter-spacing: 0.14em;
+}
+.screen.menu-screen .btn.ms-item.blocked.focused .btn-label {
+  color: #a9b4b0;
+}
+.screen.menu-screen .btn.ms-item .btn-icon,
+.screen.menu-screen .btn.ms-item .menu-chev {
+  display: none;
+}
+/* the context panel (right; under the list on the main menu, SPEC 2) */
+.menu-screen .ms-ctx {
+  position: absolute;
+  left: var(--sp-ctx-x);
+  top: var(--sp-rows-y);
+  width: var(--sp-ctx-w);
+  padding: 14px 18px 6px;
+  background: var(--ctx-bg);
+  border-left: 1px solid var(--line);
+  font-size: var(--fs-ctx);
+  line-height: 1.35;
+  color: #c3ccc8;
+}
+.menu-screen .ms-ctx[hidden] {
+  display: none;
+}
+.menu-screen .ms-ctx h3 {
+  margin: 0 0 8px;
+  font-size: var(--fs-ctx-head);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.menu-screen .ms-ctx p {
+  margin: 0 0 10px;
+}
+.menu-screen .ms-ctx .why {
+  color: var(--warn);
+}
+/* the legend: bottom-left, every item a button; one glyph per device in a fixed 38 px slot (no layout shift) */
+.menu-screen .ms-legend {
+  position: absolute;
+  left: var(--sp-legend-x);
+  bottom: var(--sp-legend-y);
+  display: flex;
+  gap: var(--sp-legend-gap);
+  align-items: center;
+}
+.menu-screen.under .ms-legend {
+  visibility: hidden;
+}
+.ms-lg {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  font-family: var(--font-menu);
+  font-size: var(--fs-legend);
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.ms-lg:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.gl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sp-glyph-slot);
+  height: 24px;
+}
+.ts-press .gl {
+  width: auto;
+}
+.gl .glyph {
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  font-family: var(--font-menu);
+  font-size: 13px;
+  font-weight: 700;
+  color: #071008;
+  background: #c9d2ce;
+}
+.gl .glyph.pill {
+  padding: 0 5px;
+  border-radius: 9px 9px 4px 4px;
+  height: 18px;
+  font-size: 11px;
+  color: #0a0f10;
+}
+.gl .gx-A { background: #5bd25b; }
+.gl .gx-B { background: #ef5350; }
+.gl .gx-X { background: #4c9cf0; }
+.gl .gx-Y { background: #f2c641; }
+.gl .g-ps.round {
+  background: transparent;
+  border: 1.5px solid;
+}
+.gl .gp-A { color: #7fb0ff; }
+.gl .gp-B { color: #ff7a7a; }
+.gl .gp-X { color: #f39ad8; }
+.gl .gp-Y { color: #56d6b6; }
+.gl .g-key {
+  min-width: 22px;
+  max-width: var(--sp-glyph-slot);
+  padding: 0 4px;
+  font-size: 12px;
+  border: 1px solid rgba(214, 223, 219, 0.55);
+  border-radius: 3px;
+  background: transparent;
+  color: #cfe0d8;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.ts-press .gl .g-key {
+  max-width: none;
+  padding: 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+/* main menu: the operator stage stays visible on the right; the context sits under the list */
+.screen.main-menu.menu-screen {
+  background: linear-gradient(90deg, rgba(4, 6, 7, 0.92) 0, rgba(4, 6, 7, 0.7) 30%, rgba(4, 6, 7, 0) 58%);
+}
+.main-menu.menu-screen .ms-ctx {
+  left: var(--sp-list-x);
+  top: 520px;
+  width: 440px;
+}
+.main-menu.menu-screen .tagline {
+  position: absolute;
+  right: 28px;
+  top: 30px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.main-menu.menu-screen .version,
+.title-screen .version {
+  position: absolute;
+  right: 28px;
+  bottom: 26px;
+  font-size: 14px;
+  color: #56625e;
+  letter-spacing: 0.1em;
+}
+.main-menu.menu-screen .profile-badge {
+  position: absolute;
+  top: 60px;
+  right: 28px;
+}
+
+/* title / press start */
+.screen.title-screen {
+  padding: 0;
+  display: block;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(4, 6, 7, 0.92) 0, rgba(4, 6, 7, 0.6) 34%, rgba(4, 6, 7, 0) 62%);
+}
+.title-screen .ts-card {
+  position: absolute;
+  left: 150px;
+  top: 300px;
+  text-transform: uppercase;
+}
+.title-screen .ts-l1 {
+  font-size: var(--fs-title-kicker);
+  font-weight: 600;
+  color: #9aa7a3;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.title-screen .ts-l2 {
+  font-size: var(--fs-title-name);
+  font-weight: 700;
+  color: #e9efec;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+}
+.title-screen .ts-press {
+  appearance: none;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  font-family: var(--font-menu);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  outline: none;
+  box-shadow: none;
+  cursor: pointer;
+  animation: ts-pulse 2.4s ease-in-out infinite;
+}
+.input-gamepad .title-screen .ts-press.focused,
+.input-kbm .title-screen .ts-press.focused {
+  outline: none;
+  box-shadow: none;
+}
+@keyframes ts-pulse {
+  50% { opacity: 0.45; }
+}
+.title-screen .ts-slash {
+  position: absolute;
+  left: -150px;
+  top: 120px;
+  width: 260px;
+  height: 1px;
+  background: var(--line);
+  transform: rotate(-40deg);
+  transform-origin: 0 0;
+}
+
+/* boot overlay: NIGHT / SHIFT ghost, a 1 px progress line, the status */
+.boot {
+  background: var(--ink);
+  align-items: flex-start;
+  padding-left: 12vw;
+}
+.boot .boot-title {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(48px, 7vw, 120px);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: 0.005em;
+  color: var(--ghost);
+  text-shadow: none;
+}
+.boot .boot-title span + span {
+  padding-left: 0.5em;
+}
+.boot .boot-bar {
+  width: min(40vw, 420px);
+  height: 1px;
+  border-radius: 0;
+  background: var(--line);
+}
+.boot #boot-progress {
+  background: var(--hl);
+}
+.boot #boot-status {
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}

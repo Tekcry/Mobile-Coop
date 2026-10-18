@@ -267,8 +267,9 @@ try {
   }
 
   console.log('play setup + in-game pause flow');
-  for (let i = 0; i < 6 && !/^Play/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/^Play/.test(await focusedText(page)), 'menu wraps / reaches Play');
+  // (menu-ui slice 1: the flat main menu; Missions opens the play setup on Infiltration)
+  for (let i = 0; i < 8 && !/^Missions/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Missions/.test(await focusedText(page)), 'menu wraps / reaches Missions');
   await press(page, BTN.A);
   assert(await q('.play-screen'), 'A opens the play setup');
   assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');

@@ -84,6 +84,7 @@ export const extraSettingsTabs: ((app: App, screen: SettingsScreen) => TabDef)[]
 
 export class SettingsScreen extends Screen {
   private tabs: TabView;
+  private tabIds: string[] = [];
 
   constructor(private app: App) {
     super('settings-screen');
@@ -216,8 +217,16 @@ export class SettingsScreen extends Screen {
     const i = tabs.findIndex((t) => t.id === 'kbm');
     if (i > 0) tabs.unshift(...tabs.splice(i, 1));
     this.tabs = new TabView(tabs, { side: true });
+    this.tabIds = tabs.map((t) => t.id);
     this.tabs.onChange = () => app.nav.refresh();
     this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
+  }
+
+  /** Opens on a tab by id (menu-ui slice 1: the main menu's Feedback item opens the Feedback tab). */
+  openTab(id: string): this {
+    const i = this.tabIds.indexOf(id);
+    if (i >= 0) this.tabs.select(i);
+    return this;
   }
 
   /** Graphics: preset and every feature, display options (3.0: one renderer, PC presets). */

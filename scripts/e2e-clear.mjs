@@ -225,7 +225,7 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
 });
 await run('', async ({ page, G }) => {
   // play screen (3.0): Warehouse is the default for every mode; only its missions are offered
-  await page.locator('.btn', { hasText: 'Play' }).first().click();
+  await page.locator('.main-menu .btn', { hasText: 'Missions' }).first().click();
   await page.waitForSelector('.play-screen');
   const seen = [];
   for (let i = 0; i < 6; i++) {

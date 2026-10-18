@@ -34,12 +34,16 @@ try {
   console.log('legacy off (the default)');
   await page.waitForSelector('.main-menu');
   assert((await G(() => document.title)) === 'Night Shift', 'the page is titled Night Shift');
-  const title = await G(() => document.querySelector('.game-title')?.textContent ?? '');
-  assert(/NIGHT/.test(title) && /SHIFT/.test(title) && !/SILENT|DEADLY/.test(title), `the main menu title is Night Shift (${title})`);
-  const badge = await G(() => ({ level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits'), name: document.querySelector('.badge-name b')?.textContent }));
-  assert(!badge.level && !badge.credits && !!badge.name, `the profile badge shows no level or credits (${JSON.stringify(badge)})`);
+  // (menu-ui slice 1: the main menu's ghost title is MAIN / MENU; the profile badge only with ?legacy=1, MD19)
+  const title = await G(() => document.querySelector('.main-menu .ms-ghost')?.textContent ?? '');
+  const oldName = await G(() => /SILENT|DEADLY/i.test(document.body.textContent ?? ''));
+  assert(/Main/i.test(title) && /Menu/i.test(title) && !oldName, `the main menu title is MAIN MENU, no old name (${title})`);
+  const badge = await G(() => ({ any: !!document.querySelector('.main-menu .badge'), level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
+  assert(!badge.any && !badge.level && !badge.credits, `no profile badge, level or credits (${JSON.stringify(badge)})`);
+  const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
+  assert(['missions', 'coop', 'training', 'freeroam', 'loadout', 'settings', 'feedback'].every((k) => keys.includes(k)) && !keys.includes('legacy'), `the flat main menu (${keys})`);
 
-  await menuClick(page, 'Play');
+  await menuClick(page, 'Missions');
   await page.waitForSelector('.play-screen');
   const modes = await playModes(page);
   assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the Play screen lists Infiltration and Free Roam (${modes})`);
@@ -126,7 +130,7 @@ try {
   await L.waitForSelector('.main-menu');
   const lbadge = await GL(() => ({ level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(lbadge.level && lbadge.credits, 'the profile badge shows level and credits');
-  await menuClick(L, 'Play');
+  await menuClick(L, 'Legacy');
   await L.waitForSelector('.play-screen');
   const lmodes = await playModes(L);
   assert(lmodes.length === 4 && ['Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Mission and Hunter are back (${lmodes})`);
