@@ -386,7 +386,9 @@ try {
     return { maxStep, drawStep, worst: `${window.__worst}, ${swapped} -> ${w.current.def.id}`, limited: rig.limited - limited0 - knownLimited, knownLimited, flinch: back };
   });
   assert(tr.maxStep < 0.1, `pose channels continuous through every transition (max ${tr.maxStep.toFixed(3)} per 60 Hz frame, normalised, worst ${tr.worst})`);
-  console.log(`  KNOWN ISSUE - draw / holster to the back slot (aim and sprint steps): max ${tr.drawStep.toFixed(3)} per frame, ${tr.knownLimited} joint-rate hits (pop; CT prototype draw work, G103)`);
+  // (anim-cleanup) the draw / holster now carries the gun along a path in the hand (WeaponModel travel): held to the
+  // same continuity as every other transition; the arm's joint-rate hits are reported
+  assert(tr.drawStep < 0.1, `draw / holster to the back mount continuous (aim and sprint steps: max ${tr.drawStep.toFixed(3)} per frame, ${tr.knownLimited} joint-rate hits)`);
   assert(tr.limited < 60, `joint-rate safety net rarely needed (${tr.limited} hits)`);
   assert(within(tr.flinch, 0.25, 0.65), `hit flinch recovers in ${f2(tr.flinch)} s (0.3-0.6 s)`);
 
