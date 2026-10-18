@@ -131,7 +131,7 @@
     },
     "height": 1.83,
     "build": "broad",
-    "gun": "smg",
+    "gun": "rifle",
     "plated": true
   },
   "sniper": {
@@ -178,7 +178,7 @@
     },
     "height": 1.78,
     "build": "lean",
-    "gun": "sniper",
+    "gun": "rifle",
     "plated": false
   },
   "enforcer": {
@@ -225,7 +225,7 @@
     },
     "height": 1.82,
     "build": "broad",
-    "gun": "pistol",
+    "gun": "pistolSd",
     "plated": true
   },
   "dog": {
@@ -313,7 +313,7 @@
     },
     "height": 1.75,
     "build": "average",
-    "gun": "smg",
+    "gun": "rifle",
     "plated": false
   },
   "officer": {
@@ -359,7 +359,7 @@
     },
     "height": 1.8,
     "build": "athletic",
-    "gun": "pistol",
+    "gun": "pistolSd",
     "plated": false
   }
 }

@@ -1,12 +1,11 @@
 /**
  * Spike log (3.3, pure): every frame that takes over 1.5x the frame budget, tagged with what happened around it -
- * shaders compiled, voxel levels of detail swapped, lamps re-mixed (the phone light volume), the frame governor
- * stepping - else the main thread (its CPU time near the budget) or the GPU. The benchmark prints it per run; a
+ * shaders compiled, voxel levels of detail swapped, the frame governor stepping - else the main thread (its CPU time near the budget) or the GPU. The benchmark prints it per run; a
  * feedback note carries the match's.
  */
 export const SPIKE = {
   /** A spike: an interval over this x the budget or the typical frame, whichever is longer (3.3.1: an uncapped
-   *  benchmark run on a 120 Hz phone measured every 14 ms frame against 8.3 ms - nearly all of them "spikes"). */
+   *  benchmark run on a 120 Hz display measured every 14 ms frame against 8.3 ms - nearly all of them "spikes"). */
   over: 1.5,
   /** How fast the typical frame follows (exponential average per frame). */
   typical: 0.05,
@@ -14,13 +13,13 @@ export const SPIKE = {
   cpu: 0.8,
 };
 
-export const SPIKE_CAUSES = ['shaders', 'lod', 'lamps', 'governor', 'cpu', 'gpu'] as const;
+export const SPIKE_CAUSES = ['shaders', 'lod', 'governor', 'cpu', 'gpu'] as const;
 export type SpikeCause = (typeof SPIKE_CAUSES)[number];
 /** Event bits a frame reports (the causes that are events, not inferred). */
-export const SPIKE_EVENT = { shaders: 1, lod: 2, lamps: 4, governor: 8 } as const;
+export const SPIKE_EVENT = { shaders: 1, lod: 2, governor: 8 } as const;
 
 export class SpikeLog {
-  readonly counts: Record<SpikeCause, number> = { shaders: 0, lod: 0, lamps: 0, governor: 0, cpu: 0, gpu: 0 };
+  readonly counts: Record<SpikeCause, number> = { shaders: 0, lod: 0, governor: 0, cpu: 0, gpu: 0 };
   total = 0;
   frames = 0;
   worstMs = 0;
@@ -47,7 +46,7 @@ export class SpikeLog {
     this.total++;
     this.worstMs = Math.max(this.worstMs, intervalMs);
     const c: SpikeCause =
-      ev & SPIKE_EVENT.shaders ? 'shaders' : ev & SPIKE_EVENT.lamps ? 'lamps' : ev & SPIKE_EVENT.lod ? 'lod' : ev & SPIKE_EVENT.governor ? 'governor' : cpuMs > budgetMs * SPIKE.cpu ? 'cpu' : 'gpu';
+      ev & SPIKE_EVENT.shaders ? 'shaders' : ev & SPIKE_EVENT.lod ? 'lod' : ev & SPIKE_EVENT.governor ? 'governor' : cpuMs > budgetMs * SPIKE.cpu ? 'cpu' : 'gpu';
     this.counts[c]++;
     return c;
   }

@@ -1,8 +1,8 @@
 /**
- * Phone lamp light volume (3.3, pure parts): the baked lamps (`lampBake.ts`) mixed into one light volume over the
- * cells the lamps reach, at the bake's own cell size - per cell the lamps' light (falloff x cone x baked visibility x
- * colour) and the direction it comes from - so a phone pixel takes two texture taps instead of looping over up to
- * eight lamps. The mix runs on the GPU (`BakedLamps`), over the cells of the lamps that changed (a switch, a shot, an
+ * Lamp light volume (3.3, pure parts; the game no longer uses it - the Kestrel editor's light view does): the baked
+ * lamps (`lampBake.ts`) mixed into one light volume over the cells the lamps reach, at the bake's own cell size - per
+ * cell the lamps' light (falloff x cone x baked visibility x colour) and the direction it comes from - so a pixel takes
+ * two texture taps instead of looping over up to eight lamps. The mix runs on the GPU (`BakedLamps`), over the cells of the lamps that changed (a switch, a shot, an
  * EMP), from the same lamp data the per-lamp loop reads.
  *
  *   A (RGBA8): rgb = sqrt(light / LAMP_VOL_MAX) (more precision in the dark)

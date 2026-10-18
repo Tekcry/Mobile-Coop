@@ -2,7 +2,7 @@ import { hyp3 } from '../core/mathx';
 /**
  * WebAudio engine: buses (sfx, music, ui) -> compressor -> destination.
  * Everything is synthesised; no audio files. The context is created/resumed on the first
- * user gesture (required on iOS). Voice count is capped so heavy fights cannot overload phones.
+ * user gesture (browsers require one). Voice count is capped so heavy fights cannot overload the mix.
  */
 export interface Volumes {
   master: number;
@@ -19,7 +19,7 @@ export class AudioEngine {
   ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private buses: Partial<Record<Bus, GainNode>> = {};
-  private vol: Volumes = { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 };
+  private vol: Volumes = { master: 0.8, sfx: 1, music: 0.15, ui: 0.7 };
   private voices = 0;
   private noiseBuf: AudioBuffer | null = null;
   private lastPlay = new Map<string, number>();

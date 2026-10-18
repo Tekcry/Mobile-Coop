@@ -9,10 +9,10 @@ import { autoGrant, unlockContext } from '../src/progression/profile';
 import { PATTERN_ID } from '../src/cosmetics/patterns';
 
 describe('cosmetics catalogue', () => {
-  it('registers unique unlock ids for every part, camo, emote and tag', () => {
+  it('registers unique unlock ids for every part, camo and tag', () => {
     expect(new Set(UNLOCKS.map((u) => u.id)).size).toBe(UNLOCKS.length);
     for (const [cat, opts] of Object.entries(PART_OPTIONS)) for (const o of opts) expect(unlockById(partUnlockId(cat as never, o.value))).toBeDefined();
-    for (const w of ['rifle', 'smg', 'sniper'] as const) for (const camo of Object.values(MASTERY_CAMOS)) expect(unlockById(camoUnlockId(w, camo))).toBeDefined();
+    for (const w of ['rifle', 'pistolSd'] as const) for (const camo of Object.values(MASTERY_CAMOS)) expect(unlockById(camoUnlockId(w, camo))).toBeDefined();
     expect(AVATAR_KEYS_OK).toBe(true);
   });
   it('part options cover every look value', () => {
@@ -29,14 +29,15 @@ describe('cosmetics catalogue', () => {
     expect(own(partUnlockId('hair', s.avatar.hair))).toBe(true);
     expect(own(partUnlockId('torso', s.avatar.torso))).toBe(true);
     expect(own(partUnlockId('helmet', s.avatar.helmet))).toBe(true);
-    expect(own('emote:wave') && own('tag:Rookie') && own('camo:factory')).toBe(true);
+    expect(own('tag:Rookie') && own('camo:factory')).toBe(true);
+    expect(s.unlocks.some((u) => u.startsWith('emote:'))).toBe(false);
     expect(own('part:hair:spikes')).toBe(false);
   });
   it('mastery camos unlock with weapon kills', () => {
     const s = defaultSave();
-    const item = unlockById('camo:smg:desert')!;
+    const item = unlockById('camo:rifle:desert')!;
     expect(unlockState(item, unlockContext(s))).toBe('locked');
-    s.weapons.smg.kills = 30;
+    s.weapons.rifle.kills = 30;
     expect(unlockState(item, unlockContext(s))).toBe('free');
   });
   it('camo patterns reference shader pattern ids', () => {

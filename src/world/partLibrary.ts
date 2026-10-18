@@ -1,4 +1,3 @@
-import { renderOpts } from './renderOpts';
 import {
   Color3,
   Color4,
@@ -83,7 +82,7 @@ export class PartLibrary {
         // PBR divides diffuse by pi: the lights were authored for the standard material
         pm.directIntensity = Math.PI;
         pm.environmentIntensity = 0.5;
-        pm.realTimeFiltering = renderOpts.iblFilter;
+        pm.realTimeFiltering = true;
         new PatternPlugin(pm);
         new SurfacePlugin(pm, atlas, 'object');
         return pm;

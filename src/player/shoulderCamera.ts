@@ -1,11 +1,13 @@
-import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Camera, FreeCamera, PhysicsRaycastResult, PhysicsShapeSphere, Quaternion, ShapeCastResult, Vector3, type HavokPlugin, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type AttachFraming } from '../config/camera';
+import { ATTACH_FRAMING, attachFraming, CAMERA, framing, WALL_CAMERA, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
+import { DOOR_PEEK, clampPeekYaw } from '../world/doorPeek';
 import { vfovFor } from '../core/display';
+import { castStop, easeRate, lowFraming, lowSwing, lowWeight, nearPlane, pivotFraction } from './cameraBounds';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -28,16 +30,17 @@ export const CAMERA_TUNING = {
   },
 };
 
-/** Low cover: the camera eye sits this far above the top (m). */
-export const COVER_EYE = 0.26;
 
 /**
  * Weighted cinematic over-the-shoulder camera. Gameplay sets the look targets (`yaw`, `pitch`); the
  * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
  * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
- * ADS, cover, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
- * the head. Subtle handheld drift (steadier when kneeling or aiming) and a damped footstep micro-bob
- * give it weight. The boom pulls in smoothly against walls (never pops) and eases back out.
+ * ADS, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
+ * the head. Subtle handheld drift (steadier when kneeling or aiming)
+ * gives it weight; no footstep bob (D2). Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
+ * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls
+ * in at once and eases back out. Low spaces: probes up and down from the head lower the shoulder point and shorten the boom
+ * between floor and ceiling, easing back when the space opens. In the open none of this changes the framing.
  * Updated every render frame from interpolated targets.
  */
 
@@ -65,14 +68,31 @@ export class ShoulderCamera {
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
   attach: AttachCamera | null = null;
+  /** (step 11) Back to a wall: the open side (1 right, -1 left, 0 none); the shoulder follows it in the `wall` preset. */
+  wallSide = 0;
+  /** (step 12) Back to a wall at an edge: peek / lean-out targets (0..1) and the direction past the edge (unit XZ). */
+  wallPeek = 0;
+  wallLean = 0;
+  wallEdgeX = 0;
+  wallEdgeZ = 0;
+  /** (21w) Seconds left of the slower wall shoulder-swap rate. */
+  private wallSideT = 0;
+  /** (locomotion step 13) Door peek: the view at the crack (0..1, the core's), the eye there (world) and the look's
+   *  centre yaw (the look stays within +-35 deg of it). Local only, never sent. */
+  doorPeek = 0;
+  readonly doorEye = new Vector3();
+  doorYaw = 0;
+  private doorW = 0;
+  private readonly doorPt = new Vector3();
+  /** Eased peek / lean amounts (capped rate) and the edge direction they swing toward. */
+  private peekW = 0;
+  private leanW = 0;
+  private edgeX = 0;
+  private edgeZ = 0;
   /** Body facing while attached: the orbit stays within the preset's cone around it. */
   attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
   private sAttach = new Spring(0);
-  /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
-  lift = 0;
-  /** Low cover top above the feet (m; 0 = none): the eye stays just above it, so hiding still sees over. */
-  coverTop = 0;
   dash = 0;
   lean = 0;
   /** In cover (slow push-in). */
@@ -111,11 +131,26 @@ export class ShoulderCamera {
   private shoulderPt = new Vector3();
   private desired = new Vector3();
   private camPos = new Vector3();
+  private head = new Vector3();
+  private probe = new Vector3();
+  private castVec = new Vector3();
   private static readonly Q = { membership: G.PLAYER, collideWith: G.STATIC };
+  /** Sphere casts (the camera's own shapes, G.PLAYER against G.STATIC like its rays), built on first use. */
+  private castShape: PhysicsShapeSphere | null = null;
+  private pivotShape: PhysicsShapeSphere | null = null;
+  private castHit = new ShapeCastResult();
+  private castHitOther = new ShapeCastResult();
+  private castQuery = { shape: null as unknown as PhysicsShapeSphere, rotation: Quaternion.Identity(), startPosition: new Vector3(), endPosition: new Vector3(), shouldHitTriggers: false };
+  /** Low space: weight 0..1 (eased) and the clear height over the head last frame (m). */
+  private sLow = new Spring();
+  private sLowDy = new Spring();
+  lowW = 0;
+  clearHeight = Number.POSITIVE_INFINITY;
+  private lowOut = { boom: 0, shoulderY: 0 };
 
   constructor(private scene: Scene) {
     this.camera = new FreeCamera('ots', new Vector3(0, 2, -4), scene);
-    this.camera.minZ = 0.05;
+    this.camera.minZ = CAMERA.near;
     this.camera.maxZ = 220;
     // Hor+: the vertical FOV is fixed from the horizontal setting at 16:9, so tall framing (head to
     // hips) holds on any aspect and wider screens see more at the sides, up to `maxFovDeg` (then Vert-)
@@ -126,6 +161,53 @@ export class ShoulderCamera {
     // frame's pitch for good (a lasting tilt after a hard landing, a hit or an explosion)
     this.camera.updateUpVectorFromRotation = true;
     scene.activeCamera = this.camera;
+    scene.onDisposeObservable.addOnce(() => {
+      this.castShape?.dispose();
+      this.pivotShape?.dispose();
+      this.castShape = this.pivotShape = null;
+    });
+  }
+
+  /** A sphere of `radius` for casts, rebuilt if the radius was retuned. */
+  private sphere(cur: PhysicsShapeSphere | null, radius: number): PhysicsShapeSphere {
+    if (cur && this.radii.get(cur) === radius) return cur;
+    cur?.dispose();
+    const s = new PhysicsShapeSphere(Vector3.Zero(), radius, this.scene);
+    s.filterMembershipMask = G.PLAYER;
+    s.filterCollideMask = G.STATIC;
+    this.radii.set(s, radius);
+    return s;
+  }
+  private radii = new WeakMap<PhysicsShapeSphere, number>();
+
+  /**
+   * Fraction (0..1) of `from` -> `to` a sphere of `radius` travels before it touches level geometry (1 = clear). A start that
+   * already overlaps a surface (a tight duct) falls back to the ray, so the chain never collapses onto its start.
+   */
+  private cast(eng: PhysicsEngine, shape: PhysicsShapeSphere, radius: number, from: Vector3, to: Vector3): number {
+    const plugin = eng.getPhysicsPlugin() as HavokPlugin;
+    if (typeof plugin.shapeCast === 'function') {
+      const q = this.castQuery;
+      q.shape = shape;
+      q.startPosition.copyFrom(from);
+      q.endPosition.copyFrom(to);
+      plugin.shapeCast(q, this.castHitOther, this.castHit);
+      if (!this.castHit.hasHit) return 1;
+      if (this.castHit.hitFraction > 1e-4) return this.castHit.hitFraction;
+    }
+    this.rr.reset();
+    eng.raycastToRef(from, to, this.rr, ShoulderCamera.Q);
+    if (!this.rr.hasHit) return 1;
+    const len = Vector3.Distance(from, to);
+    return len > 1e-6 ? Math.max(0, Vector3.Distance(from, this.rr.hitPoint) - radius) / len : 0;
+  }
+
+  /** Height (m) of the first surface straight up (`dir` 1) or down (-1) from `p` within `len`, else p.y + dir * len. */
+  private probeY(eng: PhysicsEngine, p: Vector3, dir: number, len: number): number {
+    this.probe.set(p.x, p.y + dir * len, p.z);
+    this.rr.reset();
+    eng.raycastToRef(p, this.probe, this.rr, ShoulderCamera.Q);
+    return this.rr.hasHit ? this.rr.hitPoint.y : this.probe.y;
   }
 
   swapShoulder(): void {
@@ -160,11 +242,6 @@ export class ShoulderCamera {
     this.trauma = Math.min(1, this.trauma + 0.16 * s);
   }
 
-  /** A footstep landed (heel strike): a tiny damped dip of the view (strength ~0..1). */
-  footstep(strength = 1): void {
-    this.sBob.kick(-0.05 * Math.min(1.5, strength));
-  }
-
   /** Snap the rendered view to the targets (teleport, respawn). */
   snap(): void {
     this.viewYaw = this.yaw;
@@ -183,8 +260,13 @@ export class ShoulderCamera {
     const T = CAMERA;
     this.t += dt;
     if (dt <= 0) dt = 1e-4;
+    // (step 13) at a door's crack the look stays within its range
+    if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
+    this.doorW = this.doorPeek;
     // framing blends (critically damped: 350-600 ms, no overshoot)
-    const side = this.sSide.step(this.shoulder, MOVEMENT.camShoulder, dt);
+    // (21w) on a wall, and for a beat after leaving it, the shoulder swaps at the slower wall rate (no whip)
+    this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
+    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : MOVEMENT.camShoulder, dt);
     this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
     const leanS = this.sLean.step(this.lean, 8, dt);
     const dashS = this.sDash.step(this.dash, 6, dt);
@@ -206,8 +288,7 @@ export class ShoulderCamera {
     }
     const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
     if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
-    const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;
-    const pivotY = this.sPivot.step(Math.max(fr.pivot + Math.max(0, this.lift), overEye), 10, dt);
+    const pivotY = this.sPivot.step(fr.pivot, 10, dt);
     // follow: feet height and position lag slightly; look ahead along the movement
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
     const footY = this.sFootY.step(feet.y, 14, dt);
@@ -229,7 +310,41 @@ export class ShoulderCamera {
     const fx = this.sFx.step(feet.x, MOVEMENT.camFollow, dt);
     const fz = this.sFz.step(feet.z, MOVEMENT.camFollow, dt);
     const bob = this.sBob.step(0, 16, dt);
-    this.pivot.set(fx + lx, footY + pivotY + bob, fz + lz);
+    // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
+    // keeps it on the head's side of any wall)
+    const wp = WALL_CAMERA.peek;
+    const wl = WALL_CAMERA.lean;
+    const onWall = this.attach === 'wall';
+    if (this.wallEdgeX !== 0 || this.wallEdgeZ !== 0) {
+      this.edgeX = this.wallEdgeX;
+      this.edgeZ = this.wallEdgeZ;
+    }
+    const pT = onWall ? this.wallPeek : 0;
+    const lT = onWall ? this.wallLean : 0;
+    this.peekW += Math.max(-dt / wp.blend, Math.min(dt / wp.blend, pT - this.peekW));
+    this.leanW += Math.max(-dt / wl.blend, Math.min(dt / wl.blend, lT - this.leanW));
+    const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+    const le = this.leanW * this.leanW * (3 - 2 * this.leanW);
+    const swing = wp.offset * pe + wl.offset * le;
+    this.pivot.set(fx + lx + this.edgeX * swing, footY + pivotY + bob, fz + lz + this.edgeZ * swing);
+    // the head: the pivot height on the operator's own axis (no follow lag, no look-ahead), always in the operator's space
+    const head = this.head.set(feet.x, this.pivot.y, feet.z);
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    let lowDyT = 0;
+    if (eng) {
+      this.castShape = this.sphere(this.castShape, T.castRadius);
+      this.pivotShape = this.sphere(this.pivotShape, T.pivotRadius);
+      // pivot safety: the lagged, looked-ahead pivot is pulled back to the head side of any wall between them
+      const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, head, this.pivot), Vector3.Distance(head, this.pivot), T.castSkin);
+      if (f < 1) Vector3.LerpToRef(head, this.pivot, f, this.pivot);
+      // low space: clear height over the head, floor to ceiling
+      const ceilY = this.probeY(eng, head, 1, T.probeUp);
+      const floorY = this.probeY(eng, head, -1, T.probeDown);
+      this.clearHeight = ceilY - floorY;
+      const wT = lowWeight(this.clearHeight);
+      this.lowW = Math.max(0, Math.min(1, this.sLow.step(wT, easeRate(wT > this.sLow.x, T.lowIn, T.lowOut), dt)));
+      if (wT > 0) lowDyT = Math.min(0, lowFraming(0, this.pivot.y + T.height, floorY, ceilY, 1, this.lowOut).shoulderY - (this.pivot.y + T.height));
+    } else this.lowW = 0;
 
     // rendered rotation: look input applies the same frame (no lag); smoothing and acceleration live in
     // the input sources, so the view is exactly where the player points it
@@ -241,7 +356,14 @@ export class ShoulderCamera {
     // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
     // yaw and pitch peaks combine: 0.0018 rad per axis keeps the total under 0.15 deg
     const drift = 0.0018 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
-    const yaw = this.viewYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
+    // (step 12) peeking: the view turns toward the edge, at most `WALL_CAMERA.peek.yaw` (the aim is untouched)
+    let peekYaw = 0;
+    if (this.peekW > 0) {
+      const d = Math.atan2(Math.sin(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw), Math.cos(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw));
+      const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+      peekYaw = Math.sign(d) * Math.min(Math.abs(d), WALL_CAMERA.peek.yaw) * pe;
+    }
+    const yaw = this.viewYaw + peekYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
     const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
     const dYaw = yaw - prevYaw;
     this.angVel = hyp2(dYaw, pitch - prevPitch) / dt;
@@ -254,39 +376,51 @@ export class ShoulderCamera {
     const arc = 0.2 * (1 - side * side);
     // pace: a sneak frames a touch tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
     const paceS = this.sPace.step(Math.min(1, this.pace / 2.8), 4, dt);
-    const boomTarget = fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads);
+    const boomFr = Math.max(T.minBoom, fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads));
+    // low space: a shorter boom and the shoulder point between floor and ceiling (eased in fast, out slowly)
+    const low = this.lowW;
+    const lowDy = this.sLowDy.step(lowDyT, easeRate(lowDyT < this.sLowDy.x, T.lowIn, T.lowOut), dt);
+    const boomTarget = boomFr + (Math.min(boomFr, T.lowBoom) - boomFr) * low;
     const shoulder = fr.shoulder * side + leanS * T.leanShift;
-    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height, this.pivot.z + rightZ * shoulder);
-    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
-    const q = ShoulderCamera.Q;
-    if (eng) {
-      // keep the shoulder point itself out of walls in tight corridors
-      this.rr.reset();
-      eng.raycastToRef(this.pivot, shoulderPt, this.rr, q);
-      if (this.rr.hasHit) Vector3.LerpToRef(this.pivot, this.rr.hitPoint, 0.75, shoulderPt);
+    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
+    if (eng && this.pivotShape) {
+      // the shoulder point stays on the pivot's side of a wall (tight corridors, leaning past a corner)
+      const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, this.pivot, shoulderPt), Vector3.Distance(this.pivot, shoulderPt), T.castSkin);
+      if (f < 1) Vector3.LerpToRef(this.pivot, shoulderPt, f, shoulderPt);
     }
-    const desired = this.forward.scaleToRef(-boomTarget, this.desired).addInPlace(shoulderPt);
-    let dist = boomTarget;
-    if (eng) {
-      this.rr.reset();
-      eng.raycastToRef(shoulderPt, desired, this.rr, q);
-      if (this.rr.hasHit) dist = Math.max(T.minBoom, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.padding);
-    }
-    // pull in quickly but smoothly (never pops), ease back out slowly; never behind a wall
-    const boomNow = this.sBoom.step(dist, dist < this.sBoom.x ? 40 : 7, dt);
-    this.boomActual = Math.min(boomNow, dist + 0.04);
-    const pos = this.forward.scaleToRef(-this.boomActual, this.camPos).addInPlace(shoulderPt);
-
-    // shake (smooth pseudo-noise)
+    // the boom: back along the view (its vertical swing flattened in a low space), shake included so the cast covers it
+    const v = this.castVec.set(-this.forward.x, -this.forward.y * lowSwing(low), -this.forward.z);
+    v.scaleInPlace(boomTarget / Math.max(1e-6, v.length()));
     const s = this.trauma * this.trauma;
     if (s > 0) {
-      pos.x += Math.sin(this.t * 37.3) * 0.06 * s;
-      pos.y += Math.sin(this.t * 41.7 + 1.3) * 0.06 * s;
+      v.x += Math.sin(this.t * 37.3) * 0.06 * s;
+      v.y += Math.sin(this.t * 41.7 + 1.3) * 0.06 * s;
+    }
+    const len = Math.max(1e-6, v.length());
+    const desired = this.desired.copyFrom(shoulderPt).addInPlace(v);
+    let dist = len;
+    if (eng && this.castShape) dist = castStop(this.cast(eng, this.castShape, T.castRadius, shoulderPt, desired), len, T.castPad);
+    // pull in fast, ease back out slowly; never past the cast's stop (never behind a wall)
+    const boomNow = this.sBoom.step(dist, easeRate(dist < this.sBoom.x, T.boomIn, T.boomOut), dt);
+    this.boomActual = Math.min(boomNow, dist);
+    const pos = v.scaleToRef(this.boomActual / len, this.camPos).addInPlace(shoulderPt);
+    this.camera.minZ = nearPlane(this.boomActual);
+    // (step 13) door peek: the eye goes to the crack (cast from the head, so never inside the leaf or the jamb)
+    const dw = this.doorW;
+    if (dw > 0) {
+      const e = dw * dw * (3 - 2 * dw);
+      const eye = this.doorPt.copyFrom(this.doorEye);
+      if (eng && this.pivotShape) {
+        const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, head, eye), Vector3.Distance(head, eye), T.castSkin);
+        if (f < 1) Vector3.LerpToRef(head, eye, f, eye);
+      }
+      Vector3.LerpToRef(pos, eye, e, pos);
+      this.camera.minZ += (0.02 - this.camera.minZ) * e;
     }
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom;
+    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
   }
 
   /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */

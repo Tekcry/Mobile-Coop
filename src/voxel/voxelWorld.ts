@@ -1,4 +1,3 @@
-import { renderOpts } from '../world/renderOpts';
 import { Color3, Constants, Mesh, PBRMaterial, RawTexture, RawTexture3D, StandardMaterial, Texture, VertexData, type Scene } from '../core/babylon';
 import type { SurfaceAtlas } from '../world/surfaceAtlas';
 import { BRICK, BRICK_VOXELS, Brickmap, EMPTY, UNIFORM_BASE } from './brickmap';
@@ -75,6 +74,11 @@ export class VoxelWorld {
     private opts: VoxelWorldOptions,
   ) {
     this.brickmap = new Brickmap(lv.origin, lv.size, lv.dims);
+  }
+
+  /** Micro surface detail on the near levels (two more textures in their shaders: `LightRig` sizes its shadow pool by it). */
+  get micro(): boolean {
+    return this.opts.micro;
   }
 
   /** Build the level's voxels (workers; the cache when it has them). */
@@ -252,7 +256,7 @@ export class VoxelWorld {
         pm.usePhysicalLightFalloff = false;
         pm.directIntensity = Math.PI;
         pm.environmentIntensity = 0.6;
-        pm.realTimeFiltering = renderOpts.iblFilter;
+        pm.realTimeFiltering = true;
         mat = pm;
       } else {
         // the cheap path (`?gfx=min`): standard shading, the palette colour per voxel only
@@ -261,7 +265,7 @@ export class VoxelWorld {
         sm.specularColor = Color3.Black();
         mat = sm;
       }
-      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2, renderOpts.aoLite);
+      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2);
       this.plugins.push(plugin);
       this.materials.push(mat);
       mat.freeze();
@@ -544,7 +548,7 @@ export function mixGiSlots(data: Uint8Array, groups: number, weights: ArrayLike<
 
 /**
  * Let a static texture's upload buffer go (3.2.2): Babylon keeps it to re-create the texture after a lost WebGL
- * context; the big voxel / lamp textures would double their memory for that (the phone ran out of memory).
+ * context; the big voxel / lamp textures would double their memory for that.
  */
 export function dropCpuCopy(t: { getInternalTexture(): unknown } | null): void {
   const it = t?.getInternalTexture() as { _bufferView?: unknown } | null | undefined;

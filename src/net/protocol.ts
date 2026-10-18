@@ -8,28 +8,31 @@ import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
+import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 2;
-/** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
-export const MAX_PLAYERS = 8;
+export const PROTOCOL_VERSION = 13;
+/** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
+export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
-export const TEAM_MAX = 4;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
 /** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */
-export const MAX_ITEMS = 48;
-export const MAX_DOORS = 96;
+export const MAX_ITEMS = 128;
+export const MAX_DOORS = 256;
 const WORLD = 400;
 
-/** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */
+/** Co-op: free roam, Hunter (`clear`), Infiltration, the training course. */
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
-export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa';
-export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa'];
-export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
+export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course';
+export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course'];
+/** The training course takes exactly two players (P1 host, P2 client). */
+export const COURSE_MAX = 2;
 /** Players a mode takes. */
-export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : COOP_MAX);
+export const capacity = (m: NetMode): number => (m === 'course' ? COURSE_MAX : COOP_MAX);
 import { parseDifficulty, type Difficulty } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -42,12 +45,10 @@ export interface PlayerInfo {
   loadout: WeaponId[];
   ready: boolean;
   host: boolean;
-  /** Team deathmatch side (0 / 1); co-op and free-for-all ignore it. */
-  team: number;
 }
 
 /** Bit flags in player state. */
-/** Player flags; `silent`: footsteps make no noise this moment (cover glides / moves, climbing, vaults);
+/** Player flags; `silent`: footsteps make no noise this moment (climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
 export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
@@ -62,8 +63,7 @@ export interface PlayerState {
   f: number;
   w: WeaponId;
   hp: number;
-  sh: number;
-  /** Movement state (3.2.0): cover, attached, committed moves, takedowns (`player/moveState.ts`). */
+  /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
 }
 
@@ -90,7 +90,7 @@ export interface EnemyState {
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall';
   x: number;
   y: number;
   z: number;
@@ -100,15 +100,7 @@ export interface NetItem {
   reach: number;
   on: boolean;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive'];
-
-/** PvP scoreboard line. */
-export interface ScoreLine {
-  id: string;
-  k: number;
-  d: number;
-  team: number;
-}
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall'];
 
 export type NetEvent =
   | { e: 'tracer'; ax: number; ay: number; az: number; bx: number; by: number; bz: number; c: string }
@@ -116,14 +108,11 @@ export type NetEvent =
   | { e: 'kill'; enemy: string; kind: EnemyKind; by: string; head: boolean }
   | { e: 'banner'; title: string; sub: string }
   | { e: 'feed'; text: string }
-  | { e: 'pickup'; player: string; kind: 'ammo' | 'health' }
-  | { e: 'emote'; player: string; id: string }
+  | { e: 'pickup'; player: string; kind: 'ammo' }
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
-  /** PvP: `victim` eliminated by `by` (equal = self / world). */
-  | { e: 'frag'; victim: string; by: string; head: boolean }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
   | { e: 'tdDenied'; player: string; enemy: string }
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
@@ -134,29 +123,26 @@ export type NetEvent =
 export interface EndStats {
   won: boolean;
   subtitle: string;
-  waves: number;
   score: number;
   /** Per player id. */
   players: Record<string, { kills: number; headshots: number; byKind: Record<EnemyKind, number>; weaponKills: Record<string, number> }>;
-  /** PvP: the winner ('team0' / 'team1' / a player id; '' = draw). */
-  winner: string;
 }
 
 export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
-  /** Ask the host for a TDM side. */
-  | { t: 'team'; team: number }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
   | { t: 'pstate'; s: PlayerState }
-  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number; ex: boolean }
+  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). */
   | { t: 'use'; id: string }
+  /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
+  | { t: 'door'; i: number; crack: boolean }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
-  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
+  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
   | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
@@ -164,18 +150,28 @@ export type Msg =
   | { t: 'tstart'; kind: 'boost' | 'ladder'; a: string; b: string; target: number; s: number; t0: number }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
+  /**
+   * (locomotion step 10, A5 / PLAN H3) The generic host-approved committed move: a client asks (`id` its own
+   * counter, `target` a guard id or ''), the host starts it for everyone at its time `t0` or refuses it (or
+   * interrupts it: reason `hit`). Kinds now: `strike`. Reserved, not parsed yet: takedown, grab,
+   * drag (step 27); splitBoost, backToBack, pullUp, rappelAnchor, clutch (Phase 5, PLAN H4).
+   */
+  | { t: 'cmove'; kind: CKind; id: number; target: string }
+  | { t: 'cstart'; kind: CKind; a: string; id: number; target: string; t0: number }
+  | { t: 'cdeny'; a: string; id: number; kind: CKind; reason: CDenyReason }
   /** The human ladder of `a` (top) and `b` (bottom) ended. */
   | { t: 'tend'; a: string; b: string }
-  /** (3.2.0) PvP: a client's takedown on another player finished (the host checks it, then it is a kill). */
-  | { t: 'ptd'; target: string; kind: 'drop' | 'below' | 'inverted' }
   /** Client ping (the host relays it to everyone). */
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
   | { t: 'gadget'; kind: NetGadget; x: number; y: number; z: number }
   | { t: 'ev'; events: NetEvent[] }
-  | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
+  /** Training course state (host -> all): when it changes or every COURSE_SEND. */
+  | ({ t: 'course' } & CourseWire)
+  /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
+  | { t: 'ctick'; verb: ClientVerb }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -234,7 +230,6 @@ function playerState(v: unknown): PlayerState | null {
     f: Math.floor(num(v.f, 0, 2047) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
-    sh: num(v.sh, 0, 50) ?? 0,
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
@@ -262,18 +257,11 @@ function netItem(v: unknown): NetItem | null {
   return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
 }
 
-function scoreLine(v: unknown): ScoreLine | null {
-  if (!isObj(v)) return null;
-  const pid = id(v.id);
-  if (!pid) return null;
-  return { id: pid, k: Math.floor(num(v.k, 0, 999) ?? 0), d: Math.floor(num(v.d, 0, 999) ?? 0), team: Math.floor(num(v.team, 0, 1) ?? 0) };
-}
-
 function playerInfo(p: unknown): PlayerInfo | null {
   if (!isObj(p)) return null;
   const pid = id(p.id);
   if (!pid) return null;
-  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, team: p.team === 1 ? 1 : 0 };
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true };
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -305,13 +293,8 @@ function netEvent(v: unknown): NetEvent | null {
       return { e: 'feed', text: safeText(v.text, 60) ?? '' };
     case 'pickup': {
       const player = id(v.player);
-      const kind = oneOf(v.kind, ['ammo', 'health'] as const);
+      const kind = oneOf(v.kind, ['ammo'] as const);
       return player && kind ? { e: 'pickup', player, kind } : null;
-    }
-    case 'emote': {
-      const player = id(v.player);
-      const eid = safeText(v.id, 16);
-      return player && eid ? { e: 'emote', player, id: eid } : null;
     }
     case 'hitConfirm': {
       const player = id(v.player);
@@ -330,11 +313,6 @@ function netEvent(v: unknown): NetEvent | null {
       const y = num(v.y, -50, 100);
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
-    }
-    case 'frag': {
-      const victim = id(v.victim);
-      const by = id(v.by);
-      return victim && by ? { e: 'frag', victim, by, head: v.head === true } : null;
     }
     case 'tdDenied': {
       const player = id(v.player);
@@ -397,10 +375,8 @@ function endStats(v: unknown): EndStats | null {
   return {
     won: v.won === true,
     subtitle: safeText(v.subtitle, 60) ?? '',
-    waves: Math.floor(num(v.waves, 0, 200) ?? 0),
     score: Math.floor(num(v.score, 0, 1e7) ?? 0),
     players,
-    winner: id(v.winner) ?? '',
   };
 }
 
@@ -408,7 +384,76 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
+const COURSE_LIST = 256;
+const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
+const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
+  const out: number[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const n = num(x, lo, hi);
+    if (n !== null) out.push(Math.round(n));
+  }
+  return out;
+};
+const strs = (v: unknown, max = COURSE_LIST): string[] => {
+  const out: string[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const x of v.slice(0, max)) {
+    const s = safeText(x, 48);
+    if (s) out.push(s);
+  }
+  return out;
+};
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v.slice(0, COURSE_LIST) : []);
+const n0 = (v: unknown, lo: number, hi: number): number => num(v, lo, hi) ?? 0;
+
+/** The `course` message: every field clamped, lists capped, unknown shapes dropped. */
+function parseCourse(raw: Obj): Msg | null {
+  const s = raw.s;
+  const lights = raw.lights;
+  if (!isObj(s) || !isObj(lights)) return null;
+  const stat = (q: unknown) => {
+    const o = isObj(q) ? q : {};
+    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4) };
+  };
+  const ps = arr(s.pstats);
+  const packed: PackedCourse = {
+    bay: Math.round(n0(s.bay, 0, 64)),
+    done: arr(s.done).map((b) => b === true),
+    cp: safeText(s.cp, 48) ?? 'start',
+    clock: n0(s.clock, 0, 1e6),
+    over: s.over === true,
+    air: arr(s.air).map((a) => {
+      const o = isObj(a) ? a : {};
+      return { phase: oneOf(o.phase, PHASES) ?? 'open', t: n0(o.t, 0, 60) };
+    }),
+    gates: arr(s.gates).map((x) => {
+      const o = isObj(x) ? x : {};
+      return { open: o.open === true, t: n0(o.t, 0, 600), holders: Math.round(n0(o.holders, 0, 3)), ta: n0(o.ta, -1, 1e6), tb: n0(o.tb, -1, 1e6), pa: Math.round(n0(o.pa, -1, 1)), pb: Math.round(n0(o.pb, -1, 1)) };
+    }),
+    flags: strs(s.flags),
+    flagBay: arr(s.flagBay).flatMap((x): [string, number][] => {
+      const f = Array.isArray(x) ? safeText(x[0], 48) : null;
+      return f ? [[f, Math.round(n0((x as unknown[])[1], 0, 64))]] : [];
+    }),
+    groupsOff: strs(s.groupsOff),
+    ticks: arr(s.ticks).map((x): [number, number] => (Array.isArray(x) ? [Math.round(n0(x[0], 0, 99)), Math.round(n0(x[1], 0, 99))] : [0, 0])),
+    stats: arr(s.stats).map(stat),
+    pstats: [stat(ps[0]), stat(ps[1])],
+    locks: strs(s.locks),
+    anchors: strs(s.anchors),
+  };
+  const groups: [number, boolean][] = [];
+  for (const x of arr(lights.groups)) {
+    if (!Array.isArray(x)) continue;
+    const g = num(x[0], -1, 4096);
+    if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
+  }
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)) };
+}
+
 /** Validate an incoming message. Returns null for anything malformed. */
+
 export function parseMessage(raw: unknown): Msg | null {
   if (!isObj(raw)) return null;
   switch (raw.t) {
@@ -435,11 +480,20 @@ export function parseMessage(raw: unknown): Msg | null {
       const r = bool(raw.ready);
       return r === null ? null : { t: 'ready', ready: r };
     }
-    case 'team':
-      return raw.team === 0 || raw.team === 1 ? { t: 'team', team: raw.team } : null;
     case 'use': {
       const iid = id(raw.id);
       return iid ? { t: 'use', id: iid } : null;
+    }
+    case 'door': {
+      const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;
+      const crack = bool(raw.crack);
+      return i === null || crack === null ? null : { t: 'door', i, crack };
+    }
+    case 'course':
+      return parseCourse(raw);
+    case 'ctick': {
+      const verb = oneOf(raw.verb, CLIENT_VERBS);
+      return verb ? { t: 'ctick', verb } : null;
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);
@@ -472,20 +526,40 @@ export function parseMessage(raw: unknown): Msg | null {
       const a = id(raw.a);
       return a ? { t: 'tdeny', a, reason: str(raw.reason, 20) ?? '' } : null;
     }
+    case 'cmove': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const cid = num(raw.id, 0, 0xffff);
+      const target = raw.target === '' || raw.target === undefined ? '' : id(raw.target);
+      if (!kind || cid === null || target === null) return null;
+      return { t: 'cmove', kind, id: Math.floor(cid), target };
+    }
+    case 'cstart': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const a = id(raw.a);
+      const cid = num(raw.id, 0, 0xffff);
+      const target = raw.target === '' || raw.target === undefined ? '' : id(raw.target);
+      const t0 = typeof raw.t0 === 'number' && Number.isFinite(raw.t0) && raw.t0 >= 0 && raw.t0 <= 1e7 ? raw.t0 : null;
+      if (!kind || !a || cid === null || target === null || t0 === null) return null;
+      return { t: 'cstart', kind, a, id: Math.floor(cid), target, t0 };
+    }
+    case 'cdeny': {
+      const kind = oneOf(raw.kind, CKINDS);
+      const a = id(raw.a);
+      const cid = num(raw.id, 0, 0xffff);
+      const reason = oneOf(raw.reason, CDENY_REASONS);
+      if (!kind || !a || cid === null || !reason) return null;
+      return { t: 'cdeny', a, id: Math.floor(cid), kind, reason };
+    }
     case 'tend': {
       const a = id(raw.a);
       const b = id(raw.b);
       return a && b ? { t: 'tend', a, b } : null;
     }
-    case 'ptd': {
-      const target = id(raw.target);
-      const kind = oneOf(raw.kind, ['drop', 'below', 'inverted'] as const);
-      return target && kind ? { t: 'ptd', target, kind } : null;
-    }
     case 'td': {
       const target = id(raw.target);
       const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
-      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true } : null;
+      const kind = id(raw.kind);
+      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true, ...(kind ? { kind } : {}) } : null;
     }
     case 'start': {
       const mode = oneOf(raw.mode, MODES);
@@ -493,7 +567,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1) };
     }
     case 'pstate': {
       const s = playerState(raw.s);
@@ -522,7 +596,6 @@ export function parseMessage(raw: unknown): Msg | null {
         rt: num(raw.rt, 0, 1e7) ?? 0,
         dist: num(raw.dist, 0, 300) ?? 0,
         dmg: num(raw.dmg, 0, 1000) ?? 0,
-        ex: raw.ex === true,
       };
     }
     case 'snap': {
@@ -542,20 +615,23 @@ export function parseMessage(raw: unknown): Msg | null {
         }
         out.doors = ds;
       }
-      if (Array.isArray(raw.score)) out.score = raw.score.slice(0, MAX_PLAYERS).map(scoreLine).filter((l): l is ScoreLine => !!l);
+      // (step 13) cracked doors (door peek), the same bounds
+      if (Array.isArray(raw.dcr)) {
+        const cs: number[] = [];
+        // (fix r1) an out-of-range entry is dropped, never clamped (-1 must not crack door 0)
+        for (const d of raw.dcr.slice(0, MAX_DOORS)) {
+          if (typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > 4095) continue;
+          if (!cs.includes(d)) cs.push(d);
+        }
+        out.dcr = cs;
+      }
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
-      const tl = num(raw.tl, 0, 3600);
-      if (tl !== null) out.tl = tl;
       return out;
     }
     case 'ev': {
       if (!Array.isArray(raw.events)) return null;
       const events = raw.events.slice(0, MAX_EVENTS).map(netEvent).filter((e): e is NetEvent => !!e);
       return { t: 'ev', events };
-    }
-    case 'emote': {
-      const e = safeText(raw.id, 16);
-      return e ? { t: 'emote', id: e } : null;
     }
     case 'blast': {
       const x = num(raw.x, -WORLD, WORLD);

@@ -16,6 +16,18 @@ export interface PatrolRoute {
   wait?: number;
   /** Walk back and forth instead of looping (default: loop when the route has 3+ points). */
   pingPong?: boolean;
+  /** Pause per point (s), overriding `wait` (a timed loop such as the Trunk Annex master clock). */
+  waits?: number[];
+  /** Facing per point (rad, 0 = +Z) while paused there, instead of looking along the next leg. */
+  faces?: number[];
+  /** Where in the loop the walker begins: pausing at point `idx` for `wait` more seconds, or (wait 0) walking to it. */
+  start?: { idx: number; wait: number };
+  /**
+   * A timed loop on a master clock: a guard pauses at point i until loop time `leave[i]` (so early or late arrival never
+   * drifts the loop), walks at its plain walking speed, and rejoins at the point the schedule says. `t0` = loop time when
+   * the walker was made (the walker keeps the clock itself: `tick`).
+   */
+  loop?: { period: number; leave: number[]; t0: number };
 }
 
 export const PATROL = {
@@ -44,6 +56,8 @@ export class PatrolWalker {
   /** Facing while paused (rad), NaN = keep the current one. */
   lookYaw = NaN;
   private postPt: Pt;
+  /** Seconds since the walker was made (the master clock of a timed loop). */
+  private clock = 0;
 
   constructor(
     readonly route: PatrolRoute | null,
@@ -54,6 +68,22 @@ export class PatrolWalker {
   ) {
     this.glanceT = PATROL.glanceEvery * (0.3 + ((seed * 0.618) % 1) * 0.7);
     this.postPt = [postX, postZ];
+    const st = route?.start;
+    if (route && st && route.points.length > 0) {
+      this.idx = Math.min(route.points.length - 1, Math.max(0, st.idx));
+      this.waitT = st.wait;
+    }
+  }
+
+  /** Advance the master clock (every tick, whatever the guard is doing). */
+  tick(dt: number): void {
+    this.clock += dt;
+  }
+
+  /** Loop time now (s, 0 .. period) of a timed loop. */
+  private loopNow(): number {
+    const l = this.route!.loop!;
+    return (((l.t0 + this.clock) % l.period) + l.period) % l.period;
   }
 
   private get pingPong(): boolean {
@@ -72,10 +102,18 @@ export class PatrolWalker {
     }
     const p = r.points[this.idx]!;
     if (hyp2(p[0] - x, p[1] - z) < PATROL.arrive) {
-      this.waitT = r.wait ?? PATROL.wait;
-      // look along the next leg while paused
+      this.waitT = r.waits?.[this.idx] ?? r.wait ?? PATROL.wait;
+      const lp = r.loop;
+      if (lp) {
+        // pause until the planned departure (modulo the period, within half a period either way)
+        let rem = (lp.leave[this.idx] ?? 0) - this.loopNow();
+        if (rem > lp.period / 2) rem -= lp.period;
+        else if (rem < -lp.period / 2) rem += lp.period;
+        this.waitT = Math.max(1e-3, rem);
+      }
+      // look along the next leg while paused (or where the route says)
       const n = r.points[this.peekNext()]!;
-      this.lookYaw = Math.atan2(n[0] - p[0], n[1] - p[1]);
+      this.lookYaw = r.faces?.[this.idx] ?? Math.atan2(n[0] - p[0], n[1] - p[1]);
       return null;
     }
     this.lookYaw = NaN;
@@ -119,6 +157,21 @@ export class PatrolWalker {
     const r = this.route;
     this.waitT = 0;
     if (!r || r.points.length === 0) return;
+    if (r.loop) {
+      // the point the schedule says the guard is at or heading for: the next planned departure
+      const lt = this.loopNow();
+      let nb = 0;
+      let nd = Infinity;
+      for (let i = 0; i < r.loop.leave.length; i++) {
+        const d = (((r.loop.leave[i]! - lt) % r.loop.period) + r.loop.period) % r.loop.period;
+        if (d < nd) {
+          nd = d;
+          nb = i;
+        }
+      }
+      this.idx = nb;
+      return;
+    }
     let best = 0;
     let bd = Infinity;
     for (let i = 0; i < r.points.length; i++) {

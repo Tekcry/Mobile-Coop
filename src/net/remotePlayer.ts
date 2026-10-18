@@ -1,16 +1,21 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { hitVolumes, proportions } from '../player/proportions';
+import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
+import { WALL, WALL_SUB, remoteWallHeadCap, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { WEAPONS } from '../weapons/weaponDefs';
-import { attachedClamp, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
+import { attachedClamp, swatCommitOk, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
+import type { PartnerBlocker } from './partnerBlocker';
 import { hyp2 } from '../core/mathx';
+import type { CoverSegment } from '../cover/coverData';
+import type { CoverSpot } from '../game/tactics';
 
 /** Hip joint height (m) of the average build the capsule is fitted to. */
 const HIP_Y = proportions('average').y.hip;
@@ -24,7 +29,7 @@ const MAX_SPEED = MAX_FREE_SPEED;
  */
 export class RemotePlayer implements Damageable {
   readonly team = 'player' as const;
-  readonly health = new Health(100, 50, 4, 30);
+  readonly health = new Health(100);
   readonly feet = new Vector3();
   readonly ref: PlayerRef;
   state: PlayerState | null = null;
@@ -38,10 +43,10 @@ export class RemotePlayer implements Damageable {
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
-  /** Mark & Execute: charges earned by this player's takedowns, and an open execute (until, shots left). */
-  execCharges = 0;
-  execUntil = -1;
-  execLeft = 0;
+  private wallSpot: CoverSpot | null = null;
+  /** (step 09) The validated lobby loadout (`PlayerInfo.loadout`) and the last weapon id accepted from it. */
+  loadout: readonly WeaponId[] = [];
+  private lastW: WeaponId | null = null;
   onDamaged: ((h: HitInfo, dealt: number) => void) | null = null;
   onDeath: (() => void) | null = null;
 
@@ -82,17 +87,44 @@ export class RemotePlayer implements Damageable {
     return out.copyFrom(this.feet).addInPlaceFromFloats(0, this.crouched ? 0.85 : 1.3, 0);
   }
 
+  /** Head volume centre (guard exposure sampling): over the feet, or past the wall edge while peeking (step 12, from
+   *  the MoveState: the guards see the remote's real head, as they see the local one's). */
+  headPoint(out: Vector3): Vector3 {
+    // (step 12b fix r2) on a wall: the host's posed copy's head, the sample the light meter reads too (light parity)
+    if (this.ref.head) return out.copyFrom(this.ref.head);
+    // (step 12b fix r1) the low-wall side lean keeps the head under the wall top, as the posed remote and the local
+    // player's sample do (light parity)
+    const y = Math.min(this.feet.y + (this.crouched ? 1.05 : 1.6), this.headCap);
+    return out.set(this.feet.x + (this.ref.peekX ?? 0), y, this.feet.z + (this.ref.peekZ ?? 0));
+  }
+
+  /** (step 12b fix r1) The head centre's ceiling from the MoveState (low-wall side lean), else +Infinity. */
+  private headCap = Infinity;
+
   /**
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null): void {
+    // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
+    // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
+    if (segs) dropBadWallMove(s, segs.length);
+    // (step 13) a door peek on a door this level does not have: no door pose
+    if (doorCount !== null) dropBadDoorMove(s, doorCount);
+    // (step 12) a SWAT turn's commit within the turn's range and pace, else dropped (A24: client-owned, host-checked)
+    if (s.mv?.m === 'swat' && (!s.mv.c || !swatCommitOk(s.mv.c))) {
+      delete s.mv;
+      this.violations++;
+    }
+    s.w = hostWeapon(s.w, this.loadout, this.lastW);
+    this.lastW = s.w;
+    if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
     const dt = this.lastT < 0 ? 1 : Math.min(1, now - this.lastT);
     this.lastT = now;
     const dx = s.x - this.feet.x;
     const dz = s.z - this.feet.z;
     const d = hyp2(dx, dz);
-    // (3.2.0) free movement within the speed gear's pace; cover / traversal / the air keep the general cap
+    // (3.2.0) free movement within the speed gear's pace; traversal / the air keep the general cap
     const cap = moveSpeedCap(s.mv, (s.f & PF.crouch) !== 0, (s.f & PF.sprint) !== 0, (s.f & PF.driven) !== 0, (s.f & PF.grounded) !== 0);
     const max = Math.min(MAX_SPEED, cap) * dt + 0.75;
     if (d > max && this.teleportGrace <= 0 && this.state) {
@@ -109,9 +141,38 @@ export class RemotePlayer implements Damageable {
     this.feet.set(s.x, s.y, s.z);
     this.ref.speed = Math.min(MAX_SPEED, d / Math.max(dt, 1 / 60));
     this.ref.crouched = (s.f & PF.crouch) !== 0;
+    // (locomotion step 11) back to a wall: the segment's cover spot for the guards' flank / grenade tactics (D8)
+    const wseg = s.mv?.m === 'wall' && segs ? segs[s.mv.a] : undefined;
+    if (wseg) {
+      const c = (this.wallSpot ??= { nx: 0, nz: 1, low: false, x: 0, z: 0 });
+      c.nx = wseg.nx;
+      c.nz = wseg.nz;
+      c.low = wseg.low;
+      c.x = s.x;
+      c.z = s.z;
+      this.ref.coverT = this.ref.cover ? (this.ref.coverT ?? 0) + dt : 0;
+      this.ref.cover = c;
+    } else {
+      this.ref.cover = null;
+      this.ref.coverT = 0;
+    }
+    // (step 12, light parity) peeking: the head past the edge, where the host samples its light and exposure
+    // (r1) eased like the owner's 0.2 s blend from the time since the peek bit came on (no extra bandwidth)
+    const peeking = !!wseg && ((s.mv?.sub ?? 0) & WALL_SUB.peek) !== 0;
+    this.peekK = peeking ? Math.min(1, this.peekK + dt / WALL.peekBlend) : 0;
+    wallPeekOffset(s.mv?.m ?? '', s.mv?.sub ?? 0, wseg ? wseg.tx : 0, wseg ? wseg.tz : 0, this.peekTmp, this.peekK);
+    this.ref.peekX = this.peekTmp.x;
+    this.ref.peekZ = this.peekTmp.z;
+    this.headCap = remoteWallHeadCap(s.mv?.m ?? '', s.mv?.lk, s.mv?.sub ?? 0, wseg);
+    // (step 12b carry-over) off the wall the posed head sample goes at once (not at the next frame's setPosedHead)
+    if (!wseg) this.ref.head = null;
     this.state = s;
     this.sync();
   }
+
+  private readonly peekTmp = { x: 0, z: 0 };
+  /** (step 12 r1) The peek blend amount from the time since the peek bit came on (0..1). */
+  private peekK = 0;
 
   allowTeleport(seconds = 1.5): void {
     this.teleportGrace = seconds;
@@ -125,7 +186,6 @@ export class RemotePlayer implements Damageable {
       this.protectT -= dt;
       if (this.protectT <= 0) this.damageMul = 1;
     }
-    this.health.update(dt);
   }
 
   private sync(): void {
@@ -145,6 +205,13 @@ export class RemotePlayer implements Damageable {
   private posed = false;
   private poseHips = new Vector3();
   private poseUp = new Vector3(0, 1, 0);
+
+  private readonly posedHeadV = new Vector3();
+  /** (step 12b fix r2, light parity) Per render frame (host), after the avatar is posed: the posed head centre while
+   *  the remote is on a wall (`ref.head`, read by `headPoint` and the light meter), else null. */
+  setPosedHead(head: Vector3 | null): void {
+    this.ref.head = head && this.state?.mv?.m === 'wall' ? this.posedHeadV.copyFrom(head) : null;
+  }
 
   /** Per render frame (host), after the avatar is posed: the hit capsule follows the rig's hips -> head line. */
   followPose(hips: Vector3, head: Vector3): void {
@@ -176,16 +243,13 @@ export class RemotePlayer implements Damageable {
     return true;
   }
 
-  /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
+  /** The host's own bullets may hit it (course mode friendly fire, D38); `friendly` still decides the damage. */
+  shootable = false;
+  /** Hits that do not hurt (team-mates); course friendly fire (D38) replaces it. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
-  /** The last hit taken (PvP credit). */
-  lastHit: HitInfo | null = null;
-  /** Feet / posed head and hips / mode history for lag-compensated PvP shots. */
-  readonly history: { t: number; x: number; y: number; z: number; c: number; hx: number; hy: number; hz: number; bx: number; by: number; bz: number; m: string }[] = [];
 
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
-    this.lastHit = h;
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
     const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
     if (dealt > 0) this.onDamaged?.(h, dealt);
@@ -198,7 +262,6 @@ export class RemotePlayer implements Damageable {
   }
 
   revive(at: Vector3, protect = 2): void {
-    this.lastHit = null;
     this.health.reset();
     this.feet.copyFrom(at);
     this.allowTeleport();
@@ -207,7 +270,11 @@ export class RemotePlayer implements Damageable {
     this.sync();
   }
 
+  /** (T5b2, D49) A co-op partner's body on the host ; synced by `CoopHost.frameUpdate`. */
+  blocker: PartnerBlocker | null = null;
+
   dispose(): void {
+    this.blocker?.dispose();
     this.registry.removeTarget(this);
     this.body.dispose();
     this.shape.dispose();

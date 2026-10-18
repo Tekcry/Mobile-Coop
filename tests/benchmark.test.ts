@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BENCH, benchPlan, benchResult, benchText, pathAt, sustainedDrift } from '../src/game/benchmark';
+import { SPIKE_EVENT, SpikeLog } from '../src/core/spikes';
+import { BENCH, benchPlan, benchResult, benchText, pathAt, sectionText, sustainedDrift } from '../src/game/benchmark';
 
 describe('benchmark', () => {
   it('the flight passes through every room point and loops', () => {
@@ -145,5 +146,34 @@ describe('the flight follows the walking routes (3.2.5)', () => {
     const s = flightAt(f, 0, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
     const e = flightAt(f, f.length, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
     expect(Math.hypot(s.x - e.x, s.z - e.z)).toBeLessThan(1e-3);
+  });
+});
+
+describe('spike log (3.3)', () => {
+  it('tags each long frame with what happened around it', () => {
+    const s = new SpikeLog();
+    // a smooth frame, then a shader compile and the long frame after it
+    expect(s.frame(16, 16.7, 4, 0)).toBeNull();
+    expect(s.frame(17, 16.7, 4, SPIKE_EVENT.shaders)).toBeNull();
+    expect(s.frame(40, 16.7, 4, 0)).toBe('shaders');
+    // the main thread over budget; else the GPU
+    expect(s.frame(40, 16.7, 15, 0)).toBe('cpu');
+    expect(s.frame(40, 16.7, 3, 0)).toBe('gpu');
+    expect(s.frame(40, 16.7, 3, SPIKE_EVENT.governor)).toBe('governor');
+    expect(s.summary()).toContain('4 spikes in 6 frames');
+    expect(s.summary()).toContain('gpu 1');
+    s.reset();
+    expect(s.summary()).toBe('no spikes in 0 frames');
+    // (3.3.1) uncapped on a 120 Hz screen: steady 14 ms frames against an 8.3 ms budget are not spikes; a 40 ms one is
+    for (let i = 0; i < 60; i++) expect(s.frame(14, 8.3, 3, 0)).toBeNull();
+    expect(s.frame(40, 8.3, 3, 0)).toBe('gpu');
+    expect(s.typicalMs).toBeLessThan(16);
+  });
+});
+
+describe('per-section frame rate (3.3.1)', () => {
+  it('prints each section of the route', () => {
+    expect(sectionText([70.2, 68.6, 41.4])).toBe('by 2.5 s (7 m): 70 69 41');
+    expect(sectionText([])).toBe('');
   });
 });

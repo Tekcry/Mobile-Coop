@@ -1,6 +1,5 @@
 import type { App } from '../../core/app';
 import { desktopResolutions, RES_CONFIRM_S, resolutionLabel, resolutionScale } from '../../core/display';
-import { viewHeight, viewWidth } from '../../core/viewRotation';
 import { h } from '../dom';
 import type { Hint } from '../prompts';
 import { Screen } from '../screen';
@@ -8,7 +7,7 @@ import { button, Dialog } from '../widgets';
 
 /** The output in device pixels: what render scale 1 draws. */
 export function nativeSize(): { w: number; h: number } {
-  return { w: Math.round(viewWidth() * devicePixelRatio), h: Math.round(viewHeight() * devicePixelRatio) };
+  return { w: Math.round(window.innerWidth * devicePixelRatio), h: Math.round(window.innerHeight * devicePixelRatio) };
 }
 
 /** The monitor's native resolution in device pixels (the fullscreen output). */

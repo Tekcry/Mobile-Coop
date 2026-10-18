@@ -122,7 +122,7 @@ export const port: MapDef = {
   id: 'port',
   name: 'Port',
   description: 'Night: a container terminal, a customs shed and a moored cargo ship with a bridge.',
-  modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
+  modes: ['infiltration', 'clear'],
   theme: {
     sky: '#060a12',
     horizon: '#1a2430',
@@ -161,7 +161,7 @@ export const port: MapDef = {
     b.mark(gb0, { overhead: true });
     b.block(7.6, -27.4, 1.4, 0.95, 0.6, '#6b6f73');
     // a jersey barrier lane west of the barrier; razor wire along the fence tops (visual)
-    b.lowCover(-5.6, -28, 2.4, '#9a958a', 0, 0.85, 0.6);
+    b.lowWall(-5.6, -28, 2.4, '#9a958a', 0, 0.85, 0.6);
     b.box(0, 3.15, -30.5, 66, 0.3, 0.3, '#2b2d30', 0, 0, false);
     b.box(-32.5, 3.15, 0, 0.3, 0.3, 60, '#2b2d30', 0, 0, false).box(32.5, 3.15, 0, 0.3, 0.3, 60, '#2b2d30', 0, 0, false);
     // a box truck parked along the south fence, waiting for the gate: high cover from the gate to the stacks
@@ -207,7 +207,7 @@ export const port: MapDef = {
     b.ladder(0, -8 - CW / 2 - 0.15, 0, CH * 2, 0, STEEL);
     // a forklift, pallets of crates
     b.block(-6.5, -20.5, 1.2, 2.0, 2.4, YELLOW).block(10.8, -3.2, 1.2, 1.0, 1.2, CRATE).block(12.2, -3.2, 1.2, 1.4, 1.2, CRATE);
-    b.lowCover(-2, -21.5, 3, CRATE, Math.PI / 2, 1.0, 1.0);
+    b.lowWall(-2, -21.5, 3, CRATE, Math.PI / 2, 1.0, 1.0);
     // the forklift's mast and forks; a pallet stack by the gate lane
     b.box(-6.5, 1.6, -21.8, 1.0, 3.2, 0.15, '#2b2d30', 0, 0, false).box(-6.5, 0.12, -22.5, 0.9, 0.06, 1.2, '#2b2d30', 0, 0, false);
     b.block(3, -21.3, 1.4, 1.0, 1.2, CRATE).block(3, -21.3, 1.4, 0.14, 1.2, '#6a5a44', 1.0);
@@ -276,7 +276,7 @@ export const port: MapDef = {
     container(b, 26, 7, Math.PI / 2, 0, 1);
     container(b, 26, 7, Math.PI / 2, CH, 3);
     b.ladder(-26, 6 - CW / 2 - 0.15, 0, CH * 2, 0, STEEL);
-    b.lowCover(-6, 16, 3, CRATE, Math.PI / 2, 1.1, 1.2).lowCover(6, 18, 2.4, CRATE, 0, 1.1, 1.2).lowCover(18, 18.5, 4, '#5a5f66', Math.PI / 2, 1.2, 1.0);
+    b.lowWall(-6, 16, 3, CRATE, Math.PI / 2, 1.1, 1.2).lowWall(6, 18, 2.4, CRATE, 0, 1.1, 1.2).lowWall(18, 18.5, 4, '#5a5f66', Math.PI / 2, 1.2, 1.0);
     b.block(-20, 18, 1.2, 1.3, 1.2, CRATE).block(-18.6, 18.2, 1.0, 1.0, 1.0, CRATE);
     // a straddle carrier over the waiting box: four legs (cover), the frame and cab overhead
     for (const [x, z] of [[6.4, 4.1], [11.6, 4.1], [6.4, 7.9], [11.6, 7.9]] as const) b.block(x, z, 0.5, 7.2, 0.7, YELLOW);
@@ -416,7 +416,6 @@ export const port: MapDef = {
       ],
       pickups: [
         { pos: v(7.6, -27.4, 0.95), kind: 'ammo' },
-        { pos: v(27, -12.6, 1.2), kind: 'health' },
         { pos: v(-25, 26.6, DECK_Y + 1.0), kind: 'ammo' },
       ],
       rooms: ROOMS,

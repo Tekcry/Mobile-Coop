@@ -33,3 +33,30 @@ describe('map detail pass (3.0)', () => {
     }
   });
 });
+
+describe('MapDef detail opt-out (ON0b)', () => {
+  it('Kestrel builds no dressing and bakes none; the warehouse keeps its usual count', async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const { MAPS } = await import('../src/world/maps');
+    const { dressingOn } = await import('../src/world/detailPass');
+    const { canonicalLightShapes } = await import('../src/voxel/lightShapes');
+    const kestrel = MAPS.find((m) => m.id === 'kestrel')!;
+    const warehouse = MAPS.find((m) => m.id === 'warehouse')!;
+    expect(kestrel.detail).toBe(false);
+    expect(dressingOn(kestrel)).toBe(false);
+    expect(dressingOn(warehouse)).toBe(true);
+    expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['kestrel']);
+    const count = (map: typeof kestrel): { dressing: number; shapes: number; plain: number } => {
+      const b = new LevelBuilder();
+      map.build(b, 1);
+      const dressing = dressingOn(map) ? detailPieces(b.boxes, map.id, 'epic').length : 0;
+      return { dressing, shapes: canonicalLightShapes(b.boxes, b.cylinders, map.id, dressingOn(map)).length, plain: canonicalLightShapes(b.boxes, b.cylinders, map.id, false).length };
+    };
+    const k = count(kestrel);
+    expect(k.dressing).toBe(0);
+    expect(k.shapes).toBe(k.plain);
+    const w = count(warehouse);
+    expect(w.dressing).toBeGreaterThan(20);
+    expect(w.shapes).toBeGreaterThan(w.plain);
+  });
+});

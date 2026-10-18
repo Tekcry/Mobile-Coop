@@ -4,7 +4,7 @@
 // (a Ghost contract on detection, the operator down three times). Every mission objective is reachable along
 // the ground plus at least two anchor routes (above / through), and each mission map has 25+ anchors.
 // `node scripts/e2e-missions.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -62,7 +62,7 @@ const run = async (params, scenarios) => {
   const { browser, page, errors } = await launch({ url, params });
   const G = (f, a) => page.evaluate(f, a);
   try {
-    await page.waitForTimeout(1000);
+    await frames(page, 10);
     await G(helpers);
     for (const [name, f] of scenarios) {
       if (only && !name.includes(only)) continue;
@@ -149,9 +149,8 @@ await run('autostart=warehouse&mode=infiltration&mission=warehouse-ledger&insert
       assert(r.afterIntel === 'extract', 'intel picked up in any order');
       assert(r.state === 'done', 'reaching the zone completes the mission');
       await page.waitForSelector('.results-screen', { timeout: 15000 });
-      const res = await G(() => ({ rating: document.querySelector('.mission-rating')?.textContent ?? '', bars: document.querySelectorAll('.style-bar').length, stats: window.__app.current.stats }));
+      const res = await G(() => ({ rating: document.querySelector('.mission-rating')?.textContent ?? '', stats: window.__app.current.stats }));
       assert(res.stats.won && res.stats.rating >= 2 && /★/.test(res.rating), `results: a rating (${res.rating})`);
-      assert(res.bars === 3, 'results: Ghost / Panther / Assault bars');
     },
   ],
 ]);

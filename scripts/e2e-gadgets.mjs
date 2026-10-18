@@ -1,9 +1,9 @@
 // Gadgets on the night Warehouse (Clear rules): the wheel (hold opens it, time slows, the stick picks, release
-// selects; touch taps a slot), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
+// selects; a clicked slot selects), the held gadget button's predicted arc, sleeping gas (knock-out), flashbang (blind
 // then alert, white-out when facing it), EMP (lights out, back after), noisemaker (lure), sticky cam (feed view,
-// lure ping, gas, exit), tri-rotor drone (flies, dart knock-out, battery), proximity mine.
+// lure ping, gas, exit), proximity mine.
 // `node scripts/e2e-gadgets.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -11,7 +11,7 @@ let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
-  await page.waitForTimeout(800);
+  await frames(page, 10);
   await G(() => {
     const a = window.__app;
     const g = a.current;
@@ -27,7 +27,6 @@ try {
       reset() {
         g.gadgets.clearWorld();
         em.clear();
-        g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
         st.setMove('t', 0, 0);
@@ -101,21 +100,23 @@ try {
       st.set('t', 'gadgetWheel', false);
       t.step(0.1);
       const tapOpen = g.gadgets.wheelOpen;
-      // touch: the wheel opens on a press and a tapped slot selects
-      a.input.setMode('touch');
+      // mouse: with the wheel open, a clicked slot selects
+      a.input.setMode('kbm');
       g.gadgets.openWheel();
       g.gadgets.wheelSlot = -1;
       g.frameUpdate(0, 1);
       document.querySelector('.gw-slot[data-id="emp"]').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-      const touchSel = g.weapons.gadgets.selected;
-      const touchClosed = !g.gadgets.wheelOpen;
-      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, touchSel, touchClosed };
+      const clickSel = g.weapons.gadgets.selected;
+      const clickClosed = !g.gadgets.wheelOpen;
+      // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
+      a.input.setMode('gamepad');
+      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, clickSel, clickClosed };
     });
     assert(r.open && r.shown && r.slow < 0.5, `holding the wheel button opens the wheel and slows time (x${r.slow})`);
     assert(r.slot === 2 && r.hl === 'flash' && r.moved < 0.05, `the stick picks a slot (${r.slot} ${r.hl}); the operator stays put (${r.moved.toFixed(2)} m)`);
     assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}), closes and restores time (x${r.back})`);
     assert(!r.tapOpen, 'a quick tap does not open the wheel');
-    assert(r.touchSel === 'emp' && r.touchClosed, `touch: tapping a slot selects it (${r.touchSel})`);
+    assert(r.clickSel === 'emp' && r.clickClosed, `mouse: clicking a slot selects it (${r.clickSel})`);
   });
 
   await scen('arc', async () => {
@@ -261,49 +262,6 @@ try {
     assert(r.moved < 0.1, `the operator stays put while watching (${r.moved.toFixed(2)} m)`);
     assert(r.pings === 1 && r.gasKo, `fire pings a lure (${r.pings}), Y releases its gas`);
     assert(r.back, 'B returns to the operator');
-  });
-
-  await scen('drone', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const a = window.__app;
-      const g = a.current;
-      const st = a.input.state;
-      t.tp(2, 0, -6, 0);
-      t.step(0.3);
-      g.weapons.gadgets.select('drone');
-      const p0 = g.player.position.clone();
-      t.tap('grenade');
-      const view = g.gadgets.remote;
-      const d = g.gadgets.drone;
-      const s0 = { x: d.s.x, z: d.s.z };
-      d.pitch = 0;
-      st.setMove('t', 0, 1);
-      t.step(0.8);
-      st.setMove('t', 0, 0);
-      t.step(0.3);
-      const flew = Math.hypot(d.s.x - s0.x, d.s.z - s0.z);
-      const moved = Math.hypot(g.player.position.x - p0.x, g.player.position.z - p0.z);
-      // a guard ahead: look at him and dart
-      const e = t.spawn(d.s.x, d.s.z + 4, Math.PI);
-      t.step(0.3);
-      const dx = e.pos.x - d.s.x;
-      const dz = e.pos.z - d.s.z;
-      const dy = e.pos.y + 1.2 - d.s.y;
-      d.s.yaw = Math.atan2(dx, dz);
-      d.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-      t.tap('fire');
-      t.step(0.2);
-      const darted = !e.alive;
-      // flat battery: it drops, the view comes back
-      d.s.battery = 0.05;
-      t.step(0.2);
-      return { view, flew, moved, darted, gone: g.gadgets.drone === null, back: g.gadgets.remote === null, darts: g.gadgets.stats.darts };
-    });
-    assert(r.view === 'drone', 'the drone launches into its view');
-    assert(r.flew > 2.5 && r.moved < 0.1, `it flies on the stick (${r.flew.toFixed(2)} m), the operator stays (${r.moved.toFixed(2)} m)`);
-    assert(r.darted && r.darts === 1, 'a stun dart knocks a guard out');
-    assert(r.gone && r.back, 'a flat battery drops it and returns to the operator');
   });
 
   await scen('mine', async () => {

@@ -1,9 +1,12 @@
+import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
-import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
-import { setVoxelBodies } from '../player/characterRig';
+import { LIVE_RIGS, setVoxelBodies } from '../player/characterRig';
+import { LIVE_DOGS } from '../ai/dogModel';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
 import { LOD_DISTANCE } from '../world/partLibrary';
@@ -17,7 +20,7 @@ import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
 import { Grenades } from '../weapons/grenades';
-import { PlayerWeapons, pvpLoadout, type LoadoutEntry } from '../weapons/playerWeapons';
+import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
@@ -26,28 +29,25 @@ import { TrainingDummy } from './trainingDummy';
 import { computeAssist, type AimTarget } from '../weapons/aimAssist';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
+import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
-import { DIFFICULTY, type DifficultyDef } from '../ai/archetypes';
+import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
-import { WaveMode } from './modes/waveMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
 import { ResultsScreen } from '../ui/screens/resultsScreen';
-import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import { levelLabel, VOXEL_TIER, type QualityLevel } from '../core/quality';
+import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
-import { CoverController } from '../cover/coverController';
-import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
@@ -55,10 +55,11 @@ import { GRAB } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
-import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
-import { CornerController } from '../cover/cornerController';
+import { LIGHT, type LightDef } from '../world/lights';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
+import { NightAutoGain } from '../vfx/nightAutoGain';
+import { NightBloom } from '../vfx/nightBloom';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
@@ -69,25 +70,34 @@ import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
-import { Silhouettes } from '../vfx/silhouettes';
-import { VISION, VisionState } from './vision';
+import { VisionState } from './vision';
+import { VISION_GAIN } from '../world/darkCurve';
+import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
+import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
+import { SecuritySystem } from '../security/securitySystem';
+import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
-import { ExecuteController } from './executeController';
-import { MarkSet } from './marks';
+import { StrikeController } from './strikeController';
+import { MEDKIT, stationHeal } from './medkit';
+import type { PickupKind } from './pickups';
+import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
+import { DOOR } from '../world/doors';
+import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
-import type { TouchAction } from '../input/touchControls';
-import type { WorldPromptId } from '../ui/hud/worldPrompts';
-import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
+import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallHeadCap, wallOverride } from '../player/wallController';
+import type { MoveOverride } from '../player/playerController';
+import { COVER_STANDOFF } from '../world/levelBuilder';
+import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
-import { TrainingMode } from './modes/trainingMode';
-import { StyleTracker } from './playstyle';
+import { CourseMode } from './modes/courseMode';
+import type { CourseWire } from './course/courseWire';
+import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
 import { InputState } from '../input/inputState';
-import { viewHeight } from '../core/viewRotation';
 
 export type { ModeId };
 
@@ -98,8 +108,6 @@ export interface GameOptions {
   difficulty?: Difficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
-  /** Equipped emote ids (quick slots). */
-  emotes?: string[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
   net?: NetHooks;
   /** Infiltration: the mission and the insertion point chosen. */
@@ -115,6 +123,8 @@ export interface GameOptions {
    * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
    */
   benchmark?: BenchSession;
+  /** Course mode: the bay to start at (1-based, D20; the lobby's "Start at bay N"). */
+  courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
 }
@@ -134,19 +144,32 @@ export interface NetAttachment {
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
   teamMates?(): readonly TeamMate[];
+  /** (step 11, D8) Other players with their back to cover segment `seg`: metres along it into `out`; returns the count. */
+  wallOthers?(seg: number, out: Float64Array): number;
+  /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
+  doorCrack?(i: number, on: boolean): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
+  /** (locomotion step 10, A5) Ask the host for a committed move (`cmove`; the host's own: checked at once). The
+   *  answer comes back through `GameState.strike.accepted` / `denied`. */
+  commitRequest?(kind: CKind, id: number, target: string): void;
+  /** (step 10) Host: its own committed move was interrupted (damage): tell the others. */
+  commitCancel?(id: number, reason: string, kind?: CKind): void;
+  /** Host: a wall medkit station heals player `who` (false: down or at full health). */
+  healAtStation?(who: string): boolean;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
   shadows?(b: BlobShadows): void;
+  /** Host, course mode: send the `course` message to every client. */
+  course?(w: CourseWire): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
-  pickers?(): { id: string; feet: Vector3; needs: (k: 'ammo' | 'health') => boolean }[];
-  onPickup?(kind: 'ammo' | 'health', who: string): void;
+  pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
+  onPickup?(kind: PickupKind, who: string): void;
   blips?(): Blip[];
   dispose(): void;
 }
@@ -165,32 +188,25 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
+/** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
+const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 const SHOT_NOISE = 28;
 /** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
 const ARC_NEAR = 2.5;
 const ARC_MIN = 0.06;
+/** (Step 14) the vision HUD label shows this long after a switch (s). */
+const VISION_LABEL_TIME = 1.5;
 const SUPPRESSED_NOISE = 0.6;
 const IMPACT_NOISE = 4;
 
-/** Touch action button: an interactable in reach, else (3.2.0) what the world prompts show. */
-const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
-/** The action button's icon per world prompt. */
-const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { cover: 'cover', corner: 'cover', move: 'cover', vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 /** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
 const PROMPT_Y = 0.55;
-/** Along the face from the player in cover: the badge ahead, the vault prompt behind (m). */
-const PROMPT_ALONG = 0.55;
 
 /** Longest the loading screen waits for every material to compile (3.2.2). */
 const WARMUP_MAX_MS = 6000;
-/** Phones: the pause between benchmark runs, with the last match freed (3.2.2); the Phone check's cool-down
- *  (3.3.2: a hot phone throttles its GPU hard - a run after a run measured the heat, not its settings). */
-const MOBILE_RUN_GAP_MS = 2500;
-const PHONE_COOL_S = 30;
-
 export class GameState implements AppState {
   readonly scene: Scene;
   readonly player: Player;
@@ -203,9 +219,7 @@ export class GameState implements AppState {
   readonly target: PlayerTarget;
   readonly hud: Hud;
   readonly minimap: Minimap;
-  readonly cover: CoverController;
   readonly traversal: TraversalController;
-  readonly corners: CornerController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
@@ -228,8 +242,6 @@ export class GameState implements AppState {
   private headTmp = new Vector3();
   private rayA = new Vector3();
   private rayB = new Vector3();
-  private coverSpot: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
-  private coverHeldT = 0;
   private swayT = 0;
   /** Cinematic post pass (vignette, grain, letterbox). */
   readonly post: CinematicPost;
@@ -260,21 +272,23 @@ export class GameState implements AppState {
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
+  /** Cameras (and later the other security devices) of a map that has `layout.security`; host side, never on a co-op client. */
+  readonly security: SecuritySystem | null = null;
   readonly stats: SessionStats;
   private ended = false;
   private respawnAt: Vector3 | null = null;
   private interactTarget: Interactable | null = null;
-  /** Mark & Execute marks and charges; melee takedowns; the execute sequence. */
-  readonly marks = new MarkSet();
+  /** Melee takedowns. */
   readonly takedown: TakedownController;
+  /** (locomotion step 10) The elbow strike (fire while holstered). */
+  readonly strike: StrikeController;
   /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
   readonly team: TeamController;
-  readonly execute: ExecuteController;
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
   readonly hq: HqStats;
-  /** Play-style points (Ghost / Panther / Assault) for the results and the economy. */
-  readonly style = new StyleTracker();
+  /** Stealth rating counters (bible 6). */
+  readonly style = new StealthRating();
   /** An enemy is in combat on the operator (stealth rules); flips record a detection. */
   detected = false;
   /** Gadgets: the wheel, throws, remote views, effects (phase 5). */
@@ -282,7 +296,19 @@ export class GameState implements AppState {
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
-  remotePlayers: () => PlayerRef[] = () => [];
+  remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
+  /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
+  wallCore: WallCore | null = null;
+  private wallIn = emptyWallInput();
+  /** (locomotion step 13) The door peek (context press at a closed door), its frame, override and input. */
+  readonly doorPeek = new DoorPeekCore();
+  readonly peekFrame = emptyFrame();
+  private peekOv: MoveOverride = {};
+  private peekIn: DoorPeekInput = { context: false, interact: false, push: 0, end: false, candidate: -1, doorOpened: false };
+  private peekTook = false;
+  private peekHp = 0;
+  private peekHand = { x: 0, y: 0, z: 0 };
+  private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
@@ -295,8 +321,6 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
-  /** PvP (team deathmatch / free-for-all): no AI or mode; the net host keeps the score. */
-  readonly pvp: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
   takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? [];
 
@@ -308,7 +332,6 @@ export class GameState implements AppState {
   ) {
     this.scene = world.scene;
     this.puppet = opts.net?.role === 'client';
-    this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     this.vfx = new Vfx(this.scene);
@@ -317,13 +340,10 @@ export class GameState implements AppState {
     if (world.voxels && world.voxels.lv.size <= 0.05) this.ballistics.onWorldHit = (p, n) => world.voxelsFine?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? world.voxels?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? null;
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
-    const pvpMatch = opts.mode === 'tdm' || opts.mode === 'ffa';
-    const base: LoadoutEntry[] =
-      opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistol' }]);
-    // PvP is fair: no damage upgrades or damage mods (and below: no suit armour, no HQ perks)
-    const loadout = pvpMatch ? pvpLoadout(base) : base;
-    this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (s, w, ms) =>
-      app.input.rumble(s, w, ms),
+    const loadout: LoadoutEntry[] =
+      opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'pistolSd'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistolSd' }]);
+    this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (suppressed) =>
+      app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
     this.stats = emptyStats(opts.mode, opts.map.id);
@@ -346,16 +366,17 @@ export class GameState implements AppState {
       },
     };
     this.hud = new Hud(app.uiRoot);
-    this.hud.world.onTap = (id) => this.onWorldPrompt(id);
-    this.hud.world.onDown = (id) => this.onWorldPromptHold(id, true);
-    this.hud.world.onUp = (id) => this.onWorldPromptHold(id, false);
-    this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.traversal.breakables = world.breakables;
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
     this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
+    // night vision's auto-gain (the lamps in view) and bloom (the scene's bright parts, linear HDR)
+    this.nightGain = new NightAutoGain(this.scene, world.level.lights.lights, this.glareBlocked);
+    this.nightGain.onUpdate = () => this.post.setAutoGain(this.nightGain.veil);
+    this.nightBloom = new NightBloom(this.scene, this.player.cam.camera);
+    this.post.setBloom(this.nightBloom);
     const fc = Color3.FromHexString(world.map.theme.horizon);
     // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
     const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
@@ -382,41 +403,30 @@ export class GameState implements AppState {
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
+    this.strike = new StrikeController(this);
+    this.diff = resolveDifficulty(opts.difficulty ?? 'normal');
     this.team = new TeamController(this);
-    this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
-    this.vision.sonarAllowed = this.difficultyDef.sonar;
-    // suit and HQ: armour, hands, gadget carry, marks
-    this.suit = suitStats(opts.suit && !pvpMatch ? opts.suit : defaultSuit());
-    this.hq = hqStats(opts.hq && !pvpMatch ? opts.hq : defaultHq());
+    // suit and HQ: armour, hands, gadget carry
+    this.suit = suitStats(opts.suit ?? defaultSuit());
+    this.hq = hqStats(opts.hq ?? defaultHq());
     this.target.armorMul = this.suit.damage;
     this.weapons.handsMul = this.suit.hands;
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
-    this.marks.max += this.hq.extraMarks;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
     this.hud.gadgets.onPick = (id) => {
       this.gadgets.select(id);
       this.gadgets.closeWheel(false);
     };
     this.hud.gadgets.onClose = () => this.gadgets.closeWheel(false);
-    this.sonarMarks = new Silhouettes(this.scene, 'sonar', 12, new Color3(1, 0.55, 0.18), true);
-    this.sonarRing = CreateTorus('sonarRing', { diameter: 1, thickness: 0.012, tessellation: 48 }, this.scene);
-    const rm = new StandardMaterial('sonarRingMat', this.scene);
-    rm.disableLighting = true;
-    rm.emissiveColor = new Color3(1, 0.6, 0.25);
-    rm.alpha = 0;
-    this.sonarRing.material = rm;
-    this.sonarRing.isPickable = false;
-    this.sonarRing.setEnabled(false);
-    this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
       if (kind === 'kill') {
-        app.input.rumble(0.5, 0.8, 120);
+        app.input.haptic('kill');
         this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
       }
     };
@@ -434,11 +444,26 @@ export class GameState implements AppState {
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
       this.hud.damageFrom(bearing - this.player.cam.yaw);
       this.player.cam.shake(h.kind === 'explosion' ? 0.5 : 0.12);
-      app.input.rumble(0.6, 0.3, 90);
+      app.input.haptic('hurt');
       // (3.2.0) a pipe transition (legs up / inverted) falls back to the hands
       this.traversal.attachCtl.onHit();
     };
     this.target.onDeath = () => this.onPlayerDeath();
+    // (locomotion step 17) rumble: the landing band, heavy footfalls (gear 6 or carrying a body), takedowns, elbow
+    // hits (all the local player's own: `Player` is the local player, takedown / strike events are local only)
+    this.player.onLanding = (kind) => {
+      const r = landingRumble(kind);
+      if (r) app.input.haptic(r);
+    };
+    this.player.onFootPlant = () => {
+      if (this.player.controller.gear >= 6 || this.stealth?.carrying) app.input.haptic('footfallHeavy');
+    };
+    this.events.on('takedown', (e) => {
+      if (e.phase === 'done') app.input.haptic('takedownDone');
+    });
+    this.events.on('strike', (e) => {
+      if (e.result !== 'miss') app.input.haptic('elbowHit');
+    });
     this.player.onLand = (v) => {
       this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
       this.player.cam.shake(Math.min(0.25, v * 0.02));
@@ -446,7 +471,7 @@ export class GameState implements AppState {
     this.explosions.onExplode = (pos, radius) => {
       const d = Vector3.Distance(pos, this.player.position);
       this.player.cam.shake(Math.max(0, 0.9 - d / (radius * 3)));
-      if (d < radius * 2) app.input.rumble(1, 1, 220);
+      if (d < radius * 2) app.input.haptic('explosion');
     };
 
     if (this.puppet) {
@@ -454,14 +479,10 @@ export class GameState implements AppState {
       if (opts.mode !== 'sandbox') w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       // health is host-authoritative: local damage never applies
       this.target.damageMul = 0;
-    } else if (this.pvp) {
-      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
-      w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
-      w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
-      w.nav = buildNavGrid(this.scene, world.level, spawn.pos);
-      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, opts.difficulty ?? 'normal', () => this.playerRefs());
+      w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers, world.layout.navSeeds);
+      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, this.diff, () => this.playerRefs());
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
         if (h.attackerId === 'local' || h.attackerId === '') {
@@ -469,12 +490,10 @@ export class GameState implements AppState {
           this.stats.byKind[e.def.kind]++;
           if (h.part === 'head') this.stats.headshots++;
         }
-        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
+        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}${showEconomy(flags.legacy) ? `  +${e.def.xp} XP` : ''}`, 'kill');
         if (h.attackerId === 'local' || h.attackerId === '') {
-          const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : this.execute.running ? 'execute' : e.ko ? 'knockout' : 'kill';
+          const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : e.ko ? 'knockout' : 'kill';
           this.style.record(ev, this.detected);
-          if (h.part === 'head' && !e.ko) this.style.record('headshot', this.detected);
-          if (h.kind === 'explosion') this.style.record('explosion', this.detected);
           if (e.ko) this.stats.knockouts++;
         }
         this.mode?.onEnemyKilled(e, h);
@@ -487,16 +506,15 @@ export class GameState implements AppState {
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
+      this.addMedkitWalls(w.interactables);
       w.mode =
-        opts.mode === 'wave'
-          ? new WaveMode(this)
-          : opts.mode === 'clear'
-            ? new ClearMode(this)
-            : opts.mode === 'infiltration'
-              ? new InfiltrationMode(this)
-              : opts.mode === 'training'
-                ? new TrainingMode(this)
-                : new MissionMode(this);
+        opts.mode === 'clear'
+          ? new ClearMode(this)
+          : opts.mode === 'infiltration'
+            ? new InfiltrationMode(this)
+            : opts.mode === 'course'
+              ? new CourseMode(this)
+              : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -522,13 +540,33 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox' || this.pvp) {
+    if (this.puppet || opts.mode === 'sandbox') {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
     }
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
     // host's door states (snapshots)
     world.doors.arm();
+    if (world.layout.security && !this.puppet) {
+      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+      w.security = new SecuritySystem(
+        world.layout.security,
+        { ballistics: this.ballistics, players: () => this.playerRefs(), lightAt: (x, y, z) => world.lightField.totalAt(x, y, z) },
+        new SecurityView(this.scene, world.parts),
+      );
+      const prevRay = this.weapons.onRay;
+      this.weapons.onRay = (a, b) => {
+        prevRay?.(a, b);
+        this.security?.shotRay(a, b);
+      };
+    }
     if (opts.mode === 'sandbox') {
+      // (locomotion step 15) free roam on a test map keeps its wall medkit stations (Proving); a co-op client mirrors
+      // the host's
+      if (!this.puppet && world.layout.medkitWalls?.length) {
+        const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+        w.interactables = new Interactables(this.scene, world.parts);
+        this.addMedkitWalls(w.interactables);
+      }
       this.weapons.infiniteAmmo = true;
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
         this.dummies.push(new TrainingDummy(this.scene, world, this.registry, new Vector3(x, 0, z), yaw, strafe));
@@ -543,6 +581,20 @@ export class GameState implements AppState {
       this.hud.setObjective(opts.map.id === 'proving' ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 
+    const dbgPts = world.layout.debugPoints;
+    if (dbgPts?.length) {
+      app.debug.setTeleports(
+        dbgPts.map((p) => ({
+          group: p.group,
+          label: p.label,
+          go: () => {
+            const c = this.player.controller;
+            c.teleport(new Vector3(p.pos.x, p.pos.y + 0.05, p.pos.z), p.yaw);
+            this.player.cam.yaw = p.yaw;
+          },
+        })),
+      );
+    }
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
@@ -552,11 +604,6 @@ export class GameState implements AppState {
     app.debug.extra.set('carry', () => {
       const k = this.player.carry;
       return `${k.ready} raise ${k.raise.toFixed(2)} w ${k.w.low.toFixed(2)}/${k.w.high.toFixed(2)}/${k.w.compressed.toFixed(2)} wt ${this.player.weaponWeight.toFixed(2)}`;
-    });
-    app.debug.extra.set('cover', () => {
-      const c = this.cover;
-      const pose = this.player.coverPose;
-      return `${c.state} face ${c.faceDir} swaps ${c.swaps} lean ${pose.lean.toFixed(2)} q ${this.coverQ.toFixed(2)} trav ${this.traversal.kind}${this.corners.door ? ' door' : ''}`;
     });
     app.debug.extra.set('combat', () => `exposure ${this.exposure.toFixed(2)} suppress ${this.suppression.value.toFixed(2)} noise ${this.noise.toFixed(1)}m`);
     let lastLimited = 0;
@@ -598,18 +645,16 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const vt = VOXEL_TIER[q.features.detail];
-    // (3.3 phones: plain voxel surfaces - no AO, worn edges or surface taps - and the lamps as one light volume)
-    const cuts = app.quality.phoneCuts;
-    // (3.4 phones' light look: the 2.x renderer - the blockout's boxes in standard materials, smooth characters)
-    const plain = q.minimal || q.lite;
-    const voxel = !flags.voxels || q.lite ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: !cuts.plainVoxels, micro: !cuts.plainVoxels && q.features.textures !== 'low', gi: q.features.gi };
+    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters)
+    const plain = q.minimal;
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
     setVoxelBodies(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
     const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain, lampVolume: cuts.lampVolume });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
@@ -646,15 +691,46 @@ export class GameState implements AppState {
     this.weather.setDensity(level.minimal ? 0 : level.vfxDensity * a.effects);
   }
 
-  private pickedUp(k: 'ammo' | 'health', who: string): void {
+  private pickedUp(k: PickupKind, who: string): void {
     if (who !== 'local') {
       this.net?.onPickup?.(k, who);
       return;
     }
     this.events.emit('pickup', { kind: k });
-    if (k === 'health') this.target.health.heal(50);
-    else this.weapons.addAmmo(0.5);
-    this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
+    this.weapons.addAmmo(0.5);
+    this.hud.feedItem('Ammo refilled');
+  }
+
+  /** (locomotion step 15) The map's wall medkit stations (test maps; a co-op client mirrors the host's). */
+  private addMedkitWalls(ints: Interactables): void {
+    for (const [n, m] of (this.world.layout.medkitWalls ?? []).entries()) {
+      const it = ints.add(`medkit-${n}`, 'medkitWall', m.pos, 'Medkit station', MEDKIT.wallHold, m.yaw);
+      ints.setEnabled(it, true);
+      it.onUse = (x, who) => this.useWallMedkit(x, who ?? 'local');
+    }
+  }
+
+  /** A wall medkit station used by `who` ('local' or a client on the host): heals `MEDKIT.heal` (G20 / G98), single use
+   *  (shown spent). At full health it is left for later. */
+  private useWallMedkit(it: Interactable, who: string): void {
+    if (who === 'local') {
+      const h = this.target.health;
+      const hp = stationHeal(h.hp, h.maxHp, this.player.alive);
+      if (hp === null) {
+        this.hud.feedItem('Health full');
+        it.progress = 0;
+        return;
+      }
+      h.heal(hp - h.hp);
+      this.events.emit('pickup', { kind: 'medkit' });
+      this.hud.feedItem('Healed');
+    } else if (!this.net?.healAtStation?.(who)) {
+      it.progress = 0;
+      return;
+    }
+    it.done = true;
+    it.label = 'Medkit station (empty)';
+    this.interactables?.setEnabled(it, false);
   }
 
   playerRefs(): PlayerRef[] {
@@ -693,12 +769,10 @@ export class GameState implements AppState {
     }
     this.stats.shots = shots;
     this.stats.hits = hits;
-    this.stats.style = { ...this.style.points };
     this.stats.detections = this.style.detections;
     this.stats.alarms = this.style.alarms;
     this.stats.takedownsByKind = { ...this.takedown.done.byKind };
-    this.stats.executes = this.execute.shots;
-    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.darts + this.gadgets.stats.shocked + this.gadgets.stats.mineKills;
+    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.mineKills;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
       this.paused = true;
@@ -721,8 +795,12 @@ export class GameState implements AppState {
   enter(): void {
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
-    this.app.input.touch.setAction(null);
     this.mode?.start();
+    // the course's dev solo flag (D21, A6): a debug-overlay toggle in dev builds only, never in the menus
+    if (import.meta.env.DEV && this.mode instanceof CourseMode) {
+      const cm = this.mode;
+      this.app.debug.setToggle('courseSolo', 'Course solo', cm.state?.solo ?? false, (on) => cm.setSolo(on));
+    }
     if (this.opts.benchmark) {
       // the flight (3.2.5): the rooms joined by the guards' walking routes - through the doorways, never through a wall,
       // at a steady eye height (the doors open and their leaves hidden: an open leaf stands out into the corridor)
@@ -756,6 +834,8 @@ export class GameState implements AppState {
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
+    this.nightGain.dispose();
+    this.nightBloom.dispose();
     this.stack.dispose();
     this.weather.dispose();
     this.blobs.dispose();
@@ -763,19 +843,20 @@ export class GameState implements AppState {
     this.net = null;
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
-    for (const k of ['player', 'carry', 'cover', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
+    for (const k of ['player', 'carry', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
+    this.app.debug.setTeleports(null);
+    this.app.debug.setToggle('courseSolo', '', false, null);
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
     this.enemyMgr?.clear();
     this.pickups?.dispose();
     this.stealth?.dispose();
+    this.security?.dispose();
     this.gadgets.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
-    this.app.input.touch.setControlHidden('action', false);
-    this.app.input.touch.setAction(null);
     for (const d of this.dummies) d.dispose();
     this.grenades.dispose();
     this.weapons.dispose();
@@ -800,21 +881,9 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        this.emoteBar(),
       ),
     );
   }
-
-  /** Play an emote on the local player (also broadcast in coop). */
-  emote(id: string): void {
-    if (!id || !this.player.alive) return;
-    if (playEmote(this.player.rig, id)) {
-      this.onEmote?.(id);
-      this.events.emit('emote', { id });
-    }
-  }
-
-  onEmote: ((id: string) => void) | null = null;
 
   private onPlayerDeath(): void {
     if (this.net?.onLocalDeath()) return;
@@ -826,28 +895,6 @@ export class GameState implements AppState {
     this.scheduleRespawn(this.world.layout.playerSpawns[0]!.pos, 3);
   }
 
-  private emoteBar(): HTMLElement | null {
-    const ids = (this.opts.emotes ?? []).filter(Boolean);
-    if (!ids.length) return null;
-    const bar = document.createElement('div');
-    bar.className = 'emote-bar';
-    for (const id of ids) {
-      const b = document.createElement('button');
-      b.className = 'btn small';
-      b.dataset.focus = '';
-      b.textContent = id[0]!.toUpperCase() + id.slice(1);
-      b.addEventListener('click', () => {
-        this.app.screens.pop();
-        this.paused = false;
-        this.menuOpen = false;
-        this.app.input.setGameplayActive(true);
-        this.emote(id);
-      });
-      bar.appendChild(b);
-    }
-    return bar;
-  }
-
   /** The held item latched by a tap (`access.holdToggle`). */
   private holdLatch: Interactable | null = null;
 
@@ -856,11 +903,11 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
-    // a takedown on offer / running or Mark & Execute ready takes the button
-    if (this.takedown.offer || this.takedown.active || this.execute.running || this.execute.ready) {
+    // a takedown on offer / running takes the button
+    if (this.takedown.offer || this.takedown.active) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
-      this.hud.setInteract(this.execute.ready && !this.takedown.offer && !this.takedown.active ? 'Execute' : null);
+      this.hud.setInteract(null);
       return;
     }
     const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
@@ -880,12 +927,19 @@ export class GameState implements AppState {
       if (this.app.input.state.pressed('interact')) this.holdLatch = this.holdLatch === it ? null : it;
       holding = this.holdLatch === it;
     }
-    if (holding) it.progress += dt;
-    else it.progress = Math.max(0, it.progress - dt * 2);
+    if (holding) {
+      const prev = it.progress;
+      it.progress += dt;
+      // a noisy hold (a manhole cover, a padlock) sounds at its start and on every pulse while it runs
+      if (it.holdNoise && holdNoisePulse(prev, it.progress)) {
+        this.eventNoise(it.holdNoise);
+        this.enemyMgr?.hear(it.pos, it.holdNoise);
+      }
+    } else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
     this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label, it.holdTime > 0 ? pct : -1);
     if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
-      if (it.onUse) it.onUse(it);
+      if (it.onUse) it.onUse(it, 'local');
       else this.mode?.onInteract?.(it);
       this.interactTarget = null;
       this.hud.setInteract(null);
@@ -927,20 +981,52 @@ export class GameState implements AppState {
     this.enemyMgr?.hear(this.player.position, r);
   }
 
-  /** Player light level at `LIGHT.playerHz`; lights blocked by level geometry do not count. */
+  /**
+   * Player light level at `LIGHT.playerHz` from the light field (3.6: the baked lamps, moon and ambient; flashlights
+   * with a ray against the level). The host samples every player the same way: guards read `ref.light` (bible L5).
+   */
   private updateLight(dt: number): void {
     const reg = this.world.level.lights;
     reg.update(dt);
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
+    const f = this.world.lightField;
     const p = this.player.position;
     const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
-    this.lightLevel = reg.lights.length ? bodyLightLevel(reg, p.x, p.y, p.z, h, this.lightOccluder) : reg.ambientAt(p.x, p.y + h * 0.6, p.z);
+    // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
+    // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).
+    const wc = this.wallCore;
+    let ox = wc && wc.phase === 'on' ? wc.exX : 0;
+    let oz = wc && wc.phase === 'on' ? wc.exZ : 0;
+    let hh = h;
+    // (step 12b) on the wall the head sample is the real posed head (peek, the mirrored open-side lean, the low-wall
+    // side lean under the top), as perception's exposure points
+    if (wc && wc.phase === 'on' && this.player.pose.wall) {
+      const hd = this.player.rig.posedHead(this.posedHead);
+      const hs = posedHeadSample(p.x, p.y, p.z, hd.x, hd.y, hd.z, this.headSample);
+      ox = hs.ox;
+      oz = hs.oz;
+      hh = hs.h;
+    }
+    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, hh, this.lightOccluder, ox, oz);
     this.localRef.light = this.lightLevel;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      // (step 12b fix r2) on a wall: the host's posed copy's head (the same sample as the remote's headPoint)
+      const rh = r.head;
+      if (rh) {
+        const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
+        r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+    }
   }
+  private readonly headSample = { ox: 0, oz: 0, h: 0 };
 
   private lightFrom = new Vector3();
+  private readonly posedHead = new Vector3();
+  private readonly posedChest = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
@@ -998,6 +1084,16 @@ export class GameState implements AppState {
       see,
     };
   }
+  /** Night vision's auto-gain: the lamps in view (Step 4b fix; rendering only). */
+  private nightGain: NightAutoGain;
+  /** Night vision's bloom (Step 4b fix round 4; rendering only). */
+  private nightBloom: NightBloom;
+  /** Static geometry on a segment (the glare's camera-to-lamp test; allocation-free). */
+  private readonly glareBlocked = (ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean => {
+    this.lightRay.reset();
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.lightFrom.set(ax, ay, az), this.lightTo.set(bx, by, bz), this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    return this.lightRay.hasHit;
+  };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
@@ -1022,21 +1118,16 @@ export class GameState implements AppState {
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
     this.aliveWas = this.player.alive;
-    // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
+    // the gadget wheel / a remote view (sticky cam) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
-    // quick emotes (View held on a pad, J / K / L)
-    if (inp.pressed('ping') && this.net && !this.pvp && this.player.alive) this.sendPing();
-    const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
-    if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
-    if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
-    const coverWas = this.cover.state;
-    // a body on the shoulder: no cover, no traversal, weapon stowed, slow
+    if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
-    // a takedown or an execute running (from the last step): cover and traversal stand aside
-    const busy = this.takedown.active !== null || this.execute.running !== null;
-    if (!this.traversal.active && !carrying && !busy && !this.team.active) this.cover.fixedUpdate(dt, inp);
-    // cover shot away / destroyed under the player: stumble out of it
-    if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
+    // a takedown running (from the last step): traversal stands aside
+    const busy0 = this.takedown.active !== null || this.strike.active;
+    // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
+    this.doorPeekStep(dt, inp, busy0 || carrying);
+    const busy = busy0 || this.doorPeek.active;
     // Y / E is contextual: an interactable in reach takes it, else it traverses
     const ti = this.traversal.input;
     ti.moveX = inp.move.x;
@@ -1048,11 +1139,14 @@ export class GameState implements AppState {
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
-    const offer = this.takedown.offer !== null || this.execute.ready;
+    const offer = this.takedown.offer !== null;
     // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    // (step 11) on a wall the jump press leaves it (it does not traverse in the same step)
+    const wallWas = this.wallCore?.active ?? false;
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir, inp.pressed('leap') && !this.team.active && !carrying && !busy);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.team.active);
+    this.wallStep(dt, inp, busy || carrying);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
@@ -1060,7 +1154,7 @@ export class GameState implements AppState {
       this.enemyMgr?.hear(this.player.position, CT.rollNoise);
     }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
-    // (3.2.0) braced in a split or hanging inverted: aiming (or firing) draws the sidearm one-handed
+    // (3.2.0) braced in a split or hanging inverted: aiming (step 09: not firing) draws the sidearm one-handed
     const ac = this.traversal.attachCtl;
     const sidearm = ac.sidearmAim && this.weapons.sidearmIndex >= 0;
     const pl = this.player;
@@ -1075,32 +1169,36 @@ export class GameState implements AppState {
           : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
       }
     } else pl.attachAim = null;
-    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (aim or fire draws it)
+    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (step 09: aim alone draws it)
     const grabHold = this.takedown.hostage !== null;
-    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads') || inp.down('fire'));
+    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads'));
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active && this.team.state !== 'top';
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
+    // remotes never see)
+    this.weapons.handsBusy = this.strike.active;
     this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
-    this.player.cam.attach = this.traversal.cameraPreset;
+    this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
     this.player.cam.attachYaw = this.player.controller.yaw;
-    this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
+    // (carry and grab set their caps again each step while they hold)
+    this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate();
-    // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
-    // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
-    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab, no Mark & Execute)
+    this.security?.fixedUpdate(dt);
+    // takedowns (Y / E: a takedown on offer, else the rest)
+    // (co-op clients: takedowns on the host's enemies, through their puppets)
     {
-      const execPressed = !this.pvp && !this.takedown.active && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
       // (3.2.0) B shoves a held hostage away (and is not a crouch then)
       this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
       if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
-      this.takedown.grabAllowed = !this.pvp;
-      const executing = !this.pvp && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
-      if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
+      this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
+      this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
+    // (locomotion step 10) fire while holstered: the elbow strike
+    this.strike.fixedUpdate(dt, inp.pressed('fire') && this.weapons.drawPhase === 0 && !inp.down('ads'));
     this.suppression.update(dt);
-    this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
+    this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
@@ -1129,7 +1227,7 @@ export class GameState implements AppState {
     this.updateLight(dt);
     this.updateVision(dt);
     this.landingNoise();
-    this.updateCoverRef(dt);
+    this.updateCoverRef();
     this.updateExposure(dt);
     this.updateRoomTag(dt);
     this.enemyMgr?.update(dt);
@@ -1144,21 +1242,24 @@ export class GameState implements AppState {
         {
           id: 'local',
           feet: this.player.position,
-          needs: (k) => this.player.alive && (k === 'health' ? this.target.health.hp < this.target.health.maxHp : true),
+          needs: () => this.player.alive,
         },
         ...(this.net?.pickers?.() ?? []),
       ]);
     this.updateInteract(dt);
     this.mode?.fixedUpdate(dt);
     this.net?.fixedUpdate(dt);
-    this.target.health.update(dt);
     if (this.respawnT >= 0) {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
-        this.cover.reset();
+        this.player.controller.override = null;
         this.traversal.reset();
-        this.corners.reset();
+        this.wallCore?.reset();
+        this.doorPeek.reset();
+        this.strike.reset();
+        // (step 14) goggles up on respawn
+        this.vision.reset();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();
@@ -1174,7 +1275,7 @@ export class GameState implements AppState {
     }
   }
 
-  /** Aim assist for controller/touch: friction + magnetism + ADS snap. */
+  /** Aim assist for the controller: friction + magnetism + ADS snap. */
   private assistScale = 1;
   /** Enemy blips on the minimap last frame (tests). */
   enemyBlips = 0;
@@ -1183,7 +1284,7 @@ export class GameState implements AppState {
     const mode = this.app.input.mode;
     if (mode === 'kbm') return;
     const s = this.app.settings.get();
-    const level = mode === 'gamepad' ? s.gamepad.aimAssist : s.touch.aimAssist;
+    const level = s.gamepad.aimAssist;
     if (level === 'off') return;
     const cam = this.player.cam;
     const cp = cam.camera.position;
@@ -1203,6 +1304,9 @@ export class GameState implements AppState {
     look.x = look.x * this.assistScale + r.dYaw;
     look.y = look.y * this.assistScale + r.dPitch;
   }
+
+  /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
+  brightnessLocked = false;
 
   /** Photo mode (feedback screenshots): the camera is flown by the photo screen, the world holds still. */
   private photo = false;
@@ -1238,7 +1342,6 @@ export class GameState implements AppState {
   private spikeLast = 0;
   private spikeShaders = 0;
   private spikeLod = 0;
-  private spikeLamps = 0;
   private spikeGov = 0;
 
   /** Per render frame: the interval since the last one, tagged with this frame's events. */
@@ -1254,9 +1357,6 @@ export class GameState implements AppState {
     for (const v of this.world.voxelLayers) lod += v.lodSwaps;
     if (lod !== this.spikeLod) ev |= SPIKE_EVENT.lod;
     this.spikeLod = lod;
-    const lm = this.world.lamps?.remixes ?? 0;
-    if (lm !== this.spikeLamps) ev |= SPIKE_EVENT.lamps;
-    this.spikeLamps = lm;
     const gv = this.app.quality.governor.level;
     if (gv !== this.spikeGov) ev |= SPIKE_EVENT.governor;
     this.spikeGov = gv;
@@ -1327,30 +1427,7 @@ export class GameState implements AppState {
         b.done = true;
         b.handoff = true;
         const next = { kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines, note: b.note, started: b.started };
-        // (3.2.2 phones: this match freed first, then a pause - iOS returns GPU memory late, and the next match loading
-        // over the last one's closed the tab on Ultra)
-        if (this.app.platform.platform === 'mobile') {
-          setTimeout(() => {
-            this.app.releaseState();
-            if (next.kind !== 'phone') {
-              benchTag(`Run ${next.idx + 1}/${next.runs.length} · freeing memory`);
-              setTimeout(() => this.app.benchmark?.(next), MOBILE_RUN_GAP_MS);
-              return;
-            }
-            // (the Phone check: nothing drawn while the chip cools, a countdown on the tag)
-            let left = PHONE_COOL_S;
-            const tick = (): void => {
-              if (left <= 0) {
-                this.app.benchmark?.(next);
-                return;
-              }
-              benchTag(`Run ${next.idx + 1}/${next.runs.length} · cooling down ${left} s`);
-              left--;
-              setTimeout(tick, 1000);
-            };
-            tick();
-          }, 0);
-        } else setTimeout(() => this.app.benchmark?.(next), 0);
+        setTimeout(() => this.app.benchmark?.(next), 0);
         return;
       }
       // (the run's settings are the override `app.benchmark` set before the map loaded: it also holds the frame
@@ -1358,7 +1435,7 @@ export class GameState implements AppState {
       b.rebuild = run.rebuild ?? null;
       b.shaders = this.shaderCount();
       b.tagT = 0;
-      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${levelLabel(this.app.quality.level)})`);
+      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${this.app.quality.level.name})`);
       return;
     }
     b.done = true;
@@ -1478,10 +1555,8 @@ export class GameState implements AppState {
       // scale shows the real size)
       const rw = this.app.engine.getRenderWidth();
       const rh = this.app.engine.getRenderHeight();
-      const size = run.scale == null && this.app.platform.platform === 'desktop' ? shownResolution(v.resolution, rw, rh) : `${rw}x${rh}`;
-      // (3.3 phones: the fixed look - the scene's own size behind TAAU)
-      const ql = this.app.quality.level;
-      const where = ql.phone ? `${this.world.map.name}, phone, ${run.label}, ${size} (scene ${Math.round(rw * ql.upscale)}x${Math.round(rh * ql.upscale)})` : `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
+      const size = run.scale == null ? shownResolution(v.resolution, rw, rh) : `${rw}x${rh}`;
+      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
       let line = benchText(r, where, this.shaderCount() - b.shaders);
       // (3.3: what the long frames were)
       line += `; ${this.spikes.summary()}`;
@@ -1489,6 +1564,8 @@ export class GameState implements AppState {
       if (b.sections.length) line += `; ${sectionText(b.sections)}`;
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
+        // (3.6: every minute - the gate is "no minute under 55")
+        line += `; by minute ${b.buckets.map((x) => x.toFixed(0)).join(' ')} fps`;
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
       }
       b.lines.push(line);
@@ -1514,6 +1591,9 @@ export class GameState implements AppState {
       // frozen: only the lights follow the free camera
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
+      // night vision's glare follows the free camera
+      this.nightGain.set(this.vision.night, dt);
+      this.nightBloom.k = this.vision.night;
       return;
     }
     const look = this.app.input.state.consumeLook();
@@ -1551,7 +1631,7 @@ export class GameState implements AppState {
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.updateStealthHud(dt);
-    this.renderVision();
+    this.renderVision(dt);
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
@@ -1580,48 +1660,114 @@ export class GameState implements AppState {
 
   /** Last Known Position ghost (stealth rules only). */
   ghost: LkpGhost;
-  /** Goggles (night vision / sonar), the sonar's enemy marks and its pulse ring. */
+  /** Goggles: off -> night -> thermal -> electro (step 14; rendering only, never sent: D8). */
   readonly vision = new VisionState();
-  sonarMarks: Silhouettes;
-  private sonarRing: Mesh;
+  /** Seconds since the last vision switch (the HUD label shows for `VISION_LABEL_TIME`). */
+  private visionLabelT = 99;
+  /** (Step 14) the render frame's stamp (bodies mark their rigs with it), and electro's live device parts. */
+  private visionFrame = 0;
+  private electroParts: InstancedMesh[] = [];
+  private electroK = 0;
 
-  /** Goggles per fixed step: the button cycles modes; a sonar pulse marks every enemy in range. */
+  /** Goggles per fixed step: the button cycles the modes. */
   private updateVision(dt: number): void {
     const v = this.vision;
     if (this.app.input.state.pressed('vision') && this.player.alive) {
       v.cycle();
+      this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
     }
-    if (!v.step(dt)) return;
-    this.events.emit('sonar', {});
-    const m = this.sonarMarks;
-    m.begin();
-    const p = this.player.position;
-    for (const e of this.enemyMgr?.enemies ?? []) {
-      if (!e.alive || hyp2(e.pos.x - p.x, e.pos.z - p.z) > VISION.sonarRange * this.sonarMul) continue;
-      if (!m.add(e.bodyRig)) break;
-    }
-    m.end();
+    v.step(dt);
   }
 
-  /** Goggles per render frame: night vision blend, sonar marks fading, the pulse ring growing. */
-  private renderVision(): void {
+  /** Goggles per render frame: night vision blend, flip, lens glow. */
+  private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
-    // the tri-lens glows while a mode is on
+    // (Step 4b fix round 3) no fade: the goggles flip across the view and night vision switches under them
+    this.post.setFlip(v.flipCentre);
+    // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
+    this.nightGain.set(v.night, dt);
+    this.nightBloom.k = v.night;
+    // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
+    if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
+    // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
     this.player.rig.setLensGlow(v.mode !== 'off');
-    this.sonarMarks.setAlpha(v.markAlpha * 0.6);
-    const t = v.sincePulse;
-    const ring = this.sonarRing;
-    if (t < 0.9) {
-      const r = (t / 0.9) * VISION.sonarRange * this.sonarMul;
-      ring.setEnabled(true);
-      ring.position.copyFrom(this.player.position);
-      ring.position.y += 0.15;
-      ring.scaling.set(r * 2, 1, r * 2);
-      (ring.material as StandardMaterial).alpha = 0.5 * (1 - t / 0.9);
-    } else if (ring.isEnabled()) ring.setEnabled(false);
-    this.hud.setVision(v.mode, v.cooldown);
+    // (step 14) thermal / electro: the post branch, then the render-only emissive flags (gameplay never reads them)
+    const kind = v.kind;
+    this.post.setVisionKind(kind);
+    this.paintHeat(kind === 1);
+    this.paintElectro(kind === 2 ? 1 : 0);
+    this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? 1 : 0));
+    this.visionLabelT += dt;
+    this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
+  }
+
+  /** (Step 14) thermal's warm bodies: every live rig is warm; a fresh body cools over `THERMAL.coolTime`. */
+  private paintHeat(on: boolean): void {
+    const f = ++this.visionFrame;
+    const bodies = on ? this.enemyMgr?.bodies : undefined;
+    if (bodies) {
+      for (let i = 0; i < bodies.length; i++) {
+        const r = bodies[i]!.view;
+        if (!r) continue;
+        r.bodyFrame = f;
+        r.bodyAge = bodies[i]!.age;
+      }
+    }
+    for (let i = 0; i < LIVE_RIGS.length; i++) {
+      const r = LIVE_RIGS[i]!;
+      let k = 0;
+      if (on) {
+        k = THERMAL.bodyEmit;
+        // (a body cools in 1/16 steps: its buffers change a few times a minute, not every frame)
+        if (r.bodyFrame === f) k *= Math.round(16 * Math.max(0, 1 - r.bodyAge / THERMAL.coolTime)) / 16;
+      }
+      r.setHeat(k);
+    }
+    // the dogs' own bodies (their humanoid rigs stay hidden): warm while up, cooling like a body once down
+    for (let i = 0; i < LIVE_DOGS.length; i++) {
+      const d = LIVE_DOGS[i]!;
+      let k = 0;
+      if (on) {
+        k = THERMAL.bodyEmit;
+        if (d.isDown) k *= Math.round(16 * Math.max(0, 1 - d.downAge / THERMAL.coolTime)) / 16;
+      }
+      d.setHeat(k);
+    }
+  }
+
+  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights. */
+  private paintElectro(k: number): void {
+    if (k > 0 && this.electroK === 0) {
+      // gathered on each switch to electro (not per frame): devices built since are included
+      const list = this.electroParts;
+      list.length = 0;
+      for (const m of this.scene.meshes) {
+        if (!(m instanceof InstancedMesh)) continue;
+        const pn = m.parent?.name ?? '';
+        if (m.name === 'laser' || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
+      }
+      // interactables by kind: only the powered ones (no intel folders, cache crates, beacons or hide spots)
+      const its = this.interactables?.items;
+      if (its) {
+        for (let i = 0; i < its.length; i++) {
+          const it = its[i]!;
+          if (!ELECTRO_KINDS.has(it.kind)) continue;
+          for (let j = 0; j < it.parts.length; j++) {
+            const m = it.parts[j]!;
+            if (m instanceof InstancedMesh) list.push(m);
+          }
+        }
+      }
+    }
+    if (k === this.electroK) return;
+    this.electroK = k;
+    const list = this.electroParts;
+    for (let i = 0; i < list.length; i++) {
+      const pt = list[i]!.instancedBuffers?.pattern as Vector4 | undefined;
+      if (pt) pt.w = k * ELECTRO.deviceEmit;
+    }
   }
 
   /**
@@ -1650,23 +1796,6 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
-    // Mark & Execute: chevrons over marked enemies (red when executable), the charge, touch buttons
-    const mk = this.hud.markers;
-    mk.begin();
-    if (em && this.marks.ids.length) {
-      for (const e of em.enemies) {
-        if (!e.alive || !this.marks.has(e.id)) continue;
-        if (this.project(e.pos.x, e.pos.y + 2.1 * e.def.scale, e.pos.z)) mk.add(this.scr.x, this.scr.y, this.execute.ready);
-      }
-    }
-    mk.end();
-    this.hud.setCharge(this.marks.charges, this.execute.ready);
-    const touch = this.app.input.touch;
-    touch.setControlHidden('mark', (!this.player.ads && !this.gadgets.remote) || !em);
-    touch.setControlHidden('execute', !this.execute.ready);
-    // touch v3: the takedown button only while one is on offer (and through the move, for the hold)
-    touch.setControlHidden('takedown', !this.takedown.offer && !this.takedown.active);
-    touch.setControlHidden('ping', !this.net || this.pvp);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
     if (em && em.stealth) {
@@ -1676,24 +1805,207 @@ export class GameState implements AppState {
     g.update(dt);
   }
 
-  /** Publish the player's cover (for enemy flanking / grenades) and how long it has been held. */
-  private updateCoverRef(dt: number): void {
-    const c = this.cover;
-    const seg = c.inCover ? c.seg : null;
-    if (seg) {
-      const sp = this.coverSpot;
-      sp.nx = seg.nx;
-      sp.nz = seg.nz;
-      sp.low = c.low;
-      sp.x = this.player.position.x;
-      sp.z = this.player.position.z;
-      this.coverHeldT += dt;
-      this.localRef.cover = sp;
-    } else {
-      this.coverHeldT = 0;
-      this.localRef.cover = null;
+  /** The player's cover for enemy flanking / grenades (step 11): the wall's `CoverSpot` while on it, else none. */
+  private updateCoverRef(): void {
+    const w = this.wallCore;
+    const on = !!w && w.active && this.player.alive;
+    this.localRef.cover = on ? w.spot : null;
+    this.localRef.coverT = on ? w.onT : 0;
+  }
+
+  /**
+   * (locomotion step 11) Back-to-wall: the context press (pad A, KBM bind) or the stick held
+   * into a high face enters; the core drives the controller through its override; the pose and camera follow.
+   */
+  private wallStep(dt: number, inp: InputState, busy: boolean): void {
+    const segs = this.world.level.coverSegments;
+    const w = (this.wallCore ??= new WallCore(segs, buildWallLinks(segs), COVER_STANDOFF));
+    const pl = this.player;
+    const c = pl.controller;
+    const tr = this.traversal;
+    const i = this.wallIn;
+    const was = w.active;
+    const p = pl.position;
+    const cy = pl.cam.yaw;
+    const fx = Math.sin(cy);
+    const fz = Math.cos(cy);
+    const mx = inp.move.x;
+    const my = inp.move.y;
+    i.x = p.x;
+    i.y = p.y;
+    i.z = p.z;
+    i.moveX = fz * mx + fx * my;
+    i.moveZ = -fx * mx + fz * my;
+    i.lookX = fx;
+    i.lookZ = fz;
+    i.gear = c.gear;
+    i.crouched = c.crouched;
+    i.grounded = c.grounded;
+    i.context = inp.pressed('cover') && !this.peekTook;
+    i.contextHeld = inp.down('cover') && !this.peekTook;
+    i.crouchPressed = inp.pressed('crouch');
+    // (21w, D7) hold-to-crouch: on a high wall the stance follows the held button
+    i.crouchHold = !this.app.settings.get().gameplay.crouchToggle;
+    i.crouchHeld = inp.down('crouch');
+    const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
+    i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
+    i.blocked = other || pl.ads;
+    i.toggle = this.app.settings.get().gameplay.wallToggle;
+    // (step 12) aim held: the lean-out at an edge / the rise over a low wall (the draw follows the step 09 timings)
+    i.aim = pl.ads || inp.down('ads');
+    // (step 12b, D10) the stick's raw up: on a low wall it rises over the top
+    i.moveUp = my;
+    // stacking (D8): the other players on this segment
+    w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
+    w.update(dt, i);
+    if (w.active) {
+      c.override = wallOverride(w, this.wallOv);
+      if (i.crouchPressed) c.swallowCrouch = true;
+    } else if (was || c.override === this.wallOv) c.override = null;
+    // leaving a crouched wall keeps the stance the player had on it
+    if (was && !w.active && w.crouch !== c.crouched) {
+      if (w.crouch) c.setCrouchToggle();
+      else c.clearCrouchToggle();
     }
-    this.localRef.coverT = this.coverHeldT;
+    const pose = pl.pose;
+    // (step 12, D8) the SWAT turn is a crouched run across the gap, not the flat-back stance: posed as the remotes pose
+    // its `swat` MoveState (a gait from the move, no wall stance)
+    const flat = w.active && w.phase !== 'swat';
+    pose.wall = flat;
+    pose.wallSide = flat ? (w.dir < 0 ? 1 : -1) : 0;
+    // (step 12) the head-first peek and the lean-out past the edge (the hit volumes follow the rig: guards see the
+    // real body, never the camera)
+    pose.lean = w.phase === 'on' ? w.rigLean() : 0;
+    // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
+    // EDGE_HAND_TIME inside the draw or the lean-out step (the remotes from WALL_SUB.leftHand)
+    pl.rig.openLeft = w.leftHand;
+    // (step 12b, D10) the low-wall side lean keeps the head under the wall top (the head sample stays behind it)
+    const lg = w.seg >= 0 ? segs[w.seg] : undefined;
+    pose.headCap = w.phase === 'on' && lg && lg.low && w.lk === LEAN_KIND.out ? wallHeadCap(lg.y, lg.height) : NaN;
+    const g = w.seg >= 0 ? segs[w.seg] : undefined;
+    pose.wallNx = g ? g.nx : 0;
+    pose.wallNz = g ? g.nz : 0;
+    pose.wallTx = g ? g.tx : 0;
+    pose.wallTz = g ? g.tz : 0;
+    pose.wallGap = COVER_STANDOFF;
+    pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
+    // at an edge the shoulder goes to the open side (the edge at b is the body's left)
+    pl.cam.wallSide = !w.active ? 0 : w.edge !== 0 ? (w.edge > 0 ? -1 : 1) : w.dir < 0 ? 1 : -1;
+    // (step 12) the peek / lean-out camera swing toward the edge (local only, never sent)
+    pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
+    pl.cam.wallLean = w.phase === 'on' && w.lk === 1 ? 1 : 0;
+    pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
+    pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
+  }
+
+  /**
+   * (locomotion step 13) Door peek: the context press at a closed, unlocked door faced within 60 deg settles on the
+   * frame, cracks the leaf (host-authoritative in co-op) and frames the view at the crack; a press or the stick pulled
+   * back closes it, the stick pushed in or `interact` opens it quietly; damage, aim, jump or sprint ends the peek.
+   */
+  private doorPeekStep(dt: number, inp: InputState, busy: boolean): void {
+    const dp = this.doorPeek;
+    const doors = this.world.doors;
+    const pl = this.player;
+    const c = pl.controller;
+    const p = pl.position;
+    const tr = this.traversal;
+    const was = dp.active;
+    this.peekTook = false;
+    const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || !!this.wallCore?.active || (!!c.override && c.override !== this.peekOv);
+    const ctx = inp.pressed('cover');
+    let cand = -1;
+    let offer = -1;
+    if (!was && !other && doors.list.length) {
+      const d = doors.nearest(p.x, p.z, 2);
+      if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
+    }
+    if (ctx) cand = offer;
+    const d0 = dp.door >= 0 ? doors.list[dp.door] : undefined;
+    const hp = this.target.health.hp;
+    const hurt = was && hp < this.peekHp;
+    this.peekHp = hp;
+    const fr = this.peekFrame;
+    const interact = inp.pressed('interact');
+    const pi = this.peekIn;
+    pi.context = ctx;
+    pi.interact = interact;
+    // the stick toward the door (the frame's facing)
+    const cy = pl.cam.yaw;
+    const wx = Math.cos(cy) * inp.move.x + Math.sin(cy) * inp.move.y;
+    const wz = -Math.sin(cy) * inp.move.x + Math.cos(cy) * inp.move.y;
+    pi.push = was ? wx * Math.sin(fr.yaw) + wz * Math.cos(fr.yaw) : 0;
+    // (KBM shares E between traverse and interact: an interact press opens, it does not end the peek)
+    pi.end = was && (other || hurt || pl.ads || inp.down('ads') || (inp.pressed('jump') && !interact) || inp.pressed('dash'));
+    pi.candidate = cand;
+    // (fix r1) an abandoned crack: the peek resumes at it (no crack request), so it can be closed
+    pi.resume = cand >= 0 && doors.list[cand]!.cracked;
+    pi.doorOpened = !!d0 && d0.target === 1;
+    const act = dp.update(dt, pi);
+    if (!was && dp.active) {
+      const d = doors.list[dp.door]!;
+      doorFrame(d.anchor, p.x, p.z, 1.0 + 0.6 * (1 - c.crouchBlend), fr);
+    }
+    if (ctx && (was || dp.active)) this.peekTook = true;
+    const d = dp.door >= 0 ? doors.list[dp.door] : d0;
+    if (d && act === PEEK_ACT.crackOn) this.peekCrack(d.index, true);
+    else if (d && act === PEEK_ACT.crackOff) this.peekCrack(d.index, false);
+    else if (d0 && act === PEEK_ACT.open && !interact) {
+      // the stick pushed in: the door's own quiet open (the host's on a client); an interact press already used it
+      const it = this.interactables?.items.find((x) => x.id === `door-${d0.anchor.id}`);
+      if (it?.onUse) it.onUse(it);
+      else doors.open(d0, 'quiet');
+    }
+    const rig = pl.rig;
+    if (dp.active) {
+      const ov = this.peekOv;
+      const v = (ov.velocity ??= { x: 0, z: 0 });
+      const left = dp.phase === 'settle' ? Math.max(dt, DOOR_PEEK.settle - dp.t) : 0.1;
+      v.x = (fr.x - p.x) / left;
+      v.z = (fr.z - p.z) / left;
+      ov.yaw = fr.yaw;
+      ov.crouch = c.crouched;
+      ov.turnRate = 12;
+      ov.glide = true;
+      ov.run = false;
+      ov.noise = 'crouched';
+      c.override = ov;
+      // the hand on the handle (the hand away from the hinge), following the drawn leaf
+      const dd = doors.list[dp.door]!;
+      crackedHandle(dd.anchor, fr.side, dd.ajar, DOOR.openAngle, this.peekHand);
+      const reach = fr.hingeRight ? rig.reachL : rig.reachR;
+      reach.x = this.peekHand.x;
+      reach.y = this.peekHand.y;
+      reach.z = this.peekHand.z;
+      reach.w = dp.handW();
+    } else if (was) {
+      if (c.override === this.peekOv) c.override = null;
+      rig.reachL.w = rig.reachR.w = 0;
+    }
+    // the view at the crack (local only, never sent)
+    const cam = pl.cam;
+    cam.doorPeek = dp.view();
+    cam.doorEye.set(fr.ex, fr.ey, fr.ez);
+    cam.doorYaw = fr.yaw;
+  }
+
+  /** (step 13 fix r1) A team-mate in mode doorPeek at the door centred (cx, cz) (within the host's crack reach). */
+  private peekedByOther(cx: number, cz: number): boolean {
+    const mates = this.net?.teamMates?.();
+    if (!mates) return false;
+    for (let i = 0; i < mates.length; i++) {
+      const m = mates[i]!;
+      if (m.mode === 'doorPeek' && hyp2(m.pos.x - cx, m.pos.z - cz) <= DOOR_PEEK.hostReach) return true;
+    }
+    return false;
+  }
+
+  /** (step 13) Crack / close door `i`: on a client the host decides (predicted here), else at once. */
+  private peekCrack(i: number, on: boolean): void {
+    const d = this.world.doors.list[i];
+    if (!d) return;
+    this.net?.doorCrack?.(i, on);
+    this.world.doors.crack(d, on);
   }
 
   /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */
@@ -1725,7 +2037,9 @@ export class GameState implements AppState {
       if (eyes.length >= 4) break;
     }
     const c = p.controller;
-    exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.coverPose.lean, this.expPts);
+    // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts);
+    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);
@@ -1750,16 +2064,14 @@ export class GameState implements AppState {
     this.post.letterbox(true);
   }
 
-  /** Sonar range from the goggles tier and the HQ amplifier. */
-  get sonarMul(): number {
-    return this.suit.sonarRange * this.hq.sonarRange;
-  }
-
   private scopeT = 0;
 
-  /** Difficulty tier rules (perception, damage, Mark & Execute / sonar allowed). */
+  /** (locomotion step 19) The match's difficulty, resolved once at start (preset or custom; the host's in co-op). */
+  diff!: DifficultyDef;
+
+  /** Difficulty tier rules (perception, damage). */
   get difficultyDef(): DifficultyDef {
-    return DIFFICULTY[this.opts.difficulty ?? 'normal'];
+    return this.diff;
   }
 
   /** Bark position: over the speaker's head (false when gone or off screen). */
@@ -1791,6 +2103,8 @@ export class GameState implements AppState {
       this.postKey = key;
       this.post.configure(v.vignette, v.filmGrain);
     }
+    // (Step 4b) the brightness calibration (the lock is unused since G9: no Confrontation)
+    this.post.setBrightness(this.brightnessLocked ? 1 : v.brightness);
     const scale = this.app.loop.timeScale || 1;
     const real = dt / scale;
     if (this.beatT > 0) {
@@ -1819,17 +2133,9 @@ export class GameState implements AppState {
   private readonly dofDir = new Vector3();
   private readonly dofTo = new Vector3();
 
-  /** Lost the cover being used (shot away / destroyed): a short stagger. */
-  private stumble(): void {
-    const p = this.player;
-    p.controller.landT = Math.max(p.controller.landT, 0.45);
-    p.rig.hit(0.8, 0);
-    p.cam.shake(0.35);
-    this.suppression.add(0.3);
-  }
-
   private markerPt = new Vector3();
-  private scr = { x: 0, y: 0 };
+  /** The last `project` result (percent of the view). */
+  readonly scr = { x: 0, y: 0 };
 
   /** Co-op pings showing (one per player; the newest replaces that player's last). */
   readonly pings: { by: string; x: number; y: number; z: number; target: string; color: string; t: number }[] = [];
@@ -1850,6 +2156,7 @@ export class GameState implements AppState {
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
+    this.mode?.onLocalPing?.();
     this.net?.ping?.(hit.point.x, hit.point.y, hit.point.z, t);
   }
 
@@ -1894,7 +2201,8 @@ export class GameState implements AppState {
     v.end();
   }
 
-  private project(x: number, y: number, z: number): boolean {
+  /** World point to percent of the view in `scr`; false when off screen (HUD markers). */
+  project(x: number, y: number, z: number): boolean {
     const m = this.markerPt.set(x, y, z);
     Vector3.TransformCoordinatesToRef(m, this.scene.getTransformMatrix(), m);
     if (!(m.z > 0 && m.z < 1 && Math.abs(m.x) < 1.05 && Math.abs(m.y) < 1.05)) return false;
@@ -1903,73 +2211,19 @@ export class GameState implements AppState {
     return true;
   }
 
-  /**
-   * A world prompt on a cover face at `s` (clamped onto the face), at the face's prompt height; `edge`
-   * puts it on the top edge of low cover instead (in cover the camera looks over it, so the face below
-   * is out of view). A low prompt that is off screen falls back to the top edge.
-   */
-  private onFace(id: WorldPromptId, label: string | null, seg: CoverSegment, s: number, edge = false): void {
-    const w = this.hud.world;
-    if (!label) return w.set(id, null, 0, 0);
-    const ss = Math.max(0.15, Math.min(seg.len - 0.15, s));
-    // just proud of the surface so it never sinks into it
-    const x = seg.ax + seg.tx * ss + seg.nx * 0.04;
-    const z = seg.az + seg.tz * ss + seg.nz * 0.04;
-    const top = seg.y + seg.height;
-    let ok = !(edge && seg.low) && this.project(x, seg.y + Math.min(PROMPT_Y, seg.height * 0.5), z);
-    if (!ok && seg.low) ok = this.project(x, top, z);
-    w.set(id, ok ? label : null, this.scr.x, this.scr.y);
-  }
-
-  /**
-   * Cover prompts on the surfaces (Blacklist style): "Take cover" on the face a press would snap to,
-   * the cover type badge on the face in use (by touch tapping it leaves cover), vault / climb / step on
-   * the obstacle, the cover-to-cover marker on the target. The touch action button is only for "use".
-   */
+  /** World prompts on the surfaces: vault / climb / step on the obstacle. */
   private updateCoverHud(): void {
-    const c = this.cover;
-    const st = c.state;
     const w = this.hud.world;
-    const stateText =
-      st === 'none' || st === 'vault' || st === 'dash'
-        ? null
-        : st === 'peek'
-          ? c.low
-            ? 'Aiming over'
-            : 'Peeking'
-          : st === 'blind'
-            ? 'Blind fire'
-            : c.low
-              ? 'Low cover'
-              : 'High cover';
-    // cover quality against the current threats: warn when the cover no longer protects
-    const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
-    const seg = c.seg;
-    if (stateText && seg) {
-      // nothing labels the wall being used (no cover type badge): only a warning when it stops protecting
-      this.onFace('state', flanked ? 'Flanked' : null, seg, c.s + c.faceDir * PROMPT_ALONG, true);
-      this.onFace('vault', c.low && (st === 'in' || st === 'peek') ? 'Vault' : null, seg, c.s - c.faceDir * PROMPT_ALONG, true);
-    } else w.set('state', null, 0, 0);
-    // round an outside corner: only offered while pushing against the edge; the cover button swings round
-    if (seg && st === 'in' && c.cornerSide !== 0) this.onFace('corner', 'Round corner', seg, c.cornerSide < 0 ? 0 : seg.len, true);
-    else w.set('corner', null, 0, 0);
-    const cand = st === 'none' && !this.traversal.attached ? c.candidate : null;
-    if (cand) this.onFace('cover', 'Take cover', cand.seg, cand.s);
-    else w.set('cover', null, 0, 0);
-    // traversal (not in cover): on the obstacle face, or on the floor at the ledge
+    w.set('state', null, 0, 0);
+    // traversal: on the obstacle face, or on the floor at the ledge
     const th = this.traversal.hint;
-    const tl = th && !c.inCover && st !== 'dash' && !anchorFirst(this.traversal.attachHint) ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
-    if (tl && th && cand) {
-      // the same surface offers cover too: vault sits beside the cover prompt (camera-right side)
-      const yaw = this.player.cam.yaw;
-      const side = Math.cos(yaw) * cand.seg.tx - Math.sin(yaw) * cand.seg.tz >= 0 ? 1 : -1;
-      this.onFace('vault', tl, cand.seg, cand.s + side * PROMPT_ALONG);
-    } else if (tl && th) {
+    const tl = th && !anchorFirst(this.traversal.attachHint) ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
+    if (tl && th) {
       const at = this.traversal.hintAt;
       const up = th.kind === 'drop' || th.kind === 'hop' ? 0.12 : Math.max(0.2, Math.min(PROMPT_Y, th.height * 0.5));
       const ok = this.project(at.x, at.y + up, at.z);
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
-    } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
+    } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
     // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
     const tOff = this.team.offer;
@@ -1984,7 +2238,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped && !this.pvp ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
     } else if (host && this.takedown.active?.grab?.strikeT === -1) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
@@ -1992,64 +2246,10 @@ export class GameState implements AppState {
       w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
-    // speed gear: pips by the tactical strip after a change; on touch the rocker shows it all the time
-    this.hud.setGear(ctl.gear, ctl.gears.changes);
-    this.app.input.touch.setGear(ctl.gear);
+    // speed gear: pips by the tactical strip after a change (step 17: current lit, maximum dim)
+    this.hud.setGear(ctl.gear, ctl.gears.changes, Math.max(ctl.gear, ctl.maxGear));
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
-    // cover-to-cover marker on the target face
-    const tg = st === 'in' ? c.target : null;
-    if (tg) {
-      const ok = this.project(tg.x, tg.seg.y + Math.min(PROMPT_Y, tg.seg.height * 0.5), tg.z);
-      w.set('move', ok ? (tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover') : null, this.scr.x, this.scr.y);
-    } else w.set('move', null, 0, 0);
     w.flush();
-    // the touch action button: a gadget feed's action, an interactable in reach, else what the world prompts show
-    // (they stay as the indicators of what is on offer and where)
-    const it = this.interactTarget;
-    if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
-    const touchCtl = this.app.input.touch;
-    const ga = this.gadgets.touchAction();
-    touchCtl.setAction(ga ?? (it ? ACT_USE : this.promptAction()));
-    touchCtl.setControlHidden('action', false);
-  }
-
-  /** One `TouchAction` per world prompt (the label is refreshed each frame). */
-  private promptActs = {} as Partial<Record<WorldPromptId, TouchAction>>;
-  private leaveAct: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
-
-  /**
-   * (3.2.0) What the touch action button does now: the world prompt on offer (as tapping it did). Out of cover with
-   * both a cover face and an obstacle prompted, moving (or the stick pushed) goes over / up it, standing still takes
-   * cover; in cover the
-   * corner swing, cover-to-cover, the vault, else leaving cover; attached: climb up / jump / the pipe's states, else
-   * drop.
-   */
-  private promptAction(): TouchAction | null {
-    const w = this.hud.world;
-    const inCover = this.cover.state !== 'none';
-    const ctl = this.player.controller;
-    const wish = ctl.wishDir;
-    // moving, or pushing the stick (against the obstacle it does not move)
-    const moving = ctl.speed > 1.0 || wish.x * wish.x + wish.z * wish.z > 0.09;
-    const order: readonly WorldPromptId[] = inCover
-      ? ['corner', 'move', 'vault']
-      : this.traversal.attached
-        ? ['vault', 'jumpTo', 'drop']
-        : moving
-          ? ['vault', 'cover', 'jumpTo', 'drop']
-          : ['cover', 'vault', 'jumpTo', 'drop'];
-    for (const id of order) {
-      const lbl = w.label(id);
-      if (!lbl) continue;
-      let a = this.promptActs[id];
-      if (!a) {
-        a = { action: id === 'cover' || id === 'corner' || id === 'move' ? 'cover' : 'jump', label: '', icon: PROMPT_ICON[id] ?? 'jump', press: () => this.onWorldPrompt(id), down: () => this.onWorldPromptHold(id, true), up: () => this.onWorldPromptHold(id, false) };
-        this.promptActs[id] = a;
-      }
-      a.label = lbl.length > 16 ? lbl.slice(0, 15) + '\u2026' : lbl;
-      return a;
-    }
-    return inCover ? this.leaveAct : null;
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
@@ -2097,7 +2297,7 @@ export class GameState implements AppState {
     // from the ground: the anchor in reach when nothing closer (step / vault / mantle) is offered
     const h = ac.hint;
     const geo = t.hint && t.hint.kind !== 'drop' && !anchorFirst(h);
-    const blocked = !!geo || this.cover.state !== 'none';
+    const blocked = !!geo;
     // at a hangable edge the drop control (hold) / its prompt lowers into a hang (traverse there still drops)
     const low = blocked ? null : ac.lower;
     if (low) {
@@ -2105,14 +2305,12 @@ export class GameState implements AppState {
       if (this.project(a.a.x + a.tx * low.s, a.top + 0.45, a.a.z + a.tz * low.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
     } else w.set('drop', null, 0, 0);
-    // (3.2.0) between two tall walls: a double jump braces in the split (the touch action button jumps straight in)
-    this.splitPrompt = false;
+    // (3.2.0) between two tall walls: a double jump braces in the split
     const sp = !h && !blocked && !t.hint ? ac.split : null;
     if (sp && sp.anchor.kind === 'split') {
       const sa = sp.anchor;
       if (this.project(sa.a.x + sa.tx * sp.s, sa.a.y + 1.7, sa.a.z + sa.tz * sp.s)) {
         w.set('vault', ATTACH_LABEL.splitDouble!, this.scr.x, this.scr.y);
-        this.splitPrompt = true;
       }
     }
     if (!h || blocked) return;
@@ -2173,51 +2371,6 @@ export class GameState implements AppState {
     ropes.flush();
   }
 
-  /** Touch held on a prompt: at a closed vent, holding it is holding the use button (unscrew) and a quick tap kicks
-   *  (the press goes in at once; letting go releases the use button). */
-  private promptHeld = false;
-  private ventByTouch = false;
-  private onWorldPromptHold(id: WorldPromptId, down: boolean): void {
-    if (this.paused || this.exited) return;
-    const inp = this.app.input.state;
-    // takedown by touch: a tap is non-lethal, a long press lethal
-    if (id === 'takedown') {
-      this.takedown.touchPress(down);
-      return;
-    }
-    if (down && id === 'vault' && this.traversal.attachHint?.anchor.kind === 'duct') {
-      this.promptHeld = true;
-      this.ventByTouch = true;
-      inp.set('touch-prompt', 'interact', true);
-      inp.tap('jump');
-    } else if (!down && this.promptHeld) {
-      this.promptHeld = false;
-      inp.set('touch-prompt', 'interact', false);
-    }
-  }
-
-  /** A tap on a world prompt (touch): the same as the button it shows. */
-  /** (3.2.0) The 'vault' prompt shows the split gap (a double jump). */
-  private splitPrompt = false;
-
-  private onWorldPrompt(id: WorldPromptId): void {
-    if (this.paused || this.exited) return;
-    const inp = this.app.input.state;
-    if (id === 'cover' || id === 'move' || id === 'corner') inp.tap('cover');
-    else if (id === 'vault' || id === 'jumpTo') {
-      // (a vent prompt pressed on touch-down already did it)
-      if (this.ventByTouch && id === 'vault') this.ventByTouch = false;
-      // (3.2.0) the split prompt: straight into the split (by pad / keys it is a double jump)
-      else if (id === 'vault' && this.splitPrompt) this.traversal.splitNow();
-      else inp.tap('jump');
-    }
-    else if (id === 'drop') {
-      if (this.traversal.attached) inp.tap('drop');
-      else this.traversal.attachCtl.lowerRequest = true;
-    }
-    else if (id === 'state') inp.coverLeave = true;
-  }
-
   private updateHud(): void {
     const cam = this.player.cam;
     const acc = this.app.settings.get().access;
@@ -2230,13 +2383,11 @@ export class GameState implements AppState {
     this.onTarget = !!(hit.target && hit.target.alive && hit.target.team === 'enemy');
     // vertical FOV is fixed (Hor+): scale the spread by the half-height of the view
     const vfov = cam.camera.fov;
-    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (viewHeight() / 2);
+    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (window.innerHeight / 2);
     const th = this.target.health;
     const f: HudFrame = {
       hp: th.hp,
       maxHp: th.maxHp,
-      shield: th.shield,
-      maxShield: th.maxShield,
       weapon: w.def.name,
       mag: w.mag,
       magSize: w.stats.magSize,
@@ -2245,6 +2396,8 @@ export class GameState implements AppState {
       grenades: this.weapons.gadgets.count,
       reloadProgress: this.weapons.reloadProgress,
       spreadPx,
+      // (step 09) the crosshair shows only drawn and aiming
+      crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
       yaw: cam.yaw,

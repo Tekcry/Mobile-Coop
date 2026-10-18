@@ -1,4 +1,5 @@
 import './styles.css';
+import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
 import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
@@ -6,13 +7,15 @@ import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
+import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
+import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
+import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
@@ -21,14 +24,13 @@ import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
-import { levelLabel, MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
+import { PRESET_IDS } from './core/quality';
 import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
-import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
+import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
-import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -39,8 +41,6 @@ function setBoot(progress: number, status: string): void {
 
 async function boot(): Promise<void> {
   suppressBrowserGestures();
-  // (3.1.6: a phone held upright gets the page turned to landscape; listeners measuring on resize see it turned)
-  setupForcedLandscape(() => window.dispatchEvent(new Event('resize')));
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -52,6 +52,7 @@ async function boot(): Promise<void> {
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
+  app.save.openLoadout = campaignUnlocked(flags.legacy);
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
@@ -67,7 +68,8 @@ async function boot(): Promise<void> {
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
     await app.save.flush();
     if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
-    return report ? rewardsPanel(report) : null;
+    // (3.5: progression still records; the credits / XP panel is shown only with `?legacy=1`)
+    return report && showEconomy(flags.legacy) ? rewardsPanel(report) : null;
   };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
@@ -90,22 +92,28 @@ async function boot(): Promise<void> {
         showSavedOperator(app);
       }
     };
-    app.music.start();
+    app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    // music project: `?musiclab=1` opens the lab over the menu (debug)
+    if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
+    if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
+    if (flags.weaponLab) void import('./audio/weapons/weaponLab').then((m) => app.screens.push(new m.WeaponLabScreen(app)));
+    // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
+    if (!app.settings.get().video.brightnessSet && !navigator.webdriver) app.screens.push(new BrightnessScreen(app));
   };
 
   MainMenuScreen.entries.push(
     (a) => ({
       label: 'Play',
-      sub: 'Waves · Mission · Free roam',
+      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Free roam',
       icon: 'play',
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Loadout', sub: 'Weapons · Gear · Appearance · HQ', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
+    (a) => ({ label: 'Loadout', sub: flags.legacy ? 'Weapons · Gear · Appearance · HQ' : 'Weapons · Attachments · Gadget', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
@@ -115,7 +123,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: [sv.loadout.primary, sv.loadout.secondary] };
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: lobbyLoadout(sv, campaignUnlocked(flags.legacy)) };
     },
   };
   const loadCoop = () => import('./net/coopUi');
@@ -142,9 +150,8 @@ async function boot(): Promise<void> {
     const coop = !!base.net;
     const opts: GameOptions = {
       ...base,
-      loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin),
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, campaignUnlocked(flags.legacy), skin),
       look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
-      emotes: sv.emotes,
       suit: base.suit ?? (coop ? undefined : sv.suit.worn),
       hq: base.hq ?? (coop ? undefined : sv.hq),
       gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
@@ -153,7 +160,7 @@ async function boot(): Promise<void> {
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
-    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${levelLabel(app.quality.level)})` : `${opts.map.id} / ${opts.mode}`;
+    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
     app.crashLog?.stage(`loading ${what}`);
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
@@ -178,43 +185,52 @@ async function boot(): Promise<void> {
 
   // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
   // measures)
-  // (3.2.1: Resolutions measures the monitor's resolutions on desktop, the screen on a phone)
-  const benchOutput = (a: App): [number, number] =>
-    a.platform.platform === 'desktop' ? [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)] : [Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio)];
+  // (3.2.1: Resolutions measures the monitor's resolutions)
+  const benchOutput = (): [number, number] => [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)];
   app.benchmark = (kind = 'current') => {
     const s: BenchSession =
       typeof kind === 'string'
-        ? { kind, runs: benchPlan(kind, ...benchOutput(app), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
+        ? { kind, runs: benchPlan(kind, ...benchOutput(), PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;
     s.note ??= `fb-bench-${Date.now().toString(36)}`;
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
-    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts, cap: run.cap, look: run.look }, false);
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 
-  if (flags.autostart) {
+  // dev only (the level editor's walk test): the editor's unsaved campus, fetched before the map builds; the production
+  // build drops this branch and its module
+  const editorWalk = import.meta.env.DEV && flags.devDraft ? await import('./dev/editorBridge') : null;
+  if (editorWalk) await editorWalk.loadDraft();
+  // the training course over `?net=local` (dev tabs, tests): the first tab hosts the map's room, the next joins it; the
+  // dev solo flag (`&course=solo`) boots it single player instead
+  const localCourse = !!flags.autostart && flags.mode === 'course' && flags.coop && flags.net === 'local' && !courseSoloFlag();
+  if (localCourse) {
+    goToMenu();
+    const mapId = getMap(flags.autostart!).id;
+    void loadCoop()
+      .then((m) => m.autoLocalCourse(app, coopApi, mapId))
+      .catch((e: unknown) => {
+        console.error(e);
+        app.toasts.show('Co-op unavailable', 'warn');
+      });
+  } else if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
     startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
+  editorWalk?.attach(app);
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;
     void loadCoop().then((m) => m.openJoinLink(app, coopApi, room));
   }
   app.start();
-
-  // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
-  // (desktop: fullscreen is the player's choice, Settings > Graphics)
-  // (3.2.4: an installed app locks too - it needs no fullscreen)
-  if (app.platform.platform === 'mobile') {
-    window.addEventListener('pointerup', () => void (isStandalone() ? lockLandscape() : enterFullscreenLandscape()), { once: true });
-  }
 
   setBoot(1, 'Ready');
   document.getElementById('boot')?.classList.add('done');

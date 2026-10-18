@@ -1,19 +1,22 @@
-import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
+import { addGlow, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { solveTwoBone } from '../anim/rigMath';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
+import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
-/** Weapon changing hands at a left cover edge (s): 150-200 ms. */
-export const HAND_SWAP_TIME = 0.18;
+/** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
+ *  a smoothstep with the graph's `hands` clip entered through the Inertializer, never a pop. */
+export const EDGE_HAND_TIME = 0.25;
 
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
@@ -54,28 +57,21 @@ export interface RigPose {
   dash?: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide?: number;
-  /** Turn-and-swap / corner swing in cover 0..1, or < 0. */
-  coverTurn?: number;
-  /** Edge peek: 1 when the line of fire clears the cover (the weapon comes up only then). */
-  peekClear?: number;
   /** Landing recovery 0..1. */
   landing?: number;
-  cover?: AnimInput['cover'];
-  /** Side of the cover surface in the character's frame (-1 left, 1 right). */
+  /** Back to a wall (the flat-back high stance). */
+  wall?: boolean;
+  /** Side of the wall in the character's frame (-1 left, 1 right). */
   wallSide?: number;
+  /** (step 11) The wall's outward normal (XZ) and its face plane (n . p on the face): no foot lands behind it. */
+  wallNx?: number;
+  wallNz?: number;
+  wallFace?: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean?: number;
-  /** Rise over low cover 0..1. */
-  peekOver?: number;
-  /**
-   * Low cover top above the feet (m; 0 = none) and what to do about it: 'hide' keeps the head below the
-   * top (ducks and hunches), 'over' raises just enough for the weapon to clear it (crouched aim).
-   */
-  coverTop?: number;
-  coverMode?: 'none' | 'hide' | 'over';
-  blind?: boolean;
-  /** Glance towards a nearby edge (-1 / 0 / 1). */
-  edgeLook?: number;
+  /** (step 12b, D10) World height the head centre stays under (a low-wall side lean: the wall top); unset = none.
+   *  The pelvis sinks (knees bend deeper) by the excess, eased, so the head sample stays below the top. */
+  headCap?: number;
   /** Stick intent along the body, wanted minus current pace (-1..1), at render rate. */
   intent?: number;
   traverse?: TraverseKind;
@@ -121,7 +117,7 @@ export interface WorldTarget {
 }
 
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
-/** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
+/** Forward-kinematics override (Euler x, y, z) per joint: scripted poses (a grabbed or hostage guard, the VIP). */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
 /** Tri-lens goggle lens colours (off / glowing). */
@@ -148,7 +144,21 @@ export function avatarStyle(): AvatarStyle {
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
-/** Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. */
+/**
+ * (locomotion step 22, A79) A planted foot rolling heel to toe (toe up, `pitch` < 0) turns about its heel, not the
+ * ankle: the ankle rises by the heel's lever behind it so the heel stays on the floor.
+ */
+const HEEL_BACK = 0.05;
+/** (step 22) The sole's depth under the ankle: turning about the ankle drops the heel by it times (1 - cos pitch) too. */
+const HEEL_DOWN = 0.08;
+function heelLift(f: { contact: boolean; pitch: number }): number {
+  return f.contact && f.pitch < 0 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
+}
+
+/**
+ * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
+ * hips and knees 25 rad/s = 23.9 deg per 60 Hz frame, under bible 5.12.2's 25 deg per frame.
+ */
 const JOINT_RATE = new Map<string, number>([
   ['pelvis', 8],
   ['spine', 8],
@@ -159,10 +169,10 @@ const JOINT_RATE = new Map<string, number>([
   ['shR', 22],
   ['elL', 24],
   ['elR', 24],
-  ['hipL', 26],
-  ['hipR', 26],
-  ['knL', 30],
-  ['knR', 30],
+  ['hipL', 25],
+  ['hipR', 25],
+  ['knL', 25],
+  ['knR', 25],
 ]);
 
 const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
@@ -182,18 +192,6 @@ export const SHOULDER_WELD = 0.04;
 export const WRIST_TRIGGER: readonly [number, number, number] = [0.01, -0.015, -0.065];
 export const WRIST_SUPPORT: readonly [number, number, number] = [0.015, -0.055, -0.035];
 
-/** Low cover: the head stays this far below the top when hiding; the aim pocket this far above it when
- *  aiming over. Hiding curls the back over the knees (`curl` 0..1, head drop ~`CURL_DROP` m at full curl) and
- *  sinks the pelvis only a little (`HIDE_DROP` at full curl), so the legs keep a real kneel (never folded
- *  through the floor); aiming over lifts the pelvis (up to `LIFT_RISE`). */
-export const HIDE_MARGIN = 0.07;
-export const OVER_CLEAR = 0.13;
-/** Aiming over low cover: the eye (head centre) rises this far above the top, so the weapon at the cheek
- *  clears it by ~`OVER_CLEAR`. */
-export const OVER_EYE = 0.31;
-export const HIDE_DROP = 0.07;
-export const CURL_DROP = 0.32;
-export const LIFT_RISE = 0.6;
 /** Knees point along the foot and this much outward (pole), so they never knock together in a side-step. */
 export const KNEE_OUT = 0.12;
 /** Closest the two knee centres may come (m): two kneecaps side by side. */
@@ -216,6 +214,12 @@ const tmpC = new Vector3();
 const tmpD = new Vector3();
 const tmpE = new Vector3();
 const tmpPole = new Vector3();
+/** (fix 21-1, A81) Extra outward elbow pole (body x, against the pole's down 1) for the relaxed right arm over a thigh holster. */
+const HOLSTER_ELBOW_OUT = 0.8;
+/** (fix 21-2) The holster-out pole term eases in / out at this rate (1/s), so a draw never jumps the elbow. */
+const HOLSTER_OUT_RATE = 8;
+/** (step 21) Scratch body-space point for the ready-hands shoulder. */
+const readyShTmp = { x: 0, y: 0, z: 0 };
 const legHint = new Vector3();
 const legPole = new Vector3();
 /**
@@ -268,10 +272,32 @@ function posIn(n: TransformNode, out: Vector3): Vector3 {
 }
 /** Raised, the sight line sits this far (m) above the head centre: the eye line of the stick head. */
 const SIGHT_EYE = 0.0;
+/** (step 12b) The most the pelvis sinks to keep the head under a low wall's top (m). */
+const HEAD_CAP_MAX = 0.3;
 /** Body clearance kept around the held weapon (m). */
 const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
+/** (21w) Weapon glide scratch. */
+const glideInv = new Matrix();
+const glideLocal = new Matrix();
+const glideS = new Vector3();
+const glideV = new Vector3();
+const glideQ = new Quaternion();
+const glideBodyInv = new Matrix();
+/** (21w, PC-PASS 42) Weapon re-parent glide: seconds per metre of the offset, and its clamp (s). At 0.9 s/m the
+ *  glide's peak speed (smoothstep, 1.5 x mean) stays about 1.7 m/s, under 3 cm per 60 Hz frame. */
+const GLIDE_PER_M = 0.9;
+const GLIDE_MIN = 0.1;
+const GLIDE_MAX = 0.45;
+/** Farther than this (m) the last pose is stale (or a teleport): the weapon is placed, not glided. (21w-3) 0.4 (was
+ *  0.8): a longer straight glide (a wall draw from the back, 0.6-0.85 m) crossed the torso (audit walllow selfUpperArm). */
+const GLIDE_FAR = 0.4;
+/** (21w-3) Larger turns (rad) than this are not glided (set at once). */
+const GLIDE_TURN_MAX = 1.0;
+/** (21w-5) The support hand's wall point must sit this far (m) out on the hand's own side of the body (root frame) to
+ *  take the hand, full over `span` more. */
+const WALL_HAND_SIDE = { min: 0.05, span: 0.15 };
 const axX = new Vector3();
 const axY = new Vector3();
 const axZ = new Vector3();
@@ -287,6 +313,9 @@ function boneRotation(dir: Vector3, hint: Vector3, out: Quaternion): Quaternion 
   return Quaternion.RotationQuaternionFromAxisToRef(axX, axY, axZ, out);
 }
 
+/** (step 11) How far in front of a wall's face the ankles stay (m): the heel clear of it. */
+const WALL_FOOT_CLEAR = 0.1;
+
 /**
  * The shared humanoid: one skeleton and one smooth part set for the player, enemies, coop
  * remotes, training dummies and the customiser preview. Feet at the origin, facing +Z.
@@ -296,6 +325,9 @@ function boneRotation(dir: Vector3, hint: Vector3, out: Quaternion): Quaternion 
  * bind pose. Each frame `animate` runs the AnimGraph, then two-bone IK places arms (on the weapon's
  * grip and foregrip, or free swing targets) and legs (on the gait's planted foot targets).
  */
+/** (Step 14) every live rig (render-only passes such as thermal vision's warmth walk it without an iterator). */
+export const LIVE_RIGS: CharacterRig[] = [];
+
 export class CharacterRig {
   readonly root: TransformNode;
   readonly body: TransformNode;
@@ -342,39 +374,155 @@ export class CharacterRig {
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
-  /** Low cover height control: pelvis offset (m, + up) and its inputs (see `coverHeight`). */
-  lift = 0;
-  /** Hiding curl 0..1 (back over the knees, head tucked). */
-  curl = 0;
+  /**
+   * (step 09, A42) Carries weapons slung / holstered (the player and remote players): with the hands empty on foot
+   * the arms take the ready hands and the body keeps the armed carriage. Remotes pose it from `dw` (their weapon in
+   * hand follows it), so local and remote match.
+   */
+  carrier = false;
   /** (3.2.0) World aim of a raised weapon (`RigPose.aimWorldYaw`), null when body-relative. */
   private aimWorldYaw: number | null = null;
   private aimWorldPitch = 0;
-  /** (3.2.0) A curl set from outside (a co-op / PvP remote: the owner's own curl), else null (measured here). */
-  curlHold: number | null = null;
-  /** (3.2.0) A low-cover lift set from outside (a remote: the owner's), else null (height control here). */
-  liftHold: number | null = null;
   /** Head-only glance (see `RigPose.lookYaw`). */
   private lookYaw = 0;
   private lookPitch = 0;
-  /** Aiming over low cover: the weapon has cleared the top. */
-  overClear = false;
-  private coverTop = 0;
-  private coverMode: 'none' | 'hide' | 'over' = 'none';
   /** Depth (m) of gear on the back beyond the chest shell (carried weapons stand off it). */
   backGear = 0;
   /** Sideways reach (m) of the thigh's surface and gear from the hip joint. */
   thighOuter = 0;
+  /** (fix 21-2) Visible weapons holstered on the right thigh (kept by WeaponModel; see `thighGear`). */
+  thighCount = 0;
+  /** (fix 21-1, A81) A visible weapon sits in the right-thigh holster (derived from WeaponModel's count). */
+  get thighGear(): boolean {
+    return this.thighCount > 0;
+  }
+  /** (fix 21-2) Eased 0..1 share of the holster-out elbow pole (follows `thighGear`). */
+  private holsterW = 0;
   /** Called after each solved pose (carried gear that reacts to the body, e.g. a sling pushed by the thigh). */
   readonly onPosed: (() => void)[] = [];
-  /** Extra emote overrides (set by the emote player). */
+  /** A scripted FK pose over the procedural result (a grabbed or hostage guard, the VIP; the player emotes that
+   *  also used it were deleted, G24). */
   emote: ((rig: CharacterRig, t: number) => FkPose | void) | null = null;
   emoteTime = 0;
   private emoteW = 0;
-  /** Weapon in the left hand (cover on the right side): grip/foregrip swap and mirrored aim pocket. */
-  leftHanded = false;
+  /**
+   * Weapon in the left hand (open side on the left at a back-to-wall edge, D9): grip / support swap and a
+   * mirrored aim pocket. Dormant until step 12b drives it (WALL_SUB.leftHand).
+   */
+  openLeft = false;
   private handBlend = 0;
-  /** World point for the off hand on the cover surface (set by the cover system), or null. */
-  coverHand: Vector3 | null = null;
+  /**
+   * (step 12b, light parity) The posed head centre and chest (torso joint) in world space, refreshed from the root:
+   * perception's exposure points and the light meter's head sample read the real pose (a mirrored open-side lean,
+   * the low-wall side lean under the top), never a separate model. Locally off the hot path (4-10 Hz); on the host
+   * it is also called every render frame per remote on a wall (`CoopHost` -> `RemotePlayer.setPosedHead`): a matrix
+   * refresh of the root and the neck chain, no allocation.
+   */
+  posedHead(out: Vector3): Vector3 {
+    fresh(this.root);
+    freshBelow(this.neck, this.root);
+    return posIn(this.headNode, out);
+  }
+  posedChest(out: Vector3): Vector3 {
+    fresh(this.root);
+    freshBelow(this.torso, this.root);
+    return out.copyFrom(this.torso.getAbsolutePosition());
+  }
+  /** (step 11) The hand holding the weapon now (1 right, -1 left): the other one goes on a wall. */
+  get weaponHand(): number {
+    return this.handBlend > 0.5 ? -1 : 1;
+  }
+  /** (step 21w, PC-PASS 42) The weapon gliding from where it was posed onto a new parent (aim pocket, hand, slot):
+   *  its world offset (P0), local target (P1), local start / target rotation, the time and duration (s). One at a time; local and remote rigs alike (D8). */
+  private glideNode: TransformNode | null = null;
+  private readonly glideP0 = new Vector3();
+  private readonly glideP1 = new Vector3();
+  private readonly glideQ0 = new Quaternion();
+  private readonly glideQ1 = new Quaternion();
+  private glideT = 0;
+  private glideDur = 0;
+
+  /**
+   * (step 21w, PC-PASS 42) A weapon node was just re-parented (`WeaponModel.hold / inHand / holster`) with its new local
+   * place set; `prevWorld` is its last posed world matrix. It starts there (no jump) and eases onto the new place over
+   * 0.1-0.45 s (by the distance), so a mid-draw release, a draw taken before the hand reaches the slot or the open-side
+   * hand switch never pops the weapon or the hands on it. No allocation.
+   */
+  glideWeapon(node: TransformNode, prevWorld: Matrix): void {
+    // a re-parent drops any glide still running on this node (an early return below would otherwise leave the old
+    // parent's local place to be written into the new parent)
+    if (this.glideNode === node) this.glideNode = null;
+    const parent = node.parent as TransformNode | null;
+    // on a wall only (the draw / holster elsewhere hands over at the slot and the pocket as authored)
+    if (!parent || !node.rotationQuaternion || !this.input.wall) return;
+    const pw = parent.getWorldMatrix();
+    pw.invertToRef(glideInv);
+    prevWorld.multiplyToRef(glideInv, glideLocal);
+    glideLocal.decompose(glideS, glideQ, glideV);
+    const a = 2 * Math.acos(Math.min(1, Math.abs(Quaternion.Dot(glideQ, node.rotationQuaternion))));
+    // the position offset is kept in the body's frame (21w-3: in world space a body turn, the wall entry or a remote's
+    // snapped yaw, left the gun behind and its straight line crossed the torso; a turning hand or chest still never
+    // swings it round on a lever)
+    Vector3.TransformCoordinatesToRef(node.position, pw, glideS);
+    prevWorld.getTranslationToRef(glideV);
+    glideV.subtractInPlace(glideS);
+    const d = glideV.length();
+    // a stale matrix (not posed since it was last shown) or a teleport: no glide
+
+    if ((d < 0.004 && a < 0.02) || d > GLIDE_FAR) return;
+    // a glide still running on another weapon ends where it was going
+    if (this.glideNode && this.glideNode !== node) this.endGlide();
+    this.glideNode = node;
+    this.glideP1.copyFrom(node.position);
+    this.glideQ1.copyFrom(node.rotationQuaternion);
+    this.body.getWorldMatrix().invertToRef(glideBodyInv);
+    Vector3.TransformNormalToRef(glideV, glideBodyInv, this.glideP0);
+    // (21w-3) a large turn (a draw from the back or the thigh, the open-side hand switch: 70-180 deg) is not slerped:
+    // the muzzle swept through the torso and the arms (audit selfWeapon / selfUpperArm); only the place glides
+    this.glideQ0.copyFrom(a > GLIDE_TURN_MAX ? node.rotationQuaternion : glideQ);
+    this.glideT = 0;
+    this.glideDur = Math.max(GLIDE_MIN, Math.min(GLIDE_MAX, Math.max(d, a * 0.15) * GLIDE_PER_M));
+    // starts exactly where it was posed
+    Vector3.TransformNormalToRef(glideV, glideInv, glideS);
+    node.position.addInPlace(glideS);
+    node.rotationQuaternion.copyFrom(this.glideQ0);
+  }
+
+  private endGlide(): void {
+    const n = this.glideNode;
+    if (!n) return;
+    n.position.copyFrom(this.glideP1);
+    n.rotationQuaternion?.copyFrom(this.glideQ1);
+    this.glideNode = null;
+  }
+
+  /** The glide's world offset (`glideP0`, decaying) mapped into the parent's space each frame. */
+  private stepGlide(dt: number): void {
+    const n = this.glideNode;
+    const parent = n?.parent as TransformNode | null;
+    if (!n || !n.rotationQuaternion || !parent) return;
+    this.glideT += dt;
+    const u = Math.min(1, this.glideT / this.glideDur);
+    if (u >= 1) return this.endGlide();
+    const e = u * u * (3 - 2 * u);
+    parent.getWorldMatrix().invertToRef(glideInv);
+    Vector3.TransformNormalToRef(this.glideP0, this.body.getWorldMatrix(), glideV);
+    Vector3.TransformNormalToRef(glideV, glideInv, glideS);
+    n.position.copyFrom(this.glideP1).addInPlace(glideS.scaleInPlace(1 - e));
+    Quaternion.SlerpToRef(this.glideQ0, this.glideQ1, e, n.rotationQuaternion);
+  }
+
+  /** (21w-5) How far the shoulder line is turned off the wall line: the torso's right axis (last posed frame) along
+   *  the wall normal (nx, nz), 0 square to the wall (back or chest on it) .. 1 side on. No allocation. */
+  shoulderTurnSin(nx: number, nz: number): number {
+    const m = this.torso.getWorldMatrix().m;
+    const rx = m[0]!;
+    const rz = m[2]!;
+    return (rx * nx + rz * nz) / (hyp2(rx, rz) || 1);
+  }
+
+  /** World point for the off hand on the wall (back-to-wall contact IK, step 11), or null. */
+  wallHand: Vector3 | null = null;
   /**
    * World grips for the hands, independent of any weapon (rungs, pipe, ledge lip, a victim in a takedown):
    * the palm point and a weight 0..1. Weighted over the weapon / clip target; the wrist sits behind the palm
@@ -397,10 +545,33 @@ export class CharacterRig {
   private prevRootZ = 0;
   private velX = 0;
   private velZ = 0;
+  /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
+  private derive = new MotionDerive();
   private pelvisDrop = 0;
-  /** Hand swap progress (cover edge prep): 0..1 while changing hands, else -1. */
+  /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
+  private softL = 1;
+  private softR = 1;
+  /** (fix 21-3) Per foot: the pelvis drop (m) it needed on its last planted frame (let go over its early swing). */
+  private liftL = 0;
+  private liftR = 0;
+  /** (step 12b) Pelvis sink under a head cap (m) and the cap (world y), from `RigPose.headCap`. */
+  private capDrop = 0;
+  /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
+  private readyRf = 0;
+  private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
+  private headCap: number | undefined = undefined;
+  /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
   handSwap = -1;
   private handFrom = 0;
+  /** The hand target the running switch eases toward (a reversal mid-switch restarts from the current blend). */
+  private handTo = 0;
+  /** Where the running switch's progress started (0, or the mirrored progress after a reversal). */
+  private handStart = 0;
+  /** Blend rate (1/s) on the last switch frame, and the Hermite start tangent a reversal carries it into. */
+  private handRate = 0;
+  private handTan = 0;
+  /** Duration (s) of the running switch: EDGE_HAND_TIME, or longer for a fast reversal. */
+  private handDur = EDGE_HAND_TIME;
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
   private prevRot = new Map<TransformNode, Quaternion>();
@@ -483,6 +654,7 @@ export class CharacterRig {
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
     DEBUG_RIGS.add(this);
+    LIVE_RIGS.push(this);
   }
 
   /** The merged voxel body (3.0; null: the smooth parts render). */
@@ -497,6 +669,8 @@ export class CharacterRig {
   setHeadVisible(v: boolean): void {
     if (this.voxel) this.voxel.setHeadVisible(v);
     else for (const m of this.parts) if (m.parent === this.headNode) m.isVisible = v;
+    // (the goggle glow goes with the head: hidden in a first-person view)
+    for (const g of this.glows) g.isVisible = v;
   }
 
   /** All joints, for the debug skeleton view. Pairs of (parent, child). */
@@ -738,10 +912,15 @@ export class CharacterRig {
         const lens = (x: number, y: number): void => {
           part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
           this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
+          // (Step 4b) the goggle glow: the lens as an emissive point, seen in the dark (visual only)
+          this.glows.push(addGlow(this.headNode.getScene(), this.headNode, x, y, z + 0.047, 0.02));
         };
         lens(-0.026, 0.022);
         lens(0.026, 0.022);
         lens(0, 0.058);
+        // the goggle's battery pack at the back of the strap, its LED the glow the camera behind sees (Step 4b)
+        part('rbox', c.helmet, 'helmet', this.headNode, 0.05, 0.034, 0.022, 0, hh * 0.12, -hd * 0.52 - 0.006);
+        this.glows.push(addGlow(this.headNode.getScene(), this.headNode, 0, hh * 0.12, -hd * 0.52 - 0.019, 0.014));
         break;
       }
       case 'hood':
@@ -830,16 +1009,18 @@ export class CharacterRig {
     this.root.setEnabled(v);
   }
 
-  /** Tri-lens goggle lenses (empty without the goggle). */
+  /** Tri-lens goggle lenses (empty without the goggle) and their glow points (Step 4b, `goggleGlow.ts`). */
   private readonly lenses: InstancedMesh[] = [];
+  private readonly glows: InstancedMesh[] = [];
   private lensOn = false;
 
-  /** The tri-lens lenses glow green while a vision mode (night vision, sonar) is on. */
+  /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision) is on. */
   setLensGlow(on: boolean): void {
     if (on === this.lensOn) return;
     this.lensOn = on;
     const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
     for (const m of this.lenses) m.instancedBuffers.color = c;
+    for (const g of this.glows) g.instancedBuffers.color = on ? GLOW_VISION : GLOW_IDLE;
     if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 
@@ -850,6 +1031,8 @@ export class CharacterRig {
   /** Animation (clip graph + foot planner + IK). Call every render frame. */
   animate(dt: number, s: RigPose): void {
     if (this.disposed) return;
+    // (21w) a re-parented weapon eases onto its new place (every frame, LOD or not)
+    this.stepGlide(dt);
     // animation LOD: rigs far from the camera solve every other frame
     const cam = this.root.getScene().activeCamera;
     if (cam) {
@@ -890,17 +1073,15 @@ export class CharacterRig {
     i.swapTo = s.swapTo ?? 'backC';
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
+    i.ready = this.carrier && !this.heldWeapon;
+    i.thighGear = this.thighGear;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
-    i.coverTurn = s.coverTurn ?? -1;
-    i.peekClear = s.peekClear ?? 1;
     i.landing = s.landing ?? 0;
-    i.cover = s.cover ?? 'none';
+    i.wall = s.wall ?? false;
     i.wallSide = s.wallSide ?? 0;
     i.lean = s.lean ?? 0;
-    i.peekOver = s.peekOver ?? 0;
-    i.blind = s.blind ?? false;
-    i.edgeLook = s.edgeLook ?? 0;
+    this.headCap = s.headCap;
     i.traverse = s.traverse ?? 'none';
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
@@ -914,10 +1095,6 @@ export class CharacterRig {
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
     i.intent = s.intent ?? 0;
-    this.coverTop = s.coverTop ?? 0;
-    this.coverMode = this.coverTop > 0 ? (s.coverMode ?? 'none') : 'none';
-    i.duck = this.curl;
-    i.aimOver = this.coverMode === 'over' ? 1 : 0;
     const yaw = this.root.rotation.y;
     // root velocity: supplied by the motion driver, else measured from the root's movement
     const rp = this.root.position;
@@ -927,10 +1104,24 @@ export class CharacterRig {
       const jump = jx * jx + jz * jz > 4;
       this.velX = s.velX ?? (jump ? 0 : approachTo(this.velX, jx / dt, dt, 0.06));
       this.velZ = s.velZ ?? (jump ? 0 : approachTo(this.velZ, jz / dt, dt, 0.06));
-      if (jump) this.planner.L.init = this.planner.R.init = false;
+      if (jump) {
+        this.planner.L.init = this.planner.R.init = false;
+        this.derive.reset();
+      }
     }
     this.prevRootX = rp.x;
     this.prevRootZ = rp.z;
+    // (locomotion step 22, D8) no motion driver (a remote copy): the acceleration lean and the stop settle from the
+    // measured velocity's own edges, as the owner's driver gives them (no extra bandwidth)
+    if (s.accelFwd === undefined) {
+      this.derive.update(dt, this.velX, this.velZ, yaw);
+      i.accelFwd = this.derive.accelFwd;
+      i.accelSide = this.derive.accelSide;
+      if (s.motion === undefined) {
+        i.motion = this.derive.motion;
+        i.motionT = this.derive.motionT;
+      }
+    }
     if (s.yawRate !== undefined) i.yawRate = s.yawRate;
     else if (this.prevYaw !== null && dt > 0) {
       let d = yaw - this.prevYaw;
@@ -938,19 +1129,43 @@ export class CharacterRig {
       i.yawRate = d / dt;
     }
     this.prevYaw = yaw;
-    // weapon changing hands (cover edge prep): eased over HAND_SWAP_TIME; the graph tucks the weapon in
-    const handTarget = this.leftHanded ? 1 : 0;
-    if (handTarget !== this.handBlend && this.handSwap < 0) {
+    // weapon changing hands (open-left wall edge, D9): eased over EDGE_HAND_TIME; the graph tucks the weapon in
+    const handTarget = this.openLeft ? 1 : 0;
+    // a new switch, or the target reversing mid-switch: restart from the current blend (no jump, 12b fix r1). A
+    // reversal rewinds: progress restarts at the mirrored point 1 - s (the graph's tuck bump sin(pi * handSwap) stays
+    // continuous and retracts) and the blend keeps its velocity (a cubic Hermite from the current blend and rate to
+    // the new target at rest), so the weapon never steps or snaps direction. The rewind runs at least EDGE_HAND_TIME,
+    // longer when needed so its peak acceleration stays under a plain switch's (6 / T^2)
+    if (this.handSwap < 0 && handTarget !== this.handBlend) {
       this.handSwap = 0;
+      this.handStart = 0;
       this.handFrom = this.handBlend;
+      this.handTo = handTarget;
+      this.handTan = 0;
+      this.handDur = EDGE_HAND_TIME;
+    } else if (this.handSwap >= 0 && handTarget !== this.handTo) {
+      const s0 = Math.min(0.999, 1 - this.handSwap);
+      this.handSwap = s0;
+      this.handStart = s0;
+      this.handFrom = this.handBlend;
+      this.handTo = handTarget;
+      const r = Math.abs(this.handRate) * EDGE_HAND_TIME;
+      const x = (4 * r + Math.sqrt(16 * r * r + 144 * Math.abs(handTarget - this.handBlend))) / 12;
+      this.handDur = EDGE_HAND_TIME * Math.min(2, Math.max(1, x));
+      this.handTan = this.handRate * this.handDur;
     }
     if (this.handSwap >= 0) {
-      this.handSwap = Math.min(1, this.handSwap + dt / HAND_SWAP_TIME);
-      const e = this.handSwap * this.handSwap * (3 - 2 * this.handSwap);
-      this.handBlend = this.handFrom + (handTarget - this.handFrom) * e;
+      const prev = this.handBlend;
+      this.handSwap = Math.min(1, this.handSwap + ((1 - this.handStart) * dt) / this.handDur);
+      const u = Math.min(1, (this.handSwap - this.handStart) / (1 - this.handStart));
+      const e = u * u * (3 - 2 * u);
+      const v = 1 - u;
+      this.handBlend = Math.min(1, Math.max(0, this.handFrom + (handTarget - this.handFrom) * e + this.handTan * u * v * v));
+      this.handRate = dt > 0 ? (this.handBlend - prev) / dt : 0;
       if (this.handSwap >= 1) {
         this.handBlend = handTarget;
         this.handSwap = -1;
+        this.handRate = 0;
       }
     }
     i.handSwap = this.handSwap;
@@ -977,7 +1192,10 @@ export class CharacterRig {
     pin.lZ = t.stance.lZ;
     pin.rX = t.stance.rX;
     pin.rZ = t.stance.rZ;
-    pin.rest = s.restX !== undefined && s.restZ !== undefined && s.motion === 'stop';
+    // (step 22, M14) not on a Chaos Theory stop (quickStop): its eased stop is short (<= 0.36 m) and its rest spot
+    // pulled a swing already over the next stair back down one (stairs-stand5 pelvis jump 7 -> 19 cm); the leftover
+    // swing sets down where it is and the idle steps square up, as in 3.2.0
+    pin.rest = s.restX !== undefined && s.restZ !== undefined && s.motion === 'stop' && !((s.quickStop ?? 0) > 0);
     pin.restX = s.restX ?? 0;
     pin.restZ = s.restZ ?? 0;
     pin.reach = (this.p.thigh.len + this.p.calf.len) * 0.62;
@@ -987,6 +1205,24 @@ export class CharacterRig {
     pin.pinLZ = this.footPins[1]!;
     pin.pinRX = this.footPins[2]!;
     pin.pinRZ = this.footPins[3]!;
+    if (i.wall && !t.gait.moving && Number.isNaN(pin.pinLX)) {
+      // (step 11) still with the back to a wall: the feet step onto the stance spots under the (pushed) root, the same
+      // on every peer. Without this the idle stepping's front-back stagger tolerance keeps a foot wherever the entry
+      // left it (the local glide steps both feet in; a remote, posed still from MoveState, leaves one 15 cm out)
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      pin.pinLX = rp.x + t.stance.lX * c + t.stance.lZ * sn;
+      pin.pinLZ = rp.z - t.stance.lX * sn + t.stance.lZ * c;
+      pin.pinRX = rp.x + t.stance.rX * c + t.stance.rZ * sn;
+      pin.pinRZ = rp.z - t.stance.rX * sn + t.stance.rZ * c;
+    }
+    // (step 11) back to a wall: the feet stay in front of its face (ankle 0.1 m out: the heel clear of it) and step
+    // round with the turn onto it
+    const wf = i.wall && s.wallFace !== undefined ? s.wallFace : NaN;
+    pin.wallNx = s.wallNx ?? 0;
+    pin.wallNz = s.wallNz ?? 0;
+    pin.wallD = wf + WALL_FOOT_CLEAR;
+    pin.turnStep = i.wall ? 1.2 : Infinity;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
@@ -994,12 +1230,11 @@ export class CharacterRig {
     this.planner.update(pin);
     const L = this.planner.L;
     const R = this.planner.R;
-    if (L.landed || R.landed) this.graph.heelStrike(i.weight);
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
-    // emote overrides blend in/out
+    // scripted FK poses blend in / out
     let fk: FkPose | null = null;
     if (this.emote) {
       this.emoteTime += dt;
@@ -1009,44 +1244,7 @@ export class CharacterRig {
     this.emoteW = Math.max(0, Math.min(1, this.emoteW + (fk ? dt : -dt) / 0.2));
     if (this.emoteW > 0 && this.lastFk) this.applyFk(this.lastFk, this.emoteW);
     if (this.emoteW === 0) this.lastFk = null;
-    this.coverHeight(dt);
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
-  }
-
-  /**
-   * Low cover height control, from the pose just solved (applies next frame): 'hide' ducks (pelvis down,
-   * spine hunched through `duck`) until the top of the head is below the cover top; 'over' raises the
-   * pelvis from the crouch until the aim pocket is just above it (a crouched aim, not standing up).
-   * Elsewhere the lift eases back to zero. Proportional on the measured height error, so it adapts to
-   * builds, heights and the kneel.
-   */
-  private coverHeight(dt: number): void {
-    const rp = this.root.position;
-    let want = 0;
-    let tau = 0.12;
-    this.overClear = false;
-    let curl = 0;
-    // the head is fresh from the solve (an emote may have moved it since)
-    if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.neck);
-    if (this.coverMode === 'hide') {
-      const top = posIn(this.headNode, headPt).y + this.p.head.h * 0.5 - rp.y;
-      // curl the back (and sink a little) until the head is under the top; very low cover can leave the
-      // head showing rather than fold the legs into the floor
-      const err = top - (this.coverTop - HIDE_MARGIN);
-      curl = this.curlHold ?? Math.max(0, Math.min(1, this.curl + err / (CURL_DROP + HIDE_DROP)));
-      want = -HIDE_DROP * curl;
-      tau = 0.1;
-    } else if (this.coverMode === 'over') {
-      // rise until the eye (and so the weapon at the cheek, just below it) is over the top: measured on the
-      // head, not the weapon, so a weapon still held down never stalls the rise
-      const eye = posIn(this.headNode, headPt).y - rp.y;
-      want = this.lift + (this.coverTop + OVER_EYE - eye);
-      tau = 0.07;
-      this.overClear = eye >= this.coverTop + OVER_EYE - 0.04;
-    }
-    want = Math.max(-HIDE_DROP, Math.min(LIFT_RISE, this.liftHold ?? want));
-    this.lift += (want - this.lift) * (1 - Math.exp(-dt / tau));
-    this.curl += (curl - this.curl) * (1 - Math.exp(-dt / 0.1));
   }
 
   /**
@@ -1215,25 +1413,70 @@ export class CharacterRig {
     // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
     // easing back up stays smooth
-    const legLen = (p.thigh.len + p.calf.len) * 0.97;
-    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y + this.lift - 0.03;
+    const legFull = p.thigh.len + p.calf.len;
+    const legLen = legFull * 0.97;
+    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? L : R;
+      // (locomotion step 21, D2 one low / one high per step, A80) a stepping foot in the air does not pull the
+      // pelvis down before it lands: the trailing foot just lifted lets go (early swing counts for nothing) and the
+      // reaching foot may straighten its knee (terminal swing, full leg length), its share growing over the second
+      // half of the swing so a step down onto a lower tread still lowers the pelvis ahead of the landing. Before,
+      // the reaching foot dropped the pelvis 2-3 cm two frames before every other heel strike (a second low per
+      // step) and the sprint's trailing foot up to 13 cm in flight.
+      // A landed foot eases from the full leg back to the soft knee over ~0.1 s (the loading response: the low
+      // just after the strike), so the need is continuous across the landing (no one-frame drop, no ankle snap).
+      // (A82) Not for a step the travel has reversed against (over ~135 deg from the foot's heading at lift: a 180
+      // turn's first steps, a backpedal; not a strafe or wall side-step): the foot swings back past the planted one,
+      // and a pelvis held high for it overstretched the legs (turn180 selfShanks 1.8 -> 2.0-5 cm, the landed ankle
+      // pulled 3.9 cm off its plant); such a step pulls the pelvis down at the soft
+      // knee all through its swing as before step 21, and lands already at the soft knee
+      let w = 1;
+      const air = !free && !f.contact && f.swing >= 0;
+      const reversed = air && this.velX * Math.sin(f.fromYaw) + this.velZ * Math.cos(f.fromYaw) < -0.7 * hyp2(this.velX, this.velZ);
+      const stepping = air && !reversed;
+      let soft = k === 0 ? this.softL : this.softR;
+      soft = stepping ? 0 : reversed ? 1 : approachTo(soft, 1, dt, 0.035);
+      if (k === 0) this.softL = soft;
+      else this.softR = soft;
+      let len = legFull - (legFull - legLen) * soft;
+      if (stepping) {
+        const u = Math.max(0, Math.min(1, (f.swing - 0.5) * 2));
+        w = u * u * (3 - 2 * u);
+        len = legFull;
+      }
+      // (fix 21-3) the trailing foot just lifted lets go of the drop it held over the first half of its swing (the
+      // reaching foot's share grows over the second half): letting go at once raised the pelvis 1.8-6.8 cm in a frame
+      // on stairs and ramps going up, where the planted trailing foot had held it low. Capped at what it needed
+      // planted (it never grows in the air: the sprint's trailing foot pulled the pelvis down 13 cm in flight)
+      // Only for a take-off below the root (climbing): on the level it lets go at once as before (a turn's held
+      // trailing drop crossed the shins, turn180 selfShanks 1.3 -> 8 cm)
+      if (stepping) {
+        const u = Math.max(0, Math.min(1, f.swing * 2));
+        const up = Math.max(0, Math.min(1, (rp.y - f.fromY - 0.03) / 0.05));
+        if (up > 0) need = Math.max(need, (k === 0 ? this.liftL : this.liftR) * up * (1 - u * u * (3 - 2 * u)));
+      }
+      if (w <= 0) continue;
       const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
       const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
       const footY = f.y + p.y.ankle + (k === 0 ? st.lY : st.rY);
-      const reachV = Math.sqrt(Math.max(0, legLen * legLen - dh * dh));
-      need = Math.max(need, hipY - footY - reachV);
+      const reachV = Math.sqrt(Math.max(0, len * len - dh * dh));
+      const fNeed = hipY - footY - reachV;
+      if (!stepping) {
+        if (k === 0) this.liftL = Math.max(0, fNeed);
+        else this.liftR = Math.max(0, fNeed);
+      }
+      need = Math.max(need, fNeed * w);
     }
     need = Math.max(0, Math.min(0.4, need));
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
     const turned = Math.abs(this.input.tumble) > 0.3;
     if (turned) need = 0;
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y + this.lift - this.pelvisDrop, pe.z);
+    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)
     const sp = t.spine;
@@ -1248,11 +1491,25 @@ export class CharacterRig {
     fresh(this.hips);
     fresh(this.spine);
     fresh(this.torso);
+    // (step 12b, D10) a low-wall side lean keeps the head under the wall top: the pelvis sinks by the excess (eased)
+    const cap = this.headCap;
+    let capNeed = 0;
+    if (cap !== undefined) {
+      fresh(this.neck);
+      capNeed = Math.max(0, Math.min(HEAD_CAP_MAX, posIn(this.headNode, headPt).y - cap));
+    }
+    this.capDrop = approachTo(this.capDrop, capNeed, dt, 0.04);
+    if (this.capDrop > 1e-4) {
+      this.hips.position.y -= this.capDrop;
+      fresh(this.hips);
+      fresh(this.spine);
+      fresh(this.torso);
+    }
     // legs first (onto the planner's world feet: ankle above the sole; heel raise and pitch from the pose),
     // so the weapon below is placed against this frame's legs
-    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
-    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
-    // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
+    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+    // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
     if (kneeY < floorY - 0.002 && !turned) {
@@ -1260,16 +1517,16 @@ export class CharacterRig {
       fresh(this.hips);
       fresh(this.spine);
       fresh(this.torso);
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
     if (kneeGap < KNEE_GAP) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
     }
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -1294,7 +1551,7 @@ export class CharacterRig {
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     this.limitJoint(this.headNode, dt);
 
-    // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
+    // aim pocket: rest + layer offsets, mirrored to the left shoulder when the weapon is in the left hand
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     // raised to the eye the shoulder girdle lifts into the stock
     const shY = p.y.shoulder - chestY + t.weld * SHOULDER_WELD;
@@ -1332,11 +1589,29 @@ export class CharacterRig {
       this.gunPush = this.clearBody();
     }
 
-    // arms: the dominant hand takes the grip, the other the foregrip / magazine / cover surface
+    // arms: the dominant hand takes the grip, the other the foregrip / magazine / wall (the wall contact moves
+    // to the right hand when the weapon is in the left)
     const gripW = this.heldWeapon ? t.grip : 0;
     const leftGrips = this.handBlend > 0.5;
-    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offCover : 0, !leftGrips, leftGrips ? t.offMag : 0);
-    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offCover, leftGrips, leftGrips ? 0 : t.offMag);
+    // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
+    this.readyRf = t.readyFollow;
+    this.readySh = t.readyShoulder;
+    // (fix 21-2) the holster-out elbow eases with the gear (a draw clears thighGear while the hands still hang)
+    this.holsterW += ((this.thighGear ? 1 : 0) - this.holsterW) * Math.min(1, dt * HOLSTER_OUT_RATE);
+    // (21w-5) the support hand on the wall only while its wall point is on the hand's own side of the body: the point is
+    // set for a body facing out, so a body turned by the lean-out arc (M16, up to 175 deg) reached across the chest
+    // for it (audit edge rows selfForearm 5-11 cm as the lean eases back and the lowered weapon hands over to the wall)
+    let offWall = t.offWall;
+    const wh = this.wallHand;
+    if (wh && offWall > 0) {
+      const ry = this.root.rotation.y;
+      const ox = wh.x - this.root.position.x;
+      const oz = wh.z - this.root.position.z;
+      const fu = Math.max(0, Math.min(1, (((ox * Math.cos(ry) - oz * Math.sin(ry)) * (leftGrips ? 1 : -1)) - WALL_HAND_SIDE.min) / WALL_HAND_SIDE.span));
+      offWall *= fu * fu * (3 - 2 * fu);
+    }
+    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
+    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -1345,7 +1620,7 @@ export class CharacterRig {
 
   /**
    * Realism limit + blend continuity: a joint's local rotation may not change faster than its max
-   * angular speed. Any abrupt pose change (state switch, IK flip, emote) is spread over a few frames,
+   * angular speed. Any abrupt pose change (state switch, IK flip, scripted pose) is spread over a few frames,
    * so motion stays continuous (an inertialization-style safety net under the weighted blends).
    */
   private jointRate = new Map<TransformNode, number>();
@@ -1393,10 +1668,11 @@ export class CharacterRig {
   }
 
   /**
-   * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / cover surface).
-   * `coverW` blends the support hand onto the cover surface point (`coverHand`).
+   * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / wall).
+   * `wallW` blends the support hand onto the wall point (`wallHand`).
    */
-  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, coverW = 0, isGrip = side > 0, magW = 0): void {
+
+  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, wallW = 0, isGrip = side > 0, magW = 0): void {
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
     const el = side > 0 ? this.elbowR : this.elbowL;
     const wr = side > 0 ? this.wristR : this.wristL;
@@ -1405,6 +1681,15 @@ export class CharacterRig {
     const S = sh.getAbsolutePosition();
     // free-swing target, then the weapon grip blended over it
     const target = this.bodyToWorld(free, tmpA);
+    if (this.readyRf > 0) {
+      readyShTmp.x = this.readySh.x * side;
+      readyShTmp.y = this.readySh.y;
+      readyShTmp.z = this.readySh.z;
+      this.bodyToWorld(readyShTmp, tmpF);
+      target.x += (S.x - tmpF.x) * this.readyRf;
+      target.y += (S.y - tmpF.y) * this.readyRf;
+      target.z += (S.z - tmpF.z) * this.readyRf;
+    }
     if (gripW > 0 && this.heldWeapon) {
       const m = this.heldWeapon.getWorldMatrix();
       // the hand wraps the gun: the wrist sits behind / under the palm point (weapon space), so the arm
@@ -1429,7 +1714,7 @@ export class CharacterRig {
         }
       }
     }
-    if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
+    if (wallW > 0 && this.wallHand && !isGrip) Vector3.LerpToRef(target, this.wallHand, wallW, target);
     // world grip (rung, pipe, lip): the wrist sits behind the palm along the reach from the shoulder
     const reach = side > 0 ? this.reachR : this.reachL;
     if (reach.w > 0) {
@@ -1439,8 +1724,13 @@ export class CharacterRig {
       tmpB.set(reach.x - tmpB.x * back, reach.y - tmpB.y * back, reach.z - tmpB.z * back);
       Vector3.LerpToRef(target, tmpB, Math.min(1, reach.w), target);
     }
-    // elbows down/out/back
-    this.dirToWorld(side * 0.55, -1, -0.35, tmpPole);
+    // elbows down/out/back; (step 10) the striking elbow (right) lifts out to the side, level, with the elbow arc
+    const mw = side > 0 && this.input.melee >= 0 ? meleePoleW(this.input.melee) : 0;
+    // (fix 21-1, A81) relaxed over a right-thigh holster the right elbow points further out, clear of the gun's grip
+    // (fix 21-2) eased with the gear, and gone by a quarter of the reach to a world grip (zipline, ladder, ledge):
+    // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
+    const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
+    this.dirToWorld(side * (0.55 + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
     // upper arm
     tmpC.subtractToRef(S, tmpA);
@@ -1452,7 +1742,7 @@ export class CharacterRig {
     boneRotation(tmpA, tmpE, tmpQ);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
-    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip) && reach.w < 0.5) {
+    if (gripW > 0.5 && this.heldWeapon && !(wallW > 0.5 && !isGrip) && reach.w < 0.5) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
       Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
@@ -1506,7 +1796,7 @@ export class CharacterRig {
     freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
-  /** Blend an FK pose (emotes) over the procedural result. */
+  /** Blend an FK pose (scripted poses) over the procedural result. */
   private applyFk(fk: FkPose, w: number): void {
     const map: Record<JointName, TransformNode> = {
       pelvis: this.hips,
@@ -1534,7 +1824,7 @@ export class CharacterRig {
       Quaternion.SlerpToRef(node.rotationQuaternion!, tmpQ, w, node.rotationQuaternion!);
     }
     if (fk.shoulderL || fk.shoulderR) {
-      // emote arms let go of the weapon: straighten the wrists
+      // posed arms let go of the weapon: straighten the wrists
       if (fk.shoulderR) this.wristR.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
       if (fk.shoulderL) this.wristL.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     }
@@ -1560,6 +1850,31 @@ export class CharacterRig {
     });
   }
 
+  /** (Step 14) thermal vision's warmth on this body, 0..1 (render-only `pattern.w` glow). */
+  private heatK = 0;
+  /** (Step 14) set by gameState's render frame while this rig lies as a body: the frame stamp and its age (s). */
+  bodyFrame = -1;
+  bodyAge = 0;
+
+  /** (Step 14) thermal vision's warmth (render only; nothing in gameplay reads it). Only touches buffers on a change. */
+  setHeat(k: number): void {
+    if (k === this.heatK) return;
+    this.heatK = k;
+    if (this.voxel) {
+      this.voxel.setHeat(k);
+      return;
+    }
+    const parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const pt = (parts[i] as InstancedMesh).instancedBuffers?.pattern as Vector4 | undefined;
+      if (pt) pt.w = k;
+    }
+  }
+
+  get heat(): number {
+    return this.heatK;
+  }
+
   /** Disposed (no longer animates or renders). */
   disposed = false;
   private lodSkip = false;
@@ -1568,8 +1883,11 @@ export class CharacterRig {
   dispose(): void {
     this.disposed = true;
     DEBUG_RIGS.delete(this);
+    const li = LIVE_RIGS.indexOf(this);
+    if (li >= 0) LIVE_RIGS.splice(li, 1);
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
+    for (const g of this.glows) g.dispose();
     this.root.dispose();
   }
 }

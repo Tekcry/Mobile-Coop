@@ -8,6 +8,8 @@
  * Point blank in full light in the focused cone is instant; everything else takes visible time (the HUD arc
  * fills first: AI fairness).
  */
+import { hyp3 } from '../core/mathx';
+import { G } from '../physics/groups';
 import { LIGHT, visibilityFromLight } from '../world/lights';
 
 export const PERCEPTION = {
@@ -51,6 +53,24 @@ export const PERCEPTION = {
   /** Even a sliver in view counts for something. */
   exposureMin: 0.2,
 } as const;
+
+/** Standing eye height above the feet (m, x the def's scale; crouched 1.0): `Enemy.eye`. */
+export const EYE_STAND = 1.55;
+
+interface P3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * Line of sight as perception tests it (`Enemy.losTo`; ON7: the editor's guard view tester calls this too): one ray
+ * against static geometry (closed doors included), clear when nothing is hit nearer than the point less `slack`.
+ */
+export function losClear(b: { ray(from: P3, to: P3, mask: number): { hit: boolean; distance: number } }, eye: P3, to: P3, slack: number): boolean {
+  const h = b.ray(eye, to, G.STATIC);
+  return !h.hit || h.distance > hyp3(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack;
+}
 
 export interface SightInput {
   /** Distance eye -> body (m). */

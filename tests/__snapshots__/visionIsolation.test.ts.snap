@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vision never changes detection (step 14) > no vision field in the player state, pstate or snap (D8: vision is never sent) 1`] = `
+[
+  "f",
+  "hp",
+  "id",
+  "pitch",
+  "speed",
+  "w",
+  "x",
+  "y",
+  "yaw",
+  "z",
+]
+`;

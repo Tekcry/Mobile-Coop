@@ -146,33 +146,51 @@ describe('NavGrid', () => {
   });
 });
 
-import { waveComposition, killScore, waveMaxAlive } from '../src/game/modes/waveLogic';
-import { mulberry } from '../src/core/rng';
+import { killScore } from '../src/game/modes/score';
 
-describe('wave composition', () => {
-  it('grows each wave and introduces runners then heavies', () => {
-    const w1 = waveComposition(1, mulberry(1));
-    const w2 = waveComposition(2, mulberry(1));
-    const w3 = waveComposition(3, mulberry(1));
-    expect(w1.length).toBe(6);
-    expect(w1.every((k) => k === 'grunt')).toBe(true);
-    expect(w2.length).toBeGreaterThan(w1.length);
-    expect(w2.includes('runner')).toBe(true);
-    expect(w2.includes('heavy')).toBe(false);
-    expect(w3.filter((k) => k === 'heavy').length).toBe(1);
-  });
-  it('caps size and heavies late', () => {
-    const w = waveComposition(40, mulberry(2));
-    expect(w.length).toBe(28);
-    expect(w.filter((k) => k === 'heavy').length).toBe(4);
-    expect(waveMaxAlive(50)).toBe(10);
-  });
-  it('is deterministic for a seeded rng', () => {
-    expect(waveComposition(5, mulberry(9))).toEqual(waveComposition(5, mulberry(9)));
-  });
+describe('kill score', () => {
   it('scores heavies and headshots higher', () => {
     expect(killScore('heavy', false, 1)).toBeGreaterThan(killScore('grunt', false, 1));
     expect(killScore('grunt', true, 1)).toBeGreaterThan(killScore('grunt', false, 1));
     expect(killScore('grunt', false, 5)).toBeGreaterThan(killScore('grunt', false, 1));
+  });
+});
+
+describe('NavGrid layers per column', () => {
+  // five storeys over the same columns (Dead Line v2 A block: basement, ground, first, second, roof)
+  const stack = (layers?: number) => new NavGrid({
+    minX: -4, maxX: 4, minZ: -4, maxZ: 4, cell: 0.5,
+    sample: () => ({ h: 0, ok: true }),
+    sampleLayers: (): NavSample[] => [-4, 0, 4.5, 9, 12.6].map((h) => ({ h, ok: true })),
+    ...(layers ? { layers } : {}), blockers: [], agentRadius: 0.3, stepHeight: 0.45,
+  });
+  it('keeps three surfaces by default and drops the ones above', () => {
+    const g = stack();
+    expect(g.layers).toBe(3);
+    expect(g.heightAt(0, 0, 12.6)).toBeCloseTo(4.5);
+  });
+  it('keeps every storey when the map raises the limit', () => {
+    const g = stack(5);
+    expect(g.layers).toBe(5);
+    for (const h of [-4, 0, 4.5, 9, 12.6]) expect(g.heightAt(0, 0, h)).toBeCloseTo(h);
+  });
+});
+
+describe('NavGrid extra flood seeds', () => {
+  // two floor islands split by a wall at x 0 (no link between them)
+  const islands = (extraSeeds?: [number, number, number][]) => new NavGrid({
+    minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
+    sample: (x) => ({ h: 0, ok: Math.abs(x) > 1 }),
+    blockers: [], agentRadius: 0.3, stepHeight: 0.45, seed: [-9, -9], extraSeeds,
+  });
+  it('the spawn seed alone drops the far island; an extra seed keeps it', () => {
+    expect(islands().findPath([5, 5], [6, 6])).toBeNull();
+    expect(islands([[5, 0, 5]]).findPath([5, 5], [6, 6])).not.toBeNull();
+    expect(islands([[5, 0, 5]]).findPath([-5, 5], [-6, 6])).not.toBeNull();
+  });
+  it('no extra seeds (or an empty list) keeps exactly the old region', () => {
+    const a = islands();
+    const b = islands([]);
+    for (let i = 0; i < 40 * 40; i++) expect(b.isWalkable(i)).toBe(a.isWalkable(i));
   });
 });

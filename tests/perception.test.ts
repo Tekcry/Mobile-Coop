@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { fieldFactor, instantDetect, lightFactor, motionFactor, noiseSuspicion, PERCEPTION, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
 import { AlertMachine, ALERT, emptyAlertInput, SENSITIVITY } from '../src/ai/alertState';
 import { PatrolWalker, searchPoint, PATROL, type Pt } from '../src/ai/patrol';
-import { LightRegistry, lightLevelAt } from '../src/world/lights';
+import { LightRegistry } from '../src/world/lights';
+import { LightField } from '../src/world/lightField';
+
+const lightLevelAt = (r: LightRegistry, x: number, y: number, z: number): number => new LightField(null, r).totalAt(x, y, z);
 
 const base = (o: Partial<SightInput> = {}): SightInput => ({ dist: 10, angle: 0, light: 1, crouched: false, speed: 1.4, exposure: 1, sensitivity: 1, ...o });
 

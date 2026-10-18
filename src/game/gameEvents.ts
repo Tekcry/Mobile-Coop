@@ -2,8 +2,6 @@ import type { PickupKind } from './pickups';
 
 /** Session-level events (audio, coop broadcast, analytics). */
 export interface GameEvents {
-  wave: { n: number };
-  waveCleared: { n: number };
   objective: { id: string };
   /** Clear mode: a room was secured (n of total). */
   /** Clear mode: every hostile down (the only feedback the mode gives). */
@@ -16,21 +14,20 @@ export interface GameEvents {
   bodyFound: { x: number; z: number };
   /** The player picked up / put down / hid a body. */
   body: { action: 'pickup' | 'drop' | 'hide' };
-  /** A takedown started / finished / was broken off; Mark & Execute. */
+  /** A takedown started / finished / was broken off. */
   takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
-  mark: { on: boolean };
-  execute: { phase: 'start' | 'shot' | 'done' };
-  /** Goggles switched (audio) / a sonar pulse went out. */
-  vision: { mode: 'off' | 'night' | 'sonar' };
-  sonar: Record<string, never>;
+  /** (locomotion step 10) An elbow strike landed (or missed) at contact. */
+  strike: { result: 'ko' | 'stagger' | 'miss' };
+  /** Goggles switched (audio). */
+  vision: { mode: 'off' | 'night' | 'thermal' | 'electro' };
   /** A door opened / closed (audio). */
-  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
+  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number; vol?: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
-  gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
-  pickup: { kind: PickupKind };
+  gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'view' | 'exit' | 'trigger' };
+  /** A crate picked up, or (`medkit`) a wall medkit station's heal. */
+  pickup: { kind: PickupKind | 'medkit' };
   /** An enemy callout (a radio line chirps). */
   bark: { radio: boolean };
-  emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */
   remoteShot: { cls: string; x: number; y: number; z: number };
 }

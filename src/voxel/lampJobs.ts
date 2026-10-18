@@ -4,6 +4,7 @@
  */
 import { dbDelete, dbGet, dbPut } from '../save/db';
 import { BOX_STRIDE, LAMP_STRIDE, type LampResult } from './lampBake';
+import { MOON_CELL, type MoonResult } from './skyBake';
 import { WorkerPool } from './workerPool';
 
 const KEEP = 2;
@@ -61,4 +62,40 @@ async function saveLamps(key: string, r: LampResult): Promise<void> {
   } catch {
     /* a full or unavailable store just means no cache */
   }
+}
+
+const MOON_INDEX = 'moon-cache-index';
+/** Bump when the moon bake changes. */
+export const MOON_VERSION = 1;
+
+/** The moon's visibility grid over [lo, hi] (whole metres; `MOON_CELL` cells), cached like the lamps. */
+export async function bakeLevelMoon(shapes: Float32Array, lo: [number, number, number], hi: [number, number, number], dir: [number, number, number], key: string | null): Promise<MoonResult> {
+  const n: [number, number, number] = [Math.max(1, Math.ceil((hi[0] - lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((hi[1] - lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((hi[2] - lo[2]) / MOON_CELL))];
+  if (key) {
+    try {
+      const hit = await dbGet<MoonResult>('kv', key);
+      if (hit && hit.vis instanceof Uint8Array && hit.vis.length === n[0] * n[1] * n[2]) return hit;
+    } catch {
+      /* no cache */
+    }
+  }
+  const pool = new WorkerPool(1);
+  let r: MoonResult;
+  try {
+    r = await pool.moon({ kind: 'moon', id: 0, origin: lo, n, shapes: shapes.slice(), dir });
+  } finally {
+    pool.dispose();
+  }
+  if (key) {
+    try {
+      await dbPut('kv', key, r);
+      const idx = ((await dbGet<string[]>('kv', MOON_INDEX)) ?? []).filter((k) => k !== key);
+      idx.unshift(key);
+      for (const old of idx.slice(KEEP)) await dbDelete('kv', old);
+      await dbPut('kv', MOON_INDEX, idx.slice(0, KEEP));
+    } catch {
+      /* a full or unavailable store just means no cache */
+    }
+  }
+  return r;
 }

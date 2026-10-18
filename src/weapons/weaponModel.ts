@@ -1,4 +1,4 @@
-import { Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
@@ -15,6 +15,8 @@ export const DEFAULT_WEAPON_COLORS: WeaponColors = { body: '#2d3238', grip: '#1a
 
 /** Gap (m) between a carried weapon and the body or gear it rests against. */
 const CARRY_GAP = 0.012;
+/** (21w, PC-PASS 42) The weapon's last posed world matrix before a re-parent (scratch, no allocation). */
+const glideM = new Matrix();
 /** Back carry: muzzle-up guns side by side (thin side to the back), butts at this height on the chest. */
 const BACK_X = 0.07;
 const BACK_BUTT_Y = -0.4;
@@ -67,7 +69,7 @@ export class WeaponModel {
     }
     // finer detail on long guns: an ejection port on the right of the receiver and a top rail under the optic
     const rec = def.model.find((p) => p.role === 'receiver');
-    if (rec && def.class !== 'pistol' && def.class !== 'crossbow') {
+    if (rec && def.class !== 'pistol') {
       const [w, h, l] = rec.size;
       const [x, y, z] = rec.pos;
       const detail = (hex: string, sx: number, sy: number, sz: number, px: number, py: number, pz: number): void => {
@@ -98,6 +100,8 @@ export class WeaponModel {
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
   hold(rig: CharacterRig): void {
+    const had = this.glideFrom(rig);
+    this.owner = rig;
     this.slot = null;
     this.track(rig, false);
     this.node.parent = rig.weaponPivot;
@@ -114,17 +118,32 @@ export class WeaponModel {
     else rig.magPoint.set(0, this.def.grip[1] - 0.08, (this.def.grip[2] + this.def.foregrip[2]) * 0.5);
     rig.heldWeapon = this.node;
     this.setVisible(true);
+    if (had) rig.glideWeapon(this.node, glideM);
   }
 
   /** Mid-swap: in the right hand (grip at the palm) on its way from its slot to the aim pocket. */
   inHand(rig: CharacterRig): void {
+    const had = this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.owner = rig;
     this.slot = null;
     this.track(rig, false);
     this.node.parent = rig.weaponSocket;
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     this.node.position.set(-this.def.grip[0], -this.def.grip[1], -this.def.grip[2]);
     this.setVisible(true);
+    if (had) rig.glideWeapon(this.node, glideM);
+  }
+
+  /**
+   * (step 21w, PC-PASS 42) Before a re-parent (slot, hand, aim pocket): keep the node's last posed world matrix when
+   * it was shown on this rig, so the rig glides it from there onto its new place (`CharacterRig.glideWeapon`) instead
+   * of jumping (a mid-draw release, a draw taken while the hand is still on its way, the open-side hand switch).
+   */
+  private glideFrom(rig: CharacterRig): boolean {
+    if (this.owner !== rig || !this.node.isEnabled(false)) return false;
+    glideM.copyFrom(this.node.computeWorldMatrix(true));
+    return true;
   }
 
   /**
@@ -134,7 +153,9 @@ export class WeaponModel {
    * the body and any back gear (`rig.backGear`) so nothing clips.
    */
   holster(rig: CharacterRig, slot: CarrySlot): void {
+    const had = slot !== 'sling' && this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.owner = rig;
     this.slot = slot;
     this.track(rig, slot === 'sling');
     const e = this.ext;
@@ -173,6 +194,7 @@ export class WeaponModel {
       n.position.set(sx - ax.x * ((e.x0 + e.x1) / 2), cy - az.y * zc, -ay.z * yc);
     }
     this.setVisible(true);
+    if (had) rig.glideWeapon(n, glideM);
   }
 
   /** Left-hip sling: muzzle down, top forward, thin side to the hip, splayed out by `splay` (rad). */
@@ -221,8 +243,23 @@ export class WeaponModel {
     this.splay = SLING_SPLAY;
   }
 
+  /** (fix 21-2) The rig given to the last hold / inHand / holster. */
+  private owner: CharacterRig | null = null;
+  /** (fix 21-2) The rig whose `thighCount` this model is counted in (visible on its right thigh), else null. */
+  private thighOn: CharacterRig | null = null;
+
   setVisible(v: boolean): void {
     this.node.setEnabled(v);
+    this.syncThigh();
+  }
+
+  /** (fix 21-2) `rig.thighGear` is true iff a visible model is holstered on that rig's thigh. */
+  private syncThigh(): void {
+    const want = this.slot === 'thigh' && this.node.isEnabled(false) ? this.owner : null;
+    if (want === this.thighOn) return;
+    if (this.thighOn) this.thighOn.thighCount = Math.max(0, this.thighOn.thighCount - 1);
+    if (want) want.thighCount++;
+    this.thighOn = want;
   }
 
   muzzleWorld(out: Vector3): Vector3 {
@@ -232,6 +269,8 @@ export class WeaponModel {
 
   dispose(): void {
     if (this.rig) this.track(this.rig, false);
+    this.slot = null;
+    this.syncThigh();
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.node.dispose();

@@ -132,9 +132,8 @@ describe('map room layouts', async () => {
       for (const sp of layout.playerSpawns) expect(blocked(b, sp.pos.x, sp.pos.z, 0, 0.35), `player spawn ${sp.pos.x},${sp.pos.z}`).toBe(false);
     });
   }
-  it('Warehouse is the default map for every mode but Training (3.0: the only playable map)', () => {
-    for (const mode of ['clear', 'sandbox', 'mission', 'wave', 'infiltration', 'tdm', 'ffa'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
-    expect(MAPS.find((m) => m.modes.includes('training'))?.id).toBe('proving');
-    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving']);
+  it('Warehouse is the default map for every mode (3.0: the only playable map)', () => {
+    for (const mode of ['clear', 'sandbox', 'mission', 'infiltration'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
+    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'kestrel', 'seclab', 'courselab', 'bunker']);
   });
 });

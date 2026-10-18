@@ -26,6 +26,8 @@ export interface ObjectiveDef {
   /** Extract / rescue: the zone radius (m); rescue: where the VIP is held (x, y, z). */
   radius: number;
   vip: [number, number, number] | null;
+  /** Extract: further zones that also count (an alternate exit): x, y, z, radius. */
+  alt: { x: number; y: number; z: number; radius: number }[];
 }
 
 export type RuleMode = 'off' | 'bonus' | 'fail';
@@ -88,7 +90,7 @@ export function validateMissions(data: unknown): MissionDef[] {
       if (!p) throw new Error(`missions.${id}: bad insertion`);
       ins.push({ id: str(i.id, `ins${ins.length}`), name: str(i.name, 'Insertion'), x: p[0], y: p[1], z: p[2], yaw: num(i.yaw, -10, 10, 0) });
     }
-    if (ins.length < 1 || ins.length > 3) throw new Error(`missions.${id}: 1-3 insertions`);
+    if (ins.length < 1 || ins.length > 4) throw new Error(`missions.${id}: 1-4 insertions`);
     const objs: ObjectiveDef[] = [];
     for (const o of (m.objectives as Record<string, unknown>[]) ?? []) {
       const type = o.type as ObjectiveType;
@@ -101,6 +103,13 @@ export function validateMissions(data: unknown): MissionDef[] {
       }
       if (type === 'intel' && items.length < 1) throw new Error(`missions.${id}: intel needs items`);
       const vip = p3(o.vip);
+      const alt: ObjectiveDef['alt'] = [];
+      if (type === 'extract') {
+        for (const a of (o.alt as unknown[]) ?? []) {
+          const ap = p3(Array.isArray(a) ? a.slice(0, 3) : null);
+          if (ap) alt.push({ x: ap[0], y: ap[1], z: ap[2], radius: num(Array.isArray(a) ? a[3] : undefined, 1.5, 8, 3) });
+        }
+      }
       if (type === 'rescue' && !vip) throw new Error(`missions.${id}: rescue needs a vip`);
       objs.push({
         type,
@@ -114,6 +123,7 @@ export function validateMissions(data: unknown): MissionDef[] {
         items,
         radius: num(o.radius, 1.5, 8, 3),
         vip,
+        alt,
       });
     }
     if (!objs.length) throw new Error(`missions.${id}: no objectives`);

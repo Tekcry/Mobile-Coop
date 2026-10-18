@@ -1,10 +1,9 @@
-// Takedowns and Mark & Execute on the night Warehouse (Clear rules): ground behind / front / side (side only on a
+// Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
 // calm guard), tap = non-lethal (knocked out) / hold = lethal, the attacker aligned within 5 cm, interrupted by
-// damage, over low cover, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
-// through a window; an Execute charge per takedown, marks that persist through cover moves, no execute without
-// line of sight, every mark down; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
+// damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
+// through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -12,7 +11,7 @@ let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
-  await page.waitForTimeout(800);
+  await frames(page, 10);
   await G(() => {
     const a = window.__app;
     const g = a.current;
@@ -27,11 +26,7 @@ try {
       V,
       reset() {
         g.takedown.reset();
-        g.execute.reset();
         em.clear();
-        g.marks.clear();
-        g.marks.charges = 0;
-        g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
         st.setMove('t', 0, 0);
@@ -99,7 +94,6 @@ try {
       t.press();
       t.run(1.0);
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
-      const charge = g.marks.charges;
       // front, held: lethal
       t.reset();
       t.tp(2, 0, -2.2, 0);
@@ -142,7 +136,7 @@ try {
       e5.update = () => {};
       t.step(0.2);
       const calledOffer = g.takedown.offer?.plan.kind ?? null;
-      return { offer, prompt, grabbed, aligned: run.aligned, ko, charge, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
+      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
     });
     assert(r.spotted && r.seenOffer === null, `a guard in combat who saw you offers no takedown (${r.seenOffer}, spotted ${r.spotted})`);
     assert(r.calledOffer === 'front', `one alerted without seeing you still can be taken (${r.calledOffer})`);
@@ -150,7 +144,6 @@ try {
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.grabbed, 'from behind: grabbed and held');
     assert(r.ko, 'a tap is non-lethal: he is knocked out');
-    assert(r.charge === 1, `a takedown earns an Execute charge (${r.charge})`);
     assert(r.offer2 === 'front' && r.lethal, `from the front, held: lethal (${r.offer2}, ${r.lethal})`);
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
@@ -278,7 +271,6 @@ try {
       t.press(0.4);
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
-      const charges = g.marks.charges;
       t.reset();
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, 0);
@@ -293,10 +285,9 @@ try {
       const crouched = g.player.controller.crouched;
       const stagger = e2['stagger'];
       t.step(1.2);
-      return { killed, charges, shoved, crouched, stagger, alerted: e2.alerted };
+      return { killed, shoved, crouched, stagger, alerted: e2.alerted };
     });
     assert(r.killed, 'held press: killed');
-    assert(r.charges >= 1, `a kill from the grab earns an Execute charge (${r.charges})`);
     assert(r.shoved && !r.crouched, `B shoves him away (not a crouch) (${r.shoved})`);
     assert(r.stagger > 0.6 && r.alerted, `he staggers about a second, then is alert (${r.stagger?.toFixed(2)})`);
   });
@@ -391,45 +382,6 @@ try {
     assert(!r.override, 'the attacker is released (no stuck override)');
   });
 
-  await scen('cover', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      // the dock's low concrete block: player on one face in cover, a guard across it
-      let seg = null;
-      let bd = 9;
-      for (const sg of g.world.level.coverSegments) {
-        if (!sg.low) continue;
-        const mx = sg.ax + sg.tx * sg.len * 0.5;
-        const mz = sg.az + sg.tz * sg.len * 0.5;
-        const d = Math.hypot(mx + 10, mz + 13.2);
-        if (d < bd && sg.len > 1.5) {
-          bd = d;
-          seg = sg;
-        }
-      }
-      const mx = seg.ax + seg.tx * seg.len * 0.5;
-      const mz = seg.az + seg.tz * seg.len * 0.5;
-      t.tp(mx + seg.nx * 0.8, 0, mz + seg.nz * 0.8, Math.atan2(-seg.nx, -seg.nz));
-      t.step(0.3);
-      window.__app.input.state.tap('cover');
-      t.step(1);
-      const inCover = g.cover.inCover && g.cover.low;
-      const far = seg.depth + 0.75;
-      const e = t.spawn(mx - seg.nx * far, mz - seg.nz * far, Math.atan2(-seg.nx, -seg.nz));
-      t.step(0.4);
-      const offer = g.takedown.offer?.plan.kind;
-      t.press();
-      const run = t.run(1.6);
-      const p = g.player.position;
-      const across = (p.x - mx) * seg.nx + (p.z - mz) * seg.nz < 0;
-      return { inCover, offer, done: !e.alive, kind: run.kind, across };
-    });
-    assert(r.inCover, 'in low cover');
-    assert(r.offer === 'overCover', `a guard across low cover: takedown over it (${r.offer})`);
-    assert(r.done && r.across, `done, the attacker went over (${r.across})`);
-  });
-
   await scen('above', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -495,86 +447,126 @@ try {
     assert(r.done, 'done');
   });
 
-  await scen('execute', async () => {
+  // (locomotion step 12 r1) back to a high wall at an outside edge: a guard round the corner (past the end) is the
+  // corner takedown; played from the wall, the guard goes down and the operator comes off the wall
+  await scen('corner from the wall', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       const st = window.__app.input.state;
-      const em = g.enemyMgr;
-      // earn a charge
-      t.tp(2, 0, -2.2, 0);
-      const v = t.spawn(2, -1, 0);
-      t.step(0.4);
-      t.press();
-      t.run(1.4);
-      // (3.2.0: a grab from behind; the second press finishes it)
-      t.press();
-      t.run(1.0);
-      const charge = g.marks.charges;
-      // two guards ahead on the factory floor; aim at each and mark
-      t.tp(4, 0, -6, 0);
-      const a = t.spawn(4, 4, Math.PI);
-      const b = t.spawn(0.5, 5, Math.PI);
-      // blind and still (hit volumes keep following them)
-      for (const e of [a, b]) {
-        e['perceive'] = () => {};
-        e['decide'] = () => ({ point: null, speed: 0, face: null });
-      }
-      t.step(0.3);
-      // aim the crosshair (the over-shoulder camera's ray) at the guard's chest
-      const aimAt = (e) => {
-        st.set('t', 'ads', true);
-        for (let i = 0; i < 4; i++) {
-          g.frameUpdate(1 / 60, 1);
-          const cp = g.player.cam.camera.position;
-          const tx = e.pos.x - cp.x;
-          const ty = e.pos.y + 1.25 - cp.y;
-          const tz = e.pos.z - cp.z;
-          g.player.cam.yaw = Math.atan2(tx, tz);
-          g.player.cam.pitch = Math.atan2(ty, Math.hypot(tx, tz));
-          t.step(0.2);
+      const V = t.V;
+      const segs = g.world.level.coverSegments;
+      const L = g.wallCore?.links;
+      if (!L) return { err: 'no wallCore links' };
+      const clear = (x0, z0, x1, z1, y) => !g.ballistics.ray(new V(x0, y, z0), new V(x1, y, z1), 1).hit;
+      const floor = (x, z, y) => g.ballistics.ray(new V(x, y + 1, z), new V(x, y - 0.5, z), 1).hit;
+      // a free high wall end: the face clear 2 m out along its last metre, the space round the end clear and floored
+      let pick = null;
+      for (let i = 0; i < segs.length && !pick; i++) {
+        const s = segs[i];
+        if (s.low || Math.abs(s.y) > 0.3 || s.len < 1.5) continue;
+        for (const end of [1, -1]) {
+          if ((end > 0 ? L.kB[i] : L.kA[i]) !== 0) continue;
+          const ex = end > 0 ? s.bx : s.ax;
+          const ez = end > 0 ? s.bz : s.az;
+          const tx = end * s.tx;
+          const tz = end * s.tz;
+          // the player 0.25 m in from the end on the body line, the guard 0.75 m past the end, 0.35 m out
+          const px = ex - tx * 0.25 + s.nx * 0.35;
+          const pz = ez - tz * 0.25 + s.nz * 0.35;
+          const gx = ex + tx * 0.75 + s.nx * 0.35;
+          const gz = ez + tz * 0.75 + s.nz * 0.35;
+          let ok = floor(px, pz, s.y) && floor(gx, gz, s.y) && floor(gx + tx * 0.6, gz + tz * 0.6, s.y);
+          for (const h of [0.3, 1.0, 1.6]) {
+            ok = ok && clear(px, pz, gx + tx * 0.6, gz + tz * 0.6, s.y + h);
+            ok = ok && clear(px, pz, px + s.nx * 1.5, pz + s.nz * 1.5, s.y + h);
+          }
+          if (!ok) continue;
+          // (inside the map: a guard spawned there stays there, not moved onto the nearest walkable cell)
+          const probe = t.spawn(gx, gz, 0, s.y);
+          const inPlace = Math.hypot(probe.pos.x - gx, probe.pos.z - gz) < 0.1;
+          g.enemyMgr.clear();
+          if (inPlace) { pick = { i, end, px, pz, gx, gz, tx, tz, y: s.y }; break; }
         }
-        st.tap('mark');
-        t.step(0.1);
-      };
-      aimAt(a);
-      aimAt(b);
-      st.set('t', 'ads', false);
-      const marked = g.marks.ids.length;
-      // marks persist through a cover move
-      window.__app.input.state.tap('cover');
-      t.step(0.8);
-      g.cover.reset();
+      }
+      if (!pick) return { err: 'no free wall end on the map' };
+      const s = segs[pick.i];
+      const yaw = Math.atan2(-s.nx, -s.nz);
+      t.tp(pick.px + s.nx * 0.5, pick.y + 0.05, pick.pz + s.nz * 0.5, yaw);
       t.step(0.3);
-      const kept = g.marks.ids.length;
-      // out of sight: not ready
-      t.tp(-2, 0, -13, 0);
-      t.step(0.5);
-      const hidden = g.execute.ready;
-      st.tap('execute');
-      t.step(0.2);
-      const noRun = !g.execute.running && a.alive && b.alive;
-      // back in view: ready, execute
-      t.tp(4, 0, -6, 0);
-      t.step(0.6);
-      const ready = g.execute.ready;
-      const chevrons = (() => { g.scene.render(); g.frameUpdate(0.016, 1); return g.hud.markers.shown; })();
-      st.tap('execute');
-      t.step(0.05);
-      const running = !!g.execute.running;
-      const scale = window.__app.loop.timeScale;
-      t.step(1.2);
-      return { charge, marked, kept, hidden, noRun, ready, chevrons, running, scale, down: !a.alive && !b.alive, after: window.__app.loop.timeScale, charges: g.marks.charges, vDown: !v.alive };
+      st.set('t', 'cover', true);
+      t.step(1 / 60);
+      st.set('t', 'cover', false);
+      t.step(0.8);
+      const wc = g.wallCore;
+      const onWall = wc.phase === 'on' && wc.seg === pick.i && !wc.low;
+      const edge = wc.edge;
+      // the guard past the end, facing on away round the corner (not seeing the operator)
+      const e = t.spawn(pick.gx, pick.gz, Math.atan2(pick.tx, pick.tz), pick.y);
+      e.passive = true;
+      e.update = () => {};
+      t.step(0.3);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      const stillOn = g.wallCore.phase === 'on';
+      const dbg = offer ? null : JSON.stringify({ inp: g.takedown['inp'], vic: g.takedownVictims().length, p: [g.player.position.x, g.player.position.z], e: [e.pos.x, e.pos.z, e.alive, e.taken, e.level], s: [s.ax, s.az, s.bx, s.bz, s.nx, s.nz] });
+      t.press();
+      const run = t.run(1.6);
+      const down = !e.alive || g.takedown.hostage === e;
+      const offWall = g.wallCore.phase !== 'on';
+      // the same guard in front of the face (not past the end): an ordinary takedown, not a corner one
+      t.reset();
+      if (g.wallCore.active) g.wallCore.leave('test');
+      t.tp(pick.px + s.nx * 0.5, pick.y + 0.05, pick.pz + s.nz * 0.5, yaw);
+      t.step(0.3);
+      st.set('t', 'cover', true);
+      t.step(1 / 60);
+      st.set('t', 'cover', false);
+      t.step(0.8);
+      const fx = pick.px - pick.tx * 0.2 + s.nx * 1.1;
+      const fz = pick.pz - pick.tz * 0.2 + s.nz * 1.1;
+      const e2 = t.spawn(fx, fz, Math.atan2(s.nx, s.nz), pick.y);
+      e2.passive = true;
+      e2.update = () => {};
+      t.step(0.3);
+      const offer2 = g.takedown.offer?.plan.kind ?? null;
+      const on2 = g.wallCore.phase === 'on';
+      if (g.wallCore.active) g.wallCore.leave('test');
+      t.reset();
+      return { dbg, pick: { i: pick.i, end: pick.end }, onWall, edge, offer, stillOn, kind: run.kind, aligned: run.aligned, down, offWall, offer2, on2 };
     });
-    assert(r.charge === 1, 'a takedown earned a charge');
-    assert(r.marked === 2 && r.chevrons === 2, `aiming + mark marks two guards (${r.marked}, ${r.chevrons} chevrons)`);
-    assert(r.kept === 2, 'marks persist through a cover move');
-    assert(!r.hidden && r.noRun, 'out of sight: not ready, execute does nothing');
-    assert(r.ready && r.running && r.scale < 1, `in sight: execute runs, slowed (${r.scale})`);
-    assert(r.down, 'every marked guard goes down');
-    assert(r.after === 1 && r.charges === 0, 'normal speed after; the charge is spent');
+    assert(!r.err, `corner from the wall: ${r.err ?? 'a free wall end'}`);
+    assert(r.onWall && r.edge === r.pick.end, `on a high wall at its outside end (edge ${r.edge}, end ${r.pick.end})`);
+    assert(r.offer === 'corner' && r.stillOn, `a guard round the edge: the corner takedown offered from the wall (${r.offer}${r.dbg ? ' ' + r.dbg : ''})`);
+    assert(r.kind === 'corner' && r.down && r.offWall && r.aligned < 0.25, `played from the wall: corner, the guard down, off the wall, aligned ${r.aligned.toFixed(2)} m (${JSON.stringify(r)})`);
+    assert(r.on2 && r.offer2 !== 'corner', `a guard in front of the face: not a corner takedown (${r.offer2})`);
   });
 
+  // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (fire, D1)
+  await scen('elbow strike: heavy from the front', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      t.tp(2, 0, -1.9, 0);
+      const e = g.enemyMgr.spawn('heavy', new t.V(2, 0, -1), true, Math.PI);
+      e['stagger'] = 99;
+      t.step(0.2);
+      const fire = () => {
+        st.set('t', 'fire', true);
+        window.__app.loop.stepHeadless(1 / 60, 120);
+        st.set('t', 'fire', false);
+      };
+      const out = [];
+      for (let k = 0; k < 2; k++) {
+        e.yaw = Math.PI;
+        fire();
+        t.step(1.0);
+        out.push({ alive: e.alive, stag: g.strike.count.stagger });
+      }
+      return { out, ko: g.strike.count.ko, kind: e.def.kind };
+    });
+    assert(r.kind === 'heavy' && r.out.every((o) => o.alive) && r.out[1].stag >= 2 && r.ko === 0, `two frontal strikes on a heavy: staggered, never knocked out (${JSON.stringify(r)})`);
+  });
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {

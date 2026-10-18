@@ -1,7 +1,7 @@
-// Headless mobile-emulated smoke test against a built `dist/` served by `vite preview`.
+// Headless desktop smoke test against a built `dist/` served by `vite preview`.
 // Usage: node scripts/smoke.mjs [url] [--shot=out.png] [--wait=ms] [--eval=js]
-import { chromium, devices } from 'playwright-core';
-import { existsSync } from 'node:fs';
+import { chromium } from 'playwright-core';
+import { launchOptions, fakePointerLock } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -10,13 +10,9 @@ const shot = opt('shot', '');
 const wait = Number(opt('wait', '4000'));
 const evalJs = opt('eval', '');
 
-const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find(existsSync);
-const browser = await chromium.launch({
-  executablePath: exe,
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-});
-const pixel = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
-const ctx = await browser.newContext({ ...pixel });
+const browser = await chromium.launch(launchOptions());
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 640 } });
+await ctx.addInitScript(fakePointerLock);
 const page = await ctx.newPage();
 const errors = [];
 page.on('console', (m) => {

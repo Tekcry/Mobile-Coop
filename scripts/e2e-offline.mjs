@@ -51,12 +51,12 @@ try {
   const status = await G(() => document.getElementById('boot-status')?.textContent ?? '');
   assert(!/Failed/.test(status), `boots offline (${status})`);
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
-  await page.goto(url + '?autostart=warehouse&mode=wave&gfx=min');
+  await page.goto(url + '?autostart=warehouse&mode=mission&gfx=min');
   await booted();
   await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
-  assert(alive > 0, `wave match runs offline (${alive} enemies)`);
+  assert(alive > 0, `a match runs offline (${alive} enemies)`);
   // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
   await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
   await booted();
@@ -123,7 +123,8 @@ console.log('old save migration on boot');
     const s = await pg.evaluate(() => window.__app.save.get());
     assert(s.version >= 4, `migrated to v${s.version}`);
     assert(s.profile.xp === 4321 && s.profile.credits === 950, 'xp and credits kept');
-    assert(s.weapons.rifle.upgrades.damage === 2 && s.unlocks.includes('weapon:smg'), 'upgrades and unlocks kept');
+    // (the SMG was deleted with the CT kit, G115: the v8 -> v9 step drops its unlock)
+    assert(s.weapons.rifle.upgrades.damage === 2 && s.unlocks.includes('weapon:rifle') && !s.unlocks.includes('weapon:smg'), 'upgrades and unlocks kept, the deleted gun dropped');
     assert(s.avatar.body === 'average', 'new fields defaulted');
     const backups = await pg.evaluate(() => new Promise((res) => {
       const r = indexedDB.open('shoulder-strike', 1);

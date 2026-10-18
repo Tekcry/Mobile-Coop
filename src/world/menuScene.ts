@@ -27,7 +27,6 @@ import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
-import { playEmote } from '../cosmetics/emotes';
 import type { QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
@@ -188,14 +187,6 @@ export class MenuState implements AppState {
   /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
    *  their own cones here). */
   applyQuality(q: QualityLevel): void {
-    // (3.4 phones' light look: the smooth operator, as in a match)
-    if (q.lite !== this.lite) {
-      this.lite = q.lite;
-      if (this.rig && this.last) {
-        this.shown = '';
-        this.setAvatar(...this.last);
-      }
-    }
     const sh = q.shadow;
     const key = sh.casters > 0 ? `${sh.size}:${sh.soft}` : 'off';
     if (key !== this.shadowKey) {
@@ -230,9 +221,6 @@ export class MenuState implements AppState {
 
   /** What the preview shows (rebuilt only when it changes). */
   private shown = '';
-  private last: Parameters<MenuState['setAvatar']> | null = null;
-  /** 3.4: phones' light look (no voxel operator). */
-  private lite = false;
 
   /** Rebuild on the next request even if it matches (the avatar style changed). */
   forget(): void {
@@ -243,13 +231,12 @@ export class MenuState implements AppState {
    *  and camo. Live previews call it on every change; an unchanged request is free. */
   setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory', attachments: readonly string[] = []): void {
     const key = JSON.stringify([look, weapon, camo, attachments]);
-    this.last = [look, weapon, camo, attachments];
     if (key === this.shown && this.rig) return;
     this.shown = key;
     this.weapon?.dispose();
     this.rig?.dispose();
     // voxel operator (3.0; `?gfx=min`: the smooth parts)
-    const vox = flags.voxels && flags.gfx !== 'min' && !this.lite;
+    const vox = flags.voxels && flags.gfx !== 'min';
     setVoxelBodies(vox ? { size: 0.02, lodSize: 0.04, lodDistance: 1000 } : null);
     setVoxelWeapons(vox ? { size: 0.01, fineSize: 0.005, lodSize: 0.02, lodDistance: 1000, small: 0.03 } : null);
     this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.75, 'preview');
@@ -259,10 +246,6 @@ export class MenuState implements AppState {
     this.weapon.hold(this.rig);
     // the tri-lens glows in the dark
     this.rig.setLensGlow(true);
-  }
-
-  emote(id: string): void {
-    if (this.rig) playEmote(this.rig, id);
   }
 
   setFraming(f: MenuFraming): void {

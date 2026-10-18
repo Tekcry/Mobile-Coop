@@ -1,0 +1,427 @@
+{
+  "meta": {
+    "id": "trunk-annex",
+    "title": "Kestrel Trunk Annex",
+    "mission": "Dead Line",
+    "units": "metres, 0.5 m grid, x east, z north, centred on the site",
+    "footprint": { "x": [-18, 18], "z": [-14, 14] },
+    "levels": [
+      { "id": "G", "y": 0, "name": "Ground" },
+      { "id": "U", "y": 3.3, "name": "Upper" },
+      { "id": "R", "y": 6.6, "name": "Roof" }
+    ],
+    "speeds": { "walk": 2.0, "jog": 2.8, "stairs": 1.6, "ladder": 1.0, "crawl": 1.8, "crawlFast": 2.8, "note": "walk = gear 3 stand (2.0 m/s, the pace the main routes are balanced on); jog = gear 4 stand (2.8 m/s, footstep noise about 3.4 m); crawl = crouch gear 4 (1.8 m/s, silent: NOISE_QUIET); crawlFast = crouch gear 6 (2.8 m/s, crouch-run noise about 2 m, muffled to about 0.9 m through a floor). Stairs and ladders are fixed by the code." },
+    "guardTurnSec": 0.5,
+    "cycleSec": 40
+  },
+
+  "spaces": [
+    { "id": "yard", "name": "Loading yard", "level": "G", "rect": [-18, -14, 18, -7], "kind": "outdoor", "ceil": 0, "landmark": "sodium lamp pools, parked van, drum stacks", "purpose": "Arrival, the loop is learned here; vehicle exit" },
+    { "id": "goods", "name": "Goods-in bay", "level": "G", "rect": [-18, -7, -6, 2.5], "kind": "main", "ceil": 3.0, "landmark": "sealed roller door, pallets, forklift", "purpose": "Entry room, dark south-west corner with the riser ladder and the trench grille" },
+    { "id": "brk", "name": "Break room", "level": "G", "rect": [-18, 2.5, -6, 14], "kind": "minor", "ceil": 3.0, "landmark": "lockers, table, kettle, pinned rota", "purpose": "Pair's break stop, body room, reinforcement entry (sealed street door)" },
+    { "id": "hall", "name": "Switch hall", "level": "G", "rect": [-6, -7, 6, 14], "kind": "main", "ceil": 6.0, "landmark": "rack rows, gallery above, open stair", "purpose": "Hub: pair patrol, gallery vantage, stair to O1" },
+    { "id": "gen", "name": "Generator room", "level": "G", "rect": [6, -7, 18, 4], "kind": "main", "ceil": 3.0, "carve": [[13, -7, 18, -2.5]], "landmark": "genset, breaker board", "purpose": "Breaker board, yard door, back door to the cage room" },
+    { "id": "fs", "name": "Fire stair (ground)", "level": "G", "rect": [13, -7, 18, -2.5], "kind": "stair", "ceil": 3.0, "landmark": "green exit sign", "purpose": "Yard to roof, enclosed, only stair with doors" },
+    { "id": "cage", "name": "Core switch cage", "label": "Core cage", "level": "G", "rect": [6, 4, 18, 14], "kind": "main", "ceil": 6.0, "landmark": "mesh wall, two rack rows, lit sign CORE", "purpose": "O2 site, heavy guard" },
+    { "id": "test", "name": "Test room", "level": "U", "rect": [-18, -7, -6, 2.5], "kind": "main", "ceil": 3.0, "landmark": "test bench, line-record cabinet with lit sign", "purpose": "O1 site" },
+    { "id": "ctl", "name": "Control room", "level": "U", "rect": [-18, 2.5, -6, 14], "kind": "main", "ceil": 3.0, "carve": [[-7, 6, -6, 7.5]], "landmark": "monitor wall, glazed window onto the gallery", "purpose": "Officer, alarm panel AP1, window overlooking the hall" },
+    { "id": "gal", "name": "Gallery", "level": "U", "rect": [-6, -3, -2.5, 14], "rails": [{ "axis": "x", "at": -2.5 }, { "axis": "z", "at": -3 }], "kind": "corridor", "ceil": 3.0, "landmark": "rail over the hall, recess, ladder hatch", "purpose": "Vantage and link between Test room, Control room and roof ladder" },
+    { "id": "roof", "name": "Roof deck", "level": "R", "rect": [-18, -7, 18, 14], "kind": "main", "ceil": 0, "carve": [[13, -7, 18, -2.5]], "landmark": "AHU blocks, exhaust stack, parapet", "purpose": "Sniper overwatch, drop-in route" },
+    { "id": "fsR", "name": "Fire stair head house", "level": "R", "rect": [13, -7, 18, -2.5], "kind": "stair", "ceil": 3.0, "landmark": "green exit sign", "purpose": "Roof end of the fire stair" }
+  ],
+
+  "blocks": [
+    { "id": "DS1", "level": "G", "rect": [-12, -13.5, -10, -11.5], "h": 1.8, "label": "drum stack" },
+    { "id": "VAN", "level": "G", "rect": [-3, -12.5, 1.5, -10.5], "h": 2.0, "label": "van" },
+    { "id": "BIN", "level": "G", "rect": [4, -12.5, 7, -10.5], "h": 1.4, "label": "skip bins" },
+    { "id": "PAL", "level": "G", "rect": [13, -12.5, 17, -10.5], "h": 1.5, "label": "pallets" },
+    { "id": "P1", "level": "G", "rect": [-16, -5, -12, -2], "h": 1.6, "label": "pallet stack" },
+    { "id": "DR", "level": "G", "rect": [-18, -2, -16.5, 0], "h": 1.8, "label": "drum rack" },
+    { "id": "R1S", "level": "G", "rect": [-16.5, -6.5, -15.5, -5.5], "h": 3.3, "label": "riser shaft" },
+    { "id": "S1", "level": "G", "rect": [-6, -7, 2, -4.5], "h": 3.3, "label": "open stair" },
+    { "id": "RA1", "level": "G", "rect": [-2.5, -1, -0.5, 3.5], "h": 2.2, "label": "relay racks" },
+    { "id": "RA2", "level": "G", "rect": [-2.5, 6.5, -0.5, 11.5], "h": 2.2, "label": "relay racks" },
+    { "id": "RB1", "level": "G", "rect": [4, -1, 6, 3], "h": 2.2, "label": "relay racks" },
+    { "id": "RB2", "level": "G", "rect": [4, 9.5, 6, 13.5], "h": 2.2, "label": "relay racks" },
+    { "id": "GS1", "level": "G", "rect": [9, -4.5, 13, -1.5], "h": 2.0, "label": "genset" },
+    { "id": "TK", "level": "G", "rect": [7, 1, 9.5, 3.5], "h": 2.5, "label": "fuel tank" },
+    { "id": "CR1", "level": "G", "rect": [9, 8, 10.5, 11], "h": 2.2, "label": "core racks" },
+    { "id": "CR2", "level": "G", "rect": [13.5, 8, 15, 11], "h": 2.2, "label": "core racks" },
+    { "id": "CS", "level": "G", "rect": [10.5, 13, 13.5, 14], "h": 2.2, "label": "core switch" },
+    { "id": "ES1", "level": "G", "rect": [16, 13, 17, 14], "h": 6.6, "label": "exhaust shaft" },
+    { "id": "TBL", "level": "G", "rect": [-14, 6, -11, 9], "h": 0.9, "label": "table" },
+    { "id": "LKR", "level": "G", "rect": [-18, 12, -15, 14], "h": 1.9, "label": "lockers" },
+    { "id": "TB", "level": "U", "rect": [-14, -5, -11, -3], "h": 1.0, "label": "test bench" },
+    { "id": "LRC", "level": "U", "rect": [-18, -4, -17, -2], "h": 2.0, "label": "line-record cabinet" },
+    { "id": "SH1", "level": "U", "rect": [-14, 0, -11, 1.5], "h": 1.8, "label": "shelves" },
+    { "id": "R1T", "level": "U", "rect": [-16.5, -6.5, -15.5, -5.5], "h": 3.0, "label": "riser hatch" },
+    { "id": "CD", "level": "U", "rect": [-14, 4, -10.5, 6], "h": 0.9, "label": "monitor desk" },
+    { "id": "FIL", "level": "U", "rect": [-18, 12, -15, 14], "h": 1.9, "label": "filing" },
+    { "id": "GLS", "level": "U", "rect": [-5.5, 13, -4.5, 14], "h": 3.3, "label": "roof ladder shaft" },
+    { "id": "AH1", "level": "R", "rect": [-14, 1, -10, 5], "h": 2.5, "label": "AHU" },
+    { "id": "AH2", "level": "R", "rect": [-8, 6, -4, 10], "h": 2.5, "label": "AHU" },
+    { "id": "AH3", "level": "R", "rect": [0, 4, 4, 8], "h": 2.5, "label": "AHU" },
+    { "id": "AH4", "level": "R", "rect": [8, 8, 12, 11], "h": 2.5, "label": "chiller" },
+    { "id": "ESR", "level": "R", "rect": [16, 13, 17, 14], "h": 3.0, "label": "exhaust stack housing" },
+    { "id": "GLR", "level": "R", "rect": [-5.5, 13, -4.5, 14], "h": 1.5, "label": "ladder hatch housing" }
+  ],
+
+  "openings": [
+    { "id": "Gp", "type": "door1", "level": "G", "axis": "z", "at": -14, "c": -15.5, "w": 1.2, "from": "lane", "to": "yard", "purpose": "Arrival gate (padlock swapped by the team), alternate exit" },
+    { "id": "Gv", "type": "gate", "level": "G", "axis": "z", "at": -14, "c": 10.5, "w": 3.0, "from": "lane", "to": "yard", "purpose": "Vehicle gate, primary extraction (van)" },
+    { "id": "PD", "type": "door1", "level": "G", "axis": "z", "at": -7, "c": -8.5, "w": 1.2, "from": "yard", "to": "goods", "purpose": "Personnel door, the way in" },
+    { "id": "RD", "type": "sealed", "level": "G", "axis": "z", "at": -7, "c": -12.5, "w": 3.0, "from": "yard", "to": "goods", "purpose": "Sealed roller door, landmark" },
+    { "id": "GD", "type": "door1", "level": "G", "axis": "z", "at": -7, "c": 10.5, "w": 1.2, "from": "yard", "to": "gen", "purpose": "Generator service door" },
+    { "id": "FD1", "type": "door1", "level": "G", "axis": "z", "at": -7, "c": 15.5, "w": 1.2, "from": "yard", "to": "fs", "purpose": "Fire door to the fire stair" },
+    { "id": "WO1", "type": "wide", "level": "G", "axis": "x", "at": -6, "c": 0.5, "w": 3.0, "from": "goods", "to": "hall", "purpose": "Wide opening, no door" },
+    { "id": "DD", "type": "door2", "level": "G", "axis": "x", "at": -6, "c": 5.0, "w": 2.0, "from": "brk", "to": "hall", "purpose": "Break room double door" },
+    { "id": "DG", "type": "door2", "level": "G", "axis": "x", "at": 6, "c": -4.0, "w": 2.0, "from": "hall", "to": "gen", "purpose": "Hall to generator room" },
+    { "id": "CH", "type": "door2", "level": "G", "axis": "x", "at": 6, "c": 7.5, "w": 2.0, "from": "hall", "to": "cage", "purpose": "Cage entrance in the mesh wall" },
+    { "id": "MESH", "type": "mesh", "level": "G", "axis": "x", "at": 6, "c": 9, "w": 10, "from": "hall", "to": "cage", "purpose": "Mesh wall: sight and light pass, bodies do not" },
+    { "id": "GCd", "type": "door1", "level": "G", "axis": "z", "at": 4, "c": 15.0, "w": 1.2, "from": "gen", "to": "cage", "purpose": "Cage service door" },
+    { "id": "ND", "type": "sealed", "level": "G", "axis": "z", "at": 14, "c": -12, "w": 1.2, "from": "brk", "to": "street", "purpose": "Sealed street door: reinforcement entry" },
+    { "id": "SO", "type": "wide", "level": "U", "axis": "x", "at": -6, "c": -5.75, "w": 2.5, "from": "hall", "to": "test", "purpose": "Stair mouth into the Test room" },
+    { "id": "DT2", "type": "door1", "level": "U", "axis": "x", "at": -6, "c": 0, "w": 1.2, "from": "gal", "to": "test", "purpose": "Test room gallery door" },
+    { "id": "DC", "type": "door1", "level": "U", "axis": "x", "at": -6, "c": 5.0, "w": 1.2, "from": "gal", "to": "ctl", "purpose": "Control room gallery door" },
+    { "id": "W1", "type": "window", "level": "U", "axis": "x", "at": -6, "c": 10.5, "w": 3.0, "from": "gal", "to": "ctl", "purpose": "Glazed window: the officer's view of the hall" },
+    { "id": "FD3", "type": "door1", "level": "R", "axis": "z", "at": -2.5, "c": 15.5, "w": 1.2, "from": "fsR", "to": "roof", "purpose": "Roof door of the fire stair" }
+  ],
+
+  "links": [
+    { "id": "S1", "kind": "stairs-open", "a": ["G", 3.0, -5.75], "b": ["U", -7.0, -5.75], "travel": 9.5, "rise": 3.3, "note": "2.4 wide, 20 risers 0.165 x 0.285 (slope 0.58), mid landing 2.0, along the hall's south wall, foot at the east end" },
+    { "id": "FS", "kind": "stairs-fire", "a": ["G", 15.5, -5.5], "b": ["R", 15.5, -4.0], "travel": 20, "rise": 6.6, "note": "enclosed 1.3 m flights, 40 risers, doors FD1 and FD3" },
+    { "id": "RL", "kind": "ladder", "a": ["G", -16.5, -7.5], "b": ["R", -16.5, -6.0], "travel": 6.6, "rise": 6.6, "note": "exterior ladder on the south facade, 0.5 wide" },
+    { "id": "R1", "kind": "ladder", "a": ["G", -14.8, -6.0], "b": ["U", -14.8, -6.0], "travel": 3.3, "rise": 3.3, "note": "cable riser, 1.0 x 1.0 shaft at x -16.5..-15.5, z -6.5..-5.5 in the Goods-in south-west corner, ladder reached from the east" },
+    { "id": "GL", "kind": "ladder", "a": ["U", -5.0, 12.0], "b": ["R", -5.0, 12.0], "travel": 3.3, "rise": 3.3, "note": "gallery to roof hatch, shaft 1.0 x 1.0 at x -5.5..-4.5, z 13..14 in the north-west corner of the gallery" },
+    { "id": "ES", "kind": "ladder", "a": ["R", 16.5, 12.5], "b": ["G", 16.5, 12.5], "travel": 7.0, "rise": 6.6, "note": "exhaust shaft: roof stack to the cage east aisle, 1.0 x 1.0, 6.6 m ladder" },
+    { "id": "D1", "kind": "crawl", "a": ["G", -13.2, -6.4], "b": ["G", 16.5, 6.5], "travel": 36.6, "playerOnly": true, "poly": [[-13.2, -6.4], [8, -6.4], [16.5, 6.5]], "note": "cable trench (the 'cable tunnel') under the Goods-in bay, the hall and the generator room, 0.9 wide x 1.3 high, grille T1 beside the riser foot, hatch T2 at the south end of the cage east aisle" }
+  ],
+
+  "lamps": [
+    { "id": "Y1", "circuit": "C1", "level": "G", "x": -10.5, "z": -7.8, "h": 3.2, "r": 4.0, "shoot": true, "space": "yard", "note": "over the personnel door" },
+    { "id": "Y2", "circuit": "C1", "level": "G", "x": 0, "z": -9.5, "h": 5.0, "r": 5.0, "shoot": true, "space": "yard", "note": "pole lamp, yard centre" },
+    { "id": "Y3", "circuit": "C1", "level": "G", "x": 10.5, "z": -13, "h": 4.0, "r": 4.0, "shoot": true, "space": "yard", "note": "over the vehicle gate" },
+    { "id": "RF1", "circuit": "C1", "level": "R", "x": 15.5, "z": -2.0, "h": 3.0, "r": 4.5, "shoot": true, "space": "roof", "note": "security light on the head house" },
+    { "id": "GI1", "circuit": "C2", "level": "G", "x": -12, "z": -3, "h": 2.8, "r": 5.5, "shoot": true, "space": "goods", "note": "over the work area" },
+    { "id": "GI2", "circuit": "C2", "level": "G", "x": -10.5, "z": -4.5, "h": 2.8, "r": 3.5, "shoot": true, "space": "goods", "note": "inside the personnel door, over the work bench" },
+    { "id": "BR1", "circuit": "C2", "level": "G", "x": -12, "z": 8, "h": 2.8, "r": 5, "shoot": true, "space": "brk", "note": "break room" },
+    { "id": "HS1", "circuit": "C3", "level": "G", "x": -2, "z": -2.5, "h": 5.0, "r": 5.5, "shoot": true, "space": "hall", "note": "south strip and wide opening" },
+    { "id": "HS2", "circuit": "C3", "level": "G", "x": 1.5, "z": 4.5, "h": 5.0, "r": 5, "shoot": true, "space": "hall", "note": "crossing channel" },
+    { "id": "HN1", "circuit": "C3", "level": "G", "x": 1.5, "z": 8.5, "h": 5.0, "r": 4, "shoot": true, "space": "hall", "note": "north lane and the cage door" },
+    { "id": "GN1", "circuit": "C4", "level": "G", "x": 11, "z": -0.5, "h": 3.0, "r": 5, "shoot": true, "space": "gen", "note": "over the genset" },
+    { "id": "GN2", "circuit": "C4", "level": "G", "x": 8.5, "z": -5.5, "h": 3.0, "r": 4.5, "shoot": true, "space": "gen", "note": "over the yard door and hall door" },
+    { "id": "K1", "circuit": "C5", "level": "G", "x": 12, "z": 6, "h": 4.5, "r": 5, "shoot": true, "space": "cage", "note": "south apron of the cage room" },
+    { "id": "K2", "circuit": "C5", "level": "G", "x": 8, "z": 8, "h": 4.5, "r": 3.5, "shoot": true, "space": "cage", "note": "west aisle, over the hatch T2" },
+    { "id": "TL1", "circuit": "C6", "level": "U", "x": -9.5, "z": -1.5, "h": 2.8, "r": 5.0, "shoot": true, "space": "test", "note": "over the test bench" },
+    { "id": "GA1", "circuit": "C6", "level": "U", "x": -4, "z": 2, "h": 2.8, "r": 3, "shoot": true, "space": "gal", "note": "gallery south, by the Test door" },
+    { "id": "CL1", "circuit": "C6", "level": "U", "x": -10, "z": 8, "h": 2.8, "r": 4.5, "shoot": true, "space": "ctl", "note": "desk lamp" }
+  ],
+
+  "circuits": [
+    { "id": "C1", "name": "Yard and roof security lights", "switch": { "id": "SW1", "level": "G", "x": -9.5, "z": -6.5, "space": "goods", "note": "by the personnel door, inside" }, "reaction": "G1 walks to pole lamp Y2 and searches 12 s with a torch; G6 holds on the yard 10 s. A shot lamp: G1 goes to that lamp, 8 s." },
+    { "id": "C2", "name": "Ground west (Goods-in, break room)", "switch": { "id": "SW2", "level": "G", "x": -6.5, "z": -3.5, "space": "goods", "note": "on the east wall south of the wide opening, hidden from the hall" }, "reaction": "Pair breaks the loop at the next waypoint, walks to the dark room, searches 10 s, resumes." },
+    { "id": "C3", "name": "Switch hall", "switch": { "id": "SW3", "level": "G", "x": -5.75, "z": 12.5, "space": "hall", "note": "hall north-west wall, under the gallery" }, "reaction": "Pair and G4 converge on the hall centre, 15 s search; G5 turns to face the mesh 6 s." },
+    { "id": "C4", "name": "Generator room", "switch": { "id": "SW4", "level": "G", "x": 6.5, "z": -1.5, "space": "gen", "note": "breaker board BP, west wall of the generator room" }, "reaction": "Pair detours to the board 12 s (the only circuit they walk to), then resume. Nobody re-lights it." },
+    { "id": "C5", "name": "Cage room", "switch": { "id": "SW5", "level": "G", "x": 14, "z": 4.5, "space": "cage", "note": "inside the cage room, beside the service door GCd" }, "reaction": "G5 stops, scans 8 s, goes to AP2 only if he sees a person. Pair investigates after 15 s." },
+    { "id": "C6", "name": "Upper floor (Test room, gallery, control room)", "switch": { "id": "SW6", "level": "U", "x": -6.5, "z": -1, "space": "test", "note": "Test room east wall, next to the gallery door" }, "reaction": "G4 leaves the desk, checks the Test room door and the gallery 15 s with a torch." }
+  ],
+
+  "panels": [
+    { "id": "AP1", "level": "U", "x": -17.75, "z": 8, "space": "ctl", "reinforce": "RN", "note": "officer's panel, west wall of the control room" },
+    { "id": "AP2", "level": "G", "x": 17.75, "z": 6, "space": "cage", "reinforce": "RN", "note": "east wall of the cage room, on the aisle mouth" },
+    { "id": "AP3", "level": "G", "x": 12.5, "z": -13.75, "space": "yard", "reinforce": "RL", "note": "yard wall beside the vehicle gate" }
+  ],
+  "reinforce": [
+    { "id": "RN", "level": "G", "x": -12, "z": 13, "name": "North street door (ND, sealed to the player)", "from": "street" },
+    { "id": "RL", "level": "G", "x": 10.5, "z": -13, "name": "Vehicle gate Gv", "from": "lane" }
+  ],
+
+  "hides": [
+    { "id": "hY1", "level": "G", "rect": [-18, -13.5, -12, -10.5], "h": 1.8, "open": "N", "space": "yard", "body": true, "enclosure": "DS1 on the east (south half), walls south and west; dark, 8 m or more from the sentry", "shows": ["G1"] },
+    { "id": "hY2", "level": "G", "rect": [-10, -13.5, -8, -11.5], "h": 1.8, "open": "N", "space": "yard", "body": false, "enclosure": "DS1 west, wall south (behind the sentry while he checks the door)", "shows": ["G1"] },
+    { "id": "hY3", "level": "G", "rect": [-3, -14, 1.5, -12.5], "h": 2.0, "open": "E", "space": "yard", "body": true, "enclosure": "van north, wall south", "shows": [] },
+    { "id": "hY4", "level": "G", "rect": [4, -14, 7, -12.5], "h": 1.4, "open": "W", "space": "yard", "body": false, "enclosure": "bins north, wall south (1.4 m: crouch)", "shows": ["G1"] },
+    { "id": "hY5", "level": "G", "rect": [13, -14, 17, -12.5], "h": 1.5, "open": "W", "space": "yard", "body": true, "enclosure": "pallets north, wall south (1.5 m)", "shows": [] },
+    { "id": "hY6", "level": "G", "rect": [14.5, -8.5, 16.5, -7], "h": 2.0, "open": "S", "space": "yard", "body": false, "enclosure": "porch walls at the fire door", "shows": [] },
+    { "id": "hG1", "level": "G", "rect": [-18, -5, -16, -2], "h": 1.6, "open": "N", "space": "goods", "body": true, "enclosure": "pallets east, wall west", "shows": [] },
+    { "id": "hG3", "level": "G", "rect": [-7.5, -7, -6, -5.5], "h": 1.8, "open": "N", "space": "goods", "body": false, "enclosure": "crate bay: east wall, south wall beside PD, a crate on the west", "shows": [] },
+    { "id": "hG2", "level": "G", "rect": [-18, -7, -15.5, -5], "h": 1.8, "open": "E", "space": "goods", "body": false, "enclosure": "walls south and west, riser shaft R1 on the east edge, pallets hG1 to the north", "shows": [] },
+    { "id": "hH1", "level": "G", "rect": [2, -7, 6, -4.5], "h": 2.0, "open": "N", "space": "hall", "body": false, "enclosure": "stair block west, walls south and east", "shows": ["G2", "G3"] },
+    { "id": "hH2", "level": "G", "rect": [-6, 7.5, -4.5, 10.5], "h": 2.0, "open": "E", "space": "hall", "body": false, "enclosure": "cabinet bay in the west wall, under the gallery", "shows": [] },
+    { "id": "hH3", "level": "G", "rect": [2, 12, 4, 14], "h": 2.0, "open": "W", "space": "hall", "body": false, "enclosure": "racks east, north wall", "shows": [] },
+    { "id": "hB1", "level": "G", "rect": [-18, 10, -15, 12], "h": 1.9, "open": "S", "space": "brk", "body": true, "enclosure": "lockers north, walls", "shows": [] },
+    { "id": "hGe1", "level": "G", "rect": [9, -1.5, 13, -0.5], "h": 2.0, "open": "N", "space": "gen", "body": true, "enclosure": "genset south, tank alcove", "shows": [] },
+    { "id": "hGe2", "level": "G", "rect": [13, -2.5, 18, -1], "h": 2.0, "open": "N", "space": "gen", "body": false, "enclosure": "fire stair wall south", "shows": [] },
+    { "id": "hCa1", "level": "G", "rect": [15, 7.5, 18, 14], "h": 2.2, "open": "S", "space": "cage", "body": true, "enclosure": "racks CR2 west, walls north and east", "shows": [] },
+    { "id": "hU1", "level": "U", "rect": [-7, 6, -6, 7.5], "h": 2.2, "open": "E", "space": "gal", "body": false, "enclosure": "recess cut into the control room wall", "shows": [] },
+    { "id": "hU2", "level": "U", "rect": [-14, -7, -11, -5], "h": 1.9, "open": "W", "space": "test", "body": false, "enclosure": "bench north, wall south", "shows": [] },
+    { "id": "hU3", "level": "U", "rect": [-18, 10, -15, 12], "h": 1.9, "open": "S", "space": "ctl", "body": true, "enclosure": "filing north, walls", "shows": [] },
+    { "id": "hR1", "level": "R", "rect": [-14, -0.5, -10, 1], "h": 2.5, "open": "S", "space": "roof", "body": true, "enclosure": "AHU north, parapet-free roof, 1.0 m kerb", "shows": [] },
+    { "id": "hR2", "level": "R", "rect": [-14, 5, -10, 6.5], "h": 2.5, "open": "N", "space": "roof", "body": false, "enclosure": "AHU south", "shows": [] },
+    { "id": "hR3", "level": "R", "rect": [-8, 4.5, -4, 6], "h": 2.5, "open": "S", "space": "roof", "body": false, "enclosure": "AHU north", "shows": [] },
+    { "id": "hR4", "level": "R", "rect": [-8, 10, -4, 11.5], "h": 2.5, "open": "N", "space": "roof", "body": false, "enclosure": "AHU south, hatch housing east", "shows": [] },
+    { "id": "hR5", "level": "R", "rect": [8, 11, 12, 12.5], "h": 2.5, "open": "N", "space": "roof", "body": false, "enclosure": "chiller south: out of the sniper's line", "shows": [] },
+    { "id": "hR6", "level": "R", "rect": [0, 8, 4, 9.5], "h": 2.5, "open": "N", "space": "roof", "body": false, "enclosure": "AHU south", "shows": [] }
+  ],
+
+  "vantage": [
+    { "id": "V1", "level": "G", "x": -17, "z": -12.5, "space": "yard", "dark": true, "shows": [{ "g": "G1", "wp": 0, "what": "door check at A and the Y1 pool, from deep in the pocket through the gap" }] },
+    { "id": "V2", "level": "G", "x": 4, "z": -4.75, "space": "hall", "dark": true, "shows": [{ "g": "G2", "wp": 3, "what": "pair at the south junction" }, { "g": "G3", "wp": 3, "what": "pair at the south junction" }, { "g": "G4", "wp": 3, "what": "officer's door check on the gallery, through the void" }] },
+    { "id": "V3", "level": "R", "x": -12, "z": -0.25, "space": "roof", "dark": true, "shows": [{ "g": "G6", "wp": 0, "what": "sniper on the lane facing, 24 m away" }] },
+    { "id": "V4", "level": "U", "x": -3, "z": 13, "space": "gal", "dark": true, "shows": [{ "g": "G4", "wp": 0, "what": "officer at the desk through the window" }, { "g": "G5", "wp": 1, "what": "heavy across the mesh, from above the racks" }] }
+  ],
+
+  "spawns": [
+    { "id": "S1", "x": -17.5, "z": -12.5, "first": "Climb the exterior ladder RL to the roof" },
+    { "id": "S2", "x": -16, "z": -12.5, "first": "Out through the gap to the personnel door PD" },
+    { "id": "S3", "x": -14.5, "z": -12.5, "first": "Along the south wall east behind the van (yard run)" },
+    { "id": "S4", "x": -16.5, "z": -11, "first": "Wait at the pocket mouth and watch the sentry" }
+  ],
+
+  "objectives": [
+    { "id": "O1", "name": "Pull the circuit record", "level": "U", "x": -16.5, "z": -3, "hold": 3, "space": "test", "why": "Names the broker's line card LC-4471. Without it the tap has nothing to clip to." },
+    { "id": "O2", "name": "Plant the tap", "level": "G", "x": 12.5, "z": 12.5, "hold": 4, "space": "cage", "why": "Clip the tap onto line card LC-4471 in the core switch." }
+  ],
+  "extraction": [
+    { "id": "E1", "name": "Van at the vehicle gate (primary)", "level": "G", "x": 10.5, "z": -12.5, "r": 2 },
+    { "id": "E2", "name": "Back out the arrival gate (alternate)", "level": "G", "x": -15.5, "z": -13, "r": 2 }
+  ],
+
+  "guards": [
+    { "id": "G1", "arch": "grunt", "speed": 0.9, "phase": 0, "role": "Yard sentry (solo)",
+      "post": "Yard line z -8.5 to -10",
+      "wps": [
+        { "x": -7.5, "z": -8.5, "d": 4.0, "face": [0, 1], "what": "door check at PD" },
+        { "x": 6, "z": -10, "d": 4.8, "face": [1, 0], "what": "checks the gate chain" }
+      ],
+      "why": "The contract names the yard gate and the personnel door as the two ways in. One man walks the line.",
+      "tells": ["boots on gravel, audible 6 s before each leg ends", "torch beam sweeps the wall 3 s before he turns at the door"],
+      "reaction": { "lights": "C1 off: goes to Y2 and searches 12 s, then resumes", "body": "stops, calls it, runs to AP3 (alarm), 3 reinforcements at the lane" }
+    },
+    { "id": "G2", "arch": "grunt", "speed": 0.9, "phase": 8, "role": "Pair lead, hall patrol",
+      "post": "Hall west lane and break room",
+      "wps": [
+        { "x": -4.5, "z": 5, "d": 0, "face": [-1, 0], "what": "break-room door" },
+        { "x": -9.5, "z": 6, "d": 6.0, "face": [-1, 0], "what": "break room, kettle, backs to the hall" },
+        { "x": -4.5, "z": 5, "d": 0, "face": [0, -1], "what": "leaves the break room" },
+        { "x": -4.5, "z": -2.5, "d": 4.0, "face": [0, -1], "what": "south junction, looks at the wide opening and stair" }
+      ],
+      "why": "The hall is the asset (relay racks). After a past theft the contractor ordered no one patrols the hall alone: a pair.",
+      "tells": ["radio crackle and two voices in the break room, 4 s before they come out", "door slap of the double door DD, 2 s before they appear"],
+      "reaction": { "lights": "C3 off: both go to the hall centre, 15 s search. C4 off: they walk to the board", "body": "G2 runs to AP2 or AP1 (nearest), G3 guards the body" }
+    },
+    { "id": "G3", "arch": "grunt", "speed": 0.9, "phase": 10.5, "role": "Pair trail, 2.5 s behind G2",
+      "post": "Same loop as G2",
+      "wps": [
+        { "x": -4.5, "z": 5, "d": 0, "face": [-1, 0], "what": "break-room door" },
+        { "x": -9.5, "z": 6, "d": 6.0, "face": [-1, 0], "what": "break room" },
+        { "x": -4.5, "z": 5, "d": 0, "face": [0, -1], "what": "leaves the break room" },
+        { "x": -4.5, "z": -2.5, "d": 4.0, "face": [-1, 0], "what": "south junction, covers the west side" }
+      ],
+      "why": "Second man of the pair; trails so the pair never stand on top of each other.",
+      "tells": ["radio crackle in the break room, 2.5 s after G2's", "DD slap, 2.5 s after G2's"],
+      "reaction": { "lights": "as G2", "body": "as G2" }
+    },
+    { "id": "G4", "arch": "officer", "speed": 0.85, "phase": 20, "role": "Control room officer",
+      "post": "Control room desk and the gallery",
+      "wps": [
+        { "x": -12, "z": 7.5, "d": 3.2, "face": [1, 0], "what": "desk, watches the hall through the window" },
+        { "x": -7, "z": 5, "d": 0, "face": [1, 0], "what": "control room door" },
+        { "x": -4.5, "z": 5, "d": 0, "face": [0, -1], "what": "gallery" },
+        { "x": -4.5, "z": 0, "d": 3.0, "face": [-1, 0], "what": "checks the Test room door" },
+        { "x": -4.5, "z": 5, "d": 0, "face": [0, 1], "what": "gallery, going back" },
+        { "x": -7, "z": 5, "d": 0, "face": [-1, 0], "what": "control room door" }
+      ],
+      "why": "The contract needs a duty officer who logs the rounds, watches the monitors and works the alarm panel. The records are the second most valuable thing, so he checks that door.",
+      "tells": ["keys on his belt, 2 s before he opens DC", "CL1 lamp flickers on the window glass 3 s before he stands"],
+      "reaction": { "lights": "C6 off: leaves the desk, checks the Test door and the gallery 15 s", "body": "runs to AP1 at once, then orders a search" }
+    },
+    { "id": "G5", "arch": "heavy", "speed": 0.75, "phase": 3, "role": "Cage warden",
+      "post": "Core switch cage room",
+      "wps": [
+        { "x": 12, "z": 5.5, "d": 3.4, "face": [0, 1], "what": "apron, looks up the centre aisle" },
+        { "x": 7.5, "z": 8, "d": 0, "face": [0, 1], "what": "west aisle" },
+        { "x": 7.5, "z": 12.5, "d": 3.0, "face": [0, 1], "what": "north-west corner" },
+        { "x": 11.5, "z": 12.5, "d": 4.0, "face": [0, 1], "what": "console check, back to the aisle mouth" }
+      ],
+      "why": "The cage is what the broker protects: the core switch holds his private line card. A heavy with a shotgun because the threat is a theft crew, not a trespasser.",
+      "tells": ["heavy tread and armour clink through the mesh, 4 s before he reaches the apron", "his shadow swings across the K1 pool on the apron 2 s before he arrives"],
+      "reaction": { "lights": "C5 off: stops and scans 8 s, then resumes", "body": "does not leave the cage: stands at AP2, rings it" }
+    },
+    { "id": "G6", "arch": "sniper", "speed": 0.85, "phase": 12, "role": "Roof overwatch (stationary)",
+      "post": "Roof parapet at (11.5, -6.5)",
+      "wps": [
+        { "x": 11.5, "z": -6.5, "d": 12.0, "face": [0.6, -0.8], "what": "lane and vehicle gate" },
+        { "x": 11.5, "z": -6.5, "d": 10.0, "face": [-0.8, -0.6], "what": "yard and the personnel door" },
+        { "x": 11.5, "z": -6.5, "d": 16.5, "face": [0, 1], "what": "roof deck north" }
+      ],
+      "why": "The only way a vehicle or a roof team can reach the building is the lane and the roof. A previous break-in came over the roof.",
+      "tells": ["the scope glints in the sodium light 2 s before each turn", "boot scrape on the roof gravel 3 s before each turn"],
+      "reaction": { "lights": "C1 off: stays on the yard facing 10 s then sweeps", "body": "does not leave the roof; reports by radio, AP not used" }
+    }
+  ],
+
+  "chokes": [
+    { "id": "K1", "name": "Personnel door PD", "level": "G", "x": -8.5, "z": -7, "need": 3, "seen": [{ "g": "G1", "legs": [1], "wps": [0], "post": 2 }, { "g": "G6", "wps": [1], "far": true }] },
+    { "id": "K2", "name": "Hall south crossing", "level": "G", "x": -4, "z": -3, "need": 3, "seen": [{ "g": "G2", "legs": [2], "wps": [3], "post": 2 }, { "g": "G3", "legs": [2], "wps": [3], "post": 2 }] },
+    { "id": "K3", "name": "Gallery south (recess to Test door)", "level": "U", "x": -4.5, "z": 4, "need": 3, "seen": [{ "g": "G4", "legs": [1, 2, 3, 4], "wps": [2, 3, 4] }] },
+    { "id": "K4", "name": "Cage door CH and apron", "level": "G", "x": 8, "z": 6, "need": 3, "seen": [{ "g": "G5", "legs": [0, 3], "wps": [0] }] },
+    { "id": "K5", "name": "Console approach (O2 hold 4 s)", "level": "G", "x": 12.5, "z": 12.5, "need": 4, "seen": [{ "g": "G5", "legs": [1, 2], "wps": [0, 2, 3] }] },
+    { "id": "K9", "name": "Centre aisle run (route O2-A)", "level": "G", "x": 12, "z": 9, "need": 5, "seen": [{ "g": "G5", "legs": [2, 3], "wps": [0, 2, 3], "post": 1 }] },
+    { "id": "K6", "name": "Yard east crossing to GD and Gv", "level": "G", "x": 8, "z": -9, "need": 3, "seen": [{ "g": "G1", "legs": [0], "wps": [1], "post": 1 }, { "g": "G6", "wps": [0, 1], "far": true }] },
+    { "id": "K7", "name": "Roof east, stack to ES", "level": "R", "x": 14, "z": 12, "need": 3, "seen": [{ "g": "G6", "wps": [2] }] },
+    { "id": "K8", "name": "Test room lit crossing", "level": "U", "x": -9.5, "z": -1.5, "need": 3, "seen": [{ "g": "G4", "wps": [3], "post": 1 }] }
+  ],
+
+  "routes": [
+    { "id": "O1-A", "obj": "O1", "name": "Stair route", "kind": "main", "from": "S2",
+      "hops": [
+        { "m": "walk", "pts": [["G", -15.5, -12.5], ["G", -13, -11.5], ["G", -13, -9], ["G", -8.5, -8.5], ["G", -8.5, -5.5], ["G", -6.5, 0.5], ["G", -4.5, -2.5], ["G", 3, -3], ["G", 3, -5.75]] },
+        { "m": "stairs", "link": "S1", "pts": [["G", 3, -5.75], ["U", -7, -5.75]] },
+        { "m": "walk", "pts": [["U", -7, -5.75], ["U", -10, -1.5], ["U", -16, -1.5], ["U", -16.5, -3]] }
+      ],
+      "chokes": ["K1", "K2", "K8"], "teaches": "The hall is the pair's room. Read the junction, cross while they sit in the break room.", "risk": "medium-high: lit crossing in view of the pair" },
+    { "id": "O1-B", "obj": "O1", "name": "Roof and gallery", "kind": "slow-safe", "from": "S1",
+      "hops": [
+        { "m": "walk", "pts": [["G", -17, -12.5], ["G", -13, -11.5], ["G", -13, -9], ["G", -16.5, -8.5], ["G", -16.5, -7.5]] },
+        { "m": "ladder", "link": "RL", "pts": [["G", -16.5, -7.5], ["R", -16.5, -6]] },
+        { "m": "walk", "pts": [["R", -16.5, -6], ["R", -16.5, 3], ["R", -16.5, 11], ["R", -9, 12], ["R", -5, 12]] },
+        { "m": "ladder", "link": "GL", "pts": [["R", -5, 12], ["U", -5, 12]] },
+        { "m": "walk", "pts": [["U", -5, 12], ["U", -5, 7], ["U", -4.5, 2.5], ["U", -4.5, 0], ["U", -7.5, 0], ["U", -10, -0.5], ["U", -16, -1.5], ["U", -16.5, -3]] }
+      ],
+      "chokes": ["K3", "K8"], "teaches": "Quiet, long, and the officer owns the gallery. Shadow and the recess carry you.", "risk": "medium: the officer's gallery round" },
+    { "id": "O1-C", "obj": "O1", "name": "Riser ladder (hidden)", "kind": "hidden", "from": "S2",
+      "hops": [
+        { "m": "walk", "pts": [["G", -15.5, -12.5], ["G", -13, -11.5], ["G", -13, -9], ["G", -8.5, -8.5], ["G", -8.5, -7.2]] },
+        { "m": "walk", "speed": 2.8, "slow": 2.0, "gear": "jog inside the Goods-in (noise about 3.4 m, about 1.5 m through the wall at PD)", "pts": [["G", -8.5, -7.2], ["G", -8.5, -6], ["G", -14.8, -6]] },
+        { "m": "ladder", "link": "R1", "pts": [["G", -14.8, -6], ["U", -14.8, -6]] },
+        { "m": "walk", "pts": [["U", -14.8, -6], ["U", -15, -4.6], ["U", -16.5, -3]] }
+      ],
+      "chokes": ["K1"], "teaches": "A way up that skips the hall, the stair and the pair. Found by looking in the Goods-in south-west corner.", "risk": "low-medium once found: noise at PD (jog inside) and a ladder you cannot fight on" },
+
+    { "id": "O2-A", "obj": "O2", "name": "Hall and cage door", "kind": "main", "from": "O1",
+      "hops": [
+        { "m": "walk", "pts": [["U", -16.5, -3], ["U", -16, -1.5], ["U", -10, -1.5], ["U", -7, -5.75]] },
+        { "m": "stairs", "link": "S1", "pts": [["U", -7, -5.75], ["G", 3, -5.75]] },
+        { "m": "walk", "pts": [["G", 3, -5.75], ["G", 3, -2], ["G", 3, 5], ["G", 4, 7.5], ["G", 6, 7.5], ["G", 8, 6], ["G", 12, 5.5], ["G", 12, 11.5], ["G", 12.5, 12.5]] }
+      ],
+      "chokes": ["K2", "K4", "K9", "K5"], "teaches": "Fast and bold: through the heavy's door, up his own aisle in the dark between the racks.", "risk": "high: apron and aisle are the heavy's beat" },
+    { "id": "O2-B", "obj": "O2", "name": "Yard and generator room", "kind": "slow-safe", "from": "O1",
+      "hops": [
+        { "m": "walk", "pts": [["U", -16.5, -3], ["U", -15, -4.6], ["U", -14.8, -6]] },
+        { "m": "ladder", "link": "R1", "pts": [["U", -14.8, -6], ["G", -14.8, -6]] },
+        { "m": "walk", "pts": [["G", -14.8, -6], ["G", -8.5, -6], ["G", -8.5, -8], ["G", -9, -12.5], ["G", -4, -13.25], ["G", -0.5, -13.25], ["G", 5.5, -13.25], ["G", 7.5, -13.25], ["G", 8, -11], ["G", 9.5, -9], ["G", 10.5, -8], ["G", 10.5, -6], ["G", 7.5, -5.5], ["G", 7.5, -0.5], ["G", 12, -0.5], ["G", 15, 3], ["G", 15, 4], ["G", 16.5, 5.5], ["G", 16.5, 11.5], ["G", 16, 12.5], ["G", 12.5, 12.5]] }
+      ],
+      "chokes": ["K1", "K6", "K5"], "teaches": "Use the south wall shadow, time the yard hop, then take the dark east aisle.", "risk": "medium: yard crossing under the sniper" },
+    { "id": "O2-C", "obj": "O2", "name": "Roof and exhaust shaft", "kind": "skilled", "from": "O1",
+      "hops": [
+        { "m": "walk", "pts": [["U", -16.5, -3], ["U", -16, -1.5], ["U", -10, -0.5], ["U", -7.5, 0], ["U", -4.5, 0], ["U", -4.5, 2.5], ["U", -5, 7], ["U", -5, 12]] },
+        { "m": "ladder", "link": "GL", "pts": [["U", -5, 12], ["R", -5, 12]] },
+        { "m": "walk", "pts": [["R", -5, 12], ["R", 2, 9.5], ["R", 6, 12.5], ["R", 10, 12.5], ["R", 16.5, 12.5]] },
+        { "m": "ladder", "link": "ES", "pts": [["R", 16.5, 12.5], ["G", 16.5, 12.5]] },
+        { "m": "walk", "pts": [["G", 16.5, 12.5], ["G", 12.5, 12.5]] }
+      ],
+      "chokes": ["K3", "K7", "K5"], "teaches": "Drop in behind the racks. No door, no pair, no heavy's apron; costs two ladders and a roof the sniper sweeps.", "risk": "low-medium: the roof east passage has a 23 s sniper window every 40 s and the 7 s ladder fits inside it" },
+    { "id": "O2-D", "obj": "O2", "name": "Trench variant (bypasses CH and hall)", "kind": "hidden", "from": "O1",
+      "hops": [
+        { "m": "walk", "pts": [["U", -16.5, -3], ["U", -15, -4.6], ["U", -14.8, -6]] },
+        { "m": "ladder", "link": "R1", "pts": [["U", -14.8, -6], ["G", -14.8, -6]] },
+        { "m": "walk", "pts": [["G", -14.8, -6], ["G", -13.2, -6.4]] },
+        { "m": "crawl", "link": "D1", "speed": 2.8, "slow": 1.8, "gear": "crouch gear 6 (noise about 2 m, muffled through the floor); crouch gear 4 is silent", "pts": [["G", -13.2, -6.4], ["G", 16.5, 6.5]] },
+        { "m": "walk", "pts": [["G", 16.5, 6.5], ["G", 16.5, 11.5], ["G", 16, 12.5], ["G", 12.5, 12.5]] }
+      ],
+      "chokes": ["K4", "K5"], "teaches": "A 37 m crawl under the Goods-in, the hall and the generator room to the dark east aisle. It skips the hall, CH and the pair; the hatch opens 4.6 m from the heavy's apron post.", "risk": "medium: grille rattle (4 m) on entry, crawl noise if you run it, the heavy's apron on exit" },
+
+    { "id": "EX-1", "obj": "EX", "name": "Generator room to the van (primary)", "kind": "main", "from": "O2",
+      "hops": [
+        { "m": "walk", "pts": [["G", 12.5, 12.5], ["G", 16, 12.5], ["G", 16.5, 11.5], ["G", 16.5, 5.5], ["G", 15, 4], ["G", 15, 3], ["G", 12, -0.5], ["G", 7.5, -0.5], ["G", 7.5, -5.5], ["G", 10.5, -6], ["G", 10.5, -9], ["G", 10.5, -12.5]] }
+      ],
+      "chokes": ["K6"], "teaches": "A calm walk with one test: the last 6 m of open yard under both the sentry and the sniper.", "risk": "medium at the yard hop" },
+    { "id": "EX-2", "obj": "EX", "name": "Hall, Goods-in and the arrival gate (alternate)", "kind": "slow-safe", "from": "O2",
+      "hops": [
+        { "m": "walk", "pts": [["G", 12.5, 12.5], ["G", 16, 12.5], ["G", 16.5, 11.5], ["G", 16.5, 6.5], ["G", 14, 5], ["G", 8, 6], ["G", 6, 7.5], ["G", 4, 7.5], ["G", 3, 5], ["G", 3, -2], ["G", -4.5, -2.5], ["G", -6.5, 0.5], ["G", -8.5, -5.5], ["G", -8.5, -8.5], ["G", -13, -9], ["G", -13, -11.5], ["G", -15.5, -13]] }
+      ],
+      "chokes": ["K4", "K2", "K1"], "teaches": "Back the way you came: the quiet exit when the east yard is hot.", "risk": "medium: the hall again" }
+  ],
+
+  "corridors": [
+    { "id": "west lane (hall)", "level": "G", "rect": [-6, -4.5, -2.5, 14] },
+    { "id": "south strip (hall)", "level": "G", "rect": [-6, -4.5, 6, -1] },
+    { "id": "centre lane (hall)", "level": "G", "rect": [-0.5, -1, 4, 14] },
+    { "id": "crossing channel (hall)", "level": "G", "rect": [-2.5, 3.5, 6, 6.5] },
+    { "id": "gallery", "level": "U", "rect": [-6, -3, -2.5, 14] },
+    { "id": "west aisle (cage)", "level": "G", "rect": [6, 4, 9, 14] },
+    { "id": "centre aisle (cage)", "level": "G", "rect": [10.5, 4, 13.5, 14] },
+    { "id": "east aisle (cage)", "level": "G", "rect": [15, 4, 18, 14] },
+    { "id": "yard (play space)", "level": "G", "rect": [-18, -14, 18, -7] }
+  ],
+
+  "runs": [
+    { "id": "M", "name": "Main run", "kind": "main", "legs": ["O1-A", "O2-A"], "note": "stair, hall and the cage door at gear 3" },
+    { "id": "X1", "name": "Riser run", "kind": "time-saver", "reward": "X1", "legs": ["O1-C", "O2-A"], "note": "riser up to O1, then the main O2 route" },
+    { "id": "X2", "name": "Cable run (riser and trench)", "kind": "time-saver", "reward": "X2", "legs": ["O1-C", "O2-D"], "note": "riser up to O1, riser down, trench to the cage east aisle" },
+    { "id": "X3", "name": "Roof and exhaust run", "kind": "safe-slow", "reward": "X3", "legs": ["O1-B", "O2-C"], "note": "roof, gallery, roof again, exhaust shaft" }
+  ],
+  "mustSave": 15,
+
+  "rewards": [
+    { "id": "X1", "name": "The riser ladder R1", "where": "Goods-in south-west corner, behind the pallet stack (ladder foot at -14.8, -6.0)", "unlocks": "A way into the Test room that skips the hall, the stair and the pair. O1 about 13 s after the spawn, against about 29 s by the stair. Cost: a jog inside the Goods-in (noise 3.4 m) and a 3.3 s ladder.", "learn": "A ladder foot shows in the south-west corner when you step inside PD; a pinned cable chart in the break room names 'RISER 1'." },
+    { "id": "X2", "name": "The cable trench D1", "where": "Grille T1 beside the riser foot (-13.2, -6.4)", "unlocks": "The 'cable tunnel': a 37 m crawl under the Goods-in, the hall and the generator room to the cage east aisle. Skips the hall, CH and the pair. Reached from O1 by the riser, it is about 3 s faster than the walk to O2 and removes every hall wait. Cost: grille rattle (4 m), crawl-run noise (2 m, muffled) or a silent 20 s crawl.", "learn": "The grille sits beside the riser foot; a cable-pit label and a draught that moves the dust." },
+    { "id": "X3", "name": "The exhaust shaft ES", "where": "Roof stack at (16.5, 13.5)", "unlocks": "The safe, slow way: a drop into the cage's dark east aisle behind the racks, 4 m from O2. No door, no pair, no heavy's apron; two ladders and a roof walk make it the slowest route.", "learn": "The stack is visible from the AHU cover on the roof, and the cage's east aisle shows a hatch grille when seen from the apron." }
+  ],
+
+  "coop": [
+    { "id": "CO1", "co": "One player at breaker board BP (SW4) kills C4 and a partner crosses the generator room", "solo": "Shoot Y/GN lamps from cover (noise radius), or go the long way via the south wall", "gain": "Quiet dark, no shot" },
+    { "id": "CO2", "co": "A spotter on gallery V4 pings the pair and the heavy; a runner uses the call", "solo": "Spend one guard loop (40 s) at V4, then go", "gain": "Skips the first-loop wait" },
+    { "id": "CO3", "co": "One player pulls O1 while another waits in the east aisle for O2", "solo": "Do O1, then O2 in order (O1 gives the card number)", "gain": "About 90 s saved; no waiting for each other" },
+    { "id": "CO4", "co": "One player takes down G2, another drags and hides the body at hGe1", "solo": "Takedown, drag it 8 m yourself, 10 s slower", "gain": "Hides faster" },
+    { "id": "CO5", "co": "Two players at the break-room double door DD: one pings the pair's timing, one slips past", "solo": "Wait for the pair to be inside (6 s)", "gain": "A fixed 6 s safe slot" },
+    { "id": "CO6", "co": "A partner down in the cage room east aisle (hCa1) is revived by another coming down ES", "solo": "Not needed: no revive in solo", "gain": "A rescue route that is out of the heavy's view" },
+    { "id": "CO7", "co": "Four players enter by four different routes at once (RL, PD, south wall, riser and trench) and meet in the east aisle", "solo": "One route per run", "gain": "No queue at any door: the ladder, the wide opening and the yard are separate" }
+  ],
+
+  "assets": [
+    { "id": "Gp", "kind": "door", "name": "Arrival gate Gp (1.2 m)", "story": "The team's way in: the contractor's padlock was swapped by the Client's contact.", "helps": "A fixed, safe start and an alternate exit.", "hurts": "Players may think it is the only exit.", "fix": "The radio names Gv as the van point." },
+    { "id": "Gv", "kind": "door", "name": "Vehicle gate Gv (3.0 m)", "story": "The delivery lane. The van waits here.", "helps": "The primary extraction, in view of the sentry and the sniper.", "hurts": "A wide gate can feel like a hole in the wall.", "fix": "Closed until extraction; chained; the sentry checks it." },
+    { "id": "PD", "kind": "door", "name": "Personnel door PD (1.2 m)", "story": "The night door staff use.", "helps": "The main way in: 1 door to the whole ground floor.", "hurts": "Could be a free walk-in.", "fix": "G1's door check and the sniper's yard facing give a timed window." },
+    { "id": "RD", "kind": "door", "name": "Roller door RD (sealed, 3.0 m)", "story": "The delivery door, shuttered at night.", "helps": "Reads the Goods-in bay from the yard; the landmark.", "hurts": "Players try to open it.", "fix": "No handle, no prompt." },
+    { "id": "GD", "kind": "door", "name": "Generator door GD (1.2 m)", "story": "Fuel deliveries and engineers use it.", "helps": "A side route to the cage room that skips the hall.", "hurts": "Too close to the van: a free exit.", "fix": "It sits in the sniper's blind strip but the 6 m yard hop to Gv is the exit test." },
+    { "id": "FD1", "kind": "door", "name": "Fire door FD1 (1.2 m)", "story": "The building's fire exit.", "helps": "The route to the roof by the fire stair.", "hurts": "Door noise.", "fix": "The stair ends 4 m from the sniper, so the cost is real." },
+    { "id": "WO1", "kind": "door", "name": "Wide opening WO1 (3.0 m)", "story": "Goods lorries bring racks into the hall.", "helps": "Lets two players move together; no door fiddling.", "hurts": "Open sight line between the bay and the hall.", "fix": "The hall side is under the gallery in shadow." },
+    { "id": "DD", "kind": "door", "name": "Break-room double door DD (2.0 m)", "story": "The break room opens on the hall.", "helps": "Gives the pair a visible pause: both go behind it for 6 s.", "hurts": "A hiding place that attracts the pair.", "fix": "Reward is the dark body spot; the pair always comes out." },
+    { "id": "DG", "kind": "door", "name": "Hall-to-generator double door DG (2.0 m)", "story": "Fuel and spares trolleys.", "helps": "Links the hall to the board room for the co-op light trick.", "hurts": "Short-cuts the yard.", "fix": "It is in the pair's south-junction view." },
+    { "id": "CH", "kind": "door", "name": "Cage door CH (2.0 m)", "story": "Authorised entry to the core switch.", "helps": "The fast, risky route into the heavy's room.", "hurts": "A fatal choke.", "fix": "GCd, T2 and ES bypass it." },
+    { "id": "MESH", "kind": "window", "name": "Mesh wall (x=6, z 4-14)", "story": "A security cage around the core equipment.", "helps": "Sight and light pass: the heavy can be watched from the gallery.", "hurts": "The heavy sees you in the hall.", "fix": "Hall's east side is rack-covered; the west lane under the gallery is dark." },
+    { "id": "GCd", "kind": "door", "name": "Cage service door GCd (1.2 m)", "story": "Maintenance access for the switch engineers.", "helps": "A slow, safe way to the dark east aisle.", "hurts": "Short exit route.", "fix": "Its light switch SW5 is next to it: the player's choice." },
+    { "id": "ND", "kind": "door", "name": "Street door ND (sealed)", "story": "The response car's door from the street.", "helps": "Gives reinforcement an entry point so the alarm has a direction.", "hurts": "Players think it is an exit.", "fix": "Barred; no prompt." },
+    { "id": "DT2", "kind": "door", "name": "Test door DT2 (1.2 m)", "story": "The records are behind a locked-by-habit door.", "helps": "Gallery entry to O1; G4 checks it each loop.", "hurts": "Could be an easy O1 path.", "fix": "The officer's check and the gallery risk." },
+    { "id": "DC", "kind": "door", "name": "Control door DC (1.2 m)", "story": "The officer's door.", "helps": "The officer's route is readable.", "hurts": "The player could go in.", "fix": "The room is a dead end with a lit desk and AP1." },
+    { "id": "W1", "kind": "window", "name": "Control window W1 (3.0 m)", "story": "A glazed window so the officer can watch the hall.", "helps": "The stationary narrow view; the player can read him from V4.", "hurts": "Unfair view into the gallery.", "fix": "The desk is 6 m back; the gallery is in shadow." },
+    { "id": "SO", "kind": "door", "name": "Stair mouth SO (2.5 m wide opening)", "story": "The stair top runs into the Test room.", "helps": "Direct, no door.", "hurts": "Open to the hall below.", "fix": "Rail and TL1's lamp are the risk." },
+    { "id": "FD3", "kind": "door", "name": "Roof door FD3 (1.2 m)", "story": "Roof access for plant maintenance.", "helps": "The roof entry by the fire stair.", "hurts": "Next to the sniper.", "fix": "The head house blocks his south-east view." },
+    { "id": "S1", "kind": "stair", "name": "Open stair S1 (2.4 m wide)", "story": "The engineers' main stair up to the test and control floor.", "helps": "The main O1 route; a landmark; a lit, exposed climb.", "hurts": "Stuck in the hall.", "fix": "The foot lobby hH1 is a dark pocket." },
+    { "id": "FS", "kind": "stair", "name": "Fire stair FS (1.3 m)", "story": "The fire code requires a protected stair.", "helps": "A quiet 20 s route to the roof for the team.", "hurts": "Dead time on a stair.", "fix": "It is optional: RL is the alternative." },
+    { "id": "RL", "kind": "ladder", "name": "Exterior ladder RL (0.5 m)", "story": "Roof access for riggers.", "helps": "The first move from S1.", "hurts": "A ladder is slow and noisy.", "fix": "It is out of the sniper's range (28 m)." },
+    { "id": "R1", "kind": "shaft", "name": "Riser ladder R1 (1.0 x 1.0 shaft)", "story": "Cable riser from the Goods-in to the Test room.", "helps": "A discoverable time-saver (about 16 s faster than the stair route); skips the hall and the pair.", "hurts": "Could make O1 trivial.", "fix": "Hidden behind the pallets in the south-west corner; a jog inside the Goods-in is audible at PD, and a ladder is slow and cannot be fought on." },
+    { "id": "GL", "kind": "shaft", "name": "Gallery-roof ladder GL (1.0 x 1.0 shaft)", "story": "Plant access from the gallery.", "helps": "Links the roof with the gallery.", "hurts": "Lands in the officer's gallery.", "fix": "The north end is 5 m from the recess." },
+    { "id": "ES", "kind": "shaft", "name": "Exhaust shaft ES (1.0 x 1.0 shaft)", "story": "The cage's air exhaust stack.", "helps": "The safe, slow drop-in: 4 m from O2, behind the racks.", "hurts": "Free if easy to reach.", "fix": "Slowest route; roof under the sniper's sweep; a 7 s helpless ladder that must fit the 23 s window." },
+    { "id": "D1", "kind": "vent", "name": "Cable trench D1 (0.9 x 1.3, player only)", "story": "Under-floor cable duct from the Goods-in to the cage: the 'cable tunnel'.", "helps": "A bypass of the hall, the door and every hall wait; a time-saver when run noisily.", "hurts": "A free skip.", "fix": "37 m: 13 s at the noisy crouch gear 6 (noise about 2 m, muffled), 20 s at the silent gear 4; grille rattle 4 m on entry; the hatch opens 4.6 m from the heavy's apron post." },
+    { "id": "T1", "kind": "vent", "name": "Grille T1 (Goods-in)", "story": "Cable trench cover.", "helps": "The entry the player must discover, beside the riser foot.", "hurts": "Noise.", "fix": "Entry rattles at a radius of 4 m." },
+    { "id": "T2", "kind": "vent", "name": "Hatch T2 (cage room)", "story": "The trench's service hatch.", "helps": "Opens at the dark south end of the cage east aisle.", "hurts": "4.6 m from the heavy's apron post and on the edge of the K1 pool.", "fix": "The player pays to emerge: choke K4 gives the window." },
+    { "id": "C1", "kind": "circuit", "name": "Yard and roof lights C1 (5 lamps)", "story": "Perimeter security lighting.", "helps": "Switching it off gives the yard to the player.", "hurts": "Free yard.", "fix": "Sentry and sniper investigate." },
+    { "id": "C2", "kind": "circuit", "name": "Ground west C2 (3 lamps)", "story": "Goods-in and break-room lighting.", "helps": "Darkens the way in and the riser.", "hurts": "Trivial.", "fix": "The pair investigate." },
+    { "id": "C3", "kind": "circuit", "name": "Switch hall C3 (4 lamps)", "story": "The hall lights.", "helps": "Makes the hall crossing possible.", "hurts": "Switch is on the far wall.", "fix": "Pair and officer converge." },
+    { "id": "C4", "kind": "circuit", "name": "Generator room C4 (2 lamps)", "story": "Plant lighting.", "helps": "The co-op breaker board.", "hurts": "Only useful with a partner.", "fix": "Solo can shoot lamps." },
+    { "id": "C5", "kind": "circuit", "name": "Cage room C5 (2 lamps)", "story": "Lighting for the core switch.", "helps": "Darkens the apron.", "hurts": "G5 reacts.", "fix": "8 s scan." },
+    { "id": "C6", "kind": "circuit", "name": "Upper floor C6 (3 lamps)", "story": "Test room, gallery and control room.", "helps": "Darkens O1.", "hurts": "The officer is called.", "fix": "15 s search." },
+    { "id": "AP1", "kind": "panel", "name": "Alarm panel AP1 (control room)", "story": "The duty panel.", "helps": "G4's 1-second response is a test.", "hurts": "Unavoidable alarm.", "fix": "Takedown G4 first." },
+    { "id": "AP2", "kind": "panel", "name": "Alarm panel AP2 (cage room east wall)", "story": "Cage intrusion panel.", "helps": "G5 has a goal.", "hurts": "The heavy rings it too fast.", "fix": "He only rings it if he sees a person." },
+    { "id": "AP3", "kind": "panel", "name": "Alarm panel AP3 (yard)", "story": "Gate panel.", "helps": "Reinforcements at the van.", "hurts": "Closes the primary exit.", "fix": "Alternate exit E2." },
+    { "id": "CTL", "kind": "room", "name": "Control room", "story": "The monitor room: the surveillance room. Cameras are PARKED, so the monitors show a static schematic.", "helps": "A stationary watcher with a narrow view.", "hurts": "A dead end.", "fix": "The officer leaves for the gallery." },
+    { "id": "GP1", "kind": "post", "name": "Guard post G1 (yard line)", "story": "The gate and the door.", "helps": "Door check and gate check: two readable pauses.", "hurts": "Too visible.", "fix": "Dark hides at 8 m." },
+    { "id": "GP2", "kind": "post", "name": "Guard posts G2/G3 (break room, south junction)", "story": "The hall patrol.", "helps": "The pair's gap is the break.", "hurts": "Crowded.", "fix": "2.5 s offset." },
+    { "id": "GP4", "kind": "post", "name": "Guard post G4 (desk, Test door)", "story": "The officer's round.", "helps": "A short walk and a long pause.", "hurts": "Locks the gallery.", "fix": "Recess hU1." },
+    { "id": "GP5", "kind": "post", "name": "Guard post G5 (apron, west aisle, console)", "story": "The cage warden.", "helps": "A rhythm with 18 s of back-turned time.", "hurts": "A hard fail.", "fix": "East aisle is dark." },
+    { "id": "GP6", "kind": "post", "name": "Guard post G6 (roof parapet)", "story": "The overwatch.", "helps": "A fixed narrow watcher over the yard.", "hurts": "Unfair kills.", "fix": "A blind strip at the foot of the wall." }
+  ]
+}

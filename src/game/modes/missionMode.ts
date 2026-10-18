@@ -6,7 +6,7 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import type { Blip } from '../../ui/hud/minimap';
-import { killScore } from './waveLogic';
+import { killScore } from './score';
 import { hyp2 } from '../../core/mathx';
 
 type Step = 'terminals' | 'cache' | 'extract' | 'done';

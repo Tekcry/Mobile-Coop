@@ -1,0 +1,276 @@
+# Commands, e2e suites, test helpers and the debug overlay
+Purpose: every npm command, the headless e2e suites with what each checks, the helper scripts and the in-game debug overlay.
+Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then docs/design-bible.md (Section 9).
+
+## Commands
+- `npm run dev` - dev server (`vite --host`, also reachable on the LAN)
+- `npm run editor` - the Kestrel level editor on this PC (`editor.html`, port 5199, dev server only; docs/kestrel/editor.md)
+- `npm run build` - typecheck + production build into `dist/`
+- `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
+- `npm run lint` - ESLint (typescript-eslint)
+- `npm run check` - lint + tests + build (what every job end must pass)
+- `npm run icons` - regenerate procedural PWA icons into `public/icons/`
+- `npm run sfx:fetch` / `sfx:render` (movement foley), `sfx:fetch-weapons` / `sfx:render-weapons` (weapon sounds),
+  `music:fetch` / `music:orch` (the score): download the CC0 sources (SHA-256 checked) into git-ignored caches and
+  render the committed sprites / tracks (Windows: Media Foundation MP3). Only a change of takes needs them (audio.md).
+- `npm run e2e` - the REQUIRED suites (below); `npm run e2e:quick` - `smoke` + the suites covering the changed folders;
+  `npm run e2e:serial` - one at a time with live output; `npm run e2e:legacy` - the parked-content suites (report
+  only); `npm run e2e:editor` - the level editor suite (not required).
+
+## The runner (`scripts/run-e2e.mjs`)
+- Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
+  process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
+  output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as four jobs (`e2e-desktop:1`..`:4`,
+  `--part=N`; its sections are independent).
+- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
+  cloud VMs (two suites at a time, G94).
+- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
+  `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
+- `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
+  changed folders (`COVERS` in the runner; an unmapped `src/` path, `e2e-lib` or `package.json` runs `CORE` = e2e-pad,
+  e2e-mouse, e2e-move, e2e-modes, e2e-combat); `--list` prints what would run. Jobs use the quick run; the full run at
+  the end of every job and before every merge.
+- REPORT list: `anim-audit` runs in `npm run e2e` and prints REPORT ONLY (never fails the run). LEGACY list (`--legacy`,
+  `LEGACY=1`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`; `e2e-lib` `openPage` then appends `legacy=1`.
+- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-coop`, `e2e-netmove`, `e2e-darkness`,
+  `e2e-weapons-carry`, `e2e-pad`, `e2e-foley`, `e2e-bunker`. They always run; a failure prints KNOWN FLAKY and does not fail the run.
+  Any other failure counts only if it also fails in a solo rerun. Decided, not built yet (G51): a short job makes the two
+  co-op suites reliable, then they leave the list. e2e-foley leaves it when the CT prototype retunes its walk check; e2e-bunker (teleported-partner check) with the co-op test fixes. e2e-anim reports the draw / sprint-holster pop as KNOWN ISSUE until the CT prototype draw (docs/backlog.md).
+- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`; `--legacy` for `LEGACY=1`).
+- `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
+  `stepHeadless`, screenshots).
+
+## Ports
+Two jobs on one PC never share a port. Each job names its pair in its RULES (G94).
+| Port | Use |
+| --- | --- |
+| 4173 | `e2e-lib` / `anim-audit` / `perf.mjs` default when no url is given |
+| 4179 | `run-e2e.mjs` default (`E2E_PORT`), `scripts/kestrel/render-top.mjs` |
+| 4189 | locomotion run, GPU (`E2E_GPU=1`) runs |
+| 4191 | the consolidation (and the locomotion run's software-GL e2e) |
+| 4195-4199 | the menu-ui job |
+| 5199 | `npm run editor` |
+`E2E_HOST` overrides the host; on Windows the runner binds 127.0.0.1 (`localhost` can resolve to a blocked `::1`
+behind a VPN adapter).
+
+## How the suites run
+- Desktop browser context (G13): `e2e-lib` `launch()` opens a plain 1280 x 640 context (no touch, no mobile user agent;
+  the e2e-mouse and e2e-score centre coordinates assume it), `smoke.mjs` likewise. Pages get `?gfx=min` (every
+  graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user` for the saved settings):
+  the Epic renderer on software GL takes seconds per frame. The preinstalled Chromium with SwiftShader GL: FPS there is
+  not representative.
+- Speed: a wait for N simulated seconds is `stepHeadless` (`window.__app.loop.stepHeadless(seconds)`, no rendering), or
+  `window.__ff()` right after a suite wraps `state.fixedUpdate`; fixed pauses after a match starts are
+  `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites, `e2e-stealth` (real-time
+  camera), `e2e-mouse`, `e2e-pad` (input timing), `e2e-desktop` (benchmark flights, the 15 s resolution revert, shader
+  compiles), `e2e-offline`, and the rAF-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page
+  load and the Epic voxel bake cache is 190 MB, so neither is shared between browsers.
+- Two-page suites (`?net=local`): the `until()` helper in `e2e-net-lib`, `e2e-coop`, `e2e-course` and `e2e-bunker`
+  polls from Node (`page.evaluate` every 50-100 ms): in a desktop context the in-page polling stops on the background
+  page. A throwing predicate shows as a timeout.
+- Checks marked "(CT prototype)" below test behaviour the CT prototype replaces (sprint, gear 6, the lean-out, the SWAT
+  turn, the crack peek, the planted pivot, 720 deg/s turns); the prototype job rewrites them.
+
+## The suites (REQUIRED unless marked)
+- `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
+- `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
+  gears, D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; remap capture (B held
+  until the capture ends); a pad disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels)
+- `e2e-mouse` mouse capture: a click captures (never fires), look, fire, wheel = speed gear, X swaps, = / -, Esc pauses,
+  Resume re-captures; the keyboard verb table; a wall medkit station on Proving (+40, spent, full health refused); the
+  Difficulty row by click
+- `e2e-move` (`gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept through stances, zero
+  velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
+  kneel), forward roll (0.7 s, ~3 m, crouched, 2 m noise), aim strafe / backstep, sprint toggle and aim ends a sprint
+  (CT prototype), no free jump, kneel, contextual vault / climb / step / drop / hop, steps / slopes / stairs / tunnel /
+  props on Proving Grounds
+- `e2e-traverse` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step off; drainpipe;
+  ledge grab, shimmy, jump across, outside corner, climb up, hold-B lower in, drop; horizontal pipe; landing bands (soft
+  / roll / heavy + noise + recovery); grab while falling; zipline; open / glazed windows; duct unscrew, crawl, vent drop
+  + roll, kick; keyboard E, crouch lets go, vent hold by key; planted hands / feet locked (< 1 cm), arms reach grips
+- `e2e-anchors` every placed anchor on every listed map (ladders, drainpipes, pipes, ziplines, ducts, windows both
+  sides) is offered from its approach and engages; hangable lips per map
+- `e2e-stealth` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving, aiming, after a traversal,
+  no residual offsets, level horizon after a shake)
+- `e2e-weapons-carry` Free Roam loadout (the two CT kit guns, plus a `pistolSd,rifle` loadout): back guns within 10 deg
+  of the spine in six gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap
+  reach and timing
+- `e2e-anim` quality bars in the running game: first-frame response, 95% speed within 0.08 s, a stop on the release
+  step, the stride held, no planted pivot, 720 deg/s turns (CT prototype), lean into turns, stance and aim raise / lower
+  times, weapon clip timings, foot locking (< 1 cm) in seven gaits, pose continuity, flinch, camera lag / blends / bob /
+  drift / sprint FOV (CT prototype) / stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity
+- `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
+  same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
+- `e2e-darkness` display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
+  at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
+  709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
+  as moving every frame; night vision's bloom runs every frame
+- `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
+  respawn
+- `e2e-modes` mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
+- `e2e-clip` traversal: no body point > 3 cm into the world while climbing, hanging, shimmying, crawling, dropping
+  through a vent, vaulting a window, on a zipline or rolling; the weapon clipping sweep along a wall (both sides), crouch
+  run, aim every weapon: no gun point inside the world (> 2 cm), gun clear of head, trunk, elbows; knees and feet apart
+  (`--only=name --log`)
+- `e2e-tactics` doorway check, contextual lean, slicing the pie, split hit volumes, suppression, exposure HUD, enemy
+  grenades / flanker (five alerted grunts on `proving&mode=mission`), footstep noise investigation, a wall muffles a noise
+- `e2e-wall` back-to-wall on Proving: entry reach, slide speed caps (CT prototype), quieter than walking, the
+  outside-end stop with its edge flag, pull-away and context exits; Warehouse: two guards against a player on a wall (a
+  flanker after > 4 s, a grenade after > 6 s). e2e-netmove adds "wall", "wall crouch" and "stack"; e2e-pad and e2e-mouse
+  cover the verb
+- `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
+  suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
+  search ends, patrols
+- `e2e-takedown` takedown kinds (ground rules, over low cover, above, below, window; the grab - walk, sidearm, human
+  shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold, 5 cm
+  alignment, damage interrupt; no takedown on a guard in combat who saw you
+- `e2e-gadgets` wheel (hold opens + slows time, stick picks, release selects, mouse-mode slot click; ends in pad mode),
+  arc preview, gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure (muffled
+  behind a wall), sticky cam feed (operator still, ping, gas, back), mine
+- `e2e-enemies` heavy (plates, lethal-only frontal takedown), enforcer (shield, no frontal grab, pushes), sniper (laser,
+  glint, relocates), dog (smell in the dark, takedown), drone operator (the enemy recon drone: spots, shot down, EMP),
+  officer (buff, alarm first), radio check, callouts, Perfectionist
+- `e2e-levels` multi-level AI: three storeys per column, Warehouse ladder links both ways, a runner chasing the player
+  up a rack ladder and back down
+- `e2e-missions` Infiltration objective types to success (download pauses away + noticed pulses, intel any order,
+  plant, rescue + escort, sabotage, extraction, results rating) and failure (the no-detection rule, three downs) on the
+  Warehouse missions (Ledger, Courier, Blackout, Cold Storage); routes per objective; no style bars (3 with `LEGACY=1`);
+  Hunter's alarm doubles the hostiles
+- `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, Play lists Infiltration and Free
+  Roam, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept across a reload, a new co-op
+  room on Infiltration, save export / import) and the legacy-on menus (Hunter default)
+- `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
+  a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a dual takedown, a client
+  reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
+  fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
+  host leaving, offline (known flaky)
+- `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /
+  head within 10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted,
+  rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a
+  request without a braced partner is denied); wall, wall crouch, stack; lean-out at a wall end (CT prototype) (known
+  flaky)
+- `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; every gate kind by host
+  and client, a forced both-down restart; door locks and the lamp group reach the client within 0.5 s; friendly fire
+  (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
+- `e2e-bunker` two pages on `?net=local&autostart=bunker&mode=course`, Fallow by bay: B1 the objective list on both
+  pages, every course prompt on the client, "Waiting for partner", the seal and the locked rear door; B2 a lane lever
+  pulled by the client unlocks the doors on both pages
+- `e2e-ct-warehouse` the Warehouse CT routes (Hunter, guards frozen): drainpipe -> roof, rappel -> kick through the
+  dispatch window, skylight drop, the pump house boost target, press wall jump, corridor split + drop, deck pipe + drop,
+  yard fence + the nav path round it
+- `e2e-ct` the Proving CT course: the manual jump, split jump, wall jump, pipe facing along + legs up + inverted, the flip
+  drop, rappel (hook on, speeds, kick out, sidearm, kick through a window), fence (bullets / sight pass, climb / shimmy,
+  rattle by gear, flip over)
+- `e2e-feedback` playtest notes: Pause > Report feedback with the context, photo mode (frozen game, no HUD, free camera,
+  take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback list, the HTML report
+  download, photo mode on the menu stage
+- `e2e-desktop` (four parts) menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets, Custom, frame cap), the
+  benchmark (a short flight saved as feedback; every preset), Auto graphics (GPU name, `?detect=1&renderer=...`
+  calibration, no re-measure), the frame governor stepping down, baked lamps, 16:10 / 21:9 / 32:9 windows, the Epic
+  renderer in a match, every material within 16 textures, no `GameState` survives a release (`SHOTS=dir` saves shots)
+- `e2e-offline` service worker precache (every manifest entry), offline boot + match, backgrounding pauses, co-op offline
+  state, a v1 save in IndexedDB migrated on boot with a backup
+- `e2e-security` (Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
+  a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
+  player at its far pause; a shot camera stops detecting; desk and panel checks
+- `e2e-kestrel` (Kestrel-owned, covers `src/world/maps/kestrel*`): the B0 massing walk from
+  `docs/kestrel/kestrel.blocks.json`: spawn at `meta.entry`, a teleport per zone, the controller walks a tour (entry,
+  stairs, roof and back), the camera's two rays along the tour (findings printed), the critical path crouched at gear 3
+- `e2e-camera-bounds` (Kestrel-owned, covers the camera files): on kestrel in sandbox every frame a ray from the head to
+  the camera and to the four near-plane corners hits nothing: hugging both walls of the longest corridor and turning on
+  each shoulder, every stair, crouched along level U (a 1.5 m test box while level U is not built), the open yard
+  framing within 2% of the pre-CAM values
+- `e2e-music` the old V3 sketch picker (`?musiclab=1`): the picker comes first, each sketch loads its three stems, the
+  ladder moves the stem gains, every decoded loop joins without a seam, the playback cost, no console errors
+- `e2e-score` the V4 score: after the first click the menu theme plays and fades from full into a match; in a Warehouse
+  match the mission tracks decode in the background, Calm is silent, a suspicious guard gives Cautious, an alerted one
+  Alert (with Evasion alongside)
+- `e2e-weapon-audio` on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
+  round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
+  reload, a dry click and a shot 20 m away play; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
+  run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
+- `e2e-foley` on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (CT prototype;
+  known flaky: the walk check reads 3 or 4 plants against >= 4 at the step-22 speed), silence standing still, a drop
+  plays a landing, the guards' footstep noise unchanged; the foley lab (`?foleylab=1`) walks every surface
+- LEGACY (`npm run e2e:legacy`, report only): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
+  export / import), `e2e-cosmetics` (Loadout
+  appearance by controller, live / locked previews, the Tag page, camo, in-game look), `e2e-clear` (Hunter on the
+  Warehouse: "Enemies left N", "DOWN", the OPERATION COMPLETE stinger, results; doorway checks on Mission; no Training
+  mode)
+- `npm run e2e:editor` (`scripts/e2e-editor.mjs`, not required): the Kestrel editor by a fake controller alone; starts
+  its own Vite dev server on a free port; never saves.
+
+## Network conditions (D11)
+- `E2E_NETSIM=typical node scripts/run-e2e.mjs e2e-netmove e2e-coop` (or one suite): `e2e-lib` adds `&netsim=typical`
+  to every `?net=local` page (coop.md). Report mode, never a gate: `assert` prints `NETSIM FAIL - <check>` and carries
+  on, and the suite ends with `NETSIM REPORT (<preset>): N check(s) failed`. Every page runs a probe: `NETSIM-POP` for
+  a remote root step more than 25 cm beyond a 7 m/s pace in one frame (host teleport grace excluded), and `NETSIM-STAT`
+  every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/locomotion/LOG.md
+  "20b".
+
+## Helper scripts
+- `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
+- `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion / silhouette checks)
+- `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
+  reload|swap|grenade|vault> [frames] [interval] [side|front|back|ots]` contact sheet (the `cover` / `highcover` /
+  `lowpeek` / `peek` scenarios tap the removed snap-cover action and are dead until rewritten for back-to-wall)
+- `node scripts/perf.mjs [--desktop | --preset=<p>] [--budget] [--json]` (`--desktop`: the Epic path; `--preset`: that
+  preset, governor off; else the `?gfx=min` test path; `STEALTH=1`: ten unaware guards perceiving; `PROFILE=1` CPU
+  profile; `PASSES=1` draws per pass) Warehouse, 10 guards: main thread p95, animation per character, allocations per
+  second (top allocators), draws and triangles over every pass. Budgets: performance.md.
+- `node scripts/perf-trend.mjs [perf args]` serves `dist/`, runs `perf.mjs` once without `--budget`: a trend against this
+  machine's own baseline, never a pass claim.
+- `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
+  quality, heap growth (leak check)
+- `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
+  `test-results/training/`, never committed)
+- `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]
+  [--strict] [--compare=<file>] [--band=<file>]`: the animation audit (bible 5.12.2, 5.12.4.2), local player and
+  remote poses (default both), Proving Grounds. Bundles the pure `src/anim/audit/metrics.ts` + `limits.ts` with esbuild
+  into `test-results/anim-audit/lib`; the page records joints / camera / capsule / planner every rendered frame (60 and
+  120 Hz), node computes.
+  - Local full run: flat every gear both stances at 60 + 120 Hz, stairs and the 20.4 deg ramp every gear at 60, stairs
+    and the 35 deg slope at 120, transitions (stance, quick 180, raise, swap, vault over low cover, mantle onto the 0.9 m
+    block, ladder, 0.9 / 2.4 m drops, idle, crouch tunnel, the `wall` transition) at both rates, 60 v 120 parity; ~50 s
+    on software GL. `--quick` (flat stand 2 / 4 / 6 + crouch 3 at both rates, idle): ~12 s. Metrics: foot slide, float /
+    sink on the lowest sole point (1e-4 m tolerance), joint rate in each joint's parent frame, crouch / stand times,
+    weapon settle (> 2 mm rise within 0.25 s after a decline), hands (wrist-to-grip distance), wrists, arms and weapon
+    against the torso capsule, `wallGap` / `wallClip` (<= 3 cm). Body / weapon vs world is e2e-clip's. The local run
+    stops the render loop (only `stepHeadless` advances) and refreshes the camera's view matrix before every frame update.
+  - Remote (`--remote`): host A and client B over `?net=local` (helpers in `scripts/e2e-net-lib.mjs`), sandbox on
+    Proving; B moves with scripted input in real time; A records its copy of B every rendered frame. Software GL: neither
+    page draws; `E2E_GPU=1` keeps the draw. Same metrics, continuity limits scaled to the measured dt; `poseError` (root,
+    head, wrists, settled ankles vs B at t - lag, <= 10 cm), `gaitPhase` (reported), `lowerBody` (<= 10 cm), `pops`
+    (rubber-banding only), `pairAlign` / `pairPenetration` (brace + boost, <= 3 cm), `lodSkip`. Scenarios: flat stand 2 /
+    4 / 6, crouch 3, stairs and ramp stand 3, stop + idle, stance, brace + boost at 60 Hz; the flat set at 120 Hz through
+    an 8 ms frame pump on A ("pending PC" when its p95 jitter is over 2 ms). `--quick` remote: flat stand 4 + crouch 3.
+  - Output: `<out>/local.json`, `<out>/remote.json`, `<out>/fails.txt`, `<out>/baseline.json`; `DUMP=1` writes the raw
+    recordings. Report mode exits 0 unless the harness errors; `--strict` exits 1 on any fail. `--compare=<file>` lists
+    regressions against a baseline (worse than max(10%, the noise tolerance) or a new fail; remote `poseError`, 60 Hz
+    `pops`, `pairAlign` and `lodSkip` gated against the baseline's noise band, the rest report-only); like modes only.
+    `--band=<baseline.json>` keeps both runs' worst and spread. Committed baseline: `docs/locomotion/audit/anim-baseline.json`.
+  - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
+    `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
+    `scripts/e2e-net-lib.mjs`.
+
+## GPU runs (Michael's PC only)
+- `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
+  Chromium with the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader, headless with a
+  faked pointer lock; `E2E_HEADED=1` (debugging) opens a window parked off-screen. Browser: `E2E_BROWSER`, the
+  preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is
+  stubbed off so exports take the download path.
+- Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, beauty shots) run here
+  only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run"; they never claim a perf or
+  visual result from SwiftShader.
+- `perf.mjs` with `E2E_GPU=1` uses the laptop goals (`LOCAL_BUDGET`, performance.md).
+- D3D11 compiles the Epic voxel characters' `partSkinMat` shader slowly (seconds after spawn); an uncompiled effect's
+  `_samplerList` holds every candidate (61), trimmed once compiled (11 for `partSkinMat`, 15 for the level `voxMat`,
+  limit 16). `e2e-desktop` therefore waits for every drawn mesh's effects before counting textures.
+
+## Debug overlay
+- F3 (or the settings switch); `?debug=1` shows it at boot. Buttons: Skeleton (bones, controller capsules, hit volumes
+  and foot contacts as lines: green = planted, orange = swinging; things register in `ui/debugVolumes.ts`), Tune
+  (sliders for `MOVEMENT`, `CAMERA`, `CARRY`) and slow motion (1x / 0.5x / 0.25x). Lines: display Hz + budget, pacing
+  p50 / p95 / p99 + drops, CPU per frame, quality + resolution scale, player, carry, combat, anim (layer weights, the
+  active clip timeline, `!limit` = joint-rate limiter hits). The bar graph is frame pacing against the budget line;
+  `addTrace` graphs values per frame.

@@ -13,6 +13,8 @@ export class PingView {
   readonly el: HTMLElement;
   private items: { el: HTMLElement; label: HTMLElement; key: string }[] = [];
   private used = 0;
+  /** The course's next-drill marker (D19): one more diamond, drawn the same way (on screen or on the edge). */
+  private mk: { el: HTMLElement; label: HTMLElement; key: string };
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-pings' });
@@ -23,8 +25,49 @@ export class PingView {
       this.el.appendChild(el);
       this.items.push({ el, label, key: '' });
     }
+    const ml = h('span');
+    const mel = h('div', { class: 'ping course-marker' }, h('i'), ml);
+    mel.hidden = true;
+    this.el.appendChild(mel);
+    this.mk = { el: mel, label: ml, key: '' };
     parent.appendChild(this.el);
   }
+
+  /** Place the course marker (percent of the view; `edge` = off screen, on the edge towards it). */
+  marker(xPct: number, yPct: number, metres: number, edge: boolean): void {
+    const it = this.mk;
+    const m = Math.round(metres);
+    const x = Math.round(xPct * 10);
+    const y = Math.round(yPct * 10);
+    // integer key parts: compared without building a string unless something moved
+    if (it.key !== '' && this.mx === x && this.my === y && this.mm === m && this.me === edge) return;
+    this.mx = x;
+    this.my = y;
+    this.mm = m;
+    this.me = edge;
+    it.key = 'on';
+    it.el.hidden = false;
+    it.el.style.left = `${xPct}%`;
+    it.el.style.top = `${yPct}%`;
+    it.el.classList.toggle('edge', edge);
+    it.label.textContent = `${m} m`;
+  }
+
+  hideMarker(): void {
+    if (this.mk.key === '') return;
+    this.mk.key = '';
+    this.mk.el.hidden = true;
+  }
+
+  /** The course marker is showing (tests). */
+  get markerShown(): boolean {
+    return this.mk.key !== '';
+  }
+
+  private mx = 0;
+  private my = 0;
+  private mm = 0;
+  private me = false;
 
   begin(): void {
     this.used = 0;

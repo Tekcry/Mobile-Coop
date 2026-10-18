@@ -124,12 +124,12 @@ export class AttachController {
   vent: { duct: Duct; t: number; progress: number } | null = null;
   /** What traverse would attach to from the ground (prompt), refreshed with the traversal probe. */
   hint: ReachResult | null = null;
-  /** A lip to lower into a hang from (the drop control held, or its prompt), refreshed with the probe. */
+  /** A lip to lower into a hang from (the drop control held), refreshed with the probe. */
   lower: ReachResult | null = null;
+  /** Anchor ids locked at run time (a course anchorLock gate): the probes never offer them. */
+  readonly disabled = new Set<number>();
   /** While attached: the anchor a traverse press would jump to (stick pointing at it), or null. */
   jump: JumpTarget | null = null;
-  /** Lower into the hang at the edge on the next step (the touch prompt). */
-  lowerRequest = false;
   /** While hanging: climbing up is possible here. */
   canClimb = false;
   /** Where the attach blend starts, where the exit blend ends. */
@@ -196,7 +196,7 @@ export class AttachController {
     // lowering into a hang is the drop control's: a separate hint, never in the way of a climb / grab
     const low = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, LOWER_KINDS, isAbove);
     this.lower = null;
-    if (low) {
+    if (low && !this.disabled.has(low.anchor.id)) {
       // the hang spot below the lip must be clear of the floor and walls
       const p = attachPose(low.anchor, low.s, 1, this.player.rig.height, this.ap);
       if (this.roomAt(p.x, p.y + 0.3, p.z)) this.lower = low;
@@ -204,7 +204,7 @@ export class AttachController {
     // (3.2.0) between two tall walls facing along them: a split jump - a double jump, kept apart from the traverse hint
     this.split = this.splitProbe(feet, dx, dz);
     const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, GROUND_KINDS, notAbove);
-    if (r) return r;
+    if (r) return this.disabled.size && this.disabled.has(r.anchor.id) ? null : r;
     // facing a wall under a high lip: a wall jump
     return this.wallJumpProbe(feet, dx, dz);
   }
@@ -513,7 +513,7 @@ export class AttachController {
       c.registerLanding(this.flipFall, 0, 0);
       this.flipping = false;
     }
-    const pose = this.player.coverPose;
+    const pose = this.player.pose;
     pose.traverse = 'none';
     pose.traverseT = 0;
     pose.tumble = 0;
@@ -886,7 +886,7 @@ export class AttachController {
     if (a.kind === 'rappel' && m.phase === 'on' && this.player.carry.raise > 0.1) yaw = this.input.camYaw;
     c.override = { kinematic: this.kin, yaw, turnRate: 30, crouch: a.kind === 'duct' };
     // pose family and cadence (the climb clips follow the hand steps)
-    const pose = this.player.coverPose;
+    const pose = this.player.pose;
     pose.tumble = tumble;
     const pm = this.pipeMode;
     const fam: TraverseKind =

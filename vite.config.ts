@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { kestrelEditor } from './scripts/kestrel/editor-server';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
@@ -37,12 +38,14 @@ export default defineConfig({
     },
   },
   plugins: [
+    // the level editor's endpoints (dev server only; editor.html is never built)
+    kestrelEditor(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
       manifest: {
-        name: preview ? `Silent But Deadly (Preview${previewId ? ' ' + previewId.toUpperCase() : ''})` : 'Silent But Deadly',
-        short_name: preview ? `SBD ${previewId ? previewId.toUpperCase() : 'Preview'}` : 'Silent But Deadly',
+        name: preview ? `Night Shift (Preview${previewId ? ' ' + previewId.toUpperCase() : ''})` : 'Night Shift',
+        short_name: preview ? `NS ${previewId ? previewId.toUpperCase() : 'Preview'}` : 'Night Shift',
         description: 'Mobile third-person stealth shooter. Plays offline.',
         theme_color: '#070b0c',
         background_color: '#070b0c',
@@ -58,12 +61,14 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}'],
+        // the game's music tracks and the movement foley and weapon sprites are precached (offline play); the music lab's audition
+        // MP3s (debug only) stay out of the cache
+        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json}', '**/music-*.mp3', 'assets/foley-*.mp3', 'assets/weapons-*.mp3'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
-        // the live game's worker never answers for the preview builds under /preview/ and /ct/ (their own workers do)
-        navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/],
+        // the live game's worker never answers for the preview builds under /preview/, /ct/ and /kestrel/ (their own workers do)
+        navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/, /\/kestrel(\/|$)/],
       },
       devOptions: { enabled: false },
     }),

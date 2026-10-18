@@ -61,7 +61,7 @@ body {
   pointer-events: none;
 }
 
-/* Children opt in to pointer events explicitly (.screen, .touch-layer, HUD widgets). */
+/* Children opt in to pointer events explicitly (.screen, HUD widgets). */
 
 /* ---------- boot ---------- */
 .boot {
@@ -159,7 +159,7 @@ body {
 .settings-screen,
 .dialog-screen,
 .pause-screen {
-  /* No backdrop-filter: blurring over the WebGL canvas is expensive on phones. */
+  /* No backdrop-filter: blurring over the WebGL canvas is expensive. */
   background: rgba(10, 13, 18, 0.82);
 }
 .dialog-screen {
@@ -177,9 +177,6 @@ body {
   font-size: 13px;
   color: var(--muted);
   min-height: 24px;
-}
-.input-touch .hints {
-  visibility: hidden;
 }
 .hint {
   display: inline-flex;
@@ -206,10 +203,12 @@ body {
 }
 .input-gamepad .g-xbox,
 .input-gamepad.pad-ps .g-ps,
+.input-gamepad.pad-nin .g-nin,
 .input-kbm .g-key {
   display: inline-flex;
 }
-.input-gamepad.pad-ps .g-xbox {
+.input-gamepad.pad-ps .g-xbox,
+.input-gamepad.pad-nin .g-xbox {
   display: none;
 }
 .gx-A { background: #2f9e44; }
@@ -255,7 +254,7 @@ body {
   padding: 11px 18px;
   min-width: 230px;
 }
-/* main menu: a compact two-column grid (Play across the top), scrolls by touch if it still does not fit */
+/* main menu: a compact two-column grid (Play across the top), scrolls if it still does not fit */
 .main-menu .menu-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(140px, 200px));
@@ -430,6 +429,10 @@ body {
   border-radius: 10px;
   padding: 8px 14px;
   min-height: 44px;
+}
+/* (locomotion step 19) a hidden row (the difficulty sliders off Custom in the lobby, Free Roam's difficulty) */
+.row[hidden] {
+  display: none;
 }
 .row-label {
   font-weight: 600;
@@ -620,104 +623,6 @@ body {
 .toast-ok { border-left-color: var(--ok); }
 .toast-warn { border-left-color: var(--danger); }
 
-/* ---------- touch controls ---------- */
-.touch-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  pointer-events: auto;
-  touch-action: none;
-  --tc-opacity: 0.6;
-}
-.touch-layer[hidden] {
-  display: none;
-}
-.tc,
-.le-handle {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  opacity: calc(var(--tc-opacity) * var(--tc-alpha, 1));
-  touch-action: none;
-}
-.tc-idle {
-  filter: grayscale(1);
-  opacity: calc(var(--tc-opacity) * var(--tc-alpha, 1) * 0.45);
-}
-.tc-label {
-  position: absolute;
-  top: 100%;
-  margin-top: 2px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  text-shadow: 0 1px 2px #000;
-}
-.tc-look > svg {
-  position: absolute;
-  opacity: 0.5;
-}
-.le-reach {
-  position: absolute;
-  bottom: 0;
-  width: calc(60 * var(--vh));
-  height: calc(60 * var(--vh));
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(70, 200, 120, 0.18) 0 55%, rgba(255, 200, 60, 0.12) 55% 80%, transparent 80%);
-  pointer-events: none;
-  display: none;
-}
-.le-reach.show {
-  display: block;
-}
-.le-reach.l {
-  left: 0;
-  transform: translate(-50%, 50%);
-}
-.le-reach.r {
-  right: 0;
-  transform: translate(50%, 50%);
-}
-.tc-btn,
-.le-handle:not(.tc-move) {
-  background: rgba(20, 26, 36, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.55);
-}
-.tc-btn.active {
-  background: rgba(255, 138, 30, 0.7);
-  border-color: #fff;
-  transform: translate(-50%, -50%) scale(0.92);
-}
-.tc-fire,
-.tc-fireLeft {
-  background: rgba(217, 73, 59, 0.45);
-}
-.tc-hidden {
-  display: none;
-}
-.tc-stick,
-.le-handle.tc-move {
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  background: rgba(20, 26, 36, 0.25);
-}
-.tc-stick.active {
-  opacity: calc(var(--tc-opacity) + 0.2);
-}
-.tc-knob {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 44%;
-  height: 44%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
-  transform: translate(-50%, -50%);
-}
 .input-readout {
   position: fixed;
   top: calc(var(--sat) + 60px);
@@ -730,72 +635,6 @@ body {
   border-radius: 6px;
   pointer-events: none !important;
   z-index: 5;
-}
-
-/* ---------- layout editor ---------- */
-.layout-editor {
-  padding: 0;
-  background: rgba(10, 13, 18, 0.55);
-}
-.le-area {
-  position: absolute;
-  inset: 0;
-}
-.le-handle {
-  cursor: grab;
-}
-.le-preview .le-label,
-.le-preview .le-reach {
-  display: none;
-}
-.le-preview .le-handle.selected {
-  border-color: rgba(255, 255, 255, 0.55) !important;
-}
-.le-handle.selected {
-  border-color: var(--accent) !important;
-}
-.le-handle.grabbed {
-  box-shadow: 0 0 0 4px var(--accent);
-}
-.le-label {
-  position: absolute;
-  top: 100%;
-  margin-top: 3px;
-  font-size: 10px;
-  white-space: nowrap;
-  color: var(--muted);
-}
-.le-top {
-  position: absolute;
-  top: calc(var(--sat) + 40%);
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  pointer-events: none;
-}
-.le-top > * {
-  pointer-events: auto;
-}
-.le-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: min(calc(92 * var(--vw)), 720px);
-  gap: 6px;
-}
-.le-info {
-  font-weight: 700;
-  background: var(--panel);
-  padding: 4px 10px;
-  border-radius: 6px;
-}
-.layout-editor .hints {
-  position: absolute;
-  right: calc(var(--sar) + 18px);
-  bottom: calc(var(--sab) + 6px);
 }
 
 .screen-back {
@@ -946,42 +785,9 @@ body {
 .tac-vision {
   color: #7dff9b;
 }
-.tac-vision[data-mode='sonar'] {
-  color: #ffb36b;
-}
-.tac-vision[data-mode='cool'] {
-  color: rgba(255, 255, 255, 0.4);
-}
-.tac-charge {
-  color: #ffffff;
-  font-size: 11px;
-}
-.tac-charge.ready {
-  color: #ff4433;
-}
-.hud-marks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.hud-marks .mark {
-  position: absolute;
-  width: 18px;
-  height: 14px;
-  transform: translate(-50%, -100%);
-}
-.hud-marks .mark i {
-  display: block;
-  width: 0;
-  height: 0;
-  margin: 0 auto;
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-top: 12px solid rgba(255, 255, 255, 0.92);
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
-}
-.hud-marks .mark.ready i {
-  border-top-color: #ff4433;
+/* (empty, it would still hold a flex gap in the tactical row) */
+.tac-vision:empty {
+  display: none;
 }
 .hud-awareness {
   position: absolute;
@@ -1016,14 +822,17 @@ body {
 }
 .bar.health {
   height: 10px;
+  position: relative;
+}
+.vital-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
 }
 .bar-fill {
   height: 100%;
   width: 100%;
   transition: width 0.15s;
-}
-.bar-fill.sh {
-  background: linear-gradient(90deg, #3fa9ff, #7fd0ff);
 }
 .bar-fill.hp {
   background: linear-gradient(90deg, #39c46b, #7ae69a);
@@ -1134,13 +943,6 @@ body {
 .hud-mode b {
   color: var(--text);
 }
-/* PvP: team scores in the team colours (Blue / Red) */
-.hud-mode .pvp-team.t0 b {
-  color: #3fa2ff;
-}
-.hud-mode .pvp-team.t1 b {
-  color: #ff4b3e;
-}
 .hud-minimap {
   position: absolute;
   top: calc(var(--sat) + 8px);
@@ -1161,15 +963,6 @@ body {
   background: rgba(10, 13, 18, 0.35);
   padding: 4px 12px;
   border-radius: 8px;
-}
-/* touch: the bottom centre belongs to the thumbs (dash / swap / action), so the weapon readout sits
-   under the vitals */
-.input-touch .hud-weapon {
-  bottom: auto;
-  top: calc(var(--sat) + 78px);
-  left: calc(var(--sal) + 14px);
-  transform: none;
-  text-align: left;
 }
 .input-gamepad .hud-weapon,
 .input-kbm .hud-weapon {
@@ -1369,9 +1162,6 @@ body {
 }
 .hud-interact.show {
   display: flex;
-}
-.input-touch .hud-interact .glyph {
-  display: none;
 }
 .hud-feed {
   position: absolute;
@@ -1723,16 +1513,6 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
-.emote-grid,
-.emote-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.emote-bar {
-  justify-content: center;
-  margin-bottom: 6px;
-}
 .badge-emblem {
   display: inline-flex;
 }
@@ -1883,6 +1663,12 @@ body {
   margin-top: 6px;
   color: #8fd3ff;
 }
+.debug-warp {
+  pointer-events: auto;
+  margin-top: 4px;
+  max-height: calc(60 * var(--vh));
+  overflow-y: auto;
+}
 .debug-trace {
   display: block;
   margin-top: 2px;
@@ -1904,7 +1690,7 @@ body {
 .debug-tune input {
   width: 110px;
 }
-/* world-anchored prompts (cover, vault, cover badge, cover-to-cover): above the touch layer, below menus */
+/* world-anchored prompts (cover, vault, cover badge, cover-to-cover): below menus */
 .hud-world {
   position: fixed;
   inset: 0;
@@ -1952,12 +1738,6 @@ body {
   padding: 3px 8px 3px 4px;
   border-radius: 999px;
 }
-.wp-touch {
-  display: none;
-}
-.wp-touch svg {
-  display: block;
-}
 .wp-state .wp-mark {
   display: none;
 }
@@ -1975,21 +1755,6 @@ body {
 .wp-move .wp-body {
   bottom: auto;
   top: 14px;
-}
-/* by touch the prompt is an indicator with the icon instead of a glyph (3.2.0: the action button does it; touches
-   go through to the controls below) */
-.input-touch .wp-touch {
-  display: flex;
-}
-.input-touch .wp-body {
-  font-size: 12px;
-  min-height: 38px;
-  box-sizing: border-box;
-  padding: 4px 12px 4px 8px;
-  border: 1px solid rgba(143, 211, 255, 0.55);
-}
-.input-touch .wp.active .wp-body {
-  background: rgba(143, 211, 255, 0.35);
 }
 
 /* PC: the mouse is free during a match (before the first click, or after Esc was refused a re-capture) */
@@ -2012,7 +1777,7 @@ body {
 .mouse-capture-hint[hidden] {
   display: none;
 }
-/* gadget wheel (phase 5): above the touch layer and world prompts, below menus */
+/* gadget wheel (phase 5): above the world prompts, below menus */
 .gadget-wheel {
   position: fixed;
   inset: 0;
@@ -2082,7 +1847,7 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
 }
-/* remote camera feed (sticky cam / drone) */
+/* remote camera feed (sticky cam) */
 .gadget-feed {
   position: fixed;
   inset: 0;
@@ -2172,46 +1937,7 @@ body {
 .hud-barks .bark[hidden] {
   display: none;
 }
-/* results: play style bars and mission rating (phase 7) */
-.style-bars {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0;
-}
-.style-bar {
-  display: grid;
-  grid-template-columns: 70px 1fr 50px;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.style-bar i {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  position: relative;
-  overflow: hidden;
-}
-.style-bar i::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: var(--w, 0%);
-  border-radius: 4px;
-  background: #9bb2c8;
-}
-.style-bar.ghost i::after {
-  background: #7fd0ff;
-}
-.style-bar.panther i::after {
-  background: #b07cff;
-}
-.style-bar.assault i::after {
-  background: #ff7a5a;
-}
-.style-bar b {
-  text-align: right;
-}
+/* results: mission rating (phase 7) */
 .mission-rating {
   margin: 8px 0 2px;
   font-size: 18px;
@@ -2241,7 +1967,7 @@ body {
   color: #b8c2cc;
 }
 
-/* Subtitles (barks / radio), bottom centre above the touch controls */
+/* Subtitles (barks / radio), bottom centre */
 .hud-subtitle {
   position: absolute;
   left: 50%;
@@ -2269,7 +1995,6 @@ body {
 }
 /* health as the screen-edge vignette only (Blacklist): the bars hidden */
 .hud.no-hbar .bar.health,
-.hud.no-hbar .bar.shield,
 .hud.no-hbar .vital-text {
   display: none;
 }
@@ -2481,7 +2206,6 @@ body {
   display: inline-flex;
   opacity: 0;
 }
-.input-touch .btn.menu-item.lit,
 .input-gamepad .btn.menu-item.focused,
 .input-kbm .btn.menu-item.focused,
 .btn.menu-item:active {
@@ -2491,7 +2215,6 @@ body {
   outline: none;
   box-shadow: none;
 }
-.input-touch .btn.menu-item.lit .menu-chev,
 .input-gamepad .btn.menu-item.focused .menu-chev,
 .input-kbm .btn.menu-item.focused .menu-chev {
   opacity: 1;
@@ -3070,11 +2793,6 @@ body {
   text-transform: uppercase;
   cursor: pointer;
 }
-.input-touch .lo-act {
-  min-height: 36px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-}
 .lo-act.blocked {
   opacity: 0.5;
 }
@@ -3196,8 +2914,9 @@ body {
 }
 
 /* ---------- 3.0 desktop: menus laid out for a 1280 x 720 window, scaled to fill (--ui-scale) ---------- */
+/* (desktop only: these rules were keyed on body.platform-desktop; ':root' keeps their specificity) */
 /* wider than 16:9 (21:9, 32:9): the menus stay a 16:9 layout scaled by height, centred; the stage fills the rest */
-.platform-desktop .screens {
+:root .screens {
   inset: auto;
   left: 50%;
   top: 0;
@@ -3213,30 +2932,30 @@ body {
   --sal: calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) / var(--hud-zoom));
   --sar: calc(env(safe-area-inset-right, 0px) + var(--hud-inset, 0px) / var(--hud-zoom));
 }
-.platform-desktop .hud {
+:root .hud {
   --hud-zoom: calc(var(--hud-scale, 1) * var(--ui-scale, 1));
 }
-.platform-desktop .hud > .hud-vitals,
-.platform-desktop .hud > .hud-weapon,
-.platform-desktop .hud > .hud-top,
-.platform-desktop .hud > .hud-minimap,
-.platform-desktop .hud > .hud-feed,
-.platform-desktop .hud > .hud-interact,
-.platform-desktop .hud > .hud-subtitle {
+:root .hud > .hud-vitals,
+:root .hud > .hud-weapon,
+:root .hud > .hud-top,
+:root .hud > .hud-minimap,
+:root .hud > .hud-feed,
+:root .hud > .hud-interact,
+:root .hud > .hud-subtitle {
   zoom: calc(var(--hud-scale, 1) * var(--ui-scale, 1));
 }
-.platform-desktop .toasts,
-.platform-desktop .mouse-capture-hint {
+:root .toasts,
+:root .mouse-capture-hint {
   zoom: var(--ui-scale, 1);
 }
 /* hover states (mouse) */
-.platform-desktop .btn:hover:not(.blocked),
-.platform-desktop .tab:hover,
-.platform-desktop .row:hover,
-.platform-desktop .lo-row:hover {
+:root .btn:hover:not(.blocked),
+:root .tab:hover,
+:root .row:hover,
+:root .lo-row:hover {
   background: var(--accent-dim);
 }
-.platform-desktop .screens {
+:root .screens {
   cursor: default;
 }
 /* key binding rows */
@@ -3274,7 +2993,54 @@ body {
 .input-kbm .kb-key.focused {
   outline: 2px solid var(--focus);
 }
-.platform-desktop .tab-strip.side-nav {
+/* (locomotion step 18) remap rows: pad slots share the key look; conflicts warn on both rows and in a summary */
+.pad-key {
+  min-width: 74px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pad-key.empty {
+  color: var(--muted);
+}
+.pad-key.listening {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.input-gamepad .pad-key.focused,
+.input-kbm .pad-key.focused {
+  outline: 2px solid var(--focus);
+}
+.controls-row.bind-row {
+  grid-template-columns: minmax(120px, 34%) auto 1fr;
+}
+.controls-row.conflict {
+  background: rgba(255, 170, 60, 0.12);
+  box-shadow: inset 3px 0 0 #ffaa3c;
+}
+.controls-row .bind-warn {
+  color: #ffc27a;
+  font-size: 12px;
+}
+.bind-summary {
+  color: #ffc27a;
+}
+@media (max-width: 520px) {
+  .controls-row.bind-row {
+    grid-template-columns: 1fr auto;
+  }
+  .controls-row .bind-warn {
+    grid-column: 1 / -1;
+  }
+}
+:root .tab-strip.side-nav {
   width: 210px;
 }
 
@@ -3345,7 +3111,6 @@ body {
 /* photo mode: nothing but the photo prompts */
 body.photo-mode .hud,
 body.photo-mode .hud-world,
-body.photo-mode .touch-layer,
 body.photo-mode .toasts,
 body.photo-mode .debug-overlay,
 body.photo-mode .mouse-capture-hint,
@@ -3390,28 +3155,6 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   gap: 8px;
   background: rgba(0, 0, 0, 0.65);
 }
-.photo-vert {
-  position: absolute;
-  right: calc(16px + var(--sar));
-  top: 50%;
-  transform: translateY(-50%);
-  display: none;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: auto;
-}
-.input-touch .photo-vert {
-  display: flex;
-}
-.photo-arrow {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.5);
-  color: var(--text);
-  font-size: 20px;
-}
 .photo-review {
   position: absolute;
   inset: 0;
@@ -3453,52 +3196,13 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   border-radius: 1px;
   background: rgba(255, 255, 255, 0.18);
 }
+/* (locomotion step 17) pips up to the maximum gear (rocker / wheel) dim, up to the current (stick) gear lit */
+.tac-gear i.cap {
+  background: rgba(255, 255, 255, 0.45);
+}
 .tac-gear i.on {
   background: var(--accent);
 }
-/* touch speed rocker: a tall pill, up half / six pips / down half */
-.tc-speed {
-  border-radius: 999px;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 4px 0;
-  box-sizing: border-box;
-}
-.tc-speed.active {
-  background: rgba(20, 26, 36, 0.55);
-  transform: translate(-50%, -50%);
-}
-.tc-sp-up,
-.tc-sp-down {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tc-speed.active .tc-sp-up:active,
-.tc-speed.active .tc-sp-down:active {
-  color: var(--accent);
-}
-.tc-sp-pips {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  pointer-events: none;
-}
-.tc-sp-pips i {
-  width: 16px;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.25);
-}
-.tc-sp-pips i.on {
-  background: var(--accent);
-}
-.le-handle.tc-speed {
-  border-radius: 999px;
-}
-
 /* 3.1.4 benchmark run tag: over the flight (photo mode) and the loading screen */
 .bench-tag {
   position: fixed;
@@ -3515,33 +3219,6 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   pointer-events: none;
 }
 
-/* 3.1.6 forced landscape: a touch device held upright draws the page turned 90 deg clockwise (iOS cannot lock the
-   orientation); its edges map to the screen's: left = top, top = right, right = bottom, bottom = left */
-body.rotated {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: var(--scr-h);
-  height: var(--scr-w);
-  transform-origin: 0 0;
-  transform: translateX(var(--scr-w)) rotate(90deg);
-  --vw: 1vh;
-  --vh: 1vw;
-  --sal: env(safe-area-inset-top, 0px);
-  --sat: env(safe-area-inset-right, 0px);
-  --sar: env(safe-area-inset-bottom, 0px);
-  --sab: env(safe-area-inset-left, 0px);
-}
-/* 3.2.4: turned anticlockwise after the other landscape grip; edges: left = bottom, top = left, right = top,
-   bottom = right */
-body.rotated.ccw {
-  transform: translateY(var(--scr-h)) rotate(-90deg);
-  --sal: env(safe-area-inset-bottom, 0px);
-  --sat: env(safe-area-inset-left, 0px);
-  --sar: env(safe-area-inset-top, 0px);
-  --sab: env(safe-area-inset-right, 0px);
-}
-
 /* 3.1.7 desktop Resolution list */
 .res-dialog .res-list {
   display: flex;
@@ -3554,3 +3231,83 @@ body.rotated.ccw {
 .res-dialog .res-list .btn {
   justify-content: flex-start;
 }
+
+/* 3.6 Step 4b: brightness calibration - the symbol on true black */
+.brightness-stage {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+  margin: 8px 0;
+}
+.brightness-symbol {
+  width: min(36vw, 200px);
+  height: auto;
+}
+
+/* music lab (music project): a debug screen */
+.music-lab {
+  background: rgba(8, 11, 15, 0.96);
+  overflow-y: auto;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.music-lab .lab-status {
+  margin: 0;
+  font: 12px/1.45 ui-monospace, Consolas, monospace;
+  opacity: 0.85;
+  white-space: pre-wrap;
+}
+.music-lab .lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.music-lab .lab-key,
+.music-lab .lab-val {
+  min-width: 56px;
+  font-size: 14px;
+  text-align: center;
+}
+.music-lab .lab-step {
+  min-width: 48px;
+}
+.music-lab .lab-on {
+  outline: 2px solid var(--accent, #6fd3c4);
+}
+.music-lab .lab-muted {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+/* Training course (T1c): drill checklist, the current step and the next-drill marker. */
+.hud-pings .ping.course-marker { --c: #f2c14e; }
+.course-hud {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 72px);
+  left: 16px;
+  max-width: min(360px, 44vw);
+  pointer-events: none;
+  font-size: 13px;
+  color: #e8ecef;
+}
+.course-hud .ch-bay { font-weight: 700; letter-spacing: 0.08em; opacity: 0.8; margin-bottom: 4px; }
+.course-hud table { border-collapse: collapse; background: rgba(10, 14, 18, 0.55); border-radius: 6px; }
+.course-hud td { padding: 2px 8px; white-space: nowrap; }
+.course-hud td.ch-t { text-align: center; width: 28px; opacity: 0.6; }
+.course-hud td.ch-t.done { color: #4fdc7c; opacity: 1; }
+.course-hud tr.cur td.ch-n { color: #f2c14e; }
+.course-hud .ch-air { margin-top: 8px; padding: 4px 8px; display: inline-block; border-radius: 6px; background: rgba(10, 14, 18, 0.7); border: 1px solid #39d0ff; color: #bfefff; font-weight: 600; white-space: normal; }
+.course-hud .ch-air[hidden] { display: none; }
+.course-hud .ch-step { margin-top: 10px; font-size: 20px; line-height: 1.3; text-shadow: 0 1px 3px #000; white-space: normal; }
+.course-hud .ch-step .glyph { vertical-align: middle; }
+.course-hud[hidden] { display: none; }
+.course-panel { margin: 12px 0; display: grid; gap: 8px; }
+.course-panel .course-note { opacity: 0.7; font-size: 13px; }
+.course-panel .course-tier { font-size: 20px; font-weight: 700; }
+.course-panel .course-tier.tier-ghost { color: #4fdc7c; }
+.course-panel .course-bays { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
+.course-panel table.course-stats { border-collapse: collapse; }
+.course-panel table.course-stats th, .course-panel table.course-stats td { padding: 2px 10px; text-align: right; }
+.course-panel table.course-stats td:first-child { text-align: left; }

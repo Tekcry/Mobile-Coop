@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, defaultHq, defaultSuit, hqStats, styleLines, suitLook, suitStats } from '../src/progression/suit';
+import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, defaultHq, defaultSuit, hqStats, suitLook, suitStats } from '../src/progression/suit';
 import { applyPreset, applySession, buyHq, buySuit, savePreset, wearSuit } from '../src/progression/profile';
-import { computeRewards } from '../src/progression/rewards';
 import { withAttachments } from '../src/progression/attachments';
 import { defaultSave, sanitizeSave, SAVE_VERSION } from '../src/save/schema';
 import { migrate } from '../src/save/migrations';
@@ -11,16 +10,13 @@ import { computeStats } from '../src/weapons/weaponStats';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 
 describe('arsenal', () => {
-  it('sixteen weapons validate; the new classes are there', () => {
-    expect(WEAPON_IDS.length).toBe(16);
-    const classes = new Set(WEAPON_IDS.map((w) => WEAPONS[w].class));
-    for (const c of ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'dmr', 'crossbow', 'lmg']) expect(classes.has(c)).toBe(true);
-    expect(() => validateWeaponDefs({ ...WEAPONS, ak: { ...WEAPONS.ak, rpm: 'fast' } })).toThrow(/ak.rpm/);
+  it('the CT kit validates: one rifle and one pistol (G76)', () => {
+    expect(WEAPON_IDS.length).toBe(2);
+    expect(new Set(WEAPON_IDS.map((w) => WEAPONS[w].class))).toEqual(new Set(['rifle', 'pistol']));
+    expect(() => validateWeaponDefs({ ...WEAPONS, rifle: { ...WEAPONS.rifle, rpm: 'fast' } })).toThrow(/rifle.rpm/);
   });
-  it('an integral suppressor and the crossbow are quiet; the crossbow knocks out', () => {
+  it('an integral suppressor is quiet', () => {
     expect(computeStats(WEAPONS.pistolSd).noise).toBeLessThan(0.5);
-    expect(computeStats(WEAPONS.crossbow).noise).toBeLessThan(0.15);
-    expect(WEAPONS.crossbow.nonLethal).toBe(true);
     expect(computeStats(WEAPONS.rifle).noise).toBe(1);
   });
 });
@@ -71,31 +67,20 @@ describe('suit', () => {
   });
 });
 
-describe('HQ, challenges, style cash', () => {
+describe('HQ, challenges', () => {
   it('HQ upgrades by level and price; their effects', () => {
     const h = defaultHq();
     expect(canBuyHq(h, 'radar', 1, 99999)).toMatchObject({ ok: false, reason: 'level' });
     expect(canBuyHq(h, 'radar', 10, 99999).ok).toBe(true);
     h.radar = 2;
-    h.marks = 1;
     h.restock = 1;
     expect(canBuyHq(h, 'radar', 10, 99999)).toMatchObject({ ok: false, reason: 'maxed' });
-    expect(hqStats(h)).toMatchObject({ radar: 25, extraMarks: 1, restock: true });
+    expect(hqStats(h)).toMatchObject({ radar: 25, restock: true });
   });
   it('challenge progress from a session', () => {
-    const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, executes: 2, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });
+    const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });
     expect(p).toMatchObject({ aboveTakedowns: 3, knockouts: 4, ghostMissions: 1, hunterNoAlarm: 0 });
     expect(CHALLENGES.length).toBeGreaterThanOrEqual(6);
-  });
-  it('play styles pay cash in stealth modes', () => {
-    expect(styleLines({ ghost: 1000, panther: 0, assault: 200 }).map((l) => l.label)).toEqual(['Ghost (1000)', 'Assault (200)']);
-    const s = emptyStats('infiltration', 'embassy');
-    s.style = { ghost: 2000, panther: 500, assault: 0 };
-    const r = computeRewards(s, 'normal');
-    expect(r.lines.some((l) => l.label.startsWith('Ghost'))).toBe(true);
-    const w = emptyStats('wave', 'warehouse');
-    w.style = { ghost: 2000, panther: 0, assault: 0 };
-    expect(computeRewards(w, 'normal').lines.some((l) => l.label.startsWith('Ghost'))).toBe(false);
   });
 });
 
@@ -108,14 +93,13 @@ describe('profile ops and save v6', () => {
     expect(s.suit.worn.vest).toBe(1);
     expect(wearSuit(s, 'vest', 0)).toBe(true);
     expect(wearSuit(s, 'vest', 3)).toBe(false);
-    expect(buyHq(s, 'marks').ok).toBe(true);
-    expect(s.hq.marks).toBe(1);
-    s.unlocks.push('weapon:smg');
-    s.loadout.primary = 'smg';
+    expect(buyHq(s, 'restock').ok).toBe(true);
+    expect(s.hq.restock).toBe(1);
+    s.loadout = { primary: 'rifle', secondary: 'pistolSd' };
     expect(savePreset(s, 2, 'gas')).toBe(true);
-    s.loadout.primary = 'rifle';
+    s.loadout = { primary: 'pistolSd', secondary: 'rifle' };
     expect(applyPreset(s, 2)).toBe(true);
-    expect(s.loadout.primary).toBe('smg');
+    expect(s.loadout.primary).toBe('rifle');
     expect(s.preset).toBe(2);
     const st = emptyStats('clear', 'warehouse');
     st.won = true;

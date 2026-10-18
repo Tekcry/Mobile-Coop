@@ -8,3 +8,16 @@ dev-dist
 coverage
 test-results
 playwright-report
+.kestrel-cert/
+
+# PC pass pictures (locomotion M6)
+/pc/
+
+# music render: downloaded CC0 source samples and intermediate WAVs (scripts/music)
+.music-cache
+
+# rendered orchestral audition stems (npm run music:orch rebuilds them from the CC0 samples)
+src/assets/music/orch/
+
+# movement foley: downloaded CC0 packs and the intermediate WAV (scripts/sfx)
+.sfx-cache

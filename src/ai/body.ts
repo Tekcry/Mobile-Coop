@@ -65,6 +65,11 @@ export class Body {
     this.sync();
   }
 
+  /** The body's rig, for render-only passes (step 14: a fresh body cools in thermal vision); null once gone. */
+  get view(): CharacterRig | null {
+    return this.rig;
+  }
+
   /** Simulating physics (counts against the ragdoll budget). */
   get simulating(): boolean {
     return !!this.ragdoll && !this.ragdoll.settled;

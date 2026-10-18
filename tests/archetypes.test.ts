@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { ARCHETYPE, DIFFICULTY, fromFront, glint, grabRule, heavyMult, parseDifficulty, radioCheck, shieldBlocks, smellRate, sniperRelocate } from '../src/ai/archetypes';
 import { BARK, BarkVoice, BARKS } from '../src/ai/barks';
 import { ENEMIES, ENEMY_KINDS, emptyKinds } from '../src/ai/enemyDefs';
-import { waveComposition } from '../src/game/modes/waveLogic';
-import { mulberry } from '../src/core/rng';
 
 // a character facing +z (yaw 0); a shot from in front travels along -z
 const FRONT = { x: 0, z: -1 };
@@ -90,23 +88,15 @@ describe('roster and difficulty', () => {
       expect(t[k]).toBe(0);
     }
   });
-  it('tiers scale perception and damage; Perfectionist has no Mark & Execute or sonar', () => {
+  it('tiers scale perception and damage', () => {
     expect(DIFFICULTY.rookie.perception).toBeLessThan(DIFFICULTY.normal.perception);
     expect(DIFFICULTY.perfectionist.perception).toBeGreaterThan(DIFFICULTY.realistic.perception);
     expect(DIFFICULTY.realistic.damage).toBeGreaterThan(DIFFICULTY.normal.damage);
-    expect(DIFFICULTY.perfectionist.execute).toBe(false);
-    expect(DIFFICULTY.perfectionist.sonar).toBe(false);
-    expect(DIFFICULTY.normal.execute && DIFFICULTY.normal.sonar).toBe(true);
   });
   it('reads the old difficulty names', () => {
     expect(parseDifficulty('easy')).toBe('rookie');
     expect(parseDifficulty('hard')).toBe('realistic');
     expect(parseDifficulty('perfectionist')).toBe('perfectionist');
     expect(parseDifficulty('???')).toBe('normal');
-  });
-  it('later waves bring the archetypes in', () => {
-    const w8 = waveComposition(8, mulberry(3));
-    for (const k of ['enforcer', 'dog', 'sniper', 'officer', 'droneOp'] as const) expect(w8).toContain(k);
-    expect(waveComposition(3, mulberry(3))).not.toContain('enforcer');
   });
 });

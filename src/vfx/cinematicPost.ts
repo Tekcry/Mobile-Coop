@@ -1,11 +1,9 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
+import type { NightBloom } from './nightBloom';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
+import { NV_GLSL } from './nightVision';
+import { SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 
-/**
- * One combined full-screen pass for the cinematic look: the map's colour grade, gentle vignette, optional film grain, a
- * letterbox for stinger moments (mission start, room cleared) and the night-vision goggles (green
- * phosphor: the dark lifted, bright lights blooming out, heavy grain, a tube vignette). Kept to a single
- * cheap pass so it fits the 120 fps budget; disabled entirely when every effect is off.
- */
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
 varying vec2 vUV;
@@ -21,22 +19,68 @@ uniform float feed;
 uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
+uniform float bright;
+uniform sampler2D glowSampler;
+uniform float glowScale;
+uniform float veil;
+uniform float flip;
+uniform float vk;
+${NV_GLSL}
+${VISION_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
+  // (step 21v) the pixel's luma before the grade: night vision's soften adds its taps' difference from it
+  float l0 = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
   // the map's colour grade: tint, saturation, contrast round mid grey
   vec3 gr = c.rgb * tint;
   float gl = dot(gr, vec3(0.299, 0.587, 0.114));
   gr = mix(vec3(gl), gr, sat);
   c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
+  // (Step 4b) the player's brightness calibration: a small, clamped exposure offset
+  c.rgb *= bright;
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   if (nv > 0.0) {
-    float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-    float g = 1.0 - exp(-l * 7.0);
-    vec3 p = vec3(0.2, 1.0, 0.35) * (0.05 + g * 1.1) + (n - 0.5) * 0.14;
-    float tube = smoothstep(0.82, 0.38, length(d));
-    c.rgb = mix(c.rgb, p * mix(1.0, tube, 0.85), nv);
+    // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`). (Step 4b fix) the tube
+    // (\`nightVision.ts\`): the bloom of the bright parts (\`NightBloom\`) joins the drive, the phosphor is a pale
+    // grey-green that clips to white, intensifier grain is strongest in the dark, and the eyepiece darkens the edge
+    float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    // (step 21v) the tube's softening: two diagonal taps of the scene, their difference from the raw pixel added to
+    // the graded luma (the grade and the brightness offset stay as they were)
+    vec2 so = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
+    float sl = dot(texture2D(textureSampler, vUV + so).rgb + texture2D(textureSampler, vUV - so).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.5;
+    l = max(l + (sl - l0) * bright * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
+    float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
+    float drive = nvDrive(l, veil) + g;
+    vec3 p = nvColor(drive, veil);
+    // (step 21v) intensifier grain (SENSOR_GRAIN), strongest in the dark
+    p += sensorNoise(vUV, aspect, time) * sensorAmp(${SENSOR_GRAIN.night.toFixed(3)}, ${SENSOR_GRAIN.litNight.toFixed(3)}, drive);
+    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
+    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
+    c.rgb = mix(c.rgb, max(p, 0.0), nv);
+  }
+  if (vk > 0.5) {
+    // (step 14) thermal (vk 1) / electro (vk 2): post branches of this pass (no extra target); warm bodies and live devices are bright through render-only emissive flags (\`visionLook.ts\`)
+    float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    // softened: four taps round the pixel (sensor images are soft; step 21v adds electro's)
+    vec2 o = vec2(${THERMAL.blur.toFixed(4)} / max(aspect, 0.1), ${THERMAL.blur.toFixed(4)});
+    float s = dot(texture2D(textureSampler, vUV + o).rgb + texture2D(textureSampler, vUV - o).rgb
+      + texture2D(textureSampler, vUV + vec2(o.x, -o.y)).rgb + texture2D(textureSampler, vUV - vec2(o.x, -o.y)).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.25;
+    vec3 p;
+    vec3 ga;
+    if (vk < 1.5) {
+      p = thermalColor(mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)}));
+      ga = vec3(sensorAmp(${SENSOR_GRAIN.thermal.toFixed(3)}, ${SENSOR_GRAIN.litThermal.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722))));
+    } else {
+      p = electroColor(mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)}));
+      ga = vec3(${SENSOR_GRAIN.electroTint.map((x) => x.toFixed(3)).join(", ")}) * sensorAmp(${SENSOR_GRAIN.electro.toFixed(3)}, ${SENSOR_GRAIN.litElectro.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722)));
+    }
+    // (step 21v, A87) animated sensor grain, luminance-weighted (SENSOR_GRAIN)
+    p += sensorNoise(vUV, aspect, time) * ga;
+    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
+    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
+    c.rgb = max(p, 0.0);
   }
   if (feed > 0.0) {
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
@@ -45,6 +89,12 @@ void main(void) {
     c.rgb = mix(c.rgb, f, feed);
   }
   c.rgb = mix(c.rgb, vec3(1.0), flash);
+  if (flip > -5.0) {
+    // (Step 4b fix round 3) the goggles flipping down / up: their housing passes the eyes as a dark band with a curved,
+    // soft edge (\`VisionState.flipCentre\`); night vision switches while it covers the view
+    float fx = vUV.x - 0.5;
+    c.rgb *= smoothstep(0.58, 0.7, abs(vUV.y + fx * fx * 0.35 - flip));
+  }
   float v = smoothstep(0.95, 0.3, length(d));
   c.rgb *= mix(1.0, v, vignette);
   c.rgb += (n - 0.5) * grain;
@@ -63,17 +113,39 @@ export class CinematicPost {
   barsTarget = 0;
   /** Night-vision blend 0..1. */
   private nv = 0;
+  /** (Step 14) the vision post mode: 0 off / night, 1 thermal, 2 electro. */
+  private vk = 0;
+  /** Night vision's bloom (`NightBloom`) and auto-gain (`NightAutoGain.veil`). */
+  private bloom: NightBloom | null = null;
+  private veil = 0;
+  /** The goggles' flip: the housing's centre in screen height (-9 = none). */
+  private flip = -9;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;
-  /** Remote camera feed look (sticky cam, drone) 0..1. */
+  /** Remote camera feed look (sticky cam) 0..1. */
   private feed = 0;
   private t = 0;
   /** Colour grade (identity = off). */
   private tint: [number, number, number] = [1, 1, 1];
   private sat = 1;
   private contrast = 1;
+  /** The brightness calibration's exposure multiplier (Step 4b; 1 = default). */
+  private bright = 1;
 
   constructor(private camera: Camera) {}
+
+  /** The brightness calibration (Settings > Display > Brightness), clamped to `BRIGHTNESS_MIN` .. `BRIGHTNESS_MAX`
+   *  so it cannot lift the dark band out of dark (bible L7). */
+  setBrightness(k: number): void {
+    const b = Math.min(BRIGHTNESS_MAX, Math.max(BRIGHTNESS_MIN, k));
+    if (b === this.bright) return;
+    this.bright = b;
+    this.sync();
+  }
+
+  get brightness(): number {
+    return this.bright;
+  }
 
   /** Apply settings; creates or removes the pass as needed. */
   configure(vignette: boolean, grain: boolean): void {
@@ -91,7 +163,7 @@ export class CinematicPost {
   }
 
   private get graded(): boolean {
-    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1;
+    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.bright !== 1;
   }
 
   /** Night-vision goggles blend (0 off .. 1). */
@@ -101,13 +173,43 @@ export class CinematicPost {
     this.sync();
   }
 
+  /** (Step 14) thermal (1) / electro (2) vision, 0 = neither (rendering only). */
+  setVisionKind(k: number): void {
+    if (k === this.vk) return;
+    this.vk = k;
+    this.sync();
+  }
+
+  /** The vision post mode in use (tests: `post.vk`). */
+  get visionKind(): number {
+    return this.vk;
+  }
+
+  /** Night vision's bloom (Step 4b fix round 4): its glow is read each frame. */
+  setBloom(bloom: NightBloom | null): void {
+    this.bloom = bloom;
+  }
+
+  /** Night vision's auto-gain (`NightAutoGain.veil`). */
+  setAutoGain(veil: number): void {
+    this.veil = veil;
+  }
+
+  /** The goggles flipping (Step 4b fix round 3): the housing's centre in screen height, NaN when no flip runs. */
+  setFlip(centre: number): void {
+    const f = Number.isNaN(centre) ? -9 : centre;
+    if (f === this.flip) return;
+    this.flip = f;
+    this.sync();
+  }
+
   /** White-out (a flashbang in view); fades over ~2 s. */
   whiteOut(k: number): void {
     this.flash = Math.max(this.flash, Math.min(1, k));
     this.sync();
   }
 
-  /** Remote camera feed look (sticky cam / drone view). */
+  /** Remote camera feed look (sticky cam view). */
   setFeed(k: number): void {
     if (k === this.feed) return;
     this.feed = k;
@@ -121,9 +223,9 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
+    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk'], ['glowSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -136,6 +238,15 @@ export class CinematicPost {
         e.setFloat3('tint', this.tint[0], this.tint[1], this.tint[2]);
         e.setFloat('sat', this.sat);
         e.setFloat('contrast', this.contrast);
+        e.setFloat('bright', this.bright);
+        // the glow (always bound: an unbound sampler could read the target being drawn); the scene stands in before the
+        // first bloom, unread then (night vision off)
+        const glow = this.bloom?.glow;
+        e._bindTexture('glowSampler', glow ? glow.texture : pp.inputTexture.texture);
+        e.setFloat('glowScale', glow ? this.bloom!.glowScale : 0);
+        e.setFloat('veil', this.veil);
+        e.setFloat('flip', this.flip);
+        e.setFloat('vk', this.vk);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

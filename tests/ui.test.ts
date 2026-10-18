@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pickSpatial, pickWrap, type Rect } from '../src/ui/spatial';
-import { defaultSettings, sanitizeSettings, TOUCH_LAYOUT_VERSION } from '../src/core/settings';
+import { defaultSettings, sanitizeSettings } from '../src/core/settings';
 
 const r = (x: number, y: number, w = 100, h = 40): Rect => ({ x, y, w, h });
 
@@ -28,14 +28,11 @@ describe('settings sanitising', () => {
   it('clamps numbers and rejects bad enums', () => {
     const s = sanitizeSettings({
       gamepad: { deadzoneLeft: 9, curve: 'wobbly', invertY: 'yes' },
-      touch: { opacity: -1, layoutVersion: 2, layout: { fire: { x: 2, y: 0.5, scale: 0.1 } } },
       video: { renderScale: Number.NaN },
     });
     expect(s.gamepad.deadzoneLeft).toBe(0.5);
     expect(s.gamepad.curve).toBe('classic');
     expect(s.gamepad.invertY).toBe(false);
-    expect(s.touch.opacity).toBe(0.1);
-    expect(s.touch.layout.fire).toEqual({ x: 1, y: 0.5, scale: 0.5 });
     expect(s.video.renderScale).toBe(1);
   });
   it('keeps valid user values', () => {
@@ -43,6 +40,15 @@ describe('settings sanitising', () => {
     expect(s.gamepad.aimAssist).toBe('high');
     expect(s.gamepad.invertY).toBe(true);
     expect(s.audio.music).toBe(0.25);
+  });
+  it('moves an untouched old music default to 15 % once', () => {
+    expect(sanitizeSettings({}).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.5 } }).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 2 } }).audio.music).toBe(0.15);
+    expect(sanitizeSettings({ audio: { music: 0.3 } }).audio.music).toBe(0.3);
+    expect(sanitizeSettings({ audio: { music: 0.5, musicV: 2 } }).audio.music).toBe(0.5);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 3 } }).audio.music).toBe(0.3);
+    expect(sanitizeSettings({ audio: { music: 0.3, musicV: 2 } }).audio.musicV).toBe(3);
   });
 });
 
@@ -55,70 +61,11 @@ describe('spatial focus: multi-column panels', () => {
   });
 });
 
-describe('touch layout migration (v1 -> v2)', () => {
-  it('moves untouched v1 placements and the old fire stick to the new defaults, keeps customised ones', () => {
-    const d = defaultSettings();
-    const s = sanitizeSettings({
-      touch: {
-        layout: {
-          move: { x: 0.16, y: 0.7, scale: 1 }, // v1 default
-          fire: { x: 0.8, y: 0.6, scale: 1.2 }, // customised fire stick (role changed)
-          reload: { x: 0.5, y: 0.5, scale: 1 }, // customised
-          jump: { x: 0.9, y: 0.9, scale: 1 }, // v1's jump (a different control): 3.2.0's takes its default spot
-        },
-      },
-    });
-    expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
-    expect(s.touch.layout.move).toEqual(d.touch.layout.move);
-    expect(s.touch.layout.fire).toEqual(d.touch.layout.fire);
-    expect(s.touch.layout.reload).toEqual({ x: 0.5, y: 0.5, scale: 1 });
-    expect(s.touch.layout.look).toEqual(d.touch.layout.look);
-    expect(s.touch.layout.action).toEqual(d.touch.layout.action);
-    expect(s.touch.layout.jump).toEqual(d.touch.layout.jump);
-    expect(s.touch.dashFlick).toBe(false);
-  });
-  it('keeps v2 layouts and per-control opacity as stored', () => {
-    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { fire: { x: 0.3, y: 0.4, scale: 1, alpha: 0.5 } } } });
-    expect(s.touch.layout.fire).toEqual({ x: 0.3, y: 0.4, scale: 1, alpha: 0.5 });
-  });
-  it('v2 -> v3 keeps every customised placement and adds the takedown button', () => {
-    const d = defaultSettings();
-    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 } } } });
-    expect(s.touch.layout.mark).toEqual({ x: 0.2, y: 0.2, scale: 1.2 });
-    expect(s.touch.layout.look).toEqual({ x: 0.8, y: 0.8, scale: 1 });
-    expect(s.touch.layout.takedown).toEqual(d.touch.layout.takedown);
-    expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
-  });
-  it('v3 -> v4 keeps every stored placement and adds the speed rocker at its default spot', () => {
-    const d = defaultSettings();
-    const stored = { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 }, takedown: { x: 0.5, y: 0.3, scale: 0.9, alpha: 0.7 }, move: { x: 0.1, y: 0.6, scale: 1.1 } };
-    const s = sanitizeSettings({ touch: { layoutVersion: 3, layout: stored } });
-    expect(s.touch.layout.mark).toEqual(stored.mark);
-    expect(s.touch.layout.look).toEqual(stored.look);
-    expect(s.touch.layout.takedown).toEqual(stored.takedown);
-    expect(s.touch.layout.move).toEqual(stored.move);
-    expect(s.touch.layout.speed).toEqual(d.touch.layout.speed);
-    // right of the move stick's zone (the left 42%), clear of it by its centre
-    expect(d.touch.layout.speed.x).toBeGreaterThan(0.42);
-    expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
-  });
-  it('v4 -> v5 keeps every stored placement and adds the jump button at its default spot', () => {
-    const d = defaultSettings();
-    const stored = { speed: { x: 0.3, y: 0.5, scale: 1.2 }, action: { x: 0.55, y: 0.75, scale: 1 }, look: { x: 0.8, y: 0.8, scale: 1 } };
-    const s = sanitizeSettings({ touch: { layoutVersion: 4, layout: stored } });
-    expect(s.touch.layout.speed).toEqual(stored.speed);
-    expect(s.touch.layout.action).toEqual(stored.action);
-    expect(s.touch.layout.look).toEqual(stored.look);
-    expect(s.touch.layout.jump).toEqual(d.touch.layout.jump);
-    expect(s.touch.layoutVersion).toBe(5);
-  });
+describe('accessibility settings', () => {
   it('accessibility settings are clamped', () => {
     const s = sanitizeSettings({ access: { hudScale: 9, shake: -1, subtitles: 'no', holdToggle: true } });
-    expect(s.access).toMatchObject({ hudScale: 1.4, shake: 0, subtitles: true, holdToggle: true, healthBar: false });
-  });
-  it('presets cover every control and the left-handed one mirrors', async () => {
-    const { LAYOUT_PRESETS, TOUCH_CONTROL_IDS } = await import('../src/core/settings');
-    for (const l of Object.values(LAYOUT_PRESETS)) for (const id of TOUCH_CONTROL_IDS) expect(l[id]).toBeDefined();
-    expect(LAYOUT_PRESETS.lefty.fire.x).toBeCloseTo(1 - LAYOUT_PRESETS.default.fire.x);
+    // (locomotion step 15) the health bar is on by default; a stored false is kept
+    expect(s.access).toMatchObject({ hudScale: 1.4, shake: 0, subtitles: true, holdToggle: true, healthBar: true });
+    expect(sanitizeSettings({ access: { healthBar: false } }).access.healthBar).toBe(false);
   });
 });

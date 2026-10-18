@@ -3,8 +3,8 @@ import { icon } from '../icons';
 import { GADGET_IDS, GADGETS, type GadgetId } from '../../game/gadgets';
 
 /**
- * The gadget wheel (eight slots clockwise from the top; the highlighted one is selected on release, or tapped by
- * touch) and the remote feed overlay (sticky cam / drone: a label, the controls, battery). DOM is written only
+ * The gadget wheel (eight slots clockwise from the top; the highlighted one is selected on release, or clicked by
+ * an unlocked mouse) and the remote feed overlay (sticky cam: a label and the controls). DOM is written only
  * when something changes.
  */
 export class GadgetWheel {
@@ -16,9 +16,9 @@ export class GadgetWheel {
   private feedText: HTMLElement;
   private feedKey = '';
   private key = '';
-  /** Touch: a slot was tapped. */
+  /** Mouse: a slot was clicked. */
   onPick: ((id: GadgetId) => void) | null = null;
-  /** Touch: tapped outside the slots. */
+  /** Mouse: clicked outside the slots. */
   onClose: (() => void) | null = null;
 
   constructor(parent: HTMLElement) {

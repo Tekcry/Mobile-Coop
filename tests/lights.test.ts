@@ -1,30 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { bodyLightLevel, coneFactor, contribution, falloff, LIGHT, lightLevelAt, LightRegistry, makeCone, nearestLights, visibilityFromLight } from '../src/world/lights';
+import { contribution, LIGHT, LightRegistry, makeCone, nearestLights, visibilityFromLight, type Occluder } from '../src/world/lights';
+import { LightField } from '../src/world/lightField';
+import { LAMP_CONE_COS, LAMP_EXP, lampCone, lampFalloff, lampTerm, moonLight, SPOT_EXP } from '../src/world/lampMath';
+
+// (3.6: falloff and cones come from `lampMath`; a field without a bake sums every light with the caller's ray test)
+const lightLevelAt = (r: LightRegistry, x: number, y: number, z: number, occ?: Occluder): number => new LightField(null, r).totalAt(x, y, z, occ);
+const bodyLightLevel = (r: LightRegistry, x: number, y: number, z: number, h: number): number => new LightField(null, r).bodyLevel(x, y, z, h);
 
 describe('light model', () => {
-  it('falloff is 1 at the light, smooth, and 0 at the radius', () => {
-    expect(falloff(0, 5)).toBe(1);
-    expect(falloff(5, 5)).toBe(0);
-    expect(falloff(9, 5)).toBe(0);
-    expect(falloff(2.5, 5)).toBeCloseTo(0.5625);
-    // monotone
+  it('falloff is 1 at the light, linear, and 0 at the radius', () => {
+    expect(lampFalloff(0, 5)).toBe(1);
+    expect(lampFalloff(5, 5)).toBe(0);
+    expect(lampFalloff(9, 5)).toBe(0);
+    expect(lampFalloff(2.5, 5)).toBeCloseTo(0.5);
     let prev = 2;
     for (let d = 0; d <= 5; d += 0.25) {
-      const f = falloff(d, 5);
+      const f = lampFalloff(d, 5);
       expect(f).toBeLessThanOrEqual(prev);
       prev = f;
     }
   });
 
-  it('cones: full inside the inner angle, zero outside the outer, smooth between', () => {
-    const c = makeCone(0, -1, 0, 0.6, 0.3);
-    expect(coneFactor(c, 0, -2, 0, 2)).toBe(1);
-    expect(coneFactor(c, 2, -0.1, 0, Math.hypot(2, 0.1))).toBe(0);
-    const mid = Math.tan(0.45);
-    const v = coneFactor(c, mid, -1, 0, Math.hypot(mid, 1));
-    expect(v).toBeGreaterThan(0);
-    expect(v).toBeLessThan(1);
-    expect(coneFactor(null, 1, 0, 0, 1)).toBe(1);
+  it('cones: a spot is the squared cosine inside its outer angle and nothing outside; a lamp lights the hemisphere below by the cosine', () => {
+    expect(lampCone(1, Math.cos(0.6), SPOT_EXP)).toBe(1);
+    expect(lampCone(Math.cos(0.5), Math.cos(0.6), SPOT_EXP)).toBeCloseTo(Math.cos(0.5) ** 2);
+    expect(lampCone(Math.cos(0.7), Math.cos(0.6), SPOT_EXP)).toBe(0);
+    expect(lampCone(0.5, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.5);
+    // (above a lamp: nothing)
+    expect(lampCone(-0.2, LAMP_CONE_COS, LAMP_EXP)).toBe(0);
+  });
+
+  it('known values of the one formula', () => {
+    // straight under a lamp, half its reach down: falloff 0.5, cone 1
+    expect(lampTerm(0, -3, 0, 6, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.5, 6);
+    // 3 m out and 4 m down from a lamp of reach 10: falloff 0.5, cosine 0.8
+    expect(lampTerm(3, -4, 0, 10, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBeCloseTo(0.4, 6);
+    // a spot pointing down, 30 degrees off its axis at 2 m of 8 m: 0.75 x cos(30)^2
+    const c = Math.cos(Math.PI / 6);
+    expect(lampTerm(2 * Math.sin(Math.PI / 6), -2 * c, 0, 8, 0, -1, 0, Math.cos(0.7), SPOT_EXP)).toBeCloseTo(0.75 * c * c, 6);
+    // beyond the reach and level with an omni lamp: nothing
+    expect(lampTerm(0, -8.1, 0, 8, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBe(0);
+    expect(lampTerm(2, 0.5, 0, 8, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP)).toBe(0);
+    // the moon's share: a theme's sun light against its sky fill
+    expect(moonLight({ lightLevel: 0.3, ambient: 0.3, sunIntensity: 0.16 })).toBeCloseTo(0.3 * 0.16 / 0.46, 6);
+    expect(moonLight({ ambient: 0, sunIntensity: 0 })).toBe(0);
   });
 
   it('level = ambient + contributions, clamped; off and destroyed lights give nothing', () => {
@@ -33,7 +52,7 @@ describe('light model', () => {
     const l = r.add({ x: 0, y: 3, z: 0, radius: 6, intensity: 0.8 });
     expect(lightLevelAt(r, 30, 0, 0)).toBeCloseTo(0.1);
     const under = lightLevelAt(r, 0, 1, 0);
-    expect(under).toBeGreaterThan(0.6);
+    expect(under).toBeGreaterThan(0.5);
     expect(under).toBeLessThanOrEqual(1);
     r.add({ x: 0, y: 3, z: 0.5, radius: 6, intensity: 0.8 });
     expect(lightLevelAt(r, 0, 1, 0)).toBe(1);
@@ -72,7 +91,7 @@ describe('light model', () => {
   it('body level: the brighter of chest and head; crouching under a pool keeps the head out of it', () => {
     const r = new LightRegistry();
     r.ambient = 0.05;
-    // a low, short-range lamp at head height: a standing head is in it, a crouch is not
+    // a low, short-range lamp above head height: a standing head is in it, a crouch is not
     r.add({ x: 0, y: 1.9, z: 0, radius: 0.6, intensity: 1 });
     const stand = bodyLightLevel(r, 0, 0, 0, 1.75);
     const crouch = bodyLightLevel(r, 0, 0, 0, 1.15);

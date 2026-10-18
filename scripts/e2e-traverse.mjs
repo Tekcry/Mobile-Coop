@@ -1,7 +1,7 @@
 // Attached traversal on the Proving Grounds course (north east): ladder (bottom / top entry, climb, slide, step
 // off), drainpipe to a lip, ledge grab / shimmy / corners / jump across / climb up / lower in / drop, horizontal
-// pipe; hands and feet locked on contacts (< 1 cm while gripping); speed bands; touch + keyboard reach the verbs.
-import { launch, frames, BTN, assert, touch } from './e2e-lib.mjs';
+// pipe; hands and feet locked on contacts (< 1 cm while gripping); speed bands; pad + keyboard reach the verbs.
+import { launch, frames, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -89,12 +89,12 @@ const setup = () =>
       return {
         x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw, grounded: c.grounded,
         attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, nx: a?.nx ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, v: ac.m.v,
-        held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.coverPose.traverse,
+        held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.pose.traverse,
         hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : ac.lower ? `${ac.lower.anchor.kind}:${ac.lower.entry}` : null,
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
         jump: ac.jump ? ac.jump.anchor.id : -1,
         landing: c.lastLanding, fall: c.lastFall, landT: c.landT, noise: st.noise, tkind: st.traversal.kind,
-        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null, cover: st.cover.state, coverCand: !!st.cover.candidate,
+        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null,
       };
     },
   };
@@ -160,7 +160,12 @@ try {
   assert(!i.attached && i.y > 3.5, `steps off at the top onto the tower (y ${f2(i.y)})`);
   await run(1.2);
   i = await I();
-  assert(i.held, 'weapon back in the hands after the ladder');
+  // (step 09) holstered unless aiming: off the ladder the weapon stays in its slot until aim draws it
+  assert(!i.held, 'weapon holstered after the ladder (drawn only while aiming)');
+  await run(0.8, 0, 0, [BTN.LT]);
+  i = await I();
+  assert(i.held, 'aim draws the weapon back into the hands after the ladder');
+  await run(0.8);
 
   // --- ladder from the top: turn round and step on, climb down, step off at the bottom
   await tp(26.7, 3.6, 11, -Math.PI / 2);
@@ -458,39 +463,35 @@ try {
   assert(i.attached && i.kind === 'ladder', 'keyboard E climbs onto the ladder');
   await runOff(8, 0, -1);
 
-  // --- touch: the prompt shows the grab, the action button does it (3.2.0)
-  // a touch player: no pad (the layer switches to touch)
+  // --- keyboard at a ledge, live loop: the prompt shows the grab, E does it, C lets go (was the touch buttons, 3.2.0)
+  // a keyboard player: no pad
   await page.evaluate(() => { window.__pad.disconnect(); });
   await tp(25.45, 0, 16, Math.PI / 2);
   await page.evaluate(() => window.__app.loop.stepHeadless(0.4, 120));
   await page.evaluate(() => { window.__app.loop.manual = false; });
   await frames(page, 6);
-  /** Tap a world prompt where it is drawn right now (retrying across frames); returns whether one was there. */
-  const tapPrompt = async (sel, done) => {
-    for (let k = 0; k < 8; k++) {
-      const b = await page.evaluate((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; }, sel);
-      if (b) {
-        await page.touchscreen.tap(b.x, b.y);
-        await page.waitForTimeout(700);
-        if (await done()) return true;
-      } else await frames(page, 2);
+  /** Press a key, retrying across frames, until `done` (at most 0.7 s after each press); returns whether it happened. */
+  const pressUntil = async (code, done) => {
+    for (let k = 0; k < 4; k++) {
+      await page.keyboard.press(code);
+      for (let w = 0; w < 18 && !(await done()); w++) await page.waitForTimeout(40);
+      if (await done()) return true;
     }
     return false;
   };
   const attachedNow = () => page.evaluate(() => window.__tr.st().traversal.attachCtl.active);
-  await page.touchscreen.tap(640, 60);
   await frames(page, 4);
-  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the grab prompt shows on the ledge');
-  // (a cover face there too: the stick pushed at the wall picks the grab, standing still would take cover)
-  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 1));
+  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'keyboard: the grab prompt shows on the ledge');
+  // (the stick pushed at the wall picks the grab)
+  await page.evaluate(() => window.__app.input.state.setMove('e2e-test', 0, 1));
   await frames(page, 4);
-  assert(await tapPrompt('.tc-action', attachedNow), 'touch: the action button grabs the ledge (stick pushed at it)');
-  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 0));
+  assert(await pressUntil('KeyE', attachedNow), 'keyboard: E grabs the ledge (move pushed at it)');
+  await page.evaluate(() => window.__app.input.state.setMove('e2e-test', 0, 0));
   i = await I();
-  assert(i.kind === 'ledge', 'touch: hanging from the ledge');
-  assert(await tapPrompt('.tc-crouch', async () => !(await attachedNow())), 'touch: the crouch button lets go');
+  assert(i.kind === 'ledge', 'keyboard: hanging from the ledge');
+  assert(await pressUntil('KeyC', async () => !(await attachedNow())), 'keyboard: C (crouch) lets go');
   i = await I();
-  assert(!i.attached, 'touch: crouch lets go');
+  assert(!i.attached, 'keyboard: crouch lets go');
 
   // --- a grate kicked in: quick and loud (fresh match, so the grate is closed again)
   await page.reload();
@@ -502,24 +503,20 @@ try {
   await page.evaluate(() => window.__pad.connect());
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
-  // touch: holding the action button at the vent prompt unscrews (progress shows), letting go early stops it
+  // keyboard: holding E at the vent prompt unscrews (progress shows), letting go early stops it (was the touch action button)
   await page.evaluate(() => { window.__app.loop.manual = false; window.__pad.disconnect(); });
   await frames(page, 6);
-  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the vent prompt is on screen');
-  // (a touch anywhere switches to the touch layer)
-  await page.touchscreen.tap(640, 60);
-  await frames(page, 4);
-  const vb = await page.evaluate(() => { const r = document.querySelector('.tc-action')?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; });
-  await touch(page, 'touchStart', [{ x: vb.x, y: vb.y, id: 7 }]);
+  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'keyboard: the vent prompt is on screen');
+  await page.keyboard.down('KeyE');
   let held = -1;
   for (let k = 0; k < 40 && held < 0.2; k++) {
     await frames(page, 2);
     held = await page.evaluate(() => window.__tr.st().traversal.attachCtl.vent?.progress ?? -1);
   }
-  await touch(page, 'touchEnd', []);
+  await page.keyboard.up('KeyE');
   await frames(page, 4);
   const after = await page.evaluate(() => ({ vent: window.__tr.st().traversal.attachCtl.vent, open: window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`) }));
-  assert(held > 0.15 && !after.vent && !after.open, `touch: holding the action button at a vent unscrews (${f2(held)}), letting go early stops it`);
+  assert(held > 0.15 && !after.vent && !after.open, `keyboard: holding E at a vent unscrews (${f2(held)}), letting go early stops it`);
   await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);

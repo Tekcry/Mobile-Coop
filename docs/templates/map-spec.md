@@ -50,7 +50,7 @@ Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building,
 10. Checks: `npm run check`; e2e after a build, single suites with `npm run e2e -- <suite>`.
 
 ## Building brief (fill)
-- Building type and era: <e.g. 1934 telephone exchange>
+- Building type and era: <e.g. 2021 colocation data centre>
 - Original purpose and how it worked: <...>
 - Present-day use and who is there tonight: <...>
 - Site: <street, neighbours, yard, lane, footprint size>

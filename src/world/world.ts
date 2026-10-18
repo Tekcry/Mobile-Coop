@@ -4,6 +4,8 @@ import {
   Color3,
   CreateBox,
   CreateCylinder,
+  CreatePlane,
+  PBRMaterial,
   Material,
   Matrix,
   Quaternion,
@@ -22,6 +24,7 @@ import {
 } from '../core/babylon';
 import { enablePhysics } from '../physics/havok';
 import { LevelBuilder, type BuiltLevel } from './levelBuilder';
+import { dressingOn } from './detailPass';
 import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
@@ -39,8 +42,10 @@ import { VoxelWorld } from '../voxel/voxelWorld';
 import { VOXEL_VERSION } from '../voxel/levelVoxels';
 import { packShapes } from '../voxel/shapes';
 import { flags } from '../core/flags';
-import { BakedLamps, bakedLights } from './bakedLamps';
-import { bakeLevelLamps, LAMP_VERSION } from '../voxel/lampJobs';
+import { BakedLamps } from './bakedLamps';
+import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
+import { LightField } from './lightField';
+import { moonLight } from './lampMath';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -49,8 +54,6 @@ export interface WorldOptions {
   seed: number;
   /** `?gfx=min` (tests): the 2.x standard materials (no PBR, no surface textures) - cheap under software GL. */
   cheap?: boolean;
-  /** 3.3 phones: the baked lamps mixed into one light volume (`BakedLamps` volume mode). */
-  lampVolume?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -110,6 +113,8 @@ export class World {
   readonly lightRig: LightRig;
   /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, maps without voxels). */
   lamps: BakedLamps | null = null;
+  /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
+  readonly lightField: LightField;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
@@ -129,6 +134,8 @@ export class World {
     /** The level's voxels (3.0; null: blockout boxes): the structure layer, then the fine layer. */
     readonly voxels: VoxelWorld | null = null,
     readonly voxelsFine: VoxelWorld | null = null,
+    /** 3.6: the canonical light bake (lamp and moon visibility, ambient grid). */
+    readonly lightBake: LightBake | null = null,
   ) {
     this.surfaces = atlas;
     const th = map.theme;
@@ -191,9 +198,16 @@ export class World {
     this.probe = probe;
     this.breakables = new Breakables(scene, level.anchors);
     this.doors = new Doors(scene, level.anchors);
+    // (3.6: flashlights draw their whole radius and their shadow maps stop them - at closed doors too)
+    if (this.doors.leafMesh) this.lightRig.addCaster(this.doors.leafMesh);
+    // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
+    this.lightField = new LightField(lightBake, level.lights, this.doors.list);
   }
 
-  static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
+  static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
+    // `?fullbright=1` (hand checks): the same map under a day theme, with its own bake and voxel cache keys. Nothing changes without it.
+    const map: MapDef = flags.fullbright ? { ...mapIn, theme: { ...mapIn.theme, lightLevel: 0.95, ambient: 0.9, sunIntensity: 0.5 } } : mapIn;
+    const bakeId = flags.fullbright ? `${map.id}:fullbright` : map.id;
     const scene = new Scene(engine);
     scene.skipPointerMovePicking = true;
     scene.autoClear = true;
@@ -204,44 +218,71 @@ export class World {
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map), voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
-    let lamps: { baked: ReturnType<typeof bakedLights>; r: Awaited<ReturnType<typeof bakeLevelLamps>>; lo: [number, number, number]; hi: [number, number, number]; ms: number } | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
-      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
+      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}${flags.fullbright ? ":fb" : ""}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
       // GI (Epic): the lamps' bounce light per circuit, baked with the sky
       const gi = vo.gi && atlas && level.lights.lights.length ? giLights(level.lights) : null;
       const giKey = gi ? `:gi${contentHash(gi.lights, '')}` : '';
       voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
       if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
-      // 3.2 baked lamps: every fixed light's visibility through every rendered layer (not on the cheap test path)
-      const baked = !opts.cheap && flags.baked && level.lights.lights.length ? bakedLights(level.lights) : null;
-      if (baked && baked.ids.length) {
-        const a = packShapes(lv.shapes);
-        const b = lv.fine ? packShapes(lv.fine.shapes) : new Float32Array(0);
-        const shapes = new Float32Array(a.length + b.length);
-        shapes.set(a);
-        shapes.set(b, a.length);
-        const lo: [number, number, number] = [lv.origin[0], lv.origin[1], lv.origin[2]];
-        const hi: [number, number, number] = [lv.origin[0] + lv.dims[0] * lv.size, lv.origin[1] + lv.dims[1] * lv.size, lv.origin[2] + lv.dims[2] * lv.size];
-        const lampKey = `lamps:${map.id}:${opts.seed}:v${LAMP_VERSION}:${contentHash(shapes, '')}:${contentHash(baked.lights, '')}`;
-        const t0 = performance.now();
-        lamps = { baked, r: await bakeLevelLamps(shapes, baked.lights, lo, hi, lampKey), lo, hi, ms: performance.now() - t0 };
-      }
     }
-    const w = new World(scene, map, level, layout, atlas, voxels, fine);
-    if (lamps) {
-      // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi, opts.lampVolume ? { floorY: 0 } : null);
-      w.lamps.bakeMs = lamps.ms;
+    // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
+    // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
+    level.lights.ambient = map.theme.lightLevel ?? 0.75;
+    const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
+    const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
+    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
+    if (bake.lamps && flags.baked && vo && level.voxels && !opts.cheap) {
+      // 3.6: the baked moon and closed doors (the voxels keep the sky bake's fill: Michael, 2026-10-09). Step 4b: the
+      // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props) in
+      // place of the hemisphere, which lit them as if under open sky indoors.
+      const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight });
+      w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
+      w.useBakedMoon();
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
+  }
+
+  /**
+   * Tests (3.6 Step 4b, the brightness probes): a matte 50% grey card (display grey) at a point, its face towards
+   * (nx, ny, nz), in the material the look lights (standard on the cheap path, else PBR) -
+   * the lamp plugin attaches to it as to any surface. Not a shadow caster; gameplay never sees it.
+   */
+  addLightProbe(x: number, y: number, z: number, nx: number, ny: number, nz: number, size = 0.3): Mesh {
+    const m = CreatePlane('lightProbe', { size, sideOrientation: 2 }, this.scene);
+    m.position.set(x, y, z);
+    // (a plane's front faces -z: look along -n)
+    m.lookAt(new Vector3(x - nx, y - ny, z - nz));
+    m.isPickable = false;
+    if (!this.surfaces) {
+      const mat = new StandardMaterial('lightProbe', this.scene);
+      mat.diffuseColor = new Color3(0.5, 0.5, 0.5);
+      mat.specularColor = Color3.Black();
+      m.material = mat;
+    } else {
+      const mat = new PBRMaterial('lightProbe', this.scene);
+      const g = Math.pow(0.5, 2.2);
+      mat.albedoColor = new Color3(g, g, g);
+      mat.metallic = 0;
+      mat.roughness = 1;
+      m.material = mat;
+    }
+    return m;
+  }
+
+  /** What the canonical light bake is made of (tests compare it across renderers; computed on demand). */
+  lightInfo(): { shapes: string; lampKey: string | null; moonKey: string | null; hash: string; ms: number; lights: number; lampBytes: number; moonCells: number } {
+    const b = this.lightBake;
+    return { shapes: this.level.light.hash, lampKey: b?.lampKey ?? null, moonKey: b?.moonKey ?? null, hash: b ? lightBakeHash(b) : '', ms: b?.ms ?? 0, lights: b?.lamps?.baked.ids.length ?? 0, lampBytes: b?.lamps?.r.vis.length ?? 0, moonCells: b?.moon?.vis.length ?? 0 };
   }
 
   /** The voxel layers present (structure, fine). */
@@ -291,6 +332,19 @@ export class World {
     if (same) return;
     list.length = 0;
     for (let i = 0; i < tmp.length; i++) list.push(tmp[i]!);
+  }
+
+  /** 3.6: static moon shadows come from the bake (`BakedLamps` multiplies the sun by the moon's visibility): the
+   *  cascades draw moving casters only, and none at all where they drew only the level (`ShadowSpec.staticSun`). */
+  private bakedMoon = false;
+
+  /** Switch to the baked moon (desktop with baked lamps). */
+  private useBakedMoon(): void {
+    this.bakedMoon = true;
+    this.sunStatic.length = 0;
+    this.voxelSun.length = 0;
+    this.sunT = 0;
+    this.sunSpec = '';
   }
 
   /** The voxel meshes casting shadows (Epic; below it the blockout proxy stands in). */
@@ -353,7 +407,7 @@ export class World {
       if (i >= 0) this.sunStatic.splice(i, 1);
     }
     for (const m of on) this.lightRig.addCaster(m);
-    for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
+    if (!this.bakedMoon) for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
     this.sunT = 0;
   }
 
@@ -427,7 +481,7 @@ export class World {
     const shadowKey = JSON.stringify(q.shadow);
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
-    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, plain: q.lite }, rebuildShadows);
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
     if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
@@ -448,8 +502,8 @@ export class World {
 
   /**
    * Frozen materials re-read their whole setup (lights, shadow maps, the post stack's image processing) for two frames,
-   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: on the iPhone a rebuilt stack
-   * left every frame ~4x slower until this ran).
+   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: a rebuilt stack left every
+   * frame ~4x slower until this ran).
    */
   refreshMaterials(): void {
     const frozen: Material[] = [];
@@ -485,12 +539,14 @@ export class World {
   }
 
   private setSunShadows(spec: ShadowSpec): void {
-    const key = spec.sun ? `${spec.cascades}:${spec.sunSize}:${spec.soft}` : 'off';
+    // (3.6: with the baked moon, a level-only moon - Low - has nothing left to draw)
+    const on = spec.sun && !(this.bakedMoon && spec.staticSun);
+    const key = on ? `${spec.cascades}:${spec.sunSize}:${spec.soft}` : 'off';
     if (key === this.sunSpec) return;
     this.sunSpec = key;
     this.shadow?.dispose();
     this.shadow = null;
-    if (!spec.sun) {
+    if (!on) {
       this.sun.shadowEnabled = false;
       return;
     }

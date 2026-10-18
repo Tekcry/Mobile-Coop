@@ -1,10 +1,12 @@
 {
   "name": "mobile-coop",
   "private": true,
-  "version": "3.4.0",
+  "version": "4.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "editor": "vite --port 5199 --open /editor.html",
+    "e2e:editor": "node scripts/e2e-editor.mjs",
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "vite preview --host",
@@ -12,7 +14,17 @@
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
-    "check": "npm run lint && npm test && npm run build"
+    "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
+    "e2e:serial": "node scripts/run-e2e.mjs --serial",
+    "e2e:quick": "node scripts/run-e2e.mjs --quick",
+    "check": "npm run lint && npm test && npm run build",
+    "music:fetch": "node scripts/music/fetch-samples.mjs",
+    "music:render": "node scripts/music/render.mjs",
+    "music:orch": "node scripts/music/render-orch.mjs",
+    "sfx:fetch": "node scripts/sfx/fetch-foley.mjs",
+    "sfx:render": "node scripts/sfx/render-foley.mjs",
+    "sfx:fetch-weapons": "node scripts/sfx/fetch-weapons.mjs",
+    "sfx:render-weapons": "node scripts/sfx/render-weapons.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

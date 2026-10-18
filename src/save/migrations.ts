@@ -16,6 +16,33 @@ type Migration = (s: Raw) => Raw;
 
 const isObj = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/**
+ * The guns deleted with the CT kit (G76 / G115), each to the kept gun of its slot: sidearms to the suppressed pistol,
+ * long guns to the rifle. Literal ids: the deleted guns are no longer `WeaponId`s.
+ */
+export const DELETED_GUNS: Readonly<Record<string, 'rifle' | 'pistolSd'>> = {
+  pistol: 'pistolSd',
+  fiveseven: 'pistolSd',
+  smg: 'rifle',
+  shotgun: 'rifle',
+  sniper: 'rifle',
+  vector: 'rifle',
+  p90: 'rifle',
+  ak: 'rifle',
+  tavor: 'rifle',
+  semiShotgun: 'rifle',
+  breacher: 'rifle',
+  dmr: 'rifle',
+  crossbow: 'rifle',
+  lmg: 'rifle',
+};
+const gunUnlock = (u: unknown): boolean => {
+  if (typeof u !== 'string') return false;
+  if (u === 'att:lethalBolts') return true;
+  const m = /^(?:weapon|camo):([A-Za-z0-9]+)/.exec(u);
+  return !!m && m[1]! in DELETED_GUNS;
+};
+
 export const MIGRATIONS: Record<number, Migration> = {
   1: (s) => {
     const ups = isObj(s.upgrades) ? s.upgrades : {};
@@ -71,16 +98,69 @@ export const MIGRATIONS: Record<number, Migration> = {
   // v4 -> v5: Infiltration mission records (none yet)
   4: (s) => ({ ...s, version: 5, missions: isObj(s.missions) ? s.missions : {} }),
   // v5 -> v6: suit, HQ upgrades, challenges, loadout presets (issued kit; the 1.x weapons keep their ids, now the
-  // P45 / MP5 / 552 / M870 / M700, so unlocks and upgrades carry over as they are)
+  // pistol / smg / rifle / shotgun / sniper ids, so unlocks and upgrades carry over as they are)
   5: (s) => ({ ...s, version: 6 }),
-  // v6 -> v7: the 9mm SD is issued and is the primary of the issued kit (a loadout or preset still on the old
-  // issue, 552 + P45, moves to 9mm SD + 552; chosen kit stays)
+  // v6 -> v7: the suppressed pistol (pistolSd) is issued and is the primary of the issued kit (a loadout or preset still on the old
+  // issue, rifle + pistol, moves to pistolSd + rifle; chosen kit stays)
   6: (s) => {
     const issue = (p: unknown): boolean => isObj(p) && p.primary === 'rifle' && p.secondary === 'pistol';
     const sd = (p: Raw): Raw => ({ ...p, primary: 'pistolSd', secondary: 'rifle' });
     const loadout = issue(s.loadout) ? sd(s.loadout as Raw) : s.loadout;
     const presets = Array.isArray(s.presets) ? s.presets.map((p, i) => (i < 2 && issue(p) ? sd(p as Raw) : p)) : s.presets;
     return { ...s, version: 7, loadout, presets };
+  },
+  // v7 -> v8: the style tracker and its cash, sonar and Mark & Execute are gone: mission records lose
+  // ghost / panther / assault, HQ loses sonar / marks (spent credits are not refunded), challenges lose executes
+  7: (s) => {
+    const missions: Raw = {};
+    if (isObj(s.missions)) {
+      for (const [id, r] of Object.entries(s.missions)) {
+        if (!isObj(r)) {
+          missions[id] = r;
+          continue;
+        }
+        const { ghost: _g, panther: _p, assault: _a, ...rest } = r;
+        missions[id] = rest;
+      }
+    }
+    let hq = s.hq;
+    if (isObj(hq)) {
+      const { sonar: _s, marks: _m, ...rest } = hq;
+      hq = rest;
+    }
+    let challenges = s.challenges;
+    if (isObj(challenges)) {
+      const prog = isObj(challenges.progress) ? challenges.progress : challenges.progress;
+      let progress = prog;
+      if (isObj(prog)) {
+        const { executes: _e, ...rest } = prog;
+        progress = rest;
+      }
+      const done = Array.isArray(challenges.done) ? challenges.done.filter((d) => d !== 'executes') : challenges.done;
+      challenges = { ...challenges, progress, done };
+    }
+    return { ...s, version: 8, missions: 'missions' in s ? missions : s.missions, hq, challenges };
+  },
+  // v8 -> v9: emotes are gone (DECISIONS G24 / G116): the equipped slots and every owned `emote:` unlock are dropped.
+  // The guns outside the CT kit are gone (G76 / G115): a deleted gun in the loadout or a preset becomes the kept gun
+  // of its slot (`DELETED_GUNS`), its progress entry and its unlocks (`weapon:`, its mastery `camo:<gun>:` ids, the
+  // crossbow's `att:lethalBolts`) are dropped. Spent credits are not refunded.
+  // The tri-rotor drone is gone (G7 / G115): a preset's `drone` gadget is dropped (the sanitizer gives the preset's default).
+  8: (s) => {
+    const { emotes: _e, ...rest } = s;
+    const unlocks = Array.isArray(s.unlocks) ? s.unlocks.filter((u) => !(typeof u === 'string' && u.startsWith('emote:')) && !gunUnlock(u)) : s.unlocks;
+    const gun = (w: unknown): unknown => (typeof w === 'string' && w in DELETED_GUNS ? DELETED_GUNS[w] : w);
+    const kit = (p: unknown): unknown => (isObj(p) ? { ...p, primary: gun(p.primary), secondary: gun(p.secondary) } : p);
+    const preset = (p: unknown): unknown => {
+      const k = kit(p);
+      if (!isObj(k) || k.gadget !== 'drone') return k;
+      const { gadget: _g, ...rest } = k;
+      return rest;
+    };
+    let weapons = s.weapons;
+    if (isObj(weapons)) weapons = Object.fromEntries(Object.entries(weapons).filter(([w]) => !(w in DELETED_GUNS)));
+    const presets = Array.isArray(s.presets) ? s.presets.map(preset) : s.presets;
+    return { ...rest, version: 9, unlocks, weapons, loadout: kit(s.loadout), presets };
   },
 };
 

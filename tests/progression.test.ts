@@ -34,19 +34,19 @@ describe('levels', () => {
 });
 
 describe('rewards', () => {
-  const s = emptyStats('wave', 'depot');
+  const s = emptyStats('mission', 'depot');
   s.byKind = { ...emptyKinds(), grunt: 10, runner: 4, heavy: 1 };
   s.kills = 15;
   s.headshots = 3;
-  s.waves = 3;
+  s.objectives = 3;
   s.shots = 100;
   s.hits = 50;
-  it('sums kill, headshot, wave and accuracy rewards', () => {
+  it('sums kill, headshot, objective and accuracy rewards', () => {
     const r = computeRewards(s, 'normal');
     const kills = 10 * 100 + 4 * 80 + 260;
     expect(r.lines.find((l) => l.label === 'Kills')?.xp).toBe(kills);
     expect(r.lines.find((l) => l.label === 'Headshots')?.xp).toBe(75);
-    expect(r.lines.find((l) => l.label.startsWith('Waves'))?.xp).toBe(150 * 3 + 25 * 9);
+    expect(r.lines.find((l) => l.label.startsWith('Objectives'))?.xp).toBe(300 * 3);
     expect(r.lines.some((l) => l.label.startsWith('Accuracy'))).toBe(true);
     expect(r.xp).toBe(r.lines.reduce((a, l) => a + l.xp, 0));
     expect(r.credits).toBeGreaterThan(0);
@@ -79,7 +79,7 @@ describe('upgrade trees', () => {
   const ups = { damage: 0, magazine: 0, recoil: 0, reload: 0 };
   it('costs rise per level and per weapon tier', () => {
     expect(upgradeCost('rifle', 1)).toBeGreaterThan(upgradeCost('rifle', 0));
-    expect(upgradeCost('sniper', 2)).toBeGreaterThan(upgradeCost('pistol', 2));
+    expect(upgradeCost('rifle', 2)).toBeGreaterThan(upgradeCost('pistolSd', 2));
     expect(upgradeCost('rifle', 0) % 10).toBe(0);
   });
   it('gates by player level and credits, stops at max', () => {
@@ -96,14 +96,14 @@ describe('unlock tables', () => {
     expect(new Set(UNLOCKS.map((u) => u.id)).size).toBe(UNLOCKS.length);
   });
   it('states: locked by level, buyable when met, owned', () => {
-    const sniper = unlockById('weapon:sniper')!;
-    expect(unlockState(sniper, ctx(1))).toBe('locked');
-    expect(unlockState(sniper, ctx(6))).toBe('buyable');
-    expect(unlockState(sniper, ctx(6, ['weapon:sniper']))).toBe('owned');
-    expect(describeReq(sniper)).toMatch(/Level 6/);
+    const scope = unlockById('att:scope4x')!;
+    expect(unlockState(scope, ctx(1))).toBe('locked');
+    expect(unlockState(scope, ctx(12))).toBe('buyable');
+    expect(unlockState(scope, ctx(12, ['att:scope4x']))).toBe('owned');
+    expect(describeReq(scope)).toMatch(/Level 12/);
   });
   it('mastery requirements', () => {
-    const item = { id: 'camo:test', kind: 'camo' as const, name: 'T', req: { mastery: { weapon: 'smg' as const, level: 2 } } };
+    const item = { id: 'camo:test', kind: 'camo' as const, name: 'T', req: { mastery: { weapon: 'rifle' as const, level: 2 } } };
     expect(unlockState(item, { ...ctx(50), mastery: () => 1 })).toBe('locked');
     expect(unlockState(item, { ...ctx(50), mastery: () => 2 })).toBe('free');
   });
@@ -112,7 +112,7 @@ describe('unlock tables', () => {
 describe('attachments', () => {
   it('one per slot and only compatible ones', () => {
     expect(sanitizeAttachments('rifle', ['reddot', 'scope4x', 'grip', 'nope'])).toEqual(['reddot', 'grip']);
-    expect(sanitizeAttachments('pistol', ['scope4x', 'grip', 'laser'])).toEqual(['laser']);
+    expect(sanitizeAttachments('pistolSd', ['scope4x', 'grip', 'laser'])).toEqual(['laser']);
   });
   it('modifiers multiply', () => {
     const m = combinedMods(['comp', 'grip']);
@@ -127,10 +127,10 @@ import { applySession, buyUnlock, buyUpgrade, loadoutEntries, setAttachment, set
 describe('profile operations', () => {
   it('applySession awards xp/credits, level-ups, mastery and lifetime stats', () => {
     const s = defaultSave();
-    const st = emptyStats('wave', 'depot');
+    const st = emptyStats('mission', 'depot');
     st.byKind = { ...emptyKinds(), grunt: 12, runner: 0, heavy: 0 };
     st.kills = 12;
-    st.waves = 2;
+    st.objectives = 2;
     st.weaponKills = { rifle: 12 };
     const credits0 = s.profile.credits;
     const r = applySession(s, st, 'normal');
@@ -139,19 +139,20 @@ describe('profile operations', () => {
     expect(s.profile.credits).toBe(credits0 + r.rewards.credits + r.levelUps * LEVEL_UP_CREDITS);
     expect(r.masteryUps).toEqual([{ weapon: 'rifle', level: 1 }]);
     expect(s.profile.stats.matches).toBe(1);
-    expect(s.profile.stats.bestWave).toBe(2);
-    // smg becomes buyable at level 2
-    expect(r.nowBuyable.some((u) => u.id === 'weapon:smg')).toBe(true);
+    // the old Wave record stays readable in the save; nothing writes it any more
+    expect(s.profile.stats.bestWave).toBe(0);
+    // the red dot becomes buyable at level 2
+    expect(r.nowBuyable.some((u) => u.id === 'att:reddot')).toBe(true);
   });
   it('buying spends credits and respects requirements', () => {
     const s = defaultSave();
-    expect(buyUnlock(s, 'weapon:sniper')).toMatchObject({ ok: false });
+    expect(buyUnlock(s, 'att:scope4x')).toMatchObject({ ok: false });
     s.profile.xp = 1e6;
-    s.profile.credits = 2500;
-    expect(buyUnlock(s, 'weapon:sniper')).toMatchObject({ ok: true });
-    expect(s.profile.credits).toBe(500);
-    expect(buyUnlock(s, 'weapon:sniper')).toMatchObject({ ok: false, reason: 'Already owned' });
-    expect(buyUnlock(s, 'weapon:shotgun')).toMatchObject({ ok: false, reason: 'Not enough credits' });
+    s.profile.credits = 1500;
+    expect(buyUnlock(s, 'att:scope4x')).toMatchObject({ ok: true });
+    expect(s.profile.credits).toBe(600);
+    expect(buyUnlock(s, 'att:scope4x')).toMatchObject({ ok: false, reason: 'Already owned' });
+    expect(buyUnlock(s, 'att:suppressor')).toMatchObject({ ok: false, reason: 'Not enough credits' });
   });
   it('upgrades and attachments feed into the match loadout', () => {
     const s = defaultSave();
@@ -162,15 +163,13 @@ describe('profile operations', () => {
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(false); // not owned
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
-    const lo = loadoutEntries(s, 'wave');
+    const lo = loadoutEntries(s, 'mission', true);
     expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
     expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
-    expect(buyUpgrade(s, 'smg', 'damage').ok).toBe(false); // smg locked
   });
   it('setLoadout swaps instead of duplicating', () => {
     const s = defaultSave();
-    expect(setLoadout(s, 'primary', 'pistol')).toBe(true);
-    expect(s.loadout).toEqual({ primary: 'pistol', secondary: 'rifle' });
-    expect(setLoadout(s, 'primary', 'sniper')).toBe(false);
+    expect(setLoadout(s, 'primary', 'rifle')).toBe(true);
+    expect(s.loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
   });
 });

@@ -50,8 +50,8 @@ const warehouse: Module = (b, cx, cz, rng, props) => {
   b.floor(cx, cz, w, d, CONCRETE, 0.02, 0.04);
   b.pillar(cx - 3, cz, 0.35, h, WALL_DARK);
   b.pillar(cx + 3, cz, 0.35, h, WALL_DARK);
-  b.lowCover(cx - 4.5, cz + 3, 3, WALL_DARK, Math.PI / 2);
-  b.lowCover(cx + 4, cz - 3, 3, WALL_DARK, Math.PI / 2);
+  b.lowWall(cx - 4.5, cz + 3, 3, WALL_DARK, Math.PI / 2);
+  b.lowWall(cx + 4, cz - 3, 3, WALL_DARK, Math.PI / 2);
   // stores: a tall shelf on the north wall, a workbench on the south wall, a pallet stack in the south-west corner
   b.block(cx + 5.6, z1 - 0.5, 2.0, 2.2, 0.6, '#6b5b45');
   b.block(cx + 4.5, z0 + 0.6, 2.0, 0.95, 0.8, WOOD);
@@ -80,7 +80,7 @@ const containerYard: Module = (b, cx, cz, rng, _props, deco) => {
       else single.push({ x, z, yaw, col, row });
     }
   }
-  b.lowCover(cx, cz, 2.4, WALL_DARK, 0);
+  b.lowWall(cx, cz, 2.4, WALL_DARK, 0);
   // a ladder up the outer end of one single container (middle row first): overwatch, and a sprint-hop
   // across the centre lane to the facing row
   single.sort((p, q) => Math.abs(p.row) - Math.abs(q.row));
@@ -114,8 +114,8 @@ const ruins: Module = (b, cx, cz, rng, props, deco) => {
     const x = cx + randRange(rng, -6.5, 6.5);
     const z = cz + randRange(rng, -6.5, 6.5);
     const yaw = rng() < 0.5 ? 0 : Math.PI / 2;
-    if (rng() < 0.55) b.lowCover(x, z, randRange(rng, 2, 4), WALL, yaw);
-    else b.highCover(x, z, randRange(rng, 2.5, 4), WALL_DARK, yaw);
+    if (rng() < 0.55) b.lowWall(x, z, randRange(rng, 2, 4), WALL, yaw);
+    else b.highWall(x, z, randRange(rng, 2.5, 4), WALL_DARK, yaw);
   }
   for (let i = 0; i < 3; i++) b.pillar(cx + randRange(rng, -7, 7), cz + randRange(rng, -7, 7), 0.4, randRange(rng, 1.2, 3.5), WALL);
   props.push({ kind: 'explosiveBarrel', pos: new Vector3(cx + randRange(rng, -4, 4), 0, cz + randRange(rng, -4, 4)) });
@@ -127,11 +127,11 @@ const plaza: Module = (b, cx, cz, rng, props) => {
   b.block(cx, cz, 5, 1.2, 5, WALL_DARK);
   b.ramp(cx - 4.6, cz, 2.4, 4.2, 1.2, WALL, Math.PI / 2);
   b.stairs(cx + 4.6, cz, 2.4, 4.2, 1.2, 5, WALL, -Math.PI / 2);
-  b.lowCover(cx, cz + 1.9, 2.2, WALL, Math.PI / 2, 0.95, 0.3);
-  b.lowCover(cx - 6, cz - 6, 2.5, WALL, 0.6);
-  b.lowCover(cx + 6, cz + 6, 2.5, WALL, 0.6);
-  b.lowCover(cx + 6, cz - 6, 2.5, WALL, -0.6);
-  b.lowCover(cx - 6, cz + 6, 2.5, WALL, -0.6);
+  b.lowWall(cx, cz + 1.9, 2.2, WALL, Math.PI / 2, 0.95, 0.3);
+  b.lowWall(cx - 6, cz - 6, 2.5, WALL, 0.6);
+  b.lowWall(cx + 6, cz + 6, 2.5, WALL, 0.6);
+  b.lowWall(cx + 6, cz - 6, 2.5, WALL, -0.6);
+  b.lowWall(cx - 6, cz + 6, 2.5, WALL, -0.6);
   props.push({ kind: 'smallCrate', pos: new Vector3(cx + randRange(rng, -3, 3), 0, cz - 6.5) });
   // a watchtower on the north side of the square: overwatch on the cache, reached by a ladder (railing gap)
   const tz = cz + 6.2;
@@ -147,7 +147,7 @@ export const dustDepot: MapDef = {
   id: 'depot',
   name: 'Dust Depot',
   description: 'Sun-baked supply depot: warehouses, container stacks and ruins.',
-  modes: ['wave', 'mission', 'tdm', 'ffa'],
+  modes: ['mission'],
   theme: {
     sky: '#7fb0d8',
     horizon: '#e8dcc4',
@@ -186,10 +186,10 @@ export const dustDepot: MapDef = {
       }
     }
     // spawn corner cover + extraction pad surroundings
-    b.lowCover(-S - 3, -S + 4, 3, WALL);
-    b.lowCover(-S + 4, -S - 2, 3, WALL, Math.PI / 2);
-    b.highCover(S - 6, S, 4, WALL_DARK);
-    b.highCover(S, S - 6, 4, WALL_DARK, Math.PI / 2);
+    b.lowWall(-S - 3, -S + 4, 3, WALL);
+    b.lowWall(-S + 4, -S - 2, 3, WALL, Math.PI / 2);
+    b.highWall(S - 6, S, 4, WALL_DARK);
+    b.highWall(S, S - 6, 4, WALL_DARK, Math.PI / 2);
     // motor pool in the spawn corner: a cargo truck under camouflage netting (shade beside it), fuel drums
     b.block(-29, -27.5, 2.3, 1.2, 6.5, OLIVE);
     b.block(-29, -28.6, 2.4, 1.8, 4.2, '#5e6b45', 1.2).block(-29, -25.4, 2.3, 1.3, 1.8, OLIVE, 1.2);
@@ -203,10 +203,10 @@ export const dustDepot: MapDef = {
     b.box(S + 3.2, 0.045, S + 4, 0.35, 0.01, 2.6, '#e8e2d0', 0, 0, false).box(S + 4.8, 0.045, S + 4, 0.35, 0.01, 2.6, '#e8e2d0', 0, 0, false);
     b.box(S + 4, 0.045, S + 4, 1.6, 0.01, 0.35, '#e8e2d0', 0, 0, false);
     b.pillar(30, 31, 1.2, 2.8, '#d8d2c4').pillar(32.4, 27.4, 1.2, 2.8, '#d8d2c4');
-    b.lowCover(S + 6, S - 2.5, 3, SANDBAG, Math.PI / 2, 0.9, 0.7);
+    b.lowWall(S + 6, S - 2.5, 3, SANDBAG, Math.PI / 2, 0.9, 0.7);
     // jersey barriers along the roads (low cover on the long crossings)
-    b.lowCover(12.6, -18, 2.5, CONCRETE, 0, 0.9, 0.6).lowCover(-12.6, 18, 2.5, CONCRETE, 0, 0.9, 0.6);
-    b.lowCover(16, 12.6, 2.5, CONCRETE, Math.PI / 2, 0.9, 0.6).lowCover(-18, -12.6, 2.5, CONCRETE, Math.PI / 2, 0.9, 0.6);
+    b.lowWall(12.6, -18, 2.5, CONCRETE, 0, 0.9, 0.6).lowWall(-12.6, 18, 2.5, CONCRETE, 0, 0.9, 0.6);
+    b.lowWall(16, 12.6, 2.5, CONCRETE, Math.PI / 2, 0.9, 0.6).lowWall(-18, -12.6, 2.5, CONCRETE, Math.PI / 2, 0.9, 0.6);
     // road-side clutter
     for (let i = 0; i < 6; i++) {
       const onX = rng() < 0.5;
@@ -232,11 +232,8 @@ export const dustDepot: MapDef = {
       ],
       pickups: [
         { pos: v(-S + 3, -S + 3), kind: 'ammo' },
-        { pos: v(-11, 0), kind: 'health' },
         { pos: v(11, 0), kind: 'ammo' },
-        { pos: v(0, 11), kind: 'health' },
         { pos: v(0, -11), kind: 'ammo' },
-        { pos: v(S, S - 3), kind: 'health' },
       ],
     };
   },

@@ -1,10 +1,13 @@
-import { TransformNode, Vector3, type InstancedMesh, type Scene } from '../core/babylon';
+import { TransformNode, Vector3, type InstancedMesh, type Scene, type Vector4 } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 
 /** Body sizes (m): shoulder height, body length, leg length. */
 const SHOULDER = 0.62;
 const LEG = 0.5;
 const BODY = 0.78;
+
+/** (Step 14) every dog body not yet disposed (local enemies and co-op puppets): thermal vision paints them. */
+export const LIVE_DOGS: DogModel[] = [];
 
 /**
  * The guard dog's body (procedural, smooth parts): a trotting quadruped driven by the shared enemy brain (it
@@ -21,8 +24,12 @@ export class DogModel {
   private phase = 0;
   private down = 0;
   private downTarget = 0;
-  /** World position of the head (hit volume, sonar). */
+  /** World position of the head (hit volume). */
   readonly head = new Vector3();
+  /** (Step 14) thermal vision's warmth on this body, 0..1 (render-only `pattern.w` glow). */
+  private heatK = 0;
+  /** (Step 14) seconds since it was laid down (dead): thermal cools it like a humanoid body. */
+  downAge = 0;
 
   constructor(scene: Scene, lib: PartLibrary, color: string, dark: string) {
     this.root = new TransformNode('dog', scene);
@@ -72,6 +79,7 @@ export class DogModel {
     this.tail.parent = this.body;
     this.tail.position.set(0, 0.1, -BODY * 0.48);
     add('capsule', color, this.tail, 0.06, 0.32, 0.06, 0, 0.14, -0.04, -0.5);
+    LIVE_DOGS.push(this);
   }
 
   /** Per render frame: place it, trot by speed, head up by `alert` 0..1, a bite lunge by `bite` 0..1. */
@@ -79,6 +87,7 @@ export class DogModel {
     const r = this.root;
     r.position.set(x, y, z);
     r.rotation.y = yaw;
+    if (this.downTarget > 0) this.downAge += dt;
     this.down += (this.downTarget - this.down) * Math.min(1, dt * 5);
     if (this.down > 0.01) {
       // on its side, legs out
@@ -110,6 +119,33 @@ export class DogModel {
   /** Lying down (dead / knocked out) or back up. */
   layDown(on = true): void {
     this.downTarget = on ? 1 : 0;
+    this.downAge = 0;
+  }
+
+  /** Lying down (dead) for thermal's cooling. */
+  get isDown(): boolean {
+    return this.downTarget > 0;
+  }
+
+  /** (Step 14) thermal vision's warmth (render only; nothing in gameplay reads it). Only touches buffers on a change. */
+  setHeat(k: number): void {
+    if (k === this.heatK) return;
+    this.heatK = k;
+    const parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const pt = parts[i]!.instancedBuffers?.pattern as Vector4 | undefined;
+      if (pt) pt.w = k;
+    }
+  }
+
+  get heat(): number {
+    return this.heatK;
+  }
+
+  /** (Step 14, tests) the first part's `pattern.w` (the value the shader reads). */
+  partHeat(): number {
+    const pt = this.parts[0]?.instancedBuffers?.pattern as Vector4 | undefined;
+    return pt ? pt.w : 0;
   }
 
   setVisible(on: boolean): void {
@@ -120,5 +156,7 @@ export class DogModel {
     for (const p of this.parts) p.dispose();
     this.parts.length = 0;
     this.root.dispose();
+    const li = LIVE_DOGS.indexOf(this);
+    if (li >= 0) LIVE_DOGS.splice(li, 1);
   }
 }

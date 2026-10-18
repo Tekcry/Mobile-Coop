@@ -1,7 +1,7 @@
 /**
  * Frame pacing (pure, allocation free after construction): display refresh detection, frame-time
  * percentiles and drops against the refresh budget, and a hysteresis resolution scaler for when the
- * GPU (not the CPU) misses the budget. 120 Hz phones get an 8.33 ms budget; Safari may still cap
+ * GPU (not the CPU) misses the budget. A 120 Hz display gets an 8.33 ms budget; a browser may still cap
  * requestAnimationFrame at 60 Hz, which the detector then reports.
  */
 
@@ -39,7 +39,7 @@ function quantile(src: Float32Array, n: number, scratch: Float32Array, q: number
 
 /**
  * Refresh-rate detector: the fast end (25th percentile) of the rAF intervals, skipping the first, hitchy frames - a
- * GPU-bound frame takes whole refresh periods, so slow frames say the frame rate, not the display's (3.1.9: the phone
+ * GPU-bound frame takes whole refresh periods, so slow frames say the frame rate, not the display's (3.1.9: a device
  * read 16 / 24 / 48 Hz on a 120 Hz screen in heavy matches, and the frame governor then thought every frame was on
  * time). A lower rate is only taken where frames are cheap (`allowDrop`: the menu) - a real cap (low-power mode, a
  * browser at 60) shows there; a higher one is taken anywhere.

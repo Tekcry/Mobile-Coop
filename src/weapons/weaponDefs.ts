@@ -1,25 +1,13 @@
 import raw from '../config/weapons.json';
 import grenadeRaw from '../config/grenade.json';
 
-/** The 1.x five keep their ids (now the P45 Compact, MP5 Kurz, 552 Commando, M870 Pump and M700 Bolt). */
-export type WeaponId =
-  | 'pistol'
-  | 'smg'
-  | 'rifle'
-  | 'shotgun'
-  | 'sniper'
-  | 'fiveseven'
-  | 'pistolSd'
-  | 'vector'
-  | 'p90'
-  | 'ak'
-  | 'tavor'
-  | 'semiShotgun'
-  | 'breacher'
-  | 'dmr'
-  | 'crossbow'
-  | 'lmg';
-export const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper', 'fiveseven', 'pistolSd', 'vector', 'p90', 'ak', 'tavor', 'semiShotgun', 'breacher', 'dmr', 'crossbow', 'lmg'];
+/**
+ * The CT kit (G76): the rifle (the Heron Carbine, suppressed; its sniper / shotgun / launcher attachments are a later
+ * research job) and the suppressed pistol (the Hush 9 SD, which carries the light disruptor). Every other gun was
+ * deleted in the consolidation (G115, docs/consolidation/deleted-guns.md).
+ */
+export type WeaponId = 'rifle' | 'pistolSd';
+export const WEAPON_IDS: readonly WeaponId[] = ['rifle', 'pistolSd'];
 
 export interface ModelPart {
   /** Authored as box/cyl; rendered with rounded edges (rbox/rcyl). */
@@ -75,10 +63,8 @@ export interface WeaponDef {
   foregrip: [number, number, number];
   /** Mass factor for carry and handling (1 = rifle); defaults by class (`classWeight`). */
   weight?: number;
-  /** Gunshot noise factor (integral suppressor 0.35, crossbow 0.08; default 1). */
+  /** Gunshot noise factor (integral suppressor 0.35; default 1). */
   noise?: number;
-  /** Bolts that knock out instead of killing (the crossbow, unless it mounts lethal bolts). */
-  nonLethal?: boolean;
 }
 
 export interface GrenadeDef {

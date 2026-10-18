@@ -1,8 +1,10 @@
 name: Build and deploy to GitHub Pages
 
 # The site holds the live game (default branch) at /<repo>/, the preview (dev branch) at /<repo>/preview/ and the
-# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/. A push to the default branch, or a passing
-# "Preview check" on dev / ct-movement, rebuilds them all.
+# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/ and the Kestrel map project (feature/kestrel branch)
+# at /<repo>/kestrel/. A push to the default branch, or a passing "Preview check" on dev / ct-movement / feature/kestrel,
+# rebuilds them all. Each slot is its own build, service worker and save database; the other slots are only rebuilt
+# from their own branches.
 on:
   push:
     branches: [main, master]

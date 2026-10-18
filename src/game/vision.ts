@@ -1,90 +1,99 @@
 /**
- * Goggle vision modes (pure), unit-tested. One button cycles off -> night vision -> sonar -> off.
+ * Goggle vision modes (pure), unit-tested. One button cycles off -> night -> thermal -> electro -> off (bible 5.5,
+ * step 14).
  *
- * Night vision brightens the dark (a post-process; gameplay light is unchanged: being seen still depends on
- * the light on you). Sonar pulses every `sonarPeriod` s while on, revealing enemies within `sonarRange`
- * through walls for `sonarShow` s each; it runs for `sonarMax` s, then needs `sonarCooldown` s to recharge
- * (the cycle skips it meanwhile).
+ * Every mode is rendering only: gameplay never reads it (being seen still depends on the light on you; the light
+ * meter, perception and the wire never see `VisionState`, D8). Night vision is a gain in the lighting; thermal and
+ * electro are branches of the cinematic post shader (`vk`) plus render-only emissive flags on warm bodies and
+ * electrical devices. (Step 4b fix round 3, Michael 2026-10-09) nothing fades: the goggles flip down (or up) in front
+ * of the eyes over `VISION.flip` s, and the image switches at the middle, while the housing covers the view.
  */
 
-export type VisionMode = 'off' | 'night' | 'sonar';
+export type VisionMode = 'off' | 'night' | 'thermal' | 'electro';
+
+/** The button's cycle order. */
+export const VISION_CYCLE: readonly VisionMode[] = ['off', 'night', 'thermal', 'electro'];
 
 export const VISION = {
-  sonarPeriod: 6,
-  sonarShow: 2.5,
-  sonarRange: 30,
-  /** Longest sonar run (s; three pulses) and the recharge after it. */
-  sonarMax: 18,
-  sonarCooldown: 12,
-  /** Night vision fade in / out (s). */
-  nightFade: 0.25,
+  /** The goggles flipping down / up in front of the eyes (s); the image switches at the middle. */
+  flip: 0.2,
 } as const;
 
+/** The post shader's mode index (`CinematicPost` uniform `vk`): 0 off / night, 1 thermal, 2 electro. */
+export function visionKind(m: VisionMode): number {
+  return m === 'thermal' ? 1 : m === 'electro' ? 2 : 0;
+}
+
+/** The HUD label for a mode ('' = off). */
+export function visionLabel(m: VisionMode): string {
+  return m === 'night' ? 'NV' : m === 'thermal' ? 'THERMAL' : m === 'electro' ? 'ELECTRO' : '';
+}
+
 export class VisionState {
+  /** The mode the button chose (the image follows at the middle of the flip: `shown`). */
   mode: VisionMode = 'off';
-  /** Seconds to the next sonar pulse (sonar on). */
-  private nextPulse = 0;
-  /** Seconds sonar has been on this run. */
-  private sonarT = 0;
-  /** Recharge left (s). */
-  cooldown = 0;
-  /** Seconds since the last pulse (marks fade over `sonarShow`). */
-  sincePulse = 99;
-  pulses = 0;
-  /** Night vision blend 0..1 (eased). */
+  /** The mode on screen. */
+  shown: VisionMode = 'off';
+  /** Night vision on screen (1) or not (0): no fade, it switches at the middle of the flip. */
   night = 0;
+  /** Time into the goggles' flip (s; `VISION.flip` = done), its direction (true: flipping down) and its target. */
+  private flipT: number = VISION.flip;
+  private flipDown = true;
+  private flipTo: VisionMode = 'off';
 
-  /** Sonar available (Perfectionist difficulty has none). */
-  sonarAllowed = true;
-
-  /** The vision button: off -> night -> sonar (unless recharging or not allowed) -> off. */
+  /** The vision button: off -> night -> thermal -> electro -> off. */
   cycle(): VisionMode {
-    if (this.mode === 'off') this.set('night');
-    else if (this.mode === 'night') this.set(this.cooldown > 0 || !this.sonarAllowed ? 'off' : 'sonar');
-    else this.set('off');
+    const i = VISION_CYCLE.indexOf(this.mode);
+    this.mode = VISION_CYCLE[(i + 1) % VISION_CYCLE.length]!;
     return this.mode;
   }
 
   set(m: VisionMode): void {
-    if (m === this.mode) return;
-    if (this.mode === 'sonar' && this.sonarT > 0) this.cooldown = VISION.sonarCooldown * Math.min(1, this.sonarT / VISION.sonarMax);
     this.mode = m;
-    if (m === 'sonar') {
-      this.sonarT = 0;
-      this.nextPulse = 0;
+  }
+
+  /** Goggles up at once, no flip (respawn, a new match). */
+  reset(): void {
+    this.mode = this.shown = this.flipTo = 'off';
+    this.night = 0;
+    this.flipT = VISION.flip;
+  }
+
+  /** The post shader's mode index for the image on screen. */
+  get kind(): number {
+    return visionKind(this.shown);
+  }
+
+  /** Advance the goggles' flip: each switch is one flip, the image changing at its middle. */
+  step(dt: number): void {
+    if (this.mode !== this.shown && this.flipT >= VISION.flip) {
+      this.flipT = 0;
+      this.flipTo = this.mode;
+      // off -> a mode: flip down; a mode -> off: flip up; mode -> mode: the housing passes down again
+      this.flipDown = this.mode !== 'off';
+    }
+    if (this.flipT < VISION.flip) {
+      this.flipT = Math.min(VISION.flip, this.flipT + dt);
+      if (this.flipT >= VISION.flip / 2) {
+        this.shown = this.flipTo;
+        this.night = this.shown === 'night' ? 1 : 0;
+      }
     }
   }
 
-  /** Advance; returns true when a sonar pulse goes out this step. */
-  step(dt: number): boolean {
-    this.sincePulse += dt;
-    const nt = this.mode === 'night' ? 1 : 0;
-    const k = Math.min(1, dt / VISION.nightFade);
-    this.night += Math.max(-k, Math.min(k, nt - this.night));
-    if (this.mode !== 'sonar') {
-      this.cooldown = Math.max(0, this.cooldown - dt);
-      return false;
-    }
-    this.sonarT += dt;
-    if (this.sonarT >= VISION.sonarMax) {
-      this.cooldown = VISION.sonarCooldown;
-      this.sonarT = 0;
-      this.mode = 'off';
-      return false;
-    }
-    this.nextPulse -= dt;
-    if (this.nextPulse > 0) return false;
-    this.nextPulse = VISION.sonarPeriod;
-    this.sincePulse = 0;
-    this.pulses++;
-    return true;
+  /** The flip in progress: 0..1 (1 = none). */
+  get flipPhase(): number {
+    return this.flipT / VISION.flip;
   }
 
-  /** Sonar marks' opacity 0..1 (full, then fading out over the last third of `sonarShow`). */
-  get markAlpha(): number {
-    const t = this.sincePulse;
-    if (t >= VISION.sonarShow) return 0;
-    const fade = VISION.sonarShow * 0.66;
-    return t < fade ? 1 : 1 - (t - fade) / (VISION.sonarShow - fade);
+  /**
+   * The goggles' housing across the view, as the centre of a dark band in screen height (0 bottom, 1 top): flipping
+   * down it sweeps from above the screen to below it, flipping up the other way; it covers the whole view at the middle.
+   * NaN when no flip is running.
+   */
+  get flipCentre(): number {
+    const t = this.flipPhase;
+    if (t >= 1) return NaN;
+    return this.flipDown ? 1.7 - 2.4 * t : -0.7 + 2.4 * t;
   }
 }

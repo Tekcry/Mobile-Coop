@@ -1,126 +1,51 @@
 # Night Shift - progress
 
-The single place that says where the project stands. Design authority: `docs/design-bible.md`. Updated at the end of
-every phase step.
+Where the project stands: the ordered job list (G90) and the current state. Michael's decisions: `docs/DECISIONS.md`.
+Design: `docs/design-bible.md`. Each job updates its row when it starts, opens its PR and is merged. The old Phase 0-7
+table and the phase logs are history: `docs/archive/progress-phases.md`; phase numbers survive only as chapter names.
 
-## Status
-| Phase | Name | Status | Version | Spec file |
+Every job runs as `CLAUDE.md` "Running a job" says: branch `feature/<job>` from master, folder
+`C:/NightShift/Mobile-Coop-<job>`, its docs in `docs/<job>/`, one PR to master, Michael merges.
+
+## Job list (in order, G95)
+
+| # | Job | Branch | Folder | Status |
 | --- | --- | --- | --- | --- |
-| 0 | Foundation | in progress | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | not started | 3.6.0 | (to be written by Opus) |
-| 2 | Sound | not started | 3.7.0 | (to be written) |
-| 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
-| 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
-| 4 | Mission framework | not started | 3.10.0 | (to be written) |
-| 5 | Co-op 2-4 | not started | 3.11.0 | (to be written) |
-| 6 | CT verbs for the slice | not started | 3.12.0 | (to be written) |
-| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.13.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
+| 0 | Consolidation: every branch into one 4.0.0 PR, non-CT deletions, docs rewritten to one vision (loco M26, M27) | `integrate/consolidate` | `Mobile-Coop-integrate` | In progress: merges and deletions done; docs rewrite, full e2e, version 4.0.0, PR |
+| 1 | CT co-op research: every CT co-op level's design, flow and moves (G3); settles friendly fire and heavies (G49), CT's gadget and attachment set incl. the ring airfoil and the knife (G76), Kestrel's future (G53), which movement-run ideas survive (G11) | `feature/ct-research` (name proposed) | `Mobile-Coop-ct-research` | Not started; first after the merge |
+| 2 | CT prototype: the playable CT movement, camera and verbs (`docs/locomotion/PROTOTYPE-PLAN.md` P1-P4, G4); Michael plays it and its numbers are tuned (G10); room sizes re-measured after the camera part (G54); SWAT-turn and lean-out wire fields removed (G52) | `feature/ct-prototype` | `Mobile-Coop-ct-prototype` | Not started; after the research |
 
-## Current state
-- `master`, `dev` and `ct-movement` are integrated at 3.4.0 + CT movement: `master` (3.4.0) is merged into
-  `ct-movement`; Michael promotes `ct-movement` to `dev` and `master`.
-- Phones draw the phone look: the 3.4 light renderer (plain blockout, nearest six lamps as plain lights, no shadow
-  maps, no post stack). Desktop renders lamps from the baked visibility atlas (`voxel/lampBake.ts`, `world/bakedLamps.ts`).
-- Three separate light calculations can disagree (bible 5.1): desktop baked lamps, the phone's six unshadowed lights
-  (lamps light through walls), and gameplay's analytic `LightRegistry` + one ray per light (`GameState.updateLight`).
-  Roadmap Phase 1 replaces them with one source of truth.
-- CT movement is complete (`docs/ct-movement-progress.md`): speed gears, instant stop, roll, split / wall jump, pipes,
-  rappel, fences, CT takedowns and the grab, co-op team moves, the Warehouse CT routes.
-- Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 awaiting Michael's approval; no map code; build
-  phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
-- The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
-- Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) goes behind `?legacy=1` in Phase 0 Step 4.
+Follow-ups, after the research and the prototype (one line each; their order is not fixed yet). Folder:
+`Mobile-Coop-<job>` for each.
 
-## Phase 0 log
+| Job | Branch | Status |
+| --- | --- | --- |
+| Pages preview: replace the `/preview/`, `/ct/` and `/kestrel/` slots with one slot for the job branch Michael chooses (G85); the workflows still build the retired branches | `feature/pages-preview` (proposed) | Not started; right after the merge |
+| Wall medkit stations in every map (G98): after the carried-kit deletion only Proving Grounds has a station; it heals +40, single use (ASSUMED amount, Michael to confirm against CT) | each map's job | Not started |
+| CT pad layout (G96): CT's default layout button for button; also settles the X hold (now does nothing when not aiming; a slow press loses the reload) and builds the remap cancel on Menu / Start or Esc (G22), the CT door menu (G97) and the CT grab menu (G23) | `feature/ct-pad-layout` (proposed) | Not started |
+| No aim assist (G16): `weapons/aimAssist.ts` still runs on the pad (setting default "standard"); remove it and its setting | with the pad layout job | Not started |
+| Test fixes: e2e-coop "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true); e2e-foley walk-plants threshold (known flaky since the step-22 speeds); kbm flashbang white-out reads 0.00 (pre-existing, likely the pointer-lock pause); the co-op suites made reliable, then required (G51) | `feature/test-fixes` (proposed) | Not started |
+| Perf: re-measure the `?gfx=min` budgets on the desktop test context | with the test fixes | Pending PC run |
+| Operators: `feature/operators` merges master and opens its own PR (G75); its open items stay there | `feature/operators` | Running on its own branch, not in 4.0.0 |
+| Wren integration behind a dev switch, then the weapon step (G70); body proportion fixes for every character (G72) | after Michael approves the prototype | Not started |
+| Original goggle and menu symbol (G69, "soon"); goggle on the brow when off, over the eyes when on (G73) | `feature/goggle` (proposed) | Not started |
+| Fallow bunker rebuilt on the CT moves, every jump and reach re-checked (G79), starting from Michael's walkthrough notes | `feature/bunker-walkthrough` | After the prototype |
+| Missing sounds: guards' footsteps, then ambience, then the rest (G66) | - | After the prototype |
+| Music revision: direction, briefing / results / pause music, the long menu theme (G64; AUDIO-03, AUDIO-09) | `feature/music-revision` | After the prototype (G113) |
+| Menus: the Arkham Knight style plan (G77, `docs/menu-ui/`); UI-04 to UI-10 are decided there | `feature/menu-ui-spec` | After the prototype (G113) |
+| Art guide (G113) | - | After the prototype |
+| Kestrel: decided after the research (G53); its deferred items (LEVEL-01, LEVEL-08 to LEVEL-10) wait with it | `feature/kestrel` (merged into 4.0.0) | Paused |
+| One folder per map; Kestrel and the bunker move there (G55) | - | After the merge |
+| Awake-character limit reviewed for desktop (G46; how it is set, FU-11, is open) | - | Not started |
+| After Michael merges 4.0.0: branch clean-up per `docs/locomotion/CONSOLIDATE.md` "After Michael merges" | - | Only with Michael's go-ahead |
 
-#### Step 1 report (integrate) - 2026-10-08
-- Done:
-  - Handover 0a: Exchange pause note on `feature/exchange-map` (d590117), with the Space 8 secret route and sloped duct items carried over.
-  - Handover 0b: bible, Phase 0 spec, handover, alignment spec on `ct-movement` (5be33e4).
-  - 1b: `feature/exchange-map` merged (e0bd61e). Code diff was exactly the allowed list. Old Exchange blockout gone.
-  - 1c: `origin/master` (3.4.0) merged (f017423).
-  - 1d: two e2e timing fixes (8c343a3, 6162149).
-- Conflicts (5):
-  - `src/player/player.ts` - took master's removal of the `matchFov` import (3.1.9 dropped the PvP FOV lock), kept ct's `CT`.
-  - `src/input/touchControls.ts` - button pointer role: master's rotated coordinates (`vx` / `vy`) plus ct's action-button `ctx`.
-  - `src/styles.css` - union: ct's speed gear / rocker styles, then master's bench tag, forced landscape and resolution list.
-  - `CHANGELOG.md` - master's entries as they are; ct's heading renamed `3.2.0-ct - Chaos Theory movement (ct-movement branch)`, placed after master's 3.2.0.
-  - `TESTING.md` - union, ct's sections then master's.
-  - Everything else merged cleanly. `CLAUDE.md` 3-way merge keeps both sides' edits.
-- Decisions:
-  - `vite.config.ts`: kept the merged file (master's `/ct/` denylist plus ct's `VITE_PREVIEW_ID`), not master's verbatim. Master's lacks `VITE_PREVIEW_ID`, so the `/ct/` build would lose its own save and label. Workflows are master's (identical).
-  - Phone-path perf command: `perf.mjs --preset=ultra --mobile --budget` (the one master's `CLAUDE.md` documents). It runs the preset path, not the 3.4 phone look, because `?gfx=` turns the phone look off. The phone look was checked separately: boots and a Phone check run.
-  - Pushed the merge right after `npm run check` passed, before the e2e run finished (the stop hook required a push). The two later fixes are test-only.
-  - e2e fixes, no thresholds changed:
-    - `e2e-traverse`: wait for the match after `page.reload()` (3.2.2 creates it only after shaders compile).
-    - `e2e-netmove`: the known "ladder after a climb" race (logged in ct-movement-progress). Software GL runs the pages at ~4 fps, so the host's one-limb-at-a-time settle could outlast the fixed 800 ms. Now waits until the host's grips match the client's reported planted grips. Also holds B until the brace ends (a 150 ms press fell between polls).
-    - The ladder race also failed on the pre-merge build (e0bd61e), so it is not from the master merge.
-- Tests:
-  - `npm run check`:
-    - ct baseline: 57 files, 573 tests.
-    - after the Exchange merge: 56 / 567 (the old Exchange test removed).
-    - after the master merge: 60 / 590. All pass.
-  - `npm run e2e` (32 suites, union list without `e2e-exchange`): 1365 checks.
-    - 30 suites passed; `e2e-traverse` and `e2e-netmove` failed.
-    - After the fixes: `e2e-traverse` passes, `e2e-netmove` passes 3 of 3.
-    - The integration-risk suites (`e2e-ct`, `e2e-ct-warehouse`, `e2e-touch`, `e2e-anchors`, `e2e-clip`, `e2e-desktop`) passed in the full run.
-  - Split jump fix: `e2e-ct` checks pass (jump out of a split to the 4.3 m lip).
-  - Benchmark flight on the merged Warehouse: 180 m through 9 rooms, 718 samples, no step crosses static geometry or the fence, nothing within 0.3 m. No waypoint change needed.
-  - Phone emulation, real phone look: `?autostart=warehouse` and `?autostart=proving` boot with 0 console errors. One Phone check run completes with 0 console errors.
-  - Settings: master's video fields (3.2.1-3.3) and ct's touch layout v5 (rocker, jump) are separate fields in `sanitizeSettings`. Both kept, unit tests pass.
-- Measurements (4-core VM; CPU budgets are noisy here and already missed before the merge):
-
-  | Path | Build | sim p95 ms | anim ms/char | alloc MB/s | draws | tris M |
-  | --- | --- | --- | --- | --- | --- | --- |
-  | test (`--budget`) | ct before | 2.95 / 3.45 | 0.055 / 0.074 | 12.4 / 13.3 (over) | 43 | 0.14 |
-  | test (`--budget`) | master | 2.75 / 2.55 | 0.057 / 0.060 (over) | 11.1 / 10.5 | 43 | 0.13 |
-  | test (`--budget`) | merged | 2.6 / 2.25 | 0.056 / 0.052 | 12.9 / 11.5 | 42-43 | 0.14 |
-  | phone (`--preset=ultra --mobile`) | master | 3.85 / 3.6 / 6.8 | 0.054-0.081 | 10.3-12.0 | 138-153 | 0.48 |
-  | phone (`--preset=ultra --mobile`) | merged | 5.05 / 6.35 / 3.7 | 0.059-0.069 | 10.6-12.8 | 144-159 | 0.48 |
-
-  - Budgets: sim p95 2.5 (test) / 2 (phone) ms x machine speed, anim 0.04 x speed, alloc 11.5 MB/s, draws 55 / 250, tris 0.2 / 2 M.
-  - The merged test path passed every budget on its second run. Interleaved phone runs overlap master's.
-  - Draws and triangles are within budget on every run (phone +6-20 draws from the CT Warehouse pieces).
-  - The CPU misses happen on both sides (VM load). The allocation overshoot was already on ct before the merge.
-- Open issues:
-  - Allocations on the test path sit near or over 11.5 MB/s on CT builds (ct baseline 12.4-13.3). Not caused by the merge.
-  - CPU readings on this VM swing by up to 2x run to run.
-- Next: STOP. Michael tests `/ct/`, merges `ct-movement` -> `dev` -> `master`, then says "continue with Step 2".
-
-#### Step 2 report (design bible and progress file) - 2026-10-08
-- Done: `docs/design-bible.md` installed (committed in handover Step 0b, 5be33e4; unedited); this file.
-- Files changed: `docs/progress.md`.
-- Decisions: Michael re-issued "follow the handover" before promoting Step 1 to `dev` / `master` -> this file was
-  written then. Versions per phase follow bible 9 (one minor per phase from 3.5.0); Phase 3b is counted as a phase
-  of its own (3.9.0), so Phases 4-7 are 3.10.0-3.13.0.
-- Tests: docs only.
-- Next: Step 3 (lean `CLAUDE.md`, `docs/systems/`, archived history).
-
-#### Night Shift bundle (2026-10-08)
-- Done: Michael replaced the handover bundle (bible v1.7, `docs/story.md`, Phase 0 spec with the title rename,
-  handover and alignment spec now naming Phase 3b).
-  - Step 0a again: the pause note on `feature/exchange-map` says Phases 0-3b (c197e36).
-  - Step 0b again: the five files installed byte for byte (a6f7b7f).
-  - Step 1b again: c197e36 merged into `ct-movement` (docs only).
-  - Step 1 is otherwise unchanged in the new spec: the integration above stands. This file updated to bible v1.7 (Phase 3b row, story link).
-- Next: STOP for Michael (handover): test `/ct/`, promote `ct-movement`, then "continue with Step 2" (Step 2 is
-  written; Steps 3-5 remain).
-
-### Decisions
-(collected from the step reports above)
-
-### Measurements
-(collected from the step reports above)
-
-### Open issues
-- Allocations on the test path sit near or over 11.5 MB/s on CT builds (12.4-13.3 MB/s before the merge).
-- CPU readings on the cloud VM swing by up to 2x run to run; single `perf.mjs` readings may miss scaled budgets.
-
-## Links
-- Story: `docs/story.md` (story, setting, characters, in-game text)
-- CT movement: `docs/ct-movement.md` (spec), `docs/ct-movement-progress.md` (status)
-- Level design: `docs/level-design.md` (the standard), `docs/templates/map-spec.md` (map spec template)
-- Kestrel Exchange: `docs/prompts/exchange-map.md` (spec), `docs/prompts/exchange-design.md` (design),
-  `docs/prompts/exchange-map-progress.md` (log), `docs/prompts/exchange-plans/` (plans and overlays),
-  `docs/prompts/exchange-alignment.md` (map Phase 2b)
-- Phase 0: `docs/prompts/phase-0-foundation.md`, `docs/prompts/phase-0-handover.md`
+## Current state (2026-10-18)
+- `integrate/consolidate` holds every branch except `feature/operators`: `feature/ct-locomotion` (with Kestrel),
+  `feature/footsteps`, `feature/weapon-audio`, `feature/music`, `feature/training-bunker`, `feature/menu-ui-spec`.
+  The one `ct-movement` commit not merged ("phone loads and plays on Low") is superseded by desktop only.
+- Deleted in this merge (logs: `docs/consolidation/deleted-*.md`): the retired maps, phone and touch code (tests run as a
+  desktop), Wave / deathmatch / free-for-all / PvP, emotes, the old solo Training mode, every gun outside the CT kit,
+  the player drone, the custom difficulty sliders, carried medkits.
+- `package.json` says 3.5.1 until the PR's version commit sets 4.0.0 (G84). `SAVE_VERSION` 9, `PROTOCOL_VERSION` 13.
+- Known test state: e2e-course failed once under load (lever door 1994 ms > 500) and passed solo; legacy e2e-progression
+  passes (fixed in 3c7c2a5); the items in the "Test fixes" row above.

@@ -6,6 +6,8 @@
  * leaning jog and a full sprint. Crouched: a deep heel-to-toe sneak, a crouch walk and a low, driving
  * crouch run. The pelvis dips on each loading response and rises mid-stance, hips shift over the
  * support foot and turn with each step while the chest counter-rotates so the weapon stays square.
+ * (locomotion step 21, D2 / D5.6, A80) the pelvis pitch and the head pitch hold their lean through the cycle: a pitch
+ * nod in phase with the loading dip lowered the head 2-3 mm more than the pelvis each step (head travel <= pelvis).
  */
 import { makeClip, mirrorClip, type Clip } from '../clip';
 
@@ -22,7 +24,11 @@ const bob = (base: number, dip: number, rise: number, k = GAIT_STYLE.bob): numbe
   const r = rise * GAIT_STYLE.rise;
   return [0, base, 0.08, base - d, 0.25, base + r, 0.5, base, 0.58, base - d, 0.75, base + r];
 };
-/** One-cycle sway (left support 0..0.5 -> negative). */
+/**
+ * One-cycle sway (left support 0..0.5 -> negative). (locomotion step 21, A9) every gait clip's lateral sway amplitude
+ * is <= SWAY_MAX (x GAIT_STYLE.sway: 2.76 cm peak to peak, under D2's 3 cm), crouch, back and strafe included.
+ */
+export const SWAY_MAX = 0.0115;
 const sway = (amp: number): number[] => [0, 0, 0.25, -amp * GAIT_STYLE.sway, 0.5, 0, 0.75, amp * GAIT_STYLE.sway];
 /** Hip twist: left hip forward at left heel strike. */
 const twist = (amp: number): number[] => [0, amp * GAIT_STYLE.twist, 0.25, 0, 0.5, -amp * GAIT_STYLE.twist, 0.75, 0];
@@ -61,7 +67,7 @@ export const CREEP = makeClip({
   liftH: 0.045,
   keys: {
     pelY: bob(-0.06, 0.008, 0.004),
-    pelX: sway(0.02),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.02),
     pelYaw: twist(0.04),
     spYaw: twist(-0.035),
@@ -77,12 +83,12 @@ export const WALK = makeClip({
   liftH: 0.065,
   keys: {
     pelY: bob(-0.045, 0.012, 0.006),
-    pelX: sway(0.022),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.06),
     spYaw: twist(-0.05),
-    pelPitch: [0, 0.1, 0.08, 0.11, 0.25, 0.095, 0.5, 0.1, 0.58, 0.11, 0.75, 0.095],
-    hdPitch: bob(0, -0.01, -0.005),
+    pelPitch: [0, 0.1, 0.5, 0.1],
+    hdPitch: [0, 0, 0.5, 0],
   },
 });
 
@@ -93,12 +99,12 @@ export const BRISK = makeClip({
   liftH: 0.08,
   keys: {
     pelY: bob(-0.05, 0.016, 0.008),
-    pelX: sway(0.018),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.035),
     pelYaw: twist(0.08),
     spYaw: twist(-0.07),
-    pelPitch: [0, 0.14, 0.08, 0.155, 0.25, 0.13, 0.5, 0.14, 0.58, 0.155, 0.75, 0.13],
-    hdPitch: bob(0, -0.014, -0.006),
+    pelPitch: [0, 0.14, 0.5, 0.14],
+    hdPitch: [0, 0, 0.5, 0],
   },
 });
 
@@ -110,12 +116,12 @@ export const JOG = makeClip({
   liftH: 0.12,
   keys: {
     pelY: bob(-0.07, 0.025, 0.012, 0.5),
-    pelX: sway(0.014),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.035),
     pelYaw: twist(0.1),
     spYaw: twist(-0.09),
-    pelPitch: [0, 0.2, 0.08, 0.22, 0.25, 0.19, 0.5, 0.2, 0.58, 0.22, 0.75, 0.19],
-    hdPitch: bob(-0.05, -0.015, -0.008),
+    pelPitch: [0, 0.2, 0.5, 0.2],
+    hdPitch: [0, -0.05, 0.5, -0.05],
   },
 });
 
@@ -130,8 +136,8 @@ export const DASH = makeClip({
     pelRoll: sway(0.03),
     pelYaw: twist(0.12),
     spYaw: twist(-0.1),
-    pelPitch: [0, 0.34, 0.1, 0.36, 0.25, 0.32, 0.5, 0.34, 0.6, 0.36, 0.75, 0.32],
-    hdPitch: bob(-0.1, -0.02, -0.01),
+    pelPitch: [0, 0.34, 0.5, 0.34],
+    hdPitch: [0, -0.1, 0.5, -0.1],
   },
 });
 
@@ -142,7 +148,7 @@ export const WALK_BACK = makeClip({
   liftH: 0.05,
   keys: {
     pelY: bob(-0.05, 0.01, 0.004),
-    pelX: sway(0.02),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.025),
     pelYaw: twist(-0.04),
     spYaw: twist(0.035),
@@ -158,7 +164,7 @@ export const WALK_STRAFE_R = makeClip({
   liftH: 0.05,
   keys: {
     pelY: bob(-0.05, 0.01, 0.005),
-    pelX: sway(0.016),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.035),
     pelYaw: [0, 0.02, 0.5, -0.02],
     pelPitch: [0, 0.08, 0.5, 0.08],
@@ -174,7 +180,7 @@ export const CROUCH_WALK = makeClip({
   liftH: 0.045,
   keys: {
     pelY: bob(-0.36, 0.012, 0.004),
-    pelX: sway(0.02),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.025),
     pelYaw: twist(0.05),
     spYaw: twist(-0.045),
@@ -190,7 +196,7 @@ export const CROUCH_BACK = makeClip({
   liftH: 0.04,
   keys: {
     pelY: bob(-0.37, 0.01, 0.003),
-    pelX: sway(0.018),
+    pelX: sway(SWAY_MAX),
     pelPitch: [0, 0.24, 0.5, 0.24],
     width: [0, 1.35],
   },
@@ -203,7 +209,7 @@ export const CROUCH_STRAFE_R = makeClip({
   liftH: 0.04,
   keys: {
     pelY: bob(-0.37, 0.01, 0.004),
-    pelX: sway(0.014),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelPitch: [0, 0.27, 0.5, 0.27],
     width: [0, 1.4],
@@ -219,7 +225,7 @@ export const SNEAK = makeClip({
   liftH: 0.04,
   keys: {
     pelY: bob(-0.4, 0.008, 0.003),
-    pelX: sway(0.022),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.02),
     pelYaw: twist(0.035),
     spYaw: twist(-0.03),
@@ -237,11 +243,11 @@ export const CROUCH_RUN = makeClip({
   liftH: 0.085,
   keys: {
     pelY: bob(-0.32, 0.02, 0.01),
-    pelX: sway(0.014),
+    pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.08),
     spYaw: twist(-0.07),
-    pelPitch: [0, 0.44, 0.1, 0.46, 0.25, 0.42, 0.5, 0.44, 0.6, 0.46, 0.75, 0.42],
+    pelPitch: [0, 0.44, 0.5, 0.44],
     hdPitch: [0, -0.18, 0.5, -0.18],
     width: [0, 1.2],
   },

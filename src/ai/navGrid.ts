@@ -63,6 +63,11 @@ export interface NavBuildInput {
   stepHeight: number;
   /** Seed point used to keep only the main connected region. */
   seed?: [number, number];
+  /**
+   * More flood seeds (x, y, z feet points) kept with `seed`'s region: a map whose parts are joined only by player
+   * routes the grid does not model (ropes, locked doors, one-way drops) seeds each part. None: `seed` alone, as before.
+   */
+  extraSeeds?: readonly (readonly [number, number, number])[];
 }
 
 export type P2 = [number, number];
@@ -163,7 +168,8 @@ export class NavGrid {
   private rlinkHead: Int32Array;
   private linkNext: number[] = [];
   private rlinkNext: number[] = [];
-  private gScore: Float32Array;
+  /** Path costs (Float64: with Float32 a re-reached cell whose stored cost rounded up counted as an improvement, and a long search looped and found no path). */
+  private gScore: Float64Array;
   /** Shared priority queue for path and flow queries (not re-entrant). */
   private heap = new Heap();
   private came: Int32Array;
@@ -184,7 +190,7 @@ export class NavGrid {
     this.height = new Float32Array(n);
     this.walk = new Uint8Array(n);
     this.surf = new Uint8Array(n);
-    this.gScore = new Float32Array(n);
+    this.gScore = new Float64Array(n);
     this.came = new Int32Array(n);
     this.cameLink = new Int32Array(n);
     this.stamp = new Uint32Array(n);
@@ -209,7 +215,11 @@ export class NavGrid {
     }
     this.rasterBlockers(input);
     for (const l of input.links ?? []) this.addLink(l);
-    if (input.seed) this.keepRegion(this.nearestWalkable(input.seed[0], input.seed[1]));
+    if (input.seed) {
+      const seeds = [this.nearestWalkable(input.seed[0], input.seed[1])];
+      for (const p of input.extraSeeds ?? []) seeds.push(this.nearestWalkable(p[0], p[2], 12, p[1]));
+      this.keepRegion(seeds);
+    }
   }
 
   private rasterBlockers(input: NavBuildInput): void {
@@ -305,12 +315,16 @@ export class NavGrid {
     return best;
   }
 
-  /** Flood fill from a seed; anything unreachable becomes unwalkable. */
-  private keepRegion(seed: number): void {
-    if (seed < 0) return;
+  /** Flood fill from the seeds (the first the main one: none there, no fill); anything unreachable becomes unwalkable. */
+  private keepRegion(seeds: readonly number[]): void {
+    if (seeds[0]! < 0) return;
     const seen = new Uint8Array(this.walk.length);
-    const stack = [seed];
-    seen[seed] = 1;
+    const stack: number[] = [];
+    for (const sd of seeds) {
+      if (sd < 0 || seen[sd]) continue;
+      seen[sd] = 1;
+      stack.push(sd);
+    }
     while (stack.length) {
       const i = stack.pop()!;
       const n = this.fillNeighbours(i);

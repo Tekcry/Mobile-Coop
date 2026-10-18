@@ -209,7 +209,7 @@ Run `git merge origin/master`. Use a normal merge: no squash, no rebase.
    - `docs/ct-movement.md`, `docs/ct-movement-progress.md`
    - `docs/story.md`
    - `docs/level-design.md`, `docs/templates/map-spec.md`
-   - `docs/prompts/exchange-map.md`, `exchange-design.md`, `exchange-map-progress.md`, `exchange-plans/`
+   - `docs/archive/maps/prompts/exchange-map.md`, `exchange-design.md`, `exchange-map-progress.md`, `exchange-plans/`
 
 **Commit:** `Phase 0: design bible and progress file`. Push.
 
