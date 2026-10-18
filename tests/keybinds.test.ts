@@ -8,8 +8,8 @@ describe('key bindings', () => {
     expect(m.get('Space')).toEqual(['jump', 'uiConfirm']);
     expect(m.get('KeyE')).toEqual(['interact', 'uiTabNext']);
     expect(m.get('ShiftLeft')).toEqual(['cover']);
-    expect(m.get('KeyF')).toEqual(['ping', 'uiAlt']);
-    expect(m.get('PageDown')).toEqual(['ping']);
+    expect(m.get('KeyF')).toEqual(['coop', 'uiAlt']);
+    expect(m.get('PageDown')).toEqual(['coop']);
     // (menu-ui slice 2, MD11) menu extras on the same keys: Space confirms, E next tab, R = the X action, F = the Y action
     expect(m.get('KeyR')).toEqual(['reload', 'uiX']);
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);

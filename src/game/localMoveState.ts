@@ -35,7 +35,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   if (tm) {
     out.m = tm;
     out.tid = g.team.partner;
-    out.sub = tm === 'stacked' ? (g.team.state === 'bottom' ? 2 : 1) : 0;
+    out.sub = 0;
     out.ph = pose.traverse === 'climbUp' ? pose.traverseT : 0;
     delete out.c;
     return out;
@@ -95,7 +95,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     const pp = ac.pipe;
     const pipeOn = m.kind === 'pipeH';
     const exit: ExitPose = m.phase === 'exit' && ac.isFlipping ? 'flip' : m.phase === 'exit' && ac.isFenceFlip ? 'fenceFlip' : (m.phase === 'exit' && EXIT_OF[pose.traverse]) || 'none';
-    out.sub = packAttachSub(m.phase, m.face, exit, pipeOn ? (pp.to ? pp.from : pp.mode) : 'hands', pipeOn ? pp.to : null);
+    out.sub = packAttachSub(m.phase, m.face, exit, pipeOn ? (pp.to ? pp.from : pp.mode) : 'hands', pipeOn ? pp.to : null) | g.team.attachBits;
     out.ph = pipeOn && pp.to && m.phase === 'on' ? pp.progress : m.kind === 'rappel' && m.phase === 'on' ? Math.max(0, ac.swingT) : m.progress;
     // (3.2.0 phase 3) a rope's sideways offset / a fence's climb height
     if (m.kind === 'rappel' || m.kind === 'fence') out.u = ac.u;

@@ -60,7 +60,7 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.B, 'crouch'],
   [PAD.X, 'reload'],
   [PAD.Y, 'jump'],
-  [PAD.RB, 'ping'],
+  [PAD.RB, 'coop'],
   [PAD.LB, 'gadgetWheel'],
   [PAD.START, 'pause'],
   [PAD.LS, 'cover'],

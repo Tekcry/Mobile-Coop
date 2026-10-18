@@ -88,3 +88,14 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Checks: lint 0, vitest 1473 pass, build ok; e2e smoke, ctcourse (392 s), course (solo rerun after a latency limit)
   pass. Not done: real mechanics (B2-B8), menu listing, testing-tools.md.
 - Status: B1 BUILT, on /ct/, awaiting Michael's walk test.
+
+## 2026-10-19 - B2 leg-up and CT ledge relay
+- Built (Sonnet, time-boxed): `coop` action on RB / F / PageDown; leg-up (crouch + co-op offers, partner boosted to a
+  2.4-4.5 m ledge, anywhere with room, polite refusal, brace removed, standing hook left for B4's throw); CT hanging
+  ladder relay (shoulder stack code removed, `stacked` wire mode dead); host-authoritative on the team-move rail;
+  protocol 16 (relay-offer bit). ctcourse station 2 is a real 4.4 m wall bolted from the far side; station 5 plates on
+  the roof. Report `B2-LEGUP-RELAY.md`.
+- Checks: lint 0, vitest 1482 pass, build ok; smoke and e2e-ctcourse pass. e2e-netmove failed in earlier known-flaky
+  sections (its team section passed trimmed); e2e-coop not run. anim-audit and e2e-ct-warehouse still use the brace and
+  old stack (polish list).
+- Status: B2 BUILT (partly verified).

@@ -154,6 +154,7 @@ export class App {
     keyLabels.reload = bindLabel(k, 'reload');
     keyLabels.speedUp = bindLabel(k, 'speedUp');
     keyLabels.speedDown = bindLabel(k, 'speedDown');
+    keyLabels.coop = bindLabel(k, 'coop');
     // (locomotion step 18) pad prompts follow the pad bindings
     const p = this.settings.get().pad;
     padButtons.cover = p.wall[0] ?? -1;
@@ -161,6 +162,7 @@ export class App {
     padButtons.interact = p.interact[0] ?? -1;
     padButtons.crouch = p.crouch[0] ?? -1;
     padButtons.reload = p.reload[0] ?? -1;
+    padButtons.coop = p.coop[0] ?? -1;
   }
 
   /** The GPU the browser renders with (the unmasked renderer string where allowed). */

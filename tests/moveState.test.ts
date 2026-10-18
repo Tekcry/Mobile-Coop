@@ -106,8 +106,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 15 (A3: the SWAT turn and the lean kind are gone)', () => {
-    expect(PROTOCOL_VERSION).toBe(15);
+  it('PROTOCOL_VERSION is 16 (B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+    expect(PROTOCOL_VERSION).toBe(16);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {

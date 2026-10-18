@@ -405,6 +405,17 @@ export const TEAM = {
   ladderClimb: 0.8,
   /** Top of the human ladder: the aim band (rad). */
   ladderPitch: (60 * Math.PI) / 180,
+  /** Leg-up (CT): the lowest ledge it serves (m over the floor; lower is a jump's), free air over the crouched booster,
+   *  a side to run in from, how long an offer waits (s). Relay: the climber's reach under the hanger, the highest hang it
+   *  serves, the climb (s), the slot beside the hanger (m). All starting values (G10). */
+  legUpMin: 2.4,
+  roomUp: 2.6,
+  roomSide: 1.0,
+  offerTime: 20,
+  relayReach: 1.6,
+  relayMax: 4.6,
+  relayClimb: 1.4,
+  relaySlide: 0.8,
   /** Requests a player may make (host rate limit, per second). */
   rate: 1,
 } as const;

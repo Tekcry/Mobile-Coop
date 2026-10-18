@@ -21,7 +21,7 @@ describe('pad bindings (step 18)', () => {
     expect(m.get(PAD.Y)).toBe('jump');
     expect(m.get(PAD.X)).toBe('reload');
     expect(m.get(PAD.LS)).toBe('cover');
-    expect(m.get(PAD.RB)).toBe('ping');
+    expect(m.get(PAD.RB)).toBe('coop');
     expect(m.get(PAD.LB)).toBe('gadgetWheel');
     expect(m.get(PAD.UP)).toBe('vision');
     expect(m.get(PAD.DOWN)).toBe('grenade');

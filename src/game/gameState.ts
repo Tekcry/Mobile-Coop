@@ -1345,6 +1345,7 @@ export class GameState implements AppState {
     const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open || this.grabMenu.open ? this.blankInp : real);
     // the gadget wheel / a remote view / the door menu takes the input: the operator stands still
     const inp = takes || this.doorMenu.open || this.grabMenu.open ? this.blankInp : real;
+    // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
@@ -1367,7 +1368,17 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'));
+    // the relay hanger holds the hang still while the partner climbs their body
+    if (this.team.hangLock) {
+      ti.moveX = 0;
+      ti.moveY = 0;
+      ti.dropPressed = false;
+      ti.dropHeld = false;
+      ti.dropHeldT = 0;
+      ti.useHeld = false;
+      ti.useHeldT = 0;
+    }
     if (this.team.active) this.traversal.hint = null;
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
     this.wallStep(dt, inp, busy || carrying);
@@ -1397,7 +1408,7 @@ export class GameState implements AppState {
     const grabHold = this.takedown.hostage !== null;
     const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads'));
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
-    const teamHands = this.team.active && this.team.state !== 'top';
+    const teamHands = this.team.active;
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
     // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
     // remotes never see)
@@ -2413,12 +2424,13 @@ export class GameState implements AppState {
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
-    // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
-    const tOff = this.team.offer;
-    if (tOff && !this.takedown.offer) {
-      const ok = this.project(tOff.mate.pos.x, tOff.mate.pos.y + 1.6, tOff.mate.pos.z);
-      w.set('vault', ok ? (tOff.boost ? 'Boost (hold: ladder)' : 'Human ladder (hold)') : null, this.scr.x, this.scr.y);
-    }
+    // (CT prototype B2) the team-move prompt: names the move and who starts it (Co-op action glyph)
+    const tp = this.team.prompt;
+    if (tp && !this.takedown.offer) {
+      const at = this.team.promptAt;
+      const ok = this.project(at.x, at.y, at.z);
+      w.set('coop', ok ? tp : null, this.scr.x, this.scr.y);
+    } else w.set('coop', null, 0, 0);
     this.drawRope();
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;

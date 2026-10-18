@@ -116,7 +116,7 @@ export function emptyMoveState(): MoveState {
  * sub-state (2 bits, `PIPE_MODES`) and the one it is changing to (2 bits, 0 = none; `ph` is then the change's
  * progress).
  */
-export const ATTACH_SUB = { phaseMask: 3, face: 4, exitShift: 3, pipeShift: 6, pipeToShift: 8 } as const;
+export const ATTACH_SUB = { phaseMask: 3, face: 4, exitShift: 3, pipeShift: 6, pipeToShift: 8, /** (CT prototype B2) a hanging player is offering the ledge relay */ relay: 1024 } as const;
 export const ATTACH_PHASES = ['enter', 'on', 'exit'] as const;
 /** Exit poses (attach sub bits 3..5): the family itself, a climb up, a mantle off a ladder top, through a vent,
  *  (3.2.0) the flip out of an inverted hang. */

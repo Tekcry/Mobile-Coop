@@ -83,6 +83,10 @@ export class RemoteAvatar {
   private pb = { x: 0, y: 0, z: 0 };
   /** The movement mode shown now (tests, host checks). */
   mode: MoveMode = 'ground';
+  /** The attached anchor, position along it and attach sub bits of the last state (team moves: a hanging relay offer). */
+  anchor = -1;
+  sub = 0;
+  s = 0;
   private pipeKey = 'hands>hands';
   private readonly ropeKey = `remote-${++ropeKeys}`;
   private roped = false;
@@ -160,6 +164,9 @@ export class RemoteAvatar {
     this.pitch = st.pitch;
     this.flags = st.f;
     this.mode = mv?.m ?? 'ground';
+    this.anchor = mv?.a ?? -1;
+    this.sub = mv?.sub ?? 0;
+    this.s = mv?.s ?? 0;
     // a committed move (vault, mantle, roll, ...) replays from its start along the same path
     if (mv?.c && mv.c.n !== this.lastCommit) {
       this.lastCommit = mv.c.n;

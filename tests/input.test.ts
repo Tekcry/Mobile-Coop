@@ -51,7 +51,7 @@ describe('gamepad mapping', () => {
     expect(f.buttons.jump).toBeUndefined();
     expect(f.buttons.uiConfirm).toBe(true);
     expect(f.buttons.reload).toBe(true);
-    expect(f.buttons.ping).toBe(true);
+    expect(f.buttons.coop).toBe(true);
     expect(f.buttons.uiTabNext).toBe(true);
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
@@ -271,7 +271,7 @@ describe('menu bindings (menu-ui slice 2, SPEC 4.2, MD11)', () => {
     expect(m.get('Space')).toContain('uiConfirm');
     expect(m.get('KeyR')).toEqual(expect.arrayContaining(['reload', 'uiX']));
     // (CT prototype A3, G96) F is the co-op action in play; its menu role (Y) is unchanged
-    expect(m.get('KeyF')).toEqual(expect.arrayContaining(['ping', 'uiAlt']));
+    expect(m.get('KeyF')).toEqual(expect.arrayContaining(['coop', 'uiAlt']));
     expect(m.get('KeyE')).toContain('uiTabNext');
     expect(m.get('KeyE')).not.toContain('uiAlt');
     expect(m.get('Escape')).toContain('uiBack');

@@ -53,7 +53,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'coop', label: 'Co-op action', actions: ['ping'], defaults: ['KeyF', 'PageDown'] },
+  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 

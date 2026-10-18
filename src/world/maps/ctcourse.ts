@@ -41,14 +41,14 @@ export const CT_BOUNDS = { minX: -1, maxX: bayX(7) + CT_BAY + 1, minZ: -1, maxZ:
 /** The exit zone (G138, last bay): both players inside ends the course. */
 export const CT_EXIT_ZONE = { box: [bayX(7) + 11.5, 3, bayX(7) + 15.5, 11] as [number, number, number, number], floorY: 0 };
 
-const dev = (x: number, z: number, yaw: number, label: string): CourseDevice => ({ x, y: 0, z, yaw, label });
+const dev = (x: number, z: number, yaw: number, label: string, y = 0): CourseDevice => ({ x, y, z, yaw, label });
 const SOUTH = 0;
 const NORTH = Math.PI;
 
 /** A cross wall at x with a door gap and a lintel over it; returns the door's anchor id. */
-function crossWall(b: LevelBuilder, x: number, h: number): number {
-  b.wallZ(x, 0, CT_W, [[DOOR_Z0, DOOR_Z0 + DOOR_W]], h, WALL);
-  b.box(x, (2.1 + h) / 2, MID, 0.3, h - 2.1, DOOR_W, WALL);
+function crossWall(b: LevelBuilder, x: number, h: number, thick = 0.3): number {
+  b.wallZ(x, 0, CT_W, [[DOOR_Z0, DOOR_Z0 + DOOR_W]], h, WALL, thick);
+  b.box(x, (2.1 + h) / 2, DOOR_Z0 + DOOR_W / 2, thick, h - 2.1, DOOR_W, WALL);
   return b.door(x, 0, DOOR_Z0, DOOR_W, 0).id;
 }
 
@@ -63,6 +63,8 @@ function courseDef(): CourseDef {
       case 1:
         return [1, 2, 3].map((k): GateDef => ({ kind: 'pickup', id: `g-p${k}`, switchId: `sw-p${k}`, flag: `panel-${k}`, perPlayer: false }));
       case 2:
+        // B2: the door is bolted from the far side; the boosted player opens it for the partner (CT's first wall)
+        return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST + 0.9, DOOR_Z0 + DOOR_W / 2] }];
       case 4:
       case 6:
         return [{ kind: 'pair', id: `g-s${n}`, a: `sw-s${n}-a`, b: `sw-s${n}-b`, doorId: `S${n}-door` }];
@@ -77,10 +79,10 @@ function courseDef(): CourseDef {
   };
   const radio: Record<number, string> = {
     1: 'Marlow Yard. Read the panels. Both of you, then through the airlock together.',
-    2: 'Wall one. Placeholder plates for now: press both together. The leg-up comes next.',
+    2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
     3: 'Camera corridor. Placeholder: one holds the console, the other walks through.',
     4: 'Laser line. Placeholder plates. The partner throw replaces them.',
-    5: 'Annex. Both plates, then hack the grid. Medkit on the north wall.',
+    5: 'Annex roof: leg-up, then relay the other up. Both plates, then hack.',
     6: 'Two scanners, ten metres apart. Press both within a second.',
     7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
     8: 'Last wall. Cross, then both of you into the lit zone.',
@@ -163,7 +165,8 @@ export const ctcourse: MapDef = {
       }
       if (n >= 2) {
         const h = OBST_H[n]!;
-        doors[`S${n}-door`] = crossWall(b, x0 + CT_OBST, h);
+        // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
+        doors[`S${n}-door`] = crossWall(b, x0 + CT_OBST, h, n === 2 ? 1.0 : 0.3);
         mark(b, x0 + CT_OBST - 1.6, MID);
         mark(b, x0 + CT_OBST + 1.6, MID);
       }
@@ -178,13 +181,10 @@ export const ctcourse: MapDef = {
       mark(b, x, CT_W - 2);
     }
 
-    // 2 Leg-up wall (4.4 ledge band), placeholder plates on the near side
-    let x0 = bayX(1);
-    devices['sw-s2-a'] = dev(x0 + 5, 0.4, SOUTH, 'Plate A (placeholder: leg-up, B2)');
-    devices['sw-s2-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Plate B (placeholder: leg-up, B2)');
+    // 2 Leg-up wall (4.4 ledge band, 1 m thick): a bolt on the far side of the door (B2)
 
     // 3 Camera corridor: a camera body on the wall, a jammer console (hold) placeholder
-    x0 = bayX(2);
+    let x0 = bayX(2);
     b.box(x0 + CT_OBST - 0.4, 2.9, MID - 3, 0.4, 0.3, 0.6, '#222', 0, 0, false);
     devices['h-s3'] = dev(x0 + 5, 0.4, SOUTH, 'Hold jammer (placeholder: B3)');
 
@@ -196,12 +196,16 @@ export const ctcourse: MapDef = {
 
     // 5 Annex: roofed (top 4.4), internal grid wall at +12.5, computer, wall medkit
     x0 = bayX(4);
-    b.box(x0 + 12.5, 4.2, MID, 7, 0.4, CT_W, DARK);
+    // the roof slab starts flush with the front wall face so the lip hangs over a flat face (B2: leg-up + relay target)
+    b.box(x0 + 12.425, 4.2, MID, 7.15, 0.4, CT_W, DARK);
     doors['S5-grid'] = crossWall(b, x0 + 12.5, 4.0);
     b.light({ x: x0 + 11, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
     b.light({ x: x0 + 14.2, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
-    devices['sw-s5-a'] = dev(x0 + 5, 0.4, SOUTH, 'Plate A (placeholder: leg-up + relay, B2)');
-    devices['sw-s5-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Plate B (placeholder: leg-up + relay, B2)');
+    // both players must be ON the roof (leg-up one, relay the other) to press the roof plates together
+    devices['sw-s5-a'] = dev(x0 + 11, 3.6, SOUTH, 'Roof plate A (press with B)', LEDGE);
+    devices['sw-s5-b'] = dev(x0 + 11, CT_W - 3.6, NORTH, 'Roof plate B (press with A)', LEDGE);
+    b.box(x0 + 11, LEDGE + 0.01, 3.6, 1.2, 0.02, 1.2, WARN, 0, 0, false);
+    b.box(x0 + 11, LEDGE + 0.01, CT_W - 3.6, 1.2, 0.02, 1.2, WARN, 0, 0, false);
     devices['sw-s5-hack'] = dev(x0 + 11, CT_W - 0.4, NORTH, 'Hack computer (placeholder: hang-down, B5)');
 
     // 6 Paired scanners, ten metres apart

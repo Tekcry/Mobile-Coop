@@ -27,6 +27,8 @@ export const BUTTON_ACTIONS = [
   'vision',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
+  /** Co-op action (CT, RB / F / PageDown): team moves (leg-up, ledge relay; the partner throw in B4). */
+  'coop',
   /** Chaos Theory speed gears (3.2.0): one gear up / down. */
   'speedUp',
   'speedDown',

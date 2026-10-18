@@ -4,6 +4,9 @@ import { ctcourse, CT_EXIT_ZONE } from '../src/world/maps/ctcourse';
 import { exitZoneReady, inExitZone, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import { getMap } from '../src/world/maps';
+import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors';
+import { inBoostBand } from '../src/game/teamMoves';
+import { TEAM } from '../src/config/movement';
 import { isListedMap } from '../src/world/maps/listed';
 
 describe('ctcourse (CT prototype B1)', () => {
@@ -46,5 +49,53 @@ describe('ctcourse (CT prototype B1)', () => {
     s.setPlayer(1, x + 0.5, 0, 6, false);
     s.update(1 / 60);
     expect(s.over).toBe(true);
+  });
+});
+
+describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const anchors = generateLedges(b.boxes);
+  const c = lay.course!;
+  const MID = 7;
+
+  it('station 2: the wall is bolted from the far side; the plates are gone', () => {
+    const bay = c.def.bays[1]!;
+    expect(bay.gates).toHaveLength(1);
+    const g = bay.gates[0]!;
+    expect(g.kind).toBe('bolt');
+    if (g.kind === 'bolt') {
+      // the bolt sits on the +x (far) side of the wall at x 22 + 9
+      expect(g.side).toEqual([1, 0]);
+      expect(g.at[0]).toBeGreaterThan(22 + 9.5);
+    }
+    expect(c.devices['sw-s2-a']).toBeUndefined();
+  });
+  it('a leg-up from the floor in front of the station 2 wall finds a climbable lip in the 4.3-4.5 band', () => {
+    const floor = 0;
+    const apex = { x: 22 + 8, y: floor + TEAM.boostMax - 1.15, z: MID + 2 };
+    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
+    expect(t).not.toBeNull();
+    expect(inBoostBand(t!.grip.y - floor)).toBe(true);
+    expect(t!.grip.y).toBeGreaterThanOrEqual(4.3);
+    expect(t!.grip.y).toBeLessThanOrEqual(4.5);
+    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+  });
+  it('station 5: the roof lip is reachable, and both roof plates stand on the roof (4.4 m)', () => {
+    const x0 = 22 * 4;
+    const apex = { x: x0 + 8, y: TEAM.boostMax - 1.15, z: 3 };
+    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
+    expect(t).not.toBeNull();
+    expect(inBoostBand(t!.grip.y)).toBe(true);
+    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+    for (const id of ['sw-s5-a', 'sw-s5-b']) {
+      expect(c.devices[id]!.y).toBeGreaterThanOrEqual(4.3);
+      expect(c.devices[id]!.x).toBeGreaterThan(x0 + 9);
+    }
+  });
+  it('no skip: the walls are lower than the fences, nothing but a 4.5 m boost clears them, the airlock walls are 6 m', () => {
+    expect(TEAM.boostMax).toBeLessThan(6);
+    // a hanging player's relay reach and a leg-up's top stay under the fence height
+    expect(TEAM.relayMax).toBeLessThan(6);
   });
 });

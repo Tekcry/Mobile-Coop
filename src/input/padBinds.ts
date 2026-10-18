@@ -39,7 +39,7 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: [PAD.Y] },
   { id: 'reload', label: 'Equip: reload (tap) / next weapon (hold, aiming)', actions: ['reload'], defaults: [PAD.X] },
   { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: [PAD.LS] },
-  { id: 'coop', label: 'Co-op action', actions: ['ping'], defaults: [PAD.RB] },
+  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: [PAD.RB] },
   { id: 'quick', label: 'Quick inventory (hold: gadget wheel)', actions: ['gadgetWheel'], defaults: [PAD.LB] },
   { id: 'shoulder', label: 'Swap shoulder (aiming)', actions: ['shoulderSwap'], defaults: [PAD.RS] },
   { id: 'vision', label: 'Vision modes', actions: ['vision'], defaults: [PAD.UP] },
