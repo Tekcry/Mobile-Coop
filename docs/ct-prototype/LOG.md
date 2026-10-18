@@ -144,3 +144,6 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   80-90 deg forward, head at hip height ("reads like a quadruped"); intent is about 35-45 deg. Queued as P1b after F1b,
   checked with GPU anim-sheet stills. Side effect: feature/weapons' back-mounted rifle goes horizontal and fails
   e2e-weapons-carry "back guns muzzle up".
+- Wall stance bug (Character Build session, anim-sheet "wall" front view): standing flat to the wall, the off hand
+  sits at the hip with the elbow out (reads as hand-on-hip); footage (ct-measure-walls-doors-combat-vision.md,
+  standing stance): arms hanging, hands mid-thigh. Added to P1b.
