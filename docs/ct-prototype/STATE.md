@@ -43,3 +43,10 @@ load is load first), the full e2e at the PR. The Opus leg fix only if it breaks 
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.
+
+## Merge order to master (Michael via the main session, 2026-10-19)
+Weapons (#7) and Wren (#5) are on master; the menu PR (feature/menu, hero menu slice 6, dialog fixes) merges next.
+After Michael's 10:00 walkthrough: merge origin/master into feature/ct-prototype (expect overlaps in characterRig.ts,
+animGraph.ts PISTOL_REACH / READY_HANDS, src/weapons/*, remoteAvatar.ts; menu touches menuScene.ts, babylon.ts,
+styles.css, settingsScreen.ts, postStack.ts), run checks, then open the PR to master for Michael. Protocol 22 stands.
+feature/anim-cleanup merges master once after that.
