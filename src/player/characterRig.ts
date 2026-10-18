@@ -427,6 +427,10 @@ export class CharacterRig {
   private shoulderY = 0;
   /** (feature/weapons) A drawn knife in the right fist (KnifeModel): the hand stays closed. */
   holdingKnife = false;
+  /** (anim-cleanup) The right hand is on a held weapon's trigger grip (the figure's trigger finger shape). */
+  get rightTrigger(): boolean {
+    return this.heldWeapon !== null && this.handBlend < 0.5 && this.reachR.w < 0.5 && !this.holdingKnife;
+  }
   /** (anim-cleanup) The weapon is changing hands (the shoulder swap or the open-left wall edge, eased). */
   get handSwitching(): boolean {
     return this.handSwap >= 0;

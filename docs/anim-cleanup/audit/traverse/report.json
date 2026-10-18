@@ -76,134 +76,13 @@
    ]
   }
  ],
- "drainpipe": [
-  {
-   "t": 0.6,
-   "file": "drainpipe-0.6.png",
-   "contact": {
-    "L": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    },
-    "R": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    }
-   },
-   "kind": "pipeV",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.6,
-   "file": "drainpipe-1.6.png",
-   "contact": {
-    "L": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    },
-    "R": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    }
-   },
-   "kind": "pipeV",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 3,
-   "file": "drainpipe-3.0.png",
-   "contact": {
-    "L": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    },
-    "R": {
-     "mm": 74,
-     "palmToGripDeg": 0
-    }
-   },
-   "kind": "pipeV",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "hang-shimmy": [
-  {
-   "t": 0.5,
-   "file": "hang-shimmy-0.5.png",
-   "contact": {
-    "L": {
-     "mm": 41,
-     "palmToGripDeg": 149
-    },
-    "R": {
-     "mm": 53,
-     "palmToGripDeg": 157
-    }
-   },
-   "kind": "ledge",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.2,
-   "file": "hang-shimmy-1.2.png",
-   "contact": {},
-   "kind": "ledge",
-   "phase": "enter",
-   "wall": "off",
-   "grip": [
-    0,
-    0
-   ]
-  },
-  {
-   "t": 2.2,
-   "file": "hang-shimmy-2.2.png",
-   "contact": {
-    "L": {
-     "mm": 7,
-     "palmToGripDeg": 68
-    },
-    "R": {
-     "mm": 7,
-     "palmToGripDeg": 72
-    }
-   },
-   "kind": "ledge",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
  "pipe-hands": [
   {
    "t": 0.5,
    "file": "pipe-hands-0.5.png",
    "contact": {
     "L": {
-     "mm": 79,
+     "mm": 80,
      "palmToGripDeg": 30
     },
     "R": {
@@ -254,71 +133,6 @@
     }
    },
    "kind": "pipeH",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  }
- ],
- "zipline": [
-  {
-   "t": 0.4,
-   "file": "zipline-0.4.png",
-   "contact": {
-    "L": {
-     "mm": 22,
-     "palmToGripDeg": 0
-    },
-    "R": {
-     "mm": 22,
-     "palmToGripDeg": 0
-    }
-   },
-   "kind": "zipline",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1,
-   "file": "zipline-1.0.png",
-   "contact": {
-    "L": {
-     "mm": 22,
-     "palmToGripDeg": 0
-    },
-    "R": {
-     "mm": 22,
-     "palmToGripDeg": 0
-    }
-   },
-   "kind": "zipline",
-   "phase": "on",
-   "wall": "off",
-   "grip": [
-    1,
-    1
-   ]
-  },
-  {
-   "t": 1.8,
-   "file": "zipline-1.8.png",
-   "contact": {
-    "L": {
-     "mm": 33,
-     "palmToGripDeg": 50
-    },
-    "R": {
-     "mm": 30,
-     "palmToGripDeg": 45
-    }
-   },
-   "kind": "zipline",
    "phase": "on",
    "wall": "off",
    "grip": [

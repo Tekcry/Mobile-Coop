@@ -12,3 +12,6 @@ Michael's words: BRIEF.md. Assumed decisions (A1 onward), each with how to undo 
   before it passes the head; the pistol by the right hip. Undo: TRAVEL_VIA / the travel calls in playerWeapons.
 - **A4. One pouch stop per reload** (the stripped magazine swapped for a fresh one at the same pouch: the rifle's on
   the chest plate, the pistol's on the left hip), not a dump pouch then a fresh pouch.
+- **A5. Five hand shapes as morph targets** (gripR trigger, gripL support, wrapR, relaxR, relaxL) on Wren's game files,
+  not finger bones in the LODs (they keep the 23 game joints). Undo: re-export the LODs (operators pipeline) and drop
+  the figure's blend.

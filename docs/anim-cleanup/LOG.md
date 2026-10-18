@@ -47,3 +47,8 @@
   face their grips (0 degrees settled), the palm centre on the surface (ladder 28 mm = rung radius + palm depth by
   design); e2e-traverse reach 2.7 cm (pass; it measured the old hand-length placement, now rig.gripError).
   e2e-traverse "sprint climbs faster" is on CT Core's T1 stale list (G31 removed sprint moves).
+- CT Core P1b also drops the wall-hand contact (arms hang, hands mid-thigh on the wall, per the footage).
+- Slice 4, hand shapes: three more morph targets from the hero finger rig on all four Wren files (grip_morphs.py
+  re-run on the exported files): `wrapR` (every finger round a rung, pipe, line or knife handle: the trigger shape kept
+  its crooked index finger there), `relaxR` / `relaxL` (free hands lightly curled instead of the flat bind pose). The
+  figure blends trigger / wrap by `rig.rightTrigger` and relaxed by (1 - grip).
