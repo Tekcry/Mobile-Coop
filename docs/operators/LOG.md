@@ -2269,3 +2269,56 @@ with a 4 % margin at the default warm-up.
 - e2e-clip's wall / sprint / crouch-run scenarios count 0 frames (no weapon in hand after "aim walking + crouched");
   their asserts pass on nothing. Pre-existing (the same in the earlier 11e logs); not changed here.
 - A full `npm run e2e` was not re-run in this pass (the last full run is continuation 1's).
+
+## Step 11e fix round 1 (fixer, Opus 5.5)
+
+Fix list `steps/11e-fixes-r1.md` items 0-3 plus the checker's two notes (ktx2.ts header, ktx2decoder dependency).
+
+**Built**
+- 0 (offline): cause confirmed. `registerType: 'autoUpdate'` claims the page after the menu has fetched Wren, so her
+  LOD2 bypassed the worker and never reached the `operators` cache; the offline reload had no body ("Wren failed to
+  load: Failed to fetch"). The three KTX2 warnings are the transcoder's wasm fetch cut off by a reload mid-load (the
+  save-migration part reloads right after boot). New `src/operators/runtime/offline.ts`: `warmPlayLods` (A109) runs
+  after the menu's / match's play LODs load and fetches each missing play LOD once through the controlling worker
+  (now, or at `controllerchange`); `manifest.ts` `playLodUrls` (LOD2, LOD0, LOD1; `?gfx=min` LOD2; never the hero).
+  `pageLeaving()` (pagehide .. pageshow) and `OperatorFigure.isDisposed` keep abandoned loads quiet (A110):
+  `warnLoad(e, figure)`, the close-up warning, and a `Logger.Warn` filter in `lab/ktx2.ts` that drops only Babylon's
+  "Failed to load KTX2" while the page is leaving (`Logger` exported from core/babylon.ts). e2e-offline: waits for
+  LOD2 in the `operators` cache before going offline (asserted), waits for the menu body's LOD2, and asserts the
+  offline match's player has the LOD2 bit; console filter unchanged. vite.config.ts comment, CHANGELOG and
+  world-and-characters.md say what happens now.
+- 1 (light parity): `src/game/bodyHeight.ts` `lightSampleHeight(height, crouch)`, `bodyScale` (pure; tests
+  `tests/bodyHeight.test.ts`: 1.68 vs 1.75 standing / crouched, exposure scaling, posed path). gameState's off-wall
+  sample uses `player.rig.height`; partners use `PlayerRef.height` (new optional field, set from the RemoteAvatar rig
+  in `net/remotePlayer.ts`; host and client the same, nothing sent). `exposurePoints` / `exposurePointsPosed` take
+  the height (y scaled by height / 1.75; default 1.75 for anything else). On-wall posed path unchanged. A111.
+- 2 (e2e-desktop): drives Wren directly: `setHeadVisible(false)` -> the shown LOD's head joint scaling (0,0,0), true ->
+  (1,1,1); `setVision('night')` vs `'off'` + `update` -> pose inUse / stowed and the glow material's emissive sum
+  (on > 1.5x off). The voxel lens / head check runs only where a lensed guard body exists and says so otherwise.
+- 3: `perf.mjs` prints "over budget: Wren not loaded ..." and exits 1 (with or without --budget); `anim-sheet.mjs`
+  prints an error and exits 1, no sheet. No GPU run (item 3 alone needs none).
+- Notes: `lab/ktx2.ts` header now says the game uses it; `@babylonjs/ktx2decoder` moved to `dependencies` (9.29.0,
+  `npm install`, lockfile drops `dev: true` only).
+
+**Checks**
+- `npm run check`: PASS (lint 0 errors / 41 warnings; Vitest 137 files / 1567 tests; build ok; precache 44 entries,
+  15469.8 KiB).
+- Named suites (4191): e2e-darkness, e2e-stealth-ai, e2e-stealth, e2e-tactics, e2e-enemies, e2e-netmove, e2e-security,
+  e2e-lightbake, e2e-desktop all ok. e2e-desktop: head joint scale [0,0,0] hidden / [1,1,1] shown; goggle on inUse
+  1.310 vs off stowed 0.393; "no guard body has goggle lenses" (the voxel lens check had nothing to drive).
+- e2e-offline solo: ok (4 runs before the last two edits, then again on the final build). Wren's LOD2 in the cache
+  (1 entry), the offline match and the offline Infiltration player have LOD2.
+- Full `npm run e2e` (4191), five runs while fixing; the last on the final build: 10 suite(s) failed: e2e-mouse,
+  e2e-feedback, e2e-combat, e2e-anchors, e2e-course, e2e-music, e2e-wall, e2e-camera-bounds, e2e-kestrel,
+  e2e-weapon-audio; KNOWN FLAKY: e2e-coop, e2e-pad. e2e-offline ok, e2e-desktop:1-4 ok. Solo reruns (`--jobs=1`): all
+  eight ok; e2e-camera-bounds, e2e-kestrel pre-existing master failures. Every full run here had 9-13 load failures
+  (timeouts, "Cannot read properties of null", timing limits), each ok solo.
+- What the full runs found and fixed on the way: run 2, e2e-offline's warm wait ended early when vite-plugin-pwa
+  reloaded the page on the worker's activation (the wait now retries until its one 60 s deadline); run 3, the
+  backgrounding check's 5 s pause wait landed on the Infiltration player's KTX2 transcode (the suite now waits for, and
+  asserts, her LOD2 first); run 4, e2e-desktop:1 printed Babylon's "Failed to load KTX2 texture data: ... null
+  (reading 'memoryAllocated')" for a texture disposed mid-transcode (A110's `ktx2Abandoned`).
+
+**Open**
+- Item 3 is not GPU-run (not needed for an exit-code change). The checker's notes (part-mesh measuring for the carry,
+  the rifle standing off her back, hero in VRAM after photo mode, the A80 header in DECISIONS) are unchanged.

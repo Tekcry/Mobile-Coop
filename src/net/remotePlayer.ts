@@ -70,7 +70,8 @@ export class RemotePlayer implements Damageable {
     this.body.shape = this.shape;
     this.body.disablePreStep = false;
     registry.register(this.body, this, 'body');
-    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false };
+    // (operators 11e r1) the partner's light is sampled at its body's height (host and client alike, nothing sent)
+    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false, height: avatar.rig.height };
     this.sync();
   }
 

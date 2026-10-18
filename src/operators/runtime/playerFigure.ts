@@ -13,7 +13,8 @@ import { CharacterRig, setVoxelBodies, type PartFactory } from '../../player/cha
 import type { AvatarLook } from '../../cosmetics/avatarLook';
 import { flags } from '../../core/flags';
 import { OPERATORS } from '../operatorBody';
-import { LOD_0, LOD_2 } from './manifest';
+import { LOD_0, LOD_2, playLodUrls } from './manifest';
+import { pageLeaving, warmPlayLods } from './offline';
 import { OperatorFigure, OperatorLibrary } from './figure';
 import { wrenManifest } from './assets';
 
@@ -76,9 +77,11 @@ export function operatorRig(scene: Scene, make: PartFactory, look: AvatarLook, n
  */
 export const MIN_LODS = flags.gfx === 'min';
 
-/** The play LODs: LOD2 first, then LOD0 and LOD1 (`?gfx=min`: LOD2 only). */
+/** The play LODs: LOD2 first, then LOD0 and LOD1 (`?gfx=min`: LOD2 only); then the offline cache is warmed (A109). */
 export function loadPlayLods(f: OperatorFigure): void {
-  (MIN_LODS ? f.load(LOD_2) : f.loadGameLods()).catch(warnLoad);
+  (MIN_LODS ? f.load(LOD_2) : f.loadGameLods())
+    .catch((e: unknown) => warnLoad(e, f))
+    .finally(() => void warmPlayLods(playLodUrls(f.manifest, MIN_LODS)));
 }
 
 /**
@@ -86,20 +89,27 @@ export function loadPlayLods(f: OperatorFigure): void {
  * last so it never holds up the files play needs (`?gfx=min`: LOD2 only).
  */
 export function loadMenuLods(f: OperatorFigure, prefetch: (url: string) => Promise<unknown>): void {
+  // (11e fix r1, A109) once the play LODs are in, they go into the offline cache (through the worker), then the hero
+  const warm = (): Promise<number> => warmPlayLods(playLodUrls(f.manifest, MIN_LODS));
   if (MIN_LODS) {
-    f.load(LOD_2).catch(warnLoad);
+    f.load(LOD_2).catch((e: unknown) => warnLoad(e, f)).finally(() => void warm());
     return;
   }
   const lod1 = f.manifest.urls[2];
   f.load(LOD_2)
     .then(() => f.load(LOD_0))
     .then(() => (lod1 ? prefetch(lod1) : null))
+    .then(warm)
     .then(() => f.loadCloseUp())
-    .catch(warnLoad);
+    .catch((e: unknown) => warnLoad(e, f));
 }
 
-/** Logs a failed body load (the game plays on: the rig is the gameplay body; nothing is drawn until a LOD loads). */
-export function warnLoad(e: unknown): void {
+/**
+ * Logs a failed body load (the game plays on: the rig is the gameplay body; nothing is drawn until a LOD loads). A load
+ * abandoned by the page unloading or by its body / scene being disposed is not a failure and is not reported (A110).
+ */
+export function warnLoad(e: unknown, f?: OperatorFigure): void {
+  if (pageLeaving() || f?.isDisposed) return;
   console.warn('[operators] Wren failed to load', e);
 }
 

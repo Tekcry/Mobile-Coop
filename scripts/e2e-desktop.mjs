@@ -373,6 +373,8 @@ try {
   assert(gi.groups > 1 && gi.shader, `GI baked per lamp circuit and in the voxel shader (${gi.groups} circuits)`);
   assert(gi.before > 0 && gi.after < gi.before && gi.back === gi.before, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
+  // (operators 11e fix r1) Wren's checks below need a LOD on screen: wait for the first (LOD2)
+  await e.page.waitForFunction(() => window.__app.current.player.figure.current >= 0, null, { timeout: 60000 }).catch(() => {});
   const ch = await e.page.evaluate(async () => {
     const g = window.__app.current;
     // (operators 11e, G123) the player is Wren (her own skinned model, no voxel body): the voxel bodies are the guards'
@@ -389,21 +391,39 @@ try {
       return worst;
     };
     const p = rigs[0];
-    // the lens glow on a voxel body with goggle lenses (the player's were; Wren's goggle glows on her own model, G73)
+    // (operators 11e fix r1) Wren, driven directly: the camera fade's head hide scales her shown LOD's head joint to 0
+    // and back to 1; a vision mode on brings the goggle into use with a brighter lens than 'off' (G73). The player's own
+    // frame sets both back from the camera and the vision state next frame.
+    const f = g.player.figure;
+    const cam = g.scene.activeCamera;
+    const lod = f.current >= 0 ? f.lods[f.current] : null;
+    const headNode = lod && lod.head >= 0 ? lod.nodes[lod.head] : null;
+    const sc = () => (headNode ? [headNode.scaling.x, headNode.scaling.y, headNode.scaling.z] : null);
+    f.setHeadVisible(false);
+    const headOff = sc();
+    f.setHeadVisible(true);
+    const headOn = sc();
+    const glowOf = () => { const m = f.current >= 0 ? f.lods[f.current]?.glowMat : null; return m ? m.emissiveColor.r + m.emissiveColor.g + m.emissiveColor.b : -1; };
+    f.setVision('night', 1);
+    f.update(cam);
+    const visionOn = { glow: glowOf(), pose: f.goggle.pose };
+    f.setVision('off', 1);
+    f.update(cam);
+    const visionOff = { glow: glowOf(), pose: f.goggle.pose };
+    const wrenHead = { lod: f.current, headOff, headOn };
+    const wrenGoggle = { on: visionOn, off: visionOff };
+    // the lens glow and head fade on a voxel body with goggle lenses: only where a lensed body exists (the guards'
+    // archetypes have none at present; the player's lenses are Wren's own model, checked above)
     const lr = rigs.find((r) => r.lenses?.length > 0);
     let lensChanged = null;
+    let lensHead = null;
     if (lr) {
       const lens0 = lr.voxel.meshes[1].getVerticesData('color').slice();
       lr.setLensGlow(true);
       lensChanged = lr.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
       lr.setLensGlow(false);
-    }
-    // the camera head fade: the player's (Wren's) figure follows the shoulder camera (unit-tested in
-    // operatorsRuntimeFigure.test.ts); voxel bodies with goggle lenses still fade their own head
-    let headHidden = g.player.figure.headVisible === g.player.cam.headVisible;
-    if (lr) {
       lr.setHeadVisible(false);
-      headHidden = headHidden && !lr.voxel.meshes[1].isVisible && lr.voxel.meshes[0].isVisible;
+      lensHead = !lr.voxel.meshes[1].isVisible && lr.voxel.meshes[0].isVisible;
       lr.setHeadVisible(true);
     }
     // a ragdoll still drives its voxel body (the joints re-parented onto physics nodes)
@@ -422,7 +442,9 @@ try {
       err: Math.max(...rigs.map(err)),
       ragErr: rag?.voxel ? err(rag) : -1,
       lensChanged,
-      headHidden,
+      lensHead,
+      wrenHead,
+      wrenGoggle,
       wren,
     };
   });
@@ -431,7 +453,12 @@ try {
   assert(ch.cast, 'voxel bodies cast shadows');
   assert(ch.quads > 500, `a guard in 2 cm voxels (${ch.quads} quads)`);
   assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
-  assert(ch.lensChanged !== false && ch.headHidden, `lens glow and the camera head fade reach the voxels (lens ${ch.lensChanged ?? 'no lensed voxel body'}, head ${ch.headHidden})`);
+  const zero = (v) => !!v && v.every((x) => x === 0);
+  const one = (v) => !!v && v.every((x) => x === 1);
+  assert(ch.wrenHead.lod >= 0 && zero(ch.wrenHead.headOff) && one(ch.wrenHead.headOn), `the camera head fade hides Wren's head (LOD ${ch.wrenHead.lod}: head joint scale ${JSON.stringify(ch.wrenHead.headOff)} hidden, ${JSON.stringify(ch.wrenHead.headOn)} shown)`);
+  assert(ch.wrenGoggle.on.pose === 'inUse' && ch.wrenGoggle.off.pose === 'stowed' && ch.wrenGoggle.off.glow > 0 && ch.wrenGoggle.on.glow > ch.wrenGoggle.off.glow * 1.5, `a vision mode brings Wren's goggle down with a brighter lens (on ${ch.wrenGoggle.on.pose} ${ch.wrenGoggle.on.glow.toFixed(3)}, off ${ch.wrenGoggle.off.pose} ${ch.wrenGoggle.off.glow.toFixed(3)})`);
+  if (ch.lensChanged === null) console.log('  (no guard body has goggle lenses: the voxel lens glow / head fade check has nothing to drive)');
+  else assert(ch.lensChanged && ch.lensHead, `lens glow and the camera head fade reach a lensed voxel body (lens ${ch.lensChanged}, head ${ch.lensHead})`);
   // voxel weapons and chips (3.0 phase 4)
   const wp = await e.page.evaluate(() => {
     const g = window.__app.current;

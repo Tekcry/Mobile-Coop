@@ -28,6 +28,7 @@ export { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 import { KhronosTextureContainer2 } from '@babylonjs/core/Misc/khronosTextureContainer2';
 KhronosTextureContainer2.URLConfig.jsDecoderModule = '';
 export { KhronosTextureContainer2 };
+export { Logger } from '@babylonjs/core/Misc/logger';
 export { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
 export { ClusteredLightContainer } from '@babylonjs/core/Lights/Clustered/clusteredLightContainer';
 export { DefaultRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline';

@@ -90,6 +90,7 @@ import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, w
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
+import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -352,6 +353,7 @@ export class GameState implements AppState {
       id: 'local',
       target: this.target,
       feet: this.player.position,
+      height: this.player.rig.height,
       speed: 0,
       crouched: false,
       cover: null,
@@ -994,7 +996,8 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     const f = this.world.lightField;
     const p = this.player.position;
-    const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
+    // (operators 11e r1, G129) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
+    const h = lightSampleHeight(this.player.rig.height, this.player.controller.crouchBlend);
     // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
     // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).
     const wc = this.wallCore;
@@ -1020,7 +1023,7 @@ export class GameState implements AppState {
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
         r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
-      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
     }
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
@@ -2042,8 +2045,8 @@ export class GameState implements AppState {
     }
     const c = p.controller;
     // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
-    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts);
-    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts);
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts, p.rig.height);
+    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts, p.rig.height);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);

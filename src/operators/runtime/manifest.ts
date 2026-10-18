@@ -93,3 +93,14 @@ export function validateModel(model: GlbModel, label = 'model'): string[] {
   if (!model.materials.some((m) => m.name.endsWith('-glow'))) out.push(`${label}: no -glow material (goggle lens)`);
   return out;
 }
+
+/**
+ * (11e fix r1, A109) The files play needs, in load order: LOD2, then LOD0 and LOD1 (`minOnly`, `?gfx=min`: LOD2 only).
+ * The hero is never one of them (close-ups only, on demand). These are the files warmed into the offline cache.
+ */
+export function playLodUrls(m: OperatorManifest, minOnly: boolean): string[] {
+  const order = minOnly ? [LOD_2] : [LOD_2, LOD_0, LOD_1];
+  const out: string[] = [];
+  for (const i of order) if (m.urls[i]) out.push(m.urls[i]);
+  return out;
+}

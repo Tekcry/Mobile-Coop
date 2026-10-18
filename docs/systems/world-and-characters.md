@@ -90,8 +90,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
     G74; build `average`, style `detailed`, no voxel body) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as
-    before), the light-meter samples and the hit volumes (`playerTarget.ts`, `net/remotePlayer.ts`: `hitVolumes(rig.p)`)
-    follow Wren's size. Its part meshes are still built (back gear and thigh widths are measured from them for the
+    before), the light-meter samples (`game/bodyHeight.ts` `lightSampleHeight(rig.height, crouch)`, local and partner
+    via `PlayerRef.height`; the cover exposure points scale the same way) and the hit volumes (`playerTarget.ts`,
+    `net/remotePlayer.ts`: `hitVolumes(rig.p)`) follow Wren's size. Its part meshes are still built (back gear and thigh widths are measured from them for the
     weapon carry) but disabled; Wren is what renders. The controller capsule, speeds, noise, traversal anchors and the
     camera are unchanged (G38). Traversal positions use `GAMEPLAY_HEIGHT` 1.75 for every player (G139); while attached
     the rig root is drawn at the gameplay root plus `attachLift` (`AttachGrips.lift`, `Player.rootLift`; visual only),
@@ -101,8 +102,11 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
     `assets.ts` imports them with Vite `?url`, same-origin fetch only). Play uses LOD0 (< 8 m), LOD1 (8-25 m), LOD2
     (beyond), 10 % hysteresis, LOD2 loaded first; the hero (55.5 MB) only for the main menu and registered close-up
     cameras (photo mode; `setCloseCamera`, D21, D33 "Yes use hero for menu"), loaded lazily after the game LODs.
-    `HERO_CLOSE_UPS` in `figure.ts` switches it off. The service worker caches every `assets/*.glb` on first use
-    (CacheFirst, cache `operators`); they are not precached.
+    `HERO_CLOSE_UPS` in `figure.ts` switches it off. The service worker caches every `assets/*.glb` fetched through
+    it (CacheFirst, cache `operators`); they are not precached. The first visit loads Wren before the worker controls
+    the page, so once it does `operators/runtime/offline.ts` `warmPlayLods` fetches each missing play LOD through it
+    (`playLodUrls`: LOD2, LOD0, LOD1; `?gfx=min`: LOD2): one online start that reaches the menu is enough for offline
+    play (ops A109). A load cut off by a reload or a disposed scene is not reported (`pageLeaving`, A110).
   - Two Wren bodies share geometry, materials and textures per scene (`OperatorLibrary`); each has its own skeleton
     and goggle glow. Goggle (G73): the glow is dim with vision off, full with a vision mode on (`setVision(shown)`);
     the stowed goggle on the brow waits for its export (cleanup), so the goggle sits over the eyes in both states.

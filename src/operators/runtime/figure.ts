@@ -19,12 +19,13 @@ import {
 } from '../../core/babylon';
 import { hyp3 } from '../../core/mathx';
 import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
-import { ktx2Setup } from '../lab/ktx2';
+import { ktx2Abandoned, ktx2Setup } from '../lab/ktx2';
 import { GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
 import { CLOSE_CAMERAS, pickLod } from './lodPick';
 import { flags } from '../../core/flags';
 import { LOD_0, LOD_2, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, TRS, type PoserSetup } from './pose';
+import { pageLeaving } from './offline';
 
 /** The CharacterRig fields the figure reads (CharacterRig satisfies this structurally; no import of its internals). */
 export interface RigLike {
@@ -131,7 +132,14 @@ function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): Texture
   const isKtx2 = im.mime === 'image/ktx2';
   if (isKtx2) ktx2Setup(scene.getEngine() as Parameters<typeof ktx2Setup>[0]);
   const url = URL.createObjectURL(new Blob([im.data as BlobPart], { type: im.mime }));
-  const t = new Texture(url, scene, false, !isKtx2, Texture.TRILINEAR_SAMPLINGMODE, () => URL.revokeObjectURL(url), () => URL.revokeObjectURL(url), null, false, undefined, im.mime, undefined, undefined, isKtx2 ? '.ktx2' : undefined);
+  let settled = false;
+  const settle = (): void => {
+    settled = true;
+    URL.revokeObjectURL(url);
+  };
+  const t = new Texture(url, scene, false, !isKtx2, Texture.TRILINEAR_SAMPLINGMODE, settle, settle, null, false, undefined, im.mime, undefined, undefined, isKtx2 ? '.ktx2' : undefined);
+  // (11e fix r1, A110) disposed mid-transcode (the scene went away): an abandoned load, not a failure
+  if (isKtx2) t.onDisposeObservable.addOnce(() => { if (!settled) ktx2Abandoned(); });
   // the reader v-flips the UVs; a compressed KTX2 cannot be flipped at upload (Babylon 9 does not compensate)
   if (isKtx2) { t.vScale = -1; t.vOffset = 1; }
   t.gammaSpace = srgb;
@@ -277,7 +285,9 @@ export function setCloseCamera(camera: Camera, on: boolean): void {
     if (!on) continue;
     f.loadCloseUp().then(
       () => f.update(scene.activeCamera),
-      (e: unknown) => console.warn('[operators] close-up LOD failed', e),
+      (e: unknown) => {
+        if (!pageLeaving() && !f.isDisposed) console.warn('[operators] close-up LOD failed', e);
+      },
     );
   }
 }
@@ -349,6 +359,11 @@ export class OperatorFigure {
   async loadGameLods(): Promise<void> {
     await this.load(3);
     await Promise.all([this.load(1), this.load(2)]);
+  }
+
+  /** Disposed (its body or scene went away): a load still in flight is abandoned, not failed. */
+  get isDisposed(): boolean {
+    return this.disposed || this.lib.scene.isDisposed;
   }
 
   /** Bit i = LOD i ready. */

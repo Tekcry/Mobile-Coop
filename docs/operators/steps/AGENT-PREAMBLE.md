@@ -26,6 +26,11 @@ role, the step, the handover and (fix rounds) the fix list. Modelled on docs/loc
 - Never install software or download a file: do everything else and record it OPEN in the LOG.md draft with exactly
   what is needed and why.
 
+## NO DESKTOP TAKEOVER (Michael, 2026-10-18)
+Never use Claude in Chrome, the browser pane or any computer-use / mouse / keyboard tool; never open a browser window or
+tab on Michael's desktop. Browser work is headless only (scripts/e2e-lib.mjs, never HEADED). Spawned processes use
+`windowsHide: true` so no terminal windows open.
+
 ## PORT 4189 HARD RULE (verbatim, every agent)
 Master G94 (since the 4.0.0 merge, step 11c): GPU work (E2E_GPU=1: Lab, sheets, renders, GPU perf) uses port 4189;
 software-GL e2e suites use 4191 and never E2E_GPU=1. Free whichever port you used, the same way, before you return.

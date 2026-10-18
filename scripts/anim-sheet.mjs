@@ -61,7 +61,12 @@ if (!sc) throw new Error(`unknown scenario ${scenario}`);
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 // (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
 await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
-await waitOperator(page);
+// (11e fix r1) never draw a sheet with no Wren on it: a timeout fails the run
+if ((await waitOperator(page)) < 0) {
+  console.error('anim-sheet: Wren not loaded (her LOD0 never reached the screen within 120 s); no sheet drawn');
+  await browser.close();
+  process.exit(1);
+}
 // (PC1) the toasts too ("Ready to play offline", graphics tier)
 await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
 await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {

@@ -1,13 +1,12 @@
 # Operators run - state (resume point)
 
-**Now:** step 11e, implementer 3 done (uncommitted on checkpoint 2, dd988f6; LOG.md "Step 11e - continuation 2").
-Fixed: e2e-clip elbow (A107: `characterRig.keepElbowOut` swivels an elbow out of the trunk; min +4.4 cm), traversal
-gameplay fixed at 1.75 m for every player (D34 / G139, Michael: "Keep gameplay fixed (Recommended)"; `GAMEPLAY_HEIGHT`,
-`attachLift` draws Wren lifted onto her grips; A105 replaced, e2e-ct back to 1.90 m), allocations (A108: Wren's frame
-code allocates nothing; the extra perf reading is V8 tier-up; WARM=48: 8.32 vs 7.25 MB/s no-Wren; default 11.05 vs
-7.57, every budget passes), solo-front screenshot shows her front. `npm run check` passes; named suites ok (anchors and
-coop ok solo; bunker known flaky). Next: full `npm run e2e`, the independent check, the PR feature/operators -> master.
-Moth (step 12, D24) after.
+**Now:** step 11e fix round 1 done (uncommitted on 566f3d8; LOG.md "Step 11e fix round 1"). Fixed: Wren offline
+(A109: once the worker controls the page the play LODs are warmed into the `operators` cache, `offline.ts`
+`warmPlayLods`; e2e-offline asserts the offline player has LOD2), abandoned loads not reported (A110: `pageLeaving`,
+`isDisposed`, KTX2 warning filter while leaving), light samples and exposure points from the body height (A111:
+`game/bodyHeight.ts`, `PlayerRef.height`; Wren 1.68 m), e2e-desktop drives Wren's head fade and goggle glow, perf.mjs
+/ anim-sheet.mjs exit 1 when Wren never loads, `@babylonjs/ktx2decoder` a dependency. Next: the checker's re-check of
+fix round 1, then the PR feature/operators -> master. Moth (step 12, D24) after.
 
 **After 11c (master 4.0.0 merged):** master's rules now apply on this branch: CLAUDE.md (desktop only, CT kit `rifle` +
 `pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G122, bible 2.0. Ports
@@ -22,7 +21,7 @@ rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAM
 - `GARMENTS.wren` = suit, gloves, approach_boots, headwear, head_kit, armour, chest_rig, waist_belt, leg_kit. Rebuild
   chain about 25 min, then `npm run operators:lods -- wren --render` (about 11 min since A95; ends with `operators:ktx2`); `operators:check -- wren` about 55 min.
 - KTX2 (A79, D27): every LOD GLB is UASTC + Zstd 18 via `KHR_texture_basisu`; operators:check `ktx2` FAILs otherwise.
-  VRAM 96 / 32 / 8 / 4 MB (hero / LOD0 / LOD1 / LOD2). Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (devDependency) on the
+  VRAM 96 / 32 / 8 / 4 MB (hero / LOD0 / LOD1 / LOD2). Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (a dependency since 11e r1) on the
   main thread, wasm via `?url`, no network (lab/ktx2.ts); the Lab flips KTX2 in the texture matrix (Babylon cannot at
   upload). core/babylon.ts blanks KhronosTextureContainer2's CDN decoder URL. The game's KTX2 path is step 18's.
 - Lab lighting (A80): the reader's winding flip lit every face from inside until step 11 fix round 1; fixed, rigs

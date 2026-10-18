@@ -6,7 +6,7 @@ import { buildRetarget, poseSkeleton, type RigJoint } from '../src/operators/lab
 import { GOGGLE_GLOW, GoggleState, goggleRange, partitionGoggle } from '../src/operators/runtime/goggle';
 import { bandLod, CloseCameras, pickLod } from '../src/operators/runtime/lodPick';
 import {
-  availableMask, LOD_0, LOD_1, LOD_2, LOD_HERO, manifestFromUrls, sameOrigin, validateManifest, validateModel,
+  availableMask, LOD_0, LOD_1, LOD_2, LOD_HERO, manifestFromUrls, playLodUrls, sameOrigin, validateManifest, validateModel,
 } from '../src/operators/runtime/manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_PARENT, TRS } from '../src/operators/runtime/pose';
 
@@ -54,6 +54,13 @@ describe('operator runtime: manifest', () => {
     expect(m.urls).toEqual(['/assets/wren-hero-abc.glb', '/assets/wren-lod0-abc.glb', '/assets/wren-lod1-abc.glb', '/assets/wren-lod2-abc.glb']);
     expect(availableMask(m)).toBe(0b1111);
     expect(validateManifest(m, 'https://x.github.io')).toEqual([]);
+  });
+  // (11e fix r1, A109) the files warmed into the offline cache: the play LODs, LOD2 first, never the hero
+  it('lists the play LODs for the offline cache (gfx=min: LOD2 only)', () => {
+    const m = manifestFromUrls('wren', files);
+    expect(playLodUrls(m, false)).toEqual(['/assets/wren-lod2-abc.glb', '/assets/wren-lod0-abc.glb', '/assets/wren-lod1-abc.glb']);
+    expect(playLodUrls(m, true)).toEqual(['/assets/wren-lod2-abc.glb']);
+    expect(playLodUrls(manifestFromUrls('moth', files), false)).toEqual(['/assets/moth-lod0.glb']);
   });
   it('needs every game LOD; hero is optional', () => {
     const m = manifestFromUrls('moth', files);

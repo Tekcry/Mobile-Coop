@@ -1,4 +1,5 @@
 import { hyp2, hyp3 } from '../core/mathx';
+import { bodyScale, STANDARD_BODY } from './bodyHeight';
 /**
  * Combat-around-cover maths (pure, unit-tested): exposure sampling, cover quality, suppression and
  * near-miss geometry. Shared by the player (HUD, effects) and the AI (cover choice, flanking).
@@ -26,9 +27,12 @@ export function exposureFraction(points: readonly P3[], eyes: readonly P3[], blo
   return best;
 }
 
-/** Sample points on a character's hit volumes (feet position, crouch 0..1, lean offset along its right). */
-export function exposurePoints(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, out: P3[]): P3[] {
-  const k = 1 - crouch * 0.4;
+/**
+ * Sample points on a character's hit volumes (feet position, crouch 0..1, lean offset along its right). `height`: the
+ * body's standing height (m; ops 11e r1, G129): the point heights scale with it (Wren 1.68 m: 0.96 of the 1.75 m body's).
+ */
+export function exposurePoints(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, out: P3[], height = STANDARD_BODY): P3[] {
+  const k = (1 - crouch * 0.4) * bodyScale(height);
   const set = (i: number, y: number, side: number): void => {
     const p = out[i] ?? (out[i] = { x: 0, y: 0, z: 0 });
     p.x = feet.x + rightX * side;
@@ -48,8 +52,8 @@ export function exposurePoints(feet: P3, crouch: number, rightX: number, rightZ:
  * (locomotion step 12b, light parity) The same sample points with the head and chest taken from the real posed body
  * (back-to-wall peek / lean-out, the mirrored open-side weapon, the low-wall side lean): the rest stay on the model.
  */
-export function exposurePointsPosed(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, head: P3, chest: P3, out: P3[]): P3[] {
-  exposurePoints(feet, crouch, rightX, rightZ, lean, out);
+export function exposurePointsPosed(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, head: P3, chest: P3, out: P3[], height = STANDARD_BODY): P3[] {
+  exposurePoints(feet, crouch, rightX, rightZ, lean, out, height);
   const h = out[0]!;
   h.x = head.x;
   h.y = head.y;

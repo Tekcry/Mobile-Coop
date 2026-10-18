@@ -1252,3 +1252,36 @@ baseline / Maglev code that boxes doubles; at WARM=48 `applyTargets` reads 376 K
 remaining +1.1 MB/s at WARM=48 is spread over non-Wren code in other JIT states (anim curve sampler, Havok iterator,
 HUD). Fixed anyway: the attach path's per-step override object, the pipe grip closure, the soft-knee fields' Smi ->
 double change (a deopt in the rig update). Budget 11.52 MB/s passes either way. Undo: none needed.
+
+**A109 Step 11e fix r1: the game warms Wren's play LODs into the offline cache once the worker controls the page.**
+The GLBs are only runtime-cached (A98 / A100) when a fetch goes through the controlling worker. The first online visit
+loads Wren before the worker claims the page, so her files missed the cache and the next offline start had no body
+(e2e-offline: "Wren failed to load: Failed to fetch", solo and in the full run). `operators/runtime/offline.ts`
+`warmPlayLods` runs after the menu's (or the match's) play LODs load: with a controller now (or at its
+`controllerchange`) it fetches each play LOD not yet in the cache once through the worker (`manifest.ts`
+`playLodUrls`: LOD2, LOD0, LOD1; `?gfx=min`: LOD2). So one online start that reaches the menu leaves the play LODs
+cached; the hero stays on demand (cached the first time a close-up asks for it). Chosen over precaching LOD2 (2.5 MB in
+every install, and still no LOD0 / LOD1 offline). A failed warm is an info line, not a warning (the loads report real
+failures; the next start warms again). e2e-offline now waits for the warm before going offline and asserts the offline
+match's player has LOD2 loaded. Undo: drop the two `warmPlayLods` calls (then offline play needs a second online start).
+
+**A110 Step 11e fix r1: a body load cut off by the page unloading or its scene going away is not reported.**
+`offline.ts` `pageLeaving()` is true from `pagehide` to `pageshow`; `warnLoad(e, figure)` and the close-up warning
+stay quiet while it is set or when the figure / its scene is disposed (`OperatorFigure.isDisposed`). Babylon's own
+"Failed to load KTX2 texture data" (the transcoder's wasm fetch aborted by a reload; e2e-offline's save-migration
+reload, e2e-desktop's 21:9 reload) is dropped by a `Logger.Warn` filter in `lab/ktx2.ts` while the page is
+leaving, and once per KTX2 texture disposed before it loaded (`ktx2Abandoned`, within 30 s: a scene disposed
+mid-transcode, where Babylon uploads into the released texture: "Cannot read properties of null (reading
+'memoryAllocated')", seen once in e2e-desktop:1 in a full run); every other KTX2 warning prints. No suite's console
+filter changed. Undo: drop the checks (abandoned loads
+then print as failures).
+
+**A111 Step 11e fix r1: light samples and exposure points come from the body's height.** G129 / ops D11 ("light sample
+heights match their real size") and A99 said the light meter follows Wren; off the wall it still sampled a 1.75 m body
+(`gameState.ts`: `1.75 * (1 - 0.35 * crouch)`, remotes `1.75 * 0.65`). Now `game/bodyHeight.ts`
+`lightSampleHeight(height, crouch)` (pure, tested) takes the rig's height: the local player `player.rig.height`, a
+partner `PlayerRef.height` (its RemoteAvatar rig's, set where the ref is made on host and client alike; nothing sent);
+Wren samples at 1.68 m standing, 1.092 m crouched (7 / 4.6 cm lower). `tactics.ts` `exposurePoints` /
+`exposurePointsPosed` take the same height (point heights scaled by height / 1.75; lean offsets unchanged). The on-wall
+posed head sample is unchanged; guards and anything without a height keep 1.75. Traversal keeps `GAMEPLAY_HEIGHT`
+(G139). Undo: pass 1.75 (the meter then samples above her head).
