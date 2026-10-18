@@ -111,3 +111,11 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   - `docs/art-credits.md`: master's file plus the menu fonts section.
 - `npm install` for master's `@babylonjs/ktx2decoder` (G172).
 - Goal (PR #6, not yet on master) copied into RULES and STATE from origin/docs/prototype-goal.
+- Checks: `npm run check` passes (lint 0 errors, 1588 tests, build ok; first run had 5 s timeouts under load).
+  `e2e:quick` (65 min, one at a time): 13 failed: e2e-mouse (F / PageDown now `coop`), e2e-move (gear 1 speed via the
+  old rocker keys), e2e-traverse (sprint climb, G31), e2e-combat (LB swap, now the A3 layout), e2e-enemies (heavy
+  front takedown, G155), e2e-modes (Y grabs intel, Y is jump now), e2e-stealth and e2e-anchors (page.evaluate on
+  removed fields), e2e-ct and e2e-ct-warehouse (sprint / brace), e2e-camera-bounds (pre-existing), e2e-kestrel and
+  e2e-editor (Kestrel / editor, off-limits area, D-pad rebinds). e2e-coop and e2e-netmove known flaky. All read as
+  stale assertions from slices A3-B2 that changed controls and moves (no play breakage seen in the logs); queued as a
+  test cleanup slice (T1) in POLISH.md.

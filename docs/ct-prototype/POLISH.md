@@ -36,3 +36,7 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 ## Menu job (sent to the main session)
 - Brightness and quit-to-menu dialogs overlap the main menu (menu-1); remap screen vs CT layout (menu-2); dead settings
   rows (menu-3).
+- T1 test cleanup (2026-10-19 e2e:quick after the Wren merge): update stale assertions in e2e-mouse, e2e-move,
+  e2e-traverse, e2e-combat, e2e-enemies, e2e-modes, e2e-stealth, e2e-anchors, e2e-ct, e2e-ct-warehouse, e2e-editor
+  (D-pad door tool) to the CT layout and removed moves; e2e-kestrel and e2e-camera-bounds pre-existing. Needed before
+  the PR's full e2e.
