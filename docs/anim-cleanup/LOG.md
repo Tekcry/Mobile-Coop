@@ -77,3 +77,4 @@
   e2e-weapons-carry passes (crouch-walk back gun bore up 0.59), e2e-clip and e2e-anim pass; crouch and wall sheets
   re-shot (natural crouch, arms hanging on the wall). tests/input.test.ts binding-table checks fail on
   feature/ct-prototype itself (their F1a controls in progress; no diff here).
+- Merged CT Core's 939fc95 (the F1a binding table): all unit tests pass (1669).
