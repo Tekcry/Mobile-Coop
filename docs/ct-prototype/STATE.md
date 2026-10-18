@@ -2,7 +2,14 @@
 
 Updated 2026-10-18.
 
-- Job docs created (RULES, PLAN, STATE, LOG, OWNER-NOTES, DECISIONS).
+- Job docs created (RULES, FEEL-PLAN, STATE, LOG, OWNER-NOTES, DECISIONS). The job plan is `FEEL-PLAN.md`; `PLAN.md`
+  is the research's whole prototype plan (from master).
+- Research in (2026-10-18): CT co-op research merged to master (PR #4, a22a9c0) and merged into this branch. Read from
+  master now (`docs/DECISIONS.md` G124-G160, `docs/ct-research/`); the research folder paths in the start prompt are
+  superseded. Applied to this job (`FEEL-PLAN.md`): G159 manual camera, G137 strict corner peek (tighten the wall-peek
+  camera), G160 tense sneak crouch, G155 one-hit palm strike on every guard (no heavies or dogs), G135 per-player
+  goggle lamp colour, G152 held jammer (kit work after core feel unless it touches the pistol draw), G150 core feel
+  first, G158 Sonnet medium implementers. The "findings for Michael to confirm" list is not decisions.
 - Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
 - Now: round A2.1 (cleanup + camera rewrite), Sonnet implementer, report `A2-CAMERA.md`. Then STOP for Michael to play.
 - Next after A2.1: round A1.1 turn follow (3 fixes in `A1-TURN-FOOTAGE.md`), then STOP for Michael.
