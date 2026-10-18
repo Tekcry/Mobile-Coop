@@ -51,11 +51,11 @@ describe('settings in feedback (3.1.7)', () => {
     expect(d0.video).toContain('renderScale=');
     expect(d0.video).toContain('upscaler=');
     s.gameplay.sprintHold = !s.gameplay.sprintHold;
-    s.keys.ping = ['KeyX'];
+    s.keys.coop = ['KeyX'];
     const d1 = settingsDigest(s);
     expect(d1.changed).toContain(`gameplay.sprintHold=${s.gameplay.sprintHold ? 'on' : 'off'}`);
     expect(d1.changed).toContain('keys=custom');
-    expect(d1.changed).not.toContain('keys.ping');
+    expect(d1.changed).not.toContain('keys.coop');
     expect(d1.changed).not.toContain('gamepad.lookSensitivityX');
   });
   it('long context values survive (the digest is ~1 KB)', () => {

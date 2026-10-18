@@ -1,0 +1,245 @@
+// CT prototype B1: Marlow Yard (`ctcourse`), the CT training course, on two pages over `?net=local&autostart=ctcourse&mode=course`
+// (the first tab hosts, the second joins). Both pages load the map; both walk (teleport) through the eight stations in
+// order: station 1 read the three panels, then each station's gate opens and both pages see its door unlock (station 2:
+// the real leg-up, station 5: leg-up + ledge relay onto the roof, then the roof plates; the others are still placeholder
+// pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
+// next bay. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
+import { launch, openPage, assert } from './e2e-lib.mjs';
+
+const url = process.argv[2] ?? 'http://localhost:4173/';
+let failed = false;
+const PITCH = 22;
+const Q = 'net=local&autostart=ctcourse&mode=course';
+
+// (G13) polled from here: the in-page polling does not run on a background page
+async function until(page, fn, arg, timeout = 15000, what = 'condition') {
+  const t0 = Date.now();
+  for (;;) {
+    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
+    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: Q });
+let B = null;
+let eB = [];
+const GA = (f, a) => A.evaluate(f, a);
+const GB = (f, a) => B.evaluate(f, a);
+
+// the host page is in the background once the client page opens: a pump steps its sim headless (as e2e-course)
+let pumpOn = false;
+let pumping = false;
+const pump = setInterval(async () => {
+  if (!pumpOn || pumping) return;
+  pumping = true;
+  try {
+    await A.evaluate(() => {
+      if (window.__raf === undefined) {
+        window.__raf = 0;
+        const f = () => {
+          window.__raf++;
+          requestAnimationFrame(f);
+        };
+        requestAnimationFrame(f);
+      }
+      const now = performance.now();
+      const last = window.__pumpT ?? now;
+      const idle = window.__pumpRaf === window.__raf;
+      window.__pumpT = now;
+      window.__pumpRaf = window.__raf;
+      if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+    });
+  } catch {}
+  pumping = false;
+}, 40);
+
+const use = (P, id) =>
+  P.evaluate((id) => {
+    const it = window.__app.current.interactables?.items.find((i) => i.id === id);
+    if (!it) return 'missing';
+    if (!it.enabled) return 'disabled';
+    it.onUse(it);
+    return 'ok';
+  }, id);
+const hostDebug = () => GA(() => window.__course.debug());
+async function moveHost(x, z, y = 0.1) {
+  await GA(([x, z, y]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, y, z), Math.PI / 2); }, [x, z, y]);
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4; }, [x, z], 15000, `course sees the host at ${x}, ${z}`);
+}
+async function moveClient(x, z, y = 0.1) {
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await GB(([x, z, y]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, y, z), Math.PI / 2); }, [x, z, y]);
+  await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; const f = window.__course.state.feet; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4 && Math.hypot(f[3] - x, f[5] - z) < 0.4; }, [x, z], 15000, `host sees the client at ${x}, ${z}`);
+}
+const doorIndex = (cid) => GA((cid) => { const g = window.__app.current; const aid = g.world.layout.course.doors[cid]; return g.world.doors.list.find((d) => d.anchor.id === aid).index; }, cid);
+
+// (B2) real buttons: the Co-op action is pad RB (5), B (1) crouches, Y (3) climbs up from a hang. A button is held until the
+// page's own state shows it was seen (software GL runs a few frames a second; a short press can fall between polls).
+const RB = 5;
+async function holdUntil(P, btn, cond, what, arg, timeout = 20000) {
+  await P.evaluate((b) => window.__pad.set(b, 1), btn);
+  try {
+    await until(P, cond, arg, timeout, what);
+  } finally {
+    await P.evaluate((b) => window.__pad.set(b, 0), btn);
+  }
+}
+const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
+async function crouch(P) {
+  await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches');
+  await new Promise((r) => setTimeout(r, 150));
+}
+/** The client crouches and offers, the host takes the leg-up: the host ends hanging on the ledge in front of the client. */
+async function legUp(x, z, what) {
+  await moveClient(x, z);
+  await moveHost(x - 0.8, z);
+  await new Promise((r) => setTimeout(r, 500));
+  await padReady(B);
+  await padReady(A);
+  await crouch(B);
+  await holdUntil(B, RB, () => window.__app.current.team.state === 'offer', `${what}: the client offers a leg-up`).catch(async (e) => {
+    console.error(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ prompt: g.team.prompt, st: g.team.state, crouched: c.crouched, grounded: c.grounded, ov: !!c.override, att: g.traversal.attached, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
+    throw e;
+  });
+  await until(A, () => !!window.__app.current.team.offer?.boost, null, 8000, `${what}: the host is offered the leg-up`);
+  const boosts0 = await GA(() => window.__app.current.team.count.boosts);
+  await holdUntil(A, RB, (n) => window.__app.current.team.count.boosts > n, `${what}: the host takes the leg-up`, boosts0);
+  await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 12000, `${what}: the host hangs on the ledge`).catch(async (e) => {
+    console.error(await GA(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, att: g.traversal.attach.phase, kind: g.traversal.attach.anchor?.kind, ov: !!c.override, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z], alive: g.player.alive }); }));
+    throw e;
+  });
+  const top = await GA(() => window.__app.current.traversal.attach.anchor.top);
+  assert(top >= 4.3 && top <= 4.5, `${what}: the leg-up reaches the 4.4 m ledge (${top})`);
+  await until(B, () => window.__app.current.team.state === 'none', null, 20000, `${what}: the booster is free again`);
+}
+/** The hanging host pulls up onto the top. */
+async function pullUp(P, what) {
+  await holdUntil(P, 3, () => !window.__app.current.traversal.attached, `${what}: pulls up`);
+  await until(P, () => window.__app.current.player.controller.grounded, null, 30000, `${what}: stands on top`);
+}
+
+/** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
+async function openGate(n, i) {
+  const x0 = PITCH * i;
+  const door = `S${n}-door`;
+  if (n === 2) {
+    // the real wall (4.4 m, bolted door): the client boosts the host, the host crosses and unbolts the door from the far side
+    await legUp(x0 + 8.0, 3, 'station 2');
+    await pullUp(A, 'station 2 host');
+    const topY = await GA(() => window.__app.current.player.controller.pos.y);
+    assert(topY > 4.2, `station 2: the host stands on the wall top (${topY})`);
+    await moveHost(x0 + 10.2, 7);
+    const nearPress = await use(B, 'c-g-s2');
+    assert(nearPress === 'ok', 'station 2: the client tries the bolt from the near side');
+    assert(!(await GA(() => window.__course.debug().gates['g-s2'])), 'station 2: the bolt refuses a press from the near side');
+    assert((await use(A, 'c-g-s2')) === 'ok', 'station 2: the host unbolts the door from the far side');
+    await until(A, () => window.__course.debug().gates['g-s2'], null, 8000, 'station 2: the bolt gate opens');
+    await moveClient(x0 + 7.5, 7);
+  } else if (n === 5) {
+    // the roof: leg-up one, relay the other, both press the roof plates together
+    await legUp(x0 + 8.0, 3.6, 'station 5');
+    const lipId = await GA(() => window.__app.current.traversal.attach.anchor.id);
+    await moveClient(x0 + 8.0, 3.6);
+    await new Promise((r) => setTimeout(r, 400));
+    await holdUntil(A, RB, () => window.__app.current.team.state === 'relayOffer', 'station 5: the hanging host offers the relay');
+    await until(B, () => !!window.__app.current.team.offer?.relay, null, 8000, 'station 5: the client is offered the relay');
+    await holdUntil(B, RB, () => window.__app.current.team.count.ladders >= 1, 'station 5: the client climbs the relay');
+    await until(B, (id) => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.id === id, lipId, 40000, 'station 5: the client hangs on the same ledge').catch(async (e) => {
+      console.error(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.lastDenied, endWhy: g.team.endWhy, att: g.traversal.attach.phase, aid: g.traversal.attach.anchor?.id, ov: !!c.override, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z], alive: g.player.alive, prompt: g.team.prompt }); }));
+      console.error(await GA(() => { const g = window.__app.current; const a = g.traversal.attach; return JSON.stringify({ aid: a.anchor?.id, s: a.s, len: a.anchor?.len, top: a.anchor?.top }); }));
+      throw e;
+    });
+    await until(A, () => window.__app.current.team.state === 'none' && window.__app.current.traversal.attached, null, 8000, 'station 5: the host is free and still hanging');
+    await pullUp(A, 'station 5 host');
+    await pullUp(B, 'station 5 client');
+    await moveHost(x0 + 11, 3.6, 4.5);
+    await moveClient(x0 + 11, 10.4, 4.5);
+    const [ra, rb] = await Promise.all([use(A, 'c-sw-s5-a'), use(B, 'c-sw-s5-b')]);
+    assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
+    await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
+  } else if (n === 4 || n === 6) {
+    await moveHost(x0 + 5, 1.6);
+    await moveClient(x0 + 5, 12.4);
+    // pressed together inside the 1 s pair window
+    const [ra, rb] = await Promise.all([use(A, `c-sw-s${n}-a`), use(B, `c-sw-s${n}-b`)]);
+    assert(ra === 'ok' && rb === 'ok', `station ${n}: both plates pressed (${ra}, ${rb})`);
+    await until(A, (g) => window.__course.debug().gates[g], `g-s${n}`, 8000, `station ${n} pair gate opens`);
+  } else {
+    await moveHost(x0 + 5, 1.6);
+    await moveClient(x0 + 5, 4);
+    assert((await use(A, `c-h-s${n}`)) === 'ok', `station ${n}: the host holds the console`);
+    await until(A, (g) => window.__course.debug().gates[g], `g-s${n}`, 8000, `station ${n} hold gate opens`);
+  }
+  if (n === 5) {
+    await moveHost(x0 + 11, 12.4);
+    assert((await use(A, 'c-sw-s5-hack')) === 'ok', 'station 5: the grid computer is hacked');
+    await until(A, () => window.__course.debug().gates['g-s5-grid'], null, 8000, 'the grid gate opens');
+  }
+  const di = await doorIndex(door);
+  await until(B, (i) => !window.__course.wire.locks.includes(i), di, 8000, `client sees ${door} unlock`);
+}
+
+/** Both onto the airlock pad after bay index i: the course moves to bay i + 1. */
+async function throughAirlock(i) {
+  const x = PITCH * i + 19;
+  await moveHost(x, 6.5);
+  await moveClient(x, 7.6);
+  await until(A, (b) => window.__course.debug().bay === b, i + 1, 90000, `the course reaches station ${i + 2}`);
+}
+
+try {
+  console.log('walk URL: host and client on Marlow Yard');
+  await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
+  const opened = await openPage(ctx, url, Q);
+  B = opened.page;
+  eB = opened.errors;
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, 60000, `${tag} in the ctcourse match`);
+  pumpOn = true;
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
+  await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
+  assert((await hostDebug()).bay === 0, 'the course starts at station 1');
+  await GA(() => { window.__app.current.target.damageMul = 0; });
+
+  console.log('station 1: the three panels, both players');
+  for (const k of [1, 2, 3]) {
+    await moveHost(4 * k, 12.4);
+    await moveClient(4 * k, 12.4);
+    assert((await use(A, `c-sw-p${k}`)) === 'ok' && (await use(B, `c-sw-p${k}`)) === 'ok', `panel ${k} read by both`);
+  }
+  await throughAirlock(0);
+
+  for (let n = 2; n <= 8; n++) {
+    const i = n - 1;
+    console.log(`station ${n}: ${n === 2 || n === 5 ? 'real moves' : 'placeholder gate'}`);
+    await openGate(n, i);
+    if (n < 8) await throughAirlock(i);
+  }
+
+  console.log('exit zone: both must be in it');
+  const zx = PITCH * 7 + 13.5;
+  await moveHost(zx, 7);
+  await moveClient(PITCH * 7 + 12, 1.5);
+  await new Promise((r) => setTimeout(r, 600));
+  assert(!(await GA(() => window.__app.current.isEnded)), 'one player in the exit zone does not end the course');
+  await moveClient(zx + 0.5, 6);
+  await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
+  assert(true, 'both players in the exit zone complete the course');
+
+  const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
+  assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);
+} catch (e) {
+  console.error(e);
+  try {
+    console.error('host', JSON.stringify(await hostDebug()));
+    if (B) console.error('client', JSON.stringify(await GB(() => window.__course?.debug?.())));
+  } catch {}
+  failed = true;
+}
+clearInterval(pump);
+await browser.close();
+if (failed || process.exitCode) {
+  console.error('FAILED');
+  process.exit(1);
+}
+console.log('e2e-ctcourse OK');

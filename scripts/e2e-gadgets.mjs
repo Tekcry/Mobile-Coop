@@ -169,7 +169,7 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       // the operator looks at it; the guard faces it
-      t.tp(2, 0, -4, 0, 0);
+      t.tp(2, 0, -2.2, 0, 0); // A2.1: -4 puts the rigid camera behind a one-sided wall
       const e = t.spawn(2, 2, Math.PI);
       t.step(0.3);
       const calm = !e.alerted;

@@ -18,17 +18,20 @@ const KEYS: Record<PromptButton, string> = {
 
 /** In-game keyboard labels from the player's bindings (set by the app; the defaults until then). */
 export const keyLabels = {
-  cover: 'Space',
-  traverse: 'E',
+  cover: 'Shift',
+  traverse: 'Space',
+  interact: 'E',
   crouch: 'C',
   reload: 'R',
   /** 3.2.0 speed gear (the wheel also steps it). */
   speedUp: '=',
   speedDown: '-',
+  /** (CT prototype B2) the co-op action: team moves. */
+  coop: 'F',
 };
 
 /** (locomotion step 18) In-game pad buttons from the player's bindings (set by the app; button index, -1 unbound). */
-export const padButtons = { cover: 0, traverse: 3, crouch: 1, reload: 2 };
+export const padButtons = { cover: 10, traverse: 3, interact: 0, crouch: 1, reload: 2, coop: 5 };
 const IDX_BTN: Partial<Record<number, PromptButton>> = { 0: 'A', 1: 'B', 2: 'X', 3: 'Y', 4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT', 9: 'START', 10: 'LS' };
 
 /** A gameplay prompt: the verb's bound pad button (remapped, D7) and its key. */

@@ -68,3 +68,6 @@ own calls as A1, A2, ... "ASSUMED - for review" below the MD list (RULES.md).
 
 ## Run assumptions (ASSUMED - for review)
 None yet.
+
+## Later changes
+- G113 changed (Michael, 2026-10-18): the menu update starts now, before the CT prototype; Michael: "I would really like to update the menu and use the new hero poses". Recorded in docs/DECISIONS.md at the menu PR with the next free G number.

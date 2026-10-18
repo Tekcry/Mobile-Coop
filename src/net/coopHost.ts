@@ -531,7 +531,8 @@ export class CoopHost implements NetAttachment {
     out.length = 0;
     for (const r of this.remotes.values()) {
       if (!r.alive) continue;
-      out.push({ id: r.id, pos: r.avatar.pos, yaw: r.avatar.yaw, mode: r.state?.mv?.m ?? 'ground' });
+      const mv = r.state?.mv;
+      out.push({ id: r.id, pos: r.avatar.pos, yaw: r.avatar.yaw, mode: mv?.m ?? 'ground', anchor: mv?.a ?? -1, s: mv?.s ?? 0, sub: mv?.sub ?? 0 });
     }
     return out;
   }
@@ -546,8 +547,8 @@ export class CoopHost implements NetAttachment {
     const r = self ? null : this.remotes.get(id);
     if (!self && !r) return null;
     const p = self ? this.g.player.position : r!.feet;
-    const mode = self ? localMoveState(this.g, this.teamMv).m : (r!.state?.mv?.m ?? 'ground');
-    return { id, x: p.x, y: p.y, z: p.z, mode, alive: self ? this.g.player.alive : r!.alive };
+    const mv = self ? localMoveState(this.g, this.teamMv) : r!.state?.mv;
+    return { id, x: p.x, y: p.y, z: p.z, mode: mv?.m ?? 'ground', alive: self ? this.g.player.alive : r!.alive, anchor: mv?.a ?? -1, s: mv?.s ?? 0, sub: mv?.sub ?? 0 };
   }
 
   /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
@@ -574,11 +575,9 @@ export class CoopHost implements NetAttachment {
     const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99) });
     this.teamLast.set(by, now);
     if (why) return deny(why);
-    if (kind === 'ladder') {
-      this.teamPairs.set(by, partner);
-      this.teamPairs.set(partner, by);
-    }
-    const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
+    // the relay climbs the hanger's own ledge at the hanger's own spot (never the climber's claim)
+    const relay = kind === 'ladder';
+    const start = { kind, a: by, b: partner, target: relay ? (b.anchor ?? -1) : anchor ? target : -1, s: relay ? (b.s ?? 0) : ss, t0: now };
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
     this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -606,7 +605,7 @@ export class CoopHost implements NetAttachment {
   healAtStation(who: string): boolean {
     const r = this.remotes.get(who);
     if (!r) return false;
-    const hp = stationHeal(r.health.hp, r.health.maxHp, r.alive);
+    const hp = stationHeal(r.health.hp, r.health.maxHp, r.alive, this.g.opts.difficulty ?? 'normal');
     if (hp === null) return false;
     r.health.heal(hp - r.health.hp);
     return true;
@@ -915,7 +914,7 @@ export class CoopHost implements NetAttachment {
       if (!r.alive || !st) continue;
       if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
         // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall', (st.f & PF.sprint) !== 0);
+        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall');
         if (n > 0) em.hear(r.feet, n);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;

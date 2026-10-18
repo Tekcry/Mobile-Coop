@@ -1,12 +1,12 @@
 import type { ButtonAction } from './actions';
-import { detectPadStyle, GAME_BINDINGS, mapPad, PAD, TapHold, type PadStyle } from './gamepadMapping';
+import { detectPadStyle, GAME_BINDINGS, mapPad, TapHold, type PadStyle } from './gamepadMapping';
 import { PAD_BUTTON_COUNT, padBindTable, type PadBinds } from './padBinds';
-import { WHEEL_HOLD, type InputState } from './inputState';
+import type { InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
-/** (locomotion step 18) Holding B this long (s) while a button is being captured cancels the capture. */
-export const CAPTURE_CANCEL_HOLD = 1;
+/** (menu-ui slice 2, G22 / MD13) The button that cancels a capture: Menu / Start (B stays bindable). */
+export const CAPTURE_CANCEL_BTN = 9;
 /** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
 export const SWAP_HOLD = 0.35;
 /** X held this long (s) counts as a hold (aiming: the next weapon, A55; not aiming: free, the carried medkit is gone, G98). */
@@ -32,10 +32,8 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
+  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free). */
   private xBtn = new TapHold(X_HOLD);
-  private leftBtn = new TapHold(WHEEL_HOLD);
-  private viewBtn = new TapHold(SWAP_HOLD);
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -51,7 +49,6 @@ export class GamepadSource {
   private capture: ((btn: number | null) => void) | null = null;
   private capArmed = false;
   private capBtn = -1;
-  private capAt = 0;
   /** After a capture: the pad is ignored until every button is up (the press never reaches the menus). */
   private capQuiet = false;
   style: PadStyle = 'xbox';
@@ -132,7 +129,7 @@ export class GamepadSource {
       this.table = padBindTable(all.pad);
     }
     if (this.capture || this.capQuiet) {
-      this.pollCapture(pad, now);
+      this.pollCapture(pad);
       return;
     }
     const frame = mapPad({ buttons: pad.buttons.map((b) => b.value || (b.pressed ? 1 : 0)), axes: pad.axes }, s, this.table);
@@ -140,9 +137,9 @@ export class GamepadSource {
     if (frame.active) this.events.onActive();
 
     for (const a of [
-      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
+      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause', 'ping', 'coop', 'vision',
       'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
-      'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt',
+      'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
       this.state.set(SRC, a, frame.buttons[a] === true);
     }
@@ -155,10 +152,6 @@ export class GamepadSource {
       if (this.adsActive) this.state.tap('swapNext');
     }
     else if (x === 'tap') this.state.tap('reload');
-    // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
-    if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
-    // View: tap = goggles (on release); a hold is free (emotes deleted, G24)
-    if (this.viewBtn.update(frame.buttons.vision === true, now) === 'tap') this.state.tap('vision');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);
@@ -176,7 +169,7 @@ export class GamepadSource {
     this.state.fireAnalog = frame.fireAnalog;
   }
 
-  /** (step 18) Capture the next button (its index, on release); null = cancelled (B held `CAPTURE_CANCEL_HOLD` s,
+  /** (step 18) Capture the next button (its index, on release); null = cancelled (Menu / Start, G22,
    *  or `cancelCapture`: Esc, the 5 s timeout). */
   captureNext(cb: (btn: number | null) => void): void {
     this.capture = cb;
@@ -200,7 +193,7 @@ export class GamepadSource {
     cb?.(btn);
   }
 
-  private pollCapture(pad: Gamepad, now: number): void {
+  private pollCapture(pad: Gamepad): void {
     this.state.releaseSource(SRC);
     const down = (i: number): boolean => {
       const b = pad.buttons[i];
@@ -219,12 +212,12 @@ export class GamepadSource {
     if (this.capBtn < 0) {
       if (any >= 0) {
         this.capBtn = any;
-        this.capAt = now;
       }
       return;
     }
-    if (!down(this.capBtn)) this.finishCapture(this.capBtn);
-    else if (this.capBtn === PAD.B && now - this.capAt >= CAPTURE_CANCEL_HOLD) this.finishCapture(null);
+    // (G22) Menu / Start cancels on its press; every other button (B included) binds on its release
+    if (this.capBtn === CAPTURE_CANCEL_BTN) this.finishCapture(null);
+    else if (!down(this.capBtn)) this.finishCapture(this.capBtn);
   }
 
   rumble(strong: number, weak: number, ms: number): void {

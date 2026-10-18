@@ -12,7 +12,7 @@ import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/com
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 16;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -50,7 +50,7 @@ export interface PlayerInfo {
 /** Bit flags in player state. */
 /** Player flags; `silent`: footsteps make no noise this moment (climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, /* 64 was the sprint (removed, protocol 14) */ quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
 export interface PlayerState {
   id: string;

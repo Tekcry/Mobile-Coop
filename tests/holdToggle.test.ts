@@ -1,7 +1,7 @@
 // (locomotion step 18, D7) hold / toggle for aim, crouch, back-to-wall, sprint and grab (pure input sequences)
 import { describe, expect, it } from 'vitest';
 import { HoldToggle } from '../src/input/holdToggle';
-import { crouchToggleNext, crouchWanted, sprintEdge } from '../src/player/movement';
+import { crouchWanted } from '../src/player/movement';
 import { grabDecides } from '../src/game/takedown';
 import { buildCoverSegments, type CoverBox } from '../src/cover/coverData';
 import { buildWallLinks, emptyWallInput, WallCore, type WallInput } from '../src/player/wallController';
@@ -22,36 +22,16 @@ describe('hold / toggle (step 18)', () => {
   });
 
   it('crouch', () => {
-    const run = (toggle: boolean, seq: Seq, sprinting = false): boolean[] => {
+    const run = (toggle: boolean, seq: Seq): boolean[] => {
       let latch = false;
       return seq.map(([p, h]) => {
-        if (p && toggle) latch = crouchToggleNext(latch, sprinting);
+        if (p && toggle) latch = !latch;
         return crouchWanted(toggle, latch, h);
       });
     };
     expect(run(false, PRESS_HOLD_RELEASE)).toEqual([true, true, false, false]);
     expect(run(true, PRESS_HOLD_RELEASE)).toEqual([true, true, true, true]);
     expect(run(true, [[true, true], [false, false], [true, true], [false, false]])).toEqual([true, true, false, false]);
-    // from a sprint a press always crouches
-    expect(crouchToggleNext(true, true)).toBe(true);
-  });
-
-  it('sprint', () => {
-    const run = (toggle: boolean, seq: Seq, mag = 1): boolean[] => {
-      let on = false;
-      return seq.map(([p, h]) => {
-        const e = sprintEdge(toggle, p, h, on, mag);
-        if (e > 0) on = true;
-        else if (e < 0) on = false;
-        return on;
-      });
-    };
-    expect(run(false, PRESS_HOLD_RELEASE)).toEqual([true, true, false, false]);
-    expect(run(true, PRESS_HOLD_RELEASE)).toEqual([true, true, true, true]);
-    expect(run(true, [[true, true], [false, false], [true, true]])).toEqual([true, true, false]);
-    // a still stick never starts it
-    expect(run(false, PRESS_HOLD_RELEASE, 0.1)).toEqual([false, false, false, false]);
-    expect(run(true, PRESS_HOLD_RELEASE, 0.1)).toEqual([false, false, false, false]);
   });
 
   it('back to wall (context entry)', () => {

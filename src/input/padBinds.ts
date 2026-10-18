@@ -1,28 +1,29 @@
 /**
- * (locomotion step 18, D7) Controller bindings (pure, unit-tested). Every remappable pad verb has up to two buttons
- * (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons (`UI_BINDINGS`)
- * stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire). The defaults
- * are `GAME_BINDINGS` (the binding table in docs/systems/input-and-loop.md). Contextual verbs that share one button by
- * design are one row here: Y is jump + use + takedown, X is reload (tap) + next weapon (hold while aiming, A55), the context button
- * carries back-to-wall / door peek / SWAT.
+ * (locomotion step 18, D7; CT prototype A3, G96) Controller bindings (pure, unit-tested). Every remappable pad verb has up
+ * to two buttons (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons
+ * (`UI_BINDINGS`) stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire).
+ * The defaults are `GAME_BINDINGS` (the Chaos Theory co-op pad, docs/ct-prototype/A3-WALL-DOORS.md): A interact /
+ * context (doors, takedown), B crouch, Y jump, X equip (reload tap, next weapon hold while aiming), LT aim, RT fire, L3
+ * back-to-wall, RB co-op action (CT's Black), LB quick inventory (CT's White: the gadget wheel), View mission device (no
+ * action yet), D-pad up goggles, down throw-cam / gadget, left / right speed gear.
  */
 import type { ButtonAction } from './actions';
 import { PAD, type PadStyle } from './gamepadMapping';
 
 export type PadBindId =
-  | 'cover'
+  | 'wall'
+  | 'interact'
   | 'crouch'
   | 'reload'
-  | 'traverse'
-  | 'nextWeapon'
-  | 'prevWeapon'
-  | 'sprint'
+  | 'jump'
+  | 'coop'
+  | 'quick'
   | 'shoulder'
-  | 'speedUp'
-  | 'speedDown'
-  | 'gadget'
-  | 'wheel'
-  | 'goggles'
+  | 'gearUp'
+  | 'gearDown'
+  | 'throwCam'
+  | 'vision'
+  | 'device'
   | 'pause';
 
 export interface PadBindDef {
@@ -33,19 +34,19 @@ export interface PadBindDef {
 }
 
 export const PAD_BINDS: readonly PadBindDef[] = [
-  { id: 'cover', label: 'Context action (back to wall, peek, SWAT)', actions: ['cover'], defaults: [PAD.A] },
+  { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: [PAD.A] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: [PAD.B] },
-  { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: [PAD.Y] },
-  { id: 'reload', label: 'Reload (tap) / next weapon (hold, aiming)', actions: ['reload'], defaults: [PAD.X] },
-  { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: [PAD.RB] },
-  { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: [PAD.LB] },
-  { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: [PAD.LS] },
-  { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: [PAD.RS] },
-  { id: 'speedUp', label: 'Speed gear up', actions: ['speedUp'], defaults: [PAD.UP] },
-  { id: 'speedDown', label: 'Speed gear down', actions: ['speedDown'], defaults: [PAD.DOWN] },
-  { id: 'gadget', label: 'Gadget (hold to aim)', actions: ['grenade'], defaults: [PAD.RIGHT] },
-  { id: 'wheel', label: 'Ping (tap) / gadget wheel (hold)', actions: ['gadgetWheel'], defaults: [PAD.LEFT] },
-  { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: [PAD.SELECT] },
+  { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: [PAD.Y] },
+  { id: 'reload', label: 'Equip: reload (tap) / next weapon (hold, aiming)', actions: ['reload'], defaults: [PAD.X] },
+  { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: [PAD.LS] },
+  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: [PAD.RB] },
+  { id: 'quick', label: 'Quick inventory (hold: gadget wheel)', actions: ['gadgetWheel'], defaults: [PAD.LB] },
+  { id: 'shoulder', label: 'Swap shoulder (aiming)', actions: ['shoulderSwap'], defaults: [PAD.RS] },
+  { id: 'vision', label: 'Vision modes', actions: ['vision'], defaults: [PAD.UP] },
+  { id: 'throwCam', label: 'Gadget / throw-cam (hold to aim)', actions: ['grenade'], defaults: [PAD.DOWN] },
+  { id: 'gearDown', label: 'Speed gear down', actions: ['speedDown'], defaults: [PAD.LEFT] },
+  { id: 'gearUp', label: 'Speed gear up', actions: ['speedUp'], defaults: [PAD.RIGHT] },
+  { id: 'device', label: 'Mission device (not in yet)', actions: [], defaults: [PAD.SELECT] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: [PAD.START] },
 ];
 

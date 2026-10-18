@@ -2,9 +2,10 @@ import { Vector3 } from '../core/babylon';
 import { hyp2 } from '../core/mathx';
 import { G } from '../physics/groups';
 import { TEAM } from '../config/movement';
-import { findJumpTarget, type JumpTarget } from '../world/anchors';
+import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
-import { boostPath, canBrace, type TeamKind } from './teamMoves';
+import { ATTACH_SUB } from '../player/moveState';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, type TeamKind } from './teamMoves';
 import type { GameState } from './gameState';
 
 /** A team-mate as the team moves see them (from the net layer). */
@@ -14,9 +15,13 @@ export interface TeamMate {
   yaw: number;
   /** Their movement mode (`MoveState.m`). */
   mode: string;
+  /** Their attached anchor id, position along it and attach sub bits (a hanging mate's relay offer is `ATTACH_SUB.relay`). */
+  anchor?: number;
+  s?: number;
+  sub?: number;
 }
 
-/** A team move the host started: `a` climbs, `b` is braced; the boost's target anchor and where on it. */
+/** A team move the host started: `a` climbs, `b` offers (crouched for a leg-up, hanging for a relay). */
 export interface TeamStart {
   kind: TeamKind;
   a: string;
@@ -25,32 +30,46 @@ export interface TeamStart {
   s: number;
 }
 
-export type TeamState = 'none' | 'brace' | 'boost' | 'assist' | 'ladderUp' | 'top' | 'bottom';
+export type TeamState = 'none' | 'offer' | 'relayOffer' | 'boost' | 'assist' | 'relayUp' | 'relayHold';
+
+const REFUSE_SHOW = 2;
 
 /**
- * Co-op team moves (3.2.0 phase 5), the local side: brace against a wall (hold Y with a team-mate near), ask a braced
- * team-mate for a boost (tap Y) or the human ladder (hold Y), and play what the host starts: the climber's step-up
- * and toss onto the target anchor, or the climb onto the shoulders and the top (aim / fire, Y grabs a lip in reach,
- * B hops down); the braced player assists, or holds still as the bottom (B ends it). The host checks every request
- * (`teamMoves.ts` `checkTeamRequest`) on both players' movement states.
+ * Co-op team moves, the local side (CT prototype B2). The Co-op action (RB / F) starts them (G151: anywhere with room):
+ * - crouched on the ground: offer a LEG-UP (`offer`, wire mode `brace`: still, hands cupped). The partner runs in, presses
+ *   the Co-op action and is boosted onto the ledge in reach (G57 band); the offerer assists. Standing instead is CT's
+ *   partner throw (B4): `standingHook` is its entry (null now: a polite refusal).
+ * - hanging from a ledge: offer the LEDGE RELAY (`relayOffer`: the relay bit in the attach sub). The partner under them
+ *   presses the Co-op action and climbs up the hanging body to the same ledge (`relayUp`); the hanger holds still
+ *   meanwhile (`relayHold`) and then pulls up with the normal climb.
+ * The host checks every request (`teamMoves.ts` `checkTeamRequest`) on both players' movement states. No brace, no stack.
  */
 export class TeamController {
   state: TeamState = 'none';
-  /** The partner in the current move (or the braced team-mate on offer). */
+  /** The partner in the current move (or the offering team-mate). */
   partner = '';
-  /** What a Y press would ask for now (a braced team-mate in reach) and that mate. */
-  offer: { mate: TeamMate; boost: JumpTarget | null } | null = null;
-  /** Seconds into the current committed part (boost, climbing up). */
+  /** What the Co-op action would complete now: a crouched mate offering (a boost target or none) or a hanging mate. */
+  offer: { mate: TeamMate; boost: JumpTarget | null; relay: boolean } | null = null;
+  /** The world prompt now (names the move and who starts it) and where it is drawn; null = none. */
+  prompt: string | null = null;
+  readonly promptAt = new Vector3();
+  /** B4 hook: the standing Co-op action (CT's partner throw). Return true when it took the press. */
+  standingHook: (() => boolean) | null = null;
+  /** Seconds into the current committed part. */
   private t = 0;
   private start: TeamStart | null = null;
   private from = new Vector3();
   private kin = new Vector3();
   private pt = { x: 0, y: 0, z: 0 };
-  /** The Y press being timed near a braced mate: tap = boost, held = ladder (s; < 0 none). */
-  private pressT = -1;
-  /** Counts (tests): braces, boosts, ladders, denials. */
-  readonly count = { braces: 0, boosts: 0, ladders: 0, denied: 0, ends: 0 };
+  private hp = { x: 0, y: 0, z: 0, yaw: 0 };
+  /** Counts (tests): offers, boosts, relays, denials. */
+  readonly count = { offers: 0, boosts: 0, ladders: 0, denied: 0, ends: 0 };
   lastDenied = '';
+  /** Why the last move ended early (tests, debugging). */
+  endWhy = '';
+  private refuse = '';
+  private refuseT = 0;
+  private sides = [0, 0, 0, 0];
   private a = new Vector3();
   private b = new Vector3();
 
@@ -61,143 +80,203 @@ export class TeamController {
     return this.g.net?.teamMates?.() ?? [];
   }
 
+  /** In a team move that owns the body (an offer waiting on the ground or a hang offer is not: the player stays free). */
   get active(): boolean {
-    return this.state !== 'none';
+    return this.state !== 'none' && this.state !== 'relayOffer';
   }
 
-  /** Busy with a move (not just braced): traversal / cover / takedowns stand aside. */
+  /** The hanger is held still while the partner climbs. */
+  get hangLock(): boolean {
+    return this.state === 'relayHold';
+  }
+
   get busy(): boolean {
-    return this.state !== 'none' && this.state !== 'brace';
+    return this.active && this.state !== 'offer';
   }
 
-  /** Distance (m) to a wall straight behind the body (from the hips), or Infinity. */
-  private wallBehind(): number {
+  /** Free air over the head and the four side clearances (m): the leg-up's room (G151). */
+  private room(): boolean {
     const g = this.g;
     const c = g.player.controller;
-    const bx = -Math.sin(c.yaw);
-    const bz = -Math.cos(c.yaw);
     this.a.set(c.pos.x, c.pos.y + 1.0, c.pos.z);
-    this.b.set(c.pos.x + bx * (TEAM.wallBehind + 0.3), c.pos.y + 1.0, c.pos.z + bz * (TEAM.wallBehind + 0.3));
-    const h = g.ballistics.ray(this.a, this.b, G.STATIC);
-    return h.hit ? h.distance : Infinity;
+    this.b.set(c.pos.x, c.pos.y + 1.0 + TEAM.roomUp + 0.4, c.pos.z);
+    const hu = g.ballistics.ray(this.a, this.b, G.STATIC);
+    // the ray starts 1.0 up; the toss needs the air over the crouched head (1.05)
+    const up = hu.hit ? hu.distance + 1.0 - 1.05 : Infinity;
+    for (let i = 0; i < 4; i++) {
+      const yaw = c.yaw + (i * Math.PI) / 2;
+      this.b.set(c.pos.x + Math.sin(yaw) * (TEAM.roomSide + 0.3), c.pos.y + 0.8, c.pos.z + Math.cos(yaw) * (TEAM.roomSide + 0.3));
+      this.a.set(c.pos.x, c.pos.y + 0.8, c.pos.z);
+      const h = g.ballistics.ray(this.a, this.b, G.STATIC);
+      this.sides[i] = h.hit ? h.distance : Infinity;
+    }
+    return legUpRoom(up, this.sides);
+  }
+
+  private refused(text: string): void {
+    this.refuse = text;
+    this.refuseT = REFUSE_SHOW;
+    this.g.app.toasts.show(text, 'warn');
+  }
+
+  /** Hanging on a ledge, settled (not blending on or off). */
+  private hanging(): boolean {
+    const t = this.g.traversal;
+    return t.attached && t.attach.kind === 'ledge' && t.attach.phase === 'on';
   }
 
   /**
-   * Fixed step (before traversal). `yPressed` / `yHeld` / `yHeldT` the Y control, `bPressed` the B control. Returns
-   * true when the team move took Y this step (traversal then gets no press).
+   * Fixed step (before traversal). `coopPressed` the Co-op action, `bPressed` the crouch / B control (cancels an offer).
+   * Returns true when the team move took the press.
    */
-  fixedUpdate(dt: number, yPressed: boolean, yHeld: boolean, yHeldT: number, bPressed: boolean): boolean {
+  fixedUpdate(dt: number, coopPressed: boolean, bPressed: boolean): boolean {
     const g = this.g;
     const c = g.player.controller;
-    const mates = this.mates();
     if (!g.player.alive) {
       if (this.state !== 'none') this.end(true);
+      this.prompt = null;
       return false;
     }
+    if (this.refuseT > 0) this.refuseT -= dt;
+    this.prompt = this.refuseT > 0 ? this.refuse : null;
+    if (this.prompt) this.promptAt.set(c.pos.x, c.pos.y + 1.9, c.pos.z);
     switch (this.state) {
-      case 'none': {
-        this.offer = null;
-        if (!mates.length || g.traversal.active || g.takedown.active || !c.grounded) return false;
-        // a braced team-mate in reach, facing them: boost (tap) / ladder (hold)
-        let best: TeamMate | null = null;
-        let bd: number = TEAM.partnerReach;
-        for (const m of mates) {
-          if (m.mode !== 'brace') continue;
-          const d = hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z);
-          if (d < bd && Math.abs(m.pos.y - c.pos.y) < 0.4) {
-            bd = d;
-            best = m;
-          }
-        }
-        if (best) {
-          this.offer = { mate: best, boost: this.boostTarget(best) };
-          if (yPressed) this.pressT = 0;
-          if (this.pressT >= 0) {
-            this.pressT += dt;
-            if (!yHeld) {
-              this.pressT = -1;
-              if (this.offer.boost) this.request('boost', best.id, this.offer.boost);
-            } else if (this.pressT >= TEAM.braceHold) {
-              this.pressT = -1;
-              this.request('ladder', best.id, null);
-            }
-          }
-          return this.pressT >= 0 || yPressed;
-        }
-        this.pressT = -1;
-        // brace: Y held with a team-mate near and a wall right behind
-        if (yHeld && yHeldT >= TEAM.braceHold) {
-          let near = Infinity;
-          for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));
-          if (canBrace(near, this.wallBehind(), c.grounded, !c.override)) {
-            this.state = 'brace';
-            this.count.braces++;
-            return true;
-          }
-        }
-        return false;
-      }
-      case 'brace':
+      case 'none':
+        return this.idle(coopPressed);
+      case 'offer':
+        // crouched, still, hands cupped; the partner comes to us (B stands up, a timeout lets go)
+        this.t += dt;
         this.hold();
-        if (bPressed) {
-          c.swallowCrouch = true;
+        this.prompt = 'Leg-up offered: waiting for your partner';
+        this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
+        if (bPressed || coopPressed || this.t > TEAM.offerTime || !c.grounded) {
+          c.swallowCrouch = bPressed;
           this.end(false);
         }
         return true;
+      case 'relayOffer':
+        // hanging, still free to pull up; letting go or climbing ends the offer
+        this.t += dt;
+        this.prompt = 'Relay offered: waiting for your partner';
+        this.promptAt.set(c.pos.x, c.pos.y + 0.6, c.pos.z);
+        if (!this.hanging() || coopPressed || this.t > TEAM.offerTime) this.end(false);
+        return coopPressed;
       case 'assist':
         // lifting the climber: the boost's time, then free
         this.t += dt;
         this.hold();
         if (this.t >= TEAM.boostTime) this.end(false);
         return true;
-      case 'bottom':
-        // the climber gone (left, down): stand up
-        if (!this.partnerPos()) {
-          this.end(true);
-          return false;
-        }
-        this.hold();
-        if (bPressed) {
-          c.swallowCrouch = true;
-          this.g.net?.teamEnd?.();
-          this.end(false);
-        }
+      case 'relayHold':
+        // the partner climbs our body: hold the hang still, then the normal pull-up is ours
+        this.t += dt;
+        if (this.t >= TEAM.relayClimb + 0.25 || !this.partnerPos()) this.end(false);
         return true;
       case 'boost':
         this.runBoost(dt);
         return true;
-      case 'ladderUp':
-      case 'top':
-        this.runTop(dt, yPressed, bPressed);
+      case 'relayUp':
+        this.runRelay(dt);
         return true;
     }
   }
 
-  /** Braced: still, back to the wall, hands cupped. */
+  /** No move running: find what a Co-op press would complete, show the prompt, start an offer on a press. */
+  private idle(coopPressed: boolean): boolean {
+    const g = this.g;
+    const c = g.player.controller;
+    this.offer = null;
+    const mates = this.mates();
+    if (!mates.length || g.takedown.active || g.strike.active) return false;
+    const free = !g.traversal.committed && !g.traversal.attached && c.grounded && !c.override;
+    let near = Infinity;
+    for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));
+    if (free) {
+      // a mate crouched in reach (a leg-up) or hanging right over us (the relay)
+      let bd: number = TEAM.relayReach;
+      for (const m of mates) {
+        const d = hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z);
+        if (m.mode === 'brace' && d < TEAM.partnerReach && Math.abs(m.pos.y - c.pos.y) < 0.4 && d < bd) {
+          bd = d;
+          this.offer = { mate: m, boost: this.boostTarget(m), relay: false };
+        } else if (m.mode === 'ledge' && ((m.sub ?? 0) & ATTACH_SUB.relay) !== 0 && d < bd && m.pos.y - c.pos.y > 0.3 && m.pos.y - c.pos.y < TEAM.relayMax) {
+          bd = d;
+          this.offer = { mate: m, boost: null, relay: true };
+        }
+      }
+    }
+    const o = this.offer;
+    if (o) {
+      this.prompt = o.relay ? 'Co-op: climb your partner up to the ledge' : o.boost ? 'Co-op: take the leg-up' : 'Leg-up offered: no ledge in reach here';
+      this.promptAt.set(o.mate.pos.x, o.mate.pos.y + (o.relay ? 0.5 : 1.3), o.mate.pos.z);
+      if (coopPressed) {
+        if (o.relay) this.request('ladder', o.mate.id, o.mate.anchor ?? -1, o.mate.s ?? 0, 0);
+        else if (o.boost) this.request('boost', o.mate.id, o.boost.anchor.id, o.boost.s, o.boost.grip.y);
+        else this.refused('No ledge to boost to here');
+      }
+      return coopPressed;
+    }
+    // start one: hanging = the relay; crouched on the ground = the leg-up; standing = the partner throw (B4)
+    if (this.hanging()) {
+      if (near < 12 && !this.prompt) {
+        this.prompt = 'Co-op: offer a ledge relay';
+        this.promptAt.set(c.pos.x, c.pos.y + 0.6, c.pos.z);
+      }
+      if (coopPressed) {
+        this.state = 'relayOffer';
+        this.t = 0;
+        this.count.offers++;
+        this.partner = '';
+        return true;
+      }
+      return false;
+    }
+    if (!free) return false;
+    if (c.crouched && near < 12 && !this.prompt) {
+      this.prompt = 'Co-op: offer a leg-up';
+      this.promptAt.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
+    }
+    if (!coopPressed) return false;
+    if (c.crouched) {
+      if (!this.room()) this.refused('No room for a leg-up here');
+      else {
+        this.state = 'offer';
+        this.t = 0;
+        this.count.offers++;
+        this.partner = '';
+      }
+      return true;
+    }
+    if (this.standingHook?.()) return true;
+    this.refused('Crouch for a leg-up (standing is the throw)');
+    return true;
+  }
+
+  /** Crouched, still, back to the cupped-hands pose. */
   private hold(): void {
     const c = this.g.player.controller;
-    c.override = { velocity: { x: 0, z: 0 }, yaw: c.yaw, turnRate: 0 };
+    c.override = { velocity: { x: 0, z: 0 }, yaw: c.yaw, turnRate: 0, crouch: true };
     this.g.player.pose.traverse = 'brace';
   }
 
-  /** The lip / pipe / split a boost from this mate would toss onto (from the toss apex, at most `TEAM.boostMax` up). */
+  /** The lip / pipe / split a leg-up from this offering mate reaches (from the toss apex, in the boost band). */
   private boostTarget(m: TeamMate): JumpTarget | null {
     const g = this.g;
     const floor = m.pos.y;
-    // the braced mate's back is to the wall: the toss goes over them towards it
-    const dx = -Math.sin(m.yaw);
-    const dz = -Math.cos(m.yaw);
-    // searched from 1.15 m under the highest boost (a jump takes lips up to 1.2 m above, and those at least 0.4 m
-    // above when pushing up): lips 3.75-4.5 m up, the ones out of a wall jump's reach
+    // searched from 1.15 m under the highest boost (a jump takes lips up to 1.2 m above): lips out of a wall jump's reach.
+    // Any way round the offering mate (G151: anywhere), the way they face first.
     const apex = { x: m.pos.x, y: floor + TEAM.boostMax - 1.15, z: m.pos.z };
-    const t = findJumpTarget(g.world.level.anchors, apex, -1, dx, dz, 1, 2.2, 0.2);
-    if (!t || t.grip.y - floor > TEAM.boostMax || t.grip.y - floor < 2.4) return null;
-    return t;
+    for (let i = 0; i < 4; i++) {
+      const yaw = m.yaw + (i * Math.PI) / 2;
+      const t = findJumpTarget(g.world.level.anchors, apex, -1, Math.sin(yaw), Math.cos(yaw), 1, 2.2, 0.2);
+      if (t && inBoostBand(t.grip.y - floor)) return t;
+    }
+    return null;
   }
 
-  private request(kind: TeamKind, partner: string, t: JumpTarget | null): void {
+  private request(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void {
     this.partner = partner;
-    this.g.net?.teamRequest?.(kind, partner, t ? t.anchor.id : -1, t ? t.s : 0, t ? t.grip.y : 0);
+    this.g.net?.teamRequest?.(kind, partner, target, s, gripY);
   }
 
   /** The host started a team move this player is part of. */
@@ -207,14 +286,15 @@ export class TeamController {
     this.start = s;
     this.t = 0;
     this.from.copyFrom(c.pos);
+    const boost = s.kind === 'boost';
     if (s.a === self) {
       this.partner = s.b;
-      this.state = s.kind === 'boost' ? 'boost' : 'ladderUp';
-      if (s.kind === 'boost') this.count.boosts++;
+      this.state = boost ? 'boost' : 'relayUp';
+      if (boost) this.count.boosts++;
       else this.count.ladders++;
     } else if (s.b === self) {
       this.partner = s.a;
-      this.state = s.kind === 'boost' ? 'assist' : 'bottom';
+      this.state = boost ? 'assist' : 'relayHold';
     }
   }
 
@@ -222,13 +302,18 @@ export class TeamController {
   denied(reason: string): void {
     this.count.denied++;
     this.lastDenied = reason;
-    this.pressT = -1;
+    this.refused(
+      reason === 'far' ? 'Too far from your partner for that' : reason === 'noTarget' || reason === 'tooHigh' ? 'No ledge to reach from here' : reason === 'notBraced' || reason === 'notOffering' ? 'Your partner is no longer offering' : 'Not now',
+    );
   }
 
   /** The partner (or the host) ended the move. */
   ended(): void {
-    if (this.state === 'top' || this.state === 'ladderUp') this.hopDown();
-    else if (this.state === 'bottom') this.end(false);
+    if (this.state === 'relayUp') {
+      this.endWhy = 'relay: partner ended it';
+      this.end(true);
+    }
+    else if (this.state === 'relayHold') this.end(false);
   }
 
   private partnerPos(): Vector3 | null {
@@ -244,12 +329,13 @@ export class TeamController {
     const p = this.partnerPos();
     const a = g.world.level.anchors.get(s.target);
     if (!p || !a) {
+      this.endWhy = !p ? 'boost: no partner' : 'boost: no anchor';
       this.end(true);
       return;
     }
     this.t += dt;
     const h = GAMEPLAY_HEIGHT;
-    const hang = attachPose(a, s.s, 1, h, { x: 0, y: 0, z: 0, yaw: 0 });
+    const hang = attachPose(a, s.s, 1, h, this.hp);
     const gy = hang.y + 1.9 * (h / 1.75);
     boostPath(this.t, this.from.x, this.from.y, this.from.z, p.x, p.y, p.z, hang.x, gy, hang.z, 1.9 * (h / 1.75), this.pt);
     this.kin.set(this.pt.x, this.pt.y, this.pt.z);
@@ -261,61 +347,36 @@ export class TeamController {
       g.player.pose.traverse = 'none';
       this.state = 'none';
       this.start = null;
-      g.traversal.attachCtl.attachTo(a, s.s, 'side', 1, 0.15);
+      if (!g.traversal.attachCtl.attachTo(a, s.s, 'side', 1, 0.15)) this.endWhy = 'boost: attach refused';
     }
   }
 
-  /** Climber of the human ladder: up onto the shoulders, then the top (aim / fire; Y grabs a lip, B hops down). */
-  private runTop(dt: number, yPressed: boolean, bPressed: boolean): void {
+  /** Climber of the ledge relay: up the hanging partner's body to the same ledge, then hang beside them. */
+  private runRelay(dt: number): void {
     const g = this.g;
+    const s = this.start!;
     const c = g.player.controller;
-    const p = this.partnerPos();
-    if (!p) {
-      this.hopDown();
+    const a = g.world.level.anchors.get(s.target);
+    if (!this.partnerPos() || !a) {
+      this.endWhy = 'relay: no partner or anchor';
+      this.end(true);
       return;
     }
-    const top = p.y + TEAM.ladderFeet;
-    if (this.state === 'ladderUp') {
-      this.t += dt;
-      const k = Math.min(1, this.t / TEAM.ladderClimb);
-      const e = k * k * (3 - 2 * k);
-      this.kin.set(this.from.x + (p.x - this.from.x) * e, this.from.y + (top - this.from.y) * Math.min(1, e * 1.3), this.from.z + (p.z - this.from.z) * e);
-      c.override = { kinematic: this.kin, yaw: c.yaw, turnRate: 10 };
-      g.player.pose.traverse = 'climbUp';
-      g.player.pose.traverseT = k;
-      if (k >= 1) {
-        this.state = 'top';
-        g.player.pose.traverse = 'none';
-      }
-      return;
+    this.t += dt;
+    const s2 = relaySlot(s.s, anchorLength(a));
+    const hang = attachPose(a, s2, 1, GAMEPLAY_HEIGHT, this.hp);
+    relayPath(this.t, this.from.x, this.from.y, this.from.z, hang.x, hang.y, hang.z, this.pt);
+    this.kin.set(this.pt.x, this.pt.y, this.pt.z);
+    c.override = { kinematic: this.kin, yaw: hang.yaw, turnRate: 20 };
+    g.player.pose.traverse = 'climbUp';
+    g.player.pose.traverseT = Math.min(1, this.t / TEAM.relayClimb);
+    if (this.t >= TEAM.relayClimb) {
+      c.override = null;
+      g.player.pose.traverse = 'none';
+      this.state = 'none';
+      this.start = null;
+      if (!g.traversal.attachCtl.attachTo(a, s2, 'side', 1, 0.15)) this.endWhy = 'relay: attach refused';
     }
-    // standing on the shoulders: free to turn and aim, the body stays on them
-    this.kin.set(p.x, top, p.z);
-    c.override = { kinematic: this.kin, yaw: g.player.cam.yaw, turnRate: 12 };
-    if (bPressed) {
-      c.swallowCrouch = true;
-      this.g.net?.teamEnd?.();
-      this.hopDown();
-      return;
-    }
-    if (yPressed) {
-      // a lip / pipe in reach overhead (up to `TEAM.ladderGrab` over the floor)
-      const at = { x: p.x, y: top + 1.75, z: p.z };
-      const t = findJumpTarget(g.world.level.anchors, at, -1, Math.sin(c.yaw), Math.cos(c.yaw), 1, 1.6, 0.2);
-      if (t && t.grip.y - p.y <= TEAM.ladderGrab + 0.2) {
-        this.g.net?.teamEnd?.();
-        this.end(false);
-        g.traversal.attachCtl.attachTo(t.anchor, t.s, 'side', 1, 0.25);
-      }
-    }
-  }
-
-  /** Off the shoulders: a hop down beside them. */
-  private hopDown(): void {
-    const g = this.g;
-    const c = g.player.controller;
-    this.end(false);
-    c.launch(Math.sin(c.yaw) * -1.5, 1.5, Math.cos(c.yaw) * -1.5);
   }
 
   /** Back to free movement. */
@@ -325,25 +386,26 @@ export class TeamController {
     this.state = 'none';
     this.start = null;
     this.offer = null;
-    this.pressT = -1;
-    g.player.controller.override = null;
+    if (this.state === 'none' && g.player.controller.override && !g.traversal.attached) g.player.controller.override = null;
     if (g.player.pose.traverse === 'climbUp' || g.player.pose.traverse === 'brace') g.player.pose.traverse = 'none';
   }
 
-  /** Movement mode on the wire for this state (null: the regular one). */
-  get mode(): 'brace' | 'boost' | 'stacked' | null {
+  /** Movement mode on the wire for this state (null: the regular one; a hanging offer rides the attach sub bit). */
+  get mode(): 'brace' | 'boost' | null {
     switch (this.state) {
-      case 'brace':
+      case 'offer':
       case 'assist':
         return 'brace';
       case 'boost':
+      case 'relayUp':
         return 'boost';
-      case 'ladderUp':
-      case 'top':
-      case 'bottom':
-        return 'stacked';
       default:
         return null;
     }
+  }
+
+  /** The attach sub bits to add while hanging (the relay offer, held while the partner climbs). */
+  get attachBits(): number {
+    return this.state === 'relayOffer' || this.state === 'relayHold' ? ATTACH_SUB.relay : 0;
   }
 }

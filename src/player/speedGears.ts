@@ -1,13 +1,13 @@
 /**
- * Chaos Theory speed gears (3.2.0, pure, unit-tested): six gears stepped up / down by a button, kept through stance
+ * Chaos Theory speed gears (3.2.0, pure, unit-tested): five gears (no sprint, CT prototype M1) stepped up / down by a button, kept through stance
  * changes, reset at spawn and respawn. The target speed is the gear's cap for the stance times the stick curve, so a
  * keyboard or a stick pushed to its rim gives exactly the cap.
  */
 import { CT, GEARS } from '../config/movement';
 import { hyp2 } from '../core/mathx';
 
-/** Gear 1..6 (an integer). */
-export type Gear = 1 | 2 | 3 | 4 | 5 | 6;
+/** Gear 1..5 (an integer). */
+export type Gear = 1 | 2 | 3 | 4 | 5;
 
 export function clampGear(g: number): Gear {
   const n = Math.round(Number.isFinite(g) ? g : GEARS.spawn);
@@ -94,8 +94,7 @@ export class GearState {
     this.gear = spawnGear;
   }
 
-  /** Step by +1 / -1, clamped to 1..MAX_ROCKER_GEAR (step 17: the rocker sets the maximum gear; gear 6 is the
-   *  sprint); true when it changed. */
+  /** Step by +1 / -1, clamped to 1..MAX_ROCKER_GEAR (the rocker sets the maximum gear); true when it changed. */
   step(d: number): boolean {
     const g = Math.max(1, Math.min(MAX_ROCKER_GEAR, this.gear + Math.sign(d))) as Gear;
     if (g === this.gear || (d > 0 && g < this.gear)) return false;
@@ -117,7 +116,7 @@ export class GearState {
   }
 }
 
-/** The rocker / wheel sets the maximum gear 1..`MAX_ROCKER_GEAR` (locomotion step 17, D5.12); gear 6 is the sprint. */
+/** The rocker / wheel sets the maximum gear 1..`MAX_ROCKER_GEAR` (locomotion step 17, D5.12). */
 export const MAX_ROCKER_GEAR = 5;
 /** Hysteresis half-width as a share of the gap between adjacent gear caps (step 17). */
 export const GEAR_HYSTERESIS = 0.15;
@@ -139,16 +138,16 @@ export const GEAR_DOWN = { stand: thresholds(GEARS.stand, false), crouch: thresh
 /**
  * Analog speed with gear snapping (pure, allocation-free; locomotion step 17, D5.12): v = cap(maxGear) x
  * stickCurve(mag); the snapped gear is the highest g <= maxGear whose up threshold v has passed, kept until v drops
- * under its down threshold; the speed is cap(g). Any tilt past the dead zone gives gear 1; the sprint is gear 6.
+ * under its down threshold; the speed is cap(g). Any tilt past the dead zone gives gear 1.
  */
 export class AnalogGear {
   /** Snapped gear (valid while `moving`). */
   gear: Gear = 1;
-  /** The stick is past the dead zone (or sprinting). */
+  /** The stick is past the dead zone. */
   moving = false;
 
   /** Returns the snapped gear (0 inside the dead zone). */
-  update(maxGear: number, crouched: boolean, mag: number, sprint = false): number {
+  update(maxGear: number, crouched: boolean, mag: number): number {
     const c = stickCurve(mag);
     if (c <= 0) {
       this.moving = false;
@@ -156,11 +155,6 @@ export class AnalogGear {
       return 0;
     }
     this.moving = true;
-    if (sprint) {
-      this.gear = 6;
-      return 6;
-    }
-    // gear 6 only with sprint held: a maximum of 6 (`?gear=6`) caps the stick at the rocker's top gear
     const max = Math.min(MAX_ROCKER_GEAR, clampGear(maxGear));
     const v = gearCap(max, crouched) * c;
     const up = crouched ? GEAR_UP.crouch : GEAR_UP.stand;

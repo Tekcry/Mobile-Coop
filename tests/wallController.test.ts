@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
-import { LEAN_KIND, WALL, WALL_SUB, WallCore, leanBodyTurn, leanPastEdge, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, lowAimKind, openSide, stackClamp, swatDuration, wallHeadCap, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
+import { WALL, WALL_SUB, WallCore, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, openSide, stackClamp, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
 import type { MoveOverride } from '../src/player/playerController';
@@ -144,13 +144,13 @@ describe('back-to-wall core (step 11)', () => {
     expect(r.phase).toBe('entering');
   });
 
-  it('(21w, M14) slides at the slow shuffle: 0.9 standing / 0.6 crouched, within the gear cap', () => {
+  it('(A3, G35) slides at the CT shuffle: 0.35 standing / 0.3 crouched, a little slower at the low gears', () => {
     for (const [gear, crouched, want] of [
-      [6, false, 0.9],
-      [4, false, 0.9],
-      [1, false, 0.65], // (step 22) gear 1 caps after M14: 0.65 / 0.42
-      [6, true, 0.6],
-      [1, true, 0.42],
+      [6, false, 0.35],
+      [4, false, 0.35],
+      [1, false, 0.35 * WALL.slideGear1],
+      [6, true, 0.3],
+      [1, true, 0.3 * WALL.slideGear1],
     ] as const) {
       const w = core();
       const i = inp(0, 0.2 + SO + 0.1, { context: true, crouched, gear });
@@ -165,48 +165,43 @@ describe('back-to-wall core (step 11)', () => {
     const w = core();
     const i = inp(1.5, 0.2 + SO + 0.1, { context: true });
     run(w, i, 0.3);
-    i.moveX = 1; // towards a (+x): an outside end
-    run(w, i, 2.5);
+    i.moveX = 1; // towards a (+x): an outside end (1.3 m at the 0.35 m/s shuffle)
+    run(w, i, 6);
     expect(w.s).toBeCloseTo(EDGE_MARGIN, 3);
     expect(w.edge).toBe(-1);
     expect(w.sub() & WALL_SUB.edgeR).toBeTruthy();
     // sliding towards +x is the body's right (it faces out of the wall, +z)
     expect(w.sub() & WALL_SUB.faceRight).toBeTruthy();
     i.moveX = -1; // towards b: the inside corner, the held stick carries on along the side wall
-    run(w, i, 7.5);
+    run(w, i, 25);
     expect(w.seg).toBe(side);
     expect(w.count.wrap).toBe(1);
     expect(w.s).toBeGreaterThan(SO + 0.5);
     expect(w.sub() & WALL_SUB.faceRight).toBeFalsy();
   });
 
-  it('pulling the stick away held 0.3 s leaves (a brush never does); the context press leaves (toggle)', () => {
+  it('(A3, loco M25) pulling the stick away never leaves; the context press, aiming or another action does', () => {
     const w = core();
     const i = inp(0, 0.2 + SO + 0.1, { context: true });
     run(w, i, 0.6);
     i.moveZ = 1;
-    run(w, i, 0.15);
+    run(w, i, 3);
     expect(w.active).toBe(true);
-    // released, then a weak outward push (under 0.7): stays
+    expect(w.count.leave).toBe(0);
+    // the button again (toggle) leaves
     i.moveZ = 0;
-    run(w, i, 0.1);
-    i.moveZ = 0.6;
-    run(w, i, 1);
-    expect(w.active).toBe(true);
-    i.moveZ = 1;
-    run(w, i, 0.25);
-    expect(w.active).toBe(true);
-    run(w, i, 0.07);
-    expect(w.phase).toBe('leaving');
-    expect(w.lastLeave).toBe('pull');
+    i.context = true;
+    w.update(1 / 60, i);
+    expect(w.lastLeave).toBe('context');
     run(w, i, WALL.leaveTime + 0.05);
     expect(w.phase).toBe('off');
-    const t = core();
+    // aiming / another action: the leave input
+    const a = core();
     const j = inp(0, 0.2 + SO + 0.1, { context: true });
-    run(t, j, 0.3);
-    j.context = true;
-    t.update(1 / 60, j);
-    expect(t.lastLeave).toBe('context');
+    run(a, j, 0.6);
+    j.leave = true;
+    a.update(1 / 60, j);
+    expect(a.lastLeave).toBe('action');
   });
 
   it('hold mode (D7): a stick entry stays while the stick is held; a context entry while the button is held', () => {
@@ -307,7 +302,7 @@ describe('back-to-wall edge verbs (step 12)', () => {
     // slide toward a (+x): the edge comes on within 0.35 m of the end (s <= 0.22 + 0.35)
     i.moveX = 1;
     let firstS = -1;
-    for (let k = 0; k < 120 && firstS < 0; k++) {
+    for (let k = 0; k < 400 && firstS < 0; k++) {
       run(w, i, 1 / 60);
       if (w.edge !== 0) firstS = w.s;
     }
@@ -323,16 +318,12 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(b.edge).toBe(0);
   });
 
-  it('peeks after the stick is held toward the edge 0.25 s at the end (21w); eases out when released', () => {
+  it('(A3, G36) peeks at once when the stick is pushed toward the edge at the end; eases out when released', () => {
     const { w, i } = atA(EDGE_MARGIN + 0.05);
     i.moveX = 1;
-    run(w, i, 0.2);
-    // now stopped at the end: the hold counts from there
+    run(w, i, 0.4);
     expect(w.atEnd).toBe(true);
-    w.peekT = 0;
-    run(w, i, 0.2);
-    expect(w.peekOn).toBe(false);
-    run(w, i, 0.1);
+    // no hold: a peek is on within a frame or two of reaching the end
     expect(w.peekOn).toBe(true);
     run(w, i, WALL.peekBlend);
     expect(w.peek).toBe(1);
@@ -343,39 +334,6 @@ describe('back-to-wall edge verbs (step 12)', () => {
     run(w, i, WALL.peekBlend + 0.02);
     expect(w.peek).toBe(0);
     expect(w.phase).toBe('on');
-  });
-
-  it('leans out 0.35 m past the edge while aiming (lk 1) and is back in 0.25 s', () => {
-    const { w, i } = atA(EDGE_MARGIN);
-    const g = segs[front]!;
-    i.aim = true;
-    run(w, i, WALL.leanIn + 0.3);
-    expect(w.lk).toBe(1);
-    expect(w.lean).toBe(1);
-    expect(w.leanS).toBeCloseTo(-WALL.leanOut, 5);
-    // the body went past the end (toward a: along -t)
-    const along = (i.x - g.ax) * g.tx + (i.z - g.az) * g.tz;
-    expect(along).toBeLessThan(EDGE_MARGIN - WALL.leanOut + 0.03);
-    expect(w.sub() & WALL_SUB.lean).toBeTruthy();
-    i.aim = false;
-    run(w, i, WALL.leanBack - 1 / 60);
-    expect(w.lean).toBeGreaterThan(0);
-    run(w, i, 2 / 60);
-    expect(w.lean).toBe(0);
-    expect(w.lk).toBe(0);
-  });
-
-  it('rises over the top of a low wall to aim (lk 2, standing)', () => {
-    const w = core();
-    const g = segs[lowFront]!;
-    const i = inp(g.ax + g.tx * 2, 0.2 + SO + 0.3, { context: true });
-    run(w, i, 0.6);
-    expect(w.phase).toBe('on');
-    i.aim = true;
-    run(w, i, 0.4);
-    expect(w.lk).toBe(2);
-    const ov: MoveOverride = {};
-    expect(wallOverride(w, ov)!.crouch).toBe(false);
   });
 
   it('(21w, M14) at an outside end the body stops and stays on the wall: pushing on (round the corner too) peeks', () => {
@@ -398,22 +356,22 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.count.leave).toBe(0);
   });
 
-  it('(21w) peek needs a deliberate push: small stick noise never peeks; once on it holds over the keep threshold', () => {
-    expect(wallPeekWanted(false, 1, WALL.peekHold - 0.01)).toBe(false);
-    expect(wallPeekWanted(false, 1, WALL.peekHold)).toBe(true);
-    expect(wallPeekWanted(true, WALL.peekKeep + 0.01, 0)).toBe(true);
-    expect(wallPeekWanted(true, WALL.peekKeep - 0.01, 0)).toBe(false);
+  it('(A3) peek needs a push over the threshold: small stick noise never peeks; once on it holds over the keep threshold', () => {
+    expect(wallPeekWanted(false, WALL.peekPush - 0.01)).toBe(false);
+    expect(wallPeekWanted(false, WALL.peekPush + 0.01)).toBe(true);
+    expect(wallPeekWanted(true, WALL.peekKeep + 0.01)).toBe(true);
+    expect(wallPeekWanted(true, WALL.peekKeep - 0.01)).toBe(false);
     const { w, i } = atA(EDGE_MARGIN);
     run(w, i, 1);
-    // noise toward the edge (under the 0.6 push) for 2 s: no peek
-    i.moveX = 0.5;
+    // noise toward the edge (under the push) for 2 s: no peek
+    i.moveX = 0.3;
     run(w, i, 2);
     expect(w.peekOn).toBe(false);
-    // a deliberate push: on after the hold; easing the push to 0.4 keeps it
+    // a push: on at once; easing it to 0.3 keeps it
     i.moveX = 1;
-    run(w, i, WALL.peekHold + 2 / 60);
+    run(w, i, 3 / 60);
     expect(w.peekOn).toBe(true);
-    i.moveX = 0.4;
+    i.moveX = 0.3;
     run(w, i, 0.5);
     expect(w.peekOn).toBe(true);
     i.moveX = 0;
@@ -421,12 +379,13 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.peekOn).toBe(false);
   });
 
-  it('(21w) wallSlideSpeed: dead band, analog, crouched and the gear cap', () => {
-    expect(wallSlideSpeed(0.15, false, 2)).toBe(0);
-    expect(wallSlideSpeed(1, false, 2)).toBeCloseTo(0.9, 9);
-    expect(wallSlideSpeed(-1, true, 2)).toBeCloseTo(-0.6, 9);
-    expect(wallSlideSpeed(0.6, false, 2)).toBeCloseTo(0.45, 9);
-    expect(wallSlideSpeed(1, false, 0.8)).toBeCloseTo(0.8, 9);
+  it('(A3) wallSlideSpeed: dead band, analog, crouched and the gear', () => {
+    expect(wallSlideSpeed(0.15, false, 4)).toBe(0);
+    expect(wallSlideSpeed(1, false, 4)).toBeCloseTo(0.35, 9);
+    expect(wallSlideSpeed(-1, true, 4)).toBeCloseTo(-0.3, 9);
+    expect(wallSlideSpeed(0.6, false, 4)).toBeCloseTo(0.175, 9);
+    expect(wallSlideSpeed(1, false, 1)).toBeCloseTo(0.35 * WALL.slideGear1, 9);
+    expect(wallSlideSpeed(1, false, 6)).toBeCloseTo(0.35, 9);
   });
 
   it('(21w, M14) crouch on a high wall: the press toggles on the wall (hold mode: the held button), the body stays on', () => {
@@ -441,7 +400,7 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.sub() & WALL_SUB.crouch).toBeTruthy();
     i.moveX = -1;
     run(w, i, 0.2);
-    expect(Math.abs(w.v)).toBeCloseTo(0.6, 6);
+    expect(Math.abs(w.v)).toBeCloseTo(0.3 * (WALL.slideGear1 + (1 - WALL.slideGear1) * (2 / 3)), 6);
     i.crouchPressed = true;
     run(w, i, 1 / 60);
     expect(w.crouch).toBe(false);
@@ -463,44 +422,9 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.phase).toBe('off');
   });
 
-  it('SWAT turn across a 0.8-2.0 m coplanar gap: duration clamp, crouched, ends on the far wall', () => {
-    expect(swatDuration(0.8)).toBe(0.5);
-    expect(swatDuration(1.1)).toBeCloseTo((1.1 / 2.4) * 1.15, 6);
-    expect(swatDuration(2.0)).toBe(0.8);
-    // two walls on one line with a 1.1 m doorway; another pair 2.4 m apart (no SWAT)
-    const ss = buildCoverSegments([box(0, 10, 4, 2.5, 0.4), box(5.1, 10, 4, 2.5, 0.4), box(0, 30, 4, 2.5, 0.4), box(6.4, 30, 4, 2.5, 0.4)]);
-    const L = buildWallLinks(ss);
-    const near = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 10.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
-    const far = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 10.2) < 1e-6 && Math.min(g.ax, g.bx) > 3);
-    const wide = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 30.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
-    const ng = ss[near]!;
-    const endAtDoor = ng.ax > ng.bx ? 0 : 1;
-    expect(endAtDoor ? L.gB[near] : L.gA[near]).toBe(far);
-    expect(endAtDoor ? L.gapB[near] : L.gapA[near]).toBeCloseTo(1.1, 3);
-    expect(L.gA[wide]).toBe(-1);
-    expect(L.gB[wide]).toBe(-1);
-    const w = new WallCore(ss, L, SO);
-    const i = inp(1.0, 10.2 + SO + 0.3, { context: true });
-    run(w, i, 0.6);
-    i.moveX = 1;
-    run(w, i, 1.2);
-    expect(w.atEnd).toBe(true);
-    expect(w.swatTarget).toBe(far);
-    i.context = true;
-    w.update(1 / 60, i);
-    expect(w.phase).toBe('swat');
-    expect(w.crouch).toBe(true);
-    expect(w.swatDur).toBeCloseTo(swatDuration(1.1), 6);
-    const n0 = w.count.swat;
-    run(w, i, w.swatDur + 0.05);
-    expect(w.phase).toBe('on');
-    expect(w.seg).toBe(far);
-    expect(w.count.swat).toBe(n0);
-    expect(Math.abs(i.x - w.swatTo.x)).toBeLessThan(0.1);
-  });
 });
 
-describe('back-to-wall edge choice and SWAT gap (step 12 r1)', () => {
+describe('back-to-wall edge choice (step 12 r1)', () => {
   // a 1.0 m pillar: its +z face has both outside ends within `edgeReach` from the middle
   const ps = buildCoverSegments([box(0, 40, 1.0, 2.5, 1.0)]);
   const PL = buildWallLinks(ps);
@@ -556,28 +480,6 @@ describe('back-to-wall edge choice and SWAT gap (step 12 r1)', () => {
     }
   });
 
-  it('a coplanar gap under 0.8 m gets no SWAT target (the end is still an edge)', () => {
-    // two walls on one line with a 0.6 m gap
-    const ss = buildCoverSegments([box(0, 60, 4, 2.5, 0.4), box(4.6, 60, 4, 2.5, 0.4)]);
-    const L = buildWallLinks(ss);
-    const near = ss.findIndex((g) => g.nz > 0.99 && Math.abs(g.az - 60.2) < 1e-6 && Math.max(g.ax, g.bx) < 2.1);
-    expect(near).toBeGreaterThanOrEqual(0);
-    const ng = ss[near]!;
-    const endAtGap = ng.ax > ng.bx ? 0 : 1;
-    expect(endAtGap ? L.kB[near] : L.kA[near]).toBe(0);
-    expect(endAtGap ? L.gB[near] : L.gA[near]).toBe(-1);
-    const w = new WallCore(ss, L, SO);
-    const i = inp(1.0, 60.2 + SO + 0.3, { context: true });
-    run(w, i, 0.6);
-    i.moveX = 1;
-    run(w, i, 1.2);
-    expect(w.atEnd).toBe(true);
-    expect(w.edge).not.toBe(0);
-    expect(w.swatTarget).toBe(-1);
-    i.context = true;
-    w.update(1 / 60, i);
-    expect(w.phase).not.toBe('swat');
-  });
 });
 
 describe('peek light parity (step 12, bible 5.1)', () => {
@@ -618,7 +520,7 @@ describe('peek light parity (step 12, bible 5.1)', () => {
   });
 });
 
-describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
+describe('open-side weapon and the peek (step 12b, D9)', () => {
   // a free-standing high wall and a low wall, both ends outside (edges), front faces normal +z at z = 0.2
   const sg = buildCoverSegments([box(0, 0, 4, 2.5, 0.4), box(20, 0, 4, 1.0, 0.4)]);
   const lk2 = buildWallLinks(sg);
@@ -637,7 +539,7 @@ describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
     i.moveZ = g.tz * e;
     run(w, i, 0.15);
     i.moveX = i.moveZ = 0;
-    run(w, i, 0.05);
+    run(w, i, WALL.peekBlend + 0.05);
     expect(w.phase).toBe('on');
     expect(w.edge).toBe(e);
     return { w, i, tx: g.tx * e, tz: g.tz * e };
@@ -647,90 +549,36 @@ describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
     expect(openSide(WALL_SUB.edgeL)).toBe(-1);
     expect(openSide(WALL_SUB.edgeR)).toBe(1);
     expect(openSide(0)).toBe(1);
-    expect(openSide(WALL_SUB.crouch | WALL_SUB.low | WALL_SUB.lean)).toBe(1);
+    expect(openSide(WALL_SUB.crouch | WALL_SUB.low)).toBe(1);
   });
 
-  it('wallLeftHand: only at edgeL while peeking or leaning out (not over the top)', () => {
-    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.peek, 0)).toBe(true);
-    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.lean, LEAN_KIND.out)).toBe(true);
-    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.lean, LEAN_KIND.over)).toBe(false);
-    expect(wallLeftHand(WALL_SUB.edgeL, 0)).toBe(false);
-    expect(wallLeftHand(WALL_SUB.edgeR | WALL_SUB.peek, 0)).toBe(false);
-    expect(wallLeftHand(WALL_SUB.edgeR | WALL_SUB.lean, LEAN_KIND.out)).toBe(false);
-    expect(wallLeftHand(WALL_SUB.lean | WALL_SUB.peek, LEAN_KIND.out)).toBe(false);
+  it('wallLeftHand: only at edgeL while peeking', () => {
+    expect(wallLeftHand(WALL_SUB.edgeL | WALL_SUB.peek)).toBe(true);
+    expect(wallLeftHand(WALL_SUB.edgeL)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.edgeR | WALL_SUB.peek)).toBe(false);
+    expect(wallLeftHand(WALL_SUB.peek)).toBe(false);
   });
 
-  it('lowAimKind: stick or look toward the end leans out; stick up, away or mid-wall rises over', () => {
-    expect(lowAimKind(1, true, 1, 0, 0)).toBe(LEAN_KIND.out);
-    expect(lowAimKind(-1, true, 0.8, 0.2, -1)).toBe(LEAN_KIND.out);
-    expect(lowAimKind(1, true, 0, 1, 1)).toBe(LEAN_KIND.over);
-    expect(lowAimKind(1, true, -1, 0, 1)).toBe(LEAN_KIND.over);
-    expect(lowAimKind(1, true, 0, 0, 0.9)).toBe(LEAN_KIND.out);
-    expect(lowAimKind(1, true, 0, 0, 0.2)).toBe(LEAN_KIND.over);
-    expect(lowAimKind(0, false, 1, 0, 1)).toBe(LEAN_KIND.over);
-    expect(lowAimKind(1, false, 1, 0, 1)).toBe(LEAN_KIND.over);
-  });
-
-  it('high wall: leftHand set at edgeL while leaning out or peeking, never at edgeR; back off on release', () => {
+  it('high wall: leftHand set at edgeL while peeking, never at edgeR; back off when the peek ends', () => {
     const L = atEnd(hi, 'b');
-    expect(L.w.leftHand).toBe(false);
-    L.i.aim = true;
-    run(L.w, L.i, 1 / 60);
-    expect(L.w.lk).toBe(LEAN_KIND.out);
-    expect(L.w.leftHand).toBe(true);
-    run(L.w, L.i, WALL.leanIn);
-    expect(L.w.leftHand).toBe(true);
-    L.i.aim = false;
-    run(L.w, L.i, WALL.leanBack + 2 / 60);
     expect(L.w.leftHand).toBe(false);
     // the peek (look past the edge) at edgeL
     L.i.lookX = L.tx;
     L.i.lookZ = L.tz;
-    run(L.w, L.i, WALL.peekHold + 2 / 60);
+    run(L.w, L.i, 3 / 60);
     expect(L.w.peekOn).toBe(true);
     expect(L.w.leftHand).toBe(true);
+    L.i.lookX = 0;
+    L.i.lookZ = -1;
+    run(L.w, L.i, WALL.peekBlend + 2 / 60);
+    expect(L.w.leftHand).toBe(false);
     const R = atEnd(hi, 'a');
-    R.i.aim = true;
-    run(R.w, R.i, WALL.leanIn + 0.1);
-    expect(R.w.lk).toBe(LEAN_KIND.out);
+    R.i.lookX = R.tx;
+    R.i.lookZ = R.tz;
+    run(R.w, R.i, 3 / 60);
+    expect(R.w.peekOn).toBe(true);
     expect(R.w.leftHand).toBe(false);
     expect(R.w.sub() & WALL_SUB.leftHand).toBe(0);
-  });
-
-  it('low wall at an edge: stick / look toward the end leans out crouched (lk 1); stick up or mid-wall rises (lk 2)', () => {
-    for (const end of ['a', 'b'] as const) {
-      const { w, i, tx, tz } = atEnd(lo, end);
-      i.aim = true;
-      i.moveX = tx;
-      i.moveZ = tz;
-      run(w, i, WALL.leanIn + 0.1);
-      expect(w.lk).toBe(LEAN_KIND.out);
-      expect(w.sub() & WALL_SUB.low).toBeTruthy();
-      expect(Math.abs(w.leanS)).toBeCloseTo(WALL.leanOut, 5);
-      expect(wallOverride(w, {})!.crouch).toBe(true);
-      expect(w.leftHand).toBe(end === 'b');
-      i.aim = false;
-      i.moveX = i.moveZ = 0;
-      run(w, i, WALL.leanBack + 0.05);
-      expect(w.lk).toBe(0);
-      // the stick up: over the top, standing, right hand
-      i.aim = true;
-      i.moveUp = 1;
-      run(w, i, 0.4);
-      expect(w.lk).toBe(LEAN_KIND.over);
-      expect(wallOverride(w, {})!.crouch).toBe(false);
-      expect(w.leftHand).toBe(false);
-    }
-    // mid-wall: over the top even looking along the wall
-    const w = new WallCore(sg, lk2, SO);
-    const g = sg[lo]!;
-    const i = inp(g.ax + g.tx * 2, 0.2 + SO + 0.3, { context: true });
-    run(w, i, 0.6);
-    i.aim = true;
-    i.lookX = g.tx;
-    i.lookZ = g.tz;
-    run(w, i, 0.4);
-    expect(w.lk).toBe(LEAN_KIND.over);
   });
 
   it('crouched peek round a low-wall end works like the high-wall peek', () => {
@@ -738,36 +586,12 @@ describe('open-side weapon and low-wall side lean (step 12b, D9 / D10)', () => {
     expect(w.crouch).toBe(true);
     i.moveX = tx;
     i.moveZ = tz;
-    run(w, i, WALL.peekHold + WALL.peekBlend + 0.05);
+    run(w, i, WALL.peekBlend + 0.1);
     expect(w.peekOn).toBe(true);
     expect(w.sub() & (WALL_SUB.peek | WALL_SUB.low | WALL_SUB.crouch)).toBe(WALL_SUB.peek | WALL_SUB.low | WALL_SUB.crouch);
     expect(Math.abs(w.rigLean())).toBeCloseTo(WALL.peekLean, 5);
     expect(wallOverride(w, {})!.crouch).toBe(true);
   });
 
-  it('wallHeadCap sits under the wall top', () => {
-    const g = sg[lo]!;
-    expect(wallHeadCap(g.y, g.height)).toBeLessThan(g.y + g.height - 0.1);
-  });
 });
 
-describe('(M16) lean-out arc', () => {
-  // a face with normal +z, the edge toward +x
-  const past = (deg: number) => leanPastEdge(Math.sin((deg * Math.PI) / 180), Math.cos((deg * Math.PI) / 180), 0, 1, 1, 0);
-  it('measures the look round past the edge line', () => {
-    expect(past(0)).toBeCloseTo(-Math.PI / 2); // facing out
-    expect(past(90)).toBeCloseTo(0); // along the wall toward the edge
-    expect(past(180)).toBeCloseTo(Math.PI / 2); // straight into the wall
-    expect(past(-170)).toBeGreaterThan(Math.PI / 2); // round behind the wall on the far side: beyond the arc
-    expect(past(-90)).toBeCloseTo(-Math.PI); // along the wall away from the edge (the room side's far end)
-  });
-  it('turns the body toward the aim inside the arc, never past it', () => {
-    expect(leanBodyTurn(past(0), 1)).toBe(0);
-    expect(leanBodyTurn(past(120), 1)).toBeCloseTo((120 * Math.PI) / 180);
-    expect(leanBodyTurn(past(180), 1)).toBeCloseTo(Math.PI / 2 + WALL.leanArc);
-    expect(leanBodyTurn(past(-170), 1)).toBeCloseTo(Math.PI / 2 + WALL.leanArc);
-    expect(leanBodyTurn(past(120), 0)).toBe(0);
-    expect(WALL.leanArc).toBeGreaterThanOrEqual((70 * Math.PI) / 180);
-    expect(WALL.leanArc).toBeLessThanOrEqual((90 * Math.PI) / 180);
-  });
-});

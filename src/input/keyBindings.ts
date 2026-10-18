@@ -11,13 +11,12 @@ export type BindId =
   | 'back'
   | 'left'
   | 'right'
-  | 'cover'
+  | 'wall'
   | 'crouch'
-  | 'sprint'
   | 'speedUp'
   | 'speedDown'
-  | 'traverse'
-  | 'use'
+  | 'jump'
+  | 'interact'
   | 'reload'
   | 'nextWeapon'
   | 'prevWeapon'
@@ -25,7 +24,7 @@ export type BindId =
   | 'wheel'
   | 'shoulder'
   | 'goggles'
-  | 'ping'
+  | 'coop'
   | 'pause';
 
 export interface BindDef {
@@ -41,13 +40,12 @@ export const BINDS: readonly BindDef[] = [
   { id: 'back', label: 'Move back', actions: [], defaults: ['KeyS'] },
   { id: 'left', label: 'Move left', actions: [], defaults: ['KeyA'] },
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
-  { id: 'cover', label: 'Context action', actions: ['cover'], defaults: ['Space'] },
+  { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: ['ShiftLeft'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
-  { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: ['ShiftLeft'] },
   { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
   { id: 'speedDown', label: 'Speed down (gear)', actions: ['speedDown'], defaults: ['Minus'] },
-  { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },
-  { id: 'use', label: 'Use', actions: ['interact'], defaults: ['KeyF'] },
+  { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: ['Space'] },
+  { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: ['KeyE'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: ['KeyX'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
@@ -55,7 +53,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'ping', label: 'Ping (co-op)', actions: ['ping'], defaults: ['KeyZ'] },
+  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 
@@ -68,10 +66,32 @@ export const FIXED_KEYS: Record<string, readonly ButtonAction[]> = {
   Backspace: ['uiBack'],
   Enter: ['uiConfirm'],
   NumpadEnter: ['uiConfirm'],
-  // menus: tabs and the alternative action (also bound in game by default)
+  // menus (menu-ui SPEC 4.2, MD11): tabs Q / E, Space confirms, R = X action, F = Y action (these keys also keep their
+  // gameplay bindings; the ui actions are only read while a menu is open). WASD navigate: `MENU_NAV_KEYS`.
   KeyQ: ['uiTabPrev'],
-  KeyE: ['uiTabNext', 'uiAlt'],
+  KeyE: ['uiTabNext'],
+  Space: ['uiConfirm'],
+  KeyR: ['uiX'],
+  KeyF: ['uiAlt'],
 };
+
+/** Menu navigation taps (arrows always; WASD too, except in a text field: menu-ui MD11). */
+export const MENU_NAV_KEYS: Readonly<Record<string, ButtonAction>> = {
+  ArrowUp: 'uiUp',
+  ArrowDown: 'uiDown',
+  ArrowLeft: 'uiLeft',
+  ArrowRight: 'uiRight',
+  KeyW: 'uiUp',
+  KeyS: 'uiDown',
+  KeyA: 'uiLeft',
+  KeyD: 'uiRight',
+};
+
+/** The menu tap of a key (`typing`: a text field has the keyboard, so WASD type instead). */
+export function menuNavTap(code: string, typing: boolean): ButtonAction | null {
+  if (typing && !code.startsWith('Arrow')) return null;
+  return MENU_NAV_KEYS[code] ?? null;
+}
 const RESERVED = new Set(['Escape', 'Enter', 'NumpadEnter', 'Backspace', 'F3', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight']);
 /** Mouse buttons that can be bound (the left and right buttons are fire / aim). */
 export const MOUSE_CODES = ['Mouse1', 'Mouse3', 'Mouse4'] as const;

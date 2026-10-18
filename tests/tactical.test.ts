@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SprintGate, EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
+import { EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
 import { MOVEMENT } from '../src/config/movement';
 import { CARRY, WeaponCarry, classWeight, emptyCarryInput, pickReady } from '../src/weapons/weaponCarry';
 import { CAMERA, framing } from '../src/config/camera';
@@ -15,7 +15,6 @@ describe('stealth movement speeds', () => {
     expect(targetSpeed(1, 'crouch')).toBeCloseTo(2.6);
     expect(targetSpeed(MOVEMENT.walkBand, 'stand')).toBeCloseTo(1.4);
     expect(targetSpeed(1, 'stand')).toBeCloseTo(2.8);
-    expect(targetSpeed(1, 'sprint')).toBeCloseTo(5);
     expect(targetSpeed(1, 'ads')).toBeCloseTo(1.4);
     expect(targetSpeed(1, 'adsCrouch')).toBeCloseTo(1.0);
     for (const st of ['stand', 'crouch'] as const) for (let m = 0.1; m < 0.85; m += 0.1) expect(targetSpeed(m, st)).toBeLessThan(targetSpeed(m + 0.1, st));
@@ -41,29 +40,6 @@ describe('stealth movement speeds', () => {
   });
 });
 
-describe('sprint', () => {
-  it('immediate, stamina-free, weapon blocked while sprinting', () => {
-    const d = new SprintGate();
-    expect(d.start()).toBe(true);
-    expect(d.sprinting).toBe(true);
-    expect(d.blocksWeapon).toBe(true);
-    for (let k = 0; k < 60 * 30; k++) d.update(DT, 1);
-    expect(d.sprinting).toBe(true);
-    expect(d.stamina).toBe(1);
-  });
-  it('ends when the stick is released for more than a moment, or on stop()', () => {
-    const d = new SprintGate();
-    d.start();
-    for (let k = 0; k < 5; k++) d.update(DT, 0);
-    expect(d.sprinting).toBe(true);
-    for (let k = 0; k < 10; k++) d.update(DT, 0);
-    expect(d.sprinting).toBe(false);
-    d.start();
-    d.stop();
-    expect(d.blocksWeapon).toBe(false);
-  });
-});
-
 describe('contextual traversal and noise', () => {
   it('picks step / vault / mantle / none by obstacle', () => {
     expect(pickTraversal({ height: 0.1, depth: 1, landingClear: true, topClear: true })).toBe('none');
@@ -76,21 +52,19 @@ describe('contextual traversal and noise', () => {
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: false })).toBe('none');
     expect(pickTraversal({ height: 2.4, depth: 0.5, landingClear: true, topClear: true })).toBe('none');
   });
-  it('noise by stance and pace: sneak, crouch walk and a slow walk silent, jog a few metres, sprint ~9 m', () => {
+  it('noise by stance and pace (CT prototype M1, G40): slow speeds silent, the run carries', () => {
     expect(noiseRadius(0, false, false)).toBe(0);
     expect(noiseRadius(0.8, true, false)).toBe(0);
-    // (step 22, M14 N6 / A88) crouched gears 1-4 (<= 1.5 m/s), standing gears 1-2 silent; standing gear 3 (1.65) and
-    // crouched gear 5 (1.9) audible
+    // crouched speeds 1-3 (<= 1.5 m/s) and standing speeds 1-2 (<= 0.75) silent; the rest audible
     expect(noiseRadius(1.5, true, false)).toBe(0);
-    expect(noiseRadius(1.65, false, false)).toBeGreaterThan(1);
-    expect(noiseRadius(1.9, true, false)).toBeGreaterThan(1);
-    expect(noiseRadius(1.4, false, false)).toBe(0);
-    const jog = noiseRadius(2.8, false, false);
-    const sprint = noiseRadius(5, false, true);
+    expect(noiseRadius(2.0, false, false)).toBeGreaterThan(1);
+    expect(noiseRadius(2.1, true, false)).toBeGreaterThan(1);
+    expect(noiseRadius(0.75, false, false)).toBe(0);
+    const jog = noiseRadius(3.0, false, false);
+    const run = noiseRadius(4.2, false, false);
     expect(jog).toBeGreaterThan(2.5);
-    expect(jog).toBeLessThan(5);
-    expect(sprint).toBeGreaterThan(jog * 1.5);
-    expect(sprint).toBeLessThanOrEqual(10);
+    expect(run).toBeGreaterThan(jog);
+    expect(run).toBeLessThanOrEqual(10);
     expect(noiseRadius(2.6, true, false)).toBeLessThan(jog);
   });
 });
@@ -104,7 +78,7 @@ describe('weapon carry', () => {
     i.doorway = true;
     expect(pickReady(i)).toBe('compressed');
   });
-  it('raise before firing takes 120-200 ms (rifle), heavier is slower', () => {
+  it('raise before firing takes about 0.6-0.75 s (rifle trigger live ~0.68 s, G103), heavier is slower', () => {
     const raiseTime = (weight: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -118,8 +92,8 @@ describe('weapon carry', () => {
       return t;
     };
     const rifle = raiseTime(1);
-    expect(rifle).toBeGreaterThanOrEqual(0.1);
-    expect(rifle).toBeLessThanOrEqual(0.2);
+    expect(rifle).toBeGreaterThanOrEqual(0.55);
+    expect(rifle).toBeLessThanOrEqual(0.85);
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });
@@ -127,7 +101,7 @@ describe('weapon carry', () => {
     const c = new WeaponCarry();
     const i = emptyCarryInput();
     i.ads = true;
-    for (let k = 0; k < 30; k++) c.update(DT, i);
+    for (let k = 0; k < 90; k++) c.update(DT, i);
     expect(c.raise).toBeGreaterThan(0.95);
     i.ads = false;
     i.sinceShot = 0;
@@ -136,7 +110,7 @@ describe('weapon carry', () => {
       c.update(DT, i);
     }
     expect(c.raise).toBeGreaterThan(0.95); // 0.5 s after the shot: still up
-    for (let k = 0; k < 90; k++) {
+    for (let k = 0; k < 120; k++) {
       i.sinceShot += DT;
       c.update(DT, i);
     }
@@ -172,17 +146,16 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('Blacklist over-the-shoulder: hip 2.2 m boom, 0.62 m shoulder, 1.62 m pivot; ADS pushes in', () => {
-    const hip = framing(0, 0, 0);
-    expect(hip.boom).toBeCloseTo(2.2);
-    expect(hip.shoulder).toBeCloseTo(0.62);
-    expect(hip.pivot).toBeCloseTo(1.62);
-    const ads = framing(1, 0, 0);
-    expect(ads.boom).toBeCloseTo(1.5);
-    expect(ads.shoulder).toBeLessThan(hip.shoulder);
-    expect(framing(0, 1, 0).pivot).toBeLessThan(hip.pivot);
-    expect(framing(0, 0, 1).boom).toBeGreaterThan(hip.boom);
-    expect(framing(0, 0, 1).boom).toBeLessThan(2.6); // a nudge, never a chase camera
+  it('CT framing (A2.1): 1.8 m boom, 0.15 m shoulder, head-height pivot from the capsule; aim 0.4 m / 0.16 m; no zoom', () => {
+    const hip = framing(0, 0);
+    expect(hip.boom).toBeCloseTo(1.8);
+    expect(hip.shoulder).toBeCloseTo(0.15);
+    expect(hip.pivot).toBeCloseTo(MOVEMENT.standHeight);
+    const ads = framing(1, 0);
+    expect(ads.boom).toBeCloseTo(0.4);
+    expect(ads.shoulder).toBeCloseTo(0.16);
+    expect(ads.pivot).toBeLessThan(hip.pivot);
+    expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
     expect(CAMERA.fov).toBe(75);
   });
 });

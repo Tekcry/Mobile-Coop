@@ -20,7 +20,7 @@ await page.evaluate(() => {
       const p = st.player;
       p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw);
       p.cam.yaw = yaw;
-      p.cam.pitch = 0;
+      p.cam.pitch = -0.3; // A2.1: the default CT view (17 deg down), so world prompts at the feet stay on screen
     },
     /** Step `s` seconds (120 Hz frames) holding the stick / buttons. */
     run(s, sx = 0, sy = 0, btns = []) {
@@ -123,7 +123,7 @@ try {
   assert(Math.abs(i.x - x0) < 0.01 && i.attached, `no travel along the split (${f2(i.x - x0)} m)`);
   // aim: the sidearm comes out one-handed; the aim stays within 100 deg of the corridor and -85..+30 pitch
   await page.evaluate(() => window.__pad.set(6, 1));
-  await run(0.8);
+  await run(1.4); // A2.1: aim raise 0.6-0.75 s (G103)
   i = await I();
   assert(i.ads && i.cls === 'pistol' && i.held && i.raise > 0.9, `LT draws and raises the sidearm (${i.cls}, raise ${f2(i.raise)})`);
   const mag0 = i.mag;
@@ -293,7 +293,7 @@ try {
   i = await I();
   assert(Math.abs(i.s - s1) < 0.01, 'no travel inverted');
   await page.evaluate(() => window.__pad.set(6, 1));
-  await run(0.9);
+  await run(1.5); // A2.1: G103
   i = await I();
   assert(i.ads && i.cls === 'pistol' && i.raise > 0.9, `LT aims the sidearm inverted (raise ${f2(i.raise)})`);
   const m1 = i.mag;
@@ -338,7 +338,7 @@ try {
   console.log('rappel');
   // the rappel house (x 21.5..26.5, z 26.5..29.5, roof 5.7): on the roof at the south edge, facing out
   await tp(24, 5.72, 26.9, Math.PI);
-  await run(0.4);
+  await run(0.9); // A2.1: the holster takes 0.55 s (G103)
   i = await I();
   assert(i.hint === 'rappel:above' && i.prompt === 'Rappel', `rappel offered at the roof edge (${i.hint}, "${i.prompt}")`);
   await tap(BTN.Y);
@@ -373,7 +373,7 @@ try {
   assert(Math.abs(i.z - z0) < 0.05 && Math.abs(i.u - u0) > 0.5, `back on the wall, moved sideways (${f2(i.u - u0)} m)`);
   // the sidearm off the rope: the body turns round to aim out (looking out over the yard)
   await page.evaluate(() => { window.__app.current.player.cam.yaw = Math.PI; window.__pad.set(6, 1); });
-  await run(0.9);
+  await run(1.5); // A2.1: G103
   i = await I();
   assert(i.ads && i.cls === 'pistol' && i.raise > 0.9 && Math.cos(i.yaw) < -0.5, `LT aims the sidearm out from the rope (yaw ${f2(i.yaw)})`);
   const mr = i.mag;

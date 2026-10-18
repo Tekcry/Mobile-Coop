@@ -35,7 +35,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   if (tm) {
     out.m = tm;
     out.tid = g.team.partner;
-    out.sub = tm === 'stacked' ? (g.team.state === 'bottom' ? 2 : 1) : 0;
+    out.sub = 0;
     out.ph = pose.traverse === 'climbUp' ? pose.traverseT : 0;
     delete out.c;
     return out;
@@ -71,47 +71,21 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.a = dp.door;
     out.sub = g.peekFrame.hingeRight ? 1 : 0;
     out.ph = Math.max(0, Math.min(1, g.world.doors.list[dp.door]?.ajar ?? 0));
-    delete out.lk;
     delete out.c;
     return out;
   }
   // (locomotion step 11) back to a wall: the segment (level order), metres along it, WALL_SUB; `ph` the settle
   const wc = g.wallCore;
-  // (locomotion step 12) the SWAT turn: a committed move (from, to, dur) the remotes replay (A24)
-  if (wc && wc.phase === 'swat') {
-    out.m = 'swat';
-    out.a = -1;
-    out.s = 0;
-    out.sub = 0;
-    out.ph = Math.max(0, Math.min(1, wc.swatT / Math.max(1e-3, wc.swatDur)));
-    delete out.lk;
-    const k = (out.c ??= { n: 0, x0: 0, y0: 0, z0: 0, x1: 0, y1: 0, z1: 0, top: 0, v: 0, dur: 1 });
-    k.n = wc.swatN;
-    k.x0 = wc.swatFrom.x;
-    k.y0 = wc.swatFrom.y;
-    k.z0 = wc.swatFrom.z;
-    k.x1 = wc.swatTo.x;
-    k.y1 = wc.swatTo.y;
-    k.z1 = wc.swatTo.z;
-    k.top = wc.swatTo.y;
-    k.v = 0;
-    k.dur = wc.swatDur;
-    return out;
-  }
   if (wc && wc.active) {
     out.m = 'wall';
     out.a = wc.seg;
-    // (step 12) leaning out: the body's own place past the edge
-    out.s = wc.s + wc.leanS;
-    // (step 12b, D9) leftHand from the edge side: peeking or leaning out at edgeL (remotes pose the mirrored grip)
+    out.s = wc.s;
+    // (step 12b, D9) leftHand from the edge side: peeking at edgeL (remotes pose the mirrored grip)
     out.sub = wc.sub() | (wc.leftHand ? WALL_SUB.leftHand : 0);
     out.ph = wc.phase === 'entering' ? Math.min(1, wc.t / wc.enterDur) : 1;
-    if (wc.lk) out.lk = wc.lk;
-    else delete out.lk;
     delete out.c;
     return out;
   }
-  delete out.lk;
   if (tr.attached) {
     const m = tr.attach;
     const ac = tr.attachCtl;
@@ -121,7 +95,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     const pp = ac.pipe;
     const pipeOn = m.kind === 'pipeH';
     const exit: ExitPose = m.phase === 'exit' && ac.isFlipping ? 'flip' : m.phase === 'exit' && ac.isFenceFlip ? 'fenceFlip' : (m.phase === 'exit' && EXIT_OF[pose.traverse]) || 'none';
-    out.sub = packAttachSub(m.phase, m.face, exit, pipeOn ? (pp.to ? pp.from : pp.mode) : 'hands', pipeOn ? pp.to : null);
+    out.sub = packAttachSub(m.phase, m.face, exit, pipeOn ? (pp.to ? pp.from : pp.mode) : 'hands', pipeOn ? pp.to : null) | g.team.attachBits;
     out.ph = pipeOn && pp.to && m.phase === 'on' ? pp.progress : m.kind === 'rappel' && m.phase === 'on' ? Math.max(0, ac.swingT) : m.progress;
     // (3.2.0 phase 3) a rope's sideways offset / a fence's climb height
     if (m.kind === 'rappel' || m.kind === 'fence') out.u = ac.u;

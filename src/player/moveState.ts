@@ -46,9 +46,6 @@ export const MOVE_MODES = [
   'stacked',
   // (locomotion step 10) the elbow strike (committed, host-approved): `ph` 0..1 over its 0.9 s, `tid` the guard ('' = a whiff)
   'strike',
-  // (locomotion step 12) the SWAT turn across a doorway gap (committed, client-owned like a traversal, A24): a crouched
-  // move from one wall edge to the far wall (`c` from, to, dur), ends in `wall`
-  'swat',
   // (locomotion step 13) the door peek: `a` the door index, `sub` bit 1 the hinge on the body's right, `ph` the door's
   // drawn crack (0..DOOR.crack); the crack itself is the door's (host-authoritative, snapshot `dcr`)
   'doorPeek',
@@ -56,7 +53,7 @@ export const MOVE_MODES = [
 export type MoveMode = (typeof MOVE_MODES)[number];
 
 export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'];
-export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing', 'swat'];
+export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing'];
 
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
 export const isCommittedMode = (m: MoveMode): boolean => COMMITTED_MODES.includes(m);
@@ -90,7 +87,7 @@ export interface MoveState {
   ph: number;
   /** Takedown target id ('' = none). */
   tid: string;
-  /** Speed gear 1..6. */
+  /** Speed gear 1..5. */
   g: number;
   /** Weapon raise 0..1 and the aim's twist from the body (rad): the upper body follows the aim when raised. */
   r: number;
@@ -102,9 +99,6 @@ export interface MoveState {
   u?: number;
   /** Weapon ready position (0 low, 1 high, 2 compressed; `WeaponCarry`), so the lowered gun is carried alike. */
   rd?: number;
-  /** (step 12, A34) Wall lean kind, 2 bits: 0 none, 1 out past the edge, 2 over the top (12b: 1 with WALL_SUB.low is
-   *  the low-wall side lean). Wall states only. */
-  lk?: number;
   /**
    * Attached, still: the planted grips on the anchor's axis [hand L, hand R, foot L, foot R] (`AttachGrips.planted`;
    * NaN / null = swinging): the remote's hands and feet settle on the same rungs.
@@ -122,7 +116,7 @@ export function emptyMoveState(): MoveState {
  * sub-state (2 bits, `PIPE_MODES`) and the one it is changing to (2 bits, 0 = none; `ph` is then the change's
  * progress).
  */
-export const ATTACH_SUB = { phaseMask: 3, face: 4, exitShift: 3, pipeShift: 6, pipeToShift: 8 } as const;
+export const ATTACH_SUB = { phaseMask: 3, face: 4, exitShift: 3, pipeShift: 6, pipeToShift: 8, /** (CT prototype B2) a hanging player is offering the ledge relay */ relay: 1024 } as const;
 export const ATTACH_PHASES = ['enter', 'on', 'exit'] as const;
 /** Exit poses (attach sub bits 3..5): the family itself, a climb up, a mantle off a ladder top, through a vent,
  *  (3.2.0) the flip out of an inverted hang. */
@@ -160,7 +154,7 @@ const TUMBLE: Record<PipeModeName, number> = { hands: 0, legsUp: -Math.PI / 2, i
  * next tick.
  */
 export function moveChanged(a: MoveState, b: MoveState): boolean {
-  return a.m !== b.m || a.sub !== b.sub || a.a !== b.a || a.tid !== b.tid || a.dw !== b.dw || (a.lk ?? 0) !== (b.lk ?? 0) || (a.c?.n ?? -1) !== (b.c?.n ?? -1);
+  return a.m !== b.m || a.sub !== b.sub || a.a !== b.a || a.tid !== b.tid || a.dw !== b.dw || (a.c?.n ?? -1) !== (b.c?.n ?? -1);
 }
 
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
@@ -208,7 +202,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
     sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : m === 'doorPeek' ? Math.floor(num(o.sub, 0, 1, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
     ph: num(o.ph, 0, 1, 0),
     tid: typeof o.tid === 'string' && /^[A-Za-z0-9_-]{0,40}$/.test(o.tid) ? o.tid : '',
-    g: Math.floor(num(o.g, 1, 6, 3)),
+    g: Math.floor(num(o.g, 1, 5, 3)),
     r: num(o.r, 0, 1, 0),
     ay: num(o.ay, -Math.PI, Math.PI, 0),
     dw: Math.round(num(o.dw, 0, 3, 0)),
@@ -217,8 +211,6 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
     out.gp = (o.gp as unknown[]).map((v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-WORLD, Math.min(WORLD, v)) : NaN)) as [number, number, number, number];
   if ((m === 'rappel' || m === 'fence') && typeof o.u === 'number') out.u = num(o.u, -10, 10, 0);
   if (typeof o.rd === 'number' && Number.isFinite(o.rd)) out.rd = Math.max(0, Math.min(2, Math.round(o.rd)));
-  // (step 12) the lean kind: an integer 0..2 on a wall state, anything else is not carried
-  if (m === 'wall' && typeof o.lk === 'number' && Number.isInteger(o.lk) && o.lk >= 0 && o.lk <= 2) out.lk = o.lk;
   if (isAttachedMode(m) && a < 0) return null;
   const c = o.c;
   if (isCommittedMode(m) && typeof c === 'object' && c !== null && !Array.isArray(c)) {
@@ -243,7 +235,6 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
 export function packMoveState(mv: MoveState): Record<string, unknown> {
   const o: Record<string, unknown> = { m: MOVE_MODES.indexOf(mv.m), a: mv.a, s: round(mv.s), sub: mv.sub, ph: round(mv.ph), tid: mv.tid, g: mv.g, r: round(mv.r), ay: round(mv.ay), dw: mv.dw };
   if (mv.rd !== undefined) o.rd = mv.rd;
-  if (mv.m === 'wall' && mv.lk) o.lk = mv.lk & 3;
   if (mv.u !== undefined) o.u = round(mv.u);
   if (mv.gp) o.gp = mv.gp.map((v) => (Number.isNaN(v) ? null : round(v)));
   if (mv.c) o.c = { ...mv.c };
@@ -295,21 +286,17 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
       out.wall = true;
       out.wallSide = mv.sub & 2 ? 1 : -1;
-      // (step 12) at an edge: the head-first peek (WALL_SUB.peek 16) or the lean-out with the aim (lean 32, `lk` 1);
-      // the edge at b (edgeL 4) is the body's left
-      if ((peek > 0 || mv.sub & 32) && mv.sub & (4 | 8)) {
+      // (step 12, A3) at an edge: the head-first peek (WALL_SUB.peek 16); the edge at b (edgeL 4) is the body's left
+      if (peek > 0 && mv.sub & (4 | 8)) {
         const side = mv.sub & 4 ? -1 : 1;
         const pe = peek * peek * (3 - 2 * peek);
-        out.lean = side * (0.45 * pe + (mv.sub & 32 && mv.lk === 1 ? 0.3 * Math.max(0.5, mv.r) : 0));
+        out.lean = side * 0.45 * pe;
       }
-      // (step 12b, D9) the open-left weapon hand (only with the left edge bit; D10's low side lean is `lk` 1 with `low`)
+      // (step 12b, D9) the open-left weapon hand (only with the left edge bit)
       out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
       return out;
     case 'doorPeek':
       // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door
-      return out;
-    case 'swat':
-      // (step 12) a crouched run across the gap: the gait from the replayed path's speed (no traverse family)
       return out;
     case 'split':
       out.traverse = 'split';

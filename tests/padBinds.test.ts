@@ -14,6 +14,26 @@ describe('pad bindings (step 18)', () => {
     expect(defaultSettings().pad).toEqual(defaultPadBinds());
   });
 
+  it('(A3, G96) the CT co-op pad: A interact, B crouch, Y jump, X equip, L3 wall, RB co-op, LB quick inventory, D-pad vision / gadget / gears', () => {
+    const m = new Map(GAME_BINDINGS.map(([i, a]) => [i, a]));
+    expect(m.get(PAD.A)).toBe('interact');
+    expect(m.get(PAD.B)).toBe('crouch');
+    expect(m.get(PAD.Y)).toBe('jump');
+    expect(m.get(PAD.X)).toBe('reload');
+    expect(m.get(PAD.LS)).toBe('cover');
+    expect(m.get(PAD.RB)).toBe('coop');
+    expect(m.get(PAD.LB)).toBe('gadgetWheel');
+    expect(m.get(PAD.UP)).toBe('vision');
+    expect(m.get(PAD.DOWN)).toBe('grenade');
+    expect(m.get(PAD.LEFT)).toBe('speedDown');
+    expect(m.get(PAD.RIGHT)).toBe('speedUp');
+    // L3 enters the wall; A no longer does, and Y no longer interacts
+    expect(mapPad(snap(PAD.LS), T).buttons.cover).toBe(true);
+    expect(mapPad(snap(PAD.A), T).buttons.cover).toBeUndefined();
+    expect(mapPad(snap(PAD.Y), T).buttons.interact).toBeUndefined();
+    expect(mapPad(snap(PAD.Y), T).buttons.jump).toBe(true);
+  });
+
   it('remap: reload from X to R3, then LT; X no longer reloads, the new button does (LT still aims: the trigger is fixed)', () => {
     const b = defaultPadBinds();
     expect(assignPadBind(b, 'reload', 0, PAD.RS)).toBe(true);

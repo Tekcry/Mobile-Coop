@@ -393,7 +393,7 @@ try {
   assert(i.hint === 'duct:side' && i.vault === 'Kick vent', `vent offered at the duct mouth (${i.hint}, "${i.vault}")`);
   const unscrew = await page.evaluate(() => {
     const st = window.__tr.st();
-    window.__pad.set(3, 1);
+    window.__pad.set(0, 1);
     let mid = -1;
     let noise = 0;
     for (let k = 0; k < 110; k++) {
@@ -402,7 +402,7 @@ try {
       if (v && k === 60) mid = v.progress;
       noise = Math.max(noise, st.noise);
     }
-    window.__pad.set(3, 0);
+    window.__pad.set(0, 0);
     window.__app.loop.stepHeadless(0.6, 120);
     return { mid, noise, att: st.traversal.attachCtl.active, kind: st.traversal.attachCtl.m.anchor?.kind };
   });
@@ -455,12 +455,12 @@ try {
   // --- keyboard: E attaches (ladder), C lets go of a ledge
   await tp(25.2, 0, 11, Math.PI / 2);
   await run(0.4);
-  await page.keyboard.down('KeyE');
+  await page.keyboard.down('Space');
   await page.evaluate(() => window.__app.loop.stepHeadless(3 / 60, 120));
-  await page.keyboard.up('KeyE');
+  await page.keyboard.up('Space');
   await run(0.4);
   i = await I();
-  assert(i.attached && i.kind === 'ladder', 'keyboard E climbs onto the ladder');
+  assert(i.attached && i.kind === 'ladder', 'keyboard Space (jump / traverse) climbs onto the ladder');
   await runOff(8, 0, -1);
 
   // --- keyboard at a ledge, live loop: the prompt shows the grab, E does it, C lets go (was the touch buttons, 3.2.0)
@@ -485,7 +485,7 @@ try {
   // (the stick pushed at the wall picks the grab)
   await page.evaluate(() => window.__app.input.state.setMove('e2e-test', 0, 1));
   await frames(page, 4);
-  assert(await pressUntil('KeyE', attachedNow), 'keyboard: E grabs the ledge (move pushed at it)');
+  assert(await pressUntil('Space', attachedNow), 'keyboard: Space grabs the ledge (move pushed at it)');
   await page.evaluate(() => window.__app.input.state.setMove('e2e-test', 0, 0));
   i = await I();
   assert(i.kind === 'ledge', 'keyboard: hanging from the ledge');

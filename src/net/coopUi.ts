@@ -4,9 +4,9 @@ import type { GameOptions, SessionCallbacks } from '../game/gameState';
 import { flags } from '../core/flags';
 import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
-import { Screen } from '../ui/screen';
-import type { Hint } from '../ui/prompts';
-import { button, choice, Dialog } from '../ui/widgets';
+import { MenuScreen, type LegendItem } from '../ui/menuScreen';
+import { Osk } from '../ui/osk';
+import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { isListedMap } from '../world/maps/listed';
@@ -65,8 +65,8 @@ class CoopController {
     const ev = session.events;
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
-      ev.on('hostLeft', () => this.fail('Host left', 'The host closed the room.')),
-      ev.on('full', () => this.fail('Room full', 'That room has no open slot for this mode (co-op takes 4, the training course 2).')),
+      ev.on('hostLeft', () => this.fail('Host left', 'The host closed the room or the connection dropped. Rejoin with the same code if the host is still there.')),
+      ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
       ev.on('lobby', () => {
         // host went back to the lobby while we were still in the match
         if (!session.isHost && this.inGame && session.phase === 'lobby') {
@@ -131,17 +131,17 @@ class CoopController {
   }
 }
 
-/** Entry screen: host or join, or the offline notice. */
-class CoopScreen extends Screen {
-  private body: HTMLElement;
+/** Entry screen: host or join, or the offline notice (menu-ui step 09). */
+class CoopScreen extends MenuScreen {
+  private list: HTMLElement;
 
   constructor(
     private app: App,
     private api: CoopApi,
   ) {
-    super('coop-screen');
-    this.body = h('div', { class: 'rows coop-rows' });
-    this.el.append(h('div', { class: 'screen-title', text: 'Co-op' }), this.body);
+    super('coop-screen', ['Co-op', 'Lobby']);
+    this.list = h('div', { class: 'menu-list ms-list coop-rows', attrs: { 'data-wrap': '' } });
+    this.body.append(this.list);
     this.build();
   }
 
@@ -150,68 +150,87 @@ class CoopScreen extends Screen {
     this.app.nav.setRoot(this.el, null);
   }
 
+  private item(label: string, key: string, ctx: string, fn: () => void, autofocus = false): HTMLElement {
+    const b = button(label, fn, { class: 'menu-item ms-item', autofocus, key });
+    b.dataset.ctx = `<p>${ctx}</p>`;
+    return b;
+  }
+
   private build(): void {
     if (isOffline()) {
-      this.body.replaceChildren(
+      this.list.replaceChildren(
         h('div', { class: 'coop-offline' }, h('b', { text: 'Offline' }), h('span', { text: 'Co-op needs an internet connection. Single player works fully offline.' })),
-        button('Retry', () => this.build(), { icon: 'wifi', autofocus: true }),
+        this.item('Retry', 'retry', 'Check the connection again.', () => this.build(), true),
       );
       return;
     }
-    this.body.replaceChildren(
-      h('div', { class: 'row-note', text: 'Co-op for 2-4 (Hunter, Infiltration, Free Roam; the training course for 2). The host runs the match; others join with the room code.' }),
-      button('Host a room', () => void hostRoom(this.app, this.api), { icon: 'wifi', class: 'primary big', autofocus: true }),
-      button('Join with code', () => this.app.screens.push(new JoinScreen(this.app, this.api)), { icon: 'user', class: 'big' }),
+    this.list.replaceChildren(
+      this.item('Host a room', 'host', 'Open a room for one other player. You choose the mission and difficulty; the room code appears in the lobby.', () => void hostRoom(this.app, this.api), true),
+      this.item('Join with code', 'join', 'Enter the five character code the host shows in their lobby.', () => this.app.screens.push(new JoinScreen(this.app, this.api))),
     );
   }
 }
 
-/** Controller-friendly code entry: on-screen keypad plus typing on a keyboard. */
-class JoinScreen extends Screen {
+/** Controller-friendly code entry: the on-screen keyboard (menu-ui MD3) plus typing on a keyboard. */
+class JoinScreen extends MenuScreen {
   private code = '';
   private slots: HTMLElement[] = [];
-  /** Physical keyboard typing. Runs in the capture phase and swallows the keys it uses so the
-   *  keyboard action map (Backspace = back, Enter = confirm, WASD = navigate) never sees them. */
-  private keyHandler = (e: KeyboardEvent): void => {
-    if (this.manager.top !== this) return;
-    const k = e.key;
-    if (k === 'Backspace') this.del();
-    else if (k === 'Enter') this.join();
-    else if (k.length === 1 && /[a-z0-9]/i.test(k)) this.add(k);
-    else return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  };
+  private osk: Osk;
 
   constructor(
     private app: App,
     private api: CoopApi,
     initial = '',
   ) {
-    super('coop-screen join-screen');
+    super('coop-screen join-screen', ['Join', 'Room']);
     const disp = h('div', { class: 'code-display' });
     for (let i = 0; i < 5; i++) {
       const s = h('span', { class: 'code-slot' });
       this.slots.push(s);
       disp.append(s);
     }
-    const pad = h('div', { class: 'code-pad', attrs: { 'data-wrap': '' } });
-    for (const ch of CODE_ALPHABET) {
-      const b = button(ch, () => this.add(ch), { class: 'code-key' });
-      pad.append(b);
-    }
-    pad.append(button('Del', () => this.del(), { class: 'code-key wide' }), button('Join', () => this.join(), { class: 'code-key wide primary' }));
-    (pad.firstChild as HTMLElement).dataset.autofocus = '';
-    this.el.append(h('div', { class: 'screen-title', text: 'Join room' }), disp, pad);
-    for (const ch of initial) this.add(ch);
+    this.osk = new Osk({
+      chars: CODE_ALPHABET,
+      cols: 8,
+      maxLen: 5,
+      doneLabel: 'Join',
+      get: () => this.code,
+      onChange: (v) => {
+        this.code = v;
+        this.render();
+      },
+      onDone: () => this.join(),
+      onCancel: () => this.manager.back(this),
+      onReject: (r) => this.app.toasts.show(r, 'warn'),
+    });
+    this.body.append(h('div', { class: 'join-note', text: 'Room codes have 5 characters' }), disp, this.osk.el);
+    for (const ch of initial) this.osk.type(ch);
+    this.render();
+  }
+
+  override legend(): LegendItem[] {
+    return [
+      { act: 'back', label: 'Back' },
+      { act: 'confirm', label: 'Type', keys: 'A-Z' },
+      { act: 'x', label: 'Delete', keys: 'Bksp' },
+      { act: 'start', label: 'Join', keys: 'Enter' },
+    ];
+  }
+
+  override onX(): void {
+    this.osk.del();
+  }
+
+  override onStart(): void {
+    this.join();
   }
 
   override onShow(): void {
-    window.addEventListener('keydown', this.keyHandler, true);
+    this.osk.attach(true);
   }
 
   override onHide(): void {
-    window.removeEventListener('keydown', this.keyHandler, true);
+    this.osk.attach(false);
   }
 
   private render(): void {
@@ -221,18 +240,6 @@ class JoinScreen extends Screen {
     });
   }
 
-  private add(ch: string): void {
-    const c = ch.toUpperCase();
-    if (this.code.length >= 5 || !CODE_ALPHABET.includes(c)) return;
-    this.code += c;
-    this.render();
-  }
-
-  private del(): void {
-    this.code = this.code.slice(0, -1);
-    this.render();
-  }
-
   private join(): void {
     const code = normalizeRoomCode(this.code);
     if (!code) {
@@ -240,13 +247,6 @@ class JoinScreen extends Screen {
       return;
     }
     void joinRoom(this.app, this.api, code);
-  }
-
-  override hints(): Hint[] {
-    return [
-      { btn: 'A', label: 'Type' },
-      { btn: 'B', label: 'Back' },
-    ];
   }
 }
 
@@ -266,27 +266,39 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
 
-class LobbyScreen extends Screen {
+class LobbyScreen extends MenuScreen {
   private list: HTMLElement;
   private status: HTMLElement;
   private opts: HTMLElement;
   private actions: HTMLElement;
+  private head: HTMLElement;
   private off: (() => void)[] = [];
+  private known = new Set<string>();
 
   constructor(private c: CoopController) {
-    super('coop-screen lobby-screen');
+    super('coop-screen lobby-screen', ['Co-op', 'Lobby']);
     const s = c.session;
+    this.head = h('div', { class: 'screen-title lobby-head', text: `Room ${s.code}` });
     this.status = h('div', { class: 'row-note lobby-status' });
     this.list = h('div', { class: 'lobby-players' });
-    this.opts = h('div', { class: 'rows lobby-opts' });
-    this.actions = h('div', { class: 'lobby-actions', attrs: { 'data-wrap': '' } });
-    this.el.append(
-      h('div', { class: 'screen-title', text: `Room ${s.code}` }),
-      h('div', { class: 'lobby-body' }, h('div', { class: 'lobby-left' }, this.list, this.status), h('div', { class: 'lobby-right' }, this.opts, this.actions)),
-    );
+    this.opts = h('div', { class: 'lobby-opts' });
+    this.actions = h('div', { class: 'lobby-actions' });
+    this.body.append(this.head, this.list, this.status, h('div', { class: 'rows ms-rows lobby-rows', attrs: { 'data-wrap': '' } }, this.opts, this.actions));
     this.buildOpts();
     this.buildActions();
     this.renderPlayers();
+  }
+
+  override legend(): LegendItem[] {
+    return [
+      { act: 'back', label: 'Leave' },
+      { act: 'confirm', label: 'Select' },
+      { act: 'y', label: 'Share code' },
+    ];
+  }
+
+  override onAlt(): void {
+    void this.share();
   }
 
   override initialFocus(): HTMLElement | null {
@@ -298,8 +310,10 @@ class LobbyScreen extends Screen {
     if (this.courseRec !== undefined) this.courseRec = null;
     if (this.c.session.isHost && this.c.session.mode === 'course') this.buildOpts();
     const ev = this.c.session.events;
+    this.known = new Set(this.c.session.players.keys());
     this.off.push(
       ev.on('lobby', () => {
+        this.toastJoined();
         this.renderPlayers();
         if (!this.c.session.isHost) this.buildOpts();
         this.buildActions(true);
@@ -313,10 +327,18 @@ class LobbyScreen extends Screen {
     this.off = [];
   }
 
+  private toastJoined(): void {
+    const s = this.c.session;
+    for (const p of s.players.values()) {
+      if (!this.known.has(p.id) && p.id !== s.selfId) this.c.app.toasts.show(`${p.name} joined`, 'ok');
+    }
+    this.known = new Set(s.players.keys());
+  }
+
   override onBack(): boolean {
     this.c.app.screens.push(
       new Dialog('Leave room?', this.c.session.isHost ? 'Everyone in the room will be disconnected.' : 'You can rejoin with the same code.', [
-        { label: 'Stay', action: () => {} },
+        { label: 'Stay', action: () => {}, safe: true },
         { label: 'Leave', action: () => void this.c.leave(false), primary: true },
       ]),
     );
@@ -326,7 +348,10 @@ class LobbyScreen extends Screen {
   private renderPlayers(): void {
     const s = this.c.session;
     const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
-    const cap = capacity(s.mode);
+    // (G2) two players: two slots, whatever the mode's wire cap is
+    const slots = Math.max(2, ps.length);
+    const hostName = ps.find((p) => p.host)?.name ?? '';
+    this.head.textContent = `Room ${s.code} · ${s.isHost ? 'you host' : hostName ? `host: ${hostName}` : 'connecting'}`;
     this.list.replaceChildren(
       ...ps.map((p: PlayerInfo) =>
         h(
@@ -338,11 +363,12 @@ class LobbyScreen extends Screen {
           h('span', { class: `lp-state ${p.host ? 'host' : p.ready ? 'ready' : ''}`, text: p.host ? 'Host' : p.ready ? 'Ready' : 'Not ready' }),
         ),
       ),
-      ...Array.from({ length: Math.max(0, cap - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
+      ...Array.from({ length: Math.max(0, slots - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
     );
+    const cap = capacity(s.mode);
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
     else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
-    else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code or link to invite players.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
+    else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code to invite your partner.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
 
@@ -352,12 +378,12 @@ class LobbyScreen extends Screen {
     const infil = s.mode === 'infiltration';
     if (!s.isHost) {
       const map = MAPS.find((m) => m.id === s.map);
-      const row = (k: string, v: string): HTMLElement => h('div', { class: 'row' }, h('span', { class: 'row-label', text: k }), h('span', { text: v }));
+      const lr = (k: string, v: string): HTMLElement => lockedRow(k, v, 'Set by the host.', `The host chooses the ${k.toLowerCase()}.`);
       this.opts.replaceChildren(
-        row('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
-        infil ? row('Mission', missionById(s.mission)?.name ?? '') : row('Map', map?.name ?? s.map),
-        row('Difficulty', DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''),
-        ...(map?.weathers ? [row('Weather', WEATHER_LABEL[s.weather])] : []),
+        lr('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
+        infil ? lr('Mission', missionById(s.mission)?.name ?? '') : lr('Map', map?.name ?? s.map),
+        lr('Difficulty', DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''),
+        ...(map?.weathers ? [lr('Weather', WEATHER_LABEL[s.weather])] : []),
       );
       return;
     }
@@ -400,6 +426,11 @@ class LobbyScreen extends Screen {
         : []),
       ...(s.mode === 'course' ? [this.bayChoice()] : []),
     );
+    // the host's rows describe themselves in the context panel
+    for (const r of Array.from(this.opts.children) as HTMLElement[]) {
+      const label = r.querySelector('.row-label')?.textContent ?? '';
+      describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
+    }
   }
 
   /** Course mode: "Start at bay N" for the bays in the host's course record (every bay with the dev flag; D20, C9). */
@@ -428,20 +459,28 @@ class LobbyScreen extends Screen {
     let focusedIdx = keepFocus ? Array.from(this.actions.children).indexOf(this.c.app.nav.focused as HTMLElement) : -1;
     // the main button was disabled while connecting: move focus onto it once usable
     if ((this.actions.firstChild as HTMLButtonElement | null)?.disabled) focusedIdx = 0;
-    const share = button('Share link', () => void this.share(), { icon: 'wifi' });
-    const leave = button('Leave', () => this.onBack(), { icon: 'back' });
+    const share = button('Share code', () => void this.share(), { icon: 'wifi', desc: 'Copies an invite link with the room code. The other player can also type the code under Join with code.' });
+    const leave = button('Leave', () => this.onBack(), { icon: 'back', desc: 'Leave the room.' });
     let main: HTMLElement;
     if (s.isHost) {
       const solo = s.players.size < 2;
-      main = button('Start match', () => s.startMatch(), {
+      main = button('Start mission', () => s.startMatch(), {
         icon: 'play',
         class: 'primary big',
         autofocus: true,
+        key: 'start',
+        desc: 'Start the mission for everyone in the room.',
         blocked: s.overCapacity ? `Too many players for this mode (${capacity(s.mode)})` : !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
       });
     } else {
       const me = s.players.get(s.selfId);
-      main = button(me?.ready ? 'Not ready' : 'Ready', () => s.setReady(!me?.ready), { icon: 'play', class: me?.ready ? 'big' : 'primary big', autofocus: true });
+      main = button(me?.ready ? 'Not ready' : 'Ready', () => s.setReady(!me?.ready), {
+        icon: 'play',
+        class: me?.ready ? 'big' : 'primary big',
+        autofocus: true,
+        key: 'ready',
+        desc: 'Tell the host you are ready. The host starts the mission once everyone is.',
+      });
       if (!s.hostId) (main as HTMLButtonElement).disabled = true;
     }
     this.actions.replaceChildren(main, share, leave);
@@ -462,26 +501,15 @@ class LobbyScreen extends Screen {
     }
   }
 
-  override hints(): Hint[] {
-    return this.c.session.isHost
-      ? [
-          { btn: 'A', label: 'Select' },
-          { btn: 'B', label: 'Leave' },
-        ]
-      : [
-          { btn: 'A', label: 'Ready' },
-          { btn: 'B', label: 'Leave' },
-        ];
-  }
 }
 
 /** Shown while the transport connects (WebRTC signalling can take a few seconds). */
-class ConnectingScreen extends Screen {
-  override readonly showBack = true;
+class ConnectingScreen extends MenuScreen {
   cancelled = false;
   constructor(text: string) {
-    super('coop-screen connecting-screen');
-    this.el.append(h('div', { class: 'screen-title', text: 'Co-op' }), h('div', { class: 'coop-connecting', text }));
+    super('coop-screen connecting-screen', ['Co-op', 'Lobby']);
+    const cancel = button('Cancel', () => this.manager.back(this), { class: 'menu-item ms-item', autofocus: true, key: 'cancel' });
+    this.body.append(h('div', { class: 'coop-connecting', text }), h('div', { class: 'menu-list ms-list' }, cancel));
   }
   override onBack(): boolean {
     this.cancelled = true;

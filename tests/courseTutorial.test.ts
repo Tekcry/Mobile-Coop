@@ -47,8 +47,8 @@ describe('drillDetect (T1c)', () => {
   });
   it('gear and sprint', () => {
     expect(edge((s) => (s.gear = 4))).toEqual(['gear']);
-    expect(edge((s) => (s.gear = 6))).toEqual(['gear', 'sprint']);
-    expect(edge((s) => (s.crouch = false), (s) => ((s.gear = 6), (s.crouch = true)))).toEqual(['sprint', 'stance']);
+    expect(edge((s) => (s.gear = 5))).toEqual(['gear', 'sprint']);
+    expect(edge((s) => (s.crouch = false), (s) => ((s.gear = 5), (s.crouch = true)))).toEqual(['sprint', 'stance']);
   });
   it('stance, aim, fire, reload, swap', () => {
     expect(edge((s) => (s.crouch = true))).toEqual(['stance']);

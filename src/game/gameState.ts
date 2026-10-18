@@ -15,7 +15,8 @@ import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
-import { PauseScreen } from '../ui/screens/pauseScreen';
+import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
+import { PauseLook } from '../vfx/pauseLook';
 import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
@@ -27,7 +28,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
 import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
-import { computeAssist, type AimTarget } from '../weapons/aimAssist';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
@@ -38,11 +38,13 @@ import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
+import { DoorMenu, guardBehindDoor } from './doorMenu';
+import { GrabMenu, GRAB_OPT_LABEL } from './grabMenu';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
-import { ResultsScreen } from '../ui/screens/resultsScreen';
+import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -72,6 +74,7 @@ import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
+import { DoorGhosts } from '../vfx/doorGhosts';
 import { VISION_GAIN } from '../world/darkCurve';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
@@ -86,19 +89,21 @@ import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEl
 import { DOOR } from '../world/doors';
 import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
-import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallHeadCap, wallOverride } from '../player/wallController';
+import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallOverride } from '../player/wallController';
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
-import { hyp2, hyp3 } from '../core/mathx';
+import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
 import type { CourseWire } from './course/courseWire';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
-import { GADGET_IDS, type GadgetId } from './gadgets';
+import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
+import { MISSIONS } from './missions';
+import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 
 export type { ModeId };
@@ -184,6 +189,10 @@ export interface NetHooks {
 export interface SessionCallbacks {
   quit(): void;
   restart(): void;
+  /** The results screen's Missions (solo): the menu on the missions list. */
+  missions?(): void;
+  /** The results screen's Next (solo): the menu on that mission's briefing. */
+  briefing?(missionId: string): void;
 }
 
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
@@ -262,7 +271,6 @@ export class GameState implements AppState {
   private exited = false;
   private time = 0;
   private respawnT = -1;
-  private prevAds = false;
   private onTarget = false;
   private tmp = new Vector3();
   /** Extra blips/markers contributed by the active mode. */
@@ -308,6 +316,19 @@ export class GameState implements AppState {
   private peekOv: MoveOverride = {};
   private peekIn: DoorPeekInput = { context: false, interact: false, push: 0, end: false, candidate: -1, doorOpened: false };
   private peekTook = false;
+  /** (A3, G19) The CT door menu (A at a closed door), the door the peek is on offer at, a Stealth open pick waiting for the peek step. */
+  readonly doorMenu = new DoorMenu();
+  /** (A4, G23) The CT grab menu, open while a guard is held. */
+  readonly grabMenu = new GrabMenu();
+  private grabMenuArmed = false;
+  private grabMenuNavT = 0;
+  private doorMenuArmed = false;
+  private doorMenuNavT = 0;
+  private stealthPick = false;
+  /** The `interact` press the door menu took (pick or open): it is ignored until a step sees the button edge cleared. */
+  private interactSwallow = false;
+  private peekOffer = -1;
+  private readonly menuLabels: string[] = [];
   private peekHp = 0;
   private peekHand = { x: 0, y: 0, z: 0 };
   private wallOv: MoveOverride = {};
@@ -336,6 +357,8 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
+    // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
+    this.player.rig.setBeacon(this.puppet ? 2 : 1);
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -602,7 +625,7 @@ export class GameState implements AppState {
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
-      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} ${c.sprinting ? ' sprint' : ''}${c.pivotT > 0 ? ' pivot' : ''}`;
+      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} g${c.gear}${c.stopHold ? ' hold' : ''}`;
     });
     app.debug.extra.set('carry', () => {
       const k = this.player.carry;
@@ -718,7 +741,7 @@ export class GameState implements AppState {
   private useWallMedkit(it: Interactable, who: string): void {
     if (who === 'local') {
       const h = this.target.health;
-      const hp = stationHeal(h.hp, h.maxHp, this.player.alive);
+      const hp = stationHeal(h.hp, h.maxHp, this.player.alive, this.opts.difficulty ?? 'normal');
       if (hp === null) {
         this.hud.feedItem('Health full');
         it.progress = 0;
@@ -780,11 +803,30 @@ export class GameState implements AppState {
     setTimeout(() => {
       this.paused = true;
       this.app.input.setGameplayActive(false);
+      this.hud.setVisible(false);
       const rewards = GameState.rewardHook ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
       void rewards.then((el) =>
-        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit())),
+        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav())),
       );
     }, 1800);
+  }
+
+  /** Kit, Missions and Next for the results screen (menu-ui step 10). */
+  private resultsNav(): ResultsNav {
+    const names = (this.opts.loadout ?? []).map((l) => WEAPONS[l.id]?.name ?? l.id);
+    const gid = this.opts.gadget as GadgetId | undefined;
+    if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
+    const nav: ResultsNav = { coop: !!this.net };
+    if (names.length) nav.kit = names.join(', ');
+    const cb = this.cb;
+    const id = this.stats.missionId;
+    if (!this.net && id && cb.missions) {
+      nav.missions = () => cb.missions!();
+      const i = MISSIONS.findIndex((x) => x.id === id);
+      const nx = i >= 0 ? MISSIONS[i + 1] : undefined;
+      if (nx && cb.briefing) nav.next = { label: 'Next mission', go: () => cb.briefing!(nx.id) };
+    }
+    return nav;
   }
 
   get isEnded(): boolean {
@@ -799,6 +841,10 @@ export class GameState implements AppState {
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
     this.mode?.start();
+    // a controller dropping out mid-match opens the pause menu with the way back (MD12)
+    this.padOff = this.app.input.events.on('padDisconnected', () => {
+      if (this.app.input.mode === 'gamepad' && !this.photo) this.pause('Controller disconnected. Reconnect it, or press any key to continue.');
+    });
     // the course's dev solo flag (D21, A6): a debug-overlay toggle in dev builds only, never in the menus
     if (import.meta.env.DEV && this.mode instanceof CourseMode) {
       const cm = this.mode;
@@ -834,6 +880,8 @@ export class GameState implements AppState {
       benchTag(null);
     }
     this.exited = true;
+    this.padOff?.();
+    this.hud.setVisible(true);
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
@@ -869,21 +917,42 @@ export class GameState implements AppState {
     this.world.dispose();
   }
 
-  pause(): void {
+  /** The pause look's state (menu-ui MD14); `PostStack` draws it, gameplay never reads it. */
+  private readonly pauseLook = new PauseLook();
+  private padOff: (() => void) | null = null;
+
+  /** The mission's objectives and their state for the pause menu (G108). */
+  objectiveLines(): ObjectiveLine[] {
+    const m = this.mode;
+    if (m instanceof InfiltrationMode) {
+      const c = m.chain;
+      return c.def.objectives.map((o, i) => ({ label: o.label, done: c.state === 'done' || i < c.index, current: c.state === 'active' && i === c.index }));
+    }
+    const t = this.hud.objectiveText;
+    return t ? [{ label: t, done: false, current: true }] : [];
+  }
+
+  /** Opens the pause menu. `notice`: a line for the menu (a controller dropped out). */
+  pause(notice = ''): void {
     if (this.paused || this.menuOpen) return;
     // coop never freezes the shared simulation; the menu just takes the input
     if (this.net) this.menuOpen = true;
     else this.paused = true;
     this.app.input.setGameplayActive(false);
+    this.hud.setVisible(false);
+    this.pauseLook.set(true);
     this.app.screens.push(
       new PauseScreen(
         this.app,
         () => {
           this.paused = false;
           this.menuOpen = false;
+          this.pauseLook.set(false);
+          this.hud.setVisible(true);
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
+        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice },
       ),
     );
   }
@@ -906,6 +975,9 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
+    const inputS = this.app.input.state;
+    if (!inputS.pressed('interact')) this.interactSwallow = false;
+    const pressI = inputS.pressed('interact') && !this.interactSwallow;
     // a takedown on offer / running takes the button
     if (this.takedown.offer || this.takedown.active) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
@@ -919,6 +991,20 @@ export class GameState implements AppState {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
       this.holdLatch = null;
+    }
+    // (A3, G19, G97) A at a closed, unlocked door in reach, facing it: the CT door menu (no door item needed: sandbox and
+    // co-op clients have none) unless another interactable is the target
+    const dIdx = this.doorMenuCandidate();
+    if (dIdx >= 0 && (!it || (it.kind === 'door' && it.id.startsWith('door-')))) {
+      this.hud.setInteract('Door options', -1);
+      if (pressI) {
+        this.interactSwallow = true;
+        this.doorMenu.show(dIdx, this.peekOffer === dIdx);
+        this.doorMenuArmed = false;
+        this.doorMenuNavT = 0;
+        this.hud.setInteract(null);
+      }
+      return;
     }
     if (!it) {
       this.hud.setInteract(null);
@@ -941,11 +1027,147 @@ export class GameState implements AppState {
     } else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
     this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label, it.holdTime > 0 ? pct : -1);
-    if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
+    if ((it.holdTime === 0 && pressI) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
       if (it.onUse) it.onUse(it, 'local');
       else this.mode?.onInteract?.(it);
       this.interactTarget = null;
       this.hud.setInteract(null);
+    }
+  }
+
+  /**
+   * (A4, G23, G43, G178) The CT grab menu: opens as the hold starts, the selection moves on the menu / stick up and down,
+   * A picks (Knock out, Kill, Carry work; Force to device and Interrogate are stubs), B (crouch) lets the guard go.
+   * The operator stands still while it is open.
+   */
+  private grabMenuStep(dt: number, real: InputState): void {
+    const m = this.grabMenu;
+    const td = this.takedown;
+    td.shovePressed = false;
+    const holding = td.hostage !== null && td.active?.grab?.strikeT === -1 && this.player.alive;
+    if (!holding) {
+      if (m.open) m.close();
+      this.hud.setDoorMenu(null, 0, 'grab');
+      return;
+    }
+    if (!m.open) {
+      m.show();
+      this.grabMenuArmed = false;
+      this.grabMenuNavT = 0;
+    }
+    if (real.pressed('crouch') || real.pressed('uiBack')) {
+      td.shovePressed = true;
+      this.player.controller.swallowCrouch = true;
+      m.close();
+      this.hud.setDoorMenu(null, 0, 'grab');
+      return;
+    }
+    this.grabMenuNavT -= dt;
+    if (!real.down('interact')) this.grabMenuArmed = true;
+    if (this.grabMenuNavT <= 0 && (real.pressed('uiUp') || real.pressed('uiDown'))) {
+      m.move(real.pressed('uiDown') ? 1 : -1);
+      this.grabMenuNavT = 0.12;
+    }
+    if (this.grabMenuArmed && real.pressed('interact')) {
+      const o = m.pick();
+      this.interactSwallow = true;
+      if (o === 'device' || o === 'interrogate') this.hud.feedItem(`${GRAB_OPT_LABEL[o]}: not built yet`, 'warn');
+      else if (o) {
+        td.menuPick = o;
+        this.hud.setDoorMenu(null, 0, 'grab');
+        return;
+      }
+    }
+    this.hud.setDoorMenu(m.labels(this.menuLabels), m.sel, 'grab');
+  }
+
+  /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
+  private doorMenuCandidate(): number {
+    const doors = this.world.doors;
+    if (!doors.list.length || !this.player.alive || this.doorPeek.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    const p = this.player.position;
+    const d = doors.nearest(p.x, p.z, 1.6);
+    if (!d || d.target !== 0 || d.anchor.locked || Math.abs(d.anchor.hinge.y - p.y) > 1.2) return -1;
+    const cy = this.player.cam.yaw;
+    return (d.cx - p.x) * Math.sin(cy) + (d.cz - p.z) * Math.cos(cy) > 0 ? d.index : -1;
+  }
+
+  /**
+   * (A3, G19, G97) The CT door menu, run before the step's input is chosen: the selection moves on the menu / stick
+   * up and down, A picks, B (crouch) or leaving the door's reach cancels. The operator stands still while it is open.
+   */
+  private doorMenuStep(dt: number, real: InputState): void {
+    const m = this.doorMenu;
+    if (!m.open) {
+      this.hud.setDoorMenu(null);
+      return;
+    }
+    const d = this.world.doors.list[m.door];
+    const p = this.player.position;
+    if (!d || !this.player.alive || d.target !== 0 || hyp2(d.cx - p.x, d.cz - p.z) > 2.2 || real.pressed('crouch') || real.pressed('uiBack')) {
+      m.close();
+      this.hud.setDoorMenu(null);
+      return;
+    }
+    this.doorMenuNavT -= dt;
+    if (!real.down('interact')) this.doorMenuArmed = true;
+    if (this.doorMenuNavT <= 0 && (real.pressed('uiUp') || real.pressed('uiDown'))) {
+      m.move(real.pressed('uiDown') ? 1 : -1);
+      this.doorMenuNavT = 0.12;
+    }
+    if (this.doorMenuArmed && real.pressed('interact')) {
+      const o = m.pick();
+      this.interactSwallow = true;
+      if (o) this.doorMenuPick(o, d.index);
+      this.hud.setDoorMenu(null);
+      return;
+    }
+    this.hud.setDoorMenu(m.labels(this.menuLabels), m.sel);
+  }
+
+  /** The picked door option (A3, G97). */
+  private doorMenuPick(o: 'open' | 'stealth' | 'bash' | 'optic', di: number): void {
+    const doors = this.world.doors;
+    const d = doors.list[di];
+    if (!d) return;
+    const useIt = (): void => {
+      const it = this.interactables?.items.find((x) => x.id === `door-${d.anchor.id}`);
+      if (it?.onUse) it.onUse(it, 'local');
+      else doors.open(d, 'quiet');
+    };
+    switch (o) {
+      case 'open':
+        useIt();
+        break;
+      case 'stealth':
+        this.stealthPick = true;
+        break;
+      case 'bash': {
+        // a client has no door authority: its bash is a plain open through the host (prototype: bash is not on the wire)
+        if (this.puppet) {
+          useIt();
+          break;
+        }
+        const p = this.player.position;
+        const a = d.anchor;
+        const side = (p.x - a.hinge.x) * Math.cos(a.yaw) - (p.z - a.hinge.z) * Math.sin(a.yaw) >= 0 ? 1 : -1;
+        if (!doors.open(d, 'bash')) break;
+        // a guard right behind the door is knocked out by it (CT: door-bash a guard)
+        const em = this.enemyMgr;
+        if (em) {
+          for (const e of em.enemies) {
+            if (!e.alive || e.taken || Math.abs(e.pos.y - a.hinge.y) > 1.5 || !guardBehindDoor(a, side, e.pos.x, e.pos.z)) continue;
+            const dir = new Vector3(e.pos.x - d.cx, 0, e.pos.z - d.cz);
+            if (dir.lengthSquared() > 1e-6) dir.normalize();
+            e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: new Vector3(p.x, p.y, p.z), impulse: 1, takedown: 'strike' });
+            this.hud.feedItem('Guard knocked out by the door');
+          }
+        }
+        break;
+      }
+      case 'optic':
+        this.hud.feedItem('Optic cable: not built yet', 'warn');
+        break;
     }
   }
 
@@ -1122,8 +1344,12 @@ export class GameState implements AppState {
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
     this.aliveWas = this.player.alive;
-    // the gadget wheel / a remote view (sticky cam) takes the input: the operator gets none
-    const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
+    this.doorMenuStep(dt, real);
+    this.grabMenuStep(dt, real);
+    const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open || this.grabMenu.open ? this.blankInp : real);
+    // the gadget wheel / a remote view / the door menu takes the input: the operator stands still
+    const inp = takes || this.doorMenu.open || this.grabMenu.open ? this.blankInp : real;
+    // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
@@ -1132,7 +1358,7 @@ export class GameState implements AppState {
     // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
     this.doorPeekStep(dt, inp, busy0 || carrying);
     const busy = busy0 || this.doorPeek.active;
-    // Y / E is contextual: an interactable in reach takes it, else it traverses
+    // (A3, G96) jump / traverse is Y (Space); A (E) is the interact / context button: interactables, doors, takedowns
     const ti = this.traversal.input;
     ti.moveX = inp.move.x;
     ti.moveY = inp.move.y;
@@ -1143,13 +1369,22 @@ export class GameState implements AppState {
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
-    const offer = this.takedown.offer !== null;
-    // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
-    // (step 11) on a wall the jump press leaves it (it does not traverse in the same step)
+    // (3.2.0 phase 5) team moves come before traversal
+    // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'));
+    // the relay hanger holds the hang still while the partner climbs their body
+    if (this.team.hangLock) {
+      ti.moveX = 0;
+      ti.moveY = 0;
+      ti.dropPressed = false;
+      ti.dropHeld = false;
+      ti.dropHeldT = 0;
+      ti.useHeld = false;
+      ti.useHeldT = 0;
+    }
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.team.active);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
     this.wallStep(dt, inp, busy || carrying);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
@@ -1177,7 +1412,7 @@ export class GameState implements AppState {
     const grabHold = this.takedown.hostage !== null;
     const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads'));
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
-    const teamHands = this.team.active && this.team.state !== 'top';
+    const teamHands = this.team.active;
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
     // (step 10) a strike keeps the holstered gun in its slot without the attach stow (whose held swap overlay the
     // remotes never see)
@@ -1193,9 +1428,7 @@ export class GameState implements AppState {
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
     {
-      // (3.2.0) B shoves a held hostage away (and is not a crouch then)
-      this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
-      if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
+      // (A4) the grab menu feeds the hold (`menuPick`, and its cancel as the let-go)
       this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
@@ -1220,7 +1453,7 @@ export class GameState implements AppState {
       const c = this.player.controller;
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
-      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched', c.dashing && c.steps === 'free') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
+      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
       // (3.2.0) climbing a fence above a quiet gear rattles it
       const ac2 = this.traversal.attachCtl;
@@ -1280,35 +1513,8 @@ export class GameState implements AppState {
     }
   }
 
-  /** Aim assist for the controller: friction + magnetism + ADS snap. */
-  private assistScale = 1;
   /** Enemy blips on the minimap last frame (tests). */
   enemyBlips = 0;
-
-  private applyAimAssist(look: { x: number; y: number }, dt: number): void {
-    const mode = this.app.input.mode;
-    if (mode === 'kbm') return;
-    const s = this.app.settings.get();
-    const level = s.gamepad.aimAssist;
-    if (level === 'off') return;
-    const cam = this.player.cam;
-    const cp = cam.camera.position;
-    const targets: AimTarget[] = [];
-    for (const t of this.registry.hostiles('player')) {
-      t.aimPoint(this.tmp);
-      const dx = this.tmp.x - cp.x;
-      const dy = this.tmp.y - cp.y;
-      const dz = this.tmp.z - cp.z;
-      const dist = hyp3(dx, dy, dz);
-      targets.push({ yaw: Math.atan2(dx, dz), pitch: Math.asin(dy / Math.max(dist, 1e-3)), distance: dist });
-    }
-    const adsStart = this.player.ads && !this.prevAds;
-    const r = computeAssist(level, cam.yaw, cam.pitch, targets, hyp2(look.x, look.y) / Math.max(dt, 1e-3) / 3, this.player.controller.speed > 0.5, adsStart, dt);
-    // the slowdown eases in and out over ~60 ms so sweeping across a target never jolts the view
-    this.assistScale += (r.lookScale - this.assistScale) * (1 - Math.exp(-dt / 0.06));
-    look.x = look.x * this.assistScale + r.dYaw;
-    look.y = look.y * this.assistScale + r.dPitch;
-  }
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -1608,8 +1814,6 @@ export class GameState implements AppState {
       this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
-    if (dt > 0 && !gadgetInput) this.applyAimAssist(look, dt);
-    this.prevAds = this.player.ads;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still
@@ -1629,7 +1833,7 @@ export class GameState implements AppState {
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, gadgetInput ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, gadgetInput || this.doorMenu.open ? this.blankInp.move : this.app.input.state.move);
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
@@ -1673,24 +1877,22 @@ export class GameState implements AppState {
   private visionFrame = 0;
   private electroParts: InstancedMesh[] = [];
   private electroK = 0;
+  private doorGhosts: DoorGhosts | null = null;
 
   /** Goggles per fixed step: the button cycles the modes. */
-  private updateVision(dt: number): void {
+  private updateVision(_dt: number): void {
     const v = this.vision;
-    if (this.app.input.state.pressed('vision') && this.player.alive) {
+    if (this.app.input.state.pressed('vision') && this.player.alive && !this.doorMenu.open) {
       v.cycle();
       this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
     }
-    v.step(dt);
   }
 
   /** Goggles per render frame: night vision blend, flip, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
-    // (Step 4b fix round 3) no fade: the goggles flip across the view and night vision switches under them
-    this.post.setFlip(v.flipCentre);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
     this.nightBloom.k = v.night;
@@ -1705,6 +1907,9 @@ export class GameState implements AppState {
     this.post.setVisionKind(kind);
     this.paintHeat(kind === 1);
     this.paintElectro(kind === 2 ? 1 : 0);
+    // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
+    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
+    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies);
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? 1 : 0));
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
@@ -1855,13 +2060,11 @@ export class GameState implements AppState {
     i.crouchHold = !this.app.settings.get().gameplay.crouchToggle;
     i.crouchHeld = inp.down('crouch');
     const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
-    i.leave = inp.pressed('jump') || inp.pressed('dash') || other;
-    i.blocked = other || pl.ads;
+    // (A3, loco M25) only the button, aiming or another action leaves the wall (CT: aiming leaves it); a jump press that
+    // starts a traversal leaves through `other`
+    i.leave = inp.pressed('dash') || pl.ads || inp.down('ads') || other;
+    i.blocked = other || pl.ads || inp.down('ads');
     i.toggle = this.app.settings.get().gameplay.wallToggle;
-    // (step 12) aim held: the lean-out at an edge / the rise over a low wall (the draw follows the step 09 timings)
-    i.aim = pl.ads || inp.down('ads');
-    // (step 12b, D10) the stick's raw up: on a low wall it rises over the top
-    i.moveUp = my;
     // stacking (D8): the other players on this segment
     w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
     w.update(dt, i);
@@ -1875,20 +2078,14 @@ export class GameState implements AppState {
       else c.clearCrouchToggle();
     }
     const pose = pl.pose;
-    // (step 12, D8) the SWAT turn is a crouched run across the gap, not the flat-back stance: posed as the remotes pose
-    // its `swat` MoveState (a gait from the move, no wall stance)
-    const flat = w.active && w.phase !== 'swat';
-    pose.wall = flat;
-    pose.wallSide = flat ? (w.dir < 0 ? 1 : -1) : 0;
-    // (step 12) the head-first peek and the lean-out past the edge (the hit volumes follow the rig: guards see the
-    // real body, never the camera)
+    pose.wall = w.active;
+    pose.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
+    // the camera)
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
     // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
-    // EDGE_HAND_TIME inside the draw or the lean-out step (the remotes from WALL_SUB.leftHand)
+    // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
     pl.rig.openLeft = w.leftHand;
-    // (step 12b, D10) the low-wall side lean keeps the head under the wall top (the head sample stays behind it)
-    const lg = w.seg >= 0 ? segs[w.seg] : undefined;
-    pose.headCap = w.phase === 'on' && lg && lg.low && w.lk === LEAN_KIND.out ? wallHeadCap(lg.y, lg.height) : NaN;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -1898,9 +2095,8 @@ export class GameState implements AppState {
     pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
     // at an edge the shoulder goes to the open side (the edge at b is the body's left)
     pl.cam.wallSide = !w.active ? 0 : w.edge !== 0 ? (w.edge > 0 ? -1 : 1) : w.dir < 0 ? 1 : -1;
-    // (step 12) the peek / lean-out camera swing toward the edge (local only, never sent)
+    // (step 12, A3) the peek camera swing toward the edge (local only, never sent)
     pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
-    pl.cam.wallLean = w.phase === 'on' && w.lk === 1 ? 1 : 0;
     pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
     pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
   }
@@ -1920,13 +2116,16 @@ export class GameState implements AppState {
     const was = dp.active;
     this.peekTook = false;
     const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || !!this.wallCore?.active || (!!c.override && c.override !== this.peekOv);
-    const ctx = inp.pressed('cover');
+    // (A3) the peek starts from the door menu's Stealth open pick (no longer a button of its own)
+    const ctx = this.stealthPick;
+    this.stealthPick = false;
     let cand = -1;
     let offer = -1;
     if (!was && !other && doors.list.length) {
       const d = doors.nearest(p.x, p.z, 2);
       if (d && doorPeekEligible(d, d.cracked && this.peekedByOther(d.cx, d.cz), p.x, p.z, pl.cam.yaw, c.grounded, false)) offer = d.index;
     }
+    this.peekOffer = offer;
     if (ctx) cand = offer;
     const d0 = dp.door >= 0 ? doors.list[dp.door] : undefined;
     const hp = this.target.health.hp;
@@ -2232,12 +2431,13 @@ export class GameState implements AppState {
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
-    // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
-    const tOff = this.team.offer;
-    if (tOff && !this.takedown.offer) {
-      const ok = this.project(tOff.mate.pos.x, tOff.mate.pos.y + 1.6, tOff.mate.pos.z);
-      w.set('vault', ok ? (tOff.boost ? 'Boost (hold: ladder)' : 'Human ladder (hold)') : null, this.scr.x, this.scr.y);
-    }
+    // (CT prototype B2) the team-move prompt: names the move and who starts it (Co-op action glyph)
+    const tp = this.team.prompt;
+    if (tp && !this.takedown.offer) {
+      const at = this.team.promptAt;
+      const ok = this.project(at.x, at.y, at.z);
+      w.set('coop', ok ? tp : null, this.scr.x, this.scr.y);
+    } else w.set('coop', null, 0, 0);
     this.drawRope();
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;
@@ -2250,12 +2450,10 @@ export class GameState implements AppState {
     } else if (host && this.takedown.active?.grab?.strikeT === -1) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
       const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
-      w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
+      w.set('takedown', ok ? 'Held' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
-    const ctl = this.player.controller;
-    // speed gear: pips by the tactical strip after a change (step 17: current lit, maximum dim)
-    this.hud.setGear(ctl.gear, ctl.gears.changes, Math.max(ctl.gear, ctl.maxGear));
-    this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
+    // (G107) no speed-gear indicator: the max-speed cap is felt, not shown
+    this.hud.setTactical(1, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     w.flush();
   }
 

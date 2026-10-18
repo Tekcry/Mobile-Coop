@@ -7,7 +7,6 @@ import { AwarenessArcs } from './awareness';
 import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
-import { GEARS } from '../../config/movement';
 
 export interface HudFrame {
   hp: number;
@@ -58,6 +57,7 @@ export class Hud {
   private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
+  private doorMenuEl: HTMLElement;
   /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
   readonly world: WorldPrompts;
   private feed: HTMLElement;
@@ -75,10 +75,6 @@ export class Hud {
   /** Enemy callouts over their heads. */
   readonly barks: BarkView;
   readonly pings: PingView;
-  /** Speed gear pips (3.2.0): shown for `GEARS.pipsShow` s after a change, then fade. */
-  private gearEl: HTMLElement;
-  private gearSeen = -1;
-  private gearT = -1e9;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
   readonly minimapSlot: HTMLElement;
@@ -93,14 +89,13 @@ export class Hud {
     this.lightFill = h('i');
     this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
     this.visionEl = h('div', { class: 'tac-vision' });
-    this.gearEl = h('div', { class: 'tac-gear', title: 'Speed gear', html: '<b>SPD</b><span><i></i><i></i><i></i><i></i><i></i><i></i></span>' });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
       h('div', { class: 'bar health' }, this.hpFill),
       h('div', { class: 'vital-row' }, this.hpText),
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.lightEl, this.gearEl, this.visionEl, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -144,6 +139,7 @@ export class Hud {
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
+    this.doorMenuEl = h('div', { class: 'hud-doormenu' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
@@ -160,6 +156,7 @@ export class Hud {
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
+      this.doorMenuEl,
       this.feed,
     );
     parent.appendChild(this.el);
@@ -286,6 +283,11 @@ export class Hud {
     setTimeout(() => this.bannerEl.classList.remove('show'), ms);
   }
 
+  /** The current objective line as shown. */
+  get objectiveText(): string {
+    return this.objective.textContent ?? '';
+  }
+
   setObjective(text: string): void {
     this.set('obj', text, () => (this.objective.textContent = text));
   }
@@ -303,10 +305,20 @@ export class Hud {
     this.set('mode', html, () => (this.modeInfo.innerHTML = html));
   }
 
+  /** (A3, G19) The CT door menu: the option labels with `sel` highlighted; null hides it. */
+  setDoorMenu(labels: readonly string[] | null, sel = 0, title = 'Door'): void {
+    this.set(`dmenu${title}`, labels ? `${sel}|${labels.join('|')}` : '', () => {
+      this.doorMenuEl.classList.toggle('show', !!labels);
+      this.doorMenuEl.innerHTML = labels
+        ? `<div class="dm-title">${title === 'grab' ? 'Held' : 'Door'}</div>` + labels.map((l, i) => `<div class="dm-opt${i === sel ? ' sel' : ''}">${l}</div>`).join('') + `<div class="dm-hint">${verbPromptHtml('interact', keyLabels.interact)}<span>select</span> ${verbPromptHtml('crouch', keyLabels.crouch)}<span>${title === 'grab' ? 'let go' : 'cancel'}</span></div>`
+        : '';
+    });
+  }
+
   /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */
   setInteract(text: string | null, progress = -1): void {
     this.set('int', text ?? '', () => {
-      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('traverse', keyLabels.traverse)}<span>${text}</span>` : '';
+      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('interact', keyLabels.interact)}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
     });
     const p = Math.round(progress * 40);
@@ -336,27 +348,6 @@ export class Hud {
       this.noiseEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < noiseBars));
     });
     this.set('supp', Math.round(suppression * 20), () => (this.suppressEl.style.opacity = String(Math.min(0.85, suppression * 0.9))));
-  }
-
-  /** Speed gear: the pips light up to the gear; shown after a change (`changes` moves), then fade. */
-  setGear(gear: number, changes: number, max = gear): void {
-    // (locomotion step 17) lit up to the current (stick) gear, dim up to the maximum gear (rocker / wheel)
-    const now = performance.now();
-    if (changes !== this.gearSeen) {
-      // (the first reading is the spawn gear: no flash on entering the match)
-      if (this.gearSeen >= 0) this.gearT = now;
-      this.gearSeen = changes;
-    }
-    this.set('gear', gear * 8 + max, () => {
-      this.gearEl.dataset.gear = String(gear);
-      this.gearEl.dataset.max = String(max);
-      this.gearEl.querySelectorAll('i').forEach((el, i) => {
-        el.classList.toggle('on', i < gear);
-        el.classList.toggle('cap', i < max);
-      });
-    });
-    const show = now - this.gearT < GEARS.pipsShow * 1000;
-    this.set('gearShow', show, () => this.gearEl.classList.toggle('show', show));
   }
 
   /** Light meter: how lit the body is (0 dark .. 1); `shadow` marks being hidden in it. */

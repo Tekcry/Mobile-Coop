@@ -173,7 +173,7 @@ export class CoopClient implements NetAttachment {
     out.length = 0;
     for (const [id, a] of this.avatars) {
       if (a.dead) continue;
-      out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode });
+      out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode, anchor: a.anchor, s: a.s, sub: a.sub });
     }
     return out;
   }

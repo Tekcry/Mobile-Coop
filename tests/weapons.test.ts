@@ -73,47 +73,7 @@ describe('weapon stats maths', () => {
   });
 });
 
-import { computeAssist } from '../src/weapons/aimAssist';
 import { Health } from '../src/game/health';
-
-describe('aim assist', () => {
-  const near = [{ yaw: 0.03, pitch: 0, distance: 15 }];
-  it('off does nothing', () => {
-    expect(computeAssist('off', 0, 0, near, 1, true, true, 1 / 60)).toEqual({ lookScale: 1, dYaw: 0, dPitch: 0, target: -1 });
-  });
-  it('slows look near a target and pulls towards it while moving', () => {
-    const r = computeAssist('standard', 0, 0, near, 0.5, false, false, 1 / 60);
-    expect(r.lookScale).toBeLessThan(1);
-    expect(r.dYaw).toBeGreaterThan(0);
-    expect(r.dYaw).toBeLessThan(0.03);
-  });
-  it('no pull without input or movement', () => {
-    const r = computeAssist('standard', 0, 0, near, 0, false, false, 1 / 60);
-    expect(r.dYaw).toBe(0);
-  });
-  it('snaps on ADS within cone, ignores far-off targets', () => {
-    expect(computeAssist('high', 0, 0, near, 0, false, true, 1 / 60).dYaw).toBeCloseTo(0.03 * 0.85);
-    const far = [{ yaw: 1.2, pitch: 0, distance: 10 }];
-    expect(computeAssist('high', 0, 0, far, 1, true, true, 1 / 60).target).toBe(-1);
-  });
-  it('friction fades smoothly across the cone edge (no step in the look rate)', () => {
-    let prev = 1;
-    let maxStep = 0;
-    for (let deg = 10; deg >= 0; deg -= 0.05) {
-      const s = computeAssist('high', 0, 0, [{ yaw: (deg * Math.PI) / 180, pitch: 0, distance: 15 }], 0, false, false, 1 / 60).lookScale;
-      maxStep = Math.max(maxStep, Math.abs(s - prev));
-      prev = s;
-    }
-    expect(prev).toBeCloseTo(0.45);
-    expect(maxStep).toBeLessThan(0.02);
-  });
-  it('higher levels assist more', () => {
-    const lo = computeAssist('low', 0, 0, near, 1, true, false, 1 / 60);
-    const hi = computeAssist('high', 0, 0, near, 1, true, false, 1 / 60);
-    expect(hi.dYaw).toBeGreaterThan(lo.dYaw);
-    expect(hi.lookScale).toBeLessThan(lo.lookScale);
-  });
-});
 
 describe('health', () => {
   it('health has no regeneration: 10 s of update-free time after damage leaves hp unchanged', () => {

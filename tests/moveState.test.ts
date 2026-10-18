@@ -47,7 +47,7 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(sanitizeMoveState({ m: 'ladder', a: -1 })).toBeNull();
     const g = sanitizeMoveState({ m: 'ground', a: 2, g: 40, r: 9, ph: -3, sub: 1e9, tid: '<script>' })!;
     expect(g.a).toBe(-1);
-    expect(g.g).toBe(6);
+    expect(g.g).toBe(5);
     expect(g.r).toBe(1);
     expect(g.ph).toBe(0);
     expect(g.sub).toBe(0xffff);
@@ -106,8 +106,8 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 7 (Block A wire changes; step 09 dw; step 10 cmove; step 11 wall; step 12 swat, lk)', () => {
-    expect(PROTOCOL_VERSION).toBe(13);
+  it('PROTOCOL_VERSION is 16 (B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+    expect(PROTOCOL_VERSION).toBe(16);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {
@@ -139,17 +139,17 @@ describe('move state (3.2.0 phase 1)', () => {
 });
 
 describe('host checks on networked movement (3.2.0 phase 1)', () => {
-  it('free movement is capped by the claimed gear, not the sprint for everyone', () => {
+  it('free movement is capped by the claimed gear', () => {
     const g2 = { ...emptyMoveState(), g: 2 };
-    expect(moveSpeedCap(g2, false, false, false, true)).toBeCloseTo(GEARS.stand[1]! * MOVE_TOLERANCE);
-    expect(moveSpeedCap(g2, true, false, false, true)).toBeCloseTo(GEARS.crouch[1]! * MOVE_TOLERANCE);
-    // (step 22) the sprint is gear 6 standing (4.15 m/s after M14)
-    expect(moveSpeedCap(g2, false, true, false, true)).toBeCloseTo(GEARS.stand[5]! * MOVE_TOLERANCE);
+    expect(moveSpeedCap(g2, false, false, true)).toBeCloseTo(GEARS.stand[1]! * MOVE_TOLERANCE);
+    expect(moveSpeedCap(g2, true, false, true)).toBeCloseTo(GEARS.crouch[1]! * MOVE_TOLERANCE);
+    // (CT prototype M1) no sprint: the top gear's cap is the run
+    expect(moveSpeedCap({ ...g2, g: 5 }, false, false, true)).toBeCloseTo(GEARS.stand[4]! * MOVE_TOLERANCE);
     // driven (cover / traversal), in the air or with no move state: the general cap
-    expect(moveSpeedCap(g2, false, false, true, true)).toBe(MAX_FREE_SPEED);
-    expect(moveSpeedCap(g2, false, false, false, false)).toBe(MAX_FREE_SPEED);
-    expect(moveSpeedCap(undefined, false, false, false, true)).toBe(MAX_FREE_SPEED);
-    expect(moveSpeedCap({ ...g2, m: 'ladder', a: 0 }, false, false, false, true)).toBe(MAX_FREE_SPEED);
+    expect(moveSpeedCap(g2, false, true, true)).toBe(MAX_FREE_SPEED);
+    expect(moveSpeedCap(g2, false, false, false)).toBe(MAX_FREE_SPEED);
+    expect(moveSpeedCap(undefined, false, false, true)).toBe(MAX_FREE_SPEED);
+    expect(moveSpeedCap({ ...g2, m: 'ladder', a: 0 }, false, false, true)).toBe(MAX_FREE_SPEED);
   });
 
   it('an attached client is held on the anchor it claims', () => {

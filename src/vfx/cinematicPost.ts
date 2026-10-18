@@ -70,8 +70,9 @@ void main(void) {
     vec3 p;
     vec3 ga;
     if (vk < 1.5) {
-      p = thermalColor(mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)}));
-      ga = vec3(sensorAmp(${SENSOR_GRAIN.thermal.toFixed(3)}, ${SENSOR_GRAIN.litThermal.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722))));
+      float tl = mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)});
+      p = thermalColor(tl);
+      ga = vec3(thermalGrain(heatOf(tl)));
     } else {
       p = electroColor(mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)}));
       ga = vec3(${SENSOR_GRAIN.electroTint.map((x) => x.toFixed(3)).join(", ")}) * sensorAmp(${SENSOR_GRAIN.electro.toFixed(3)}, ${SENSOR_GRAIN.litElectro.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722)));

@@ -724,8 +724,12 @@ try {
       // opened quietly by hand: a creak (2 m), then he can see through
       t.tp(-0.95, 11.2, 0);
       t.step(0.2);
-      const offer = g.interactTarget?.label;
+      const offer = (document.querySelector('.hud-interact')?.textContent ?? '').trim();
       g.noise = 0;
+      // (A3, G19) A at a closed door opens the door menu; A again picks Open (the first entry)
+      st.tap('interact');
+      t.step(0.1);
+      const menuOpen = g.doorMenu.open;
       st.tap('interact');
       t.step(0.1);
       const quiet = g.noise;
@@ -737,20 +741,42 @@ try {
         t.step(0.1);
         seen = Math.max(seen, e.rate);
       }
-      // bashed open at a sprint: loud
+      // (A3, G97) running into a door does nothing special (the door is shut again first)
+      doors.close(d, () => false);
+      t.step(1.2);
       t.reset();
       t.light(0);
-      // (from beside the conveyor, angled at the doorway)
       t.tp(-2.6, 8.2, Math.atan2(1.65, 3.8));
       t.step(0.3);
       st.setMove('t', 0, 1);
       st.tap('dash');
-      let bash = 0;
-      for (let i = 0; i < 60 && d.target === 0; i++) t.step(0.05);
-      t.step(0.1);
-      bash = g.noise;
+      for (let i = 0; i < 40 && d.target === 0; i++) t.step(0.05);
+      const sprintOpened = d.target === 1;
       st.setMove('t', 0, 0);
+      // bash from the door menu: loud, and a guard right behind the door is knocked out
+      doors.close(d, () => false);
+      t.step(1.2);
+      t.reset();
+      t.light(0);
+      t.tp(-0.95, 11.2, 0);
+      const behind = t.spawn('grunt', -0.95, 13.1, 0); // 1.1 m behind the leaf: past the 1.0 m a guard pushes a door open from, inside the 1.3 m bash reach
+      t.step(0.3);
+      g.noise = 0;
+      st.tap('interact');
+      t.step(0.1);
+      const bashOpts = [...g.doorMenu.opts];
+      const bi = bashOpts.indexOf('bash');
+      for (let i = 0; i < bi; i++) {
+        st.tap('uiDown');
+        t.step(0.2);
+      }
+      st.tap('interact');
+      t.step(0.1);
+      const bash = g.noise;
+      t.step(0.3);
       const bashed = d.target === 1;
+      const dbg = { bashOpts, bi, menu: g.doorMenu.open, target: d.target, ko: behind.ko, alive: behind.alive };
+      const koBehind = !behind.alive && behind.ko;
       // a guard walking his beat through a closed door opens it
       t.reset();
       t.light(0);
@@ -763,18 +789,20 @@ try {
         through = w.pos.z < 11;
       }
       t.light(null);
-      return { blocked, offer, quiet, open, seen, bash, bashed, through, dOpen: d.target };
+      return { dbg, blocked, offer, menuOpen, quiet, open, seen, bash, bashed, sprintOpened, koBehind, through, dOpen: d.target };
     });
     assert(r.blocked === 0, `a closed door blocks sight (${r.blocked.toFixed(2)})`);
-    assert(r.offer === 'Open door', `at a door: open it (${r.offer})`);
+    assert(/Door options/.test(r.offer) && r.menuOpen, `at a door: the door menu (${r.offer})`);
     assert(r.quiet > 0 && r.quiet <= 2.5, `opening by hand is a quiet creak (${r.quiet.toFixed(1)} m)`);
-    assert(r.open === 1 && r.seen > 0, `once open he sees through (${r.seen.toFixed(2)})`);
-    assert(r.bashed && r.bash >= 8, `sprinting into a door bashes it open, loud (${r.bash.toFixed(1)} m)`);
+    assert(r.open === 1 && r.seen > 0, `once open he sees through (seen ${r.seen.toFixed(2)}, open ${r.open}, quiet ${r.quiet})`);
+    assert(!r.sprintOpened, 'running into a door does nothing special (G97)');
+    assert(r.bashed && r.bash >= 8, `the menu's Bash opens the door, loud (${r.bash.toFixed(1)} m, ${JSON.stringify(r.dbg)})`);
+    assert(r.koBehind, 'the bash knocks out a guard right behind the door');
     assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
   });
 
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
-  // camera); the lean-out exposes the chest
+  // camera); (A3: the lean-out is gone)
   await scen('wall peek exposes the head', async () => {
     const r = await G(() => {
       const t = window.__t;
@@ -800,7 +828,7 @@ try {
         t.step(0.6);
         if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
         P.axis(0, 1);
-        t.step(1.0);
+        t.step(3.0);
         P.axis(0, 0);
         t.step(0.3);
         if (g.wallCore.edge !== 1) continue;
@@ -823,8 +851,7 @@ try {
         for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
         const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
         P.axis(0, 1);
-        // (step 12b, D9) at a left edge the weapon goes to the left hand (EDGE_HAND_TIME 0.25 s) before the lean
-        // starts: the head is out past the edge about 0.6 s after the push (0.2 s hold + the switch + the lean)
+        // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
         const peekOn = g.wallCore.peekOn;
         const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
@@ -856,24 +883,18 @@ try {
         P.axis(0, 0);
         t.step(0.5);
         const back = { los: e.los };
-        // the lean-out (aim at the edge): the chest is out too
-        window.__app.input.state.set('t', 'ads', true);
-        t.step(0.7);
-        const lean = { lk: g.wallCore.lk, los: e.los, head: e.losHead };
-        window.__app.input.state.set('t', 'ads', false);
-        t.step(0.4);
         if (g.wallCore.active) g.wallCore.leave('test');
-        return { i, hidden: hidden.length, only: only.length, peek, back, lean };
+        return { i, hidden: hidden.length, only: only.length, peek, back };
       }
       return null;
     });
     assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
     assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
     assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
-    assert(r.lean.lk === 1 && r.lean.los && !r.lean.head, `leaning out: the chest is in view (${JSON.stringify(r.lean)})`);
   });
 
   await scen('vision', async () => {
+    // (A5, G100) CT order, instant: thermal, electro, night, off; each press shows at once (no flip)
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
@@ -884,29 +905,24 @@ try {
       t.spawn('grunt', 0, -15, 0);
       t.tp(0, -7, Math.PI);
       t.step(0.2);
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
-      const night = { mode: v.mode, nv: g.post['nv'], hud: document.querySelector('.tac-vision')?.textContent };
-      st.tap('vision');
-      t.step(0.1);
-      g.frameUpdate(0.1, 1);
-      // (step 14) the second press: thermal, then electro, then off
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
+      const press = () => {
+        st.tap('vision');
+        t.step(0.05);
+        g.frameUpdate(0.05, 1);
+      };
+      press();
       const thermal = { mode: v.mode, vk: g.post.visionKind, nv: g.post['nv'] };
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
+      press();
       const electro = { mode: v.mode, vk: g.post.visionKind };
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
-      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind, thermal, electro };
-      return { night, off, nvOff: g.post['nv'] };
+      press();
+      const night = { mode: v.mode, nv: g.post['nv'], hud: document.querySelector('.tac-vision')?.textContent };
+      press();
+      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind };
+      return { thermal, electro, night, off, nvOff: g.post['nv'] };
     });
-    assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.off.thermal.mode === 'thermal' && r.off.thermal.vk === 1 && r.off.thermal.nv < 0.01 && r.off.electro.mode === 'electro' && r.off.electro.vk === 2, `then thermal, then electro (${JSON.stringify(r.off)})`);
+    assert(r.thermal.mode === 'thermal' && r.thermal.vk === 1 && r.thermal.nv < 0.01, `the goggles button: thermal first, at once (${JSON.stringify(r.thermal)})`);
+    assert(r.electro.mode === 'electro' && r.electro.vk === 2, `then electro (${JSON.stringify(r.electro)})`);
+    assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `then night vision (${JSON.stringify(r.night)})`);
     assert(r.off.mode === 'off' && r.off.hud === '' && r.off.vk === 0, `then off (${JSON.stringify(r.off)})`);
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });

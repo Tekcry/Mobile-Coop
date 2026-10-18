@@ -119,7 +119,8 @@ describe('Fallow (bunker) Upper level (T5d, BAYS v2)', () => {
   const joins = (n: NavGrid, p: { x: number; y: number; z: number }, q: { x: number; y: number; z: number }) => n.findPath([p.x, p.z], [q.x, q.z], 1e6, p.y, q.y);
 
   it('is registered, course and sandbox, not listed, five nav layers', () => {
-    expect(getMap('bunker').id).toBe('bunker');
+    // (CT prototype B1) parked behind ?legacy=1: not in MAPS without it
+    expect(getMap('bunker').id).not.toBe('bunker');
     expect(bunker.modes).toEqual(['course', 'sandbox']);
     expect(isListedMap('bunker')).toBe(false);
     expect(bunker.navLayers).toBe(5);

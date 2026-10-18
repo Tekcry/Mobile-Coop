@@ -9,8 +9,8 @@ import {
 } from '../core/babylon';
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
-import { MOVEMENT } from '../config/movement';
-import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, crouchToggleNext, crouchWanted, sprintEdge, type LandingKind, type Stance } from './movement';
+import { CT, MOVEMENT } from '../config/movement';
+import { EasedVelocity, targetSpeed, landingKind, LANDING, crouchWanted, type LandingKind, type Stance } from './movement';
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
@@ -32,7 +32,7 @@ export interface MoveOverride {
   turnRate?: number;
   /** `velocity` follows an already-eased path (cover snap glide): track it tightly. */
   glide?: boolean;
-  /** `velocity` is a run (cover-to-cover): the free-movement tuning at sprint acceleration. */
+  /** `velocity` is a run (cover-to-cover): the free-movement tuning at run acceleration. */
   run?: boolean;
   /** (step 11) Footstep noise while the override drives: the crouch band (back-to-wall slide, bible 5.3). */
   noise?: 'crouched';
@@ -46,10 +46,6 @@ export interface PlayerInput {
   /** Level: crouch button held (hold mode). */
   crouchHeld: boolean;
   crouchToggle: boolean;
-  /** Sprint button: edge this step, held, and toggle (press) vs hold mode. */
-  sprintPressed: boolean;
-  sprintHeld: boolean;
-  sprintToggle: boolean;
   ads: boolean;
   /** Weapon raised or firing (tightest turn rate). */
   aiming: boolean;
@@ -67,7 +63,7 @@ const COVER_MOTION = { ...MOVEMENT, accelMax: 6, decelMax: 7, jerkMax: 60, velGa
 /** Cover snap glide: the path is already eased (cover controller), the driver just follows it. */
 const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.01, pivotMinSpeed: 99 };
 
-/** Character controller acceleration cap (m/s^2) on Chaos Theory free movement: a full stop from a sprint in one
+/** Character controller acceleration cap (m/s^2) on Chaos Theory free movement: a full stop from a run in one
  *  60 Hz step (the usual 80 m/s^2 takes two or three). */
 const CT_MAX_ACCEL = 600;
 const UP = new Vector3(0, 1, 0);
@@ -106,7 +102,6 @@ export class PlayerController {
   /** Crouched and stopped for a moment: one-knee kneel (steadier aim). */
   kneeling = false;
   private stillT = 0;
-  readonly sprint = new SprintGate();
   /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
    *  start on another gear with `?gear=N`. */
   readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
@@ -122,13 +117,10 @@ export class PlayerController {
   stopHold = false;
   holdSpeed = 0;
   private holdCrouch = false;
-  /**
-   * (locomotion step 22, M14) A Chaos Theory stop from moving (now eased over `CT.stopTime`, so the stop hold above no
-   * longer engages) blocks the kneel until the next input, as the hold did: the kneel began mid-way through the stop's
-   * squaring step and reversed it (crouched stops: a 74 cm kneel stagger, balance 13-36 cm out).
-   */
-  private stopNoKneel = false;
-  private noKneelCrouch = false;
+  /** (G27) Seconds the frozen stance has held; after `CT.stopHoldTime` it lets go and eases to idle over `CT.stopEase`. */
+  private holdT = 0;
+  /** The frozen stance has let go and is easing to a feet-together idle (s since; -1 when not). */
+  stopEaseT = -1;
   /** A stick springing back reads as a release from its full deflection (free movement only). */
   private release = new StickRelease();
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
@@ -140,8 +132,9 @@ export class PlayerController {
   renderPhase = 0;
   /** Stance progress 0 (standing) .. 1 (crouched), advanced at the stance transition rates. */
   private crouchK = 0;
-  /** Crouch toggle to restore when a sprint ends (sprinting stands you up). */
-  private crouchBeforeSprint = false;
+  /** (G32) A crouch press at a run waits `CT.rollHold` s: held it is a roll (traversal starts it), released it crouches. */
+  crouchPend = false;
+  crouchPendT = 0;
   /** Set each step by the cover/traversal systems (or null). */
   override: MoveOverride | null = null;
   /** Ignore this step's crouch press (consumed by the cover system). */
@@ -233,18 +226,9 @@ export class PlayerController {
     return -1;
   }
 
-  get sprinting(): boolean {
-    return this.sprint.sprinting;
-  }
-
-  /** Legacy name for `sprinting` (cover slide-in, camera, animation, net flags). */
-  get dashing(): boolean {
-    return this.sprint.sprinting;
-  }
-
-  /** Weapon lowered: sprinting or recovering from a landing. */
+  /** Weapon lowered: recovering from a landing. */
   get weaponBlocked(): boolean {
-    return this.sprint.blocksWeapon || this.landT > 0.15;
+    return this.landT > 0.15;
   }
 
   /** Cover takes over crouching: forget a pending crouch toggle. */
@@ -257,7 +241,7 @@ export class PlayerController {
     this.crouchToggled = true;
   }
 
-  /** Current speed gear (1..6): the stick's snapped gear while moving (step 17), else the maximum gear. */
+  /** Current speed gear (1..5): the stick's snapped gear while moving (step 17), else the maximum gear. */
   get gear(): number {
     return this.analog.moving ? this.analog.gear : this.maxGear;
   }
@@ -305,7 +289,8 @@ export class PlayerController {
     // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
     this.motion.phase = 0;
     this.stopHold = false;
-    this.stopNoKneel = false;
+    this.stopEaseT = -1;
+    this.crouchPend = false;
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -385,7 +370,9 @@ export class PlayerController {
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
-      this.stopHold = this.stopNoKneel = false;
+      this.stopHold = false;
+      this.stopEaseT = -1;
+      this.crouchPend = false;
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
@@ -394,7 +381,6 @@ export class PlayerController {
       this.vel.reset();
       this.motion.reset(this.yaw);
       this.grounded = true;
-      this.endSprint();
       if (ov.crouch !== undefined) this.applyCrouch(ov.crouch);
       this.updateStance(dt);
       return;
@@ -416,30 +402,30 @@ export class PlayerController {
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
 
-    // crouch (toggle by default; sprinting stands you up, crouching ends the sprint)
+    // crouch (toggle by default). (G32) At a run the press waits `CT.rollHold` s: held it rolls (the traversal system
+    // starts it), a tap just crouches.
     const crouchPressed = input.crouchPressed && !this.swallowCrouch;
     this.swallowCrouch = false;
-    if (!this.frozen && !ov && crouchPressed && this.grounded && input.crouchToggle) {
-      const was = this.sprint.sprinting;
-      if (was) this.endSprint();
-      this.crouchToggled = crouchToggleNext(this.crouchToggled, was);
-    }
-
-    // sprint: toggle (press) or hold; ends on aiming, cover, traversal or releasing the stick
     const aiming = input.ads || input.aiming;
-    if (!ov && !this.frozen && this.grounded && !aiming) {
-      const e = sprintEdge(input.sprintToggle, input.sprintPressed, input.sprintHeld, this.sprint.sprinting, mag);
-      if (e > 0) this.startSprint();
-      else if (e < 0) this.endSprint();
+    if (!this.frozen && !ov && crouchPressed && this.grounded) {
+      if (this.rollReady(mag, aiming)) {
+        this.crouchPend = true;
+        this.crouchPendT = 0;
+      } else if (input.crouchToggle) this.crouchToggled = !this.crouchToggled;
     }
-    if (this.sprint.sprinting && (ov || aiming || !this.grounded)) this.endSprint();
-    this.sprint.update(dt, mag);
-    if (!this.sprint.sprinting && this.sprintWas) this.endSprint();
-    this.sprintWas = this.sprint.sprinting;
+    if (this.crouchPend) {
+      this.crouchPendT += dt;
+      const released = !input.crouchHeld;
+      if (released || ov || this.frozen || !this.grounded || aiming || this.crouchPendT > CT.rollHold + 0.15) {
+        // a tap (or a hold that cannot roll any more): the plain crouch
+        this.crouchPend = false;
+        if (input.crouchToggle && !this.frozen && !ov && this.grounded && (released || this.crouchPendT > CT.rollHold)) this.crouchToggled = !this.crouchToggled;
+      }
+    }
 
     let wantCrouch = crouchWanted(input.crouchToggle, this.crouchToggled, input.crouchHeld);
     if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
-    if (this.sprint.sprinting) wantCrouch = false;
+    if (this.crouchPend) wantCrouch = false;
     this.applyCrouch(wantCrouch);
 
     // speed: analog per stance; strafe / backstep penalties only while aiming (relative to the aim)
@@ -447,29 +433,17 @@ export class PlayerController {
     const bc = Math.cos(camYaw);
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
-    const stance: Stance = this.sprint.sprinting
-        ? 'sprint'
-        : aiming
-          ? this.crouched
-            ? 'adsCrouch'
-            : 'ads'
-          : this.crouched
-            ? 'crouch'
-            : 'stand';
+    const stance: Stance = aiming ? (this.crouched ? 'adsCrouch' : 'ads') : this.crouched ? 'crouch' : 'stand';
     // free movement: the speed gear's cap x the stick (overrides set their own velocity)
     // (locomotion step 17, D5.12) analog speed: the stick snaps to a gear within the maximum gear (hysteresis), the
     // speed is that gear's cap (`AnalogGear`); a keyboard or a full stick gives the maximum gear
-    const snapped = this.analog.update(this.maxGear, this.crouched, mag, this.sprint.sprinting);
+    const snapped = this.analog.update(this.maxGear, this.crouched, mag);
     let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : targetSpeed(snapped > 0 ? 1 : 0, stance, lx, lz, T, snapped)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
     let tx = this.wish.x * inv;
     let tz = this.wish.z * inv;
-    if (this.sprint.sprinting && mag > 0) {
-      tx = (this.wish.x / mag) * speedTarget;
-      tz = (this.wish.z / mag) * speedTarget;
-    }
     if (ov?.velocity) {
       tx = ov.velocity.x;
       tz = ov.velocity.z;
@@ -479,7 +453,8 @@ export class PlayerController {
     mi.vx = tx;
     mi.vz = tz;
     mi.aiming = aiming;
-    mi.sprinting = this.sprint.sprinting || !!ov?.run;
+    mi.sprinting = !!ov?.run;
+    mi.slowest = snapped === 1;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
@@ -492,20 +467,28 @@ export class PlayerController {
     const wasMoving = this.motion.state === 'move';
     const spBefore = this.motion.speed;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
-    // an instant stop (any pace, any stance) holds the stride; the next input lets it go: a stick that moves the
-    // operator again, aiming, a stance change, an override or leaving the ground
-    if (this.ct && this.grounded && wasMoving && this.motion.state === 'idle' && spBefore > 0.02) {
+    // (G26, G27) a stop at any pace freezes the feet in the stride they stopped in; the frozen stance holds
+    // `CT.stopHoldTime` s, then lets go and eases to a feet-together idle over `CT.stopEase`. The next input lets it
+    // go at once: a stick that moves the operator again, aiming, a stance change, an override or leaving the ground
+    if (this.ct && this.grounded && wasMoving && this.motion.state !== 'move' && spBefore > 0.02) {
       this.stopHold = true;
       this.holdSpeed = spBefore;
       this.holdCrouch = this.crouched;
+      this.holdT = 0;
+      this.stopEaseT = -1;
     }
     const moving = hyp2(tx, tz) > 0.05;
-    if (this.ct && this.grounded && wasMoving && this.motion.state !== 'move' && spBefore > 0.02 && !moving) {
-      this.stopNoKneel = true;
-      this.noKneelCrouch = this.crouched;
-    }
-    if (this.stopNoKneel && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.noKneelCrouch)) this.stopNoKneel = false;
     if (this.stopHold && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.holdCrouch)) this.stopHold = false;
+    if (this.stopHold) {
+      this.holdT += dt;
+      if (this.holdT >= CT.stopHoldTime) {
+        this.stopHold = false;
+        this.stopEaseT = 0;
+      }
+    } else if (this.stopEaseT >= 0) {
+      this.stopEaseT += dt;
+      if (this.stopEaseT >= CT.stopEase || moving || !this.ct || !this.grounded || aiming) this.stopEaseT = -1;
+    }
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
     const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);
@@ -586,34 +569,27 @@ export class PlayerController {
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     // (step 22, M14) a Chaos Theory stop counts from rest, not from the eased stop's last 0.4 m/s
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > 0.25 && !this.stopHold && !this.stopNoKneel;
+    this.kneeling = this.stillT > 0.25 && !this.stopHold && this.stopEaseT < 0;
     this.updateStance(dt);
   }
 
-  private sprintWas = false;
-
-  /** Pick a sprint back up after a traversal (momentum carries through). */
-  resumeSprint(): void {
-    if (!this.sprint.sprinting) this.startSprint();
-    this.sprintWas = true;
+  /**
+   * (G32) A crouch press now would be the start of a roll: standing, free, at the top speed with the stick pushed.
+   * (The press then waits `CT.rollHold` s: held it rolls, released it crouches.)
+   */
+  private rollReady(mag: number, aiming: boolean): boolean {
+    if (this.crouched || this.override || !this.grounded || aiming || mag < 0.3) return false;
+    return this.analog.moving && this.analog.gear >= CT.rollGear && this.motion.speed >= CT.rollMinSpeed;
   }
 
-  private startSprint(): void {
-    this.crouchBeforeSprint = this.crouchToggled;
-    this.crouchToggled = false;
-    this.sprint.start();
+  /** The held crouch is ready to roll (the traversal system starts it, then calls `takeRollHold`). */
+  get rollHeld(): boolean {
+    return this.crouchPend && this.crouchPendT >= CT.rollHold;
   }
 
-  /** End a sprint (if any) and restore the stance it interrupted. */
-  /** Aiming cuts a sprint short: the weapon comes straight up. */
-  cancelSprint(): void {
-    if (this.sprint.sprinting) this.endSprint();
-  }
-
-  private endSprint(): void {
-    if (this.sprint.sprinting) this.sprint.stop();
-    if (this.sprintWas) this.crouchToggled = this.crouchBeforeSprint || this.crouchToggled;
-    this.sprintWas = false;
+  /** The roll has started: the pending crouch is spent. */
+  takeRollHold(): void {
+    this.crouchPend = false;
   }
 
   /** Eased stance transition: crouching takes `crouchTime`, standing up `standTime`. */
@@ -636,36 +612,59 @@ export class PlayerController {
   }
 
   private stepCd = 0;
+  private readonly stepDir = new Vector3();
+  private readonly stepA = new Vector3();
+  private readonly stepB = new Vector3();
+  private readonly stepRay = new PhysicsRaycastResult();
+  private readonly stepQuery = { membership: G.PLAYER, collideWith: G.STATIC };
+  private static readonly STEP_REACH_ADD = [0.1, 0.22] as const;
   /**
    * Havok's built-in step-up needs the per-step sweep to clear the capsule radius, which
    * walking speed never does. Probe ahead with rays and lift onto steps <= maxStep.
+   * Allocation-free (preallocated vectors and ray result; was a per-step allocator on a hot path).
    */
   private stepAssist(dt: number): void {
     this.stepCd = Math.max(0, this.stepCd - dt);
     if (this.stepCd > 0) return;
-    const eng = this.scene.getPhysicsEngine();
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
     if (!eng) return;
     const T = MOVEMENT;
-    const dir = this.wish.clone();
+    const dir = this.stepDir.copyFrom(this.wish);
     dir.y = 0;
     if (dir.lengthSquared() < 1e-4) return;
     dir.normalize();
-    const q = { membership: G.PLAYER, collideWith: G.STATIC };
-    for (const reach of [T.radius + 0.1, T.radius + 0.22]) {
-      const from = this.pos.add(dir.scale(reach)).addInPlace(new Vector3(0, T.maxStep + 0.05, 0));
-      const to = from.add(new Vector3(0, -(T.maxStep + 0.1), 0));
-      const hit = eng.raycast(from, to, q);
-      if (!hit.hasHit) continue;
-      const h = hit.hitPoint.y - this.pos.y;
+    const q = this.stepQuery;
+    const a = this.stepA;
+    const b = this.stepB;
+    const r = this.stepRay;
+    const px = this.pos.x;
+    const py = this.pos.y;
+    const pz = this.pos.z;
+    for (let n = 0; n < 2; n++) {
+      const reach = T.radius + PlayerController.STEP_REACH_ADD[n]!;
+      a.set(px + dir.x * reach, py + T.maxStep + 0.05, pz + dir.z * reach);
+      b.set(a.x, a.y - (T.maxStep + 0.1), a.z);
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (!r.hasHit) continue;
+      const h = r.hitPointWorld.y - py;
       // flat step tops only; slopes are handled by the controller itself
-      if (h < 0.08 || h > T.maxStep || hit.hitNormal.y < 0.97) continue;
+      if (h < 0.08 || h > T.maxStep || r.hitNormalWorld.y < 0.97) continue;
       // space above the step must be free for the whole body
-      const chestFrom = this.pos.add(new Vector3(0, h + 0.15, 0));
-      const block = eng.raycast(chestFrom, chestFrom.add(dir.scale(reach + 0.1)), q);
-      if (block.hasHit) continue;
-      const head = eng.raycast(chestFrom, chestFrom.add(new Vector3(0, this.height, 0)), q);
-      if (head.hasHit) continue;
-      this.cc.setPosition(this.cc.getPosition().add(new Vector3(0, h + 0.03, 0)).addInPlace(dir.scale(0.04)));
+      a.set(px, py + h + 0.15, pz);
+      b.set(px + dir.x * (reach + 0.1), a.y, pz + dir.z * (reach + 0.1));
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (r.hasHit) continue;
+      b.set(a.x, a.y + this.height, a.z);
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (r.hasHit) continue;
+      const cp = this.cc.getPosition();
+      cp.x += dir.x * 0.04;
+      cp.y += h + 0.03;
+      cp.z += dir.z * 0.04;
+      this.cc.setPosition(cp);
       this.syncFeet();
       this.stepCd = 0.08;
       return;

@@ -34,10 +34,10 @@ export interface CarryInput {
 }
 
 export const CARRY = {
-  /** Seconds to raise from ready to shouldered for weight 1 (120-200 ms; trigger live just before). */
-  raiseTime: 0.16,
-  /** Seconds to lower back to ready for weight 1 (250-350 ms). */
-  lowerTime: 0.3,
+  /** Seconds to raise from ready to shouldered for weight 1 (G103: about 0.6 pistol / 0.75 rifle, the pistol scaled by its weight 0.7 gives ~0.56). Starting value. */
+  raiseTime: 0.8,
+  /** Seconds to lower back to ready, every weapon (G103: 0.5-0.6). Starting value. */
+  lowerTime: 0.55,
   /** Stay raised this long after the last shot. */
   holdAfterFire: 0.6,
   /** Ready-position cross-fade (s). */
@@ -84,8 +84,8 @@ export class WeaponCarry {
   update(dt: number, i: CarryInput, C = CARRY): void {
     const blocked = WeaponCarry.blocked(i);
     const want = !blocked && (i.ads || i.fire || i.coverRaise || i.sinceShot < C.holdAfterFire) ? 1 : 0;
-    // raise faster than lower; heavier weapons are slower both ways
-    const time = (want > this.raise ? C.raiseTime : C.lowerTime) * Math.max(0.5, i.weight);
+    // heavier weapons raise slower; the lower is the same for every weapon (G103)
+    const time = want > this.raise ? C.raiseTime * Math.max(0.5, i.weight) : C.lowerTime;
     const omega = 4 / Math.max(0.05, time);
     // critically damped: anticipation-free but eased in/out, never overshoots past fully raised
     const e = Math.exp(-omega * dt);

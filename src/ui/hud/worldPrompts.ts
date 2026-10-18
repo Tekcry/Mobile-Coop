@@ -2,7 +2,7 @@ import { h } from '../dom';
 import { keyLabels, verbPromptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
-export type WorldPromptId = 'vault' | 'state' | 'jumpTo' | 'drop' | 'takedown';
+export type WorldPromptId = 'vault' | 'state' | 'jumpTo' | 'drop' | 'takedown' | 'coop';
 
 interface Item {
   el: HTMLElement;
@@ -14,7 +14,7 @@ interface Item {
   sy: number;
 }
 
-const PROMPT_IDS: readonly WorldPromptId[] = ['vault', 'state', 'jumpTo', 'drop', 'takedown'];
+const PROMPT_IDS: readonly WorldPromptId[] = ['vault', 'state', 'jumpTo', 'drop', 'takedown', 'coop'];
 /** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
 const CHAR_VW = 1.25;
 const PAD_VW = 4;
@@ -25,8 +25,11 @@ function glyph(id: WorldPromptId): string {
   switch (id) {
     case 'vault':
     case 'jumpTo':
-    case 'takedown':
       return verbPromptHtml('traverse', keyLabels.traverse);
+    case 'takedown':
+      return verbPromptHtml('interact', keyLabels.interact);
+    case 'coop':
+      return verbPromptHtml('coop', keyLabels.coop);
     case 'drop':
       return verbPromptHtml('crouch', keyLabels.crouch);
     case 'state':

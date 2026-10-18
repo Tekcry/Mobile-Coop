@@ -87,6 +87,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
   operator meshes are generated offline by in-repo scripts (Blender, headless) and bundled. CC0 recordings may be used for any sound (G58): bundled,
   never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in
   `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.
+- Exception: the menu font Barlow Condensed (SIL OFL), bundled in `src/ui/fonts/` (menu-ui MD1).
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
   side-effect module is missing (it warns: "requires a side-effect import"). Add the side-effect import there.
 - Important data goes to IndexedDB (`src/save`). `localStorage` is never used for saves.

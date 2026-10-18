@@ -49,28 +49,26 @@ export interface PadFrame {
 const BTN_THRESHOLD = 0.5;
 
 /**
- * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
- * separately. A context action, B crouch, Y traverse + interact
- * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder. 3.2.0: D-pad up /
- * down the speed gear, right the gadget (hold to aim), left the gadget wheel (the source: a tap is a co-op ping, a
- * hold opens the wheel); View goggles (the source: a tap is goggles; a hold does nothing).
+ * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled separately. The
+ * Chaos Theory co-op pad (A3, G96): A interact / context, B crouch, Y jump, X equip (the source turns a hold into a weapon
+ * swap), L3 back-to-wall (G18), R3 shoulder swap, RB co-op action (Black), LB quick inventory (White: the gadget wheel),
+ * D-pad up goggles, down gadget (hold to aim), left / right the speed gear (CT's D-pad is vision; the gear rocker moved
+ * to left / right), View mission device (no action yet), Start pause.
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
-  [PAD.A, 'cover'],
+  [PAD.A, 'interact'],
   [PAD.B, 'crouch'],
   [PAD.X, 'reload'],
   [PAD.Y, 'jump'],
-  [PAD.Y, 'interact'],
-  [PAD.RB, 'swapNext'],
-  [PAD.LB, 'swapPrev'],
+  [PAD.RB, 'coop'],
+  [PAD.LB, 'gadgetWheel'],
   [PAD.START, 'pause'],
-  [PAD.SELECT, 'vision'],
-  [PAD.LS, 'dash'],
+  [PAD.LS, 'cover'],
   [PAD.RS, 'shoulderSwap'],
-  [PAD.UP, 'speedUp'],
-  [PAD.DOWN, 'speedDown'],
-  [PAD.RIGHT, 'grenade'],
-  [PAD.LEFT, 'gadgetWheel'],
+  [PAD.UP, 'vision'],
+  [PAD.DOWN, 'grenade'],
+  [PAD.LEFT, 'speedDown'],
+  [PAD.RIGHT, 'speedUp'],
 ];
 
 /**
@@ -106,7 +104,8 @@ export class TapHold {
 export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'uiConfirm'],
   [PAD.B, 'uiBack'],
-  [PAD.START, 'uiBack'],
+  [PAD.START, 'uiStart'],
+  [PAD.X, 'uiX'],
   [PAD.LB, 'uiTabPrev'],
   [PAD.RB, 'uiTabNext'],
   [PAD.Y, 'uiAlt'],

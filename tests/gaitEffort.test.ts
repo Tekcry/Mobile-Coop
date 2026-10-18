@@ -7,7 +7,7 @@ import { FootPlanner, emptyPlannerInput, HEEL_ROLL } from '../src/anim/footPlann
 // (locomotion step 22) the pure parts of batch 1b and the M14 weight change
 describe('effort curve (D5.1, A88)', () => {
   it('each gear cap poses as its 3.2.0 reference pace, both stances; monotonic in between', () => {
-    for (let g = 0; g < 6; g++) {
+    for (let g = 0; g < 5; g++) {
       expect(effortSpeed(GEARS.stand[g]!, false)).toBeCloseTo(GAIT_REF.stand[g]!, 9);
       expect(effortSpeed(GEARS.crouch[g]!, true)).toBeCloseTo(GAIT_REF.crouch[g]!, 9);
     }
@@ -18,8 +18,8 @@ describe('effort curve (D5.1, A88)', () => {
       prev = e;
     }
     expect(effortSpeed(0, false)).toBe(0);
-    expect(effortLevel(GEARS.stand[5]!, false)).toBeCloseTo(1, 9);
-    expect(effortLevel(GEARS.crouch[5]!, true)).toBeCloseTo(1, 9);
+    expect(effortLevel(GEARS.stand[4]!, false)).toBeCloseTo(1, 9);
+    expect(effortLevel(GEARS.crouch[4]!, true)).toBeCloseTo(1, 9);
   });
 });
 

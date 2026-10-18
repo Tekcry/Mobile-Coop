@@ -19,3 +19,12 @@ proportions) is listed under "Reference data" and kept out of the repo.
 | Data | Source (URL) | Terms | Used for |
 | --- | --- | --- | --- |
 | ANSUR II public CSVs (men, women) | https://www.openlab.psu.edu/ansur2/ | Public release of US Army survey data | Checking operator proportions (`docs/operators/SPEC.md` 4.2) |
+
+## Fonts
+
+| Font | Author | Licence | Files | Source |
+| --- | --- | --- | --- | --- |
+| Barlow Condensed (Medium 500, SemiBold 600, Bold 700), v1.4 | Jeremy Tribby (The Barlow Project Authors) | SIL Open Font License 1.1 (`src/ui/fonts/OFL.txt`) | `src/ui/fonts/barlow-condensed-500.ttf`, `-600.ttf`, `-700.ttf` | google/fonts, `ofl/barlowcondensed/` (downloaded 2026-10-18) |
+
+The menu font is the menu-ui MD1 exception to the "no external art" hard rule. The files are the unmodified TTFs:
+fonttools was not installed, so the Latin-subset woff2 conversion (step 01) is still open.

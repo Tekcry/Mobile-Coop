@@ -211,7 +211,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
-| Goggle modes | Night, thermal, electro, cycled thermal, electro, night, off with an instant cut | G99, G100 |
+| Goggle modes | Night, thermal, electro, picked on the selection wheel, one button toggles the picked mode | G99, G179 |
 | Night vision | A gain in the lighting; CT grain | L7, G101 |
 | Thermal | CT colour ramp; people behind closed doors as a dim silhouette; never through glass | G45, G102 |
 | Electro | Shows powered devices | G99 |
@@ -416,8 +416,8 @@ Implementation: `docs/systems/takedowns.md`.
 
 Implementation: `docs/systems/gadgets.md`.
 
-- **Goggle modes (G99-G102):** night, thermal and electro. The switch is an instant cut in CT's order: thermal, electro,
-  night, off; there is no flip.
+- **Goggle modes (G99-G102, G179):** night, thermal and electro. The selection wheel (G179) picks the mode; one button
+  turns the selected mode on and off, and the goggle flip plays only on on / off, never between modes.
   - Night vision is a gain in the lighting (L7): it reveals real detail and blows out near lamps.
   - Thermal follows CT: CT's colour ramp; people behind closed doors show as a dim silhouette; never through glass (L15).
   - Electro shows powered devices.
@@ -425,8 +425,9 @@ Implementation: `docs/systems/gadgets.md`.
   - Vision modes never change detection.
 - **The goggle** is original: no three-lens look (G69). It sits on the brow with a dim glow when vision is off and over
   the eyes with full glow when on (G73).
-- **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). The gadget wheel
-  stays. There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
+- **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). A Blacklist-style
+  selection wheel picks weapons, gadgets and the vision mode (G179, Michael's exception to G1).
+  There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
   thrown EMP is gone: the pistol's held jammer replaces it (G152).
 - **Kit per mission** is fixed by the mission: the pair get complementary kits (G134, G153). No credits.
 

@@ -27,7 +27,11 @@ try {
   await click('.main-menu .btn', 'Settings');
   await frames(page, 4);
   const tabs = await G(() => [...document.querySelectorAll('.settings-screen .tab')].map((t) => t.dataset.tab));
-  assert(tabs[0] === 'kbm', `Mouse & Keyboard first (${tabs.join(',')})`);
+  assert(tabs[0] === 'controls', `Controls first (${tabs.join(',')})`);
+  // (menu-ui slice 2) the key list lives on CONTROLS / REMAP, keyboard and mouse first on a keyboard
+  await click('.settings-screen .tab-panel.active .btn', '^Remap controls');
+  await frames(page, 3);
+  assert((await G(() => document.querySelector('.controls-screen .tab.active')?.dataset.tab)) === 'kbm', 'Remap opens on Keyboard and mouse');
   // rebind reload to U
   await click('.kb-key[data-bind="reload:0"]');
   await frames(page, 2);
@@ -51,8 +55,10 @@ try {
   await click('.kb-key[data-bind="gadget:0"]');
   await page.keyboard.press('KeyG');
   await frames(page, 2);
-  // Graphics: presets and Custom, the frame cap
-  await click('.tab', 'Graphics');
+  // Graphics: presets and Custom, the frame cap (Esc back to Settings first)
+  await page.keyboard.press('Escape');
+  await frames(page, 3);
+  await click('.settings-screen .tab', 'Graphics');
   await frames(page, 3);
   const preset = await G(() => [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelector('.choice-val').textContent);
   // (3.1: Auto by default; under automation without ?detect=1 it keeps the 3.0 default, Epic)
@@ -99,7 +105,7 @@ try {
     await pickRes(`^${second}$`);
     await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
     const applied = await G(() => ({ s: window.__app.settings.get().video.renderScale, r: window.__app.settings.get().video.resolution, dyn: window.__app.settings.get().video.dynamicRes, msg: document.querySelector('.dialog-msg').textContent }));
-    assert(Math.abs(applied.s - hOf(second) / monH) < 1e-6 && applied.r === second.replace(' x ', 'x') && !applied.dyn && /Reverting to .* in 15 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
+    assert(Math.abs(applied.s - hOf(second) / monH) < 1e-6 && applied.r === second.replace(' x ', 'x') && !applied.dyn && /Reverting to .* in 10 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
     await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Keep/.test(b.textContent)).click());
     await page.waitForTimeout(1500);
     const kept = await G(() => ({ r: window.__app.settings.get().video.resolution, row: [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).textContent }));

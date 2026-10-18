@@ -9,7 +9,7 @@ export interface PathPoint {
   z: number;
 }
 
-export type PathKind = 'step' | 'vault' | 'mantle' | 'drop' | 'hop' | 'roll' | 'swat';
+export type PathKind = 'step' | 'vault' | 'mantle' | 'drop' | 'hop' | 'roll';
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
@@ -45,12 +45,6 @@ export function traversePath(kind: PathKind, f: PathPoint, e: PathPoint, top: nu
       // a low, quick leap: carried by momentum (near linear), a short arc
       h = k;
       y = f.y + (e.y - f.y) * smooth(k) + 0.45 * Math.sin(Math.PI * k);
-      break;
-    }
-    case 'swat': {
-      // (step 12) the SWAT turn: eased along the floor from one wall edge to the other (as the owner's core)
-      h = smooth(k);
-      y = f.y + (e.y - f.y) * h;
       break;
     }
     case 'drop': {

@@ -9,30 +9,48 @@
  * (the `NV_GLSL` pattern).
  */
 
-/** Thermal: input luma (after the 4-tap soften) to a cold blue-grey ramp (the cold scene stays below `hotFrom`, its
- *  shapes readable); heat (bright) goes white-hot. */
+/**
+ * Thermal (prototype A5, G102): CT's false-colour ramp (ct-measure doc, sampled sRGB: indigo background, blue rim, cyan,
+ * teal, green, yellow-green, yellow, red core). The input luma (after the 4-tap soften) goes through `heatOf`: the whole
+ * cold scene (luma under `coldTo`) stays at the flat indigo with a faint `world` trace of geometry, so the room is nearly
+ * invisible; bodies (emissive flag) and the dim door silhouette climb the ramp. Every number is a starting value.
+ */
 export const THERMAL = {
-  /** Luma where heat starts / is white-hot. */
-  hotFrom: 0.55,
+  /** Luma under this is cold background; heat runs from here to `hotTo`. */
+  coldTo: 0.5,
   hotTo: 1.0,
-  cold: [0.06, 0.08, 0.12] as const,
-  cool: [0.3, 0.37, 0.46] as const,
-  hot: [1.0, 0.93, 0.78] as const,
+  /** Share of the cold luma that still shows as geometry in the indigo (CT: almost none). */
+  world: 0.05,
+  /** The ramp: position 0..1 then linear RGB (CT samples, sRGB / 255). */
+  stops: [
+    [0.0, 0.13, 0.035, 0.25],
+    [0.12, 0.01, 0.05, 0.87],
+    [0.28, 0.01, 0.09, 0.98],
+    [0.42, 0.22, 0.59, 1.0],
+    [0.55, 0.05, 0.5, 0.43],
+    [0.67, 0.0, 0.42, 0.16],
+    [0.8, 0.63, 0.83, 0.04],
+    [0.9, 0.84, 1.0, 0.12],
+    [1.0, 1.0, 0.2, 0.05],
+  ] as readonly (readonly [number, number, number, number])[],
   /** The soften's tap offset (share of screen height). */
-  blur: 0.0018,
+  blur: 0.0025,
   /** Emissive added to a warm body's material at full heat (`pattern.w` = 1). */
   bodyEmit: 0.85,
   /** A fresh body cools over this (s). */
   coolTime: 60,
+  /** A guard behind a closed door: the silhouette's emissive grey (lands low on the ramp: dim blue) and range (m). */
+  doorGhost: 0.62,
+  doorRange: 14,
 } as const;
 
-/** Electro: a dark desaturated green; live devices (bright) glow a pale green-white; people stay dim. */
+/** Electro (CT): a flat dark navy, no grain; live devices (bright) glow white; people stay dim. */
 export const ELECTRO = {
   /** The scene's luma scaled down by this: only emissive things reach the glow band. */
   dim: 0.55,
-  dark: [0.02, 0.05, 0.03] as const,
-  tint: [0.12, 0.3, 0.16] as const,
-  glow: [0.75, 1.0, 0.8] as const,
+  dark: [0.055, 0.13, 0.225] as const,
+  tint: [0.0, 0.02, 0.04] as const,
+  glow: [1.0, 1.0, 1.0] as const,
   glowFrom: 0.5,
   glowTo: 0.9,
   /** Emissive added to a device's material while electro is on. */
@@ -52,16 +70,16 @@ export const SENSOR_GRAIN = {
   /** A new noise field this many times a second (every second frame at 60 Hz, every fourth at 120). */
   rate: 30,
   /** Peak-to-peak grain in output colour at black, per mode (step 14 had 0.04 thermal / electro, 0.075 night). */
-  thermal: 0.13,
-  electro: 0.11,
-  night: 0.12,
+  thermal: 0.26,
+  electro: 0,
+  night: 0.035,
   /** Share of the grain left at full output luma (luminance-weighted: hot bodies, live devices and lit phosphor stay
    *  clean enough to read; the cold / dark scene carries the noise). */
-  litThermal: 0.45,
+  litThermal: 1,
   litElectro: 0.45,
-  litNight: 0.35,
+  litNight: 1,
   /** Electro's grain is tinted with the phosphor (a grey grain over the green read as dirt). */
-  electroTint: [0.7, 1.0, 0.75] as const,
+  electroTint: [0.7, 0.85, 1.0] as const,
   /** Softening: the share of the tap average mixed into the pixel's luma (thermal keeps step 14's 0.6). Night uses
    *  two diagonal taps, thermal and electro four, all at `THERMAL.blur`. */
   softThermal: 0.6,
@@ -88,14 +106,28 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
-/** Thermal's colour for a luma 0..1. */
+/** Thermal's heat 0..1 for an input luma: 0 under `coldTo` (flat indigo), 1 at `hotTo`. */
+export function heatOf(l: number): number {
+  return smooth(THERMAL.coldTo, THERMAL.hotTo, l);
+}
+
+/** Thermal's grain amplitude for a heat 0..1: strong on warm areas, nearly none on the cold background (G101). */
+export function thermalGrainAmp(h: number): number {
+  return SENSOR_GRAIN.thermal * (0.04 + 0.96 * smooth(0.08, 0.4, h));
+}
+
+/** Thermal's colour for a luma 0..1 (CT ramp). */
 export function thermalColor(l: number, out: [number, number, number] = [0, 0, 0]): [number, number, number] {
-  const c = Math.min(1, Math.max(0, l / THERMAL.hotFrom));
-  const h = smooth(THERMAL.hotFrom, THERMAL.hotTo, l);
-  for (let i = 0; i < 3; i++) {
-    const base = THERMAL.cold[i]! + (THERMAL.cool[i]! - THERMAL.cold[i]!) * c;
-    out[i] = base + (THERMAL.hot[i]! - base) * h;
-  }
+  const h = heatOf(l);
+  const st = THERMAL.stops;
+  let k = 1;
+  while (k < st.length - 1 && h > st[k]![0]) k++;
+  const a = st[k - 1]!;
+  const b = st[k]!;
+  const t = Math.min(1, Math.max(0, (h - a[0]) / (b[0] - a[0])));
+  // the cold scene keeps a faint trace of geometry (luma under coldTo) so the room is nearly, not wholly, gone
+  const w = THERMAL.world * Math.min(1, l / THERMAL.coldTo) * (1 - h);
+  for (let i = 0; i < 3; i++) out[i] = a[i + 1]! + (b[i + 1]! - a[i + 1]!) * t + w;
   return out;
 }
 
@@ -115,11 +147,18 @@ const v3 = (c: readonly number[]): string => `vec3(${f(c[0]!)}, ${f(c[1]!)}, ${f
 
 /** GLSL mirror of `thermalColor` / `electroColor`. */
 export const VISION_GLSL = `
+float heatOf(float l) {
+  return smoothstep(${f(THERMAL.coldTo)}, ${f(THERMAL.hotTo)}, l);
+}
+float thermalGrain(float h) {
+  return ${f(SENSOR_GRAIN.thermal)} * (0.04 + 0.96 * smoothstep(0.08, 0.4, h));
+}
 vec3 thermalColor(float l) {
-  float c = clamp(l / ${f(THERMAL.hotFrom)}, 0.0, 1.0);
-  float h = smoothstep(${f(THERMAL.hotFrom)}, ${f(THERMAL.hotTo)}, l);
-  vec3 base = ${v3(THERMAL.cold)} + (${v3(THERMAL.cool)} - ${v3(THERMAL.cold)}) * c;
-  return mix(base, ${v3(THERMAL.hot)}, h);
+  float h = heatOf(l);
+  float w = ${f(THERMAL.world)} * min(1.0, l / ${f(THERMAL.coldTo)}) * (1.0 - h);
+  vec3 c = ${v3(THERMAL.stops[0]!.slice(1))};
+${THERMAL.stops.slice(1).map((st, i) => `  c = mix(c, ${v3(st.slice(1))}, clamp((h - ${f(THERMAL.stops[i]![0])}) / ${f(st[0] - THERMAL.stops[i]![0])}, 0.0, 1.0));`).join('\n')}
+  return c + w;
 }
 vec3 electroColor(float l) {
   float d = min(l * ${f(ELECTRO.dim)}, 1.0);

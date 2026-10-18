@@ -16,6 +16,7 @@ import { hyp2 } from '../core/mathx';
 import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
 import { gearCap } from './speedGears';
+import { GEARS } from '../config/movement';
 import { G } from '../physics/groups';
 import { WALL_LOOK, WALL_TURN_RATE, wallHandPoint, wallRootPush } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
@@ -189,11 +190,10 @@ export class Player {
     const c = this.controller;
     // (locomotion step 18, D7) aim: hold or toggle
     this.ads = this.adsLatch.update(s.gameplay.adsToggle, inp.pressed('ads'), inp.down('ads'));
-    // aiming while sprinting ends the sprint and raises the weapon
-    if (this.ads && c.sprinting && this.pose.traverse === 'none') c.cancelSprint();
     if (this.forceAds) this.ads = true;
     if (c.weaponBlocked || (this.pose.traverse !== 'none' && !this.attachAim)) this.ads = false;
-    if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
+    // G17: the shoulder swap works only while aiming
+    if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
     // weapon carry: ready position from context, raised only to aim or fire
@@ -221,9 +221,6 @@ export class Player {
       crouchPressed: inp.pressed('crouch'),
       crouchHeld: inp.down('crouch'),
       crouchToggle: s.gameplay.crouchToggle,
-      sprintPressed: inp.pressed('dash'),
-      sprintHeld: inp.down('dash'),
-      sprintToggle: !s.gameplay.sprintHold,
       ads: this.ads,
       aiming: this.aiming,
       reloading: this.reload >= 0,
@@ -256,7 +253,6 @@ export class Player {
       // free orbit: look input applies in full, the same frame, in every state (the body never holds
       // the view back; when aiming the body turns to the view instead)
       this.cam.addLook(look.x, look.y);
-      this.recentre(dt, look);
       // (3.2.0) a sidearm from a split / an inverted hang: the aim stays within the band the body can turn to
       const at = this.attachAim;
       if (at && this.carry.raise > 0.05) {
@@ -269,11 +265,7 @@ export class Player {
     this.applyFov();
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
-    this.cam.dash = c.dashing ? 1 : 0;
     this.cam.lean = this.pose.lean;
-    this.cam.cover = this.pose.wall ? 1 : 0;
-    this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
-    this.cam.pace = c.speed;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos, dt);
 
@@ -344,7 +336,6 @@ export class Player {
     rp.carry = w;
     rp.weight = this.weaponWeight;
     rp.kick = this.kick;
-    rp.dash = c.dashing ? 1 : 0;
     rp.landing = Math.min(1, c.landT * 2);
     rp.reload = this.reload;
     rp.reloadEmpty = this.reloadEmpty;
@@ -369,7 +360,7 @@ export class Player {
     rp.phase = c.renderPhase;
     rp.motion = m.state;
     rp.motionT = m.stateT;
-    rp.quickStop = c.ct ? CT.stopBlend : 0;
+    rp.quickStop = c.ct ? (c.stopEaseT >= 0 ? CT.stopEase : CT.stopBlend) : 0;
     rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = this.visYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
@@ -377,6 +368,9 @@ export class Player {
     rp.velX = c.override?.kinematic ? undefined : m.outX;
     rp.velZ = c.override?.kinematic ? undefined : m.outZ;
     rp.goalYaw = m.goalYaw;
+    // (A1.2) free movement strides along the facing; aiming, the wall and traversal follow the velocity
+    rp.stride = c.ct && this.carry.raise <= 0.5 && !cp.wall ? 'facing' : 'velocity';
+    rp.faceGoal = m.faceGoal;
     // anticipation at render rate: the stick this frame against the current pace, along the body
     if (move && this.alive && !c.override) {
       const mag = Math.min(1, hyp2(move.x, move.y));
@@ -384,8 +378,8 @@ export class Player {
       const wx = Math.cos(cy) * move.x + Math.sin(cy) * move.y;
       const wz = -Math.sin(cy) * move.x + Math.cos(cy) * move.y;
       const along = mag > 0.05 ? (wx * Math.sin(by) + wz * Math.cos(by)) / mag : 0;
-      // (step 22) the tops follow the M14 gear caps: the sprint, crouched gear 6, standing gear 4 (the 3.2.0 jog)
-      const top = c.sprinting ? gearCap(6, false) : c.crouched ? gearCap(6, true) : gearCap(4, false);
+      // the top pace of the stance: the intent is the stick's push against the pace
+      const top = gearCap(GEARS.count, c.crouched);
       rp.intent = mag * Math.max(0, along) - c.speed / top;
     } else rp.intent = 0;
     // stopping: the last steps land where the body will come to rest
@@ -415,28 +409,6 @@ export class Player {
     f.setHeadVisible(this.cam.headVisible);
     f.setHeat(this.rig.heat);
     f.update(this.world.scene.activeCamera);
-  }
-
-  private lookIdleT = 0;
-
-  /**
-   * Gentle auto-recentre: after `recentreDelay` s without look input while moving (not aiming, not at
-   * a wall), the view eases round behind the travel direction. Never while the player is looking.
-   */
-  private recentre(dt: number, look: { x: number; y: number }): void {
-    const c = this.controller;
-    this.lookIdleT = Math.abs(look.x) + Math.abs(look.y) > 1e-5 ? 0 : this.lookIdleT + dt;
-    const T = MOVEMENT;
-    if (!this.getSettings().gameplay.autoRecentre || this.lookIdleT < T.recentreDelay) return;
-    if (this.ads || this.aiming || c.override || this.pose.wall || c.speed < 0.5) return;
-    const m = c.motion;
-    const heading = Math.atan2(m.vx, m.vz);
-    const err = wrapPi(heading - this.cam.yaw);
-    // ease in over the first half second after the delay, slow near the target
-    const ramp = Math.min(1, (this.lookIdleT - T.recentreDelay) / 0.5);
-    const rate = T.recentreRate * ramp * Math.min(1, Math.abs(err) / 0.6);
-    const step = Math.sign(err) * Math.min(Math.abs(err), rate * dt);
-    this.cam.yaw = wrapPi(this.cam.yaw + step);
   }
 
   dispose(): void {

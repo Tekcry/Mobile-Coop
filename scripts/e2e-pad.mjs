@@ -48,7 +48,7 @@ const STRIKE_HARNESS = () => {
     },
   };
 };
-// (locomotion step 12) the Proving doorway (1.1 m gap): stand 0.5 m out from its high wall 0.8 m from the edge, facing it
+// (locomotion step 12; A3: a free wall end by the Proving doorway) stand 0.5 m out from its high wall 0.8 m from the edge, facing it
 // (manual loop). `sx` is the stick x toward the edge (+t is the camera's right facing the wall).
 const EDGE_HARNESS = () => {
   const a = window.__app;
@@ -62,8 +62,9 @@ const EDGE_HARNESS = () => {
   for (let i = 0; i < segs.length && !d; i++) {
     const s = segs[i];
     if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
-    if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) d = { i, end: 1, to: L.gB[i], len: s.len };
-    else if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) d = { i, end: -1, to: L.gA[i], len: s.len };
+    if (s.len < 1.5) continue;
+    if (L.kB[i] === 0) d = { i, end: 1, len: s.len };
+    else if (L.kA[i] === 0) d = { i, end: -1, len: s.len };
   }
   const s = segs[d.i];
   const k = d.end > 0 ? d.len - 0.8 : 0.8;
@@ -78,7 +79,7 @@ const EDGE_HARNESS = () => {
     step(n = 1) {
       for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
     },
-    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, lk: w.lk, lean: w.lean, swat: w.count.swat, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
+    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
   };
   return d;
 };
@@ -115,7 +116,7 @@ const CORNER_SETUP = () => {
     // slide to the edge at b (the camera's right), then release the stick
     window.__pad.connect();
     window.__pad.axis(0, 1);
-    step(60);
+    step(200);
     window.__pad.axis(0, 0);
     step(4);
     if (g.wallCore.edge !== 1) continue;
@@ -190,13 +191,12 @@ try {
   assert(/Settings/.test(f), 'd-pad reaches Settings');
   await press(page, BTN.A);
   assert(await q('.settings-screen'), 'A opens settings');
-  const tab0 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
-  await press(page, BTN.RB);
-  const tab1 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
-  assert(tab0 !== tab1 && tab1 === 'Controller', `RB switches tab (${tab0} -> ${tab1})`);
+  // (menu-ui slice 2) GAME / SETTINGS: Controls first, Remap controls focused; LB / RB switch tabs with focus memory
+  const tabT = () => page.evaluate(() => document.querySelector('.settings-screen .tab.active')?.textContent);
+  assert((await tabT()) === 'Controls' && /Remap controls/.test(await focusedText(page)), `Controls tab first, Remap focused (${await tabT()}, "${await focusedText(page)}")`);
   // find the horizontal sensitivity slider
-  for (let i = 0; i < 8 && !/Horizontal/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Horizontal/.test(await focusedText(page)), 'focus on Horizontal sensitivity');
+  for (let i = 0; i < 12 && !/horizontal/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/horizontal/.test(await focusedText(page)), 'focus on Look sensitivity (horizontal)');
   const before = (await settings()).gamepad.lookSensitivityX;
   await press(page, BTN.RIGHT);
   await press(page, BTN.RIGHT);
@@ -204,22 +204,29 @@ try {
   assert(after > before, `d-pad right raises slider (${before} -> ${after})`);
   // left stick nav
   await stick(page, 1, 1);
-  assert(/Vertical/.test(await focusedText(page)), 'left stick moves focus down');
+  assert(/vertical/.test(await focusedText(page)), 'left stick moves focus down');
+  await press(page, BTN.RB);
+  assert((await tabT()) === 'Gameplay', 'RB: the Gameplay tab');
   await press(page, BTN.LB);
+  assert((await tabT()) === 'Controls' && /vertical/.test(await focusedText(page)), `LB back to Controls restores its focus ("${await focusedText(page)}")`);
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Data', 'LB wraps tabs backwards');
-  // Accessibility: HUD size by d-pad, the Controls screen per input type (past Feedback)
+  assert((await tabT()) === 'Data', 'LB wraps tabs backwards');
+  // Accessibility: Subtitles locked first, HUD size by d-pad, then the Remap screen per input type
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Feedback', 'the Feedback tab');
+  assert((await tabT()) === 'Feedback', 'the Feedback tab');
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Accessibility', 'Accessibility tab');
-  assert(/Controls/.test(await focusedText(page)), `first focus on Controls ("${await focusedText(page)}")`);
-  await press(page, BTN.DOWN);
+  assert((await tabT()) === 'Accessibility', 'Accessibility tab');
+  assert(/Subtitles/.test(await focusedText(page)), `first focus on the locked Subtitles row ("${await focusedText(page)}")`);
+  await press(page, BTN.A);
+  assert((await settings()).access.subtitles && /always on/.test(await page.evaluate(() => document.querySelector('.toasts')?.textContent ?? '')), 'the locked row toasts its reason');
+  for (let i = 0; i < 4 && !/HUD size/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
   const hs0 = (await settings()).access.hudScale;
   await press(page, BTN.RIGHT);
   assert((await settings()).access.hudScale > hs0, 'd-pad right enlarges the HUD');
-  await press(page, BTN.UP);
+  for (let i = 0; i < 4; i++) await press(page, BTN.LB);
+  assert((await tabT()) === 'Controls', 'back on Controls');
+  for (let i = 0; i < 12 && !/Remap controls/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   await press(page, BTN.A);
   assert(await q('.controls-screen'), 'A opens the Controls screen');
   const ct0 = await page.evaluate(() => document.querySelector('.controls-screen .tab.active')?.textContent);
@@ -232,71 +239,66 @@ try {
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
 
-  console.log('campaign loadout (G76, the CT kit): pad lists only the rifle and the suppressed pistol, defaults Heron Carbine + Hush 9 SD');
+  console.log('issued kit (slice 4, D-11; G76 CT kit): the pad reads the kit, nothing is selectable');
   {
     const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
-    const labels = () => page.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-    const value = (k) => page.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+    const ctr = (k) => page.evaluate((kk) => document.querySelector(`.kit-screen [data-key="${kk}"] .ms-ctr`)?.textContent ?? '', k);
     assert(await focusTo(page, /Loadout/), 'focus Loadout');
     await press(page, BTN.A);
-    assert(await q('.loadout-screen'), 'A opens the Loadout');
-    const root = await labels();
-    assert(JSON.stringify(root) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the root: loadout, primary, sidearm, gadget (${root})`);
-    assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'primary'; i++) await press(page, BTN.DOWN);
-    await press(page, BTN.A);
-    const prim = await labels();
-    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
-    const seen = new Set([await key()]);
+    assert(await q('.kit-screen'), 'A opens the issued kit');
+    assert((await key()) === 'primary', 'focus starts on Primary');
+    assert((await ctr('primary')) === 'Heron Carbine' && (await ctr('secondary')) === 'Hush 9 SD', `the kit: Heron Carbine + Hush 9 SD (${await ctr('primary')} / ${await ctr('secondary')})`);
+    const seen = [await key()];
     for (let i = 0; i < 2; i++) {
       await press(page, BTN.DOWN);
-      seen.add(await key());
+      seen.push(await key());
     }
-    assert(seen.has('w-rifle') && seen.size === 1, `the d-pad reaches the rifle and nothing else (${[...seen]})`);
-    const lo = await page.evaluate(() => window.__app.save.get().loadout);
-    assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `the rifle is the primary, the sidearm in hand (${JSON.stringify(lo)})`);
-    await press(page, BTN.B);
-    assert((await value('primary')) === 'Heron Carbine', `B returns to the root with it (${await value('primary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'secondary'; i++) await press(page, BTN.DOWN);
+    assert(JSON.stringify(seen) === JSON.stringify(['primary', 'secondary', 'gadget']), `the d-pad walks the three issued items (${seen})`);
+    const lo = await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout));
     await press(page, BTN.A);
-    const side = await labels();
-    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
+    assert((await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout))) === lo && (await q('.kit-screen')), 'A on an issued item changes nothing');
     await press(page, BTN.B);
-    await press(page, BTN.B);
-    assert(await q('.main-menu') && !(await q('.loadout-screen')), 'B backs out to the main menu');
+    assert(await q('.main-menu') && !(await q('.kit-screen')), 'B backs out to the main menu');
   }
 
   console.log('play setup + in-game pause flow');
-  for (let i = 0; i < 6 && !/^Play/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/^Play/.test(await focusedText(page)), 'menu wraps / reaches Play');
+  // (menu-ui slice 1: the flat main menu; Missions opens the play setup on Infiltration)
+  for (let i = 0; i < 8 && !/^Missions/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Missions/.test(await focusedText(page)), 'menu wraps / reaches Missions');
   await press(page, BTN.A);
-  assert(await q('.play-screen'), 'A opens the play setup');
-  assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
-  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad down to Difficulty, right = Normal -> Realistic
-  for (let i = 0; i < 14 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(await q('.missions-screen'), 'A opens the missions list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen'), 'A on a mission opens its briefing');
+  assert(/Start mission/.test(await focusedText(page)), 'the briefing opens on Start');
+  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
+  for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
   await press(page, BTN.RIGHT);
-  const cd = await page.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
+  const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
   assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
-  for (let i = 0; i < 14 && !/Mode/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  await press(page, BTN.LEFT);
-  assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
-  for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Deploy/.test(await focusedText(page)), 'focus Deploy');
+  // back out, then Free roam (the level picked carries over) and Start
+  await press(page, BTN.B);
+  await press(page, BTN.B);
+  assert(await q('.main-menu'), 'B twice returns to the main menu');
+  assert(await focusTo(page, /Free roam/), 'focus Free roam');
+  await press(page, BTN.A);
+  assert(await q('.freeroam-screen'), 'A opens the free roam list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen') && /^Start/.test(await focusedText(page)), 'A on a map opens its briefing on Start');
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
-  // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
-  // goggles, View held nothing (emotes deleted, G24)
+  // A3 controls (G96): D-pad right / left the speed gear, LB held opens the gadget wheel (a tap does not), D-pad up
+  // cycles the goggles
   const G = (f) => page.evaluate(f);
   const gear0 = await G(() => window.__app.current.player.controller.maxGear);
-  await press(page, BTN.UP);
+  await press(page, BTN.RIGHT);
   const gearUp = await G(() => window.__app.current.player.controller.maxGear);
-  await press(page, BTN.DOWN);
-  await press(page, BTN.DOWN);
+  await press(page, BTN.LEFT);
+  await press(page, BTN.LEFT);
   const gearDown = await G(() => window.__app.current.player.controller.maxGear);
-  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
+  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad right / left step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
   const holdBtn = async (b, ms, until) => {
     await page.evaluate((b) => window.__pad.set(b, 1), b);
     await page.waitForTimeout(ms);
@@ -307,24 +309,19 @@ try {
     await page.waitForTimeout(150);
     return r;
   };
-  await press(page, BTN.LEFT);
+  await press(page, BTN.LB);
   const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
-  const held = await holdBtn(BTN.LEFT, 700, () => window.__app.current.gadgets.wheelOpen);
+  const held = await holdBtn(BTN.LB, 700, () => window.__app.current.gadgets.wheelOpen);
   // (time runs slowed while the wheel is open: give the release a moment under software GL)
   await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
   const shut = await G(() => window.__app.current.gadgets.wheelOpen);
-  assert(!tapWheel && held.wheel && !shut, `d-pad left: a tap leaves the wheel shut, held it opens, released it closes (${tapWheel} / ${held.wheel} / ${shut})`);
+  assert(!tapWheel && held.wheel && !shut, `LB (quick inventory): a tap leaves the wheel shut, held it opens, released it closes (${tapWheel} / ${held.wheel} / ${shut})`);
   const v0 = await G(() => window.__app.current.vision.mode);
-  await press(page, BTN.SELECT);
+  await press(page, BTN.UP);
   await page.waitForTimeout(150);
   const v1 = await G(() => window.__app.current.vision.mode);
-  assert(v0 === 'off' && v1 === 'night', `View tap: goggles (${v0} -> ${v1})`);
-  const vBefore = await G(() => window.__app.current.vision.mode);
-  // (wait until the source has read the hold: its tap / hold detector fired, so the release is no tap)
-  await holdBtn(BTN.SELECT, 500, () => window.__app.input.gamepad.viewBtn?.fired === true);
-  const v2 = await G(() => window.__app.current.vision.mode);
-  assert(v2 === vBefore, `View held: goggles untouched (${vBefore} -> ${v2})`);
-  // (step 14) View cycles off -> night -> thermal -> electro -> off; the post pass's vision kind follows at mid-flip
+  assert(v0 === 'off' && v1 === 'thermal', `D-pad up: goggles (CT order, instant) (${v0} -> ${v1})`);
+  // (step 14) D-pad up cycles off -> thermal -> electro -> night -> off (CT order, an instant cut)
   {
     const vis = () => G(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
     const until = async (want) => {
@@ -339,13 +336,13 @@ try {
     // (let the held-View release settle before the next tap)
     await page.waitForTimeout(400);
     const start = (await vis()).mode;
-    if (start !== 'night') throw new Error(`vision start ${start}`);
-    for (const want of ['thermal', 'electro', 'off']) {
-      await press(page, BTN.SELECT);
+    if (start !== 'thermal') throw new Error(`vision start ${start}`);
+    for (const want of ['electro', 'night', 'off']) {
+      await press(page, BTN.UP);
       seq.push(await until(want));
     }
-    const ok = seq[0].mode === 'thermal' && seq[0].vk === 1 && seq[1].mode === 'electro' && seq[1].vk === 2 && seq[2].mode === 'off' && seq[2].vk === 0;
-    assert(ok, `View x3 more: thermal (vk 1) -> electro (vk 2) -> off (vk 0) (${JSON.stringify(seq)})`);
+    const ok = seq[0].mode === 'electro' && seq[0].vk === 2 && seq[1].mode === 'night' && seq[1].vk === 0 && seq[2].mode === 'off' && seq[2].vk === 0;
+    assert(ok, `D-pad up x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) (${JSON.stringify(seq)})`);
   }
   // (step 09) holstered unless aiming: LT draws (<= 0.45 s), RT then fires; release holsters (<= 0.45 s); RT while
   // holstered does nothing (fixed steps, the pad polled every step)
@@ -381,7 +378,7 @@ try {
     const s1 = shots();
     window.__pad.set(6, 1);
     const tDraw = until(() => w.drawPhase === 2, 2);
-    until(() => g.player.cam.ads >= 0.9, 2);
+    until(() => g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 2); // A2.1: the carry raise (~0.7 s) gates the trigger
     window.__pad.set(7, 1);
     L.stepHeadless(0.3);
     window.__pad.set(7, 0);
@@ -427,31 +424,33 @@ try {
     return { struck, s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
-  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.45, `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 0.5 && dr.hDrawn && dr.hFull && dr.hHol < 0.45 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
+    `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
+  assert(dr.hDraw <= 0.9 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
   assert(dr.struck, 'RT while holstered: an elbow strike (step 10)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
-  assert(dr.tDraw <= 0.45, `LT draws within 0.45 s (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
+  assert(dr.tDraw <= 0.85, `LT draws within 0.85 s (G103: 0.6 pistol, 0.75 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
-  assert(dr.tHol <= 0.45, `LT released holsters within 0.45 s (${dr.tHol.toFixed(2)} s)`);
+  assert(dr.tHol <= 0.65, `LT released holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  await press(page, BTN.DOWN);
-  await press(page, BTN.DOWN);
+  for (let i = 0; i < 4; i++) await press(page, BTN.DOWN);
   assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
-  assert(/Quit/.test(await focusedText(page)), 'dialog primary focused');
+  assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
+  await press(page, BTN.RIGHT);
+  assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
   await press(page, BTN.A);
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
 
-  console.log('elbow strike (RT while holstered)');
+  console.log('palm strike (RT while holstered)');
   {
     const S = await strikePage(launch, url);
     try {
@@ -467,45 +466,37 @@ try {
           k.step(1);
         };
         const out = {};
-        // behind an unaware guard: knocked out within 0.6 s
+        // behind an unaware guard: knocked out at contact (about 0.12 s)
         let e = k.setup('grunt', false, 0);
         rt();
         out.started = g.strike.active;
         out.tKo = 3 / 60 + k.until(() => !e.alive, 1.5);
         out.ko = !e.alive && e.ko;
-        k.until(() => !g.strike.active, 1.5);
-        // an aware guard facing: staggered; a second RT inside the stagger: knocked out
+        k.until(() => !g.strike.active, 2);
+        // (A4, G42) an aware guard facing: one hit, no stagger
         e = k.setup('grunt', true, Math.PI);
         rt();
-        k.until(() => g.strike.t >= 0.55 || !g.strike.active, 1);
-        out.stag = { alive: e.alive, staggered: e.strikeStaggered };
-        rt(); // (queued in the recovery: the next strike starts as this one ends)
-        e.yaw = Math.PI;
-        out.tKo2 = k.until(() => !e.alive, 2);
-        out.ko2 = !e.alive && e.ko;
-        k.until(() => !g.strike.active, 1.5);
-        // a heavy from the front: staggered only
+        k.until(() => !e.alive, 1);
+        out.facing = { ko: !e.alive && e.ko, stag: g.strike.count.stagger };
+        k.until(() => !g.strike.active, 2);
+        // (G155) a heavy from the front: one hit too
         e = k.setup('heavy', true, Math.PI);
         rt();
-        k.until(() => !g.strike.active, 1.5);
-        e.yaw = Math.PI;
-        k.step(5);
-        rt();
-        k.until(() => !g.strike.active, 1.5);
+        k.until(() => !e.alive, 1);
         out.heavy = { alive: e.alive, ko: e.ko };
-        // a whiff: the 0.4 s recovery stays exposed after contact time
+        k.until(() => !g.strike.active, 2);
+        // a whiff ends 0.5 s after contact time
         k.setup(null);
         rt();
-        k.until(() => g.strike.t >= 0.5 || !g.strike.active, 1);
+        k.until(() => g.strike.t >= 0.12 || !g.strike.active, 1);
         out.whiffRecover = k.until(() => !g.strike.active, 2);
         out.miss = g.strike.count.miss;
         return out;
       });
-      assert(r.started && r.ko && r.tKo <= 0.6, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.6)`);
-      assert(r.stag.alive && r.stag.staggered, `RT on an aware guard facing: staggered (${JSON.stringify(r.stag)})`);
-      assert(r.ko2, `a second RT inside the stagger knocks him out (${r.tKo2.toFixed(2)} s)`);
-      assert(r.heavy.alive && !r.heavy.ko, `a heavy from the front: staggered only (${JSON.stringify(r.heavy)})`);
-      assert(r.whiffRecover >= 0.38 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s recovery after contact time (0.4 s, to the frame)`);
+      assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.3)`);
+      assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit, knocked out (${JSON.stringify(r.facing)})`);
+      assert(!r.heavy.alive && r.heavy.ko, `a heavy from the front: knocked out too (${JSON.stringify(r.heavy)})`);
+      assert(r.whiffRecover >= 0.4 && r.whiffRecover <= 0.65 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s after contact time (0.5 s)`);
     } finally {
       await S.browser.close();
     }
@@ -530,7 +521,7 @@ try {
         const out = {};
         k.setup(null);
         // the rocker: up to the maximum gear 5 (it never reaches 6)
-        for (let i = 0; i < 5; i++) btn(12);
+        for (let i = 0; i < 5; i++) btn(15);
         out.max5 = c.maxGear;
         // analog: raw stick 50 / 80 / 100% forward (A63) -> gears 2 / 4 / 5
         // (each from the same spot, facing open floor: 0.5 s of travel)
@@ -545,16 +536,14 @@ try {
         out.a50 = at(0.5);
         out.a80 = at(0.8);
         out.a100 = at(1);
-        // L3 with the stick full: sprint, gear 6
-        P.set(10, 1);
+        // the stick full: no sprint (CT prototype M1)
         k.step(30);
         out.sprint = { g: c.gear, sprinting: c.sprinting };
-        P.set(10, 0);
         P.axis(1, 0);
         k.step(40);
         // rocker down twice: maximum 3 caps the full stick at gear 3's 1.65 m/s (step 22, M14)
-        btn(13);
-        btn(13);
+        btn(14);
+        btn(14);
         out.max3 = c.maxGear;
         out.cap = at(1);
         P.axis(1, 0);
@@ -564,22 +553,25 @@ try {
         out.crouch = c.crouched;
         btn(1);
         out.stand = !c.crouched;
-        // RB / LB swap, R3 swaps the shoulder, D-pad right held aims the gadget
-        const w0 = g.weapons.index;
-        btn(5, 2);
-        k.step(40);
-        out.rb = g.weapons.index !== w0;
-        btn(4, 2);
-        k.step(40);
-        out.lb = g.weapons.index === w0;
+        // (A3, G96) RB is the co-op action and LB the quick inventory now: no pad weapon-swap buttons. R3 swaps the shoulder,
+        // D-pad down held aims the gadget
+        out.rb = true;
+        out.lb = true;
         const sh0 = g.player.cam.shoulder;
+        btn(11); // A2.1 (G17): not aiming, R3 does nothing
+        const r3Idle = g.player.cam.shoulder === sh0;
+        P.set(6, 1);
+        k.step(60);
         btn(11);
-        out.r3 = g.player.cam.shoulder === -sh0;
-        P.set(15, 1);
+        out.r3 = r3Idle && g.player.cam.shoulder === -sh0;
+        btn(11);
+        P.set(6, 0);
+        k.step(40);
+        P.set(13, 1);
         k.step(20);
         out.gadgetAim = g.gadgets.aiming;
         g.gadgets.aiming = false;
-        P.set(15, 0);
+        P.set(13, 0);
         k.step(5);
         g.gadgets.aiming = false;
         // rumble: a landing (2 m drop), a shot, an elbow hit, a takedown; the fake pad records every playEffect
@@ -593,7 +585,7 @@ try {
         out.land = fx();
         P.effects.length = 0;
         P.set(6, 1);
-        k.step(40);
+        k.step(75); // A2.1: draw 0.6-0.75 s (G103)
         P.set(7, 1);
         k.step(3);
         P.set(7, 0);
@@ -612,12 +604,17 @@ try {
         e2['stagger'] = 0;
         k.until(() => !!g.takedown.offer, 1);
         out.tdOffer = g.takedown.offer?.plan?.kind ?? (g.takedown.offer ? "yes" : null);
-        btn(3);
+        btn(0);
         out.tdViaPad = !!g.takedown.active || g.takedown.hostage !== null;
-        // (pad Y on a takedown is covered by the corner check below; here only the rumble on completion matters)
+        // (pad A on a takedown is covered by the corner check below; here only the rumble on completion matters)
         if (!out.tdViaPad && g.takedown.offer) g.takedown.start(false);
         k.until(() => g.takedown.hostage !== null || !e2.alive, 1);
-        if (e2.alive && g.takedown.hostage !== null) btn(3);
+        if (e2.alive && g.takedown.hostage !== null) {
+          // (A4: the grab menu's Knock out, the first entry)
+          k.step(3);
+          g.grabMenu.sel = 0;
+          btn(0);
+        }
         k.until(() => !e2.alive, 4);
         k.step(10);
         out.takedown = fx();
@@ -625,16 +622,15 @@ try {
         return out;
       });
       console.log(JSON.stringify(r));
-      assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
-      assert(r.a50.g === 2 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> gears 2 / 4 / 5 (A63) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      // (step 22, M14 N6) the slower caps: gears 2 / 4 / 5 = 1.1 / 2.3 / 3.15 m/s
-      assert(Math.abs(r.a50.v - 1.1) < 0.1 && Math.abs(r.a80.v - 2.3) < 0.15 && Math.abs(r.a100.v - 3.15) < 0.2, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
-      assert(r.sprint.sprinting && r.sprint.g === 6, `L3 with a full stick: sprint, gear 6 (${JSON.stringify(r.sprint)})`);
-      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 1.75, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.max5 === 5, `D-pad right sets the maximum gear, capped at 5 (${r.max5})`);
+      assert(r.a50.g === 3 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> speeds 3 / 4 / 5 (CT M1) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
+      // (CT prototype M1) speeds 3 / 4 / 5 = 2.0 / 3.0 / 4.2 m/s
+      assert(Math.abs(r.a50.v - 2.0) < 0.15 && Math.abs(r.a80.v - 3.0) < 0.2 && Math.abs(r.a100.v - 4.2) < 0.25, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
+      assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, still speed 5 (${JSON.stringify(r.sprint)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad left x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
-      assert(r.rb && r.lb, 'RB next weapon, LB previous');
       assert(r.r3, 'R3 swaps the shoulder');
-      assert(r.gadgetAim, 'D-pad right held aims the gadget');
+      assert(r.gadgetAim, 'D-pad down held aims the gadget');
       assert(r.land.some((s) => ['0.15/0.25/60', '0.35/0.45/110', '0.80/0.80/200'].includes(s)), `rumble on landing (${r.land})`);
       assert(r.shot.some((s) => ['0.12/0.20/45', '0.40/0.55/80'].includes(s)), `rumble on a shot (${r.shot})`);
       assert(r.elbow.includes('0.50/0.30/90'), `rumble on an elbow hit (${r.elbow})`);
@@ -643,7 +639,7 @@ try {
       await S.browser.close();
     }
   }
-  console.log('back to a wall (A enters, stick slides, A leaves)');
+  console.log('back to a wall (L3 enters, stick slides, L3 leaves; A does not)');
   {
     const W = await launch({ url, params: 'autostart=proving' });
     try {
@@ -652,33 +648,40 @@ try {
       const r = await W.page.evaluate(() => {
         const k = window.__wl;
         const A = () => {
-          window.__pad.set(0, 1);
+          window.__pad.set(10, 1);
           k.step(2);
-          window.__pad.set(0, 0);
+          window.__pad.set(10, 0);
           k.step(1);
         };
         window.__pad.connect();
         k.step(2);
+        // A is the interact button: it does not enter the wall
+        window.__pad.set(0, 1);
+        k.step(2);
+        window.__pad.set(0, 0);
+        k.step(10);
+        const aNo = k.st();
         A();
         k.step(20);
         const on = k.st();
         window.__pad.axis(0, 1);
-        k.step(75);
+        k.step(240);
         window.__pad.axis(0, 0);
         k.step(5);
         const slid = k.st();
         A();
         k.step(10);
-        return { on, slid, off: k.st(), seg: k.seg };
+        return { aNo, on, slid, off: k.st(), seg: k.seg };
       });
-      assert(r.on.phase === 'on' && r.on.seg === r.seg, `pad A enters back-to-wall (${JSON.stringify(r.on)})`);
-      assert(r.slid.phase === 'on' && Math.abs(r.slid.s - r.on.s) > 0.5, `the left stick slides along it (${r.on.s.toFixed(2)} -> ${r.slid.s.toFixed(2)})`);
-      assert(r.off.phase !== 'on' && r.off.last === 'context', `pad A again leaves (${JSON.stringify(r.off)})`);
+      assert(r.aNo.phase === 'off', `pad A does not enter the wall (${r.aNo.phase})`);
+      assert(r.on.phase === 'on' && r.on.seg === r.seg, `pad L3 enters back-to-wall (${JSON.stringify(r.on)})`);
+      assert(r.slid.phase === 'on' && Math.abs(r.slid.s - r.on.s) > 0.4, `the left stick slides along it at the CT shuffle (${r.on.s.toFixed(2)} -> ${r.slid.s.toFixed(2)})`);
+      assert(r.off.phase !== 'on' && r.off.last === 'context', `pad L3 again leaves (${JSON.stringify(r.off)})`);
     } finally {
       await W.browser.close();
     }
   }
-  console.log('door peek (step 13, D1): A cracks, right stick looks, A closes; stick forward opens quietly');
+  console.log('door menu (A3, G19, G97): A at a door opens the menu; Stealth open peeks (right stick looks, stick back closes, forward opens); Open; Bash');
   {
     const W = await launch({ url, params: 'autostart=proving' });
     try {
@@ -697,16 +700,34 @@ try {
         const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
         const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
         const yaw = Math.atan2(-nx, -nz);
-        g.player.controller.teleport(new V(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
-        g.player.cam.yaw = yaw;
-        g.player.cam.pitch = 0;
-        a.loop.stepHeadless(0.3, 120);
+        const place = () => {
+          g.player.controller.teleport(new V(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
+          g.player.cam.yaw = yaw;
+          g.player.cam.pitch = 0;
+          a.loop.stepHeadless(0.3, 120);
+        };
+        place();
         const step = (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); };
         const P = window.__pad;
         const press = (b) => { P.set(b, 1); step(2); P.set(b, 0); step(1); };
+        // one menu step down: the left stick pushed down for a few frames (the D-pad would aim the gadget)
+        const down = () => { P.axis(1, 0.9); step(4); P.axis(1, 0); step(12); };
         const st = () => ({ phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, body: !!d.body, view: g.player.cam.doorPeek, look: Math.atan2(Math.sin(g.player.cam.yaw - g.player.cam.doorYaw), Math.cos(g.player.cam.yaw - g.player.cam.doorYaw)) });
         P.connect();
         step(2);
+        const closedAtStart = d.target === 0;
+        press(0);
+        step(6);
+        const menu = { open: g.doorMenu.open, opts: [...g.doorMenu.opts], sel: g.doorMenu.sel, ui: document.querySelector('.hud-doormenu')?.classList.contains('show') };
+        // B cancels it
+        press(1);
+        step(6);
+        const cancelled = !g.doorMenu.open && d.target === 0;
+        // stealth open (second entry): the peek
+        press(0);
+        step(6);
+        down();
+        const sel = g.doorMenu.sel;
         press(0);
         step(60);
         const peek = st();
@@ -715,43 +736,49 @@ try {
         P.axis(2, 0);
         step(2);
         const looked = st();
-        press(0);
+        // the stick pulled back (toward the body) closes the crack
+        P.axis(1, 1);
         step(30);
-        const closed = st();
-        // (fix r1) an abandoned crack: LT ends the peek with the door left cracked; A resumes the peek, A closes it
-        press(0);
-        step(60);
-        P.set(6, 1);
-        step(6);
-        P.set(6, 0);
-        step(45);
-        const left = st();
-        press(0);
-        step(30);
-        const resumed = st();
-        press(0);
-        step(30);
-        const shut = st();
-        press(0);
-        step(60);
-        const again = st();
-        P.axis(1, -1);
-        step(10);
         P.axis(1, 0);
-        step(5);
-        return { peek, looked, closed, left, resumed, shut, again, opened: st() };
+        step(20);
+        const closed = st();
+        // the first entry: Open (the quiet creak)
+        press(0);
+        step(6);
+        press(0);
+        step(90);
+        const opened = st();
+        // Bash: shut the door, stand there again, the third entry (stealth is on offer, so two steps down)
+        g.world.doors.close(d, () => false);
+        step(90);
+        place();
+        step(10);
+        g.noise = 0;
+        press(0);
+        step(6);
+        down();
+        down();
+        const bashSel = g.doorMenu.opts[g.doorMenu.sel];
+        press(0);
+        step(6);
+        const noise = g.noise;
+        step(20);
+        return { closedAtStart, menu, cancelled, sel, peek, looked, closed, opened, bashSel, bash: st(), noise };
       });
-      assert(!!r, 'Proving has a door');
-      assert(r.peek.phase === 'peek' && r.peek.cracked && Math.abs(r.peek.ajar - 0.12) < 0.01 && r.peek.target === 0 && r.peek.body && r.peek.view === 1, `pad A cracks the shed door 0.12 and peeks (body kept) (${JSON.stringify(r.peek)})`);
+      assert(!!r && r.closedAtStart, 'Proving has a closed door');
+      assert(r.menu.open && r.menu.opts.join() === 'open,stealth,bash,optic' && r.menu.sel === 0 && r.menu.ui, `A at a closed door opens the door menu (open, stealth open, bash, optic cable) (${JSON.stringify(r.menu)})`);
+      assert(r.cancelled, 'B cancels the menu, the door stays shut');
+      assert(r.sel === 1 && r.peek.phase === 'peek' && r.peek.cracked && Math.abs(r.peek.ajar - 0.12) < 0.01 && r.peek.target === 0 && r.peek.body && r.peek.view === 1, `Stealth open: the door peek, cracked 0.12, body kept (${JSON.stringify(r.peek)})`);
       assert(Math.abs(r.looked.look) > 0.3 && Math.abs(r.looked.look) <= (35 * Math.PI) / 180 + 1e-3 && r.looked.phase === 'peek', `the right stick looks, within +-35 deg (${JSON.stringify(r.looked)})`);
-      assert(r.closed.phase === 'off' && !r.closed.cracked && r.closed.ajar === 0 && r.closed.body, `pad A closes the crack (${JSON.stringify(r.closed)})`);
-      assert(r.left.phase === 'off' && r.left.cracked && r.resumed.phase === 'peek' && r.resumed.cracked && r.resumed.view === 1 && r.shut.phase === 'off' && !r.shut.cracked && r.shut.ajar === 0, `an abandoned crack (LT ended the peek) resumes on A and A closes it (${JSON.stringify({ left: r.left, resumed: r.resumed, shut: r.shut })})`);
-      assert(r.again.phase === 'peek' && r.opened.target === 1 && !r.opened.cracked && r.opened.phase === 'off', `the stick forward opens it quietly and ends the peek (${JSON.stringify(r.opened)})`);
+      assert(r.closed.phase === 'off' && !r.closed.cracked && r.closed.ajar === 0 && r.closed.body, `the stick pulled back closes the crack (${JSON.stringify(r.closed)})`);
+      assert(r.opened.target === 1 && !r.opened.cracked, `Open: the door swings open (${JSON.stringify(r.opened)})`);
+      // (the noise and the guard behind the door are checked in e2e-stealth-ai: this sandbox map has no guards or door noise)
+      assert(r.bashSel === 'bash' && r.bash.target === 1, `Bash: the door is bashed open (${r.bashSel}, target ${r.bash.target})`);
     } finally {
       await W.browser.close();
     }
   }
-  console.log('wall edge verbs (step 12, D1): stick-to-edge peek, LT lean-out, RT fire, A SWAT, Y corner takedown');
+  console.log('wall edge verb (step 12, D1; A3): stick-to-edge peek at once, LT leaves the wall, A corner takedown');
   {
     const W = await launch({ url, params: 'autostart=proving' });
     try {
@@ -764,49 +791,31 @@ try {
         const press = (b) => { P.set(b, 1); k.step(2); P.set(b, 0); k.step(1); };
         P.connect();
         k.step(2);
-        press(0);
+        press(10);
         k.step(30);
         const on = k.st();
         P.axis(0, k.sx);
-        for (let i = 0; i < 120 && k.st().edge !== k.d.end; i++) k.step(1);
-        k.step(10);
+        // slide to the very end of the wall (the shuffle is slow), then release
+        for (let i = 0; i < 900 && !window.__app.current.wallCore.atEnd; i++) k.step(1);
         P.axis(0, 0);
-        k.step(18);
-        // peek: the stick held toward the edge 0.2 s
+        k.step(40);
+        // peek: the stick pushed toward the edge, at once
         P.axis(0, k.sx);
-        k.step(36);
+        k.step(8);
         const peek = k.st();
         P.axis(0, 0);
         k.step(30);
-        // LT: lean out past the edge, drawn; RT fires from the lean; release: back in
+        // LT: aiming leaves the wall
         P.set(6, 1);
-        k.step(40);
-        const lean = k.st();
-        P.set(7, 1);
-        k.step(18);
-        P.set(7, 0);
-        k.step(2);
-        const fired = lean.mag - k.st().mag;
+        k.step(20);
+        const aim = k.st();
         P.set(6, 0);
         k.step(30);
-        const back = k.st();
-        // A with the stick toward the gap: the SWAT turn to the far wall
-        P.axis(0, k.sx);
-        k.step(6);
-        P.set(0, 1);
-        k.step(2);
-        P.set(0, 0);
-        const swat = k.st();
-        P.axis(0, 0);
-        k.step(60);
-        return { on, peek, lean, fired, back, swat, end: k.st(), to: k.d.to };
+        return { on, peek, aim };
       });
-      assert(r.on.phase === 'on', `pad A enters the doorway wall (${JSON.stringify(r.on)})`);
-      assert(r.peek.peekOn && (r.peek.sub & 16) !== 0 && r.peek.cam === 1, `stick toward the edge held: peek (${JSON.stringify(r.peek)})`);
-      assert(r.lean.lk === 1 && r.lean.lean === 1 && (r.lean.sub & 32) !== 0, `LT at the edge: lean-out (lk ${r.lean.lk}, lean ${r.lean.lean})`);
-      assert(r.fired > 0, `RT fires from the lean (${r.fired} rounds)`);
-      assert(r.back.lk === 0 && r.back.lean === 0, `LT released: back in (lk ${r.back.lk})`);
-      assert(r.swat.phase === 'swat' && r.end.phase === 'on' && r.end.seg === r.to, `A with the stick toward the gap: SWAT to the far wall (${r.swat.phase} -> ${r.end.phase}, seg ${r.end.seg} / ${r.to})`);
+      assert(r.on.phase === 'on', `pad L3 enters the doorway wall (${JSON.stringify(r.on)})`);
+      assert(r.peek.peekOn && (r.peek.sub & 16) !== 0 && r.peek.cam === 1, `stick toward the edge: peek at once (${JSON.stringify(r.peek)})`);
+      assert(r.aim.phase !== 'on' && r.aim.phase !== 'entering', `LT (aim) leaves the wall (${r.aim.phase})`);
     } finally {
       await W.browser.close();
     }
@@ -814,8 +823,8 @@ try {
     try {
       await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
       const kind = await C.page.evaluate(CORNER_SETUP);
-      const r = await C.page.evaluate(() => { const k = window.__cn; window.__pad.set(3, 1); k.step(2); window.__pad.set(3, 0); k.step(1); return k.st(); });
-      assert(kind === 'corner' && r.td, `pad Y: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
+      const r = await C.page.evaluate(() => { const k = window.__cn; window.__pad.set(0, 1); k.step(2); window.__pad.set(0, 0); k.step(1); return k.st(); });
+      assert(kind === 'corner' && r.td, `pad A: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
     } finally {
       await C.browser.close();
     }
@@ -832,19 +841,17 @@ try {
       await press(P, BTN.DOWN);
       await click('.main-menu .btn', 'Settings');
       await P.waitForTimeout(300);
-      await click('.settings-screen .tab', 'Accessibility');
-      await P.waitForTimeout(200);
-      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await click('.settings-screen .tab-panel.active .btn', '^Remap controls');
       await P.waitForTimeout(300);
       const panel = '.controls-screen .tab-panel.active';
       const focusSlot = (b) => G(([p, x]) => window.__app.nav.focus(document.querySelector(`${p} ${x}`)), [panel, b.includes('.') ? b : `.pad-key[data-bind="${b}"]`]);
       const pad = () => G(() => window.__app.settings.get().pad);
       const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
       assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
-      // Y on a slot clears it: R3 off Swap shoulder
+      // X on a slot clears it (menu-ui SPEC 7.12): R3 off Swap shoulder
       await focusSlot('shoulder:0');
-      await press(P, BTN.Y);
-      assert((await pad()).shoulder.length === 0, 'Y clears the focused slot (R3 off Swap shoulder)');
+      await press(P, BTN.X);
+      assert((await pad()).shoulder.length === 0, 'X clears the focused slot (R3 off Swap shoulder)');
       // A, then R3: reload moves from X to R3
       await focusSlot('reload:0');
       await press(P, BTN.A);
@@ -853,16 +860,16 @@ try {
       let v = await view();
       const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).textContent, panel);
       assert(listening && JSON.stringify((await pad()).reload) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds reload (${lab}, conflicts "${v.rows}")`);
-      // a capture is cancelled by holding B 1 s (the screen stays)
+      // (G22, MD13) a capture is cancelled by Menu / Start (the screen stays, the overlay goes, nothing binds)
       await focusSlot('reload:1');
       await press(P, BTN.A);
-      await G(() => window.__pad.set(1, 1));
-      // hold B until the capture ends (a fixed 1.5 s hold was stale: the cancel hold can outlast it on a slow frame)
-      await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 });
-      await G(() => window.__pad.set(1, 0));
+      const ov = await G(() => ({ o: !!document.querySelector('.cap-overlay'), n: document.querySelector('.cap-overlay .cap-count')?.textContent }));
+      await press(P, BTN.START);
+      await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
       await P.waitForTimeout(300);
       v = await view();
-      assert(!v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `B held 1 s cancels the capture (${JSON.stringify(v)})`);
+      const ovGone = await G(() => !document.querySelector('.cap-overlay'));
+      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
       // play: the new button reloads, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
       const Q = await openPage(R.ctx, url, 'autostart=proving');
@@ -913,7 +920,7 @@ try {
         });
         assert(r.r3 && !r.x && JSON.stringify(r.pad) === '[11]', `in play R3 reloads, X does not (${JSON.stringify(r)})`);
         assert(r.t1 && !r.t2 && r.h1 && !r.h2, `crouch toggle (B, B) and hold (held, released) (${JSON.stringify(r)})`);
-        // back to a wall: hold mode stays while A is held, toggle mode stays after the release
+        // back to a wall: hold mode stays while L3 is held, toggle mode stays after the release
         await Q.page.evaluate(WALL_HARNESS);
         const w = await Q.page.evaluate(() => {
           const a = window.__app;
@@ -921,24 +928,24 @@ try {
           const out = {};
           for (const toggle of [false, true]) {
             a.settings.update((d) => void (d.gameplay.wallToggle = toggle));
-            window.__pad.set(0, 1);
+            window.__pad.set(10, 1);
             k.step(30);
             const held = k.st().phase;
-            window.__pad.set(0, 0);
+            window.__pad.set(10, 0);
             k.step(20);
             const rel = k.st().phase;
             out[toggle ? 'toggle' : 'hold'] = [held, rel];
             // leave (toggle: a press) and settle
             if (toggle) {
-              window.__pad.set(0, 1);
+              window.__pad.set(10, 1);
               k.step(2);
-              window.__pad.set(0, 0);
+              window.__pad.set(10, 0);
             }
             k.step(40);
           }
           return out;
         });
-        assert(w.hold[0] === 'on' && w.hold[1] !== 'on' && w.toggle[0] === 'on' && w.toggle[1] === 'on', `back to wall hold / toggle (${JSON.stringify(w)})`);
+        assert(w.hold[0] === 'on' && w.hold[1] !== 'on' && w.toggle[0] === 'on' && w.toggle[1] === 'on', `back to wall (L3) hold / toggle (${JSON.stringify(w)})`);
       } finally {
         await Q.page.close();
       }
@@ -947,12 +954,13 @@ try {
       await press(P, BTN.A);
       await press(P, BTN.B);
       v = await view();
-      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen, `reload onto B warns on both rows (${JSON.stringify(v)})`);
-      await focusSlot('.bind-reset');
-      await press(P, BTN.A);
+      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).reload) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
+      // Y: Reset all asks first, Cancel focused (MD18); right then A resets
+      await press(P, BTN.Y);
       await P.waitForFunction(() => !!document.querySelector('.dialog-screen'), null, { timeout: 3000 }).catch(() => {});
       const dg = await G(() => ({ d: !!document.querySelector('.dialog-screen'), f: window.__app.nav.focused?.className, t: window.__app.nav.focused?.textContent, cap: window.__app.input.gamepad.capturing, mode: window.__app.input.mode }));
-      assert(dg.d, `reset asks first (${JSON.stringify(dg)})`);
+      assert(dg.d && /Cancel/.test(dg.t), `Y Reset all asks first, Cancel focused (${JSON.stringify(dg)})`);
+      await press(P, BTN.RIGHT);
       await press(P, BTN.A);
       await P.waitForTimeout(200);
       v = await view();

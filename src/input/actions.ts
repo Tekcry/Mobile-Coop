@@ -27,6 +27,8 @@ export const BUTTON_ACTIONS = [
   'vision',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
+  /** Co-op action (CT, RB / F / PageDown): team moves (leg-up, ledge relay; the partner throw in B4). */
+  'coop',
   /** Chaos Theory speed gears (3.2.0): one gear up / down. */
   'speedUp',
   'speedDown',
@@ -40,6 +42,10 @@ export const BUTTON_ACTIONS = [
   'uiTabPrev',
   'uiTabNext',
   'uiAlt',
+  /** Menu X: Defaults, Clear, Delete (pad X, key R; menu-ui SPEC 4.2). */
+  'uiX',
+  /** Menu Start: Resume in pause, Done / Join in text entry (pad Menu; MD11). Not a Back. */
+  'uiStart',
 ] as const;
 
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];

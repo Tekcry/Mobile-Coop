@@ -393,14 +393,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 12 is refused; version 13 joins (12 = Wave and PvP removed; 13 = emotes removed)', () => {
-    expect(PROTOCOL_VERSION).toBe(13);
+  it('a peer on protocol version 15 is refused; version 16 joins (16 = the ledge relay offer bit)', () => {
+    expect(PROTOCOL_VERSION).toBe(16);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 12, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 15, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 13, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 16, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -465,11 +465,11 @@ describe('team moves (3.2.0 phase 5)', () => {
 
 import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
 import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
-import { dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(13);
+    expect(PROTOCOL_VERSION).toBe(16);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -634,93 +634,45 @@ describe('step 10: committed-move messages (A5, PLAN H3)', () => {
   });
 });
 
-describe('step 12: wall lean kind and the SWAT turn', () => {
-  it('lk packs and sanitizes 0-2; 3 and non-integers are not carried', () => {
-    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 32 | 8, lk: 1 };
-    const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
-    expect(back.lk).toBe(1);
-    expect(sanitizeMoveState({ m: 1, a: 2, lk: 2 }, 4096, 8)!.lk).toBe(2);
-    expect(sanitizeMoveState({ m: 1, a: 2, lk: 3 }, 4096, 8)!.lk).toBeUndefined();
-    expect(sanitizeMoveState({ m: 1, a: 2, lk: 1.5 }, 4096, 8)!.lk).toBeUndefined();
-    expect(sanitizeMoveState({ m: 0, lk: 1 })!.lk).toBeUndefined();
+describe('A3: the wall wire after the SWAT turn and the lean-out are gone (protocol 15)', () => {
+  it('the lean kind is not carried: lk is dropped on the way in and never packed', () => {
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 8 | 64 };
+    const w = JSON.parse(JSON.stringify(packMoveState(mv))) as Record<string, unknown>;
+    expect('lk' in w).toBe(false);
+    expect((sanitizeMoveState({ m: 1, a: 2, lk: 1 }, 4096, 8) as unknown as Record<string, unknown>).lk).toBeUndefined();
   });
-  it('swat is mode 26, committed, and carries its MoveCommit', () => {
-    const r = sanitizeMoveState({ m: 26, c: { n: 3, x0: 0, y0: 0, z0: 0, x1: 1.5, y1: 0, z1: 0, top: 0, v: 0, dur: 0.53 } })!;
-    expect(r.m).toBe('swat');
-    expect(r.c?.dur).toBeCloseTo(0.53, 6);
+  it('swat is not a mode any more: it is not in MOVE_MODES and its old index is the next mode', () => {
+    expect((MOVE_MODES as readonly string[]).includes('swat')).toBe(false);
+    expect(sanitizeMoveState({ m: 26, a: 0 }, 4096, 4096, 10)!.m).toBe('doorPeek');
   });
-  it('peek / lean bits pose the rig lean toward the edge side', () => {
+  it('the peek bit poses the rig lean toward the edge side; the old lean bit (32) poses nothing', () => {
     const p = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 16 | 4 }, 0, emptyMovePose());
     expect(p.lean).toBeCloseTo(-0.45, 6);
-    const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, lk: 1, r: 1 }, 0, emptyMovePose());
-    expect(q.lean).toBeCloseTo(0.3, 6);
+    const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, r: 1 }, 0, emptyMovePose());
+    expect(q.lean).toBe(0);
   });
-  it('the host drops an implausible SWAT commit and caps its pace', () => {
-    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.54, z1: 0, dur: 0.527 })).toBe(true);
-    expect(swatCommitOk({ x0: 0, z0: 0, x1: 6, z1: 0, dur: 0.8 })).toBe(false);
-    expect(swatCommitOk({ x0: 0, z0: 0, x1: 1.5, z1: 0, dur: 0.2 })).toBe(false);
-    expect(moveSpeedCap({ ...emptyMoveState(), m: 'swat' }, true, false, false, true)).toBeLessThan(MAX_FREE_SPEED);
-  });
-});
-import { swatCommitOk, moveSpeedCap, MAX_FREE_SPEED } from '../src/net/validate';
-
-describe('step 12b: open-side weapon (D9) and the low-wall side lean (D10)', () => {
-  it('leftHand (128) and lk 1 with low (64) round-trip; PROTOCOL_VERSION (8 from step 13)', async () => {
+  it('PROTOCOL_VERSION is 16; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(13);
-    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 32 | 64 | 128, lk: 1 };
+    expect(PROTOCOL_VERSION).toBe(16);
+    const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
-    expect(back.sub).toBe(1 | 4 | 32 | 64 | 128);
-    expect(back.lk).toBe(1);
-    const hi = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 4 | 16 | 128 };
-    expect(sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(hi))), 4096, 8)!.sub).toBe(4 | 16 | 128);
+    expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
   });
-  it('poseFromMoveState: leftHand only with the left edge bit; the low side lean leans toward the edge', () => {
-    const l = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 4 | 32 | 64 | 128, lk: 1, r: 1 }, 0, emptyMovePose());
-    expect(l.leftHand).toBe(true);
-    expect(l.lean).toBeCloseTo(-0.3, 6);
-    const r = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 32 | 64, lk: 1, r: 1 }, 0, emptyMovePose());
-    expect(r.leftHand).toBe(false);
-    expect(r.lean).toBeCloseTo(0.3, 6);
+  it('poseFromMoveState: leftHand only with the left edge bit', () => {
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 4 | 16 | 128 }, 0, emptyMovePose()).leftHand).toBe(true);
     expect(poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 8 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
     expect(poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: 4 | 128 }, 0, emptyMovePose()).leftHand).toBe(false);
   });
-  it('remote head cap (fix r1, light parity): the low-wall side lean caps the head sample like the local one', async () => {
-    const { remoteWallHeadCap, wallHeadCap, WALL_SUB } = await import('../src/player/wallController');
-    const seg = { y: 0.5, height: 1.1 };
-    // the low side lean: the wall top less LOW_HEAD_CLEAR, the same value the local rig and sample use
-    const cap = remoteWallHeadCap('wall', 1, WALL_SUB.crouch | WALL_SUB.edgeL | WALL_SUB.lean | WALL_SUB.low, seg);
-    expect(cap).toBe(wallHeadCap(seg.y, seg.height));
-    expect(cap).toBeLessThan(seg.y + seg.height);
-    // the crouched head centre (feet + 1.05 m) is under a 1.1 m top, but only by 5 cm, less than the head's half
-    // height (the head shows); capped it sits LOW_HEAD_CLEAR under the top, and a standing sample (1.6 m) too
-    expect(seg.y + seg.height - (seg.y + 1.05)).toBeLessThan(0.14);
-    expect(Math.min(seg.y + 1.05, cap)).toBeCloseTo(seg.y + seg.height - 0.14, 9);
-    expect(Math.min(seg.y + 1.6, cap)).toBeLessThan(seg.y + seg.height);
-    // no cap: rising over the top (lk 2), a high wall's lean-out, not on a wall, no segment
-    expect(remoteWallHeadCap('wall', 2, WALL_SUB.low, seg)).toBe(Infinity);
-    expect(remoteWallHeadCap('wall', 1, WALL_SUB.edgeL | WALL_SUB.lean, seg)).toBe(Infinity);
-    expect(remoteWallHeadCap('wall', undefined, WALL_SUB.low, seg)).toBe(Infinity);
-    expect(remoteWallHeadCap('ladder', 1, WALL_SUB.low, seg)).toBe(Infinity);
-    expect(remoteWallHeadCap('wall', 1, WALL_SUB.low, undefined)).toBe(Infinity);
-  });
-  it('posed head sample (fix r2, light parity): local and remote light samples land on the posed head', async () => {
-    const { posedHeadSample, wallHeadCap } = await import('../src/player/wallController');
-    // a 1.00 m wall (under 1.07 m): the posed heads seen in e2e-netmove, local 0.941 m and the host's copy 0.953 m
+  it('posed head sample (light parity): local and remote light samples land on the posed head', async () => {
+    const { posedHeadSample } = await import('../src/player/wallController');
     const feet = { x: 2, y: 0.5, z: -1 };
-    const top = feet.y + 1.0;
     const local = posedHeadSample(feet.x, feet.y, feet.z, 2.3, feet.y + 0.941, -0.9, { ox: 0, oz: 0, h: 0 });
     const remote = posedHeadSample(feet.x, feet.y, feet.z, 2.31, feet.y + 0.953, -0.9, { ox: 0, oz: 0, h: 0 });
-    // the light meter samples at feet + 0.95 h (LightField.bodyLevel): exactly the posed head
     expect(feet.y + local.h * 0.95).toBeCloseTo(feet.y + 0.941, 9);
     expect(feet.y + remote.h * 0.95).toBeCloseTo(feet.y + 0.953, 9);
     expect(local.ox).toBeCloseTo(0.3, 9);
     expect(local.oz).toBeCloseTo(0.1, 9);
-    // local vs remote within 2 cm; the old remote sample (crouched model height 1.1375 m: 1.08 m) sat over the top
     expect(Math.abs(local.h * 0.95 - remote.h * 0.95)).toBeLessThan(0.02);
-    expect(feet.y + 1.75 * 0.65 * 0.95).toBeGreaterThan(top);
-    // and the fix-r1 cap (0.86 m) was 8-9 cm under the posed copy
-    expect(feet.y + 0.953 - wallHeadCap(feet.y, 1.0)).toBeGreaterThan(0.08);
   });
 });
 
@@ -745,8 +697,8 @@ describe('step 13: door peek on the wire', () => {
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
   });
-  it('PROTOCOL_VERSION is 8', () => {
-    expect(PROTOCOL_VERSION).toBe(13);
+  it('PROTOCOL_VERSION is 15', () => {
+    expect(PROTOCOL_VERSION).toBe(16);
   });
 });
 
@@ -821,7 +773,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(13);
+    expect(PROTOCOL_VERSION).toBe(16);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

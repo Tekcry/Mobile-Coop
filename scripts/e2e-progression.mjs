@@ -52,7 +52,7 @@ try {
   await G(() => window.__app.screens.top?.manager);
   await page.evaluate(() => {
     const app = window.__app;
-    document.querySelector('.main-menu .btn')?.dispatchEvent(new Event('click'));
+    [...document.querySelectorAll('.main-menu .btn')].find((b) => /Legacy/.test(b.textContent))?.dispatchEvent(new Event('click'));
   });
   await page.waitForSelector('.play-screen');
   // down until Deploy has focus (any number of rows, capped)
@@ -131,7 +131,7 @@ try {
     d.loadout.secondary = 'pistolSd';
   }));
   await G(() => window.__app.screens.pop());
-  await page.locator('.btn', { hasText: 'Play' }).first().click();
+  await page.locator('.main-menu .btn', { hasText: 'Legacy' }).first().click();
   await page.waitForSelector('.play-screen');
   await page.locator('.btn', { hasText: 'Deploy' }).click();
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });

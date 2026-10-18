@@ -13,10 +13,10 @@ describe('binding conflicts (step 18)', () => {
     expect(findConflicts(defaultBinds())).toEqual([]);
   });
 
-  it('allowed pairs pass: Traverse and Use on one key both raise interact', () => {
+  it('(A3) Jump and Interact are separate verbs now: one key on both is a conflict', () => {
     const k = defaultBinds();
-    expect(assignBind(k, 'use', 0, 'KeyE')).toBe('traverse');
-    expect(findConflicts(k)).toEqual([]);
+    expect(assignBind(k, 'interact', 0, 'Space')).toBe('jump');
+    expect(findConflicts(k)).toEqual([{ a: 'jump', b: 'interact', input: 'Space' }]);
   });
 
   it('menu keys are their own group', () => {
@@ -47,7 +47,7 @@ describe('binding conflicts (step 18)', () => {
     expect(assignBind(k, 'reload', 1, 'ControlLeft')).toBe('crouch');
     expect(k.crouch).toEqual(['KeyC', 'ControlLeft']);
     expect(findConflicts(k)).toEqual([{ a: 'crouch', b: 'reload', input: 'KeyC' }]);
-    assignBind(k, 'sprint', 0, 'KeyC');
+    assignBind(k, 'wall', 0, 'KeyC');
     expect(findConflicts(k).length).toBe(3);
   });
 });

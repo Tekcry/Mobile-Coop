@@ -13,8 +13,8 @@ export interface Conflict {
   input: string | number;
 }
 
-/** Pairs that may share an input: both raise `interact` (keyboard Traverse / use / takedown and Use). */
-export const ALLOWED_PAIRS: ReadonlyArray<readonly [string, string]> = [['traverse', 'use']];
+/** Pairs that may share an input (none: A3 split Y into jump and A into interact, G96). */
+export const ALLOWED_PAIRS: ReadonlyArray<readonly [string, string]> = [];
 
 function allowedPair(a: string, b: string, allowed: ReadonlyArray<readonly [string, string]>): boolean {
   for (const [x, y] of allowed) if ((x === a && y === b) || (x === b && y === a)) return true;
