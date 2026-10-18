@@ -47,6 +47,7 @@ written into the bible (G86).
 | Raw research | "Digests only": master gets the scrubbed digests; the raw files are kept as the tag archive/ct-research-raw | - (G6 holds) |
 | Heavies | "Adopt CT's way": no heavy or dog archetypes in co-op missions; armour and helmets come with alarm stages | G42's heavies exception, G49's heavies part |
 | Voice chat | "After the prototype" (D-06, D-17 built later) | - |
+| Prototype model | "Sonnet, medium" for all prototype slices (menu, movement, co-op); Opus for fine tuning later | G88 for prototype work |
 | Level standard | "Review list later": the 12 proposed changes (design-kit-digest appendix) come to Michael item by item before the first real mission map | - |
 
 ## Research facts that correct earlier entries (Michael to confirm at the plan review)

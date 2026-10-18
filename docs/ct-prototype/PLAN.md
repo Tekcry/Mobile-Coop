@@ -7,7 +7,7 @@ docs/ct-research/DECISIONS-PENDING.md (Michael's D-01 to D-25 and the 2026-10-18
 
 ## How every slice runs
 - One branch `feature/ct-prototype` from master, folder `C:/NightShift/Mobile-Coop-ct-prototype`.
-- One implementer agent per slice (Opus, about 100 tool calls), then a light check only: `npm run check`, the slice's
+- One implementer agent per slice (Sonnet, medium effort: Michael, 2026-10-18, "Sonnet, medium" for all prototype slices; Opus only if a slice gets stuck; fine tuning later on Opus), then a light check only: `npm run check`, the slice's
   e2e suites on port 4191 (plus e2e-netmove / e2e-coop when it touches movement or src/net), a screenshot or short
   capture. No anim-audit fix rounds, no metric polish, no perf work (G4). Tests that assert old numbers are updated or
   marked "prototype: revisit", never left failing.
