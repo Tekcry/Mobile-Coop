@@ -11,6 +11,7 @@ import { airlockPad, isPanelId, layoutKnownIds, validateCourse, type CourseDef, 
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
+import { CtDevices } from '../ctDevices';
 import { CourseFeed } from '../course/courseFeed';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
@@ -146,6 +147,8 @@ export class CourseMode implements GameMode {
   private radioN = 0;
   /** The course end device (`devices.end`, "Finish"): live only in the last bay. */
   private endIt: Interactable | null = null;
+  /** (CT prototype B3) The held jammer, the cameras it blinds and the lasers. */
+  private ct: CtDevices | null = null;
 
   constructor(private g: GameState) {}
 
@@ -195,8 +198,27 @@ export class CourseMode implements GameMode {
     }
     this.hud = new CourseHud(g.hud.el);
     (window as unknown as { __course?: unknown }).__course = this;
+    // (CT prototype B3) the jammer, camera and laser devices (host authority)
+    this.ct = new CtDevices(g, 'host', {
+      say: (t) => this.say(t),
+      record: (s) => this.state?.record(s),
+      dirty: () => (this.dirty = true),
+      flag: (f) => this.state?.setFlag(f),
+      solo: () => !!this.state?.solo,
+    });
+    g.ctDev = this.ct;
     this.handle();
     this.applyLocks();
+  }
+
+  /** A LANTERN radio line from a device (queued like the course lines). */
+  say(text: string): void {
+    if (this.radioQ.length < 4) this.radioQ.push(text);
+  }
+
+  /** Co-op host: the client's held jammer target (CT prototype B3). */
+  onRemoteJam(_id: string, tgt: string): void {
+    this.ct?.onRemoteJam(tgt);
   }
 
   /** Dev toggle (debug overlay): the solo flag (A6). */
@@ -428,6 +450,8 @@ export class CourseMode implements GameMode {
       if (groups) for (const name in groups) st.setGroup(name, this.groupOn(groups[name]!));
       this.dirty = true;
     }
+    this.ct?.fixedUpdate(dt);
+    if (this.ct?.takeChanged()) this.dirty = true;
     st.update(dt);
     if (this.restartT >= 0) {
       this.restartT -= dt;
@@ -625,7 +649,7 @@ export class CourseMode implements GameMode {
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
     const dead: number[] = [];
     for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
-    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN };
+    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN, ...(this.ct ? { sec: this.ct.wire() } : {}) };
   }
 
   /** Test view (`window.__course.debug()`). */
@@ -677,6 +701,9 @@ export class CourseMode implements GameMode {
     this.offs.length = 0;
     this.feed?.dispose();
     this.hud?.dispose();
+    this.ct?.dispose();
+    this.ct = null;
+    this.g.ctDev = null;
     for (const m of this.pads) m.dispose();
     this.pads.length = 0;
     this.g.hud.pings.hideMarker();
@@ -699,6 +726,8 @@ interface ClientCourse {
   /** The host's radio counter the client last said. */
   radioN: number;
   pads: Mesh[];
+  /** (CT prototype B3) The cameras and lasers as the host's jam list drives them. */
+  ct: CtDevices;
   /** Anchor ids of the airlocks' rear doors (the only doors a lock shuts by force, as on the host). */
   rear: Set<number>;
 }
@@ -710,15 +739,18 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const lay = g.world.layout.course;
   if (!lay) return null;
   const st = new CourseState(lay.def);
-  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), rear: rearDoorAnchors(lay) };
+  const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+  g.ctDev = ct;
+  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay) };
   mirrors.set(g, m);
   return m;
 }
 
 /** Client, per frame: the tutorial HUD and the next drill's marker for P2. */
-export function clientCourseFrame(g: GameState): void {
+export function clientCourseFrame(g: GameState, dt: number): void {
   const m = mirrors.get(g);
   if (!m) return;
+  m.ct.frame(dt);
   m.hud.update(m.st, 1);
   m.hud.setStatus(m.st.airlockStatus());
   drawMarker(g, m.st, m.lay, 1);
@@ -735,6 +767,8 @@ export function disposeClientCourse(g: GameState): void {
   const m = mirrors.get(g);
   if (!m) return;
   m.hud.dispose();
+  m.ct.dispose();
+  g.ctDev = null;
   for (const p of m.pads) p.dispose();
   g.hud.pings.hideMarker();
   mirrors.delete(g);
@@ -796,6 +830,7 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
     g.stealth?.syncGroup(gid, on);
   }
   mirrorApply(g, w);
+  if (w.sec) mirrorOf(g)?.ct.apply(w.sec);
   (window as unknown as { __course?: unknown }).__course = { wire: w, hud: () => mirrors.get(g)?.hud.el, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }
 

@@ -401,6 +401,10 @@ export class CoopHost implements NetAttachment {
         if (r.alive && lim.take(this.time)) this.g.mode?.onRemoteVerb?.(r.id, msg.verb);
         break;
       }
+      case 'jam':
+        // (CT prototype B3) the held jammer's target; the host steps the charge and the stand-still rule itself
+        if (r.alive) this.g.mode?.onRemoteJam?.(r.id, msg.tgt);
+        break;
       case 'td':
         this.onTakedown(r, msg);
         break;

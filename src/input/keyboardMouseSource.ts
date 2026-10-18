@@ -251,8 +251,7 @@ export class KeyboardMouseSource {
     this.syncBinds();
     for (const a of this.map.get(e.code) ?? []) {
       this.state.set(SRC, a, down);
-      // (F1a) the secondary-fire key fires while the weapon is drawn (a stub: no secondary fire exists yet)
-      if (a === 'altFire') this.state.set(SRC + 'alt', 'fire', down && this.adsActive);
+      // (F1a, B3) the secondary-fire key is the held pistol jammer while the pistol is drawn (read as `altFire`)
     }
     // 1-7 pick a gadget (wheel order)
     if (down && e.code.startsWith('Digit')) {

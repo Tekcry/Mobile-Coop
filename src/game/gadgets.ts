@@ -4,10 +4,11 @@
  */
 import { hyp2, hyp3 } from '../core/mathx';
 
+/** `emp` is no longer carried (G152: the held pistol jammer replaced it); its code stays for the maps and tests that blast it. */
 export type GadgetId = 'frag' | 'gas' | 'flash' | 'emp' | 'noise' | 'stickyCam' | 'mine';
 
 /** Wheel order (clockwise from the top). */
-export const GADGET_IDS: readonly GadgetId[] = ['frag', 'gas', 'flash', 'emp', 'noise', 'stickyCam', 'mine'];
+export const GADGET_IDS: readonly GadgetId[] = ['frag', 'gas', 'flash', 'noise', 'stickyCam', 'mine'];
 
 export interface GadgetDef {
   id: GadgetId;
@@ -31,7 +32,7 @@ export const GADGETS: Record<GadgetId, GadgetDef> = {
   frag: { id: 'frag', name: 'Frag', carry: 2, max: 4, use: 'throw', fuse: 2.2, radius: 6, duration: 0, lethal: true, color: '#9bb06b' },
   gas: { id: 'gas', name: 'Sleeping gas', carry: 2, max: 4, use: 'throw', fuse: 1.4, radius: 3.6, duration: 6, lethal: false, color: '#9fd8b4' },
   flash: { id: 'flash', name: 'Flashbang', carry: 2, max: 4, use: 'throw', fuse: 1.4, radius: 9, duration: 4, lethal: false, color: '#f1f1f1' },
-  emp: { id: 'emp', name: 'EMP', carry: 1, max: 3, use: 'throw', fuse: 1.4, radius: 9, duration: 8, lethal: false, color: '#6fb6ff' },
+  emp: { id: 'emp', name: 'EMP (removed, G152)', carry: 0, max: 0, use: 'throw', fuse: 1.4, radius: 9, duration: 8, lethal: false, color: '#6fb6ff' },
   noise: { id: 'noise', name: 'Noisemaker', carry: 2, max: 4, use: 'stick', fuse: 0.6, radius: 13, duration: 6, lethal: false, color: '#ffcf5a' },
   stickyCam: { id: 'stickyCam', name: 'Sticky cam', carry: 2, max: 3, use: 'stick', fuse: 0, radius: 3.6, duration: 0, lethal: false, color: '#c47bff' },
   mine: { id: 'mine', name: 'Prox mine', carry: 1, max: 3, use: 'place', fuse: 0, radius: 5, duration: 0, lethal: true, color: '#ff6b5a' },
@@ -43,6 +44,7 @@ export class GadgetInventory {
   selected: GadgetId = 'frag';
 
   constructor(carry?: Partial<Record<GadgetId, number>>) {
+    this.counts.emp = 0;
     for (const id of GADGET_IDS) this.counts[id] = carry?.[id] ?? GADGETS[id].carry;
   }
 

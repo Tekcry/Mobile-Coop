@@ -78,3 +78,4 @@
   re-shot (natural crouch, arms hanging on the wall). tests/input.test.ts binding-table checks fail on
   feature/ct-prototype itself (their F1a controls in progress; no diff here).
 - Merged CT Core's 939fc95 (the F1a binding table): all unit tests pass (1669).
+- Merged CT Core's B3 (48aea54, protocol 17 = the held jammer): this branch's left-shoulder bit is now PROTOCOL_VERSION 18 (tests updated); unit tests 1686 pass.
