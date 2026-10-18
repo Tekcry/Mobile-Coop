@@ -50,3 +50,10 @@ After Michael's 10:00 walkthrough: merge origin/master into feature/ct-prototype
 animGraph.ts PISTOL_REACH / READY_HANDS, src/weapons/*, remoteAvatar.ts; menu touches menuScene.ts, babylon.ts,
 styles.css, settingsScreen.ts, postStack.ts), run checks, then open the PR to master for Michael. Protocol 22 stands.
 feature/anim-cleanup merges master once after that.
+
+## Now (2026-10-19 08:40)
+- /ct/ (ct-movement) holds a169dc45 for Michael's 10:00 walkthrough (`WALKTHROUGH.md`); e2e-ctcourse passed end to
+  end. Do NOT push ct-movement from 09:30 until Michael says otherwise.
+- All 8 course stations have their real co-op moves; movement pass A1-A5, posture P1-P1c, fixes F1a / F1b done.
+- Running: T1 stale e2e assertion clean-up (branch only).
+- Next after the walkthrough: Michael's notes, then merge origin/master (weapons #7, menu PR) and open the PR.
