@@ -49,6 +49,8 @@ written into the bible (G86).
 | Voice chat | "After the prototype" (D-06, D-17 built later) | - |
 | Prototype model | "Sonnet, medium" for all prototype slices (menu, movement, co-op); Opus for fine tuning later | G88 for prototype work |
 | Core feel first | "Core feel first": keep the codebase; a fresh session runs one job that rebuilds and fine-tunes CT movement, camera, wall, doors, strike and goggles on Wren (Opus for tuning) until Michael signs off; the co-op gameplay slices C1-C7 come after | G4 / G22-order for movement (prototype-first, tune later); the "Sonnet, medium" pick now covers menu and gameplay prototype slices only |
+| Camera (M1 feedback) | "Camera doesn't automatically adjust/move at all in CT, it's manually controlled." | G29's gentle swing toward travel, loco M20 Q11 lead room |
+| Sneak posture (M1 feedback) | "The characters crouching posture changes when in vicinity of an enemy and sneaking slowly, almost like trying to be quieter and moving on tippy toes and over exaggerated balancing." | - (adds a tense crouch variant) |
 | Level standard | "Review list later": the 12 proposed changes (design-kit-digest appendix) come to Michael item by item before the first real mission map | - |
 
 ## Research facts that correct earlier entries (Michael to confirm at the plan review)
