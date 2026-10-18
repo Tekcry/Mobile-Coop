@@ -13,7 +13,7 @@ import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/c
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 19;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -146,9 +146,10 @@ export type Msg =
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
-  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
-  /** The host started a team move: `a` climbs, `b` is braced. */
-  | { t: 'tstart'; kind: 'boost' | 'ladder'; a: string; b: string; target: number; s: number; t0: number }
+  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
+  /** The host started a team move: `a` climbs, `b` is braced. (CT prototype B4, protocol 19) `throw`: `a` is thrown
+   *  over the standing `b` to the landing `l` (feet; a `tmove` throw claims it as `lx`, `gy`, `lz`). */
+  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
   /**
@@ -533,17 +534,34 @@ export function parseMessage(raw: unknown): Msg | null {
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
     }
     case 'tmove': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'end'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'end'] as const);
       const partner = raw.partner === '' ? '' : id(raw.partner);
       if (!kind || partner === null) return null;
-      return { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
+      const out: Extract<Msg, { t: 'tmove' }> = { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
+      if (kind === 'throw') {
+        const lx = num(raw.lx, -WORLD, WORLD);
+        const lz = num(raw.lz, -WORLD, WORLD);
+        if (lx === null || lz === null) return null;
+        out.lx = lx;
+        out.lz = lz;
+      }
+      return out;
     }
     case 'tstart': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw'] as const);
       const a = id(raw.a);
       const b = id(raw.b);
       if (!kind || !a || !b) return null;
-      return { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
+      const out: Extract<Msg, { t: 'tstart' }> = { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
+      if (kind === 'throw') {
+        const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
+        const lx = la ? num(la[0], -WORLD, WORLD) : null;
+        const ly = la ? num(la[1], -50, 100) : null;
+        const lz = la ? num(la[2], -WORLD, WORLD) : null;
+        if (lx === null || ly === null || lz === null) return null;
+        out.l = [lx, ly, lz];
+      }
+      return out;
     }
     case 'tdeny': {
       const a = id(raw.a);

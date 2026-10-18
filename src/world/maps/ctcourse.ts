@@ -50,8 +50,15 @@ export const S3_FLAG = 's3-clear';
  */
 export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
 export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
-/** Station 4 laser: three beams across the doorway (B4's partner throw replaces the placeholder plates). */
-export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST - 0.25, z1: DOOR_Z0 - 0.1, x2: bayX(3) + CT_OBST - 0.25, z2: DOOR_Z0 + DOOR_W + 0.1, ys: [0.35, 0.9, 1.45], label: 'Laser' };
+/** Station 4 (B4): the course flag the far-side release switch sets; it switches the laser band off for good (bay restart re-arms it). */
+export const S4_FLAG = 's4-release';
+/** Station 4: the open gap in the 3.5 m wall the laser band closes (z), wide enough to throw a partner through. */
+export const S4_GAP: [number, number] = [4, 10];
+/**
+ * Station 4 laser band (B3 device, B4 layout): three beams across the whole gap in the wall plane. One player throws the
+ * other over it (CT 1.3); the thrown one presses the release on the far side (CT's far-side release) and the band goes off.
+ */
+export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST, z1: S4_GAP[0], x2: bayX(3) + CT_OBST, z2: S4_GAP[1], ys: [0.35, 0.9, 1.45], label: 'Laser', offFlag: S4_FLAG };
 const SECURITY: SecurityData = {
   devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
 };
@@ -80,7 +87,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Step onto the green pad at the end with your partner to go on',
   'Wall: crouch + Co-op Action boosts your partner up; they open the far door',
   'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
-  'Laser: touching a beam costs health. Jam it (pistol, hold LT) or stand on a plate each to open the door',
+  'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
   'Annex: boost up, relay your partner, press both roof plates, then hack',
   'Scanners: press both within a second of each other',
   'Wire wall: one holds the rope post while the other crosses',
@@ -99,6 +106,8 @@ function courseDef(): CourseDef {
         // B3: the door opens once BOTH stand in the camera's blind spot (the pass zone): one has to jam it for the other
         return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'S3-door' }];
       case 4:
+        // B4: the partner throw over the laser band; the thrown player's far-side release switches the band off
+        return [{ kind: 'pickup', id: 'g-s4', switchId: 'sw-s4-release', flag: S4_FLAG, perPlayer: false }];
       case 6:
         return [{ kind: 'pair', id: `g-s${n}`, a: `sw-s${n}-a`, b: `sw-s${n}-b`, doorId: `S${n}-door` }];
       case 5:
@@ -114,7 +123,7 @@ function courseDef(): CourseDef {
     1: 'Marlow Yard. Both of you on the green pad at the end, then through the airlock.',
     2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
     3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
-    4: 'Laser line. A touch costs health: jam it (pistol, hold LT). Plates open the door for now.',
+    4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
     5: 'Annex roof: leg-up, then relay the other up. Both plates, then hack.',
     6: 'Two scanners, ten metres apart. Press both within a second.',
     7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
@@ -195,7 +204,12 @@ export const ctcourse: MapDef = {
         b.wallX(10, x0 + CT_BAY, x0 + CT_PITCH, [], FENCE, DARK);
         mark(b, x0 + CT_BAY + 3, MID, 4, 4, '#2f6b4a');
       }
-      if (n >= 2) {
+      if (n === 4) {
+        // B4: a wide gap in the wall, closed only by the laser band (layout.lasers); no door
+        b.wallZ(x0 + CT_OBST, 0, CT_W, [S4_GAP], OBST_H[4]!, WALL, 0.3);
+        mark(b, x0 + CT_OBST - 1.6, MID);
+        mark(b, x0 + CT_OBST + 2.2, MID);
+      } else if (n >= 2) {
         const h = OBST_H[n]!;
         // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
         doors[`S${n}-door`] = crossWall(b, x0 + CT_OBST, h, n === 2 ? 1.0 : 0.3);
@@ -219,10 +233,10 @@ export const ctcourse: MapDef = {
     mark(b, (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2, MID, S3_POCKET.box[2] - S3_POCKET.box[0], S3_POCKET.box[3] - S3_POCKET.box[1], '#2f6b4a');
     b.light({ x: x0 + 6, y: 3.0, z: MID, radius: 7, intensity: 0.9 });
 
-    // 4 Laser line: the real laser device (layout.lasers) across the doorway; the plates below are the placeholder way past
+    // 4 Laser line (B4): the laser band (layout.lasers) across the wall's gap; the release switch is on the far side
     x0 = bayX(3);
-    devices['sw-s4-a'] = dev(x0 + 5, 0.4, SOUTH, 'Plate A (placeholder: partner throw, B4)');
-    devices['sw-s4-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Plate B (placeholder: partner throw, B4)');
+    devices['sw-s4-release'] = dev(x0 + 12, CT_W - 0.4, NORTH, 'Laser release');
+    b.box(x0 + 12, 1.3, CT_W - 0.2, 0.7, 0.9, 0.12, '#5a1d1d', 0, 0, false);
 
     // 5 Annex: roofed (top 4.4), internal grid wall at +12.5, computer, wall medkit
     x0 = bayX(4);

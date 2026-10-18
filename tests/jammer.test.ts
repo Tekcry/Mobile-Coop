@@ -142,4 +142,21 @@ describe('ctcourse devices', () => {
     // a body walking through the doorway at its centre touches it
     expect(laserTouch(laser, laser.x1 + 0.1, 0, (laser.z1 + laser.z2) / 2, LASER.standHeight)).toBe(true);
   });
+  it('station 4 (B4): the band closes the whole wall gap, the far-side release switches it off, no plates or door', async () => {
+    const { ctcourse, S4_FLAG, S4_GAP } = await import('../src/world/maps/ctcourse');
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const lay = ctcourse.build(new LevelBuilder(), 0);
+    const laser = lay.lasers![0]!;
+    expect(laser.offFlag).toBe(S4_FLAG);
+    expect(Math.min(laser.z1, laser.z2)).toBeLessThanOrEqual(S4_GAP[0]);
+    expect(Math.max(laser.z1, laser.z2)).toBeGreaterThanOrEqual(S4_GAP[1]);
+    const c = lay.course!;
+    const rel = c.devices['sw-s4-release']!;
+    // the release is on the far side of the band
+    expect(rel.x).toBeGreaterThan(laser.x1 + 1);
+    const gate = c.def.bays[3]!.gates.find((g) => g.kind === 'pickup' && g.switchId === 'sw-s4-release');
+    expect(gate && gate.kind === 'pickup' && gate.flag).toBe(S4_FLAG);
+    expect(c.devices['sw-s4-a']).toBeUndefined();
+    expect(c.doors['S4-door']).toBeUndefined();
+  });
 });

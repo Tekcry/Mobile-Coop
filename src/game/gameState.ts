@@ -159,7 +159,7 @@ export interface NetAttachment {
   /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
   doorCrack?(i: number, on: boolean): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
-  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
+  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
   /** (locomotion step 10, A5) Ask the host for a committed move (`cmove`; the host's own: checked at once). The

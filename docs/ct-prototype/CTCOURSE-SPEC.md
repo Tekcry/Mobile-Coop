@@ -14,7 +14,7 @@ Yard 14 m wide (z 0-14), 170 m long. Bay `i` (0-7) spans `x = 22 i .. 22 i + 16`
 | 1 | Read the wall panels | open bay, 3 panels on the north fence (x 4 / 8 / 12), striped squares | the airlock waits for both to read 3 panels (drill, verb `switch`) | done in B1 (text on the panels, radio line) |
 | 2 | Leg-up over a wall | wall 4.4 m (ledge band, G57) | pair plates A / B (both within 1 s) | B2 leg-up on Co-op Action |
 | 3 | Jam a camera | wall 3.2 m, camera body on it | timed hold console (hold, then 6 s) | B3 held jammer |
-| 4 | Partner throw over a laser | wall 3.5 m, three red laser strips across the doorway (visual) | pair plates | B3 laser, B4 partner throw |
+| 4 | Partner throw over a laser | wall 3.5 m with a 6 m gap (z 4-10) closed by a 3-beam laser band (B4 layout); release switch on the far side (north fence, bay +12) | none (B4: plates removed) | B3 laser, B4 partner throw (built): throw one over, they press the release, the band goes off; jamming stays the alternative |
 | 5 | Leg-up + ledge relay, hang-down hack | roofed annex x +9..+16, walls 4.0, roof top 4.4, internal grid wall at +12.5, wall medkit | pair plates, then the hack computer (lever) opens the grid door | B2 relay, B5 hang-down |
 | 6 | Paired scanners | wall 3.2 m, scanners 13 m apart on the two fences | the real pair gate (1 s window) | B6 forgiving sync, health cost |
 | 7 | Throw over wire, pipe, two-person rope | wall 4.4 m, wire strip on top, rope post | timed hold console | B4 throw, B7 rope |

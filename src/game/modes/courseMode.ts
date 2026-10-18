@@ -205,6 +205,7 @@ export class CourseMode implements GameMode {
       dirty: () => (this.dirty = true),
       flag: (f) => this.state?.setFlag(f),
       solo: () => !!this.state?.solo,
+      has: (f) => !!this.state?.hasFlag(f),
     });
     g.ctDev = this.ct;
     this.handle();
@@ -739,7 +740,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const lay = g.world.layout.course;
   if (!lay) return null;
   const st = new CourseState(lay.def);
-  const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+  const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, has: (f) => st.hasFlag(f) });
   g.ctDev = ct;
   m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0, pads: buildAirlockPads(g, lay), ct, rear: rearDoorAnchors(lay) };
   mirrors.set(g, m);

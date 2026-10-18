@@ -409,7 +409,7 @@ export class CoopHost implements NetAttachment {
         this.onTakedown(r, msg);
         break;
       case 'tmove':
-        this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy);
+        this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy, msg.lx, msg.lz);
         break;
       case 'cmove':
         this.onCommitted(r.id, msg.kind, msg.id, msg.target);
@@ -511,8 +511,8 @@ export class CoopHost implements NetAttachment {
 
   /** Team-mates of the host (co-op: every other player; TDM: the same side). */
   /** (3.2.0 phase 5) The host's own team-move requests go through the same check as the clients'. */
-  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
-    this.onTeamMove(this.s.selfId, kind, partner, target, ss, gy);
+  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+    this.onTeamMove(this.s.selfId, kind, partner, target, ss, gy, lx, lz);
   }
 
   teamEnd(): void {
@@ -556,7 +556,7 @@ export class CoopHost implements NetAttachment {
   }
 
   /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
-  private onTeamMove(by: string, kind: 'boost' | 'ladder' | 'end', partner: string, target: number, ss: number, gy: number): void {
+  private onTeamMove(by: string, kind: TeamKind | 'end', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
     const self = this.s.selfId;
     if (kind === 'end') {
       const other = this.teamPairs.get(by);
@@ -576,9 +576,19 @@ export class CoopHost implements NetAttachment {
     if (!a || !b) return deny('far');
     const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
     const now = this.time;
-    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99) });
+    const toss = kind === 'throw';
+    const land = toss && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
+    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
     this.teamLast.set(by, now);
     if (why) return deny(why);
+    if (toss && land) {
+      // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing
+      const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
+      this.s.send({ t: 'tstart', ...start });
+      if (by === self || partner === self) this.g.team.begin(start, self);
+      this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
+      return;
+    }
     // the relay climbs the hanger's own ledge at the hanger's own spot (never the climber's claim)
     const relay = kind === 'ladder';
     const start = { kind, a: by, b: partner, target: relay ? (b.anchor ?? -1) : anchor ? target : -1, s: relay ? (b.s ?? 0) : ss, t0: now };

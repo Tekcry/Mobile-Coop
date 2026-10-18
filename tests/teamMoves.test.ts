@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB } from '../src/player/moveState';
 
@@ -85,5 +85,70 @@ describe('team moves (CT prototype B2: leg-up and ledge relay)', () => {
     boostPath(TEAM.boostTime, 0, 0, 1, 0, 0, 0, 0, 4.2, -0.3, 1.9, o);
     expect(o.y).toBeCloseTo(4.2 - 1.9);
     expect(o.z).toBeCloseTo(-0.3);
+  });
+});
+
+/** A throw: b stands offering it at the origin, a runs in from -x; the landing is the throw's length past b. */
+const toss = (o: Partial<TeamRequest> = {}, b: Partial<TeamSide> = {}): TeamRequest => ({
+  kind: 'throw',
+  a: side({ id: 'a', x: -1.2 }),
+  b: side({ id: 'b', mode: 'brace', sub: THROW_SUB, ...b }),
+  target: -1,
+  targetUp: 0,
+  sinceLast: 5,
+  land: { x: TEAM.throwDist, y: 0, z: 0 },
+  ...o,
+});
+
+describe('partner throw (CT prototype B4, CT 1.3)', () => {
+  it('a runner in reach of a standing, offering team-mate is thrown', () => {
+    expect(checkTeamRequest(toss())).toBeNull();
+  });
+  it('denied: a crouched leg-up offer is not a throw (and a throw offer is not a leg-up), too far, no / a far-off landing', () => {
+    expect(checkTeamRequest(toss({}, { sub: 0 }))).toBe('notOffering');
+    expect(checkTeamRequest(toss({}, { mode: 'ground' }))).toBe('notOffering');
+    expect(checkTeamRequest(req({ b: side({ id: 'b', mode: 'brace', sub: THROW_SUB }) }))).toBe('notBraced');
+    expect(checkTeamRequest(toss({ a: side({ id: 'a', x: -(TEAM.throwReach + 0.2) }) }))).toBe('far');
+    expect(checkTeamRequest(toss({ land: undefined }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ land: { x: 9, y: 0, z: 0 } }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ land: { x: TEAM.throwDist, y: TEAM.throwDrop + 0.5, z: 0 } }))).toBe('noTarget');
+    expect(checkTeamRequest(toss({ sinceLast: 0.2 }))).toBe('rate');
+  });
+  it('the landing: on past the thrower along runner -> thrower; on top of them, the way they face', () => {
+    const o = { x: 0, z: 0, dx: 0, dz: 0 };
+    throwLanding(-1, 0, 0, 0, 0, o);
+    expect(o.x).toBeCloseTo(TEAM.throwDist);
+    expect(o.z).toBeCloseTo(0);
+    expect(o.dx).toBeCloseTo(1);
+    throwLanding(5, 5, 5, 5, Math.PI / 2, o);
+    expect(o.x).toBeCloseTo(5 + TEAM.throwDist);
+    expect(throwLandingOk(0, 0, 0, o.x - 5, 0, 0)).toBe(true);
+    expect(throwLandingOk(0, 0, 0, 0.5, 0, 0)).toBe(false);
+  });
+  it('the arc: 3-4 m forward, apex 1.5-2 m half way, on the feet at the end; clears a 1.45 m beam half way', () => {
+    const o = { x: 0, y: 0, z: 0 };
+    expect(TEAM.throwDist).toBeGreaterThanOrEqual(3);
+    expect(TEAM.throwDist).toBeLessThanOrEqual(4);
+    throwArc(0, -1.2, 0, 0, TEAM.throwDist, 0, 0, o);
+    expect(o).toEqual({ x: -1.2, y: 0, z: 0 });
+    throwArc(TEAM.throwTime / 2, -1.2, 0, 0, TEAM.throwDist, 0, 0, o);
+    expect(o.y).toBeGreaterThanOrEqual(1.5);
+    expect(o.y).toBeLessThanOrEqual(2);
+    // the beam band 1 m past the thrower (runner 1.2 m back): the feet are over the top beam within +-0.3 m of it
+    for (const bx of [0.7, 1.0, 1.3]) {
+      const t = ((bx + 1.2) / (TEAM.throwDist + 1.2)) * TEAM.throwTime;
+      throwArc(t, -1.2, 0, 0, TEAM.throwDist, 0, 0, o);
+      expect(o.y).toBeGreaterThan(1.45);
+    }
+    throwArc(TEAM.throwTime * 2, -1.2, 0, 0, TEAM.throwDist, 0.4, 0, o);
+    expect(o.x).toBeCloseTo(TEAM.throwDist);
+    expect(o.y).toBeCloseTo(0.4);
+  });
+  it('room (G151): a blocked arc, no floor or a big drop, or a low ceiling at the landing is a polite refusal', () => {
+    expect(throwRoom(true, 0, 1.8)).toBe('ok');
+    expect(throwRoom(false, 0, 1.8)).toBe('arc');
+    expect(throwRoom(true, NaN, 1.8)).toBe('floor');
+    expect(throwRoom(true, -(TEAM.throwDrop + 0.3), 1.8)).toBe('floor');
+    expect(throwRoom(true, 0, 0.8)).toBe('head');
   });
 });

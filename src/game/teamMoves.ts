@@ -8,8 +8,11 @@ import { hyp2 } from '../core/mathx';
 import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
 
-/** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16). */
-export type TeamKind = 'boost' | 'ladder';
+/** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19). */
+export type TeamKind = 'boost' | 'ladder' | 'throw';
+
+/** (B4) The `brace` mode's sub bit for a STANDING throw offer (a crouched leg-up offer has sub 0). */
+export const THROW_SUB = 1;
 
 /** What the host knows of a player for a team move. */
 export interface TeamSide {
@@ -36,6 +39,8 @@ export interface TeamRequest {
   targetUp: number;
   /** Seconds since the requester's last request (rate limit). */
   sinceLast: number;
+  /** (B4) A throw's landing (feet), claimed by the runner after its own room check; the host bounds it. */
+  land?: { x: number; y: number; z: number };
 }
 
 export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh';
@@ -53,7 +58,16 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.relayReach || up < 0.3 || up > TEAM.relayMax) return 'far';
     return r.b.anchor === undefined || r.b.anchor < 0 ? 'noTarget' : null;
   }
-  if (r.b.mode !== 'brace') return 'notBraced';
+  const throwOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & THROW_SUB) !== 0;
+  if (r.kind === 'throw') {
+    // the throw: the partner stands offering it; the runner is in reach; the landing lies the throw's length past them
+    if (!throwOffer) return 'notOffering';
+    if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.throwReach || Math.abs(r.a.y - r.b.y) > 0.4) return 'far';
+    const l = r.land;
+    if (!l || !throwLandingOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
+    return null;
+  }
+  if (r.b.mode !== 'brace' || throwOffer) return 'notBraced';
   if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.partnerReach || Math.abs(r.a.y - r.b.y) > 0.4) return 'far';
   if (r.kind === 'boost') {
     if (r.target < 0) return 'noTarget';
@@ -121,4 +135,60 @@ export function boostPath(t: number, ax: number, ay: number, az: number, bx: num
   out.z = bz + (gz - bz) * u;
   out.y = by + 0.75 + (fy - (by + 0.75)) * u + Math.sin(Math.PI * u) * 0.35;
   return out;
+}
+
+// ---- (CT prototype B4) the partner throw (CT 1.3) ----
+
+/**
+ * Where a throw lands (feet x / z) and its direction: the runner at (`ax`, `az`) runs into the standing thrower at (`bx`,
+ * `bz`) and is thrown on over them, `TEAM.throwDist` m past the thrower along runner -> thrower. A runner right on top of
+ * the thrower (closer than 5 cm) is thrown the way the thrower faces (`yaw`).
+ */
+export function throwLanding(ax: number, az: number, bx: number, bz: number, yaw: number, out: { x: number; z: number; dx: number; dz: number }): { x: number; z: number; dx: number; dz: number } {
+  let dx = bx - ax;
+  let dz = bz - az;
+  const d = hyp2(dx, dz);
+  if (d < 0.05) {
+    dx = Math.sin(yaw);
+    dz = Math.cos(yaw);
+  } else {
+    dx /= d;
+    dz /= d;
+  }
+  out.dx = dx;
+  out.dz = dz;
+  out.x = bx + dx * TEAM.throwDist;
+  out.z = bz + dz * TEAM.throwDist;
+  return out;
+}
+
+/** The host's bound on a claimed landing: about the throw's length from the thrower (+-1 m) and within `TEAM.throwDrop` of their floor. */
+export function throwLandingOk(bx: number, by: number, bz: number, lx: number, ly: number, lz: number): boolean {
+  const d = hyp2(lx - bx, lz - bz);
+  return d >= TEAM.throwDist - 1 && d <= TEAM.throwDist + 1 && Math.abs(ly - by) <= TEAM.throwDrop;
+}
+
+/**
+ * The thrown player's feet at `t` s into the throw (0..`TEAM.throwTime`): a straight line from the start to the landing
+ * with a parabola of `TEAM.throwApex` m on top (highest half way), landing on the feet.
+ */
+export function throwArc(t: number, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  const k = Math.max(0, Math.min(1, t / TEAM.throwTime));
+  out.x = x0 + (x1 - x0) * k;
+  out.z = z0 + (z1 - z0) * k;
+  out.y = y0 + (y1 - y0) * k + 4 * TEAM.throwApex * k * (1 - k);
+  return out;
+}
+
+export type ThrowRoom = 'ok' | 'arc' | 'floor' | 'head';
+
+/**
+ * Room for a throw (G151, polite refusal): `arcClear` nothing solid along the flight (the caller samples it), `floorDy`
+ * the landing floor's height over the thrower's floor (NaN = no floor found), `headroom` free air over the landing (m).
+ */
+export function throwRoom(arcClear: boolean, floorDy: number, headroom: number): ThrowRoom {
+  if (!arcClear) return 'arc';
+  if (!Number.isFinite(floorDy) || Math.abs(floorDy) > TEAM.throwDrop) return 'floor';
+  if (headroom < 1.2) return 'head';
+  return 'ok';
 }

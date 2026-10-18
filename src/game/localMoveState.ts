@@ -35,8 +35,8 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   if (tm) {
     out.m = tm;
     out.tid = g.team.partner;
-    out.sub = 0;
-    out.ph = pose.traverse === 'climbUp' ? pose.traverseT : 0;
+    out.sub = g.team.wireSub;
+    out.ph = pose.traverse === 'climbUp' || pose.traverse === 'vault' ? pose.traverseT : 0;
     delete out.c;
     return out;
   }

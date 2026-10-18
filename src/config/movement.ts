@@ -416,6 +416,15 @@ export const TEAM = {
   relayMax: 4.6,
   relayClimb: 1.4,
   relaySlide: 0.8,
+  /** (CT prototype B4) Partner throw (CT 1.3): the runner's reach to the standing thrower (m), how far past the thrower
+   *  the runner lands (m, along runner -> thrower), the arc's apex over the straight line (m), the flight (s), the most a
+   *  landing may sit above / below the thrower's floor (m), the free air over the standing thrower (m). Starting values. */
+  throwReach: 1.6,
+  throwDist: 3.2,
+  throwApex: 1.7,
+  throwTime: 1.0,
+  throwDrop: 1.0,
+  throwUp: 2.2,
   /** Requests a player may make (host rate limit, per second). */
   rate: 1,
 } as const;
