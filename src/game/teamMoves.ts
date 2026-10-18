@@ -9,7 +9,10 @@ import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
 
 /** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19); 'hang' = the hang-down (B5, protocol 20). */
-export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang';
+export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
+
+/** (B7) The `brace` (holder at the top) and `boost` (climber) sub bit for the two-person rope (protocol 22). */
+export const ROPE_SUB = 4;
 
 /** (B4) The `brace` mode's sub bit for a STANDING throw offer (a crouched leg-up offer has sub 0). */
 export const THROW_SUB = 1;
@@ -61,6 +64,17 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.relayReach || up < 0.3 || up > TEAM.relayMax) return 'far';
     return r.b.anchor === undefined || r.b.anchor < 0 ? 'noTarget' : null;
   }
+  const ropeOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & ROPE_SUB) !== 0;
+  if (r.kind === 'rope') {
+    // (B7) the two-person rope: the partner holds a rope at an edge above; the climber stands at its foot below
+    if (!ropeOffer) return 'notOffering';
+    const up = r.b.y - r.a.y;
+    if (hyp2(r.a.x - r.b.x, r.a.z - r.b.z) > TEAM.ropeReach || up < TEAM.ropeMin - 0.4 || up > TEAM.ropeMax + 0.4) return 'far';
+    const l = r.land;
+    if (!l || !hangPointOk(r.b.x, r.b.y, r.b.z, l.x, l.y, l.z)) return 'noTarget';
+    return null;
+  }
+  if (ropeOffer) return 'notBraced';
   const hangOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & HANG_SUB) !== 0;
   if (r.kind === 'hang') {
     // (B5) the hang-down: the partner crouches at an edge offering it; the hanger is in reach; the hang point is by them
@@ -262,4 +276,46 @@ export function hangEndOf(holder: boolean, coopPressed: boolean, bPressed: boole
 /** A head-first drop from the hang (head `fall` m over the floor): lands crouched; no harm under 3 m (and the game has no fall damage). */
 export function hangLanding(fall: number): { crouch: true; harm: boolean } {
   return { crouch: true, harm: fall >= 3 };
+}
+
+// ---- (CT prototype B7) the two-person rope (CT 1.4 Belay Line, G178: the climb-a-rope exception) ----
+
+export type RopeRoom = 'ok' | 'noFloor' | 'short' | 'deep';
+
+/**
+ * Room to drop a rope (G151, polite refusal): the floor under the edge (`floorY`, NaN = none found) must lie between
+ * `TEAM.ropeMin` (lower is a jump's or a hang's) and `TEAM.ropeMax` (the rope's length) under the edge at `edgeY`.
+ */
+export function ropeRoom(edgeY: number, floorY: number): RopeRoom {
+  if (!Number.isFinite(floorY)) return 'noFloor';
+  const d = edgeY - floorY;
+  if (d < TEAM.ropeMin) return 'short';
+  if (d > TEAM.ropeMax) return 'deep';
+  return 'ok';
+}
+
+/** The climber's feet when the hands reach the edge (the top-out starts there). */
+export function ropeTopY(edgeY: number): number {
+  return edgeY - 1.5;
+}
+
+/** The climber's own stick (`stickY` > 0 = up) moves the feet along the rope, inside the floor .. the top. */
+export function ropeClimb(y: number, stickY: number, dt: number, floorY: number, topY: number): number {
+  const v = stickY > 0 ? stickY * TEAM.ropeUp : stickY * TEAM.ropeDown;
+  return Math.max(floorY, Math.min(topY, y + v * dt));
+}
+
+/** Let go (or the holder let go): the climber slides down the rope to the floor, never falls. */
+export function ropeSlide(y: number, dt: number, floorY: number): number {
+  return Math.max(floorY, y - TEAM.ropeSlide * dt);
+}
+
+/**
+ * How a rope ends: reaching the top = `pull` (topped out, the holder is free); a Co-op or B press from either = `drop`
+ * (the holder lets go / the climber lets go: the climber slides down safely).
+ */
+export function ropeEndOf(atTop: boolean, coopPressed: boolean, bPressed: boolean): HangEnd | null {
+  if (atTop) return 'pull';
+  if (coopPressed || bPressed) return 'drop';
+  return null;
 }

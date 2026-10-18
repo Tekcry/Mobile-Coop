@@ -385,7 +385,7 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
         return out;
       }
       // (B4) sub bit 1 = thrown over the partner: the vault pose along the arc
-      out.traverse = mv.sub & 1 ? 'vault' : 'climbUp';
+      out.traverse = mv.sub & 4 ? 'climb' : mv.sub & 1 ? 'vault' : 'climbUp'; // (B7) sub 4: on the partner's rope
       out.traverseT = mv.ph;
       return out;
     case 'stacked':

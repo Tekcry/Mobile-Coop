@@ -63,6 +63,8 @@ export const S4_GAP: [number, number] = [4, 10];
  * other over it (CT 1.3); the thrown one presses the release on the far side (CT's far-side release) and the band goes off.
  */
 export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST, z1: S4_GAP[0], x2: bayX(3) + CT_OBST, z2: S4_GAP[1], ys: [0.35, 0.9, 1.45], label: 'Laser', offFlag: S4_FLAG };
+/** Station 7 (B7): the return stair's z (against the south fence, on the far side of the rope wall). */
+export const S7_STAIR_Z = 1.0;
 /** Station 5 (B5): the roof hatch (a skylight narrower than a body, 0.55 m: nobody walks or drops in, only a partner lowered
  *  head-first fits) over the annex's back room [x0, z0, x1, z1], and the hack panel under it (y = its reach height). */
 export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
@@ -98,7 +100,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
   'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
   'Scanners: one each. Press A at your scanner and stay; both hacks must finish within 1.5 s. Start together when both ready lights are green',
-  'Wire wall: one holds the rope post while the other crosses',
+  'High wall: leg-up one; on top, stand facing back down and press Co-op to drop a rope; your partner climbs it',
   'Last wall: one holds the lift, then both into the lit zone',
 ];
 
@@ -119,6 +121,10 @@ function courseDef(): CourseDef {
       case 6:
         // B6: the paired scanners (CtDevices): both hacks finished within the sync window set the flag
         return [{ kind: 'flag', id: 'g-s6', flag: S6_FLAG, doorId: 'S6-door' }];
+      case 7:
+        // B7: a solid wall, no door: leg-up one, the one on top drops the two-person rope for the other (nobody is left
+        // below to boost); the airlock waits for both. A far-side stair lets a lone player back up (never stranded).
+        return [];
       case 5:
         return [
           { kind: 'pair', id: 'g-s5', a: 'sw-s5-a', b: 'sw-s5-b', doorId: 'S5-door' },
@@ -135,7 +141,7 @@ function courseDef(): CourseDef {
     4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
     5: 'Annex roof: leg-up and relay. Both plates. Then lower one through the hatch: hack.',
     6: 'Two scanners, one each. Start the hacks together and stay put. A failed hack hurts.',
-    7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
+    7: 'High wall. Leg-up one; the one on top drops a rope for the other.',
     8: 'Last wall. Cross, then both of you into the lit zone.',
   };
   const bays: BayDef[] = [];
@@ -218,6 +224,10 @@ export const ctcourse: MapDef = {
         b.wallZ(x0 + CT_OBST, 0, CT_W, [S4_GAP], OBST_H[4]!, WALL, 0.3);
         mark(b, x0 + CT_OBST - 1.6, MID);
         mark(b, x0 + CT_OBST + 2.2, MID);
+      } else if (n === 7) {
+        // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
+        b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
+        mark(b, x0 + CT_OBST - 1.6, MID);
       } else if (n >= 2) {
         const h = OBST_H[n]!;
         // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
@@ -280,11 +290,14 @@ export const ctcourse: MapDef = {
     b.box(x0 + 5, 1.4, 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
     b.box(x0 + 5, 1.4, CT_W - 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
 
-    // 7 Wire wall (4.4), a rope post and pipe on the near side
+    // 7 (B7) Rope wall: 4.4 m solid; the holder's striped strip on its top; a far-side return stair (1.1 m rises) so a
+    // player alone on the far side can always climb back (never stranded)
     x0 = bayX(6);
-    b.box(x0 + CT_OBST, LEDGE + 0.15, MID, 0.1, 0.3, CT_W, '#888', 0, 0, false);
-    b.box(x0 + 3, 2, 2, 0.12, 4, 0.12, '#7a5a3a', 0, 0, false);
-    devices['h-s7'] = dev(x0 + 5, 0.4, SOUTH, 'Hold rope (placeholder: two-person rope, B7)');
+    b.box(x0 + CT_OBST, LEDGE + 0.01, MID, 0.9, 0.02, 3, WARN, 0, 0, false);
+    for (let k = 1; k <= 3; k++) {
+      const h = 1.1 * (4 - k);
+      b.box(x0 + CT_OBST + 0.5 + k - 0.5, h / 2, S7_STAIR_Z, 1.0, h, 1.2, CONC);
+    }
 
     // 8 Final wall and the lit exit zone
     x0 = bayX(7);

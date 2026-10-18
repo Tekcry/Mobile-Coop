@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, HANG_SUB, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangLanding, hangPointOk, hangReaches, hangRootY, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { boostPath, checkTeamRequest, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwLandingOk, throwRoom, THROW_SUB, HANG_SUB, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangLanding, hangPointOk, hangReaches, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB, emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
 
@@ -233,5 +233,68 @@ describe('hang-down remote pose (B5)', () => {
     expect(holder.tumble).toBe(0);
     // the leg-up boost is unchanged
     expect(poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: 0 }, 1, emptyMovePose()).traverse).toBe('climbUp');
+  });
+});
+
+describe('two-person rope (CT prototype B7, CT 1.4 Belay Line)', () => {
+  /** `b` stands on a 4.4 m wall top holding the rope (brace + rope bit); `a` stands at its foot below; the foot is 0.5 m out. */
+  const rope = (o: Partial<TeamRequest> = {}, b: Partial<TeamSide> = {}): TeamRequest => ({
+    kind: 'rope',
+    a: side({ id: 'a', y: 0, x: -1.2 }),
+    b: side({ id: 'b', y: 4.4, mode: 'brace', sub: ROPE_SUB, ...b }),
+    target: -1,
+    targetUp: 0,
+    sinceLast: 5,
+    land: { x: -0.55, y: 4.4, z: 0 },
+    ...o,
+  });
+  it('allowed onto a holder offering it from below; denied when not offering, far, level, too deep or the foot is off', () => {
+    expect(checkTeamRequest(rope())).toBeNull();
+    expect(checkTeamRequest(rope({}, { sub: 0 }))).toBe('notOffering');
+    expect(checkTeamRequest(rope({}, { sub: HANG_SUB }))).toBe('notOffering');
+    expect(checkTeamRequest(rope({}, { mode: 'ground' }))).toBe('notOffering');
+    expect(checkTeamRequest(rope({ a: side({ id: 'a', y: 0, x: -(TEAM.ropeReach + 0.3) }) }))).toBe('far');
+    // the climber up there beside the holder, or under a drop longer than the rope
+    expect(checkTeamRequest(rope({ a: side({ id: 'a', y: 4.4, x: -1 }) }))).toBe('far');
+    expect(checkTeamRequest(rope({ a: side({ id: 'a', y: -3, x: -1 }) }))).toBe('far');
+    expect(checkTeamRequest(rope({ land: undefined }))).toBe('noTarget');
+    expect(checkTeamRequest(rope({ land: { x: -3, y: 4.4, z: 0 } }))).toBe('noTarget');
+    // a rope offer is no leg-up, throw or hang-down offer
+    expect(checkTeamRequest(req({ b: side({ id: 'b', mode: 'brace', sub: ROPE_SUB }) }))).toBe('notBraced');
+    expect(checkTeamRequest({ ...rope(), kind: 'hang', a: side({ id: 'a', y: 4.4, z: 1 }) })).toBe('notBraced');
+  });
+  it('room (G151): ground under the edge within the rope, polite refusals otherwise', () => {
+    expect(ropeRoom(4.4, 0)).toBe('ok');
+    expect(ropeRoom(4.4, NaN)).toBe('noFloor');
+    expect(ropeRoom(1.5, 0)).toBe('short');
+    expect(ropeRoom(TEAM.ropeMax - 0.1, 0)).toBe('ok');
+    expect(ropeRoom(10, 0)).toBe('deep');
+  });
+  it('climbing: the own stick moves the feet up / down at the rates, clamped to the floor and the top', () => {
+    const top = ropeTopY(4.4);
+    expect(top).toBeCloseTo(2.9);
+    expect(ropeClimb(0, 1, 0.5, 0, top)).toBeCloseTo(TEAM.ropeUp * 0.5);
+    expect(ropeClimb(1, -1, 0.5, 0, top)).toBeCloseTo(1 - TEAM.ropeDown * 0.5);
+    expect(ropeClimb(0.1, -1, 1, 0, top)).toBe(0);
+    expect(ropeClimb(2.8, 1, 1, 0, top)).toBe(top);
+    expect(ropeClimb(1.3, 0, 1, 0, top)).toBe(1.3);
+    // the station 7 wall climbed in about 3 s at full stick
+    expect(top / TEAM.ropeUp).toBeLessThan(4);
+  });
+  it('never stranded: let go (either side) = a slide to the floor; the top = topped out', () => {
+    expect(ropeEndOf(true, false, false)).toBe('pull');
+    expect(ropeEndOf(false, true, false)).toBe('drop');
+    expect(ropeEndOf(false, false, true)).toBe('drop');
+    expect(ropeEndOf(false, false, false)).toBeNull();
+    let y = 2.5;
+    for (let i = 0; i < 120 && y > 0; i++) y = ropeSlide(y, 1 / 60, 0);
+    expect(y).toBe(0);
+    expect(ropeSlide(0.02, 1, 0)).toBe(0);
+  });
+  it('remotes pose the climber on the rope (boost + sub 4) and the holder braced (brace + sub 4)', () => {
+    const climber = poseFromMoveState({ ...emptyMoveState(), m: 'boost', sub: ROPE_SUB, ph: 0.4 }, 1, emptyMovePose());
+    expect(climber.traverse).toBe('climb');
+    expect(climber.tumble).toBe(0);
+    expect(poseFromMoveState({ ...emptyMoveState(), m: 'brace', sub: ROPE_SUB }, 1, emptyMovePose()).traverse).toBe('brace');
   });
 });

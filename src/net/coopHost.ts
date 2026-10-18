@@ -592,7 +592,7 @@ export class CoopHost implements NetAttachment {
     if (!a || !b) return deny('far');
     const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
     const now = this.time;
-    const toss = kind === 'throw' || kind === 'hang';
+    const toss = kind === 'throw' || kind === 'hang' || kind === 'rope';
     const land = toss && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
     const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
     this.teamLast.set(by, now);
@@ -600,7 +600,7 @@ export class CoopHost implements NetAttachment {
     if (toss && land) {
       // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing; (B5) the
       // hang-down: `a` is lowered head-first at the claimed (bounded) hang point by the holder `b` (a pair until it ends)
-      if (kind === 'hang') {
+      if (kind === 'hang' || kind === 'rope') {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
       }

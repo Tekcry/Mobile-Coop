@@ -145,7 +145,7 @@ export class CoopClient implements NetAttachment {
 
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
   teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
-    this.s.toHost((kind === 'throw' || kind === 'hang') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
+    this.s.toHost((kind === 'throw' || kind === 'hang' || kind === 'rope') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
   }
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
