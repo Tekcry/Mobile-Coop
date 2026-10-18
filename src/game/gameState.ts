@@ -58,6 +58,7 @@ import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
+import { RopeLine } from './ropeLine';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
@@ -303,6 +304,8 @@ export class GameState implements AppState {
   readonly strike: StrikeController;
   /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
   readonly team: TeamController;
+  /** (CT prototype B8) The rope mesh while a two-person rope is out (render only). */
+  private ropeLine: RopeLine | null = null;
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
   readonly hq: HqStats;
@@ -1880,6 +1883,8 @@ export class GameState implements AppState {
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
+    // (B8) the two-person rope, drawn while it is out (render only; built on first use)
+    if (this.ropeLine || this.team.state.startsWith('rope')) (this.ropeLine ??= new RopeLine(this.scene)).update(this.team, this.player.position);
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();

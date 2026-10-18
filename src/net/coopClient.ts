@@ -313,6 +313,12 @@ export class CoopClient implements NetAttachment {
       ints.remove(it);
       this.items.delete(id);
     }
+    // (B8, G126) the downed client's countdown: the host writes the seconds left into its revive point's label
+    const own = this.items.get(`revive-${this.s.selfId}`);
+    const sec = own ? /\((\d+)\)$/.exec(own.label)?.[1] : undefined;
+    if (own) this.g.hud.setDownTimer(sec ? `DOWN - revive in ${sec} s` : 'DOWN');
+    else if (!this.g.player.alive && this.g.opts.mode === 'course') this.g.hud.setDownTimer('OUT - wait for the checkpoint');
+    else this.g.hud.setDownTimer(null);
   }
 
   private syncDoors(open: number[], cracked: readonly number[]): void {
@@ -478,6 +484,7 @@ export class CoopClient implements NetAttachment {
         g.traversal.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
+        g.hud.setDownTimer(null);
         g.hud.banner('BACK IN', '', 1500);
         break;
       case 'hitConfirm':

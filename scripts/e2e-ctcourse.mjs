@@ -477,6 +477,10 @@ async function openGate(n, i) {
   } else if (n === 6) {
     // (B6) the paired scanners: a late hack fails with a health cost, then both in sync open the door
     await station6(x0);
+  } else if (n === 8) {
+    // (B8) the final beat: no console, no door; a downed client is revived by the host inside the 30 s window
+    await station8(x0);
+    return;
   } else {
     await moveHost(x0 + 5, 1.6);
     await moveClient(x0 + 5, 4);
@@ -486,6 +490,35 @@ async function openGate(n, i) {
   if (n === 5) await hangDown(x0);
   const di = await doorIndex(door);
   await until(B, (i) => !window.__course.wire.locks.includes(i), di, 8000, `client sees ${door} unlock`);
+}
+
+/**
+ * (B8, G126) Station 8: the doorway is open (no console, no door). The client goes down; its HUD counts the 30 s
+ * revive window down; the host revives it inside the window; the revive counts on the course tally.
+ */
+async function station8(x0) {
+  assert(!(await GA(() => 'c-h-s8' in (window.__course.layout.devices ?? {}))), 'station 8: no placeholder console');
+  await moveHost(x0 + 6, 7);
+  await moveClient(x0 + 6.6, 7);
+  const clientId = await GB(() => window.__coop.session.selfId);
+  await GA((id) => {
+    const g = window.__app.current;
+    const r = g.net.remotes.get(id);
+    const V = g.player.position.constructor;
+    r.damageMul = 1;
+    r.protectT = 0;
+    r.applyDamage({ amount: 1000, point: r.feet.clone(), sourcePos: r.feet.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'enemy', attackerId: '' });
+  }, clientId);
+  await until(B, () => !window.__app.current.player.alive, null, 5000, 'station 8: the client is down');
+  await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'station 8: the downed client sees the revive countdown');
+  await new Promise((r) => setTimeout(r, 2500));
+  const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
+  assert(left > 15 && left < 30, `station 8: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
+  await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
+  await until(B, () => window.__app.current.player.alive, null, 8000, 'station 8: the host revives the client inside 30 s');
+  await until(B, () => getComputedStyle(document.querySelector('.hud-down-timer')).display === 'none', null, 8000, 'station 8: the countdown is gone');
+  const used = await GA(() => window.__app.current.net.reviveClock.used);
+  assert(used === 1, `station 8: one revive of two used (${used})`);
 }
 
 /** Both onto the airlock pad after bay index i: the course moves to bay i + 1. */
@@ -517,7 +550,7 @@ try {
 
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
-    console.log(`station ${n}: ${[2, 3, 4, 5, 6, 7].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    console.log(`station ${n}: ${n === 8 ? 'final beat (B8): revive, then both in the exit zone' : [2, 3, 4, 5, 6, 7].includes(n) ? 'real moves' : 'placeholder gate'}`);
     if (n === 7) console.log('  (B7) leg-up, the two-person rope: let go part way (slide down), then climbed to the top');
     if (n === 5) console.log('  (B5) leg-up, relay, roof plates, then the hang-down through the hatch: hack the panel, pulled back up');
     if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
@@ -534,6 +567,8 @@ try {
   await moveClient(zx + 0.5, 6);
   await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
   assert(true, 'both players in the exit zone complete the course');
+  const sum = await GA(() => { const c = window.__app.current.stats.course; return c ? { time: c.team.time, alarms: c.team.alarms, revives: c.team.revives } : null; });
+  assert(!!sum && sum.time > 0 && sum.revives === 1, `the end screen has the time, alarms and revives (${JSON.stringify(sum)})`);
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);

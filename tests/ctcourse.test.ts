@@ -200,3 +200,37 @@ describe('ctcourse (CT prototype B7: two-person rope at station 7)', () => {
     expect(solidAt(x0 + 8, 1, S7_STAIR_Z)).toBe(false);
   });
 });
+
+describe('station 8 (B8): the final beat', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const c = lay.course!;
+  const x0 = 22 * 7;
+  const solidAt = (x: number, y: number, z: number): boolean =>
+    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
+
+  it('the held console placeholder is gone: no gate, no door, an open doorway in the 3.5 m wall', () => {
+    const bay = c.def.bays[7]!;
+    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(0);
+    expect(c.devices['h-s8']).toBeUndefined();
+    expect(c.doors['S8-door']).toBeUndefined();
+    expect(bay.exit).toBe('end');
+    expect(solidAt(x0 + 9, 1, 1)).toBe(true);
+    expect(solidAt(x0 + 9, 3.4, 12)).toBe(true);
+    expect(solidAt(x0 + 9, 1, 7)).toBe(false);
+  });
+
+  it('the course still ends only with both in the exit zone', () => {
+    const st = new CourseState(validateCourse(c.def, layoutKnownIds(lay.course!)));
+    st.startAt(8);
+    st.clearEvents();
+    const zx = (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2;
+    st.setPlayer(0, zx, 0, 7, false);
+    st.setPlayer(1, x0 + 2, 0, 7, false);
+    st.update(1 / 60);
+    expect(st.over).toBe(false);
+    st.setPlayer(1, zx, 0, 6, false);
+    st.update(1 / 60);
+    expect(st.over).toBe(true);
+  });
+});

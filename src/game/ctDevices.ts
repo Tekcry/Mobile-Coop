@@ -19,6 +19,7 @@ import {
   newJam,
   nextAlarm,
   pickJamTarget,
+  rearmZones,
   stepJam,
   type JamState,
   type JamTarget,
@@ -409,7 +410,8 @@ export class CtDevices {
     // laser touches
     for (let i = 0; i < n; i++) this.touch(i, refs[i]!, dt);
     this.stepScan(dt, refs, n);
-    // pass zones: both (or the solo player) inside sets the flag
+    // pass zones: both (or the solo player) inside sets the flag; (B8) a bay restart that cleared the flag re-arms it
+    if (this.hooks.has) rearmZones(this.zoneSet, this.zones, this.hooks.has);
     for (let z = 0; z < this.zones.length; z++) {
       const zone = this.zones[z]!;
       if (this.zoneSet.has(zone.id)) continue;

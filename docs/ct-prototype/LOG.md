@@ -232,3 +232,14 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   back. Protocol 21 -> 22 (`tmove` / `tstart` kind `rope`, sub bit 4). Report `B7-ROPE.md`.
 - Stubs: no rope mesh drawn; the climb is a team move, not the solo rappel; throw over wire and pipe not built.
 - Checks: `npm run check` passes (1700 tests); e2e ctcourse (642 s) and smoke pass; netmove not run.
+
+## 2026-10-19 - B8 revive and finish (Opus)
+- Built: 30 s revive window, 2 revives per mission (`reviveClock.ts`); past the window or cap the player is out until
+  the next checkpoint (in the course: the bay restart); both down restarts the bay; downed countdown on the HUD;
+  revives counted on the results. Station 8: console and door gone, the course ends with both in the exit zone; the
+  results panel shows time, alarms and revives. `zoneSet` cleared on a bay restart (B3 latent bug). The rope is drawn
+  (`ropeLine.ts`, render only). No wire change (protocol 22). Report `B8-REVIVE.md`.
+- Stubs: revive heals fully; the rope shows only on the holder's and climber's pages.
+- Checks: `npm run check` passes (1710 tests); smoke passes. e2e-ctcourse did not pass in 5 runs while another
+  session ran e2e on this PC (failures at stations 3, 5, 7, untouched; one run reached station 8 and failed its own
+  countdown bound, loosened to 15-30 s). Orchestrator reruns it solo before the 09:30 push.
