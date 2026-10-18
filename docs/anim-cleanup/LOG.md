@@ -71,3 +71,9 @@
   e2e-mouse KBM verbs, e2e-modes / e2e-enemies / e2e-ct-warehouse prompt texts, e2e-stealth free orbit), the two that
   fail on master (e2e-kestrel, e2e-camera-bounds) and e2e-weapons-carry's crouch-walk back gun (CT Core's P1b crouch
   angle). The PR's full run follows those fixes.
+- Merged CT Core's P1b (feature/ct-prototype 2b67c57): crouch 35-45 degrees, wall arms hang. One conflict
+  (gameState.ts openLeft: F1a also put the weapon in the left hand on the left shoulder, local only): combined, their
+  condition (left shoulder, not tied to aiming) with this job's gate (handSwitchOk) and wire bit. After it:
+  e2e-weapons-carry passes (crouch-walk back gun bore up 0.59), e2e-clip and e2e-anim pass; crouch and wall sheets
+  re-shot (natural crouch, arms hanging on the wall). tests/input.test.ts binding-table checks fail on
+  feature/ct-prototype itself (their F1a controls in progress; no diff here).
