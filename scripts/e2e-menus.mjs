@@ -248,6 +248,73 @@ try {
   assert(/Power/.test(kitCtx) && /Not selectable/.test(kitCtx), 'the kit context shows stat bars and says it is fixed');
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: kit back to the main menu');
+  // slice 5: the field terminal pause, objectives, quit confirm, controller disconnect, results
+  console.log('pause (slice 5)');
+  const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot' });
+  try {
+    const P = M.page;
+    const GM = (f, a) => P.evaluate(f, a);
+    const mtop = () => GM(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
+    const mkey = (k) => GM(() => window.__app.nav.focused?.dataset.key ?? '(none)');
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 90000 });
+    await frames(P, 30);
+    await GM(() => window.__app.current.pause());
+    await frames(P, 4);
+    assert((await mtop()) === 'pause-screen' && (await mkey()) === 'resume', 'pause opens on the field terminal with Resume focused');
+    assert(await GM(() => getComputedStyle(document.querySelector('.hud')).display === 'none'), 'the HUD hides while paused');
+    const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
+    assert(keys === 'resume,objectives,settings,controls,report-feedback,quit', `pause items (${keys})`);
+    await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
+    await frames(P, 3);
+    const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));
+    assert((await mtop()) === 'objectives-screen' && objs.length >= 2 && objs.some((t) => /Current/.test(t)), `Objectives lists the mission with a current one (${objs.length})`);
+    await GM(() => document.querySelector('.objectives-screen [data-legend="back"]').click());
+    await frames(P, 3);
+    assert((await mtop()) === 'pause-screen' && (await mkey()) === 'objectives', 'Back from Objectives returns with focus kept');
+    await GM(() => document.querySelector('.pause-screen [data-key="quit"]').click());
+    await frames(P, 3);
+    assert(await GM(() => document.querySelector('.dialog-buttons .btn.focused, .dialog-buttons .btn[data-focused]')?.textContent === 'Stay' || window.__app.nav.focused?.textContent === 'Stay'), 'Quit confirm opens on Stay');
+    await GM(() => window.__app.screens.top.onBack());
+    await frames(P, 3);
+    assert((await mtop()) === 'pause-screen', 'Stay (Back) keeps the pause menu');
+    // Start resumes; the simulation runs and the HUD is back
+    await GM(() => window.__app.screens.top.onStart());
+    await frames(P, 4);
+    assert((await GM(() => window.__app.current.simulating)) && (await GM(() => getComputedStyle(document.querySelector('.hud')).display !== 'none')), 'Start resumes with the HUD back');
+    // a controller dropping out mid-match opens pause with the reconnect line; a reconnect clears it
+    await GM(() => { window.__pad.connect(); window.__app.input.setMode('gamepad'); });
+    await frames(P, 4);
+    await GM(() => window.__pad.disconnect());
+    await frames(P, 6);
+    const note = await GM(() => document.querySelector('.pause-screen .ps-notice:not([hidden])')?.textContent ?? '');
+    assert(/Controller disconnected/.test(note), `controller disconnect opens pause with a reconnect line (${note})`);
+    await GM(() => window.__pad.connect());
+    await frames(P, 6);
+    assert(!(await GM(() => !!document.querySelector('.pause-screen .ps-notice:not([hidden])'))), 'a reconnect clears the line');
+    await GM(() => window.__app.screens.top.resume());
+    await frames(P, 4);
+    // results
+    await GM(() => {
+      const g = window.__app.current;
+      g.stats.missionId = 'warehouse-courier';
+      g.stats.rating = 2;
+      g.stats.bonuses = ['No alarms'];
+      g.endSession(true, 'done');
+    });
+    await P.waitForSelector('.results-screen', { timeout: 15000 });
+    await frames(P, 4);
+    const res = await GM(() => ({
+      keys: [...document.querySelectorAll('.results-screen .ms-item')].map((b) => b.dataset.key).join(','),
+      focus: window.__app.nav.focused?.dataset.key,
+      stars: document.querySelector('.mission-rating')?.textContent ?? '',
+      earned: document.querySelectorAll('.results-screen .rs-earned li').length,
+      title: document.querySelector('.results-title')?.textContent,
+    }));
+    assert(res.title === 'VICTORY' && /★★☆/.test(res.stars) && res.earned === 3, `results: outcome, stars and what earned them (${res.stars}, ${res.earned} lines)`);
+    assert(/retry/.test(res.keys) && /missions/.test(res.keys) && /quit/.test(res.keys), `results items (${res.keys}, focus ${res.focus})`);
+  } finally {
+    await M.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

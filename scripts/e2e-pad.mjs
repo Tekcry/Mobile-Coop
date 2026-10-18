@@ -440,14 +440,15 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  await press(page, BTN.DOWN);
-  await press(page, BTN.DOWN);
+  for (let i = 0; i < 4; i++) await press(page, BTN.DOWN);
   assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
-  assert(/Quit/.test(await focusedText(page)), 'dialog primary focused');
+  assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
+  await press(page, BTN.RIGHT);
+  assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
   await press(page, BTN.A);
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');

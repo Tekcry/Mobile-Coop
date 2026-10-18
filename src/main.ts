@@ -21,6 +21,8 @@ import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
 import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
+import { BriefingScreen } from './ui/screens/briefingScreen';
+
 import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
@@ -194,6 +196,14 @@ async function boot(): Promise<void> {
     }));
   }
 
+  /** The results screen's Missions / Next: the menu, the missions list, and a mission's briefing when `id` is given. */
+  const openMissions = (id?: string): void => {
+    goToMenu();
+    app.screens.push(new MissionsScreen(app, (o) => startGame(o)));
+    const mission = id ? missionById(id) : null;
+    if (mission) app.screens.push(new BriefingScreen(app, (o) => startGame(o), { kind: 'mission', mission }));
+  };
+
   const startGame = (base: GameOptions, cbOverride?: SessionCallbacks): void => {
     const sv = app.save.get();
     const skin = (_w: string, camo: string): { colors: ReturnType<typeof camoById>['colors']; pattern?: ReturnType<typeof camoById>['pattern'] } => {
@@ -219,7 +229,7 @@ async function boot(): Promise<void> {
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
     app.releaseState();
-    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
+    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }), missions: () => openMissions(), briefing: (id) => openMissions(id) })
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);
