@@ -60,22 +60,24 @@ and the code together.
 |---|---|---|---|---|---|
 | Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | Analog gears within the maximum gear |
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
-| Aim (draws) | `ads` | LT | L2 / ZL | RMB | Hold or toggle (`adsToggle`) |
-| Fire / elbow strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire |
-| Reload / equip | `reload` | X (tap) | Square / Y | `reload` (R) | X held while aiming = next weapon (A55); held not aiming does nothing (G98) |
+| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.3 s pistol / 0.4 s rifle, holster 0.55 s |
+| Fire / lethal strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire. Holstered RT / LMB is the lethal palm strike (a kill; a co-op client's strike is a knockout on the host: stub) |
+| Knockout / secondary fire | `altFire` | LT | L2 / ZL | `knockout` (Z) | Holstered: the knockout palm strike. Drawn: secondary fire (a stub: fires like RT, no secondary fire exists yet) |
+| Reload | `reload` | A (drawn) | Cross / B (drawn) | `reload` (R) | The pad's A reloads instead of interacting while the weapon is drawn |
+| Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
 | Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | CT pad (A3, G96): team move > traversal; no longer shares a button with interact |
 | Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | Takedown > interactable; at a closed door A opens the door menu (G19, G97) |
-| Back to wall | `cover` | L3 | L3 / LS | `wall` (Left Shift) | G18, entry by button only (G34); the button again or aiming leaves |
-| Speed gear up | `speedUp` | D-pad right | D-pad right | `speedUp` (=); wheel up | Gears 1-5. CT's D-pad is vision; the rocker moved to left / right |
-| Speed gear down | `speedDown` | D-pad left | D-pad left | `speedDown` (-); wheel down | - |
-| Next weapon | `swapNext` | X (held while aiming, A55) | Square / Y | `nextWeapon` (X) | Works while aiming (G21) |
-| Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button (LB is the quick inventory) |
-| Gadget (hold aims, release throws) | `grenade` | D-pad down | D-pad down | `gadget` (G) | Works holstered (G21); CT's throw-cam slot |
-| Quick inventory / gadget wheel | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | 7 slots; CT's White button |
+| Back to wall | `cover` | L3 | L3 / LS | `wall` (Left Shift) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves |
+| Max speed up | `speedUp` | D-pad up | D-pad up | `speedUp` (=); wheel up | F1a: the max-speed rocker (stick push and the mouse wheel also set it); gears 1-5 |
+| Max speed down | `speedDown` | D-pad down | D-pad down | `speedDown` (-); wheel down | - |
+| Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
+| Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
+| Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
+| Selection wheel (G179) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
 | Co-op action | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button; today the ping, the free moves come with the co-op slices |
-| Vision (goggles) | `vision` | D-pad up | D-pad up | `goggles` (N) | One button cycles the modes (CT's D-pad vision) |
-| Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | G17: only while aiming |
+| Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G179: toggles the mode picked on the wheel (night first), never cycles between modes |
+| Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
 
