@@ -44,3 +44,8 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
   pop feet; run lean moves guard and player head hit volumes slightly (they read rig bones); owner vs remote stride
   thresholds differ slightly; check the lean while carrying a body; e2e-anim spine-pitch allowance 0.16 for all
   segments.
+- F1a check polish (F1A-CHECK.md, PASS): old saved binds can clash with the new defaults (warned, ids ignored); pad A
+  is interact only holstered, reload drawn, so doors and the grab menu need a holster first (walkthrough question);
+  `refreshRing` and the wheel hint allocate per step while the wheel is open (hot-path rule); client strike always a
+  knockout on the host and left-shoulder gun right-handed on remotes (stubs); LB held 0.15 s opens the wheel instead
+  of switching; RMB chord in pointermove may toggle draw twice (unconfirmed).
