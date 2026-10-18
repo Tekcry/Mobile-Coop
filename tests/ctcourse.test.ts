@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { ctcourse, CT_EXIT_ZONE } from '../src/world/maps/ctcourse';
-import { exitZoneReady, inExitZone, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
+import { exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import { getMap } from '../src/world/maps';
 import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors';
@@ -61,7 +61,7 @@ describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
 
   it('station 2: the wall is bolted from the far side; the plates are gone', () => {
     const bay = c.def.bays[1]!;
-    expect(bay.gates).toHaveLength(1);
+    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(1);
     const g = bay.gates[0]!;
     expect(g.kind).toBe('bolt');
     if (g.kind === 'bolt') {
@@ -97,5 +97,25 @@ describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
     expect(TEAM.boostMax).toBeLessThan(6);
     // a hanging player's relay reach and a leg-up's top stay under the fence height
     expect(TEAM.relayMax).toBeLessThan(6);
+  });
+});
+
+describe('ctcourse panels (F1b: one optional panel per station)', () => {
+  const lay = ctcourse.build(new LevelBuilder(), 0);
+  const c = lay.course!;
+  it('every station has exactly one panel device, and no drill or door waits on reading it', () => {
+    expect(isPanelId('sw-p3')).toBe(true);
+    expect(isPanelId('sw-s3-a')).toBe(false);
+    for (let n = 1; n <= 8; n++) {
+      expect(c.devices[`sw-p${n}`]?.label?.length ?? 0).toBeGreaterThan(10);
+      const bay = c.def.bays[n - 1]!;
+      expect(bay.gates.filter((g) => g.kind === 'pickup')).toHaveLength(1);
+      expect(bay.drills.some((d) => d.verb === 'switch')).toBe(false);
+      for (const g of c.def.bays.flatMap((b) => b.gates)) if (g.kind === 'flag' || g.kind === 'anchorLock') expect(g.flag.startsWith('panel-')).toBe(false);
+    }
+  });
+  it('station 1 has no drill at all: the airlock pad is its only step', () => {
+    expect(c.def.bays[0]!.drills).toHaveLength(0);
+    expect(c.def.bays[0]!.gates.every((g) => g.kind === 'pickup')).toBe(true);
   });
 });

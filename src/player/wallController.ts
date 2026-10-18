@@ -40,8 +40,8 @@ export const WALL = {
    *  (the along component past `slideDead`, rescaled 0..1), a little slower at the lower speed gears (`slideGear1` of it
    *  at gear 1, rising to 1 at `maxGear`). Starting values. */
   maxGear: 4,
-  slideStand: 0.35,
-  slideCrouch: 0.3,
+  slideStand: 0.525,
+  slideCrouch: 0.45,
   slideGear1: 0.7,
   slideDead: 0.2,
   /** Leaving beat (s) before the core reports off. */

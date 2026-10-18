@@ -135,6 +135,11 @@ export function inExitZone(zone: NonNullable<CourseDef['exitZone']>, x: number, 
   return x >= Math.min(b[0], b[2]) && x <= Math.max(b[0], b[2]) && z >= Math.min(b[1], b[3]) && z <= Math.max(b[1], b[3]) && Math.abs(y - zone.floorY) < yTol;
 }
 
+/** A station panel's device id (sw-p1 ...): an optional read, never a gate (F1b). */
+export function isPanelId(id: string): boolean {
+  return /^sw-p\d+$/.test(id);
+}
+
 /** Players needed in the exit zone: both, or one under the dev solo flag. */
 export function exitZoneReady(inside0: boolean, inside1: boolean, solo: boolean): boolean {
   return solo ? inside0 || inside1 : inside0 && inside1;

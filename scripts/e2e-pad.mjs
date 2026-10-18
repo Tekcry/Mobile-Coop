@@ -472,7 +472,7 @@ try {
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
     `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
   assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
-  assert(dr.struck, 'RT while holstered: the lethal palm strike (step 10, F1a)');
+  assert(!dr.struck, 'RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
   assert(dr.tDraw <= 0.5 && dr.adsAfterDraw, `X draws within 0.5 s and stays drawn with no button held (F1a: 0.3 pistol / 0.4 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
@@ -543,19 +543,19 @@ try {
         k.until(() => !e.alive, 1);
         out.heavy = { alive: e.alive, ko: e.ko };
         k.until(() => !g.strike.active, 2);
-        // a whiff ends 0.5 s after contact time
+        // (F1b) no guard in reach: the press swings at nothing no more
         k.setup(null);
         rt();
-        k.until(() => g.strike.t >= 0.12 || !g.strike.active, 1);
-        out.whiffRecover = k.until(() => !g.strike.active, 2);
-        out.miss = g.strike.count.miss;
+        out.nothing = g.strike.active;
+        k.until(() => g.strike.active, 0.3);
+        out.nothingAfter = g.strike.active;
         return out;
       });
       assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: killed in ${r.tKo.toFixed(2)} s (<= 0.3)`);
       assert(r.ltKo, 'LT holstered: the knockout (the guard goes down knocked out, not killed)');
       assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit (${JSON.stringify(r.facing)})`);
       assert(!r.heavy.alive, `a heavy from the front: down too (${JSON.stringify(r.heavy)})`);
-      assert(r.whiffRecover >= 0.4 && r.whiffRecover <= 0.65 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s after contact time (0.5 s)`);
+      assert(!r.nothing && !r.nothingAfter, 'RT with no guard in reach: no strike starts (F1b)');
     } finally {
       await S.browser.close();
     }

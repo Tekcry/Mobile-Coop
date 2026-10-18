@@ -147,3 +147,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Wall stance bug (Character Build session, anim-sheet "wall" front view): standing flat to the wall, the off hand
   sits at the hip with the elbow out (reads as hand-on-hip); footage (ct-measure-walls-doors-combat-vision.md,
   standing stance): arms hanging, hands mid-thigh. Added to P1b.
+
+## 2026-10-19 - F1b menus, grab, strike, doors, goggles, panels
+- Fixed (Sonnet): one optional panel per station (the old drill text used Y, now jump: why P1 could not read); door and
+  grab menus top right, grab menu while walking (gear <= 2, D-pad up / down picks, B or Y lets go); strike only with a
+  guard in reach (1.3 m, 140 deg, any side), contact 0.08 s, free 0.68 s, whiff 0.3 s; wall shuffle 0.525 / 0.45 m/s,
+  peek camera 0.75 m past the body; stick-driven stealth open (solo / host; a co-op client keeps push-to-open);
+  calm guards notice a player-opened door, investigate, shut it. Partly: hostage pistol (X draws, RT fires) untested on
+  a pad; goggle flip only on on / off (0.28 s) plus a faint lens ring; door ghost brighter (GPU check pending); electro
+  fuzz; night vision not reviewed. Protocol 16. Report `F1B-FIXES.md`.
+- Checks: `npm run check` passes (1639 tests); e2e smoke, ctcourse, takedown, wall, darkness, pad, netmove pass.

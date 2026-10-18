@@ -1230,9 +1230,9 @@ body {
 }
 .hud-doormenu {
   position: absolute;
-  left: 50%;
-  top: 58%;
-  transform: translateX(-50%);
+  /* F1b: top right, left of the minimap (not the middle of the screen) */
+  right: calc(var(--sar) + min(140px, calc(30 * var(--vh))) + 22px);
+  top: calc(var(--sat) + 14px);
   display: none;
   flex-direction: column;
   gap: 4px;

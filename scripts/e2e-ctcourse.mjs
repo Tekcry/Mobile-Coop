@@ -201,12 +201,10 @@ try {
   assert((await hostDebug()).bay === 0, 'the course starts at station 1');
   await GA(() => { window.__app.current.target.damageMul = 0; });
 
-  console.log('station 1: the three panels, both players');
-  for (const k of [1, 2, 3]) {
-    await moveHost(4 * k, 12.4);
-    await moveClient(4 * k, 12.4);
-    assert((await use(A, `c-sw-p${k}`)) === 'ok' && (await use(B, `c-sw-p${k}`)) === 'ok', `panel ${k} read by both`);
-  }
+  console.log('station 1: one optional panel; the client reads it, the host skips it, nobody is gated');
+  await moveClient(3.5, 12.4);
+  assert((await use(B, 'c-sw-p1')) === 'ok', 'the client reads the station 1 panel');
+  assert((await hostDebug()).bay === 0, 'reading a panel does not move the course on');
   await throughAirlock(0);
 
   for (let n = 2; n <= 8; n++) {

@@ -144,13 +144,13 @@ describe('back-to-wall core (step 11)', () => {
     expect(r.phase).toBe('entering');
   });
 
-  it('(A3, G35) slides at the CT shuffle: 0.35 standing / 0.3 crouched, a little slower at the low gears', () => {
+  it('(A3, G35) slides at the CT shuffle: 0.525 standing / 0.45 crouched (F1b: +50 %), a little slower at the low gears', () => {
     for (const [gear, crouched, want] of [
-      [6, false, 0.35],
-      [4, false, 0.35],
-      [1, false, 0.35 * WALL.slideGear1],
-      [6, true, 0.3],
-      [1, true, 0.3 * WALL.slideGear1],
+      [6, false, 0.525],
+      [4, false, 0.525],
+      [1, false, 0.525 * WALL.slideGear1],
+      [6, true, 0.45],
+      [1, true, 0.45 * WALL.slideGear1],
     ] as const) {
       const w = core();
       const i = inp(0, 0.2 + SO + 0.1, { context: true, crouched, gear });
@@ -381,11 +381,11 @@ describe('back-to-wall edge verbs (step 12)', () => {
 
   it('(A3) wallSlideSpeed: dead band, analog, crouched and the gear', () => {
     expect(wallSlideSpeed(0.15, false, 4)).toBe(0);
-    expect(wallSlideSpeed(1, false, 4)).toBeCloseTo(0.35, 9);
-    expect(wallSlideSpeed(-1, true, 4)).toBeCloseTo(-0.3, 9);
-    expect(wallSlideSpeed(0.6, false, 4)).toBeCloseTo(0.175, 9);
-    expect(wallSlideSpeed(1, false, 1)).toBeCloseTo(0.35 * WALL.slideGear1, 9);
-    expect(wallSlideSpeed(1, false, 6)).toBeCloseTo(0.35, 9);
+    expect(wallSlideSpeed(1, false, 4)).toBeCloseTo(0.525, 9);
+    expect(wallSlideSpeed(-1, true, 4)).toBeCloseTo(-0.45, 9);
+    expect(wallSlideSpeed(0.6, false, 4)).toBeCloseTo(0.2625, 9);
+    expect(wallSlideSpeed(1, false, 1)).toBeCloseTo(0.525 * WALL.slideGear1, 9);
+    expect(wallSlideSpeed(1, false, 6)).toBeCloseTo(0.525, 9);
   });
 
   it('(21w, M14) crouch on a high wall: the press toggles on the wall (hold mode: the held button), the body stays on', () => {
@@ -400,7 +400,7 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.sub() & WALL_SUB.crouch).toBeTruthy();
     i.moveX = -1;
     run(w, i, 0.2);
-    expect(Math.abs(w.v)).toBeCloseTo(0.3 * (WALL.slideGear1 + (1 - WALL.slideGear1) * (2 / 3)), 6);
+    expect(Math.abs(w.v)).toBeCloseTo(0.45 * (WALL.slideGear1 + (1 - WALL.slideGear1) * (2 / 3)), 6);
     i.crouchPressed = true;
     run(w, i, 1 / 60);
     expect(w.crouch).toBe(false);

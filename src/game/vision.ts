@@ -26,6 +26,9 @@ export function visionLabel(m: VisionMode): string {
   return m === 'night' ? 'NV' : m === 'thermal' ? 'THERMAL' : m === 'electro' ? 'ELECTRO' : '';
 }
 
+/** The goggle flip's length (s, a starting value). */
+export const VISION_FLIP = 0.28;
+
 export class VisionState {
   /** The mode the button chose; the image is that mode at once. */
   mode: VisionMode = 'off';
@@ -34,6 +37,23 @@ export class VisionState {
   /** (F1a, gog-1) What the last change was: the goggle flip belongs to 'on' / 'off' only, never to a 'switch' between modes
    *  (the flip visual itself is not rebuilt in this slice: A5 made every change an instant cut). */
   change: 'none' | 'on' | 'off' | 'switch' = 'none';
+  /** (F1b, gog-1) Seconds into the goggle flip (-1 = none). Only a turn on / off flips, never a switch between modes. */
+  flipT = -1;
+
+  /** Advance the flip (render time). */
+  stepFlip(dt: number): void {
+    if (this.flipT < 0) return;
+    this.flipT += dt;
+    if (this.flipT >= VISION_FLIP) this.flipT = -1;
+  }
+
+  /** The flip's housing band centre in screen height for the post shader (NaN = no flip): it covers the view at once and
+   *  sweeps away upward when the goggles go off, downward when they come on. */
+  get flipCentre(): number {
+    if (this.flipT < 0) return NaN;
+    const k = Math.min(1, this.flipT / VISION_FLIP);
+    return this.change === 'off' ? 0.5 + 1.4 * k : 0.5 - 1.4 * k;
+  }
 
   /** The mode on screen (always the chosen one: no flip). */
   get shown(): VisionMode {
@@ -56,6 +76,7 @@ export class VisionState {
   toggle(): VisionMode {
     this.mode = this.mode === 'off' ? this.selected : 'off';
     this.change = this.mode === 'off' ? 'off' : 'on';
+    this.flipT = 0;
     return this.mode;
   }
 
@@ -75,6 +96,7 @@ export class VisionState {
   /** Goggles up at once (respawn, a new match). */
   reset(): void {
     this.mode = 'off';
+    this.flipT = -1;
   }
 
   /** The post shader's mode index for the image on screen. */

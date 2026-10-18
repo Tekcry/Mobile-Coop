@@ -145,7 +145,8 @@ export class StrikeController {
     const g = this.g;
     if (pressed) this.lethal = lethal;
     if (!this.active) {
-      if (pressed) this.begin();
+      // (F1b) no swing at nothing: the press only starts a strike when a guard is in reach
+      if (pressed && this.pickTarget() !== '') this.begin();
       if (!this.active) {
         if (this.wasActive) g.player.pose.melee = -1;
         this.wasActive = false;
@@ -172,7 +173,7 @@ export class StrikeController {
       } else if (this.authority && !this.resolved && this.t >= STRIKE.hitAt) {
         this.resolved = true;
         const p = g.player.position;
-        this.applyHit('local', p, g.player.controller.yaw, g.player.cam.yaw, this.tid, 0);
+        this.applyHit('local', p, g.player.controller.yaw, g.player.cam.yaw, this.tid, STRIKE.contactSlack);
       }
       if (this.t >= (this.tid ? STRIKE_DUR : STRIKE_WHIFF_DUR)) return this.end();
     }
@@ -189,7 +190,7 @@ export class StrikeController {
     this.g.player.pose.melee = -1;
     const again = this.queued;
     this.queued = false;
-    if (again) this.begin();
+    if (again && this.pickTarget() !== '') this.begin();
   }
 
   private find(id: string): { readonly id: string; readonly pos: Vector3; readonly yaw: number } | null {

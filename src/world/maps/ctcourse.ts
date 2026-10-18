@@ -57,11 +57,23 @@ function mark(b: LevelBuilder, x: number, z: number, w = 1.6, d = 1.6, color = W
   b.box(x, 0.01, z, w, 0.02, d, color, 0, 0, false);
 }
 
+/** The panel text of each station (an optional read: what to do here). */
+export const PANEL_TEXT: readonly string[] = [
+  'Step onto the green pad at the end with your partner to go on',
+  'Wall: crouch + Co-op Action boosts your partner up; they open the far door',
+  'Camera: one holds the console while the other walks through',
+  'Laser: stand on a plate each, together, to open the door',
+  'Annex: boost up, relay your partner, press both roof plates, then hack',
+  'Scanners: press both within a second of each other',
+  'Wire wall: one holds the rope post while the other crosses',
+  'Last wall: one holds the lift, then both into the lit zone',
+];
+
 function courseDef(): CourseDef {
   const gates = (n: number): GateDef[] => {
     switch (n) {
       case 1:
-        return [1, 2, 3].map((k): GateDef => ({ kind: 'pickup', id: `g-p${k}`, switchId: `sw-p${k}`, flag: `panel-${k}`, perPlayer: false }));
+        return [];
       case 2:
         // B2: the door is bolted from the far side; the boosted player opens it for the partner (CT's first wall)
         return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST + 0.9, DOOR_Z0 + DOOR_W / 2] }];
@@ -78,7 +90,7 @@ function courseDef(): CourseDef {
     }
   };
   const radio: Record<number, string> = {
-    1: 'Marlow Yard. Read the panels. Both of you, then through the airlock together.',
+    1: 'Marlow Yard. Both of you on the green pad at the end, then through the airlock.',
     2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
     3: 'Camera corridor. Placeholder: one holds the console, the other walks through.',
     4: 'Laser line. Placeholder plates. The partner throw replaces them.',
@@ -94,12 +106,10 @@ function courseDef(): CourseDef {
       entry: n === 1 ? 'start' : `A${n - 1}`,
       exit: n === 8 ? 'end' : `A${n}`,
       squad: [],
-      gates: gates(n),
+      // one optional panel per station (F1b, Michael's pick): it only says what to do, no gate waits on it
+      gates: [...gates(n), { kind: 'pickup', id: `g-p${n}`, switchId: `sw-p${n}`, flag: `panel-${n}`, perPlayer: false }],
       radio: [{ at: 'enter', text: radio[n]! }],
-      drills:
-        n === 1
-          ? [{ id: 'd-panels', verb: 'switch', who: 'both', name: 'read the panels', text: 'Read the three wall panels. Press each with {Y:traverse}.', marker: 'sw-p1', count: 3 }]
-          : [],
+      drills: [],
       elements: [],
     });
   }
@@ -172,11 +182,10 @@ export const ctcourse: MapDef = {
       }
     }
 
-    // 1 Panels: three wall panels on the north fence, striped squares under them
-    for (let k = 1; k <= 3; k++) {
-      const x = 4 * k;
-      const text = ['Panel 1: crouch + Co-op Action is a leg-up, stand is a throw', 'Panel 2: a thrown partner is stranded until you act', 'Panel 3: scanners and the rope need both of you'][k - 1]!;
-      devices[`sw-p${k}`] = dev(x, CT_W - 0.4, NORTH, text);
+    // One optional panel at the start of each station (F1b): it says what to do; the station's action opens the way.
+    for (let n = 1; n <= 8; n++) {
+      const x = bayX(n - 1) + 3.5;
+      devices[`sw-p${n}`] = dev(x, CT_W - 0.4, NORTH, PANEL_TEXT[n - 1]!);
       b.box(x, 1.4, CT_W - 0.2, 1.4, 0.9, 0.08, '#20252b', 0, 0, false);
       mark(b, x, CT_W - 2);
     }
