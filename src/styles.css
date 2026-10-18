@@ -230,6 +230,9 @@ body {
 .dialog-screen {
   align-items: center;
   justify-content: center;
+  /* above the screen it covers: the menu labels' z-index 1 drew over Brightness and Quit to menu (Michael's /ct/
+     playtest). Only dialogs: a stacking context on every screen slowed software-GL frames (e2e-menus slider repeat) */
+  z-index: 2;
 }
 
 /* ---------- hints ---------- */

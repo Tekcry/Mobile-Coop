@@ -10,10 +10,17 @@ docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Micha
 | 3 | Co-op lobby (2 players) and dialogs / on-screen keyboard (06, 09) | Done (SLICE3.md) |
 | 4 | Missions, briefing, issued-kit view (07, 08; fixed kits D-11) | Done (SLICE4.md) |
 | 5 | Pause (blur, player sharp, objectives G108) and results (10) | Done (SLICE5.md); rerun: e2e-menus, e2e-mouse, e2e-pad pass; e2e-coop known flaky (offline state step) |
-| 6 | Cinematic background with Wren's poses (11-13) | After the operators PR (Wren) merges |
+| 5b | Michael's /ct/ playtest notes (docs/ct-prototype/PLAYTEST-1.md): Brightness and Quit to menu drew under the menu labels (z-index 1); fix: `.dialog-screen { z-index: 2 }` (a stacking context on every screen slowed software-GL frames and broke e2e-menus' slider repeat). Removed the dead rows Aim assist, Camera recentres, Grab (settings fields kept, no save change). Remap follows CT-CONTROLS.md via the bind tables: no menu work | Done 2026-10-19; e2e-menus and smoke pass |
+| 6 | Cinematic background with Wren's poses (11-13) | Wren merged (PR #5); running 2026-10-19 overnight, prototype quality (CLAUDE.md "Current goal") |
 
 Resume: `git status` in C:\NightShift\Mobile-Coop-menu shows a running slice's uncommitted work; finish it from its
 SLICE<n>.md / the brief above, check, commit, push, then the next slice.
+
+## Update 2026-10-19 (night)
+Wren merged (PR #5, master 9295c65). Michael's goal is in master's CLAUDE.md "Current goal" (PR #6): co-op training
+prototype first, no refining before his playtest. Overnight: CT Core Build on the desktop (feature/ct-prototype; Michael
+walks /ct/ at 10:00, no ct-movement pushes from 09:30), the weapons job on the laptop (feature/weapons, stops about
+09:00), this menu job: fix slice 5b, master merged in, then slice 6. Item 1 below is done (merged by Michael).
 
 ## Main session coordination (resume point, 2026-10-18 evening)
 The "Night Shift | v4 Rebuild" session coordinated the consolidation (4.0.0, PR #3), the research (PR #4, G124-G160),
