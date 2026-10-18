@@ -64,3 +64,5 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - B5 check polish (B5-CHECK.md, PASS): a NaN floor at a map edge still offers the hang-down; the host does not
   re-raycast the claimed hang point; stale `teamPairs` entries; the holder can stay frozen after the partner drops on
   the lost-holder timeout (walkthrough: known issue, B / restart frees); narrow hatch probe.
+- B6 check polish (B6-CHECK.md, PASS): a `?? 100` hp fallback skips the floor; the first finisher pays 10 HP if the
+  partner never starts (by design, walkthrough note); a damageMul above 1 would break the 1 HP floor.
