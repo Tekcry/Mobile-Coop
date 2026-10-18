@@ -153,8 +153,9 @@ describe('graph', () => {
     j.crouch = 1;
     j.kneel = true;
     for (let k = 0; k < 90; k++) h.update(1 / 60, j);
-    expect(h.out.stance.rZ).toBeLessThan(-0.2);
-    expect(h.out.stance.lZ).toBeGreaterThan(0.2);
+    // (P1c) no idle kneel: the footage holds a two-foot squat (POSTURE.kneel = false)
+    expect(Math.abs(h.out.stance.rZ)).toBeLessThan(0.2);
+    expect(Math.abs(h.out.stance.lZ)).toBeLessThan(0.2);
   });
   it('(step 21, A10) heel strikes add no pelvis kick: one loading dip per step from the clip', () => {
     const g = new AnimGraph(proportions());

@@ -35,7 +35,7 @@ The held pistol jammer (G152) is kit work after core feel, unless it touches the
 - Implementer: Sonnet, medium (G158, Michael's "quicker prototype"). Report `docs/ct-prototype/<AREA>.md`. Checks:
   `npm run check`, area e2e on port 4193.
 - Co-op parity every area: remotes pose from MoveState, no rubber-banding; a wire change bumps `PROTOCOL_VERSION` once
-  per change set (currently 14).
+  per change set (now 17 here; feature/anim-cleanup uses 18 for its left-shoulder bit, so this branch's next wire change takes 19).
 - Prototype pass first (Michael, 2026-10-18): each area built once, light checks (see RULES), stop after each area for a
   short play (keep, change or drop), notes in `LOG.md`. Tuning and Wren posture in a second pass after all five areas.
 

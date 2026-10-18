@@ -52,3 +52,6 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - F1b check polish (F1B-CHECK.md, PASS): noticeOpenDoors iterates a Set every 0.25 s (iterator allocation); a client
   sees a host-held door at up to 0.7 swing as fully open; a fully open door snaps to 0.7 if a peek starts on it; a
   pull-back to the crack can re-add the door body with a guard in the doorway.
+- B3 check polish (B3-CHECK.md, PASS): `zoneSet` in ctDevices.ts is never cleared, so after a bay-3 restart the
+  station 3 door may not reopen (latent: needs both players downed; fix with B8 revive / restart); `targets.find`
+  closure while the jammer is held (hot path); client-reported speed trusted for the stand-still rule.

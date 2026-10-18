@@ -340,12 +340,12 @@ export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.
 export const READY_HANDS = {
   x: 0.06,
   xMove: 0.03,
-  xCrouch: 0.05,
+  xCrouch: 0.03,
   xSprint: 0.03,
   z: 0.05,
-  zCrouch: 0.04,
+  zCrouch: 0,
   flex: 0.31,
-  flexCrouch: 0.6,
+  flexCrouch: 0.45,
   flexSprint: 1.5,
   swing: 0.06,
   swingMax: 0.15,
@@ -470,6 +470,8 @@ export class AnimGraph {
   private recoil = new Spring();
   /** (P1 posture) Weight of the Chaos Theory carriage lean (grounded, off walls and traversals), eased. */
   private carriageS = 1;
+  /** (P1c) Armed-carriage hunch scale (eased): near upright when holstered. */
+  private hunchS = 0.4;
   /** (P1 posture) The carriage lean (rad), rate-limited. */
   private leanS = 0;
   private support = 0;
@@ -648,7 +650,8 @@ export class AnimGraph {
     // --- kneel: one knee down when crouched and still (eased over kneelTime)
     // (step 11) never at a wall: the crouched flat-back stance is the wall's own pose (a kneel there moves a foot the
     // remote copy, posed from MoveState without the kneel timer, does not)
-    const wantKneel = i.kneel && crouchK > 0.5 && !i.wall;
+    // (P1c) CT footage has no idle kneel (a deep two-foot squat holds): off unless POSTURE.kneel
+    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.5 && !i.wall;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
@@ -775,7 +778,9 @@ export class AnimGraph {
     if (carryK > 0) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
       // (step 11) with the back to a wall the back stays flat on it: the hunch eases out with the wall weight
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW);
+      // (P1c) CT stands upright (spine 3-5 deg) when holstered; only a weapon in hand keeps a light forward carriage
+      this.hunchS = approach(this.hunchS, i.armed ? POSTURE.hunchArmed : POSTURE.hunchHolstered, 0.25, dt);
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW) * this.hunchS;
       // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
       const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK * (1 - postureW);
       src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.aim * this.raiseS + crouchBend;
@@ -1216,7 +1221,7 @@ const TURN_DUTY = 0.52;
  * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
  * the lean changes at most `rate` rad/s.
  */
-export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, kneel: false, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
 const LEAN_MAX = 0.09;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;
