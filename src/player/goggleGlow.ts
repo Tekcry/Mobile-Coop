@@ -11,6 +11,11 @@ const BASES = new WeakMap<Scene, Mesh>();
 /** Lens glow colours: always on (dim), brighter while a vision mode is on. */
 export const GLOW_IDLE = new Color4(0.16, 0.62, 0.2, 1);
 export const GLOW_VISION = new Color4(0.42, 1, 0.36, 1);
+/** Partner beacon (G135, CT): player 1's lamp is blue, player 2's red; the lamp reads at range as the partner marker. */
+export const BEACON = [
+  { idle: new Color4(0.12, 0.3, 1, 1), on: new Color4(0.35, 0.55, 1, 1) },
+  { idle: new Color4(1, 0.1, 0.08, 1), on: new Color4(1, 0.4, 0.3, 1) },
+] as const;
 
 function base(scene: Scene): Mesh {
   let b = BASES.get(scene);

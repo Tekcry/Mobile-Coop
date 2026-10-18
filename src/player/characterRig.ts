@@ -1,6 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
-import { addGlow, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
+import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -1013,6 +1013,20 @@ export class CharacterRig {
   private readonly lenses: InstancedMesh[] = [];
   private readonly glows: InstancedMesh[] = [];
   private lensOn = false;
+  /** Partner beacon colour (0 = player 1 blue, 1 = player 2 red; -1 = the default green). */
+  private beacon = -1;
+
+  /** (A5, G135) this operator's lamp colour: 1 = blue, 2 = red (render only; the remote knows it from `PlayerInfo.host`). */
+  setBeacon(player: 1 | 2): void {
+    this.beacon = player - 1;
+    this.paintGlow();
+  }
+
+  private paintGlow(): void {
+    const b = this.beacon >= 0 ? BEACON[this.beacon] : null;
+    const c = this.lensOn ? (b ? b.on : GLOW_VISION) : b ? b.idle : GLOW_IDLE;
+    for (const g of this.glows) g.instancedBuffers.color = c;
+  }
 
   /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision) is on. */
   setLensGlow(on: boolean): void {
@@ -1020,7 +1034,7 @@ export class CharacterRig {
     this.lensOn = on;
     const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
     for (const m of this.lenses) m.instancedBuffers.color = c;
-    for (const g of this.glows) g.instancedBuffers.color = on ? GLOW_VISION : GLOW_IDLE;
+    this.paintGlow();
     if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 

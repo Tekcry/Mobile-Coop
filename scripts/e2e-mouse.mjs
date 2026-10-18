@@ -314,11 +314,11 @@ try {
     });
     assert(missed.length === 0, `every KBM verb raises its action (${KBM.length} keys; missed: ${missed.join(', ') || 'none'})`);
   }
-  // (step 14) the KBM vision key (N) cycles off -> night -> thermal -> electro -> off; post.vk follows
+  // (step 14) the KBM vision key (N) cycles off -> thermal -> electro -> night -> off (CT order); post.vk follows
   {
     const vis = () => page.evaluate(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
     const seq = [];
-    for (const want of ['night', 'thermal', 'electro', 'off']) {
+    for (const want of ['thermal', 'electro', 'night', 'off']) {
       await page.keyboard.press('KeyN');
       let r = await vis();
       for (let i = 0; i < 60 && (r.mode !== want || r.shown !== want); i++) {
@@ -328,7 +328,7 @@ try {
       seq.push(r);
     }
     const vks = seq.map((r) => `${r.mode}/${r.vk}`).join(' ');
-    assert(vks === 'night/0 thermal/1 electro/2 off/0', `N cycles the vision modes, post.vk follows (${vks})`);
+    assert(vks === 'thermal/1 electro/2 night/0 off/0', `N cycles the vision modes, post.vk follows (${vks})`);
   }
   await page.evaluate(() => document.exitPointerLock());
   await page.waitForTimeout(300);

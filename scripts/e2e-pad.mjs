@@ -319,8 +319,8 @@ try {
   await press(page, BTN.UP);
   await page.waitForTimeout(150);
   const v1 = await G(() => window.__app.current.vision.mode);
-  assert(v0 === 'off' && v1 === 'night', `D-pad up: goggles (${v0} -> ${v1})`);
-  // (step 14) D-pad up cycles off -> night -> thermal -> electro -> off; the post pass's vision kind follows at mid-flip
+  assert(v0 === 'off' && v1 === 'thermal', `D-pad up: goggles (CT order, instant) (${v0} -> ${v1})`);
+  // (step 14) D-pad up cycles off -> thermal -> electro -> night -> off (CT order, an instant cut)
   {
     const vis = () => G(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
     const until = async (want) => {
@@ -335,13 +335,13 @@ try {
     // (let the held-View release settle before the next tap)
     await page.waitForTimeout(400);
     const start = (await vis()).mode;
-    if (start !== 'night') throw new Error(`vision start ${start}`);
-    for (const want of ['thermal', 'electro', 'off']) {
+    if (start !== 'thermal') throw new Error(`vision start ${start}`);
+    for (const want of ['electro', 'night', 'off']) {
       await press(page, BTN.UP);
       seq.push(await until(want));
     }
-    const ok = seq[0].mode === 'thermal' && seq[0].vk === 1 && seq[1].mode === 'electro' && seq[1].vk === 2 && seq[2].mode === 'off' && seq[2].vk === 0;
-    assert(ok, `D-pad up x3 more: thermal (vk 1) -> electro (vk 2) -> off (vk 0) (${JSON.stringify(seq)})`);
+    const ok = seq[0].mode === 'electro' && seq[0].vk === 2 && seq[1].mode === 'night' && seq[1].vk === 0 && seq[2].mode === 'off' && seq[2].vk === 0;
+    assert(ok, `D-pad up x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) (${JSON.stringify(seq)})`);
   }
   // (step 09) holstered unless aiming: LT draws (<= 0.45 s), RT then fires; release holsters (<= 0.45 s); RT while
   // holstered does nothing (fixed steps, the pad polled every step)

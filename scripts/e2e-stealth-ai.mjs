@@ -894,6 +894,7 @@ try {
   });
 
   await scen('vision', async () => {
+    // (A5, G100) CT order, instant: thermal, electro, night, off; each press shows at once (no flip)
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
@@ -904,29 +905,24 @@ try {
       t.spawn('grunt', 0, -15, 0);
       t.tp(0, -7, Math.PI);
       t.step(0.2);
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
-      const night = { mode: v.mode, nv: g.post['nv'], hud: document.querySelector('.tac-vision')?.textContent };
-      st.tap('vision');
-      t.step(0.1);
-      g.frameUpdate(0.1, 1);
-      // (step 14) the second press: thermal, then electro, then off
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
+      const press = () => {
+        st.tap('vision');
+        t.step(0.05);
+        g.frameUpdate(0.05, 1);
+      };
+      press();
       const thermal = { mode: v.mode, vk: g.post.visionKind, nv: g.post['nv'] };
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
+      press();
       const electro = { mode: v.mode, vk: g.post.visionKind };
-      st.tap('vision');
-      t.step(0.4);
-      g.frameUpdate(0.4, 1);
-      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind, thermal, electro };
-      return { night, off, nvOff: g.post['nv'] };
+      press();
+      const night = { mode: v.mode, nv: g.post['nv'], hud: document.querySelector('.tac-vision')?.textContent };
+      press();
+      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent, vk: g.post.visionKind };
+      return { thermal, electro, night, off, nvOff: g.post['nv'] };
     });
-    assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.off.thermal.mode === 'thermal' && r.off.thermal.vk === 1 && r.off.thermal.nv < 0.01 && r.off.electro.mode === 'electro' && r.off.electro.vk === 2, `then thermal, then electro (${JSON.stringify(r.off)})`);
+    assert(r.thermal.mode === 'thermal' && r.thermal.vk === 1 && r.thermal.nv < 0.01, `the goggles button: thermal first, at once (${JSON.stringify(r.thermal)})`);
+    assert(r.electro.mode === 'electro' && r.electro.vk === 2, `then electro (${JSON.stringify(r.electro)})`);
+    assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `then night vision (${JSON.stringify(r.night)})`);
     assert(r.off.mode === 'off' && r.off.hud === '' && r.off.vk === 0, `then off (${JSON.stringify(r.off)})`);
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });

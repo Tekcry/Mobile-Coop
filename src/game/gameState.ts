@@ -72,6 +72,7 @@ import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
+import { DoorGhosts } from '../vfx/doorGhosts';
 import { VISION_GAIN } from '../world/darkCurve';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
@@ -347,6 +348,8 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
+    // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
+    this.player.rig.setBeacon(this.puppet ? 2 : 1);
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -1805,24 +1808,22 @@ export class GameState implements AppState {
   private visionFrame = 0;
   private electroParts: InstancedMesh[] = [];
   private electroK = 0;
+  private doorGhosts: DoorGhosts | null = null;
 
   /** Goggles per fixed step: the button cycles the modes. */
-  private updateVision(dt: number): void {
+  private updateVision(_dt: number): void {
     const v = this.vision;
     if (this.app.input.state.pressed('vision') && this.player.alive && !this.doorMenu.open) {
       v.cycle();
       this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
     }
-    v.step(dt);
   }
 
   /** Goggles per render frame: night vision blend, flip, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
-    // (Step 4b fix round 3) no fade: the goggles flip across the view and night vision switches under them
-    this.post.setFlip(v.flipCentre);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
     this.nightBloom.k = v.night;
@@ -1835,6 +1836,9 @@ export class GameState implements AppState {
     this.post.setVisionKind(kind);
     this.paintHeat(kind === 1);
     this.paintElectro(kind === 2 ? 1 : 0);
+    // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
+    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
+    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies);
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? 1 : 0));
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);

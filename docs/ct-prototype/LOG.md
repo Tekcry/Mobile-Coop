@@ -63,3 +63,12 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Checks: lint 0, vitest 1458 pass, build ok; e2e smoke, takedown, coop (client strike denied passed), stealth-ai, pad
   pass; e2e-stealth fails at the pre-existing camera free-orbit step. Not run: netmove, enemies.
 - Status: A4 BUILT, awaiting Michael's play.
+
+## 2026-10-18 - A5 goggles (prototype)
+- Built (Sonnet): instant cut off, thermal, electro, night, off (0.2 s flip gone); CT thermal ramp, grain per G101;
+  closed-door silhouettes in thermal within 14 m (`src/vfx/doorGhosts.ts`, render-only); partner lamp blue for player
+  1, red for player 2 (from `PlayerInfo.host` / net role, no wire change, protocol 15). G73 brow / eyes stubbed (Wren).
+  Report `A5-GOGGLES.md`.
+- Checks: lint and tsc clean, vitest 1454 pass, build ok; e2e smoke, pad, coop, stealth-ai, darkness (after a script
+  fix) pass; e2e-mouse not run. GPU look pending PC run.
+- Status: A5 BUILT. Movement areas A1-A5 all built once (prototype pass); next merge feature/menu, then phase 2 bunker.

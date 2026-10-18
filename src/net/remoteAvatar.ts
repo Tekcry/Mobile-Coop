@@ -100,6 +100,8 @@ export class RemoteAvatar {
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
     this.rig.carrier = true;
+    // (A5, G135) partner beacon: the host is player 1 (blue), a joiner player 2 (red); both ends hold `info.host`
+    this.rig.setBeacon(info.host ? 1 : 2);
     for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pouches = new GrenadePouches(world.parts, this.rig);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
