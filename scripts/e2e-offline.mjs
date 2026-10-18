@@ -3,6 +3,8 @@
 //  2. With the network cut, a reload (and a deep link with ?autostart) still boots and plays.
 //  3. An old (v1) save written straight into IndexedDB is migrated on boot, backed up, and kept after reload.
 //  4. Co-op shows its offline state instead of blocking anything.
+//  5. (operators 11e fix r1, A109) Wren offline: one online start that reaches the menu with the worker in control
+//     leaves her play LODs in the `operators` cache, and the offline match's player has her drawn (LOD2 loaded).
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -43,6 +45,33 @@ try {
     await booted();
   }
   assert(await G(() => !!navigator.serviceWorker.controller), 'page is controlled by the service worker');
+  // (A109) once the worker controls the page, the game warms Wren's play LODs into its runtime cache (`?gfx=min`:
+  // LOD2; the menu's own fetch ran before the worker took control, so it never reached the cache)
+  // (the worker's activation can reload the page once - vite-plugin-pwa reloads when the worker that activates came
+  // from another page load, e.g. the reload above - and a reload ends a wait: the warm runs again on the new page,
+  // so the wait is retried until its one 60 s deadline)
+  const warmBy = Date.now() + 60000;
+  let warm = null;
+  let warmErr = '';
+  while (!warm && Date.now() < warmBy) {
+    warm = await page.waitForFunction(async () => {
+      if (!(await caches.has('operators'))) return null;
+      const keys = await (await caches.open('operators')).keys();
+      const lod2 = keys.map((r) => r.url).find((u) => /\/wren-lod2[^/]*\.glb$/.test(u));
+      return lod2 ? { lod2, n: keys.length } : null;
+    }, null, { timeout: Math.max(1000, warmBy - Date.now()), polling: 500 }).then((h) => h.jsonValue()).catch(async (e) => {
+      warmErr = String(e).split('\n')[0];
+      await booted().catch(() => {});
+      return null;
+    });
+  }
+  if (!warm && warmErr) console.log(`  (warm wait: ${warmErr})`);
+  assert(!!warm, `Wren's LOD2 is in the offline cache after one online start (${warm ? `${warm.n} entr${warm.n === 1 ? 'y' : 'ies'}` : 'missing'})`);
+  // the menu body's load is done before the network goes (nothing in flight to cut off)
+  await page.waitForFunction(() => {
+    const f = window.__app?.current?.figure ?? null; // the menu stage's preview body (MenuState)
+    return !f || (f.loaded & 8) !== 0;
+  }, null, { timeout: 30000 }).catch(() => {});
 
   console.log('offline boot');
   await ctx.setOffline(true);
@@ -57,6 +86,12 @@ try {
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `a match runs offline (${alive} enemies)`);
+  // (A109) the player's body is Wren, loaded from the cache with no network (LOD2 = bit 1 << 3)
+  const wren = await page.waitForFunction(() => {
+    const f = window.__app.current.player.figure;
+    return (f.loaded & 8) !== 0 ? { loaded: f.loaded, current: f.current } : null;
+  }, null, { timeout: 30000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
+  assert(!!wren, `the offline player is Wren, drawn from the cache (loaded ${wren ? wren.loaded.toString(2) : 'none'}, LOD2 bit set)`);
   // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
   await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
   await booted();
@@ -64,6 +99,10 @@ try {
   await G(() => window.__app.loop.stepHeadless(3));
   const inf = await G(() => ({ obj: window.__app.current.hud['objective'].textContent, guards: window.__app.current.enemyMgr.alive }));
   assert(inf.obj.length > 0 && inf.guards > 0, `an Infiltration mission runs offline ("${inf.obj}", ${inf.guards} guards)`);
+  // (A109) Wren from the cache here too; her load (the KTX2 transcode runs on the main thread) is done before the
+  // backgrounding check, so that check times the pause, not the transcode
+  const infWren = await page.waitForFunction(() => (window.__app.current.player.figure.loaded & 8) !== 0, null, { timeout: 30000, polling: 250 }).then(() => true).catch(() => false);
+  assert(infWren, 'the Infiltration player is Wren, drawn from the cache (LOD2)');
 
   console.log('backgrounding');
   await G(() => {

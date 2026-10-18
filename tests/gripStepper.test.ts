@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GripStepper, type GripConfig } from '../src/player/gripStepper';
-import { findJumpTarget, ledgeContinuation, generateLedges, makeLedge, TraversalAnchors, type AnchorBox, type Ledge, type PipeHorizontal } from '../src/world/anchors';
+import { AttachGrips, ARM_SWEEP_RATE, minReachSwing } from '../src/player/attachGrips';
+import { proportions } from '../src/player/proportions';
+import { findJumpTarget, ledgeContinuation, generateLedges, makeLedge, TraversalAnchors, type AnchorBox, type Ladder, type Ledge, type PipeHorizontal } from '../src/world/anchors';
 
 const lip = (): GripConfig => ({ offL: -0.22, offR: 0.22, slack: 0.12, swingTime: 0.13, lead: 1, grid: 0, gridOrigin: 0, min: 0, max: 10 });
 
@@ -135,5 +137,28 @@ describe('ledge continuation and jumps', () => {
     const pipe = a.add<PipeHorizontal>({ kind: 'pipeH', a: { x: 0.3, y: 3.3, z: 15 }, b: { x: 0.3, y: 3.3, z: 18 }, hangHeight: 3.3, radius: 0.05 });
     const up = findJumpTarget(a, { x: 0, y: 2.3, z: 16 }, held.id, 1, 0, 1)!;
     expect(up.anchor).toBe(pipe);
+  });
+});
+
+describe('climb reach speed (operators step 11e)', () => {
+  const zero = () => ({ x: 0, y: 0, z: 0, w: 0 });
+  it("a ladder sprint's hand swing never outruns the rig's arm (Wren 1.68 m and the 1.75 m rig)", () => {
+    const anchors = new TraversalAnchors();
+    const ladder = anchors.add<Ladder>({ kind: 'ladder', base: { x: 0, y: 0, z: 0 }, top: { x: 0, y: 4, z: 0.45 }, facing: 0, rung: 0.3, width: 0.5 });
+    for (const height of [1.68, 1.75]) {
+      const g = new AttachGrips();
+      g.setup(ladder, 0.3, 1, height);
+      const rig = { reachL: zero(), reachR: zero(), plantL: zero(), plantR: zero(), height };
+      // the longest reach (slack + lead, rounded up a rung) at the arm's planned sweep rate
+      const min = minReachSwing(g.hands.cfg.slack * (1 + g.hands.cfg.lead) + 0.15, height);
+      const arm = proportions('average', height);
+      expect((1.5 * 0.6225) / (arm.upperArm.len + arm.forearm.len) / min).toBeCloseTo(ARM_SWEEP_RATE, 0);
+      g.update(1 / 120, ladder, 0.3, 1.5, 1, 1, rig); // sprint (1.5 m/s)
+      expect(g.hands.cfg.swingTime).toBeGreaterThanOrEqual(min - 1e-9);
+      expect(g.hands.cfg.swingTime).toBeGreaterThan(0.14);
+      g.update(1 / 120, ladder, 0.3, 0.9, 1, 1, rig); // walking pace: unchanged (0.18 s)
+      expect(g.hands.cfg.swingTime).toBeCloseTo(0.18, 5);
+    }
+    expect(minReachSwing(0.6, 1.68)).toBeGreaterThan(minReachSwing(0.6, 1.75));
   });
 });

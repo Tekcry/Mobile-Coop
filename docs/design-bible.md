@@ -726,15 +726,18 @@ and briefing crew, not playable (G112).
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
   weapons follow later from the same pipeline. Voxels are only the way the world is drawn. That branch keeps its own
   decisions and open items (G75).
-- **Wren integration:** the core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch,
-  then the weapon step, G70). The shared-body proportion fixes apply to every character when Wren goes in, and movement
-  and climbing tests re-run (G72).
+- **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
+  G70's "after the prototype, behind a dev switch"); the core-feel job tunes movement on her (G150); then the weapon
+  step. The shared-body proportion fixes apply to every character since Wren went in, and movement and climbing tests
+  re-run (G72).
 - **Sizes:** Wren stays 1.68 m (G74). Operators differ in look and height only: one movement set, one capsule, one camera
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with
   full glow when on (G73). The glow is visual only, never a light, never seen by guards; it is how a player finds their
   operator in darkness (L7). Wren's goggle light is green, Moth's amber; both must stay distinguishable for common colour
-  blindness. The goggle light colour is also the partner beacon (G135).
+  blindness. The goggle light colour is also the partner beacon (G135). While both players are Wren (G123) the colour
+  follows the player, not the operator: player 1 (the host, and solo) green, player 2 cyan (ops A112: amber is the
+  HUD's exposure warning and green / amber is the pair red-green colour blindness confuses).
 - **Choosing:** each player picks a different operator; the host resolves duplicates. Cosmetics stay parked.
 
 | Callsign | Role | Goggle light |
@@ -859,7 +862,7 @@ Every feature works smoothly in 2-player co-op, to 5.9 C11:
 
 - Reference-game names (G6, G114), story, characters, logos, UI art or art assets (G5).
 - External art files, except CC0 textures (5.16); the operators pipeline's sources are decided on `feature/operators`
-  (G75). Audio may use CC0 recordings for any sound (S7).
+  (G75): a CC0 base human body, built into each operator offline by in-repo Blender scripts and bundled. Audio may use CC0 recordings for any sound (S7).
 - Random patrols that defeat planning; forced timers in stealth sections; world waypoints; kill cams; monetisation.
 - Voiced story lines now: they are a later idea (G82). Voice chat is not out of scope: it comes after the prototype
   (G156, 5.2 S10).

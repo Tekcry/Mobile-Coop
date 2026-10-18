@@ -13,7 +13,7 @@
 //   E2E_GPU=1 (Michael's PC only): the hardware GPU (headless, ANGLE D3D11) and the LOCAL budget profile below: no VM
 //   speed scaling, the render's JS counted (main thread = sim p95 + render JS) and the rendered frame pacing checked.
 //   Cloud runs (software GL) must not claim a perf result: they mark perf "pending PC run".
-import { launch, frames, GPU } from './e2e-lib.mjs';
+import { launch, frames, GPU, waitOperator } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? `http://localhost:${process.env.E2E_PORT ?? 4173}/`;
@@ -68,6 +68,14 @@ const { browser, page, errors } = await launch({
   ...(desktop ? { viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
+// (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
+await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
+// (11e fix r1) never measure a page with no Wren drawn: a timeout fails the run, with or without --budget
+if ((await waitOperator(page)) < 0) {
+  console.log('over budget: Wren not loaded (her LOD0 never reached the screen within 120 s; nothing was measured)');
+  await browser.close();
+  process.exit(1);
+}
 await frames(page, 10);
 await page.evaluate((stealth) => {
   const app = window.__app;

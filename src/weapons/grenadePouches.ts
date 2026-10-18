@@ -14,7 +14,11 @@ export class GrenadePouches {
   /** Grenades shown. */
   count = -1;
 
-  constructor(lib: PartLibrary, rig: CharacterRig, count = GRENADE_POUCHES) {
+  /**
+   * `drawn` false (operators 11e): a player rig wearing Wren, whose own kit carries the throwables; the pouches are kept
+   * (count bookkeeping) but never drawn.
+   */
+  constructor(lib: PartLibrary, rig: CharacterRig, count = GRENADE_POUCHES, private readonly drawn = true) {
     const p = rig.p;
     const z = p.pelvis.d / 2 + 0.02;
     for (let i = 0; i < GRENADE_POUCHES; i++) {
@@ -30,13 +34,14 @@ export class GrenadePouches {
       this.parts.push(pouch, g);
       this.grenades.push(g);
     }
+    if (!drawn) for (const m of this.parts) m.setEnabled(false);
     this.setCount(count);
   }
 
   setCount(n: number): void {
     if (n === this.count) return;
     this.count = n;
-    for (let i = 0; i < this.grenades.length; i++) this.grenades[i]!.setEnabled(i < n);
+    if (this.drawn) for (let i = 0; i < this.grenades.length; i++) this.grenades[i]!.setEnabled(i < n);
   }
 
   dispose(): void {

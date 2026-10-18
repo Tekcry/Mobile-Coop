@@ -5,10 +5,11 @@
  */
 import { hyp2 } from '../core/mathx';
 import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';
-import { attachPose, PIPE_HIPS, type AttachPose } from './attach';
+import { attachLift, attachPose, PIPE_HIPS, type AttachPose } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
 import { RAPPEL, SPLIT } from '../config/movement';
+import { proportions } from './proportions';
 
 const RAPPEL_STANDOFF = RAPPEL.standoff;
 
@@ -17,6 +18,20 @@ export const HAND_SWING = 0.2;
 export const FOOT_SWING = 0.24;
 /** Dropping through a ceiling vent: the share of the exit spent lowering on the hands. */
 export const VENT_LOWER_K = 0.4;
+/**
+ * (operators step 11e, A103) Peak arm sweep rate (rad/s) a climbing reach is planned for: half the rig's shoulder joint
+ * limit (characterRig JOINT_RATE shL / shR 22 rad/s), as the torso dips with the feet at the same time. A smoothstep
+ * swing of angle theta peaks at 1.5 theta / T, so a reach of `travel` m on an arm of `arm` m takes at least
+ * 1.5 * (travel / arm) / ARM_SWEEP_RATE s. Wren's shorter arm (1.68 m rig) and G72's lower shoulder made the sprint's
+ * 0.11 s reach outrun the joint limit (e2e-traverse ladder sprint 19.5 cm off the grip).
+ */
+export const ARM_SWEEP_RATE = 11;
+
+/** The shortest hand swing (s) for a climb reach of `travel` m on a rig `height` m tall (its arm from proportions). */
+export function minReachSwing(travel: number, height: number): number {
+  const p = proportions('average', height);
+  return (1.5 * travel) / (p.upperArm.len + p.forearm.len) / ARM_SWEEP_RATE;
+}
 
 /** A world target on the rig (palm / sole point and its weight). */
 export interface GripTarget {
@@ -42,11 +57,20 @@ export interface VentExit {
   kinY: number;
 }
 
+/** Moves grip target `o` the share `k` of the way to `t` (in place). */
+function lerpTarget(o: GripTarget, t: GripTarget, k: number): void {
+  o.x += (t.x - o.x) * k;
+  o.y += (t.y - o.y) * k;
+  o.z += (t.z - o.z) * k;
+}
+
 export class AttachGrips {
   readonly hands = new GripStepper({ offL: -0.2, offR: 0.2, slack: 0.14, swingTime: HAND_SWING, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 1 });
   readonly feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1, overlap: false });
   /** Foot plants fade out over 0.2 s when the anchor has none (a drainpipe onto a lip): no snapping legs. */
   private plantFade = 0;
+  /** (step 11e) Ladder / drainpipe: the shortest hand swing the rig's arm can follow (`minReachSwing`). */
+  private handSwingMin = 0;
   private ap: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
   private dp = { x: 0, y: 0, z: 0, dx: 0, dz: 1 };
   /** (3.2.0) Horizontal pipe sub-state: settled mode, or a transition from -> to at progress `pipeK`. */
@@ -59,6 +83,13 @@ export class AttachGrips {
    *  how far the kick-out has swung the body off the wall (m). */
   u = 0;
   outOff = 0;
+  /**
+   * (G176) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
+   * weighted by the grip blend), so a body shorter than the 1.75 m gameplay height still meets its grips. The local
+   * player and a remote add it to the rig root after `update`; `release` zeroes it.
+   */
+  readonly lift = { x: 0, y: 0, z: 0 };
+  private liftB = { x: 0, y: 0, z: 0 };
   private tA = { x: 0, y: 0, z: 0, w: 0 };
   private tB = { x: 0, y: 0, z: 0, w: 0 };
   private tC = { x: 0, y: 0, z: 0, w: 0 };
@@ -74,6 +105,7 @@ export class AttachGrips {
     const k = height / 1.75;
     const h = this.hands.cfg;
     const f = this.feet.cfg;
+    this.handSwingMin = 0;
     switch (a.kind) {
       case 'pipeH': {
         // facing along the pipe: the right hand leads, the left a hand's width behind (a shuffle along it)
@@ -120,6 +152,8 @@ export class AttachGrips {
         f.gridOrigin = a.base.y;
         f.min = a.base.y + a.rung;
         f.max = a.top.y;
+        // the longest reach: a slack plus its lead, rounded up to the next rung
+        this.handSwingMin = minReachSwing(h.slack * (1 + h.lead) + a.rung / 2, height);
         break;
       case 'pipeV':
         h.offL = 1.35 * k;
@@ -136,6 +170,7 @@ export class AttachGrips {
         f.grid = 0;
         f.min = a.base.y;
         f.max = a.top.y - 1;
+        this.handSwingMin = minReachSwing(h.slack * (1 + h.lead), height);
         break;
       case 'split':
         // braced: nothing steps (no travel)
@@ -172,9 +207,9 @@ export class AttachGrips {
   update(dt: number, a: Anchor, s: number, v: number, face: number, w: number, rig: GripRig, vent: VentExit | null = null, decide = true): void {
     const body = this.body(a, s);
     if (a.kind === 'ladder' || a.kind === 'pipeV') {
-      // quicker reaches the quicker the climb (a sprint up a ladder)
+      // quicker reaches the quicker the climb (a sprint up a ladder), never quicker than the arm can sweep
       const sp = Math.max(0.9, Math.abs(v));
-      this.hands.cfg.swingTime = Math.min(HAND_SWING, 0.18 * (0.9 / sp));
+      this.hands.cfg.swingTime = Math.max(this.handSwingMin, Math.min(HAND_SWING, 0.18 * (0.9 / sp)));
       this.feet.cfg.swingTime = Math.min(FOOT_SWING, 0.22 * (0.9 / sp));
     }
     this.hands.update(dt, body, a.kind === 'duct' ? v * face : v, decide);
@@ -248,6 +283,23 @@ export class AttachGrips {
   release(rig: GripRig): void {
     rig.reachL.w = rig.reachR.w = rig.plantL.w = rig.plantR.w = 0;
     this.plantFade = 0;
+    this.lift.x = this.lift.y = this.lift.z = 0;
+  }
+
+  /** (G176) `lift` for this frame: the body's offset from the gameplay root (a pipe change blends both states'). */
+  private liftTo(a: Anchor, s: number, face: number, w: number, height: number): void {
+    const o = this.lift;
+    attachLift(a, s, face, height, o, a.kind === 'pipeH' ? this.pipeFrom : 'hands', this.u);
+    if (a.kind === 'pipeH' && this.pipeTo !== this.pipeFrom) {
+      const b = attachLift(a, s, face, height, this.liftB, this.pipeTo, this.u);
+      const k = this.pipeK * this.pipeK * (3 - 2 * this.pipeK);
+      o.x += (b.x - o.x) * k;
+      o.y += (b.y - o.y) * k;
+      o.z += (b.z - o.z) * k;
+    }
+    o.x *= w;
+    o.y *= w;
+    o.z *= w;
   }
 
   private apply(a: Anchor, s: number, face: number, w: number, dt: number, rig: GripRig, vent: VentExit | null): void {
@@ -259,6 +311,7 @@ export class AttachGrips {
     // anchors without foot plants fade the last ones out (the positions stay where they were)
     this.plantFade = Math.max(0, this.plantFade - dt / 0.2);
     fl.w = fr.w = this.plantFade;
+    this.liftTo(a, s, face, w, rig.height);
     const p = attachPose(a, s, face, rig.height, this.ap);
     const rx = Math.cos(p.yaw);
     const rz = -Math.sin(p.yaw);
@@ -294,15 +347,11 @@ export class AttachGrips {
         fr.z = this.tD.z;
         const hw0 = this.tA.w;
         this.pipeSet(a, s, face, rig.height, this.pipeTo, this.tA, this.tB, this.tC, this.tD, hL, hR, fx, fz);
-        const lerp = (o: GripTarget, t: GripTarget): void => {
-          o.x += (t.x - o.x) * k;
-          o.y += (t.y - o.y) * k;
-          o.z += (t.z - o.z) * k;
-        };
-        lerp(L, this.tA);
-        lerp(R, this.tB);
-        lerp(fl, this.tC);
-        lerp(fr, this.tD);
+        // (operators step 11e) a module function, not a per-frame closure (hot path: no allocation)
+        lerpTarget(L, this.tA, k);
+        lerpTarget(R, this.tB, k);
+        lerpTarget(fl, this.tC, k);
+        lerpTarget(fr, this.tD, k);
         const wt = this.pipeTo === 'hands' ? 0 : 1;
         L.w = R.w = w * (hw0 + (this.tA.w - hw0) * k);
         R.w *= 1 - this.aimFree;

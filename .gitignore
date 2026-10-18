@@ -8,6 +8,8 @@ dev-dist
 coverage
 test-results
 playwright-report
+/build
+__pycache__/
 .kestrel-cert/
 
 # PC pass pictures (locomotion M6)

@@ -83,7 +83,8 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art, except CC0 textures for desktop detail. CC0 recordings may be used for any sound (G58): bundled,
+- No external art, except CC0 textures for desktop detail and the CC0 base body of the operator pipeline (bible 5.14);
+  operator meshes are generated offline by in-repo scripts (Blender, headless) and bundled. CC0 recordings may be used for any sound (G58): bundled,
   never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in
   `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
@@ -155,6 +156,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
 | `docs/locomotion/` | The movement run: CT research (`CT-RESEARCH.md`), the CT prototype plan (`PROTOTYPE-PLAN.md`), the consolidation plan (`CONSOLIDATE.md`) | The CT prototype job |
 | `docs/consolidation/` | The consolidation run: audit, questions, Michael's answers, deletion logs | History of the 4.0.0 merge |
+| `docs/operators/` | The operators run (feature/operators): Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
 | `docs/training/` | The Fallow bunker run (spec, bays, features) | Bunker work |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |

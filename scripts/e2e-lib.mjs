@@ -199,6 +199,20 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
 
 export const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, SELECT: 8, START: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
 
+/**
+ * (operators 11e) Wait until the local player's Wren has `lod` loaded (1 = LOD0, 3 = LOD2; the files fetch and the KTX2
+ * textures transcode after the match starts). Returns the page's seconds since navigation start, or -1 on a timeout.
+ */
+export async function waitOperator(page, lod = 1, timeout = 120000) {
+  try {
+    // (`?gfx=min` loads LOD2 only)
+    await page.waitForFunction((b) => { const l = window.__app?.current?.player?.figure?.loaded ?? 0; return (l & b) !== 0 || (/gfx=min/.test(location.search) && (l & 8) !== 0); }, 1 << lod, { timeout, polling: 100 });
+    return page.evaluate(() => performance.now() / 1000);
+  } catch {
+    return -1;
+  }
+}
+
 /** Wait for n rendered frames (robust against slow software-GL frames). */
 export function frames(page, n = 3) {
   const bucket = warmed ? 'frames' : 'warmup';

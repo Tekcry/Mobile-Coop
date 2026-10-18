@@ -152,7 +152,8 @@ export class PlayerWeapons {
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
-    this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades);
+    // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
+    this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades, false);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.equip(0);
   }
