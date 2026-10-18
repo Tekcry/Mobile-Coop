@@ -105,6 +105,9 @@ export class MenuState implements AppState {
   private prevRadius = 1;
   private prevFov = 0.8;
   private prevOffset = 0;
+  /** The camera's up for a dutch roll (reused), and the roll it holds now. */
+  private readonly up = new Vector3(0, 1, 0);
+  private rollNow = 0;
   private readonly stageMeshes: AbstractMesh[];
   private activeSet = '';
   private snap = true;
@@ -243,17 +246,17 @@ export class MenuState implements AppState {
       this.shadows.length = 0;
       if (sh.casters > 0) {
         for (const l of this.spots.slice(0, 2)) {
-          l.shadowMinZ = 0.5;
-          if (!this.activeSet || this.activeSet === 'stage') l.shadowMaxZ = 12;
+          if (!this.activeSet || this.activeSet === 'stage') {
+            l.shadowMinZ = 0.5;
+            l.shadowMaxZ = 12;
+          }
           const g = new ShadowGenerator(Math.max(1024, sh.size), l);
           if (sh.soft) {
             g.useContactHardeningShadow = true;
             g.contactHardeningLightSizeUVRatio = 0.05;
           } else g.usePercentageCloserFiltering = true;
           g.filteringQuality = ShadowGenerator.QUALITY_HIGH;
-          g.bias = 0.0008;
-          g.normalBias = 0.01;
-          g.darkness = this.activeSet && this.activeSet !== 'stage' ? 0 : 0.1;
+          this.tuneShadow(g, !!this.activeSet && this.activeSet !== 'stage');
           const sm = g.getShadowMap();
           if (sm) {
             // every mesh but the beams and the floor itself (null list = the whole scene)
@@ -375,7 +378,8 @@ export class MenuState implements AppState {
       for (let i = 0; i < 3; i++) {
         const s = this.spots[i]!;
         this.light(s, set.lights[i]!, VOID_ORIGIN);
-        // no shadows on the close-ups: at this range the body's self-shadow turns it black (acne); polish list
+        // no shadows on the close-ups: a fitted key shadow (bias 0.004) was tried and the arm and shoulders swallowed the
+        // raking key on most pieces (H2-H6 went dark); the rim-and-key look reads better unshadowed
         s.shadowEnabled = false;
       }
       this.hemi.intensity = 0;
@@ -391,15 +395,44 @@ export class MenuState implements AppState {
         s.diffuse.set(...l.color);
         s.specular.set(0.2, 0.2, 0.2);
         s.range = 16;
+        s.shadowMinZ = 0.5;
         s.shadowMaxZ = 12;
         s.shadowEnabled = true;
       });
       this.scene.clearColor.set(0.02, 0.027, 0.043, 1);
       this.camera.fov = 0.8;
+      this.stack.lensMm = 50;
+      this.dutch(0);
       this.setGlow(1);
     }
-    for (const g of this.shadows) g.darkness = set ? 0 : 0.1;
+    for (const g of this.shadows) this.tuneShadow(g, !!set);
     this.weaponLight();
+  }
+
+  /** A dutch roll (rad) about the view axis: the camera's up turned round the line of sight. ArcRotateCamera orbits
+   *  in its up's frame, but a turn about the view axis leaves the orbit offset (along that axis) where it was. */
+  private dutch(roll: number): void {
+    if (roll === 0 && this.rollNow === 0) return;
+    this.rollNow = roll;
+    const c = this.camera;
+    const sb = Math.sin(c.beta);
+    // the view direction (camera to target)
+    const dx = -Math.cos(c.alpha) * sb;
+    const dy = -Math.cos(c.beta);
+    const dz = -Math.sin(c.alpha) * sb;
+    const cr = Math.cos(roll);
+    const sr = Math.sin(roll);
+    // Rodrigues: up' = up cos r + (d x up) sin r + d (d . up)(1 - cos r), up = +Y
+    this.up.set(-dz * sr + dx * dy * (1 - cr), cr + dy * dy * (1 - cr), dx * sr + dz * dy * (1 - cr));
+    c.upVector = this.up;
+  }
+
+  /** Shadow filtering for the stage or the void's close-ups (a larger bias at macro range keeps the self-shadow clean,
+   *  and the shadow side keeps a trace of the key so the material still reads). */
+  private tuneShadow(g: ShadowGenerator, close: boolean): void {
+    g.bias = close ? 0.004 : 0.0008;
+    g.normalBias = close ? 0.025 : 0.01;
+    g.darkness = close ? 0.15 : 0.1;
   }
 
   /** `?gfx=min` only (the software-GL test path): the void's full-frame close-ups shade every pixel with PBR, which
@@ -460,7 +493,8 @@ export class MenuState implements AppState {
       }
     }
     if (d.shot.setup !== this.activeSet) this.showSet(d.shot.setup);
-    const fade = Math.round(d.fade * 100) / 100;
+    // the fade eases (smoothstep) so the black arrives and leaves softly
+    const fade = Math.round(easeInOut(d.fade) * 100) / 100;
     if (fade !== this.fadeShown) {
       this.fadeShown = fade;
       this.fadeEl.style.opacity = `${fade}`;
@@ -515,6 +549,7 @@ export class MenuState implements AppState {
       o.z + a.target[2] + (b.target[2] - a.target[2]) * e,
     );
     cam.fov = set.fov;
+    this.stack.lensMm = set.lensMm ?? 50;
     // Wren sits right of centre, the menu list over black on the left (the offset is in view units at the target)
     const aspect = this.scene.getEngine().getAspectRatio(cam);
     cam.targetScreenOffset.x = set.frameX * radius * Math.tan(set.fov / 2) * aspect;
@@ -544,6 +579,7 @@ export class MenuState implements AppState {
       cam.target.y += (this.prevTarget.y - cam.target.y) * k;
       cam.target.z += (this.prevTarget.z - cam.target.z) * k;
     }
+    this.dutch(set.roll ?? 0);
     const on = set.goggleOn;
     // (a blended change keeps the glow where it was going: on)
     const glow = on ? goggleLevel(t, on[0], on[1]) : 1;

@@ -47,6 +47,10 @@ export interface HeroShot {
   id: string;
   /** Vertical field of view (rad): a long lens is small. */
   fov: number;
+  /** Depth of field focal length (mm, where the preset has depth of field): longer = a shallower field. Default 50. */
+  lensMm?: number;
+  /** A dutch roll (rad, + clockwise on screen), subtle. */
+  roll?: number;
   from: CamPose;
   to: CamPose;
   /** Where Wren sits across the frame: 0 centre, 1 the right edge (keeps the menu list over black on the left). */
@@ -91,19 +95,19 @@ function macro(target: V3, camAlpha: number, side: number, key: number, keyUp: n
   const cam = -Math.PI / 2 + camAlpha;
   return [
     around(target, cam + side * 1.65, keyUp, 0.85, 0.34, key, KEY, sweep),
-    around(target, cam - side * 2.7, 0.3, 0.9, 0.5, 6, RIM),
+    around(target, cam - side * 2.7, 0.3, 0.9, 0.5, 7, RIM),
     around(target, cam + side * 2.6, 0.2, 0.9, 0.5, 2.5, RIM),
   ];
 }
 
-function equip(id: string, fov: number, from: CamPose, to: CamPose, lights: [SetLight, SetLight, SetLight]): HeroShot {
-  return { id, fov: fov * DEG, from, to, frameX: 0.3, lights };
+function equip(id: string, fov: number, from: CamPose, to: CamPose, lights: [SetLight, SetLight, SetLight], lensMm?: number, roll = 0): HeroShot {
+  return { id, fov: fov * DEG, from, to, frameX: 0.3, lights, lensMm, roll };
 }
 
 /** The title's light (also the main menu's opening hold): a low-key face, a rim, and the goggle's green thrown on the
  *  brow and cheeks (light 2, scaled by the goggle level). */
 const FACE: [SetLight, SetLight, SetLight] = [
-  { pos: [0.5, 1.85, -0.8], at: [0, 1.56, -0.05], angle: 0.5, exponent: 3, intensity: 1.8, color: KEY },
+  { pos: [0.5, 1.85, -0.8], at: [0, 1.56, -0.05], angle: 0.5, exponent: 3, intensity: 2.7, color: KEY },
   { pos: [-0.65, 1.85, 0.55], at: [0, 1.64, 0], angle: 0.5, exponent: 3, intensity: 9, color: RIM },
   { pos: [0, 1.57, -0.3], at: [0, 1.53, 0], angle: 0.7, exponent: 2, intensity: 0.22, color: NV },
 ];
@@ -135,17 +139,17 @@ export const HERO_SHOTS: readonly HeroShot[] = [
     glowLight: 2,
   },
   // the goggle housing and its mount: low from her left front, a long lens arcing in
-  equip('H1', 18, { alpha: 0.85, beta: 1.68, radius: 0.62, target: [0.03, 1.6, -0.12] }, { alpha: 0.55, beta: 1.64, radius: 0.56, target: [0.02, 1.6, -0.13] }, macro([0.02, 1.6, -0.12], 0.7, 1, 2.2, 0.9)),
-  // the plate carrier's front plate: low from her left, pushing in
-  equip('H2', 22, { alpha: 0.75, beta: 1.72, radius: 0.75, target: [0.02, 1.22, -0.13] }, { alpha: 0.62, beta: 1.68, radius: 0.64, target: [0.02, 1.22, -0.14] }, macro([0.02, 1.22, -0.13], 0.7, -1, 4, 0.8)),
+  equip('H1', 18, { alpha: 0.85, beta: 1.68, radius: 0.66, target: [0.03, 1.565, -0.17] }, { alpha: 0.55, beta: 1.64, radius: 0.6, target: [0.02, 1.565, -0.18] }, macro([0.02, 1.6, -0.12], 0.7, 1, 2.2, 0.9), 62, 0.07),
+  // the plate carrier's front plate: low from her left, pushing in while the key slides down the plate
+  equip('H2', 22, { alpha: 0.75, beta: 1.72, radius: 0.75, target: [0.02, 1.22, -0.13] }, { alpha: 0.62, beta: 1.68, radius: 0.64, target: [0.02, 1.22, -0.14] }, macro([0.02, 1.22, -0.13], 0.7, -1, 4, 0.8, [0, 0.07, 0])),
   // the magazine pouches on the carrier: low from her right, sliding across while the key sweeps over them
-  equip('H3', 22, { alpha: -0.7, beta: 1.78, radius: 0.72, target: [-0.08, 1.14, -0.13] }, { alpha: -0.55, beta: 1.74, radius: 0.68, target: [0.06, 1.14, -0.14] }, macro([0, 1.14, -0.13], -0.62, 1, 3.2, 0.5, [0.1, 0, 0])),
+  equip('H3', 22, { alpha: -0.7, beta: 1.74, radius: 0.72, target: [-0.05, 1.06, -0.13] }, { alpha: -0.55, beta: 1.7, radius: 0.68, target: [-0.02, 1.06, -0.14] }, macro([-0.03, 1.06, -0.13], -0.62, 1, 7, 0.5, [0.06, 0, 0]), undefined, -0.09),
   // the belt pouches: low three-quarter from her left, sliding along the belt under a grazing beam
-  equip('H4', 20, { alpha: 0.9, beta: 1.76, radius: 0.82, target: [0.16, 1.0, -0.08] }, { alpha: 0.75, beta: 1.74, radius: 0.76, target: [0.02, 1.0, -0.12] }, macro([0.1, 1.0, -0.1], 0.82, -1, 3.5, 0.25, [0.12, 0, -0.04])),
+  equip('H4', 20, { alpha: 0.45, beta: 1.68, radius: 0.82, target: [-0.05, 0.9, -0.12] }, { alpha: 0.35, beta: 1.66, radius: 0.76, target: [-0.15, 0.9, -0.13] }, macro([-0.09, 0.87, -0.12], 0.4, -1, 3.5, 0.25, [0.12, 0, -0.04])),
   // the thigh holster and pocket on the right leg: from her right, arcing round the front
-  equip('H5', 22, { alpha: -1.35, beta: 1.62, radius: 0.7, target: [-0.17, 0.72, -0.02] }, { alpha: -1.0, beta: 1.58, radius: 0.66, target: [-0.17, 0.74, -0.04] }, macro([-0.17, 0.73, -0.03], -1.18, -1, 2.6, 0.7)),
+  equip('H5', 22, { alpha: -1.35, beta: 1.62, radius: 0.7, target: [-0.17, 0.72, -0.02] }, { alpha: -1.0, beta: 1.58, radius: 0.66, target: [-0.17, 0.74, -0.04] }, macro([-0.17, 0.73, -0.03], -1.18, -1, 2.6, 0.7), undefined, 0.12),
   // the back plate and the kit on it: high from behind her left shoulder, arcing round
-  equip('H6', 26, { alpha: 2.55, beta: 1.2, radius: 0.95, target: [0.02, 1.25, 0.12] }, { alpha: 2.95, beta: 1.25, radius: 0.88, target: [0, 1.25, 0.12] }, macro([0.01, 1.25, 0.12], 2.75, 1, 4.5, 0.8)),
+  equip('H6', 26, { alpha: 2.55, beta: 1.2, radius: 0.95, target: [0.02, 1.25, 0.12] }, { alpha: 2.95, beta: 1.25, radius: 0.88, target: [0, 1.25, 0.12] }, macro([0.01, 1.25, 0.12], 2.75, 1, 7.5, 1.15)),
 ];
 
 /** A visible light cone: additive, fading from the lamp to its far end (apex at the origin, along -Y). */

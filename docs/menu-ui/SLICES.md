@@ -11,7 +11,7 @@ docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Micha
 | 4 | Missions, briefing, issued-kit view (07, 08; fixed kits D-11) | Done (SLICE4.md) |
 | 5 | Pause (blur, player sharp, objectives G108) and results (10) | Done (SLICE5.md); rerun: e2e-menus, e2e-mouse, e2e-pad pass; e2e-coop known flaky (offline state step) |
 | 5b | Michael's /ct/ playtest notes (docs/ct-prototype/PLAYTEST-1.md): Brightness and Quit to menu drew under the menu labels (z-index 1); fix: `.dialog-screen { z-index: 2 }` (a stacking context on every screen slowed software-GL frames and broke e2e-menus' slider repeat). Removed the dead rows Aim assist, Camera recentres, Grab (settings fields kept, no save change). Remap follows CT-CONTROLS.md via the bind tables: no menu work | Done 2026-10-19; e2e-menus and smoke pass |
-| 6 | Cinematic background with Wren's poses (11-13) | Wren merged (PR #5); running 2026-10-19 overnight, prototype quality (CLAUDE.md "Current goal") |
+| 6 | Cinematic background (11-13), reworked to Michael's direction overnight: hero title (Wren facing the lens, goggle flicker-on, carried into the main menu without a cut) and equipment / armour macros H1-H6 in a black void | Done 2026-10-19 (b1ead8a + fine-tune), SLICE6.md; check, e2e-menus, smoke, e2e-desktop pass. Open: GPU perf check, /preview/ pointer (push to dev blocked by permissions, Michael to move it) |
 
 Resume: `git status` in C:\NightShift\Mobile-Coop-menu shows a running slice's uncommitted work; finish it from its
 SLICE<n>.md / the brief above, check, commit, push, then the next slice.

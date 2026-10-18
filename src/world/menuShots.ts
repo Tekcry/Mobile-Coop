@@ -274,12 +274,21 @@ export function easeInOut(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
-/** The goggle's power-on (pure): off before `a`, on after `b`, ramping between with a faint flicker. */
+/** The goggle's power-on (pure): off before `a`, on after `b`. Between: two quick blips, a dim stutter, then a warm-up
+ *  ramp with a faint shimmer that settles (a tube striking). */
 export function goggleLevel(t: number, a: number, b: number): number {
   if (t <= a) return 0;
   if (t >= b) return 1;
   const r = (t - a) / (b - a);
-  // a few stutters early in the ramp, settling as it warms
-  const f = Math.sin(t * 431) * Math.sin(t * 173);
-  return Math.max(0, Math.min(1, r * (1 - (1 - r) * 0.6 * (f > 0.2 ? 1 : 0))));
+  if (r < 0.08) return 0;
+  if (r < 0.12) return 0.85;
+  if (r < 0.26) return 0;
+  if (r < 0.29) return 0.55;
+  if (r < 0.34) return 0.1;
+  if (r < 0.38) return 0.7;
+  if (r < 0.46) return 0.05;
+  // the warm-up: from dim to full, a shimmer fading out as it settles
+  const w = (r - 0.46) / 0.54;
+  const shimmer = Math.sin(r * 157) * 0.08 * (1 - w);
+  return Math.max(0, Math.min(1, 0.35 + 0.65 * w * w * (3 - 2 * w) + shimmer));
 }

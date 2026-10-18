@@ -116,12 +116,28 @@ Branch `feature/menu`, 2026-10-19 (overnight, unattended). Prototype first (G87)
 - The idle stance (knees slightly bent, arms a little out) reads oddly from a low side angle. It is animation-owned and
   not changed here; the macro shots avoid showing it.
 
+## Fine-tune pass (after checkpoint b1ead8a, until 08:00)
+Progress log with times: `docs/menu-ui/SLICE6-PROGRESS.md`. GPU shots: `docs/menu-ui/shots/6-hero-gpu-*.png`.
+- **Lights**: T1 face key 1.8 -> 2.7; H6 key 4.5 -> 7.5 and raised to rake down the back plate (its edges and fittings
+  read); H3 key 3.2 -> 7 (the magazine pouches read); macro main rim 6 -> 7.
+- **Framing**: H3 lower onto the magazine pouches with a narrower slide, so they stay in frame from start to end. H4 lower
+  onto the belt pouches and further round so the hand leaves the frame (a soft forearm stays at the left edge, behind the
+  list; a high-angle version was tried and read worse). H2's key slides down the plate. H1 reframed up and right (the target lower and forward on
+  the goggle, a touch further out) so both lenses stay clear of the description panel for the whole pass.
+- **Shadows in the void: tried and dropped.** Only the key cast, with its depth range fitted per shot (bias 0.004, normal
+  bias 0.025). There was no acne, but the arm and shoulders swallowed the raking key on H2-H6 (they went dark), so the
+  void stays unshadowed. `tuneShadow()` keeps the stage's values.
+- **Depth of field per shot**: `PostStack.lensMm` drives the DOF focal length; H1 62 mm, others 50 (presets with DOF,
+  high and up). The stage resets it to 50.
+- **Dutch roll**: per-shot roll (H1 +0.07, H3 -0.09, H5 +0.12 rad) via `MenuState.dutch()`, the camera's up turned about
+  the line of sight. Start, middle and end frames checked: the framing holds.
+- **Fades** ease (smoothstep). **Title flicker**: `goggleLevel` is authored (two blips, a stutter, a warm-up ramp with a
+  shimmer that settles).
+- `scripts/menu-shots6.mjs`: a 180 s screenshot timeout (software GL under load timed out at 30 s).
+
 ## Skipped / polish list
-- Light tuning per shot (next, after the checkpoint; Michael allows fine-tuning until 08:00): H4's near pouch is soft and large at the frame edge, H6 is dark, and
-  the T1 face could take a touch more key.
-- Shadows on the close-ups: contact-hardening or a tighter frustum per shot, to get self-shadow without acne.
-- A dutch angle (ArcRotateCamera has no roll; it needs a custom camera or a post roll).
-- Depth of field: the post stack focuses at the camera radius when the preset enables DOF. Not tuned per shot.
+- Shadows on the close-ups: a key that casts but is not blocked by the arm needs per-mesh casters (the body is one skinned
+  mesh) or keys placed clear of the arms; not done.
 - The SPEC 8.1 rooms (S1-S5), S7 lobby stack, phones, `perf.mjs --menu` and the SPEC 8.4 budgets, the
   `menu-sheet.mjs` contact sheet (`menu-shots6.mjs` covers the stills), removing `DevMenuScreen`.
 - A menu reduced-motion setting (MD17): the director reads the OS preference only.
@@ -133,4 +149,13 @@ Branch `feature/menu`, 2026-10-19 (overnight, unattended). Prototype first (G87)
   per launch).
 
 ## Results
-(filled in below)
+- Checkpoint b1ead8a: `npm run check`, smoke, e2e-menus and e2e-desktop green.
+- Fine-tune pass (2026-10-19, 05:10), port 4191, one runner at a time, `E2E_SUITE_TIMEOUT=1700`, another session loading
+  the PC:
+  - `npm run check`: pass (lint 0 errors / 41 warnings, 141 files / 1600 tests pass, 1 skipped, build ok).
+  - e2e-menus: pass. smoke: pass.
+  - e2e-desktop: failed once on "the result is saved as a performance note without a tap" (the benchmark's feedback save
+    raced the assert at 3 fps under load; not menu-background code), then passed on a solo rerun (634 s).
+- Shots: `docs/menu-ui/shots/6-hero-gpu-*.png` (GPU, `SHOT_GFX=high`, hero LOD) and `6-hero-*.png` (software GL; T1 and H1
+  show LOD2 there, layout only).
+- GPU perf of the void: pending a PC run with `perf.mjs` (not run).
