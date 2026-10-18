@@ -86,10 +86,11 @@ export class ResultsScreen extends MenuScreen {
           h(
             'ul',
             { class: 'rs-earned' },
-            earned(won, 'Mission completed'),
-            earned(won && !!stats.bonuses?.length, stats.bonuses?.length ? `Bonus rules kept: ${stats.bonuses.join(', ')}` : 'Bonus rules kept: none'),
-            earned(won && stats.detections === 0, stats.detections === 0 ? 'Never detected' : `Detected ${stats.detections} time${stats.detections === 1 ? '' : 's'}`),
+            earned(won, 'All primary objectives complete'),
+            earned(won && !stats.alarms, stats.alarms ? `Alarms raised: ${stats.alarms}` : 'No alarms raised'),
+            earned(won && !stats.kills, stats.kills ? `Kills: ${stats.kills}` : 'No kills'),
           ),
+          h('div', { class: `rs-bonus ${won && stats.bonuses?.length ? 'earned' : 'missed'}`, text: stats.bonuses?.length ? `Bonus: ${stats.bonuses.join(', ')}` : 'Bonus: none earned' }),
         )
       : null;
     const course = stats.course ? coursePanel(stats.course) : null;

@@ -68,3 +68,10 @@ Branch `feature/menu`, 2026-10-18. Prototype first (G87). Desktop only (G12). Co
   Quit), e2e-mouse, e2e-coop. The runner was stopped for time. Rerun these on a quiet PC.
 - Shots: `docs/menu-ui/shots/slice5-pause.png`, `slice5-objectives.png`, `slice5-quit-confirm.png`, `slice5-results.png`
   (taken before the final results CSS fix: re-run `scripts/menu-shots5.mjs` to refresh the results shot).
+
+## Follow-up: G146 rating
+- `missionRating(done, alarms, kills)` in `src/game/missions.ts`: 0 stars for a lost mission; otherwise 1 star for all primary objectives, +1 for no alarms raised, +1 for no kills (G146). The old formula (bonus rules and detections) is gone.
+- Results screen (`src/ui/screens/resultsScreen.ts`): the three `.rs-earned` lines are "All primary objectives complete", "No alarms raised" / "Alarms raised: N", "No kills" / "Kills: N". The bonus rules kept show as a separate `Bonus:` line (`.rs-bonus`), not a star. `.mission-rating` is unchanged.
+- The mission model has no optional objectives yet, so the bonus line shows the kept bonus rules only; optional objectives join it when maps define them. The detections stat row stays.
+- Tests: `tests/missions.test.ts` (rating), `scripts/e2e-menus.mjs` (lines, bonus line). e2e-missions and e2e-menus pass (E2E_JOBS=1).
+- G126 (encounter checkpoints) is not touched here; no results change was needed for it.

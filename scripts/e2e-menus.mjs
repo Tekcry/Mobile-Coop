@@ -298,6 +298,8 @@ try {
       const g = window.__app.current;
       g.stats.missionId = 'warehouse-courier';
       g.stats.rating = 2;
+      g.style.kills = 2; // G146: one kill costs the no-kills star
+      g.stats.kills = 2;
       g.stats.bonuses = ['No alarms'];
       g.endSession(true, 'done');
     });
@@ -308,9 +310,12 @@ try {
       focus: window.__app.nav.focused?.dataset.key,
       stars: document.querySelector('.mission-rating')?.textContent ?? '',
       earned: document.querySelectorAll('.results-screen .rs-earned li').length,
+      lines: [...document.querySelectorAll('.results-screen .rs-earned li')].map((l) => l.textContent).join('|'),
+      bonus: document.querySelector('.results-screen .rs-bonus')?.textContent ?? '',
       title: document.querySelector('.results-title')?.textContent,
     }));
     assert(res.title === 'VICTORY' && /★★☆/.test(res.stars) && res.earned === 3, `results: outcome, stars and what earned them (${res.stars}, ${res.earned} lines)`);
+    assert(/★ +All primary objectives complete.★ +No alarms raised.☆ +Kills: 2/.test(res.lines) && /Bonus: No alarms/.test(res.bonus), `G146 lines and bonus (${res.lines}; ${res.bonus})`);
     assert(/retry/.test(res.keys) && /missions/.test(res.keys) && /quit/.test(res.keys), `results items (${res.keys}, focus ${res.focus})`);
   } finally {
     await M.browser.close();
