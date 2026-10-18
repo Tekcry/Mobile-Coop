@@ -1,6 +1,15 @@
 # Locomotion run - state
 
-## CONSOLIDATION PR OPEN (2026-10-18): waiting for Michael to merge
+## CONSOLIDATION MERGED (2026-10-18): master is 4.0.0 (6f81c83)
+Merged by Claude with Michael's explicit permission in chat ("You have my permission to merge the PR"). Branch clean-up
+(G121) done: dev, feature/exchange-map, feature/kestrel, feature/footsteps, feature/weapon-audio, ct-movement,
+playtest/combined, claude/new-session-* deleted on origin. Their commits not in master are kept as tags:
+archive/weapon-audio-late-docs (docs note), archive/ct-movement-99da75b (skipped phone commit), archive/playtest-combined
+(52cebe0: e2e-foley thresholds for the step-22 speeds, useful to the test-fixes job). Left on origin: character-model
+(not in the plan), feature/music and feature/menu-ui-spec (fully merged), feature/operators, feature/training-bunker,
+this branch, integrate/consolidate. Local folders and local branches untouched.
+
+## The PR (for the record)
 PR https://github.com/Tekcry/Mobile-Coop/pull/3 (integrate/consolidate -> master, version 4.0.0). Claude never merges.
 - Merged in: this branch (with feature/kestrel), feature/footsteps, feature/weapon-audio, feature/music,
   feature/training-bunker, feature/menu-ui-spec. Not included: feature/operators (own PR); ct-movement 99da75b skipped.
@@ -14,8 +23,7 @@ PR https://github.com/Tekcry/Mobile-Coop/pull/3 (integrate/consolidate -> master
 - Run docs: docs/consolidation/ on integrate/consolidate (HANDOVER, AUDIT, deleted-*.md, checks/, PR-BODY.md).
 
 ## RESUME HERE after Michael merges
-1. Branch clean-up: Michael approved (G121): delete dev, feature/exchange-map, feature/kestrel, feature/footsteps,
-   feature/weapon-audio, ct-movement, playtest/combined, claude/new-session-* once the PR is merged.
+1. Branch clean-up: done (above).
 2. CT co-op research job: Michael brings his own completed research after the merge (G122); start from it. Then the CT prototype on feature/ct-prototype from master: docs/locomotion/
    PROTOTYPE-PLAN.md redone against docs/DECISIONS.md, plus the code-vs-decision gaps listed in the PR body
    ("Known gaps") and docs/progress.md.
