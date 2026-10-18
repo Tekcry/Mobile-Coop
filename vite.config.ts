@@ -69,6 +69,21 @@ export default defineConfig({
         navigateFallback: 'index.html',
         // the live game's worker never answers for the preview builds under /preview/, /ct/ and /kestrel/ (their own workers do)
         navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/, /\/kestrel(\/|$)/],
+        // (operators 11e, A98 / A99) the operator bodies (Wren's LOD0-2 for play, the hero for the menu and close
+        // cameras) are too big to precache (hero 55 MB, LOD0 18 MB): each is cached the first time the game or the
+        // menu asks for it, then served from the cache (offline play after one online start). Same origin only; a
+        // new build's hashed files replace the old ones (8 entries = two builds of four files).
+        runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.glb$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'operators',
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
       },
       devOptions: { enabled: false },
     }),

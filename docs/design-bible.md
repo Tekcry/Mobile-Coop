@@ -678,9 +678,9 @@ and briefing crew, not playable (G112).
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
   weapons follow later from the same pipeline. Voxels are only the way the world is drawn. That branch keeps its own
   decisions and open items (G75).
-- **Wren integration** is the first job after Michael approves the prototype, behind a dev switch; then the weapon step
-  (G70). The shared-body proportion fixes apply to every character when Wren goes in, and movement and climbing tests
-  re-run (G72).
+- **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
+  G70's "after the prototype, behind a dev switch"); then the weapon step. The shared-body proportion fixes apply to
+  every character since Wren went in, and movement and climbing tests re-run (G72).
 - **Sizes:** Wren stays 1.68 m (G74). Operators differ in look and height only: one movement set, one capsule, one camera
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with

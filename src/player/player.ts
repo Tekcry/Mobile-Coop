@@ -4,7 +4,9 @@ import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { CharacterRig, type RigPose } from './characterRig';
+import type { CharacterRig, RigPose } from './characterRig';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import { loadPlayLods, operatorRig } from '../operators/runtime/playerFigure';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -58,6 +60,8 @@ const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 export class Player {
   readonly controller: PlayerController;
   readonly rig: CharacterRig;
+  /** (operators 11e, D31 / G123) Wren, drawn on the rig; the rig stays the gameplay and pose body. */
+  readonly figure: OperatorFigure;
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
@@ -119,9 +123,11 @@ export class Player {
     private getSettings: () => Settings,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
-    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
+    const op = operatorRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 'player', (m) => world.addShadowCaster(m));
+    this.rig = op.rig;
+    this.figure = op.figure;
     this.rig.carrier = true;
-    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
+    loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     const s = getSettings();
@@ -395,6 +401,11 @@ export class Player {
       this.footPlantSide = pl.L.landed ? -1 : 1;
     }
     this.cam.applyBodyFade(this.rig);
+    // Wren follows the camera fade (the head hide; the whole-body hide is the rig root's) and the rig's pose
+    const f = this.figure;
+    f.setHeadVisible(this.cam.headVisible);
+    f.setHeat(this.rig.heat);
+    f.update(this.world.scene.activeCamera);
   }
 
   private lookIdleT = 0;
@@ -420,6 +431,7 @@ export class Player {
   }
 
   dispose(): void {
+    this.figure.dispose();
     this.rig.dispose();
     this.controller.dispose();
     this.cam.camera.dispose();

@@ -1,0 +1,68 @@
+{
+  "gpu": true,
+  "menu": {
+    "lod2": 0.56,
+    "lod0": 0.79,
+    "hero": 1.4,
+    "shownLod": 0,
+    "glb": [
+      {
+        "file": "wren-lod2-BkZ9fDoS.glb",
+        "start": 0.24,
+        "end": 0.45,
+        "kb": 2429
+      },
+      {
+        "file": "wren-lod0-B8-_JTUF.glb",
+        "start": 0.48,
+        "end": 0.63,
+        "kb": 17924
+      },
+      {
+        "file": "wren-lod1-BART3_NN.glb",
+        "start": 0.73,
+        "end": 0.95,
+        "kb": 4952
+      },
+      {
+        "file": "wren-hero-CPpaWfXO.glb",
+        "start": 0.97,
+        "end": 1.18,
+        "kb": 54167
+      }
+    ],
+    "errors": []
+  },
+  "solo": {
+    "matchReady": 6.99,
+    "lod2": 6.99,
+    "lod0": 7.07,
+    "lod1": 7.13,
+    "glb": [
+      {
+        "file": "wren-lod2-BkZ9fDoS.glb",
+        "start": 4.78,
+        "end": 5.75,
+        "kb": 2429
+      },
+      {
+        "file": "wren-lod0-B8-_JTUF.glb",
+        "start": 5.77,
+        "end": 6.08,
+        "kb": 17924
+      },
+      {
+        "file": "wren-lod1-BART3_NN.glb",
+        "start": 5.77,
+        "end": 5.89,
+        "kb": 4952
+      }
+    ]
+  },
+  "soloLod": {
+    "lod": 1,
+    "meshes": 8
+  },
+  "soloErrors": [],
+  "error": "Error: timed out waiting for sandbox match on both pages\n    at until (file:///C:/NightShift/Mobile-Coop-operators/scripts/e2e-net-lib.mjs:13:42)\n    at async startMode (file:///C:/NightShift/Mobile-Coop-operators/scripts/e2e-net-lib.mjs:54:26)\n    at async file:///C:/Users/Micha/AppData/Local/Temp/claude/C--NightShift-Mobile-Coop-operators/ee17d8dc-7926-4cff-a57b-386ce6d93dc6/scratchpad/gpu11e.mjs:70:5"
+}

@@ -432,6 +432,11 @@ export class ShoulderCamera {
    * Tight spaces: rather than swinging the camera away, hide the parts of the body it gets too close
    * to (head first, then everything). Only touches visibility when a threshold is crossed.
    */
+  /** (operators 11e) The head is shown (the fade's head hide is off): Wren's figure follows it. */
+  get headVisible(): boolean {
+    return !this.headHidden;
+  }
+
   applyBodyFade(rig: CharacterRig): void {
     rig.headNode.computeWorldMatrix(true);
     const dHead = Vector3.Distance(this.camera.position, rig.headNode.getAbsolutePosition());

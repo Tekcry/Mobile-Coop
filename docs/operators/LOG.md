@@ -2066,3 +2066,86 @@ Michael (2026-10-18: "I want wren in the game first"). Assumed decisions A96-A98
 - Use the GLB's own anchors (weaponMount.*, pistolHolster, slingSocket) for carried weapons instead of the rig sockets.
 - Strip the six unweighted helper joints from the game LODs (step 10 note); one ball bone per booted foot in the hero.
 - Point the Lab at `OperatorPoser` (one retarget for both) once 11e has it in game.
+
+## Step 11e - Wren is the player character, both players (Opus 5.5)
+
+Status: draft (implementer). D31 / G123, D33 (Michael: "I want wren in the game first. We will clean up changes later
+while the game is built"; "Yes use hero for menu"). Assumed decisions A99-A102.
+
+**Built**
+- Assets: `src/operators/assets/wren/wren-{hero,lod0,lod1,lod2}.glb` copied from `build/operators/wren/export/`
+  (55.5 / 18.4 / 5.1 / 2.5 MB = 81.4 MB, plain git, A98). Vite emits them hashed into `dist/assets/`.
+- `src/operators/runtime/playerFigure.ts` (new): `operatorRig()` builds a player's CharacterRig at Wren's height 1.68 m
+  (build average, style detailed, no voxel body: `setCharacterVoxels` keeps the match's guard setting), disables the
+  rig's own meshes and puts an `OperatorFigure` on it; `operatorLibrary(scene)`; `loadPlayLods` / `loadMenuLods`
+  (`?gfx=min`: LOD2 only, A102); `partnerFigureFrame` (keeps render state out of src/net, visionIsolation test).
+- `figure.ts`: `HERO_CLOSE_UPS` (true), `loadCloseUp()`, `setHeat()` (per-mesh white overlay, A101), `LIVE_FIGURES`
+  and `setCloseCamera(cam, on)` (registers a close-up camera and re-picks at once, so a frozen photo mode swaps to the
+  hero), `forgetModel(url)`.
+- Wired: `player/player.ts` (figure after the rig; per frame head hide from `ShoulderCamera.headVisible` (new getter),
+  heat, `update(activeCamera)`; dispose), `game/gameState.ts` (`setCharacterVoxels`; `figure.setVision(v.shown, dt)`;
+  `resetGoggle()` on respawn), `net/remoteAvatar.ts` (partner is Wren, goggle 'off', no new bandwidth),
+  `world/menuScene.ts` (preview is Wren; menu camera in `CLOSE_CAMERAS`; LOD2 -> LOD0 -> LOD1 prefetch -> hero; drops
+  the parsed hero on exit), `ui/screens/photoMode.ts` (`setCloseCamera` on open / close).
+- G72 in `player/proportions.ts` for every character (A1 shoulder 1.40, A3 hand 0.19, A4 pelvis 0.35, waist
+  0.30 x 0.215, chest depth 0.24, A5 head depth 0.20, A6 shoulder width 0.49, A7 thigh 0.39); `operatorBody.ts` restates
+  them (pipeline output unchanged). Hit volumes follow the body: `playerTarget.ts` and `net/remotePlayer.ts` use
+  `hitVolumes(rig.p)` (the remote's hip height too). A99 explains why the rig takes Wren's height.
+- `vite.config.ts`: workbox `runtimeCaching` CacheFirst for same-origin `assets/*.glb` (cache `operators`, 8 entries,
+  hero included, A100); nothing precached (precache still 44 entries, 15.1 MB).
+- Tests: `operators.test.ts` now checks `proportions.ts` carries the corrections; `operatorsRuntimeFigure.test.ts` adds
+  the 11e test (rig at 1.68 with its parts disabled and no voxel body, heat overlay, close camera -> hero -> back).
+- Scripts: `e2e-lib.mjs` `waitOperator(page, lod)`; `anim-sheet.mjs` and `perf.mjs` wait for Wren before drawing /
+  measuring.
+- Docs: master `docs/DECISIONS.md` G123-G138 (G70 marked replaced), `docs/operators/DECISIONS.md` points there;
+  `docs/systems/world-and-characters.md` (proportions table, "Players are Wren"), bible 5.14 line (G123), CHANGELOG
+  Unreleased.
+
+**Numbers (GPU, RTX 4090, E2E_GPU=1, port 4189, local server, empty cache; `mockups/wren/ingame/load-menu-solo.json`)**
+- Main menu: LOD2 shown 0.56 s after navigation start, LOD0 0.79 s, hero 1.40 s (hero fetch 0.21 s locally; parse,
+  KTX2 transcode and GPU build of the hero about 0.2 s). The menu shows the hero (`current` 0).
+- Solo match (Proving, gfx=epic): match ready 6.99 s; LOD2 the same frame, LOD0 7.07 s, LOD1 7.13 s; the LODs' parse +
+  transcode + build is under 0.1 s each after their fetch. Download over a network is the arithmetic in DESIGN.md
+  (50 Mbit/s: LOD2 0.4 s, all play LODs about 4 s, hero about 9 s more; the hero loads only after the play LODs).
+- Shoulder camera picks LOD0 (8 meshes).
+- Co-op (host + client pages, Proving, gfx=high, one browser): both pages show their own Wren and the partner as Wren
+  at LOD0 (`coop-host-sees-partner.png`, `coop-client-sees-partner.png`); host frame p50 24.8 / p95 25.1 ms with both
+  pages drawing on one GPU (information only).
+- `perf.mjs --desktop --budget` (Warehouse, 12 guards, gfx=epic, local profile; `ingame/perf.txt`): sim p95 3.25 ms
+  (<= 2.9), anim per character 0.120 ms (<= 0.075), main thread 12.7 ms (<= 5.5), frame interval p95 39.3 ms (<= 10),
+  draws 218 (<= 520), triangles 0.9 M (<= 1.7 M), allocations 10.8 MB/s (<= 11.5): **over budget on four lines**. The
+  same build with Wren never loaded (one experiment build; the player body then draws nothing) is over on the same four:
+  sim p95 3.1, anim 0.109, main 12.0, interval p95 28.8 ms, draws 204, triangles 0.67 M. The PC's reference workload read
+  16.8 ms (busy machine). Wren's own cost: about +0.15 ms sim p95, +0.6 ms render JS, +14 draws, +0.23 M triangles,
+  frame interval p50 24.5 -> 26.9 ms. Open 8.
+
+**Checks**
+- `npm run check`: PASS (lint, unit tests, build; rerun after the pouch fix).
+- Named suites, parallel run 2 (after A102): e2e-anim, e2e-anchors, e2e-wall, e2e-course ok; solo reruns: e2e-move ok,
+  e2e-netmove ok; e2e-coop (offline-state check, see open 2) and e2e-bunker (the teleported-partner check, as
+  docs/backlog.md) KNOWN FLAKY; **e2e-traverse FAIL: "ladder sprint: hands reach their grips (19.5 cm)", limit 3 cm**
+  (open 1). Full `npm run e2e`: not run (left for the fix round once e2e-traverse passes).
+
+**Open / cleanup**
+1. e2e-traverse ladder sprint reach: 19.5 cm with the 1.68 m rig and G72; 6.0 cm with a 1.75 m rig and G72 (one
+   experiment build), so G72's lower shoulder (A1) alone already breaks it and Wren's shorter arms add the rest. The
+   SPEC 4.3 A1 row predicted this ("ladder, pipe and ledge contact bars re-run"). The fix is the ladder hand offsets
+   (`player/attachGrips.ts` `case 'ladder'`: `h.offL = 1.3 * k`, `h.offR = 1.3 * k + a.rung`, slack `a.rung * 1.05`):
+   place the hands from the rig's shoulder height (for example `p.y.shoulder - 0.1 * k`) or cap the sprint lead to the
+   arm's reach. Not done here (over the tool budget).
+2. e2e-coop "offline state" (full graphics menu page, no `?gfx=min`): the click on Co-op did not show `.coop-offline`
+   within 8 s while the menu was loading Wren; the KTX2 transcode runs on the main thread (DESIGN risk). Likely caused by
+   Wren; e2e-coop is on the known-flaky list but this check should be rerun alone and, if it holds, fixed (delay the
+   menu's LOD0 / hero until the menu is idle, or a transcoder worker).
+3. Fixed after the screenshots: the old grenade pouches drew at Wren's belt (`solo-front.png`, the partner in
+   `coop-client-sees-partner.png`); `GrenadePouches(..., drawn = false)` for player rigs (count kept). Re-shoot.
+4. Weapon carry offsets come from the hidden part body's `backGear` / `thighOuter`; measure them from Wren's kit
+   (the back mount, the thigh holster) instead.
+5. Traversal heights in `attach.ts` stay at 1.75 m (gameplay); Wren's hangs rely on the rig's IK (SPEC 4.1).
+6. The stowed goggle export (DESIGN.md "Asset follow-up"); D32 relabels; a transcoder worker; the hero's VRAM stays
+   in a match after photo mode (dropped with the scene).
+7. Anim contact sheets and the anim audit with Wren at LOD0 need a non-`gfx=min` preset (`gfx=high`): the e2e default
+   `gfx=min` now shows LOD2.
+8. Desktop perf budgets fail with and without Wren on this run (numbers above); a clean-machine baseline run of HEAD
+   (before 11e) is needed to tell what predates this step. Wren adds about 10 ms to the frame interval p95 here: profile
+   the skinned LOD0 (8 meshes, its skeleton linked to TransformNodes) and the hidden LODs' node updates.

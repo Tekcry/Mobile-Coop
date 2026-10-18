@@ -1,9 +1,9 @@
 /**
  * Operator bodies for the offline operator pipeline (docs/operators/SPEC.md Section 4). Pure data, no Babylon.
  *
- * Reads `proportions.ts` without changing it: the ANSUR II corrections (SPEC 4.3: A1, A3-A7) and each operator's
- * build mods (SPEC 4.4) are applied here, so the pipeline builds the corrected bodies while the game keeps today's
- * proportions until integration.
+ * The ANSUR II corrections (SPEC 4.3: A1, A3-A7) are in `proportions.ts` since step 11e (G72, every character);
+ * they are restated here as absolute values (so the pipeline's bodies did not change), then each operator's build mods
+ * (SPEC 4.4) are applied.
  */
 import { hitVolumes, proportions, STANDARD_HEIGHT } from '../player/proportions';
 import type { HitVolumes, Proportions } from '../player/proportions';

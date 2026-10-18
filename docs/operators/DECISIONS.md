@@ -25,6 +25,10 @@
   front views get bright edges while the body stays near black. Undo: excludedMeshes empty, bias 0.0008.
 # Operators run - decisions
 
+**Michael's current decisions now live in master's `docs/DECISIONS.md`** (G123-G138, recorded in step 11e with G68-G75,
+which already covered the operators). This file is the run's history and keeps the assumed A-decisions; new Michael
+decisions go to `docs/DECISIONS.md` with the next free G number.
+
 Numbered. Michael's words are quoted. Newest at the bottom of each list.
 
 ## Michael's decisions
@@ -171,6 +175,13 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 - Process, Michael: "you can show me scratch renders first with some options if its easier to nail the look". Before
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
+
+**D33 Wren in the game first; hero model in the menu (2026-10-18, during step 11d/11e).** Michael: "I want wren in the
+game first. We will clean up changes later while the game is built." (D32 relabels, 11c doc fixes, the stowed goggle
+export and other polish become cleanup after the PR; 11d and 11e share one independent check before the PR.) The
+goggle stays over the eyes in both states until the stowed export: "Yes, fix in cleanup (Recommended)". File size:
+the hero GLB is 55.5 MB (GitHub warns over 50 MB, rejects over 100 MB per file); after seeing hero vs LOD0 close-ups,
+Michael: "Yes use hero for menu" - the hero ships in this PR, loaded lazily for menus and close cameras only.
 
 **D32 Kit that depended on systems master 4.0.0 deleted (2026-10-18, after step 11c).** Asked, Michael:
 - Hip pod (built for the deleted player drone, G7 / G115): "Keep as utility pouch" - the hard pod stays as a generic
@@ -1160,3 +1171,28 @@ Undo: add `rigMove` as world deltas like the Lab.
 them through `import.meta.glob(..., '?url')`, fetched from the app's own origin; workbox runtime CacheFirst for
 `assets/*.glb` (precache limit 16 MB; 81 MB at install rejected). Git LFS not used (Pages builds would spend the LFS
 bandwidth quota). Undo: LFS with `lfs: true` in deploy.yml checkouts, or precache with a raised limit.
+
+**A99 Step 11e: the player rig is built at Wren's height, with the G72 proportions in `proportions.ts`.** The figure
+retargets the rig's rotations onto Wren's own bind offsets, so her hands, feet and head land on the rig's joints only
+when the rig has her lengths: a 1.75 m rig with the old ratios put her wrists about 7 cm below the rig's weapon socket
+and her ankles off the floor. So every player rig (local, partner, menu) is `CharacterRig(..., 1.68, { build:
+'average', style: 'detailed' })` (`operators/runtime/playerFigure.ts`), and G72's A1, A3-A7 are applied in
+`proportions.ts` for every character (the preamble's "do not edit proportions.ts" rule predates the locomotion merge;
+the orchestrator's 11e ruling lists G72). The hit volumes (`hitVolumes(rig.p)`) and light samples follow her body as
+SPEC 4.1 / G129 say; the controller capsule, speeds, traversal heights (`attach.ts` keeps 1.75) and the camera do not
+change. Undo: rig height 1.75 and the old ratios (then Wren's hands miss the weapon).
+
+**A100 Step 11e: the hero runtime-cached like the LODs.** The 55.5 MB hero goes in the same workbox CacheFirst route
+(cache `operators`, 8 entries = two builds of four files) on first use; never precached. The menu fetches it after
+LOD2, LOD0 and LOD1 so it never delays play, and drops its parsed copy on leaving the menu (a photo-mode close-up
+re-reads it from the cache). Undo: exclude `-hero` from the route (the menu then re-downloads it each session).
+
+**A101 Step 11e: thermal warmth on Wren is a per-mesh white overlay.** The old body's thermal flag added emissive per
+part; Wren's materials are shared between the two bodies, so `OperatorFigure.setHeat` uses each mesh's own
+`renderOverlay` / `overlayAlpha` (one extra pass per mesh, only while thermal is on). Undo: a per-body material clone.
+
+**A102 Step 11e: `?gfx=min` loads Wren's LOD2 only.** The first e2e run with every LOD loading on software GL timed out
+page loads and crashed pages (five suites at once each fetching 26 MB and transcoding KTX2 on the CPU). The minimal
+graphics path (tests, `?gfx=min`, where characters are already the cheap smooth parts) loads LOD2 (2.5 MB) and never
+LOD0 or the hero (`MIN_LODS` in `operators/runtime/playerFigure.ts`). Render side only: gameplay is identical. Undo:
+`MIN_LODS = false`.

@@ -5,7 +5,8 @@ import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
-import { LIVE_RIGS, setVoxelBodies } from '../player/characterRig';
+import { LIVE_RIGS } from '../player/characterRig';
+import { setCharacterVoxels } from '../operators/runtime/playerFigure';
 import { LIVE_DOGS } from '../ai/dogModel';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
@@ -649,7 +650,7 @@ export class GameState implements AppState {
     const plain = q.minimal;
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setVoxelBodies(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    setCharacterVoxels(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
     const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
@@ -1260,6 +1261,7 @@ export class GameState implements AppState {
         this.strike.reset();
         // (step 14) goggles up on respawn
         this.vision.reset();
+        this.player.figure.resetGoggle();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();
@@ -1693,6 +1695,8 @@ export class GameState implements AppState {
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
     // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
     this.player.rig.setLensGlow(v.mode !== 'off');
+    // (operators 11e, G73) Wren's goggle follows the picture on screen; its glow is emissive only (light parity)
+    this.player.figure.setVision(v.shown, dt);
     // (step 14) thermal / electro: the post branch, then the render-only emissive flags (gameplay never reads them)
     const kind = v.kind;
     this.post.setVisionKind(kind);

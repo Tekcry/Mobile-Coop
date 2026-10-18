@@ -1,15 +1,12 @@
 # Operators run - state (resume point)
 
-**Now:** step 11e (11d's runtime is built, uncommitted until the orchestrator commits: src/operators/runtime/*,
-docs/operators-runtime/SURVEY.md and DESIGN.md, A96-A98; DESIGN.md "11e integration map" is the to-do list). 11e: copy
-the four Wren GLBs to src/operators/assets/wren/ (A98), wire `OperatorFigure` into player.ts, remoteAvatar.ts,
-menuScene.ts and photoMode.ts, add the workbox runtime cache for `assets/*.glb`, GPU checks on 4189. Open for the
-orchestrator: the goggle's stowed set is not exported yet (DESIGN.md "Asset follow-up"; until then only the glow follows
-G73). Wren is THE player character for both players (D31; no dev switch; guards
-unchanged; gameplay unchanged, G38; G72 proportion fixes), record G123 and the run's decisions from G124 in
-docs/DECISIONS.md (now on this branch), docs/systems/world-and-characters.md, CHANGELOG Unreleased (G93), run npm run
-check and the e2e suites (move, traverse, anchors, wall, anim, netmove, coop, bunker, course), then open the PR
-feature/operators -> master (do not merge). Moth (step 12, D24) after that.
+**Now:** step 11e (implementer draft, uncommitted; LOG.md "Step 11e"). Wren is the player body for solo, the local co-op
+player, the partner and the menu (hero), G123 / D33; G72 in proportions.ts; G123-G138 in master's docs/DECISIONS.md.
+Left before the PR: e2e-traverse "ladder sprint: hands reach their grips" (19.5 cm > 3 cm; fix in attachGrips.ts ladder
+offsets, LOG open 1); e2e-coop offline-state check with the full-graphics menu (open 2); grenade pouches still drawn on
+(fixed, re-shoot); desktop perf budgets over with and without Wren (open 8); then the full `npm run e2e`, the independent check and the PR feature/operators -> master. Moth (step
+12, D24) after that.
+
 **After 11c (master 4.0.0 merged):** master's rules now apply on this branch: CLAUDE.md (desktop only, CT kit `rifle` +
 `pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G122, bible 2.0. Ports
 (G94): 4191 = software-GL logic e2e only, 4189 = GPU work; the preamble's GPU Lab / sheets on 4191 conflict with that.

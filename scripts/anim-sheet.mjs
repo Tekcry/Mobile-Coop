@@ -6,7 +6,7 @@
 // (edge peek / lean both edges arrive with step 12); aimed edge lean-outs (PC1): walledgeaim, walledgeleftaim and their
 // pistol variants walledgeaimp, walledgeleftaimp. reload and swap run drawn (aim held: step 09 holsters by default);
 // holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put)
-import { launch } from './e2e-lib.mjs';
+import { launch, waitOperator } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
 const FRAMES = Number(framesArg);
@@ -59,6 +59,9 @@ const SCENARIOS = {
 const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+// (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
+await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
+await waitOperator(page);
 // (PC1) the toasts too ("Ready to play offline", graphics tier)
 await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
 await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased - Wren, the player character (one minor step at merge, G93)
+Operators run (feature/operators): Wren replaces the player body for every player (G123: "I want wren in to replace the
+existing character anyway; before the prototype is done", "Both play as Wren").
+
+- Solo, the local co-op player and the co-op partner are Wren, the realistic operator built offline in Blender (G68):
+  a one-piece stealth suit, slim armour, rigid kit, the original goggle. The main menu shows her hero model (D33: "Yes
+  use hero for menu"). Guards keep their bodies.
+- Gameplay unchanged (G38): the same capsule, speeds, noise, traversal and camera. The body drawn, the light-meter
+  samples and the hit volumes follow Wren's size (1.68 m, G74); weapons sit in her hands.
+- Body proportions corrected for every character (G72, ANSUR II): shoulder joint 3.5 cm lower, wider shoulders, longer
+  hands, deeper chest, fuller waist and pelvis, head 1 cm deeper, thigh 2.5 cm shorter.
+- The goggle glows dim with vision off and full with it on (G73); it sits over the eyes in both states until the stowed
+  model is exported (cleanup).
+- Download: 81.4 MB more, fetched on first use and then cached for offline play (LOD2 2.5 MB first, LOD0 18.4 MB,
+  LOD1 5.1 MB; the menu's hero 55.5 MB loads after them).
+- Tools: `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0.
+
 ## 4.0.0 - Consolidation (Unreleased until Michael merges; G84, G93)
 One branch with all finished and paused work, one vision (docs/DECISIONS.md, G1-G118). The entries below this one are
 the merged branches' own notes, kept as their history.

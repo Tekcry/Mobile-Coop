@@ -3,7 +3,9 @@ import { DOOR } from '../world/doors';
 import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, remoteWallHeadCap, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
-import { CharacterRig } from '../player/characterRig';
+import type { CharacterRig } from '../player/characterRig';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
@@ -34,6 +36,8 @@ let ropeKeys = 0;
  */
 export class RemoteAvatar {
   readonly rig: CharacterRig;
+  /** (operators 11e) Wren, drawn on the rig. */
+  readonly figure: OperatorFigure;
   /** (step 13) The door-peek handle reach (world) and whether it is set. */
   private readonly doorHand = { x: 0, y: 0, z: 0 };
   private doorHandOn = false;
@@ -99,10 +103,13 @@ export class RemoteAvatar {
     private ballistics: Ballistics,
     readonly info: PlayerInfo,
   ) {
-    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
+    // (operators 11e, G123: "Both play as Wren") the partner is Wren too, posed from MoveState as before
+    const op = operatorRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, `remote-${info.id}`, (m) => world.addShadowCaster(m));
+    this.rig = op.rig;
+    this.figure = op.figure;
     this.rig.carrier = true;
-    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
-    this.pouches = new GrenadePouches(world.parts, this.rig);
+    loadPlayLods(this.figure);
+    this.pouches = new GrenadePouches(world.parts, this.rig, undefined, false);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.rig.setEnabled(false);
   }
@@ -386,6 +393,8 @@ export class RemoteAvatar {
     // downed: lie on the side
     r.rotation.z = this.dead ? Math.PI / 2 : 0;
     if (this.dead) r.position.y += 0.22;
+    // Wren on the rig (render only)
+    partnerFigureFrame(this.figure, this.rig, dt, this.world.scene.activeCamera);
     this.fireVisuals(dt);
   }
 
@@ -413,6 +422,7 @@ export class RemoteAvatar {
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();
+    this.figure.dispose();
     this.rig.dispose();
   }
 }

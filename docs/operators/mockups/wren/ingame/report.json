@@ -1,0 +1,21 @@
+{
+  "gpu": true,
+  "coopLoaded": {
+    "hostBothLod0": 40.46
+  },
+  "coopLods": {
+    "own": 1,
+    "partner": 1
+  },
+  "coopFrameMs": {
+    "n": 238,
+    "p50": 24.8,
+    "p95": 25.1,
+    "max": 25.2
+  },
+  "coopErrors": [
+    [],
+    []
+  ],
+  "perfTail": "Warehouse, 12 enemies, desktop (gfx=epic) (hardware GPU, local budget profile)\nmachine speed: reference workload 16.8 ms (info: the local budgets are not scaled)\nCPU per frame @120 Hz (sim + anim + camera, no render): p50 2.75 p95 3.25 p99 3.6 ms\nsim p95 3.25 ms  [budget <= 2.90 = 2.9 x speed]; render JS 9.474 ms\nmain thread (sim p95 + render JS) 12.724 ms  [budget <= 5.5]; rendered frame interval p95 39.3 ms  [budget <= 10.0 = 1.2 x 8.3 ms display interval]\nanimation per character: 0.1197 ms  [budget <= 0.0750 = 0.075 x speed]\nallocations: 10759 KB per simulated second (44.8 KB per 240 Hz frame)  [budget <= 11520 KB/s]\n   1259.0 KB/s  toWireType havok-V-2dkDzw.js:1\n   1196.2 KB/s  applyTargets index-CxyyJkpc.js:8\n   784.0 KB/s  fromWireType havok-V-2dkDzw.js:1\n   281.4 KB/s  update index-CxyyJkpc.js:8\n   254.6 KB/s  fade index-CxyyJkpc.js:8\n   245.3 KB/s  setPhysicsBodyTransformation babylon-C8ispfjP.js:131 <- executeStep babylon-C8ispfjP.js:131\n   233.3 KB/s  get z babylon-C8ispfjP.js:27 <- move index-CxyyJkpc.js:1270\n   232.4 KB/s  updateIdle index-CxyyJkpc.js:8\ndraw calls (every pass): 218  [budget <= 520]\ntriangles (every pass): 0.9 M  [budget <= 1.7 M]\nrendered frames: display 119.99999999999999 Hz, interval p50 26.9 p95 39.3 p99 49.1 ms, cpu p50 25.4 p95 37.4 ms\nover budget: sim p95, anim per character, main thread, frame pacing\n\nEXIT 1"
+}

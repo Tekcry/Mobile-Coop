@@ -22,7 +22,7 @@ import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
 import { ktx2Setup } from '../lab/ktx2';
 import { GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
 import { CLOSE_CAMERAS, pickLod } from './lodPick';
-import { LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
+import { LOD_0, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, TRS, type PoserSetup } from './pose';
 
 /** The CharacterRig fields the figure reads (CharacterRig satisfies this structurally; no import of its internals). */
@@ -92,6 +92,18 @@ export function loadModel(url: string): Promise<GlbModel> {
 export function forgetModels(): void {
   MODELS.clear();
 }
+
+/** Drops one parsed file (the menu drops the 55 MB hero when it closes; a later close-up reads it from the cache). */
+export function forgetModel(url: string): void {
+  MODELS.delete(url);
+}
+
+/**
+ * (11e, D33: Michael "Yes use hero for menu") The hero LOD for the main menu and registered close-up cameras (photo
+ * mode). Loaded only when such a camera asks for it, never on the way into play; gameplay cameras keep LOD0-2. False:
+ * close-ups use LOD0 (the hero file can then leave the build: src/operators/assets/wren/wren-hero.glb).
+ */
+export const HERO_CLOSE_UPS = true;
 
 // ---- per-scene GPU resources ----
 
@@ -247,6 +259,28 @@ interface LodInstance {
 
 const RANGE: [number, number] = [0, 0];
 
+/** Every operator body alive (close-up cameras switch them to the hero, `setCloseCamera`). */
+export const LIVE_FIGURES = new Set<OperatorFigure>();
+
+/**
+ * Registers (`on`) or drops a close-up camera (D21: main menu, photo mode). Bodies in its scene load their close-up LOD
+ * and re-pick at once, so a frozen game (photo mode) still swaps to the hero. Render side only.
+ */
+export function setCloseCamera(camera: Camera, on: boolean): void {
+  if (on) CLOSE_CAMERAS.add(camera.uniqueId);
+  else CLOSE_CAMERAS.remove(camera.uniqueId);
+  const scene = camera.getScene();
+  for (const f of LIVE_FIGURES) {
+    if (f.root.getScene() !== scene) continue;
+    f.update(scene.activeCamera);
+    if (!on) continue;
+    f.loadCloseUp().then(
+      () => f.update(scene.activeCamera),
+      (e: unknown) => console.warn('[operators] close-up LOD failed', e),
+    );
+  }
+}
+
 /** One operator body on a CharacterRig. */
 export class OperatorFigure {
   /** Under `rig.root`: position and yaw come from the rig. */
@@ -272,6 +306,30 @@ export class OperatorFigure {
     this.root = new TransformNode(`${name}-operator`, lib.scene);
     this.root.parent = rig.root;
     readRig(this.rig, this.rigRest);
+    LIVE_FIGURES.add(this);
+  }
+
+  /** The close-up LOD (menu, photo mode): the hero when it is in the build and switched on, else LOD0. */
+  loadCloseUp(): Promise<void> {
+    return this.load(HERO_CLOSE_UPS && this.manifest.urls[LOD_HERO] ? LOD_HERO : LOD_0);
+  }
+
+  /** Thermal warmth 0..1 (render only; the rig's `heat`): a white overlay per mesh, as the old body's emissive flag. */
+  setHeat(k: number): void {
+    if (k === this.heatK) return;
+    this.heatK = k;
+    for (const l of this.lods) if (l) this.applyHeat(l);
+  }
+
+  private heatK = 0;
+
+  private applyHeat(l: LodInstance): void {
+    const k = this.heatK;
+    for (const m of l.meshes) {
+      m.renderOverlay = k > 0;
+      m.overlayAlpha = k;
+      m.overlayColor.set(1, 1, 1);
+    }
   }
 
   /** Loads one LOD into this body (shared asset, own skeleton). Resolves when it can be shown. */
@@ -351,6 +409,7 @@ export class OperatorFigure {
     const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head };
     this.applyGoggle(inst, this.goggle.pose);
     this.applyHead(inst);
+    if (this.heatK > 0) this.applyHeat(inst);
     return inst;
   }
 
@@ -439,6 +498,7 @@ export class OperatorFigure {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    LIVE_FIGURES.delete(this);
     for (let i = 0; i < this.lods.length; i++) {
       const l = this.lods[i];
       if (!l) continue;

@@ -108,13 +108,23 @@ describe('operator bodies', () => {
     expect(operatorProportions(OPERATORS.moth).height).toBe(1.78);
   });
 
-  it('applies the ANSUR II corrections without touching proportions.ts', () => {
+  it('applies the ANSUR II corrections, which proportions.ts now carries for every character (G72, step 11e)', () => {
     const p = operatorProportions(OPERATORS.moth);
     const k = 1.78 / 1.75;
     expect(p.y.shoulder).toBeCloseTo(BASE_CORRECTIONS.shoulderY * k, 6);
     expect(p.hand.len).toBeCloseTo(BASE_CORRECTIONS.handLen * k, 6);
     expect(p.upperArm.len).toBeCloseTo(0.3 * k, 6);
-    expect(proportions('average').y.shoulder).toBe(1.435);
+    const base = proportions('average');
+    const c = BASE_CORRECTIONS;
+    expect(base.y.shoulder).toBeCloseTo(c.shoulderY, 9);
+    expect(base.hand.len).toBeCloseTo(c.handLen, 9);
+    expect(base.pelvis.w).toBeCloseTo(c.pelvisW, 9);
+    expect(base.waist.w).toBeCloseTo(c.waistW, 9);
+    expect(base.waist.d).toBeCloseTo(c.waistD, 9);
+    expect(base.chest.d).toBeCloseTo(c.chestD, 9);
+    expect(base.head.d).toBeCloseTo(c.headD, 9);
+    expect(base.shoulderWidth).toBeCloseTo(c.shoulderWidth, 9);
+    expect(base.thigh.len).toBeCloseTo(c.thighLen, 9);
   });
 
   it('puts fingertips near the survey ratio (~0.37 of stature)', () => {

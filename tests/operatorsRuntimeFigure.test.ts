@@ -205,6 +205,64 @@ describe('operator runtime: figure on a NullEngine', () => {
     forgetModels();
   });
 
+  it('11e: player rigs at Wren size with hidden part bodies, thermal overlay, close-up cameras switch to the hero', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, FreeCamera, Vector3 } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const { OperatorFigure, LIVE_FIGURES, setCloseCamera, forgetModels } = await import('../src/operators/runtime/figure');
+    const { CLOSE_CAMERAS } = await import('../src/operators/runtime/lodPick');
+    const { manifestFromUrls, LOD_0, LOD_HERO } = await import('../src/operators/runtime/manifest');
+    const { operatorRig, operatorLibrary, PLAYER_HEIGHT } = await import('../src/operators/runtime/playerFigure');
+    const glb = operatorGlb();
+    const fetched: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      fetched.push(url);
+      return new Response(glb.slice(0));
+    });
+    forgetModels();
+    const scene = new Scene(new NullEngine());
+    const parts = new PartLibrary(scene);
+    const { rig, figure: built } = operatorRig(scene, (s, h, n) => parts.instance(s, h, n), defaultLook(), 'player');
+    // the rig is Wren's size (G74, the G72 proportions) and draws nothing of its own
+    expect(PLAYER_HEIGHT).toBe(1.68);
+    expect(rig.height).toBe(1.68);
+    expect(rig.p.y.shoulder).toBeCloseTo(1.4 * (1.68 / 1.75), 9);
+    expect(rig.voxel).toBeNull();
+    const own = rig.root.getChildMeshes(false).filter((m) => !m.name.startsWith('player-'));
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((m) => !m.isEnabled(false))).toBe(true);
+    expect(LIVE_FIGURES.has(built)).toBe(true);
+    built.dispose();
+    expect(LIVE_FIGURES.has(built)).toBe(false);
+
+    // a body with the fixture manifest: thermal warmth as a per-mesh overlay, then a close-up camera
+    const manifest = manifestFromUrls('wren', { 'a/wren-hero.glb': '/h.glb', 'a/wren-lod0.glb': '/0.glb', 'a/wren-lod1.glb': '/1.glb', 'a/wren-lod2.glb': '/2.glb' });
+    const fig = new OperatorFigure(operatorLibrary(scene), rig, manifest, 'wren');
+    await fig.loadGameLods();
+    const cam = new FreeCamera('play', new Vector3(0, 1.6, -3), scene);
+    scene.activeCamera = cam;
+    fig.update(cam);
+    expect(fig.current).toBe(LOD_0);
+    fig.setHeat(0.85);
+    const ms = fig.renderMeshes;
+    expect(ms.every((m) => m.renderOverlay && m.overlayAlpha === 0.85)).toBe(true);
+    fig.setHeat(0);
+    expect(ms.some((m) => m.renderOverlay)).toBe(false);
+    expect(fetched).not.toContain('/h.glb');
+    // photo mode registers its camera: the hero loads and shows without a frame update (a frozen game)
+    setCloseCamera(cam, true);
+    expect(CLOSE_CAMERAS.has(cam.uniqueId)).toBe(true);
+    await vi.waitFor(() => expect(fig.current).toBe(LOD_HERO));
+    expect(fetched).toContain('/h.glb');
+    setCloseCamera(cam, false);
+    expect(fig.current).toBe(LOD_0);
+    fig.dispose();
+    rig.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
   it('refuses an asset URL that leaves the origin', async () => {
     const { loadModel } = await import('../src/operators/runtime/figure');
     vi.stubGlobal('location', { origin: 'https://x.github.io' });
