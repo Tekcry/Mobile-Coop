@@ -33,8 +33,14 @@ least look believable but only prototype quick run".
 Assumed decisions A1-A14 with how to undo each: docs/weapons/DECISIONS.md.
 
 ### Checks
-- `npm run check`: green (lint 0 errors, 1588 tests, build).
-- Full software-GL e2e (`E2E_PORT=4191 E2E_JOBS=2`): RESULTS_HERE
+- `npm run check`: green (lint 0 errors, all unit tests, build).
+- Full software-GL e2e (`E2E_PORT=4191 E2E_JOBS=2`) on the final build:
+  - Every required suite passes, alone where the parallel run failed: e2e-stealth, e2e-mouse, e2e-coop, e2e-pad,
+    e2e-bunker.
+  - Known flaky: e2e-foley ("a sprint plants faster than a walk", its known walk-plants threshold).
+  - Pre-existing, failing on master 9295c65 too (logged in docs/backlog.md): e2e-kestrel (camera rays along the tour) and
+    e2e-camera-bounds (level U).
+  - Fixed by this branch on the way: e2e-netmove (the partner's raised pistol) and e2e-weapons-carry (holds).
 - Independent check (fresh agent): PASS on scale, realism, holds and carry. It found one blocker, the grip morph managers
   leaking on figure dispose; fixed in fix round 1.
 - In-game GPU screenshots were taken on this laptop's RTX 4090 (Michael: "You are on the laptop also, so you can run the

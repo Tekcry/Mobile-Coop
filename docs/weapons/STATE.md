@@ -1,6 +1,6 @@
 # Weapons job - state (resume point)
 
-- Done: pipeline; rifle, pistol, knife meshes in game; finger grips; hand holds; shoulder protraction; pistol reach;
-  holster and back mount on Wren's built kit; `npm run check` green.
-- Next: quick e2e, independent check (blocks only on broken, wrong scale, unrealistic at a glance, unbelievable holds or
-  carry), one fix round, full e2e, PR, morning report with the screenshots.
+- Done: all three weapons in game, holds, carry, independent check passed with fix round 1, full e2e, PR open.
+- Waiting: Michael's review and merge. Then `docs/DECISIONS.md` gets the job's answers (G numbers), progress marks it merged.
+- Follow-on: the animation clean-up job (Michael approved, 2026-10-19), branch feature/anim-cleanup from this branch
+  plus CT Core's posture fix (feature/ct-prototype 59a6846).
