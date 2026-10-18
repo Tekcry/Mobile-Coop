@@ -223,9 +223,9 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
   await sim(0.6);
   assert((await G(() => window.__h.hud().room)) === '', 'no room tag in Clear mode on the mini set');
 });
-await run('', async ({ page, G }) => {
-  // play screen (3.0): Warehouse is the default for every mode; only its missions are offered
-  await page.locator('.main-menu .btn', { hasText: 'Missions' }).first().click();
+await run('legacy=1', async ({ page, G }) => {
+  // play screen (3.0; slice 4: the old Play hub is the Legacy entry): Warehouse is the default for every mode; only its missions are offered
+  await page.locator('.main-menu .btn', { hasText: 'Legacy' }).first().click();
   await page.waitForSelector('.play-screen');
   const seen = [];
   for (let i = 0; i < 6; i++) {

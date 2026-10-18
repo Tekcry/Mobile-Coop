@@ -238,38 +238,26 @@ try {
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
 
-  console.log('campaign loadout (G76, the CT kit): pad lists only the rifle and the suppressed pistol, defaults Heron Carbine + Hush 9 SD');
+  console.log('issued kit (slice 4, D-11; G76 CT kit): the pad reads the kit, nothing is selectable');
   {
     const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
-    const labels = () => page.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-    const value = (k) => page.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+    const ctr = (k) => page.evaluate((kk) => document.querySelector(`.kit-screen [data-key="${kk}"] .ms-ctr`)?.textContent ?? '', k);
     assert(await focusTo(page, /Loadout/), 'focus Loadout');
     await press(page, BTN.A);
-    assert(await q('.loadout-screen'), 'A opens the Loadout');
-    const root = await labels();
-    assert(JSON.stringify(root) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the root: loadout, primary, sidearm, gadget (${root})`);
-    assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'primary'; i++) await press(page, BTN.DOWN);
-    await press(page, BTN.A);
-    const prim = await labels();
-    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
-    const seen = new Set([await key()]);
+    assert(await q('.kit-screen'), 'A opens the issued kit');
+    assert((await key()) === 'primary', 'focus starts on Primary');
+    assert((await ctr('primary')) === 'Heron Carbine' && (await ctr('secondary')) === 'Hush 9 SD', `the kit: Heron Carbine + Hush 9 SD (${await ctr('primary')} / ${await ctr('secondary')})`);
+    const seen = [await key()];
     for (let i = 0; i < 2; i++) {
       await press(page, BTN.DOWN);
-      seen.add(await key());
+      seen.push(await key());
     }
-    assert(seen.has('w-rifle') && seen.size === 1, `the d-pad reaches the rifle and nothing else (${[...seen]})`);
-    const lo = await page.evaluate(() => window.__app.save.get().loadout);
-    assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `the rifle is the primary, the sidearm in hand (${JSON.stringify(lo)})`);
-    await press(page, BTN.B);
-    assert((await value('primary')) === 'Heron Carbine', `B returns to the root with it (${await value('primary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'secondary'; i++) await press(page, BTN.DOWN);
+    assert(JSON.stringify(seen) === JSON.stringify(['primary', 'secondary', 'gadget']), `the d-pad walks the three issued items (${seen})`);
+    const lo = await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout));
     await press(page, BTN.A);
-    const side = await labels();
-    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
+    assert((await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout))) === lo && (await q('.kit-screen')), 'A on an issued item changes nothing');
     await press(page, BTN.B);
-    await press(page, BTN.B);
-    assert(await q('.main-menu') && !(await q('.loadout-screen')), 'B backs out to the main menu');
+    assert(await q('.main-menu') && !(await q('.kit-screen')), 'B backs out to the main menu');
   }
 
   console.log('play setup + in-game pause flow');
@@ -277,19 +265,25 @@ try {
   for (let i = 0; i < 8 && !/^Missions/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/^Missions/.test(await focusedText(page)), 'menu wraps / reaches Missions');
   await press(page, BTN.A);
-  assert(await q('.play-screen'), 'A opens the play setup');
-  assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
-  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad down to Difficulty, right = Normal -> Realistic
-  for (let i = 0; i < 14 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(await q('.missions-screen'), 'A opens the missions list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen'), 'A on a mission opens its briefing');
+  assert(/Start mission/.test(await focusedText(page)), 'the briefing opens on Start');
+  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
+  for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
   await press(page, BTN.RIGHT);
-  const cd = await page.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
+  const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
   assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
-  for (let i = 0; i < 14 && !/Mode/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  await press(page, BTN.LEFT);
-  assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
-  for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Deploy/.test(await focusedText(page)), 'focus Deploy');
+  // back out, then Free roam (the level picked carries over) and Start
+  await press(page, BTN.B);
+  await press(page, BTN.B);
+  assert(await q('.main-menu'), 'B twice returns to the main menu');
+  assert(await focusTo(page, /Free roam/), 'focus Free roam');
+  await press(page, BTN.A);
+  assert(await q('.freeroam-screen'), 'A opens the free roam list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen') && /^Start/.test(await focusedText(page)), 'A on a map opens its briefing on Start');
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));

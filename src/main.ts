@@ -20,6 +20,8 @@ import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
+import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
+import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
@@ -131,7 +133,7 @@ async function boot(): Promise<void> {
       order: 10,
       counter: () => `${MISSIONS.length}`,
       ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
-      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o), 'infiltration')),
+      action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
     }),
     () => ({
       key: 'training',
@@ -146,9 +148,9 @@ async function boot(): Promise<void> {
       label: 'Free roam',
       order: 18,
       ctx: 'No guards. Explore a map with the full kit.',
-      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o), 'sandbox')),
+      action: () => a.screens.push(new FreeRoamScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: 'Weapons, attachments and gadget for the next mission.', action: () => a.screens.push(new LoadoutScreen(a)) }),
+    (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: flags.legacy ? 'Weapons, attachments and gadget for the next mission.' : 'The kit issued for the mission: weapons, attachments and gadget.', action: () => a.screens.push(flags.legacy ? new LoadoutScreen(a) : new KitScreen(a)) }),
     (a) => ({ key: 'settings', label: 'Settings', order: 80, ctx: 'Controls, graphics, sound, accessibility and save data.', action: () => a.screens.push(new SettingsScreen(a)) }),
     (a) => ({
       key: 'feedback',

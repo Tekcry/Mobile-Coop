@@ -44,51 +44,28 @@ try {
   assert(['missions', 'coop', 'training', 'freeroam', 'loadout', 'settings', 'feedback'].every((k) => keys.includes(k)) && !keys.includes('legacy'), `the flat main menu (${keys})`);
 
   await menuClick(page, 'Missions');
-  await page.waitForSelector('.play-screen');
-  const modes = await playModes(page);
-  assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the Play screen lists Infiltration and Free Roam (${modes})`);
-  assert((await G(() => window.__app.screens.top.mode)) === 'infiltration' || modes[0] === 'Infiltration', 'the default mode is Infiltration');
+  await page.waitForSelector('.missions-screen .ms-item');
+  const mk = await G(() => ({ n: document.querySelectorAll('.missions-screen .ms-item').length, total: window.__missions.length, play: !!document.querySelector('.play-screen') }));
+  assert(mk.n === mk.total && mk.n > 0 && !mk.play, `slice 4: Missions lists the campaign cards, no Play hub (${JSON.stringify(mk)})`);
+  await G(() => window.__app.screens.pop());
+  await menuClick(page, 'Free roam');
+  await page.waitForSelector('.freeroam-screen .ms-item');
+  assert((await G(() => document.querySelectorAll('.freeroam-screen .ms-item').length)) > 0, 'Free roam lists the sandbox maps');
   await G(() => window.__app.screens.pop());
 
-  // Loadout
+  // Loadout (slice 4, D-11: the issued kit, read only; the old screen stays under ?legacy=1)
   await menuClick(page, 'Loadout');
-  await page.waitForSelector('.loadout-screen .lo-row');
+  await page.waitForSelector('.kit-screen .ms-item');
   await frames(page, 3);
-  const labels = await rowLabels(page);
-  assert(JSON.stringify(labels) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the Loadout root: loadout presets, primary, sidearm, gadget (${labels})`);
-  const top = await G(() => ({ brand: document.querySelector('.net-brand')?.textContent, wallet: document.querySelector('.wallet')?.textContent ?? '', ticker: document.querySelector('.net-ticker')?.textContent ?? '' }));
-  assert(top.brand === 'NIGHT SHIFT' && !top.wallet && !top.ticker, `no level, credits or challenge ticker (${JSON.stringify(top)})`);
-  const before = await G(() => { const s = window.__app.save.get(); return { unlocks: [...s.unlocks], credits: s.profile.credits, xp: s.profile.xp }; });
-  await openLoadoutPage(page, 'weaponsPage', 'primary');
+  const labels = await G(() => [...document.querySelectorAll('.kit-screen .ms-item .btn-label')].map((e) => e.textContent));
+  assert(JSON.stringify(labels) === JSON.stringify(['Primary', 'Sidearm', 'Gadget']), `the issued kit: primary, sidearm, gadget (${labels})`);
+  const ctrs = await G(() => [...document.querySelectorAll('.kit-screen .ms-ctr')].map((e) => e.textContent));
+  assert(ctrs[0] === 'Heron Carbine' && ctrs[1] === 'Hush 9 SD', `the CT kit guns, G76 (${ctrs})`);
+  const before = await G(() => JSON.stringify(window.__app.save.get().loadout));
+  await page.click('.kit-screen [data-key="primary"]');
   await frames(page, 3);
-  const wp = await G(() => ({ rows: document.querySelectorAll('.lo-list .lo-row').length, locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, buy: document.querySelectorAll('.lo-list .lo-row.m-buyable').length, price: document.querySelectorAll('.lo-list .lo-val.price').length }));
-  const wpNames = await G(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-  assert(JSON.stringify(wpNames) === JSON.stringify(['Heron Carbine']), `the CT kit rifle only, G76 (${wpNames})`);
-  assert(wp.rows === 1 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
-  // (G115: both CT kit guns are issued, so there is no locked gun left to equip; the locked choice is an attachment)
-  await openLoadoutPage(page, 'customizePage', 'rifle');
-  await frames(page, 3);
-  const cp = await G(() => ({ labels: [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent), groups: [...document.querySelectorAll('.lo-list .lo-group')].map((e) => e.textContent), locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, price: document.querySelectorAll('.lo-list .lo-val.price').length, sub: document.querySelector('.lo-sub')?.textContent }));
-  assert(cp.labels.length > 0 && cp.locked === 0 && cp.price === 0 && !cp.groups.some((g) => /UPGRADES|CAMO/.test(g)) && !/UPGRADES/.test(cp.sub), `attachments only: no upgrades, camo, locks or prices (${JSON.stringify(cp)})`);
-  // (a row tapped within 350 ms of gaining focus only previews: wait it out, tap, wait, tap)
-  const tapFirst = () => G(() => { const row = [...document.querySelectorAll('.lo-list .lo-row')][0]; row.click(); return row.querySelector('.lo-label').textContent; });
-  // (a tap on an unfocused row only previews, a focused one acts - and a second tap would toggle it off again: tap until it is on)
-  const attsOn = () => G(() => window.__app.save.get().weapons.rifle.attachments.length);
-  let att = '';
-  for (let i = 0; i < 3 && (await attsOn()) === 0; i++) {
-    await page.waitForTimeout(450);
-    att = await tapFirst();
-  }
-  await frames(page, 4);
-  const sa = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments, unlocks: window.__app.save.get().unlocks.length, credits: window.__app.save.get().profile.credits, xp: window.__app.save.get().profile.xp }));
-  assert(sa.atts.length === 1 && sa.unlocks === before.unlocks.length, `an attachment equips without an unlock (${att}: ${sa.atts})`);
-  assert(sa.credits === before.credits && sa.xp === before.xp, 'nothing was bought or paid for in the save');
-  // it persists (the sanitiser keeps the campaign's choice)
-  await G(() => window.__app.save.flush());
-  await page.reload();
-  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
-  const kept = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments.length, unlocks: window.__app.save.get().unlocks.length }));
-  assert(kept.atts === 1 && kept.unlocks === before.unlocks.length, `the choice survives a reload (${kept.atts})`);
+  assert((await G(() => JSON.stringify(window.__app.save.get().loadout))) === before && (await G(() => !!document.querySelector('.kit-screen'))), 'the kit is not selectable: a click changes nothing');
+  await G(() => window.__app.screens.pop());
 
   // co-op lobby
   await menuClick(page, 'Co-op');
@@ -113,6 +90,7 @@ try {
 
   // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
   // checked, now that it is a legacy suite), the campaign's loadout choice included
+  const exAtts = await G(() => window.__app.save.get().weapons.rifle.attachments.length);
   const ex = await G(() => window.__app.save.exportText());
   assert(/shoulder-strike-save/.test(ex), 'the save export keeps its internal magic');
   const imp = await G(async (t) => {
@@ -122,7 +100,7 @@ try {
     const s = window.__app.save.get();
     return { name: s.profile.name, atts: s.weapons.rifle.attachments.length };
   }, ex);
-  assert(imp.name === 'Imported' && imp.atts === 1, `importing an exported file restores it (${JSON.stringify(imp)})`);
+  assert(imp.name === 'Imported' && imp.atts === exAtts, `importing an exported file restores it (${JSON.stringify(imp)})`);
 
   console.log('legacy on (?legacy=1)');
   const L = (await openPage(ctx, url, 'legacy=1')).page;

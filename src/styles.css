@@ -4342,3 +4342,105 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 .screen.menu-screen .ms-rows .row-locked .locked-val {
   color: var(--muted);
 }
+
+/* Menu UI (menu-ui slice 4): missions list, briefing, issued kit */
+.screen.menu-screen .ms-list.ms-scroll {
+  max-height: calc(100vh - var(--sp-list-y) - 110px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.menu-screen .br-doc {
+  margin: 0 0 14px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-ctx);
+  line-height: 1.35;
+  color: var(--text);
+}
+.menu-screen .br-doc p {
+  margin: 0 0 8px;
+}
+.menu-screen .br-doc .br-name {
+  margin: 0 0 4px;
+  font-size: calc(28px * var(--ts));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-hi);
+  font-weight: 700;
+}
+.menu-screen .br-doc h4 {
+  margin: 8px 0 4px;
+  font-size: var(--fs-ctx-head);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.menu-screen .br-doc .br-dim {
+  color: var(--muted);
+}
+.menu-screen .br-doc ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.menu-screen .br-rows {
+  max-height: none;
+}
+.menu-screen .ms-note {
+  margin: 0 0 10px;
+  font-size: var(--fs-ctx);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.menu-screen .ms-note.dim {
+  margin: 14px 0 0;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.menu-screen .kit-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.menu-screen .kit-bar-l {
+  width: 90px;
+  font-size: var(--fs-ctx-head);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.menu-screen .kit-bar-t {
+  flex: 1;
+  height: 6px;
+  background: var(--line);
+}
+.menu-screen .kit-bar-t i {
+  display: block;
+  height: 100%;
+  background: var(--hl);
+}
+.menu-screen .kit-note {
+  margin-top: 10px;
+  color: var(--muted);
+}
+.menu-screen .br-doc {
+  margin: 0 0 8px;
+  padding: 0 0 6px;
+  font-size: calc(var(--fs-ctx) * 0.92);
+  line-height: 1.25;
+}
+.menu-screen .br-doc .br-name {
+  font-size: calc(24px * var(--ts));
+}
+.menu-screen .br-doc p {
+  margin: 0 0 5px;
+}
+.menu-screen .br-doc h4 {
+  margin: 4px 0 2px;
+}
+.menu-screen .br-doc ul {
+  margin: 0 0 5px;
+}
