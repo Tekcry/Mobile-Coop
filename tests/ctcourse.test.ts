@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, CT_EXIT_ZONE, S5_HATCH, S5_PANEL } from '../src/world/maps/ctcourse';
+import { ctcourse, CT_EXIT_ZONE, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
 import { exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState } from '../src/game/course/courseState';
 import { getMap } from '../src/world/maps';
 import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
-import { hangReaches, inBoostBand } from '../src/game/teamMoves';
+import { hangReaches, inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { isListedMap } from '../src/world/maps/listed';
 
@@ -158,5 +158,45 @@ describe('ctcourse (CT prototype B5: hang-down hack at station 5)', () => {
     // the game's reach rule (1.8 m across, 1.5 m up / down): not from the roof, not from the front room (west of the grid wall)
     expect(Math.abs(d.y - 4.4)).toBeGreaterThan(1.5);
     expect(d.x - (22 * 4 + 12.35)).toBeGreaterThan(1.8);
+  });
+});
+
+describe('ctcourse (CT prototype B7: two-person rope at station 7)', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const anchors = generateLedges(b.boxes);
+  const c = lay.course!;
+  const x0 = 22 * 6;
+  const solidAt = (x: number, y: number, z: number): boolean =>
+    b.boxes.some((p) => p.collide && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
+
+  it('the placeholder console is gone; the wall is solid full width (no door), 4.4 m, 1 m thick', () => {
+    const bay = c.def.bays[6]!;
+    expect(bay.gates.filter((x) => x.kind !== 'pickup')).toHaveLength(0);
+    expect(c.devices['h-s7']).toBeUndefined();
+    expect(c.doors['S7-door']).toBeUndefined();
+    for (const z of [0.5, 3, 6.4, 7, 10, 13.5]) {
+      expect(solidAt(x0 + 9, 1, z)).toBe(true);
+      expect(solidAt(x0 + 9, 4.3, z)).toBe(true);
+      expect(solidAt(x0 + 9, 4.5, z)).toBe(false);
+    }
+    expect(solidAt(x0 + 8.6, 4.3, 7)).toBe(true);
+    expect(solidAt(x0 + 9.4, 4.3, 7)).toBe(true);
+  });
+  it('a leg-up from the near side reaches a climbable lip in the band; the rope serves the drop back down', () => {
+    const apex = { x: x0 + 8, y: TEAM.boostMax - 1.15, z: 3 };
+    const t = findJumpTarget(anchors, apex, -1, 1, 0, 1, 2.2, 0.2);
+    expect(t).not.toBeNull();
+    expect(inBoostBand(t!.grip.y)).toBe(true);
+    expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+    expect(ropeRoom(4.4, 0)).toBe('ok');
+  });
+  it('never stranded: a far-side stair (1.1 m rises) climbs back to the wall top; nothing on the near side', () => {
+    for (let k = 1; k <= 3; k++) {
+      const h = 1.1 * (4 - k);
+      expect(solidAt(x0 + 9.5 + k - 0.5, h - 0.05, S7_STAIR_Z)).toBe(true);
+      expect(solidAt(x0 + 9.5 + k - 0.5, h + 0.05, S7_STAIR_Z)).toBe(false);
+    }
+    expect(solidAt(x0 + 8, 1, S7_STAIR_Z)).toBe(false);
   });
 });

@@ -213,3 +213,22 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   the facing direction is checked for a drop.
 - Checks: `npm run check` passes (1679 tests); e2e ctcourse (536 s: lowered, hacked, grid opened, pulled up), smoke,
   netmove pass.
+
+## 2026-10-19 - B6 paired scanners (Opus)
+- Built: two scanner panels 13.2 m apart; each player presses A / E at their own panel for a 2 s hack and stays within
+  2 m; the door opens only when both finish within 1.5 s of each other (never scaled by difficulty, G131). Walking off
+  or missing the window resets both; the failing player loses 10 HP (never below 1) plus a radio line. Panel glow grey /
+  amber / cyan / green and a ready light per panel on both pages. Host-authoritative (use check, alive, at the panel);
+  the old 1.0 s pair gate replaced by a flag gate. Protocol 20 -> 21 (`sc` in `course.sec`). Report `B6-SCANNERS.md`.
+- Checks: `npm run check` passes (1692 tests); e2e smoke and ctcourse (580 s: late client 70 -> 60 HP and reset;
+  together the door opened) pass.
+
+## 2026-10-19 - B7 two-person rope (Opus)
+- Built: standing at an edge facing a drop, the co-op action drops the rope (crouched there stays the hang-down,
+  standing with no drop stays the throw); the partner presses co-op at the rope's foot and climbs with the stick,
+  topping out beside the holder; co-op or B from either slides the climber down safely; if the holder goes, the
+  climber slides down after 1.5 s; refusal when the drop is too low, too deep or has no ground; host-checked. Station
+  7: a solid 4.4 m wall, 1 m thick, no door (console, wire and post gone); a far-side stair so a lone player can climb
+  back. Protocol 21 -> 22 (`tmove` / `tstart` kind `rope`, sub bit 4). Report `B7-ROPE.md`.
+- Stubs: no rope mesh drawn; the climb is a team move, not the solo rappel; throw over wire and pipe not built.
+- Checks: `npm run check` passes (1700 tests); e2e ctcourse (642 s) and smoke pass; netmove not run.

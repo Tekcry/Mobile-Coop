@@ -83,3 +83,4 @@
 - Crouched free hands (CT Core handed over READY_HANDS xCrouch / zCrouch / flexCrouch): xCrouch 0, flexCrouch 0.9 (elbow ~52 deg): the hands by the thighs just above the knees, not hanging ahead of them to the ground; the most bend that keeps the forearms clear of the thigh capsules (readyHands test cap 60). e2e-anim, e2e-clip, e2e-weapons-carry pass.
 - Merged CT Core's B4 (7191d39, protocol 19 = the partner throw) and their hand-applied crouch hands (a498631): PROTOCOL_VERSION 19 here (17 jammer, 18 this branch's left-shoulder bit, 19 throw); tests updated; unit tests 1694 pass.
 - Merged CT Core's B5 (e46a974, protocol 20 = the hang-down): PROTOCOL_VERSION 20 here; unit tests 1701 pass.
+- Merged CT Core's B7 (403b287, protocol 22): PROTOCOL_VERSION 22 here (18 stays this branch's left-shoulder bit); unit tests 1721 pass (a first run under load timed out 4 tests at 5 s; the rerun passed). From here on feature/ct-prototype is merged once, in the finishing session.

@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LaserDef } from '../../game/jammer';
 import type { PassZone } from '../../game/ctDevices';
+import type { ScannerDef } from '../../game/scanners';
 import type { SecurityData } from '../../security/data';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
@@ -50,6 +51,9 @@ export const S3_FLAG = 's3-clear';
  */
 export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
 export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
+/** Station 6 (B6): the course flag the paired scanners set (both hacks finished within the sync window). */
+export const S6_FLAG = 's6-sync';
+export const S6_SCANNERS: ScannerDef = { id: 'sc-s6', a: 'sw-s6-a', b: 'sw-s6-b', flag: S6_FLAG };
 /** Station 4 (B4): the course flag the far-side release switch sets; it switches the laser band off for good (bay restart re-arms it). */
 export const S4_FLAG = 's4-release';
 /** Station 4: the open gap in the 3.5 m wall the laser band closes (z), wide enough to throw a partner through. */
@@ -59,6 +63,8 @@ export const S4_GAP: [number, number] = [4, 10];
  * other over it (CT 1.3); the thrown one presses the release on the far side (CT's far-side release) and the band goes off.
  */
 export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST, z1: S4_GAP[0], x2: bayX(3) + CT_OBST, z2: S4_GAP[1], ys: [0.35, 0.9, 1.45], label: 'Laser', offFlag: S4_FLAG };
+/** Station 7 (B7): the return stair's z (against the south fence, on the far side of the rope wall). */
+export const S7_STAIR_Z = 1.0;
 /** Station 5 (B5): the roof hatch (a skylight narrower than a body, 0.55 m: nobody walks or drops in, only a partner lowered
  *  head-first fits) over the annex's back room [x0, z0, x1, z1], and the hack panel under it (y = its reach height). */
 export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
@@ -93,8 +99,8 @@ export const PANEL_TEXT: readonly string[] = [
   'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
   'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
   'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
-  'Scanners: press both within a second of each other',
-  'Wire wall: one holds the rope post while the other crosses',
+  'Scanners: one each. Press A at your scanner and stay; both hacks must finish within 1.5 s. Start together when both ready lights are green',
+  'High wall: leg-up one; on top, stand facing back down and press Co-op to drop a rope; your partner climbs it',
   'Last wall: one holds the lift, then both into the lit zone',
 ];
 
@@ -113,7 +119,12 @@ function courseDef(): CourseDef {
         // B4: the partner throw over the laser band; the thrown player's far-side release switches the band off
         return [{ kind: 'pickup', id: 'g-s4', switchId: 'sw-s4-release', flag: S4_FLAG, perPlayer: false }];
       case 6:
-        return [{ kind: 'pair', id: `g-s${n}`, a: `sw-s${n}-a`, b: `sw-s${n}-b`, doorId: `S${n}-door` }];
+        // B6: the paired scanners (CtDevices): both hacks finished within the sync window set the flag
+        return [{ kind: 'flag', id: 'g-s6', flag: S6_FLAG, doorId: 'S6-door' }];
+      case 7:
+        // B7: a solid wall, no door: leg-up one, the one on top drops the two-person rope for the other (nobody is left
+        // below to boost); the airlock waits for both. A far-side stair lets a lone player back up (never stranded).
+        return [];
       case 5:
         return [
           { kind: 'pair', id: 'g-s5', a: 'sw-s5-a', b: 'sw-s5-b', doorId: 'S5-door' },
@@ -129,8 +140,8 @@ function courseDef(): CourseDef {
     3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
     4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
     5: 'Annex roof: leg-up and relay. Both plates. Then lower one through the hatch: hack.',
-    6: 'Two scanners, ten metres apart. Press both within a second.',
-    7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
+    6: 'Two scanners, one each. Start the hacks together and stay put. A failed hack hurts.',
+    7: 'High wall. Leg-up one; the one on top drops a rope for the other.',
     8: 'Last wall. Cross, then both of you into the lit zone.',
   };
   const bays: BayDef[] = [];
@@ -155,7 +166,7 @@ function courseDef(): CourseDef {
     }),
     bays,
     exitZone: CT_EXIT_ZONE,
-    externalFlags: [S3_FLAG],
+    externalFlags: [S3_FLAG, S6_FLAG],
   };
 }
 
@@ -213,6 +224,10 @@ export const ctcourse: MapDef = {
         b.wallZ(x0 + CT_OBST, 0, CT_W, [S4_GAP], OBST_H[4]!, WALL, 0.3);
         mark(b, x0 + CT_OBST - 1.6, MID);
         mark(b, x0 + CT_OBST + 2.2, MID);
+      } else if (n === 7) {
+        // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
+        b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
+        mark(b, x0 + CT_OBST - 1.6, MID);
       } else if (n >= 2) {
         const h = OBST_H[n]!;
         // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
@@ -270,16 +285,19 @@ export const ctcourse: MapDef = {
 
     // 6 Paired scanners, ten metres apart
     x0 = bayX(5);
-    devices['sw-s6-a'] = dev(x0 + 5, 0.4, SOUTH, 'Retinal scanner A');
-    devices['sw-s6-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Retinal scanner B');
+    devices['sw-s6-a'] = dev(x0 + 5, 0.4, SOUTH, 'Retinal scanner A (hack)');
+    devices['sw-s6-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Retinal scanner B (hack)');
     b.box(x0 + 5, 1.4, 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
     b.box(x0 + 5, 1.4, CT_W - 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
 
-    // 7 Wire wall (4.4), a rope post and pipe on the near side
+    // 7 (B7) Rope wall: 4.4 m solid; the holder's striped strip on its top; a far-side return stair (1.1 m rises) so a
+    // player alone on the far side can always climb back (never stranded)
     x0 = bayX(6);
-    b.box(x0 + CT_OBST, LEDGE + 0.15, MID, 0.1, 0.3, CT_W, '#888', 0, 0, false);
-    b.box(x0 + 3, 2, 2, 0.12, 4, 0.12, '#7a5a3a', 0, 0, false);
-    devices['h-s7'] = dev(x0 + 5, 0.4, SOUTH, 'Hold rope (placeholder: two-person rope, B7)');
+    b.box(x0 + CT_OBST, LEDGE + 0.01, MID, 0.9, 0.02, 3, WARN, 0, 0, false);
+    for (let k = 1; k <= 3; k++) {
+      const h = 1.1 * (4 - k);
+      b.box(x0 + CT_OBST + 0.5 + k - 0.5, h / 2, S7_STAIR_Z, 1.0, h, 1.2, CONC);
+    }
 
     // 8 Final wall and the lit exit zone
     x0 = bayX(7);
@@ -305,6 +323,7 @@ export const ctcourse: MapDef = {
       security: SECURITY,
       lasers: [S4_LASER],
       passZones: [S3_POCKET],
+      scanners: [S6_SCANNERS],
       course: { def: courseDef(), doors, devices, squads: {} },
     };
   },

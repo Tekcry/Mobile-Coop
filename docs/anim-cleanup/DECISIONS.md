@@ -6,7 +6,7 @@ Michael's words: BRIEF.md. Assumed decisions (A1 onward), each with how to undo 
   fix (CT Core's P1, which leaves arms, hands and the aim pocket alone). Merge order: weapons PR #7, then
   feature/ct-prototype, then this. Undo: rebase onto master once both are merged.
 - **A2. The shoulder swap rides MoveState.sub bit 128 in ground mode** (the wall's left-hand bit), so the partner
-  mirrors it; a wire meaning change: version 18 (CT Core's B3 took 17 for the held jammer, B4 19 the partner throw, B5 20 the hang-down; the merged branch is at 20).
+  mirrors it; a wire meaning change: version 18 (CT Core's B3 took 17 for the held jammer, B4 19 the partner throw, B5 20 the hang-down, 21 scanners, 22 the two-person rope; the merged branch is at 22).
   Undo: drop SHOULDER_LEFT_SUB and the ground branch in poseFromMoveState, back to 17.
 - **A3. Back-mount draw and holster pass the grip beside the head on the right** (TRAVEL_VIA), the rifle muzzle-up
   before it passes the head; the pistol by the right hip. Undo: TRAVEL_VIA / the travel calls in playerWeapons.

@@ -41,7 +41,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.sub = g.team.wireSub;
     // (B5) the hang-down holder's depth (m, the head under the edge): the hanging partner follows it
     out.s = g.team.wireS;
-    out.ph = pose.traverse === 'climbUp' || pose.traverse === 'vault' ? pose.traverseT : 0;
+    out.ph = pose.traverse === 'climbUp' || pose.traverse === 'vault' || pose.traverse === 'climb' ? pose.traverseT : 0;
     delete out.c;
     return out;
   }

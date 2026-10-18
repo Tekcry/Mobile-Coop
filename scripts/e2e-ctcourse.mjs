@@ -329,6 +329,102 @@ async function hangDown(x0) {
   assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
 }
 
+/**
+ * (B7) Station 7: the two-person rope. The client boosts the host onto the 4.4 m wall (no door, nobody left below to boost
+ * the client); the host stands on top facing back and drops the rope (real RB); the client takes it at the foot (RB) and
+ * climbs (stick up); the host lets go part way (RB) and the client slides down safely; again, and the client climbs to the
+ * top and tops out beside the host; both go on over the far side.
+ */
+async function station7(x0) {
+  await legUp(x0 + 8.0, 3, 'station 7');
+  await pullUp(A, 'station 7 host');
+  // the host on the wall top facing back down at the client (yaw -PI/2 = -x), standing
+  const hx = x0 + 8.8;
+  await GA(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 4.5, z), -Math.PI / 2); }, [hx, 3]);
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4 && f[1] > 4.2; }, [hx, 3], 15000, 'course sees the host on the wall top');
+  await moveClient(x0 + 7.6, 3);
+  await new Promise((r) => setTimeout(r, 500));
+  await padReady(A);
+  await padReady(B);
+  const offer = async (what) => {
+    await holdUntil(A, RB, () => window.__app.current.team.state === 'ropeOffer', `station 7: the host drops the rope (${what})`).catch(async (e) => {
+      console.error(await GA(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ prompt: g.team.prompt, st: g.team.state, crouched: c.crouched, grounded: c.grounded, yaw: c.yaw, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
+      throw e;
+    });
+    await until(B, () => !!window.__app.current.team.offer?.rope, null, 8000, `station 7: the client is offered the rope (${what})`);
+    const n0 = await GB(() => window.__app.current.team.count.ropes);
+    await holdUntil(B, RB, (n) => window.__app.current.team.count.ropes > n, `station 7: the client takes the rope (${what})`, n0).catch(async (e) => {
+      console.error(await GB(() => { const g = window.__app.current; return JSON.stringify({ prompt: g.team.prompt, st: g.team.state, denied: g.team.lastDenied, cnt: g.team.count }); }));
+      throw e;
+    });
+    await until(A, () => window.__app.current.team.state === 'ropeHold', null, 8000, `station 7: the host holds the rope (${what})`);
+  };
+  await offer('first');
+  const prompt = await GB(() => window.__app.current.team.prompt);
+  assert(/rope/i.test(prompt ?? ''), `station 7: the climber's prompt names the rope (${prompt})`);
+  // part way up, then the holder lets go: the climber slides down to the floor (never stranded)
+  await B.evaluate(() => window.__pad.axis(1, -1));
+  try {
+    await until(B, () => window.__app.current.player.controller.pos.y > 1.2, null, 30000, 'station 7: the client climbs the rope');
+  } finally {
+    await B.evaluate(() => window.__pad.axis(1, 0));
+  }
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; const mv = r.state?.mv; return mv?.m === 'boost' && (mv.sub & 4) !== 0 && r.feet.y > 0.8; }, null, 8000, 'station 7: the host sees the client on the rope');
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'none', 'station 7: the host lets go of the rope');
+  await until(B, () => window.__app.current.team.count.slides >= 1 && window.__app.current.team.state === 'none', null, 20000, 'station 7: the client slides down safely');
+  const down = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, hp: g.target.health.hp, alive: g.player.alive }; });
+  assert(down.y < 0.3 && down.alive, `station 7: let go, the client is back on the floor unharmed (y ${down.y.toFixed(2)})`);
+  // again, all the way up: tops out beside the holder
+  await new Promise((r) => setTimeout(r, 1200));
+  await padReady(A);
+  await padReady(B);
+  await offer('second');
+  await B.evaluate(() => window.__pad.axis(1, -1));
+  try {
+    await until(B, () => window.__app.current.team.count.tops >= 1, null, 40000, 'station 7: the client climbs to the top and tops out').catch(async (e) => {
+      console.error(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, rope: g.team.rope, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
+      throw e;
+    });
+  } finally {
+    await B.evaluate(() => window.__pad.axis(1, 0));
+  }
+  await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 7: the holder is free once the partner is up');
+  await new Promise((r) => setTimeout(r, 400));
+  const up = await GB(() => { const g = window.__app.current; const c = g.player.controller; return { y: c.pos.y, x: c.pos.x, st: g.team.state }; });
+  assert(up.y > 4.2 && up.st === 'none', `station 7: the client stands on the wall top beside the holder (y ${up.y.toFixed(2)})`);
+  console.log(`  rope: client topped out at x ${up.x.toFixed(2)} y ${up.y.toFixed(2)}`);
+}
+
+/**
+ * (B6) Station 6: the paired scanners. Both at their panels light the ready lights on both pages. A late hack (the client
+ * starts only once the host's is ready) resets both and costs the client health; then both start together and the door opens.
+ */
+async function station6(x0) {
+  await moveHost(x0 + 5, 1.6);
+  await moveClient(x0 + 5, 12.4);
+  await until(A, () => window.__ctdev.debug().scan?.ready, null, 8000, 'station 6: both at their scanners light the ready light');
+  await until(B, () => window.__ctdev.debug().scan?.occ === 3, null, 8000, 'station 6: the client page shows the ready light');
+  const hp = () => GB(() => window.__app.current.target.health.hp);
+  const hp0 = await hp();
+  assert((await use(A, 'c-sw-s6-a')) === 'ok', 'station 6: the host starts the hack at scanner A');
+  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'hacking', null, 8000, 'station 6: the client page sees scanner A hacking');
+  await until(A, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 15000, 'station 6: the host hack finishes (ready)');
+  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 8000, 'station 6: the client page sees scanner A ready');
+  assert((await use(B, 'c-sw-s6-b')) === 'ok', 'station 6: the client starts late');
+  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health');
+  const hp1 = await hp();
+  const d1 = (await dev(A)).scan;
+  assert(d1.fails >= 1 && !(await GA(() => window.__course.debug().gates['g-s6'])), `station 6: out of sync, the door stays shut (${d1.last})`);
+  assert(hp1 > 0 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `station 6: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), the run goes on`);
+  await until(A, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (host)');
+  await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (client page)');
+  const [ra, rb] = await Promise.all([use(A, 'c-sw-s6-a'), use(B, 'c-sw-s6-b')]);
+  assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
+  await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
+  await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
+  assert((await hp()) >= hp1, 'station 6: the synced hack cost nothing');
+}
+
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
 async function openGate(n, i) {
   const x0 = PITCH * i;
@@ -374,13 +470,13 @@ async function openGate(n, i) {
     await laserTest(x0);
     await throwOver(x0);
     return;
+  } else if (n === 7) {
+    // (B7) the rope wall has no door: the airlock waits for both
+    await station7(x0);
+    return;
   } else if (n === 6) {
-    await moveHost(x0 + 5, 1.6);
-    await moveClient(x0 + 5, 12.4);
-    // pressed together inside the 1 s pair window
-    const [ra, rb] = await Promise.all([use(A, `c-sw-s${n}-a`), use(B, `c-sw-s${n}-b`)]);
-    assert(ra === 'ok' && rb === 'ok', `station ${n}: both plates pressed (${ra}, ${rb})`);
-    await until(A, (g) => window.__course.debug().gates[g], `g-s${n}`, 8000, `station ${n} pair gate opens`);
+    // (B6) the paired scanners: a late hack fails with a health cost, then both in sync open the door
+    await station6(x0);
   } else {
     await moveHost(x0 + 5, 1.6);
     await moveClient(x0 + 5, 4);
@@ -421,7 +517,8 @@ try {
 
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
-    console.log(`station ${n}: ${[2, 3, 4, 5].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    console.log(`station ${n}: ${[2, 3, 4, 5, 6, 7].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    if (n === 7) console.log('  (B7) leg-up, the two-person rope: let go part way (slide down), then climbed to the top');
     if (n === 5) console.log('  (B5) leg-up, relay, roof plates, then the hang-down through the hatch: hack the panel, pulled back up');
     if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
     await openGate(n, i);

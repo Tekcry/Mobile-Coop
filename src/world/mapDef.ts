@@ -7,6 +7,7 @@ import type { VoxelArt } from '../voxel/levelVoxels';
 import type { SecurityData } from '../security/data';
 import type { LaserDef } from '../game/jammer';
 import type { PassZone } from '../game/ctDevices';
+import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
@@ -77,6 +78,8 @@ export interface MapLayout {
   lasers?: LaserDef[];
   /** (CT prototype B3) Zones both players must fill to set a course flag (the camera pocket). */
   passZones?: PassZone[];
+  /** (CT prototype B6) Paired scanners: both hacks in sync set a course flag. */
+  scanners?: ScannerDef[];
   /** Training course (course mode): the definition and its ids on this level. */
   course?: CourseLayout;
 }

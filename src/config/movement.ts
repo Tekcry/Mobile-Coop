@@ -439,6 +439,18 @@ export const TEAM = {
   hangLower: 0.8,
   hangPull: 0.9,
   hangLost: 1.5,
+  /** (CT prototype B7) Two-person rope (CT 1.4 Belay Line): the climber's reach to the holder at the top (m, across);
+   *  the shortest and longest drop the rope serves (m, edge over the floor under it); climbing up and down (m/s, the
+   *  climber's stick); the top-out over the edge (s); the slide down when let go (m/s); a climber whose holder stopped
+   *  holding slides down after (s). Starting values (G10). */
+  ropeReach: 2.0,
+  ropeMin: 2.2,
+  ropeMax: 6.0,
+  ropeUp: 1.0,
+  ropeDown: 1.6,
+  ropeTop: 0.9,
+  ropeSlide: 3.0,
+  ropeLost: 1.5,
   /** Requests a player may make (host rate limit, per second). */
   rate: 1,
 } as const;
