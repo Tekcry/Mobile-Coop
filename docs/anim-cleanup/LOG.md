@@ -66,3 +66,8 @@
 - Rappel and fence audited (traverse-shots set-ups on Proving): the fence hands sit over the top rail (skin 0); the
   rappel hands were off the rope (70-104 mm, palms away): the rope is now the grip axis (harness to anchor, 12 mm), both
   palms on it (skin 0), feet on the wall. e2e-anim: the draw / holster continuity asserted (0.083 per frame).
+- Full software-GL e2e on 31bf4f4: passing apart from suites on CT Core's T1 stale-assertion list from the
+  ct-prototype merge (e2e-move gear 1 rocker, e2e-traverse / e2e-ct sprint moves (G31 removed), e2e-combat LB swap,
+  e2e-mouse KBM verbs, e2e-modes / e2e-enemies / e2e-ct-warehouse prompt texts, e2e-stealth free orbit), the two that
+  fail on master (e2e-kestrel, e2e-camera-bounds) and e2e-weapons-carry's crouch-walk back gun (CT Core's P1b crouch
+  angle). The PR's full run follows those fixes.
