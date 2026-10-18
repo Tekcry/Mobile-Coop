@@ -329,6 +329,36 @@ async function hangDown(x0) {
   assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
 }
 
+/**
+ * (B6) Station 6: the paired scanners. Both at their panels light the ready lights on both pages. A late hack (the client
+ * starts only once the host's is ready) resets both and costs the client health; then both start together and the door opens.
+ */
+async function station6(x0) {
+  await moveHost(x0 + 5, 1.6);
+  await moveClient(x0 + 5, 12.4);
+  await until(A, () => window.__ctdev.debug().scan?.ready, null, 8000, 'station 6: both at their scanners light the ready light');
+  await until(B, () => window.__ctdev.debug().scan?.occ === 3, null, 8000, 'station 6: the client page shows the ready light');
+  const hp = () => GB(() => window.__app.current.target.health.hp);
+  const hp0 = await hp();
+  assert((await use(A, 'c-sw-s6-a')) === 'ok', 'station 6: the host starts the hack at scanner A');
+  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'hacking', null, 8000, 'station 6: the client page sees scanner A hacking');
+  await until(A, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 15000, 'station 6: the host hack finishes (ready)');
+  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 8000, 'station 6: the client page sees scanner A ready');
+  assert((await use(B, 'c-sw-s6-b')) === 'ok', 'station 6: the client starts late');
+  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health');
+  const hp1 = await hp();
+  const d1 = (await dev(A)).scan;
+  assert(d1.fails >= 1 && !(await GA(() => window.__course.debug().gates['g-s6'])), `station 6: out of sync, the door stays shut (${d1.last})`);
+  assert(hp1 > 0 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `station 6: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), the run goes on`);
+  await until(A, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (host)');
+  await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (client page)');
+  const [ra, rb] = await Promise.all([use(A, 'c-sw-s6-a'), use(B, 'c-sw-s6-b')]);
+  assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
+  await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
+  await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
+  assert((await hp()) >= hp1, 'station 6: the synced hack cost nothing');
+}
+
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
 async function openGate(n, i) {
   const x0 = PITCH * i;
@@ -375,12 +405,8 @@ async function openGate(n, i) {
     await throwOver(x0);
     return;
   } else if (n === 6) {
-    await moveHost(x0 + 5, 1.6);
-    await moveClient(x0 + 5, 12.4);
-    // pressed together inside the 1 s pair window
-    const [ra, rb] = await Promise.all([use(A, `c-sw-s${n}-a`), use(B, `c-sw-s${n}-b`)]);
-    assert(ra === 'ok' && rb === 'ok', `station ${n}: both plates pressed (${ra}, ${rb})`);
-    await until(A, (g) => window.__course.debug().gates[g], `g-s${n}`, 8000, `station ${n} pair gate opens`);
+    // (B6) the paired scanners: a late hack fails with a health cost, then both in sync open the door
+    await station6(x0);
   } else {
     await moveHost(x0 + 5, 1.6);
     await moveClient(x0 + 5, 4);
@@ -421,7 +447,7 @@ try {
 
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
-    console.log(`station ${n}: ${[2, 3, 4, 5].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    console.log(`station ${n}: ${[2, 3, 4, 5, 6].includes(n) ? 'real moves' : 'placeholder gate'}`);
     if (n === 5) console.log('  (B5) leg-up, relay, roof plates, then the hang-down through the hatch: hack the panel, pulled back up');
     if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
     await openGate(n, i);

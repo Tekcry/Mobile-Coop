@@ -13,7 +13,7 @@ import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/c
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -393,12 +393,15 @@ function secWire(v: unknown): { sec?: SecWire } {
   if (!isObj(v)) return {};
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
+  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
   return {
     sec: {
       ck: num(v.ck, 0, 1e6) ?? 0,
       j: [id(j[0]) ?? '', id(j[1]) ?? ''],
       ch: [num(ch[0], 0, 120) ?? 0, num(ch[1], 0, 120) ?? 0],
       al: Math.round(num(v.al, 0, 9) ?? 0),
+      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
+      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
     },
   };
 }

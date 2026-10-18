@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LaserDef } from '../../game/jammer';
 import type { PassZone } from '../../game/ctDevices';
+import type { ScannerDef } from '../../game/scanners';
 import type { SecurityData } from '../../security/data';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
@@ -50,6 +51,9 @@ export const S3_FLAG = 's3-clear';
  */
 export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
 export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
+/** Station 6 (B6): the course flag the paired scanners set (both hacks finished within the sync window). */
+export const S6_FLAG = 's6-sync';
+export const S6_SCANNERS: ScannerDef = { id: 'sc-s6', a: 'sw-s6-a', b: 'sw-s6-b', flag: S6_FLAG };
 /** Station 4 (B4): the course flag the far-side release switch sets; it switches the laser band off for good (bay restart re-arms it). */
 export const S4_FLAG = 's4-release';
 /** Station 4: the open gap in the 3.5 m wall the laser band closes (z), wide enough to throw a partner through. */
@@ -93,7 +97,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
   'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
   'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
-  'Scanners: press both within a second of each other',
+  'Scanners: one each. Press A at your scanner and stay; both hacks must finish within 1.5 s. Start together when both ready lights are green',
   'Wire wall: one holds the rope post while the other crosses',
   'Last wall: one holds the lift, then both into the lit zone',
 ];
@@ -113,7 +117,8 @@ function courseDef(): CourseDef {
         // B4: the partner throw over the laser band; the thrown player's far-side release switches the band off
         return [{ kind: 'pickup', id: 'g-s4', switchId: 'sw-s4-release', flag: S4_FLAG, perPlayer: false }];
       case 6:
-        return [{ kind: 'pair', id: `g-s${n}`, a: `sw-s${n}-a`, b: `sw-s${n}-b`, doorId: `S${n}-door` }];
+        // B6: the paired scanners (CtDevices): both hacks finished within the sync window set the flag
+        return [{ kind: 'flag', id: 'g-s6', flag: S6_FLAG, doorId: 'S6-door' }];
       case 5:
         return [
           { kind: 'pair', id: 'g-s5', a: 'sw-s5-a', b: 'sw-s5-b', doorId: 'S5-door' },
@@ -129,7 +134,7 @@ function courseDef(): CourseDef {
     3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
     4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
     5: 'Annex roof: leg-up and relay. Both plates. Then lower one through the hatch: hack.',
-    6: 'Two scanners, ten metres apart. Press both within a second.',
+    6: 'Two scanners, one each. Start the hacks together and stay put. A failed hack hurts.',
     7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
     8: 'Last wall. Cross, then both of you into the lit zone.',
   };
@@ -155,7 +160,7 @@ function courseDef(): CourseDef {
     }),
     bays,
     exitZone: CT_EXIT_ZONE,
-    externalFlags: [S3_FLAG],
+    externalFlags: [S3_FLAG, S6_FLAG],
   };
 }
 
@@ -270,8 +275,8 @@ export const ctcourse: MapDef = {
 
     // 6 Paired scanners, ten metres apart
     x0 = bayX(5);
-    devices['sw-s6-a'] = dev(x0 + 5, 0.4, SOUTH, 'Retinal scanner A');
-    devices['sw-s6-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Retinal scanner B');
+    devices['sw-s6-a'] = dev(x0 + 5, 0.4, SOUTH, 'Retinal scanner A (hack)');
+    devices['sw-s6-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Retinal scanner B (hack)');
     b.box(x0 + 5, 1.4, 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
     b.box(x0 + 5, 1.4, CT_W - 0.2, 0.9, 0.9, 0.08, '#20252b', 0, 0, false);
 
@@ -305,6 +310,7 @@ export const ctcourse: MapDef = {
       security: SECURITY,
       lasers: [S4_LASER],
       passZones: [S3_POCKET],
+      scanners: [S6_SCANNERS],
       course: { def: courseDef(), doors, devices, squads: {} },
     };
   },

@@ -177,6 +177,11 @@ export class CourseMode implements GameMode {
     }
     this.pads = buildAirlockPads(g, lay);
     for (const b of lay.def.bays) for (const gate of b.gates) this.addGate(gate);
+    // (B6) the paired scanners: their panels are course devices run by CtDevices (flag gate)
+    for (const sc of g.world.layout.scanners ?? []) {
+      this.device(sc.a, 'Hack scanner');
+      this.device(sc.b, 'Hack scanner');
+    }
     // the course end (the last bay's exit 'end'): refuses like an airlock while drills are open
     const end = lay.devices.end ? this.device('end', 'Finish') : null;
     if (end) {
@@ -292,6 +297,13 @@ export class CourseMode implements GameMode {
     // an optional station panel (F1b): shows its text to whoever read it; nothing waits on it
     if (isPanelId(cid)) {
       this.refuse(this.layout?.devices[cid]?.label ?? null, p);
+      return;
+    }
+    // (B6) a scanner panel: the host's scanner pair checks the player and starts the hack
+    const sw = this.ct?.scanPress(cid, p);
+    if (sw !== undefined) {
+      this.refuse(sw, p);
+      if (!sw && this.state) this.verb(p, VERBS.switch);
       return;
     }
     const why = this.state?.press(cid, p) ?? null;
