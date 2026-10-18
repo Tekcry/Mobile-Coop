@@ -332,6 +332,10 @@ export class RemoteAvatar {
       if (follow) this.grips.settleTo(mv!.gp!);
       // (following the owner's grips the remote makes no stepping decisions of its own)
       this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph), this.rig, vent, !follow);
+      // (G139) the rendered body sits off the gameplay root by its height's lift (visual only)
+      r.position.x += this.grips.lift.x;
+      r.position.y += this.grips.lift.y;
+      r.position.z += this.grips.lift.z;
     } else if (this.gripAnchor >= 0) {
       this.grips.release(this.rig);
       this.gripAnchor = -1;

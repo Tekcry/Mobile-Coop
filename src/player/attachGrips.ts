@@ -5,7 +5,7 @@
  */
 import { hyp2 } from '../core/mathx';
 import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';
-import { attachPose, PIPE_HIPS, type AttachPose } from './attach';
+import { attachLift, attachPose, PIPE_HIPS, type AttachPose } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
 import { RAPPEL, SPLIT } from '../config/movement';
@@ -57,6 +57,13 @@ export interface VentExit {
   kinY: number;
 }
 
+/** Moves grip target `o` the share `k` of the way to `t` (in place). */
+function lerpTarget(o: GripTarget, t: GripTarget, k: number): void {
+  o.x += (t.x - o.x) * k;
+  o.y += (t.y - o.y) * k;
+  o.z += (t.z - o.z) * k;
+}
+
 export class AttachGrips {
   readonly hands = new GripStepper({ offL: -0.2, offR: 0.2, slack: 0.14, swingTime: HAND_SWING, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 1 });
   readonly feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1, overlap: false });
@@ -76,6 +83,13 @@ export class AttachGrips {
    *  how far the kick-out has swung the body off the wall (m). */
   u = 0;
   outOff = 0;
+  /**
+   * (G139) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
+   * weighted by the grip blend), so a body shorter than the 1.75 m gameplay height still meets its grips. The local
+   * player and a remote add it to the rig root after `update`; `release` zeroes it.
+   */
+  readonly lift = { x: 0, y: 0, z: 0 };
+  private liftB = { x: 0, y: 0, z: 0 };
   private tA = { x: 0, y: 0, z: 0, w: 0 };
   private tB = { x: 0, y: 0, z: 0, w: 0 };
   private tC = { x: 0, y: 0, z: 0, w: 0 };
@@ -269,6 +283,23 @@ export class AttachGrips {
   release(rig: GripRig): void {
     rig.reachL.w = rig.reachR.w = rig.plantL.w = rig.plantR.w = 0;
     this.plantFade = 0;
+    this.lift.x = this.lift.y = this.lift.z = 0;
+  }
+
+  /** (G139) `lift` for this frame: the body's offset from the gameplay root (a pipe change blends both states'). */
+  private liftTo(a: Anchor, s: number, face: number, w: number, height: number): void {
+    const o = this.lift;
+    attachLift(a, s, face, height, o, a.kind === 'pipeH' ? this.pipeFrom : 'hands', this.u);
+    if (a.kind === 'pipeH' && this.pipeTo !== this.pipeFrom) {
+      const b = attachLift(a, s, face, height, this.liftB, this.pipeTo, this.u);
+      const k = this.pipeK * this.pipeK * (3 - 2 * this.pipeK);
+      o.x += (b.x - o.x) * k;
+      o.y += (b.y - o.y) * k;
+      o.z += (b.z - o.z) * k;
+    }
+    o.x *= w;
+    o.y *= w;
+    o.z *= w;
   }
 
   private apply(a: Anchor, s: number, face: number, w: number, dt: number, rig: GripRig, vent: VentExit | null): void {
@@ -280,6 +311,7 @@ export class AttachGrips {
     // anchors without foot plants fade the last ones out (the positions stay where they were)
     this.plantFade = Math.max(0, this.plantFade - dt / 0.2);
     fl.w = fr.w = this.plantFade;
+    this.liftTo(a, s, face, w, rig.height);
     const p = attachPose(a, s, face, rig.height, this.ap);
     const rx = Math.cos(p.yaw);
     const rz = -Math.sin(p.yaw);
@@ -315,15 +347,11 @@ export class AttachGrips {
         fr.z = this.tD.z;
         const hw0 = this.tA.w;
         this.pipeSet(a, s, face, rig.height, this.pipeTo, this.tA, this.tB, this.tC, this.tD, hL, hR, fx, fz);
-        const lerp = (o: GripTarget, t: GripTarget): void => {
-          o.x += (t.x - o.x) * k;
-          o.y += (t.y - o.y) * k;
-          o.z += (t.z - o.z) * k;
-        };
-        lerp(L, this.tA);
-        lerp(R, this.tB);
-        lerp(fl, this.tC);
-        lerp(fr, this.tD);
+        // (operators step 11e) a module function, not a per-frame closure (hot path: no allocation)
+        lerpTarget(L, this.tA, k);
+        lerpTarget(R, this.tB, k);
+        lerpTarget(fl, this.tC, k);
+        lerpTarget(fr, this.tD, k);
         const wt = this.pipeTo === 'hands' ? 0 : 1;
         L.w = R.w = w * (hw0 + (this.tA.w - hw0) * k);
         R.w *= 1 - this.aimFree;

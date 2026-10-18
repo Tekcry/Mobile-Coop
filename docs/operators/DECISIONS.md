@@ -25,7 +25,7 @@
   front views get bright edges while the body stays near black. Undo: excludedMeshes empty, bias 0.0008.
 # Operators run - decisions
 
-**Michael's current decisions now live in master's `docs/DECISIONS.md`** (G123-G138, recorded in step 11e with G68-G75,
+**Michael's current decisions now live in master's `docs/DECISIONS.md`** (G123-G139, recorded in step 11e with G68-G75,
 which already covered the operators). This file is the run's history and keeps the assumed A-decisions; new Michael
 decisions go to `docs/DECISIONS.md` with the next free G number.
 
@@ -175,6 +175,11 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 - Process, Michael: "you can show me scratch renders first with some options if its easier to nail the look". Before
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
+
+**D34 Traversal gameplay stays at the 1.75 m body (2026-10-18, step 11e).** Asked about A105 (Wren hangs and climbs
+7.6 cm higher because `attachPose` scaled the hang depth by the rig height), Michael: "Keep gameplay fixed
+(Recommended)". Ledge, wall-jump and climb positions use a fixed gameplay height (`GAMEPLAY_HEIGHT` 1.75) for every
+player; Wren's body is drawn lifted onto her grips. Recorded in master's docs/DECISIONS.md as G139. Replaces A105.
 
 **D33 Wren in the game first; hero model in the menu (2026-10-18, during step 11d/11e).** Michael: "I want wren in the
 game first. We will clean up changes later while the game is built." (D32 relabels, 11c doc fixes, the stowed goggle
@@ -1220,6 +1225,8 @@ under the lip, `HANG.drop` for a 1.75 m body; `attachPose` has always scaled it 
 8 cm tolerance is unchanged. Note for Michael (G38): every attached pose (hang, ladder top, pipe, zipline) scales with
 the rig, so the 1.68 m player hangs about 7.6 cm higher than the 1.75 m one did; the capsule, speeds and the anchors'
 reach bands do not change. Undo: a gameplay height of 1.75 in `attachPose` (then her hands miss the lip by 7 cm).
+*Replaced by D34 / G139 (Michael: "Keep gameplay fixed"): the gameplay height is fixed at 1.75 and e2e-ct's original
+check is back.*
 
 **A106 Step 11e: e2e-desktop's voxel-character checks are the guards'; `?gfx=min` close-ups load LOD2.** The player
 has no voxel body since Wren (G123), so "every character is a voxel body" counts the guards, and asserts the player has
@@ -1227,3 +1234,21 @@ no voxel body and its rig parts are unseen; the goggle-lens glow is checked on a
 (none now: Wren's goggle glows on her own model, G73, unit-tested) and the camera head fade on Wren's figure. Photo
 mode under `?gfx=min` asked for the 55 MB hero (e2e-feedback's "close-up LOD failed: Failed to fetch" under load):
 `OperatorFigure.loadCloseUp` loads LOD2 there, as A102. Undo: revert the suite edits; drop the `gfx === 'min'` line.
+
+**A107 Step 11e: an elbow inside the trunk swivels out after the arm IK.** e2e-clip "aim walking + crouched" read the
+right elbow 6.9 cm inside the trunk for one frame (G72's lower shoulder, A1). Diagnosis: the right hand comes forward
+from the back draw; the shoulder and elbow are rate-limited (`limitJoint`), so the lagging upper arm swung the elbow
+across the back and through the chest. `characterRig.keepElbowOut` (after the limit, both arms): an elbow closer than
+the chest half depth + 2 cm to the pelvis -> neck line turns round the shoulder -> wrist axis (`rigMath.elbowSwivelClear`,
+15 deg steps, the smallest that clears) and the hand keeps its world rotation; shoulder prevRot follows. e2e-clip: min
+elbow +4.4 cm (limit -3 cm unchanged); G72 kept. Undo: drop the two `keepElbowOut` calls.
+
+**A108 Step 11e: Wren's per-frame code allocates nothing; the extra allocation reading is V8 tier-up.** perf.mjs
+(GPU, gfx=epic, Warehouse) with Wren never loaded (same tree, LODs skipped) reads 7.57 MB/s at the default warm-up
+and 7.18-7.25 at WARM=48; with Wren 11.03-11.07 and 8.32-8.34. No figure / poser function is among the allocators
+(cut-off 50 KB/s). A V8 log (--log-deopt) shows the rig's `animate` / `applyTargets` reaching TurboFan only inside the
+4 s sampling window with Wren (deopts from type feedback and prototype-chain changes during warm-up), so they run in
+baseline / Maglev code that boxes doubles; at WARM=48 `applyTargets` reads 376 KB/s with Wren vs 366 without. The
+remaining +1.1 MB/s at WARM=48 is spread over non-Wren code in other JIT states (anim curve sampler, Havok iterator,
+HUD). Fixed anyway: the attach path's per-step override object, the pipe grip closure, the soft-knee fields' Smi ->
+double change (a deopt in the rig update). Budget 11.52 MB/s passes either way. Undo: none needed.

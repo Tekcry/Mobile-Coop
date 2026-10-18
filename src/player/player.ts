@@ -83,6 +83,12 @@ export class Player {
    * range and pitch band (rad, + up), and whether the body hangs upside down. Null: no aiming while traversing.
    */
   attachAim: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
+  /**
+   * (operators step 11e, G139) Visual only: the rig root's offset from the controller's (gameplay) root while attached,
+   * so a body shorter than the 1.75 m gameplay height still meets its grips. Written by the attach controller each
+   * render frame (zero when not attached); gameplay never reads it.
+   */
+  readonly rootLift = { x: 0, y: 0, z: 0 };
   /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
   swapFrom: SwapReach = 'backC';
   swapTo: SwapReach = 'backC';
@@ -273,6 +279,9 @@ export class Player {
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);
+    root.position.x += this.rootLift.x;
+    root.position.y += this.rootLift.y;
+    root.position.z += this.rootLift.z;
     // (step 21w, A85) on a wall, entering it and leaving it, the body's turn is rate-limited (the 180 deg entry turn
     // was ~44 deg in one frame): visual only, the capsule and gameplay keep the controller's yaw
     // (step 21w, A85: WALL_TURN_RATE, shared with the remote copy) keep limiting after the wall until the gap closes,

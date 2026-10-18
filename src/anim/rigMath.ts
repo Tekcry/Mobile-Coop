@@ -75,6 +75,67 @@ export function solveTwoBone(root: V3, target: V3, a: number, b: number, pole: V
   }
 }
 
+/** Distance (m) from point (px, py, pz) to the segment a -> b. Allocates nothing. */
+export function segDist(px: number, py: number, pz: number, a: V3, b: V3): number {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const abz = b.z - a.z;
+  const ll = abx * abx + aby * aby + abz * abz;
+  const t = ll > 1e-12 ? clamp(((px - a.x) * abx + (py - a.y) * aby + (pz - a.z) * abz) / ll, 0, 1) : 0;
+  return hyp3(px - a.x - abx * t, py - a.y - aby * t, pz - a.z - abz * t);
+}
+
+/** Steps of the elbow swivel search (each side): 15 deg each, up to a half turn. */
+const SWIVEL_STEPS = 12;
+
+/**
+ * (operators step 11e) Keep an elbow out of the trunk: the swivel angle (rad, right-handed about the shoulder -> wrist
+ * axis) that turns elbow `e` round that axis until it is at least `r` from the trunk segment `p0` -> `p1`, keeping the
+ * shoulder and wrist where they are (the hand stays on its grip). 0 when it is already clear; the smallest clearing
+ * angle (15 deg steps, both ways), else the angle with the most clearance. Allocates nothing.
+ */
+export function elbowSwivelClear(s: V3, w: V3, e: V3, p0: V3, p1: V3, r: number): number {
+  if (segDist(e.x, e.y, e.z, p0, p1) >= r) return 0;
+  let ux = w.x - s.x;
+  let uy = w.y - s.y;
+  let uz = w.z - s.z;
+  const ul = hyp3(ux, uy, uz);
+  if (ul < 1e-5) return 0;
+  ux /= ul;
+  uy /= ul;
+  uz /= ul;
+  // the elbow's circle about the axis: centre c, radius vector q, and b = u x q (a quarter turn on)
+  const ex = e.x - s.x;
+  const ey = e.y - s.y;
+  const ez = e.z - s.z;
+  const along = ex * ux + ey * uy + ez * uz;
+  const cx = s.x + ux * along;
+  const cy = s.y + uy * along;
+  const cz = s.z + uz * along;
+  const qx = e.x - cx;
+  const qy = e.y - cy;
+  const qz = e.z - cz;
+  const bx = uy * qz - uz * qy;
+  const by = uz * qx - ux * qz;
+  const bz = ux * qy - uy * qx;
+  let best = 0;
+  let bestD = -1;
+  for (let k = 1; k <= SWIVEL_STEPS; k++) {
+    for (let sg = -1; sg <= 1; sg += 2) {
+      const th = (sg * k * Math.PI) / SWIVEL_STEPS;
+      const co = Math.cos(th);
+      const si = Math.sin(th);
+      const d = segDist(cx + qx * co + bx * si, cy + qy * co + by * si, cz + qz * co + bz * si, p0, p1);
+      if (d >= r) return th;
+      if (d > bestD) {
+        bestD = d;
+        best = th;
+      }
+    }
+  }
+  return best;
+}
+
 /** Planted-foot gait. Phase 0..1; stance takes `duty` of the cycle, during which the foot moves
  *  backwards linearly (so its world speed is zero when stride/period matches ground speed). */
 export function gaitFoot(phase: number, stride: number, lift: number, duty = 0.6): { along: number; up: number; planted: boolean } {

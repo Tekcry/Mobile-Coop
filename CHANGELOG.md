@@ -17,6 +17,13 @@ existing character anyway; before the prototype is done", "Both play as Wren").
   LOD1 5.1 MB; the menu's hero 55.5 MB loads after them).
 - Ladders and drainpipes: a hand's reach is never quicker than the arm can swing (from the body's proportions); a
   sprint up a ladder keeps the hands on the rungs with Wren's shorter arms.
+- Ledges, wall jumps, ladders and pipes play the same for every player (G139: "Keep gameplay fixed"): the attached
+  root path uses the 1.75 m gameplay height; Wren's body is drawn lifted onto her grips (7.6 cm on a hang), visual
+  only.
+- Elbows never pass through the chest: after the arm IK an elbow inside the trunk swivels round the shoulder-wrist
+  axis until it is out (the hand stays on the grip).
+- Hot paths: the attach path reuses its move override, the pipe grip blend lost its per-frame closure, the soft-knee
+  share no longer changes field representation mid-match (a deopt of the rig update).
 - Tools: `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0; e2e-coop's
   offline check waits for the service worker first.
 

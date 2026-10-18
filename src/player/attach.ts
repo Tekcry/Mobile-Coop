@@ -280,6 +280,31 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
   }
 }
 
+/**
+ * (operators step 11e, G139) The traversal gameplay height (m): every player's attached root path (hang depth, climb
+ * standoffs, reach and travel ranges) is the 1.75 m body's, whatever the rendered body's height, so ledges, wall
+ * jumps and climbs play the same for every player (G38). The rendered body is placed by `attachLift`.
+ */
+export const GAMEPLAY_HEIGHT = 1.75;
+
+const liftBody: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
+const liftPlay: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
+
+/**
+ * (G139) Visual only: how far a body `height` m tall sits from the gameplay root (`GAMEPLAY_HEIGHT`) on an anchor, so
+ * its hands still meet the lip / rung / pipe (Wren, 1.68 m, hangs 7.6 cm higher on her arms than the gameplay root).
+ * The rig root is drawn at the gameplay root plus this (weighted by the grip blend); gameplay never reads it. Writes
+ * into `out` (no allocation).
+ */
+export function attachLift(a: Anchor, s: number, face: number, height: number, out: P3, pipe: PipeMode = 'hands', u = 0): P3 {
+  attachPose(a, s, face, height, liftBody, pipe, u);
+  attachPose(a, s, face, GAMEPLAY_HEIGHT, liftPlay, pipe, u);
+  out.x = liftBody.x - liftPlay.x;
+  out.y = liftBody.y - liftPlay.y;
+  out.z = liftBody.z - liftPlay.z;
+  return out;
+}
+
 /** Events from one update: reached an end of the travel range while pushing past it. */
 export type AttachEdge = 'none' | 'min' | 'max';
 

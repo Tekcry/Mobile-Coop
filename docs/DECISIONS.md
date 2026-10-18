@@ -9,7 +9,7 @@ this file disagree, this file wins until the bible is fixed.
 How entries are numbered:
 - G1, G2, ... are new global numbers, used from now on. A job that merges adds Michael's new decisions here with the next
   free G number.
-- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123-G138), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123-G139), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
 
@@ -731,3 +731,9 @@ starting on the next one" (2026-10-18, ops D30.)
 Michael: "i would prefer to do smaller steps that keep claude focused and on task", "i still want to see screenshot at
 end of each step so i can see progress" and "Orchestrator session" (2026-10-16, ops D15, D16, D18; the session
 method in docs/systems/session-method.md.)
+
+**G139. Traversal gameplay is fixed at the 1.75 m body for every player.** Ledge hangs, wall jumps, climbs, ladders,
+pipes and every other attached position use one gameplay height (the old 1.75 m body's values), whatever the drawn
+body's height; Wren's body is lifted onto her grips visually (arms and IK adjust so her hands meet the ledge) and
+gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm higher: "Keep gameplay fixed
+(Recommended)" (2026-10-18, ops D34; with G38; replaces ops A105.)

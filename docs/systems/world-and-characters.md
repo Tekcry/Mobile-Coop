@@ -93,7 +93,10 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
     before), the light-meter samples and the hit volumes (`playerTarget.ts`, `net/remotePlayer.ts`: `hitVolumes(rig.p)`)
     follow Wren's size. Its part meshes are still built (back gear and thigh widths are measured from them for the
     weapon carry) but disabled; Wren is what renders. The controller capsule, speeds, noise, traversal anchors and the
-    camera are unchanged (G38).
+    camera are unchanged (G38). Traversal positions use `GAMEPLAY_HEIGHT` 1.75 for every player (G139); while attached
+    the rig root is drawn at the gameplay root plus `attachLift` (`AttachGrips.lift`, `Player.rootLift`; visual only),
+    so Wren's hands meet the lip, rung or pipe. An elbow inside the trunk after the arm IK swivels out
+    (`characterRig.keepElbowOut`, `rigMath.elbowSwivelClear`).
   - Wren's files: `src/operators/assets/wren/wren-{hero,lod0,lod1,lod2}.glb` (skinned, KTX2 UASTC textures, 81.4 MB;
     `assets.ts` imports them with Vite `?url`, same-origin fetch only). Play uses LOD0 (< 8 m), LOD1 (8-25 m), LOD2
     (beyond), 10 % hysteresis, LOD2 loaded first; the hero (55.5 MB) only for the main menu and registered close-up

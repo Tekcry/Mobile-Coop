@@ -2217,3 +2217,55 @@ contact sheets at gfx=high (Wren LOD0): anim-walk, -crouch, -sprint, -vault, -re
   (G38 asks for the same gameplay; Michael to confirm or ask for a gameplay height in `attachPose`).
 - D. The ingame "solo-front" view shows her back three-quarter (the camera yaw offset of the shot script); cosmetic.
 - Cleanup list (Michael: "We will clean up changes later"): items 4, 5, 6 above; A-D.
+
+### Step 11e - continuation 2 (implementer 3, Opus 5.5)
+
+Status: draft, uncommitted on top of checkpoint 2 (dd988f6). The orchestrator lifted the characterRig / src/anim limit
+for this pass. Decisions: D34 / master G139 (Michael: "Keep gameplay fixed (Recommended)"), A107, A108; A105 replaced.
+
+**Changed**
+- A (e2e-clip elbow, A107): the right hand comes forward from the back draw after the scenario teleport; with the
+  shoulder and elbow rate-limited the lagging upper arm swung the elbow across the back and through the chest (G72's
+  lower shoulder made it reach the trunk line). `characterRig.keepElbowOut` after `limitJoint` (both arms): an elbow
+  within chest half depth + 2 cm of the pelvis -> neck line swivels round the shoulder -> wrist axis
+  (`rigMath.elbowSwivelClear`, pure, unit-tested; 15 deg steps, smallest clearing angle), the hand keeps its world
+  rotation. G72 kept, 3 cm limit unchanged. e2e-clip "aim walking + crouched" elbow min -6.9 -> +4.4 cm.
+- C (G139): `attach.ts` `GAMEPLAY_HEIGHT` 1.75; every gameplay `attachPose` / range / reach call in
+  `attachController.ts` and the team boost (`teamController.ts`) uses it; `attachLift()` (pure, unit-tested) is the
+  visual offset of a body of another height. `AttachGrips.lift` (weighted by the grip blend, pipe sub-states blended)
+  is added to the rig root by the local player (`Player.rootLift`, written in `frameUpdate`) and the remote
+  (`remoteAvatar.ts`); grips keep `rig.height`. Wren's gameplay root hangs 1.90 m under the lip again; her body is drawn
+  7.6 cm higher so her hands meet it. `net/validate.ts` already clamped at 1.75. e2e-ct's original check is back.
+- B (allocations, A108): Wren's per-frame code (`OperatorFigure.update`, `readRig`, `OperatorPoser.solve`) allocates
+  nothing (no figure / poser entry among the allocators). The extra reading is V8 tier-up: with Wren the rig's
+  `animate` / `applyTargets` reach TurboFan only inside perf's 4 s sampling window (V8 log, --log-deopt: type-feedback
+  and prototype-chain deopts during warm-up), so they run as baseline / Maglev code that boxes doubles. Fixed anyway:
+  the attach path's per-step `override` object (reused), the pipe grip blend's per-frame closure (module function), the
+  soft-knee fields' Smi -> double change (a `Float64Array`; one of the rig update's deopts).
+
+**Numbers (GPU, E2E_GPU=1, port 4189, `perf.mjs --desktop`, Warehouse, 12 guards, gfx=epic; files in `ingame/`)**
+
+| Run | allocations MB/s | sim p95 ms | anim / char ms | draws |
+| --- | --- | --- | --- | --- |
+| Wren, default warm-up (`perf-wren-3`, `-4`, `--budget`: every budget passes) | 11.07 / 11.03 | 1.65 / 1.70 | 0.038 / 0.041 | 218 / 222 |
+| No Wren (same tree, LODs never loaded; `perf-no-wren-3`) | 7.57 | 0.50 | 0.019 | 200 |
+| Wren, WARM=48 (`perf-wren-warm48`) | 8.32 | 0.90 | 0.022 | 222 |
+| No Wren, WARM=48 (`perf-no-wren-warm48`) | 7.25 | 0.55 | 0.019 | 208 |
+
+After a long warm-up `applyTargets` reads 376 KB/s with Wren vs 366 without; the remaining +1.1 MB/s is spread over
+non-Wren code in other JIT states (anim curve sampler, Havok iterator, HUD). The allocation budget (11.52 MB/s) passes
+with a 4 % margin at the default warm-up.
+
+**Checks**
+- `npm run check`: PASS (lint 0 errors / 41 warnings, 136 files / 1562 tests, build ok, precache 44 entries).
+- Named suites (4191, 4 jobs): e2e-move, e2e-traverse, e2e-wall, e2e-anim, e2e-netmove, e2e-course, e2e-clip, e2e-ct,
+  e2e-weapons-carry ok; e2e-anchors failed under load (`current` null after the warehouse block) and passed solo;
+  e2e-coop (known flaky) failed in the parallel run, ok solo; e2e-bunker (known flaky) failed both times on the
+  teleported-partner check (docs/backlog.md).
+- Screenshots (GPU): `solo-front.png` now shows her front (the body turned to face the camera; turning the camera round
+  made her turn in place); solo-shoulder, -side-rifle-aim, -crouch, -pistol re-shot with this build.
+
+**Open**
+- e2e-clip's wall / sprint / crouch-run scenarios count 0 frames (no weapon in hand after "aim walking + crouched");
+  their asserts pass on nothing. Pre-existing (the same in the earlier 11e logs); not changed here.
+- A full `npm run e2e` was not re-run in this pass (the last full run is continuation 1's).
