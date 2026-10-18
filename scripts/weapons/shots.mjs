@@ -30,7 +30,6 @@ const VIEWS = {
   'pistol-holster': { weapon: 'rifle', cam: [1.0, 0.75, 0.25, 0.65] },
   'rifle-body-side': { weapon: 'rifle', ads: true, cam: [-2.9, 1.0, 0.2, 0.9] },
   'rifle-body-front': { weapon: 'rifle', ads: true, cam: [-1.2, 1.1, 2.6, 0.95] },
-  'rifle-body-stand': { weapon: 'rifle', ads: true, stand: true, cam: [-2.9, 1.0, 0.2, 0.9] },
   'pistol-body-side': { weapon: 'pistol', ads: true, cam: [-2.9, 1.0, 0.2, 0.9] },
   'knife-hand': { weapon: 'rifle', knife: true, cam: [-0.9, 1.25, 0.6, 1.0] },
 };
