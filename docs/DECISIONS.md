@@ -9,7 +9,7 @@ this file disagree, this file wins until the bible is fixed.
 How entries are numbered:
 - G1, G2, ... are new global numbers, used from now on. A job that merges adds Michael's new decisions here with the next
   free G number.
-- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123-G139), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
 
@@ -49,6 +49,7 @@ exist. CT behaviour, measured from Michael's footage and the research, overrides
 "I want the game to be pure chaos theory. Anything that isn't a part of the original chaos theory shouldn't exist."
 (directive, 2026-10-17; extends loco M20 from movement to the whole game; replaces bible pillars and sections where they
 differ.)
+(Replaced by G126, G135, G138, G146, G147 where they differ from CT, 2026-10-18.)
 
 **G2. Two-player co-op campaign only.** The campaign is played by exactly two players and cannot be completed solo.
 Michael: "2 player coop campaign only, unable to be completed solo." (directive, 2026-10-17; settles FU-01; replaces page
@@ -63,6 +64,7 @@ and recreate that experience." (directive, 2026-10-17.)
 hours or days of fine tuning on things that may not be used. Michael: "We must get a working prototype working, only the
 basics required to make it work and functional to test features and gameplay. I don't want to spend hours or days fine
 tuning things that may not be used. Refinement can come later." (directive, 2026-10-17; extends loco M22.)
+(Replaced by G150 for movement, camera, back-to-wall, doors, palm strike and goggles, 2026-10-18.)
 
 **G5. IP rule: mechanics plus look.** The IP rule stays. CT's mechanics are matched and its visual style and HUD layout
 are copied closely, with original art assets; names, characters, story, logos and UI art stay original. Michael:
@@ -120,6 +122,7 @@ only" aim assist.)
 
 **G17. Shoulder swap only while aiming.** The shoulder swap works only while aiming; the exploring camera swings by
 itself. Michael: "Nothing (CT)" (CTRL-03, 2026-10-17.)
+(Replaced by G159 for "the exploring camera swings by itself", 2026-10-18.)
 
 **G18. Back-to-wall on L3.** Back-to-wall goes on L3, as in CT; A stays for doors and other actions. The exact CT layout
 (G96) governs. Michael: "Back to wall" (CTRL-04, 2026-10-17.)
@@ -165,6 +168,7 @@ of frame. Michael: "CT framing" with the note "Pure CT" (MOVE-04, 2026-10-17; re
 **G29. CT camera behaviour.** Rigid follow, a gentle swing toward travel, no bob, no zoom when aiming. Michael: "CT
 camera" with the note "Pure CT" (MOVE-05, 2026-10-17; replaces loco D5.13's spring, look-ahead, corner swaps and speed
 zoom.)
+(Replaced by G159 for the gentle swing toward travel, 2026-10-18.)
 
 **G30. Modern layer: only what CT shows.** Keep only start lean, head look-at, hands on doors and ledges, feet on stairs
 and faster vaults from a run. Michael: "Only what CT shows" with the note "Pure CT" (MOVE-06, 2026-10-17; replaces the
@@ -213,6 +217,7 @@ cut in code and loco A25.)
 dogs cannot be palm-struck. How heavies are handled follows the research (G49). Michael: "Every human guard" with the
 note "Everyone except dogs and heavies. Heavies cannot be hit with a palm strike." (STEALTH-04, 2026-10-17; the heavies
 part is replaced by chat 7, G49.)
+(Replaced by G155 for heavies and dogs, 2026-10-18.)
 
 **G43. Ground takedown grabs first.** The ground takedown button grabs, then knock out, kill or (later) interrogate (G23);
 drop, ledge, window and pipe takedowns keep tap / hold. Michael: "Grab first (CT)" (STEALTH-06, 2026-10-17.)
@@ -241,6 +246,7 @@ follow what CT co-op does; earlier answers on these are replaced by the research
 decides" (chat 7, 2026-10-17; replaces page answer COOP-02 "On everywhere" and the heavies part of STEALTH-04's note;
 settles FU-10.) It also replaces training D38 (friendly fire on in the bunker): Michael: "Research decides" (U5, chat,
 2026-10-17.)
+(Replaced by G141 for friendly fire and G155 for heavies, 2026-10-18.)
 
 **G50. Two players maximum; no 3-4 player test.** Michael: "No, focus on 2 player maximum only." (COOP-03, 2026-10-17;
 replaces loco D8's 4-player run and loco A19.)
@@ -367,6 +373,7 @@ are replaced after 10-30 s. Michael: "Keep the resets" (chat 22 / TRAIN-11, 2026
 
 **G81. Boosts only at marked spots.** Two-player boosts work only at marked spots, as CT's co-op spots do. Michael:
 "Marked boost spots" (chat 23 / TRAIN-08, 2026-10-17; replaces training A51's drill-tick backstop.)
+(Replaced by G151, 2026-10-18.)
 
 ### Story
 
@@ -396,6 +403,7 @@ the orchestrator method; older ways (the bible's Opus / Sonnet loop, Kestrel's p
 
 **G88. Helper models.** The strongest model (Opus) builds and checks; a lighter model only for mechanical chores.
 Michael: "Opus, light for chores" (chat 14 / PROC-04, 2026-10-17; replaces the bible's Sonnet-builds rule.)
+(Replaced by G158 for prototype work, 2026-10-18.)
 
 **G89. One decisions file.** docs/DECISIONS.md holds Michael's decisions; old job files stay as history and point to it;
 each job adds Michael's new decisions when it merges. Michael: "One decisions file" (chat 15 / PROC-06, 2026-10-17.)
@@ -467,6 +475,7 @@ replaces loco A61.)
 
 **G105. Loadouts Stealth / Assault / Recommended.** Used everywhere. Directive: "Anything that isn't a part of the
 original chaos theory shouldn't exist." (settles WEAP-04; replaces loco A33's Silent / Flash / Loud.)
+(Replaced by G153, 2026-10-18.)
 
 **G106. CT fixed difficulties.** Difficulty uses CT's fixed levels; no sliders and no alarm-tolerance setting (G7).
 Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles STEALTH-11; replaces loco
@@ -503,7 +512,9 @@ Where each deferred question will be decided.
 
 To the CT co-op research:
 - Friendly fire in missions (COOP-02), how heavies are taken out (FU-10, STEALTH-04 note) and similar details (chat 7, G49).
-- CT's gadget and attachment set (chat 33, G76), including the ring airfoil and the knife's role.
+  Settled 2026-10-18: friendly fire G141, heavies G155.
+- CT's gadget and attachment set (chat 33, G76), including the ring airfoil and the knife's role. In part
+  settled 2026-10-18: held jammer G152, no remote hacking G142, fixed kits G153.
 - Kestrel's future (chat 4, G53).
 
 To the prototype (decided or tuned after Michael plays it):
@@ -573,8 +584,8 @@ Still in force:
 - loco M19: the CT research basis (CT-RESEARCH.md).
 - loco M20: pure CT (now game-wide, G1): lean-out aim and the SWAT turn removed (Q1), palm strike (Q4, Q4b), thermal
   from footage (Q5), warn-and-save bindings (Q6, A30, A71), no sprint (Q8), posture from footage (Q9), doors past about
-  15% open and guards notice (Q10), gentle explore swing (Q11), Michael reviews each revision (Q12). Q2 is replaced by
-  G26, Q3 by M25 (4), Q7 by G25.
+  15% open and guards notice (Q10), Michael reviews each revision (Q12). Q2 is replaced by
+  G26, Q3 by M25 (4), Q7 by G25, Q11 (gentle explore swing) by G159.
 - loco M21: desktop only (clean-up now in this merge, G12).
 - loco M22: playable prototype first (G4, G87).
 - loco M23: footage facts (at the slowest speed the operator walks backwards).
@@ -650,11 +661,176 @@ Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/locomotion/CONSOLIDAT
 and git; he brings it in after the merge, and the research job starts from it. Michael: "I've already run a comprehensive
 research task not linked to the game or git, I'll bring it in after the merge" (2026-10-18.)
 
+## CT co-op research and prototype (2026-10-18)
+
+Recorded from `docs/ct-research/DECISIONS-PENDING.md` (branch feature/ct-research). D-01 to D-25 are Michael's picks in
+the CT co-op research session (his choice labels quoted verbatim; R-xx are the research's question rows); the rest are
+his native multiple-choice answers in chat and his M1 prototype feedback, the same day. G123 is reserved for
+feature/operators. Michael chose "today's answers win": where an entry here differs from G1 ("pure CT") or an earlier G
+entry, the entry here wins and the older entry carries a "Replaced by" note.
+
+### Research decisions (D-01 to D-25)
+
+**G124. Modern-day setting.** The game is set in the present day. Michael: "Modern day" (D-01 research session,
+2026-10-18; confirms `docs/story.md` Section 3.)
+
+**G125. Escalating alert tiers, no abort.** Alarms raise a shared alert tier that escalates the guards' response; a
+mission does not fail on an alarm count. A mission may have at most one hard rule, and it is signposted. Michael:
+"Escalating alert tiers, no abort" (D-02 research session, 2026-10-18; replaces the bible's "some missions fail at a set
+alarm count".)
+
+**G126. 30-second revive, 2 per mission; encounter checkpoints.** A downed player can be revived within a 30-second
+window, at most twice per mission. Encounter checkpoints cap replay loss at about 10 minutes. Both players down reloads
+the last checkpoint. Michael: "30-second revive, 2 per mission" (D-03 research session, 2026-10-18; replaces G1 where CT
+differs and the bible's "no bleed-out".)
+
+**G127. Violence is scored.** Lethal and non-lethal play are both allowed; non-lethal and ghost play are rewarded; no
+mission forces a kill. Michael: "Scored." (D-04 research session, 2026-10-18.)
+
+**G128. Lethal automated defences only at compounds.** Turrets and other lethal automated defences appear only at
+military or private compounds; elsewhere security responds realistically. Michael: "Only at military or private
+compounds" (D-05 research session, 2026-10-18.)
+
+**G129. Proximity voice is an opt-in modifier.** Guards hearing the players' voice chat is off by default, visible when
+on, and tunable. Michael: "Opt-in modifier." (D-06 research session, 2026-10-18; built after the prototype, G156.)
+
+**G130. Heightened athletic tone.** Showpiece two-player moves (the partner launch, the drop line and similar) sit
+alongside grounded ones. Michael: "Heightened." (D-07 research session, 2026-10-18.)
+
+**G131. What difficulty scales.** Difficulty scales guard perception, alert tolerance and resources; sync timing windows
+never scale. Michael: "Perception, alert tolerance and resources" (D-08 research session, 2026-10-18; sharpens G106: the
+scaling rides on the fixed difficulty levels.)
+
+**G132. Strictly two humans.** No AI partner and no solo variants. Michael: "Strictly two humans" (D-09 research session,
+2026-10-18; confirms G2, G48, G50, G111.)
+
+**G133. Online, split-screen and LAN.** Co-op runs online, split-screen on one machine and over LAN; no cross-play
+commitment. Michael: "Online, split-screen and LAN" (D-10 research session, 2026-10-18; extends bible 5.9 C19's direct
+connections.)
+
+**G134. Identical characters, complementary per-mission kits.** Both operators move and play the same; each mission
+issues the two players complementary kits. Michael: "Identical characters with complementary per-mission kits" (D-11
+research session, 2026-10-18; confirms G71, G109; the kits are fixed per mission, G153.)
+
+**G135. Partner beacon and world pings, no partner marker.** Each player's goggle light is a distinct colour that serves
+as the partner beacon, and players can place world pings. There is no partner marker and no live partner position on any
+map (the original's map page appears to be a static image, R-11). Michael: "Follow the original: partner beacon
+(distinct light colour per player) + world pings." (D-12 research session, 2026-10-18; replaces G1 where CT differs (world
+pings) and the bible's HUD "team-mate markers".)
+
+**G136. Standalone co-op story.** The story is written for the two-player campaign alone. Michael: "Standalone co-op
+story" (D-13 research session, 2026-10-18; consistent with G9, G120.)
+
+**G137. Over-the-shoulder camera, strict corner peek.** The camera sits over the shoulder and sees little the character
+cannot. Michael: "Over-the-shoulder, strict corner-peek" (D-14 research session, 2026-10-18; sharpens G28 and the bible's
+corner peeking.)
+
+**G138. Both players extract.** Both players must reach the exit to finish a mission. Michael: "Both players must reach
+the exit" (D-15 research session, R-09, 2026-10-18; replaces G1 where CT differs.)
+
+**G139. Guards know only what they saw.** The shared alert tier rises, but no guard "knows" a second intruder exists
+until one is seen or evidence suggests it. Michael: "Guards know only what they saw." (D-16 research session, R-06,
+2026-10-18.)
+
+**G140. Partner voice always clear.** Voice between the partners is an earpiece: it never fades with distance. What
+guards hear is separate (G129). Michael: "Always clear" (D-17 research session, R-22, 2026-10-18.)
+
+**G141. Friendly fire is a host option, on by default.** Michael: "Host option, on by default" (D-18 research session,
+R-08, 2026-10-18; settles the friendly fire part of G49.)
+
+**G142. No remote hacking tool.** All hacking is hands-on. Michael: "None." (D-19 research session, R-02, 2026-10-18;
+sharpens G76.)
+
+**G143. Some solutions randomised per run.** Some codes, items or rooms vary per run and must be read in the world.
+Patrols stay fixed. Michael: "Some per run." (D-20 research session, R-16, 2026-10-18.)
+
+**G144. Lit windows are systemic.** A lit window exposes anyone in it, from either side; dark rooms hide. Michael:
+"Systemic." (D-21 research session, R-20, 2026-10-18; consistent with G45.)
+
+**G145. Story-critical characters are protected until their role is done.** Killing one earlier fails the mission, with
+a clear warning first. Michael: "Protected until their role is done." (D-22 research session, R-17, 2026-10-18.)
+
+**G146. Perfect rating.** 100% means no kills, no alarms and every primary objective; optional objectives are a bonus.
+Every mission must be testably 100%-able. Michael: "No kills + no alarms + all primary objectives." (D-23 research
+session, R-15, 2026-10-18; replaces G1 where CT differs and the bible's rating formula.)
+
+**G147. Any partner can join a saved mission.** The saved mission's progress belongs to the host. Michael: "Any partner
+can join" (D-24 research session, R-07, 2026-10-18; replaces G1 where CT differs.)
+
+**G148. Two-person questioning, non-violent.** One player distracts or bluffs while the other reads a device or a
+reaction. Michael: "Yes, non-violent." (D-25 research session, R-17, 2026-10-18; adds to G23's interrogation.)
+
+### Prototype and process answers (chat, 2026-10-18)
+
+**G149. CT movement first.** The prototype builds CT movement before the co-op slices. Michael: "CT movement first"
+(chat, 2026-10-18; replaces the recommended co-op-first order in docs/ct-prototype/PLAN.md.)
+
+**G150. Core feel first.** The codebase is kept. A fresh session runs one job that rebuilds and fine-tunes CT movement,
+camera, back-to-wall, doors, palm strike and goggles on Wren (Opus for the tuning) until Michael signs off; the co-op
+gameplay slices C1-C7 come after. Michael: "Core feel first" (chat, 2026-10-18; replaces G4 for these core-feel systems,
+which are tuned now rather than later, and narrows G158 to the menu and gameplay prototype slices; Wren is used from this
+job on, ahead of G70's order.)
+
+**G151. Team moves anywhere with room.** Two-player moves are free wherever the space allows, with a prompt naming the
+move. Michael: "Anywhere with room" (chat, 2026-10-18; replaces G81.)
+
+**G152. Held pistol jammer.** The pistol's jammer is held on one light, camera or laser; its charge drains and the player
+must stand still. It replaces the thrown EMP gadget. Michael: "Yes, held jammer" (chat, 2026-10-18; replaces the EMP
+gadget; sharpens G76's disruptor.)
+
+**G153. Kits fixed per mission.** Each mission issues the pair complementary kits (G134); players do not choose a
+loadout. Michael: "Fixed per mission" (chat, 2026-10-18; replaces G105.)
+
+**G154. Digests only on master.** Master gets the scrubbed research digests; the raw research files are kept only as the
+tag `archive/ct-research-raw`. Michael: "Digests only" (chat, 2026-10-18; G6 holds.)
+
+**G155. No heavies or dogs in co-op missions.** As in CT, co-op missions have no heavy or dog archetypes; armour and
+helmets come with the alarm stages. Michael: "Adopt CT's way" (chat, 2026-10-18; replaces G42's heavies and dogs
+exception and the heavies part of G49.)
+
+**G156. Voice chat after the prototype.** Proximity voice (G129) and the always-clear partner voice (G140) are built
+after the prototype. Michael: "After the prototype" (chat, 2026-10-18.)
+
+**G157. Level standard changes reviewed later.** The 12 proposed level standard changes (design-kit-digest appendix)
+come to Michael item by item before the first real mission map. Michael: "Review list later" (chat, 2026-10-18.)
+
+**G158. Prototype slices on Sonnet, medium.** Prototype slices (menu, movement, co-op) are built with Sonnet at medium
+effort; Opus does the fine tuning later. Since G150 this covers the menu and gameplay prototype slices only. Michael:
+"Sonnet, medium" (chat, 2026-10-18; replaces G88 for prototype work.)
+
+**G159. Manual camera.** The exploring camera never moves or adjusts by itself; the player controls it. Michael: "Camera
+doesn't automatically adjust/move at all in CT, it's manually controlled." (M1 feedback, chat, 2026-10-18; replaces G29's
+gentle swing toward travel, the "exploring camera swings by itself" part of G17 and loco M20 Q11's lead room.)
+
+**G160. Tense sneak crouch.** Sneaking slowly near an enemy, the crouch changes to a tense variant: quieter, on the toes,
+with exaggerated balancing. Michael: "The characters crouching posture changes when in vicinity of an enemy and sneaking
+slowly, almost like trying to be quieter and moving on tippy toes and over exaggerated balancing." (M1 feedback, chat,
+2026-10-18; adds a crouch variant.)
+
+### Research findings for Michael to confirm (not decisions yet)
+
+These come from the research digests. Michael has not decided them; they go to him at the plan review.
+
+- G78 says CT has no co-op tutorial: CT had one in both builds (moves-mechanics-digest). Its drill order is a template
+  for the bunker rebuild (G79).
+- G110 (no rope climb) vs CT's two-person rope, where the partner climbs the held rope (belay line; after the
+  prototype).
+- G106 vs D-08 (G131): alert tolerance scales with the fixed difficulty levels (not a setting).
+- G119 medkits: CT's wall cabinets healed full on Normal, 50% on Hard, less on Expert, probably single use (solo
+  sources). Proposal: single use, heal by difficulty.
+- G52's "brace" and "dual takedown" moves: CT had no brace, and its double takedown was two ordinary takedowns timed
+  together.
+- G11: kept (CT has them): guards relight lamps and investigate dead lights, impromptu paired searches, eavesdropping,
+  lock picking with a noise cost, adaptive music. Dropped: the last-known-position marker, the remote digital layer, the
+  under-3-second retry target, the after-action route map (kit-design-digest section 5).
+
 ## Operators run (feature/operators), recorded when Wren went in (step 11e, 2026-10-18)
 
 The operators run's own file (feature/operators docs/operators/DECISIONS.md, ops D1-D33 and its assumed A-decisions)
 is history for Michael's decisions: the ones still current are below. Ops D3 (identical skeleton), D9 (phone LOD),
-D17 (scripted workflow) and D19's "more futuristic housing" are replaced and not carried.
+D17 (scripted workflow) and D19's "more futuristic housing" are replaced and not carried. G123 was reserved for this
+run on master; the rest were G124-G139 on feature/operators and were renumbered G161-G176, in the same order, when
+master's G124-G160 (the CT co-op research) merged in.
 
 **G123. Wren is the player character now, for both players.** Wren replaces the player body for solo, the local co-op
 player and the co-op partner, before the prototype is done and with no dev switch; guards keep their bodies (G68);
@@ -662,77 +838,77 @@ gameplay does not change (G38). Michael: "I want wren in to replace the existing
 prototype is done" and, until Moth is finished, "Both play as Wren" (2026-10-18, ops D31; replaces G70's "after the
 prototype, behind a dev switch".)
 
-**G124. Wren in first, polish later.** Wren goes into the game now; the remaining polish (kit relabels, the stowed
+**G161. Wren in first, polish later.** Wren goes into the game now; the remaining polish (kit relabels, the stowed
 goggle export, doc fixes) is cleanup while the game is built. Michael: "I want wren in the game first. We will clean up
 changes later while the game is built." Until the stowed goggle is exported it stays over the eyes in both states and
 only the glow follows G73: "Yes, fix in cleanup (Recommended)" (2026-10-18, ops D33.)
 
-**G125. The hero model in the main menu and close-ups; it ships.** The hero LOD drives the main menu and every
+**G162. The hero model in the main menu and close-ups; it ships.** The hero LOD drives the main menu and every
 close-up camera (photo mode, later close shots); gameplay uses LOD0-2. The 55.5 MB hero file ships in the game build,
 loaded only when a close-up camera needs it. Michael: "i do want hero version for the main menu and for any close up
 shots" (2026-10-16, ops D21) and, after seeing hero against LOD0 close-ups, "Yes use hero for menu" (2026-10-18, ops
 D33.)
 
-**G126. Operators look AAA-real, up close.** No code-built look: believable fabric, folds, seams, stitching, wear,
+**G163. Operators look AAA-real, up close.** No code-built look: believable fabric, folds, seams, stitching, wear,
 straps under tension, hard kit with real material response; they must hold up at 0.3-1 m in menus. Michael: "the
 operators must NOT look code-built. They must look as detailed and realistic as a modern AAA stealth game character"
 and "they must hold up when used up close in menu animations" (2026-10-15, ops D1, D2.)
 
-**G127. Faces fully covered.** Fitted balaclava or hood plus goggles; no visible face or skin. Michael: "fully covered,
+**G164. Faces fully covered.** Fitted balaclava or hood plus goggles; no visible face or skin. Michael: "fully covered,
 full stealth gear (fitted balaclava/hood plus goggles). No visible face or skin." (2026-10-15, ops D4.)
 
-**G128. Splinter Cell inspired, original in every shape.** Michael: "I am expecting splinter cell inspired models that
+**G165. Splinter Cell inspired, original in every shape.** Michael: "I am expecting splinter cell inspired models that
 are original" (2026-10-15, ops D5; the no-IP rule stands.)
 
-**G129. Each operator has their own size; hit boxes follow the body.** Skeleton, hit volumes and light sample heights
+**G166. Each operator has their own size; hit boxes follow the body.** Skeleton, hit volumes and light sample heights
 match each operator's real size; the capsule, speeds, camera rules and every traversal move stay shared. Michael:
 "operators can be slightly different sizes, i would prefer realism over fairness. the games focus is mostly coop" and
 "Hit boxes follow the body (Recommended)" (2026-10-15, ops D10, D11; replaces ops D3's identical skeleton. With G74.)
 
-**G130. Built offline in Blender on a CC0 base body.** In-repo scripts run Blender headless: sewn garment panels draped
+**G167. Built offline in Blender on a CC0 base body.** In-repo scripts run Blender headless: sewn garment panels draped
 by cloth simulation, bevelled kit, baked maps, glTF out; the base body is MPFB2's CC0 data (no MPFB code). Michael:
 "Blender pipeline (Recommended)" and "Download it (Recommended)" (2026-10-15, ops D7, D12.)
 
-**G131. A stealth operative, not military: Wren's concept.** A one-piece fitted stealth suit, slim segmented armour,
+**G168. A stealth operative, not military: Wren's concept.** A one-piece fitted stealth suit, slim segmented armour,
 slimline tactical storage mapped to the game's loadout, lighter approach boots, no climbing sit harness; no guns
 modelled (the game's weapon models attach in game). Michael: "I want more of a stealth operative design. Wetsuit fitted
 suit, slim body armour, tactical ammo storage/holsters" (ops D22), "I like A, but can you make it more logical based
 off the requirements of the game" (ops D23) and "yes build a2, but create without the guns, they will be in game
 anyway" (ops D24) (2026-10-16.)
 
-**G132. Goggles: no flip, the original housing, a tactical strap.** The goggle sits over the forehead when stowed and
+**G169. Goggles: no flip, the original housing, a tactical strap.** The goggle sits over the forehead when stowed and
 over the eyes in use (no flip arm); the original housing stays; the head harness is option 2 (split crown, hard rear
 pod). Michael: "the goggles shouldn't flip up and down, they should just sit over the forehead, and be over the face
 when in use" (ops D19), "the original one looked better but it can't flip up" and "2 - Split crown, hard pod" (ops
 D20) (2026-10-16. With G69, G73.)
 
-**G133. Rigid kit stays rigid.** Magazines, knife, holster shell, pods, buckles and plates keep their true straight
+**G170. Rigid kit stays rigid.** Magazines, knife, holster shell, pods, buckles and plates keep their true straight
 shape on the body, each skinned to one bone; placement starts from each item's size, weight, draw and movement.
 Michael: "any attachments (magazines, knife etc) can't be bent which they currently are. They are rigid and must be
 reflected that way on the character" (2026-10-17, ops D28; his placement picks are in ops D28.)
 
-**G134. Kit after master's deletions.** The hip pod stays as a utility pouch, the medkit pouch as a plain pouch, the
+**G171. Kit after master's deletions.** The hip pod stays as a utility pouch, the medkit pouch as a plain pouch, the
 thigh holster as is (pistolSd draws from it), the left-hip socket carries the rifle sling. Michael: "Keep as utility
 pouch", "Keep as plain pouch", "Leave as is", "Keep for the rifle sling" (2026-10-18, ops D32; relabels are cleanup,
-G124.)
+G161.)
 
-**G135. KTX2 textures: encoder offline, decoder bundled.** Operator textures are KTX2 (UASTC); the KTX-Software
+**G172. KTX2 textures: encoder offline, decoder bundled.** Operator textures are KTX2 (UASTC); the KTX-Software
 encoder is an offline tool, Babylon's KTX2 decoder is bundled from npm, nothing fetched at runtime. Michael: "Install
 toktx (Recommended)" and "Yes, add it (Recommended)" (2026-10-17, ops D26, D27.)
 
-**G136. No phone LOD.** Hero, LOD0, LOD1 and LOD2 serve desktop distance bands only. Michael: "Yes, drop phone LOD
+**G173. No phone LOD.** Hero, LOD0, LOD1 and LOD2 serve desktop distance bands only. Michael: "Yes, drop phone LOD
 (Recommended)" (2026-10-17, ops D29; follows G12.)
 
-**G137. Wren goes in before Moth.** Michael: "i want to move the completed character into the game also before
+**G174. Wren goes in before Moth.** Michael: "i want to move the completed character into the game also before
 starting on the next one" (2026-10-18, ops D30.)
 
-**G138. Operator jobs run as small steps in one orchestrator session, with screenshots.** One focused step at a time
+**G175. Operator jobs run as small steps in one orchestrator session, with screenshots.** One focused step at a time
 (implementer, an independent checker, up to three fix rounds), unattended, with progress renders at each step's end.
 Michael: "i would prefer to do smaller steps that keep claude focused and on task", "i still want to see screenshot at
 end of each step so i can see progress" and "Orchestrator session" (2026-10-16, ops D15, D16, D18; the session
 method in docs/systems/session-method.md.)
 
-**G139. Traversal gameplay is fixed at the 1.75 m body for every player.** Ledge hangs, wall jumps, climbs, ladders,
+**G176. Traversal gameplay is fixed at the 1.75 m body for every player.** Ledge hangs, wall jumps, climbs, ladders,
 pipes and every other attached position use one gameplay height (the old 1.75 m body's values), whatever the drawn
 body's height; Wren's body is lifted onto her grips visually (arms and IK adjust so her hands meet the ledge) and
 gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm higher: "Keep gameplay fixed

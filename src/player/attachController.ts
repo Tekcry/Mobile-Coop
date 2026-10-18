@@ -1133,7 +1133,7 @@ export class AttachController {
     const aimFrom = a.kind === 'split' || a.kind === 'rappel' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
     this.grips.aimFree = aimFrom ? this.player.carry.raise : 0;
     this.grips.update(dt, a, s, m.v, m.face, w, this.player.rig, vent);
-    // (G139) the rendered body sits off the gameplay root by its height's lift (visual only)
+    // (G176) the rendered body sits off the gameplay root by its height's lift (visual only)
     lift.x = this.grips.lift.x;
     lift.y = this.grips.lift.y;
     lift.z = this.grips.lift.z;

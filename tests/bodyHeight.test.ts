@@ -3,7 +3,7 @@ import { bodyScale, lightSampleHeight, STANDARD_BODY } from '../src/game/bodyHei
 import { exposurePoints, exposurePointsPosed } from '../src/game/tactics';
 import { OPERATORS } from '../src/operators/operatorBody';
 
-// (operators step 11e fix r1, G129) light and exposure samples follow the body's real height
+// (operators step 11e fix r1, G166) light and exposure samples follow the body's real height
 describe('body sample heights', () => {
   it('the off-wall light sample follows the body height, standing and crouched', () => {
     expect(lightSampleHeight(STANDARD_BODY, 0)).toBeCloseTo(1.75, 6);

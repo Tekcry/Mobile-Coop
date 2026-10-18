@@ -29,7 +29,7 @@ path (no dev switch). Guards keep their current bodies (realistic guards come la
 5. Hero LOD for menus and close cameras (D21), LOD0-2 in play.
 6. Measure and note Wren's download size and load time (ART-10's file-size limit is decided on this branch).
 7. Record in master's docs/DECISIONS.md: G123 (quoted above, replaces G70's "after the prototype, behind a dev switch")
-   and the operators run's still-current decisions from G124 on, each quoting Michael; docs/operators/DECISIONS.md
+   and the operators run's still-current decisions from G161 on, each quoting Michael; docs/operators/DECISIONS.md
    points there. Update docs/systems/world-and-characters.md and CHANGELOG (Unreleased, one minor step per G93).
 
 ## Checks

@@ -2,7 +2,7 @@
 
 Checker verdict: FAIL on the items below. Everything else in the 11d / 11e diff (0de3293..HEAD) passes: Wren is the
 body for solo, the local co-op player and the partner; guards keep their bodies; capsule, speeds, noise and camera
-unchanged; traversal at `GAMEPLAY_HEIGHT` with a visual-only lift (G139); hit volumes follow Wren; no new net bandwidth
+unchanged; traversal at `GAMEPLAY_HEIGHT` with a visual-only lift (G176); hit volumes follow Wren; no new net bandwidth
 (no protocol / MoveState change); src/net only behind the dynamic import; Babylon only through core/babylon.ts; no
 Math.hypot in src; hero lazy and close-up only; GLBs runtime-cached, never precached (44 entries, 15.1 MB); KTX2
 decoder local; `npm run check` passes.
@@ -27,13 +27,13 @@ decoder local; `npm run check` passes.
   (`player.figure.loaded`, LOD2 bit) and passes solo and in the full run with its console-error filter unchanged.
   Record an A-decision; fix the cache claims if the behaviour differs.
 
-## 1. The light-meter samples do not follow Wren's body (G129 / ops D11; A99, CHANGELOG and docs say they do)
+## 1. The light-meter samples do not follow Wren's body (G166 / ops D11; A99, CHANGELOG and docs say they do)
 - Where: `src/game/gameState.ts:997` `const h = 1.75 * (1 - 0.35 * crouchBlend)` (local player) and `:1023`
   `r.crouched ? 1.75 * 0.65 : 1.75` (remote partners): off the wall the light is still sampled for a 1.75 m body
   (chest 1.05 m, head 1.66 m) while Wren's hit volumes, the guards' LOS points (`aimPoint` / `headPoint`) and the body
   drawn are 1.68 m. Only the on-wall path (`rig.posedHead`) follows her. The exposure points in
   `src/game/tactics.ts:38-42` (head 1.62, chest 1.3, hips 0.95, knees 0.5) are fixed to the 1.75 m body too.
-- Michael (ops D11 / G129): "Each operator's skeleton, hit volumes and light sample heights match their real size, so
+- Michael (ops D11 / G166): "Each operator's skeleton, hit volumes and light sample heights match their real size, so
   shots and light hit the body you see." CHANGELOG.md:10, docs/systems/world-and-characters.md:93 and ops A99
   (docs/operators/DECISIONS.md:1186) claim this is done.
 - Done looks like: the off-wall light sample height (local and every remote) comes from the body's height (the
@@ -68,7 +68,7 @@ decoder local; `npm run check` passes.
 - Solo reruns (`--jobs=1`): ok - e2e-mouse, e2e-course, e2e-desktop:1, e2e-anchors, e2e-desktop:2, e2e-weapon-audio,
   e2e-music; FAIL - e2e-offline (item 0). e2e-kestrel, e2e-camera-bounds: pre-existing master failures.
 
-## Notes (not failures; cleanup per G124 / D33 unless the orchestrator decides otherwise)
+## Notes (not failures; cleanup per G161 / D33 unless the orchestrator decides otherwise)
 - The player rig still instances its old part meshes (disabled, not shadow casters) to measure `backGear` /
   `thighOuter` for the weapon carry (LOG open 4); the step text says "never for players". Not drawn.
 - The slung rifle stands off Wren's back (mockups/wren/ingame/solo-crouch.png, anim-walk.png every frame): the same
@@ -77,6 +77,6 @@ decoder local; `npm run check` passes.
   `@babylonjs/ktx2decoder` is still a devDependency (LOG 11d cleanup).
 - docs/operators/DECISIONS.md: A80's text sits above the "# Operators run - decisions" title (pre-existing).
 - The hero stays in VRAM for the rest of a match after photo mode (LOG open 6).
-- Shots leave from the rig's muzzle, so Wren's shots start ~4 cm lower than the 1.75 m body's (G129 sizes; note only).
+- Shots leave from the rig's muzzle, so Wren's shots start ~4 cm lower than the 1.75 m body's (G166 sizes; note only).
 - e2e-clip's wall / sprint / crouch-run scenarios count 0 frames (no weapon in hand): pre-existing.
-- Goggle over the eyes in both states: accepted (D33 / G124).
+- Goggle over the eyes in both states: accepted (D33 / G161).

@@ -29,7 +29,7 @@ export function exposureFraction(points: readonly P3[], eyes: readonly P3[], blo
 
 /**
  * Sample points on a character's hit volumes (feet position, crouch 0..1, lean offset along its right). `height`: the
- * body's standing height (m; ops 11e r1, G129): the point heights scale with it (Wren 1.68 m: 0.96 of the 1.75 m body's).
+ * body's standing height (m; ops 11e r1, G166): the point heights scale with it (Wren 1.68 m: 0.96 of the 1.75 m body's).
  */
 export function exposurePoints(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, out: P3[], height = STANDARD_BODY): P3[] {
   const k = (1 - crouch * 0.4) * bodyScale(height);

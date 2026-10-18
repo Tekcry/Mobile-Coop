@@ -16,6 +16,7 @@ import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
+import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
@@ -135,19 +136,29 @@ export class CoopHost implements NetAttachment {
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
     for (const p of s.players.values()) if (p.id !== s.selfId) this.addRemote(p);
+    this.recolour();
     this.offs.push(
       s.events.on('lobby', ({ players }) => {
         for (const p of players) if (p.id !== s.selfId && !this.remotes.has(p.id)) this.addRemote(p);
         for (const id of [...this.remotes.keys()]) if (!players.some((p) => p.id === id)) this.removeRemote(id);
+        this.recolour();
       }),
       s.events.on('peerLeft', ({ id, name }) => {
         this.removeRemote(id);
+        this.recolour();
         g.app.toasts.show(`${name} left`, 'warn');
       }),
       s.events.on('game', ({ msg, from }) => this.receive(msg, from)),
     );
     this.hookHud();
     this.hookCombat();
+  }
+
+  /** (G135) Every body's goggle colour from its player slot (host green, partner cyan): the partner beacon. */
+  private recolour(): void {
+    const ps = [...this.s.players.values()];
+    setPlayerGlow(this.g.player.figure, ps, this.s.selfId);
+    for (const [id, r] of this.remotes) setPlayerGlow(r.avatar.figure, ps, id);
   }
 
   /** Attacker id on the wire ('local' / '' = the host). */

@@ -89,7 +89,7 @@ describe('attach poses', () => {
     attachPose(ledge, 3, 1, 1.9, out);
     expect(out.y).toBeLessThan(2.4 - HANG.drop);
   });
-  it('(G139) gameplay hangs at the 1.75 m body; a shorter body is drawn lifted onto its grips', () => {
+  it('(G176) gameplay hangs at the 1.75 m body; a shorter body is drawn lifted onto its grips', () => {
     expect(GAMEPLAY_HEIGHT).toBe(1.75);
     const l = { x: 0, y: 0, z: 0 };
     // Wren (1.68 m): the gameplay root hangs HANG.drop under the lip, her body HANG.drop * 0.96 under it (7.6 cm up)

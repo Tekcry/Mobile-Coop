@@ -996,7 +996,7 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     const f = this.world.lightField;
     const p = this.player.position;
-    // (operators 11e r1, G129) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
+    // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
     const h = lightSampleHeight(this.player.rig.height, this.player.controller.crouchBlend);
     // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
     // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).

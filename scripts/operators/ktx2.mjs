@@ -170,12 +170,12 @@ export function encodeKtx2(id) {
       const png = path.join(exp, t.file);
       const kind = /-normal\.png$/.test(png) ? 'normal' : /-orm\.png$/.test(png) ? 'orm' : 'albedo';
       const out = png.replace(/\.png$/, '.ktx2');
-      execFileSync(exe('toktx'), toktxArgs(kind, out, png), { stdio: 'pipe' });
-      execFileSync(exe('ktx'), ['validate', out], { stdio: 'pipe' });
+      execFileSync(exe('toktx'), toktxArgs(kind, out, png), { windowsHide: true, stdio: 'pipe' });
+      execFileSync(exe('ktx'), ['validate', out], { windowsHide: true, stdio: 'pipe' });
       // level 0 as the reference transcoder decodes it: kept for the Lab while Babylon's KTX2 transcoder is not bundled
       const dec = path.join(path.dirname(out), 'ktx2-decoded', `${path.basename(out, '.ktx2')}.png`);
       mkdirSync(path.dirname(dec), { recursive: true });
-      execFileSync(exe('ktx'), ['extract', '--transcode', 'rgba8', '--level', '0', out, dec], { stdio: 'pipe' });
+      execFileSync(exe('ktx'), ['extract', '--transcode', 'rgba8', '--level', '0', out, dec], { windowsHide: true, stdio: 'pipe' });
       const quality = psnr(readPng(png), readPng(dec));
       const m = mipBytes(t.size, t.size);
       const size = statSync(out).size;

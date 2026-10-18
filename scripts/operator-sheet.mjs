@@ -34,11 +34,11 @@ if (!GPU) console.warn('operator-sheet: E2E_GPU is not 1: this is a software-GL 
 
 // ---- server ----
 if (!argv.includes('--no-build')) {
-  const b = spawnSync('npx', ['vite', 'build', '--config', 'vite.operators.config.ts'], { cwd: ROOT, stdio: 'inherit', shell: true });
+  const b = spawnSync('npx', ['vite', 'build', '--config', 'vite.operators.config.ts'], { windowsHide: true, cwd: ROOT, stdio: 'inherit', shell: true });
   if (b.status !== 0) throw new Error('Lab build failed');
 }
-const server = spawn('npx', ['vite', 'preview', '--config', 'vite.operators.config.ts', '--open', 'false'], { cwd: ROOT, stdio: 'ignore', shell: true });
-const killServer = () => { try { spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' }); } catch { /* gone */ } };
+const server = spawn('npx', ['vite', 'preview', '--config', 'vite.operators.config.ts', '--open', 'false'], { windowsHide: true, cwd: ROOT, stdio: 'ignore', shell: true });
+const killServer = () => { try { spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }); } catch { /* gone */ } };
 process.on('exit', killServer);
 for (let i = 0; i < 60; i++) {
   try { if ((await fetch(`${BASE}/operators.html`)).ok) break; } catch { /* not up yet */ }

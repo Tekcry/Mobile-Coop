@@ -230,7 +230,7 @@ To be replaced by the CT door menu (G97); this is the current build.
   `CLIMB_STANDOFF` 0.28 m off the rungs / pipe. `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
 - `player/attach.ts` (pure): `AttachMachine` (none -> enter -> on -> exit) with `ATTACH` specs per kind (axis, speed,
   enter / exit times, camera preset, `allow` sidearm / takedown / drop / traverse / gadgets, `holster`); `axisInput`,
-  `attachPose`, `attachRange`, `update` (reports `edge`). Gameplay calls pass `GAMEPLAY_HEIGHT` (1.75, G139), never the
+  `attachPose`, `attachRange`, `update` (reports `edge`). Gameplay calls pass `GAMEPLAY_HEIGHT` (1.75, G176), never the
   drawn body's height; `attachLift` is the visual offset of a body of another height (grips and the rig root only). Ladder 3 rungs/s (`LADDER_RUNG_RATE`); sprint held
   `LADDER_SPRINT_RATE` 5, drainpipe x`PIPE_SPRINT` (to be removed, G31); slide `LADDER_SLIDE`; zipline to `ZIP_SPEED` 6 m/s.
 - `TraversalController.attach`: `attachTo(anchor, s, entry)`, `detach(reason)`; drives `override.kinematic`, sets

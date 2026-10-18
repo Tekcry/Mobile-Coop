@@ -2097,7 +2097,7 @@ while the game is built"; "Yes use hero for menu"). Assumed decisions A99-A102.
   the 11e test (rig at 1.68 with its parts disabled and no voxel body, heat overlay, close camera -> hero -> back).
 - Scripts: `e2e-lib.mjs` `waitOperator(page, lod)`; `anim-sheet.mjs` and `perf.mjs` wait for Wren before drawing /
   measuring.
-- Docs: master `docs/DECISIONS.md` G123-G138 (G70 marked replaced), `docs/operators/DECISIONS.md` points there;
+- Docs: master `docs/DECISIONS.md` G123-G138 at the time, now G123 and G161-G175 (G70 marked replaced), `docs/operators/DECISIONS.md` points there;
   `docs/systems/world-and-characters.md` (proportions table, "Players are Wren"), bible 5.14 line (G123), CHANGELOG
   Unreleased.
 
@@ -2221,7 +2221,7 @@ contact sheets at gfx=high (Wren LOD0): anim-walk, -crouch, -sprint, -vault, -re
 ### Step 11e - continuation 2 (implementer 3, Opus 5.5)
 
 Status: draft, uncommitted on top of checkpoint 2 (dd988f6). The orchestrator lifted the characterRig / src/anim limit
-for this pass. Decisions: D34 / master G139 (Michael: "Keep gameplay fixed (Recommended)"), A107, A108; A105 replaced.
+for this pass. Decisions: D34 / master G176 (Michael: "Keep gameplay fixed (Recommended)"), A107, A108; A105 replaced.
 
 **Changed**
 - A (e2e-clip elbow, A107): the right hand comes forward from the back draw after the scenario teleport; with the
@@ -2230,7 +2230,7 @@ for this pass. Decisions: D34 / master G139 (Michael: "Keep gameplay fixed (Reco
   within chest half depth + 2 cm of the pelvis -> neck line swivels round the shoulder -> wrist axis
   (`rigMath.elbowSwivelClear`, pure, unit-tested; 15 deg steps, smallest clearing angle), the hand keeps its world
   rotation. G72 kept, 3 cm limit unchanged. e2e-clip "aim walking + crouched" elbow min -6.9 -> +4.4 cm.
-- C (G139): `attach.ts` `GAMEPLAY_HEIGHT` 1.75; every gameplay `attachPose` / range / reach call in
+- C (G176): `attach.ts` `GAMEPLAY_HEIGHT` 1.75; every gameplay `attachPose` / range / reach call in
   `attachController.ts` and the team boost (`teamController.ts`) uses it; `attachLift()` (pure, unit-tested) is the
   visual offset of a body of another height. `AttachGrips.lift` (weighted by the grip blend, pipe sub-states blended)
   is added to the rig root by the local player (`Player.rootLift`, written in `frameUpdate`) and the remote
@@ -2322,3 +2322,44 @@ Fix list `steps/11e-fixes-r1.md` items 0-3 plus the checker's two notes (ktx2.ts
 **Open**
 - Item 3 is not GPU-run (not needed for an exit-code change). The checker's notes (part-mesh measuring for the carry,
   the rifle standing off her back, hero in VRAM after photo mode, the A80 header in DECISIONS) are unchanged.
+
+## Step 11e pre-PR - merge master (G124-G160), renumber, per-player goggle colour (Opus 5.5)
+
+**Built**
+- Merged origin/master a22a9c0 ("CT co-op research: digests, decisions G124-G160 and the prototype plan (#4)"). Two
+  conflicts: `docs/DECISIONS.md` (both sides appended after G122: master's "CT co-op research and prototype" section
+  kept whole, then this run's "Operators run" section, renumbered) and `docs/design-bible.md` 5.14 (master: "the
+  core-feel job tunes movement on Wren (G150), ahead of G70's order (Wren behind a dev switch...)"; ours: Wren is the
+  player for both, no dev switch (G123). Kept ours and added master's G150 core-feel tuning to it). Everything else
+  merged clean (`docs/progress.md`, the new `docs/ct-research/*`, `docs/ct-prototype/PLAN.md`).
+- Renumbered this run's G124-G139 to G161-G176 (old n -> n + 37, same order); G123 kept (reserved for us on master).
+  Changed only references to our entries: DECISIONS.md's operators section and header line, CHANGELOG, docs/operators
+  (DECISIONS, LOG, steps/11e-*), docs/systems/movement.md and world-and-characters.md, src (attach, attachController,
+  attachGrips, player, remoteAvatar, enemy, bodyHeight, gameState, tactics) and tests (attach, bodyHeight). Master's
+  G124-G160 text and every reference to it untouched.
+- G135 (master: "Follow the original: partner beacon (distinct light colour per player) + world pings."): each
+  player's goggle is their own colour. `goggle.ts` `goggleSlot` / `goggleColour` (pure; tests/goggleColour.test.ts):
+  host / solo green (the lens's own), partner cyan; `OperatorFigure.setGlowColour` / `glowColour` on the per-body glow
+  material; `setPlayerGlow` (playerFigure.ts) called by the co-op host and client at start, on lobby changes and for a
+  new partner body. A112 (cyan, not amber). World pings not built.
+- `windowsHide: true` on every child_process call in scripts/run-e2e.mjs (git, vite preview, suites, taskkill),
+  operator-sheet.mjs, operators/blender.mjs, operators/ktx2.mjs, anim-audit.mjs, e2e-editor.mjs, perf-trend.mjs.
+  e2e-lib.mjs, perf.mjs and anim-sheet.mjs spawn nothing.
+
+**Checks**
+- No lockfile change (master changed docs only): no `npm ci`.
+- `npm run check`: PASS (lint 0 errors / 41 warnings; Vitest 138 files / 1572 tests; build ok; precache 44 entries,
+  15470.9 KiB).
+- e2e on 4191 (`--jobs=2`): e2e-coop ok (new: "goggle colour per player: host green, partner cyan on both screens"),
+  e2e-desktop ok, e2e-darkness ok, e2e-move ok, e2e-offline ok; e2e-netmove KNOWN FLAKY ("host sees the client walk
+  off" timeout) then ok solo (`--jobs=1`).
+- GPU (E2E_GPU=1, 4189), warehouse Free Roam, two pages over `?net=local`, the partner 2.4 m in front:
+  docs/operators/mockups/wren/ingame/coop-goggle-colours-host.png (host's screen: the partner cyan) and
+  -client.png (client's screen: the host green), each with a -crop; -full variants force the partner body's goggle
+  in use (full glow; the partner's vision is not sent, so play shows it dim). The shot script is a scratch file, not
+  committed.
+
+**Open**
+- The client's HUD objective still reads "Connecting to host..." in Free Roam in the client shot (pre-existing).
+- Moth's amber (bible 5.14) and Wren's green fail the bible's own colour-blindness rule for deuteranopes; per-player
+  colours cover it while both are Wren. Ask Michael before Moth is playable.

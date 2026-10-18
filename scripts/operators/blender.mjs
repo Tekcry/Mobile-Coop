@@ -18,7 +18,7 @@ const CANDIDATES = [
 export function findBlender() {
   const exe = CANDIDATES.find((p) => existsSync(p));
   if (!exe) throw new Error(`Blender ${PINNED_BLENDER} not found. Install it or set BLENDER_PATH. Looked in:\n  ${CANDIDATES.join('\n  ')}`);
-  const r = spawnSync(exe, ['--version'], { encoding: 'utf8' });
+  const r = spawnSync(exe, ['--version'], { windowsHide: true, encoding: 'utf8' });
   const first = (r.stdout || '').split(/\r?\n/)[0] ?? '';
   const m = /^Blender (\d+\.\d+\.\d+)/.exec(first);
   if (!m) throw new Error(`Could not read the Blender version from "${exe}": ${first || r.stderr}`);
@@ -33,6 +33,6 @@ export function findBlender() {
 export function runBlender(script, args = [], { blender = findBlender() } = {}) {
   const file = path.join(PY_DIR, script);
   const argv = ['-b', '--factory-startup', '-noaudio', '--python-exit-code', '1', '--python', file, '--', '--seed', String(SEED), ...args];
-  const r = spawnSync(blender.exe, argv, { stdio: 'inherit', env: { ...process.env, PYTHONHASHSEED: String(SEED) } });
+  const r = spawnSync(blender.exe, argv, { windowsHide: true, stdio: 'inherit', env: { ...process.env, PYTHONHASHSEED: String(SEED) } });
   if (r.status !== 0) throw new Error(`Blender script ${script} failed (exit ${r.status ?? r.signal}).`);
 }

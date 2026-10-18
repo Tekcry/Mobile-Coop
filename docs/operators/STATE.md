@@ -1,15 +1,14 @@
 # Operators run - state (resume point)
 
-**Now:** step 11e fix round 1 done (uncommitted on 566f3d8; LOG.md "Step 11e fix round 1"). Fixed: Wren offline
-(A109: once the worker controls the page the play LODs are warmed into the `operators` cache, `offline.ts`
-`warmPlayLods`; e2e-offline asserts the offline player has LOD2), abandoned loads not reported (A110: `pageLeaving`,
-`isDisposed`, KTX2 warning filter while leaving), light samples and exposure points from the body height (A111:
-`game/bodyHeight.ts`, `PlayerRef.height`; Wren 1.68 m), e2e-desktop drives Wren's head fade and goggle glow, perf.mjs
-/ anim-sheet.mjs exit 1 when Wren never loads, `@babylonjs/ktx2decoder` a dependency. Next: the checker's re-check of
-fix round 1, then the PR feature/operators -> master. Moth (step 12, D24) after.
+**Now:** step 11e pre-PR done (committed on feature/operators, not pushed; LOG.md "Step 11e pre-PR"): master
+a22a9c0 merged (its G124-G160, the CT co-op research); this run's decisions are G123 and G161-G176 in master's
+docs/DECISIONS.md (were G124-G139 here: old n -> n + 37). G135 built: each player's goggle is their own colour (host /
+solo green, partner cyan; `goggleSlot` / `goggleColour` in goggle.ts, `setPlayerGlow`, A112). Every e2e helper spawn
+has `windowsHide: true`. Next: push and open the PR feature/operators -> master (Michael merges). Moth (step 12, D24)
+after. The core-feel job (master G150) tunes movement on Wren once this PR is merged.
 
 **After 11c (master 4.0.0 merged):** master's rules now apply on this branch: CLAUDE.md (desktop only, CT kit `rifle` +
-`pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G122, bible 2.0. Ports
+`pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G160 (G123 and G161-G176 are ours), bible 2.0. Ports
 (G94): 4191 = software-GL logic e2e only, 4189 = GPU work; the preamble's GPU Lab / sheets on 4191 conflict with that.
 Wren kit items that depend on deleted systems (drone pod, medkit pouch, holster sized for the five-seven, SMG sling
 socket) are listed in LOG.md "Step 11c - merge master: depends on deleted systems"; not rebuilt. G73 (goggle on the

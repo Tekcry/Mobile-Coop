@@ -96,6 +96,20 @@ try {
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
+  // (G135) each player's goggle is their own colour, the same on both screens: the host green (the lens's own), the
+  // partner cyan; once a LOD shows, its lens emissive carries the hue
+  const glowOf = (f) => {
+    const l = f.current >= 0 ? f['lods'][f.current] : null;
+    const e = l?.glowMat?.emissiveColor;
+    return { tint: f['glowTint'] ? [f['glowTint'].r, f['glowTint'].g, f['glowTint'].b] : null, shown: e ? [e.r, e.g, e.b] : null };
+  };
+  const glowA = await GA((src) => { const fn = new Function(`return ${src}`)(); const g = window.__app.current; return { own: fn(g.player.figure), partner: fn(g.net.remotes.values().next().value.avatar.figure) }; }, glowOf.toString());
+  const glowB = await GB((src) => { const fn = new Function(`return ${src}`)(); const g = window.__app.current; return { own: fn(g.player.figure), partner: fn(g.net.avatars.values().next().value.figure) }; }, glowOf.toString());
+  const cyan = (c) => !!c && c[2] > c[0] + 0.5 && c[1] > 0.5;
+  const shownOk = (s, want) => s.shown === null || (want === 'cyan' ? s.shown[2] > s.shown[0] : s.shown[1] > s.shown[2]);
+  assert(glowA.own.tint === null && cyan(glowA.partner.tint) && glowB.own.tint !== null && cyan(glowB.own.tint) && glowB.partner.tint === null
+    && shownOk(glowA.own, 'green') && shownOk(glowA.partner, 'cyan') && shownOk(glowB.own, 'cyan') && shownOk(glowB.partner, 'green'),
+    `goggle colour per player: host green, partner cyan on both screens (G135) (${JSON.stringify({ glowA, glowB })})`);
   // the client's whole loadout shows on its avatar: (step 09) holstered unless aiming, so every weapon in its slot
   const carried = await GA(() => {
     const av = window.__app.current.net.remotes.values().next().value.avatar;

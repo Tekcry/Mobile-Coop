@@ -307,6 +307,8 @@ export class OperatorFigure {
   private headVisible = true;
   private enabled = true;
   private glowShown = -1;
+  /** (G135) This player's goggle colour at the full glow (linear RGB); null: the lens asset's own (Wren's green). */
+  private glowTint: Color3 | null = null;
   private disposed = false;
   /** Called with each LOD's meshes as they are built (shadow casters, 11e). */
   onMeshes: ((meshes: readonly Mesh[]) => void) | null = null;
@@ -480,7 +482,7 @@ export class OperatorFigure {
     }
     if (l.glowMat && this.glowShown !== this.goggle.glow) {
       const k = this.goggle.glow;
-      const b = l.asset.glowBase;
+      const b = this.glowTint ?? l.asset.glowBase;
       l.glowMat.emissiveColor.set(b.r * k, b.g * k, b.b * k);
       this.glowShown = k;
     }
@@ -496,6 +498,25 @@ export class OperatorFigure {
     this.goggle.reset();
     for (const l of this.lods) if (l) this.applyGoggle(l, 'stowed');
     this.glowShown = -1;
+  }
+
+  /**
+   * (G135) The goggle colour for this body's player (the partner beacon; `goggleColour` per player slot), or null for
+   * the lens asset's own. Render only; the LOD shown takes it on its next update.
+   */
+  setGlowColour(rgb: readonly [number, number, number] | null): void {
+    if (rgb) {
+      if (this.glowTint) this.glowTint.set(rgb[0], rgb[1], rgb[2]);
+      else this.glowTint = new Color3(rgb[0], rgb[1], rgb[2]);
+    } else this.glowTint = null;
+    this.glowShown = -1;
+  }
+
+  /** The goggle colour at the full glow now (tests): this body's own or the lens asset's; null before a LOD loads. */
+  get glowColour(): [number, number, number] | null {
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    const c = this.glowTint ?? l?.asset.glowBase ?? null;
+    return c ? [c.r, c.g, c.b] : null;
   }
 
   /** The camera fade's head hide (the head joint scaled to zero: no extra draw, the goggle goes with it). */

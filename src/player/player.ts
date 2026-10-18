@@ -84,7 +84,7 @@ export class Player {
    */
   attachAim: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
   /**
-   * (operators step 11e, G139) Visual only: the rig root's offset from the controller's (gameplay) root while attached,
+   * (operators step 11e, G176) Visual only: the rig root's offset from the controller's (gameplay) root while attached,
    * so a body shorter than the 1.75 m gameplay height still meets its grips. Written by the attach controller each
    * render frame (zero when not attached); gameplay never reads it.
    */

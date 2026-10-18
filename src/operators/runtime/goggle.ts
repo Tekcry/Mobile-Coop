@@ -87,3 +87,41 @@ export function goggleRange(p: GogglePartition, pose: GogglePose, out: [number, 
   }
   return out;
 }
+
+/**
+ * (G135) Each player's goggle light is its own colour: the partner beacon. While every player is Wren (G123) the colour
+ * follows the player slot, not the operator: slot 0 (the host, and solo) keeps Wren's own green lens; slot 1 (the
+ * partner) is cyan (ops A112: cyan, not amber, because amber is the HUD's exposure warning and green / amber is the
+ * pair red-green colour blindness confuses). Slots 2-3 exist only because the legacy lobby still takes 4 (G132: two
+ * humans). Linear emissive RGB at the full glow, each about the green's luminance so the beacons read alike in the dark.
+ */
+export const GOGGLE_COLOURS: readonly (readonly [number, number, number])[] = [
+  [0.3, 0.85, 0.16], // green: Wren's lens (the asset's own emissive)
+  [0.08, 0.78, 1.0], // cyan
+  [1.0, 0.45, 0.9], // magenta (legacy 3rd)
+  [0.78, 0.74, 0.68], // warm white (legacy 4th)
+];
+
+/** The goggle colour for a player slot (0 = host / solo); out-of-range slots wrap. */
+export function goggleColour(slot: number): readonly [number, number, number] {
+  const n = GOGGLE_COLOURS.length;
+  const i = Number.isInteger(slot) && slot > 0 ? slot % n : 0;
+  return GOGGLE_COLOURS[i]!;
+}
+
+/**
+ * A player's goggle slot from the session's player list (the host's order, which every peer shares): the host is 0,
+ * the others 1, 2, ... in list order. An id not in the list is 0.
+ */
+export function goggleSlot(players: readonly { readonly id: string; readonly host: boolean }[], id: string): number {
+  let k = 0;
+  for (const p of players) {
+    if (p.host) {
+      if (p.id === id) return 0;
+      continue;
+    }
+    k++;
+    if (p.id === id) return k;
+  }
+  return 0;
+}

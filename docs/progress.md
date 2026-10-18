@@ -12,8 +12,8 @@ Every job runs as `CLAUDE.md` "Running a job" says: branch `feature/<job>` from 
 | # | Job | Branch | Folder | Status |
 | --- | --- | --- | --- | --- |
 | 0 | Consolidation: every branch into one 4.0.0 PR, non-CT deletions, docs rewritten to one vision (loco M26, M27) | `integrate/consolidate` | `Mobile-Coop-integrate` | In progress: merges and deletions done; docs rewrite, full e2e, version 4.0.0, PR |
-| 1 | CT co-op research: every CT co-op level's design, flow and moves (G3); settles friendly fire and heavies (G49), CT's gadget and attachment set incl. the ring airfoil and the knife (G76), Kestrel's future (G53), which movement-run ideas survive (G11) | `feature/ct-research` (name proposed) | `Mobile-Coop-ct-research` | Not started; first after the merge |
-| 2 | CT prototype: the playable CT movement, camera and verbs (`docs/locomotion/PROTOTYPE-PLAN.md` P1-P4, G4); Michael plays it and its numbers are tuned (G10); room sizes re-measured after the camera part (G54); SWAT-turn and lean-out wire fields removed (G52) | `feature/ct-prototype` | `Mobile-Coop-ct-prototype` | Not started; after the research |
+| 1 | CT co-op research: every CT co-op level's design, flow and moves (G3); settles friendly fire and heavies (G49), CT's gadget and attachment set incl. the ring airfoil and the knife (G76), Kestrel's future (G53), which movement-run ideas survive (G11) | `feature/ct-research` | `Mobile-Coop-ct-research` | Research in (Michael, 2026-10-18); scrubbed digests, decisions to record and the prototype plan in docs/ct-research/ and docs/ct-prototype/PLAN.md; PR open for Michael. Kestrel (G53) still Michael's call |
+| 2 | CT prototype: `docs/ct-prototype/PLAN.md`: movement slices M1-M4 first (Michael, 2026-10-18), then co-op slices C1-C7 on the test level "Pumphouse Nine"; Michael plays each slice (G4); Michael plays it and its numbers are tuned (G10); room sizes re-measured after the camera part (G54); SWAT-turn and lean-out wire fields removed (G52) | `feature/ct-prototype` | `Mobile-Coop-ct-prototype` | Waiting for Michael to approve the plan; M1 starts after the operators PR (Wren) merges |
 
 Follow-ups, after the research and the prototype (one line each; their order is not fixed yet). Folder:
 `Mobile-Coop-<job>` for each.
@@ -27,12 +27,12 @@ Follow-ups, after the research and the prototype (one line each; their order is 
 | Test fixes: e2e-coop "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true); e2e-foley walk-plants threshold (known flaky since the step-22 speeds); kbm flashbang white-out reads 0.00 (pre-existing, likely the pointer-lock pause); the co-op suites made reliable, then required (G51) | `feature/test-fixes` (proposed) | Not started |
 | Perf: re-measure the `?gfx=min` budgets on the desktop test context | with the test fixes | Pending PC run |
 | Operators: `feature/operators` merges master and opens its own PR (G75); its open items stay there | `feature/operators` | Running on its own branch, not in 4.0.0 |
-| Wren integration behind a dev switch, then the weapon step (G70); body proportion fixes for every character (G72) | after Michael approves the prototype | Not started |
+| Wren replaces the player body for both players now (G123, replaces G70); then the weapon step; body proportion fixes for every character (G72) | feature/operators PR | In progress |
 | Original goggle and menu symbol (G69, "soon"); goggle on the brow when off, over the eyes when on (G73) | `feature/goggle` (proposed) | Not started |
 | Fallow bunker rebuilt on the CT moves, every jump and reach re-checked (G79), starting from Michael's walkthrough notes | `feature/bunker-walkthrough` | After the prototype |
 | Missing sounds: guards' footsteps, then ambience, then the rest (G66) | - | After the prototype |
 | Music revision: direction, briefing / results / pause music, the long menu theme (G64; AUDIO-03, AUDIO-09) | `feature/music-revision` | After the prototype (G113) |
-| Menus: the Arkham Knight style plan (G77, `docs/menu-ui/`); UI-04 to UI-10 are decided there | `feature/menu-ui-spec` | After the prototype (G113) |
+| Menus: the Arkham Knight style plan (G77, `docs/menu-ui/`); UI-04 to UI-10 are decided there | `feature/menu` (`Mobile-Coop-menu`) | In progress: slice 1 (Michael, 2026-10-18: menu now, before the prototype) |
 | Art guide (G113) | - | After the prototype |
 | Kestrel: decided after the research (G53); its deferred items (LEVEL-01, LEVEL-08 to LEVEL-10) wait with it | `feature/kestrel` (merged into 4.0.0) | Paused |
 | One folder per map; Kestrel and the bunker move there (G55) | - | After the merge |

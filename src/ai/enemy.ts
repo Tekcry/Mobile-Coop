@@ -60,7 +60,7 @@ export interface PlayerRef {
    *  is sampled (light parity, bible 5.1). Remotes set it from their MoveState. */
   peekX?: number;
   peekZ?: number;
-  /** (operators 11e r1, G129) Standing height of the body shown (m; its rig's), where its light is sampled off a wall
+  /** (operators 11e r1, G166) Standing height of the body shown (m; its rig's), where its light is sampled off a wall
    *  (`lightSampleHeight`); absent: the 1.75 m standard body. Set locally by each side: nothing is sent. */
   height?: number;
   /** (step 12b fix r2, light parity) On a wall: the host's posed head centre of a remote (its RemoteAvatar rig), the

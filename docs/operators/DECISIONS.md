@@ -25,7 +25,7 @@
   front views get bright edges while the body stays near black. Undo: excludedMeshes empty, bias 0.0008.
 # Operators run - decisions
 
-**Michael's current decisions now live in master's `docs/DECISIONS.md`** (G123-G139, recorded in step 11e with G68-G75,
+**Michael's current decisions now live in master's `docs/DECISIONS.md`** (G123 and G161-G176 since the master merge of 2026-10-18; G161-G176 were G124-G139 on this branch; recorded in step 11e with G68-G75,
 which already covered the operators). This file is the run's history and keeps the assumed A-decisions; new Michael
 decisions go to `docs/DECISIONS.md` with the next free G number.
 
@@ -179,7 +179,7 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 **D34 Traversal gameplay stays at the 1.75 m body (2026-10-18, step 11e).** Asked about A105 (Wren hangs and climbs
 7.6 cm higher because `attachPose` scaled the hang depth by the rig height), Michael: "Keep gameplay fixed
 (Recommended)". Ledge, wall-jump and climb positions use a fixed gameplay height (`GAMEPLAY_HEIGHT` 1.75) for every
-player; Wren's body is drawn lifted onto her grips. Recorded in master's docs/DECISIONS.md as G139. Replaces A105.
+player; Wren's body is drawn lifted onto her grips. Recorded in master's docs/DECISIONS.md as G176. Replaces A105.
 
 **D33 Wren in the game first; hero model in the menu (2026-10-18, during step 11d/11e).** Michael: "I want wren in the
 game first. We will clean up changes later while the game is built." (D32 relabels, 11c doc fixes, the stowed goggle
@@ -208,7 +208,7 @@ master's deletions (phones, touch, player drone, carried medkits, guns outside t
 depends on a deleted system (drone in the hip pod, medkit pouch, phone budgets) is listed for Michael, not rebuilt.
 11d/11e: Wren is THE player body for the local player and the co-op partner (no dev switch); guards keep their bodies
 (G68); gameplay unchanged (G38); G72 proportion fixes; the run's still-current decisions are recorded in master's
-docs/DECISIONS.md from G124 (this file points there). Then the PR feature/operators -> master (not merged).
+docs/DECISIONS.md from G161 (this file points there). Then the PR feature/operators -> master (not merged).
 
 **D30 Wren goes into the game before Moth (2026-10-18).** Michael: "i want to move the completed character into the
 game also before starting on the next one." He is merging all other branches (not operators) and changing the build
@@ -1184,7 +1184,7 @@ and her ankles off the floor. So every player rig (local, partner, menu) is `Cha
 'average', style: 'detailed' })` (`operators/runtime/playerFigure.ts`), and G72's A1, A3-A7 are applied in
 `proportions.ts` for every character (the preamble's "do not edit proportions.ts" rule predates the locomotion merge;
 the orchestrator's 11e ruling lists G72). The hit volumes (`hitVolumes(rig.p)`) and light samples follow her body as
-SPEC 4.1 / G129 say; the controller capsule, speeds, traversal heights (`attach.ts` keeps 1.75) and the camera do not
+SPEC 4.1 / G166 say; the controller capsule, speeds, traversal heights (`attach.ts` keeps 1.75) and the camera do not
 change. Undo: rig height 1.75 and the old ratios (then Wren's hands miss the weapon).
 
 **A100 Step 11e: the hero runtime-cached like the LODs.** The 55.5 MB hero goes in the same workbox CacheFirst route
@@ -1225,7 +1225,7 @@ under the lip, `HANG.drop` for a 1.75 m body; `attachPose` has always scaled it 
 8 cm tolerance is unchanged. Note for Michael (G38): every attached pose (hang, ladder top, pipe, zipline) scales with
 the rig, so the 1.68 m player hangs about 7.6 cm higher than the 1.75 m one did; the capsule, speeds and the anchors'
 reach bands do not change. Undo: a gameplay height of 1.75 in `attachPose` (then her hands miss the lip by 7 cm).
-*Replaced by D34 / G139 (Michael: "Keep gameplay fixed"): the gameplay height is fixed at 1.75 and e2e-ct's original
+*Replaced by D34 / G176 (Michael: "Keep gameplay fixed"): the gameplay height is fixed at 1.75 and e2e-ct's original
 check is back.*
 
 **A106 Step 11e: e2e-desktop's voxel-character checks are the guards'; `?gfx=min` close-ups load LOD2.** The player
@@ -1276,7 +1276,7 @@ mid-transcode, where Babylon uploads into the released texture: "Cannot read pro
 filter changed. Undo: drop the checks (abandoned loads
 then print as failures).
 
-**A111 Step 11e fix r1: light samples and exposure points come from the body's height.** G129 / ops D11 ("light sample
+**A111 Step 11e fix r1: light samples and exposure points come from the body's height.** G166 / ops D11 ("light sample
 heights match their real size") and A99 said the light meter follows Wren; off the wall it still sampled a 1.75 m body
 (`gameState.ts`: `1.75 * (1 - 0.35 * crouch)`, remotes `1.75 * 0.65`). Now `game/bodyHeight.ts`
 `lightSampleHeight(height, crouch)` (pure, tested) takes the rig's height: the local player `player.rig.height`, a
@@ -1284,4 +1284,17 @@ partner `PlayerRef.height` (its RemoteAvatar rig's, set where the ref is made on
 Wren samples at 1.68 m standing, 1.092 m crouched (7 / 4.6 cm lower). `tactics.ts` `exposurePoints` /
 `exposurePointsPosed` take the same height (point heights scaled by height / 1.75; lean offsets unchanged). The on-wall
 posed head sample is unchanged; guards and anything without a height keep 1.75. Traversal keeps `GAMEPLAY_HEIGHT`
-(G139). Undo: pass 1.75 (the meter then samples above her head).
+(G176). Undo: pass 1.75 (the meter then samples above her head).
+
+**A112 Step 11e pre-PR: the partner's goggle is cyan (G135, per player slot).** Master's G135 (Michael: "Follow the
+original: partner beacon (distinct light colour per player) + world pings.") wants each player's goggle light its own
+colour. While both players are Wren (G123) the colour follows the player slot, not the operator: `goggle.ts`
+`goggleSlot` (host 0, the others 1, 2 in the host's player order, which every peer shares) and `goggleColour` (pure,
+tested in `tests/goggleColour.test.ts`); slot 0 keeps the lens asset's own green, slot 1 is cyan (linear emissive
+0.08 / 0.78 / 1.0, about the green's luminance). Cyan, not amber (the bible's Moth colour): amber is the HUD's exposure
+warning (`.tac-exposure` #ffb03b), and green / amber collapse for a deuteranope (Machado simulation: 0.14 apart against
+cyan's 0.8; the bible asks for colours that stay distinguishable for common colour blindness). Applied per body through
+`OperatorFigure.setGlowColour` (the glow material is already cloned per body) by `setPlayerGlow` in playerFigure.ts,
+called from the co-op host and client on start, on lobby changes and when a partner body is made; nothing is sent.
+Emissive only: no light, guards never see it. Slots 2-3 (magenta, warm white) exist only for the legacy 4-player lobby.
+World pings are not part of this. Undo: drop the `setPlayerGlow` calls (everyone green).

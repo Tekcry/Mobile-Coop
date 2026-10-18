@@ -84,7 +84,7 @@ export class AttachGrips {
   u = 0;
   outOff = 0;
   /**
-   * (G139) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
+   * (G176) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
    * weighted by the grip blend), so a body shorter than the 1.75 m gameplay height still meets its grips. The local
    * player and a remote add it to the rig root after `update`; `release` zeroes it.
    */
@@ -286,7 +286,7 @@ export class AttachGrips {
     this.lift.x = this.lift.y = this.lift.z = 0;
   }
 
-  /** (G139) `lift` for this frame: the body's offset from the gameplay root (a pipe change blends both states'). */
+  /** (G176) `lift` for this frame: the body's offset from the gameplay root (a pipe change blends both states'). */
   private liftTo(a: Anchor, s: number, face: number, w: number, height: number): void {
     const o = this.lift;
     attachLift(a, s, face, height, o, a.kind === 'pipeH' ? this.pipeFrom : 'hands', this.u);

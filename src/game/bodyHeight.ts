@@ -1,10 +1,10 @@
 /**
- * (operators step 11e fix r1, G129 / ops D11) Body sample heights from the body's real size, pure. Every player is
+ * (operators step 11e fix r1, G166 / ops D11) Body sample heights from the body's real size, pure. Every player is
  * drawn and hit at their operator's height (Wren 1.68 m, G74); the light meter and the exposure points sample that
  * body, not the 1.75 m standard one the old constants were written for, so shots and light hit the body you see.
  *
  * Gameplay reads the rig's / the operator's height here, never LOD, presets or figure meshes. Traversal keeps its own
- * fixed `GAMEPLAY_HEIGHT` (G139); this is only where the body is sampled.
+ * fixed `GAMEPLAY_HEIGHT` (G176); this is only where the body is sampled.
  */
 
 /** The standard body the light and exposure constants were written for (m). */

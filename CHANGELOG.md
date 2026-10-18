@@ -14,20 +14,24 @@ existing character anyway; before the prototype is done", "Both play as Wren").
   hands, deeper chest, fuller waist and pelvis, head 1 cm deeper, thigh 2.5 cm shorter.
 - The goggle glows dim with vision off and full with it on (G73); it sits over the eyes in both states until the stowed
   model is exported (cleanup).
+- Each player's goggle is their own colour, the partner beacon (G135: "partner beacon (distinct light colour per
+  player)"): the host (and solo) green, the partner cyan, the same on both screens. Emissive only; guards never see it.
 - Download: 81.4 MB more, fetched on first use and then cached for offline play (LOD2 2.5 MB first, LOD0 18.4 MB,
   LOD1 5.1 MB; the menu's hero 55.5 MB loads after them). Once the service worker controls the page the play LODs go
   into its cache, so one online start that reaches the menu is enough to play Wren offline; the hero is cached the
   first time the menu or photo mode shows it. A body load cut off by a reload is not reported as an error.
 - Ladders and drainpipes: a hand's reach is never quicker than the arm can swing (from the body's proportions); a
   sprint up a ladder keeps the hands on the rungs with Wren's shorter arms.
-- Ledges, wall jumps, ladders and pipes play the same for every player (G139: "Keep gameplay fixed"): the attached
+- Ledges, wall jumps, ladders and pipes play the same for every player (G176: "Keep gameplay fixed"): the attached
   root path uses the 1.75 m gameplay height; Wren's body is drawn lifted onto her grips (7.6 cm on a hang), visual
   only.
 - Elbows never pass through the chest: after the arm IK an elbow inside the trunk swivels round the shoulder-wrist
   axis until it is out (the hand stays on the grip).
 - Hot paths: the attach path reuses its move override, the pipe grip blend lost its per-frame closure, the soft-knee
   share no longer changes field representation mid-match (a deopt of the rig update).
-- Tools: `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0 and exit 1
+- Tools: every child process the e2e runner and its helpers start (vite preview, suites, taskkill, Blender, KTX
+  tools) is spawned with `windowsHide: true`, so no terminal windows open on Windows. e2e-coop asserts the goggle
+  colours on both screens. `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0 and exit 1
   when she never loads; e2e-coop's offline check waits for the service worker first; e2e-offline asserts the offline
   player is Wren; e2e-desktop drives Wren's head fade and goggle glow directly. `@babylonjs/ktx2decoder` is a runtime
   dependency (the game transcodes her KTX2 textures).
