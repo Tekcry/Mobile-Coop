@@ -2363,3 +2363,8 @@ Fix list `steps/11e-fixes-r1.md` items 0-3 plus the checker's two notes (ktx2.ts
 - The client's HUD objective still reads "Connecting to host..." in Free Roam in the client shot (pre-existing).
 - Moth's amber (bible 5.14) and Wren's green fail the bible's own colour-blindness rule for deuteranopes; per-player
   colours cover it while both are Wren. Ask Michael before Moth is playable.
+
+- Steps 11d + 11e status: passed the independent check (round 2, after fix round 1; 11d was checked together with 11e,
+  D33). PR feature/operators -> master opened by the orchestrator (not merged). Cleanup list: LOG "Step 11e" sections and
+  the round 1 / round 2 checker notes.
+

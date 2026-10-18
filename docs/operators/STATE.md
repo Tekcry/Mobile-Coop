@@ -1,18 +1,10 @@
 # Operators run - state (resume point)
 
-**Now:** step 11e pre-PR done (committed on feature/operators, not pushed; LOG.md "Step 11e pre-PR"): master
-a22a9c0 merged (its G124-G160, the CT co-op research); this run's decisions are G123 and G161-G176 in master's
-docs/DECISIONS.md (were G124-G139 here: old n -> n + 37). G135 built: each player's goggle is their own colour (host /
-solo green, partner cyan; `goggleSlot` / `goggleColour` in goggle.ts, `setPlayerGlow`, A112). Every e2e helper spawn
-has `windowsHide: true`. Next: push and open the PR feature/operators -> master (Michael merges). Moth (step 12, D24)
-after. The core-feel job (master G150) tunes movement on Wren once this PR is merged.
-
-**After 11c (master 4.0.0 merged):** master's rules now apply on this branch: CLAUDE.md (desktop only, CT kit `rifle` +
-`pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G160 (G123 and G161-G176 are ours), bible 2.0. Ports
-(G94): 4191 = software-GL logic e2e only, 4189 = GPU work; the preamble's GPU Lab / sheets on 4191 conflict with that.
-Wren kit items that depend on deleted systems (drone pod, medkit pouch, holster sized for the five-seven, SMG sling
-socket) are listed in LOG.md "Step 11c - merge master: depends on deleted systems"; not rebuilt. G73 (goggle on the
-brow when off) needs head_kit's stowed position, which is built but not exported.
+**Now:** Wren is the player for both players; steps 11c-11e passed; the PR feature/operators -> master is open and waits
+for Michael (Claude never merges). Next after the merge: cleanup (D32 relabels, stowed goggle export, 11c doc fixes,
+carry offsets from Wren's own kit, hero VRAM after photo mode, checker notes in LOG), the Blender placeholder weapons
+(main session's request: rifle with launcher tube and suppressor, suppressed pistol with jammer emitter, knife), then
+Moth (step 12: ask Michael Moth's direction first, D24; Moth's goggle colour vs bible 5.14 amber). Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
