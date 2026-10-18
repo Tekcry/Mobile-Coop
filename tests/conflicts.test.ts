@@ -32,13 +32,13 @@ describe('binding conflicts (step 18)', () => {
 
   it('pad: reload onto B clashes with crouch, once per pair; onto LT with the fixed aim', () => {
     const b = defaultPadBinds();
-    assignPadBind(b, 'reload', 0, PAD.B);
-    assignPadBind(b, 'reload', 1, PAD.B);
+    assignPadBind(b, 'draw', 0, PAD.B);
+    assignPadBind(b, 'draw', 1, PAD.B);
     const c = findConflicts(padAll(b));
-    expect(c).toEqual([{ a: 'crouch', b: 'reload', input: PAD.B }]);
-    expect([...conflictIds(c)].sort()).toEqual(['crouch', 'reload']);
-    assignPadBind(b, 'reload', 0, PAD.LT);
-    expect(findConflicts(padAll(b))).toEqual([{ a: 'reload', b: 'aim', input: PAD.LT }]);
+    expect(c).toEqual([{ a: 'crouch', b: 'draw', input: PAD.B }]);
+    expect([...conflictIds(c)].sort()).toEqual(['crouch', 'draw']);
+    assignPadBind(b, 'draw', 0, PAD.LT);
+    expect(findConflicts(padAll(b))).toEqual([{ a: 'draw', b: 'aim', input: PAD.LT }]);
   });
 
   it('keyboard: two verbs on one key and on two keys still report one conflict per pair', () => {

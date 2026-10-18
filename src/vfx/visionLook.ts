@@ -40,7 +40,7 @@ export const THERMAL = {
   /** A fresh body cools over this (s). */
   coolTime: 60,
   /** A guard behind a closed door: the silhouette's emissive grey (lands low on the ramp: dim blue) and range (m). */
-  doorGhost: 0.62,
+  doorGhost: 0.72,
   doorRange: 14,
 } as const;
 

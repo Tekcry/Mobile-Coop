@@ -110,7 +110,7 @@ async function proving() {
     // (A3, G35) slide along (+t = the camera's right when facing the wall) at gear 3 standing: the CT shuffle, 0.35 m/s
     // x 0.9 (gear 3) at full stick (+-10%), quieter than walking; the camera never jumps a frame and never sits in geometry
     await G(() => window.__app.current.player.controller.gears.set(3));
-    const SH = 0.35 * 0.9;
+    const SH = 0.525 * 0.9;
     const sl = await G(() => window.__w.run(1.6, 1, 0, null, () => ({ ...window.__w.state(), c: window.__w.cam() })));
     // sample mid-slide, away from the stopping end (the core brakes into the end at 5 m/s^2, A45)
     let km = sl.length - 1;
@@ -123,13 +123,13 @@ async function proving() {
     const half = await G(() => window.__w.run(0.6, -0.6, 0, null, () => window.__w.state()));
     const hv = Math.abs(half[half.length - 1].v);
     // (the half stick snaps to speed gear 2, so the shuffle is the gear-2 factor 0.8 of 0.35, at half deflection)
-    const HV = 0.35 * 0.8 * 0.5;
+    const HV = 0.525 * 0.8 * 0.5;
     assert(Math.abs(hv - HV) < 0.01, `analog below full stick: 0.6 stick slides at ${hv.toFixed(3)} m/s (${HV.toFixed(3)})`);
     // crouch on a high wall: the crouch press crouches on the wall (no leave), the crouched shuffle is 0.3 m/s x 0.9
     const cr = await G(() => { window.__w.run(1 / 60, 0, 0, 'crouch'); window.__w.run(0.5); return window.__w.run(1.0, -1, 0, null, () => window.__w.state()); });
     const cm = cr[cr.length - 1];
     const cpace = (cr[cr.length - 1].along - cr[cr.length - 31].along) / -0.5;
-    const CH = 0.3 * 0.9;
+    const CH = 0.45 * 0.9;
     assert(cm.phase === 'on' && cm.crouched && (cm.sub & 1) !== 0 && Math.abs(Math.abs(cm.v) - CH) < 1e-6 && cpace > CH * 0.85 && cpace < CH * 1.15, `crouched on a high wall, still on it: 0.27 m/s shuffle (core ${Math.abs(cm.v).toFixed(2)}, body ${cpace.toFixed(2)} m/s, sub ${cm.sub})`);
     await G(() => { window.__w.run(1 / 60, 0, 0, 'crouch'); window.__w.run(0.5); });
     st = await G(() => window.__w.state());
@@ -276,7 +276,7 @@ async function edges() {
     assert(kOn >= 0 && kOn <= 4 && last.pe === 1 && (last.sub & 16) !== 0 && last.cam === 1 && last.ex <= 0.3501 && Math.abs(last.lean) > 0.3, `peek at once (step ${kOn}, no hold): head out ${last.ex.toFixed(3)} m, rig lean ${last.lean.toFixed(2)}, camera swing ${last.cam}`);
     // the strict camera: its pivot swing is the 0.4 m, not the old 0.6 m
     const sw = await G(() => { const c = window.__app.current.player.cam; return c.pivot.x === undefined ? 0 : Math.hypot(c.pivot.x - window.__app.current.player.position.x, c.pivot.z - window.__app.current.player.position.z); });
-    assert(sw > 0.2 && sw <= 0.4001, `the peek camera pivot sits ${sw.toFixed(3)} m past the body (strict, <= 0.4)`);
+    assert(sw > 0.5 && sw <= 0.8001, `the peek camera pivot sits ${sw.toFixed(3)} m past the body (F1b: 0.6-0.8)`);
     await G(() => window.__w.run(0.5));
     st = await G(() => window.__w.state());
     assert((st.sub & 16) === 0 && st.phase === 'on', `the peek eases back when the stick is released (sub ${st.sub})`);

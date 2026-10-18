@@ -7,17 +7,19 @@ import { hyp2 } from '../core/mathx';
 
 export const STRIKE = {
   /** Reach (m) from the striker's feet to the guard's. */
-  reach: 1.2,
-  /** Full cone (rad, 90 deg): the guard within 45 deg either side of the strike's facing. */
-  cone: Math.PI / 2,
-  /** Seconds from the press to contact. */
-  hitAt: 0.12,
-  /** Recovery after contact (s): the operator is free about 1.4 s after contact (loco M25, footage I1 / I2). */
-  recover: 1.4,
-  /** A whiff (no target) frees the operator this long after the would-be contact (s). */
-  whiffRecover: 0.5,
-  /** Anticipation (s) at the start: the wind-up the requester plays on the press (footage 0.10-0.15). */
-  anticipation: 0.1,
+  reach: 1.3,
+  /** Full cone (rad, 140 deg, F1b): the guard within 70 deg either side of the strike's facing, any side of him. */
+  cone: (Math.PI * 140) / 180,
+  /** Seconds from the press to contact (F1b: shorter wind-up, strike-2 "too slow"). */
+  hitAt: 0.08,
+  /** Recovery after contact (s): free about 0.6 s after contact (F1b; the footage / loco M25 had 1.4). */
+  recover: 0.6,
+  /** A whiff (the guard left the reach during the wind-up) frees the operator this long after the contact time (s). */
+  whiffRecover: 0.3,
+  /** Extra reach (m) at contact for the local player: a guard who stepped away during the wind-up is still hit. */
+  contactSlack: 0.3,
+  /** Anticipation (s) at the start: the wind-up the requester plays on the press. */
+  anticipation: 0.06,
   /** Noise radius (m) of a strike that connects. */
   noise: 4,
   /** Root motion cap (m): the body never lunges further than this. */
@@ -29,7 +31,7 @@ export const STRIKE = {
   lagSlack: 0.8,
 } as const;
 
-/** The whole move (s): contact at 0.12 s, the recovery to about 1.5 s (a whiff ends sooner). */
+/** The whole move (s): contact at 0.08 s, free by about 0.7 s (a whiff ends sooner). */
 export const STRIKE_DUR = STRIKE.hitAt + STRIKE.recover;
 /** A whiff's length (s). */
 export const STRIKE_WHIFF_DUR = STRIKE.hitAt + STRIKE.whiffRecover;

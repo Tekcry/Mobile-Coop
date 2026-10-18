@@ -25,6 +25,8 @@ import { Grenades } from '../weapons/grenades';
 import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
+import type { WheelView } from '../ui/hud/gadgetWheel';
+import { keyLabels } from '../ui/prompts';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
 import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
@@ -39,7 +41,7 @@ import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { DoorMenu, guardBehindDoor } from './doorMenu';
-import { GrabMenu, GRAB_OPT_LABEL } from './grabMenu';
+import { GrabMenu, GRAB_OPT_LABEL, GRAB_PASS, menuNavDir } from './grabMenu';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
@@ -86,7 +88,7 @@ import { StrikeController } from './strikeController';
 import { MEDKIT, stationHeal } from './medkit';
 import type { PickupKind } from './pickups';
 import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEligible, emptyFrame, type DoorPeekInput } from '../world/doorPeek';
-import { DOOR } from '../world/doors';
+import { DOOR, driveStep } from '../world/doors';
 import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallOverride } from '../player/wallController';
@@ -306,6 +308,8 @@ export class GameState implements AppState {
   readonly gadgets: GadgetSystem;
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
+  /** (F1b) what the held guard's menu passes through: the move and the aim / fire actions. */
+  private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
@@ -442,11 +446,6 @@ export class GameState implements AppState {
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
-    this.hud.gadgets.onPick = (id) => {
-      this.gadgets.select(id);
-      this.gadgets.closeWheel(false);
-    };
-    this.hud.gadgets.onClose = () => this.gadgets.closeWheel(false);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
@@ -1056,7 +1055,8 @@ export class GameState implements AppState {
       this.grabMenuArmed = false;
       this.grabMenuNavT = 0;
     }
-    if (real.pressed('crouch') || real.pressed('uiBack')) {
+    // B (crouch / back) or Y always lets go: there is no way to get stuck in the menu
+    if (real.pressed('crouch') || real.pressed('uiBack') || real.pressed('jump')) {
       td.shovePressed = true;
       this.player.controller.swallowCrouch = true;
       m.close();
@@ -1065,8 +1065,11 @@ export class GameState implements AppState {
     }
     this.grabMenuNavT -= dt;
     if (!real.down('interact')) this.grabMenuArmed = true;
-    if (this.grabMenuNavT <= 0 && (real.pressed('uiUp') || real.pressed('uiDown'))) {
-      m.move(real.pressed('uiDown') ? 1 : -1);
+    // walking is free, so the stick cannot navigate: D-pad up / down (speed keys, wheel) move the pick; the arrows too
+    // while standing still
+    const nav = menuNavDir(real, true);
+    if (this.grabMenuNavT <= 0 && nav !== 0) {
+      m.move(nav);
       this.grabMenuNavT = 0.12;
     }
     if (this.grabMenuArmed && real.pressed('interact')) {
@@ -1080,6 +1083,21 @@ export class GameState implements AppState {
       }
     }
     this.hud.setDoorMenu(m.labels(this.menuLabels), m.sel, 'grab');
+  }
+
+  /** (F1b) Copy the walk and aim part of the real input into the grab input (all else blank). */
+  private mirrorGrabInput(real: InputState): void {
+    const gi = this.grabInp;
+    gi.setMove('grab', real.move.x, real.move.y);
+    const aim = this.player.ads || this.player.adsWanted;
+    for (const a of GRAB_PASS) {
+      const s = real.buttons[a];
+      const d = gi.buttons[a];
+      const live = aim || (a !== 'fire' && a !== 'altFire' && a !== 'reload' && a !== 'zoom' && a !== 'shoulderSwap');
+      d.down = live && s.down;
+      d.pressed = live && s.pressed;
+      d.released = live && s.released;
+    }
   }
 
   /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
@@ -1112,8 +1130,9 @@ export class GameState implements AppState {
     }
     this.doorMenuNavT -= dt;
     if (!real.down('interact')) this.doorMenuArmed = true;
-    if (this.doorMenuNavT <= 0 && (real.pressed('uiUp') || real.pressed('uiDown'))) {
-      m.move(real.pressed('uiDown') ? 1 : -1);
+    const nav = menuNavDir(real, false);
+    if (this.doorMenuNavT <= 0 && nav !== 0) {
+      m.move(nav);
       this.doorMenuNavT = 0.12;
     }
     if (this.doorMenuArmed && real.pressed('interact')) {
@@ -1347,9 +1366,15 @@ export class GameState implements AppState {
     this.aliveWas = this.player.alive;
     this.doorMenuStep(dt, real);
     this.grabMenuStep(dt, real);
+    // (F1b) the grab menu lets you walk (slow) and aim the sidearm with the held guard: it passes the move and the
+    // aim / fire actions through, everything else stays blank
+    if (this.grabMenu.open) this.mirrorGrabInput(real);
     const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open || this.grabMenu.open ? this.blankInp : real);
-    // the gadget wheel / a remote view / the door menu takes the input: the operator stands still
-    const inp = takes || this.doorMenu.open || this.grabMenu.open ? this.blankInp : real;
+    // the gadget wheel / a remote view / the door menu takes the input: the operator stands still (F1a: except under the
+    // selection wheel, which runs over the live game: the left stick still walks, G179)
+    const wheelWalk = this.gadgets.wheelOpen && !this.gadgets.remote && !this.doorMenu.open && !this.grabMenu.open;
+    this.blankInp.setMove('wheel', wheelWalk ? real.move.x : 0, wheelWalk ? real.move.y : 0);
+    const inp = takes || this.doorMenu.open ? this.blankInp : this.grabMenu.open ? this.grabInp : real;
     // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     // a body on the shoulder: no traversal, weapon stowed, slow
@@ -1411,7 +1436,7 @@ export class GameState implements AppState {
     } else pl.attachAim = null;
     // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (step 09: aim alone draws it)
     const grabHold = this.takedown.hostage !== null;
-    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads'));
+    const draw = (sidearm || grabHold) && (pl.ads || pl.adsWanted);
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active;
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
@@ -1434,7 +1459,8 @@ export class GameState implements AppState {
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
     // (locomotion step 10) fire while holstered: the elbow strike
-    this.strike.fixedUpdate(dt, inp.pressed('fire') && this.weapons.drawPhase === 0 && !inp.down('ads'));
+    // (F1a, CT) holstered: RT / LMB = the lethal strike, LT / Z = the knockout (the palm strike); drawn they fire
+    this.strike.fixedUpdate(dt, (inp.pressed('fire') || inp.pressed('altFire')) && this.weapons.drawPhase === 0 && !this.player.ads && !this.player.adsWanted, inp.pressed('fire'));
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -1884,7 +1910,7 @@ export class GameState implements AppState {
   private updateVision(_dt: number): void {
     const v = this.vision;
     if (this.app.input.state.pressed('vision') && this.player.alive && !this.doorMenu.open) {
-      v.cycle();
+      v.toggle();
       this.visionLabelT = 0;
       this.events.emit('vision', { mode: v.mode });
     }
@@ -1893,6 +1919,9 @@ export class GameState implements AppState {
   /** Goggles per render frame: night vision blend, flip, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
+    // (F1b, gog-1) the goggle flip plays only when turning vision on / off (a switch between modes has none)
+    v.stepFlip(dt);
+    this.post.setFlip(v.flipCentre);
     this.post.setNightVision(v.night);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
@@ -2063,8 +2092,8 @@ export class GameState implements AppState {
     const other = busy || tr.attached || !!tr.committed || this.team.active || !pl.alive || (!!c.override && c.override !== this.wallOv);
     // (A3, loco M25) only the button, aiming or another action leaves the wall (CT: aiming leaves it); a jump press that
     // starts a traversal leaves through `other`
-    i.leave = inp.pressed('dash') || pl.ads || inp.down('ads') || other;
-    i.blocked = other || pl.ads || inp.down('ads');
+    i.leave = inp.pressed('dash') || pl.ads || pl.adsWanted || other;
+    i.blocked = other || pl.ads || pl.adsWanted;
     i.toggle = this.app.settings.get().gameplay.wallToggle;
     // stacking (D8): the other players on this segment
     w.othersN = w.seg >= 0 && this.net?.wallOthers ? this.net.wallOthers(w.seg, w.others) : 0;
@@ -2086,10 +2115,10 @@ export class GameState implements AppState {
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
     // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
     // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
-    // (anim-cleanup) the shoulder swap (G17, aiming only) also moves the weapon to the left hand and shoulder
-    // (check fix r1) only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload
-    // are right-handed)
-    pl.rig.openLeft = w.leftHand || (!w.active && pl.ads && pl.cam.shoulder === -1 && this.weapons.handSwitchOk);
+    // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
+    // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
+    // right-handed), and the partner sees it (localMoveState: ground sub bit 128)
+    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -2145,12 +2174,20 @@ export class GameState implements AppState {
     const wx = Math.cos(cy) * inp.move.x + Math.sin(cy) * inp.move.y;
     const wz = -Math.sin(cy) * inp.move.x + Math.cos(cy) * inp.move.y;
     pi.push = was ? wx * Math.sin(fr.yaw) + wz * Math.cos(fr.yaw) : 0;
+    // (F1b, door-2) solo / host: the stick drives the opening (push in opens slowly by that much, release holds it, pull
+    // back at the crack closes it); the core only sees the pull-back. A co-op client keeps the old push-to-open.
+    if (!this.puppet && was && d0 && dp.phase === 'peek') {
+      const cur = Math.max(d0.open, d0.ajar);
+      const nxt = driveStep(cur, pi.push, dt);
+      if (nxt !== cur) doors.drive(d0, nxt);
+      if (cur > DOOR.crack + 1e-6 || nxt > DOOR.crack + 1e-6) pi.push = 0;
+    }
     // (KBM shares E between traverse and interact: an interact press opens, it does not end the peek)
-    pi.end = was && (other || hurt || pl.ads || inp.down('ads') || (inp.pressed('jump') && !interact) || inp.pressed('dash'));
+    pi.end = was && (other || hurt || pl.ads || pl.adsWanted || (inp.pressed('jump') && !interact) || inp.pressed('dash'));
     pi.candidate = cand;
     // (fix r1) an abandoned crack: the peek resumes at it (no crack request), so it can be closed
     pi.resume = cand >= 0 && doors.list[cand]!.cracked;
-    pi.doorOpened = !!d0 && d0.target === 1;
+    pi.doorOpened = !!d0 && d0.target === 1 && !d0.held;
     const act = dp.update(dt, pi);
     if (!was && dp.active) {
       const d = doors.list[dp.door]!;
@@ -2182,7 +2219,7 @@ export class GameState implements AppState {
       c.override = ov;
       // the hand on the handle (the hand away from the hinge), following the drawn leaf
       const dd = doors.list[dp.door]!;
-      crackedHandle(dd.anchor, fr.side, dd.ajar, DOOR.openAngle, this.peekHand);
+      crackedHandle(dd.anchor, fr.side, Math.max(dd.open, dd.ajar), DOOR.openAngle, this.peekHand);
       const reach = fr.hingeRight ? rig.reachL : rig.reachR;
       // (anim-cleanup) a door handle is not a grip axis
       clearGripAxis(reach);
@@ -2300,11 +2337,25 @@ export class GameState implements AppState {
     return false;
   };
 
-  /** Gadget wheel and the remote feed overlay. */
+  private readonly wheelView: WheelView = { open: false, ring: [], seg: -1, mode: 'night', visionSel: 'night', visionOn: false, gun: 0, gadget: '', hint: '' };
+
+  /** Selection wheel and the remote feed overlay. */
   private updateGadgetHud(): void {
     const gs = this.gadgets;
-    const inv = this.weapons.gadgets;
-    this.hud.gadgets.update(gs.wheelOpen, gs.wheelSlot, inv.counts, inv.selected);
+    const wv = this.wheelView;
+    wv.open = gs.wheelOpen;
+    if (wv.open) {
+      wv.ring = gs.ring;
+      wv.seg = gs.sel.seg;
+      wv.mode = gs.sel.mode;
+      wv.visionSel = this.vision.selected;
+      wv.visionOn = this.vision.mode !== 'off';
+      wv.gun = this.weapons.slotIndex;
+      wv.gadget = this.weapons.gadgets.selected;
+      const pad = this.app.input.mode === 'gamepad';
+      wv.hint = pad ? 'Hold LB for the selection wheel, right stick to pick, release to select. Tap LB to switch weapon. D-pad left toggles the vision, D-pad right uses the gadget.' : `Hold [${keyLabels.wheel}] for the selection wheel, move the mouse to pick, release to select. Tap [${keyLabels.wheel}] to switch weapon.`;
+    }
+    this.hud.gadgets.update(wv);
     this.hud.gadgets.setFeed(gs.feedText(this.app.input.mode));
   }
 

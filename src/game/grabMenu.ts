@@ -5,6 +5,8 @@
  * acts; the HUD draws `labels()`. Stub entries do nothing but say so (the menu stays open).
  */
 
+import type { ButtonAction } from '../input/actions';
+
 export type GrabOpt = 'knockout' | 'kill' | 'carry' | 'device' | 'interrogate';
 
 export const GRAB_OPT_LABEL: Readonly<Record<GrabOpt, string>> = {
@@ -54,4 +56,26 @@ export class GrabMenu {
     for (const o of this.opts) out.push(GRAB_OPT_LABEL[o]);
     return out;
   }
+}
+
+
+/** (F1b) What the held-guard menu passes through to the player: the draw / aim / fire actions (the move is copied too). */
+export const GRAB_PASS: readonly ButtonAction[] = ['ads', 'draw', 'fire', 'altFire', 'reload', 'zoom', 'shoulderSwap'];
+
+/** The slice of the input a menu step reads. */
+export interface MenuNavInput {
+  pressed(a: ButtonAction): boolean;
+  readonly move: { readonly x: number; readonly y: number };
+}
+
+/**
+ * (F1b) The menu selection step, +1 down / -1 up / 0 none. D-pad up / down (the speed actions: also the wheel and = / -)
+ * always move the pick. The stick / arrow taps (`uiUp` / `uiDown`) move it only when the operator is not walking
+ * (`walking` menus: the held-guard menu keeps the stick for walking, so a pushed stick never also navigates).
+ */
+export function menuNavDir(inp: MenuNavInput, walking: boolean): number {
+  const still = !walking || Math.abs(inp.move.x) + Math.abs(inp.move.y) < 0.25;
+  if (inp.pressed('speedDown') || (still && inp.pressed('uiDown'))) return 1;
+  if (inp.pressed('speedUp') || (still && inp.pressed('uiUp'))) return -1;
+  return 0;
 }

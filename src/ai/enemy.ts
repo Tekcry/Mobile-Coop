@@ -745,6 +745,14 @@ export class Enemy implements Damageable {
     this.die(h, false);
   }
 
+  /** (F1a) Killed outright by a melee finisher (the lethal palm strike): down like a kill, armour and the heavy plates
+   *  ignored, no alert. */
+  killOutright(h: HitInfo): void {
+    if (!this.alive) return;
+    this.health.damage(this.health.hp);
+    this.die(h, true);
+  }
+
   /** Fixed-step brain + movement. */
   update(dt: number): void {
     if (!this.alive) return;

@@ -34,8 +34,8 @@ export interface CarryInput {
 }
 
 export const CARRY = {
-  /** Seconds to raise from ready to shouldered for weight 1 (G103: about 0.6 pistol / 0.75 rifle, the pistol scaled by its weight 0.7 gives ~0.56). Starting value. */
-  raiseTime: 0.8,
+  /** Seconds to raise from ready to shouldered for weight 1 (F1a: about half of G103, 0.3 pistol / 0.4 rifle draw: the pistol scaled by its weight 0.7 gives ~0.32). Starting value. */
+  raiseTime: 0.45,
   /** Seconds to lower back to ready, every weapon (G103: 0.5-0.6). Starting value. */
   lowerTime: 0.55,
   /** Stay raised this long after the last shot. */

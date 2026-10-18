@@ -13,7 +13,6 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
-import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
 import { gearCap } from './speedGears';
 import { GEARS } from '../config/movement';
@@ -66,7 +65,12 @@ export class Player {
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
-  private adsLatch = new HoldToggle();
+  /** (F1a, CT) The draw / holster toggle (X, RMB): the weapon is wanted out. `ads` is that, gated by what the body
+   *  allows (a dash, a climb); gameplay that asks for the one-handed sidearm while attached reads this raw request. */
+  adsWanted = false;
+  /** The toggle's latch (X / RMB). `adsWanted` also follows the legacy held `ads` action (nothing real writes it: scripted
+   *  tests and tools hold it). */
+  private adsLatch = false;
   ads = false;
   /** Aim regardless of input (tests and scripted sequences). */
   forceAds = false;
@@ -188,10 +192,21 @@ export class Player {
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.getSettings();
     const c = this.controller;
-    // (locomotion step 18, D7) aim: hold or toggle
-    this.ads = this.adsLatch.update(s.gameplay.adsToggle, inp.pressed('ads'), inp.down('ads'));
+    // (F1a, CT) aim = the weapon drawn: X / RMB toggles it (no held aim button); a climb, a dash or death holsters it
+    if (inp.pressed('draw') && this.alive) this.adsLatch = !this.adsLatch;
+    this.adsWanted = this.adsLatch || inp.down('ads');
+    this.ads = this.adsWanted;
     if (this.forceAds) this.ads = true;
-    if (c.weaponBlocked || (this.pose.traverse !== 'none' && !this.attachAim)) this.ads = false;
+    // a hard landing lowers the weapon for a moment (the draw is still wanted: it comes back up); a climb holsters it for good
+    if (c.weaponBlocked) this.ads = false;
+    if (this.pose.traverse !== 'none' && !this.attachAim) {
+      this.ads = false;
+      this.adsLatch = false;
+    }
+    if (!this.alive) {
+      this.adsLatch = false;
+      this.adsWanted = false;
+    }
     // G17: the shoulder swap works only while aiming
     if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);

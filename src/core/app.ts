@@ -152,6 +152,8 @@ export class App {
     keyLabels.interact = bindLabel(k, 'interact');
     keyLabels.crouch = bindLabel(k, 'crouch');
     keyLabels.reload = bindLabel(k, 'reload');
+    keyLabels.draw = bindLabel(k, 'draw');
+    keyLabels.wheel = bindLabel(k, 'wheel');
     keyLabels.speedUp = bindLabel(k, 'speedUp');
     keyLabels.speedDown = bindLabel(k, 'speedDown');
     keyLabels.coop = bindLabel(k, 'coop');
@@ -161,7 +163,8 @@ export class App {
     padButtons.traverse = p.jump[0] ?? -1;
     padButtons.interact = p.interact[0] ?? -1;
     padButtons.crouch = p.crouch[0] ?? -1;
-    padButtons.reload = p.reload[0] ?? -1;
+    padButtons.reload = p.interact[0] ?? -1;
+    padButtons.draw = p.draw[0] ?? -1;
     padButtons.coop = p.coop[0] ?? -1;
   }
 

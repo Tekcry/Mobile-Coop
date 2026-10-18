@@ -2,7 +2,14 @@
 export const BUTTON_ACTIONS = [
   // gameplay
   'fire',
+  /** (F1a) Legacy: no source writes it now; the aim state is `Player.ads` (a toggle on `draw`). */
   'ads',
+  /** (F1a, CT) X / RMB / key: draw or holster the weapon (a toggle; drawn = the aiming mode). */
+  'draw',
+  /** (F1a, CT) LT / Z: holstered the palm-strike knockout; drawn the secondary fire (a stub: fires like `fire`). */
+  'altFire',
+  /** (F1a, CT) R3 / B: zoom in / out while aiming (a scoped weapon only). */
+  'zoom',
   'reload',
   'jump',
   'crouch',
@@ -23,7 +30,7 @@ export const BUTTON_ACTIONS = [
   'gadgetWheel',
   'shoulderSwap',
   'dash',
-  /** Goggles: cycle off / night / thermal / electro. */
+  /** Goggles (F1a, G179): toggle the vision mode selected on the wheel, on / off (never between modes). */
   'vision',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',

@@ -129,3 +129,39 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Still wrong: a held spin still turns planted feet a lot; idle knees bent about 28 deg; head level, not 5-10 deg down.
 - Checks: `npm run check` passes (1625 tests, 37 new); e2e smoke, anim, ctcourse pass. Some unit bounds loosened
   (`prototype: revisit`), e2e-anim spine pitch rate 0.1 -> 0.16 per frame.
+
+## 2026-10-19 - F1a controls, aim, selection wheel, camera
+- Built (Sonnet): CT aim scheme (X / RMB toggles draw; holstered RT lethal palm strike, LT knockout; drawn RT fire, LT
+  secondary stub; A reloads drawn; L3 shoulder swap aiming, back-to-wall otherwise; R3 zoom scoped only); draw 0.3 /
+  0.4 s; D-pad up / down speed, left toggles the wheel-picked vision mode, right quick-uses the gadget; selection
+  wheel on LB / Tab hold (G179), tap switches weapon; camera further over the right shoulder, aim lower and over the
+  shoulder; weapon to the left hand on a left shoulder (`rig.openLeft`). No wire change (protocol 16). Report
+  `F1A-CONTROLS.md`.
+- Stubs: secondary fire; goggle flip visual; client strike is a host knockout; remotes show the gun right-handed; zoom
+  untested (no scoped weapon in the kit).
+- Checks: `npm run check` passes; e2e smoke, pad, mouse, combat pass; ctcourse passed on solo rerun (load).
+- P1 bug (Character Build session, anim-sheet crouch side view on 61607ca): the crouch back is near horizontal,
+  80-90 deg forward, head at hip height ("reads like a quadruped"); intent is about 35-45 deg. Queued as P1b after F1b,
+  checked with GPU anim-sheet stills. Side effect: feature/weapons' back-mounted rifle goes horizontal and fails
+  e2e-weapons-carry "back guns muzzle up".
+- Wall stance bug (Character Build session, anim-sheet "wall" front view): standing flat to the wall, the off hand
+  sits at the hip with the elbow out (reads as hand-on-hip); footage (ct-measure-walls-doors-combat-vision.md,
+  standing stance): arms hanging, hands mid-thigh. Added to P1b.
+
+## 2026-10-19 - F1b menus, grab, strike, doors, goggles, panels
+- Fixed (Sonnet): one optional panel per station (the old drill text used Y, now jump: why P1 could not read); door and
+  grab menus top right, grab menu while walking (gear <= 2, D-pad up / down picks, B or Y lets go); strike only with a
+  guard in reach (1.3 m, 140 deg, any side), contact 0.08 s, free 0.68 s, whiff 0.3 s; wall shuffle 0.525 / 0.45 m/s,
+  peek camera 0.75 m past the body; stick-driven stealth open (solo / host; a co-op client keeps push-to-open);
+  calm guards notice a player-opened door, investigate, shut it. Partly: hostage pistol (X draws, RT fires) untested on
+  a pad; goggle flip only on on / off (0.28 s) plus a faint lens ring; door ghost brighter (GPU check pending); electro
+  fuzz; night vision not reviewed. Protocol 16. Report `F1B-FIXES.md`.
+- Checks: `npm run check` passes (1639 tests); e2e smoke, ctcourse, takedown, wall, darkness, pad, netmove pass.
+
+## 2026-10-19 - P1b crouch depth and wall arms
+- Cause: P1's posture lean stacked on the armed carriage hunch (crouch measured 68-70 deg, kneel 63, run 43). Fix: the
+  posture lean replaces the hunch while it applies (crouchLean 0.74, kneelLean 0.1): crouch idle, walk and kneel now
+  35-45 deg, run 18-28. Wall stance: the wall-hand contact is gone, both arms blend to a WALL_ARMS hang (hands at the
+  hips; the rig's arms do not reach mid-thigh). Stills in `shots/p1b/`. Report `P1B-POSTURE.md`.
+- Checks: `npm run check` passes (1648 tests, 9 new posture tests); e2e smoke and wall pass; e2e-anim's aim framing
+  assertion (~0.6 s) was stale after F1a halved the draw: updated to 0.2-0.5 s.

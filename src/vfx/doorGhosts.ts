@@ -35,7 +35,7 @@ export class DoorGhosts {
     if (!m) {
       m = CreateSphere('doorGhost', { diameter: 1, segments: 6 }, this.scene);
       m.material = this.mat;
-      m.scaling.set(0.55, 1.7, 0.4);
+      m.scaling.set(0.65, 1.85, 0.5);
       m.renderingGroupId = 1;
       m.isPickable = false;
       m.setEnabled(false);
@@ -80,7 +80,7 @@ export class DoorGhosts {
         if (!x) continue;
         // the sight line must be stopped by the door and nothing else: camera -> just before the door, just past it -> guard
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
-        const k = 0.12 / len;
+        const k = 0.2 / len;
         const y = g.pos.y + 1.2;
         this.a.set(cam.x, cam.y, cam.z);
         this.b.set(x.x - dx * k, y, x.z - dz * k);

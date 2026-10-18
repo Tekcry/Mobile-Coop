@@ -81,42 +81,50 @@ try {
       t.step(0.25);
       const open = g.gadgets.wheelOpen;
       const slow = a.loop.timeScale;
-      const shown = document.querySelector('.gadget-wheel:not([hidden])') !== null;
-      // right on the stick: slot 2 (flashbang); the operator does not walk meanwhile
-      st.setMove('t', 1, 0);
+      const shown = document.querySelector('.selection-wheel:not([hidden])') !== null;
+      // (F1a, G179) the cursor on the flashbang segment (the right stick / mouse moves it); the left stick still walks, no time slow
+      const ring = g.gadgets.ring;
+      const idx = ring.findIndex((s) => s.kind === 'gadget' && s.id === 'flash');
+      const ang = (idx / ring.length) * Math.PI * 2;
+      g.gadgets.sel.place(Math.sin(ang), Math.cos(ang));
+      st.setMove('t', 0, 1);
       t.step(0.4);
-      const slot = g.gadgets.wheelSlot;
-      const hl = document.querySelector('.gw-slot.hl')?.dataset.id ?? '';
+      g.gadgets.sel.place(Math.sin(ang), Math.cos(ang));
+      t.step(0.1);
+      const slot = g.gadgets.wheelSlot === idx ? 2 : -1;
+      const hl = document.querySelector('.sw-label-name')?.textContent ?? '';
       const moved = Math.hypot(g.player.position.x - p0.x, g.player.position.z - p0.z);
       st.set('t', 'gadgetWheel', false);
       t.step(0.05);
       st.setMove('t', 0, 0);
       const sel = g.weapons.gadgets.selected;
-      const closed = !g.gadgets.wheelOpen && document.querySelector('.gadget-wheel:not([hidden])') === null;
+      const closed = !g.gadgets.wheelOpen && document.querySelector('.selection-wheel:not([hidden])') === null;
       const back = a.loop.timeScale;
-      // a tap (no hold) does not open it
+      // a tap (no hold) does not open it: it switches weapon
+      const w0 = g.weapons.slotIndex;
       st.set('t', 'gadgetWheel', true);
       t.step(1 / 60);
       st.set('t', 'gadgetWheel', false);
-      t.step(0.1);
+      t.step(0.5);
       const tapOpen = g.gadgets.wheelOpen;
-      // mouse: with the wheel open, a clicked slot selects
+      const tapSwitched = g.weapons.slots.length < 2 || g.weapons.slotIndex !== w0;
+      // mouse: with the wheel open, look deltas move the cursor; the vision stack picks a mode by length; release applies
       a.input.setMode('kbm');
       g.gadgets.openWheel();
-      g.gadgets.wheelSlot = -1;
-      g.frameUpdate(0, 1);
-      document.querySelector('.gw-slot[data-id="emp"]').dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-      const clickSel = g.weapons.gadgets.selected;
+      g.gadgets.look(0, 0.08);
+      const visSeg = g.gadgets.wheelSlot;
+      g.gadgets.closeWheel(true);
+      const clickSel = g.vision.selected;
       const clickClosed = !g.gadgets.wheelOpen;
       // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
       a.input.setMode('gamepad');
-      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, clickSel, clickClosed };
+      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, visSeg, clickSel, clickClosed };
     });
-    assert(r.open && r.shown && r.slow < 0.5, `holding the wheel button opens the wheel and slows time (x${r.slow})`);
-    assert(r.slot === 2 && r.hl === 'flash' && r.moved < 0.05, `the stick picks a slot (${r.slot} ${r.hl}); the operator stays put (${r.moved.toFixed(2)} m)`);
-    assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}), closes and restores time (x${r.back})`);
-    assert(!r.tapOpen, 'a quick tap does not open the wheel');
-    assert(r.clickSel === 'emp' && r.clickClosed, `mouse: clicking a slot selects it (${r.clickSel})`);
+    assert(r.open && r.shown && r.slow === 1, `holding the wheel button opens the selection wheel over the live game, no time slow (x${r.slow})`);
+    assert(r.slot === 2 && /flash/i.test(r.hl) && r.moved > 0.05, `the cursor picks a segment (${r.slot} ${r.hl}); the left stick still walks (${r.moved.toFixed(2)} m)`);
+    assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}) and closes (x${r.back})`);
+    assert(!r.tapOpen && r.tapSwitched, 'a quick tap does not open the wheel: it switches weapon');
+    assert(r.visSeg === 0 && r.clickSel === 'thermal' && r.clickClosed, `mouse: a look up picks the vision stack (segment ${r.visSeg}), release selects the mode (${r.clickSel})`);
   });
 
   await scen('arc', async () => {

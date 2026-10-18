@@ -78,7 +78,7 @@ describe('weapon carry', () => {
     i.doorway = true;
     expect(pickReady(i)).toBe('compressed');
   });
-  it('raise before firing takes about 0.6-0.75 s (rifle trigger live ~0.68 s, G103), heavier is slower', () => {
+  it('raise before firing takes about 0.3-0.45 s (rifle trigger live ~0.38 s, F1a: half of G103), heavier is slower', () => {
     const raiseTime = (weight: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -92,8 +92,8 @@ describe('weapon carry', () => {
       return t;
     };
     const rifle = raiseTime(1);
-    expect(rifle).toBeGreaterThanOrEqual(0.55);
-    expect(rifle).toBeLessThanOrEqual(0.85);
+    expect(rifle).toBeGreaterThanOrEqual(0.3);
+    expect(rifle).toBeLessThanOrEqual(0.5);
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });
@@ -146,14 +146,14 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('CT framing (A2.1): 1.8 m boom, 0.15 m shoulder, head-height pivot from the capsule; aim 0.4 m / 0.16 m; no zoom', () => {
+  it('CT framing (A2.1, F1a): 1.8 m boom, 0.32 m shoulder, head-height pivot from the capsule; aim 0.35 m / 0.42 m, lower; no zoom', () => {
     const hip = framing(0, 0);
     expect(hip.boom).toBeCloseTo(1.8);
-    expect(hip.shoulder).toBeCloseTo(0.15);
+    expect(hip.shoulder).toBeCloseTo(0.32);
     expect(hip.pivot).toBeCloseTo(MOVEMENT.standHeight);
     const ads = framing(1, 0);
-    expect(ads.boom).toBeCloseTo(0.4);
-    expect(ads.shoulder).toBeCloseTo(0.16);
+    expect(ads.boom).toBeCloseTo(0.35);
+    expect(ads.shoulder).toBeCloseTo(0.42);
     expect(ads.pivot).toBeLessThan(hip.pivot);
     expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
     expect(CAMERA.fov).toBe(75);

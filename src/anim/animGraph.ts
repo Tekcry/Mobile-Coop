@@ -379,6 +379,8 @@ export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, r
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
  * and head rolled into it (side-signed by the wall side), a little lower and bent (unsigned).
  */
+/** (P1b) Back-to-wall arms: wrist x out from the shoulder joint (m), reach as a share of the arm length (hangs lower, straighter), z ahead (m). */
+export const WALL_ARMS = { x: 0.03, reach: 0.985, z: 0.03 };
 /** (step 11) Flat back on a wall: pelvis and spine pitch back (rad; crouched adds), eased in over `tau` (s). */
 export const WALL_BACK = { pel: 0.05, pelCrouch: 0.1, spine: 0.08, spineCrouch: 0.2, tau: 0.1 };
 /** (step 21w, M14 task 7) Wider feet on a wall (added to the stance width share): crouched the knees stay apart (the
@@ -758,15 +760,24 @@ export class AnimGraph {
     // hands at the end of a holster, or across a swap's empty-hands beat)
     const carryOn = !weaponSwap && (i.armed || (i.ready && i.traverse === 'none'));
     this.carryW = approach(this.carryW, carryOn ? 1 : 0, weaponSwap ? CARRY_SWAP_TAU : 0.25, dt);
+    // (P1 posture; P1b) computed before the carriage hunch: the posture lean is the TOTAL torso pitch, so it replaces the
+    // armed carriage hunch (spine 0.5 + crouch bend 0.34 stacked on it made a 70-90 deg quadruped crouch and a 43 deg run)
+    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - wallW : 0, 0.08, dt);
+    const carriage = (1 - this.raiseS) * this.carriageS;
+    const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
+    // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
+    const leanT = (crouchK * POSTURE.crouchLean + this.weights.kneel * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
+    this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
+    const postureW = Math.max(crouchK, runK) * carriage;
     // --- tactical carriage (armed, or holstered with ready hands): hunched over the weapon; more bent over moving
     // along a wall (the same carriage either way: holstering never changes pelvis or head motion, D2)
     const carryK = this.carryW;
     if (carryK > 0) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
       // (step 11) with the back to a wall the back stays flat on it: the hunch eases out with the wall weight
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW);
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW);
       // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK;
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK * (1 - postureW);
       src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
       src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - crouchBend * 0.7;
@@ -802,12 +813,6 @@ export class AnimGraph {
     // (P1 posture, ct-measure-speeds-stops-posture.md s.4) Chaos Theory carriage: crouched the back leans ~38 deg forward
     // (footage 35-45), the run leans ~23 deg; lowered only (a raised weapon keeps its platform), off a wall or a traversal
     // (eased: a one-frame grounded flicker as the capsule stands up popped the spine 0.23 rad)
-    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - wallW : 0, 0.08, dt);
-    const carriage = (1 - raise) * this.carriageS;
-    const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
-    // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
-    const leanT = (crouchK * POSTURE.crouchLean + runK * POSTURE.runLean) * carriage;
-    this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
     const postureLean = this.leanS;
     src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
@@ -892,11 +897,14 @@ export class AnimGraph {
     src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
     // grip and off hand defaults (at a wall: off hand to the wall when settled and lowered)
     src[CH.grip] = i.armed ? 1 : 0;
-    src[CH.offGrip] = 1;
+    // (P1b, ct-measure-walls-doors-combat-vision.md s.1) back to the wall the arms HANG at the sides, hands mid-thigh and
+    // off the wall (the support hand reached back to a wall point at hip height, elbow out: hand on hip). The support hand
+    // lets go of the foregrip while still and lowered (settles over the first ~0.4 s); moving along the wall takes it
+    // back to the weapon. No wall-hand contact (offWall stays 0; the rig's wallHand point is unused).
+    const wallHang = atWall ? ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    src[CH.offGrip] = 1 - wallHang;
     src[CH.offMag] = 0;
-    // the support hand reaches the wall (0.18-0.42 s) and rests there while still and lowered; moving along the
-    // wall takes it back to the weapon
-    src[CH.offWall] = atWall ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    src[CH.offWall] = 0;
     // free hands hang at the sides (swing a little with the gait when unarmed)
     // (step 22, D5.1) the swing grows with the effort: 7.5 cm at a walk, 11 at a jog, 15 at the sprint (was 10 always)
     const swing = Math.min(0.15, 0.04 + 0.025 * this.effortS) * this.moveW * Math.sin(ph * Math.PI * 2);
@@ -950,6 +958,19 @@ export class AnimGraph {
       src[CH.hRX] = src[CH.hRX]! + (rx - src[CH.hRX]!) * rw;
       src[CH.hRY] = src[CH.hRY]! + (yR - src[CH.hRY]!) * rw;
       src[CH.hRZ] = src[CH.hRZ]! + (zR - src[CH.hRZ]!) * rw;
+    }
+    // (P1b) back to the wall: both free arms hang straight down at the sides (hands low, elbows tucked, about 10-20 deg
+    // bend), not out on the hips: the default hang's 0.92 arm length bowed the elbow out and the ready hands carry
+    // an arm swing; the wrist target is the footage hang (hands mid-thigh as far as the rig's arm length reaches)
+    if (wallHang > 0) {
+      const wx = p.shoulderHalf + WALL_ARMS.x;
+      const wy = shY - armLen * WALL_ARMS.reach;
+      src[CH.hLX] = src[CH.hLX]! + (-wx - src[CH.hLX]!) * wallHang;
+      src[CH.hLY] = src[CH.hLY]! + (wy - src[CH.hLY]!) * wallHang;
+      src[CH.hLZ] = src[CH.hLZ]! + (WALL_ARMS.z - src[CH.hLZ]!) * wallHang;
+      src[CH.hRX] = src[CH.hRX]! + (wx - src[CH.hRX]!) * wallHang;
+      src[CH.hRY] = src[CH.hRY]! + (wy - src[CH.hRY]!) * wallHang;
+      src[CH.hRZ] = src[CH.hRZ]! + (WALL_ARMS.z - src[CH.hRZ]!) * wallHang;
     }
     // reload / swap / grenade clips over the weapon layer
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
@@ -1195,7 +1216,7 @@ const TURN_DUTY = 0.52;
  * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
  * the lean changes at most `rate` rad/s.
  */
-export const POSTURE = { crouchLean: 0.62, runLean: 0.37, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
 const LEAN_MAX = 0.09;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;

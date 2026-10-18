@@ -17,7 +17,7 @@ const sim = (s, setup) =>
     let noise = 0;
     let voices = 0;
     const orig = st.fixedUpdate.bind(st);
-    if (setup) for (const [k, v] of setup) window.__pad.set(k, v);
+    if (setup) for (const [k, v] of setup) (k === 6 ? window.__app.input.state.set('t', 'ads', !!v) : window.__pad.set(k, v));
     st.fixedUpdate = (dt) => {
       orig(dt);
       t += dt;
@@ -25,7 +25,7 @@ const sim = (s, setup) =>
       voices = Math.max(voices, app.audio['voices']);
       if (t >= s) {
         st.fixedUpdate = orig;
-        if (setup) for (const [k] of setup) window.__pad.set(k, 0);
+        if (setup) for (const [k] of setup) (k === 6 ? window.__app.input.state.set('t', 'ads', false) : window.__pad.set(k, 0));
         res({ noise, voices });
       }
     };
@@ -71,7 +71,7 @@ try {
   await G(() => { window.__app.current.weapons.current.stats.noise = 1; });
 
   // reload, then dry fire on an empty gun with nothing in reserve
-  await press(page, BTN.X);
+  await press(page, BTN.A);
   await sim(0.3);
   const s3 = await stats();
   assert(s3.reloads > s2.reloads, 'a reload plays the handling');

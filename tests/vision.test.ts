@@ -73,3 +73,25 @@ describe('electro devices (step 14, A53)', () => {
     for (const k of ['intel', 'cache', 'extract', 'hide', 'body', 'door', 'vip', 'revive']) expect(ELECTRO_KINDS.has(k)).toBe(false);
   });
 });
+
+describe('goggle flip (F1b, gog-1)', () => {
+  it('plays only for turning on / off, never between modes', () => {
+    const v = new VisionState();
+    expect(Number.isNaN(v.flipCentre)).toBe(true);
+    v.toggle();
+    expect(v.flipT).toBe(0);
+    expect(v.flipCentre).toBeCloseTo(0.5);
+    v.stepFlip(0.1);
+    expect(v.flipCentre).toBeLessThan(0.5); // on: the band sweeps down
+    v.stepFlip(1);
+    expect(v.flipT).toBe(-1);
+    v.select('thermal'); // a switch between modes
+    expect(v.change).toBe('switch');
+    expect(v.flipT).toBe(-1);
+    expect(Number.isNaN(v.flipCentre)).toBe(true);
+    v.toggle();
+    expect(v.change).toBe('off');
+    v.stepFlip(0.1);
+    expect(v.flipCentre).toBeGreaterThan(0.5); // off: up
+  });
+});

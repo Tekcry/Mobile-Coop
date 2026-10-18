@@ -10,15 +10,17 @@ import { MOVEMENT } from './movement';
 export const CAMERA = {
   /** Distance behind the pivot (m): explore (measured 1.8 +- 0.25) / aim (measured 0.4 +- 0.1, 0.35-0.45 behind the head). */
   boomHip: 1.8,
-  boomAds: 0.4,
+  boomAds: 0.35,
   /** Lateral offset of the camera from the head (m), towards the shoulder side: explore 0.1-0.2 (measured) / aim 0.16 +- 0.05 (measured). */
-  shoulderHip: 0.15,
-  shoulderAds: 0.16,
+  // (F1a, playtest 1: cam-2 "too centered", cam-3 "too high and not over shoulder enough") the explore camera sits further
+  // over the right shoulder (0.15 -> 0.32), the aim camera well over it (0.16 -> 0.42) and lower (eye drop 0.08 -> 0.24). Starting values.
+  shoulderHip: 0.32,
+  shoulderAds: 0.42,
   /** Pivot (look-at) height above the feet (m): the head top, tied to the shared capsule (G38: same for every operator). */
   pivotStand: MOVEMENT.standHeight,
   pivotCrouch: MOVEMENT.crouchHeight,
   /** Aim: the pivot drops to eye height (m below the head top; measured: camera at eye height to head top). Starting value. */
-  aimEyeDrop: 0.08,
+  aimEyeDrop: 0.24,
   /** Camera height relative to the pivot (m): 0, the camera orbits the head (the measured ~2.3 m height at the default ~17 deg down pitch comes from the pitch). */
   height: 0,
   /** Default pitch at spawn (rad, negative = looking down): about 17 deg down (measured). The player controls it after that. */
@@ -141,7 +143,7 @@ export const WALL_CAMERA = {
   /** (A3, G137) Strict peek: the camera pivot swings only 0.4 m past the body (was 0.6; the head itself goes out 0.35,
    *  `WALL.peekOut`) and the view turns 12 deg (was 25), so the camera sees only a small slice past the corner. Starting
    *  values (G10). Eases over 0.3 s. */
-  peek: { offset: 0.4, yaw: (12 * Math.PI) / 180, blend: 0.3 },
+  peek: { offset: 0.75, yaw: (18 * Math.PI) / 180, blend: 0.3 },
   /** (21w) The shoulder swap on a wall (the slide reversing, an edge's open side): a slower critically damped rate
    *  (1/s) than the free camera's `camShoulder` 15.5, so the swap is an ease, never a 10 cm per-frame whip. */
   side: 5,

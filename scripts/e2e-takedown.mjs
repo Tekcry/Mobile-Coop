@@ -501,9 +501,9 @@ try {
         st.set('t', 'fire', true);
         window.__app.loop.stepHeadless(1 / 60, 120);
         st.set('t', 'fire', false);
-        t.step(0.06);
+        // (F1b: contact at 0.08 s) the guard still stands right after the press
         const early = e.alive;
-        t.step(0.2);
+        t.step(0.3);
         out.push({ kind, early, alive: e.alive, ko: g.strike.count.ko, stag: g.strike.count.stagger });
         t.step(1.5);
       }

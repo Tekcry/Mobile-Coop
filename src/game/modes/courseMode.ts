@@ -7,7 +7,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
-import { airlockPad, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import { airlockPad, isPanelId, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -266,6 +266,11 @@ export class CourseMode implements GameMode {
   }
 
   private press(cid: string, p: PlayerIdx): void {
+    // an optional station panel (F1b): shows its text to whoever read it; nothing waits on it
+    if (isPanelId(cid)) {
+      this.refuse(this.layout?.devices[cid]?.label ?? null, p);
+      return;
+    }
     const why = this.state?.press(cid, p) ?? null;
     this.refuse(why, p);
     // a device worked (not refused) is the `switch` verb

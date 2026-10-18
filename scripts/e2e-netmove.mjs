@@ -167,10 +167,10 @@ try {
   });
   await compare('split', 'split');
   // the sidearm aimed from it
-  await GB(() => window.__pad.set(6, 1));
+  await GB(() => window.__app.input.state.set('t', 'ads', true));
   await until(A, () => (window.__app.current.net.remotes.values().next().value.state.mv.r ?? 0) > 0.9, null, 6000, 'host sees the split aim');
   await compare('aiming from the split', 'split', 0.1, ['wristR', 'headNode', 'ankleL', 'ankleR']);
-  await GB(() => window.__pad.set(6, 0));
+  await GB(() => window.__app.input.state.set('t', 'ads', false));
   await reset();
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(17.5, 0, 23.3), 0); g.player.cam.yaw = 0; });
   await wait(600);

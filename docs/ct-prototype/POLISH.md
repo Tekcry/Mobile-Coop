@@ -44,3 +44,11 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
   pop feet; run lean moves guard and player head hit volumes slightly (they read rig bones); owner vs remote stride
   thresholds differ slightly; check the lean while carrying a body; e2e-anim spine-pitch allowance 0.16 for all
   segments.
+- F1a check polish (F1A-CHECK.md, PASS): old saved binds can clash with the new defaults (warned, ids ignored); pad A
+  is interact only holstered, reload drawn, so doors and the grab menu need a holster first (walkthrough question);
+  `refreshRing` and the wheel hint allocate per step while the wheel is open (hot-path rule); client strike always a
+  knockout on the host and left-shoulder gun right-handed on remotes (stubs); LB held 0.15 s opens the wheel instead
+  of switching; RMB chord in pointermove may toggle draw twice (unconfirmed).
+- F1b check polish (F1B-CHECK.md, PASS): noticeOpenDoors iterates a Set every 0.25 s (iterator allocation); a client
+  sees a host-held door at up to 0.7 swing as fully open; a fully open door snaps to 0.7 if a peek starts on it; a
+  pull-back to the crack can re-add the door body with a guard in the doorway.
