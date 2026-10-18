@@ -1409,7 +1409,11 @@
  "glb": {
   "vertices": 14693,
   "triangles": 11712,
-  "bytes": 7250100
+  "meshes": [
+   "rifle",
+   "rifle-mag"
+  ],
+  "bytes": 7251040
  },
  "textures": {
   "albedo": "rifle-albedo.png",
@@ -1420,21 +1424,21 @@
   "files": [
    {
     "kind": "albedo",
-    "bytes": 1924495,
-    "pngBytes": 1758296
+    "bytes": 1924494,
+    "pngBytes": 1758276
    },
    {
     "kind": "orm",
-    "bytes": 2978861,
-    "pngBytes": 2802348
+    "bytes": 2978846,
+    "pngBytes": 2802352
    },
    {
     "kind": "normal",
-    "bytes": 1360239,
+    "bytes": 1360263,
     "pngBytes": 1841688
    }
   ],
-  "glbBytes": 7111572
+  "glbBytes": 7112536
  },
- "builtSeconds": 25
+ "builtSeconds": 24
 }

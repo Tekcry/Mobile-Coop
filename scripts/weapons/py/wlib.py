@@ -453,6 +453,12 @@ def place(obj, rot=None, origin=(0, 0, 0), offset=(0, 0, 0)):
 
 # ---------------------------------------------------------------------------------------------------------- assemble
 
+def is_mag(name):
+    """(anim-cleanup) Magazine parts (their own mesh in the GLB: a reload pulls them): 'mag', 'mag-plate', 'mag-rib'."""
+    base = name.split('.')[0]
+    return base == 'mag' or base.startswith('mag-plate') or base.startswith('mag-rib')
+
+
 def join_all(name):
     """Applies every part's modifiers and transforms, smooths by angle, joins into one mesh object."""
     objs = list(PARTS)
@@ -469,6 +475,9 @@ def join_all(name):
         me = o.data
         me.shade_smooth()
         me.set_sharp_from_angle(angle=math.radians(o.get('smooth', 35.0)))
+        # (anim-cleanup) the magazine tag survives the join (other parts get the default 0)
+        at = me.attributes.get('wmag') or me.attributes.new('wmag', 'INT', 'POINT')
+        at.data.foreach_set('value', [1 if is_mag(o.name) else 0] * len(me.vertices))
         o.select_set(False)
     for o in objs:
         o.select_set(True)
@@ -662,20 +671,22 @@ def write_glb(path, obj, name, files):
     me.uv_layers.active.data.foreach_get('uv', uv)
     co = np.empty(len(me.vertices) * 3, np.float32)
     me.vertices.foreach_get('co', co)
+    vmag = np.zeros(len(me.vertices), np.int32)
+    if me.attributes.get('wmag') is not None:
+        me.attributes['wmag'].data.foreach_get('value', vmag)
     co = co.reshape(-1, 3)[vi]
     nor, tan, uv = nor.reshape(-1, 3), tan.reshape(-1, 3), uv.reshape(-1, 2)
     tri = np.empty(len(me.loop_triangles) * 3, np.int32)
     me.loop_triangles.foreach_get('loops', tri)
     # Blender (x, y, z) -> glTF (x, z, -y): a rotation, so winding and the bitangent sign are kept
     rot = lambda a: np.stack([a[:, 0], a[:, 2], -a[:, 1]], 1)  # noqa: E731
-    P, N, T = rot(co), rot(nor), rot(tan)
-    UV = np.stack([uv[:, 0], 1.0 - uv[:, 1]], 1)
-    key = np.concatenate([np.round(P, 6), np.round(N, 4), np.round(UV, 6), np.round(T, 3), sgn[:, None]], 1)
-    uniq, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
-    inv = inv.ravel()
-    P, N, UV = P[first].astype(np.float32), N[first].astype(np.float32), UV[first].astype(np.float32)
-    T4 = np.concatenate([T[first], sgn[first, None]], 1).astype(np.float32)
-    idx = inv[tri].astype(np.uint32)
+    P_all, N_all, T_all = rot(co), rot(nor), rot(tan)
+    UV_all = np.stack([uv[:, 0], 1.0 - uv[:, 1]], 1)
+    # (anim-cleanup) the magazine's triangles (every corner tagged) are a mesh of their own: `<name>-mag`
+    tmag = vmag[vi[tri.reshape(-1, 3)]].min(1) > 0
+    groups = [(name, tri.reshape(-1, 3)[~tmag].ravel())]
+    if tmag.any():
+        groups.append((f'{name}-mag', tri.reshape(-1, 3)[tmag].ravel()))
     blobs, views, accessors = [], [], []
     off = 0
 
@@ -697,11 +708,28 @@ def write_glb(path, obj, name, files):
         accessors.append(a)
         return len(accessors) - 1
 
-    a_p = acc(P, 5126, 'VEC3', 34962, True)
-    a_n = acc(N, 5126, 'VEC3', 34962)
-    a_t = acc(UV, 5126, 'VEC2', 34962)
-    a_g = acc(T4, 5126, 'VEC4', 34962)
-    a_i = acc(idx, 5125, 'SCALAR', 34963)
+    meshes_js, nodes_js, stats = [], [], {'vertices': 0, 'triangles': 0}
+    for gname, gtri in groups:
+        used = np.unique(gtri)
+        P, N, UV = P_all[used], N_all[used], UV_all[used]
+        T, S = T_all[used], sgn[used]
+        key = np.concatenate([np.round(P, 6), np.round(N, 4), np.round(UV, 6), np.round(T, 3), S[:, None]], 1)
+        uniq, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
+        inv = inv.ravel()
+        remap = np.full(len(P_all), -1, np.int64)
+        remap[used] = inv
+        Pg, Ng, UVg = P[first].astype(np.float32), N[first].astype(np.float32), UV[first].astype(np.float32)
+        T4 = np.concatenate([T[first], S[first, None]], 1).astype(np.float32)
+        idx = remap[gtri].astype(np.uint32)
+        a_p = acc(Pg, 5126, 'VEC3', 34962, True)
+        a_n = acc(Ng, 5126, 'VEC3', 34962)
+        a_t = acc(UVg, 5126, 'VEC2', 34962)
+        a_g = acc(T4, 5126, 'VEC4', 34962)
+        a_i = acc(idx, 5125, 'SCALAR', 34963)
+        meshes_js.append({'name': gname, 'primitives': [{'attributes': {'POSITION': a_p, 'NORMAL': a_n, 'TEXCOORD_0': a_t, 'TANGENT': a_g}, 'indices': a_i, 'material': 0}]})
+        nodes_js.append({'name': gname, 'mesh': len(meshes_js) - 1})
+        stats['vertices'] += int(Pg.shape[0])
+        stats['triangles'] += int(idx.shape[0] // 3)
     images = []
     for kind in ('albedo', 'orm', 'normal'):
         with open(files[kind], 'rb') as f:
@@ -710,9 +738,9 @@ def write_glb(path, obj, name, files):
         images.append({'name': f'{name}-{kind}', 'mimeType': 'image/png', 'bufferView': v})
     gl = {
         'asset': {'version': '2.0', 'generator': 'night-shift scripts/weapons'},
-        'scene': 0, 'scenes': [{'nodes': [0]}],
-        'nodes': [{'name': name, 'mesh': 0}],
-        'meshes': [{'name': name, 'primitives': [{'attributes': {'POSITION': a_p, 'NORMAL': a_n, 'TEXCOORD_0': a_t, 'TANGENT': a_g}, 'indices': a_i, 'material': 0}]}],
+        'scene': 0, 'scenes': [{'nodes': list(range(len(nodes_js)))}],
+        'nodes': nodes_js,
+        'meshes': meshes_js,
         'materials': [{'name': f'{name}-weapon', 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 1.0, 'roughnessFactor': 1.0,
                                                                          'baseColorTexture': {'index': 0}, 'metallicRoughnessTexture': {'index': 1}},
                        'occlusionTexture': {'index': 1}, 'normalTexture': {'index': 2}}],
@@ -732,7 +760,7 @@ def write_glb(path, obj, name, files):
         f.write(js)
         f.write(struct.pack('<II', len(bin_), 0x004E4942))
         f.write(bin_)
-    return {'vertices': int(P.shape[0]), 'triangles': int(idx.shape[0] // 3), 'bytes': os.path.getsize(path)}
+    return {**stats, 'meshes': [m['name'] for m in meshes_js], 'bytes': os.path.getsize(path)}
 
 
 def game_bounds(obj):

@@ -70,6 +70,13 @@ export interface WeaponDef {
    * operator's back plate socket (CharacterRig.backMount): carried flat against the back, hung from the stud.
    */
   backStud?: [number, number, number];
+  /**
+   * (anim-cleanup) Reload points (weapon frame): where the support hand grips the magazine (`magHold`), and the
+   * charging handle / slide the empty reload runs (`charge`: start point, `chargePull`: its travel along z, m).
+   */
+  magHold?: [number, number, number];
+  charge?: [number, number, number];
+  chargePull?: number;
 }
 
 export interface GrenadeDef {

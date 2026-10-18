@@ -67,6 +67,7 @@ const trQ = new Quaternion();
 const trG0 = new Vector3();
 const trG1 = new Vector3();
 const trG = new Vector3();
+const QUAT_ID = Quaternion.Identity();
 
 /** Builds a weapon from its data-driven primitive parts (instanced). */
 export class WeaponModel {
@@ -120,7 +121,7 @@ export class WeaponModel {
     // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     // (feature/weapons) the baked mesh replaces the parts once loaded; such a weapon never builds a voxel model (A7)
-    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m) => this.useMesh(m, opts.caster));
+    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag) => this.useMesh(m, mag, opts.caster));
     if (VOXEL_WEAPONS && skin && !meshed) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
   }
 
@@ -128,10 +129,70 @@ export class WeaponModel {
   mesh: Mesh | null = null;
   private disposed = false;
 
-  private useMesh(m: Mesh, caster?: (m: AbstractMesh) => void): void {
+  private useMesh(m: Mesh, mag: Mesh | null, caster?: (m: AbstractMesh) => void): void {
     this.mesh = m;
+    this.magMesh = mag;
     for (const p of this.parts) p.setEnabled(false);
     caster?.(m);
+    if (mag) caster?.(mag);
+  }
+
+  /** (anim-cleanup) The magazine mesh (seated in the gun unless a reload has it in the hand). */
+  magMesh: Mesh | null = null;
+  private magInHand = false;
+  private magSeating = false;
+  private readonly magP0 = new Vector3();
+  private readonly magQ0 = new Quaternion();
+
+  /**
+   * (anim-cleanup) The magazine through a reload at progress `rt` (0..1) with its clip's beats: in the gun until
+   * `magOut`, then in the left hand (where it was gripped, so it moves with the hand to the pouch and back: the swap at
+   * the pouch is the same mesh), blended into the well over the last stretch before `magIn`, seated from `magIn` on.
+   * `rt` < 0: no reload (seated at once).
+   */
+  magFollow(rig: CharacterRig, rt: number, magOut: number, magIn: number): void {
+    const mag = this.magMesh;
+    if (!mag) return;
+    const SEAT = 0.07;
+    if (rt < 0 || rt < magOut || rt >= magIn) {
+      if (this.magInHand || this.magSeating || mag.parent !== this.node) this.magSeated();
+      rig.holdingMag = false;
+      return;
+    }
+    if (rt < magIn - SEAT) {
+      if (!this.magInHand) {
+        mag.setParent(rig.wristL);
+        this.magInHand = true;
+        this.magSeating = false;
+      }
+      rig.holdingMag = true;
+      return;
+    }
+    // seating: from where the hand holds it into the well
+    if (!this.magSeating) {
+      mag.setParent(this.node);
+      this.magP0.copyFrom(mag.position);
+      this.magQ0.copyFrom(mag.rotationQuaternion!);
+      this.magSeating = true;
+      this.magInHand = false;
+    }
+    const u = Math.min(1, (rt - (magIn - SEAT)) / SEAT);
+    const k = u * u * (3 - 2 * u);
+    mag.position.set(this.magP0.x * (1 - k), this.magP0.y * (1 - k), this.magP0.z * (1 - k));
+    Quaternion.SlerpToRef(this.magQ0, QUAT_ID, k, mag.rotationQuaternion!);
+    rig.holdingMag = true;
+  }
+
+  /** (anim-cleanup) The magazine back in the gun at once (a reload cut short, a swap). */
+  magSeated(): void {
+    const mag = this.magMesh;
+    this.magInHand = false;
+    this.magSeating = false;
+    if (!mag) return;
+    mag.parent = this.node;
+    mag.position.setAll(0);
+    mag.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
+    mag.scaling.setAll(1);
   }
 
   /** The voxel model (3.0; null: the smooth parts render). */
@@ -158,7 +219,8 @@ export class WeaponModel {
     rig.gunSpan.z1 = e.z1;
     rig.gunSpan.bore = this.def.muzzle[1];
     rig.gunSpan.top = e.y1;
-    if (this.magLocal) rig.magPoint.copyFrom(this.magLocal);
+    if (this.def.magHold) rig.magPoint.set(...this.def.magHold);
+    else if (this.magLocal) rig.magPoint.copyFrom(this.magLocal);
     else rig.magPoint.set(0, this.def.grip[1] - 0.08, (this.def.grip[2] + this.def.foregrip[2]) * 0.5);
     rig.heldWeapon = this.node;
     this.setVisible(true);
@@ -434,6 +496,7 @@ export class WeaponModel {
   dispose(): void {
     this.disposed = true;
     this.mesh?.dispose();
+    this.magMesh?.dispose();
     if (this.rig) this.track(this.rig, false);
     this.slot = null;
     this.syncThigh();

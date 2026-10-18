@@ -14,6 +14,7 @@ import { assignCarrySlots, type CarrySlot } from './carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { GrenadePouches } from './grenadePouches';
 import { KnifeModel } from './knifeModel';
+import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
@@ -341,6 +342,8 @@ export class PlayerWeapons {
     for (let j = 0; j < this.slots.length; j++) {
       if (j === held) continue;
       const m = this.slots[j]!.model;
+      // (anim-cleanup) a reload cut short: the magazine goes back in before the gun is put away
+      m.magSeated();
       const slot = this.carrySlots[j];
       if (slot) m.holster(rig, slot);
       else m.setVisible(false);
@@ -537,6 +540,8 @@ export class PlayerWeapons {
       if (this.grenadeT >= GRENADE_TIME) this.grenadeT = -1;
     }
 
+    // (anim-cleanup) the magazine and the support hand's reload points follow the reload (seated when there is none)
+    this.reloadVisuals(s);
     // reload
     if (this.reloadT >= 0) {
       this.reloadT -= dt;
@@ -581,6 +586,28 @@ export class PlayerWeapons {
       return;
     }
     this.shoot();
+  }
+
+  /**
+   * (anim-cleanup) Through a reload the magazine goes from the well to the left hand, to the pouch and back, and is
+   * seated (WeaponModel.magFollow, the clip's beats); the support hand's magazine point is the weapon's `magHold`, then on
+   * an empty reload its charging handle / slide, pulled back along `chargePull` round the `charge` beat and let go.
+   */
+  private reloadVisuals(s: WeaponSlot): void {
+    const rig = this.player.rig;
+    const def = s.def;
+    const ev = reloadClipFor(def.weight ?? classWeight(def.class), this.reloadEmpty).events;
+    const rt = this.reloadT >= 0 ? 1 - this.reloadT / this.reloadTotal : -1;
+    s.model.magFollow(rig, rt, ev.magOut ?? 0, ev.magIn ?? 1);
+    if (!rig.heldWeapon || rig.heldWeapon !== s.model.node) return;
+    const mh = def.magHold;
+    const ch = def.charge;
+    const at = ev.charge ?? -1;
+    if (rt >= 0 && this.reloadEmpty && ch && at > 0 && rt >= (ev.magIn ?? 1) + 0.04) {
+      // pulled back over the 0.06 before the beat, let go (snaps forward) over the 0.03 after
+      const back = rt < at ? Math.max(0, (rt - (at - 0.06)) / 0.06) : Math.max(0, 1 - (rt - at) / 0.03);
+      rig.magPoint.set(ch[0], ch[1], ch[2] + (def.chargePull ?? 0) * back * back * (3 - 2 * back));
+    } else if (mh) rig.magPoint.set(mh[0], mh[1], mh[2]);
   }
 
   /** Tactical reload (a round still chambered) or the longer empty reload (charging handle). */

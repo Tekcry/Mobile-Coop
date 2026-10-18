@@ -31,6 +31,13 @@ const VIEWS = {
   'rifle-body-side': { weapon: 'rifle', ads: true, cam: [-2.9, 1.0, 0.2, 0.9] },
   'rifle-body-front': { weapon: 'rifle', ads: true, cam: [-1.2, 1.1, 2.6, 0.95] },
   'pistol-body-side': { weapon: 'pistol', ads: true, cam: [-2.9, 1.0, 0.2, 0.9] },
+  // (anim-cleanup) reload beats: tap reload with `mag` rounds left, then hold the frame `at` seconds in
+  'reload-strip': { weapon: 'rifle', ads: true, reload: { mag: 1, at: 0.68 }, cam: [-0.95, 1.3, 0.3, 1.1] },
+  'reload-pouch': { weapon: 'rifle', ads: true, reload: { mag: 1, at: 1.12 }, cam: [-0.95, 1.3, 0.3, 1.1] },
+  'reload-seat': { weapon: 'rifle', ads: true, reload: { mag: 1, at: 1.62 }, cam: [-0.95, 1.3, 0.3, 1.1] },
+  'reload-charge': { weapon: 'rifle', ads: true, reload: { mag: 0, at: 2.36 }, cam: [-0.9, 1.35, 0.2, 1.15] },
+  'reload-pistol-strip': { weapon: 'pistol', ads: true, reload: { mag: 1, at: 0.42 }, cam: [-0.9, 1.3, 0.35, 1.1] },
+  'reload-pistol-pouch': { weapon: 'pistol', ads: true, reload: { mag: 1, at: 0.68 }, cam: [-0.9, 1.2, 0.3, 1.0] },
   'knife-hand': { weapon: 'rifle', knife: true, cam: [-0.9, 1.25, 0.6, 1.0] },
 };
 
@@ -91,6 +98,12 @@ try {
       a.loop.stepHeadless(1.2, 120);
       W.knife.show(!!v.knife);
       a.loop.stepHeadless(0.3, 120);
+      if (v.reload) {
+        for (let k = 0; k < 40 && W.reloading; k++) a.loop.stepHeadless(0.1, 120);
+        W.current.mag = v.reload.mag;
+        st.tap('reload');
+        a.loop.stepHeadless(v.reload.at, 120);
+      }
       return { held: W.current.def.id, mesh: !!W.current.model.mesh, stage: window.__stage, crouch: window.__crouch, at: [g.player.position.x, g.player.position.z].map((v) => +v.toFixed(2)) };
     }, v);
     await frames(page, 20);

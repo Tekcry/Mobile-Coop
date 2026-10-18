@@ -13,6 +13,7 @@
   "grip-panel",
   "grip-panel.001",
   "mag-plate",
+  "mag",
   "slide-stop",
   "slide-stop-pin",
   "takedown",
@@ -29,7 +30,7 @@
   "supp-collar",
   "suppressor"
  ],
- "triangles": 9676,
+ "triangles": 9776,
  "bounds": {
   "min": [
    -0.0165,
@@ -68,7 +69,7 @@
  "surface": {
   "grip": {
    "inside": "grip",
-   "mm": 11.7
+   "mm": 6.9
   },
   "foregrip": {
    "inside": null,
@@ -80,7 +81,7 @@
   },
   "mag": {
    "inside": "grip",
-   "mm": 11.7
+   "mm": 6.9
   }
  },
  "partBounds": {
@@ -226,6 +227,18 @@
     0.014,
     -0.085,
     0.0088
+   ]
+  ],
+  "mag": [
+   [
+    -0.0105,
+    -0.085,
+    -0.0369
+   ],
+   [
+    0.0105,
+    0,
+    0.0303
    ]
   ],
   "slide-stop": [
@@ -410,306 +423,38 @@
   ]
  },
  "glb": {
-  "vertices": 10894,
-  "triangles": 9676,
-  "bytes": 3087592
+  "vertices": 11050,
+  "triangles": 9776,
+  "meshes": [
+   "pistolSd",
+   "pistolSd-mag"
+  ],
+  "bytes": 3092808
  },
  "textures": {
   "albedo": "pistolSd-albedo.png",
   "orm": "pistolSd-orm.png",
   "normal": "pistolSd-normal.png"
  },
- "holster": {
-  "pose": "regions: the old generic game slot; holsterFrame: the leg kit frame the game uses (A12, the renders)",
-  "extents": [
-   [
-    -0.0165,
-    -0.093,
-    -0.0433
-   ],
-   [
-    0.0165,
-    0.054,
-    0.275
-   ]
-  ],
-  "mouthGunZ": -0.0132,
-  "slot": [
-   -0.21408,
-   -0.0195,
-   0.71821
-  ],
-  "regions": {
-   "slide": {
-    "wall": {
-     "mm": 19.5,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      1.3,
-      54,
-      139.5
-     ]
-    },
-    "hood": {
-     "mm": 24.4,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      8.5,
-      53.6,
-      -15.6
-     ]
-    },
-    "inside": {
-     "mm": 0.7,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      -12.9,
-      22.7,
-      -15.7
-     ]
-    }
-   },
-   "dustCoverEmitter": {
-    "wall": {
-     "mm": 20.1,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      12.4,
-      11.6,
-      139.9
-     ]
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    }
-   },
-   "frameTriggerGuard": {
-    "wall": {
-     "mm": 20,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      12.5,
-      -5.8,
-      73
-     ]
-    },
-    "hood": {
-     "mm": 35.7,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      -13.7,
-      -6,
-      -15.7
-     ]
-    },
-    "inside": {
-     "mm": 1,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      12.6,
-      1.4,
-      25.5
-     ]
-    }
-   },
-   "grip": {
-    "wall": {
-     "mm": 86.9,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      13,
-      -93,
-      7.2
-     ]
-    },
-    "hood": {
-     "mm": 42.3,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      -14.1,
-      -15.8,
-      -15.8
-     ]
-    },
-    "inside": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    }
-   },
-   "suppressor": {
-    "wall": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    }
-   }
-  },
-  "holsterFrame": {
-   "slide": {
-    "wall": {
-     "mm": 2.8,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      -8.1,
-      54,
-      -15.6
-     ]
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 1.1,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      1.2,
-      52.4,
-      -14.1
-     ]
-    }
-   },
-   "dustCoverEmitter": {
-    "wall": {
-     "mm": 1.4,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      11.7,
-      9.8,
-      88.5
-     ]
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 1.1,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      9.5,
-      9,
-      88.4
-     ]
-    }
-   },
-   "frameTriggerGuard": {
-    "wall": {
-     "mm": 16.6,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      12,
-      -6,
-      73
-     ]
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 1,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      12.9,
-      -5.1,
-      32.6
-     ]
-    }
-   },
-   "grip": {
-    "wall": {
-     "mm": 86.2,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      13,
-      -93,
-      7.2
-     ]
-    },
-    "hood": {
-     "mm": 30.2,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      14.5,
-      -37.3,
-      -22.8
-     ]
-    },
-    "inside": {
-     "mm": 0.6,
-     "object": "wren-leg_kit-poly",
-     "at": [
-      -12.5,
-      -7.2,
-      34.4
-     ]
-    }
-   },
-   "suppressor": {
-    "wall": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "hood": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    },
-    "inside": {
-     "mm": 0,
-     "object": null,
-     "at": null
-    }
-   }
-  },
-  "maxPenetrationMm": 20.1,
-  "object": "wren-leg_kit-poly",
-  "region": "dustCoverEmitter",
-  "holsterFrameMaxPenetrationMm": 16.6,
-  "holsterFrameRegion": "frameTriggerGuard"
- },
  "ktx2": {
   "files": [
    {
     "kind": "albedo",
-    "bytes": 703112,
-    "pngBytes": 682110
+    "bytes": 733434,
+    "pngBytes": 709909
    },
    {
     "kind": "orm",
-    "bytes": 928252,
-    "pngBytes": 927619
+    "bytes": 932475,
+    "pngBytes": 938294
    },
    {
     "kind": "normal",
-    "bytes": 630015,
-    "pngBytes": 836859
+    "bytes": 600780,
+    "pngBytes": 793961
    }
   ],
-  "glbBytes": 2902584
+  "glbBytes": 2917532
  },
- "builtSeconds": 604
+ "builtSeconds": 10
 }

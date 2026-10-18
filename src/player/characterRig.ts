@@ -416,6 +416,8 @@ export class CharacterRig {
   private shoulderY = 0;
   /** (feature/weapons) A drawn knife in the right fist (KnifeModel): the hand stays closed. */
   holdingKnife = false;
+  /** (anim-cleanup) A magazine in the left hand (a reload, on its way to and from the pouch): the hand stays closed. */
+  holdingMag = false;
   /** (feature/weapons) The support hand's hold: under a handguard / launcher tube (long guns) or cupping a pistol grip. */
   supportStyle: 'tube' | 'cup' = 'tube';
   /** (feature/weapons) Solved holds of the body's own hands (`setHands`), index 0 right, 1 left; null: the rig's constants. */
@@ -1734,7 +1736,7 @@ export class CharacterRig {
     const hr = gripW * (leftGrips ? offHold : 1);
     const hl = gripW * (leftGrips ? 1 : offHold);
     this.handGrip.r = this.holdingKnife ? 1 : Math.max(Math.min(1, hr), Math.min(1, this.reachR.w));
-    this.handGrip.l = Math.max(Math.min(1, hl), Math.min(1, this.reachL.w));
+    this.handGrip.l = this.holdingMag ? 1 : Math.max(Math.min(1, hl), Math.min(1, this.reachL.w));
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -1859,7 +1861,10 @@ export class CharacterRig {
         // off hand: free target -> magazine well -> foregrip, by weight
         const onMag = Math.min(1, magW) * gripW;
         if (onMag > 0) {
-          tmpF.copyFrom(this.magPoint).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          // (anim-cleanup) a body with its own hands grips the magazine (and the charging handle) as a grip: palm on
+          // its left side, fingers round the front
+          if (hold) tmpF.copyFrom(this.magPoint).addInPlace(hold.trigger.w);
+          else tmpF.copyFrom(this.magPoint).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
           Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onMag, target);
         }
@@ -1929,7 +1934,7 @@ export class CharacterRig {
     if (gripW > 0.5 && this.heldWeapon && !(wallW > 0.5 && !isGrip) && reach.w < 0.5) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side; (feature/weapons) a body with its
       // own hands takes the solved hold (palm on the grip, knuckles round it)
-      const hold = this.holds ? this.holds[side > 0 ? 0 : 1]![isGrip ? 'trigger' : this.supportStyle] : null;
+      const hold = this.holds ? this.holds[side > 0 ? 0 : 1]![isGrip || magW > 0.5 ? 'trigger' : this.supportStyle] : null;
       if (hold) tmpQ2.copyFrom(hold.q);
       else Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
