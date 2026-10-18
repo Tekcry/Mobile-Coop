@@ -1463,6 +1463,54 @@ Suit loop (`w4/loop.mjs`, 96 samples) four times into the session scratchpad f1/
   short knife clip on LOD2 / phone; carried: LOD2 / phone head shell, radio blotch, hero bones 63, helper joints,
   per-LOD shadow normalBias, the phone never fetching `*-hero*`. KTX2 is step 11's first task (D26, A73 open).
 
+### Step 10 - Block-end retry (implementer, Opus 5.5; steps/10-fixes-r4.md plus STATE "Now"; A95)
+Continued a stopped agent's uncommitted work (reviewed: every threshold and test change is stricter or a new case).
+- Hero-bake confetti: DONE (cause found). The solidified cloth (suit, gloves, hood, balaclava, boot upper) carries its
+  inner shell on the outer face's UVs, so the inner shell's texels overwrote the outer face triangle by triangle.
+  bake_lods.py marks each solidify's generated shell (`shell_vertex_group`) and bakes those faces (407,960 of 1.27 M
+  source faces) into a dummy (A95). By eye (hero, KTX2, Lab GPU): knee (grip panel oval reads), thighR, handBack,
+  neckRear clean; forearm grip panel reads (pebble); residual light mottling at the forearm cuff under the thumb-loop
+  strap and a few glossy specks on the boot upper by the laces (`wren-sheet-closeup-forearm.webp`, `-boots.webp`).
+- LOD1 / LOD2 "mid grey": NOT a bake value. Per surface point the LOD maps equal the hero's (cloth, LOD vs nearest hero
+  vertex: albedo R 47.9 / 47.7, AO 222 / 215 (LOD1), roughness 206 / 205); Lab turnaround medians equal at every LOD
+  (front torso 0.11-0.12, legs 0.09-0.10, back 0.08); the A-pose raking chest patch equal (30.5 sRGB 0-255, all four).
+  The gap is in the bent (sneak) raking tile only: waist 7 / 10 / 27 / 30, thigh 23 / 22 / 51 / 50 (hero / LOD0 /
+  LOD1 / LOD2): the hero with shadows off reads like LOD1 (`operators:sheet --only diag`, new `DIAG_VIEW=bent`,
+  `DIAG_SAVE`): the voxel shells lose cast shadows the layered levels keep (fused layers, no overhang). Routed to
+  step 18's per-LOD shadow item (normalBias per LOD) with these numbers; no bake change.
+- rigidSkin:lod2: DONE. The six A82 parts stay absorbed, now measured in the check (`ABSORB_LIMITS`: under 50 mm in the
+  hero; LOD vertices within 10 mm >= 0.75 on the declared bones): gadgetTab 14.1 mm, camTab 15.3 mm (no shell vertex
+  within 10 mm), slingSocket 38.7 mm (pelvis 0.85), rappelRing 37.4 mm (pelvis 0.91), browRivetL / R 11.2 / 11.3 mm
+  (head 1.00); LOD1 rivets head 1.00. The real FAIL was legBandBuckleL0 / L1 and hangerBuckleL (absent: no shell vertex
+  within 4 mm; the R ones held by one vertex): every other hard part under 5 cm now stays a separate LOD2 piece at 25 %
+  (seven buckles, 888 -> 222 triangles; A95). LOD2 44 parts tagged, spread 0.
+- LOD0 boot: DONE. With the inner shell out the A76 split reaches the boots: bakeDiff boot 431 -> 0 px, limit 24 again
+  (every LOD0 view 24; test now fails the old 367 px). Toe reads like the hero's (`wren-lods-c-closeup-boot.webp`).
+- LOD2 chest: DONE. Magazine placard and seat separate at LOD2 (`RIGID_EXTRA`): 44 -> 9 px. LOD1 chest 13 px (round-4
+  item 1 closed by the 08a geometry).
+- Numbers: triangles hero 229,391, LOD0 39,809, LOD1 13,578 (A89 target 13,600), LOD2 5,964 (target 6,000; SPEC 6.4
+  top). bakeDiff LOD0 / LOD1 / LOD2: front 0 / 6 / 3, side 0 / 0 / 1, back 0 / 1 / 0, chest 11 / 13 / 9, head
+  0 / 9 / 4, boot 0 / 0 / 0, holster 5 / 15 / 0. KTX2 Babylon vs decoded 0.10 / 0.10 / 0.12 / 0.12.
+- Renders (GPU): Cycles OptiX `npm run operators:lods -- wren --render` (about 11 min now: the extra bake slot) ->
+  docs/operators/mockups/tests/wren-lods-{a,b,c,d}-*.webp; Lab (E2E_GPU=1, ANGLE D3D11, RTX 4090):
+  wren-sheet-lods, -lods-closeups, -ktx2-compare and close-ups handBack, forearm, knee, boots, thighR, thighL,
+  underarm, neckRear, collar.
+- Checks: `E2E_GPU=1 npm run operators:check -- wren` exit 0, "9 item(s), all checks pass" (about 55 min; a first run
+  was cut by a 50 min shell timeout, not a failure): every item PASS; every LOD line PASS incl. rigidSkin hero / lod0 /
+  lod1 / lod2 (LOD2 44 parts, spread 0, the six A82 parts measured) and bakeDiff above; one FLAG (hero bones 63).
+  `npm run check` exit 0 (76 files, 804 tests; lint 0 errors / 38 warnings; build OK); a first run hit the known 5 s
+  timeouts under load (detailPass, voxelFit), both pass alone and on the re-run. Port 4191 free.
+- Holster: the dark sawtooth on the holster retention strap's top edge in thighR is pre-existing (same in HEAD's
+  sheet); the HEAD thigh confetti beside it is gone (crop compare in the session scratchpad).
+- Open: forearm cuff mottling and boot-upper specks (hero, small); the holster strap sawtooth (pre-existing, hero
+  bake); LOD1 / LOD2 cast shadows in the bent pose (step 18); the six A82 absorptions are measured, not removed.
+
+- Block-end retry status: passed the independent check (fix rounds: 0). Notes for step 18 / later: LOD1/LOD2 bent-pose
+  greyness comes from fused geometry (no cummerbund/plate overhang shadow), not maps - fix in geometry or accept;
+  camTab (and at 10 mm gadgetTab) vanish at LOD2; the rigidKit near==0 branch passes with nothing measured; LOD2 has 36
+  tris of headroom; hero boot glossy specks / tongue blotch / quarter mottle; forearm cuff mottle (+2 EV only); holster
+  retention-strap sawtooth (hero/LOD0 bake, predates); LOD1/LOD2 mid-band marks in the bent raking tile.
+
 ## Step 11 - Wren: full render set and self-review pass (Opus 5.5)
 - KTX2 (step 10 carry-over, D26; A73 closed, A79): `scripts/operators/ktx2.mjs` (`npm run operators:ktx2`, the last
   stage of `operators:lods`): toktx UASTC q2 + Zstd 18 with mips (albedo sRGB, normal normalised and ORM linear),

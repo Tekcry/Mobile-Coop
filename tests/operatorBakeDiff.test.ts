@@ -131,10 +131,11 @@ describe('bakeDiffCheck (A76)', () => {
     // round-2 shell defects the old per-view limits let through: LOD1 chest notch 36, LOD2 pouch tear 47
     expect(bakeDiffCheck('lod1', { ...views(10), chest: { px: 40, largest: 36, at: [404, 347] } })[0]!.pass).toBe(false);
     expect(bakeDiffCheck('lod2', { ...views(10), chest: { px: 60, largest: 47, at: [255, 273] } })[0]!.pass).toBe(false);
-    expect(bakeDiffCheck('lod0', { ...views(10), boot: { px: 400, largest: 367, at: [189, 373] } })[0]!.pass).toBe(true);
+    // the LOD0 toe streaks (367 px; 431 after the 08a retry) fail since the step 10 retry: every LOD0 view is 24 px
+    expect(bakeDiffCheck('lod0', { ...views(10), boot: { px: 400, largest: 367, at: [189, 373] } })[0]!.pass).toBe(false);
+    expect(bakeDiffCheck('lod0', { ...views(10), boot: { px: 30, largest: 24, at: [189, 373] } })[0]!.pass).toBe(true);
     expect(bakeDiffCheck('lod2', { ...views(10), boot: { px: 400, largest: 367, at: [189, 373] } })[0]!.pass).toBe(false);
-    // the only loose LOD0 limit left is the boot's (the OPEN toe streaks)
-    expect(BACKFACE_VIEWS.filter((v) => DARK_PATCH_LIMIT[v] > 24)).toEqual(['boot']);
+    expect(BACKFACE_VIEWS.filter((v) => DARK_PATCH_LIMIT[v] > 24)).toEqual([]);
     expect(bakeDiffCheck('lod2', views(25))[0]!.pass).toBe(false);
     expect(bakeDiffCheck('lod2', views(24))[0]!.pass).toBe(true);
   });

@@ -185,12 +185,13 @@ export const SHELL_DARK_LIMIT = 24;
  * Largest new-dark patch (px) allowed per view at LOD0 (A76): 24 px, except where LOD0's own bake error is OPEN; each
  * loose limit is named in A76 with its defect and file / pixel and goes back to 24 when that error is fixed. Fix round
  * 3 fixed the thigh-band line (back 128 px), the buckle blotches and the plate-top smear (chest 157, head 125) with
- * the sharp-edge split on LOD0, so back, chest and head are 24 again. The one loose limit left: boot 404, the OPEN toe
- * streaks (`wren-boot-lod0.png` 189,373, 367 px). Shells (LOD1, LOD2) always get SHELL_DARK_LIMIT: a shell view
- * over it is a defect to fix, never a limit.
+ * the sharp-edge split on LOD0, so back, chest and head are 24 again. The step 10 retry fixed the toe streaks (the
+ * solidified boot upper's inner shell baked over its outer face, and the split now reaches the boots; A95): boot is
+ * 24 again, every LOD0 view 24. Shells (LOD1, LOD2) always get SHELL_DARK_LIMIT: a shell view over it is a defect to
+ * fix, never a limit.
  */
 export const DARK_PATCH_LIMIT: Record<LodView, number> = {
-  front: 24, side: 24, back: 24, chest: 24, head: 24, boot: 404, holster: 24,
+  front: 24, side: 24, back: 24, chest: 24, head: 24, boot: 24, holster: 24,
 };
 
 /** The limit for one LOD and view: SHELL_DARK_LIMIT for the shells, DARK_PATCH_LIMIT (LOD0's) otherwise. */

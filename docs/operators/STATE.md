@@ -1,18 +1,17 @@
 # Operators run - state (resume point)
 
-**Now:** Wren block end: the step 08a retry passed. Next the step 10 retry (steps/10-fixes-r4.md plus: hero-bake
-confetti, the LOD1/LOD2 mid-grey suit, rigidSkin:lod2 with 6 parts absorbed by the LOD2 shell, lod0 bakeDiff boot
-431 px > 404 (toe streaks), lod2 bakeDiff chest 44 px > 24; A89's LOD1 target is fragile). Then the step 11 retry
-(steps/11-fixes-r4.md: callouts for every visible item on all 22 close-ups; re-render every Lab sheet). Then D30:
-11c merges Michael's merged base branch into feature/operators - only once he names it (ask with the native
-multiple-choice UI if he has not), 11d game runtime, 11e Wren in the game behind ?operator=wren. Then ask Michael
-whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
+**Now:** Wren block end: steps 08a and 10 retries passed. Next the step 11 retry (steps/11-fixes-r4.md: callouts for
+every visible item on all 22 close-ups; re-render every Lab sheet - most close-ups predate the step 10 bake change;
+update DESIGN.md costs from report.json: hero 229,391, LOD1 13,578, LOD2 5,964, KTX2 sizes, remove the phone rows
+(D29)). Then D30: 11c merges Michael's merged base branch into feature/operators - only once he names it (ask with
+the native multiple-choice UI if he has not), 11d game runtime, 11e Wren in the game behind ?operator=wren. Then ask
+Michael whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
 **Key facts (after 11)**
 - `GARMENTS.wren` = suit, gloves, approach_boots, headwear, head_kit, armour, chest_rig, waist_belt, leg_kit. Rebuild
-  chain about 25 min, then `npm run operators:lods -- wren --render` (about 6 min; now ends with `operators:ktx2`).
+  chain about 25 min, then `npm run operators:lods -- wren --render` (about 11 min since A95; ends with `operators:ktx2`); `operators:check -- wren` about 55 min.
 - KTX2 (A79, D27): every LOD GLB is UASTC + Zstd 18 via `KHR_texture_basisu`; operators:check `ktx2` FAILs otherwise.
   VRAM 96 / 32 / 8 / 4 / 1 MB. Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (devDependency) on the
   main thread, wasm via `?url`, no network (lab/ktx2.ts); the Lab flips KTX2 in the texture matrix (Babylon cannot at

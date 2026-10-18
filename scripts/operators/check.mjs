@@ -9,7 +9,7 @@ import { findBlender, runBlender } from './blender.mjs';
 import { OUT_DIR } from './paths.mjs';
 
 const { KITS, kitCoverage } = await import('../../src/operators/kit.ts');
-const { rigidItemChecks, glbRigidSkin, rigidSkinCheck, slingClockCheck } = await import('../../src/operators/rigidKit.ts');
+const { rigidItemChecks, glbRigidSkin, rigidSkinCheck, slingClockCheck, glbSkinVerts, absorbedMeasure, LOD_ABSORBED } = await import('../../src/operators/rigidKit.ts');
 
 /** The kit checks for one built item, from its simulation report: [{ name, pass, value, limit, detail }]. */
 function kitChecks(operator, simReport) {
@@ -111,11 +111,25 @@ for (const id of only.length ? only : Object.keys(KITS)) {
   const staleRender = staleFor(id, rdir, report.lods, '');
   const staleBack = staleFor(id, rdir, report.lods, '-backfaces');
   writeFileSync(rep, JSON.stringify(report, null, 1));
+  // A82 measured (step 10 retry): the hero size of every part a LOD may absorb and the shell's weights in its place
+  const rigidTable = report.rigid ?? {};
+  const absorbIds = new Set(Object.entries(rigidTable).filter(([, e]) => Object.values(LOD_ABSORBED).some((l) => l.includes(e.name))).map(([k]) => Number(k)));
+  const heroLod = report.lods.hero;
+  const heroAbs = heroLod && absorbIds.size ? glbSkinVerts(new Uint8Array(readFileSync(path.join(OUT_DIR, id, 'export', heroLod.glb))), (rid) => absorbIds.has(rid)) : null;
   for (const [lod, r] of Object.entries(report.lods)) {
     const glbBuf = new Uint8Array(readFileSync(path.join(OUT_DIR, id, 'export', r.glb)));
+    const skin = glbRigidSkin(glbBuf);
+    let measured;
+    if (heroAbs && (LOD_ABSORBED[lod] ?? []).length) {
+      const lodVerts = glbSkinVerts(glbBuf);
+      measured = {};
+      for (const [rid, e] of Object.entries(rigidTable)) {
+        if ((LOD_ABSORBED[lod] ?? []).includes(e.name) && !skin[rid]) measured[e.name] = absorbedMeasure(heroAbs, lodVerts, Number(rid), e.bones);
+      }
+    }
     const cs = [
       ...lodChecks(lod, glbJson(glbBuf), r.triangles),
-      rigidSkinCheck(lod, glbRigidSkin(glbBuf), report.rigid ?? {}),
+      rigidSkinCheck(lod, skin, rigidTable, undefined, measured),
       ...lodReportChecks(lod, r, report.lods.hero ?? {}, report.backFacePx, staleBack[lod]),
       ...bakeDiffCheck(lod, report.bakeDiff[lod], staleRender[lod]),
     ];

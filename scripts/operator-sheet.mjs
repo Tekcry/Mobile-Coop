@@ -19,7 +19,8 @@ const argv = process.argv.slice(2);
 const operators = argv.filter((a) => !a.startsWith('-') && ['wren', 'moth'].includes(a));
 const onlyArg = argv.find((a) => a.startsWith('--only='))?.split('=')[1] ?? (argv.includes('--only') ? argv[argv.indexOf('--only') + 1] : '');
 const ALL = ['turnaround', 'closeups', 'menu', 'context', 'compare', 'lods', 'wire', 'colourblind', 'rim', 'goggle'];
-// not in ALL: `--only diag` prints the turnaround's front / back value diagnosis (fix round 2, item 7), no sheet;
+// not in ALL: `--only diag` prints the turnaround's front / back value diagnosis (fix round 2, item 7), no sheet
+// (DIAG_LODS=hero,lod1 picks the LODs, DIAG_VIEW=bent the lods-closeups torso-bent tile, DIAG_SAVE=<dir> keeps each render);
 // `--only gamePoses` writes the game rig's crouch / sneak skeleton for pose_check.py (step 11b fix round 1)
 const only = onlyArg ? onlyArg.split(',') : ALL;
 const PORT = Number(process.env.E2E_PORT ?? 4191);
@@ -549,17 +550,23 @@ async function diag(op) {
     ['shadow bias 0.004', 'for (const li of l.scene.lights) { const g = li.getShadowGenerator && li.getShadowGenerator(); if (g) g.bias = 0.004; }'],
     ['shadow normal bias 0.05', 'for (const li of l.scene.lights) { const g = li.getShadowGenerator && li.getShadowGenerator(); if (g) g.normalBias = 0.05; }'],
     ['shadow no PCF', 'for (const li of l.scene.lights) { const g = li.getShadowGenerator && li.getShadowGenerator(); if (g) g.usePercentageCloserFiltering = false; }'],
+    ['no SSAO', 'if (l.ssao) { l.ssao.totalStrength = 0; }'],
   ];
+  // DIAG_VIEW=bent (step 10 retry): the lods-closeups torso-bent tile (raking rig, sneak) instead of the turnaround;
+  // bands: waist and thigh of the frame
+  const bent = process.env.DIAG_VIEW === 'bent';
   for (const lod of (process.env.DIAG_LODS ?? 'hero,source').split(',')) {
     for (const [name, code] of variants) {
       const out = [];
-      for (const v of [TURNAROUND[0], TURNAROUND[4]]) {
-        await page.evaluate(async ({ o, lod }) => { const l = window.__lab; l.state.lod = lod; await l.load(o); l.scene.lights.find((x) => x.name === 'hemi').setEnabled(true); l.setPreset('epic'); l.setRig('studio'); }, { o: op, lod });
-        await render({ op, rig: 'figure', pose: 'apose', preset: 'epic', lod, view: { turnaround: v, radius: 6.2 }, size: [560, 780], frames: 4 });
+      for (const v of bent ? [null] : [TURNAROUND[0], TURNAROUND[4]]) {
+        await page.evaluate(async ({ o, lod, rig }) => { const l = window.__lab; l.state.lod = lod; await l.load(o); l.scene.lights.find((x) => x.name === 'hemi').setEnabled(true); l.setPreset('epic'); l.setRig(rig); }, { o: op, lod, rig: bent ? 'raking' : 'studio' });
+        if (bent) await render({ op, rig: 'raking', pose: 'sneak', preset: 'epic', lod, view: { joint: ['chest', [0, -0.15, 0]], radius: 0.9, yaw: 0.35, pitch: -0.35 }, size: [1120, 1120], frames: 4 });
+        else await render({ op, rig: 'figure', pose: 'apose', preset: 'epic', lod, view: { turnaround: v, radius: 6.2 }, size: [560, 780], frames: 4 });
         const src = await page.evaluate(async (c) => { const l = window.__lab; new Function('l', c)(l); await l.frames(20); return l.canvas.toDataURL('image/png'); }, code);
+        if (process.env.DIAG_SAVE) writeFileSync(path.join(process.env.DIAG_SAVE, `diag-${lod}-${name.replace(/\W+/g, '_')}${bent ? '-bent' : `-${v.label}`}.png`), Buffer.from(src.split(',')[1], 'base64'));
         const mask = await maskOf();
-        const t = await figureStats(src, mask, [0.18, 0.42]), g = await figureStats(src, mask, [0.55, 0.92]);
-        out.push(`${v.label}: torso ${t.p50} legs ${g.p50}`);
+        const t = await figureStats(src, mask, bent ? [0.45, 0.65] : [0.18, 0.42]), g = await figureStats(src, mask, bent ? [0.75, 1] : [0.55, 0.92]);
+        out.push(bent ? `Bent: waist ${t.p50} thigh ${g.p50}` : `${v.label}: torso ${t.p50} legs ${g.p50}`);
       }
       console.log(`  diag ${lod} ${name}: ${out.join(' | ')}`);
     }

@@ -1094,3 +1094,26 @@ front edge, where the body's own relief is 7.4 mm forward); from z 0.818 up at m
 Check or a check.mjs limit; the visual Done is met (a, head_kit a: one smooth surface into the inner thighs, no bulge, no
 cast shadow; crops in the session scratchpad f1/fin-crotch-a.png against ck5/old-crotch-a.png). Undo: reopen the
 crotch zone (A90) if Michael wants the number.
+
+## Assumed decisions, step 10 retry (Wren block end; implementer)
+
+**A95 Step 10 retry: the inner shell out of the bake, the LOD0 split on the boots, small hard parts kept at LOD2, A82
+measured.** (1) Hero-bake confetti: the solidified cloth (suit, gloves, hood, balaclava, boot upper) carries its inner
+shell on the same pattern UVs as the outer face, so the two layers baked into one island and the inner shell's texels
+(open occlusion, a flipped normal) overwrote the outer face triangle by triangle. bake_lods.py marks every solidify's
+generated shell (`shell_vertex_group` 'bake-inner-shell', a face attribute `inner`); those faces bake into a 16 px
+dummy through one extra material slot and are put back after the bake (they read the outer face's texels: 407,960 of
+1,270,297 source faces). (2) With the inner shell out, the LOD0 sharp-edge split (A76) reaches the boots
+(`SHARP_ABOVE_Z` -1, was 0.20): bakeDiff LOD0 boot 431 -> 0 px, so `DARK_PATCH_LIMIT.boot` is 24 again (every LOD0 view
+24; A76's last loose limit closed). (3) LOD2: the rifle magazine placard and seat stay separate with the magazines
+(`RIGID_EXTRA`; the pouch lip had baked a dark band against the separate magazine: chest 44 -> 9 px), LOD2 target 6,000
+(SPEC 6.4 top; measured 5,964). (4) LOD2: every hard part under RIGID_DIAG's 5 cm (judged on the whole part) that A82
+does not name stays a separate piece, decimated alone to 25 % (`RIGID_SMALL_AT`, `RIGID_SMALL_KEEP`; seven buckles,
+888 -> 222 triangles): in the shell the leg-band and hanger buckles existed only where a shell vertex fell within 4 mm
+(legBandBuckleR0 / hangerBuckleR by one vertex, the left ones by none: rigidSkin:lod2 FAIL). (5) A82 is now measured, not
+only listed: `rigidSkin:<lod>` FAILs a named absence unless the part is under 50 mm in the hero and the LOD vertices
+within 10 mm of it carry >= 0.75 of their weight on its declared bones (`ABSORB_LIMITS`). Measured on these LODs: LOD1
+browRivetL / R 11.2 / 11.3 mm, 37 / 40 shell vertices head 1.00; LOD2 gadgetTab 14.1 mm and camTab 15.3 mm (no shell
+vertex within 10 mm), slingSocket 38.7 mm (pelvis 0.85, hipL 0.11, spine 0.04), rappelRing 37.4 mm (pelvis 0.91, hipL
+0.03, hipR 0.03, spine 0.03), browRivetL / R (head 1.00). Undo: drop the `inner` pass, `SHARP_ABOVE_Z` 0.20,
+`RIGID_EXTRA` / `RIGID_SMALL_AT` empty, LOD2 5,600.

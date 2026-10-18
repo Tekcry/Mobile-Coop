@@ -68,7 +68,7 @@ GROUPS = {  # LOD: atlas groups (texture size, before --scale); 'glow' is the go
     'lod1': [('cloth', 1024), ('kit', 1024), ('glow', 0)],   # own set (A71: UV-keeping decimation stalls at 2x)
     'lod2': [('atlas', 1024), ('glow', 0)],
 }
-TARGET_TRIS = {'hero': 230000, 'lod0': 40000, 'lod1': 13600, 'lod2': 5600}  # lod2 5200 -> 5600 in fix round 3 (A77); lod1 13500 -> 13600 in 11b r1 (A89)
+TARGET_TRIS = {'hero': 230000, 'lod0': 40000, 'lod1': 13600, 'lod2': 6000}  # lod2 5200 -> 5600 in fix round 3 (A77), 6000 in the step 10 retry (A95: the placard pieces); lod1 13500 -> 13600 in 11b r1 (A89)
 # Cage (selected to active): the ray starts this far outside the LOD surface and looks twice as far inward.
 CAGE = {'hero': 0.010, 'lod0': 0.020, 'lod1': 0.020, 'lod2': 0.060}  # lod1 3 -> 2 cm in fix round 3 (A76)
 # Faces left to the maps (A70): stitches from LOD0 down, zip teeth from LOD1 down; pieces smaller than this
@@ -94,7 +94,7 @@ SHELL_SHARP_DEG = 30.0
 # fix round 3 (A76): the same split on LOD0 (the layered level) against its OPEN bake errors at near right-angle edges
 # (thigh-band lower edge, buckles, chest-plate top edge, boot toe). Undo: SHARP_SPLIT = {}.
 SHARP_SPLIT = {'lod0': 30.0}
-SHARP_ABOVE_Z = 0.20   # m: the LOD0 split stops at the boots (their tops are below 0.2 m)
+SHARP_ABOVE_Z = -1.0   # m: everywhere since the step 10 retry (A95; was 0.20: the split stopped at the boots)
 GAME_JOINTS = ['pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
                'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR']
 
@@ -121,7 +121,20 @@ RIGID_DIAG = (0.05, 0.25)
 # decimated jointly to LOD2's budget every piece lost its shape (flaps, a twisted belt holder), and the head and back
 # pieces read right in the round-2 shell.
 RIGID_KEEP = {'lod1': 0.75, 'lod2': 0.55}
+# step 10 retry (A95): at LOD2 the rifle magazine placard and its seat (carrier / mount parts the magazines stand in)
+# stay separate with the magazines: in the shell the pouch lip baked a dark band against the separate magazine
+# (bakeDiff chest 44 px at wren-chest-lod2.png 138,425)
+RIGID_EXTRA = {'lod2': {'rifleMagPlacard', 'rifleMagSeat'}}
 RIGID_AT = {'lod1': lambda c: True, 'lod2': lambda c: c.y < 0.0 and c.z < 1.45}
+# step 10 retry (A95): at LOD2 every hard part under RIGID_DIAG[0] (judged on the whole part, not per welded piece) that
+# A82 does not name as absorbed stays a separate piece too, decimated on its own to RIGID_SMALL_KEEP of its hero
+# triangles: in the shell the leg-band and hanger buckles lived only where a shell vertex fell within RIGID_ADOPT of
+# them (legBandBuckleR0 / hangerBuckleR by one vertex each, the left ones by none: rigidSkin:lod2 FAIL).
+# LOD_ABSORBED mirrors src/operators/rigidKit.ts LOD_ABSORBED (A82; rigidSkin:<lod> judges both).
+LOD_ABSORBED = {'lod1': {'browRivetL', 'browRivetR'},
+                'lod2': {'gadgetTab', 'camTab', 'slingSocket', 'rappelRing', 'browRivetL', 'browRivetR'}}
+RIGID_SMALL_AT = {'lod2'}
+RIGID_SMALL_KEEP = 0.25
 
 
 def principled_nodes(mat):
@@ -159,6 +172,17 @@ RIGID_REG = rigid_skin.registry(OUT, op_id)
 # the head kit as before (A77's polymer rule): they ride their bones through the shell vertices that adopt them (A82)
 HARD_IDS = {i for i, e in RIGID_REG.items() if e.get('role', 'hard') == 'hard' and e.get('item') not in ('armour', 'head_kit')}
 rigid_skin.tag_head(items, op_id)
+# the solidified cloth (suit, gloves, hood, balaclava, boot upper) carries its inner shell on the same pattern UVs as the
+# outer face: one UV island with two layers. Baked together, the inner shell's texels (unoccluded occlusion, a flipped
+# normal) overwrite the outer face triangle by triangle: the hero / LOD0 confetti (step 10 retry, A95). The solidify
+# marks its generated shell in a vertex group; the faces on it bake nothing and read the outer face's texels.
+INNER_VG = 'bake-inner-shell'
+for o in items:
+    for mod in o.modifiers:
+        if mod.type == 'SOLIDIFY' and mod.show_render:
+            if INNER_VG not in o.vertex_groups:
+                o.vertex_groups.new(name=INNER_VG)
+            mod.shell_vertex_group = INNER_VG
 dg = bpy.context.evaluated_depsgraph_get()
 parts = []
 for o in items:
@@ -187,6 +211,29 @@ SRC_NAMES = [m.name if m else '' for m in src.data.materials]
 _mi = np.zeros(len(src.data.polygons), dtype=np.int32)
 src.data.polygons.foreach_get('material_index', _mi)
 src.data.attributes.new('srcmat', 'INT', 'FACE').data.foreach_set('value', _mi)
+
+
+def inner_faces(me, vg_index):
+    """Faces whose every vertex lies on a solidify's generated (inner) shell."""
+    w = np.zeros(len(me.vertices), dtype=bool)
+    for v in me.vertices:
+        for g in v.groups:
+            if g.group == vg_index and g.weight > 0.5:
+                w[v.index] = True
+                break
+    lt = np.empty(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get('loop_total', lt)
+    lv = np.empty(len(me.loops), dtype=np.int32)
+    me.loops.foreach_get('vertex_index', lv)
+    return np.minimum.reduceat(w[lv].astype(np.int32), np.cumsum(lt) - lt).astype(np.int32)
+
+
+_inner = (inner_faces(src.data, src.vertex_groups[INNER_VG].index) if INNER_VG in src.vertex_groups
+          else np.zeros(len(src.data.polygons), dtype=np.int32))
+src.data.attributes.new('inner', 'INT', 'FACE').data.foreach_set('value', _inner)
+if INNER_VG in src.vertex_groups:
+    src.vertex_groups.remove(src.vertex_groups[INNER_VG])
+log('inner shell faces', int(_inner.sum()), 'of', len(_inner))
 
 
 def tri_count(me):
@@ -300,6 +347,7 @@ PLAIN_IDX = next(i for i, n in enumerate(SRC_NAMES) if n not in GLOW)
 
 
 RIGID = {}
+RIGID_SMALL = {}  # per (mesh, LOD): the small hard parts' hero faces (A95), a subset of neither RIGID mask
 
 
 def rigid_mask(hero_me, lod):
@@ -316,8 +364,24 @@ def rigid_mask(hero_me, lod):
         f[fi] = f.index
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0002)
 
+    ids = HARD_IDS | {i for i, e in RIGID_REG.items() if e.get('name') in RIGID_EXTRA.get(lod, set())}
+    # A95: the whole-part size of each hard part; the small ones A82 does not name stay separate at RIGID_SMALL_AT
+    small_ids = set()
+    if lod in RIGID_SMALL_AT and rl is not None:
+        box = {}
+        for v in bm.verts:
+            r = int(round(v[rl]))
+            if r in HARD_IDS:
+                b = box.setdefault(r, [Vector(v.co), Vector(v.co)])
+                b[0] = Vector((min(b[0].x, v.co.x), min(b[0].y, v.co.y), min(b[0].z, v.co.z)))
+                b[1] = Vector((max(b[1].x, v.co.x), max(b[1].y, v.co.y), max(b[1].z, v.co.z)))
+        small_ids = {r for r, (lo, hi) in box.items()
+                     if (hi - lo).length < RIGID_DIAG[0] and RIGID_REG[r].get('name') not in LOD_ABSORBED.get(lod, set())}
+        log('  small hard parts kept separate at', lod, ':', sorted(RIGID_REG[r].get('name') for r in small_ids))
+    smask = np.zeros(len(hero_me.polygons), dtype=bool)
+
     def hard(g):
-        return SRC_NAMES[g[lay]] in RIGID_MATS or (rl is not None and all(int(round(v[rl])) in HARD_IDS for v in g.verts))
+        return SRC_NAMES[g[lay]] in RIGID_MATS or (rl is not None and all(int(round(v[rl])) in ids for v in g.verts))
     seen = set()
     n = 0
     for f in bm.faces:
@@ -336,6 +400,10 @@ def rigid_mask(hero_me, lod):
         if not all(hard(g) for g in comp):
             continue
         vs = {v for g in comp for v in g.verts}
+        if small_ids and rl is not None and {int(round(v[rl])) for v in vs} <= small_ids:
+            for g in comp:
+                smask[g[fi]] = True
+            continue
         lo = Vector((min(v.co.x for v in vs), min(v.co.y for v in vs), min(v.co.z for v in vs)))
         hi = Vector((max(v.co.x for v in vs), max(v.co.y for v in vs), max(v.co.z for v in vs)))
         if RIGID_DIAG[0] <= (hi - lo).length <= RIGID_DIAG[1] and RIGID_AT[lod]((lo + hi) / 2):
@@ -346,7 +414,9 @@ def rigid_mask(hero_me, lod):
                 tuple(round(x, 3) for x in (lo + hi) / 2))
     bm.free()
     RIGID[(hero_me.name, lod)] = mask
-    log('  rigid pieces kept separate at', lod, ':', n, 'pieces,', int(mask.sum()), 'hero faces')
+    RIGID_SMALL[(hero_me.name, lod)] = smask
+    log('  rigid pieces kept separate at', lod, ':', n, 'pieces,', int(mask.sum()), 'hero faces; small parts',
+        int(smask.sum()), 'hero faces')
     return mask
 
 
@@ -388,6 +458,7 @@ def shell(lod, hero_me, target, name):
     lens protected), join it again."""
     keep_names = SHELL_KEEP[lod]
     kmask, rmask = kept_mask(hero_me, keep_names, lod)
+    smask = RIGID_SMALL.get((hero_me.name, lod))
     rig_tris = sum(len(p.vertices) - 2 for p in hero_me.polygons if rmask[p.index])
     kept = hero_me.copy()
     mask_faces(kept, kmask, True)
@@ -397,8 +468,18 @@ def shell(lod, hero_me, target, name):
     kept_me = decimate(kept, kept_target, f'{name}-kept') if kt > kept_target else kept
     if kept_me is not kept:
         bpy.data.meshes.remove(kept)
+    small_me = None
+    if smask is not None and smask.any():  # A95: the small hard parts, on their own at RIGID_SMALL_KEEP
+        small = hero_me.copy()
+        mask_faces(small, smask, True)
+        weld(small)
+        st = tri_count(small)
+        small_me = decimate(small, int(st * RIGID_SMALL_KEEP), f'{name}-small')
+        if small_me is not small:
+            bpy.data.meshes.remove(small)
+        log('  small hard parts', st, '->', tri_count(small_me), 'triangles')
     me = hero_me.copy()
-    mask_faces(me, kmask, False)
+    mask_faces(me, kmask | smask if smask is not None else kmask, False)
     drop_faces(me, DROP_MATS[lod], DROP_SMALL[lod])
     tmp = bpy.data.objects.new('tmp-shell', me)
     scene.collection.objects.link(tmp)
@@ -413,7 +494,7 @@ def shell(lod, hero_me, target, name):
     bpy.data.meshes.remove(me)
     log('  shell remeshed', tri_count(vox), 'triangles at', SHELL_VOXEL, 'm; kept pieces', kt, '->', tri_count(kept_me))
     vox.attributes.new('srcmat', 'INT', 'FACE').data.foreach_set('value', np.full(len(vox.polygons), PLAIN_IDX, dtype=np.int32))
-    body_me = decimate(vox, max(1000, target - tri_count(kept_me)), f'{name}-shell')
+    body_me = decimate(vox, max(1000, target - tri_count(kept_me) - (tri_count(small_me) if small_me else 0)), f'{name}-shell')
     if body_me is not vox:
         bpy.data.meshes.remove(vox)
     # each shell face takes the source material of the nearest hero face, so it bakes into its own atlas group
@@ -423,8 +504,9 @@ def shell(lod, hero_me, target, name):
     hb = bmesh.new()
     hb.from_mesh(hero_me)
     hb.faces.ensure_lookup_table()
-    hb_del = [f for f in hb.faces if kmask[f.index]]
-    hidx = np.array([f.index for f in hb.faces if not kmask[f.index]], dtype=np.int32)
+    out_mask = kmask | smask if smask is not None else kmask
+    hb_del = [f for f in hb.faces if out_mask[f.index]]
+    hidx = np.array([f.index for f in hb.faces if not out_mask[f.index]], dtype=np.int32)
     bmesh.ops.delete(hb, geom=hb_del, context='FACES')
     hb.faces.index_update()
     hb.faces.ensure_lookup_table()
@@ -438,11 +520,12 @@ def shell(lod, hero_me, target, name):
     body_me.attributes['srcmat'].data.foreach_set('value', sm)
     a = bpy.data.objects.new(name, body_me)
     b = bpy.data.objects.new('tmp-kept', kept_me)
-    for o in (a, b):
+    joined = [a, b] + ([bpy.data.objects.new('tmp-small', small_me)] if small_me else [])
+    for o in joined:
         scene.collection.objects.link(o)
     bpy.ops.object.select_all(action='DESELECT')
-    a.select_set(True)
-    b.select_set(True)
+    for o in joined:
+        o.select_set(True)
     bpy.context.view_layer.objects.active = a
     bpy.ops.object.join()
     out = a.data
@@ -727,7 +810,7 @@ for lod in ('hero', 'lod0', 'lod1', 'lod2'):
             bpy.data.meshes.remove(base)
         if lod in SHARP_SPLIT:  # fix round 3 (A76 on LOD0): flat faces bake along their own normal
             me.set_sharp_from_angle(angle=math.radians(SHARP_SPLIT[lod]))
-            # not on the boots: there the split lengthened the toe streaks (boot view 367 -> 491 px; OPEN, A76)
+            # on the boots too since the step 10 retry: with the inner shell out of the bake the split clears the toe (A95)
             sh = np.zeros(len(me.edges), dtype=bool)
             me.attributes['sharp_edge'].data.foreach_get('value', sh)
             co = np.empty(len(me.vertices) * 3, dtype=np.float32)
@@ -800,6 +883,31 @@ BAKED = {}
 for lod in ('hero', 'lod0', 'lod1', 'lod2'):
     BAKED[lod] = setup_bake_mats(lods[lod]['obj'], GROUPS[lod], args.scale)
 
+# the inner shell faces (A95) bake into a dummy through one extra material slot; restored after the bake
+INNER_SAVED = {}
+for lod in BAKED:
+    me = lods[lod]['obj'].data
+    if 'inner' not in me.attributes:
+        continue
+    inn = np.zeros(len(me.polygons), dtype=np.int32)
+    me.attributes['inner'].data.foreach_get('value', inn)
+    if not inn.any():
+        continue
+    mi = np.zeros(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get('material_index', mi)
+    INNER_SAVED[lod] = mi.copy()
+    skip = bpy.data.materials.new(f'{me.name}-inner-skip')
+    skip.use_nodes = True
+    n = skip.node_tree.nodes.new('ShaderNodeTexImage')
+    n.name = 'bake'
+    n.image = new_img(f'{me.name}-inner-dummy', 16, True)
+    skip.node_tree.nodes.active = n
+    me.materials.append(skip)
+    mi[inn > 0] = len(me.materials) - 1
+    me.polygons.foreach_set('material_index', mi)
+    me.update()
+    log(lod, int((inn > 0).sum()), 'inner shell faces skipped in the bake')
+
 
 def point(lod, pass_name):
     for g, s in BAKED[lod].items():
@@ -869,6 +977,13 @@ for sock, pass_name in (('Base Color', 'albedo'), ('Roughness', 'rough'), ('Meta
     for lod in BAKED:
         bake(lod, 'EMIT', pass_name, 4)
 
+
+# the inner shell faces back on their own atlas material (they read the outer face's texels: one island)
+for lod, mi in INNER_SAVED.items():
+    me = lods[lod]['obj'].data
+    me.polygons.foreach_set('material_index', mi)
+    me.materials.pop(index=len(me.materials) - 1)
+    me.update()
 
 # the source's own shading back (the renders show it as the reference column)
 for nt, p, em in swaps:

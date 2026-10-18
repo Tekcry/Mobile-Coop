@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { glbRigidSkin, LOD_ABSORBED, rigidItemChecks, rigidResidual, rigidSkinCheck, ruleBones, slingClockCheck, type RigidPart } from '../src/operators/rigidKit';
+import { absorbedMeasure, glbRigidSkin, LOD_ABSORBED, rigidItemChecks, rigidResidual, rigidSkinCheck, ruleBones, slingClockCheck, type RigidPart } from '../src/operators/rigidKit';
 
 const box = (): number[][] => {
   const out: number[][] = [];
@@ -138,6 +138,24 @@ describe('glbRigidSkin / rigidSkinCheck', () => {
     expect(rigidSkinCheck('lod2', s, t, LOD_ABSORBED.lod2).detail).toContain('legBandBuckleL0: hard part missing');
     expect(rigidSkinCheck('lod1', s, t, ['legBandBuckleL0', 'slingSocket']).pass).toBe(true);
     expect(rigidSkinCheck('hero', s, t, []).detail).toContain('legBandBuckleL0: hard part missing');
+  });
+  it('holds a named absence to A82 measured: under 50 mm, the shell in its place on the declared bones', () => {
+    const t = { '208': { name: 'slingSocket', bones: { pelvis: 1 }, role: 'hard' }, '101': { name: 'rifleMag0', bones: { chest: 1 } } };
+    const s = glbRigidSkin(glb([101, 101, 0], [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]));
+    // hero: the socket 30 mm across at the origin; LOD: two shell vertices 5 mm off it, one 40 mm away
+    const hero = { pos: [[0, 0, 0], [0.03, 0, 0]], rid: [208, 208], w: [{ pelvis: 1 }, { pelvis: 1 }] };
+    const lod = (w: Record<string, number>) => ({ pos: [[0.005, 0, 0], [0.03, 0.005, 0], [0.07, 0, 0]], rid: [0, 0, 0], w: [w, w, { hipL: 1 }] });
+    const ok = absorbedMeasure(hero, lod({ pelvis: 0.85, hipL: 0.15 }), 208, { pelvis: 1 });
+    expect(ok).toEqual({ diagMm: 30, near: 2, declaredShare: 0.85, weights: { pelvis: 0.85, hipL: 0.15 } });
+    expect(rigidSkinCheck('lod2', s, t, ['slingSocket'], { slingSocket: ok }).pass).toBe(true);
+    const thigh = absorbedMeasure(hero, lod({ pelvis: 0.5, hipL: 0.5 }), 208, { pelvis: 1 });
+    expect(rigidSkinCheck('lod2', s, t, ['slingSocket'], { slingSocket: thigh }).detail).toContain('on its declared bones');
+    const big = absorbedMeasure({ ...hero, pos: [[0, 0, 0], [0.06, 0, 0]] }, lod({ pelvis: 1 }), 208, { pelvis: 1 });
+    expect(rigidSkinCheck('lod2', s, t, ['slingSocket'], { slingSocket: big }).detail).toContain('under 50 mm only');
+    expect(rigidSkinCheck('lod2', s, t, ['slingSocket'], {}).detail).toContain('not measured');
+    const none = absorbedMeasure(hero, { pos: [[0.2, 0, 0]], rid: [0], w: [{ hipL: 1 }] }, 208, { pelvis: 1 });
+    expect(none.near).toBe(0);
+    expect(rigidSkinCheck('lod2', s, t, ['slingSocket'], { slingSocket: none }).pass).toBe(true);
   });
   it('fails a part blended across bones, and a bone not declared', () => {
     const s = glbRigidSkin(glb([101, 101, 0], [[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], [[0.9, 0.1, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]]));

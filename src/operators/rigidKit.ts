@@ -52,6 +52,103 @@ export const LOD_ABSORBED: Record<string, readonly string[]> = {
 };
 
 /**
+ * A82's procedure, measured per part and LOD (step 10 retry): a named part passes its absence only when its hero size
+ * (bounding-box diagonal of its `_RIGID` vertices) is under `maxMm` (RIGID_DIAG's lower end: larger hard parts stay
+ * separate) and the LOD's vertices within `nearM` of its hero vertices (the shell that took its place) carry at least
+ * `share` of their weight on the part's declared bones. No shell vertex that near: nothing of the part is drawn there.
+ */
+export const ABSORB_LIMITS = { maxMm: 50, nearM: 0.01, share: 0.75 } as const;
+
+/** Skinned vertices of a GLB: position, rigid id (0 = none) and the normalised joint weights by joint name. */
+export interface SkinVerts { pos: number[][]; rid: number[]; w: Record<string, number>[] }
+
+/** The skinned vertices of a GLB (`keep`: only the vertices whose rigid id passes, e.g. the hero's absorbed parts). */
+export function glbSkinVerts(buf: Uint8Array, keep?: (rid: number) => boolean): SkinVerts {
+  const g = readGlb(buf);
+  const out: SkinVerts = { pos: [], rid: [], w: [] };
+  for (const node of g.json.nodes) {
+    if (node.mesh === undefined || node.skin === undefined) continue;
+    const joints = g.json.skins![node.skin]!.joints.map((j) => g.json.nodes[j]!.name ?? `${j}`);
+    for (const prim of g.json.meshes[node.mesh]!.primitives) {
+      const a = prim.attributes;
+      if (a.POSITION === undefined || a.JOINTS_0 === undefined || a.WEIGHTS_0 === undefined) continue;
+      const key = Object.keys(a).find((k) => k.toUpperCase() === '_RIGID');
+      const ids = key !== undefined ? readAccessor(g, a[key]!) : null;
+      if (keep && !ids) continue;
+      const P = readAccessor(g, a.POSITION);
+      const J = readAccessor(g, a.JOINTS_0);
+      const W = readAccessor(g, a.WEIGHTS_0);
+      for (let i = 0; i < P.length; i++) {
+        const rid = ids ? Math.round(ids[i]![0]!) : 0;
+        if (keep && !keep(rid)) continue;
+        let sum = 0;
+        for (let k = 0; k < 4; k++) sum += W[i]![k]!;
+        const w: Record<string, number> = {};
+        for (let k = 0; k < 4; k++) {
+          const v = W[i]![k]! / (sum || 1);
+          if (v <= 0) continue;
+          const n = joints[J[i]![k]!] ?? `${J[i]![k]}`;
+          w[n] = (w[n] ?? 0) + v;
+        }
+        out.pos.push(P[i]!);
+        out.rid.push(rid);
+        out.w.push(w);
+      }
+    }
+  }
+  return out;
+}
+
+/** What took an absorbed part's place in a LOD (A82). */
+export interface AbsorbedMeasure { diagMm: number; near: number; declaredShare: number | null; weights: Record<string, number> }
+
+/** The hero size of part `rid` and the mean weights of the LOD's vertices within ABSORB_LIMITS.nearM of it. */
+export function absorbedMeasure(hero: SkinVerts, lod: SkinVerts, rid: number, declared: Record<string, number>): AbsorbedMeasure {
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  const pts: number[][] = [];
+  for (let i = 0; i < hero.rid.length; i++) {
+    if (hero.rid[i] !== rid) continue;
+    const p = hero.pos[i]!;
+    pts.push(p);
+    for (let c = 0; c < 3; c++) {
+      lo[c] = Math.min(lo[c]!, p[c]!);
+      hi[c] = Math.max(hi[c]!, p[c]!);
+    }
+  }
+  if (!pts.length) return { diagMm: NaN, near: 0, declaredShare: null, weights: {} };
+  const diagMm = Math.round(Math.sqrt((hi[0]! - lo[0]!) ** 2 + (hi[1]! - lo[1]!) ** 2 + (hi[2]! - lo[2]!) ** 2) * 1e4) / 10;
+  const r = ABSORB_LIMITS.nearM;
+  const sum: Record<string, number> = {};
+  let near = 0;
+  for (let i = 0; i < lod.pos.length; i++) {
+    const q = lod.pos[i]!;
+    let out = false;
+    for (let c = 0; c < 3; c++) if (q[c]! < lo[c]! - r || q[c]! > hi[c]! + r) out = true;
+    if (out) continue;
+    let hit = false;
+    for (const p of pts) {
+      if ((p[0]! - q[0]!) ** 2 + (p[1]! - q[1]!) ** 2 + (p[2]! - q[2]!) ** 2 < r * r) {
+        hit = true;
+        break;
+      }
+    }
+    if (!hit) continue;
+    near++;
+    for (const [n, v] of Object.entries(lod.w[i]!)) sum[n] = (sum[n] ?? 0) + v;
+  }
+  const weights: Record<string, number> = {};
+  for (const [n, v] of Object.entries(sum)) weights[n] = Math.round((v / near) * 100) / 100;
+  let share: number | null = null;
+  if (near) {
+    let t = 0;
+    for (const [n, v] of Object.entries(sum)) if ((declared[n] ?? 0) > 0) t += v / near;
+    share = Math.round(t * 100) / 100;
+  }
+  return { diagMm, near, declaredShare: share, weights };
+}
+
+/**
  * True sizes (mm) as the part's design extents sorted largest first; null = not judged. Rifle magazine: 5.56 x 45
  * 30-round, 178 overall, 24 thick (its width runs 62-70 plus its curve); 9 mm pistol magazine 128 x 34 x 24; knife 190
  * overall; throwable canister 90 long, 25 x 18 oval (the caps' ridges 26-27 mm, so 26 judged); drone pod 84 x 80 x 19.
@@ -337,6 +434,7 @@ export function rigidSkinCheck(
   lod: string, skin: Record<string, RigidSkin>,
   table: Record<string, { name: string; bones: Record<string, number>; role?: string }>,
   absorbed: readonly string[] = LOD_ABSORBED[lod] ?? [],
+  measured?: Record<string, AbsorbedMeasure>,
 ): RigidCheck {
   const bad: string[] = [];
   let worst = 0;
@@ -363,11 +461,24 @@ export function rigidSkinCheck(
   const missing = Object.entries(table).filter(([rid, e]) => (e.role ?? 'hard') === 'hard' && !skin[rid]).map(([, e]) => e.name);
   const absent = missing.filter((n) => absorbed.includes(n));
   for (const n of missing) if (!absorbed.includes(n)) bad.push(`${n}: hard part missing from the file (not in A82's list)`);
+  // A82 measured (check.mjs passes what the hero and this LOD hold): a named absence must still meet the procedure
+  const shell: string[] = [];
+  if (measured) {
+    for (const n of absent) {
+      const m = measured[n];
+      if (!m || !Number.isFinite(m.diagMm)) bad.push(`${n}: absorbed but not measured in the hero`);
+      else if (m.diagMm >= ABSORB_LIMITS.maxMm) bad.push(`${n}: absorbed at ${m.diagMm} mm (A82: under ${ABSORB_LIMITS.maxMm} mm only)`);
+      else if (m.near && (m.declaredShare ?? 0) < ABSORB_LIMITS.share) {
+        bad.push(`${n}: the shell in its place carries ${JSON.stringify(m.weights)}, ${m.declaredShare} on its declared bones (< ${ABSORB_LIMITS.share})`);
+      }
+      if (m) shell.push(`${n} ${m.diagMm} mm, ${m.near} shell verts ${JSON.stringify(m.weights)}`);
+    }
+  }
   return {
     name: `rigidSkin:${lod}`,
     pass: bad.length === 0 && Object.keys(skin).length > 0,
-    value: { parts: Object.keys(skin).length, verts: Object.values(skin).reduce((m, s) => m + s.verts, 0), worstSpread: worst, worstWeightDiff: Math.round(worstW * 1e4) / 1e4, ...(absent.length ? { shellAbsorbed: absent } : {}) },
-    limit: `every rigid part one weight vector (spread <= ${RIGID_LIMITS.spread}) equal to its declared weights (within ${RIGID_LIMITS.weight}); every hard part present unless A82 names it; at least one part tagged`,
+    value: { parts: Object.keys(skin).length, verts: Object.values(skin).reduce((m, s) => m + s.verts, 0), worstSpread: worst, worstWeightDiff: Math.round(worstW * 1e4) / 1e4, ...(absent.length ? { shellAbsorbed: measured ? shell : absent } : {}) },
+    limit: `every rigid part one weight vector (spread <= ${RIGID_LIMITS.spread}) equal to its declared weights (within ${RIGID_LIMITS.weight}); every hard part present unless A82 names it (under ${ABSORB_LIMITS.maxMm} mm; the shell within ${ABSORB_LIMITS.nearM * 1000} mm >= ${ABSORB_LIMITS.share} on its bones); at least one part tagged`,
     detail: bad.join('; '),
   };
 }
