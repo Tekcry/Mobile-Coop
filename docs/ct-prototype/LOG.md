@@ -140,3 +140,7 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Stubs: secondary fire; goggle flip visual; client strike is a host knockout; remotes show the gun right-handed; zoom
   untested (no scoped weapon in the kit).
 - Checks: `npm run check` passes; e2e smoke, pad, mouse, combat pass; ctcourse passed on solo rerun (load).
+- P1 bug (Character Build session, anim-sheet crouch side view on 61607ca): the crouch back is near horizontal,
+  80-90 deg forward, head at hip height ("reads like a quadruped"); intent is about 35-45 deg. Queued as P1b after F1b,
+  checked with GPU anim-sheet stills. Side effect: feature/weapons' back-mounted rifle goes horizontal and fails
+  e2e-weapons-carry "back guns muzzle up".
