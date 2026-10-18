@@ -65,6 +65,11 @@ export interface WeaponDef {
   weight?: number;
   /** Gunshot noise factor (integral suppressor 0.35; default 1). */
   noise?: number;
+  /**
+   * (feature/weapons) Long guns: the tip of the back stud on the gun's left side (weapon frame) that clicks into an
+   * operator's back plate socket (CharacterRig.backMount): carried flat against the back, hung from the stud.
+   */
+  backStud?: [number, number, number];
 }
 
 export interface GrenadeDef {

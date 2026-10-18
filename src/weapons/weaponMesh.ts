@@ -48,8 +48,9 @@ function build(scene: Scene, model: GlbModel, id: string): WeaponAsset {
     mat.invertNormalMapX = true;
     mat.invertNormalMapY = true;
   }
-  // as the operator's hard parts: full environment on metal, the game parts' direct light scale
-  mat.environmentIntensity = 0.7;
+  // as the operator's kit (figure.ts: 0.25 on her hard parts), a little more for the metal: the guns sit in the same
+  // light as the body that carries them
+  mat.environmentIntensity = 0.3;
   mat.directIntensity = Math.PI;
   mat.backFaceCulling = false;
   mat.twoSidedLighting = true;

@@ -13,6 +13,8 @@ import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from '.
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { GrenadePouches } from './grenadePouches';
+import { KnifeModel } from './knifeModel';
+import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
 
@@ -85,6 +87,8 @@ export class PlayerWeapons {
   readonly gadgets = new GadgetInventory();
   /** Belt pouches showing the grenades carried. */
   readonly pouches: GrenadePouches;
+  /** (feature/weapons, A5) The knife, shown only when drawn (no knife verb yet: `knife.show`). */
+  readonly knife: KnifeModel;
   private cooldown = 0;
   private grenadeCd = 0;
   private reloadT = -1;
@@ -154,6 +158,7 @@ export class PlayerWeapons {
     }
     // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades, false);
+    this.knife = new KnifeModel(world.scene, player.rig, WREN_HANDS.R, (m) => world.addShadowCaster(m));
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.equip(0);
   }
@@ -710,6 +715,7 @@ export class PlayerWeapons {
 
   dispose(): void {
     this.pouches.dispose();
+    this.knife.dispose();
     for (const s of this.slots) s.model.dispose();
   }
 }

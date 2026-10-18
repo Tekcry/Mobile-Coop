@@ -75,7 +75,7 @@ for s, f in FR.items():
 # finger curl (deg) per joint 1..3; index row position 0 (index) .. 3 (little)
 GRIPS = {
     # trigger hand on a pistol grip: index crooked onto the trigger, the other three wrapped round the grip
-    'gripR': {'side': 'R', 'fingers': [(28, 40, 22), (62, 88, 48), (64, 90, 50), (66, 92, 52)], 'thumb': (18, 22, 14), 'thumbIn': 34},
+    'gripR': {'side': 'R', 'fingers': [(22, 34, 18), (62, 88, 48), (64, 90, 50), (66, 92, 52)], 'thumb': (6, 16, 12), 'thumbIn': 12},
     # support hand round a 50 mm tube or cupping a pistol grip: all four wrapped, a little more open
     'gripL': {'side': 'L', 'fingers': [(48, 62, 34), (52, 66, 36), (54, 68, 38), (56, 70, 40)], 'thumb': (20, 24, 16), 'thumbIn': 30},
 }
@@ -227,10 +227,13 @@ def write_glb(path, js, binb):
 
 def patch(path):
     js, binb = read_glb(path)
+    if any(m.get('extras', {}).get('targetNames') for m in js['meshes']):
+        # the buffer would keep the old targets' data: patch the file as exported (git), not a patched one
+        raise SystemExit(f'{path} already has morph targets: restore the exported file first')
     joints = js['skins'][0]['joints']
     jname = [js['nodes'][j]['name'] for j in joints]
     # the game files skin the hand to the wrist joint (and a hand joint where present)
-    hand_slot = {s: [jname.index(n) for n in (f'wr{s}', f'hand{s}') if n in jname] for s in 'LR'}
+    hand_slot = {s: [i for i, n in enumerate(jname) if n in (f'wr{s}', f'hand{s}') or n.startswith(f'finger{s}_')] for s in 'LR'}
     names = list(GRIPS)
     report = {}
 

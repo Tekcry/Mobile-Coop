@@ -5,7 +5,7 @@ Real-world proportions (weapon frame, metres, bore at y 0.04): 10.5 in class bar
 about 0.33 m), 30-round curved magazine (about 178 mm along its curve), 180 mm x 39 mm suppressor, red dot on a riser
 (sight axis 66 mm over the bore), a 40 mm class launcher tube (49 mm outside) under a free-float handguard. Overall
 about 0.93 m. The game's hand points are kept: the trigger hand on the pistol grip at (0, -0.035, -0.01), the support
-hand round the launcher's grip sleeve.
+hand round the launcher's grip sleeve (its rear, z 0.24: Wren's arm reaches it with the elbow bent).
 """
 import wlib as W
 
@@ -13,9 +13,11 @@ SIZE = 2048
 BORE = 0.04
 POINTS = {
     'grip': [0.0, -0.035, -0.01],
-    'foregrip': [0.0, -0.040, 0.27],
+    'foregrip': [0.0, -0.040, 0.24],
     'muzzle': [0.0, BORE, 0.60],
     'mag': [0.0, -0.005, 0.10],
+    # the back stud's head (left side): clicks into an operator's back plate socket for the back carry
+    'backStud': [-0.034, 0.035, -0.03],
 }
 LT = -0.0165   # launcher tube axis (y)
 LR = 0.0245    # launcher tube outside radius
@@ -41,6 +43,10 @@ def build():
     W.box('bolt', 'steel', (0.004, 0.012, 0.056), (0.0115, 0.040, 0.052), 0.0005, 1)
     W.box('deflector', 'anodised', (0.006, 0.012, 0.012), (0.017, 0.044, 0.006), 0.0015, 2)
     rail('rail', -0.086, 0.396, 0.064)
+    # back stud (left side): a keyhole mushroom stud on a small base plate, the carry hook onto the back plate's receiver
+    W.box('stud-base', 'anodised', (0.003, 0.018, 0.018), (-0.0165, 0.035, -0.03), 0.001, 1)
+    W.lathe('stud', 'steel', [(0.0, -0.0175), (0.0042, -0.0175), (0.0042, -0.0305), (0.0068, -0.0312), (0.0068, -0.034), (0.0, -0.034)],
+            centre=(0.035, -0.03), axis='x', segs=20)
     # side charging handle (left) in its slot
     W.box('charger-slot', 'steel', (0.003, 0.006, 0.07), (-0.0163, 0.050, 0.10), 0.0005, 1)
     W.lathe('charger-knob', 'polymer', [(0.0, -0.0165), (0.0058, -0.0165), (0.0062, -0.024), (0.0055, -0.031), (0.0, -0.031)], centre=(0.050, 0.10), axis='x', segs=16)
@@ -114,7 +120,7 @@ def build():
     W.box('launcher-guard-post', 'anodised', (0.010, 0.022, 0.005), (0.0, -0.055, 0.191), 0.0015, 2)
     W.lathe('launcher-tube', 'anodised', [(0.0, 0.212), (LR, 0.212), (LR, 0.388), (LR - 0.0012, 0.396), (0.0202, 0.396), (0.0202, 0.384), (0.0, 0.384)],
             centre=(0.0, LT), segs=40)
-    W.lathe('launcher-sleeve', 'stipple', [(0.0, 0.226), (LR + 0.0008, 0.226), (LR + 0.0022, 0.231), (LR + 0.0022, 0.315), (LR + 0.0008, 0.320), (0.0, 0.320)],
+    W.lathe('launcher-sleeve', 'stipple', [(0.0, 0.216), (LR + 0.0008, 0.216), (LR + 0.0022, 0.221), (LR + 0.0022, 0.305), (LR + 0.0008, 0.310), (0.0, 0.310)],
             centre=(0.0, LT), segs=40)
     for z in (0.335, 0.352):
         W.lathe('launcher-band', 'anodised', [(0.0, z), (LR + 0.0012, z), (LR + 0.0012, z + 0.004), (0.0, z + 0.004)], centre=(0.0, LT), segs=40)

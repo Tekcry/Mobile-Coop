@@ -14,8 +14,8 @@
  * guard measures (light parity).
  */
 import {
-  Bone, Color3, Matrix, Mesh, PBRMaterial, Quaternion, Skeleton, Texture, TransformNode, Vector3, VertexData,
-  type Camera, type Scene,
+  Bone, Color3, Matrix, Mesh, MorphTarget, MorphTargetManager, PBRMaterial, Quaternion, Skeleton, Texture, TransformNode,
+  Vector3, VertexData, type Camera, type Scene,
 } from '../../core/babylon';
 import { hyp3 } from '../../core/mathx';
 import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
@@ -48,6 +48,8 @@ export interface RigLike {
   readonly hipR: TransformNode;
   readonly kneeR: TransformNode;
   readonly ankleR: TransformNode;
+  /** (feature/weapons) How closed each hand is round a grip, 0..1 (CharacterRig: the weapon grips, world grips). */
+  readonly handGrip?: { readonly l: number; readonly r: number };
 }
 
 /** The rig's joint nodes in RIG_JOINTS order. */
@@ -122,6 +124,14 @@ export interface LodAsset {
   /** Index of the lens material (cloned per body: each body has its own glow level), -1 if none. */
   glow: number;
   glowBase: Color3;
+  /** (feature/weapons) Per source mesh: its morph targets as absolute positions / normals (shared), or null. */
+  morphs: (MorphData | null)[];
+}
+
+interface MorphData {
+  names: string[];
+  positions: Float32Array[];
+  normals: (Float32Array | null)[];
 }
 
 const GLOW_DEFAULT: readonly [number, number, number] = [0.3, 0.85, 0.16];
@@ -192,7 +202,23 @@ export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label:
   const sources: Mesh[] = [];
   const parts: GogglePartition[] = [];
   const materialOf: number[] = [];
+  const morphs: (MorphData | null)[] = [];
   for (const g of model.meshes) {
+    // (feature/weapons) Babylon's morph targets take absolute positions: base + delta, once per file
+    morphs.push(g.targets?.length ? {
+      names: g.targets.map((t) => t.name),
+      positions: g.targets.map((t) => { const a = new Float32Array(g.positions.length); for (let i = 0; i < a.length; i++) a[i] = g.positions[i]! + t.positions[i]!; return a; }),
+      normals: g.targets.map((t) => {
+        if (!t.normals) return null;
+        const a = new Float32Array(g.normals.length);
+        for (let i = 0; i < a.length; i += 3) {
+          const x = g.normals[i]! + t.normals[i]!, y = g.normals[i + 1]! + t.normals[i + 1]!, z = g.normals[i + 2]! + t.normals[i + 2]!;
+          const l = hyp3(x, y, z) || 1;
+          a[i] = x / l; a[i + 1] = y / l; a[i + 2] = z / l;
+        }
+        return a;
+      }),
+    } : null);
     const part = partitionGoggle(g.indices, g.goggle);
     const mesh = new Mesh(`${label}-src-${g.name}-${sources.length}`, scene);
     const vd = new VertexData();
@@ -212,7 +238,7 @@ export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label:
     parts.push(part);
     materialOf.push(g.material);
   }
-  return { lod, setup, sources, materialOf, parts, materials, glow, glowBase };
+  return { lod, setup, sources, materialOf, parts, materials, glow, glowBase, morphs };
 }
 
 export function disposeLodAsset(a: LodAsset): void {
@@ -264,6 +290,9 @@ interface LodInstance {
   poser: OperatorPoser;
   glowMat: PBRMaterial | null;
   head: number;
+  /** (feature/weapons) The grip morph targets of this body's meshes, by hand. */
+  gripR: MorphTarget[];
+  gripL: MorphTarget[];
 }
 
 const RANGE: [number, number] = [0, 0];
@@ -301,6 +330,7 @@ export class OperatorFigure {
   current = -1;
   private readonly lods: (LodInstance | null)[] = [null, null, null, null];
   private readonly rig: TransformNode[];
+  private readonly rigLike: RigLike;
   private readonly rigBuf = new Float64Array(RIG_JOINTS.length * TRS);
   private readonly rigRest = new Float64Array(RIG_JOINTS.length * TRS);
   private have = 0;
@@ -315,6 +345,7 @@ export class OperatorFigure {
 
   /** Build it right after the rig, before the rig's first pose: the rig's translations are measured from here. */
   constructor(private readonly lib: OperatorLibrary, rig: RigLike, readonly manifest: OperatorManifest, readonly name: string) {
+    this.rigLike = rig;
     this.rig = rigNodes(rig);
     this.root = new TransformNode(`${name}-operator`, lib.scene);
     this.root.parent = rig.root;
@@ -410,6 +441,8 @@ export class OperatorFigure {
       glowMat = a.materials[a.glow]!.clone(`${label}-glow`);
     }
     const meshes: Mesh[] = [];
+    const gripR: MorphTarget[] = [];
+    const gripL: MorphTarget[] = [];
     a.sources.forEach((src, i) => {
       const m = new Mesh(`${label}-${i}`, scene);
       src.geometry!.applyToMesh(m);
@@ -422,11 +455,26 @@ export class OperatorFigure {
       m.isPickable = false;
       m.receiveShadows = true;
       m.setEnabled(false);
+      // (feature/weapons) the finger grips: this body's own influences over the file's shared target data
+      const md = a.morphs[i];
+      if (md) {
+        const mgr = new MorphTargetManager(scene);
+        md.names.forEach((nm, k) => {
+          const t = new MorphTarget(`${label}-${nm}`, 0, scene);
+          t.setPositions(md.positions[k]!);
+          const nn = md.normals[k];
+          if (nn) t.setNormals(nn);
+          mgr.addTarget(t);
+          if (nm === 'gripR') gripR.push(t);
+          else if (nm === 'gripL') gripL.push(t);
+        });
+        m.morphTargetManager = mgr;
+      }
       meshes.push(m);
     });
     const poser = new OperatorPoser(S);
     poser.setRest(this.rigRest);
-    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head };
+    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head, gripR, gripL };
     this.applyGoggle(inst, this.goggle.pose);
     this.applyHead(inst);
     if (this.heatK > 0) this.applyHeat(inst);
@@ -479,6 +527,12 @@ export class OperatorFigure {
       const o = s * TRS;
       t.position.set(out[o]!, out[o + 1]!, out[o + 2]!);
       t.rotationQuaternion!.set(out[o + 3]!, out[o + 4]!, out[o + 5]!, out[o + 6]!);
+    }
+    // (feature/weapons) the fingers close round what the hands hold
+    const hg = this.rigLike.handGrip;
+    if (hg) {
+      for (let k = 0; k < l.gripR.length; k++) l.gripR[k]!.influence = hg.r;
+      for (let k = 0; k < l.gripL.length; k++) l.gripL[k]!.influence = hg.l;
     }
     if (l.glowMat && this.glowShown !== this.goggle.glow) {
       const k = this.goggle.glow;

@@ -17,10 +17,10 @@ function dims(id: WeaponId): { length: number; height: number; barrel: number; r
 }
 
 // realistic sizes (m): length, barrel diameter, receiver width, height with the magazine (the CT kit, G76); the rifle
-// with its suppressor, launcher and red dot (feature/weapons: the baked mesh's proxy)
+// with its suppressor, launcher and red dot, the pistol with its suppressor and sights (feature/weapons: the baked meshes' proxies)
 const REAL: Record<WeaponId, [number, number, number, number]> = {
   rifle: [0.93, 0.017, 0.031, 0.298],
-  pistolSd: [0.31, 0.03, 0.03, 0.14],
+  pistolSd: [0.318, 0.033, 0.026, 0.147],
 };
 
 describe('weapon dimensions', () => {

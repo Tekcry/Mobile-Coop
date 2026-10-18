@@ -24,6 +24,8 @@ export const DEFAULT_WEAPON_COLORS: WeaponColors = { body: '#2d3238', grip: '#1a
 
 /** Gap (m) between a carried weapon and the body or gear it rests against. */
 const CARRY_GAP = 0.012;
+/** (feature/weapons) The back stud's head sits this far (m) inside the socket's face (the keyhole's depth). */
+const STUD_SEAT = -0.002;
 /** (21w, PC-PASS 42) The weapon's last posed world matrix before a re-parent (scratch, no allocation). */
 const glideM = new Matrix();
 /** Back carry: muzzle-up guns side by side (thin side to the back), butts at this height on the chest. */
@@ -130,6 +132,8 @@ export class WeaponModel {
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     rig.grip.set(...this.def.grip);
     rig.foregrip.set(...this.def.foregrip);
+    // (feature/weapons) the support hand under a long gun's handguard, cupping a pistol's grip
+    rig.supportStyle = this.def.class === 'pistol' ? 'cup' : 'tube';
     const e = this.ext;
     rig.gunSpan.z0 = e.z0;
     rig.gunSpan.z1 = e.z1;
@@ -182,7 +186,21 @@ export class WeaponModel {
     const e = this.ext;
     const p = rig.p;
     const n = this.node;
-    if (isBackSlot(slot)) {
+    const mount = isBackSlot(slot) && rig.backMount && this.def.backStud ? rig.backMount[slot as 'backL' | 'backC' | 'backR'] : null;
+    if (mount) {
+      // (feature/weapons) hung from the body's back plate socket by the gun's back stud: muzzle up, the left side flat to
+      // the plate (its right side out), so the top faces the wearer's left and the pistol grip her right hand
+      const st = this.def.backStud!;
+      az.set(mount.up[0]!, mount.up[1]!, mount.up[2]!);
+      ax.set(mount.out[0]!, mount.out[1]!, mount.out[2]!);
+      Vector3.CrossToRef(az, ax, ay);
+      n.parent = rig.torso;
+      Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
+      const ox = mount.origin[0]! + ax.x * STUD_SEAT;
+      const oy = mount.origin[1]! + ax.y * STUD_SEAT;
+      const oz = mount.origin[2]! + ax.z * STUD_SEAT;
+      n.position.set(ox - ax.x * st[0] - ay.x * st[1] - az.x * st[2], oy - ax.y * st[0] - ay.y * st[1] - az.y * st[2], oz - ax.z * st[0] - ay.z * st[1] - az.z * st[2]);
+    } else if (isBackSlot(slot)) {
       const side = slot === 'backL' ? -1 : slot === 'backR' ? 1 : 0;
       const a = side * BACK_SPLAY;
       // muzzle up (splayed outward), top of the gun towards the body, thin side flat to the back
@@ -200,6 +218,16 @@ export class WeaponModel {
     } else if (slot === 'sling') {
       n.parent = rig.hips;
       this.placeSling(rig, SLING_SPLAY);
+    } else if (rig.thighMount) {
+      // (feature/weapons) the body's own built holster: its frame from the hip, the weapon point at its origin
+      const h = rig.thighMount;
+      ax.set(h.x[0]!, h.x[1]!, h.x[2]!);
+      ay.set(h.y[0]!, h.y[1]!, h.y[2]!);
+      az.set(h.z[0]!, h.z[1]!, h.z[2]!);
+      n.parent = rig.hipR;
+      Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
+      const [cx, cy, cz] = [h.centre[0]!, h.centre[1]!, h.centre[2]!];
+      n.position.set(h.origin[0]! - ax.x * cx - ay.x * cy - az.x * cz, h.origin[1]! - ax.y * cx - ay.y * cy - az.y * cz, h.origin[2]! - ax.z * cx - ay.z * cy - az.z * cz);
     } else {
       // right thigh, low: muzzle down, top of the gun forward, thin side flat against the thigh (moves with it)
       az.set(0, -1, 0);

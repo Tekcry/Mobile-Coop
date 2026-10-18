@@ -13,3 +13,8 @@
 - 00:50: Michael widened the scope: fingers that hold the gun, a believable aiming stance (DECISIONS). Grip morph
   targets from the hero's finger rig (`scripts/operators/py/grip_morphs.py`) in progress; the pistol and the knife built
   by a subagent on the same pipeline.
+- 01:00-01:35: pistol (9.7 k tris, 1K) and knife (1.8 k, 512) by a subagent on the same pipeline; finger grips as morph
+  targets from the hero rig on all four Wren files (A8) with a sparse-target GLB reader and the figure's blend; hand
+  holds solved from her hand frame (A9); shoulder protraction (A10); pistol reach (A11); the pistol in her built holster
+  frame (A12); the rifle hung from her back plate's receiver bar by a stud (A13); staging on Proving (Michael).
+  `npm run check` green (1580 tests).

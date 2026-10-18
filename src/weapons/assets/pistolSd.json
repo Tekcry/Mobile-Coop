@@ -1,0 +1,715 @@
+{
+ "id": "pistolSd",
+ "parts": [
+  "slide",
+  "barrel-hood",
+  "extractor",
+  "rear-sight",
+  "front-sight",
+  "frame",
+  "trigger",
+  "trigger-safety",
+  "grip",
+  "grip-panel",
+  "grip-panel.001",
+  "mag-plate",
+  "slide-stop",
+  "slide-stop-pin",
+  "takedown",
+  "jam-paddle",
+  "mag-release",
+  "takedown.001",
+  "jam-paddle.001",
+  "mag-release.001",
+  "emitter",
+  "emitter-window",
+  "aim-bezel",
+  "aim-lens",
+  "barrel",
+  "supp-collar",
+  "suppressor"
+ ],
+ "triangles": 9676,
+ "bounds": {
+  "min": [
+   -0.0165,
+   -0.093,
+   -0.0432
+  ],
+  "max": [
+   0.0165,
+   0.054,
+   0.275
+  ]
+ },
+ "textureSize": 1024,
+ "points": {
+  "grip": [
+   0,
+   -0.03,
+   -0.012
+  ],
+  "foregrip": [
+   -0.015,
+   -0.06,
+   0
+  ],
+  "muzzle": [
+   0,
+   0.035,
+   0.275
+  ],
+  "mag": [
+   0,
+   -0.03,
+   -0.012
+  ]
+ },
+ "surface": {
+  "grip": {
+   "inside": "grip",
+   "mm": 11.7
+  },
+  "foregrip": {
+   "inside": null,
+   "mm": 0.5
+  },
+  "muzzle": {
+   "inside": null,
+   "mm": 3.8
+  },
+  "mag": {
+   "inside": "grip",
+   "mm": 11.7
+  }
+ },
+ "partBounds": {
+  "slide": [
+   [
+    -0.013,
+    0.021,
+    -0.03
+   ],
+   [
+    0.013,
+    0.0505,
+    0.152
+   ]
+  ],
+  "barrel-hood": [
+   [
+    -0.0061,
+    0.0389,
+    0.011
+   ],
+   [
+    0.0061,
+    0.0494,
+    0.051
+   ]
+  ],
+  "extractor": [
+   [
+    0.0122,
+    0.0408,
+    -0.002
+   ],
+   [
+    0.0134,
+    0.0443,
+    0.01
+   ]
+  ],
+  "rear-sight": [
+   [
+    -0.0085,
+    0.05,
+    -0.0262
+   ],
+   [
+    0.0085,
+    0.054,
+    -0.013
+   ]
+  ],
+  "front-sight": [
+   [
+    -0.0017,
+    0.05,
+    0.1376
+   ],
+   [
+    0.0017,
+    0.054,
+    0.1459
+   ]
+  ],
+  "frame": [
+   [
+    -0.0127,
+    -0.014,
+    -0.0355
+   ],
+   [
+    0.0127,
+    0.0215,
+    0.088
+   ]
+  ],
+  "trigger": [
+   [
+    -0.0032,
+    0.0002,
+    0.0436
+   ],
+   [
+    0.0032,
+    0.014,
+    0.0508
+   ]
+  ],
+  "trigger-safety": [
+   [
+    -0.0009,
+    0.0015,
+    0.0479
+   ],
+   [
+    0.0009,
+    0.006,
+    0.0502
+   ]
+  ],
+  "grip": [
+   [
+    -0.014,
+    -0.086,
+    -0.0411
+   ],
+   [
+    0.014,
+    -0.004,
+    0.0326
+   ]
+  ],
+  "grip-panel": [
+   [
+    -0.0145,
+    -0.079,
+    -0.0353
+   ],
+   [
+    -0.0136,
+    -0.012,
+    0.0265
+   ]
+  ],
+  "grip-panel.001": [
+   [
+    0.0136,
+    -0.079,
+    -0.0353
+   ],
+   [
+    0.0145,
+    -0.012,
+    0.0265
+   ]
+  ],
+  "mag-plate": [
+   [
+    -0.014,
+    -0.093,
+    -0.0432
+   ],
+   [
+    0.014,
+    -0.085,
+    0.0088
+   ]
+  ],
+  "slide-stop": [
+   [
+    -0.0148,
+    0.0195,
+    0.012
+   ],
+   [
+    -0.0124,
+    0.026,
+    0.04
+   ]
+  ],
+  "slide-stop-pin": [
+   [
+    -0.015,
+    0.0191,
+    0.0361
+   ],
+   [
+    -0.0124,
+    0.0229,
+    0.0399
+   ]
+  ],
+  "takedown": [
+   [
+    -0.0137,
+    0.0168,
+    0.0545
+   ],
+   [
+    -0.0122,
+    0.0193,
+    0.062
+   ]
+  ],
+  "jam-paddle": [
+   [
+    -0.0142,
+    0.0146,
+    0.0661
+   ],
+   [
+    -0.0122,
+    0.0194,
+    0.0768
+   ]
+  ],
+  "mag-release": [
+   [
+    -0.0143,
+    0.001,
+    0.0255
+   ],
+   [
+    -0.0122,
+    0.007,
+    0.0335
+   ]
+  ],
+  "takedown.001": [
+   [
+    0.0122,
+    0.0168,
+    0.0545
+   ],
+   [
+    0.0137,
+    0.0193,
+    0.062
+   ]
+  ],
+  "jam-paddle.001": [
+   [
+    0.0122,
+    0.0146,
+    0.0661
+   ],
+   [
+    0.0142,
+    0.0194,
+    0.0768
+   ]
+  ],
+  "mag-release.001": [
+   [
+    0.0122,
+    0.001,
+    0.0255
+   ],
+   [
+    0.0143,
+    0.007,
+    0.0335
+   ]
+  ],
+  "emitter": [
+   [
+    -0.0125,
+    0.009,
+    0.0884
+   ],
+   [
+    0.0125,
+    0.0213,
+    0.151
+   ]
+  ],
+  "emitter-window": [
+   [
+    -0.0094,
+    0.0106,
+    0.1493
+   ],
+   [
+    0.0044,
+    0.0179,
+    0.1503
+   ]
+  ],
+  "aim-bezel": [
+   [
+    0.0053,
+    0.0116,
+    0.1496
+   ],
+   [
+    0.0107,
+    0.017,
+    0.1508
+   ]
+  ],
+  "aim-lens": [
+   [
+    0.0059,
+    0.0122,
+    0.1496
+   ],
+   [
+    0.0101,
+    0.0164,
+    0.1503
+   ]
+  ],
+  "barrel": [
+   [
+    -0.0068,
+    0.0282,
+    0.15
+   ],
+   [
+    0.0068,
+    0.0418,
+    0.158
+   ]
+  ],
+  "supp-collar": [
+   [
+    -0.0158,
+    0.0192,
+    0.157
+   ],
+   [
+    0.0158,
+    0.0508,
+    0.1708
+   ]
+  ],
+  "suppressor": [
+   [
+    -0.0165,
+    0.0185,
+    0.17
+   ],
+   [
+    0.0165,
+    0.0515,
+    0.275
+   ]
+  ]
+ },
+ "glb": {
+  "vertices": 10894,
+  "triangles": 9676,
+  "bytes": 3087604
+ },
+ "textures": {
+  "albedo": "pistolSd-albedo.png",
+  "orm": "pistolSd-orm.png",
+  "normal": "pistolSd-normal.png"
+ },
+ "holster": {
+  "pose": "game slot (weaponModel.ts thigh: extents centre at SLOT, bore straight down)",
+  "extents": [
+   [
+    -0.0165,
+    -0.093,
+    -0.0433
+   ],
+   [
+    0.0165,
+    0.054,
+    0.275
+   ]
+  ],
+  "mouthGunZ": -0.0132,
+  "slot": [
+   -0.21408,
+   -0.0195,
+   0.71821
+  ],
+  "regions": {
+   "slide": {
+    "wall": {
+     "mm": 19.5,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      1.3,
+      54,
+      139.5
+     ]
+    },
+    "hood": {
+     "mm": 24.4,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      8.5,
+      53.6,
+      -15.6
+     ]
+    },
+    "inside": {
+     "mm": 0.7,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      -12.9,
+      22.7,
+      -15.7
+     ]
+    }
+   },
+   "dustCoverEmitter": {
+    "wall": {
+     "mm": 20.1,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      12.4,
+      11.6,
+      139.9
+     ]
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    }
+   },
+   "frameTriggerGuard": {
+    "wall": {
+     "mm": 20,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      12.5,
+      -5.8,
+      73
+     ]
+    },
+    "hood": {
+     "mm": 35.7,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      -13.7,
+      -6,
+      -15.7
+     ]
+    },
+    "inside": {
+     "mm": 1,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      12.6,
+      1.4,
+      25.5
+     ]
+    }
+   },
+   "grip": {
+    "wall": {
+     "mm": 86.9,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      13,
+      -93,
+      7.2
+     ]
+    },
+    "hood": {
+     "mm": 42.3,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      -14.1,
+      -15.8,
+      -15.8
+     ]
+    },
+    "inside": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    }
+   },
+   "suppressor": {
+    "wall": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    }
+   }
+  },
+  "holsterFrame": {
+   "slide": {
+    "wall": {
+     "mm": 2.8,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      -8.1,
+      54,
+      -15.6
+     ]
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 1.1,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      1.2,
+      52.4,
+      -14.1
+     ]
+    }
+   },
+   "dustCoverEmitter": {
+    "wall": {
+     "mm": 1.4,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      11.7,
+      9.8,
+      88.5
+     ]
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 1.1,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      9.5,
+      9,
+      88.4
+     ]
+    }
+   },
+   "frameTriggerGuard": {
+    "wall": {
+     "mm": 16.6,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      12,
+      -6,
+      73
+     ]
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 1,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      12.9,
+      -5.1,
+      32.6
+     ]
+    }
+   },
+   "grip": {
+    "wall": {
+     "mm": 86.2,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      13,
+      -93,
+      7.2
+     ]
+    },
+    "hood": {
+     "mm": 30.2,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      14.5,
+      -37.3,
+      -22.8
+     ]
+    },
+    "inside": {
+     "mm": 0.6,
+     "object": "wren-leg_kit-poly",
+     "at": [
+      -12.5,
+      -7.2,
+      34.4
+     ]
+    }
+   },
+   "suppressor": {
+    "wall": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "hood": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    },
+    "inside": {
+     "mm": 0,
+     "object": null,
+     "at": null
+    }
+   }
+  },
+  "maxPenetrationMm": 20.1,
+  "object": "wren-leg_kit-poly",
+  "region": "dustCoverEmitter",
+  "holsterFrameMaxPenetrationMm": 16.6,
+  "holsterFrameRegion": "frameTriggerGuard"
+ },
+ "ktx2": {
+  "files": [
+   {
+    "kind": "albedo",
+    "bytes": 703109,
+    "pngBytes": 682118
+   },
+   {
+    "kind": "orm",
+    "bytes": 928253,
+    "pngBytes": 927628
+   },
+   {
+    "kind": "normal",
+    "bytes": 630015,
+    "pngBytes": 836854
+   }
+  ],
+  "glbBytes": 2902584
+ },
+ "builtSeconds": 18
+}

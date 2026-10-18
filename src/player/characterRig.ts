@@ -7,6 +7,7 @@ import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
+import { HOLDS, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
@@ -183,6 +184,14 @@ export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
 export const NECK_WELD = 0.35;
 /** Shoulders lift into the stock at a full weld (m): the raised arms elevate the shoulder girdle. */
 export const SHOULDER_WELD = 0.04;
+/**
+ * (feature/weapons) A hand on the weapon beyond the arm's reach brings its shoulder forward towards it by up to this
+ * much (m): the shoulder blade's protraction a shooter uses to reach the handguard (the rig has no collarbone; Wren's
+ * support hand on the rifle's launcher was 6 cm out of reach, the arm at full stretch with the elbow up).
+ */
+export const PROTRACT_MAX = 0.07;
+const protQ = new Quaternion();
+const protV = new Vector3();
 
 /**
  * Wrist position relative to the palm point on the gun (weapon space: x across, y up, z along the bore;
@@ -379,6 +388,50 @@ export class CharacterRig {
   /** Held weapon extent along its bore (weapon space: stock end z0 .. muzzle z1) and bore / top heights,
    *  for the body clearance push-out (set by `WeaponModel.hold`). */
   readonly gunSpan = { z0: -0.3, z1: 0.5, bore: 0.04, top: 0.1 };
+  /**
+   * (feature/weapons) How closed each hand is round something it holds, 0..1, after each pose: the weapon's grip and
+   * support point, the magazine, a world grip (rung, pipe, ledge); open on a wall. Render only: the operator figure's
+   * finger-grip morph targets (gameplay never reads it).
+   */
+  readonly handGrip = { l: 0, r: 0 };
+  /**
+   * (feature/weapons) The body's own thigh holster (an operator's built holster, e.g. WREN_HOLSTER): the sidearm's frame
+   * from the right hip joint (axes as columns) and the weapon point placed at its origin; null: the generic thigh slot.
+   */
+  thighMount: { origin: readonly number[]; x: readonly number[]; y: readonly number[]; z: readonly number[]; centre: readonly number[] } | null = null;
+  /**
+   * (feature/weapons) The body's own back mount (an operator's back plate sockets, e.g. WREN_BACK_MOUNT): per back slot the
+   * socket face from the chest joint, the muzzle direction and out from the back; null: the generic back slots.
+   */
+  backMount: Readonly<Record<'backL' | 'backC' | 'backR', { readonly origin: readonly number[]; readonly up: readonly number[]; readonly out: readonly number[] }>> | null = null;
+  /** (feature/weapons) The shoulders' height this pose (the weld's), before any protraction. */
+  private shoulderY = 0;
+  /** (feature/weapons) A drawn knife in the right fist (KnifeModel): the hand stays closed. */
+  holdingKnife = false;
+  /** (feature/weapons) The support hand's hold: under a handguard / launcher tube (long guns) or cupping a pistol grip. */
+  supportStyle: 'tube' | 'cup' = 'tube';
+  /** (feature/weapons) Solved holds of the body's own hands (`setHands`), index 0 right, 1 left; null: the rig's constants. */
+  private holds: Record<HoldName, { q: Quaternion; w: Vector3 }>[] | null = null;
+
+  /**
+   * (feature/weapons) An operator body's hands (their rest frames, e.g. WREN_HANDS): the weapon holds then put that
+   * hand's palm on the grip with the knuckles round it (handHold.ts) instead of the rig's generic wrist offsets.
+   */
+  setHands(h: { readonly L: HandFrame; readonly R: HandFrame } | null): void {
+    if (!h) {
+      this.holds = null;
+      return;
+    }
+    const one = (f: HandFrame, side: 1 | -1): Record<HoldName, { q: Quaternion; w: Vector3 }> => {
+      const out = {} as Record<HoldName, { q: Quaternion; w: Vector3 }>;
+      for (const k of Object.keys(HOLDS) as HoldName[]) {
+        const r = solveHold(f, HOLDS[k], side);
+        out[k] = { q: new Quaternion(r.q[0], r.q[1], r.q[2], r.q[3]), w: new Vector3(r.wrist[0], r.wrist[1], r.wrist[2]) };
+      }
+      return out;
+    };
+    this.holds = [one(h.R, 1), one(h.L, -1)];
+  }
   /** Last body push-out applied to the weapon (m), for tests and the debug overlay. */
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
@@ -1563,6 +1616,7 @@ export class CharacterRig {
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     // raised to the eye the shoulder girdle lifts into the stock
     const shY = p.y.shoulder - chestY + t.weld * SHOULDER_WELD;
+    this.shoulderY = shY;
     if (Math.abs(this.shoulderR.position.y - shY) > 1e-5) {
       this.shoulderL.position.y = shY;
       this.shoulderR.position.y = shY;
@@ -1620,6 +1674,13 @@ export class CharacterRig {
     }
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
+    // (feature/weapons) the fingers close round the grips (the support hand by its foregrip / magazine weight, open on
+    // a wall), and round a world grip
+    const offHold = Math.min(1, Math.max(t.offGrip, t.offMag)) * (1 - Math.min(1, offWall));
+    const hr = gripW * (leftGrips ? offHold : 1);
+    const hl = gripW * (leftGrips ? 1 : offHold);
+    this.handGrip.r = this.holdingKnife ? 1 : Math.max(Math.min(1, hr), Math.min(1, this.reachR.w));
+    this.handGrip.l = Math.max(Math.min(1, hl), Math.min(1, this.reachL.w));
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -1718,7 +1779,7 @@ export class CharacterRig {
     const wr = side > 0 ? this.wristR : this.wristL;
     const p = this.p;
     fresh(sh);
-    const S = sh.getAbsolutePosition();
+    let S = sh.getAbsolutePosition();
     // free-swing target, then the weapon grip blended over it
     const target = this.bodyToWorld(free, tmpA);
     if (this.readyRf > 0) {
@@ -1734,8 +1795,10 @@ export class CharacterRig {
       const m = this.heldWeapon.getWorldMatrix();
       // the hand wraps the gun: the wrist sits behind / under the palm point (weapon space), so the arm
       // reaches only as far as a real one and the elbows bend
+      const hold = this.holds ? this.holds[side > 0 ? 0 : 1]! : null;
       if (isGrip) {
-        tmpF.copyFrom(this.grip).addInPlaceFromFloats(WRIST_TRIGGER[0] * side, WRIST_TRIGGER[1], WRIST_TRIGGER[2]);
+        if (hold) tmpF.copyFrom(this.grip).addInPlace(hold.trigger.w);
+        else tmpF.copyFrom(this.grip).addInPlaceFromFloats(WRIST_TRIGGER[0] * side, WRIST_TRIGGER[1], WRIST_TRIGGER[2]);
         Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
         Vector3.LerpToRef(target, tmpB, gripW, target);
       } else {
@@ -1748,7 +1811,8 @@ export class CharacterRig {
         }
         const onGrip = Math.min(1, offW) * gripW;
         if (onGrip > 0) {
-          tmpF.copyFrom(this.foregrip).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          if (hold) tmpF.copyFrom(this.foregrip).addInPlace(hold[this.supportStyle].w);
+          else tmpF.copyFrom(this.foregrip).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
           Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onGrip, target);
         }
@@ -1771,6 +1835,32 @@ export class CharacterRig {
     // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
     const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
     this.dirToWorld(side * (0.55 + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
+    // height stays the weld's)
+    {
+      // the shoulder's rest (this pose's weld height) first, so the reach is measured from there
+      const rx = side * p.shoulderHalf;
+      const ry = this.shoulderY || sh.position.y;
+      protV.copyFrom(target).subtractInPlace(S);
+      // from where the shoulder is now back to its rest, in world space, so the excess is the rest pose's
+      Quaternion.InverseToRef(this.torso.absoluteRotationQuaternion, protQ);
+      protV.rotateByQuaternionToRef(protQ, protV);
+      protV.x += sh.position.x - rx;
+      protV.y += sh.position.y - ry;
+      protV.z += sh.position.z + 0.01;
+      // aim for 93 % of the arm's length, so the elbow keeps a bend
+      const over = protV.length() - (p.upperArm.len + p.forearm.len) * 0.93;
+      const want = gripW > 0 && this.heldWeapon ? Math.min(PROTRACT_MAX, Math.max(0, over)) * Math.min(1, gripW) : 0;
+      protV.normalize();
+      const px = rx + protV.x * want;
+      const py = ry + protV.y * want;
+      const pz = -0.01 + protV.z * want;
+      if (Math.abs(sh.position.x - px) > 1e-6 || Math.abs(sh.position.y - py) > 1e-6 || Math.abs(sh.position.z - pz) > 1e-6) {
+        sh.position.set(px, py, pz);
+        fresh(sh);
+        S = sh.getAbsolutePosition();
+      }
+    }
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
     // upper arm
     tmpC.subtractToRef(S, tmpA);
@@ -1783,8 +1873,11 @@ export class CharacterRig {
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
     if (gripW > 0.5 && this.heldWeapon && !(wallW > 0.5 && !isGrip) && reach.w < 0.5) {
-      // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
-      Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
+      // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side; (feature/weapons) a body with its
+      // own hands takes the solved hold (palm on the grip, knuckles round it)
+      const hold = this.holds ? this.holds[side > 0 ? 0 : 1]![isGrip ? 'trigger' : this.supportStyle] : null;
+      if (hold) tmpQ2.copyFrom(hold.q);
+      else Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
       this.setWorldRot(wr, el, tmpQ3);
     } else {
