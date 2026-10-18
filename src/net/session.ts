@@ -1,8 +1,7 @@
 import { EventBus } from '../core/events';
 import type { WeatherChoice } from '../world/mapDef';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { capacity, isPvp, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
-import { balanceTeam, canJoinTeam } from './pvp';
+import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 
@@ -21,6 +20,8 @@ export interface StartInfo {
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
   weather: WeatherChoice;
+  /** Course mode: the bay to start at (1-based, D20). */
+  bay?: number;
 }
 
 export interface SessionEvents {
@@ -41,11 +42,14 @@ export class NetSession {
   readonly events = new EventBus<SessionEvents>();
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
-  mode: NetMode = 'wave';
+  /** A new room's mode: Infiltration (the host's lobby sets its mission; `?legacy=1` hosts switch to the parked Hunter). */
+  mode: NetMode = 'infiltration';
   map = 'warehouse';
   difficulty: Difficulty = 'normal';
   mission = '';
   weather: WeatherChoice = 'clear';
+  /** Course mode: "Start at bay N" (host, 1-based; D20). */
+  courseBay = 1;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -57,7 +61,7 @@ export class NetSession {
     private me: LocalProfile,
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
-    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', team: 0 });
+    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host' });
     transport.onMessage = (raw, from) => this.receive(raw, from);
     transport.onPeerJoin = (id) => {
       // introduce ourselves to every newcomer
@@ -105,11 +109,10 @@ export class NetSession {
         return;
       }
       const prev = this.players.get(from);
-      const team = prev?.team ?? balanceTeam([...this.players.values()].map((p) => p.team));
-      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, team });
+      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false });
       this.broadcastLobby();
       // late join / reconnect during a match
-      if (this.phase === 'playing' && this.start) this.send({ t: 'start', ...this.start, time: 0 }, from);
+      if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), from);
       return;
     }
     if (!this.players.has(from)) return;
@@ -119,11 +122,7 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'team') {
-      if (this.phase === 'lobby') this.setTeam(from, msg.team);
-      return;
-    }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'ping' || msg.t === 'gadget') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -157,7 +156,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
       this.events.emit('start', this.start);
       return;
     }
@@ -198,32 +197,12 @@ export class NetSession {
 
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
-    // switching into team deathmatch: even the sides out
-    if (isPvp(mode) && mode !== this.mode) {
-      const ps = [...this.players.values()];
-      ps.forEach((p, i) => (p.team = i % 2));
-    }
     this.mode = mode;
     this.map = map;
     this.difficulty = difficulty;
     this.mission = mode === 'infiltration' ? mission : '';
     this.weather = weather;
     this.broadcastLobby();
-  }
-
-  /** Change side (host: anyone; clients ask with `requestTeam`). Refused when that side is full. */
-  setTeam(id: string, team: number): boolean {
-    if (!this.isHost) return false;
-    const p = this.players.get(id);
-    if (!p || p.team === team || !canJoinTeam([...this.players.values()].map((q) => q.team), team)) return false;
-    p.team = team;
-    this.broadcastLobby();
-    return true;
-  }
-
-  requestTeam(team: number): void {
-    if (this.isHost) this.setTeam(this.selfId, team);
-    else this.toHost({ t: 'team', team });
   }
 
   get allReady(): boolean {
@@ -240,8 +219,8 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather };
-    this.send({ t: 'start', ...this.start, time: 0 });
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
+    this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
     return this.start;
@@ -262,4 +241,9 @@ export class NetSession {
     await this.transport.leave().catch(() => {});
     this.events.clear();
   }
+}
+
+/** The `start` message for a match. */
+function startMsg(s: StartInfo): Msg {
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1 };
 }

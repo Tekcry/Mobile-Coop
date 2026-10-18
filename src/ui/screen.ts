@@ -45,11 +45,11 @@ export abstract class Screen {
   update(_dt: number): void {}
   /** Screens that cannot be dismissed with B (e.g. the root main menu). */
   readonly root: boolean = false;
-  /** Show the on-screen back button (touch users have no B button). */
+  /** Show the on-screen back button (for the mouse). */
   readonly showBack: boolean = true;
   private backBtn: HTMLElement | null = null;
 
-  /** Adds the touch back button once. Called by the manager. */
+  /** Adds the on-screen back button once. Called by the manager. */
   attachChrome(): void {
     if (this.root || !this.showBack || this.backBtn) return;
     // top left, beside the title (the top right holds profile badges and tab strips that used to cover it); acts

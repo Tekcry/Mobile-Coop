@@ -149,11 +149,8 @@ await run('autostart=warehouse&mode=infiltration&mission=warehouse-ledger&insert
       assert(r.afterIntel === 'extract', 'intel picked up in any order');
       assert(r.state === 'done', 'reaching the zone completes the mission');
       await page.waitForSelector('.results-screen', { timeout: 15000 });
-      const res = await G(() => ({ rating: document.querySelector('.mission-rating')?.textContent ?? '', bars: document.querySelectorAll('.style-bar').length, stats: window.__app.current.stats }));
+      const res = await G(() => ({ rating: document.querySelector('.mission-rating')?.textContent ?? '', stats: window.__app.current.stats }));
       assert(res.stats.won && res.stats.rating >= 2 && /★/.test(res.rating), `results: a rating (${res.rating})`);
-      // (3.5: the Ghost / Panther / Assault bars are parked behind ?legacy=1 - `npm run e2e:legacy -- e2e-missions` checks them)
-      const legacy = process.env.LEGACY === '1';
-      assert(res.bars === (legacy ? 3 : 0), legacy ? 'results: Ghost / Panther / Assault bars (legacy)' : 'results: no Ghost / Panther / Assault bars, the rating stays');
     },
   ],
 ]);

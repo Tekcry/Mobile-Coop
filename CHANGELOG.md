@@ -1,5 +1,194 @@
 # Changelog
 
+## 4.0.0 - Consolidation (Unreleased until Michael merges; G84, G93)
+One branch with all finished and paused work, one vision (docs/DECISIONS.md, G1-G118). The entries below this one are
+the merged branches' own notes, kept as their history.
+
+Came in:
+- Locomotion run (feature/ct-locomotion, paused at step 22, with feature/kestrel inside it): Chaos Theory movement,
+  back-to-wall, traversal, holstered carry, goggles, the anim audit, Kestrel's level editor and Mission 1 work (paused,
+  G53).
+- Movement foley (feature/footsteps), weapon sounds (feature/weapon-audio), Music V4 (feature/music, as is; revised in
+  its own job).
+- Fallow training bunker (feature/training-bunker; the co-op tutorial, G78; rebuilt on CT moves after the prototype,
+  G79).
+- Menu and HUD plan (feature/menu-ui-spec, docs only).
+- Not included: feature/operators (its own PR, G75); ct-movement's 99da75b "phone loads and plays on Low" (superseded
+  by desktop only).
+
+Deleted (Michael, "In this merge"; logs in docs/consolidation/deleted-*.md):
+- Wave, Team Deathmatch, Free-for-all and all player-versus-player code (G8, G9).
+- Retired maps: the 1934 Exchange, Trunk Annex, Dead Line v1 and v2, with their missions and suites; design data
+  archived (G12, G91).
+- Phones and touch: touch input, the layout editor, the phone look and phone render paths, phone budgets; the e2e
+  suites now run in a desktop browser (G12, G13).
+- Emotes and the old solo Training mode (G24, G116); the Fallow course is the only training.
+- Every gun outside the CT kit: 14 player guns removed; kept the rifle and the suppressed pistol (G76, G115).
+- The player drone, the custom difficulty sliders (fixed difficulties again) and carried medkits (wall stations only)
+  (G7, G98, G106, G115).
+
+Changed:
+- Co-op lobby defaults to Infiltration (Hunter under `?legacy=1`). PROTOCOL_VERSION 11 -> 13, MAX_PLAYERS 8 -> 4.
+- SAVE_VERSION 8 -> 9: old saves migrate (emotes, deleted guns and drone presets dropped or mapped to the kept gun);
+  old settings records load and drop touch, phone, custom difficulty and medkit-bind fields.
+- The one wall medkit station (Proving Grounds) heals +40 directly (starting value, ASSUMED).
+- Docs rewritten to one current vision: docs/DECISIONS.md (new), CLAUDE.md, the design bible 2.0, story 2.1,
+  docs/progress.md as an ordered job list, every docs/systems file, level-design Section 12, TESTING.md (one desktop
+  checklist plus a release checklist). Old lists and phase logs are in docs/archive.
+- Tests: e2e-foley is known flaky (walk threshold since the step-22 speeds); e2e-pad's capture step waits for the
+  capture to end; legacy e2e-progression steps to Deploy.
+
+## Unreleased - Weapon sounds (feature/weapon-audio)
+- Sound: every gun now plays real CC0 recordings instead of a filtered noise burst. The 16 guns borrow the closest of
+  12 recorded guns (The Free Firearm Sound Library, `docs/audio-credits.md`): .45 pistol, 9 mm and 7.62 SMGs, 5.56
+  and 7.62 rifles, a .30-06 bolt rifle, 12-gauge pumps. Each has near takes (the player and close guards) and
+  mid-distance takes (far guards), crossfaded and darkened with distance.
+- Suppressed guns finally sound suppressed (before, the suppressed pistol and a fitted suppressor played the full report). The
+  suppressed shots are made from each gun's own recording: the blast and tail cut away, a dull thump, a puff of gas,
+  the slide or bolt clack, a little room.
+- Automatic fire chokes each shot into the next, so only the last round rings out. Brass (and shotgun shells) land on
+  the floor you stand on (concrete, deck plate, wood; muffled on carpet). The pump and the sniper bolt cycle after
+  each shot. Reloads are laid out over the real reload time (magazine out and in, the slide or charging handle on an
+  empty reload, shell by shell for the tube shotguns) and stop on a swap. A dry click on an empty gun. The crossbow
+  has its own string and limb thunk.
+- Gameplay is unchanged: guards hear the noise model (the weapon's `noise` stat), never the audio.
+- `?weaponlab=1`: a listening screen with every gun, the campaign arsenal's six first (single, burst, auto), suppressed, player or guard at 6 / 18 / 40 m,
+  reloads, dry fire, brass per floor, a footstep for level, and an A/B against the old sounds.
+- Tools: `npm run sfx:fetch-weapons`, `npm run sfx:render-weapons`; tests `tests/weapons-audio.test.ts` and
+  `scripts/e2e-weapon-audio.mjs` (required).
+- Rule: CC0 audio is now allowed for every sound (Michael, 2026-10-16; `CLAUDE.md`, bible S7).
+
+## Music V4 (feature/music, not yet released)
+- The game has a score. The main menu plays the menu theme ("Grand, dialled back": Hook A on strings, the melody
+  on cellos, then violins). In a match the music follows the guards:
+  - **Calm (nobody aware): silence.**
+  - **Cautious** (a guard suspicious, investigating or searching): the plucked broken hook, a heartbeat and a faint
+    tremolo.
+  - **Alert:** a spotted hit, then "Alert, under fire" on its downbeat.
+  - **Coming down:** Evasion, then a slow step down through Cautious to silence.
+- The music director has hysteresis, so a glance does not flip the music. The music never reads guard count,
+  distance or direction, and gameplay never reads the music.
+- The music is real orchestral recordings (CC0, VSCO 2 CE), mixed offline into nine MP3 files (5.9 MB, precached for
+  offline play). Rebuild with `npm run music:orch` (the samples come from `scripts/music/fetch-samples.mjs`).
+- Test page for the score (`/music-test.html` on the dev server). New e2e suite: `e2e-score`.
+- Test page: "Hook thread" (round 23) with four Calm and three Cautious alternatives, and Calm / Cautious choosers in
+  the in-game test (the game's tracks are unchanged until Michael picks). A position slider scrolls through a piece
+  playing alone (with jumps of 8 bars and to the last 4 bars before the loop).
+- The music volume defaults to 15 % (an untouched old default, 50 % or 30 %, moves to 15 % once). A short build (a roll
+  and climbing strings) leads into Alert.
+- The menu theme is twice as long ("Menu theme, extended", 64 bars, 2 min 50 s): the theme as before, then low drums (no
+  sticks, cymbals or rolls), a string pulse that turns to sixteenths, and an epic brass layer (the hook on tuba and
+  trombones, big brass chords) build to a peak, and it comes back down to the low D it opens with, so the loop joins
+  smoothly.
+- Fades no longer cut: every music fade starts from the level playing at that moment. Before, a fade after an earlier
+  fade began part-way down (entering a match the menu theme dropped to about a quarter at once). Into a match the menu
+  fades over 4 s; leaving one the mission music fades over 2.5 s.
+
+## Locomotion run (Phase 3 + 3b, in progress, branch feature/ct-locomotion)
+- PC1 (desktop GPU catch-up): Epic desktop no longer fails the voxel shader compile when guards alert (one flashlight shadow at a time with micro detail on, A54; e2e-desktop re-counts samplers after alerting); remote wall peek eases in like the local one (no foot re-plant); empty goggles slot no longer leaves a gap in the HUD tactical row. Harness: anim-audit per-scenario reset and usable `--shots` (side camera, no HUD, no TAAU ghosting, one per scenario + metric); anim-sheet drawn reload / swap, movement turn, aimed wall-edge sheets; e2e-wall mid-switch reversal case (report-only until step 27); anim-audit runs on Windows.
+- 22: weight (Michael's play check, M14 / M17): every speed about 17% lower (standing 0.65 / 1.1 / 1.65 / 2.3 / 3.15 / 4.15 m/s), 0.3 s to full pace, 0.25 s to stop with one closing step and a single settle, turn inertia at speed, a planted pivot on a reversal above 1.2 m/s; aim, draw, strike, crouch and jump stay instant. Gait posed by gear with stride from the real pace, arm swing with effort, acceleration lean, heel-to-toe roll at walking pace, remotes derive acceleration from their velocity. Noise: part stick stays a silent walk. A88, A89.
+- 21v: visible sensor grain and slight softening on thermal, electro and night vision (Michael's play check, M14; render only, A87).
+- 21w: back-to-wall polish (Michael's play check, M14 / M16): the body stops at a wall end and keeps hugging it (pushing on peeks; only a held pull-away or the context button leaves), crouch on any wall, a slow shuffle (0.9 m/s standing, 0.6 crouched, analog), entry by the context button only (A83), deliberate peeks (no flicker), the peek camera eases over 0.45 s and the shoulder swaps smoothly (never inside a wall), lean-out aim limited to about 85 deg past the edge (aim further round leaves the wall), feet under the hips with the back flat on the wall, crouched knees apart, weapon glides instead of popping when re-held on a wall. A83-A86.
+- 21: no bob (D2) and trained posture: heel-strike kick and camera footstep / dash bob removed (camera vertical osc ~0.1 mm), walk sway capped (2.8-2.9 cm), pelvis one low / one high per step on every gear (run / sprint pelvis travel 12-14 cm -> ~1.9 cm), constant gait head pitch, breathing only after 2 s still and fading out on the first step, weapon sway settles in 0.2 s; holstered arms relaxed at the sides with counter-swing and a sprint pump (M14), right arm clear of the thigh holster (A81); crouched arms no longer straight; remote start ankle snaps and stair step-down pelvis fixed. A76-A82.
+- 20b: network conditions simulator for local co-op tests (`?net=local&netsim=typical`, E2E_NETSIM: 80 ms RTT, 20 ms jitter, 1% retransmit, A75); e2e-netmove and e2e-coop report under typical: no committed move stuck, no desync, pose within limits (D11). Step 20 (bot partner) dropped (M12).
+- 19: custom difficulty (D7): sliders for guard perception speed, guard aim and alarm tolerance (A72) on top of the presets (Rookie / Normal / Veteran as bases, A74), values in steps of 0.05 (A73); saved in settings; in co-op the host's difficulty applies (PROTOCOL_VERSION 10, `dc` on lobby / start, read-only on clients); medkit carry and rewards follow the base preset. Fixed: hidden settings rows were still shown (`.row[hidden]`).
+- 18: full remapping (D7): Controller and Keyboard & mouse tabs, two slots per verb, conflict warnings (a shared input is allowed and warned, A71), capture on release with hold-B / Esc / 5 s cancel (A69), reset per device; hold or toggle for aim, crouch, sprint, back-to-wall and grab (hold-mode grab knocks out on release, A70); in-game pad prompts follow the bindings; saved in settings (IndexedDB), local only.
+- 17: pad first (D1, D5.12): analog stick speed with gear snapping and hysteresis (50 / 80 / 100% -> gears 2 / 4 / 5, sprint -> 6, A63), the rocker / wheel set the maximum gear (1-5, A64), HUD gear pips lit to the current gear and dimmed to the maximum; rumble table (landings, footfalls, takedown, elbow, shots, explosions, hurt) with a Rumble strength setting, local only; touch trimmed to the D1 basic scheme (touch layout v7 reset; takedown on the context button, A65; the stick spans gears 1-5, A66; training skips the gadget step on touch, A67); Nintendo glyphs; full binding table in docs/systems/input-and-loop.md checked by a unit test.
+- 16: the arsenal (bible 5.6, A28, A59-A62): campaign set rifle / SMG / pump / marksman plus Hush 9 SD / Warden .45 sidearms (defaults rifle + Hush 9 SD), mapped at use from the save (no save change); the issued rifle carries a suppressor (A62); every real-brand gun renamed (Heron Carbine, Marten 9 SMG, Mason 12 Pump, Spotter 7.62 Marksman, Hush 9 SD, Warden .45, Kite 5.7, Ferret .45 SMG, Swift 5.7 PDW, Steppe 5.45 Rifle, Ibex Bullpup, Talon 12 Semi, Ridgeline Bolt, Anvil 5.56 LMG); the rest stay in code for legacy. Loadout screen shows Primary / Sidearm in the campaign; the co-op lobby sends the issued loadout (fixed a host weapon / shot desync for old saves).
+- 15: medkits (bible 5.13): health 100, no regen; a medkit heals 40 over 1.5 s (pad X held 0.4 s while not aiming, KBM H), damage interrupts (kit spent, A56), aim / jump / sprint cancel; carry 2 (3 at Rookie, host difficulty in co-op); health pickups give a kit; Proving wall medkit station (hold 0.6 s, single use); HUD health bar on by default with kit count and heal fill. Host-authoritative hp and kit counts (`mk`), committed move `medkit` with shared start, MoveState `medkit` (28), PROTOCOL_VERSION 9. Fixed in the step: host cancelled a client heal on a late snapshot; no interactables in sandbox. anim-audit medkit rows.
+- 14: thermal and electro vision (bible 5.5, A26, A53): the goggles cycle off / night / thermal / electro, each switch one goggle flip, HUD label for 1.5 s. Both are a `vk` branch in the existing post pass (desktop and phone grade pass, no new render target) fed by a render-only `pattern.w` glow: thermal lights every live rig and dog body, a dead body or dog cools over 60 s; electro lights cameras, laser sights, the sticky-cam lens and powered interactables (switch, alarm, terminal, charge). Render-only and local-only: never sent, never read by perception, the light meter or alarms (unit isolation test, e2e-stealth-ai `vision-detect` / `vision-dog`); e2e-pad / e2e-mouse / e2e-touch cycle the modes.
+- 13: door peek (bible 5.3 Doors, A25, A52): the context action (pad A, Space, the touch context button) at a closed, unlocked door within 1.0 m and 60 deg settles at the frame (hand on the handle) and cracks the leaf 0.12 over 0.6 s, quietly; the view goes to the crack (FOV x0.85, look +-35 deg, never inside geometry, local only); the context action again or the stick back closes it, the stick in or interact opens it quietly; damage, aim, jump or sprint end the peek. The crack is drawn only: collision, light (bake unchanged) and guard sight treat the door as closed. MoveState `doorPeek` (27), host-authoritative crack (`door {i, crack}`, snapshot `dcr`), PROTOCOL_VERSION 8. Proving's shed north doorway gets a hinged door. e2e-pad / e2e-mouse / e2e-touch / e2e-netmove / e2e-coop cases and an anim-audit `doorpeek` row (local + remote).
+- 12b: D9 open-side weapon at back-to-wall edges (left edge: pistol in the left hand with a mirrored grip, rifle on the left shoulder, camera follows; 0.25 s switch, reversible without a pop; exposure from the real mirrored pose) and D10 aim around low cover (crouched side lean past a low wall's end with the head kept under the top, over the top otherwise; crouched peek round the end). The host samples a remote's head from its posed copy on walls (light parity). No protocol change.
+- 12: back-to-wall edges (bible 5.3): corner peek (head only, light and perception from the real head pose, local and remote), lean-out aim and fire past the edge, over-the-top aim on low walls, step round, SWAT turn across doorways (MoveState swat, host-checked, remote replay), corner takedown from the wall; `lk` field and PROTOCOL_VERSION 7; level builder highCover / lowCover renamed highWall / lowWall.
+- 11: back-to-wall (bible 5.3, A23, A45): the context action (pad A, Space, touch context button) puts the back to a cover face within 0.9 m and 100 deg (a 0.2-0.45 s settle: 0.2 s + 0.3 s per metre of approach, A46), or the stick held into a high face for 0.35 s at gear <= 4 (a stick held through a traversal or a fall must be released first, A48); slides at the gear's pace capped at gear 4 (2.8 / 1.8 m/s) with crouch-band footsteps; low walls always crouched; inside corners wrap, outside ends stop (edge flags); leaves on the context press again (`gameplay.wallToggle`, default on), pulling away 0.15 s, jump, sprint, takedown or traversal; MoveState `wall` (segment, metres along it, WALL_SUB) posed on remotes; guards flank and grenade-flush a wall-held player (host and clients); two players stack >= 0.62 m apart; camera preset `wall`; PROTOCOL_VERSION 6; new e2e suite `e2e-wall`; anim-audit `wall` scenario (its remaining pose fails are baseline rows carried to step 27, A47)
+- 10: elbow strike (bible 5.4): fire while holstered (pad RT, LMB, touch fire) strikes; behind an unaware guard it knocks out, from the front it staggers, a second strike inside the stagger knocks out; 0.9 s committed, contact at 0.5 s. Co-op: generic host-approved committed-move protocol `cmove` / `cstart {t0}` / `cdeny` (A5, A21), MoveState `strike` (index 25), PROTOCOL_VERSION 5; the shared elbow arc also drives the lethal takedown blow.
+- 09: holstered unless aiming (bible 5.6): matches start holstered, aim draws (0.3 s pistol / 0.4 s primary) and release holsters (0.4 s); no hip fire (fire while holstered does nothing); ADS spread table (x0.7 crouched and still, movement up to 2.8 m/s); reload is never cancelled by releasing aim (A43); RB swaps while aiming; ready hands while holstered (A42). Co-op: MoveState `dw`, PROTOCOL_VERSION 4, host-authoritative drawn state, weapon in hand and shot weapon (A20, A41), no latency-triggered holster.
+- 08: the audit harness also measures remote poses over `?net=local` (host copy vs owner, lag-compensated: gating pose error, gait phase offset, phase-aligned lower body, rubber-band pops, paired-move alignment, LOD skips); `--compare` against `docs/locomotion/audit/anim-baseline.json` (local deterministic; remote gated per A39 / A40); joined to `npm run e2e` as a report-only suite; e2e helpers moved to `scripts/e2e-net-lib.mjs`.
+- 07: animation audit harness (`node scripts/anim-audit.mjs`, `--quick`, `--only=`, `--shots`): drives the local player headless at 60 and 120 Hz over every gear, both stances, flat / stairs / ramp / 35 deg slope, stance, raise, swap, ladder, vault, mantle, drops and quick 180; measures the bible 5.12.2 limits, D2 and the measurable D5 items in a Babylon-free `src/anim/audit` module with unit tests; writes local.json and a fail list with frames. Report only for now.
+- 06: cover rig poses and clips removed (low-cover curl / lift, blind fire, cover turns, cover foot pins); MoveState slot 1 renamed `wall`, PROTOCOL_VERSION 3 (A2); flat-back stance kept as WALL_STANCE / wallHand / offWall (A6); the open-left weapon mirroring kept dormant for D9; e2e-cover and docs/systems/cover.md deleted; guards in high cover lean to the correct side.
+- 05: player snap cover removed (cover controller, glide, cover-to-cover, blind fire, cover aim limits, the doorway / corner lean (A1), coverDash setting); `cover` input kept as the context action; enemy cover AI (coverData, corners, tactics) unchanged. Fix: a reset mid-vault no longer leaves the vault override stuck.
+- 02: sonar removed (pulse, marks, ring, HUD, audio, difficulty flag, suit / HQ hooks); the vision button is night vision only.
+- 01: Mark & Execute removed (marks, execute, chevrons, charge pips, `ex` shot field, RB / T / Y bindings, touch buttons; touch layout v6).
+- 03: regenerating shield removed: `Health(maxHp)`, no regen; effective player toughness 150 -> 100 (-33%). HUD shield bar and `PlayerState.sh` off the wire (no PROTOCOL_VERSION bump yet, step 06). Pistol guard at Normal: 26 per hit, 4 hits to down 100 hp.
+- 04: style tracker and style cash removed (`StealthRating` counters stub), results style bars gone, HQ sonar / marks and challenge executes removed; SAVE_VERSION 8 with a v7 -> v8 migration (mission style keys, hq.sonar / marks, executes dropped). HQ credits spent on sonar / marks are not refunded (parked economy). Default presets renamed Silent / Flash / Loud.
+## 3.9.0 - Fallow training bunker (Block C, branch `feature/training-bunker`, in progress)
+- T5g: the Deep level rebuilt to BAYS v2 at its own offsets (the T5f shift is gone): B7 The House (a 30 x 30 cavern round
+  the two-storey kill house, its office behind glass, annex roof, water main, bench, sandbags, the store door into A7),
+  B8 The Range (60 x 16: glass firing-line screen, six lanes, shoot-house, glazed tower, catwalk and its caged stair,
+  sniper scaffold), A8 with its medkit, B9 The Plot (a three-floor well with glass balcony fronts, cabins, bridge, rope,
+  zipline and tube duct to the lift lobby) and the exit lift. Objectives listed by name; relief doors placed.
+- T5f: B5 Standby Plant, A5, B6 Mock Site, S6 and A6 rebuilt to BAYS v2; B4 / A4 at their v2 offsets (66, 14) / (70, 8)
+  (the T5e passage is gone) and A4's wall medkit. B5: one 30 x 24 guarded hall: EL (screened but for its stair), gensets
+  (wall-jump roofs), trench, cable gallery, glazed switch room (MB, the mains gate on A5), fuel bay. B6: one line RC ->
+  AH -> plant ladder -> supply duct -> vent drop -> records -> corridor (2.0 clear), then the operator / runner split
+  (lockers, CR stair, mezzanine / L-leg, mantrap, server room) -> keypad -> S6 (rising north) -> A6. Relief doors (A62)
+  placed as visual leaves with course data. v1 Deep moved by (+17.5, -29) until T5g (A74). New R1 / R2 nav tests.
+- T5e: B3 The Intake and B4 The Cistern rebuilt to BAYS v2. B3 sits against A2 (no more passage): one line up the shaft
+  (riser slot, two wall jumps, the damper bar) and down again (two rope stages, the control-room window, the zipline,
+  the fan guard, twin ducts). B4: three cells, W1 boost and bolt door, W2 human ladder and sluice, outlet platform; it
+  stands at an interim offset with a passage from A3 until the Plant rebuild.
+- T5b walk-1 fixes: airlocks are automatic (R6, D46): a marked 4 x 4 m floor pad set 1 m in from the walls; one player
+  on it shows "Waiting for partner" on both screens, both on it with the bay's objectives done seal it (the rear door
+  shuts and locks for good, a 4 s cycle, the front door opens). The Cycle button is gone. The cycle holds while anyone
+  stands in the rear doorway. The client now gets every course prompt (course items are sent first; `MAX_ITEMS` 128,
+  `MAX_DOORS` 256) and shuts any rear door the host locks. The objective list is always on screen for both players
+  (R5, D45) with the airlock status under it. New two-page suite `e2e-bunker` (B1, B2).
+- T5b2 partners block each other (D49) in every co-op mode, on both screens (a partner capsule in its own collision
+  group; off while the partner is down or in a boost or human ladder). Remote players snap on a teleport instead of
+  sliding through the space between (a jump over 2 m faster than 25 m/s, or across a stall that a 90-degree turn at
+  the earlier speed cannot explain), so a teleported partner no longer shoves anyone.
+- T5d Upper rebuilt to the v2 bay plans: B1 Muster is five small rooms in a chain (lift lobby, kit room, briefing room
+  with a glass wall onto the gear run, the 20 m gear run, the dark store), B2 The Lanes is one 52 m lane both players
+  run in order (plinth, rail, block wall, caged ladder, pipe over a pit, hang-drop, trench, downpipe and beam ledge
+  round a column, gap jump to the portal sill, three drop pads, the window wall). Glass is see-through and not
+  climbable; every bay's objectives are listed by name.
+
+## 3.8.0 - Fallow training bunker (Block B, branch `feature/training-bunker`, in progress)
+- T2 Upper level (y 16): B1 Muster (lift lobby, kit room, briefing room, dark store, the gear-run corridor), airlocks
+  A1 and A2 (locked blast doors the course opens, bench, vision slot), B2 The Lanes (two mirrored obstacle lanes with
+  every ground and climbing verb, glass walkway, lever-gated lane doors, drop pads and pit). Map `bunker` ("Fallow",
+  `?autostart=bunker&mode=course`, not listed) with a course stub (B1, B2). `scripts/plan-svg.mjs` draws a map's
+  storey plans headless. Tests: `tests/bunkerMap.test.ts`.
+- T3 shaft and reservoir (Plant level, y 6): B3 The Intake (24 m shaft with galleries G1-G3, riser-casing split slot,
+  wall-jump lip, damper bar, hoist rope past the control-room window, spoil zipline, fan guard and discharge duct, catch
+  nets), airlock A3, B4 The Cistern (three cells, 4.4 co-op walls, inspection door, sluice, valve gallery, overflow
+  channel, float shaft, sump, outlet platform) and airlock A4 on the outlet platform. Course stub B1-B4 with the fan
+  isolator, bolts, the sluice hold and the outlet ladder.
+- T4 Plant level, rest (y 6) and Stair 6: B5 Standby Plant (three gensets with wall-jump roofs, grating walkway over a
+  secret cable trench with lift-out panels, cable gallery with a hang-drop, glazed switch room with the mains breaker
+  switch, fuel bay and day tank, duty desk, entry landing and stair at A4's door), airlock A5 and its service passage
+  (plant platform under the supply duct), B6 Mock Site (reception, corridor and L, open office with partitions and the
+  glazed manager's office, control-room mezzanine at 3.6 behind a reader door, lockers, records with the duct's
+  ceiling grille, mantrap, server room, exit keypad lobby), S6 (33-riser enclosed stair to y 0) and airlock A6.
+  `BUNKER_DEVICES` mount points for T7a. Course stub B1-B6: the mains gate on A5, card readers, keypad, egress, S6's
+  one-way top door; Finish in A6.
+- T5 Deep level (y 0): B7 The House (rock cavern, two-storey kill house with roof parapet and hatch, kitchen annex,
+  water main, rock-bolting bench, sandbags, skip, recesses, the store door), airlock A7, B8 The Range (firing line, kit
+  lockers, lane stands, penetration wall, barrels, lamp gantry, shoot-house barricades, catwalk, control tower, caged
+  catwalk stair bolted from below, sniper scaffold), airlock A8 (medkit), B9 The Plot (plot floor and map table,
+  balconies 4.5 / 9.0 with cabins, bridge, stair towers, the north-west boost gap, bridge rope, zipline to the lift
+  lobby, message-tube duct) and the exit lift L9. Course stub B1-B9: store key, catwalk bolt, keys A / B, the case and
+  the two-key lift; the course ends in the lift. e2e-anchors covers the bunker.
+
+## 3.7.0 - Training course framework (Block A, branch `feature/training-bunker`)
+- Course mode (T1a, T1b): `CourseState` (pure, host only) runs bays, airlocks and gates (lever, bolt, hold, timed hold,
+  pair, egress, mains, pickup / flag, anchor lock), checkpoints and bay restarts; `CourseMode` puts down the devices,
+  keeps door, anchor and lamp locks in step and speaks LANTERN's radio (text only, held while guards are alerted).
+  Co-op "Training course" takes two players (host P1, client P2): the `course` message mirrors state, locks and lights;
+  friendly fire is on (D38). Debug map `courselab` (`?autostart=courselab&mode=course`, not listed); dev solo flag
+  `?course=solo`.
+- Drills and tutorial (T1c): `drillDetect` derives every drill verb in one place (edge-triggered); the client reports
+  its local-only verbs as `ctick`; takedowns, thrown gadgets, doors and team moves resolve and tick on the host. The
+  tutorial HUD lists the bay's drills with P1 / P2 tick columns and the current step in LANTERN's voice; drill-done
+  toasts and radio on both pages; next-drill markers (Settings > Gameplay "Course markers"). Airlocks and the course
+  end device ("Finish", `devices.end`) refuse while drills are open, naming them. No skip path (D30).
+- Results: a course panel (per-bay and total time, detections, alarms, knock-outs, kills, revives, team moves, per
+  player and team; the finale's Ghost / Silent / Loud tier). Course record `course:fallow` (IndexedDB kv; no save
+  version change); the co-op lobby offers "Start at bay N" for finished bays, and both players start in that bay's
+  entry airlock.
+- Net: `PROTOCOL_VERSION` 3 (`course`, `ctick`, `start.bay`, `td.kind`). Tests: `tests/course*.test.ts`,
+  `tests/courseTutorial.test.ts`, e2e `e2e-course`.
+
 ## 3.6.x - First Playable (in progress)
 - Docs: 2026-10-10 cleanup (retired maps archived, docs match the new campaign).
 - Docs: story 2.0 (D1, approved): present-day campaign, Mission 1 Dead Line at Cinder Yard (Ostler Colocation's data centre), Mission 5 The Strongroom, Kestrel Exchange retired.
@@ -11,6 +200,19 @@
 - S1a: the Kestrel Exchange greybox is a listed map (`?autostart=exchange&mode=sandbox`): cable tunnel and chamber, ground floor shell, basement stair, main stair to a first-floor landing. No lights, guards or objective yet (S1b, S1c).
 - S1b: the Exchange's first floor, roof and rear goods yard: switchroom, offices, server hall with its cage, gallery and motor-room stairs, roof with parapets and the steel stair to the yard, yard with cover. Nine rooms.
 - R1: Exchange layout v2, basement and ground floor: cable chamber, rectifier, battery, generator, boiler, riser base, service tunnel, MDF hall, test and transmission rooms, foyer, security, canteen, meeting room, cleaners, goods-in, workshop, light well, ring corridor, with the C ladder, B, V and R stairs, the plant ramp and the coke stair. The first floor and roof are rebuilt in R2.
+## Unreleased - Movement foley (feature/footsteps)
+- Sound: the player's footsteps, landings and moves are real CC0 recordings (Kenney Impact Sounds and RPG Audio,
+  `docs/audio-credits.md`) instead of one filtered noise burst per surface. Each step is a heel and a toe from separately
+  picked takes with their own pitch and level, the two feet a touch apart, no take repeated back to back, no gear
+  sound at all: the suit is built not to make noise. Crouch, walk, run and sprint each sound different (a slow soft roll to a slap); concrete, metal
+  (deck ring), grate (rattle), wood (boots on boards), gravel (crunch) and carpet each have their own takes. Landings
+  (soft, roll, heavy), vaults, mantles, hops and rolls have their own sounds, all damped by the suit (dull, short, quiet).
+- Steps now follow the animation's real foot plants instead of a timer, so they match what the feet do (turning on
+  the spot, stopping, a stride at any speed gear).
+- Gameplay is unchanged: guards still hear the noise model, never the audio.
+- `?foleylab=1`: a listening screen with every surface and gait, the landings and moves, and an A/B against the old steps.
+- Tools: `npm run sfx:fetch`, `npm run sfx:render`; tests `tests/foley.test.ts` and `scripts/e2e-foley.mjs` (required).
+- Rule: `CLAUDE.md` and the bible (S7) allow CC0 movement foley (Michael, 2026-10-16).
 
 ## 3.5.0 - Chaos Theory foundation
 - Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory

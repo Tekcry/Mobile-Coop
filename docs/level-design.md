@@ -1,4 +1,4 @@
-# Level design standard - Silent But Deadly
+# Level design standard - Night Shift
 
 The baseline for every map, now and future. A map's spec may tighten a rule; it may only loosen one with Michael's
 written approval in that spec. Numbers marked "constant" come from the code: re-confirm them with grep before each
@@ -76,7 +76,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    linoleum) are placed on purpose, look different, and put a quiet and a loud version of the same action side by side
    (an open window beside a glazed one, a door opened or bashed, a vent unscrewed or kicked, a hang-and-drop or a jump
    down).
-4. **Readable at a glance on a phone at Low quality:** lit and dark areas match the light meter.
+4. **Readable at a glance on desktop at the Low preset:** lit and dark areas match the light meter.
 
 ## 6. Pacing
 1. **Teach, test, twist.** One new mechanic per space: introduce it safely, test it alone, then combine it with earlier
@@ -103,7 +103,7 @@ A level is a linear spine of encounter spaces joined by connectors.
 ## 9. Failure
 1. Detection escalates step by step and line of sight can be broken.
 2. Failure is a new situation, not a reload: running, hiding and fighting are all real options after a detection.
-3. Instant failure only through a mission's own rules (for example a Ghost contract).
+3. Instant failure only through a mission's own rules (for example a no-detection rule).
 
 ## 10. Exploration and reward
 1. Secret routes, alternate takedowns from anchors and shortcuts reward curiosity.
@@ -124,18 +124,73 @@ A level is a linear spine of encounter spaces joined by connectors.
 6. **Co-op verbs** are the ones the game has (brace and boost, human ladder, dual takedown). New verbs are Future work.
 
 ## 12. Engine constraints (re-confirm per map)
-- Nav: 3 walkable surfaces per column by default (`DEFAULT_NAV_LAYERS` in `src/ai/navBuild.ts`); a map raises it with `MapDef.navLayers` (Dead Line: 5, 2026-10-10). Map decisions that relied on 3: retired maps only. The nav sampler casts down to y -2 only, so a surface below about -1.5 m (a basement, a tunnel) is not on the guards' grid. Stairs and ramps join storeys by height.
-- Guards: Infiltration and Hunter spawn up to `SQUAD_CAP` 9 nearest first; `MAX_ALIVE` 12
-  (raised from 10 for Dead Line, 2026-10-10). A map that wants every guard present on a ghost run has 9 or fewer.
-  S5 will change this: every guard spawns, at most 12 awake.
-  Map decisions that relied on 10: retired maps only.
+State on 2026-10-18 (after the consolidation deletions). Every number is a starting value tuned after the CT prototype
+(DECISIONS G10). "Decided, not built yet" rows are Michael's decisions the code does not have yet: design new maps
+against them, and re-confirm against the code when the prototype lands.
+
+### 12.1 Facts in the code now
+- Nav: 3 walkable surfaces per column by default (`DEFAULT_NAV_LAYERS` in `src/ai/navBuild.ts`); a map raises it with
+  `MapDef.navLayers` (the Fallow bunker: 5). The nav sampler casts down to y -2 only, so a surface below about -1.5 m (a
+  basement, a tunnel) is not on the guards' grid. Stairs and ramps join storeys by height. Guards walk surfaces whose
+  normal y > 0.65 (about 49 deg); the player walks up to 50 deg: keep designed slopes at 45 deg or less.
+- Guards: Infiltration and Hunter spawn up to `SQUAD_CAP` 9 nearest first; `MAX_ALIVE` 12 awake. A map that wants every
+  guard present on a ghost run has 9 or fewer. Kestrel's dormant-guard step (S5: every guard spawns, at most 12 awake)
+  is not built; the 12 is reviewed against desktop performance (G46; how it is set is open, FU-11).
+- Guard sight is a horizontal cone with no vertical limit: a guard sees a player 4 m above him as well as one at his
+  height.
 - Split gaps are found automatically from any two facing faces >= 3.6 m tall and 1.2-1.95 m apart: no accidental ones.
 - Box tops >= 1.9 m become hangable lips automatically: remove unwanted ones with `noLedge` / `mark`.
 - `ambientZone` covers y -1..8 by default: set `minY` / `maxY` per storey.
-- Footsteps are silent on every surface at crouched gears 1-4 and standing gears 1-2; the surface only scales audible
-  steps.
-- A hold can make noise per object (`Interactable.holdNoise`, pulses every 0.5 s); cast-iron manhole covers are 10 m (`MANHOLE_LIFT_NOISE_RADIUS`). A heard noise only pushes a guard past suspicious (0.3) within about 44% of its radius (`noiseSuspicion`): a 10 m lift alarms a guard within about 4.4 m and makes farther ones turn. Map decisions that relied on silent holds: none (2026-10-10).
+- Reach: solo wall-jump reach `WALL_JUMP.maxUp` 3.8 m; co-op boost `TEAM.boostMax` 4.5 m; human ladder grab
+  `TEAM.ladderGrab` 4.1 m (all in `src/config/movement.ts`).
+- Footstep noise: silent on every surface at crouched gears 1-4 (caps 0.42 / 0.75 / 1.08 / 1.5 m/s; `NOISE_QUIET.crouch`
+  1.7) and standing gears 1-2 (0.65 / 1.1 m/s; `NOISE_QUIET.stand` 1.45); the surface only scales audible steps. Six
+  gears per stance, the sprint is standing gear 6 (4.15 m/s).
+- Doors: a door blocks light, sound and guard sight until it is open past `DOOR_SHUT` 0.05 of its swing; the player's
+  door crack (0.12) counts as closed. Guards push doors open as they walk through (`Doors.pushOpen`) and never close
+  them; only players close doors. A door is bashed open at a sprint.
+- A hold can make noise per object (`Interactable.holdNoise`, pulses every 0.5 s; no current map sets one; the cast-iron
+  manhole constant `MANHOLE_LIFT_NOISE_RADIUS` is 10 m). A heard noise only pushes a guard past suspicious (0.3) within
+  about 44% of its radius (`noiseSuspicion`): a 10 m noise alarms a guard within about 4.4 m and makes farther ones turn.
+- Health comes back only at wall medkit stations (`MapDef.medkitWalls`: hold 0.6 s, +40, single use); there are no
+  carried medkits and no medkit crates. Health does not regenerate.
+- The camera is the shoulder camera; corridor widths, bend lengths and the 1.5 m crouch height in 16.7.3 and the scale
+  sheet were measured on it.
 - Tuning tables never change for a map; change the geometry.
+
+### 12.2 Decided, not built yet (the CT prototype and later jobs change these)
+- Speeds and silent bands (G40, loco M25 (6)): CT speeds (standing about 0.2 / 0.75 / 2.0 / 3.0 / 4.2 m/s, crouched about
+  0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s; no sprint); the two slowest standing and the three slowest crouched speeds are silent.
+- Camera (G28, G29, G38): the exploring camera sits about 1.8 m behind, head at screen centre, the same height for every
+  operator. Corridor widths, crawl heights and aisles are re-measured right after the camera part of the prototype and
+  the scale sheet is updated before new floor plans (G54).
+- Doors (G41, G97): light, sound and sight pass past about 15% open (one threshold); guards close doors behind them on a
+  calm patrol and notice any door open that should be shut; a CT door menu (open, stealth open, bash, optic cable), bash
+  can knock out a guard behind the door; running into a door does nothing special.
+- Guards see poorly above them (G44).
+- Glass (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never sees through
+  glass.
+- Strike (G42): the palm strike knocks out any human guard from any side in one hit; dogs cannot be palm-struck; heavies
+  follow the CT co-op research (G49).
+- Crawl spaces are crouch-walked; automatic crawl only in real duct ends inside plant shafts (G56).
+- Co-op reach (G57): one co-op ledge band 4.3-4.5 m serves the boost and the human ladder (the ladder reaches 4.5 m).
+  Two-player boosts work only at marked spots (G81).
+- Medkit stations are placed in every map (G98).
+- Two players only (G2, G50): the campaign cannot be completed solo.
+- No prone crawl and no rope climb (G110).
+
+### 12.3 Map decisions that relied on facts this merge changed
+- Retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted with their tests; their decisions
+  went with them: Dead Line's `navLayers` 5 and the `MAX_ALIVE` raise from 10 to 12 (the 12 stays), the Trunk Annex's
+  timed master-clock patrol loops (`loopSchedule`, deleted). Their files are in `docs/archive/maps/`.
+- Carried medkits and medkit crates are deleted (G98): the Warehouse and the Fallow bunker have no healing until
+  stations are placed (only Proving Grounds has one; the bunker's `medkit` mount points are geometry only).
+- Only the CT kit's two guns remain (G76): no map placed guns, so no map decision changes; the bunker's and Kestrel's
+  loud-route notes that assumed other guns are re-checked with their jobs.
+- The phone is gone (G12): readability (5.4) and perf (15) are judged on desktop.
+- Kestrel's maps are paused (G53): its facts sheet (`docs/kestrel/00-facts.md`), time budget and sensor rules rely on
+  the old speeds, silent gears and camera; they are refreshed after the CT co-op research and the prototype.
+- The Fallow bunker: its drills and every jump and reach are re-checked when it is rebuilt after the prototype (G79).
 
 ## 13. Required design deliverables (templates)
 Phase 1 and 2 of every map produce these in `docs/prompts/<map>-design.md` and `docs/prompts/<map>-plans/*.svg`.
@@ -195,7 +250,7 @@ least three tools.
 sense, a dead end, a space without toys, an element that fails "why is it here", an unfair detection) and the fix for
 each.
 
-**Playtest checklist** (for Michael's phone sessions and the e2e):
+**Playtest checklist** (for Michael's playtest sessions and the e2e):
 - Can a first-time player read every patrol from the vantage within one cycle?
 - Is any route strictly best?
 - Is there a detection the player cannot escape?
@@ -216,7 +271,7 @@ Every new map follows these phases, stopping for Michael after each:
 5. **Dressing, readability and verification**.
 
 ## 15. Acceptance tests every map has
-- Every planned traversal element engages from its planned approach (pad; split, pipe, fence, wall jump also by touch).
+- Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
 - The split gaps on the map are exactly the planned ones.
 - The nav path from insertion to extract passes the spaces in order; no path skips a space.
@@ -227,11 +282,11 @@ Every new map follows these phases, stopping for Michael after each:
 - Every guard is alive at the start; a ghost run succeeds with every bonus; a body left on a route is found.
 - Co-op: each co-op route works for host and client; each co-op lip is out of solo reach (unit test); a player downed on
   each co-op surface is revived.
-- Perf budgets from `CLAUDE.md` on desktop and the mobile presets.
+- Perf budgets from `docs/systems/performance.md` on desktop.
 
 ## 16. Level logic rules
 
-Adopted by Michael on 2026-10-10 (Dead Line v2 D0 approval), written after the Dead Line D1 playtest. They bind every map from Dead Line v2 onwards. Rule ids are 16.N.M; references to other sections of this standard are plain section numbers.
+Adopted by Michael on 2026-10-10, written after the playtest of a since-retired map (its files are in `docs/archive/maps/`). They bind every new map. Rule ids are 16.N.M; references to other sections of this standard are plain section numbers.
 
 ### 16.0 Rule zero
 
@@ -286,7 +341,7 @@ Architecture first, gameplay second. Design the place as its architect drew it f
 
 16.7.1 An underground or duct route exists only as a real system: cable tunnel, pipe subway, storm drain, cable trench, builder's-work air duct, basement link. Its row in the brief states what it carries, who owns it, its size, its access points and where it ends and why.
 16.7.2 **Walk-in tunnels:** at least 2.1 m clear (2.4 m preferred). Guards can walk them (nav headroom 1.7 m), so the brief says why they do or do not.
-16.7.3 **Crouch ducts and trenches:** 1.5 m clear height, 1.2 m wide (scale sheet; the camera reasons are in `docs/design/dead-line-v2-engine-check.md`). Guards cannot enter. The player crouches and walks; no auto-crawl anchors unless Michael approves one.
+16.7.3 **Crouch ducts and trenches:** 1.5 m clear height, 1.2 m wide (scale sheet; the camera reasons, measured on the old camera, are in `docs/archive/maps/design/dead-line-v2-engine-check.md`). Guards cannot enter. The player crouches and walks; no auto-crawl anchors unless Michael approves one.
 16.7.4 Duct and tunnel ends are real: inspection doors, shafts with plant ladders, pit stairs, trench steps. Never a grille that pops into a room as a shortcut. Supply grilles are real sizes and are look-through only.
 16.7.5 Ducts are built inside walls, slabs or ceiling voids. A free-standing duct box under 1.8 m is an accidental mantle; one over 1.9 m becomes a hangable lip (Section 12). Neither is allowed unless planned.
 
@@ -323,3 +378,23 @@ Before any map leaves D0 or D1, answer each with "none" or a list of fixes:
 12. Any dead end that only works with an invented side entrance? (16.6.3)
 13. Does every element have a register row with a real reason? (16.9)
 14. Would an architect of that era recognise every room, and could a visitor guess where the stairs are? (16.1, 16.6.4)
+
+## Open items: rules that conflict with docs/DECISIONS.md
+The standard changes only with Michael's approval, so these rules stand as written until he decides (2026-10-18).
+1. Section 11 "Solo first", 11.2 "Solo invariance", 11.4 "anyone can leave alone" and the solo ghost run in 15 assume a
+   level complete in solo; the campaign is two players and cannot be completed solo (G2, G50, G111), and campaign maps
+   follow the CT co-op level research (G3, G117).
+2. 3.6 "Guards do not look up": the engine has no vertical sight limit today (12.1); the decision is "guards see poorly
+   above them" (G44), a limit, not blindness.
+3. 11.5 "Unplanned boost targets": two-player boosts work only at marked spots (G81), so an unmarked lip cannot be a
+   boost target once that is built.
+4. 11.3 builds co-op lips at 4.3-4.5 m from the boost reach; the human ladder reaches 4.1 m in code until G57 (4.5 m)
+   is built.
+5. Section 13 puts design docs in `docs/prompts/<map>-design.md`; the decision is one folder per map under one maps
+   folder (G55).
+6. Section 14 phases ("stopping for Michael after each") predate "prototype, then orchestrator" for every multi-step
+   job (G87).
+7. Section 13 "Coverage table" takes the verb list "from `CLAUDE.md`", which no longer lists verbs; the verbs are in
+   `docs/systems/input-and-loop.md` and the CT research.
+8. Room sizes from the scale sheet (16.1.2) and the crouch-duct height (16.7.3) were measured on the old camera; they are
+   re-measured after the prototype's camera part (G54).

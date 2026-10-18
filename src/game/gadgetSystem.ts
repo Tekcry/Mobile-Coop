@@ -1,10 +1,9 @@
-import { Color4, PhysicsRaycastResult, TransformNode, Vector3, type InstancedMesh, type PhysicsEngine } from '../core/babylon';
-import { voxeliseParts } from '../voxel/voxelGroup';
+import { Color4, PhysicsRaycastResult, Vector3, type InstancedMesh, type PhysicsEngine } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
-import { G, MASK } from '../physics/groups';
+import { G } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
-import { DRONE, droneStep, GADGET_IDS, GADGETS, wheelSlot, type DroneState, type GadgetId } from './gadgets';
+import { GADGET_IDS, GADGETS, wheelSlot, type GadgetId } from './gadgets';
 import type { HitInfo } from './damage';
 import type { GameState } from './gameState';
 
@@ -68,25 +67,13 @@ interface Mine {
   mesh: InstancedMesh;
   led: InstancedMesh;
 }
-interface Drone {
-  s: DroneState;
-  pitch: number;
-  hp: number;
-  dartCd: number;
-  node: TransformNode;
-  parts: InstancedMesh[];
-  rotors: InstancedMesh[];
-  spin: number;
-  seenT: number;
-}
 
 /**
  * Gadgets at run time (phase 5): the wheel (hold to open: time slows, the stick / mouse picks a slot, release
- * selects; touch opens it with the gadget button and taps a slot), the gadget button (held: the predicted arc;
+ * selects; an unlocked mouse may click a slot), the gadget button (held: the predicted arc;
  * released: thrown), and what each does once out - sleeping gas clouds (knock-outs), flashbangs (blind, then
  * alert; white-out for the player when facing it), EMP (lights out for a while), noisemakers (lure pulses), sticky
- * cams and the tri-rotor drone (remote views with the camera feed look: lure ping / gas / marking from a cam,
- * stun darts and a shock burst from the drone), proximity mines.
+ * cams (a remote view with the camera feed look: lure ping / gas / marking from a cam), proximity mines.
  */
 export class GadgetSystem {
   /** Wheel open (input goes to it; time slows in single player) and the highlighted slot. */
@@ -96,17 +83,16 @@ export class GadgetSystem {
   private cursorY = 0;
   /** The gadget button is held (aiming the arc). */
   aiming = false;
-  /** Remote view (a sticky cam or the drone) - the operator stands still meanwhile. */
-  remote: 'cam' | 'drone' | null = null;
+  /** Remote view (a sticky cam) - the operator stands still meanwhile. */
+  remote: 'cam' | null = null;
   private camIdx = 0;
   readonly clouds: Cloud[] = [];
   readonly fliers: Flier[] = [];
   readonly cams: Cam[] = [];
   readonly noisers: Noiser[] = [];
   readonly mines: Mine[] = [];
-  drone: Drone | null = null;
   /** Counts (stats / tests). */
-  readonly stats = { thrown: 0, gassed: 0, blinded: 0, empLights: 0, darts: 0, shocked: 0, mineKills: 0, pulses: 0, pings: 0 };
+  readonly stats = { thrown: 0, gassed: 0, blinded: 0, empLights: 0, mineKills: 0, pulses: 0, pings: 0 };
   private arcDots: InstancedMesh[] = [];
   private arcRing: InstancedMesh | null = null;
   private arcPts = new Float32Array(ARC_STEPS * 3);
@@ -119,7 +105,6 @@ export class GadgetSystem {
   private from = new Vector3();
   private vel = new Vector3();
   private dir = new Vector3();
-  private seeT = 0;
   private puffColor = new Color4(0.62, 0.86, 0.7, 1);
   private flashColor = new Color4(1, 1, 0.92, 1);
 
@@ -173,39 +158,35 @@ export class GadgetSystem {
       this.remoteStep(dt, inp);
       return true;
     }
-    // keyboard 1-8: straight to a gadget
+    // keyboard 1-7: straight to a gadget
     if (inp.gadgetPick >= 0) {
       const id = GADGET_IDS[inp.gadgetPick];
       inp.gadgetPick = -1;
       if (id) this.select(id);
     }
-    // the wheel: pad / keyboard hold it open (release selects); touch toggles it (a tap on a slot selects)
-    const touch = g.app.input.mode === 'touch';
+    // the wheel: pad / keyboard hold it open (release selects)
     if (this.wheelOpen) {
-      if (!touch) {
-        const mx = inp.move.x;
-        const my = inp.move.y;
-        if (hyp2(mx, my) > 0.5) {
-          this.cursorX = mx;
-          this.cursorY = my;
-        }
-        this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
-        if (!inp.down('gadgetWheel')) this.closeWheel(true);
-      } else if (inp.pressed('gadgetWheel')) this.closeWheel(false);
+      const mx = inp.move.x;
+      const my = inp.move.y;
+      if (hyp2(mx, my) > 0.5) {
+        this.cursorX = mx;
+        this.cursorY = my;
+      }
+      this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
+      if (!inp.down('gadgetWheel')) this.closeWheel(true);
       return this.wheelOpen;
     }
-    if (touch ? inp.pressed('gadgetWheel') : inp.down('gadgetWheel') && inp.heldTime('gadgetWheel') >= WHEEL_HOLD) {
+    if (inp.down('gadgetWheel') && inp.heldTime('gadgetWheel') >= WHEEL_HOLD) {
       this.openWheel();
       return true;
     }
-    // the gadget button: held shows the arc, release throws; placed / flown ones go on the press
+    // the gadget button: held shows the arc, release throws; placed ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
-    const busy = g.takedown.active !== null || g.execute.running !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
+    const busy = g.takedown.active !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
     if (inp.pressed('grenade') && !busy) {
-      if (sel === 'drone' && this.drone) this.enterRemote('drone');
-      else if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
-      else if (use === 'place' || use === 'fly') g.weapons.useGadget();
+      if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
+      else if (use === 'place') g.weapons.useGadget();
       else this.aiming = true;
     }
     if (this.aiming && (busy || !inp.down('grenade'))) {
@@ -234,9 +215,6 @@ export class GadgetSystem {
       if (!c) return;
       c.yaw = c.baseYaw + clampAng(angDiff(c.yaw + dx, c.baseYaw), CAM_CONE);
       c.pitch = Math.max(c.basePitch - 1.1, Math.min(c.basePitch + 1.1, c.pitch + dy));
-    } else if (this.remote === 'drone' && this.drone) {
-      this.drone.s.yaw += dx;
-      this.drone.pitch = Math.max(-1.3, Math.min(1.1, this.drone.pitch + dy));
     }
   }
 
@@ -298,47 +276,6 @@ export class GadgetSystem {
       g.events.emit('gadget', { kind: id, phase: 'place' });
       return;
     }
-    if (id === 'drone') {
-      this.launchDrone();
-      this.enterRemote('drone');
-    }
-  }
-
-  private launchDrone(): void {
-    const g = this.g;
-    const p = g.player.position;
-    const parts = g.world.parts;
-    const node = new TransformNode('drone', g.scene);
-    const body = parts.instance('pill', '#2b3138', 'drone');
-    body.parent = node;
-    body.scaling.set(0.16, 0.07, 0.16);
-    const eye = parts.instance('sphere', GADGETS.drone.color, 'drone-eye');
-    eye.parent = node;
-    eye.scaling.setAll(0.045);
-    eye.position.set(0, -0.02, 0.08);
-    const ps = [body, eye];
-    const rotors: InstancedMesh[] = [];
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2;
-      const arm = parts.instance('capsule', '#3a4048', 'drone-arm');
-      arm.parent = node;
-      arm.scaling.set(0.025, 0.14, 0.025);
-      arm.position.set(Math.sin(a) * 0.1, 0.01, Math.cos(a) * 0.1);
-      arm.rotation.set(Math.PI / 2, a, 0);
-      const r = parts.instance('torus', '#9aa3ad', 'drone-rotor');
-      r.parent = node;
-      r.scaling.set(0.11, 0.02, 0.11);
-      r.position.set(Math.sin(a) * 0.19, 0.04, Math.cos(a) * 0.19);
-      ps.push(arm, r);
-      rotors.push(r);
-    }
-    // voxels (3.0): body, eye and arms (the rotors spin, so they stay parts)
-    voxeliseParts(g.scene, node, ps, 'drone');
-    const yaw = g.player.cam.yaw;
-    const s: DroneState = { x: p.x + Math.sin(yaw) * 0.6, y: p.y + 1.7, z: p.z + Math.cos(yaw) * 0.6, yaw, ox: p.x, oz: p.z, battery: DRONE.battery };
-    node.position.set(s.x, s.y, s.z);
-    this.drone = { s, pitch: -0.15, hp: DRONE.hp, dartCd: 0, node, parts: ps, rotors, spin: 0, seenT: 0 };
-    g.events.emit('gadget', { kind: 'drone', phase: 'place' });
   }
 
   /** Co-op: a gadget of ours went off (gas, flash, EMP) or stuck (noisemaker) here: the net layer sends it on. */
@@ -412,8 +349,6 @@ export class GadgetSystem {
     if (n) g.enemyMgr?.lightsOut(at.x, at.z);
     // enemy recon drones in range drop
     g.enemyMgr?.empAt(at.x, at.y, at.z, d.radius);
-    // electronics: the operator's own drone / cams in range go dark too
-    if (this.drone && hyp3(this.drone.s.x - at.x, this.drone.s.y - at.y, this.drone.s.z - at.z) < d.radius) this.destroyDrone();
     // enemies close by are dazed for a moment (their kit sparks)
     for (const e of g.enemyMgr?.enemies ?? []) {
       if (!e.alive || e.taken) continue;
@@ -519,49 +454,6 @@ export class GadgetSystem {
         break;
       }
     }
-    // the drone: battery, rotors, enemies seeing it
-    const dr = this.drone;
-    if (dr) {
-      dr.dartCd = Math.max(0, dr.dartCd - dt);
-      if (this.remote !== 'drone' && !droneStep(dr.s, dt, 0, 0, 0, -1e9)) {
-        this.destroyDrone();
-      } else {
-        this.seeT -= dt;
-        if (this.seeT <= 0) {
-          this.seeT = 0.25;
-          this.droneSeen(0.25);
-        }
-      }
-    }
-  }
-
-  /** Enemies notice a drone in view (a calm one looks over); alerted ones shoot it down. */
-  private droneSeen(dt: number): void {
-    const dr = this.drone;
-    const g = this.g;
-    if (!dr) return;
-    const s = dr.s;
-    for (const e of g.enemyMgr?.enemies ?? []) {
-      if (!e.alive || e.taken || e.blindT > 0) continue;
-      const dx = s.x - e.pos.x;
-      const dz = s.z - e.pos.z;
-      const d = hyp2(dx, dz);
-      if (d > 14) continue;
-      const fwd = (Math.sin(e.yaw) * dx + Math.cos(e.yaw) * dz) / Math.max(0.01, d);
-      if (fwd < 0.3 && d > 2.5) continue;
-      if (!this.clearLine(e.pos.x, e.pos.y + 1.55, e.pos.z, s.x, s.y, s.z)) continue;
-      if (e.alerted) {
-        dr.hp -= 14 * dt * 4;
-        this.a.set(e.pos.x, e.pos.y + 1.4, e.pos.z);
-        this.b.set(s.x, s.y, s.z);
-        g.vfx.tracer(this.a, this.b, '#ffd27a');
-        g.vfx.sparks(this.b, this.hitN.set(0, 1, 0), 3);
-        if (dr.hp <= 0) {
-          this.destroyDrone();
-          return;
-        }
-      } else e.notice(s.x, s.z, 0.35);
-    }
   }
 
   // ---- remote views ----
@@ -584,14 +476,13 @@ export class GadgetSystem {
     this.enterRemote('cam', this.cams.length - 1);
   }
 
-  enterRemote(kind: 'cam' | 'drone', idx = 0): void {
-    if (kind === 'cam' && !this.cams[idx]) return;
-    if (kind === 'drone' && !this.drone) return;
+  enterRemote(kind: 'cam', idx = 0): void {
+    if (!this.cams[idx]) return;
     this.remote = kind;
     this.camIdx = idx;
     this.aiming = false;
     this.g.post.setFeed(1);
-    this.g.events.emit('gadget', { kind: kind === 'cam' ? 'stickyCam' : 'drone', phase: 'view' });
+    this.g.events.emit('gadget', { kind: 'stickyCam', phase: 'view' });
   }
 
   exitRemote(): void {
@@ -631,68 +522,7 @@ export class GadgetSystem {
         this.gasCloud(c.p.x, c.p.y, c.p.z, GADGETS.stickyCam.radius, 5);
         g.events.emit('gadget', { kind: 'gas', phase: 'detonate' });
       }
-      if (inp.pressed('mark')) this.markFrom(c.p, c.yaw, c.pitch);
-      return;
     }
-    const dr = this.drone;
-    if (!dr) {
-      this.exitRemote();
-      return;
-    }
-    const s = dr.s;
-    // fly where it looks (the stick's forward climbs / dives with the view)
-    const my = inp.move.y;
-    const up = my * Math.sin(dr.pitch) * (DRONE.speed / DRONE.climb);
-    const px = s.x;
-    const py = s.y;
-    const pz = s.z;
-    // the floor under it
-    this.a.set(s.x, s.y, s.z);
-    this.b.set(s.x, s.y - 12, s.z);
-    const floorY = this.cast(this.a, this.b) ? this.hitP.y : s.y - 12;
-    if (!droneStep(s, dt, inp.move.x, my * Math.cos(dr.pitch), Math.max(-1, Math.min(1, up)), floorY)) {
-      this.destroyDrone();
-      return;
-    }
-    // walls / ceilings stop it
-    this.a.set(px, py, pz);
-    this.b.set(s.x, s.y, s.z);
-    if (this.cast(this.a, this.b)) {
-      s.x = this.hitP.x + this.hitN.x * 0.25;
-      s.y = this.hitP.y + this.hitN.y * 0.25;
-      s.z = this.hitP.z + this.hitN.z * 0.25;
-    }
-    // fire: a stun dart (knocks out an enemy in reach)
-    if (inp.pressed('fire') && dr.dartCd <= 0) {
-      dr.dartCd = DRONE.dartCooldown;
-      this.viewDir(s.yaw, dr.pitch, this.dir);
-      this.a.set(s.x, s.y - 0.05, s.z);
-      this.b.copyFrom(this.dir).scaleInPlace(DRONE.dartRange).addInPlace(this.a);
-      const h = g.ballistics.ray(this.a, this.b, MASK.PLAYER_SHOT);
-      g.vfx.tracer(this.a, h.point, '#7fe0ff', 0.012);
-      const e = h.target && h.target.team === 'enemy' ? this.enemyById(h.target.id) : null;
-      if (e && e.alive) {
-        e.knockOut(this.hit(e, 'bullet'));
-        this.stats.darts++;
-      }
-      g.events.emit('gadget', { kind: 'drone', phase: 'dart' });
-    }
-    // Y: shock burst (non-lethal knock-out round it), the drone is spent
-    if (inp.pressed('interact')) {
-      for (const e of g.enemyMgr?.enemies ?? []) {
-        if (!e.alive || e.taken) continue;
-        if (hyp3(e.pos.x - s.x, e.pos.y + 1.2 - s.y, e.pos.z - s.z) > GADGETS.drone.radius) continue;
-        if (!this.clearLine(s.x, s.y, s.z, e.pos.x, e.pos.y + 1.2, e.pos.z)) continue;
-        e.knockOut(this.hit(e, 'explosion'));
-        this.stats.shocked++;
-      }
-      g.vfx.sparks(this.a.set(s.x, s.y, s.z), this.hitN.set(0, 1, 0), 24, '#7fe0ff');
-      g.enemyMgr?.hear(this.a, 6);
-      g.events.emit('gadget', { kind: 'drone', phase: 'detonate' });
-      this.destroyDrone();
-      return;
-    }
-    if (inp.pressed('mark')) this.markFrom(this.a.set(s.x, s.y, s.z), s.yaw, dr.pitch);
   }
 
   private viewDir(yaw: number, pitch: number, out: Vector3): Vector3 {
@@ -700,35 +530,8 @@ export class GadgetSystem {
     return out.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
   }
 
-  /** Mark the enemy under the feed's crosshair. */
-  private markFrom(p: Vector3, yaw: number, pitch: number): void {
-    const g = this.g;
-    this.viewDir(yaw, pitch, this.dir);
-    this.from.copyFrom(p).addInPlace(this.dir.scale(0.15));
-    this.b.copyFrom(this.dir).scaleInPlace(60).addInPlace(this.from);
-    const h = g.ballistics.ray(this.from, this.b, MASK.PLAYER_SHOT);
-    const t = h.target;
-    if (t && t.team === 'enemy' && t.alive && g.marks.toggle(t.id)) g.events.emit('mark', { on: g.marks.has(t.id) });
-  }
-
-  private enemyById(id: string): Enemy | null {
-    for (const e of this.g.enemyMgr?.enemies ?? []) if (e.id === id) return e;
-    return null;
-  }
-
   private hit(e: Enemy, kind: HitInfo['kind']): HitInfo {
     return { amount: 9999, point: e.pos.clone(), dir: new Vector3(0, 0, 1), part: 'body', kind, attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 0.5 };
-  }
-
-  destroyDrone(): void {
-    const dr = this.drone;
-    if (!dr) return;
-    if (this.remote === 'drone') this.exitRemote();
-    this.g.vfx.sparks(dr.node.position, this.hitN.set(0, 1, 0), 10, '#9aa3ad');
-    for (const m of dr.parts) m.dispose();
-    dr.node.dispose();
-    this.drone = null;
-    this.g.events.emit('gadget', { kind: 'drone', phase: 'destroyed' });
   }
 
   private removeCam(i: number): void {
@@ -752,47 +555,21 @@ export class GadgetSystem {
   }
 
   /** Remote feed overlay text: what it is and its controls for the input mode (null: no remote view). */
-  feedText(mode: 'touch' | 'gamepad' | 'kbm'): string | null {
+  feedText(mode: 'gamepad' | 'kbm'): string | null {
     if (!this.remote) return null;
     const pad = mode === 'gamepad';
-    const kb = mode === 'kbm';
-    if (this.remote === 'cam') {
-      const c = this.cams[this.camIdx];
-      const n = `CAM ${this.camIdx + 1}/${this.cams.length}`;
-      const gas = c && !c.gas ? (pad ? '  Y gas' : kb ? '  E gas' : '  Gas') : '';
-      const next = this.cams.length > 1 ? (pad ? '  X next' : kb ? '  R next' : '') : '';
-      return pad ? `${n}  RT lure${gas}  RB mark${next}  B back` : kb ? `${n}  LMB lure${gas}  T mark${next}  C back` : `${n}  Fire lure${gas ? '  Action gas' : ''}  Crouch back`;
-    }
-    const d = this.drone;
-    const bat = d ? `${Math.ceil(d.s.battery)} s` : '';
-    return pad ? `DRONE ${bat}  RT dart  Y shock  RB mark  B back` : kb ? `DRONE ${bat}  LMB dart  E shock  T mark  C back` : `DRONE ${bat}  Fire dart  Action shock  Crouch back`;
-  }
-
-  private actGas = { action: 'interact' as const, label: 'Gas', icon: 'gas' };
-  private actShock = { action: 'interact' as const, label: 'Shock', icon: 'drone' };
-
-  /** Touch action button in a remote view (gas from a cam, the drone's shock). */
-  touchAction(): { action: 'interact'; label: string; icon: string } | null {
-    if (this.remote === 'drone') return this.actShock;
-    if (this.remote === 'cam') {
-      const c = this.cams[this.camIdx];
-      return c && !c.gas ? this.actGas : null;
-    }
-    return null;
+    const c = this.cams[this.camIdx];
+    const n = `CAM ${this.camIdx + 1}/${this.cams.length}`;
+    const gas = c && !c.gas ? (pad ? '  Y gas' : '  E gas') : '';
+    const next = this.cams.length > 1 ? (pad ? '  X next' : '  R next') : '';
+    return pad ? `${n}  RT lure${gas}${next}  B back` : `${n}  LMB lure${gas}${next}  C back`;
   }
 
   // ---- render frame ----
 
-  /** After the player's camera update: the remote view takes the camera; the arc preview; drone pose. */
-  frameUpdate(dt: number): void {
+  /** After the player's camera update: the remote view takes the camera; the arc preview. */
+  frameUpdate(_dt: number): void {
     const g = this.g;
-    const dr = this.drone;
-    if (dr) {
-      dr.spin += dt * 40;
-      for (let i = 0; i < dr.rotors.length; i++) dr.rotors[i]!.rotation.y = dr.spin + i;
-      dr.node.position.set(dr.s.x, dr.s.y + Math.sin(dr.spin * 0.05) * 0.02, dr.s.z);
-      dr.node.rotation.y = dr.s.yaw;
-    }
     const camera = g.player.cam.camera;
     if (this.remote === 'cam') {
       const c = this.cams[this.camIdx];
@@ -802,12 +579,6 @@ export class GadgetSystem {
         camera.rotation.set(-c.pitch, c.yaw, 0);
         camera.fov = g.player.cam.vfov(g.app.input.state.down('ads') ? 40 : 95);
       }
-    } else if (this.remote === 'drone' && dr) {
-      camera.position.set(dr.s.x, dr.s.y - 0.06, dr.s.z);
-      this.viewDir(dr.s.yaw, dr.pitch, this.dir);
-      camera.position.addInPlace(this.dir.scale(0.12));
-      camera.rotation.set(-dr.pitch, dr.s.yaw, 0);
-      camera.fov = g.player.cam.vfov(85);
     }
     this.drawArc();
   }
@@ -899,10 +670,9 @@ export class GadgetSystem {
     this.aiming = false;
   }
 
-  /** Remove every gadget out in the world (clouds, cams, mines, the drone...). */
+  /** Remove every gadget out in the world (clouds, cams, mines...). */
   clearWorld(): void {
     this.reset();
-    this.destroyDrone();
     while (this.cams.length) this.removeCam(0);
     while (this.mines.length) this.removeMine(0);
     for (const n of this.noisers) n.mesh.dispose();

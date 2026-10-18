@@ -1,11 +1,16 @@
 import type { ButtonAction } from './actions';
-import { detectPadStyle, mapPad, TapHold, type PadStyle } from './gamepadMapping';
+import { detectPadStyle, GAME_BINDINGS, mapPad, PAD, TapHold, type PadStyle } from './gamepadMapping';
+import { PAD_BUTTON_COUNT, padBindTable, type PadBinds } from './padBinds';
 import { WHEEL_HOLD, type InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
+/** (locomotion step 18) Holding B this long (s) while a button is being captured cancels the capture. */
+export const CAPTURE_CANCEL_HOLD = 1;
 /** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
 export const SWAP_HOLD = 0.35;
+/** X held this long (s) counts as a hold (aiming: the next weapon, A55; not aiming: free, the carried medkit is gone, G98). */
+export const X_HOLD = 0.4;
 const SRC = 'pad';
 const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
 /** Radians per second at sensitivity 1, full deflection. */
@@ -27,8 +32,8 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold swap; D-pad left: tap ping / hold the gadget wheel; View: tap goggles / hold an emote. */
-  private xBtn = new TapHold(SWAP_HOLD);
+  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
+  private xBtn = new TapHold(X_HOLD);
   private leftBtn = new TapHold(WHEEL_HOLD);
   private viewBtn = new TapHold(SWAP_HOLD);
   private activeIndex = -1;
@@ -39,6 +44,16 @@ export class GamepadSource {
   private lookX = 0;
   private lookY = 0;
   private heldT = 0;
+  /** (step 18) The active bindings and their flat table (rebuilt when `settings.pad` changes, never per frame). */
+  private bindsRef: PadBinds | null = null;
+  private table: ReadonlyArray<readonly [number, ButtonAction]> = GAME_BINDINGS;
+  /** (step 18) "Press a button": armed once every button is up; binds on the release of the next one. */
+  private capture: ((btn: number | null) => void) | null = null;
+  private capArmed = false;
+  private capBtn = -1;
+  private capAt = 0;
+  /** After a capture: the pad is ignored until every button is up (the press never reaches the menus). */
+  private capQuiet = false;
   style: PadStyle = 'xbox';
   /** Multiplier applied to look rate while aiming down sights. */
   adsActive = false;
@@ -110,14 +125,23 @@ export class GamepadSource {
     const pad = pads[this.activeIndex];
     if (!pad || !pad.connected) return;
 
-    const s = this.getSettings().gamepad;
-    const frame = mapPad({ buttons: pad.buttons.map((b) => b.value || (b.pressed ? 1 : 0)), axes: pad.axes }, s);
+    const all = this.getSettings();
+    const s = all.gamepad;
+    if (all.pad !== this.bindsRef) {
+      this.bindsRef = all.pad;
+      this.table = padBindTable(all.pad);
+    }
+    if (this.capture || this.capQuiet) {
+      this.pollCapture(pad, now);
+      return;
+    }
+    const frame = mapPad({ buttons: pad.buttons.map((b) => b.value || (b.pressed ? 1 : 0)), axes: pad.axes }, s, this.table);
 
     if (frame.active) this.events.onActive();
 
     for (const a of [
       'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
-      'shoulderSwap', 'dash', 'mark', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt',
     ] as const) {
       this.state.set(SRC, a, frame.buttons[a] === true);
@@ -125,16 +149,16 @@ export class GamepadSource {
     for (const d of NAV_DIRS) {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
-    // X: tap = reload (on release), hold = swap to the next weapon (once per hold)
+    // X: tap = reload (on release); hold while aiming = the next weapon (A55); a hold not aiming does nothing (G98)
     const x = this.xBtn.update(frame.buttons.reload === true, now);
-    if (x === 'hold') this.state.tap('swapNext');
+    if (x === 'hold') {
+      if (this.adsActive) this.state.tap('swapNext');
+    }
     else if (x === 'tap') this.state.tap('reload');
     // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
     if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
-    // View: tap = goggles (on release), hold = the first emote
-    const view = this.viewBtn.update(frame.buttons.vision === true, now);
-    if (view === 'tap') this.state.tap('vision');
-    else if (view === 'hold') this.state.tap('quick2');
+    // View: tap = goggles (on release); a hold is free (emotes deleted, G24)
+    if (this.viewBtn.update(frame.buttons.vision === true, now) === 'tap') this.state.tap('vision');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);
@@ -150,6 +174,57 @@ export class GamepadSource {
       this.lookY * BASE_PITCH_RATE * s.lookSensitivityY * ads * dt,
     );
     this.state.fireAnalog = frame.fireAnalog;
+  }
+
+  /** (step 18) Capture the next button (its index, on release); null = cancelled (B held `CAPTURE_CANCEL_HOLD` s,
+   *  or `cancelCapture`: Esc, the 5 s timeout). */
+  captureNext(cb: (btn: number | null) => void): void {
+    this.capture = cb;
+    this.capArmed = false;
+    this.capBtn = -1;
+  }
+
+  get capturing(): boolean {
+    return this.capture !== null;
+  }
+
+  cancelCapture(): void {
+    if (this.capture) this.finishCapture(null);
+  }
+
+  private finishCapture(btn: number | null): void {
+    const cb = this.capture;
+    this.capture = null;
+    this.capQuiet = true;
+    this.state.releaseSource(SRC);
+    cb?.(btn);
+  }
+
+  private pollCapture(pad: Gamepad, now: number): void {
+    this.state.releaseSource(SRC);
+    const down = (i: number): boolean => {
+      const b = pad.buttons[i];
+      return !!b && (b.pressed || b.value > 0.5);
+    };
+    let any = -1;
+    for (let i = 0; i < PAD_BUTTON_COUNT && any < 0; i++) if (down(i)) any = i;
+    if (!this.capture) {
+      if (any < 0) this.capQuiet = false;
+      return;
+    }
+    if (!this.capArmed) {
+      if (any < 0) this.capArmed = true;
+      return;
+    }
+    if (this.capBtn < 0) {
+      if (any >= 0) {
+        this.capBtn = any;
+        this.capAt = now;
+      }
+      return;
+    }
+    if (!down(this.capBtn)) this.finishCapture(this.capBtn);
+    else if (this.capBtn === PAD.B && now - this.capAt >= CAPTURE_CANCEL_HOLD) this.finishCapture(null);
   }
 
   rumble(strong: number, weak: number, ms: number): void {

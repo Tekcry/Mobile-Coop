@@ -31,14 +31,16 @@ describe('voxel fit and parity (3.0)', () => {
       expect(JSON.stringify([b.boxes, b.cylinders]), map.id).toBe(snapshot);
       expect(JSON.stringify(buildCoverSegments(b.boxes, b.cylinders)), map.id).toBe(coverBefore);
       expect(JSON.stringify(generateLedges(b.boxes).ledges.map((l) => [l.a, l.b, l.top, l.canHang])), map.id).toBe(ledgesBefore);
-      expect(lv.shapes.length, map.id).toBeGreaterThan(50);
+      // (seclab, the Kestrel security debug room, is six boxes; courselab is a short debug strip)
+      expect(lv.shapes.length, map.id).toBeGreaterThan(map.id === 'seclab' || map.id === 'courselab' ? 5 : 50);
       expect(lv.palette.length).toBeLessThanOrEqual(256);
       // the grids hug what they hold (a loose paint volume must not blow the brick indirection up)
       for (const l of [lv, lv.fine].filter((x) => !!x)) {
         const span = l!.dims.map((d) => d * l!.size);
-        expect(span[1], `${map.id} ${l!.size} height`).toBeLessThan(20);
-        // (Dead Line v2 is one 232 x 90 m lane: its footprint is the design JSON's, so its bound is the footprint plus 15 %)
-        expect(span[0]! * span[2]!, `${map.id} ${l!.size} area`).toBeLessThan(map.id === 'dead-line-v2' ? 232 * 90 * 1.15 : 110 * 110);
+        // (the bunker stacks its storeys in one hill: the B3 shaft alone is 24 m, A31; T9a revisits its voxel grid)
+        expect(span[1], `${map.id} ${l!.size} height`).toBeLessThan(map.id === 'bunker' ? 40 : 20);
+        // (the bunker: a fixed limit 166 x 162 m since T5g restored the BAYS v2 Deep offsets (A74 undone); T9a sizes it)
+        expect(span[0]! * span[2]!, `${map.id} ${l!.size} area`).toBeLessThan(map.id === 'bunker' ? 166 * 162 : 110 * 110);
       }
 
       const packed = packShapes(lv.shapes);
@@ -130,7 +132,7 @@ describe('voxel fit and parity (3.0)', () => {
         for (const [u, w] of [[0, 0], [0.3, 0.3], [-0.3, 0.2]] as const) check('floor', p.c[0] + u * p.s[0], top, p.c[2] + w * p.s[2], 0, 1, 0);
       });
       expect(bad, `${map.id}: ${checks} checks`).toEqual([]);
-      expect(checks, map.id).toBeGreaterThan(300);
+      expect(checks, map.id).toBeGreaterThan(map.id === 'seclab' || map.id === 'courselab' ? 50 : 300);
     }
   });
 });

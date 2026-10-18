@@ -5,7 +5,7 @@ import type { Ballistics } from '../weapons/ballistics';
 import type { Vfx } from '../vfx/vfx';
 import type { NavGrid } from './navGrid';
 import { Enemy, type AiContext, type PlayerRef } from './enemy';
-import { ENEMIES, type Difficulty, type EnemyKind } from './enemyDefs';
+import { ENEMIES, type EnemyKind } from './enemyDefs';
 import { BUDGET, G } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
@@ -15,7 +15,7 @@ import { BODY } from './bodies';
 import type { LightDef } from '../world/lights';
 import { nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
-import { ARCHETYPE, DIFFICULTY } from './archetypes';
+import { ARCHETYPE, type DifficultyDef } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
 import { MUFFLE } from '../config/noise';
@@ -100,7 +100,8 @@ export class EnemyManager {
     private registry: DamageRegistry,
     private ballistics: Ballistics,
     private vfx: Vfx,
-    public difficulty: Difficulty,
+    /** (locomotion step 19) The match's resolved difficulty (preset or custom; the host's in co-op). */
+    readonly diff: DifficultyDef,
     private players: () => readonly PlayerRef[],
   ) {
     this.world = world;
@@ -117,7 +118,7 @@ export class EnemyManager {
       registry,
       ballistics,
       vfx,
-      difficulty,
+      diff,
       players,
       flow: () => this.flowField,
       enemies: () => this.enemies,
@@ -166,7 +167,7 @@ export class EnemyManager {
         for (const o of this.enemies) {
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * DIFFICULTY[this.difficulty].reaction * (o.buff ? ARCHETYPE.officer.reaction : 1));
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * this.diff.reaction * (o.buff ? ARCHETYPE.officer.reaction : 1));
         }
       },
       shout: (e) => {
@@ -633,7 +634,7 @@ export class EnemyManager {
 
   private updateDrones(dt: number): void {
     const players = this.players();
-    const perc = DIFFICULTY[this.difficulty].perception;
+    const perc = this.diff.perception;
     for (let i = this.drones.length - 1; i >= 0; i--) {
       const d = this.drones[i]!;
       const floor = this.nav.heightAt(d.pos.x, d.pos.z);

@@ -1,4 +1,4 @@
-// 3.5 parked content: with ?legacy off (the default) the Play screen lists Infiltration, Training and Free Roam, the
+// 3.5 parked content: with ?legacy off (the default) the Play screen lists Infiltration and Free Roam, the
 // co-op lobby Infiltration and Free Roam, the Loadout screen weapons / attachments / gadget / presets only (every weapon
 // and attachment selectable, nothing bought, saved or unlocked), the menu says Night Shift and shows no level or
 // credits; with ?legacy=1 everything is as before 3.5.
@@ -7,7 +7,7 @@ import { launch, openPage, frames, assert } from './e2e-lib.mjs';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = false;
-const { browser, ctx, page, errors } = await launch({ url, params: 'net=local', touch: false });
+const { browser, ctx, page, errors } = await launch({ url, params: 'net=local' });
 const G = (f, a) => page.evaluate(f, a);
 
 /** The labels of the Play screen's Mode choice, by stepping it round once. */
@@ -42,7 +42,7 @@ try {
   await menuClick(page, 'Play');
   await page.waitForSelector('.play-screen');
   const modes = await playModes(page);
-  assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration', 'Training']), `the Play screen lists Infiltration, Training and Free Roam (${modes})`);
+  assert(JSON.stringify([...modes].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the Play screen lists Infiltration and Free Roam (${modes})`);
   assert((await G(() => window.__app.screens.top.mode)) === 'infiltration' || modes[0] === 'Infiltration', 'the default mode is Infiltration');
   await G(() => window.__app.screens.pop());
 
@@ -51,48 +51,40 @@ try {
   await page.waitForSelector('.loadout-screen .lo-row');
   await frames(page, 3);
   const labels = await rowLabels(page);
-  assert(JSON.stringify(labels) === JSON.stringify(['Loadout', 'Primary', 'Secondary', 'Gadget']), `the Loadout root: loadout presets, primary, secondary, gadget (${labels})`);
+  assert(JSON.stringify(labels) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the Loadout root: loadout presets, primary, sidearm, gadget (${labels})`);
   const top = await G(() => ({ brand: document.querySelector('.net-brand')?.textContent, wallet: document.querySelector('.wallet')?.textContent ?? '', ticker: document.querySelector('.net-ticker')?.textContent ?? '' }));
   assert(top.brand === 'NIGHT SHIFT' && !top.wallet && !top.ticker, `no level, credits or challenge ticker (${JSON.stringify(top)})`);
   const before = await G(() => { const s = window.__app.save.get(); return { unlocks: [...s.unlocks], credits: s.profile.credits, xp: s.profile.xp }; });
   await openLoadoutPage(page, 'weaponsPage', 'primary');
   await frames(page, 3);
   const wp = await G(() => ({ rows: document.querySelectorAll('.lo-list .lo-row').length, locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, buy: document.querySelectorAll('.lo-list .lo-row.m-buyable').length, price: document.querySelectorAll('.lo-list .lo-val.price').length }));
-  assert(wp.rows >= 10 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
-  // equip a weapon the profile does not own: the sniper
-  // (a row tapped within 350 ms of gaining focus only previews: on a fast renderer the page is that young, so wait it out, then tap twice)
-  const tapM700 = () => G(() => [...document.querySelectorAll('.lo-list .lo-row')].find((r) => /M700/.test(r.textContent)).click());
-  await page.waitForTimeout(450);
-  await tapM700();
-  await page.waitForTimeout(450);
-  await tapM700();
-  // (until the save has it: a fixed frame count only passed because software GL frames are seconds long)
-  await page.waitForFunction(() => window.__app.save.get().loadout.primary === 'sniper', null, { timeout: 10000 }).catch(() => {});
-  const eq = await G(() => { const s = window.__app.save.get(); return { primary: s.loadout.primary, unlocks: [...s.unlocks], credits: s.profile.credits, xp: s.profile.xp }; });
-  assert(eq.primary === 'sniper', `the locked sniper equips (${eq.primary})`);
-  assert(JSON.stringify(eq.unlocks) === JSON.stringify(before.unlocks) && eq.credits === before.credits && eq.xp === before.xp, 'nothing was unlocked, bought or paid for in the save');
-  await openLoadoutPage(page, 'customizePage', 'sniper');
+  const wpNames = await G(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
+  assert(JSON.stringify(wpNames) === JSON.stringify(['Heron Carbine']), `the CT kit rifle only, G76 (${wpNames})`);
+  assert(wp.rows === 1 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
+  // (G115: both CT kit guns are issued, so there is no locked gun left to equip; the locked choice is an attachment)
+  await openLoadoutPage(page, 'customizePage', 'rifle');
   await frames(page, 3);
   const cp = await G(() => ({ labels: [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent), groups: [...document.querySelectorAll('.lo-list .lo-group')].map((e) => e.textContent), locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, price: document.querySelectorAll('.lo-list .lo-val.price').length, sub: document.querySelector('.lo-sub')?.textContent }));
   assert(cp.labels.length > 0 && cp.locked === 0 && cp.price === 0 && !cp.groups.some((g) => /UPGRADES|CAMO/.test(g)) && !/UPGRADES/.test(cp.sub), `attachments only: no upgrades, camo, locks or prices (${JSON.stringify(cp)})`);
-  // (same 350 ms rule as the sniper above: wait it out, tap, wait, tap)
+  // (a row tapped within 350 ms of gaining focus only previews: wait it out, tap, wait, tap)
   const tapFirst = () => G(() => { const row = [...document.querySelectorAll('.lo-list .lo-row')][0]; row.click(); return row.querySelector('.lo-label').textContent; });
   // (a tap on an unfocused row only previews, a focused one acts - and a second tap would toggle it off again: tap until it is on)
-  const attsOn = () => G(() => window.__app.save.get().weapons.sniper.attachments.length);
+  const attsOn = () => G(() => window.__app.save.get().weapons.rifle.attachments.length);
   let att = '';
   for (let i = 0; i < 3 && (await attsOn()) === 0; i++) {
     await page.waitForTimeout(450);
     att = await tapFirst();
   }
   await frames(page, 4);
-  const sa = await G(() => ({ atts: window.__app.save.get().weapons.sniper.attachments, unlocks: window.__app.save.get().unlocks.length }));
+  const sa = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments, unlocks: window.__app.save.get().unlocks.length, credits: window.__app.save.get().profile.credits, xp: window.__app.save.get().profile.xp }));
   assert(sa.atts.length === 1 && sa.unlocks === before.unlocks.length, `an attachment equips without an unlock (${att}: ${sa.atts})`);
+  assert(sa.credits === before.credits && sa.xp === before.xp, 'nothing was bought or paid for in the save');
   // it persists (the sanitiser keeps the campaign's choice)
   await G(() => window.__app.save.flush());
   await page.reload();
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
-  const kept = await G(() => ({ primary: window.__app.save.get().loadout.primary, unlocks: window.__app.save.get().unlocks.length }));
-  assert(kept.primary === 'sniper' && kept.unlocks === before.unlocks.length, `the choice survives a reload (${kept.primary})`);
+  const kept = await G(() => ({ atts: window.__app.save.get().weapons.rifle.attachments.length, unlocks: window.__app.save.get().unlocks.length }));
+  assert(kept.atts === 1 && kept.unlocks === before.unlocks.length, `the choice survives a reload (${kept.atts})`);
 
   // co-op lobby
   await menuClick(page, 'Co-op');
@@ -124,9 +116,9 @@ try {
     o.data.profile.name = 'Imported';
     await window.__app.save.importText(JSON.stringify(o));
     const s = window.__app.save.get();
-    return { name: s.profile.name, primary: s.loadout.primary };
+    return { name: s.profile.name, atts: s.weapons.rifle.attachments.length };
   }, ex);
-  assert(imp.name === 'Imported' && imp.primary === 'sniper', `importing an exported file restores it (${JSON.stringify(imp)})`);
+  assert(imp.name === 'Imported' && imp.atts === 1, `importing an exported file restores it (${JSON.stringify(imp)})`);
 
   console.log('legacy on (?legacy=1)');
   const L = (await openPage(ctx, url, 'legacy=1')).page;
@@ -137,18 +129,19 @@ try {
   await menuClick(L, 'Play');
   await L.waitForSelector('.play-screen');
   const lmodes = await playModes(L);
-  assert(lmodes.length === 6 && ['Wave Survival', 'Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Wave, Mission and Hunter are back (${lmodes})`);
-  assert(lmodes[0] === 'Wave Survival', 'the default mode is Wave Survival again');
+  assert(lmodes.length === 4 && ['Mission', 'Hunter'].every((m) => lmodes.includes(m)), `Mission and Hunter are back (${lmodes})`);
+  assert(lmodes[0] === 'Hunter', 'the default mode is Hunter');
   await GL(() => window.__app.screens.pop());
   await menuClick(L, 'Loadout');
   await L.waitForSelector('.loadout-screen .lo-row');
   await frames(L, 3);
   const llabels = await rowLabels(L);
-  assert(['Suit', 'Appearance', 'Tag & emotes', 'HQ upgrades', 'Challenges'].every((x) => llabels.includes(x)), `the Loadout economy is back (${llabels})`);
-  await openLoadoutPage(L, 'weaponsPage', 'primary');
+  assert(['Suit', 'Appearance', 'Tag', 'HQ upgrades', 'Challenges'].every((x) => llabels.includes(x)), `the Loadout economy is back (${llabels})`);
+  // (G115: both CT kit guns are starter guns, so the locks show on the attachments)
+  await openLoadoutPage(L, 'customizePage', 'rifle');
   await frames(L, 3);
   const lw = await GL(() => document.querySelectorAll('.lo-list .lo-row.m-locked, .lo-list .lo-row.m-buyable').length);
-  assert(lw > 0, `locked / buyable weapons show again (${lw})`);
+  assert(lw > 0, `locked / buyable attachments show again (${lw})`);
   await L.close();
 } catch (e) {
   failed = true;

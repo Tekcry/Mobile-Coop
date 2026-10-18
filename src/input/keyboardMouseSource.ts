@@ -103,6 +103,20 @@ export class KeyboardMouseSource {
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', false);
       if (e.button === 2) this.state.set(SRC + 'm', 'ads', false);
     });
+    // (step 09) a second button pressed or released while another is held fires no pointerdown / pointerup
+    // (chorded buttons arrive as a pointermove with `button` set): RMB held to aim, then LMB to fire
+    window.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' || e.button < 0 || !this.locked) return;
+      const bit = e.button === 0 ? 1 : e.button === 1 ? 4 : e.button === 2 ? 2 : 1 << e.button;
+      const down = (e.buttons & bit) !== 0;
+      const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
+      if (extra) {
+        this.syncBinds();
+        for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, down);
+      }
+      if (e.button === 0) this.state.set(SRC + 'm', 'fire', down);
+      if (e.button === 2) this.state.set(SRC + 'm', 'ads', down);
+    });
     window.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
       const s = this.getSettings().mouse;
@@ -185,6 +199,11 @@ export class KeyboardMouseSource {
     return this.capture !== null;
   }
 
+  /** (locomotion step 18) Give up a capture (the controls screen's 5 s timeout). */
+  cancelCapture(): void {
+    if (this.capture) this.finishCapture(null);
+  }
+
   private finishCapture(code: string | null): void {
     const cb = this.capture;
     this.capture = null;
@@ -230,10 +249,10 @@ export class KeyboardMouseSource {
     }
     this.syncBinds();
     for (const a of this.map.get(e.code) ?? []) this.state.set(SRC, a, down);
-    // 1-8 pick a gadget (wheel order)
+    // 1-7 pick a gadget (wheel order)
     if (down && e.code.startsWith('Digit')) {
       const n = Number(e.code.slice(5));
-      if (n >= 1 && n <= 8) this.state.gadgetPick = n - 1;
+      if (n >= 1 && n <= 7) this.state.gadgetPick = n - 1;
     }
     const m = this.moveCodes;
     const alt = this.moveAlt;

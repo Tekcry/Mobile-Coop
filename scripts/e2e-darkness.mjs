@@ -1,14 +1,13 @@
 // 3.6 Phase 1 Step 4b: darkness is dark (bible 1.10 L5 / L7). On the Warehouse, a matte 50% grey card is placed at
 // points whose static gameplay level is about 0.12, 0.27, 0.40 and 0.70, facing the strongest light there, with the
 // camera 0.8 m in front of it; the final pixels (after tone mapping, grade and post) are read back as display luminance
-// (Rec. 709 luma, 0..1) and checked against the targets - on the phone light look and at Epic, night vision off and on.
+// (Rec. 709 luma, 0..1) and checked against the targets - at Epic, night vision off and on.
 // Gameplay is untouched: the card's level is the light field's, which this step does not change.
 import { launch, frames, assert, GPU } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const LOOKS = [
-  { name: 'phone', params: 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user&autostart=warehouse&mode=clear' },
-  { name: 'epic', params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop' },
+  { name: 'epic', params: 'autostart=warehouse&mode=clear&gfx=epic' },
 ].filter((l) => !process.env.LOOK || process.env.LOOK === l.name);
 // (bible L5; `darkCurve.ts` DARK_TARGETS / VISION_TARGETS)
 const TARGETS = [
@@ -143,12 +142,12 @@ async function readLuma(page) {
 
 for (const look of LOOKS) {
   try {
-    const { browser, page, errors } = await launch({ url, params: look.params, touch: false, viewport: { width: 640, height: 360 } });
+    const { browser, page, errors } = await launch({ url, params: look.params, viewport: { width: 640, height: 360 } });
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 240000 });
     await frames(page, 20);
     const info = await page.evaluate(() => {
       const w = window.__app.current.world;
-      return { lamps: !!w.lamps, std: !!w.lamps?.standardLook, dark: w.lamps?.dark };
+      return { lamps: !!w.lamps, dark: w.lamps?.dark };
     });
     assert(info.lamps, `${look.name}: the baked lamps (and the darkness curve) are on (${JSON.stringify(info)})`);
     const probes = await findProbes(page);
@@ -156,11 +155,8 @@ for (const look of LOOKS) {
       const g = window.__app.current;
       g.photoFreeze(true);
       document.body.classList.add('photo-mode');
-      // (report only: the look before Step 4b - no curve, the old phone floor)
-      if (off && g.world.lamps) {
-        g.world.lamps.dark = { centre: 0.33, steep: 8, floor: 1, top: 1 };
-        if (g.world.lamps.standardLook) g.post.setDarkFloor(0.045);
-      }
+      // (report only: the look before Step 4b - no curve)
+      if (off && g.world.lamps) g.world.lamps.dark = { centre: 0.33, steep: 8, floor: 1, top: 1 };
       g.player.rig.setEnabled(false);
       for (const e of g.enemyMgr?.enemies ?? []) e.bodyRig?.setEnabled(false);
     }, !!process.env.DARK_OFF);

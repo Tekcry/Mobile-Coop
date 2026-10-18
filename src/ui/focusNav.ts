@@ -1,5 +1,4 @@
 import { pickSpatial, pickWrap, type Dir, type Rect } from './spatial';
-import { viewRect } from '../core/viewRotation';
 
 export const FOCUS_SELECTOR = '[data-focus]';
 
@@ -19,7 +18,7 @@ export class FocusNav {
   private current: HTMLElement | null = null;
 
   constructor() {
-    // Touch/mouse selects too, so returning to the controller continues from where you tapped.
+    // Mouse selects too, so returning to the controller continues from where you tapped.
     window.addEventListener(
       'pointerdown',
       (e) => {
@@ -111,6 +110,6 @@ export class FocusNav {
 }
 
 function rectOf(el: HTMLElement): Rect {
-  const r = viewRect(el);
+  const r = el.getBoundingClientRect();
   return { x: r.left, y: r.top, w: r.width, h: r.height };
 }

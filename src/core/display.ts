@@ -27,6 +27,15 @@ export function hfovDeg(vRad: number, aspect: number): number {
 }
 
 /**
+ * Menu / HUD scale: the layout is computed for a 1280 x 720 reference window and scaled up to fill bigger ones (1080p
+ * 1.5x, 1440p 2x, 4K 3x), so a big screen is never a small UI in one corner.
+ */
+export function uiScale(width: number, height: number): number {
+  const k = Math.min(width / 1280, height / 720);
+  return Math.round(Math.min(3, Math.max(1, k)) * 100) / 100;
+}
+
+/**
  * Pixels to keep the HUD panels in from each side: '16:9' / '21:9' centre them in a region of that aspect (on a
  * wider screen), 'full' uses the whole width, 'auto' = 16:9 on anything wider than 21:9 (3440 x 1440 is 2.39; 32:9
  * monitors), else full.

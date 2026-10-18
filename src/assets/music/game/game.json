@@ -1,0 +1,55 @@
+{
+ "pad": 0.5,
+ "kbps": 128,
+ "tracks": {
+  "alert": {
+   "file": "music-alert.mp3",
+   "headSec": 7.2727272727272725,
+   "loop": 72.72727272727273,
+   "bpm": 132,
+   "bars": 40,
+   "loudness": -16.9,
+   "bytes": 1306462,
+   "head": "music-alert-head.mp3"
+  },
+  "spotted": {
+   "file": "music-spotted.mp3",
+   "headSec": 0,
+   "loop": 1.8181818181818181,
+   "bpm": 132,
+   "bars": 1,
+   "loudness": -21.9,
+   "bytes": 86447
+  },
+  "caution": {
+   "file": "music-caution.mp3",
+   "headSec": 10.909090909090908,
+   "loop": 87.27272727272727,
+   "bpm": 88,
+   "bars": 32,
+   "loudness": -23,
+   "bytes": 1597150,
+   "head": "music-caution-head.mp3"
+  },
+  "menu": {
+   "file": "music-menu.mp3",
+   "headSec": 10.666666666666666,
+   "loop": 170.66666666666666,
+   "bpm": 90,
+   "bars": 64,
+   "loudness": -21.2,
+   "bytes": 2927710,
+   "head": "music-menu-head.mp3"
+  },
+  "evade": {
+   "file": "music-evade.mp3",
+   "headSec": 7.2727272727272725,
+   "loop": 72.72727272727273,
+   "bpm": 132,
+   "bars": 40,
+   "loudness": -22.3,
+   "bytes": 1306462,
+   "head": "music-evade-head.mp3"
+  }
+ }
+}

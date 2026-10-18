@@ -24,7 +24,6 @@ export interface CarryInput {
   /** Walls close on both sides (corridor, doorway). */
   tight: boolean;
   doorway: boolean;
-  coverEdge: boolean;
   dashing: boolean;
   reloading: boolean;
   traversing: boolean;
@@ -55,7 +54,6 @@ export function emptyCarryInput(): CarryInput {
     nearWall: false,
     tight: false,
     doorway: false,
-    coverEdge: false,
     dashing: false,
     reloading: false,
     traversing: false,
@@ -66,7 +64,7 @@ export function emptyCarryInput(): CarryInput {
 
 /** Which ready position the context calls for (when not raised). */
 export function pickReady(i: CarryInput): ReadyPos {
-  if (i.reloading || i.nearWall || i.doorway || i.coverEdge) return 'compressed';
+  if (i.reloading || i.nearWall || i.doorway) return 'compressed';
   if (i.traversing || i.tight) return 'high';
   return 'low';
 }

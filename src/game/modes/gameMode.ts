@@ -1,3 +1,4 @@
+import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
@@ -6,7 +7,7 @@ import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 
 /** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`. */
-export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training';
+export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course';
 
 export interface SessionStats {
   mode: ModeId;
@@ -16,7 +17,6 @@ export interface SessionStats {
   kills: number;
   headshots: number;
   byKind: Record<EnemyKind, number>;
-  waves: number;
   objectives: number;
   time: number;
   shots: number;
@@ -24,21 +24,18 @@ export interface SessionStats {
   damageTaken: number;
   /** Kills per weapon (mastery). */
   weaponKills: Record<string, number>;
-  /** Play-style points (Ghost / Panther / Assault) and detections. */
-  style: { ghost: number; panther: number; assault: number };
   detections: number;
   knockouts: number;
   /** Infiltration: the mission, its rating (0-3) and the bonus rules kept. */
   missionId?: string;
   rating?: number;
   bonuses?: string[];
-  /** Challenge inputs: takedowns by kind, executes, gadget knock-outs / kills, alarms raised. */
+  /** Challenge inputs: takedowns by kind, gadget knock-outs / kills, alarms raised. */
   takedownsByKind?: Record<string, number>;
-  executes?: number;
   gadgetKos?: number;
   alarms?: number;
-  /** PvP: deaths (eliminations are `kills`). */
-  deaths?: number;
+  /** Training course: the results panel (T1c). */
+  course?: CourseSummary;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
@@ -50,14 +47,12 @@ export function emptyStats(mode: ModeId, mapId: string): SessionStats {
     kills: 0,
     headshots: 0,
     byKind: emptyKinds(),
-    waves: 0,
     objectives: 0,
     time: 0,
     shots: 0,
     hits: 0,
     damageTaken: 0,
     weaponKills: {},
-    style: { ghost: 0, panther: 0, assault: 0 },
     detections: 0,
     knockouts: 0,
   };
@@ -77,6 +72,20 @@ export interface GameMode {
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */
   onInteract?(it: Interactable): void;
+  /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
+  onRemoteVerb?(id: string, verb: string): void;
+  /** The local player sent a ping (course drills). */
+  onLocalPing?(): void;
+  /** Co-op host: a client's movement mode (from its `pstate`). */
+  onRemoteMove?(id: string, mode: string): void;
+  /** Co-op host: a team move started between `a` and `b` (player ids; undefined = the host). */
+  onTeamMove?(a: string | undefined, b: string | undefined): void;
+  /** Co-op host: a client's `use` of an item is running (`active` true before its `onUse`, false after). */
+  onRemoteUse?(id: string, active: boolean): void;
+  /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
+  onRemoteTakedown?(id: string, kind: string): void;
+  /** Co-op host: a client's thrown gadget took effect (host-checked). */
+  onRemoteGadget?(id: string, kind: string): void;
   blips(): Blip[];
   dispose(): void;
 }

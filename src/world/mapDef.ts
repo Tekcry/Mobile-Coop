@@ -4,6 +4,8 @@ import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
+import type { SecurityData } from '../security/data';
+import type { CourseLayout } from '../game/course/courseDef';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -47,7 +49,9 @@ export interface MapLayout {
   /** Mission objective sites (terminals, caches, extraction). */
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
   /** Supply crates (ammo / health pickups). */
-  pickups: { pos: Vector3; kind: 'ammo' | 'health' }[];
+  pickups: { pos: Vector3; kind: 'ammo' }[];
+  /** Wall medkit stations (G20 / G98; test maps so far): hold to heal, single use. `yaw` faces the room. */
+  medkitWalls?: { pos: Vector3; yaw: number }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
@@ -58,8 +62,17 @@ export interface MapLayout {
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
+  /**
+   * Extra nav flood seeds (feet points): parts of the level joined to the spawn only by routes the nav grid does not
+   * model (ropes, locked doors, one-way drops) are kept walkable. None: the spawn's region alone.
+   */
+  navSeeds?: Vector3[];
   /** Debug-menu teleport points (greybox maps): grouped, labelled, with the feet position and facing. */
   debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
+  /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */
+  security?: SecurityData;
+  /** Training course (course mode): the definition and its ids on this level. */
+  course?: CourseLayout;
 }
 
 export interface MapDef {
@@ -68,7 +81,7 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training')[];
+  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course')[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
   art?: VoxelArt;
@@ -76,4 +89,10 @@ export interface MapDef {
   weathers?: readonly WeatherChoice[];
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
   navLayers?: number;
+  /**
+   * ON0b: false turns the detail pass off (no generated skirting, conduits, junction boxes, vents, signs or floor
+   * clutter at any tier, and none in the light-bake shapes, so light parity holds): everything on a wall is placed on
+   * purpose. Default true.
+   */
+  detail?: boolean;
 }

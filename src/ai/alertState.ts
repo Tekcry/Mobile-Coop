@@ -161,3 +161,8 @@ export class AlertMachine {
     return this.changes !== before;
   }
 }
+
+/** (locomotion step 19) The radio call-in delay: `ALERT.callIn` x the difficulty's alarm tolerance (`DifficultyDef.reaction`). */
+export function callInDelay(tolerance: number): number {
+  return ALERT.callIn * tolerance;
+}

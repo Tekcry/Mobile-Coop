@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { approachPoint, GRAB, GRAB_KINDS, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
-import { EXECUTE, executeStep, MARK, MarkSet } from '../src/game/marks';
 
 const base = (o: Partial<TakedownInput> = {}): TakedownInput => ({ state: 'ground', ax: 0, ay: 0, az: 0, vx: 0, vy: 0, vz: 1.2, vyaw: 0, vCalm: true, los: true, ...o });
 
@@ -23,9 +22,9 @@ describe('takedown kinds', () => {
     expect(Math.abs(p.faceYaw)).toBeLessThan(1e-6);
   });
   it('over low cover: only a victim across it', () => {
-    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
     // same side as the attacker (beyond reach for a ground takedown)
-    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: 1, vz: 1.85 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: 1, vz: 1.85 }))).toBeNull();
   });
   it('from above: a drop onto someone below, from a ledge / pipe / zipline too', () => {
     expect(pickTakedown(base({ ay: 3, vz: 1.5 }))?.kind).toBe('above');
@@ -52,44 +51,6 @@ describe('takedown kinds', () => {
   it('tap is non-lethal, hold is lethal', () => {
     expect(lethalFromHold(0.1)).toBe(false);
     expect(lethalFromHold(TAKEDOWN.lethalHold)).toBe(true);
-  });
-});
-
-describe('mark & execute', () => {
-  it('marks toggle up to the max; the upgrade allows one more', () => {
-    const m = new MarkSet();
-    for (const id of ['a', 'b', 'c']) expect(m.toggle(id)).toBe(true);
-    expect(m.toggle('d')).toBe(false);
-    expect(m.toggle('b')).toBe(true);
-    expect(m.ids).toEqual(['a', 'c']);
-    const u = new MarkSet(MARK.maxUpgraded);
-    for (const id of ['a', 'b', 'c', 'd']) expect(u.toggle(id)).toBe(true);
-  });
-  it('ready only with a charge and every mark clear; consuming spends the charge', () => {
-    const m = new MarkSet();
-    m.toggle('a');
-    m.toggle('b');
-    expect(m.ready(() => true)).toBe(false);
-    m.earn();
-    m.earn();
-    expect(m.charges).toBe(1);
-    expect(m.ready((id) => id !== 'b')).toBe(false);
-    expect(m.ready(() => true)).toBe(true);
-    expect(m.consume()).toEqual(['a', 'b']);
-    expect(m.charges).toBe(0);
-    expect(m.ids.length).toBe(0);
-  });
-  it('prunes dead marks', () => {
-    const m = new MarkSet();
-    m.toggle('a');
-    m.toggle('b');
-    m.prune((id) => id === 'b');
-    expect(m.ids).toEqual(['b']);
-  });
-  it('the sequence visits each target in order, then ends', () => {
-    expect(executeStep(3, 0).index).toBe(0);
-    expect(executeStep(3, EXECUTE.perTarget * 1.5).index).toBe(1);
-    expect(executeStep(3, EXECUTE.perTarget * 3 + 0.01).index).toBe(-1);
   });
 });
 
@@ -127,5 +88,22 @@ describe('Chaos Theory takedowns (3.2.0 phase 4)', () => {
     expect(GRAB.spreadMul).toBeCloseTo(1.2);
     expect(GRAB.shoveStagger).toBeCloseTo(1.0);
     expect(GRAB.hesitate).toBeCloseTo(1.5);
+  });
+});
+
+describe('back-to-wall takedowns (step 12)', () => {
+  // on a wall whose face (normal +z) is 0.35 m behind the attacker; its outside end at x = 0.2, past it is +x
+  const wall = (o: Partial<TakedownInput>): TakedownInput => base({ state: 'wall', coverNx: 0, coverNz: 1, edgeX: 0.2, edgeZ: -0.35, edgeTx: 1, edgeTz: 0, ...o });
+  it('a guard round the edge gives the corner takedown', () => {
+    expect(pickTakedown(wall({ vx: 1.0, vz: -0.6, vyaw: 0 }))?.kind).toBe('corner');
+    expect(pickTakedown(wall({ vx: 1.0, vz: -0.6, vyaw: Math.PI }))?.kind).toBe('corner');
+  });
+  it('a guard in front of the face is an ordinary takedown; one behind the wall is out of reach', () => {
+    expect(pickTakedown(wall({ vx: -0.3, vz: 1.2, vyaw: 0 }))?.kind).toBe('behind');
+    expect(pickTakedown(wall({ vx: -0.5, vz: -1.0, vyaw: 0 }))).toBeNull();
+    expect(pickTakedown(wall({ vx: -0.5, vz: -1.0, vyaw: 0, edgeTx: undefined }))).toBeNull();
+  });
+  it('a low wall (crouched) maps to over-cover', () => {
+    expect(pickTakedown(base({ state: 'wallLow', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
   });
 });

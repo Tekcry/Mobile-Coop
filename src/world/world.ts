@@ -24,6 +24,7 @@ import {
 } from '../core/babylon';
 import { enablePhysics } from '../physics/havok';
 import { LevelBuilder, type BuiltLevel } from './levelBuilder';
+import { dressingOn } from './detailPass';
 import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
@@ -53,11 +54,6 @@ export interface WorldOptions {
   seed: number;
   /** `?gfx=min` (tests): the 2.x standard materials (no PBR, no surface textures) - cheap under software GL. */
   cheap?: boolean;
-  /** 3.3 phones: the baked lamps mixed into one light volume (`BakedLamps` volume mode). */
-  lampVolume?: boolean;
-  /** 3.6 the phone light look: the lamps from the light volume on the standard materials, the ambient grid as the
-   *  fill and the baked moon - the same field gameplay reads - instead of six plain lights. */
-  phoneLamps?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -222,7 +218,7 @@ export class World {
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map), voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
     if (vo && level.voxels) {
@@ -240,18 +236,13 @@ export class World {
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
     const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
-    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off); 3.6: and on
-    // the phone light look (standard materials, the volume)
-    const phone = !!opts.phoneLamps;
-    if (bake.lamps && flags.baked && (phone || (vo && level.voxels && !opts.cheap))) {
-      // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      // 3.6: the baked moon and closed doors (desktop's voxels keep the sky bake's fill: Michael, 2026-10-09); the
-      // phone has no sky bake: its fill is the ambient grid, at the lamps' scale. Step 4b: the darkness curve reads
-      // the grid everywhere, and it fills desktop's non-voxel surfaces (characters, props) in place of the hemisphere,
-      // which lit them as if under open sky indoors.
+    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
+    if (bake.lamps && flags.baked && vo && level.voxels && !opts.cheap) {
+      // 3.6: the baked moon and closed doors (the voxels keep the sky bake's fill: Michael, 2026-10-09). Step 4b: the
+      // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props) in
+      // place of the hemisphere, which lit them as if under open sky indoors.
       const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume || phone ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill, standard: phone, moonLight: bake.moonLight });
-      if (phone) w.hemi.intensity = 0;
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
@@ -263,7 +254,7 @@ export class World {
 
   /**
    * Tests (3.6 Step 4b, the brightness probes): a matte 50% grey card (display grey) at a point, its face towards
-   * (nx, ny, nz), in the material the look lights (standard on the phone look and the cheap path, PBR on desktop) -
+   * (nx, ny, nz), in the material the look lights (standard on the cheap path, else PBR) -
    * the lamp plugin attaches to it as to any surface. Not a shadow caster; gameplay never sees it.
    */
   addLightProbe(x: number, y: number, z: number, nx: number, ny: number, nz: number, size = 0.3): Mesh {
@@ -272,7 +263,7 @@ export class World {
     // (a plane's front faces -z: look along -n)
     m.lookAt(new Vector3(x - nx, y - ny, z - nz));
     m.isPickable = false;
-    if (this.lamps?.standardLook || !this.surfaces) {
+    if (!this.surfaces) {
       const mat = new StandardMaterial('lightProbe', this.scene);
       mat.diffuseColor = new Color3(0.5, 0.5, 0.5);
       mat.specularColor = Color3.Black();
@@ -490,7 +481,7 @@ export class World {
     const shadowKey = JSON.stringify(q.shadow);
     const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
-    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, plain: q.lite }, rebuildShadows);
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, micro: !!this.voxels?.micro }, rebuildShadows);
     if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
@@ -511,8 +502,8 @@ export class World {
 
   /**
    * Frozen materials re-read their whole setup (lights, shadow maps, the post stack's image processing) for two frames,
-   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: on the iPhone a rebuilt stack
-   * left every frame ~4x slower until this ran).
+   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: a rebuilt stack left every
+   * frame ~4x slower until this ran).
    */
   refreshMaterials(): void {
     const frozen: Material[] = [];

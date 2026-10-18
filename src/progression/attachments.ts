@@ -15,14 +15,14 @@ export interface AttachmentDef {
 
 export const ATTACHMENTS: AttachmentDef[] = [
   { id: 'reddot', name: 'Red Dot', slot: 'optic', desc: 'Tighter ADS spread', mods: { spreadAds: 0.8 }, weapons: [] },
-  { id: 'scope4x', name: '4x Scope', slot: 'optic', desc: 'Stronger zoom, steadier aim', mods: { adsZoom: 0.7, spreadAds: 0.7 }, weapons: ['rifle', 'sniper'] },
-  { id: 'suppressor', name: 'Suppressor', slot: 'barrel', desc: 'Enemies hear you less, -5% damage', mods: { noise: 0.45, damage: 0.95 }, weapons: [] },
-  { id: 'comp', name: 'Compensator', slot: 'barrel', desc: '-15% recoil', mods: { recoil: 0.85 }, weapons: ['smg', 'rifle', 'pistol'] },
-  { id: 'grip', name: 'Vertical Grip', slot: 'underbarrel', desc: '-12% recoil, tighter hip fire', mods: { recoil: 0.88, spreadHip: 0.9 }, weapons: ['smg', 'rifle', 'shotgun'] },
+  { id: 'scope4x', name: '4x Scope', slot: 'optic', desc: 'Stronger zoom, steadier aim', mods: { adsZoom: 0.7, spreadAds: 0.7 }, weapons: ['rifle'] },
+  // bible 5.6: both CT kit guns take the suppressor (G76)
+  { id: 'suppressor', name: 'Suppressor', slot: 'barrel', desc: 'Enemies hear you less, -5% damage', mods: { noise: 0.45, damage: 0.95 }, weapons: ['rifle', 'pistolSd'] },
+  { id: 'comp', name: 'Compensator', slot: 'barrel', desc: '-15% recoil', mods: { recoil: 0.85 }, weapons: ['rifle'] },
+  { id: 'grip', name: 'Vertical Grip', slot: 'underbarrel', desc: '-12% recoil, tighter hip fire', mods: { recoil: 0.88, spreadHip: 0.9 }, weapons: ['rifle'] },
   { id: 'laser', name: 'Laser Sight', slot: 'underbarrel', desc: '-20% hip fire spread', mods: { spreadHip: 0.8 }, weapons: [] },
   { id: 'extmag', name: 'Extended Mag', slot: 'magazine', desc: '+25% magazine, slower reload', mods: { magSize: 1.25, reload: 1.1 }, weapons: [] },
   { id: 'fastmag', name: 'Fast Mag', slot: 'magazine', desc: '-20% reload time', mods: { reload: 0.8 }, weapons: [] },
-  { id: 'lethalBolts', name: 'Lethal Bolts', slot: 'magazine', desc: 'Broadheads: bolts kill instead of knocking out', mods: {}, weapons: ['crossbow'] },
 ];
 
 const CYL: [number, number, number] = [1.5708, 0, 0];
@@ -30,7 +30,7 @@ const CYL: [number, number, number] = [1.5708, 0, 0];
 /**
  * The weapon as built with its attachments (pure): the parts the attachments add or change (optic, suppressor or
  * compensator on the muzzle - the muzzle moves out -, vertical grip / laser under the front, a longer or doubled
- * magazine, red broadhead bolts). Carry placement and clipping checks use these extents too.
+ * magazine). Carry placement and clipping checks use these extents too.
  */
 export function withAttachments(def: WeaponDef, ids: readonly string[]): WeaponDef {
   const att = sanitizeAttachments(def.id, ids);
@@ -87,9 +87,6 @@ export function withAttachments(def: WeaponDef, ids: readonly string[]): WeaponD
         if (mag) model.push({ ...mag, size: [...mag.size] as [number, number, number], pos: [mag.pos[0] + mag.size[0] + 0.004, mag.pos[1] - 0.01, mag.pos[2]], role: 'mag2' });
         break;
       }
-      case 'lethalBolts':
-        if (barrel) barrel.color = '#b03030';
-        break;
     }
   }
   return { ...def, model, muzzle };

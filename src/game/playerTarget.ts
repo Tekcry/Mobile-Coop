@@ -25,13 +25,13 @@ interface Volume {
 export const PLAYER_PART_MULT = { head: 1.3, torso: 1, legs: 0.75 };
 
 /**
- * Makes the local player damageable: health/shield + split kinematic hit volumes (legs, torso, head)
+ * Makes the local player damageable: health + split kinematic hit volumes (legs, torso, head)
  * that follow the pose. Crouching lowers them; leaning moves the torso and head out past the edge, so
  * exposure in cover is physical: only what actually sticks out can be hit.
  */
 export class PlayerTarget implements Damageable {
   readonly team = 'player' as const;
-  readonly health = new Health(100, 50, 4, 30);
+  readonly health = new Health(100);
   private legs: Volume;
   private torso: Volume;
   private head: Volume;
@@ -118,14 +118,11 @@ export class PlayerTarget implements Damageable {
     this.head.node.position.copyFrom(rig.headNode.getAbsolutePosition());
   }
 
-  /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
+  /** Hits that do not hurt (team-mates); course friendly fire (D38) replaces it. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
-  /** The last hit taken (PvP credit). */
-  lastHit: HitInfo | null = null;
 
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
-    this.lastHit = h;
     const zone = h.part === 'head' ? PLAYER_PART_MULT.head : h.point.y - this.player.position.y < 0.85 - this.player.controller.crouchBlend * 0.35 ? PLAYER_PART_MULT.legs : 1;
     const amount = h.amount * this.damageMul * this.armorMul * zone;
     const dealt = this.health.damage(amount);

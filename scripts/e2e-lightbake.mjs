@@ -1,27 +1,26 @@
-// 3.6 Phase 1 Step 1: the canonical light bake is the same on every device. The Warehouse under `?gfx=min`, the phone
-// look, `?gfx=low` and `?gfx=epic` bakes the same shapes and gives the same lamp / moon / ambient bytes (cache keys
-// and a content hash), and every config baked something (a phone no longer skips the bake).
+// 3.6 Phase 1 Step 1: the canonical light bake is the same on every preset. The Warehouse under `?gfx=min`,
+// `?gfx=low` and `?gfx=epic` bakes the same shapes and gives the same lamp / moon / ambient bytes (cache keys
+// and a content hash), and every config baked something; Epic draws the baked lamps.
 import { launch, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const CONFIGS = [
-  ['gfx=min', 'gfx=min&platform=desktop'],
-  ['phone look', 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user'],
-  ['gfx=low', 'gfx=low&platform=desktop'],
-  ['gfx=epic', 'gfx=epic&platform=desktop'],
+  ['gfx=min', 'gfx=min'],
+  ['gfx=low', 'gfx=low'],
+  ['gfx=epic', 'gfx=epic'],
 ];
 let failed = false;
 const infos = [];
 // one browser per config, side by side: each has its own profile, so every config bakes cold (a shared cache would make the later
 // configs read the first one's bytes and the comparison below prove nothing)
 await Promise.all(CONFIGS.map(async ([name, q], k) => {
-  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=warehouse&mode=clear`, touch: false, viewport: { width: 640, height: 360 } });
+  const { browser, page, errors } = await launch({ url, params: `${q}&autostart=warehouse&mode=clear`, viewport: { width: 640, height: 360 } });
   try {
     await page.waitForFunction(() => !!window.__app?.current?.world, null, { timeout: 240000 });
     const info = await page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
-      return { ...w.lightInfo(), lite: !!q.lite, minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps };
+      return { ...w.lightInfo(), minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps };
     });
     infos[k] = [name, info];
     console.log(`  ${name}: shapes ${info.shapes} hash ${info.hash} lamps ${info.lights} (${(info.lampBytes / 1e6).toFixed(1)} MB) moon ${info.moonCells} cells, bake ${Math.round(info.ms)} ms, voxels ${info.voxels}, baked lamps drawn ${info.lamps}`);
@@ -42,7 +41,7 @@ try {
     assert(i.lampKey === ref.lampKey && i.moonKey === ref.moonKey, `${name}: the lamp and moon bake keys are the same`);
     assert(i.hash === ref.hash, `${name}: the visibility data hash is the same (${i.hash})`);
   }
-  assert(infos.find(([n]) => n === 'phone look')[1].lite && infos.find(([n]) => n === 'phone look')[1].lamps, 'the phone look draws the bake (the lamp volume, 3.6 Step 4)');
+  assert(infos.find(([n]) => n === 'gfx=epic')[1].lamps, 'Epic draws the bake (the baked lamps)');
 } catch (e) {
   failed = true;
   console.error(String(e));

@@ -295,10 +295,10 @@ export class TraversalController {
    * Fixed step. `jumpPressed` is the contextual action; `blocked` while another system (cover) owns
    * the controller. Returns true while a traversal drives the player.
    */
-  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null, leapPressed = false): boolean {
+  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null): boolean {
     const p = this.player;
     const c = p.controller;
-    const pose = p.coverPose;
+    const pose = p.pose;
     if (this.attachCtl.active) {
       this.attachCtl.fixedUpdate(dt, jumpPressed);
       return true;
@@ -357,7 +357,7 @@ export class TraversalController {
       if (this.leapT >= 0) {
         this.leapT += dt;
         const sp = this.leapSplit;
-        if (sp && (jumpPressed || leapPressed) && this.leapT <= LEAP.doubleTap) {
+        if (sp && jumpPressed && this.leapT <= LEAP.doubleTap) {
           this.leapT = -1;
           this.leapSplit = null;
           // facing along the hallway the way the jump was going (else the way the body faces)
@@ -400,7 +400,7 @@ export class TraversalController {
       return this.fixedUpdate(0, false, false);
     }
     this.probeT -= dt;
-    if (this.probeT <= 0 || jumpPressed || leapPressed) {
+    if (this.probeT <= 0 || jumpPressed) {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
@@ -411,17 +411,14 @@ export class TraversalController {
         this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
       }
     }
-    // (3.2.0) the Jump button: a jump whatever is offered (the hands grab what comes in reach)
-    if (leapPressed && this.leap()) return false;
     // anchors: a climb / grab when nothing closer is offered (a step, vault or mantle wins)
     const h = this.hint;
     const ah = ac.hint;
     const geo = h && h.kind !== 'drop' && !anchorFirst(ah);
-    // lowering into a hang is the drop control (held) or its prompt; traverse at the edge still drops down
+    // lowering into a hang is the drop control (held); traverse at the edge still drops down
     // (a press made at the edge: crouch held for a while in hold mode never lowers you over it)
     const low = ac.lower;
-    const lower = !!low && ((ac.input.dropHeldT >= LOWER_HOLD && ac.input.dropHeldT < LOWER_HOLD + 0.5) || ac.lowerRequest);
-    ac.lowerRequest = false;
+    const lower = !!low && ac.input.dropHeldT >= LOWER_HOLD && ac.input.dropHeldT < LOWER_HOLD + 0.5;
     if (lower && low && !geo) {
       this.hint = null;
       return ac.attachFrom(low);
@@ -472,13 +469,6 @@ export class TraversalController {
     this.hint = null;
     this.attachCtl.hint = null;
     return true;
-  }
-
-  /** (3.2.0) A jump straight into the split gap under the body (the touch action button's split; a double jump). */
-  splitNow(): boolean {
-    const sp = this.attachCtl.split;
-    if (!sp || this.kind !== 'none' || this.attachCtl.active || !this.player.controller.grounded) return false;
-    return this.attachCtl.attachFrom(sp);
   }
 
   /** A crouch tap now would roll: standing, free, moving at gear 5-6 (or sprinting) with the stick pushed. */
@@ -559,6 +549,8 @@ export class TraversalController {
   private teleports = 0;
 
   reset(): void {
+    // a committed move owns the controller's kinematic override: hand it back
+    if (this.kind !== 'none') this.player.controller.override = null;
     this.leapT = -1;
     this.leapSplit = null;
     this.kind = 'none';

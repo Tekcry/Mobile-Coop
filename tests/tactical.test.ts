@@ -79,7 +79,11 @@ describe('contextual traversal and noise', () => {
   it('noise by stance and pace: sneak, crouch walk and a slow walk silent, jog a few metres, sprint ~9 m', () => {
     expect(noiseRadius(0, false, false)).toBe(0);
     expect(noiseRadius(0.8, true, false)).toBe(0);
-    expect(noiseRadius(1.8, true, false)).toBe(0);
+    // (step 22, M14 N6 / A88) crouched gears 1-4 (<= 1.5 m/s), standing gears 1-2 silent; standing gear 3 (1.65) and
+    // crouched gear 5 (1.9) audible
+    expect(noiseRadius(1.5, true, false)).toBe(0);
+    expect(noiseRadius(1.65, false, false)).toBeGreaterThan(1);
+    expect(noiseRadius(1.9, true, false)).toBeGreaterThan(1);
     expect(noiseRadius(1.4, false, false)).toBe(0);
     const jog = noiseRadius(2.8, false, false);
     const sprint = noiseRadius(5, false, true);

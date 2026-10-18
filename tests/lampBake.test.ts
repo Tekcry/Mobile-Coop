@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_STRIDE, lampGrid, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
 import { packShapes, ShapeMode, type VoxelShape } from '../src/voxel/shapes';
 import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
+import { lampVolumeGrid, lampVolumeRegion, unionRegion } from '../src/voxel/lampVolume';
 import { detailPieces } from '../src/world/detailPass';
 import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
 import { MAPS } from '../src/world/maps';
@@ -154,5 +155,32 @@ describe('canonical light shapes (3.6)', () => {
       // whole metres, so every grid lines up
       expect([...a.lo, ...a.hi].every((v) => Number.isInteger(v)), map.id).toBe(true);
     }
+  });
+});
+
+describe('the lamp light volume grid (3.3; the editor light view)', () => {
+  const boxes = (...b: number[][]): Float32Array => new Float32Array(b.flat());
+  it('covers every lamp box on the bake cells, from a cell under the floor', () => {
+    // two boxes (origin, cells) - one dipping under the floor
+    const b = boxes([-2.1, -1.0, 0.3, 20, 30, 10], [3.05, 0, -4, 10, 10, 10]);
+    const g = lampVolumeGrid(b, 0);
+    expect(g.cell).toBe(LAMP_CELL);
+    expect(g.o[1]).toBeCloseTo(-LAMP_CELL);
+    for (let i = 0; i < 2; i++) {
+      const o = i * BOX_STRIDE;
+      expect(g.o[0]).toBeLessThanOrEqual(b[o]! + 1e-6);
+      expect(g.o[2]).toBeLessThanOrEqual(b[o + 2]! + 1e-6);
+      expect(g.o[0] + g.dims[0] * g.cell).toBeGreaterThanOrEqual(b[o]! + b[o + 3]! * LAMP_CELL - 1e-6);
+      expect(g.o[1] + g.dims[1] * g.cell).toBeGreaterThanOrEqual(b[o + 1]! + b[o + 4]! * LAMP_CELL - 1e-6);
+      expect(g.o[2] + g.dims[2] * g.cell).toBeGreaterThanOrEqual(b[o + 2]! + b[o + 5]! * LAMP_CELL - 1e-6);
+      const r = lampVolumeRegion(b, i, g);
+      for (let k = 0; k < 3; k++) {
+        expect(r[k]).toBeGreaterThanOrEqual(0);
+        expect(r[k + 3]).toBeLessThanOrEqual(g.dims[k as 0 | 1 | 2]);
+        expect(r[k + 3]).toBeGreaterThan(r[k]!);
+      }
+    }
+    expect(unionRegion([lampVolumeRegion(b, 0, g), lampVolumeRegion(b, 1, g)])).toEqual([0, 0, 0, g.dims[0], g.dims[1], g.dims[2]]);
+    expect(unionRegion([])).toBeNull();
   });
 });

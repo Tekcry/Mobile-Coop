@@ -1,85 +1,97 @@
 # UI
-Purpose: HUD, menus, the screen stack, platform and display handling, feedback and photo mode.
-Design authority: docs/design-bible.md (Section 5.10)
+Purpose: the HUD, menus, the screen stack, display handling, feedback, photo mode and the course HUD.
+Design authority: docs/DECISIONS.md (G77, G107, G108, G113), then docs/design-bible.md (Section 5.10).
 
-## UI
-- HUD (Blacklist-minimal, `Hud.setAccess` per frame from `settings.access`): health = the screen-edge vignette
-  (bars optional, `.no-hbar`), the weapon readout fades (`.quiet`) 3 s after the last change, hold ring on the use
-  prompt (`setInteract(text, progress)`), subtitles (`BarkView.subtitles`), colour-safe arcs
-  (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`, held actions by tap
-  (`access.holdToggle`, `GameState.holdLatch`). `ControlsScreen` (Settings > Accessibility) lists bindings per
-  input type (`CONTROLS`; keep it in step with the mappings).
-- Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
-  guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
-- Forced landscape (3.1.6, `core/viewRotation.ts`): a coarse pointer in a portrait window turns the page
-  (3.2.4: `turnFor` - clockwise after the landscape angle 90 (default), anticlockwise `body.rotated.ccw`
-  `translateY(--scr-h) rotate(-90deg)` after 270 / -90, from `screen.orientation.angle` / `window.orientation`; phones
-  call `lockLandscape` on the first tap where the browser allows a lock) (`body.rotated`: `translateX(--scr-w) rotate(90deg)`, `--vw` / `--vh` swapped - styles use `calc(N * var(--vw))`,
-  never raw `vw` / `vh` - and the safe areas remapped). Pointer positions and boxes arrive in screen space: read them
-  through `vx(e)` / `vy(e)` / `viewRect(el)` / `viewWidth()` / `viewHeight()`, never `clientX` / `innerWidth`.
-  `e2e-lib` `launch({ touchViewport })` emulates the phone upright.
-- Touch scrolling: `pwa.suppressBrowserGestures` lets a drag through when it starts inside `.scrollable` or any
-  element that overflows with `overflow: auto / scroll` (`canScroll`); everything else is the game's. The back
-  button (`Screen.attachChrome`) sits top left (screens get `.with-back` padding) and acts on pointer up.
-- Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim
-  behind, a distant lamp) as `SpotLight`s with additive `lightCone` beams (vertex alpha over height subdivisions),
-  a dim hemispheric fill (brighter while customising), the lens glow on; the camera's `targetScreenOffset` puts
-  the operator in the right half beside the menu. `setFraming('menu' | 'loadout' | 'weapon')`; `setAvatar(look,
-  weapon, camo, attachments)` rebuilds only when the key (`shown`) changes; `ui/screens/operator.ts`
-  `showSavedOperator` puts the saved look back.
-- Loadout (`ui/screens/loadoutScreen.ts`, the only upgrade / customisation screen; Splinter Cell: Blacklist's gear
-  screen): an SBD-NET bar (next challenge, level, credits); a stack of list `Page`s on the left (breadcrumb, title,
-  subtitle, `Row`s: label, value / price / `LV n`, marks equipped (check) / locked (lock) / tune (wrench) / go
-  (chevron), group headers); the operator in the middle; the focused row's details on the right (Power / Accuracy /
-  Range / Control segment bars with the change green / red, magazine, silenced, fire mode, upgrades; suit totals);
-  the action bar along the bottom (A `act`, Y `alt`, B back; tappable). Pages: root (loadout preset, primary,
-  secondary, gadget, suit, appearance, tag & emotes, HQ, challenges) > weapon list per slot > a weapon's attachments
-  & upgrades > camo; suit > part > tiers; appearance > part options / colours; tag (a form); HQ; challenges.
-  Focusing a row previews it (`resetDrafts` then `row.preview`: weapon in hand, attachments, camo, look, suit),
-  locked items too; A equips / buys (then equips) / opens; B pops a page. Owned choices save at once. Touch: a tap
-  on a row not focused previews it, a tap on the focused row (or the action bar) acts.
-- Platform (3.0, `core/platform.ts` pure: `detectPlatform` from touch points / fine pointer / viewport / user agent,
-  `video.platform` Auto / Desktop / Mobile, `?platform=`; `App.applyPlatform` sets `body.platform-desktop|mobile`,
-  `can-touch` and `--ui-scale`): desktop lays the menus out for 1280 x 720 and scales `.screens` (transform) and the
-  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the forced landscape and
-  the auto fullscreen; Settings gets Mouse & Keyboard (first on desktop) and the Graphics tab (`graphicsTab`: preset,
-  every feature, display; `refreshWidgets` re-reads rows after a preset change). The touch layer still follows the
-  input mode (a touchscreen laptop gets it when touched).
-- Displays (3.0, `core/display.ts` pure): ultrawide - `.screens` on desktop is a 16:9 layout scaled by height and
-  centred (`left: 50%`, `scale() translateX(-50%)`), the stage fills the sides; the gameplay camera is Hor+ from
-  `video.fovH` at 16:9 up to `video.maxFov` (default 120), then Vert- (`vfovFor`, `ShoulderCamera.vfov`, also the
-  gadget feeds); `video.hudWidth` auto / 16:9 / 21:9 / full -> `--hud-inset` (`hudInset`; auto = 16:9 above 2.6:1)
-  folded into the HUD's `--sal` / `--sar` (divided by the panels' zoom), so world prompts, arcs, markers and pings
-  stay full width. GPU: `App.gpu` from the unmasked renderer (`classifyGpu`: discrete / integrated / software); a
-  desktop on the integrated GPU gets one notice (`video.gpuNotice`; never under `navigator.webdriver`), Settings >
-  Graphics > GPU shows it, feedback context carries it with the output resolution, aspect and refresh. The engine
-  asks for `powerPreference: 'high-performance'`. Photo mode saves at full output resolution (<= 7680 px, JPEG
-  quality stepped down to stay under 8 MB).
-- Feedback (3.0, `feedback/feedback.ts` pure: `FeedbackEntry` category / text / context / photo Blobs, `sanitizeFeedback`,
-  `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback', `App.feedback`):
-  `ui/screens/feedbackScreen.ts` (`FeedbackFormScreen`, Settings > Feedback `feedbackTab`, Pause > Report feedback,
-  `exportFeedback` -> one HTML file via `ui/fileOut.ts` share / download). Context: the state's `feedbackContext()`
-  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times; 3.1.7: `settings` /
-  `changed` from `settingsDigest` (core/settings.ts, pure: every video setting; the rest only where it differs from
-  the defaults), values up to `MAX_CONTEXT` 2000, `feedbackText` (Copy as text) puts the context under each line,
-  benchmark notes use the full `feedbackContext`. Photo mode
-  (`ui/screens/photoMode.ts` `PhotoModeScreen` on a `PhotoHost`: `photoCamera()` / `photoFreeze(on)`; GameState flies
-  its own FreeCamera so the post stack stays on, the menu stage gets a stand-in camera): `body.photo-mode` hides the
-  HUD, touch layer and every other screen; free camera (move / look / up-down by keys, sticks, drags); a photo is the
-  next rendered frame copied off the canvas (no DOM in it), max 1920 px JPEG; keep / retake (Y) / cancel (B).
-- Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c, `--gold` credits), condensed font stack;
-  main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (no bumper
-  glyphs; LB / RB still cycle through `cycle`). 2.3 compact pass at the end of the file (32 px rows, 17 px titles,
-  narrower Play / Settings so the operator shows).
-- Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
-  is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
-  directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
-- Use `ui/widgets.ts` (button, toggle, slider, choice, TabView, Dialog). They work identically by touch and pad.
-- Screens give footer `hints()`; prompts render glyphs for Xbox/PlayStation/keyboard, picked by CSS.
+Desktop only (G12): pad first, then keyboard and mouse. Menus follow the Arkham Knight style plan
+(feature/menu-ui-spec, G77) and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
+What follows is the UI as built today; "decided, not built yet" marks where the decisions differ.
+
+## HUD
+- `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
+  (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
+  after the last change, a hold ring on the use prompt (`setInteract(text, progress)`), subtitles
+  (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
+  held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
+  stations (G20, G98).
+- Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
+  yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
+- Decided, not built yet: mission objectives live in the menu, as in CT (G108); the Fallow course keeps its always-on
+  list (below). The HUD layout follows CT (G77).
+
+## Menus and screens
+- Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
+  navigable; `data-adjust` elements take left / right as `nav-adjust`; `data-capture-nav` elements take all directions
+  as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
+- Use `ui/widgets.ts` (button, toggle, slider, choice, TabView, Dialog); they work the same by pad and mouse.
+- Screens give footer `hints()`; prompts (`ui/prompts.ts` `promptHtml`) render Xbox, PlayStation, Nintendo
+  (`GLYPHS.nintendo`) and key glyphs; the body classes `input-gamepad` + `pad-ps` / `pad-nin` (from
+  `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
+  `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
-- No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
-  children opt in.
+- Controls (`ControlsScreen`, Settings > Accessibility; loco D7): a Controller and a Keyboard & mouse tab to remap
+  (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
+  device with a confirm; pad: A rebinds, Y clears; Esc cancels, and on the pad holding B 1 s cancels). Decided, not
+  built yet (G22): Menu / Start or Esc cancels a capture and B stays bindable. Settings > Mouse & Keyboard shows the same
+  keyboard panel; Settings > Gameplay has hold / toggle for aim, crouch, sprint, back to wall and grab.
+- Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, `config/rumble.ts`), Test
+  vibration.
+- Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
+  sliders). Shown on the Play screen (hidden in Free Roam) and in the co-op host's lobby; a client sees the host's level
+  read-only. Rows carry `data-diff` for the e2e suites.
+- Loadout (`ui/screens/loadoutScreen.ts`): a stack of list `Page`s on the left (breadcrumb, title, `Row`s with value,
+  equipped / locked / tune / go marks), the operator in the middle, the focused row's details on the right (segment
+  bars, magazine, suppressed, fire mode), the action bar along the bottom (A act, Y alt, B back). Legacy off: root =
+  preset, primary, secondary, gadget > weapon list per slot > attachments. Focusing a row previews it; owned choices save
+  at once. With `?legacy=1` the parked economy pages return (suit, appearance, tag, HQ, challenges, upgrades, camos, the
+  credits bar; modes-and-progression.md).
+- Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim behind,
+  a distant lamp) as `SpotLight`s with additive `lightCone` beams, a dim hemispheric fill (brighter while customising),
+  the lens glow on; the camera's `targetScreenOffset` puts the operator in the right half. `setFraming('menu' |
+  'loadout' | 'weapon')`; `setAvatar(look, weapon, camo, attachments)` rebuilds only when the key changes;
+  `ui/screens/operator.ts` `showSavedOperator` puts the saved look back.
+- Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c; `--gold` for the parked credits), condensed font
+  stack; main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (LB / RB
+  cycle). No `backdrop-filter` over the canvas (blurring over WebGL is expensive). The `.screens` container is
+  pointer-events: none; children opt in. The back button (`Screen.attachChrome`) sits top left.
+- Title: Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest; a preview build
+  is "Night Shift (Preview ...)"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export
+  magic `shoulder-strike-save`, the co-op app id.
 
-## 3.5 title
-- The game's name is Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest "Night Shift" / "Night Shift (Preview CT)", short name
-  "NS CT"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export magic `shoulder-strike-save`, the co-op app id.
+## Display (`core/display.ts`, pure)
+- `App.applyUiScale` sets `--ui-scale` (`uiScale(w, h)`: menus laid out for 1280 x 720, `.screens` scaled by
+  transform and the HUD panels by zoom) and `--hud-inset`.
+- Ultrawide: `.screens` is a 16:9 layout scaled by height and centred, the stage fills the sides; the gameplay camera is
+  Hor+ from `video.fovH` at 16:9 up to `video.maxFov` (default 120), then Vert- (`vfovFor`, also the gadget feeds);
+  `video.hudWidth` auto / 16:9 / 21:9 / full -> `--hud-inset` (auto = 16:9 above 2.6:1) folded into the HUD's `--sal` /
+  `--sar`, so world prompts, arcs, markers and pings stay full width.
+- GPU: `App.gpu` from the unmasked renderer (`classifyGpu`: discrete / integrated / software); an integrated GPU gets
+  one notice (`video.gpuNotice`; never under `navigator.webdriver`); Settings > Graphics > GPU shows it. The engine asks
+  for `powerPreference: 'high-performance'`. Settings > Graphics: graphics-quality.md.
+
+## Feedback and photo mode
+- Feedback (`feedback/feedback.ts` pure: `FeedbackEntry` category / text / context / photo Blobs, `sanitizeFeedback`,
+  `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback'): `FeedbackFormScreen` (Settings >
+  Feedback, Pause > Report feedback), `exportFeedback` -> one HTML file via `ui/fileOut.ts` share / download. Context:
+  the state's `feedbackContext()` (map, mode, position, facing, enemies) + version, input device, graphics, frame
+  times, output resolution, aspect, refresh, `settings` / `changed` from `settingsDigest` (every video setting; the
+  rest only where it differs from the defaults), values up to `MAX_CONTEXT` 2000.
+- Photo mode (`ui/screens/photoMode.ts` on a `PhotoHost`: `photoCamera()` / `photoFreeze(on)`; GameState flies its own
+  FreeCamera so the post stack stays on, the menu stage gets a stand-in camera): `body.photo-mode` hides the HUD and
+  every other screen; free camera by keys, mouse and sticks; a photo is the next rendered frame copied off the canvas
+  (no DOM in it), max 1920 px JPEG; keep / retake (Y) / cancel (B). Full-resolution saves go up to 7680 px, JPEG
+  quality stepped down to stay under 8 MB.
+
+## Course HUD (Fallow, training D45)
+`src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the
+drill is not that player's), and this player's current step in large type (LANTERN's line; `{Y}` / `{Y:traverse}`
+tokens become prompt glyphs that follow the input mode). DOM is written only when the bay, the ticks
+(`CourseState.gen`) or the end change. A drill done shows a toast. The next drill's marker is drawn by
+`PingView.marker`; Settings > Gameplay "Course markers" (`gameplay.courseMarkers`, default on) hides it.
+- The objective list is always on screen for both players from spawn ("B<n> - objectives": each drill ticked per
+  player, the current one highlighted, then the airlock row), with no toggle (G108 keeps it for the course). Below it
+  the airlock status line (`.ch-air`, `CourseState.airlockStatus`): "Waiting for partner" with one player on the pad,
+  the refusal naming the open objectives (or "Revive first") with both on it, the cycle while it runs. Airlocks have no
+  Cycle button: each has an emissive floor pad outline (`buildAirlockPads`, visual only).
+- The results screen shows a course panel (`SessionStats.course`: per-bay time, team and per-player numbers, the
+  finale's tier from `courseRating.ts`) on both pages, reached through the course end device ("Finish") and refused
+  while that bay's drills are open. The co-op lobby re-reads the course record whenever it is shown ("Start at bay N").

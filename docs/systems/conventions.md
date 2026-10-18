@@ -1,68 +1,60 @@
-# Robustness rules, conventions, module layout and project overview
-Purpose: robustness rules, code conventions, the full module table and the project overview that used to open CLAUDE.md.
-Design authority: docs/design-bible.md (Section 9)
+# Robustness rules, conventions and module layout
+Purpose: robustness rules, code conventions and the full module table.
+Design authority: docs/design-bible.md (Section 9). What the game is: CLAUDE.md and docs/DECISIONS.md ("The vision in
+one page").
 
 ## Robustness rules
-- 3.1.5: `startGame` calls `App.releaseState()` (exit + free the scene) before `GameState.create`: two matches are
-  never in memory at once (the iPhone closed the tab). Crash log (`feedback/crashLog.ts`, `App.crashLog`): a
-  heartbeat in localStorage (diagnostics, not a save: synchronous, so `pagehide` marks it clean before unload) every
-  5 s and on `stage(...)` (menu / loading / in a match / benchmark run) with `feedbackContext`; still `alive` at the
-  next boot -> `crashNote` -> a "Crash report" feedback note + toast. 3.1.7: `releaseState` empties the engine's
-  shader cache (`engine.releaseEffects()`: plugin materials' shaders held their scene, and so every old match;
-  their keys never repeat) and `goToMenu` releases too; `e2e-desktop` checks no GameState survives (CDP
-  `queryObjects` after a GC - release the object group, or the probe itself keeps them alive).
-- `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
+- `startGame` calls `App.releaseState()` (exit + free the scene, and empty the engine's shader cache with
+  `engine.releaseEffects()`) before `GameState.create`: two matches are never in memory at once. `goToMenu` releases
+  too; `e2e-desktop` checks no `GameState` survives (CDP `queryObjects` after a GC).
+- Crash log (`feedback/crashLog.ts`, `App.crashLog`): a heartbeat in `localStorage` (diagnostics, not a save: it is
+  synchronous, so `pagehide` marks it clean before unload) every 5 s and on `stage(...)` (menu / loading / in a match /
+  benchmark run) with `feedbackContext`; still `alive` at the next boot -> a "Crash report" feedback note + toast.
+- `App` isolates state updates: an exception in `fixedUpdate` / `frameUpdate` is logged (rate-limited) and toasted
   once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
-- 3.2.3: `App` resizes the engine only once a resize settles (`RESIZE_SETTLE_MS` 250): a phone turning fires several
-  in-between sizes, each re-making every full-resolution target.
-- Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens
-  the menu without pausing).
+- `App` resizes the engine only once a window resize settles (`RESIZE_SETTLE_MS` 250), so dragging a window does not
+  re-make every full-resolution target per step.
+- Backgrounding (`visibilitychange` / `pagehide`): flush the save, suspend audio, pause single-player test modes
+  (co-op opens the menu without pausing).
 - `SaveManager.readOnly`: if the stored profile cannot be read (newer version, corrupt), play continues on an
-  in-memory profile and nothing is written; an explicit import/reset backs the unreadable data up first.
-- Release checklist (offline, migration, controller) is the Phase 10 section of TESTING.md; README has deploy steps.
+  in-memory profile and nothing is written; an explicit import / reset backs the unreadable data up first.
+- Release checklist (offline, save migration, controller): TESTING.md. Deploy steps: README and
+  `docs/systems/deploy.md`.
 
 ## Conventions
 - Files: camelCase `.ts`; one main class per file. Tests in `tests/*.test.ts`.
-- Pure logic (maths, validation, migrations) stays free of Babylon/DOM so it is unit-testable in node.
-- Every phase updates `CHANGELOG.md`, `TESTING.md`, and this file.
+- Pure logic (maths, validation, migrations) stays free of Babylon and the DOM so it is unit-testable in node.
+- Strict TS (`noUncheckedIndexedAccess`, `verbatimModuleSyntax`: `import type`). Babylon only through
+  `src/core/babylon.ts`. Single player never imports `src/net` statically.
+- Every job updates `CHANGELOG.md` (under "Unreleased" until Michael merges, G93), TESTING.md when the desktop
+  checklist changes, and the system docs it touches.
 
-## Hot paths (from "Audio and quality")
-- Hot paths must not allocate (no closures, iterators or temporary vectors in AI/nav/anim loops; `for` with an
-  index over arrays; typed-array heaps). Use `hyp2`/`hyp3` (`core/mathx.ts`), never `Math.hypot` (V8 allocates
+## Hot paths
+- Hot paths must not allocate (no closures, iterators or temporary vectors in AI / nav / anim loops; `for` with an
+  index over arrays; typed-array heaps). Use `hyp2` / `hyp3` (`core/mathx.ts`), never `Math.hypot` (V8 allocates
   its arguments).
 
 ## Module layout (`src/`)
 | Module | Responsibility |
 | --- | --- |
-| `core/` | `babylon.ts` import surface, engine creation, `GameLoop` (fixed 60Hz sim + manual Havok step, `timeScale`, `onFrameEnd`), event bus, feature flags, `pacing` (refresh detection, frame stats, dynamic resolution; pure), `quality`, `mathx` (`hyp2`/`hyp3`) |
-| `input/` | Action map; touch, gamepad, keyboard/mouse sources all write the same `InputState` |
+| `core/` | `babylon.ts` import surface, engine creation, `GameLoop` (fixed 60 Hz sim + manual Havok step, `timeScale`, `onFrameEnd`), event bus, flags, settings, `legacy` (parked modes), `pacing`, `quality`, `governor`, `deviceTier`, `display` (pure parts), `mathx` (`hyp2` / `hyp3`) |
+| `input/` | Action map; gamepad and keyboard / mouse sources write the same `InputState`; pad and key binds, conflicts |
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
-| `game/` | Play session state, game modes (wave, mission, clear, sandbox), damage/health, pickups, interactables, `tactics` (exposure, cover quality, suppression; pure), `roomClear` (pure) |
+| `game/` | Play session state; modes (Infiltration, Free Roam `sandbox`, the training course `course`; Hunter `clear` and Mission parked behind `?legacy=1`); damage / health, pickups, interactables, takedowns, gadgets, `tactics` and `roomClear` (pure), the course (`game/course/`) |
 | `physics/` | Havok loading, collision groups, body budget |
-| `player/` | Character controller (Havok `PhysicsCharacterController`), tactical movement maths, contextual traversal + `attach` (attached-state machine; pure), proportions, shared `CharacterRig`, camera |
-| `anim/` | Pure animation: `MotionDriver` (root motion), `curves`/`pose`/`clip` + `clips/` (clip library), `Inertializer`, `AnimGraph` (clip graph -> IK targets), `FootPlanner` (world-space feet), `rigMath` (two-bone IK, `Spring`) |
-| `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover), corners/doorways (`corners` pure, `CornerController`) |
-| `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades, `WeaponCarry` (ready positions, raise-to-fire) |
-| `ai/` | Enemy state machines, grid navmesh + A*, cover points; `perception` (sight / noise maths), `alertState` (alert levels), `patrol` (routes, posts, search points) - all pure |
-| `world/` | Modular tile kit and map builders (Warehouse, Embassy, Mansion, Port, Refinery, Dust Depot, Proving Grounds), `rooms` (room tags; pure), `anchors` (traversal anchors; pure), `lights` (light model; pure), `lightRig` (renders it) |
-| `progression/` | XP/levels/currency maths, unlock tables, upgrade trees (pure, unit-tested) |
-| `cosmetics/` | Avatar part catalogue, procedural materials/camos |
-| `save/` | IndexedDB wrapper, versioned schema, migrations, export/import |
-| `audio/` | WebAudio synth voices and mixer |
-| `vfx/` | Pooled particles, tracers, decals |
-| `net/` | Optional coop: transports (Trystero / BroadcastChannel), protocol validation, session/lobby, host + client sims, lobby UI |
-| `pwa/` | Service worker registration, fullscreen/orientation, gesture suppression |
-| `config/` | JSON/TS content data (weapons, enemies, unlock tables), `movement.ts` and `camera.ts` feel tables |
-
-## Project overview (the old CLAUDE.md introduction)
-
-Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the old name for compatibility:
-IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
-for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
-Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
-240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (3.3: phones get
-one fixed phone look, no graphics settings; 3.4: the light 2.x renderer on phones - the iPhone 17 Pro Max targets 60 fps at 75 - 100% of native 2868 x 1320). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
-test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) changes the UI and
-input, and (3.3) phones take the phone look. 3.1: one preset ladder for PCs (Low .. Epic), Auto graphics per PC, a frame governor
-in matches; graphics never change gameplay (3.1.9: the PvP look / FOV locks are gone - each player's own settings). A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
-Blacklist style.
+| `player/` | Character controller (Havok `PhysicsCharacterController`), movement maths, traversal and the attached-state machine (pure), move state, proportions, the shared `CharacterRig`, camera |
+| `anim/` | Pure animation: `MotionDriver`, clips, `Inertializer`, `AnimGraph`, `FootPlanner`, IK, the animation audit metrics |
+| `cover/` | Cover data for enemy AI and level build (coverData, corners); back-to-wall reuses it |
+| `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil / spread, grenades, `WeaponCarry` |
+| `ai/` | Enemy brains, grid navmesh + A*, `perception`, `alertState`, `patrol` (pure), archetypes, the enemy recon drone |
+| `world/` | Level builder, map builders (`maps/`: Warehouse, Proving Grounds, Kestrel, the Fallow bunker, courselab, seclab; the 2.x maps parked in `maps/parked.ts`, not imported), rooms, anchors, doors, lights, light rig, surfaces, menu stage |
+| `voxel/` | Voxel level, characters and weapons, lamp bake and light volume, sky bake |
+| `vfx/` | Pooled effects, post stack, TAAU, weather, vision looks |
+| `security/` | Kestrel's security system (cameras, panels); owned by the Kestrel job |
+| `editor/`, `dev/` | The Kestrel level editor (dev only, never in `dist/`) and its bridge |
+| `net/` | Optional co-op: transports (Trystero / BroadcastChannel), protocol validation, session / lobby, host + client sims, lobby UI |
+| `progression/`, `cosmetics/` | XP / levels / credits maths, unlocks, upgrades, suit / HQ; avatar catalogue and procedural camos (parked behind `?legacy=1`) |
+| `save/`, `feedback/` | IndexedDB wrapper, versioned schema, migrations, export / import, course record; playtest notes and crash log |
+| `audio/` | Audio engine, music score, movement foley and weapon sounds (CC0 recordings), synth fallbacks |
+| `pwa/` | Service worker registration, fullscreen, gesture suppression |
+| `config/` | JSON / TS content data (weapons, enemies, missions, unlock tables), `movement.ts` and `camera.ts` feel tables |

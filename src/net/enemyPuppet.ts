@@ -146,7 +146,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
     if (this.rig) this.rig.emote = null;
   }
 
-  /** The host decides about glints (a mark through one is refused there). */
+  /** The host decides about glints. */
   glintFor(x: number, y: number, z: number): number {
     void x;
     void y;

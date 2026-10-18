@@ -1,10 +1,9 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { keyLabels, promptHtml } from '../prompts';
+import { keyLabels, verbPromptHtml } from '../prompts';
 import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
-import { Markers } from './markers';
 import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
@@ -13,8 +12,6 @@ import { GEARS } from '../../config/movement';
 export interface HudFrame {
   hp: number;
   maxHp: number;
-  shield: number;
-  maxShield: number;
   weapon: string;
   mag: number;
   magSize: number;
@@ -27,6 +24,8 @@ export interface HudFrame {
   spreadPx: number;
   onTarget: boolean;
   ads: boolean;
+  /** (step 09) Crosshair shown (drawn and aiming only). */
+  crosshair: boolean;
   /** Camera yaw (radians) for the compass. */
   yaw: number;
   /** Compass markers: world bearing (radians) + label/colour. */
@@ -39,7 +38,6 @@ const COMPASS_PX_PER_RAD = 120;
 export class Hud {
   readonly el: HTMLElement;
   private hpFill: HTMLElement;
-  private shFill: HTMLElement;
   private hpText: HTMLElement;
   private wName: HTMLElement;
   private wMag: HTMLElement;
@@ -74,12 +72,9 @@ export class Hud {
   private lightFill: HTMLElement;
   /** Enemy awareness arcs round the crosshair. */
   readonly arcs = new AwarenessArcs();
-  /** Mark & Execute chevrons. */
-  readonly markers: Markers;
   /** Enemy callouts over their heads. */
   readonly barks: BarkView;
   readonly pings: PingView;
-  private chargeEl: HTMLElement;
   /** Speed gear pips (3.2.0): shown for `GEARS.pipsShow` s after a change, then fade. */
   private gearEl: HTMLElement;
   private gearSeen = -1;
@@ -90,7 +85,6 @@ export class Hud {
 
   constructor(parent: HTMLElement) {
     this.hpFill = h('div', { class: 'bar-fill hp' });
-    this.shFill = h('div', { class: 'bar-fill sh' });
     this.hpText = h('div', { class: 'vital-text' });
     this.staminaFill = h('i');
     this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
@@ -99,16 +93,14 @@ export class Hud {
     this.lightFill = h('i');
     this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
     this.visionEl = h('div', { class: 'tac-vision' });
-    this.chargeEl = h('div', { class: 'tac-charge', title: 'Execute charge' });
     this.gearEl = h('div', { class: 'tac-gear', title: 'Speed gear', html: '<b>SPD</b><span><i></i><i></i><i></i><i></i><i></i><i></i></span>' });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
-      h('div', { class: 'bar shield' }, this.shFill),
       h('div', { class: 'bar health' }, this.hpFill),
-      this.hpText,
+      h('div', { class: 'vital-row' }, this.hpText),
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.lightEl, this.gearEl, this.chargeEl, this.visionEl, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.gearEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -171,7 +163,6 @@ export class Hud {
       this.feed,
     );
     parent.appendChild(this.el);
-    this.markers = new Markers(this.el);
     this.barks = new BarkView(this.el);
     this.pings = new PingView(this.el);
     this.world = new WorldPrompts(parent);
@@ -183,7 +174,7 @@ export class Hud {
   }
 
   /** Health shown as bars (else only the screen-edge vignette); ammo always on (else it fades when unchanged). */
-  private healthBar = false;
+  private healthBar = true;
   private ammoAlways = false;
   private ammoT = 0;
   private ammoKey = '';
@@ -220,7 +211,6 @@ export class Hud {
 
   update(f: HudFrame): void {
     const hpPct = Math.max(0, f.hp / f.maxHp);
-    const shPct = f.maxShield > 0 ? Math.max(0, f.shield / f.maxShield) : 0;
     this.set('hp', Math.round(hpPct * 200), () => {
       this.hpFill.style.width = `${hpPct * 100}%`;
       this.hpFill.classList.toggle('low', hpPct < 0.3);
@@ -228,7 +218,6 @@ export class Hud {
       // the screen edge reddens with damage: the only health readout without the bars
       this.vignette.style.opacity = String(this.healthBar ? (hpPct < 0.35 ? (0.35 - hpPct) * 2.2 : 0) : hpPct < 0.9 ? Math.min(0.95, Math.pow((0.9 - hpPct) / 0.9, 0.8) * 1.05) : 0);
     });
-    this.set('sh', Math.round(shPct * 200), () => (this.shFill.style.width = `${shPct * 100}%`));
     this.set('wn', f.weapon, () => (this.wName.textContent = f.weapon));
     this.set('mag', f.mag, () => {
       this.wMag.textContent = String(f.mag);
@@ -241,6 +230,7 @@ export class Hud {
     this.set('gap', gap, () => this.cross.style.setProperty('--gap', `${gap}px`));
     this.set('ot', f.onTarget, () => this.cross.classList.toggle('on-target', f.onTarget));
     this.set('ads', f.ads, () => this.cross.classList.toggle('ads', f.ads));
+    this.set('cx', f.crosshair, () => (this.cross.style.display = f.crosshair ? '' : 'none'));
     // ammo / gadget readout: on any change, a reload or a low magazine; fades after 3 s otherwise
     const now = performance.now();
     const ak = `${f.weapon}|${f.mag}|${f.reserve}|${f.grenades}|${f.gadget}`;
@@ -316,7 +306,7 @@ export class Hud {
   /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */
   setInteract(text: string | null, progress = -1): void {
     this.set('int', text ?? '', () => {
-      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${promptHtml('Y', keyLabels.traverse)}<span>${text}</span>` : '';
+      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${verbPromptHtml('traverse', keyLabels.traverse)}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
     });
     const p = Math.round(progress * 40);
@@ -349,16 +339,21 @@ export class Hud {
   }
 
   /** Speed gear: the pips light up to the gear; shown after a change (`changes` moves), then fade. */
-  setGear(gear: number, changes: number): void {
+  setGear(gear: number, changes: number, max = gear): void {
+    // (locomotion step 17) lit up to the current (stick) gear, dim up to the maximum gear (rocker / wheel)
     const now = performance.now();
     if (changes !== this.gearSeen) {
       // (the first reading is the spawn gear: no flash on entering the match)
       if (this.gearSeen >= 0) this.gearT = now;
       this.gearSeen = changes;
     }
-    this.set('gear', gear, () => {
+    this.set('gear', gear * 8 + max, () => {
       this.gearEl.dataset.gear = String(gear);
-      this.gearEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < gear));
+      this.gearEl.dataset.max = String(max);
+      this.gearEl.querySelectorAll('i').forEach((el, i) => {
+        el.classList.toggle('on', i < gear);
+        el.classList.toggle('cap', i < max);
+      });
     });
     const show = now - this.gearT < GEARS.pipsShow * 1000;
     this.set('gearShow', show, () => this.gearEl.classList.toggle('show', show));
@@ -371,20 +366,11 @@ export class Hud {
     this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
   }
 
-  /** Execute charges (a pip per charge) and whether the marks can be executed now. */
-  setCharge(charges: number, ready: boolean): void {
-    this.set('charge', `${charges}|${ready}`, () => {
-      this.chargeEl.textContent = charges > 0 ? '◆'.repeat(charges) : '';
-      this.chargeEl.classList.toggle('ready', ready);
-    });
-  }
-
-  /** Goggles: the mode in use, or the sonar recharging (seconds left). */
-  setVision(mode: 'off' | 'night' | 'sonar', cooldown: number): void {
-    const text = mode === 'night' ? 'NV' : mode === 'sonar' ? 'SONAR' : cooldown > 0 ? `SONAR ${Math.ceil(cooldown)}` : '';
+  /** Goggles (step 14): a small label for the mode just chosen ('' once it has shown for 1.5 s, or off). */
+  setVision(text: string, mode: string): void {
     this.set('vision', text, () => {
       this.visionEl.textContent = text;
-      this.visionEl.dataset.mode = mode === 'off' ? (cooldown > 0 ? 'cool' : 'off') : mode;
+      this.visionEl.dataset.mode = mode;
     });
   }
 

@@ -2,22 +2,24 @@ import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
 import type { GameOptions, SessionCallbacks } from '../game/gameState';
 import { flags } from '../core/flags';
-import { isParkedMode, visibleModes } from '../core/legacy';
+import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
 import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
-import { DIFFICULTIES, DIFFICULTY } from '../ai/archetypes';
+import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
+import { isListedMap } from '../world/maps/listed';
 import { MISSIONS, missionById } from '../game/missions';
-import { capacity, CODE_ALPHABET, isPvp, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
-import { TEAM_COLORS, TEAM_NAMES } from './pvp';
+import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
+import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { courseAllBaysFlag } from '../game/modes/courseMode';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
 export interface CoopApi {
@@ -64,7 +66,7 @@ class CoopController {
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
       ev.on('hostLeft', () => this.fail('Host left', 'The host closed the room.')),
-      ev.on('full', () => this.fail('Room full', 'That room has no open slot for this mode (co-op takes 4, PvP 8).')),
+      ev.on('full', () => this.fail('Room full', 'That room has no open slot for this mode (co-op takes 4, the training course 2).')),
       ev.on('lobby', () => {
         // host went back to the lobby while we were still in the match
         if (!session.isHost && this.inGame && session.phase === 'lobby') {
@@ -94,6 +96,7 @@ class CoopController {
         difficulty: s.difficulty,
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
+        courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         net: {
           role: session.role,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
@@ -156,8 +159,7 @@ class CoopScreen extends Screen {
       return;
     }
     this.body.replaceChildren(
-      h('div', { class: 'row-note', text: 'Co-op for 2-4 (Wave, Hunter, Infiltration, Free Roam), PvP for up to 8 (Team Deathmatch 4v4, Free-for-all). The host runs the match; others join with the room code.' }),
-      h('div', { class: 'row-note', text: 'PvP is fair across PC and phones: base weapon damage, no suit or HQ bonuses, field of view at most 90 (16:9 width on wider screens), no Panini. Graphics settings never change what can be seen.' }),
+      h('div', { class: 'row-note', text: 'Co-op for 2-4 (Hunter, Infiltration, Free Roam; the training course for 2). The host runs the match; others join with the room code.' }),
       button('Host a room', () => void hostRoom(this.app, this.api), { icon: 'wifi', class: 'primary big', autofocus: true }),
       button('Join with code', () => this.app.screens.push(new JoinScreen(this.app, this.api)), { icon: 'user', class: 'big' }),
     );
@@ -249,22 +251,20 @@ class JoinScreen extends Screen {
 }
 
 const MODE_OPTS: { value: NetMode; label: string }[] = [
-  { value: 'wave', label: 'Wave Survival' },
   { value: 'clear', label: 'Hunter' },
   { value: 'infiltration', label: 'Infiltration' },
   { value: 'sandbox', label: 'Free Roam' },
-  { value: 'tdm', label: 'Team Deathmatch' },
-  { value: 'ffa', label: 'Free-for-all' },
+  { value: 'course', label: 'Training course' },
 ];
-/** 3.5: Infiltration and Free Roam; Wave, Hunter, Team Deathmatch and Free-for-all only with `?legacy=1` (the mode already set stays listed). */
+/** 3.5: Infiltration and Free Roam; Hunter only with `?legacy=1` (the mode already set stays listed). */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  const shown = visibleModes(MODE_OPTS, flags.legacy);
+  // the training course only when a listed map offers it (D22)
+  const shown = visibleModes(MODE_OPTS, flags.legacy).filter((m) => m.value !== 'course' || MAPS.some((x) => isListedMap(x.id) && x.modes.includes('course')));
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
 }
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
-const DIFF_OPTS: { value: Difficulty; label: string }[] = DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label }));
 
 class LobbyScreen extends Screen {
   private list: HTMLElement;
@@ -294,6 +294,9 @@ class LobbyScreen extends Screen {
   }
 
   override onShow(): void {
+    // back from a course's results: read the course record again (the bays just finished are offered, D20)
+    if (this.courseRec !== undefined) this.courseRec = null;
+    if (this.c.session.isHost && this.c.session.mode === 'course') this.buildOpts();
     const ev = this.c.session.events;
     this.off.push(
       ev.on('lobby', () => {
@@ -322,24 +325,23 @@ class LobbyScreen extends Screen {
 
   private renderPlayers(): void {
     const s = this.c.session;
-    const teams = s.mode === 'tdm';
-    const ps = [...s.players.values()].sort((a, b) => (teams ? a.team - b.team : 0) || Number(b.host) - Number(a.host));
+    const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
     const cap = capacity(s.mode);
     this.list.replaceChildren(
       ...ps.map((p: PlayerInfo) =>
         h(
           'div',
           { class: `lobby-player${p.id === s.selfId ? ' me' : ''}` },
-          h('span', { class: 'lp-dot', style: { background: teams ? TEAM_COLORS[p.team === 1 ? 1 : 0] : p.tag.color } }),
+          h('span', { class: 'lp-dot', style: { background: p.tag.color } }),
           h('span', { class: 'lp-name', text: p.name }),
-          h('span', { class: 'lp-tag', text: teams ? TEAM_NAMES[p.team === 1 ? 1 : 0] : p.tag.title }),
+          h('span', { class: 'lp-tag', text: p.tag.title }),
           h('span', { class: `lp-state ${p.host ? 'host' : p.ready ? 'ready' : ''}`, text: p.host ? 'Host' : p.ready ? 'Ready' : 'Not ready' }),
         ),
       ),
       ...Array.from({ length: Math.max(0, cap - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
     );
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
-    else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick a PvP mode or wait for someone to leave.`;
+    else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code or link to invite players.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
@@ -348,14 +350,13 @@ class LobbyScreen extends Screen {
     const s = this.c.session;
     const maps = MAPS.filter((m) => m.modes.includes(s.mode));
     const infil = s.mode === 'infiltration';
-    const pvp = isPvp(s.mode);
     if (!s.isHost) {
       const map = MAPS.find((m) => m.id === s.map);
       const row = (k: string, v: string): HTMLElement => h('div', { class: 'row' }, h('span', { class: 'row-label', text: k }), h('span', { text: v }));
       this.opts.replaceChildren(
         row('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
         infil ? row('Mission', missionById(s.mission)?.name ?? '') : row('Map', map?.name ?? s.map),
-        ...(pvp ? [] : [row('Difficulty', DIFF_OPTS.find((d) => d.value === s.difficulty)?.label ?? '')]),
+        row('Difficulty', DIFFICULTY_OPTS.find((d) => d.value === s.difficulty)?.label ?? ''),
         ...(map?.weathers ? [row('Weather', WEATHER_LABEL[s.weather])] : []),
       );
       return;
@@ -378,7 +379,12 @@ class LobbyScreen extends Screen {
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
         : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
-      ...(pvp ? [] : [choice('Difficulty', DIFF_OPTS, () => s.difficulty, (v) => set(s.mode, s.map, v))]),
+      // the host's difficulty row updates in place (no rebuild)
+      ...difficultyRows(
+        () => s.difficulty,
+        (v) => s.setSettings(s.mode, s.map, v),
+        () => this.renderPlayers(),
+      ),
       ...(MAPS.find((m) => m.id === s.map)?.weathers
         ? [
             choice(
@@ -392,8 +398,30 @@ class LobbyScreen extends Screen {
             ),
           ]
         : []),
+      ...(s.mode === 'course' ? [this.bayChoice()] : []),
     );
   }
+
+  /** Course mode: "Start at bay N" for the bays in the host's course record (every bay with the dev flag; D20, C9). */
+  private bayChoice(): HTMLElement {
+    const s = this.c.session;
+    if (this.courseRec === null) {
+      this.courseRec = undefined;
+      void loadCourseRecord().then((r) => {
+        this.courseRec = r;
+        if (this.c.session.mode === 'course') this.buildOpts();
+      });
+    }
+    const map = MAPS.find((m) => m.id === s.map);
+    const entry = this.courseRec?.courses[s.map];
+    const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? (map ? 9 : 0) : 0);
+    if (!bays.includes(s.courseBay)) s.courseBay = 1;
+    return choice('Start at', bays.map((n) => ({ value: String(n), label: n === 1 ? 'Bay 1' : `Bay ${n}${entry?.bays[n - 1] ? ` (${entry.bays[n - 1]})` : ''}` })), () => String(s.courseBay), (v) => {
+      s.courseBay = Number(v) || 1;
+    });
+  }
+  /** The host's course record (null: not read yet; undefined: loading). */
+  private courseRec: CourseRecord | null | undefined = null;
 
   private buildActions(keepFocus = false): void {
     const s = this.c.session;
@@ -416,12 +444,7 @@ class LobbyScreen extends Screen {
       main = button(me?.ready ? 'Not ready' : 'Ready', () => s.setReady(!me?.ready), { icon: 'play', class: me?.ready ? 'big' : 'primary big', autofocus: true });
       if (!s.hostId) (main as HTMLButtonElement).disabled = true;
     }
-    const extra: HTMLElement[] = [];
-    if (s.mode === 'tdm') {
-      const mine = s.players.get(s.selfId)?.team ?? 0;
-      extra.push(button(`Join ${TEAM_NAMES[1 - mine]}`, () => s.requestTeam(1 - mine), { icon: 'user' }));
-    }
-    this.actions.replaceChildren(main, ...extra, share, leave);
+    this.actions.replaceChildren(main, share, leave);
     if (focusedIdx >= 0) this.c.app.nav.setRoot(this.el, (this.actions.children[focusedIdx] as HTMLElement) ?? null);
   }
 
@@ -490,15 +513,13 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   if (app.screens.top === wait) app.screens.pop();
   const session = new NetSession(transport, role, code, api.profile());
-  // (3.5: a new room starts on Infiltration, not the parked Wave Survival)
-  if (role === 'host' && !flags.legacy && isParkedMode(session.mode)) {
+  // a new room starts on Infiltration (the session default) with the first mission; `?legacy=1` keeps the parked Hunter
+  if (role === 'host') {
     const m = MISSIONS[0]!;
-    session.setSettings('infiltration', m.map, session.difficulty, m.id);
+    if (flags.legacy) session.setSettings('clear', session.map, session.difficulty);
+    else session.setSettings('infiltration', m.map, session.difficulty, m.id);
   }
-  const c = new CoopController(app, api, session);
-  current = c;
-  (window as unknown as { __coop?: CoopController }).__coop = c;
-  c.showLobby();
+  const c = adopt(app, api, session);
   if (role === 'client') {
     setTimeout(() => {
       if (!session.hostId && current === c && !c.inGame) {
@@ -508,6 +529,64 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
       }
     }, JOIN_TIMEOUT_MS);
   }
+}
+
+/** The room's controller and lobby for a connected session. */
+function adopt(app: App, api: CoopApi, session: NetSession): CoopController {
+  const c = new CoopController(app, api, session);
+  current = c;
+  (window as unknown as { __coop?: CoopController }).__coop = c;
+  c.showLobby();
+  return c;
+}
+
+/** `?net=local` autostart: how long a new tab listens for a host's lobby before it hosts itself (ms). */
+const AUTO_PROBE_MS = 1500;
+
+/** The fixed room code of a map's `?net=local` autostart room (every tab with the same URL finds the same room). */
+export function autoRoomCode(map: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < map.length; i++) h = Math.imul(h ^ map.charCodeAt(i), 16777619) >>> 0;
+  let s = '';
+  for (let i = 0; i < 5; i++) {
+    s += CODE_ALPHABET[h % CODE_ALPHABET.length]!;
+    h = Math.floor(h / CODE_ALPHABET.length) + 7919 * (i + 1);
+  }
+  return s;
+}
+
+/**
+ * `?net=local&autostart=<map>&mode=course` (dev builds and tests, same-device tabs only): the first tab hosts the map's
+ * fixed room with Course mode set, every later tab joins it and readies; the host starts the course once a partner is
+ * in and everyone is ready (once: a later match starts from the lobby as usual).
+ */
+export async function autoLocalCourse(app: App, api: CoopApi, map: string): Promise<void> {
+  const code = autoRoomCode(map);
+  // a client session hears an open room's lobby (the host answers its hello) within the probe window
+  const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile());
+  let full = false;
+  probe.events.on('full', () => (full = true));
+  await new Promise((r) => setTimeout(r, AUTO_PROBE_MS));
+  if (full) {
+    await probe.leave();
+    app.screens.push(new Dialog('Room full', `The local course room ${code} already has its players.`, [{ label: 'OK', action: () => {}, primary: true }]));
+    return;
+  }
+  if (probe.hostId) {
+    adopt(app, api, probe);
+    probe.setReady(true);
+    return;
+  }
+  await probe.leave();
+  const session = new NetSession(createLocalTransport(roomId(code)), 'host', code, api.profile());
+  session.setSettings('course', map, session.difficulty, '');
+  adopt(app, api, session);
+  const off = session.events.on('lobby', () => {
+    if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity) return;
+    off();
+    // (after the lobby handler that announced the partner: the match starts on the next task)
+    setTimeout(() => session.startMatch(), 0);
+  });
 }
 
 export function hostRoom(app: App, api: CoopApi): Promise<void> {

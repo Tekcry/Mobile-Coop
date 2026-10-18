@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { curve, evalCurve } from '../src/anim/curves';
 import { addClip, makeClip, mirrorClip, overClip, sample } from '../src/anim/clip';
 import { CH, Inertializer, newPose, NCH } from '../src/anim/pose';
-import { AnimGraph, defaultInput } from '../src/anim/animGraph';
+import { AnimGraph, BREATH, defaultInput, KNEEL_FADE, WEAPON_SETTLE_OMEGA } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { RELOAD_EMPTY, RELOAD_TACTICAL, SWAP, GRENADE } from '../src/anim/clips/actions';
-import { WALK, WALK_STRAFE_L, WALK_STRAFE_R } from '../src/anim/clips/locomotion';
+import { WALK, WALK_STRAFE_L, WALK_STRAFE_R, GAIT_STYLE, SWAY_MAX } from '../src/anim/clips/locomotion';
+import * as LOCO from '../src/anim/clips/locomotion';
+import { ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
 import { Spring } from '../src/anim/rigMath';
 
 describe('curves', () => {
@@ -106,14 +108,14 @@ describe('graph', () => {
     for (let k = 0; k < 120; k++) g.update(dt, i);
     let prevY = g.out.pelvis.y;
     let maxJump = 0;
-    i.cover = 'high';
+    i.wall = true;
     i.wallSide = 1;
     for (let k = 0; k < 60; k++) {
       g.update(dt, i);
       maxJump = Math.max(maxJump, Math.abs(g.out.pelvis.y - prevY));
       prevY = g.out.pelvis.y;
     }
-    i.cover = 'none';
+    i.wall = false;
     i.traverse = 'vault';
     for (let k = 0; k < 90; k++) {
       i.traverseT = k / 90;
@@ -143,20 +145,95 @@ describe('graph', () => {
     expect(h.out.stance.rZ).toBeLessThan(-0.2);
     expect(h.out.stance.lZ).toBeGreaterThan(0.2);
   });
-  it('heel strikes compress the pelvis by 1-3 cm (weighted) and it recovers', () => {
+  it('(step 21, A10) heel strikes add no pelvis kick: one loading dip per step from the clip', () => {
+    const g = new AnimGraph(proportions());
+    expect('heelStrike' in g).toBe(false);
+    // the walk's pelvis height over one cycle: exactly one low and one high per step (two of each per cycle)
+    const ys: number[] = [];
+    for (let k = 0; k < 200; k++) ys.push(sample(WALK, 'pelY', k / 200));
+    let lows = 0;
+    let highs = 0;
+    for (let k = 0; k < 200; k++) {
+      const p = ys[(k + 199) % 200]!;
+      const c = ys[k]!;
+      const n = ys[(k + 1) % 200]!;
+      if (c < p && c <= n) lows++;
+      if (c > p && c >= n) highs++;
+    }
+    expect(lows).toBe(2);
+    expect(highs).toBe(2);
+  });
+  it('(step 21, D2 / A9) every gait clip sways <= 3 cm peak to peak (capped ones 2.76); frozen D2 constants', () => {
+    expect(SWAY_MAX * GAIT_STYLE.sway * 2).toBeLessThanOrEqual(0.0276 + 1e-9);
+    for (const c of Object.values(LOCO) as unknown[]) {
+      const clip = c as Parameters<typeof sample>[0];
+      if (!clip || typeof clip !== 'object' || !('cycle' in clip) || !clip.cycle) continue;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let k = 0; k < 200; k++) {
+        const x = sample(clip, 'pelX', k / 200);
+        lo = Math.min(lo, x);
+        hi = Math.max(hi, x);
+      }
+      expect(hi - lo, clip.name).toBeLessThanOrEqual(0.03);
+    }
+    // weapon / kit settle: critically damped, 2 % in 5.8 / omega <= 0.2 s
+    expect(5.8 / WEAPON_SETTLE_OMEGA).toBeLessThanOrEqual(0.2 + 1e-9);
+    expect(KNEEL_FADE).toBeGreaterThanOrEqual(0.1);
+    expect(KNEEL_FADE).toBeLessThanOrEqual(0.25);
+    expect(MOVEMENT.standTime).toBeGreaterThanOrEqual(0.3);
+    expect(ENEMY_MOTION.standTime).toBeGreaterThanOrEqual(0.3);
+  });
+  it('(step 21, D2) breathing only after 2 s still, none moving or aiming; no free-running weapon sway', () => {
     const g = new AnimGraph(proportions());
     const i = defaultInput();
+    i.armed = true;
+    // moving: the spine pitch and the weapon carry no breathing / sway sine (constant gait at a fixed phase)
+    i.speed = 1.2;
+    i.localZ = 1.2;
+    i.phase = 0.3;
     for (let k = 0; k < 240; k++) g.update(1 / 120, i);
-    const y0 = g.out.pelvis.y;
-    g.heelStrike(1);
-    let low = y0;
+    const sp0 = g.out.spine.pitch;
+    let dSp = 0;
+    for (let k = 0; k < 240; k++) {
+      g.update(1 / 120, i);
+      dSp = Math.max(dSp, Math.abs(g.out.spine.pitch - sp0));
+    }
+    expect(dSp).toBeLessThan(1e-4);
+    // still for 1.5 s: no breathing yet
+    i.speed = 0;
+    i.localZ = 0;
+    i.phase = -1;
+    for (let k = 0; k < 120; k++) g.update(1 / 120, i);
+    const s1 = g.out.spine.pitch;
+    let d1 = 0;
     for (let k = 0; k < 60; k++) {
       g.update(1 / 120, i);
-      low = Math.min(low, g.out.pelvis.y);
+      d1 = Math.max(d1, Math.abs(g.out.spine.pitch - s1));
     }
-    expect(y0 - low).toBeGreaterThan(0.008);
-    expect(y0 - low).toBeLessThan(0.03);
-    expect(Math.abs(g.out.pelvis.y - y0)).toBeLessThan(0.003);
+    expect(d1).toBeLessThan(2e-3);
+    // after 2 s still it breathes (small: <= BREATH.amp of chest pitch)
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let k = 0; k < 960; k++) {
+      g.update(1 / 120, i);
+      if (k > 480) {
+        lo = Math.min(lo, g.out.spine.pitch);
+        hi = Math.max(hi, g.out.spine.pitch);
+      }
+    }
+    expect(hi - lo).toBeGreaterThan(BREATH.amp * 0.5);
+    expect(hi - lo).toBeLessThanOrEqual(2 * BREATH.amp + 0.03);
+    // (fix 21-5) the first move fades it out over ~0.2 s, never in one frame
+    const bw = (): number => (g as unknown as { breathW: number }).breathW;
+    expect(bw()).toBeGreaterThan(0.99);
+    i.speed = 1.2;
+    i.localZ = 1.2;
+    i.phase = 0;
+    g.update(1 / 120, i);
+    expect(bw()).toBeGreaterThan(0.8);
+    for (let k = 0; k < 24; k++) g.update(1 / 120, i);
+    expect(bw()).toBeLessThan(0.03);
   });
   it('spring helper settles without overshoot', () => {
     const s = new Spring();

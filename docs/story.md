@@ -1,11 +1,15 @@
 # Night Shift - Story and world
 
-Version 2.0 - 2026-10-10. Approved by Michael. (2.0: present-day campaign; Mission 1 at a colocation data centre; Mission 5 The Strongroom; Kestrel Exchange retired. 1.2: the Client is Alistair Crane; the operators' real names. 1.1: the traitor finale.)
+Version 2.1 - 2026-10-18. (2.1: two-player campaign with Wren and Moth in the field and Tally and Sexton on the radio
+(G2, G71, G112); no traitor and no player-versus-player finale (G9); text now, voiced later (G82); Wren stays 1.68 m
+(G74). 2.0, 2026-10-10: present-day campaign; Mission 1 at a colocation data centre; Mission 5 The Strongroom. 1.2: the
+Client is Alistair Crane; the operators' real names.)
 
 - This document is the authority on story, setting, characters and in-game text.
-- `docs/design-bible.md` wins on anything that affects gameplay.
-- All names here are original. No Splinter Cell names, organisations or plot.
-- The Mission 1 site is **Cinder Yard**, run by **Ostler Colocation** (decided 2026-10-10).
+- `docs/DECISIONS.md` and `docs/design-bible.md` win on anything that affects gameplay.
+- All names here are original. No reference-game names, organisations or plot (G6).
+- The Mission 1 site **Cinder Yard** and its operator **Ostler Colocation** are working names, made final with the
+  missions (STORY-03).
 
 ---
 
@@ -15,10 +19,10 @@ Version 2.0 - 2026-10-10. Approved by Michael. (2.0: present-day campaign; Missi
 
 **Logline:**
 
-- A deniable four-person unit, NIGHT SHIFT, slips into a data centre in the old railway district and taps a broker's private fibre. On it they hear one word: SUNDOWN.
+- A deniable unit, NIGHT SHIFT, sends two operators into a data centre in the old railway district to tap a broker's private fibre. On it they hear one word: SUNDOWN.
 - In nine nights someone will black out the port city of Hollowmere, take its emergency systems while the backups fail over to rigged hardware, and sell the demonstration to the highest bidder.
 - The team that lives in shadow has to keep the lights on.
-- **The last twist:** the Client has been inside Night Shift all along. In the final mission one team-mate (two, with four players) turns on the others.
+- **The twist:** the Client is the director of the office that sends Night Shift in.
 
 **The irony at the heart of it:** the gameplay is about darkness - you make it, you use it, you hide in it. The story is about a city that must not go dark.
 In the final mission the team turns the lights back on. The last image is Hollowmere lighting up block by block, seen from a rooftop.
@@ -32,11 +36,12 @@ In the final mission the team turns the lights back on. The last image is Hollow
 - Real stakes, plausible technology, professionals who are good at their jobs.
 - Humour comes from character and understatement, never from jokes that break tension.
 
-**Text only.** No voice, no recorded or synthesised audio.
+**Text now, voice later (G82).** Radio and subtitles are text. Every line is written so it can be voiced later
+(backlog item 6). Sound effects and music may use CC0 recordings (G58); this rule is about voices.
 
 **Radio lines:**
 
-- One or two lines on a phone: 90 characters or less per message.
+- One or two lines on screen: 90 characters or less per message.
 - Never more than three messages in a row without player action.
 - No exposition dumps:
   - the briefing carries the plot;
@@ -87,7 +92,7 @@ A rain-soaked northern British port city, 2026 onwards. Old infrastructure, sold
 | **The Cutting** | The freight line and tunnels under the old town, out to the Ashgrove sidings | 7 |
 | **Ashgrove** | The city's main substation and grid control centre | 7, 8 |
 
-Every mission is at night. Rain is common. Moonlight and street light matter (P1).
+Every mission is at night. Rain is common. Moonlight and street light matter.
 
 ---
 
@@ -99,9 +104,11 @@ Every mission is at night. Rain is common. Moonlight and street light matter (P1
 - When something cannot be done officially, it calls Night Shift.
 - **Its director is Alistair Crane,** Peg's boss: polished, patient, trusted by ministers. He is the Client (Section 5).
 
-**Night Shift** is four operators and a handler.
+**Night Shift** is a handler, two field operators and two radio crew.
 
 - Deniable: if caught, they were never there. They prefer nobody gets hurt; the rating rewards that, and so does the story.
+- The two players are the field operators, **Wren** and **Moth** (G71). **Tally** and **Sexton** stay off the map:
+  radio and briefing characters, never playable (G112).
 
 ### The handler: Margaret "Peg" Ashdown, callsign LANTERN
 
@@ -119,36 +126,37 @@ Every mission is at night. Rain is common. Moonlight and street light matter (P1
 - "Good. Breathe."
 - "That's the battery room. Don't lick anything."
 
-### The operators
+### The field operators (the players)
 
-Looks and personality only. Every operator has identical stats; each is their own real size (bible 5.14).
+Looks and personality only. Both move the same; they differ in look and height (G109). Both are realistic characters
+(G68); their art is built on `feature/operators` (G75).
 
 #### WREN - team lead
 
 - **Background:** ex-military, thirties. Says as little as possible. Carries the team's conscience without mentioning it.
-- **Look:** compact, close-fitting hood, square goggle housing. **Green goggle light.**
+- **Look:** 1.68 m (G74), close-fitting hood. **Green goggle light.**
 - **Voice:** "Moving." "Clear." "Wait." Rarely a full sentence, so when Wren talks at length it matters.
 
 #### MOTH - climber
 
 - **Background:** ex-steeplejack, twenties. Grew up on scaffolding and phone masts. Cheerful, curious, too fond of heights.
 - **The running joke:** Moth is drawn to light. It is a terrible trait in this job.
-- **Look:** lean, rolled sleeves, climbing harness, round goggle lenses. **Amber goggle light.**
+- **Look:** lean, rolled sleeves, climbing harness. **Amber goggle light.**
 - **Voice:** chatty when it is quiet, quick when it is not.
   - "I can see the whole yard from here. Lovely view. Two guards."
 
+### The radio crew
+
 #### TALLY - signals and hacking
 
-- **Background:** ex-telecom network engineer, Peg's protégé, twenties. Thinks in diagrams.
+- **Background:** ex-telecom network engineer, Peg's protégé, twenties. Thinks in diagrams. Works the networks remotely.
 - **Character beat:** takes Peg's capture personally. Mission 6 is Tally's mission.
-- **Look:** slim, cable bag on the hip, headset over a cap, narrow visor goggles. **Cyan goggle light.**
 - **Voice:** precise, fast, a little nervous, funny without meaning to be.
   - "That's not a server. That's a server pretending to be three servers."
 
 #### SEXTON - surveillance
 
-- **Background:** ex-police surveillance, the oldest, fifties. Patient. Gallows humour. Knows how guards think because he used to stand where they stand.
-- **Look:** broad, long coat cut short for movement, flat cap under the hood, heavy goggle frame. **Violet goggle light.**
+- **Background:** ex-police surveillance, the oldest, fifties. Patient. Gallows humour. Knows how guards think because he used to stand where they stand. Watches from rooftops and camera feeds.
 - **Voice:** slow, deadpan.
   - "Rain's on our side tonight. Nobody looks up in the rain."
   - Moth: "I look up in the rain."
@@ -158,29 +166,10 @@ Looks and personality only. Every operator has identical stats; each is their ow
 
 | Callsign | Real name | Why the callsign |
 | --- | --- | --- |
-| Wren | Imogen Hale | Small, quick, hard to spot. Given by her old unit. |
+| Wren | Imogen Hale | Quick, quiet, hard to spot. Given by her old unit. |
 | Moth | Danny Mensah | Drawn to light. The team's running joke. |
 | Tally | Priya Tallis | From her surname, and she counts everything. |
 | Sexton | Graham Mallory | Ex-police who "digs things up". Gravedigger humour. |
-
-### Dossier secrets: every operator could be the traitor
-
-The traitor is whichever operator another player chose, picked at random when Mission 8 loads (bible 5.15). So every operator has a secret that could be a motive:
-
-| Operator | Secret | Motive |
-| --- | --- | --- |
-| **Wren** | A past operation went wrong and civilians died. The record was sealed. | The Client has the record. Blackmail. |
-| **Moth** | Family debts to people the Client owns. | To keep someone safe. |
-| **Tally** | Believes the Continuity Office covered up Peg's old cases. | Ideology: the Client promised to expose the Office. The cruellest version: Peg's protégé. |
-| **Sexton** | Framed out of the police years ago. | The Client offers to clear his name, and revenge. |
-
-**Writing rules for the secrets:**
-
-- Intel in Missions 2-7 hints at **all four** equally: a sealed file, a debt letter, a message to a journalist, an old case number.
-- The player can never be sure until the reveal.
-- When the traitor is revealed, their secret becomes the explanation.
-- The other three are revealed as innocent in the epilogue.
-- In solo, the traitor is an operator the player did not pick.
 
 ---
 
@@ -207,7 +196,6 @@ The traitor is whichever operator another player chose, picked at random when Mi
 
 **Why it fits:**
 
-- The Office holds a dossier on every operator, so Crane knows each one's secret (Section 4). That is how he turns the traitor.
 - He knows where Peg will be. That is how she is taken (Mission 6).
 - He hears every briefing. That is how SUNDOWN can start early (Mission 7).
 
@@ -216,9 +204,7 @@ The traitor is whichever operator another player chose, picked at random when Mi
 1. Missions 1-5: Crane appears only in passing, as Peg's calm, supportive boss in a briefing or two.
 2. **Mission 6:** while rescuing Peg, intel proves Crane authorised her transfer. The Client has a face, and it is their own side.
 3. **Mission 7:** Crane, exposed, starts SUNDOWN early.
-4. **Mission 8:** the team learns the last secret: Crane's inside man (or two) is one of them.
-
-**In the endings:** in **Lights On** Peg delivers the evidence and Crane is arrested; in **Sundown** his sale goes ahead.
+4. **Mission 8:** Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
 **What SUNDOWN is:**
 
@@ -231,37 +217,36 @@ The traitor is whichever operator another player chose, picked at random when Mi
 
 ## 6. Campaign outline
 
-Each mission gets a story beat, a gameplay showcase and a co-op highlight. The vertical slice is Mission 1.
+Each mission gets a story beat, a gameplay showcase and a co-op highlight. The missions follow the CT co-op research
+(G3); the Kestrel map (Mission 1) is paused until after it (G53).
 
 | # | Mission | Location | Story beat | Gameplay showcase | Co-op highlight |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **Dead Line** | Colocation data centre, Kestrel | Tap Pell's cross-connect. Learn SUNDOWN and its date: nine nights. **Ends:** his traffic names failover units "already delivered". | Light and shadow fundamentals; CT movement; modern security: cameras, keycards, mantrap, iris scanner, beams, motion lights | First team moves; light control (one kills the lights, one crosses); one blinds the cameras while another moves |
+| 1 | **Dead Line** | Colocation data centre, Kestrel | Tap Pell's cross-connect. Learn SUNDOWN and its date: nine nights. **Ends:** his traffic names failover units "already delivered". | Light and shadow fundamentals; CT movement; modern security: cameras, keycards, mantrap, iris scanner, beams, motion lights | First team moves; light control (one kills the lights, one crosses); one blinds the cameras while the other moves |
 | 2 | **Cold Storage** | Automated port cold store, the Docks | Track the failover hardware Pell's traffic mentioned. **Ends:** it was shipped weeks ago and is already installed somewhere. The serials point to the Barrier. | Cold store fog, robot crane heights, loud metal floors | Split-and-converge: two manifests at once |
 | 3 | **High Water** | Tidal barrier pumping station | The barrier runs on the rigged failover. **Ends:** in a blackout the gates open on a spring tide and the city floods. Halcyon signed it off. | Water noise masks you; pumping machinery; rain | Sync takedowns on a gantry patrol |
 | 4 | **Glass House** | Halcyon's tower, Meridian Quay | Inside Halcyon: names, contracts, Pell's double game. **Ends:** Pell keeps his own copy of every order, held in escrow in an old town vault, as his insurance. | Lit offices with motion-sensor lighting: light is the enemy; making darkness | Split floors: one in the server room, one on the executive floor |
-| 5 | **The Strongroom** | Victorian bank, old town, now a private vault company | Take Pell's escrow and records from the old vault. Pell sells the team out. **Ends:** the Client learns who Peg is. | Old building meets modern security: the vault, beams, cameras, time locks | Two players on the vault and the alarm at once |
+| 5 | **The Strongroom** | Victorian bank, old town, now a private vault company | Take Pell's escrow and records from the old vault. Pell sells the team out. **Ends:** the Client learns who Peg is. | Old building meets modern security: the vault, beams, cameras, time locks | Both players on the vault and the alarm at once |
 | 6 | **Lantern Out** | Private clinic, old town | Peg has been taken. Rescue her. **Ends:** intel proves Crane, the Office's own director, is the Client. | **No radio.** Objectives come only from intel found in the level. | Coordination by pings alone: the purest co-op mission |
 | 7 | **Substation Zero** | Ashgrove substation | Exposed, Crane starts SUNDOWN early, mid-mission. Optional: stop the last failover hardware arriving by rail at the Ashgrove siding. **Ends:** the city is dark and grid control is the only way back. | **The blackout:** lights fail across the map in real time; guards switch to torches and night vision; the main mechanic flips. Optional set piece on the siding. | Holding a dark map against torches; clutch saves |
-| 8 | **Sundown** | Ashgrove grid control | Act 1: restore the grid together. **The betrayal:** a team-mate disarms the protagonist and kills the lights. Act 2: the Confrontation. | **The hunt (bible 5.15):** unarmed protagonists against traitors with a loud pistol; restoring breakers turns on lights that expose them. | 1v1, 1v2 or 2v2: the team against itself |
+| 8 | **Sundown** | Ashgrove grid control | Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written. | Open (Section 9) | Decided with the missions (Section 9) |
 
-**The leaks in Missions 5-7 are the traitor's doing** (written ambiguously until the reveal):
+**The leaks in Missions 5-7** (Pell knows the team is coming to the vault and whom to sell them to, Mission 5; the
+Client knows where Peg is, Mission 6; SUNDOWN starts early, Mission 7) were the traitor's doing. Who leaks now:
+Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
-- Pell knows the team is coming to the vault, and knows whom to sell them to (Mission 5).
-- The Client knows where Peg is (Mission 6).
-- SUNDOWN starts early (Mission 7).
-
-**Two endings:**
-
-- **Lights On** (protagonists win): the rooftop, the city lighting up block by block, LANTERN and the loyal team. The traitor's last line depends on their secret and on whether they were knocked out or killed.
-- **Sundown** (traitors win): the city goes dark; the traitor's closing words with the Client; LANTERN's last line to an empty channel.
+**The ending:** Open, decided with missions (STORY-04, G9): no traitor; replacement plot to be written.
 
 **Rules for mission writing:**
 
-- Every mission is fully playable solo. Its co-op highlight is extra, never required (bible 5.9).
+- Every mission is played by two players and cannot be completed solo (G2). Its co-op highlight is the heart of it.
 - The mission's briefing explains why the team is there in 4-6 lines. Plot details come from found intel and the radio.
 - Each mission ends on a reveal or a decision that pulls into the next.
 
 ### 6.1 Mission 1 brief: Dead Line (story terms, for the level designers)
+
+Numbers here (guards, objectives) are story intent; the map's numbers are set when Kestrel is decided after the
+research (G53, G118).
 
 **The site and its night.** Cinder Yard, a colocation data centre run by Ostler Colocation on the old goods yard in Kestrel, under the viaduct. It is a normal Tuesday: rain, the hum of the cooling, the generator's weekly test due before dawn. Pell's cage there is rented by Ansell & Crowe Ltd. The name "Dead Line" is Peg's joke: a fibre nobody seems to use.
 
@@ -269,7 +254,7 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The v
 
 - **Security:** officers from a contracted guarding firm. They believe they protect a business. 16 on site tonight, because Pell paid for extra cover during a handover.
 - **The handover:** a van is being loaded in the yard. Its officers are Pell's extra cover.
-- **The civilian:** the night duty engineer, the one Ostler employee on shift. Harmless. Never kill them (bible 5.7).
+- **The civilian:** the night duty engineer, the one Ostler employee on shift. Harmless. Never kill them.
 
 **The objectives, as LANTERN briefs them:**
 
@@ -289,15 +274,16 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The v
 
 ---
 
-## 7. Radio system rules (for writers and the Phase 4 framework)
+## 7. Radio system rules (for writers and the mission framework)
 
-**Speakers:** LANTERN, the four operators, and occasionally intercepted enemy radio (guards, Pell). Each speaker has a label and a colour.
+**Speakers:** LANTERN, Tally and Sexton on the radio, Wren and Moth in the field, and occasionally intercepted enemy
+radio (guards, Pell). Each speaker has a label and a colour.
 
-**Variants: every line can have a solo and a team version.**
+**Two players are always in the field.** Lines are written for both operators present.
 
-- **Solo:** the player is one operator; the others are elsewhere, on the radio, doing parallel tasks (watching from a roof, working a substation remotely).
-- **Team:** lines adapt to who is present. If Moth is in the field, Moth does not radio in from a rooftop.
-- **Tokens:** `{player}`, `{team}`, `{lead}` (the first player in the lobby).
+- Tally and Sexton radio in from elsewhere (working a network remotely, watching from a roof or a camera feed).
+- **Tokens:** `{player}`, `{team}`, `{lead}` (the first player in the lobby). Which callsign each player carries is
+  open (TRAIN-09).
 
 **Event lines, from a pool with cooldowns:**
 
@@ -311,13 +297,7 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The v
 - sync success
 - clutch save
 
-**Mission 6:** LANTERN is silent. Operator lines only, and fewer of them.
-
-**Mission 8 Act 2:**
-
-- Protagonists hear LANTERN's location pulses. Traitors hear the Client.
-- Taunts and replies are per operator and dossier-based, never carrying position.
-- No humour.
+**Mission 6:** LANTERN is silent. Operator and crew lines only, and fewer of them.
 
 **Every line respects the rules in Section 2.**
 
@@ -339,22 +319,21 @@ Radio (lines in brackets are player action):
 
 ```
 LANTERN: Evening, Night Shift. Cinder Yard. I pulled the first fibre into that building.
-LANTERN (solo): In over the lane fence. Keep to the wall - the yard lights are on sensors.
-LANTERN (team): Over the lane fence, all of you. Keep to the wall - the yard lights are on sensors.
-[player crosses the lane]
-MOTH (if not present): I'm on the depot roof across the lane. Van's being loaded in the yard.
+LANTERN: Over the lane fence, both of you. Keep to the wall - the yard lights are on sensors.
+[players cross the lane]
+SEXTON: I'm on the depot roof across the lane. Van's being loaded in the yard.
 SEXTON: Rain's on our side tonight. Nobody looks up in the rain.
 MOTH: I look up in the rain.
-[player moves]
+[players move]
 SEXTON: Nobody sensible.
 LANTERN: Card, cameras, cage. Tap his line, out through the yard. Stay in the dark.
-[player is inside the perimeter]
+[players are inside the perimeter]
 TALLY: Cooling alarm brings the duty engineer running. Just saying.
 LANTERN: The carrier entrance is under the yard. My cable's still in it.
-[player taps the cross-connect]
+[a player taps the cross-connect]
 TALLY: Tap's on. Light's coming through clean. He'll never know.
 ...
-[player crosses the yard during the generator test]
+[players cross the yard during the generator test]
 TALLY (end): Peg... he's not selling data. He's relaying orders. Someone called SUNDOWN.
 TALLY (end): Nine nights. And the hardware's already delivered.
 LANTERN: Then we've nine nights. Come home.
@@ -364,12 +343,24 @@ LANTERN: Then we've nine nights. Come home.
 
 ## 9. Open story items
 
-Decided on 2026-10-08: the Client (Crane) and the operators' real names. On 2026-10-10: the present-day campaign (2.0) and the Mission 1 site name.
+Decided with the missions (Michael: "Decide with missions", STORY-03, STORY-04):
 
-1. **The epilogue lines for both endings,** and each operator's betrayal and last lines.
-2. **Mission 6's location detail** and how Peg is held.
-3. **The guarding firm's name** in Mission 1 (and whether it recurs in Halcyon's buildings).
-4. **What the van in the Mission 1 yard carries** (spares for Pell's cage, or a first glimpse of the failover units).
-5. **Whether the Mission 1 optional intel pays off later** (the access log as a lead to Mission 4, the rack labels to Mission 5).
-6. **Crane's first appearance:** which early briefing he speaks in, and his one line.
-7. **Mission 7's rail set piece:** how the siding connects to the substation story, and what happens if it is skipped.
+1. **The site and company names** Cinder Yard and Ostler Colocation (working names until then).
+2. **The epilogue lines** for the ending (once the ending is written, item 9).
+3. **Mission 6's location detail** and how Peg is held.
+4. **The guarding firm's name** in Mission 1 (and whether it recurs in Halcyon's buildings).
+5. **What the van in the Mission 1 yard carries** (spares for Pell's cage, or a first glimpse of the failover units).
+6. **Whether the Mission 1 optional intel pays off later** (the access log as a lead to Mission 4, the rack labels to Mission 5).
+7. **Crane's first appearance:** which early briefing he speaks in, and his one line.
+8. **Mission 7's rail set piece:** how the siding connects to the substation story, and what happens if it is skipped.
+
+Opened by dropping the traitor finale (G9) and the solo route (G2), for the missions:
+
+9. **Mission 8 and the ending** (Sections 5 and 6): Open, decided with missions (STORY-04, G9): no traitor;
+    replacement plot to be written. Its story beat, gameplay showcase, co-op highlight and ending are all open.
+    Nothing after the Mission 7 blackout is decided.
+10. **The leaks in Missions 5-7** (Section 6): Open, decided with missions (STORY-04, G9): no traitor;
+    replacement plot to be written. Who leaks to Pell (Mission 5) is open;
+    Crane knowing where Peg is (Mission 6) and starting SUNDOWN early (Mission 7) stand from Section 5.
+11. **The operators' dossier secrets** (a sealed file, a debt letter, a message to a journalist, an old case number)
+    were motives for the traitor: keep them as found intel or drop them.

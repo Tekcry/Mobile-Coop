@@ -118,7 +118,7 @@ Brightness bands follow the gameplay bands.
 - **Render only:**
   - stored per device
   - clamped to a small range (it cannot lift the dark band out of dark)
-  - locked in the Confrontation (bible 5.15)
+  - no mode locks it (the old Confrontation lock is void since G9)
 - Shown once on first launch after this update, skippable.
 
 ---

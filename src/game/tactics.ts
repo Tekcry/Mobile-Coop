@@ -44,6 +44,23 @@ export function exposurePoints(feet: P3, crouch: number, rightX: number, rightZ:
   return out;
 }
 
+/**
+ * (locomotion step 12b, light parity) The same sample points with the head and chest taken from the real posed body
+ * (back-to-wall peek / lean-out, the mirrored open-side weapon, the low-wall side lean): the rest stay on the model.
+ */
+export function exposurePointsPosed(feet: P3, crouch: number, rightX: number, rightZ: number, lean: number, head: P3, chest: P3, out: P3[]): P3[] {
+  exposurePoints(feet, crouch, rightX, rightZ, lean, out);
+  const h = out[0]!;
+  h.x = head.x;
+  h.y = head.y;
+  h.z = head.z;
+  const c = out[1]!;
+  c.x = chest.x;
+  c.y = chest.y;
+  c.z = chest.z;
+  return out;
+}
+
 export interface CoverSpot {
   /** Outward normal of the cover face (towards where the user stands). */
   nx: number;

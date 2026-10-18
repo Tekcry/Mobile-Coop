@@ -1,4 +1,4 @@
-// Game modes: wave progression + game over + retry, mission objectives to victory, enemy types, ragdolls.
+// Game modes: ragdolls, mission objectives to victory, enemy types.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -23,33 +23,22 @@ async function run(params, fn) {
   }
 }
 
-console.log('wave survival');
-await run('autostart=warehouse&mode=wave', async ({ page, G, sim }) => {
+console.log('ragdolls');
+await run('autostart=warehouse&mode=mission', async ({ G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
-  await sim(9);
+  await sim(0.5);
   const alive = await G(() => window.__app.current.enemyMgr.alive);
-  assert(alive > 0, `wave 1 spawns enemies (${alive} alive)`);
-  // kill everything as it spawns until the wave clears
+  assert(alive > 0, `the mission places enemies (${alive} alive)`);
+  // kill everything at once, then watch the bodies
   let maxRag = 0;
-  for (let i = 0; i < 40; i++) {
-    if (i > 0) maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
-    const done = await G((i) => { const g = window.__app.current; for (const e of [...g.enemyMgr.enemies]) if (e.alive) e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: i % 2 ? 'head' : 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 5 }); return g.mode.wave >= 2; }, i);
+  await G(() => { const g = window.__app.current; let i = 0; for (const e of [...g.enemyMgr.enemies]) if (e.alive) e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: i++ % 2 ? 'head' : 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 5 }); });
+  for (let i = 0; i < 10; i++) {
     await sim(0.1);
     maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
-    if (done) break;
-    await sim(1);
   }
-  const st = await G(() => ({ wave: window.__app.current.mode.wave, waves: window.__app.current.stats.waves, kills: window.__app.current.stats.kills, score: window.__app.current.stats.score }));
-  assert(st.waves >= 1 && st.kills >= 6, `wave 1 cleared, bonus awarded (${JSON.stringify(st)})`);
+  const kills = await G(() => window.__app.current.stats.kills);
+  assert(kills >= alive, `every kill counted (${kills})`);
   assert(maxRag > 0 && maxRag <= 4, `deaths spawn physics ragdolls within budget (peak ${maxRag})`);
-  // die -> results
-  await G(() => { const g = window.__app.current; g.target.damageMul = 1; g.target.applyDamage({ amount: 9999, point: g.player.position.clone(), dir: g.player.position.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: g.player.position.clone(), impulse: 0 }); });
-  await page.waitForSelector('.results-screen', { timeout: 15000 });
-  const title = await G(() => document.querySelector('.results-title')?.textContent);
-  assert(title === 'DEFEAT', 'death ends the run with results');
-  await press(page, BTN.A);
-  await page.waitForFunction(() => !document.querySelector('.results-screen') && window.__app.current?.mode?.wave === 0, null, { timeout: 30000 });
-  assert(true, 'Play again (A) restarts the mode');
 });
 
 console.log('mission');
@@ -91,16 +80,19 @@ await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
 });
 
 console.log('enemy types');
-await run('autostart=proving&mode=wave', async ({ G, sim }) => {
+await run('autostart=proving&mode=mission', async ({ G, sim }) => {
   await sim(0.3);
   const r = await G(() => { const g = window.__app.current; const P = g.player.position; const V = P.constructor;
+    // the mission's squads out of the way; spawned enemies hunt (no stealth rules)
+    g.enemyMgr.clear();
+    g.enemyMgr.stealth = false;
     g.enemyMgr.spawn('runner', new V(P.x + 4, 0, P.z + 4), true);
     g.enemyMgr.spawn('heavy', new V(P.x - 10, 0, P.z + 6), true);
     return g.enemyMgr.alive; });
   assert(r >= 2, 'runner and heavy spawn');
-  const hp0 = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hp0 = await G(() => window.__app.current.target.health.hp);
   await sim(4);
-  const hp1 = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hp1 = await G(() => window.__app.current.target.health.hp);
   assert(hp1 < hp0, `runner closes in and deals melee damage (${hp0} -> ${hp1.toFixed(0)})`);
   // plates in front, an exposed back (a round from in front travels against the facing)
   const heavy = await G(() => {

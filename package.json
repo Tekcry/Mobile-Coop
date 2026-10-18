@@ -1,10 +1,12 @@
 {
   "name": "mobile-coop",
   "private": true,
-  "version": "3.5.1",
+  "version": "4.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "editor": "vite --port 5199 --open /editor.html",
+    "e2e:editor": "node scripts/e2e-editor.mjs",
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "vite preview --host",
@@ -22,7 +24,14 @@
     "operators:lods": "node scripts/operators/export-gltf.mjs --lods",
     "operators:ktx2": "node scripts/operators/ktx2.mjs",
     "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
-    "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs"
+    "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs",
+    "music:fetch": "node scripts/music/fetch-samples.mjs",
+    "music:render": "node scripts/music/render.mjs",
+    "music:orch": "node scripts/music/render-orch.mjs",
+    "sfx:fetch": "node scripts/sfx/fetch-foley.mjs",
+    "sfx:render": "node scripts/sfx/render-foley.mjs",
+    "sfx:fetch-weapons": "node scripts/sfx/fetch-weapons.mjs",
+    "sfx:render-weapons": "node scripts/sfx/render-weapons.mjs"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "^9.29.0",

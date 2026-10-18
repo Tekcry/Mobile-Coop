@@ -110,7 +110,7 @@ export const mansion: MapDef = {
   id: 'mansion',
   name: 'Mansion',
   description: 'Night: a walled estate and a two-storey house with a grand staircase, a balcony and a vault office.',
-  modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
+  modes: ['infiltration', 'clear'],
   theme: {
     sky: '#080a12',
     horizon: '#20242e',
@@ -170,7 +170,7 @@ export const mansion: MapDef = {
     // foyer: pillars, a console table (beside the back door, which stays clear), a plant, benches either side
     // of the stairs
     b.pillar(-3.2, -3.2, 0.25, H1, MARBLE).pillar(3.2, -3.2, 0.25, H1, MARBLE);
-    b.lowCover(-2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5).lowCover(2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5);
+    b.lowWall(-2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5).lowWall(2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5);
     b.block(1.5, 13.6, 1.2, 0.95, 0.5, WOOD);
     plant(b, -1.7, 13.3);
     // dining: a long table and chairs, a sideboard, a china cabinet; kitchen: an island, counters either side of
@@ -299,15 +299,15 @@ export const mansion: MapDef = {
     // fountain, hedges, statues, cars on the drive
     b.pillar(0, -13, 2.2, 0.7, STONE).pillar(0, -13, 0.35, 2.4, STONE);
     for (const x of [-9, 9]) {
-      b.lowCover(x, -10, 6, HEDGE, 0, 1.1, 0.8);
-      b.lowCover(x, -19, 6, HEDGE, 0, 1.1, 0.8);
+      b.lowWall(x, -10, 6, HEDGE, 0, 1.1, 0.8);
+      b.lowWall(x, -19, 6, HEDGE, 0, 1.1, 0.8);
     }
-    b.lowCover(-15, -14.5, 5, HEDGE, 0, 1.1, 0.8).lowCover(15, -14.5, 5, HEDGE, 0, 1.1, 0.8);
+    b.lowWall(-15, -14.5, 5, HEDGE, 0, 1.1, 0.8).lowWall(15, -14.5, 5, HEDGE, 0, 1.1, 0.8);
     for (const [x, z] of [[-5, -7.6], [5, -7.6], [-20, -20], [20, -20]] as const) b.pillar(x, z, 0.45, 1.0, STONE).pillar(x, z, 0.22, 1.2, STONE, 1.0);
     car(b, -3.6, -20, 0, CAR);
     car(b, 3.4, -16, 0, '#3a3f48');
     // hedge planters off the facade: a crouched lane behind them past the front windows and the balcony ladder
-    for (const x of [-14, -7.4, 7.4, 13]) b.lowCover(x, -5.95, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
+    for (const x of [-14, -7.4, 7.4, 13]) b.lowWall(x, -5.95, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
     // trees on the lawns
     for (const [x, z] of [[-24, -16], [24, -16], [-24, 18], [-19, 22], [12, 22], [-12, 22], [25, 18]] as const) {
       b.pillar(x, z, 0.25, 2.6, '#4a3a2a');
@@ -331,7 +331,7 @@ export const mansion: MapDef = {
     b.box(-18.3, 0.9, 5, 0.6, 1.8, 5, HEDGE);
     // pool and loungers, the pool house (east)
     b.floor(23, -2.2, 10, 6, WATER, 0.03, 0.04);
-    b.lowCover(23, -5.8, 10, STONE, Math.PI / 2, 0.6, 0.5);
+    b.lowWall(23, -5.8, 10, STONE, Math.PI / 2, 0.6, 0.5);
     b.block(18.6, -2, 0.8, 0.5, 2.0, LINEN).block(18.6, 0.6, 0.8, 0.5, 2.0, LINEN);
     b.block(21.5, 1.25, 0.8, 0.5, 2.0, LINEN, 0, Math.PI / 2).block(24, 1.25, 0.8, 0.5, 2.0, LINEN, 0, Math.PI / 2);
     b.wallX(2, 19, 27, [], 3, PLASTER, T);
@@ -346,7 +346,7 @@ export const mansion: MapDef = {
     b.mark(ph0, { overhead: true });
     b.block(24, 8.6, 2.6, 0.95, 0.7, '#cfcac0').block(26.4, 3.2, 0.6, 1.9, 1.6, PANEL);
     // the back terrace: planters and a pergola
-    b.lowCover(-9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7).lowCover(9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7);
+    b.lowWall(-9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7).lowWall(9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7);
     for (const x of [-4, 4]) b.pillar(x, 22, 0.2, 2.8, STONE);
     b.box(0, 2.88, 22, 8.4, 0.16, 0.22, WOOD, 0, 0, false).box(-2, 2.98, 22, 0.12, 0.1, 2.6, WOOD, 0, 0, false).box(2, 2.98, 22, 0.12, 0.1, 2.6, WOOD, 0, 0, false);
     b.block(0, 24.6, 6, 1.0, 0.8, STONE_DARK);
@@ -418,7 +418,6 @@ export const mansion: MapDef = {
       ],
       pickups: [
         { pos: v(6.8, -24.4, 0.95), kind: 'ammo' },
-        { pos: v(-26.2, 2.6, 1.8), kind: 'health' },
         { pos: v(-15.4, 9.5, 2.1), kind: 'ammo' },
       ],
       rooms: ROOMS,

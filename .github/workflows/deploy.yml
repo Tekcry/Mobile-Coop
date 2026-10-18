@@ -1,8 +1,10 @@
 name: Build and deploy to GitHub Pages
 
 # The site holds the live game (default branch) at /<repo>/, the preview (dev branch) at /<repo>/preview/ and the
-# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/. A push to the default branch, or a passing
-# "Preview check" on dev / ct-movement, rebuilds them all.
+# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/ and the Kestrel map project (feature/kestrel branch)
+# at /<repo>/kestrel/. A push to the default branch, or a passing "Preview check" on dev / ct-movement / feature/kestrel,
+# rebuilds them all. Each slot is its own build, service worker and save database; the other slots are only rebuilt
+# from their own branches.
 on:
   push:
     branches: [main, master]
@@ -103,6 +105,27 @@ jobs:
           npm ci
           VITE_BASE=${BASE}ct/ VITE_PREVIEW_ID=ct npm run build
           cp -r dist ../live/dist/ct
+      - name: Is there a feature/kestrel branch?
+        id: kestrel
+        run: |
+          if git -C live ls-remote --exit-code --heads origin feature/kestrel >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Kestrel preview (feature/kestrel branch)
+        if: steps.kestrel.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: feature/kestrel
+          path: kestrel
+      - name: Build the Kestrel preview into /kestrel/
+        if: steps.kestrel.outputs.exists == 'true'
+        working-directory: kestrel
+        run: |
+          npm ci
+          VITE_BASE=${BASE}kestrel/ VITE_PREVIEW_ID=kestrel npm run build
+          cp -r dist ../live/dist/kestrel
       - uses: actions/upload-pages-artifact@v3
         with:
           path: live/dist

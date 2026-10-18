@@ -1,7 +1,7 @@
 /**
  * Keyboard / mouse bindings (pure, unit-tested). Every gameplay action has up to two inputs: a keyboard `code`
  * (`KeyboardEvent.code`) or an extra mouse button (`Mouse1` middle, `Mouse3` back, `Mouse4` forward). The left /
- * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-8 (gadgets) and the menu keys (Esc, Enter, Backspace,
+ * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-7 (gadgets) and the menu keys (Esc, Enter, Backspace,
  * arrows, Q / E tabs) are fixed.
  */
 import type { ButtonAction } from './actions';
@@ -25,12 +25,7 @@ export type BindId =
   | 'wheel'
   | 'shoulder'
   | 'goggles'
-  | 'mark'
-  | 'execute'
   | 'ping'
-  | 'emote1'
-  | 'emote2'
-  | 'emote3'
   | 'pause';
 
 export interface BindDef {
@@ -46,7 +41,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'back', label: 'Move back', actions: [], defaults: ['KeyS'] },
   { id: 'left', label: 'Move left', actions: [], defaults: ['KeyA'] },
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
-  { id: 'cover', label: 'Cover / cover-to-cover', actions: ['cover'], defaults: ['Space'] },
+  { id: 'cover', label: 'Context action', actions: ['cover'], defaults: ['Space'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
   { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: ['ShiftLeft'] },
   { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
@@ -60,12 +55,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'mark', label: 'Mark', actions: ['mark'], defaults: ['KeyT'] },
-  { id: 'execute', label: 'Execute', actions: ['execute'], defaults: ['KeyY'] },
   { id: 'ping', label: 'Ping (co-op)', actions: ['ping'], defaults: ['KeyZ'] },
-  { id: 'emote1', label: 'Emote 1', actions: ['quick2'], defaults: ['KeyJ'] },
-  { id: 'emote2', label: 'Emote 2', actions: ['quick3'], defaults: ['KeyK'] },
-  { id: 'emote3', label: 'Emote 3', actions: ['quick4'], defaults: ['KeyL'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 
@@ -95,16 +85,16 @@ export function defaultBinds(): KeyBinds {
 /** A code that may be bound at all. */
 export function bindable(code: string): boolean {
   if (RESERVED.has(code)) return false;
-  if (/^Digit[1-8]$/.test(code)) return false;
+  if (/^Digit[1-7]$/.test(code)) return false;
   return /^(Key[A-Z]|Digit\d|Numpad\w+|F\d{1,2}|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|CapsLock|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|Insert|Delete|Home|End|PageUp|PageDown)$/.test(code) || (MOUSE_CODES as readonly string[]).includes(code);
 }
 
-/** Merge stored binds over the defaults: unknown codes dropped, at most two per action, no code on two actions. */
+/** Merge stored binds over the defaults: unknown codes dropped, at most two per action. A code on two actions is kept
+ *  (locomotion step 18, D7: a conflict the controls screen warns about, `findConflicts`). */
 export function sanitizeBinds(raw: unknown): KeyBinds {
   const out = defaultBinds();
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
   const r = raw as Record<string, unknown>;
-  const used = new Set<string>();
   for (const b of BINDS) {
     const v = r[b.id];
     if (!Array.isArray(v)) continue;
@@ -112,32 +102,20 @@ export function sanitizeBinds(raw: unknown): KeyBinds {
     for (const c of v) if (typeof c === 'string' && bindable(c) && !codes.includes(c) && codes.length < 2) codes.push(c);
     out[b.id] = codes;
   }
-  // a code bound twice stays with the first action that has it
-  for (const b of BINDS) {
-    out[b.id] = out[b.id].filter((c) => {
-      if (used.has(c)) return false;
-      used.add(c);
-      return true;
-    });
-  }
   return out;
 }
 
 /**
- * Put `code` in `slot` (0 / 1) of `id`. A code already used by another action moves here (that action loses it);
- * returns the action it was taken from, if any.
+ * Put `code` in `slot` (0 / 1) of `id`. (locomotion step 18, D7) A code already used by another action stays there too
+ * (a conflict, warned, not blocked); returns that other action, if any.
  */
 export function assignBind(binds: KeyBinds, id: BindId, slot: 0 | 1, code: string): BindId | null {
   if (!bindable(code)) return null;
   let from: BindId | null = null;
-  for (const b of BIND_IDS) {
-    const i = binds[b].indexOf(code);
-    if (i >= 0 && !(b === id && i === slot)) {
-      binds[b].splice(i, 1);
-      if (b !== id) from = b;
-    }
-  }
+  for (const b of BIND_IDS) if (b !== id && from === null && binds[b].includes(code)) from = b;
   const list = binds[id];
+  const at = list.indexOf(code);
+  if (at >= 0) list.splice(at, 1);
   if (slot >= list.length) list.push(code);
   else list[slot] = code;
   if (list.length > 2) list.length = 2;

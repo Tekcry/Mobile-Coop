@@ -7,7 +7,7 @@ export type HitPart = 'head' | 'body';
 export interface HitInfo {
   /** (3.2.0) A guard's shot that struck a hostage held as a human shield (enemy fire that does hurt an enemy). */
   shieldHit?: boolean;
-  /** (3.2.0) The takedown kind behind a melee hit (PvP: the host checks it). */
+  /** (3.2.0) The takedown kind behind a melee hit. */
   takedown?: string;
   amount: number;
   point: Vector3;
@@ -20,10 +20,8 @@ export interface HitInfo {
   weapon?: WeaponId;
   sourcePos: Vector3;
   impulse: number;
-  /** Knock out instead of killing (crossbow sleep bolts). */
+  /** Knock out instead of killing (no gun sets it since the non-CT guns were deleted, G115). */
   nonLethal?: boolean;
-  /** A Mark & Execute shot (co-op: the host lets it kill once the shooter's charge is checked). */
-  execute?: boolean;
 }
 
 export interface DamageResult {
@@ -42,6 +40,8 @@ export interface Damageable {
   /** Head position, when it can be seen on its own (a player ducked behind low cover but peeking). */
   headPoint?(out: Vector3): Vector3;
   applyDamage(h: HitInfo): DamageResult;
+  /** A player-team target the local player's bullets still reach (a course partner, D38); its own rules decide. */
+  readonly shootable?: boolean;
 }
 
 /** Maps physics bodies (hit volumes) to the damageable they belong to. */

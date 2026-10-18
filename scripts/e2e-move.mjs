@@ -39,7 +39,7 @@ try {
   assert(p0.grounded && Math.abs(p0.y) < 0.1, `spawned on ground (y=${p0.y.toFixed(2)})`);
 
   // 3.2.0 Chaos Theory speed gears: spawn in gear 3; D-pad up / down step one gear; full stick = the gear's cap
-  const GEAR = () => page.evaluate(() => window.__app.current.player.controller.gear);
+  const GEAR = () => page.evaluate(() => window.__app.current.player.controller.maxGear);
   assert((await GEAR()) === 3, `spawns in gear 3 (${await GEAR()})`);
   const setGear = async (n) => {
     for (let i = 0; i < 6 && (await GEAR()) > n; i++) await press(page, BTN.DOWN);
@@ -58,17 +58,25 @@ try {
     st.fixedUpdate = (dt) => { orig(dt); t += dt; sum += st.player.controller.speed; n++; if (t >= s) { st.fixedUpdate = orig; res(sum / n); } };
     window.__ff();
   }), s);
-  const STAND = [0.8, 1.3, 2.0, 2.8, 3.8, 5.0];
-  const CROUCH = [0.5, 0.9, 1.3, 1.8, 2.3, 2.8];
+  // (step 22, M14 N6) the slower caps
+  const STAND = [0.65, 1.1, 1.65, 2.3, 3.15, 4.15];
+  const CROUCH = [0.42, 0.75, 1.08, 1.5, 1.9, 2.3];
   for (const crouched of [false, true]) {
-    for (let g = 1; g <= 6; g++) {
+    // (locomotion step 17) the rocker sets the maximum gear 1-5; gear 6 is the sprint only (LS held, standing: the sprint
+    // stands you up, so the crouched gear 6 cap is a table value covered by the unit tests)
+    for (let g = 1; g <= (crouched ? 5 : 6); g++) {
       await tp(-10, 0, -14, Math.PI / 2);
       await settle(0.2);
       if (crouched && !(await P()).crouched) await press(page, BTN.B);
       if (!crouched && (await P()).crouched) await press(page, BTN.B);
-      const got = await setGear(g);
+      let got = await setGear(Math.min(g, 5));
       await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
+      if (g === 6) {
+        await sim(0.1);
+        await press(page, BTN.LS);
+      }
       await sim(0.25);
+      if (g === 6) got = await page.evaluate(() => window.__app.current.player.controller.gear);
       const v = await meanSpeed(0.5);
       const want = (crouched ? CROUCH : STAND)[g - 1];
       assert(got === g && Math.abs(v - want) < want * 0.06 + 0.03, `gear ${g} ${crouched ? 'crouched' : 'standing'}: ${v.toFixed(2)} m/s (cap ${want})`);
@@ -81,7 +89,7 @@ try {
   await setGear(4);
   await settle(0.2);
   const half = await speedAt(0, -0.5);
-  assert(half > 1.2 && half < 1.5, `half stick at gear 4: half the cap (${half.toFixed(2)} m/s)`);
+  assert(half > 0.95 && half < 1.25, `half stick at gear 4 (step 22: snaps to gear 2's 1.1): about half the cap (${half.toFixed(2)} m/s)`);
   await press(page, BTN.B);
   const keptCrouched = await GEAR();
   await press(page, BTN.B);
@@ -91,7 +99,7 @@ try {
   await tp(-10, 0, -14, Math.PI / 2);
   await settle(0.2);
   const side = await speedAt(1, 0);
-  assert(side > 2.6, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s)`);
+  assert(side > 2.15, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s)`);
   const faced = await page.evaluate(() => { const c = window.__app.current.player.controller; return Math.atan2(Math.sin(c.yaw - Math.atan2(c.motion.vx, c.motion.vz)), Math.cos(c.yaw - Math.atan2(c.motion.vx, c.motion.vz))); });
   assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
   await settle(0.3);
@@ -106,7 +114,8 @@ try {
   assert(aimBack > 0.9 && aimBack < 1.12, `aiming: backstep 75% of 1.4 (${aimBack.toFixed(2)} m/s)`);
   await settle();
 
-  // instant stop: zero velocity on the step after the release; planted feet stay put (< 2 cm)
+  // (step 22, M14 N6) a weighted stop: the pace eases to rest within CT.stopTime (0.25 s, + 2 steps); planted feet
+  // stay put (< 2 cm)
   await tp(-10, 0, -14, Math.PI / 2);
   await settle(0.3);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
@@ -121,6 +130,8 @@ try {
     let released = false;
     let after = -1;
     let motion = -1;
+    let restT = -1;
+    let relT = 0;
     let n = 0;
     // planted feet from the release on: how far a foot moves while it stays planted
     const feet = [pl.L, pl.R];
@@ -148,22 +159,27 @@ try {
         for (let k = 0; k < 2; k++) { pin[k].x = feet[k].x; pin[k].z = feet[k].z; pin[k].c = feet[k].contact; }
         watch();
       }
-      if (released && ++n > 36) { st.fixedUpdate = orig; cancelAnimationFrame(raf); res({ before, after, motion, slide }); }
+      if (released) {
+        relT += dt;
+        if (restT < 0 && c.speed < 1e-3) restT = relT;
+      }
+      if (released && ++n > 36) { st.fixedUpdate = orig; cancelAnimationFrame(raf); res({ before, after, motion, slide, restT }); }
     };
   }));
-  assert(stop.before > 2.5 && stop.after < 0.05 && stop.motion === 0, `instant stop: ${stop.before.toFixed(2)} m/s -> ${stop.after.toFixed(3)} m/s on the release step (driver ${stop.motion})`);
+  assert(stop.before > 1.9 && stop.after < stop.before && stop.restT > 0.1 && stop.restT <= 0.25 + 2 / 60 + 1e-6, `weighted stop: ${stop.before.toFixed(2)} m/s eases to rest in ${stop.restT.toFixed(3)} s (${stop.after.toFixed(2)} m/s after the release step)`);
   assert(stop.slide < 0.02, `stopping: planted feet stay planted (${(stop.slide * 100).toFixed(2)} cm)`);
-  // the stop holds the stride it stopped in until the next input: feet stay put, no kneel crouched; aiming lets go
+  // (step 22) after a stop the feet square up with at most a closing step, then stay put (the 3.2.0 stride hold is gone)
   const held = await page.evaluate(() => new Promise((res) => {
     const st = window.__app.current;
     const c = st.player.controller;
     const pl = st.player.rig.planner;
-    const p0 = [pl.L.x, pl.L.z, pl.R.x, pl.R.z];
+    let p0 = [pl.L.x, pl.L.z, pl.R.x, pl.R.z];
     const orig = st.fixedUpdate.bind(st);
     let t = 0;
     st.fixedUpdate = (dt) => {
       orig(dt);
       t += dt;
+      if (t < 0.5) p0 = [pl.L.x, pl.L.z, pl.R.x, pl.R.z];
       if (t >= 1.2) {
         st.fixedUpdate = orig;
         res({ hold: c.stopHold, moved: Math.hypot(pl.L.x - p0[0], pl.L.z - p0[1]) + Math.hypot(pl.R.x - p0[2], pl.R.z - p0[3]) });
@@ -173,9 +189,9 @@ try {
   }));
   await page.evaluate(() => window.__pad.set(6, 1));
   await sim(0.3);
-  const aimHold = await page.evaluate(() => window.__app.current.player.controller.stopHold);
+  const aimHold = false;
   await page.evaluate(() => window.__pad.set(6, 0));
-  assert(held.hold && held.moved < 0.01 && !aimHold, `the stop holds its stride for 1.2 s (feet moved ${(held.moved * 100).toFixed(2)} cm); aiming lets go (${aimHold})`);
+  assert(held.moved < 0.01 && !aimHold, `after the stop the feet stay put from 0.5 to 1.2 s (moved ${(held.moved * 100).toFixed(2)} cm)`);
   await settle(0.3);
   await tp(-10, 0, -14, Math.PI / 2);
   await press(page, BTN.B);
@@ -183,15 +199,15 @@ try {
   await sim(0.6);
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(1.0);
-  const ch = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.stopHold, kneel: c.kneeling, crouched: c.crouched }; });
-  assert(ch.crouched && ch.hold && !ch.kneel, `a crouched stop holds the crouched stride (no kneel) (${JSON.stringify(ch)})`);
+  const ch = await page.evaluate(() => { const c = window.__app.current.player.controller; return { speed: c.speed, kneel: c.kneeling, crouched: c.crouched }; });
+  assert(ch.crouched && ch.speed < 1e-3, `a crouched stop comes to rest crouched (${JSON.stringify(ch)})`);
   // ... from any pace: gear 1 crouched at half stick, and a stop out of a sprint
   await setGear(1);
   await page.evaluate(() => { window.__pad.axis(1, -0.5); });
   await sim(0.6);
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(0.5);
-  const slowHold = await page.evaluate(() => window.__app.current.player.controller.stopHold);
+  const slowHold = await page.evaluate(() => window.__app.current.player.controller.speed < 1e-3);
   await press(page, BTN.B);
   await setGear(4);
   await tp(-10, 0, -14, Math.PI / 2);
@@ -202,8 +218,8 @@ try {
   await sim(0.5);
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(0.5);
-  const sprintHold = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.stopHold, pace: c.holdSpeed }; });
-  assert(slowHold && sprintHold.hold && sprintHold.pace > 4, `the stop holds from a crouched creep (${slowHold}) and out of a sprint (${sprintHold.hold}, ${sprintHold.pace.toFixed(2)} m/s stride)`);
+  const sprintHold = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.speed < 1e-3, pace: c.speed }; });
+  assert(slowHold && sprintHold.hold, `a stop comes to rest from a crouched creep (${slowHold}) and out of a sprint within 0.5 s (${sprintHold.pace.toFixed(2)} m/s)`);
   if ((await P()).crouched) await press(page, BTN.B);
   // a pad stick springing back (through 0.6 / 0.25 / 0.08 over a few frames) is a release from the full pace
   await tp(-10, 0, -14, Math.PI / 2);
@@ -223,11 +239,12 @@ try {
       if (k < seq.length) { window.__app.input.state.setMove('pad', 0, -seq[k]); window.__pad.axis(1, seq[k]); k++; }
       orig(dt);
       if (k < seq.length) minBefore = Math.min(minBefore, c.speed);
-      if (++n > 30) { st.fixedUpdate = orig; res({ pace0, minBefore, hold: c.stopHold, pace: c.holdSpeed }); }
+      if (++n > 30) { st.fixedUpdate = orig; res({ pace0, minBefore, hold: c.speed < 1e-3, pace: c.speed }); }
     };
     window.__ff();
   }));
-  assert(spring.hold && spring.pace > spring.pace0 * 0.85 && spring.minBefore > spring.pace0 * 0.85, `a stick springing back holds the full stride (${spring.pace0.toFixed(2)} -> held at ${spring.pace.toFixed(2)} m/s, never slowed under ${spring.minBefore.toFixed(2)})`);
+  // (step 22) the release then eases to rest from the full pace (no early slow-down from the spring-back)
+  assert(spring.hold && spring.minBefore > spring.pace0 * 0.85, `a stick springing back holds the full stride (${spring.pace0.toFixed(2)} -> held at ${spring.pace.toFixed(2)} m/s, never slowed under ${spring.minBefore.toFixed(2)})`);
   await settle(0.3);
 
   // forward roll: crouch tapped standing at gear 5-6 while moving; ~3 m in 0.7 s, comes up crouched, a little noise
@@ -306,7 +323,8 @@ try {
   await sim(0.6);
   const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { sprinting: c.sprinting, speed: c.speed, crouched: c.crouched }; });
   // the step pulse (each footfall checks then pushes, rootDip 8%) lifts the peak a little over the 5 m/s mean
-  assert(peak > 4.6 && peak < 5.5, `sprint reaches ~5 m/s (${peak.toFixed(2)} peak)`);
+  // (step 22, M14 N6) the sprint cap is 4.15 m/s
+  assert(peak > 3.85 && peak < 4.6, `sprint reaches ~4.15 m/s (${peak.toFixed(2)} peak)`);
   assert(blocked && stood && still, `sprinting: weapon lowered, standing, still sprinting after 0.8 s (stamina-free)`);
   assert(!after.sprinting && after.speed < 0.1 && after.crouched, `releasing the stick ends the sprint, stops within 0.6 s, back in the crouch (speed ${after.speed.toFixed(2)})`);
   await press(page, BTN.B);
@@ -320,11 +338,12 @@ try {
   await sim(0.5);
   const sprintBefore = await page.evaluate(() => window.__app.current.player.controller.sprinting);
   await page.evaluate(() => window.__pad.set(6, 1));
-  await sim(0.5);
-  const aimSprint = await page.evaluate(() => { const p = window.__app.current.player; return { sprinting: p.controller.sprinting, raise: p.carry.raise, speed: p.controller.speed }; });
+  // (step 09) holstered while sprinting: aim draws first (0.4 s), then the weapon is up
+  await sim(0.8);
+  const aimSprint = await page.evaluate(() => { const g = window.__app.current; const p = g.player; return { sprinting: p.controller.sprinting, raise: p.carry.raise, speed: p.controller.speed, dw: g.weapons.drawPhase }; });
   await page.evaluate(() => { window.__pad.set(6, 0); window.__pad.axis(1, 0); });
   await settle();
-  assert(sprintBefore && !aimSprint.sprinting && aimSprint.raise > 0.85 && aimSprint.speed < 1.6, `aim while sprinting: sprint ends, weapon up (${aimSprint.raise.toFixed(2)}), aim pace (${aimSprint.speed.toFixed(2)} m/s)`);
+  assert(sprintBefore && !aimSprint.sprinting && aimSprint.dw === 2 && aimSprint.raise > 0.85 && aimSprint.speed < 1.6, `aim while sprinting: sprint ends, drawn (dw ${aimSprint.dw}), weapon up (${aimSprint.raise.toFixed(2)}), aim pace (${aimSprint.speed.toFixed(2)} m/s)`);
 
   // no free jump: jump in the open does nothing
   await tp(0, 0, -2, 0);

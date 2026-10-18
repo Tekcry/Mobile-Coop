@@ -88,6 +88,25 @@ export function spreadDeg(def: WeaponDef, stats: EffectiveStats, ads: number, mo
   return Math.min(def.maxSpread, base + def.spreadMove * moving * (1 - ads * 0.6) + bloom);
 }
 
+/** (step 09) Speed (m/s) at which the moving spread term is full: the standing gear-4 cap (`GEARS.stand[3]`). */
+export const SPREAD_SPEED_CAP = 2.8;
+/** Below this speed (m/s) the shooter counts as still. */
+export const SPREAD_STILL_SPEED = 0.15;
+/** Crouched and still: the ADS cone narrows to this. */
+export const SPREAD_CROUCH_STILL = 0.7;
+
+/**
+ * (step 09) The player's cone half-angle in degrees: no hip fire, so always the ADS base (`spreadAds`); crouched and
+ * still x0.7, standing still x1, moving adds `spreadMove x speed / 2.8` (capped at gear 4's pace); bloom on top.
+ * `spreadHip` (and the hip-fire attachment mods) stay for guards and parked modes only.
+ */
+export function playerSpreadDeg(def: WeaponDef, stats: EffectiveStats, crouched: boolean, speed: number, bloom: number): number {
+  const still = speed < SPREAD_STILL_SPEED;
+  const base = stats.spreadAds * (still && crouched ? SPREAD_CROUCH_STILL : 1);
+  const move = still ? 0 : (def.spreadMove * Math.min(speed, SPREAD_SPEED_CAP)) / SPREAD_SPEED_CAP;
+  return Math.min(def.maxSpread, base + move + bloom);
+}
+
 /** Recoil kick (degrees) for the n-th consecutive shot. */
 export function recoilKick(def: WeaponDef, stats: EffectiveStats, shotIndex: number): { pitch: number; yaw: number } {
   const p = def.recoilPattern[shotIndex % def.recoilPattern.length]!;

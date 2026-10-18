@@ -1,0 +1,66 @@
+# Lessons for the map template
+
+Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-11).
+
+- Long sessions gave poor results on earlier maps; P03B stalled for over an hour, then hit the 128k output limit trying to design 151 rooms in one reply. One deliverable per session, split into parts.
+- Precompute simple positions in the prompt; sessions verify instead of invent.
+- Medium effort by default; high effort on a big task causes runaway thinking.
+- CLAUDE.md's main-project reading list ran on the map branch; a map branch needs its own reading rule.
+- The progress log grows fast; archive old entries.
+- Keep each decision in one place; duplicated rosters and stage orders went stale.
+- A campus needs per-building checks: A30 counted a stair in one building as serving the other's floors.
+- Every height used by a walkable surface needs a level; the 7.8 m bridge roof fitted none.
+- Prompts live in the repo and a planner session writes them; copying prompts between chats lost decisions.
+- Questions carry a recommended answer and are answered in the stage session.
+- Build the template after the playtest (P11), not before.
+- Briefs should give centreline sizes, not clear sizes: 0.45 walls on a 0.5 grid make most clear sizes (1.5 m passage) impossible, and a separate block (the wing) needs its grid stated.
+- Line limits did not stop overload: P03B-1b packed 45 rooms on three floors into one section at high effort. Cap decisions, one floor per session, never high effort; Michael controls the effort setting.
+- Spine frontage is a hard budget: count door-metres (about 70 m wanted vs 60 m available) before fixing room depths; a building brief that asks every room for a corridor door and an outside wall cannot be placed as given.
+- A session judging its own work recommended deferring a real defect (five rooms with no door). Universal checks in every self-check, no recommending a deferral, and the planner reviews each session's output before the next prompt.
+- Tell the user the model on every Next line; the planner's review needs the stronger model.
+- Three sessions failed because the planner turned the block plan into room placement, a puzzle the brief made nearly impossible (74.5 m of doors on a 60 m spine). Check each prompt against its stage's definition, test feasibility with arithmetic before any puzzle, zones first, rooms in P04.
+- A prompt that fixes a dimension should carry the scale-sheet minimum in its table; the first candidate corridor width (2.7) broke the sheet's 3.0 floor and Michael had to correct it.
+- A planner candidate with precomputed sums and a check script passed on the first run in one session; prompts that carry the arithmetic and the check together are the pattern to keep.
+- P03B 1c: a candidate whose check script was run by the planner on the exact tables went in unchanged in about 12 tool calls; for small tables the doors column could be printed by the script in table form to skip the insert step.
+- P03B 1d: site rows still need a cross-check of each shaft's surface zone against the brief's "Doors to" (TB02's lid sat in X03, brief said X04); a check script could test that rects named as doors overlap the right zone.
+- Planner, 2026-10-11: a planner wrote that the mission has no rope, but rappel was in RULES 1; the fact sat in long section 1 bullets that planners do not read. Keep capabilities in one short table (routes.md) every planner reads, and cite a line or grep for any "is or is not available".
+- P03B 1e: a "Fit" column with the sum written out (flights + landings of clear) let the script and the reader check every core at once; use it for any stage that places stairs or shafts.
+- P03B 1f-a: a zones-only ring table (shared face as a segment) checked by script went in unchanged in under 10 tool calls; keep door rects out of block plans and let the script test face sharing.
+- P03B 1f-b: with the planner's test run and a negative test in the prompt, the session only verified and wrote; a precomputed, pre-tested table is the right size for a zones-only part.
+- P03B 1g-a: a planner candidate that moves one end of the path (the exit) must recheck the other end; insertion and extraction 8 m apart passed every script but broke the brief's "different path out" - add an entry-exit separation test to path checks.
+- P03B 1g-b: zone-level adjacency with known gaps pre-listed in the prompt passed on the first run; carry brief wording mismatches (BF13 north-west vs north-east) into the notes so P03R sees them.
+- P03B 1g-c: a planner-recommended geometry move must be rerun through every check before it reaches the prompt; the 1.0 vault shift broke check D's tunnel-meets-vault rule and two leg lengths.
+- Process, 2026-10-11 (Michael): a prompt that used a brief id or position after a stage document had moved it wasted a session; prompts take ids and positions from the current stage document, and DRAFT problems are fixed in the current stage, not deferred.
+
+- P03B 2a: a shared standards check run by the generator from its first piece catches corridor and crawl sizes before any wall exists; precomputed ring and ceiling tables made the zone piece one pass.
+- P03B 2b: a planner-precomputed overlap table (yards minus their kids, area sums) let the generator hit 75 rooms, overlaps 0 and G area 8208 on the first run.
+- P03B 2c: precomputing the exact summary line (vertical 31, info 2) in the prompt made the generator and the negative test a one-run check; keep doing that for every generator piece.
+- P03B 2d-1: planner prototype counts (115 walls, per level and kind) let a wall generator be verified in one run; a late fix that changes two counts must be named in the prompt, or the parse-back needs a manual edit.
+- P03B 2d-2a: deriving each opening's wall, `at` and `between` in code from a centre and width (and failing on an off-grid `at`) removed the hand arithmetic; prompts should give centres and let the generator find the wall.
+- P03B 2d-2b: a single table of centres plus widths covered 17 openings in one run; when a reviewer moves one centre (RB15), the prompt FIXES line plus unchanged counts keeps the run a one-pass check.
+- P03B 2e: a closing part that only runs checks and renders plans, with each expected summary line in the prompt, finished in one pass; keep final check sessions data-free.
+- Plans need plain names from the first render; ids alone are unreadable to the person approving.
+- Security levels should be set as numbered access levels with a card model (building and level) in the first brief, not as zones.
+- A value format the tools check (here the zone level) should be fixed before the first generator runs, so a format change does not touch every generator, test and table.
+- Plan labels need one obstacle test for every label kind and an overlap count from the first render.
+- Editor tools need a render-ready check (meshes ready, not just created) in their first browser test; a blank 3D view from a dev-server shader quirk went unseen until v2.
+- Pad e2e steps should wait on editor state (menu open, breadcrumb) rather than fixed pauses; fixed waits passed once and failed on the next run under load.
+- A pad camera that moves with the stick needs a stick latch after any menu closes; a test that releases the menu button before the stick shows it at once.
+- A magnetic cursor changes where every later pad test lands; e2e steps that place the dot should set it directly and pick spots clear of other snap points, not rely on stick travel.
+- An e2e that calls the real Save must guard it on the expected state (never save unless the count is 0), and cached derived values (an unsaved count) must be invalidated after every stack change, not only on data change; listeners read them mid-change.
+- Screen overlap checks must cover every optional overlay (the small plan as well as the card and bar) at phone and desktop sizes; the first pass that skipped the small plan looked clean but was not.
+- Live previews that touch many elements must run only when their input changes; re-applying them every frame multiplies scene rebuilds and made the editor suite three times slower.
+- The pad bar and card redraw on a 100 ms throttle and only after a frame; e2e reads of them after a change must wait for the new DOM (waitForFunction), not a fixed delay, or slow software-GL frames read the old bar.
+- At a 0.1 m grid, e2e steps that count D-pad presses (60 for 6 m) overshoot under parallel load; set the dot instead. A pad hold pressed while the editor is still taking the pad back from the walk test is never seen (it waits for every button up): wait for `walk.blocking` false first.
+- 2026-10-13 ON2: e2e-kestrel and e2e-camera-bounds load src/world/maps/kestrelGeo.ts as one esbuild-transformed file; an import added to it breaks them unless they bundle (they now use buildSync with bundle: true).
+- 2026-10-13 ON10: e2e:editor runs the Vite dev server, so editing any src file while it runs reloads the editor page mid-step (the walk test then times out); finish edits first. Card hold probes on the card text can lag a frame behind the data: hold until the element's field changes in the model.
+- 2026-10-13 ON3: an orbit ease started by goTo (Find, a Checks line) can finish after an e2e `dotAt`, or the builder camera can restart from the camera pose, and put the dot back; steps that need the dot exactly (box select, moving a set) put it again until it stays. The pad frame runs every frame while a pad is connected, so a box with a text field must not blur it unless a pad button or stick was used.
+- 2026-10-13 ON5: the pad's tool bar and card redraw only when their key changes; merged card steps (the same row within 1 s) changed no part of the old key, so the card showed a stale value while held and e2e holds that waited for the text ran into the D-pad repeat. The key now carries `model.rev`. An e2e card step should also let go before the 0.35 s repeat.
+- 2026-10-14 e2e:editor: a hidden same-origin iframe (the warm walk-test game) still runs its render loop on the editor's main thread; under SwiftShader that slowed every editor frame to seconds and the run hit its time limit ("browser has been closed" with EXIT 124 is the timeout, not a crash). Profile slow e2e by summing page.evaluate time per caller before guessing at memory.
+- 2026-10-13 ON6: a light point within half a bake cell (0.1 m) of a slab or wall is inside the light bake's grown solid and lights nothing (the walk test's light meter read the same under a lamp as in a dark corner); the level height is not the ceiling (the slab above is 0.3 m deep). Editor lamps stand facts light.surfaceGap (0.15 m) off their ceiling or wall, as the game's map lamps do.
+- 2026-10-13 ON7: a second Babylon Scene on the editor's engine (the hidden physics scene for the light bake and guard rays) becomes `EngineStore._LastCreatedScene`; reset it to the editor's scene at once, or any mesh or material made without a scene argument lands in the hidden scene and never draws.
+- 2026-10-13 ON8: the dot's words start with the coordinates ("x 6.1, z 41.8 - A: ..."): e2e regexes on `reticleText` must not anchor with `^` on the tool's words.
+- 2026-10-13 ON12: the game's `Ballistics.ray` calls `to.clone()`: pure sight code that hands it points must take the caller's Babylon vectors (plain `{x, y, z}` failed the bake with "to.clone is not a function"). The dot magnet pulls the dot onto a wall's centre line, so a wall-face tool must also take a dot inside the wall (pick the face towards the view).
+- 2026-10-14 ON13: the light bake leaves out every piece thinner than 0.05 m (`CANON_MIN_THICK`, src/voxel/lightShapes.ts), so a true-thickness ceiling tile (20 mm) would light nothing in the walk test: thin pieces that must block light build at least that thick (`BUILD_MIN`, a test keeps them equal).
+- ON14: a DynamicTexture on a CreateBox face shows turned half round on the face looking along local +z: draw the canvas turned (translate(W, H), scale(-1, -1)) and put a hung sign's back face on a second box turned 180 degrees.
+- ON15: never edit anything under docs/kestrel while `e2e:editor` runs: its final save step compares `git status docs/kestrel` with the start and fails on your own doc edits.

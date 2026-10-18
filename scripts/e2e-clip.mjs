@@ -1,10 +1,7 @@
-// Weapon clipping sweep (Proving Grounds): every frame of movement and cover scenarios, points along the held
+// Weapon clipping sweep (Proving Grounds): every frame of movement scenarios, points along the held
 // gun are checked against the world (chest -> stock, then along the gun: blocked = through a wall) and against
 // the legs (thigh / calf capsules). Bars: no frame with the gun > 2 cm into the world; legs graze <= 2.5 cm.
-// Scenarios: walking / crouch-walking along a wall both sides, sprint, crouch run, high cover idle / moving /
-// turn-and-swap / crouched / reload / swap, edge peeks with aim sweeps from back across the cover round past
-// the edge (both edges, standing and crouched; stepping out as needed), fire from an edge, low cover idle /
-// moving / reload / aim over / edge peek / vault.  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
+// Scenarios: walking / crouch-walking along a wall both sides, sprint, crouch run.  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -57,20 +54,20 @@ const res = await page.evaluate(([only, log]) => {
         if (dc < chest) { chest = dc; acc.chestAt = z; }
       }
     }
-    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} hb ${p.rig['handBlend'].toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)} clear ${p.coverPose.gunClear}`);
+    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)}`);
     // limbs: elbows outside the trunk, knees and feet never through each other (positions forced fresh)
     for (const n of [rig.hipL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.elbowL, rig.shoulderR, rig.elbowR]) n.computeWorldMatrix(true);
     for (const e of [rig.elbowL, rig.elbowR]) acc.minElbow = Math.min(acc.minElbow, segDist(e.getAbsolutePosition(), pv, nk) - 0.1);
     const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
-    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} st ${g.cover.state} body ${c.yaw.toFixed(2)} speed ${c.speed.toFixed(2)} motion ${c['motion']?.state ?? ''} step ${g.cover.stepOut.toFixed(2)} crouch ${c.crouched} lean ${p.rig.graph.leanOut.toFixed(2)}`);
+    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} body ${c.yaw.toFixed(2)} speed ${c.speed.toFixed(2)} motion ${c['motion']?.state ?? ''} crouch ${c.crouched} lean ${p.rig.graph.leanOut.toFixed(2)}`);
     acc.minKnees = Math.min(acc.minKnees, kd);
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.minHead = Math.min(acc.minHead, head);
     acc.minChest = Math.min(acc.minChest, chest);
     acc.n++;
-    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} w ${g.weapons.current?.def?.id ?? g.weapons.slots?.[g.weapons.index]?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} stow ${g.weapons.stowed} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} raise ${p.carry.raise.toFixed(2)} side ${g.cover['peekSide']} kind ${g.cover.peekKind} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)} hand ${p.rig.leftHanded} step ${g.cover.stepOut.toFixed(2)} clear ${p.coverPose.gunClear} ` + (() => { const sg = g.cover.seg; if (!sg) return ''; const S = (P) => ((P.x - sg.ax) * sg.tx + (P.z - sg.az) * sg.tz).toFixed(2) + "/" + ((P.x - sg.ax) * sg.nx + (P.z - sg.az) * sg.nz).toFixed(2) + "/" + P.y.toFixed(2); const mz = V.TransformCoordinates(new V(0, def.muzzle[1], z1), m); const bt = V.TransformCoordinates(new V(0, def.muzzle[1], z0), m); return `len ${sg.len.toFixed(2)} body s ${S(p.position)} butt s ${S(bt)} muzzle s ${S(mz)} eye s ${S(p.rig.headNode.getAbsolutePosition())} | n ${sg.nx.toFixed(2)},${sg.nz.toFixed(2)} t ${sg.tx.toFixed(2)},${sg.tz.toFixed(2)} depth ${sg.depth.toFixed(2)}`; })()); }
+    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} w ${g.weapons.current?.def?.id ?? g.weapons.slots?.[g.weapons.index]?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} stow ${g.weapons.stowed} raise ${p.carry.raise.toFixed(2)} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)}`); }
     acc.maxPen = Math.max(acc.maxPen, pen);
-    if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} clear ${p.coverPose.gunClear} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched} turn ${p.coverPose.turn.toFixed(2)}`); }
+    if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched}`); }
     acc.minLeg = Math.min(acc.minLeg, leg);
   };
   // traversal: no part of the body (trunk, head, thighs, calves, upper arms) goes into the world: each sample point
@@ -98,16 +95,16 @@ const res = await page.evaluate(([only, log]) => {
     if (hh.hit) { const d = V.Distance(hh.point, hc); if (d > pen) { pen = d; where = 'head'; } }
     for (const n of [rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR]) n.computeWorldMatrix(true);
     const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
-    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.coverPose.traverse}`);
+    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.pose.traverse}`);
     acc.minKnees = Math.min(acc.minKnees, kd);
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;
     acc.maxBody = Math.max(acc.maxBody ?? 0, pen);
-    if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind}`); }
+    if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind} wall ${g.wallCore?.phase ?? '-'}`); }
   };
   const runBody = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, body: 0, maxBody: 0, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; bodyCheck(acc); check(acc); } return acc; };
   const merge = (r, r2) => { r.n += r2.n; r.body += r2.body; r.maxBody = Math.max(r.maxBody, r2.maxBody); r.minKnees = Math.min(r.minKnees, r2.minKnees); r.minFeet = Math.min(r.minFeet, r2.minFeet); r.log.push(...r2.log); return r; };
-  const tpY = (x, y, z, yaw) => { g.cover.reset(); g.traversal.reset(); st.releaseAll(); c.teleport(new V(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
+  const tpY = (x, y, z, yaw) => { g.traversal.reset(); st.releaseAll(); c.teleport(new V(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const T = {
     'ladder climb': () => { tpY(25.2, 0, 11, Math.PI / 2); st.tap('jump'); return runBody(7, () => move(0, 1)); },
     'ladder down + slide': () => { tpY(26.7, 3.6, 11, -Math.PI / 2); st.tap('jump'); const r = runBody(2.5, () => move(0, -1)); move(0, 0); st.tap('drop'); const r2 = runBody(2); return merge(r, r2); },
@@ -120,7 +117,7 @@ const res = await page.evaluate(([only, log]) => {
     'zipline': () => { tpY(26.5, 3.6, 10.2, Math.PI); st.tap('jump'); return runBody(3); },
     'landing roll': () => { tpY(24, 3.4, 4, 0); return runBody(2); },
   };
-  const tp = (x, z, yaw) => { g.cover.reset(); st.releaseAll(); if (c.crouched) c['crouchToggled'] = false; c.teleport(new V(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
+  const tp = (x, z, yaw) => { st.releaseAll(); if (c.crouched) c['crouchToggled'] = false; c.teleport(new V(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const run = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; check(acc); } return acc; };
   const move = (x, y) => st.setMove('t', x, y);
   const S = {
@@ -131,23 +128,6 @@ const res = await page.evaluate(([only, log]) => {
     'crouchwalk wall left': () => { tp(-8.3, 0.5, 0); st.tap('crouch'); return run(2.5, () => move(0, 0.6)); },
     'sprint': () => { tp(0, -14, Math.PI / 2); st.tap('dash'); return run(2, () => move(0, 1)); },
     'crouch run': () => { tp(0, -14, Math.PI / 2); st.tap('crouch'); return run(2, () => move(0, 1)); },
-    'high cover idle': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); return run(2); },
-    'high cover move L': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); run(1); return run(2, () => move(-1, 0)); },
-    'high cover move R': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); run(1); return run(2, () => move(1, 0)); },
-    'high cover crouched': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); run(1); st.tap('crouch'); return run(2, (t) => move(t < 1 ? -1 : 1, 0)); },
-    'high cover reload': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); run(1); st.tap('reload'); return run(2.5); },
-    'high cover swap': () => { tp(-8.8, 2.5, -Math.PI / 2); st.tap('cover'); run(1); st.tap('swapNext'); return run(1.5); },
-    'high peek R': () => { tp(-8.8, 3.4, -Math.PI / 2); st.tap('cover'); run(1.2); st.set('t', 'ads', true); const r = run(1.5); st.set('t', 'ads', false); return r; },
-    'high peek sweep R': () => { tp(-8.8, 3.4, -Math.PI / 2); st.tap('cover'); run(1.2); st.set('t', 'ads', true); const r = run(4, (t) => { p.cam.yaw = -Math.PI / 2 + (-0.7 + (t / 4) * 2.3); }); st.set('t', 'ads', false); return r; },
-    'high peek sweep L': () => { tp(-8.8, 0.6, -Math.PI / 2); st.tap('cover'); run(1.2); st.set('t', 'ads', true); const r = run(4, (t) => { p.cam.yaw = -Math.PI / 2 - (-0.7 + (t / 4) * 2.3); }); st.set('t', 'ads', false); return r; },
-    'high peek crouch R': () => { tp(-8.8, 3.4, -Math.PI / 2); st.tap('cover'); run(1.2); st.tap('crouch'); run(0.5); st.set('t', 'ads', true); const r = run(4, (t) => { p.cam.yaw = -Math.PI / 2 + (-0.7 + (t / 4) * 2.3); }); st.set('t', 'ads', false); return r; },
-    'high peek fire R': () => { tp(-8.8, 3.4, -Math.PI / 2); st.tap('cover'); run(1.2); p.cam.yaw = -Math.PI / 2 + 0.2; st.set('t', 'fire', true); const r = run(1.5); st.set('t', 'fire', false); return r; },
-    'low edge peek': () => { tp(-3.7, -4.6, -Math.PI / 2); st.tap('cover'); run(1.2); p.cam.yaw = -Math.PI / 2 + 0.9; st.set('t', 'ads', true); const r = run(3, (t) => { p.cam.yaw = -Math.PI / 2 + 0.9 - t * 0.4; }); st.set('t', 'ads', false); return r; },
-    'low cover idle': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); return run(2); },
-    'low cover move': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); run(1); return run(3, (t) => move(t < 1.5 ? 1 : -1, 0)); },
-    'low cover reload': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); run(1); st.tap('reload'); return run(2.5); },
-    'low over aim': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); run(1); st.set('t', 'ads', true); const r = run(1.5); st.set('t', 'ads', false); return r; },
-    'low vault': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); run(1); st.tap('jump'); return run(1.5); },
   };
   const out = [];
   for (const [k, f] of Object.entries(T)) {

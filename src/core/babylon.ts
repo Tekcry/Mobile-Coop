@@ -5,6 +5,7 @@
  */
 export { Engine } from '@babylonjs/core/Engines/engine';
 export { Scene } from '@babylonjs/core/scene';
+export { EngineStore } from '@babylonjs/core/Engines/engineStore';
 export { Vector3, Vector2, Vector4, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
 export { Skeleton } from '@babylonjs/core/Bones/skeleton';
 export { Bone } from '@babylonjs/core/Bones/bone';
@@ -97,6 +98,7 @@ export { PhysicsCharacterController, CharacterSupportedState } from '@babylonjs/
 export type { CharacterSurfaceInfo } from '@babylonjs/core/Physics/v2/characterController';
 export { PhysicsShapeType, PhysicsMotionType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
 export { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult';
+export { ShapeCastResult } from '@babylonjs/core/Physics/shapeCastResult';
 export { BallAndSocketConstraint, HingeConstraint } from '@babylonjs/core/Physics/v2/physicsConstraint';
 export type { Nullable } from '@babylonjs/core/types';
 export type { IPhysicsCollisionEvent } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
@@ -111,6 +113,41 @@ import '@babylonjs/core/Rendering/boundingBoxRenderer';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import '@babylonjs/core/Shaders/postprocess.vertex';
+// Standard material, edge and outline shaders registered up front: in the Vite dev server their lazy imports can load a
+// second copy of the shader store and fall back to fetching .fx files that do not exist (seen in the level editor).
+import '@babylonjs/core/Shaders/default.vertex';
+import '@babylonjs/core/Shaders/default.fragment';
+import '@babylonjs/core/Shaders/line.vertex';
+import '@babylonjs/core/Shaders/line.fragment';
+import '@babylonjs/core/Shaders/outline.vertex';
+import '@babylonjs/core/Shaders/outline.fragment';
+// PBR, shadow, depth and post-process shaders too: the dev server served index.html for imageProcessing.fragment.fx
+// (black view, '<' syntax errors; Fallow walk, 2026-10-14).
+import '@babylonjs/core/Shaders/pbr.vertex';
+import '@babylonjs/core/Shaders/pbr.fragment';
+import '@babylonjs/core/Shaders/imageProcessing.fragment';
+import '@babylonjs/core/Shaders/pass.fragment';
+import '@babylonjs/core/Shaders/fxaa.vertex';
+import '@babylonjs/core/Shaders/fxaa.fragment';
+import '@babylonjs/core/Shaders/sharpen.fragment';
+import '@babylonjs/core/Shaders/chromaticAberration.fragment';
+import '@babylonjs/core/Shaders/extractHighlights.fragment';
+import '@babylonjs/core/Shaders/bloomMerge.fragment';
+import '@babylonjs/core/Shaders/kernelBlur.vertex';
+import '@babylonjs/core/Shaders/kernelBlur.fragment';
+import '@babylonjs/core/Shaders/circleOfConfusion.fragment';
+import '@babylonjs/core/Shaders/depthOfField.fragment';
+import '@babylonjs/core/Shaders/ssao2.fragment';
+import '@babylonjs/core/Shaders/ssaoCombine.fragment';
+import '@babylonjs/core/Shaders/screenSpaceReflection2.fragment';
+import '@babylonjs/core/Shaders/motionBlur.fragment';
+import '@babylonjs/core/Shaders/depth.vertex';
+import '@babylonjs/core/Shaders/depth.fragment';
+import '@babylonjs/core/Shaders/geometry.vertex';
+import '@babylonjs/core/Shaders/geometry.fragment';
+import '@babylonjs/core/Shaders/shadowMap.vertex';
+import '@babylonjs/core/Shaders/shadowMap.fragment';
+import '@babylonjs/core/Shaders/rgbdDecode.fragment';
 import '@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent';
 import '@babylonjs/core/Materials/Textures/Procedurals/proceduralTextureSceneComponent';
 import '@babylonjs/core/Rendering/depthRendererSceneComponent';

@@ -3,25 +3,25 @@ import { campaignUnlocked, defaultMode, isParkedMode, PARKED_MODES, showEconomy,
 import { applyPreset, ownsOrOpen, setAttachment, setLoadout } from '../src/progression/profile';
 import { defaultSave, sanitizeSave } from '../src/save/schema';
 
-const PLAY = [{ id: 'wave' }, { id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'training' }, { id: 'sandbox' }];
-const LOBBY = [{ value: 'wave' }, { value: 'clear' }, { value: 'infiltration' }, { value: 'sandbox' }, { value: 'tdm' }, { value: 'ffa' }];
+const PLAY = [{ id: 'mission' }, { id: 'clear' }, { id: 'infiltration' }, { id: 'sandbox' }];
+const LOBBY = [{ value: 'clear' }, { value: 'infiltration' }, { value: 'sandbox' }, { value: 'course' }];
 
 describe('legacy (3.5 parked content)', () => {
-  it('parks Wave, Mission, Hunter, TDM and FFA only', () => {
-    expect([...PARKED_MODES].sort()).toEqual(['clear', 'ffa', 'mission', 'tdm', 'wave']);
-    for (const m of ['infiltration', 'training', 'sandbox']) expect(isParkedMode(m)).toBe(false);
+  it('parks Mission and Hunter only', () => {
+    expect([...PARKED_MODES].sort()).toEqual(['clear', 'mission']);
+    for (const m of ['infiltration', 'sandbox', 'course']) expect(isParkedMode(m)).toBe(false);
   });
-  it('the Play screen lists Infiltration, Training and Free Roam without legacy', () => {
-    expect(visibleModes(PLAY, false).map((m) => m.id)).toEqual(['infiltration', 'training', 'sandbox']);
-    expect(visibleModes(PLAY, true)).toHaveLength(6);
+  it('the Play screen lists Infiltration and Free Roam without legacy', () => {
+    expect(visibleModes(PLAY, false).map((m) => m.id)).toEqual(['infiltration', 'sandbox']);
+    expect(visibleModes(PLAY, true)).toHaveLength(4);
   });
   it('the co-op lobby lists Infiltration and Free Roam without legacy (4 players max stays elsewhere)', () => {
-    expect(visibleModes(LOBBY, false).map((m) => m.value)).toEqual(['infiltration', 'sandbox']);
-    expect(visibleModes(LOBBY, true)).toHaveLength(6);
+    expect(visibleModes(LOBBY, false).map((m) => m.value)).toEqual(['infiltration', 'sandbox', 'course']);
+    expect(visibleModes(LOBBY, true)).toHaveLength(4);
   });
-  it('the default mode is Infiltration, or Wave with legacy', () => {
+  it('the default mode is Infiltration, or Hunter with legacy', () => {
     expect(defaultMode(false)).toBe('infiltration');
-    expect(defaultMode(true)).toBe('wave');
+    expect(defaultMode(true)).toBe('clear');
   });
   it('the campaign is unlocked and the economy hidden when legacy is off, and the reverse with it', () => {
     expect(campaignUnlocked(false)).toBe(true);
@@ -44,23 +44,28 @@ describe('campaign loadout (nothing bought, nothing saved as unlocked)', () => {
     const s = defaultSave();
     const unlocks = [...s.unlocks];
     const credits = s.profile.credits;
-    expect(setLoadout(s, 'primary', 'sniper')).toBe(false);
-    expect(setLoadout(s, 'primary', 'sniper', true)).toBe(true);
-    expect(s.loadout.primary).toBe('sniper');
-    s.presets[1]!.primary = 'shotgun';
+    // both CT kit guns are issued (G76): the locked choice is an attachment
+    expect(setAttachment(s, 'rifle', 'scope4x', true)).toBe(false);
+    expect(setAttachment(s, 'rifle', 'scope4x', true, true)).toBe(true);
+    expect(setLoadout(s, 'primary', 'rifle', true)).toBe(true);
+    expect(s.loadout.primary).toBe('rifle');
+    s.presets[1]!.primary = 'pistolSd';
+    s.presets[1]!.secondary = 'rifle';
     expect(applyPreset(s, 1, true)).toBe(true);
-    expect(s.loadout.primary).toBe('shotgun');
+    expect(s.loadout.primary).toBe('pistolSd');
     expect(setAttachment(s, 'rifle', 'zzz-unknown', true, true)).toBe(true);
     expect(s.unlocks).toEqual(unlocks);
     expect(s.profile.credits).toBe(credits);
   });
-  it('the sanitiser keeps a campaign loadout only when asked, and the default sanitising is unchanged', () => {
+  it('the sanitiser keeps the CT kit loadout and repairs unknown or doubled guns in both modes', () => {
     const d = defaultSave() as unknown as Record<string, unknown>;
+    d.loadout = { primary: 'rifle', secondary: 'pistolSd' };
+    expect(sanitizeSave(d).loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
+    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'rifle', secondary: 'pistolSd' });
     d.loadout = { primary: 'sniper', secondary: 'shotgun' };
     expect(sanitizeSave(d).loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
-    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'sniper', secondary: 'shotgun' });
-    expect(sanitizeSave(d, true).unlocks).not.toContain('weapon:sniper');
-    d.loadout = { primary: 'sniper', secondary: 'sniper' };
-    expect(sanitizeSave(d, true).loadout.secondary).not.toBe('sniper');
+    expect(sanitizeSave(d, true).loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
+    d.loadout = { primary: 'rifle', secondary: 'rifle' };
+    expect(sanitizeSave(d, true).loadout.secondary).toBe('pistolSd');
   });
 });

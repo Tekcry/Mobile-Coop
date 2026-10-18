@@ -2,7 +2,7 @@ import { Matrix, type AbstractMesh, type Color4, type InstancedMesh, type Materi
 import { jointQuads, VoxelSink } from './voxelBody';
 
 /**
- * Voxel weapons / gadgets (3.0): smooth parts hanging from one node (a weapon, a grenade, a drone) merged into one
+ * Voxel weapons / gadgets (3.0): smooth parts hanging from one node (a weapon, a grenade) merged into one
  * rigid voxel mesh under that node - the parts at `size` (1 cm for weapons), parts thinner than `small` (sights, pins,
  * the trigger, an ejection port) on their own grid at `fineSize` (5 mm) - with a coarser copy (`lodSize`) past
  * `lodDistance`. The smooth parts stay, unseen (extents, grips, muzzles read them).

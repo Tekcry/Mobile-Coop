@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { BINDS } from '../src/input/keyBindings';
 import { applyAxisDeadzone, applyCurve, applyRadialDeadzone } from '../src/input/stickMath';
-import { detectPadStyle, mapPad, PAD, TapHold, type PadTuning } from '../src/input/gamepadMapping';
+import { detectPadStyle, GAME_BINDINGS, mapPad, PAD, TapHold, type PadTuning } from '../src/input/gamepadMapping';
 import { WHEEL_HOLD } from '../src/input/inputState';
 import { InputState } from '../src/input/inputState';
 import { NavRepeater } from '../src/input/navRepeat';
@@ -57,8 +59,8 @@ describe('gamepad mapping', () => {
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.speedUp && f.buttons.speedDown && f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
-    // ping (D-pad left tap) and the emote (View hold) come from the source's tap / hold, not the raw mapping
-    expect(f.buttons.ping || f.buttons.quick2 || f.buttons.quick4).toBeFalsy();
+    // ping (D-pad left tap) comes from the source's tap / hold, not the raw mapping
+    expect(f.buttons.ping).toBeFalsy();
     expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBe(true);
   });
   it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
@@ -115,7 +117,7 @@ describe('InputState', () => {
   });
   it('move takes the strongest source and clamps to unit length', () => {
     const s = new InputState();
-    s.setMove('touch', 0.2, 0);
+    s.setMove('kbm', 0.2, 0);
     s.setMove('pad', 1, 1);
     expect(Math.hypot(s.move.x, s.move.y)).toBeCloseTo(1);
     s.setMove('pad', 0, 0);
@@ -188,5 +190,64 @@ describe('holds and the drop alias', () => {
     s.set('pad', 'interact', false);
     s.tick(0.3);
     expect(s.pressed('interactHold')).toBe(false);
+  });
+});
+
+// (locomotion step 17, D1) the binding table in docs/systems/input-and-loop.md agrees with GAME_BINDINGS and BINDS
+describe('binding table (docs/systems/input-and-loop.md)', () => {
+  const md = readFileSync('docs/systems/input-and-loop.md', 'utf8');
+  const start = md.indexOf('### Binding table');
+  const rows = md
+    .slice(start)
+    .split('\n')
+    .filter((l) => l.startsWith('| ') && !l.startsWith('| Verb') && !l.startsWith('|---'))
+    .map((l) => l.split('|').slice(1, -1).map((c) => c.trim()));
+  rows.splice(rows.findIndex((r) => r.length !== 6) >= 0 ? rows.findIndex((r) => r.length !== 6) : rows.length);
+  const ticks = (c: string): string[] => [...c.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
+  const PAD_NAMES: Record<string, number> = {
+    A: PAD.A, B: PAD.B, X: PAD.X, Y: PAD.Y, LB: PAD.LB, RB: PAD.RB, LT: PAD.LT, RT: PAD.RT, View: PAD.SELECT, Menu: PAD.START,
+    L3: PAD.LS, R3: PAD.RS, 'D-pad up': PAD.UP, 'D-pad down': PAD.DOWN, 'D-pad left': PAD.LEFT, 'D-pad right': PAD.RIGHT,
+  };
+  const KEY_LABEL = (code: string): string =>
+    ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
+
+  it('has a row per verb', () => {
+    expect(rows.length).toBeGreaterThanOrEqual(20);
+    for (const r of rows) expect(ticks(r[1]!).length, r[0]).toBeGreaterThan(0);
+  });
+
+  it('pad cells match GAME_BINDINGS both ways', () => {
+    const doc = new Set<string>();
+    for (const r of rows) {
+      const actions = ticks(r[1]!);
+      for (const alt of r[2]!.split(';').map((s) => s.trim())) {
+        const name = alt.replace(/\s*\(.*$/, '');
+        const idx = PAD_NAMES[name];
+        if (idx === undefined) continue;
+        for (const a of actions) {
+          doc.add(`${idx}:${a}`);
+          // a plain button (no bracket) is a raw GAME_BINDINGS entry
+          if (!alt.includes('(') && name !== 'LT' && name !== 'RT') expect(GAME_BINDINGS.some(([i, x]) => i === idx && x === a), `${name} -> ${a}`).toBe(true);
+        }
+      }
+    }
+    for (const [i, a] of GAME_BINDINGS) expect(doc.has(`${i}:${a}`), `GAME_BINDINGS ${i} -> ${a} in the table`).toBe(true);
+  });
+
+  it('KBM cells match BINDS (ids, default keys, actions) and every BINDS entry is listed', () => {
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const actions = ticks(r[1]!);
+      for (const m of r[4]!.matchAll(/`(\w+)` \(([^)]*)\)/g)) {
+        const def = BINDS.find((b) => b.id === m[1]);
+        expect(def, `BINDS has ${m[1]}`).toBeDefined();
+        seen.add(m[1]!);
+        const keys = m[2]!.split(',').map((s) => s.trim()).filter((s) => s !== 'hold');
+        expect(def!.defaults.map(KEY_LABEL), `${m[1]} default keys`).toEqual(keys);
+        if (actions[0] === 'move') expect(def!.actions).toEqual([]);
+        else expect([...def!.actions].sort(), `${m[1]} actions`).toEqual([...actions].sort());
+      }
+    }
+    expect([...seen].sort()).toEqual(BINDS.map((b) => b.id).sort());
   });
 });

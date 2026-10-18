@@ -1,52 +1,92 @@
 # Night Shift - architecture and conventions
 
-On branch feature/operators, follow docs/operators/RULES.md and resume from docs/operators/STATE.md (brief: docs/operators/BRIEF.md).
+Project knowledge lives in git, never only in Claude memory: Michael swaps accounts. Record decisions, plans and follow-ups in the repo docs.
 
-- Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
-- Story, setting and in-game text: `docs/story.md`.
-- It has a solo campaign that is also playable in 2-4 player co-op. Light and shadow is the core.
-- It is a PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages. Desktop only (Michael, 2026-10-17): desktop performance is the target; phones are out of scope (no phone budgets, phone look checks or touch work). Controller first, then keyboard and mouse.
-- `docs/design-bible.md` decides design questions. Text anywhere describing Blacklist systems (snap cover, Mark & Execute, sonar, Ghost / Panther / Assault, PvP, Wave) is history.
+- Night Shift (renamed from Silent But Deadly) is an original third-person stealth game. It is pure Chaos Theory (CT):
+  CT's mechanics, timing, camera, HUD layout and visual style are the authority; anything that is not in CT does not
+  exist (G1, G5). Hunter is the one non-CT mode kept, parked behind `?legacy=1` (G7). Light and shadow is the core.
+- A 2-player co-op campaign only: it cannot be completed solo; no bot partner, no 3-4 player play (G2, G48, G50).
+  The CT co-op levels are researched and that experience is recreated (G3).
+- Work order: the CT co-op research, then the CT prototype, then the rest (G95). Prototype first: only the basics
+  needed to test a feature; refinement later (G4). The ordered job list is in `docs/progress.md`.
+- A PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages, desktop only: pad first, then keyboard and mouse (G12).
+- Michael's decisions: `docs/DECISIONS.md` (G1, G2, ...). Design: `docs/design-bible.md`. Story and in-game text: `docs/story.md`.
+- Fallow (map `bunker`, `src/world/maps/bunker*.ts`, run docs `docs/training/`) is the co-op tutorial bunker and the
+  only training (G78, G111): course mode, `?autostart=bunker&mode=course`.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
 ## Every session
 1. Read this file.
-2. Read `docs/progress.md` (status table and current state only).
-3. Read the current phase spec (`docs/prompts/phase-N-*.md`).
-4. Open only the files and `docs/systems/*` sections the spec lists. Use `grep` and line ranges, not whole large files.
-5. Authority order: Michael > bible > phase spec > `docs/level-design.md` and the map's documents > these docs > code.
+2. Read `docs/progress.md` (job list and current state only).
+3. In a job: read the job's `RULES.md` and `STATE.md` (`docs/<job>/`), then only the bible sections, `docs/systems/*`
+   sections and files they name. Use `grep` and line ranges, not whole large files.
+4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
+   the map's documents) > these docs > code. Every decision is also written into the bible.
 
-## How sessions are run
-Multi-step jobs (runs, phases, map projects, helper and cloud sessions) use the orchestrator method, Michael's
-preferred way to prompt and set up sessions: one orchestrator session plans, decides and commits; subagents implement,
-a fresh checker reviews, up to 3 fix rounds; the job's docs live in git. Details: `docs/systems/session-method.md`.
+## Running a job
+- Every multi-step job (code, map, audio, art, research) builds a quick prototype first when it needs a feel or look
+  decision, then runs the orchestrator method (G87): `docs/systems/session-method.md` (roles, loop, job docs, prompts).
+- Opus builds and checks; a lighter model only for mechanical chores (G88).
+- Start from master: branch `feature/<job>` in the folder `C:/NightShift/Mobile-Coop-<job>` (G94). The plain folder
+  `C:/NightShift/Mobile-Coop` stays on master: read and branch from it, never work in it.
+- Branch guard before every command that writes, in every agent:
+  `cd /c/NightShift/Mobile-Coop-<job> && test "$(git rev-parse --abbrev-ref HEAD)" = feature/<job> && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-<job>"`.
+- The job's docs live in `docs/<job>/`: BRIEF, RULES, PLAN, STATE (resume point), LOG, DECISIONS (Michael's words; assumed
+  decisions A1, A2, ... with how to undo), OWNER-NOTES (start and resume prompts).
+- Tests: the port table below, one runner per port; `npm run e2e:quick` per step, the full `npm run e2e` before the PR.
+  GPU checks only on Michael's PC; elsewhere they are "pending PC run".
+- Unattended by default: assumed decisions are logged and the job carries on; ask Michael (native multiple choice) only
+  before installing or downloading, or when a hard rule blocks the goal.
+- Finish: one PR to master. Claude never merges; Michael does. At the merge the job's answers from Michael move into
+  `docs/DECISIONS.md` with the next free G numbers (G89) and `docs/progress.md` marks the job merged.
+
+## Branches
+- Master is the live game and the only base (G83). One branch per job, cut from master, one PR each; only Michael merges.
+  `ct-movement` and `dev` are retired.
+- Pages: the live game plus one preview slot that shows the job branch Michael chooses (G85). Detail: `docs/systems/deploy.md`.
 
 ## Commands
-- `npm run dev` - dev server (LAN-exposed for phone testing)
+- `npm run dev` - dev server
+- `npm run editor` - Kestrel level editor (dev only, `docs/kestrel/editor.md`; Kestrel is paused, G53)
 - `npm run build` - typecheck + production build into `dist/`
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
-- `npm run check` - lint + tests + build (what CI and every phase end must pass)
-- `npm run e2e` - serves `dist/` and runs the required headless e2e suites, 4 at a time, one browser each (needs a prior `npm run build`). `npm run e2e:serial` runs one at a time with live output (debugging)
-- `npm run e2e:quick` - `smoke` plus the suites that cover the folders the change touched (working tree plus unpushed commits). **Steps use the quick run; the full `npm run e2e` runs at the end of each phase and before every merge to `dev` / `master`.**
-- `npm run e2e:legacy` - the suites for parked content (from Phase 0 Step 4; report only)
-- GPU testing runs on Michael's PC only. Graphical and performance testing (perf budgets, contact sheets, visual parity and probe checks, phone-look emulation, beauty shots) runs there with `E2E_GPU=1` (hardware GPU: ANGLE D3D11 on Windows, GPU blocklist ignored; `perf.mjs` then uses the local budget profile). Cloud sessions run unit tests and logic e2e only (software GL, the default) and mark every GPU check "pending PC run" in their report; they never claim a perf or visual result from SwiftShader.
-- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites") always run; their failures print as KNOWN FLAKY and do not fail the run. Any other failure does.
+- `npm run check` - lint + tests + build (what CI and every job must pass)
+- `npm run e2e` - serves `dist/` and runs the required headless e2e suites as a desktop (pad, keyboard and mouse; G13),
+  one browser each, `E2E_JOBS` at a time (default min(5, cores / 3); use `E2E_JOBS=2` on Michael's PC and cloud VMs, G94).
+  Needs a prior `npm run build`. `npm run e2e:serial` runs one at a time with live output (debugging).
+- `npm run e2e:quick` - `smoke` plus the suites that cover the folders the change touched (working tree plus unpushed
+  commits). **Steps use the quick run; the full `npm run e2e` runs at the end of a job, before its PR.**
+- `npm run e2e:legacy` - the suites for parked content (Hunter, progression, cosmetics; report only)
+- GPU testing runs on Michael's PC only. Graphical and performance testing (perf budgets, contact sheets, visual parity
+  and probe checks, beauty shots) runs there with `E2E_GPU=1` (hardware GPU: ANGLE D3D11 on Windows, GPU blocklist
+  ignored; `perf.mjs` then uses the local budget profile). Cloud sessions run unit tests and logic e2e only (software GL,
+  the default) and mark every GPU check "pending PC run"; they never claim a perf or visual result from SwiftShader.
+- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites") always run; their failures print as KNOWN FLAKY and do not
+  fail the run. Any other failure does.
 - Suites, helper scripts (`perf`, `soak`, `shot`, `anim-sheet`) and the debug overlay: `docs/systems/testing-tools.md`.
   `?autostart=<mapId>&mode=<mode>` boots straight into a match (dev and tests). Uses the preinstalled Chromium.
+- Never run `npm run dev`, `npm run preview` or a watch mode from an agent; every shell command has a timeout.
 
-## Branches
-- `ct-movement` is the working branch (preview `/ct/`, own save).
-- Work flows one way only: `ct-movement`, then `dev` (`/preview/`), then `master` (live). Nothing is committed directly to `dev` or `master`.
-- Claude never merges into `dev` or `master`; Michael merges.
-- Map projects use their own branch off `ct-movement` (for example `feature/exchange-map`).
-- Full detail is in `docs/systems/deploy.md`.
+Ports on Michael's PC (G94). One runner per port at a time; jobs always pass `E2E_PORT`.
+
+| Port | Use |
+| --- | --- |
+| 4191 | Software-GL logic e2e: `E2E_PORT=4191 E2E_JOBS=2 npm run e2e` (or `e2e:quick`, single suites); never with `E2E_GPU=1` |
+| 4189 | GPU work: perf, perf-trend, anim-audit, anim-sheet, shot, `E2E_GPU=1` suites |
+| 4179, 4173 | Script defaults (`run-e2e.mjs`, `e2e-lib.mjs`); not used by jobs |
+| 5199 | `npm run editor` |
+
+Free a port before and after each run (replace 4191 with the port):
+`powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4191 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`,
+then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner starts and stops its own server.
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art or audio, except CC0 textures for desktop detail (bible 5.16) and the CC0 base body of the operator
-  pipeline (bible 5.14). Operator meshes and maps are generated offline by in-repo scripts (Blender, headless) and
-  bundled. Audio is WebAudio synthesis unless the Phase 2 A/B test changes it (bible S7).
+- No external art, except CC0 textures for desktop detail and the CC0 base body of the operator pipeline (bible 5.14);
+  operator meshes are generated offline by in-repo scripts (Blender, headless) and bundled. CC0 recordings may be used for any sound (G58): bundled,
+  never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in
+  `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
   side-effect module is missing (it warns: "requires a side-effect import"). Add the side-effect import there.
 - Important data goes to IndexedDB (`src/save`). `localStorage` is never used for saves.
@@ -57,73 +97,92 @@ a fresh checker reviews, up to 3 fix rounds; the job's docs live in git. Details
   `docs/templates/map-spec.md`. A map spec may tighten the standard, never loosen it without Michael's written
   approval. The standard and the template change only with Michael's approval.
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI / nav / anim loops); use `hyp2` / `hyp3`, never `Math.hypot` (`docs/systems/conventions.md`).
-- Gameplay never reads graphics state: presets, LOD, voxel layers, the governor, the phone look. It reads collision, occupancy, anchors, the light bake and the noise model only.
-- Light parity: what the player sees, the light meter and guard perception must agree (bible 5.1).
-- No Splinter Cell IP: names, characters, organisations, story, logos, UI art.
-- Removed and parked systems (bible 6) get no new work.
-- No voice. Story is text radio and subtitles only.
-- A phase that changes an engine fact listed in `docs/level-design.md` Section 12 updates that section and lists the map decisions that relied on the old fact (bible 7).
+- Gameplay never reads graphics state: presets, LOD, voxel layers, the governor. It reads collision, occupancy, anchors, the light bake and the noise model only.
+- Light parity: what the player sees, the light meter and guard perception must agree.
+- IP: CT's mechanics, visual style and HUD layout are copied closely; names, characters, organisations, story, logos,
+  UI art, art assets, the goggle and the music are original (G5, G69). No reference-game character, gear or organisation
+  names anywhere: code, UI, specs, docs, research notes (G6). "Chaos Theory" / "CT" may name the reference; Michael's
+  quotes stay verbatim (G114).
+- Desktop only: no phone or touch work (G12). The Kestrel editor keeps its phone launcher with no new work (G15).
+- Removed and parked systems (bible Section 6) get no new work.
+- Story is text radio and subtitles now, every line written so it can be voiced later (G82).
+- A job that changes an engine fact listed in `docs/level-design.md` Section 12 updates that section and lists the map decisions that relied on the old fact.
 
-## Definition of done (every phase, bible 9)
-- `npm run check` passes; the e2e suites the spec names pass, and the full required suite (`npm run e2e`) passes at the end.
-- Desktop performance budgets pass (`docs/systems/performance.md`).
+## Definition of done (every job)
+- `npm run check` passes; the e2e suites the job names pass, and the full required suite (`npm run e2e`) passes before the PR.
+- Performance budgets pass (`docs/systems/performance.md`, desktop).
 - Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system has an e2e suite or extends one.
-- New or changed animations meet the realism standard (bible 5.12.2).
-- Docs updated: `CHANGELOG.md` (one minor version per phase), `TESTING.md` (a short manual desktop checklist), the relevant `docs/systems/*.md`, `docs/progress.md`.
-- A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save.
-- Commit and push `ct-movement`, report in bible Appendix B format, then STOP.
+- New or changed animations match the CT footage (G1) and meet the bible's animation realism standard.
+- Docs updated: `CHANGELOG.md`, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`,
+  `docs/progress.md` (job list).
+- Versions (G93): a job's CHANGELOG entries sit under "Unreleased - <job> (feature/<job>)" until Michael merges it; each
+  merged job is one minor step (4.1.0, 4.2.0, ...), a fix is a patch. The version in `package.json` and the heading are
+  set in the job's last commit when Michael says he is merging.
+- A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save. A wire change bumps
+  `PROTOCOL_VERSION` and the tests that assert it.
+- Commit and push the job branch, open or update its PR to master, report (done / not done, checks, open items), then STOP.
 
 ## Module map (`src/`)
 | Module | Responsibility |
 | --- | --- |
-| `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, settings, quality / governor / display / platform (pure parts) |
-| `input/` | Action map; touch, gamepad, keyboard / mouse sources write one `InputState` |
+| `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, `legacy` (parked modes), settings, quality / governor / display (pure parts) |
+| `input/` | Action map; gamepad and keyboard / mouse sources write one `InputState`; bindings, remapping and conflicts |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (wave, clear / Hunter, mission / Infiltration, sandbox, training), takedowns, gadgets, tactics |
+| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; the Fallow `course` and its framework `course/`; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
-| `cover/` | Cover faces and state machine, corners and doorways (scheduled for removal in Phase 3) |
-| `weapons/` | Data-driven weapons, ballistics, grenades, weapon carry, aim assist |
+| `cover/` | Cover data for enemy AI and level build (coverData, corners); back-to-wall reuses it |
+| `weapons/` | Data-driven weapons (the CT rifle and pistol, G76), ballistics, grenades, weapon carry; `aimAssist.ts` is still wired for the pad although the rule is no aim assist (G16, follow-up in `docs/progress.md`) |
 | `ai/` | Enemy brains, nav grid, perception, alert states, patrols, archetypes |
 | `world/` | Level builder, map builders, anchors, rooms, lights, light rig, doors, surfaces |
 | `voxel/` | Voxel level, characters and weapons, lamp bake and light volume, sky bake |
 | `vfx/` | Pooled effects, post stack, TAAU, weather, silhouettes |
-| `net/` | Optional co-op: transports, protocol, session, host and client sims, lobby UI |
+| `net/` | Co-op: transports, protocol, session, host and client sims, lobby UI |
 | `progression/`, `cosmetics/` | XP, unlocks, upgrades, suit / HQ; avatar catalogue (parked behind `?legacy=1`) |
 | `save/`, `feedback/` | IndexedDB wrapper, schema, migrations; playtest notes and crash log |
-| `audio/` | WebAudio synth voices and mixer |
+| `audio/` | WebAudio mixer, synth voices, CC0 foley, weapon sounds and music |
+| `editor/`, `security/`, `dev/` | Kestrel level editor and its security devices (dev only; Kestrel paused, G53); editor bridge |
 | `pwa/`, `config/` | Service worker, fullscreen, gestures; JSON / TS content and feel tables |
 
 ## Doc index
 | File | Covers | Read when |
 | --- | --- | --- |
-| `docs/design-bible.md` | Vision, pillars, systems, out-of-scope list, process, roadmap | Every session (Sections 0-3, 6, 9); other sections when a phase touches them |
+| `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
+| `docs/design-bible.md` | Vision, pillars, systems, out-of-scope list, level and platform rules | Sections 0-3 and 6 every job; other sections when the job touches them |
+| `docs/progress.md` | Ordered job list (branch, folder, status), current state | Every session |
+| `docs/backlog.md` | Feedback inbox, flaky e2e suites | Adding feedback, judging a test failure |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
-| `docs/progress.md` | Phase status table, current state, phase logs | Every session |
-| `docs/level-design.md`, `docs/templates/map-spec.md` | The map standard (engine facts in Section 12) and the map spec template | Any map or engine-fact change |
-| `docs/ct-movement.md`, `docs/ct-movement-progress.md` | Chaos Theory movement spec and status | Movement work |
-| `docs/prompts/` | Phase specs (phase 0-1) and the handover | The current phase |
-| `docs/kestrel/` | The vertical slice prompt pack (P00 onward) and its outputs, branch `feature/kestrel` | Vertical slice (Phase 7) work |
-| `docs/archive/maps/` | Retired map designs (Exchange, Trunk Annex, Dead Line v1 / v2) | Do not read |
-| `TESTING.md` | Manual device checklists (3.0.0 onwards) and the release checklist | Ending a phase |
-| `docs/systems/testing-tools.md` | Commands, every e2e suite, helper scripts, debug overlay | Running or writing tests |
-| `docs/systems/deploy.md` | Branches and the Pages slots (`/`, `/preview/`, `/ct/`) | Releases, preview builds |
-| `docs/systems/input-and-loop.md` | Game loop, actions, touch / pad / keyboard bindings | Input work |
-| `docs/systems/ui.md` | HUD, menus, platform and display, feedback, photo mode | UI work |
-| `docs/systems/world-and-characters.md` | Maps, level builder, Warehouse, the shared character rig | Maps, rig, animation |
-| `docs/systems/movement.md` | Movement, camera, CT movement phases, traversal anchors, corners | Movement work |
-| `docs/systems/lighting.md` | Light registry, baked lamps, phone look, lamp volume | Light work (Phase 1) |
-| `docs/systems/cover.md` | Snap cover and combat around cover (removal in Phase 3) | Phase 3 only |
+| `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
+| `docs/locomotion/` | The movement run: CT research (`CT-RESEARCH.md`), the CT prototype plan (`PROTOTYPE-PLAN.md`), the consolidation plan (`CONSOLIDATE.md`) | The CT prototype job |
+| `docs/consolidation/` | The consolidation run: audit, questions, Michael's answers, deletion logs | History of the 4.0.0 merge |
+| `docs/operators/` | The operators run (feature/operators): Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
+| `docs/training/` | The Fallow bunker run (spec, bays, features) | Bunker work |
+| `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
+| `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
+| `docs/research/` | Night vision and lamp research | Vision and light work |
+| `docs/kestrel/` | The Kestrel map project and editor (paused until after the CT co-op research, G53) | Kestrel work only |
+| `docs/archive/ct-movement.md`, `docs/archive/ct-movement-progress.md` | The pre-prototype CT movement build (history; current rules: `docs/systems/movement.md`) | Only for movement history |
+| `docs/prompts/` | Old phase specs (Phase 0-1) and the music spec (history) | Do not read unless a job names them |
+| `docs/archive/` | Retired maps, old changelog, testing and progress history | Do not read |
+| `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
+| `docs/systems/testing-tools.md` | Every e2e suite, helper scripts, debug overlay | Running or writing tests |
+| `docs/systems/deploy.md` | Branches and the Pages slots | Releases, preview builds |
+| `docs/systems/session-method.md` | How a job runs: prototype, then the orchestrator method; job docs and prompts | Starting or writing the prompt for any job |
+| `docs/systems/input-and-loop.md` | Game loop, actions, pad and keyboard bindings | Input work |
+| `docs/systems/ui.md` | HUD, menus, display, feedback, photo mode | UI work |
+| `docs/systems/world-and-characters.md` | Maps, level builder, the shared character rig | Maps, rig, animation |
+| `docs/systems/movement.md` | Movement, camera, traversal anchors, back-to-wall | Movement work |
+| `docs/systems/ct-toolkit.md` | The CT toolkit spec (gadgets, pistol disruptor, optic cable); CT's set is settled by the research (G76) | Gadget and toolkit work |
+| `docs/systems/lighting.md` | Light registry, baked lamps, lamp volume | Light work |
 | `docs/systems/ai.md` | Perception, alert states, archetypes, nav grid, mode hooks | AI work |
-| `docs/systems/takedowns.md` | Takedowns, Mark & Execute (removal in Phase 3) | Takedown work |
+| `docs/systems/takedowns.md` | Takedowns, grab, palm strike | Takedown work |
 | `docs/systems/gadgets.md` | Gadgets, wheel, remote views | Gadget work |
-| `docs/systems/modes-and-progression.md` | Hunter, Infiltration, arsenal / suit / HQ, cosmetics (parked) | Mission framework (Phase 4) |
+| `docs/systems/modes-and-progression.md` | Infiltration, Hunter, arsenal / suit / HQ, cosmetics (parked) | Mission framework |
 | `docs/systems/saves.md` | Progression maths, save schema, migrations | Any save change |
 | `docs/systems/combat.md` | Weapon data, firing, damage | Weapon work |
-| `docs/systems/coop.md` | Transports, host / client sims, sync, team moves, PvP | Co-op work |
-| `docs/systems/audio.md` | Audio engine and voices | Sound work (Phase 2) |
+| `docs/systems/coop.md` | Transports, host / client sims, sync, team moves | Co-op work |
+| `docs/systems/audio.md` | Audio engine, foley, weapon sounds, music | Sound work |
 | `docs/systems/graphics-quality.md` | Presets, governor, renderer, voxels, TAAU, weather | Render work |
-| `docs/systems/performance.md` | Frame, CPU, draw and memory budgets; perf script budgets | Every phase end |
+| `docs/systems/performance.md` | Frame, CPU, draw and memory budgets; perf script budgets | Every job end |
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |
-| `docs/systems/session-method.md` | The orchestrator method: how jobs, prompts and sessions are set up | Starting or writing the prompt for any multi-step job |

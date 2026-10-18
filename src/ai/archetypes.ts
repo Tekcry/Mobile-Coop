@@ -146,8 +146,12 @@ export function radioCheck(members: readonly { id: string; up: boolean }[], out:
   return out;
 }
 
-export type Difficulty = 'rookie' | 'normal' | 'realistic' | 'perfectionist';
-export const DIFFICULTIES: readonly Difficulty[] = ['rookie', 'normal', 'realistic', 'perfectionist'];
+/** The four presets. */
+export type DifficultyPreset = 'rookie' | 'normal' | 'realistic' | 'perfectionist';
+/** CT's fixed difficulty levels (G106: no custom sliders). */
+export type Difficulty = DifficultyPreset;
+/** The presets, in menu order. */
+export const DIFFICULTIES: readonly DifficultyPreset[] = ['rookie', 'normal', 'realistic', 'perfectionist'];
 
 export interface DifficultyDef {
   label: string;
@@ -157,23 +161,30 @@ export interface DifficultyDef {
   reward: number;
   /** Sight / smell meter rates. */
   perception: number;
-  /** Reaction delays (radio, first shot). */
+  /** Reaction delays (radio call-in, first shot settle, alarm panel raise). */
   reaction: number;
-  /** Mark & Execute and the sonar goggles. */
-  execute: boolean;
-  sonar: boolean;
 }
 
-export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
-  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35, execute: true, sonar: true },
-  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1, execute: true, sonar: true },
-  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8, execute: true, sonar: true },
-  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7, execute: false, sonar: false },
+export const DIFFICULTY: Record<DifficultyPreset, DifficultyDef> = {
+  rookie: { label: 'Rookie', damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8, perception: 0.7, reaction: 1.35 },
+  normal: { label: 'Normal', damage: 1, accuracy: 1, hp: 1, reward: 1, perception: 1, reaction: 1 },
+  realistic: { label: 'Realistic', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.35, perception: 1.3, reaction: 0.8 },
+  perfectionist: { label: 'Perfectionist', damage: 1.6, accuracy: 1.3, hp: 1.15, reward: 1.6, perception: 1.5, reaction: 0.7 },
 };
 
-/** A stored / received difficulty, including the 1.x names (easy / hard). */
+/** A stored / received difficulty, including the 1.x names (easy / hard); the old 'custom' (G106) reads as Normal. */
 export function parseDifficulty(v: unknown): Difficulty {
+  return parsePreset(v);
+}
+
+/** A stored / received preset ('custom' and unknown names read as Normal). */
+export function parsePreset(v: unknown): DifficultyPreset {
   if (v === 'easy') return 'rookie';
   if (v === 'hard') return 'realistic';
-  return DIFFICULTIES.includes(v as Difficulty) ? (v as Difficulty) : 'normal';
+  return DIFFICULTIES.includes(v as DifficultyPreset) ? (v as DifficultyPreset) : 'normal';
+}
+
+/** The match's difficulty, resolved once at match start: the preset's shared def (G106: no custom sliders). */
+export function resolveDifficulty(d: Difficulty): DifficultyDef {
+  return DIFFICULTY[d];
 }

@@ -3,7 +3,7 @@
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving', touch: false });
+const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 const G = (f, a) => page.evaluate(f, a);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
@@ -73,7 +73,7 @@ try {
   const stored = await G(async () => (await window.__app.feedback.all()).map((e) => ({ text: e.text, photos: e.photos.length, type: e.photos[0]?.type, map: e.context.map })));
   assert(stored.length === 1 && stored[0].photos === 2 && stored[0].type === 'image/jpeg' && stored[0].map === 'proving', `saved to the device with its photos (${JSON.stringify(stored)})`);
   // persists across a reload (IndexedDB), listed in Settings > Feedback, exported as one HTML file
-  await page.goto(url + '?gfx=min&platform=desktop');
+  await page.goto(url + '?gfx=min');
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
   await wait(600);
   await click('.main-menu .btn', 'Settings');

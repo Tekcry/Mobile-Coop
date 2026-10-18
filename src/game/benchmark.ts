@@ -6,7 +6,7 @@ import { hyp2 } from '../core/mathx';
  * settings, every preset, render pixel counts of the target displays, or a 10-minute sustained loop (laptops:
  * does the frame rate hold once the machine is hot?).
  */
-import { PHONE_FLOOR, PRESET_IDS, type FixedPreset, type GraphicsFeatures, type PhoneCuts, type PhoneLook } from '../core/quality';
+import { PRESET_IDS, type FixedPreset, type GraphicsFeatures } from '../core/quality';
 
 export const BENCH = {
   /** Seconds of flight per run (the first `warmup` not counted: shader compiles, shadow maps settling). */
@@ -19,7 +19,7 @@ export const BENCH = {
   longMs: 50,
 };
 
-export type BenchKind = 'current' | 'presets' | 'resolutions' | 'sustained' | 'features' | 'phone';
+export type BenchKind = 'current' | 'presets' | 'resolutions' | 'sustained' | 'features';
 
 export interface BenchRun {
   label: string;
@@ -32,20 +32,12 @@ export interface BenchRun {
   /** 3.1.1 Feature costs: these features changed for this run only (over the player's settings). */
   gfx?: Partial<GraphicsFeatures>;
   /**
-   * 3.1.4: every run loads its own match (a graphics change mid-match left the iPhone ~4x slower, so a run after a
+   * 3.1.4: every run loads its own match (a graphics change mid-match left the device ~4x slower, so a run after a
    * change measured that, not its settings) - except a `sameMatch` run, which goes on in the last run's match.
    */
   sameMatch?: boolean;
   /** 3.1.4 diagnosis (Feature costs): rebuilt mid-match at the run's start, same settings - the post stack or the shadows. */
   rebuild?: 'post' | 'shadows';
-  /** 3.3 Phone check: a phone cut put back for this run. */
-  cuts?: Partial<PhoneCuts>;
-  /** 3.3.2: a frame cap for this run (phone runs are otherwise uncapped, to show the headroom). */
-  cap?: number;
-  /** 3.4 Phone check: the 3.3 voxel look for a comparison run (default the light look). */
-  look?: PhoneLook;
-  /** 3.6 Step 4b: night vision on for the whole run, or for the middle third of it (the hold's second minute). */
-  vision?: 'night' | 'middle';
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -60,9 +52,6 @@ export interface BenchSession {
   note?: string;
   started?: number;
 }
-
-/** 3.3.2 Phone check: the capped run's length (s; per-minute averages). */
-export const PHONE_HOLD_SECONDS = 180;
 
 /** Feature costs: one flight per run (shorter than the full benchmark: there are up to nine). */
 export const FEATURE_SECONDS = 20;
@@ -81,35 +70,10 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
   if (f.shadows !== 'off' && f.shadows !== 'low') out.push({ label: 'shadows Low', gfx: { shadows: 'low' } });
   if (f.postRes === 'full') out.push({ label: 'post effects at half resolution', gfx: { postRes: 'half' } });
   if (f.textures !== 'low') out.push({ label: 'textures Low', gfx: { textures: 'low' } });
-  // (3.2: TAA's full-screen resolve, and the fine prop layer - Detail High and up - on the phone)
+  // (3.2: TAA's full-screen resolve, and the fine prop layer - Detail High and up)
   if (f.aa === 'taa') out.push({ label: 'anti-aliasing FXAA', gfx: { aa: 'fxaa' } });
   if (f.detail === 'high' || f.detail === 'ultra' || f.detail === 'epic') out.push({ label: 'detail Medium', gfx: { detail: 'medium' } });
   return out;
-}
-
-/**
- * Phone check (3.3; 3.4: the light look): the phone look native, at its 75% floor, with the moon's shadow, then the
- * 3.3 voxel look for comparison, the first run again (heat) and a 3 minute hold at 60. Uncapped but the hold (the
- * headroom shows).
- */
-export function phoneCheckRuns(): BenchRun[] {
-  const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: 1, seconds: FEATURE_SECONDS, sustained: false, ...extra });
-  return [
-    // (3.6: the light look draws the lamps from the baked light volume, the ambient grid and the baked moon)
-    run('light look + lamp volume, 100%'),
-    run('light look + lamp volume, 75%', { scale: PHONE_FLOOR }),
-    // (3.6 Step 4b: night vision is a gain in the lighting - its cost, and it is in the hold's second minute)
-    run('light look + night vision, 100%', { vision: 'night' }),
-    // (3.6: is a shadow map affordable - the nearest flashlight at 512, the moon's cascade on moving characters; the
-    // level's moon shadows are baked)
-    run('+ flashlight shadow (512), moon on characters', { gfx: { shadows: 'medium' } }),
-    // (3.4: the comparison - the 3.3 voxel phone look, TAAU from 75%)
-    run('3.3 voxel look, 75%', { look: 'voxel', scale: PHONE_FLOOR }),
-    // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
-    run('light look + lamp volume, 100% again (heat check)'),
-    // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
-    { ...run('light look + lamp volume held at 60, 3 min (night vision in minute 2)'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60, vision: 'middle' },
-  ];
 }
 
 /**
@@ -130,7 +94,6 @@ export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: 
     const res: BenchRun = { ...run('render scale 75%', null, Math.max(0.5, scale * 0.75)), seconds: FEATURE_SECONDS };
     return [base, res, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
   }
-  if (kind === 'phone') return phoneCheckRuns();
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
   if (kind === 'resolutions') return desktopResolutions(outW, outH).map((r) => run(`${r.w}x${r.h}`, null, resolutionScale(r.h, outH)));
   return [run('current settings')];

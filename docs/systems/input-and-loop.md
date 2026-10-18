@@ -1,53 +1,120 @@
 # Game loop and input
-Purpose: the fixed-step game loop, the action map and the touch, gamepad and keyboard / mouse sources.
-Design authority: docs/design-bible.md (Sections 4 and 8 (controls))
+Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
+Design authority: docs/DECISIONS.md (G16-G24, G96), then docs/design-bible.md (Sections 4 and 8).
+
+Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no touch input.
+
+## Decided direction
+- Decided, not built yet (G96): CT's default pad layout, copied button for button. The CT prototype rebinds the table
+  below; until then it is the locomotion run's layout.
+- Decided, not built yet (G18): back-to-wall on L3 (code: A, `cover`); A stays for doors and other actions.
+- Decided, not built yet (loco M20 Q8): no sprint. Code: `dash` on L3 / Left Shift (gear 6).
+- Decided, not built yet (G19, G97): a CT pop-up list at doors (open, stealth open, bash, optic cable).
+- Decided, not built yet (G23): the CT grab menu (grab first, then knock out, kill or interrogate); no stealth / kill
+  selector. Code: `gameplay.grabToggle` decides tap / hold.
+- Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.
+- Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
+  while aiming; grenades and gadgets work holstered.
+- Decided (G24, G98, built): emotes and the carried medkit are deleted; View held and the X hold (not aiming) do nothing.
 
 ## Game loop
-`GameLoop` disables Babylon's automatic physics (`scene.physicsEnabled = false`) and steps Havok itself at a
-fixed 1/60 s inside an accumulator (max 4 steps/frame, backlog dropped). Order per step:
+`GameLoop` disables Babylon's automatic physics (`scene.physicsEnabled = false`) and steps Havok itself at a fixed 1/60 s
+inside an accumulator (max 4 steps/frame, backlog dropped). Order per step:
 `fixedUpdate(dt)` -> `onBeforePhysicsObservable` -> `physics._step` -> `onAfterPhysicsObservable`.
 After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 
 ## Input
-- Actions (`input/actions.ts`) are the only thing game/UI code reads. Sources: `GamepadSource` (polled each
-  frame, standard mapping in `gamepadMapping.ts`), `TouchControls` (DOM virtual sticks/buttons, layout from
-  settings), `KeyboardMouseSource` (PC browsers: pointer lock in a match - requested by
-  `setGameplayActive(true)` on the click that starts / resumes, else any click on the game captures without firing;
-  a "click to capture" hint while free; losing it mid-match taps `pause`; mouse buttons are pointer events because
-  Babylon cancels canvas `pointerdown`, which suppresses `mousedown`).
-- Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
-  cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
-  in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
-  R3 shoulder, RB/LB weapons (RB `mark` while aiming), 3.2.0: D-pad up / down `speedUp` / `speedDown`, right
-  `grenade` (the gadget: hold aims the arc, release throws), left held `gadgetWheel` (`WHEEL_HOLD`, `input/inputState.ts`)
-  / tapped `ping` (co-op), View tapped `vision` (goggles) / held (`SWAP_HOLD`) `quick2` (emote 1) - tap / hold by
-  `TapHold` (`gamepadMapping.ts`, pure) in `GamepadSource`, as X's reload / swap;
-  Y also takedown / execute (contextual); in menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise). Keyboard (3.0:
-  rebindable, `input/keyBindings.ts` pure: `BINDS` defaults, two inputs per action incl. Mouse 3/4/5, `assignBind`
-  moves a key off its old action, `settings.keys`; `KeyboardMouseSource` rebuilds its map when the keys change,
-  `captureNext` for the rebinding UI; fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs, 1-8 gadgets, LMB fire,
-  RMB aim, wheel speed gear (3.2.0)): Space cover, C / Ctrl crouch, Shift sprint, = / - speed gear, E traverse / interact / takedown, F use, R
-  reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), J / K / L emotes, Z ping, V
-  shoulder, P pause; mouse look (raw input via `unadjustedMovement` where supported, `mouse.adsMultiplier`).
-  In-game key prompts read `ui/prompts.ts` `keyLabels` (set from the bindings). Gamepad look: 30 ms smoothing (acceleration inside the
-  smoothing, so releasing never steps the rate).
-- Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
-  `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
-  default); crouch toggle, sprint toggle; camera-only right stick (rate based: dead zone, response curve, 50 ms smoothing, acceleration when
-  held at the rim; never fires); optional drag-look in the empty upper right; separate fire button (84 px; optional
-  left fire; optional fire drag-look); ADS; goggles (`vision`); jump (3.2.0, `leap`); a contextual action button (`setAction(TouchAction)` from `GameState`:
-  use an interactable, else - 3.2.0 - whatever the world prompts show (`ui/hud/worldPrompts.ts`: cover, vault / climb /
-  grab / drop, cover-to-cover, corner), dimmed when idle; acts on release). The prompts are indicators only. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
-  scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 3 (v1 layouts keep
-  customised placements, the old fire stick and untouched controls take the new defaults; v2 -> v3 keeps every
-  stored placement and adds the `takedown` button, shown only while a takedown is on offer, action `interact`; v3 -> v4
-  (3.2.0) keeps every stored placement and adds the `speed` rocker: a tall pill (`controlBox`, `controlHtml`), the
-  half pressed taps `speedUp` / `speedDown`, six pips from `TouchControls.setGear`). Layout editor: presets,
-  size, opacity, thumb-reach overlay, preview.
-- `InputState` merges sources per action (down if any source holds it), latches press edges until consumed,
-  and `releaseAll()` blocks still-held buttons until released so state changes never cause phantom presses.
+- Actions (`input/actions.ts`) are the only thing game / UI code reads. Sources: `GamepadSource` (polled each frame,
+  standard mapping in `gamepadMapping.ts`) and `KeyboardMouseSource` (pointer lock in a match, requested by
+  `setGameplayActive(true)` on the click that starts / resumes, else any click on the game captures without firing; a
+  "click to capture" hint while free; losing it mid-match taps `pause`; mouse buttons are pointer events because Babylon
+  cancels canvas `pointerdown`, which suppresses `mousedown`).
+- `InputState` merges sources per action (down if any source holds it), latches press edges until consumed, and
+  `releaseAll()` blocks still-held buttons until released so state changes never cause phantom presses.
 - Edges are consumed after each fixed step (gameplay) or by `ScreenManager.update` (menus open).
-- `InputManager` owns the active mode (`touch|gamepad|kbm`), sets `body.input-*` classes; CSS uses them to
-  show/hide the focus ring, glyph prompts, and the touch layer.
-- iOS exposes a controller only after its first button press: `GamepadSource` scans on every poll, not just on
-  `gamepadconnected`.
+- `InputManager` owns the active mode (`InputMode` = `gamepad | kbm`; it starts in `kbm`, a pad disconnect falls back to
+  `kbm`) and sets the `body.input-*` classes; CSS uses them for the focus ring and glyph prompts.
+- `GamepadSource` scans for pads on every poll, not just on `gamepadconnected` (some browsers expose a pad only after its
+  first button press).
+- Pad: `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). `GamepadSource` turns X tap / hold into reload / next weapon
+  (`X_HOLD` 0.4 s; the hold swaps only while aiming), D-pad left tap / hold into ping / gadget wheel (`WHEEL_HOLD`), and
+  View tap into goggles (`SWAP_HOLD` 0.35 s; a hold does nothing), all with `TapHold`. In menus Y = `uiAlt`
+  (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
+- Keyboard (rebindable, D7): `input/keyBindings.ts` (pure): `BINDS` defaults, two inputs per action incl. Mouse 3/4/5,
+  `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
+  map when the keys change, `captureNext` for the rebinding UI. Fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs,
+  1-7 gadgets, LMB fire, RMB aim, the mouse wheel (maximum gear). Mouse look uses raw input via `unadjustedMovement` where
+  supported (`mouse.adsMultiplier`).
+- Prompts (`ui/prompts.ts` `promptHtml`) emit Xbox, PlayStation, Nintendo and key glyphs; the body classes
+  (`input-gamepad`, `pad-ps`, `pad-nin`) show the pad glyph whenever a pad is the last device used, keys for KBM.
+  `keyLabels` follow the bindings. Gamepad look: 30 ms smoothing (acceleration inside the smoothing).
+
+### Binding table
+
+`tests/input.test.ts` parses this table against `GAME_BINDINGS` and `BINDS`: a Pad name with no bracket is a raw
+`GAME_BINDINGS` button for every action of the row (a bracket marks a tap / hold the source decides); each KBM
+`` `bindId` (keys) `` is a `BINDS` entry with those default keys raising exactly the row's actions. Edit the table
+and the code together.
+
+| Verb | Actions | Pad (Xbox) | PlayStation / Nintendo | KBM | Notes |
+|---|---|---|---|---|---|
+| Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | Analog gears within the maximum gear |
+| Look | `look` | Right stick | Right stick | Mouse | Free orbit |
+| Aim (draws) | `ads` | LT | L2 / ZL | RMB | Hold or toggle (`adsToggle`) |
+| Fire / elbow strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire |
+| Reload | `reload` | X (tap) | Square / Y | `reload` (R) | X held not aiming does nothing (G98) |
+| Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
+| Jump / interact / takedown | `jump` `interact` | Y | Triangle / X | `traverse` (E) | Takedown > team move > traversal > interact |
+| Use | `interact` | Y | Triangle / X | `use` (F) | KBM only as its own key |
+| Context (back-to-wall, door peek, SWAT) | `cover` | A | Cross / B | `cover` (Space) | G18 moves back-to-wall to L3 |
+| Sprint (gear 6) | `dash` | L3 | L3 / LS | `sprint` (Left Shift) | To be removed (no sprint, loco M20 Q8) |
+| Maximum gear up | `speedUp` | D-pad up | D-pad up | `speedUp` (=); wheel up | Gears 1-5 |
+| Maximum gear down | `speedDown` | D-pad down | D-pad down | `speedDown` (-); wheel down | - |
+| Next weapon | `swapNext` | RB; X (held while aiming, A55) | R1 / R | `nextWeapon` (X) | Works while aiming (G21) |
+| Previous weapon | `swapPrev` | LB | L1 / L | `prevWeapon` (Q) | - |
+| Gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | Works holstered (G21) |
+| Gadget wheel | `gadgetWheel` | D-pad left (hold) | D-pad left | `wheel` (Tab, hold) | 7 slots |
+| Ping (co-op) | `ping` | D-pad left (tap) | D-pad left | `ping` (Z) | - |
+| Vision (goggles) | `vision` | View (tap) | Create / Minus | `goggles` (N) | View held is free (G24) |
+| Shoulder swap | `shoulderSwap` | R3 | R3 / RS | `shoulder` (V) | G17: only while aiming (not built yet) |
+| Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
+
+### Remapping and hold / toggle (step 18, D7; local only, D8)
+- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs, at
+  most 2 buttons each, defaults = `GAME_BINDINGS`); `GamepadSource` rebuilds the flat `padBindTable` only when
+  `settings.pad` changes and `mapPad(p, t, table)` reads it. Sticks, the triggers' analog aim / fire and the menu buttons
+  (`UI_BINDINGS`) are fixed; LT / RT can take a button verb. Keyboard: `Settings.keys` / `BINDS`.
+- Shared-by-design verbs are one row: Y = traverse + use + takedown, X = reload (tap) + next weapon (held while aiming),
+  A = the context action, RT = fire / elbow strike. The tap / hold splits follow the button.
+- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
+  menu keys are their own group; keyboard Traverse + Use may share (both interact). A conflict is shared, warned on both
+  rows and in a summary, and saved (A71).
+- Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
+  Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
+- Hold / toggle in `Settings.gameplay`: `adsToggle` (default hold), `crouchToggle` (default toggle), `sprintHold` (default
+  toggle), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
+  (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
+- In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
+
+### Analog speed and the maximum gear (step 17)
+- The rocker (D-pad up / down, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); gear 6
+  is the sprint only. The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure): v = cap(max) x
+  `stickCurve(mag)`; the gear is the highest g <= max whose up threshold v has passed, kept until v drops under its down
+  threshold; speed = cap(g). Thresholds (`GEAR_UP` / `GEAR_DOWN`) are the midpoint of adjacent caps +- 15% of the gap,
+  derived from `GEARS` and pinned in `tests/analogGear.test.ts`. Any tilt past the dead zone is gear 1. A keyboard or a
+  full stick gives the maximum gear.
+- `controller.gear` is the snapped gear while moving, else the maximum (noise, roll, carry caps and MoveState `g` read it);
+  `controller.maxGear` is the rocker gear.
+- HUD gear pips (`hud.setGear`): the current gear lit, up to the maximum dim, shown for 1.5 s after a change. Decided, not
+  built yet (loco M25 (7)): the speed rocker stays with no on-screen indicator.
+- Raw stick 50% / 80% / 100% at maximum 5 gives gears 2 / 4 / 5 (pad radial dead zone 0.15).
+- The speed numbers are starting values; the CT prototype sets the CT speed set (G10, docs/locomotion/PROTOTYPE-PLAN.md).
+
+### Rumble (step 17; local only, D8)
+- `config/rumble.ts` `RUMBLE` `{strong, weak, ms}`: landing soft / roll / heavy, takedown done, elbow hit, shot suppressed /
+  loud, heavy footfall (gear 6 or carrying a body, per foot plant), kill, hurt, explosion. Every rumble goes through
+  `InputManager.haptic(kind)` -> `playRumble` (scaled by `gameplay.rumble` 0-1; remote players' events never rumble) ->
+  `GamepadSource.rumble` (`gamepad.vibration`, `dual-rumble`). GameState hooks: `player.onLanding`, `player.onFootPlant`,
+  the `takedown` / `strike` events, weapon shots, hits and explosions. e2e-pad's fake pad records every `playEffect`
+  (`window.__pad.effects`).
+- Decided (G67): one shared foot-touched-the-ground event drives footsteps and rumble.

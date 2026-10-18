@@ -19,6 +19,7 @@
  */
 import { CT, MOVEMENT } from '../config/movement';
 import { hyp2 } from '../core/mathx';
+import { Spring } from './rigMath';
 
 export type MotionState = 'idle' | 'start' | 'move' | 'stop' | 'turn' | 'pivot';
 
@@ -50,6 +51,12 @@ export function emptyMotionInput(): MotionInput {
 export function ctTau(): number {
   return CT.startTime / 4;
 }
+
+/** (step 22) w t of a critically damped spring at 95% (start) and 98% (stop) of its travel: (1 + wt) e^-wt. */
+export const CT_START_W = 4.744;
+export const CT_STOP_W = 5.834;
+/** (step 22) A released pace under this (m/s) is at rest. */
+export const CT_REST = 0.1;
 
 export type MotionTuning = typeof MOVEMENT;
 
@@ -113,6 +120,10 @@ export class MotionDriver {
   /** Pivot: direction to resume in. */
   private pivotX = 0;
   private pivotZ = 0;
+  /** (step 22) Chaos Theory pace (x, m/s) and its rate (v, m/s^2), critically damped. */
+  private paceSpring = new Spring();
+  /** (step 22) A Chaos Theory pivot has braked onto its planted foot and pushes off the new way. */
+  private pivotPlanted = false;
 
   constructor(yaw = 0) {
     this.yaw = yaw;
@@ -141,6 +152,8 @@ export class MotionDriver {
 
   reset(yaw = this.yaw): void {
     this.vx = this.vz = this.ax = this.az = this.outX = this.outZ = 0;
+    this.paceSpring.reset(0);
+    this.heading = Number.NaN;
     this.yaw = yaw;
     this.yawRate = 0;
     this.go('idle');
@@ -155,7 +168,7 @@ export class MotionDriver {
     if (dt <= 0) return;
     this.stateT += dt;
     if (i.ct) {
-      this.stepCt(dt, i);
+      this.stepCt(dt, i, M);
       this.finish(dt, i, M);
       return;
     }
@@ -238,7 +251,7 @@ export class MotionDriver {
       daz *= cap / dl;
     }
     // never carry more acceleration than the current tuning allows (switching from a snappier tuning,
-    // e.g. the cover glide, would otherwise leave an acceleration the jerk limit cannot unwind in time)
+    // e.g. a slide, would otherwise leave an acceleration the jerk limit cannot unwind in time)
     const al = hyp2(this.ax, this.az);
     if (al > cap) {
       this.ax *= cap / al;
@@ -276,27 +289,80 @@ export class MotionDriver {
   }
 
   /**
-   * Chaos Theory velocity (3.2.0): no stop / start / pivot states. Stick released: zero velocity on this step (the
-   * gait clock freezes; the pose blends to idle in the animation). Pushed: the velocity closes on the target with
-   * time constant `ctTau` (95% within `CT.startTime`), re-targeting at once on a direction or speed change.
+   * Chaos Theory velocity with moderate momentum (locomotion step 22, M14 N6, A88). The pace follows the stick's
+   * through a critically damped spring (95% of a start within `CT.startTime`, 98% of a stop within `CT.stopTime`;
+   * it never overshoots, D5.2), the travel direction swings toward the stick with a time constant that grows to
+   * `CT.turnTime` / 3 at `CT.turnFullSpeed` (turn inertia; at a sneak it follows at once), and a reversal at pace
+   * (`CT.reverseDot`, over `CT.pivotSpeed`) brakes into a planted pivot (D5.4): the pace falls to a plant, the
+   * direction flips there and pushes off the new way, the state holding `pivot` for at least `pivotTime` so the
+   * pivot clip plays through. States: `move`, `stop` (released, still sliding), `pivot`, `idle`.
    */
-  private stepCt(dt: number, i: MotionInput): void {
+  private stepCt(dt: number, i: MotionInput, M: MotionTuning): void {
     const want = hyp2(i.vx, i.vz);
-    if (want <= 0.05) {
-      this.vx = this.vz = this.ax = this.az = 0;
-      this.heading = Number.NaN;
-      if (this.state !== 'idle' && this.state !== 'turn') this.go('idle');
-      return;
+    const px = this.vx;
+    const pz = this.vz;
+    let sp = this.speed;
+    const pushed = want > 0.05;
+    let target = pushed ? want : 0;
+    if (pushed) {
+      const th = Math.atan2(i.vx, i.vz);
+      if (Number.isNaN(this.heading) || sp < 0.05) this.heading = th;
+      const d = wrapPi(th - this.heading);
+      if (this.state === 'pivot') {
+        if (!this.pivotPlanted) {
+          // braking onto the planted foot; a stick swung back the old way cancels the pivot
+          if (Math.cos(d) > 0) this.go('move');
+          else target = 0;
+          if (sp < CT.turnSnapSpeed) {
+            this.pivotPlanted = true;
+            this.heading = th;
+          }
+        } else {
+          this.heading = th;
+          if (this.stateT >= M.pivotTime) this.go('move');
+        }
+      } else if (sp > CT.pivotSpeed && Math.cos(d) < CT.reverseDot) {
+        this.go('pivot');
+        this.pivotPlanted = false;
+        this.pivotX = i.vx;
+        this.pivotZ = i.vz;
+        target = 0;
+      } else {
+        if (this.state !== 'move') this.go('move');
+        // turn inertia: none at a sneak, full from `turnFullSpeed`
+        const k = Math.max(0, Math.min(1, (sp - CT.turnSnapSpeed) / (CT.turnFullSpeed - CT.turnSnapSpeed)));
+        const tau = (CT.turnTime / 3) * k;
+        this.heading = tau > 1e-4 ? wrapPi(this.heading + d * (1 - Math.exp(-dt / tau))) : th;
+      }
+    } else if (this.state === 'move' || this.state === 'pivot' || this.state === 'start') this.go(sp > 0.02 ? 'stop' : 'idle');
+    // the pace: one critically damped spring, quicker down than up (a carry or reset elsewhere re-seeds it)
+    if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
+    const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
+    sp = this.paceSpring.step(target, omega, dt);
+    // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every gear)
+    if (sp < 0 || (target === 0 && sp < CT_REST)) {
+      sp = 0;
+      this.paceSpring.reset(0);
     }
-    if (this.state !== 'move') this.go('move');
-    const k = 1 - Math.exp(-dt / ctTau());
-    const nvx = this.vx + (i.vx - this.vx) * k;
-    const nvz = this.vz + (i.vz - this.vz) * k;
-    this.ax = (nvx - this.vx) / dt;
-    this.az = (nvz - this.vz) / dt;
-    this.vx = nvx;
-    this.vz = nvz;
-    this.heading = Math.atan2(i.vx, i.vz);
+    if (!pushed && sp === 0 && this.state === 'stop') this.go('idle');
+    const h = Number.isNaN(this.heading) ? this.yaw : this.heading;
+    this.vx = Math.sin(h) * sp;
+    this.vz = Math.cos(h) * sp;
+    // the spring keeps its exact pace (the vector round trip would re-seed it every step)
+    this.paceSpring.x = this.speed;
+    this.ax = (this.vx - px) / dt;
+    this.az = (this.vz - pz) / dt;
+  }
+
+  /**
+   * (step 22) Distance (m) the Chaos Theory pace still covers once released: the spring's remaining travel from its
+   * pace x and rate v, 2 x / w + v / w^2 (for the stop's landing prediction).
+   */
+  ctStopDistance(): number {
+    const x = this.speed;
+    if (x <= 0.01) return 0;
+    const w = CT_STOP_W / CT.stopTime;
+    return Math.max(0, (2 * x) / w + this.paceSpring.v / (w * w));
   }
 
   /** Gait clock, stride modulation and facing (after the velocity). */

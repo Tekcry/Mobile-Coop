@@ -1,6 +1,5 @@
-// Desktop (3.0): auto-detected on a mouse-and-keyboard 1080p window, menus scaled to it, no touch settings or
-// controls, Mouse & Keyboard first (rebinding: click, press; a key moves off its old action; Backspace clears; the
-// in-game action follows), the Graphics menu (presets, Custom, the frame cap), the interface switch, and the Epic
+// Desktop (3.0): a mouse-and-keyboard 1080p window, menus scaled to it, Mouse & Keyboard first (rebinding: click, press; a key moves off its old action; Backspace clears; the
+// in-game action follows), the Graphics menu (presets, Custom, the frame cap), and the Epic
 // renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
 import { launch, assert, frames } from './e2e-lib.mjs';
@@ -14,22 +13,21 @@ let failed = false;
 let browser;
 try {
   if (part(1)) {
-  // no ?platform=: detection on its own (no touch points, a fine pointer, 1920 x 1080)
-  const l = await launch({ url, params: '', touch: false, viewport: { width: 1920, height: 1080 } });
+  // a 1920 x 1080 mouse-and-keyboard window
+  const l = await launch({ url, params: '', viewport: { width: 1920, height: 1080 } });
   browser = l.browser;
   const { page, errors } = l;
   const G = (f, a) => page.evaluate(f, a);
   const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
   await wait(500);
-  const plat = await G(() => ({ cls: document.body.className, scale: getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim(), p: window.__app.platform }));
-  assert(plat.p.platform === 'desktop' && /platform-desktop/.test(plat.cls), `a mouse-and-keyboard window is desktop (${plat.p.reason})`);
+  const plat = await G(() => ({ scale: getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim() }));
   assert(plat.scale === '1.5', `menus scale to 1080p (x${plat.scale})`);
   const menuBox = await G(() => document.querySelector('.main-menu .menu-item').getBoundingClientRect().height);
   assert(menuBox > 45, `menu rows are big enough to read at 1080p (${menuBox.toFixed(0)} px)`);
   await click('.main-menu .btn', 'Settings');
   await frames(page, 4);
   const tabs = await G(() => [...document.querySelectorAll('.settings-screen .tab')].map((t) => t.dataset.tab));
-  assert(tabs[0] === 'kbm' && !tabs.includes('touch'), `Mouse & Keyboard first, no Touch tab (${tabs.join(',')})`);
+  assert(tabs[0] === 'kbm', `Mouse & Keyboard first (${tabs.join(',')})`);
   // rebind reload to U
   await click('.kb-key[data-bind="reload:0"]');
   await frames(page, 2);
@@ -39,12 +37,12 @@ try {
   await frames(page, 2);
   let k = await G(() => ({ r: window.__app.settings.get().keys.reload, label: document.querySelector('.kb-key[data-bind="reload:0"]').textContent }));
   assert(k.r[0] === 'KeyU' && k.label === 'U', `reload rebound to U (${k.label})`);
-  // a key already in use moves over: G (gadget) onto reload's second slot
+  // (locomotion step 18, D7) a key already in use is shared and warned about: G (gadget) onto reload's second slot
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('KeyG');
   await frames(page, 2);
-  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '' }));
-  assert(k.r.join() === 'KeyU,KeyG' && k.g.length === 0 && /moved from Gadget/.test(k.toast), `a key in use moves over (${k.toast.trim()})`);
+  k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '', rows: [...document.querySelectorAll('.bind-row.conflict')].map((r) => r.dataset.row).sort().join() }));
+  assert(k.r.join() === 'KeyU,KeyG' && k.g.join() === 'KeyG' && /also Gadget/.test(k.toast) && k.rows === 'gadget,reload', `a key in use is shared with a conflict warning (${k.toast.trim()}; rows ${k.rows})`);
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('Backspace');
   await frames(page, 2);
@@ -81,13 +79,6 @@ try {
   const cap = await G(() => window.__app.loop.fpsCap);
   assert(cap === 30, 'the frame-rate cap reaches the loop');
   await G(() => window.__app.settings.update((d) => { d.video.fpsCap = 0; }));
-  // the interface switch: Mobile brings the touch settings back
-  await G(() => window.__app.settings.update((d) => { d.video.platform = 'mobile'; }));
-  await frames(page, 4);
-  const mob = await G(() => ({ cls: document.body.classList.contains('platform-mobile'), tabs: [...document.querySelectorAll('.settings-screen .tab')].map((t) => t.dataset.tab) }));
-  assert(mob.cls && mob.tabs.includes('touch') && !mob.tabs.includes('kbm'), `Interface: Mobile (${mob.tabs.join(',')})`);
-  await G(() => window.__app.settings.update((d) => { d.video.platform = 'auto'; }));
-  await frames(page, 4);
   // 3.1.7 Resolution (desktop): the monitor's resolutions (3.2.1); a pick applies at once, Keep keeps it, no answer reverts in 15 s
   {
     const openRes = () => G(() => [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).click());
@@ -126,7 +117,7 @@ try {
   }
   await page.keyboard.press('Escape');
   await frames(page, 3);
-  // in a match: the rebound key acts, no touch controls
+  // in a match: the rebound key acts
   await page.goto(url + '?autostart=proving&gfx=min');
   await page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
   await page.keyboard.down('KeyU');
@@ -134,8 +125,6 @@ try {
   const rel = await G(() => window.__app.input.state.buttons.reload.down);
   await page.keyboard.up('KeyU');
   assert(rel, 'the rebound key reloads in a match');
-  const touchShown = await G(() => { const t = document.querySelector('.touch-layer'); return !!t && getComputedStyle(t).display !== 'none' && !t.hidden; });
-  assert(!touchShown, 'no touch controls on desktop');
   // the benchmark: a (shortened) flight, then the result, saved as feedback
   // (software GL renders the Warehouse at ~1 fps: a 2 s flight is ~10 frames)
   await G(() => {
@@ -199,7 +188,7 @@ try {
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   assert(!(await G(() => !!window.__app.quality.ov)), 'the benchmark leaves no override behind');
-  // 3.1.7: no match outlives its scene (the shader cache held every one: the phone ran out of memory)
+  // 3.1.7: no match outlives its scene (the shader cache held every one until memory ran out)
   {
     const leak = await page.context().newCDPSession(page);
     // (the release is asynchronous: a slow renderer takes seconds to drop the last match, so count until it reaches 0 or stays)
@@ -249,7 +238,7 @@ try {
   if (part(2)) {
   // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap
   for (const [w, hh, label] of [[1280, 800, '16:10'], [2520, 1080, '21:9'], [2560, 720, '32:9']]) {
-    const a = await launch({ url, params: '', touch: false, viewport: { width: w, height: hh } });
+    const a = await launch({ url, params: '', viewport: { width: w, height: hh } });
     browser = a.browser;
     const P = a.page;
     const GA = (f, x) => P.evaluate(f, x);
@@ -292,14 +281,14 @@ try {
   // 3.1 Auto graphics: from the GPU's name (software GL = Low), else measured on the menu stage
   {
     // (the software renderer is named explicitly: with E2E_GPU=1 the real name is the PC's RTX)
-    const d = await launch({ url, params: 'detect=1&platform=desktop&renderer=Google%20SwiftShader', touch: false, viewport: { width: 1280, height: 720 } });
+    const d = await launch({ url, params: 'detect=1&renderer=Google%20SwiftShader', viewport: { width: 1280, height: 720 } });
     browser = d.browser;
     await d.page.waitForFunction(() => window.__app?.settings.get().video.device.source !== 'none', null, { timeout: 60000 });
     const v = await d.page.evaluate(() => window.__app.settings.get().video);
     assert(v.auto && v.device.source === 'gpu' && v.device.tier === 'low' && v.preset === 'low', `Auto: a software renderer starts on Low by its name (${JSON.stringify(v.device)}, ${v.preset})`);
     await browser.close();
-    // (3.3: phones have one fixed look - the measuring is a desktop GPU the tables do not know)
-    const c = await launch({ url, params: 'detect=1&platform=desktop&renderer=Mystery%20GPU%2042', touch: false, viewport: { width: 960, height: 540 } });
+    // (the measuring: a GPU the tables do not know)
+    const c = await launch({ url, params: 'detect=1&renderer=Mystery%20GPU%2042', viewport: { width: 960, height: 540 } });
     browser = c.browser;
     await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
     const during = await c.page.evaluate(() => window.__app.quality.level.name);
@@ -333,88 +322,11 @@ try {
     await browser.close();
   }
 
-  // 3.4 the phone look: no detection, one fixed look in a match - the light renderer (the blockout's boxes in
-  // standard materials, smooth characters, no post stack, no shadow maps), native, 60 fps (30 at the governor's last
-  // level); then the 3.3 voxel look (the Phone check's comparison run): 75% through TAAU, the lamps as one light
-  // volume, plain voxels, no bloom
-  {
-    const p = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user&autostart=warehouse&mode=clear', touch: false, viewport: { width: 640, height: 360 } });
-    browser = p.browser;
-    await p.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 240000 });
-    await frames(p.page, 6);
-    const lt = await p.page.evaluate(() => {
-      const a = window.__app;
-      const g = a.current;
-      const q = a.quality.level;
-      const e = a.engine;
-      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, lite: q.lite, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name), voxels: !!g.world.voxels, lamps: !!g.world.lamps, mat: g.world.level.meshes[0]?.material?.getClassName(), body: !!g.player.rig.voxel, sun: q.shadow.sun, casters: q.shadow.casters, scale: e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio) };
-    });
-    assert(!lt.det && lt.source === 'none', `phone: nothing detected or measured (${lt.source})`);
-    assert(lt.phone && lt.lite && lt.up === 1 && [60, 30].includes(lt.cap), `phone: the light look, native, capped at ${lt.cap} (governor level ${lt.gov})`);
-    // (a match starts native; software GL is slow, so the governor may already have stepped: the canvas follows it)
-    assert(Math.abs(lt.scale - [1, 0.92, 0.84, 0.75][Math.min(3, lt.gov)]) < 0.02, `phone: the canvas at the governor's step (x${lt.scale.toFixed(2)}, level ${lt.gov})`);
-    assert(!lt.voxels && lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters, the lamps from the baked volume (3.6) (${JSON.stringify(lt)})`);
-    assert(!lt.sun && lt.casters === 0 && !lt.pps.some((n) => /taau|ssao|bloom|default|volum/i.test(n)), `phone: no shadow maps, no post stack (${lt.pps.join(',')})`);
-    // the governor steps the canvas: 100 -> 92 -> 84 -> 75%, then 30 fps
-    const steps = await p.page.evaluate(() => {
-      const a = window.__app;
-      const e = a.engine;
-      const out = [];
-      for (let i = 0; i < 4; i++) {
-        let n = 0;
-        while (!a.quality.governor.frame(60, 16.7) && n++ < 400);
-        a.quality['applyAdaptive']();
-        out.push({ l: a.quality.governor.level, s: +(e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio)).toFixed(2), cap: a.loop.fpsCap });
-      }
-      return out;
-    });
-    const last = steps[steps.length - 1];
-    assert(steps.every((x) => x.s >= 0.74) && last.l === 4 && last.cap === 30 && steps[2].s < 0.8, `phone: the governor steps the resolution to 75%, then 30 fps (${JSON.stringify(steps)})`);
-    // the 3.3 voxel look, as the Phone check's comparison run starts it
-    await p.page.evaluate(() => {
-      window.__bench.seconds = 60;
-      window.__app.benchmark({ kind: 'phone', runs: [{ label: 'voxel look', preset: null, scale: 0.75, seconds: 60, sustained: false, look: 'voxel' }], idx: 0, lines: [] });
-    });
-    await p.page.waitForFunction(() => !!window.__app.current?.player && window.__app.current.opts?.benchmark && !window.__app.quality.level.lite, null, { timeout: 240000 });
-    await frames(p.page, 6);
-    const ph = await p.page.evaluate(() => {
-      const a = window.__app;
-      const g = a.current;
-      const q = a.quality.level;
-      const pps = g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name);
-      const src = g.world.voxels?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
-      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, vol: !!g.world.lamps?.volume, pps, src: src.length, ao: src.includes('float occ'), micro: src.includes('vxTap('), volShader: src.includes('lampVolA') && !src.includes('lampCapsule(lp, t0.xyz'), bloom: q.features.bloom, cascades: q.shadow.cascades, ctx: g.feedbackContext().spikes };
-    });
-    assert(ph.phone && ph.up === 0.75, `phone voxel look: 75% (TAAU) (governor level ${ph.gov})`);
-    assert(ph.pps.includes('taau') && !ph.bloom && ph.cascades === 1, `phone voxel look: TAAU, no bloom, one moon cascade (${ph.pps.join(',')})`);
-    assert(ph.vol && ph.volShader, 'phone voxel look: the lamps mixed into one light volume (two taps, no per-lamp loop in the shader)');
-    assert(ph.src > 0 && !ph.ao && !ph.micro, 'phone voxel look: plain voxel surfaces (no AO, no surface taps)');
-    assert(/spikes|no spikes/.test(ph.ctx), `phone: the spike log (${ph.ctx})`);
-    // a switch re-mixes the volume on the GPU, at once
-    const mix = await p.page.evaluate(() => {
-      const g = window.__app.current;
-      const reg = g.world.level.lights;
-      const L = g.world.lamps;
-      const n0 = L.volume.mixes;
-      const grp = reg.lights.find((l) => l.group != null && l.kind !== 'flashlight').group;
-      reg.setGroup(grp, false);
-      L.frame();
-      const n1 = L.volume.mixes;
-      reg.setGroup(grp, true);
-      L.frame();
-      return { n0, n1, n2: L.volume.mixes };
-    });
-    assert(mix.n1 === mix.n0 + 1 && mix.n2 === mix.n1 + 1, `phone voxel look: a light switch re-mixes the volume (${JSON.stringify(mix)})`);
-    const pe = p.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
-    assert(pe.length === 0, `phone: no console errors${pe.length ? ': ' + pe.slice(0, 3).join(' | ') : ''}`);
-    await browser.close();
-  }
-
   }
 
   if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
@@ -591,6 +503,22 @@ try {
   }
   assert(tex.pending === 0, `Epic: every drawn mesh's shader compiled (${tex.pending} pending)`);
   assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
+  // (PC1 fix) a spot's shadow joins a shader only once its map has casters: idle at the start, a guard's flashlight
+  // fills it when the guards alert (the near level chunks reached 17 textures and stopped drawing). Alert them and count again.
+  const flash = await e.page.evaluate(() => {
+    const g = window.__app.current;
+    for (const en of g.enemyMgr.enemies) en.alert();
+    return g.world.lightRig.shadowPool.length;
+  });
+  await frames(e.page, 240);
+  tex = await texProbe();
+  for (let i = 0; i < 120 && tex.pending > 0; i++) {
+    await wait(500);
+    tex = await texProbe();
+  }
+  const lit = await e.page.evaluate(() => window.__app.current.world.lightRig.shadowPool.filter((s) => s.id >= 0 && s.list.length > 0).length);
+  assert(lit > 0, `alerted guards' flashlights take the shadow pool (${lit} of ${flash} shadowed with casters)`);
+  assert(tex.pending === 0 && tex.max <= 16, `Epic, guards alerted: every material shader within 16 textures (${tex.max}, ${tex.who}, ${tex.pending} pending)`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
@@ -601,7 +529,7 @@ try {
 
   if (part(4)) {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
+  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);

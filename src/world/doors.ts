@@ -15,9 +15,10 @@ import {
 import { G } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
+import { DOOR_CRACK, stepCrack } from './doorPeek';
 
 /** How a door was opened: quietly by hand, bashed open at a sprint, or by an enemy walking through. */
-export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close';
+export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close' | 'crack';
 
 /** Open angle (rad) and swing times (s). */
 export const DOOR = {
@@ -31,6 +32,9 @@ export const DOOR = {
   enemyReach: 1.0,
   /** Nobody within this of the doorway for it to close (m). */
   clearance: 0.75,
+  /** (locomotion step 13) The door-peek crack: this fraction of the swing over `crackTime` s (closed in 0.4 s). */
+  crack: DOOR_CRACK.crack,
+  crackTime: DOOR_CRACK.crackTime,
 } as const;
 
 export interface DoorState {
@@ -39,6 +43,11 @@ export interface DoorState {
   open: number;
   target: 0 | 1;
   rate: number;
+  /** (step 13) Cracked by a door peek (host-authoritative in co-op): the leaf is drawn `ajar` of its swing while
+   *  `open` stays 0, so the body, the light field / bake and guard sight treat it as closed (A25). */
+  cracked: boolean;
+  /** The drawn crack, 0 .. DOOR.crack (eased toward `cracked`). */
+  ajar: number;
   /** Doorway centre (closed leaf middle) on the floor. */
   cx: number;
   cz: number;
@@ -77,7 +86,7 @@ export class Doors {
     doors.forEach((a, i) => {
       const cx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5;
       const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
-      this.list.push({ anchor: a, open: 0, target: 0, rate: 0, cx, cz, body: null, node: null, index: i });
+      this.list.push({ anchor: a, open: 0, target: 0, rate: 0, cracked: false, ajar: 0, cx, cz, body: null, node: null, index: i });
     });
     const mat = new PBRMaterial('doorMat', scene);
     mat.albedoColor = Color3.FromHexString('#6e5a43').toLinearSpace();
@@ -100,7 +109,7 @@ export class Doors {
   /** Leaf matrix at its current swing. */
   private write(d: DoorState): void {
     const a = d.anchor;
-    const yaw = a.yaw + a.swing * DOOR.openAngle * smooth(d.open);
+    const yaw = a.yaw + a.swing * DOOR.openAngle * smooth(Math.max(d.open, d.ajar));
     Quaternion.RotationYawPitchRollToRef(yaw, 0, 0, this.q);
     const w = a.width - 0.04;
     this.s.set(DOOR.thickness, a.height, w);
@@ -140,11 +149,17 @@ export class Doors {
     d.node = null;
   }
 
+  /** Lock or unlock a door at run time (pure state on the anchor; a locked door refuses `open`, `setOpen` ignores it). */
+  setLocked(d: DoorState, on: boolean): void {
+    d.anchor.locked = on;
+  }
+
   /** Open a door (`how` sets the swing speed and the sound). False when locked or already opening. */
   open(d: DoorState, how: 'quiet' | 'bash' | 'enemy'): boolean {
     if (d.anchor.locked || d.target === 1) return false;
     d.target = 1;
     d.rate = 1 / (how === 'bash' ? DOOR.bashTime : how === 'enemy' ? DOOR.enemyTime : DOOR.quietTime);
+    this.uncrackOpen(d);
     this.removeBody(d);
     this.onSound?.(d, how);
     return true;
@@ -165,7 +180,29 @@ export class Doors {
     d.target = open ? 1 : 0;
     d.rate = 1 / (open ? DOOR.quietTime : DOOR.closeTime);
     // (closed: the body comes back when the leaf is shut, in `update`)
-    if (open) this.removeBody(d);
+    if (open) {
+      this.uncrackOpen(d);
+      this.removeBody(d);
+    }
+  }
+
+  /**
+   * (step 13) Crack a closed, unlocked door for a peek (`on`), or close the crack. The body stays (the swing `open`
+   * stays 0); only the drawn leaf moves. False when nothing changes (open, locked, already so).
+   */
+  crack(d: DoorState, on: boolean): boolean {
+    if (on && (d.target !== 0 || d.anchor.locked || d.cracked)) return false;
+    if (!on && !d.cracked) return false;
+    d.cracked = on;
+    this.onSound?.(d, 'crack');
+    return true;
+  }
+
+  /** Opening fully clears the crack: the swing goes on from the cracked angle. */
+  private uncrackOpen(d: DoorState): void {
+    d.cracked = false;
+    if (d.ajar > d.open) d.open = d.ajar;
+    d.ajar = 0;
   }
 
   /** Every door open, no collision. */
@@ -174,6 +211,8 @@ export class Doors {
       this.removeBody(d);
       d.open = 1;
       d.target = 1;
+      d.cracked = false;
+      d.ajar = 0;
       this.write(d);
     }
     this.mesh?.thinInstanceBufferUpdated('matrix');
@@ -211,6 +250,15 @@ export class Doors {
     if (!this.mesh) return;
     let moved = false;
     for (const d of this.list) {
+      // (step 13) the crack eases on its own (the body and `open` untouched)
+      const goal = d.cracked ? DOOR.crack : 0;
+      if (d.ajar !== goal) {
+        d.ajar = stepCrack(d.ajar, d.cracked, dt);
+        if (d.open === d.target) {
+          this.write(d);
+          moved = true;
+        }
+      }
       if (d.open === d.target) continue;
       d.open = d.target === 1 ? Math.min(1, d.open + d.rate * dt) : Math.max(0, d.open - d.rate * dt);
       this.write(d);

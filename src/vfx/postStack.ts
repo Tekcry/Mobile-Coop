@@ -178,7 +178,7 @@ export class PostStack {
     const g = this.gbr;
     if (g) return { bind: (e, n) => e.setTexture(n, g.getGBuffer().textures[g.getTextureIndex(0)]!), mode: 1 };
     // 3.2: the scene pass's own depth buffer as a texture (the first post process's input) - no second geometry pass
-    // (the phones' biggest saving: a whole extra draw of the scene); MSAA keeps the depth renderer
+    // (a whole extra draw of the scene saved); MSAA keeps the depth renderer
     if (!this.msaa) return { bind: (e, n) => this.bindSceneDepth(e, n), mode: 2 };
     this.depth ??= this.scene.enableDepthRenderer(this.camera, false, true);
     const d = this.depth;
@@ -189,10 +189,9 @@ export class PostStack {
   /** MSAA on (a multisampled scene target has no single-sample depth to read). */
   private msaa = false;
   /**
-   * The texture type of the passes ahead of tone mapping (Step 4b fix round 5): half float on desktop. They hold linear
-   * light; in 8 bits the darkness curve's dark band had only a few steps left (linear 1/255 shows as about 5% on screen),
-   * which drew contour bands and blocky speckle in the dark (Michael's desktop feedback, 2026-10-09). Phones keep 8 bits
-   * (bandwidth; the phone light look has no post stack).
+   * The texture type of the passes ahead of tone mapping (Step 4b fix round 5): half float where the GPU renders it.
+   * They hold linear light; in 8 bits the darkness curve's dark band had only a few steps left (linear 1/255 shows as
+   * about 5% on screen), which drew contour bands and blocky speckle in the dark (Michael's desktop feedback, 2026-10-09).
    */
   private hdr: number = Constants.TEXTURETYPE_UNSIGNED_BYTE;
 
@@ -227,7 +226,7 @@ export class PostStack {
   setAdaptive(scale: number, volLights: number): void {
     this.volMul = volLights;
     this.volMax = Math.round(this.volBase * volLights);
-    // (3.3 phones step up from their base to native: never past 1)
+    // (never past native)
     const s = Math.min(1, Math.max(0.4, this.upscale * scale));
     this.taau?.setScale(s);
     // (the fog pass ahead of TAAU sets the scene's size: it follows)
@@ -257,20 +256,20 @@ export class PostStack {
 
   apply(q: QualityLevel): void {
     const f = q.features;
-    const key = JSON.stringify(f) + q.minimal + q.lite + q.upscale + q.panini + q.mobile;
+    const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini;
     if (key === this.key) return;
     this.key = key;
     this.builds++;
     this.disposeAll();
-    // (tests, and 3.4 the phone's light look: no post stack - the grade pass only)
-    if (q.minimal || q.lite) {
+    // (tests: no post stack - the grade pass only)
+    if (q.minimal) {
       this.onRebuilt?.();
       return;
     }
     const scene = this.scene;
     const cams = [this.camera];
     this.msaa = f.aa === 'msaa';
-    this.hdr = !q.mobile && scene.getEngine().getCaps().textureHalfFloatRender ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_UNSIGNED_BYTE;
+    this.hdr = scene.getEngine().getCaps().textureHalfFloatRender ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_UNSIGNED_BYTE;
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
     if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
@@ -288,8 +287,8 @@ export class PostStack {
     this.volSteps = f.effects === 'epic' ? 16 : 8;
     if (q.upscale < 1) {
       this.upscale = q.upscale;
-      // fog / light shafts ahead of TAAU, at the scene's resolution (3.1: a full-resolution march was the phones'
-      // biggest cost); TAAU resolves their dither with everything else
+      // fog / light shafts ahead of TAAU, at the scene's resolution (3.1: a full-resolution march was the biggest
+      // cost); TAAU resolves their dither with everything else
       this.makeVolumetric(q.upscale);
       this.taau = new Taau(scene, this.camera, q.upscale, this.depthSource(), this.hdr);
     } else if (f.aa === 'taa') {
@@ -347,9 +346,8 @@ export class PostStack {
     if (f.bloom) {
       def.bloomThreshold = 0.75;
       def.bloomWeight = 0.35;
-      // (3.1.9 phones: a smaller kernel at quarter size - the lamps still glow)
-      def.bloomKernel = q.mobile ? 32 : 64;
-      def.bloomScale = q.mobile ? 0.25 : 0.5;
+      def.bloomKernel = 64;
+      def.bloomScale = 0.5;
     }
     def.depthOfFieldEnabled = f.dof;
     if (f.dof && def.depthOfField) {

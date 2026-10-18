@@ -8,14 +8,18 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
+  // the training bunker (level-design 15: e2e-anchors covers the map; T5), in its sandbox mode (no airlocks to cycle)
+  ['bunker', 'sandbox'],
 ];
+// anchors.ts REACH.zip: a zipline's high end is grabbed within this (plan) of it
+const ZIP_REACH = 1.3;
 let failed = false;
 for (const [map, mode] of MAPS) {
   if (only && only !== map) continue;
   const { browser, page, errors } = await launch({ url, params: `autostart=${map}&mode=${mode}` });
   try {
     await frames(page, 10);
-    const res = await page.evaluate(() => {
+    const res = await page.evaluate((zipReach) => {
       const a = window.__app;
       const g = a.current;
       const p = g.player;
@@ -34,7 +38,6 @@ for (const [map, mode] of MAPS) {
       const L = g.world.level.anchors;
       const out = [];
       const tp = (x, y, z, yaw) => {
-        g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
         c.teleport(new V(x, y, z), yaw);
@@ -91,7 +94,22 @@ for (const [map, mode] of MAPS) {
         const dx = z.b.x - z.a.x;
         const dz = z.b.z - z.a.z;
         const l = Math.hypot(dx, dz);
-        tryIt(`zipline ${z.id}`, z, z.a.x - (dx / l) * 0.7, z.a.z - (dz / l) * 0.7, z.a.y - 1.2, Math.atan2(dx, dz), hintIs(z.id));
+        const ux = dx / l;
+        const uz = dz / l;
+        // the first stand behind the high end, within the grab's reach (REACH.zip in plan), whose floor puts the cable
+        // 1.5-2.6 over the feet (anchors.ts reach): 0.7, 1.0, 1.2 back, straight or 0.4 to either side
+        let at = null;
+        for (const back of [0.7, 1.0, 1.2]) {
+          for (const side of [0, -0.4, 0.4]) {
+            if (at || Math.hypot(back, side) > zipReach) continue;
+            const x = z.a.x - ux * back - uz * side;
+            const zz = z.a.z - uz * back + ux * side;
+            const fy = floorAt(x, zz, z.a.y - 1.2);
+            if (fy !== null && z.a.y - fy >= 1.5 && z.a.y - fy <= 2.6) at = [x, zz];
+          }
+        }
+        if (!at) out.push({ name: `zipline ${z.id}`, ok: false, why: 'no floor 1.5-2.6 under the cable within reach of its high end' });
+        else tryIt(`zipline ${z.id}`, z, at[0], at[1], z.a.y - 1.2, Math.atan2(dx, dz), hintIs(z.id));
       }
       for (const d of L.ducts) {
         const e = d.entry;
@@ -100,7 +118,57 @@ for (const [map, mode] of MAPS) {
       for (const w of L.windows) {
         const nx = Math.sin(w.yaw);
         const nz = Math.cos(w.yaw);
-        for (const sd of [-1, 1]) tryIt(`window ${w.id} ${sd < 0 ? 'front' : 'back'}`, w, w.c.x + nx * 0.85 * sd, w.c.z + nz * 0.85 * sd, w.sillHeight - 0.3, Math.atan2(-nx * sd, -nz * sd), () => g.traversal.hintWindow?.id === w.id);
+        // a side is approachable on foot when its floor is 0.3-1.3 under the sill (the vault's window)
+        const footSide = [-1, 1].some((sd) => {
+          const fy = floorAt(w.c.x + nx * 0.85 * sd, w.c.z + nz * 0.85 * sd, w.sillHeight - 0.3);
+          return fy !== null && w.sillHeight - fy >= 0.3 && w.sillHeight - fy <= 1.3;
+        });
+        if (footSide) {
+          for (const sd of [-1, 1]) tryIt(`window ${w.id} ${sd < 0 ? 'front' : 'back'}`, w, w.c.x + nx * 0.85 * sd, w.c.z + nz * 0.85 * sd, w.sillHeight - 0.3, Math.atan2(-nx * sd, -nz * sd), () => g.traversal.hintWindow?.id === w.id);
+          continue;
+        }
+        // a rope-only window (no floor in reach of the sill on either side): down the rappel whose rope passes it, hook
+        // on, lower to the sill - 0.6, the "Kick through" prompt, kick, the glass breaks
+        const name = `window ${w.id} (from the rope)`;
+        const rope = L.rappels.find((r) => {
+          if (Math.abs(nx * r.nx + nz * r.nz) < 0.9) return false;
+          const off = (r.top.x - w.c.x) * r.nx + (r.top.z - w.c.z) * r.nz;
+          const lat = Math.abs((r.top.x - w.c.x) * -r.nz + (r.top.z - w.c.z) * r.nx);
+          return off >= -0.2 && off <= 1.4 && lat <= Math.max(1.5, w.w / 2) && r.top.y - r.length < w.sillHeight - 0.6 && r.top.y > w.sillHeight;
+        });
+        if (!rope) {
+          out.push({ name, ok: false, why: 'no floor in reach of the sill and no rope passes it' });
+          continue;
+        }
+        const fy = floorAt(rope.top.x - rope.nx * 0.4, rope.top.z - rope.nz * 0.4, rope.top.y + 1);
+        if (fy === null) {
+          out.push({ name, ok: false, why: `no floor at rope ${rope.id}'s hook-on point` });
+          continue;
+        }
+        tp(rope.top.x - rope.nx * 0.4, fy + 0.02, rope.top.z - rope.nz * 0.4, Math.atan2(rope.nx, rope.nz));
+        st.tap('jump');
+        a.loop.stepHeadless(1.0, 120);
+        const ac = g.traversal.attachCtl;
+        const hooked = ac.active && ac.m.anchor?.id === rope.id;
+        // along the wall to the window, then down the rope to the sill - 0.6
+        const lat = (w.c.x - rope.top.x) * -rope.nz + (w.c.z - rope.top.z) * rope.nx;
+        let beside = false;
+        for (const u of [lat, -lat]) {
+          if (!hooked || beside) continue;
+          ac.u = u;
+          for (let k = 0; k < 60 && !beside; k++) {
+            ac.m.s = Math.max(0, Math.min(rope.length - 0.3, ac.m.s + (c.pos.y - (w.sillHeight - 0.6)) * 0.8));
+            a.loop.stepHeadless(0.1, 120);
+            beside = ac.ropeWindow?.id === w.id && Math.abs(c.pos.y - (w.sillHeight - 0.6)) < 0.25;
+          }
+        }
+        const prompt = g.hud.world.label('vault');
+        st.tap('jump');
+        a.loop.stepHeadless(1.2, 120);
+        const broken = w.open || g.world.breakables.isOpen(`glass:${w.id}`);
+        out.push({ name, ok: hooked && beside && prompt === 'Kick through' && broken && !ac.active, why: `rope ${rope.id} hooked ${hooked} beside ${beside} prompt "${prompt}" broken ${broken} feet ${c.pos.y.toFixed(2)}` });
+        g.traversal.reset();
+        a.loop.stepHeadless(0.2, 120);
       }
       // (3.2.0) split jump gaps: between the walls at the middle, facing along the corridor
       for (const sg of L.splits) {
@@ -117,7 +185,7 @@ for (const [map, mode] of MAPS) {
       const lips = L.ledges.filter((l) => l.canHang).length;
       const climbable = L.ledges.filter((l) => l.canHang && l.canClimbUp).length;
       return { out, lips, climbable, placed: L.all.length - L.ledges.length };
-    });
+    }, ZIP_REACH);
     console.log(`${map}: ${res.placed} placed anchors, ${res.lips} hangable lips (${res.climbable} with room to climb up)`);
     for (const r of res.out) assert(r.ok, `${map}: ${r.name} (${r.why})`);
     assert(res.lips > 10, `${map}: lips to hang from (${res.lips})`);

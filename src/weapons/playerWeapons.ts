@@ -21,7 +21,8 @@ const modelLength = (d: WeaponDef): number => {
   return e.z1 - e.z0;
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
-import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
+import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, type DrawPhase } from './drawState';
+import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
 export interface LoadoutEntry {
   id: WeaponId;
@@ -33,19 +34,12 @@ export interface LoadoutEntry {
   attachments?: string[];
 }
 
-/** PvP: every weapon at its base damage (no damage upgrades or damage mods; handling attachments stay). */
-export function pvpLoadout(entries: LoadoutEntry[]): LoadoutEntry[] {
-  return entries.map((e) => ({ ...e, upgrades: undefined, mods: e.mods ? { ...e.mods, damage: 1 } : undefined }));
-}
-
 export interface WeaponSlot {
   def: WeaponDef;
   stats: EffectiveStats;
   mag: number;
   reserve: number;
   model: WeaponModel;
-  /** Bolts knock out instead of killing (the crossbow without lethal bolts). */
-  nonLethal: boolean;
   /** Thin material a round goes through (m; 0 = none) and what it keeps. */
   pen: number;
   /** Has a magnifying scope. */
@@ -143,7 +137,8 @@ export class PlayerWeapons {
     private grenadeSys: Grenades,
     private vfx: Vfx,
     loadout: LoadoutEntry[],
-    private rumble: (s: number, w: number, ms: number) => void,
+    /** (locomotion step 17) the shot rumble (the table, `config/rumble.ts`): suppressed or loud. */
+    private shotFeel: (suppressed: boolean) => void,
   ) {
     // every carried weapon gets its own slot on the body (back / sling / thigh), so all stay visible
     const defs = loadout.map((e) => withAttachments(WEAPONS[e.id], e.attachments ?? []));
@@ -155,7 +150,7 @@ export class PlayerWeapons {
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
-      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, nonLethal: def.nonLethal === true && !(e.attachments ?? []).includes('lethalBolts'), pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
+      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
@@ -179,12 +174,41 @@ export class PlayerWeapons {
     return this.reloading ? 1 - this.reloadT / this.reloadTotal : 0;
   }
 
+  /** The current reload's length (s) and whether it is the empty one (the weapon sounds lay it out; read only). */
+  get reloadDuration(): number {
+    return this.reloadTotal;
+  }
+
+  get reloadIsEmpty(): boolean {
+    return this.reloadEmpty;
+  }
+
   get swapping(): boolean {
     return this.swapT >= 0;
   }
 
-  /** Weapon away while both hands are busy (ladders, pipes, hanging, ducts). */
+  /** Weapon away: holstered (not aiming, step 09) or both hands busy (ladders, pipes, hanging, ducts). */
   private stowed = false;
+  /** (step 09) Holstered unless aiming: the draw phase (`MoveState.dw`), driven by aim when not attached. */
+  readonly draw = new DrawState();
+  /** Attached / carrying / a takedown / a team move: the attach stow and the one-handed sidearm win over aim. */
+  private attachMode = false;
+  /** The swap timeline is a draw / holster from aim: its pace follows the draw state (bible 5.6 times). */
+  private aimDriven = false;
+  /** The host forced holstered (D8): stays holstered until aim is released. */
+  private drawLock = false;
+  private started = false;
+  /** (A43) Reload pressed while not drawn: draw to low ready, then reload (then holster if aim is not held). */
+  private reloadQueued = false;
+
+  /** (locomotion step 10) An elbow strike running: aim / reload do not draw until it ends (the gun stays in its
+   *  slot with no stow overlay, so the local rig poses exactly as the remotes do from MoveState, D8). */
+  handsBusy = false;
+
+  /** (locomotion step 10) A reload running or queued (A43): the hands are busy, no elbow strike. */
+  get reloadBusy(): boolean {
+    return this.reloadQueued || this.reloading;
+  }
 
   /**
    * Stow / draw for attached traversal: stowing plays the swap's holster half and holds there (hands empty,
@@ -220,6 +244,22 @@ export class PlayerWeapons {
     return this.stowed;
   }
 
+  /** (step 09) Draw phase for the wire and the fire gate: 0 holstered, 1 drawing, 2 drawn, 3 holstering. */
+  get drawPhase(): DrawPhase {
+    return this.draw.phase;
+  }
+
+  /** (step 09) The host forced this player holstered for longer than latency explains: holster now and hold it
+   *  until aim is released. */
+  forceHolster(): void {
+    if (this.attachMode) return;
+    this.drawLock = true;
+    this.reloadQueued = false;
+    this.draw.holster();
+    this.aimDriven = false;
+    this.setStowed(true);
+  }
+
   /** (3.2.0) The loadout's sidearm (a pistol), or -1: the one gun that comes out one-handed while attached. */
   get sidearmIndex(): number {
     for (let i = 0; i < this.slots.length; i++) if (this.slots[i]!.def.class === 'pistol') return i;
@@ -234,6 +274,8 @@ export class PlayerWeapons {
    * hang): `draw` takes it from its holster; letting go puts it back and the main weapon is the one drawn next.
    */
   setAttachedStow(stowed: boolean, draw: boolean): void {
+    this.attachMode = stowed;
+    if (stowed) this.aimDriven = false;
     const si = this.sidearmIndex;
     if (stowed && draw && si >= 0) {
       if (this.index !== si) {
@@ -257,7 +299,8 @@ export class PlayerWeapons {
       this.index = this.beforeSidearm;
       this.beforeSidearm = -1;
     }
-    this.setStowed(stowed);
+    // hands free again: aim decides (fixedUpdate)
+    if (stowed) this.setStowed(true);
   }
 
   /** Throwing a grenade (wind-up to recovery): no firing, aiming or reloading. */
@@ -309,8 +352,8 @@ export class PlayerWeapons {
   /** Spread half-angle in degrees right now (for the crosshair). */
   currentSpread(): number {
     const s = this.current;
-    const moving = Math.min(1, this.player.controller.speed / 5);
-    return spreadDeg(s.def, s.stats, this.player.cam.ads, moving, this.bloom) * this.spreadMul * this.attachSpread;
+    const c = this.player.controller;
+    return playerSpreadDeg(s.def, s.stats, c.crouched, c.speed, this.bloom) * this.spreadMul * this.attachSpread;
   }
 
   addAmmo(fraction: number): void {
@@ -322,10 +365,12 @@ export class PlayerWeapons {
     const s = this.current;
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
-    this.player.swapT = this.swapT >= 0 ? this.swapT / SWAP_TIME : -1;
+    // holstered by aim and settled: no swap overlay (the free hands hang at the sides, unarmed)
+    this.player.swapT = this.swapT >= 0 && !(this.stowed && !this.attachMode && this.swapPhase >= 1) ? this.swapT / SWAP_TIME : -1;
     this.pouches.setCount(this.grenades);
     this.player.grenadeT = this.grenadeT >= 0 ? this.grenadeT / GRENADE_TIME : -1;
     this.player.sinceShot = this.sinceShot;
+    this.player.weaponDrawn = this.draw.phase === DRAW_DRAWN;
     this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.grenadeCd = Math.max(0, this.grenadeCd - dt);
@@ -335,13 +380,58 @@ export class PlayerWeapons {
     if (!this.player.alive) return;
     const ctl = this.player.controller;
 
+    // (step 09) holstered unless aiming: aim pressed draws, released holsters (attach rules win over aim)
+    if (!this.started) {
+      // a match starts holstered (every gun in its slot, hands free), not with a holster animation
+      this.started = true;
+      if (!this.stowed && this.swapT < 0) {
+        this.stowed = true;
+        this.holsterAll(-1);
+        this.swapT = SWAP_TIME * SWAP_HOLSTER;
+        this.swapPhase = 1;
+        this.player.swapFrom = this.player.swapTo = this.reach(this.index);
+        this.player.swapT = -1;
+      }
+    }
+    if (!this.player.ads) this.drawLock = false;
+    if (this.attachMode) {
+      if (this.stowed) this.draw.holster();
+      else if (!this.swapping) this.draw.drawn();
+    } else {
+      // (A43) a reload in progress or asked for while holstered keeps / brings the gun out at low ready
+      const reloadWant = this.reloadT >= 0 || this.reloadQueued;
+      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.ads || reloadWant), drawTimeFor(s.def.class));
+      const away = ph === DRAW_HOLSTERED || ph === DRAW_HOLSTERING;
+      if (away !== this.stowed) {
+        const reverse = !away && this.swapT >= 0 && this.swapPhase === 0 && this.index === this.held;
+        this.setStowed(away);
+        this.aimDriven = true;
+        if (reverse) {
+          // released and pressed again before the gun reached its slot: it is still in the hands (the holster beat),
+          // so the holster just stops and it comes straight back up. (21w, PC-PASS 42) No jump into the draw half of
+          // the clip (that moved the hand 12 cm and the gun 30 cm in one frame): the swap overlay fades out from where
+          // it was and the aim pocket takes the gun back.
+          this.swapT = -1;
+          this.swapPhase = 0;
+          this.aimDriven = false;
+        }
+      }
+    }
+
     // swap (pressing again mid-swap keeps cycling)
-    // (aiming, RB marks instead of swapping)
-    const swapPress = (inp.pressed('swapNext') && !this.player.ads) || inp.pressed('swapPrev');
-    if (swapPress && this.slots.length > 1 && !this.throwing && !this.stowed) {
+    // (step 09: marks are gone and the gun is drawn only while aiming, so RB swaps while aiming too)
+    const swapPress = inp.pressed('swapNext') || inp.pressed('swapPrev');
+    if (swapPress && this.slots.length > 1 && !this.throwing && !(this.stowed && this.attachMode)) {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
+      this.aimDriven = false;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
+      if (this.stowed) {
+        // (step 09 fix 4) holstered, the selection is the weapon carried at the ready: its move speed and zoom
+        // apply now (as a drawn swap's equip would), not the last drawn gun's - holstering never changes the gait
+        this.player.controller.speedMul = this.current.def.moveSpeedMult;
+        this.player.cam.adsZoom = this.current.stats.adsZoom;
+      }
       if (this.swapT < 0) {
         this.swapT = 0;
         this.swapPhase = 0;
@@ -360,7 +450,12 @@ export class PlayerWeapons {
     }
     if (this.swapT >= 0) {
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
-      this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
+      if (this.aimDriven) {
+        // a draw / holster from aim keeps pace with the draw state (0.3 / 0.4 s draw, 0.4 s holster)
+        const left = this.draw.remaining(drawTimeFor(s.def.class));
+        const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
+        this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
+      } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       const f = this.swapT / SWAP_TIME;
@@ -378,9 +473,13 @@ export class PlayerWeapons {
         this.swapPhase = 3;
         this.equip(this.index);
       }
-      if (this.swapT >= SWAP_TIME) this.swapT = -1;
+      if (this.swapT >= SWAP_TIME) {
+        this.swapT = -1;
+        this.aimDriven = false;
+      }
     }
-    if (this.stowed) return;
+    // hands busy on an anchor: nothing else; holstered by aim, a grenade / gadget throw still runs
+    if (this.stowed && this.attachMode) return;
     // grenade: prep, pin, wind-up, release (thrown), recover
     if (this.grenadeT >= 0) {
       this.grenadeT += dt;
@@ -400,19 +499,34 @@ export class PlayerWeapons {
         s.mag += take;
         if (!this.infiniteAmmo) s.reserve -= take;
       }
-    } else if (inp.pressed('reload') && !this.throwing && !this.swapping && s.mag < s.stats.magSize && (s.reserve > 0 || this.infiniteAmmo)) {
-      this.startReload();
+    } else {
+      const canReload = !this.throwing && s.mag < s.stats.magSize && (s.reserve > 0 || this.infiniteAmmo);
+      // (A43) holstered or mid draw / holster (not attached): queue it; the draw comes out to low ready first
+      if (inp.pressed('reload') && canReload && !this.attachMode && !this.drawLock && this.draw.phase !== DRAW_DRAWN) this.reloadQueued = true;
+      if (!canReload || this.attachMode || this.drawLock) this.reloadQueued = false;
+      if (this.reloadQueued) {
+        if (this.draw.phase === DRAW_DRAWN && !this.swapping) {
+          this.reloadQueued = false;
+          this.startReload();
+        }
+      } else if (inp.pressed('reload') && canReload && !this.swapping) this.startReload();
     }
 
     // (gadget throws are started by the gadget system: tap / hold of the gadget button decides use vs wheel)
 
     // fire
+    // (step 09) no hip fire: only drawn and aimed (fire while holstered does nothing: no shot, click or bloom)
+    if (this.draw.phase !== DRAW_DRAWN) {
+      this.queuedT = 0;
+      return;
+    }
     if (inp.pressed('fire')) this.queuedT = 0.35;
     this.queuedT = Math.max(0, this.queuedT - dt);
+    if (!fireReady(this.draw.phase, this.player.cam.ads)) return;
     const wants = s.def.fireMode === 'auto' ? inp.down('fire') : this.queuedT > 0;
     if (!wants || this.swapping || this.reloading || this.throwing || ctl.weaponBlocked || this.cooldown > 0) return;
     // raise-to-fire: the trigger is live only once the weapon is up from its ready position
-    if (!this.player.carry.canFire(this.player.carryIn) || this.player.coverFireBlocked) return;
+    if (!this.player.carry.canFire(this.player.carryIn)) return;
     this.queuedT = 0;
     if (s.mag <= 0) {
       if (inp.pressed('fire')) this.events.onDryFire?.(s.def);
@@ -434,10 +548,10 @@ export class PlayerWeapons {
   /** Throw / use the selected gadget (the gadget system calls this; frag with no handler). Returns false when it
    *  cannot (none left, busy). Thrown kinds play the throw and go out at its release (`onThrow`). */
   useGadget(): boolean {
-    if (this.grenadeCd > 0 || this.throwing || this.swapping || this.stowed) return false;
+    if (this.grenadeCd > 0 || this.throwing || (this.stowed ? this.attachMode : this.swapping)) return false;
     const g = this.gadgets;
     const def = GADGETS[g.selected];
-    if (def.use === 'place' || def.use === 'fly') {
+    if (def.use === 'place') {
       if (!this.onPlace || !g.take()) return false;
       this.grenadeCd = GRENADE.cooldown;
       this.onPlace(g.selected);
@@ -542,7 +656,7 @@ export class PlayerWeapons {
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
     cam.shake(def.class === 'sniper' ? 0.25 : def.class === 'shotgun' ? 0.2 : 0.04);
     this.bloom += def.spreadPerShot;
-    this.rumble(def.class === 'shotgun' || def.class === 'sniper' ? 0.7 : 0.25, 0.4, def.class === 'smg' ? 40 : 70);
+    this.shotFeel(s.stats.noise <= 0.6);
     this.events.onShot?.(def);
   }
 
@@ -569,7 +683,7 @@ export class PlayerWeapons {
     this.ballistics.impactFx(h, dir);
     const head = h.part === 'head';
     const dmg = damageAt(s.def, s.stats, travelled, head) * factor;
-    if (h.target && h.target.team !== 'player') {
+    if (h.target && (h.target.team !== 'player' || h.target.shootable === true)) {
       const res = h.target.applyDamage({
         amount: dmg,
         point: h.point,
@@ -581,7 +695,6 @@ export class PlayerWeapons {
         weapon: s.def.id,
         sourcePos: this.player.cam.pivot.clone(),
         impulse: s.def.impulse,
-        nonLethal: s.nonLethal,
       });
       const t = this.tallyFor(s.def.id);
       t.hits++;

@@ -4,7 +4,6 @@ import { h } from '../dom';
 import { Screen } from '../screen';
 import { promptHtml, type Hint } from '../prompts';
 import { hyp2 } from '../../core/mathx';
-import { viewWidth, vx, vy } from '../../core/viewRotation';
 
 /** A state that can hand its camera to photo mode and hold still meanwhile (the game, the menu stage). */
 export interface PhotoHost {
@@ -53,9 +52,7 @@ export class PhotoModeScreen extends Screen {
   private readonly takeBtn: HTMLElement;
   private readonly keepBtn: HTMLElement;
   private keys = new Set<string>();
-  private drag: { id: number; x: number; y: number; move: boolean; sx: number; sy: number } | null = null;
-  private touchMove = { x: 0, y: 0 };
-  private vert = 0;
+  private drag: { id: number; x: number; y: number } | null = null;
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.type === 'keydown') this.keys.add(e.code);
     else this.keys.delete(e.code);
@@ -80,17 +77,10 @@ export class PhotoModeScreen extends Screen {
     }
     this.takeBtn = this.btn('A', 'Take photo', () => this.take());
     this.keepBtn = this.btn('A', 'Keep', () => this.keep());
-    const pad = h(
-      'div',
-      { class: 'photo-vert' },
-      this.holdBtn('▲', 1),
-      this.holdBtn('▼', -1),
-    );
     this.live = h(
       'div',
       { class: 'photo-live' },
-      h('div', { class: 'photo-help', text: 'Photo mode - move: WASD / left stick / drag left - look: mouse drag / right stick / drag right - up / down: E / Q, RB / LB - faster: Shift' }),
-      pad,
+      h('div', { class: 'photo-help', text: 'Photo mode - move: WASD / left stick - look: mouse drag / right stick - up / down: E / Q, RB / LB - faster: Shift' }),
       h('div', { class: 'photo-bar' }, this.takeBtn, this.btn('B', 'Cancel', () => this.cancel())),
     );
     this.preview = h('img', { class: 'photo-preview' }) as HTMLImageElement;
@@ -113,18 +103,6 @@ export class PhotoModeScreen extends Screen {
     return b;
   }
 
-  private holdBtn(label: string, dir: number): HTMLElement {
-    const b = h('button', { class: 'photo-arrow nofocus', text: label });
-    b.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.vert = dir;
-    });
-    const up = (): void => void (this.vert = 0);
-    b.addEventListener('pointerup', up);
-    b.addEventListener('pointercancel', up);
-    b.addEventListener('pointerleave', up);
-    return b;
-  }
 
   override onShow(): void {
     if (this.saved) return;
@@ -165,11 +143,11 @@ export class PhotoModeScreen extends Screen {
     const look = inp.consumeLook();
     this.yaw += look.x;
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch + look.y));
-    // move: keyboard / stick (the input's move vector) or the left-half drag
-    let mx = inp.move.x + this.touchMove.x;
-    let my = inp.move.y + this.touchMove.y;
+    // move: keyboard / stick (the input's move vector)
+    let mx = inp.move.x;
+    let my = inp.move.y;
     const k = this.keys;
-    let up = this.vert;
+    let up = 0;
     if (k.has('KeyE') || k.has('Space') || inp.buttons.uiTabNext.down) up += 1;
     if (k.has('KeyQ') || k.has('KeyC') || k.has('ControlLeft') || inp.buttons.uiTabPrev.down) up -= 1;
     const fast = k.has('ShiftLeft') || k.has('ShiftRight') || inp.buttons.dash.down ? FAST : 1;
@@ -193,29 +171,21 @@ export class PhotoModeScreen extends Screen {
   private onDown(e: PointerEvent): void {
     if (this.phase !== 'live') return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    // touch: the left half moves, the right half looks; a mouse always looks
-    const move = e.pointerType === 'touch' && vx(e) < viewWidth() / 2;
-    this.drag = { id: e.pointerId, x: vx(e), y: vy(e), move, sx: vx(e), sy: vy(e) };
+    // a mouse drag looks
+    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
   }
 
   private onMove(e: PointerEvent): void {
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
-    if (d.move) {
-      const r = 70;
-      this.touchMove.x = Math.max(-1, Math.min(1, (vx(e) - d.sx) / r));
-      this.touchMove.y = Math.max(-1, Math.min(1, -(vy(e) - d.sy) / r));
-      return;
-    }
-    this.yaw += (vx(e) - d.x) * DRAG_LOOK;
-    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - (vy(e) - d.y) * DRAG_LOOK));
-    d.x = vx(e);
-    d.y = vy(e);
+    this.yaw += (e.clientX - d.x) * DRAG_LOOK;
+    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - (e.clientY - d.y) * DRAG_LOOK));
+    d.x = e.clientX;
+    d.y = e.clientY;
   }
 
   private onUp(e: PointerEvent): void {
     if (this.drag?.id !== e.pointerId) return;
-    if (this.drag.move) this.touchMove.x = this.touchMove.y = 0;
     this.drag = null;
   }
 

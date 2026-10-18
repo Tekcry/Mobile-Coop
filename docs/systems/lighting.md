@@ -1,160 +1,122 @@
-# Light model, baked lamps and the phone look
-> Status: Phase 1 replaces the three light calculations with one source of truth (bible 5.1).
-Purpose: the gameplay light registry, desktop baked lamps, the phone light renderer and the lamp light volume.
-Design authority: docs/design-bible.md (Section 5.1)
+# Light model, baked lamps and vision rendering
+Purpose: the gameplay light registry and light field, desktop baked lamps, darkness, night vision, thermal and electro
+rendering, and the lamp light volume kept for the level editor.
+Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102), then docs/design-bible.md (Section 5.1).
 
-## Light model (3.6: one light function; Phase 1 Steps 1-2)
-- The canonical bake (`world/lightBake.ts` `bakeLevelLight`, every device): lamp visibility (`voxel/lampBake.ts`),
-  moon visibility (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells, one ray each) and the 1 m ambient grid
-  (`world/ambientGrid.ts`), all from the canonical shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm
-  plus the Medium dressing). Keys hold only the map, seed, shapes, lights and the moon's direction.
-- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the
-  hemisphere below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from
-  `LAMP_MATH_GLSL` and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering
-  only, `LAMP_LEVEL_GAIN` 1.2 gameplay only).
-  `moonLight(theme)`: the moon's gameplay share of `lightLevel` (sun / (ambient + sun)); the open sky's ambient
-  gives that much up to it, zones keep theirs.
-- `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility +
-  the lamps listed for the 2 m column (as the shaders list them) x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility,
-  closed doors (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights
-  (flashlights) with the caller's ray; `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (private
-  steps write a scratch field; a unit test bounds the bytes per query). Without a bake: registry ambient, every
-  light dynamic.
-- Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote
-  player's `PlayerRef.light`), `Enemy.perceive` (`ref.light`, else `totalAt` at the aim point), body light
-  (`EnemyManager`, 1 Hz), `Enemy.torchWanted` (static level < `TORCH_DARK` 0.35, kept to `TORCH_KEEP` 0.45).
-- `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`,
-  `ambientAt` / `zoneAt`, `version`); `contribution` calls `lampMath` (x `LAMP_LEVEL_GAIN` 1.2, gameplay only); `LIGHT` thresholds 0.28 / 0.6 (bible L6);
-  `visibilityFromLight`; `nearestLights`; `lightOnRay`.
-- `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of
-  `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
-  many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
-  get `maxSimultaneousLights` for the pool. Maps without lights create nothing.
+Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
+field (collision, the light bake, the noise model), never the render state.
+
+## Decided direction
+- Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
+  `DOOR_SHUT` 0.05 in `world/lightField.ts`.
+- Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
+  sees through glass. No glass rule exists in the light field yet.
+- Decided, not built yet (G100, G101, G102): an instant goggle cut in CT's order (thermal, electro, night, off), CT grain,
+  thermal as CT (CT colour ramp; people behind closed doors as a dim silhouette). Code: the 0.2 s flip and grain on every
+  mode, below.
+- Decided, not built yet (G69, G73): an original goggle (no three-lens look); a dim glow on the brow with vision off, a full
+  glow over the eyes with vision on. Code: `player/goggleGlow.ts` lights the current lenses always.
+- Decided (G47): the parity test, long lamps and motion lights keep their plans and are sorted out when built.
+
+## Light model (3.6: one light function)
+- The canonical bake (`world/lightBake.ts` `bakeLevelLight`): lamp visibility (`voxel/lampBake.ts`), moon visibility
+  (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells) and the 1 m ambient grid (`world/ambientGrid.ts`), all from the canonical
+  shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm plus the Medium dressing). Keys hold only the map, seed,
+  shapes, lights and the moon's direction.
+- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the hemisphere
+  below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
+  the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
+  gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
+- `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
+  lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
+  (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
+  `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (a unit test bounds the bytes per query). Without a
+  bake: registry ambient, every light dynamic.
+- Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
+  `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
+- `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
+  `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
+  `nearestLights`; `lightOnRay`.
+- `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
+  lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
+  never enabled / disabled (no recompiles). Maps without lights create nothing.
 
 ## Baked lamps (3.2)
-- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight,
-  `LAMP_STRIDE`: position, reach, cone, fixture sx / sz) a box over its reach (downward lamps stop a cell above
-  themselves) of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points (one per 0.5 m along its longer
-  side, <= 6; ends + middle first) each air cell sees through conservative occupancy (`occupancyShapes`: fills grown,
-  carves shrunk by half a cell, paints dropped; every rendered layer's shapes); solid cells take their brightest air
-  neighbour. `packLampAtlas` / `fillLampAtlas` (tiles along x in rows along z), `lampGrid` (2 m columns, <= 8 lights
-  each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool` (`lamps` jobs)
+- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
+  over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
+  conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
+  columns, <= 8 lights each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
-- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8
-  3D atlas + one RGBA32F data texture (the grid; per lamp 6 texels: position + reach, colour x intensity x 1.6 x on,
-  direction + cos, box origin + ny, tile + nx / nz, capsule ids; `MAX_CAPSULES` 16 character capsules from
-  `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via
-  `attachAll`): per pixel the lamps in its 2 m column - range falloff, cone (lamps: `LAMP_CONE` exponent 1; spots:
-  exponent 2), N.L - as Babylon's lights gave them, x the atlas (trilinear, a cell off the geometric normal) x
-  `lampCapsule` soft shadows, added to `finalDiffuse`. `LightRig.setBaked(ids)`: the pools skip baked lights and hold
-  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
-  Babylon's macros (`E` is one).
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8 3D
+  atlas + one RGBA32F data texture (per lamp 6 texels; `MAX_CAPSULES` 16 character capsules from `GameState.rtCapsules`, 4
+  per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
+  in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
+  `LightRig.setBaked(ids)`: the pools skip baked lights and hold <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`;
+  1 with micro detail): the flashlights. GLSL names must not clash with Babylon's macros (`E` is one).
+- A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
+  changes).
 
-## Phone light look (3.6, Phase 1 Step 4)
-- `World` `phoneLamps` (`QualityLevel.lite`): `BakedLamps` volume mode on the lit standard materials (`BakeExtras.standard`):
-  `LampPlugin`'s standard variant adds `nsVolume` (two taps, N.L, capsules) and the ambient grid fill
-  (`LEVEL_TO_RENDER`) to `diffuseBase`; the baked moon multiplies the sun; the hemisphere is off; the rig keeps
-  `BAKED_PLAIN_POOL` 2 plain lights for flashlights. The grade lifts black to `PHONE_DARK_FLOOR` (L7). Maps without
-  lamps keep the plain path. Tests: `e2e-phonelamps`, `perf.mjs --phone`.
+## Lamp light volume (Kestrel editor only)
+The game never builds it; the level editor's light view does (`src/editor/lightView.ts`, G15). Removing it needs an editor
+change.
+- `BakedLamps` volume mode on standard materials (`standard` / `standardLook`, `remixes`, `volumeAt`), class `LampVolume`,
+  pure grid / regions in `voxel/lampVolume.ts`: two RGBA8 3D render targets over the lamp boxes at `LAMP_CELL` (A rgb =
+  sqrt(light / `LAMP_VOL_MAX`), B = light-weighted mean direction + how one-way it is), drawn slice by slice by `MIX_GLSL`
+  from the data texture and visibility atlas at load and over changed lamps' regions on a registry change. `LampPlugin`
+  `LAMP_VOLUME`: two taps, N.L against the direction, capsule shadows from `VOL_CAPS` 4 nearest characters.
+- Its darkness parameters are `DARK_STANDARD` (gamma-space standard materials).
 
-## Darkness is dark (3.6, Phase 1 Step 4b; bible 1.10 L5 / L7)
-- Rendering only; gameplay never reads any of it. `world/darkCurve.ts` (pure): the darkness curve
-  `curve(s) = s x g x w(g s)`, `w(x) = floor + (top - floor) / (1 + (centre / x)^steep)`, from a pixel's summed static
-  level `s` (fill + baked moon + baked lamps, as `LightField` sums them: no N.L) to the level it renders with; `g` the
-  night-vision gain. Two parameter sets, one function: `DARK_PHONE` (gamma-space standard materials) and `DARK_DESKTOP`
-  (linear PBR, then the neutral tone map's toe and the sRGB encode), each tuned on real pixels to the display targets
-  `DARK_TARGETS` (L5). `top` lifts the lit band (both looks read under 45% at 0.70 before).
-- `LampPlugin` applies it per pixel in the lighting: each light's diffuse is told apart as it is summed (the
-  `CUSTOM_LIGHT{X}_COLOR` injection: directional = the moon, static; hemisphere = replaced by the ambient grid where the
-  grid fills; the rest = flashlights and moving lights, added after the curve). Phone: on `diffuseBase` (static x ratio
-  + dynamic). Desktop: on `finalDiffuse` (with the lamps, the voxels' own fill and bounce), `finalIrradiance`,
-  `finalRadianceScaled` and `finalAmbient`. Uniforms `lampDark` (gain, the moon's level) and `lampDarkP` (the curve).
-- Desktop's non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the
-  hemisphere, which lit them as if under open sky indoors; the voxels keep the sky bake's fill.
-- Night vision (`VISION_GAIN` 8): `GameState` eases `BakedLamps.visionGain` with the goggles; on the phone the light over
-  twice full joins the colour (`CUSTOM_FRAGMENT_BEFORE_FOG`: the standard material clamps the light before the surface
-  colour).
-- The tube (Step 4b fix, `vfx/nightVision.ts`, pure; mirrored in GLSL as `NV_GLSL`): `CinematicPost` maps the image's
-  luma through `nvDrive` (contrast `gamma` 1.7) and `nvColor` (a pale grey-green phosphor that clips to white from drive
-  0.65, never quite black), adds intensifier grain (strongest in the dark) and darkens the edge (an eyepiece ellipse, x
-  scaled by the aspect up to 1.8).
-- The bloom (round 4, Michael: like Chaos Theory's night vision): `vfx/nightBloom.ts` runs while the goggles are on,
-  from `PostProcessManager.onBeforeRenderObservable` (the scene has rendered into the first post process's input;
-  no pass has drawn yet). A bright pass at `BLOOM.scale` 0.25 (4 bilinear taps, each masked by `brightShare`: a
-  smoothstep from `threshold - knee` to `threshold + knee`, so a whole near-white pixel glows; both looks' scene
-  targets are 8-bit and stop at 1, so there is no excess over a threshold to keep), then `passes` 3 x a horizontal and
-  a vertical 9-tap Gaussian (5 bilinear taps, `spread` 1.3). `CinematicPost` adds the glow's luma x `strength` to the
-  drive. Thresholds: phone 0.88 (gamma-space), desktop 0.85 (linear, before TAA and tone mapping). Targets are half
-  float where the GPU renders them, else 8-bit divided by `range` 4. The effects compile at load. What glows is what is
-  bright on screen: lamps, lit windows, blown-out walls; nothing glows through a wall, and a strip glows along its
-  length. (Rounds 1 - 3 drew an analytic glare per lamp: sized by distance it blinded half the screen; as a real tube's
-  fixed 1.8 deg halo it looked like a thin ring.)
-- The auto-gain: `vfx/nightAutoGain.ts` picks up to `GLARE.max` (8) fixed lamps in view (on, not shot out, within 45
-  m), keeps those with a clear line from the camera (a Havok ray against static geometry, stopped 0.35 m short), each
-  fading in or out over 0.12 s; near lamps (`abcWeight`) turn the tube's gain down (`veil`, eased: `abcAttack` 0.25 s
-  down, `abcRelease` 0.6 s back; the image divides by 1 + veil x `gainDrop` 0.6, except highlights from `gainKeep`
-  0.75 up, so a lamp stays white while the room round it sinks). `LightRig.setVisionBoost` raises the fixtures (x2.5)
-  with the goggles. Rendering only; the rays read collision, gameplay reads none of it.
-- No fade (round 3, Michael): `VisionState` flips the goggles over `VISION.flip` 0.2 s and switches night vision at the
-  middle; `CinematicPost` draws the housing as a dark band with a curved soft edge sweeping down (on) or up (off)
-  across the view (`flipCentre`), covering it fully at the switch.
-- `NightAutoGain` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's
-  matrices earlier in the frame (the first version did, from `renderVision`) marks its view as current; Babylon then
-  sees a moving camera as still (`Camera.hasMoved` false at the render), and TAA (`disableOnCameraMove`) kept blending
-  stale history: the smear moving in night vision on desktop. `e2e-darkness` checks a turning camera reads as moving
-  with night vision on. Any new per-frame code must not call `getViewMatrix` / `getTransformationMatrix` /
-  `getDirection*` / `getWorldMatrix` on the active camera before the scene renders.
-- No light cones (Step 4b fix, Michael 2026-10-09): the rig's additive cone meshes are gone; a beam is not seen in clean
-  air, only the light where it lands. Desktop's volumetric haze (post stack) stays. Research and proposals:
+## Darkness is dark (3.6, bible L5 / L7)
+- Rendering only. `world/darkCurve.ts` (pure): `curve(s) = s x g x w(g s)`, `w(x) = floor + (top - floor) / (1 + (centre /
+  x)^steep)`, from a pixel's summed static level `s` (fill + baked moon + baked lamps, as `LightField` sums them) to the
+  level it renders with; `g` the night-vision gain. `DARK_DESKTOP` (linear PBR, then the tone map's toe and the sRGB
+  encode) is the game's set, tuned on real pixels to `DARK_TARGETS` (L5); `DARK_STANDARD` serves the editor.
+- `LampPlugin` applies it per pixel: each light's diffuse is told apart as it is summed (`CUSTOM_LIGHT{X}_COLOR`:
+  directional = the moon, static; hemisphere = replaced by the ambient grid where the grid fills; the rest = flashlights
+  and moving lights, added after the curve) on `finalDiffuse`, `finalIrradiance`, `finalRadianceScaled` and `finalAmbient`.
+  Uniforms `lampDark`, `lampDarkP`.
+- Non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the hemisphere; the
+  voxels keep the sky bake's fill.
+- No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
-- The phone's black floor is `PHONE_DARK_FLOOR` 0.008 (OLED smear). Brightness calibration (`BrightnessScreen`,
-  Settings > Display; once after the update): an exposure multiplier in the grade, `BRIGHTNESS_MIN` .. `MAX`,
-  `GameState.brightnessLocked` for the Confrontation.
-- The goggle glow (`player/goggleGlow.ts`): the tri-lens lenses and a rear battery-pack LED as emissive instances of one
-  unlit sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.
-- A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the scene's
-  material count changes; the scene's new-material event fires too early for a plugin).
-- Tests: `tests/darkCurve.test.ts`, `scripts/e2e-darkness.mjs`.
+- Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
+  `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 
-## Phone look (3.3; 3.4 the light renderer)
-- 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
-  - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`
-  'lite', the default): GameState creates the world `cheap` (standard materials, no surface atlas) with no voxels (the
-  blockout's boxes + the Medium box dressing), smooth characters / weapons (no `setVoxelBodies` / `setVoxelWeapons`),
-  no baked lamps (the rig's plain pool, `LightRigConfig.plain`: no clustering); `PostStack.apply` builds nothing (the
-  grade pass `CinematicPost` stays); the menu stage's operator is smooth too (`MenuState.lite`). No TAAU: the canvas
-  itself scales - a match starts native (`phoneStart` from the base scale), the governor steps 100 / 92 / 84 / 75%,
-  then 30 fps. Gameplay reads the blockout on every device, so the phone look changes nothing anyone can see or hide
-  behind. Keep that rule: never make gameplay depend on what the voxel renderer draws.
-- The 3.3 voxel look below stays for the Phone check's comparison run (`QualityOverride.look` / `BenchRun.look`
-  'voxel': `PHONE_VOXEL_FEATURES`, TAAU from 75%, the cuts); `levelLabel` "phone voxel".
-- `core/quality.ts`: `PHONE_VOXEL_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
-  detail / effects Medium), `PHONE_SHADOW` (moon 1 cascade 1024, one flashlight 512), `PhoneCuts` / `PHONE_CUTS`
-  (`lampVolume`, `plainVoxels`), `PHONE_SCALES` 1 / 0.92 / 0.84 / 0.75 (`PHONE_FLOOR`), `PHONE_FPS_FALLBACK` 30,
-  `QualityLevel.phone`, `levelLabel`. `QualityManager.phone` (mobile and not `?gfx=`): `build` ignores presets / settings
-  (`ov.gfx` for a Phone check run), TAAU at the base scale, the canvas native; `resetGovernor` sets `Governor.max` 4 and
-  starts at 3 (75%); `applyAdaptive` -> `phoneAdaptiveAt` (resolution only, relative to the base; `PostStack.setAdaptive`
-  caps the TAAU scale at 1) and `capNow` (60, 30 at level 4, uncapped in a benchmark run); `phoneCuts` (+ `ov.cuts`,
-  `?lampvol=0`). `App.detectGraphics` skips phones. Settings > Display (`phoneDisplayTab`): FOV, FPS overlay, avatar
-  style, interface, fullscreen, Phone check. GameState reads `phoneCuts` when the map loads: voxel `ao` / `micro` off,
-  `WorldOptions.lampVolume`.
-- Lamp light volume (`voxel/lampVolume.ts` pure grid / regions; `BakedLamps` volume mode, class `LampVolume`): two RGBA8
-  3D render targets over the lamp boxes at `LAMP_CELL` (A rgb = sqrt(light / `LAMP_VOL_MAX`), B = light-weighted mean
-  direction + how one-way it is), drawn slice by slice (`EffectRenderer`, `bindFramebuffer(.., layer)`, viewport = the
-  region) by `MIX_GLSL` from the exact path's data texture + visibility atlas (the 2 m column's lamps: falloff, cone,
-  visibility; no N.L) at load and over the union of changed lamps' regions on a registry change (`remixes`; a mix
-  waiting on its shader retries). `LampPlugin` `LAMP_VOLUME`: two taps, N.L against the direction (wrapped by how
-  spread the light is), capsule shadows from `VOL_CAPS` 4 nearest characters along it (`lampCaps` uniform array).
-- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget or the typical frame (3.3.1:
-  `typicalMs`, an exponential average) tagged shaders / lamps / lod /
-  governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
-  (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
-  with the run's summary, `feedbackContext().spikes`.
-- Phone check 3.4 (`benchPlan('phone')` = `phoneCheckRuns`): the light look 100%, 75%, + the moon shadow (`shadows`
-  'low'), the 3.3 voxel look at 75%, 100% again (heat), then the 3 min hold at 60 (100%); 30 s cool-downs. Before 3.4:
-  nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
-  voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
-  `QualityOverride.cuts`), then 3.3.2: `PHONE_HOLD_SECONDS` 180 held at 60 (`BenchRun.cap` -> `QualityOverride.cap`,
-  sustained: per-minute averages); `PHONE_COOL_S` 30 s cool-down between runs (GameState hand-off, nothing drawn) -
-  a hot iPhone throttles its GPU about 5x. 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
-  of the route (a 20 s run ends at the long view down the corridor at the first guards: ~100 meshes against ~30).
+## Night vision
+- Gain: `VISION_GAIN` 8; `GameState` eases `BakedLamps.visionGain` with the goggles.
+- The tube (`vfx/nightVision.ts`, pure; GLSL `NV_GLSL`): `CinematicPost` maps luma through `nvDrive` (contrast `gamma` 1.7)
+  and `nvColor` (a pale grey-green phosphor that clips to white from drive 0.65), adds intensifier grain (strongest in the
+  dark) and darkens the edge (an eyepiece ellipse).
+- Bloom (`vfx/nightBloom.ts` runs it while the goggles are on, from `PostProcessManager.onBeforeRenderObservable`): a bright pass
+  at `BLOOM.scale` 0.25 (4 bilinear taps masked by `brightShare`), then `passes` 3 x a horizontal and vertical 9-tap
+  Gaussian (`spread` 1.3); `CinematicPost` adds the glow's luma x `strength` to the drive. Numbers in `BLOOM`
+  (`vfx/nightVision.ts`): `bright` threshold 0.85, knee 0.1, strength 1.4 (linear, before TAA and tone mapping). Targets are half float where supported, else 8-bit divided by `range` 4. What glows
+  is what is bright on screen; nothing glows through a wall.
+- Auto-gain (`vfx/nightAutoGain.ts`): up to `GLARE.max` 8 fixed lamps in view within 45 m with a clear Havok ray from the
+  camera (each fading over 0.12 s); near lamps (`abcWeight`) turn the gain down (`veil`; `abcAttack` 0.25 s, `abcRelease`
+  0.6 s; the image divides by 1 + veil x `gainDrop` 0.6, except highlights from `gainKeep` 0.75 up).
+  `LightRig.setVisionBoost` raises the fixtures (x2.5). Rendering only.
+- `NightAutoGain` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's matrices
+  earlier in the frame marks its view as current, so Babylon sees a moving camera as still and TAA blends stale history
+  (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call
+  `getViewMatrix` / `getTransformationMatrix` / `getDirection*` / `getWorldMatrix` on the active camera before the scene
+  renders.
+- The switch: `VisionState` flips over `VISION.flip` 0.2 s and switches at the middle; `CinematicPost` draws the housing as
+  a dark band sweeping down (on) or up (off) (`flipCentre`). Replaced by an instant cut (G100).
+
+## Thermal and electro (locomotion step 14)
+- `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
+  render target or material. Warm bodies and live devices set the free `pattern.w` channel of the PatternPlugin (per
+  instance, or per vertex on voxel bodies), a white emissive added to the lit colour; the ramp then colours by luma.
+  Thermal softens with 4 taps in the same pass. Sensor grain and softening on all three modes (A87). Render-only: the light
+  meter, the light bake and guard perception never read it.
+- What glows in each mode: `docs/systems/gadgets.md`.
+- The goggle glow (`player/goggleGlow.ts`): the goggle lenses and a rear battery LED as emissive instances of one unlit
+  sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.
+
+## Spike log
+- `core/spikes.ts` (pure `SpikeLog`): frames over `SPIKE.over` x the budget or the typical frame (`typicalMs`) tagged
+  shaders / lod / governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render
+  frame; benchmark lines end with the run's summary, `feedbackContext().spikes`.
+- Tests: `tests/darkCurve.test.ts`, `tests/lampBake.test.ts`, `tests/nightVision.test.ts`, `tests/benchmark.test.ts`;
+  `scripts/e2e-darkness.mjs`, `scripts/e2e-lightbake.mjs`.

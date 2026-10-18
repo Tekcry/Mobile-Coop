@@ -192,6 +192,24 @@ export class LightRegistry {
     return true;
   }
 
+  /** Undo `destroy` (a course restart): the lamp comes back on with its group. */
+  restore(id: number): void {
+    const l = this.lights[id];
+    if (!l || !l.destroyed) return;
+    l.destroyed = false;
+    l.on = true;
+    this.version++;
+  }
+
+  /** Mirror a shot-out lamp from the host (co-op client), destructible or not. */
+  kill(id: number): void {
+    const l = this.lights[id];
+    if (!l || l.destroyed) return;
+    l.destroyed = true;
+    l.on = false;
+    this.version++;
+  }
+
   /** EMP: electric lights within `radius` of a point go out for `seconds`, then come back. */
   disrupt(x: number, y: number, z: number, radius: number, seconds: number): number {
     let n = 0;

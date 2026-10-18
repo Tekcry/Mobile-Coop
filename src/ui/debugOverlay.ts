@@ -7,7 +7,7 @@ import type { GameLoop } from '../core/loop';
 import type { PacingSnapshot } from '../core/pacing';
 
 /**
- * FPS / frame-time overlay. Toggle with F3, the settings switch, or a 3-finger tap.
+ * FPS / frame-time overlay. Toggle with F3 or the settings switch.
  * Instrumentation is only active while visible.
  */
 export class DebugOverlay {
@@ -87,10 +87,27 @@ export class DebugOverlay {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
     });
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 3) this.toggle();
-    });
     engine.onEndFrameObservable.add(() => this.onFrame());
+  }
+
+  private toggles = new Map<string, HTMLButtonElement>();
+
+  /** A dev tool toggle (e.g. the course solo flag); `fn` null removes it. */
+  setToggle(id: string, label: string, on: boolean, fn: ((on: boolean) => void) | null): void {
+    this.toggles.get(id)?.remove();
+    this.toggles.delete(id);
+    if (!fn) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.classList.toggle('on', on);
+    b.addEventListener('click', () => {
+      const next = !b.classList.contains('on');
+      b.classList.toggle('on', next);
+      fn(next);
+    });
+    this.tools.append(b);
+    this.toggles.set(id, b);
   }
 
   /**
@@ -302,7 +319,7 @@ export class DebugOverlay {
     const lines = [
       `FPS ${(1000 / avg).toFixed(0)}  avg ${avg.toFixed(1)}ms  max ${worst.toFixed(1)}ms`,
       pc
-        ? `display ${pc.hz || '?'}Hz budget ${pc.budgetMs.toFixed(2)}ms${pc.hz === 60 && /iPhone|iPad/.test(navigator.userAgent) ? ' (Safari may cap rAF at 60)' : ''}\n` +
+        ? `display ${pc.hz || '?'}Hz budget ${pc.budgetMs.toFixed(2)}ms\n` +
           `pacing p50 ${pc.p50.toFixed(1)} p95 ${pc.p95.toFixed(1)} p99 ${pc.p99.toFixed(1)}ms  drops ${(pc.dropShare * 100).toFixed(1)}%\n` +
           `cpu/frame p50 ${pc.cpuP50.toFixed(2)} p95 ${pc.cpuP95.toFixed(2)}ms`
         : '',
