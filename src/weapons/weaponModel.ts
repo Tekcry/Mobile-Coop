@@ -56,7 +56,13 @@ const az = new Vector3();
  * metres) the grip passes near this point: beside the head on the right for a back slot (the rifle swung up over the
  * right shoulder, never across the face), out beside the right hip for the thigh holster.
  */
-export const TRAVEL_VIA = { back: [0.24, 0.3, 0.06], thigh: [0.26, -0.18, 0.16] } as const;
+export const TRAVEL_VIA = { back: [0.28, 0.3, 0.08], thigh: [0.24, -0.1, 0.34] } as const;
+/**
+ * (anim-cleanup, check fix r1) At the slot end the grip first moves out by this much (chest frame): off the back plate to
+ * the right of the spine before it rises (a long gun lifted straight up from the back mount passed through the back of
+ * her head), out from the thigh before it turns.
+ */
+export const TRAVEL_OUT = { back: [0.2, 0.02, -0.06], thigh: [0.1, 0.02, 0.06] } as const;
 /** A long gun turns to its slot's orientation over this share of the path (muzzle up before it passes the head). */
 const TRAVEL_TURN = 0.6;
 const trInv = new Matrix();
@@ -284,20 +290,36 @@ export class WeaponModel {
     trM.decompose(trS, trQ, trP);
     const k = Math.max(0, Math.min(1, u));
     const sm = k * k * (3 - 2 * k);
-    // a draw turns late (the gun leaves its slot along itself), a holster early (muzzle up before the head)
-    const r = this.trDraw ? Math.max(0, (sm - (1 - TRAVEL_TURN)) / TRAVEL_TURN) : Math.min(1, sm / TRAVEL_TURN);
+    // a holster turns early (muzzle up before the head); a draw turns while the gun is still out beside the shoulder
+    // (from 15 % to 75 % of the path: a late turn pivoted the stock past her cheek in the aim pocket)
+    const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.15) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
     Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
     // the grip's start and end (chest frame), and the curve through the waypoint
     trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
     trG.rotateByQuaternionToRef(this.trQ0, trG0).addInPlace(this.trP0);
     trG.rotateByQuaternionToRef(trQ, trG1).addInPlace(trP);
-    const via = isBackSlot(slot) ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
-    const a = (1 - sm) * (1 - sm);
-    const b = 2 * sm * (1 - sm);
-    const c = sm * sm;
-    const px = a * trG0.x + b * via[0] + c * trG1.x;
-    const py = a * trG0.y + b * via[1] + c * trG1.y;
-    const pz = a * trG0.z + b * via[2] + c * trG1.z;
+    const back = isBackSlot(slot);
+    const via = back ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
+    const out = back ? TRAVEL_OUT.back : TRAVEL_OUT.thigh;
+    // a cubic: the slot end steps out first (P1 of a draw, P2 of a holster), the other control is the waypoint
+    const slotG = this.trDraw ? trG0 : trG1;
+    const o1x = slotG.x + out[0];
+    const o1y = slotG.y + out[1];
+    const o1z = slotG.z + out[2];
+    const c1x = this.trDraw ? o1x : via[0];
+    const c1y = this.trDraw ? o1y : via[1];
+    const c1z = this.trDraw ? o1z : via[2];
+    const c2x = this.trDraw ? via[0] : o1x;
+    const c2y = this.trDraw ? via[1] : o1y;
+    const c2z = this.trDraw ? via[2] : o1z;
+    const v = 1 - sm;
+    const a = v * v * v;
+    const b = 3 * v * v * sm;
+    const c = 3 * v * sm * sm;
+    const d = sm * sm * sm;
+    const px = a * trG0.x + b * c1x + c * c2x + d * trG1.x;
+    const py = a * trG0.y + b * c1y + c * c2y + d * trG1.y;
+    const pz = a * trG0.z + b * c1z + c * c2z + d * trG1.z;
     trG.rotateByQuaternionToRef(this.node.rotationQuaternion!, trG0);
     this.node.position.set(px - trG0.x, py - trG0.y, pz - trG0.z);
   }

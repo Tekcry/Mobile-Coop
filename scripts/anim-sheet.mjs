@@ -43,6 +43,10 @@ const SCENARIOS = {
   reloadempty: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 0; a.input.state.tap('reload');" } },
   reloadpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 1; a.input.state.tap('reload');" } },
   reloadpistolempty: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 0; a.input.state.tap('reload');" } },
+  // (anim-cleanup) the left shoulder (the shoulder swap) in motion: a swap, a reload and a holster from a left aim
+  swapleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "a.input.state.tap('swapNext');" } },
+  reloadleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 1; a.input.state.tap('reload');" } },
+  holsterleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({}) },
   swap: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "a.input.state.tap('swapNext');" } },
   holsterswap: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('swapNext');" } },
   grenade: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('grenade');" } },

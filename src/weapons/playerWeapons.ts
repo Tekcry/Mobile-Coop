@@ -232,7 +232,7 @@ export class PlayerWeapons {
   setStowed(v: boolean): void {
     if (v === this.stowed) return;
     this.stowed = v;
-    this.reloadT = -1;
+    this.cancelReload();
     const rig = this.player.rig;
     if (v) {
       if (this.swapT >= 0 && this.swapPhase >= 2) {
@@ -455,7 +455,7 @@ export class PlayerWeapons {
     const swapPress = inp.pressed('swapNext') || inp.pressed('swapPrev');
     if (swapPress && this.slots.length > 1 && !this.throwing && !(this.stowed && this.attachMode)) {
       const d = inp.pressed('swapNext') ? 1 : -1;
-      this.reloadT = -1;
+      this.cancelReload();
       this.aimDriven = false;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
       if (this.stowed) {
@@ -490,10 +490,15 @@ export class PlayerWeapons {
       } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
-      const f = this.swapT / SWAP_TIME;
+      let f = this.swapT / SWAP_TIME;
       // (anim-cleanup) the outgoing gun travels to its slot in the trigger hand (no teleport, never across the face)
       const out = this.held >= 0 ? this.slots[this.held] : undefined;
-      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null)) {
+      // (check fix r1) a gun still in (or easing out of) the left hand waits in the pocket until it is back in the right
+      if (this.swapPhase === 0 && f >= TRAVEL_OUT && !out?.model.travelling && (this.player.rig.weaponHand < 0 || this.player.rig.handSwitching)) {
+        this.swapT = SWAP_TIME * TRAVEL_OUT;
+        f = TRAVEL_OUT;
+      }
+      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null) && this.player.rig.weaponHand > 0 && !this.player.rig.handSwitching) {
         if (!out.model.travelling) out.model.beginTravel(this.player.rig, this.carrySlots[this.held]!, false);
         out.model.travel(this.player.rig, (f - TRAVEL_OUT) / (SWAP_HOLSTER - TRAVEL_OUT));
       }
@@ -610,6 +615,21 @@ export class PlayerWeapons {
     } else if (mh) rig.magPoint.set(mh[0], mh[1], mh[2]);
   }
 
+  /**
+   * (anim-cleanup, check fix r1) A reload cut short (a swap, a stow for a ladder or a hang, a throw): the magazine goes
+   * back into the gun it came from at once and the hand lets it go, before the gun is put away.
+   */
+  private cancelReload(): void {
+    if (this.reloadT >= 0) this.slots[this.held]?.model.magSeated();
+    this.reloadT = -1;
+    this.player.rig.holdingMag = false;
+  }
+
+  /** (anim-cleanup) The weapon may change hands (the shoulder swap) only settled in the aim pocket, never mid-reload. */
+  get handSwitchOk(): boolean {
+    return this.swapT < 0 && this.reloadT < 0 && !this.stowed;
+  }
+
   /** Tactical reload (a round still chambered) or the longer empty reload (charging handle). */
   private startReload(): void {
     const s = this.current;
@@ -634,7 +654,7 @@ export class PlayerWeapons {
     if (!g.take()) return false;
     this.throwKind = g.selected;
     this.grenadeCd = GRENADE.cooldown;
-    this.reloadT = -1;
+    this.cancelReload();
     this.grenadeT = 0;
     this.grenadeThrown = false;
     return true;

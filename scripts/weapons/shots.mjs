@@ -42,6 +42,11 @@ const VIEWS = {
   'rifle-ots-left': { weapon: 'rifle', ads: true, left: true, cam: null },
   'rifle-left-front34': { weapon: 'rifle', ads: true, left: true, cam: [1.0, 1.5, 1.4, 1.35] },
   'pistol-left-front34': { weapon: 'pistol', ads: true, left: true, cam: [1.0, 1.5, 1.4, 1.35] },
+  // (anim-cleanup) aiming across stances
+  'rifle-crouch-aim': { weapon: 'rifle', ads: true, crouch: true, cam: [-1.3, 1.0, 0.9, 0.95] },
+  'rifle-walk-aim': { weapon: 'rifle', ads: true, move: 0.5, cam: [-1.5, 1.3, 0.6, 1.2] },
+  'pistol-crouch-aim': { weapon: 'pistol', ads: true, crouch: true, cam: [-1.3, 1.0, 0.9, 0.95] },
+  'pistol-walk-aim': { weapon: 'pistol', ads: true, move: 0.5, cam: [-1.5, 1.3, 0.6, 1.2] },
   'knife-hand': { weapon: 'rifle', knife: true, cam: [-0.9, 1.25, 0.6, 1.0] },
 };
 
@@ -98,9 +103,15 @@ try {
       if (j >= 0 && W.index !== j) W.equip(j);
       window.__cam = v.cam;
       g.player.cam.shoulder = v.left ? -1 : 1;
+      if (v.crouch) g.player.controller.setCrouchToggle();
+      else g.player.controller.clearCrouchToggle();
+      st.move.x = 0;
+      st.move.y = v.move ?? 0;
       window.__crouch = { stance: g.player.controller.crouched ?? g.player.controller.stance ?? null };
       st.set('shots', 'ads', !!v.ads);
       a.loop.stepHeadless(1.2, 120);
+      st.move.y = 0;
+      if (v.move) a.loop.stepHeadless(0.01, 120);
       W.knife.show(!!v.knife);
       a.loop.stepHeadless(0.3, 120);
       if (v.reload) {

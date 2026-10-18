@@ -416,6 +416,10 @@ export class CharacterRig {
   private shoulderY = 0;
   /** (feature/weapons) A drawn knife in the right fist (KnifeModel): the hand stays closed. */
   holdingKnife = false;
+  /** (anim-cleanup) The weapon is changing hands (the shoulder swap or the open-left wall edge, eased). */
+  get handSwitching(): boolean {
+    return this.handSwap >= 0;
+  }
   /** (anim-cleanup) A magazine in the left hand (a reload, on its way to and from the pouch): the hand stays closed. */
   holdingMag = false;
   /** (feature/weapons) The support hand's hold: under a handguard / launcher tube (long guns) or cupping a pistol grip. */

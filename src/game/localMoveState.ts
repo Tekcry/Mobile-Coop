@@ -135,6 +135,6 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   }
   out.m = 'ground';
   // (anim-cleanup) aiming from the left shoulder (the shoulder swap, G17): the weapon in the left hand, as WALL_SUB.leftHand
-  if (p.ads && p.cam.shoulder === -1) out.sub = SHOULDER_LEFT_SUB;
+  if (p.ads && p.cam.shoulder === -1 && g.weapons.handSwitchOk) out.sub = SHOULDER_LEFT_SUB;
   return out;
 }
