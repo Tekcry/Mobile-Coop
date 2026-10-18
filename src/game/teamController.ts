@@ -3,7 +3,7 @@ import { hyp2 } from '../core/mathx';
 import { G } from '../physics/groups';
 import { TEAM } from '../config/movement';
 import { findJumpTarget, type JumpTarget } from '../world/anchors';
-import { attachPose } from '../player/attach';
+import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { boostPath, canBrace, type TeamKind } from './teamMoves';
 import type { GameState } from './gameState';
 
@@ -248,7 +248,7 @@ export class TeamController {
       return;
     }
     this.t += dt;
-    const h = g.player.rig.height;
+    const h = GAMEPLAY_HEIGHT;
     const hang = attachPose(a, s.s, 1, h, { x: 0, y: 0, z: 0, yaw: 0 });
     const gy = hang.y + 1.9 * (h / 1.75);
     boostPath(this.t, this.from.x, this.from.y, this.from.z, p.x, p.y, p.z, hang.x, gy, hang.z, 1.9 * (h / 1.75), this.pt);

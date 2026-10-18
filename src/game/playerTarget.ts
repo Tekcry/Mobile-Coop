@@ -11,7 +11,7 @@ import { G } from '../physics/groups';
 import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { Player } from '../player/player';
-import { hitVolumes, proportions } from '../player/proportions';
+import { hitVolumes } from '../player/proportions';
 import { DEBUG_VOLUMES, type DebugVolume } from '../ui/debugVolumes';
 
 interface Volume {
@@ -50,7 +50,8 @@ export class PlayerTarget implements Damageable {
     private player: Player,
     readonly id = 'local',
   ) {
-    const hv = hitVolumes(proportions('average'));
+    // (operators 11e) fitted to the body shown: Wren's rig (1.68 m, G72 proportions)
+    const hv = hitVolumes(player.rig.p);
     const r = hv.bodyR;
     this.legs = this.volume('legs', 0.08 + r * 0.8, 0.88 - r * 0.8, r * 0.8, '#5080ff', 'body');
     this.torso = this.volume('torso', r, 0.58 - r * 0.3, r, '#50a0ff', 'body');

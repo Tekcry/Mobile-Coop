@@ -1,6 +1,9 @@
 /**
  * Human proportions for the shared rig. Pure data (no Babylon), unit-tested.
  *
+ * (G72, 2026-10-17: "Fix all characters") The ANSUR II corrections of ops SPEC 4.3 (A1, A3-A7) apply to every
+ * character since Wren went in (operators step 11e).
+ *
  * Average build at 1.75 m is about 7.5 heads tall, shoulders (outer deltoids) about two head
  * heights wide, chest wider and deeper than the waist, limbs tapering thigh -> knee -> ankle and
  * shoulder -> elbow -> wrist. Builds only vary girth/shoulder/waist within a believable range.
@@ -65,20 +68,24 @@ export function proportions(build: Build = 'average', height = STANDARD_HEIGHT):
   const k = height / STANDARD_HEIGHT;
   const g = m.girth * k;
   const headH = (height / 7.5) * 0.98;
-  const shoulderWidth = 0.46 * m.shoulder * k;
+  // (G72, ops SPEC 4.3, ANSUR II) A6: bideltoid 0.46 -> 0.49
+  const shoulderWidth = 0.49 * m.shoulder * k;
   const upperArmR0 = 0.05 * g;
   const shoulderHalf = shoulderWidth / 2 - upperArmR0 * 1.1;
-  const chest = { w: 0.34 * m.chest * k, d: 0.22 * m.chest * k };
+  // A4: chest depth 0.22 -> 0.24
+  const chest = { w: 0.34 * m.chest * k, d: 0.24 * m.chest * k };
   return {
     height,
     build,
-    head: { h: headH, w: 0.158 * k, d: 0.19 * k },
+    // A5: head depth 0.19 -> 0.20
+    head: { h: headH, w: 0.158 * k, d: 0.2 * k },
     neck: { len: 0.06 * k, r: 0.058 * g },
     y: {
       hip: 0.915 * k,
       waist: 1.05 * k,
       chest: 1.26 * k,
-      shoulder: 1.435 * k,
+      // A1: the shoulder joint centre ~3.5 cm below the acromion (1.435)
+      shoulder: 1.4 * k,
       neck: 1.48 * k,
       knee: 0.5 * k,
       ankle: 0.075 * k,
@@ -87,12 +94,15 @@ export function proportions(build: Build = 'average', height = STANDARD_HEIGHT):
     hipHalf: 0.09 * k * Math.sqrt(m.waist),
     shoulderWidth,
     chest,
-    waist: { w: 0.28 * m.waist * k, d: 0.185 * m.waist * k },
-    pelvis: { w: 0.31 * m.waist * k, d: 0.2 * m.waist * k, h: 0.2 * k },
+    // A4: waist 0.28 x 0.185 -> 0.30 x 0.215, pelvis 0.31 -> 0.35
+    waist: { w: 0.3 * m.waist * k, d: 0.215 * m.waist * k },
+    pelvis: { w: 0.35 * m.waist * k, d: 0.2 * m.waist * k, h: 0.2 * k },
     upperArm: { len: 0.3 * k, r0: upperArmR0, r1: 0.038 * g },
     forearm: { len: 0.26 * k, r0: 0.04 * g, r1: 0.028 * g },
-    hand: { len: 0.17 * k, w: 0.085 * g, t: 0.035 * g },
-    thigh: { len: 0.415 * k, r0: 0.082 * g, r1: 0.054 * g },
+    // A3: hand 0.17 -> 0.19
+    hand: { len: 0.19 * k, w: 0.085 * g, t: 0.035 * g },
+    // A7: thigh 0.415 -> 0.39 (the straight leg lands on y.knee / y.ankle)
+    thigh: { len: 0.39 * k, r0: 0.082 * g, r1: 0.054 * g },
     calf: { len: 0.425 * k, r0: 0.057 * g, r1: 0.036 * g },
     foot: { len: 0.27 * k, w: 0.1 * g, h: 0.085 * k },
     capsuleRadius: Math.max(0.26, Math.min(0.34, shoulderWidth * 0.62)),

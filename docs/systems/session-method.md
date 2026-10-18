@@ -2,7 +2,8 @@
 
 Michael's method for every multi-step job (code, maps, audio, art, research, helper and cloud sessions): a quick
 prototype first when the job needs a feel or look decision, then the orchestrator method (G87). Proven on the
-locomotion run (`docs/locomotion/RULES.md`, "Step loop") and the consolidation (`docs/consolidation/`). The bible's old
+locomotion run (`docs/locomotion/RULES.md`, "Step loop"), the operators run (`docs/operators/RULES.md`, "Step
+loop"; `docs/operators/steps/AGENT-PREAMBLE.md`) and the consolidation (`docs/consolidation/`). The bible's old
 Opus-writes / Sonnet-builds loop and Kestrel's planner / stage method are history. Branch, folder, port and finish
 rules: `CLAUDE.md`, "Running a job".
 
@@ -42,7 +43,8 @@ as history and point there.
 - A **start prompt** and a one-line **resume prompt** ("<job>: RESUME"), both in OWNER-NOTES.md and given to Michael
   inline in one fenced block, self-contained, with the model, effort and when to clear.
 - Location and branch guard first (folder, branch, upstream), then what to read, then the loop, then the finish.
-- Never a scripted Workflow unless Michael asks for one.
+- Never a scripted Workflow unless Michael asks for one (the operators run tried one and moved back to an
+  orchestrator session, ops D18).
 
 ## Working with Michael during a job
 - Unattended by default: assumed decisions are recorded and the job carries on; ask (native multiple choice) only

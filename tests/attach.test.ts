@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ATTACH, AttachMachine, attachKindOf, attachPose, attachRange, axisInput, climbCadence, gapBetween, LADDER_RUNG_RATE, ZIP_SPEED } from '../src/player/attach';
+import { ATTACH, AttachMachine, attachKindOf, attachLift, attachPose, attachRange, axisInput, climbCadence, gapBetween, LADDER_RUNG_RATE, GAMEPLAY_HEIGHT, ZIP_SPEED } from '../src/player/attach';
 import { HANG, makeLedge, TraversalAnchors, type Door, type Duct, type Ladder, type Ledge, type PipeHorizontal, type Zipline } from '../src/world/anchors';
 
 const anchors = new TraversalAnchors();
@@ -88,6 +88,25 @@ describe('attach poses', () => {
     // a taller body hangs lower
     attachPose(ledge, 3, 1, 1.9, out);
     expect(out.y).toBeLessThan(2.4 - HANG.drop);
+  });
+  it('(G176) gameplay hangs at the 1.75 m body; a shorter body is drawn lifted onto its grips', () => {
+    expect(GAMEPLAY_HEIGHT).toBe(1.75);
+    const l = { x: 0, y: 0, z: 0 };
+    // Wren (1.68 m): the gameplay root hangs HANG.drop under the lip, her body HANG.drop * 0.96 under it (7.6 cm up)
+    attachLift(ledge, 3, 1, 1.68, l);
+    expect(l.y).toBeCloseTo(HANG.drop * (1 - 1.68 / 1.75), 5);
+    expect(l.y).toBeGreaterThan(0.07);
+    attachLift(pipeH, 2, 1, 1.68, l);
+    expect(l.y).toBeCloseTo(HANG.drop * (1 - 1.68 / 1.75), 5);
+    // a ladder's feet height is the climb parameter: no vertical lift, only the shorter standoff
+    attachLift(ladder, 1.2, 1, 1.68, l);
+    expect(l.y).toBe(0);
+    expect(Math.abs(l.z)).toBeLessThan(0.02);
+    // a 1.75 m body sits on the gameplay root
+    attachLift(ledge, 3, 1, 1.75, l);
+    expect(l.x).toBe(0);
+    expect(l.y).toBe(0);
+    expect(l.z).toBe(0);
   });
   it('travel ranges keep the hands on the anchor', () => {
     const r = attachRange(ladder);

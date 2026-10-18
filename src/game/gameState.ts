@@ -5,7 +5,8 @@ import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
-import { LIVE_RIGS, setVoxelBodies } from '../player/characterRig';
+import { LIVE_RIGS } from '../player/characterRig';
+import { setCharacterVoxels } from '../operators/runtime/playerFigure';
 import { LIVE_DOGS } from '../ai/dogModel';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
@@ -90,6 +91,7 @@ import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, w
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
+import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -358,6 +360,7 @@ export class GameState implements AppState {
       id: 'local',
       target: this.target,
       feet: this.player.position,
+      height: this.player.rig.height,
       speed: 0,
       crouched: false,
       cover: null,
@@ -656,7 +659,7 @@ export class GameState implements AppState {
     const plain = q.minimal;
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setVoxelBodies(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    setCharacterVoxels(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
     const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
@@ -1046,7 +1049,8 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     const f = this.world.lightField;
     const p = this.player.position;
-    const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
+    // (operators 11e r1, G166) the body's real height (the rig's: Wren 1.68 m), so light hits the body you see
+    const h = lightSampleHeight(this.player.rig.height, this.player.controller.crouchBlend);
     // (step 12) peeking: the head out past the edge is sampled where it is (light parity, bible 5.1); the chest stays
     // behind the wall. Remotes: the same from their MoveState (RemotePlayer sets `peekX` / `peekZ`).
     const wc = this.wallCore;
@@ -1072,7 +1076,7 @@ export class GameState implements AppState {
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
         r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, hs.h, this.lightOccluder, hs.ox, hs.oz);
-      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
+      } else r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, lightSampleHeight(r.height ?? STANDARD_BODY, r.crouched ? 1 : 0), this.lightOccluder, r.peekX ?? 0, r.peekZ ?? 0);
     }
   }
   private readonly headSample = { ox: 0, oz: 0, h: 0 };
@@ -1313,6 +1317,7 @@ export class GameState implements AppState {
         this.strike.reset();
         // (step 14) goggles up on respawn
         this.vision.reset();
+        this.player.figure.resetGoggle();
         this.gadgets.reset();
         // HQ supply drops: gadgets restocked at the checkpoint
         if (this.hq.restock) this.weapons.gadgets.restock();
@@ -1746,6 +1751,8 @@ export class GameState implements AppState {
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
     // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
     this.player.rig.setLensGlow(v.mode !== 'off');
+    // (operators 11e, G73) Wren's goggle follows the picture on screen; its glow is emissive only (light parity)
+    this.player.figure.setVision(v.shown, dt);
     // (step 14) thermal / electro: the post branch, then the render-only emissive flags (gameplay never reads them)
     const kind = v.kind;
     this.post.setVisionKind(kind);
@@ -2091,8 +2098,8 @@ export class GameState implements AppState {
     }
     const c = p.controller;
     // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
-    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts);
-    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts);
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts, p.rig.height);
+    else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts, p.rig.height);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);
       this.rayB.set(b.x, b.y, b.z);

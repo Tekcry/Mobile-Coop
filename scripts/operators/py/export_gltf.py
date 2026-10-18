@@ -1,0 +1,148 @@
+"""Stage: glTF export for the Operator Lab (RUNBOOK step 04). One .glb per operator: the skinned body and every built
+garment item, weighted to the body's weights by nearest surface, joints named as the game rig (root, body, pelvis,
+spine, chest, neck, head, shL, elL, ... plus the pipeline-only hero finger and toe bones). Frame: Y up, +Z forward
+after the exporter's conversion (common.game_to_blender). Procedural materials export their base colour, roughness
+and metallic factors only; baked maps arrive in step 10 (KTX2 with them).
+"""
+import os
+import sys
+
+import bpy
+
+sys.path.insert(0, os.path.dirname(__file__))
+import common  # noqa: E402
+
+args = common.parse_args({
+    '--operator': {'required': True},
+    '--garment': {'action': 'append', 'default': []},
+    '--out': {'required': True},
+})
+common.check_version()
+op_id = args.operator
+# the last garment's blend holds the body, the rig and every earlier garment's final objects
+src = os.path.join(args.out, f'{op_id}-{args.garment[-1]}.blend') if args.garment else os.path.join(args.out, f'{op_id}-body.blend')
+bpy.ops.wm.open_mainfile(filepath=src)
+common.seed_everything(args.seed)
+
+rig = bpy.data.objects[f'{op_id}-rig']
+body = bpy.data.objects[f'{op_id}-body']
+SKIP = {f'{op_id}-body', 'floor'}
+# every rendered garment item: the hero meshes, stitches and hardware ('<id>-...') and the sewn-on patches
+items = [o for o in bpy.data.objects
+         if o.type == 'MESH' and not o.hide_render and o.name not in SKIP and o.parent is None
+         and not o.name.startswith('collider')]
+
+from mathutils.kdtree import KDTree  # noqa: E402
+
+# nearest-surface weights: each vertex takes the weights of the closest body vertex (rest pose, A-pose bind)
+names = [g.name for g in body.vertex_groups]
+kd = KDTree(len(body.data.vertices))
+for v in body.data.vertices:
+    kd.insert(body.matrix_world @ v.co, v.index)
+kd.balance()
+bw = [[(names[g.group], g.weight) for g in v.groups] for v in body.data.vertices]
+
+import numpy as np  # noqa: E402
+import rigid_skin  # noqa: E402
+
+# D28 (step 11b): rigid parts take their declared bone(s), identical on every vertex (rigid_skin.py)
+RIGID = rigid_skin.registry(args.out, op_id)
+rigid_skin.tag_head(items, op_id)
+
+
+def nearest_w(p):
+    _, idx, _ = kd.find(p)
+    return bw[idx]
+
+
+bpy.ops.object.select_all(action='DESELECT')
+for o in items:
+    bpy.context.view_layer.objects.active = o
+    o.select_set(True)
+    for m in list(o.modifiers):  # solidify, bevel: baked into the exported mesh
+        bpy.ops.object.modifier_apply(modifier=m.name)
+    o.select_set(False)
+    mw = o.matrix_world
+    rigid_skin.apply(o, RIGID, nearest_w, [mw @ v.co for v in o.data.vertices])
+    am = o.modifiers.new('rig', 'ARMATURE')
+    am.object = rig
+    o.parent = rig
+    o.matrix_parent_inverse = rig.matrix_world.inverted()
+
+for o in bpy.data.objects:
+    o.select_set(False)
+for o in [rig, body, *items]:
+    o.select_set(True)
+bpy.context.view_layer.objects.active = rig
+bpy.ops.object.mode_set(mode='OBJECT') if bpy.context.object and bpy.context.object.mode != 'OBJECT' else None
+
+# procedural albedo and roughness do not export: flatten to the materials' mean values (py/materials.py defaults)
+FLAT = {  # name: (albedo, roughness)
+    'knit': (0.031, 0.90), 'ripstop': (0.027, 0.85), 'ripstop patch': (0.027, 0.85), 'cordura': (0.022, 0.88),
+    'loop': (0.023, 0.95), 'binding': (0.023, 0.80), 'zip teeth': (0.022, 0.70), 'zip slider': (0.022, 0.60),
+    'softshell': (0.027, 0.80), 'softshell patch': (0.027, 0.80), 'compression knit': (0.035, 0.90),
+    'hardware metal': (0.022, 0.60), 'thread': (0.036, 0.72),
+    # gloves and boots (step 06)
+    'glove leather': (0.027, 0.80), 'glove knit': (0.029, 0.90), 'glove knuckle': (0.025, 0.80), 'glove cuff': (0.033, 0.90),
+    'suede': (0.033, 0.92), 'boot nylon': (0.025, 0.84), 'sole rubber': (0.026, 0.82), 'lace': (0.023, 0.80),
+    # head (step 07); the goggle lens keeps its constant factors and emission (the glow, D13)
+    'balaclava knit': (0.031, 0.90), 'hood softshell': (0.027, 0.80), 'shock cord': (0.026, 0.80),
+    'cord lock': (0.024, 0.72), 'harness webbing': (0.023, 0.80), 'harness polymer': (0.024, 0.70),
+    'cradle cordura': (0.022, 0.88), 'anodised aluminium': (0.026, 0.62), 'goggle polymer': (0.023, 0.64),
+    'eyecup rubber': (0.023, 0.84), 'knob polymer': (0.024, 0.74), 'cloth tape': (0.03, 0.80),
+    'cable jacket': (0.023, 0.72), 'mic foam': (0.028, 0.90),
+    # step 11 (A78): hard parts of steps 08b-09 (no albedo check: their materials.py / garment colours, roughness P50
+    # measured by check_garment.py)
+    'armour composite': (0.032, 0.64), 'armour edge rubber': (0.021, 0.78), 'hardware gunmetal': (0.155, 0.60),
+    'gunmetal': (0.051, 0.62), 'pod polymer': (0.021, 0.58), 'suit grip rubber': (0.024, 0.72),
+}
+# Step 11 (A78): every other procedural material (the step 08b-09b suit zones, composite, rubber trim, gunmetal, kit
+# elastic, pod) exported the glTF default 0.8 base colour, so the Lab showed the near-black suit and plates as light
+# grey. They take the median albedo and roughness check_garment.py measured from the render (<op>-<item>-check.json).
+import json  # noqa: E402
+MEASURED = {}
+for g in args.garment or []:
+    f = os.path.join(args.out, f'{op_id}-{g}-check.json')
+    if not os.path.exists(f):
+        continue
+    with open(f, encoding='utf-8') as fh:
+        for c in json.load(fh).get('checks', []):
+            kind, _, name = c.get('name', '').partition(':')
+            if kind in ('albedo', 'roughness') and name and isinstance(c.get('value'), list) and len(c['value']) == 3:
+                MEASURED.setdefault(name, {})[kind] = c['value'][1]
+for mat in bpy.data.materials:
+    if not mat.use_nodes:
+        continue
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if bsdf is None:
+        continue
+    if mat.name not in FLAT:
+        m = MEASURED.get(mat.name, {})
+        linked = bsdf.inputs['Base Color'].is_linked or bsdf.inputs['Roughness'].is_linked
+        if not linked or 'albedo' not in m:
+            continue
+        FLAT[mat.name] = (m['albedo'], m.get('roughness', bsdf.inputs['Roughness'].default_value))
+        print('export_gltf: measured factors', mat.name, FLAT[mat.name])
+    a, r = FLAT[mat.name]
+    for sock in ('Base Color', 'Roughness'):
+        for lk in list(bsdf.inputs[sock].links):
+            mat.node_tree.links.remove(lk)
+    bsdf.inputs['Base Color'].default_value = (a, a * 1.02, a * 1.05, 1.0)
+    bsdf.inputs['Roughness'].default_value = r
+
+# the lens glow is weighted per vertex in Cycles (materials.lens); glTF takes a constant emissive strength
+lens_m = bpy.data.materials.get('goggle lens')
+if lens_m is not None and lens_m.use_nodes:
+    lb = next((n for n in lens_m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if lb is not None:
+        for lk in list(lb.inputs['Emission Strength'].links):
+            lens_m.node_tree.links.remove(lk)
+        lb.inputs['Emission Strength'].default_value = 1.0
+
+dest = os.path.join(args.out, f'{op_id}-lab.glb')
+bpy.ops.export_scene.gltf(
+    filepath=dest, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
+    export_skins=True, export_def_bones=False, export_influence_nb=4, export_normals=True, export_texcoords=True,
+    export_materials='EXPORT', export_image_format='NONE', export_animations=False, export_cameras=False,
+    export_lights=False, export_extras=False, export_attributes=True)
+print('exported', dest, os.path.getsize(dest), [o.name for o in items])

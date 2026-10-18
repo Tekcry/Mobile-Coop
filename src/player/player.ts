@@ -4,7 +4,9 @@ import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { CharacterRig, type RigPose } from './characterRig';
+import type { CharacterRig, RigPose } from './characterRig';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import { loadPlayLods, operatorRig } from '../operators/runtime/playerFigure';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -58,6 +60,8 @@ const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 export class Player {
   readonly controller: PlayerController;
   readonly rig: CharacterRig;
+  /** (operators 11e, D31 / G123) Wren, drawn on the rig; the rig stays the gameplay and pose body. */
+  readonly figure: OperatorFigure;
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
@@ -79,6 +83,12 @@ export class Player {
    * range and pitch band (rad, + up), and whether the body hangs upside down. Null: no aiming while traversing.
    */
   attachAim: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
+  /**
+   * (operators step 11e, G176) Visual only: the rig root's offset from the controller's (gameplay) root while attached,
+   * so a body shorter than the 1.75 m gameplay height still meets its grips. Written by the attach controller each
+   * render frame (zero when not attached); gameplay never reads it.
+   */
+  readonly rootLift = { x: 0, y: 0, z: 0 };
   /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
   swapFrom: SwapReach = 'backC';
   swapTo: SwapReach = 'backC';
@@ -119,9 +129,11 @@ export class Player {
     private getSettings: () => Settings,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
-    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
+    const op = operatorRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 'player', (m) => world.addShadowCaster(m));
+    this.rig = op.rig;
+    this.figure = op.figure;
     this.rig.carrier = true;
-    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
+    loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     const s = getSettings();
@@ -267,6 +279,9 @@ export class Player {
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);
+    root.position.x += this.rootLift.x;
+    root.position.y += this.rootLift.y;
+    root.position.z += this.rootLift.z;
     // (step 21w, A85) on a wall, entering it and leaving it, the body's turn is rate-limited (the 180 deg entry turn
     // was ~44 deg in one frame): visual only, the capsule and gameplay keep the controller's yaw
     // (step 21w, A85: WALL_TURN_RATE, shared with the remote copy) keep limiting after the wall until the gap closes,
@@ -395,6 +410,11 @@ export class Player {
       this.footPlantSide = pl.L.landed ? -1 : 1;
     }
     this.cam.applyBodyFade(this.rig);
+    // Wren follows the camera fade (the head hide; the whole-body hide is the rig root's) and the rig's pose
+    const f = this.figure;
+    f.setHeadVisible(this.cam.headVisible);
+    f.setHeat(this.rig.heat);
+    f.update(this.world.scene.activeCamera);
   }
 
   private lookIdleT = 0;
@@ -420,6 +440,7 @@ export class Player {
   }
 
   dispose(): void {
+    this.figure.dispose();
     this.rig.dispose();
     this.controller.dispose();
     this.cam.camera.dispose();

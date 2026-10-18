@@ -22,10 +22,11 @@ import {
   type WindowAnchor,
 } from '../world/anchors';
 import { FENCE, LEAP, RAPPEL } from '../config/movement';
-import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
+import { AttachMachine, attachPose, axisInput, GAMEPLAY_HEIGHT, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
 import type { Player } from './player';
+import type { MoveOverride } from './playerController';
 import type { Breakables } from '../world/breakables';
 
 /** Player input for attached states (set by GameState before each fixed step). */
@@ -198,7 +199,7 @@ export class AttachController {
     this.lower = null;
     if (low && !this.disabled.has(low.anchor.id)) {
       // the hang spot below the lip must be clear of the floor and walls
-      const p = attachPose(low.anchor, low.s, 1, this.player.rig.height, this.ap);
+      const p = attachPose(low.anchor, low.s, 1, GAMEPLAY_HEIGHT, this.ap);
       if (this.roomAt(p.x, p.y + 0.3, p.z)) this.lower = low;
     }
     // (3.2.0) between two tall walls facing along them: a split jump - a double jump, kept apart from the traverse hint
@@ -225,7 +226,7 @@ export class AttachController {
       // in front of it (the wall is ahead along its facing)
       if ((feet.x - a.base.x) * Math.sin(yaw) + (feet.z - a.base.z) * Math.cos(yaw) > 0.05) continue;
       const up = feet.y - a.base.y;
-      const max = a.top.y - a.base.y - this.player.rig.height * (a.kind === 'ladder' ? 0.55 : 1.05);
+      const max = a.top.y - a.base.y - GAMEPLAY_HEIGHT * (a.kind === 'ladder' ? 0.55 : 1.05);
       if (up < 0.2 || up > max) continue;
       return { anchor: a, entry: 'side', s: up, dist: n.dist };
     }
@@ -238,8 +239,8 @@ export class AttachController {
       const q = splitReach(g, feet.x, feet.y, feet.z, dx, dz);
       if (!q || (best && q.dist >= best.dist)) continue;
       // room above the feet line between the walls (nothing overhead)
-      const k = this.player.rig.height / 1.75;
-      const p = attachPose(g, q.s, q.face, this.player.rig.height, this.ap);
+      const k = GAMEPLAY_HEIGHT / 1.75;
+      const p = attachPose(g, q.s, q.face, GAMEPLAY_HEIGHT, this.ap);
       if (!this.lineClear(p.x, feet.y + 1.0, p.z, p.x, p.y + 1.5 * k, p.z)) continue;
       best = { anchor: g, entry: 'below', s: q.s, dist: q.dist, face: q.face };
     }
@@ -260,7 +261,7 @@ export class AttachController {
       const reach = WALL_JUMP.wallReach + 0.3;
       if (this.lineClear(feet.x, feet.y + 1.0, feet.z, feet.x + dx * reach, feet.y + 1.0, feet.z + dz * reach)) continue;
       // and the flight up to the hang is free
-      const p = attachPose(l, q.s, 1, this.player.rig.height, this.ap);
+      const p = attachPose(l, q.s, 1, GAMEPLAY_HEIGHT, this.ap);
       if (!this.lineClear(feet.x, feet.y + 1.4, feet.z, p.x, p.y + 1.4, p.z)) continue;
       // kick off a stride short of the wall, at knee height
       let d = 0.25;
@@ -344,7 +345,7 @@ export class AttachController {
     const c = this.player.controller;
     // a horizontal pipe is hung facing along it, the way the camera looks
     if (a.kind === 'pipeH') face = pipeFace(a, this.input.camYaw);
-    if (!this.m.enter(a, s, entry, face, this.player.rig.height, c.speed, enterTime)) return false;
+    if (!this.m.enter(a, s, entry, face, GAMEPLAY_HEIGHT, c.speed, enterTime)) return false;
     this.from.x = c.pos.x;
     this.from.y = c.pos.y;
     this.from.z = c.pos.z;
@@ -471,7 +472,7 @@ export class AttachController {
       this.end.x = c.pos.x + nx * 0.25;
       this.end.z = c.pos.z + nz * 0.25;
     } else if (reason === 'climb' && a.kind === 'ledge') {
-      const p = attachPose(a, this.m.s, 1, this.player.rig.height, this.ap);
+      const p = attachPose(a, this.m.s, 1, GAMEPLAY_HEIGHT, this.ap);
       this.end.x = p.x - a.nx * (HANG.out + 0.45);
       this.end.y = a.top;
       this.end.z = p.z - a.nz * (HANG.out + 0.45);
@@ -577,7 +578,7 @@ export class AttachController {
       // ceiling vent (a grate in the duct floor): a committed drop through it to the floor below (the capsule
       // would snag in the hole), landing like any fall (a roll from 2.5 m)
       const fy = this.floorAt(g.pos.x, g.pos.z, g.pos.y - 0.2);
-      const p = attachPose(d, this.m.s, this.m.face, this.player.rig.height, this.ap);
+      const p = attachPose(d, this.m.s, this.m.face, GAMEPLAY_HEIGHT, this.ap);
       this.end.x = p.x;
       this.end.z = p.z;
       this.end.y = fy ?? p.y - 3;
@@ -729,7 +730,7 @@ export class AttachController {
 
   /** A window in the rope's wall beside the body (its sill within reach of the feet). */
   private windowBeside(a: RappelPoint): WindowAnchor | null {
-    const p = attachPose(a, this.m.s, 1, this.player.rig.height, this.ap, 'hands', this.u);
+    const p = attachPose(a, this.m.s, 1, GAMEPLAY_HEIGHT, this.ap, 'hands', this.u);
     for (const w of this.anchors.windows) {
       const wnx = Math.sin(w.yaw);
       const wnz = Math.cos(w.yaw);
@@ -762,7 +763,7 @@ export class AttachController {
   private fenceStep(dt: number, a: Fence, jumpPressed: boolean): void {
     const m = this.m;
     const inp = this.input;
-    const k = this.player.rig.height / 1.75;
+    const k = GAMEPLAY_HEIGHT / 1.75;
     const uMax = Math.max(0, a.height - FENCE.handReach * k + 0.1);
     const climb = Math.abs(inp.moveY) > 0.3 && Math.abs(inp.moveY) >= Math.abs(inp.moveX) ? Math.sign(inp.moveY) : 0;
     const before = this.u;
@@ -790,7 +791,7 @@ export class AttachController {
   get fenceTop(): boolean {
     const a = this.m.anchor;
     if (!a || a.kind !== 'fence' || this.m.phase !== 'on') return false;
-    return this.u >= Math.max(0, a.height - FENCE.handReach * (this.player.rig.height / 1.75) + 0.1) - 0.05;
+    return this.u >= Math.max(0, a.height - FENCE.handReach * (GAMEPLAY_HEIGHT / 1.75) + 0.1) - 0.05;
   }
 
   /** Root path for this step: blend on (with a jump arc), along the anchor, blend off. */
@@ -798,7 +799,7 @@ export class AttachController {
     const m = this.m;
     const a = m.anchor!;
     const c = this.player.controller;
-    const h = this.player.rig.height;
+    const h = GAMEPLAY_HEIGHT;
     const pp = this.pipe;
     const p = attachPose(a, m.s, m.face, h, this.ap, a.kind === 'pipeH' ? (pp.to ? pp.from : pp.mode) : 'hands', this.u);
     if (a.kind === 'rappel' && this.swingT >= 0) {
@@ -884,7 +885,13 @@ export class AttachController {
     } else this.kin.set(p.x, p.y, p.z);
     // on a rope with the sidearm raised the body turns round to the aim
     if (a.kind === 'rappel' && m.phase === 'on' && this.player.carry.raise > 0.1) yaw = this.input.camYaw;
-    c.override = { kinematic: this.kin, yaw, turnRate: 30, crouch: a.kind === 'duct' };
+    // (operators step 11e) one override object reused every step (hot path: no per-step allocation)
+    const ov = this.pathOv;
+    ov.kinematic = this.kin;
+    ov.yaw = yaw;
+    ov.turnRate = 30;
+    ov.crouch = a.kind === 'duct';
+    c.override = ov;
     // pose family and cadence (the climb clips follow the hand steps)
     const pose = this.player.pose;
     pose.tumble = tumble;
@@ -923,7 +930,7 @@ export class AttachController {
 
   /** Room to stand on top of a lip (just inside it). */
   private climbRoom(l: Ledge): boolean {
-    const p = attachPose(l, this.m.s, 1, this.player.rig.height, this.ap);
+    const p = attachPose(l, this.m.s, 1, GAMEPLAY_HEIGHT, this.ap);
     return this.roomAt(p.x - l.nx * (HANG.out + 0.45), l.top + 0.05, p.z - l.nz * (HANG.out + 0.45));
   }
 
@@ -939,7 +946,7 @@ export class AttachController {
     if (outside) {
       const cx = side < 0 ? l.a.x : l.b.x;
       const cz = side < 0 ? l.a.z : l.b.z;
-      const k = (HANG.out + 0.25) * (this.player.rig.height / 1.75);
+      const k = (HANG.out + 0.25) * (GAMEPLAY_HEIGHT / 1.75);
       this.viaPt.x = cx + (l.nx + nl.nx) * k;
       this.viaPt.z = cz + (l.nz + nl.nz) * k;
       this.viaPt.y = this.player.controller.pos.y;
@@ -988,7 +995,7 @@ export class AttachController {
     const yaw = a.kind === 'ladder' ? a.facing : a.side;
     const rx = Math.cos(yaw);
     const rz = -Math.sin(yaw);
-    const k = this.player.rig.height / 1.75;
+    const k = GAMEPLAY_HEIGHT / 1.75;
     const handY = this.player.controller.pos.y + HANG.drop * k;
     const tx = a.base.x + rx * side * 0.5;
     const tz = a.base.z + rz * side * 0.5;
@@ -1011,7 +1018,7 @@ export class AttachController {
     const m = this.m;
     const ax = l.a.x + l.tx * (m.s + dir * 0.35);
     const az = l.a.z + l.tz * (m.s + dir * 0.35);
-    const k = this.player.rig.height / 1.75;
+    const k = GAMEPLAY_HEIGHT / 1.75;
     const feet = l.top - HANG.drop * k;
     const near = anchorsNear(this.anchors, ax, l.top, az, 0.45, ['ladder', 'pipeV']);
     for (const n of near) {
@@ -1021,7 +1028,7 @@ export class AttachController {
       const yaw = c.kind === 'ladder' ? c.facing : c.side;
       if (l.nx * Math.sin(yaw) + l.nz * Math.cos(yaw) > -0.5) continue;
       if (c.base.y > feet + 0.1 || c.top.y < l.top - 0.2) continue;
-      const lim = { min: 0, max: Math.max(0, c.top.y - c.base.y - (c.kind === 'ladder' ? 0.55 : 1.05) * this.player.rig.height) };
+      const lim = { min: 0, max: Math.max(0, c.top.y - c.base.y - (c.kind === 'ladder' ? 0.55 : 1.05) * GAMEPLAY_HEIGHT) };
       const sv = Math.max(lim.min, Math.min(lim.max, feet - c.base.y));
       if (!this.attachTo(c, sv, 'side', 1, 0.35)) return false;
       this.transferT = 0.5;
@@ -1038,7 +1045,7 @@ export class AttachController {
       // straight up out of the split to whatever is over it, ahead of the body (reach measured as from standing on
       // the feet line: the legs push off the walls)
       const g = this.gripCentre(a);
-      const k = this.player.rig.height / 1.75;
+      const k = GAMEPLAY_HEIGHT / 1.75;
       const ry = g.y;
       g.y = a.a.y + SPLIT.feetHeight + 1.05 * k;
       const yaw = this.player.controller.yaw;
@@ -1076,7 +1083,7 @@ export class AttachController {
   private jp: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
   /** A jump's flight is clear: chest height from here to where the body hangs on the target. */
   private readonly jumpClear = (t: JumpTarget): boolean => {
-    const h = this.player.rig.height;
+    const h = GAMEPLAY_HEIGHT;
     const c = this.player.controller.pos;
     const q = attachPose(t.anchor, t.s, this.m.face, h, this.jp);
     return this.lineClear(c.x, c.y + h * 0.75, c.z, q.x, q.y + h * 0.75, q.z);
@@ -1086,11 +1093,11 @@ export class AttachController {
   /** Midpoint of the hands' grips. */
   private gripCentre(a: Anchor): P3 {
     const o = this.gc;
-    const p = attachPose(a, this.m.s, this.m.face, this.player.rig.height, this.ap);
+    const p = attachPose(a, this.m.s, this.m.face, GAMEPLAY_HEIGHT, this.ap);
     o.x = p.x;
     o.z = p.z;
     // (a split: the braced hands on the walls, a little over the hips)
-    o.y = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : a.kind === 'split' ? p.y + (SPLIT.rootDrop + 0.5) * (this.player.rig.height / 1.75) : p.y + 1.75;
+    o.y = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : a.kind === 'split' ? p.y + (SPLIT.rootDrop + 0.5) * (GAMEPLAY_HEIGHT / 1.75) : p.y + 1.75;
     return o;
   }
 
@@ -1105,7 +1112,11 @@ export class AttachController {
   /** Per render frame: hand / foot contacts from the interpolated body parameter. */
   frameUpdate(dt: number, alpha: number): void {
     const m = this.m;
-    if (!m.active) return;
+    const lift = this.player.rootLift;
+    if (!m.active) {
+      lift.x = lift.y = lift.z = 0;
+      return;
+    }
     const a = m.anchor!;
     const s = this.sPrev + (m.s - this.sPrev) * alpha;
     const k = m.progress;
@@ -1122,6 +1133,10 @@ export class AttachController {
     const aimFrom = a.kind === 'split' || a.kind === 'rappel' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
     this.grips.aimFree = aimFrom ? this.player.carry.raise : 0;
     this.grips.update(dt, a, s, m.v, m.face, w, this.player.rig, vent);
+    // (G176) the rendered body sits off the gameplay root by its height's lift (visual only)
+    lift.x = this.grips.lift.x;
+    lift.y = this.grips.lift.y;
+    lift.z = this.grips.lift.z;
   }
 
   /** (3.2.0) Aiming a sidearm is allowed here: braced in a split, or hanging inverted (settled). */
@@ -1133,6 +1148,7 @@ export class AttachController {
   }
 
   private ventInfo = { drop: 0, progress: 0, kinY: 0 };
+  private readonly pathOv: MoveOverride = { yaw: 0, turnRate: 30, crouch: false };
 
   /** Hand contact error for tests: how far each planted hand is from its grip (m). */
   contacts(): { handL: P3; handR: P3; plantedL: boolean; plantedR: boolean; footL: P3; footR: P3; feetPlantedL: boolean; feetPlantedR: boolean } {
