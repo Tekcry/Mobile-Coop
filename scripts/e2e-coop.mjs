@@ -643,6 +643,13 @@ console.log('offline state');
 {
   const { browser: br, ctx: c2, page, errors } = await launch({ url, params: '' });
   try {
+    // (operators 11e, A104) an offline player has the service worker from an earlier online visit: the co-op screen is a
+    // lazy chunk only the worker can serve offline. Wait for it to control the page (the old player body's build used
+    // to delay the menu past the worker's claim; Wren loads async and the menu is up ~200 ms before it)
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+      for (let i = 0; i < 200 && !navigator.serviceWorker.controller; i++) await new Promise((r) => setTimeout(r, 50));
+    });
     await c2.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await page.click('.main-menu .btn:has-text("Co-op")');

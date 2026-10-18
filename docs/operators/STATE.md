@@ -1,11 +1,13 @@
 # Operators run - state (resume point)
 
-**Now:** step 11e (implementer draft, uncommitted; LOG.md "Step 11e"). Wren is the player body for solo, the local co-op
-player, the partner and the menu (hero), G123 / D33; G72 in proportions.ts; G123-G138 in master's docs/DECISIONS.md.
-Left before the PR: e2e-traverse "ladder sprint: hands reach their grips" (19.5 cm > 3 cm; fix in attachGrips.ts ladder
-offsets, LOG open 1); e2e-coop offline-state check with the full-graphics menu (open 2); grenade pouches still drawn on
-(fixed, re-shoot); desktop perf budgets over with and without Wren (open 8); then the full `npm run e2e`, the independent check and the PR feature/operators -> master. Moth (step
-12, D24) after that.
+**Now:** step 11e, implementer 2 done (uncommitted on checkpoint 611b774; LOG.md "Step 11e - continuation"). Fixed:
+ladder sprint reach (A103, `minReachSwing` in attachGrips.ts), e2e-coop offline race (A104), e2e-ct hang depth
+(A105), e2e-desktop voxel block and `?gfx=min` close-ups (A106). `npm run check` passes. Full e2e: every non-flaky,
+non-Kestrel failure passes solo except **e2e-clip** "aim walking + crouched" elbow -6.9 cm (caused by G72 A1, the lower
+shoulder; fix in characterRig or a review of A1). Perf on a quiet PC: no Wren passes all budgets; Wren run 1 passes,
+run 2 misses frame pacing only (display misread); Wren adds ~+0.9 ms sim p95, +3.1 MB/s allocations. In-game
+screenshots and anim sheets re-shot on the GPU (`mockups/wren/ingame/`). Next: orchestrator decides e2e-clip / A1 and
+A105 (hang height), then the independent check and the PR feature/operators -> master. Moth (step 12, D24) after.
 
 **After 11c (master 4.0.0 merged):** master's rules now apply on this branch: CLAUDE.md (desktop only, CT kit `rifle` +
 `pistolSd` only, no player drone, no carried medkits, wall medkit stations), docs/DECISIONS.md G1-G122, bible 2.0. Ports

@@ -375,7 +375,10 @@ try {
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   const ch = await e.page.evaluate(async () => {
     const g = window.__app.current;
-    const rigs = [g.player.rig, ...g.enemyMgr.enemies.map((x) => x.rig).filter((r) => r && !r.isDog)];
+    // (operators 11e, G123) the player is Wren (her own skinned model, no voxel body): the voxel bodies are the guards'
+    const pr = g.player.rig;
+    const wren = { voxel: !!pr.voxel, partsHidden: pr.parts.every((m) => !m.isEnabled() || !m.isVisible), figure: !!g.player.figure };
+    const rigs = g.enemyMgr.enemies.map((x) => x.rig).filter((r) => r && !r.isDog);
     const casters = g.world.lightRig.casters;
     // bones follow the joints: each bone = its node relative to the root
     const err = (r) => {
@@ -385,14 +388,24 @@ try {
       v.bones.forEach((b, i) => { const m = v.nodes[i].getWorldMatrix().multiply(inv).m; const l = b.getLocalMatrix().m; for (let k = 12; k < 15; k++) worst = Math.max(worst, Math.abs(m[k] - l[k])); });
       return worst;
     };
-    const p = g.player.rig;
-    const lens0 = p.voxel.meshes[1].getVerticesData('color').slice();
-    p.setLensGlow(true);
-    const lensChanged = p.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
-    p.setLensGlow(false);
-    p.setHeadVisible(false);
-    const headHidden = !p.voxel.meshes[1].isVisible && p.voxel.meshes[0].isVisible;
-    p.setHeadVisible(true);
+    const p = rigs[0];
+    // the lens glow on a voxel body with goggle lenses (the player's were; Wren's goggle glows on her own model, G73)
+    const lr = rigs.find((r) => r.lenses?.length > 0);
+    let lensChanged = null;
+    if (lr) {
+      const lens0 = lr.voxel.meshes[1].getVerticesData('color').slice();
+      lr.setLensGlow(true);
+      lensChanged = lr.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
+      lr.setLensGlow(false);
+    }
+    // the camera head fade: the player's (Wren's) figure follows the shoulder camera (unit-tested in
+    // operatorsRuntimeFigure.test.ts); voxel bodies with goggle lenses still fade their own head
+    let headHidden = g.player.figure.headVisible === g.player.cam.headVisible;
+    if (lr) {
+      lr.setHeadVisible(false);
+      headHidden = headHidden && !lr.voxel.meshes[1].isVisible && lr.voxel.meshes[0].isVisible;
+      lr.setHeadVisible(true);
+    }
     // a ragdoll still drives its voxel body (the joints re-parented onto physics nodes)
     const victim = g.enemyMgr.enemies.find((x) => x.rig?.voxel);
     const P = g.player.position.constructor;
@@ -410,13 +423,15 @@ try {
       ragErr: rag?.voxel ? err(rag) : -1,
       lensChanged,
       headHidden,
+      wren,
     };
   });
-  assert(ch.voxel === ch.n && ch.hidden, `every character is a voxel body, the smooth parts unseen (${ch.voxel} / ${ch.n})`);
+  assert(!ch.wren.voxel && ch.wren.partsHidden && ch.wren.figure, `the player is Wren: no voxel body, the rig's parts unseen (${JSON.stringify(ch.wren)})`);
+  assert(ch.n > 0 && ch.voxel === ch.n && ch.hidden, `every guard is a voxel body, the smooth parts unseen (${ch.voxel} / ${ch.n})`);
   assert(ch.cast, 'voxel bodies cast shadows');
-  assert(ch.quads > 500, `the operator in 2 cm voxels (${ch.quads} quads)`);
+  assert(ch.quads > 500, `a guard in 2 cm voxels (${ch.quads} quads)`);
   assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
-  assert(ch.lensChanged && ch.headHidden, 'lens glow and the camera head fade reach the voxels');
+  assert(ch.lensChanged !== false && ch.headHidden, `lens glow and the camera head fade reach the voxels (lens ${ch.lensChanged ?? 'no lensed voxel body'}, head ${ch.headHidden})`);
   // voxel weapons and chips (3.0 phase 4)
   const wp = await e.page.evaluate(() => {
     const g = window.__app.current;

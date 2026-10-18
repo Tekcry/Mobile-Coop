@@ -2149,3 +2149,71 @@ while the game is built"; "Yes use hero for menu"). Assumed decisions A99-A102.
 8. Desktop perf budgets fail with and without Wren on this run (numbers above); a clean-machine baseline run of HEAD
    (before 11e) is needed to tell what predates this step. Wren adds about 10 ms to the frame interval p95 here: profile
    the skinned LOD0 (8 meshes, its skeleton linked to TransformNodes) and the hidden LODs' node updates.
+
+### Step 11e - continuation (implementer 2, Opus 5.5)
+
+Status: draft, uncommitted on top of checkpoint 611b774. Assumed decisions A103-A106.
+
+**Changed**
+- Ladder sprint reach (open 1): the cause was swing speed, not reach. On the landing frame the target sat 0.52 m from
+  the shoulder (arm 0.54 m) but the wrist only 0.36 m: the sprint's 0.11 s hand swing plus the pelvis dip of the
+  trailing foot (G72's shorter thigh) asked the shoulder for more than its 22 rad/s joint limit. Lowering the hands or
+  raising the feet did not help; a 0.15 s floor gave 1.8 cm. `attachGrips.ts` `minReachSwing(travel, height)` (arm
+  from `proportions(height)`, peak sweep `ARM_SWEEP_RATE` 11 rad/s = half the shoulder limit): ladder floor 0.158 s on
+  Wren, 0.152 s at 1.75 m; drainpipe below its own swing. 3 cm limit unchanged (A103). Unit test in
+  `gripStepper.test.ts`.
+- e2e-coop "offline state" (open 2): not KTX2 (the suite runs `?gfx=min`, LOD2 only) but a race: the co-op screen is a
+  lazy chunk only the service worker can serve offline, and the menu now comes up ~200 ms before the worker claims the
+  page (the old body's synchronous build used to delay it). Failed solo; the suite now waits for the worker's control
+  first (A104). Solo rerun: e2e-coop and e2e-netmove ok.
+- Found by the full run: e2e-ct's wall-jump hang depth now follows the rig height (A105: attached poses always scaled
+  with `rig.height`; the 1.68 m player hangs 7.6 cm higher); e2e-desktop's voxel-character block counts the guards and
+  checks the player has no voxel body (A106); `OperatorFigure.loadCloseUp` loads LOD2 under `?gfx=min` (photo mode
+  fetched the 55 MB hero in e2e-feedback, A106).
+
+**Checks**
+- `npm run check` (after the last code change): PASS - lint 0 errors (41 warnings), 136 files / 1559 tests, build ok
+  (precache 44 entries, 15.1 MB).
+- e2e-traverse, e2e-anchors, e2e-wall, e2e-anim: ok (after the reach fix).
+- Full `npm run e2e` (4191, 5 jobs): 12 failed. Known flaky: e2e-netmove, e2e-coop (second page `goto` 30 s timeouts
+  under load), e2e-pad, e2e-bunker, e2e-foley. Pre-existing (Kestrel): e2e-kestrel, e2e-camera-bounds. Solo reruns: ok -
+  e2e-desktop:1, e2e-mouse, e2e-feedback, e2e-anchors, e2e-combat, e2e-course, e2e-score; fixed and ok after a rebuild
+  - e2e-desktop:3, e2e-ct, e2e-feedback; **still failing: e2e-clip "aim walking + crouched: the elbows stay outside
+  the trunk (min -6.9 cm)"** (open A below).
+- anim-audit (report only): local 373 / remote 132 fails on software GL, local 373 / remote 148 on the GPU at gfx=high
+  (`ingame/anim-audit.txt`); no pre-11e number on this machine to compare.
+
+**Perf (GPU, E2E_GPU=1, port 4189, `perf.mjs --desktop --budget`, Warehouse, 12 guards, gfx=epic; two runs each,
+alternating; no Wren = the same tree with a temporary switch that skipped Wren and drew the old rig body, removed)**
+- Machine quiet this time: reference workload 2.3-2.4 ms (no Wren) and 4.0-5.1 ms (Wren pages) vs 16.8 ms last time.
+- No Wren: main thread 3.07 / 2.56 ms (<= 5.5), sim p95 0.75 / 0.45, render JS 2.32 / 2.11, frame interval p95 8.8 /
+  8.7 ms, anim per character 0.020 / 0.018 ms, allocations 7.66 / 7.59 MB/s, draws 214 / 210, triangles 0.69 / 0.68 M.
+  All budgets pass.
+- Wren: main thread 3.85 / 3.55 ms, sim p95 1.65 / 1.55, render JS 2.20 / 2.00, frame interval p95 8.8 / 8.8 ms,
+  anim per character 0.038 / 0.033 ms, allocations 10.68 / 10.81 MB/s (<= 11.52), draws 222 / 218, triangles 0.91 /
+  0.90 M. Run 1 passes every budget; run 2 misses only frame pacing (p95 8.8 ms against 8.3, the probe read the display
+  as 144 Hz that run; the interval is the same as without Wren).
+- Wren adds: about +0.9 ms sim p95 (partly the busier page: its reference workload also doubled), no render JS, +8
+  draws, +0.22 M triangles, +0.015 ms anim per character, +3.1 MB/s allocations (`applyTargets` 0.36 -> 1.19 MB/s, a new
+  `update` 0.29 MB/s: the figure's per-frame pose).
+- Files: `ingame/perf-wren-{1,2}.txt`, `ingame/perf-no-wren-{1,2}.txt`.
+
+**Load (GPU, local server, empty cache; `ingame/load-menu-solo.json`)** menu LOD2 0.57 s, LOD0 0.84 s, hero 1.45 s
+(shown: hero); solo Proving match ready 4.37 s, LOD2 / LOD0 / LOD1 4.38 / 4.38 / 4.39 s; co-op host sees both bodies
+at LOD0 8.97 s; co-op host frame p50 8.3 / p95 8.7 ms (two pages on one GPU).
+
+**Screenshots (GPU, after the pouch fix)** `docs/operators/mockups/wren/ingame/`: menu-hero, solo-shoulder,
+solo-front, solo-side-rifle-aim, solo-crouch, solo-pistol, coop-host-sees-partner, coop-client-sees-partner; anim
+contact sheets at gfx=high (Wren LOD0): anim-walk, -crouch, -sprint, -vault, -reload, -swap. No pouches on the belt.
+
+**Open (adds to the list above; 1, 2, 3, 7, 8 are done)**
+- A. e2e-clip "aim walking + crouched": on the scenario's first frame (after the teleport, the gun raising) the right
+  elbow sits 6.9 cm inside the trunk capsule for one frame (next frame +11 cm). Bisected: 1.75 m rig + G72 -6.8 cm;
+  1.75 m rig, pre-G72 proportions -2.0 cm; 1.68 m rig + G72 with only A1 reverted (shoulder 1.435) -0.8 cm. So G72's A1
+  (shoulder joint 3.5 cm lower) causes it. Fix belongs in characterRig's arm IK / joint limits or a review of A1 (both
+  outside this implementer's files); the 3 cm limit is not touched.
+- B. Wren's per-frame allocations (+3.1 MB/s, `applyTargets` and the figure's `update`): hot paths must not allocate.
+- C. A105: attached poses scale with the rig height, so Wren hangs / climbs 7.6 cm higher than the 1.75 m body did
+  (G38 asks for the same gameplay; Michael to confirm or ask for a gameplay height in `attachPose`).
+- D. The ingame "solo-front" view shows her back three-quarter (the camera yaw offset of the shot script); cosmetic.
+- Cleanup list (Michael: "We will clean up changes later"): items 4, 5, 6 above; A-D.

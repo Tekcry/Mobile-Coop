@@ -15,7 +15,10 @@ existing character anyway; before the prototype is done", "Both play as Wren").
   model is exported (cleanup).
 - Download: 81.4 MB more, fetched on first use and then cached for offline play (LOD2 2.5 MB first, LOD0 18.4 MB,
   LOD1 5.1 MB; the menu's hero 55.5 MB loads after them).
-- Tools: `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0.
+- Ladders and drainpipes: a hand's reach is never quicker than the arm can swing (from the body's proportions); a
+  sprint up a ladder keeps the hands on the rungs with Wren's shorter arms.
+- Tools: `waitOperator` in `scripts/e2e-lib.mjs`; `anim-sheet.mjs` and `perf.mjs` wait for Wren's LOD0; e2e-coop's
+  offline check waits for the service worker first.
 
 ## 4.0.0 - Consolidation (Unreleased until Michael merges; G84, G93)
 One branch with all finished and paused work, one vision (docs/DECISIONS.md, G1-G118). The entries below this one are

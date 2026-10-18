@@ -1196,3 +1196,34 @@ page loads and crashed pages (five suites at once each fetching 26 MB and transc
 graphics path (tests, `?gfx=min`, where characters are already the cheap smooth parts) loads LOD2 (2.5 MB) and never
 LOD0 or the hero (`MIN_LODS` in `operators/runtime/playerFigure.ts`). Render side only: gameplay is identical. Undo:
 `MIN_LODS = false`.
+
+**A103 Step 11e: a climbing hand's swing is never quicker than the rig's arm can sweep.** e2e-traverse "ladder sprint:
+hands reach their grips" read 19.5 cm (limit 3 cm) on Wren's 1.68 m rig with G72. Diagnosis: not reach (the target
+was 0.52 m from a 0.54 m arm) but speed: the sprint's 0.11 s hand swing (two rungs, folded to overhead) plus the pelvis
+dip of the trailing foot (G72's shorter thigh) asked the shoulder for more than its 22 rad/s joint limit
+(`characterRig` JOINT_RATE), so the arm lagged its grip on the landing frame. Lowering the hands (-5 / -10 cm) or the
+feet (+5 / +10 cm) did not help; a 0.15 s floor did (1.8 cm). `attachGrips.ts` `minReachSwing(travel, height)` takes
+the arm from `proportions(height)` and plans the peak sweep at half the shoulder limit (`ARM_SWEEP_RATE` 11 rad/s:
+the torso dips at the same time): ladder floor 0.158 s on Wren, 0.152 s at 1.75 m; drainpipe 0.07 s (below its own
+swing, no change). The 3 cm limit is unchanged; the climb rates (body speed) are unchanged. Undo: `handSwingMin = 0`.
+
+**A104 Step 11e: e2e-coop's offline check waits for the service worker to control the page.** The co-op screen is a
+lazy chunk (`net/coopUi`); offline, only the worker can serve it. The old player body's synchronous build held the
+menu back past the worker's claim; with Wren loading asynchronously the menu is up about 200 ms before it, so the
+suite went offline first and the chunk fetch failed (solo rerun failed the same way). A real offline player has the
+worker from an earlier online visit, so the suite now waits for `navigator.serviceWorker.controller` before going
+offline. The check itself is unchanged. Undo: drop the wait (the check then races the worker).
+
+**A105 Step 11e: e2e-ct's wall-jump hang depth follows the player's body height.** The suite expected the feet 1.90 m
+under the lip, `HANG.drop` for a 1.75 m body; `attachPose` has always scaled it by the rig's height (`rig.height /
+1.75`), so Wren (1.68 m) hangs 1.82 m under it (y 1.50 for the 3.3 m lip). The suite now reads the rig height; the
+8 cm tolerance is unchanged. Note for Michael (G38): every attached pose (hang, ladder top, pipe, zipline) scales with
+the rig, so the 1.68 m player hangs about 7.6 cm higher than the 1.75 m one did; the capsule, speeds and the anchors'
+reach bands do not change. Undo: a gameplay height of 1.75 in `attachPose` (then her hands miss the lip by 7 cm).
+
+**A106 Step 11e: e2e-desktop's voxel-character checks are the guards'; `?gfx=min` close-ups load LOD2.** The player
+has no voxel body since Wren (G123), so "every character is a voxel body" counts the guards, and asserts the player has
+no voxel body and its rig parts are unseen; the goggle-lens glow is checked on a lensed voxel body when one exists
+(none now: Wren's goggle glows on her own model, G73, unit-tested) and the camera head fade on Wren's figure. Photo
+mode under `?gfx=min` asked for the 55 MB hero (e2e-feedback's "close-up LOD failed: Failed to fetch" under load):
+`OperatorFigure.loadCloseUp` loads LOD2 there, as A102. Undo: revert the suite edits; drop the `gfx === 'min'` line.

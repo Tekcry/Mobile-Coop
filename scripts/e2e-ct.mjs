@@ -48,7 +48,7 @@ await page.evaluate(() => {
       const w = st.weapons;
       return {
         x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw, grounded: c.grounded,
-        attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, top: a?.top ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, entry: ac.m.entry,
+        attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, top: a?.top ?? 0, rh: st.player.rig.height, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, entry: ac.m.entry,
         pipe: ac.pipe.mode, pipeBusy: ac.pipe.busy, trav: st.player.pose.traverse, tumble: st.player.pose.tumble,
         hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : null,
         prompt: st.hud.world.label('vault'), drop: st.hud.world.label('drop'), jump: ac.jump ? ac.jump.anchor.kind : null,
@@ -228,7 +228,7 @@ try {
   assert(i.attached && i.kind === 'ledge' && i.entry === 'wall' && i.trav === 'wallKick', `the kick (${i.kind} ${i.entry} ${i.trav})`);
   await run(0.6);
   i = await I();
-  assert(i.phase === 'on' && Math.abs(i.top - 3.3) < 0.05 && Math.abs(i.y - (3.3 - 1.9)) < 0.08, `hanging from the lip after the wall jump (y ${f2(i.y)})`);
+  assert(i.phase === 'on' && Math.abs(i.top - 3.3) < 0.05 && Math.abs(i.y - (3.3 - 1.9 * (i.rh / 1.75))) < 0.08, `hanging from the lip after the wall jump (y ${f2(i.y)}, HANG.drop for a ${i.rh} m body)`);
   await tap(BTN.B);
   await run(1.2);
   // a standing grab lip is not a wall jump; 2 m out is too far

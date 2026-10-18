@@ -22,7 +22,8 @@ import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
 import { ktx2Setup } from '../lab/ktx2';
 import { GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
 import { CLOSE_CAMERAS, pickLod } from './lodPick';
-import { LOD_0, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
+import { flags } from '../../core/flags';
+import { LOD_0, LOD_2, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, TRS, type PoserSetup } from './pose';
 
 /** The CharacterRig fields the figure reads (CharacterRig satisfies this structurally; no import of its internals). */
@@ -309,8 +310,10 @@ export class OperatorFigure {
     LIVE_FIGURES.add(this);
   }
 
-  /** The close-up LOD (menu, photo mode): the hero when it is in the build and switched on, else LOD0. */
+  /** The close-up LOD (menu, photo mode): the hero when it is in the build and switched on, else LOD0; `?gfx=min`
+   *  (tests, software GL): LOD2, never the hero (A102; a photo-mode e2e fetched 55 MB). */
   loadCloseUp(): Promise<void> {
+    if (flags.gfx === 'min') return this.load(LOD_2);
     return this.load(HERO_CLOSE_UPS && this.manifest.urls[LOD_HERO] ? LOD_HERO : LOD_0);
   }
 

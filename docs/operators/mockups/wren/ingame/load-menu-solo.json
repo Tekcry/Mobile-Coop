@@ -1,60 +1,60 @@
 {
   "gpu": true,
   "menu": {
-    "lod2": 0.56,
-    "lod0": 0.79,
-    "hero": 1.4,
+    "lod2": 0.57,
+    "lod0": 0.84,
+    "hero": 1.45,
     "shownLod": 0,
     "glb": [
       {
         "file": "wren-lod2-BkZ9fDoS.glb",
-        "start": 0.24,
-        "end": 0.45,
+        "start": 0.25,
+        "end": 0.47,
         "kb": 2429
       },
       {
         "file": "wren-lod0-B8-_JTUF.glb",
-        "start": 0.48,
-        "end": 0.63,
+        "start": 0.5,
+        "end": 0.67,
         "kb": 17924
       },
       {
         "file": "wren-lod1-BART3_NN.glb",
-        "start": 0.73,
-        "end": 0.95,
+        "start": 0.78,
+        "end": 0.88,
         "kb": 4952
       },
       {
         "file": "wren-hero-CPpaWfXO.glb",
-        "start": 0.97,
-        "end": 1.18,
+        "start": 1.02,
+        "end": 1.24,
         "kb": 54167
       }
     ],
     "errors": []
   },
   "solo": {
-    "matchReady": 6.99,
-    "lod2": 6.99,
-    "lod0": 7.07,
-    "lod1": 7.13,
+    "matchReady": 4.37,
+    "lod2": 4.38,
+    "lod0": 4.38,
+    "lod1": 4.39,
     "glb": [
       {
         "file": "wren-lod2-BkZ9fDoS.glb",
-        "start": 4.78,
-        "end": 5.75,
+        "start": 3.1,
+        "end": 3.6,
         "kb": 2429
       },
       {
         "file": "wren-lod0-B8-_JTUF.glb",
-        "start": 5.77,
-        "end": 6.08,
+        "start": 3.62,
+        "end": 3.8,
         "kb": 17924
       },
       {
         "file": "wren-lod1-BART3_NN.glb",
-        "start": 5.77,
-        "end": 5.89,
+        "start": 3.62,
+        "end": 3.69,
         "kb": 4952
       }
     ]
@@ -63,6 +63,7 @@
     "lod": 1,
     "meshes": 8
   },
-  "soloErrors": [],
-  "error": "Error: timed out waiting for sandbox match on both pages\n    at until (file:///C:/NightShift/Mobile-Coop-operators/scripts/e2e-net-lib.mjs:13:42)\n    at async startMode (file:///C:/NightShift/Mobile-Coop-operators/scripts/e2e-net-lib.mjs:54:26)\n    at async file:///C:/Users/Micha/AppData/Local/Temp/claude/C--NightShift-Mobile-Coop-operators/ee17d8dc-7926-4cff-a57b-386ce6d93dc6/scratchpad/gpu11e.mjs:70:5"
+  "coopLoaded": {
+    "hostBothLod0": 8.97
+  }
 }
