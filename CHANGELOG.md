@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased - weapons (feature/weapons)
+Placeholder weapons that look real at a glance, held and carried believably (Michael, 2026-10-19: "Holding weapons and
+holstering should at least look believable but only prototype quick run").
+
+- The CT kit as baked meshes from an offline Blender pipeline (`npm run weapons:build`, scripts/weapons/): the Heron
+  Carbine with the co-op launcher always fitted and a suppressor (11.7 k triangles, 2K textures), the Hush 9 SD with its
+  jammer emitter in the frame's nose (9.7 k, 1K), the knife (1.8 k, 512; shown in the right fist when drawn, no knife
+  verb yet). Original designs, real proportions, KTX2 textures. Download +10.4 MB.
+- Wren holds them: her fingers close round the grips (morph targets from her hero hand rig), the palm sits on the grip
+  and the knuckles wrap it, the support hand under the launcher (the rifle) or cupping the trigger hand (the pistol).
+  Her wrists now land on the rig's (her forearms were 35 degrees bent, the hands 16 cm off every grip).
+- Stance: the support shoulder comes forward to reach the handguard with the elbow bent; the pistol is aimed out at
+  near arm's length with both hands (CT).
+- Carry: the pistol sits in her built thigh holster (it cut 20 mm into the shell); the rifle hangs flat from the receiver
+  bar on her back plate by a keyhole stud, muzzle up, the grip to her right hand (it stood off her back on its optic).
+- Guards keep their guns (A6). Gameplay unchanged: muzzle, hand points and carry extents still come from weapons.json
+  (the rifle's support point moved back to the launcher sleeve's rear, its proxy parts follow the mesh).
+
 ## Unreleased - Wren, the player character (one minor step at merge, G93)
 Operators run (feature/operators): Wren replaces the player body for every player (G123: "I want wren in to replace the
 existing character anyway; before the prototype is done", "Both play as Wren").

@@ -53,10 +53,21 @@ export interface GlbMesh {
    * has it. Absent in the step 11 assets: the goggle is then always in its in-use position.
    */
   goggle?: Uint8Array;
+  /**
+   * (feature/weapons) Morph targets: per-vertex position and normal deltas (game frame), e.g. the finger grips
+   * (`gripR`, `gripL`, scripts/operators/py/grip_morphs.py). Absent in files without targets.
+   */
+  targets?: GlbTarget[];
   /** Skin joint slots (4 per vertex) and weights. */
   joints: Uint16Array;
   weights: Float32Array;
   indices: Uint32Array;
+}
+
+export interface GlbTarget {
+  name: string;
+  positions: Float32Array;
+  normals: Float32Array | null;
 }
 
 export interface GlbModel {
@@ -78,8 +89,11 @@ interface Json {
   }[];
   images?: { bufferView?: number; mimeType?: string; name?: string }[];
   textures?: { source?: number; extensions?: { EXT_texture_webp?: { source: number }; KHR_texture_basisu?: { source: number } } }[];
-  meshes: { name?: string; primitives: { attributes: Record<string, number>; indices?: number; material?: number }[] }[];
-  accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number; type: string }[];
+  meshes: { name?: string; extras?: { targetNames?: string[] }; primitives: { attributes: Record<string, number>; indices?: number; material?: number; targets?: Record<string, number>[] }[] }[];
+  accessors: {
+    bufferView?: number; byteOffset?: number; componentType: number; count: number; type: string;
+    sparse?: { count: number; indices: { bufferView: number; byteOffset?: number; componentType: number }; values: { bufferView: number; byteOffset?: number } };
+  }[];
   bufferViews: { byteOffset?: number; byteLength: number; byteStride?: number }[];
 }
 
@@ -96,7 +110,7 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
   /** One accessor as plain numbers (no normalisation: the exporter writes floats and unsigned ints here). */
   const read = (index: number): { data: Float64Array; n: number } => {
     const a = json.accessors[index]!;
-    const bv = json.bufferViews[a.bufferView]!;
+    const bv = json.bufferViews[a.bufferView!]!;
     const comps = COMPONENTS[a.type]!;
     const size = SIZE[a.componentType]!;
     const stride = bv.byteStride ?? comps * size;
@@ -118,6 +132,28 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       }
     }
     return { data: out, n: a.count };
+  };
+
+  /** A morph target accessor (dense, or sparse over zeros) as floats, x mirrored into the game frame. */
+  const readDelta = (index: number): Float32Array => {
+    const a = json.accessors[index]!;
+    const out = new Float32Array(a.count * 3);
+    if (a.bufferView !== undefined) out.set(read(index).data);
+    const sp = a.sparse;
+    if (sp) {
+      const ib = json.bufferViews[sp.indices.bufferView]!;
+      const vb = json.bufferViews[sp.values.bufferView]!;
+      const io = binStart + (ib.byteOffset ?? 0) + (sp.indices.byteOffset ?? 0);
+      const vo = binStart + (vb.byteOffset ?? 0) + (sp.values.byteOffset ?? 0);
+      const isz = SIZE[sp.indices.componentType]!;
+      for (let k = 0; k < sp.count; k++) {
+        const o = io + k * isz;
+        const i = sp.indices.componentType === 5125 ? dv.getUint32(o, true) : sp.indices.componentType === 5123 ? dv.getUint16(o, true) : dv.getUint8(o);
+        for (let c = 0; c < 3; c++) out[i * 3 + c] = dv.getFloat32(vo + (k * 3 + c) * 4, true);
+      }
+    }
+    for (let i = 0; i < a.count; i++) out[i * 3] = -out[i * 3]!;
+    return out;
   };
 
   const parent = json.nodes.map(() => -1);
@@ -199,7 +235,12 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
         goggle = new Uint8Array(pos.n);
         for (let i = 0; i < pos.n; i++) goggle[i] = Math.round(gg.data[i]!);
       }
-      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, goggle, joints, weights, indices });
+      const targets = prim.targets?.map((t, k) => ({
+        name: m.extras?.targetNames?.[k] ?? `target${k}`,
+        positions: readDelta(t.POSITION!),
+        normals: t.NORMAL !== undefined ? readDelta(t.NORMAL) : null,
+      }));
+      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, goggle, targets, joints, weights, indices });
     }
   }
   return { nodes, joints: json.skins?.[0]?.joints ?? [], materials, meshes };

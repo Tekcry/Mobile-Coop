@@ -465,10 +465,12 @@ try {
   assert(ch.wrenGoggle.on.pose === 'inUse' && ch.wrenGoggle.off.pose === 'stowed' && ch.wrenGoggle.off.glow > 0 && ch.wrenGoggle.on.glow > ch.wrenGoggle.off.glow * 1.5, `a vision mode brings Wren's goggle down with a brighter lens (on ${ch.wrenGoggle.on.pose} ${ch.wrenGoggle.on.glow.toFixed(3)}, off ${ch.wrenGoggle.off.pose} ${ch.wrenGoggle.off.glow.toFixed(3)})`);
   if (ch.lensChanged === null) console.log('  (no guard body has goggle lenses: the voxel lens glow / head fade check has nothing to drive)');
   else assert(ch.lensChanged && ch.lensHead, `lens glow and the camera head fade reach a lensed voxel body (lens ${ch.lensChanged}, head ${ch.lensHead})`);
-  // voxel weapons and chips (3.0 phase 4)
-  const wp = await e.page.evaluate(() => {
+  // voxel weapons and chips (3.0 phase 4); (feature/weapons, A7) the kit with a baked mesh renders that instead
+  const wp = await e.page.evaluate(async () => {
     const g = window.__app.current;
     const models = g.weapons.slots.map((s) => s.model).filter(Boolean);
+    // the baked meshes load after the match starts
+    for (let t = 0; t < 600 && models.some((m) => !m.mesh && !m.voxel); t++) await new Promise((r) => setTimeout(r, 100));
     const casters = g.world.lightRig.casters;
     // a shot into the wall in front: the struck voxel turns to the chip colour
     const vx = g.world.voxels;
@@ -486,14 +488,15 @@ try {
     }
     return {
       n: models.length,
-      voxel: models.filter((m) => m.voxel).length,
-      hidden: models.every((m) => m.parts.every((p) => !p.isVisible)),
-      cast: models.every((m) => m.voxel.meshes.every((x) => casters.includes(x))),
-      quads: models.map((m) => m.voxel.meshes[0].getTotalIndices() / 6),
+      voxel: models.filter((m) => m.voxel || m.mesh).length,
+      meshes: models.filter((m) => m.mesh).map((m) => m.def.id),
+      hidden: models.every((m) => m.parts.every((p) => !p.isVisible || !p.isEnabled(false))),
+      cast: models.every((m) => m.renderMeshes.length > 0 && m.renderMeshes.every((x) => casters.includes(x))),
+      quads: models.map((m) => (m.voxel ? m.voxel.meshes[0].getTotalIndices() / 6 : m.mesh.getTotalIndices() / 3)),
       chipped,
     };
   });
-  assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are voxel models casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads)`);
+  assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are baked meshes (${wp.meshes.join(', ')}) or voxel models, casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads / tris)`);
   assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
   // 3.2 baked lamps: every fixed light baked and drawn by the lamp plugin; the rig's pools only take flashlights;
   // a shot-out lamp goes dark at once

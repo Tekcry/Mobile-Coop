@@ -25,6 +25,8 @@
     "operators:ktx2": "node scripts/operators/ktx2.mjs",
     "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
     "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs",
+    "weapons:build": "node scripts/weapons/build.mjs",
+    "weapons:shots": "node scripts/weapons/shots.mjs",
     "music:fetch": "node scripts/music/fetch-samples.mjs",
     "music:render": "node scripts/music/render.mjs",
     "music:orch": "node scripts/music/render-orch.mjs",

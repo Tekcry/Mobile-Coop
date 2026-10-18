@@ -211,6 +211,8 @@ behind a VPN adapter).
 ## Helper scripts
 - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
 - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion / silhouette checks)
+- `npm run weapons:shots [outDir] [view ...]` (feature/weapons; `E2E_GPU=1`, port 4189, needs `npm run build`): the
+  in-game weapon views (aim, hands, body, carry, holster, knife) on the training map, `STAGE=warehouse` under a lamp
 - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
   reload|swap|grenade|vault> [frames] [interval] [side|front|back|ots]` contact sheet (the `cover` / `highcover` /
   `lowpeek` / `peek` scenarios tap the removed snap-cover action and are dead until rewritten for back-to-wall)

@@ -175,6 +175,10 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   vertical on the back (`backL/backC/backR`, muzzle up, thin side to the back, splayed from the butt, standing
   off `rig.backGear` = vest / hood / backpack depth measured from the parts), compact guns on the left-hip
   `sling` (pushed out by the thigh after each pose via `rig.onPosed`), the pistol low on the right `thigh`
-  (standing off `rig.thighOuter`); `GrenadePouches` on the belt. Swaps: holster at 38%, take the next from its
+  (standing off `rig.thighOuter`); `GrenadePouches` on the belt. (feature/weapons) An operator body brings its own
+  kit frames: `rig.thighMount` (her built holster's `pistolHolster` frame) and `rig.backMount` (her back plate's
+  receiver sockets, the long gun hung by its `backStud`, left side flat to the plate), and her hands (`rig.setHands`:
+  holds solved so the palm sits on the grip, handHold.ts; `rig.handGrip` closes her fingers through the grip morph
+  targets); a weapon hand out of reach brings its shoulder forward (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its
   slot at 58%, in the aim pocket at 80% (0.9 s). Co-op remotes build the same from the lobby `loadout`. Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.

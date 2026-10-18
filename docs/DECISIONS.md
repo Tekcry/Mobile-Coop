@@ -913,3 +913,15 @@ pipes and every other attached position use one gameplay height (the old 1.75 m 
 body's height; Wren's body is lifted onto her grips visually (arms and IK adjust so her hands meet the ledge) and
 gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm higher: "Keep gameplay fixed
 (Recommended)" (2026-10-18, ops D34; with G38; replaces ops A105.)
+
+**G177. Weapons are held properly and believably.** The players' guns are realistic placeholder meshes (rifle with an
+underbarrel launcher and suppressor, suppressed pistol with a jammer emitter, knife) and Wren's hands sit on them: palm on
+the grip, fingers round it, the support hand on the launcher tube, a believable stance. Michael: "I'd rather the character
+holds the gun properly. Make sure they line up and are believable at minimum. Stance must look believable also."
+(2026-10-19, weapons job; docs/weapons/DECISIONS.md A8-A11.)
+
+**G178. The rifle is carried where it can be drawn and put away quickly.** Holstered, the rifle hangs from Wren's back
+plate mount (not floating) and the pistol sits in her thigh holster; holding and holstering look believable at a
+prototype pass. Michael: "adjust how the rifle is holstered so it makes logical sense how the character can equip it
+quickly and holster quickly, it's just floating" and "Holding weapons and holstering should at least look believable but
+only prototype quick run" (2026-10-19, weapons job A12, A13; settles part of bible Section 11's carry question.)

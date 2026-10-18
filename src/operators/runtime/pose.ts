@@ -122,19 +122,25 @@ export function poserSetup(nodes: readonly GlbNode[], joints: readonly number[])
     bindRot.set(br, s * 4);
     hang[s * 4 + 3] = 1;
   }
-  // the A-pose arms swung down to hang along -Y, as the rig's arms rest
+  // the A-pose arms swung down to hang along -Y, as the rig's arms rest: the upper arm by its own direction and
+  // (feature/weapons) the forearm chain by the forearm's, so the bind pose's bent elbow (about 35 degrees on Wren) is
+  // straightened as the rig's rest arm is and her wrists land on the rig's (they missed it by 16 cm: hands off the grip)
+  const down = (a: number, b: number, q: Float64Array): void =>
+    arcA(bindPos[b * 3]! - bindPos[a * 3]!, bindPos[b * 3 + 1]! - bindPos[a * 3 + 1]!, bindPos[b * 3 + 2]! - bindPos[a * 3 + 2]!, 0, -1, 0, q, 0);
   for (const side of ['L', 'R']) {
     const sh = names.indexOf(`sh${side}`);
     const el = names.indexOf(`el${side}`);
+    const wr = names.indexOf(`wr${side}`);
     if (sh < 0 || el < 0) continue;
-    const q = new Float64Array(4);
-    arcA(
-      bindPos[el * 3]! - bindPos[sh * 3]!, bindPos[el * 3 + 1]! - bindPos[sh * 3 + 1]!, bindPos[el * 3 + 2]! - bindPos[sh * 3 + 2]!,
-      0, -1, 0, q, 0,
-    );
+    const qu = new Float64Array(4);
+    down(sh, el, qu);
+    const qf = new Float64Array(4);
+    if (wr >= 0) down(el, wr, qf);
+    else qf.set(qu);
     for (let s = 0; s < n; s++) {
       const nm = names[s]!;
-      if (nm === `sh${side}` || nm === `el${side}` || nm === `wr${side}` || nm === `hand${side}` || nm.startsWith(`finger${side}_`)) hang.set(q, s * 4);
+      if (nm === `sh${side}`) hang.set(qu, s * 4);
+      else if (nm === `el${side}` || nm === `wr${side}` || nm === `hand${side}` || nm.startsWith(`finger${side}_`)) hang.set(qf, s * 4);
     }
   }
   const bindLocal = new Float64Array(n * TRS);

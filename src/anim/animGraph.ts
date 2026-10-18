@@ -289,6 +289,12 @@ export function pickLower(i: AnimInput): LowerState {
  * (`SIGHT_HEAD` pitch, roll toward the gun). Scaled by the aim raise.
  */
 export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: 0.02 };
+/**
+ * (feature/weapons) A sidearm raised to the eye goes out to nearly arm's length in front of the face (CT's pistol aim:
+ * two hands, arms out; Michael's reference shots), not into the rifle's cheek weld: added to SIGHT_RAISE by the
+ * weapon's lightness (mass factor 0.7 pistol: all of it; 0.85 and heavier: none).
+ */
+export const PISTOL_REACH = { x: -0.05, y: 0.015, z: 0.22 };
 export const SIGHT_HEAD = { roll: 0.15 };
 
 /**
@@ -843,6 +849,12 @@ export class AnimGraph {
     src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sight * SIGHT_RAISE.x;
     src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sight * SIGHT_RAISE.y;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
+    const pistolK = clamp((0.85 - mass) / 0.15, 0, 1) * sight;
+    if (pistolK > 0) {
+      src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
+      src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
+      src[CH.wpZ] = src[CH.wpZ]! + pistolK * PISTOL_REACH.z;
+    }
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
     this.out.weld = sight;
     this.out.aimW = raiseW;

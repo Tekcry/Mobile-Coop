@@ -301,7 +301,7 @@ export class MenuState implements AppState {
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
     this.weaponId = weapon;
-    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
+    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
     this.weapon.hold(this.rig);
     this.holstered = null;
     this.glowFull = null;

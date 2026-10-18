@@ -16,13 +16,13 @@
     "magSize": 30,
     "reserve": 150,
     "reloadTime": 1.9,
-    "spreadHip": 2.0,
+    "spreadHip": 2,
     "spreadAds": 0.25,
     "spreadMove": 1.4,
     "spreadPerShot": 0.3,
     "spreadRecovery": 6,
     "maxSpread": 5,
-    "recoilPitch": 1.0,
+    "recoilPitch": 1,
     "recoilYaw": 0.3,
     "recoilPattern": [
       [
@@ -65,159 +65,27 @@
     "unlockLevel": 1,
     "price": 0,
     "model": [
-      {
-        "shape": "box",
-        "size": [
-          0.045,
-          0.085,
-          0.24
-        ],
-        "pos": [
-          0,
-          0.0,
-          -0.19
-        ],
-        "color": "grip",
-        "role": "stock"
-      },
-      {
-        "shape": "cyl",
-        "size": [
-          0.03,
-          0.08,
-          0.03
-        ],
-        "pos": [
-          0,
-          0.035,
-          -0.08
-        ],
-        "rot": [
-          1.5708,
-          0,
-          0
-        ],
-        "color": "accent"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.055,
-          0.075,
-          0.26
-        ],
-        "pos": [
-          0,
-          0.035,
-          0.06
-        ],
-        "color": "body",
-        "role": "receiver"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.05,
-          0.055,
-          0.3
-        ],
-        "pos": [
-          0,
-          0.04,
-          0.34
-        ],
-        "color": "body",
-        "role": "handguard"
-      },
-      {
-        "shape": "cyl",
-        "size": [
-          0.016,
-          0.06,
-          0.016
-        ],
-        "pos": [
-          0,
-          0.04,
-          0.5
-        ],
-        "rot": [
-          1.5708,
-          0,
-          0
-        ],
-        "color": "grip",
-        "role": "barrel"
-      },
-      {
-        "shape": "cyl",
-        "size": [
-          0.024,
-          0.04,
-          0.024
-        ],
-        "pos": [
-          0,
-          0.04,
-          0.51
-        ],
-        "rot": [
-          1.5708,
-          0,
-          0
-        ],
-        "color": "accent"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.028,
-          0.04,
-          0.08
-        ],
-        "pos": [
-          0,
-          0.095,
-          0.07
-        ],
-        "color": "grip",
-        "role": "optic"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.03,
-          0.1,
-          0.038
-        ],
-        "pos": [
-          0,
-          -0.045,
-          -0.01
-        ],
-        "color": "grip",
-        "role": "grip"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.024,
-          0.125,
-          0.06
-        ],
-        "pos": [
-          0,
-          -0.0625,
-          0.1
-        ],
-        "color": "accent",
-        "role": "mag"
-      }
+      {"role": "stock", "shape": "box", "size": [0.041, 0.122, 0.16], "pos": [0, 0.002, -0.25], "color": "grip"},
+      {"role": "buffer", "shape": "cyl", "size": [0.03, 0.18, 0.03], "pos": [0, 0.034, -0.18], "rot": [1.5708, 0, 0], "color": "accent"},
+      {"role": "receiver", "shape": "box", "size": [0.031, 0.065, 0.264], "pos": [0, 0.0315, 0.044], "color": "body"},
+      {"role": "lower", "shape": "box", "size": [0.034, 0.06, 0.21], "pos": [0, -0.017, 0.027], "color": "body"},
+      {"role": "rail", "shape": "box", "size": [0.021, 0.009, 0.48], "pos": [0, 0.0685, 0.155], "color": "grip"},
+      {"role": "handguard", "shape": "box", "size": [0.044, 0.05, 0.22], "pos": [0, 0.039, 0.286], "color": "body"},
+      {"role": "barrel", "shape": "cyl", "size": [0.017, 0.21, 0.017], "pos": [0, 0.04, 0.495], "rot": [1.5708, 0, 0], "color": "grip"},
+      {"role": "suppressor", "shape": "cyl", "size": [0.043, 0.186, 0.043], "pos": [0, 0.04, 0.507], "rot": [1.5708, 0, 0], "color": "accent"},
+      {"role": "optic", "shape": "box", "size": [0.035, 0.057, 0.066], "pos": [0, 0.1005, 0.053], "color": "grip"},
+      {"role": "grip", "shape": "box", "size": [0.029, 0.116, 0.07], "pos": [0, -0.07, -0.028], "color": "grip"},
+      {"role": "mag", "shape": "box", "size": [0.027, 0.173, 0.075], "pos": [0, -0.0825, 0.11], "color": "accent"},
+      {"role": "launcher", "shape": "cyl", "size": [0.049, 0.184, 0.049], "pos": [0, -0.0165, 0.304], "rot": [1.5708, 0, 0], "color": "body"},
+      {"role": "launcherBreech", "shape": "box", "size": [0.042, 0.053, 0.074], "pos": [0, -0.0195, 0.177], "color": "body"},
+      {"role": "launcherTrigger", "shape": "box", "size": [0.01, 0.025, 0.05], "pos": [0, -0.054, 0.168], "color": "grip"},
+      {"role": "charger", "shape": "box", "size": [0.015, 0.012, 0.012], "pos": [-0.0235, 0.05, 0.1], "color": "grip"},
+      {"role": "backStud", "shape": "box", "size": [0.0185, 0.0136, 0.0136], "pos": [-0.02495, 0.035, -0.03], "color": "grip"}
     ],
     "muzzle": [
       0,
       0.04,
-      0.54
+      0.6
     ],
     "grip": [
       0,
@@ -226,9 +94,10 @@
     ],
     "foregrip": [
       0,
-      0.01,
-      0.22
-    ]
+      -0.04,
+      0.24
+    ],
+    "backStud": [-0.034, 0.035, -0.03]
   },
   "pistolSd": {
     "name": "Hush 9 SD",
@@ -238,7 +107,7 @@
     "kind": "hitscan",
     "rpm": 400,
     "damage": 20,
-    "headMult": 2.0,
+    "headMult": 2,
     "falloffStart": 14,
     "falloffEnd": 40,
     "minDamageMult": 0.55,
@@ -274,7 +143,7 @@
       ]
     ],
     "adsZoom": 0.82,
-    "moveSpeedMult": 1.0,
+    "moveSpeedMult": 1,
     "impulse": 6,
     "tracer": "#cfd6dc",
     "unlockLevel": 2,
@@ -282,7 +151,7 @@
     "muzzle": [
       0,
       0.035,
-      0.27
+      0.275
     ],
     "grip": [
       0,
@@ -292,94 +161,17 @@
     "foregrip": [
       -0.015,
       -0.06,
-      0.0
+      0
     ],
     "noise": 0.35,
     "model": [
-      {
-        "shape": "box",
-        "size": [
-          0.03,
-          0.035,
-          0.19
-        ],
-        "pos": [
-          0,
-          0.035,
-          0.055
-        ],
-        "color": "body",
-        "role": "receiver"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.028,
-          0.025,
-          0.1368
-        ],
-        "pos": [
-          0,
-          0.008,
-          0.0334
-        ],
-        "color": "grip"
-      },
-      {
-        "shape": "box",
-        "size": [
-          0.028,
-          0.1,
-          0.045
-        ],
-        "pos": [
-          0,
-          -0.0375,
-          -0.012
-        ],
-        "color": "grip",
-        "role": "grip"
-      },
-      {
-        "shape": "cyl",
-        "size": [
-          0.012,
-          0.02,
-          0.012
-        ],
-        "pos": [
-          0,
-          0.035,
-          0.155
-        ],
-        "color": "accent",
-        "rot": [
-          1.5708,
-          0,
-          0
-        ],
-        "role": "barrel_stub"
-      },
-      {
-        "shape": "cyl",
-        "size": [
-          0.03,
-          0.12,
-          0.03
-        ],
-        "pos": [
-          0,
-          0.035,
-          0.21
-        ],
-        "color": "accent",
-        "rot": [
-          1.5708,
-          0,
-          0
-        ],
-        "role": "barrel"
-      }
+      {"role": "receiver", "shape": "box", "size": [0.026, 0.0295, 0.182], "pos": [0, 0.03575, 0.061], "color": "body"},
+      {"role": "sights", "shape": "box", "size": [0.004, 0.0035, 0.172], "pos": [0, 0.05225, 0.0599], "color": "grip"},
+      {"role": "frame", "shape": "box", "size": [0.0254, 0.0275, 0.1235], "pos": [0, 0.00775, 0.02625], "color": "grip"},
+      {"role": "emitter", "shape": "box", "size": [0.025, 0.0123, 0.0626], "pos": [0, 0.01515, 0.1197], "color": "grip"},
+      {"role": "grip", "shape": "box", "size": [0.0284, 0.089, 0.0755], "pos": [0, -0.0485, -0.00555], "color": "grip"},
+      {"role": "barrel_stub", "shape": "cyl", "size": [0.0136, 0.008, 0.0136], "pos": [0, 0.035, 0.154], "rot": [1.5708, 0, 0], "color": "accent"},
+      {"role": "barrel", "shape": "cyl", "size": [0.033, 0.118, 0.033], "pos": [0, 0.035, 0.216], "rot": [1.5708, 0, 0], "color": "accent"}
     ]
   }
 }
