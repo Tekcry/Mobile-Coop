@@ -105,6 +105,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { clearGripAxis } from '../player/attachGrips';
 
 export type { ModeId };
 
@@ -2183,6 +2184,8 @@ export class GameState implements AppState {
       const dd = doors.list[dp.door]!;
       crackedHandle(dd.anchor, fr.side, dd.ajar, DOOR.openAngle, this.peekHand);
       const reach = fr.hingeRight ? rig.reachL : rig.reachR;
+      // (anim-cleanup) a door handle is not a grip axis
+      clearGripAxis(reach);
       reach.x = this.peekHand.x;
       reach.y = this.peekHand.y;
       reach.z = this.peekHand.z;

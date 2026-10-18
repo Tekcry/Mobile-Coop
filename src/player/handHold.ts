@@ -126,7 +126,8 @@ function frameInto(dx: number, dy: number, dz: number, nx: number, ny: number, n
   const k = nx * dx + ny * dy + nz * dz;
   nx -= k * dx; ny -= k * dy; nz -= k * dz;
   l = Math.sqrt(nx * nx + ny * ny + nz * nz);
-  if (l < 1e-6) return false;
+  // (check s3) a normal within about 3 degrees of the knuckles: no stable frame (the caller keeps its fallback)
+  if (l < 0.05) return false;
   nx /= l; ny /= l; nz /= l;
   o[0] = dx; o[1] = dy; o[2] = dz;
   o[3] = nx; o[4] = ny; o[5] = nz;

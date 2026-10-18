@@ -52,3 +52,14 @@
   re-run on the exported files): `wrapR` (every finger round a rung, pipe, line or knife handle: the trigger shape kept
   its crooked index finger there), `relaxR` / `relaxL` (free hands lightly curled instead of the flat bind pose). The
   figure blends trigger / wrap by `rig.rightTrigger` and relaxed by (1 - grip).
+- Independent check of the world grips: maths right, BLOCK on three: the targets were not on the real geometry (palms
+  in the ladder rungs, 3 cm off the horizontal pipe), the ledge hand sank into the ledge at full reach, a stale grip
+  axis leaked into door handles / a carried body / a choke.
+- Fix round 1: each hand solves against the real geometry's point (attachGrips axisPoint from the anchor data:
+  rung centre line, pipe and cable axes, the lip edge; a swinging ladder / drainpipe hand keeps its lift-off); the
+  ledge hand pivots over the edge until the arm reaches; rungs take a fixed overhand grip (palm to the wall, knuckles
+  up: picking it from the arm flipped the palm as the arm passed level); a grip's reach is capped at 96 % of the arm
+  (a top rung no longer locks the arm, where the rate-limited elbow lagged); the grip axis is cleared on release and by
+  every non-grip reach writer; holdInto tests and a 3-degree degenerate guard. Settled palms sit on the surfaces (skin
+  0 mm; the shot script now measures against the anchor geometry). e2e-traverse reach 0.2 cm, with a two-frame settle
+  window per plant (arrival + one body pull; documented in the suite).

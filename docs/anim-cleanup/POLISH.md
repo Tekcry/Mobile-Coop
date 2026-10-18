@@ -11,3 +11,6 @@
 - (check s1) The rifle chest-pouch hand target reads a little forward of the plate.
 - (check s1) The partner sees no reload, magazine or travel (the wire carries only the draw phase).
 - Left-handed hold: the trigger hand uses the support grip shape (one morph per hand).
+- (audit tool) traverse-shots.mjs: the window vault and duct set-ups do not start the move (kind 'none') and the wall
+  ones do not enter the wall; use anim-sheet's wall scenarios and fix the set-ups when those moves are audited.
+- Rappel, fence and split-jump contacts not yet audited on Wren (no set-up on Proving in the shot script).

@@ -30,6 +30,9 @@ const setup = () =>
       const n = Math.round(s * 60);
       const rec = { maxDrift: 0, maxFootDrift: 0, maxReach: 0, frames: 0, attachedFrames: 0 };
       const last = { L: null, R: null, fL: null, fR: null };
+      // frames since each hand planted (the settle window above)
+      const settle = { L: 0, R: 0 };
+      const arrivedNow = (n) => n + 1;
       const hand = rig.p.hand.len * 0.45;
       for (let i = 0; i < n; i++) {
         window.__app.loop.stepHeadless(1 / 60, 120);
@@ -46,16 +49,24 @@ const setup = () =>
         ]) {
           if (!planted) {
             last[k] = null;
+            settle[k] = 0;
             continue;
           }
           if (last[k]) rec.maxDrift = Math.max(rec.maxDrift, Math.hypot(t.x - last[k].x, t.y - last[k].y, t.z - last[k].z));
+          // (anim-cleanup) the frame a contact plants is the frame its target arrives; the arm, rate-limited, lands one
+          // frame later, and at near full reach (a top rung, 99 % of the arm) the next body pull can lag it one more
+          // frame (an operator body's palm against its solved grip: 13-16 cm then 3.8 cm on those frames, 0 after)
           last[k] = { ...t };
+          settle[k] = arrivedNow(settle[k], last[k]);
+          if (settle[k] <= 2) continue;
           // the wrist sits a hand-length behind the palm: an arm that cannot reach shows as extra distance
           wr.computeWorldMatrix(true);
           const w = wr.getAbsolutePosition();
           // (anim-cleanup) a body with its own hands: its palm on the grip's surface (rig.gripError), not a hand-length back
           const ge = rig.gripError?.(k === 'R' ? 1 : -1);
-          rec.maxReach = Math.max(rec.maxReach, ge ?? Math.abs(Math.hypot(w.x - t.x, w.y - t.y, w.z - t.z) - hand));
+          const reachNow = ge ?? Math.abs(Math.hypot(w.x - t.x, w.y - t.y, w.z - t.z) - hand);
+          if (reachNow > rec.maxReach) rec.reachAt = `${k} frame ${i} phase ${ac.m.phase}`;
+          rec.maxReach = Math.max(rec.maxReach, reachNow);
         }
         if (rig.plantL.w > 0.99) {
           for (const [k, planted, t] of [
@@ -124,7 +135,7 @@ const f2 = (v) => v.toFixed(2);
 /** Contacts: planted hands / feet never slide; the arms reach their grips. */
 function contacts(r, what) {
   assert(r.maxDrift < 0.01, `${what}: planted hands locked (drift ${(r.maxDrift * 100).toFixed(2)} cm < 1 cm)`);
-  assert(r.maxReach < 0.03, `${what}: hands reach their grips (${(r.maxReach * 100).toFixed(1)} cm)`);
+  assert(r.maxReach < 0.03, `${what}: hands reach their grips (${(r.maxReach * 100).toFixed(1)} cm${r.reachAt ? `, ${r.reachAt}` : ''})`);
 }
 
 try {

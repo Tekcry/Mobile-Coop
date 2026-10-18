@@ -10,6 +10,7 @@ import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
 import type { GrabOpt } from './grabMenu';
+import { clearGripAxis } from '../player/attachGrips';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -393,6 +394,9 @@ export class TakedownController {
     // (3.2.0) holding a hostage: the left hand on their shoulder, the right free for the sidearm (until the strike)
     const holdOnly = !!a.grab && a.grab.strikeT < 0;
     const w = holdOnly ? (this.g.player.carry.raise > 0.2 ? 0 : 0.6) : a.lethal ? 0.5 : 1;
+    // (anim-cleanup) a guard's neck and shoulder are not a grip axis
+    clearGripAxis(rig.reachR);
+    clearGripAxis(rig.reachL);
     rig.reachR.x = n.x;
     rig.reachR.y = n.y - 0.05;
     rig.reachR.z = n.z;

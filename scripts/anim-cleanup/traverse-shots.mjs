@@ -14,6 +14,7 @@ mkdirSync(out, { recursive: true });
 // set-up: [x, y, z, yaw] (e2e-clip), input per frame, frame times (s), camera [right, up, forward, target up] in her frame
 const MOVES = {
   'ladder-climb': { at: [25.2, 0, 11, Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.6, 1.4, 2.4, 3.6], cam: [1.4, 1.2, -0.6, 1.0] },
+  'ladder-dense': { at: [25.2, 0, 11, Math.PI / 2], tap: 'jump', move: [0, 1], times: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4], cam: [1.4, 1.2, -0.6, 1.0] },
   'ladder-slide': { at: [26.7, 3.6, 11, -Math.PI / 2], tap: 'jump', move: [0, -1], times: [0.5, 1.2, 2.0], cam: [1.4, 0.4, -0.6, 0.6] },
   'drainpipe': { at: [27.8, 0, 8.95, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.6, 3.0], cam: [1.3, 1.1, -0.7, 1.0] },
   'hang-shimmy': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', move: [1, 0], times: [0.5, 1.2, 2.2], cam: [1.2, 0.6, -1.4, 1.4] },
@@ -21,7 +22,7 @@ const MOVES = {
   'pipe-hands': { at: [25.5, 0, 23.1, 0], camYaw: Math.PI / 2, tap: 'jump', move: [0, 1], times: [0.5, 1.2, 2.0], cam: [1.6, 0.4, 0.4, 1.6] },
   'duct': { at: [21.75, 3.2, -5, Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 2.5], cam: [1.2, 0.6, 0.3, 0.3] },
   'window-vault': { at: [26, 0, -9.2, 0], tap: 'jump', times: [0.25, 0.55, 0.9], cam: [1.8, 1.0, 0.2, 0.8] },
-  'zipline': { at: [26.5, 3.6, 10.2, Math.PI], tap: 'jump', times: [0.4, 1.0, 1.8], cam: [1.4, -0.2, 0.0, -0.4] },
+  'zipline': { at: [26.5, 3.6, 10.2, Math.PI], tap: 'jump', times: [0.4, 1.0, 1.8], cam: [1.6, 1.0, 0.0, 1.1] },
   'wall-stand': { at: [-8.3, 0, 0.5, 0], wall: true, times: [0.8], cam: [0.3, 1.4, 1.8, 1.0] },
   'wall-crouch': { at: [-8.3, 0, 0.5, 0], wall: true, crouch: true, times: [0.8], cam: [0.3, 1.0, 1.8, 0.6] },
   'wall-slide': { at: [-8.3, 0, 0.5, 0], wall: true, move: [1, 0], times: [0.6, 1.2], cam: [0.3, 1.4, 1.8, 1.0] },
@@ -105,8 +106,20 @@ try {
           const nw = V.TransformNormal(new V(...H[s].n), m).normalize();
           const tgt = new V(rc.x, rc.y, rc.z);
           const d = tgt.subtract(pw);
-          contact[s] = { mm: Math.round(d.length() * 1000), palmToGripDeg: Math.round((Math.acos(Math.max(-1, Math.min(1, V.Dot(nw, d.normalize())))) * 180) / Math.PI) };
+          // (check fix r1) the palm against the real geometry's solved point (rig.gripError), not the raw target
+          const ge = r.gripError?.(s === 'R' ? 1 : -1);
+          // skin clearance from the anchor's own geometry: the palm centre to the grip line (a lip: to its edge point),
+          // less the radius and the palm's 14 mm depth (0 = on the surface, negative = into it)
+          let skin = null;
+          if (rc.cx !== undefined && (rc.ax || rc.ay || rc.az)) {
+            const q = new V(pw.x - rc.cx, pw.y - rc.cy, pw.z - rc.cz);
+            if (!rc.hook) { const k = q.x * rc.ax + q.y * rc.ay + q.z * rc.az; q.set(q.x - k * rc.ax, q.y - k * rc.ay, q.z - k * rc.az); }
+            skin = Math.round((q.length() - (rc.rad ?? 0) - 0.014) * 1000);
+          }
+          contact[s] = { skinMm: skin, geomMm: ge === null || ge === undefined ? null : Math.round(ge * 1000), targetMm: Math.round(d.length() * 1000), palmToTargetDeg: Math.round((Math.acos(Math.max(-1, Math.min(1, V.Dot(nw, d.normalize())))) * 180) / Math.PI) };
         }
+        const cc = g.traversal.attachCtl?.active ? g.traversal.attachCtl.contacts() : null;
+        if (cc) { if (contact.L) contact.L.planted = cc.plantedL; if (contact.R) contact.R.planted = cc.plantedR; }
         return { contact, kind: g.traversal.attachCtl?.m?.kind ?? g.traversal.kind ?? '-', phase: g.traversal.attachCtl?.m?.phase ?? '-', wall: g.wallCore?.phase ?? '-', grip: [r.handGrip.l, r.handGrip.r] };
       }, [m, t]);
       await page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));

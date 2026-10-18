@@ -48,6 +48,10 @@ export interface GripTarget {
   az?: number;
   rad?: number;
   hook?: number;
+  /** (anim-cleanup, check fix r1) The point of the real grip geometry under this hand (on the axis / the lip edge). */
+  cx?: number;
+  cy?: number;
+  cz?: number;
 }
 
 /** What the grips write: the rig's reach (hands) and plant (feet) targets, and its height. */
@@ -64,6 +68,31 @@ export interface VentExit {
   drop: number;
   progress: number;
   kinY: number;
+}
+
+/** (anim-cleanup) No grip axis on a hand target: the next reach (a door, a carried body, a choke) is not a grip. */
+export function clearGripAxis(t: GripTarget): void {
+  t.ax = 0; t.ay = 0; t.az = 0; t.rad = 0; t.hook = 0;
+}
+
+/** (anim-cleanup) The point of a grip line (through o along a; `flat`: at the target's height) nearest the target. */
+function axisPoint(t: GripTarget, ox: number, oy: number, oz: number, ax: number, ay: number, az: number, flat: boolean): void {
+  const y0 = flat ? t.y : oy;
+  const k = (t.x - ox) * ax + (t.y - y0) * ay + (t.z - oz) * az;
+  t.cx = ox + ax * k;
+  t.cy = y0 + ay * k;
+  t.cz = oz + az * k;
+}
+
+/**
+ * (anim-cleanup) Moves a grip point off its line towards the climber (-f) by however much the target sits further out
+ * than a planted hand (`planted`: the planted target's offset from the line along -f).
+ */
+function keepLift(t: GripTarget, fx: number, fz: number, planted: number): void {
+  const off = (t.x - (t.cx ?? t.x)) * -fx + (t.z - (t.cz ?? t.z)) * -fz;
+  const lift = Math.max(0, off - planted);
+  t.cx = (t.cx ?? t.x) - fx * lift;
+  t.cz = (t.cz ?? t.z) - fz * lift;
 }
 
 /** (anim-cleanup) Writes a hand target's grip axis (no allocation). */
@@ -294,39 +323,68 @@ export class AttachGrips {
     } else if (to === 'hands') this.setup(a, s, face, height);
   }
 
-  /** (anim-cleanup) Each hand's grip axis for the anchor (the rig closes an operator's hands round it). */
+  /**
+   * (anim-cleanup) Each hand's grip axis for the anchor and (check fix r1) the point of the real geometry under each hand
+   * (the rung's centre line, the pipe's or the cable's axis, the lip's edge), from the anchor's own data (levelBuilder),
+   * so the rig puts the palm on the surface whatever offset the target carries.
+   */
   private gripAxes(a: Anchor, rig: GripRig): void {
     let ax = 0, ay = 0, az = 0, rad = 0, hook = 0;
+    // a line through (ox, oy, oz) along the axis; `flat`: the line's height follows each hand (a rung, a fence)
+    let ox = 0, oy = 0, oz = 0, flat = false;
     switch (a.kind) {
-      case 'ladder':
-        ax = Math.cos(a.facing); az = -Math.sin(a.facing); rad = 0.014;
+      case 'ladder': {
+        const fx = Math.sin(a.facing), fz = Math.cos(a.facing);
+        // levelBuilder: the rungs 6 cm off the wall line (base), 35 mm square
+        ax = fz; az = -fx; rad = 0.0175;
+        ox = a.base.x - fx * 0.06; oz = a.base.z - fz * 0.06; flat = true;
         break;
+      }
       case 'pipeV':
         ay = 1; rad = a.radius;
+        ox = a.base.x; oy = a.base.y; oz = a.base.z;
         break;
       case 'pipeH':
       case 'zipline': {
         const dx = a.b.x - a.a.x, dy = a.b.y - a.a.y, dz = a.b.z - a.a.z;
         const l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-        ax = dx / l; ay = dy / l; az = dz / l; rad = a.kind === 'pipeH' ? a.radius : 0.008;
+        ax = dx / l; ay = dy / l; az = dz / l; rad = a.kind === 'pipeH' ? a.radius : 0.0125;
+        ox = a.a.x; oy = a.a.y; oz = a.a.z;
         break;
       }
       case 'ledge':
         ax = a.tx; az = a.tz; hook = 1;
+        ox = a.a.x; oy = a.top; oz = a.a.z;
         break;
       case 'fence':
         ax = a.tx; az = a.tz; rad = 0.004;
+        ox = a.a.x; oz = a.a.z; flat = true;
         break;
       default:
         break;
     }
     setAxis(rig.reachL, ax, ay, az, rad, hook);
     setAxis(rig.reachR, ax, ay, az, rad, hook);
+    if (ax || ay || az) {
+      axisPoint(rig.reachL, ox, oy, oz, ax, ay, az, flat);
+      axisPoint(rig.reachR, ox, oy, oz, ax, ay, az, flat);
+      // (check fix r1) a ladder / drainpipe hand swinging to its next grip lifts off towards the climber (the target's
+      // own lift, attachGrips' `lift * 0.08`): keep that, so the hand never slides through the rungs on the way
+      if (a.kind === 'ladder' || a.kind === 'pipeV') {
+        const f = a.kind === 'ladder' ? a.facing : a.side;
+        const planted = a.kind === 'ladder' ? -0.02 : 0.04;
+        keepLift(rig.reachL, Math.sin(f), Math.cos(f), planted);
+        keepLift(rig.reachR, Math.sin(f), Math.cos(f), planted);
+      }
+    }
   }
 
   /** Let go: every target weight to 0. */
   release(rig: GripRig): void {
     rig.reachL.w = rig.reachR.w = rig.plantL.w = rig.plantR.w = 0;
+    // (anim-cleanup, check fix r1) no grip axis left for the next reach (a door handle, a carried body, a choke)
+    clearGripAxis(rig.reachL);
+    clearGripAxis(rig.reachR);
     this.plantFade = 0;
     this.lift.x = this.lift.y = this.lift.z = 0;
   }

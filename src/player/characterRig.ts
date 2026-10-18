@@ -129,6 +129,10 @@ export interface WorldTarget {
   az?: number;
   rad?: number;
   hook?: number;
+  /** (anim-cleanup) The real grip geometry's point under the hand (attachGrips.axisPoint). */
+  cx?: number;
+  cy?: number;
+  cz?: number;
 }
 
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
@@ -459,6 +463,8 @@ export class CharacterRig {
   /** (anim-cleanup) Per hand (0 right, 1 left): a world grip's solved wrist rotation this frame, valid when gripOk. */
   private readonly gripQ = [new Quaternion(), new Quaternion()];
   private readonly gripOk = [false, false];
+  /** (anim-cleanup, check fix r1) Per hand: where the palm centre should sit this frame (world), for gripError. */
+  private readonly gripPalm = [new Vector3(), new Vector3()];
 
   /**
    * (anim-cleanup) For a body with its own hands on a world grip with an axis: how far (m) its palm centre is from where
@@ -467,18 +473,14 @@ export class CharacterRig {
   gripError(side: 1 | -1): number | null {
     const r = side > 0 ? this.reachR : this.reachL;
     const ax = r.ax ?? 0, ay = r.ay ?? 0, az = r.az ?? 0;
-    if (!this.handRest || r.w < 0.5 || ax * ax + ay * ay + az * az < 0.5) return null;
+    if (!this.handRest || r.w < 0.5 || ax * ax + ay * ay + az * az < 0.5 || !this.gripOk[side > 0 ? 0 : 1]) return null;
     const hand = side > 0 ? this.handRest.R : this.handRest.L;
     const m = (side > 0 ? this.wristR : this.wristL).computeWorldMatrix(true);
     const p = Vector3.TransformCoordinates(new Vector3(hand.palm[0], hand.palm[1], hand.palm[2]), m);
-    // the palm centre to the grip's axis line (a lip: to the grip point), against the radius plus the palm's depth
-    const d = new Vector3(p.x - r.x, p.y - r.y, p.z - r.z);
-    if (!r.hook) {
-      const k = d.x * ax + d.y * ay + d.z * az;
-      d.set(d.x - k * ax, d.y - k * ay, d.z - k * az);
-    }
-    return Math.abs(d.length() - ((r.rad ?? 0) + PALM_DEPTH));
+    // the palm centre against where the solve put it (on the real geometry: the rung, the pipe, the lip)
+    return Vector3.Distance(p, this.gripPalm[side > 0 ? 0 : 1]!);
   }
+
 
   setHands(h: { readonly L: HandFrame; readonly R: HandFrame } | null): void {
     this.handRest = h;
@@ -2011,47 +2013,87 @@ export class CharacterRig {
     if (ax * ax + ay * ay + az * az < 0.5) return false;
     const hand = side > 0 ? this.handRest!.R : this.handRest!.L;
     const gi = side > 0 ? 0 : 1;
+    // the real geometry under the hand (check fix r1: the target itself can sit off the rung, inside the pipe)
+    const gx = r.cx ?? r.x, gy = r.cy ?? r.y, gz = r.cz ?? r.z;
     // the body's frame (world): right and forward from the root's yaw
     const ry = this.root.rotation.y;
     const rx = Math.cos(ry), rz = -Math.sin(ry);
     const fx = Math.sin(ry), fz = Math.cos(ry);
-    let dx: number, dy: number, dz: number, nx: number, ny: number, nz: number;
+    const reach = (this.p.upperArm.len + this.p.forearm.len) * 0.985;
     if (r.hook) {
-      // over a lip: palm down, the fingers over it towards the face (the body's forward, across the lip's axis)
-      nx = 0; ny = -1; nz = 0;
+      // over a lip: forward across the lip's axis; the hand pivots over the edge (palm down on top, then the heel over
+      // the edge and the palm on the face) until the arm reaches its wrist
       const k = fx * ax + fz * az;
-      dx = fx - k * ax; dy = 0; dz = fz - k * az;
+      let hx = fx - k * ax, hz = fz - k * az;
+      const hl = Math.sqrt(hx * hx + hz * hz) || 1;
+      hx /= hl; hz /= hl;
+      for (let step = 0; step <= 6; step++) {
+        const th = (step / 6) * (Math.PI / 2);
+        const c = Math.cos(th), s = Math.sin(th);
+        // palm normal (down on top, into the face at 90 degrees), knuckles (forward over the lip, then up)
+        const nx = hx * s, ny = -c, nz = hz * s;
+        const dx = hx * c, dy = s, dz = hz * c;
+        if (!this.gripFrame(hand, ry, dx, dy, dz, nx, ny, nz, gi)) return false;
+        this.gripWrist(gx - nx * PALM_DEPTH, gy - ny * PALM_DEPTH, gz - nz * PALM_DEPTH, ry, out, gi);
+        if (step === 6 || Vector3.Distance(out, S) <= reach) break;
+      }
+      this.gripOk[gi] = true;
+      return true;
+    }
+    let dx: number, dy: number, dz: number, nx: number, ny: number, nz: number;
+    if (Math.abs(ax * rx + az * rz) > 0.7 && Math.abs(ay) < 0.3) {
+      // (check fix r1) a bar across the body (a rung, a fence wire): a fixed overhand grip, palm towards the wall
+      // (forward), knuckles up, the fingers over the bar (picking it from the arm flipped the palm as the arm passed level)
+      const k = fx * ax + fz * az;
+      nx = fx - k * ax; ny = 0; nz = fz - k * az;
+      dx = 0; dy = 1; dz = 0;
     } else {
-      // the knuckles carry on along the arm (shoulder -> grip), square to the axis
-      dx = r.x - S.x; dy = r.y - S.y; dz = r.z - S.z;
+      // along the body or upright: the knuckles carry on along the arm (shoulder -> grip), square to the axis; the palm
+      // square to both, towards the body's midline from the hand's side
+      dx = gx - S.x; dy = gy - S.y; dz = gz - S.z;
       const k = dx * ax + dy * ay + dz * az;
       dx -= k * ax; dy -= k * ay; dz -= k * az;
-      // the palm: square to the knuckles and the axis
       nx = ay * dz - az * dy; ny = az * dx - ax * dz; nz = ax * dy - ay * dx;
-      const across = Math.abs(ax * rx + az * rz) > 0.7;
-      // across the body (a rung): towards the body's forward; along / upright: towards the midline from the hand's side
-      const sgn = across ? nx * fx + nz * fz : -(nx * rx + nz * rz) * side;
-      if (sgn < 0) { nx = -nx; ny = -ny; nz = -nz; }
+      if (-(nx * rx + nz * rz) * side < 0) { nx = -nx; ny = -ny; nz = -nz; }
     }
-    // into the root frame (the hand's rest frame is root-relative): rotate by -yaw about y
-    const c = Math.cos(-ry), s = Math.sin(-ry);
-    const ldx = dx * c + dz * s, ldz = -dx * s + dz * c;
-    const lnx = nx * c + nz * s, lnz = -nx * s + nz * c;
-    if (!holdInto(hand, ldx, dy, ldz, lnx, ny, lnz, gripOut)) return false;
-    // world rotation: the root's yaw then the solved one
-    const q = this.gripQ[gi]!;
-    Quaternion.RotationYawPitchRollToRef(ry, 0, 0, gripYaw);
-    gripLocal.copyFromFloats(gripOut[0]!, gripOut[1]!, gripOut[2]!, gripOut[3]!);
-    gripYaw.multiplyToRef(gripLocal, q);
-    // the palm's offset into world (root yaw), the palm centre a little inside the grip's surface
-    const pc = Math.cos(ry), ps = Math.sin(ry);
-    const pwx = gripOut[4]! * pc + gripOut[6]! * ps, pwz = -gripOut[4]! * ps + gripOut[6]! * pc;
+    if (!this.gripFrame(hand, ry, dx, dy, dz, nx, ny, nz, gi)) return false;
     const nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
     const depth = (r.rad ?? 0) + PALM_DEPTH;
-    out.set(r.x - (nx / nl) * depth - pwx, r.y - (ny / nl) * depth - gripOut[5]!, r.z - (nz / nl) * depth - pwz);
+    this.gripWrist(gx - (nx / nl) * depth, gy - (ny / nl) * depth, gz - (nz / nl) * depth, ry, out, gi);
+    // (check fix r1) never a locked arm: past 96 % of the arm the wrist (and the palm with it) stays short of the grip
+    // (a top rung): at full stretch the rate-limited elbow lagged the body's pull by a frame or two
+    const dl = Vector3.Distance(out, S);
+    const cap = (this.p.upperArm.len + this.p.forearm.len) * 0.96;
+    if (dl > cap) {
+      const k2 = cap / dl;
+      const ox = out.x, oy = out.y, oz = out.z;
+      out.set(S.x + (ox - S.x) * k2, S.y + (oy - S.y) * k2, S.z + (oz - S.z) * k2);
+      const gp = this.gripPalm[gi]!;
+      gp.set(gp.x + out.x - ox, gp.y + out.y - oy, gp.z + out.z - oz);
+    }
     this.gripOk[gi] = true;
     return true;
   }
+
+  /** (anim-cleanup) Solves a world hand frame (knuckles d, palm n) for one hand into gripQ / gripOut. */
+  private gripFrame(hand: HandFrame, ry: number, dx: number, dy: number, dz: number, nx: number, ny: number, nz: number, gi: number): boolean {
+    // into the root frame (the hand's rest frame is root-relative): rotate by -yaw about y
+    const c = Math.cos(-ry), s = Math.sin(-ry);
+    if (!holdInto(hand, dx * c + dz * s, dy, -dx * s + dz * c, nx * c + nz * s, ny, -nx * s + nz * c, gripOut)) return false;
+    Quaternion.RotationYawPitchRollToRef(ry, 0, 0, gripYaw);
+    gripLocal.copyFromFloats(gripOut[0]!, gripOut[1]!, gripOut[2]!, gripOut[3]!);
+    gripYaw.multiplyToRef(gripLocal, this.gripQ[gi]!);
+    return true;
+  }
+
+  /** (anim-cleanup) The wrist target for a palm centre at (px, py, pz) with the frame gripFrame solved. */
+  private gripWrist(px: number, py: number, pz: number, ry: number, out: Vector3, gi: number): void {
+    const pc = Math.cos(ry), ps = Math.sin(ry);
+    const pwx = gripOut[4]! * pc + gripOut[6]! * ps, pwz = -gripOut[4]! * ps + gripOut[6]! * pc;
+    out.set(px - pwx, py - gripOut[5]!, pz - pwz);
+    this.gripPalm[gi]!.set(px, py, pz);
+  }
+
 
   /** Leg IK onto a world ankle target; the foot takes its world yaw and the swing / pose pitch. */
   private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number, out = KNEE_OUT): void {
