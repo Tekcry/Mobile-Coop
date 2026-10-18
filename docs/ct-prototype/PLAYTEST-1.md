@@ -75,3 +75,6 @@ Empty note = verdict only.
   walk / aim, strike, doors, goggles, course panels, D-pad per the CT research.
 - Turn follow failed twice: goes to an Opus implementer with the footage (RULES: Opus for anything stuck twice).
 - Menu overlaps (menu-1) and the dead settings rows (menu-3) go to the menu job.
+- After CT-CONTROLS.md: speed "D-pad up / down too"; goggles "incorporate blacklist style menu that allows selection of
+  weapons, gadgets, and vision mode. Single button only toggles that one vision selected."; aim "Yes, CT scheme".
+  Assumed (feel A1): the menu opens on LB hold, the vision toggle is D-pad left.
