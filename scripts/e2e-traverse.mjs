@@ -23,7 +23,7 @@ const setup = () =>
       const pad = window.__pad;
       pad.axis(0, sx);
       pad.axis(1, -sy);
-      for (const b of btns) pad.set(b, 1);
+      for (const b of btns) (b === 6 ? window.__app.input.state.set('t', 'ads', true) : pad.set(b, 1)); // (F1a: LT is no longer aim; the held legacy ads action stands in)
       const st = H.st();
       const rig = st.player.rig;
       const ac = st.traversal.attachCtl;
@@ -71,7 +71,7 @@ const setup = () =>
       }
       pad.axis(0, 0);
       pad.axis(1, 0);
-      for (const b of btns) pad.set(b, 0);
+      for (const b of btns) (b === 6 ? window.__app.input.state.set('t', 'ads', false) : pad.set(b, 0));
       return rec;
     },
     /** Tap a pad button for a couple of steps. */

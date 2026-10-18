@@ -100,10 +100,10 @@ try {
   // aiming: strafe-locked, capped at 1.4 m/s, strafe x0.9, backstep x0.75
   await tp(0, 0, -2, 0);
   await settle(0.3);
-  await page.evaluate(() => window.__pad.set(6, 1));
+  await page.evaluate(() => window.__app.input.state.set('t', 'ads', true));
   const aimStrafe = await speedAt(1, 0, 1.0);
   const aimBack = await speedAt(0, 1, 1.0);
-  await page.evaluate(() => window.__pad.set(6, 0));
+  await page.evaluate(() => window.__app.input.state.set('t', 'ads', false));
   assert(aimStrafe > 1.1 && aimStrafe < 1.35, `aiming: strafe 90% of 1.4 (${aimStrafe.toFixed(2)} m/s)`);
   assert(aimBack > 0.9 && aimBack < 1.12, `aiming: backstep 75% of 1.4 (${aimBack.toFixed(2)} m/s)`);
   await settle();
@@ -181,10 +181,10 @@ try {
     };
     window.__ff();
   }));
-  await page.evaluate(() => window.__pad.set(6, 1));
+  await page.evaluate(() => window.__app.input.state.set('t', 'ads', true));
   await sim(0.3);
   const aimHold = false;
-  await page.evaluate(() => window.__pad.set(6, 0));
+  await page.evaluate(() => window.__app.input.state.set('t', 'ads', false));
   // (CT prototype M1, G26 / G27) the frozen stance holds ~1.7 s after the stop, then eases to a feet-together idle; this window
   // may straddle the hold's end (prototype: revisit with a timed window), so: held feet stay put, else they squared up (< 30 cm)
   assert(!aimHold && (held.hold ? held.moved < 0.01 : held.moved < 0.3), `after the stop the feet stay frozen while the hold lasts, then square up (hold ${held.hold}, moved ${(held.moved * 100).toFixed(2)} cm)`);

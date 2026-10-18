@@ -1,7 +1,7 @@
 /**
  * Keyboard / mouse bindings (pure, unit-tested). Every gameplay action has up to two inputs: a keyboard `code`
  * (`KeyboardEvent.code`) or an extra mouse button (`Mouse1` middle, `Mouse3` back, `Mouse4` forward). The left /
- * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-7 (gadgets) and the menu keys (Esc, Enter, Backspace,
+ * right mouse buttons (fire / draw-holster toggle, F1a), the wheel (speed gear up / down, 3.2.0), 1-7 (gadgets) and the menu keys (Esc, Enter, Backspace,
  * arrows, Q / E tabs) are fixed.
  */
 import type { ButtonAction } from './actions';
@@ -18,6 +18,9 @@ export type BindId =
   | 'jump'
   | 'interact'
   | 'reload'
+  | 'draw'
+  | 'knockout'
+  | 'zoom'
   | 'nextWeapon'
   | 'prevWeapon'
   | 'gadget'
@@ -47,12 +50,15 @@ export const BINDS: readonly BindDef[] = [
   { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: ['Space'] },
   { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: ['KeyE'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
-  { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: ['KeyX'] },
+  { id: 'draw', label: 'Draw / holster weapon (aim toggle; RMB too)', actions: ['draw'], defaults: ['KeyX'] },
+  { id: 'knockout', label: 'Knockout (holstered) / secondary fire (drawn)', actions: ['altFire'], defaults: ['KeyZ'] },
+  { id: 'zoom', label: 'Zoom (aiming, scoped weapon)', actions: ['zoom'], defaults: ['KeyB'] },
+  { id: 'nextWeapon', label: 'Next weapon (Tab tap too)', actions: ['swapNext'], defaults: ['KeyT'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
-  { id: 'gadget', label: 'Gadget (hold to aim)', actions: ['grenade'], defaults: ['KeyG'] },
-  { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
+  { id: 'gadget', label: 'Quick-use selected gadget (hold to aim)', actions: ['grenade'], defaults: ['KeyG'] },
+  { id: 'wheel', label: 'Selection wheel (hold) / switch weapon (tap)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
-  { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
+  { id: 'goggles', label: 'Vision on / off (mode picked on the wheel)', actions: ['vision'], defaults: ['KeyN'] },
   { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];

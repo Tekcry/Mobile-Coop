@@ -44,13 +44,13 @@ describe('stick maths', () => {
 
 describe('gamepad mapping', () => {
   it('maps the standard layout to gameplay and UI actions', () => {
-    // (A3, G96) the CT pad: A interact, X reload, RB co-op action, Start pause
+    // (F1a) the CT pad: A interact, X draw, RB co-op action, Start pause
     const f = mapPad(snap({ [PAD.A]: 1, [PAD.X]: 1, [PAD.RB]: 1, [PAD.START]: 1 }), tuning);
     expect(f.buttons.interact).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.jump).toBeUndefined();
     expect(f.buttons.uiConfirm).toBe(true);
-    expect(f.buttons.reload).toBe(true);
+    expect(f.buttons.draw).toBe(true);
     expect(f.buttons.coop).toBe(true);
     expect(f.buttons.uiTabNext).toBe(true);
     expect(f.buttons.pause).toBe(true);
@@ -79,8 +79,8 @@ describe('gamepad mapping', () => {
     // the wheel hold: LB held this long opens the gadget wheel
     expect(WHEEL_HOLD).toBeCloseTo(0.15);
   });
-  it('triggers: RT fires, LT aims, respecting dead zone', () => {
-    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });
+  it('triggers: RT fires, LT is the knockout / secondary fire (altFire), respecting dead zone', () => {
+    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, altFire: true });
     expect(mapPad(snap({ [PAD.RT]: 0.05 }), tuning).buttons.fire).toBeUndefined();
   });
   it('left stick: up is forward; right stick: up looks up unless inverted', () => {

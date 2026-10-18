@@ -13,7 +13,7 @@ const WHEEL_GAP = 140;
 /**
  * Keyboard and mouse (PC browsers). In gameplay the mouse is captured with pointer lock: the click that
  * starts or resumes a match captures it, so does any click on the game while it is free (that click
- * never fires). Captured: move = look, left = fire, right = aim, wheel = speed gear (3.2.0; weapons are Q / X). Losing the capture in
+ * never fires). Captured: move = look, left = fire (holstered: the lethal strike), right = draw / holster (a toggle), wheel = speed gear (3.2.0; weapons are Q / X). Losing the capture in
  * a match (Esc, alt-tab) opens the pause menu. Mouse buttons use pointer events: the engine cancels
  * pointerdown on the canvas, which suppresses the legacy mousedown.
  */
@@ -95,14 +95,13 @@ export class KeyboardMouseSource {
         return;
       }
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', true);
-      if (e.button === 2) this.state.set(SRC + 'm', 'ads', true);
+      if (e.button === 2) this.state.tap('draw');
     });
     window.addEventListener('pointerup', (e) => {
       if (e.pointerType !== 'mouse') return;
       const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
       if (extra) for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, false);
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', false);
-      if (e.button === 2) this.state.set(SRC + 'm', 'ads', false);
     });
     // (step 09) a second button pressed or released while another is held fires no pointerdown / pointerup
     // (chorded buttons arrive as a pointermove with `button` set): RMB held to aim, then LMB to fire
@@ -116,7 +115,7 @@ export class KeyboardMouseSource {
         for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, down);
       }
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', down);
-      if (e.button === 2) this.state.set(SRC + 'm', 'ads', down);
+      if (e.button === 2 && down) this.state.tap('draw');
     });
     window.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
@@ -250,7 +249,11 @@ export class KeyboardMouseSource {
       if (e.code.startsWith('Arrow')) e.preventDefault();
     }
     this.syncBinds();
-    for (const a of this.map.get(e.code) ?? []) this.state.set(SRC, a, down);
+    for (const a of this.map.get(e.code) ?? []) {
+      this.state.set(SRC, a, down);
+      // (F1a) the secondary-fire key fires while the weapon is drawn (a stub: no secondary fire exists yet)
+      if (a === 'altFire') this.state.set(SRC + 'alt', 'fire', down && this.adsActive);
+    }
     // 1-7 pick a gadget (wheel order)
     if (down && e.code.startsWith('Digit')) {
       const n = Number(e.code.slice(5));

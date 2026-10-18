@@ -50,25 +50,27 @@ const BTN_THRESHOLD = 0.5;
 
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled separately. The
- * Chaos Theory co-op pad (A3, G96): A interact / context, B crouch, Y jump, X equip (the source turns a hold into a weapon
- * swap), L3 back-to-wall (G18), R3 shoulder swap, RB co-op action (Black), LB quick inventory (White: the gadget wheel),
- * D-pad up goggles, down gadget (hold to aim), left / right the speed gear (CT's D-pad is vision; the gear rocker moved
- * to left / right), View mission device (no action yet), Start pause.
+ * Chaos Theory pad (F1a, G96, G179): A interact / context (the source turns it into reload while drawn), B crouch, Y jump,
+ * X draw / holster toggle, L3 back-to-wall (and shoulder swap: the player only swaps while aiming, the wall only
+ * enters while not), R3 zoom, RB co-op action (Black), LB selection wheel (hold) / switch weapon (tap), D-pad up / down
+ * the speed rocker, left the selected vision mode on / off, right quick-use of the selected gadget, View mission
+ * device (no action yet), Start pause. LT = `altFire`, RT = `fire` (analog, below).
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'interact'],
   [PAD.B, 'crouch'],
-  [PAD.X, 'reload'],
+  [PAD.X, 'draw'],
   [PAD.Y, 'jump'],
   [PAD.RB, 'coop'],
   [PAD.LB, 'gadgetWheel'],
   [PAD.START, 'pause'],
   [PAD.LS, 'cover'],
-  [PAD.RS, 'shoulderSwap'],
-  [PAD.UP, 'vision'],
-  [PAD.DOWN, 'grenade'],
-  [PAD.LEFT, 'speedDown'],
-  [PAD.RIGHT, 'speedUp'],
+  [PAD.LS, 'shoulderSwap'],
+  [PAD.RS, 'zoom'],
+  [PAD.UP, 'speedUp'],
+  [PAD.DOWN, 'speedDown'],
+  [PAD.LEFT, 'vision'],
+  [PAD.RIGHT, 'grenade'],
 ];
 
 /**
@@ -130,7 +132,7 @@ export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readon
   const lt = applyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);
   const rt = applyAxisDeadzone(b(PAD.RT), t.triggerDeadzone);
   if (rt > 0.35) out.fire = true;
-  if (lt > 0.35) out.ads = true;
+  if (lt > 0.35) out.altFire = true;
 
   // Standard mapping: axis Y is +down. Our move.y is +forward.
   const ls = applyCurve(applyRadialDeadzone(ax(0), ax(1), t.deadzoneLeft), 'linear');

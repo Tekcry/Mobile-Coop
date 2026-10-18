@@ -129,3 +129,14 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Still wrong: a held spin still turns planted feet a lot; idle knees bent about 28 deg; head level, not 5-10 deg down.
 - Checks: `npm run check` passes (1625 tests, 37 new); e2e smoke, anim, ctcourse pass. Some unit bounds loosened
   (`prototype: revisit`), e2e-anim spine pitch rate 0.1 -> 0.16 per frame.
+
+## 2026-10-19 - F1a controls, aim, selection wheel, camera
+- Built (Sonnet): CT aim scheme (X / RMB toggles draw; holstered RT lethal palm strike, LT knockout; drawn RT fire, LT
+  secondary stub; A reloads drawn; L3 shoulder swap aiming, back-to-wall otherwise; R3 zoom scoped only); draw 0.3 /
+  0.4 s; D-pad up / down speed, left toggles the wheel-picked vision mode, right quick-uses the gadget; selection
+  wheel on LB / Tab hold (G179), tap switches weapon; camera further over the right shoulder, aim lower and over the
+  shoulder; weapon to the left hand on a left shoulder (`rig.openLeft`). No wire change (protocol 16). Report
+  `F1A-CONTROLS.md`.
+- Stubs: secondary fire; goggle flip visual; client strike is a host knockout; remotes show the gun right-handed; zoom
+  untested (no scoped weapon in the kit).
+- Checks: `npm run check` passes; e2e smoke, pad, mouse, combat pass; ctcourse passed on solo rerun (load).

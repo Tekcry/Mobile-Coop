@@ -32,8 +32,8 @@ describe('settings: remap and hold / toggle (step 18)', () => {
   });
 
   it('garbage button indices are dropped', () => {
-    const s = sanitizeSettings({ ...PRE_STEP_18, pad: { reload: [99, 'X', 1.5, PAD.RB], crouch: [-1], wall: null } });
-    expect(s.pad.reload).toEqual([PAD.RB]);
+    const s = sanitizeSettings({ ...PRE_STEP_18, pad: { draw: [99, 'X', 1.5, PAD.RB], crouch: [-1], wall: null } });
+    expect(s.pad.draw).toEqual([PAD.RB]);
     expect(s.pad.crouch).toEqual([]);
     expect(s.pad.wall).toEqual([PAD.LS]);
     const g = sanitizeSettings({ ...PRE_STEP_18, gameplay: { ...PRE_STEP_18.gameplay, grabToggle: 'yes' } });
@@ -45,14 +45,14 @@ describe('settings: remap and hold / toggle (step 18)', () => {
     st.load(await dbGet('kv', 'settings'));
     expect(st.get().pad).toEqual(defaultPadBinds());
     st.update((d) => {
-      d.pad.reload = [PAD.RS];
+      d.pad.draw = [PAD.RS];
       d.gameplay.grabToggle = false;
       d.gameplay.wallToggle = false;
     });
     await dbPut('kv', 'settings', st.get());
     const back = new SettingsStore();
     back.load(await dbGet('kv', 'settings'));
-    expect(back.get().pad.reload).toEqual([PAD.RS]);
+    expect(back.get().pad.draw).toEqual([PAD.RS]);
     expect(back.get().gameplay.grabToggle).toBe(false);
     expect(back.get().gameplay.wallToggle).toBe(false);
   });
@@ -109,7 +109,7 @@ describe('settings: an old record with a touch section (touch input removed)', (
     gamepad: { lookSensitivityX: 1.4, lookSensitivityY: 1.1, adsMultiplier: 0.5, deadzoneLeft: 0.2, deadzoneRight: 0.12, triggerDeadzone: 0.05, curve: 'classic', invertY: true, aimAssist: 'low', vibration: false },
     mouse: { sensitivity: 1.7, invertY: true, adsMultiplier: 0.6, raw: true },
     keys: { reload: ['KeyT'], crouch: ['KeyC', 'ControlLeft'] },
-    pad: { reload: [PAD.RS] },
+    pad: { draw: [PAD.RS] },
     audio: { master: 0.6, sfx: 0.9, music: 0.25, ui: 0.7, musicV: 3 },
     video: { platform: 'mobile', phoneOutput: 2, phoneSetup: true, preset: 'high', auto: false, renderScale: 0.85, upscaler: 'taau', fpsCap: 144, fovH: 90, hudWidth: '21:9', showFps: true },
     gameplay: { defaultShoulder: 'left', adsToggle: true, crouchToggle: false, slowBeat: true, sprintHold: true, autoRecentre: true, wallToggle: false, grabToggle: false, rumble: 0.5 },
@@ -121,7 +121,7 @@ describe('settings: an old record with a touch section (touch input removed)', (
     expect(Object.keys(s)).toEqual(Object.keys(defaultSettings()));
     expect(s.keys.reload).toEqual(['KeyT']);
     expect(s.keys.crouch).toEqual(['KeyC', 'ControlLeft']);
-    expect(s.pad.reload).toEqual([PAD.RS]);
+    expect(s.pad.draw).toEqual([PAD.RS]);
     expect(s.gamepad).toMatchObject({ lookSensitivityX: 1.4, lookSensitivityY: 1.1, deadzoneLeft: 0.2, invertY: true, aimAssist: 'low', vibration: false });
     expect(s.mouse).toMatchObject({ sensitivity: 1.7, invertY: true });
     expect(s.audio).toMatchObject({ master: 0.6, sfx: 0.9, music: 0.25, ui: 0.7 });

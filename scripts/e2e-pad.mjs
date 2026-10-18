@@ -289,16 +289,16 @@ try {
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
-  // A3 controls (G96): D-pad right / left the speed gear, LB held opens the gadget wheel (a tap does not), D-pad up
-  // cycles the goggles
+  // F1a controls (CT pad, G179): D-pad up / down the max-speed rocker, LB held opens the selection wheel (a tap switches
+  // weapon), D-pad left toggles the vision mode picked on the wheel
   const G = (f) => page.evaluate(f);
   const gear0 = await G(() => window.__app.current.player.controller.maxGear);
-  await press(page, BTN.RIGHT);
+  await press(page, BTN.UP);
   const gearUp = await G(() => window.__app.current.player.controller.maxGear);
-  await press(page, BTN.LEFT);
-  await press(page, BTN.LEFT);
+  await press(page, BTN.DOWN);
+  await press(page, BTN.DOWN);
   const gearDown = await G(() => window.__app.current.player.controller.maxGear);
-  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad right / left step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
+  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
   const holdBtn = async (b, ms, until) => {
     await page.evaluate((b) => window.__pad.set(b, 1), b);
     await page.waitForTimeout(ms);
@@ -309,24 +309,53 @@ try {
     await page.waitForTimeout(150);
     return r;
   };
-  await press(page, BTN.LB);
+  const w0 = await G(() => window.__app.current.weapons.slotIndex);
+  // (a tap at the input layer: down and up inside one frame, so a slow software-GL frame cannot turn it into a hold)
+  await G(() => { const st = window.__app.input.state; st.set('t', 'gadgetWheel', true); st.set('t', 'gadgetWheel', false); });
+  await page.waitForTimeout(600);
   const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
+  const w1 = await G(() => ({ i: window.__app.current.weapons.slotIndex, n: window.__app.current.weapons.slots.length }));
+  assert(!tapWheel && (w1.n < 2 || w1.i !== w0), `LB tap switches weapon and leaves the wheel shut (${w0} -> ${w1.i} of ${w1.n})`);
   const held = await holdBtn(BTN.LB, 700, () => window.__app.current.gadgets.wheelOpen);
-  // (time runs slowed while the wheel is open: give the release a moment under software GL)
   await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
   const shut = await G(() => window.__app.current.gadgets.wheelOpen);
-  assert(!tapWheel && held.wheel && !shut, `LB (quick inventory): a tap leaves the wheel shut, held it opens, released it closes (${tapWheel} / ${held.wheel} / ${shut})`);
+  assert(held.wheel && !shut, `LB held opens the selection wheel, released closes it (${held.wheel} / ${shut})`);
+  // the wheel over the live game: LB held, right stick up pushes the cursor to the vision stack; release picks (the mode goes out to the rim: electro)
+  {
+    await page.evaluate(() => window.__pad.set(4, 1));
+    await page.waitForFunction(() => window.__app.current.gadgets.wheelOpen, null, { timeout: 6000 });
+    const ts = await G(() => window.__app.loop.timeScale);
+    await page.evaluate(() => window.__pad.axis(3, -1));
+    await page.waitForTimeout(700);
+    const seen = await G(() => ({ seg: window.__app.current.gadgets.sel.seg, mode: window.__app.current.gadgets.sel.mode, dom: !!document.querySelector('.selection-wheel:not([hidden])'), tiles: document.querySelectorAll('.selection-wheel .sw-tile:not([hidden])').length, label: document.querySelector('.sw-label-name')?.textContent }));
+    await page.evaluate(() => window.__pad.axis(3, 0));
+    await page.evaluate(() => window.__pad.set(4, 0));
+    await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
+    const sel = await G(() => window.__app.current.vision.selected);
+    assert(ts === 1 && seen.seg === 0 && seen.mode === 'electro' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), cursor up = vision stack (${JSON.stringify(seen)}), release picks electro (${sel})`);
+  }
   const v0 = await G(() => window.__app.current.vision.mode);
-  await press(page, BTN.UP);
+  await press(page, BTN.LEFT);
   await page.waitForTimeout(150);
   const v1 = await G(() => window.__app.current.vision.mode);
-  assert(v0 === 'off' && v1 === 'thermal', `D-pad up: goggles (CT order, instant) (${v0} -> ${v1})`);
-  // (step 14) D-pad up cycles off -> thermal -> electro -> night -> off (CT order, an instant cut)
+  await press(page, BTN.LEFT);
+  await page.waitForTimeout(150);
+  const v2 = await G(() => window.__app.current.vision.mode);
+  assert(v0 === 'off' && v1 === 'electro' && v2 === 'off', `D-pad left toggles the vision picked on the wheel, on then off (${v0} -> ${v1} -> ${v2})`);
+  // vision switched between modes (the wheel with the goggles on): no flip, no off in between
+  {
+    await press(page, BTN.LEFT);
+    await G(() => window.__app.current.gadgets.applyPick({ kind: 'vision', mode: 'thermal' }));
+    const sw = await G(() => ({ mode: window.__app.current.vision.mode, change: window.__app.current.vision.change }));
+    await press(page, BTN.LEFT);
+    assert(sw.mode === 'thermal' && sw.change === 'switch', `picking another mode while on switches live, never a flip (${JSON.stringify(sw)})`);
+  }
+  // (F1a) the legacy cycle-order block, now through the vision object's cycle (instant cuts)
   {
     const vis = () => G(() => ({ mode: window.__app.current.vision.mode, shown: window.__app.current.vision.shown, vk: window.__app.current.post.visionKind }));
     const until = async (want) => {
       let r = await vis();
-      for (let i = 0; i < 60 && (r.mode !== want || r.shown !== want); i++) {
+      for (let i = 0; i < 160 && (r.mode !== want || r.shown !== want || r.vk !== (want === 'electro' ? 2 : 0)); i++) {
         await page.waitForTimeout(50);
         r = await vis();
       }
@@ -335,17 +364,16 @@ try {
     const seq = [];
     // (let the held-View release settle before the next tap)
     await page.waitForTimeout(400);
-    const start = (await vis()).mode;
-    if (start !== 'thermal') throw new Error(`vision start ${start}`);
+    await G(() => window.__app.current.vision.set('thermal'));
     for (const want of ['electro', 'night', 'off']) {
-      await press(page, BTN.UP);
+      await G(() => window.__app.current.vision.cycle());
       seq.push(await until(want));
     }
     const ok = seq[0].mode === 'electro' && seq[0].vk === 2 && seq[1].mode === 'night' && seq[1].vk === 0 && seq[2].mode === 'off' && seq[2].vk === 0;
-    assert(ok, `D-pad up x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) (${JSON.stringify(seq)})`);
+    assert(ok, `cycle x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) (${JSON.stringify(seq)})`);
   }
-  // (step 09) holstered unless aiming: LT draws (<= 0.45 s), RT then fires; release holsters (<= 0.45 s); RT while
-  // holstered does nothing (fixed steps, the pad polled every step)
+  // (F1a, CT) holstered unless drawn: X draws (a toggle), RT then fires, X again holsters; RT while holstered is the lethal
+  // strike (fixed steps, the pad polled every step)
   const dr = await G(() => {
     const g = window.__app.current;
     const L = window.__app.loop;
@@ -358,6 +386,18 @@ try {
         t += 1 / 60;
       }
       return t;
+    };
+    const tapX = () => {
+      window.__pad.set(2, 1);
+      L.stepHeadless(1 / 60);
+      window.__pad.set(2, 0);
+      L.stepHeadless(1 / 60);
+    };
+    const tapA = () => {
+      window.__pad.set(0, 1);
+      L.stepHeadless(1 / 60);
+      window.__pad.set(0, 0);
+      L.stepHeadless(1 / 60);
     };
     const s0 = shots();
     // (fix 1) RT held while holstered never raises the carry (no aiming twist, no MoveState r, no turn rates)
@@ -376,31 +416,35 @@ try {
     const struck = g.strike.count.started > 0;
     until(() => !g.strike.active, 2);
     const s1 = shots();
-    window.__pad.set(6, 1);
+    // (F1a, CT) X draws (a toggle: no held aim button); the draw is about half of G103's
+    tapX();
     const tDraw = until(() => w.drawPhase === 2, 2);
-    until(() => g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 2); // A2.1: the carry raise (~0.7 s) gates the trigger
+    const adsAfterDraw = g.player.ads;
+    until(() => g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 2); // the carry raise gates the trigger
     window.__pad.set(7, 1);
     L.stepHeadless(0.3);
     window.__pad.set(7, 0);
     const s2 = shots();
+    // LT drawn is the secondary fire (a stub: it fires like RT)
+    L.stepHeadless(0.3);
+    const s2b = shots();
+    window.__pad.set(6, 1);
+    L.stepHeadless(0.3);
     window.__pad.set(6, 0);
+    const s2c = shots();
+    tapX();
+    const adsAfterHolster = g.player.ads;
     const tHol = until(() => w.drawPhase === 0, 2);
-    // (A43) releasing aim mid-reload finishes the reload, then holsters
-    const tapX = () => {
-      window.__pad.set(2, 1);
-      L.stepHeadless(1 / 60);
-      window.__pad.set(2, 0);
-      L.stepHeadless(1 / 60);
-    };
+    // (A43) holstering mid-reload finishes the reload, then holsters
     const cur = w.current;
     cur.mag = Math.max(0, cur.stats.magSize - 3);
     if (cur.reserve < 10) cur.reserve = 60;
-    window.__pad.set(6, 1);
-    until(() => w.drawPhase === 2 && g.player.cam.ads >= 0.9, 2);
     tapX();
+    until(() => w.drawPhase === 2 && g.player.cam.ads >= 0.9, 2);
+    tapA(); // A while drawn reloads
     const relReloading = w.reloading;
     L.stepHeadless(0.2);
-    window.__pad.set(6, 0);
+    tapX(); // holster mid-reload
     let relDrop = false;
     const relT = until(() => {
       if (w.reloading && w.drawPhase !== 2) relDrop = true;
@@ -411,8 +455,9 @@ try {
     // (A43) reload pressed while holstered: draws to low ready, reloads, holsters; RT held throughout never fires
     cur.mag = Math.max(0, cur.stats.magSize - 3);
     const s3 = shots();
-    // (step 10: RT pressed while holstered is the elbow strike, so RT goes down as the reload's draw starts)
-    tapX();
+    // (step 10: RT pressed while holstered is the strike, so RT goes down as the reload's draw starts; the reload is the key R on
+    // the keyboard: the pad's A is interact while holstered)
+    window.__app.input.state.tap('reload');
     window.__pad.set(7, 1);
     const hDraw = until(() => w.reloading, 2);
     const hDrawn = w.drawPhase === 2 && !g.player.ads;
@@ -421,17 +466,18 @@ try {
     const hHol = until(() => w.drawPhase === 0, 2);
     window.__pad.set(7, 0);
     const s4 = shots();
-    return { struck, s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
+    return { struck, s0, s1, s2, s2b, s2c, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
-    `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 0.9 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
-  assert(dr.struck, 'RT while holstered: an elbow strike (step 10)');
+    `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
+  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.struck, 'RT while holstered: the lethal palm strike (step 10, F1a)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
-  assert(dr.tDraw <= 0.85, `LT draws within 0.85 s (G103: 0.6 pistol, 0.75 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
+  assert(dr.tDraw <= 0.5 && dr.adsAfterDraw, `X draws within 0.5 s and stays drawn with no button held (F1a: 0.3 pistol / 0.4 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
-  assert(dr.tHol <= 0.65, `LT released holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
+  assert(dr.s2c > dr.s2b, `drawn, LT is the secondary fire (a stub: fires too) (${dr.s2b} -> ${dr.s2c})`);
+  assert(dr.tHol <= 0.65 && !dr.adsAfterHolster, `X again holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);
@@ -450,7 +496,7 @@ try {
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
 
-  console.log('palm strike (RT while holstered)');
+  console.log('palm strike (RT while holstered: lethal; LT: knockout)');
   {
     const S = await strikePage(launch, url);
     try {
@@ -465,19 +511,31 @@ try {
           window.__pad.set(7, 0);
           k.step(1);
         };
+        const lt = () => {
+          window.__pad.set(6, 1);
+          k.step(2);
+          window.__pad.set(6, 0);
+          k.step(1);
+        };
         const out = {};
-        // behind an unaware guard: knocked out at contact (about 0.12 s)
+        // behind an unaware guard: killed at contact (about 0.12 s, F1a: RT is the lethal strike)
         let e = k.setup('grunt', false, 0);
         rt();
         out.started = g.strike.active;
         out.tKo = 3 / 60 + k.until(() => !e.alive, 1.5);
-        out.ko = !e.alive && e.ko;
+        out.ko = !e.alive && !e.ko;
+        k.until(() => !g.strike.active, 2);
+        // LT is the knockout
+        e = k.setup('grunt', false, 0);
+        lt();
+        k.until(() => !e.alive, 1.5);
+        out.ltKo = !e.alive && e.ko;
         k.until(() => !g.strike.active, 2);
         // (A4, G42) an aware guard facing: one hit, no stagger
         e = k.setup('grunt', true, Math.PI);
         rt();
         k.until(() => !e.alive, 1);
-        out.facing = { ko: !e.alive && e.ko, stag: g.strike.count.stagger };
+        out.facing = { ko: !e.alive, stag: g.strike.count.stagger };
         k.until(() => !g.strike.active, 2);
         // (G155) a heavy from the front: one hit too
         e = k.setup('heavy', true, Math.PI);
@@ -493,9 +551,10 @@ try {
         out.miss = g.strike.count.miss;
         return out;
       });
-      assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.3)`);
-      assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit, knocked out (${JSON.stringify(r.facing)})`);
-      assert(!r.heavy.alive && r.heavy.ko, `a heavy from the front: knocked out too (${JSON.stringify(r.heavy)})`);
+      assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: killed in ${r.tKo.toFixed(2)} s (<= 0.3)`);
+      assert(r.ltKo, 'LT holstered: the knockout (the guard goes down knocked out, not killed)');
+      assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit (${JSON.stringify(r.facing)})`);
+      assert(!r.heavy.alive, `a heavy from the front: down too (${JSON.stringify(r.heavy)})`);
       assert(r.whiffRecover >= 0.4 && r.whiffRecover <= 0.65 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s after contact time (0.5 s)`);
     } finally {
       await S.browser.close();
@@ -521,7 +580,7 @@ try {
         const out = {};
         k.setup(null);
         // the rocker: up to the maximum gear 5 (it never reaches 6)
-        for (let i = 0; i < 5; i++) btn(15);
+        for (let i = 0; i < 5; i++) btn(12);
         out.max5 = c.maxGear;
         // analog: raw stick 50 / 80 / 100% forward (A63) -> gears 2 / 4 / 5
         // (each from the same spot, facing open floor: 0.5 s of travel)
@@ -542,8 +601,8 @@ try {
         P.axis(1, 0);
         k.step(40);
         // rocker down twice: maximum 3 caps the full stick at gear 3's 1.65 m/s (step 22, M14)
-        btn(14);
-        btn(14);
+        btn(13);
+        btn(13);
         out.max3 = c.maxGear;
         out.cap = at(1);
         P.axis(1, 0);
@@ -553,25 +612,26 @@ try {
         out.crouch = c.crouched;
         btn(1);
         out.stand = !c.crouched;
-        // (A3, G96) RB is the co-op action and LB the quick inventory now: no pad weapon-swap buttons. R3 swaps the shoulder,
-        // D-pad down held aims the gadget
+        // (F1a, CT) L3 swaps the shoulder only while aiming (X drew the weapon); R3 zooms (scoped weapons only); D-pad right held
+        // aims the selected gadget
         out.rb = true;
         out.lb = true;
         const sh0 = g.player.cam.shoulder;
-        btn(11); // A2.1 (G17): not aiming, R3 does nothing
+        btn(10); // not aiming, L3 is the wall button (no wall here) and swaps nothing
         const r3Idle = g.player.cam.shoulder === sh0;
-        P.set(6, 1);
+        btn(2); // X draws
         k.step(60);
-        btn(11);
-        out.r3 = r3Idle && g.player.cam.shoulder === -sh0;
-        btn(11);
-        P.set(6, 0);
+        btn(10);
+        out.r3 = r3Idle && g.player.cam.shoulder === -sh0 && g.player.ads;
+        out.leftHand = g.player.rig.openLeft;
+        btn(10);
+        btn(2); // X holsters
         k.step(40);
-        P.set(13, 1);
+        P.set(15, 1);
         k.step(20);
         out.gadgetAim = g.gadgets.aiming;
         g.gadgets.aiming = false;
-        P.set(13, 0);
+        P.set(15, 0);
         k.step(5);
         g.gadgets.aiming = false;
         // rumble: a landing (2 m drop), a shot, an elbow hit, a takedown; the fake pad records every playEffect
@@ -584,14 +644,15 @@ try {
         k.step(10);
         out.land = fx();
         P.effects.length = 0;
-        P.set(6, 1);
-        k.step(75); // A2.1: draw 0.6-0.75 s (G103)
+        btn(2); // X draws
+        k.until(() => g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 3); // F1a: draw 0.3-0.4 s
+        out.shotDbg = { dw: g.weapons.drawPhase, ads: g.player.ads, cam: g.player.cam.ads, raise: g.player.carry.raise, cls: g.weapons.current.def.class, mag: g.weapons.current.mag, tr: g.player.pose.traverse };
         P.set(7, 1);
         k.step(3);
         P.set(7, 0);
         k.step(10);
-        P.set(6, 0);
-        k.step(40);
+        btn(2); // X holsters
+        k.until(() => g.weapons.drawPhase === 0, 2);
         out.shot = fx();
         P.effects.length = 0;
         const e = k.setup('grunt', false, 0);
@@ -622,15 +683,16 @@ try {
         return out;
       });
       console.log(JSON.stringify(r));
-      assert(r.max5 === 5, `D-pad right sets the maximum gear, capped at 5 (${r.max5})`);
+      assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
       assert(r.a50.g === 3 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> speeds 3 / 4 / 5 (CT M1) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
       // (CT prototype M1) speeds 3 / 4 / 5 = 2.0 / 3.0 / 4.2 m/s
       assert(Math.abs(r.a50.v - 2.0) < 0.15 && Math.abs(r.a80.v - 3.0) < 0.2 && Math.abs(r.a100.v - 4.2) < 0.25, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
       assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, still speed 5 (${JSON.stringify(r.sprint)})`);
-      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad left x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
-      assert(r.r3, 'R3 swaps the shoulder');
-      assert(r.gadgetAim, 'D-pad down held aims the gadget');
+      assert(r.r3, 'L3 swaps the shoulder while aiming (X drew), not otherwise');
+      assert(r.leftHand, 'the weapon goes to the left hand on the left shoulder');
+      assert(r.gadgetAim, 'D-pad right held aims the gadget');
       assert(r.land.some((s) => ['0.15/0.25/60', '0.35/0.45/110', '0.80/0.80/200'].includes(s)), `rumble on landing (${r.land})`);
       assert(r.shot.some((s) => ['0.12/0.20/45', '0.40/0.55/80'].includes(s)), `rumble on a shot (${r.shot})`);
       assert(r.elbow.includes('0.50/0.30/90'), `rumble on an elbow hit (${r.elbow})`);
@@ -778,7 +840,7 @@ try {
       await W.browser.close();
     }
   }
-  console.log('wall edge verb (step 12, D1; A3): stick-to-edge peek at once, LT leaves the wall, A corner takedown');
+  console.log('wall edge verb (step 12, D1; A3): stick-to-edge peek at once, X (draw) leaves the wall, A corner takedown');
   {
     const W = await launch({ url, params: 'autostart=proving' });
     try {
@@ -805,17 +867,21 @@ try {
         const peek = k.st();
         P.axis(0, 0);
         k.step(30);
-        // LT: aiming leaves the wall
-        P.set(6, 1);
+        // X: drawing the weapon (aiming) leaves the wall
+        P.set(2, 1);
+        k.step(3);
+        P.set(2, 0);
         k.step(20);
         const aim = k.st();
-        P.set(6, 0);
+        P.set(2, 1);
+        k.step(3);
+        P.set(2, 0);
         k.step(30);
         return { on, peek, aim };
       });
       assert(r.on.phase === 'on', `pad L3 enters the doorway wall (${JSON.stringify(r.on)})`);
       assert(r.peek.peekOn && (r.peek.sub & 16) !== 0 && r.peek.cam === 1, `stick toward the edge: peek at once (${JSON.stringify(r.peek)})`);
-      assert(r.aim.phase !== 'on' && r.aim.phase !== 'entering', `LT (aim) leaves the wall (${r.aim.phase})`);
+      assert(r.aim.phase !== 'on' && r.aim.phase !== 'entering', `X (draw) leaves the wall (${r.aim.phase})`);
     } finally {
       await W.browser.close();
     }
@@ -829,7 +895,7 @@ try {
       await C.browser.close();
     }
   }
-  console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, reload X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
+  console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, draw X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
   {
     const R = await launch({ url });
     try {
@@ -848,20 +914,20 @@ try {
       const pad = () => G(() => window.__app.settings.get().pad);
       const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
       assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
-      // X on a slot clears it (menu-ui SPEC 7.12): R3 off Swap shoulder
-      await focusSlot('shoulder:0');
+      // X on a slot clears it (menu-ui SPEC 7.12): R3 off Zoom
+      await focusSlot('zoom:0');
       await press(P, BTN.X);
-      assert((await pad()).shoulder.length === 0, 'X clears the focused slot (R3 off Swap shoulder)');
-      // A, then R3: reload moves from X to R3
-      await focusSlot('reload:0');
+      assert((await pad()).zoom.length === 0, 'X clears the focused slot (R3 off Zoom)');
+      // A, then R3: draw / holster moves from X to R3
+      await focusSlot('draw:0');
       await press(P, BTN.A);
-      const listening = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).classList.contains('listening'), panel);
+      const listening = await G((p) => document.querySelector(`${p} .pad-key[data-bind="draw:0"]`).classList.contains('listening'), panel);
       await press(P, BTN.RS);
       let v = await view();
-      const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).textContent, panel);
-      assert(listening && JSON.stringify((await pad()).reload) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds reload (${lab}, conflicts "${v.rows}")`);
+      const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="draw:0"]`).textContent, panel);
+      assert(listening && JSON.stringify((await pad()).draw) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds draw (${lab}, conflicts "${v.rows}")`);
       // (G22, MD13) a capture is cancelled by Menu / Start (the screen stays, the overlay goes, nothing binds)
-      await focusSlot('reload:1');
+      await focusSlot('draw:1');
       await press(P, BTN.A);
       const ov = await G(() => ({ o: !!document.querySelector('.cap-overlay'), n: document.querySelector('.cap-overlay .cap-count')?.textContent }));
       await press(P, BTN.START);
@@ -869,8 +935,8 @@ try {
       await P.waitForTimeout(300);
       v = await view();
       const ovGone = await G(() => !document.querySelector('.cap-overlay'));
-      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
-      // play: the new button reloads, X does not (settings persist through IndexedDB to a new page)
+      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).draw) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
+      // play: the new button draws, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
       const Q = await openPage(R.ctx, url, 'autostart=proving');
       try {
@@ -897,12 +963,12 @@ try {
             window.__pad.set(b, 0);
             step(3);
           };
-          acts.clear();
+          const pl = a.current.player;
           btn(2);
-          const x = acts.has('reload');
-          acts.clear();
+          const x = pl.ads;
           btn(11);
-          const r3 = acts.has('reload');
+          const r3 = pl.ads;
+          btn(11);
           s.tap = tap0;
           // crouch: toggle (default), then hold
           btn(1);
@@ -916,9 +982,9 @@ try {
           window.__pad.set(1, 0);
           step(10);
           const h2 = c.crouched;
-          return { x, r3, t1, t2, h1, h2, pad: a.settings.get().pad.reload };
+          return { x, r3, t1, t2, h1, h2, pad: a.settings.get().pad.draw };
         });
-        assert(r.r3 && !r.x && JSON.stringify(r.pad) === '[11]', `in play R3 reloads, X does not (${JSON.stringify(r)})`);
+        assert(r.r3 && !r.x && JSON.stringify(r.pad) === '[11]', `in play R3 draws, X does not (${JSON.stringify(r)})`);
         assert(r.t1 && !r.t2 && r.h1 && !r.h2, `crouch toggle (B, B) and hold (held, released) (${JSON.stringify(r)})`);
         // back to a wall: hold mode stays while L3 is held, toggle mode stays after the release
         await Q.page.evaluate(WALL_HARNESS);
@@ -950,11 +1016,11 @@ try {
         await Q.page.close();
       }
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
-      await focusSlot('reload:0');
+      await focusSlot('draw:0');
       await press(P, BTN.A);
       await press(P, BTN.B);
       v = await view();
-      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).reload) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
+      assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
       // Y: Reset all asks first, Cancel focused (MD18); right then A resets
       await press(P, BTN.Y);
       await P.waitForFunction(() => !!document.querySelector('.dialog-screen'), null, { timeout: 3000 }).catch(() => {});
@@ -965,7 +1031,7 @@ try {
       await P.waitForTimeout(200);
       v = await view();
       const def = await pad();
-      assert(JSON.stringify(def.reload) === '[2]' && JSON.stringify(def.shoulder) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.reload)})`);
+      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)})`);
     } finally {
       await R.browser.close();
     }
