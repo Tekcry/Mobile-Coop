@@ -83,6 +83,22 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   return (M.stepLen0 + M.stepLenK * Math.max(0, speed)) * (1 - 0.4 * lateral * lateral);
 }
 
+/** (A1.2) One step per this much body turn (rad): a spin is the walk cycle on a tight circle, ~4 steps per 360 (footage 051339). */
+export const TURN_STEP = Math.PI / 2;
+/** (A1.2) Turning faster than this (rad/s) steps the feet even at no pace (a spin at a crawl still steps). */
+export const TURN_GAIT_MIN = 1.0;
+
+/**
+ * (A1.2) Gait rate (cycles/s) from ground distance AND body turning: the larger of the linear rate (two steps per
+ * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
+ * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
+ */
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral)) : 0;
+  const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
+  return lin > ang ? lin : ang;
+}
+
 /**
  * Root speed multiplier through a stride (phase 0..1, two steps per cycle): a small dip at each heel
  * strike (phase 0 and 0.5) and a swell mid-stance; averages exactly 1 over a step.
@@ -132,6 +148,11 @@ export class MotionDriver {
   private paceSpring = new Spring();
   /** (CT prototype M1) Walking backwards at the slowest speed (the velocity runs opposite the facing). */
   backward = false;
+  /** (A1.2) Where the body is turning to: the stick heading while free and pushed, else the facing (caps the planner's yaw prediction). */
+  faceGoal = 0;
+  /** (A1.2) The stick heading last step (NaN: none) and its smoothed sweep rate (rad/s). */
+  private stickPrev = Number.NaN;
+  private stickRate = 0;
 
   constructor(yaw = 0) {
     this.yaw = yaw;
@@ -315,10 +336,22 @@ export class MotionDriver {
     const free = i.faceTravel && !i.aiming;
     let target = pushed ? want : 0;
     if (!free) this.backward = false;
+    this.faceGoal = this.yaw;
+    if (!pushed || !free) {
+      this.stickPrev = Number.NaN;
+      this.stickRate = 0;
+    }
     if (pushed) {
       const th = Math.atan2(i.vx, i.vz);
       if (this.state !== 'move') this.go('move');
       if (free) {
+        // (A1.2) a stick swept round (a held spin) leads its own heading: the goal runs ahead by its sweep rate x 0.25 s
+        // (a flick is one jump, not a sweep: per-step changes over 0.3 rad do not count)
+        const dTh = Number.isNaN(this.stickPrev) ? 0 : wrapPi(th - this.stickPrev);
+        this.stickPrev = th;
+        const sw = Math.abs(dTh) > 0.3 ? 0 : dTh / dt;
+        this.stickRate += (sw - this.stickRate) * (1 - Math.exp(-dt / 0.1));
+        this.faceGoal = wrapPi(th + Math.max(-1, Math.min(1, this.stickRate * 0.25)));
         const d = wrapPi(th - this.yaw);
         const ad = Math.abs(d);
         // the slowest speed walks backwards when the stick is pulled behind; any faster speed turns round
@@ -372,9 +405,10 @@ export class MotionDriver {
   private finish(dt: number, i: MotionInput, M: MotionTuning): void {
     // --- gait clock and stride modulation
     const sp = this.speed;
-    if (sp > 0.02) {
-      const lat = Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp);
-      this.phase = (this.phase + (sp / (2 * stepLength(sp, M, lat))) * dt) % 1;
+    // (A1.2) the clock counts body turning as well as distance: one step per 90 deg (a spin at a crawl still steps)
+    if (sp > 0.02 || Math.abs(this.yawRate) > TURN_GAIT_MIN) {
+      const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
+      this.phase = (this.phase + gaitRate(sp, this.yawRate, M, lat) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

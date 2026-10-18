@@ -119,3 +119,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   e2e-editor (Kestrel / editor, off-limits area, D-pad rebinds). e2e-coop and e2e-netmove known flaky. All read as
   stale assertions from slices A3-B2 that changed controls and moves (no play breakage seen in the logs); queued as a
   test cleanup slice (T1) in POLISH.md.
+
+## 2026-10-19 - P1 Wren posture and leg fix (Opus)
+- Michael via the main session: "fix the characters posture" (in game; leg fix is prototype work).
+- Built: A1.2 turn fix (one step per 90 deg, landing along the turn, stride along the facing, no crossing, pelvis
+  trails chest up to 20 deg, knees between hips and toes; twist cap 52 deg from the body). Guards and partner share it;
+  protocol 16. Posture on Wren: crouch spine 34-39 deg, crouch hip 0.51-0.59 of standing, head top 0.64-0.68, run lean
+  22 deg, idle knee 152 deg, feet on the ground. Report `P1-POSTURE.md`.
+- Still wrong: a held spin still turns planted feet a lot; idle knees bent about 28 deg; head level, not 5-10 deg down.
+- Checks: `npm run check` passes (1625 tests, 37 new); e2e smoke, anim, ctcourse pass. Some unit bounds loosened
+  (`prototype: revisit`), e2e-anim spine pitch rate 0.1 -> 0.16 per frame.

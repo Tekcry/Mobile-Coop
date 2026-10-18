@@ -38,7 +38,8 @@ export const IDLE = makeClip({
   duration: 4.8,
   loop: true,
   keys: {
-    pelY: [0, -0.035, 1.2, -0.031, 2.4, -0.035, 3.6, -0.031],
+    // (P1 posture) knees near straight standing (footage: no visible bend): was -0.035 (36 deg of knee bend)
+    pelY: [0, -0.01, 1.2, -0.007, 2.4, -0.01, 3.6, -0.007],
     // slow weight shifts between the feet
     pelX: [0, 0.006, 2.4, -0.006],
     pelPitch: [0, 0.07, 2.4, 0.075],
@@ -52,7 +53,8 @@ export const CROUCH_IDLE = makeClip({
   duration: 4.2,
   loop: true,
   keys: {
-    pelY: [0, -0.36, 1.05, -0.355, 2.1, -0.36, 3.15, -0.355],
+    // (P1 posture) deeper crouch toward the footage hip ~0.48 of standing: was -0.36
+    pelY: [0, -0.42, 1.05, -0.415, 2.1, -0.42, 3.15, -0.415],
     pelPitch: [0, 0.28, 2.1, 0.29],
     pelX: [0, 0.004, 2.1, -0.004],
     spPitch: [0, 0, 1.05, -0.01, 2.1, 0, 3.15, -0.01],
@@ -179,7 +181,7 @@ export const CROUCH_WALK = makeClip({
   duty: 0.68,
   liftH: 0.045,
   keys: {
-    pelY: bob(-0.36, 0.012, 0.004),
+    pelY: bob(-0.42, 0.012, 0.004), // (P1) was -0.36
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.025),
     pelYaw: twist(0.05),
@@ -224,7 +226,7 @@ export const SNEAK = makeClip({
   duty: 0.74,
   liftH: 0.04,
   keys: {
-    pelY: bob(-0.4, 0.008, 0.003),
+    pelY: bob(-0.46, 0.008, 0.003), // (P1) was -0.4
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.02),
     pelYaw: twist(0.035),
@@ -242,7 +244,7 @@ export const CROUCH_RUN = makeClip({
   duty: 0.52,
   liftH: 0.085,
   keys: {
-    pelY: bob(-0.32, 0.02, 0.01),
+    pelY: bob(-0.38, 0.02, 0.01), // (P1) was -0.32
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.08),

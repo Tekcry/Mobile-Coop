@@ -368,6 +368,9 @@ export class Player {
     rp.velX = c.override?.kinematic ? undefined : m.outX;
     rp.velZ = c.override?.kinematic ? undefined : m.outZ;
     rp.goalYaw = m.goalYaw;
+    // (A1.2) free movement strides along the facing; aiming, the wall and traversal follow the velocity
+    rp.stride = c.ct && this.carry.raise <= 0.5 && !cp.wall ? 'facing' : 'velocity';
+    rp.faceGoal = m.faceGoal;
     // anticipation at render rate: the stick this frame against the current pace, along the body
     if (move && this.alive && !c.override) {
       const mag = Math.min(1, hyp2(move.x, move.y));

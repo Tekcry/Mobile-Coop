@@ -15,7 +15,7 @@
 import type { Proportions } from '../player/proportions';
 import { overClip, addClip, type Clip } from './clip';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
-import { stepLength, type MotionState } from './motion';
+import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import {
@@ -228,7 +228,8 @@ export interface RigTargets {
   /** Ideal stance per foot (root space, m) and heel raise / pitch offsets. */
   stance: { lX: number; lZ: number; rX: number; rZ: number; lY: number; rY: number; lPitch: number; rPitch: number };
   /** Gait values for the foot planner. */
-  gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean };
+  /** (A1.2) `turning` 0..1: how much of the cadence comes from body turning. */
+  gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean; turning: number };
   /** Whole-body tumble about the hips (rad, forward): the landing roll. */
   tumble: number;
   /** Layer weights for the debug overlay. */
@@ -261,7 +262,7 @@ export function emptyTargets(): RigTargets {
     handL: { x: 0, y: 0, z: 0 },
     handR: { x: 0, y: 0, z: 0 },
     stance: { lX: -0.11, lZ: 0.04, rX: 0.11, rZ: -0.02, lY: 0, rY: 0, lPitch: 0, rPitch: 0 },
-    gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false },
+    gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false, turning: 0 },
     tumble: 0,
     layers: {},
     weaponBob: 0,
@@ -459,7 +460,10 @@ export class AnimGraph {
   private hit = new Spring();
   private hitSide = 0;
   private recoil = new Spring();
-  private yawLag = new Spring();
+  /** (P1 posture) Weight of the Chaos Theory carriage lean (grounded, off walls and traversals), eased. */
+  private carriageS = 1;
+  /** (P1 posture) The carriage lean (rad), rate-limited. */
+  private leanS = 0;
   private support = 0;
   private pelBase = new Spring(-0.04);
   /** Support hand foregrip weight (eased: a draw / holster enters and leaves the swap clip mid-clip). */
@@ -595,7 +599,8 @@ export class AnimGraph {
     this.stillT = still ? this.stillT + dt : 0;
     this.idleT += dt;
     if (i.phase >= 0) this.phase = i.phase;
-    else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
+    // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
+    else if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i)) * dt) % 1;
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
     // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
@@ -787,13 +792,23 @@ export class AnimGraph {
     const hd = this.leanHead.step(headTarget, peekOut ? 34 : 18, dt);
     const bodyTarget = peekOut ? (Math.abs(hd) > Math.abs(leanIn) * 0.55 ? leanIn : 0) : 0;
     const bd = this.leanBody.step(bodyTarget, 24, dt);
-    const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
-    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
+    // (A1.2) no spine lag behind the turn: the chest keeps the facing, the pelvis follows the legs (rig, turnFollow)
+    // (P1 posture, ct-measure-speeds-stops-posture.md s.4) Chaos Theory carriage: crouched the back leans ~38 deg forward
+    // (footage 35-45), the run leans ~23 deg; lowered only (a raised weapon keeps its platform), off a wall or a traversal
+    // (eased: a one-frame grounded flicker as the capsule stands up popped the spine 0.23 rad)
+    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - wallW : 0, 0.08, dt);
+    const carriage = (1 - raise) * this.carriageS;
+    const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
+    // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
+    const leanT = (crouchK * POSTURE.crouchLean + runK * POSTURE.runLean) * carriage;
+    this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
+    const postureLean = this.leanS;
+    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
     // (21w, PC-PASS 42) continuous through the open-side hand switch (the sign flipped the chest, head and sight roll
     // in one frame at the half-way point)
     const handS = clamp(i.hand, -1, 1);
-    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0) + yl;
+    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0);
     src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
@@ -1109,8 +1124,16 @@ export class AnimGraph {
     const g = o.gait;
     g.phase = ph;
     // near the end of a stop the gait clock crawls: hand the last step to deliberate idle stepping
-    g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
-    g.cycleTime = s > 0.05 ? (2 * stepLength(s, undefined, lateralShare(i))) / s : 1.2;
+    // (A1.2) turning steps the feet too (one step per 90 deg), not on a wall, a traversal or a stepped turn chunk
+    const lat = lateralShare(i);
+    const canTurn = !i.wall && i.traverse === 'none' && i.motion !== 'turn' && i.motion !== 'stop';
+    const yr = canTurn ? Math.abs(i.yawRate) : 0;
+    g.moving = (s > (i.motion === 'stop' ? 0.3 : 0.05) || yr > TURN_GAIT_MIN) && i.grounded;
+    const rate = gaitRate(s > 0.05 ? s : 0, yr, undefined, lat);
+    g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat) : 0;
+    const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
+    g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
     // (step 22, D5.1) duty and lift at the effort pace, as the clips the pose blends
     const es = effortSpeed(s, i.crouch > 0.5);
@@ -1120,7 +1143,8 @@ export class AnimGraph {
     const kk = clamp((es - na.speed) / (nb.speed - na.speed), 0, 1);
     const duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
     const lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
-    g.duty = clamp(duty, 0.4, 0.75);
+    // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
+    g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
     // layer weights for the overlay
     const ly = o.layers;
@@ -1152,6 +1176,14 @@ function lateralShare(i: AnimInput): number {
 /** Index of the lower node bracketing a speed in a forward node set. */
 /** (step 22, D5.2) Acceleration lean: rad per m/s^2 along the body, and its cap (rad). */
 const LEAN_GAIN = 0.012;
+/** (A1.2) Stance share of the gait cycle in a full-rate turn (shorter stance: less body yaw over a planted foot). */
+const TURN_DUTY = 0.52;
+/**
+ * (P1 posture) Extra spine pitch (rad, forward +) for the Chaos Theory carriage: `crouchLean` crouched (total ~38 deg
+ * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
+ * the lean changes at most `rate` rad/s.
+ */
+export const POSTURE = { crouchLean: 0.62, runLean: 0.37, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
 const LEAN_MAX = 0.09;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;

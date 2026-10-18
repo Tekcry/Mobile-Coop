@@ -374,6 +374,8 @@ export class RemoteAvatar {
       carry: this.carryW,
       kick: this.kick,
       wall: mp.wall,
+      // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
+      stride: this.aim > 0.5 || mp.wall ? 'velocity' : 'facing',
       wallSide: mp.wallSide,
       wallNx: this.wallNx,
       wallNz: this.wallNz,

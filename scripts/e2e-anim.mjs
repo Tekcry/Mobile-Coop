@@ -334,7 +334,9 @@ try {
       // not pops): the ankle pitches (31 / 35, fLPitch / fRPitch) 0.15 - standing from a kneel releases a
       // 1.2 rad toe flex within the 0.28 s stance change; weapon pitch (15, wpPitch) 0.14 - the 0.8 rad
       // low ready (muzzle ~45 deg down) -> aim within the 120-200 ms raise
-      const allow = (i) => (i === 31 || i === 35 ? 0.15 : i === 15 ? 0.14 : 0.1);
+      // prototype: revisit (P1 posture) spine pitch (6, spPitch) 0.16 - the CT crouch lean (~0.6 rad in ~0.25 s, footage
+      // stand -> crouch 0.2-0.25 s) rides on the crouch blend's own spine change
+      const allow = (i) => (i === 31 || i === 35 ? 0.15 : i === 15 ? 0.14 : i === 6 ? 0.16 : 0.1);
       const known = window.__seg === 'aim' || window.__seg === 'sprint';
       if (known) knownLimited += rig.limited - lastLimited;
       lastLimited = rig.limited;
