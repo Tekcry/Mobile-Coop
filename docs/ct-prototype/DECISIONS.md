@@ -12,6 +12,9 @@ Michael's words quoted verbatim; they move to `docs/DECISIONS.md` as G entries a
 | 2026-10-18 | Sneak posture | "The characters crouching posture changes when in vicinity of an enemy and sneaking slowly, almost like trying to be quieter and moving on tippy toes and over exaggerated balancing." | - |
 | 2026-10-18 | Camera code (review) | "Rewrite core (Recommended)": rewrite the framing and follow core of the shoulder camera; keep collision and near-plane code | - |
 | 2026-10-18 | Turn follow (M1 note 3) | "Hips and legs seem to follow the body to prevent clipping or awkward stances when walking in circles or turning etc based off ct footage. Must review before making changes" | - |
+| 2026-10-18 | Job shape (2) | "Prototype pass now (Recommended)": build each area once to the decision numbers, light tests, a short play, notes logged; fine tuning and Wren posture in a second pass after all five areas exist | G150 tune-until-sign-off per area (back to G4 for the first pass) |
+| 2026-10-18 | Orchestrator model | "Keep Opus orchestrator"; implementers stay Sonnet, medium | - |
+| 2026-10-18 | Stops | "After each area (Recommended)": five short stops (camera, body, wall and doors, strike and grab, goggles) | - |
 | 2026-10-18 | Turn follow plan | "Build 3 fixes, then play": after the camera round, scale turn rate with speed, planted feet follow the body in every state, remove reversal-pivot leftovers and fix the crossing guard (A1-TURN-FOOTAGE.md) | - |
 | 2026-10-18 | Wall, doors, pad (review) | "Adjust, new pad (Recommended)": adjust wall and doors; rewrite the pad and key tables to CT's layout | - |
 | 2026-10-18 | Other areas (review) | "Adjust all (Recommended)": body, anim graph, strike and grab, goggles, co-op wire are adjusted | - |

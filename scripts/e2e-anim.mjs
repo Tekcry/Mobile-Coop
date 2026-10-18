@@ -212,8 +212,8 @@ try {
     const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
     t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
     // (step 09) holstered unless aiming: aim draws first (0.3-0.4 s), the raise runs from the drawn hands
-    const raise = t.run(1.0, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
-    const lower = t.run(0.6, {}, (s) => [s, p.carry.raise]);
+    const raise = t.run(1.6, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
+    const lower = t.run(1.0, {}, (s) => [s, p.carry.raise]);
     return { down, up, minMoving: Math.min(...moving), raise, lower };
   });
   const crouchT = stance.down.find(([, v]) => v >= 0.999)?.[0] ?? 99;
@@ -222,13 +222,13 @@ try {
   // (step 22, M14 N6) gear 4 crouched is 1.5 m/s now (was 1.8): the pace eases down onto it, minus the stride dip
   assert(stance.minMoving > 1.3, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
   const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
-  assert(drawnT <= 0.45, `aim draws first: drawn in ${f2(drawnT)} s (<= 0.45)`);
+  assert(drawnT <= 0.85, `aim draws first: drawn in ${f2(drawnT)} s (<= 0.85; G103: 0.6 pistol / 0.75 rifle)`);
   // the raise starts while the draw finishes: timed from the last frame the weapon was still low
   const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
   const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;
   const lowerT = stance.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99;
-  assert(within(raiseT, 0.1, 0.2), `aim raise ${f2(raiseT)} s (120-200 ms)`);
-  assert(within(lowerT, 0.22, 0.36), `aim lower ${f2(lowerT)} s (250-350 ms)`);
+  assert(within(raiseT, 0.3, 1.0), `aim raise ${f2(raiseT)} s (G103: ~0.6-0.75 s; prototype: revisit)`);
+  assert(within(lowerT, 0.3, 0.7), `aim lower ${f2(lowerT)} s (G103: 0.5-0.6 s)`);
 
   // ---------------------------------------------------------------- weapon clips
   console.log('weapon clips');
@@ -413,7 +413,7 @@ try {
       const f = p.controller.renderPos;
       const v = p.controller.speed;
       if (v > 0.5) {
-        lagSum += Math.hypot(f.x - cm['sFx'].x, f.z - cm['sFz'].x) / v;
+        lagSum += Math.hypot(f.x - cm.pivot.x, f.z - cm.pivot.z) / v; // A2.1: rigid, the pivot is the character's axis
         lagN++;
       }
       yMin = Math.min(yMin, C.position.y);
@@ -421,23 +421,24 @@ try {
       return 0;
     });
     t.run(0.8, {});
+    let ads90 = -1;
+    t.run(1.0, { ads: true }, (s) => {
+      if (ads90 < 0 && cm.ads >= 0.9) ads90 = s;
+      return 0;
+    });
+    // A2.1 (G17): the shoulder swap works only while aiming (held ads here)
     const side0 = cm['sSide'].x;
     cm.swapShoulder();
     let swap90 = -1;
     let arcMax = 0;
     const b0 = cm.boomActual;
-    t.run(0.8, {}, (s) => {
+    t.run(1.0, { ads: true }, (s) => {
       arcMax = Math.max(arcMax, cm.boomActual - b0);
       if (swap90 < 0 && Math.abs(cm['sSide'].x - -side0) < 0.2) swap90 = s;
       return 0;
     });
     cm.swapShoulder();
-    t.run(0.6, {});
-    let ads90 = -1;
-    t.run(0.6, { ads: true }, (s) => {
-      if (ads90 < 0 && cm.ads >= 0.9) ads90 = s;
-      return 0;
-    });
+    t.run(0.8, { ads: true });
     t.run(0.8, {});
     const hfov = (v) => (2 * Math.atan(Math.tan(v / 2) * (16 / 9)) * 180) / Math.PI;
     const base = hfov(C.fov);
@@ -484,10 +485,10 @@ try {
     return { drift, lag: lagSum / Math.max(1, lagN), bob: yMax - yMin, swap90, arcMax, ads90, sprintFov: sprintMax - base, maxW, maxA, maxAAt: window.__maxAAt };
   });
   assert(cam.drift <= 0.15, `handheld drift <= 0.15 deg (${cam.drift.toFixed(3)} deg)`);
-  assert(within(cam.lag, 0.08, 0.15), `camera follow lag ${f2(cam.lag)} s (80-150 ms)`);
+  assert(cam.lag <= 0.02, `camera follow is rigid: lag ${f2(cam.lag)} s (<= 20 ms; A2.1)`);
   assert(cam.bob <= 0.02, `footstep bob <= 1 cm amplitude (${(cam.bob * 50).toFixed(2)} cm)`);
-  assert(within(cam.swap90, 0.15, 0.32) && cam.arcMax > 0.05, `shoulder swap ${f2(cam.swap90)} s (~250 ms) on an arc (+${f2(cam.arcMax)} m boom)`);
-  assert(within(cam.ads90, 0.12, 0.25), `aim framing blend ${f2(cam.ads90)} s (150-250 ms)`);
+  assert(within(cam.swap90, 0.15, 0.5) && cam.arcMax > 0.1, `shoulder swap ${f2(cam.swap90)} s to the mirror side (spring ~0.4 s settle) on an arc (+${f2(cam.arcMax)} m boom)`);
+  assert(within(cam.ads90, 0.45, 0.8), `aim framing blend ${f2(cam.ads90)} s (~0.6 s, G103)`);
   // prototype: revisit (no sprint, CT M1): the FOV widening is not asserted; M2 does the camera
   void cam.sprintFov;
   assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2${process.env.SOFT ? ', ' + cam.maxAAt : ''})`);

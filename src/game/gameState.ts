@@ -26,7 +26,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
 import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
-import { computeAssist, type AimTarget } from '../weapons/aimAssist';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
@@ -89,7 +88,7 @@ import { LEAN_KIND, WallCore, buildWallLinks, emptyWallInput, posedHeadSample, w
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
-import { hyp2, hyp3 } from '../core/mathx';
+import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
@@ -260,7 +259,6 @@ export class GameState implements AppState {
   private exited = false;
   private time = 0;
   private respawnT = -1;
-  private prevAds = false;
   private onTarget = false;
   private tmp = new Vector3();
   /** Extra blips/markers contributed by the active mode. */
@@ -1275,35 +1273,8 @@ export class GameState implements AppState {
     }
   }
 
-  /** Aim assist for the controller: friction + magnetism + ADS snap. */
-  private assistScale = 1;
   /** Enemy blips on the minimap last frame (tests). */
   enemyBlips = 0;
-
-  private applyAimAssist(look: { x: number; y: number }, dt: number): void {
-    const mode = this.app.input.mode;
-    if (mode === 'kbm') return;
-    const s = this.app.settings.get();
-    const level = s.gamepad.aimAssist;
-    if (level === 'off') return;
-    const cam = this.player.cam;
-    const cp = cam.camera.position;
-    const targets: AimTarget[] = [];
-    for (const t of this.registry.hostiles('player')) {
-      t.aimPoint(this.tmp);
-      const dx = this.tmp.x - cp.x;
-      const dy = this.tmp.y - cp.y;
-      const dz = this.tmp.z - cp.z;
-      const dist = hyp3(dx, dy, dz);
-      targets.push({ yaw: Math.atan2(dx, dz), pitch: Math.asin(dy / Math.max(dist, 1e-3)), distance: dist });
-    }
-    const adsStart = this.player.ads && !this.prevAds;
-    const r = computeAssist(level, cam.yaw, cam.pitch, targets, hyp2(look.x, look.y) / Math.max(dt, 1e-3) / 3, this.player.controller.speed > 0.5, adsStart, dt);
-    // the slowdown eases in and out over ~60 ms so sweeping across a target never jolts the view
-    this.assistScale += (r.lookScale - this.assistScale) * (1 - Math.exp(-dt / 0.06));
-    look.x = look.x * this.assistScale + r.dYaw;
-    look.y = look.y * this.assistScale + r.dPitch;
-  }
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -1603,8 +1574,6 @@ export class GameState implements AppState {
       this.gadgets.look(look.x, look.y);
       look.x = look.y = 0;
     }
-    if (dt > 0 && !gadgetInput) this.applyAimAssist(look, dt);
-    this.prevAds = this.player.ads;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still

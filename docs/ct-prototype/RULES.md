@@ -15,15 +15,17 @@ How this job runs. Brief: `FEEL-BRIEF.md`. Method: `docs/systems/session-method.
 - Reviewer / implementers: Sonnet, medium effort (Michael, 2026-10-18: "I want a quicker prototype so we aren't wasting
   time"); Opus only when a piece is stuck. Every subagent starts from `AGENT-PREAMBLE.md`.
 - One code-changing agent at a time. Read-only agents may run in parallel.
-- Checks are light: `npm run check`, the area's e2e suites on port 4193, one at a time. No anim-audit or perf polish
-  rounds; the anim audit and perf trend are gates at area sign-off. GPU checks run on Michael's PC (`E2E_GPU=1`).
+- Prototype pass (Michael, 2026-10-18, "Prototype pass now"): each area is built once; checks per round are lint, unit tests,
+  build, smoke and the area's own e2e suite on port 4193. The full e2e run, the anim audit and the perf trend run once at the
+  end of the pass. GPU checks run on Michael's PC (`E2E_GPU=1`). Fine tuning is a second pass after all five areas.
 
 ## Area loop
 1. Implementer builds the area (or the next tuning round), writes `docs/ct-prototype/<AREA>.md`.
 2. Orchestrator reads the report, commits, pushes, STOPS and tells Michael what to try (URL params, two tabs for co-op:
    `?net=local`).
 3. Michael plays, compares with his footage, gives notes (recorded verbatim in `LOG.md`).
-4. Repeat until Michael signs off the area. Then the next area. Nothing starts past a stop without his answer.
+4. Prototype pass: Michael says keep, change or drop; small changes are folded into the next round, the rest wait for
+   the tuning pass. Then the next area. Nothing starts past a stop without his answer.
 
 ## Questions
 - Ask Michael with native multiple choice, only when something is genuinely unclear or a rewrite is proposed.
@@ -32,4 +34,4 @@ How this job runs. Brief: `FEEL-BRIEF.md`. Method: `docs/systems/session-method.
 
 ## Writing
 - No em dashes. No reference-game character, gear or organisation names (G6, G114).
-- Every number is a starting value (G10) until Michael signs off the area.
+- Every number is a starting value (G10) until the tuning pass.

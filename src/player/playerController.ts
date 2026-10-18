@@ -612,36 +612,59 @@ export class PlayerController {
   }
 
   private stepCd = 0;
+  private readonly stepDir = new Vector3();
+  private readonly stepA = new Vector3();
+  private readonly stepB = new Vector3();
+  private readonly stepRay = new PhysicsRaycastResult();
+  private readonly stepQuery = { membership: G.PLAYER, collideWith: G.STATIC };
+  private static readonly STEP_REACH_ADD = [0.1, 0.22] as const;
   /**
    * Havok's built-in step-up needs the per-step sweep to clear the capsule radius, which
    * walking speed never does. Probe ahead with rays and lift onto steps <= maxStep.
+   * Allocation-free (preallocated vectors and ray result; was a per-step allocator on a hot path).
    */
   private stepAssist(dt: number): void {
     this.stepCd = Math.max(0, this.stepCd - dt);
     if (this.stepCd > 0) return;
-    const eng = this.scene.getPhysicsEngine();
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
     if (!eng) return;
     const T = MOVEMENT;
-    const dir = this.wish.clone();
+    const dir = this.stepDir.copyFrom(this.wish);
     dir.y = 0;
     if (dir.lengthSquared() < 1e-4) return;
     dir.normalize();
-    const q = { membership: G.PLAYER, collideWith: G.STATIC };
-    for (const reach of [T.radius + 0.1, T.radius + 0.22]) {
-      const from = this.pos.add(dir.scale(reach)).addInPlace(new Vector3(0, T.maxStep + 0.05, 0));
-      const to = from.add(new Vector3(0, -(T.maxStep + 0.1), 0));
-      const hit = eng.raycast(from, to, q);
-      if (!hit.hasHit) continue;
-      const h = hit.hitPoint.y - this.pos.y;
+    const q = this.stepQuery;
+    const a = this.stepA;
+    const b = this.stepB;
+    const r = this.stepRay;
+    const px = this.pos.x;
+    const py = this.pos.y;
+    const pz = this.pos.z;
+    for (let n = 0; n < 2; n++) {
+      const reach = T.radius + PlayerController.STEP_REACH_ADD[n]!;
+      a.set(px + dir.x * reach, py + T.maxStep + 0.05, pz + dir.z * reach);
+      b.set(a.x, a.y - (T.maxStep + 0.1), a.z);
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (!r.hasHit) continue;
+      const h = r.hitPointWorld.y - py;
       // flat step tops only; slopes are handled by the controller itself
-      if (h < 0.08 || h > T.maxStep || hit.hitNormal.y < 0.97) continue;
+      if (h < 0.08 || h > T.maxStep || r.hitNormalWorld.y < 0.97) continue;
       // space above the step must be free for the whole body
-      const chestFrom = this.pos.add(new Vector3(0, h + 0.15, 0));
-      const block = eng.raycast(chestFrom, chestFrom.add(dir.scale(reach + 0.1)), q);
-      if (block.hasHit) continue;
-      const head = eng.raycast(chestFrom, chestFrom.add(new Vector3(0, this.height, 0)), q);
-      if (head.hasHit) continue;
-      this.cc.setPosition(this.cc.getPosition().add(new Vector3(0, h + 0.03, 0)).addInPlace(dir.scale(0.04)));
+      a.set(px, py + h + 0.15, pz);
+      b.set(px + dir.x * (reach + 0.1), a.y, pz + dir.z * (reach + 0.1));
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (r.hasHit) continue;
+      b.set(a.x, a.y + this.height, a.z);
+      r.reset();
+      eng.raycastToRef(a, b, r, q);
+      if (r.hasHit) continue;
+      const cp = this.cc.getPosition();
+      cp.x += dir.x * 0.04;
+      cp.y += h + 0.03;
+      cp.z += dir.z * 0.04;
+      this.cc.setPosition(cp);
       this.syncFeet();
       this.stepCd = 0.08;
       return;

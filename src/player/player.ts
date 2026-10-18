@@ -180,7 +180,8 @@ export class Player {
     this.ads = this.adsLatch.update(s.gameplay.adsToggle, inp.pressed('ads'), inp.down('ads'));
     if (this.forceAds) this.ads = true;
     if (c.weaponBlocked || (this.pose.traverse !== 'none' && !this.attachAim)) this.ads = false;
-    if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
+    // G17: the shoulder swap works only while aiming
+    if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
     // weapon carry: ready position from context, raised only to aim or fire
@@ -240,7 +241,6 @@ export class Player {
       // free orbit: look input applies in full, the same frame, in every state (the body never holds
       // the view back; when aiming the body turns to the view instead)
       this.cam.addLook(look.x, look.y);
-      this.recentre(dt, look);
       // (3.2.0) a sidearm from a split / an inverted hang: the aim stays within the band the body can turn to
       const at = this.attachAim;
       if (at && this.carry.raise > 0.05) {
@@ -254,9 +254,6 @@ export class Player {
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
     this.cam.lean = this.pose.lean;
-    this.cam.cover = this.pose.wall ? 1 : 0;
-    this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
-    this.cam.pace = c.speed;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos, dt);
 
@@ -389,28 +386,6 @@ export class Player {
       this.footPlantSide = pl.L.landed ? -1 : 1;
     }
     this.cam.applyBodyFade(this.rig);
-  }
-
-  private lookIdleT = 0;
-
-  /**
-   * Gentle auto-recentre: after `recentreDelay` s without look input while moving (not aiming, not at
-   * a wall), the view eases round behind the travel direction. Never while the player is looking.
-   */
-  private recentre(dt: number, look: { x: number; y: number }): void {
-    const c = this.controller;
-    this.lookIdleT = Math.abs(look.x) + Math.abs(look.y) > 1e-5 ? 0 : this.lookIdleT + dt;
-    const T = MOVEMENT;
-    if (!this.getSettings().gameplay.autoRecentre || this.lookIdleT < T.recentreDelay) return;
-    if (this.ads || this.aiming || c.override || this.pose.wall || c.speed < 0.5) return;
-    const m = c.motion;
-    const heading = Math.atan2(m.vx, m.vz);
-    const err = wrapPi(heading - this.cam.yaw);
-    // ease in over the first half second after the delay, slow near the target
-    const ramp = Math.min(1, (this.lookIdleT - T.recentreDelay) / 0.5);
-    const rate = T.recentreRate * ramp * Math.min(1, Math.abs(err) / 0.6);
-    const step = Math.sign(err) * Math.min(Math.abs(err), rate * dt);
-    this.cam.yaw = wrapPi(this.cam.yaw + step);
   }
 
   dispose(): void {

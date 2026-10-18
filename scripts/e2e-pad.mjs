@@ -381,7 +381,7 @@ try {
     const s1 = shots();
     window.__pad.set(6, 1);
     const tDraw = until(() => w.drawPhase === 2, 2);
-    until(() => g.player.cam.ads >= 0.9, 2);
+    until(() => g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 2); // A2.1: the carry raise (~0.7 s) gates the trigger
     window.__pad.set(7, 1);
     L.stepHeadless(0.3);
     window.__pad.set(7, 0);
@@ -427,13 +427,14 @@ try {
     return { struck, s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
-  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.45, `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 0.5 && dr.hDrawn && dr.hFull && dr.hHol < 0.45 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
+    `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
+  assert(dr.hDraw <= 0.9 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
   assert(dr.struck, 'RT while holstered: an elbow strike (step 10)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
-  assert(dr.tDraw <= 0.45, `LT draws within 0.45 s (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
+  assert(dr.tDraw <= 0.85, `LT draws within 0.85 s (G103: 0.6 pistol, 0.75 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
-  assert(dr.tHol <= 0.45, `LT released holsters within 0.45 s (${dr.tHol.toFixed(2)} s)`);
+  assert(dr.tHol <= 0.65, `LT released holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);
@@ -573,8 +574,15 @@ try {
         k.step(40);
         out.lb = g.weapons.index === w0;
         const sh0 = g.player.cam.shoulder;
+        btn(11); // A2.1 (G17): not aiming, R3 does nothing
+        const r3Idle = g.player.cam.shoulder === sh0;
+        P.set(6, 1);
+        k.step(60);
         btn(11);
-        out.r3 = g.player.cam.shoulder === -sh0;
+        out.r3 = r3Idle && g.player.cam.shoulder === -sh0;
+        btn(11);
+        P.set(6, 0);
+        k.step(40);
         P.set(15, 1);
         k.step(20);
         out.gadgetAim = g.gadgets.aiming;
@@ -593,7 +601,7 @@ try {
         out.land = fx();
         P.effects.length = 0;
         P.set(6, 1);
-        k.step(40);
+        k.step(75); // A2.1: draw 0.6-0.75 s (G103)
         P.set(7, 1);
         k.step(3);
         P.set(7, 0);
@@ -780,7 +788,7 @@ try {
         k.step(30);
         // LT: lean out past the edge, drawn; RT fires from the lean; release: back in
         P.set(6, 1);
-        k.step(40);
+        k.step(80); // A2.1: aim draw 0.6-0.75 s (G103)
         const lean = k.st();
         P.set(7, 1);
         k.step(18);

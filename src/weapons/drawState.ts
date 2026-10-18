@@ -11,11 +11,11 @@ export const DRAW_DRAWN = 2;
 export const DRAW_HOLSTERING = 3;
 export type DrawPhase = 0 | 1 | 2 | 3;
 
-/** Draw time (s): pistol / sidearm, primary (bible 5.6). */
-export const DRAW_TIME_SIDEARM = 0.3;
-export const DRAW_TIME_PRIMARY = 0.4;
-/** Holster time (s), every class. */
-export const HOLSTER_TIME = 0.4;
+/** Draw (raise) time (s): pistol / sidearm 0.6, primary 0.75 (G103, measured from the footage; starting values). */
+export const DRAW_TIME_SIDEARM = 0.6;
+export const DRAW_TIME_PRIMARY = 0.75;
+/** Holster (lower) time (s), every class: 0.55 (G103: 0.5-0.6). */
+export const HOLSTER_TIME = 0.55;
 
 /** A shot needs the aim this far in (`cam.ads`). */
 export const ADS_FIRE = 0.9;

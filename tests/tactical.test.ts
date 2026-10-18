@@ -78,7 +78,7 @@ describe('weapon carry', () => {
     i.doorway = true;
     expect(pickReady(i)).toBe('compressed');
   });
-  it('raise before firing takes 120-200 ms (rifle), heavier is slower', () => {
+  it('raise before firing takes about 0.6-0.75 s (rifle trigger live ~0.68 s, G103), heavier is slower', () => {
     const raiseTime = (weight: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -92,8 +92,8 @@ describe('weapon carry', () => {
       return t;
     };
     const rifle = raiseTime(1);
-    expect(rifle).toBeGreaterThanOrEqual(0.1);
-    expect(rifle).toBeLessThanOrEqual(0.2);
+    expect(rifle).toBeGreaterThanOrEqual(0.55);
+    expect(rifle).toBeLessThanOrEqual(0.85);
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });
@@ -101,7 +101,7 @@ describe('weapon carry', () => {
     const c = new WeaponCarry();
     const i = emptyCarryInput();
     i.ads = true;
-    for (let k = 0; k < 30; k++) c.update(DT, i);
+    for (let k = 0; k < 90; k++) c.update(DT, i);
     expect(c.raise).toBeGreaterThan(0.95);
     i.ads = false;
     i.sinceShot = 0;
@@ -110,7 +110,7 @@ describe('weapon carry', () => {
       c.update(DT, i);
     }
     expect(c.raise).toBeGreaterThan(0.95); // 0.5 s after the shot: still up
-    for (let k = 0; k < 90; k++) {
+    for (let k = 0; k < 120; k++) {
       i.sinceShot += DT;
       c.update(DT, i);
     }
@@ -146,17 +146,16 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('Blacklist over-the-shoulder: hip 2.2 m boom, 0.62 m shoulder, 1.62 m pivot; ADS pushes in', () => {
-    const hip = framing(0, 0, 0);
-    expect(hip.boom).toBeCloseTo(2.2);
-    expect(hip.shoulder).toBeCloseTo(0.62);
-    expect(hip.pivot).toBeCloseTo(1.62);
-    const ads = framing(1, 0, 0);
-    expect(ads.boom).toBeCloseTo(1.5);
-    expect(ads.shoulder).toBeLessThan(hip.shoulder);
-    expect(framing(0, 1, 0).pivot).toBeLessThan(hip.pivot);
-    expect(framing(0, 0, 1).boom).toBeGreaterThan(hip.boom);
-    expect(framing(0, 0, 1).boom).toBeLessThan(2.6); // a nudge, never a chase camera
+  it('CT framing (A2.1): 1.8 m boom, 0.15 m shoulder, head-height pivot from the capsule; aim 0.4 m / 0.16 m; no zoom', () => {
+    const hip = framing(0, 0);
+    expect(hip.boom).toBeCloseTo(1.8);
+    expect(hip.shoulder).toBeCloseTo(0.15);
+    expect(hip.pivot).toBeCloseTo(MOVEMENT.standHeight);
+    const ads = framing(1, 0);
+    expect(ads.boom).toBeCloseTo(0.4);
+    expect(ads.shoulder).toBeCloseTo(0.16);
+    expect(ads.pivot).toBeLessThan(hip.pivot);
+    expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
     expect(CAMERA.fov).toBe(75);
   });
 });

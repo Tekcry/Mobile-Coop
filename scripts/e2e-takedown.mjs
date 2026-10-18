@@ -173,7 +173,7 @@ try {
       const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.42), e.pos.z - (c.pos.z + fz * 0.42));
       // the sidearm one-handed over his shoulder
       st.set('t', 'ads', true);
-      t.step(0.8);
+      t.step(1.4); // A2.1: aim raise 0.6-0.75 s (G103)
       const w = g.weapons;
       const cls = w.current.def.class;
       const raise = g.player.carry.raise;

@@ -339,13 +339,20 @@ export class PlayerWeapons {
     return this.carrySlots[i] ?? 'backC';
   }
 
+  /** Aim camera for the current weapon: no zoom (G29) except a marksman scope; the camera blends in a little ahead of the draw (G103). */
+  private applyAimCamera(): void {
+    const cam = this.player.cam;
+    cam.adsZoom = this.current.scoped ? this.current.stats.adsZoom : 1;
+    cam.adsInTime = drawTimeFor(this.current.def.class) * 0.9;
+  }
+
   private equip(i: number): void {
     this.held = i;
     this.holsterAll(i);
     this.slots[i]!.model.hold(this.player.rig);
     this.index = i;
     const d = this.current.def;
-    this.player.cam.adsZoom = this.current.stats.adsZoom;
+    this.applyAimCamera();
     this.player.controller.speedMul = d.moveSpeedMult;
   }
 
@@ -430,7 +437,7 @@ export class PlayerWeapons {
         // (step 09 fix 4) holstered, the selection is the weapon carried at the ready: its move speed and zoom
         // apply now (as a drawn swap's equip would), not the last drawn gun's - holstering never changes the gait
         this.player.controller.speedMul = this.current.def.moveSpeedMult;
-        this.player.cam.adsZoom = this.current.stats.adsZoom;
+        this.applyAimCamera();
       }
       if (this.swapT < 0) {
         this.swapT = 0;

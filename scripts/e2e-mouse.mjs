@@ -512,7 +512,7 @@ try {
       await P.keyboard.up(toward);
       await step(30);
       await P.mouse.down({ button: 'right' });
-      await step(40);
+      await step(80); // A2.1: the aim draw takes 0.6-0.75 s (G103)
       const lean = await st();
       await P.mouse.down();
       await step(18);

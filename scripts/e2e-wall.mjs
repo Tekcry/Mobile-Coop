@@ -276,7 +276,8 @@ async function edges() {
       const w = g.wallCore;
       const s0 = w.s;
       st.set('t', 'ads', true);
-      const tr = window.__w.run(0.6, 0, 0, null, () => `${((window.__w.state().along - s0) * w.edge).toFixed(2)}/${w.s.toFixed(2)}/${w.leanS.toFixed(2)}/${g.player.controller.speed.toFixed(1)}`);
+      const tr = window.__w.run(1.6, 0, 0, null, // A2.1: aim draw 0.6-0.75 s (G103)
+         () => `${((window.__w.state().along - s0) * w.edge).toFixed(2)}/${w.s.toFixed(2)}/${w.leanS.toFixed(2)}/${g.player.controller.speed.toFixed(1)}`);
       const r = { lk: w.lk, lean: w.lean, past: (window.__w.state().along - s0) * w.edge, sub: w.sub(), side: g.player.cam.wallSide, tr: tr.filter((_, k) => k % 4 === 0).join(' ') };
       const mag0 = g.weapons.current.mag;
       st.set('t', 'fire', true);
@@ -389,7 +390,7 @@ async function openSide() {
             const o = { seg: i };
             // aim toward the end (high: the lean-out; low: the stick toward the end = the side lean)
             st.set('t', 'ads', true);
-            window.__w.run(0.6, low ? e : 0, 0);
+            window.__w.run(1.6, low ? e : 0, 0);
             o.lk = w.lk;
             o.leftHand = w.leftHand;
             o.sub = w.sub();
@@ -431,7 +432,7 @@ async function openSide() {
             if (low) {
               // the stick up: over the top (standing, right hand)
               st.set('t', 'ads', true);
-              window.__w.run(0.6, 0, 1);
+              window.__w.run(1.2, 0, 1);
               o.upLk = w.lk;
               o.upHand = rig.weaponHand;
               o.upCrouched = g.player.controller.crouched;

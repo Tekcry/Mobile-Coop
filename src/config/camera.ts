@@ -1,25 +1,38 @@
+import { MOVEMENT } from './movement';
+
 /**
- * Over-the-shoulder camera framing (tunable), Splinter Cell: Blacklist style: the camera sits a couple of
- * metres behind and well right of the shoulder at about shoulder height, so the whole operative stands
- * small in the left third of the screen (head to knees, crouched: low in the lower left) and most of the
- * frame is the room ahead. Aiming pushes in over the shoulder; states only nudge it.
+ * Third-person camera framing (tunable), Chaos Theory style (CT prototype A2.1; numbers from
+ * `docs/locomotion/research/ct-measure-camera.md`, every one a starting value, G10). The camera is rigid: it sits at a fixed
+ * offset from the head, behind and a little to the right, aimed at the head, so the head sits near screen centre and the
+ * legs are partly out of frame. It moves only by right stick / mouse. Aiming moves it in to just over the firing shoulder
+ * with no FOV change (G29; only a marksman scope zooms).
  */
 export const CAMERA = {
-  /** Distance behind the shoulder point (m): hip / ADS. */
-  boomHip: 2.2,
-  boomAds: 1.5,
-  /** Lateral offset of the shoulder point from the spine (m): hip / ADS. */
-  shoulderHip: 0.62,
-  shoulderAds: 0.58,
-  /** Pivot (spine top) height above the feet: standing / crouched (m). */
-  pivotStand: 1.62,
-  pivotCrouch: 1.18,
-  /** Camera height relative to the pivot (m): about shoulder height, looking over the operative. */
-  height: -0.08,
-  /** Dash: slightly wider framing (extra boom, m). */
-  dashBoom: 0.3,
-  /** In cover: the camera pulls back a little to show the room (m). */
-  coverBoom: 0.2,
+  /** Distance behind the pivot (m): explore (measured 1.8 +- 0.25) / aim (measured 0.4 +- 0.1, 0.35-0.45 behind the head). */
+  boomHip: 1.8,
+  boomAds: 0.4,
+  /** Lateral offset of the camera from the head (m), towards the shoulder side: explore 0.1-0.2 (measured) / aim 0.16 +- 0.05 (measured). */
+  shoulderHip: 0.15,
+  shoulderAds: 0.16,
+  /** Pivot (look-at) height above the feet (m): the head top, tied to the shared capsule (G38: same for every operator). */
+  pivotStand: MOVEMENT.standHeight,
+  pivotCrouch: MOVEMENT.crouchHeight,
+  /** Aim: the pivot drops to eye height (m below the head top; measured: camera at eye height to head top). Starting value. */
+  aimEyeDrop: 0.08,
+  /** Camera height relative to the pivot (m): 0, the camera orbits the head (the measured ~2.3 m height at the default ~17 deg down pitch comes from the pitch). */
+  height: 0,
+  /** Default pitch at spawn (rad, negative = looking down): about 17 deg down (measured). The player controls it after that. */
+  startPitch: -0.3,
+  /** Aim blend: seconds in (the camera leads the weapon; per-weapon value set from the draw time), and the fast-out rate (1/s,
+   *  exponential: about half way in 0.1 s, settled in about 0.5 s; measured 0.5-0.6 s out). */
+  adsInTime: 0.6,
+  adsOutRate: 7,
+  /** Shoulder swap while aiming: spring rate (1/s, critically damped: about 0.4 s to settle; measured 0.40 pistol / 0.43 rifle)
+   *  and the pull-back at the mid-point (m; measured ~0.85 m behind at mid-swap against 0.4 at rest). */
+  swapRate: 13,
+  swapArc: 0.45,
+  /** Stairs only: the vertical follow of the feet is low-passed at this rate (1/s) so steps do not shake the view; XZ is rigid. */
+  stairRate: 14,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */
   leanShift: 0.38,
   /** Gap kept between the camera and walls (m), measured along the view ray (old single-ray rule; the e2e camera checks use it). */
@@ -73,12 +86,12 @@ export const CAMERA = {
 
 export type CameraKey = keyof typeof CAMERA;
 
-/** Pure framing for a state: boom, shoulder offset and pivot height. Used by the camera and unit tests. */
-export function framing(ads: number, crouch: number, dash: number, C = CAMERA): { boom: number; shoulder: number; pivot: number } {
+/** Pure framing for a state: boom, shoulder offset and pivot height. Used by the camera and unit tests. `ads` 0..1, `crouch` 0..1. */
+export function framing(ads: number, crouch: number, C = CAMERA): { boom: number; shoulder: number; pivot: number } {
   return {
-    boom: C.boomHip + (C.boomAds - C.boomHip) * ads + C.dashBoom * dash * (1 - ads),
+    boom: C.boomHip + (C.boomAds - C.boomHip) * ads,
     shoulder: C.shoulderHip + (C.shoulderAds - C.shoulderHip) * ads,
-    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch,
+    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch - C.aimEyeDrop * ads,
   };
 }
 

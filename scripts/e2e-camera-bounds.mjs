@@ -33,9 +33,10 @@ const assert = (cond, msg) => {
 // Yard framing before this change (measured on d31fbbc, the commit before "camera: respect walls and low spaces"): camera to the
 // shoulder point and camera height above the feet, standing still, hip, right shoulder, settled, at these pitches.
 const OLD_YARD = [
-  { pitch: 0, dist: 2.128, height: 1.541 },
-  { pitch: -0.35, dist: 2.128, height: 2.269 },
-  { pitch: 0.35, dist: 2.128, height: 0.81 },
+  // A2.1 (CT framing: boom 1.8 m, pivot = head 1.75 m): the yard reference is now the new open-space framing, not the old one
+  { pitch: 0, dist: 1.8, height: 1.75 },
+  { pitch: -0.35, dist: 1.8, height: 2.367 },
+  { pitch: 0.35, dist: 1.8, height: 1.133 },
 ];
 const YARD_TOL = 0.02;
 const BOUND_TOL = 0.02; // a camera this close past a bound's inner face still counts as inside

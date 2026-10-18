@@ -11,8 +11,8 @@ Updated 2026-10-18.
   goggle lamp colour, G152 held jammer (kit work after core feel unless it touches the pistol draw), G150 core feel
   first, G158 Sonnet medium implementers. The "findings for Michael to confirm" list is not decisions.
 - Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
-- Now: round A2.1 (cleanup + camera rewrite), Sonnet implementer, report `A2-CAMERA.md`. Then STOP for Michael to play.
-- Next after A2.1: round A1.1 turn follow (3 fixes in `A1-TURN-FOOTAGE.md`), then STOP for Michael.
+- A2.1 (cleanup + camera rewrite) built and committed (`A2-CAMERA.md`). STOPPED for Michael to play the camera.
+- Next: A1.1 turn follow (3 fixes in `A1-TURN-FOOTAGE.md`), then A3, A4, A5 as a prototype pass, one stop per area.
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.

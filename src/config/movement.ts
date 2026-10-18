@@ -68,13 +68,6 @@ export const MOVEMENT = {
   crouchHeight: 1.15,
   radius: 0.3,
   maxStep: 0.42,
-  /** Camera springs (rad/s): follow (~125 ms lag), shoulder swap (~250 ms), ADS framing (~200 ms). */
-  camFollow: 16,
-  camShoulder: 15.5,
-  camAds: 19,
-  /** Auto-recentre behind the travel direction after this long without look input while moving (s). */
-  recentreDelay: 1.5,
-  recentreRate: 1.6,
 };
 
 /**
@@ -128,11 +121,6 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   crouchHeight: 1.15,
   radius: 0.3,
   maxStep: 0.42,
-  camFollow: 16,
-  camShoulder: 15.5,
-  camAds: 19,
-  recentreDelay: 1.5,
-  recentreRate: 1.6,
 };
 
 /** Calm guards (not in combat) turn slowly: glances and looks at a sound are unhurried, not twitchy. Standalone too. */
@@ -262,11 +250,6 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   pivotTime: [0.15, 0.6, 0.01],
   crouchTime: [0.1, 0.6, 0.01],
   standTime: [0.1, 0.6, 0.01],
-  camFollow: [6, 40, 1],
-  camShoulder: [5, 30, 0.5],
-  camAds: [6, 40, 0.5],
-  recentreDelay: [0.5, 4, 0.1],
-  recentreRate: [0.3, 4, 0.1],
 };
 
 // --- 3.2.0 phase 2: split jump, wall jump, horizontal pipe sub-states (`player/splitJump.ts`)

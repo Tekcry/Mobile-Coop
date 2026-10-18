@@ -1,6 +1,5 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, PhysicsShapeSphere, Quaternion, ShapeCastResult, Vector3, type HavokPlugin, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { MOVEMENT } from '../config/movement';
 import { ATTACH_FRAMING, attachFraming, CAMERA, framing, WALL_CAMERA, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
@@ -32,23 +31,23 @@ export const CAMERA_TUNING = {
 
 
 /**
- * Weighted cinematic over-the-shoulder camera. Gameplay sets the look targets (`yaw`, `pitch`); the
- * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
- * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
- * ADS, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
- * the head. Subtle handheld drift (steadier when kneeling or aiming)
- * gives it weight; no footstep bob (D2). Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
- * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls
- * in at once and eases back out. Low spaces: probes up and down from the head lower the shoulder point and shorten the boom
- * between floor and ceiling, easing back when the space opens. In the open none of this changes the framing.
- * Updated every render frame from interpolated targets.
+ * Chaos Theory style third-person camera (CT prototype A2.1). Gameplay sets the look angles (`yaw`, `pitch`); the rendered view
+ * is exactly where they point (no look lag, no drift). The position is RIGID: the pivot is the character's head (capsule height,
+ * G38) on its own axis, the camera a fixed offset from it (boom 1.8 m, 0.15 m to the shoulder side), aimed at the pivot. There is
+ * no follow spring, look-ahead, pace boom, bob, swing toward travel or auto recentre: the camera moves only when the player
+ * moves the stick or mouse. Only the feet's HEIGHT is low-passed (stairs). Aiming moves the camera in to the firing shoulder
+ * over about 0.6 s (linear in, fast out) with NO zoom (G29); the shoulder swap works only while aiming and arcs back through a
+ * pulled-back mid-point (G17). Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
+ * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls in
+ * at once and eases back out. Low spaces: probes up and down from the head lower the shoulder point and shorten the boom
+ * between floor and ceiling. Updated every render frame from interpolated targets.
  */
 
 export class ShoulderCamera {
   readonly camera: FreeCamera;
   /** Look targets (gameplay). */
   yaw = 0;
-  pitch = 0;
+  pitch = CAMERA.startPitch;
   /** Rendered view angles (follow the targets with slight inertia). */
   viewYaw = Number.NaN;
   viewPitch = 0;
@@ -56,11 +55,13 @@ export class ShoulderCamera {
   angVel = 0;
   /** Target shoulder: 1 = right, -1 = left. */
   shoulder: 1 | -1 = 1;
-  /** 0 hip .. 1 ADS. */
+  /** 0 hip .. 1 ADS: linear in over `adsInTime`, fast-out (exponential) on release. */
   ads = 0;
   adsTarget = 0;
-  /** FOV multiplier while fully ADS (weapon zoom). */
-  adsZoom = 0.75;
+  /** Seconds to blend in (playerWeapons sets it from the weapon draw time, a little faster so the camera leads the gun). */
+  adsInTime: number = CAMERA.adsInTime;
+  /** FOV multiplier while fully ADS: 1 (no zoom, G29); only a marksman scope sets it lower (playerWeapons). */
+  adsZoom = 1;
   baseFovDeg = CAMERA.fov;
   /** Ultrawide cap (deg): Hor+ up to this horizontal angle, then Vert- (`video.maxFov`). */
   maxFovDeg = 120;
@@ -93,30 +94,11 @@ export class ShoulderCamera {
   attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
   private sAttach = new Spring(0);
-  dash = 0;
   lean = 0;
-  /** In cover (slow push-in). */
-  cover = 0;
-  /** Steadiness 0..1 (kneeling, aiming): scales the handheld drift down. */
-  steady = 0;
-  /** Ground speed (m/s): framing tightens at a sneak and opens up with pace. */
-  pace = 0;
-  private sPace = new Spring();
   private sSide = new Spring(1);
-  private sAds = new Spring();
-  private sPivot = new Spring(CAMERA.pivotStand);
   private sLean = new Spring();
-  private sDash = new Spring();
-  private sCover = new Spring();
   private sFootY = new Spring(Number.NaN);
-  private sFx = new Spring(Number.NaN);
-  private sFz = new Spring();
-  private sLookX = new Spring();
-  private sLookZ = new Spring();
-  private sBob = new Spring();
   private sBoom = new Spring(CAMERA.boomHip);
-  private lastFx = Number.NaN;
-  private lastFz = 0;
   private headHidden = false;
   private allHidden = false;
   private recoilPitch = 0;
@@ -235,10 +217,9 @@ export class ShoulderCamera {
     this.trauma = Math.min(1, this.trauma + amount * this.shakeMul);
   }
 
-  /** A hard contact (slamming into cover): a sharp dip of the view and a short shake (strength 0..1). */
+  /** A hard contact (slamming into cover): a short shake (strength 0..1). No dip: the follow is rigid. */
   impact(strength: number): void {
     const s = Math.max(0, Math.min(1, strength));
-    this.sBob.kick(-0.7 * s);
     this.trauma = Math.min(1, this.trauma + 0.16 * s);
   }
 
@@ -263,20 +244,22 @@ export class ShoulderCamera {
     // (step 13) at a door's crack the look stays within its range
     if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
     this.doorW = this.doorPeek;
-    // framing blends (critically damped: 350-600 ms, no overshoot)
-    // (21w) on a wall, and for a beat after leaving it, the shoulder swaps at the slower wall rate (no whip)
+    // aim blend: linear in over `adsInTime` (camera leads the weapon), fast-out (about half way in 0.1 s) on release
+    if (this.adsTarget > this.ads) this.ads = Math.min(this.adsTarget, this.ads + dt / Math.max(0.05, this.adsInTime));
+    else if (this.adsTarget < this.ads) {
+      this.ads += (this.adsTarget - this.ads) * (1 - Math.exp(-T.adsOutRate * dt));
+      if (this.ads - this.adsTarget < 2e-3) this.ads = this.adsTarget;
+    }
+    // shoulder side: only the aim's swap changes it (G17); on a wall it follows the open side at the slower wall rate
     this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
-    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : MOVEMENT.camShoulder, dt);
-    this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
+    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
     const leanS = this.sLean.step(this.lean, 8, dt);
-    const dashS = this.sDash.step(this.dash, 6, dt);
-    const coverS = this.sCover.step(this.cover, 3, dt);
     const recover = Math.min(1, dt * 9);
     this.recoilPitch -= this.recoilPitch * recover;
     this.recoilYaw -= this.recoilYaw * recover;
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
-    const fr = framing(this.ads, crouch, dashS);
+    const fr = framing(this.ads, crouch);
     // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
     if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
     // attached: the free orbit stays within the state's cone around the body's facing (a soft edge)
@@ -288,28 +271,9 @@ export class ShoulderCamera {
     }
     const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
     if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
-    const pivotY = this.sPivot.step(fr.pivot, 10, dt);
-    // follow: feet height and position lag slightly; look ahead along the movement
+    // rigid follow: XZ is exactly the character (no spring, no lag); only the feet's height is low-passed (stairs)
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
-    const footY = this.sFootY.step(feet.y, 14, dt);
-    if (Number.isNaN(this.sFx.x) || hyp2(feet.x - this.sFx.x, feet.z - this.sFz.x) > 3) {
-      this.sFx.reset(feet.x);
-      this.sFz.reset(feet.z);
-      this.lastFx = feet.x;
-      this.lastFz = feet.z;
-      this.sLookX.reset();
-      this.sLookZ.reset();
-    }
-    const vx = (feet.x - this.lastFx) / dt;
-    const vz = (feet.z - this.lastFz) / dt;
-    this.lastFx = feet.x;
-    this.lastFz = feet.z;
-    const la = 0.14;
-    const lx = this.sLookX.step(Math.max(-0.3, Math.min(0.3, vx * la)), 5, dt);
-    const lz = this.sLookZ.step(Math.max(-0.3, Math.min(0.3, vz * la)), 5, dt);
-    const fx = this.sFx.step(feet.x, MOVEMENT.camFollow, dt);
-    const fz = this.sFz.step(feet.z, MOVEMENT.camFollow, dt);
-    const bob = this.sBob.step(0, 16, dt);
+    const footY = this.sFootY.step(feet.y, T.stairRate, dt);
     // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
     // keeps it on the head's side of any wall)
     const wp = WALL_CAMERA.peek;
@@ -326,15 +290,15 @@ export class ShoulderCamera {
     const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
     const le = this.leanW * this.leanW * (3 - 2 * this.leanW);
     const swing = wp.offset * pe + wl.offset * le;
-    this.pivot.set(fx + lx + this.edgeX * swing, footY + pivotY + bob, fz + lz + this.edgeZ * swing);
-    // the head: the pivot height on the operator's own axis (no follow lag, no look-ahead), always in the operator's space
+    this.pivot.set(feet.x + this.edgeX * swing, footY + fr.pivot, feet.z + this.edgeZ * swing);
+    // the head: the pivot height on the operator's own axis, always in the operator's space
     const head = this.head.set(feet.x, this.pivot.y, feet.z);
     const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
     let lowDyT = 0;
     if (eng) {
       this.castShape = this.sphere(this.castShape, T.castRadius);
       this.pivotShape = this.sphere(this.pivotShape, T.pivotRadius);
-      // pivot safety: the lagged, looked-ahead pivot is pulled back to the head side of any wall between them
+      // pivot safety: a peeking pivot is pulled back to the head side of any wall between them
       const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, head, this.pivot), Vector3.Distance(head, this.pivot), T.castSkin);
       if (f < 1) Vector3.LerpToRef(head, this.pivot, f, this.pivot);
       // low space: clear height over the head, floor to ceiling
@@ -347,15 +311,12 @@ export class ShoulderCamera {
     } else this.lowW = 0;
 
     // rendered rotation: look input applies the same frame (no lag); smoothing and acceleration live in
-    // the input sources, so the view is exactly where the player points it
+    // the input sources, so the view is exactly where the player points it (no drift)
     if (Number.isNaN(this.viewYaw)) this.snap();
     const prevYaw = this.viewYaw;
     const prevPitch = this.viewPitch;
     this.viewYaw = this.aimYaw;
     this.viewPitch = this.aimPitch;
-    // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
-    // yaw and pitch peaks combine: 0.0018 rad per axis keeps the total under 0.15 deg
-    const drift = 0.0018 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
     // (step 12) peeking: the view turns toward the edge, at most `WALL_CAMERA.peek.yaw` (the aim is untouched)
     let peekYaw = 0;
     if (this.peekW > 0) {
@@ -363,8 +324,8 @@ export class ShoulderCamera {
       const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
       peekYaw = Math.sign(d) * Math.min(Math.abs(d), WALL_CAMERA.peek.yaw) * pe;
     }
-    const yaw = this.viewYaw + peekYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
-    const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
+    const yaw = this.viewYaw + peekYaw;
+    const pitch = this.viewPitch;
     const dYaw = yaw - prevYaw;
     this.angVel = hyp2(dYaw, pitch - prevPitch) / dt;
     const cp = Math.cos(pitch);
@@ -372,11 +333,9 @@ export class ShoulderCamera {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    // boom: framing, cover pull-back (show the room), and the shoulder swap arcs back behind the head
-    const arc = 0.2 * (1 - side * side);
-    // pace: a sneak frames a touch tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
-    const paceS = this.sPace.step(Math.min(1, this.pace / 2.8), 4, dt);
-    const boomFr = Math.max(T.minBoom, fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads));
+    // boom: framing, and the shoulder swap arcs back through a pulled-back mid-point (side passes through 0)
+    const arc = T.swapArc * (1 - side * side);
+    const boomFr = Math.max(T.minBoom, fr.boom + arc);
     // low space: a shorter boom and the shoulder point between floor and ceiling (eased in fast, out slowly)
     const low = this.lowW;
     const lowDy = this.sLowDy.step(lowDyT, easeRate(lowDyT < this.sLowDy.x, T.lowIn, T.lowOut), dt);
@@ -419,8 +378,9 @@ export class ShoulderCamera {
     }
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
+    // no aim zoom (G29): `adsZoom` is 1 except for a marksman scope
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
+    this.camera.fov = this.vfov(this.baseFovDeg) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
   }
 
   /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */

@@ -32,7 +32,8 @@ The held pistol jammer (G152) is kit work after core feel, unless it touches the
   `npm run check`, area e2e on port 4193.
 - Co-op parity every area: remotes pose from MoveState, no rubber-banding; a wire change bumps `PROTOCOL_VERSION` once
   per change set (currently 14).
-- Stop after each round for Michael to play. Sign-off: commit, push, notes and numbers in `LOG.md`.
+- Prototype pass first (Michael, 2026-10-18): each area built once, light checks (see RULES), stop after each area for a
+  short play (keep, change or drop), notes in `LOG.md`. Tuning and Wren posture in a second pass after all five areas.
 
 ## Dependencies
 - Wren (feature/operators, G123): no PR open yet (2026-10-18). Logic goes first; posture and pose work wait for it.
