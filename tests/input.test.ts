@@ -254,3 +254,36 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     expect([...seen].sort()).toEqual(BINDS.map((b) => b.id).sort());
   });
 });
+
+describe('menu bindings (menu-ui slice 2, SPEC 4.2, MD11)', () => {
+  it('pad: X is uiX, Menu / Start is uiStart and not Back', async () => {
+    const f = mapPad(snap({ [PAD.X]: 1, [PAD.START]: 1 }), tuning);
+    expect(f.buttons.uiX).toBe(true);
+    expect(f.buttons.uiStart).toBe(true);
+    expect(f.buttons.uiBack).toBeUndefined();
+    expect(f.buttons.pause).toBe(true);
+    const { CAPTURE_CANCEL_BTN } = await import('../src/input/gamepadSource');
+    expect(CAPTURE_CANCEL_BTN).toBe(PAD.START);
+  });
+  it('keys: Space confirms, R = X, F = Y, E is only tab next', async () => {
+    const { keyActionMap, defaultBinds } = await import('../src/input/keyBindings');
+    const m = keyActionMap(defaultBinds());
+    expect(m.get('Space')).toContain('uiConfirm');
+    expect(m.get('KeyR')).toEqual(expect.arrayContaining(['reload', 'uiX']));
+    // (CT prototype A3, G96) F is the co-op action in play; its menu role (Y) is unchanged
+    expect(m.get('KeyF')).toEqual(expect.arrayContaining(['ping', 'uiAlt']));
+    expect(m.get('KeyE')).toContain('uiTabNext');
+    expect(m.get('KeyE')).not.toContain('uiAlt');
+    expect(m.get('Escape')).toContain('uiBack');
+  });
+  it('WASD navigate menus, except while typing (arrows always)', async () => {
+    const { menuNavTap } = await import('../src/input/keyBindings');
+    expect(menuNavTap('KeyW', false)).toBe('uiUp');
+    expect(menuNavTap('KeyA', false)).toBe('uiLeft');
+    expect(menuNavTap('KeyS', false)).toBe('uiDown');
+    expect(menuNavTap('KeyD', false)).toBe('uiRight');
+    expect(menuNavTap('KeyW', true)).toBeNull();
+    expect(menuNavTap('ArrowUp', true)).toBe('uiUp');
+    expect(menuNavTap('KeyQ', false)).toBeNull();
+  });
+});

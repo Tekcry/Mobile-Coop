@@ -191,13 +191,12 @@ try {
   assert(/Settings/.test(f), 'd-pad reaches Settings');
   await press(page, BTN.A);
   assert(await q('.settings-screen'), 'A opens settings');
-  const tab0 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
-  await press(page, BTN.RB);
-  const tab1 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
-  assert(tab0 !== tab1 && tab1 === 'Controller', `RB switches tab (${tab0} -> ${tab1})`);
+  // (menu-ui slice 2) GAME / SETTINGS: Controls first, Remap controls focused; LB / RB switch tabs with focus memory
+  const tabT = () => page.evaluate(() => document.querySelector('.settings-screen .tab.active')?.textContent);
+  assert((await tabT()) === 'Controls' && /Remap controls/.test(await focusedText(page)), `Controls tab first, Remap focused (${await tabT()}, "${await focusedText(page)}")`);
   // find the horizontal sensitivity slider
-  for (let i = 0; i < 8 && !/Horizontal/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Horizontal/.test(await focusedText(page)), 'focus on Horizontal sensitivity');
+  for (let i = 0; i < 12 && !/horizontal/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/horizontal/.test(await focusedText(page)), 'focus on Look sensitivity (horizontal)');
   const before = (await settings()).gamepad.lookSensitivityX;
   await press(page, BTN.RIGHT);
   await press(page, BTN.RIGHT);
@@ -205,22 +204,29 @@ try {
   assert(after > before, `d-pad right raises slider (${before} -> ${after})`);
   // left stick nav
   await stick(page, 1, 1);
-  assert(/Vertical/.test(await focusedText(page)), 'left stick moves focus down');
+  assert(/vertical/.test(await focusedText(page)), 'left stick moves focus down');
+  await press(page, BTN.RB);
+  assert((await tabT()) === 'Gameplay', 'RB: the Gameplay tab');
   await press(page, BTN.LB);
+  assert((await tabT()) === 'Controls' && /vertical/.test(await focusedText(page)), `LB back to Controls restores its focus ("${await focusedText(page)}")`);
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Data', 'LB wraps tabs backwards');
-  // Accessibility: HUD size by d-pad, the Controls screen per input type (past Feedback)
+  assert((await tabT()) === 'Data', 'LB wraps tabs backwards');
+  // Accessibility: Subtitles locked first, HUD size by d-pad, then the Remap screen per input type
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Feedback', 'the Feedback tab');
+  assert((await tabT()) === 'Feedback', 'the Feedback tab');
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Accessibility', 'Accessibility tab');
-  assert(/Controls/.test(await focusedText(page)), `first focus on Controls ("${await focusedText(page)}")`);
-  await press(page, BTN.DOWN);
+  assert((await tabT()) === 'Accessibility', 'Accessibility tab');
+  assert(/Subtitles/.test(await focusedText(page)), `first focus on the locked Subtitles row ("${await focusedText(page)}")`);
+  await press(page, BTN.A);
+  assert((await settings()).access.subtitles && /always on/.test(await page.evaluate(() => document.querySelector('.toasts')?.textContent ?? '')), 'the locked row toasts its reason');
+  for (let i = 0; i < 4 && !/HUD size/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
   const hs0 = (await settings()).access.hudScale;
   await press(page, BTN.RIGHT);
   assert((await settings()).access.hudScale > hs0, 'd-pad right enlarges the HUD');
-  await press(page, BTN.UP);
+  for (let i = 0; i < 4; i++) await press(page, BTN.LB);
+  assert((await tabT()) === 'Controls', 'back on Controls');
+  for (let i = 0; i < 12 && !/Remap controls/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   await press(page, BTN.A);
   assert(await q('.controls-screen'), 'A opens the Controls screen');
   const ct0 = await page.evaluate(() => document.querySelector('.controls-screen .tab.active')?.textContent);
@@ -233,57 +239,52 @@ try {
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
 
-  console.log('campaign loadout (G76, the CT kit): pad lists only the rifle and the suppressed pistol, defaults Heron Carbine + Hush 9 SD');
+  console.log('issued kit (slice 4, D-11; G76 CT kit): the pad reads the kit, nothing is selectable');
   {
     const key = () => page.evaluate(() => window.__app.nav.focused?.dataset.key ?? '');
-    const labels = () => page.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-    const value = (k) => page.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+    const ctr = (k) => page.evaluate((kk) => document.querySelector(`.kit-screen [data-key="${kk}"] .ms-ctr`)?.textContent ?? '', k);
     assert(await focusTo(page, /Loadout/), 'focus Loadout');
     await press(page, BTN.A);
-    assert(await q('.loadout-screen'), 'A opens the Loadout');
-    const root = await labels();
-    assert(JSON.stringify(root) === JSON.stringify(['Loadout', 'Primary', 'Sidearm', 'Gadget']), `the root: loadout, primary, sidearm, gadget (${root})`);
-    assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'primary'; i++) await press(page, BTN.DOWN);
-    await press(page, BTN.A);
-    const prim = await labels();
-    assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
-    const seen = new Set([await key()]);
+    assert(await q('.kit-screen'), 'A opens the issued kit');
+    assert((await key()) === 'primary', 'focus starts on Primary');
+    assert((await ctr('primary')) === 'Heron Carbine' && (await ctr('secondary')) === 'Hush 9 SD', `the kit: Heron Carbine + Hush 9 SD (${await ctr('primary')} / ${await ctr('secondary')})`);
+    const seen = [await key()];
     for (let i = 0; i < 2; i++) {
       await press(page, BTN.DOWN);
-      seen.add(await key());
+      seen.push(await key());
     }
-    assert(seen.has('w-rifle') && seen.size === 1, `the d-pad reaches the rifle and nothing else (${[...seen]})`);
-    const lo = await page.evaluate(() => window.__app.save.get().loadout);
-    assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `the rifle is the primary, the sidearm in hand (${JSON.stringify(lo)})`);
-    await press(page, BTN.B);
-    assert((await value('primary')) === 'Heron Carbine', `B returns to the root with it (${await value('primary')})`);
-    for (let i = 0; i < 4 && (await key()) !== 'secondary'; i++) await press(page, BTN.DOWN);
+    assert(JSON.stringify(seen) === JSON.stringify(['primary', 'secondary', 'gadget']), `the d-pad walks the three issued items (${seen})`);
+    const lo = await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout));
     await press(page, BTN.A);
-    const side = await labels();
-    assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
+    assert((await page.evaluate(() => JSON.stringify(window.__app.save.get().loadout))) === lo && (await q('.kit-screen')), 'A on an issued item changes nothing');
     await press(page, BTN.B);
-    await press(page, BTN.B);
-    assert(await q('.main-menu') && !(await q('.loadout-screen')), 'B backs out to the main menu');
+    assert(await q('.main-menu') && !(await q('.kit-screen')), 'B backs out to the main menu');
   }
 
   console.log('play setup + in-game pause flow');
-  for (let i = 0; i < 6 && !/^Play/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/^Play/.test(await focusedText(page)), 'menu wraps / reaches Play');
+  // (menu-ui slice 1: the flat main menu; Missions opens the play setup on Infiltration)
+  for (let i = 0; i < 8 && !/^Missions/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Missions/.test(await focusedText(page)), 'menu wraps / reaches Missions');
   await press(page, BTN.A);
-  assert(await q('.play-screen'), 'A opens the play setup');
-  assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
-  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad down to Difficulty, right = Normal -> Realistic
-  for (let i = 0; i < 14 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(await q('.missions-screen'), 'A opens the missions list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen'), 'A on a mission opens its briefing');
+  assert(/Start mission/.test(await focusedText(page)), 'the briefing opens on Start');
+  // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
+  for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
   await press(page, BTN.RIGHT);
-  const cd = await page.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
+  const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
   assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
-  for (let i = 0; i < 14 && !/Mode/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  await press(page, BTN.LEFT);
-  assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
-  for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Deploy/.test(await focusedText(page)), 'focus Deploy');
+  // back out, then Free roam (the level picked carries over) and Start
+  await press(page, BTN.B);
+  await press(page, BTN.B);
+  assert(await q('.main-menu'), 'B twice returns to the main menu');
+  assert(await focusTo(page, /Free roam/), 'focus Free roam');
+  await press(page, BTN.A);
+  assert(await q('.freeroam-screen'), 'A opens the free roam list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen') && /^Start/.test(await focusedText(page)), 'A on a map opens its briefing on Start');
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
@@ -436,14 +437,15 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  await press(page, BTN.DOWN);
-  await press(page, BTN.DOWN);
+  for (let i = 0; i < 4; i++) await press(page, BTN.DOWN);
   assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
   await press(page, BTN.A);
   assert(await q('.dialog'), 'confirm dialog');
-  assert(/Quit/.test(await focusedText(page)), 'dialog primary focused');
+  assert(/Stay/.test(await focusedText(page)), 'dialog opens on the safe option (Stay)');
+  await press(page, BTN.RIGHT);
+  assert(/Quit/.test(await focusedText(page)), 'right moves to Quit');
   await press(page, BTN.A);
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
@@ -839,19 +841,17 @@ try {
       await press(P, BTN.DOWN);
       await click('.main-menu .btn', 'Settings');
       await P.waitForTimeout(300);
-      await click('.settings-screen .tab', 'Accessibility');
-      await P.waitForTimeout(200);
-      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await click('.settings-screen .tab-panel.active .btn', '^Remap controls');
       await P.waitForTimeout(300);
       const panel = '.controls-screen .tab-panel.active';
       const focusSlot = (b) => G(([p, x]) => window.__app.nav.focus(document.querySelector(`${p} ${x}`)), [panel, b.includes('.') ? b : `.pad-key[data-bind="${b}"]`]);
       const pad = () => G(() => window.__app.settings.get().pad);
       const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
       assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
-      // Y on a slot clears it: R3 off Swap shoulder
+      // X on a slot clears it (menu-ui SPEC 7.12): R3 off Swap shoulder
       await focusSlot('shoulder:0');
-      await press(P, BTN.Y);
-      assert((await pad()).shoulder.length === 0, 'Y clears the focused slot (R3 off Swap shoulder)');
+      await press(P, BTN.X);
+      assert((await pad()).shoulder.length === 0, 'X clears the focused slot (R3 off Swap shoulder)');
       // A, then R3: reload moves from X to R3
       await focusSlot('reload:0');
       await press(P, BTN.A);
@@ -860,16 +860,16 @@ try {
       let v = await view();
       const lab = await G((p) => document.querySelector(`${p} .pad-key[data-bind="reload:0"]`).textContent, panel);
       assert(listening && JSON.stringify((await pad()).reload) === '[11]' && lab === 'R3' && v.rows === '' && !v.cap, `A then R3 rebinds reload (${lab}, conflicts "${v.rows}")`);
-      // a capture is cancelled by holding B 1 s (the screen stays)
+      // (G22, MD13) a capture is cancelled by Menu / Start (the screen stays, the overlay goes, nothing binds)
       await focusSlot('reload:1');
       await press(P, BTN.A);
-      await G(() => window.__pad.set(1, 1));
-      // hold B until the capture ends (a fixed 1.5 s hold was stale: the cancel hold can outlast it on a slow frame)
-      await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 });
-      await G(() => window.__pad.set(1, 0));
+      const ov = await G(() => ({ o: !!document.querySelector('.cap-overlay'), n: document.querySelector('.cap-overlay .cap-count')?.textContent }));
+      await press(P, BTN.START);
+      await P.waitForFunction(() => !window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
       await P.waitForTimeout(300);
       v = await view();
-      assert(!v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `B held 1 s cancels the capture (${JSON.stringify(v)})`);
+      const ovGone = await G(() => !document.querySelector('.cap-overlay'));
+      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
       // play: the new button reloads, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
       const Q = await openPage(R.ctx, url, 'autostart=proving');
@@ -954,12 +954,13 @@ try {
       await press(P, BTN.A);
       await press(P, BTN.B);
       v = await view();
-      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen, `reload onto B warns on both rows (${JSON.stringify(v)})`);
-      await focusSlot('.bind-reset');
-      await press(P, BTN.A);
+      assert(v.rows === 'crouch,reload' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).reload) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);
+      // Y: Reset all asks first, Cancel focused (MD18); right then A resets
+      await press(P, BTN.Y);
       await P.waitForFunction(() => !!document.querySelector('.dialog-screen'), null, { timeout: 3000 }).catch(() => {});
       const dg = await G(() => ({ d: !!document.querySelector('.dialog-screen'), f: window.__app.nav.focused?.className, t: window.__app.nav.focused?.textContent, cap: window.__app.input.gamepad.capturing, mode: window.__app.input.mode }));
-      assert(dg.d, `reset asks first (${JSON.stringify(dg)})`);
+      assert(dg.d && /Cancel/.test(dg.t), `Y Reset all asks first, Cancel focused (${JSON.stringify(dg)})`);
+      await press(P, BTN.RIGHT);
       await press(P, BTN.A);
       await P.waitForTimeout(200);
       v = await view();

@@ -66,10 +66,32 @@ export const FIXED_KEYS: Record<string, readonly ButtonAction[]> = {
   Backspace: ['uiBack'],
   Enter: ['uiConfirm'],
   NumpadEnter: ['uiConfirm'],
-  // menus: tabs and the alternative action (also bound in game by default)
+  // menus (menu-ui SPEC 4.2, MD11): tabs Q / E, Space confirms, R = X action, F = Y action (these keys also keep their
+  // gameplay bindings; the ui actions are only read while a menu is open). WASD navigate: `MENU_NAV_KEYS`.
   KeyQ: ['uiTabPrev'],
-  KeyE: ['uiTabNext', 'uiAlt'],
+  KeyE: ['uiTabNext'],
+  Space: ['uiConfirm'],
+  KeyR: ['uiX'],
+  KeyF: ['uiAlt'],
 };
+
+/** Menu navigation taps (arrows always; WASD too, except in a text field: menu-ui MD11). */
+export const MENU_NAV_KEYS: Readonly<Record<string, ButtonAction>> = {
+  ArrowUp: 'uiUp',
+  ArrowDown: 'uiDown',
+  ArrowLeft: 'uiLeft',
+  ArrowRight: 'uiRight',
+  KeyW: 'uiUp',
+  KeyS: 'uiDown',
+  KeyA: 'uiLeft',
+  KeyD: 'uiRight',
+};
+
+/** The menu tap of a key (`typing`: a text field has the keyboard, so WASD type instead). */
+export function menuNavTap(code: string, typing: boolean): ButtonAction | null {
+  if (typing && !code.startsWith('Arrow')) return null;
+  return MENU_NAV_KEYS[code] ?? null;
+}
 const RESERVED = new Set(['Escape', 'Enter', 'NumpadEnter', 'Backspace', 'F3', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight']);
 /** Mouse buttons that can be bound (the left and right buttons are fire / aim). */
 export const MOUSE_CODES = ['Mouse1', 'Mouse3', 'Mouse4'] as const;

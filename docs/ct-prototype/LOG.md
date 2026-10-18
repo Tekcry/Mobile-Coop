@@ -72,3 +72,9 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Checks: lint and tsc clean, vitest 1454 pass, build ok; e2e smoke, pad, coop, stealth-ai, darkness (after a script
   fix) pass; e2e-mouse not run. GPU look pending PC run.
 - Status: A5 BUILT. Movement areas A1-A5 all built once (prototype pass); next merge feature/menu, then phase 2 bunker.
+
+## 2026-10-18 - merged feature/menu (Michael: "Can you merge the menu updates with this branch also?")
+- Merged origin/feature/menu (8982c3d, 12 commits). Conflicts: `src/input/gamepadSource.ts` (menu's Start cancels a
+  capture, G22, kept); `tests/keybinds.test.ts` (CT keys plus the menu keys). `tests/input.test.ts` and
+  `scripts/e2e-menus.mjs` updated for the CT layout (F is the co-op action, bind id `coop`).
+- Checks: lint 0 errors, vitest 1468 pass, build ok; e2e smoke, pad, menus pass.

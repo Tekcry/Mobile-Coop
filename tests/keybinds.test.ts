@@ -4,12 +4,14 @@ import { assignBind, bindable, bindLabel, BINDS, clearBind, defaultBinds, keyAct
 describe('key bindings', () => {
   it('defaults match the documented keyboard layout', () => {
     const m = keyActionMap(defaultBinds());
-    // (CT prototype A3, G96) Space jump, E interact / context, Shift back-to-wall, F / PageDown co-op action
-    expect(m.get('Space')).toEqual(['jump']);
-    expect(m.get('KeyE')).toEqual(['interact', 'uiTabNext', 'uiAlt']);
+    // (CT prototype A3, G96) Space jump, E interact / context, Shift back-to-wall, F / PageDown co-op action; plus the menu keys (menu-ui MD11)
+    expect(m.get('Space')).toEqual(['jump', 'uiConfirm']);
+    expect(m.get('KeyE')).toEqual(['interact', 'uiTabNext']);
     expect(m.get('ShiftLeft')).toEqual(['cover']);
-    expect(m.get('KeyF')).toEqual(['ping']);
+    expect(m.get('KeyF')).toEqual(['ping', 'uiAlt']);
     expect(m.get('PageDown')).toEqual(['ping']);
+    // (menu-ui slice 2, MD11) menu extras on the same keys: Space confirms, E next tab, R = the X action, F = the Y action
+    expect(m.get('KeyR')).toEqual(['reload', 'uiX']);
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);
     expect(m.get('KeyQ')).toEqual(['swapPrev', 'uiTabPrev']);
     // 3.2.0 speed gears (the wheel steps them too, fixed in the source)

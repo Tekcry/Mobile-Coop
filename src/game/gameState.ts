@@ -14,7 +14,8 @@ import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
-import { PauseScreen } from '../ui/screens/pauseScreen';
+import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
+import { PauseLook } from '../vfx/pauseLook';
 import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
@@ -42,7 +43,7 @@ import { emptyStats, type GameMode, type ModeId, type SessionStats } from './mod
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
-import { ResultsScreen } from '../ui/screens/resultsScreen';
+import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
@@ -98,7 +99,9 @@ import { CourseMode } from './modes/courseMode';
 import type { CourseWire } from './course/courseWire';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
-import { GADGET_IDS, type GadgetId } from './gadgets';
+import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
+import { MISSIONS } from './missions';
+import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 
 export type { ModeId };
@@ -184,6 +187,10 @@ export interface NetHooks {
 export interface SessionCallbacks {
   quit(): void;
   restart(): void;
+  /** The results screen's Missions (solo): the menu on the missions list. */
+  missions?(): void;
+  /** The results screen's Next (solo): the menu on that mission's briefing. */
+  briefing?(missionId: string): void;
 }
 
 /** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
@@ -793,11 +800,30 @@ export class GameState implements AppState {
     setTimeout(() => {
       this.paused = true;
       this.app.input.setGameplayActive(false);
+      this.hud.setVisible(false);
       const rewards = GameState.rewardHook ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
       void rewards.then((el) =>
-        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit())),
+        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit(), this.resultsNav())),
       );
     }, 1800);
+  }
+
+  /** Kit, Missions and Next for the results screen (menu-ui step 10). */
+  private resultsNav(): ResultsNav {
+    const names = (this.opts.loadout ?? []).map((l) => WEAPONS[l.id]?.name ?? l.id);
+    const gid = this.opts.gadget as GadgetId | undefined;
+    if (gid && GADGETS[gid]) names.push(GADGETS[gid].name);
+    const nav: ResultsNav = { coop: !!this.net };
+    if (names.length) nav.kit = names.join(', ');
+    const cb = this.cb;
+    const id = this.stats.missionId;
+    if (!this.net && id && cb.missions) {
+      nav.missions = () => cb.missions!();
+      const i = MISSIONS.findIndex((x) => x.id === id);
+      const nx = i >= 0 ? MISSIONS[i + 1] : undefined;
+      if (nx && cb.briefing) nav.next = { label: 'Next mission', go: () => cb.briefing!(nx.id) };
+    }
+    return nav;
   }
 
   get isEnded(): boolean {
@@ -812,6 +838,10 @@ export class GameState implements AppState {
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
     this.mode?.start();
+    // a controller dropping out mid-match opens the pause menu with the way back (MD12)
+    this.padOff = this.app.input.events.on('padDisconnected', () => {
+      if (this.app.input.mode === 'gamepad' && !this.photo) this.pause('Controller disconnected. Reconnect it, or press any key to continue.');
+    });
     // the course's dev solo flag (D21, A6): a debug-overlay toggle in dev builds only, never in the menus
     if (import.meta.env.DEV && this.mode instanceof CourseMode) {
       const cm = this.mode;
@@ -847,6 +877,8 @@ export class GameState implements AppState {
       benchTag(null);
     }
     this.exited = true;
+    this.padOff?.();
+    this.hud.setVisible(true);
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
@@ -882,21 +914,42 @@ export class GameState implements AppState {
     this.world.dispose();
   }
 
-  pause(): void {
+  /** The pause look's state (menu-ui MD14); `PostStack` draws it, gameplay never reads it. */
+  private readonly pauseLook = new PauseLook();
+  private padOff: (() => void) | null = null;
+
+  /** The mission's objectives and their state for the pause menu (G108). */
+  objectiveLines(): ObjectiveLine[] {
+    const m = this.mode;
+    if (m instanceof InfiltrationMode) {
+      const c = m.chain;
+      return c.def.objectives.map((o, i) => ({ label: o.label, done: c.state === 'done' || i < c.index, current: c.state === 'active' && i === c.index }));
+    }
+    const t = this.hud.objectiveText;
+    return t ? [{ label: t, done: false, current: true }] : [];
+  }
+
+  /** Opens the pause menu. `notice`: a line for the menu (a controller dropped out). */
+  pause(notice = ''): void {
     if (this.paused || this.menuOpen) return;
     // coop never freezes the shared simulation; the menu just takes the input
     if (this.net) this.menuOpen = true;
     else this.paused = true;
     this.app.input.setGameplayActive(false);
+    this.hud.setVisible(false);
+    this.pauseLook.set(true);
     this.app.screens.push(
       new PauseScreen(
         this.app,
         () => {
           this.paused = false;
           this.menuOpen = false;
+          this.pauseLook.set(false);
+          this.hud.setVisible(true);
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
+        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice },
       ),
     );
   }

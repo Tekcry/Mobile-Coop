@@ -89,11 +89,12 @@ describe('rules and rating', () => {
     expect(evaluateRules(r, { alarms: 1, kills: 0, detections: 1 }).fail).toMatch(/Undetected/);
     expect(evaluateRules(r, { alarms: 1, kills: 0, detections: 0 }).bonuses).toEqual([]);
   });
-  it('stars: done, half the bonuses, never detected', () => {
-    expect(missionRating(false, 2, 2, 0)).toBe(0);
-    expect(missionRating(true, 0, 2, 3)).toBe(1);
-    expect(missionRating(true, 1, 2, 3)).toBe(2);
-    expect(missionRating(true, 2, 2, 0)).toBe(3);
+  it('stars (G146): primary objectives, no alarms, no kills', () => {
+    expect(missionRating(false, 0, 0)).toBe(0);
+    expect(missionRating(true, 2, 3)).toBe(1);
+    expect(missionRating(true, 0, 3)).toBe(2);
+    expect(missionRating(true, 2, 0)).toBe(2);
+    expect(missionRating(true, 0, 0)).toBe(3);
   });
 });
 

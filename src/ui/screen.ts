@@ -40,8 +40,12 @@ export abstract class Screen {
     return false;
   }
   onTab(_dir: -1 | 1): void {}
-  /** Y / E: the screen's second action (Loadout: customise). */
+  /** Y / F: the screen's second action (Loadout: customise). */
   onAlt(): void {}
+  /** X / R: the screen's X action (Defaults, Clear, Delete; menu-ui SPEC 4.2). */
+  onX(): void {}
+  /** Menu / Start (Resume in pause, Done in text entry). Not a Back (MD11). */
+  onStart(): void {}
   update(_dt: number): void {}
   /** Screens that cannot be dismissed with B (e.g. the root main menu). */
   readonly root: boolean = false;
@@ -192,6 +196,8 @@ export class ScreenManager {
     if (input.pressed('uiTabPrev')) s.onTab(-1);
     if (input.pressed('uiTabNext')) s.onTab(1);
     if (input.pressed('uiAlt')) s.onAlt();
+    if (input.pressed('uiX')) s.onX();
+    if (input.pressed('uiStart')) s.onStart();
     if (input.pressed('uiConfirm')) this.nav.confirm();
     else if (input.pressed('uiBack')) this.back(s);
     this.top?.update(dt);

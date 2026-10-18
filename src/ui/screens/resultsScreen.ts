@@ -1,8 +1,7 @@
 import type { App } from '../../core/app';
 import type { SessionStats } from '../../game/modes/gameMode';
 import { h } from '../dom';
-import { Screen } from '../screen';
-import type { Hint } from '../prompts';
+import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button } from '../widgets';
 import { fmtCourseTime, TIER_LABEL, type CourseSummary } from '../../game/course/courseRating';
 
@@ -33,7 +32,24 @@ function coursePanel(c: CourseSummary): HTMLElement {
 
 const fmtTime = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export class ResultsScreen extends Screen {
+/** What the results screen can do beyond Retry / Main menu (menu-ui step 10). */
+export interface ResultsNav {
+  /** The kit the operator carried (weapons and gadget names). */
+  kit?: string;
+  /** Solo missions: back to the missions list. */
+  missions?: () => void;
+  /** Solo missions: the next mission's briefing (when there is one). */
+  next?: { label: string; go: () => void };
+  /** Co-op: Play again returns to the lobby. */
+  coop?: boolean;
+}
+
+/**
+ * MISSION / RESULTS on the MenuScreen template (menu-ui step 10, SPEC 7.21): the outcome, the time, the rating stars with
+ * what earned each, the kit used and the stat rows on the right; Next (default after a win) / Retry / Missions / Main menu
+ * on the left. Kept for the suites: `.results-title`, `.stat-grid`, `.mission-rating`, `.course-panel`, rewards, "Play again".
+ */
+export class ResultsScreen extends MenuScreen {
   override readonly root = true;
 
   constructor(
@@ -44,8 +60,9 @@ export class ResultsScreen extends Screen {
     rewards: HTMLElement | null,
     private onRestart: () => void,
     private onQuit: () => void,
+    nav: ResultsNav = {},
   ) {
-    super('results-screen');
+    super('results-screen', ['Mission', 'Results']);
     const acc = stats.shots > 0 ? Math.round((stats.hits / stats.shots) * 100) : 0;
     const row = (k: string, v: string | number): HTMLElement => h('div', { class: 'stat' }, h('span', { text: k }), h('b', { text: String(v) }));
     const grid = h(
@@ -59,29 +76,48 @@ export class ResultsScreen extends Screen {
       row('Time', fmtTime(stats.time)),
       stats.mode === 'clear' || stats.mode === 'infiltration' ? row('Detected', stats.detections) : null,
     );
-    const rating =
-      stats.mode === 'infiltration' && stats.rating !== undefined
-        ? h('div', { class: 'mission-rating', text: `${'\u2605'.repeat(stats.rating)}${'\u2606'.repeat(3 - stats.rating)}${stats.bonuses?.length ? '  ' + stats.bonuses.join(' / ') : ''}` })
-        : null;
+    const mission = stats.mode === 'infiltration' && stats.rating !== undefined;
+    const earned = (on: boolean, text: string): HTMLElement => h('li', { class: on ? 'earned' : 'missed', text: `${on ? '★' : '☆'}  ${text}` });
+    const rating = mission
+      ? h(
+          'div',
+          { class: 'rs-rating' },
+          h('div', { class: 'mission-rating', text: `${'★'.repeat(stats.rating!)}${'☆'.repeat(3 - stats.rating!)}` }),
+          h(
+            'ul',
+            { class: 'rs-earned' },
+            earned(won, 'All primary objectives complete'),
+            earned(won && !stats.alarms, stats.alarms ? `Alarms raised: ${stats.alarms}` : 'No alarms raised'),
+            earned(won && !stats.kills, stats.kills ? `Kills: ${stats.kills}` : 'No kills'),
+          ),
+          h('div', { class: `rs-bonus ${won && stats.bonuses?.length ? 'earned' : 'missed'}`, text: stats.bonuses?.length ? `Bonus: ${stats.bonuses.join(', ')}` : 'Bonus: none earned' }),
+        )
+      : null;
     const course = stats.course ? coursePanel(stats.course) : null;
-    const list = h(
-      'div',
-      { class: 'menu-list row-dir', attrs: { 'data-wrap': '' } },
-      button('Play again', () => this.onRestart(), { icon: 'play', class: 'primary', autofocus: true }),
-      button('Main menu', () => this.onQuit(), { icon: 'back' }),
-    );
-    this.el.append(
+    this.el.classList.add(won ? 'rs-won' : 'rs-lost');
+    this.ctx.hidden = true;
+    this.body.append(
       h(
         'div',
-        { class: 'results-panel' },
+        { class: 'rs-panel' },
         h('div', { class: `results-title ${won ? 'won' : 'lost'}`, text: won ? 'VICTORY' : 'DEFEAT' }),
         h('div', { class: 'results-sub', text: subtitle }),
-        course ?? grid,
+        h('div', { class: 'rs-time', text: `Time ${fmtTime(stats.time)}` }),
         rating,
-        rewards,
-        list,
+        nav.kit ? h('div', { class: 'rs-kit', text: `Kit: ${nav.kit}` }) : null,
       ),
     );
+    const list = h('div', { class: 'ms-list rs-list', attrs: { 'data-wrap': '' } });
+    const item = (label: string, key: string, act: () => void, focus: boolean): void => {
+      list.append(button(label, act, { class: 'ms-item', key, autofocus: focus }));
+    };
+    const next = won && !nav.coop ? nav.next : undefined;
+    item(nav.coop ? 'Play again' : 'Retry', 'retry', () => this.onRestart(), !next);
+    if (next) list.prepend(button(next.label, () => next.go(), { class: 'ms-item', key: 'next', autofocus: true }));
+    if (nav.missions && !nav.coop) item('Missions', 'missions', () => nav.missions!(), false);
+    item('Main menu', 'quit', () => this.onQuit(), false);
+    this.body.append(list);
+    this.el.append(h('div', { class: 'rs-stats' }, course ?? grid, rewards));
   }
 
   override onBack(): boolean {
@@ -89,10 +125,10 @@ export class ResultsScreen extends Screen {
     return true;
   }
 
-  override hints(): Hint[] {
+  override legend(): LegendItem[] {
     return [
-      { btn: 'A', label: 'Select' },
-      { btn: 'B', label: 'Main menu' },
+      { act: 'back', label: 'Main menu' },
+      { act: 'confirm', label: 'Select' },
     ];
   }
 }

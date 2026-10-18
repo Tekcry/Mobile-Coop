@@ -167,7 +167,7 @@ export class FeedbackFormScreen extends Screen {
   private confirmDelete(): void {
     this.manager.push(
       new Dialog('Delete this note?', 'Its text and photos are removed from this device.', [
-        { label: 'Cancel', action: () => {} },
+        { label: 'Cancel', safe: true, action: () => {} },
         {
           label: 'Delete',
           primary: true,
@@ -253,13 +253,14 @@ export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
         });
       };
       refresh();
+      // (menu-ui SPEC 7.22) rows with descriptions; the notes list has an empty state; Delete all confirms (Cancel first)
       return h(
         'div',
-        { class: 'rows' },
+        { class: 'rows ms-rows', attrs: { 'data-wrap': '' } },
         section(
           'Playtest notes',
-          button('New feedback', () => screen.manager.push(new FeedbackFormScreen(app, null, refresh)), { icon: 'note', class: 'primary' }),
-          button('Export report (HTML with photos)', () => void exportFeedback(app), { icon: 'back' }),
+          button('New feedback', () => screen.manager.push(new FeedbackFormScreen(app, null, refresh)), { class: 'primary', desc: 'Write a note about what you just played. Photos come from photo mode in the pause menu.' }),
+          button('Export report (HTML with photos)', () => void exportFeedback(app), { key: 'export-report', desc: 'Saves every note with its photos as one web page to send.' }),
           button('Copy as text', () => {
             void app.feedback.all().then((all) =>
               navigator.clipboard?.writeText(feedbackText(all)).then(
@@ -267,17 +268,17 @@ export function feedbackTab(app: App, screen: SettingsScreen): TabDef {
                 () => app.toasts.show('Copy is not allowed here: use Export', 'warn'),
               ),
             );
-          }, { class: 'subtle' }),
+          }, { class: 'subtle', desc: 'Copies every note as plain text.' }),
         ),
         list,
         button('Delete all feedback', () =>
           screen.manager.push(
             new Dialog('Delete all feedback?', 'Every note and photo is removed from this device. Export first if you still need them.', [
-              { label: 'Cancel', action: () => {} },
+              { label: 'Cancel', safe: true, action: () => {} },
               { label: 'Delete all', primary: true, action: () => void app.feedback.clear().then(refresh) },
             ]),
           ),
-        { class: 'subtle' }),
+        { class: 'subtle', desc: 'Removes every note and photo from this device.' }),
       );
     },
   };

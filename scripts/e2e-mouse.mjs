@@ -441,19 +441,21 @@ try {
         return { x: r.left, y: r.top, w: r.width, h: r.height };
       }, sel);
       const playBtn = await P.evaluate(() => {
-        const b = [...document.querySelectorAll('.main-menu button')].find((x) => /^\s*Play/.test(x.textContent ?? ''));
+        const b = [...document.querySelectorAll('.main-menu button')].find((x) => /^\s*Missions/.test(x.textContent ?? ''));
         if (!b) return null;
         const r = b.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       });
-      assert(!!playBtn, 'the main menu has Play');
+      assert(!!playBtn, 'the main menu has Missions');
       await P.mouse.click(playBtn.x, playBtn.y);
-      await P.waitForFunction(() => !!document.querySelector('.play-screen [data-diff="choice"]'), null, { timeout: 10000 });
-      const st = () => P.evaluate(() => ({ choice: document.querySelector('.play-screen [data-diff="choice"] .choice-val')?.textContent ?? '', sliders: document.querySelectorAll('.play-screen [data-diff]:not([data-diff="choice"])').length }));
+      await P.waitForSelector('.missions-screen .ms-item');
+      await P.locator('.missions-screen .ms-item').first().click();
+      await P.waitForFunction(() => !!document.querySelector('.briefing-screen [data-diff="choice"]'), null, { timeout: 10000 });
+      const st = () => P.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"] .choice-val')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
       const a = await st();
       assert(a.choice === 'Normal' && a.sliders === 0, `Normal by default, no custom sliders (${JSON.stringify(a)})`);
-      await P.evaluate(() => document.querySelector('.play-screen [data-diff="choice"]')?.scrollIntoView({ block: 'center' }));
-      const cb = await box('.play-screen [data-diff="choice"] .choice-val');
+      await P.evaluate(() => document.querySelector('.briefing-screen [data-diff="choice"]')?.scrollIntoView({ block: 'center' }));
+      const cb = await box('.briefing-screen [data-diff="choice"] .choice-val');
       await P.mouse.click(cb.x + cb.w / 2, cb.y + cb.h / 2);
       const b = await st();
       assert(b.choice === 'Realistic', `a click picks the next level (${JSON.stringify(b)})`);
@@ -610,8 +612,7 @@ try {
     const LO = await launch({ url });
     try {
       const P = LO.page;
-      const labels = () => P.evaluate(() => [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent));
-      const value = (k) => P.evaluate((kk) => document.querySelector(`.lo-list .lo-row[data-key="${kk}"] .lo-val`)?.textContent ?? '', k);
+      const ctr = (k) => P.evaluate((kk) => document.querySelector(`.kit-screen [data-key="${kk}"] .ms-ctr`)?.textContent ?? '', k);
       // (a row clicked within 350 ms of gaining focus only previews: click, wait it out, click again)
       // (the second click only when the first one only previewed: a second click on an equipped row opens Customize)
       const pick = async (sel, done) => {
@@ -623,20 +624,12 @@ try {
       const title = () => P.evaluate(() => document.querySelector('.lo-title')?.textContent ?? '');
       await P.waitForSelector('.main-menu');
       await P.locator('.main-menu .btn', { hasText: 'Loadout' }).first().click();
-      await P.waitForSelector('.loadout-screen .lo-row');
-      assert((await value('primary')) === 'Heron Carbine' && (await value('secondary')) === 'Hush 9 SD', `defaults: Heron Carbine + Hush 9 SD (${await value('primary')} / ${await value('secondary')})`);
-      await pick('.lo-list .lo-row[data-key="primary"]', async () => /PRIMARY WEAPON/.test(await title()));
-      const prim = await labels();
-      assert(JSON.stringify(prim) === JSON.stringify(['Heron Carbine']), `the primary list is the CT kit rifle (${prim})`);
-      await pick('.lo-list .lo-row[data-key="w-rifle"]', () => P.evaluate(() => window.__app.save.get().loadout.secondary === 'rifle'));
-      const lo = await P.evaluate(() => window.__app.save.get().loadout);
-      assert(lo.secondary === 'rifle' && lo.primary === 'pistolSd', `a click on the rifle keeps it the primary, the sidearm in hand (${JSON.stringify(lo)})`);
-      // back to the root (a second click on the now-equipped row may have opened Customize)
-      await P.evaluate(() => { for (let i = 0; i < 4 && !document.querySelector('.lo-list .lo-row[data-key="secondary"]'); i++) window.__app.screens.top.onBack(); });
-      await P.waitForTimeout(150);
-      await pick('.lo-list .lo-row[data-key="secondary"]', async () => /SIDEARM WEAPON/.test(await title()));
-      const side = await labels();
-      assert(JSON.stringify(side) === JSON.stringify(['Hush 9 SD']), `the sidearm list is the CT kit pistol (${side})`);
+      await P.waitForSelector('.kit-screen .ms-item');
+      assert((await ctr('primary')) === 'Heron Carbine' && (await ctr('secondary')) === 'Hush 9 SD', `the issued kit: Heron Carbine + Hush 9 SD (${await ctr('primary')} / ${await ctr('secondary')})`);
+      const lo0 = await P.evaluate(() => JSON.stringify(window.__app.save.get().loadout));
+      await P.locator('.kit-screen [data-key="secondary"]').first().click();
+      await P.waitForTimeout(300);
+      assert((await P.evaluate(() => JSON.stringify(window.__app.save.get().loadout))) === lo0, 'a click on an issued item changes nothing (read only)');
       // the kit in the other order (rifle in hand): Infiltration issues the same two guns
       await P.evaluate(async () => {
         window.__app.save.update((d) => {
@@ -670,9 +663,7 @@ try {
       await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
       await click('.main-menu .btn', 'Settings');
       await P.waitForTimeout(300);
-      await click('.settings-screen .tab', 'Accessibility');
-      await P.waitForTimeout(200);
-      await click('.settings-screen .tab-panel.active .btn', '^Controls');
+      await click('.settings-screen .tab-panel.active .btn', '^Remap controls');
       await P.waitForTimeout(300);
       await click('.controls-screen .tab', 'Keyboard');
       await P.waitForTimeout(200);

@@ -283,6 +283,11 @@ export class Hud {
     setTimeout(() => this.bannerEl.classList.remove('show'), ms);
   }
 
+  /** The current objective line as shown. */
+  get objectiveText(): string {
+    return this.objective.textContent ?? '';
+  }
+
   setObjective(text: string): void {
     this.set('obj', text, () => (this.objective.textContent = text));
   }

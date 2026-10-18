@@ -43,8 +43,14 @@ export class PlayScreen extends Screen {
   constructor(
     private app: App,
     private start: (o: GameOptions) => void,
+    /** menu-ui slice 1: the main menu's Missions / Free roam open this screen preset to that mode. */
+    mode?: ModeId,
   ) {
     super('play-screen');
+    if (mode) {
+      this.mode = mode;
+      this.mapId = this.mapsForMode()[0]?.id ?? this.mapId;
+    }
     this.desc = h('div', { class: 'row-note' });
     this.body = h('div', { class: 'rows scrollable' });
     this.el.append(h('div', { class: 'screen-title', text: 'Play' }), this.body);

@@ -1,7 +1,6 @@
 import type { App } from '../../core/app';
 import { h } from '../dom';
-import { Screen } from '../screen';
-import type { Hint } from '../prompts';
+import { glyphSlot, MenuScreen, type LegendItem } from '../menuScreen';
 import { button, Dialog, TabView } from '../widgets';
 import { assignBind, bindable, bindLabels, BINDS, clearBind, keyName, type BindId, type KeyBinds } from '../../input/keyBindings';
 import { assignPadBind, clearPadBind, PAD_BINDS, PAD_FIXED, padButtonName, type PadBindId } from '../../input/padBinds';
@@ -13,7 +12,7 @@ type Dev = 'pad' | 'kbm';
 /** (locomotion step 18) A "press a button / key" capture gives up after this long (ms). */
 export const CAPTURE_TIMEOUT_MS = 5000;
 
-const LABELS: Record<Dev, string> = { pad: 'Controller', kbm: 'Keyboard & mouse' };
+const LABELS: Record<Dev, string> = { pad: 'Controller', kbm: 'Keyboard and mouse' };
 
 /** Fixed (not remappable) rows shown above the remappable ones. */
 function fixedRows(dev: Dev): Row[] {
@@ -23,6 +22,7 @@ function fixedRows(dev: Dev): Row[] {
         ['Right stick', 'Look'],
         ['LT / RT', 'Aim / fire (fire while holstered: elbow strike)'],
         ['A / B, d-pad, LB / RB', 'Menus: select / back, move, tabs'],
+        ['Menu / Start', 'Pause; cancels a remap'],
       ]
     : [
         ['Mouse', 'Look (click to capture)'],
@@ -98,6 +98,26 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
     el.textContent = dev === 'pad' ? 'Press a button' : 'Press a key';
     el.classList.add('listening');
     let timer = 0;
+    // (SPEC 4.3) the capture overlay: the action, a 5 s countdown, Cancel (Menu / Start, Esc or a click; G22)
+    const cancel = (): void => (dev === 'pad' ? app.input.gamepad.cancelCapture() : app.input.kbm.cancelCapture());
+    let left = Math.round(CAPTURE_TIMEOUT_MS / 1000);
+    const count = h('span', { class: 'cap-count', text: String(left) });
+    const cancelBtn = h('button', { class: 'ms-lg nofocus cap-cancel', html: `${glyphSlot('start', 'Esc')}<span class="ms-lg-label">Cancel</span>` });
+    (cancelBtn as HTMLButtonElement).type = 'button';
+    cancelBtn.addEventListener('click', cancel);
+    const overlay = h(
+      'div',
+      { class: 'cap-overlay' },
+      h('div', { class: 'cap-title', text: dev === 'pad' ? 'Press a button' : 'Press a key or mouse button' }),
+      h('div', { class: 'cap-action', text: rowLabel(dev, id) }),
+      count,
+      cancelBtn,
+    );
+    (el.closest('.screen') ?? document.body).append(overlay);
+    const tickT = window.setInterval(() => {
+      left = Math.max(0, left - 1);
+      count.textContent = String(left);
+    }, 1000);
     const onKey = (e: KeyboardEvent): void => {
       if (e.code !== 'Escape') return;
       e.preventDefault();
@@ -106,6 +126,8 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
     };
     const done = (): void => {
       window.clearTimeout(timer);
+      window.clearInterval(tickT);
+      overlay.remove();
       window.removeEventListener('keydown', onKey, true);
       busy = false;
       render();
@@ -140,6 +162,8 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
     const el = h('button', { class: `bind-key ${dev === 'pad' ? 'pad-key' : 'kb-key'}`, focus: true });
     (el as HTMLButtonElement).type = 'button';
     el.dataset.bind = `${id}:${slot}`;
+    el.dataset.key = `${id}-${slot}`;
+    el.dataset.ctx = `<h3>${rowLabel(dev, id)}</h3><p>${dev === 'pad' ? 'Select, then press the new button. Menu / Start cancels.' : 'Select, then press the new key or mouse button. Esc cancels.'}</p>`;
     el.dataset.dev = dev;
     el.addEventListener('click', () => capture(id, slot, el));
     slots.push({ id, slot, el });
@@ -159,27 +183,30 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
     class: 'row-note',
     text:
       dev === 'pad'
-        ? 'Select a slot, then press the new button. Hold B for 1 s (or Esc) to cancel, Y on a slot clears it. Gives up after 5 s.'
+        ? 'Select a slot, then press the new button (B can be bound). Menu / Start or Esc cancels; X on a slot clears it. Gives up after 5 s.'
         : 'Click a key, then press the new key or mouse button. Esc cancels, Backspace clears. Gives up after 5 s.',
   });
-  const reset = button(dev === 'pad' ? 'Reset controller to defaults' : 'Reset keys to defaults', () => {
+  const resetAll = (): void => {
+    if (busy) return;
     app.screens.push(
       new Dialog(dev === 'pad' ? 'Reset the controller?' : 'Reset the keys?', 'Every binding on this device goes back to the default layout.', [
+        // (MD18) Cancel first and focused
+        { label: 'Cancel', safe: true, action: () => {} },
         {
           label: 'Reset',
-          primary: true,
           action: () => {
             st.reset(dev === 'pad' ? 'pad' : 'keys');
             render();
           },
         },
-        { label: 'Cancel', action: () => {} },
       ]),
     );
-  }, { class: 'subtle bind-reset' });
+  };
+  const reset = button(dev === 'pad' ? 'Reset controller to defaults' : 'Reset keys to defaults', resetAll, { class: 'subtle bind-reset', key: 'reset' });
   render();
-  const panel = h('div', { class: 'controls-list bind-panel', attrs: { 'data-dev': dev } }, summary, ...fixed, note, ...bindRows, reset);
-  (panel as HTMLElement & { clearFocused?: () => boolean }).clearFocused = () => {
+  const panel = h('div', { class: 'controls-list bind-panel', attrs: { 'data-dev': dev, 'data-wrap': '' } }, summary, ...fixed, note, ...bindRows, reset);
+  (panel as BindPanelEl).resetAll = resetAll;
+  (panel as BindPanelEl).clearFocused = () => {
     const f = app.nav.focused;
     const k = slots.find((x) => x.el === f);
     if (!k || busy) return false;
@@ -191,14 +218,16 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
   return panel;
 }
 
-/** Every binding, per input type (Settings > Accessibility > Controls, and the pause menu's settings): remap the pad
- *  and the keyboard (locomotion step 18, D7; local only, D8). */
-export class ControlsScreen extends Screen {
-  override readonly showBack = true;
+type BindPanelEl = HTMLElement & { clearFocused?: () => boolean; resetAll?: () => void };
+
+/** CONTROLS / REMAP (menu-ui SPEC 7.12, MD13): every binding, per input type (Settings > Controls > Remap controls):
+ *  remap the pad and the keyboard (locomotion step 18, D7; local only, D8). */
+export class ControlsScreen extends MenuScreen {
   private tabs: TabView;
+  private shown = false;
 
   constructor(private app: App) {
-    super('controls-screen');
+    super('controls-screen', ['Controls', 'Remap']);
     const order: Dev[] = app.input.mode === 'kbm' ? ['kbm', 'pad'] : ['pad', 'kbm'];
     this.tabs = new TabView(
       order.map((k) => ({
@@ -206,33 +235,59 @@ export class ControlsScreen extends Screen {
         label: LABELS[k],
         build: () => bindPanel(app, k),
       })),
+      { menu: true },
     );
-    this.tabs.onChange = () => app.nav.refresh();
-    this.el.append(h('div', { class: 'screen-title', text: 'Controls' }), this.tabs.el);
+    this.tabs.focused = () => app.nav.focused;
+    this.tabs.onChange = () => {
+      if (this.shown) app.nav.setRoot(this.el, this.tabs.recall());
+    };
+    this.body.append(this.tabs.el);
+  }
+
+  private get busy(): boolean {
+    return this.app.input.gamepad.capturing || this.app.input.kbm.capturing;
+  }
+
+  private get panel(): BindPanelEl | null {
+    return this.el.querySelector<BindPanelEl>('.tab-panel.active .bind-panel');
+  }
+
+  override onShow(): void {
+    this.shown = true;
   }
 
   override initialFocus(): HTMLElement | null {
-    return this.el.querySelector<HTMLElement>('.tab-panel.active [data-focus]');
+    return this.tabs.recall();
   }
 
   override onTab(dir: -1 | 1): void {
-    if (this.app.input.gamepad.capturing || this.app.input.kbm.capturing) return;
+    if (this.busy) return;
     this.tabs.cycle(dir);
-    this.app.nav.setRoot(this.el, this.initialFocus());
   }
 
-  /** Y on a slot clears it. */
+  /** X on a slot clears it. */
+  override onX(): void {
+    if (!this.busy) this.panel?.clearFocused?.();
+  }
+
+  /** Y: reset this device's bindings (confirm, Cancel first). */
   override onAlt(): void {
-    const p = this.el.querySelector<HTMLElement & { clearFocused?: () => boolean }>('.tab-panel.active .bind-panel');
-    p?.clearFocused?.();
+    if (!this.busy) this.panel?.resetAll?.();
   }
 
-  override hints(): Hint[] {
+  override onBack(): boolean {
+    // (a capture in progress: Back is not a cancel, the capture owns the input)
+    return this.busy;
+  }
+
+  override legend(): LegendItem[] {
     return [
-      { btn: 'A', label: 'Rebind' },
-      { btn: 'Y', label: 'Clear' },
-      { btn: 'LB/RB', label: 'Input type' },
-      { btn: 'B', label: 'Back' },
+      { act: 'back', label: 'Back' },
+      { act: 'confirm', label: 'Change' },
+      { act: 'lb', label: '' },
+      { act: 'rb', label: 'Device' },
+      { act: 'x', label: 'Clear' },
+      { act: 'y', label: 'Reset all' },
     ];
   }
 }

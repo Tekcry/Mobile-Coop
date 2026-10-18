@@ -40,6 +40,10 @@ export const BUTTON_ACTIONS = [
   'uiTabPrev',
   'uiTabNext',
   'uiAlt',
+  /** Menu X: Defaults, Clear, Delete (pad X, key R; menu-ui SPEC 4.2). */
+  'uiX',
+  /** Menu Start: Resume in pause, Done / Join in text entry (pad Menu; MD11). Not a Back. */
+  'uiStart',
 ] as const;
 
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];
