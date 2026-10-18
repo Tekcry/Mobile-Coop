@@ -1936,3 +1936,79 @@ final build; the numbers in the tables above are unchanged. All Wren sheets re-r
   forward draw (P0 / P1 9/9, hand room 32 / 46 mm; sneak P1 6/9); put to Michael at the block end.
 - Status: passed the independent check (fix rounds: 1).
 
+## Step 11c - merge master 4.0.0 into feature/operators (Opus 5.5)
+
+D31 (Michael, 2026-10-18). `git merge origin/master` (6f81c83, "Night Shift 4.0.0: consolidation (#3)"; merge base
+e60c835; 543 master commits, 40 operators commits). Master's deletions and decisions (docs/DECISIONS.md G1-G122) kept;
+the operators work kept. 952 files in the merge (606 added, 57 deleted, 277 modified, 12 renamed). No modify/delete
+conflicts: master deleted nothing the operators work had touched.
+
+**Conflicts and resolutions (10, all content; none in code the game runs)**
+- `.gitignore`: union (operators `/build`, `__pycache__/`; master's kestrel cert, `/pc/`, music and sfx caches).
+- `eslint.config.js`: union of the ignore lists (operators `build`, `vite.operators.config.ts`, `docs/**/*.workflow.js`;
+  master `test-results`, `.music-cache`, `.sfx-cache`).
+- `package.json`: master's (4.0.0, editor, music and sfx scripts) plus the seven `operators*` scripts; the
+  `@babylonjs/ktx2decoder` devDependency (D27) was outside the conflict and stays. `package-lock.json` merged to the
+  operators side unchanged (master never touched it), so no `npm ci`.
+- `scripts/perf.mjs`: master's whole. The operators side only carried the old phone-info-only tail (bible 1.14);
+  auto-merged it referenced master's deleted `phone` / `mobile` variables (a ReferenceError at the end of every run).
+- `TESTING.md`, `docs/systems/performance.md`, `docs/story.md`: master's. The operators edits were the phone smoke
+  check, the phone-info-only budget note and "each is their own real size"; master's desktop-only text and story 2.1
+  (G109: "they differ in look and height") replace them.
+- `CLAUDE.md`: master's, plus the operator pipeline's art exception in "Hard rules" (the CC0 base body, meshes generated
+  offline by in-repo Blender scripts and bundled) and a `docs/operators/` row in the doc index. Dropped as covered by
+  master: the "On branch feature/operators, follow docs/operators/RULES.md" first line (master's "Every session" step 3
+  reads the job's RULES and STATE), "How sessions are run" (master's "Running a job"), the desktop-only platform line.
+- `docs/design-bible.md`: master's 2.0 (G1-G118) whole; the operators 1.15 edits (5.14 generated operators, sizes,
+  Section 6 and 5.16 art exceptions, phone wording) are superseded by master's 5.14 / G68-G75 / G109. One addition in
+  Section 6 "Never", which leaves the pipeline's sources to this branch (G75): "a CC0 base human body, built into each
+  operator offline by in-repo Blender scripts and bundled".
+- `docs/systems/session-method.md` (add/add): master's ("How a job is run", G87), plus the operators run as a proven
+  example and the ops D18 note on Workflows.
+
+**Step 11c - merge master: depends on deleted systems** (listed for Michael; nothing rebuilt or removed from the asset)
+1. Drone pod (`dronePod`, rear right of the belt, A88; "the folded tri-rotor and its battery"): the player drone is
+   deleted (G7, G115). Built in `scripts/operators/py/garments/waist_belt.py` (parts dronePod / Latch / Seat / Tab),
+   `src/operators/kit.ts` (WREN_KIT), `src/operators/rigidKit.ts` (size 84 x 80 x 19, pelvis rule), `py/pose_check.py`
+   (item D), `src/operators/lab/labData.ts` (beltBack close-up), tests (`operators.test.ts` coverage list,
+   `operatorRigidKit.test.ts`). Master's open item: "What Wren's hip pod holds now the drone is removed (ART-08, ops D25)".
+2. Medkit pouch (`medPouch`, right side of Wren's belt, contents `medkit`, A88): carried medkits are deleted (G98,
+   G115); master's WEAP-11 says "the medkit pouch goes with G98". Same files as 1 (waist_belt.py parts medPouch,
+   kit.ts, rigidKit.ts rule). Moth's planned `medPouch` (kit.ts, climbing harness, "first aid") and
+   `py/garments/carrier.py` (KITS list) carry the same dependency.
+3. Guns outside the CT kit (master keeps `rifle` and `pistolSd`, `WeaponId = 'rifle' | 'pistolSd'`): the thigh holster
+   cavity is sized for "the largest thigh-slot sidearm in weaponDefs.ts (the five-seven's 31 mm width)"
+   (`py/garments/leg_kit.py` header, kit.ts thighHolster), now only the suppressed pistol; the sling socket is "the
+   anchor of the game's compact-gun sling slot (A41)" for an SMG (kit.ts slingSocket); `EXTERNAL_ANCHORS` in kit.ts
+   lists `'smg'`. The rifle magazines and rifle bungee match the kept rifle.
+4. Phone budgets / phone LOD: none left in the pipeline (removed in step 11b, D29). Doc remnants only: SPEC.md 563
+   (the "Phone impact" table row) and the quoted bible 1.15 text at SPEC.md 672 and 698 ("phones never download hero
+   assets"); BRIEF.md and old DECISIONS / LOG entries are history.
+5. Three-lens goggle: no dependency. Every mention in the operators docs is a prohibition (ART-DIRECTION.md 25,
+   BRIEF.md 34, RULES.md 23, SPEC.md 62), matching G69. Related for step 11e: G73 wants the goggle on the brow with a
+   dim glow when vision is off and over the eyes when on; head_kit builds the stowed (brow) position as a rigid
+   transform (`stowM`) but exports only the in-use position.
+
+**Other master rules that touch this run** (for the orchestrator)
+- Ports (master CLAUDE.md, G94): 4191 is software-GL logic e2e only, "never with `E2E_GPU=1`"; GPU work uses 4189. The
+  operators preamble runs the GPU Lab and sheets on 4191.
+- Master CLAUDE.md: "Never run `npm run dev`, `npm run preview` or a watch mode from an agent". `npm run operators`
+  ends in `vite preview` (the preamble already routes Lab use through the sheet scripts).
+- Master bible 5.14 still says Wren goes in "behind a dev switch" (G70); D31 / G123 replaces that in 11d / 11e.
+- `src/player/characterRig.ts` changed on master (+590 / -249: step 12b head cap, `LIVE_RIGS`, edge-hand timing); no
+  joint (`n(...)`) changes, so `operatorBody.ts`'s bind-pose mirror holds. The Lab imports it; the pipeline does not.
+
+**Checks**
+- `npm run check`: PASS (lint 0 errors / 41 warnings; Vitest 134 files, 1537 tests passed; typecheck and build OK).
+- `npm run operators:check -- wren`: not run. The merge changed no pipeline file (scripts/operators, src/operators,
+  operator tests, vite.operators.config.ts, operators.html) and none of their imports (`src/player/proportions.ts`).
+  The Lab imports `characterRig.ts` (changed on master), but the Lab is not part of operators:check.
+- `E2E_PORT=4191 E2E_JOBS=2 npm run e2e:quick` (report only; 955 changed files, so nearly the full set, 44 suites):
+  36 ok; KNOWN FLAKY failed: e2e-netmove, e2e-coop, e2e-pad; 5 failed: e2e-anchors, e2e-kestrel, e2e-camera-bounds,
+  e2e-music, e2e-editor. Serial rerun of the 5: e2e-anchors and e2e-music pass (load); e2e-kestrel ("camera rays along
+  the tour"), e2e-camera-bounds (level U) and e2e-editor fail. All three are the pre-existing Kestrel-owned failures in
+  master's consolidation PR (docs/consolidation/PR-BODY.md 48, AGENT-PREAMBLE.md 42); none touches operators code.
+- Merge commit a804c48 (not pushed). Uncommitted after it: this LOG draft, STATE.md, the orchestrator's 11d / 11e step
+  file edits, and a line-ending-only touch of tests/__snapshots__/visionIsolation.test.ts.snap from the Vitest run.
+- Status: merged; check passed; e2e failures are master's known ones.
+

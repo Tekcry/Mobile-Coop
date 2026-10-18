@@ -1,7 +1,7 @@
 # Step 11d - Wren: game runtime
 
 Model: Opus 5.5, High effort. Run by the orchestrator's step loop (RULES.md "Step loop"). Starts only after step 11c
-(feature/operators synced with Michael's merged base branch, D30).
+(feature/operators merged with origin/master 4.0.0, D31).
 
 ## Objective
 
@@ -29,8 +29,8 @@ the game, built against the post-merge code (CharacterRig, player body path, bui
    (Bone.linkTransformNode, rig stays the pose authority, non-allocating per-frame path); materials (KTX2 via the
    bundled decoder, D27; goggle glow; the two goggle states, stowed / in use); disposal.
 3. Pure, Babylon-free modules in `src/operators/runtime/` with Vitest tests (`tests/operatorsRuntime*.test.ts`):
-   manifest + validation, LOD / hero picker (no allocation per call), close-up camera registry, `?operator=` dev
-   switch parser, goggle state model.
+   manifest + validation, LOD / hero picker (no allocation per call), close-up camera registry, goggle state model (no
+   dev switch: Wren replaces the player body, D31 / G123).
 4. Babylon side (through `src/core/babylon.ts` only; add side-effect imports there if needed): loader building meshes
    and a Skeleton from the GLB, rig link, materials and glow, LOD swap, goggle states, dispose. Unit-test what runs in
    node; GPU checks wait for 11e.

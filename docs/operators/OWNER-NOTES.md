@@ -9,7 +9,7 @@ setup and prompts).
 
 ## Local setup (Michael's PC, RTX 4090)
 - Worktree: `C:\NightShift\Mobile-Coop-operators`. Branch: `feature/operators`, tracking `origin/feature/operators`.
-- `E2E_PORT=4191` on every Lab, sheet and render run; `E2E_GPU=1` for GPU renders. Port 4191 commands:
+- `E2E_PORT=4189` on every Lab, sheet and render run; `E2E_GPU=1` for GPU renders. Port 4189 commands:
   RULES.md "Step loop" and steps/AGENT-PREAMBLE.md.
 - Blender 5.2.2 LTS, headless, from `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`.
 - Branch guard before every commit and push (and in every subagent before any git command):
@@ -73,7 +73,7 @@ starts after that. The cloud runtime session is not needed.
     1. Implementer subagent: Agent tool, model and effort from PLAN.md, in the background. Prompt: "Read docs/operators/steps/AGENT-PREAMBLE.md first. Role: implementer. Step NN: <title>, docs/operators/steps/<file>. Handover from the previous step: <its handover, verbatim>."
     2. Checker subagent: fresh, model opus, effort high. Prompt: "Read docs/operators/steps/AGENT-PREAMBLE.md first. Role: checker, round R. Step NN: <title>, docs/operators/steps/<file>. Implementer report: <its report, verbatim>."
     3. FAIL: fixer subagent (the step's model and effort): "Read docs/operators/steps/AGENT-PREAMBLE.md first. Role: fixer, round R of 3. Step NN: <title>. Fix list: docs/operators/steps/NN-fixes-rR.md." Then a fresh checker. At most 3 fix rounds; still failing means OPEN.
-    4. Finish yourself: branch guard; LOG.md status line ("Status: passed the independent check (fix rounds: N)." or "Status: OPEN after 3 fix rounds; evidence: <fix list>; remaining: <items>."); STATE.md "Now" = the next step (OPEN items under "Open questions for Michael"); free port 4191; path-limited git add of the step's files; commit "operators: step NN - <title>" (add " (OPEN)" when open) ending with your Co-Authored-By line; push; confirm clean and not ahead. Send Michael up to 6 of the step's render PNGs with SendUserFile (status proactive, display render) and a three-line caption: built, passed or OPEN, open items. Then start the next implementer at once.
+    4. Finish yourself: branch guard; LOG.md status line ("Status: passed the independent check (fix rounds: N)." or "Status: OPEN after 3 fix rounds; evidence: <fix list>; remaining: <items>."); STATE.md "Now" = the next step (OPEN items under "Open questions for Michael"); free port 4189; path-limited git add of the step's files; commit "operators: step NN - <title>" (add " (OPEN)" when open) ending with your Co-Authored-By line; push; confirm clean and not ahead. Send Michael up to 6 of the step's render PNGs with SendUserFile (status proactive, display render) and a three-line caption: built, passed or OPEN, open items. Then start the next implementer at once.
     - One code-changing agent at a time. Never end your turn without a subagent running, except at the end of the run. Keep your own context small: read reports, not source or renders.
     - Block ends after step 11 (Wren) and step 16 (Moth): retry each OPEN step of the block once through the same loop, then continue (Wren: step 08 is not retried; step 07's cable item is fixed and re-checked inside step 09, so retry 07 only if step 09's checker did not confirm it).
 

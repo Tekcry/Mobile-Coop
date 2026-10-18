@@ -15,7 +15,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 5. Stay inside the step: its objective, its files, its checks. Anything else goes into LOG.md as a follow-up.
 
 ## Hard rules for this run
-- Work only in this worktree. `E2E_PORT=4191`. GPU renders on Michael's PC use `E2E_GPU=1`. Never claim a visual
+- Work only in this worktree. `E2E_PORT=4189`. GPU renders on Michael's PC use `E2E_GPU=1`. Never claim a visual
   result that was not rendered on the hardware GPU.
 - Do not edit `src/player/characterRig.ts`, `src/anim/*`, or anything `feature/ct-locomotion` touches
   (`git diff --stat origin/ct-movement...origin/feature/ct-locomotion` lists them). Everything here lives in new files.
@@ -74,11 +74,11 @@ No hangs, low tokens (every agent; repeated in AGENT-PREAMBLE.md):
   Blender GUI may be open), log it, change approach.
 - Same error twice with no progress: stop and return done / left. Logs: tail -40 or grep, never whole.
 - Budget: implementers about 100 tool calls, fix rounds and checkers about 60. Over budget: return done / left.
-- Port 4191 (the Lab and `operators:sheet` serve their own on E2E_PORT; never start a server for them):
+- Port 4189 (the Lab and `operators:sheet` serve their own on E2E_PORT; never start a server for them):
   1. Free it before any Lab, sheet or preview run and before you finish:
-     `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4191 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
-  2. Check it is free: `netstat -ano | grep ":4191 .*LISTENING"` prints nothing.
-  3. "Port 4191 is already in use" means step 1 was skipped: run it and retry once.
+     `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4189 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"`
+  2. Check it is free: `netstat -ano | grep ":4189 .*LISTENING"` prints nothing.
+  3. "Port 4189 is already in use" means step 1 was skipped: run it and retry once.
 
 ## Chaining
 **Superseded 2026-10-16:** a session cannot start another session, so steps 05-18 run in one orchestrator session
