@@ -243,3 +243,5 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Checks: `npm run check` passes (1710 tests); smoke passes. e2e-ctcourse did not pass in 5 runs while another
   session ran e2e on this PC (failures at stations 3, 5, 7, untouched; one run reached station 8 and failed its own
   countdown bound, loosened to 15-30 s). Orchestrator reruns it solo before the 09:30 push.
+- e2e-ctcourse run alone at 08:36: passed end to end (stations 1-8, revive, exit), 682 s. Pushed to ct-movement for the
+  09:30 walkthrough; /ct/ frozen from 09:30.

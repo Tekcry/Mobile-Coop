@@ -40,9 +40,10 @@ The co-op action (RB / F) picks the move from your stance and where you stand:
 | 4 Laser | One stands about 1 m before the beams and presses RB; the other runs in and presses RB (thrown over), then presses the red release | built (the jammer also works) |
 | 5 Roof hatch | Leg-up and relay onto the roof (plates), then crouch on the striped square facing the hatch, RB; partner RB; holder's stick lowers; hanging player A at the panel | built |
 | 6 Scanners | One scanner each, wait for both small lights green, A together, stay put | built |
-| 7 Rope wall | Leg-up one player up; on top stand facing the partner and press RB to drop the rope; partner RB at the wall, stick up to climb | built (no rope drawn yet) |
-| 8 Finish | Both into the exit zone | (B8 status filled in at 09:30) |
-Failing costs health, never the run: laser touch 15 HP, a late scanner 10 HP (never below 1).
+| 7 Rope wall | Leg-up one player up; on top stand facing the partner and press RB to drop the rope; partner RB at the wall, stick up to climb | built |
+| 8 Finish | Both into the exit zone; the results show time, alarms and revives | built |
+Failing costs health, never the run: laser touch 15 HP, a late scanner 10 HP (never below 1). A downed player can be
+revived by the partner (hold A near them) within 30 s, at most twice per run; past that, or both down, the bay restarts.
 
 ## What changed overnight
 - Wren is the character for both players (master merge).
@@ -55,14 +56,19 @@ Failing costs health, never the run: laser touch 15 HP, a late scanner 10 HP (ne
 - Course: every station's real co-op move is in (leg-up, CT hanging-ladder relay, held jammer, partner throw,
   hang-down, paired scanners, two-person rope).
 
+## Build on /ct/
+feature/ct-prototype at the 09:30 push; e2e-ctcourse passed end to end (stations 1-8, revive, both in the exit zone; 682 s,
+run alone). Not in it yet: the weapons PR (#7) and the menu PR now on master: they come in with the master merge after
+your walkthrough.
+
 ## What to try first
 1. The course end to end in two tabs (the table above).
 2. Turns and the crouch in the Proving sandbox: spin the stick, flick 180 walking and running, crouch walk.
 3. The selection wheel (hold LB), vision on D-pad left, draw with X, knockout with LT on a guard in the warehouse.
 
 ## Known broken or not built
-- Throw, hang-down and rope have no bespoke animations (the vault and leg-up brace poses stand in); no rope mesh unless
-  B8 adds it.
+- Throw, hang-down and rope have no bespoke animations (the vault and leg-up brace poses stand in); the rope line shows
+  only on the holder's and climber's screens. Revive heals fully.
 - Your partner's gun shows no jam light; light jamming not built; secondary fire is a stub.
 - A co-op client's palm strike is always a knockout on the host; a client's bash is a plain open; the client's
   stealth open is push-to-open (no stick angle on the wire).
