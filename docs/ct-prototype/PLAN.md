@@ -5,6 +5,13 @@ plays, with no days of unattended code that may not be used (Michael, 2026-10-18
 research digests in docs/ct-research/ (levels, moves-mechanics, kit-design, design-kit, code-inventory) and
 docs/ct-research/DECISIONS-PENDING.md (Michael's D-01 to D-25 and the 2026-10-18 answers, given G numbers at merge).
 
+## Change (Michael, 2026-10-18): core feel first
+"Core feel first": the movement track below becomes a fine-tuning job, not a quick prototype: a fresh session
+rebuilds and tunes CT movement, camera, wall, doors, strike and goggles on Wren (Opus for tuning) until Michael signs
+off, starting with a short code review that decides rewrite vs adjust for the player controller and animation graph.
+Brief: docs/ct-prototype/FEEL-BRIEF.md on feature/ct-prototype. The co-op track (C1-C7) follows the sign-off as
+prototype slices (Sonnet, medium).
+
 ## How every slice runs
 - One branch `feature/ct-prototype` from master, folder `C:/NightShift/Mobile-Coop-ct-prototype`.
 - One implementer agent per slice (Sonnet, medium effort: Michael, 2026-10-18, "Sonnet, medium" for all prototype slices; Opus only if a slice gets stuck; fine tuning later on Opus), then a light check only: `npm run check`, the slice's

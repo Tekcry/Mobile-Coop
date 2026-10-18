@@ -48,6 +48,7 @@ written into the bible (G86).
 | Heavies | "Adopt CT's way": no heavy or dog archetypes in co-op missions; armour and helmets come with alarm stages | G42's heavies exception, G49's heavies part |
 | Voice chat | "After the prototype" (D-06, D-17 built later) | - |
 | Prototype model | "Sonnet, medium" for all prototype slices (menu, movement, co-op); Opus for fine tuning later | G88 for prototype work |
+| Core feel first | "Core feel first": keep the codebase; a fresh session runs one job that rebuilds and fine-tunes CT movement, camera, wall, doors, strike and goggles on Wren (Opus for tuning) until Michael signs off; the co-op gameplay slices C1-C7 come after | G4 / G22-order for movement (prototype-first, tune later); the "Sonnet, medium" pick now covers menu and gameplay prototype slices only |
 | Level standard | "Review list later": the 12 proposed changes (design-kit-digest appendix) come to Michael item by item before the first real mission map | - |
 
 ## Research facts that correct earlier entries (Michael to confirm at the plan review)
