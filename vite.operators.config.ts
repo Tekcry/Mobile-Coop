@@ -7,7 +7,7 @@ import path from 'node:path';
 import { defineConfig, type Connect } from 'vite';
 
 const root = path.resolve(import.meta.dirname, 'build', 'operators');
-const port = Number(process.env.E2E_PORT ?? 4191);
+const port = Number(process.env.E2E_PORT ?? 4189);
 
 const serveBuild: Connect.NextHandleFunction = (req, res, next) => {
   const rel = decodeURIComponent((req.url ?? '').split('?')[0] ?? '');

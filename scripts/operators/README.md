@@ -96,9 +96,9 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   left) and refreshes the Lab copies; costs into report.json `ktx2` and README.md. `operators:check` FAILs a LOD file
   with any other texture format (`ktx2`).
 - `npm run operators` - the dev-only Operator Lab (`operators.html`, `src/operators/lab/`, `vite.operators.config.ts`): builds
-  into `build/operators-lab/` and serves at `http://127.0.0.1:4191/operators.html` (E2E_PORT). Never in `dist/`.
+  into `build/operators-lab/` and serves at `http://127.0.0.1:4189/operators.html` (E2E_PORT). Never in `dist/`.
 - `npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind] [--no-build]`
-  (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4191`) - the contact sheets, into `docs/operators/mockups/<id>/`.
+  (`scripts/operator-sheet.mjs`, run with `E2E_GPU=1 E2E_PORT=4189`) - the contact sheets, into `docs/operators/mockups/<id>/`.
   `--only gamePoses` (no sheet) writes `build/operators/<id>/<id>-game-poses.json`: the game rig's crouch and sneak
   (labData POSES through the Lab's retarget) as the operator's posed skeleton; pose_check.py then adds the poses
   `gameCrouch` / `gameSneak` (step 11b fix round 1).

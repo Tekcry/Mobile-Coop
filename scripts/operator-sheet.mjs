@@ -1,6 +1,6 @@
 // npm run operators:sheet [wren|moth] [--only turnaround,closeups,menu,context,compare,lods,wire,colourblind,rim,goggle] [--no-build]
 // SHEET_CLOSEUPS=collar,ptt limits the close-ups (iteration).
-// Headless contact sheets of the Operator Lab (BRIEF Stage 2.2), E2E_GPU=1 on Michael's PC (hardware GPU), E2E_PORT=4191.
+// Headless contact sheets of the Operator Lab (BRIEF Stage 2.2), E2E_GPU=1 on Michael's PC (hardware GPU), E2E_PORT=4189.
 // Builds the Lab (build/operators-lab/), serves it with the pipeline output, drives `window.__lab`, composes each sheet on a
 // canvas (labels, scale bar, callouts, colour-blind simulation) and writes WebP into docs/operators/mockups/<operator>/.
 // A sheet whose subject is not built yet is skipped and listed in the summary; nothing is faked.
@@ -23,7 +23,7 @@ const ALL = ['turnaround', 'closeups', 'menu', 'context', 'compare', 'lods', 'wi
 // (DIAG_LODS=hero,lod1 picks the LODs, DIAG_VIEW=bent the lods-closeups torso-bent tile, DIAG_SAVE=<dir> keeps each render);
 // `--only gamePoses` writes the game rig's crouch / sneak skeleton for pose_check.py (step 11b fix round 1)
 const only = onlyArg ? onlyArg.split(',') : ALL;
-const PORT = Number(process.env.E2E_PORT ?? 4191);
+const PORT = Number(process.env.E2E_PORT ?? 4189);
 const BASE = `http://127.0.0.1:${PORT}`;
 const DEST_ROOT = path.join(ROOT, 'docs', 'operators', 'mockups');
 const skipped = [];
