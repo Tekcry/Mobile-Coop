@@ -14,3 +14,9 @@ Cosmetic notes from the build and the independent check. Nothing here blocks the
 - Back carry: no visible sling; a short bungee or a lanyard from the stock to the plate would read even better.
 - The rifle's launcher has no leaf sight; the red dot has no lit reticle.
 - The weapon meshes are not in the offline cache warm-up (the PWA caches them on first load like other assets).
+- (check) Back carry hunched: the muzzle-up rifle passes close behind the helmet; splay the muzzle a few degrees off the head.
+- (check) The rifle magazine reads as a raked box; a stronger 30-round curve.
+- (check) A parked legacy "suppressor" attachment moves the muzzle 16 cm past the mesh's end: ignore attachments on meshed guns.
+- (check) The grip morph targets carry no tangents: normal-mapped fingers shade slightly off when closed.
+- (check) The back-draw reach (anim/clips/actions.ts REACH.backC) still aims at the old generic slot point: aim it at
+  the A13 mount (the handguard over the right shoulder) when the draw is tuned; the pistol draw likewise to the A12 holster.

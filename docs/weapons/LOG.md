@@ -18,3 +18,7 @@
   holds solved from her hand frame (A9); shoulder protraction (A10); pistol reach (A11); the pistol in her built holster
   frame (A12); the rifle hung from her back plate's receiver bar by a stud (A13); staging on Proving (Michael).
   `npm run check` green (1580 tests).
+- 01:40-02:00: independent check (fresh agent): PASS on scale, realism, holds and carry; one blocker, the grip morph
+  managers leaked on figure dispose (menu preview rebuilds, a partner leaving): fixed (fix round 1). The pistol holster
+  renders now show the A12 frame. The weapon GLBs get their own service-worker cache (they would have evicted Wren's
+  LODs from hers). Docs: CHANGELOG, TESTING, combat / world-and-characters / testing-tools, progress.

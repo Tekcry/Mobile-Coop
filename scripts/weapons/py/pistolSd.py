@@ -292,14 +292,16 @@ def extra_renders(scene, render_dir, report):
         o.data.materials.clear()
         o.data.materials.append(m)
     M = slot_matrix(lo, hi)
+    # the renders show the gun where the game puts it now: Wren's own holster frame (DECISIONS A12)
+    F = frame_matrix(lo, hi)
     pose = gun.copy()
     pose.name = 'pistol-holstered'
     scene.collection.objects.link(pose)
-    pose.matrix_world = M
+    pose.matrix_world = F
     pose.hide_render = False
     dg = bpy.context.evaluated_depsgraph_get()
     trees = [(n, world_tree(bpy.data.objects[n], dg)) for n in HOLSTER_OBJS if n in bpy.data.objects]
-    res = {'pose': 'game slot (weaponModel.ts thigh: extents centre at SLOT, bore straight down)',
+    res = {'pose': 'regions: the old generic game slot; holsterFrame: the leg kit frame the game uses (A12, the renders)',
            'extents': [[round(v, 4) for v in lo], [round(v, 4) for v in hi]],
            'mouthGunZ': round(float(M.translation.z - SHELL_TOP_Z), 4),
            'slot': [round(float(v), 5) for v in M.translation], 'regions': penetration(gun, M, trees)}
@@ -314,7 +316,7 @@ def extra_renders(scene, render_dir, report):
     print('holster', res)
 
     # renders: close side and front views of the holstered gun on Wren's right thigh
-    c = M @ W.G(0.0, 0.02, 0.10)
+    c = F @ W.G(0.0, 0.02, 0.10)
     for o in [o for o in scene.objects if o.type == 'LIGHT']:
         o.hide_render = True
     W.light('h-key', (c.x - 0.6, c.y - 0.5, c.z + 0.6), c, 40.0, 0.4)

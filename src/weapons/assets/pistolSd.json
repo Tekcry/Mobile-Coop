@@ -412,7 +412,7 @@
  "glb": {
   "vertices": 10894,
   "triangles": 9676,
-  "bytes": 3087604
+  "bytes": 3087592
  },
  "textures": {
   "albedo": "pistolSd-albedo.png",
@@ -420,7 +420,7 @@
   "normal": "pistolSd-normal.png"
  },
  "holster": {
-  "pose": "game slot (weaponModel.ts thigh: extents centre at SLOT, bore straight down)",
+  "pose": "regions: the old generic game slot; holsterFrame: the leg kit frame the game uses (A12, the renders)",
   "extents": [
    [
     -0.0165,
@@ -695,21 +695,21 @@
   "files": [
    {
     "kind": "albedo",
-    "bytes": 703109,
-    "pngBytes": 682118
+    "bytes": 703112,
+    "pngBytes": 682110
    },
    {
     "kind": "orm",
-    "bytes": 928253,
-    "pngBytes": 927628
+    "bytes": 928252,
+    "pngBytes": 927619
    },
    {
     "kind": "normal",
     "bytes": 630015,
-    "pngBytes": 836854
+    "pngBytes": 836859
    }
   ],
   "glbBytes": 2902584
  },
- "builtSeconds": 18
+ "builtSeconds": 604
 }

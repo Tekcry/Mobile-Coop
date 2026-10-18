@@ -595,7 +595,12 @@ export class OperatorFigure {
     for (let i = 0; i < this.lods.length; i++) {
       const l = this.lods[i];
       if (!l) continue;
-      for (const m of l.meshes) m.dispose(false, false);
+      for (const m of l.meshes) {
+        // (feature/weapons) the grip morph manager is the body's own: Mesh.dispose only drops the reference, and the
+        // scene keeps the manager (and its target textures) until it is disposed itself
+        m.morphTargetManager?.dispose();
+        m.dispose(false, false);
+      }
       l.skeleton.dispose();
       l.glowMat?.dispose();
       this.lods[i] = null;

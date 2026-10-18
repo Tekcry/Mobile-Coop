@@ -77,6 +77,17 @@ export default defineConfig({
         // close-up asks for it. Same origin only; a new build's hashed files replace the old ones (8 entries = two builds
         // of four files).
         runtimeCaching: [
+          // (feature/weapons) the kit's weapon meshes (rifle, pistolSd, knife: 0.6-7 MB each) in a cache of their own, so
+          // they never push Wren's LODs out of hers (6 entries = two builds of three files)
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/(rifle|pistolSd|knife)-[^/]+\.glb$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'weapons',
+              expiration: { maxEntries: 6 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.glb$/.test(url.pathname),
             handler: 'CacheFirst',

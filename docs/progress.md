@@ -27,7 +27,8 @@ Follow-ups, after the research and the prototype (one line each; their order is 
 | Test fixes: e2e-coop "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true); e2e-foley walk-plants threshold (known flaky since the step-22 speeds); kbm flashbang white-out reads 0.00 (pre-existing, likely the pointer-lock pause); the co-op suites made reliable, then required (G51) | `feature/test-fixes` (proposed) | Not started |
 | Perf: re-measure the `?gfx=min` budgets on the desktop test context | with the test fixes | Pending PC run |
 | Operators: `feature/operators` merges master and opens its own PR (G75); its open items stay there | `feature/operators` | Running on its own branch, not in 4.0.0 |
-| Wren replaces the player body for both players now (G123, replaces G70); then the weapon step; body proportion fixes for every character (G72) | feature/operators PR | In progress |
+| Wren replaces the player body for both players now (G123, replaces G70); then the weapon step; body proportion fixes for every character (G72) | feature/operators PR | Merged (PR #5) |
+| Weapons: placeholder kit meshes (rifle with launcher, pistol with jammer, knife), believable holds and carry on Wren (`docs/weapons/`) | `feature/weapons` (`Mobile-Coop-weapons`) | In progress: all three in game; check, full e2e, PR |
 | Original goggle and menu symbol (G69, "soon"); goggle on the brow when off, over the eyes when on (G73) | `feature/goggle` (proposed) | Not started |
 | Fallow bunker rebuilt on the CT moves, every jump and reach re-checked (G79), starting from Michael's walkthrough notes | `feature/bunker-walkthrough` | After the prototype |
 | Missing sounds: guards' footsteps, then ambience, then the rest (G66) | - | After the prototype |

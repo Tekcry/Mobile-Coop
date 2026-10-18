@@ -56,6 +56,16 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 | rifle | Heron Carbine | primary, suppressed rifle (default) |
 | pistolSd | Hush 9 SD | sidearm, suppressed pistol (default) |
 
+Meshes (feature/weapons, `docs/weapons/`): each kit item is a baked GLB in `src/weapons/assets/<id>.glb` with its build
+report `<id>.json`, built by `npm run weapons:build [rifle|pistolSd|knife] [--render]` (Blender 5.2.2 headless:
+scripts/weapons/py/<id>.py on wlib.py; GPU bake of albedo / ORM / normal; KTX2). `weaponMesh.ts` loads each once per scene;
+`WeaponModel` with `{ mesh: true }` (the player, the co-op partner, the menu preview) shows it in place of the primitive
+parts, which stay as the loading fallback and as the proxy whose extents the carry slots use (guards keep the parts,
+A6). Each mesh is built around the weapon's data: `grip`, `foregrip`, `muzzle`, and for long guns `backStud` (the stud
+that hangs it from an operator's back plate); `tests/weaponMesh.test.ts` checks the points, the proxy fit, budgets and
+KTX2. The knife (`KnifeModel`, `weapons.knife.show`) sits in the right fist when drawn. `npm run weapons:shots`
+(`E2E_GPU=1`, port 4189) takes the in-game review screenshots on the training map (`STAGE=warehouse`: under a lamp).
+
 ## Health and medkit stations (G20, G98)
 - Health 100, no regeneration (bible 6). The only heal is a wall medkit station: `src/game/medkit.ts` (pure: `MEDKIT.heal`
   40, `MEDKIT.wallHold` 0.6 s, `stationHeal`). Interactable kind `medkitWall` from `MapDef.medkitWalls`: hold to heal 40,
