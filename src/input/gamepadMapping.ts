@@ -51,7 +51,7 @@ const BTN_THRESHOLD = 0.5;
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
  * separately. A context action, B crouch, Y traverse + interact
- * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder. 3.2.0: D-pad up /
+ * (contextual), X reload (the source turns a hold into a weapon swap), L3 unbound (CT prototype M1: no sprint; M3 puts back-to-wall there), R3 shoulder. 3.2.0: D-pad up /
  * down the speed gear, right the gadget (hold to aim), left the gadget wheel (the source: a tap is a co-op ping, a
  * hold opens the wheel); View goggles (the source: a tap is goggles; a hold does nothing).
  */
@@ -65,7 +65,6 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.LB, 'swapPrev'],
   [PAD.START, 'pause'],
   [PAD.SELECT, 'vision'],
-  [PAD.LS, 'dash'],
   [PAD.RS, 'shoulderSwap'],
   [PAD.UP, 'speedUp'],
   [PAD.DOWN, 'speedDown'],

@@ -20,7 +20,7 @@ import type { CoverSpot } from '../game/tactics';
 /** Hip joint height (m) of the average build the capsule is fitted to. */
 const HIP_Y = proportions('average').y.hip;
 
-/** Max plausible horizontal speed (sprint + roll burst + slack), m/s (free movement: the speed gear's, `moveSpeedCap`). */
+/** Max plausible horizontal speed (top run + roll burst + slack), m/s (free movement: the speed gear's, `moveSpeedCap`). */
 const MAX_SPEED = MAX_FREE_SPEED;
 
 /**
@@ -125,7 +125,7 @@ export class RemotePlayer implements Damageable {
     const dz = s.z - this.feet.z;
     const d = hyp2(dx, dz);
     // (3.2.0) free movement within the speed gear's pace; traversal / the air keep the general cap
-    const cap = moveSpeedCap(s.mv, (s.f & PF.crouch) !== 0, (s.f & PF.sprint) !== 0, (s.f & PF.driven) !== 0, (s.f & PF.grounded) !== 0);
+    const cap = moveSpeedCap(s.mv, (s.f & PF.crouch) !== 0, (s.f & PF.driven) !== 0, (s.f & PF.grounded) !== 0);
     const max = Math.min(MAX_SPEED, cap) * dt + 0.75;
     if (d > max && this.teleportGrace <= 0 && this.state) {
       const k = max / d;

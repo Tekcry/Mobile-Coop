@@ -90,7 +90,7 @@ export interface MoveState {
   ph: number;
   /** Takedown target id ('' = none). */
   tid: string;
-  /** Speed gear 1..6. */
+  /** Speed gear 1..5. */
   g: number;
   /** Weapon raise 0..1 and the aim's twist from the body (rad): the upper body follows the aim when raised. */
   r: number;
@@ -208,7 +208,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
     sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : m === 'doorPeek' ? Math.floor(num(o.sub, 0, 1, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
     ph: num(o.ph, 0, 1, 0),
     tid: typeof o.tid === 'string' && /^[A-Za-z0-9_-]{0,40}$/.test(o.tid) ? o.tid : '',
-    g: Math.floor(num(o.g, 1, 6, 3)),
+    g: Math.floor(num(o.g, 1, 5, 3)),
     r: num(o.r, 0, 1, 0),
     ay: num(o.ay, -Math.PI, Math.PI, 0),
     dw: Math.round(num(o.dw, 0, 3, 0)),

@@ -47,7 +47,7 @@ describe('binding conflicts (step 18)', () => {
     expect(assignBind(k, 'reload', 1, 'ControlLeft')).toBe('crouch');
     expect(k.crouch).toEqual(['KeyC', 'ControlLeft']);
     expect(findConflicts(k)).toEqual([{ a: 'crouch', b: 'reload', input: 'KeyC' }]);
-    assignBind(k, 'sprint', 0, 'KeyC');
+    assignBind(k, 'cover', 0, 'KeyC');
     expect(findConflicts(k).length).toBe(3);
   });
 });

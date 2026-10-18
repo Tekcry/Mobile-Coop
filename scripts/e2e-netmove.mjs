@@ -277,16 +277,16 @@ try {
 
   console.log('committed moves: a forward roll');
   // sprint (gear 6) along open floor, tap crouch
-  await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 6; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
+  await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 5; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
   await wait(900);
   await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
-  // crouch (B) held 0.1 s of sim time
+  // crouch (B) HELD 0.3 s of sim time (G32: a held crouch at a run rolls)
   await GB(() => new Promise((res) => {
     const st = window.__app.current;
     const orig = st.fixedUpdate.bind(st);
     let t = 0;
     window.__pad.set(1, 1);
-    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t > 0.1) { window.__pad.set(1, 0); st.fixedUpdate = orig; res(); } };
+    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t > 0.3) { window.__pad.set(1, 0); st.fixedUpdate = orig; res(); } };
   }));
   await until(B, () => window.__app.current.traversal.forwardRolls > 0, null, 4000, 'client rolls').catch(async (e) => {
     console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ gear: c.gear, sp: c.speed, crouched: c.crouched, grounded: c.grounded, ov: !!c.override, ads: window.__app.current.player.ads }); }));

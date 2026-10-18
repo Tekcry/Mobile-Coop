@@ -13,6 +13,9 @@
  */
 import { EDGE_MARGIN, type CoverSegment } from '../cover/coverData';
 import { GEARS } from '../config/movement';
+
+/** (CT prototype M1) The back-to-wall slide keeps the pre-CT gear caps (m/s, gear 1..5): M3 redoes the wall with the CT pad layout. */
+const WALL_GEAR_CAPS = { crouch: [0.42, 0.75, 1.08, 1.5, 1.9], stand: [0.65, 1.1, 1.65, 2.3, 3.15] } as const;
 import { hyp2 } from '../core/mathx';
 import type { CoverSpot } from '../game/tactics';
 import type { MoveOverride } from './playerController';
@@ -756,7 +759,7 @@ export class WallCore {
       else along = this.latch * mag;
     }
     // (21w, M14) a slow shuffle: 0.9 / 0.6 m/s at full stick, analog below, within the gear's cap
-    const cap = (this.crouch ? GEARS.crouch : GEARS.stand)[Math.max(1, Math.min(WALL.maxGear, i.gear)) - 1]!;
+    const cap = (this.crouch ? WALL_GEAR_CAPS.crouch : WALL_GEAR_CAPS.stand)[Math.max(1, Math.min(WALL.maxGear, i.gear)) - 1]!;
     this.v = this.lean === 0 ? wallSlideSpeed(along, this.crouch, cap) : 0;
     if (this.v !== 0) this.dir = this.v > 0 ? 1 : -1;
     // from where the body is along the wall (no lag to catch up: the controller's own acceleration paces it)

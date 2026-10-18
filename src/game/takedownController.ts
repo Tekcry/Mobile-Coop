@@ -280,8 +280,7 @@ export class TakedownController {
       }
       return;
     }
-    // holding: a walk at most, no sprint; the hostage stays in front, facing the way the operator does
-    c.cancelSprint();
+    // holding: a walk at most; the hostage stays in front, facing the way the operator does
     c.speedCap = gearCap(Math.min(c.gear, GRAB.maxGear), c.crouched);
     const fx = Math.sin(c.yaw);
     const fz = Math.cos(c.yaw);

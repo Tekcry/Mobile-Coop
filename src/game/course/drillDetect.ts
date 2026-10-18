@@ -86,7 +86,7 @@ export const VERBS = {
 } as const;
 
 /** Sprint is gear 6 standing (speedGears). */
-const SPRINT_GEAR = 6;
+const SPRINT_GEAR = 5; // (CT prototype M1: no sprint; the verb is now the top-speed run)
 
 const push = (out: string[], v: string): void => {
   for (let i = 0; i < out.length; i++) if (out[i] === v) return;

@@ -358,7 +358,6 @@ export class RemoteAvatar {
       aim: this.aim,
       carry: this.carryW,
       kick: this.kick,
-      dash: (f & PF.sprint) !== 0 ? 1 : 0,
       wall: mp.wall,
       wallSide: mp.wallSide,
       wallNx: this.wallNx,

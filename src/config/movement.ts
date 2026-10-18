@@ -59,9 +59,9 @@ export const MOVEMENT = {
   pivotTime: 0.3,
   pivotMinSpeed: 1.5,
   /** Stance transition times (s): stand -> crouch, crouch -> kneel, crouch -> stand. */
-  crouchTime: 0.25,
+  crouchTime: 0.22,
   kneelTime: 0.3,
-  standTime: 0.3,
+  standTime: 0.22,
   /** Fraction of ground control kept in the air (drops / vault exits only). */
   airControl: 0.05,
   standHeight: 1.75,
@@ -148,18 +148,16 @@ export const ENEMY_CALM_MOTION: typeof MOVEMENT = {
  * curve (0 inside `deadZone`, linear to 1 at the rim). The sprint is gear 6 standing while it lasts.
  */
 export const GEARS = {
-  count: 6,
+  count: 5,
   spawn: 3,
   /**
-   * Gear caps (m/s), gear 1..6. (locomotion step 22, M14 N6 "too arcadey and fast", A88) about 17 % under the 3.2.0
-   * caps (`GAIT_REF`: stand 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0, crouch 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8).
+   * (CT prototype M1, loco M20 Q8) Five analog speeds, no sprint (ct-measure-speeds-stops-posture.md); starting
+   * values, tune by feel (G10). Standing 0.2 / 0.75 / 2.0 / 3.0 / 4.2, crouched 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s.
    */
-  crouch: [0.42, 0.75, 1.08, 1.5, 1.9, 2.3],
-  stand: [0.65, 1.1, 1.65, 2.3, 3.15, 4.15],
+  crouch: [0.4, 0.85, 1.5, 2.1, 2.6],
+  stand: [0.2, 0.75, 2.0, 3.0, 4.2],
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
-  /** HUD gear pips stay this long after a change (s), then fade. */
-  pipsShow: 1.5,
 } as const;
 
 /**
@@ -169,8 +167,8 @@ export const GEARS = {
  * stride length and the gait clock stay on the real pace (no foot slide).
  */
 export const GAIT_REF = {
-  crouch: [0.5, 0.9, 1.3, 1.8, 2.3, 2.8],
-  stand: [0.8, 1.3, 2.0, 2.8, 3.8, 5.0],
+  crouch: [0.5, 0.9, 1.4, 1.9, 2.5],
+  stand: [0.5, 1.1, 2.0, 3.0, 4.0],
 } as const;
 
 /**
@@ -181,30 +179,33 @@ export const GAIT_REF = {
  * stay instant.
  */
 export const CT = {
-  /** A swing left over when the feet stop stepping sets down over this (s); the stride blends to idle over it. */
+  /** A swing left over when the feet stop stepping sets down over this (s). */
   stopBlend: 0.12,
-  /** 95% of the target pace within this (s) from a standstill, after a gear change too (M14: ~0.3 s). */
-  startTime: 0.3,
-  /** Stick released: 98% of the pace is gone within this (s) at any gear (M14 ~0.25 s; bible 5.12.1 <= 0.3 s). */
-  stopTime: 0.25,
-  /** Turn inertia: the travel direction swings 95% of the way to the stick within this (s) at `turnFullSpeed`+. */
-  turnTime: 0.15,
-  /** Pace (m/s) where the turn inertia is full; under `turnSnapSpeed` the direction follows the stick at once. */
-  turnFullSpeed: 1.6,
-  turnSnapSpeed: 0.4,
-  /** Reversal (stick against travel, cos < `reverseDot`) above `pivotSpeed` m/s: brake into a planted pivot. */
-  reverseDot: -0.7,
-  pivotSpeed: 1.2,
-  /** Travel-facing turn rate (rad/s, 720 deg/s) and its angular acceleration (rad/s^2). */
-  turnRate: (720 * Math.PI) / 180,
-  turnAccel: 240,
-  /** Forward roll: crouch tapped standing at gear >= `rollGear` while moving: duration (s), length (m), noise (m). */
+  /** 95% of the target pace within this (s) from a standstill (loco M20: full run in ~0.4-0.5 s). */
+  startTime: 0.45,
+  /** Stick released: 98% of the pace is gone within this (s); ~0.29 m of slide from a 4.2 m/s run (G26: <= 0.3 m). */
+  stopTime: 0.2,
+  /** (G27) The frozen stance holds this long (s) after a stop, then eases to a feet-together idle over `stopEase`. */
+  stopHoldTime: 1.7,
+  stopEase: 0.35,
+  /** Travel-facing turn rate (rad/s, ~505 deg/s: a 180 in ~0.4 s, G25 / G33) and its angular acceleration (rad/s^2). */
+  turnRate: 8.8,
+  turnAccel: 300,
+  /** A turn dips the pace (fraction lost at a full 180): the run reversal slows and recovers (~0.3 s). */
+  turnDip: 0.55,
+  /** Slowest speed only: the stick behind the body by more than this (rad, 135 deg) walks backwards at `backSpeed`
+   *  (m/s) instead of turning round; it releases again under `backExit` (rad, 120 deg). */
+  backAngle: (135 * Math.PI) / 180,
+  backExit: (120 * Math.PI) / 180,
+  backSpeed: 0.5,
+  /** Roll (G32): a HELD crouch (`rollHold` s) standing at speed `rollGear`: duration (s), length (m), noise (m). */
   rollGear: 5,
-  rollTime: 0.7,
-  rollLength: 3.0,
+  rollHold: 0.15,
+  rollTime: 0.75,
+  rollLength: 2.3,
   rollNoise: 2,
-  /** Least moving speed (m/s) for the crouch tap to roll. */
-  rollMinSpeed: 1.5,
+  /** Least moving speed (m/s) for the held crouch to roll. */
+  rollMinSpeed: 2.5,
   /**
    * Stick release: a stick dropping faster than `releaseRate` (magnitude per second) from at least `releaseFrom` keeps
    * its last deflection for up to `releaseWindow` s; reaching the dead zone in that time is a release (an instant
@@ -219,9 +220,8 @@ export const CT = {
 /** Debug Tune panel ranges for the `CT` feel values. */
 export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]>> = {
   stopBlend: [0.03, 0.4, 0.01],
-  startTime: [0.05, 0.6, 0.01],
+  startTime: [0.05, 0.8, 0.01],
   stopTime: [0.05, 0.6, 0.01],
-  turnTime: [0, 0.4, 0.01],
   turnRate: [4, 20, 0.1],
   turnAccel: [40, 600, 10],
   rollTime: [0.4, 1.2, 0.02],
@@ -229,9 +229,8 @@ export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]
 };
 
 /**
- * Footstep noise (`noiseRadius`, 3.2.0): the fastest pace that is still silent. Crouched gears 1-4 (<= 1.5 m/s) and
- * standing gears 1-2 (<= 1.1 m/s) are silent, with room for the stride's speed swell (`rootDip`); standing gear 3 at
- * full stick (1.65 m/s, the spawn maximum) is audible. (step 22, A88: crouch 1.9 -> 1.7 so crouched gear 5 stays audible.)
+ * Footstep noise (`noiseRadius`, CT prototype M1, G40): the fastest pace that is still silent. Crouched speeds 1-3 (<= 1.5 m/s)
+ * and standing speeds 1-2 (<= 0.75 m/s) are silent, with room for the stride's speed swell (`rootDip`); the rest rise.
  */
 export const NOISE_QUIET = {
   crouch: 1.7,

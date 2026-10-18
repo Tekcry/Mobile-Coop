@@ -16,7 +16,6 @@ export type PadBindId =
   | 'traverse'
   | 'nextWeapon'
   | 'prevWeapon'
-  | 'sprint'
   | 'shoulder'
   | 'speedUp'
   | 'speedDown'
@@ -39,7 +38,6 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'reload', label: 'Reload (tap) / next weapon (hold, aiming)', actions: ['reload'], defaults: [PAD.X] },
   { id: 'nextWeapon', label: 'Next weapon', actions: ['swapNext'], defaults: [PAD.RB] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: [PAD.LB] },
-  { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: [PAD.LS] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: [PAD.RS] },
   { id: 'speedUp', label: 'Speed gear up', actions: ['speedUp'], defaults: [PAD.UP] },
   { id: 'speedDown', label: 'Speed gear down', actions: ['speedDown'], defaults: [PAD.DOWN] },

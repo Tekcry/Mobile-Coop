@@ -14,6 +14,7 @@ import { hyp2 } from '../core/mathx';
 import { HoldToggle } from '../input/holdToggle';
 import { CT, MOVEMENT } from '../config/movement';
 import { gearCap } from './speedGears';
+import { GEARS } from '../config/movement';
 import { G } from '../physics/groups';
 import { WALL_LOOK, WALL_TURN_RATE, wallHandPoint, wallRootPush } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
@@ -177,8 +178,6 @@ export class Player {
     const c = this.controller;
     // (locomotion step 18, D7) aim: hold or toggle
     this.ads = this.adsLatch.update(s.gameplay.adsToggle, inp.pressed('ads'), inp.down('ads'));
-    // aiming while sprinting ends the sprint and raises the weapon
-    if (this.ads && c.sprinting && this.pose.traverse === 'none') c.cancelSprint();
     if (this.forceAds) this.ads = true;
     if (c.weaponBlocked || (this.pose.traverse !== 'none' && !this.attachAim)) this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
@@ -209,9 +208,6 @@ export class Player {
       crouchPressed: inp.pressed('crouch'),
       crouchHeld: inp.down('crouch'),
       crouchToggle: s.gameplay.crouchToggle,
-      sprintPressed: inp.pressed('dash'),
-      sprintHeld: inp.down('dash'),
-      sprintToggle: !s.gameplay.sprintHold,
       ads: this.ads,
       aiming: this.aiming,
       reloading: this.reload >= 0,
@@ -257,7 +253,6 @@ export class Player {
     this.applyFov();
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
-    this.cam.dash = c.dashing ? 1 : 0;
     this.cam.lean = this.pose.lean;
     this.cam.cover = this.pose.wall ? 1 : 0;
     this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
@@ -329,7 +324,6 @@ export class Player {
     rp.carry = w;
     rp.weight = this.weaponWeight;
     rp.kick = this.kick;
-    rp.dash = c.dashing ? 1 : 0;
     rp.landing = Math.min(1, c.landT * 2);
     rp.reload = this.reload;
     rp.reloadEmpty = this.reloadEmpty;
@@ -354,7 +348,7 @@ export class Player {
     rp.phase = c.renderPhase;
     rp.motion = m.state;
     rp.motionT = m.stateT;
-    rp.quickStop = c.ct ? CT.stopBlend : 0;
+    rp.quickStop = c.ct ? (c.stopEaseT >= 0 ? CT.stopEase : CT.stopBlend) : 0;
     rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = this.visYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
@@ -369,8 +363,8 @@ export class Player {
       const wx = Math.cos(cy) * move.x + Math.sin(cy) * move.y;
       const wz = -Math.sin(cy) * move.x + Math.cos(cy) * move.y;
       const along = mag > 0.05 ? (wx * Math.sin(by) + wz * Math.cos(by)) / mag : 0;
-      // (step 22) the tops follow the M14 gear caps: the sprint, crouched gear 6, standing gear 4 (the 3.2.0 jog)
-      const top = c.sprinting ? gearCap(6, false) : c.crouched ? gearCap(6, true) : gearCap(4, false);
+      // the top pace of the stance: the intent is the stick's push against the pace
+      const top = gearCap(GEARS.count, c.crouched);
       rp.intent = mag * Math.max(0, along) - c.speed / top;
     } else rp.intent = 0;
     // stopping: the last steps land where the body will come to rest

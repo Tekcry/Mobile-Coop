@@ -277,7 +277,7 @@ try {
   {
     const KBM = [
       ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['Space', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
-      ['ShiftLeft', 'dash'], ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
+      ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['KeyE', 'jump', 'interact'], ['KeyF', 'interact'], ['KeyR', 'reload'],
       ['KeyX', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
       ['KeyN', 'vision'], ['KeyZ', 'ping'], ['KeyP', 'pause'],
     ];
@@ -749,31 +749,7 @@ try {
         await tap('KeyC');
         const c1 = await QP.evaluate(() => window.__rm.st());
         assert(u1.crouched && !u2.crouched && !c1.crouched, `in play U crouches (toggle), C no longer does (${u1.crouched} ${u2.crouched} ${c1.crouched})`);
-        // sprint: hold, then toggle (W held throughout)
-        const out = {};
-        for (const hold of [true, false]) {
-          await QP.evaluate((h) => window.__app.settings.update((d) => void (d.gameplay.sprintHold = h)), hold);
-          await QP.keyboard.down('KeyW');
-          await QP.evaluate(() => window.__rm.step(10));
-          if (hold) {
-            await QP.keyboard.down('ShiftLeft');
-            await QP.evaluate(() => window.__rm.step(20));
-            const on = (await QP.evaluate(() => window.__rm.st())).sprinting;
-            await QP.keyboard.up('ShiftLeft');
-            await QP.evaluate(() => window.__rm.step(10));
-            out.hold = [on, (await QP.evaluate(() => window.__rm.st())).sprinting];
-          } else {
-            await tap('ShiftLeft');
-            await QP.evaluate(() => window.__rm.step(20));
-            const on = (await QP.evaluate(() => window.__rm.st())).sprinting;
-            await tap('ShiftLeft');
-            await QP.evaluate(() => window.__rm.step(5));
-            out.toggle = [on, (await QP.evaluate(() => window.__rm.st())).sprinting];
-          }
-          await QP.keyboard.up('KeyW');
-          await QP.evaluate(() => window.__rm.step(30));
-        }
-        assert(out.hold[0] && !out.hold[1] && out.toggle[0] && !out.toggle[1], `sprint hold (held / released) vs toggle (press / press) (${JSON.stringify(out)})`);
+        // (CT prototype M1: no sprint) the sprint hold / toggle check is gone
       } finally {
         await Q.page.close();
       }

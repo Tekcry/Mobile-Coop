@@ -6,7 +6,7 @@ describe('key bindings', () => {
     const m = keyActionMap(defaultBinds());
     expect(m.get('Space')).toEqual(['cover']);
     expect(m.get('KeyE')).toEqual(['jump', 'interact', 'uiTabNext', 'uiAlt']);
-    expect(m.get('ShiftLeft')).toEqual(['dash']);
+    expect(m.get('ShiftLeft')).toBeUndefined(); // (CT prototype M1: no sprint)
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);
     expect(m.get('KeyQ')).toEqual(['swapPrev', 'uiTabPrev']);
     // 3.2.0 speed gears (the wheel steps them too, fixed in the source)
@@ -31,11 +31,11 @@ describe('key bindings', () => {
     expect(b.reload).toEqual(['KeyR']);
   });
   it('stored binds are sanitised: two per action, duplicates in one action dropped, missing ones defaulted', () => {
-    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], cover: ['Bogus'], sprint: 'ShiftLeft' });
+    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], cover: ['Bogus'] });
     expect(b.reload).toEqual(['KeyT', 'KeyR']);
     expect(b).not.toHaveProperty('bogus');
     expect(b.cover).toEqual([]);
-    expect(b.sprint).toEqual(['ShiftLeft']);
+    expect(b).not.toHaveProperty('sprint');
     expect(Object.keys(b).length).toBe(BINDS.length);
     expect(sanitizeBinds(null)).toEqual(defaultBinds());
     // a key on two actions is kept on both (step 18: a conflict, not an error)

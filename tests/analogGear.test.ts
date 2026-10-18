@@ -7,9 +7,9 @@ const magFor = (v: number, max: number, crouched: boolean): number => GEARS.dead
 
 describe('analog gear (locomotion step 17, D5.12)', () => {
   it('derives the threshold table from GEARS (midpoint +- 15% of the gap)', () => {
-    // (step 22, M14 N6) from the slower caps
-    const stand = [[0.9425, 0.8075], [1.4575, 1.2925], [2.0725, 1.8775], [2.8525, 2.5975], [3.8, 3.5]];
-    const crouch = [[0.6345, 0.5355], [0.9645, 0.8655], [1.353, 1.227], [1.76, 1.64], [2.16, 2.04]];
+    // (CT prototype M1) from the five CT speeds
+    const stand = [[0.5575, 0.3925], [1.5625, 1.1875], [2.65, 2.35], [3.78, 3.42]];
+    const crouch = [[0.6925, 0.5575], [1.2725, 1.0775], [1.89, 1.71], [2.425, 2.275]];
     stand.forEach(([u, d], i) => {
       expect(GEAR_UP.stand[i]).toBeCloseTo(u!, 9);
       expect(GEAR_DOWN.stand[i]).toBeCloseTo(d!, 9);
@@ -26,7 +26,7 @@ describe('analog gear (locomotion step 17, D5.12)', () => {
     a.reset();
     expect(a.update(5, false, magFor(1.2, 5, false))).toBe(2);
     expect(a.speed(false)).toBe(gearCap(2, false));
-    expect(a.update(5, false, magFor(2.6, 5, false))).toBe(4);
+    expect(a.update(5, false, magFor(2.6, 5, false))).toBe(3);
   });
   it('any tilt past the dead zone gives gear 1; inside it, no gear', () => {
     const a = new AnalogGear();
@@ -73,16 +73,13 @@ describe('analog gear (locomotion step 17, D5.12)', () => {
     expect(a.update(3, true, 1)).toBe(3);
     expect(a.speed(true)).toBe(gearCap(3, true));
   });
-  it('gear 6 only with sprint held; the rocker stops at gear 5', () => {
+  it('no sprint gear: the top is gear 5, a larger maximum stays at 5', () => {
     const a = new AnalogGear();
-    expect(a.update(5, false, 1, true)).toBe(6);
-    expect(a.update(5, false, 1, false)).toBe(5);
-    // a maximum of 6 (`?gear=6` via GearState.set) without sprint stays at gear 5, standing and crouched
+    expect(a.update(5, false, 1)).toBe(5);
     a.reset();
-    expect(a.update(6, false, 1, false)).toBe(5);
+    expect(a.update(6, false, 1)).toBe(5);
     expect(a.speed(false)).toBe(gearCap(5, false));
-    expect(a.update(6, true, 1, false)).toBe(5);
-    expect(a.update(6, false, 1, true)).toBe(6);
+    expect(a.update(6, true, 1)).toBe(5);
     const s = new GearState(4);
     s.step(1);
     s.step(1);

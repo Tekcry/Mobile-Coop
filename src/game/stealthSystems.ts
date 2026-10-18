@@ -141,7 +141,6 @@ export class StealthSystems {
     this.carry = b;
     const it = this.bodyIts.get(b);
     if (it) this.ints.setEnabled(it, false);
-    this.g.player.controller.cancelSprint();
     this.g.events.emit('body', { action: 'pickup' });
   }
 
@@ -247,9 +246,9 @@ export class StealthSystems {
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. */
   fixedUpdate(): void {
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
-    // sprinting into a closed door bashes it open
+    // running (top speed) into a closed door bashes it open
     const pc = this.g.player.controller;
-    if (pc.dashing && pc.speed > 3) {
+    if (!pc.crouched && pc.gear >= 5 && pc.speed > 3.5) {
       const dr = this.g.world.doors.nearest(pc.pos.x, pc.pos.z, 1.1);
       if (dr && dr.target === 0) {
         const vx = Math.sin(pc.yaw);
@@ -268,7 +267,6 @@ export class StealthSystems {
       this.dropCarried();
       return;
     }
-    c.cancelSprint();
     c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
   }
 

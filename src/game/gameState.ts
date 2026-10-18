@@ -599,7 +599,7 @@ export class GameState implements AppState {
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
-      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} ${c.sprinting ? ' sprint' : ''}${c.pivotT > 0 ? ' pivot' : ''}`;
+      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} g${c.gear}${c.stopHold ? ' hold' : ''}`;
     });
     app.debug.extra.set('carry', () => {
       const k = this.player.carry;
@@ -1216,7 +1216,7 @@ export class GameState implements AppState {
       const c = this.player.controller;
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
-      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched', c.dashing && c.steps === 'free') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
+      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
       // (3.2.0) climbing a fence above a quiet gear rattles it
       const ac2 = this.traversal.attachCtl;
@@ -2245,10 +2245,8 @@ export class GameState implements AppState {
       const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
       w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
-    const ctl = this.player.controller;
-    // speed gear: pips by the tactical strip after a change (step 17: current lit, maximum dim)
-    this.hud.setGear(ctl.gear, ctl.gears.changes, Math.max(ctl.gear, ctl.maxGear));
-    this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
+    // (G107) no speed-gear indicator: the max-speed cap is felt, not shown
+    this.hud.setTactical(1, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     w.flush();
   }
 

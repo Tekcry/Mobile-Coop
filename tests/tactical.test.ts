@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SprintGate, EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
+import { EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
 import { MOVEMENT } from '../src/config/movement';
 import { CARRY, WeaponCarry, classWeight, emptyCarryInput, pickReady } from '../src/weapons/weaponCarry';
 import { CAMERA, framing } from '../src/config/camera';
@@ -15,7 +15,6 @@ describe('stealth movement speeds', () => {
     expect(targetSpeed(1, 'crouch')).toBeCloseTo(2.6);
     expect(targetSpeed(MOVEMENT.walkBand, 'stand')).toBeCloseTo(1.4);
     expect(targetSpeed(1, 'stand')).toBeCloseTo(2.8);
-    expect(targetSpeed(1, 'sprint')).toBeCloseTo(5);
     expect(targetSpeed(1, 'ads')).toBeCloseTo(1.4);
     expect(targetSpeed(1, 'adsCrouch')).toBeCloseTo(1.0);
     for (const st of ['stand', 'crouch'] as const) for (let m = 0.1; m < 0.85; m += 0.1) expect(targetSpeed(m, st)).toBeLessThan(targetSpeed(m + 0.1, st));
@@ -41,29 +40,6 @@ describe('stealth movement speeds', () => {
   });
 });
 
-describe('sprint', () => {
-  it('immediate, stamina-free, weapon blocked while sprinting', () => {
-    const d = new SprintGate();
-    expect(d.start()).toBe(true);
-    expect(d.sprinting).toBe(true);
-    expect(d.blocksWeapon).toBe(true);
-    for (let k = 0; k < 60 * 30; k++) d.update(DT, 1);
-    expect(d.sprinting).toBe(true);
-    expect(d.stamina).toBe(1);
-  });
-  it('ends when the stick is released for more than a moment, or on stop()', () => {
-    const d = new SprintGate();
-    d.start();
-    for (let k = 0; k < 5; k++) d.update(DT, 0);
-    expect(d.sprinting).toBe(true);
-    for (let k = 0; k < 10; k++) d.update(DT, 0);
-    expect(d.sprinting).toBe(false);
-    d.start();
-    d.stop();
-    expect(d.blocksWeapon).toBe(false);
-  });
-});
-
 describe('contextual traversal and noise', () => {
   it('picks step / vault / mantle / none by obstacle', () => {
     expect(pickTraversal({ height: 0.1, depth: 1, landingClear: true, topClear: true })).toBe('none');
@@ -76,21 +52,19 @@ describe('contextual traversal and noise', () => {
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: false })).toBe('none');
     expect(pickTraversal({ height: 2.4, depth: 0.5, landingClear: true, topClear: true })).toBe('none');
   });
-  it('noise by stance and pace: sneak, crouch walk and a slow walk silent, jog a few metres, sprint ~9 m', () => {
+  it('noise by stance and pace (CT prototype M1, G40): slow speeds silent, the run carries', () => {
     expect(noiseRadius(0, false, false)).toBe(0);
     expect(noiseRadius(0.8, true, false)).toBe(0);
-    // (step 22, M14 N6 / A88) crouched gears 1-4 (<= 1.5 m/s), standing gears 1-2 silent; standing gear 3 (1.65) and
-    // crouched gear 5 (1.9) audible
+    // crouched speeds 1-3 (<= 1.5 m/s) and standing speeds 1-2 (<= 0.75) silent; the rest audible
     expect(noiseRadius(1.5, true, false)).toBe(0);
-    expect(noiseRadius(1.65, false, false)).toBeGreaterThan(1);
-    expect(noiseRadius(1.9, true, false)).toBeGreaterThan(1);
-    expect(noiseRadius(1.4, false, false)).toBe(0);
-    const jog = noiseRadius(2.8, false, false);
-    const sprint = noiseRadius(5, false, true);
+    expect(noiseRadius(2.0, false, false)).toBeGreaterThan(1);
+    expect(noiseRadius(2.1, true, false)).toBeGreaterThan(1);
+    expect(noiseRadius(0.75, false, false)).toBe(0);
+    const jog = noiseRadius(3.0, false, false);
+    const run = noiseRadius(4.2, false, false);
     expect(jog).toBeGreaterThan(2.5);
-    expect(jog).toBeLessThan(5);
-    expect(sprint).toBeGreaterThan(jog * 1.5);
-    expect(sprint).toBeLessThanOrEqual(10);
+    expect(run).toBeGreaterThan(jog);
+    expect(run).toBeLessThanOrEqual(10);
     expect(noiseRadius(2.6, true, false)).toBeLessThan(jog);
   });
 });

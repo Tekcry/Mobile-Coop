@@ -904,7 +904,7 @@ export class CoopHost implements NetAttachment {
       if (!r.alive || !st) continue;
       if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
         // (step 11) a back-to-wall slide is heard at the crouch band (bible 5.3)
-        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall', (st.f & PF.sprint) !== 0);
+        const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0 || st.mv?.m === 'wall');
         if (n > 0) em.hear(r.feet, n);
       }
       const t = (this.firing.get(r.id) ?? 0) - dt;

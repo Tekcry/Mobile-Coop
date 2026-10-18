@@ -136,12 +136,6 @@ export const PIN_TOL = 0.04;
  */
 export const HEEL_ROLL = { pitch: 0.12, time: 0.1, maxSpeed: 1.7 } as const;
 
-/**
- * (step 22, M14) The eased stop's closing step: a leftover swing more than `min` m behind its stance spot carries on
- * to it at `lift` x the idle lift, over the idle step time scaled by its distance (all of it from `full` m).
- */
-const CLOSE_STEP = { min: 0.05, lift: 0.6, full: 0.3 } as const;
-
 /** Idle stepping thresholds. */
 export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6, swingGap: 0.1, swingNear: 0.18 };
 
@@ -238,11 +232,10 @@ export class FootPlanner {
       }
     }
     if (!i.moving && this.wasMoving && i.quickStop > 0) {
-      // instant stop: a swing left over from moving sets down within `quickStop` where it was aiming
+      // (G26) the feet freeze: a swing left over from moving sets straight down where it is within `quickStop`, no closing step
       for (let k = 0; k < 2; k++) {
         const f = k === 0 ? this.L : this.R;
         if (f.contact || f.swing < 0) continue;
-        if (this.closeStep(f, i, k === 0 ? -1 : 1)) continue;
         this.setDown(f, i);
       }
       this.quick = true;
@@ -603,37 +596,6 @@ export class FootPlanner {
       f.probeT = 0.08;
       f.toY = this.groundAt(i, f.toX, f.toZ);
     }
-  }
-
-  /**
-   * (locomotion step 22, M14) The closing step of an eased Chaos Theory stop: a swing left over when the feet stop
-   * stepping that is still behind its stance spot under the stopping body carries on to it, so the stop ends with the
-   * body over both feet. Setting it down where it was left it mid-stride behind the body (a 0.6 m stagger) and the
-   * idle squaring step then lifted the front foot while the body stood over the gap (flat-stand5 balance 20 cm). A
-   * swing already at or past its spot sets down where it is (`setDown`, never pulled back down a stair).
-   */
-  private closeStep(f: FootState, i: PlannerInput, side: -1 | 1): boolean {
-    if (i.hold || this.pinned(i, side)) return false;
-    const v = hyp2(i.velX, i.velZ);
-    const dx = v > 1e-3 ? i.velX / v : Math.sin(i.goalYaw);
-    const dz = v > 1e-3 ? i.velZ / v : Math.cos(i.goalYaw);
-    this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
-    const behind = (this.ix - f.x) * dx + (this.iz - f.z) * dz;
-    if (behind < CLOSE_STEP.min) return false;
-    f.fromX = f.x;
-    f.fromY = f.y;
-    f.fromZ = f.z;
-    f.fromYaw = f.yaw;
-    f.probeT = 0;
-    this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
-    f.stepLift = PLANNER.idleLift * CLOSE_STEP.lift;
-    f.fromPitch = f.pitch;
-    f.stepT = 0;
-    f.stepDur = Math.max(i.quickStop, PLANNER.idleStepTime * Math.min(1, behind / CLOSE_STEP.full));
-    f.swing = 0;
-    f.swBase = -1;
-    f.offBase = -1;
-    return true;
   }
 
   /** Instant stop: a foot in the air sets straight down where it is, over `quickStop` (the stride it stopped in). */

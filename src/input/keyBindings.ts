@@ -13,7 +13,6 @@ export type BindId =
   | 'right'
   | 'cover'
   | 'crouch'
-  | 'sprint'
   | 'speedUp'
   | 'speedDown'
   | 'traverse'
@@ -43,7 +42,6 @@ export const BINDS: readonly BindDef[] = [
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
   { id: 'cover', label: 'Context action', actions: ['cover'], defaults: ['Space'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
-  { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: ['ShiftLeft'] },
   { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
   { id: 'speedDown', label: 'Speed down (gear)', actions: ['speedDown'], defaults: ['Minus'] },
   { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },

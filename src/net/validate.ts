@@ -156,15 +156,14 @@ export const MAX_FREE_SPEED = 11;
 
 /**
  * The fastest horizontal pace a client's state allows (m/s): free movement on the ground within its speed gear's
- * pace (the sprint's 5 m/s while sprinting) + `MOVE_TOLERANCE`; everything driven by traversal or in the air
+ * pace + `MOVE_TOLERANCE` (no sprint, protocol 14); everything driven by traversal or in the air
  * keeps the general cap.
  */
-export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprint: boolean, driven: boolean, grounded: boolean): number {
+export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, driven: boolean, grounded: boolean): number {
   // (step 12) the SWAT turn: its eased path peaks at 1.5x its average pace
   if (mv?.m === 'swat') return SWAT_MAX_PACE * 1.5 * MOVE_TOLERANCE;
   if (!mv || mv.m !== 'ground' || driven || !grounded) return MAX_FREE_SPEED;
-  // (step 22) the sprint is gear 6 standing (its cap, whatever gear the state carries)
-  const pace = sprint ? Math.max(gearCap(6, false), gearCap(mv.g, false)) : gearCap(mv.g, crouched);
+  const pace = gearCap(mv.g, crouched);
   return pace * MOVE_TOLERANCE;
 }
 
