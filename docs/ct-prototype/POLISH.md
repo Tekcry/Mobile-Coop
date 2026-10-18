@@ -1,0 +1,38 @@
+# CT prototype - polish list
+
+Cosmetic and feel items that do not block play. Nothing here is worked on until Michael has playtested the core loop
+(Current goal, 2026-10-19). Source in brackets: PLAYTEST-1 check id or slice report.
+
+## Feel and animation
+- (Moved to the prototype, 2026-10-19: Michael via the main session, "fix the characters posture", in game, incl. the leg fix.) Turn follow: legs cross and step backwards (turn-1 to turn-6); plan in
+  `A1-TURN-FIX-PLAN.md`. Slice P1 builds it with basic posture on Wren; fine tuning stays here.
+- Guards move "weird / unnatural in general" (turn-7).
+- Grab and carry need animations (grab-3).
+- Tense sneak crouch near guards (G160), posture on Wren.
+- First step a full stride; bank into running turns (M1).
+- The frozen stop stance is not sent to the partner (M1).
+
+## Camera and aim
+- Exact explore offset toward the right shoulder, aim view angle and height against the footage (cam-2, cam-3, cam-5);
+  F1 makes a first pass.
+- Aim slow and precise as CT (gen-cam).
+
+## Goggles
+- Thermal, night and electro looks against the footage docs (gog-2, gog-4); electro interference on devices.
+- Round goggle lens outline (gog-1).
+- Goggle on the brow when off (G73); the stowed goggle export is Wren cleanup (G161).
+- Thermal thresholds tuned on the GPU (A5).
+
+## Doors and wall
+- Lock picking (CT had it, G178; no code yet).
+- Optic cable (stub).
+
+## Tests and tools
+- `anim-audit.mjs`, `anim-sheet` and `e2e-ct-warehouse.mjs` still drive the brace, the old stack and removed edge verbs.
+- `e2e-ct` sprint check and stale pad-Y line; `e2e-camera-bounds` level U, `e2e-stealth` camera free-orbit (pre-existing).
+- `docs/systems/testing-tools.md`: add e2e-ctcourse.
+- Stale `.tac-gear` CSS, unused `sprintHold`.
+
+## Menu job (sent to the main session)
+- Brightness and quit-to-menu dialogs overlap the main menu (menu-1); remap screen vs CT layout (menu-2); dead settings
+  rows (menu-3).
