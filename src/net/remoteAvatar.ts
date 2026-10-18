@@ -10,6 +10,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { assignCarrySlots } from '../weapons/carrySlots';
+import { classWeight } from '../weapons/weaponCarry';
 import { GrenadePouches } from '../weapons/grenadePouches';
 import { MASK } from '../physics/groups';
 import type { World } from '../world/world';
@@ -122,7 +123,7 @@ export class RemoteAvatar {
   private model(id: WeaponId): WeaponModel {
     let m = this.models.get(id);
     if (!m) {
-      m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot);
+      m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot, undefined, { mesh: true, caster: (c) => this.world.addShadowCaster(c) });
       for (const part of m.renderMeshes) this.world.addShadowCaster(part);
       this.models.set(id, m);
     }
@@ -368,6 +369,8 @@ export class RemoteAvatar {
       lookPitch: Math.max(-0.6, Math.min(0.6, this.pitch)) * 0.5 * (1 - this.aim),
       aim: this.aim,
       carry: this.carryW,
+      // (feature/weapons) the held gun's mass factor, as the owner's rig (a raised sidearm is held out: PISTOL_REACH)
+      weight: this.weapon ? (WEAPONS[this.weapon].weight ?? classWeight(WEAPONS[this.weapon].class)) : 1,
       kick: this.kick,
       dash: (f & PF.sprint) !== 0 ? 1 : 0,
       wall: mp.wall,

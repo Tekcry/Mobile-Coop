@@ -13,6 +13,8 @@ import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from '.
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { GrenadePouches } from './grenadePouches';
+import { KnifeModel } from './knifeModel';
+import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
 
@@ -85,6 +87,8 @@ export class PlayerWeapons {
   readonly gadgets = new GadgetInventory();
   /** Belt pouches showing the grenades carried. */
   readonly pouches: GrenadePouches;
+  /** (feature/weapons, A5) The knife, shown only when drawn (no knife verb yet: `knife.show`). */
+  readonly knife: KnifeModel;
   private cooldown = 0;
   private grenadeCd = 0;
   private reloadT = -1;
@@ -147,13 +151,14 @@ export class PlayerWeapons {
       const e = loadout[i]!;
       const def = defs[i]!;
       const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
-      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
+      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern, { mesh: true, caster: (m) => world.addShadowCaster(m) });
       for (const m of model.renderMeshes) world.addShadowCaster(m);
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
     // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades, false);
+    this.knife = new KnifeModel(world.scene, player.rig, WREN_HANDS.R, (m) => world.addShadowCaster(m));
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.equip(0);
   }
@@ -710,6 +715,7 @@ export class PlayerWeapons {
 
   dispose(): void {
     this.pouches.dispose();
+    this.knife.dispose();
     for (const s of this.slots) s.model.dispose();
   }
 }

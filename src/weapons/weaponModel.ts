@@ -1,9 +1,18 @@
-import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Mesh, type Scene } from '../core/babylon';
 import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
+import { loadWeaponMesh } from './weaponMesh';
+
+/** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
+export interface WeaponMeshOptions {
+  /** Load the kit item's baked mesh (weaponMesh.ts); the parts show until it is in, then hide. No voxel model. */
+  mesh?: boolean;
+  /** Gets the mesh when it arrives (shadow casters: the parts were registered at construction). */
+  caster?: (m: AbstractMesh) => void;
+}
 
 export interface WeaponColors {
   body: string;
@@ -15,6 +24,8 @@ export const DEFAULT_WEAPON_COLORS: WeaponColors = { body: '#2d3238', grip: '#1a
 
 /** Gap (m) between a carried weapon and the body or gear it rests against. */
 const CARRY_GAP = 0.012;
+/** (feature/weapons) The back stud's head sits this far (m) inside the socket's face (the keyhole's depth). */
+const STUD_SEAT = -0.002;
 /** (21w, PC-PASS 42) The weapon's last posed world matrix before a re-parent (scratch, no allocation). */
 const glideM = new Matrix();
 /** Back carry: muzzle-up guns side by side (thin side to the back), butts at this height on the chest. */
@@ -50,7 +61,7 @@ export class WeaponModel {
   slot: CarrySlot | null = null;
   private magLocal: Vector3 | null = null;
 
-  constructor(scene: Scene, lib: PartLibrary, readonly def: WeaponDef, colors: WeaponColors, parent: TransformNode, pattern?: PartPattern) {
+  constructor(scene: Scene, lib: PartLibrary, readonly def: WeaponDef, colors: WeaponColors, parent: TransformNode, pattern?: PartPattern, opts: WeaponMeshOptions = {}) {
     this.node = new TransformNode(`wpn-${def.id}`, scene);
     this.node.parent = parent;
     this.node.rotationQuaternion = Quaternion.Identity();
@@ -87,7 +98,19 @@ export class WeaponModel {
     this.ext = modelExtents(def);
     // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    if (VOXEL_WEAPONS && skin) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+    // (feature/weapons) the baked mesh replaces the parts once loaded; such a weapon never builds a voxel model (A7)
+    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m) => this.useMesh(m, opts.caster));
+    if (VOXEL_WEAPONS && skin && !meshed) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+  }
+
+  /** The baked mesh once loaded (null: the parts or the voxel model render). */
+  mesh: Mesh | null = null;
+  private disposed = false;
+
+  private useMesh(m: Mesh, caster?: (m: AbstractMesh) => void): void {
+    this.mesh = m;
+    for (const p of this.parts) p.setEnabled(false);
+    caster?.(m);
   }
 
   /** The voxel model (3.0; null: the smooth parts render). */
@@ -95,7 +118,7 @@ export class WeaponModel {
 
   /** What renders (shadow casters). */
   get renderMeshes(): AbstractMesh[] {
-    return this.voxel ? this.voxel.meshes : this.parts;
+    return this.mesh ? [this.mesh] : this.voxel ? this.voxel.meshes : this.parts;
   }
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
@@ -109,6 +132,8 @@ export class WeaponModel {
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     rig.grip.set(...this.def.grip);
     rig.foregrip.set(...this.def.foregrip);
+    // (feature/weapons) the support hand under a long gun's handguard, cupping a pistol's grip
+    rig.supportStyle = this.def.class === 'pistol' ? 'cup' : 'tube';
     const e = this.ext;
     rig.gunSpan.z0 = e.z0;
     rig.gunSpan.z1 = e.z1;
@@ -161,7 +186,21 @@ export class WeaponModel {
     const e = this.ext;
     const p = rig.p;
     const n = this.node;
-    if (isBackSlot(slot)) {
+    const mount = isBackSlot(slot) && rig.backMount && this.def.backStud ? rig.backMount[slot as 'backL' | 'backC' | 'backR'] : null;
+    if (mount) {
+      // (feature/weapons) hung from the body's back plate socket by the gun's back stud: muzzle up, the left side flat to
+      // the plate (its right side out), so the top faces the wearer's left and the pistol grip her right hand
+      const st = this.def.backStud!;
+      az.set(mount.up[0]!, mount.up[1]!, mount.up[2]!);
+      ax.set(mount.out[0]!, mount.out[1]!, mount.out[2]!);
+      Vector3.CrossToRef(az, ax, ay);
+      n.parent = rig.torso;
+      Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
+      const ox = mount.origin[0]! + ax.x * STUD_SEAT;
+      const oy = mount.origin[1]! + ax.y * STUD_SEAT;
+      const oz = mount.origin[2]! + ax.z * STUD_SEAT;
+      n.position.set(ox - ax.x * st[0] - ay.x * st[1] - az.x * st[2], oy - ax.y * st[0] - ay.y * st[1] - az.y * st[2], oz - ax.z * st[0] - ay.z * st[1] - az.z * st[2]);
+    } else if (isBackSlot(slot)) {
       const side = slot === 'backL' ? -1 : slot === 'backR' ? 1 : 0;
       const a = side * BACK_SPLAY;
       // muzzle up (splayed outward), top of the gun towards the body, thin side flat to the back
@@ -179,6 +218,16 @@ export class WeaponModel {
     } else if (slot === 'sling') {
       n.parent = rig.hips;
       this.placeSling(rig, SLING_SPLAY);
+    } else if (rig.thighMount) {
+      // (feature/weapons) the body's own built holster: its frame from the hip, the weapon point at its origin
+      const h = rig.thighMount;
+      ax.set(h.x[0]!, h.x[1]!, h.x[2]!);
+      ay.set(h.y[0]!, h.y[1]!, h.y[2]!);
+      az.set(h.z[0]!, h.z[1]!, h.z[2]!);
+      n.parent = rig.hipR;
+      Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
+      const [cx, cy, cz] = [h.centre[0]!, h.centre[1]!, h.centre[2]!];
+      n.position.set(h.origin[0]! - ax.x * cx - ay.x * cy - az.x * cz, h.origin[1]! - ax.y * cx - ay.y * cy - az.y * cz, h.origin[2]! - ax.z * cx - ay.z * cy - az.z * cz);
     } else {
       // right thigh, low: muzzle down, top of the gun forward, thin side flat against the thigh (moves with it)
       az.set(0, -1, 0);
@@ -268,6 +317,8 @@ export class WeaponModel {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.mesh?.dispose();
     if (this.rig) this.track(this.rig, false);
     this.slot = null;
     this.syncThigh();

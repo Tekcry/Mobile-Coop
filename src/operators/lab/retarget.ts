@@ -64,9 +64,14 @@ export function buildRetarget(nodes: readonly GlbNode[], bindPos: readonly V3[],
     const a = bindPos[sh]!;
     const b = bindPos[el]!;
     const q = arc([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [0, -1, 0]);
+    // (feature/weapons) the forearm chain by the forearm's own direction: the bind pose's bent elbow straightened
+    const wr = byName.get(`wr${s}`);
+    const c = wr !== undefined ? bindPos[wr]! : null;
+    const qf = c ? arc([c[0] - b[0], c[1] - b[1], c[2] - b[2]], [0, -1, 0]) : q;
     nodes.forEach((n, i) => {
       const nm = n.name;
-      if (nm === `sh${s}` || nm === `el${s}` || nm === `wr${s}` || nm === `hand${s}` || nm.startsWith(`finger${s}_`)) hang[i] = q;
+      if (nm === `sh${s}`) hang[i] = q;
+      else if (nm === `el${s}` || nm === `wr${s}` || nm === `hand${s}` || nm.startsWith(`finger${s}_`)) hang[i] = qf;
     });
   }
   return { order, driver, hang };
