@@ -738,7 +738,7 @@ export class GameState implements AppState {
   private useWallMedkit(it: Interactable, who: string): void {
     if (who === 'local') {
       const h = this.target.health;
-      const hp = stationHeal(h.hp, h.maxHp, this.player.alive);
+      const hp = stationHeal(h.hp, h.maxHp, this.player.alive, this.opts.difficulty ?? 'normal');
       if (hp === null) {
         this.hud.feedItem('Health full');
         it.progress = 0;

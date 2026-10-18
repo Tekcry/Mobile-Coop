@@ -78,3 +78,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   capture, G22, kept); `tests/keybinds.test.ts` (CT keys plus the menu keys). `tests/input.test.ts` and
   `scripts/e2e-menus.mjs` updated for the CT layout (F is the co-op action, bind id `coop`).
 - Checks: lint 0 errors, vitest 1468 pass, build ok; e2e smoke, pad, menus pass.
+
+## 2026-10-18 - B1 CT course spec and greybox
+- Built (Sonnet): `ctcourse` "Marlow Yard" (spec `CTCOURSE-SPEC.md`), 14 x 170 m night training yard, 8 stations in CT
+  order with airlocks; placeholder gates (pair plates, held consoles, hack lever) labelled with the slice that replaces
+  them; station 1 panels; exit completes only with both players in (G138); wall medkits full / 50 % / 25 % by
+  difficulty, single use (G162). Course default map is ctcourse; Fallow only with `?legacy=1`; e2e-bunker moved to the
+  legacy list. Report `B1-CTCOURSE.md`.
+- Checks: lint 0, vitest 1473 pass, build ok; e2e smoke, ctcourse (392 s), course (solo rerun after a latency limit)
+  pass. Not done: real mechanics (B2-B8), menu listing, testing-tools.md.
+- Status: B1 BUILT, on /ct/, awaiting Michael's walk test.

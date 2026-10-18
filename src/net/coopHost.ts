@@ -595,7 +595,7 @@ export class CoopHost implements NetAttachment {
   healAtStation(who: string): boolean {
     const r = this.remotes.get(who);
     if (!r) return false;
-    const hp = stationHeal(r.health.hp, r.health.maxHp, r.alive);
+    const hp = stationHeal(r.health.hp, r.health.maxHp, r.alive, this.g.opts.difficulty ?? 'normal');
     if (hp === null) return false;
     r.health.heal(hp - r.health.hp);
     return true;

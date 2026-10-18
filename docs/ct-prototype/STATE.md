@@ -15,7 +15,7 @@ Updated 2026-10-18.
 - A1.1 turn follow and A3 wall, doors, pad built (`A1-TURN.md`, `A3-WALL-DOORS.md`), on /ct/, awaiting Michael's play. Next: A4 strike and grab; A5 goggles;
   then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G161). One stop per slice while Michael is awake;
   overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
-- Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . Movement A1-A5 built once (prototype pass) and feature/menu merged (7078807), all on /ct/. Phase 2: B0 survey done (`B0-BUNKER-SURVEY.md`), Michael picked a fresh compact level; B1 spec and greybox running (`FEEL-PLAN.md`, "Phase 2 after the B0 survey"). Open: strike button RT vs LT (Michael to say what CT used).
+- Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . Movement A1-A5 built once (prototype pass) and feature/menu merged (7078807), all on /ct/. Phase 2: B0 survey done (`B0-BUNKER-SURVEY.md`), Michael picked a fresh compact level; B1 spec and greybox built (`B1-CTCOURSE.md`), on /ct/, awaiting Michael's walk test; next B2 leg-up and CT relay. Open: strike button RT vs LT (Michael to say what CT used).
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.

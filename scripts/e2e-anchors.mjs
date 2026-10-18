@@ -16,7 +16,7 @@ const ZIP_REACH = 1.3;
 let failed = false;
 for (const [map, mode] of MAPS) {
   if (only && only !== map) continue;
-  const { browser, page, errors } = await launch({ url, params: `autostart=${map}&mode=${mode}` });
+  const { browser, page, errors } = await launch({ url, params: `autostart=${map}&mode=${mode}${map === 'bunker' ? '&legacy=1' : ''}` });
   try {
     await frames(page, 10);
     const res = await page.evaluate((zipReach) => {
