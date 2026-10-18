@@ -255,7 +255,7 @@ export class MenuState implements AppState {
     loadMenuLods(fig, loadModel);
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
-    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
+    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
     this.weapon.hold(this.rig);
     // the goggle over the eyes, glowing in the dark (G73: in use)
     this.rig.setLensGlow(true);

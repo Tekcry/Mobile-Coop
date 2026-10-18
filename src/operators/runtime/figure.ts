@@ -127,7 +127,7 @@ export interface LodAsset {
 const GLOW_DEFAULT: readonly [number, number, number] = [0.3, 0.85, 0.16];
 
 /** KTX2 (KHR_texture_basisu) through the bundled transcoder, or PNG / WebP; flips KTX2 in the texture matrix (A79). */
-function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): Texture | null {
+export function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): Texture | null {
   if (!im) return null;
   const isKtx2 = im.mime === 'image/ktx2';
   if (isKtx2) ktx2Setup(scene.getEngine() as Parameters<typeof ktx2Setup>[0]);

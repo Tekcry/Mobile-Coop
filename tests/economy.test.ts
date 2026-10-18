@@ -24,6 +24,7 @@ describe('arsenal', () => {
 describe('visible attachments', () => {
   it('a suppressor lengthens the gun and moves the muzzle out; optics, grips and mags change parts', () => {
     const base = WEAPONS.rifle;
+    const baseParts = base.model.length;
     const sup = withAttachments(base, ['suppressor']);
     expect(sup.muzzle[2]).toBeCloseTo(base.muzzle[2] + 0.16, 5);
     expect(modelExtents(sup).z1).toBeGreaterThan(modelExtents(base).z1 + 0.1);
@@ -34,7 +35,8 @@ describe('visible attachments', () => {
     expect(ext.size[1]).toBeGreaterThan(base.model.find((p) => p.role === 'mag')!.size[1]);
     // incompatible / doubled slots are dropped; the base def is never mutated
     expect(withAttachments(base, ['lethalBolts'])).toBe(base);
-    expect(base.model.some((p) => p.role === 'suppressor')).toBe(false);
+    // (feature/weapons: the CT rifle is suppressed itself, so the base has a suppressor part of its own)
+    expect(base.model.length).toBe(baseParts);
   });
 });
 

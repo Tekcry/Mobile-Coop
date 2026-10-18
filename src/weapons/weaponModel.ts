@@ -1,9 +1,18 @@
-import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Mesh, type Scene } from '../core/babylon';
 import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
+import { loadWeaponMesh } from './weaponMesh';
+
+/** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
+export interface WeaponMeshOptions {
+  /** Load the kit item's baked mesh (weaponMesh.ts); the parts show until it is in, then hide. No voxel model. */
+  mesh?: boolean;
+  /** Gets the mesh when it arrives (shadow casters: the parts were registered at construction). */
+  caster?: (m: AbstractMesh) => void;
+}
 
 export interface WeaponColors {
   body: string;
@@ -50,7 +59,7 @@ export class WeaponModel {
   slot: CarrySlot | null = null;
   private magLocal: Vector3 | null = null;
 
-  constructor(scene: Scene, lib: PartLibrary, readonly def: WeaponDef, colors: WeaponColors, parent: TransformNode, pattern?: PartPattern) {
+  constructor(scene: Scene, lib: PartLibrary, readonly def: WeaponDef, colors: WeaponColors, parent: TransformNode, pattern?: PartPattern, opts: WeaponMeshOptions = {}) {
     this.node = new TransformNode(`wpn-${def.id}`, scene);
     this.node.parent = parent;
     this.node.rotationQuaternion = Quaternion.Identity();
@@ -87,7 +96,19 @@ export class WeaponModel {
     this.ext = modelExtents(def);
     // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    if (VOXEL_WEAPONS && skin) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+    // (feature/weapons) the baked mesh replaces the parts once loaded; such a weapon never builds a voxel model (A7)
+    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m) => this.useMesh(m, opts.caster));
+    if (VOXEL_WEAPONS && skin && !meshed) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+  }
+
+  /** The baked mesh once loaded (null: the parts or the voxel model render). */
+  mesh: Mesh | null = null;
+  private disposed = false;
+
+  private useMesh(m: Mesh, caster?: (m: AbstractMesh) => void): void {
+    this.mesh = m;
+    for (const p of this.parts) p.setEnabled(false);
+    caster?.(m);
   }
 
   /** The voxel model (3.0; null: the smooth parts render). */
@@ -95,7 +116,7 @@ export class WeaponModel {
 
   /** What renders (shadow casters). */
   get renderMeshes(): AbstractMesh[] {
-    return this.voxel ? this.voxel.meshes : this.parts;
+    return this.mesh ? [this.mesh] : this.voxel ? this.voxel.meshes : this.parts;
   }
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
@@ -268,6 +289,8 @@ export class WeaponModel {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.mesh?.dispose();
     if (this.rig) this.track(this.rig, false);
     this.slot = null;
     this.syncThigh();
