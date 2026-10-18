@@ -205,10 +205,9 @@ export class InfiltrationMode implements GameMode {
     const g = this.g;
     const t = { alarms: g.style.alarms, kills: g.style.kills, detections: g.style.detections };
     const r = evaluateRules(this.def.rules, t);
-    const bonusTotal = (['noAlarms', 'noKills', 'undetected'] as const).filter((k) => this.def.rules[k] === 'bonus').length;
     g.stats.missionId = this.def.id;
     g.stats.bonuses = won ? r.bonuses : [];
-    g.stats.rating = missionRating(won, r.bonuses.length, bonusTotal, t.detections);
+    g.stats.rating = missionRating(won, t.alarms, t.kills);
     if (won) g.stats.score += 1500 + r.bonuses.length * 750;
     g.endSession(won, subtitle);
   }

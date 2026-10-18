@@ -283,11 +283,8 @@ export function evaluateRules(r: MissionRules, t: RuleTally): RuleResult {
   return { fail, bonuses };
 }
 
-/** Rating 0..3 stars from the play: completion, bonuses kept, detections. */
-export function missionRating(done: boolean, bonuses: number, bonusTotal: number, detections: number): number {
+/** G146 rating, 0..3 stars: all primary objectives done, no alarms raised, no kills. Lost missions score 0. */
+export function missionRating(done: boolean, alarms: number, kills: number): number {
   if (!done) return 0;
-  let s = 1;
-  if (bonusTotal === 0 || bonuses >= Math.ceil(bonusTotal / 2)) s++;
-  if (detections === 0) s++;
-  return Math.min(3, s);
+  return 1 + (alarms === 0 ? 1 : 0) + (kills === 0 ? 1 : 0);
 }

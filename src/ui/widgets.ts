@@ -3,6 +3,7 @@ import { icon } from './icons';
 import type { NavAdjustDetail } from './focusNav';
 import { Screen } from './screen';
 import type { Hint } from './prompts';
+import { glyphSlot } from './menuScreen';
 
 export interface ButtonOpts {
   icon?: string;
@@ -12,6 +13,27 @@ export interface ButtonOpts {
   /** Focusable but inactive; pressing it explains why (locked items, not enough credits). */
   blocked?: string;
   sub?: string;
+  /** Stable id (`data-key`, menu-ui SPEC 3); default: the label's slug. */
+  key?: string;
+  /** Context panel text (the description of the item, MD9). */
+  desc?: string;
+}
+
+/** "Look sensitivity (horizontal)" -> "look-sensitivity-horizontal". */
+export function slug(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/** The context panel html of a row: its name and description (and a locked reason). */
+export function ctxHtml(label: string, desc?: string, locked?: string): string {
+  return `<h3>${label}</h3>${desc ? `<p>${desc}</p>` : ''}${locked ? `<p class="why">${locked}</p>` : ''}`;
+}
+
+/** Sets an element's key and description (rows built by the helpers below, or any focusable). */
+export function describe<T extends HTMLElement>(el: T, label: string, desc?: string, key?: string): T {
+  el.dataset.key = key ?? slug(label);
+  if (desc) el.dataset.ctx = ctxHtml(label, desc, el.dataset.locked);
+  return el;
 }
 
 /** App-level hooks for widgets (set once by the app). */
@@ -25,10 +47,19 @@ export function button(label: string, onClick: () => void, opts: ButtonOpts = {}
   if (opts.sub) b.append(h('span', { class: 'btn-sub', text: opts.sub }));
   if (opts.autofocus) b.dataset.autofocus = '';
   if (opts.disabled) b.disabled = true;
-  if (opts.blocked) b.classList.add('blocked');
+  if (opts.blocked) {
+    b.classList.add('blocked');
+    b.dataset.locked = opts.blocked;
+  }
+  b.dataset.key = opts.key ?? slug(label);
+  if (opts.desc || opts.blocked) b.dataset.ctx = ctxHtml(label, opts.desc, opts.blocked);
   b.addEventListener('click', () => {
     if (b.disabled) return;
     if (opts.blocked) {
+      // (MD18) locked: a 5 px shake and the reason
+      b.classList.remove('shake');
+      void b.offsetWidth;
+      b.classList.add('shake');
       uiHooks.blocked(opts.blocked);
       return;
     }
@@ -38,7 +69,24 @@ export function button(label: string, onClick: () => void, opts: ButtonOpts = {}
 }
 
 function row(label: string, control: HTMLElement, rowCls = ''): HTMLElement {
-  return h('div', { class: `row ${rowCls}` }, h('span', { class: 'row-label', text: label }), control);
+  const el = h('div', { class: `row ${rowCls}` }, h('span', { class: 'row-label', text: label }), control);
+  el.dataset.key = slug(label);
+  return el;
+}
+
+/** A locked row (menu-ui SPEC 4.3): focusable, shows a fixed value, confirm toasts the reason. */
+export function lockedRow(label: string, value: string, reason: string, desc?: string): HTMLElement {
+  const el = row(label, h('span', { class: 'locked-val', text: value }), 'row-locked blocked');
+  el.dataset.focus = '';
+  el.dataset.locked = reason;
+  el.dataset.ctx = ctxHtml(label, desc, reason);
+  el.addEventListener('click', () => {
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+    uiHooks.blocked(reason);
+  });
+  return el;
 }
 
 export function toggle(label: string, get: () => boolean, set: (v: boolean) => void): HTMLElement {
@@ -92,7 +140,10 @@ export function slider(label: string, o: SliderOpts): HTMLElement {
     o.set(Number(snapped.toFixed(4)));
     render();
   };
-  el.addEventListener('nav-adjust', (e) => setV(o.get() + (e as CustomEvent<NavAdjustDetail>).detail.delta * o.step));
+  el.addEventListener('nav-adjust', (e) => {
+    const d = (e as CustomEvent<NavAdjustDetail>).detail;
+    setV(o.get() + d.delta * o.step * (d.fast ? 5 : 1));
+  });
   const fromPointer = (e: PointerEvent): void => {
     const r = track.getBoundingClientRect();
     setV(o.min + ((e.clientX - r.left) / r.width) * (o.max - o.min));
@@ -116,8 +167,8 @@ export interface ChoiceOption<T> {
 
 export function choice<T>(label: string, options: ChoiceOption<T>[], get: () => T, set: (v: T) => void): HTMLElement {
   const val = h('span', { class: 'choice-val' });
-  const prev = h('span', { class: 'choice-arrow', text: '‹' });
-  const next = h('span', { class: 'choice-arrow', text: '›' });
+  const prev = h('span', { class: 'choice-arrow', text: '◀' });
+  const next = h('span', { class: 'choice-arrow', text: '▶' });
   const el = row(label, h('span', { class: 'choice' }, prev, val, next), 'row-choice');
   el.dataset.focus = '';
   el.dataset.adjust = '';
@@ -170,16 +221,22 @@ export class TabView {
   private headers: HTMLElement[] = [];
   private panels: HTMLElement[] = [];
   private active = 0;
+  /** (menu-ui SPEC 4.3) the last focused element per tab. */
+  private mem: (HTMLElement | null)[] = [];
   onChange: ((i: number) => void) | null = null;
+  /** Reads the focused element (focus memory per tab); set by the screen. */
+  focused: (() => HTMLElement | null) | null = null;
 
   constructor(
     private tabs: TabDef[],
-    opts: { side?: boolean } = {},
+    opts: { side?: boolean; menu?: boolean } = {},
   ) {
     const strip = (this.strip = h('div', { class: `tab-strip scrollable${opts.side ? ' side-nav' : ''}` }));
     const body = (this.body = h('div', { class: 'tab-body scrollable' }));
     tabs.forEach((t, i) => {
-      const hd = h('button', { class: 'tab', focus: true, onClick: () => this.select(i) });
+      // (menu-ui MD9) on the menu template the headers are clicked, not focused: LB / RB, Q / E and clicks switch tabs
+      const hd = h('button', { class: `tab${opts.menu ? ' nofocus' : ''}`, focus: !opts.menu, onClick: () => this.select(i) });
+      hd.type = 'button';
       if (t.icon && opts.side) hd.insertAdjacentHTML('beforeend', `<span class="tab-icon">${icon(t.icon, 20)}</span>`);
       hd.append(h('span', { class: 'tab-label', text: t.label }));
       if (opts.side) hd.insertAdjacentHTML('beforeend', `<span class="tab-chev">${icon('chevron', 16)}</span>`);
@@ -192,7 +249,18 @@ export class TabView {
       this.panels.push(panel);
       body.append(panel);
     });
-    if (!opts.side) {
+    if (opts.menu) {
+      // the LB / RB glyphs at both ends of the strip, clickable (SPEC 7.11)
+      const bump = (act: 'lb' | 'rb', d: -1 | 1): HTMLElement => {
+        const b = h('button', { class: `tab-bumper ms-bump nofocus`, html: glyphSlot(act, act === 'lb' ? 'Q' : 'E') });
+        b.type = 'button';
+        b.dataset.bump = act;
+        b.addEventListener('click', () => this.cycle(d));
+        return b;
+      };
+      strip.prepend(bump('lb', -1));
+      strip.append(bump('rb', 1));
+    } else if (!opts.side) {
       strip.insertAdjacentHTML('afterbegin', '<span class="tab-bumper">LB</span>');
       strip.insertAdjacentHTML('beforeend', '<span class="tab-bumper">RB</span>');
     }
@@ -205,6 +273,8 @@ export class TabView {
   }
 
   select(i: number): void {
+    const f = this.focused?.() ?? null;
+    if (f && this.panels[this.active]?.contains(f)) this.mem[this.active] = f;
     this.active = (i + this.tabs.length) % this.tabs.length;
     this.headers.forEach((hd, j) => hd.classList.toggle('active', j === this.active));
     this.panels.forEach((p, j) => p.classList.toggle('active', j === this.active));
@@ -213,6 +283,22 @@ export class TabView {
 
   cycle(d: -1 | 1): void {
     this.select(this.active + d);
+  }
+
+  /** The active tab's remembered focus (still in its panel), else its first focusable. */
+  recall(): HTMLElement | null {
+    const p = this.panels[this.active];
+    const m = this.mem[this.active];
+    if (p && m && p.contains(m)) return m;
+    return p?.querySelector<HTMLElement>('[data-focus]:not(.grp)') ?? null;
+  }
+
+  get activeId(): string {
+    return this.tabs[this.active]?.id ?? '';
+  }
+
+  get activeLabel(): string {
+    return this.tabs[this.active]?.label ?? '';
   }
 
   /** Rebuild a tab's contents (e.g. after reset to defaults). */
@@ -235,10 +321,11 @@ export class Dialog extends Screen {
   constructor(
     title: string,
     message: string,
-    buttons: { label: string; action: () => void; primary?: boolean }[],
+    buttons: { label: string; action: () => void; primary?: boolean; safe?: boolean }[],
     private onCancel?: () => void,
   ) {
     super('dialog-screen');
+    this.safeAction = buttons.find((b) => b.safe)?.action;
     const box = h(
       'div',
       { class: 'dialog' },
@@ -254,15 +341,19 @@ export class Dialog extends Screen {
             this.manager.pop();
             b.action();
           },
-          { class: b.primary ? 'primary' : '', autofocus: b.primary },
+          // (MD18) a dialog with a safe option opens on it (it is listed first); otherwise on the primary
+          { class: b.primary ? 'primary' : b.safe ? 'safe' : '', autofocus: buttons.some((x) => x.safe) ? b.safe : b.primary },
         ),
       );
     }
     box.append(bar);
     this.el.append(box);
   }
+  /** Back / B / Esc pick the safe option (MD18). */
+  private safeAction: (() => void) | undefined;
   override onBack(): boolean {
     this.manager.pop();
+    this.safeAction?.();
     this.onCancel?.();
     return true;
   }

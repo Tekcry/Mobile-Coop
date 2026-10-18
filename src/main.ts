@@ -12,6 +12,7 @@ import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
+import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
@@ -19,6 +20,10 @@ import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
+import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
+import { BriefingScreen } from './ui/screens/briefingScreen';
+
+import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
@@ -31,6 +36,10 @@ import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, lobbyLoadout, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
+
+/** menu-ui MD2: the title screen shows once per launch; `?autostart` skips it, `?title=1` shows it under automation. */
+let titleShown = !!flags.autostart;
+const titleFlag = new URLSearchParams(location.search).get('title') === '1';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -84,6 +93,11 @@ async function boot(): Promise<void> {
     app.releaseState();
     const ms = new MenuState(app.engine);
     app.setState(ms);
+    // (menu-ui slice 6) the cinematic background follows the screen on top: the title holds S1, the lobby keeps the stage
+    ms.screenContext = () => {
+      const c = app.screens.top?.el.classList;
+      return c?.contains('title-screen') ? 'title' : c?.contains('lobby-screen') ? 'lobby' : 'main';
+    };
     showSavedOperator(app);
     app.onAvatarStyle = () => {
       // (a new avatar style rebuilds the same request: clear what the preview remembers)
@@ -95,27 +109,73 @@ async function boot(): Promise<void> {
     app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
-    menu.badge.append(profileBadge(app));
+    // (menu-ui MD19: the profile badge only with `?legacy=1`)
+    if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
+    // menu-ui MD2: the title screen once per launch (not after a match, not under automation unless `?title=1`); Back
+    // on the main menu returns to it. The brightness calibration follows the title on the first run.
+    const brightness = (): void => {
+      if (!app.settings.get().video.brightnessSet && !navigator.webdriver && app.screens.top === menu) app.screens.push(new BrightnessScreen(app));
+    };
+    const titleAllowed = !navigator.webdriver || titleFlag;
+    MainMenuScreen.onBackToTitle = titleAllowed ? () => app.screens.push(new TitleScreen(() => {})) : null;
     // music project: `?musiclab=1` opens the lab over the menu (debug)
     if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
     if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
     if (flags.weaponLab) void import('./audio/weapons/weaponLab').then((m) => app.screens.push(new m.WeaponLabScreen(app)));
     // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
-    if (!app.settings.get().video.brightnessSet && !navigator.webdriver) app.screens.push(new BrightnessScreen(app));
+    if (titleAllowed && !titleShown) {
+      titleShown = true;
+      app.screens.push(new TitleScreen(brightness));
+    } else brightness();
   };
 
+  // menu-ui MD6: the flat main menu. Until the Missions / Training / Free roam screens exist (steps 07+), Missions and
+  // Free roam open the Play screen preset to that mode. Continue waits for a mission checkpoint save (hidden until then).
   MainMenuScreen.entries.push(
     (a) => ({
-      label: 'Play',
-      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Free roam',
-      icon: 'play',
+      key: 'missions',
+      label: 'Missions',
       order: 10,
-      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
+      counter: () => `${MISSIONS.length}`,
+      ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
+      action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Loadout', sub: flags.legacy ? 'Weapons · Gear · Appearance · HQ' : 'Weapons · Attachments · Gadget', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
-    (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
+    () => ({
+      key: 'training',
+      label: 'Training',
+      order: 17,
+      ctx: 'Drills on the Fallow bunker course.',
+      locked: () => 'The bunker is being rebuilt on the new moves. Training returns after the prototype.',
+      action: () => {},
+    }),
+    (a) => ({
+      key: 'freeroam',
+      label: 'Free roam',
+      order: 18,
+      ctx: 'No guards. Explore a map with the full kit.',
+      action: () => a.screens.push(new FreeRoamScreen(a, (o) => startGame(o))),
+    }),
+    (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: flags.legacy ? 'Weapons, attachments and gadget for the next mission.' : 'The kit issued for the mission: weapons, attachments and gadget.', action: () => a.screens.push(flags.legacy ? new LoadoutScreen(a) : new KitScreen(a)) }),
+    (a) => ({ key: 'settings', label: 'Settings', order: 80, ctx: 'Controls, graphics, sound, accessibility and save data.', action: () => a.screens.push(new SettingsScreen(a)) }),
+    (a) => ({
+      key: 'feedback',
+      label: 'Feedback',
+      order: 90,
+      ctx: 'Playtest notes: write one, read the list, export them.',
+      action: () => a.screens.push(new SettingsScreen(a).openTab('feedback')),
+    }),
   );
+  if (flags.legacy) {
+    MainMenuScreen.entries.push((a) => ({
+      key: 'legacy',
+      label: 'Legacy',
+      order: 70,
+      ctx: 'Parked modes: Hunter, Mission and the old Play screen.',
+      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
+    }));
+  }
 
   // Coop is optional and isolated: only reached through a dynamic import behind the flag.
   const coopApi = {
@@ -129,9 +189,10 @@ async function boot(): Promise<void> {
   const loadCoop = () => import('./net/coopUi');
   if (flags.coop) {
     MainMenuScreen.entries.push((a) => ({
+      key: 'coop',
       label: 'Co-op',
-      sub: navigator.onLine ? '2-4 players · Room code' : 'Offline',
-      icon: 'wifi',
+      counter: () => (navigator.onLine ? '' : 'Offline'),
+      ctx: 'Two to four players with a room code. The Fallow bunker is the co-op tutorial.',
       order: 15,
       action: () =>
         void loadCoop()
@@ -139,6 +200,14 @@ async function boot(): Promise<void> {
           .catch(() => a.toasts.show('Co-op unavailable', 'warn')),
     }));
   }
+
+  /** The results screen's Missions / Next: the menu, the missions list, and a mission's briefing when `id` is given. */
+  const openMissions = (id?: string): void => {
+    goToMenu();
+    app.screens.push(new MissionsScreen(app, (o) => startGame(o)));
+    const mission = id ? missionById(id) : null;
+    if (mission) app.screens.push(new BriefingScreen(app, (o) => startGame(o), { kind: 'mission', mission }));
+  };
 
   const startGame = (base: GameOptions, cbOverride?: SessionCallbacks): void => {
     const sv = app.save.get();
@@ -165,7 +234,7 @@ async function boot(): Promise<void> {
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
     app.releaseState();
-    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
+    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }), missions: () => openMissions(), briefing: (id) => openMissions(id) })
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);

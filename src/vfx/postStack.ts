@@ -21,6 +21,7 @@ import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
 import { RtReflections, type RtSource } from './rtReflections';
 import { depthWanted, fStopFor, stepAperture } from './dofAperture';
+import { pauseAperture } from './pauseLook';
 import { Taau, VIEW_Z_GLSL, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
@@ -238,6 +239,14 @@ export class PostStack {
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
   focus = 10;
   focusOn = false;
+  /** (menu-ui slice 6) The depth of field's focal length (mm): a longer lens, a shallower field (the menu close-ups). */
+  lensMm = 50;
+  /** The pause look's level 0..1 (`pauseLook.ts`): opens the field on `focus` (the local player) while paused. */
+  pauseK = 0;
+  /** Depth of field exists in this build (the Low preset has none: the pause screen uses a CSS overlay). */
+  get hasDof(): boolean {
+    return !!this.def?.depthOfFieldEnabled && !!this.def.depthOfField;
+  }
   /** Called after a rebuild so the cinematic pass can move back to the end of the chain. */
   onRebuilt: (() => void) | null = null;
   /** Times the stack was rebuilt (a feature, the upscale or Panini changed). */
@@ -483,9 +492,13 @@ export class PostStack {
       // traced a stale depth and the floors reflected fog, the lower half of the view grey on Epic)
       const own = this.dofDepth && this.dofDepth !== this.depth ? this.dofDepth : null;
       this.aperture = stepAperture(this.aperture, this.focusOn, !own || own.enabled, dt);
-      if (own) own.enabled = depthWanted(this.aperture, this.focusOn);
-      dof.fStop = fStopFor(this.aperture);
-      dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, dt * 10);
+      const pausing = this.pauseK > 0;
+      if (own) own.enabled = depthWanted(this.aperture, this.focusOn) || pausing;
+      // (menu-ui MD14) the pause look opens the field on the player; the sim dt is 0 while paused, so ease on a nominal step
+      const ap = pausing && (!own || own.enabled) ? Math.max(this.aperture, pauseAperture(this.pauseK)) : this.aperture;
+      dof.fStop = fStopFor(ap);
+      dof.focalLength = this.lensMm;
+      dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, (dt > 0 ? dt : pausing ? 1 / 30 : 0) * 10);
     }
   }
 

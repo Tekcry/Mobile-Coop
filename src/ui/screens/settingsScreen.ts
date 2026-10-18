@@ -1,25 +1,18 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { flags } from '../../core/flags';
-import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
+import { defaultSettings, setAuto, setGfx, setPreset, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
 import { h } from '../dom';
-import { Screen } from '../screen';
-import type { Hint } from '../prompts';
-import { button, choice, refreshWidgets, section, slider, TabView, toggle, type TabDef } from '../widgets';
-import { bindPanel, ControlsScreen } from './controlsScreen';
+import { MenuScreen, type LegendItem } from '../menuScreen';
+import { button, choice, describe, Dialog, lockedRow, refreshWidgets, slider, TabView, toggle, type TabDef } from '../widgets';
+import { ControlsScreen } from './controlsScreen';
 import { BrightnessScreen } from './brightnessScreen';
 import { toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
-const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'low', label: 'Low' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'high', label: 'High' },
-];
 const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'linear', label: 'Linear' },
   { value: 'classic', label: 'Classic' },
@@ -82,142 +75,207 @@ const mult = (v: number): string => `${v.toFixed(2)}x`;
 /** Extra tabs contributed by later systems (e.g. save data). */
 export const extraSettingsTabs: ((app: App, screen: SettingsScreen) => TabDef)[] = [];
 
-export class SettingsScreen extends Screen {
+/** A tab's rows: one up / down list that wraps (menu-ui SPEC 4.3). */
+export function rowList(...children: (HTMLElement | null)[]): HTMLElement {
+  return h('div', { class: 'rows ms-rows', attrs: { 'data-wrap': '' } }, ...children.filter((c): c is HTMLElement => c !== null));
+}
+
+/** A section label row (not focusable, SPEC 7.11). */
+export function grp(title: string): HTMLElement {
+  return h('div', { class: 'grp', text: title });
+}
+
+/** Sets a row's description (the context panel, MD9); the label is read from the row. */
+export function desc<T extends HTMLElement>(el: T, text: string): T {
+  const label = el.querySelector('.row-label, .btn-label')?.textContent ?? '';
+  return describe(el, label, text, el.dataset.key);
+}
+
+/** The gameplay fields the Controls tab owns (hold or toggle, rumble): its Defaults resets these. */
+const CONTROL_GAMEPLAY = ['adsToggle', 'crouchToggle', 'sprintHold', 'wallToggle', 'rumble'] as const;
+
+/**
+ * GAME / SETTINGS (menu-ui SPEC 7.11, MD9) on the MenuScreen template: a tab strip (LB / RB, Q / E, clicks), rows with
+ * a description each in the context panel, X Defaults per tab (confirm, Cancel first), focus memory per tab.
+ */
+export class SettingsScreen extends MenuScreen {
   private tabs: TabView;
+  private tabIds: string[] = [];
+  /** Tab id -> its Defaults (no entry: the tab has none, e.g. Feedback and Data). */
+  private resets = new Map<string, () => void>();
+  private shown = false;
 
   constructor(private app: App) {
-    super('settings-screen');
+    super('settings-screen', ['Game', 'Settings']);
     const st = app.settings;
     const s = (): Settings => st.get();
     const upd = st.update.bind(st);
-
-    const resetBtn = (sectionKey: keyof Settings, tabId: string): HTMLElement =>
-      button('Reset to defaults', () => {
-        st.reset(sectionKey);
-        this.tabs.rebuild(tabId);
-        app.nav.refresh();
-      }, { class: 'subtle' });
+    const hold = [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }];
 
     const tabs: TabDef[] = [
       {
-        id: 'kbm',
-        label: 'Mouse & Keyboard',
-        icon: 'keyboard',
-        build: () => this.kbmTab(),
-      },
-      {
-        id: 'pad',
-        label: 'Controller',
-        icon: 'pad',
+        id: 'controls',
+        label: 'Controls',
         build: () => {
-          const status = h('div', { class: 'row-note' });
-          const refresh = (): void => {
-            status.textContent = app.input.gamepad.connected
-              ? 'Controller connected.'
-              : 'No controller detected. Press any button on the controller after pairing.';
-          };
-          refresh();
-          status.addEventListener('nav-focus', refresh);
-          return h(
-            'div',
-            { class: 'rows' },
+          const status = h('div', { class: 'row-note pad-status' });
+          status.textContent = app.input.gamepad.connected ? 'Controller connected.' : 'No controller detected. Press any button on the controller after pairing.';
+          return rowList(
+            desc(button('Remap controls', () => app.screens.push(new ControlsScreen(app)), { key: 'remap' }), 'Change the buttons and keys for every action, on the controller and on the keyboard and mouse.'),
+            grp('Hold or toggle'),
+            desc(choice('Aim', hold, () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))), 'Hold: aim while the button is held. Toggle: one press raises the weapon, the next lowers it.'),
+            desc(choice('Crouch', hold, () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))), 'Hold: crouch while the button is held. Toggle: one press crouches, the next stands.'),
+            desc(choice('Back to wall', hold, () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))), 'Hold: stay on the wall while the button is held. Toggle: one press goes to the wall, the next leaves it.'),
+            desc(choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))), 'Toggle: one press sprints until you stop. Hold: sprint only while the button is held.'),
+            grp('Controller'),
             status,
-            section(
-              'Look',
-              slider('Horizontal sensitivity', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityX, set: (v) => upd((d) => void (d.gamepad.lookSensitivityX = v)), format: mult }),
-              slider('Vertical sensitivity', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityY, set: (v) => upd((d) => void (d.gamepad.lookSensitivityY = v)), format: mult }),
-              slider('Aim (ADS) sensitivity', { min: 0.2, max: 1.2, step: 0.05, get: () => s().gamepad.adsMultiplier, set: (v) => upd((d) => void (d.gamepad.adsMultiplier = v)), format: mult }),
-              choice('Response curve', CURVE_OPTS, () => s().gamepad.curve, (v) => upd((d) => void (d.gamepad.curve = v))),
-              toggle('Invert Y', () => s().gamepad.invertY, (v) => upd((d) => void (d.gamepad.invertY = v))),
-              choice('Aim assist', AIM_OPTS, () => s().gamepad.aimAssist, (v) => upd((d) => void (d.gamepad.aimAssist = v))),
-            ),
-            section(
-              'Dead zones',
-              slider('Left stick', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.deadzoneLeft, set: (v) => upd((d) => void (d.gamepad.deadzoneLeft = v)), format: pct }),
-              slider('Right stick', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.deadzoneRight, set: (v) => upd((d) => void (d.gamepad.deadzoneRight = v)), format: pct }),
-              slider('Triggers', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.triggerDeadzone, set: (v) => upd((d) => void (d.gamepad.triggerDeadzone = v)), format: pct }),
-            ),
-            section(
-              'Haptics',
-              toggle('Vibration', () => s().gamepad.vibration, (v) => upd((d) => void (d.gamepad.vibration = v))),
-              slider('Rumble strength', { min: 0, max: 1, step: 0.05, get: () => s().gameplay.rumble, set: (v) => upd((d) => void (d.gameplay.rumble = v)), format: pct }),
-              button('Test vibration', () => void app.input.testHaptic(), { class: 'subtle' }),
-            ),
-            resetBtn('gamepad', 'pad'),
+            desc(slider('Look sensitivity (horizontal)', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityX, set: (v) => upd((d) => void (d.gamepad.lookSensitivityX = v)), format: mult }), 'How fast the right stick turns the camera left and right.'),
+            desc(slider('Look sensitivity (vertical)', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityY, set: (v) => upd((d) => void (d.gamepad.lookSensitivityY = v)), format: mult }), 'How fast the right stick tilts the camera up and down.'),
+            desc(slider('Aim sensitivity', { min: 0.2, max: 1.2, step: 0.05, get: () => s().gamepad.adsMultiplier, set: (v) => upd((d) => void (d.gamepad.adsMultiplier = v)), format: mult }), 'Look speed while aiming, as a share of the normal speed. Lower is steadier.'),
+            desc(choice('Response curve', CURVE_OPTS, () => s().gamepad.curve, (v) => upd((d) => void (d.gamepad.curve = v))), 'How the right stick turns its tilt into speed. Classic is gentle near the centre; Linear follows the stick exactly.'),
+            desc(slider('Dead zone (left stick)', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.deadzoneLeft, set: (v) => upd((d) => void (d.gamepad.deadzoneLeft = v)), format: pct }), 'How far the left stick moves before you walk. Raise it if you drift with the stick at rest.'),
+            desc(slider('Dead zone (right stick)', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.deadzoneRight, set: (v) => upd((d) => void (d.gamepad.deadzoneRight = v)), format: pct }), 'How far the right stick moves before the camera turns. Raise it if the view creeps on its own.'),
+            desc(slider('Dead zone (triggers)', { min: 0, max: 0.4, step: 0.01, get: () => s().gamepad.triggerDeadzone, set: (v) => upd((d) => void (d.gamepad.triggerDeadzone = v)), format: pct }), 'How far a trigger travels before it aims or fires.'),
+            desc(toggle('Invert Y (controller)', () => s().gamepad.invertY, (v) => upd((d) => void (d.gamepad.invertY = v))), 'Pushing the right stick up looks down, like a flight stick.'),
+            desc(toggle('Vibration', () => s().gamepad.vibration, (v) => upd((d) => void (d.gamepad.vibration = v))), 'Rumble for shots, hits, takedowns and footsteps close by.'),
+            desc(slider('Rumble strength', { min: 0, max: 1, step: 0.05, get: () => s().gameplay.rumble, set: (v) => upd((d) => void (d.gameplay.rumble = v)), format: pct }), 'How strong every rumble is.'),
+            desc(button('Test vibration', () => void app.input.testHaptic(), { class: 'subtle' }), 'Plays one rumble at the strength above.'),
+            grp('Mouse'),
+            desc(slider('Mouse sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }), 'How far the camera turns for each move of the mouse.'),
+            desc(slider('Mouse aim sensitivity', { min: 0.2, max: 1.5, step: 0.05, get: () => s().mouse.adsMultiplier, set: (v) => upd((d) => void (d.mouse.adsMultiplier = v)), format: mult }), 'Mouse speed while aiming, as a share of the normal speed.'),
+            desc(toggle('Invert Y (mouse)', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))), 'Moving the mouse forward looks down.'),
+            desc(toggle('Raw input', () => s().mouse.raw, (v) => upd((d) => void (d.mouse.raw = v))), 'Reads the mouse without the system\'s pointer acceleration, so the same move always turns the same amount.'),
           );
         },
       },
       {
+        id: 'gameplay',
+        label: 'Gameplay',
+        build: () =>
+          rowList(
+            desc(choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))), 'The shoulder the camera sits over at the start of a mission. You can swap it at any time.'),
+            desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
+            desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
+          ),
+      },
+      {
         id: 'video',
         label: 'Graphics',
-        icon: 'monitor',
         build: () => this.graphicsTab(),
       },
       {
         id: 'audio',
         label: 'Audio',
-        icon: 'speaker',
         build: () =>
-          h(
-            'div',
-            { class: 'rows' },
-            slider('Master', { min: 0, max: 1, step: 0.05, get: () => s().audio.master, set: (v) => upd((d) => void (d.audio.master = v)), format: pct }),
-            slider('Effects', { min: 0, max: 1, step: 0.05, get: () => s().audio.sfx, set: (v) => upd((d) => void (d.audio.sfx = v)), format: pct }),
-            slider('Music', { min: 0, max: 1, step: 0.05, get: () => s().audio.music, set: (v) => upd((d) => void (d.audio.music = v)), format: pct }),
-            slider('Interface', { min: 0, max: 1, step: 0.05, get: () => s().audio.ui, set: (v) => upd((d) => void (d.audio.ui = v)), format: pct }),
+          rowList(
+            desc(slider('Master', { min: 0, max: 1, step: 0.05, get: () => s().audio.master, set: (v) => upd((d) => void (d.audio.master = v)), format: pct }), 'The volume of everything.'),
+            desc(slider('Effects', { min: 0, max: 1, step: 0.05, get: () => s().audio.sfx, set: (v) => upd((d) => void (d.audio.sfx = v)), format: pct }), 'Footsteps, guns, doors, guards and the world around you.'),
+            desc(slider('Music', { min: 0, max: 1, step: 0.05, get: () => s().audio.music, set: (v) => upd((d) => void (d.audio.music = v)), format: pct }), 'The score, in menus and in missions.'),
+            desc(slider('Interface', { min: 0, max: 1, step: 0.05, get: () => s().audio.ui, set: (v) => upd((d) => void (d.audio.ui = v)), format: pct }), 'Menu sounds: moving, selecting and going back.'),
             // (music project) a debug screen for the score: dev flag `?debug=1`
-            flags.debug ? button('Music lab', () => void import('../../audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app))), { icon: 'speaker', class: 'subtle' }) : null,
-            resetBtn('audio', 'audio'),
-          ),
-      },
-      {
-        id: 'gameplay',
-        label: 'Gameplay',
-        icon: 'gear',
-        build: () =>
-          h(
-            'div',
-            { class: 'rows' },
-            choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))),
-            choice('Aim down sights', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))),
-            choice('Crouch', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))),
-            choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))),
-            // (locomotion step 18, D7) back-to-wall and the grab from behind: hold or toggle
-            choice('Back to wall', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))),
-            choice('Grab (from behind)', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.grabToggle, (v) => upd((d) => void (d.gameplay.grabToggle = v))),
-            toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
-            toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))),
-            toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
-            resetBtn('gameplay', 'gameplay'),
+            flags.debug ? button('Music lab', () => void import('../../audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app))), { class: 'subtle', desc: 'A debug screen for the score.' }) : null,
           ),
       },
       {
         id: 'access',
         label: 'Accessibility',
-        icon: 'access',
-        build: () =>
-          h(
-            'div',
-            { class: 'rows' },
-            button('Controls', () => app.screens.push(new ControlsScreen(app)), { icon: 'gear' }),
-            slider('HUD size', { min: 0.8, max: 1.4, step: 0.05, get: () => s().access.hudScale, set: (v) => upd((d) => void (d.access.hudScale = v)), format: mult }),
-            toggle('Health bar (off: screen-edge vignette only)', () => s().access.healthBar, (v) => upd((d) => void (d.access.healthBar = v))),
-            toggle('Always show ammo and gadgets', () => s().access.ammoAlways, (v) => upd((d) => void (d.access.ammoAlways = v))),
-            toggle('Colour-blind-safe awareness colours', () => s().access.colorSafe, (v) => upd((d) => void (d.access.colorSafe = v))),
-            toggle('Subtitles for enemy barks and radio', () => s().access.subtitles, (v) => upd((d) => void (d.access.subtitles = v))),
-            choice('Held actions (downloads, panels, revives)', [{ value: false, label: 'Hold' }, { value: true, label: 'Tap to start' }], () => s().access.holdToggle, (v) => upd((d) => void (d.access.holdToggle = v))),
-            slider('Camera shake', { min: 0, max: 1, step: 0.1, get: () => s().access.shake, set: (v) => upd((d) => void (d.access.shake = v)), format: (v) => `${Math.round(v * 100)}%` }),
-            resetBtn('access', 'access'),
-          ),
+        build: () => {
+          // (SPEC 7.11) subtitles carry the story: always on
+          if (!s().access.subtitles) upd((d) => void (d.access.subtitles = true));
+          return rowList(
+            lockedRow('Subtitles', 'Always on', 'Subtitles carry the story, so they are always on.', 'Radio, briefings and guard barks as text at the bottom of the screen.'),
+            desc(toggle('Colour-blind-safe awareness colours', () => s().access.colorSafe, (v) => upd((d) => void (d.access.colorSafe = v))), 'Guard awareness uses colours that read with every common kind of colour blindness.'),
+            desc(slider('HUD size', { min: 0.8, max: 1.4, step: 0.05, get: () => s().access.hudScale, set: (v) => upd((d) => void (d.access.hudScale = v)), format: mult }), 'The size of the light meter, the ammo and the prompts in a mission.'),
+            desc(toggle('Health bar', () => s().access.healthBar, (v) => upd((d) => void (d.access.healthBar = v))), 'Off: only the screen edge shows damage.'),
+            desc(toggle('Always show ammo', () => s().access.ammoAlways, (v) => upd((d) => void (d.access.ammoAlways = v))), 'Keeps the ammo and gadget counts on screen instead of fading them out.'),
+            desc(slider('Camera shake', { min: 0, max: 1, step: 0.1, get: () => s().access.shake, set: (v) => upd((d) => void (d.access.shake = v)), format: pct }), 'How much the camera shakes for shots, blasts and falls.'),
+            desc(choice('Held interactions', [{ value: false, label: 'Hold' }, { value: true, label: 'Tap to start' }], () => s().access.holdToggle, (v) => upd((d) => void (d.access.holdToggle = v))), 'Downloads, panels and revives. Tap to start runs them without holding the button.'),
+          );
+        },
       },
     ];
     for (const extra of extraSettingsTabs) tabs.push(extra(app, this));
-    // mouse & keyboard first
-    const i = tabs.findIndex((t) => t.id === 'kbm');
-    if (i > 0) tabs.unshift(...tabs.splice(i, 1));
-    this.tabs = new TabView(tabs, { side: true });
-    this.tabs.onChange = () => app.nav.refresh();
-    this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
+
+    const fromDefaults = (f: (d: Settings, def: Settings) => void): void => {
+      const def = defaultSettings();
+      upd((d) => f(d, def));
+    };
+    this.resets.set('controls', () =>
+      fromDefaults((d, def) => {
+        d.gamepad = def.gamepad;
+        d.mouse = def.mouse;
+        for (const k of CONTROL_GAMEPLAY) (d.gameplay as unknown as Record<string, unknown>)[k] = def.gameplay[k];
+      }),
+    );
+    this.resets.set('gameplay', () =>
+      fromDefaults((d, def) => {
+        d.gameplay.defaultShoulder = def.gameplay.defaultShoulder;
+        d.gameplay.courseMarkers = def.gameplay.courseMarkers;
+        d.gameplay.slowBeat = def.gameplay.slowBeat;
+      }),
+    );
+    this.resets.set('video', () => st.reset('video'));
+    this.resets.set('audio', () => st.reset('audio'));
+    this.resets.set('access', () => st.reset('access'));
+
+    this.tabs = new TabView(tabs, { menu: true });
+    this.tabIds = tabs.map((t) => t.id);
+    this.tabs.focused = () => app.nav.focused;
+    this.tabs.onChange = () => {
+      if (!this.shown) return;
+      app.nav.setRoot(this.el, this.tabs.recall());
+      this.renderHints();
+    };
+    this.body.append(this.tabs.el);
+  }
+
+  /** Opens on a tab by id (menu-ui slice 1: the main menu's Feedback item opens the Feedback tab). */
+  openTab(id: string): this {
+    const i = this.tabIds.indexOf(id);
+    if (i >= 0) this.tabs.select(i);
+    return this;
+  }
+
+  override onShow(): void {
+    this.shown = true;
+  }
+
+  override initialFocus(): HTMLElement | null {
+    return this.tabs.recall();
+  }
+
+  override onTab(dir: -1 | 1): void {
+    this.tabs.cycle(dir);
+  }
+
+  /** X: the active tab's Defaults, after a confirm with Cancel first (SPEC 7.11, MD18). */
+  override onX(): void {
+    const id = this.tabs.activeId;
+    const reset = this.resets.get(id);
+    if (!reset) return;
+    this.manager.push(
+      new Dialog(`Reset ${this.tabs.activeLabel} to defaults?`, 'Every setting on this tab goes back to its default.', [
+        { label: 'Cancel', safe: true, action: () => {} },
+        {
+          label: 'Reset',
+          action: () => {
+            reset();
+            this.tabs.rebuild(id);
+            this.app.nav.setRoot(this.el, this.tabs.recall());
+          },
+        },
+      ]),
+    );
+  }
+
+  override legend(): LegendItem[] {
+    const out: LegendItem[] = [
+      { act: 'back', label: 'Back' },
+      { act: 'confirm', label: 'Select' },
+      { act: 'lb', label: '' },
+      { act: 'rb', label: 'Category' },
+    ];
+    if (this.resets.has(this.tabs.activeId)) out.push({ act: 'x', label: 'Defaults' });
+    return out;
   }
 
   /** Graphics: preset and every feature, display options (3.0: one renderer, PC presets). */
@@ -226,7 +284,6 @@ export class SettingsScreen extends Screen {
     const st = app.settings;
     const s = (): Settings => st.get();
     const upd = st.update.bind(st);
-    const pct = (v: number): string => `${Math.round(v * 100)}%`;
     let panel: HTMLElement | null = null;
     const cap = (p: string): string => p[0]!.toUpperCase() + p.slice(1);
     const autoNote = h('div', { class: 'row-note auto-note' });
@@ -246,149 +303,86 @@ export class SettingsScreen extends Screen {
     const feat = <K extends keyof GraphicsFeatures>(k: K) => ({
       get: (): GraphicsFeatures[K] => s().video.gfx[k],
       set: (v: GraphicsFeatures[K]): void => {
+        // (SPEC 7.11) any quality row moves the preset to Custom (setGfx)
         upd((d) => setGfx(d, k, v));
         refresh();
       },
     });
-    const ch = <K extends keyof GraphicsFeatures>(label: string, k: K, opts: { value: GraphicsFeatures[K]; label: string }[]): HTMLElement => {
+    const ch = <K extends keyof GraphicsFeatures>(label: string, k: K, opts: { value: GraphicsFeatures[K]; label: string }[], text: string): HTMLElement => {
       const f = feat(k);
-      return choice(label, opts, f.get, f.set);
+      return desc(choice(label, opts, f.get, f.set), text);
     };
-    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'lens'): HTMLElement => {
+    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'lens', text: string): HTMLElement => {
       const f = feat(k);
-      return toggle(label, f.get, f.set);
+      return desc(toggle(label, f.get, f.set), text);
     };
-    panel = h(
-      'div',
-      { class: 'rows' },
-      section(
-        'Quality',
-        choice('Preset', PRESET_OPTS, () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
-          // (Custom is where hand changes land; picking it keeps the current features)
-          if (v === 'auto') {
-            upd((d) => setAuto(d, d.video.device.tier));
-            app.detectGraphics();
-          } else if (v !== 'custom') upd((d) => setPreset(d, v));
-          else upd((d) => void (d.video.auto = false));
-          refresh();
-        }),
-        autoNote,
-        button('Detect again', () => {
+    panel = rowList(
+      grp('Quality'),
+      desc(choice('Preset', PRESET_OPTS, () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
+        // (Custom is where hand changes land; picking it keeps the current features)
+        if (v === 'auto') {
           upd((d) => setAuto(d, d.video.device.tier));
-          app.detectGraphics(true);
-          refresh();
-        }, { class: 'subtle' }),
-        // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
-        ch('Shadows (moon, flashlights)', 'shadows', SHADOW_OPTS),
-        ch('Anti-aliasing', 'aa', AA_OPTS),
-        ch('Textures', 'textures', TIER_OPTS),
-        ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),
-        ch('Effects and weather', 'effects', TIER_OPTS),
-        // (motion blur is gone: no preset used it)
-        tg('Ambient occlusion', 'ao'),
-        tg('Global illumination (bounce light; next map)', 'gi'),
-        tg('Bloom', 'bloom'),
-        ch('Reflections', 'reflections', REFL_OPTS),
-        ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS),
-        tg('Volumetric light (fog is always on)', 'volumetrics'),
-        slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }),
-        ch('Post effects resolution', 'postRes', [
-          { value: 'half', label: 'Half' },
-          { value: 'full', label: 'Full' },
-        ]),
-        tg('Depth of field', 'dof'),
-        tg('Lens effects (aberration, dirt)', 'lens'),
-      ),
-      section(
-        'Display',
-        // (3.1.7: a list of real resolutions, applied on a pick and kept only when confirmed)
-        resolutionRow(app),
-        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
-        toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
-        choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
-        slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
-        choice('Target frame rate', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
-        slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
-        slider('Widest field of view (ultrawide)', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }),
-        choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))),
-        toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
-        toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
-        toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
-        choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
-        button('Fullscreen', () => void toggleFullscreen(), { class: 'subtle' }),
-      ),
-      section(
-        'GPU',
-        h('div', {
-          class: 'row-note gpu-note',
-          text:
-            `${app.gpu.renderer || 'Unknown renderer'} (${app.gpu.kind})` +
-            (app.gpu.kind === 'integrated' ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.' : ''),
-        }),
-      ),
-      section(
-        'Benchmark',
-        h('div', {
-          class: 'row-note',
-          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic. Feature costs: your settings, then each costly feature off in turn (what to cut on this device). Resolutions: each of this monitor's resolutions (in fullscreen; a window renders the same share of itself). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
-        }),
-        button('Run (current settings)', () => app.benchmark?.('current'), { icon: 'monitor' }),
-        button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle' }),
-        button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle' }),
-        button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle' }),
-        button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle' }),
-      ),
-      button('Reset to defaults', () => {
-        st.reset('video');
+          app.detectGraphics();
+        } else if (v !== 'custom') upd((d) => setPreset(d, v));
+        else upd((d) => void (d.video.auto = false));
         refresh();
-      }, { class: 'subtle' }),
+      }), 'Sets every quality row at once. Auto picks one for this device; changing any row below makes it Custom.'),
+      autoNote,
+      desc(button('Detect again', () => {
+        upd((d) => setAuto(d, d.video.device.tier));
+        app.detectGraphics(true);
+        refresh();
+      }, { class: 'subtle' }), 'Measures this device again and picks the Auto preset from the result.'),
+      // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
+      ch('Shadows', 'shadows', SHADOW_OPTS, 'Shadows from the moon and the flashlights. Lamps are always lit and shadowed.'),
+      ch('Anti-aliasing', 'aa', AA_OPTS, 'Smooths jagged edges. TAA is the smoothest; FXAA is the cheapest.'),
+      ch('Textures', 'textures', TIER_OPTS, 'Surface detail. Lower it if the game stutters when you enter a new area.'),
+      ch('Detail and draw distance', 'detail', TIER_OPTS, 'How much map dressing is drawn and how far away.'),
+      ch('Effects and weather', 'effects', TIER_OPTS, 'Rain, sparks, smoke and other particles.'),
+      tg('Ambient occlusion', 'ao', 'Soft contact shadows in corners and under objects.'),
+      tg('Global illumination', 'gi', 'Light bouncing off walls and floors into the shadows.'),
+      tg('Bloom', 'bloom', 'A glow around bright lamps and screens.'),
+      ch('Reflections', 'reflections', REFL_OPTS, 'Reflections on wet ground, glass and metal. Ray traced is the sharpest and the most costly.'),
+      ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS, 'Half rate updates ray-traced reflections every other frame to save time.'),
+      tg('Volumetric light', 'volumetrics', 'Light shafts in the air around lamps. The fog itself is always on.'),
+      desc(slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }), 'How many lamps cast light shafts at once.'),
+      ch('Post effects resolution', 'postRes', [
+        { value: 'half', label: 'Half' },
+        { value: 'full', label: 'Full' },
+      ], 'The resolution of bloom, fog and other screen effects.'),
+      tg('Depth of field', 'dof', 'Blurs what is far from the focus in cutscenes and while aiming.'),
+      tg('Lens effects', 'lens', 'Colour fringes and dirt on the lens around bright lights.'),
+      grp('Display'),
+      // (3.1.7: a list of real resolutions, applied on a pick and kept only when confirmed)
+      desc(resolutionRow(app), 'The render resolution. A new one applies at once and reverts in 10 s unless you keep it.'),
+      desc(button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }), 'Set the brightness so the dark stays dark and the shadows still read.'),
+      desc(toggle('Adaptive detail', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))), 'In a match the detail drops a little to hold the frame rate, and comes back when it can.'),
+      desc(choice('Upscaler', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))), 'Sharpens a resolution scale under 100 % back to the screen\'s size.'),
+      desc(slider('Panini projection', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }), 'Eases the stretching at the edges of a wide field of view.'),
+      desc(choice('Target frame rate', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))), 'The highest frame rate the game draws at. A lower cap runs cooler and quieter.'),
+      desc(slider('Field of view', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }), 'The horizontal field of view on a 16:9 screen. Wider screens see more at the sides.'),
+      desc(slider('Widest field of view', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }), 'The limit for ultrawide screens.'),
+      desc(choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))), 'Keeps the HUD inside a narrower frame on a wide screen.'),
+      desc(toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))), 'The frame rate in the corner of the screen.'),
+      desc(toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))), 'Darkens the corners of the picture a little.'),
+      desc(toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))), 'A fine grain over the picture.'),
+      desc(choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))), 'How characters are drawn. Stick is a debug look.'),
+      desc(button('Fullscreen', () => void toggleFullscreen(), { class: 'subtle' }), 'Switches between a window and the full screen.'),
+      grp('GPU'),
+      h('div', {
+        class: 'row-note gpu-note',
+        text:
+          `${app.gpu.renderer || 'Unknown renderer'} (${app.gpu.kind})` +
+          (app.gpu.kind === 'integrated' ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.' : ''),
+      }),
+      grp('Benchmark'),
+      desc(button('Run (current settings)', () => app.benchmark?.('current'), { key: 'bench-current' }), `A ${BENCH.seconds} s camera flight through the Warehouse with your settings: average and 1 % low frame rate.`),
+      desc(button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle', key: 'bench-presets' }), 'The same flight on every preset, Low to Epic.'),
+      desc(button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle', key: 'bench-res' }), 'The flight at each of this monitor\'s resolutions (in fullscreen).'),
+      desc(button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle', key: 'bench-features' }), 'Your settings, then each costly feature off in turn: what to cut on this device.'),
+      desc(button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle', key: 'bench-sustained' }), 'The first minute against the last: a laptop slowing down once hot.'),
     );
     return panel;
-  }
-
-  /** Mouse & keyboard (desktop): look, raw input and every key binding (click a key, press the new one). */
-  private kbmTab(): HTMLElement {
-    const app = this.app;
-    const st = app.settings;
-    const s = (): Settings => st.get();
-    const upd = st.update.bind(st);
-    const mult = (v: number): string => `${v.toFixed(2)}x`;
-    /* (locomotion step 18) the key rows are the controls screen's binding panel (conflict warnings, reset) */
-    return h(
-      'div',
-      { class: 'rows' },
-      section(
-        'Mouse',
-        slider('Sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }),
-        slider('Aim (ADS) sensitivity', { min: 0.2, max: 1.5, step: 0.05, get: () => s().mouse.adsMultiplier, set: (v) => upd((d) => void (d.mouse.adsMultiplier = v)), format: mult }),
-        toggle('Invert Y', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))),
-        toggle('Raw input (no pointer acceleration)', () => s().mouse.raw, (v) => upd((d) => void (d.mouse.raw = v))),
-      ),
-      section('Keys', bindPanel(app, 'kbm')),
-      button('Reset mouse to defaults', () => {
-        st.reset('mouse');
-        this.tabs.rebuild('kbm');
-        app.nav.refresh();
-      }, { class: 'subtle' }),
-    );
-  }
-
-  override initialFocus(): HTMLElement | null {
-    return this.el.querySelector<HTMLElement>('.tab-panel.active [data-focus]');
-  }
-
-  override onTab(dir: -1 | 1): void {
-    this.tabs.cycle(dir);
-    const first = this.el.querySelector<HTMLElement>('.tab-panel.active [data-focus]');
-    this.app.nav.setRoot(this.el, first);
-  }
-
-  override hints(): Hint[] {
-    return [
-      { btn: 'LB/RB', label: 'Category' },
-      { btn: 'A', label: 'Select' },
-      { btn: 'B', label: 'Back' },
-    ];
   }
 }
 
@@ -399,6 +393,6 @@ function resolutionRow(app: App): HTMLElement {
       const l = b.querySelector('.btn-label');
       if (l) l.textContent = `Resolution: ${currentResolution(app)}`;
     }));
-  }, { class: 'subtle res-row' });
+  }, { class: 'subtle res-row', key: 'resolution' });
   return b;
 }

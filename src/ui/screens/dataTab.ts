@@ -1,6 +1,6 @@
 import type { App } from '../../core/app';
 import { h } from '../dom';
-import { button, Dialog, section } from '../widgets';
+import { button, Dialog } from '../widgets';
 import type { TabDef } from '../widgets';
 import type { SettingsScreen } from './settingsScreen';
 import { shareOrDownload } from '../fileOut';
@@ -25,7 +25,7 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
         void f.text().then((text) =>
           screen.manager.push(
             new Dialog('Import save?', `This replaces your current profile with "${f.name}". Your current profile is backed up first.`, [
-              { label: 'Cancel', action: () => {} },
+              { label: 'Cancel', safe: true, action: () => {} },
               {
                 label: 'Import',
                 primary: true,
@@ -40,27 +40,24 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
         );
         file.value = '';
       });
+      // (menu-ui SPEC 7.11) rows with descriptions; destructive actions confirm with Cancel first
       return h(
         'div',
-        { class: 'rows' },
+        { class: 'rows ms-rows', attrs: { 'data-wrap': '' } },
         h('div', { class: 'row-note', text: status }),
-        section(
-          'Backup',
-          button('Export save file', () => exportSave(app), { icon: 'back' }),
-          button('Import save file', () => file.click(), { icon: 'play' }),
-          file,
-        ),
-        section(
-          'Danger zone',
-          button('Reset all progress', () =>
+        h('div', { class: 'grp', text: 'Backup' }),
+        button('Export save file', () => exportSave(app), { desc: 'Saves your progress and settings to a file you can keep or move to another computer.' }),
+        button('Import save file', () => file.click(), { desc: 'Loads a save file. Your current profile is backed up first.' }),
+        file,
+        h('div', { class: 'grp', text: 'Danger zone' }),
+        button('Reset all progress', () =>
             screen.manager.push(
               new Dialog('Reset progress?', 'XP, credits, unlocks, upgrades and cosmetics go back to the start. A backup is kept on this device.', [
-                { label: 'Cancel', action: () => {} },
+                { label: 'Cancel', safe: true, action: () => {} },
                 { label: 'Reset', primary: true, action: () => void app.save.reset().then(() => app.toasts.show('Progress reset', 'warn')) },
               ]),
             ),
-          { class: 'subtle' }),
-        ),
+          { class: 'subtle', desc: 'Starts your progress over. A backup is kept on this device.' }),
       );
     },
   };

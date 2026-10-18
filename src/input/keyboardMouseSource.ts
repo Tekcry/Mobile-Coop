@@ -2,16 +2,9 @@ import type { ButtonAction } from './actions';
 import type { InputState } from './inputState';
 import type { Settings } from '../core/settings';
 import { hyp2 } from '../core/mathx';
-import { keyActionMap, type KeyBinds } from './keyBindings';
+import { keyActionMap, menuNavTap, type KeyBinds } from './keyBindings';
 
 const SRC = 'kbm';
-
-const UI_TAPS: Record<string, ButtonAction> = {
-  ArrowUp: 'uiUp',
-  ArrowDown: 'uiDown',
-  ArrowLeft: 'uiLeft',
-  ArrowRight: 'uiRight',
-};
 
 const MOUSE_RAD_PER_PX = 0.0024;
 /** Mouse wheel speed gear steps are spaced at least this far apart (ms): one notch, one gear. */
@@ -66,7 +59,15 @@ export class KeyboardMouseSource {
     window.addEventListener(
       'pointerdown',
       (e) => {
-        if (!this.capture || e.pointerType !== 'mouse') return;
+        if (e.pointerType !== 'mouse') return;
+        // (menu-ui SPEC 4.2) mouse button 4 is Back in menus (not while the game has the mouse)
+        if (!this.capture) {
+          if (e.button === 3 && !this.locked) {
+            e.preventDefault();
+            this.state.tap('uiBack');
+          }
+          return;
+        }
         const code = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
         if (!code) return;
         e.preventDefault();
@@ -242,10 +243,11 @@ export class KeyboardMouseSource {
     this.onActive();
     if (down) this.keys.add(e.code);
     else this.keys.delete(e.code);
-    const ui = UI_TAPS[e.code];
-    if (ui && down) {
+    // (menu-ui MD11) arrows and WASD move menu focus; not during live play (WASD walk there)
+    const ui = down && !this.locked && !this.wantPointerLock ? menuNavTap(e.code, false) : e.code.startsWith('Arrow') && down ? menuNavTap(e.code, false) : null;
+    if (ui) {
       this.state.tap(ui);
-      e.preventDefault();
+      if (e.code.startsWith('Arrow')) e.preventDefault();
     }
     this.syncBinds();
     for (const a of this.map.get(e.code) ?? []) this.state.set(SRC, a, down);
