@@ -14,3 +14,7 @@
 - (audit tool) traverse-shots.mjs: the window vault and duct set-ups do not start the move (kind 'none') and the wall
   ones do not enter the wall; use anim-sheet's wall scenarios and fix the set-ups when those moves are audited.
 - Rappel, fence and split-jump contacts not yet audited on Wren (no set-up on Proving in the shot script).
+- (P1c handover from CT Core) Crouched and holstered, the free arms hang straight from the shoulders, so the hands sit
+  ahead of the knees, fingers to the ground. Believable fix: rest the hands on the thighs above the knees (the crouch
+  ready-hand position: animGraph xCrouch / zCrouch / flexCrouch, coordinate with CT Core) and turn the wrists palm-in
+  (this job: the relaxed-hand wrist, CharacterRig.solveArm's free-hand branch).
