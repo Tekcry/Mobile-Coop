@@ -41,3 +41,8 @@ this menu job and the other sessions. Open items it was holding:
    Both are pointer branches only (G83: no direct work on them).
 7. The CT Core Works session (feature/ct-prototype, docs/ct-prototype/FEEL-PLAN.md) owns pure-CT movement then the
    Fallow co-op training bunker (G161, G162 on that branch); it stops after each slice while Michael is awake.
+
+## 2026-10-19 morning
+- Michael: "You have my approval to merge yourself as needed" (09:25). The main session merged PR #6 (goal) and PR #8
+  (menu) into master (99cd3f3) and moved `dev` (/preview/) to master. CT Core Build merges master next and opens its
+  PR; the main session reviews and merges it when it is green.
