@@ -39,6 +39,15 @@ export interface GripTarget {
   y: number;
   z: number;
   w: number;
+  /**
+   * (anim-cleanup) Hands: the grip's axis (a rung, a pipe, a lip, a line; unit, world; 0 0 0 = none), its radius (m)
+   * and `hook` 1 for a lip the hand hooks over palm down. A body with its own hands closes them round it (rig.setHands).
+   */
+  ax?: number;
+  ay?: number;
+  az?: number;
+  rad?: number;
+  hook?: number;
 }
 
 /** What the grips write: the rig's reach (hands) and plant (feet) targets, and its height. */
@@ -55,6 +64,11 @@ export interface VentExit {
   drop: number;
   progress: number;
   kinY: number;
+}
+
+/** (anim-cleanup) Writes a hand target's grip axis (no allocation). */
+function setAxis(t: GripTarget, ax: number, ay: number, az: number, rad: number, hook: number): void {
+  t.ax = ax; t.ay = ay; t.az = az; t.rad = rad; t.hook = hook;
 }
 
 /** Moves grip target `o` the share `k` of the way to `t` (in place). */
@@ -215,6 +229,7 @@ export class AttachGrips {
     this.hands.update(dt, body, a.kind === 'duct' ? v * face : v, decide);
     if (a.kind === 'ladder' || a.kind === 'pipeV' || (a.kind === 'pipeH' && this.pipeTo === 'legsUp')) this.feet.update(dt, body, v, decide);
     this.apply(a, s, face, w, dt, rig, vent);
+    this.gripAxes(a, rig);
   }
 
   /** Planted contacts on the grip axis [hand L, hand R, foot L, foot R] (NaN = swinging) into `out`. */
@@ -277,6 +292,36 @@ export class AttachGrips {
       this.hands.reset(s);
       this.feet.reset(s);
     } else if (to === 'hands') this.setup(a, s, face, height);
+  }
+
+  /** (anim-cleanup) Each hand's grip axis for the anchor (the rig closes an operator's hands round it). */
+  private gripAxes(a: Anchor, rig: GripRig): void {
+    let ax = 0, ay = 0, az = 0, rad = 0, hook = 0;
+    switch (a.kind) {
+      case 'ladder':
+        ax = Math.cos(a.facing); az = -Math.sin(a.facing); rad = 0.014;
+        break;
+      case 'pipeV':
+        ay = 1; rad = a.radius;
+        break;
+      case 'pipeH':
+      case 'zipline': {
+        const dx = a.b.x - a.a.x, dy = a.b.y - a.a.y, dz = a.b.z - a.a.z;
+        const l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+        ax = dx / l; ay = dy / l; az = dz / l; rad = a.kind === 'pipeH' ? a.radius : 0.008;
+        break;
+      }
+      case 'ledge':
+        ax = a.tx; az = a.tz; hook = 1;
+        break;
+      case 'fence':
+        ax = a.tx; az = a.tz; rad = 0.004;
+        break;
+      default:
+        break;
+    }
+    setAxis(rig.reachL, ax, ay, az, rad, hook);
+    setAxis(rig.reachR, ax, ay, az, rad, hook);
   }
 
   /** Let go: every target weight to 0. */

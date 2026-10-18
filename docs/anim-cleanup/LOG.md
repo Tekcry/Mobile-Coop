@@ -35,3 +35,15 @@
   test slice T1); their controls slice F1a rebinds LB (tap swap, hold wheel), D-pad speed and the CT aim scheme (X
   draws, LT knockout). This job's travel follows the weapon's draw state, not buttons. F1a avoids a wire change, so
   PROTOCOL_VERSION 17 (ground sub bit 128) stays this job's; whoever merges second renumbers if needed.
+- Crouch posture: on 507e671 (before this job's changes) the crouch back is near horizontal (about 80-90 degrees),
+  far past CT's 40-55 (crouched wall) and CT Core's stated 34-39; reported to CT Core with the repro (posture is theirs).
+  The back-mounted rifle goes horizontal with it (the e2e-weapons-carry crouch-walk failure).
+- CT Core: the crouch angle is a bug (target 35-45 degrees on open ground), their P1b about 05:30-06:30 Sydney; the back-gun check is rerun after it.
+- Slice 3, world grips (traversal contacts measured on Wren, scripts/anim-cleanup/traverse-shots.mjs): before, her palm
+  was 74-91 mm off the ladder rungs and the drainpipe and faced away (62-167 degrees); 35-48 mm on ledges, pipes and
+  ziplines. The attach grips now carry each hand's grip axis (rung and lip along the wall, drainpipe upright, pipe and
+  zipline along their line, `hook` for a lip); a body with its own hands solves its palm onto it (palm on the grip's
+  surface, fingers round it, hooked palm-down over a lip) with a non-allocating solve (handHold.holdInto). After: palms
+  face their grips (0 degrees settled), the palm centre on the surface (ladder 28 mm = rung radius + palm depth by
+  design); e2e-traverse reach 2.7 cm (pass; it measured the old hand-length placement, now rig.gripError).
+  e2e-traverse "sprint climbs faster" is on CT Core's T1 stale list (G31 removed sprint moves).

@@ -111,3 +111,61 @@ export function rotateQ(q: readonly number[], v: V3): [number, number, number] {
   const tz = 2 * (x * v[1] - y * v[0]);
   return [v[0] + w * tx + (y * tz - z * ty), v[1] + w * ty + (z * tx - x * tz), v[2] + w * tz + (x * ty - y * tx)];
 }
+
+// ---- (anim-cleanup slice 3) world grips: the same solve without allocating (the rig runs it every frame) ----
+
+const S9 = new Float64Array(9);
+const H9 = new Float64Array(9);
+const M9 = new Float64Array(9);
+
+/** Orthonormal frame [d, n', d x n'] into `o` (columns) from a direction and a roughly perpendicular normal. */
+function frameInto(dx: number, dy: number, dz: number, nx: number, ny: number, nz: number, o: Float64Array): boolean {
+  let l = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  if (l < 1e-6) return false;
+  dx /= l; dy /= l; dz /= l;
+  const k = nx * dx + ny * dy + nz * dz;
+  nx -= k * dx; ny -= k * dy; nz -= k * dz;
+  l = Math.sqrt(nx * nx + ny * ny + nz * nz);
+  if (l < 1e-6) return false;
+  nx /= l; ny /= l; nz /= l;
+  o[0] = dx; o[1] = dy; o[2] = dz;
+  o[3] = nx; o[4] = ny; o[5] = nz;
+  o[6] = dy * nz - dz * ny; o[7] = dz * nx - dx * nz; o[8] = dx * ny - dy * nx;
+  return true;
+}
+
+/**
+ * The wrist's rotation (x, y, z, w into out[0..3]) taking a hand's rest frame onto a target frame (knuckles `d`, palm
+ * normal `n`, both in the hand's rest space: the rig root frame), and the rest palm offset rotated by it (out[4..6]).
+ * False when the target is degenerate. No allocation.
+ */
+export function holdInto(hand: HandFrame, dx: number, dy: number, dz: number, nx: number, ny: number, nz: number, out: Float64Array): boolean {
+  if (!frameInto(dx, dy, dz, nx, ny, nz, S9)) return false;
+  frameInto(hand.d[0], hand.d[1], hand.d[2], hand.n[0], hand.n[1], hand.n[2], H9);
+  // M = S * H^T (columns: S applied to H's rows)
+  for (let c = 0; c < 3; c++) {
+    for (let r = 0; r < 3; r++) M9[c * 3 + r] = S9[r]! * H9[c]! + S9[3 + r]! * H9[3 + c]! + S9[6 + r]! * H9[6 + c]!;
+  }
+  const m00 = M9[0]!, m10 = M9[1]!, m20 = M9[2]!, m01 = M9[3]!, m11 = M9[4]!, m21 = M9[5]!, m02 = M9[6]!, m12 = M9[7]!, m22 = M9[8]!;
+  const tr = m00 + m11 + m22;
+  let x: number, y: number, z: number, w: number;
+  if (tr > 0) {
+    const s = Math.sqrt(tr + 1) * 2;
+    w = s / 4; x = (m21 - m12) / s; y = (m02 - m20) / s; z = (m10 - m01) / s;
+  } else if (m00 > m11 && m00 > m22) {
+    const s = Math.sqrt(1 + m00 - m11 - m22) * 2;
+    w = (m21 - m12) / s; x = s / 4; y = (m01 + m10) / s; z = (m02 + m20) / s;
+  } else if (m11 > m22) {
+    const s = Math.sqrt(1 + m11 - m00 - m22) * 2;
+    w = (m02 - m20) / s; x = (m01 + m10) / s; y = s / 4; z = (m12 + m21) / s;
+  } else {
+    const s = Math.sqrt(1 + m22 - m00 - m11) * 2;
+    w = (m10 - m01) / s; x = (m02 + m20) / s; y = (m12 + m21) / s; z = s / 4;
+  }
+  out[0] = x; out[1] = y; out[2] = z; out[3] = w;
+  const p = hand.palm;
+  out[4] = m00 * p[0] + m01 * p[1] + m02 * p[2];
+  out[5] = m10 * p[0] + m11 * p[1] + m12 * p[2];
+  out[6] = m20 * p[0] + m21 * p[1] + m22 * p[2];
+  return true;
+}

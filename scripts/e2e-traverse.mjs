@@ -53,7 +53,9 @@ const setup = () =>
           // the wrist sits a hand-length behind the palm: an arm that cannot reach shows as extra distance
           wr.computeWorldMatrix(true);
           const w = wr.getAbsolutePosition();
-          rec.maxReach = Math.max(rec.maxReach, Math.abs(Math.hypot(w.x - t.x, w.y - t.y, w.z - t.z) - hand));
+          // (anim-cleanup) a body with its own hands: its palm on the grip's surface (rig.gripError), not a hand-length back
+          const ge = rig.gripError?.(k === 'R' ? 1 : -1);
+          rec.maxReach = Math.max(rec.maxReach, ge ?? Math.abs(Math.hypot(w.x - t.x, w.y - t.y, w.z - t.z) - hand));
         }
         if (rig.plantL.w > 0.99) {
           for (const [k, planted, t] of [
