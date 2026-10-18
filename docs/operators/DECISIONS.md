@@ -172,6 +172,17 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D32 Kit that depended on systems master 4.0.0 deleted (2026-10-18, after step 11c).** Asked, Michael:
+- Hip pod (built for the deleted player drone, G7 / G115): "Keep as utility pouch" - the hard pod stays as a generic
+  gear pod with no game item; labels, callouts and kit text drop "drone".
+- Medkit pouch (carried medkits deleted, G98 / WEAP-11): "Keep as plain pouch" - the soft pouch stays as generic
+  storage; labels and kit text drop "medkit".
+- Thigh holster (shaped for the deleted five-seven): "Leave as is" - it reads as a generic pistol holster; pistolSd
+  is drawn from it.
+- Left-hip sling socket (an SMG anchor, A41): "Keep for the rifle sling" - re-pointed to the rifle's sling, master's
+  `sling` carry slot (src/weapons/carrySlots.ts).
+Recorded in master's docs/DECISIONS.md with the run's decisions in step 11e.
+
 **D31 Wren replaces the player character now; both players are Wren (2026-10-18).** Michael: "Wren is finished. Bring
 feature/operators up to date with master, put Wren in as the player character, and open the PR." Recorded in master's
 docs/DECISIONS.md as G123 (replaces G70's "after the prototype, behind a dev switch"): "I want wren in to replace the
@@ -1128,3 +1139,24 @@ browRivetL / R 11.2 / 11.3 mm, 37 / 40 shell vertices head 1.00; LOD2 gadgetTab 
 vertex within 10 mm), slingSocket 38.7 mm (pelvis 0.85, hipL 0.11, spine 0.04), rappelRing 37.4 mm (pelvis 0.91, hipL
 0.03, hipR 0.03, spine 0.03), browRivetL / R (head 1.00). Undo: drop the `inner` pass, `SHARP_ABOVE_Z` 0.20,
 `RIGID_EXTRA` / `RIGID_SMALL_AT` empty, LOD2 5,600.
+
+**A96 Step 11d: the goggle's two states as index ranges, interim in-use only (G73).** The asset holds only the in-use
+goggle (head_kit hides the stowed set from export). The runtime orders each primitive's triangles [stowed][body][in use]
+by a per-vertex `_GOGGLE` class (0 / 1 / 2) and swaps a sub-mesh's index range on the vision change (no upload, no extra
+draw). Until the asset follow-up in docs/operators-runtime/DESIGN.md exports the stowed set with `_GOGGLE`, both states
+draw the in-use goggle and only the glow follows G73 (dim 0.3 of the lens emissive when vision is off, full when on;
+0.15 s ease; the pose switches with `VisionState.shown`, at the flip's middle). Emissive only, no light (light parity).
+Undo: separate goggle meshes toggled by `setEnabled` (2-3 more draws per body).
+
+**A97 Step 11d: the runtime retarget takes the rig's local translation delta, not its world delta.** The Lab's
+`poseSkeleton` adds each mapped joint's world move from rest, which counts the body's move twice at the pelvis and
+ignores a body tumble's rotation of the pelvis offset; it is right in the Lab only because the Lab's body never moves.
+`OperatorPoser` (src/operators/runtime/pose.ts) adds each mapped joint's local translation delta rotated by its rig
+parent's root-space rotation; it equals the Lab to 1e-9 when only the pelvis translates (test). The Lab is unchanged.
+Undo: add `rigMove` as world deltas like the Lab.
+
+**A98 Step 11d: Wren's files ship in the game build by plain git, cached at runtime.** Step 11e copies the four GLBs to
+`src/operators/assets/wren/` (81.4 MB; hero 55.5 MB is over GitHub's 50 MB warning, under its 100 MB limit); Vite emits
+them through `import.meta.glob(..., '?url')`, fetched from the app's own origin; workbox runtime CacheFirst for
+`assets/*.glb` (precache limit 16 MB; 81 MB at install rejected). Git LFS not used (Pages builds would spend the LFS
+bandwidth quota). Undo: LFS with `lfs: true` in deploy.yml checkouts, or precache with a raised limit.

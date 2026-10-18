@@ -2012,3 +2012,57 @@ conflicts: master deleted nothing the operators work had touched.
   file edits, and a line-ending-only touch of tests/__snapshots__/visionIsolation.test.ts.snap from the Vitest run.
 - Status: merged; check passed; e2e failures are master's known ones.
 
+
+## Step 11d - Wren: game runtime (Opus 5.5)
+
+Status: draft (implementer). D31 / G123 (Wren is the player body for both players, no dev switch), kept tight per
+Michael (2026-10-18: "I want wren in the game first"). Assumed decisions A96-A98. No asset changes.
+
+**Built**
+- `docs/operators-runtime/SURVEY.md` (player body, co-op bodies, cameras, shadows, gameplay isolation, bundling;
+  file:line) and `DESIGN.md` (modules and API, manifest, LOD / hero choice, bundling, sizes and load time, sharing,
+  skeleton link, materials, goggle states, the asset follow-up, disposal, the 11e integration map, risks).
+- Pure, Babylon-free (`src/operators/runtime/`): `manifest.ts` (LOD names, `manifestFromUrls`, `validateManifest`,
+  `sameOrigin`, `validateModel`), `lodPick.ts` (8 / 25 m bands, 10 % hysteresis, hero only for `CLOSE_CAMERAS`,
+  fallback to what is loaded; no allocation), `goggle.ts` (`GoggleState`, `partitionGoggle`, `goggleRange`; A96),
+  `pose.ts` (`poserSetup`, `OperatorPoser.solve`: the Lab retarget on flat typed arrays, no allocation, hyp3; A97).
+- Babylon side: `figure.ts` (`OperatorLibrary` per Scene: fetch + parse once per URL, shared geometry / materials /
+  KTX2 textures through the bundled decoder; `OperatorFigure` per body: own nodes, skeleton and glow per LOD, bones
+  linked to the nodes, LOD swap, goggle range swap, head hide by the head joint's scale, dispose); `assets.ts`
+  (`wrenManifest()` from `import.meta.glob('../assets/*/*.glb', ?url)`; empty until 11e copies the files, A98).
+- `src/operators/lab/glb.ts`: reads an optional `_GOGGLE` vertex attribute (the only existing-file edit).
+- Tests: `tests/operatorsRuntime.test.ts` (18: manifest, picker, goggle, poser incl. the Lab match to 1e-9 with a
+  pelvis drop, a body tumble, local-to-world, and the four built Wren files when build/ exists),
+  `tests/operatorsRuntimeFigure.test.ts` (2: NullEngine, two Wren bodies on real CharacterRigs: one fetch per file,
+  shared geometry and materials, own skeleton and glow, LOD by distance, hero for a close-up camera, head joint follows
+  the rig, bone linked, goggle ranges and glow, head hide, dispose; off-origin URL refused), fixture
+  `tests/helpers/operatorFixture.ts`.
+
+**Numbers**
+- Files (build/operators/wren/export): hero 55.5 MB, LOD0 18.4, LOD1 5.1, LOD2 2.5 = 81.4 MB download; VRAM BC7 96 /
+  32 / 8 / 4 MB. Parse of all four 0.1 s (Vitest). Download about 4 s (game LODs) / 9 s (hero) at 50 Mbit/s; KTX2
+  transcode time pending the 11e GPU run. All four validate (joints, identity container, 4 influences, `-glow`).
+
+**Checks**
+- `npm run check`: PASS, exit 0 (lint 0 errors / 41 warnings, none in the new files; Vitest 136 files, 1557 tests; typecheck
+  and build OK; precache 35 entries, 14.8 MB: the GLBs are not in the build until 11e). `tsc` and eslint re-run clean after
+  `assets.ts` was added.
+- `npm run operators:check -- wren`: not run (no asset or pipeline file changed; `glb.ts` only gained an optional
+  attribute read, covered by the new tests).
+- No GPU run (none needed in 11d; the Lab and sheets were not used). Ports 4189 / 4191 untouched.
+
+**Open / for the orchestrator**
+- Asset follow-up (G73): export the stowed goggle set with `_GOGGLE` in every LOD (DESIGN.md "Asset follow-up"); until
+  then the goggle shows over the eyes in both states, only the glow dims.
+- A98 needs a yes or a change: 81.4 MB of GLBs in plain git (hero 55.5 MB > GitHub's 50 MB warning).
+- 11e GPU items: look in game vs the Lab, per-LOD shadow normalBias (step 10 open item), KTX2 transcode time, two
+  bodies at LOD0 against performance.md, the menu with the hero.
+
+**Cleanup items (deferred, Michael 2026-10-18)**
+- Move `@babylonjs/ktx2decoder` from devDependencies to dependencies (the game build bundles it); move `ktx2Setup` out
+  of `lab/` into the runtime.
+- KTX2 transcode in a worker (same-origin decoder script) if 11e measures a menu hitch.
+- A smaller hero file (UASTC RDO or ETC1S cloth set) to get under 50 MB.
+- Use the GLB's own anchors (weaponMount.*, pistolHolster, slingSocket) for carried weapons instead of the rig sockets.
+- Strip the six unweighted helper joints from the game LODs (step 10 note); one ball bone per booted foot in the hero.
+- Point the Lab at `OperatorPoser` (one retarget for both) once 11e has it in game.

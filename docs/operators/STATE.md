@@ -1,6 +1,11 @@
 # Operators run - state (resume point)
 
-**Now:** step 11d (game runtime), then 11e: Wren is THE player character for both players (D31; no dev switch; guards
+**Now:** step 11e (11d's runtime is built, uncommitted until the orchestrator commits: src/operators/runtime/*,
+docs/operators-runtime/SURVEY.md and DESIGN.md, A96-A98; DESIGN.md "11e integration map" is the to-do list). 11e: copy
+the four Wren GLBs to src/operators/assets/wren/ (A98), wire `OperatorFigure` into player.ts, remoteAvatar.ts,
+menuScene.ts and photoMode.ts, add the workbox runtime cache for `assets/*.glb`, GPU checks on 4189. Open for the
+orchestrator: the goggle's stowed set is not exported yet (DESIGN.md "Asset follow-up"; until then only the glow follows
+G73). Wren is THE player character for both players (D31; no dev switch; guards
 unchanged; gameplay unchanged, G38; G72 proportion fixes), record G123 and the run's decisions from G124 in
 docs/DECISIONS.md (now on this branch), docs/systems/world-and-characters.md, CHANGELOG Unreleased (G93), run npm run
 check and the e2e suites (move, traverse, anchors, wall, anim, netmove, coop, bunker, course), then open the PR

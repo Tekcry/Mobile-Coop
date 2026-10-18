@@ -48,6 +48,11 @@ export interface GlbMesh {
   uvs: Float32Array;
   /** MikkTSpace tangents (x, y, z, w) in the reader's mirrored frame, when the file has them (step 10 baked LODs). */
   tangents?: Float32Array;
+  /**
+   * Goggle state class per vertex (step 11d proposal, `_GOGGLE`: 0 body, 1 shown in use, 2 shown stowed), when the file
+   * has it. Absent in the step 11 assets: the goggle is then always in its in-use position.
+   */
+  goggle?: Uint8Array;
   /** Skin joint slots (4 per vertex) and weights. */
   joints: Uint16Array;
   weights: Float32Array;
@@ -152,6 +157,7 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
       const tan = at.TANGENT !== undefined ? read(at.TANGENT) : null;
       const jn = at.JOINTS_0 !== undefined ? read(at.JOINTS_0) : null;
       const wt = at.WEIGHTS_0 !== undefined ? read(at.WEIGHTS_0) : null;
+      const gg = at._GOGGLE !== undefined ? read(at._GOGGLE) : null;
       const idx = read(prim.indices!);
       const positions = new Float32Array(pos.data.length);
       const normals = new Float32Array(pos.data.length);
@@ -188,7 +194,12 @@ export function parseGlb(buf: ArrayBuffer): GlbModel {
           tangents[i * 4 + 3] = -tan.data[i * 4 + 3]!;
         }
       }
-      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, joints, weights, indices });
+      let goggle: Uint8Array | undefined;
+      if (gg) {
+        goggle = new Uint8Array(pos.n);
+        for (let i = 0; i < pos.n; i++) goggle[i] = Math.round(gg.data[i]!);
+      }
+      meshes.push({ name: m.name ?? `mesh${meshes.length}`, material: prim.material ?? 0, positions, normals, uvs, tangents, goggle, joints, weights, indices });
     }
   }
   return { nodes, joints: json.skins?.[0]?.joints ?? [], materials, meshes };
