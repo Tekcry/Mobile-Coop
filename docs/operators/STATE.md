@@ -1,11 +1,9 @@
 # Operators run - state (resume point)
 
-**Now:** Wren block end: steps 08a and 10 retries passed. Next the step 11 retry (steps/11-fixes-r4.md: callouts for
-every visible item on all 22 close-ups; re-render every Lab sheet - most close-ups predate the step 10 bake change;
-update DESIGN.md costs from report.json: hero 229,391, LOD1 13,578, LOD2 5,964, KTX2 sizes, remove the phone rows
-(D29)). Then D30: 11c merges Michael's merged base branch into feature/operators - only once he names it (ask with
-the native multiple-choice UI if he has not), 11d game runtime, 11e Wren in the game behind ?operator=wren. Then ask
-Michael whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
+**Now:** the Wren block is complete (08a, 10 and 11 retries passed). Next D30 step 11c: merge Michael's merged base
+branch into feature/operators - waiting for him to name it (ask with the native multiple-choice UI). Then 11d game
+runtime (steps/11d-wren-game-runtime.md), 11e Wren in the game behind ?operator=wren (steps/11e-wren-in-game.md). Then
+ask Michael whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
@@ -13,7 +11,7 @@ rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAM
 - `GARMENTS.wren` = suit, gloves, approach_boots, headwear, head_kit, armour, chest_rig, waist_belt, leg_kit. Rebuild
   chain about 25 min, then `npm run operators:lods -- wren --render` (about 11 min since A95; ends with `operators:ktx2`); `operators:check -- wren` about 55 min.
 - KTX2 (A79, D27): every LOD GLB is UASTC + Zstd 18 via `KHR_texture_basisu`; operators:check `ktx2` FAILs otherwise.
-  VRAM 96 / 32 / 8 / 4 / 1 MB. Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (devDependency) on the
+  VRAM 96 / 32 / 8 / 4 MB (hero / LOD0 / LOD1 / LOD2). Babylon's transcoder is bundled: `@babylonjs/ktx2decoder@9.29.0` (devDependency) on the
   main thread, wasm via `?url`, no network (lab/ktx2.ts); the Lab flips KTX2 in the texture matrix (Babylon cannot at
   upload). core/babylon.ts blanks KhronosTextureContainer2's CDN decoder URL. The game's KTX2 path is step 18's.
 - Lab lighting (A80): the reader's winding flip lit every face from inside until step 11 fix round 1; fixed, rigs

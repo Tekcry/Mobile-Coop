@@ -1712,17 +1712,98 @@ close-ups head, neckRear, collar, chestFront, ptt, beltFront and the new hipL (3
 - Checks: `npm run check` PASS (exit 0; 75 files, 791 tests; lint 0 errors, 38 warnings; build OK), run after the last
   code change and after the GPU sheet runs. operators:check not re-run: no pipeline or build change this round (still
   expected: `wren lod1 FAIL bakeDiff: chest 36 px > 24`). Port 4191 free.
-  Port 4191 free.
 - Open (step 10 / 08a block-end retry, not fixed here): hero bake confetti (handBack, forearm, knee, boots, thighs,
   underarm, neck); LOD1 / LOD2 / phone mid grey; LOD1 chest bakeDiff; vent holes below bake resolution; 08a lumbar and
   crotch patches. Gunmetal value too low for a clear satin highlight under any Lab light (materials.py; item 5).
   Notes: menu last column cut; compare figures in the left of the tile; beltBack rappel ring bow; thighL caps small.
 
-- Status: OPEN after 3 fix rounds; evidence: steps/11-fixes-r4.md; remaining: 1. close-up callouts name only each
+- Status: OPEN after 3 fix rounds [closed by the block-end retry below]; evidence: steps/11-fixes-r4.md; remaining: 1. close-up callouts name only each
   frame's subject, not every visible item (SPEC 1): hipL belt and pistol pouch, collar and chestFront harness straps
   and buckles, ptt zip and mag tops, beltFront ribs, holster top and sleeve caps; audit all 22 close-ups' include
   lists, one test each, a DESIGN.md rule line, re-render the changed ones. Step 10 / 08a follow-ups and the D28 / D29 /
   gunmetal items (step 11b) are logged above.
+
+### Step 11 - Block-end retry (implementer, Opus 5.5; steps/11-fixes-r4.md plus STATE "Now")
+Lab data, kit text, tests and docs only; no asset, pipeline or build change (assets final after the step 10 retry).
+Every Wren Lab sheet re-rendered on the RTX 4090 (E2E_GPU=1, ANGLE D3D11, 2026-10-18): the full set (33 sheets), then
+the 22 close-ups again after the callout change (`--only closeups`).
+- 11-fixes-r4 item 1 DONE. All 22 close-ups audited by eye on the retry renders (crops of the 4K panels where an item
+  sat at a frame edge); every kit item and suit zone clearly identifiable in a frame is now called out through
+  `include` / `suit` in `src/operators/lab/labData.ts`, items cut past recognition stay out (`exclude`). Added:
+  head + harness shoulder straps, suit shell (the PTT at the bottom edge stays out); neckRear + crown straps, side
+  straps, shoulder straps, suit shell; chestFront + pistol magazine pouch, elbow panels; chestRear and backPlate +
+  shoulder straps, side straps, pistol pouch, glove (+ elbow panels); shoulder + chest plate, suit zip, gadget slot,
+  rifle magazines (no longer excluded: in frame edge-on), side straps, glove, hood, balaclava, underarm vent;
+  handPalm / handBack + suit shell; belt + medkit, cam pouch, knife, sleeve hanger (no longer excluded: all in frame),
+  buckle, rib segments, rifle magazine bottoms, glove; knee + leg bands, band buckle, holster muzzle end; boots + suit
+  shell and seams; collar + buckle, chin strap, radio cable, seams, yoke; ribsSide + suit zip end, rifle magazines,
+  belt, medkit, glove; ptt + suit shell, seams, elbow panel; beltFront + rifle magazine bottoms, medkit (no longer
+  excluded), holster top, sleeve caps, sleeve hanger; hipL + rifle magazine bottoms, rib segments, sleeve hanger,
+  glove; beltBack + belt, pistol pouch, sling socket, sleeve caps, holster; thighR + glove, band buckles, knife (behind
+  the right thigh at the far edge; no longer excluded); thighL + band buckles; forearm + glove, pistol pouch, suit
+  shell, underarm vent; underarm + chest plate, rib segments, rifle magazines, suit zip end, forearm grip, elbow;
+  buckle + suit shell and seams. The brow rivets (A87, visible on the head close-up's brow plate) are named in the
+  harness side straps' attachment text (`src/operators/kit.ts`), so head and neckRear call them out. Tests
+  (`tests/operatorLab.test.ts`): a new case with one assertion per changed close-up (22) plus the rivet text; the hipL
+  exact list and the round 3 "thighR has no knife" line updated to the audit. DESIGN.md: the callout rule in one
+  line block, the loadout table's close-up column lists every close-up that shows each item.
+- Trivial DONE: the repeated "Port 4191 free." line under fix round 3 dropped.
+- DESIGN.md costs from build/operators/wren/export/report.json (STATE "Now"): hero 229,391, LOD0 39,809, LOD1 13,578,
+  LOD2 5,964; PNG / WebP GLB / BC7 VRAM per LOD; the KTX2 table (35.1 / 13.7 / 3.6 / 1.8 MB on disk, GLB 52.9 / 17.5 /
+  4.8 / 2.4 MB, lowest PSNR 35.5 / 37.1 / 36.8 / 38.4 dB, VRAM 96 / 32 / 8 / 4 MB); silhouette IoU, open edges,
+  back-face pixels and source triangles (2,522,132) refreshed; the phone row and phone columns removed (D29); the
+  integration anchors re-read from the LOD0 GLB empties (weapon mounts now (+-0.0727, 0.0744, 1.1725) and centre
+  (0, 0.0794, 1.1747); holster and sling socket unchanged); backGearM 0.0103 (report.json); the holster Cycles render
+  (lods-d) listed; gunmetal line corrected to A86 (F0 0.15-0.165, roughness 0.60). Loadout table checked against D28:
+  pod rear right (A88), sleeves outer left thigh, knife 190 mm, pistol magazines 9 o'clock, socket 8 o'clock - matches.
+- Sheet verdicts (by eye, ART-DIRECTION render check 1-7 and SPEC 1):
+  - turnaround PASS: silhouette reads in every view (1), matte (2); masked medians torso 0.08-0.11, legs 0.06-0.09.
+  - rim-silhouette PASS: head with the square goggle, plate shoulder line, slim straps, belt, holster right, knife and
+    three sleeves outer left read under the rims (1); nothing stands proud (7).
+  - menu / context / compare / colourblind / goggle PASS (menu last column cut and compare figures left of the tile:
+    notes as before; full darkness at 20 m shows only the two lenses; protan / deutan glow yellow but distinct from
+    sodium by value; the stowed goggle panels are the post-11b head-kit Cycles renders of 2026-10-17).
+  - lods PASS (one silhouette across hero / LOD0 / LOD1 / LOD2 at 7 m); wireframe PASS (tile counts match report.json:
+    229,391 / 39,809 / 13,578 / 5,964); ktx2-compare PASS (Babylon BC7 vs reference decode 0.10 / 0.10 / 0.12 / 0.12
+    of 255).
+  - lods-closeups PASS with a note: LOD1 and LOD2 "torso bent" tiles show a baked zigzag stitch streak down the right
+    hip by the hanger, and LOD1 a short dark slash on the thigh; LOD2 chest a few dark specks (follow-up below).
+  - All 22 close-ups PASS (render check 1-7, SPEC 1): near-black reads near-black (masked medians 0.06-0.13), the +2 EV
+    panels separate suit shell / tape / grip pebble / vent perforation / composite / rubber / gunmetal by value step,
+    relief and sheen (3), bonded taped seams, no stitching on the suit (4), clean single radius family and one metal
+    (6), nothing loose or snagging (5, 7); every identifiable item now has its callout (what, anchors, contents, route,
+    job) and the longest list (shoulder, 17 entries) fits the side panel.
+- Checks: `npm run check` PASS after the last code change and after both GPU runs (exit 0; 76 files,
+  805 tests; lint 0 errors / 38 warnings; build OK). operators:check not re-run: no asset, pipeline or build change
+  (the step 10 retry's run stands, every line PASS). Port 4191 free.
+- Follow-ups (assets final; not rebuilt here): (1) LOD1 / LOD2 baked zigzag stitch streak at the right hip hanger and LOD1 thigh slash (lods-closeups, torso bent);
+  (2) hero bake confetti still visible at +2 EV on glove fingertips (belt, handPalm) and the rib segments' faces
+  (ribsSide, underarm) - known since step 10, reads only at +2 EV; (3) the brow rivets are hardware without a kit
+  item of their own: named through the side straps' attachment (a separate `browRivets` kit entry would need a
+  validateKit / builtKit id - left as is).
+- Status: CLOSED (11-fixes-r4 item 1 and the trivial item done; every sheet re-rendered and judged).
+
+### Step 11 - Block-end retry, fix round 1 (fixer, Opus 5.5; fix list steps/11-retry-fixes-r1.md)
+Callout data, tests and docs only; no asset, pipeline or build change.
+- Item 1 DONE. `thumbLoops` added to `exclude` of handPalm, handBack and forearm (`src/operators/lab/labData.ts`; the
+  loops sit under the glove cuffs, never visible: the earpiece rule). Tests: one `not.toContain('thumbLoops')` per
+  close-up. DESIGN.md's comms / callout paragraph names the thumb loops beside the earpiece as never visible.
+- Item 2 DONE. `include` grew: forearm + `waistBelt`, `sleeveHanger`, `magBuckle` (the belt under the pistol pouch,
+  the hanger and its buckle at the bottom left); neckRear + `goggle` (housing side and lug at the left edge);
+  beltFront + `sleevePanel` (top edge under the hanger). Tests: one assertion per close-up.
+- Notes: DESIGN.md now says the wireframe sheet's source "2,628,557 triangles" is the Lab's count of the source export,
+  not report.json's 2,522,132 render triangles. chestRear's cut drone pod left out (within the rule; not re-rendered).
+- Re-render: `SHEET_CLOSEUPS=handPalm,handBack,forearm,neckRear,beltFront E2E_GPU=1 E2E_PORT=4191 npm run
+  operators:sheet -- wren --only closeups` (ANGLE D3D11, RTX 4090, 2026-10-18, 5 sheets). By eye: handPalm and
+  handBack list suit shell and gloves only; forearm lists the belt, buckle and hanger, no thumb loops; neckRear lists
+  the square goggle housing; beltFront lists the sleeve panel; every side panel fits (forearm 10 entries, beltFront 11).
+- Checks: `npm run check` PASS after the last code change and the GPU run (exit 0; lint 0 errors / 38 warnings; 76
+  files, 805 tests; build OK). operators:check not re-run (no
+  asset, pipeline or build change). Port 4191 free.
+- Status: CLOSED (items 1 and 2 and both notes done).
+
+- Block-end retry status: passed the independent check (fix rounds: 1). Step 11 is closed; the Wren block is complete.
+  Step 18 notes: LOD1/LOD2 hip-hanger streak and LOD1 thigh slash; +2 EV confetti on glove fingertips and rib faces.
 
 ## Step 11b - Wren: rigid kit and desktop only (Opus 5.5)
 

@@ -185,17 +185,51 @@ describe('lab data', () => {
     expect(ids('beltFront')).not.toContain('slingSocket');
     // the sling socket's own view (DESIGN.md loadout table): the left hip from the side (step 11b, D28: the 9 o'clock
     // pistol magazines, the socket behind them, the pod; the belt and the cam pouch at the front edge called out too)
-    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'pistolMagPouch', 'slingSocket', 'waistBelt']);
+    expect(ids('hipL').sort()).toEqual(['camMinePouch', 'gloves', 'magPouches', 'pistolMagPouch', 'ribSegments', 'sleeveHanger', 'slingSocket', 'waistBelt']);
     // every identifiable item in frame is called out (11-fixes-r4 item 1), one assertion per changed close-up
     expect(ids('collar')).toContain('harnessShoulders');
     expect(ids('chestFront')).toEqual(expect.arrayContaining(['harnessShoulders', 'magBuckle', 'torsoSideStraps', 'magPouches']));
     expect(ids('ptt')).toContain('suitZip');
     expect(ids('beltFront')).toContain('ribSegments');
     expect(ids('thighL')).toEqual(expect.arrayContaining(['knife', 'throwableSleeves', 'sleevePanel']));
-    expect(ids('thighR')).not.toContain('knife');
     expect(ids('buckle')).not.toContain('pistolMagPouch');
     expect(ids('buckle')).toEqual(expect.arrayContaining(['magBuckle', 'camMinePouch', 'medPouch', 'ribSegments']));
     expect(calloutsFor(KITS.wren.items, new Set(['suit']), CLOSEUPS.find((c) => c.id === 'beltFront')!)).toHaveLength(0);
+  });
+  it('the step 11 retry audit calls out every identifiable item in all 22 close-ups (11-fixes-r4, SPEC 1)', () => {
+    const all = new Set(KITS.wren.items.map((i) => i.id));
+    const ids = (id: string) => calloutsFor(KITS.wren.items, all, CLOSEUPS.find((c) => c.id === id)!).map((i) => i.id);
+    const suit = (id: string) => CLOSEUPS.find((c) => c.id === id)!.suit ?? [];
+    expect(ids('head')).toEqual(expect.arrayContaining(['harnessShoulders', 'sideStraps']));
+    expect(KITS.wren.items.find((i) => i.id === 'sideStraps')!.attach).toContain('brow rivet');
+    expect(ids('neckRear')).toEqual(expect.arrayContaining(['crownStrap', 'sideStraps', 'harnessShoulders']));
+    expect(ids('chestFront')).toContain('pistolMagPouch');
+    expect(ids('chestRear')).toEqual(expect.arrayContaining(['harnessShoulders', 'torsoSideStraps', 'pistolMagPouch', 'gloves']));
+    expect(ids('shoulder')).toEqual(expect.arrayContaining(['chestPlate', 'suitZip', 'gadgetSlot', 'magPouches', 'torsoSideStraps', 'gloves', 'hood', 'balaclava']));
+    expect(suit('handPalm')).toContain('shell');
+    expect(suit('handBack')).toContain('shell');
+    expect(ids('belt')).toEqual(expect.arrayContaining(['medPouch', 'camMinePouch', 'magBuckle', 'ribSegments', 'magPouches', 'knife', 'sleeveHanger', 'gloves']));
+    expect(ids('knee')).toEqual(expect.arrayContaining(['legBands', 'magBuckle', 'thighHolster']));
+    expect(suit('boots')).toEqual(expect.arrayContaining(['shell', 'seams']));
+    expect(ids('collar')).toEqual(expect.arrayContaining(['magBuckle', 'chinStrap', 'radioCable']));
+    expect(ids('ribsSide')).toEqual(expect.arrayContaining(['suitZip', 'magPouches', 'waistBelt', 'medPouch', 'gloves']));
+    expect(ids('backPlate')).toEqual(expect.arrayContaining(['harnessShoulders', 'torsoSideStraps', 'pistolMagPouch', 'gloves']));
+    expect(suit('ptt')).toEqual(expect.arrayContaining(['shell', 'seams', 'elbow']));
+    expect(ids('beltFront')).toEqual(expect.arrayContaining(['magPouches', 'medPouch', 'thighHolster', 'throwableSleeves', 'sleeveHanger']));
+    expect(ids('hipL')).toEqual(expect.arrayContaining(['magPouches', 'ribSegments', 'sleeveHanger', 'gloves']));
+    expect(ids('beltBack')).toEqual(expect.arrayContaining(['waistBelt', 'pistolMagPouch', 'slingSocket', 'throwableSleeves', 'thighHolster']));
+    expect(ids('thighR')).toEqual(expect.arrayContaining(['gloves', 'magBuckle', 'knife']));
+    expect(ids('thighL')).toContain('magBuckle');
+    expect(ids('forearm')).toEqual(expect.arrayContaining(['gloves', 'pistolMagPouch']));
+    expect(ids('underarm')).toEqual(expect.arrayContaining(['chestPlate', 'ribSegments', 'magPouches', 'suitZip']));
+    expect(suit('buckle')).toEqual(expect.arrayContaining(['shell', 'seams']));
+    // 11-retry-fixes-r1: thumb loops hidden under the glove cuffs are never called out; the edge items are
+    expect(ids('handPalm')).not.toContain('thumbLoops');
+    expect(ids('handBack')).not.toContain('thumbLoops');
+    expect(ids('forearm')).not.toContain('thumbLoops');
+    expect(ids('forearm')).toEqual(expect.arrayContaining(['waistBelt', 'sleeveHanger', 'magBuckle']));
+    expect(ids('neckRear')).toContain('goggle');
+    expect(ids('beltFront')).toContain('sleevePanel');
   });
 });
 
