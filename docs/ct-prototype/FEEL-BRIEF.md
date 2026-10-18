@@ -12,7 +12,7 @@ docs/locomotion/PROTOTYPE-PLAN.md (P1-P4 with footage numbers) and docs/locomoti
 CT footage, measured) > code.
 
 ## How it runs
-1. **Code review first (read-only, half a day at most):** the player controller, move state, animation graph, camera
+1. **Code review first (read-only, one agent, about an hour):** the player controller, move state, animation graph, camera
    and their co-op wire fields. Decide per area: rewrite clean or adjust. Present the call to Michael with reasons
    before any rewrite.
 2. **Build order:** body (speeds, starts, stops, turns, posture on Wren), camera and aim, wall and doors (with the CT
