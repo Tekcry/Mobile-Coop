@@ -280,7 +280,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.melee = -1;
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
-  out.leftHand = false;
+  // (anim-cleanup) on the ground the left-shoulder aim (the shoulder swap) sets the same bit as the wall's left hand
+  out.leftHand = mv.m === 'ground' && (mv.sub & 128) !== 0;
   switch (mv.m) {
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)

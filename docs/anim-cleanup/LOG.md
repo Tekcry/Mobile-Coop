@@ -16,3 +16,7 @@
   reload then runs the left side charging handle (rifle) or racks the slide (pistol) with the hand on it
   (weapons.json `magHold`, `charge`, `chargePull`). Fingers stay closed on the magazine (`rig.holdingMag`). A reload cut
   short reseats the magazine.
+- 04:15-04:35: shoulder swap (Michael: "shoulder swap should change weapon between arms/shoulders"): aiming from the
+  left shoulder (G17, aiming only) moves the weapon to the left hand and shoulder through the rig's eased hand switch
+  (the open-left wall edge's), the holds mirrored per hand; the partner sees it through ground mode's sub bit 128
+  (PROTOCOL_VERSION 16 -> 17).

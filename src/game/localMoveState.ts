@@ -12,6 +12,9 @@ const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle:
 
 let gpBuf: number[] | null = null;
 
+/** (anim-cleanup) Ground mode `sub` bit: the weapon on the left shoulder (the same bit as the wall's left hand). */
+export const SHOULDER_LEFT_SUB = 128;
+
 export function localMoveState(g: GameState, out: MoveState): MoveState {
   const p = g.player;
   const c = p.controller;
@@ -131,5 +134,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     return out;
   }
   out.m = 'ground';
+  // (anim-cleanup) aiming from the left shoulder (the shoulder swap, G17): the weapon in the left hand, as WALL_SUB.leftHand
+  if (p.ads && p.cam.shoulder === -1) out.sub = SHOULDER_LEFT_SUB;
   return out;
 }

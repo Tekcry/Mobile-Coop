@@ -2085,7 +2085,8 @@ export class GameState implements AppState {
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
     // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
     // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
-    pl.rig.openLeft = w.leftHand;
+    // (anim-cleanup) the shoulder swap (G17, aiming only) also moves the weapon to the left hand and shoulder
+    pl.rig.openLeft = w.leftHand || (!w.active && pl.ads && pl.cam.shoulder === -1);
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;

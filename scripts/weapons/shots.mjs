@@ -38,6 +38,10 @@ const VIEWS = {
   'reload-charge': { weapon: 'rifle', ads: true, reload: { mag: 0, at: 2.36 }, cam: [-0.9, 1.35, 0.2, 1.15] },
   'reload-pistol-strip': { weapon: 'pistol', ads: true, reload: { mag: 1, at: 0.42 }, cam: [-0.9, 1.3, 0.35, 1.1] },
   'reload-pistol-pouch': { weapon: 'pistol', ads: true, reload: { mag: 1, at: 0.68 }, cam: [-0.9, 1.2, 0.3, 1.0] },
+  // (anim-cleanup) the shoulder swap: aiming from the left shoulder, the weapon in the left hand
+  'rifle-ots-left': { weapon: 'rifle', ads: true, left: true, cam: null },
+  'rifle-left-front34': { weapon: 'rifle', ads: true, left: true, cam: [1.0, 1.5, 1.4, 1.35] },
+  'pistol-left-front34': { weapon: 'pistol', ads: true, left: true, cam: [1.0, 1.5, 1.4, 1.35] },
   'knife-hand': { weapon: 'rifle', knife: true, cam: [-0.9, 1.25, 0.6, 1.0] },
 };
 
@@ -93,6 +97,7 @@ try {
       const j = W.slots.findIndex((q) => q.def.class === v.weapon);
       if (j >= 0 && W.index !== j) W.equip(j);
       window.__cam = v.cam;
+      g.player.cam.shoulder = v.left ? -1 : 1;
       window.__crouch = { stance: g.player.controller.crouched ?? g.player.controller.stance ?? null };
       st.set('shots', 'ads', !!v.ads);
       a.loop.stepHeadless(1.2, 120);
