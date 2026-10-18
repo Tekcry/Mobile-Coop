@@ -301,11 +301,11 @@ export class Hud {
   }
 
   /** (A3, G19) The CT door menu: the option labels with `sel` highlighted; null hides it. */
-  setDoorMenu(labels: readonly string[] | null, sel = 0): void {
-    this.set('dmenu', labels ? `${sel}|${labels.join('|')}` : '', () => {
+  setDoorMenu(labels: readonly string[] | null, sel = 0, title = 'Door'): void {
+    this.set(`dmenu${title}`, labels ? `${sel}|${labels.join('|')}` : '', () => {
       this.doorMenuEl.classList.toggle('show', !!labels);
       this.doorMenuEl.innerHTML = labels
-        ? `<div class="dm-title">Door</div>` + labels.map((l, i) => `<div class="dm-opt${i === sel ? ' sel' : ''}">${l}</div>`).join('') + `<div class="dm-hint">${verbPromptHtml('interact', keyLabels.interact)}<span>select</span> ${verbPromptHtml('crouch', keyLabels.crouch)}<span>cancel</span></div>`
+        ? `<div class="dm-title">${title === 'grab' ? 'Held' : 'Door'}</div>` + labels.map((l, i) => `<div class="dm-opt${i === sel ? ' sel' : ''}">${l}</div>`).join('') + `<div class="dm-hint">${verbPromptHtml('interact', keyLabels.interact)}<span>select</span> ${verbPromptHtml('crouch', keyLabels.crouch)}<span>${title === 'grab' ? 'let go' : 'cancel'}</span></div>`
         : '';
     });
   }

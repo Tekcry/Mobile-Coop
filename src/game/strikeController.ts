@@ -3,11 +3,11 @@
  * the anticipation at once; solo and the co-op host start it themselves (the same check as a client's,
  * `checkCommitted`, no message), a client asks the host (`cmove`) and aligns to its start time (`cstart {t0}`) or
  * blends back with no hit (`cdeny`, or no reply in 0.4 s). Contact is resolved only where the guards live (solo,
- * host) at t0 + 0.5 s: reach and cone again, then knock-out or stagger (`resolveStrike`), noise 4 m.
+ * host) at t0 + 0.12 s: reach and cone again, then one-hit knock-out, noise 4 m.
  */
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
-import { facingDot, resolveStrike, STRIKE, STRIKE_DUR, strikePhase, strikeReach } from './elbowStrike';
+import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
 
@@ -170,7 +170,7 @@ export class StrikeController {
         const p = g.player.position;
         this.applyHit('local', p, g.player.controller.yaw, g.player.cam.yaw, this.tid, 0);
       }
-      if (this.t >= STRIKE_DUR) return this.end();
+      if (this.t >= (this.tid ? STRIKE_DUR : STRIKE_WHIFF_DUR)) return this.end();
     }
     g.player.pose.melee = this.ph;
   }
@@ -206,16 +206,10 @@ export class StrikeController {
       const dx = e.pos.x - at.x;
       const dz = e.pos.z - at.z;
       if (strikeReach(dx, dz, bodyYaw, slack) >= 0 || strikeReach(dx, dz, aimYaw, slack) >= 0) {
-        res = resolveStrike({
-          aware: e.level !== 'unaware',
-          facingDot: facingDot(e.yaw, e.pos.x, e.pos.z, at.x, at.z),
-          heavy: e.def.kind === 'heavy',
-          staggered: e.strikeStaggered,
-        });
-        if (res === 'ko') {
-          const dir = new Vector3(dx, 0, dz).normalize();
-          e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: by, sourcePos: at.clone(), impulse: 1, takedown: 'strike' });
-        } else e.strikeStagger(STRIKE.stagger);
+        // (G42 / G155) one hit knocks out any guard from any side
+        res = 'ko';
+        const dir = new Vector3(dx, 0, dz).normalize();
+        e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: by, sourcePos: at.clone(), impulse: 1, takedown: 'strike' });
         em!.hear(at, STRIKE.noise);
       }
     }

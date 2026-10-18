@@ -139,6 +139,11 @@ export class StealthSystems {
     return this.ints.nearest(feet, 1.5, 'hide') ?? this.dropIt;
   }
 
+  /** (A4) The grab menu's Carry: shoulder this body now. */
+  pickUpBody(b: Body): void {
+    this.pickUp(b);
+  }
+
   private pickUp(b: Body): void {
     if (this.carry || !b.present || this.g.traversal.active) return;
     const rig = this.g.player.rig;

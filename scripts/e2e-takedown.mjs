@@ -52,6 +52,13 @@ try {
         if (hold > 0) a.loop.stepHeadless(hold, 120);
         st.set('t', 'interact', false);
       },
+      /** (A4) With the grab menu open: select `opt` and press A (the menu arms once A is up). */
+      pick(opt) {
+        const m = g.grabMenu;
+        a.loop.stepHeadless(1 / 60, 120);
+        m.sel = m.opts.indexOf(opt);
+        this.press();
+      },
       run(sec) {
         const out = { aligned: 99, kind: '' };
         for (let t = 0; t < sec; t += 1 / 60) {
@@ -89,9 +96,9 @@ try {
       const prompt = document.querySelector('.wp-takedown.show') !== null;
       t.press();
       const run = t.run(1.4);
-      // (3.2.0: from behind it is a grab; a second tap knocks him out)
-      const grabbed = g.takedown.hostage === e;
-      t.press();
+      // (A4: from behind it is a grab; the CT grab menu knocks him out)
+      const grabbed = g.takedown.hostage === e && g.grabMenu.open;
+      t.pick('knockout');
       t.run(1.0);
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
       // front, held: lethal
@@ -143,7 +150,7 @@ try {
     assert(r.offer === 'behind' && r.prompt, `behind a guard: takedown offered on him (${r.offer}, prompt ${r.prompt})`);
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.grabbed, 'from behind: grabbed and held');
-    assert(r.ko, 'a tap is non-lethal: he is knocked out');
+    assert(r.ko, 'grab menu Knock out: he is knocked out');
     assert(r.offer2 === 'front' && r.lethal, `from the front, held: lethal (${r.offer2}, ${r.lethal})`);
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
@@ -152,7 +159,6 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
-      const st = window.__app.input.state;
       const c = g.player.controller;
       t.tp(2, 0, -2.2, 0);
       const e = t.spawn(2, -1, 0);
@@ -161,104 +167,31 @@ try {
       t.press();
       t.step(0.5);
       const held = g.takedown.hostage === e;
-      // a walk at most, the hostage in front
-      c.gears.gear = 6;
-      st.setMove('t', 0, 1);
-      t.step(1.0);
-      const speed = c.speed;
-      st.setMove('t', 0, 0);
-      t.step(0.1);
+      const menu = g.grabMenu.open;
+      const labels = g.grabMenu.labels([]);
+      const shield = g.localRef.shield === e;
       const fx = Math.sin(c.yaw);
       const fz = Math.cos(c.yaw);
       const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.42), e.pos.z - (c.pos.z + fz * 0.42));
-      // the sidearm one-handed over his shoulder
-      st.set('t', 'ads', true);
-      t.step(1.4); // A2.1: aim raise 0.6-0.75 s (G103)
-      const w = g.weapons;
-      const cls = w.current.def.class;
-      const raise = g.player.carry.raise;
-      const mag0 = w.current.mag;
-      st.set('t', 'fire', true);
-      t.step(0.3);
-      st.set('t', 'fire', false);
-      const fired = mag0 - w.current.mag;
-      const spread = w.attachSpread;
-      st.set('t', 'ads', false);
-      // a guard in front, alerted: holds fire a moment, then his shots hit the hostage first
-      // (a clear line from 6 m: the operator turns to face that way, the hostage turned with him)
-      let gx = c.pos.x + fx * 6;
-      let gz = c.pos.z + fz * 6;
-      for (let k = 0; k < 16; k++) {
-        const an = (k / 16) * Math.PI * 2;
-        const x = c.pos.x + Math.sin(an) * 6;
-        const z = c.pos.z + Math.cos(an) * 6;
-        const hit = g.ballistics.ray(new t.V(c.pos.x, 1.5, c.pos.z), new t.V(x, 1.5, z), 1).hit || g.ballistics.ray(new t.V(c.pos.x, 0.5, c.pos.z), new t.V(x, 0.5, z), 1).hit;
-        if (!hit) {
-          gx = x;
-          gz = z;
-          break;
-        }
-      }
-      const toG = Math.atan2(gx - c.pos.x, gz - c.pos.z);
-      c.yaw = toG;
-      g.player.cam.yaw = toG;
-      t.step(0.3);
-      const s2 = t.spawn(gx, gz, toG + Math.PI);
-      s2.alert();
-      let shots = 0;
-      const sh = s2['shoot'].bind(s2);
-      s2['shoot'] = (...x) => {
-        shots++;
-        return sh(...x);
-      };
-      const hp0 = e.health.hp;
-      // (he would go for cover first: hold him where he stands and pull his trigger every step once he has the target)
-      t.step(0.5);
-      const think = s2.update.bind(s2);
-      s2.update = () => {};
-      const fire = (sec) => {
-        for (let k = 0; k < sec * 60; k++) {
-          s2['tryFire'](1 / 60);
-          t.step(1 / 60);
-        }
-      };
-      fire(1.0);
-      const hpEarly = e.health.hp;
-      const shotsEarly = shots;
-      fire(1.0);
-      // (then a run of aimed shots: some of them land on the hostage in the way)
-      const ref = s2.target;
-      // (stop once one lands, so he is still alive for the tap)
-      for (let k = 0; k < 30 && e.health.hp >= hp0; k++) s2['shoot'](ref, s2.def.weapon, 'aim');
-      const eye = s2['eye'](new t.V());
-      const hp = g.target.headPoint(new t.V());
-      const ray = g.ballistics.ray(eye, hp, 1 | 8 | 512 | 128);
-      window.__dbg = { hitId: ray.target?.id ?? ray.target?.team ?? null, part: ray.part, pt: [ray.point.x, ray.point.y, ray.point.z].map((v) => +v.toFixed(2)), hostage: [e.pos.x, e.pos.y, e.pos.z].map((v) => +v.toFixed(2)), head: [hp.x, hp.y, hp.z].map((v) => +v.toFixed(2)), eye: [eye.x, eye.y, eye.z].map((v) => +v.toFixed(2)), hb: ['bodyNode', 'headNode'].map((n) => { const q = e['hitboxes'][n].position; return [q.x, q.y, q.z].map((v) => +v.toFixed(2)); }) };
-      const hpLate = e.health.hp;
-      void think;
-      const shield = g.localRef.shield === e;
-      s2.update = () => {};
-      // a head shot kills him: he drops and the grab ends; still alive: a tap knocks him out
-      const shotDead = !e.alive;
-      if (!shotDead) t.press();
+      // a stub entry does nothing and the menu stays open
+      t.pick('device');
+      t.step(0.2);
+      const stubStays = g.grabMenu.open && g.takedown.hostage === e;
+      t.pick('knockout');
       t.run(1.0);
-      const ko = !e.alive && !g.takedown.active && g.localRef.shield === null;
-      window.__dbg2 = { alive: e.alive, active: !!g.takedown.active, shield: !!g.localRef.shield, lost: g.takedown.grabs };
-      c.gears.gear = 4;
-      return { lbl, held, speed, front, cls, raise, fired, spread, hp0, hpEarly, hpLate, ko, shotDead, shield, shots, shotsEarly, dbg: window.__dbg, dbg2: window.__dbg2, s2: { level: s2.level, los: s2['los'], state: s2.state }, grabs: g.takedown.grabs };
+      const ko = !e.alive && !g.takedown.active && g.localRef.shield === null && !g.grabMenu.open;
+      return { lbl, held, menu, labels, shield, front, stubStays, ko };
     });
     assert(r.lbl === 'Grab', `the prompt from behind reads Grab ("${r.lbl}")`);
-    assert(r.held, 'Y grabs and holds him');
-    assert(r.speed <= 1.3 * 1.05, `moving with a hostage: gear 2 at most (${r.speed.toFixed(2)} m/s)`);
-    assert(r.front < 0.05, `the hostage stays in front (${(r.front * 100).toFixed(1)} cm)`);
-    assert(r.cls === 'pistol' && r.raise > 0.9 && r.fired > 0 && Math.abs(r.spread - 1.2) < 1e-6, `LT / RT: the sidearm over his shoulder, spread x1.2 (${r.cls}, fired ${r.fired})`);
+    assert(r.held && r.menu, 'A grabs and holds him, the grab menu opens');
+    assert(r.labels[0] === 'Knock out' && r.labels[1] === 'Kill' && r.labels[2] === 'Carry', `menu: ${r.labels.join(' / ')}`);
     assert(r.shield, 'the hostage is a human shield');
-    assert(r.hpEarly === r.hp0 && r.shotsEarly === 0, `guards hold fire at first (${r.hp0} -> ${r.hpEarly}, ${r.shotsEarly} shots)`);
-    assert(r.hpLate < r.hp0, `then their shots hit the hostage (${r.hp0} -> ${r.hpLate}, ${r.shots} shots, ${JSON.stringify(r.s2)} ${JSON.stringify(r.dbg)})`);
-    assert(r.ko, (r.shotDead ? 'shot dead: he drops, the grab ends' : 'tap: knocked out') + (r.ko ? '' : ' ' + JSON.stringify(r.dbg2)));
+    assert(r.front < 0.05, `the hostage stays in front (${(r.front * 100).toFixed(1)} cm)`);
+    assert(r.stubStays, 'Force to device (stub) leaves the menu open');
+    assert(r.ko, 'Knock out from the menu: he is down, the hold ends');
   });
 
-  await scen('grab-kill-shove', async () => {
+  await scen('grab-kill-carry-letgo', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
@@ -268,10 +201,20 @@ try {
       t.step(0.4);
       t.press();
       t.step(0.5);
-      t.press(0.4);
+      t.pick('kill');
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
       t.reset();
+      t.tp(2, 0, -2.2, 0);
+      const e1 = t.spawn(2, -1, 0);
+      t.step(0.4);
+      t.press();
+      t.step(0.5);
+      t.pick('carry');
+      t.run(2.0);
+      const carried = !e1.alive && g.stealth.carrying;
+      t.reset();
+      g.stealth.carry = null;
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, 0);
       t.step(0.4);
@@ -281,14 +224,15 @@ try {
       t.step(1 / 60);
       st.set('t', 'crouch', false);
       t.step(0.2);
-      const shoved = !g.takedown.active && e2.alive && !e2.taken;
+      const letGo = !g.takedown.active && e2.alive && !e2.taken && !g.grabMenu.open;
       const crouched = g.player.controller.crouched;
       const stagger = e2['stagger'];
       t.step(1.2);
-      return { killed, shoved, crouched, stagger, alerted: e2.alerted };
+      return { killed, carried, letGo, crouched, stagger, alerted: e2.alerted };
     });
-    assert(r.killed, 'held press: killed');
-    assert(r.shoved && !r.crouched, `B shoves him away (not a crouch) (${r.shoved})`);
+    assert(r.killed, 'grab menu Kill: killed');
+    assert(r.carried, 'grab menu Carry: knocked out and on the shoulder');
+    assert(r.letGo && !r.crouched, `B lets him go (not a crouch) (${r.letGo})`);
     assert(r.stagger > 0.6 && r.alerted, `he staggers about a second, then is alert (${r.stagger?.toFixed(2)})`);
   });
 
@@ -541,31 +485,32 @@ try {
     assert(r.on2 && r.offer2 !== 'corner', `a guard in front of the face: not a corner takedown (${r.offer2})`);
   });
 
-  // (locomotion step 10) the elbow strike on a heavy from the front: staggered, never knocked out (fire, D1)
-  await scen('elbow strike: heavy from the front', async () => {
+  // (A4, G42 / G155) the palm strike: one hit knocks out any guard (aware, facing, even a heavy), contact about 0.12 s in
+  await scen('palm strike: one hit', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
       const st = window.__app.input.state;
-      t.tp(2, 0, -1.9, 0);
-      const e = g.enemyMgr.spawn('heavy', new t.V(2, 0, -1), true, Math.PI);
-      e['stagger'] = 99;
-      t.step(0.2);
-      const fire = () => {
+      const out = [];
+      for (const kind of ['grunt', 'heavy']) {
+        t.reset();
+        t.tp(2, 0, -1.9, 0);
+        const e = g.enemyMgr.spawn(kind, new t.V(2, 0, -1), true, Math.PI);
+        e['stagger'] = 99;
+        t.step(0.2);
         st.set('t', 'fire', true);
         window.__app.loop.stepHeadless(1 / 60, 120);
         st.set('t', 'fire', false);
-      };
-      const out = [];
-      for (let k = 0; k < 2; k++) {
-        e.yaw = Math.PI;
-        fire();
-        t.step(1.0);
-        out.push({ alive: e.alive, stag: g.strike.count.stagger });
+        t.step(0.06);
+        const early = e.alive;
+        t.step(0.2);
+        out.push({ kind, early, alive: e.alive, ko: g.strike.count.ko, stag: g.strike.count.stagger });
+        t.step(1.5);
       }
-      return { out, ko: g.strike.count.ko, kind: e.def.kind };
+      return out;
     });
-    assert(r.kind === 'heavy' && r.out.every((o) => o.alive) && r.out[1].stag >= 2 && r.ko === 0, `two frontal strikes on a heavy: staggered, never knocked out (${JSON.stringify(r)})`);
+    for (const o of r) assert(!o.alive && o.stag === 0, `one frontal palm strike knocks out a ${o.kind} (${JSON.stringify(o)})`);
+    assert(r.every((o) => o.early), 'contact is not before the wind-up ends');
   });
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);

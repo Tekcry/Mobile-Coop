@@ -52,3 +52,14 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Checks: lint 0, vitest 1457 pass, build ok; e2e smoke, wall, pad, mouse, netmove (solo rerun), stealth-ai pass.
   Not run: e2e-coop, modes, traverse, takedown; anim-audit / anim-sheet and e2e-ct still use removed verbs.
 - Status: A3 BUILT, awaiting Michael's play.
+
+## 2026-10-18 - A4 strike and grab (prototype)
+- Built (Sonnet): palm strike one hit on any guard, no stagger (wind-up 0.10 s, contact 0.12 s, free 1.4 s after
+  contact, lunge cap 0.4 m); grab from behind on A / E with a "Held" menu: Knock out, Kill, Carry, Force to device (not
+  yet), Interrogate (later); B lets go. Tap / hold selector and B shove removed; heavy / dog exception removed from
+  strike and grab (G155). No wire change (protocol 15). Report `A4-STRIKE-GRAB.md`.
+- Open for Michael: the strike stays on RT (holstered fire press); the research layout puts the knockout on LT, but LT
+  is aim. Settings row "grabToggle" is dead (menu job).
+- Checks: lint 0, vitest 1458 pass, build ok; e2e smoke, takedown, coop (client strike denied passed), stealth-ai, pad
+  pass; e2e-stealth fails at the pre-existing camera free-orbit step. Not run: netmove, enemies.
+- Status: A4 BUILT, awaiting Michael's play.

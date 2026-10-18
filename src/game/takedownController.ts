@@ -5,10 +5,11 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, GRAB, GRAB_KINDS, grabDecides, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, GRAB, GRAB_KINDS, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
 import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
+import type { GrabOpt } from './grabMenu';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -20,12 +21,12 @@ const TRY = 3;
 
 /**
  * (3.2.0) A grab from behind: approaching (`hold` false), then holding the guard in front (the operator moves at a
- * walk, the sidearm comes out one-handed over the hostage's shoulder); a fresh press decides it (tap: knockout, held:
- * lethal) and `strikeT` times the finishing move; shove lets them go staggering.
+ * walk); (A4, G23) the CT grab menu decides it (knock out, kill, carry; `GameState` feeds `menuPick`) and `strikeT`
+ * times the finishing move; `shovePressed` (now: cancel the menu) lets them go staggering.
  */
 interface GrabState {
   hold: boolean;
-  /** The deciding press: seconds held (< 0: none yet). */
+  /** Unused since A4 (the deciding press is the menu). */
   pressT: number;
   /** The finishing strike under way (s; < 0: none). */
   strikeT: number;
@@ -69,8 +70,13 @@ export class TakedownController {
   offer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
   active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number; grab: GrabState | null } | null = null;
-  /** (3.2.0) The shove control was pressed this step (set by GameState). */
+  /** (A4) The grab menu's cancel (let the guard go, staggering) this step (set by GameState). */
   shovePressed = false;
+  /** (A4) The grab menu's pick this step (set by GameState, read and cleared by the hold). */
+  menuPick: GrabOpt | null = null;
+  /** (A4) A carry pick: the body to shoulder once it exists (enemy id, seconds left to find it). */
+  private carryId = '';
+  private carryT = 0;
   /** Grabs: held / knocked out / killed / shoved (stats, tests). */
   grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0 };
   /** The press that started it is still held (pad / keyboard). */
@@ -111,9 +117,9 @@ export class TakedownController {
   /** Fixed step, before back-to-wall / traversal: find the offer, run an active takedown. Returns true while one runs. */
   fixedUpdate(dt: number, pressed: boolean, held: boolean): boolean {
     const g = this.g;
+    if (this.carryId) this.carryStep(dt);
     if (this.active) {
       this.holding = held;
-      this.pressedNow = pressed;
       this.run(dt);
       return true;
     }
@@ -133,8 +139,6 @@ export class TakedownController {
   start(lethal?: boolean): void {
     const o = this.offer;
     if (!o || this.active) return;
-    // a heavy can only be struck down from the front (no choke through the plates)
-    if (o.lethalOnly) lethal = true;
     const g = this.g;
     const c = g.player.controller;
     // leaving the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
@@ -237,7 +241,8 @@ export class TakedownController {
     const plan = pickTakedown(i);
     if (!plan) return null;
     // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
-    const rule = grabRule(best.def.kind, plan.kind);
+    // (G155) no heavies in the missions: the heavy's frontal rule is off; the enforcer's shield still stops a frontal grab
+    const rule = best.def.kind === 'heavy' ? 'ok' : grabRule(best.def.kind, plan.kind);
     return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
   }
 
@@ -296,7 +301,7 @@ export class TakedownController {
       return;
     }
     if (this.shovePressed) {
-      // let them go with a push: staggering, then alert
+      // (A4) the menu's cancel: let them go with a push, staggering, then alert
       c.speedCap = Infinity;
       e.holdAt(c.pos.x + fx * (GRAB.hold + 0.5), c.pos.y, c.pos.z + fz * (GRAB.hold + 0.5), c.yaw);
       this.release();
@@ -305,19 +310,30 @@ export class TakedownController {
       g.events.emit('takedown', { phase: 'abort', lethal: false, kind: 'grab' });
       return;
     }
-    // a fresh press: released before `lethalHold` knocks them out, held through kills
-    if (gr.pressT < 0 && grabDecides(this.grabToggle, this.pressedNow, this.holding)) gr.pressT = 0;
-    if (gr.pressT >= 0) {
-      gr.pressT += dt;
-      if (!this.holding || gr.pressT >= TAKEDOWN.lethalHold) {
-        a.lethal = gr.pressT >= TAKEDOWN.lethalHold;
-        if (a.lethal) e.beginTakedown(false);
-        gr.strikeT = 0;
+    // (A4, G23) the CT grab menu's pick: knock out, kill, or carry (a knockout, then the body goes on the shoulder)
+    const pick = this.menuPick;
+    this.menuPick = null;
+    if (pick === 'knockout' || pick === 'kill' || pick === 'carry') {
+      a.lethal = pick === 'kill';
+      if (a.lethal) e.beginTakedown(false);
+      if (pick === 'carry') {
+        this.carryId = e.id;
+        this.carryT = 1.5;
       }
+      gr.strikeT = 0;
     }
   }
-  /** The interact press this step (a grab's deciding press). */
-  private pressedNow = false;
+
+  /** (A4) A carry pick: once the knocked-out guard's body exists, the operator shoulders it. */
+  private carryStep(dt: number): void {
+    const g = this.g;
+    this.carryT -= dt;
+    const b = g.enemyMgr?.bodies.find((x) => x.enemyId === this.carryId);
+    if (b && g.stealth && !g.stealth.carrying && !this.active) {
+      g.stealth.pickUpBody(b);
+      this.carryId = '';
+    } else if (this.carryT <= 0 || !g.stealth) this.carryId = '';
+  }
 
   private run(dt: number): void {
     const g = this.g;
@@ -436,5 +452,7 @@ export class TakedownController {
     this.abort();
     this.offer = null;
     this.holding = false;
+    this.carryId = '';
+    this.menuPick = null;
   }
 }

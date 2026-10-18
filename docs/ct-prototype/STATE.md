@@ -15,7 +15,7 @@ Updated 2026-10-18.
 - A1.1 turn follow and A3 wall, doors, pad built (`A1-TURN.md`, `A3-WALL-DOORS.md`), on /ct/, awaiting Michael's play. Next: A4 strike and grab; A5 goggles;
   then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G161). One stop per slice while Michael is awake;
   overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
-- Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . A4 strike and grab running.
+- Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . A4 strike and grab built (`A4-STRIKE-GRAB.md`), on /ct/; next A5 goggles.
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.

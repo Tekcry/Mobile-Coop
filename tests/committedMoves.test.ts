@@ -31,8 +31,8 @@ describe('committed moves: host check (A5)', () => {
     expect(checkCommitted(req({ target: { alive: false, seized: false, ko: false, dist: Infinity } }))).toBe('noTarget');
   });
   it('far: past reach plus the lag slack (clients), past reach (host own)', () => {
-    expect(checkCommitted(req({ target: tgt({ dist: STRIKE.reach + 0.5 }) }))).toBeNull();
-    expect(checkCommitted(req({ target: tgt({ dist: STRIKE.reach + 0.7 }) }))).toBe('far');
+    expect(checkCommitted(req({ target: tgt({ dist: STRIKE.reach + 0.7 }) }))).toBeNull();
+    expect(checkCommitted(req({ target: tgt({ dist: STRIKE.reach + 0.9 }) }))).toBe('far');
     expect(checkCommitted(req({ slack: 0, target: tgt({ dist: STRIKE.reach + 0.1 }) }))).toBe('far');
   });
   it('host own path: the same function with no slack', () => {

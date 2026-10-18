@@ -448,7 +448,7 @@ try {
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
 
-  console.log('elbow strike (RT while holstered)');
+  console.log('palm strike (RT while holstered)');
   {
     const S = await strikePage(launch, url);
     try {
@@ -464,45 +464,37 @@ try {
           k.step(1);
         };
         const out = {};
-        // behind an unaware guard: knocked out within 0.6 s
+        // behind an unaware guard: knocked out at contact (about 0.12 s)
         let e = k.setup('grunt', false, 0);
         rt();
         out.started = g.strike.active;
         out.tKo = 3 / 60 + k.until(() => !e.alive, 1.5);
         out.ko = !e.alive && e.ko;
-        k.until(() => !g.strike.active, 1.5);
-        // an aware guard facing: staggered; a second RT inside the stagger: knocked out
+        k.until(() => !g.strike.active, 2);
+        // (A4, G42) an aware guard facing: one hit, no stagger
         e = k.setup('grunt', true, Math.PI);
         rt();
-        k.until(() => g.strike.t >= 0.55 || !g.strike.active, 1);
-        out.stag = { alive: e.alive, staggered: e.strikeStaggered };
-        rt(); // (queued in the recovery: the next strike starts as this one ends)
-        e.yaw = Math.PI;
-        out.tKo2 = k.until(() => !e.alive, 2);
-        out.ko2 = !e.alive && e.ko;
-        k.until(() => !g.strike.active, 1.5);
-        // a heavy from the front: staggered only
+        k.until(() => !e.alive, 1);
+        out.facing = { ko: !e.alive && e.ko, stag: g.strike.count.stagger };
+        k.until(() => !g.strike.active, 2);
+        // (G155) a heavy from the front: one hit too
         e = k.setup('heavy', true, Math.PI);
         rt();
-        k.until(() => !g.strike.active, 1.5);
-        e.yaw = Math.PI;
-        k.step(5);
-        rt();
-        k.until(() => !g.strike.active, 1.5);
+        k.until(() => !e.alive, 1);
         out.heavy = { alive: e.alive, ko: e.ko };
-        // a whiff: the 0.4 s recovery stays exposed after contact time
+        k.until(() => !g.strike.active, 2);
+        // a whiff ends 0.5 s after contact time
         k.setup(null);
         rt();
-        k.until(() => g.strike.t >= 0.5 || !g.strike.active, 1);
+        k.until(() => g.strike.t >= 0.12 || !g.strike.active, 1);
         out.whiffRecover = k.until(() => !g.strike.active, 2);
         out.miss = g.strike.count.miss;
         return out;
       });
-      assert(r.started && r.ko && r.tKo <= 0.6, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.6)`);
-      assert(r.stag.alive && r.stag.staggered, `RT on an aware guard facing: staggered (${JSON.stringify(r.stag)})`);
-      assert(r.ko2, `a second RT inside the stagger knocks him out (${r.tKo2.toFixed(2)} s)`);
-      assert(r.heavy.alive && !r.heavy.ko, `a heavy from the front: staggered only (${JSON.stringify(r.heavy)})`);
-      assert(r.whiffRecover >= 0.38 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s recovery after contact time (0.4 s, to the frame)`);
+      assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: knocked out in ${r.tKo.toFixed(2)} s (<= 0.3)`);
+      assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit, knocked out (${JSON.stringify(r.facing)})`);
+      assert(!r.heavy.alive && r.heavy.ko, `a heavy from the front: knocked out too (${JSON.stringify(r.heavy)})`);
+      assert(r.whiffRecover >= 0.4 && r.whiffRecover <= 0.65 && r.miss >= 1, `a whiff: ${r.whiffRecover.toFixed(2)} s after contact time (0.5 s)`);
     } finally {
       await S.browser.close();
     }
@@ -615,7 +607,12 @@ try {
         // (pad A on a takedown is covered by the corner check below; here only the rumble on completion matters)
         if (!out.tdViaPad && g.takedown.offer) g.takedown.start(false);
         k.until(() => g.takedown.hostage !== null || !e2.alive, 1);
-        if (e2.alive && g.takedown.hostage !== null) btn(0);
+        if (e2.alive && g.takedown.hostage !== null) {
+          // (A4: the grab menu's Knock out, the first entry)
+          k.step(3);
+          g.grabMenu.sel = 0;
+          btn(0);
+        }
         k.until(() => !e2.alive, 4);
         k.step(10);
         out.takedown = fx();

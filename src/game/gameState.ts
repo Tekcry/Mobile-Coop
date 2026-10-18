@@ -37,6 +37,7 @@ import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { DoorMenu, guardBehindDoor } from './doorMenu';
+import { GrabMenu, GRAB_OPT_LABEL } from './grabMenu';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
@@ -307,6 +308,10 @@ export class GameState implements AppState {
   private peekTook = false;
   /** (A3, G19) The CT door menu (A at a closed door), the door the peek is on offer at, a Stealth open pick waiting for the peek step. */
   readonly doorMenu = new DoorMenu();
+  /** (A4, G23) The CT grab menu, open while a guard is held. */
+  readonly grabMenu = new GrabMenu();
+  private grabMenuArmed = false;
+  private grabMenuNavT = 0;
   private doorMenuArmed = false;
   private doorMenuNavT = 0;
   private stealthPick = false;
@@ -971,6 +976,52 @@ export class GameState implements AppState {
     }
   }
 
+  /**
+   * (A4, G23, G43, G162) The CT grab menu: opens as the hold starts, the selection moves on the menu / stick up and down,
+   * A picks (Knock out, Kill, Carry work; Force to device and Interrogate are stubs), B (crouch) lets the guard go.
+   * The operator stands still while it is open.
+   */
+  private grabMenuStep(dt: number, real: InputState): void {
+    const m = this.grabMenu;
+    const td = this.takedown;
+    td.shovePressed = false;
+    const holding = td.hostage !== null && td.active?.grab?.strikeT === -1 && this.player.alive;
+    if (!holding) {
+      if (m.open) m.close();
+      this.hud.setDoorMenu(null, 0, 'grab');
+      return;
+    }
+    if (!m.open) {
+      m.show();
+      this.grabMenuArmed = false;
+      this.grabMenuNavT = 0;
+    }
+    if (real.pressed('crouch') || real.pressed('uiBack')) {
+      td.shovePressed = true;
+      this.player.controller.swallowCrouch = true;
+      m.close();
+      this.hud.setDoorMenu(null, 0, 'grab');
+      return;
+    }
+    this.grabMenuNavT -= dt;
+    if (!real.down('interact')) this.grabMenuArmed = true;
+    if (this.grabMenuNavT <= 0 && (real.pressed('uiUp') || real.pressed('uiDown'))) {
+      m.move(real.pressed('uiDown') ? 1 : -1);
+      this.grabMenuNavT = 0.12;
+    }
+    if (this.grabMenuArmed && real.pressed('interact')) {
+      const o = m.pick();
+      this.interactSwallow = true;
+      if (o === 'device' || o === 'interrogate') this.hud.feedItem(`${GRAB_OPT_LABEL[o]}: not built yet`, 'warn');
+      else if (o) {
+        td.menuPick = o;
+        this.hud.setDoorMenu(null, 0, 'grab');
+        return;
+      }
+    }
+    this.hud.setDoorMenu(m.labels(this.menuLabels), m.sel, 'grab');
+  }
+
   /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
   private doorMenuCandidate(): number {
     const doors = this.world.doors;
@@ -1234,9 +1285,10 @@ export class GameState implements AppState {
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
     this.aliveWas = this.player.alive;
     this.doorMenuStep(dt, real);
-    const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open ? this.blankInp : real);
+    this.grabMenuStep(dt, real);
+    const takes = this.gadgets.fixedUpdate(dt, this.doorMenu.open || this.grabMenu.open ? this.blankInp : real);
     // the gadget wheel / a remote view / the door menu takes the input: the operator stands still
-    const inp = takes || this.doorMenu.open ? this.blankInp : real;
+    const inp = takes || this.doorMenu.open || this.grabMenu.open ? this.blankInp : real;
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
@@ -1305,9 +1357,7 @@ export class GameState implements AppState {
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
     {
-      // (3.2.0) B shoves a held hostage away (and is not a crouch then)
-      this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
-      if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
+      // (A4) the grab menu feeds the hold (`menuPick`, and its cancel as the let-go)
       this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
     }
@@ -2324,7 +2374,7 @@ export class GameState implements AppState {
     } else if (host && this.takedown.active?.grab?.strikeT === -1) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
       const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
-      w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
+      w.set('takedown', ok ? 'Held' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     // (G107) no speed-gear indicator: the max-speed cap is felt, not shown
     this.hud.setTactical(1, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);

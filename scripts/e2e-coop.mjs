@@ -503,9 +503,11 @@ try {
       return Math.hypot(e.pos.x - (r.feet.x + Math.sin(yaw) * 0.42), e.pos.z - (r.feet.z + Math.cos(yaw) * 0.42));
     }, gg);
     assert(held < 0.25, `the host holds its guard in front of the client (${held.toFixed(2)} m)`);
-    await GB(() => window.__app.input.state.tap('interact'));
+    // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
+    await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
+    await GB(() => { window.__app.current.grabMenu.sel = 0; window.__app.input.state.tap('interact'); });
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
-    assert(true, "a tap knocks the client's hostage out on the host");
+    assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
   }
   // dual takedown: two players finishing takedowns together
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
