@@ -40,3 +40,7 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
   e2e-traverse, e2e-combat, e2e-enemies, e2e-modes, e2e-stealth, e2e-anchors, e2e-ct, e2e-ct-warehouse, e2e-editor
   (D-pad door tool) to the CT layout and removed moves; e2e-kestrel and e2e-camera-bounds pre-existing. Needed before
   the PR's full e2e.
+- P1 check polish (P1-CHECK.md, PASS): loose turn test bounds (scrub < 4 rad at 60 Hz, plan 0.15); a held spin may
+  pop feet; run lean moves guard and player head hit volumes slightly (they read rig bones); owner vs remote stride
+  thresholds differ slightly; check the lean while carrying a body; e2e-anim spine-pitch allowance 0.16 for all
+  segments.
