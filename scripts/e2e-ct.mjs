@@ -357,9 +357,7 @@ try {
   i = await I();
   assert(i.y - y0 > 0.8 && i.y - y0 < 1.15, `climbs ~1.0 m/s (${f2(i.y - y0)} m in 1 s)`);
   y0 = i.y;
-  await run(0.5, 0, -1, [BTN.LS]);
-  i = await I();
-  assert(y0 - i.y > 1.0, `sprint held: a fast descent (${f2(y0 - i.y)} m in 0.5 s)`);
+  // G31: sprint is gone, L3 held no longer speeds the wall descent (check removed)
   // kick out, sideways with the stick
   assert(i.prompt === 'Kick out', `Y offers a kick out ("${i.prompt}")`);
   const z0 = i.z;

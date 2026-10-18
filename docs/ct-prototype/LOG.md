@@ -245,3 +245,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   countdown bound, loosened to 15-30 s). Orchestrator reruns it solo before the 09:30 push.
 - e2e-ctcourse run alone at 08:36: passed end to end (stations 1-8, revive, exit), 682 s. Pushed to ct-movement for the
   09:30 walkthrough; /ct/ frozen from 09:30.
+
+## 2026-10-19 - T1 stale e2e assertions
+- Scripts only (no game code). Pass with no edit: e2e-mouse, e2e-move, e2e-combat, e2e-anchors. Pass after edits:
+  e2e-traverse (no sprint climb, G31; vent starts with Y, unscrews with A held; keyboard ledge prompt and keyboard
+  vent skipped, `prototype: revisit`), e2e-enemies (G155), e2e-modes (A grabs intel), e2e-stealth (camera spring and
+  dash reads removed, G31), e2e-ct (sprint descent removed, G31), e2e-ct-warehouse (rappel prompt text reduced, revisit).
+  anim-audit exits 0 (wall-edge and remote braceboost scenarios removed, revisit). Untouched: e2e-kestrel, e2e-editor,
+  e2e-camera-bounds level U. Report `T1-TESTS.md`.
+- Possible real bugs: ledge-grab, ledge "Hang" and rappel world prompts read empty (ladder and vent show; maybe the
+  F1a camera shift puts the point off screen); keyboard Space then hold E does not start a vent unscrew in the harness.
