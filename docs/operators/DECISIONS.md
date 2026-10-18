@@ -172,6 +172,17 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D31 Wren replaces the player character now; both players are Wren (2026-10-18).** Michael: "Wren is finished. Bring
+feature/operators up to date with master, put Wren in as the player character, and open the PR." Recorded in master's
+docs/DECISIONS.md as G123 (replaces G70's "after the prototype, behind a dev switch"): "I want wren in to replace the
+existing character anyway; before the prototype is done" and, for the second player until Moth is finished, "Both play
+as Wren". So: step 11c merges origin/master (4.0.0, Tekcry/Mobile-Coop#3; G1-G122, G68-G75 cover the operators) keeping
+master's deletions (phones, touch, player drone, carried medkits, guns outside the CT kit) and decisions; anything that
+depends on a deleted system (drone in the hip pod, medkit pouch, phone budgets) is listed for Michael, not rebuilt.
+11d/11e: Wren is THE player body for the local player and the co-op partner (no dev switch); guards keep their bodies
+(G68); gameplay unchanged (G38); G72 proportion fixes; the run's still-current decisions are recorded in master's
+docs/DECISIONS.md from G124 (this file points there). Then the PR feature/operators -> master (not merged).
+
 **D30 Wren goes into the game before Moth (2026-10-18).** Michael: "i want to move the completed character into the
 game also before starting on the next one." He is merging all other branches (not operators) and changing the build
 first. Asked who builds the integration, Michael: "This run, locally (Recommended)". So after the Wren block end:

@@ -1,9 +1,10 @@
 # Operators run - state (resume point)
 
-**Now:** the Wren block is complete (08a, 10 and 11 retries passed). Next D30 step 11c: merge Michael's merged base
-branch into feature/operators - waiting for him to name it (ask with the native multiple-choice UI). Then 11d game
-runtime (steps/11d-wren-game-runtime.md), 11e Wren in the game behind ?operator=wren (steps/11e-wren-in-game.md). Then
-ask Michael whether to switch Wren on by default and Moth's direction (D24) before step 12. Opus 5.5, High.
+**Now:** D31 (Michael, 2026-10-18): step 11c merge origin/master (4.0.0) into feature/operators, then 11d/11e put Wren
+in as THE player character for both players (no dev switch; guards unchanged; gameplay unchanged, G38; G72 proportion
+fixes), record G123 and the run's decisions from G124 in master's docs/DECISIONS.md, docs/systems/world-and-characters.md,
+CHANGELOG Unreleased (G93), run npm run check and the e2e suites (move, traverse, anchors, wall, anim, netmove, coop,
+bunker, course), then open the PR feature/operators -> master (do not merge). Moth (step 12, D24) after that.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
