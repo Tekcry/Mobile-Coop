@@ -467,8 +467,9 @@ Implementation: `docs/systems/combat.md`.
   heavies (G155).
 - Aiming from attached states stays (split, pipes, rappel, ledge, human ladder top).
 - **Co-op:** the drawn / holstered state and the weapon in hand are in `MoveState`, so the partner sees them.
-- **Holstered look:** the rifle slung on the back, the pistol in its holster, a clean silhouette. Which gun comes out
-  first and how guns are carried when put away are open (Section 11).
+- **Holstered look:** the rifle slung on the back, the pistol in its holster, a clean silhouette. On Wren the rifle hangs
+  from her back plate mount and the pistol sits in her thigh holster, drawn and put away quickly (G178); hands hold the
+  guns properly and believably (G177). Which gun comes out first is open (Section 11).
 
 **Kits (G134, G153):** fixed per mission; each mission issues the two players complementary kits. Players do not choose
 a loadout, and nothing is bought.
