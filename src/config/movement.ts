@@ -176,8 +176,12 @@ export const CT = {
   /** (G27) The frozen stance holds this long (s) after a stop, then eases to a feet-together idle over `stopEase`. */
   stopHoldTime: 1.7,
   stopEase: 0.35,
-  /** Travel-facing turn rate (rad/s, ~505 deg/s: a 180 in ~0.4 s, G25 / G33) and its angular acceleration (rad/s^2). */
-  turnRate: 8.8,
+  /** Travel-facing turn rate (rad/s, ~450 deg/s at walk and crouch pace: a 180 in ~0.4 s, G25 / G33) and its angular acceleration (rad/s^2). */
+  turnRate: 7.85,
+  /** (A1.1) The cap falls to `turnRateRun` (~350 deg/s) as the pace goes from `turnSlowFrom` to `turnSlowTo` (m/s). */
+  turnRateRun: 6.1,
+  turnSlowFrom: 3.0,
+  turnSlowTo: 4.2,
   turnAccel: 300,
   /** A turn dips the pace (fraction lost at a full 180): the run reversal slows and recovers (~0.3 s). */
   turnDip: 0.55,

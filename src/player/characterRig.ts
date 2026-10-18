@@ -1222,7 +1222,7 @@ export class CharacterRig {
     pin.wallNx = s.wallNx ?? 0;
     pin.wallNz = s.wallNz ?? 0;
     pin.wallD = wf + WALL_FOOT_CLEAR;
-    pin.turnStep = i.wall ? 1.2 : Infinity;
+    pin.turnStep = i.wall ? 1.2 : 0.75; // (A1.1) planted feet turn with the body in every state
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down

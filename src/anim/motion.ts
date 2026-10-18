@@ -415,7 +415,11 @@ export class MotionDriver {
       const want = hyp2(i.vx, i.vz);
       if (i.ct) {
         // (CT prototype M1) turns toward the stick at one smooth rate; released or walking backwards it holds the facing
-        if (want > 0.05 && !this.backward) this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), CT.turnRate, CT.turnAccel, dt);
+        if (want > 0.05 && !this.backward) {
+          // (A1.1) the cap scales with speed: ~450 deg/s up to a jog, ~350 deg/s at the full run (footage 300-400)
+          const k = Math.max(0, Math.min(1, (sp - CT.turnSlowFrom) / (CT.turnSlowTo - CT.turnSlowFrom)));
+          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), CT.turnRate + (CT.turnRateRun - CT.turnRate) * k, CT.turnAccel, dt);
+        }
         else this.yawRate = 0;
         return;
       }

@@ -230,3 +230,24 @@ describe('foot planner', () => {
     expect(back).toBeLessThan(0.002);
   });
 });
+
+describe('foot planner: turns (A1.1)', () => {
+  it('a tight walking circle: feet never cross and no planted foot is dragged past the reach limit', () => {
+    for (const speed of [0.75, 2.0, 3.0]) {
+      const { frames } = simulate(4, (i, t) => {
+        i.ct = true;
+        i.faceTravel = true;
+        const a = t * 7;
+        i.vx = Math.sin(a) * speed;
+        i.vz = Math.cos(a) * speed;
+      });
+      let crossed = 0;
+      for (const f of frames) {
+        // both planted: the left foot is left of the right one in the body frame (an airborne foot may be mid-swing)
+        if (f.lc && f.rc && f.latL > f.latR + 0.02) crossed++;
+      }
+      expect(crossed, `speed ${speed}`).toBe(0);
+      expect(maxPlantedSlide(frames)).toBeLessThan(0.03);
+    }
+  });
+});

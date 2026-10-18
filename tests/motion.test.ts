@@ -454,6 +454,31 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
     expect(done).toBeGreaterThan(0.33);
     expect(done).toBeLessThanOrEqual(0.5);
   });
+  it('(A1.1) the turn-rate cap scales with speed: about 450 deg/s at a walk, 350 at the full run', () => {
+    const peak = (v: number): number => {
+      const d = new MotionDriver();
+      run(d, 1.2, (i) => {
+        ct(i);
+        i.vz = v;
+      }, 120);
+      let m = 0;
+      // a quarter turn, so the pace has not dipped far when the rate peaks
+      run(d, 0.3, (i) => {
+        ct(i);
+        i.vx = v;
+        i.vz = 0;
+      }, 120, () => {
+        m = Math.max(m, Math.abs(d.yawRate));
+      });
+      return m;
+    };
+    const walk = peak(2.0);
+    const runRate = peak(4.2);
+    expect(walk).toBeGreaterThan(CT.turnRate * 0.95);
+    expect(walk).toBeLessThanOrEqual(CT.turnRate + 1e-6);
+    expect(runRate).toBeLessThan(walk * 0.95);
+    expect(runRate).toBeGreaterThan(CT.turnRateRun * 0.9);
+  });
   it('(G25) only at the slowest speed does the stick pulled behind walk backwards (about 0.5 m/s, facing held); faster it turns round', () => {
     const d = new MotionDriver();
     run(d, 1, (i) => {

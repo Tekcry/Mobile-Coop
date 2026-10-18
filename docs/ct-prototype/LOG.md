@@ -29,3 +29,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   ct-movement"; "Yes, Opus for those"; co-op level "Rebuild Fallow on it". Main session relayed his wider direction and
   "Pure ct, if it had it, we will use it." Recorded as G161, G162 in docs/DECISIONS.md; FEEL-PLAN phase 2 added.
 - Status: A2.1 awaiting Michael's play (now on /ct/).
+
+## 2026-10-18 - A1.1 turn follow (prototype)
+- Michael: "Yes start it, remember prototype only".
+- Built (Sonnet): turn cap 450 deg/s up to 3.0 m/s and all crouched speeds, falling to 350 deg/s at 4.2 m/s; planted
+  feet step round with the body in every state (turnStep 0.75 rad, wall 1.2); pivot leftovers removed, crossing guard
+  and swing bow-out use the landing foot's yaw. No wire change (PROTOCOL_VERSION 14). Report `A1-TURN.md`.
+- Checks: lint 0, vitest 1464 pass, build ok; e2e smoke, move, anim pass; e2e-netmove failed once, rerun not confirmed
+  (known flaky). Open: a swinging foot can cross for a few frames in a fast spin; enemy turns share the planner, check
+  in play.
+- Status: A1.1 BUILT, awaiting Michael's play.

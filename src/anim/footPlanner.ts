@@ -123,7 +123,7 @@ export interface PlannerInput {
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, wallNx: 0, wallNz: 0, wallD: NaN, turnStep: Infinity, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, wallNx: 0, wallNz: 0, wallD: NaN, turnStep: 0.75, ground: null };
 }
 
 /** A pinned foot further than this (m) from its pin steps onto it. */
@@ -147,14 +147,6 @@ const wrap = (a: number): number => {
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
 const START_TOE_OFF = 1.2;
-/**
- * (locomotion step 22, M14) A planted foot turned more than `PIVOT_TURN` (rad) from the body: the reversal pivot (A88)
- * has turned the body over it and pushes off the other way (the travel within 60 deg of the foot's heel). While the other foot is in the air it holds its spot out
- * to `PIVOT_REACH` x its reach instead of being dragged after the body (turn180 footSlideR 6.7 cm); a toe-off there
- * would be a flight phase (pelvis jump 29 cm).
- */
-const PIVOT_TURN = 1.2;
-const PIVOT_REACH = 1.15;
 /** (fix 21-2) Still this long (s) before a move counts as a new start. */
 const START_STILL = 0.25;
 /** (fix 21-2) Time (s) over which a taken-over early toe-off's gap to the clock's swing fades out. */
@@ -211,11 +203,6 @@ export class FootPlanner {
     const s = Math.sin(yaw);
     this.ix = rx + lx * c + lz * s;
     this.iz = rz - lx * s + lz * c;
-  }
-
-  /** Root-space lateral coordinate of a world point. */
-  private lateral(i: PlannerInput, x: number, z: number): number {
-    return (x - i.rootX) * Math.cos(i.yaw) - (z - i.rootZ) * Math.sin(i.yaw);
   }
 
   update(i: PlannerInput): void {
@@ -440,6 +427,18 @@ export class FootPlanner {
       this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
       return;
     }
+    // (A1.1) the body has turned round the planted feet until they are side by side or crossed in its frame (a tight
+    // circle): this foot steps round to its own side
+    if (o.contact) {
+      const c = Math.cos(i.yaw);
+      const sn = Math.sin(i.yaw);
+      const gap = ((f.x - o.x) * c - (f.z - o.z) * sn) * side;
+      if (gap < PLANNER.minGap * 0.5) {
+        this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
+        this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
+        return;
+      }
+    }
     // measured from under its own hip (the foot's stance spot), not the root centre: a side-step's
     // trailing foot is a hip width further from the centre than the leg is actually stretched
     const lx = side < 0 ? i.lX : i.rX;
@@ -460,16 +459,10 @@ export class FootPlanner {
       this.aim(f, i, side, i.rootX + i.velX * f.stepDur, i.rootZ + i.velZ * f.stepDur, i.yaw);
       return;
     }
-    // (step 22, M14) the reversal pivot: the planted foot turned back under a body pushing off the other way holds its
-    // spot to a longer reach while the other foot is still in the air (no flight phase; the clock lifts it next)
-    const pivotReach =
-      !o.contact && Math.abs(wrap(f.yaw - i.yaw)) > PIVOT_TURN && i.velX * Math.sin(f.yaw) + i.velZ * Math.cos(f.yaw) < -0.5 * hyp2(i.velX, i.velZ)
-        ? reach * PIVOT_REACH
-        : reach;
-    if (hyp2(dx, dz) > pivotReach) {
+    if (hyp2(dx, dz) > reach) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
       const d = hyp2(dx, dz);
-      const k = pivotReach / d;
+      const k = reach / d;
       const nx = hx + dx * k;
       const nz = hz + dz * k;
       f.slide += hyp2(nx - f.x, nz - f.z);
@@ -501,13 +494,17 @@ export class FootPlanner {
     let tz = this.iz;
     // no crossing: keep a gap from the other foot along the body's lateral axis
     const other = side < 0 ? this.R : this.L;
-    const latT = this.lateral(i, tx, tz);
-    const latO = this.lateral(i, other.contact ? other.x : other.toX, other.contact ? other.z : other.toZ);
+    // (A1.1) measured in the landing foot's own frame (the yaw it lands at), not the body's current one: the body
+    // yaw moves ~90 deg per 0.2 s in a fast turn
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const ox = other.contact ? other.x : other.toX;
+    const oz = other.contact ? other.z : other.toZ;
+    const latT = (tx - rx) * c - (tz - rz) * s;
+    const latO = (ox - rx) * c - (oz - rz) * s;
     const gapNeed = PLANNER.minGap;
     const bad = side < 0 ? latT - (latO - gapNeed) : latO + gapNeed - latT;
     if (bad > 0) {
-      const c = Math.cos(i.yaw);
-      const s = Math.sin(i.yaw);
       const shift = side < 0 ? -bad : bad;
       tx += shift * c;
       tz += -shift * s;
@@ -637,12 +634,14 @@ export class FootPlanner {
     // it, so the feet never brush; the ends of the swing stay where they are
     const o = f === this.L ? this.R : this.L;
     if (o.contact) {
-      const c = Math.cos(i.yaw);
-      const sn = Math.sin(i.yaw);
+      // (A1.1) in the landing foot's own frame, and a window that widens with the turn rate
+      const c = Math.cos(f.toYaw);
+      const sn = Math.sin(f.toYaw);
       const along = (f.x - o.x) * sn + (f.z - o.z) * c;
-      if (along < PLANNER.swingNear && along > -PLANNER.swingNear) {
-        const latF = this.lateral(i, f.x, f.z);
-        const latO = this.lateral(i, o.x, o.z);
+      const near = PLANNER.swingNear * (1 + Math.min(1.5, Math.abs(wrap(f.toYaw - i.yaw)) * 1.5));
+      if (along < near && along > -near) {
+        const latF = (f.x - i.rootX) * c - (f.z - i.rootZ) * sn;
+        const latO = (o.x - i.rootX) * c - (o.z - i.rootZ) * sn;
         const bad = f === this.L ? latF - (latO - PLANNER.swingGap) : latO + PLANNER.swingGap - latF;
         if (bad > 0) {
           const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s);
