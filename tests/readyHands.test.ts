@@ -41,9 +41,9 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
       ['stand-walk', 0, 1.2, 0, 8, 30, 0.08],
       ['stand-jog', 0, 3, 0, 8, 30, 0.15],
       ['stand-sprint', 0, 5.5, 1, 55, 95, 0.2],
-      ['crouch', 1, 0, 0, 15, 50, 0],
-      ['crouch-walk', 1, 0.8, 0, 15, 50, 0.03],
-      ['crouch-run', 1, 2.5, 0, 15, 50, 0.08],
+      ['crouch', 1, 0, 0, 15, 60, 0],
+      ['crouch-walk', 1, 0.8, 0, 15, 60, 0.03],
+      ['crouch-run', 1, 2.5, 0, 15, 60, 0.08],
     ];
     const out: Record<string, number[]> = {};
     for (const [name, crouch, speed, dash] of cases) {

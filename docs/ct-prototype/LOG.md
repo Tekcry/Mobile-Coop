@@ -197,3 +197,8 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   their placeholder consoles. Report `B4-THROW.md`.
 - Checks: `npm run check` passes (1673 tests); e2e ctcourse (thrown feet 1.73 m over the beams in both views), smoke,
   netmove pass.
+
+## 2026-10-19 - crouched hands from feature/anim-cleanup b46499f (applied by hand)
+- READY_HANDS xCrouch 0, flexCrouch 0.9 (elbow about 52 deg): crouched and holstered, the hands come in by the thighs
+  just above the knees. tests/readyHands.test.ts crouched elbow cap 50 -> 60 deg. Applied by hand (not a merge: the
+  branch also carries unmerged weapons work). `npm run check` passes (1673 tests).
