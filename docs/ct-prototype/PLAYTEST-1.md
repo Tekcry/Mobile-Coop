@@ -62,3 +62,16 @@ Empty note = verdict only.
 
 ## Co-op parity
 - coop-1 good, coop-2 good, coop-3 good, coop-4 skip.
+
+## Michael's answers to the follow-up questions (native multiple choice)
+- D-pad vision side: "research how it was mapped in CT" (speed moves to D-pad up / down per pad-2).
+- Draw speed: "About half (0.3 / 0.4 s)" (pistol about 0.3 s, rifle about 0.4 s; holster unchanged). Replaces G103's
+  raise timings for the prototype.
+- Course panels: "One panel per station" (a single optional panel at each station; the action opens the way).
+- Vision reference: "Use the footage docs".
+
+## Plan
+- Fix round F1 after B2 lands (one code-changing agent at a time): camera, aim toggle, wall, menus top right, grab
+  walk / aim, strike, doors, goggles, course panels, D-pad per the CT research.
+- Turn follow failed twice: goes to an Opus implementer with the footage (RULES: Opus for anything stuck twice).
+- Menu overlaps (menu-1) and the dead settings rows (menu-3) go to the menu job.
