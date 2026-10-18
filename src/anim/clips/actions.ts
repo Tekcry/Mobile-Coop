@@ -54,10 +54,11 @@ export const RELOAD_EMPTY = makeClip({
 /** Where the right hand goes to holster / draw, per carry slot (body space: x right, y up, z forward). */
 export type SwapReach = 'backL' | 'backC' | 'backR' | 'sling' | 'thigh';
 const REACH: Record<SwapReach, [number, number, number]> = {
-  // over the shoulder to the upper half of the gun on the back
-  backL: [-0.06, 1.55, -0.18],
-  backC: [0.0, 1.55, -0.2],
-  backR: [0.08, 1.5, -0.2],
+  // (anim-cleanup) behind the back to the pistol grip of the gun hung on the back plate (the rifle is carried there
+  // over the right shoulder in the trigger hand: WeaponModel travel)
+  backL: [0.02, 1.26, -0.12],
+  backC: [0.08, 1.26, -0.12],
+  backR: [0.14, 1.26, -0.12],
   // across to the left-hip sling
   sling: [-0.16, 1.0, 0.1],
   // down to the right thigh holster
@@ -72,23 +73,28 @@ function swapClip(from: SwapReach, to: SwapReach) {
     name: `swap ${from}>${to}`,
     duration: 1,
     keys: {
-      grip: [0, 1, 0.12, 1, 0.22, 0, 0.8, 0, 0.88, 1],
+      // (anim-cleanup) the trigger hand keeps the grip while the gun travels to its slot (to 0.38) and from the next
+      // slot to the aim pocket (0.5-0.8: WeaponModel travel); empty only between the two slots, round the outside of the
+      // body (never through the hip)
+      grip: [0, 1, 0.38, 1, 0.41, 0, 0.47, 0, 0.5, 1, 1, 1],
       offGrip: [0, 1, 0.1, 0, 0.86, 0, 0.94, 1],
-      // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.58), then
+      // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.5), then
       // up to the aim pocket (in the pocket at 0.8)
-      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.52, t[0], 0.6, t[0], 0.8, 0.18],
-      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.52, t[1], 0.6, t[1], 0.8, 1.25],
-      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.52, t[2], 0.6, t[2], 0.8, 0.25],
-      hLX: [0, -0.18, 1, -0.18],
-      hLY: [0, 1.05, 0.5, 1.0, 1, 1.05],
-      hLZ: [0, 0.12, 1, 0.12],
+      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.44, Math.max(f[0], t[0]) + 0.12, 0.5, t[0], 0.6, t[0], 0.8, 0.18],
+      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.44, (f[1] + t[1]) / 2, 0.5, t[1], 0.6, t[1], 0.8, 1.25],
+      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.44, (f[2] + t[2]) / 2, 0.5, t[2], 0.6, t[2], 0.8, 0.25],
+      // the support hand hangs relaxed at the side (the arm's own length below the shoulder), out of the gun's way, and
+      // comes up for the grip as the gun reaches the pocket
+      hLX: [0, -0.2, 0.2, -0.21, 0.7, -0.21, 1, -0.16],
+      hLY: [0, 1.0, 0.2, 0.88, 0.7, 0.88, 1, 1.1],
+      hLZ: [0, 0.1, 0.2, 0.05, 0.7, 0.05, 1, 0.14],
       wpPitch: [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
       // the chest turns towards the reach (right shoulder / left hip / right thigh)
       spYaw: [0, 0, 0.26, BACK(from) ? 0.16 : from === 'sling' ? -0.3 : 0.08, 0.38, BACK(from) ? 0.18 : from === 'sling' ? -0.32 : 0.1, 0.56, BACK(to) ? 0.14 : to === 'sling' ? -0.3 : 0.08, 1, 0],
       spPitch: [0, 0, 0.35, BACK(from) ? 0 : 0.16, 0.56, BACK(to) ? 0 : 0.14, 1, 0],
       hdPitch: [0, 0, 0.35, 0.08, 1, 0],
     },
-    events: { holstered: 0.38, drawn: 0.58 },
+    events: { holstered: 0.38, drawn: 0.5 },
   });
 }
 

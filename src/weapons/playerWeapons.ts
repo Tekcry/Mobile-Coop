@@ -66,6 +66,13 @@ const SWAP_TIME = 0.9;
 const SWAP_HOLSTER = 0.38;
 const SWAP_TAKE = 0.58;
 const SWAP_HOLD = 0.8;
+/**
+ * (anim-cleanup) The draw / holster travel beats: the outgoing gun leaves the aim pocket at TRAVEL_OUT and reaches its
+ * slot at SWAP_HOLSTER in the trigger hand; the next one leaves its slot at TRAVEL_IN and is in the pocket at SWAP_HOLD
+ * (actions.ts swap clip: the hand holds the grip over both spans, empty only between the slots).
+ */
+const TRAVEL_OUT = 0.06;
+const TRAVEL_IN = 0.5;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
@@ -424,9 +431,18 @@ export class PlayerWeapons {
           // so the holster just stops and it comes straight back up. (21w, PC-PASS 42) No jump into the draw half of
           // the clip (that moved the hand 12 cm and the gun 30 cm in one frame): the swap overlay fades out from where
           // it was and the aim pocket takes the gun back.
-          this.swapT = -1;
-          this.swapPhase = 0;
-          this.aimDriven = false;
+          const m = this.slots[this.held]!.model;
+          if (m.travelling) {
+            // (anim-cleanup) already on its way to the slot: it travels back from where it is to the aim pocket
+            m.beginTravel(this.player.rig, this.carrySlots[this.held]!, true);
+            this.swapT = SWAP_TIME * TRAVEL_IN;
+            this.swapPhase = 2;
+            this.aimDriven = false;
+          } else {
+            this.swapT = -1;
+            this.swapPhase = 0;
+            this.aimDriven = false;
+          }
         }
       }
     }
@@ -472,15 +488,33 @@ export class PlayerWeapons {
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       const f = this.swapT / SWAP_TIME;
+      // (anim-cleanup) the outgoing gun travels to its slot in the trigger hand (no teleport, never across the face)
+      const out = this.held >= 0 ? this.slots[this.held] : undefined;
+      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null)) {
+        if (!out.model.travelling) out.model.beginTravel(this.player.rig, this.carrySlots[this.held]!, false);
+        out.model.travel(this.player.rig, (f - TRAVEL_OUT) / (SWAP_HOLSTER - TRAVEL_OUT));
+      }
       if (this.swapPhase === 0 && f >= SWAP_HOLSTER) {
         this.swapPhase = 1;
         this.holsterAll(-1);
       }
       // stowed: hold at the holstered beat (hands empty) until drawn again
       if (this.stowed && this.swapPhase >= 1) this.swapT = SWAP_TIME * SWAP_HOLSTER;
-      else if (this.swapPhase === 1 && f >= SWAP_TAKE) {
-        this.swapPhase = 2;
-        this.slots[this.index]!.model.inHand(this.player.rig);
+      else if (this.swapPhase === 1) {
+        // (anim-cleanup) the next gun leaves its slot in the trigger hand and travels to the aim pocket
+        const next = this.slots[this.index]!;
+        const from = this.carrySlots[this.index] ?? null;
+        if (next.model.canTravel(from) && f >= TRAVEL_IN) {
+          this.swapPhase = 2;
+          next.model.beginTravel(this.player.rig, from!, true);
+        } else if (!next.model.canTravel(from) && f >= SWAP_TAKE) {
+          this.swapPhase = 2;
+          next.model.inHand(this.player.rig);
+        }
+      }
+      if (this.swapPhase === 2) {
+        const m = this.slots[this.index]!.model;
+        if (m.travelling) m.travel(this.player.rig, (f - TRAVEL_IN) / (SWAP_HOLD - TRAVEL_IN));
       }
       if (this.swapPhase === 2 && f >= SWAP_HOLD) {
         this.swapPhase = 3;

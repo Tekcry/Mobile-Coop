@@ -50,6 +50,24 @@ const ax = new Vector3();
 const ay = new Vector3();
 const az = new Vector3();
 
+/**
+ * (anim-cleanup) Draw / holster travel: the gun goes between the aim pocket and its slot along a path, carried by the
+ * trigger hand on its grip (Michael: "Must holster without clipping"). In the chest frame (x right, y up, z forward,
+ * metres) the grip passes near this point: beside the head on the right for a back slot (the rifle swung up over the
+ * right shoulder, never across the face), out beside the right hip for the thigh holster.
+ */
+export const TRAVEL_VIA = { back: [0.24, 0.3, 0.06], thigh: [0.26, -0.18, 0.16] } as const;
+/** A long gun turns to its slot's orientation over this share of the path (muzzle up before it passes the head). */
+const TRAVEL_TURN = 0.6;
+const trInv = new Matrix();
+const trM = new Matrix();
+const trS = new Vector3();
+const trP = new Vector3();
+const trQ = new Quaternion();
+const trG0 = new Vector3();
+const trG1 = new Vector3();
+const trG = new Vector3();
+
 /** Builds a weapon from its data-driven primitive parts (instanced). */
 export class WeaponModel {
   readonly node: TransformNode;
@@ -65,6 +83,9 @@ export class WeaponModel {
     this.node = new TransformNode(`wpn-${def.id}`, scene);
     this.node.parent = parent;
     this.node.rotationQuaternion = Quaternion.Identity();
+    // (anim-cleanup) the travel target: the slot's (or the aim pocket's) pose, placed like the weapon
+    this.ghost = new TransformNode(`wpn-${def.id}-travel`, scene);
+    this.ghost.rotationQuaternion = Quaternion.Identity();
     for (const p of def.model) {
       const hex = p.color === 'body' || p.color === 'grip' || p.color === 'accent' ? colors[p.color] : p.color;
       // authored boxes/cylinders render with rounded edges
@@ -123,6 +144,7 @@ export class WeaponModel {
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
   hold(rig: CharacterRig): void {
+    this.trSlot = null;
     const had = this.glideFrom(rig);
     this.owner = rig;
     this.slot = null;
@@ -130,10 +152,7 @@ export class WeaponModel {
     this.node.parent = rig.weaponPivot;
     this.node.position.setAll(0);
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
-    rig.grip.set(...this.def.grip);
-    rig.foregrip.set(...this.def.foregrip);
-    // (feature/weapons) the support hand under a long gun's handguard, cupping a pistol's grip
-    rig.supportStyle = this.def.class === 'pistol' ? 'cup' : 'tube';
+    this.gripsOn(rig);
     const e = this.ext;
     rig.gunSpan.z0 = e.z0;
     rig.gunSpan.z1 = e.z1;
@@ -144,6 +163,91 @@ export class WeaponModel {
     rig.heldWeapon = this.node;
     this.setVisible(true);
     if (had) rig.glideWeapon(this.node, glideM);
+  }
+
+  /** The rig's hand points for this weapon (the hands IK to them while it is `rig.heldWeapon`). */
+  private gripsOn(rig: CharacterRig): void {
+    rig.grip.set(...this.def.grip);
+    rig.foregrip.set(...this.def.foregrip);
+    // (feature/weapons) the support hand under a long gun's handguard, cupping a pistol's grip
+    rig.supportStyle = this.def.class === 'pistol' ? 'cup' : 'tube';
+  }
+
+  private readonly ghost: TransformNode;
+  private readonly trP0 = new Vector3();
+  private readonly trQ0 = new Quaternion();
+  /** The slot a travel goes to / comes from (null: none running). */
+  private trSlot: CarrySlot | null = null;
+  private trDraw = false;
+
+  /** (anim-cleanup) Whether a draw / holster to `slot` travels (back and thigh slots; the sling keeps the hand-off). */
+  canTravel(slot: CarrySlot | null): boolean {
+    return slot !== null && slot !== 'sling';
+  }
+
+  /**
+   * (anim-cleanup) Starts a draw (`draw`: from where the gun is to the aim pocket) or a holster (to `slot`): the gun
+   * leaves its parent for the chest frame where it is, and is the rig's held weapon, so the trigger hand holds its grip
+   * the whole way. `travel(rig, u)` moves it; the caller ends with `hold` (a draw) or `holster` (a holster).
+   */
+  beginTravel(rig: CharacterRig, slot: CarrySlot, draw: boolean): void {
+    rig.torso.computeWorldMatrix(true).invertToRef(trInv);
+    this.node.computeWorldMatrix(true).multiplyToRef(trInv, trM);
+    trM.decompose(trS, this.trQ0, this.trP0);
+    this.owner = rig;
+    this.slot = null;
+    this.track(rig, false);
+    this.node.parent = rig.torso;
+    this.node.position.copyFrom(this.trP0);
+    this.node.rotationQuaternion!.copyFrom(this.trQ0);
+    this.gripsOn(rig);
+    rig.heldWeapon = this.node;
+    this.trSlot = slot;
+    this.trDraw = draw;
+    this.setVisible(true);
+  }
+
+  /** (anim-cleanup) The travel at `u` 0..1: the grip along a curve through TRAVEL_VIA, the gun turning to the end's pose. */
+  travel(rig: CharacterRig, u: number): void {
+    const slot = this.trSlot;
+    if (!slot) return;
+    const g = this.ghost;
+    if (this.trDraw) {
+      g.parent = rig.weaponPivot;
+      g.position.setAll(0);
+      g.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
+    } else this.place(g, rig, slot);
+    rig.torso.computeWorldMatrix(true).invertToRef(trInv);
+    g.computeWorldMatrix(true).multiplyToRef(trInv, trM);
+    trM.decompose(trS, trQ, trP);
+    const k = Math.max(0, Math.min(1, u));
+    const sm = k * k * (3 - 2 * k);
+    // a draw turns late (the gun leaves its slot along itself), a holster early (muzzle up before the head)
+    const r = this.trDraw ? Math.max(0, (sm - (1 - TRAVEL_TURN)) / TRAVEL_TURN) : Math.min(1, sm / TRAVEL_TURN);
+    Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
+    // the grip's start and end (chest frame), and the curve through the waypoint
+    trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
+    trG.rotateByQuaternionToRef(this.trQ0, trG0).addInPlace(this.trP0);
+    trG.rotateByQuaternionToRef(trQ, trG1).addInPlace(trP);
+    const via = isBackSlot(slot) ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
+    const a = (1 - sm) * (1 - sm);
+    const b = 2 * sm * (1 - sm);
+    const c = sm * sm;
+    const px = a * trG0.x + b * via[0] + c * trG1.x;
+    const py = a * trG0.y + b * via[1] + c * trG1.y;
+    const pz = a * trG0.z + b * via[2] + c * trG1.z;
+    trG.rotateByQuaternionToRef(this.node.rotationQuaternion!, trG0);
+    this.node.position.set(px - trG0.x, py - trG0.y, pz - trG0.z);
+  }
+
+  /** (anim-cleanup) Is a travel running. */
+  get travelling(): boolean {
+    return this.trSlot !== null;
+  }
+
+  /** (anim-cleanup) Ends a travel (the caller then holds or holsters the gun). */
+  endTravel(): void {
+    this.trSlot = null;
   }
 
   /** Mid-swap: in the right hand (grip at the palm) on its way from its slot to the aim pocket. */
@@ -178,14 +282,25 @@ export class WeaponModel {
    * the body and any back gear (`rig.backGear`) so nothing clips.
    */
   holster(rig: CharacterRig, slot: CarrySlot): void {
+    this.trSlot = null;
     const had = slot !== 'sling' && this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
     this.owner = rig;
     this.slot = slot;
     this.track(rig, slot === 'sling');
+    const n = this.node;
+    this.place(n, rig, slot);
+    this.setVisible(true);
+    if (had) rig.glideWeapon(n, glideM);
+  }
+
+  /**
+   * The carry slot's pose for this weapon, written into `n` (its parent, rotation and position): the weapon itself
+   * (`holster`) or the travel target (anim-cleanup: a draw / holster carries the gun along a path to it).
+   */
+  private place(n: TransformNode, rig: CharacterRig, slot: CarrySlot): void {
     const e = this.ext;
     const p = rig.p;
-    const n = this.node;
     const mount = isBackSlot(slot) && rig.backMount && this.def.backStud ? rig.backMount[slot as 'backL' | 'backC' | 'backR'] : null;
     if (mount) {
       // (feature/weapons) hung from the body's back plate socket by the gun's back stud: muzzle up, the left side flat to
@@ -217,7 +332,7 @@ export class WeaponModel {
       n.position.set(sx - ay.x * e.y1 - az.x * e.z0, sy - ay.y * e.y1 - az.y * e.z0, sz - ay.z * e.y1 - az.z * e.z0);
     } else if (slot === 'sling') {
       n.parent = rig.hips;
-      this.placeSling(rig, SLING_SPLAY);
+      if (n === this.node) this.placeSling(rig, SLING_SPLAY);
     } else if (rig.thighMount) {
       // (feature/weapons) the body's own built holster: its frame from the hip, the weapon point at its origin
       const h = rig.thighMount;
@@ -226,7 +341,9 @@ export class WeaponModel {
       az.set(h.z[0]!, h.z[1]!, h.z[2]!);
       n.parent = rig.hipR;
       Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
-      const [cx, cy, cz] = [h.centre[0]!, h.centre[1]!, h.centre[2]!];
+      const cx = h.centre[0]!;
+      const cy = h.centre[1]!;
+      const cz = h.centre[2]!;
       n.position.set(h.origin[0]! - ax.x * cx - ay.x * cy - az.x * cz, h.origin[1]! - ax.y * cx - ay.y * cy - az.y * cz, h.origin[2]! - ax.z * cx - ay.z * cy - az.z * cz);
     } else {
       // right thigh, low: muzzle down, top of the gun forward, thin side flat against the thigh (moves with it)
@@ -242,8 +359,6 @@ export class WeaponModel {
       const zc = (e.z0 + e.z1) / 2;
       n.position.set(sx - ax.x * ((e.x0 + e.x1) / 2), cy - az.y * zc, -ay.z * yc);
     }
-    this.setVisible(true);
-    if (had) rig.glideWeapon(n, glideM);
   }
 
   /** Left-hip sling: muzzle down, top forward, thin side to the hip, splayed out by `splay` (rad). */
@@ -324,6 +439,7 @@ export class WeaponModel {
     this.syncThigh();
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
+    this.ghost.dispose();
     this.node.dispose();
   }
 }

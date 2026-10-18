@@ -66,7 +66,11 @@ describe('clips', () => {
       expect(sample(c, 'offMag', c.events.magIn!)).toBeGreaterThan(0.5);
     }
     expect(RELOAD_EMPTY.events.charge).toBeGreaterThan(RELOAD_EMPTY.events.magIn!);
-    expect(sample(SWAP, 'grip', SWAP.events.holstered!)).toBeCloseTo(0);
+    // (anim-cleanup) the trigger hand carries the gun into its slot (holding at the holster beat), lets go between the
+    // slots, and holds the next one from the draw beat on (WeaponModel travel)
+    expect(sample(SWAP, 'grip', SWAP.events.holstered!)).toBeCloseTo(1);
+    expect(sample(SWAP, 'grip', 0.44)).toBeCloseTo(0);
+    expect(sample(SWAP, 'grip', SWAP.events.drawn!)).toBeCloseTo(1);
     expect(GRENADE.events.release).toBeGreaterThan(GRENADE.events.pin!);
   });
 });
