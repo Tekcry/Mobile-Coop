@@ -165,3 +165,16 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   hips; the rig's arms do not reach mid-thigh). Stills in `shots/p1b/`. Report `P1B-POSTURE.md`.
 - Checks: `npm run check` passes (1648 tests, 9 new posture tests); e2e smoke and wall pass; e2e-anim's aim framing
   assertion (~0.6 s) was stale after F1a halved the draw: updated to 0.2-0.5 s.
+
+## 2026-10-19 - B3 held jammer, camera, laser
+- Built (Sonnet): held pistol jammer (drawn pistol, hold LT / Z on a camera or laser, stand still; charge 20 s, drains
+  1/s, refills 1.5/s; gun light red idle, green aimed, bright green jamming; LT drawn no longer fires); EMP removed from
+  kit and wheel (code kept, unbound). Station 3: existing sweeping camera over the door, raises the alarm stage 1-3
+  (never ends the run); the door opens when both stand in its blind spot, so one jams while the other crosses, then
+  swap. Station 4: laser beams, a touch costs 15 HP (never below 1) plus a radio line; the jammer switches it off; the
+  pair plates stay as the way past until B4. Host-authoritative; the client mirrors camera and beams.
+- Protocol 16 -> 17 (client `jam` message, optional `sec` on `course`). feature/weapons also bumps to 17 (ground sub
+  bit 128): the second merge takes 18.
+- Stubs: light jamming; the partner's gun shows no jam light; no guard-luring noise.
+- Checks: `npm run check` passes (1665 tests); e2e smoke, ctcourse (489 s, now covering stations 3 and 4), gadgets,
+  darkness, pad pass. Report `B3-JAMMER.md`.

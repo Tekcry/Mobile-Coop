@@ -11,8 +11,9 @@ import { packMoveState, sanitizeMoveState, type MoveState } from '../player/move
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
+import type { SecWire } from '../game/ctDevices';
 
-export const PROTOCOL_VERSION = 16;
+export const PROTOCOL_VERSION = 17;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -172,6 +173,8 @@ export type Msg =
   | ({ t: 'course' } & CourseWire)
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
+  /** (CT prototype B3) A client's held pistol jammer: the device it aims at ('' = released); sent on change and every 0.25 s while held. */
+  | { t: 'jam'; tgt: string }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -384,6 +387,21 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
+/** (CT prototype B3) The `sec` field of a course message: the jam list and charges, clamped. */
+function secWire(v: unknown): { sec?: SecWire } {
+  if (!isObj(v)) return {};
+  const j = Array.isArray(v.j) ? v.j : [];
+  const ch = Array.isArray(v.ch) ? v.ch : [];
+  return {
+    sec: {
+      ck: num(v.ck, 0, 1e6) ?? 0,
+      j: [id(j[0]) ?? '', id(j[1]) ?? ''],
+      ch: [num(ch[0], 0, 120) ?? 0, num(ch[1], 0, 120) ?? 0],
+      al: Math.round(num(v.al, 0, 9) ?? 0),
+    },
+  };
+}
+
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
@@ -449,7 +467,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */
@@ -494,6 +512,11 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'ctick': {
       const verb = oneOf(raw.verb, CLIENT_VERBS);
       return verb ? { t: 'ctick', verb } : null;
+    }
+    case 'jam': {
+      if (raw.tgt === '') return { t: 'jam', tgt: '' };
+      const tgt = id(raw.tgt);
+      return tgt ? { t: 'jam', tgt } : null;
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);

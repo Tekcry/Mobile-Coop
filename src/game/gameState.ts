@@ -82,6 +82,7 @@ import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
+import type { CtDevices } from './ctDevices';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
@@ -174,6 +175,8 @@ export interface NetAttachment {
   shadows?(b: BlobShadows): void;
   /** Host, course mode: send the `course` message to every client. */
   course?(w: CourseWire): void;
+  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
+  sendJam?(tgt: string): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -286,6 +289,8 @@ export class GameState implements AppState {
   readonly stealth: StealthSystems | null = null;
   /** Cameras (and later the other security devices) of a map that has `layout.security`; host side, never on a co-op client. */
   readonly security: SecuritySystem | null = null;
+  /** (CT prototype B3) The course's held jammer, cameras' jam state and lasers (set by the course mode / client mirror). */
+  ctDev: CtDevices | null = null;
   readonly stats: SessionStats;
   private ended = false;
   private respawnAt: Vector3 | null = null;
@@ -1450,6 +1455,8 @@ export class GameState implements AppState {
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate();
     this.security?.fixedUpdate(dt);
+    // (CT prototype B3) the held pistol jammer: LT / Z on a drawn pistol
+    this.ctDev?.localStep(dt, inp.down('altFire'));
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
     {

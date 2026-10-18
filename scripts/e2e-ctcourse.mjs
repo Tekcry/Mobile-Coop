@@ -3,7 +3,7 @@
 // order: station 1 read the three panels, then each station's gate opens and both pages see its door unlock (station 2:
 // the real leg-up, station 5: leg-up + ledge relay onto the roof, then the roof plates; the others are still placeholder
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
-// next bay. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
+// next bay. (B3) station 3 is the real camera (held jammer, jam and pass), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -119,6 +119,107 @@ async function pullUp(P, what) {
   await until(P, () => window.__app.current.player.controller.grounded, null, 30000, `${what}: stands on top`);
 }
 
+// (B3) the held pistol jammer: draw the pistol (switch to it, then X), aim the camera at a device, hold LT (pad 6)
+const dev = (P) => P.evaluate(() => window.__ctdev?.debug());
+async function drawPistol(P) {
+  await padReady(P);
+  await P.evaluate(() => { const g = window.__app.current; g.weapons.switchTo(g.weapons.sidearmIndex); });
+  await until(P, () => window.__app.current.weapons.current.def.class === 'pistol', null, 20000, 'the pistol is the current gun');
+  await P.evaluate(() => window.__pad.set(2, 1));
+  await new Promise((r) => setTimeout(r, 250));
+  await P.evaluate(() => window.__pad.set(2, 0));
+  await until(P, () => { const w = window.__app.current.weapons; return w.drawPhase === 2; }, null, 20000, 'the pistol is drawn');
+}
+async function holster(P) {
+  await P.evaluate(() => window.__pad.set(2, 1));
+  await new Promise((r) => setTimeout(r, 250));
+  await P.evaluate(() => window.__pad.set(2, 0));
+  await until(P, () => window.__app.current.weapons.drawPhase === 0, null, 20000, 'the pistol is holstered');
+}
+/** Point the player's camera at a world point (the third-person camera sits off the eye: iterate). */
+async function aimAt(P, x, y, z) {
+  for (let k = 0; k < 4; k++) {
+    await P.evaluate(([x, y, z]) => {
+      const g = window.__app.current;
+      const c = g.player.cam;
+      const p = c.camera.position;
+      const dx = x - p.x, dy = y - p.y, dz = z - p.z;
+      c.yaw = Math.atan2(dx, dz);
+      c.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    }, [x, y, z]);
+    await new Promise((r) => setTimeout(r, 120));
+  }
+}
+const lt = (P, on) => P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Station 3: the camera. Seen it raises the alarm stage; the held jammer blinds it on both pages; jam and pass, then swap. */
+async function station3(x0) {
+  const CAM = [x0 + 8.6, 2.4, 7];
+  await moveHost(x0 + 3, 5.5);
+  await moveClient(x0 + 3, 8.5);
+  await until(A, () => window.__ctdev?.alarm >= 1, null, 90000, 'station 3: the camera sees the pair and raises the alarm stage');
+  const d0 = await dev(A);
+  assert(d0.alarm >= 1 && d0.cams[0].mode === 'online', `station 3: the camera raised the alarm stage to ${d0.alarm} and the run goes on`);
+  await until(B, () => window.__ctdev?.alarm >= 1, null, 8000, 'station 3: the client page knows the alarm stage');
+  await drawPistol(A);
+  await drawPistol(B);
+  // the host jams from where it stands (still), aiming at the camera
+  await aimAt(A, ...CAM);
+  await lt(A, true);
+  await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera');
+  await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind');
+  const dj = await dev(A);
+  assert(dj.cams[0].mode === 'off' && dj.charge[0] < 20, `station 3: the jam blinds the camera and drains the charge (${dj.charge[0]})`);
+  // the client crosses to the blind spot under it while it is blind
+  const al = dj.alarm;
+  await moveClient(x0 + 8.0, 7);
+  await sleep(2500);
+  const dc = await dev(A);
+  assert(dc.alarm === al && dc.cams[0].mode === 'off', 'station 3: the client crosses to the blind spot without the camera reacting');
+  // swap: the client jams from the pocket, the host lets go and walks over
+  await aimAt(B, ...CAM);
+  await lt(B, true);
+  await until(A, () => window.__ctdev.debug().jam[1] === 'cam-s3', null, 20000, 'station 3: the client jams the camera (the host sees it)');
+  await lt(A, false);
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go');
+  assert((await dev(A)).cams[0].mode === 'off', 'station 3: the camera stays blind while the partner jams');
+  await moveHost(x0 + 7.9, 6.2);
+  await until(A, () => window.__course.debug().gates['g-s3'], null, 15000, 'station 3: both in the blind spot opens the gate');
+  await lt(B, false);
+  await until(A, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: released, the camera sees again');
+  await until(B, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: the client page sees it online again');
+  await holster(A);
+  await holster(B);
+}
+
+/** Station 4: a laser touch costs health and never ends the run; the held jammer switches the laser off. */
+async function laserTest(x0) {
+  const hp = () => GB(() => window.__app.current.target.health.hp);
+  const hp0 = await hp();
+  await moveClient(x0 + 9 - 0.45, 7);
+  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 4: touching the laser costs the client health');
+  const hp1 = await hp();
+  assert(hp1 > 0 && hp0 - hp1 >= 10, `station 4: the touch cost health (${hp0} -> ${hp1}) and the run goes on`);
+  assert((await dev(A)).hits >= 1, 'station 4: the host counted the touch');
+  // the host jams the laser from a few metres back
+  await moveClient(x0 + 5, 12.4);
+  await moveHost(x0 + 4, 7);
+  await drawPistol(A);
+  await aimAt(A, x0 + 9 - 0.25, 0.9, 7);
+  await lt(A, true);
+  await until(A, () => window.__ctdev.debug().jam[0] === 'laser-s4', null, 20000, 'station 4: the host jams the laser');
+  await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
+  const hp2 = await hp();
+  await moveClient(x0 + 9 - 0.45, 7);
+  await sleep(3000);
+  assert((await hp()) === hp2, 'station 4: no cost while the laser is jammed');
+  await lt(A, false);
+  await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');
+  await until(B, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: the client page sees it on again');
+  await holster(A);
+}
+
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
 async function openGate(n, i) {
   const x0 = PITCH * i;
@@ -158,7 +259,10 @@ async function openGate(n, i) {
     const [ra, rb] = await Promise.all([use(A, 'c-sw-s5-a'), use(B, 'c-sw-s5-b')]);
     assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
+  } else if (n === 3) {
+    await station3(x0);
   } else if (n === 4 || n === 6) {
+    if (n === 4) await laserTest(x0);
     await moveHost(x0 + 5, 1.6);
     await moveClient(x0 + 5, 12.4);
     // pressed together inside the 1 s pair window
@@ -209,7 +313,7 @@ try {
 
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
-    console.log(`station ${n}: ${n === 2 || n === 5 ? 'real moves' : 'placeholder gate'}`);
+    console.log(`station ${n}: ${[2, 3, 4, 5].includes(n) ? 'real moves' : 'placeholder gate'}`);
     await openGate(n, i);
     if (n < 8) await throughAirlock(i);
   }

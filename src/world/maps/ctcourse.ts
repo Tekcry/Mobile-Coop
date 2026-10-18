@@ -1,5 +1,8 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
+import type { LaserDef } from '../../game/jammer';
+import type { PassZone } from '../../game/ctDevices';
+import type { SecurityData } from '../../security/data';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
 
@@ -25,7 +28,6 @@ const WALL = '#6a6f74';
 const DARK = '#3f4348';
 const CONC = '#52575c';
 const WARN = '#c9a227';
-const RED = '#a8262b';
 const DOOR_Z0 = 6.4;
 const DOOR_W = 1.2;
 const MID = CT_W / 2;
@@ -37,6 +39,22 @@ const OBST_H: Record<number, number> = { 2: LEDGE, 3: 3.2, 4: 3.5, 5: 4.0, 6: 3.
 
 /** The map's footprint. */
 export const CT_BOUNDS = { minX: -1, maxX: bayX(7) + CT_BAY + 1, minZ: -1, maxZ: CT_W + 1 } as const;
+
+/** Station 3: the course flag the camera pocket sets (both players in the blind spot under the camera). */
+export const S3_FLAG = 's3-clear';
+
+/**
+ * Station 3 camera (B3): over the door, 2.4 m up, sweeping +-30 deg across the approach. Its 45 deg vertical field leaves a
+ * blind spot under it (SN04): the pocket in front of the door. Both players must stand in the pocket; the camera sees the
+ * walk to it unless the partner's held jammer blinds it.
+ */
+export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
+export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
+/** Station 4 laser: three beams across the doorway (B4's partner throw replaces the placeholder plates). */
+export const S4_LASER: LaserDef = { id: 'laser-s4', x1: bayX(3) + CT_OBST - 0.25, z1: DOOR_Z0 - 0.1, x2: bayX(3) + CT_OBST - 0.25, z2: DOOR_Z0 + DOOR_W + 0.1, ys: [0.35, 0.9, 1.45], label: 'Laser' };
+const SECURITY: SecurityData = {
+  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
+};
 
 /** The exit zone (G138, last bay): both players inside ends the course. */
 export const CT_EXIT_ZONE = { box: [bayX(7) + 11.5, 3, bayX(7) + 15.5, 11] as [number, number, number, number], floorY: 0 };
@@ -61,8 +79,8 @@ function mark(b: LevelBuilder, x: number, z: number, w = 1.6, d = 1.6, color = W
 export const PANEL_TEXT: readonly string[] = [
   'Step onto the green pad at the end with your partner to go on',
   'Wall: crouch + Co-op Action boosts your partner up; they open the far door',
-  'Camera: one holds the console while the other walks through',
-  'Laser: stand on a plate each, together, to open the door',
+  'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
+  'Laser: touching a beam costs health. Jam it (pistol, hold LT) or stand on a plate each to open the door',
   'Annex: boost up, relay your partner, press both roof plates, then hack',
   'Scanners: press both within a second of each other',
   'Wire wall: one holds the rope post while the other crosses',
@@ -77,6 +95,9 @@ function courseDef(): CourseDef {
       case 2:
         // B2: the door is bolted from the far side; the boosted player opens it for the partner (CT's first wall)
         return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST + 0.9, DOOR_Z0 + DOOR_W / 2] }];
+      case 3:
+        // B3: the door opens once BOTH stand in the camera's blind spot (the pass zone): one has to jam it for the other
+        return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'S3-door' }];
       case 4:
       case 6:
         return [{ kind: 'pair', id: `g-s${n}`, a: `sw-s${n}-a`, b: `sw-s${n}-b`, doorId: `S${n}-door` }];
@@ -92,8 +113,8 @@ function courseDef(): CourseDef {
   const radio: Record<number, string> = {
     1: 'Marlow Yard. Both of you on the green pad at the end, then through the airlock.',
     2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
-    3: 'Camera corridor. Placeholder: one holds the console, the other walks through.',
-    4: 'Laser line. Placeholder plates. The partner throw replaces them.',
+    3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
+    4: 'Laser line. A touch costs health: jam it (pistol, hold LT). Plates open the door for now.',
     5: 'Annex roof: leg-up, then relay the other up. Both plates, then hack.',
     6: 'Two scanners, ten metres apart. Press both within a second.',
     7: 'Wire wall and rope. Placeholder: one holds, the other crosses.',
@@ -121,6 +142,7 @@ function courseDef(): CourseDef {
     }),
     bays,
     exitZone: CT_EXIT_ZONE,
+    externalFlags: [S3_FLAG],
   };
 }
 
@@ -192,14 +214,13 @@ export const ctcourse: MapDef = {
 
     // 2 Leg-up wall (4.4 ledge band, 1 m thick): a bolt on the far side of the door (B2)
 
-    // 3 Camera corridor: a camera body on the wall, a jammer console (hold) placeholder
+    // 3 Camera: the real camera device (layout.security) sits over the door; the blind spot under it is marked
     let x0 = bayX(2);
-    b.box(x0 + CT_OBST - 0.4, 2.9, MID - 3, 0.4, 0.3, 0.6, '#222', 0, 0, false);
-    devices['h-s3'] = dev(x0 + 5, 0.4, SOUTH, 'Hold jammer (placeholder: B3)');
+    mark(b, (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2, MID, S3_POCKET.box[2] - S3_POCKET.box[0], S3_POCKET.box[3] - S3_POCKET.box[1], '#2f6b4a');
+    b.light({ x: x0 + 6, y: 3.0, z: MID, radius: 7, intensity: 0.9 });
 
-    // 4 Laser line: red beams across the doorway (visual only)
+    // 4 Laser line: the real laser device (layout.lasers) across the doorway; the plates below are the placeholder way past
     x0 = bayX(3);
-    for (const y of [0.4, 1.0, 1.6]) b.box(x0 + CT_OBST, y, MID, 0.04, 0.04, 6, RED, 0, 0, false);
     devices['sw-s4-a'] = dev(x0 + 5, 0.4, SOUTH, 'Plate A (placeholder: partner throw, B4)');
     devices['sw-s4-b'] = dev(x0 + 5, CT_W - 0.4, NORTH, 'Plate B (placeholder: partner throw, B4)');
 
@@ -251,6 +272,9 @@ export const ctcourse: MapDef = {
         { pos: new Vector3(bayX(7) + 2, 0, CT_W - 0.4), yaw: NORTH },
       ],
       navSeeds,
+      security: SECURITY,
+      lasers: [S4_LASER],
+      passZones: [S3_POCKET],
       course: { def: courseDef(), doors, devices, squads: {} },
     };
   },

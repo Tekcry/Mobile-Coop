@@ -18,10 +18,11 @@ describe('gadget inventory', () => {
   });
   it('restock tops up to the starting carry', () => {
     const inv = new GadgetInventory();
-    inv.select('emp');
+    inv.select('mine');
     inv.take();
     inv.restock();
-    expect(inv.counts.emp).toBe(GADGETS.emp.carry);
+    expect(inv.counts.mine).toBe(GADGETS.mine.carry);
+    expect(inv.counts.emp).toBe(0);
   });
 });
 
@@ -29,10 +30,11 @@ describe('wheel', () => {
   it('maps a direction to a slot clockwise from the top; dead zone in the middle', () => {
     expect(wheelSlot(0, 1)).toBe(0);
     expect(wheelSlot(1, 0)).toBe(2);
-    expect(wheelSlot(0, -1)).toBe(4);
+    expect(wheelSlot(0, -1)).toBe(3);
     expect(wheelSlot(-1, 0)).toBe(5);
     expect(wheelSlot(0.1, 0.1)).toBe(-1);
-    expect(GADGET_IDS.length).toBe(7);
+    expect(GADGET_IDS.length).toBe(6);
+    expect(GADGET_IDS).not.toContain('emp');
   });
 });
 

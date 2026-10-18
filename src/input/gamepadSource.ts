@@ -133,7 +133,7 @@ export class GamepadSource {
     if (frame.active) this.events.onActive();
 
     // (F1a, CT) the weapon drawn (the aiming mode): A reloads instead of interacting, LT is the secondary fire (a stub:
-    // it fires like RT); holstered, LT is the knockout (`altFire` read by the strike)
+    // it is the held pistol jammer, `altFire` read by `CtDevices`, B3); holstered, LT is the knockout (read by the strike)
     const drawn = this.adsActive;
     const aNow = frame.buttons.interact === true;
     if (drawn && aNow && !this.aWas) this.state.tap('reload');
@@ -143,8 +143,7 @@ export class GamepadSource {
       'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown', 'altFire',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
-      let on = frame.buttons[a] === true;
-      if (a === 'fire' && drawn && frame.buttons.altFire === true) on = true;
+      const on = frame.buttons[a] === true;
       this.state.set(SRC, a, on);
     }
     this.state.set(SRC, 'interact', aNow && !drawn);

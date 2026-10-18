@@ -538,7 +538,7 @@ export class CoopClient implements NetAttachment {
   private mvSent = emptyMoveState();
 
   frameUpdate(dt: number): void {
-    if (this.inCourse) clientCourseFrame(this.g);
+    if (this.inCourse) clientCourseFrame(this.g, dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
@@ -569,6 +569,10 @@ export class CoopClient implements NetAttachment {
   /** Course mode: a verb only this client sees (C10); the host rate-limits and ticks it. */
   private ctick(verb: ClientVerb): void {
     if (this.inCourse) this.s.toHost({ t: 'ctick', verb });
+  }
+  /** Course mode (CT prototype B3): the held jammer's target for the host. */
+  sendJam(tgt: string): void {
+    if (this.inCourse) this.s.toHost({ t: 'jam', tgt });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';

@@ -425,7 +425,7 @@ try {
     L.stepHeadless(0.3);
     window.__pad.set(7, 0);
     const s2 = shots();
-    // LT drawn is the secondary fire (a stub: it fires like RT)
+    // LT drawn is the secondary fire: the held jammer (B3), it never fires a round
     L.stepHeadless(0.3);
     const s2b = shots();
     window.__pad.set(6, 1);
@@ -476,7 +476,7 @@ try {
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
   assert(dr.tDraw <= 0.5 && dr.adsAfterDraw, `X draws within 0.5 s and stays drawn with no button held (F1a: 0.3 pistol / 0.4 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
   assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
-  assert(dr.s2c > dr.s2b, `drawn, LT is the secondary fire (a stub: fires too) (${dr.s2b} -> ${dr.s2c})`);
+  assert(dr.s2c === dr.s2b, `drawn, LT is the held jammer and fires no round (${dr.s2b} -> ${dr.s2c})`);
   assert(dr.tHol <= 0.65 && !dr.adsAfterHolster, `X again holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
