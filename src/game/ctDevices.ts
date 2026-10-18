@@ -69,6 +69,8 @@ export interface CtHooks {
   flag?(flag: string): void;
   /** The dev solo flag: one player fills a pass zone. */
   solo?(): boolean;
+  /** (B4) Is a course flag set (a laser's release)? */
+  has?(flag: string): boolean;
 }
 
 /**
@@ -294,7 +296,8 @@ export class CtDevices {
     }
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
-      const on = !this.jammed(l.def.id);
+      const off = l.def.offFlag !== undefined && !!this.hooks.has?.(l.def.offFlag);
+      const on = !off && !this.jammed(l.def.id);
       if (on === l.on) continue;
       l.on = on;
       for (let k = 0; k < l.meshes.length; k++) l.meshes[k]!.setEnabled(on);

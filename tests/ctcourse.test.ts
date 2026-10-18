@@ -109,7 +109,7 @@ describe('ctcourse panels (F1b: one optional panel per station)', () => {
     for (let n = 1; n <= 8; n++) {
       expect(c.devices[`sw-p${n}`]?.label?.length ?? 0).toBeGreaterThan(10);
       const bay = c.def.bays[n - 1]!;
-      expect(bay.gates.filter((g) => g.kind === 'pickup')).toHaveLength(1);
+      expect(bay.gates.filter((g) => g.kind === 'pickup' && g.switchId === `sw-p${n}`)).toHaveLength(1);
       expect(bay.drills.some((d) => d.verb === 'switch')).toBe(false);
       for (const g of c.def.bays.flatMap((b) => b.gates)) if (g.kind === 'flag' || g.kind === 'anchorLock') expect(g.flag.startsWith('panel-')).toBe(false);
     }

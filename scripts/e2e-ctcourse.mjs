@@ -197,7 +197,7 @@ async function station3(x0) {
 async function laserTest(x0) {
   const hp = () => GB(() => window.__app.current.target.health.hp);
   const hp0 = await hp();
-  await moveClient(x0 + 9 - 0.45, 7);
+  await moveClient(x0 + 9 - 0.2, 7);
   await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 4: touching the laser costs the client health');
   const hp1 = await hp();
   assert(hp1 > 0 && hp0 - hp1 >= 10, `station 4: the touch cost health (${hp0} -> ${hp1}) and the run goes on`);
@@ -206,18 +206,75 @@ async function laserTest(x0) {
   await moveClient(x0 + 5, 12.4);
   await moveHost(x0 + 4, 7);
   await drawPistol(A);
-  await aimAt(A, x0 + 9 - 0.25, 0.9, 7);
+  await aimAt(A, x0 + 9, 0.9, 7);
   await lt(A, true);
   await until(A, () => window.__ctdev.debug().jam[0] === 'laser-s4', null, 20000, 'station 4: the host jams the laser');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   const hp2 = await hp();
-  await moveClient(x0 + 9 - 0.45, 7);
+  await moveClient(x0 + 9 - 0.2, 7);
   await sleep(3000);
   assert((await hp()) === hp2, 'station 4: no cost while the laser is jammed');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');
   await until(B, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: the client page sees it on again');
   await holster(A);
+}
+
+/**
+ * Station 4 (B4): the partner throw. The host stands 1 m before the laser band and offers the throw (RB standing); the
+ * client runs in and presses RB: it flies over the beams (no touch), lands crouched on the far side, presses the release
+ * there; the band goes off on both pages and the host walks through the beam line without a touch.
+ */
+async function throwOver(x0) {
+  const hp = () => GB(() => window.__app.current.target.health.hp);
+  await moveClient(x0 + 6.8, 7);
+  await moveHost(x0 + 8, 7);
+  await sleep(500);
+  await padReady(A);
+  await padReady(B);
+  const hp0 = await hp();
+  const hits0 = (await dev(A)).hits;
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'throwOffer', 'station 4: the standing host offers the throw');
+  await until(B, () => !!window.__app.current.team.offer?.toss, null, 8000, 'station 4: the client is offered the throw');
+  const prompt = await GB(() => window.__app.current.team.prompt);
+  assert(/throw/i.test(prompt ?? ''), `station 4: the prompt names the move (${prompt})`);
+  await holdUntil(B, RB, () => window.__app.current.team.count.throws >= 1, 'station 4: the client is thrown').catch(async (e) => {
+    console.error(await GB(() => { const g = window.__app.current; return JSON.stringify({ st: g.team.state, room: g.team.lastThrowRoom, denied: g.team.lastDenied, prompt: g.team.prompt }); }));
+    throw e;
+  });
+  // both views: the client's own arc and the host's view of it go over the beams (feet above the top beam at the line)
+  let ownMax = 0;
+  let hostMax = 0;
+  const t0 = Date.now();
+  for (;;) {
+    const [own, st] = await GB(() => { const g = window.__app.current; const c = g.player.controller; return [[c.pos.x, c.pos.y], g.team.state]; });
+    const seen = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return [r.feet.x, r.feet.y]; });
+    if (Math.abs(own[0] - (x0 + 9)) < 0.5) ownMax = Math.max(ownMax, own[1]);
+    if (Math.abs(seen[0] - (x0 + 9)) < 0.6) hostMax = Math.max(hostMax, seen[1]);
+    if (st === 'none' && own[0] > x0 + 10) break;
+    if (Date.now() - t0 > 20000) throw new Error(`station 4: the throw did not land (${st}, ${own})`);
+    await sleep(30);
+  }
+  await until(B, () => window.__app.current.player.controller.grounded, null, 8000, 'station 4: the client lands on its feet');
+  const land = await GB(() => { const g = window.__app.current; const c = g.player.controller; return { x: c.pos.x, y: c.pos.y, crouched: c.crouched, room: g.team.lastThrowRoom }; });
+  assert(land.x > x0 + 10 && land.x < x0 + 12.5 && Math.abs(land.y) < 0.3 && land.crouched, `station 4: the client lands crouched past the beams (${JSON.stringify(land)})`);
+  assert(ownMax > 1.45 || ownMax === 0, `station 4: the client's own arc clears the top beam at the line (${ownMax.toFixed(2)})`);
+  console.log(`  arc at the beam line: client ${ownMax.toFixed(2)} m, host view ${hostMax.toFixed(2)} m`);
+  await sleep(600);
+  assert((await hp()) === hp0 && (await dev(A)).hits === hits0, 'station 4: the thrown client touched no beam');
+  await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 4: the thrower is free again');
+  // the far-side release
+  assert((await dev(A)).lasers[0].on === true, 'station 4: the band is still on before the release');
+  await moveClient(x0 + 12, 12.8);
+  assert((await use(B, 'c-sw-s4-release')) === 'ok', 'station 4: the client presses the far-side release');
+  await until(A, () => window.__course.debug().gates['g-s4'], null, 8000, 'station 4: the release gate is done');
+  await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the host sees the band off');
+  await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the band off');
+  // the host walks through the beam line: no touch
+  await moveHost(x0 + 9, 7);
+  await sleep(2500);
+  assert((await dev(A)).hits === hits0, 'station 4: the host walks through the released band without a touch');
+  await moveHost(x0 + 11, 7);
 }
 
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
@@ -261,8 +318,11 @@ async function openGate(n, i) {
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
   } else if (n === 3) {
     await station3(x0);
-  } else if (n === 4 || n === 6) {
-    if (n === 4) await laserTest(x0);
+  } else if (n === 4) {
+    await laserTest(x0);
+    await throwOver(x0);
+    return;
+  } else if (n === 6) {
     await moveHost(x0 + 5, 1.6);
     await moveClient(x0 + 5, 12.4);
     // pressed together inside the 1 s pair window
@@ -314,6 +374,7 @@ try {
   for (let n = 2; n <= 8; n++) {
     const i = n - 1;
     console.log(`station ${n}: ${[2, 3, 4, 5].includes(n) ? 'real moves' : 'placeholder gate'}`);
+    if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
     await openGate(n, i);
     if (n < 8) await throughAirlock(i);
   }

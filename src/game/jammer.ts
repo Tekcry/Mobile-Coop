@@ -110,6 +110,8 @@ export interface LaserDef {
   floorY?: number;
   /** Label for the radio line when it is touched. */
   label?: string;
+  /** (CT prototype B4) A course flag that switches the laser off for good (a far-side release switch). */
+  offFlag?: string;
 }
 
 export const LASER = {

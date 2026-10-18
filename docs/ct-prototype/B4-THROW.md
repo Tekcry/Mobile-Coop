@@ -1,0 +1,34 @@
+# B4 - partner throw (2026-10-19)
+
+## Built
+- **Partner throw (CT 1.3, G130 / G151 / G178).** Standing + Co-op action (RB / F) = offer the throw (`throwOffer`: stands still, wire mode `brace` with sub bit 1, no cupped-hands pose). Crouched stays the leg-up. With the partner within 4 m the standing player sees "Co-op: offer a partner throw (crouch for a leg-up)"; the partner within 1.6 m sees "Co-op: get thrown over (partner throw)", presses Co-op and flies in an arc over the thrower, landing 3.2 m past them on their feet, crouched (crouch toggle set). Direction = runner -> thrower (the runner runs in and goes on over; CT's thrower faced away from the landing, which is the same line). Offers time out after 20 s; B or Co-op cancels.
+- **Room (G151, polite refusals, no penalty).** Thrower: 2.2 m free air overhead, else "No room for a throw here". Runner (who knows the line): landing floor found within 1 m of the thrower's floor, 1.2 m head room over it, nothing static along the arc (8 legs, sampled at feet +0.3 and +1.6), else "No floor to land on there" / "No room for the throw there".
+- **Host-authoritative on the team-move rail.** The runner sends `tmove` kind `throw` with its landing (`lx`, `gy`, `lz`); the host checks both MoveStates (`checkTeamRequest`: thrower offering the throw, runner in reach, landing 2.2-4.2 m from the thrower and within 1 m of their floor) and sends `tstart` kind `throw` with the landing `l`. Both play from it: the runner flies kinematically (no correction, so no rubber-banding), wire mode `boost` sub 1 (remotes pose the vault clip along the arc, the partner blocker parks as for the boost); the thrower holds still for the flight (`throwAssist`).
+- **Station 4 rebuilt.** The 3.5 m wall has a 6 m gap (z 4-10) closed only by the B3 laser band (3 beams 0.35 / 0.9 / 1.45 m, now across the whole gap). One stands about 1 m before the band, the other runs in and is thrown over; the thrown player presses the **Laser release** on the far side (north fence, bay +12): course flag `s4-release` switches the band off for good (`LaserDef.offFlag`; host and client both read the flag, so both pages show it off). The thrower walks through. The placeholder pair plates and the door are gone; the jammer route stays (jam the band while the partner walks through, they press the release).
+- **Never stranded.** Landing in or walking through the beams costs 15 HP only (B3, floor 1 HP); the release can also be reached by taking one touch; the bay restart (both down, G80) clears the flag and re-arms the band.
+
+## Numbers (G10 starting values, `TEAM` in `src/config/movement.ts`)
+throwReach 1.6, throwDist 3.2 (past the thrower), throwApex 1.7 (over the straight line, half way), throwTime 1.0 s, throwDrop 1.0 (landing height band), throwUp 2.2 (air over the thrower). Runner 1.2 m back and the band 1 m past the thrower: the feet are about 1.67 m up at the beam line (top beam 1.45).
+
+## Wire change (protocol 17 -> 19)
+`tmove` kind `throw` with `lx` / `lz` (`gy` = landing y), `tstart` kind `throw` with `l: [x, y, z]`; `brace` / `boost` MoveState sub bit 1 = the throw. `PROTOCOL_VERSION` 19 (18 is feature/anim-cleanup's); the five version assertions in `tests/net.test.ts` / `tests/moveState.test.ts` say 19.
+
+## Files
+Logic: `src/game/teamMoves.ts` (`THROW_SUB`, `throwLanding`, `throwLandingOk`, `throwArc`, `throwRoom`, the `throw` check), `src/game/teamController.ts` (throw offer / assist / flight, room check; `standingHook` removed), `src/config/movement.ts`. Wire: `src/net/{protocol,coopHost,coopClient}.ts`, `src/game/{gameState,localMoveState}.ts`, `src/player/moveState.ts` (remote pose). Station 4: `src/world/maps/ctcourse.ts` (`S4_GAP`, `S4_FLAG`, release switch, panel and radio text), `src/game/jammer.ts` (`LaserDef.offFlag`), `src/game/ctDevices.ts` (`CtHooks.has`), `src/game/modes/courseMode.ts` (flag hook on host and client mirror). Docs: `docs/ct-prototype/CTCOURSE-SPEC.md` row 4.
+Not touched: `solveArm`, wrists, grips, `AIM_POCKET`, `weaponPivot`, `src/security/**`, `src/ui/screens/**`, `src/operators/**`.
+
+## Stubs / not done
+- No throw animation (CT's backward roll and feet launch): the thrower just stands; the runner uses the vault pose along the arc. No landing reticule (CT's red / green): the landing is fixed by the run-in line.
+- No knock-out of a guard at the landing (CT's attack use).
+- The runner claims the landing after its own room check; the host only bounds it (distance band, height band), it does not re-raycast.
+- Stations 7 and 8 (throw over wire, final throw) keep their placeholder hold consoles; their walls (4.4 / 3.5 m) are too high for this arc and need a B7 / B8 layout.
+- The standing refusal / no-room refusals are unit-tested, not e2e-checked.
+
+## Tests
+Unit: `tests/teamMoves.test.ts` (throw allowed; denials: leg-up vs throw offer both ways, far, no / far-off / too-high landing, rate; landing direction and fallback; arc start / apex 1.5-2 m / clears a 1.45 m beam at the line / lands on the feet; room refusals), `tests/jammer.test.ts` (station 4: band covers the gap, release on the far side sets `offFlag`, no plates, no door), `tests/net.test.ts` (throw `tmove` / `tstart` parse, protocol 19), `tests/ctcourse.test.ts` (panel rule counts the panel pickups only). E2E `scripts/e2e-ctcourse.mjs` station 4: laser touch and jammer as B3, then the host offers the throw standing, the client is offered it (prompt names the move), is thrown, lands crouched past the beams with no touch, presses the release; both pages see the band off; the host stands in the beam line with no touch; both go on.
+
+## Results
+`npm run check`: 0 lint errors (41 pre-existing warnings), 150 test files / 1673 tests pass (1 skipped), build ok. E2E on port 4193, one at a time, first runs: e2e-ctcourse ok (505 s; the thrown client's feet at the beam line 1.73 m in its own view and 1.73 m in the host's view, landing x +11.1 crouched, no beam touch, release seen off on both pages, host through with no touch), smoke ok, e2e-netmove ok (163 s).
+
+## Try it
+`https://tekcry.github.io/Mobile-Coop/ct/?net=local&autostart=ctcourse&mode=course` in two tabs (the first hosts). At station 4 one player stands about a metre in front of the red beams and presses RB / F (standing, not crouched); the other walks up from behind them (within about 1.5 m, facing the beams) and presses RB / F: they fly over the thrower and the beams and land crouched. The thrown player walks to the red **Laser release** box on the north fence beyond the wall and presses use; the beams go out on both screens and the thrower walks through. Also try: a throw toward the fence or into the wall (polite refusal), landing in the beams (a 15 HP touch, nothing worse), the jammer route (hold LT on the band while the partner walks through).

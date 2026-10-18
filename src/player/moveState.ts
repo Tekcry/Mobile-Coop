@@ -376,10 +376,12 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       out.drawn = false;
       return out;
     case 'brace':
-      out.traverse = 'brace';
+      // (CT prototype B4) sub bit 1 = the standing partner throw (offer / throwing): no cupped-hands pose
+      if (!(mv.sub & 1)) out.traverse = 'brace';
       return out;
     case 'boost':
-      out.traverse = 'climbUp';
+      // (B4) sub bit 1 = thrown over the partner: the vault pose along the arc
+      out.traverse = mv.sub & 1 ? 'vault' : 'climbUp';
       out.traverseT = mv.ph;
       return out;
     case 'stacked':

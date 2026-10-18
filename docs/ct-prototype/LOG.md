@@ -186,3 +186,19 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   feet planted. Stills `shots/p1c/`. Report `P1C-POSTURE.md`.
 - Still off: in the crouch the hands reach forward toward the ground (hand / wrist orientation is feature/weapons').
 - Checks: `npm run check` passes (1667 tests); e2e smoke, anim, wall pass.
+
+## 2026-10-19 - B4 partner throw (Opus)
+- Built: stand + co-op action offers the throw (crouched stays the leg-up); a partner within 1.6 m presses co-op and
+  flies over the thrower, 3.2 m past, apex 1.7 m, 1.0 s, lands crouched; polite refusal with no room. Team-move rail,
+  host-authoritative. Protocol 17 -> 19 (18 is feature/anim-cleanup's): `tmove` / `tstart` kind `throw` with the
+  landing point. Station 4: a 6 m gap in a 3.5 m wall closed by the laser band; the thrown player presses the far-side
+  "Laser release"; plates and door gone; the jammer route still works; a bay restart re-arms the band.
+- Stubs: no throw animation (vault pose), no landing reticule, no guard knock-out on landing; stations 7 and 8 keep
+  their placeholder consoles. Report `B4-THROW.md`.
+- Checks: `npm run check` passes (1673 tests); e2e ctcourse (thrown feet 1.73 m over the beams in both views), smoke,
+  netmove pass.
+
+## 2026-10-19 - crouched hands from feature/anim-cleanup b46499f (applied by hand)
+- READY_HANDS xCrouch 0, flexCrouch 0.9 (elbow about 52 deg): crouched and holstered, the hands come in by the thighs
+  just above the knees. tests/readyHands.test.ts crouched elbow cap 50 -> 60 deg. Applied by hand (not a merge: the
+  branch also carries unmerged weapons work). `npm run check` passes (1673 tests).

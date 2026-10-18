@@ -55,3 +55,6 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - B3 check polish (B3-CHECK.md, PASS): `zoneSet` in ctDevices.ts is never cleared, so after a bay-3 restart the
   station 3 door may not reopen (latent: needs both players downed; fix with B8 revive / restart); `targets.find`
   closure while the jammer is held (hot path); client-reported speed trusted for the stand-still rule.
+- Crouched hands reach toward the ground ahead of the knees: handed to the Character Build session (feature/anim-cleanup
+  finishing session tunes animGraph xCrouch / zCrouch / flexCrouch for hands on the thighs, plus the wrist). This
+  branch does not touch those three constants.
