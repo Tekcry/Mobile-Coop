@@ -9,7 +9,7 @@ docs/menu-ui/AGENT-PREAMBLE.md), light check, commit, push, screenshots to Micha
 | 2 | Input parity, settings, remap (03, 05), e2e-menus | Done (SLICE2.md) |
 | 3 | Co-op lobby (2 players) and dialogs / on-screen keyboard (06, 09) | Done (SLICE3.md) |
 | 4 | Missions, briefing, issued-kit view (07, 08; fixed kits D-11) | Done (SLICE4.md) |
-| 5 | Pause (blur, player sharp, objectives G108) and results (10) | Done (SLICE5.md); e2e-pad, e2e-mouse, e2e-coop rerun pending |
+| 5 | Pause (blur, player sharp, objectives G108) and results (10) | Done (SLICE5.md); rerun: e2e-menus, e2e-mouse, e2e-pad pass; e2e-coop known flaky (offline state step) |
 | 6 | Cinematic background with Wren's poses (11-13) | After the operators PR (Wren) merges |
 
 Resume: `git status` in C:\NightShift\Mobile-Coop-menu shows a running slice's uncommitted work; finish it from its

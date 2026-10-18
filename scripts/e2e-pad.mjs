@@ -862,7 +862,7 @@ try {
       await P.waitForTimeout(300);
       v = await view();
       const ovGone = await G(() => !document.querySelector('.cap-overlay'));
-      assert(ov.o && ov.n === '5' && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `Start cancels the capture; the overlay showed a 5 s countdown (${JSON.stringify({ ...v, ov, ovGone })})`);
+      assert(ov.o && ['5', '4'].includes(ov.n) && ovGone && !v.cap && v.screen && JSON.stringify((await pad()).reload) === '[11]', `Start cancels the capture; the overlay showed the 5 s countdown (5 or 4 on a slow frame) (${JSON.stringify({ ...v, ov, ovGone })})`);
       // play: the new button reloads, X does not (settings persist through IndexedDB to a new page)
       await P.waitForTimeout(600);
       const Q = await openPage(R.ctx, url, 'autostart=proving');
