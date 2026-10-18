@@ -178,3 +178,11 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Stubs: light jamming; the partner's gun shows no jam light; no guard-luring noise.
 - Checks: `npm run check` passes (1665 tests); e2e smoke, ctcourse (489 s, now covering stations 3 and 4), gadgets,
   darkness, pad pass. Report `B3-JAMMER.md`.
+
+## 2026-10-19 - P1c standing and crouched idle
+- Cause: holstered "ready hands" kept the armed hunch (about 30 deg). Fix (animGraph.ts): `POSTURE.kneel = false` (the
+  idle kneel is not in the footage doc); an eased `hunchS` scales the hunch (0.05 holstered, 0.4 armed); crouch
+  ready-hand constants lowered. Holstered: standing torso 3 deg, wrists 3 cm below the hips, crouch torso 42 deg, both
+  feet planted. Stills `shots/p1c/`. Report `P1C-POSTURE.md`.
+- Still off: in the crouch the hands reach forward toward the ground (hand / wrist orientation is feature/weapons').
+- Checks: `npm run check` passes (1667 tests); e2e smoke, anim, wall pass.
