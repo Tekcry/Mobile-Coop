@@ -80,3 +80,4 @@
 - Merged CT Core's 939fc95 (the F1a binding table): all unit tests pass (1669).
 - Merged CT Core's B3 (48aea54, protocol 17 = the held jammer): this branch's left-shoulder bit is now PROTOCOL_VERSION 18 (tests updated); unit tests 1686 pass.
 - Merged CT Core's P1c (924b804d: no idle kneel, eased carriage hunch, crouch ready hands lowered); unit tests pass; crouch sheets re-shot. The crouched free-hand placement is on POLISH.md (offered to this job by CT Core).
+- Crouched free hands (CT Core handed over READY_HANDS xCrouch / zCrouch / flexCrouch): xCrouch 0, flexCrouch 0.9 (elbow ~52 deg): the hands by the thighs just above the knees, not hanging ahead of them to the ground; the most bend that keeps the forearms clear of the thigh capsules (readyHands test cap 60). e2e-anim, e2e-clip, e2e-weapons-carry pass.

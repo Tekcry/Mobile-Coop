@@ -325,7 +325,8 @@ export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.
  * - `z` (m) the wrist ahead of the shoulder at rest, `zCrouch` more ahead crouched, `zSprint` at the sprint (the
  *   pumping hands carried by the lower chest; A80: 1 cm with a 13 cm pump, at 8 / 16 cm the forward forearm went
  *   level at the chest and read as a reach).
- * - `flex`, `flexCrouch`, `flexSprint` (rad) the elbow bend standing (~18 deg), crouched (~34) and pumping (~80).
+ * - `flex`, `flexCrouch`, `flexSprint` (rad) the elbow bend standing (~18 deg), crouched (~52: anim-cleanup, the hands
+ *   by the thighs just above the knees over the 35-45 deg crouch, forearms clear of the thighs) and pumping (~80).
  * - `swing` (m per m/s) the counter swing fore-aft, capped at `swingMax` (m); crouched `swingCrouch` of it.
  *   `backSwing` of it behind the rest (A81: the forward swing is the bigger one), arcing `xArc` (m per m) out as
  *   the hand goes back past the hip (clear of the forward thigh); not at the sprint.
@@ -340,12 +341,12 @@ export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.
 export const READY_HANDS = {
   x: 0.06,
   xMove: 0.03,
-  xCrouch: 0.03,
+  xCrouch: 0,
   xSprint: 0.03,
   z: 0.05,
   zCrouch: 0,
   flex: 0.31,
-  flexCrouch: 0.45,
+  flexCrouch: 0.9,
   flexSprint: 1.5,
   swing: 0.06,
   swingMax: 0.15,

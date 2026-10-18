@@ -41,9 +41,12 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
       ['stand-walk', 0, 1.2, 0, 8, 30, 0.08],
       ['stand-jog', 0, 3, 0, 8, 30, 0.15],
       ['stand-sprint', 0, 5.5, 1, 55, 95, 0.2],
-      ['crouch', 1, 0, 0, 15, 50, 0],
-      ['crouch-walk', 1, 0.8, 0, 15, 50, 0.03],
-      ['crouch-run', 1, 2.5, 0, 15, 50, 0.08],
+      // (anim-cleanup, CT Core's P1c handover) crouched the hands come in by the thighs just above the knees over the
+      // 35-45 degree crouch: ~52 degrees at the elbow (it was a 15-50 soft bend, the hands then hanging ahead of the
+      // knees towards the ground); still never straight, the forearms still clear of the thighs (below)
+      ['crouch', 1, 0, 0, 15, 60, 0],
+      ['crouch-walk', 1, 0.8, 0, 15, 60, 0.03],
+      ['crouch-run', 1, 2.5, 0, 15, 60, 0.08],
     ];
     const out: Record<string, number[]> = {};
     for (const [name, crouch, speed, dash] of cases) {
