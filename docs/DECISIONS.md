@@ -822,3 +822,35 @@ These come from the research digests. Michael has not decided them; they go to h
 - G11: kept (CT has them): guards relight lamps and investigate dead lights, impromptu paired searches, eavesdropping,
   lock picking with a noise cost, adaptive music. Dropped: the last-known-position marker, the remote digital layer, the
   under-3-second retry target, the after-action route map (kit-design-digest section 5).
+
+### Prototype goal (feature/ct-prototype, 2026-10-18; G numbers confirmed at merge)
+
+**G161. Pure-CT movement prototype, then the co-op training bunker.** The prototype is (1) pure-CT movement built once
+to the footage numbers (M1-M4: body, manual camera, back-to-wall, doors and the CT pad layout, palm strike and grab,
+goggles), then (2) the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish
+by two players, with the co-op moves it needs (leg-up and ledge relay, held jammer on a camera, partner throw over a
+laser with the far-side release, hang-down hack, paired scanners, the two-person rope, revive, both players finishing).
+No fine tuning until that loop plays; Michael's notes are queued. Every slice is pushed to the `/ct/` preview
+(`ct-movement`). Implementers are Sonnet medium, Opus for network-sync-heavy slices and anything stuck twice; the
+orchestrator stays Opus. Overnight unattended runs come later, when Michael says. Pumphouse Nine, other maps and extra
+gadgets wait. Michael: "Prototype movement focus first ct-pure, then full coop loop", "It can run overnight but not
+yet. I'm still awake. Also we should focus on the ct training coop session.", "Yes, push to ct-movement", "Yes, Opus
+for those", "Rebuild Fallow on it" (native multiple choice, core feel session, 2026-10-18); relayed from the main
+session the same day: "we need to get to prototype quicker before fine tuning? ... this needs to be made completely
+playable in coop as a prototype", "Movement is critical to achieve a pure-CT prototype." and "I want pure CT movement
+as a prototype, wren in the game, menu background done, prototype weapons ready, and to focus purely on completing the
+ct coop bunker / coop training level." (Replaces G150's tune-until-sign-off and the core feel job's per-area tuning
+loop; replaces Pumphouse Nine as the prototype level in docs/ct-prototype/PLAN.md; applies G78, G79, G80, G117, G130,
+G151, G152.)
+
+**G162. Pure CT: if CT had it, we use it.** Michael: "Pure ct, if it had it, we will use it." (relayed from the main
+session, 2026-10-18.) It settles the research findings listed above for Michael to confirm:
+- CT's two-person rope (the partner climbs the held rope) is built in the bunker; it replaces G110's "no rope climb" for
+  this move.
+- CT had a co-op tutorial: G78's "although CT has none" is wrong; the bunker follows CT's co-op training drills.
+- Medkits (G119): wall cabinets heal by difficulty (full on Normal, 50% on Hard, less on Expert), single use.
+- Alert tolerance scales with the fixed difficulty levels (G106 with G131).
+- G52's "brace" and the dedicated dual takedown go (CT had neither; its double takedown is two ordinary takedowns timed
+  together); the CT moves stay: leg-up, ledge relay, partner throw, hang-down, rope.
+- G11: the five ideas CT has stay (guards relight lamps and investigate dead lights, paired searches, eavesdropping,
+  lock picking with a noise cost, adaptive music); the four it does not have go.

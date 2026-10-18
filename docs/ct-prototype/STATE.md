@@ -12,7 +12,9 @@ Updated 2026-10-18.
   first, G158 Sonnet medium implementers. The "findings for Michael to confirm" list is not decisions.
 - Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
 - A2.1 (cleanup + camera rewrite) built and committed (`A2-CAMERA.md`). STOPPED for Michael to play the camera.
-- Next: A1.1 turn follow (3 fixes in `A1-TURN-FOOTAGE.md`), then A3, A4, A5 as a prototype pass, one stop per area.
+- Next: A1.1 turn follow (3 fixes in `A1-TURN-FOOTAGE.md`), then A3 wall, doors, pad; A4 strike and grab; A5 goggles;
+  then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G161). One stop per slice while Michael is awake;
+  overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.

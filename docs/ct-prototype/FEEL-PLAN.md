@@ -1,4 +1,8 @@
-# CT core feel job - plan (2026-10-18)
+# CT core feel job - plan (2026-10-18; goal changed by G161)
+
+**Goal now (G161):** phase 1 pure-CT movement (the areas below, built once), then phase 2 the Fallow bunker rebuilt as
+CT's co-op training level, playable start to finish by two players. Pumphouse Nine and C1-C7 in `PLAN.md` are
+replaced by phase 2 below. G162: if CT had it, we use it.
 
 The job plan for the core feel job (G150). `PLAN.md` in this folder is the whole prototype plan from the research
 (movement M1-M4, co-op C1-C7); this file is how the core feel job runs inside it.
@@ -38,3 +42,22 @@ The held pistol jammer (G152) is kit work after core feel, unless it touches the
 ## Dependencies
 - Wren (feature/operators, G123): no PR open yet (2026-10-18). Logic goes first; posture and pose work wait for it.
 - The menu job owns menu screens and the menu scene.
+
+## Phase 2 - the co-op training bunker (G161, G162)
+The Fallow bunker (`src/world/maps/bunker*.ts`, the `course` mode, `docs/training/`) rebuilt as CT's co-op training
+level on the pure-CT moves (G78, G79: every jump and reach re-checked; G80 resets kept; G117 its own map rules; G130
+heightened moves; G151 team moves anywhere with room). CT's drill order (moves-mechanics digest, "Training order (M0)";
+levels digest 2.1): read panels, leg-up over a wall, jam a camera, partner throw over a laser, leg-up plus ledge relay,
+hang-down to hack, paired scanners, the two-person rope. Drills for removed moves (sprint, SWAT, lean-out, quick 180)
+go. Slices, each built once, two-player e2e, pushed to `/ct/`:
+| Slice | Built | Model |
+| --- | --- | --- |
+| B0 Survey | Read-only: what the bunker has today vs CT's drill list, which drills go, which moves exist in code, reach heights | Sonnet |
+| B1 Shell | Two tabs into the bunker, player cap 2, both must reach the exit, per-player goggle lamp colour (G135), CT pad co-op action | Sonnet |
+| B2 Leg-up and ledge relay | Existing boost and human ladder renamed and re-checked on CT moves, anywhere with room, prompt names the move | Sonnet |
+| B3 Held jammer | Pistol jammer held on a camera, charge drains, stand still (G152); the EMP goes | Sonnet |
+| B4 Partner throw | Throw over the laser, far-side release | Opus (sync) |
+| B5 Hang-down hack | Lower the partner head-first, hack while hanging | Opus (sync) |
+| B6 Paired scanners | Two-key sync with a forgiving window | Opus (sync) |
+| B7 Two-person rope | Partner climbs the held rope (G162, replaces G110 for this move) | Sonnet |
+| B8 Revive and finish | 30 s revive, two per mission (G126), both extract (G138), wall medkits by difficulty (G162) | Opus (sync) |

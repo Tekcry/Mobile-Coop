@@ -6,18 +6,22 @@ How this job runs. Brief: `FEEL-BRIEF.md`. Method: `docs/systems/session-method.
 - Folder `C:\NightShift\Mobile-Coop-ct-prototype`, branch `feature/ct-prototype`, upstream `origin/feature/ct-prototype`.
 - Start of every session: `git pull --ff-only`. Before every write:
   `test "$(git rev-parse --abbrev-ref HEAD)" = feature/ct-prototype && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-ct-prototype"`
-- Push only `feature/ct-prototype`. Never merge into master; only Michael merges. Never touch other folders or branches.
+- Push `feature/ct-prototype`, and after every slice also `git push origin feature/ct-prototype:ct-movement` (the `/ct/`
+  preview; Michael, 2026-10-18, "Yes, push to ct-movement", G161). Never merge into master; only Michael merges. Never
+  touch other folders or branches.
 - Off limits (other jobs own them): `src/editor/**`, `src/world/maps/kestrel*`, `src/security/**`, `docs/kestrel/**`,
-  `docs/DECISIONS.md` (until merge), `src/world/menuScene.ts`, menu screens in `src/ui/screens/`.
+  `docs/DECISIONS.md` (orchestrator only: G161 onward), `src/world/menuScene.ts`, menu screens in `src/ui/screens/`.
 
 ## Roles
 - Orchestrator (Opus, medium effort, local): plans, decides, asks Michael, commits and pushes. Reads reports, not source.
 - Reviewer / implementers: Sonnet, medium effort (Michael, 2026-10-18: "I want a quicker prototype so we aren't wasting
-  time"); Opus only when a piece is stuck. Every subagent starts from `AGENT-PREAMBLE.md`.
+  time"); Opus for network-sync-heavy slices (light and door sync, two-key sync, revive) and anything stuck twice
+  (G161). Every subagent starts from `AGENT-PREAMBLE.md`.
 - One code-changing agent at a time. Read-only agents may run in parallel.
-- Prototype pass (Michael, 2026-10-18, "Prototype pass now"): each area is built once; checks per round are lint, unit tests,
-  build, smoke and the area's own e2e suite on port 4193. The full e2e run, the anim audit and the perf trend run once at the
-  end of the pass. GPU checks run on Michael's PC (`E2E_GPU=1`). Fine tuning is a second pass after all five areas.
+- Prototype pass (Michael, 2026-10-18, "Prototype pass now"; G161): each slice is built once; checks per slice are lint, unit tests,
+  build, smoke and the slice's own e2e suite on port 4193, plus one two-player e2e (scripts/e2e-net-lib.mjs) for co-op
+  slices. The full e2e run, the anim audit and the perf trend run once at the
+  end of the pass. GPU checks run on Michael's PC (`E2E_GPU=1`). Fine tuning is a second pass once the co-op bunker plays start to finish.
 
 ## Area loop
 1. Implementer builds the area (or the next tuning round), writes `docs/ct-prototype/<AREA>.md`.
@@ -35,3 +39,9 @@ How this job runs. Brief: `FEEL-BRIEF.md`. Method: `docs/systems/session-method.
 ## Writing
 - No em dashes. No reference-game character, gear or organisation names (G6, G114).
 - Every number is a starting value (G10) until the tuning pass.
+
+## Overnight runs (later, when Michael says; G161)
+Not yet: Michael, 2026-10-18, "It can run overnight but not yet. I'm still awake." When he starts one: unattended, as
+many slices as fit; a piece that fails twice is stubbed so the build stays playable end to end, logged, and the run
+moves on; every slice is checked, committed, pushed and sent to `/ct/`; a morning report gives what is playable, the
+`/ct/` link with URL params, what was stubbed, and at most 4 decisions as native multiple choice.

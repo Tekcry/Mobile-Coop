@@ -22,3 +22,10 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
 - Open: a wall right behind the camera can show through (one-sided faces ignored by camera casts); weapon does not
   cross the chest on a shoulder swap (aim side not on the wire).
 - Status: A2.1 BUILT, awaiting Michael's play.
+
+## 2026-10-18 - goal change (G161, G162)
+- Michael (native multiple choice): "Prototype movement focus first ct-pure, then full coop loop"; overnight "It can run
+  overnight but not yet. I'm still awake. Also we should focus on the ct training coop session."; "Yes, push to
+  ct-movement"; "Yes, Opus for those"; co-op level "Rebuild Fallow on it". Main session relayed his wider direction and
+  "Pure ct, if it had it, we will use it." Recorded as G161, G162 in docs/DECISIONS.md; FEEL-PLAN phase 2 added.
+- Status: A2.1 awaiting Michael's play (now on /ct/).
