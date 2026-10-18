@@ -61,3 +61,6 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - B4 check polish (B4-CHECK.md, PASS): the host checks the throw landing ring (2.2-4.2 m, within 1 m of the floor) but
   not direction or geometry (a cheating client could land through a thin wall); some test titles still say protocol 17
   (asserts say 19); an unanswered throw offer holds the thrower still up to 20 s (B cancels).
+- B5 check polish (B5-CHECK.md, PASS): a NaN floor at a map edge still offers the hang-down; the host does not
+  re-raycast the claimed hang point; stale `teamPairs` entries; the holder can stay frozen after the partner drops on
+  the lost-holder timeout (walkthrough: known issue, B / restart frees); narrow hatch probe.
