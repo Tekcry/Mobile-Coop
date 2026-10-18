@@ -157,3 +157,11 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   a pad; goggle flip only on on / off (0.28 s) plus a faint lens ring; door ghost brighter (GPU check pending); electro
   fuzz; night vision not reviewed. Protocol 16. Report `F1B-FIXES.md`.
 - Checks: `npm run check` passes (1639 tests); e2e smoke, ctcourse, takedown, wall, darkness, pad, netmove pass.
+
+## 2026-10-19 - P1b crouch depth and wall arms
+- Cause: P1's posture lean stacked on the armed carriage hunch (crouch measured 68-70 deg, kneel 63, run 43). Fix: the
+  posture lean replaces the hunch while it applies (crouchLean 0.74, kneelLean 0.1): crouch idle, walk and kneel now
+  35-45 deg, run 18-28. Wall stance: the wall-hand contact is gone, both arms blend to a WALL_ARMS hang (hands at the
+  hips; the rig's arms do not reach mid-thigh). Stills in `shots/p1b/`. Report `P1B-POSTURE.md`.
+- Checks: `npm run check` passes (1648 tests, 9 new posture tests); e2e smoke and wall pass; e2e-anim's aim framing
+  assertion (~0.6 s) was stale after F1a halved the draw: updated to 0.2-0.5 s.

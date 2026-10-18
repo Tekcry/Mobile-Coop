@@ -490,7 +490,8 @@ try {
   assert(cam.lag <= 0.02, `camera follow is rigid: lag ${f2(cam.lag)} s (<= 20 ms; A2.1)`);
   assert(cam.bob <= 0.02, `footstep bob <= 1 cm amplitude (${(cam.bob * 50).toFixed(2)} cm)`);
   assert(within(cam.swap90, 0.15, 0.5) && cam.arcMax > 0.1, `shoulder swap ${f2(cam.swap90)} s to the mirror side (spring ~0.4 s settle) on an arc (+${f2(cam.arcMax)} m boom)`);
-  assert(within(cam.ads90, 0.45, 0.8), `aim framing blend ${f2(cam.ads90)} s (~0.6 s, G103)`);
+  // (F1a) draw halved by Michael ("About half (0.3 / 0.4 s)"); the aim camera blends at 0.9x the draw
+  assert(within(cam.ads90, 0.2, 0.5), `aim framing blend ${f2(cam.ads90)} s (~0.3 s, F1a)`);
   // prototype: revisit (no sprint, CT M1): the FOV widening is not asserted; M2 does the camera
   void cam.sprintFov;
   assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2${process.env.SOFT ? ', ' + cam.maxAAt : ''})`);
