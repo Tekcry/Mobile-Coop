@@ -92,8 +92,13 @@ export class Grenades {
     g.node.dispose();
   }
 
-  dispose(): void {
+  /** Every grenade in flight goes, unexploded (a Sector Ops checkpoint restart). */
+  clear(): void {
     for (const g of this.live) this.remove(g);
     this.live.length = 0;
+  }
+
+  dispose(): void {
+    this.clear();
   }
 }

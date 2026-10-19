@@ -121,6 +121,13 @@ export const SECTOR = {
   syringes: { rookie: 3, normal: 2, realistic: 1, perfectionist: 1 } as Readonly<Record<DifficultyPreset, number>>,
 } as const;
 
+/**
+ * (sector-restart, M9) The banner of a checkpoint restart. The co-op host's banners reach the client as `banner` events;
+ * this title is also the client's cue to restore its own loadout and calm its music (no wire change, A1 in
+ * `docs/sector-restart/BRIEF.md`).
+ */
+export const SECTOR_RESTART_TITLE = 'RESTARTING FROM CHECKPOINT';
+
 /** Feet height tolerance (m) for a floor zone. */
 export const ZONE_Y_TOL = 1.5;
 

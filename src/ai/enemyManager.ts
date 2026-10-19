@@ -452,6 +452,27 @@ export class EnemyManager {
     this.sightT = 99;
   }
 
+  /**
+   * (sector-restart, M9) A checkpoint restart: every guard, body and drone goes (`despawnAll`) and the manager's memory
+   * is back at its match-start state, so the guards that load next start unaware on their routes. Cleared: the shared
+   * last known position and its chase field, the time since a sighting, the alarm (raised flag and runner), the
+   * flanker, the squad rosters and silent members, the grenade, radio-check, alarm-assign and buff clocks, and every
+   * player's `spotted` flag. The tallies (kills, bodies found, radio checks) stay: they are the run's.
+   */
+  resetMemory(): void {
+    this.despawnAll();
+    this.resetAlarm();
+    this.lkp.setAll(0);
+    this.flowField.fill(Infinity);
+    this.flowT = 0;
+    this.alarmT = 0;
+    this.buffT = 0;
+    this.grenadeT = 0;
+    this.radioT = ARCHETYPE.radio.period;
+    const ps = this.players();
+    for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
+  }
+
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
     if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
