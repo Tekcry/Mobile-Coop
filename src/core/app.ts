@@ -203,7 +203,8 @@ export class App {
    */
   detectGraphics(force = false): void {
     const v = this.settings.get().video;
-    if ((!v.auto && !force) || (navigator.webdriver && !flags.detect)) return;
+    // (G182) a phone stays on the minimum settings (flags.gfx 'min'): no detection, nothing saved
+    if ((!v.auto && !force) || (navigator.webdriver && !flags.detect) || flags.phone) return;
     const key = deviceKey(this.gpu.renderer, screen.width, screen.height, devicePixelRatio);
     if (!force && v.device.key === key && v.device.tier) {
       if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier));
@@ -274,7 +275,8 @@ export class App {
   /** The UI scale (`--ui-scale`) and the HUD inset (`--hud-inset`) for the window's size. */
   applyUiScale(): void {
     const s = document.documentElement.style;
-    s.setProperty('--ui-scale', String(uiScale(window.innerWidth, window.innerHeight)));
+    // (G182) a phone scales the 1280 x 720 layout down to fit its screen
+    s.setProperty('--ui-scale', String(uiScale(window.innerWidth, window.innerHeight, flags.phone ? 0.25 : 1)));
     s.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
   }
 

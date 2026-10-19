@@ -28,11 +28,12 @@ export function hfovDeg(vRad: number, aspect: number): number {
 
 /**
  * Menu / HUD scale: the layout is computed for a 1280 x 720 reference window and scaled up to fill bigger ones (1080p
- * 1.5x, 1440p 2x, 4K 3x), so a big screen is never a small UI in one corner.
+ * 1.5x, 1440p 2x, 4K 3x), so a big screen is never a small UI in one corner. `min`: the smallest scale (a phone, G182,
+ * scales down to fit its screen).
  */
-export function uiScale(width: number, height: number): number {
+export function uiScale(width: number, height: number, min = 1): number {
   const k = Math.min(width / 1280, height / 720);
-  return Math.round(Math.min(3, Math.max(1, k)) * 100) / 100;
+  return Math.round(Math.min(3, Math.max(min, k)) * 100) / 100;
 }
 
 /**

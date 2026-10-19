@@ -68,7 +68,7 @@ export const PRESET_DISPLAY: Record<FixedPreset, { renderScale: number; upscaler
   ultra: { renderScale: 0.9, upscaler: 'taau' },
   epic: { renderScale: 1, upscaler: 'off' },
 };
-/** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
+/** Tests (`?gfx=min`) and phones (G182): every feature off, the fewest lights - headless software GL keeps its frame rate. */
 export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
 
 export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
@@ -154,7 +154,7 @@ export interface QualityLevel {
   realLights: number;
   /** LOD / animation distance multiplier. */
   detailScale: number;
-  /** Tests (`?gfx=min`): no post stack at all, a few plain lights - cheap on software GL. */
+  /** Tests (`?gfx=min`) and phones (G182): no post stack at all, a few plain lights - cheap on software GL. */
   minimal: boolean;
   /** TAAU: the scene renders at this fraction of the display's resolution and is resolved up to it (1: off). */
   upscale: number;

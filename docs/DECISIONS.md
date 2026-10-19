@@ -966,3 +966,23 @@ gadgets, and vision mode. Single button only toggles that one vision selected." 
 session, 2026-10-18); "no time slow" relayed from the main session (2026-10-19). Assumed placement (feel A1): the menu
 on LB hold, LB tap switches weapon, the vision toggle on D-pad left. (Replaces G100's cycle order and the goggle part
 of G96's exact CT layout.)
+
+**G182. A phone can launch the game, for testing only.** A phone or tablet (touch as its main pointer) opens the game
+on the minimum settings (`?gfx=min`: every feature off, DPR 1, the lowest operator LOD, no governor, no Auto
+detection), with the 1280 x 720 menu and HUD layout scaled down to fit its screen; the canvas fills the screen in
+either orientation inside the safe areas. No touch controls: a Bluetooth pad (or keyboard) drives it. No phone checks,
+tests, LODs, art or budgets. Gameplay never reads it. Michael: "i also want the phone to be able to launch the game,
+but always minimum settings, no touch controls, and no time spent on it. display should also automatically fit the
+iphone screen. but it absolutely is testing only, and does not need any checks or testing." (relayed by the
+orchestrator, 2026-10-19.) (Narrows G12 for launching only; desktop stays the only supported platform.)
+
+**G183. Version numbers follow the merges to master.** Michael: "can we make sure the version numbers update
+sequentially based on your updates? i dont want to move away from v4, just use a logical numbering system to allow me
+to understand what version im actually looking at and what you are merging" (2026-10-19). Master is `4.MINOR.PATCH`:
+every merge to master gets the next number, set by the orchestrator in the PR just before it merges (G93 made
+concrete). A job or feature (game change) is a minor step (4.6.0 -> 4.7.0), a fix or docs-only merge a patch (4.6.0 ->
+4.6.1). The CHANGELOG heading names the version, the date and the PR; the merge commit gets the tag `v4.x.y`. Branch
+and preview builds carry the master version they were last merged with, and the in-game label adds the build's commit
+(`v4.6.2 · a1b2c3d`, `PREVIEW CT` on /ct/), so any build traces to one commit. 4.1.0-4.6.1 were numbered after the
+fact in merge order (#5 4.1.0, #7 4.2.0, #6 4.2.1, #8 4.3.0, #9 4.4.0, #10 4.4.1, #12 4.5.0, #13 4.6.0, #11 4.6.1).
+CLAUDE.md's "one minor version per phase" line is updated in the process audit.

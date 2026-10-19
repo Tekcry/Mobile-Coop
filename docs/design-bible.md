@@ -736,7 +736,7 @@ and briefing crew, not playable (G112).
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with
   full glow when on (G73). The glow is visual only, never a light, never seen by guards; it is how a player finds their
-  operator in darkness (L7). Wren's goggle light is green, Moth's amber; both must stay distinguishable for common colour
+  operator in darkness (L7). Wren's goggle light is green, Moth's purple (Michael, 2026-10-19; amber failed the colour-blindness rule); both must stay distinguishable for common colour
   blindness. The goggle light colour is also the partner beacon (G135). While both players are Wren (G123) the colour
   follows the player, not the operator: player 1 (the host, and solo) green, player 2 cyan (ops A112: amber is the
   HUD's exposure warning and green / amber is the pair red-green colour blindness confuses).
@@ -904,7 +904,8 @@ Each map's documents also include:
 ## 8. Platform and performance
 
 - **Desktop only** (G12): the installable PWA in a desktop browser, pad first, then keyboard and mouse. Button prompts
-  swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13).
+  swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13). A phone can launch it for
+  testing only (G182): minimum settings, the UI scaled to fit, a Bluetooth pad; no touch controls, checks or tests.
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD, voxel layers or the governor.
