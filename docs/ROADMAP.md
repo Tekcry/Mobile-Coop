@@ -11,7 +11,7 @@ Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training leve
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 12:40 Sydney.
+Last updated: 2026-10-19 13:45 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -33,23 +33,18 @@ Last updated: 2026-10-19 12:40 Sydney.
 ## Now
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge anim-cleanup's PR; move /preview/ to master |
-| CT Core Build | desktop | `feature/ct-prototype` | Playtest 2 slice A: controls and camera (D-pad walk speed, speed 2 slowest, aim sensitivity -70 %, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob) | Slice A pushed to /ct/ for Michael |
-| Character Build | laptop (light work only) | `feature/anim-cleanup` | PR body and docs; its full e2e now runs on the desktop (orchestrator) | PR to master; the orchestrator merges |
+| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Michael's approval of the audit report; the co-op suite fix job |
+| CT Core Build | desktop | `feature/ct-prototype` | Playtest 2 slice A: controls and camera (D-pad walk speed, speed 2 slowest, aim sensitivity -70 %, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob) | Slice A pushed to /ct/ for Michael; then merge master (anim-cleanup) before B + C |
+| Character Build | laptop (light work only) | `feature/process-audit` | Process audit Phase 1: docs/process-audit/REPORT.md (report only) | Report to Michael for approval |
 
 ## Next (in order)
-1. **Anim clean-up into master** (Character Build): weapon handling to the real mounts, reload, hand shapes, traversal
-   grips. `docs/anim-cleanup/`.
-1b. **Process audit** (Character Build, laptop, light work, after 1; runs alongside 2; Michael, 2026-10-19): report first,
+1. **Process audit** (Character Build, laptop, light work, Phase 1 report in progress on feature/process-audit; runs alongside 2; Michael, 2026-10-19): report first,
    cuts only after Michael approves. Every e2e suite with its time and what it covers for the training level (keep /
    merge / legacy / fix; e2e-coop and e2e-netmove must stop being "known flaky"); one test tier per kind of change;
    one set of session and prompting rules (CLAUDE.md, session-method, orchestrator, per-job STATE); stale docs
    archived. Opus, High; about half a day. Flaky suites (Michael, 2026-10-19): the audit finds each cause; then a fix
    job on the desktop makes e2e-coop, e2e-netmove and e2e-ctcourse reliable (all three fail alone on master bd59f32);
    flaky or failing suites outside the training level move to the legacy run instead of being fixed.
-1c. **Phone launch, testing only** (Character Build, laptop, now; Michael, 2026-10-19): the phone launches the game,
-   always minimum settings, no touch controls (Bluetooth pad), the display fits the iPhone screen; no time spent, no
-   checks beyond CI's `npm run check`. Branch feature/phone-launch. CLAUDE.md's M21 line is updated in the audit.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
@@ -79,6 +74,8 @@ Last updated: 2026-10-19 12:40 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #12 | Animation clean-up: weapon travel, reloads, shoulder swap, traversal grips, hand shapes |
+| 2026-10-19 | #13 | Phone launch for testing only (G182): minimum settings, UI fits the screen, pad input |
 | 2026-10-19 | #9 | CT prototype: posture, CT controls, selection wheel, 8-station co-op course, revive |
 
 ## Previews
