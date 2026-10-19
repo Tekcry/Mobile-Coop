@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - unit test timeouts (feature/unit-timeouts)
+## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
 - Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x
   slower and heavy tests timed out. Per-test timeouts under 120 s are dropped (readyHands, menuShots, score).
 - settings.test's round trip waits for its own debounced save, which under load overwrote kv/settings in a later test.
