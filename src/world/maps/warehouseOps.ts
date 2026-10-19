@@ -47,7 +47,7 @@ function opsPieces(b: LevelBuilder): void {
   // workshop (the terminal end is its own pocket); a parked pallet in the corridor breaks its long sight line; a
   // second container in the east lot screens the gatehouse from the lane behind the first.
   b.block(-13.4, -15.6, 1.2, 2.4, 4.4, SHRINK).block(-9, -11, 5.4, 2.4, 1.2, SHRINK);
-  b.block(15, -16.3, 0.6, 2.6, 3.4, STEEL);
+  b.block(15, -16.8, 0.6, 2.6, 2.4, STEEL);
   b.block(17, -10.35, 1.2, 2.4, 1.0, CRATE).block(6, -9.4, 1.2, 2.4, 0.9, CRATE);
   b.block(18.5, -24.6, 5, 2.6, 2.4, '#6e3d3d').block(3.2, -24.9, 1.2, 2.4, 2.2, CRATE);
 
@@ -65,7 +65,7 @@ function opsPieces(b: LevelBuilder): void {
   b.block(-6.6, 9.6, 2.0, 2.4, 1.2, SHRINK);
   // chicanes (two offset loads, walk the S between them) in the west aisle and the centre aisle's north half
   b.block(-23.1, -0.2, 1.8, 2.4, 0.9, SHRINK).block(-21.9, 1.6, 1.8, 2.4, 0.9, SHRINK);
-  b.block(-15.1, 11.6, 1.8, 2.4, 0.9, SHRINK).block(-13.9, 13.4, 1.8, 2.4, 0.9, SHRINK);
+  b.block(-15.1, 11.6, 1.8, 2.4, 0.9, SHRINK).block(-13.9, 13.6, 1.8, 2.4, 0.9, SHRINK);
 
   // ---- section 3 (M8): a doorway from the manager's office onto the floor (a side way out of the offices), crates
   // under the zipline's railing gap (a climb onto the deck), shelving rows on the floor (bays), crates on the deck.
@@ -79,7 +79,7 @@ function opsPieces(b: LevelBuilder): void {
   b.wallX(-2, 16, 24, [], H, WALL, T);
   b.wallZ(10, -2, 7, [[1.6, 2.7]], H, WALL, T);
   b.wallX(3, -4, 1.5, [], H, WALL, T);
-  b.block(9.5, 9, 0.8, 2.6, 4, STEEL);
+  b.block(9.5, 8.8, 0.8, 2.6, 3.6, STEEL);
   b.block(19, 3.8, 3.6, 2.6, 0.8, STEEL);
   b.block(13.2, 16.4, 0.8, 2.0, 3.2, CRATE, 2.6).block(13.2, 12.9, 0.8, 2.0, 1.2, CRATE, 2.6);
   b.block(20.2, 15.6, 0.8, 2.0, 2.6, CRATE, 2.6);

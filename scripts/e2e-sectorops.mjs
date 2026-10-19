@@ -167,7 +167,8 @@ await run(PARAMS, async ({ G, sim }) => {
     const S = g.world.map.sectors;
     const legs = [];
     const fails = [];
-    const len = (from, wps) => { let l = 0; let p = from; for (const w of wps) { l += Math.hypot(w.x - p[0], w.z - p[1]); p = [w.x, w.z]; } return l; };
+    // (a nav waypoint is an [x, z] pair)
+    const len = (from, wps) => { let l = 0; let p = from; for (const w of wps) { l += Math.hypot(w[0] - p[0], w[1] - p[1]); p = [w[0], w[1]]; } return l; };
     for (const s of S) {
       for (const r of s.routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
@@ -184,27 +185,28 @@ await run(PARAMS, async ({ G, sim }) => {
         }
       }
     }
-    // sealed: the only way into a section is its connector room (the shortest path from a section's start to the next
-    // section's objective crosses the connector's box)
-    const crosses = (from, wps, box) => {
-      const [x0, z0, x1, z1] = [Math.min(box[0], box[2]), Math.min(box[1], box[3]), Math.max(box[0], box[2]), Math.max(box[1], box[3])];
-      let p = from;
-      for (const w of wps) {
-        for (let k = 0; k <= 20; k++) {
-          const x = p[0] + ((w.x - p[0]) * k) / 20;
-          const z = p[1] + ((w.z - p[1]) * k) / 20;
-          if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return true;
-        }
-        p = [w.x, w.z];
-      }
-      return false;
-    };
+    // sealed: the only way into a section is its connector room. A path from a section's start to the next section's
+    // objective exists; with the connector room's cells made unwalkable (every layer) none is left (any leak would
+    // show: a gap, a window, a ladder or drop link, a way round through the yard)
     const seals = [];
     for (let i = 0; i + 1 < S.length; i++) {
       const a = S[i].start;
       const o = S[i + 1].objective;
-      const p = nav.findPath([a.x, a.z], [o.x, o.z], 60000, a.y, o.y);
-      seals.push({ from: S[i].id, to: S[i + 1].id, path: !!p, via: !!p && crosses([a.x, a.z], p, S[i].connector.box) });
+      const open = nav.findPath([a.x, a.z], [o.x, o.z], 200000, a.y, o.y);
+      const bx = S[i].connector.box;
+      const [x0, z0, x1, z1] = [Math.min(bx[0], bx[2]) - 0.2, Math.min(bx[1], bx[3]) - 0.2, Math.max(bx[0], bx[2]) + 0.2, Math.max(bx[1], bx[3]) + 0.2];
+      const saved = [];
+      for (let c = 0; c < nav.walk.length; c++) {
+        const [x, z] = nav.center(c);
+        if (x >= x0 && x <= x1 && z >= z0 && z <= z1 && nav.walk[c]) {
+          saved.push(c);
+          nav.walk[c] = 0;
+        }
+      }
+      // (the start may stand in the previous connector, never in this one)
+      const shut = nav.findPath([a.x, a.z], [o.x, o.z], 200000, a.y, o.y);
+      for (const c of saved) nav.walk[c] = 1;
+      seals.push({ from: S[i].id, to: S[i + 1].id, path: !!open, blocked: saved.length, leak: shut ? shut.map((w) => `${w[0]},${w[1]}`).join(' ') : null });
     }
     // and each section's objective and exit from its start
     const reach = S.map((s) => {
@@ -219,7 +221,7 @@ await run(PARAMS, async ({ G, sim }) => {
   for (const f of out.fails) console.log(`  ${f}`);
   assert(out.fails.length === 0, `every walked route leg has a nav path (${out.fails.length} failed)`);
   assert(out.reach.every((r) => r.obj && r.exit), `each section's objective and exit are reachable from its start (${JSON.stringify(out.reach)})`);
-  assert(out.seals.every((s) => s.path && s.via), `a section is reached only through its connector (${JSON.stringify(out.seals)})`);
+  assert(out.seals.every((s) => s.path && s.blocked > 0 && s.leak === null), `a section is reached only through its connector (${JSON.stringify(out.seals)})`);
 });
 
 // (optional, `SECTOR_SHOTS=<dir>`) layout shots for Michael: section 1's start, C2 from inside, section 3 from the deck.

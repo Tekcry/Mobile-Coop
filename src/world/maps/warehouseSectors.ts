@@ -36,8 +36,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'grunt', x: -6.5, z: -7.5, yaw: -Math.PI / 2, route: [[-6.5, -7.5], [-11, -7.5]], wait: 3, takedownSpot: [-11, -7.5] },
       // dispatch, the workshop (both ends of the tool rack), the corridor's east end
       { kind: 'officer', x: 2.5, z: -16.5, yaw: -1.2, takedownSpot: [2.5, -16.5] },
-      { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6, takedownSpot: [11, -17] },
-      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [20.5, -16]], wait: 3, takedownSpot: [20.5, -13] },
+      { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6, takedownSpot: [11.5, -17.5] },
+      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [20.5, -16]], wait: 3, takedownSpot: [20, -16] },
       { kind: 'grunt', x: 21, z: -9.9, yaw: -Math.PI / 2, route: [[21, -9.9], [18.5, -9.9]], wait: 4, takedownSpot: [18.5, -10] },
     ],
     reinforce: [[-20, -24.5], [13, -19.5]],

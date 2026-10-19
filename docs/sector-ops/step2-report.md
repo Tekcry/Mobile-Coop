@@ -74,8 +74,8 @@ eye-height line; all pass):
 | 1 | dock east roller door (heavy) | [-8, -15.5] | yes |
 | 1 | dock NE by the corridor | [-11, -7.5] | yes |
 | 1 | dispatch (officer) | [2.5, -16.5] | yes |
-| 1 | workshop west (enforcer) | [11, -17] | yes |
-| 1 | workshop east, terminal end | [20.5, -13] | yes |
+| 1 | workshop west (enforcer) | [11.5, -17.5] (fix round 2) | yes |
+| 1 | workshop east, terminal end | [20, -16] (fix round 2) | yes |
 | 1 | corridor east | [18.5, -10] | yes |
 | 2 | west aisle south | [-22, -3] | yes |
 | 2 | west aisle north (the case) | [-22, 13] | yes |
@@ -167,3 +167,30 @@ e2e-menus and e2e-park (all passed), and e2e-sectorops, which failed twice at C2
    (-14.5, -9) / (-14.5, -6). Every other new gap has at least one cell 0.35 m or more from both edges.
 - Light checks: `tsc` is clean; `vitest tests/sectors.test.ts tests/rooms.test.ts` gives 31 passed (the M8 sight check
   still passes with the wider doorways). e2e-sectorops still has to be re-run on the runner.
+
+## Fix round 2 (2026-10-19, after the laptop run of e20c3f30)
+The laptop run: check passes; in e2e-sectorops the ghost walk, the alarm and the restart pass, and all 163 route legs
+have paths. One assert failed: "a section is reached only through its connector" (`via: false` for both pairs).
+- **Cause: a test flaw, not a leak.** `NavGrid.findPath` returns waypoints as `[x, z]` pairs, but the suite read
+  `w.x` / `w.z`. Those were undefined, so the box test never matched (always false). The detour test had the same bug
+  and could never fail.
+- **Leak check (light, node):** a scratch Vitest built an analytic layered nav grid of `warehouseOps`, the way
+  `tests/bunkerMap.test.ts` does it (every collide piece's top a surface, the same blockers, `navLinks` with ladders
+  and the generated ledge drops). The shortest paths go yard -> dock -> C2 -> racking, and C2 -> racking -> C3 ->
+  ladder -> deck. With the connector box blocked, no path remains for either pair. No leak.
+- **Suite fix** (`scripts/e2e-sectorops.mjs`): waypoints are read as `w[0]` / `w[1]`. The seal check is now the
+  stronger test: a path from section i's start to section i+1's objective must exist. Then every nav cell (every layer)
+  in connector i's box plus 0.2 m is set unwalkable and the query is repeated: no path may remain (a leak prints the
+  path). The cells are restored after.
+- **Detours, which the old check could not see:** the analytic grid found 9 legs with long detours at 3 pinch points
+  narrower than the nav agent (radius 0.32, 0.5 m cells). Fixed in `warehouseOps.ts`:
+  - the workshop tool rack now ends at z -15.6 (`block(15, -16.8, 0.6, 2.6, 2.4)`). With the bench it had cut the
+    workshop in two for the guards' nav.
+  - the centre-aisle chicane's north load moved to z 13.6 (the S-bend gap is 0.9 -> 1.1 m).
+  - shelf D on the floor is shorter (`block(9.5, 8.8, 0.8, 2.6, 3.6)`), so the lane under the deck front is 1.4 m.
+
+  After these, the analytic grid shows no detour and no missing leg.
+- **M8:** the shorter tool rack moved two section 1 takedown spots: the workshop west guard to [11.5, -17.5] and the
+  workshop east guard to [20, -16] (found with the scratch search). Counts stay 10 / 10 / 11.
+- **Light checks:** `tsc` is clean; `vitest tests/sectors.test.ts tests/rooms.test.ts` gives 31 passed (the M8 sight
+  check included); `node --check` on the suite passes. e2e-sectorops still has to be re-run on the runner.
