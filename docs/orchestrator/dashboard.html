@@ -83,7 +83,12 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
-    <p class="qhint"><b>Playtest 2 walk test on /ct/</b> (controller). Solo course: <a href="https://tekcry.github.io/Mobile-Coop/ct/?autostart=ctcourse&amp;mode=course">Marlow Yard</a> (the ledge hang is at station 2). Drainpipe: <a href="https://tekcry.github.io/Mobile-Coop/ct/?autostart=proving&amp;mode=sandbox">Proving Grounds</a>. Co-op on one PC: open <a href="https://tekcry.github.io/Mobile-Coop/ct/?net=local&amp;autostart=ctcourse&amp;mode=course">this link</a> in two tabs. Mark each item Good or Not right and add a note on what feels off.</p>
+    <p class="qhint"><b>Playtest 2 walk test</b> (controller) on <a href="https://tekcry.github.io/Mobile-Coop/ct/">tekcry.github.io/Mobile-Coop/ct/</a>.<br>
+      <b>Version:</b> the label in the bottom-right corner must start <code>v4.6.5 PREVIEW CT</code>. The code after the dot is wrong on preview builds for now (it shows master's commit, a label bug being fixed), so ignore it. If the label shows an older version, close every tab of the game and open it again (the offline cache updates on the next launch).<br>
+      <b>Marlow Yard</b> (items 1-10, 12-13): Main menu &gt; Co-op &gt; Host a room &gt; set Mode to Training course &gt; Start mission. You can start alone; it needs an internet connection. The ledge hang is at station 2.<br>
+      <b>Proving Grounds</b> (item 11, drainpipe): Main menu &gt; Free roam &gt; Proving Grounds &gt; Start.<br>
+      <b>Co-op items</b> (team boost, scanners): host as above in one window, then in a second window or on a second PC go to Co-op &gt; Join with code and type the room code shown in the host's lobby; the joiner presses Ready, the host presses Start mission.<br>
+      Ignore Missions and Training on this build (Training is the old locked bunker). Mark each item Good or Not right and add a note on what feels off.</p>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
     <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
