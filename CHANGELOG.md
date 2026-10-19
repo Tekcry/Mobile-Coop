@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - menus slider fix (feature/menus-slider)
+- e2e-menus: holding right on the Effects slider waits until a fast step lands and sfx passes 0.2 (15 s cap)
+  instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. Tests only.
+
 ## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
 The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the game's own clock: on software GL
