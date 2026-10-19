@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
+The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.
+- The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the game's own clock: on software GL
+  the sim runs at a fraction of real time, so wall-clock timeouts expired mid-move (e2e-ctcourse's leg-up, e2e-coop's
+  holster). A timeout now names each page's sim seconds, sim rate and fps; netmove and ctcourse open at 960 x 480.
+- Stale checks fixed: e2e-netmove's walk-off stands up first (B keeps the crouch), the stacked check waits for the
+  host's copy; e2e-coop's wall medkit heals to full on Normal (G180); the crouch helpers wait to stand before pressing.
+- e2e-coop runs legacy-off: Infiltration (the Ledger) and Free Roam instead of Hunter, two players (G2).
+- e2e-coop, e2e-netmove and e2e-weapons-carry leave KNOWN_FLAKY (3 solo rounds and 2 full runs on the laptop, 23 min
+  each); e2e-pad stays (one remap failure in full run 2, parked).
+
 ## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
 - CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).
 - docs/ROADMAP.md keeps state only; its rules moved to CLAUDE.md "Sessions". Sector Ops and the co-op test fix on the roadmap.

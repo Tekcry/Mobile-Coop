@@ -1,36 +1,34 @@
 // Coop: two pages in one browser context over the BroadcastChannel transport (?net=local).
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
-// host-validated client hits + kill credit, downed/revive, results with rewards, back to lobby,
-// host leaving, malformed messages, and the offline state.
-// 3.5: the lobby walk-through hosts Hunter rooms, which are parked behind ?legacy=1, so these pages open
-// with it (the legacy-off lobby, Infiltration and Free Roam only, is checked by e2e-park).
+// host-validated client hits + kill credit, downed/revive, results, back to lobby, guards and doors in co-op,
+// difficulty, a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline state.
+// (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
+// mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
+// Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
+import { until as untilNet, waitSim, setSimPages } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const wait = (ms) => waitSim(ms);
 let failed = false;
 const errs = [];
+// the Infiltration mission the matches run (bonuses only: detection does not end it)
+const MISSION = ['infiltration', 'warehouse', 'warehouse-ledger'];
 
 async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  // (G13) polled from here: on a desktop context the in-page polling of waitForFunction stops on a page in the
-  // background (another page in front), so a condition that holds there was never seen
-  const t0 = Date.now();
-  for (;;) {
-    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
-    if (Date.now() - t0 <= timeout) {
-      await wait(100);
-      continue;
-    }
-    const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|') }; }).catch((e) => String(e));
-    throw new Error(`timed out waiting for ${what} (${JSON.stringify(st)})`);
+  try {
+    await untilNet(page, fn, arg, timeout, what);
+  } catch (e) {
+    const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|') }; }).catch((x) => String(x));
+    throw new Error(`${e.message} (${JSON.stringify(st)})`);
   }
 }
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local&legacy=1' });
+// (the default 1280 x 640 window: the lobby is clicked, and the menus lay out at 1280 x 720 at least, so a smaller
+// window puts "Start mission" outside it)
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
 let B = null;
-let C = null;
 let eB = [];
-let eC = [];
 try {
   const GA = (f, a) => A.evaluate(f, a);
   console.log('host opens a room');
@@ -43,9 +41,10 @@ try {
   assert(link?.includes(code), 'lobby shows the code');
 
   console.log('client joins by typing the code');
-  const opened = await openPage(ctx, url, 'net=local&legacy=1');
+  const opened = await openPage(ctx, url, 'net=local');
   B = opened.page;
   eB = opened.errors;
+  setSimPages([A, B]);
   const GB = (f, a) => B.evaluate(f, a);
   await B.click('.main-menu .btn:has-text("Co-op")');
   await B.click('.btn:has-text("Join with code")');
@@ -71,7 +70,8 @@ try {
   const bText = await GB(() => document.querySelector('.lobby-actions .btn')?.textContent ?? '');
   assert(/Not ready/.test(bText), 'client button toggles to Not ready');
 
-  console.log('host starts a Hunter match');
+  console.log('host starts an Infiltration match (the Ledger, on the Warehouse)');
+  await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
   await A.click('.lobby-actions .btn:has-text("Start mission")');
   await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 60000, 'host match');
   await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 60000, 'client match');
@@ -90,8 +90,9 @@ try {
   }
   const counts = await Promise.all([GA(() => window.__app.current.enemyMgr.alive), GB(() => window.__app.current.net.puppets.size)]);
   assert(Math.abs(counts[0] - counts[1]) <= 1, `client mirrors host enemies (${counts})`);
-  const info = await GB(() => document.querySelector('.hud-mode, .mode-info')?.textContent ?? window.__app.current.net.info);
-  assert(/Enemies left/.test(info), `mode info replicated (${info})`);
+  await until(B, () => (window.__app.current.interactables?.items ?? []).some((i) => i.kind !== 'door' && i.kind !== 'revive'), null, 10000, 'the mission objectives reach the client');
+  const modeB = await GB(() => window.__app.current.opts.mode);
+  assert(modeB === 'infiltration', `the client runs the host's Infiltration match (${modeB})`);
   const avatar = await GB(() => window.__app.current.net.avatars.size);
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
@@ -248,11 +249,11 @@ try {
   const stillOk = await GA(() => window.__app.current.net.remotes.size === 1 && !window.__app.current.isEnded);
   assert(stillOk, 'host unaffected by junk');
 
-  console.log('team wipe ends the match; client gets results + rewards');
+  console.log('team wipe ends the match; client gets results');
   await GA(() => {
     const g = window.__app.current;
     const r = g.net.remotes.values().next().value;
-    // Hunter's last life: the wipe ends the operation
+    // the mission's last life: the wipe fails it
     g.mode.lives = 1;
     const kill = (t, p) => { t.damageMul = 1; t.applyDamage({ amount: 9999, point: p.clone(), dir: p.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: p.clone(), impulse: 0 }); };
     kill(r, r.feet);
@@ -262,7 +263,7 @@ try {
   await until(B, () => !!document.querySelector('.results-screen'), null, 15000, 'client results');
   const res = await GB(() => ({ kills: window.__app.current.stats.kills, title: document.querySelector('.results-title')?.textContent, rewards: !!document.querySelector('.results-screen .rewards, .results-screen .rewards-panel') }));
   assert(res.title === 'DEFEAT' && res.kills >= 1, `client results from host stats (${JSON.stringify(res)})`);
-  assert(res.rewards, 'client earns rewards locally');
+  assert(!res.rewards, 'no rewards panel: the economy is parked (legacy off)');
 
   console.log('back to lobby');
   await A.click('.results-screen .btn:has-text("Play again")');
@@ -272,7 +273,7 @@ try {
   assert(reset === 0, 'returning to the lobby clears ready states');
   assert(true, 'client follows the host back to the lobby');
 
-  const pages = () => [A, B, C].filter(Boolean);
+  const pages = () => [A, B];
   /** Host picks the mode, everyone readies, the match starts on every page. */
   async function startMode(mode, map, mission = '') {
     await GA(([m, mp, mi]) => window.__coop.session.setSettings(m, mp, 'normal', mi), [mode, map, mission]);
@@ -293,10 +294,10 @@ try {
     await wait(500);
   }
 
-  console.log('hunter co-op: calm puppets, doors, mirrored items, a client takedown, a client revive');
-  await startMode('clear', 'warehouse');
+  console.log('co-op on the guards: calm puppets, doors, mirrored items, a client takedown, a client revive');
+  await startMode(...MISSION);
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
-  await until(B, () => window.__app.current.net.puppets.size > 0, null, 15000, 'hunter puppets');
+  await until(B, () => window.__app.current.net.puppets.size > 0, null, 15000, 'guard puppets on the client');
   const hostId0 = await GA(() => window.__coop.session.selfId);
   const calm = await GB(() => [...window.__app.current.net.puppets.values()].filter((p) => p.level === 'unaware').length);
   assert(calm > 0, `puppets carry the host's alert levels (${calm} calm)`);
@@ -567,7 +568,7 @@ try {
   await toLobby();
   console.log("difficulty (G106: fixed levels): the host's level reaches the client lobby read-only and runs the match on both");
   {
-    await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'realistic', ''));
+    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'realistic', m[2]), MISSION);
     await until(B, () => window.__coop.session.difficulty === 'realistic', null, 8000, 'the level reaches the client');
     await until(B, () => /Realistic/.test(document.querySelector('.lobby-screen')?.textContent ?? ''), null, 8000, 'the client lobby row shows the host level');
     const ro = await GB(() => !document.querySelector('.lobby-screen [data-diff]'));
@@ -582,7 +583,7 @@ try {
     const cd = await GB(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label }));
     assert(cd.p === 1.3 && cd.l === 'Realistic', `the client's match takes the host's level (${JSON.stringify(cd)})`);
     await toLobby();
-    await GA(() => window.__coop.session.setSettings('clear', 'warehouse', 'normal', ''));
+    await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
   }
 
   console.log('infiltration co-op: the mission and its objectives reach the client');
@@ -594,18 +595,10 @@ try {
   assert(true, `client sees the mission's objectives (${obj})`);
   await toLobby();
 
-  console.log('a third player joins');
-  const opened3 = await openPage(ctx, url, 'net=local&legacy=1');
-  C = opened3.page;
-  eC = opened3.errors;
-  await C.click('.main-menu .btn:has-text("Co-op")');
-  await C.click('.btn:has-text("Join with code")');
-  await C.keyboard.type(code.toLowerCase());
-  await C.keyboard.press('Enter');
-  await until(A, () => window.__coop.session.players.size === 3, null, 15000, 'third player joins');
-  // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host and on a third page (the
-  // snapshot's dcr), and its close clears it everywhere
-  console.log('door peek: a client crack shows on the host and a third page; close clears it');
+  // (co-op test fix) no third player: co-op is two players (G2); the door peek is checked on the host
+  // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host (the snapshot's dcr), and its
+  // close clears it
+  console.log('door peek: a client crack shows on the host; close clears it');
   await startMode('sandbox', 'proving');
   const dpos = await GB(() => {
     const d = window.__app.current.world.doors.list[0];
@@ -621,22 +614,21 @@ try {
   await until(B, () => window.__app.current.doorPeek.phase !== 'off', null, 5000, 'client starts the peek');
   const cracked = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return d.cracked && d.target === 0 && d.ajar > 0.06; }, null, 10000, 'the door cracked');
   await cracked(A);
-  await cracked(C);
-  const dcC = await C.evaluate(() => { const d = window.__app.current.world.doors.list[0]; return { cracked: d.cracked, ajar: d.ajar, target: d.target, mode: [...window.__app.current.net.avatars.values()].map((a) => a.mode) }; });
-  assert(dcC.cracked && dcC.target === 0, `the client's crack shows on the host and a third page (${JSON.stringify(dcC)})`);
+  const dcA = await GA(() => { const d = window.__app.current.world.doors.list[0]; return { cracked: d.cracked, ajar: d.ajar, target: d.target }; });
+  assert(dcA.cracked && dcA.target === 0, `the client's crack shows on the host (${JSON.stringify(dcA)})`);
   await until(B, () => window.__app.current.doorPeek.phase === 'peek', null, 5000, 'client peeking');
   await GB(() => { window.__pad.connect(); window.__pad.axis(1, 1); });
   await until(B, () => window.__app.current.doorPeek.phase !== 'peek', null, 5000, 'client closes the crack (stick back)');
   await GB(() => window.__pad.axis(1, 0));
   const shut = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return !d.cracked && d.ajar < 0.01; }, null, 10000, 'the crack closed');
   await shut(A);
-  await shut(C);
-  assert(true, 'closing clears the crack on the host and the third page');
+  assert(true, 'closing clears the crack on the host');
   // wall medkit stations (G20 / G98; carried kits are gone): a client uses the host's station, the host heals its
-  // host-authoritative health (+40), the client mirrors it and both pages show the station spent
+  // host-authoritative health (G119 / G180: by difficulty, full on Normal; `stationHeal`), the client mirrors it and both
+  // pages show the station spent. (co-op test fix: the check read +40, the number before G180)
   console.log('wall medkit station: the host heals a client, shown spent on both pages');
   {
-    // (three pages here: the remote the host runs for this client, by its id)
+    // (the remote the host runs for this client, by its id)
     await GA((id) => { window.__bid = id; }, await GB(() => window.__app.current.net.s.selfId));
     await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 50; });
     await until(B, () => Math.abs(window.__app.current.target.health.hp - 50) < 0.01, null, 8000, 'client mirrors 50 hp');
@@ -650,10 +642,10 @@ try {
     });
     await until(B, () => !!window.__app.current.interactables?.items.find((i) => i.id === 'medkit-e2e' && i.enabled), null, 8000, 'client mirrors the wall medkit');
     await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'medkit-e2e').onUse());
-    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(r.health.hp - 90) < 0.01 && it.done && !it.enabled; }, null, 8000, 'host: the client healed to 90, the station spent');
-    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(g.target.health.hp - 90) < 0.01 && (!it || !it.enabled); }, null, 8000, 'client: 90 hp, the station shown spent');
+    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return r.health.hp >= r.health.maxHp - 0.01 && it.done && !it.enabled; }, null, 8000, 'host: the client healed to full (Normal), the station spent');
+    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); const h = g.target.health; return h.hp >= h.maxHp - 0.01 && (!it || !it.enabled); }, null, 8000, 'client: full health, the station shown spent');
     await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
-    assert(true, 'a client at a wall medkit is healed by the host (+40, mirrored) and the station shows spent on both pages');
+    assert(true, 'a client at a wall medkit is healed by the host (full on Normal, mirrored) and the station shows spent on both pages');
   }
 
   await toLobby();
@@ -670,7 +662,7 @@ try {
   await A.screenshot({ path: '/tmp/e2e-coop-A.png' }).catch(() => {});
   await B?.screenshot({ path: '/tmp/e2e-coop-B.png' }).catch(() => {});
 } finally {
-  errs.push(...eA, ...eB, ...eC);
+  errs.push(...eA, ...eB);
   await browser.close();
 }
 
