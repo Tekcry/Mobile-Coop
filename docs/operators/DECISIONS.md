@@ -176,6 +176,15 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
   the step 07 fix round builds it, a scratch pass renders about 3 goggle housing options and 2-3 head strap options
   (stowed and in use); Michael picks; the fix round builds the pick.
 
+**D36 Moth's goggle colour is purple (2026-10-19).** Michael, on the orchestrator's dashboard (asked about Moth's
+direction and goggle colour), relayed by the orchestrator: Moth's goggle colour is purple, not amber. Moth's lens glow and goggle light are purple; amber is dropped (it was the
+HUD's exposure warning `.tac-exposure`, and green / amber fails the colour-blindness rule, A112). Still to change: bible
+5.14 (Wren green, Moth amber; the operator table's "Amber") - the orchestrator edits the bible line - and SPEC's Moth
+head kit ("Round twin-lens goggles (amber)"). Open for the Moth job: check purple against Wren's green and player 2's
+cyan with the same Machado simulation A112 used, and pick the linear emissive. A scratch Moth prototype follows only
+when nothing urgent waits (desktop work, possibly overnight). Recorded on feature/goggle; at the merge it goes into
+master's docs/DECISIONS.md with the next free G number (G89). Undo: amber back in bible 5.14 and SPEC.
+
 **D34 Traversal gameplay stays at the 1.75 m body (2026-10-18, step 11e).** Asked about A105 (Wren hangs and climbs
 7.6 cm higher because `attachPose` scaled the hang depth by the rig height), Michael: "Keep gameplay fixed
 (Recommended)". Ledge, wall-jump and climb positions use a fixed gameplay height (`GAMEPLAY_HEIGHT` 1.75) for every

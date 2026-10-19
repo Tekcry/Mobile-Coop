@@ -350,15 +350,21 @@ async function cornerTakedown() {
   }
 }
 
+// (process audit) the Warehouse flanker section is Hunter AI, parked: `--part=flanker` runs it alone (LEGACY list,
+// `npm run e2e:legacy`); the default run is everything else
+const flankerOnly = process.argv.includes('--part=flanker');
 try {
-  console.log('back-to-wall on Proving');
-  await proving();
-  console.log('guards flank and flush a wall-held player (Warehouse)');
-  await flank();
-  console.log('edge verb on Proving: peek at once, strict camera, aiming leaves (A3)');
-  await edges();
-  console.log('corner takedown from the wall (Warehouse, step 12)');
-  await cornerTakedown();
+  if (flankerOnly) {
+    console.log('guards flank and flush a wall-held player (Warehouse)');
+    await flank();
+  } else {
+    console.log('back-to-wall on Proving');
+    await proving();
+    console.log('edge verb on Proving: peek at once, strict camera, aiming leaves (A3)');
+    await edges();
+    console.log('corner takedown from the wall (Warehouse, step 12)');
+    await cornerTakedown();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e?.stack ?? e));

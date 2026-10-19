@@ -1,11 +1,15 @@
 // Serves the existing dist/ with `vite preview` and runs the e2e suites, several at a time (one browser per suite).
 //
-//   node scripts/run-e2e.mjs [suite ...] [--legacy] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--list]
+//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--list]
 //
 //   (no flags)   the REQUIRED suites in parallel (`E2E_JOBS` or --jobs; default: min(5, cores / 3))
 //   --serial     one suite at a time with its output streamed live (debugging; same as --jobs=1)
-//   --quick      `smoke` + the suites that cover the folders the change touched (`npm run e2e:quick`)
-//   --legacy     the parked-content suites with LEGACY=1 (report only)
+//   --quick      `smoke` + the suites that cover the folders the change touched (`npm run e2e:quick`); a picked suite
+//                outside REQUIRED (legacy, audio, anim-audit) is REPORT ONLY
+//   --legacy     the parked-content suites (`npm run e2e:legacy`)
+//   --audio      the audio suites (`npm run e2e:audio`)
+//   --gpu        the visual read-back suites, Michael's PC only with E2E_GPU=1 (`npm run e2e:gpu`)
+// Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -19,58 +23,73 @@ const TIMES_FILE = 'scripts/e2e-times.json';
 // no suite may hang a run: past this it is killed (browsers included) and counts as failed (seconds; `E2E_SUITE_TIMEOUT`)
 const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 
-// 3.5: REQUIRED = the suites `npm run e2e` runs; LEGACY = suites whose every check is about parked content (Hunter,
-// Mission, the economy and cosmetics behind `?legacy=1`): `npm run e2e:legacy` runs them with LEGACY=1 (report only).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-security', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
-const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']; // e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
-// REPORT = suites `npm run e2e` runs whose result is printed as REPORT ONLY and never fails the run: the animation audit
-// harness (locomotion step 08; it becomes REQUIRED at step 32). A quick run passes it `--quick`.
+// (process audit, 2026-10-19, approved by Michael) REQUIRED = what `npm run e2e` runs: the co-op training level
+// (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
+// LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
+// archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline'];
+// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
+const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
+const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']);
+const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
+// e2e-desktop:3 = the Epic renderer booting in a match
+const GPU = ['e2e-darkness', 'e2e-desktop:3'];
+// REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
+// `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
-const report = (s) => REPORT.includes(s.split(':')[0]);
-// A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` = `e2e-desktop:1` .. `:4`
-// (`node scripts/e2e-desktop.mjs --part=N`; named alone it still runs whole). The sections' checks are the suite's, none dropped.
-const PARTS = { 'e2e-desktop': 4 };
-const expand = (list) => list.flatMap((s) => (PARTS[s] ? Array.from({ length: PARTS[s] }, (_, i) => `${s}:${i + 1}`) : [s]));
+// A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
+// `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; named alone it runs whole.
+const PARTS = { 'e2e-desktop': ['1', '2', '4'] };
+const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
+const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
 // Suites that fail now and then for reasons not yet fixed (docs/backlog.md, "Flaky e2e suites"). They always run and are always reported:
 // a failure is printed as KNOWN FLAKY and does not fail the run, a failure of any other suite does. Never skipped.
-const KNOWN_FLAKY = new Set(['e2e-coop', 'e2e-netmove', 'e2e-darkness', 'e2e-weapons-carry', 'e2e-pad', 'e2e-foley', 'e2e-bunker']); // e2e-foley: the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants vs >= 4); retuned in the CT prototype job; e2e-bunker: the teleported-partner check, see docs/backlog.md
+// (process audit) the co-op pair until the co-op fix job lands; e2e-weapons-carry and e2e-pad until two clean full runs
+const KNOWN_FLAKY = new Set(['e2e-coop', 'e2e-netmove', 'e2e-weapons-carry', 'e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
 // --quick: which suites cover which source folder (a path under `src/` not listed here runs CORE). Keep in step with docs/systems/testing-tools.md.
-const CORE = ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-modes', 'e2e-combat'];
+// (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
+const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 const COVERS = {
-  'src/core/': ['e2e-desktop', 'e2e-pad', 'e2e-mouse', 'e2e-anim', 'e2e-offline'],
+  // the first match wins: the specific `src/core/` files before the folder
+  'src/core/quality': ['e2e-desktop', 'e2e-lightbake'],
+  'src/core/display': ['e2e-desktop'],
+  'src/core/settings': ['e2e-desktop', 'e2e-menus'],
+  'src/core/flags': ['e2e-park', ...CORE],
+  'src/core/': ['e2e-offline', ...CORE],
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
   'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/': ['e2e-modes', 'e2e-missions', 'e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-enemies', 'e2e-park'],
+  'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run
-  'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
+  'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-mouse'],
   'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
   'src/config/camera': ['e2e-camera-bounds', 'e2e-anim', 'e2e-clip', ...CORE],
-  'src/player/': ['anim-audit', 'e2e-wall', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
+  'src/player/': ['anim-audit', 'e2e-wall', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-weapons-carry'],
   'src/anim/': ['anim-audit', 'e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
   'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip'],
-  'src/ai/': ['e2e-stealth-ai', 'e2e-enemies', 'e2e-levels', 'e2e-tactics', 'e2e-missions', 'e2e-takedown'],
+  'src/ai/': ['e2e-stealth-ai', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
-  'src/world/': ['e2e-security', 'e2e-kestrel', 'e2e-lightbake', 'e2e-darkness', 'e2e-levels', 'e2e-anchors', 'e2e-ct-warehouse', 'e2e-desktop'],
-  'src/voxel/': ['e2e-lightbake', 'e2e-darkness', 'e2e-desktop'],
-  'src/vfx/': ['e2e-desktop', 'e2e-darkness'],
-  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove'],
+  'src/world/': ['e2e-lightbake', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
+  'src/vfx/': ['e2e-desktop'],
+  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   'src/security/': ['e2e-security'],
   'src/progression/': ['e2e-park'],
   'src/cosmetics/': ['e2e-park'],
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback'],
   'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-modes', 'e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
+  'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
   'src/config/': CORE,
 };
@@ -83,6 +102,12 @@ const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 const opt = (n) => argv.find((a) => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const legacyRun = flag('legacy');
+const audioRun = flag('audio');
+const gpuRun = flag('gpu');
+if (gpuRun && process.env.E2E_GPU !== '1') {
+  console.error("E2E ERROR: --gpu reads final pixels: run it on Michael's PC with E2E_GPU=1 (port 4189), never on software GL.");
+  process.exit(1);
+}
 const quick = flag('quick');
 const named = argv.filter((a) => !a.startsWith('--'));
 
@@ -119,12 +144,14 @@ function quickSuites() {
     if (hit) why.push(f);
   }
   console.log(`quick: ${files.length} changed file(s), ${why.length} reach the browser`);
-  // parked-content suites need LEGACY=1 (`npm run e2e:legacy`, report only); the quick run never lists them
-  return REQUIRED.filter((s) => picked.has(s)).concat([...picked].filter((s) => !REQUIRED.includes(s) && !LEGACY.includes(s) && existsSync(`scripts/${s}.mjs`)));
+  // required suites first; a picked legacy / audio suite runs too, REPORT ONLY (GPU suites never run on software GL)
+  return expand(REQUIRED.filter((s) => picked.has(s))).concat(expand([...picked].filter((s) => !REQUIRED.includes(s) && !GPU.includes(s) && existsSync(`scripts/${s}.mjs`))));
 }
 
-const all = named.length ? named : expand(legacyRun ? LEGACY : quick ? quickSuites() : [...REQUIRED, ...REPORT]);
-const fullRun = !named.length && !quick && !legacyRun;
+const all = named.length ? named : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
+const fullRun = !named.length && !quick && !legacyRun && !audioRun && !gpuRun;
+// REPORT ONLY: anim-audit always; in a quick run every suite outside REQUIRED
+const report = (s) => REPORT.includes(s.split(':')[0]) || (quick && !REQUIRED_JOBS.has(s));
 const jobs = flag('serial') ? 1 : Math.max(1, Number(opt('jobs') ?? process.env.E2E_JOBS ?? Math.min(5, Math.floor(cpus().length / 3))) || 1);
 if (flag('list')) {
   console.log(all.join('\n'));
@@ -160,7 +187,7 @@ if (process.env.E2E_HEADED === '1') {
   console.error('E2E ERROR: E2E_HEADED=1 is set. The runner never opens headed browsers (they grab the real cursor). Unset it; debug headed with a single suite run directly.');
   process.exit(1);
 }
-const env = { ...process.env, E2E_RUNNER: '1', ...(legacyRun ? { LEGACY: '1' } : {}) };
+const env = { ...process.env, E2E_RUNNER: '1' };
 const results = [];
 const t00 = Date.now();
 
@@ -170,7 +197,8 @@ async function runOne(s) {
   if (streamed) console.log(`\n=== ${s}${report(s) ? " (REPORT ONLY: never fails the run)" : ""} ===`);
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
+  const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));

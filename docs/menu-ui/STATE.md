@@ -1,5 +1,7 @@
 # Menu UI run - state
 
+> **History (process audit, 2026-10-19):** the menu run happened and merged (PR #8, #11, #14); the text below predates it. The current state of every job is `docs/ROADMAP.md`.
+
 ## Current
 Step 1 (design) done 2026-10-15: SPEC.md v1.0, DECISIONS.md MD1-MD20, prototype, BRIEF / RULES / PLAN / steps 01-13.
 The run (sessions 2-4) has not started.

@@ -1,5 +1,7 @@
 # Kestrel - progress
 
+> **History (process audit, 2026-10-19):** Kestrel is paused (G53); its suites are in the LEGACY e2e list. The current state of every job is `docs/ROADMAP.md`.
+
 Planning handover (decisions not yet in the briefs, stage order, working rules): see handover.md.
 
 | Stage | Prompt | Status | Commit | Date |

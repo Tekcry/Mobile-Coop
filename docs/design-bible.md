@@ -920,21 +920,28 @@ Each map's documents also include:
 
 ## 9. How we build
 
-The process lives in `CLAUDE.md` (rules, commands, definition of done) and `docs/systems/session-method.md` (how a job is
-set up and run). In short:
+The process lives in `CLAUDE.md` ("Sessions": the orchestrator, machines, jobs, test tiers, branches; commands; definition
+of done) and `docs/systems/session-method.md` (the job lead's loop); the process audit (2026-10-19,
+`docs/process-audit/`) set them. In short:
 
 - **Authority order:** Section 0 (G86).
-- **Branches:** main is the only base. One branch per job from main, one merge request each; only Michael merges (G83).
-  One chosen preview beside the live game (G85).
+- **Branches:** master is the only base. One branch per job from master, one merge request each (G83); the orchestrator
+  merges green ones without asking (Michael, 2026-10-19), Michael when auto mode blocks it; master always holds every
+  finished update, and the orchestrator asks Michael when unsure. Previews beside the live game: `/preview/`
+  (master) and `/ct/` (the active prototype), G85 in its current form (`docs/systems/deploy.md`).
 - **Prototype, then orchestrator:** every multi-step job builds a quick prototype for feel or look first, then runs the
   orchestrator method (G87). Opus builds and checks; a lighter model only for mechanical chores (G88).
   Menu and gameplay prototype slices are built with Sonnet at medium effort; Opus does the fine tuning (G158, G150).
 - **Decisions:** Michael's decisions go into `docs/DECISIONS.md` with the next free G number when a job merges, and into
   this bible (G86, G89).
-- **Jobs:** `docs/progress.md` lists the jobs in order with branch, folder and status (G90).
-- **Versions:** notes say Unreleased until the merge; one minor step per merged job; fixes are patches (G93). The
-  consolidation merge is 4.0.0 (G84).
-- **Tests:** `TESTING.md` holds one desktop checklist and a release checklist (G92).
+- **Jobs:** `docs/ROADMAP.md` (owned by the orchestrator) lists what runs now, next and what waits on Michael (G90 in
+  its current form); each job keeps BRIEF, PLAN and STATE in `docs/<job>/`.
+- **Versions:** notes say Unreleased until the merge; every merge to master gets the next `4.MINOR.PATCH`, a job or
+  feature a minor step, a fix or docs-only merge a patch, set by the orchestrator (G183, G93). The consolidation merge
+  is 4.0.0 (G84).
+- **Tests:** test tiers by kind of change (CLAUDE.md "Sessions"); the full e2e run is the training level and its systems,
+  with parked, audio and GPU suites in their own runs (`docs/systems/testing-tools.md`). `TESTING.md` holds one desktop
+  checklist and a release checklist (G92).
 - **Token hygiene:** read `CLAUDE.md`, the job's plan and only the files it lists; use grep and line ranges; never re-read
   this bible in full in a session.
 
@@ -942,7 +949,7 @@ set up and run). In short:
 
 ## 10. Roadmap
 
-The ordered job list, with branches and status, is `docs/progress.md` (G90). The order (G95):
+The live job list, with branches and status, is `docs/ROADMAP.md` (G90; `docs/progress.md` is its history). The order (G95):
 
 1. **CT co-op research:** every CT co-op level (design, flow, moves), CT's gadget and attachment set, friendly fire and
    heavies, and which of this bible's "research" items CT has. Done 2026-10-18: digests in `docs/ct-research/`,
