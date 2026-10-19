@@ -4,8 +4,11 @@
 
 **Next:** nothing unless the review asks for changes (rerun e2e-traverse alone on the laptop, push, tell the orchestrator).
 
-**Open (not this job):** the keyboard vent section's checks stay skipped ("prototype: revisit", T1-TESTS.md); it is
-the section that opens the grate.
+**Open (not this job, for CT Core):** a possible keyboard bug. At a closed vent, Space starts the vent and E held
+should unscrew, but on real frames the Space release is taken as a kick: the grate opened in 5 of 5 laptop runs. This
+matches the T1 known issue (keyboard Space then hold E does not start an unscrew; `src/player/attachController.ts`
+`updateVent`: `!inp.useHeld && v.t > 0.02` kicks). The keyboard vent section's checks stay skipped ("prototype:
+revisit", T1-TESTS.md).
 
 ## Done
 - 2026-10-19: verified on the laptop: e2e-traverse 5/5 PASS (23-29 s), the kick at 0.07 s with noise 10 every run; the
