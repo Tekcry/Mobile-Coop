@@ -1,6 +1,6 @@
 # AUDIT - the context action menu (CT vs ours)
 
-Covered: CT's top-right context menu (passive list, hold-A active list, highlight, confirm, option sets) and our door / grab menus and centre prompt. Stopped early on the usage limit: rows marked "estimate" are not frame-measured.
+Covered: CT's top-right context menu (passive list, hold-A active list, highlight, confirm, option sets) and our door / grab menus and centre prompt. Stopped early on the usage limit (twice): rows marked "estimate" are not frame-measured; the catalogue-only clips (052441, 052527, 052607, 052752, 052901, 052952, 053114, 110522, 110714, 110936, 111335, 111731, 112135, 112331, 112428) still need the per-frame scan (scratchpad scanner: one decode pass takes about 50 s per 1.5 s of clip).
 Clips frame-stepped (per-frame pixel scan + crops): 110818 0-1.5 s and 8-10.5 s, 052349 3-7, 11.5-15, 17.5-21 s. Option sets from the catalogue for 052441, 052527, 052607, 052752, 052901, 052952, 053114, 110522, 110714, 110936, 111335, 111731, 112135, 112331, 112428. Frames: pc/ct-work/frames/actionmenu/.
 
 ## CT spec (measured, 2420x1668 frames, fractions of frame W / H)
@@ -16,7 +16,8 @@ Behaviour (frame-exact, 60 fps):
 - Passive: shows whenever an interactable is in reach; header INTERACT; dim rows; usually no highlight. A passive row-1 highlight shows at some objects (052349 17.6-20.3 "[OPEN DOOR] / BASH DOOR", then "[CLOSE DOOR]"; catalogue: PICK LOCK, GRAB CHARACTER, INTERROGATE). Estimate: it marks row 1 as the immediate default when the hero is right at the object.
 - The list re-forms as the hero moves (4 rows -> 2 -> 1 at 052349 14.7-19.2).
 - Hold A: header flips to BACK TO GAME and row 1 is highlighted in the same frame (110818 0.304; 052349 3.717, 13.167). No fade or open animation. World slow-down: none visible (estimate).
-- Moving the highlight: one row per step, instant (110818 row 1 -> 2 after 0.41 s; 052349 row 2 at 4.150, back to row 1 at 4.818). For 0.55 s (052349 13.58-14.12) rows 1 and 2 both show brackets (trail or two-step move; unresolved).
+- Moving the highlight: one row per step, instant (110818 row 1 -> 2 after 0.41 s; 052349 row 2 at 4.150, back to row 1 at 4.818). For 0.55 s (052349 13.58-14.12) rows 1 and 2 are both fully highlighted (pixel check at 13.9: both texts 145,172,134, both brackets 150,182,139; at 13.4 only row 1). Estimate: a second press or a multi-row default; unresolved, do not copy.
+- The passive row-1 highlight is the same style as the active one (052349 17.6: text 147,176,136, bracket 152,189,140; row 2 grey 90,92,86).
 - Confirm: the whole menu vanishes in one frame with a row highlighted (110818 1.086, 052349 5.217 and 14.134) and that row's action follows (OPTIC CABLE: remote view from 2.5 s; OPEN TRAP: opens at 9.6 s). Fits Michael: release A runs the highlighted row.
 - BACK TO GAME: per Michael a selectable "no action" choice. 110714 16.5-23.0 alternates the highlight between BACK TO GAME and EXIT FRONT, so it is a row (estimate: the header doubles as a row above row 1). Releasing on it closes with no action.
 - Shortest active span: 0.52 s (110818 9.081-9.598, OPEN TRAP). No hold threshold visible (active appears in the press frame), so a quick tap runs row 1 (estimate).

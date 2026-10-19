@@ -1,8 +1,9 @@
 # Audit: traversal (2026-10-20)
 
 Covered: mantle, jump-grab, hang, shimmy, climb-up, drops and landings, drainpipe, ladder, free rope, rappel, duct, floor
-trap; rail vault and beam walk from the catalogue only (stopped early on the usage limit, rows marked "estimate").
-Clips frame-stepped: 110522, 110616, 054411, 112102, 111335, 111731, 111234, 110818. Frames: `pc/ct-work/frames/traversal/`.
+trap, rail vault, crouched rail climb-over, rail hang, beam walk. Pass 2 (2026-10-20) added 111424, 111823 and the
+beam; our renders and the duct speed are still not reviewed (usage cap), rows marked "estimate".
+Clips frame-stepped: 110522, 110616, 054411, 112102, 111335, 111731, 111234, 110818, 111424, 111823. Frames: `pc/ct-work/frames/traversal/`.
 
 Rulers: hero about 1.8 m (hands-to-feet in a dead hang about 2.2 m), vent panel 2.6-3 m, ladder rungs (count only, the
 camera foreshortens them), pipe bracket bands. Speeds are +-20 % (tracking camera); periods are +-0.1 s.
@@ -24,11 +25,15 @@ camera foreshortens them), pipe bracket bands. Speeds are +-20 % (tracking camer
 | 11 | Ladder top-out | 112102 12.2-13.2: hand over the top 12.2, both hands on the platform 12.4, torso over 13.0, standing 13.2, crouches at 13.4 (about 1.0 s) | `attach.ts` ATTACH.ladder.exit 0.45; end 0.2 m in from the top | about 2x short | ladder top exit 0.45 -> 1.0 s with a knee-on-top pose like the climb-up (reuse CLIMB_UP crouch half) | M | 2 |
 | 12 | Ladder release | 112102 7.5-8.03: let go near the bottom, short fall (about 0.13 s), lands standing with both arms flung out to the sides held about 0.45 s | ladder has no drop (`a.kind !== 'ladder'`); B = slide 4.5 m/s | CT lets go; slide not seen in any clip | allow drop on the ladder below 1.2 m feet height; land pose arms out 0.45 s; keep the slide (not contradicted) | S | 1 |
 | 13 | Rappel hook-on | 111731 2.0 menu gone -> 4.2 in position (about 2.0 s): steps over the edge, sits into the rope, camera top-down close on his back | `movement.ts` RAPPEL.hookTime 0.8 | 2.5x short | RAPPEL.hookTime 0.8 -> 1.8 (estimate) | S | 2 |
-| 14 | Rappel pose and speed | 111731 4.2-13.4, 19.2-23.7: legs out on the wall, knees 60-90 deg, torso leaned back 30-45 deg off the wall, top hand up the rope, brake hand at the hip; slow steady walk down; tucked ball pose at 18.6-18.9 (pause) | RAPPEL.descend 1.6, descendSprint 3.0 | CT looks well under 1 m/s (estimate; the camera tracks) | RAPPEL.descend 1.6 -> 0.8 (estimate), add a wall step cycle (about 1 step / 0.6 s) | S | 2 |
+| 14 | Rappel pose and speed | 111731 4.2-13.4, 19.2-23.7: legs out on the wall, knees 60-90 deg, torso leaned back 30-45 deg off the wall, top hand up the rope, brake hand at the hip; slow steady walk down; tucked ball pose at 18.6-18.9 (pause) | RAPPEL.descend 1.6, descendSprint 3.0 | 111731 6.0-11.6 (top-down crop): ground features grow 1.55x in 5.6 s; with the camera 7-12 m off the ground that is 0.45-0.75 m/s; the feet stay planted and the body slides (no step cycle seen) | about 2-3x fast | RAPPEL.descend 1.6 -> 0.6, descendSprint 3.0 -> 1.2 (estimate); no step cycle needed | S | 2 |
 | 15 | Rappel push-off and drop | 111731 24.0-25.8: unhook, push off, airborne 24.6-25.5 (0.9 s), lands one knee deep on a ledge 25.5-25.8, stands 26.1 | unhook only under RAPPEL.unhookHeight 2.0 | CT drops from higher | RAPPEL.unhookHeight 2.0 -> 4.0 (estimate) with the drop landing of #9 | S | 1 |
 | 16 | Duct crawl camera | 111234 37-41.8: camera about 0.3-0.5 m behind and just above the helmet, the helmet fills the lower centre; head bobs side to side with a 1.0-1.2 s cycle; hands and knees | `attach.ts` camera 'duct'; ATTACH.duct speed 0.9 | camera distance to check in camera.ts (camera agent); speed 0.6-1.0 m/s (estimate) | keep 0.9; duct camera offset about 0.4 m behind, 0.1 m above the head; head bob +-0.05 m lateral at the crawl period | S | 2 |
 | 17 | Floor trap open and drop | 110818 9.33 select -> crouched shuffle to the grate 9.6-10.7 -> lift 10.93-12.0 (1.1 s, lid swings to vertical) -> lowers feet first 15.2 -> hangs, drops, lands crouched 16.0 (0.8 s); camera top-down high, cuts to below at the drop | no floor trap (only a ceiling vent drop from a duct, VENT_LOWER 1.5) | missing | see Missing 2 | M | 2 |
-| 18 | Rail vault / rail climb-over | 111424 1.0 (one leg and both hands over at a run), 3.0-4.5 (hands on the rail, legs kicked up and over, lands crouched); 111823 7.5-9.0 (sprawled over the rail, perched, lowers on the far side, crouched 9.0): estimate, not frame-stepped | `traversal.ts` vault 0.7 s (MIN 0.42), height <= 1.25 m | vault time roughly fits (about 1.0-1.5 s for the climb-over from a crouch); the slow climb-over variant is missing | add a crouched rail climb-over (1.5 s, sit on the rail at k 0.4, lower on the far side) when crouched or at walk; keep the 0.7 s vault at a run | M | 2 |
+| 18 | Rail vault (waist rail, about 1 m) | 111424 0.8 hands on -> 1.13 one leg over -> 1.30 body flat over the rail -> 1.46 landed (0.65 s), standing 1.63; second vault 3.63 hands on -> 4.30 landed crouched (0.67 s) on a platform about 0.5 m lower | `traversal.ts` TRAVERSE_TIME.vault 0.7 (MIN 0.42) | matches; CT lands crouched when the far side is lower | keep 0.7; MIN_TIME.vault 0.42 -> 0.6; land crouched (crouch on) when the landing is 0.3 m+ below the take-off | S | 1 |
+| 19 | Crouched rail climb-over | 111823 7.33 hands on (crouched) -> 7.65-7.97 sprawled across the rail near horizontal -> 8.07-8.28 perched, legs swing over -> 8.8 crouched on the far side (1.45 s); 110522 29.05-30.8 at a walk, leg over 29.55, straddle 29.8-30.3 (1.75 s) | none: crouched or slow input plays the 0.7 s vault | slow variant missing | new traversal `climbOver` 1.5 s when crouched or below jog at a 0.8-1.25 m rail: hands on k 0-0.15, belly over k 0.2-0.45, sit / legs over k 0.45-0.7, lower to a crouch k 0.7-1; ends crouched | M | 2 |
+| 20 | Lower into a hang over a rail / edge | 111424 10.89 step up -> 11.04 leg over the rail -> 11.34 straddle, arms out -> 11.49 hands grip -> 11.64 dead hang (0.75 s) | `attachController.ts` LOWER_TIME 0.7 | matches | keep | - | 1 |
+| 21 | Climb-up over a rail on the lip | 111424 12.4 pull -> 12.69 chest at the lip -> 12.84 knee up -> 13.14 legs over the rail -> 13.44-13.59 astride -> 13.9 crouched on top (1.5 s) | one CLIMB_UP for every lip | about 0.7 s longer with a rail | when a railing sits within 0.3 m above the lip, play the climb-up then the second half of `climbOver` (1.5 s total), ends crouched | M | 1 |
+| 22 | Beam / narrow-top walk | 110522 31.05-36.0: normal upright walk along a narrow beam, arms at the sides, no balance pose | normal walk | matches | none | - | 1 |
 
 ## Missing entirely
 
@@ -43,9 +48,8 @@ camera foreshortens them), pipe bracket bands. Speeds are +-20 % (tracking camer
 2. Floor trap (N2-3, 110818 9-16.5, 111234 4.5-10). Plan: a `hatch` anchor in the floor; menu OPEN TRAP: 1.1 s crouched
    lift (lid to vertical, hinged), then a lower-in (reuse LOWER_TIME 0.7 into a hang at the hole edge) and the hang drop
    (#9); OPTIC CABLE through it (H5 in the gadget area). Hold the crouch pose over the hole while open.
-3. Crouched rail climb-over (111823 7.5-9.0, 111424 13.0-14.0: sits astride, then drops to a crouch). See #18.
-4. Beam / ledge-top walk (N3, 110522 29.5-35.5): one leg over a beam, then a normal walk along a catwalk; footage is
-   unclear (catalogue "poor"), so no balance walk is proven. Plan: none until clearer footage; normal walk on narrow tops.
+3. Crouched rail climb-over (111823 7.33-8.8, 1.45 s; 110522 29.05-30.8, 1.75 s). See #19 and #21.
+4. Beam walk: settled (#22), CT uses the normal walk; nothing to add.
 
 ## Clipping and believability risks
 
@@ -61,8 +65,11 @@ camera foreshortens them), pipe bracket bands. Speeds are +-20 % (tracking camer
 
 ## Not measurable from the footage
 
-- Rappel speed and duct speed: the camera tracks the hero and the walls repeat (brick courses, grates), so no fixed ruler.
+- Duct speed: the camera sits on the helmet and the grates repeat, so no fixed ruler (estimate 0.6-1.0 m/s).
+- Rappel speed: only a range (#14), from ground features growing under a top-down camera of unknown height.
+- Our renders (traverse/*.png, shots/f/traverse/) were not compared (usage cap). No CT clip shows a window vault, fence,
+  zipline, boost or leg-up, so those stay unverified.
 - Ladder rung spacing in metres: the low camera foreshortens the rungs; speeds in #10 assume 0.3 m rungs.
 - Ladder slide: never used in the clips (no evidence for or against).
-- Rail vault take-off distance and the beam walk: not frame-stepped (usage limit); catalogue times only.
+- Rail vault take-off distance: the camera is high and moving (hands go on 0.15-0.3 s after arriving at a walk).
 - Pipe legs-up, inverted hang, zipline, fence, window vault, split jump: not in any traversal clip.

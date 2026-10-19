@@ -27,3 +27,9 @@ rail vault and beam walk (not measured).
 ## Questions for Michael (morning)
 - Explore camera shoulder offset: answered 00:50 "Match CT (0.15 m)" (G3).
 - FOV: answered 00:50 "Match CT (86)" (G3). Footage beats G103 / F1a: "Footage wins".
+
+## Coverage check (Michael 01:05: "make sure you don't forget to check every movement/actio /animation in the videos")
+Every catalogue entry is mapped to an audit row or marked MISSING, clip by clip: `COVERAGE-NEW.md` (26 new clips: 153
+grouped rows, ~103 covered, 24 partial, 22 missing items) and `COVERAGE-OLD.md` (old catalogue as corrected: 162 moves,
+15 missing items M1-M15, 21 partial P1-P15). The missing and partial items are measured in `AUDIT-EXTRA-NEW.md` and
+`AUDIT-EXTRA-OLD.md` (in progress). Text-only mapping: frame checks live in the area files.
