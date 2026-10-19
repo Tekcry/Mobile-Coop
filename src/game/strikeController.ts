@@ -3,11 +3,11 @@
  * the anticipation at once; solo and the co-op host start it themselves (the same check as a client's,
  * `checkCommitted`, no message), a client asks the host (`cmove`) and aligns to its start time (`cstart {t0}`) or
  * blends back with no hit (`cdeny`, or no reply in 0.4 s). Contact is resolved only where the guards live (solo,
- * host) at t0 + 0.5 s: reach and cone again, then knock-out or stagger (`resolveStrike`), noise 4 m.
+ * host) at t0 + 0.12 s: reach and cone again, then one-hit knock-out, noise 4 m.
  */
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
-import { facingDot, resolveStrike, STRIKE, STRIKE_DUR, strikePhase, strikeReach } from './elbowStrike';
+import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
 
@@ -29,6 +29,9 @@ export class StrikeController {
   private queued = false;
   /** False on a co-op client: the host resolves contact. */
   authority = true;
+  /** (F1a, CT) The running strike is the lethal one (RT / LMB holstered); false = the knockout (LT / Z). Solo and the host
+   *  resolve it; a client's strike is a knockout on the host (the wire carries no lethal flag: stub). */
+  lethal = false;
   /** Tests: hold the strike at this phase (-1 = off). */
   freezeAt = -1;
   /** Counts and the last denial (tests, HUD). */
@@ -138,10 +141,12 @@ export class StrikeController {
   }
 
   /** Fixed step (before the player's movement). */
-  fixedUpdate(dt: number, pressed: boolean): void {
+  fixedUpdate(dt: number, pressed: boolean, lethal = false): void {
     const g = this.g;
+    if (pressed) this.lethal = lethal;
     if (!this.active) {
-      if (pressed) this.begin();
+      // (F1b) no swing at nothing: the press only starts a strike when a guard is in reach
+      if (pressed && this.pickTarget() !== '') this.begin();
       if (!this.active) {
         if (this.wasActive) g.player.pose.melee = -1;
         this.wasActive = false;
@@ -168,9 +173,9 @@ export class StrikeController {
       } else if (this.authority && !this.resolved && this.t >= STRIKE.hitAt) {
         this.resolved = true;
         const p = g.player.position;
-        this.applyHit('local', p, g.player.controller.yaw, g.player.cam.yaw, this.tid, 0);
+        this.applyHit('local', p, g.player.controller.yaw, g.player.cam.yaw, this.tid, STRIKE.contactSlack);
       }
-      if (this.t >= STRIKE_DUR) return this.end();
+      if (this.t >= (this.tid ? STRIKE_DUR : STRIKE_WHIFF_DUR)) return this.end();
     }
     g.player.pose.melee = this.ph;
   }
@@ -185,7 +190,7 @@ export class StrikeController {
     this.g.player.pose.melee = -1;
     const again = this.queued;
     this.queued = false;
-    if (again) this.begin();
+    if (again && this.pickTarget() !== '') this.begin();
   }
 
   private find(id: string): { readonly id: string; readonly pos: Vector3; readonly yaw: number } | null {
@@ -206,16 +211,12 @@ export class StrikeController {
       const dx = e.pos.x - at.x;
       const dz = e.pos.z - at.z;
       if (strikeReach(dx, dz, bodyYaw, slack) >= 0 || strikeReach(dx, dz, aimYaw, slack) >= 0) {
-        res = resolveStrike({
-          aware: e.level !== 'unaware',
-          facingDot: facingDot(e.yaw, e.pos.x, e.pos.z, at.x, at.z),
-          heavy: e.def.kind === 'heavy',
-          staggered: e.strikeStaggered,
-        });
-        if (res === 'ko') {
-          const dir = new Vector3(dx, 0, dz).normalize();
-          e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: by, sourcePos: at.clone(), impulse: 1, takedown: 'strike' });
-        } else e.strikeStagger(STRIKE.stagger);
+        // (G42 / G155) one hit knocks out any guard from any side; (F1a) the lethal strike (the local player's RT) kills
+        res = 'ko';
+        const dir = new Vector3(dx, 0, dz).normalize();
+        const h = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: by, sourcePos: at.clone(), impulse: 1, takedown: 'strike' as const };
+        if (this.lethal && by === 'local') e.killOutright(h);
+        else e.knockOut(h);
         em!.hear(at, STRIKE.noise);
       }
     }
@@ -228,6 +229,7 @@ export class StrikeController {
     this.t = -1;
     this.back = -1;
     this.queued = false;
+    this.lethal = false;
     this.wasActive = false;
     this.g.player.pose.melee = -1;
   }

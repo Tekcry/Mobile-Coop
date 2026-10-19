@@ -15,7 +15,7 @@
 import type { Proportions } from '../player/proportions';
 import { overClip, addClip, type Clip } from './clip';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
-import { stepLength, type MotionState } from './motion';
+import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import {
@@ -228,7 +228,8 @@ export interface RigTargets {
   /** Ideal stance per foot (root space, m) and heel raise / pitch offsets. */
   stance: { lX: number; lZ: number; rX: number; rZ: number; lY: number; rY: number; lPitch: number; rPitch: number };
   /** Gait values for the foot planner. */
-  gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean };
+  /** (A1.2) `turning` 0..1: how much of the cadence comes from body turning. */
+  gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean; turning: number };
   /** Whole-body tumble about the hips (rad, forward): the landing roll. */
   tumble: number;
   /** Layer weights for the debug overlay. */
@@ -261,7 +262,7 @@ export function emptyTargets(): RigTargets {
     handL: { x: 0, y: 0, z: 0 },
     handR: { x: 0, y: 0, z: 0 },
     stance: { lX: -0.11, lZ: 0.04, rX: 0.11, rZ: -0.02, lY: 0, rY: 0, lPitch: 0, rPitch: 0 },
-    gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false },
+    gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false, turning: 0 },
     tumble: 0,
     layers: {},
     weaponBob: 0,
@@ -324,7 +325,8 @@ export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.
  * - `z` (m) the wrist ahead of the shoulder at rest, `zCrouch` more ahead crouched, `zSprint` at the sprint (the
  *   pumping hands carried by the lower chest; A80: 1 cm with a 13 cm pump, at 8 / 16 cm the forward forearm went
  *   level at the chest and read as a reach).
- * - `flex`, `flexCrouch`, `flexSprint` (rad) the elbow bend standing (~18 deg), crouched (~34) and pumping (~80).
+ * - `flex`, `flexCrouch`, `flexSprint` (rad) the elbow bend standing (~18 deg), crouched (~52: anim-cleanup b46499f, the hands
+ *   by the thighs just above the knees over the 35-45 deg crouch, forearms clear of the thighs) and pumping (~80).
  * - `swing` (m per m/s) the counter swing fore-aft, capped at `swingMax` (m); crouched `swingCrouch` of it.
  *   `backSwing` of it behind the rest (A81: the forward swing is the bigger one), arcing `xArc` (m per m) out as
  *   the hand goes back past the hip (clear of the forward thigh); not at the sprint.
@@ -339,12 +341,12 @@ export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.
 export const READY_HANDS = {
   x: 0.06,
   xMove: 0.03,
-  xCrouch: 0.05,
+  xCrouch: 0,
   xSprint: 0.03,
   z: 0.05,
-  zCrouch: 0.04,
+  zCrouch: 0,
   flex: 0.31,
-  flexCrouch: 0.6,
+  flexCrouch: 0.9,
   flexSprint: 1.5,
   swing: 0.06,
   swingMax: 0.15,
@@ -378,6 +380,8 @@ export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, r
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
  * and head rolled into it (side-signed by the wall side), a little lower and bent (unsigned).
  */
+/** (P1b) Back-to-wall arms: wrist x out from the shoulder joint (m), reach as a share of the arm length (hangs lower, straighter), z ahead (m). */
+export const WALL_ARMS = { x: 0.03, reach: 0.985, z: 0.03 };
 /** (step 11) Flat back on a wall: pelvis and spine pitch back (rad; crouched adds), eased in over `tau` (s). */
 export const WALL_BACK = { pel: 0.05, pelCrouch: 0.1, spine: 0.08, spineCrouch: 0.2, tau: 0.1 };
 /** (step 21w, M14 task 7) Wider feet on a wall (added to the stance width share): crouched the knees stay apart (the
@@ -465,7 +469,12 @@ export class AnimGraph {
   private hit = new Spring();
   private hitSide = 0;
   private recoil = new Spring();
-  private yawLag = new Spring();
+  /** (P1 posture) Weight of the Chaos Theory carriage lean (grounded, off walls and traversals), eased. */
+  private carriageS = 1;
+  /** (P1c) Armed-carriage hunch scale (eased): near upright when holstered. */
+  private hunchS = 0.4;
+  /** (P1 posture) The carriage lean (rad), rate-limited. */
+  private leanS = 0;
   private support = 0;
   private pelBase = new Spring(-0.04);
   /** Support hand foregrip weight (eased: a draw / holster enters and leaves the swap clip mid-clip). */
@@ -601,7 +610,8 @@ export class AnimGraph {
     this.stillT = still ? this.stillT + dt : 0;
     this.idleT += dt;
     if (i.phase >= 0) this.phase = i.phase;
-    else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
+    // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
+    else if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i)) * dt) % 1;
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
     // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
@@ -641,7 +651,8 @@ export class AnimGraph {
     // --- kneel: one knee down when crouched and still (eased over kneelTime)
     // (step 11) never at a wall: the crouched flat-back stance is the wall's own pose (a kneel there moves a foot the
     // remote copy, posed from MoveState without the kneel timer, does not)
-    const wantKneel = i.kneel && crouchK > 0.5 && !i.wall;
+    // (P1c) CT footage has no idle kneel (a deep two-foot squat holds): off unless POSTURE.kneel
+    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.5 && !i.wall;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
@@ -753,15 +764,26 @@ export class AnimGraph {
     // hands at the end of a holster, or across a swap's empty-hands beat)
     const carryOn = !weaponSwap && (i.armed || (i.ready && i.traverse === 'none'));
     this.carryW = approach(this.carryW, carryOn ? 1 : 0, weaponSwap ? CARRY_SWAP_TAU : 0.25, dt);
+    // (P1 posture; P1b) computed before the carriage hunch: the posture lean is the TOTAL torso pitch, so it replaces the
+    // armed carriage hunch (spine 0.5 + crouch bend 0.34 stacked on it made a 70-90 deg quadruped crouch and a 43 deg run)
+    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - wallW : 0, 0.08, dt);
+    const carriage = (1 - this.raiseS) * this.carriageS;
+    const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
+    // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
+    const leanT = (crouchK * POSTURE.crouchLean + this.weights.kneel * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
+    this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
+    const postureW = Math.max(crouchK, runK) * carriage;
     // --- tactical carriage (armed, or holstered with ready hands): hunched over the weapon; more bent over moving
     // along a wall (the same carriage either way: holstering never changes pelvis or head motion, D2)
     const carryK = this.carryW;
     if (carryK > 0) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
       // (step 11) with the back to a wall the back stays flat on it: the hunch eases out with the wall weight
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW);
+      // (P1c) CT stands upright (spine 3-5 deg) when holstered; only a weapon in hand keeps a light forward carriage
+      this.hunchS = approach(this.hunchS, i.armed ? POSTURE.hunchArmed : POSTURE.hunchHolstered, 0.25, dt);
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW) * this.hunchS;
       // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK;
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK * (1 - postureW);
       src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
       src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - crouchBend * 0.7;
@@ -793,13 +815,17 @@ export class AnimGraph {
     const hd = this.leanHead.step(headTarget, peekOut ? 34 : 18, dt);
     const bodyTarget = peekOut ? (Math.abs(hd) > Math.abs(leanIn) * 0.55 ? leanIn : 0) : 0;
     const bd = this.leanBody.step(bodyTarget, 24, dt);
-    const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
-    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
+    // (A1.2) no spine lag behind the turn: the chest keeps the facing, the pelvis follows the legs (rig, turnFollow)
+    // (P1 posture, ct-measure-speeds-stops-posture.md s.4) Chaos Theory carriage: crouched the back leans ~38 deg forward
+    // (footage 35-45), the run leans ~23 deg; lowered only (a raised weapon keeps its platform), off a wall or a traversal
+    // (eased: a one-frame grounded flicker as the capsule stands up popped the spine 0.23 rad)
+    const postureLean = this.leanS;
+    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
     // (21w, PC-PASS 42) continuous through the open-side hand switch (the sign flipped the chest, head and sight roll
     // in one frame at the half-way point)
     const handS = clamp(i.hand, -1, 1);
-    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0) + yl;
+    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0);
     src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
@@ -877,11 +903,14 @@ export class AnimGraph {
     src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
     // grip and off hand defaults (at a wall: off hand to the wall when settled and lowered)
     src[CH.grip] = i.armed ? 1 : 0;
-    src[CH.offGrip] = 1;
+    // (P1b, ct-measure-walls-doors-combat-vision.md s.1) back to the wall the arms HANG at the sides, hands mid-thigh and
+    // off the wall (the support hand reached back to a wall point at hip height, elbow out: hand on hip). The support hand
+    // lets go of the foregrip while still and lowered (settles over the first ~0.4 s); moving along the wall takes it
+    // back to the weapon. No wall-hand contact (offWall stays 0; the rig's wallHand point is unused).
+    const wallHang = atWall ? ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    src[CH.offGrip] = 1 - wallHang;
     src[CH.offMag] = 0;
-    // the support hand reaches the wall (0.18-0.42 s) and rests there while still and lowered; moving along the
-    // wall takes it back to the weapon
-    src[CH.offWall] = atWall ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    src[CH.offWall] = 0;
     // free hands hang at the sides (swing a little with the gait when unarmed)
     // (step 22, D5.1) the swing grows with the effort: 7.5 cm at a walk, 11 at a jog, 15 at the sprint (was 10 always)
     const swing = Math.min(0.15, 0.04 + 0.025 * this.effortS) * this.moveW * Math.sin(ph * Math.PI * 2);
@@ -935,6 +964,19 @@ export class AnimGraph {
       src[CH.hRX] = src[CH.hRX]! + (rx - src[CH.hRX]!) * rw;
       src[CH.hRY] = src[CH.hRY]! + (yR - src[CH.hRY]!) * rw;
       src[CH.hRZ] = src[CH.hRZ]! + (zR - src[CH.hRZ]!) * rw;
+    }
+    // (P1b) back to the wall: both free arms hang straight down at the sides (hands low, elbows tucked, about 10-20 deg
+    // bend), not out on the hips: the default hang's 0.92 arm length bowed the elbow out and the ready hands carry
+    // an arm swing; the wrist target is the footage hang (hands mid-thigh as far as the rig's arm length reaches)
+    if (wallHang > 0) {
+      const wx = p.shoulderHalf + WALL_ARMS.x;
+      const wy = shY - armLen * WALL_ARMS.reach;
+      src[CH.hLX] = src[CH.hLX]! + (-wx - src[CH.hLX]!) * wallHang;
+      src[CH.hLY] = src[CH.hLY]! + (wy - src[CH.hLY]!) * wallHang;
+      src[CH.hLZ] = src[CH.hLZ]! + (WALL_ARMS.z - src[CH.hLZ]!) * wallHang;
+      src[CH.hRX] = src[CH.hRX]! + (wx - src[CH.hRX]!) * wallHang;
+      src[CH.hRY] = src[CH.hRY]! + (wy - src[CH.hRY]!) * wallHang;
+      src[CH.hRZ] = src[CH.hRZ]! + (WALL_ARMS.z - src[CH.hRZ]!) * wallHang;
     }
     // reload / swap / grenade clips over the weapon layer
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
@@ -1121,8 +1163,16 @@ export class AnimGraph {
     const g = o.gait;
     g.phase = ph;
     // near the end of a stop the gait clock crawls: hand the last step to deliberate idle stepping
-    g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
-    g.cycleTime = s > 0.05 ? (2 * stepLength(s, undefined, lateralShare(i))) / s : 1.2;
+    // (A1.2) turning steps the feet too (one step per 90 deg), not on a wall, a traversal or a stepped turn chunk
+    const lat = lateralShare(i);
+    const canTurn = !i.wall && i.traverse === 'none' && i.motion !== 'turn' && i.motion !== 'stop';
+    const yr = canTurn ? Math.abs(i.yawRate) : 0;
+    g.moving = (s > (i.motion === 'stop' ? 0.3 : 0.05) || yr > TURN_GAIT_MIN) && i.grounded;
+    const rate = gaitRate(s > 0.05 ? s : 0, yr, undefined, lat);
+    g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat) : 0;
+    const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
+    g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
     // (step 22, D5.1) duty and lift at the effort pace, as the clips the pose blends
     const es = effortSpeed(s, i.crouch > 0.5);
@@ -1132,7 +1182,8 @@ export class AnimGraph {
     const kk = clamp((es - na.speed) / (nb.speed - na.speed), 0, 1);
     const duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
     const lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
-    g.duty = clamp(duty, 0.4, 0.75);
+    // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
+    g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
     // layer weights for the overlay
     const ly = o.layers;
@@ -1164,6 +1215,14 @@ function lateralShare(i: AnimInput): number {
 /** Index of the lower node bracketing a speed in a forward node set. */
 /** (step 22, D5.2) Acceleration lean: rad per m/s^2 along the body, and its cap (rad). */
 const LEAN_GAIN = 0.012;
+/** (A1.2) Stance share of the gait cycle in a full-rate turn (shorter stance: less body yaw over a planted foot). */
+const TURN_DUTY = 0.52;
+/**
+ * (P1 posture) Extra spine pitch (rad, forward +) for the Chaos Theory carriage: `crouchLean` crouched (total ~38 deg
+ * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
+ * the lean changes at most `rate` rad/s.
+ */
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, kneel: false, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
 const LEAN_MAX = 0.09;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;

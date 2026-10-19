@@ -61,7 +61,6 @@ export class TraversalController {
   /** Committed duration of the current move, entry speed and whether a sprint carried into it. */
   private dur = 1;
   private speed0 = 0;
-  private sprint0 = false;
   /** What jump would do right now (for the prompt), refreshed at 5 Hz. */
   hint: TraverseProbe | null = null;
   /** Where the hint's obstacle face (or ledge) is: on the ground under it, at the feet height. */
@@ -121,7 +120,6 @@ export class TraversalController {
       this.kind = 'vault';
       this.t = 0;
       this.speed0 = 2;
-      this.sprint0 = false;
       this.dur = TRAVERSE_TIME.vault * 0.9;
       this.from.set(fx, fy, fz);
       this.to.set(tx, ty, tz);
@@ -210,8 +208,8 @@ export class TraversalController {
       const ax = feet.x + dx * 0.75;
       const az = feet.z + dz * 0.75;
       const f = this.floor(ax, az, feet.y + 0.3, 4);
-      if ((f === null || feet.y - f > 0.6) && this.player.controller.sprinting) {
-        // sprinting at a gap: a quick hop if there is floor at about the same height beyond it
+      if ((f === null || feet.y - f > 0.6) && this.player.controller.speed > 3.5) {
+        // running at a gap: a quick hop if there is floor at about the same height beyond it
         for (let d = 1.4; d <= 3.2; d += 0.3) {
           const g = this.floor(feet.x + dx * d, feet.z + dz * d, feet.y + 0.5, 1.0);
           if (g !== null && Math.abs(g - feet.y) < 0.35) {
@@ -330,7 +328,6 @@ export class TraversalController {
         c.override = null;
         if (inStride && this.kind !== 'mantle') {
           c.motion.carry(this.dir.x * this.speed0, this.dir.z * this.speed0);
-          if (this.sprint0) c.resumeSprint();
         }
         // the forward roll comes up crouched
         if (this.ctRoll) c.setCrouchToggle();
@@ -394,9 +391,9 @@ export class TraversalController {
       this.leapT = -1;
       this.leapSplit = null;
     }
-    // Chaos Theory: crouch tapped standing at speed (gear 5-6 or sprinting) is a committed forward roll
-    if (ac.input.dropPressed && this.canForwardRoll() && this.startRoll(true)) {
-      c.swallowCrouch = true;
+    // (G32) crouch HELD standing at the run is a committed forward roll (a tap just crouches)
+    if (c.rollHeld && this.canForwardRoll() && this.startRoll(true)) {
+      c.takeRollHold();
       return this.fixedUpdate(0, false, false);
     }
     this.probeT -= dt;
@@ -435,8 +432,7 @@ export class TraversalController {
       this.kind = this.hint.kind;
       this.t = 0;
       this.speed0 = c.speed;
-      this.sprint0 = c.sprinting;
-      this.dur = traverseDuration(this.kind as keyof typeof TRAVERSE_TIME, this.speed0, hyp2(this.hint.end.x - c.pos.x, this.hint.end.z - c.pos.z));
+        this.dur = traverseDuration(this.kind as keyof typeof TRAVERSE_TIME, this.speed0, hyp2(this.hint.end.x - c.pos.x, this.hint.end.z - c.pos.z));
       this.from.copyFrom(c.pos);
       this.to.copyFrom(this.hint.end);
       this.top = c.pos.y + Math.max(0, this.hint.height);
@@ -471,11 +467,11 @@ export class TraversalController {
     return true;
   }
 
-  /** A crouch tap now would roll: standing, free, moving at gear 5-6 (or sprinting) with the stick pushed. */
+  /** A held crouch now would roll: standing, free, moving at the top gear with the stick pushed. */
   private canForwardRoll(): boolean {
     const c = this.player.controller;
     if (c.crouched || c.override || !c.grounded || this.player.ads) return false;
-    if (c.gear < CT.rollGear && !c.sprinting) return false;
+    if (c.gear < CT.rollGear) return false;
     const w = c.wishDir;
     return c.speed >= CT.rollMinSpeed && hyp2(w.x, w.z) > 0.3;
   }
@@ -507,11 +503,9 @@ export class TraversalController {
     this.t = 0;
     // the forward roll comes out at the crouched pace of the gear it went in at
     this.speed0 = forward ? Math.min(sp, gearCap(c.gear, true)) : Math.max(sp, 2.5);
-    this.sprint0 = false;
     this.dur = forward ? CT.rollTime : TRAVERSE_TIME.roll;
     if (forward) {
       this.forwardRolls++;
-      c.cancelSprint();
     }
     this.dir.set(dx, 0, dz);
     this.from.copyFrom(c.pos);

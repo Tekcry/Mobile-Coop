@@ -517,9 +517,11 @@ try {
       return Math.hypot(e.pos.x - (r.feet.x + Math.sin(yaw) * 0.42), e.pos.z - (r.feet.z + Math.cos(yaw) * 0.42));
     }, gg);
     assert(held < 0.25, `the host holds its guard in front of the client (${held.toFixed(2)} m)`);
-    await GB(() => window.__app.input.state.tap('interact'));
+    // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
+    await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
+    await GB(() => { window.__app.current.grabMenu.sel = 0; window.__app.input.state.tap('interact'); });
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
-    assert(true, "a tap knocks the client's hostage out on the host");
+    assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
   }
   // dual takedown: two players finishing takedowns together
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
@@ -598,7 +600,7 @@ try {
   });
   assert(!!dpos, 'Proving has a door');
   await moveClient(B, dpos[0], dpos[1], dpos[2], dpos[3]);
-  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; window.__app.input.state.tap('cover'); }, dpos[3]);
+  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; const tap = (a) => window.__app.input.state.tap(a); /* (A3) door menu: A, one down, A = Stealth open */ setTimeout(() => tap('interact'), 400); setTimeout(() => tap('uiDown'), 900); setTimeout(() => tap('interact'), 1400); }, dpos[3]);
   await until(B, () => window.__app.current.doorPeek.phase !== 'off', null, 5000, 'client starts the peek');
   const cracked = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return d.cracked && d.target === 0 && d.ajar > 0.06; }, null, 10000, 'the door cracked');
   await cracked(A);
@@ -606,7 +608,9 @@ try {
   const dcC = await C.evaluate(() => { const d = window.__app.current.world.doors.list[0]; return { cracked: d.cracked, ajar: d.ajar, target: d.target, mode: [...window.__app.current.net.avatars.values()].map((a) => a.mode) }; });
   assert(dcC.cracked && dcC.target === 0, `the client's crack shows on the host and a third page (${JSON.stringify(dcC)})`);
   await until(B, () => window.__app.current.doorPeek.phase === 'peek', null, 5000, 'client peeking');
-  await GB(() => window.__app.input.state.tap('cover'));
+  await GB(() => { window.__pad.connect(); window.__pad.axis(1, 1); });
+  await until(B, () => window.__app.current.doorPeek.phase !== 'peek', null, 5000, 'client closes the crack (stick back)');
+  await GB(() => window.__pad.axis(1, 0));
   const shut = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return !d.cracked && d.ajar < 0.01; }, null, 10000, 'the crack closed');
   await shut(A);
   await shut(C);

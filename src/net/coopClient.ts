@@ -138,19 +138,24 @@ export class CoopClient implements NetAttachment {
         if (msg.kind === 'strike') this.g.strike.denied(msg.id, msg.reason);
         break;
       case 'tend':
-        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended(msg.k);
         break;
     }
   }
 
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
-  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
-    this.s.toHost({ t: 'tmove', kind, partner, target, s: ss, gy });
+  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+    this.s.toHost((kind === 'throw' || kind === 'hang' || kind === 'rope') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
   }
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
   commitRequest(kind: CKind, id: number, target: string): void {
     this.s.toHost({ t: 'cmove', kind, id, target });
+  }
+
+  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. */
+  teamHangEnd(k: 'pull' | 'drop'): void {
+    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: 0, gy: 0 });
   }
 
   teamEnd(): void {
@@ -173,7 +178,7 @@ export class CoopClient implements NetAttachment {
     out.length = 0;
     for (const [id, a] of this.avatars) {
       if (a.dead) continue;
-      out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode });
+      out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode, anchor: a.anchor, s: a.s, sub: a.sub });
     }
     return out;
   }
@@ -308,6 +313,12 @@ export class CoopClient implements NetAttachment {
       ints.remove(it);
       this.items.delete(id);
     }
+    // (B8, G126) the downed client's countdown: the host writes the seconds left into its revive point's label
+    const own = this.items.get(`revive-${this.s.selfId}`);
+    const sec = own ? /\((\d+)\)$/.exec(own.label)?.[1] : undefined;
+    if (own) this.g.hud.setDownTimer(sec ? `DOWN - revive in ${sec} s` : 'DOWN');
+    else if (!this.g.player.alive && this.g.opts.mode === 'course') this.g.hud.setDownTimer('OUT - wait for the checkpoint');
+    else this.g.hud.setDownTimer(null);
   }
 
   private syncDoors(open: number[], cracked: readonly number[]): void {
@@ -473,6 +484,7 @@ export class CoopClient implements NetAttachment {
         g.traversal.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
+        g.hud.setDownTimer(null);
         g.hud.banner('BACK IN', '', 1500);
         break;
       case 'hitConfirm':
@@ -538,7 +550,7 @@ export class CoopClient implements NetAttachment {
   private mvSent = emptyMoveState();
 
   frameUpdate(dt: number): void {
-    if (this.inCourse) clientCourseFrame(this.g);
+    if (this.inCourse) clientCourseFrame(this.g, dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
@@ -569,6 +581,10 @@ export class CoopClient implements NetAttachment {
   /** Course mode: a verb only this client sees (C10); the host rate-limits and ticks it. */
   private ctick(verb: ClientVerb): void {
     if (this.inCourse) this.s.toHost({ t: 'ctick', verb });
+  }
+  /** Course mode (CT prototype B3): the held jammer's target for the host. */
+  sendJam(tgt: string): void {
+    if (this.inCourse) this.s.toHost({ t: 'jam', tgt });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';

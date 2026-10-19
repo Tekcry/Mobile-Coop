@@ -1,6 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type Vector4, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
-import { addGlow, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
+import { addGlow, BEACON, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -9,6 +9,7 @@ import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind 
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
+import { kneePoleYaw, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -104,6 +105,13 @@ export interface RigPose {
   velZ?: number;
   /** Where the body is turning to (stepped turns plant the feet for it). */
   goalYaw?: number;
+  /**
+   * (A1.2) 'facing' (free movement): the stride runs along the facing, no strafe or back clips except the slow back walk;
+   * 'velocity' (aiming, wall, cover; the default): the stride follows the velocity.
+   */
+  stride?: 'facing' | 'velocity';
+  /** (A1.2) Where a free turn is heading (the stick, rad); absent: the planner caps its turn prediction at +-90 deg. */
+  faceGoal?: number;
   /** Predicted rest position while stopping (the last steps land there). */
   restX?: number;
   restZ?: number;
@@ -654,6 +662,11 @@ export class CharacterRig {
   private pelvisRest: number;
   private bodyPivot: number;
   private prevYaw: number | null = null;
+  /** (A1.2) Measured yaw rate (no driver), smoothed. */
+  private yawRateS = 0;
+  /** (A1.2) Pelvis yaw toward the planted feet (rad, from the root), and the pelvis world yaw the knee poles use. */
+  private follow = 0;
+  private pelvisWorldYaw = 0;
 
   constructor(
     scene: Scene,
@@ -1084,6 +1097,20 @@ export class CharacterRig {
   private readonly lenses: InstancedMesh[] = [];
   private readonly glows: InstancedMesh[] = [];
   private lensOn = false;
+  /** Partner beacon colour (0 = player 1 blue, 1 = player 2 red; -1 = the default green). */
+  private beacon = -1;
+
+  /** (A5, G135) this operator's lamp colour: 1 = blue, 2 = red (render only; the remote knows it from `PlayerInfo.host`). */
+  setBeacon(player: 1 | 2): void {
+    this.beacon = player - 1;
+    this.paintGlow();
+  }
+
+  private paintGlow(): void {
+    const b = this.beacon >= 0 ? BEACON[this.beacon] : null;
+    const c = this.lensOn ? (b ? b.on : GLOW_VISION) : b ? b.idle : GLOW_IDLE;
+    for (const g of this.glows) g.instancedBuffers.color = c;
+  }
 
   /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision) is on. */
   setLensGlow(on: boolean): void {
@@ -1091,7 +1118,7 @@ export class CharacterRig {
     this.lensOn = on;
     const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
     for (const m of this.lenses) m.instancedBuffers.color = c;
-    for (const g of this.glows) g.instancedBuffers.color = on ? GLOW_VISION : GLOW_IDLE;
+    this.paintGlow();
     if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 
@@ -1121,6 +1148,13 @@ export class CharacterRig {
     i.speed = s.speed;
     i.localX = s.localX;
     i.localZ = s.localZ;
+    if (s.stride === 'facing') {
+      // (A1.2) free movement walks along the facing: no strafe or back clip in a turn (a lagging measured velocity on a
+      // remote pulled them in), except the slow back walk
+      const back = s.speed < 0.9 && s.localZ < -0.7 * hyp2(s.localX, s.localZ);
+      i.localX = 0;
+      i.localZ = back ? -1 : 1;
+    }
     i.grounded = s.grounded;
     i.crouch = s.crouch;
     i.kneel = s.kneel ?? false;
@@ -1197,7 +1231,9 @@ export class CharacterRig {
     else if (this.prevYaw !== null && dt > 0) {
       let d = yaw - this.prevYaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
-      i.yawRate = d / dt;
+      // (A1.2) smoothed (tau 0.05 s): a remote copy turns in 20 Hz snapshot steps, and this feeds the gait clock
+      this.yawRateS = approachTo(this.yawRateS, d / dt, dt, 0.05);
+      i.yawRate = this.yawRateS;
     }
     this.prevYaw = yaw;
     // weapon changing hands (open-left wall edge, D9): eased over EDGE_HAND_TIME; the graph tucks the weapon in
@@ -1293,7 +1329,11 @@ export class CharacterRig {
     pin.wallNx = s.wallNx ?? 0;
     pin.wallNz = s.wallNz ?? 0;
     pin.wallD = wf + WALL_FOOT_CLEAR;
-    pin.turnStep = i.wall ? 1.2 : Infinity;
+    pin.turnStep = i.wall ? 1.2 : 0.9; // (A1.2) a backstop: the turn-stepping clock keeps planted feet with the body
+    pin.yawRate = i.yawRate;
+    pin.faceGoal = s.faceGoal ?? (s.stride === 'facing' ? NaN : yaw);
+    pin.stride = s.stride === 'facing' && !i.wall ? 'facing' : 'velocity';
+    pin.pelvisYaw = yaw + this.follow;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
@@ -1302,6 +1342,9 @@ export class CharacterRig {
     const L = this.planner.L;
     const R = this.planner.R;
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);
+    // (A1.2) the pelvis turns toward the planted feet (up to 20 deg); the chest keeps the facing (applyTargets)
+    const follows = !free && !i.wall && pin.stride === 'facing';
+    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
@@ -1546,10 +1589,13 @@ export class CharacterRig {
     if (turned) need = 0;
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
-    Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
+    // (A1.2) the hips follow the legs (this.follow); the spine takes it back so the chest stays on the facing
+    Quaternion.RotationYawPitchRollToRef(pe.yaw + this.follow, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
+    // (on a wall the knees keep to the feet, as before)
+    this.pelvisWorldYaw = this.input.wall || free ? Number.NaN : yaw + this.follow;
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)
     const sp = t.spine;
-    Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6 - this.follow, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
@@ -1900,8 +1946,10 @@ export class CharacterRig {
     const H = hip.getAbsolutePosition();
     tmpA.set(x, y, z);
     // knees forward (along the foot) and slightly out
-    const c = Math.cos(footYaw);
-    const sn = Math.sin(footYaw);
+    // (A1.2) knees forward between the hips and the toes (never backwards over a turned foot), and slightly out
+    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw);
+    const c = Math.cos(poleYaw);
+    const sn = Math.sin(poleYaw);
     tmpPole.set(sn + side * out * c, 0, c - side * out * sn);
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away

@@ -121,6 +121,28 @@ export interface CourseDef {
    * camera or a hack. `validateCourse` counts them as set (A8).
    */
   externalFlags?: string[];
+  /**
+   * (CT prototype, G138) The exit zone of the last bay: the course completes by itself once BOTH players stand in it
+   * (plan box [x0, z0, x1, z1], feet within AIRLOCK_Y_TOL of floorY) and the bay's drills are done. None: the old
+   * "Finish" device finishes the course.
+   */
+  exitZone?: { box: [number, number, number, number]; floorY: number };
+}
+
+/** Is a player's feet in the exit zone? Pure (the both-in rule's one test, unit-tested). */
+export function inExitZone(zone: NonNullable<CourseDef['exitZone']>, x: number, y: number, z: number, yTol: number): boolean {
+  const b = zone.box;
+  return x >= Math.min(b[0], b[2]) && x <= Math.max(b[0], b[2]) && z >= Math.min(b[1], b[3]) && z <= Math.max(b[1], b[3]) && Math.abs(y - zone.floorY) < yTol;
+}
+
+/** A station panel's device id (sw-p1 ...): an optional read, never a gate (F1b). */
+export function isPanelId(id: string): boolean {
+  return /^sw-p\d+$/.test(id);
+}
+
+/** Players needed in the exit zone: both, or one under the dev solo flag. */
+export function exitZoneReady(inside0: boolean, inside1: boolean, solo: boolean): boolean {
+  return solo ? inside0 || inside1 : inside0 && inside1;
 }
 
 /** The ids the map really has. */

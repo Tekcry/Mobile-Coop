@@ -167,10 +167,10 @@ try {
   });
   await compare('split', 'split');
   // the sidearm aimed from it
-  await GB(() => window.__pad.set(6, 1));
+  await GB(() => window.__app.input.state.set('t', 'ads', true));
   await until(A, () => (window.__app.current.net.remotes.values().next().value.state.mv.r ?? 0) > 0.9, null, 6000, 'host sees the split aim');
   await compare('aiming from the split', 'split', 0.1, ['wristR', 'headNode', 'ankleL', 'ankleR']);
-  await GB(() => window.__pad.set(6, 0));
+  await GB(() => window.__app.input.state.set('t', 'ads', false));
   await reset();
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(17.5, 0, 23.3), 0); g.player.cam.yaw = 0; });
   await wait(600);
@@ -277,16 +277,16 @@ try {
 
   console.log('committed moves: a forward roll');
   // sprint (gear 6) along open floor, tap crouch
-  await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 6; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
+  await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 5; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
   await wait(900);
   await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
-  // crouch (B) held 0.1 s of sim time
+  // crouch (B) HELD 0.3 s of sim time (G32: a held crouch at a run rolls)
   await GB(() => new Promise((res) => {
     const st = window.__app.current;
     const orig = st.fixedUpdate.bind(st);
     let t = 0;
     window.__pad.set(1, 1);
-    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t > 0.1) { window.__pad.set(1, 0); st.fixedUpdate = orig; res(); } };
+    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t > 0.3) { window.__pad.set(1, 0); st.fixedUpdate = orig; res(); } };
   }));
   await until(B, () => window.__app.current.traversal.forwardRolls > 0, null, 4000, 'client rolls').catch(async (e) => {
     console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ gear: c.gear, sp: c.speed, crouched: c.crouched, grounded: c.grounded, ov: !!c.override, ads: window.__app.current.player.ads }); }));
@@ -297,89 +297,82 @@ try {
   assert(true, 'host replays the roll');
   await reset();
 
-  console.log('team moves: brace + boost (host climbs), human ladder (client climbs), denial');
-  // the 4.2 m block north of Proving (south face z 27.5, x 2.5..5.5): the bottom braces with its back to it
-  const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
-  const brace = async (P, label) => {
-    await P.evaluate(() => window.__pad.set(3, 1));
-    await until(P, () => window.__app.current.team.state === 'brace', null, 4000, `${label} braces`).catch(async (e) => { console.log(await P.evaluate(() => { const g = window.__app.current; return JSON.stringify({ mates: g.net.teamMates().map((m) => [m.id, m.pos.x, m.pos.z, m.mode]), pos: g.player.controller.pos, yaw: g.player.controller.yaw }); })); throw e; });
-    await P.evaluate(() => window.__pad.set(3, 0));
+  console.log('team moves (B2): leg-up (host climbs), ledge relay (client climbs the hanging host), denials');
+  // the 4.2 m block north of Proving (south face z 27.5, x 2.5..5.5): the booster crouches facing it (Co-op action = pad RB)
+  const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
+  // a button held until `cond` holds on that page (software GL runs a few frames a second: a short press can fall between polls)
+  const holdUntil = async (P, btn, cond, what) => {
+    await P.evaluate((b) => window.__pad.set(b, 1), btn);
+    try { await until(P, cond, null, 5000, what); } finally { await P.evaluate((b) => window.__pad.set(b, 0), btn); }
   };
+  const RB = 5;
+  const crouchOn = async (P) => { await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches'); await wait(150); };
   await allowTeleport(A);
   await GB(() => { for (const a of window.__app.current.net.avatars?.values?.() ?? []) a.allowTeleport?.(3); });
-  await placeTeam(B, 4, 27.05, Math.PI);
-  const posB = () => GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify([c.pos.x.toFixed(2), c.pos.z.toFixed(2), g.traversal.kind, !!c.override, g.player.alive]); });
-  if (process.env.LOG) console.log('B after tp', await posB());
+  await placeTeam(B, 4, 27.05, 0);
   await placeTeam(A, 4, 26.2, 0);
-  if (process.env.LOG) console.log('B after A tp', await posB());
   await wait(600);
-  if (process.env.LOG) console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ pos: c.pos, yaw: c.yaw, sp: c.speed, axes: navigator.getGamepads()[0]?.axes }); }));
-  await brace(B, 'client');
-  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace', null, 6000, 'host sees the client braced');
-  await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host offered a boost').catch(async (e) => { console.log(await GA(() => JSON.stringify(window.__app.current.team.offer && { mate: window.__app.current.team.offer.mate.id }))); throw e; });
-  // (Y held until the host's frame sees the press: a page in the background polls the pad slowly)
-  await GA(() => window.__pad.set(3, 1));
-  await until(A, () => window.__app.current.team['pressT'] >= 0, null, 4000, 'host sees Y');
-  await GA(() => window.__pad.set(3, 0));
-  await until(A, () => window.__app.current.team.count.boosts === 1, null, 4000, 'host boosted').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const t = g.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer, boost: !!t.offer?.boost, pressT: t['pressT'], td: !!g.takedown.offer, it: !!g.interactTarget, trav: g.traversal.kind, att: g.traversal.attached, hint: g.traversal.attachCtl.hint?.anchor.kind ?? null, pad: navigator.getGamepads()[0]?.buttons[3]?.pressed, mode: g.app.input.mode }); })); throw e; });
+  await crouchOn(B);
+  await holdUntil(B, RB, () => window.__app.current.team.state === 'offer', 'client offers a leg-up (crouched + Co-op action)').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; return JSON.stringify({ st: g.team.state, prompt: g.team.prompt, crouched: g.player.controller.crouched, mates: g.net.teamMates().map((m) => [m.id, m.mode]) }); })); throw e; });
+  assert((await GB(() => window.__app.current.team.prompt)) !== null, 'the offerer sees a prompt naming the move');
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace', null, 6000, 'host sees the client offering (crouched)');
+  await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host is offered the leg-up');
+  assert(/leg-up/i.test(await GA(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the leg-up');
+  await holdUntil(A, RB, () => window.__app.current.team.count.boosts === 1, 'host boosted').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const t = g.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer, boost: !!t.offer?.boost }); })); throw e; });
   await until(B, () => window.__app.current.team.state === 'assist', null, 4000, 'client assists');
-  await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'host on the 4.2 m lip');
+  await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 20000, 'host on the 4.2 m lip').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, att: g.traversal.attach.phase, ak: g.traversal.attach.anchor?.kind, ov: !!c.override, pos: [c.pos.x, c.pos.y, c.pos.z] }); })); throw e; });
   const lipY = await GA(() => window.__app.current.traversal.attach.anchor.top);
-  assert(Math.abs(lipY - 4.2) < 0.1, `the boost puts the host on the 4.2 m lip (${lipY})`);
+  assert(Math.abs(lipY - 4.2) < 0.1, `the leg-up puts the host on the 4.2 m lip (${lipY})`);
   await until(B, () => window.__app.current.team.state === 'none', null, 4000, 'client free after the boost');
 
-  // swap: the host braces, the client asks for the human ladder (Y held) and grabs the lip from the shoulders
-  await GA(() => { const g = window.__app.current; g.traversal.detach('drop'); });
-  await wait(800);
-  await placeTeam(A, 4, 27.05, Math.PI);
-  await placeTeam(B, 4, 26.2, 0);
-  await wait(600);
-  await brace(A, 'host');
-  await until(B, () => !!window.__app.current.team.offer, null, 6000, 'client offered the host');
-  await GB(() => window.__pad.set(3, 1));
-  await until(B, () => window.__app.current.team.state === 'ladderUp' || window.__app.current.team.state === 'top', null, 4000, 'client climbs onto the shoulders');
-  await GB(() => window.__pad.set(3, 0));
-  await until(A, () => window.__app.current.team.state === 'bottom', null, 4000, 'host is the bottom');
-  await until(B, () => window.__app.current.team.state === 'top', null, 4000, 'client on top');
-  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.avatar.mode === 'stacked' && r.avatar.pos.y > 1.2; }, null, 6000, 'host sees the client on its shoulders');
-  // free to aim up there; Y grabs the lip
-  await GB(() => { window.__app.current.player.cam.yaw = 0; window.__pad.set(3, 1); });
-  await wait(250);
-  await GB(() => window.__pad.set(3, 0));
-  await until(B, () => window.__app.current.traversal.attach.phase !== 'none' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'client grabs the lip from the top');
-  await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free once the client is off');
-  assert(true, 'human ladder: the client climbs the braced host, the host sees it stacked, Y grabs the lip from the top');
+  // ledge relay: the host hangs and offers it (Co-op action); the client under it presses and climbs the hanging body
+  const lipId = await GA(() => window.__app.current.traversal.attach.anchor.id);
+  await placeTeam(B, 4, 26.6, 0);
+  await wait(400);
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'relayOffer', 'host offers the relay while hanging');
+  await until(B, () => { const m = window.__app.current.net.teamMates()[0]; return !!m && m.mode === 'ledge' && (m.sub & 1024) !== 0; }, null, 6000, 'client sees the hanging host offering the relay');
+  await until(B, () => !!window.__app.current.team.offer?.relay, null, 4000, 'client is offered the relay');
+  assert(/climb/i.test(await GB(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the relay');
+  await holdUntil(B, RB, () => window.__app.current.team.count.ladders === 1, 'client climbs the relay').catch(async (e) => { console.log(await GB(() => { const t = window.__app.current.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer }); })); throw e; });
+  await until(A, () => window.__app.current.team.state === 'relayHold' || window.__app.current.team.state === 'none', null, 4000, 'host holds still for the relay');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.avatar.mode === 'boost' && r.avatar.pos.y > 0.8; }, null, 20000, 'host sees the client climbing the hanging body');
+  await until(B, (id) => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.id === id, lipId, 30000, 'client hangs on the same ledge').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, att: g.traversal.attach.phase, aid: g.traversal.attach.anchor?.id, ov: !!c.override, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z] }); })); console.log(await GA(() => JSON.stringify({ lip: window.__app.current.traversal.attach.anchor?.id, pos: window.__app.current.player.controller.pos, att: window.__app.current.traversal.attach.phase }))); throw e; });
+  await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free after the relay');
+  assert(await GA(() => window.__app.current.traversal.attached), 'the host is still hanging and pulls up next');
+  assert(true, 'ledge relay: the client climbs the hanging host to the same ledge');
 
-  // denial: the client braces, the host is offered a boost, the client lets go and walks off before the host asks
-  await placeTeam(B, 4, 27.05, Math.PI);
+  // denial: the client offers, the host is offered a leg-up, the client stands down and walks off before the host asks
+  await placeTeam(B, 4, 27.05, 0);
   await placeTeam(A, 4, 26.2, 0);
   await wait(600);
-  await brace(B, 'client (again)');
-  await until(A, () => !!window.__app.current.team.offer?.boost, null, 6000, 'host offered a boost again');
+  await crouchOn(B);
+  await holdUntil(B, RB, () => window.__app.current.team.state === 'offer', 'client offers again');
+  await until(A, () => !!window.__app.current.team.offer?.boost, null, 6000, 'host offered a leg-up again');
   const pending = await GA(() => { const o = window.__app.current.team.offer; return { id: o.mate.id, target: o.boost.anchor.id, s: o.boost.s, gy: o.boost.grip.y }; });
-  await GB(() => { window.__pad.set(1, 1); });
-  // (held until the brace ends: software GL runs these pages at a few frames a second, a 150 ms press can fall
-  // between two polls)
-  await until(B, () => window.__app.current.team.state === 'none', null, 4000, 'client lets go of the brace');
-  await GB(() => { window.__pad.set(1, 0); window.__pad.axis(1, -1); });
-  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.z < 25.5; }, null, 6000, 'host sees the client walk off');
+  await holdUntil(B, 1, () => window.__app.current.team.state === 'none', 'client stands down (B)');
+  await GB(() => { window.__pad.axis(1, 1); });
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.z < 25.5; }, null, 6000, 'host sees the client walk off').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, ov: !!c.override, crouched: c.crouched, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z], axes: navigator.getGamepads()[0]?.axes, att: g.traversal.attached }); })); console.log(await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return JSON.stringify({ m: r?.state?.mv?.m, z: r?.feet.z }); })); throw e; });
   await GB(() => window.__pad.axis(1, 0));
   const deniedBefore = await GA(() => window.__app.current.team.count.denied);
   await GA((p) => window.__app.current.net.teamRequest('boost', p.id, p.target, p.s, p.gy), pending);
   const moved = await GA(() => ({ n: window.__app.current.team.count.denied, why: window.__app.current.team.lastDenied, st: window.__app.current.team.state }));
-  assert(moved.n > deniedBefore && moved.st === 'none' && ['notBraced', 'far'].includes(moved.why), `the partner moved away mid-request: denied (${moved.why})`);
+  assert(moved.n > deniedBefore && moved.st === 'none' && ['notBraced', 'far'].includes(moved.why), `the partner stood down mid-request: denied (${moved.why})`);
   await wait(1100);
 
-  // denials: the host refuses a request without a braced partner
+  // denials: a relay without a hanging partner, and a leg-up without an offer, are refused by the host; a standing press is a polite refusal
   await GB(() => { const g = window.__app.current; g.traversal.detach('drop'); });
   await wait(800);
   const hostId = await GA(() => window.__coop.session.selfId);
   const before = await GB(() => window.__app.current.team.count.denied);
   await wait(1100);
-  await GB((id) => window.__app.current.net.teamRequest('boost', id, -1, 0, 0), hostId);
-  await until(B, (n) => window.__app.current.team.count.denied > n, before, 4000, 'request denied');
+  await GB((id) => window.__app.current.net.teamRequest('ladder', id, -1, 0, 0), hostId);
+  await until(B, (n) => window.__app.current.team.count.denied > n, before, 4000, 'relay request denied');
   const why = await GB(() => window.__app.current.team.lastDenied);
-  assert(['notBraced', 'far', 'noTarget', 'busy'].includes(why), `a request without a braced partner is denied (${why})`);
+  assert(['notOffering', 'far', 'noTarget', 'busy'].includes(why), `a relay without a hanging partner is denied (${why})`);
+  await wait(1100);
+  await GB((id) => window.__app.current.net.teamRequest('boost', id, -1, 0, 0), hostId);
+  await until(B, (n) => window.__app.current.team.count.denied > n + 1, before, 4000, 'leg-up request denied');
+  // prototype: revisit - the standing Co-op press refusal ("Crouch for a leg-up") is not e2e-checked yet (crouch state carries over between placements)
   await reset();
 
   // (locomotion step 11) back to a wall: the host's copy in mode wall, joints within 10 cm, its `s` within 5 cm of the
@@ -448,10 +441,10 @@ try {
   await wait(300);
   await GA(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
 
-  // (locomotion step 12) the edge verbs at the Proving doorway (1.1 m gap): the head-first peek (WALL_SUB.peek), the
-  // lean-out with the aim (`lk` 1) and the SWAT turn (the host replays the commit and lands it on the far wall); the
-  // host's copy within 10 cm each time, and the host samples a peeking client's light at its head (light parity)
-  console.log('wall edge: peek, lean, swat');
+  // (locomotion step 12; A3: the lean-out and the SWAT turn are gone) the head-first peek at a wall end by the Proving
+  // doorway (WALL_SUB.peek) and the weapon hand at a left edge; the host's copy within 10 cm, and the host samples a
+  // peeking client's light at its head (light parity)
+  console.log('wall edge: peek');
   await reset();
   const door = await GB(() => {
     const g = window.__app.current;
@@ -460,8 +453,9 @@ try {
     for (let i = 0; i < segs.length; i++) {
       const s = segs[i];
       if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
-      if (L.gB[i] >= 0 && Math.abs(L.gapB[i] - 1.1) < 0.05) return { i, end: 1, to: L.gB[i], len: s.len };
-      if (L.gA[i] >= 0 && Math.abs(L.gapA[i] - 1.1) < 0.05) return { i, end: -1, to: L.gA[i], len: s.len };
+      if (s.len < 1.5) continue;
+      if (L.kB[i] === 0) return { i, end: 1, len: s.len };
+      if (L.kA[i] === 0) return { i, end: -1, len: s.len };
     }
     return null;
   });
@@ -506,200 +500,23 @@ try {
     assert(on && Math.abs(el - er) <= 0.1, `edge stop: pushed past the end the client stays on the wall at the end (${on}), host's copy at s ${er.toFixed(3)} (client ${el.toFixed(3)}, <= 10 cm)`);
   }
   await compare('wall peek', 'wall');
-  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.25) < 0.01; }, null, 3000, 'host peek offset eased to 0.25 m');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.35) < 0.01; }, null, 3000, 'host peek offset eased to 0.35 m');
   // (step 12b fix r2, light parity) the host's head point and light sample are its posed copy's head (ref.head) on
-  // the wall, as the local light meter reads the local posed head: the two heads agree (the MoveState offset is 0.25 m)
+  // the wall, as the local light meter reads the local posed head: the two heads agree (the MoveState offset is 0.35 m)
   const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, h: [h.x, h.y, h.z], ref: !!r.ref.head, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
   const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z) }; });
   const pd = Math.hypot(pl.h[0] - plL.h[0], pl.h[1] - plL.h[1], pl.h[2] - plL.h[2]);
   console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m`);
-  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.25) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.35) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
   await GB(() => window.__pad.axis(0, 0));
   await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
-  // lean-out: aim held at the edge (lk 1), the body 0.35 m past it
-  await GB(() => window.__app.input.state.set('t', 'ads', true));
-  await until(B, () => window.__app.current.wallCore.lk === 1 && window.__app.current.wallCore.lean === 1, null, 4000, 'client leans out');
-  await until(A, () => window.__app.current.net.remotes.values().next().value?.state?.mv?.lk === 1, null, 5000, 'host sees lk 1');
-  await compare('wall lean', 'wall');
-  const [lsl, lsr] = await wallS();
-  assert(Math.abs(lsl + (await GB(() => window.__app.current.wallCore.leanS)) - lsr) <= 0.05, `leaning: the host's copy at s ${lsr.toFixed(3)} (client ${lsl.toFixed(3)} + lean), within 5 cm`);
-  await GB(() => window.__app.input.state.set('t', 'ads', false));
-  await until(B, () => window.__app.current.wallCore.lk === 0 && window.__app.current.wallCore.lean === 0, null, 4000, 'client back in');
-  await until(A, () => !window.__app.current.net.remotes.values().next().value?.state?.mv?.lk, null, 5000, 'host sees lk 0');
-  // SWAT: the context press with the stick toward the gap; the host replays the commit and settles on the far wall
-  await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
-  // (step 12 r1, D8) the SWAT turn mid-move: both pages record root and joints each frame by the turn's phase k (the
-  // client's swatT / swatDur, the host's replay t / dur); host samples at k 0.15-0.85 are compared with the client's
-  // pose interpolated to the same k
-  const swRec = ([host, names]) => {
-    window.__sw = [];
-    const t0 = performance.now();
-    // the host page renders in the background (throttled frames): sample right after each of the copy's updates
-    if (host) {
-      const av = window.__app.current.net.remotes.values().next().value.avatar;
-      const orig = av.update;
-      av.update = function (dt, rt) {
-        orig.call(this, dt, rt);
-        const rp = this.replay;
-        if (rp && rp.path === 'swat') {
-          const j = {};
-          for (const n of names) { this.rig[n].computeWorldMatrix(true); const p = this.rig[n].getAbsolutePosition(); j[n] = [p.x, p.y, p.z]; }
-          const r = this.rig.root.position;
-          window.__sw.push({ k: Math.min(1, rp.t / rp.c.dur), mode: this.mode, root: [r.x, r.y, r.z], j });
-        }
-        if (performance.now() - t0 > 20000) this.update = orig;
-      };
-      return;
-    }
-    const tick = () => {
-      const g = window.__app.current;
-      if (!g) return;
-      let k = -1;
-      let rig = null;
-      let mode = '';
-      if (host) {
-        const av = g.net.remotes.values().next().value?.avatar;
-        const rp = av?.replay;
-        if (av && rp && rp.path === 'swat') { k = Math.min(1, rp.t / rp.c.dur); rig = av.rig; mode = av.mode; }
-      } else if (g.wallCore?.phase === 'swat' && g.wallCore.swatDur > 0) {
-        k = Math.min(1, g.wallCore.swatT / g.wallCore.swatDur);
-        rig = g.player.rig;
-        mode = g.net?.mvNow?.m ?? '';
-      }
-      if (rig) {
-        const j = {};
-        for (const n of names) { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); j[n] = [p.x, p.y, p.z]; }
-        const r = rig.root.position;
-        window.__sw.push({ k, mode, root: [r.x, r.y, r.z], j });
-      }
-      if (performance.now() - t0 < 10000) requestAnimationFrame(tick);
-    };
-    tick();
-  };
-  await GA(swRec, [true, JOINTS]);
-  await GB(swRec, [false, JOINTS]);
+  // (A3) the weapon hand at a left edge while peeking: WALL_SUB.leftHand (128) reaches the host at the left (b) end only
   await GB((x) => window.__pad.axis(0, x), door.end);
-  await wait(200);
-  await GB(() => window.__app.input.state.tap('cover'));
-  await until(B, () => window.__app.current.wallCore.count.swat > 0, null, 4000, 'client starts the SWAT turn');
+  await until(B, () => window.__app.current.wallCore.peek === 1, null, 4000, 'client peeks again');
+  await until(A, (e) => { const mv = window.__app.current.net.remotes.values().next().value?.state?.mv; return !!mv && ((mv.sub & 128) !== 0) === (e > 0) && (mv.sub & 16) !== 0; }, door.end, 5000, 'host sees the peek with the weapon hand of the edge side');
   await GB(() => window.__pad.axis(0, 0));
-  await until(B, (to) => window.__app.current.wallCore.phase === 'on' && window.__app.current.wallCore.seg === to, door.to, 4000, 'client on the far wall');
-  await until(A, () => window.__seen.has('swat'), null, 6000, 'host replays the swat');
-  await until(A, (to) => window.__app.current.net.remotes.values().next().value?.state?.mv?.a === to, door.to, 6000, 'host sees the far wall');
-  {
-    const sB = (await GB(() => window.__sw)).sort((a, b) => a.k - b.k);
-    const sA = (await GA(() => window.__sw)).filter((s) => s.k >= 0.15 && s.k <= 0.85);
-    const lerp = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
-    /** The client's pose at phase k (linear between its two nearest frames). */
-    const at = (k) => {
-      let i = sB.findIndex((s) => s.k >= k);
-      if (i < 0) i = sB.length - 1;
-      const b = sB[i];
-      const a = sB[Math.max(0, i - 1)];
-      const u = b.k > a.k ? Math.max(0, Math.min(1, (k - a.k) / (b.k - a.k))) : 0;
-      return { root: lerp(a.root, b.root, u), j: Object.fromEntries(JOINTS.map((n) => [n, lerp(a.j[n], b.j[n], u)])) };
-    };
-    let rootW = 0;
-    let jointW = 0;
-    let jointN = '';
-    for (const s of sA) {
-      const c = at(s.k);
-      rootW = Math.max(rootW, Math.hypot(s.root[0] - c.root[0], s.root[2] - c.root[2]));
-      for (const n of JOINTS) {
-        const e = err(s.j[n], c.j[n]);
-        if (e > jointW) { jointW = e; jointN = `${n} @k ${s.k.toFixed(2)}`; }
-      }
-    }
-    const modes = [...new Set(sA.map((s) => s.mode))];
-    console.log(`    swat mid-move: ${sB.length} client / ${sA.length} host frames (k 0.15-0.85), root ${(rootW * 100).toFixed(1)} cm, worst joint ${(jointW * 100).toFixed(1)} cm (${jointN})`);
-    assert(sB.length >= 5 && sA.length >= 1 && modes.length === 1 && modes[0] === 'swat' && rootW <= 0.1, `swat mid-move: the host's copy in mode swat (${modes.join(',')}), root within 10 cm of the client's at the same phase (${(rootW * 100).toFixed(1)} cm)`);
-    // joints <= 10 cm mid-move is a D8 deviation carried to step 27 (REVIEW-NOTES) when over: reported, not gated
-    if (jointW > 0.1) console.log(`    (D8 deviation, step 27: swat mid-move joints ${(jointW * 100).toFixed(1)} cm > 10 cm)`);
-  }
-  await compare('swat (settled on the far wall)', 'wall');
-  const [ssl, ssr] = await wallS();
-  assert(Math.abs(ssl - ssr) <= 0.05, `after the SWAT turn: the host's copy at s ${ssr.toFixed(3)} on the far wall (client ${ssl.toFixed(3)})`);
   await GB(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
-  await wait(300);
-  await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
-  // (locomotion step 12b, D9 / D10) the open side at a left edge (WALL_SUB.leftHand 128: the mirrored grip, the
-  // pistol and the rifle) and the crouched side lean past a low-wall end (`lk` 1 with `low`): the host's copy within
-  // 10 cm, the weapon in its left hand
-  console.log('wall edge open side and low side lean (12b)');
-  const leftEdge = async (low) => {
-    const at = await GB((low) => {
-      const g = window.__app.current;
-      const L = g.wallCore.links;
-      const segs = g.world.level.coverSegments;
-      const p = g.player.position;
-      for (let i = 0; i < segs.length; i++) {
-        const s = segs[i];
-        if (s.low !== low || s.len < 2.5 || s.len > 12 || Math.abs(s.y - p.y) > 0.3 || L.kB[i] !== 0) continue;
-        return { i, len: s.len };
-      }
-      return null;
-    }, low);
-    assert(!!at, `a ${low ? 'low' : 'high'} wall with a free left end on Proving (${JSON.stringify(at)})`);
-    await allowTeleport(A);
-    await GB(([i, k]) => {
-      const g = window.__app.current;
-      if (g.wallCore?.active) g.wallCore.leave('test');
-      const s = g.world.level.coverSegments[i];
-      const yaw = Math.atan2(-s.nx, -s.nz);
-      window.__pad.connect();
-      for (let j = 0; j < 4; j++) window.__pad.axis(j, 0);
-      g.player.controller.clearCrouchToggle();
-      g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
-      g.player.cam.yaw = yaw;
-      g.player.cam.pitch = 0;
-      setTimeout(() => window.__app.input.state.tap('cover'), 1000);
-    }, [at.i, at.len - 0.8]);
-    await until(B, (i) => window.__app.current.wallCore?.phase === 'on' && window.__app.current.wallCore.seg === i, at.i, 6000, 'client on the wall');
-    if (!low && (await GB(() => (window.__app.current.wallCore.sub() & 1) !== 0))) {
-      await GB(() => window.__app.input.state.tap('crouch'));
-      await until(B, () => (window.__app.current.wallCore.sub() & 1) === 0 && window.__app.current.player.controller.crouchBlend < 0.01, null, 3000, 'client standing on the wall');
-    }
-    await GB(() => window.__pad.axis(0, 1));
-    await until(B, () => window.__app.current.wallCore.edge === 1, null, 6000, 'client at the left edge');
-    // (G13) the stick held until the body is at the end (the lean-out needs it there), not a fixed 400 ms
-    await until(B, () => window.__app.current.wallCore.atEnd, null, 4000, 'client at the end of the wall');
-    await wait(100);
-    // high wall: the aim alone leans out; low wall: the stick held toward the end with the aim (the side lean)
-    if (!low) await GB(() => window.__pad.axis(0, 0));
-    await wait(300);
-    await GB(() => window.__app.input.state.set('t', 'ads', true));
-    await until(B, () => { const w = window.__app.current.wallCore; return w.lk === 1 && w.lean === 1 && w.leftHand; }, null, 4000, 'client leans out at the left edge');
-    await until(A, (low) => { const mv = window.__app.current.net.remotes.values().next().value?.state?.mv; return !!mv && mv.lk === 1 && (mv.sub & 128) !== 0 && ((mv.sub & 64) !== 0) === low; }, low, 5000, 'host sees lk 1 + leftHand');
-  };
-  const leanBack = async () => {
-    await GB(() => { window.__app.input.state.set('t', 'ads', false); window.__pad.axis(0, 0); });
-    await until(B, () => window.__app.current.wallCore.lk === 0 && window.__app.current.wallCore.lean === 0, null, 4000, 'client back in');
-    await GB(() => { const g = window.__app.current; if (g.wallCore?.active) g.wallCore.leave('test'); });
-    await wait(400);
-  };
-  const hands = async () => [await GB(() => window.__app.current.player.rig.weaponHand), await GA(() => window.__app.current.net.remotes.values().next().value.avatar.rig.weaponHand)];
-  await reset();
-  // the weapon in hand: the case runs with the current one. The host takes any weapon id from the client's lobby
-  // loadout (hostWeapon), so the remote pose follows the same leftHand bit for either weapon; the per-weapon open side
-  // (pistol and rifle, both edges, high and low wall) is covered locally by e2e-wall
-  const cls = await GB(() => window.__app.current.weapons.current.def.class);
-  await leftEdge(false);
-  await compare(`wall lean left edge (${cls})`, 'wall');
-  const [hl, hr] = await hands();
-  assert(hl === -1 && hr === -1, `${cls}: the weapon in the left hand, local ${hl}, the host's copy ${hr}`);
-  await leanBack();
-  await leftEdge(true);
-  await compare('low wall side lean', 'wall');
-  const lowHead = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; const av = r.avatar; const s = window.__app.current.world.level.coverSegments[r.state.mv.a]; return { head: av.rig.headNode.getAbsolutePosition().y - s.y, top: s.height }; });
-  assert(lowHead.head < lowHead.top || lowHead.top < 1.07, `low wall side lean: the host's copy head at ${lowHead.head.toFixed(3)} m, under the top ${lowHead.top.toFixed(2)} m (A51)`);
-  // (step 12b fix r2, light parity) one head sample per remote: the host's headPoint (perception) and its light sample
-  // are the posed copy's head, within 2 cm of the local player's light-meter head sample (its posed head)
-  const hsL = await GB(() => { const g = window.__app.current; const s = g.world.level.coverSegments[g.wallCore.seg]; const h = g.player.rig.posedHead(new g.player.position.constructor()); return { y: h.y - s.y, top: s.height }; });
-  const hsH = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const s = g.world.level.coverSegments[r.state.mv.a]; const V = g.player.position.constructor; const hp = r.headPoint(new V()); const ph = r.avatar.rig.posedHead(new V()); return { y: hp.y - s.y, posed: ph.y - s.y, ref: !!r.ref.head, light: r.ref.head ? r.ref.head.y - s.y : null }; });
-  console.log(`  low wall (${hsL.top.toFixed(2)} m) head samples: local ${hsL.y.toFixed(3)} m, host headPoint ${hsH.y.toFixed(3)} m, host light ${hsH.light?.toFixed(3)} m, host posed copy ${hsH.posed.toFixed(3)} m`);
-  assert(hsH.ref && Math.abs(hsH.y - hsH.posed) < 0.02 && hsH.light !== null && Math.abs(hsH.light - hsH.y) < 1e-6, `the host's head point and light sample are its posed copy's head (${JSON.stringify(hsH)})`);
-  assert(Math.abs(hsL.y - hsH.y) < 0.02, `low wall head samples: local ${hsL.y.toFixed(3)} m vs host ${hsH.y.toFixed(3)} m within 2 cm`);
-  await leanBack();
+  await wait(400);
   await GB(() => { const g = window.__app.current; g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(3, 0.1, 3), 0); });
 
   // (locomotion step 10) the elbow strike: held mid-strike (a test freeze before contact), the host's copy in mode
@@ -742,7 +559,11 @@ try {
     g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
     g.player.cam.yaw = yaw;
     g.player.cam.pitch = 0;
-    setTimeout(() => window.__app.input.state.tap('cover'), 800);
+    // (A3, G19) A at the door opens the door menu, one step down is Stealth open, A picks it
+    const tap = (a) => window.__app.input.state.tap(a);
+    setTimeout(() => tap('interact'), 800);
+    setTimeout(() => tap('uiDown'), 1300);
+    setTimeout(() => tap('interact'), 1800);
     return true;
   });
   assert(dOk, 'Proving has a door');
@@ -753,7 +574,10 @@ try {
   const dcA = await GA(() => { const d = window.__app.current.world.doors.list[0]; return { ajar: d.ajar, target: d.target, open: d.open, body: !!d.body }; });
   const dcB = await GB(() => { const d = window.__app.current.world.doors.list[0]; return { ajar: d.ajar, cracked: d.cracked }; });
   assert(Math.abs(dcA.ajar - 0.12) <= 0.05 && Math.abs(dcA.ajar - dcB.ajar) <= 0.05 && dcA.target === 0 && dcA.body, `host leaf at the crack (host ${dcA.ajar.toFixed(3)}, client ${dcB.ajar.toFixed(3)}, ${JSON.stringify(dcA)})`);
-  await GB(() => window.__app.input.state.tap('cover'));
+  // (A3) the stick pulled back (toward the body) closes the crack
+  await GB(() => { window.__pad.connect(); window.__pad.axis(1, 1); });
+  await until(B, () => !window.__app.current.world.doors.list[0].cracked || window.__app.current.doorPeek.phase !== 'peek', null, 5000, 'client closes the crack');
+  await GB(() => window.__pad.axis(1, 0));
   await until(A, () => !window.__app.current.world.doors.list[0].cracked, null, 5000, 'host clears the crack on close');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client back on the ground');
 

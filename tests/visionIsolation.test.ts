@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { instantDetect, sightRate, stepMeter, type SightInput } from '../src/ai/perception';
 import { parseMessage, wirePlayerState, type PlayerState } from '../src/net/protocol';
-import { VISION, VISION_CYCLE, VisionState } from '../src/game/vision';
+import { VISION_CYCLE, VisionState } from '../src/game/vision';
 
 /**
  * Step 14: vision is rendering only and local only (D8, CLAUDE.md "gameplay never reads graphics state").
@@ -38,16 +38,12 @@ const walk = (dir: string, acc: string[] = []): string[] => {
 };
 
 describe('vision never changes detection (step 14)', () => {
-  it('perception of a fixed scene is identical in all four modes, flipping or settled', () => {
+  it('perception of a fixed scene is identical in all four modes', () => {
     const v = new VisionState();
     const base = detect();
     const seen = new Set<string>();
     for (let k = 0; k < VISION_CYCLE.length * 2; k++) {
       v.cycle();
-      // mid-flip and settled
-      v.step(VISION.flip * 0.6);
-      expect(detect()).toEqual(base);
-      v.step(VISION.flip);
       seen.add(v.shown);
       expect(detect()).toEqual(base);
     }

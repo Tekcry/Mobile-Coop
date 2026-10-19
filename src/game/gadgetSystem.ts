@@ -3,15 +3,14 @@ import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
 import { G } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
-import { GADGET_IDS, GADGETS, wheelSlot, type GadgetId } from './gadgets';
+import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
+import { buildWheel, SelectionWheel, type WheelGadget, type WheelGun, type WheelPick, type WheelSeg } from './selectionWheel';
 import type { HitInfo } from './damage';
 import type { GameState } from './gameState';
 
 /** Hold the gadget wheel button this long (s) to open the wheel (pad / keyboard). */
 import { WHEEL_HOLD } from '../input/inputState';
 export { WHEEL_HOLD };
-/** Time scale while the wheel is open (single player). */
-export const WHEEL_SLOW = 0.3;
 /** Seconds of sleeping gas that knock an enemy out. */
 export const GAS_KO = 0.8;
 /** Sticky cam: look cone round the surface normal (rad), the lure ping's radius / cooldown. */
@@ -76,11 +75,22 @@ interface Mine {
  * cams (a remote view with the camera feed look: lure ping / gas / marking from a cam), proximity mines.
  */
 export class GadgetSystem {
-  /** Wheel open (input goes to it; time slows in single player) and the highlighted slot. */
-  wheelOpen = false;
-  wheelSlot = -1;
-  private cursorX = 0;
-  private cursorY = 0;
+  /** (F1a, G181) The selection wheel: LB / Tab held opens it over the live game (no time slow), the right stick / mouse
+   *  moves the cursor, release picks (vision mode, gun or gadget); a tap of the button switches weapon. */
+  readonly sel = new SelectionWheel();
+  /** The ring while the wheel is open (rebuilt each step: counts and ammo move). */
+  ring: WheelSeg[] = [];
+  /** The button's press that opened the wheel (a press that never opened it is a tap = switch weapon). */
+  private lbOpened = false;
+  get wheelOpen(): boolean {
+    return this.sel.open;
+  }
+  get wheelSlot(): number {
+    return this.sel.seg;
+  }
+  set wheelSlot(v: number) {
+    this.sel.seg = v;
+  }
   /** The gadget button is held (aiming the arc). */
   aiming = false;
   /** Remote view (a sticky cam) - the operator stands still meanwhile. */
@@ -164,15 +174,10 @@ export class GadgetSystem {
       inp.gadgetPick = -1;
       if (id) this.select(id);
     }
-    // the wheel: pad / keyboard hold it open (release selects)
+    // the wheel: the button held opens it (release picks); a tap of it switches weapon
+    if (inp.pressed('gadgetWheel')) this.lbOpened = false;
     if (this.wheelOpen) {
-      const mx = inp.move.x;
-      const my = inp.move.y;
-      if (hyp2(mx, my) > 0.5) {
-        this.cursorX = mx;
-        this.cursorY = my;
-      }
-      this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
+      this.refreshRing();
       if (!inp.down('gadgetWheel')) this.closeWheel(true);
       return this.wheelOpen;
     }
@@ -180,6 +185,7 @@ export class GadgetSystem {
       this.openWheel();
       return true;
     }
+    if (inp.buttons.gadgetWheel.released && !this.lbOpened && !inp.pressed('swapNext')) inp.tap('swapNext');
     // the gadget button: held shows the arc, release throws; placed ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
@@ -200,14 +206,8 @@ export class GadgetSystem {
   look(dx: number, dy: number): void {
     if (this.wheelOpen) {
       if (dx === 0 && dy === 0) return;
-      this.cursorX += dx / 0.12;
-      this.cursorY += dy / 0.12;
-      const l = hyp2(this.cursorX, this.cursorY);
-      if (l > 1) {
-        this.cursorX /= l;
-        this.cursorY /= l;
-      }
-      this.wheelSlot = wheelSlot(this.cursorX, this.cursorY);
+      this.sel.look(dx, dy);
+      this.sel.update(this.ring.length);
       return;
     }
     if (this.remote === 'cam') {
@@ -218,21 +218,43 @@ export class GadgetSystem {
     }
   }
 
-  openWheel(): void {
-    if (this.wheelOpen) return;
-    this.wheelOpen = true;
-    this.cursorX = this.cursorY = 0;
-    this.wheelSlot = -1;
-    this.aiming = false;
-    if (!this.g.net) this.g.app.loop.timeScale = WHEEL_SLOW;
+  /** The ring from the live loadout: vision, the guns (loaded / reserve), the kit's gadgets (counts). */
+  private refreshRing(): void {
+    const w = this.g.weapons;
+    const guns: WheelGun[] = [];
+    for (let i = 0; i < w.slots.length; i++) {
+      const s = w.slots[i]!;
+      guns.push({ index: i, name: s.def.name, loaded: s.mag, reserve: s.reserve });
+    }
+    const kit: WheelGadget[] = [];
+    for (const id of GADGET_IDS) kit.push({ id, name: GADGETS[id].name, count: w.gadgets.counts[id] });
+    this.ring = buildWheel(guns, kit);
+    this.sel.update(this.ring.length);
   }
 
-  /** Close the wheel; `pick` selects the highlighted slot. */
+  openWheel(): void {
+    if (this.wheelOpen) return;
+    this.sel.begin();
+    this.lbOpened = true;
+    this.aiming = false;
+    this.refreshRing();
+  }
+
+  /** Close the wheel (no time scale to restore, G181); `pick` applies the highlighted item. */
   closeWheel(pick: boolean): void {
     if (!this.wheelOpen) return;
-    this.wheelOpen = false;
-    if (pick && this.wheelSlot >= 0) this.select(GADGET_IDS[this.wheelSlot]!);
-    if (!this.g.net) this.g.app.loop.timeScale = 1;
+    const p = pick ? this.sel.pick(this.ring) : null;
+    this.sel.end();
+    if (p) this.applyPick(p);
+  }
+
+  /** A wheel pick: a vision mode becomes the one the vision button toggles (and switches live goggles to it), a gun is
+   *  swapped to, a gadget selected. */
+  applyPick(p: WheelPick): void {
+    const g = this.g;
+    if (p.kind === 'vision') g.vision.select(p.mode);
+    else if (p.kind === 'gun') g.weapons.switchTo(p.index);
+    else this.select(p.id);
   }
 
   /** Select a gadget (wheel slot tap / test). */
@@ -577,7 +599,7 @@ export class GadgetSystem {
         this.viewDir(c.yaw, c.pitch, this.dir);
         camera.position.copyFrom(this.dir).scaleInPlace(0.06).addInPlace(c.p);
         camera.rotation.set(-c.pitch, c.yaw, 0);
-        camera.fov = g.player.cam.vfov(g.app.input.state.down('ads') ? 40 : 95);
+        camera.fov = g.player.cam.vfov(g.app.input.state.down('zoom') ? 40 : 95);
       }
     }
     this.drawArc();

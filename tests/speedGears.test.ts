@@ -4,16 +4,16 @@ import { noiseRadius, targetSpeed } from '../src/player/movement';
 import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 
 describe('speed gears (3.2.0)', () => {
-  it('six gears with the spec caps, crouched and standing', () => {
-    // (locomotion step 22, M14 N6 / A88) about 17 % under the 3.2.0 caps (GAIT_REF)
-    expect(GEARS.crouch).toEqual([0.42, 0.75, 1.08, 1.5, 1.9, 2.3]);
-    expect(GEARS.stand).toEqual([0.65, 1.1, 1.65, 2.3, 3.15, 4.15]);
-    for (let g = 1; g <= 6; g++) {
+  it('five speeds with the CT caps, crouched and standing', () => {
+    // (CT prototype M1, loco M20 Q8) five analog speeds, no sprint (starting values, G10)
+    expect(GEARS.crouch).toEqual([0.4, 0.85, 1.5, 2.1, 2.6]);
+    expect(GEARS.stand).toEqual([0.2, 0.75, 2.0, 3.0, 4.2]);
+    for (let g = 1; g <= 5; g++) {
       expect(gearCap(g, true)).toBe(GEARS.crouch[g - 1]);
       expect(gearCap(g, false)).toBe(GEARS.stand[g - 1]);
     }
     expect(clampGear(0)).toBe(1);
-    expect(clampGear(9)).toBe(6);
+    expect(clampGear(9)).toBe(5);
     expect(clampGear(Number.NaN)).toBe(GEARS.spawn);
   });
   it('steps one gear at a time, clamps, keeps the gear and resets to the spawn gear', () => {
@@ -43,36 +43,38 @@ describe('speed gears (3.2.0)', () => {
     expect(stickCurve(0.6) - stickCurve(0.4)).toBeCloseTo(stickCurve(0.8) - stickCurve(0.6));
   });
   it('target speed = gear cap x stick curve; full deflection (keyboard / stick rim) gives the cap', () => {
-    for (let g = 1; g <= 6; g++) {
+    for (let g = 1; g <= 5; g++) {
       expect(targetSpeed(1, 'stand', 0, 1, MOVEMENT, g)).toBeCloseTo(GEARS.stand[g - 1]!);
       expect(targetSpeed(1, 'crouch', 0, 1, MOVEMENT, g)).toBeCloseTo(GEARS.crouch[g - 1]!);
       expect(gearSpeed(g, false, 0.5)).toBeCloseTo(GEARS.stand[g - 1]! * stickCurve(0.5));
     }
-    expect(targetSpeed(0.02, 'stand', 0, 1, MOVEMENT, 6)).toBe(0);
+    expect(targetSpeed(0.02, 'stand', 0, 1, MOVEMENT, 5)).toBe(0);
   });
-  it('aiming is capped at the aim paces; the sprint is gear 6 standing', () => {
-    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed);
+  it('aiming is capped at the aim paces (no sprint)', () => {
+    expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 5)).toBeCloseTo(MOVEMENT.adsSpeed);
     expect(targetSpeed(1, 'ads', 0, 1, MOVEMENT, 1)).toBeCloseTo(GEARS.stand[0]!);
-    expect(targetSpeed(1, 'adsCrouch', 0, 1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsCrouchSpeed);
-    expect(targetSpeed(1, 'ads', 0, -1, MOVEMENT, 6)).toBeCloseTo(MOVEMENT.adsSpeed * MOVEMENT.backMult);
-    expect(targetSpeed(0.3, 'sprint', 0, 1, MOVEMENT, 2)).toBeCloseTo(GEARS.stand[5]!);
+    expect(targetSpeed(1, 'adsCrouch', 0, 1, MOVEMENT, 5)).toBeCloseTo(MOVEMENT.adsCrouchSpeed);
+    expect(targetSpeed(1, 'ads', 0, -1, MOVEMENT, 5)).toBeCloseTo(MOVEMENT.adsSpeed * MOVEMENT.backMult);
   });
-  it('noise: crouched gears 1-4 and standing gears 1-2 are silent (with the stride swell); faster gears are heard', () => {
+  it('noise (G40): crouched speeds 1-3 and standing speeds 1-2 are silent (with the stride swell); the rest rise', () => {
     const swell = 1 + MOVEMENT.rootDip;
-    for (let g = 1; g <= 4; g++) expect(noiseRadius(GEARS.crouch[g - 1]! * swell, true, false)).toBe(0);
-    for (let g = 1; g <= 2; g++) expect(noiseRadius(GEARS.stand[g - 1]! * swell, false, false)).toBe(0);
-    expect(noiseRadius(GEARS.crouch[4]! * (1 - MOVEMENT.rootDip), true, false)).toBeGreaterThan(0);
-    expect(noiseRadius(GEARS.stand[2]! * (1 - MOVEMENT.rootDip), false, false)).toBeGreaterThan(0);
-    // louder with every gear, sprinting loudest
-    let last = 0;
-    for (let g = 3; g <= 6; g++) {
-      const n = noiseRadius(GEARS.stand[g - 1]!, false, false);
-      expect(n).toBeGreaterThan(last);
-      last = n;
+    for (let g = 1; g <= 3; g++) expect(noiseRadius(GEARS.crouch[g - 1]! * swell, true)).toBe(0);
+    for (let g = 1; g <= 2; g++) expect(noiseRadius(GEARS.stand[g - 1]! * swell, false)).toBe(0);
+    expect(noiseRadius(GEARS.crouch[3]! * (1 - MOVEMENT.rootDip), true)).toBeGreaterThan(0);
+    expect(noiseRadius(GEARS.stand[2]! * (1 - MOVEMENT.rootDip), false)).toBeGreaterThan(0);
+    // louder with every audible speed
+    for (const [caps, crouched, from] of [[GEARS.stand, false, 3], [GEARS.crouch, true, 4]] as const) {
+      let last = 0;
+      for (let g = from; g <= 5; g++) {
+        const n = noiseRadius(caps[g - 1]!, crouched);
+        expect(n).toBeGreaterThan(last);
+        last = n;
+      }
     }
-    expect(noiseRadius(5, false, true)).toBeGreaterThan(last);
-    expect(NOISE_QUIET.crouch).toBeLessThan(GEARS.crouch[4]! * (1 - MOVEMENT.rootDip));
+    expect(NOISE_QUIET.crouch).toBeLessThan(GEARS.crouch[3]! * (1 - MOVEMENT.rootDip));
     expect(NOISE_QUIET.stand).toBeLessThan(GEARS.stand[2]! * (1 - MOVEMENT.rootDip));
+    expect(NOISE_QUIET.crouch).toBeGreaterThan(GEARS.crouch[2]! * swell);
+    expect(NOISE_QUIET.stand).toBeGreaterThan(GEARS.stand[1]! * swell);
   });
 });
 

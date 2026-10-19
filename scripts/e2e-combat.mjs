@@ -64,10 +64,10 @@ try {
 
   // headshot: aim at head height
   await aimAt(-4, 1.68, 8);
-  await press(page, BTN.LB); // swap prev -> the suppressed pistol (semi)
+  await G(() => window.__app.input.state.tap('swapPrev')); /* (F1a: no pad button for previous; LB tap is next) */ // swap prev -> the suppressed pistol (semi)
   await sim(1.1);
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'pistolSd', 'LB swaps to previous weapon');
-  await G(() => window.__pad.set(6, 1));
+  await G(() => window.__app.input.state.set('t', 'ads', true));
   await sim(0.5);
   // the ADS framing blend moves the camera: re-aim once it has settled, at the head volume's centre
   await sim(0.6);
@@ -76,7 +76,7 @@ try {
   await sim(0.15);
   await sim(0.05, [[BTN.RT, 1]]);
   await sim(0.2);
-  await G(() => window.__pad.set(6, 0));
+  await G(() => window.__app.input.state.set('t', 'ads', false));
   console.log('    head shot:', await G(() => { const g = window.__app.current; const l = g.weapons.lastShot; const f = (v) => `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`; return `spread ${g.weapons['currentSpread']().toFixed(2)} ads ${g.player.cam.ads.toFixed(2)} spd ${g.player.controller.speed.toFixed(2)} bloom ${g.weapons['bloom'].toFixed(2)} ${l.target} origin ${f(l.origin)} aim ${f(l.aim)} hit ${f(l.hit)} headNode ${f(g.dummies[0]['hitboxes']['headNode'].position)} alive ${g.dummies[0].alive}`; }));
   const heads = await G(() => window.__app.current.weapons.tally.get('pistolSd')?.heads ?? 0);
   assert(heads >= 1, `head hitbox registers headshots (${heads})`);
@@ -87,8 +87,8 @@ try {
   assert(pm0 - pm1 === 1, `semi-auto fires once per pull (${pm0} -> ${pm1})`);
 
   // reload
-  await press(page, BTN.X);
-  assert(await G(() => window.__app.current.weapons.reloading), 'X starts reload');
+  await press(page, BTN.A);
+  assert(await G(() => window.__app.current.weapons.reloading), 'A (weapon drawn) starts reload');
   await sim(2.1);
   assert((await G(() => window.__app.current.weapons.current.mag)) === 15, 'reload refills magazine');
 
@@ -106,7 +106,7 @@ try {
   const barrels0 = await G(() => window.__app.current.world.props.props.filter((p) => p.kind === 'explosiveBarrel' && p.alive).length);
   await G(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-3, 0, -3), Math.PI); });
   await sim(0.3);
-  await press(page, BTN.RB); // pistol -> rifle
+  await G(() => window.__app.input.state.tap('swapNext')); // pistol -> rifle
   await sim(1.3);
   const bp = await G(() => { const p = window.__app.current.world.props.props.filter((q) => q.kind === 'explosiveBarrel' && q.alive).sort((a, b) => Math.hypot(a.node.position.x + 3, a.node.position.z + 9) - Math.hypot(b.node.position.x + 3, b.node.position.z + 9))[0]; return [p.node.position.x, p.node.position.y, p.node.position.z]; });
   await aimAt(bp[0], bp[1], bp[2]);

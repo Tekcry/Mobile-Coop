@@ -1,6 +1,6 @@
 /**
  * Pure stealth-operative movement maths (analog speed bands per stance, direction penalties while
- * aiming, eased velocity, the sprint, contextual traversal and footstep noise). Unit-tested.
+ * aiming, eased velocity, contextual traversal and footstep noise). Unit-tested.
  */
 import { MOVEMENT, NOISE_QUIET } from '../config/movement';
 import { LANDING_NOISE_RADIUS } from '../config/noise';
@@ -9,17 +9,16 @@ import { hyp2 } from '../core/mathx';
 import { gearCap, stickCurve } from './speedGears';
 
 /**
- * Movement stance: standing / crouched free movement (the body faces where it goes), aiming (strafe-
- * locked, standing or crouched), and the sprint.
+ * Movement stance: standing / crouched free movement (the body faces where it goes) and aiming (strafe-
+ * locked, standing or crouched). No sprint (CT prototype M1, loco M20 Q8).
  */
-export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch' | 'sprint';
+export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch';
 
 const band = (m: number, m0: number, m1: number, v0: number, v1: number): number => v0 + (v1 - v0) * ((m - m0) / (m1 - m0));
 
 /**
  * Target ground speed (m/s), analog on stick magnitude. With a speed `gear` (the player, 3.2.0 Chaos Theory gears):
- * the gear's cap for the stance x the stick curve; aiming is capped at `adsSpeed` / `adsCrouchSpeed`; the sprint is
- * gear 6 standing. Without one (the 2.x bands): crouched sneak -> crouch walk -> crouch run; standing walk -> jog.
+ * the gear's cap for the stance x the stick curve; aiming is capped at `adsSpeed` / `adsCrouchSpeed`; aiming is capped. Without one (the 2.x bands): crouched sneak -> crouch walk -> crouch run; standing walk -> jog.
  * Aiming applies the strafe / backstep penalties relative to the aim (local x right, z forward); otherwise the body
  * faces the travel direction and there is no penalty.
  */
@@ -37,8 +36,6 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
         return Math.min(gearCap(gear, false), M.adsSpeed) * c * directionMult(localX, localZ, M);
       case 'adsCrouch':
         return Math.min(gearCap(gear, true), M.adsCrouchSpeed) * c * directionMult(localX, localZ, M);
-      case 'sprint':
-        return gearCap(6, false);
       default:
         break;
     }
@@ -54,8 +51,6 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
       return M.adsSpeed * m * directionMult(localX, localZ, M);
     case 'adsCrouch':
       return M.adsCrouchSpeed * m * directionMult(localX, localZ, M);
-    case 'sprint':
-      return M.sprintSpeed;
   }
 }
 
@@ -101,85 +96,9 @@ export class EasedVelocity {
   }
 }
 
-/**
- * Sprint: stamina-free and immediate (the lean-in is animation only). Toggle (press) or hold; ends when
- * the stick is released, on aiming / firing, crouching, cover or traversal. The weapon is lowered and
- * cannot fire while sprinting.
- */
-export class SprintGate {
-  state: 'off' | 'rush' = 'off';
-  /** Seconds in the current state. */
-  t = 0;
-  /** Kept for callers that show a stamina bar: sprinting is stamina-free. */
-  readonly stamina = 1;
-  private idleT = 0;
-
-  get canStart(): boolean {
-    return this.state === 'off';
-  }
-
-  /** Start sprinting (press edge / hold). */
-  start(): boolean {
-    if (this.state === 'rush') return false;
-    this.state = 'rush';
-    this.t = 0;
-    this.idleT = 0;
-    return true;
-  }
-
-  stop(): void {
-    if (this.state === 'off') return;
-    this.state = 'off';
-    this.t = 0;
-  }
-
-  /** `stickMag` keeps a toggled sprint alive; a short release (< 0.15 s) does not end it. */
-  update(dt: number, stickMag = 1): void {
-    this.t += dt;
-    if (this.state !== 'rush') return;
-    this.idleT = stickMag < 0.2 ? this.idleT + dt : 0;
-    if (this.idleT > 0.15) this.stop();
-  }
-
-  get sprinting(): boolean {
-    return this.state === 'rush';
-  }
-
-  /** Same as `sprinting` (legacy name used by cover / camera / animation). */
-  get dashing(): boolean {
-    return this.state === 'rush';
-  }
-
-  /** Weapon lowered: no firing or aiming. */
-  get blocksWeapon(): boolean {
-    return this.state === 'rush';
-  }
-
-  /** 0..1 sprint blend (immediate; the lean-in plays in the animation). */
-  get blend(): number {
-    return this.state === 'rush' ? 1 : 0;
-  }
-}
-
 /** (locomotion step 18, D7) Crouch hold / toggle (pure): the stance wanted from the toggle latch or the held button. */
 export function crouchWanted(toggle: boolean, toggled: boolean, held: boolean): boolean {
   return toggle ? toggled : held;
-}
-
-/** (step 18) A crouch press in toggle mode: from a sprint it always crouches, else it flips the latch. */
-export function crouchToggleNext(toggled: boolean, sprinting: boolean): boolean {
-  return sprinting ? true : !toggled;
-}
-
-/** (step 18, D7) Sprint hold / toggle (pure): 1 start, -1 stop, 0 keep. Toggle: a press starts (stick past 0.3) or
- *  stops; hold: sprinting while held with the stick past 0.3. */
-export function sprintEdge(toggle: boolean, pressed: boolean, held: boolean, sprinting: boolean, stickMag: number): -1 | 0 | 1 {
-  if (toggle) {
-    if (!pressed) return 0;
-    return sprinting ? -1 : stickMag > 0.3 ? 1 : 0;
-  }
-  if (held && stickMag > 0.3) return sprinting ? 0 : 1;
-  return sprinting ? -1 : 0;
 }
 
 /** What the contextual jump does with the obstacle in front (heights relative to the feet, m). */
@@ -206,11 +125,11 @@ export function pickTraversal(p: TraversalProbe): Traversal {
 
 /**
  * Footstep noise radius (m) that alerts enemies: a crouched sneak is near silent, crouch walking quiet,
- * standing jog audible, sprinting loud. 3.2.0: silent up to `NOISE_QUIET` (crouched gears 1-4, standing gears 1-2).
+ * standing run audible. Silent up to `NOISE_QUIET` (G40: crouched speeds 1-3, standing speeds 1-2), then rising.
  */
-export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean, M = MOVEMENT): number {
+/** (`_sprinting` is kept for `src/editor`, which still passes it; there is no sprint, so it is ignored.) */
+export function noiseRadius(speed: number, crouched: boolean, _sprinting = false, M = MOVEMENT): number {
   if (speed < 0.15) return 0;
-  if (sprinting) return 9;
   // sneaking, crouch walking and a slow walk are silent; a crouch run and a jog carry a few metres
   if (crouched) return speed <= NOISE_QUIET.crouch ? 0 : 1 + (speed - M.crouchWalkSpeed) * 1.5;
   return speed <= NOISE_QUIET.stand ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;

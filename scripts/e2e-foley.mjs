@@ -47,28 +47,26 @@ try {
   // the move suite's open lane (sprint test): heading +x from (0, 0, -14)
   await tp(0, 0, -14, Math.PI / 2);
   await walk(0, 0, 0.5);
-  // a walk (gear 3 = jog cap; half stick)
-  const w = await walk(0, -0.5, 2.5);
+  // a walk (CT speed 3 = 2.0 m/s, the spawn maximum; full stick)
+  const w = await walk(0, -1, 2.5);
   console.log(`  walk: ${w.plants} plants, ${w.steps} foley steps, speed ${w.speed.toFixed(2)}, noise ${w.noise.toFixed(2)} m`);
   assert(w.plants >= 4, `walking plants feet (${w.plants})`);
   assert(Math.abs(w.steps - w.plants) <= 1, `one foley step per foot plant (${w.steps} / ${w.plants})`);
-  await walk(0, 0, 0.8);
+  await walk(0, 0, 2.6); // (CT M1: the frozen stance holds 1.7 s, then squares up with a step)
   // standing still: no steps at all after the settle
   const still = await walk(0, 0, 1.5);
   assert(still.steps === 0, `standing still is silent (${still.steps})`);
-  // sprint: LS click while moving at full stick
+  // (CT prototype M1: no sprint) the top speed, 4.2 m/s: maximum gear 5, full stick
   await tp(0, 0, -14, Math.PI / 2);
   await walk(0, 0, 0.5);
-  await G(() => window.__pad.axis(1, -1));
-  await frames(page, 6);
-  await press(page, BTN.LS);
+  await G(() => window.__app.current.player.controller.gears.set(5));
   const s = await walk(0, -1, 2.5);
+  await G(() => window.__app.current.player.controller.gears.set(3));
   console.log(`  sprint: ${s.plants} plants, ${s.steps} foley steps, speed ${s.speed.toFixed(2)}, noise ${s.noise.toFixed(2)} m`);
   assert(s.plants > w.plants && s.speed > 4, `a sprint (${s.speed.toFixed(1)} m/s) plants faster than a walk (${s.plants} > ${w.plants})`);
   assert(Math.abs(s.steps - s.plants) <= 1, `one foley step per sprint plant (${s.steps} / ${s.plants})`);
-  // the noise model is untouched: a sprint is 9 m x surface x suit, as before
-  const n = await G(() => { const st = window.__app.current; return { surface: st.surface }; });
-  assert(s.noise >= w.noise && (n.surface !== 'concrete' || Math.abs(s.noise - 9) < 0.05), `noise model unchanged: sprint ${s.noise.toFixed(1)} m, walk ${w.noise.toFixed(1)} m (surface ${n.surface})`);
+  // noise rises with the speed (G40)
+  assert(s.noise > w.noise, `noise rises with speed: run ${s.noise.toFixed(1)} m, walk ${w.noise.toFixed(1)} m`);
   await walk(0, 0, 1);
 
   // a drop from 1.5 m: a soft landing plays the landing foley

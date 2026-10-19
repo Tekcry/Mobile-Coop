@@ -78,9 +78,7 @@ await G(() => {
         speed: c.speed,
         sprint: c.dashing,
         lean: p.pose.lean,
-        dashS: cm['sDash'].x,
         leanS: cm['sLean'].x,
-        coverS: cm['sCover'].x,
         side: cm['sSide'].x,
         shoulder: cm.shoulder,
       };
@@ -140,22 +138,21 @@ try {
   await resetTotal();
   r = await lookFor(1300, 6, { y: 1 });
   assert(Math.abs(r.turned) >= r.real * 0.97, `moving: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
-  // after a sprint
+  // after a run (G31: sprint and its dash spring are gone; the tap('dash') is dropped)
   await G(() => window.__s.tp(0, -18, Math.PI / 2));
   await G(() => {
     window.__s.move(0, 1);
-    window.__app.input.state.tap('dash');
   });
   await wait(900);
   await G(() => window.__s.move(0, 1));
   await wait(300);
   await resetTotal();
   r = await lookFor(1300, 6);
-  assert(Math.abs(r.turned) >= r.real * 0.97, `after a sprint: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
+  assert(Math.abs(r.turned) >= r.real * 0.97, `after a run: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
   await wait(700);
   let s = await G(() => window.__s.state());
-  assert(s.dashS < 0.02 && Math.abs(Math.atan2(Math.sin(s.viewYaw - s.camYaw), Math.cos(s.viewYaw - s.camYaw))) < 0.003, `after a sprint: no residual framing or view offset (dash ${f2(s.dashS)})`);
-  assert(s.speed < 0.05, `after a sprint the body has stopped within ~1 s (${f2(s.speed)} m/s)`);
+  assert(Math.abs(Math.atan2(Math.sin(s.viewYaw - s.camYaw), Math.cos(s.viewYaw - s.camYaw))) < 0.003, `after a run: no residual view offset`);
+  assert(s.speed < 0.05, `after a run the body has stopped within ~1 s (${f2(s.speed)} m/s)`);
   // looking up/down returns nothing by itself and is never clamped short of the limits
   await G(() => (window.__s.look.pitch = 3));
   await wait(400);

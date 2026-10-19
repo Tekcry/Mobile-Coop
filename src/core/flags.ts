@@ -29,7 +29,7 @@ export interface Flags {
   detect: boolean;
   /** Tests: the GPU name detection sees (`?renderer=Apple%20GPU`). */
   renderer: string | null;
-  /** Tests: the speed gear at spawn and respawn (`?gear=1..6`; else the default, 3). */
+  /** Tests: the speed gear at spawn and respawn (`?gear=1..5`; else the default, 3). */
   gear: number | null;
   /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
   legacy: boolean;
@@ -82,7 +82,7 @@ export const flags: Flags = {
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
-  gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
+  gear: /^[1-5]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
   // (the DEV test first: the production build drops the parameter name and the whole read)

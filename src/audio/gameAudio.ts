@@ -139,7 +139,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
         const crouch = c.crouched || c.steps === 'crouched';
         // cover glides are 'silent' to guards: barely there; shuffles on the spot are soft
         const scale = (c.steps === 'silent' ? 0.4 : 1) * (c.speed < 0.3 ? 0.5 : 1);
-        if (!fo.step(g.surface, gaitOf(c.speed, crouch, c.sprinting), c.speed, p.footPlantSide, scale)) sfx.footstep(crouch ? 0.5 : scale, 0, g.surface);
+        if (!fo.step(g.surface, gaitOf(c.speed, crouch, false), c.speed, p.footPlantSide, scale)) sfx.footstep(crouch ? 0.5 : scale, 0, g.surface);
       }
     }
   };

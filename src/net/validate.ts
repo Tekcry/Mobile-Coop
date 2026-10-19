@@ -12,7 +12,6 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { gearCap } from '../player/speedGears';
 import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
 import { attachPose, type AttachPose } from '../player/attach';
-import { SWAT_MAX_PACE, WALL } from '../player/wallController';
 import type { TraversalAnchors } from '../world/anchors';
 
 export interface V3 {
@@ -156,26 +155,13 @@ export const MAX_FREE_SPEED = 11;
 
 /**
  * The fastest horizontal pace a client's state allows (m/s): free movement on the ground within its speed gear's
- * pace (the sprint's 5 m/s while sprinting) + `MOVE_TOLERANCE`; everything driven by traversal or in the air
+ * pace + `MOVE_TOLERANCE` (no sprint, protocol 14); everything driven by traversal or in the air
  * keeps the general cap.
  */
-export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprint: boolean, driven: boolean, grounded: boolean): number {
-  // (step 12) the SWAT turn: its eased path peaks at 1.5x its average pace
-  if (mv?.m === 'swat') return SWAT_MAX_PACE * 1.5 * MOVE_TOLERANCE;
+export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, driven: boolean, grounded: boolean): number {
   if (!mv || mv.m !== 'ground' || driven || !grounded) return MAX_FREE_SPEED;
-  // (step 22) the sprint is gear 6 standing (its cap, whatever gear the state carries)
-  const pace = sprint ? Math.max(gearCap(6, false), gearCap(mv.g, false)) : gearCap(mv.g, crouched);
+  const pace = gearCap(mv.g, crouched);
   return pace * MOVE_TOLERANCE;
-}
-
-/**
- * (step 12) A SWAT turn's commit is plausible: no longer than the widest gap plus the edge margins, a duration in the
- * turn's clamp, an average pace under `SWAT_MAX_PACE` + tolerance. A false commit is dropped (the remote poses ground).
- */
-export function swatCommitOk(c: { x0: number; z0: number; x1: number; z1: number; dur: number }): boolean {
-  const d = hyp2(c.x1 - c.x0, c.z1 - c.z0);
-  if (c.dur < WALL.swatMin - 1e-3 || c.dur > WALL.swatMax + 1e-3) return false;
-  return d <= WALL.swatGapMax + 0.8 && d / c.dur <= SWAT_MAX_PACE * MOVE_TOLERANCE;
 }
 
 /** Furthest an attached client may be from where its anchor puts it (m). */

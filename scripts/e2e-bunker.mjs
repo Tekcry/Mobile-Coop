@@ -28,7 +28,8 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   }
 }
 
-const Q = 'net=local&autostart=bunker&mode=course';
+// (CT prototype B1) Fallow is parked behind ?legacy=1; this suite is in the LEGACY list
+const Q = 'net=local&autostart=bunker&mode=course&legacy=1';
 const { browser, ctx, page: A, errors: eA } = await launch({ url, params: Q });
 let B = null;
 let eB = [];
