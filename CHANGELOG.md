@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - lightField heap check under load (feature/lightfield-heap)
+## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
 - tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
   compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it
   is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
