@@ -8,7 +8,7 @@ Project knowledge lives in git, never only in Claude memory: Michael swaps accou
 - A 2-player co-op campaign only: it cannot be completed solo; no bot partner, no 3-4 player play (G2, G48, G50).
   The CT co-op levels are researched and that experience is recreated (G3).
 - Work order: the CT co-op research, then the CT prototype, then the rest (G95). Prototype first: only the basics
-  needed to test a feature; refinement later (G4). The ordered job list is in `docs/progress.md`.
+  needed to test a feature; refinement later (G4). The roadmap (now, next, waiting on Michael) is `docs/ROADMAP.md`.
 
 ## Current goal (Michael, 2026-10-19) - every job and session, overrides slower wording elsewhere
 A fully functional 2-player co-op training level, playable end to end, as soon as possible:
@@ -29,9 +29,15 @@ until Michael lifts it.
   only training (G78, G111): course mode, `?autostart=bunker&mode=course`.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
+## Orchestrator (Michael, 2026-10-19)
+One session, "Night Shift | Orchestrator", orchestrates the whole build: it owns `docs/ROADMAP.md` (the only session that
+edits it), plans and starts jobs, reviews and merges PRs into master (Michael: "You have my approval to merge yourself as
+needed"), moves `/preview/`, and keeps every session in step. Every other session messages the orchestrator when it
+starts, finishes a slice, opens a PR, needs Michael, or is blocked. No job starts unless it is on the roadmap.
+
 ## Every session
 1. Read this file.
-2. Read `docs/progress.md` (job list and current state only).
+2. Read `docs/ROADMAP.md` (what is happening now, what is next, what waits on Michael).
 3. In a job: read the job's `RULES.md` and `STATE.md` (`docs/<job>/`), then only the bible sections, `docs/systems/*`
    sections and files they name. Use `grep` and line ranges, not whole large files.
 4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
@@ -51,11 +57,12 @@ until Michael lifts it.
   GPU checks only on Michael's PC; elsewhere they are "pending PC run".
 - Unattended by default: assumed decisions are logged and the job carries on; ask Michael (native multiple choice) only
   before installing or downloading, or when a hard rule blocks the goal.
-- Finish: one PR to master. Claude never merges; Michael does. At the merge the job's answers from Michael move into
-  `docs/DECISIONS.md` with the next free G numbers (G89) and `docs/progress.md` marks the job merged.
+- Finish: one PR to master; the orchestrator reviews and merges it (or Michael). At the merge the job's answers from
+  Michael move into `docs/DECISIONS.md` with the next free G numbers (G89) and the orchestrator marks the job done in
+  `docs/ROADMAP.md`.
 
 ## Branches
-- Master is the live game and the only base (G83). One branch per job, cut from master, one PR each; only Michael merges.
+- Master is the live game and the only base (G83). One branch per job, cut from master, one PR each; the orchestrator session or Michael merges.
   `ct-movement` and `dev` are retired.
 - Pages: the live game plus one preview slot that shows the job branch Michael chooses (G85). Detail: `docs/systems/deploy.md`.
 
@@ -165,7 +172,8 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | --- | --- | --- |
 | `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
 | `docs/design-bible.md` | Vision, pillars, systems, out-of-scope list, level and platform rules | Sections 0-3 and 6 every job; other sections when the job touches them |
-| `docs/progress.md` | Ordered job list (branch, folder, status), current state | Every session |
+| `docs/ROADMAP.md` | Now, next, waiting on Michael, done (owned by the orchestrator) | Every session |
+| `docs/progress.md` | History and the older follow-up backlog | When planning a backlog item |
 | `docs/backlog.md` | Feedback inbox, flaky e2e suites | Adding feedback, judging a test failure |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
