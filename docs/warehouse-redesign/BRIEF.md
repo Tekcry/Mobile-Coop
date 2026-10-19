@@ -3,7 +3,7 @@
 Set by the orchestrator, 2026-10-19 23:50. Branch `feature/warehouse-redesign` (off master 4.7.5, 3a07eee9), folder
 `C:/NightShift/Mobile-Coop-warehouse-redesign`. Job lead: "Night Shift | Sector Ops Build". Low priority: CT Core,
 then Course Ready, then this job, on both heavy locks. Prototype effort only (CLAUDE.md "Current goal"). The PR waits
-for Michael's approval of the direction (not opened tonight).
+for Michael's approval of the direction (not opened tonight) - replaced by M4: the PR opens tonight.
 
 ## Michael's words
 - **M1** (2026-10-19 23:45, via the orchestrator, verbatim): "section ops can fill in any time where theres gaps, but i
@@ -19,6 +19,10 @@ for Michael's approval of the direction (not opened tonight).
 - **M3** (23:47), on the level standard: "Loosen where needed". The spec may loosen `docs/level-design.md` where it
   blocks fun flow; each loosening is logged below (what, why, how to undo) for his review. `docs/level-design.md` and
   `docs/templates/map-spec.md` themselves are not edited.
+- **M4** (23:55, via the orchestrator): "i also want everything merged into one build by the morning, so i can try it
+  all from one session". So this job's PR opens tonight, by 06:00: the dog fix, the spec docs and the section 1
+  greybox (if the greybox is not stable by 05:00: the fix and the spec only), with the full `npm run e2e` on its head.
+  The orchestrator sets the version and merges.
 
 ## Goal
 1. **Dogs carry no light** (bug): a small commit with a test.
