@@ -7,7 +7,7 @@ Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training leve
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 16:15 Sydney.
+Last updated: 2026-10-19 16:00 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -31,7 +31,7 @@ Last updated: 2026-10-19 16:15 Sydney.
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge the co-op test fix and Sector Ops PRs; CT Core slices B + C |
 | CT Core Build | desktop | `feature/ct-prototype` | B + C on /ct/ (87514ed1); master merged; slices D + E | D + E on /ct/ for Michael |
-| Character Build | laptop (second heavy slot) | - | Idle: co-op test fix merged (#17, 4.6.5) | Next laptop job |
+| Character Build | laptop (second heavy slot) | `feature/menus-slider` | e2e-menus slider fix: the hold-repeat check waits on game time, not wall time (Michael, 2026-10-19) | PR to master (patch) |
 | Sector Ops Build | desktop | `feature/sector-ops` | Slice 2: Sector Ops on 3 Warehouse sections (M7: no lives, difficulty stars); menus and lobby done on the branch | Sector Ops PR |
 
 ## Next (in order)
