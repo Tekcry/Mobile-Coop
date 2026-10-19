@@ -94,7 +94,7 @@ import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEl
 import { DOOR, driveStep } from '../world/doors';
 import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
-import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallOverride } from '../player/wallController';
+import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallFacing, wallOverride } from '../player/wallController';
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
@@ -381,8 +381,6 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
-    // (playtest 2) the shoulder last used while aiming is the one the next mission starts on (the setting follows it)
-    this.player.onShoulder = (side) => app.settings.update((d) => void (d.gameplay.defaultShoulder = side < 0 ? 'left' : 'right'));
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
     this.vfx = new Vfx(this.scene);
@@ -2147,7 +2145,8 @@ export class GameState implements AppState {
     }
     const pose = pl.pose;
     pose.wall = w.active;
-    pose.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    // (F4) at an edge the side is the edge's open side (the end at b is the body's left), never the slide or the camera
+    pose.wallSide = w.active ? wallFacing(w.edge, w.dir) : 0;
     // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
     // the camera)
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
@@ -2164,17 +2163,9 @@ export class GameState implements AppState {
     pose.wallTz = g ? g.tz : 0;
     pose.wallGap = COVER_STANDOFF;
     pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
-    // at an edge the shoulder goes to the open side (the edge at b is the body's left)
-    // (playtest 2, peek backwards) the shoulder goes to the side the body is going / peeking, read in the CAMERA's own frame
-    // (the free camera usually looks at the wall, so the body's left is the camera's right: the old body-frame side was inverted)
-    if (!w.active || !g) pl.cam.wallSide = 0;
-    else {
-      const sgn = w.edge !== 0 ? w.edge : w.dir;
-      const cy = pl.cam.yaw;
-      pl.cam.wallSide = sgn * (g.tx * Math.cos(cy) - g.tz * Math.sin(cy)) >= 0 ? 1 : -1;
-    }
-    // (step 12, A3) the peek camera swing toward the edge (local only, never sent)
-    pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
+    // (F1) the wall no longer sets the camera shoulder (slice A's camera-frame side flipped it as the camera swung);
+    // (F4) the camera slides toward the open side by how far the player looks / pushes past the edge (local only)
+    pl.cam.wallPeek = w.phase === 'on' ? w.peekView : 0;
     pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
     pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
   }

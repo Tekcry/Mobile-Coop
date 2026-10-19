@@ -129,6 +129,9 @@ export function rollTumble(t: number): number {
  * (CLIMB_UP_PATH): pull up and press, chest to the lip, the feet walking up the face (0 - 0.5); the left knee onto the top,
  * the shin flat on it, the body low and pitched forward, the hands letting go of the lip (0.5 - 0.75); the right foot steps up
  * and she stands, the left foot coming through (0.75 - 1).
+ * (F5) Over 1.3 s (CLIMB_UP_TIME): the pull-up and the knee keep their seconds (old k x 0.846), the knee is planted by
+ * 0.56, the right foot steps up 0.6 - 0.74, and she stands from the knee in one smooth rise 0.72 - 1 (pelvis -0.5 -> 0
+ * on a monotone ease: no hop, never above standing).
  */
 export const CLIMB_UP = makeClip({
   name: 'climbUp',
@@ -136,22 +139,22 @@ export const CLIMB_UP = makeClip({
   keys: {
     grip: [0, 0, 1, 0],
     offGrip: [0, 0, 0.9, 0, 1, 1],
-    pelPitch: [0, 0, 0.35, 0.3, 0.55, 0.55, 0.75, 0.6, 0.9, 0.2, 1, 0.05],
-    spPitch: [0, -0.05, 0.4, 0.3, 0.6, 0.25, 0.8, 0.15, 1, 0],
-    hdPitch: [0, -0.2, 0.4, 0.1, 0.7, -0.15, 1, 0],
-    pelY: [0, 0, 0.45, -0.12, 0.6, -0.5, 0.78, -0.5, 0.9, -0.15, 1, 0],
-    // the left knee comes over the lip (0.58) and the shin lies on the top behind it (0.66 - 0.8), then it comes through
-    fLY: [0, 0.05, 0.4, 0.2, 0.58, 0.4, 0.66, 0.12, 0.8, 0.12, 0.9, 0.2, 1, 0],
-    fLZ: [0, -0.1, 0.5, -0.12, 0.66, -0.38, 0.8, -0.38, 0.94, 0, 1, 0],
-    fLPitch: [0, 0, 0.58, 0.6, 0.66, 1.2, 0.8, 1.2, 0.92, 0.3, 1, 0],
-    // the right foot pushes on the face, then steps up onto the top in front (0.78 - 0.9)
-    fRY: [0, 0.05, 0.4, 0.15, 0.7, 0.15, 0.8, 0.3, 0.9, 0.05, 1, 0],
-    fRZ: [0, -0.12, 0.7, -0.15, 0.84, 0.2, 0.94, 0.08, 1, 0],
-    // (the grips hold the hands on the lip until 0.5 - 0.75; the clip's hands meet them there, pressing on the top)
-    hLY: [0, 2.0, 0.4, 1.3, 0.6, 0.35, 0.75, 0.45, 0.9, 0.9, 1, 1.0],
-    hRY: [0, 2.0, 0.4, 1.3, 0.6, 0.35, 0.75, 0.45, 0.9, 0.9, 1, 1.0],
-    hLZ: [0, 0.25, 0.6, 0.45, 0.8, 0.4, 1, 0.25],
-    hRZ: [0, 0.25, 0.6, 0.45, 0.8, 0.4, 1, 0.25],
+    pelPitch: [0, 0, 0.3, 0.3, 0.47, 0.55, 0.63, 0.6, 0.72, 0.55, 0.9, 0.2, 1, 0.05],
+    spPitch: [0, -0.05, 0.34, 0.3, 0.51, 0.25, 0.72, 0.15, 1, 0],
+    hdPitch: [0, -0.2, 0.34, 0.1, 0.59, -0.15, 1, 0],
+    pelY: [0, 0, 0.38, -0.12, 0.51, -0.5, 0.72, -0.5, 1, 0],
+    // the left knee comes over the lip (0.49) and the shin lies on the top behind it (0.56 - 0.76), then it comes through
+    fLY: [0, 0.05, 0.34, 0.2, 0.49, 0.4, 0.56, 0.12, 0.76, 0.12, 0.88, 0.2, 1, 0],
+    fLZ: [0, -0.1, 0.42, -0.12, 0.56, -0.38, 0.76, -0.38, 0.94, 0, 1, 0],
+    fLPitch: [0, 0, 0.49, 0.6, 0.56, 1.2, 0.76, 1.2, 0.92, 0.3, 1, 0],
+    // the right foot pushes on the face, then steps up onto the top in front (0.6 - 0.74)
+    fRY: [0, 0.05, 0.34, 0.15, 0.6, 0.15, 0.67, 0.3, 0.74, 0.05, 1, 0],
+    fRZ: [0, -0.12, 0.6, -0.15, 0.71, 0.2, 0.86, 0.08, 1, 0],
+    // (the grips hold the hands on the lip until the knee is on, 0.6 - 0.74; the clip's hands meet them there)
+    hLY: [0, 2.0, 0.34, 1.3, 0.51, 0.35, 0.7, 0.4, 0.86, 0.9, 1, 1.0],
+    hRY: [0, 2.0, 0.34, 1.3, 0.51, 0.35, 0.7, 0.4, 0.86, 0.9, 1, 1.0],
+    hLZ: [0, 0.25, 0.51, 0.45, 0.72, 0.4, 1, 0.25],
+    hRZ: [0, 0.25, 0.51, 0.45, 0.72, 0.4, 1, 0.25],
     wpPitch: [0, -0.9, 0.9, -0.8, 1, 0],
   },
 });

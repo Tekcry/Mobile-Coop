@@ -83,32 +83,49 @@ describe('rigid camera follow (A2.1)', () => {
   });
 });
 
-describe('shoulder carry (playtest 2)', () => {
-  it('the wall side becomes the shoulder and stays after leaving the wall', async () => {
+describe('shoulder rule (F1, playtest 2)', () => {
+  const rightOf = (cam: { yaw: number; camera: { position: { x: number; z: number } } }, x: number, z: number) =>
+    Math.cos(cam.yaw) * (cam.camera.position.x - x) - Math.sin(cam.yaw) * (cam.camera.position.z - z);
+  it('the holstered wall camera stays over the right shoulder (the wall never sets the shoulder)', async () => {
     const { cam, feet } = await rig();
     const dt = 1 / 60;
     expect(cam.shoulder).toBe(1);
     cam.attach = 'wall';
-    cam.wallSide = -1;
     for (let i = 0; i < 30; i++) cam.update(dt, feet, 0);
+    expect(cam.shoulder).toBe(1);
     cam.attach = null;
-    cam.wallSide = 0;
     for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
-    expect(cam.shoulder).toBe(-1);
-    cam.adsTarget = 1;
-    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
-    expect(cam.shoulder).toBe(-1);
+    expect(cam.shoulder).toBe(1);
+    expect(rightOf(cam, feet.x, feet.z)).toBeGreaterThan(0);
   });
-  it('a swap while aiming carries back to the follow camera', async () => {
+  it('a left swap lasts while aiming; holstering resets the follow camera to the right', async () => {
     const { cam, feet } = await rig();
     const dt = 1 / 60;
     cam.adsTarget = 1;
     for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
     cam.swapShoulder();
-    cam.adsTarget = 0;
     for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
-    const right = Math.cos(cam.yaw) * (cam.camera.position.x - feet.x) - Math.sin(cam.yaw) * (cam.camera.position.z - feet.z);
-    expect(cam.shoulder).toBe(-1);
-    expect(right).toBeLessThan(0);
+    expect(rightOf(cam, feet.x, feet.z)).toBeLessThan(0);
+    cam.adsTarget = 0;
+    cam.resetShoulder();
+    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
+    expect(cam.shoulder).toBe(1);
+    expect(rightOf(cam, feet.x, feet.z)).toBeGreaterThan(0);
+  });
+  it('(F4) an edge peek slides the camera toward the open side, whichever way the camera looks', async () => {
+    // the edge (-x) on the camera's left, on its right, and straight ahead (looking round the corner)
+    for (const yaw of [0, Math.PI, -Math.PI / 2]) {
+      const { cam, feet } = await rig();
+      const dt = 1 / 60;
+      cam.yaw = yaw;
+      cam.attach = 'wall';
+      cam.wallEdgeX = -1;
+      cam.wallEdgeZ = 0;
+      for (let i = 0; i < 40; i++) cam.update(dt, feet, 0);
+      const x0 = cam.camera.position.x;
+      cam.wallPeek = 1;
+      for (let i = 0; i < 40; i++) cam.update(dt, feet, 0);
+      expect(cam.camera.position.x).toBeLessThan(x0 - 0.2);
+    }
   });
 });

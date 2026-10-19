@@ -665,7 +665,8 @@ export class AnimGraph {
     // --- kneel: one knee down when crouched and still (eased over kneelTime)
     // (step 11) never at a wall: the crouched flat-back stance is the wall's own pose (a kneel there moves a foot the
     // remote copy, posed from MoveState without the kneel timer, does not)
-    // (P1c) CT footage has no idle kneel (a deep two-foot squat holds): off unless POSTURE.kneel
+    // (P1c) the idle kneel was off (no kneel in the footage read then); (F3, playtest 2 "crouch idle should kneel down
+    // like CT ... character looks like a gorilla") back on: one knee down, upright and compact (POSTURE.kneelLean)
     const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.5 && !i.wall;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
@@ -785,7 +786,9 @@ export class AnimGraph {
     const carriage = (1 - this.raiseS) * this.carriageS;
     const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
     // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
-    const leanT = (crouchK * POSTURE.crouchLean + this.weights.kneel * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
+    // (F3) kneeling the crouch's forward lean gives way to the kneel's upright back (the kneel clip's own weight)
+    const kneelK = smoothstep(this.kneelW);
+    const leanT = (crouchK * POSTURE.crouchLean * (1 - kneelK) + kneelK * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
     this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
     const postureW = Math.max(crouchK, runK) * carriage;
     // --- tactical carriage (armed, or holstered with ready hands): hunched over the weapon; more bent over moving
@@ -1246,7 +1249,7 @@ const TURN_DUTY = 0.52;
  * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
  * the lean changes at most `rate` rad/s.
  */
-export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, kneel: false, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, kneel: true, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
 const LEAN_MAX = 0.09;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;

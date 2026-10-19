@@ -19,6 +19,13 @@
   top, then stands.
 - Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
   two a second per hand.
+- Slice F (playtest 2 walk, `docs/ct-prototype/F-REPORT.md`): holstered, the camera is always over the right shoulder; a
+  left-shoulder swap lasts only while aiming and holstering resets it (the saved default shoulder and the wall's shoulder
+  side are gone); crouched aiming frames from crouch height; the crouch idle kneels (one knee down, back upright); at a
+  wall edge the body leans only to the open side and the camera slides past the edge as you look or push toward it; the
+  ledge climb-up (1.3 s) holds the hands until the knee is on the top, then stands up smoothly (no hop); the rifle draw
+  comes straight up to the shoulder (no low-ready dip); a settings save from an A3 build had the speed on D-pad left /
+  right: it moves to up / down (vision left, gadget right) unless remapped.
 
 ## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
 - The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built

@@ -98,9 +98,13 @@ and the code together.
   toggle), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
+- (F7) Stored pad binds keep what was saved, so a settings save from an A3 build kept the speed on D-pad left / right
+  (and vision on up, sharing it with speed up). `Settings.padV` (`PAD_LAYOUT_V` 2): an older save moves each of vision,
+  gadget, speed down and speed up still on its exact A3 button (up / down / left / right) to today's default (left / right /
+  down / up); a remapped verb is kept (`migrateA3Dpad`, `tests/settings.test.ts`).
 
 ### Analog speed and the maximum gear (step 17)
-- The rocker (D-pad left / right since A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
+- The rocker (D-pad up / down since F1a; it was left / right in A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
   (the sprint is gone, CT prototype M1). The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure): v = cap(max) x
   `stickCurve(mag)`; the gear is the highest g <= max whose up threshold v has passed, kept until v drops under its down
   threshold; speed = cap(g). Thresholds (`GEAR_UP` / `GEAR_DOWN`) are the midpoint of adjacent caps +- 15% of the gap,

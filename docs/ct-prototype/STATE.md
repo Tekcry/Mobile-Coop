@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 21:45 Sydney (slice F starting; master 4.7.2 merged at 8882261b, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
+Updated 2026-10-19 22:35 Sydney (slice F code WIP, unverified, not on /ct/; master 4.7.2 merged at 8882261b, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -66,8 +66,21 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    rifle draw without the low-ready dip; F7 answer "D pad left and right is speed?" (speed is D-pad up / down and the
    stick; make prompts agree; menu-screen text goes to Menu Notes). Fine-tuning items wait for the footage (listed in
    the brief). Loop: Opus implementer from F-BRIEF -> independent Opus check -> at most 1 fix round -> check + e2e ->
-   commit, push, /ct/, report `F-REPORT.md` to the orchestrator with the F7 answer. If resuming mid-slice: `git status`
-   shows the implementer's uncommitted work; read F-REPORT.md if it exists, then run the check step.
+   commit, push, /ct/, report `F-REPORT.md` to the orchestrator with the F7 answer.
+   **Where it stands (22:35, account switch): code for F1-F7 is written and committed as WIP (see git log "slice F
+   WIP"); NOT yet verified beyond typecheck, lint on changed files and 12 unit test files. NOT on /ct/** (ct-movement
+   stays 624fca6b). Status per item: `F-REPORT.md` "Status". Settings gained `padV` with a migration (literal A3 save
+   test); no wire change (protocol 24).
+   **Next, in order:** (a) heavy lock, `npm run check`; (b) e2e one at a time on 4193: e2e-wall, e2e-anim, e2e-clip,
+   e2e-traverse, e2e-weapons-carry, e2e-pad, e2e-move, then `npm run e2e:quick`, e2e-ctcourse, e2e-coop, e2e-netmove
+   (likely trouble: e2e-wall peek camera, e2e-clip / weapons-carry rifle clearance on the new draw, e2e-traverse
+   climb-up grip reach, e2e-netmove crouch kneel); fix failures; (c) GPU sheets into `shots/f/` (list in F-BRIEF);
+   (d) an independent Opus read-only check (blocks only on broken work / hard rules), at most 1 fix round; (e) commit,
+   push, `git push origin feature/ct-prototype:ct-movement`, then message the orchestrator with results and the F7
+   answer ("Your saved controller settings were from the A3 build, which had speed on D-pad left / right; this build
+   moves them to up / down and the stick, vision left, gadget right, unless you remapped them").
+   **For Menu Notes (via the orchestrator, their files):** `src/ui/screens/settingsScreen.ts:155` "Default shoulder"
+   row now does nothing (F1); `controlsScreen.ts:23` "LT / RT: Aim / fire" is wrong since F1a.
 2. Master 4.7.2 merged at 8882261b (#22 traverse kick, #23 build sha). Earlier: master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
    laptop runner smoke, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-traverse all pass. e2e-traverse "a tap kicks the
    grate in" is a master flake (Character Build, feature/traverse-kick): ignore it.

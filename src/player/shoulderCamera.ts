@@ -69,9 +69,8 @@ export class ShoulderCamera {
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
   attach: AttachCamera | null = null;
-  /** (step 11) Back to a wall: the open side (1 right, -1 left, 0 none); the shoulder follows it in the `wall` preset. */
-  wallSide = 0;
-  /** (step 12) Back to a wall at an edge: peek / lean-out targets (0..1) and the direction past the edge (unit XZ). */
+  /** (step 12; F4) Back to a wall at an edge: how far the player looks / pushes past the edge (0..1, the camera's slide
+   *  toward the open side) and the direction past the edge (unit XZ, from the edge, never from the camera). */
   wallPeek = 0;
   wallEdgeX = 0;
   wallEdgeZ = 0;
@@ -194,6 +193,12 @@ export class ShoulderCamera {
     this.shoulder = this.shoulder === 1 ? -1 : 1;
   }
 
+  /** (F1, playtest 2) Holstering resets the shoulder to the right: the follow camera only ever sits over the right
+   *  shoulder, and the next draw is on the right. */
+  resetShoulder(): void {
+    this.shoulder = 1;
+  }
+
   addLook(dYaw: number, dPitch: number): void {
     this.yaw += dYaw;
     this.pitch = Math.max(CAMERA.minPitch, Math.min(CAMERA.maxPitch, this.pitch + dPitch));
@@ -248,10 +253,10 @@ export class ShoulderCamera {
       this.ads += (this.adsTarget - this.ads) * (1 - Math.exp(-T.adsOutRate * dt));
       if (this.ads - this.adsTarget < 2e-3) this.ads = this.adsTarget;
     }
-    // shoulder side: only the aim's swap changes it (G17); on a wall it follows the open side at the slower wall rate
+    // shoulder side: only the aim's swap changes it (G17) and holstering resets it to the right (F1). (F1) The wall's
+    // open side no longer sets it: CT aims off the wall (drawing leaves it), so the holstered wall camera stays over the
+    // right shoulder, and at an edge the peek slides the camera toward the open side instead (F4, below)
     this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
-    // (playtest 2) the wall's side becomes the shoulder, so leaving the wall or aiming off it keeps the side in use
-    if (this.attach === 'wall' && this.wallSide !== 0) this.shoulder = this.wallSide > 0 ? 1 : -1;
     const side = this.sSide.step(this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
     const leanS = this.sLean.step(this.lean, 8, dt);
     const recover = Math.min(1, dt * 9);
@@ -331,12 +336,15 @@ export class ShoulderCamera {
 
     // boom: framing, and the shoulder swap arcs back through a pulled-back mid-point (side passes through 0)
     const arc = T.swapArc * (1 - side * side);
-    const boomFr = Math.max(T.minBoom, fr.boom + arc);
+    // (F4) peeking past an edge the boom comes in toward CT's close side framing (1.0-1.5 m measured)
+    const boomFr = Math.max(T.minBoom, fr.boom + arc + (Math.min(fr.boom, WALL_CAMERA.peek.boom) - fr.boom) * pe);
     // low space: a shorter boom and the shoulder point between floor and ceiling (eased in fast, out slowly)
     const low = this.lowW;
     const lowDy = this.sLowDy.step(lowDyT, easeRate(lowDyT < this.sLowDy.x, T.lowIn, T.lowOut), dt);
     const boomTarget = boomFr + (Math.min(boomFr, T.lowBoom) - boomFr) * low;
-    const shoulder = fr.shoulder * side + leanS * T.leanShift;
+    // (F4) peeking, the shoulder offset turns toward the edge's open side: its share along the camera's right is the edge
+    // direction . right (continuous, so it never flips as the camera swings; 0 when looking straight past the edge)
+    const shoulder = fr.shoulder * (side * (1 - pe) + pe * (this.edgeX * rightX + this.edgeZ * rightZ)) + leanS * T.leanShift;
     const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
     if (eng && this.pivotShape) {
       // the shoulder point stays on the pivot's side of a wall (tight corridors, leaning past a corner)

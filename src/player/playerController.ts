@@ -18,6 +18,8 @@ import { hyp2 } from '../core/mathx';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
+/** (F3) Crouched and still this long (s): the crouch idle kneels (CT). The remote copies use the same. */
+export const KNEEL_STILL = 0.25;
 
 /**
  * Lets another system (cover) drive the controller for a step: a desired horizontal velocity and
@@ -569,7 +571,7 @@ export class PlayerController {
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     // (step 22, M14) a Chaos Theory stop counts from rest, not from the eased stop's last 0.4 m/s
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > 0.25 && !this.stopHold && this.stopEaseT < 0;
+    this.kneeling = this.stillT > KNEEL_STILL && !this.stopHold && this.stopEaseT < 0;
     this.updateStance(dt);
   }
 

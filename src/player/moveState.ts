@@ -286,7 +286,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
       out.wall = true;
-      out.wallSide = mv.sub & 2 ? 1 : -1;
+      // (F4) at an edge the side is the open side (edgeL 4 = the body's left), as the owner's `wallFacing`
+      out.wallSide = mv.sub & 4 ? -1 : mv.sub & 8 ? 1 : mv.sub & 2 ? 1 : -1;
       // (step 12, A3) at an edge: the head-first peek (WALL_SUB.peek 16); the edge at b (edgeL 4) is the body's left
       if (peek > 0 && mv.sub & (4 | 8)) {
         const side = mv.sub & 4 ? -1 : 1;
@@ -398,8 +399,9 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   }
 }
 
-/** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span). */
-export const CLIMB_UP_HANDS = { k0: 0.5, span: 0.25 };
+/** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span).
+ *  (F5) Released only after the knee plant (the CLIMB_UP clip plants it by k 0.56, the root is on the top by 0.59): 0.6 - 0.74. */
+export const CLIMB_UP_HANDS = { k0: 0.6, span: 0.14 };
 
 const smoothGrip = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
@@ -412,7 +414,8 @@ export function attachGripWeight(phase: (typeof ATTACH_PHASES)[number], progress
   return phase === 'exit' ? 1 - smoothGrip(progress / 0.7) : phase === 'enter' ? smoothGrip((progress - 0.25) / 0.75) : 1;
 }
 
-/** (ct-prototype E2) The feet's plant cap through a climb-up off a drainpipe: off the pipe by the chest at the lip (k 0.4). */
+/** (ct-prototype E2) The feet's plant cap through a climb-up off a drainpipe: off the pipe by the chest at the lip (k 0.34
+ *  since F5's longer climb-up: the same 0.44 s). */
 export function climbUpFootWeight(climbUp: boolean, progress: number): number {
-  return climbUp ? 1 - smoothGrip(progress / 0.4) : 1;
+  return climbUp ? 1 - smoothGrip(progress / 0.34) : 1;
 }

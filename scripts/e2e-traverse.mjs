@@ -230,7 +230,7 @@ try {
   assert(i.attached && i.kind === 'pipeV', `at the top the pipe stops and waits (${i.kind})`);
   assert(i.prompt === 'Climb up', `climb up offered at the top of the pipe ("${i.prompt}")`);
   await tap(BTN.Y);
-  await run(1.3);
+  await run(1.6);
   i = await I();
   assert(!i.attached && i.y > 3.5 && i.grounded, `climbed straight up off the pipe onto the tower (y ${f2(i.y)})`);
   // sideways at the top: onto the lip beside the pipe (camera facing the wall: stick right = +x)
@@ -293,7 +293,7 @@ try {
   i = await I();
   assert(i.attached && i.kind === 'ledge' && i.nz > 0.9, `wrapped round the outside corner (normal ${f2(i.nx)}, ${f2(i.nz)})`);
   await tap(BTN.Y);
-  await run(1.3);
+  await run(1.6);
   i = await I();
   assert(!i.attached && Math.abs(i.y - 2.3) < 0.1 && i.grounded, `climbed up on top (y ${f2(i.y)})`);
 

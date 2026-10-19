@@ -156,16 +156,18 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   in the slot until the wrist is within 0.13 m), and the rifle's back waypoint is out at the shoulder (`TRAVEL_VIA.back`
   [0.36, 0.15, 0.18]), not head height. Remotes still holster by the instant hand-off.
 - Shoulder swap: on the left shoulder (`rig.openLeft`) the gun changes hands once `weapons.handSwitchOk` (settled, no reload,
-  no travel); co-op carries it as ground `MoveState.sub` bit 128 (`SHOULDER_LEFT_SUB`). Playtest 2: the last swap is saved
-  as `gameplay.defaultShoulder` (the next mission starts on it); the wall's open side becomes the shoulder; the sight raise
+  no travel); co-op carries it as ground `MoveState.sub` bit 128 (`SHOULDER_LEFT_SUB`). (Slice F) Holstered, the camera is
+  always over the right shoulder: a swap lasts only while drawn and holstering resets it (`ShoulderCamera.resetShoulder`
+  on the draw's falling edge); every mission starts on the right (`gameplay.defaultShoulder` is no longer read or
+  written; the field stays, unused); the wall never sets the shoulder (CT aims off the wall). Playtest 2: the sight raise
   rides the hand swap's tuck (no flick, +4 cm) and the camera swap arc is 0.3 m. The chest carries the aim (`AIM_CHEST`:
   0.75 of the pitch) with the elbows tucked (`AIM_ELBOW_TUCK`).
 
 ## Camera
 - `config/camera.ts` `CAMERA` + `framing()`: free orbit; lowered, looking around only turns the head
   (`RigPose.lookYaw/lookPitch`); spine, arms and gun follow the camera only once raised. Framing: the operator in the left
-  third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18, the crouch share fading out with the aim so
-  ADS frames the same standing and crouched); back to a wall pulls back `coverBoom`. FOV
+  third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18; slice F: crouched ADS frames
+  from crouch height, the framing relative to the body the same as standing); back to a wall pulls back `coverBoom`. FOV
   is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs per render frame: follow 80-150 ms with look-ahead, aim
   framing 150-250 ms, shoulder swap ~250 ms on an arc, optional auto-recentre (`gameplay.autoRecentre`), handheld drift
   (<= 0.15 deg), micro-bob (<= 1 cm), dash FOV and boom. G28 / G29 replace this framing (Decided direction above).
@@ -207,8 +209,11 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   starts 0.8-2.0 m beyond it (`buildWallLinks` `gapA` / `gapB`).
 - Peek: stopped on the end, the stick toward the edge (over `peekPush` 0.6) or the look past it held `peekHold` 0.25 s, not
   while aiming; holds while the push stays over `peekKeep` 0.35; the head and near shoulder lean out (head <=
-  `WALL.peekOut` 0.25 m); the camera turns the view up to 25 deg toward the edge (local only; the side is read in the
-  camera's frame, since the wall camera faces the wall).
+  `WALL.peekOut` 0.25 m); the camera turns the view up to 25 deg toward the edge (local only). (Slice F) The body's side at
+  an edge is the edge's open side (`wallFacing`; remotes from the edge bits), never the camera; the camera slides past the
+  edge by `WallCore.peekView` (`wallPeekView`: the stick's push toward the edge or the look past it, from `viewLook`
+  0.2 to `peekLook`): the pivot up to `WALL_CAMERA.peek.offset`, the shoulder offset turning to the open side (edge
+  direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m.
 - Lean-out (removed by decision, loco M20 Q1): aim at the end of a high wall steps the capsule `WALL.leanOut` 0.35 m past
   the end (MoveState `lk` 1); aim on a low wall rises over the top (`lk` 2). At a left edge the weapon goes to the left hand
   (`wallLeftHand`, `CharacterRig.openLeft`, `EDGE_HAND_TIME` 0.25 s). Low wall at an end: `lowAimKind` picks the side lean
@@ -261,7 +266,8 @@ To be replaced by the CT door menu (G97); this is the current build.
   `sidePush` swings onto a lip beside a ladder / drainpipe; `passClimber`. Hands and feet step with `GripStepper` per render
   frame. Playtest 2: the hang shimmy is 0.7 m/s (`ATTACH.ledge.speed`; was 1.2) with the hands reaching one at a time, back
   to back (`alternate`, `leadTime`; ledges only; offsets +-0.26, 0.28 s reach, 9 cm lift, 8 cm arc). The ledge climb-up is
-  `CLIMB_UP_TIME` 1.1 s (was 0.85): pull up on held hands, a knee on the top, stand; team boost / relay / rope-top
+  `CLIMB_UP_TIME` 1.3 s (slice F; was 1.1, 0.85 before D+E): pull up on held hands, a knee on the top (the hands let
+  go only after it, `CLIMB_UP_HANDS` 0.6 - 0.74), then one smooth stand over the last 0.36 s (no hop); team boost / relay / rope-top
   climb-ups keep the old one-rise clip (`CLIMB_UP_TEAM`). Drainpipe and ladder knees bend up and forward
   (`CLIMB_KNEE_UP`), the planted foot's lift is capped (`CLIMB_FOOT_BELOW`). Prompts (`GameState.anchorPrompts`): vault (Climb / Grab / Climb up), jumpTo, drop (Drop / Slide / Hang).
 - Landings (`player/movement.ts` `LANDING` / `landingKind` / `landingNoise`): a roll is a committed traversal, heavy =

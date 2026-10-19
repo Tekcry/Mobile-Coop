@@ -1,5 +1,6 @@
 import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
+import { KNEEL_STILL } from '../player/playerController';
 import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
@@ -57,6 +58,8 @@ export class RemoteAvatar {
   private aim = 0;
   private prev = new Vector3();
   private speed = 0;
+  /** (F3) Crouched and still (s): the owner's kneel (its controller: crouched and still for `KNEEL_STILL` s). */
+  private kneelT = 0;
   private tmpA = new Vector3();
   private tmpB = new Vector3();
   private placed = false;
@@ -363,8 +366,11 @@ export class RemoteAvatar {
     const inv = moved > 1e-4 ? 1 / moved : 0;
     // hanging inverted (tumbled over): the spine aims mirrored, the raised weapon along the view in world space
     const upside = mp.tumble > 2;
+    // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
+    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && mv?.m === 'ground' ? this.kneelT + dt : 0;
     this.rig.animate(dt, {
       speed: this.speed,
+      kneel: this.kneelT > KNEEL_STILL,
       localX: (lx * cy - lz * sy) * inv,
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',

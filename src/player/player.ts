@@ -10,7 +10,7 @@ import { loadPlayLods, operatorRig } from '../operators/runtime/playerFigure';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
-import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
+import { DRAW_RAISE, WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { CT, MOVEMENT } from '../config/movement';
@@ -119,8 +119,8 @@ export class Player {
   /** (locomotion step 17) A landing in a band (`LandingKind`: soft / roll / heavy) and a foot plant (rumble). */
   onLanding: ((kind: string) => void) | null = null;
   onFootPlant: (() => void) | null = null;
-  /** (Playtest 2) The shoulder was swapped while aiming: the new side (1 right, -1 left), so it can be remembered across missions. */
-  onShoulder: ((side: 1 | -1) => void) | null = null;
+  /** (F1) The draw wanted last step: holstering (its falling edge) resets the shoulder to the right. */
+  private wasDrawn = false;
   private landingsSeen = 0;
   private wasGrounded = true;
   private fallSpeed = 0;
@@ -143,8 +143,8 @@ export class Player {
     loadPlayLods(this.figure);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
-    const s = getSettings();
-    this.cam.shoulder = s.gameplay.defaultShoulder === 'left' ? -1 : 1;
+    // (F1, playtest 2) every mission starts on the right shoulder (`gameplay.defaultShoulder` is no longer read)
+    this.cam.shoulder = 1;
     this.applyFov();
     const eng = world.scene.getPhysicsEngine() as PhysicsEngine;
     this.rig.groundProbe = (x, z, yFrom) => {
@@ -210,10 +210,13 @@ export class Player {
       this.adsWanted = false;
     }
     // G17: the shoulder swap works only while aiming
-    if (inp.pressed('shoulderSwap') && this.ads) {
-      this.cam.swapShoulder();
-      this.onShoulder?.(this.cam.shoulder);
-    }
+    if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
+    // (F1, playtest 2 "always reset to right hand side aiming") a left-shoulder swap lasts only while drawn: holstering
+    // (X, a climb, death) resets to the right, so the holstered camera sits over the right shoulder and the next draw is
+    // on the right. A hard landing's brief lowering keeps the draw wanted, so it keeps the side.
+    const drawn = this.adsWanted || this.forceAds;
+    if (this.wasDrawn && !drawn) this.cam.resetShoulder();
+    this.wasDrawn = drawn;
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
     // weapon carry: ready position from context, raised only to aim or fire
@@ -229,7 +232,11 @@ export class Player {
     ci.doorway = this.context.doorway;
     ci.dashing = c.weaponBlocked;
     // reloading, swapping and throwing all keep the weapon tucked in and down
-    ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
+    // (F6) a long gun's draw from the back raises with its travel once it leaves the slot (no low-ready dip first);
+    // the pistol's draw is unchanged (fine-tuning waits for footage)
+    const backDraw = this.swapT >= DRAW_RAISE.from && (this.swapTo === 'backL' || this.swapTo === 'backC' || this.swapTo === 'backR');
+    ci.reloading = this.reload >= 0 || (this.swapT >= 0 && !backDraw) || this.grenadeT >= 0;
+    ci.raiseTime = backDraw ? DRAW_RAISE.time : 0;
     ci.traversing = this.pose.traverse !== 'none' && !this.attachAim;
     ci.coverRaise = this.pose.lean !== 0;
     ci.weight = this.weaponWeight;

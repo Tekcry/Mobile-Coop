@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
 import { MOVEMENT } from '../src/config/movement';
-import { CARRY, WeaponCarry, classWeight, emptyCarryInput, pickReady } from '../src/weapons/weaponCarry';
+import { CARRY, DRAW_RAISE, WeaponCarry, classWeight, emptyCarryInput, pickReady } from '../src/weapons/weaponCarry';
 import { CAMERA, framing } from '../src/config/camera';
 import { lateralOffset } from '../src/anim/animGraph';
 
@@ -97,6 +97,18 @@ describe('weapon carry', () => {
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });
+  it('(F6) a rifle draw raises with its travel: near the shoulder by the travel end (~0.22 s), not at the low ready', () => {
+    const after = (raiseTime: number, secs: number): number => {
+      const c = new WeaponCarry();
+      const i = emptyCarryInput();
+      i.ads = true;
+      i.raiseTime = raiseTime;
+      for (let t = 0; t < secs - 1e-9; t += DT) c.update(DT, i);
+      return c.raise;
+    };
+    expect(after(DRAW_RAISE.time, 0.22)).toBeGreaterThan(0.9);
+    expect(after(0, 0.22)).toBeLessThan(0.7);
+  });
   it('holds up after the last shot, then lowers back to ready', () => {
     const c = new WeaponCarry();
     const i = emptyCarryInput();
@@ -156,8 +168,12 @@ describe('camera framing', () => {
     expect(ads.shoulder).toBeCloseTo(0.42);
     expect(ads.pivot).toBeLessThan(hip.pivot);
     expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
-    // (BC note 1) the aim view is the same crouched and standing
-    expect(framing(1, 1)).toEqual(framing(1, 0));
+    // (F2) crouched aim frames from crouch height: the same framing relative to the body, the pivot lower by the crouch drop
+    const ac = framing(1, 1);
+    expect(ac.boom).toBeCloseTo(ads.boom);
+    expect(ac.shoulder).toBeCloseTo(ads.shoulder);
+    expect(ads.pivot - ac.pivot).toBeCloseTo(MOVEMENT.standHeight - MOVEMENT.crouchHeight);
+    expect(hip.pivot - ads.pivot).toBeCloseTo(framing(0, 1).pivot - ac.pivot);
     expect(CAMERA.fov).toBe(75);
   });
 });

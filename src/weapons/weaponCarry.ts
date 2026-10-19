@@ -31,6 +31,8 @@ export interface CarryInput {
   coverRaise: boolean;
   /** Weapon mass factor (1 = rifle; pistol ~0.7, sniper ~1.35). */
   weight: number;
+  /** (F6) Seconds for this raise instead of `raiseTime` x weight (0 = the default): a long gun's draw raises with its travel. */
+  raiseTime: number;
 }
 
 export const CARRY = {
@@ -46,6 +48,14 @@ export const CARRY = {
   fireThreshold: 0.85,
 };
 
+/**
+ * (F6, playtest 2 "rifle has a weird low ready before holding up to shoulder") A long gun's draw raises with its travel:
+ * the swap / draw blocks the raise only until the gun leaves its slot (`from`, the swap's TRAVEL_IN fraction), then the
+ * raise runs over `time` s, so the travel (rifle 0.4 s draw: slot to pocket in ~0.22 s) ends at the shoulder rather than
+ * at the low ready the raise then left from (it waited for the whole swap). Starting values (G10).
+ */
+export const DRAW_RAISE = { from: 0.5, time: 0.18 };
+
 export function emptyCarryInput(): CarryInput {
   return {
     ads: false,
@@ -59,6 +69,7 @@ export function emptyCarryInput(): CarryInput {
     traversing: false,
     coverRaise: false,
     weight: 1,
+    raiseTime: 0,
   };
 }
 
@@ -85,7 +96,7 @@ export class WeaponCarry {
     const blocked = WeaponCarry.blocked(i);
     const want = !blocked && (i.ads || i.fire || i.coverRaise || i.sinceShot < C.holdAfterFire) ? 1 : 0;
     // heavier weapons raise slower; the lower is the same for every weapon (G103)
-    const time = want > this.raise ? C.raiseTime * Math.max(0.5, i.weight) : C.lowerTime;
+    const time = want > this.raise ? (i.raiseTime > 0 ? i.raiseTime : C.raiseTime * Math.max(0.5, i.weight)) : C.lowerTime;
     const omega = 4 / Math.max(0.05, time);
     // critically damped: anticipation-free but eased in/out, never overshoots past fully raised
     const e = Math.exp(-omega * dt);

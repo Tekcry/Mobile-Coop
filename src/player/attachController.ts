@@ -72,10 +72,15 @@ const VENT_LOWER = 1.5;
  * Pulling up onto a lip from a hang (s). (ct-prototype E2, Michael: "floats over instead of climbing up onto knees")
  * Three phases (was 0.85 s, one rise): pull up, chest to the lip (k 0 - 0.4) and press on the hands (to 0.5), a knee
  * onto the top with the body low and pitched forward as the hands let go (0.5 - 0.75), stand and step off (0.75 - 1).
+ * (F5, playtest 2 "hands drop a little early, and the last bit seems like a jump ... climb onto knees then stand up")
+ * 1.1 -> 1.3 s: the pull-up and the knee plant keep their times in seconds (now k 0 - 0.6), the hands hold until the knee
+ * is planted and let go after it (0.6 - 0.74, CLIMB_UP_HANDS), and the stand from the knee is one smooth rise over the
+ * last 0.36 s (k 0.72 - 1, was 0.13 s for the last 0.35 m: the "jump"). Starting values (G10).
  */
-export const CLIMB_UP_TIME = 1.1;
-/** (ct-prototype E2) The climb-up's root path: below the top by `lipDrop` at `k1`, on the top at `k2`; in from `fwd0`. */
-export const CLIMB_UP_PATH = { lipDrop: 1.2, k1: 0.4, k2: 0.7, fwd0: 0.6, fwdSpan: 0.4, outK: 0.65 };
+export const CLIMB_UP_TIME = 1.3;
+/** (ct-prototype E2) The climb-up's root path: below the top by `lipDrop` at `k1`, on the top at `k2`; in from `fwd0`.
+ *  (F5) The old k times scaled by 1.1 / 1.3 (the same seconds); the root never passes the top's height. */
+export const CLIMB_UP_PATH = { lipDrop: 1.2, k1: 0.34, k2: 0.59, fwd0: 0.51, fwdSpan: 0.34, outK: 0.55 };
 
 /** World prompt labels for what traverse / drop would do. */
 export const ATTACH_LABEL: Record<string, string> = {

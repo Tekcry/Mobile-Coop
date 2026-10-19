@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
-import { WALL, WALL_SUB, WallCore, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, openSide, stackClamp, wallLeftHand, wallOverride, wallPeekOffset, type WallInput } from '../src/player/wallController';
+import { WALL, WALL_SUB, WallCore, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, openSide, stackClamp, wallLeftHand, wallOverride, wallPeekOffset, wallFacing, wallPeekView, type WallInput } from '../src/player/wallController';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
 import type { MoveOverride } from '../src/player/playerController';
@@ -595,3 +595,23 @@ describe('open-side weapon and the peek (step 12b, D9)', () => {
 
 });
 
+
+describe('F4: the edge sets the side, never the camera', () => {
+  it('wallFacing: at an edge the open side (edge 1 = left), else the slide facing', () => {
+    for (const dir of [-1, 1]) {
+      expect(wallFacing(1, dir)).toBe(-1);
+      expect(wallFacing(-1, dir)).toBe(1);
+    }
+    expect(wallFacing(0, -1)).toBe(1);
+    expect(wallFacing(0, 1)).toBe(-1);
+  });
+  it('wallPeekView: the stick push or the look past the edge drives the camera slide (0..1)', () => {
+    expect(wallPeekView(0, 0)).toBe(0);
+    expect(wallPeekView(-1, -1)).toBe(0);
+    expect(wallPeekView(0.5, 0)).toBeCloseTo(0.5);
+    expect(wallPeekView(0, WALL.peekLook)).toBeCloseTo(1);
+    expect(wallPeekView(0, WALL.viewLook)).toBeCloseTo(0);
+    expect(wallPeekView(0, (WALL.viewLook + WALL.peekLook) / 2)).toBeCloseTo(0.5);
+    expect(wallPeekView(2, 2)).toBe(1);
+  });
+});

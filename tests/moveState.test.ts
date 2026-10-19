@@ -104,6 +104,11 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out).toMatchObject({ wall: true, wallSide: -1, lean: 0, traverse: 'none' });
     poseFromMoveState({ ...mv, sub: 2 }, 0, out);
     expect(out.wallSide).toBe(1);
+    // (F4) at an edge the open side wins over the slide facing (edgeL 4 = left, edgeR 8 = right)
+    poseFromMoveState({ ...mv, sub: 2 | 4 }, 0, out);
+    expect(out.wallSide).toBe(-1);
+    poseFromMoveState({ ...mv, sub: 8 }, 0, out);
+    expect(out.wallSide).toBe(1);
   });
 
   it('PROTOCOL_VERSION is 24 (sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
@@ -135,6 +140,25 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(attachGripWeight('on', 0)).toBe(1);
     expect(attachGripWeight('exit', 0)).toBe(1);
     expect(attachGripWeight('exit', 0.7)).toBe(0);
+  });
+  it('(F5) climb-up: the hands hold until the knee is planted, then let go; no hop at the stand', async () => {
+    const { sample } = await import('../src/anim/clip');
+    const { CLIMB_UP } = await import('../src/anim/clips/traverse');
+    // the knee is planted (the left shin flat on the top) by 0.56; the hands hold through it and are off by 0.74
+    expect(sample(CLIMB_UP, 'fLPitch', 0.56)).toBeCloseTo(1.2);
+    for (const k of [0.3, 0.5, 0.56, 0.6]) expect(attachGripWeight('exit', k, true)).toBe(1);
+    expect(attachGripWeight('exit', 0.74, true)).toBe(0);
+    // the stand from the knee: the pelvis rises monotonically, never above standing, at most 2.5 m/s at CLIMB_UP_TIME
+    let prev = sample(CLIMB_UP, 'pelY', 0.72);
+    let vMax = 0;
+    for (let k = 0.72; k <= 1.0001; k += 0.01) {
+      const y = sample(CLIMB_UP, 'pelY', k);
+      expect(y).toBeGreaterThanOrEqual(prev - 1e-9);
+      expect(y).toBeLessThanOrEqual(1e-9);
+      vMax = Math.max(vMax, (y - prev) / (0.01 * 1.3));
+      prev = y;
+    }
+    expect(vMax).toBeLessThan(2.5);
   });
 });
 

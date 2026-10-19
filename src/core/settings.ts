@@ -1,7 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { defaultPadBinds, sanitizePadBinds, type PadBinds } from '../input/padBinds';
+import { defaultPadBinds, migrateA3Dpad, PAD_LAYOUT_V, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
@@ -32,6 +32,8 @@ export interface Settings {
   keys: KeyBinds;
   /** (locomotion step 18, D7) Controller bindings (`input/padBinds.ts`; local only, D8). */
   pad: PadBinds;
+  /** (F7) The stored pad binds' D-pad layout version (`PAD_LAYOUT_V`; older A3 saves had the speed on left / right). */
+  padV: number;
   video: {
     /** Graphics preset; 'custom' once a feature is changed by hand. */
     preset: GraphicsPreset;
@@ -126,6 +128,7 @@ export function defaultSettings(): Settings {
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: ADS_LOOK, raw: true },
     keys: defaultBinds(),
     pad: defaultPadBinds(),
+    padV: PAD_LAYOUT_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true },
@@ -228,6 +231,13 @@ export function setPreset(s: Settings, p: FixedPreset): void {
   s.video.auto = false;
 }
 
+/** (F7) Stored pad binds, sanitized; a save from before `PAD_LAYOUT_V` 2 moves the A3 D-pad defaults to today's. */
+function padMigrated(raw: unknown, v: unknown): PadBinds {
+  const p = sanitizePadBinds(raw);
+  if (!(typeof v === 'number' && v >= PAD_LAYOUT_V)) migrateA3Dpad(p);
+  return p;
+}
+
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
 export function sanitizeSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -258,7 +268,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       raw: bool(m.raw, d.mouse.raw),
     },
     keys: sanitizeBinds(r.keys),
-    pad: sanitizePadBinds(r.pad),
+    pad: padMigrated(r.pad, r.padV),
+    padV: PAD_LAYOUT_V,
     video: {
       ...videoGfx(v),
       // (3.0 settings: Auto when still on the 3.0 default, Epic; a preset picked by hand stays)

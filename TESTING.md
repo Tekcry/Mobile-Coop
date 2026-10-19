@@ -61,16 +61,20 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] D-pad up / down set the walk speed; speed 2 is the slowest and a stick pushed nearly to the rim walks at it.
   Aiming looks noticeably slower than before.
-- [ ] Back to a wall, shuffle to each end: the camera swings to the side you move to. The wall's open side is your
-  shoulder; swap, leave the wall and aim: the side you chose stays, and the next mission starts on it.
+- [ ] Back to a wall, shuffle to each end: the body leans only to the open side (swing the camera both ways: it never
+  flips) and the camera slides past the edge as you look or push toward it. Holstered, the camera is always over the
+  right shoulder; swap to the left while aiming, holster: it returns to the right and the next draw is on the right.
 - [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
   without sliding; from further away it does nothing.
 - [ ] Footsteps at speeds 1-2 (crouched 1-3) are quiet and the noise meter is silent; a run is louder on both.
-- [ ] ADS frames the same standing and crouched, rifle and pistol; aim up and down: the chest leans, the wrists stay
-  straight. Legs stay under the body walking, running and turning on the spot; crouch idle, walk and aim look right.
-- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way.
+- [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
+  height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
+  turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
+  comes from the back straight to the shoulder (no low-ready dip).
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
-  Ledge climb-up: pull up, a knee on the top, stand. A team boost climb-up still works.
+  Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
+  A team boost climb-up still works.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 
