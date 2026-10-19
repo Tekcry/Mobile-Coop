@@ -246,6 +246,8 @@ export class PlayerController {
   clearCrouchToggle(): void {
     this.crouchToggled = false;
     this.autoCrouch = false;
+    // (G4) at once, not from the next step: a co-op offer later in this frame reads it
+    this.crouchIntent = false;
   }
 
   /** End a committed move crouched (the Chaos Theory forward roll, G4 climb-up / ladder / vent ends): the crouch toggle
@@ -253,6 +255,7 @@ export class PlayerController {
   setCrouchToggle(): void {
     this.crouchToggled = true;
     this.autoCrouch = true;
+    this.crouchIntent = true;
   }
 
   /** (G4) The crouch came from a move's end, not the player: a co-op offer reads it as standing (rope, throw), not as
@@ -267,6 +270,7 @@ export class PlayerController {
   standUp(): void {
     this.crouchToggled = false;
     this.autoCrouch = false;
+    this.crouchIntent = false;
   }
 
   /** Current speed gear (1..5): the stick's snapped gear while moving (step 17), else the maximum gear. */
