@@ -39,6 +39,11 @@ Last updated: 2026-10-19 12:40 Sydney.
 ## Next (in order)
 1. **Anim clean-up into master** (Character Build): weapon handling to the real mounts, reload, hand shapes, traversal
    grips. `docs/anim-cleanup/`.
+1b. **Process audit** (Character Build, laptop, light work, after 1; runs alongside 2; Michael, 2026-10-19): report first,
+   cuts only after Michael approves. Every e2e suite with its time and what it covers for the training level (keep /
+   merge / legacy / fix; e2e-coop and e2e-netmove must stop being "known flaky"); one test tier per kind of change;
+   one set of session and prompting rules (CLAUDE.md, session-method, orchestrator, per-job STATE); stale docs
+   archived. Opus, High; about half a day.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
