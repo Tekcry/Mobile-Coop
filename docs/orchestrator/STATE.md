@@ -1,7 +1,7 @@
 # Orchestrator - resume point (2026-10-19 11:45 Sydney)
 
 Read CLAUDE.md "Orchestrator" and docs/ROADMAP.md first. Work folder for docs PRs: C:\NightShift\Mobile-Coop-menu
-(branch feature/menu). Michael wants short, plain replies.
+(branch feature/menu). Michael wants short, plain replies, and exact copy-paste prompts (with model and effort) plus an explicit "you can clear X now" for every handoff.
 
 ## In flight
 1. **anim-cleanup full e2e on the desktop** (orchestrator holds C:/NightShift/heavy.lock).
@@ -22,7 +22,7 @@ Read CLAUDE.md "Orchestrator" and docs/ROADMAP.md first. Work folder for docs PR
    and push /ct/. One of its runs on port 4193 overlapped mine briefly (it started before the lock).
 3. **Character Build** (laptop, light work only): planning the goggle surround redesign on feature/goggle
    (docs/goggle/BRIEF.md, PLAN.md). It's idle otherwise. Messages to it go over a bridge and delivery isn't confirmed.
-5. **Goggle plan** (feature/goggle 4c8e630, docs/goggle/): two questions on the dashboard (which surround; direction A/B/C). Screen-edge fix is laptop-safe; the device build is desktop work.
+3b. **Goggle plan** (feature/goggle 4c8e630, docs/goggle/): two questions on the dashboard (which surround; direction A/B/C). Screen-edge fix is laptop-safe; the device build is desktop work.
 4. **PR #11** (docs: machine rule, heavy.lock, this file, the dashboard source): merge when GitHub's check passes.
 
 ## Dashboard
