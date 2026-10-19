@@ -34,6 +34,7 @@ import type { LightDef } from '../world/lights';
 import type { LightField } from '../world/lightField';
 import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, type DifficultyDef } from './archetypes';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
+import type { GuardInfo } from './guardInfo';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
 
@@ -531,6 +532,8 @@ export class Enemy implements Damageable {
 
   /** A passive guard: sees and hears nothing (the benchmark flight, tests). */
   passive = false;
+  /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent); set by the squad slot that spawned him. */
+  info: GuardInfo | null = null;
 
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {

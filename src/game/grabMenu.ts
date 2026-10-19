@@ -4,7 +4,7 @@
  * or kill, and aim button to aim pistol while holding them. It shouldn't have kill/knock out/carry in the list." and
  * "The guard cannot be let go either, only knocked out. Killed, or used as human shield (aiming pistol)".
  * So the context menu (`contextMenu.ts`) lists only Interrogate while a guard is held, and only when he has information
- * (`hasInfo`: no guard carries any yet, so the list is empty); RT kills and LT knocks out (not aiming); the aim draws the
+ * (`hasInfo`: the Marlow Yard training guard of station 1 carries some, `ai/guardInfo.ts`; a guard without, or once asked, shows no menu); RT kills and LT knocks out (not aiming); the aim draws the
  * pistol over his shoulder (the human shield). Nothing lets him go. The picks keep their ids (`GRAB_OPTS`, the
  * takedown's `menuPick`) for scripts and tools (`GrabMenuView.sel`); Carry (knock out, then shoulder) and the stub
  * Force to device are reachable only that way.
@@ -36,10 +36,9 @@ export const GRAB_OPTS: readonly GrabOpt[] = ['knockout', 'kill', 'carry', 'devi
 /** The index of Interrogate in `GRAB_OPTS` (its row's `ref`). */
 export const GRAB_INTERROGATE = GRAB_OPTS.indexOf('interrogate');
 
-/** A held guard has information to give. No guard data carries any yet (`info` is set nowhere): always false today. */
-export function hasInfo(v: object): boolean {
-  return (v as { info?: boolean }).info === true;
-}
+/** A held guard has information to give (`Enemy.info`, set by a squad slot; the Marlow Yard training guard has some,
+ *  `ai/guardInfo.ts`). Spent by the interrogation, so a guard interrogated once gives no menu again. */
+export { hasInfo } from '../ai/guardInfo';
 
 /** Add the held guard's rows: Interrogate, only when he has information (Michael 08:10). */
 export function addGrabRows(m: ContextMenu, info: boolean): void {

@@ -1133,7 +1133,7 @@ export class GameState implements AppState {
 
   /**
    * (G5, AUDIT-ACTIONMENU) The CT context action menu, run first in the step. The providers fill one list in CT order:
-   * while a guard is held only Interrogate, when he has information (none do yet: the list is empty); else the
+   * while a guard is held only Interrogate, when he has information (Marlow Yard's station 1 guard, until asked); else the
    * takedown on offer (GRAB CHARACTER from behind; one named row for the other takedowns, a knockout; none where only a
    * lethal one is allowed: RT's lethal strike does those), the door set of the closed door faced, and the item in reach
    * (or the carry target). Michael 08:10 / 08:20: no Knock out / Kill / Carry rows, RT kills and LT knocks out a held

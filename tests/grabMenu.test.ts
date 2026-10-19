@@ -20,9 +20,9 @@ describe('held guard (G5, Michael 08:10 / 08:20 / 08:25)', () => {
     expect(m.opts[0]!.kind).toBe(GRAB_KIND);
     expect(m.opts[0]!.opt).toBe('interrogate');
     expect(m.opts[0]!.label).toBe('Interrogate');
-    // no guard data carries information yet
+    // information is a guard's `info` (PR 3: the Marlow Yard training guard has some; tests/guardInfo.test.ts)
     expect(hasInfo({})).toBe(false);
-    expect(hasInfo({ info: true })).toBe(true);
+    expect(hasInfo({ info: { lines: ['Easy.'] } })).toBe(true);
     expect(grabOptReady('device')).toBe(false);
   });
 

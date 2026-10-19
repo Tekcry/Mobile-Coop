@@ -14,6 +14,7 @@ import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
+import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
@@ -271,6 +272,8 @@ export class CoopClient implements NetAttachment {
       if (!p) {
         const np = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
         np.onShot = (h) => this.sendShot(np.id, h);
+        // (PR 3) the training guard's information: the course slot he appeared at (both sides load the same map; no wire data)
+        np.info = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
         np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
         this.puppets.set(e.id, np);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.13.0 - Marlow Yard interrogation guard (2026-10-20, PR #34)
+- PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
+  (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,
+  and he says two short lines of his own (where the two wall medkits are) as subtitle; asked once, no menu again. A guard's
+  information is `Enemy.info` (`src/ai/guardInfo.ts`, set from a squad slot's `info`); no wire change.
+
 ## 4.12.0 - Marlow Yard light pass and walkthrough guide (2026-10-20, PR #33)
 Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course-ready/LIGHT.md`, `WALKTHROUGH.md`).
 - Lamps in all seven airlocks (the pads read lit, nothing spills out with the doors shut), on the station 2 and 7 wall

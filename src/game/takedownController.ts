@@ -13,6 +13,7 @@ import type { GrabOpt } from './grabMenu';
 import { clearGripAxis } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
+import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
@@ -42,6 +43,10 @@ interface GrabState {
   /** (G7) Seconds held (the idle sway), the interrogation under way (s; < 0: none). */
   holdT: number;
   interT: number;
+  /** (PR 3) The lines his interrogation got, the next to say, and the seconds until it (null: not talking). */
+  talk: readonly string[] | null;
+  talkI: number;
+  talkT: number;
 }
 
 /** What a takedown needs from its victim: an `Enemy`, or a co-op client's puppet of the host's enemy. */
@@ -55,6 +60,8 @@ export interface TakedownVictim {
   readonly level: AlertLevel;
   readonly bodyRig: CharacterRig;
   taken: boolean;
+  /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent). */
+  info?: GuardInfo | null;
   /** Seized: the brain off; (G7) the struggle pose from `delay` s on (the attacker's contact). */
   beginTakedown(choke: boolean, delay?: number): void;
   holdAt(x: number, y: number, z: number, yaw: number): void;
@@ -220,7 +227,7 @@ export class TakedownController {
       from: c.pos.clone(),
       vFrom: o.e.pos.clone(),
       hp: g.target.health.hp,
-      grab: grab ? { hold: false, pressT: -1, strikeT: -1, vYaw0: o.e.yaw, holdT: 0, interT: -1 } : null,
+      grab: grab ? { hold: false, pressT: -1, strikeT: -1, vYaw0: o.e.yaw, holdT: 0, interT: -1, talk: null, talkI: 0, talkT: 0 } : null,
     };
     if (grab) this.grabs.held++;
     this.offer = null;
@@ -408,10 +415,24 @@ export class TakedownController {
         gr.interT = -1;
         e.holdAsHostage?.();
         this.grabs.interrogated++;
-        // (the level's lines are not written yet: docs/story.md owns in-game text; a neutral feed line until then)
-        g.hud.feedItem('Interrogated: nothing new');
+        // (PR 3) what he knows, said as his own lines (subtitle, `GUARD_INFO_GAP` apart); a guard with nothing says
+        // nothing new. Spent here: he gives no menu again, and the hold goes on.
+        const lines = takeInfo(e);
+        if (lines) {
+          gr.talk = lines;
+          gr.talkI = 0;
+          gr.talkT = 0;
+        } else g.hud.feedItem('Interrogated: nothing new');
       }
       return;
+    }
+    if (gr.talk) {
+      gr.talkT -= dt;
+      if (gr.talkT <= 0) {
+        g.hud.barks.say(e.id, gr.talk[gr.talkI]!, false);
+        gr.talkT = GUARD_INFO_GAP;
+        if (++gr.talkI >= gr.talk.length) gr.talk = null;
+      }
     }
     // (A4, G23) the CT grab menu's pick: knock out, kill, or carry (a knockout, then the body goes on the shoulder)
     const pick = this.menuPick;
