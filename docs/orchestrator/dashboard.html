@@ -82,7 +82,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </header>
 
   <section class="waiting">
-    <h2>Waiting on you <span class="count" id="qcount">1 open</span></h2>
+    <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
     <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe; auto mode blocked the orchestrator). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
@@ -103,7 +103,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · feature/anim-cleanup</div><span class="pill test">Testing</span></div>
-        <div><p>anim-cleanup: full e2e on the desktop (holster timing fixes in review). Then quick scratch prototypes of goggle directions A, B and C for you to pick from.</p>
+        <div><p>anim-cleanup: full e2e on the desktop (holster timing fixes in review).</p>
           <p class="next-cp">Next: <b>PR to master, merged by the orchestrator</b></p></div>
       </div>
     </div>
@@ -116,7 +116,6 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       <li>Playtest 2 slices B + C: aiming against the CT footage (view unchanged when crouched, upper body tight, arms in, natural pistol aim); legs in line with the body; crouch hands and legs <span class="owner">CT Core</span></li>
       <li>Playtest 2 slices D + E: holstering; hanging shimmy with wider, slower hands; vertical pipe climb; ledge climb-up onto the knees <span class="owner">CT Core</span></li>
       <li><span class="gate">Your core-loop playtest</span> of the co-op training course. Refining starts only after this. <span class="owner">You</span></li>
-      <li>Night-vision goggle device redesign, CT-like but original; direction after the scratch prototypes <span class="owner">Character Build</span></li>
       <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
       <li>Menu notes: music from the title screen, preload with a load screen, no way back to the title, hero quality check, hand clipping the magazine, rifle and pistol poses in the menu, merge Controls with Settings <span class="owner">Menu</span></li>
       <li>Visual pass on the training level: lighting, materials, dressing <span class="owner">Last</span></li>
@@ -162,9 +161,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 </div>
 
 <script>
-const QUESTIONS = [
-  { id: 'goggle-pick', who: 'Goggle', text: 'Goggle device direction (scratch prototypes: claude.ai/artifact/U1Def8Sunm2LfnBPA6xSte): A slim shroud (least work), B brow bar with two square optic blocks (closest to CT), C one wide front window (most original).', opts: ['A: slim shroud', 'B: brow bar + blocks', 'C: wide window'] },
-];
+const QUESTIONS = [];
 const state = {};      // id -> { choice, note } being edited
 const saved = {};      // id -> stored doc body
 let db = null;

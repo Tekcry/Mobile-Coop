@@ -13,9 +13,7 @@ Michael has playtested the core loop.
 Last updated: 2026-10-19 12:40 Sydney.
 
 ## Waiting on Michael
-1. Goggle device direction A / B / C: scratch prototypes at https://claude.ai/artifact/U1Def8Sunm2LfnBPA6xSte (feature/goggle docs/goggle/prototypes/options.html);
-   pick on the dashboard.
-2. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
+1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
    auto mode blocked the orchestrator, so Michael runs
    `git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research`.
 
@@ -24,7 +22,8 @@ Last updated: 2026-10-19 12:40 Sydney.
 - Scanners: no HP cost when the partner never started; the 10 HP cost stays for a late or abandoned hack (CT Core,
   a later slice).
 - Goggle flicker plays only at launch, not after a match.
-- Goggle surround means the device (3D housing), not the screen edge.
+- Goggle: keep Wren's current goggle; the redesign is parked (Michael rejected the A / B / C scratch options). Only the
+  stowed-on-brow export remains, in the cleanup job.
 - Moth's goggle is purple (bible 5.14 amber is replaced). A scratch Moth prototype when nothing urgent waits, possibly
   overnight on the desktop.
 - Cleanup job (Wren loose ends: stowed goggle, slung-rifle carry offsets, hero VRAM after photo mode, old part meshes,
@@ -46,12 +45,11 @@ Last updated: 2026-10-19 12:40 Sydney.
 3. **Playtest 2 slices D + E** (CT Core): rifle and pistol holstering; hanging shimmy (wider, slower hands); vertical
    pipe climb; ledge climb-up onto the knees.
 4. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
-5. **Night-vision goggle device** redesign, CT-like but original (operators pipeline, Blender); direction after the scratch prototypes.
-6. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
-7. **Menu notes** (menu job, `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
+5. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
+6. **Menu notes** (menu job, `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
    a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
    idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
-8. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
+7. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
 
 ## Later (after the prototype)
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
