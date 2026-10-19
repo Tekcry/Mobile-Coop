@@ -7,6 +7,12 @@ Read CLAUDE.md "Orchestrator" and docs/ROADMAP.md first. Work folder for docs PR
 1. **anim-cleanup full e2e on the desktop** (orchestrator holds C:/NightShift/heavy.lock).
    - Worktree: C:\NightShift\Mobile-Coop-anim-cleanup at 228d78e (the branch head 2cf0ae8 adds docs only).
    - `check` passed (1,746 tests). Log: C:\Users\Micha\AppData\Local\Temp\claude\C--NightShift-Mobile-Coop-locomotion\0dac9d41-f4d0-42c9-8e39-315f7046d243\scratchpad\ac2-e2e.log
+   - 12:45: netmove, coop (both KNOWN FLAKY) and traverse (drainpipe grips 3.2 cm) failed; sent to Character Build.
+     It pushed 4c465e3c (netmove holster budget 400 -> 550 ms, a real test bug from master; coop diagnostics). Next:
+     pull it into the worktree and rerun traverse, netmove and coop alone. An orphan `npm run check` (bash PID 15168,
+     not CT Core's) overlapped the run; Michael was asked to kill it. CT Core waits for the lock with slice A ready.
+   - Michael's dashboard answers were forwarded and recorded (ROADMAP "Decided"); only the goggle A / B / C pick is open
+     (Character Build makes scratch prototypes). feature/ct-research delete: Michael runs it (auto mode blocked it).
    - e2e-netmove has already FAILED once. On the laptop, its holstered stow took 766 ms against a 650 ms limit.
    - Expected end about 12:45. If the run died with the old session, rerun:
      `E2E_PORT=4192 E2E_JOBS=2 E2E_SUITE_TIMEOUT=1700 node scripts/run-e2e.mjs`
