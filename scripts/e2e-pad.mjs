@@ -181,7 +181,10 @@ try {
   for (let i = 0; i < 8 && !/^Sector Ops/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/^Sector Ops/.test(await focusedText(page)), 'menu wraps / reaches Sector Ops');
   await press(page, BTN.A);
-  assert(await q('.briefing-screen'), 'A on Sector Ops opens its briefing');
+  // (sector-ops M7) the op list first, on the Warehouse
+  assert(await q('.sectorops-screen'), 'A on Sector Ops opens the op list');
+  await press(page, BTN.A);
+  assert(await q('.briefing-screen'), 'A on the op opens its briefing');
   assert(/^Start/.test(await focusedText(page)), 'the briefing opens on Start');
   // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
   for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
@@ -189,6 +192,8 @@ try {
   await press(page, BTN.RIGHT);
   const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
   assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
+  await press(page, BTN.B);
+  assert(await q('.sectorops-screen'), 'B returns to the op list');
   await press(page, BTN.B);
   assert(await q('.main-menu'), 'B returns to the main menu');
   // the checks below need an empty map (Free roam, only behind ?legacy=1 now): the test hook starts it at the level picked

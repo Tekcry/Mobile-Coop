@@ -141,7 +141,16 @@ the game.
   out-of-sight takedown rule (checked by `src/game/sectorCheck.ts`) fits no more with the added cover; the PC perf run
   still sets the ceiling (M6, pending). A14 the M8 cover and route pieces placed by eye. A15 no dog in section 1. A16 the
   plant room has one door. A17 connectors find doors by their centres. A18 the shots are JPEG. A19 the connector cycle
-  counts only living players.
+  counts only living players (replaced by A20).
+- **A20 (connector and downed players, step 3):** the connector cycle and the extraction count every player, a downed
+  one too: a partner down outside must be revived first (or the window runs out, they are out and the section
+  restarts), so nobody is left in an unloaded section. Undo: skip players that are not alive in `SectorMode.exitStep`.
+- **A22 (restart brings everyone back, step 3):** a section restart in co-op also teleports a partner who is still up
+  to the checkpoint at full health (a clean retry). Undo: the `sector` branch in `CoopHost.onRespawn`.
+- **A23 (client stars, step 3):** the co-op client saves its own star on a won run (no best time: the host keeps the
+  clock). Undo: the line in `CoopClient.onEndMsg`.
+- Shot-out cameras come back on a restart (step 3; no A21 needed). Undo: `this.ct?.repair(...)` in
+  `SectorMode.restartSection`.
 
 ## Level-design exceptions (prototype depth, logged)
 - No map spec, scale sheet or light plan for `warehouseOps`; placeholder geometry; camera and laser placement by eye,

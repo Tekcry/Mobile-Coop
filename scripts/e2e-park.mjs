@@ -43,8 +43,12 @@ try {
   const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
   assert(JSON.stringify(keys) === JSON.stringify(['sectorops', 'coop', 'loadout', 'settings', 'feedback']), `the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback (${keys})`);
   await menuClick(page, 'Sector Ops');
+  // (sector-ops M7) the op list: the Warehouse with its four difficulty stars, then its briefing
+  await page.waitForSelector('.sectorops-screen [data-op="warehouseOps"]');
+  await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"]').click());
   await page.waitForSelector('.briefing-screen [data-key="deploy"]');
   assert((await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length)) >= 3, 'Sector Ops opens its briefing with the sectors');
+  await G(() => window.__app.screens.pop());
   await G(() => window.__app.screens.pop());
 
   // Loadout (slice 4, D-11: the issued kit, read only; the old screen stays under ?legacy=1)

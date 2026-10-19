@@ -18,6 +18,7 @@ import { createTrysteroTransport } from './trysteroTransport';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
@@ -418,7 +419,7 @@ class LobbyScreen extends MenuScreen {
       choice('Mode', lobbyModes(s.mode), () => s.mode, (v) => set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
-        : choice('Map', shownMaps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
+        : choice('Map', shownMaps.map((m) => ({ value: m.id, label: this.mapLabel(m.id, m.name) })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
       // the host's difficulty row updates in place (no rebuild)
       ...difficultyRows(
         () => s.difficulty,
@@ -465,6 +466,20 @@ class LobbyScreen extends MenuScreen {
       s.courseBay = Number(v) || 1;
     });
   }
+  /** (sector-ops M7) Sector Ops: the host's map row shows each op's difficulty stars (the host's record). */
+  private mapLabel(id: string, name: string): string {
+    if (this.c.session.mode !== 'sector') return name;
+    if (this.sectorRec === null) {
+      this.sectorRec = undefined;
+      void loadSectorRecord().then((r) => {
+        this.sectorRec = r;
+        if (this.c.session.mode === 'sector') this.buildOpts();
+      });
+    }
+    return this.sectorRec ? `${name}  ${starsText(starsOf(this.sectorRec, id))}` : name;
+  }
+  /** The host's Sector Ops record (null: not read yet; undefined: loading). */
+  private sectorRec: SectorRecord | null | undefined = null;
   /** The host's course record (null: not read yet; undefined: loading). */
   private courseRec: CourseRecord | null | undefined = null;
 

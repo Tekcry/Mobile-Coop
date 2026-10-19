@@ -284,7 +284,12 @@ try {
   assert(menuKeys === 'sectorops,coop,loadout,settings,feedback', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback (${menuKeys})`);
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
   await key('Enter');
-  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `Enter opens the Sector Ops briefing on Start (${await fk()})`);
+  // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
+  assert((await top()) === 'sectorops-screen' && (await fk()) === 'op-warehouseOps', `Enter opens the op list on the Warehouse (${await top()}, ${await fk()})`);
+  const opStars = await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"] .ms-ctr')?.textContent ?? '');
+  assert(/^[★☆]{4}$/.test(opStars), `the op shows four difficulty stars (${opStars})`);
+  await key('Enter');
+  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `the op opens the Sector Ops briefing on Start (${await fk()})`);
   const nSec = await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length);
   assert(nSec >= 3, `the briefing lists the sectors (${nSec})`);
   const diff0 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
@@ -298,7 +303,10 @@ try {
   await G(() => window.__app.input.setMode('gamepad'));
   await press(page, BTN.B);
   await frames(page, 3);
-  assert((await top()) === 'main-menu', 'B: Briefing back to the main menu');
+  assert((await top()) === 'sectorops-screen', 'B: Briefing back to the op list');
+  await press(page, BTN.B);
+  await frames(page, 3);
+  assert((await top()) === 'main-menu', 'B: the op list back to the main menu');
   await G(() => window.__app.input.setMode('kbm'));
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="loadout"]')));
   await key('Enter');

@@ -20,8 +20,12 @@ import { courseSoloFlag } from './game/modes/courseMode';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
 import { LoadoutScreen } from './ui/screens/loadoutScreen';
-import { MissionsScreen, FreeRoamScreen } from './ui/screens/missionsScreen';
+import { MissionsScreen, FreeRoamScreen, SectorOpsScreen } from './ui/screens/missionsScreen';
+import { starsFor, starsText } from './save/sectorRecord';
 import { BriefingScreen } from './ui/screens/briefingScreen';
+
+/** (sector-ops M7) The Warehouse op's difficulty stars beside Sector Ops on the main menu, read each time it opens. */
+let sectorStars = starsText([false, false, false, false]);
 
 import { KitScreen } from './ui/screens/kitScreen';
 import { showSavedOperator } from './ui/screens/operator';
@@ -113,6 +117,10 @@ async function boot(): Promise<void> {
     if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
+    void starsFor('warehouseOps').then((st) => {
+      sectorStars = starsText(st);
+      menu.setCounter('sectorops', sectorStars);
+    });
     // menu-ui MD2: the title screen once per launch (not after a match, not under automation unless `?title=1`); Back
     // on the main menu returns to it. The brightness calibration follows the title on the first run.
     const brightness = (): void => {
@@ -133,15 +141,14 @@ async function boot(): Promise<void> {
 
   // menu-ui MD6: the flat main menu. Sector Ops (feature/sector-ops): the main menu is Sector Ops, Co-op, Loadout,
   // Settings and Feedback; Missions, Training and Free roam stay behind `?legacy=1`.
-  const sectorMap = getMap('warehouseOps');
   MainMenuScreen.entries.push(
     (a) => ({
       key: 'sectorops',
       label: 'Sector Ops',
       order: 10,
-      counter: () => `${sectorMap.sectors?.length ?? 0}`,
-      ctx: 'Solo or co-op: the Warehouse in sections, each harder than the last. Objective, then exit. Kills optional.',
-      action: () => a.screens.push(new BriefingScreen(a, (o) => startGame(o), { kind: 'sector', map: sectorMap })),
+      counter: () => sectorStars,
+      ctx: 'Solo or co-op: the Warehouse in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed.',
+      action: () => a.screens.push(new SectorOpsScreen(a, (o) => startGame(o))),
     }),
   );
   if (flags.legacy) {

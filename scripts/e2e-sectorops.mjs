@@ -4,6 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
+import { until, hostAndJoin } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -106,6 +107,38 @@ await run(PARAMS, async ({ page, G, sim }) => {
   await page.waitForSelector('.results-screen', { timeout: 15000 });
   const res = await G(() => ({ t: document.querySelector('.results-title')?.textContent, s: document.querySelector('.results-sub')?.textContent ?? '' }));
   assert(res.t === 'VICTORY' && /Time \d+:\d\d/.test(res.s) && /Kills 0/.test(res.s) && /Spotted 0/.test(res.s) && /GHOST/.test(res.s), `the result: time, kills, spotted, Ghost ("${res.s}")`);
+  // (step 3, M7) the run's difficulty star is saved (kv `sector:ops`) with a best time, and the op list shows it filled
+  const diff = await G(() => window.__app.current.opts.difficulty ?? 'normal');
+  const di = ['rookie', 'normal', 'realistic', 'perfectionist'].indexOf(diff);
+  const readRec = () => G(() => new Promise((ok) => {
+    const r = indexedDB.open('shoulder-strike');
+    r.onsuccess = () => {
+      try {
+        const q = r.result.transaction('kv').objectStore('kv').get('sector:ops');
+        q.onsuccess = () => ok(q.result?.ops?.warehouseOps ?? null);
+        q.onerror = () => ok(null);
+      } catch {
+        ok(null);
+      }
+    };
+    r.onerror = () => ok(null);
+  }));
+  let rec = null;
+  for (let k = 0; k < 20 && !rec?.done?.includes(diff); k++) {
+    rec = await readRec();
+    if (!rec?.done?.includes(diff)) await new Promise((r) => setTimeout(r, 250));
+  }
+  assert(di >= 0 && rec?.done?.includes(diff) && rec.best?.[diff] > 0, `the op's ${diff} star is saved with a best time (${JSON.stringify(rec)})`);
+  await G(() => document.querySelector('.results-screen [data-key="quit"]').click());
+  await page.waitForSelector('.main-menu [data-key="sectorops"]', { timeout: 30000 });
+  await G(() => document.querySelector('.main-menu [data-key="sectorops"]').click());
+  await page.waitForSelector('.sectorops-screen [data-op="warehouseOps"]');
+  let op = null;
+  for (let k = 0; k < 20 && op?.stars?.[di] !== '1'; k++) {
+    await frames(page, 2);
+    op = await G(() => { const b = document.querySelector('.sectorops-screen [data-op="warehouseOps"]'); return { stars: b.dataset.stars, ctr: b.querySelector('.ms-ctr')?.textContent ?? '', ctx: b.dataset.ctx ?? '' }; });
+  }
+  assert(op.stars[di] === '1' && op.ctr[di] === '★' && /best \d+:\d\d/.test(op.ctx), `the op list shows the ${diff} star filled and its best time (${JSON.stringify(op)})`);
 });
 
 console.log('sector ops: alarm and no ghost');
@@ -251,6 +284,74 @@ if (process.env.SECTOR_SHOTS) {
     }
     await shot('s3-deck', 16, 2.6, 13.4, Math.PI, 0.3);
   });
+}
+
+// (step 3, A9) co-op on two pages over ?net=local: the client mirrors the live section's devices only, the door locks
+// and the host's mode line with the syringes; after the connector (both players inside) the client's section-2 devices
+// are live. The host page is pumped headless while the client page is in front (the e2e-ctcourse pattern).
+console.log('sector ops: co-op client mirrors the live section');
+{
+  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const f = () => { window.__raf++; requestAnimationFrame(f); };
+          requestAnimationFrame(f);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  const GA = (f, a) => A.evaluate(f, a);
+  const GB = (f, a) => B.evaluate(f, a);
+  // the client's devices: every camera / laser of a section that is not live is off, the live ones on (none jammed)
+  const devOk = (P, sec) => P.evaluate((sec) => {
+    const d = window.__ctdev?.debug();
+    if (!d || d.live !== sec) return false;
+    return d.cams.every((c) => (c.live ? c.mode === 'online' : c.mode === 'off')) && d.lasers.every((l) => l.on === l.live) && d.cams.some((c) => c.live);
+  }, sec);
+  try {
+    await startMode('sector', 'warehouseOps');
+    await GA(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    await until(B, () => !!window.__ctdev && window.__ctdev.debug().role === 'client', null, 15000, 'the client builds its device mirror');
+    await until(B, () => window.__ctdev.debug().live === 0, null, 15000, 'the client knows section 1 is live');
+    assert(await devOk(B, 0), `the client: only section 1's devices work (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
+    const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
+    const lk0 = await locks();
+    await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');
+    const sy = await GA(() => window.__app.current.net.revivesLeft());
+    assert(sy === 2, `Normal: 2 revive syringes (${sy})`);
+    await until(B, () => /Syringes\s*2/.test(document.querySelector('.hud-mode')?.textContent ?? ''), null, 15000, 'the client HUD shows the syringes');
+    // section 1 done (the download told done), both players into C2: the cycle loads section 2
+    await GA(() => { const m = window.__sector; m.run.downloading = true; m.run.download(999); });
+    const cp = await GA(() => window.__app.current.world.map.sectors[0].connector.checkpoint);
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+    await GB((p) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(p.x + 0.6, p.y, p.z), p.yaw); }, cp);
+    await GA((p) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(p.x - 0.6, p.y, p.z), p.yaw); }, cp);
+    await until(A, () => window.__sector.debug().index === 1, null, 20000, 'both inside: the connector cycles into section 2');
+    await until(B, () => window.__ctdev.debug().live === 1, null, 15000, 'the client knows section 2 is live');
+    assert(await devOk(B, 1), `the client: section 2's devices are live, section 1's off (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
+    const lk1 = await locks();
+    await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk1, 15000, 'the client mirrors the unlocked far door');
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
 }
 
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');

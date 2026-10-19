@@ -57,6 +57,13 @@ export function markCompletedIn(e: SectorOpEntry, preset: DifficultyPreset, time
   if (t > 0 && (best === undefined || t < best)) e.best[preset] = t;
 }
 
+/** Stars as text, one per difficulty in DIFFICULTIES order: filled (★) completed, hollow (☆) not yet. */
+export function starsText(stars: readonly boolean[]): string {
+  let s = '';
+  for (const on of stars) s += on ? '★' : '☆';
+  return s;
+}
+
 /** The op's stars in DIFFICULTIES order (rookie, normal, realistic, perfectionist): true = completed on it. */
 export function starsOf(rec: SectorRecord, opId: string): boolean[] {
   const e = rec.ops[opId];

@@ -30,6 +30,15 @@
   reinforcements come from the section's own points (2, 2 and 3 per stage). Sector Ops raises the live guard cap to 32.
   `?sectorGuards=N` caps the guards per section (dev, tests). `buildWarehouse(b, opts)`: the plain Warehouse is
   unchanged.
+- Sector Ops slice 2 step 3 (stars, syringes, co-op, M7): Sector Ops opens an op list (the Warehouse for now; every map
+  with sections appears) with four difficulty stars, filled for each difficulty the op was completed on, and the best
+  time per difficulty in the context panel; the main menu entry and the host's lobby Map row show the stars too.
+  Completing a run saves its star (solo and co-op host; the co-op client saves its own, without a time). Co-op: a
+  downed player is revived by the partner while the op's syringes last (Rookie 3, Normal 2, Realistic 1, Perfectionist
+  1), shown as "Syringes n" on the HUD; with none left, or the 30 s window over, the section restarts at the checkpoint
+  and both players come back there. The connector and the extraction wait for every player, a downed one too (revive
+  them first). The client sees only the live section's cameras and lasers, the host's door locks and shot-out cameras.
+  Guards the client holds are let go before a section unloads. A camera shot out comes back on a restart. Protocol 24.
 
 ## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
 - Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x

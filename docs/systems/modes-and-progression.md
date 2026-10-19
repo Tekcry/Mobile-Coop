@@ -46,6 +46,17 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
   alarm stage from the run, restart after `RESTART_DELAY` 2.5 s with everyone down, extraction and result). The live
   guard cap is `SECTOR.maxAlive` (32) for this mode only; `?sectorGuards=N` caps the guards per section.
+- Difficulty stars (M7, A11): `save/sectorRecord.ts`, kv key `sector:ops` (per op id: the presets completed and the best
+  time per preset; no profile change, no SAVE_VERSION bump). The extraction calls `markCompleted(map.id, difficulty,
+  time)` (solo and co-op host; the co-op client on a won `end`, no time). The menu entry opens `SectorOpsScreen`
+  (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector` mode; `starsText` in DIFFICULTIES order, best
+  times in the context panel), then the briefing. The main menu counter and the host's lobby Map row show the stars.
+- Revive syringes (M7, A10): co-op only. The host's `ReviveClock.cap` is `syringesFor(difficulty)` (Rookie 3, Normal 2,
+  Realistic 1, Perfectionist 1), per op (a restart keeps the count used); the HUD line shows "Syringes n"
+  (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
+  `GameMode.onPlayerOut` and the section restarts; on its respawn a partner still up also comes back to the checkpoint
+  (A22). Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
+  A restart repairs the section's shot-out cameras (`CtDevices.repair`).
 
 ## The Fallow training course (`course`)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's
