@@ -76,48 +76,51 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 23:30 Sydney · master v4.7.5 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Morning summary · 2026-10-20 04:50 Sydney · master v4.10.0 · everything in one build on /preview/</span>
     <h1>Night Shift roadmap</h1>
-    <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
+    <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Overnight focus (your call, 00:40): movement and animation matched to your CT footage.</p>
   </header>
 
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
+    <p class="qhint"><b>Test one build:</b> <a href="https://tekcry.github.io/Mobile-Coop/preview/">tekcry.github.io/Mobile-Coop/preview/</a>. The label in the bottom-right must start <code>v4.10.0</code> (or later, if the second movement PR has landed). If it is older, close every tab of the game and open it again.</p>
     <ol>
-      <li><b>Morning:</b> walk slice F on /ct/ (your walk-note fixes), then try the new launch screen on /preview/ once Menu Notes is merged (label v4.8.0). <span class="who">You</span></li>
-      <li><b>Prune old branches and worktrees</b> when you like: the list is in docs/process-audit/REPORT.md section 5. <span class="who">You</span></li>
+      <li><b>Launch screen:</b> black with NIGHT SHIFT until you press a button, then the goggles flicker on in the dark and the menu fades in. <span class="who">4.8.0</span></li>
+      <li><b>Movement vs your footage</b> in Marlow Yard: Main menu &gt; Co-op &gt; Host a room; the room starts on Marlow Yard; Start mission (you can start alone). Walk, jog, run, turn, crouch, aim rifle and pistol, draw and holster, the camera in the yard, ledge hang and shimmy (station 2), climb-up, drainpipe. Note what still feels off. <span class="who">4.10.0</span></li>
+      <li><b>Co-op walkthrough</b> of all 8 stations with a second player: Co-op &gt; Join with code in a second window or on a second PC. Each station now shows its own task on the HUD, and a bay restart brings your partner back. <span class="who">4.9.0</span></li>
+      <li><b>Known gaps</b> (in the audit with numbers): walk knees bend more than CT's; the hold-A action menu, walls and knee, and grab / hold / knockout are still being built (second PR); a few rarer moves are missing (rope climb, scope view, rail vault, beam walk). The co-op partner never sees guards' flashlights (a network gap, logged).</li>
+      <li><b>Warehouse redesign:</b> paused on its branch. A review and a draft spec for you, with 11 proposed changes to the level standard (docs/warehouse-redesign). The dog flashlight fix merges with the redesign.</li>
+      <li><b>Prune when you like:</b> merged branches and worktrees (feature/menu-notes, feature/menu-boot-time, feature/sector-restart, feature/course-ready, feature/lightfield-heap). <span class="who">You</span></li>
     </ol>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
   </section>
 
   <section>
-    <h2>Now <span class="count">5 sessions</span></h2>
+    <h2>Overnight <span class="count">6 PRs merged</span></h2>
     <div class="board">
       <div class="row">
-        <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
-        <div><p>Moved to the new Claude account at 22:40. Overnight: merges the green PRs (Menu Notes 4.8.0, Sector Ops patch) with your go-ahead. Reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
-          <p class="next-cp">Next: <b>Menu Notes' PR, then lightfield-heap and Sector Ops as they turn green</b></p></div>
+        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill run">Building</span></div>
+        <div><p>Catalogued all 90 clips and audited every movement in them (about 140 measured rows plus a coverage check). Merged in 4.10.0: legs and gait (feet turn with the body, less bob, CT run, quick kneel, tense sneak near guards), aim and weapons (0.3 s draw, back sling, rigid aim, lower pistol, smaller recoil), camera (offset 0.15 m, FOV 86, whole body in open spaces), traversal (drainpipe rhythm, 0.5 m/s shimmy, climb-up ends crouched, ladder).</p>
+          <p class="next-cp">Now: <b>grab / hold / knockout, the hold-A action menu, walls and knee; second PR about 08:30</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill test">Testing</span></div>
-        <div><p>Slice F from your walk notes: shoulder always right when holstered, crouched aim camera follows the body down, crouch idle kneels, corner lean only to the open side, climb-up hands hold until the knee, rifle draw without the dip, D-pad speed prompts. Checks and the laptop co-op suites pass. Then overnight: your 88 clips catalogued, our movement audited against them and rebuilt to match (original code), and the hold-A action menu made identical to CT.</p>
-          <p class="next-cp">Next: <b>slice F on /ct/; then the catalogue and the audit</b></p></div>
+        <div><div class="name">Course Ready Build</div><div class="meta">desktop · done</div><span class="pill run">Merged</span></div>
+        <div><p>Marlow Yard walkthrough audit (0 blockers, 8 confusing, 14 minor) and fixes: per-station task on the HUD, radio cues, partner hints, bay restarts bring the partner back. The lighting pass and the written guide are parked (movement-only call).</p>
+          <p class="next-cp">Later: <b>lighting pass, walkthrough guide</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">Menu Notes Build</div><div class="meta">desktop · feature/menu-notes</div><span class="pill test">Testing</span></div>
-        <div><p>All menu notes built, plus the black launch screen, goggles flickering on in the dark, the X5 menu shot and the forehead glow removed. CT Core's two fixes done (Default shoulder removed, Controls LT / RT text corrected). Full e2e running on the laptop.</p>
-          <p class="next-cp">Next: <b>its PR to master (4.8.0)</b></p></div>
+        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · paused</div><span class="pill test">Paused</span></div>
+        <div><p>Checkpoint restart is a clean start (M9, merged 4.8.2). Warehouse redesign paused: dog flashlight fix, review and a draft spec on its branch.</p>
+          <p class="next-cp">Next: <b>your read of the spec, then the section 1 greybox</b></p></div>
+      </div>
+      <div class="row">
+        <div><div class="name">Menu Notes Build</div><div class="meta">done</div><span class="pill run">Merged</span></div>
+        <div><p>Launch screen, goggle flicker, menu shot X5, weapons and poses in the menu, title music, one Controls place (4.8.0). Boot gate measured at about 0.9 s (4.8.1).</p></div>
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · test runner</div><span class="pill test">Testing</span></div>
-        <div><p>Runs logic e2e for CT Core, Menu Notes, then Sector Ops, when the desktop is busy. Its lightField heap fix is merged (4.7.5).</p>
-          <p class="next-cp">Next: <b>Menu Notes' full e2e, then Sector Ops'</b></p></div>
-      </div>
-      <div class="row">
-        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · feature/sector-restart · spare capacity</div><span class="pill run">Building</span></div>
-        <div><p>Your bug M9: a checkpoint restart is now a clean start (guards unalerted, calm music, the checkpoint loadout restored, the suppressed rifle back). Fix round in review; tests queued on the laptop.</p>
-          <p class="next-cp">Next: <b>its PR (a patch), then the PC perf run</b></p></div>
+        <div><p>Ran every logic e2e overnight. Back to low priority at 09:30 as you asked.</p></div>
       </div>
     </div>
   </section>
@@ -125,10 +128,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li><span class="gate">Your turn in the morning:</span> walk slice F on /ct/ <span class="owner">CT Core</span></li>
-      <li>Movement rebuilt to match your CT footage: catalogue, audit, slices; the hold-A action menu <span class="owner">CT Core</span></li>
-      <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
-      <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your turn:</span> test /preview/ (launch, movement, co-op walkthrough) and send notes <span class="owner">You</span></li>
+      <li>Second movement PR: grab / hold / knockout, hold-A action menu, walls and knee <span class="owner">CT Core</span></li>
+      <li>Movement fixes from your notes, then the remaining gaps in the audit <span class="owner">CT Core</span></li>
+      <li>Your read of the Warehouse spec, then the section 1 greybox <span class="owner">Sector Ops</span></li>
+      <li>Marlow Yard lighting pass and walkthrough guide <span class="owner">Course Ready</span></li>
       <li>Visual pass on the training level <span class="owner">Last</span></li>
     </ol>
   </section>
@@ -136,19 +140,24 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section class="later">
     <h2>Later</h2>
     <ul>
-      <li>Moth as player 2 (2-3 days; purple goggle; a scratch prototype first, when nothing urgent waits)</li>
+      <li>Moth as player 2 (2-3 days; purple goggle; a scratch prototype first)</li>
+      <li>Guards' flashlights on the co-op client (needs a network change)</li>
       <li>Cleanup job (Wren loose ends), after your core-loop playtest</li>
-      <li>GPU perf checks on the PC: menu, weapon meshes, low-preset budgets; WebGPU only if the Sector Ops perf run shows rendering is the bottleneck</li>
-      <li>Legacy suites (Kestrel, Hunter, Mission): parked, not fixed</li>
+      <li>GPU perf checks on the PC; WebGPU only if the Sector Ops perf run shows rendering is the bottleneck</li>
       <li>The older backlog: medkit stations, missing sounds, music revision, art guide, Kestrel, Fallow bunker</li>
     </ul>
   </section>
 
   <section>
-    <h2>Done <span class="count">23 PRs</span></h2>
+    <h2>Done <span class="count">29 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">20 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/31">#31</a></td><td>4.10.0 · CT prototype: controls, posture, movement matched to your footage</td></tr>
+        <tr><td class="num">20 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/30">#30</a></td><td>4.9.0 · Marlow Yard co-op walkthrough fixes</td></tr>
+        <tr><td class="num">20 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/29">#29</a></td><td>4.8.2 · Sector Ops checkpoint restart is a clean start</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/28">#28</a></td><td>4.8.1 · Menu boot time measured</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/27">#27</a></td><td>4.8.0 · Menu notes: black launch screen, goggle flicker, menu weapons</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/26">#26</a></td><td>4.7.5 · Light test stable on a busy machine</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/25">#25</a></td><td>4.7.4 · New Claude account, new dashboard</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/24">#24</a></td><td>4.7.3 · Your walk notes recorded, account handover, roadmap</td></tr>
