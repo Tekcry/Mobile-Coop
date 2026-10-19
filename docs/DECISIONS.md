@@ -975,3 +975,14 @@ tests, LODs, art or budgets. Gameplay never reads it. Michael: "i also want the 
 but always minimum settings, no touch controls, and no time spent on it. display should also automatically fit the
 iphone screen. but it absolutely is testing only, and does not need any checks or testing." (relayed by the
 orchestrator, 2026-10-19.) (Narrows G12 for launching only; desktop stays the only supported platform.)
+
+**G183. Version numbers follow the merges to master.** Michael: "can we make sure the version numbers update
+sequentially based on your updates? i dont want to move away from v4, just use a logical numbering system to allow me
+to understand what version im actually looking at and what you are merging" (2026-10-19). Master is `4.MINOR.PATCH`:
+every merge to master gets the next number, set by the orchestrator in the PR just before it merges (G93 made
+concrete). A job or feature (game change) is a minor step (4.6.0 -> 4.7.0), a fix or docs-only merge a patch (4.6.0 ->
+4.6.1). The CHANGELOG heading names the version, the date and the PR; the merge commit gets the tag `v4.x.y`. Branch
+and preview builds carry the master version they were last merged with, and the in-game label adds the build's commit
+(`v4.6.2 · a1b2c3d`, `PREVIEW CT` on /ct/), so any build traces to one commit. 4.1.0-4.6.1 were numbered after the
+fact in merge order (#5 4.1.0, #7 4.2.0, #6 4.2.1, #8 4.3.0, #9 4.4.0, #10 4.4.1, #12 4.5.0, #13 4.6.0, #11 4.6.1).
+CLAUDE.md's "one minor version per phase" line is updated in the process audit.

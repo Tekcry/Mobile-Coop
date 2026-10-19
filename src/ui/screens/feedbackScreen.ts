@@ -16,7 +16,7 @@ export function feedbackContext(app: App): Record<string, string> {
   const st = app.current as unknown as { feedbackContext?: () => Record<string, string> } | null;
   const ctx: Record<string, string> = typeof st?.feedbackContext === 'function' ? st.feedbackContext() : { screen: 'menu' };
   const v = app.settings.get().video;
-  ctx.version = `${__APP_VERSION__}${__PREVIEW__ ? ' preview' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__ : '') : ''}`;
+  ctx.version = `${__APP_VERSION__}${__PREVIEW__ ? ' preview' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__ : '') : ''}${__BUILD_SHA__ ? ' ' + __BUILD_SHA__ : ''}`;
   ctx.input = app.input.mode;
   const rs = shownResolution(v.resolution, app.engine.getRenderWidth(), app.engine.getRenderHeight());
   const q = app.quality;

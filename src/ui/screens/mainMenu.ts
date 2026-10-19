@@ -19,7 +19,9 @@ export interface MenuEntry {
   locked?: () => string | null;
 }
 
-export const versionText = (): string => `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__.toUpperCase() : '') : ''}`;
+/** (G183) `v4.6.2 · a1b2c3d`, plus the preview slot on a preview build: the version names the master release, the hash the exact build. */
+export const versionText = (): string =>
+  `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__.toUpperCase() : '') : ''}${__BUILD_SHA__ ? ' · ' + __BUILD_SHA__ : ''}`;
 
 /** Root menu (menu-ui MD6: a flat list). Systems register entries so the menu grows without edits here. */
 export class MainMenuScreen extends MenuScreen {
