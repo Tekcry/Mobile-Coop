@@ -4,6 +4,7 @@
  * tracker and enemies holding a room.
  */
 import type { EnemyKind } from '../ai/enemyDefs';
+import type { GuardInfo } from '../ai/guardInfo';
 
 export interface RoomRect {
   id: string;
@@ -36,6 +37,10 @@ export interface SquadSlot {
   loop?: { period: number; leave: number[]; t0: number };
   /** The route leaves its room (a patrol that spans rooms): the guard does not hold the room. */
   free?: boolean;
+  /** (PR 3) A training guard: sees and hears nothing (`Enemy.passive`), stands his post until he is taken. */
+  passive?: boolean;
+  /** (PR 3) What INTERROGATE gets out of him once he is held (`ai/guardInfo.ts`); none = nothing to ask. */
+  info?: GuardInfo;
 }
 
 export interface RoomDef extends RoomRect {

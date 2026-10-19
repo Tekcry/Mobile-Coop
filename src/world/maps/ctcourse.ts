@@ -4,6 +4,8 @@ import type { LaserDef } from '../../game/jammer';
 import type { PassZone } from '../../game/ctDevices';
 import type { ScannerDef } from '../../game/scanners';
 import type { SecurityData } from '../../security/data';
+import type { SquadSlot } from '../rooms';
+import { GUARD_INFO_LINE_MAX, type GuardInfo } from '../../ai/guardInfo';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
 
@@ -80,6 +82,24 @@ export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0
 export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
 const SECURITY: SecurityData = {
   devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
+};
+
+/**
+ * (PR 3, Michael 2026-10-20 08:40: "Add one in Marlow Yard") The training guard with information, station 1: a guard on
+ * his post by the south fence, facing east (away from the start), so the grab from behind is the first thing in reach.
+ * He sees and hears nothing (a training guard) and stands until he is taken. Held, INTERROGATE (hold A) gets two short
+ * lines out of him: where the two wall medkits are (the annex's north wall, station 5; the north fence before the last
+ * wall, station 8: `medkitWalls` below). One interrogation per guard (a bay restart brings a fresh one). The lines are
+ * the guard's own subtitle (docs/story.md: British, 90 characters or less, written to be voiced later).
+ */
+export const GUARD_SLOT = 's1-guard';
+export const GUARD_INFO: GuardInfo = {
+  lines: ['Easy! There is a medkit on the north wall of the annex.', 'And one on the north fence before the last wall. That is all I know.'],
+};
+if (GUARD_INFO.lines.some((l) => l.length > GUARD_INFO_LINE_MAX)) throw new Error('ctcourse: a guard line is over the radio length');
+/** The training guard's post (bay 1, x 10.5, z 3.2), facing +x (yaw pi / 2: 0 is +z). */
+export const SQUADS: Record<string, SquadSlot> = {
+  [GUARD_SLOT]: { kind: 'grunt', x: 10.5, z: 3.2, yaw: Math.PI / 2, passive: true, info: GUARD_INFO },
 };
 
 /** The exit zone (G138, last bay): both players inside ends the course. */
@@ -191,7 +211,8 @@ function courseDef(): CourseDef {
       id: `S${n}`,
       entry: n === 1 ? 'start' : `A${n - 1}`,
       exit: n === 8 ? 'end' : `A${n}`,
-      squad: [],
+      // (PR 3) station 1: the training guard with information
+      squad: n === 1 ? [GUARD_SLOT] : [],
       // one optional panel per station (F1b, Michael's pick): it only says what to do, no gate waits on it
       gates: [...own, { kind: 'pickup', id: `g-p${n}`, switchId: `sw-p${n}`, flag: `panel-${n}`, perPlayer: false }],
       radio: [
@@ -376,7 +397,7 @@ export const ctcourse: MapDef = {
       lasers: [S4_LASER],
       passZones: [S3_POCKET],
       scanners: [S6_SCANNERS],
-      course: { def: courseDef(), doors, devices, squads: {} },
+      course: { def: courseDef(), doors, devices, squads: SQUADS },
       // (G3, AUDIT-CAMERA row 1) the yard reads as open (the 2.8 m camera, the whole body in frame); the 6 m airlocks and
       // the roofed annex (under its 4.2 m slab) are tight (1.8 m). Its roof is open again (feet at 4.4).
       camSize: 'open',

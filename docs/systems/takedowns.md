@@ -48,9 +48,15 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   While held (`menuReady`: held, no finisher or interrogation running; G5, Michael 08:10-08:25): RT (not aiming) is
   Kill (0.5 s, the elbow arc), LT is Knock out (`CQ.koTime` 0.85 s: the guard limp, lowered through his crouch, the
   operator bent over him, `holdPose('ko')`), aiming draws the pistol over his shoulder (the human shield); hold-A lists
-  only Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`; the hold goes on after, a neutral feed
-  line until the level has lines) and only for a guard with information (`grabMenu.hasInfo`: no data carries any yet, so
-  no menu), with no BACK TO GAME. There is no let-go (the shove is removed): the hold ends only in the knockout or the
+  only Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`; the hold goes on after) and only for a guard
+  with information (`grabMenu.hasInfo`, `src/ai/guardInfo.ts`: `Enemy.info`, set from the squad slot's `info`; a guard
+  with none, or already asked, shows no menu), with no BACK TO GAME. (PR 3) Marlow Yard's station 1 has one such guard
+  (`GUARD_SLOT`, passive): the interrogation spends his information (`takeInfo`) and he says his one or two lines as
+  bark + subtitle (`GUARD_INFO_GAP` apart, `GrabState.talk`; he stops if he is knocked out or killed first); a scripted
+  Interrogate on a guard with none ends in the feed line "Interrogated: nothing new". Host-side: the co-op client's puppet
+  takes the same slot's info by where it first appears (`infoAtSpawn`), the interrogation runs on the interrogator's
+  machine, no wire data, PROTOCOL_VERSION 24. One use per guard per bay start (a restart spawns a fresh guard).
+  There is no let-go (the shove is removed): the hold ends only in the knockout or the
   kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
   co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
   then the body lift) and the Force to device stub are not rows: scripts reach them through `grabMenu.sel` (the next A

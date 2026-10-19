@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - ct-prototype
+- PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
+  (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,
+  and he says two short lines of his own (where the two wall medkits are) as subtitle; asked once, no menu again. A guard's
+  information is `Enemy.info` (`src/ai/guardInfo.ts`, set from a squad slot's `info`); no wire change.
+
 ## 4.11.0 - CT movement 2: grab, hold and knockout, the hold-A action menu, walls and doors (2026-10-20, PR #32)
 - G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
   would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
