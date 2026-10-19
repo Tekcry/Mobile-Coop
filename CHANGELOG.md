@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.7.4 - Orchestrator docs: new Claude account (2026-10-19, PR #25)
+Docs only. Every session restarted in the new Claude account; the new dashboard
+(https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh); the roadmap and orchestrator state at 22:55 (CT Core slice F
+checks, Menu Notes fixes for CT Core, Sector Ops fix round, lightfield-heap runs).
+
 ## 4.7.3 - Orchestrator docs: walk notes, account handover, test runner and priority state (2026-10-19, PR #24)
 Docs only. Michael's playtest-2 walk notes (docs/ct-prototype/WALK-2026-10-19.md), the account-switch handover
 (docs/orchestrator/STATE.md), the roadmap (Menu Notes, Sector Ops restart bug M9, CT footage awaited), the menu notes
