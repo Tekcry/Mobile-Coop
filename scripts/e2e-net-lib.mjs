@@ -3,17 +3,82 @@
 // copy of it.
 import { launch, openPage } from './e2e-lib.mjs';
 
-/** Wait for `fn(arg)` to be truthy on `page` (polled every 100 ms), else throw "timed out waiting for <what>". */
+/**
+ * (co-op test fix, process audit section 2) The two-page suites wait on the game's own clock. On software GL two pages
+ * render a few frames a second and the loop advances at most 4 fixed steps (67 ms) per frame (`src/core/loop.ts`), so
+ * the sim runs at a fraction of real time; a wall-clock timeout then expires while a game move is still under way.
+ * `setSimPages(pages)` names the pages whose clocks count (the slower one decides); in a networked match a timeout is
+ * sim time (`__app.current.time`), outside one (menus, the lobby) it is wall time. A wall cap (`SIM_WALL_CAP` x the
+ * timeout, at least 60 s; `E2E_SIM_CAP`) stays as the hang guard.
+ */
+let simPages = [];
+const SIM_WALL_CAP = Number(process.env.E2E_SIM_CAP ?? 10);
+export function setSimPages(pages) {
+  simPages = pages.filter(Boolean);
+}
+const simNow = (P) => P.evaluate(() => { const c = window.__app?.current; return c?.net && typeof c.time === 'number' ? c.time : null; }).catch(() => null);
+async function simTimes(pages) {
+  return Promise.all(pages.map(simNow));
+}
+/** The slowest page's sim seconds since `t0s` (null entries: no match there), or null when no page is in a match. */
+function simElapsed(t0s, ts) {
+  let e = null;
+  for (let i = 0; i < ts.length; i++) {
+    if (ts[i] === null || t0s[i] === null) continue;
+    const d = ts[i] - t0s[i];
+    e = e === null ? d : Math.min(e, d);
+  }
+  return e;
+}
+/** Each clock page's sim seconds and fps over a wait, for timeout messages. */
+async function clockReport(pages, t0s, wall0) {
+  const ts = await simTimes(pages);
+  const wall = (Date.now() - wall0) / 1000;
+  const fps = await Promise.all(pages.map((P) => P.evaluate(() => Math.round(window.__app?.engine?.getFps?.() ?? -1)).catch(() => -1)));
+  return pages.map((_, i) => {
+    const sim = ts[i] !== null && t0s[i] !== null ? ts[i] - t0s[i] : null;
+    return `${i === 0 ? 'host' : `page ${i + 1}`}: sim ${sim === null ? 'n/a' : sim.toFixed(2) + ' s'} in ${wall.toFixed(1)} s wall (x${sim === null || !wall ? '?' : (sim / wall).toFixed(2)}), ${fps[i]} fps`;
+  }).join('; ');
+}
+
+/**
+ * Wait for `fn(arg)` to be truthy on `page` (polled from Node every 100 ms), else throw "timed out waiting for <what>"
+ * with both sims' clocks. `timeout` (ms) is sim time in a match (above), wall time outside one.
+ */
 export async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   // (G13) polled from here: on a desktop context the in-page polling of waitForFunction stops on a page in the
   // background (another page in front), so a condition that holds there was never seen
-  const t0 = Date.now();
+  const pages = simPages.length ? simPages : [page];
+  const wall0 = Date.now();
+  const t0s = await simTimes(pages);
+  const cap = Math.max(timeout * SIM_WALL_CAP, 60000);
   for (;;) {
     if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
-    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
+    const wall = Date.now() - wall0;
+    const sim = simElapsed(t0s, await simTimes(pages));
+    if ((sim === null ? wall : sim * 1000) > timeout || wall > cap) {
+      throw new Error(`timed out waiting for ${what} [${await clockReport(pages, t0s, wall0)}${wall > cap ? '; wall cap' : ''}]`);
+    }
     await new Promise((r) => setTimeout(r, 100));
   }
 }
+
+/** Let `ms` of game time pass on every clock page (wall time outside a match; the same wall cap). */
+export async function waitSim(ms) {
+  const pages = simPages;
+  const wall0 = Date.now();
+  const t0s = pages.length ? await simTimes(pages) : [];
+  const cap = Math.max(ms * SIM_WALL_CAP, 60000);
+  for (;;) {
+    const wall = Date.now() - wall0;
+    const sim = pages.length ? simElapsed(t0s, await simTimes(pages)) : null;
+    if ((sim === null ? wall : sim * 1000) >= ms || wall > cap) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+/** The two-page suites' viewport: fewer pixels a frame on software GL (no check here reads pixels). */
+export const NET_VIEWPORT = { width: 960, height: 480 };
 
 /** The wrists, ankles and head: the joints e2e-netmove compares (10 cm). */
 export const JOINTS = ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode'];
@@ -24,7 +89,7 @@ export const JOINTS = ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode'];
  * `launchOpts` goes to e2e-lib `launch` (e.g. `args`).
  */
 export async function hostAndJoin(url, n = 2, launchOpts = {}) {
-  const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local', ...launchOpts });
+  const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local', viewport: NET_VIEWPORT, ...launchOpts });
   const pages = [A];
   const errors = [eA];
   await A.click('.main-menu .btn:has-text("Co-op")');
@@ -41,6 +106,7 @@ export async function hostAndJoin(url, n = 2, launchOpts = {}) {
     pages.push(page);
     errors.push(e);
   }
+  setSimPages(pages);
   return { browser, ctx, A, B: pages[1] ?? null, pages, errors, startMode: (mode, map) => startMode(pages, mode, map) };
 }
 

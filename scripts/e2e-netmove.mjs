@@ -3,10 +3,11 @@
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose.
 import { assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
+import { until, waitSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// (co-op test fix) pauses are game time: the sim runs slower than real time on software GL (e2e-net-lib `waitSim`)
+const wait = (ms) => waitSim(ms);
 let failed = false;
 
 console.log('host opens a room, client joins');
@@ -352,6 +353,9 @@ try {
   await until(A, () => !!window.__app.current.team.offer?.boost, null, 6000, 'host offered a leg-up again');
   const pending = await GA(() => { const o = window.__app.current.team.offer; return { id: o.mate.id, target: o.boost.anchor.id, s: o.boost.s, gy: o.boost.grip.y }; });
   await holdUntil(B, 1, () => window.__app.current.team.state === 'none', 'client stands down (B)');
+  // (co-op test fix) B ends the offer but leaves the crouch on: stand up first, or the walk-off runs at the CT crouch
+  // speed (1.2 m in 6 s against the 1.55 m asked)
+  await GB(() => window.__app.current.player.controller.clearCrouchToggle());
   await GB(() => { window.__pad.axis(1, 1); });
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.z < 25.5; }, null, 6000, 'host sees the client walk off').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, ov: !!c.override, crouched: c.crouched, grounded: c.grounded, pos: [c.pos.x, c.pos.y, c.pos.z], axes: navigator.getGamepads()[0]?.axes, att: g.traversal.attached }); })); console.log(await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return JSON.stringify({ m: r?.state?.mv?.m, z: r?.feet.z }); })); throw e; });
   await GB(() => window.__pad.axis(1, 0));
@@ -435,7 +439,9 @@ try {
   // stacking: the host enters the same wall 0.3 m from the client: kept >= 0.62 m apart along it
   await toWall(A, sl + 0.3);
   await until(A, () => window.__app.current.wallCore?.phase === 'on', null, 6000, 'host on the wall');
-  await wait(800);
+  // (co-op test fix) the host's copy of the client's feet lags the snapshots: wait for it to settle apart (game time),
+  // then measure; a real overlap still fails the assert below
+  await until(A, () => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const p = g.player.position; return Math.hypot(p.x - r.feet.x, p.z - r.feet.z) >= 0.6; }, null, 3000, 'the host copy settles apart on the wall').catch(() => {});
   const st = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const p = g.player.position; return { s: g.wallCore.s, seg: g.wallCore.seg, d: Math.hypot(p.x - r.feet.x, p.z - r.feet.z) }; });
   const sb = await GB(() => window.__app.current.wallCore.s);
   assert(st.seg === wseg && Math.abs(st.s - sb) >= 0.6 && st.d >= 0.6, `stacked on one wall: centres ${Math.abs(st.s - sb).toFixed(2)} m apart along it, ${st.d.toFixed(2)} m apart (>= 0.6, no capsule overlap)`);
