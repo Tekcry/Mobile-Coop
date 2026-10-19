@@ -274,23 +274,22 @@ describe('light field (3.6)', async () => {
     const gc = vm.runInNewContext('gc') as () => void;
     const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
     const out = new Float64Array(1);
-    // Under load (an e2e run alongside, a low-priority laptop) the old 5-round reading skewed both ways: the background
-    // compiler had not installed the optimized loop yet, so the field's returned doubles were still boxed (35-42 B a
-    // query), and a scavenge inside the 1.4 MB control round shrank new space (the control read 15 B). So rounds are
-    // small enough that no scavenge fits after a gc() (5000 x a vector, about 0.4 MB, under the 1 MB minimum semi-space),
-    // and there are up to 40 of them with a short yield between, so the compiler can finish. Each keeps its smallest
-    // round (the optimized code; with no scavenge in a round nothing reads low by accident). The control runs all 40,
-    // so it is as optimized as it gets (the strict side for the relative check); each field query stops once its
-    // smallest meets its limit (a query that allocates an object never gets there).
+    // Under load (an e2e run alongside, a low-priority laptop) the old 5-round reading skewed: the background compiler
+    // had not installed the optimized loop yet, so the field's doubles were still boxed (35-42 B a query, optimized
+    // 32.4), and a scavenge inside the 1.4 MB control round shrank new space (the control read 15 B). So: rounds that
+    // fit in new space after a gc() (the control 2000 x 272 B, about 0.5 MB, under the 1 MB minimum semi-space), and up
+    // to 40 of them with a short yield between, so the compiler can finish. Each keeps its smallest round (the optimized
+    // code). The control runs all 40; each field query stops once its smallest meets its limit (a query that allocates
+    // an object never gets there).
     const N = 5000;
-    const per = async (fn: (n: number) => void, goal = -Infinity): Promise<number> => {
+    const per = async (fn: (n: number) => void, goal = -Infinity, n = N): Promise<number> => {
       for (let k = 0; k < 5; k++) fn(100000);
       let v = Infinity;
       for (let k = 0; k < 40; k++) {
         gc();
         const b0 = newSpace();
-        fn(N);
-        v = Math.min(v, (newSpace() - b0) / N);
+        fn(n);
+        v = Math.min(v, (newSpace() - b0) / n);
         if (k >= 4 && v <= goal) break;
         await new Promise((r) => setTimeout(r, 25));
       }
@@ -308,7 +307,7 @@ describe('light field (3.6)', async () => {
         s += v[0];
       }
       out[0] = s;
-    });
+    }, -Infinity, 2000);
     const level = await per((n) => {
       let s = 0;
       for (let i = 0; i < n; i++) s += f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);

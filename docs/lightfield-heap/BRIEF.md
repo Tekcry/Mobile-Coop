@@ -22,8 +22,9 @@ measurements (the "bytes per query" line, `vitest run tests/lightField.test.ts -
 
 ## Fix
 Tests only, same asserts and limits:
-- Rounds of 5000 queries, each after a `gc()`. A scavenge inside a round can only make a reading lower; the field
-  rounds allocate (almost) nothing, and a low control reading would make the relative check stricter, not looser.
+- Rounds that fit in new space after the `gc()` that starts each: the field 5000 queries (it allocates only boxed
+  doubles), the control 2000 (2000 x 272 B, about 0.5 MB, under the 1 MB minimum semi-space), so no scavenge can
+  make a reading low.
 - Up to 40 rounds with a 25 ms yield between them so the compiler can finish. Each measurement keeps its smallest round
   (the optimized code; the strict side). The field queries stop once their smallest meets their limit; the control
   runs all 40.
