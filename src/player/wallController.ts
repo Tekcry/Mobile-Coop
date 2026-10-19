@@ -71,11 +71,11 @@ export const WALL = {
    *  (G6, AUDIT-WALLS row 9, 052021 @ 3.4-4.6) CT leans the torso only 10-15 deg (`peekLean` 0.45 -> 0.2 rad) but the
    *  head ends 0.15-0.25 m PAST the edge: the hips shift onto the outer foot and the body eases `peekStep` m toward the
    *  edge (the rig's root, visual: the capsule stays on the wall). Ours at 0.45 rad put the head centre 6 cm short of the
-   *  edge (rig probe). `peekOut` 0.35 -> 0.36: the posed head's offset along the wall from the capsule at a full peek
-   *  (rig.test), what the host's light sample of a remote uses. `peekBlend` 0.2 -> 0.3 (in 0.3, out 0.4-0.5 s in CT). */
+   *  edge (rig probe). `peekOut` (the host's light sample of a remote, from MoveState) stays 0.35: the posed head now ends
+   *  0.36 along the wall from the capsule at a full peek (wallStance.test), within 1.5 cm (e2e-netmove asserts 0.35). `peekBlend` 0.2 -> 0.3 (in 0.3, out 0.4-0.5 s in CT). */
   peekPush: 0.4,
   peekKeep: 0.25,
-  peekOut: 0.36,
+  peekOut: 0.35,
   peekLean: 0.2,
   peekStep: 0.2,
   peekBlend: 0.3,
@@ -745,7 +745,7 @@ export function wallTurnRate(absD: number, onWall: boolean, settled: boolean, cr
  * 45 deg forward over the knees) and crouch-walks along the wall. `yaw` (rad) the turn, eased in with the crouch from
  * `from` to `to` (crouch blend). Visual only: the capsule keeps facing out (gameplay, the camera and the AI read that).
  */
-export const WALL_SIDE = { yaw: 1.45, from: 0.35, to: 0.85, arm: 0.01 } as const;
+export const WALL_SIDE = { yaw: 1.45, from: 0.35, to: 0.85, arm: 0.03, crouchBack: 0.16 } as const;
 
 /** (G6) The visual body yaw's offset from the face normal (rad) for the crouch blend and the wall side (1 right, -1 left:
  *  `wallFacing`, the slide's facing or the open side at an edge). No allocation. */
@@ -793,10 +793,13 @@ export function wallMoveK(speed: number): number {
  *  of upper arm) x |sin|, so a side-on crouch (row 1) puts the wall-side shoulder and hip about 3 cm off the face
  *  instead of 15 cm out (21w-5's depth + 0.88 shoulder sum is the box's 45 deg corner; it held the side-on body off the
  *  wall). Square to the wall (turnSin 0) it is unchanged. */
-export function wallRootPush(standoff: number, bodyDepthHalf: number, turnSin = 0, shoulderHalf = 0): number {
+export function wallRootPush(standoff: number, bodyDepthHalf: number, turnSin = 0, shoulderHalf = 0, crouch = 0): number {
   const s = Math.min(1, Math.abs(turnSin));
   const c = Math.sqrt(1 - s * s);
-  const reach = bodyDepthHalf * c + (shoulderHalf > 0 ? shoulderHalf + WALL_SIDE.arm : 0) * s;
+  // (G6 fix, check BLOCK 3) crouched and turned off side-on (through the reversal) the forward trunk puts the pelvis and
+  // the hanging elbows behind the half depth: `WALL_SIDE.crouchBack` more, by the crouch blend and the share still square
+  const back = WALL_SIDE.crouchBack * Math.max(0, Math.min(1, crouch)) * c;
+  const reach = bodyDepthHalf * c + back + (shoulderHalf > 0 ? shoulderHalf + WALL_SIDE.arm : 0) * s;
   return Math.max(0, standoff - reach - 0.015);
 }
 

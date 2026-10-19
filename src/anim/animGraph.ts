@@ -474,7 +474,7 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
  * the turn (|sin|) so the 0.45 s reversal passes through the square stance. At an edge the peek's lean goes forward
  * (`leanFwd` of the lateral lean, rad per rad) past the edge the body faces. Starting values.
  */
-export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2 };
+export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
 /** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
 export const PEEK_HIP = 0.7;
 /** (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) Aiming at a wall 0.4-0.5 m away CT brings the rifle up near vertical,
@@ -807,7 +807,11 @@ export class AnimGraph {
     // from it is common, and the 1.2 rad toe flex let go in standTime stepped the ankle (e2e-anim pose continuity)
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : Math.max(MOVEMENT.standTime, MOVEMENT.kneelTime));
     // (G1) a kneel starting: the foot that is ahead stays planted (a stop with the right foot ahead kneels on the left knee)
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = this.lead < -0.05 ? -1 : 1;
+    // (G6 fix) side-on at a wall the wall-side knee goes down (CT 051917 @ 29.0: the trailing, inner knee near the floor,
+    // the open-side knee up under the knee hand), from the wall side alone: the planner's lead differs between the owner
+    // and the remote copy (their feet settle at different times), and a flipped kneel moved the knee hand 0.3 m
+    // (e2e-netmove wall crouch). Turned toward the travel the wall is on the travel side (wallSide 1: the right).
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT, kw);
@@ -866,6 +870,9 @@ export class AnimGraph {
       src[CH.pelPitch] = src[CH.pelPitch]! - (WALL_BACK.pel + WALL_BACK.pelCrouch * crouchK) * flatW;
       src[CH.spPitch] = src[CH.spPitch]! - (WALL_BACK.spine + WALL_BACK.spineCrouch * crouchK) * flatW;
       src[CH.width] = src[CH.width]! + (WALL_WIDTH.stand + (WALL_WIDTH.crouch - WALL_WIDTH.stand) * crouchK) * flatW;
+      // (G6 fix, check BLOCK 3) side-on the knees stay narrow: the free crouch's wide knees put the wall-side knee into
+      // the face (side-on the stance width is across the wall)
+      src[CH.width] = src[CH.width]! - WALL_SIDE_POSE.narrow * sideK * wallW;
     }
 
     // --- traversal, slide, air, landing

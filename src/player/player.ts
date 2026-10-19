@@ -341,7 +341,7 @@ export class Player {
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
       // (G6) the larger of the body's turn and the shoulders' (the chest turned toward the travel, the side-on crouch)
-      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf) * wk;
+      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf, c.crouchBlend) * wk;
       root.position.x -= cp.wallNx * push;
       root.position.z -= cp.wallNz * push;
       // (G6, AUDIT-WALLS row 9) the peek's step toward the edge

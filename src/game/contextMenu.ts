@@ -108,13 +108,14 @@ export class ContextMenu {
     o.latch = latch;
   }
 
-  /** Finish the list: an active highlight follows its row by id, else it is clamped. */
+  /** Finish the list: an active highlight follows its row by id; a row that left the list sends it to BACK TO GAME
+   *  (never onto another row: a guard turning must not turn KNOCK OUT into KILL under the thumb). */
   end(): void {
     if (this.building !== this.count) this.dirty = true;
     this.count = this.building;
     if (this.state === 'active' && this.sel >= 0 && this.count > 0) {
       const at = this.find(this.keyKind, this.keyOpt, this.keyRef);
-      const next = at >= 0 ? at : Math.min(this.sel, this.count - 1);
+      const next = at >= 0 ? at : CTX_BACK;
       if (next !== this.sel) {
         this.sel = next;
         this.holdT = 0;

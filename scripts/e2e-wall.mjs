@@ -275,12 +275,12 @@ async function edges() {
     assert(st.phase === 'on' && st.edge === d.end && (st.sub & (d.end > 0 ? 4 : 8)) !== 0, `at the doorway edge (edge ${st.edge}, sub ${st.sub})`);
     // peek at once: the stick toward the edge at the end (released first), the head goes out WALL.peekOut, the camera swings
     // 0.4 m. (G6, AUDIT-WALLS row 9, 052021 @ 3.4-4.6) CT leans 10-15 deg (peekLean 0.45 -> 0.2) and the body steps toward the
-    // edge: the head ends 0.36 m along the wall from the capsule (0.14 m past the edge; peekOut 0.35 -> 0.36)
+    // edge: the head ends 0.36 m along the wall from the capsule (0.14 m past the edge), peekOut (the light sample) stays 0.35
     await G(() => window.__w.run(0.3));
     const pk = await G((x) => window.__w.run(0.8, x, 0, null, () => { const g = window.__app.current; const w = g.wallCore; const c = g.player.cam; return { on: w.peekOn, pe: w.peek, ex: Math.hypot(w.exX, w.exZ), cam: c.wallPeek, sub: w.sub(), lean: g.player.pose.lean, peekW: c['peekW'] }; }), sx);
     const kOn = pk.findIndex((p) => p.on);
     const last = pk[pk.length - 1];
-    assert(kOn >= 0 && kOn <= 4 && last.pe === 1 && (last.sub & 16) !== 0 && last.cam === 1 && last.ex <= 0.3601 && last.ex > 0.3 && Math.abs(last.lean) > 0.15, `peek at once (step ${kOn}, no hold): head out ${last.ex.toFixed(3)} m, rig lean ${last.lean.toFixed(2)}, camera swing ${last.cam}`);
+    assert(kOn >= 0 && kOn <= 4 && last.pe === 1 && (last.sub & 16) !== 0 && last.cam === 1 && last.ex <= 0.3501 && last.ex > 0.3 && Math.abs(last.lean) > 0.15, `peek at once (step ${kOn}, no hold): head out ${last.ex.toFixed(3)} m, rig lean ${last.lean.toFixed(2)}, camera swing ${last.cam}`);
     // the strict camera: its pivot swing is the 0.4 m, not the old 0.6 m
     const sw = await G(() => { const c = window.__app.current.player.cam; return c.pivot.x === undefined ? 0 : Math.hypot(c.pivot.x - window.__app.current.player.position.x, c.pivot.z - window.__app.current.player.position.z); });
     assert(sw > 0.5 && sw <= 0.8001, `the peek camera pivot sits ${sw.toFixed(3)} m past the body (F1b: 0.6-0.8)`);

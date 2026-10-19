@@ -691,3 +691,13 @@ describe('wall stance and turns (G6)', () => {
     expect(WALL.peekStep).toBeLessThan(WALL.peekOut);
   });
 });
+
+describe('wall root push crouched (G6 fix)', () => {
+  it('crouched and turned off side-on the root keeps the forward trunk off the face; side-on and square-standing unchanged', () => {
+    const side = wallRootPush(0.35, 0.15, 1, 0.19, 1);
+    expect(side).toBeCloseTo(wallRootPush(0.35, 0.15, 1, 0.19, 0), 9);
+    const mid = wallRootPush(0.6, 0.15, Math.sin(0.6), 0.19, 1);
+    expect(wallRootPush(0.6, 0.15, Math.sin(0.6), 0.19, 0) - mid).toBeCloseTo(WALL_SIDE.crouchBack * Math.cos(0.6), 9);
+    expect(wallRootPush(0.35, 0.15, 0, 0.19, 0)).toBeCloseTo(0.35 - 0.15 - 0.015, 9);
+  });
+});

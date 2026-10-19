@@ -237,6 +237,10 @@ const ARC_MIN = 0.06;
 /** (Step 14) the vision HUD label shows this long after a switch (s). */
 const VISION_LABEL_TIME = 1.5;
 const SUPPRESSED_NOISE = 0.6;
+/** (G6 fix) The door open's spot rays: heights over the feet (m), and how far out from the spot the wall ray starts (a
+ *  ray that starts inside a thick wall sees nothing). */
+const DOOR_OPEN_RAY_Y = [0.4, 1.2] as const;
+const DOOR_OPEN_RAY_OUT = 1.2;
 const IMPACT_NOISE = 4;
 /** (G5) Context menu row kinds of the takedown on offer and of the item in reach (doors and grabs: their modules). */
 const TD_KIND = 'td';
@@ -1018,6 +1022,9 @@ export class GameState implements AppState {
   /** Opens the pause menu. `notice`: a line for the menu (a controller dropped out). */
   pause(notice = ''): void {
     if (this.paused || this.menuOpen) return;
+    // (G5) the context menu closes unrun: A's release is lost under the pause menu, so a held list would run on resume
+    this.ctxMenu.reset();
+    this.hud.ctx.update(this.ctxMenu);
     // coop never freezes the shared simulation; the menu just takes the input
     if (this.net) this.menuOpen = true;
     else this.paused = true;
@@ -1126,8 +1133,9 @@ export class GameState implements AppState {
     const td = this.takedown;
     td.shovePressed = false;
     const aside = !this.player.alive || this.team.active || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
-    // B (crouch / back) or Y always lets a held guard go: there is no way to get stuck in the hold
-    const letGo = !aside && td.menuReady && (real.pressed('crouch') || real.pressed('uiBack') || real.pressed('jump'));
+    // B (crouch / back) or Y lets a held guard go: there is no way to get stuck in the hold; (G5) with the list held
+    // open, B only closes the list (as BACK TO GAME) and the guard stays held
+    const letGo = !aside && td.menuReady && m.state !== 'active' && (real.pressed('crouch') || real.pressed('uiBack') || real.pressed('jump'));
     if (letGo) {
       td.shovePressed = true;
       this.player.controller.swallowCrouch = true;
@@ -2390,6 +2398,51 @@ export class GameState implements AppState {
     this.openUse = use;
     this.openHp = this.target.health.hp;
     this.openY = p.y;
+    this.clearOpenSpot(d.anchor, p.x, p.y, p.z);
+  }
+
+  /**
+   * (G6 fix, check BLOCK 2) The step is kinematic (no collision), so its spot is made safe first: off the wall the leaf
+   * sits in by the capsule radius (a thick wall: Marlow Yard station 2's 1 m wall; the pull spot is past the latch, in
+   * front of that wall), and no farther along the path than the first thing in the way. Two-height rays, no allocation.
+   */
+  private clearOpenSpot(a: { hinge: { x: number; y: number; z: number }; yaw: number }, px: number, py: number, pz: number): void {
+    const s = this.doorOpen.spot;
+    const R = MOVEMENT.radius + 0.03;
+    const A = this.blockA;
+    const B = this.blockB;
+    const b = this.ballistics;
+    // toward the wall plane (the leaf's line) from the spot
+    const nx = Math.cos(a.yaw) * s.side;
+    const nz = -Math.sin(a.yaw) * s.side;
+    let need = 0;
+    const L = DOOR_OPEN_RAY_OUT;
+    for (let i = 0; i < DOOR_OPEN_RAY_Y.length; i++) {
+      const h = DOOR_OPEN_RAY_Y[i]!;
+      A.set(s.x + nx * L, py + h, s.z + nz * L);
+      B.set(s.x - nx * 0.8, py + h, s.z - nz * 0.8);
+      // the face's distance in front of the spot: the hit distance from the ray's start, less the start's offset
+      need = Math.max(need, R - (b.hitDistance(A, B, MASK.WORLD) - L));
+    }
+    if (need > 0) {
+      s.x += nx * need;
+      s.z += nz * need;
+    }
+    // along the path from the body to the spot (and a radius beyond it)
+    const dx = s.x - px;
+    const dz = s.z - pz;
+    const len = hyp2(dx, dz);
+    if (len < 1e-3) return;
+    let free = len;
+    for (let i = 0; i < DOOR_OPEN_RAY_Y.length; i++) {
+      const h = DOOR_OPEN_RAY_Y[i]!;
+      A.set(px, py + h, pz);
+      B.set(px + (dx / len) * (len + R), py + h, pz + (dz / len) * (len + R));
+      free = Math.min(free, b.hitDistance(A, B, MASK.WORLD) - R);
+    }
+    const k = Math.max(0, Math.min(1, free / len));
+    s.x = px + dx * k;
+    s.z = pz + dz * k;
   }
 
   /**

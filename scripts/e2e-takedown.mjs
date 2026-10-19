@@ -260,6 +260,15 @@ try {
       t.step(0.4);
       t.press();
       t.step(1.2);
+      // (G5) B with the list held open only closes it (as BACK TO GAME): the guard stays held
+      st.set('t', 'interact', true);
+      t.step(1 / 60);
+      st.set('t', 'crouch', true);
+      t.step(1 / 60);
+      st.set('t', 'crouch', false);
+      st.set('t', 'interact', false);
+      t.step(0.2);
+      const bCloses = g.takedown.hostage === e2 && g.ctxMenu.state === 'passive' && e2.alive;
       st.set('t', 'crouch', true);
       t.step(1 / 60);
       st.set('t', 'crouch', false);
@@ -268,10 +277,11 @@ try {
       const crouched = g.player.controller.crouched;
       const stagger = e2['stagger'];
       t.step(1.2);
-      return { killed, carried, letGo, crouched, stagger, alerted: e2.alerted };
+      return { killed, carried, bCloses, letGo, crouched, stagger, alerted: e2.alerted };
     });
     assert(r.killed, 'grab menu Kill: killed');
     assert(r.carried, 'grab menu Carry: knocked out and on the shoulder');
+    assert(r.bCloses, 'B with the list held open closes it, the guard stays held');
     assert(r.letGo && !r.crouched, `B lets him go (not a crouch) (${r.letGo})`);
     assert(r.stagger > 0.6 && r.alerted, `he staggers about a second, then is alert (${r.stagger?.toFixed(2)})`);
   });

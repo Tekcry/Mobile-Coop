@@ -409,6 +409,11 @@ function boneRotation(dir: Vector3, hint: Vector3, out: Quaternion): Quaternion 
 
 /** (step 11) How far in front of a wall's face the ankles stay (m): the heel clear of it. */
 const WALL_FOOT_CLEAR = 0.1;
+/** (G6 fix) A knee closer than this (m) to the wall face swings its pole `WALL_KNEE_SWING` away from it. */
+const WALL_KNEE_CLEAR = 0.08;
+const WALL_KNEE_SWING = 0.6;
+/** (G6 fix) The elbow joint's least distance (m) to a wall face (the upper arm's radius at the elbow plus 5 mm). */
+const WALL_ELBOW_CLEAR = 0.045;
 
 /**
  * The shared humanoid: one skeleton and one smooth part set for the player, enemies, coop
@@ -793,6 +798,8 @@ export class CharacterRig {
   /** (A1.2) Pelvis yaw toward the planted feet (rad, from the root), and the pelvis world yaw the knee poles use. */
   private follow = 0;
   private pelvisWorldYaw = 0;
+  /** (G6 fix) The legs' yaw override this frame (side-on at a wall: the body's), NaN = the planner's foot yaws. */
+  private legYaw = Number.NaN;
 
   constructor(
     scene: Scene,
@@ -1776,6 +1783,10 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(pe.yaw + this.follow, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // (on a wall the knees keep to the feet, as before)
     this.pelvisWorldYaw = this.input.wall || free ? Number.NaN : yaw + this.follow;
+    // (G6 fix, e2e-netmove wall crouch) side-on on a wall the legs (knee pole and foot yaw) take the body's yaw, not the
+    // planner's foot yaws: those differ between the owner and the remote copy (their feet turn-stepped at other times),
+    // which bent the kneel's down knee forward on one and down on the other (the knee hand 0.15-0.37 m apart)
+    this.legYaw = this.input.wall && this.input.wallTurn > 0.5 ? yaw : Number.NaN;
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)
     const sp = t.spine;
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6 - this.follow, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
@@ -1857,6 +1868,23 @@ export class CharacterRig {
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+    }
+    // (G6 fix, check BLOCK 3) on a wall, turned side-on, a knee bowed out toward the face swings in, away from it (the
+    // wall-side knee's outward is the wall); the ankles already keep WALL_FOOT_CLEAR off it
+    if (this.input.wall && !Number.isNaN(this.pin.wallD)) {
+      const nx = this.pin.wallNx;
+      const nz = this.pin.wallNz;
+      const face = this.pin.wallD - WALL_FOOT_CLEAR;
+      const ry = this.root.rotation.y;
+      const rn = Math.cos(ry) * nx - Math.sin(ry) * nz;
+      for (let k = 0; k < 2; k++) {
+        const kn = (k === 0 ? this.kneeL : this.kneeR).getAbsolutePosition();
+        if (kn.x * nx + kn.z * nz - face >= WALL_KNEE_CLEAR || Math.abs(rn) < 0.3) continue;
+        const sd = k === 0 ? -1 : 1;
+        const o = sd * rn > 0 ? WALL_KNEE_SWING : -WALL_KNEE_SWING;
+        if (k === 0) this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, o);
+        else this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, o);
+      }
     }
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -1961,6 +1989,11 @@ export class CharacterRig {
     this.limitJoint(this.elbowR, dt);
     this.keepElbowOut(1);
     this.keepElbowOut(-1);
+    // (G6 fix, check BLOCK 3) on a wall no elbow goes into the face (the crouched reversal's hands to the knee / shin)
+    if (this.input.wall && !Number.isNaN(this.pin.wallD)) {
+      this.keepElbowOffWall(1);
+      this.keepElbowOffWall(-1);
+    }
   }
 
   /**
@@ -1969,6 +2002,71 @@ export class CharacterRig {
    * wrist axis until it is out (`elbowSwivelClear`); the shoulder and wrist stay put and the hand keeps its world
    * rotation, so the grip holds. Allocates nothing; does nothing on a clear frame beyond one distance test.
    */
+  /**
+   * (G6 fix) An elbow within `WALL_ELBOW_CLEAR` of the wall face swivels round the shoulder -> wrist axis by the smallest
+   * angle (steps of 0.1 rad, at most 1.2) that clears it, as `keepElbowOut` (the shoulder and wrist stay, the hand keeps
+   * its world rotation). No allocation.
+   */
+  private keepElbowOffWall(side: 1 | -1): void {
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    const wr = side > 0 ? this.wristR : this.wristL;
+    fresh(sh);
+    fresh(el);
+    fresh(wr);
+    const nx = this.pin.wallNx;
+    const nz = this.pin.wallNz;
+    const face = this.pin.wallD - WALL_FOOT_CLEAR;
+    const E = el.getAbsolutePosition();
+    const d0 = E.x * nx + E.z * nz - face;
+    if (d0 >= WALL_ELBOW_CLEAR) return;
+    const S = sh.getAbsolutePosition();
+    wr.getAbsolutePosition().subtractToRef(S, elbAxis);
+    elbAxis.normalize();
+    const ux = elbAxis.x;
+    const uy = elbAxis.y;
+    const uz = elbAxis.z;
+    const vx = E.x - S.x;
+    const vy = E.y - S.y;
+    const vz = E.z - S.z;
+    const uv = ux * vx + uy * vy + uz * vz;
+    // the elbow's distance to the face after a turn th (Rodrigues; only x and z count)
+    const cx = uy * vz - uz * vy;
+    const cz = ux * vy - uy * vx;
+    let best = 0;
+    let bestD = d0;
+    for (let k = 1; k <= 12 && bestD < WALL_ELBOW_CLEAR; k++) {
+      for (let sgn = -1; sgn <= 1; sgn += 2) {
+        const th = sgn * k * 0.1;
+        const c = Math.cos(th);
+        const s = Math.sin(th);
+        const ex = S.x + vx * c + cx * s + ux * uv * (1 - c);
+        const ez = S.z + vz * c + cz * s + uz * uv * (1 - c);
+        const d = ex * nx + ez * nz - face;
+        if (d > bestD) {
+          bestD = d;
+          best = th;
+        }
+      }
+    }
+    if (best === 0) return;
+    elbHand.copyFrom(wr.absoluteRotationQuaternion);
+    // (the engine's axis-angle handedness against the right-handed sum above: checked on the result, turned back the
+    // other way if it went the wrong one)
+    for (let pass = 0; pass < 2; pass++) {
+      Quaternion.RotationAxisToRef(elbAxis, pass === 0 ? best : -2 * best, elbQ);
+      elbQ.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
+      this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
+      this.prevRot.get(sh)?.copyFrom(sh.rotationQuaternion!);
+      fresh(sh);
+      fresh(el);
+      const e = el.getAbsolutePosition();
+      if (e.x * nx + e.z * nz - face >= d0) break;
+    }
+    this.setWorldRot(wr, el, elbHand);
+    fresh(wr);
+  }
+
   private keepElbowOut(side: 1 | -1): void {
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
     const el = side > 0 ? this.elbowR : this.elbowL;
@@ -2286,6 +2384,7 @@ export class CharacterRig {
   /** Leg IK onto a world ankle target; the foot takes its world yaw and the swing / pose pitch. */
   private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number, out = KNEE_OUT): void {
     const p = this.p;
+    if (!Number.isNaN(this.legYaw)) footYaw = this.legYaw;
     fresh(hip);
     const H = hip.getAbsolutePosition();
     tmpA.set(x, y, z);

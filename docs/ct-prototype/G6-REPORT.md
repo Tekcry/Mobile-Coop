@@ -98,3 +98,32 @@ door parts only; the one line in the menu path is `doorMenuPick` `case 'open'` -
 - Open a door from the door menu: a step to the latch side, the hand on the door, the door swings fast then eases.
 - Stealth open: the step, a short hold, then the crack.
 - Aim at a wall from half a metre: the rifle comes up.
+
+## Fix round (2026-10-20, after d2bb25db)
+- e2e-netmove "wall crouch" (host copy's hands 0.15-0.37 m off): the copy's graph inputs and outputs matched the owner's;
+  the legs differed. Side-on on a wall the knee pole and foot yaw came from the planner's foot yaws, which differ between
+  the owner and the copy (feet turn-stepped at other times), so the kneel's down knee bent forward on one and down on the
+  other and the knee hand followed. Now side-on the legs take the body's yaw (`CharacterRig.legYaw`), and the kneeling
+  knee is the wall-side one from the wall side alone, not the planner's lead (`animGraph.ts` `kneelSide`). netmove now:
+  wristL 0.002, wristR 0.02 m.
+- e2e-netmove's later wall-peek step asserts the host's MoveState peek offset is 0.35 m: `WALL.peekOut` back from 0.36 to
+  0.35 (the posed head is 0.36, within 1.5 cm; e2e-wall's bound back to <= 0.3501).
+- Check BLOCK 2 (the kinematic door step could end inside a thick wall): `GameState.clearOpenSpot` rays (two heights)
+  from outside the wall toward the leaf's line push the spot out to the capsule radius plus 3 cm, and the path from the
+  body to the spot is cut short at the first thing in the way (no allocation, once per pick). The step stays kinematic
+  (the legs need G7's `freeGait`). `shots/g6/dooropenpull-ots` / `-back`: she steps beside the latch, clear of the wall
+  and the leaf; the old `-side` sheet showed the SHEET camera in the wall, not the game camera (removed).
+- Check BLOCK 3 (the crouched reversal clipped the wall): `wallRootPush` takes the crouch blend and adds
+  `WALL_SIDE.crouchBack` 0.16 m x crouch x |cos| (the forward trunk while turned off side-on; side-on and standing
+  unchanged); `WALL_SIDE.arm` 0.01 -> 0.03; side-on the knees stay narrow (`WALL_SIDE_POSE.narrow` 0.35); the rig swings a
+  knee that comes within 8 cm of the face away from it and swivels an elbow within 4.5 cm off it (`keepElbowOffWall`).
+  New test `tests/wallStance.test.ts` "crouched wall reversal": no joint centre within 4 cm of the face through the
+  0.45 s reversal both ways, sliding.
+- New parity tests (`tests/wallStance.test.ts`): the side-on kneel and knee hand do not depend on the planner lead (fails
+  without the fix: lZ 0.35 vs -0.31); the copy's inputs (no motion driver, no stop hold, the side from WALL_SUB) pose
+  the rig within 2 cm of the owner's. `tests/wallController.test.ts`: the crouched root push.
+- Not done (polish): a client's guard doors swing at its own quiet / close times (the wire carries no "who opened it");
+  `playerController.ts` kinematic path allocates two Vector3 per step (not this slice's file).
+- Checks: tsc, eslint clean; vitest wallStance, wallController, rig, posture, anim, net, moveState, g7CloseQuarters,
+  doors, doorPeek, doorOpen pass. e2e on 4194 after `npm run build`: e2e-netmove OK (245 s), e2e-wall OK, e2e-ct OK.
+  Sheets re-rendered: `wallcrouchslide-side` / `-front`, `dooropenpull-back` / `-ots`.

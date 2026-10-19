@@ -36,7 +36,10 @@ export function doorMenuOptions(stealthOk: boolean, out: DoorOpt[] = []): DoorOp
 /** Add the door set of door `door` to the menu (CT order; `latch`: a scripted tap opens the list, as before G5). */
 export function addDoorRows(m: ContextMenu, door: number, stealthOk: boolean, opts: DoorOpt[]): void {
   doorMenuOptions(stealthOk, opts);
-  for (const o of opts) m.add(DOOR_KIND, o, door, DOOR_OPT_LABEL[o], 0, true);
+  for (let i = 0; i < opts.length; i++) {
+    const o = opts[i]!;
+    m.add(DOOR_KIND, o, door, DOOR_OPT_LABEL[o], 0, true);
+  }
 }
 
 /** A guard (x, z) is behind the door for a body on the `side` (+1 / -1 of the leaf plane): on the far side within

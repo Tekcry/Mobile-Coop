@@ -113,3 +113,15 @@ build, e2e and GPU shot.
 4. From the front of an unaware guard: KNOCK OUT / KILL (tap = knock out).
 5. A medkit station or a hack terminal: hold A on its row until the line fills.
 6. Keyboard: E held, mouse wheel or W / S to move, release E.
+
+## Fix round (after the independent check, commit d2bb25db)
+1. A highlighted row that leaves the list while A is held (a guard turning, a door opening) now sends the highlight
+   to BACK TO GAME (`ContextMenu.end`), never onto the row that slid into its place: a turning guard can no longer turn
+   KNOCK OUT into KILL under the thumb. `tests/contextMenu.test.ts` asserts `CTX_BACK` and that the release runs nothing.
+2. `addDoorRows` (runs every step while a door is faced): an indexed loop, no iterator (hot-path rule).
+3. Pause while A is held: `GameState.pause` resets the menu (closed, unrun); the release lost under the pause menu no
+   longer runs the row on resume.
+4. B with a held guard's list held open only closes the list (as BACK TO GAME); the guard stays held. B / Y with the
+   list not held still let him go. e2e-takedown "grab-kill-carry-letgo" asserts both.
+
+Checks: `npx tsc --noEmit` clean, eslint clean, vitest contextMenu / doorMenu / grabMenu / grabMenuNav 16 / 16; after `npm run build` (heavy.lock held) on port 4196: e2e-ct, e2e-takedown (with the new B check) and e2e-pad pass. Not committed.

@@ -135,7 +135,7 @@ describe('context menu (G5)', () => {
     expect(m.step(i, DT)).toBe(0);
   });
 
-  it('the list changing while held keeps the highlight on its row; a lost row clamps it; nothing in reach closes it unrun', () => {
+  it('the list changing while held keeps the highlight on its row; a lost row goes to BACK TO GAME; nothing in reach closes it unrun', () => {
     const m = new ContextMenu();
     const i = emptyCtxInput();
     fill(m, 'both');
@@ -149,10 +149,17 @@ describe('context menu (G5)', () => {
     fill(m, 'door');
     m.step(i, DT);
     expect(m.opts[m.sel]!.opt).toBe('stealth');
-    // the door set goes: the item is the only row
+    // the door set goes (the highlighted row with it): BACK TO GAME, never the item that slid into its place
     fill(m, 'item');
     m.step(i, DT);
-    expect(m.sel).toBe(0);
+    expect(m.sel).toBe(CTX_BACK);
+    fill(m, 'item');
+    expect(m.step(release(i), DT)).toBe(-1);
+    // held again, then out of reach: none, and the release runs nothing
+    idle(i);
+    fill(m, 'item');
+    m.step(press(i), DT);
+    hold(i);
     // out of reach: none, and the release runs nothing
     fill(m, 'none');
     m.step(i, DT);

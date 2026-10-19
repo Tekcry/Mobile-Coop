@@ -348,7 +348,7 @@ export class RemoteAvatar {
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
       // (G6) as the owner (Player.frameUpdate)
-      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf) * wk;
+      const push = wallRootPush(COVER_STANDOFF, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))), Math.abs(this.rig.shoulderTurnSin(this.wallNx, this.wallNz))), this.rig.p.shoulderHalf, this.crouch) * wk;
       r.position.x -= this.wallNx * push;
       r.position.z -= this.wallNz * push;
       // (G6, AUDIT-WALLS row 9) the peek's step toward the edge, as the owner's rig (the MoveState peek bit, eased)
