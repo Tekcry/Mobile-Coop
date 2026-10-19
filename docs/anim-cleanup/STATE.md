@@ -1,8 +1,10 @@
 # Animation clean-up - state (resume point)
 
-**Now (2026-10-19):** code complete, waiting for the desktop e2e. Branch `feature/anim-cleanup`, folder
-`C:/NightShift/Mobile-Coop-anim-cleanup`; it includes master through PR #10 (PR #9, CT Core's prototype, and #7,
-weapons, are in). The PR body is ready in `PR-BODY.md`.
+**Now (2026-10-19):** done; PR #12 is open (feature/anim-cleanup → master), its check passed, and it waits for Michael
+to merge (the orchestrator's merge was blocked by auto mode). The desktop e2e is settled: traverse (drainpipe settle
+window, 812a75f2) and netmove's holster budget (4c465e3c) were fixed here; the remaining e2e-coop, e2e-netmove (ledge
+hang) and e2e-ctcourse failures also fail on master bd59f32 alone, so they are not this branch's (PR-BODY.md; they go
+to the co-op test fix job). No more work on this branch unless the PR review asks for it.
 
 ## How this job runs now
 - Report to the **Night Shift | Orchestrator** session (CLAUDE.md "Orchestrator"): when a step starts or ends, when a PR
