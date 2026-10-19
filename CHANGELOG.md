@@ -9,7 +9,9 @@
 - Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
   autoplay is blocked.
 - Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
-  one place (A2).
+  one place (A2). Settings > Gameplay drops the Default shoulder row (CT: the camera is always over the right shoulder
+  when holstered); the Controls screen lists the CT trigger and mouse verbs (holstered knockout / lethal palm strike,
+  drawn secondary / primary fire; right click draws and holsters).
 - Hero quality (note 4): the menu close-ups always draw the hero LOD on desktop presets (no fix needed; the jump was the
   LOD2 -> LOD0 -> hero load order, now behind the load gate); read-back `MenuState.heroLod`.
 - Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
