@@ -33,7 +33,9 @@ e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner ru
 Known clashes to handle at merge time:
 - Sector Ops' lobby hides Infiltration, which e2e-coop's match (A1, coop-tests) uses. When Sector Ops merges, e2e-coop
   moves to Sector Ops or Course.
-- Sector Ops also edits scripts/e2e-menus.mjs: after #18 merges, it merges master and keeps #18's condition wait.
+- Sector Ops merged 4.6.8 (e20c3f30, #18's e2e-menus wait kept).
+- Net protocol: Sector Ops bumped it to 24 (syringes, client live section); CT Core also edits src/net (remoteAvatar.ts).
+  Whichever merges second takes the next protocol number and reruns e2e-coop / e2e-netmove / e2e-ctcourse.
 
 ## Waiting on Michael
 - Delete the merged branch feature/ct-research (`git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research`).
