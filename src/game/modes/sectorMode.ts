@@ -8,7 +8,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { SquadSlot } from '../../world/rooms';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
-import { SECTOR, SectorRun, alarmStep, inExit, sectorResult, type SectorDef } from '../sectors';
+import { CONN_UNLOCK_FAR, SECTOR, SectorRun, alarmStep, exitZone, inZone, sectorResult, type ConnectorInput, type SectorDef } from '../sectors';
 import { killScore } from './score';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
@@ -40,12 +40,12 @@ export class SectorMode implements GameMode {
   camAlarms = 0;
   /** Reinforcements sent (tests). */
   reinforced = 0;
-  lives: number = SECTOR.lives;
   private its: Interactable[] = [];
   private pending: Pending[] = [];
   private fillT = 0;
   private endT = -1;
-  private exitT = 0;
+  /** The connector's input (first cut: no connector rooms, so the near doorway is always clear). */
+  private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
   /** Run time (s) for the result. */
   private t = 0;
   private secT = 0;
@@ -81,7 +81,8 @@ export class SectorMode implements GameMode {
     const g = this.g;
     const s = this.run.current;
     if (!s) return;
-    this.checkpoint.set(s.start.x, s.start.y, s.start.z);
+    const cp = this.run.checkpoint;
+    this.checkpoint.set(cp.x, cp.y, cp.z);
     for (const slot of s.guards) this.pending.push({ slot, alerted: false });
     this.fill();
     g.hud.banner(`SECTOR ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
@@ -94,14 +95,14 @@ export class SectorMode implements GameMode {
     const ints = g.interactables!;
     for (const it of this.its) ints.remove(it);
     this.its.length = 0;
-    if (this.run.phase === 'exit') {
-      const [x0, z0, x1, z1] = s.exit.box;
-      const it = ints.add(`${s.id}-exit`, 'extract', new Vector3((x0 + x1) / 2, s.exit.floorY ?? 0, (z0 + z1) / 2), s.exit.label, 0);
+    const zone = exitZone(s);
+    if ((this.run.phase === 'connector' || this.run.phase === 'extract') && zone) {
+      const [x0, z0, x1, z1] = zone.box;
+      const it = ints.add(`${s.id}-exit`, 'extract', new Vector3((x0 + x1) / 2, zone.floorY ?? 0, (z0 + z1) / 2), zone.label, 0);
       it.onUse = () => undefined;
       ints.setEnabled(it, true);
       this.its.push(it);
-      this.exitT = 0;
-      g.hud.setObjective(s.exit.label);
+      g.hud.setObjective(zone.label);
       return;
     }
     const o = s.objective;
@@ -135,23 +136,31 @@ export class SectorMode implements GameMode {
     this.setup(s);
   }
 
-  /** Every living player in the exit for a moment: the next sector, or the end. */
+  /**
+   * Every living player in the connector cycles it (the next sector), or in the extraction ends the run. First cut
+   * (step 2 wires the doors, unload and load): the connector is the old exit zone, so only CONN_UNLOCK_FAR is used.
+   */
   private exitStep(dt: number, s: SectorDef): void {
+    const zone = exitZone(s);
+    if (!zone) return;
     const refs = this.g.playerRefs();
     let alive = 0;
     let inside = 0;
     for (const r of refs) {
       if (!r.target.alive) continue;
       alive++;
-      if (inExit(s, r.feet.x, r.feet.y, r.feet.z)) inside++;
+      if (inZone(zone, r.feet.x, r.feet.y, r.feet.z)) inside++;
     }
-    this.exitT = alive > 0 && inside === alive ? this.exitT + dt : 0;
-    if (this.exitT < 0.5) return;
-    const next = this.run.exitReached();
-    if (next === 'next') {
+    const all = alive > 0 && inside === alive;
+    if (this.run.phase === 'extract') {
+      if (this.run.extractStep(dt, all)) this.complete();
+      return;
+    }
+    this.connIn.allInside = all;
+    if (this.run.step(dt, this.connIn) & CONN_UNLOCK_FAR) {
       this.g.events.emit('objective', { id: `${s.id}-exit` });
       this.startSector();
-    } else if (next === 'done') this.complete();
+    }
   }
 
   /** Spawn pending guards under the live cap, out of every player's face. */
@@ -260,7 +269,7 @@ export class SectorMode implements GameMode {
       const near = g.playerRefs().some((r) => r.target.alive && hyp2(r.feet.x - o.x, r.feet.z - o.z) < SECTOR.downloadRange && Math.abs(r.feet.y - o.y) < 2);
       if (near && this.run.download(dt)) this.objectiveDone(s);
       else if (near) g.hud.setObjective(`${o.label} ${Math.floor((this.run.progress / SECTOR.downloadTime) * 100)}%`);
-    } else if (this.run.phase === 'exit') this.exitStep(dt, s);
+    } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s);
   }
 
   frameUpdate(): void {
@@ -274,14 +283,9 @@ export class SectorMode implements GameMode {
   }
 
   onPlayerDeath(): void {
+    // no lives (M7): back to the checkpoint (step 2 restarts the section: `run.restartSection`, guards, devices)
     if (this.g.anyPlayerAlive() || this.endT >= 0) return;
-    this.lives--;
-    if (this.lives <= 0) {
-      this.endT = 0;
-      this.g.endSession(false, `Operation failed in sector ${this.run.index + 1}`);
-      return;
-    }
-    this.g.hud.banner('DOWN', `${this.lives} left`, 2500);
+    this.g.hud.banner('DOWN', 'Back to the checkpoint', 2500);
     this.g.scheduleRespawn(this.checkpoint, 3);
   }
 
@@ -299,7 +303,7 @@ export class SectorMode implements GameMode {
   /** Test view (`window.__sector.debug()`). */
   debug(): Record<string, unknown> {
     const s = this.run.current;
-    return { index: this.run.index, phase: this.run.phase, id: s?.id ?? null, stage: this.stage, reinforced: this.reinforced, camAlarms: this.camAlarms, pending: this.pending.length, lives: this.lives, ...this.result() };
+    return { index: this.run.index, phase: this.run.phase, id: s?.id ?? null, stage: this.stage, reinforced: this.reinforced, camAlarms: this.camAlarms, pending: this.pending.length, ...this.result() };
   }
 
   dispose(): void {

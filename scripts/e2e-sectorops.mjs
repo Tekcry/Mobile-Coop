@@ -30,7 +30,7 @@ console.log('sector ops: every sector, ghost');
 await run('autostart=warehouseOps&mode=sector', async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
   await sim(0.5);
-  const defs = await G(() => window.__app.current.world.map.sectors.map((s) => ({ id: s.id, kind: s.objective.kind, exit: s.exit.box })));
+  const defs = await G(() => window.__app.current.world.map.sectors.map((s) => ({ id: s.id, kind: s.objective.kind, exit: (s.connector ?? s.extract).box })));
   assert(defs.length >= 3, `the Warehouse has sectors (${defs.length})`);
   const d0 = await G(() => window.__sector.debug());
   assert(d0.index === 0 && d0.phase === 'objective', `the run starts on sector 1's objective (${JSON.stringify(d0)})`);
@@ -54,9 +54,10 @@ await run('autostart=warehouseOps&mode=sector', async ({ page, G, sim }) => {
     }
     await sim(0.3);
     const ph = await G(() => window.__sector.debug().phase);
-    assert(ph === 'exit', `sector ${i + 1} (${s.id}): the ${s.kind} opens the exit (${ph})`);
+    assert(ph === (i + 1 < defs.length ? 'connector' : 'extract'), `sector ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph})`);
     await G((b) => { const g = window.__app.current; const P = g.player.position.constructor; g.player.controller.teleport(new P((b[0] + b[2]) / 2, 0, (b[1] + b[3]) / 2), 0); }, s.exit);
-    await sim(1);
+    // the connector: 1 s with everyone inside, then the 3 s cycle (SECTOR.connectorHold, connectorCycle)
+    await sim(4.5);
     const d = await G(() => window.__sector.debug());
     if (i + 1 < defs.length) assert(d.index === i + 1 && d.phase === 'objective', `sector ${i + 1}: the exit starts sector ${i + 2} (${d.id})`);
     else assert(d.phase === 'done', 'the last exit ends the run');

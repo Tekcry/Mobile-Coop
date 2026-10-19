@@ -11,6 +11,12 @@
   Hunter, Infiltration and Free Roam only with `?legacy=1`. The Co-op entry no longer calls the Fallow bunker the
   tutorial. Protocol 23 (the `sector` mode and message: the client mirrors cameras and lasers).
 - Tests: a new required suite `e2e-sectorops`; e2e-menus, e2e-park and e2e-pad follow the new menu and lobby.
+- Sector Ops slice 2 step 1 (logic): sections and connectors (`ConnectorMachine`: locked, open, cycling, sealed; the
+  near door waits for a clear doorway), the run with a carried-over alarm stage, checkpoints and `restartSection` (no
+  lives, M7; a down respawns at the checkpoint until step 2 restarts the section); revive syringes per difficulty;
+  `EnemyManager.despawn` / `despawnAll` and a per-mode live cap `maxAlive` (12 everywhere, Sector Ops 32 from step 2);
+  the difficulty stars record (`src/save/sectorRecord.ts`, a kv key, no SAVE_VERSION bump). Unit tests moved to
+  `tests/` (the first cut's `src/game/sectors.test.ts` was never run by Vitest).
 
 ## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
 - CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).

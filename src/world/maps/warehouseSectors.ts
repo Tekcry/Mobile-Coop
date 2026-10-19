@@ -6,7 +6,9 @@ import type { LaserDef } from '../../game/jammer';
  * Sector Ops on the Warehouse (feature/sector-ops PLAN A1, A2): four Warehouse areas played in order. Difficulty rises
  * sector by sector: more guards, then a camera, then lasers, then more light. 2 + 3 + 3 + 4 guards = the live cap (12)
  * when nobody goes down (a ghost run keeps every guard alive). Pure data: the map copy (`warehouseOps.ts`) adds the
- * devices and lamps, the mode (`sectorMode.ts`) the guards, objectives and exits.
+ * devices and lamps, the mode (`sectorMode.ts`) the guards, objectives and exits. First cut: each "connector" is the
+ * old exit zone (no room, no doors; its checkpoint is the next sector's start). Slice 2 step 2 rebuilds this data as
+ * the three sections with connector rooms (M7).
  */
 export const WAREHOUSE_SECTORS: SectorDef[] = [
   {
@@ -14,7 +16,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Dock',
     start: { x: -14.5, y: 0, z: -24, yaw: 0 },
     objective: { kind: 'hack', label: 'Hack the dispatch terminal', x: -1, y: 0, z: -14.2, yaw: 0 },
-    exit: { label: 'Into the racking aisles', box: [-16, -6.9, -13, -4.6] },
+    connector: { label: 'Into the racking aisles', box: [-16, -6.9, -13, -4.6], checkpoint: { x: -14.5, y: 0, z: -5.2, yaw: 0 } },
     guards: [
       { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI, route: [[-19, -10.5], [-12.5, -8.6], [-16.5, -14.8]], wait: 3 },
       { kind: 'grunt', x: -7.5, z: -15.5, yaw: -2.4 },
@@ -26,7 +28,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Racking',
     start: { x: -14.5, y: 0, z: -5.2, yaw: 0 },
     objective: { kind: 'grab', label: 'Take the case at the far aisle', x: -22.8, y: 0, z: 14.5, yaw: 0 },
-    exit: { label: 'Onto the factory floor', box: [-5.4, 7.5, -3, 9.6] },
+    connector: { label: 'Onto the factory floor', box: [-5.4, 7.5, -3, 9.6], checkpoint: { x: -3, y: 0, z: 8.5, yaw: Math.PI / 2 } },
     guards: [
       { kind: 'grunt', x: -18.5, z: 1, yaw: Math.PI },
       { kind: 'grunt', x: -10.5, z: 10, yaw: Math.PI, route: [[-10.5, 14.5], [-10.5, -3.5]], wait: 2 },
@@ -39,7 +41,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Floor',
     start: { x: -3, y: 0, z: 8.5, yaw: Math.PI / 2 },
     objective: { kind: 'download', label: 'Download from the workshop terminal', x: 22.6, y: 0, z: -16.6, yaw: Math.PI },
-    exit: { label: 'To the mezzanine stairs', box: [19.8, 4.4, 22.6, 6.4] },
+    connector: { label: 'To the mezzanine stairs', box: [19.8, 4.4, 22.6, 6.4], checkpoint: { x: 21.2, y: 0, z: 5, yaw: 0 } },
     guards: [
       { kind: 'grunt', x: 7.5, z: -1.5, yaw: Math.PI, route: [[7.5, -1.5], [11.5, -6.2], [17, 1], [11.5, 7]] },
       { kind: 'grunt', x: 21, z: -9.9, yaw: -Math.PI / 2, route: [[21, -9.9], [1.5, -9.9]], wait: 4 },
@@ -52,7 +54,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Offices',
     start: { x: 21.2, y: 0, z: 5, yaw: 0 },
     objective: { kind: 'hack', label: "Hack the manager's terminal", x: 5.2, y: 0, z: 16.2, yaw: 0 },
-    exit: { label: 'Extract from the east lot', box: [16, -25.5, 21, -21] },
+    extract: { label: 'Extract from the east lot', box: [16, -25.5, 21, -21] },
     guards: [
       { kind: 'grunt', x: 13, z: 14.2, y: 2.6, yaw: Math.PI, route: [[13, 14.2], [21.5, 13.1]], wait: 3 },
       { kind: 'sniper', x: 22.5, z: 16.5, y: 2.6, yaw: Math.PI },

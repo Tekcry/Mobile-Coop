@@ -27,6 +27,8 @@ export const MAX_ALIVE = 12;
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
   readonly enemies: Enemy[] = [];
+  /** The live guard cap (M6: per mode). `MAX_ALIVE` everywhere but Sector Ops, which sets `SECTOR.maxAlive`. */
+  maxAlive = MAX_ALIVE;
   private flowField: Float32Array;
   private flowT = 0;
   private coverOwner = new Map<number, Enemy>();
@@ -400,8 +402,52 @@ export class EnemyManager {
     return n;
   }
 
+  /**
+   * Remove a guard entirely (Sector Ops unloads a section): alive, knocked out or dead, with its body or ragdoll, its
+   * recon drone, its squad place and its jobs (alarm run, flank, flashlight, cover). What `clear` does, for one guard.
+   * No kill event: the co-op host stops reporting it, so the client drops its puppet without a ragdoll (`onSnap`, the
+   * stale sweep) and its kept ragdoll (gone from the snapshot's `bodies`). Not for a guard held in a takedown.
+   */
+  despawn(e: Enemy): void {
+    let k = this.enemies.indexOf(e);
+    if (k >= 0) this.enemies.splice(k, 1);
+    k = this.dogCorpses.indexOf(e);
+    if (k >= 0) this.dogCorpses.splice(k, 1);
+    for (let i = this.drones.length - 1; i >= 0; i--) {
+      const d = this.drones[i]!;
+      if (d.operator !== e) continue;
+      d.dispose();
+      this.drones.splice(i, 1);
+    }
+    for (let i = this.bodies.length - 1; i >= 0; i--) {
+      const b = this.bodies[i]!;
+      if (b.enemyId === e.id) this.removeBody(b);
+    }
+    for (const [, roster] of this.squads) {
+      const j = roster.indexOf(e);
+      if (j >= 0) roster.splice(j, 1);
+    }
+    this.silent.delete(e);
+    if (this.alarmRunner === e) this.alarmRunner = null;
+    if (this.flanker === e) this.flanker = null;
+    for (let i = 0; i < this.torchOwner.length; i++) {
+      if (this.torchOwner[i] !== e) continue;
+      this.torchOwner[i] = null;
+      this.world.level.lights.setOn(this.torches[i]!.id, false);
+    }
+    this.releaseCover(e);
+    e.dispose();
+  }
+
+  /** Remove every guard, body and drone (a Sector Ops unload): `clear`, and the last known position is forgotten. */
+  despawnAll(): void {
+    this.clear();
+    this.lkpValid = false;
+    this.sightT = 99;
+  }
+
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
-    if (this.alive >= MAX_ALIVE) return null;
+    if (this.alive >= this.maxAlive) return null;
     const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
