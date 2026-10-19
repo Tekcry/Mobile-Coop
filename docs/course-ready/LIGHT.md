@@ -107,7 +107,7 @@ Dark that must stay (CT pools with dark between):
   sit behind 6 m airlock walls and shut doors (the only open-door spill, x 44 doorway, is already 0.87 -> saturated).
   The camera drill is unaffected.
 
-## 3. Lamp plan (9 new, 2 changed; 19 -> 28 baked lights)
+## 3. Lamp plan - BUILT (10 new, 2 changed; 19 -> 29 baked lights)
 All downward lamps (`kind` default `'lamp'`, no cone). A spot (`kind: 'spot'`, `cone: makeCone(...)`) is not needed:
 a downward lamp bakes a box that stops a cell above the bulb, half a spot's cube. Exact edits in `ctcourse.ts`
 `build()`:
@@ -170,8 +170,39 @@ Limits the plan respects:
 - All new lamps are destructible like the yard's (CT); a shot-out lamp comes back on a bay restart (`restore`).
 - Hot paths: untouched (map build only).
 
+### Built (course-ready S2, vitest-measured)
+All of the plan above is in `ctcourse.ts`, plus (assumed decision A3: the boosted player stands on the station 2 wall top
+and drops on the far side to unbolt the door) **L12, station 2 wall-top lamp: (31.9, 6.6, 5.0), r 7, i 0.5**. It sits over
+the far side, so the 4.4 m wall shades the near approach (vitest: near-side lamp contribution <= 0.05). The leg-up squares
+used are (30, 3.5), (96, 3.5), (140, 3.5). Column cap and bake bounds hold (test). `tests/ctcourseLight.test.ts` bakes in about 4 s.
+Camera drill: A2's far door (x 44) spills into the S3 bay with doors open; the camera reads `visibilityFromLight`, which
+saturates at 0.6 and that spot is above it, so the test compares levels clamped to `LIGHT.lit` (delta <= 0.005).
+
+| Point | Before (survey) | After (vitest) |
+| --- | --- | --- |
+| Airlock centre / pad / corner / far door (shut) | 0.30 / 0.30 / 0.30 / ~0.30 | 0.65 / 0.53 / 0.44 / 0.45 |
+| S2 wall top body z 3.5 / z 7 | 0.30 | 0.54 / 0.48 |
+| S2 wall top surface z 4 | ~0.30 | 0.65 |
+| S2 far drop (32, 3.5) / door side (32, 6.4) / bolt | - / - / 0.88 | 0.83 / 1.00 / 0.98 |
+| S2 / S5 / S7 leg-up square body | - | 0.57 / 0.58 / 0.57 |
+| S5 plate A / B body | 0.30 | 0.61 / 0.61 |
+| S5 plate A surface | 0.36 | 0.74 |
+| S5 hatch holder / frame | 0.30 / 0.33 | 0.50 / 0.56 |
+| S5 roof lip | 0.30 | 0.70 |
+| S5 hanging head | 0.30 | 0.69 |
+| S5 medkit user / face | 0.34 / 0.30 | 0.79 / 0.67 |
+| S5 back room centre | 1.00 | 0.56 |
+| S7 rope holder / strip | 0.30 / 0.41 | 0.94 / 0.85 |
+| S7 stair steps top / mid / low | 0.36 / 0.45 / 0.53 | same (unchanged) |
+| S4 release reader / face | 0.56 / 0.47 | 0.56 / 0.50 |
+| S6 scanner A / B user | 0.62 / 0.57 | 0.56 / 0.53 |
+| S8 exit centre / corners | 1.00 / 0.60 / 0.73 | 1.00 / 0.62 / 0.73 |
+
+Shots: `E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/shots-ctcourse.mjs docs/course-ready/shots after` (desktop, after
+`npm run build`; run once with master's lamps and suffix `before`). Not run in S2 (heavy lock).
+
 Polish list (not in the plan; only if Michael finds them dark in the walkthrough):
-- S2 wall top body 0.30: a wall-top lamp like L11 at (31, 6.6, 7), r 5, i 0.6.
+- (done: L12 covers the S2 wall top.)
 - S7 return stair top step 0.36: a lamp at (144.5, 6.6, 2.6), r 6, i 0.6 lifts the steps to 0.52-0.69.
 - Parity calibration: the open-sky level 0.30 reads "mid" on the meter but renders near black (curve centre 0.37).
   Unchanged here; worth a bible note when the visual pass comes.
