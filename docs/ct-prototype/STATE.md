@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 20:00 Sydney (clean point: master 4.6.5 merged, slices D+E and D2b on /ct/ at e5fc5870).
+Updated 2026-10-19 21:00 Sydney (clean point: master 4.7.0 merged at 7d0310cc, slices D+E and D2b on /ct/ at e5fc5870).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -61,7 +61,10 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
 ## Next
 1. Michael's re-test of playtest 2 on /ct/ (A, B+C, D+E, D2b). His notes come through the orchestrator and fold into
    the next slice.
-2. PR prep done (fcfc433c, master 4.6.8 merged at 75b789ab): CHANGELOG "Unreleased - ct-prototype" covers A to D2b,
+2. Master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
+   laptop runner smoke, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-traverse all pass. e2e-traverse "a tap kicks the
+   grate in" is a master flake (Character Build, feature/traverse-kick): ignore it.
+   PR prep done (fcfc433c, master 4.6.8 merged at 75b789ab): CHANGELOG "Unreleased - ct-prototype" covers A to D2b,
    TESTING.md "Playtest 2 changes", docs/systems movement / input-and-loop / audio / world-and-characters, and
    `PR-BODY.md` (draft). After Michael's notes and their slice: full `npm run e2e` on the PR head (`E2E_JOBS=2`,
    nothing else running), fill the e2e line in PR-BODY.md, then
