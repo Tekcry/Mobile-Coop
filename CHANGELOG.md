@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - process audit (feature/process-audit)
+## 4.6.3 - Process audit: test tiers, shorter e2e, one rules file (2026-10-19, PR #15)
 Michael approved the audit's report as written (2026-10-19; `docs/process-audit/REPORT.md`).
 - The full e2e run is the training level and the systems it stands on (estimated 62 -> about 28 minutes at two
   suites at a time): the parked-content suites (Hunter / Mission, Fallow, Kestrel, the Warehouse routes and AI
