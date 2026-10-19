@@ -51,10 +51,11 @@ export const CARRY = {
 /**
  * (F6, playtest 2 "rifle has a weird low ready before holding up to shoulder") A long gun's draw raises with its travel:
  * the swap / draw blocks the raise only until the gun leaves its slot (`from`, the swap's TRAVEL_IN fraction), then the
- * raise runs over `time` s, so the travel (rifle 0.4 s draw: slot to pocket in ~0.22 s) ends at the shoulder rather than
- * at the low ready the raise then left from (it waited for the whole swap). Starting values (G10).
+ * raise runs over `time` s, so the travel (rifle 0.4 s draw: slot to pocket in ~0.22 s) ends already rising toward the
+ * shoulder rather than at the low ready the raise then left from (it waited for the whole swap). `time` 0.45 keeps the
+ * whole draw-to-shoulder at about 0.7 s (G103: rifle about 0.75 s; 0.18 made it ~0.45 s). Starting values (G10).
  */
-export const DRAW_RAISE = { from: 0.5, time: 0.18 };
+export const DRAW_RAISE = { from: 0.5, time: 0.45 };
 
 export function emptyCarryInput(): CarryInput {
   return {

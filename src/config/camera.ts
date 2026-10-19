@@ -144,11 +144,13 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
 export const WALL_CAMERA = {
   /** (A3, G137) Strict peek: the camera pivot swings only 0.4 m past the body (was 0.6; the head itself goes out 0.35,
    *  `WALL.peekOut`) and the view turns 12 deg (was 25), so the camera sees only a small slice past the corner. Starting
-   *  values (G10). Eases over 0.3 s. */
+   *  values (G10). Eases over `blend` s (F4: 0.55). */
   // (F4, playtest 2 "the camera needs to slide sideways") the camera slides toward the open side by how far the player
   // looks / pushes past the edge (`WallCore.peekView`): the pivot up to `offset` past the body, the shoulder offset
   // giving way to it and the boom in to `boom` (CT: 1.0-1.5 m from the head, ct-measure-walls-doors-combat-vision.md)
-  peek: { offset: 0.75, yaw: (18 * Math.PI) / 180, blend: 0.3, boom: 1.4 },
+  // (F4) blend 0.55 (was 0.3): the slide moves the pivot, boom and shoulder together, so a 0.3 s ease stepped the
+  // camera ~10 cm a frame (e2e-wall caps it at 6)
+  peek: { offset: 0.75, yaw: (18 * Math.PI) / 180, blend: 0.55, boom: 1.4 },
   /** (21w) The shoulder swap on a wall (the slide reversing, an edge's open side): a slower critically damped rate
    *  (1/s) than the free camera's `camShoulder` 15.5, so the swap is an ease, never a 10 cm per-frame whip. */
   side: 5,

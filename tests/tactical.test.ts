@@ -97,7 +97,7 @@ describe('weapon carry', () => {
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });
-  it('(F6) a rifle draw raises with its travel: near the shoulder by the travel end (~0.22 s), not at the low ready', () => {
+  it('(F6) a rifle draw raises with its travel: well up by the travel end (~0.22 s), not at the low ready (G103 timing)', () => {
     const after = (raiseTime: number, secs: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -106,7 +106,10 @@ describe('weapon carry', () => {
       for (let t = 0; t < secs - 1e-9; t += DT) c.update(DT, i);
       return c.raise;
     };
-    expect(after(DRAW_RAISE.time, 0.22)).toBeGreaterThan(0.9);
+    // the raise starts as the gun leaves the slot, so by the travel end it is past half way and rising; shouldered (0.9)
+    // about 0.45 s after the slot, the whole draw about 0.7 s (G103)
+    expect(after(DRAW_RAISE.time, 0.22)).toBeGreaterThan(0.5);
+    expect(after(DRAW_RAISE.time, 0.5)).toBeGreaterThan(0.9);
     expect(after(0, 0.22)).toBeLessThan(0.7);
   });
   it('holds up after the last shot, then lowers back to ready', () => {

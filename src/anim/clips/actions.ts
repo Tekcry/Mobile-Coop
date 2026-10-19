@@ -147,8 +147,9 @@ function swapClip(from: SwapReach, to: SwapReach) {
       hLY: [0, 1.0, 0.2, 0.88, 0.7, 0.88, 1, 1.1],
       hLZ: [0, 0.1, 0.2, 0.05, 0.7, 0.05, 1, 0.14],
       // (F6) a draw to the back slot's gun comes up level (its travel ends at the shoulder): no muzzle-down low ready on
-      // the way in (0.45 rad at 0.75 was the dip); the holster half and the other slots keep the old keys
-      wpPitch: BACK(to) ? [0, 0, 0.2, 0.5, 0.38, 0.45, 0.47, 0.45, 0.5, 0, 1, 0] : [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
+      // the way in (0.45 rad at 0.75 was the dip): level from the slot (0.38) on, so the clip adds no pitch change to
+      // the draw raise (a drop near 0.5 was a 0.15-0.2 rad one-frame pop in e2e-anim); other slots keep the old keys
+      wpPitch: BACK(to) ? [0, 0, 0.2, 0.5, 0.38, 0, 1, 0] : [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
       // the chest turns towards the reach (right shoulder / left hip / right thigh)
       spYaw: [0, 0, 0.26, BACK(from) ? 0.16 : from === 'sling' ? -0.3 : 0.08, 0.38, BACK(from) ? 0.18 : from === 'sling' ? -0.32 : 0.1, 0.56, BACK(to) ? 0.14 : to === 'sling' ? -0.3 : 0.08, 1, 0],
       spPitch: [0, 0, 0.35, BACK(from) ? 0 : 0.16, 0.56, BACK(to) ? 0 : 0.14, 1, 0],
