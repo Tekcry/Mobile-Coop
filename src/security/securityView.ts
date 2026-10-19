@@ -59,7 +59,7 @@ export class SecurityView {
       if (v.lastMode !== c.mode) {
         v.lastMode = c.mode;
         this.parts.setColor(v.led, c.mode === 'online' ? LED_ON : LED_OFF);
-        if (c.mode === 'destroyed') v.node.rotation.x = 0.5;
+        v.node.rotation.x = c.mode === 'destroyed' ? 0.5 : 0;
       }
     }
   }

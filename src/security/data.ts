@@ -15,6 +15,8 @@ export interface CameraDevice {
   sweep?: [number, number];
   room?: string;
   reason: string;
+  /** Sector Ops: the section the camera belongs to (live only while that section is; none = always live). */
+  section?: number;
 }
 
 export type SecurityDevice = CameraDevice;

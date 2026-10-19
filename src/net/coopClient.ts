@@ -21,12 +21,14 @@ import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { CtDevices } from '../game/ctDevices';
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
+import { markCompleted } from '../save/sectorRecord';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -58,6 +60,8 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** Sector Ops: the client's mirror of the cameras and lasers. */
+  private sec: CtDevices | null = null;
 
   constructor(
     private g: GameState,
@@ -78,6 +82,16 @@ export class CoopClient implements NetAttachment {
         if (e.phase === 'start') this.tdKind = e.kind;
       }));
       this.offs.push(() => feed.dispose(), () => disposeClientCourse(g));
+    }
+    if (g.opts.mode === 'sector') {
+      // Sector Ops: the cameras and lasers as the host's `sector` message drives them; our jam goes to the host
+      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+      this.sec = ct;
+      g.ctDev = ct;
+      this.offs.push(() => {
+        ct.dispose();
+        g.ctDev = null;
+      });
     }
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
@@ -117,6 +131,9 @@ export class CoopClient implements NetAttachment {
         break;
       case 'course':
         applyCourseWire(this.g, msg);
+        break;
+      case 'sector':
+        this.onSector(msg);
         break;
       case 'end':
         this.onEndMsg(msg.stats);
@@ -498,9 +515,32 @@ export class CoopClient implements NetAttachment {
     }
   }
 
+  /**
+   * Sector Ops (A9, step 3): the host's devices for the live section only (others off), its door locks, its shot-out
+   * cameras.
+   */
+  private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
+    const ct = this.sec;
+    if (ct) {
+      if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
+      if (msg.dn) ct.applyDestroyed(msg.dn);
+      if (msg.sec) ct.apply(msg.sec);
+    }
+    if (msg.lk) {
+      const doors = this.g.world.doors;
+      for (const d of doors.list) {
+        const on = msg.lk.includes(d.index);
+        if (d.anchor.locked !== on) doors.setLocked(d, on);
+      }
+    }
+    // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
+  }
+
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
     const end = clampEnd(raw, this.time);
+    // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
+    if (this.g.opts.mode === 'sector' && end.won) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);
@@ -551,6 +591,7 @@ export class CoopClient implements NetAttachment {
 
   frameUpdate(dt: number): void {
     if (this.inCourse) clientCourseFrame(this.g, dt);
+    this.sec?.frame(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
@@ -584,7 +625,7 @@ export class CoopClient implements NetAttachment {
   }
   /** Course mode (CT prototype B3): the held jammer's target for the host. */
   sendJam(tgt: string): void {
-    if (this.inCourse) this.s.toHost({ t: 'jam', tgt });
+    if (this.inCourse || this.sec) this.s.toHost({ t: 'jam', tgt });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';
