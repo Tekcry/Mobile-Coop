@@ -43,6 +43,9 @@ Both players, each in their own browser tab or PC (two tabs of one browser work;
 | Back to wall | L3 | Left Shift |
 | Pause | Menu | Esc or P |
 
+- Interact is the action menu (4.11.0): with something in reach a list shows top right under INTERACT. A quick tap of
+  A / E runs the top row; hold A / E, move to a row, release to run it (BACK TO GAME does nothing). Hold rows (hacks,
+  medkit stations, revive) fill while A / E stays held. Hanging at the station 5 panel, A uses the panel directly.
 - With a gun drawn, A / E reloads: holster (X) before using doors.
 - You start with the rifle on slot 0; the pistol is one tap of LB / Tab away.
 
