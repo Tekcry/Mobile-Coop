@@ -37,6 +37,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | CT Core D + E (first priority); Sector Ops slice 2 on spare capacity |
 | CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
 | Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 (4.6.6) and #20 unit timeouts (4.6.8) merged. Idle between requests | Next runner request |
+| Menu Notes Build | desktop | `feature/menu-notes` | Michael's walk-test menu notes (Next 5; Michael 18:40: "can you do the other menu fixes"): title music, load screen with preloaded hero and shaders, no way back to the title, hero quality, magazine clip, rifle and pistol in the menu, one Controls menu. Behind CT Core for the desktop lock; logic e2e on the laptop runner | PR to master (minor) |
 | Sector Ops Build | desktop | `feature/sector-ops` | Low priority, spare capacity only. Slice 2: 3 Warehouse sections (M7, A12, M8: multiple routes, room to isolate guards) | Slice 2 on a preview |
 
 ## Next (in order)
@@ -47,7 +48,7 @@ Last updated: 2026-10-19 16:30 Sydney.
    pipe climb; ledge climb-up onto the knees.
 3. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
 4. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
-5. **Menu notes** (menu job, `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
+5. **Menu notes** (started 2026-10-19 18:40, job `docs/menu-notes/`, from `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
    a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
    idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
 6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
