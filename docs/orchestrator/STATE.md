@@ -40,7 +40,7 @@ Active jobs (each resume prompt is in that job's STATE.md, fenced, at the end):
   propose a card or give him the paste-in prompt.
 
 ## Master
-v4.7.4 (#25, 3d923b72). Tags v4.0.0-v4.7.4. /preview/ = dev = 3d923b72. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
+v4.7.5 (#26, 3a07eee9). Tags v4.0.0-v4.7.5. /preview/ = dev = 3a07eee9. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
 #17 4.6.5, #18 4.6.6, #19 4.6.7, #20 4.6.8, #21 Sector Ops 4.7.0 (G184-G191), #22 grate-kick flake 4.7.1, #23 build
 label commit 4.7.2. /preview/ = dev = ce1da1a3. /ct/ = ct-movement = 624fca6b (v4.7.0 PREVIEW CT; moved by the
 orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu).
@@ -51,16 +51,19 @@ orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu)
 - characterRig.ts: likely in CT Core's next slice; Menu Notes did not touch it (the forehead glow was a menu light).
 - Open for CT Core: the keyboard vent (Space starts it, an unseen E hold makes the release a kick; T1).
 
+## Overnight 2026-10-19 (Michael, 23:15-23:20, then bed)
+- Merges: "Yes, all tonight": merge #26, the Menu Notes PR (4.8.0) and the Sector Ops restart PR (patch) when green and reviewed, then tag and move /preview/. Not the ct-prototype PR. (#26 merged 23:14.)
+- CT Core: after slice F, catalogue the footage (C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/, 88 clip folders, complete), audit our movement against it and rebuild it to match, with original code (ROADMAP "Decided"). Plus the hold-A action menu, identical to CT. Briefed 23:16 and 23:21.
+- Morning for Michael: walk slice F on /ct/; the overnight report.
+
 ## Waiting on Michael
-- New CT clips are on the laptop; Michael copies them to the desktop, C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/clips-2026-10-19/ (pc/ is gitignored; old clips in C:/NightShift/Mobile-Coop-locomotion/pc/ct-work/clips, keep that worktree until they are copied). Then pass the folder to CT Core.
 - New CT footage for the movement fine-tuning (legs, upper body in ADS, shimmy swing, drainpipe, pistol).
 - The audit's branch and worktree list (docs/process-audit/REPORT.md section 5) is for him to prune.
 
 ## Next for the orchestrator
-1. CT Core: review its clear-items slice (WALK-2026-10-19.md "Clear now"), then pass Michael's footage on when it
-   arrives. The ct-prototype PR waits until Michael is happy with the movement, or until he asks for a merge.
+1. CT Core: review slice F when it reports, then the footage catalogue, the audit and each movement slice. The ct-prototype PR waits until Michael is happy with the movement, or until he asks for a merge.
 2. Menu Notes: review and merge its PR (a minor step, 4.8.0 if it is next). Relayed at 22:50 (fix before the full e2e): src/ui/screens/settingsScreen.ts:155 "Default shoulder" now does nothing (F1: holstered is always right; remove the row); src/ui/screens/controlsScreen.ts:23 "LT / RT: Aim / fire" is wrong since F1a (match CT Core's bindings). CT Core slice F WIP is at 980a9695 (check, e2e, sheets, independent check still to run); F7 answer given to Michael (old saved pad settings had speed on D-pad left / right; a settings migration moves them).
-3. Character Build: review and merge lightfield-heap (a patch).
+3. Character Build: runner only now (lightfield-heap merged, #26 4.7.5).
 4. Sector Ops: the PC perf run with full guard counts (G187), when the desktop is free.
 5. Republish the dashboard after every roadmap change (https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh, source
    docs/orchestrator/dashboard.html, publish the same file path; it declares `db`; answers in collection `answers`).

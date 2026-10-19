@@ -12,14 +12,16 @@ bunker fully functional and running, but sector ops can at least run when there 
 course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
 runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
 
-Last updated: 2026-10-19 22:55 Sydney (new Claude account: every session restarted from git at 22:40).
+Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restarted from git at 22:40).
 
 ## Waiting on Michael
-1. New CT footage for the movement fine-tuning (legs, rigid upper body in ADS tilting at the hips, shimmy swing,
-   drainpipe, pistol aim). Michael: "Still not an accurate recreation of CT movement. I will take more recordings."
+1. Walk slice F on /ct/ in the morning (CT Core, overnight).
 2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+- Movement rebuild from the footage (23:15): "Catalogue them, audit, and update our movement system to match the recorded animatimations, movements camera angels, speeds, everything about movement. Must be exactly the same as the recorded movement, only made original by you." (23:20) "I expect a thorough audit of the movement system and have it replicated in my game using original code." This lifts the no-refining rule for movement. Footage: C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/ (gitignored; 88 clip folders, 62 from 2026-10-17, 26 new from 2026-10-19). CT Core, after slice F.
+- Action menu (23:20): "the action menu that shows up requires holding A and selecting which option you would like to proceed with, including returning to game (no action). I want it to be identical." CT Core.
+- Overnight merges (23:15): green, reviewed PRs merge without asking tonight (lightfield-heap, Menu Notes, Sector Ops restart); not the ct-prototype PR.
 - Selection wheel stays on LB hold; no lethal / non-lethal switch (LT / RT covers it); with a gun drawn A reloads (CT).
 - Scanners: no HP cost when the partner never started; the 10 HP cost stays for a late or abandoned hack (CT Core,
   a later slice).
@@ -35,8 +37,8 @@ Last updated: 2026-10-19 22:55 Sydney (new Claude account: every session restart
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | New account (22:40): all sessions restarted; this roadmap, reviews and merges | Menu Notes PR; lightfield-heap and Sector Ops PRs as they turn green |
-| CT Core Build | desktop | `feature/ct-prototype` | First priority. Slice F (clear items of Michael's walk notes, F1-F7): code at 980a9695, check + e2e on the desktop lock since 22:42 | Slice F on /ct/; fine-tuning waits for Michael's new CT footage |
-| Character Build | laptop (second heavy slot) | test runner | The laptop test runner; order CT Core, Menu Notes, Sector Ops. Own job: lightfield-heap (e0984128), 5 loaded check runs | Menu Notes full e2e; lightfield-heap PR (patch) |
+| CT Core Build | desktop | `feature/ct-prototype` | First priority. Slice F (F1-F7) at 637d41d5: check green, laptop suites pass; e2e:quick, GPU sheets, check, /ct/. Then the footage catalogue, the movement audit and slices to match CT; the hold-A action menu | Slice F on /ct/; catalogue; audit |
+| Character Build | laptop (second heavy slot) | test runner | The laptop test runner; order CT Core, Menu Notes, Sector Ops. lightfield-heap merged (#26, 4.7.5) | Menu Notes full e2e (4ae2d2f2), then Sector Ops |
 | Menu Notes Build | desktop | `feature/menu-notes` | All notes and M1-M4 built; master 4.7.3 merged (c32eb324); CT Core's two menu fixes done (4ae2d2f2); check + full e2e on the laptop | PR (minor, 4.8.0) |
 | Sector Ops Build | desktop | `feature/sector-restart` | Spare capacity. M9 clean checkpoint restart; fix round 839a3a07 in a fresh check; master merged (cb7e1061); suites queued on the laptop | PR (patch); then the PC perf run |
 
@@ -72,6 +74,7 @@ Last updated: 2026-10-19 22:55 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #26 | 4.7.5: lightField heap check stable under load (tests only) |
 | 2026-10-19 | #25 | 4.7.4: orchestrator docs, new Claude account and dashboard |
 | 2026-10-19 | #24 | 4.7.3: orchestrator docs, walk notes, account handover |
 | 2026-10-19 | #23 | 4.7.2: the version label shows the build's own commit (preview slots showed master's) |
