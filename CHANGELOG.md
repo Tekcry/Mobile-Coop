@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - course-ready
+Marlow Yard walkthrough fixes for the 2-player co-op test (S1; audit `docs/course-ready/AUDIT.md`, 0 blockers,
+8 confusing, 14 minor).
+- Each station's task shows as the course HUD step line on both screens (bays without drills).
+- A radio line names the next step when a station opens (unbolt, camera pocket, laser release, roof plates, hatch
+  hack, scanners).
+- Station 2: the bolt counts any player past the door leaf as the bolt side; once unbolted the "Unbolt" item turns off
+  so the door menu shows on both sides (back on a bay restart).
+- Panel and radio text name pad and keyboard buttons; station 3 says how to get the pistol out and to holster before
+  the door; station 4 places the red release; station 5 says the way out after the hack; shorter panel 5.
+- The station 3 blind spot is pale blue-grey (the airlock pads stay green); leg-up squares sit on the tested spot at
+  stations 2, 5 and 7; a lone roof-plate press hints "Partner: press the other plate now"; the host's banner says who
+  is down.
+- Co-op: a course bay restart also brings an alive partner back to the checkpoint (no partner shut out by relocked
+  gates). No wire change.
+
 ## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
 - tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
   compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it

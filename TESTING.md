@@ -25,6 +25,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
+  station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
+  an alive partner back to the airlock too.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength; Settings > Accessibility > Controls: rebind a verb (A),
   clear a slot (Y), a conflict shows a warning, reset restores the defaults.
