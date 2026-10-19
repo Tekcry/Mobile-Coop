@@ -1,17 +1,13 @@
 # Night Shift - roadmap
 
-The one place that says what is happening, what comes next and what waits on Michael. Owned by the orchestrator
-session ("Night Shift | Orchestrator"): it is the only session that edits this file. Every other session reports to the
-orchestrator when it starts, finishes a slice, opens a PR or gets stuck; the orchestrator updates this file and merges.
-Machines (Michael, 2026-10-19): two heavy slots. The desktop (orchestrator, CT Core) is the main one; the laptop (Character Build) is the second, with Michael still working on it: one heavy job at a time per machine (each machine has its own C:/NightShift/heavy.lock), on the laptop at low priority and E2E_JOBS=1 so it never takes all his bandwidth. All work on either machine is headless and invisible: no headed browsers (never E2E_HEADED), no new terminal or console windows, no pointer lock or mouse capture, Blender only with -b, nothing that takes focus. GPU and visual checks stay on the desktop. The orchestrator sets the order.
-Merges (Michael, 2026-10-19): the orchestrator merges reviewed, green PRs into master without asking; master is always the most up-to-date version with every finished update. It asks only when unsure. Every merge gets the next version first (G183: a job or feature is a minor step, a fix or docs a patch; CHANGELOG heading, tag v4.x.y on the merge commit).
-Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw
+State only: what is happening, what comes next, what waits on Michael, what is done. The rules (the orchestrator,
+machines, merges, versions, test tiers) live in CLAUDE.md "Sessions". Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 13:45 Sydney.
+Last updated: 2026-10-19 14:55 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -33,18 +29,13 @@ Last updated: 2026-10-19 13:45 Sydney.
 ## Now
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Michael's approval of the audit report; the co-op suite fix job |
-| CT Core Build | desktop | `feature/ct-prototype` | Playtest 2 slice A: controls and camera (D-pad walk speed, speed 2 slowest, aim sensitivity -70 %, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob) | Slice A pushed to /ct/ for Michael; then merge master (anim-cleanup) before B + C |
-| Character Build | laptop (light work only) | `feature/process-audit` | Process audit Phase 1: docs/process-audit/REPORT.md (report only) | Report to Michael for approval |
+| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge the co-op test fix and Sector Ops PRs; CT Core slices B + C |
+| CT Core Build | desktop | `feature/ct-prototype` | Slice A on /ct/ (1cb88756, master merged); scanner rule done; slices B + C (aiming, legs, crouch, walk bob) | B + C on /ct/ for Michael |
+| Character Build | laptop (second heavy slot) | `feature/coop-tests` | Co-op test fix: sim-time waits; coop, netmove, ctcourse reliable (solo rounds, then 2 laptop full runs) | PR to master |
+| Sector Ops Build | desktop | `feature/sector-ops` | Research, then slice 1 menus, 2 Sector Ops on the Warehouse, 3 co-op mode switch | Slice 1 for Michael |
 
 ## Next (in order)
-1. **Process audit** (Character Build, laptop, light work; Phase 1 report approved in full by Michael 2026-10-19, Phase 2 applying it on feature/process-audit, CLAUDE.md wording to Michael before merge; then the desktop co-op suite fix job; runs alongside 2; Michael, 2026-10-19): report first,
-   cuts only after Michael approves. Every e2e suite with its time and what it covers for the training level (keep /
-   merge / legacy / fix; e2e-coop and e2e-netmove must stop being "known flaky"); one test tier per kind of change;
-   one set of session and prompting rules (CLAUDE.md, session-method, orchestrator, per-job STATE); stale docs
-   archived. Opus, High; about half a day. Flaky suites (Michael, 2026-10-19): the audit finds each cause; then a fix
-   job on the desktop makes e2e-coop, e2e-netmove and e2e-ctcourse reliable (all three fail alone on master bd59f32);
-   flaky or failing suites outside the training level move to the legacy run instead of being fixed.
+1. **Co-op test fix** (Character Build, laptop; audit section 2, approved): `feature/coop-tests`.
 1d. **Sector Ops and the prototype menu** (new desktop session "Night Shift | Sector Ops"; Michael, 2026-10-19,
    docs/sector-ops/BRIEF.md on feature/sector-ops): the main menu offers only Sector Ops and Co-op (plus Loadout,
    Settings, Feedback; Missions / Training / Free Roam behind ?legacy=1). Sector Ops (original, after Conviction's
@@ -80,6 +71,7 @@ Last updated: 2026-10-19 13:45 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #15 | 4.6.3: process audit (one rules file, test tiers, full e2e 62 -> 26 min) |
 | 2026-10-19 | #14 | 4.6.2: version numbers follow the merges (G183), the in-game label shows the commit |
 | 2026-10-19 | #12 | Animation clean-up: weapon travel, reloads, shoulder swap, traversal grips, hand shapes |
 | 2026-10-19 | #13 | Phone launch for testing only (G182): minimum settings, UI fits the screen, pad input |

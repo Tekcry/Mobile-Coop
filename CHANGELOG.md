@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
+- CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).
+- docs/ROADMAP.md keeps state only; its rules moved to CLAUDE.md "Sessions". Sector Ops and the co-op test fix on the roadmap.
+
 ## 4.6.3 - Process audit: test tiers, shorter e2e, one rules file (2026-10-19, PR #15)
 Michael approved the audit's report as written (2026-10-19; `docs/process-audit/REPORT.md`).
 - The full e2e run is the training level and the systems it stands on (estimated 62 -> about 28 minutes at two
