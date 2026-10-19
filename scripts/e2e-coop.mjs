@@ -156,7 +156,13 @@ try {
   await wait(500);
   // (step 09, D8) no hip fire on the host: a client shot while holstered is refused (the host enemy keeps its hp)
   await GB(() => { window.__app.current.player.forceAds = false; });
-  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state?.mv?.dw === 0), null, 5000, 'host sees the client holstered');
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state?.mv?.dw === 0), null, 5000, 'host sees the client holstered').catch(async (e) => {
+    // (anim-cleanup) which side holds the draw: the client's own draw state and sim, or the host's copy of it
+    const cl = await GB(() => { const g = window.__app.current; const w = g.weapons; return { dw: w.drawPhase, prog: w.draw.progress, ads: g.player.ads, alive: g.player.alive, swapT: w['swapT'], swapPhase: w['swapPhase'], reloadT: w['reloadT'], stowed: w.isStowed, lock: w['drawLock'], busy: w.handsBusy, hand: g.player.rig.weaponHand }; }).catch((x) => String(x));
+    const ho = await GA(() => [...window.__app.current.net.remotes.values()].map((r) => ({ mv: r.state?.mv ? { m: r.state.mv.m, dw: r.state.mv.dw, sub: r.state.mv.sub } : null, alive: r.alive, viol: r.violations }))).catch((x) => String(x));
+    console.log(`    client ${JSON.stringify(cl)}\n    host ${JSON.stringify(ho)}\n    client errors ${JSON.stringify(eB.slice(-5))}`);
+    throw e;
+  });
   {
     await GA(() => {
       for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2);
