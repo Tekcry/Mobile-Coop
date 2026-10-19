@@ -128,6 +128,8 @@ export class AttachGrips {
    *  how far the kick-out has swung the body off the wall (m). */
   u = 0;
   outOff = 0;
+  /** (ct-prototype E2) The feet's plant weight cap (a climb-up off a drainpipe: the feet leave the pipe first). */
+  footW = 1;
   /**
    * (G176) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
    * weighted by the grip blend), so a body shorter than the 1.75 m gameplay height still meets its grips. The local
@@ -155,10 +157,11 @@ export class AttachGrips {
       case 'pipeH': {
         // facing along the pipe: the right hand leads, the left a hand's width behind (a shuffle along it)
         const len = hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
+        // (ct-prototype D2) a little longer, slower shuffle (was slack 0.12, swing 0.15 s)
         h.offL = -0.1 * k * face;
         h.offR = 0.14 * k * face;
-        h.slack = 0.12;
-        h.swingTime = 0.15;
+        h.slack = 0.16;
+        h.swingTime = 0.2;
         h.grid = 0;
         h.min = 0.2;
         h.max = len - 0.2;
@@ -169,14 +172,20 @@ export class AttachGrips {
         // which way along the axis is the body's right (the right hand grips on that side)
         const p = attachPose(a, s, face, height, this.ap);
         const sgn = a.tx * Math.cos(p.yaw) - a.tz * Math.sin(p.yaw) >= 0 ? 1 : -1;
-        h.offL = -0.22 * k * sgn;
-        h.offR = 0.22 * k * sgn;
-        h.slack = 0.12;
-        h.swingTime = 0.13;
+        // (ct-prototype D2, Michael: "hands move too quickly ... should be wider") hands a little wider apart (±0.24, was
+        // 0.22), longer reaches (slack 0.14, was 0.12) that take longer (0.18 s, was 0.13) with a higher lift and outward
+        // arc (alongLip). At the unchanged 1.2 m/s shimmy the hands cannot go much slower: the brief's ~2 reaches a second
+        // one at a time needs ~0.7 m reaches, and every slower set tried (0.22-0.3 s, one at a time or 55-65 % overlap)
+        // left a waiting hand off its grip, crossing under the body or past the arm's reach (e2e-traverse grip reach
+        // 4-33 cm). Slower hands need a slower shimmy (DE-ANIM.md).
+        h.offL = -0.24 * k * sgn;
+        h.offR = 0.24 * k * sgn;
+        h.slack = 0.14;
+        h.swingTime = 0.18;
         h.grid = 0;
         h.min = 0.08;
         h.max = a.len - 0.08;
-        h.lead = 1;
+        h.lead = 0.8;
         break;
       }
       case 'ladder':
@@ -209,6 +218,9 @@ export class AttachGrips {
         h.grid = 0;
         h.min = a.base.y + 0.3;
         h.max = a.top.y;
+        // (ct-prototype E1) the CLIMB clip's foot lift no longer rides on the planted feet (it put a foot at hip height):
+        // the plants themselves sit a little higher instead (was offL 0.12, offR 0.38), so the legs keep bent knees and
+        // the pelvis does not sink away from the hands; the top foot stays ~0.3 m below the hips
         f.offL = 0.12;
         f.offR = 0.38;
         f.slack = 0.2;
@@ -591,11 +603,13 @@ export class AttachGrips {
           t.z = lz + rz * span * sd - fz * lift * 0.08;
           t.y = this.hands.pos(g);
         }
-        // feet: on the rungs (ladder) or pressed to the wall beside the pipe
-        fl.w = fr.w = w;
-        this.plantFade = w;
+        // feet: on the rungs (ladder) or pressed to the wall beside the pipe ((ct-prototype E2) a climb-up off the top
+        // lets the feet go before the hands: `footW`)
+        fl.w = fr.w = Math.min(w, this.footW);
+        this.plantFade = fl.w;
         const fSpan = a.kind === 'ladder' ? 0.15 : 0.16;
-        const back = a.kind === 'ladder' ? 0.13 : 0.02;
+        // (ct-prototype E1) on a drainpipe the soles sit 8 cm out from the wall (was 2): room for the knees to bend in
+        const back = a.kind === 'ladder' ? 0.13 : 0.08;
         for (let i = 0; i < 2; i++) {
           const g = i === 0 ? this.feet.L : this.feet.R;
           const t = i === 0 ? fl : fr;
@@ -726,9 +740,10 @@ export class AttachGrips {
   private alongLip(l: Ledge, g: GripLimb, t: GripTarget): void {
     const q = this.hands.pos(g);
     const lift = this.hands.lift(g);
-    // the hands sit on the lip, a few cm in from the edge
-    t.x = l.a.x + l.tx * q - l.nx * (0.04 - lift * 0.06);
-    t.z = l.a.z + l.tz * q - l.nz * (0.04 - lift * 0.06);
-    t.y = l.top + lift * 0.05;
+    // the hands sit on the lip, a few cm in from the edge; (ct-prototype D2) mid-reach the hand lifts 9 cm and arcs 8 cm
+    // out past the edge (was 5 / 6)
+    t.x = l.a.x + l.tx * q - l.nx * (0.04 - lift * 0.08);
+    t.z = l.a.z + l.tz * q - l.nz * (0.04 - lift * 0.08);
+    t.y = l.top + lift * 0.09;
   }
 }

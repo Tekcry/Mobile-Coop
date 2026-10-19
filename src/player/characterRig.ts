@@ -228,6 +228,12 @@ export const WRIST_SUPPORT: readonly [number, number, number] = [0.015, -0.055, 
 
 /** Knees point along the foot and this much outward (pole), so they never knock together in a side-step. */
 export const KNEE_OUT = 0.12;
+/** (ct-prototype E1) Climbing (ladder, drainpipe): the knee pole's up share (with forward 1): knees bend up and forward. */
+export const CLIMB_KNEE_UP = 0.5;
+/** (ct-prototype D1) After a draw / holster travel the hand's grip hold eases back to the graph's weight at this rate (1/s). */
+const TRAVEL_HOLD_RATE = 5;
+/** (ct-prototype E1) Climbing, a planted sole stays at least this far (m) below the hip joints' rest height (see `lYc`). */
+const CLIMB_FOOT_BELOW = 0.35;
 /** Closest the two knee centres may come (m): two kneecaps side by side. */
 export const KNEE_GAP = 0.15;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
@@ -504,6 +510,19 @@ export class CharacterRig {
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
+  /**
+   * (ct-prototype D1) The weapon node a draw / holster travel is carrying (WeaponModel sets it; null: none): while it is
+   * `heldWeapon` the grip stays at 1. (fix r1) A node, not a flag: a travel abandoned without its end (death, the weapon
+   * removed or disposed mid-travel) can never hold the grip of anything else.
+   */
+  travelNode: TransformNode | null = null;
+  /** (ct-prototype D1) A travel is carrying the held weapon now. */
+  get weaponTravel(): boolean {
+    const n = this.travelNode;
+    return n !== null && n === this.heldWeapon && !n.isDisposed() && n.isEnabled(false);
+  }
+  /** (ct-prototype D1) The trigger hand's grip hold from a travel (1 while it runs, easing out after). */
+  private travelHold = 0;
   /**
    * (step 09, A42) Carries weapons slung / holstered (the player and remote players): with the hands empty on foot
    * the arms take the ready hands and the body keeps the armed carriage. Remotes pose it from `dw` (their weapon in
@@ -1230,6 +1249,7 @@ export class CharacterRig {
     i.swap = s.swap ?? -1;
     i.swapFrom = s.swapFrom ?? 'backC';
     i.swapTo = s.swapTo ?? 'backC';
+    i.weaponTravel = this.weaponTravel;
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
     i.ready = this.carrier && !this.heldWeapon;
@@ -1241,7 +1261,12 @@ export class CharacterRig {
     i.wallSide = s.wallSide ?? 0;
     i.lean = s.lean ?? 0;
     this.headCap = s.headCap;
-    i.traverse = s.traverse ?? 'none';
+    // (ct-prototype D+E fix r1) a climbUp that starts with the hands on world grips (a ledge / drainpipe hang, local or a
+    // remote) is the ledge climb-up; one that starts without (the team boost, relay, rope top) keeps the old clip
+    const trav = s.traverse ?? 'none';
+    if (trav === 'climbUp' && i.traverse !== 'climbUp') i.ledgeClimb = Math.max(this.reachL.w, this.reachR.w) > 0.5;
+    else if (trav !== 'climbUp') i.ledgeClimb = false;
+    i.traverse = trav;
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
     i.tumble = s.tumble ?? 0;
@@ -1577,6 +1602,14 @@ export class CharacterRig {
         R.z += (pr.z - R.z) * pr.w;
       }
     }
+    // (ct-prototype D+E, E1) climbing (ladder, drainpipe) the CLIMB clip's foot lift (up to 0.3 m, unsynced with the
+    // foot stepper) put a planted foot at hip height straight ahead: on a plant the lifted sole stays CLIMB_FOOT_BELOW
+    // under the hip joints' rest height. (Taking the lift off altogether lowered the feet so far the pelvis sank away
+    // from the hands: e2e-traverse drainpipe grip reach 4-8 cm.)
+    const climbing = this.input.traverse === 'climb';
+    const footCap = rp.y + this.bodyPivot + this.pelvisRest - CLIMB_FOOT_BELOW - p.y.ankle;
+    const lYc = climbing && this.plantL.w > 0 ? Math.min(st.lY, Math.max(0, footCap - L.y)) : st.lY;
+    const rYc = climbing && this.plantR.w > 0 ? Math.min(st.rY, Math.max(0, footCap - R.y)) : st.rY;
     // pelvis drops so both feet stay reachable with soft knees (wide steps, lower ground, kneeling):
     // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
@@ -1628,7 +1661,7 @@ export class CharacterRig {
       if (w <= 0) continue;
       const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
       const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
-      const footY = f.y + p.y.ankle + (k === 0 ? st.lY : st.rY);
+      const footY = f.y + p.y.ankle + (k === 0 ? lYc : rYc);
       const reachV = Math.sqrt(Math.max(0, len * len - dh * dh));
       const fNeed = hipY - footY - reachV;
       if (!stepping) {
@@ -1643,7 +1676,9 @@ export class CharacterRig {
     if (turned) need = 0;
     // (BC note 6) walking, the drop is held near its per-step peak (slow release) so the chest does not bob with every
     // step: a growing need is still met at once (no overstretched leg), only the easing back up slows with speed
-    const fall = 0.08 + PELVIS_HOLD * Math.min(1, hyp2(this.velX, this.velZ) / 1.2);
+    // (ct-prototype D+E) on foot only: hanging / climbing (free feet) the body's speed is the shimmy or the climb, and a
+    // held drop kept the pelvis (and the shoulders) low, the hands short of the lip (e2e-traverse shimmy grip reach 3 cm)
+    const fall = 0.08 + (free ? 0 : PELVIS_HOLD * Math.min(1, hyp2(this.velX, this.velZ) / 1.2));
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, fall);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
     // (A1.2) the hips follow the legs (this.follow); the spine takes it back so the chest stays on the facing
@@ -1679,8 +1714,8 @@ export class CharacterRig {
     }
     // legs first (onto the planner's world feet: ankle above the sole; heel raise and pitch from the pose),
     // so the weapon below is placed against this frame's legs
-    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
-    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+    this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+    this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
@@ -1689,16 +1724,16 @@ export class CharacterRig {
       fresh(this.hips);
       fresh(this.spine);
       fresh(this.torso);
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
     if (kneeGap < KNEE_GAP) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
+      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
     }
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -1764,7 +1799,10 @@ export class CharacterRig {
 
     // arms: the dominant hand takes the grip, the other the foregrip / magazine / wall (the wall contact moves
     // to the right hand when the weapon is in the left)
-    const gripW = this.heldWeapon ? t.grip : 0;
+    // (ct-prototype D1) a draw / holster travel holds the trigger hand on the grip at once (the joint-rate limits spread
+    // the reach), easing back to the graph's grip weight over 0.2 s after it
+    this.travelHold = this.weaponTravel ? 1 : Math.max(0, this.travelHold - TRAVEL_HOLD_RATE * dt);
+    const gripW = this.heldWeapon ? Math.max(t.grip, this.travelHold) : 0;
     const leftGrips = this.handBlend > 0.5;
     // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
     this.readyRf = t.readyFollow;
@@ -2114,7 +2152,9 @@ export class CharacterRig {
     const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw);
     const c = Math.cos(poleYaw);
     const sn = Math.sin(poleYaw);
-    tmpPole.set(sn + side * out * c, 0, c - side * out * sn);
+    // (ct-prototype E1) climbing a ladder / drainpipe the knee pole also points up (CLIMB_KNEE_UP): a raised foot's
+    // hip-ankle line ran along the level pole and the knee flipped (legs "upside down"); now it bends up and forward
+    tmpPole.set(sn + side * out * c, this.input.traverse === 'climb' ? CLIMB_KNEE_UP : 0, c - side * out * sn);
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight

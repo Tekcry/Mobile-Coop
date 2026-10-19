@@ -24,6 +24,7 @@ import {
 import { FENCE, LEAP, RAPPEL } from '../config/movement';
 import { AttachMachine, attachPose, axisInput, GAMEPLAY_HEIGHT, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
+import { attachGripWeight, climbUpFootWeight } from './moveState';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
 import type { Player } from './player';
 import type { MoveOverride } from './playerController';
@@ -67,8 +68,14 @@ const LOWER_TIME = 0.7;
 const LADDER_TOP_TIME = 0.6;
 /** Dropping through a ceiling vent: lower this far on the hands first (m), over this share of the exit. */
 const VENT_LOWER = 1.5;
-/** Pulling up onto a lip from a hang (s). */
-export const CLIMB_UP_TIME = 0.85;
+/**
+ * Pulling up onto a lip from a hang (s). (ct-prototype E2, Michael: "floats over instead of climbing up onto knees")
+ * Three phases (was 0.85 s, one rise): pull up, chest to the lip (k 0 - 0.4) and press on the hands (to 0.5), a knee
+ * onto the top with the body low and pitched forward as the hands let go (0.5 - 0.75), stand and step off (0.75 - 1).
+ */
+export const CLIMB_UP_TIME = 1.1;
+/** (ct-prototype E2) The climb-up's root path: below the top by `lipDrop` at `k1`, on the top at `k2`; in from `fwd0`. */
+export const CLIMB_UP_PATH = { lipDrop: 1.2, k1: 0.4, k2: 0.7, fwd0: 0.6, fwdSpan: 0.4, outK: 0.65 };
 
 /** World prompt labels for what traverse / drop would do. */
 export const ATTACH_LABEL: Record<string, string> = {
@@ -873,15 +880,23 @@ export class AttachController {
     } else if (m.phase === 'exit') {
       // climbing up rises first, then steps in (like the mantle)
       const climb = m.exitReason === 'climb' || m.exitReason === 'top';
-      const up = climb ? smooth(k / 0.6) : e;
-      const fwd = climb ? smooth((k - 0.45) / 0.55) : e;
       const t = this.end;
+      // (ct-prototype E2) a climb-up from a hang (ledge, the top of a drainpipe) rises in two steps: chest to the lip
+      // (the root CLIMB_UP_PATH.lipDrop below the top by k1), then onto the knee on the top (k2), and in over it
+      const pullUp = m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV');
+      const P = CLIMB_UP_PATH;
+      let y: number;
+      if (pullUp) {
+        const mid = t.y - P.lipDrop;
+        y = k < P.k1 ? p.y + (Math.max(p.y, mid) - p.y) * smooth(k / P.k1) : Math.max(p.y, mid) + (t.y - Math.max(p.y, mid)) * smooth((k - P.k1) / (P.k2 - P.k1));
+      } else y = p.y + (t.y - p.y) * (climb ? smooth(k / 0.6) : e);
+      const fwd = pullUp ? smooth((k - P.fwd0) / P.fwdSpan) : climb ? smooth((k - 0.45) / 0.55) : e;
       // pulling up from a hang the body eases out from the face (knees and elbows clear the wall), then in over
       // the top
-      const out = m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV') ? Math.sin(Math.PI * Math.min(1, k / 0.62)) * 0.12 : 0;
+      const out = pullUp ? Math.sin(Math.PI * Math.min(1, k / P.outK)) * 0.12 : 0;
       const ox = (a.kind === 'ledge' ? a.nx : this.climbNx) * out;
       const oz = (a.kind === 'ledge' ? a.nz : this.climbNz) * out;
-      this.kin.set(p.x + (t.x - p.x) * fwd + ox, p.y + (t.y - p.y) * up, p.z + (t.z - p.z) * fwd + oz);
+      this.kin.set(p.x + (t.x - p.x) * fwd + ox, y, p.z + (t.z - p.z) * fwd + oz);
     } else this.kin.set(p.x, p.y, p.z);
     // on a rope with the sidearm raised the body turns round to the aim
     if (a.kind === 'rappel' && m.phase === 'on' && this.player.carry.raise > 0.1) yaw = this.input.camYaw;
@@ -1120,7 +1135,10 @@ export class AttachController {
     const a = m.anchor!;
     const s = this.sPrev + (m.s - this.sPrev) * alpha;
     const k = m.progress;
-    const w = m.phase === 'exit' ? 1 - smooth(k / 0.7) : m.phase === 'enter' ? smooth((k - 0.25) / 0.75) : 1;
+    // (ct-prototype E2) a climb-up keeps the hands planted on the top until the knee is on (was released from k 0)
+    const pullUp = m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV');
+    const w = m.phase === 'exit' || m.phase === 'enter' ? attachGripWeight(m.phase, k, pullUp) : 1;
+    this.grips.footW = climbUpFootWeight(pullUp && m.phase === 'exit', k);
     const vent = m.phase === 'exit' && this.ventDrop > 0 ? this.ventInfo : null;
     if (vent) {
       vent.drop = this.ventDrop;

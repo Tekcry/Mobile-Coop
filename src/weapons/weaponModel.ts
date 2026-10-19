@@ -1,5 +1,6 @@
 import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Mesh, type Scene } from '../core/babylon';
 import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
+import { hyp3 } from '../core/mathx';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
@@ -53,18 +54,31 @@ const az = new Vector3();
 /**
  * (anim-cleanup) Draw / holster travel: the gun goes between the aim pocket and its slot along a path, carried by the
  * trigger hand on its grip (Michael: "Must holster without clipping"). In the chest frame (x right, y up, z forward,
- * metres) the grip passes near this point: beside the head on the right for a back slot (the rifle swung up over the
- * right shoulder, never across the face), out beside the right hip for the thigh holster.
+ * metres) the grip passes near this point: (ct-prototype D1) out at the right shoulder for a back slot (was [0.28, 0.3,
+ * 0.08], beside the head: the hand rose above the shoulder), never across the face; out beside the right hip for the thigh
+ * holster.
  */
-export const TRAVEL_VIA = { back: [0.28, 0.3, 0.08], thigh: [0.24, -0.1, 0.34] } as const;
+export const TRAVEL_VIA = { back: [0.36, 0.15, 0.18], thigh: [0.24, -0.1, 0.34] } as const;
 /**
  * (anim-cleanup, check fix r1) At the slot end the grip first moves out by this much (chest frame): off the back plate to
  * the right of the spine before it rises (a long gun lifted straight up from the back mount passed through the back of
  * her head), out from the thigh before it turns.
  */
 export const TRAVEL_OUT = { back: [0.2, 0.02, -0.06], thigh: [0.1, 0.02, 0.06] } as const;
-/** A long gun turns to its slot's orientation over this share of the path (muzzle up before it passes the head). */
-const TRAVEL_TURN = 0.6;
+/**
+ * (ct-prototype D1) A long gun turns to its slot's orientation spread over the whole path (was 60 %: with the waypoint
+ * at shoulder height, y 0.15 (was 0.3, head height), the hand stays below the shoulder line and the turn need not
+ * finish early).
+ */
+const TRAVEL_TURN = 0.95;
+/**
+ * (ct-prototype D1) A draw waits in the slot until the trigger hand is on the grip (wrist within this many metres of the
+ * grip point), at most until this share of the travel: the gun never leaves the holster ahead of the hand. The rest of
+ * the travel then runs over the time left (the draw's total time is kept).
+ */
+const CATCH_DIST = 0.13;
+const CATCH_MAX = 0.4;
+const catchP = new Vector3();
 const trInv = new Matrix();
 const trM = new Matrix();
 const trS = new Vector3();
@@ -212,6 +226,7 @@ export class WeaponModel {
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
   hold(rig: CharacterRig): void {
     this.trSlot = null;
+    if (rig.travelNode === this.node) rig.travelNode = null;
     const had = this.glideFrom(rig);
     this.owner = rig;
     this.slot = null;
@@ -247,6 +262,8 @@ export class WeaponModel {
   /** The slot a travel goes to / comes from (null: none running). */
   private trSlot: CarrySlot | null = null;
   private trDraw = false;
+  /** (ct-prototype D1) The draw's u when the hand reached the grip (-1: not yet). */
+  private trCatch = -1;
 
   /** (anim-cleanup) Whether a draw / holster to `slot` travels (back and thigh slots; the sling keeps the hand-off). */
   canTravel(slot: CarrySlot | null): boolean {
@@ -270,8 +287,10 @@ export class WeaponModel {
     this.node.rotationQuaternion!.copyFrom(this.trQ0);
     this.gripsOn(rig);
     rig.heldWeapon = this.node;
+    rig.travelNode = this.node;
     this.trSlot = slot;
     this.trDraw = draw;
+    this.trCatch = draw ? -1 : 0;
     this.setVisible(true);
   }
 
@@ -288,11 +307,18 @@ export class WeaponModel {
     rig.torso.computeWorldMatrix(true).invertToRef(trInv);
     g.computeWorldMatrix(true).multiplyToRef(trInv, trM);
     trM.decompose(trS, trQ, trP);
-    const k = Math.max(0, Math.min(1, u));
+    // (ct-prototype D1) a draw holds the gun in its slot until the hand is on it (or CATCH_MAX), then runs the rest
+    if (this.trCatch < 0) {
+      catchP.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
+      Vector3.TransformCoordinatesToRef(catchP, this.node.computeWorldMatrix(true), catchP);
+      const w = rig.wristR.absolutePosition;
+      if (u >= CATCH_MAX || hyp3(w.x - catchP.x, w.y - catchP.y, w.z - catchP.z) < CATCH_DIST) this.trCatch = Math.min(CATCH_MAX, Math.max(0, u));
+    }
+    const k = this.trCatch < 0 ? 0 : Math.max(0, Math.min(1, (u - this.trCatch) / (1 - this.trCatch)));
+    // one ease on the travel (smoothstep in time; the curve's shape is spatial only)
     const sm = k * k * (3 - 2 * k);
-    // a holster turns early (muzzle up before the head); a draw turns while the gun is still out beside the shoulder
-    // (from 15 % to 75 % of the path: a late turn pivoted the stock past her cheek in the aim pocket)
-    const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.15) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
+    // (ct-prototype D1) the turn spread over the path: a holster from the start, a draw from 5 % (level in the pocket)
+    const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.05) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
     Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
     // the grip's start and end (chest frame), and the curve through the waypoint
     trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
@@ -332,6 +358,7 @@ export class WeaponModel {
   /** (anim-cleanup) Ends a travel (the caller then holds or holsters the gun). */
   endTravel(): void {
     this.trSlot = null;
+    if (this.owner?.travelNode === this.node) this.owner.travelNode = null;
   }
 
   /** Mid-swap: in the right hand (grip at the palm) on its way from its slot to the aim pocket. */
@@ -366,6 +393,7 @@ export class WeaponModel {
    * the body and any back gear (`rig.backGear`) so nothing clips.
    */
   holster(rig: CharacterRig, slot: CarrySlot): void {
+    if (rig.travelNode === this.node) rig.travelNode = null;
     this.trSlot = null;
     const had = slot !== 'sling' && this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
@@ -498,6 +526,8 @@ export class WeaponModel {
 
   setVisible(v: boolean): void {
     this.node.setEnabled(v);
+    // (ct-prototype D+E fix r1) hidden mid-travel (death, a stow): the travel is over
+    if (!v && this.trSlot !== null) this.endTravel();
     this.syncThigh();
   }
 
@@ -517,6 +547,9 @@ export class WeaponModel {
 
   dispose(): void {
     this.disposed = true;
+    // (ct-prototype D+E fix r1) a travel abandoned by the weapon going away
+    this.trSlot = null;
+    if (this.owner?.travelNode === this.node) this.owner.travelNode = null;
     this.mesh?.dispose();
     this.magMesh?.dispose();
     if (this.rig) this.track(this.rig, false);

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - ct-prototype
+- Slices D+E (playtest 2, `docs/ct-prototype/DE-ANIM.md`): draw / holster keep the trigger hand on the gun the whole
+  way (the rifle out at the shoulder, not head height; the pistol waits in the holster for the hand); the hanging
+  shimmy's reaches are a little wider, longer and higher (slower hands need a slower shimmy, open); drainpipe knees
+  bend up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee
+  on the top, then stands.
+
 ## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
 The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the game's own clock: on software GL

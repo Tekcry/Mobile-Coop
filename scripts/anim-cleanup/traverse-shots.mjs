@@ -19,6 +19,10 @@ const MOVES = {
   'drainpipe': { at: [27.8, 0, 8.95, 0], tap: 'jump', move: [0, 1], times: [0.6, 1.6, 3.0], cam: [1.3, 1.1, -0.7, 1.0] },
   'hang-shimmy': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', move: [1, 0], times: [0.5, 1.2, 2.2], cam: [1.2, 0.6, -1.4, 1.4] },
   'hang-climb': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', tap2: [0.6, 'jump'], times: [0.4, 0.9, 1.3, 1.8], cam: [1.6, 1.0, -0.8, 1.4] },
+  // (ct-prototype D+E) dense frames: the climb-up's three phases, the shimmy's reaches, the drainpipe's legs
+  'hang-climb-dense': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', tap2: [0.6, 'jump'], times: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.7], cam: [2.4, 0.9, -1.2, 0.8] },
+  'hang-shimmy-dense': { at: [25.45, 0, 16, Math.PI / 2], tap: 'jump', move: [1, 0], times: [0.5, 0.58, 0.66, 0.74, 0.82, 0.9, 0.98], cam: [1.2, 0.6, -1.4, 1.4] },
+  'drainpipe-dense': { at: [27.8, 0, 8.95, 0], tap: 'jump', move: [0, 1], times: [1.0, 1.2, 1.4, 1.6, 1.8, 2.0], cam: [2.0, 0.5, -1.6, 0.7] },
   'pipe-hands': { at: [25.5, 0, 23.1, 0], camYaw: Math.PI / 2, tap: 'jump', move: [0, 1], times: [0.5, 1.2, 2.0], cam: [1.6, 0.4, 0.4, 1.6] },
   'duct': { at: [21.75, 3.2, -5, Math.PI / 2], tap: 'jump', move: [0, 1], times: [1.0, 2.5], cam: [1.2, 0.6, 0.3, 0.3] },
   'window-vault': { at: [26, 0, -9.2, 0], tap: 'jump', times: [0.25, 0.55, 0.9], cam: [1.8, 1.0, 0.2, 0.8] },

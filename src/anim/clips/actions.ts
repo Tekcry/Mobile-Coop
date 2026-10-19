@@ -115,6 +115,13 @@ const REACH: Record<SwapReach, [number, number, number]> = {
 };
 const BACK = (r: SwapReach): boolean => r === 'backL' || r === 'backC' || r === 'backR';
 
+/** (ct-prototype D1) One hand channel's swap keys: pocket, out to `f`, between the slots (`mid`), `t`, back to the pocket. */
+function travelKeys(from: SwapReach, to: SwapReach, pocket: number, f: number, mid: number, t: number): number[] {
+  const out = from === 'sling' ? [0, pocket, 0.26, f, 0.38, f] : [0, pocket, 0.06, pocket, 0.38, f];
+  const back = to === 'sling' ? [0.5, t, 0.6, t, 0.8, pocket] : [0.5, t, 0.8, pocket];
+  return [...out, 0.44, mid, ...back];
+}
+
 function swapClip(from: SwapReach, to: SwapReach) {
   const f = REACH[from];
   const t = REACH[to];
@@ -129,9 +136,11 @@ function swapClip(from: SwapReach, to: SwapReach) {
       offGrip: [0, 1, 0.1, 0, 0.86, 0, 0.94, 1],
       // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.5), then
       // up to the aim pocket (in the pocket at 0.8)
-      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.44, Math.max(f[0], t[0]) + 0.12, 0.5, t[0], 0.6, t[0], 0.8, 0.18],
-      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.44, (f[1] + t[1]) / 2, 0.5, t[1], 0.6, t[1], 0.8, 1.25],
-      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.44, (f[2] + t[2]) / 2, 0.5, t[2], 0.6, t[2], 0.8, 0.25],
+      // (ct-prototype D1) a travelled slot (back, thigh): the hand keys follow the gun's travel (out over 0.06-0.38, in
+      // over 0.5-0.8) instead of reaching the slot early and holding there; the sling's hand-off keeps the old keys
+      hRX: travelKeys(from, to, 0.18, f[0], Math.max(f[0], t[0]) + 0.12, t[0]),
+      hRY: travelKeys(from, to, 1.25, f[1], (f[1] + t[1]) / 2, t[1]),
+      hRZ: travelKeys(from, to, 0.25, f[2], (f[2] + t[2]) / 2, t[2]),
       // the support hand hangs relaxed at the side (the arm's own length below the shoulder), out of the gun's way, and
       // comes up for the grip as the gun reaches the pocket
       hLX: [0, -0.2, 0.2, -0.21, 0.7, -0.21, 1, -0.16],

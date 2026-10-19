@@ -398,8 +398,21 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   }
 }
 
-/** Blend weight of the attach grips for an attached state's phase and progress (as the local controller). */
-export function attachGripWeight(phase: (typeof ATTACH_PHASES)[number], progress: number): number {
-  const s = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-  return phase === 'exit' ? 1 - s(progress / 0.7) : phase === 'enter' ? s((progress - 0.25) / 0.75) : 1;
+/** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span). */
+export const CLIMB_UP_HANDS = { k0: 0.5, span: 0.25 };
+
+const smoothGrip = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/**
+ * Blend weight of the attach grips for an attached state's phase and progress (as the local controller). `climbUp`: a
+ * pull-up from a hang (ledge, top of a drainpipe), the hands held until the knee is on the top (CLIMB_UP_HANDS).
+ */
+export function attachGripWeight(phase: (typeof ATTACH_PHASES)[number], progress: number, climbUp = false): number {
+  if (phase === 'exit' && climbUp) return 1 - smoothGrip((progress - CLIMB_UP_HANDS.k0) / CLIMB_UP_HANDS.span);
+  return phase === 'exit' ? 1 - smoothGrip(progress / 0.7) : phase === 'enter' ? smoothGrip((progress - 0.25) / 0.75) : 1;
+}
+
+/** (ct-prototype E2) The feet's plant cap through a climb-up off a drainpipe: off the pipe by the chest at the lip (k 0.4). */
+export function climbUpFootWeight(climbUp: boolean, progress: number): number {
+  return climbUp ? 1 - smoothGrip(progress / 0.4) : 1;
 }

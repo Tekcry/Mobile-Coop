@@ -88,6 +88,12 @@ export class GripStepper {
       const oe = body + (k === 0 ? c.offR : c.offL) - o.at;
       // the worse-off limb goes first
       if (Math.abs(e) < c.slack || (o.swing < 0 && Math.abs(oe) > Math.abs(e))) continue;
+      // (ct-prototype D2) a tie (both let go together, as at the start of a shimmy): the trailing limb goes first (the
+      // leading one going first left the trailing hand to wait a whole reach, drifting under the body). Leading = its spot
+      // is further along the motion than the other's. Only for limbs either side of the body (a ledge's hands): (fix r1)
+      // a drainpipe's hands and feet (offsets of one sign) both counted as leading and never let go; ladders keep the old order)
+      const ooff = k === 0 ? c.offR : c.offL;
+      if (o.swing < 0 && Math.abs(oe) >= c.slack && Math.abs(Math.abs(oe) - Math.abs(e)) < 1e-3 && off * ooff < 0 && (off - ooff) * vel > 0) continue;
       const dir = Math.abs(vel) > 1e-3 ? Math.sign(vel) : Math.sign(e);
       const to = snap(body + off + dir * c.slack * c.lead, c);
       if (Math.abs(to - g.at) < 1e-6) continue;

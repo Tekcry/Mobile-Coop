@@ -124,10 +124,44 @@ export function rollTumble(t: number): number {
   return Math.PI * 2 * k * k * (3 - 2 * k);
 }
 
-/** Climbing up from a hang (normalised): pull up with the feet walking up the face behind the body, the knee
- *  comes over onto the top only once the hips are above the lip, then stand. */
+/**
+ * Climbing up from a hang (normalised). (ct-prototype E2) Three phases, with the root path in attachController
+ * (CLIMB_UP_PATH): pull up and press, chest to the lip, the feet walking up the face (0 - 0.5); the left knee onto the top,
+ * the shin flat on it, the body low and pitched forward, the hands letting go of the lip (0.5 - 0.75); the right foot steps up
+ * and she stands, the left foot coming through (0.75 - 1).
+ */
 export const CLIMB_UP = makeClip({
   name: 'climbUp',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 0.9, 0, 1, 1],
+    pelPitch: [0, 0, 0.35, 0.3, 0.55, 0.55, 0.75, 0.6, 0.9, 0.2, 1, 0.05],
+    spPitch: [0, -0.05, 0.4, 0.3, 0.6, 0.25, 0.8, 0.15, 1, 0],
+    hdPitch: [0, -0.2, 0.4, 0.1, 0.7, -0.15, 1, 0],
+    pelY: [0, 0, 0.45, -0.12, 0.6, -0.5, 0.78, -0.5, 0.9, -0.15, 1, 0],
+    // the left knee comes over the lip (0.58) and the shin lies on the top behind it (0.66 - 0.8), then it comes through
+    fLY: [0, 0.05, 0.4, 0.2, 0.58, 0.4, 0.66, 0.12, 0.8, 0.12, 0.9, 0.2, 1, 0],
+    fLZ: [0, -0.1, 0.5, -0.12, 0.66, -0.38, 0.8, -0.38, 0.94, 0, 1, 0],
+    fLPitch: [0, 0, 0.58, 0.6, 0.66, 1.2, 0.8, 1.2, 0.92, 0.3, 1, 0],
+    // the right foot pushes on the face, then steps up onto the top in front (0.78 - 0.9)
+    fRY: [0, 0.05, 0.4, 0.15, 0.7, 0.15, 0.8, 0.3, 0.9, 0.05, 1, 0],
+    fRZ: [0, -0.12, 0.7, -0.15, 0.84, 0.2, 0.94, 0.08, 1, 0],
+    // (the grips hold the hands on the lip until 0.5 - 0.75; the clip's hands meet them there, pressing on the top)
+    hLY: [0, 2.0, 0.4, 1.3, 0.6, 0.35, 0.75, 0.45, 0.9, 0.9, 1, 1.0],
+    hRY: [0, 2.0, 0.4, 1.3, 0.6, 0.35, 0.75, 0.45, 0.9, 0.9, 1, 1.0],
+    hLZ: [0, 0.25, 0.6, 0.45, 0.8, 0.4, 1, 0.25],
+    hRZ: [0, 0.25, 0.6, 0.45, 0.8, 0.4, 1, 0.25],
+    wpPitch: [0, -0.9, 0.9, -0.8, 1, 0],
+  },
+});
+
+/**
+ * (ct-prototype D+E fix r1) The team climb-ups (boost, relay, the two-person rope top: teamController) keep the old
+ * one-rise clip: they have no ledge grips to hold, so the ledge clip's knee plant and hand release do not fit them.
+ */
+export const CLIMB_UP_TEAM = makeClip({
+  name: 'climbUpTeam',
   duration: 1,
   keys: {
     grip: [0, 0, 1, 0],
@@ -147,6 +181,7 @@ export const CLIMB_UP = makeClip({
     wpPitch: [0, -0.9, 0.9, -0.8, 1, 0],
   },
 });
+
 
 /** Dropping through a ceiling vent (normalised over the lowering): from the crawl, the hips swing down through the
  *  hole while the chest comes upright, hanging on the edges by the end (the root drops at the same time, so the

@@ -22,7 +22,7 @@ import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { RAPPEL } from '../config/movement';
-import { attachGripWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { clearGripAxis } from '../player/attachGrips';
@@ -339,7 +339,10 @@ export class RemoteAvatar {
       const follow = !!mv!.gp && this.stillT > 0.25 && !mv!.gp.some((g) => Number.isNaN(g));
       if (follow) this.grips.settleTo(mv!.gp!);
       // (following the owner's grips the remote makes no stepping decisions of its own)
-      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph), this.rig, vent, !follow);
+      // (ct-prototype E2) a climb-up holds the hands until the knee is on, the feet leave a drainpipe first
+      const pullUp = sub.exit === 'climbUp' && (a.kind === 'ledge' || a.kind === 'pipeV');
+      this.grips.footW = climbUpFootWeight(pullUp && sub.phase === 'exit', mv!.ph);
+      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph, pullUp), this.rig, vent, !follow);
       // (G176) the rendered body sits off the gameplay root by its height's lift (visual only)
       r.position.x += this.grips.lift.x;
       r.position.y += this.grips.lift.y;

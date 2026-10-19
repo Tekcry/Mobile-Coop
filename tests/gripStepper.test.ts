@@ -45,6 +45,36 @@ describe('grip stepper', () => {
     expect(g.steps).toBeGreaterThan(10);
   });
 
+  it('(ct-prototype D2) the ledge shimmy: wider, longer reaches; at the start the trailing hand goes first', () => {
+    const cfg: GripConfig = { offL: -0.24, offR: 0.24, slack: 0.14, swingTime: 0.18, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 20 };
+    const g = new GripStepper(cfg);
+    g.reset(2);
+    let first: 'L' | 'R' | null = null;
+    let body = 2;
+    for (let i = 0; i < 4 * 120; i++) {
+      body += 1.2 / 120;
+      g.update(1 / 120, body, 1.2);
+      if (!first && g.L.swing >= 0) first = 'L';
+      if (!first && g.R.swing >= 0) first = 'R';
+    }
+    // moving +: the left hand trails, so it lets go first (a tie at the start)
+    expect(first).toBe('L');
+    // fewer, longer reaches than the old ledge set (~5 a second per hand): 4 s, both hands
+    expect(g.steps).toBeLessThan(38);
+    const r = shimmy(g, cfg, body, 1.2, 3);
+    expect(r.slid).toBe(false);
+    expect(r.maxErr).toBeLessThan(cfg.slack + 1.2 * cfg.swingTime + 0.02);
+  });
+
+  it('(ct-prototype D+E fix r1) offsets of the same sign (drainpipe hands / feet) still step from a tie', () => {
+    const cfg: GripConfig = { offL: 1.35, offR: 1.6, slack: 0.16, swingTime: 0.2, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 20 };
+    const g = new GripStepper(cfg);
+    g.reset(0);
+    const r = shimmy(g, cfg, 0, 0.9, 2);
+    expect(g.steps).toBeGreaterThan(6);
+    expect(r.maxErr).toBeLessThan(cfg.slack + 0.9 * cfg.swingTime + 0.02);
+  });
+
   it('frame-rate independent: the same steps at 60 and 120 Hz', () => {
     const run = (hz: number): number => {
       const g = new GripStepper(lip());

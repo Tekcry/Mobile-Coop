@@ -32,7 +32,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { DROP, GRENADE, LAND, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
-import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
+import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
 
@@ -77,6 +77,10 @@ export interface AnimInput {
   /** Carry slot kinds the swap holsters to / draws from. */
   swapFrom: SwapReach;
   swapTo: SwapReach;
+  /** (ct-prototype D1) A draw / holster travel is running: the gun is in the trigger hand the whole way (grip 1). */
+  weaponTravel: boolean;
+  /** (ct-prototype D+E fix r1) A climbUp from a ledge / drainpipe hang (the rig saw grips on): the knee-plant clip. */
+  ledgeClimb: boolean;
   /** Grenade throw progress 0..1, or < 0. */
   grenade: number;
   /** Body yaw rate (rad/s). */
@@ -172,6 +176,8 @@ export function defaultInput(): AnimInput {
     swap: -1,
     swapFrom: 'backC',
     swapTo: 'backC',
+    weaponTravel: false,
+    ledgeClimb: false,
     grenade: -1,
     yawRate: 0,
     armed: true,
@@ -719,7 +725,8 @@ export class AnimGraph {
 
     // --- traversal, slide, air, landing
     if (i.traverse !== 'none') {
-      const tc = TRAVERSE_CLIP[i.traverse];
+      // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
+      const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
       // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
       overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
@@ -1024,7 +1031,10 @@ export class AnimGraph {
     // holstered beat, mid-clip (and a holster leaves it mid-clip): the grip weights move onto their targets at a
     // limited rate (GRIP_RATE: a full change in 0.2 s) instead of jumping
     const gStep = GRIP_RATE * dt;
-    this.gripS += clamp(src[CH.grip]! - this.gripS, -gStep, gStep);
+    // (ct-prototype D1) a draw / holster travel carries the gun in the trigger hand: the grip channel heads for 1 the
+    // whole way (still rate-limited, so the channel stays continuous); the rig holds the hand on the grip at once
+    // (CharacterRig.travelHold: the rate-limited weight lagged the 0.145 s pistol travel, the gun floated ahead)
+    this.gripS += clamp((i.weaponTravel ? 1 : src[CH.grip]!) - this.gripS, -gStep, gStep);
     src[CH.grip] = this.gripS;
     this.offGripS += clamp(src[CH.offGrip]! - this.offGripS, -gStep, gStep);
     src[CH.offGrip] = this.offGripS;
