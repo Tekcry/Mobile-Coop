@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 21:00 Sydney (clean point: master 4.7.0 merged at 7d0310cc, slices D+E and D2b on /ct/ at e5fc5870).
+Updated 2026-10-19 21:00 Sydney (clean point: master 4.7.0 merged at 7d0310cc, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
