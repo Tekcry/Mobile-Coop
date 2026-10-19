@@ -263,3 +263,11 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   untouched); `docs/art-credits.md` (master's, which already lists the fonts). Code merged cleanly (characterRig,
   animGraph, weapons, remoteAvatar, menu files). Protocol 22 stands (weapons and menu did not bump it).
 - Checks: `npm run check` passes (155 files, 1742 tests).
+
+## 2026-10-19 - T2 full e2e triage after the master merge
+- Full `npm run e2e` (2 jobs) failed 9 + 3 flaky. Alone: e2e-ctcourse failed 3 of 3 at station 3 "pistol is drawn":
+  not a game bug, the test tapped X for 250 ms and with the weapon meshes a software-GL frame can outlast the tap;
+  `drawPistol` / `holster` now hold X until the phase changes: PASS (738 s). e2e-desktop toast regex (F1a relabel):
+  PASS. e2e-stealth-ai goggles check rewritten for F1a / G181 (night first, the wheel picks): PASS. e2e-stealth,
+  e2e-traverse, e2e-menus, e2e-course: PASS alone with no edit (load). e2e-pad, e2e-netmove: PASS alone. e2e-coop fails
+  alone at "host sees the client holstered" (same X-tap shape). Scripts only; `npm run check` passes. Report `T2-E2E.md`.

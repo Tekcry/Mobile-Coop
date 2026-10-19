@@ -125,16 +125,15 @@ async function drawPistol(P) {
   await padReady(P);
   await P.evaluate(() => { const g = window.__app.current; g.weapons.switchTo(g.weapons.sidearmIndex); });
   await until(P, () => window.__app.current.weapons.current.def.class === 'pistol', null, 20000, 'the pistol is the current gun');
-  await P.evaluate(() => window.__pad.set(2, 1));
-  await new Promise((r) => setTimeout(r, 250));
-  await P.evaluate(() => window.__pad.set(2, 0));
-  await until(P, () => { const w = window.__app.current.weapons; return w.drawPhase === 2; }, null, 20000, 'the pistol is drawn');
+  // hold X until the toggle registers (a slow software-GL frame with the real weapon meshes can span a 250 ms tap)
+  await holdUntil(P, 2, () => window.__app.current.weapons.drawPhase === 2, 'the pistol is drawn').catch((e) => diagWeapons(P, e));
+}
+async function diagWeapons(P, e) {
+  console.error(await P.evaluate(() => { const g = window.__app.current; const w = g.weapons; return JSON.stringify({ phase: w.drawPhase, cur: w.current.def.class, stowed: w.isStowed, ads: g.player.ads, wanted: g.player.adsWanted, att: g.traversal.attached, hidden: document.hidden, who: location.search }); }));
+  throw e;
 }
 async function holster(P) {
-  await P.evaluate(() => window.__pad.set(2, 1));
-  await new Promise((r) => setTimeout(r, 250));
-  await P.evaluate(() => window.__pad.set(2, 0));
-  await until(P, () => window.__app.current.weapons.drawPhase === 0, null, 20000, 'the pistol is holstered');
+  await holdUntil(P, 2, () => window.__app.current.weapons.drawPhase === 0, 'the pistol is holstered').catch((e) => diagWeapons(P, e));
 }
 /** Point the player's camera at a world point (the third-person camera sits off the eye: iterate). */
 async function aimAt(P, x, y, z) {

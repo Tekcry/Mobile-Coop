@@ -46,7 +46,7 @@ try {
   await page.keyboard.press('KeyG');
   await frames(page, 2);
   k = await G(() => ({ r: window.__app.settings.get().keys.reload, g: window.__app.settings.get().keys.gadget, toast: document.querySelector('.toasts')?.textContent ?? '', rows: [...document.querySelectorAll('.bind-row.conflict')].map((r) => r.dataset.row).sort().join() }));
-  assert(k.r.join() === 'KeyU,KeyG' && k.g.join() === 'KeyG' && /also Gadget/.test(k.toast) && k.rows === 'gadget,reload', `a key in use is shared with a conflict warning (${k.toast.trim()}; rows ${k.rows})`);
+  assert(k.r.join() === 'KeyU,KeyG' && k.g.join() === 'KeyG' && /also Quick-use selected gadget/.test(k.toast) && k.rows === 'gadget,reload', `a key in use is shared with a conflict warning (${k.toast.trim()}; rows ${k.rows})`);
   await click('.kb-key[data-bind="reload:1"]');
   await page.keyboard.press('Backspace');
   await frames(page, 2);
