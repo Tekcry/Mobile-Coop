@@ -1,38 +1,25 @@
 # Menu notes - state
 
-## Now (2026-10-19 22:55, resumed in the new account)
-Master 4.7.3 merged in (CHANGELOG conflict only, c32eb324), then the orchestrator's two CT Core menu items (4ae2d2f2:
-no Default shoulder row; the Controls screen lists the CT trigger and mouse verbs). Desktop heavy.lock held by CT Core (slice F,
-22:42), so the full PR run (`E2E_PORT=4191 E2E_JOBS=1 E2E_SUITE_TIMEOUT=900 npm run e2e`) was requested from Character
-Build on the laptop, now at 4ae2d2f2 with `npm run check` (23:10). Waiting for its reply; the boot-time check (Next 2) waits for the desktop lock.
-The PR is NOT open yet.
+## Now (2026-10-19 23:55, PR #27 open, branch frozen for the orchestrator's merge)
+PR https://github.com/Tekcry/Mobile-Coop/pull/27 "menu-notes: Michael's walk-test menu notes" is open. Laptop runner on
+4ae2d2f2: `npm run check` PASS (66 s, 1810 unit tests); full `npm run e2e` PASS, all 31 suites ok, 1388 s (E2E_JOBS=1,
+E2E_SUITE_TIMEOUT=900). After 4ae2d2f2: master 4.7.4 / 4.7.5 merged in (CHANGELOG conflict only; master's changes are
+docs and tests/lightField.test.ts) and this STATE. The orchestrator reviews, adds the 4.8.0 version commit and merges:
+no pushes to feature/menu-notes until it says the PR is merged.
 
-Before the resume (21:55): every note and M1-M4 built and committed (048c9d89 last code).
-Full `npm run e2e` on c626147a (desktop, E2E_JOBS=2, port 4191, 600 s default cap): 25 suites ok; failed e2e-ctcourse,
-e2e-netmove, e2e-coop (all killed at the 600 s cap), e2e-ct ("climbing at gear 4 rattles"), e2e-stealth ("the view
-follows every bit of look input"), e2e-pad (KNOWN FLAKY, "the locked row toasts its reason"). `npm run check` passed.
-Solo reruns (jobs=1): e2e-netmove ok 248 s, e2e-coop ok 207 s, e2e-pad ok 191 s, e2e-ct ok 58 s, e2e-stealth ok 29 s;
-e2e-ctcourse reached station 8 and was killed at 601 s (the default cap). The release checklist (TESTING.md) says the
-full run uses `E2E_SUITE_TIMEOUT=900` (ctcourse alone is ~650 s). The ctcourse rerun with the 900 s cap was started and
-STOPPED at station 5 for the account switch: not finished. heavy.lock released, port 4191 freed.
+History: c626147a's full run (600 s cap) failed only on load and the cap; solo reruns passed (git log of this file).
 
 ## Next
-1. The full run on 4ae2d2f2 from the laptop runner (requested 23:10). If the laptop cannot take it, take the desktop
-   heavy.lock when CT Core frees it, `npm run build`, then
-   `E2E_PORT=4191 E2E_JOBS=2 E2E_SUITE_TIMEOUT=900 npm run e2e` on the PR head.
-2. Boot time check (orchestrator ask): the slice 2 gate holds the menu until the hero, weapons and shaders are ready.
-   Measure boot-to-menu under software GL on this branch and on master with `E2E_PORT=4191 node
-   scripts/menu-boot-time.mjs 3` (serve each dist/ on 4191 in turn; master from a detached worktree, e.g.
-   C:/NightShift/Mobile-Coop-menu-notes-shots, which has a node_modules junction). If the gate adds more than a few
-   seconds per page, make the e2e helpers wait on `window.__app.current.bootGate` instead of a fixed time.
-3. If the full run passes (e2e-pad KNOWN FLAKY allowed): open the PR "menu-notes: Michael's walk-test menu notes" to master (body: the notes, M1-M4,
-   A1-A3, checks with the solo-rerun evidence, the GPU sheets in docs/menu-notes/shots/), report to the orchestrator,
-   STOP. Don't set the version.
-4. Clean-up: `git worktree remove --force C:/NightShift/Mobile-Coop-menu-notes-shots` (scratch worktree for GPU shots;
-   remove its node_modules junction first with `cmd /c rmdir` so the real node_modules is not touched).
+1. After the orchestrator says #27 is merged: the boot-time check (orchestrator ask) on a new follow-up branch from
+   master, when the desktop heavy.lock is free (CT Core first). The slice 2 gate holds the menu until the hero, weapons
+   and shaders are ready. Measure boot-to-menu under software GL on master (with the gate) and at v4.7.5 (before it)
+   with `E2E_PORT=4191 node scripts/menu-boot-time.mjs 3`, serving each dist/ on 4191 in turn. If the gate adds more
+   than a few seconds per page, make the e2e helpers wait on `window.__app.current.bootGate` instead of a fixed time
+   (a follow-up PR, not a blocker).
+2. Clean-up: `git worktree remove --force C:/NightShift/Mobile-Coop-menu-notes-shots` (scratch worktree for GPU shots;
+   remove its node_modules junction first with `cmd /c rmdir` so the real node_modules is not touched). Then STOP.
 
 ## Open
-- Slice 1 logic e2e running on the laptop runner (c999919f, check passed there, 213 s).
 - Slice 3 visuals not yet seen (GPU pending): W1 / W2 framing, H2-H4 pistol vs plate (one-word switch in menuSets.ts),
   H5 holster, T1 / T2 face framing, the skinned hand near the magazine, no proxy parts or lone magazine.
 
@@ -44,6 +31,7 @@ STOPPED at station 5 for the account switch: not finished. heavy.lock released, 
 - A hold change between void shots glides (0.1-0.45 s) during the crossfade; snap on a shot change if it shows.
 
 ## Done
+- 2026-10-19: master 4.7.3-4.7.5 merged; orchestrator CT Core items (4ae2d2f2: no Default shoulder row, Controls lists the CT trigger and mouse verbs; player.ts still reads defaultShoulder, left to CT Core); laptop check + full e2e PASS on 4ae2d2f2; PR #27 opened.
 - 2026-10-19: slice 4b (8 tactical candidates, sheet), Michael picked X5 (M4); slice 4c (M3: flicker in full darkness before the menu, skip A3; checker fix: Enter leak after a mouse start); slice 4d (X5 live as W3, candidates removed, green spill light removed = the forehead glow, menu-only). GPU sheet sheet-s4cd.png.
 - 2026-10-19: master 4.7.0 merged (44a0cb82).
 - 2026-10-19: worktree, BRIEF / PLAN / STATE.
