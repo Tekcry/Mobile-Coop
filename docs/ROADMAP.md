@@ -53,7 +53,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
 7. **Sector Ops** (low priority, spare capacity only; `docs/sector-ops/`): the prototype menu (Sector Ops and Co-op),
    Sector Ops on 3 Warehouse sections (M7) with multiple routes and room to isolate guards (M8), then its PR (a minor
-   step; at that merge e2e-coop's Infiltration match moves to Course or Sector Ops).
+   step).
 
 ## Later (after the prototype)
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).

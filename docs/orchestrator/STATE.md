@@ -31,8 +31,8 @@ e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner ru
 | Character Build | laptop (second heavy slot) | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (delivery confirmed 16:00) | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): runs CT Core's, then Sector Ops', logic e2e on pushed commits in C:/NightShift/Mobile-Coop-testrun. #18 and #20 merged; idle between requests. |
 
 Known clashes to handle at merge time:
-- Sector Ops' lobby hides Infiltration, which e2e-coop's match (A1, coop-tests) uses. When Sector Ops merges, e2e-coop
-  moves to Sector Ops or Course.
+- Closed: e2e-coop starts its matches through the session API, not the lobby, so Sector Ops hiding Infiltration does
+  not affect it (passed on feature/sector-ops e20c3f30 with protocol 24). No edit.
 - Sector Ops merged 4.6.8 (e20c3f30, #18's e2e-menus wait kept).
 - Net protocol: Sector Ops bumped it to 24 (syringes, client live section); CT Core also edits src/net (remoteAvatar.ts).
   Whichever merges second takes the next protocol number and reruns e2e-coop / e2e-netmove / e2e-ctcourse.
