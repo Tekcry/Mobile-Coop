@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - traverse kick flake (feature/traverse-kick)
+- e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
+  grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
+
 ## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
 - Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x
   slower and heavy tests timed out. Per-test timeouts under 120 s are dropped (readyHands, menuShots, score).
