@@ -2,14 +2,16 @@
 
 ## Unreleased - Sector Ops (feature/sector-ops)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
-  Sector Ops opens a briefing (the sectors, Difficulty, Weather, Start).
-- Sector Ops (first cut, to be rebuilt to the five-section plan in `docs/sector-ops/PLAN.md`): a copy of the Warehouse
-  in four sectors played in order, each an objective (hack, grab or download) and then its exit; guards spawn per
-  sector; cameras and laser bands (the CT devices, the pistol jammer blinds them); being spotted raises the alarm stage
-  and sends guards in; 3 lives; the result line shows time, kills, times spotted and Ghost. `?autostart=warehouseOps&mode=sector`.
+  Sector Ops opens the op list (each op's difficulty stars), then the op's briefing (its sections, Difficulty, Weather,
+  Start).
+- Sector Ops (`?autostart=warehouseOps&mode=sector`), solo or co-op: the Warehouse in three sections played in order,
+  joined by connector rooms that are the checkpoints. Each section has an objective (download, grab, hack), its own
+  guards, cameras, laser bands and alarm panel; being spotted raises the alarm stage and sends guards in. No lives:
+  solo, going down restarts the section at its checkpoint; co-op revives with the op's syringes. Completing the op
+  fills its difficulty star. The result line shows time, kills, times spotted and Ghost. Details per step below.
 - Co-op is the campaign: a new room hosts Marlow Yard in Course mode; the host can switch to Sector Ops (two players).
   Hunter, Infiltration and Free Roam only with `?legacy=1`. The Co-op entry no longer calls the Fallow bunker the
-  tutorial. Protocol 23 (the `sector` mode and message: the client mirrors cameras and lasers).
+  tutorial. Protocol 24 (the `sector` mode and message: the client mirrors the live section's devices and door locks).
 - Tests: a new required suite `e2e-sectorops`; e2e-menus, e2e-park and e2e-pad follow the new menu and lobby.
 - Sector Ops slice 2 step 1 (logic): sections and connectors (`ConnectorMachine`: locked, open, cycling, sealed; the
   near door waits for a clear doorway), the run with a carried-over alarm stage, checkpoints and `restartSection` (no
@@ -39,6 +41,10 @@
   and both players come back there. The connector and the extraction wait for every player, a downed one too (revive
   them first). The client sees only the live section's cameras and lasers, the host's door locks and shot-out cameras.
   Guards the client holds are let go before a section unloads. A camera shot out comes back on a restart. Protocol 24.
+- Sector Ops fix round: only the live section's alarm panel works (panels tagged by section; section 2 has its own),
+  and the panel alarm is armed again on every section load and restart (it used to latch once per run and send guards
+  to panels behind locked connector doors). The far door opens silently (no door noise for the new guards). A restart
+  also clears the section's camera meters and re-arms disabled panels.
 
 ## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
 - Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x

@@ -149,6 +149,10 @@ the game.
   to the checkpoint at full health (a clean retry). Undo: the `sector` branch in `CoopHost.onRespawn`.
 - **A23 (client stars, step 3):** the co-op client saves its own star on a won run (no best time: the host keeps the
   clock). Undo: the line in `CoopClient.onEndMsg`.
+- **A24 (alarm panels per section, fix round):** each section has one panel, working only while it is live: the
+  Warehouse's dock panel (section 1), a new placeholder on the x -4 wall's racking side at z 1 (section 2, placed by
+  eye), the floor panel (section 3). A panel alarm can be raised once per section load (restarts re-arm it). Undo:
+  `WAREHOUSE_OPS_ALARMS` and the `setLiveAlarms` / `resetAlarm` calls in `SectorMode.loadSection`.
 - Shot-out cameras come back on a restart (step 3; no A21 needed). Undo: `this.ct?.repair(...)` in
   `SectorMode.restartSection`.
 

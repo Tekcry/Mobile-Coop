@@ -2,7 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { buildWarehouse, warehouse } from './warehouse';
-import { WAREHOUSE_OPS_LAMPS, WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from './warehouseSectors';
+import { WAREHOUSE_OPS_ALARMS, WAREHOUSE_OPS_LAMPS, WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from './warehouseSectors';
 
 const H = 3.2;
 const T = 0.3;
@@ -125,6 +125,8 @@ export const warehouseOps: MapDef = {
       new Vector3(15, 2.6, 15),
       new Vector3(5, 0, 14),
     ];
-    return { ...lay, rooms, navSeeds, security: WAREHOUSE_OPS_SECURITY, lasers: WAREHOUSE_OPS_LASERS };
+    // alarm panels tagged by section (only the live section's work)
+    const alarms = WAREHOUSE_OPS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
+    return { ...lay, rooms, navSeeds, alarms, security: WAREHOUSE_OPS_SECURITY, lasers: WAREHOUSE_OPS_LASERS };
   },
 };

@@ -238,6 +238,12 @@ export class EnemyManager {
     this.onBodyFound?.(e, b);
   }
 
+  /** (Sector Ops) A section load or restart: a panel alarm can be raised again, and no guard holds the run. */
+  resetAlarm(): void {
+    this.alarmRaised = false;
+    this.alarmRunner = null;
+  }
+
   /** An alerted enemy worked a panel: reinforcements (once per match). */
   private raiseAlarm(e: Enemy, p: AlarmPanel): void {
     if (this.alarmRaised || p.disabled) return;

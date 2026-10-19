@@ -126,3 +126,96 @@ E2E_PORT=4191 E2E_JOBS=2 node scripts/run-e2e.mjs smoke e2e-sectorops e2e-menus 
 - `perf.mjs` with the full guard counts: pending PC run (M6).
 - Co-op Sector Ops through a room-code join in e2e-coop: after feature/coop-tests merges, and only with the
   orchestrator's say (the two-page `?net=local` check above covers the mirror for now).
+
+## Fix round (checker `check-slice2.md`, 2026-10-19)
+Light checks only again: `tsc` clean; ESLint on the changed files clean; Vitest on sectorStep3, sectors, rooms,
+sectorRecord, net, moveState, enemyManagerDespawn, reviveClock, securityCamera, course, courseTutorial, economy,
+missions and perception: 254 passed. `node --check` passes on the changed suites. No e2e run.
+
+### 1 (blocking) alarm panels per section
+- **Panel data:** tagged by section in `WAREHOUSE_OPS_ALARMS` (`warehouseSectors.ts`). `warehouseOps` replaces the
+  layout's alarms with them, and `MapLayout.alarms[].section` / `AlarmPanel.section` carry the tag.
+  - Section 1: the dock panel (-4.15, -8.2).
+  - Section 2: a new placeholder on the x -4 wall's racking side at (-4.15, 1), facing west, beside the east aisle (A24).
+  - Section 3: the floor panel (-3.85, 6).
+- **`StealthSystems.setLiveAlarms(i)`:** only section i's panel works; the others are disabled and their items are off.
+  Every panel is re-armed (`done` and progress cleared), so a panel the player disabled works again.
+- **`EnemyManager.resetAlarm()`:** clears `alarmRaised` and the runner.
+- Both are called in `SectorMode.loadSection`, which runs on every section load and every restart. `unloadSection`
+  disables all panels.
+- **The panel light:** the raised colour equals the panel's normal colour (`#ff3b30`), so there is nothing to reset.
+- **e2e:** a new scenario with the AI on (cameras held), described in Tests changed below.
+- **Vitest:** every section has exactly one panel, and its stand point lies in a room of its own section.
+
+### 2 e2e assertions made real
+- **Bodies:** in the walk, a guard is knocked out before each connector, and the suite asserts a body lies there, so
+  the unload's `bodies === 0` is real. A KO keeps the Ghost (A4: kills less knockouts).
+- **Side door:** the side-door check asserts the seal list's length against the data's `sealUnlocks`, and that the
+  start's section-2 seal list is not empty.
+- **Co-op:** the check asserts that the host's locks changed after the cycle.
+
+### 3 per-tick allocations
+- `GameState.playerRefsInto(out)` is a reused array version of `playerRefs()`. `SectorMode` uses it in `fill`, the
+  download and `exitStep`, and `fill` now has an index loop instead of `for...of`.
+- The HUD line is rebuilt only when the section, alarm or syringe numbers change; no string key is built per frame.
+
+### 4 the far door
+- It opens with `Doors.setOpen(far, true)`: no door sound, no noise, and it is not a player-opened door, so the new
+  guards don't notice it.
+
+### 5 restart extras (the cheap ones)
+- A restart re-arms disabled panels (item 1) and clears the section's camera meters (`CtDevices.repair` zeroes every
+  meter of the section's cameras).
+- **Not done:** doors back to their section-start state, and lamps. Both are on the polish list.
+
+### 6 docs and runner
+- CHANGELOG's top entries now describe the final slice: 3 sections, connectors, no lives, stars, syringes, protocol 24.
+  There is also a fix-round entry.
+- `run-e2e.mjs` COVERS adds e2e-sectorops to `src/net/` and `src/security/`.
+- New COVERS entries: `src/save/sectorRecord` runs e2e-sectorops and e2e-menus; `src/ui/screens/missionsScreen` runs
+  e2e-sectorops, e2e-menus, e2e-pad and e2e-park.
+- `testing-tools.md` (e2e-sectorops and the quick map) and `modes-and-progression.md` (alarm panels) are updated, and
+  BRIEF has A24.
+
+### Tests changed
+- `scripts/e2e-sectorops.mjs`, new scenario: a guard raises the live section's alarm panel, again after a restart.
+  - Into section 2; only section 2's panel is enabled.
+  - The guard nearest it is forced alerted with `e.alert()`, then the sim steps in 0.5 s headless chunks.
+  - The runner's panel must be section 2's. The suite waits up to 40 s sim for `alarmRaised` and asserts the stage rose
+    by one.
+  - Then `restartSection()`: the alarm is re-armed and only section 2's panel works. A second forced alert gives a
+    second panel alarm.
+- The walk: the KO body and the seal-length asserts. The co-op check: the lock change.
+- `tests/sectorStep3.test.ts`: the panel data check.
+
+### Risks for the remote run
+- **Nav path to the new panel:** the section 2 runner walks the aisle's south half, then the south cross aisle into the
+  east aisle to (-4.9, 1). If nav fails there, the suite prints the runner, and the 40 s wait reports the stage.
+- **`e.knockOut` with the AI stubbed:** it must still create the body. If not, the new precondition assert says so.
+
+### Files (fix round)
+- `src/ai/alarm.ts`
+- `src/ai/enemyManager.ts`
+- `src/game/stealthSystems.ts`
+- `src/game/gameState.ts`
+- `src/game/ctDevices.ts`
+- `src/game/modes/sectorMode.ts`
+- `src/world/mapDef.ts`
+- `src/world/maps/warehouseOps.ts`
+- `src/world/maps/warehouseSectors.ts`
+- `tests/sectorStep3.test.ts`
+- `scripts/e2e-sectorops.mjs`
+- `scripts/run-e2e.mjs`
+- `CHANGELOG.md`
+- `docs/systems/testing-tools.md`
+- `docs/systems/modes-and-progression.md`
+- `docs/sector-ops/BRIEF.md`
+
+### Remote run for the fix round
+```
+npm run check
+npm run build
+E2E_PORT=4191 E2E_JOBS=2 node scripts/run-e2e.mjs smoke e2e-sectorops e2e-stealth-ai e2e-park e2e-coop e2e-netmove e2e-ctcourse
+```
+- e2e-stealth-ai covers the plain Warehouse's panels: unchanged, no section.
+- e2e-menus and e2e-pad only if they weren't already green on 2079cb14.

@@ -56,7 +56,11 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
   `GameMode.onPlayerOut` and the section restarts; on its respawn a partner still up also comes back to the checkpoint
   (A22). Everyone down restarts as before. The connector and the extraction count every player, downed too (A20).
-  A restart repairs the section's shot-out cameras (`CtDevices.repair`).
+  A restart repairs the section's shot-out cameras and clears their meters (`CtDevices.repair`).
+- Alarm panels (fix round): tagged by section (`WAREHOUSE_OPS_ALARMS`, `MapLayout.alarms[].section`). On every section
+  load and restart `StealthSystems.setLiveAlarms(i)` leaves only that section's panel working (and re-arms one the
+  player disabled) and `EnemyManager.resetAlarm()` lets a panel alarm be raised again (once per section load). The
+  far door opens silently (`Doors.setOpen`, no door noise for the new section's guards).
 
 ## The Fallow training course (`course`)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's

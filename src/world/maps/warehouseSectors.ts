@@ -181,6 +181,18 @@ export const WAREHOUSE_OPS_LASERS: LaserDef[] = [
   { id: 'laser-deck-west', x1: 8.2, z1: 12.6, x2: 12.7, z2: 12.6, ys: [0.35, 0.9, 1.45], floorY: 2.6, label: 'Deck laser', section: 2 },
 ];
 
+/**
+ * The alarm panels, by section (fix round, checker item 1): a guard can raise only the live section's panel (the others
+ * are off). Sections 1 and 3 keep the Warehouse's two panels on the x -4 wall (the dock side, the floor side); section 2
+ * gets a placeholder panel on the same wall's racking side, at the east aisle's south half. `at` [x, z], `yaw` faces
+ * out of the wall into the section.
+ */
+export const WAREHOUSE_OPS_ALARMS: { at: [number, number]; yaw: number; section: number }[] = [
+  { at: [-4.15, -8.2], yaw: -Math.PI / 2, section: 0 },
+  { at: [-4.15, 1], yaw: -Math.PI / 2, section: 1 },
+  { at: [-3.85, 6], yaw: Math.PI / 2, section: 2 },
+];
+
 /** Section 3's brighter light: three more lamp strips lit over the mezzanine and the floor's north strip. */
 export const WAREHOUSE_OPS_LAMPS: [number, number][] = [
   [9, 15],

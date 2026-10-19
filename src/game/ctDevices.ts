@@ -345,7 +345,10 @@ export class CtDevices {
    */
   repair(section: number): void {
     for (const c of this.cams) {
-      if (c.mode !== 'destroyed' || (c.def.section !== undefined && c.def.section !== section)) continue;
+      if (c.def.section !== undefined && c.def.section !== section) continue;
+      // every camera of the section forgets what it had seen (a meter latched full too)
+      for (const m of c.meters.values()) m.meter = m.sinceSeen = m.full = m.stage = 0;
+      if (c.mode !== 'destroyed') continue;
       c.repair();
       this.camOff.delete(c.def.id);
     }

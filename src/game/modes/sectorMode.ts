@@ -86,7 +86,12 @@ export class SectorMode implements GameMode {
   private t = 0;
   private secT = 0;
   private prevMaxAlive = -1;
-  private infoKey = '';
+  /** The HUD line's values last shown (rebuilt only when one changes). */
+  private infoI = -1;
+  private infoA = -1;
+  private infoSy = -2;
+  /** Players, reused every tick (no allocation). */
+  private readonly refs: PlayerRef[] = [];
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -152,6 +157,9 @@ export class SectorMode implements GameMode {
   private loadSection(i: number): void {
     const s = this.run.defs[i];
     this.ct?.setLive(s ? i : -1);
+    // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
+    this.g.stealth?.setLiveAlarms(s ? i : -1);
+    this.g.enemyMgr?.resetAlarm();
     if (!s) return;
     const n = flags.sectorGuards ?? s.guards.length;
     for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ slot: s.guards[k]!, alerted: false });
@@ -167,6 +175,7 @@ export class SectorMode implements GameMode {
     this.pending.length = 0;
     g.enemyMgr?.despawnAll();
     this.ct?.setLive(-1);
+    g.stealth?.setLiveAlarms(-1);
   }
 
   /** The current section begins: the checkpoint, the objective, the banner. */
@@ -269,7 +278,8 @@ export class SectorMode implements GameMode {
     if (ev & CONN_UNLOCK_FAR) {
       if (d?.far) {
         this.lockDoor(d.far, false);
-        g.world.doors.open(d.far, 'quiet');
+        // opened silently: no door noise for the new section's guards (it is not a player-opened door)
+        g.world.doors.setOpen(d.far, true);
       }
       if (d) for (const k of d.seal) this.lockDoor(k, false);
       const s = this.run.defs[prev];
@@ -282,11 +292,14 @@ export class SectorMode implements GameMode {
   private fill(): void {
     const em = this.g.enemyMgr;
     if (!em) return;
-    const refs = this.g.playerRefs();
+    const refs = this.g.playerRefsInto(this.refs);
     for (let i = 0; i < this.pending.length; ) {
       const p = this.pending[i]!;
       let d = Infinity;
-      for (const r of refs) d = Math.min(d, hyp2(r.feet.x - p.slot.x, r.feet.z - p.slot.z));
+      for (let k = 0; k < refs.length; k++) {
+        const r = refs[k]!;
+        d = Math.min(d, hyp2(r.feet.x - p.slot.x, r.feet.z - p.slot.z));
+      }
       if (d < SPAWN_MIN_DIST && !p.alerted) {
         i++;
         continue;
@@ -421,7 +434,7 @@ export class SectorMode implements GameMode {
     if (!s) return;
     if (this.run.phase === 'objective' && this.run.downloading) {
       const o = s.objective;
-      const refs = g.playerRefs();
+      const refs = g.playerRefsInto(this.refs);
       let near = false;
       for (let i = 0; i < refs.length; i++) {
         const r = refs[i]!;
@@ -429,7 +442,7 @@ export class SectorMode implements GameMode {
       }
       if (near && this.run.download(dt)) this.objectiveDone(s);
       else if (near) g.hud.setObjective(`${o.label} ${Math.floor((this.run.progress / SECTOR.downloadTime) * 100)}%`);
-    } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s, g.playerRefs());
+    } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s, g.playerRefsInto(this.refs));
   }
 
   frameUpdate(): void {
@@ -438,9 +451,10 @@ export class SectorMode implements GameMode {
     const a = this.run.alarm;
     // co-op: the revive syringes left (M7); solo shows none (a down restarts the section)
     const sy = this.g.net?.revivesLeft?.() ?? -1;
-    const key = `${i}/${n}/${a}/${sy}`;
-    if (key === this.infoKey) return;
-    this.infoKey = key;
+    if (i === this.infoI && a === this.infoA && sy === this.infoSy) return;
+    this.infoI = i;
+    this.infoA = a;
+    this.infoSy = sy;
     this.g.hud.setModeInfo(sectorInfoHtml(i, n, a, sy < 0 ? null : sy));
   }
 

@@ -60,8 +60,9 @@ export interface MapLayout {
   rooms?: RoomDef[];
   /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
   switches?: { pos: Vector3; yaw: number; group: number }[];
-  /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. */
-  alarms?: { pos: Vector3; yaw: number }[];
+  /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. `section` (Sector Ops): the panel
+   *  works only while that section is live. */
+  alarms?: { pos: Vector3; yaw: number; section?: number }[];
   /** Where a carried body can be hidden (in front of a container / locker). */
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */

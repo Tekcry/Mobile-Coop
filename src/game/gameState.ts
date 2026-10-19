@@ -786,6 +786,17 @@ export class GameState implements AppState {
     return [this.localRef, ...this.remotePlayers()];
   }
 
+  /** `playerRefs()` into a reused array (per-tick callers: no allocation). */
+  playerRefsInto(out: PlayerRef[]): PlayerRef[] {
+    this.localRef.speed = this.player.controller.speed;
+    this.localRef.crouched = this.player.controller.crouched;
+    out.length = 0;
+    out.push(this.localRef);
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) out.push(rs[i]!);
+    return out;
+  }
+
   anyPlayerAlive(): boolean {
     return this.playerRefs().some((p) => p.target.alive);
   }

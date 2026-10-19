@@ -71,7 +71,7 @@ export class StealthSystems {
       this.switches.push(sw);
     });
     layout.alarms?.forEach((a, i) => {
-      const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false };
+      const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
       em.alarms.push(panel);
       const it = ints.add(panel.id, 'alarm', a.pos, 'Disable alarm', ALARM.disableTime, a.yaw);
       it.reach = 1.3;
@@ -238,6 +238,20 @@ export class StealthSystems {
     this.g.events.emit('lightOut', { x: l.x, y: l.y, z: l.z, shot: true });
     this.noise(SHOT_LIGHT_NOISE, at);
     this.em.lightsOut(l.x, l.z);
+  }
+
+  /**
+   * (Sector Ops) Only the panels of section `live` work (-1: none); panels without a section always do. Every panel
+   * comes back working and usable (a section load or restart: a panel the player disabled is armed again).
+   */
+  setLiveAlarms(live: number): void {
+    for (const q of this.panels) {
+      const off = q.panel.section !== undefined && q.panel.section !== live;
+      q.panel.disabled = off;
+      q.it.done = false;
+      q.it.progress = 0;
+      this.ints.setEnabled(q.it, !off);
+    }
   }
 
   /** The alarm went off: banner, horn, reinforcements at the map's entry points. */

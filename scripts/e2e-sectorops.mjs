@@ -39,6 +39,7 @@ const sections = (G) =>
       exit: (s.connector ?? s.extract).box,
       cp: s.connector ? s.connector.checkpoint : null,
       guards: s.guards.length,
+      seals: (s.connector?.sealUnlocks ?? []).length,
     })),
   );
 
@@ -53,7 +54,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
   assert(S.length === 3, `the Warehouse has three sections (${S.length})`);
   const d0 = await G(() => window.__sector.debug());
   assert(d0.index === 0 && d0.phase === 'objective' && d0.live === 0, `the run starts on section 1's objective, its devices live (${JSON.stringify(d0)})`);
-  assert(d0.doors.every((k) => k.near === null || (k.near === true && k.far === true)) && d0.doors[1].seal.every((x) => x === true), `every door into a later section starts locked (${JSON.stringify(d0.doors)})`);
+  assert(d0.doors.every((k) => k.near === null || (k.near === true && k.far === true)) && d0.doors[1].seal.length > 0 && d0.doors[1].seal.every((x) => x === true), `every door into a later section starts locked (${JSON.stringify(d0.doors)})`);
   const cap = await G(() => window.__app.current.enemyMgr.maxAlive);
   assert(cap === 32, `Sector Ops raises the live cap (${cap})`);
   const alive0 = await G(() => window.__app.current.enemyMgr.alive);
@@ -87,6 +88,11 @@ await run(PARAMS, async ({ page, G, sim }) => {
       break;
     }
     assert(ph.nearLocked === false && ph.farLocked === true, `section ${i + 1}: the objective unlocks the near door only (${JSON.stringify(ph)})`);
+    // (fix round) a knocked-out guard leaves a body, so the unload below really removes one (a KO keeps the Ghost, A4)
+    await G(() => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((q) => q.alive); e.knockOut({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 }); });
+    await sim(0.2);
+    const nb = await G(() => window.__app.current.enemyMgr.bodies.length);
+    assert(nb >= 1, `section ${i + 1}: a knocked-out guard lies there before the cycle (${nb} bodies)`);
     const before = await G(() => window.__app.current.enemyMgr.enemies.map((e) => e.id));
     // into the connector room: 1 s with everyone inside, the near door locks, the section unloads
     await tp(G, s.cp.x, s.cp.y, s.cp.z, s.cp.yaw);
@@ -97,7 +103,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(3.2);
     const nx = await G(() => ({ d: window.__sector.debug(), ids: window.__app.current.enemyMgr.enemies.map((e) => e.id), alive: window.__app.current.enemyMgr.alive }));
     assert(nx.d.index === i + 1 && nx.d.phase === 'objective' && nx.d.live === i + 1, `section ${i + 2} starts at the connector (${JSON.stringify(nx.d)})`);
-    assert(nx.d.doors[i].far === false && nx.d.doors[i].seal.every((x) => x === false), `section ${i + 1}: the far door (and its side door) unlocked (${JSON.stringify(nx.d.doors[i])})`);
+    assert(nx.d.doors[i].far === false && nx.d.doors[i].seal.length === s.seals && nx.d.doors[i].seal.every((x) => x === false), `section ${i + 1}: the far door (and its side door) unlocked (${JSON.stringify(nx.d.doors[i])})`);
     assert(nx.alive === 4 && !nx.ids.some((id) => before.includes(id)), `section ${i + 2}'s guards are in, none of section ${i + 1}'s (${nx.alive})`);
     assert(Math.abs(nx.d.checkpoint.x - s.cp.x) < 0.01 && Math.abs(nx.d.checkpoint.z - s.cp.z) < 0.01, 'the connector is the checkpoint');
     const cams = await G(() => window.__ctdev.debug().cams);
@@ -189,6 +195,67 @@ await run(PARAMS, async ({ page, G, sim }) => {
   assert(r.d.stage === 0 && r.d.nearLocked === true, `the alarm is back to the section's start, the near door locked again (${r.d.stage}, ${r.d.nearLocked})`);
   assert(r.obj, 'the objective is open again');
   assert(r.n === 4 && !r.ids.some((id) => startIds.includes(id)), `the section's guards are reset to its set (${r.n})`);
+});
+
+// (fix round, checker item 1) the AI on in section 2: a guard forced alerted runs to the live section's alarm panel (the
+// only one working) and the stage rises through the panel (not a direct onAlarm call); after a restart the panel and
+// the alarm are armed again and a second panel alarm works.
+console.log('sector ops: a guard raises the live section\'s alarm panel, again after a restart');
+await run(PARAMS, async ({ G, sim }) => {
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  const S = await sections(G);
+  await G(() => { const m = window.__sector; m.run.downloading = true; m.run.download(999); });
+  await sim(0.3);
+  await tp(G, S[0].cp.x, S[0].cp.y, S[0].cp.z, S[0].cp.yaw);
+  await sim(4.6);
+  const d1 = await G(() => window.__sector.debug());
+  assert(d1.index === 1 && d1.phase === 'objective', `into section 2 (${JSON.stringify(d1)})`);
+  const panels = () => G(() => window.__app.current.enemyMgr.alarms.map((p) => ({ id: p.id, s: p.section, off: p.disabled })));
+  const p1 = await panels();
+  assert(p1.length === 3 && p1.every((p) => (p.s === 1 ? !p.off : p.off)), `only section 2's panel works (${JSON.stringify(p1)})`);
+  const panelAlarm = async (tag) => {
+    const st0 = await G(() => window.__sector.debug().stage);
+    const raised0 = await G(() => window.__app.current.enemyMgr.alarmRaised);
+    assert(raised0 === false, `${tag}: the panel alarm is armed`);
+    // the guard nearest the live panel is forced alerted (the e2e-stealth-ai way)
+    await G(() => {
+      const em = window.__app.current.enemyMgr;
+      const p = em.alarms.find((q) => q.section === 1);
+      let best = null;
+      let bd = 1e9;
+      for (const e of em.enemies) {
+        if (!e.alive) continue;
+        const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z);
+        if (d < bd) {
+          bd = d;
+          best = e;
+        }
+      }
+      best.alert();
+    });
+    let runner = null;
+    for (let k = 0; k < 12 && !runner; k++) {
+      await sim(0.5);
+      runner = await G(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.alarm); return e ? { id: e.id, panel: e.alarm.id, s: e.alarm.section } : null; });
+    }
+    assert(runner && runner.s === 1, `${tag}: an alerted guard runs to section 2's panel (${JSON.stringify(runner)})`);
+    let raised = false;
+    for (let k = 0; k < 80 && !raised; k++) {
+      await sim(0.5);
+      raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
+    }
+    const d = await G(() => window.__sector.debug());
+    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
+  };
+  await panelAlarm('section 2');
+  await G(() => window.__sector.restartSection());
+  await sim(1.5);
+  const d2 = await G(() => ({ d: window.__sector.debug(), raised: window.__app.current.enemyMgr.alarmRaised }));
+  assert(d2.d.index === 1 && d2.d.restarts === 1 && d2.raised === false, `the restart re-arms the panel alarm (${JSON.stringify(d2)})`);
+  const p2 = await panels();
+  assert(p2.every((p) => (p.s === 1 ? !p.off : p.off)), `after the restart only section 2's panel works (${JSON.stringify(p2)})`);
+  await panelAlarm('after the restart');
 });
 
 console.log('sector ops: nav (M8 routes, sealed sections)');
@@ -343,6 +410,7 @@ console.log('sector ops: co-op client mirrors the live section');
     await until(B, () => window.__ctdev.debug().live === 1, null, 15000, 'the client knows section 2 is live');
     assert(await devOk(B, 1), `the client: section 2's devices are live, section 1's off (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
     const lk1 = await locks();
+    assert(lk1 !== lk0, `the cycle changed the host's door locks (${lk0} -> ${lk1})`);
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk1, 15000, 'the client mirrors the unlocked far door');
   } catch (e) {
     failed = true;

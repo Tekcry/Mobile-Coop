@@ -6,6 +6,11 @@ import { starsText } from '../src/save/sectorRecord';
 import { parseMessage, PROTOCOL_VERSION, MAX_DOORS } from '../src/net/protocol';
 import { CameraUnit } from '../src/security/camera';
 import type { CameraDevice } from '../src/security/data';
+import { warehouseOps } from '../src/world/maps/warehouseOps';
+import { LevelBuilder } from '../src/world/levelBuilder';
+import { roomAt } from '../src/world/rooms';
+import { alarmStandPoint } from '../src/ai/alarm';
+import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 
 // Sector Ops slice 2 step 3 (M7, A9, A10): syringes, the HUD line, the stars text, the `sector` message extras and the
 // shot camera restored on a restart.
@@ -69,5 +74,26 @@ describe('sector ops step 3', () => {
     c.setMode('off');
     c.repair();
     expect(c.mode).toBe('off');
+  });
+});
+
+// (fix round, checker item 1) the alarm panels are tagged by section and sit in their own section
+
+describe('sector ops alarm panels (fix round)', () => {
+  const lay = warehouseOps.build(new LevelBuilder(), 0);
+  /** The Warehouse rooms per section (A12): 1 the service entrance, 2 the racking, 3 the floor, deck and offices. */
+  const SECTION_ROOMS = [['dock', 'dispatch', 'workshop', 'corridor'], ['racking'], ['floor', 'mezz', 'office', 'manager']];
+
+  it('every panel has a section, every section a panel, and the panel stands in a room of its own section', () => {
+    const alarms = lay.alarms ?? [];
+    expect(alarms.length).toBe(WAREHOUSE_SECTORS.length);
+    for (let i = 0; i < WAREHOUSE_SECTORS.length; i++) expect(alarms.filter((a) => a.section === i).length).toBe(1);
+    const rooms = lay.rooms ?? [];
+    for (const a of alarms) {
+      const at = alarmStandPoint({ id: 'p', x: a.pos.x, y: 0, z: a.pos.z, yaw: a.yaw, disabled: false }, [0, 0]);
+      const r = roomAt(rooms, at[0], at[1], 0);
+      expect(r, `panel at ${a.pos.x}, ${a.pos.z}`).toBeGreaterThanOrEqual(0);
+      expect(SECTION_ROOMS[a.section!]).toContain(rooms[r]!.id);
+    }
   });
 });
