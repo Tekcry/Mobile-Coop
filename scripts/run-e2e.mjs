@@ -46,8 +46,10 @@ const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
 // Suites that fail now and then for reasons not yet fixed (docs/backlog.md, "Flaky e2e suites"). They always run and are always reported:
 // a failure is printed as KNOWN FLAKY and does not fail the run, a failure of any other suite does. Never skipped.
-// (process audit) the co-op pair until the co-op fix job lands; e2e-weapons-carry and e2e-pad until two clean full runs
-const KNOWN_FLAKY = new Set(['e2e-coop', 'e2e-netmove', 'e2e-weapons-carry', 'e2e-pad']);
+// (co-op test fix, 2026-10-19) e2e-coop and e2e-netmove left: 3 solo rounds and 2 full runs pass after the fix;
+// e2e-weapons-carry left after the same 2 clean full runs (the process audit's rule). e2e-pad stays: it failed full run 2
+// in its remap section (docs/backlog.md; parked, not fixed). Add a suite only with its failure written up there.
+const KNOWN_FLAKY = new Set(['e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
 // --quick: which suites cover which source folder (a path under `src/` not listed here runs CORE). Keep in step with docs/systems/testing-tools.md.

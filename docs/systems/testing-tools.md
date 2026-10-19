@@ -22,9 +22,9 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 | Change | Runs | Where |
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
-| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop; the laptop runs `check` only |
-| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop |
+| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop, or the laptop test runner when the desktop lock is held (CLAUDE.md "Machines") |
+| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
+| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 - One runner per machine: never two e2e runners, or a `check` beside a full run (the 2026-10-19 full run overlapped
   another job's runner and an orphan `check` and read 30-60 % slow).
@@ -55,9 +55,15 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
-- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-coop`, `e2e-netmove` (until the co-op fix job),
-  `e2e-weapons-carry`, `e2e-pad` (until two clean full runs). They always run; a failure prints KNOWN FLAKY and does not
-  fail the run. Any other failure counts only if it also fails in a solo rerun.
+- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-pad` only since the co-op test fix (2026-10-19). A suite
+  on the list always runs; its failure prints KNOWN FLAKY and does not fail the run. Any other failure counts only if it also
+  fails in a solo rerun.
+- The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
+  (`e2e-net-lib.mjs` `until` / `waitSim`, `setSimPages`): on software GL the sim runs at a fraction of real time
+  (at most 4 fixed steps per rendered frame), so a wall-clock timeout expired mid-move. A wall cap (10 x the timeout,
+  at least 60 s; `E2E_SIM_CAP`) is the hang guard, and a timeout names each page's sim seconds, sim rate and fps.
+  e2e-netmove and e2e-ctcourse open at 960 x 480; e2e-coop and e2e-course keep 1280 x 640 (they click through the
+  lobby, which lays out at 1280 x 720 at least).
 - Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
   (`e2e-wall:flanker`, `e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,

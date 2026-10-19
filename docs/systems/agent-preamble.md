@@ -18,7 +18,7 @@ the subagent's role, its step or slice and the previous step's handover. Read th
   them in the same change (read the number from the game's table where you can), never leave them failing.
 
 ## Checks
-- The machine's rules (CLAUDE.md "Machines"): on the laptop, `npm run check` only; on the desktop, take
+- The machine's rules (CLAUDE.md "Machines"): on the laptop, BelowNormal and `E2E_JOBS=1`, logic e2e only; on both, take
   `C:/NightShift/heavy.lock` before a heavy run.
 - e2e on the job's port only (`E2E_PORT=<port>`), one runner at a time: free the port before and after (CLAUDE.md
   "Commands"), `npm run build`, then `node scripts/run-e2e.mjs <suites>` or `npm run e2e:quick`.

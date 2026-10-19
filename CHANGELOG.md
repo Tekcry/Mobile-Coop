@@ -31,6 +31,33 @@
   `?sectorGuards=N` caps the guards per section (dev, tests). `buildWarehouse(b, opts)`: the plain Warehouse is
   unchanged.
 
+## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
+- Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x
+  slower and heavy tests timed out. Per-test timeouts under 120 s are dropped (readyHands, menuShots, score).
+- settings.test's round trip waits for its own debounced save, which under load overwrote kv/settings in a later test.
+- Tests only; what each test checks is unchanged.
+
+## 4.6.7 - Laptop test runner; co-op training first (2026-10-19, PR #19)
+Docs only (Michael). The laptop (Character Build) runs the desktop jobs' logic e2e on pushed commits when the desktop
+lock is held (CLAUDE.md "Machines", test tiers). Priority: the co-op training course first, Sector Ops on spare capacity
+(ROADMAP.md). Dashboard and orchestrator state updated.
+
+## 4.6.6 - e2e-menus slider fix: hold-repeat waits on the condition (2026-10-19, PR #18)
+- e2e-menus: holding right on the Effects slider waits until a fast step lands and sfx passes 0.2 (15 s cap)
+  instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. The results-screen wait
+  is a 60 s hang guard (was 15 s; it ran out under load). Tests only.
+
+## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
+The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.
+- The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the game's own clock: on software GL
+  the sim runs at a fraction of real time, so wall-clock timeouts expired mid-move (e2e-ctcourse's leg-up, e2e-coop's
+  holster). A timeout now names each page's sim seconds, sim rate and fps; netmove and ctcourse open at 960 x 480.
+- Stale checks fixed: e2e-netmove's walk-off stands up first (B keeps the crouch), the stacked check waits for the
+  host's copy; e2e-coop's wall medkit heals to full on Normal (G180); the crouch helpers wait to stand before pressing.
+- e2e-coop runs legacy-off: Infiltration (the Ledger) and Free Roam instead of Hunter, two players (G2).
+- e2e-coop, e2e-netmove and e2e-weapons-carry leave KNOWN_FLAKY (3 solo rounds and 2 full runs on the laptop, 23 min
+  each); e2e-pad stays (one remap failure in full run 2, parked).
+
 ## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
 - CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).
 - docs/ROADMAP.md keeps state only; its rules moved to CLAUDE.md "Sessions". Sector Ops and the co-op test fix on the roadmap.
