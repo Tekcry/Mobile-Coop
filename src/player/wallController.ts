@@ -38,14 +38,19 @@ export const WALL = {
   stickInto: 0.7,
   /** (A3, G35) Slide pace: the CT shuffle, `slideStand` / `slideCrouch` m/s at full stick along the wall, analog below
    *  (the along component past `slideDead`, rescaled 0..1), a little slower at the lower speed gears (`slideGear1` of it
-   *  at gear 1, rising to 1 at `maxGear`). Starting values. */
+   *  at gear 1, rising to 1 at `maxGear`). Starting values.
+   *  (G6, AUDIT-WALLS row 2, replaces F1b's +50 %) standing 0.525 -> 0.39 (051917 @ 15.5-18.0: a 1.1 s shuffle cycle of
+   *  0.35-0.45 m = 0.35 m/s at the spawn gear 3; Michael N5 "moves too quick along the wall"); crouched 0.45 -> 0.55
+   *  (051917 @ 29.07-30.23 ruler frames: 0.57 m in 1.17 s = 0.5 m/s at gear 3: the side-on crouch-walk is faster than
+   *  the standing shuffle). */
   maxGear: 4,
-  slideStand: 0.525,
-  slideCrouch: 0.45,
+  slideStand: 0.39,
+  slideCrouch: 0.55,
   slideGear1: 0.7,
   slideDead: 0.2,
-  /** Leaving beat (s) before the core reports off. */
-  leaveTime: 0.12,
+  /** Leaving beat (s) before the core reports off. (G6, AUDIT-EXTRA-OLD row 17, 052059 @ 17.69-17.93) 0.12 -> 0.28: the
+   *  turn out of the wall into the walk takes 0.25-0.3 s (the body's visual turn-out runs at `WALL_TURN.out`). */
+  leaveTime: 0.28,
   /** Segment ends this close (m) are joined (inside corner wrap, a flat continuation). */
   joinGap: 0.1,
   /** Stacked players: capsule centres at least 2 x 0.3 + 0.02 apart along one segment (D8). */
@@ -62,12 +67,18 @@ export const WALL = {
   edgeReach: 0.35,
   /** (A3, G36) Peek at once: the stick pushed toward the edge (over `peekPush`) at the end peeks, no hold; it stays on
    *  while the push is over `peekKeep`. The head goes out `peekOut` (m, what guards see), the rig leans `peekLean`,
-   *  eased over `peekBlend` (s). */
+   *  eased over `peekBlend` (s).
+   *  (G6, AUDIT-WALLS row 9, 052021 @ 3.4-4.6) CT leans the torso only 10-15 deg (`peekLean` 0.45 -> 0.2 rad) but the
+   *  head ends 0.15-0.25 m PAST the edge: the hips shift onto the outer foot and the body eases `peekStep` m toward the
+   *  edge (the rig's root, visual: the capsule stays on the wall). Ours at 0.45 rad put the head centre 6 cm short of the
+   *  edge (rig probe). `peekOut` (the host's light sample of a remote, from MoveState) stays 0.35: the posed head now ends
+   *  0.36 along the wall from the capsule at a full peek (wallStance.test), within 1.5 cm (e2e-netmove asserts 0.35). `peekBlend` 0.2 -> 0.3 (in 0.3, out 0.4-0.5 s in CT). */
   peekPush: 0.4,
   peekKeep: 0.25,
   peekOut: 0.35,
-  peekLean: 0.45,
-  peekBlend: 0.2,
+  peekLean: 0.2,
+  peekStep: 0.2,
+  peekBlend: 0.3,
   /** Looking past the edge (look . edge direction) peeks too. */
   peekLook: 0.85,
   /** (F4) The camera's slide past the edge starts once the look turns this far toward it (look . edge direction) and is
@@ -91,6 +102,11 @@ export function openSide(sub: number): -1 | 1 {
   return sub & WALL_SUB.edgeL ? -1 : 1;
 }
 
+/** (G6) The wall side from WALL_SUB, as `wallFacing` on the owner: an edge's open side, else the slide's facing. */
+export function wallSideFromSub(sub: number): -1 | 1 {
+  return sub & WALL_SUB.edgeL ? -1 : sub & WALL_SUB.edgeR ? 1 : sub & WALL_SUB.faceRight ? 1 : -1;
+}
+
 /** (A3) The weapon goes to the left hand while peeking at a left edge. */
 export function wallLeftHand(sub: number): boolean {
   return (sub & WALL_SUB.edgeL) !== 0 && (sub & WALL_SUB.peek) !== 0;
@@ -108,8 +124,8 @@ export function posedHeadSample(px: number, py: number, pz: number, hx: number, 
 }
 
 /** (A3, G35) The slide speed along the wall (m/s, signed like `along`) for the stick's along-wall component `along`
- *  (-1..1): 0 inside `WALL.slideDead`, then rescaled linearly to the CT shuffle at full stick (0.35 standing, 0.3
- *  crouched), scaled by the speed gear (0.7 at gear 1 up to 1 at gear 4). No allocation. */
+ *  (-1..1): 0 inside `WALL.slideDead`, then rescaled linearly to the CT shuffle at full stick (0.35 standing, 0.5
+ *  crouched at gear 3), scaled by the speed gear (0.7 at gear 1 up to 1 at gear 4). No allocation. */
 export function wallSlideSpeed(along: number, crouch: boolean, gear: number): number {
   const a = Math.abs(along);
   if (a <= WALL.slideDead) return 0;
@@ -334,6 +350,9 @@ export class WallCore {
   /** The head's offset past the edge while peeking (world XZ): the light meter samples there (light parity, bible 5.1). */
   exX = 0;
   exZ = 0;
+  /** (G6) The rig root's step toward the edge while peeking (world XZ, `WALL.peekStep` at a full peek; visual). */
+  stX = 0;
+  stZ = 0;
   lastLeave = '';
   /** The step's dt (for the peek blend). */
   private dt = 1 / 60;
@@ -443,7 +462,7 @@ export class WallCore {
 
   private clearEdge(): void {
     this.peekT = 0;
-    this.peek = this.exX = this.exZ = 0;
+    this.peek = this.exX = this.exZ = this.stX = this.stZ = 0;
     this.peekOn = false;
     this.peekView = 0;
   }
@@ -541,7 +560,7 @@ export class WallCore {
       if (mag < 0.3 || along * this.latch < -0.5) this.latch = 0;
       else along = this.latch * mag;
     }
-    // (A3, G35) the CT shuffle: 0.35 / 0.3 m/s at full stick, analog below, a little slower at the lower gears
+    // (A3, G35) the CT pace: 0.35 / 0.5 m/s at gear 3 at full stick (G6), analog below, a little slower at the lower gears
     this.v = wallSlideSpeed(along, this.crouch, i.gear);
     if (this.v !== 0) this.dir = this.v > 0 ? 1 : -1;
     // from where the body is along the wall (no lag to catch up: the controller's own acceleration paces it)
@@ -621,6 +640,9 @@ export class WallCore {
     const pe = this.peek * this.peek * (3 - 2 * this.peek);
     this.exX = ex * WALL.peekOut * pe;
     this.exZ = ez * WALL.peekOut * pe;
+    // (G6) the body eases toward the edge with the peek (the rig's root; the capsule stays)
+    this.stX = ex * WALL.peekStep * pe;
+    this.stZ = ez * WALL.peekStep * pe;
   }
 
   /** The weapon in the left hand: peeking at a left edge (WALL_SUB.leftHand). */
@@ -695,21 +717,90 @@ export function wallOverride(core: WallCore, ov: MoveOverride): MoveOverride | n
   return ov;
 }
 
-/** (step 12) The body's turn rate on a wall (rad/s): the owner's override and the remote copy's yaw ease. */
+/** (step 12) The capsule's turn rate on a wall (rad/s, the owner's override). The body's visual turn (local rig and the
+ *  remote copy) follows `wallTurnRate`. */
 export const WALL_TURN_RATE = 12;
 
-/** Head turn along the slide (rad, the look yaw toward the facing side). */
+/**
+ * (G6) The body's visual turn on and off a wall (rad/s), shared by the local rig and the remote copy (both from the
+ * same inputs, so the copy turns as the owner):
+ * - entry (AUDIT-WALLS row 15, 051917 @ 12.5-13.1 at 30 fps: back view to profile in 0.07 s, settled 3/4 by 0.25-0.3 s):
+ *   front-loaded, `fast` while more than `split` is left, then `slow` (180 deg in about 0.27 s; was 12 linear, 0.26 s
+ *   with no front-loading);
+ * - settled and crouched (row 1, 051917 @ 32.67-33.17: the side-on reversal turns through square-on in about 0.45 s):
+ *   `side` (2 x 83 deg in 0.45 s; the rise from side-on to square, row 16, in about 0.23 s);
+ * - off the wall (AUDIT-EXTRA-OLD row 17, 052059 @ 17.69-17.93: a 90-120 deg turn-out in 0.25-0.3 s): `out`.
+ * `settled`: on the wall at least `settleT` s. Starting values.
+ */
+export const WALL_TURN = { fast: 22, slow: 8, split: Math.PI / 2, side: 6.4, out: 8, settleT: 0.3 } as const;
+export function wallTurnRate(absD: number, onWall: boolean, settled: boolean, crouch: number): number {
+  if (!onWall) return WALL_TURN.out;
+  if (settled && crouch > 0.5) return WALL_TURN.side;
+  return absD > WALL_TURN.split ? WALL_TURN.fast : WALL_TURN.slow;
+}
+
+/**
+ * (G6, AUDIT-WALLS row 1, Michael P6 / P8 "unrealistic") The crouched wall stance is SIDE-ON: 051917 @ 29.0-34.0 the body
+ * turns about 83 deg from facing out toward the travel (the wall-side hip and shoulder on the wall, the spine about
+ * 45 deg forward over the knees) and crouch-walks along the wall. `yaw` (rad) the turn, eased in with the crouch from
+ * `from` to `to` (crouch blend). Visual only: the capsule keeps facing out (gameplay, the camera and the AI read that).
+ */
+export const WALL_SIDE = { yaw: 1.45, from: 0.35, to: 0.85, arm: 0.03, crouchBack: 0.16 } as const;
+
+/** (G6) The visual body yaw's offset from the face normal (rad) for the crouch blend and the wall side (1 right, -1 left:
+ *  `wallFacing`, the slide's facing or the open side at an edge). No allocation. */
+export function wallYawOffset(crouch: number, side: number): number {
+  const k = Math.max(0, Math.min(1, (crouch - WALL_SIDE.from) / (WALL_SIDE.to - WALL_SIDE.from)));
+  return (side < 0 ? -1 : 1) * WALL_SIDE.yaw * k * k * (3 - 2 * k);
+}
+
+/** Head turn along the slide (rad, the look yaw toward the facing side). (G6, AUDIT-WALLS row 3, 051917 @ 14.0-17.8:
+ *  sliding standing the head turns 70-90 deg toward the travel and drops forward) 0.55 -> 1.3 while sliding
+ *  (`WALL_LOOK_SLIDE`, by the slide's pace), `WALL_LOOK` at rest; `WALL_LOOK_PITCH` the head down while sliding (rad). */
 export const WALL_LOOK = 0.55;
+export const WALL_LOOK_SLIDE = 1.3;
+export const WALL_LOOK_PITCH = 0.3;
+export const WALL_LOOK_PEEK = 1.45;
+/** (G6) The head's look yaw on a wall (rad) for the side, the slide pace share 0..1 (`move`) and the raise. */
+export function wallLookYaw(side: number, move: number, raise: number): number {
+  const m = Math.max(0, Math.min(1, move));
+  return side * (WALL_LOOK + (WALL_LOOK_SLIDE - WALL_LOOK) * m) * (1 - raise);
+}
+
+/** (G6) The head's look yaw relative to the posed body on a wall: standing, toward the travel (`wallLookYaw`); side-on
+ *  (crouched) straight along the travel the body already faces. `visOff` the body's current visual yaw off the face
+ *  normal (rad; mid-turn the head keeps its world aim). The local rig and the remote copy both call it. */
+export function wallHeadYaw(side: number, move: number, crouch: number, visOff: number, raise: number, peek = 0): number {
+  const off = wallYawOffset(crouch, side);
+  const k = Math.abs(off) / WALL_SIDE.yaw;
+  // (G6, row 9, 052021 @ 3.4-4.6) peeking the head turns about 90 deg to the opening (the open side)
+  const pk = Math.max(0, Math.min(1, peek));
+  const stand = wallLookYaw(side, move, 0);
+  const goal = (stand + (side * WALL_LOOK_PEEK - stand) * pk) * (1 - k) + off * k;
+  return Math.max(-1.45, Math.min(1.45, goal - visOff)) * (1 - raise);
+}
+
+/** (G6) The slide's share of the walk pace for the wall head and torso turn (0 still .. 1 at 0.3 m/s). */
+export function wallMoveK(speed: number): number {
+  return Math.max(0, Math.min(1, speed / 0.3));
+}
 
 /** How far the rig's root moves from the capsule onto the face so the back sits <= 3 cm off it (m). (21w-5) `turnSin`:
  *  the sine of the body's visual turn from facing out (the lean-out arc, M16, turns it up to 175 deg): turned, the near
  *  shoulder (`shoulderHalf` off the spine) reaches the face first, so the root stops that much short of it (the push at
  *  full depth put the near shoulder 13-21 cm through the wall end in the lean in / out: audit edge-row wallClip). */
-/** (21w-5) Share of the shoulder half-width the turned body stops short by: the gap (back off the face, <= 3 cm) and
- *  the clip (through it) balance at 0.88 on the audit's edge rows (1.0: gaps to 4.3 cm; 0.8: clips back to ~13 cm). */
-export const WALL_TURN_SHOULDER = 0.88;
-export function wallRootPush(standoff: number, bodyDepthHalf: number, turnSin = 0, shoulderHalf = 0): number {
-  return Math.max(0, standoff - bodyDepthHalf - WALL_TURN_SHOULDER * shoulderHalf * Math.abs(turnSin) - 0.015);
+/** (G6) The body's reach toward the face is a turned box: half depth x |cos| + the shoulder (joint plus `WALL_SIDE.arm`
+ *  of upper arm) x |sin|, so a side-on crouch (row 1) puts the wall-side shoulder and hip about 3 cm off the face
+ *  instead of 15 cm out (21w-5's depth + 0.88 shoulder sum is the box's 45 deg corner; it held the side-on body off the
+ *  wall). Square to the wall (turnSin 0) it is unchanged. */
+export function wallRootPush(standoff: number, bodyDepthHalf: number, turnSin = 0, shoulderHalf = 0, crouch = 0): number {
+  const s = Math.min(1, Math.abs(turnSin));
+  const c = Math.sqrt(1 - s * s);
+  // (G6 fix, check BLOCK 3) crouched and turned off side-on (through the reversal) the forward trunk puts the pelvis and
+  // the hanging elbows behind the half depth: `WALL_SIDE.crouchBack` more, by the crouch blend and the share still square
+  const back = WALL_SIDE.crouchBack * Math.max(0, Math.min(1, crouch)) * c;
+  const reach = bodyDepthHalf * c + back + (shoulderHalf > 0 ? shoulderHalf + WALL_SIDE.arm : 0) * s;
+  return Math.max(0, standoff - reach - 0.015);
 }
 
 /** Body-line position for a remote's `wall` MoveState (segment `a`, `s` metres along it) -> out (x, z, yaw). */

@@ -1,5 +1,5 @@
 // Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
-// calm guard), tap = non-lethal (knocked out) / hold = lethal, the attacker aligned within 5 cm, interrupted by
+// calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT's strike is the lethal one), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
@@ -52,6 +52,18 @@ try {
         if (hold > 0) a.loop.stepHeadless(hold, 120);
         st.set('t', 'interact', false);
       },
+      /** (G5) Hold A (the context menu opens on row 1), step the highlight `rows` down, let go (the row runs). */
+      menu(rows) {
+        st.set('t', 'interact', true);
+        a.loop.stepHeadless(1 / 60, 120);
+        for (let i = 0; i < rows; i++) {
+          st.tap('uiDown');
+          a.loop.stepHeadless(1 / 60, 120);
+        }
+        st.set('t', 'interact', false);
+        a.loop.stepHeadless(1 / 60, 120);
+        return g.ctxMenu.state;
+      },
       /** (A4) With the grab menu open: select `opt` and press A (the menu arms once A is up). */
       pick(opt) {
         const m = g.grabMenu;
@@ -101,7 +113,7 @@ try {
       t.pick('knockout');
       t.run(1.0);
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
-      // front, held: lethal
+      // front: (G5, Michael 08:10: no knock out / kill rows) one row, Takedown: a tap knocks him out
       t.reset();
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, Math.PI);
@@ -109,9 +121,10 @@ try {
       e2.passive = true;
       t.step(0.4);
       const offer2 = g.takedown.offer?.plan.kind;
-      t.press(0.4);
+      const rows2 = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
+      t.press();
       t.run(1.4);
-      const lethal = em.bodies.find((b) => b.lethal) !== undefined && !e2.alive;
+      const frontKo = em.bodies.find((b) => !b.lethal) !== undefined && !e2.alive;
       // side: only on a calm guard
       t.reset();
       t.tp(2, 0, -2.2, 0);
@@ -143,7 +156,7 @@ try {
       e5.update = () => {};
       t.step(0.2);
       const calledOffer = g.takedown.offer?.plan.kind ?? null;
-      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
+      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, rows2, frontKo, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
     });
     assert(r.spotted && r.seenOffer === null, `a guard in combat who saw you offers no takedown (${r.seenOffer}, spotted ${r.spotted})`);
     assert(r.calledOffer === 'front', `one alerted without seeing you still can be taken (${r.calledOffer})`);
@@ -151,7 +164,7 @@ try {
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.grabbed, 'from behind: grabbed and held');
     assert(r.ko, 'grab menu Knock out: he is knocked out');
-    assert(r.offer2 === 'front' && r.lethal, `from the front, held: lethal (${r.offer2}, ${r.lethal})`);
+    assert(r.offer2 === 'front' && r.rows2 === 'Takedown' && r.frontKo, `from the front: one row, Takedown, a tap knocks him out (${r.offer2}, ${r.rows2}, ${r.frontKo})`);
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
 
@@ -160,38 +173,80 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       const c = g.player.controller;
+      const st0 = window.__app.input.state;
       t.tp(2, 0, -2.2, 0);
       const e = t.spawn(2, -1, 0);
       t.step(0.4);
       const lbl = g.hud.world.label('takedown');
+      const offerRows = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
       t.press();
-      t.step(0.5);
+      // (G7, AUDIT-WALLS row 5, 110936: the step-in 0.42 s then the 0.6 s pull-in; not held yet at 0.6 s)
+      t.step(0.6);
+      const early = g.takedown.hostage === e;
+      // the hold settles ~1.0-1.2 s after the press
+      t.step(0.6);
       const held = g.takedown.hostage === e;
       const menu = g.grabMenu.open;
+      // (Michael 08:10 / 08:25) held: no Knock out / Kill / Carry rows, no BACK TO GAME; with no information no menu at all
+      const behindRows = 'Grab character';
+      const heldRows = g.ctxMenu.count;
+      st0.set('t', 'interact', true);
+      t.step(0.1);
+      const heldMenu = g.ctxMenu.state;
+      st0.set('t', 'interact', false);
+      t.step(1 / 60);
       const labels = g.grabMenu.labels([]);
       const shield = g.localRef.shield === e;
       const fx = Math.sin(c.yaw);
       const fz = Math.cos(c.yaw);
-      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.42), e.pos.z - (c.pos.z + fz * 0.42));
+      // (G7, row 11: held pelvis to pelvis about 0.3 m, GRAB.hold 0.32; was 0.42)
+      // (fix round: and 0.1 m to her left, GRAB.side, so his feet walk between hers)
+      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.32 - fz * 0.1), e.pos.z - (c.pos.z + fz * 0.32 + fx * 0.1));
       // a stub entry does nothing and the menu stays open
       t.pick('device');
       t.step(0.2);
       const stubStays = g.grabMenu.open && g.takedown.hostage === e;
-      t.pick('knockout');
-      t.run(1.0);
+      // (G7, row 11, 110936 @ 22-23) the hostage walk: CT ~0.7 m/s (was gear 2, 1.4 m/s)
+      const st = window.__app.input.state;
+      st.setMove('t', 0, 1);
+      t.step(1.5);
+      const walk = c.speed;
+      st.setMove('t', 0, 0);
+      t.step(0.5);
+      // ("Missing entirely": interrogate) 1.5 s at his jaw, then the hold (and the menu) goes on
+      t.pick('interrogate');
+      t.step(0.3);
+      const inter = !g.grabMenu.open && g.takedown.hostage === e;
+      t.step(1.4);
+      const interDone = g.grabMenu.open && g.takedown.hostage === e && g.takedown.grabs.interrogated === 1;
+      // (Michael 08:10) LT knocks him out
+      st0.set('t', 'altFire', true);
+      t.step(1 / 60);
+      st0.set('t', 'altFire', false);
+      // (G7, row 20: the knockout lowers him over 0.85 s)
+      t.step(0.5);
+      const lowering = e.alive && g.takedown.active !== null;
+      t.run(0.8);
       const ko = !e.alive && !g.takedown.active && g.localRef.shield === null && !g.grabMenu.open;
-      return { lbl, held, menu, labels, shield, front, stubStays, ko };
+      return { lbl, offerRows, behindRows, heldRows, heldMenu, early, held, menu, labels, shield, front, stubStays, walk, inter, interDone, lowering, ko };
     });
+    assert(!r.early, 'the pull-in: not held yet 0.6 s after the press');
+    assert(r.walk > 0.3 && r.walk < 0.8, `the hostage walk is slow (${r.walk.toFixed(2)} m/s, CT ~0.7)`);
+    assert(r.inter && r.interDone, `Interrogate: the menu closes for it, the hold goes on after (${r.inter} / ${r.interDone})`);
+    assert(r.lowering, 'the knockout takes its time (he is lowered, not dropped)');
     assert(r.lbl === 'Grab', `the prompt from behind reads Grab ("${r.lbl}")`);
     assert(r.held && r.menu, 'A grabs and holds him, the grab menu opens');
     assert(r.labels[0] === 'Knock out' && r.labels[1] === 'Kill' && r.labels[2] === 'Carry', `menu: ${r.labels.join(' / ')}`);
     assert(r.shield, 'the hostage is a human shield');
     assert(r.front < 0.05, `the hostage stays in front (${(r.front * 100).toFixed(1)} cm)`);
     assert(r.stubStays, 'Force to device (stub) leaves the menu open');
-    assert(r.ko, 'Knock out from the menu: he is down, the hold ends');
+    assert(r.offerRows === r.behindRows, `behind a guard the list is only Grab character (and BACK TO GAME) (${r.offerRows})`);
+    assert(r.heldRows === 0 && r.heldMenu === 'none', `held, no information: no rows, A shows no menu (${r.heldRows}, ${r.heldMenu})`);
+    assert(r.ko, 'LT knocks him out: he is down, the hold ends');
   });
 
-  await scen('grab-kill-carry-letgo', async () => {
+  // (Michael 08:10 / 08:20) RT kills; Carry is not a row (a script pick: knock out, then shoulder); nothing lets him go
+  await scen('grab-kill-carry-noletgo', async () => {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
@@ -200,8 +255,10 @@ try {
       const e = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
-      t.pick('kill');
+      t.step(1.2);
+      st.set('t', 'fire', true);
+      t.step(1 / 60);
+      st.set('t', 'fire', false);
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
       t.reset();
@@ -209,31 +266,39 @@ try {
       const e1 = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
+      t.step(1.2);
       t.pick('carry');
-      t.run(2.0);
-      const carried = !e1.alive && g.stealth.carrying;
+      // (G7, rows 6 / 20: the 0.85 s knockout, then the 2.0 s lift onto the shoulder)
+      t.run(3.2);
+      const carried = !e1.alive && g.stealth.carrying && !g.stealth.busy && !!g.stealth.carry;
       t.reset();
       g.stealth.carry = null;
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
-      st.set('t', 'crouch', true);
-      t.step(1 / 60);
-      st.set('t', 'crouch', false);
-      t.step(0.2);
-      const letGo = !g.takedown.active && e2.alive && !e2.taken && !g.grabMenu.open;
-      const crouched = g.player.controller.crouched;
-      const stagger = e2['stagger'];
       t.step(1.2);
-      return { killed, carried, letGo, crouched, stagger, alerted: e2.alerted };
+      // (Michael 08:20: "The guard cannot be let go either") B, Y and back never let him go (nor crouch / jump)
+      for (const b of ['crouch', 'jump', 'uiBack']) {
+        st.set('t', b, true);
+        t.step(1 / 60);
+        st.set('t', b, false);
+        t.step(0.3);
+      }
+      t.step(2.0);
+      const stillHeld = g.takedown.hostage === e2 && e2.alive && g.grabMenu.open;
+      const crouched = g.player.controller.crouched;
+      st.set('t', 'altFire', true);
+      t.step(1 / 60);
+      st.set('t', 'altFire', false);
+      t.run(1.2);
+      const koAfter = !e2.alive && !g.takedown.active;
+      return { killed, carried, stillHeld, crouched, koAfter };
     });
-    assert(r.killed, 'grab menu Kill: killed');
-    assert(r.carried, 'grab menu Carry: knocked out and on the shoulder');
-    assert(r.letGo && !r.crouched, `B lets him go (not a crouch) (${r.letGo})`);
-    assert(r.stagger > 0.6 && r.alerted, `he staggers about a second, then is alert (${r.stagger?.toFixed(2)})`);
+    assert(r.killed, 'RT while holding: killed');
+    assert(r.carried, 'Carry (a script pick, not a row): knocked out and on the shoulder');
+    assert(r.stillHeld && !r.crouched, `B, Y and back never let him go (held ${r.stillHeld}, crouched ${r.crouched})`);
+    assert(r.koAfter, 'the hold ends only in the knockout (LT) or the kill');
   });
 
   await scen('ct-drop-inverted', async () => {

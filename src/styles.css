@@ -1231,45 +1231,127 @@ body {
 .hud-interact.show {
   display: flex;
 }
-.hud-doormenu {
+/* (G5, AUDIT-ACTIONMENU rows 5-6) the CT context menu, top right. CT's fractions of the frame (starting values):
+   right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (pushed under the minimap when it would
+   overlap), 0.4 % H gap, options box padding 1.15 % H, row pitch 3.34 % H, cap height 2.0 % H (Barlow Condensed:
+   cap ~0.7 em, so 2.86 % H type), text inset 1.2-1.3 % W, the highlight 2.9 % H tall, inset 0.4 % W. The look is
+   our own: steel borders, a corner-tick frame, corner ticks on the highlight (not a bracket glyph). */
+.hud-ctx {
+  --ctx-line: rgba(150, 178, 196, 0.62);
+  --ctx-dim: rgba(150, 178, 196, 0.3);
+  --ctx-hi: #e4f1f8;
+  --ctx-fill: rgba(8, 11, 14, 0.62);
   position: absolute;
-  /* F1b: top right, left of the minimap (not the middle of the screen) */
-  right: calc(var(--sar) + min(140px, calc(30 * var(--vh))) + 22px);
-  top: calc(var(--sat) + 14px);
+  right: calc(var(--sar) + 3 * var(--vw));
+  top: max(calc(10.7 * var(--vh)), calc(var(--sat) + 18px + min(120px, calc(26 * var(--vh)))));
+  width: calc(27.6 * var(--vw));
   display: none;
   flex-direction: column;
-  gap: 4px;
-  min-width: 220px;
-  background: rgba(10, 13, 18, 0.78);
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-weight: 700;
+  gap: calc(0.4 * var(--vh));
+  font-family: var(--font-menu);
+  font-weight: 600;
+  font-size: calc(2.86 * var(--vh));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  pointer-events: none;
 }
-.hud-doormenu.show {
+.hud-ctx.show {
   display: flex;
 }
-.hud-doormenu .dm-title {
-  font-size: 0.8em;
-  opacity: 0.6;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+/* the dim outer frame: corner ticks only, 0.8 % W outside the boxes */
+.hud-ctx::before {
+  content: '';
+  position: absolute;
+  inset: calc(-0.7 * var(--vh)) calc(-0.8 * var(--vw));
+  background:
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) left top / 1.2vw 2px no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) left top / 2px 1.6vh no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) right top / 1.2vw 2px no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) right top / 2px 1.6vh no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) left bottom / 1.2vw 2px no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) left bottom / 2px 1.6vh no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) right bottom / 1.2vw 2px no-repeat,
+    linear-gradient(var(--ctx-dim), var(--ctx-dim)) right bottom / 2px 1.6vh no-repeat;
 }
-.hud-doormenu .dm-opt {
-  padding: 4px 10px;
-  border-radius: 6px;
-  opacity: 0.75;
+.hud-ctx .ctx-head,
+.hud-ctx .ctx-box {
+  position: relative;
+  background: var(--ctx-fill);
+  border: 2px solid var(--ctx-line);
 }
-.hud-doormenu .dm-opt.sel {
-  background: rgba(63, 193, 255, 0.28);
-  opacity: 1;
-}
-.hud-doormenu .dm-hint {
+.hud-ctx .ctx-head {
+  height: calc(3.2 * var(--vh));
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.8em;
-  opacity: 0.7;
-  margin-top: 2px;
+  padding: 0 calc(1.2 * var(--vw));
+  color: #858c92;
+}
+.hud-ctx .ctx-box {
+  padding: calc(1.15 * var(--vh)) 0;
+}
+.hud-ctx .ctx-row {
+  position: relative;
+  height: calc(3.34 * var(--vh));
+  display: flex;
+  align-items: center;
+  margin: 0 calc(0.4 * var(--vw));
+  padding: 0 calc(0.9 * var(--vw));
+  color: #858c92;
+}
+.hud-ctx.active .ctx-row {
+  color: #a1a8ae;
+}
+.hud-ctx.active .ctx-head {
+  color: #a1a8ae;
+}
+.hud-ctx .ctx-head.sel,
+.hud-ctx .ctx-row.sel {
+  color: var(--ctx-hi);
+}
+/* the highlight: a thin outline across the row with bright corner ticks (no fill change) */
+.hud-ctx .ctx-row.sel::before,
+.hud-ctx .ctx-head.sel::before {
+  content: '';
+  position: absolute;
+  inset: calc(0.22 * var(--vh)) 0;
+  border: 1px solid rgba(200, 222, 236, 0.5);
+}
+.hud-ctx .ctx-head.sel::before {
+  inset: calc(0.15 * var(--vh)) calc(0.3 * var(--vw));
+}
+.hud-ctx .ctx-row.sel::after,
+.hud-ctx .ctx-head.sel::after {
+  content: '';
+  position: absolute;
+  inset: calc(0.22 * var(--vh)) 0;
+  background:
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) left top / 0.6vw 2px no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) left top / 2px 0.9vh no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) right top / 0.6vw 2px no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) right top / 2px 0.9vh no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) left bottom / 0.6vw 2px no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) left bottom / 2px 0.9vh no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) right bottom / 0.6vw 2px no-repeat,
+    linear-gradient(var(--ctx-hi), var(--ctx-hi)) right bottom / 2px 0.9vh no-repeat;
+}
+.hud-ctx .ctx-head.sel::after {
+  inset: calc(0.15 * var(--vh)) calc(0.3 * var(--vw));
+}
+/* a hold row (a hack, a medkit): a fill line along the bottom of the highlight while A stays on it */
+.hud-ctx .ctx-fill {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(0.22 * var(--vh));
+  height: 3px;
+  background: #7fd0a0;
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.hud-ctx .ctx-row.hold.sel .ctx-fill {
+  display: block;
 }
 .hud-feed {
   position: absolute;

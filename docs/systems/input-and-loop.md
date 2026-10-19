@@ -10,9 +10,8 @@ Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no tou
 - Decided, not built yet (G18): back-to-wall on L3 (code: A, `cover`); A stays for doors and other actions.
 - Built in the CT prototype M1 (loco M20 Q8): no sprint. The `dash` action id stays (photo mode's fast pan) but nothing in the
   game binds it: L3 is unbound until M3 puts back-to-wall there.
-- Decided, not built yet (G19, G97): a CT pop-up list at doors (open, stealth open, bash, optic cable).
-- Decided, not built yet (G23): the CT grab menu (grab first, then knock out, kill or interrogate); no stealth / kill
-  selector. Code: `gameplay.grabToggle` decides tap / hold.
+- Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
+  See "The context action menu (G5)" below.
 - Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
   while aiming; grenades and gadgets work holstered.
@@ -68,7 +67,7 @@ and the code together.
 | Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
 | Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | CT pad (A3, G96): team move > traversal; no longer shares a button with interact |
-| Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | Takedown > interactable; at a closed door A opens the door menu (G19, G97) |
+| Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below) |
 | Back to wall | `cover` | L3 | L3 / LS | `wall` (Left Shift) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves |
 | Max speed up | `speedUp` | D-pad up | D-pad up | `speedUp` (=); wheel up | F1a: the max-speed rocker (stick push and the mouse wheel also set it); gears 1-5 |
 | Max speed down | `speedDown` | D-pad down | D-pad down | `speedDown` (-); wheel down | - |
@@ -81,6 +80,36 @@ and the code together.
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
+
+### The context action menu (CT prototype G5, `game/contextMenu.ts`, AUDIT-ACTIONMENU)
+- One list for everything in reach, refilled every fixed step (`GameState.contextMenuStep`, first in the step) by
+  providers in CT order: while a guard is held only INTERROGATE, for a guard with information (none have any yet, so no
+  menu), and no BACK TO GAME (Michael 2026-10-20 08:10 / 08:25; `grabMenu.ts`); else the takedown on offer (GRAB
+  CHARACTER from behind; one named row, a knockout, for the other takedowns; none where only a lethal one is allowed),
+  the door set of the closed, unlocked door faced (OPEN DOOR, OPEN DOOR
+  STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE (stub); `doorMenu.ts`), then the item in reach or the carry
+  target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
+- States: none (nothing in reach); passive (the list shows, header INTERACT, no highlight, walking free); active (A
+  held: header BACK TO GAME, row 1 highlighted in the press step, the operator stands still, the camera is free). The
+  highlight moves one row per step, no wrap: D-pad / mouse wheel / = - always; the stick, W / S and the arrows once the
+  stick has been back under 0.25 since A went down (`CtxNav`; the pad's own stick repeat). BACK TO GAME is a row above
+  row 1. Releasing A runs the highlighted row; on BACK TO GAME nothing. A quick tap runs row 1. B closes the held list
+  with no action. Holding a guard (Michael 08:10 / 08:20): RT kills, LT knocks out (not aiming; KBM LMB / Z), the aim
+  (X / RMB) draws the pistol over his shoulder (the human shield), nothing lets him go (B, Y, back do nothing). A row with a hold time (a hack, a medkit station, an alarm
+  panel) fills while A stays on it and runs once full (a fill line on the row); let go early and nothing happens.
+- A belongs to the menu while a list is up or its press is still held (`ctxOwnsA`): the door peek, traversal's held use
+  (vents) and the takedown press see it up. The menu stands aside (no list, A goes where it went before G5) while down,
+  in a team move (the hanging partner's panel at Marlow Yard station 5 is still a direct press), a door peek, a remote
+  view or the wheel, and while a takedown, a finisher or a lift runs.
+- Rows run through the same calls as before (`takedown.start`, `takedown.menuPick`, `doorMenuPick`, the item's
+  `onUse`), so co-op is unchanged (no wire change).
+- Scripted taps (`InputState.tap('interact')`: pressed with no down) keep the pre-G5 one-press controls for tests and
+  tools: on a door set the tap opens the list latched and the next tap runs the highlight; elsewhere it runs row 1.
+  `g.grabMenu.sel = i` arms that held-guard pick (`GRAB_OPTS` index: knock out, kill, carry, device, interrogate) and the
+  next A press runs it; `g.doorMenu.open` / `.opts` and `g.grabMenu.open` /
+  `.labels()` read the list.
+- Not built: `access.holdToggle` does not latch the menu (it still works on the team-move direct path); locked doors
+  list nothing (no PICK LOCK / BREAK LOCK yet); no traversal rows (rope, climb: Y does those).
 
 ### Remapping and hold / toggle (step 18, D7; local only, D8)
 - The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply), at

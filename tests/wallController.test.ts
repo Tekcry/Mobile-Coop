@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCoverSegments, EDGE_MARGIN, type CoverBox } from '../src/cover/coverData';
+import { WALL_SIDE, WALL_TURN, wallHeadYaw, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../src/player/wallController';
 import { WALL, WALL_SUB, WallCore, wallPeekWanted, wallSlideSpeed, buildWallLinks, emptyWallInput, openSide, stackClamp, wallLeftHand, wallOverride, wallPeekOffset, wallFacing, wallPeekView, type WallInput } from '../src/player/wallController';
 import { LightField } from '../src/world/lightField';
 import { LightRegistry } from '../src/world/lights';
@@ -144,13 +145,16 @@ describe('back-to-wall core (step 11)', () => {
     expect(r.phase).toBe('entering');
   });
 
-  it('(A3, G35) slides at the CT shuffle: 0.525 standing / 0.45 crouched (F1b: +50 %), a little slower at the low gears', () => {
+  // (G6, AUDIT-WALLS row 2, replaces F1b's +50 %) 051917: standing 0.35 m/s and crouched 0.5 m/s at the spawn gear 3
+  it('(A3, G35; G6) slides at the CT pace: 0.39 standing / 0.55 crouched at gear 4 (0.35 / 0.5 at gear 3), slower at the low gears', () => {
+    expect(wallSlideSpeed(1, false, 3)).toBeCloseTo(0.351, 3);
+    expect(wallSlideSpeed(1, true, 3)).toBeCloseTo(0.495, 3);
     for (const [gear, crouched, want] of [
-      [6, false, 0.525],
-      [4, false, 0.525],
-      [1, false, 0.525 * WALL.slideGear1],
-      [6, true, 0.45],
-      [1, true, 0.45 * WALL.slideGear1],
+      [6, false, 0.39],
+      [4, false, 0.39],
+      [1, false, 0.39 * WALL.slideGear1],
+      [6, true, 0.55],
+      [1, true, 0.55 * WALL.slideGear1],
     ] as const) {
       const w = core();
       const i = inp(0, 0.2 + SO + 0.1, { context: true, crouched, gear });
@@ -381,11 +385,11 @@ describe('back-to-wall edge verbs (step 12)', () => {
 
   it('(A3) wallSlideSpeed: dead band, analog, crouched and the gear', () => {
     expect(wallSlideSpeed(0.15, false, 4)).toBe(0);
-    expect(wallSlideSpeed(1, false, 4)).toBeCloseTo(0.525, 9);
-    expect(wallSlideSpeed(-1, true, 4)).toBeCloseTo(-0.45, 9);
-    expect(wallSlideSpeed(0.6, false, 4)).toBeCloseTo(0.2625, 9);
-    expect(wallSlideSpeed(1, false, 1)).toBeCloseTo(0.525 * WALL.slideGear1, 9);
-    expect(wallSlideSpeed(1, false, 6)).toBeCloseTo(0.525, 9);
+    expect(wallSlideSpeed(1, false, 4)).toBeCloseTo(0.39, 9);
+    expect(wallSlideSpeed(-1, true, 4)).toBeCloseTo(-0.55, 9);
+    expect(wallSlideSpeed(0.6, false, 4)).toBeCloseTo(0.195, 9);
+    expect(wallSlideSpeed(1, false, 1)).toBeCloseTo(0.39 * WALL.slideGear1, 9);
+    expect(wallSlideSpeed(1, false, 6)).toBeCloseTo(0.39, 9);
   });
 
   it('(21w, M14) crouch on a high wall: the press toggles on the wall (hold mode: the held button), the body stays on', () => {
@@ -400,7 +404,7 @@ describe('back-to-wall edge verbs (step 12)', () => {
     expect(w.sub() & WALL_SUB.crouch).toBeTruthy();
     i.moveX = -1;
     run(w, i, 0.2);
-    expect(Math.abs(w.v)).toBeCloseTo(0.45 * (WALL.slideGear1 + (1 - WALL.slideGear1) * (2 / 3)), 6);
+    expect(Math.abs(w.v)).toBeCloseTo(0.55 * (WALL.slideGear1 + (1 - WALL.slideGear1) * (2 / 3)), 6);
     i.crouchPressed = true;
     run(w, i, 1 / 60);
     expect(w.crouch).toBe(false);
@@ -613,5 +617,87 @@ describe('F4: the edge sets the side, never the camera', () => {
     expect(wallPeekView(0, WALL.viewLook)).toBeCloseTo(0);
     expect(wallPeekView(0, (WALL.viewLook + WALL.peekLook) / 2)).toBeCloseTo(0.5);
     expect(wallPeekView(2, 2)).toBe(1);
+  });
+});
+
+// (CT prototype G6) the side-on crouch, the turn curves, the standing slide look (AUDIT-WALLS rows 1, 3, 9, 15, 16)
+describe('wall stance and turns (G6)', () => {
+  it('crouched the body turns side-on toward the travel (83 deg), standing it faces out', () => {
+    expect(wallYawOffset(0, 1)).toBe(0);
+    expect(wallYawOffset(1, 1)).toBeCloseTo(WALL_SIDE.yaw, 9);
+    expect(wallYawOffset(1, -1)).toBeCloseTo(-WALL_SIDE.yaw, 9);
+    expect((WALL_SIDE.yaw * 180) / Math.PI).toBeGreaterThan(80);
+    expect((WALL_SIDE.yaw * 180) / Math.PI).toBeLessThan(86);
+    const mid = wallYawOffset((WALL_SIDE.from + WALL_SIDE.to) / 2, 1);
+    expect(mid).toBeGreaterThan(0.3);
+    expect(mid).toBeLessThan(1.2);
+  });
+  it('the entry turn is front-loaded (180 deg in about 0.27 s), the side-on reversal takes about 0.45 s, the rise about 0.23 s', () => {
+    // simulate the limiter
+    const turn = (from: number, to: number, settled: boolean, crouch: number, onWall = true): number => {
+      let y = from;
+      let t = 0;
+      for (; Math.abs(to - y) > 1e-3 && t < 2; t += 1 / 60) {
+        const d = to - y;
+        const mx = wallTurnRate(Math.abs(d), onWall, settled, crouch) / 60;
+        y += Math.max(-mx, Math.min(mx, d));
+      }
+      return t;
+    };
+    const entry = turn(Math.PI, 0, false, 0);
+    expect(entry).toBeGreaterThan(0.22);
+    expect(entry).toBeLessThan(0.32);
+    // the first 90 deg in under 0.1 s (051917 @ 12.87-12.93: back view to profile in 0.07 s)
+    expect(Math.PI / 2 / WALL_TURN.fast).toBeLessThan(0.1);
+    const rev = turn(WALL_SIDE.yaw, -WALL_SIDE.yaw, true, 1);
+    expect(rev).toBeGreaterThan(0.4);
+    expect(rev).toBeLessThan(0.5);
+    const rise = turn(WALL_SIDE.yaw, 0, true, 0.9);
+    expect(rise).toBeLessThanOrEqual(0.25);
+    // the turn out of the wall (AUDIT-EXTRA-OLD row 17): 110 deg in 0.25-0.3 s
+    const out = turn(0, (110 * Math.PI) / 180, false, 0, false);
+    expect(out).toBeGreaterThan(0.2);
+    expect(out).toBeLessThan(0.3);
+    expect(WALL.leaveTime).toBeCloseTo(0.28, 6);
+  });
+  it('side-on the root comes in so the wall-side shoulder is about 3 cm off the face (square: unchanged)', () => {
+    const square = wallRootPush(0.35, 0.15, 0, 0.19);
+    expect(square).toBeCloseTo(0.35 - 0.15 - 0.015, 9);
+    const side = wallRootPush(0.35, 0.15, 1, 0.19);
+    // the body line 0.35 out: the root ends shoulder + arm + 1.5 cm from the face
+    expect(0.35 - side).toBeCloseTo(0.19 + WALL_SIDE.arm + 0.015, 9);
+    expect(side).toBeGreaterThan(square * 0 + 0.1);
+  });
+  it('the head: toward the travel at rest, further while sliding (70-90 deg), ahead side-on, to the opening at a peek', () => {
+    expect(wallHeadYaw(1, 0, 0, 0, 0)).toBeCloseTo(0.55, 9);
+    expect(wallHeadYaw(1, 1, 0, 0, 0)).toBeCloseTo(1.3, 9);
+    expect(wallHeadYaw(-1, 1, 0, 0, 0)).toBeCloseTo(-1.3, 9);
+    expect(wallHeadYaw(1, 0, 0, 0, 0, 1)).toBeCloseTo(1.45, 9);
+    // side-on the body already faces the travel: the head looks straight ahead
+    expect(wallHeadYaw(1, 1, 1, WALL_SIDE.yaw, 0)).toBeCloseTo(0, 9);
+    // raised: no wall look
+    expect(wallHeadYaw(1, 1, 0, 0, 1)).toBe(0);
+  });
+  it('the wall side from WALL_SUB matches the owner (wallFacing)', () => {
+    expect(wallSideFromSub(WALL_SUB.edgeL)).toBe(wallFacing(1, 1));
+    expect(wallSideFromSub(WALL_SUB.edgeR)).toBe(wallFacing(-1, 1));
+    expect(wallSideFromSub(WALL_SUB.faceRight)).toBe(wallFacing(0, -1));
+    expect(wallSideFromSub(0)).toBe(wallFacing(0, 1));
+  });
+  it('(row 9) the peek: a small lean (10-15 deg) with the body stepping toward the edge', () => {
+    expect((WALL.peekLean * 180) / Math.PI).toBeGreaterThan(9);
+    expect((WALL.peekLean * 180) / Math.PI).toBeLessThan(16);
+    expect(WALL.peekStep).toBeGreaterThan(0);
+    expect(WALL.peekStep).toBeLessThan(WALL.peekOut);
+  });
+});
+
+describe('wall root push crouched (G6 fix)', () => {
+  it('crouched and turned off side-on the root keeps the forward trunk off the face; side-on and square-standing unchanged', () => {
+    const side = wallRootPush(0.35, 0.15, 1, 0.19, 1);
+    expect(side).toBeCloseTo(wallRootPush(0.35, 0.15, 1, 0.19, 0), 9);
+    const mid = wallRootPush(0.6, 0.15, Math.sin(0.6), 0.19, 1);
+    expect(wallRootPush(0.6, 0.15, Math.sin(0.6), 0.19, 0) - mid).toBeCloseTo(WALL_SIDE.crouchBack * Math.cos(0.6), 9);
+    expect(wallRootPush(0.35, 0.15, 0, 0.19, 0)).toBeCloseTo(0.35 - 0.15 - 0.015, 9);
   });
 });

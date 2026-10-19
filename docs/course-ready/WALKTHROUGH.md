@@ -23,9 +23,9 @@ Both players, each in their own browser tab or PC (two tabs of one browser work;
 - With two tabs, keep the one you are playing in the foreground: a hidden tab throttles its game loop.
 
 ## 2. Version label
-- Bottom of the title screen and the main menu: `v4.11.0 PREVIEW · <commit>` on /preview/ (`v<version>`, `PREVIEW`, then the
+- Bottom of the title screen and the main menu: `v4.12.0 PREVIEW · <commit>` on /preview/ (`v<version>`, `PREVIEW`, then the
   short commit hash after a dot).
-- Expect "4.11.0 or later". The commit hash names the exact build; quote it with any note.
+- Expect "4.12.0 or later". The commit hash names the exact build; quote it with any note.
 
 ## 3. Controls used here
 | Action | Pad | Keyboard and mouse |

@@ -50,6 +50,9 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     // (3.2.0) holding a hostage: free movement (walk), the guard held in front
     out.m = 'grab';
     out.tid = td.e.id;
+    // (G7) the finisher's / interrogation's progress and which (sub bit 1 the kill, bit 2 interrogating): the host
+    // lowers its guard with the knockout, remotes pose the bend and the kill's blow from them (no new wire field)
+    g.takedown.grabWire(out);
     delete out.c;
     return out;
   }

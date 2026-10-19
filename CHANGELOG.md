@@ -9,6 +9,41 @@ Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course
 - `scripts/shots-ctcourse.mjs`: headless GPU shots per station (Michael's PC, port 4189, `E2E_GPU=1`), the light meter
   checked against the field at each.
 
+## 4.11.0 - CT movement 2: grab, hold and knockout, the hold-A action menu, walls and doors (2026-10-20, PR #32)
+- G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
+  would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
+  reach a list sits top right under INTERACT; holding A turns the header to BACK TO GAME with row 1 highlighted, the
+  stick / D-pad (wheel or W / S on keyboard and mouse) moves it, and releasing A runs that row (BACK TO GAME does
+  nothing); a quick tap runs row 1; rows with a hold time (hacks, medkits, alarms, revive) fill while A stays on them.
+  One menu replaces the separate door and grab menus; doors list OPEN DOOR, OPEN DOOR STEALTH, BASH DOOR, OPTIC CABLE.
+  Michael 08:10 / 08:20 / 08:25: behind a guard the list is GRAB CHARACTER (and BACK TO GAME); once grabbed there is
+  no let-go and no BACK TO GAME: RT kills, LT knocks out, aiming holds him as a human shield, and hold-A lists only
+  INTERROGATE for a guard with information (none have any yet, so no menu); other takedowns are one row (a knockout).
+- G6 walls, corners and doors (`docs/ct-prototype/G6-REPORT.md`, against the CT footage): crouched on a wall Wren turns
+  side-on toward where she is going and crouch-walks along it bent over her knees with a hand on her knee (Michael: "holds
+  knee when up against wall"), turning through facing out when she reverses (0.45 s); standing she sinks into a
+  semi-crouch and turns her chest and head toward the slide; wall slides are 0.35 m/s standing (was 0.47) and 0.5 m/s
+  crouched (was 0.41) at the spawn gear; the turn onto a wall is quick at first; at a wall edge the peek is a small lean
+  with the hips and body stepping out, so the head ends just past the frame (it stopped short); aiming at a wall half a
+  metre away brings the rifle up muzzle-high; low cover uses the same side-on crouch. Doors: Open from the door menu is
+  a short move (a step to the latch side, a hand on the door, the door opening 0.8 s after the pick), the leaf swings
+  fast then eases to 88 deg (was a slow start to 100); Stealth open steps in and holds the handle before the crack
+  (1.2 s after the pick, was 0.25 s) and the stick opens it a little slower; guards push doors open in 0.4 s (was 0.7)
+  and a door a guard opened swings shut in 0.35 s. Co-op: the partner's copy poses the same from the existing wall
+  state (no wire change).
+- G7 grab, hold, knockout and carry (`docs/ct-prototype/G7-REPORT.md`, against the CT footage): the grab from behind
+  steps in over 0.42 s (rising out of a crouch, legs stepping) and pulls the guard back against the chest over 0.6 s
+  before the hold and its menu (~1 s, CT ~1-1.2 s); the guard struggles from the contact, not the press, his rifle out
+  of his hands; the hold has the left forearm across his throat and the right hand on his shoulder, his hands up at the
+  arm, the pair swaying a little and the guard flailing every 2-4 s; the hostage walk is capped at 0.75 m/s (was 1.4)
+  with him held 0.32 m in front (was 0.42) and walking with you; Knock out lowers him in front over 0.85 s with you bent
+  over him (was a 0.5 s drop); Interrogate works (your hand at his jaw for 1.5 s, the hold goes on); picking up a body
+  is a 2.0 s lift (step in, crouch with the hands under its shoulders, hoist it onto the shoulder on the side its head
+  lies, crouch lets go before the hoist) instead of a teleport; carrying is a 0.8 m/s walk (was 2.2) bent forward under
+  the weight and can open and close doors; putting it down is a 0.8 s slide off the shoulder to your side (was an
+  instant throw 0.7 m ahead). Co-op: the host and the partner pose the hold, its knockout and interrogation from the
+  existing MoveState fields (no wire change).
+
 ## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
 - Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
   of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours

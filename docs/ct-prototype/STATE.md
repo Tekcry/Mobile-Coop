@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 23:45 Sydney (slice F verified and on /ct/; overnight: the footage catalogue, audit and movement slices, Michael 23:15 / 23:20; master 4.7.2 merged at 8882261b).
+Updated 2026-10-20 04:00 Sydney (PR #31 open at 041dc655: F + G1-G4 + master 4.9.0; full e2e running on the desktop; G7 being built, uncommitted).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -74,11 +74,12 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (~01:50):** audit complete (`audit/`: six area files, two EXTRA files, two COVERAGE maps; AUDIT.md the
-   slice plan). G1 + G3 committed unverified at 0675cb12 (`G1-REPORT.md`, `G3-REPORT.md`, sheets `shots/g1`, `shots/g3`;
-   job lead set shoulderAds 0.30 after the render); check green (1824); laptop: ctcourse / coop / netmove; desktop: quick
-   set (log in the scratchpad); Opus check running. G2 aim (Opus) building (`G2-REPORT.md`). Then: fix round, /ct/,
-   G4 traversal, G7 grab / hold / KO, G6 walls, G5 menu. Movement is the only job tonight.
+   **Progress (04:00):** PR #31 (https://github.com/Tekcry/Mobile-Coop/pull/31) open at 041dc655 (origin/master 4.9.0
+   merged; check green 1881). Slices in it: F, G1, G2, G3, G4 (+ fix rounds, station 7 co-op crouch-intent fix be2ba814,
+   stealth-ai peek fix 83eb9016). Full `npm run e2e` running on the desktop (log in the scratchpad); then fill the e2e
+   line in the PR body. Do NOT push feature/ct-prototype until the orchestrator says #31 merged. G7 grab / hold / KO
+   (Opus) is being written in the working tree with no builds (dist is the PR run's); after the run: build, sheets
+   (`shots/g7`), e2e tier, Opus check, commit, second PR by ~08:30. Then G5 hold-A action menu, G6 walls / knee.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.

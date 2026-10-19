@@ -9,10 +9,17 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 ## HUD
 - `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
   (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
-  after the last change, a hold ring on the use prompt (`setInteract(text, progress)`), subtitles
+  after the last change, a hold ring on the use prompt (`setInteract(text, progress)`; since G5 only on the team-move
+  direct path), subtitles
   (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
   held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
   stations (G20, G98).
+- (CT prototype G5) The context action menu, top right (`ui/hud/contextMenuView.ts`, `.hud-ctx` in styles.css): a
+  header box (INTERACT, or BACK TO GAME while A is held) over the options box, inside a dim corner-tick frame. CT's
+  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (pushed under the
+  minimap where they would overlap), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
+  Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
+  on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
 - Decided, not built yet: mission objectives live in the menu, as in CT (G108); the Fallow course keeps its always-on
