@@ -1,17 +1,19 @@
 # course-ready - state
 
 ## Now
-S1: walkthrough audit of Marlow Yard (stations 1-8, host and client).
+S1 fixes: an Opus implementer works the AUDIT.md list (report: S1-REPORT.md). S2 light plan ready (LIGHT.md): 9 new
++ 2 changed lamps, plus a station 2 wall-top lamp (A3); built after S1 (same file).
 
 ## Next
-S1 fixes, S2 light pass, S3 walkthrough guide and PR.
+S1 checker, S2 light pass + shots, S3 walkthrough guide and PR.
 
 ## Open
-- npm ci waits for the desktop heavy lock (held by CT Core at 23:24).
+- Asked the orchestrator (23:58): may this job edit src/net/coopHost.ts onRespawn (F3) and src/ui/hud/courseHud.ts (F1)?
 - Deadline (Michael via the orchestrator, 23:55): PR to master open with its test tier green by 05:30; Michael tests /preview/ (master). Short on time: cut light scope, never the walkthrough fixes.
 
 ## Done
-- 2026-10-19: worktree and branch from master 4.7.5 (3a07eee9); BRIEF, PLAN, STATE.
+- 2026-10-19: worktree and branch from master 4.7.5 (3a07eee9); BRIEF, PLAN, STATE. npm ci + typecheck under the lock 23:46.
+- 2026-10-19: AUDIT.md (0 blockers, 8 confusing, 14 minor); LIGHT.md (survey, lamp plan, test and shot plan).
 
 ## Resume prompt
 ```
