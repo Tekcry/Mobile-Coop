@@ -3,7 +3,6 @@ import { h } from '../dom';
 import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button, Dialog } from '../widgets';
 import { SettingsScreen } from './settingsScreen';
-import { ControlsScreen } from './controlsScreen';
 import { FeedbackFormScreen } from './feedbackScreen';
 
 /** Extra pause-menu rows added at run time (dev tools: the level editor's walk test adds "Back to editor"). Empty in play. */
@@ -69,8 +68,9 @@ export class PauseScreen extends MenuScreen {
     list.append(
       item('Resume', () => this.resume(), opts.coop ? 'Back to the mission. It kept running while you were here.' : 'Back to the mission.', 'resume', true),
       item('Objectives', () => this.manager.push(new ObjectivesScreen(opts.objectives?.() ?? [])), 'The mission objectives and where each one stands.', 'objectives'),
-      item('Settings', () => this.manager.push(new SettingsScreen(app)), 'Gameplay, graphics, audio and accessibility.', 'settings'),
-      item('Controls', () => this.manager.push(new ControlsScreen(app)), 'Change the buttons and keys for every action.', 'controls'),
+      // (menu-notes A2, Michael's note 7) one place for controls: Settings > Controls (hold / toggle, sensitivities and
+      // Remap controls); the separate Controls item is gone
+      item('Settings', () => this.manager.push(new SettingsScreen(app)), 'Controls, gameplay, graphics, audio and accessibility.', 'settings'),
       item('Report feedback', () => this.manager.push(new FeedbackFormScreen(app, null)), 'Write a note about this moment. It is saved with the map and position.', 'report-feedback'),
       item(
         'Quit to menu',

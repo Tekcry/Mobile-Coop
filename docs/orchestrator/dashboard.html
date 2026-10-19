@@ -76,22 +76,19 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 21:40 Sydney · master v4.7.2 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Updated 2026-10-19 22:55 Sydney · master v4.7.3 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
     <h1>Night Shift roadmap</h1>
     <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
   </header>
 
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
-    <p class="qhint"><b>Playtest 2 walk test</b> (controller) on <a href="https://tekcry.github.io/Mobile-Coop/ct/">tekcry.github.io/Mobile-Coop/ct/</a>.<br>
-      <b>Version:</b> the label in the bottom-right corner must start <code>v4.7.0 PREVIEW CT</code>. The main menu then shows Sector Ops, Co-op, Loadout, Settings and Feedback. Ignore the code after the dot for now (on preview builds it shows master's commit, a label bug being fixed). If the label or menu is older, close every tab of the game and open it again (the offline cache updates on the next launch).<br>
-      <b>Marlow Yard</b> (items 1-10, 12-13): Main menu &gt; Co-op &gt; Host a room. The room starts on Marlow Yard (Training course); press Start mission. You can start alone; it needs an internet connection. The ledge hang is at station 2.<br>
-      <b>Drainpipe</b> (item 11): Main menu &gt; Sector Ops &gt; Warehouse &gt; start. In section 1 (service entrance), the drainpipe is in the west yard and climbs to the roof walkway.<br>
-      <b>Co-op items</b> (team boost, scanners): host as above in one window, then in a second window or on a second PC go to Co-op &gt; Join with code and type the room code shown in the host's lobby; the joiner presses Ready, the host presses Start mission.<br>
-      Mark each item Good or Not right and add a note on what feels off. Sector Ops itself is new too: any notes on it go in the last box.</p>
+    <ol>
+      <li><b>New CT footage</b> for the movement fine-tuning: legs, rigid upper body in ADS tilting at the hips, shimmy swing, drainpipe, pistol aim. <span class="who">CT Core</span></li>
+      <li><b>Prune old branches and worktrees</b> when you like: the list is in docs/process-audit/REPORT.md section 5. <span class="who">You</span></li>
+    </ol>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
-    <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
   </section>
 
   <section>
@@ -99,28 +96,28 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <div class="board">
       <div class="row">
         <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
-        <div><p>Plans, reviews and merges into master (each merge gets the next version), moves /preview/, keeps the sessions in step.</p>
-          <p class="next-cp">Next: <b>your /ct/ notes to CT Core; Menu Notes' tactical shot sheet to you</b></p></div>
+        <div><p>Moved to the new Claude account at 22:40: every session restarted from git. Reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
+          <p class="next-cp">Next: <b>Menu Notes' PR, then lightfield-heap and Sector Ops as they turn green</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill test">Waiting on you</span></div>
-        <div><p>On /ct/ for you: B + C (aim, pistol, legs, crouch), D + E (holster hand on the gun, drainpipe knees, ledge climb-up onto the knee) and the slower 0.7 m/s shimmy with slower, wider hands. Its PR is prepared.</p>
-          <p class="next-cp">Next: <b>a slice from your notes, then its PR</b></p></div>
+        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill test">Testing</span></div>
+        <div><p>Slice F from your walk notes: shoulder always right when holstered, crouched aim camera follows the body down, crouch idle kneels, corner lean only to the open side, climb-up hands hold until the knee, rifle draw without the dip, D-pad speed prompts. Code done; checks and e2e running on the desktop.</p>
+          <p class="next-cp">Next: <b>slice F on /ct/ for you to walk</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">Menu Notes Build</div><div class="meta">desktop · feature/menu-notes</div><span class="pill run">Building</span></div>
-        <div><p>Done: title music, no way back to the title, one Controls menu, rifle and pistol in the menu shots, magazine clip, preload behind the load screen. Now: the black launch screen (NIGHT SHIFT always, prompt fades in, goggles flicker on at the press).</p>
-          <p class="next-cp">Next: <b>6-8 tactical menu shot mockups for you to pick</b></p></div>
+        <div><div class="name">Menu Notes Build</div><div class="meta">desktop · feature/menu-notes</div><span class="pill test">Testing</span></div>
+        <div><p>All menu notes built, plus the black launch screen, goggles flickering on in the dark, the X5 menu shot and the forehead glow removed. Now: two small fixes from CT Core (remove Default shoulder, correct the LT / RT line in Controls) and the full e2e on the laptop.</p>
+          <p class="next-cp">Next: <b>its PR to master (4.8.0)</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · test runner</div><span class="pill test">Testing</span></div>
-        <div><p>Runs logic e2e for CT Core, then Menu Notes, when the desktop is busy. Between requests: the flaky grate-kick check in e2e-traverse.</p>
-          <p class="next-cp">Next: <b>the next test request</b></p></div>
+        <div><p>Runs logic e2e for CT Core, Menu Notes, then Sector Ops, when the desktop is busy. Its own job between requests: the lightField heap check made stable under load (5 loaded runs, then a PR).</p>
+          <p class="next-cp">Next: <b>Menu Notes' full e2e; the lightfield-heap PR</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · done</div><span class="pill run">Merged</span></div>
-        <div><p>Sector Ops is on /preview/ (4.7.0): 3 Warehouse sections with connectors, several routes, guards you can isolate, no lives, revive syringes, difficulty stars.</p>
-          <p class="next-cp">Next: <b>the PC perf run with full guard counts</b></p></div>
+        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · feature/sector-restart · spare capacity</div><span class="pill run">Building</span></div>
+        <div><p>Your bug M9: a checkpoint restart is now a clean start (guards unalerted, calm music, the checkpoint loadout restored, the suppressed rifle back). Fix round in review; tests queued on the laptop.</p>
+          <p class="next-cp">Next: <b>its PR (a patch), then the PC perf run</b></p></div>
       </div>
     </div>
   </section>
@@ -128,10 +125,10 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li><span class="gate">Your turn now:</span> playtest /ct/: B + C (aim view when crouched, upper body, arms in, pistol aim, legs, crouch) and D + E (holster, slower shimmy, drainpipe, ledge climb-up, team boost) <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your turn when ready:</span> walk slice F on /ct/ (the clear items from your walk notes) <span class="owner">CT Core</span></li>
+      <li>Movement fine-tuning from your new CT footage <span class="owner">CT Core</span></li>
       <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
-      <li>Selection wheel restyle <span class="owner">CT Core</span></li>
-      <li>Menu notes and the dark launch screen, then pick from the tactical shot mockups <span class="owner">Menu Notes</span></li>
+      <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
       <li>Visual pass on the training level <span class="owner">Last</span></li>
     </ol>
   </section>
@@ -141,17 +138,18 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <ul>
       <li>Moth as player 2 (2-3 days; purple goggle; a scratch prototype first, when nothing urgent waits)</li>
       <li>Cleanup job (Wren loose ends), after your core-loop playtest</li>
-      <li>GPU perf checks on the PC: menu, weapon meshes, low-preset budgets</li>
+      <li>GPU perf checks on the PC: menu, weapon meshes, low-preset budgets; WebGPU only if the Sector Ops perf run shows rendering is the bottleneck</li>
       <li>Legacy suites (Kestrel, Hunter, Mission): parked, not fixed</li>
       <li>The older backlog: medkit stations, missing sounds, music revision, art guide, Kestrel, Fallow bunker</li>
     </ul>
   </section>
 
   <section>
-    <h2>Done <span class="count">21 PRs</span></h2>
+    <h2>Done <span class="count">22 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/24">#24</a></td><td>4.7.3 · Your walk notes recorded, account handover, roadmap</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/23">#23</a></td><td>4.7.2 · The version label shows the build's own commit</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/22">#22</a></td><td>4.7.1 · Flaky grate-kick test fixed</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/21">#21</a></td><td>4.7.0 · Sector Ops: 3 Warehouse sections, the prototype menu, co-op mode switch</td></tr>
@@ -191,20 +189,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 <script>
 const PT = ['Good', 'Not right', 'Skipped'];
 const QUESTIONS = [
-  { id: 'pt2-speeds', who: 'Slice A', opts: PT, text: 'Walk speeds: D-pad up / down changes the speed, speed 2 is the slowest, and aiming feels about 70% slower than before.' },
-  { id: 'pt2-wall', who: 'Slice A', opts: PT, text: 'Wall: A from under 0.5 m settles onto the wall with no slide (further away does nothing); shuffling swings the camera to that side; corner peek goes the right way; the shoulder you pick carries into aiming and back.' },
-  { id: 'pt2-steps', who: 'Slice A', opts: PT, text: 'Footsteps are quiet at walking speeds and match the noise meter; running is louder; no camera bob when walking.' },
-  { id: 'pt2-ads', who: 'Slices B + C', opts: PT, text: 'Aiming frames the same standing and crouched, rifle and pistol; no gun flick when you swap shoulders while aiming.' },
-  { id: 'pt2-upper', who: 'Slices B + C', opts: PT, text: 'Aim up and down: the chest leans, the wrists stay straight, the arms are less stretched out; the pistol aim looks natural (compare with the CT footage).' },
-  { id: 'pt2-legs', who: 'Slices B + C', opts: PT, text: 'Legs stay in line under the body walking, running and turning on the spot.' },
-  { id: 'pt2-crouch', who: 'Slices B + C', opts: PT, text: 'Crouch: idle, walk and aim - the hands and legs look right.' },
-  { id: 'pt2-holster', who: 'Slices D + E', opts: PT, text: 'Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way. Check: does the rifle hand rise to about chin height mid-way?' },
-  { id: 'pt2-shimmy', who: 'Slices D + E', opts: PT, text: 'Ledge hang shimmy (Marlow Yard station 2): slower (0.7 m/s), one hand at a time, wide reaches.' },
-  { id: 'pt2-climbup', who: 'Slices D + E', opts: PT, text: 'Ledge climb-up: pull up, a knee on the top, then stand - not floating. Check: do the hands let go too early as the knee lands?' },
-  { id: 'pt2-pipe', who: 'Slices D + E', opts: PT, text: 'Drainpipe climb (Sector Ops, section 1, west yard): the knees bend up and forward toward the wall and never flip.' },
-  { id: 'pt2-boost', who: 'Co-op, two tabs', opts: PT, text: 'Team boost onto a ledge still works, and its climb-up looks right.' },
-  { id: 'pt2-scanners', who: 'Co-op, two tabs', opts: PT, text: 'Scanners: a hack when your partner never started costs nothing; a late or abandoned hack costs 10 HP.' },
-  { id: 'pt2-other', who: 'Anything else', opts: [], text: 'Anything else you noticed: bugs, feel, what to do next.' },
+  { id: 'n-anything', who: 'Anything else', opts: [], text: 'Anything for the orchestrator: bugs, feel, what to do next.' },
 ];
 const state = {};      // id -> { choice, note } being edited
 const saved = {};      // id -> stored doc body
