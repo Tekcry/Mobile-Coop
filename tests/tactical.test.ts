@@ -161,16 +161,26 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('CT framing (A2.1, F1a): 1.8 m boom, 0.32 m shoulder, head-height pivot from the capsule; aim 0.35 m / 0.42 m, lower; no zoom', () => {
+  it('CT framing (A2.1, G3 footage): 1.8 m boom tight / 2.8 m open, 0.15 m shoulder, head-top pivot 1.68; aim 0.40 m / 0.30 m at 1.52 m; FOV 86', () => {
     const hip = framing(0, 0);
     expect(hip.boom).toBeCloseTo(1.8);
-    expect(hip.shoulder).toBeCloseTo(0.32);
-    expect(hip.pivot).toBeCloseTo(MOVEMENT.standHeight);
+    expect(hip.shoulder).toBeCloseTo(0.15);
+    expect(hip.pivot).toBeCloseTo(1.68);
+    // (G3, AUDIT-CAMERA rows 1 and 7) an open space: 2.8 m standing, 2.2 m crouched; the aim boom is the same in both
+    expect(framing(0, 0, CAMERA, 1).boom).toBeCloseTo(2.8);
+    expect(framing(0, 1, CAMERA, 1).boom).toBeCloseTo(2.2);
+    expect(framing(0, 1, CAMERA, 0).boom).toBeCloseTo(1.8);
+    expect(framing(1, 0, CAMERA, 1).boom).toBeCloseTo(0.4);
     const ads = framing(1, 0);
-    expect(ads.boom).toBeCloseTo(0.35);
-    expect(ads.shoulder).toBeCloseTo(0.42);
-    expect(ads.pivot).toBeLessThan(hip.pivot);
-    expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
+    expect(ads.boom).toBeCloseTo(0.4);
+    expect(ads.shoulder).toBeCloseTo(0.3);
+    // the camera at 1.52 m: the head centre about 7 deg above the screen centre (CT 4-10)
+    expect(ads.pivot).toBeCloseTo(1.52);
+    // (row 2) the pivot ~37 deg off the view axis: aiming, the head moves onto the stock (~0.13 m toward the camera
+    // side), so its centre lands near x 0.3 as in CT (105845 @ 36.5); 0.17 put it over the reticle in the G3 render
+    expect((Math.atan2(ads.shoulder, ads.boom) * 180) / Math.PI).toBeGreaterThan(32);
+    expect((Math.atan2(ads.shoulder, ads.boom) * 180) / Math.PI).toBeLessThan(42);
+    expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight - 0.07);
     // (F2) crouched aim follows the body down: the same framing relative to the body, the pivot lower by the kneel aim's
     // share of the crouch drop (the aiming upper body is upright)
     const ac = framing(1, 1);
@@ -178,7 +188,7 @@ describe('camera framing', () => {
     expect(ac.shoulder).toBeCloseTo(ads.shoulder);
     expect(ads.pivot - ac.pivot).toBeCloseTo((MOVEMENT.standHeight - MOVEMENT.crouchHeight) * CAMERA.aimCrouchShare);
     expect(ac.pivot).toBeLessThan(ads.pivot - 0.3);
-    expect(CAMERA.fov).toBe(75);
+    expect(CAMERA.fov).toBe(86);
   });
 });
 

@@ -28,7 +28,7 @@ Budgets: performance.md.
   `video.resolution` names the pick; `shownResolution` in benchmark lines / feedback adds the window's real size;
   Benchmark > Resolutions runs them, `benchOutput` = the monitor on desktop), applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
   15 s unless kept), `dynamicRes` (retired in 3.1.7: `QualityManager.auto` is false), `fpsCap` (`GameLoop.fpsCap`,
-  `capAllows`), `fovH` 60-120; `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
+  `capAllows`), `fovH` 60-120 (default 86, G3; `camV` moves a saved 75 to 86); `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
   Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
   the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),

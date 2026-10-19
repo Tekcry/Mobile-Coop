@@ -1,12 +1,16 @@
 /**
  * (A1.2) Hips follow the legs in turns (pure, Babylon-free, unit-tested).
  *
- * The chest keeps the body's facing; the pelvis turns a little toward the planted feet (up to `PELVIS_FOLLOW_MAX`),
+ * The chest keeps the body's facing; the pelvis turns a very little toward the planted feet (up to `PELVIS_FOLLOW_MAX`),
  * so in a turn it trails the chest, and the knees aim between the hips and the toes (never backwards).
  */
 
-/** Largest pelvis yaw toward the planted feet (rad, 20 deg). */
-export const PELVIS_FOLLOW_MAX = 0.35;
+/**
+ * Largest pelvis yaw toward the planted feet (rad, 3 deg). (CT prototype G1, audit row 1) was 0.35 (20 deg): in Chaos
+ * Theory the pelvis, knees and feet turn as one unit with the chest (105624 @ 24-27, 105949 @ 10-13), and the planted
+ * feet now turn with the root (footPlanner `TURN_FOLLOW.twistFree`), so the hips stay with the chest.
+ */
+export const PELVIS_FOLLOW_MAX = 0.05;
 /** Ease time constant of the pelvis follow (s). */
 export const PELVIS_FOLLOW_TAU = 0.06;
 /** Largest knee pole yaw away from the pelvis (rad). */

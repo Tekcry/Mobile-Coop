@@ -10,6 +10,7 @@ import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { CamSize, CamSpace } from './camSpaces';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -84,6 +85,10 @@ export interface MapLayout {
   scanners?: ScannerDef[];
   /** Training course (course mode): the definition and its ids on this level. */
   course?: CourseLayout;
+  /** (G3) Camera spaces: the explore camera's open (2.8 m) or tight (1.8 m) framing by floor box, over the map default
+   *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
+  camSpaces?: CamSpace[];
+  camSize?: CamSize;
 }
 
 export interface MapDef {

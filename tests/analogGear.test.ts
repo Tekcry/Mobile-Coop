@@ -8,8 +8,8 @@ const magFor = (v: number, max: number, crouched: boolean): number => GEARS.dead
 describe('analog gear (locomotion step 17, D5.12)', () => {
   it('derives the threshold table from GEARS (midpoint +- 15% of the gap)', () => {
     // (CT prototype M1) from the five CT speeds
-    // (playtest 2) the old speed 2 is the slowest: standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6
-    const stand = [[1.1725, 0.9775], [1.855, 1.645], [2.685, 2.415], [3.78, 3.42]];
+    // (playtest 2) the old speed 2 is the slowest: standing 0.75 / 1.4 / 2.1 / 3.0 / 4.5 (G1), crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6
+    const stand = [[1.1725, 0.9775], [1.855, 1.645], [2.685, 2.415], [3.975, 3.525]];
     const crouch = [[1.1425, 1.0075], [1.56, 1.44], [1.9925, 1.8575], [2.4425, 2.3075]];
     stand.forEach(([u, d], i) => {
       expect(GEAR_UP.stand[i]).toBeCloseTo(u!, 9);

@@ -46,7 +46,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 
   | Gear | 1 | 2 | 3 | 4 | 5 |
   | --- | --- | --- | --- | --- | --- |
-  | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.2 |
+  | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.5 (G1; was 4.2) |
   | Crouched (m/s) | 0.85 | 1.3 | 1.7 | 2.15 | 2.6 |
   | `GAIT_REF` (pose reference), standing / crouched | 0.5 / 0.5 | 1.1 / 0.9 | 2.0 / 1.4 | 3.0 / 1.9 | 4.0 / 2.5 |
 
@@ -62,7 +62,18 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   `StickRelease` (`speedGears.ts`) keeps a springing-back stick's deflection so the stop is from the full pace. Facing
   turns at `CT.turnRate` 720 deg/s. Acceleration lean 0.012 rad per m/s^2, capped 0.09 rad. Remotes (D8):
   `anim/motionDerive.ts` derives acceleration and `move` / `stop` / `idle` from measured velocity (no wire field).
-  Heel-to-toe roll: at <= 1.7 m/s (`HEEL_ROLL`) a foot lands heel first and rolls flat over 0.1 s.
+  Heel-to-toe roll: at <= 1.7 m/s (`HEEL_ROLL`, toe up 0.2 rad) a foot lands heel first and rolls flat over 0.1 s.
+- Legs and gait against the CT footage (CT prototype G1, `docs/ct-prototype/G1-REPORT.md`, audit
+  `docs/ct-prototype/audit/AUDIT-LOCOMOTION.md`): free movement (`stride: 'facing'`) turns the legs as one unit with the
+  body: planted feet stay within `TURN_FOLLOW.twistFree` 0.25 rad of the root and inside a 0.055-0.14 m band either side
+  of its midline (they scrub round with it, CT style; aiming, walls and cover keep world-locked feet), the pelvis follows
+  them by at most `PELVIS_FOLLOW_MAX` 0.05 rad, a foot a turn left behind toes off early. Steps cap at
+  `MOVEMENT.stepLenMax` 0.95 m (the run quickens to ~4.7 steps/s at 4.5 m/s; guards uncapped). A stop's set-down lands
+  within `STOP_SPLIT` 0.3 m of the planted foot and the held stride straightens up over ~0.15 s (G26 / G27 timings kept).
+  Crouched, a stop kneels at once (`KNEEL_STILL` 0.05 s, the stop hold lets go for it), on the trailing knee. The tense
+  sneak (G160, `player/tenseSneak.ts`, `TENSE`): crouched at <= 1.4 m/s with an unaware guard within 5 m, 0.85 m steps,
+  a high knee lift, the head up, one hand out for balance and the other over the knife; still there it holds the pose (no
+  kneel). The remote copy asks the same guards (`setTenseSource`) and derives its landing from the snapshots.
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).
@@ -160,21 +171,28 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   always over the right shoulder: a swap lasts only while drawn and holstering resets it (`ShoulderCamera.resetShoulder`
   on the draw's falling edge); every mission starts on the right (`gameplay.defaultShoulder` is no longer read or
   written; the field stays, unused); the wall never sets the shoulder (CT aims off the wall). Playtest 2: the sight raise
-  rides the hand swap's tuck (no flick, +4 cm) and the camera swap arc is 0.3 m. The chest carries the aim (`AIM_CHEST`:
+  rides the hand swap's tuck (no flick, +4 cm) and the camera swap arc is 0.3 m (G3: 0.4 m, CT 111908). The chest carries the aim (`AIM_CHEST`:
   0.75 of the pitch) with the elbows tucked (`AIM_ELBOW_TUCK`).
 
 ## Camera
-- `config/camera.ts` `CAMERA` + `framing()`: free orbit; lowered, looking around only turns the head
-  (`RigPose.lookYaw/lookPitch`); spine, arms and gun follow the camera only once raised. Framing: the operator in the left
-  third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18; slice F: crouched ADS frames
-  lower with the body, the full crouch drop holstered and `aimCrouchShare` 0.68 of it aiming from the upright kneel,
-  the framing relative to the body the same as standing); back to a wall pulls back `coverBoom`. FOV
-  is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs per render frame: follow 80-150 ms with look-ahead, aim
-  framing 150-250 ms, shoulder swap ~250 ms on an arc, optional auto-recentre (`gameplay.autoRecentre`), handheld drift
-  (<= 0.15 deg), micro-bob (<= 1 cm), dash FOV and boom. G28 / G29 replace this framing (Decided direction above).
+- `config/camera.ts` `CAMERA` + `framing(ads, crouch, C, open)`: free orbit, rigid follow (no lag, no lead, no recentre,
+  G159); lowered, looking around only turns the head (`RigPose.lookYaw/lookPitch`); spine, arms and gun follow the camera
+  only once raised. (CT prototype G3, `docs/ct-prototype/audit/AUDIT-CAMERA.md`, the footage wins over F1a) Explore:
+  boom 2.8 m in an open space (crouched 2.2; the audit's 3.3 m framed Wren at 0.43 of the height in game, CT 0.50), 1.8 m in a tight one (both postures); shoulder 0.15 m (Michael "Match CT
+  (0.15 m)"); pivot at the operators' head top 1.68 m (crouched 1.08). Open or tight comes from the map's camera spaces
+  (`MapLayout.camSpaces` / `camSize`, `world/camSpaces.ts`; Marlow Yard: the yard and the annex roof open, the airlocks
+  and the roofed annex tight), else from probes from the head (back clear past 3.5 m and both sides past 2.0 m, with
+  hysteresis); the weight eases on its own spring (`toTight` 6, `toOpen` 4 1/s). Aim: boom 0.40 m, shoulder 0.17 m, the
+  pivot 0.16 m under the head top (camera at 1.52 m, the head on screen 23 deg off axis), in over the weapon's time
+  (0.35 s at most off a wall, `adsInWall`), fast out; crouched aim follows `aimCrouchShare` 0.68 of the crouch drop.
+  Start pitch 12 deg down (the horizon at 0.30 of the height). FOV is horizontal at 16:9 (`video.fovH`, default 86 =
+  CT's 55.7 deg vertical; Michael "Match CT (86)"; `camV` 1 moves a saved 75 to 86 and the pad's vertical look 0.8 to
+  1.0), Hor+. Through an open doorway (within 1.2 m of its centre) the boom pushes in to 0.8 m over 0.4 s and returns over
+  0.7 s (CT 110818, prototype).
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
-  near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in fast
-  and eases out slowly, then `applyBodyFade` hides the head / body.
+  near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in
+  (`boomIn` 16 1/s; the cast still clamps it the same frame) and eases out slowly (`boomOut` 4, about 1.2 s; G3, CT
+  053437), then `applyBodyFade` hides the head / body.
 - Shake roll is `rotation.z`; the camera sets `updateUpVectorFromRotation` (Babylon otherwise freezes a tilted horizon).
 - Aim assist (`weapons/aimAssist.ts`, pad only): friction fades across the cone edge, magnetism fades at the centre. To be
   removed (G16).
@@ -197,7 +215,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   traversal, a team move, death.
 - Facing and pose: the body faces out; `pose.wall` (`WALL_STANCE`), the head turned along the slide (`WALL_LOOK`), the rig
   pushed onto the face so the back sits <= 3 cm off it (`wallRootPush`), the off hand on the wall. Camera preset `wall`
-  (boom 2.6, the open-side shoulder), local only; the shoulder swap on the wall eases at `WALL_CAMERA.side` 5 1/s; e2e-wall
+  (G3: boom 2.0, shoulder 0.15, the whole body; was 2.6 / 0.55), local only; the shoulder swap on the wall eases at `WALL_CAMERA.side` 5 1/s; e2e-wall
   bounds the camera to <= 6 cm per frame and checks it never sits behind geometry.
 - Stacking (D8): `stackClamp` keeps capsule centres >= 0.62 m apart along one segment (remotes' `wall` MoveStates via
   `NetHooks.wallOthers`).
@@ -214,7 +232,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   an edge is the edge's open side (`wallFacing`; remotes from the edge bits), never the camera; the camera slides past the
   edge by `WallCore.peekView` (`wallPeekView`: the stick's push toward the edge or the look past it, from `viewLook`
   0.2 to `peekLook`): the pivot up to `WALL_CAMERA.peek.offset`, the shoulder offset turning to the open side (edge
-  direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m, eased over `peek.blend` 0.55 s.
+  direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m, eased (soft-linear `peekEase`) in over
+  `peek.blend` 0.35 s and back over `peek.out` 0.3 s, the open-side offset growing to `peek.shoulder` 0.55 (G3; CT 0.2 /
+  0.17 s; slice F had 0.55 s both ways; faster needs e2e-wall's 6 cm per-frame cap revisited).
 - Lean-out (removed by decision, loco M20 Q1): aim at the end of a high wall steps the capsule `WALL.leanOut` 0.35 m past
   the end (MoveState `lk` 1); aim on a low wall rises over the top (`lk` 2). At a left edge the weapon goes to the left hand
   (`wallLeftHand`, `CharacterRig.openLeft`, `EDGE_HAND_TIME` 0.25 s). Low wall at an end: `lowAimKind` picks the side lean
@@ -233,7 +253,7 @@ To be replaced by the CT door menu (G97); this is the current build.
   unlocked, uncracked door whose leaf is within 1.0 m and faced within 60 deg, grounded and in no other state.
 - Context press (`cover`: pad A, KBM Space): a 0.25 s settle onto the frame (hinge at one shoulder, the hand on the handle),
   then the leaf cracks to 0.12 over 0.6 s, quiet.
-- View (local only): `ShoulderCamera.doorPeek` eases the eye to the crack; FOV x0.85; the look is clamped to +-35 deg
+- View (local only): `ShoulderCamera.doorPeek` eases the eye to the crack; no zoom (G3: `fovMul` 1, was 0.85); the look is clamped to +-35 deg
   around the door's normal (`clampPeekYaw`).
 - Exits: the context press again or the stick held back 0.2 s closes the crack (0.4 s, quiet); the stick pushed in or
   `interact` opens the door quietly; damage, aim, jump or sprint ends the peek (the door stays cracked); a door opened fully
@@ -260,7 +280,9 @@ To be replaced by the CT door menu (G97); this is the current build.
   `LADDER_SPRINT_RATE` 5, drainpipe x`PIPE_SPRINT` (to be removed, G31); slide `LADDER_SLIDE`; zipline to `ZIP_SPEED` 6 m/s.
 - `TraversalController.attach`: `attachTo(anchor, s, entry)`, `detach(reason)`; drives `override.kinematic`, sets
   `pose.traverse` (`hang` / `climb` / `crawl`), stows the weapon (`PlayerWeapons.setStowed`) and sets `cam.attach`
-  (`ATTACH_FRAMING`). While attached the graph skips the swap clip.
+  (`ATTACH_FRAMING`; G3 from the CT footage: hang / shimmy boom 3.5 centred at the body's middle, ladder centred,
+  drainpipe 2.8 centred, rappel 3.0 centred, duct 0.45 m just behind the head (blend 0.4 s), the wall 2.0; the presets'
+  `pitch` field is not read by the camera). While attached the graph skips the swap clip.
 - `player/attachController.ts`: from the ground the probe asks `probe` (5 Hz); traverse attaches when no step / vault /
   mantle is offered; at a hangable edge the drop control held `LOWER_HOLD` lowers in. Attached: drop lets go, traverse
   jumps (`findJumpTarget`: <= 2.5 m along the stick) or climbs up (`canClimb`); a lip's end continues round the corner;

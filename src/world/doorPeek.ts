@@ -22,9 +22,10 @@ export const DOOR_PEEK = {
   backHold: 0.2,
   back: -0.5,
   push: 0.6,
-  /** The view's look range around the door's normal (rad, +-35 deg) and the FOV factor at the crack. */
+  /** The view's look range around the door's normal (rad, +-35 deg) and the FOV factor at the crack. (G3, AUDIT-CAMERA
+   *  row 24; was 0.85) 1: CT shows no zoom at the crack (052349), as no aim zoom (G29). */
   look: (35 * Math.PI) / 180,
-  fovMul: 0.85,
+  fovMul: 1,
   /** The frame: the body line off the leaf (m), and in from the free edge toward the hinge (m). */
   standoff: 0.42,
   handleIn: 0.3,

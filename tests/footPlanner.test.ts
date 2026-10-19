@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPlannerInput, FootPlanner, PLANNER } from '../src/anim/footPlanner';
+import { emptyPlannerInput, FootPlanner, PLANNER, STOP_SPLIT } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
 import { CT, MOVEMENT } from '../src/config/movement';
 
@@ -130,7 +130,7 @@ describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
 });
 
 describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
-  it('a foot in the air sets straight down where it is; held, the feet stay in the stride (no settling step)', () => {
+  it('a foot in the air sets straight down where it is (within STOP_SPLIT of the planted one); held, the feet stay in the stride (no settling step)', () => {
     let tested = 0;
     for (const release of [1.0, 1.04, 1.09, 1.13, 1.17, 1.21]) {
       let releasedAt = -1;
@@ -149,14 +149,16 @@ describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
       const k0 = stopFrame(frames, Math.round(releasedAt * 120));
       const f0 = frames[k0]!;
       const last = frames[frames.length - 1]!;
-      // the foot that was in the air lands within a centimetre of where it was (horizontally)
+      // the foot that was in the air lands within a centimetre of where it was (horizontally), (G1, audit row 9) pulled in
+      // to STOP_SPLIT front to back of the planted foot (travel along +z here): a small split, never a lunge
+      const at = (fz: number, oz: number): number => oz + Math.max(-STOP_SPLIT, Math.min(STOP_SPLIT, fz - oz));
       if (!f0.lc) {
         tested++;
-        expect(Math.hypot(last.lx - f0.lx, last.lz - f0.lz)).toBeLessThan(0.01);
+        expect(Math.hypot(last.lx - f0.lx, last.lz - at(f0.lz, f0.rz))).toBeLessThan(0.01);
       }
       if (!f0.rc) {
         tested++;
-        expect(Math.hypot(last.rx - f0.rx, last.rz - f0.rz)).toBeLessThan(0.01);
+        expect(Math.hypot(last.rx - f0.rx, last.rz - at(f0.rz, f0.lz))).toBeLessThan(0.01);
       }
       // one landing at most (the foot in the air), then nothing moves for over a second
       expect(last.landed - f0.landed).toBeLessThanOrEqual(1);

@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased - ct-prototype
+- G1 legs and gait (`docs/ct-prototype/G1-REPORT.md`, against the CT footage): in turns the legs turn with the body
+  (feet under the hips, no splay, no pelvis spike); an upright standing walk with near-straight knees and the heel rising
+  onto the toes; the run quickens (~4.7 steps/s), leans from gear 4, pumps its arms, has a flight phase and banks into
+  fast turns; the top standing speed is 4.5 m/s; a stop sets down in a small split and straightens up; a crouched stop
+  kneels at once on the trailing knee, the forearm on the front thigh, no wide squat on the way in; moving crouched the
+  knees stay off the floor; a fall of about a metre lands deep with the arms out; new: the tense sneak near an unaware
+  guard (long high-kneed steps, head up, a hand over the knife).
 - Slice A (playtest 2, `docs/ct-prototype/A-PLAYTEST2.md`): the five speeds are re-spaced so the old speed 2 is the
   slowest (standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s; D-pad up / down sets
   them and the stick reaches that speed from 0.9 of its travel); ADS look is 70 % less sensitive; the corner peek swings

@@ -178,3 +178,34 @@ describe('settings: the A3 D-pad layout (F7, playtest 2 "D pad left and right is
     expect(chosen.pad.gearUp).toEqual([PAD.RIGHT]);
   });
 });
+
+describe('settings: the CT camera defaults (G3, camV 1)', () => {
+  /** Settings as stored before G3: the old defaults FOV 75 and pad vertical look 0.8, no `camV`. */
+  const PRE_G3 = {
+    gamepad: { lookSensitivityX: 1, lookSensitivityY: 0.8, adsMultiplier: 0.3, deadzoneLeft: 0.15, deadzoneRight: 0.12, triggerDeadzone: 0.08, curve: 'classic', invertY: false, aimAssist: 'standard', vibration: true },
+    padV: 2,
+    video: { preset: 'epic', auto: true, renderScale: 1, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto' },
+  };
+  it('new defaults: FOV 86 (Michael "Match CT (86)"), pad vertical look 1.0', () => {
+    const d = defaultSettings();
+    expect(d.video.fovH).toBe(86);
+    expect(d.gamepad.lookSensitivityY).toBe(1);
+    expect(d.camV).toBe(1);
+  });
+  it('an old save on the old defaults moves to the new ones once', () => {
+    const s = sanitizeSettings(structuredClone(PRE_G3));
+    expect(s.video.fovH).toBe(86);
+    expect(s.gamepad.lookSensitivityY).toBe(1);
+    expect(s.camV).toBe(1);
+    // migrated settings stay put on the next load
+    expect(sanitizeSettings(structuredClone(s)).video.fovH).toBe(86);
+  });
+  it('a value the player chose stays, and a camV 1 save is never migrated again', () => {
+    const chosen = sanitizeSettings({ ...structuredClone(PRE_G3), video: { ...PRE_G3.video, fovH: 90 }, gamepad: { ...PRE_G3.gamepad, lookSensitivityY: 1.3 } });
+    expect(chosen.video.fovH).toBe(90);
+    expect(chosen.gamepad.lookSensitivityY).toBe(1.3);
+    const later = sanitizeSettings({ ...structuredClone(PRE_G3), camV: 1 });
+    expect(later.video.fovH).toBe(75);
+    expect(later.gamepad.lookSensitivityY).toBe(0.8);
+  });
+});

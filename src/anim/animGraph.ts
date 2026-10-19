@@ -16,7 +16,7 @@ import type { Proportions } from '../player/proportions';
 import { overClip, addClip, type Clip } from './clip';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
-import { MOVEMENT } from '../config/movement';
+import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import {
   CROUCH_BACK,
@@ -27,11 +27,13 @@ import {
   FORWARD_NODES,
   IDLE,
   KNEEL,
+  KNEEL_M,
+  TENSE_SNEAK,
   WALK_BACK,
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { DROP, GRENADE, LAND, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
@@ -56,6 +58,8 @@ export interface AnimInput {
   crouch: number;
   /** Crouched and still: one-knee kneel. */
   kneel: boolean;
+  /** (G1, audit row 26) Close to an unaware guard: crouched at a sneak pace the tense sneak takes over (TENSE). */
+  tense: boolean;
   /** Aim pitch (up +) and aim yaw relative to the body (radians). */
   aimPitch: number;
   aimYaw: number;
@@ -163,6 +167,7 @@ export function defaultInput(): AnimInput {
     grounded: true,
     crouch: 0,
     kneel: false,
+    tense: false,
     aimPitch: 0,
     aimYaw: 0,
     raise: 0,
@@ -318,7 +323,8 @@ export const SIGHT_HEAD = { roll: 0.15 };
  * while moving or aiming; `amp` is the chest pitch (rad, ~4 mm at the head), `rate` its angular frequency (rad/s).
  */
 export const WEAPON_SETTLE_OMEGA = 29;
-export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 1.6 };
+// (G1, audit row 20) rate 1.6 -> 2.1 rad/s: a 3.0 s breath (old 043858)
+export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 2.1 };
 /**
  * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
  * level) - never upright like a mannequin. More bent over moving along a wall and crouched (`crouch`: over the
@@ -371,7 +377,8 @@ export const READY_HANDS = {
   pump: 0.13,
   pumpLift: 0,
   zSprint: 0.01,
-  pumpPhase: 0.35,
+  // (G1) 0.35 -> 0: with the run's step cap and flight phase the pump keeps to the legs on the clip phase
+  pumpPhase: 0,
   settle: 0.05,
   lag: 0.035,
 };
@@ -449,6 +456,14 @@ export class AnimGraph {
   /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
   private locoSpeed = 0;
   private kneelW = 0;
+  /** (G1) Tense sneak weight 0..1 (eased with TENSE.tau). */
+  private tenseW = 0;
+  /** (G1) Which knee the kneel puts down: 1 the right (left foot ahead, KNEEL), -1 the left (KNEEL_M); and the planner's
+   *  lead foot this frame (left ahead of right in the body frame, m). */
+  private kneelSide = 1;
+  private lead = 0;
+  /** (G1) The deep landing's share for the landing playing (by the fall). */
+  private landK = 0;
   private startT = -1;
   private settleT = -1;
   private landT = -1;
@@ -530,6 +545,12 @@ export class AnimGraph {
   // (locomotion step 21, A10) no heel-strike pelvis kick: the weight of each footfall is the clip's own single loading
   // dip (a second spring dip on top made a double bounce, D2). `pelSpring` stays for the stop / landing settles (D5.3).
 
+  /** (G1) The planner's lead: how far the left foot is ahead of the right in the body frame (m). The kneel keeps the
+   *  foot that is ahead planted and puts the other knee down. */
+  setLead(lead: number): void {
+    this.lead = lead;
+  }
+
   /** Support side from the planner (-1 left foot only, 1 right only, 0 both / none). */
   setSupport(side: number): void {
     this.support = side;
@@ -567,6 +588,9 @@ export class AnimGraph {
     const idle = crouched ? CROUCH_IDLE : IDLE;
     overClip(out, idle, 0, 1);
     overClip(out, idle, this.idleT, smoothstep((this.stillT - 2) / 1.5));
+    // (G1) still near an unaware guard the tense carriage holds (its mid-stance pose)
+    const tw = crouched ? this.tenseW : 0;
+    if (tw > 0) overClip(out, TENSE_SNEAK, 0.25, tw);
     if (this.moveW <= 0) return;
     // direction weights from the smoothed local move direction
     const fw = Math.max(0, this.dirZ);
@@ -593,6 +617,8 @@ export class AnimGraph {
       this.addMove(WALK_BACK, bw / tot, ph);
       this.addMove(this.dirX > 0 ? WALK_STRAFE_R : WALK_STRAFE_L, sw / tot, ph);
     }
+    // (G1, audit row 26) the tense sneak over the crouched gait
+    if (tw > 0) overClip(this.tmpMove, TENSE_SNEAK, ph, tw);
     lerpPose(out, out, this.tmpMove, this.moveW);
   }
 
@@ -623,9 +649,11 @@ export class AnimGraph {
     const still = i.speed < 0.05;
     this.stillT = still ? this.stillT + dt : 0;
     this.idleT += dt;
+    // (G1, audit row 26) the tense sneak: crouched at a sneak pace close to an unaware guard (the caller tests the guard)
+    this.tenseW += ((i.tense && i.crouch > 0.5 && i.speed <= TENSE.maxSpeed && i.grounded && !i.wall && i.traverse === 'none' ? 1 : 0) - this.tenseW) * (1 - Math.exp(-dt / TENSE.tau));
     if (i.phase >= 0) this.phase = i.phase;
     // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-    else if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i)) * dt) % 1;
+    else if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW) * dt) % 1;
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
     // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
@@ -634,8 +662,11 @@ export class AnimGraph {
     // (step 22, D5.1) the effort pace (GAIT_REF units), stance-blended, for the speed-scaled arm swing
     const ck = clamp(i.crouch, 0, 1);
     this.effortS = effortSpeed(i.speed, false) * (1 - ck) + effortSpeed(i.speed, true) * ck;
-    const moveTarget = smoothstep(locoSpeed / 0.22);
-    this.moveW = approach(this.moveW, moveTarget, i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
+    // (G1, audit row 9) holding a stop the body comes up out of the stride over ~0.15 s (knees straighten, upright) while
+    // the feet stay where they froze
+    const holding = i.holdSpeed > 0 && i.speed < 0.05;
+    const moveTarget = holding ? 0 : smoothstep(locoSpeed / 0.22);
+    this.moveW = approach(this.moveW, moveTarget, holding ? 0.05 : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
@@ -667,11 +698,15 @@ export class AnimGraph {
     // remote copy, posed from MoveState without the kneel timer, does not)
     // (P1c) the idle kneel was off (no kneel in the footage read then); (F3, playtest 2 "crouch idle should kneel down
     // like CT ... character looks like a gorilla") back on: one knee down, upright and compact (POSTURE.kneelLean)
-    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.5 && !i.wall;
+    // (G1, audit row 4) kneeling from a standstill goes straight down into the kneel (no wide crouch squat on the way): it
+    // starts with the crouch, not half way through it
+    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && !i.wall;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
+    // (G1) a kneel starting: the foot that is ahead stays planted (a stop with the right foot ahead kneels on the left knee)
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
-    overClip(src, KNEEL, this.idleT, kw);
+    overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT, kw);
     this.slot('kneel', kw, this.idleT);
 
     // --- start / stop / pivot clips from the motion driver
@@ -743,18 +778,26 @@ export class AnimGraph {
       src[CH.fRY] = src[CH.fRY]! + 0.1;
       src[CH.pelPitch] = src[CH.pelPitch]! + 0.1;
     }
-    if (i.landing > 0.5 && this.landT < 0) this.landT = 0;
+    if (i.landing > 0.5 && this.landT < 0) {
+      this.landT = 0;
+      // (G1, audit row 18) a drop of about a metre and more (landing 0.82 at 1 m) lands deep, arms out
+      this.landK = smoothstep((i.landing - 0.6) / 0.25);
+    }
     if (this.landT >= 0) {
-      addClip(src, LAND, this.landT, 1);
+      const lk = this.landK;
+      if (lk < 1) addClip(src, LAND, this.landT, 1 - lk);
+      // (crouched already deep: the dip only takes it the rest of the way)
+      if (lk > 0) addClip(src, LAND_DEEP, this.landT, lk * (1 - 0.75 * crouchK));
       this.landT += dt;
-      if (this.landT > LAND.duration) this.landT = -1;
+      if (this.landT > (lk > 0 ? LAND_DEEP.duration : LAND.duration)) this.landT = -1;
     }
     // dash: low, driving rush (the dash cycle is in the blend space; this adds the wind-up crouch)
     src[CH.pelY] = src[CH.pelY]! - this.dashS * 0.04;
 
     // --- acceleration lean (into acceleration, back against braking); the chest stays steadier
     // anticipation: a first-order (not spring) response so it moves on the first frame
-    this.intentLean += (clamp(i.intent, -1, 1) * 0.1 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
+    // (G1, audit row 13) gain 0.1 -> 0.2: the start leans in on its first frame
+    this.intentLean += (clamp(i.intent, -1, 1) * 0.2 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
     // (step 22, D5.2, A88) M14 momentum holds an acceleration for ~0.3 s (it was a few frames): a softer gain and cap
     // (5 deg at a walk start or stop and above), on the critically damped spring; the capsule never overshoots
     // the back-to-wall entry and shuffle are a verb on the cover motion (no M14 momentum): they keep the 3.2.0 lean,
@@ -765,10 +808,19 @@ export class AnimGraph {
     // (a Chaos Theory sprint turns at 720 deg/s: its roll is held a little lower so the sprint's hunch and the turn
     // still bank within 8 deg)
     const rollMax = i.quickStop > 0 ? 0.08 - 0.03 * this.dashS : 0.08;
-    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -rollMax, rollMax), 12, dt);
+    // (G1, audit row 12) at a run the bank grows with the turn's lateral acceleration (speed x yaw rate: the same on a
+    // remote copy, from its measured velocity and turn); below BANK.from the 3.2.0 small roll from the side acceleration
+    const ay = i.speed * i.yawRate;
+    const bankK = smoothstep((i.speed - BANK.from) / (BANK.to - BANK.from)) * (1 - crouchK) * (i.wall ? 0 : 1);
+    const bankT = -Math.sign(ay) * Math.min(BANK.max, BANK.k * ay * ay) * bankK;
+    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -rollMax, rollMax) * (1 - bankK) + bankT, 12, dt);
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
-    src[CH.pelRoll] = src[CH.pelRoll]! + roll;
+    // (banking, BANK.pelvis of it in the pelvis and the rest in the spine so the chest leans the whole bank: the rig's chain
+    // carries 0.6 of the pelvis roll up to the chest)
+    const pelShare = 1 - bankK * (1 - BANK.pelvis);
+    src[CH.pelRoll] = src[CH.pelRoll]! + roll * pelShare;
+    src[CH.spRoll] = src[CH.spRoll]! + roll * bankK * (1 - 0.6 * pelShare);
 
     // ready hands (A42): holstered on foot, eased so a draw / holster never pops the arms or the carriage
     // a weapon-to-weapon swap (the outgoing and incoming slots differ; a draw / holster uses one slot) reaches
@@ -788,7 +840,10 @@ export class AnimGraph {
     // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
     // (F3) kneeling the crouch's forward lean gives way to the kneel's upright back (the kneel clip's own weight)
     const kneelK = smoothstep(this.kneelW);
-    const leanT = (crouchK * POSTURE.crouchLean * (1 - kneelK) + kneelK * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
+    // (G1) the crouch run's deeper back over the top crouched gear (effort 1.9 -> 2.5) and the tense sneak's
+    const cRunK = smoothstep((effortSpeed(i.speed, true) - 1.9) / 0.6);
+    const crouchLeanNow = POSTURE.crouchLean + (POSTURE.crouchRunLean - POSTURE.crouchLean) * cRunK + (POSTURE.tenseLean - POSTURE.crouchLean) * this.tenseW * (1 - cRunK);
+    const leanT = (crouchK * crouchLeanNow * (1 - kneelK) + kneelK * POSTURE.kneelLean + runK * POSTURE.runLean) * carriage;
     this.leanS += clamp(leanT - this.leanS, -POSTURE.rate * dt, POSTURE.rate * dt);
     const postureW = Math.max(crouchK, runK) * carriage;
     // --- tactical carriage (armed, or holstered with ready hands): hunched over the weapon; more bent over moving
@@ -948,7 +1003,10 @@ export class AnimGraph {
     const rw = this.readyW;
     const RH = READY_HANDS;
     const dash = this.dashS;
-    const swingT = (Math.min(RH.swingMax, RH.swing * this.effortS) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - dash) + RH.pump * dash) * smoothstep(i.speed / 0.22);
+    // (G1, audit rows 8 / 22 / 23) the run pumps its arms too (elbows ~86 deg, a bigger fore-aft drive): Chaos Theory has no
+    // sprint button, its jog and run are the top gears, eased in with the run lean (runK)
+    const pk = Math.max(dash, runK);
+    const swingT = (Math.min(RH.swingMax, RH.swing * this.effortS) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - pk) + RH.pump * pk) * smoothstep(i.speed / 0.22);
     this.armSwingA = approach(this.armSwingA, swingT, RH.settle, dt);
     this.holsterK = approach(this.holsterK, i.thighGear && i.traverse === 'none' ? 1 : 0, HOLSTER_TAU, dt);
     if (rw > 0) {
@@ -956,24 +1014,24 @@ export class AnimGraph {
       // (pose units: the output is scaled by k in writeTargets)
       const u = p.upperArm.len / k;
       const fl = p.forearm.len / k;
-      const flex = (RH.flex + (RH.flexCrouch - RH.flex) * crouchK) * (1 - dash) + RH.flexSprint * dash;
+      const flex = (RH.flex + (RH.flexCrouch - RH.flex) * crouchK) * (1 - pk) + RH.flexSprint * pk;
       const d2 = u * u + fl * fl + 2 * u * fl * Math.cos(flex);
-      const dx = RH.x + RH.xMove * smoothstep(i.speed / 3) + RH.xCrouch * crouchK + RH.xSprint * dash;
-      const z0 = RH.z + RH.zCrouch * crouchK + RH.zSprint * dash;
+      const dx = RH.x + RH.xMove * smoothstep(i.speed / 3) + RH.xCrouch * crouchK + RH.xSprint * pk;
+      const z0 = RH.z + RH.zCrouch * crouchK + RH.zSprint * pk;
       // (the sprint stride runs ~0.35 of a cycle ahead of the clip phase at the feet: the pump keeps to the legs)
       const sw = this.armSwingA * Math.cos((ph + RH.pumpPhase * dash) * Math.PI * 2);
       // (fix 21-1) on foot the hand swings back less than forward and arcs out past the hip as it goes back, clear of
       // the forward-swinging thigh and its holster (the sprint pump keeps its own symmetric drive)
-      const backK = 1 - (1 - RH.backSwing) * (1 - dash);
-      const arc = RH.xArc * (1 - dash);
+      const backK = 1 - (1 - RH.backSwing) * (1 - pk);
+      const arc = RH.xArc * (1 - pk);
       const bR = sw < 0 ? -sw * backK : 0;
       const bL = sw > 0 ? sw * backK : 0;
       const zR = sw < 0 ? z0 - bR : z0 + sw;
       const zL = sw > 0 ? z0 - bL : z0 - sw;
-      const dxR = dx + arc * bR + RH.xHolster * this.holsterK * (1 - dash);
+      const dxR = dx + arc * bR + RH.xHolster * this.holsterK * (1 - pk);
       const dxL = dx + arc * bL;
       // (from the rig's rest shoulder joint, p.y.shoulder: `shY` above sits 4 cm lower for the hanging default)
-      const lift = p.y.shoulder / k + RH.pumpLift * dash;
+      const lift = p.y.shoulder / k + RH.pumpLift * pk;
       const yR = lift - Math.sqrt(Math.max(0.01, d2 - dxR * dxR - zR * zR));
       const yL = lift - Math.sqrt(Math.max(0.01, d2 - dxL * dxL - zL * zL));
       const sh = p.shoulderHalf / k;
@@ -1129,6 +1187,8 @@ export class AnimGraph {
       pose[CH.hLZ] = pose[CH.hLZ]! + fz;
       pose[CH.hRZ] = pose[CH.hRZ]! + fz;
     }
+    // (G1) free-hand poses over the ready hands, in root space after the follow (pose units at 1.75 m)
+    if (fw > 0.0001) this.freeHands(pose, fw, k, ph);
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
     o.readyFollow = fw;
@@ -1136,6 +1196,47 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     return o;
+  }
+
+  /**
+   * (CT prototype G1) Free-hand poses on top of the ready hands (weighted by `fw`, their share left by the clips):
+   * - the kneel (audit row 4, 105624 @ 53.5-54.7): the left forearm resting on the left thigh, the wrist over the knee;
+   *   the right hand by the right thigh (KNEEL_HANDS);
+   * - the tense sneak (row 26, Michael: "holding hand near knife when near guard"): the right hand out ahead of the hip for
+   *   balance, the left hand over the knife on the left thigh, closing on its handle every few seconds (TENSE_HANDS);
+   * - a deep landing (row 18): the arms thrown out sideways for ~0.3 s (LAND_ARMS).
+   */
+  private freeHands(pose: Pose, fw: number, k: number, ph: number): void {
+    const p = this.p;
+    const kw = smoothstep(this.kneelW) * fw;
+    if (kw > 0.001) {
+      // (the forearm on the front knee's thigh: mirrored with the kneel)
+      const KH = KNEEL_HANDS;
+      const m = this.kneelSide;
+      blendHand(pose, m > 0 ? CH.hLX : CH.hRX, KH.lx * m, KH.ly, KH.lz, kw);
+      blendHand(pose, m > 0 ? CH.hRX : CH.hLX, KH.rx * m, KH.ry, KH.rz, kw);
+    }
+    const tw = this.tenseW * fw * (1 - smoothstep(this.kneelW));
+    if (tw > 0.001) {
+      const T = TENSE_HANDS;
+      // hip height and fore-aft in the pose (pelvis offset from rest)
+      const hy = p.y.hip / k + pose[CH.pelY]!;
+      const hz = pose[CH.pelZ]!;
+      const sh = p.shoulderHalf / k;
+      // the knife hand settles onto the handle and eases off it again (a slow ~3 s cycle), the balance hand sways a little with the stride
+      const knife = 0.5 + 0.5 * Math.sin(this.idleT * T.knifeRate);
+      const sway = Math.sin(ph * Math.PI * 2) * T.sway;
+      blendHand(pose, CH.hRX, sh + T.outX, hy + T.outY, hz + T.outZ + sway, tw);
+      blendHand(pose, CH.hLX, -(sh + T.knifeX), hy + T.knifeY + T.knifeOff * (1 - knife), hz + T.knifeZ, tw);
+    }
+    if (this.landT >= 0 && this.landK > 0) {
+      const t = this.landT;
+      const w = this.landK * fw * smoothstep(t / 0.08) * (1 - smoothstep((t - LAND_ARMS.hold) / 0.25));
+      pose[CH.hLX] = pose[CH.hLX]! - LAND_ARMS.out * w;
+      pose[CH.hRX] = pose[CH.hRX]! + LAND_ARMS.out * w;
+      pose[CH.hLY] = pose[CH.hLY]! + LAND_ARMS.up * w;
+      pose[CH.hRY] = pose[CH.hRY]! + LAND_ARMS.up * w;
+    }
   }
 
   /** Map the pose to rig targets and the planner's stance/gait values. */
@@ -1178,9 +1279,12 @@ export class AnimGraph {
     const half = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
     const st = o.stance;
     st.lX = (-half + q[CH.fLX]!) * k;
-    st.lZ = (0.05 + q[CH.fLZ]!) * k;
+    // (G1) the support foot's lead (0.08 m) is a standing stance: moving, the feet run on even tracks (a lead made every
+    // other landing reach further and dip the pelvis more: a limp in the bob)
+    const stag = 0.04 * (1 - this.moveW);
+    st.lZ = (0.01 + stag + q[CH.fLZ]!) * k;
     st.rX = (half + q[CH.fRX]!) * k;
-    st.rZ = (-0.03 + q[CH.fRZ]!) * k;
+    st.rZ = (0.01 - stag + q[CH.fRZ]!) * k;
     st.lY = q[CH.fLY]! * k;
     st.rY = q[CH.fRY]! * k;
     st.lPitch = q[CH.fLPitch]!;
@@ -1195,9 +1299,10 @@ export class AnimGraph {
     const canTurn = !i.wall && i.traverse === 'none' && i.motion !== 'turn' && i.motion !== 'stop';
     const yr = canTurn ? Math.abs(i.yawRate) : 0;
     g.moving = (s > (i.motion === 'stop' ? 0.3 : 0.05) || yr > TURN_GAIT_MIN) && i.grounded;
-    const rate = gaitRate(s > 0.05 ? s : 0, yr, undefined, lat);
+    const tense = i.crouch > 0.5 ? this.tenseW : 0;
+    const rate = gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
-    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat) : 0;
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
     g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
@@ -1207,8 +1312,11 @@ export class AnimGraph {
     const na = nodes[a]!;
     const nb = nodes[a + 1]!;
     const kk = clamp((es - na.speed) / (nb.speed - na.speed), 0, 1);
-    const duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
-    const lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
+    // (G1) the tense sneak's own contact timing and high knee lift
+    const duty0 = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
+    const lift0 = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
+    const duty = duty0 + (TENSE_SNEAK.duty - duty0) * tense;
+    const lift = lift0 + (TENSE_SNEAK.liftH - lift0) * tense;
     // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
     g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
@@ -1233,6 +1341,24 @@ export class AnimGraph {
 
 const NEUTRAL_POSE: Pose = newPose();
 
+/** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */
+function blendHand(q: Pose, ch: number, x: number, y: number, z: number, w: number): void {
+  q[ch] = q[ch]! + (x - q[ch]!) * w;
+  q[ch + 1] = q[ch + 1]! + (y - q[ch + 1]!) * w;
+  q[ch + 2] = q[ch + 2]! + (z - q[ch + 2]!) * w;
+}
+
+/** (G1, audit row 4) Kneeling wrists (root space, m at 1.75 m): the left on the front (left) knee, the right by the right thigh. */
+export const KNEEL_HANDS = { lx: -0.1, ly: 0.58, lz: 0.42, rx: 0.24, ry: 0.42, rz: 0.06 } as const;
+/**
+ * (G1, audit row 26) Tense sneak wrists, from the hip (m at 1.75 m): the right `out*` (out past the shoulder, height, ahead)
+ * for balance with a `sway` (m) along the stride, the left `knife*` over the knife on the left thigh, `knifeOff` (m) off
+ * its handle at the open end of the `knifeRate` (rad/s) cycle.
+ */
+export const TENSE_HANDS = { outX: 0.12, outY: 0.04, outZ: 0.22, sway: 0.03, knifeX: -0.03, knifeY: 0.06, knifeZ: 0.12, knifeOff: 0.06, knifeRate: 2.1 } as const;
+/** (G1, audit row 18) A deep landing throws the arms out (m sideways, m up) for `hold` s. */
+export const LAND_ARMS = { out: 0.3, up: 0.3, hold: 0.3 } as const;
+
 /** Sideways share of the local movement direction (0 forward/back .. 1 pure strafe). */
 function lateralShare(i: AnimInput): number {
   const l = Math.sqrt(i.localX * i.localX + i.localZ * i.localZ);
@@ -1249,8 +1375,18 @@ const TURN_DUTY = 0.52;
  * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;
  * the lean changes at most `rate` rad/s.
  */
-export const POSTURE = { crouchLean: 0.74, kneelLean: 0.1, runLean: 0.37, kneel: true, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 2.0, runTo: 4.2, rate: 2.5 } as const;
+// (CT prototype G1) runFrom / runTo 2.0 / 4.2 -> 1.6 / 3.0 (audit row 8: the full run lean from gear 4); kneelLean 0.1 ->
+// 0.18 (row 4: the kneel's back ~15-20 deg forward); `crouchRunLean` (row 16) the crouch run's back, ~55 deg with the
+// pelvis, eased in over the top crouched gear; `tenseLean` (row 26) the tense sneak's back (0.6 rad, ~45 deg with the pelvis).
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.18, runLean: 0.37, kneel: true, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 1.6, runTo: 3.0, rate: 2.5, crouchRunLean: 0.95, tenseLean: 0.6 } as const;
 const LEAN_MAX = 0.09;
+/**
+ * (CT prototype G1, audit row 12) Bank into a fast turn: roll = min(`max`, `k` x a^2) for the lateral acceleration a = speed x
+ * yaw rate (m/s^2), eased in from `from` to `to` m/s (none walking): ~10 deg in a swept run turn (12 m/s^2), the 0.55 rad
+ * (31 deg) cap in a 360 deg/s run spin (051339 @ 17-19.75: 30-45 deg). Split `pelvis` / the rest over the spine. (The audit's
+ * 0.35 x atan(a / g) gives 18 deg for its own 10 deg swept turn: the quadratic keeps both of its measured ends.)
+ */
+export const BANK = { k: 0.0012, max: 0.55, from: 2.5, to: 3.0, pelvis: 0.4 } as const;
 /** (step 22) The acceleration lean on the wall (entry, shuffle): the 3.2.0 gain and cap. */
 const LEAN_WALL = { gain: 0.025, max: 0.14 } as const;
 

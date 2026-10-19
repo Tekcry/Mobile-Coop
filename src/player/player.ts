@@ -344,6 +344,7 @@ export class Player {
     rp.grounded = c.grounded;
     rp.crouch = c.crouchBlend;
     rp.kneel = c.kneeling;
+    rp.tense = c.tense;
     rp.aimPitch = this.cam.pitch * raise;
     rp.aimYaw = aimYaw;
     // hanging upside down: the spine turns the mirrored way and the raised weapon points along the view in world

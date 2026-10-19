@@ -46,6 +46,8 @@ import { emptyStats, type GameMode, type ModeId, type SessionStats } from './mod
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
+import { camSpaceAt } from '../world/camSpaces';
+import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
@@ -112,6 +114,10 @@ import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 import { clearGripAxis } from '../player/attachGrips';
+import { setTenseSource } from '../player/tenseSneak';
+
+/** (G1) No victims (no allocation per call). */
+const NO_VICTIMS: readonly TakedownVictim[] = [];
 
 export type { ModeId };
 
@@ -369,7 +375,7 @@ export class GameState implements AppState {
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
-  takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? [];
+  takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? NO_VICTIMS;
 
   private constructor(
     readonly app: App,
@@ -383,6 +389,8 @@ export class GameState implements AppState {
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
+    // (G1, audit row 26) the tense sneak reads the takedown victims (the guards, or a client's puppets of them)
+    setTenseSource(() => this.takedownVictims());
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -925,6 +933,7 @@ export class GameState implements AppState {
     this.net?.dispose();
     this.net = null;
     this.audio?.dispose();
+    setTenseSource(null);
     this.app.input.setGameplayActive(false);
     for (const k of ['player', 'carry', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
@@ -1479,6 +1488,15 @@ export class GameState implements AppState {
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
     this.player.cam.attachYaw = this.player.controller.yaw;
+    // (G3) the explore camera frames by the space at the feet: the map's camera spaces (NaN: the camera's probes decide)
+    {
+      const lay = this.world.layout;
+      const fp = this.player.position;
+      this.player.cam.space = camSpaceAt(lay.camSpaces, lay.camSize, fp.x, fp.y, fp.z);
+      // (G3) passing through an open doorway: the camera pushes in behind the shoulder (CT 110818)
+      const door = this.world.doors.nearest(fp.x, fp.z, CAMERA.doorPassReach);
+      this.player.cam.doorPass = door && door.open > 0.5 ? 1 : 0;
+    }
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate();

@@ -317,6 +317,21 @@ export const SLIDE = makeClip({
 });
 
 /** Landing compression after a drop (timed). */
+/**
+ * (CT prototype G1, audit row 18) A drop of a metre and more (110522 @ 71.5-72.1): the hips sink to near full crouch depth
+ * at 0.1 s and come back up over 0.5 s (the graph weights it by the fall and adds the arms thrown out, LAND_ARMS).
+ */
+export const LAND_DEEP = makeClip({
+  name: 'landDeep',
+  duration: 0.75,
+  keys: {
+    pelY: [0, 0, 0.1, -0.4, 0.25, -0.36, 0.5, -0.14, 0.75, 0],
+    pelPitch: [0, 0, 0.1, 0.35, 0.35, 0.18, 0.75, 0],
+    spPitch: [0, 0, 0.1, -0.08, 0.35, 0.02, 0.75, 0],
+    hdPitch: [0, 0, 0.1, -0.2, 0.75, 0],
+  },
+});
+
 export const LAND = makeClip({
   name: 'land',
   duration: 0.6,

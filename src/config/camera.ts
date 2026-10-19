@@ -8,35 +8,62 @@ import { MOVEMENT } from './movement';
  * with no FOV change (G29; only a marksman scope zooms).
  */
 export const CAMERA = {
-  /** Distance behind the pivot (m): explore (measured 1.8 +- 0.25) / aim (measured 0.4 +- 0.1, 0.35-0.45 behind the head). */
+  /** Distance behind the pivot (m): explore in a tight space (rooms, corridors; measured 1.8 +- 0.25) / aim (G3: 0.40,
+   *  AUDIT-CAMERA row 2: the head 0.27-0.33 of the width puts the camera 0.40 m from it; was 0.35). */
   boomHip: 1.8,
-  boomAds: 0.35,
-  /** Lateral offset of the camera from the head (m), towards the shoulder side: explore 0.1-0.2 (measured) / aim 0.16 +- 0.05 (measured). */
-  // (F1a, playtest 1: cam-2 "too centered", cam-3 "too high and not over shoulder enough") the explore camera sits further
-  // over the right shoulder (0.15 -> 0.32), the aim camera well over it (0.16 -> 0.42) and lower (eye drop 0.08 -> 0.24). Starting values.
-  shoulderHip: 0.32,
-  shoulderAds: 0.42,
-  /** Pivot (look-at) height above the feet (m): the head top, tied to the shared capsule (G38: same for every operator). */
-  pivotStand: MOVEMENT.standHeight,
-  pivotCrouch: MOVEMENT.crouchHeight,
-  /** Aim: the pivot drops to eye height (m below the head top; measured: camera at eye height to head top). Starting value. */
-  aimEyeDrop: 0.24,
+  boomAds: 0.4,
+  /** (G3, AUDIT-CAMERA rows 1 and 7) Explore in an open space (yards, outdoors): the whole body in frame, the hero 0.50-0.52
+   *  of the frame height (the audit's 3.3 m for a 1.8 m hero; 3.1-3.5 m running), crouched 2.2 m (CT 2.1-2.6). G3 render
+   *  check (shots/g3/yard-ctcourse, in game at the 12 deg start pitch): 3.3 m framed Wren at 0.43 of the height, so 2.8
+   *  (Wren is shorter than the audit's 1.8 m hero; CT 111908 @18.5 reads 0.50). A tight space keeps `boomHip` both ways.
+   *  Open or tight comes from the map's camera spaces (`world/camSpaces.ts`), else from the probes below. */
+  boomOpen: 2.8,
+  boomCrouchOpen: 2.2,
+  /** Open-space weight rates (1/s, critically damped): into tight (about 0.8 s) and out to open (about 1.2 s). A 1.5 m
+   *  step at the wall pull-in rate (`boomIn` 40) reads as a cut, so the space blends on its own spring; walls still pull
+   *  the boom in at once through the sphere cast. Starting values. */
+  toTight: 6,
+  toOpen: 4,
+  /** Probe fallback (maps without camera spaces): open when the ray back from the head is clear past `openBack` (m) and
+   *  both side rays past `openSide` (m) (AUDIT-CAMERA row 1). */
+  openBack: 3.5,
+  openSide: 2.0,
+  /** Lateral offset of the camera from the head (m), towards the shoulder side. (G3, Michael 2026-10-20 "Match CT
+   *  (0.15 m)", replaces F1a 0.32) explore 0.15: the spine at x 0.45-0.48. (G3, "Footage wins", replaces F1a 0.42) aim
+   *  0.30 at the 0.40 boom (job lead, after the G3 render: at 0.17 the head, which moves onto the stock when aiming, sat at
+   *  x 0.5 over the reticle; 0.42 put it at x ~0.1; CT has its centre near x 0.3, 105845 @ 36.5). */
+  shoulderHip: 0.15,
+  shoulderAds: 0.3,
+  /** Pivot (look-at) height above the feet (m): the head top, one value for every operator (G38). (G3, AUDIT-CAMERA row 6)
+   *  1.68, the operators' shared head top (`operatorRig`), was the capsule's 1.75 (the head rendered low, y 0.55-0.62
+   *  against CT's 0.42-0.51); crouched the same 0.07 m under the crouch capsule, so the crouch drop stays 0.6 m and
+   *  `aimCrouchShare` keeps its calibration. */
+  pivotStand: MOVEMENT.standHeight - 0.07,
+  pivotCrouch: MOVEMENT.crouchHeight - 0.07,
+  /** Aim: the pivot drops to eye height (m below the head top). (G3, row 10; F1a had 0.24 from the 1.75 pivot) 0.16 from
+   *  1.68: the camera stays at 1.52 m, the head centre about 7 deg above the screen centre (CT 4-10 deg). */
+  aimEyeDrop: 0.16,
   /** (F2) Aiming crouched, the share of the crouch drop the pivot follows: from the kneel (F3) the aiming upper body is
    *  upright, the head about 0.41 m below standing against the 0.6 m crouch drop (shots/f/aimcrouch-side); the full drop put
    *  the camera behind her shoulder. Starting value (G10). */
   aimCrouchShare: 0.68,
   /** Camera height relative to the pivot (m): 0, the camera orbits the head (the measured ~2.3 m height at the default ~17 deg down pitch comes from the pitch). */
   height: 0,
-  /** Default pitch at spawn (rad, negative = looking down): about 17 deg down (measured). The player controls it after that. */
-  startPitch: -0.3,
+  /** Default pitch at spawn (rad, negative = looking down). (G3, row 4) 12 deg down, the horizon at y 0.30 as in CT at
+   *  FOV 86 (was -0.3, 17 deg, which at 86 put it at y 0.21). The player controls it after that. */
+  startPitch: -0.21,
   /** Aim blend: seconds in (the camera leads the weapon; per-weapon value set from the draw time), and the fast-out rate (1/s,
    *  exponential: about half way in 0.1 s, settled in about 0.5 s; measured 0.5-0.6 s out). */
   adsInTime: 0.6,
   adsOutRate: 7,
+  /** (G3, row 13) Aiming off a wall (the aim starts on the wall or within 0.8 s of leaving it): the camera dollies to the
+   *  shoulder in this time at most (CT 052059: most of the move in 0.23 s, settled by 0.4 s). */
+  adsInWall: 0.35,
   /** Shoulder swap while aiming: spring rate (1/s, critically damped: about 0.4 s to settle; measured 0.40 pistol / 0.43 rifle)
    *  and the pull-back at the mid-point (m; measured ~0.85 m behind at mid-swap against 0.4 at rest). */
   swapRate: 13,
-  swapArc: 0.3,
+  /** (G3, row 9) 0.4 (was 0.3): 0.8 m behind at mid-swap with the 0.40 aim boom (CT 0.7-0.8 m). */
+  swapArc: 0.4,
   /** Stairs only: the vertical follow of the feet is low-passed at this rate (1/s) so steps do not shake the view; XZ is rigid. */
   stairRate: 14,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */
@@ -47,7 +74,7 @@ export const CAMERA = {
   minBoom: 0.28,
   // --- wall and low-space safety (CAM, 2026-10-11): sphere casts head -> pivot -> shoulder -> camera, probes up and down
   /** Radius of the sphere cast from the shoulder point back to the camera (m). Larger than the near plane's half-diagonal
-   *  (about 0.07 m at `near` 0.05 m, 75 deg, 16:9 to 21:9), so no surface can cut the near plane while the camera sits at a hit. */
+   *  (about 0.055 m at `near` 0.05 m, 86 deg, 16:9; 0.07 m at 21:9), so no surface can cut the near plane while the camera sits at a hit. */
   castRadius: 0.12,
   /** Extra gap along the boom after a sphere hit (m): with `castRadius`, a head-on wall keeps the old 0.16 m `padding`. */
   castPad: 0.04,
@@ -55,9 +82,18 @@ export const CAMERA = {
   pivotRadius: 0.12,
   /** Those casts stop this far short of a hit (m), so the next cast starts clear of the wall rather than touching it. */
   castSkin: 0.03,
-  /** Boom follow rates (1/s, critically damped): pull in fast towards a nearer wall, ease back out slowly. */
-  boomIn: 40,
-  boomOut: 7,
+  /** Boom follow rates (1/s, critically damped): pull in fast towards a nearer wall, ease back out slowly. (G3,
+   *  AUDIT-EXTRA-OLD row 7, CT 053437: in about 0.25 s, out about 1.2 s; was 40 / 7) 16 / 4. The sphere cast's stop
+   *  still clamps the boom the same frame (`boomActual` = min(spring, cast)), so the camera is never behind a wall. */
+  boomIn: 16,
+  boomOut: 4,
+  /** (G3, AUDIT-EXTRA-NEW row 19, CT 110818) Through an open door: within `doorPassReach` (m) of an open doorway's
+   *  centre the boom pushes in to `doorPassBoom` (m) over `doorPassIn` (s), holds, and returns over `doorPassOut` (s).
+   *  Prototype, starting values. */
+  doorPassBoom: 0.8,
+  doorPassReach: 1.2,
+  doorPassIn: 0.4,
+  doorPassOut: 0.7,
   /** Low spaces (crawl voids, ducts, low ceilings): clear height over the head (m) where the camera starts to adapt, and
    *  where it is fully adapted (F32: a 1.5 m crouch duct works). Above `lowStart` the framing is exactly the normal one. */
   lowStart: 1.9,
@@ -83,8 +119,10 @@ export const CAMERA = {
   /** Hide the head when the camera gets this close to it (m); the whole body below `hideAll`. */
   hideHead: 0.32,
   hideAll: 0.2,
-  /** Default horizontal field of view (degrees). */
-  fov: 75,
+  /** Default horizontal field of view (degrees, at 16:9). (G3, Michael 2026-10-20 "Match CT (86)", was 75) 86 gives a
+   *  55.3 deg vertical FOV, CT's 55.7, so CT's vertical framing carries over 1:1. The settings default follows it
+   *  (`video.fovH`, the `camV` migration). */
+  fov: 86,
   /** Pitch limits (rad). */
   minPitch: -1.2,
   maxPitch: 1.05,
@@ -92,10 +130,18 @@ export const CAMERA = {
 
 export type CameraKey = keyof typeof CAMERA;
 
-/** Pure framing for a state: boom, shoulder offset and pivot height. Used by the camera and unit tests. `ads` 0..1, `crouch` 0..1. */
-export function framing(ads: number, crouch: number, C = CAMERA): { boom: number; shoulder: number; pivot: number } {
+/** The explore boom (m) for an open-space weight `open` 0 (tight) .. 1 (open) and `crouch` 0..1 (G3, rows 1 and 7). */
+export function exploreBoom(open: number, crouch: number, C = CAMERA): number {
+  const o = C.boomOpen + (C.boomCrouchOpen - C.boomOpen) * crouch;
+  return C.boomHip + (o - C.boomHip) * open;
+}
+
+/** Pure framing for a state: boom, shoulder offset and pivot height. Used by the camera and unit tests. `ads` 0..1,
+ *  `crouch` 0..1, `open` 0 tight .. 1 open space (G3; default tight). */
+export function framing(ads: number, crouch: number, C = CAMERA, open = 0): { boom: number; shoulder: number; pivot: number } {
+  const hip = exploreBoom(open, crouch, C);
   return {
-    boom: C.boomHip + (C.boomAds - C.boomHip) * ads,
+    boom: hip + (C.boomAds - hip) * ads,
     shoulder: C.shoulderHip + (C.shoulderAds - C.shoulderHip) * ads,
     // (F2, playtest 2 "aiming camera doesn't follow body when crouching") the pivot follows the body down crouched, aiming
     // or not; the framing relative to the body (eye drop, boom, shoulder) is the same standing and crouched (BC note 1);
@@ -119,14 +165,18 @@ export interface AttachFraming {
 export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted' | 'rappel' | 'fence' | 'wall';
 
 export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
-  // hanging: pulled back and lower, showing the drop
-  hang: { boom: 2.9, shoulder: 0.5, pivot: 1.35, pitch: -0.25, cone: 2.2, blend: 0.3 },
-  // ladder / drainpipe: over the shoulder, looking up or down the climb
-  ladder: { boom: 2.0, shoulder: 0.55, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
-  pipe: { boom: 2.0, shoulder: 0.55, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
+  // hanging (and the hang shimmy): (G3, AUDIT-CAMERA rows 14 and 30; was boom 2.9, shoulder 0.5, pivot 1.35, pitch -0.25)
+  // behind and centred, the middle of the hanging body at the frame centre, 3.5 m (CT 3.3-3.7), nearly level
+  hang: { boom: 3.5, shoulder: 0.05, pivot: 1.1, pitch: -0.1, cone: 2.2, blend: 0.3 },
+  // ladder / drainpipe: behind, looking up or down the climb. (G3, rows 15 and 29) centred (shoulder 0.55 -> 0.05);
+  // the drainpipe further back (2.0 -> 2.8, CT about 3 m)
+  ladder: { boom: 2.0, shoulder: 0.05, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
+  pipe: { boom: 2.8, shoulder: 0.05, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
   pipeH: { boom: 2.6, shoulder: 0.5, pivot: 1.4, pitch: -0.15, cone: Math.PI, blend: 0.3 },
-  // duct: tight, low
-  duct: { boom: 0.9, shoulder: 0.22, pivot: 0.55, pitch: -0.05, cone: 1.2, blend: 0.2 },
+  // duct: (G3, row 17; was boom 0.9, shoulder 0.22, pivot 0.55, pitch -0.05) just behind and above the head (CT 0.25-0.7 m,
+  // typical 0.45), centred, the view level along the duct with the head and shoulders at the frame bottom
+  // (G3, AUDIT-EXTRA-NEW row 11) blend 0.2 -> 0.4: the camera swings in behind the head over 0.4 s (CT 110714)
+  duct: { boom: 0.45, shoulder: 0, pivot: 0.65, pitch: 0.08, cone: 1.2, blend: 0.4 },
   zipline: { boom: 2.8, shoulder: 0.45, pivot: 1.2, pitch: -0.2, cone: Math.PI, blend: 0.25 },
   // (3.2.0) split jump: up between the walls, looking down the corridor (the pivot from the feet on the walls)
   split: { boom: 2.0, shoulder: 0.4, pivot: 0.75, pitch: -0.35, cone: Math.PI, blend: 0.3 },
@@ -135,10 +185,12 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // pipe, inverted: the camera stays upright at the hanging head's height
   inverted: { boom: 2.3, shoulder: 0.45, pivot: -0.3, pitch: 0, cone: Math.PI, blend: 0.35 },
   // (3.2.0 phase 3) rappel: out from the wall, looking down the drop; fence: over the shoulder up the mesh
-  rappel: { boom: 2.8, shoulder: 0.5, pivot: 1.2, pitch: -0.3, cone: Math.PI, blend: 0.3 },
+  // (G3, row 16; was boom 2.8, shoulder 0.5) the hero centred, 3.0 m (CT 3.0-3.1)
+  rappel: { boom: 3.0, shoulder: 0.05, pivot: 1.2, pitch: -0.3, cone: Math.PI, blend: 0.3 },
   fence: { boom: 2.2, shoulder: 0.5, pivot: 1.4, pitch: 0.05, cone: 2.4, blend: 0.25 },
-  // (locomotion step 11) back to a wall: pulled back to show the room, over the open-side shoulder (local only)
-  wall: { boom: 2.6, shoulder: 0.55, pivot: 1.45, pitch: -0.05, cone: Math.PI, blend: 0.25 },
+  // (locomotion step 11) back to a wall: pulled back to show the room, over the open-side shoulder (local only). (G3,
+  // row 12; was boom 2.6, shoulder 0.55) the whole body from about 2 m, the hero at x 0.41-0.46 (CT 052021, 051917)
+  wall: { boom: 2.0, shoulder: 0.15, pivot: 1.45, pitch: -0.05, cone: Math.PI, blend: 0.25 },
 };
 
 /**
@@ -155,7 +207,13 @@ export const WALL_CAMERA = {
   // giving way to it and the boom in to `boom` (CT: 1.0-1.5 m from the head, ct-measure-walls-doors-combat-vision.md)
   // (F4) blend 0.55 (was 0.3): the slide moves the pivot, boom and shoulder together, so a 0.3 s ease stepped the
   // camera ~10 cm a frame (e2e-wall caps it at 6)
-  peek: { offset: 0.75, yaw: (18 * Math.PI) / 180, blend: 0.55, boom: 1.4 },
+  // (G3, AUDIT-CAMERA row 11; replaces slice F's 0.55 s) CT 052021: in over 0.2 s, back in 0.17 s. In over `blend` 0.35,
+  // back over `out` 0.3, on the soft-linear `peekEase` (peak speed 1.25x the mean, a smoothstep's 1.5x): about the
+  // fastest that keeps the per-frame step at slice F's (unit model, step input: 5.3-8.0 cm by view yaw against slice F's
+  // 3.5-8.8; e2e-wall caps it at 6 cm in its run).
+  // `boom` 1.4 and `yaw` 18 deg kept (the yaw is the middle of the two clips, under 10 and 40-60 deg)
+  // `shoulder`: the open-side offset at full peek (slice F's wall 0.55, which framed the hero at x 0.28-0.30 as CT)
+  peek: { offset: 0.75, yaw: (18 * Math.PI) / 180, blend: 0.35, out: 0.3, boom: 1.4, shoulder: 0.55 },
   /** (21w) The shoulder swap on a wall (the slide reversing, an edge's open side): a slower critically damped rate
    *  (1/s) than the free camera's `camShoulder` 15.5, so the swap is an ease, never a 10 cm per-frame whip. */
   side: 5,
@@ -167,4 +225,17 @@ export function attachFraming<T extends { boom: number; shoulder: number; pivot:
   base.shoulder += (preset.shoulder - base.shoulder) * w;
   base.pivot += (preset.pivot - base.pivot) * w;
   return base;
+}
+
+/**
+ * (G3, AUDIT-CAMERA row 11) The edge peek's ease from its linear ramp `p` 0..1: constant speed with soft ends (`ramp` of
+ * the move at each end), so CT's fast 0.2 s slide moves the camera at the lowest peak speed (1 / (1 - ramp) of the mean;
+ * a smoothstep's is 1.5).
+ */
+export function peekEase(p: number, ramp = 0.2): number {
+  const x = Math.max(0, Math.min(1, p));
+  const k = 1 / (2 * ramp * (1 - ramp));
+  if (x < ramp) return x * x * k;
+  if (x > 1 - ramp) return 1 - (1 - x) * (1 - x) * k;
+  return (x - ramp / 2) / (1 - ramp);
 }

@@ -48,6 +48,8 @@ export interface RigPose {
   lookYaw?: number;
   lookPitch?: number;
   kneel?: boolean;
+  /** (G1, audit row 26) Crouched near an unaware guard: the tense sneak (`tenseSneak.ts`). */
+  tense?: boolean;
   /** Ready-position weights (default: low ready). */
   carry?: { low: number; high: number; compressed: number };
   /** Weapon mass factor (1 = rifle). */
@@ -170,8 +172,13 @@ const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 
 const HEEL_BACK = 0.05;
 /** (step 22) The sole's depth under the ankle: turning about the ankle drops the heel by it times (1 - cos pitch) too. */
 const HEEL_DOWN = 0.08;
+/** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
+const TOE_BALL = 0.12;
 function heelLift(f: { contact: boolean; pitch: number }): number {
-  return f.contact && f.pitch < 0 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
+  if (!f.contact) return 0;
+  if (f.pitch < 0) return -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN;
+  // (G1, footPlanner HEEL_RAISE) heel up, toe on the floor: the ankle rises by the ball's lever
+  return f.pitch > 0 ? Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
 }
 
 /**
@@ -198,8 +205,10 @@ const approachTo = (x: number, target: number, dt: number, tau: number): number 
 
 /** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
 export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
-/** (BC note 6) Extra release time constant (s) of the pelvis drop at a walking pace and above (bob damping). Starting value. */
-export const PELVIS_HOLD = 0.7;
+/** (BC note 6) Extra release time constant (s) of the pelvis drop at a walking pace and above (bob damping). (CT prototype G1,
+ *  audit rows 5 / 6) 0.7 -> 0.06: the held drop kept the walk on 30-60 deg knees all cycle; the toe raise (HEEL_RAISE) now
+ *  keeps the dip small instead. Starting value. */
+export const PELVIS_HOLD = 0.06;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
 export const NECK_WELD = 0.35;
 /** Shoulders lift into the stock at a full weld (m): the raised arms elevate the shoulder girdle. */
@@ -238,6 +247,14 @@ const CLIMB_FOOT_BELOW = 0.35;
 export const KNEE_GAP = 0.15;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
+/** (CT prototype G1, audit rows 16 / 27) Moving crouched (sneak, crouch walk, crouch run) the rear knee stays this high
+ *  (m): CT's knee never touches the floor while travelling; only the kneel puts it down. */
+export const KNEE_FLOOR_MOVING = 0.12;
+/** (G1) The knee-floor lift eases back down over this (s) moving crouched: the hips ride steady over the strides. */
+const KNEE_LIFT_TAU = 0.4;
+/** (G1, audit row 5) Standing, a planted leg reaches up to this share of its length before the pelvis drops (was 0.97,
+ *  ~28 deg of knee bend at every plant): CT's standing stance and walk keep the stance knee near straight (~9 deg at full reach). */
+export const SOFT_KNEE_STAND = 0.997;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
@@ -706,6 +723,10 @@ export class CharacterRig {
   private liftR = 0;
   /** (step 12b) Pelvis sink under a head cap (m) and the cap (world y), from `RigPose.headCap`. */
   private capDrop = 0;
+  /** (G1) The knee floor in use (m), eased between KNEE_FLOOR_MOVING crouched on the move and KNEE_FLOOR. */
+  private kneeFloor = KNEE_FLOOR;
+  /** (G1) The pelvis lift held for the knee floor (m). */
+  private kneeLift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
   private readyRf = 0;
   /** (BC note 2) Aim raise weight this frame (tucks the elbows). */
@@ -1231,6 +1252,7 @@ export class CharacterRig {
     i.grounded = s.grounded;
     i.crouch = s.crouch;
     i.kneel = s.kneel ?? false;
+    i.tense = s.tense ?? false;
     i.aimPitch = s.aimPitch;
     i.raise = s.aim;
     i.kick = s.kick;
@@ -1357,6 +1379,13 @@ export class CharacterRig {
     i.handSwap = this.handSwap;
     i.hand = 1 - this.handBlend * 2;
 
+    // (G1) the kneel keeps the lead foot planted: which foot is ahead (last frame's planted feet, body frame)
+    {
+      const pl = this.planner.L;
+      const pr = this.planner.R;
+      const ry = this.root.rotation.y;
+      this.graph.setLead((pl.x - pr.x) * Math.sin(ry) + (pl.z - pr.z) * Math.cos(ry));
+    }
     const t = this.graph.update(dt, i);
 
     // feet: world-space planner (locked contacts, swing arcs, idle steps)
@@ -1413,6 +1442,7 @@ export class CharacterRig {
     pin.faceGoal = s.faceGoal ?? (s.stride === 'facing' ? NaN : yaw);
     pin.stride = s.stride === 'facing' && !i.wall ? 'facing' : 'velocity';
     pin.pelvisYaw = yaw + this.follow;
+    pin.crouch = i.crouch;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
@@ -1615,7 +1645,8 @@ export class CharacterRig {
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
     // easing back up stays smooth
     const legFull = p.thigh.len + p.calf.len;
-    const legLen = legFull * 0.97;
+    // (G1) standing the soft knee is nearly straight; crouched (the pelvis far below any reach) it stays 0.97
+    const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : SOFT_KNEE_STAND - (SOFT_KNEE_STAND - 0.97) * Math.max(0, this.input.crouch * 2));
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
@@ -1661,7 +1692,8 @@ export class CharacterRig {
       if (w <= 0) continue;
       const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
       const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
-      const footY = f.y + p.y.ankle + (k === 0 ? lYc : rYc);
+      // (G1) with the heel lift the IK target gets (the toe raise and heel roll lengthen the leg: no dip for them)
+      const footY = f.y + p.y.ankle + (k === 0 ? lYc : rYc) + heelLift(f);
       const reachV = Math.sqrt(Math.max(0, len * len - dh * dh));
       const fNeed = hipY - footY - reachV;
       if (!stepping) {
@@ -1717,10 +1749,16 @@ export class CharacterRig {
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
     // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
-    const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
+    // (G1) moving crouched the rear knee stays KNEE_FLOOR_MOVING up (eased: the kneel lowers it to the floor smoothly)
+    const kfT = !free && t.gait.moving && this.input.crouch > 0.5 && !this.input.kneel ? KNEE_FLOOR_MOVING : KNEE_FLOOR;
+    this.kneeFloor = approachTo(this.kneeFloor, kfT, dt, 0.08);
+    const floorY = Math.min(L.y, R.y) + this.kneeFloor;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
-    if (kneeY < floorY - 0.002 && !turned) {
-      this.hips.position.y += floorY - kneeY;
+    // (G1) the lift a moving crouch needs is met at once and let go over KNEE_LIFT_TAU (no 1:1 bob with every rear knee)
+    const kneeNeed = turned ? 0 : Math.max(0, floorY - kneeY);
+    this.kneeLift = kneeNeed >= this.kneeLift ? kneeNeed : approachTo(this.kneeLift, kneeNeed, dt, this.kneeFloor > KNEE_FLOOR + 0.01 ? KNEE_LIFT_TAU : 0.02);
+    if (this.kneeLift > 0.002) {
+      this.hips.position.y += this.kneeLift;
       fresh(this.hips);
       fresh(this.spine);
       fresh(this.torso);

@@ -39,7 +39,8 @@ export const IDLE = makeClip({
   loop: true,
   keys: {
     // (P1 posture) knees near straight standing (footage: no visible bend): was -0.035 (36 deg of knee bend)
-    pelY: [0, -0.01, 1.2, -0.007, 2.4, -0.01, 3.6, -0.007],
+    // (G1, audit rows 5 / 20) upright, the stance knees near straight: was -0.01
+    pelY: [0, 0.004, 1.2, 0.006, 2.4, 0.004, 3.6, 0.006],
     // slow weight shifts between the feet
     pelX: [0, 0.006, 2.4, -0.006],
     pelPitch: [0, 0.07, 2.4, 0.075],
@@ -65,10 +66,11 @@ export const CROUCH_IDLE = makeClip({
 export const CREEP = makeClip({
   name: 'creep',
   cycle: true,
-  duty: 0.7,
+  duty: 0.62,
   liftH: 0.045,
   keys: {
-    pelY: bob(-0.06, 0.008, 0.004),
+    // (G1, audit rows 5 / 25) upright, knees only slightly bent: was -0.06
+    pelY: bob(-0.006, 0.008, 0.004),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.02),
     pelYaw: twist(0.04),
@@ -81,10 +83,11 @@ export const CREEP = makeClip({
 export const WALK = makeClip({
   name: 'walk',
   cycle: true,
-  duty: 0.63,
+  duty: 0.58,
   liftH: 0.065,
   keys: {
-    pelY: bob(-0.045, 0.012, 0.006),
+    // (G1, audit rows 5 / 21) the standing walk is upright, the stance knee near straight: was -0.045 (a 30-40 deg bent walk)
+    pelY: bob(-0.004, 0.012, 0.006),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.06),
@@ -100,7 +103,8 @@ export const BRISK = makeClip({
   duty: 0.58,
   liftH: 0.08,
   keys: {
-    pelY: bob(-0.05, 0.016, 0.008),
+    // (G1, audit row 5) was -0.05
+    pelY: bob(-0.015, 0.016, 0.008),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.035),
     pelYaw: twist(0.08),
@@ -114,10 +118,11 @@ export const BRISK = makeClip({
 export const JOG = makeClip({
   name: 'jog',
   cycle: true,
-  duty: 0.48,
-  liftH: 0.12,
+  // (G1, audit row 22) a short flight phase: duty 0.48 -> 0.45, a higher heel 0.12 -> 0.18, less sunk 0.07 -> 0.045
+  duty: 0.45,
+  liftH: 0.18,
   keys: {
-    pelY: bob(-0.07, 0.025, 0.012, 0.5),
+    pelY: bob(-0.045, 0.025, 0.012, 0.5),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.035),
     pelYaw: twist(0.1),
@@ -130,10 +135,12 @@ export const JOG = makeClip({
 export const DASH = makeClip({
   name: 'dash',
   cycle: true,
-  duty: 0.42,
-  liftH: 0.16,
+  // (G1, audit row 23) the run: a clear flight phase (duty 0.42 -> 0.38), the rear heel kicked high (lift 0.16 -> 0.3),
+  // the hips less sunk (0.13 -> 0.08)
+  duty: 0.38,
+  liftH: 0.3,
   keys: {
-    pelY: bob(-0.13, 0.03, 0.02, 0.45),
+    pelY: bob(-0.08, 0.03, 0.02, 0.45),
     pelX: sway(0.012),
     pelRoll: sway(0.03),
     pelYaw: twist(0.12),
@@ -178,10 +185,10 @@ export const WALK_STRAFE_L = mirrorClip(WALK_STRAFE_R, 'strafeL');
 export const CROUCH_WALK = makeClip({
   name: 'crouchWalk',
   cycle: true,
-  duty: 0.68,
+  duty: 0.58, // (G1, audit rows 16 / 27) was 0.68: a shorter stance keeps the rear foot nearer, its knee off the floor
   liftH: 0.045,
   keys: {
-    pelY: bob(-0.42, 0.012, 0.004), // (P1) was -0.36
+    pelY: bob(-0.39, 0.012, 0.004), // (P1) was -0.36; (G1) -0.42 -> -0.39: the rear knee clears the floor
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.025),
     pelYaw: twist(0.05),
@@ -223,7 +230,7 @@ export const CROUCH_STRAFE_L = mirrorClip(CROUCH_STRAFE_R, 'crouchStrafeL');
 export const SNEAK = makeClip({
   name: 'sneak',
   cycle: true,
-  duty: 0.74,
+  duty: 0.62, // (G1) was 0.74
   liftH: 0.04,
   keys: {
     pelY: bob(-0.46, 0.008, 0.003), // (P1) was -0.4
@@ -241,10 +248,10 @@ export const SNEAK = makeClip({
 export const CROUCH_RUN = makeClip({
   name: 'crouchRun',
   cycle: true,
-  duty: 0.52,
+  duty: 0.46, // (G1) was 0.52
   liftH: 0.085,
   keys: {
-    pelY: bob(-0.38, 0.02, 0.01), // (P1) was -0.32
+    pelY: bob(-0.31, 0.02, 0.01), // (P1) was -0.32; (G1, audit row 16) -0.38 -> -0.31: bent at the hips, the rear leg long behind
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.08),
@@ -252,6 +259,29 @@ export const CROUCH_RUN = makeClip({
     pelPitch: [0, 0.44, 0.5, 0.44],
     hdPitch: [0, -0.18, 0.5, -0.18],
     width: [0, 1.2],
+  },
+});
+
+/**
+ * (CT prototype G1, audit row 26, G160) The tense sneak close behind an unaware guard (footage 112331 @ 12-15, 112428):
+ * a deep crouch, knees wide, a high knee lift every step (the foot clearly off the floor), long deliberate steps (the
+ * graph sets the step, `TENSE.step`), the head up on the guard. Blended over the crouch blend space by the graph's tense
+ * weight; its arms (one out for balance, the other by the knife) are the graph's (TENSE_HANDS).
+ */
+export const TENSE_SNEAK = makeClip({
+  name: 'tenseSneak',
+  cycle: true,
+  duty: 0.5,
+  liftH: 0.22,
+  keys: {
+    pelY: bob(-0.42, 0.012, 0.006),
+    pelX: sway(SWAY_MAX),
+    pelRoll: sway(0.03),
+    pelYaw: twist(0.05),
+    spYaw: twist(-0.045),
+    pelPitch: [0, 0.3, 0.5, 0.3],
+    hdPitch: [0, -0.3, 0.5, -0.3],
+    width: [0, 1.5],
   },
 });
 
@@ -274,6 +304,8 @@ export const KNEEL = makeClip({
     width: [0, 0.95],
   },
 });
+/** (G1) The kneel on the other knee: entered when a stop leaves the right foot ahead (that foot stays planted). */
+export const KNEEL_M = mirrorClip(KNEEL, 'kneelM');
 
 /** Speed nodes of the standing forward blend (m/s): walk, jog, sprint. */
 export const FORWARD_NODES: readonly { speed: number; clip: Clip }[] = [

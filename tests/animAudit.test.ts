@@ -21,7 +21,8 @@ describe('anim audit limits', () => {
   it('pelvis jump limits follow speed x dt + 2 cm and the gear caps', () => {
     const s60 = L.pelvisJumpByGear('stand', 60).map((v) => +(v * 100).toFixed(2));
     // (CT prototype M1) the five CT speeds
-    expect(s60).toEqual([3.25, 4.33, 5.5, 7, 9]);
+    // (G1, audit row 14) the run 4.2 -> 4.5 m/s
+    expect(s60).toEqual([3.25, 4.33, 5.5, 7, 9.5]);
     const c120 = L.pelvisJumpByGear('crouch', 120).map((v) => +(v * 100).toFixed(2));
     expect(c120).toEqual([2.71, 3.08, 3.42, 3.79, 4.17]);
   });

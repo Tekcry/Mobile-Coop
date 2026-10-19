@@ -9,7 +9,8 @@ import {
 } from '../core/babylon';
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
-import { CT, MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT, TENSE } from '../config/movement';
+import { tenseNear } from './tenseSneak';
 import { EasedVelocity, targetSpeed, landingKind, LANDING, crouchWanted, type LandingKind, type Stance } from './movement';
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
@@ -18,8 +19,12 @@ import { hyp2 } from '../core/mathx';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
-/** (F3) Crouched and still this long (s): the crouch idle kneels (CT). The remote copies use the same. */
-export const KNEEL_STILL = 0.25;
+/**
+ * (F3) Crouched and still this long (s): the crouch idle kneels (CT). The remote copies use the same. (CT prototype G1,
+ * audit row 3) 0.25 -> 0.05, and a crouched stop no longer waits out the stop hold: CT kneels on the stop (105624 @
+ * 52.6-53.6: last crouch step at 53.2, knee on the floor at 53.5).
+ */
+export const KNEEL_STILL = 0.05;
 
 /**
  * Lets another system (cover) drive the controller for a step: a desired horizontal velocity and
@@ -103,6 +108,10 @@ export class PlayerController {
   crouchBlend = 0;
   /** Crouched and stopped for a moment: one-knee kneel (steadier aim). */
   kneeling = false;
+  /** (G1, audit row 26) Crouched with an unaware guard close by (`tenseSneak`): the tense sneak, and no kneel. */
+  tense = false;
+  /** (G1) Test hook (contact sheets): as if an unaware guard were close by. */
+  tenseForce = false;
   private stillT = 0;
   /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
    *  start on another gear with `?gear=N`. */
@@ -457,6 +466,9 @@ export class PlayerController {
     mi.aiming = aiming;
     mi.sprinting = !!ov?.run;
     mi.slowest = snapped === 1;
+    // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
+    this.tense = this.crouched && this.grounded && !ov && (this.tenseForce || tenseNear(this.pos.x, this.pos.z));
+    mi.tense = this.tense && this.motion.speed <= TENSE.maxSpeed;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
@@ -571,7 +583,13 @@ export class PlayerController {
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     // (step 22, M14) a Chaos Theory stop counts from rest, not from the eased stop's last 0.4 m/s
     this.stillT = this.crouched && mag < 0.1 && (this.ct ? this.motion.state === 'idle' : this.speed < 0.4) ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > KNEEL_STILL && !this.stopHold && this.stopEaseT < 0;
+    // (G1, audit row 3) crouched, the stop goes straight to the kneel (the stop hold lets go for it); not beside an
+    // unaware guard (the tense sneak holds its pose there)
+    this.kneeling = this.stillT > KNEEL_STILL && (!this.stopHold || this.crouched) && this.stopEaseT < 0 && !this.tense;
+    if (this.kneeling && this.stopHold) {
+      this.stopHold = false;
+      this.holdSpeed = 0;
+    }
     this.updateStance(dt);
   }
 

@@ -1,6 +1,7 @@
 import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
 import { KNEEL_STILL } from '../player/playerController';
+import { tenseNear } from '../player/tenseSneak';
 import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
@@ -60,6 +61,9 @@ export class RemoteAvatar {
   private speed = 0;
   /** (F3) Crouched and still (s): the owner's kneel (its controller: crouched and still for `KNEEL_STILL` s). */
   private kneelT = 0;
+  /** (G1, audit row 18) Landing recovery (s) from the fall the snapshots show, as the owner's controller times it. */
+  private landT = 0;
+  private airTop = Number.NaN;
   private tmpA = new Vector3();
   private tmpB = new Vector3();
   private placed = false;
@@ -368,9 +372,22 @@ export class RemoteAvatar {
     const upside = mp.tumble > 2;
     // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
     this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && mv?.m === 'ground' ? this.kneelT + dt : 0;
+    // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
+    const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
+    // (G1, audit row 18) the landing clip from the fall the snapshots show (the owner's controller: recovery from 3 m/s)
+    const onGround = (f & PF.grounded) !== 0 || mp.traverse !== 'none';
+    if (!onGround) this.airTop = Number.isNaN(this.airTop) ? this.pos.y : Math.max(this.airTop, this.pos.y);
+    else if (!Number.isNaN(this.airTop)) {
+      const v = Math.sqrt(Math.max(0, 2 * 18 * (this.airTop - this.pos.y)));
+      if (v > 3) this.landT = Math.min(0.7, 0.15 + (v - 3) * 0.08);
+      this.airTop = Number.NaN;
+    }
+    this.landT = Math.max(0, this.landT - dt);
     this.rig.animate(dt, {
       speed: this.speed,
-      kneel: this.kneelT > KNEEL_STILL,
+      kneel: this.kneelT > KNEEL_STILL && !tense,
+      tense,
+      landing: Math.min(1, this.landT * 2),
       localX: (lx * cy - lz * sy) * inv,
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
