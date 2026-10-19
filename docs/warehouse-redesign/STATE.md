@@ -1,11 +1,15 @@
 # Warehouse redesign - state
 
-**Now:** job started 2026-10-19 23:50 (BRIEF M1-M4). Step 1 done (a3664216, checker PASS); step 2 done (346ac584,
-`REVIEW.md`); step 3 (`SPEC.md`, all 3 sections + a section 1 build sheet) running.
-**Next:** (1) dog light fix + test, committed; (2) `REVIEW.md`; (3) `SPEC.md` for all 3 sections; (4) section 1
-greybox, fresh checker, at most 1 fix round, `npm run check` + e2e-sectorops (laptop runner while the desktop lock is
-held); push; walk guide to the orchestrator; (5) the PR to master by 06:00 (M4; greybox not stable by 05:00: the fix and the spec only),
-the full `npm run e2e` on its head, a message to the orchestrator.
+**Now:** PAUSED 2026-10-20 00:45 (Michael via the orchestrator: movement is the only focus tonight; usage limit; no PR
+tonight). Step 1 done (a3664216, checker PASS); step 2 done (`REVIEW.md`); step 3 `SPEC.md` is a DRAFT (stopped early):
+the building, section 1 design, engine fit and loosenings L1-L11 are done; the section 1 build sheet is mostly done
+(climbs indices in R2/R3 and levelBuilder signatures unchecked); sections 2 and 3 are outline only.
+**Next:** (1) the job lead decides SPEC "Decisions": C1 (sectorCheck: a takedown spot passes when unseen or the guard
+is alone 3 s on its timed patrol), N1 (sectorMode.ts:310 passes per-point waits and facings), section 1 start moved to
+(-20, -24.6), 8 guards in section 1, heavies / sniper left in sections 2-3 against G155 until rebuilt; (2) section 1
+greybox (implementer on Sonnet from the build sheet, fresh Opus checker, at most 1 fix round, `npm run check` +
+e2e-sectorops); (3) push, walk guide and the PR to master (dog fix + spec + greybox) when the orchestrator says;
+the full `npm run e2e` on its head.
 **Open:** the co-op client never draws any guard's flashlight (torch state is not on the wire; pre-existing, light
 parity; for the orchestrator). Polish: calm guards read the light field each tick on dark maps (`check-step1.md`).
 
