@@ -20,6 +20,15 @@
 - Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
   two a second per hand.
 
+## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
+- The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built
+  from ct-movement e5fc5870 read "fca0e26"): vite.config.ts took GITHUB_SHA first, which every slot build in the deploy
+  workflow inherits. The checked-out folder's HEAD now wins; GITHUB_SHA is the fallback (`src/core/buildSha.ts`, tested).
+
+## 4.7.1 - e2e-traverse grate kick: a closed grate before the kick (2026-10-19, PR #22)
+- e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
+  grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
+
 ## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
   Sector Ops opens the op list (each op's difficulty stars), then the op's briefing (its sections, Difficulty, Weather,
