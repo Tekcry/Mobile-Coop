@@ -28,11 +28,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
-- Controls (`ControlsScreen`, Settings > Accessibility; loco D7): a Controller and a Keyboard & mouse tab to remap
+- Controls (`ControlsScreen`, Settings > Controls > Remap controls, the one Controls place: no Pause item, menu-notes A2; loco D7): a Controller and a Keyboard & mouse tab to remap
   (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
   device with a confirm; pad: A rebinds, Y clears; Esc cancels, and on the pad holding B 1 s cancels). Decided, not
-  built yet (G22): Menu / Start or Esc cancels a capture and B stays bindable. Settings > Mouse & Keyboard shows the same
-  keyboard panel; Settings > Gameplay has hold / toggle for aim, crouch, sprint, back to wall and grab.
+  built yet (G22): Menu / Start or Esc cancels a capture and B stays bindable.
+  Settings > Controls also holds hold / toggle (aim, crouch, back to wall, sprint) and the pad sensitivities.
 - Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, `config/rumble.ts`), Test
   vibration.
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
@@ -53,6 +53,16 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   stack; main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (LB / RB
   cycle). No `backdrop-filter` over the canvas (blurring over WebGL is expensive). The `.screens` container is
   pointer-events: none; children opt in. The back button (`Screen.attachChrome`) sits top left.
+- Launch and title (menu-notes M1, M2): `index.html` #boot shows only the NIGHT / SHIFT wordmark in the title's own
+  position; `MenuState.prepare` (`world/menuGate.ts`, pure) holds it until the hero LOD is drawn, both weapon meshes
+  are in and the stage's materials are ready (12 s with no bytes arriving, 120 s cap, 12 s under webdriver, `?bootCap=`
+  override; errors still reveal). Then `TitleScreen.arm()` fades in only the prompt; presses before that are ignored.
+  The title stage is pure black (spots, hemi, ambient, goggle emissive at 0); the press strikes the goggle flicker-on on
+  T1, then the lights rise into T2 (launch only; after a match the stage is lit at once). Back on the main menu does
+  nothing (A1). Read-backs: `MenuState.heroLod`, `heroLodWanted`, `bootGate`, `titleLight`. Match loads keep the
+  status-line boot screen.
+- Menu void weapons (menu-notes notes 5-6): every void shot holds the Blender rifle or pistol (`world/menuPoses.ts`
+  picks the hold per shot; the other weapon sits in its carry slot); the gun shows only once its mesh has loaded.
 - Title: Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest; a preview build
   is "Night Shift (Preview ...)"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export
   magic `shoulder-strike-save`, the co-op app id.

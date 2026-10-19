@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased - menu-notes (Michael's walk-test menu notes, `docs/menu-notes/`)
+- Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
+  both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
+  arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
+  the press strikes Wren's goggle flicker-on in the dark on the goggle close-up, then the lights come up (launch only).
+- Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
+  autoplay is blocked.
+- Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
+  one place (A2).
+- Hero quality (note 4): the menu close-ups always draw the hero LOD on desktop presets (no fix needed; the jump was the
+  LOD2 -> LOD0 -> hero load order, now behind the load gate); read-back `MenuState.heroLod`.
+- Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
+  compressed ready, the other holstered or on the back (`src/world/menuPoses.ts`; new shots W1, W2); the void no
+  longer shows a lone magazine or placeholder gun; a unit guard keeps the support hand off the magazine.
+- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; e2e-menus checks the load gate, the dark
+  title and the prompt fade; e2e-pad follows the shorter Pause menu; GPU script `scripts/menu-boot-shots.mjs`.
+
 ## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
   Sector Ops opens the op list (each op's difficulty stars), then the op's briefing (its sections, Difficulty, Weather,
