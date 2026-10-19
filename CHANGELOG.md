@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased - course-ready
+Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course-ready/LIGHT.md`, `WALKTHROUGH.md`).
+- Lamps in all seven airlocks (the pads read lit, nothing spills out with the doors shut), on the station 2 and 7 wall
+  tops, over the station 5 roof (raised lamp), in its back room (hack panel) and at its medkit: 19 -> 29 baked lights.
+  The pools between the yard lamps and the station 3 camera bay are unchanged.
+- `tests/ctcourseLight.test.ts` builds the real light field and checks every must-see spot and the dark pools.
+- `scripts/shots-ctcourse.mjs`: headless GPU shots per station (Michael's PC, port 4189, `E2E_GPU=1`), the light meter
+  checked against the field at each.
+
 ## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
 - Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
   of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours
