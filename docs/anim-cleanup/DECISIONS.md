@@ -17,6 +17,7 @@ Michael's words: BRIEF.md. Assumed decisions (A1 onward), each with how to undo 
   the figure's blend.
 
 - **Folded into feature/ct-prototype (Michael, 2026-10-19).** Asked how the clean-up should reach the game, Michael:
-  "Fold into CT Core's PR #9 (Recommended)". This branch took in feature/ct-prototype c628e32 (T2) and is pushed onto
-  feature/ct-prototype as a fast-forward, so it ships in PR #9 and on /ct/; CT Core's slices B+C and D+E start on it.
+  "Fold into CT Core's PR #9 (Recommended)". This branch took in feature/ct-prototype c628e32 (T2), but PR #9 had
+  already merged into master (2e14107) with that same code, so the clean-up goes to master as its own PR right away (the
+  same intent: land before CT Core's slices B+C and D+E, which start on it).
   The open audits (rappel, fence, vault, duct, split jump, crouched wrist) stay in POLISH.md for those slices.
