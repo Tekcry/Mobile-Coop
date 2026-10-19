@@ -926,7 +926,8 @@ of done) and `docs/systems/session-method.md` (the job lead's loop); the process
 
 - **Authority order:** Section 0 (G86).
 - **Branches:** master is the only base. One branch per job from master, one merge request each (G83); the orchestrator
-  merges green ones on Michael's approval, Michael when auto mode blocks it. Previews beside the live game: `/preview/`
+  merges green ones without asking (Michael, 2026-10-19), Michael when auto mode blocks it; master always holds every
+  finished update, and the orchestrator asks Michael when unsure. Previews beside the live game: `/preview/`
   (master) and `/ct/` (the active prototype), G85 in its current form (`docs/systems/deploy.md`).
 - **Prototype, then orchestrator:** every multi-step job builds a quick prototype for feel or look first, then runs the
   orchestrator method (G87). Opus builds and checks; a lighter model only for mechanical chores (G88).

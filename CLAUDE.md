@@ -34,9 +34,11 @@ The only place for session, job, machine and test rules. `docs/systems/session-m
 `docs/ROADMAP.md` is state only (now, next, waiting on Michael, done).
 
 **The orchestrator.** One session, "Night Shift | Orchestrator", runs the whole build: it owns `docs/ROADMAP.md` (the
-only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael: "You have
-my approval to merge yourself as needed"; when auto mode blocks the merge, Michael merges), sets the version at the
-merge (G183), moves `/preview/`, and keeps every session in step. Every other session messages it when it starts,
+only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael, 2026-10-19:
+"you can merge automatically without my permission. Just remember that i want to maintain the master as the most up to
+date version with all updates, but you can ask if you arent sure"; when auto mode blocks the merge, Michael merges),
+sets the version at the merge (G183), moves `/preview/`, and keeps every session in step. Master always holds every
+finished update; the orchestrator asks Michael when unsure. Every other session messages it when it starts,
 finishes a slice, opens a PR, needs Michael, or is blocked. No job starts unless it is on the roadmap. "Orchestrator"
 means this session only; the session running a job is its **job lead**.
 
