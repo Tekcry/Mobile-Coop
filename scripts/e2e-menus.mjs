@@ -375,7 +375,7 @@ try {
       g.stats.bonuses = ['No alarms'];
       g.endSession(true, 'done');
     });
-    await P.waitForSelector('.results-screen', { timeout: 15000 });
+    await P.waitForSelector('.results-screen', { timeout: 60000 }); // a hang guard: a 1.8 s timer, then a push; frames stall under load
     await frames(P, 4);
     const res = await GM(() => ({
       keys: [...document.querySelectorAll('.results-screen .ms-item')].map((b) => b.dataset.key).join(','),

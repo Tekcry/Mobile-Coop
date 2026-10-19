@@ -2,7 +2,8 @@
 
 ## Unreleased - menus slider fix (feature/menus-slider)
 - e2e-menus: holding right on the Effects slider waits until a fast step lands and sfx passes 0.2 (15 s cap)
-  instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. Tests only.
+  instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. The results-screen wait
+  is a 60 s hang guard (was 15 s; it ran out under load). Tests only.
 
 ## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
 The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.

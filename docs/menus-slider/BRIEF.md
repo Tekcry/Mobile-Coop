@@ -15,6 +15,13 @@ reports. Game code only if the repeat logic is wrong (then in `src/ui` with a Vi
 ## Verify
 `npm run check`; e2e-menus 5 times in a row on port 4191; once more with `npm test` running alongside. All pass.
 
+## Decisions
+Assumed:
+- **A1 the results-screen wait in the same file gets a 60 s hang guard (was 15 s).** Verify run 1 (257 s under load,
+  others about 105 s) failed there, not on the slider: `endSession` pushes the results screen after a 1.8 s timer, and
+  the element became visible just as the 15 s cap ran out. Same wall-time-under-load cause; one line. Undo: set the
+  timeout back to 15000 in `scripts/e2e-menus.mjs` ("results" block).
+
 ## Laptop rules
 BelowNormal priority, `E2E_JOBS=1`, headless only, `C:/NightShift/heavy.lock` for any npm ci / build / test / e2e.
 
