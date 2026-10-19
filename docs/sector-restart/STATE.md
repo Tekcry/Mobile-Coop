@@ -8,10 +8,7 @@ Checker FAIL (`CHECK.md`: a throw in hand at the down finished after the restart
 `REPORT.md` "Fix round"): the throw ends at the restore, the e2e shot spot sits in the
 18-26 m band with a loud control shot. Light checks pass (tsc, ESLint, vitest sectorRestart 8/8).
 Fresh checker on the fix round (`CHECK-FIX.md`): the game code holds; its one item (the e2e control assert) is fixed.
-**Next:** (1) the laptop runner (queued after CT Core and Menu Notes) on the head with the control-assert fix:
-`npm run check`, `node scripts/run-e2e.mjs smoke e2e-sectorops e2e-coop e2e-netmove e2e-combat e2e-ctcourse e2e-score`,
-then the full `npm run e2e`; (2) green: the PR to master (a patch) and a message to the orchestrator; a failure in this
-job's code: one fix, then the PR with the result written down.
+**Next:** the orchestrator reviews and merges the PR (a patch); Michael tries a restart on /preview/.
 **Open:** doors and shot-out lamps stay as they were at a restart (polish); the co-op client's restart cue is the
 banner (A1).
 
@@ -23,6 +20,10 @@ banner (A1).
   tsc, ESLint and 9 targeted Vitest files (148/148) clean; one e2e script item: the control shot's `lkp` assert read a
   value `EnemyManager.update` clears on the next tick (no sighting since the restart, nobody hunting), so it is
   dropped; the alerted nearest guard stays the control. The laptop passed 92ccfec6 (check and the named suites).
+- 2026-10-19/20: laptop runner GREEN on bd6b73ef (orchestrator ruling): check, smoke, e2e-sectorops, e2e-coop,
+  e2e-netmove, e2e-combat, e2e-ctcourse, e2e-score, and the full e2e (e2e-netmove and e2e-coop timed out under
+  E2E_JOBS=2 load and passed the E2E_JOBS=1 rerun). Master 4.8.1 merged in (CHANGELOG conflict only; tsc and Vitest
+  sectorRestart, music, score 34/34 on the merge). PR to master opened.
 
 ## Resume prompt
 ```
