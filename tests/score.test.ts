@@ -253,7 +253,7 @@ describe('score synthesis (pure)', () => {
         expect(pk, h).toBeLessThanOrEqual(1);
       }
     }
-  }, 20000); // one expect per sample: past 5 s when the full suite runs in parallel
+  }); // one expect per sample: slow when the full suite runs in parallel (the 120 s default covers it)
 
   it('plucks the bass in tune', () => {
     const rate = 24000;
