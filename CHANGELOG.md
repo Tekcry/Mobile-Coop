@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - ct-prototype
+## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
 - Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
   of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours
   (`docs/ct-prototype/audit/`: per area, with a coverage map of every catalogue move); slices G1-G4 below follow it, and
