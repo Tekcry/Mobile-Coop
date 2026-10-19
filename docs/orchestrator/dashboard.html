@@ -84,11 +84,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
     <p class="qhint"><b>Playtest 2 walk test</b> (controller) on <a href="https://tekcry.github.io/Mobile-Coop/ct/">tekcry.github.io/Mobile-Coop/ct/</a>.<br>
-      <b>Version:</b> the label in the bottom-right corner must start <code>v4.6.5 PREVIEW CT</code>. The code after the dot is wrong on preview builds for now (it shows master's commit, a label bug being fixed), so ignore it. If the label shows an older version, close every tab of the game and open it again (the offline cache updates on the next launch).<br>
-      <b>Marlow Yard</b> (items 1-10, 12-13): Main menu &gt; Co-op &gt; Host a room &gt; set Mode to Training course &gt; Start mission. You can start alone; it needs an internet connection. The ledge hang is at station 2.<br>
-      <b>Proving Grounds</b> (item 11, drainpipe): Main menu &gt; Free roam &gt; Proving Grounds &gt; Start.<br>
+      <b>Version:</b> the label in the bottom-right corner must start <code>v4.7.0 PREVIEW CT</code>. The main menu then shows Sector Ops, Co-op, Loadout, Settings and Feedback. Ignore the code after the dot for now (on preview builds it shows master's commit, a label bug being fixed). If the label or menu is older, close every tab of the game and open it again (the offline cache updates on the next launch).<br>
+      <b>Marlow Yard</b> (items 1-10, 12-13): Main menu &gt; Co-op &gt; Host a room. The room starts on Marlow Yard (Training course); press Start mission. You can start alone; it needs an internet connection. The ledge hang is at station 2.<br>
+      <b>Drainpipe</b> (item 11): Main menu &gt; Sector Ops &gt; Warehouse &gt; start. In section 1 (service entrance), the drainpipe is in the west yard and climbs to the roof walkway.<br>
       <b>Co-op items</b> (team boost, scanners): host as above in one window, then in a second window or on a second PC go to Co-op &gt; Join with code and type the room code shown in the host's lobby; the joiner presses Ready, the host presses Start mission.<br>
-      Ignore Missions and Training on this build (Training is the old locked bunker). Mark each item Good or Not right and add a note on what feels off.</p>
+      Mark each item Good or Not right and add a note on what feels off. Sector Ops itself is new too: any notes on it go in the last box.</p>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
     <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
@@ -199,7 +199,7 @@ const QUESTIONS = [
   { id: 'pt2-holster', who: 'Slices D + E', opts: PT, text: 'Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way. Check: does the rifle hand rise to about chin height mid-way?' },
   { id: 'pt2-shimmy', who: 'Slices D + E', opts: PT, text: 'Ledge hang shimmy (Marlow Yard station 2): slower (0.7 m/s), one hand at a time, wide reaches.' },
   { id: 'pt2-climbup', who: 'Slices D + E', opts: PT, text: 'Ledge climb-up: pull up, a knee on the top, then stand - not floating. Check: do the hands let go too early as the knee lands?' },
-  { id: 'pt2-pipe', who: 'Slices D + E', opts: PT, text: 'Drainpipe climb (Proving Grounds): the knees bend up and forward toward the wall and never flip.' },
+  { id: 'pt2-pipe', who: 'Slices D + E', opts: PT, text: 'Drainpipe climb (Sector Ops, section 1, west yard): the knees bend up and forward toward the wall and never flip.' },
   { id: 'pt2-boost', who: 'Co-op, two tabs', opts: PT, text: 'Team boost onto a ledge still works, and its climb-up looks right.' },
   { id: 'pt2-scanners', who: 'Co-op, two tabs', opts: PT, text: 'Scanners: a hack when your partner never started costs nothing; a late or abandoned hack costs 10 HP.' },
   { id: 'pt2-other', who: 'Anything else', opts: [], text: 'Anything else you noticed: bugs, feel, what to do next.' },
