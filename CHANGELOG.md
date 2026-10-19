@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
+- tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
+  compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it
+  is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
+  laptop (41.97 < 39.54). Tests only.
+
 ## 4.7.4 - Orchestrator docs: new Claude account (2026-10-19, PR #25)
 Docs only. Every session restarted in the new Claude account; the new dashboard
 (https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh); the roadmap and orchestrator state at 22:55 (CT Core slice F
