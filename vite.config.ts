@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { kestrelEditor } from './scripts/kestrel/editor-server';
+import { pickBuildSha } from './src/core/buildSha';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
@@ -9,11 +10,14 @@ const base = process.env.VITE_BASE ?? '/';
 // (VITE_PREVIEW_ID=ct: the ct-movement branch under /<repo>/ct/) gets its own save database and label.
 const previewId = /^[a-z0-9-]{1,16}$/.test(process.env.VITE_PREVIEW_ID ?? '') ? (process.env.VITE_PREVIEW_ID as string) : '';
 const preview = process.env.VITE_PREVIEW === '1' || previewId !== '';
-// (G183) the build's commit, shown next to the version so every build is identifiable (CI sets GITHUB_SHA)
-const buildSha = (() => {
-  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
-  try { return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; }
-})();
+// (G183) the build's commit, shown next to the version so every build is identifiable: the checked-out folder's HEAD
+// (each Pages slot checks out its own branch), GITHUB_SHA only when git fails (src/core/buildSha.ts)
+const buildSha = pickBuildSha(
+  (() => {
+    try { return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString(); } catch { return null; }
+  })(),
+  process.env.GITHUB_SHA,
+);
 
 export default defineConfig({
   base,

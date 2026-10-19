@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
+- The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built
+  from ct-movement e5fc5870 read "fca0e26"): vite.config.ts took GITHUB_SHA first, which every slot build in the deploy
+  workflow inherits. The checked-out folder's HEAD now wins; GITHUB_SHA is the fallback (`src/core/buildSha.ts`, tested).
+
 ## 4.7.1 - e2e-traverse grate kick: a closed grate before the kick (2026-10-19, PR #22)
 - e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
   grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
