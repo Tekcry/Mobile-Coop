@@ -8,7 +8,8 @@ Checker FAIL (`CHECK.md`: a throw in hand at the down finished after the restart
 `REPORT.md` "Fix round"): the throw ends at the restore, the e2e shot spot sits in the
 18-26 m band with a loud control shot. Light checks pass (tsc, ESLint, vitest sectorRestart 8/8).
 **Next:** (1) rerun the targeted Vitest files sectors, sectorStep3, enemyManagerDespawn, arsenal, score, net, gadgets,
-sectorRecord (light); (2) read the laptop runner's results on 92ccfec6 if they arrived, then send the fix-round head to
+sectorRecord (light); (2) the laptop passed 92ccfec6 (check, smoke, e2e-sectorops, e2e-coop, e2e-netmove, e2e-combat,
+e2e-ctcourse, e2e-score); send the fix-round head (9a90946e or later) to
 the runner: `npm run check`, then `node scripts/run-e2e.mjs smoke e2e-sectorops e2e-coop e2e-netmove e2e-combat
 e2e-ctcourse` and `e2e-score`; (3) a fresh checker on the fix round only if e2e needs code changes; (4) the full
 `npm run e2e` on the head; (5) the PR to master (a patch) and a message to the orchestrator.
