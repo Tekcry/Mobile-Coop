@@ -11,7 +11,7 @@ with information (G5, Michael 08:10); no guard had any, so a held guard showed n
   one INTERROGATE row (no BACK TO GAME); none, or spent -> no menu.
 - Run: the existing interrogation (1.5 s, hand at his jaw). When it ends `takeInfo` returns the lines and clears them
   (asked once, no menu again), and the guard says them one after the other (`GUARD_INFO_GAP` 2.6 s) through
-  `hud.barks.say` (bark over his head on the host, subtitle "Guard: ..." on both). The hold then goes on; it ends only by
+  `hud.barks.say` (bark over his head on the host, subtitle "Guard: ..." on the interrogating player's screen only: the lines are not sent, so in co-op the partner does not see them). The hold then goes on; it ends only by
   knockout or kill (Michael 08:20). If he is knocked out or killed mid-speech he stops. A scripted Interrogate on a guard
   with none keeps the old feed line "Interrogated: nothing new" (e2e-takedown still passes that way).
 - Co-op, no wire change (PROTOCOL_VERSION 24): the host's `Enemy` has `info` from the slot. A client's puppet takes it from
