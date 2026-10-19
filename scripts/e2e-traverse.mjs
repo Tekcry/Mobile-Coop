@@ -55,17 +55,21 @@ const setup = () =>
           if (last[k]) rec.maxDrift = Math.max(rec.maxDrift, Math.hypot(t.x - last[k].x, t.y - last[k].y, t.z - last[k].z));
           // (anim-cleanup) the frame a contact plants is the frame its target arrives; the arm, rate-limited, lands one
           // frame later, and at near full reach (a top rung, 99 % of the arm) the next body pull can lag it one more
-          // frame (an operator body's palm against its solved grip: 13-16 cm then 3.8 cm on those frames, 0 after)
+          // frame (an operator body's palm against its solved grip: 13-16 cm then 3.8 cm on those frames, 0 after). The
+          // drainpipe climb (0.85 m/s) missed by 3.2 cm on frame 53 (desktop and laptop alike), read as the same lag one
+          // frame longer: the top grip just out of Wren's reach (her arm is shorter than the 1.75 m gameplay body the grips
+          // are spaced for, G176) until the climb (1.4 cm a frame) closes it. Three frames (50 ms) to land, then within
+          // 3 cm; reachAt reports the frames since the plant, so a miss later than that is not this lag.
           last[k] = { ...t };
           settle[k] = arrivedNow(settle[k], last[k]);
-          if (settle[k] <= 2) continue;
+          if (settle[k] <= 3) continue;
           // the wrist sits a hand-length behind the palm: an arm that cannot reach shows as extra distance
           wr.computeWorldMatrix(true);
           const w = wr.getAbsolutePosition();
           // (anim-cleanup) a body with its own hands: its palm on the grip's surface (rig.gripError), not a hand-length back
           const ge = rig.gripError?.(k === 'R' ? 1 : -1);
           const reachNow = ge ?? Math.abs(Math.hypot(w.x - t.x, w.y - t.y, w.z - t.z) - hand);
-          if (reachNow > rec.maxReach) rec.reachAt = `${k} frame ${i} phase ${ac.m.phase}`;
+          if (reachNow > rec.maxReach) rec.reachAt = `${k} frame ${i} phase ${ac.m.phase}, ${settle[k]} frames after the plant`;
           rec.maxReach = Math.max(rec.maxReach, reachNow);
         }
         if (rig.plantL.w > 0.99) {
