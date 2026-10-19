@@ -7,7 +7,7 @@ Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training leve
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 14:55 Sydney.
+Last updated: 2026-10-19 16:15 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -30,12 +30,11 @@ Last updated: 2026-10-19 14:55 Sydney.
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge the co-op test fix and Sector Ops PRs; CT Core slices B + C |
-| CT Core Build | desktop | `feature/ct-prototype` | Slice A on /ct/ (1cb88756, master merged); scanner rule done; slices B + C (aiming, legs, crouch, walk bob) | B + C on /ct/ for Michael |
-| Character Build | laptop (second heavy slot) | `feature/coop-tests` | Co-op test fix: sim-time waits; coop, netmove, ctcourse reliable (solo rounds, then 2 laptop full runs) | PR to master |
-| Sector Ops Build | desktop | `feature/sector-ops` | Research, then slice 1 menus, 2 Sector Ops on the Warehouse, 3 co-op mode switch | Slice 1 for Michael |
+| CT Core Build | desktop | `feature/ct-prototype` | B + C on /ct/ (87514ed1); master merged; slices D + E | D + E on /ct/ for Michael |
+| Character Build | laptop (second heavy slot) | - | Idle: co-op test fix merged (#17, 4.6.5) | Next laptop job |
+| Sector Ops Build | desktop | `feature/sector-ops` | Slice 2: Sector Ops on 3 Warehouse sections (M7: no lives, difficulty stars); menus and lobby done on the branch | Sector Ops PR |
 
 ## Next (in order)
-1. **Co-op test fix** (Character Build, laptop; audit section 2, approved): `feature/coop-tests`.
 1d. **Sector Ops and the prototype menu** (new desktop session "Night Shift | Sector Ops"; Michael, 2026-10-19,
    docs/sector-ops/BRIEF.md on feature/sector-ops): the main menu offers only Sector Ops and Co-op (plus Loadout,
    Settings, Feedback; Missions / Training / Free Roam behind ?legacy=1). Sector Ops (original, after Conviction's
@@ -72,6 +71,7 @@ Last updated: 2026-10-19 14:55 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #17 | 4.6.5: co-op test fix (coop, netmove, ctcourse reliable; only e2e-pad flaky) |
 | 2026-10-19 | #15 | 4.6.3: process audit (one rules file, test tiers, full e2e 62 -> 26 min) |
 | 2026-10-19 | #14 | 4.6.2: version numbers follow the merges (G183), the in-game label shows the commit |
 | 2026-10-19 | #12 | Animation clean-up: weapon travel, reloads, shoulder swap, traversal grips, hand shapes |

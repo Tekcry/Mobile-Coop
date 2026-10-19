@@ -1,4 +1,4 @@
-# Orchestrator - resume point (2026-10-19 15:30 Sydney)
+# Orchestrator - resume point (2026-10-19 16:15 Sydney)
 
 Read CLAUDE.md (above all "Sessions": the orchestrator, machines, test tiers, versions) and docs/ROADMAP.md first.
 Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu (branch feature/menu; merge origin/master into it
@@ -16,18 +16,22 @@ before each docs batch, then a PR to master as a patch version).
 - Auto mode blocks branch deletion. Michael runs those himself.
 
 ## Master
-v4.6.4 (59f7a0da). Tags v4.0.0-v4.6.4. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
-#14 versions 4.6.2, #15 process audit 4.6.3, #16 laptop slot rule 4.6.4.
+v4.6.5 (7c950acc). Tags v4.0.0-v4.6.5. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
+#14 versions 4.6.2, #15 process audit 4.6.3, #16 laptop slot rule 4.6.4, #17 co-op test fix 4.6.5 (KNOWN_FLAKY is
+e2e-pad only now).
 
-## Sessions (all report to "Night Shift | Orchestrator")
-| Session | Where | Address | Job | Clean point |
-| --- | --- | --- | --- | --- |
-| CT Core Build | desktop, C:\NightShift\Mobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | Slices B + C (Sonnet implementer); scanner rule committed locally (fd963a1c), pushed with B + C; /ct/ = 1cb88756 (slice A) | B + C on /ct/ |
-| Sector Ops Build | desktop, C:\NightShift\Mobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Slice 1 menus; RESEARCH.md + full PLAN.md for Michael's approval before slice 2 (M1-M6 in BRIEF.md) | Slice 1 committed + plan sent |
-| Character Build | laptop (second heavy slot), C:/NightShift/Mobile-Coop-coop-tests, feature/coop-tests | bridge `session_01BohEsHtBRedHLw6s8tvqwm` (delivery not confirmed) | Co-op test fix: solo 3/3 and laptop full run 1 all pass (23 min); full run 2, then step 6 (KNOWN_FLAKY), then the PR | PR open |
+## Sessions (all report to "Night Shift | Orchestrator"; every session was cleared once at 16:00)
+| Session | Where | Address | Job now |
+| --- | --- | --- | --- |
+| CT Core Build | desktop, C:NightShiftMobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | Master 4.6.4 merged (2b8179af); check + quick + ctcourse, then slices D + E (holstering, hanging shimmy, pipe climb, ledge climb-up). /ct/ = 87514ed1 (B + C). The scanner rule (fd963a1c) goes out with its next push. |
+| Sector Ops Build | desktop, C:NightShiftMobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Slice 2 for 3 sections (M7), PLAN.md section 5 build order; slices 1 (menus) and 3 (lobby) done on the branch |
+| Character Build | laptop (second heavy slot), C:/NightShift/Mobile-Coop-coop-tests | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (new after the clear; delivery not confirmed) | Idle: co-op test fix merged (#17). Free for the next laptop job. |
 
-Each session was asked (15:30) to message "<name>: clean point" with its STATE path and resume prompt. Michael clears
-each one when it reports in.
+Known clashes to handle at merge time:
+- Sector Ops' lobby hides Infiltration, which e2e-coop's match (A1, coop-tests) uses. When Sector Ops merges, e2e-coop
+  moves to Sector Ops or Course.
+- e2e-menus' slider hold-repeat check fails under load (2 of 3 on the desktop; it passes alone). It's a candidate for
+  KNOWN_FLAKY or a sim-time wait.
 
 ## Waiting on Michael
 - Approve Sector Ops' RESEARCH.md + PLAN.md (when sent).
@@ -35,10 +39,10 @@ each one when it reports in.
 - The audit's branch and worktree list (docs/process-audit/REPORT.md section 5) is for him to prune.
 
 ## Next for the orchestrator
-1. The coop-tests PR: the PR-tier full e2e on the desktop (or accept the laptop's 2 full runs as that tier, since both
-   ran the PR head), then the version (a patch, 4.6.5: tests only), merge, tag, /preview/.
-2. CT Core's B + C, then the PR to master when Michael has walked the slices.
-3. Sector Ops: relay the plan to Michael, then slices 2-3, then its PR (a minor step).
+1. A next job for the laptop slot (Character Build is idle): options are the e2e-menus slider wait, the cleanup job
+   (waits for the playtest), or support for Sector Ops tests. Ask Michael if unclear.
+2. CT Core's D + E, then the ct-prototype PR to master once Michael has walked the slices (a minor step).
+3. Sector Ops: slice 2 for 3 sections, then its PR (a minor step; fix e2e-coop's match at that merge).
 4. Republish the dashboard after every roadmap change: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw (source
    docs/orchestrator/dashboard.html; publish with `url`; it declares `db`; answers in collection `answers`).
 
