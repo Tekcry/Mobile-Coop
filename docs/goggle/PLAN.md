@@ -1,14 +1,18 @@
 # Goggle job - plan
 
-## Resume point (2026-10-19)
+## Parked (2026-10-19)
+**Michael parked this job (DECISIONS.md M3): Wren keeps her current goggle, no redesign.** He rejected the A / B / C
+scratch options. Nothing below is to be built. The one remaining piece, the stowed-on-brow export (G161), moves to the
+cleanup job after the core-loop playtest. The plan below is kept as history.
+
+## Resume point (2026-10-19, before parking)
 - **State:** Michael answered (DECISIONS.md M1, M2): the surround is the device, not the screen edge (step 2 dropped);
-  before picking A / B / C he wants quick scratch prototypes. Done: `docs/goggle/prototypes/options.html` (Now, A, B, C;
-  front, side, 3/4; whole head or close-up; lit or in the dark; green or cyan), for the orchestrator's dashboard.
+  before picking A / B / C he wanted quick scratch prototypes: `docs/goggle/prototypes/options.html` (rejected, M3).
 - **Report to** the Night Shift | Orchestrator session (CLAUDE.md "Orchestrator"): step start / end, PR, Michael needed,
   blocked. It owns `docs/ROADMAP.md` and merges the PR.
 - **Laptop = light work only** (Michael, 2026-10-19): docs, planning, small code edits. No e2e, full test runs, builds
   in loops, Blender renders or heavy subagents; those run on the desktop (steps marked "desktop" below).
-- **Next:** Michael picks A, B or C from the prototypes page; record it in DECISIONS.md, then step 3 of section 5.
+- **Next:** none (parked, M3).
 
 Read BRIEF.md first. The laptop writes docs and small code edits; the Blender build, the LODs, the KTX2 pass and every
 GPU check run on Michael's desktop (Michael, 2026-10-19).

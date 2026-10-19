@@ -13,6 +13,11 @@ surround in `cinematicPost.ts`) is dropped; the eyepiece tunnel stays as it is.
 C before he picks, "quick only". Made on the laptop without Blender, renders or LODs:
 `docs/goggle/prototypes/options.html`.
 
+**M3 Parked: Wren keeps her current goggle (2026-10-19).** Shown the A / B / C scratch page, Michael (relayed by the
+orchestrator) rejected all three ("terrible") and parked the job: the current step 07 housing stays, no redesign. Only
+the stowed-on-brow export (G161) remains, done in the cleanup job after the core-loop playtest. D36 (Moth purple, in
+docs/operators/DECISIONS.md) stands. The prototypes page is kept as the record of what was shown.
+
 ## Assumed
 
 **A1 The prototypes page is inline SVG from measured shapes.** One self-contained HTML file (no libraries, nothing
