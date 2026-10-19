@@ -29,6 +29,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 - Laptop (23:45): full power until about 09:30, then low priority (BelowNormal, E2E_JOBS=1) until Michael says.
 - Action menu behind a guard (2026-10-20 08:10): "The action menu behind guard should only show grab or return, once they are grabbed it can show interrogate (if they have information), and rt or Lt to either knock out or kill, and aim button to aim pistol while holding them. It shouldn't have kill/knock out/carry in the list."
 - Held guard (08:20): "The guard cannot be let go either, only knocked out. Killed, or used as human shield (aiming pistol)". No release; interrogating keeps the hold.
+- Held menu (08:25): "There is no back to game option once the grab is initiated." While holding, hold-A shows only INTERROGATE (when the guard has information).
 - Action menu (23:20): "the action menu that shows up requires holding A and selecting which option you would like to proceed with, including returning to game (no action). I want it to be identical." CT Core.
 - Overnight merges (23:15): green, reviewed PRs merge without asking tonight (lightfield-heap, Menu Notes, Sector Ops restart); not the ct-prototype PR.
 - Selection wheel stays on LB hold; no lethal / non-lethal switch (LT / RT covers it); with a gun drawn A reloads (CT).
