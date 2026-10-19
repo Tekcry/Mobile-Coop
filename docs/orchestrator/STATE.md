@@ -64,7 +64,7 @@ orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu)
 ## Next for the orchestrator
 1. CT Core: review its clear-items slice (WALK-2026-10-19.md "Clear now"), then pass Michael's footage on when it
    arrives. The ct-prototype PR waits until Michael is happy with the movement, or until he asks for a merge.
-2. Menu Notes: review and merge its PR (a minor step, 4.8.0 if it is next).
+2. Menu Notes: review and merge its PR (a minor step, 4.8.0 if it is next). Before its PR, relay two items from CT Core (22:30): src/ui/screens/settingsScreen.ts:155 "Default shoulder" now does nothing (F1: holstered is always right; remove the row); src/ui/screens/controlsScreen.ts:23 "LT / RT: Aim / fire" is wrong since F1a (match CT Core's bindings). CT Core slice F WIP is at 980a9695 (check, e2e, sheets, independent check still to run); F7 answer given to Michael (old saved pad settings had speed on D-pad left / right; a settings migration moves them).
 3. Character Build: review and merge lightfield-heap (a patch).
 4. Sector Ops: the PC perf run with full guard counts (G187), when the desktop is free.
 5. Republish the dashboard after every roadmap change (see "Account switch" for who owns it; source
