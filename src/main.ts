@@ -11,6 +11,8 @@ import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
+import { gateLimits } from './world/menuGate';
+import { IGNITE_S } from './world/menuShots';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
@@ -45,6 +47,13 @@ import { camoById } from './cosmetics/catalog';
 let titleShown = !!flags.autostart;
 const titleFlag = new URLSearchParams(location.search).get('title') === '1';
 
+/** (menu-notes note 2) The menu's load screen: each goToMenu / match load counts up (a stale gate does not reveal), the
+ *  first menu of the launch, and how long the gate waits before it shows the menu anyway (`gateLimits`: patient while
+ *  bytes arrive, a stall or cap ends it so a failed load never strands the player; automation is short, `?bootCap=`). */
+let bootGen = 0;
+let menuShownOnce = false;
+const bootLimits = gateLimits(location.search, !!navigator.webdriver);
+
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
   const st = document.getElementById('boot-status');
@@ -52,7 +61,15 @@ function setBoot(progress: number, status: string): void {
   if (st) st.textContent = status;
 }
 
+/** (menu-notes slice 4a, M2) The launch boot (wordmark only, then under the title) is over: later boots (a match load,
+ *  the menu after a match) show the ghost, the progress line and the status again. */
+function endLaunchBoot(): void {
+  document.getElementById('boot')?.classList.remove('launch', 'under');
+}
+
 async function boot(): Promise<void> {
+  // (M2) the wordmark-only boot is for a launch that shows the title; any other keeps the status lines
+  if (titleShown || (navigator.webdriver && !titleFlag)) endLaunchBoot();
   suppressBrowserGestures();
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
@@ -93,6 +110,19 @@ async function boot(): Promise<void> {
 
   const goToMenu = (): void => {
     app.screens.clear();
+    // (menu-notes note 2) the boot screen stays up until the menu stage is ready to be seen: Wren's close-up LOD loaded
+    // and drawn, the weapons in, the first shot's shaders compiled (MenuState.prepare). After a match too.
+    const gen = ++bootGen;
+    const first = !menuShownOnce;
+    menuShownOnce = true;
+    const base = first ? 0.8 : 0.1;
+    const bootEl = document.getElementById('boot');
+    bootEl?.classList.remove('done');
+    setBoot(base, 'Loading Wren…');
+    app.bootHold = true;
+    // (the mission's music fades now; the menu theme decodes during the load and starts as the menu appears)
+    if (app.music.state !== 'menu') app.music.stop();
+    app.music.preloadMenu();
     // (the match freed before the menu stage is built: its shaders are released with it)
     app.releaseState();
     const ms = new MenuState(app.engine);
@@ -100,7 +130,8 @@ async function boot(): Promise<void> {
     // (menu-ui slice 6) the cinematic background follows the screen on top: the title holds S1, the lobby keeps the stage
     ms.screenContext = () => {
       const c = app.screens.top?.el.classList;
-      return c?.contains('title-screen') ? 'title' : c?.contains('lobby-screen') ? 'lobby' : 'main';
+      // (menu-notes slice 4c) the title pressed (`ts-seq`) reads as the main menu: the goggle strikes while it stays on top
+      return c?.contains('title-screen') ? (c.contains('ts-seq') ? 'main' : 'title') : c?.contains('lobby-screen') ? 'lobby' : 'main';
     };
     showSavedOperator(app);
     app.onAvatarStyle = () => {
@@ -110,7 +141,6 @@ async function boot(): Promise<void> {
         showSavedOperator(app);
       }
     };
-    app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     // (menu-ui MD19: the profile badge only with `?legacy=1`)
@@ -122,21 +152,84 @@ async function boot(): Promise<void> {
       menu.setCounter('sectorops', sectorStars);
     });
     // menu-ui MD2: the title screen once per launch (not after a match, not under automation unless `?title=1`); Back
-    // on the main menu returns to it. The brightness calibration follows the title on the first run.
+    // on the main menu no longer returns to it (menu-notes A1). The brightness calibration follows the title on the
+    // first run.
     const brightness = (): void => {
       if (!app.settings.get().video.brightnessSet && !navigator.webdriver && app.screens.top === menu) app.screens.push(new BrightnessScreen(app));
     };
     const titleAllowed = !navigator.webdriver || titleFlag;
-    MainMenuScreen.onBackToTitle = titleAllowed ? () => app.screens.push(new TitleScreen(() => {})) : null;
     // music project: `?musiclab=1` opens the lab over the menu (debug)
     if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
     if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
     if (flags.weaponLab) void import('./audio/weapons/weaponLab').then((m) => app.screens.push(new m.WeaponLabScreen(app)));
     // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
+    let title: TitleScreen | null = null;
     if (titleAllowed && !titleShown) {
       titleShown = true;
-      app.screens.push(new TitleScreen(brightness));
-    } else brightness();
+      // (menu-notes slice 4c, M3) the press: the title's prompt and wordmark fade out and it stays on top (black, no menu,
+      // taking every input) while the goggle strikes; the main menu fades in under it over the last of the light rise,
+      // then the title pops. A second press skips to the lit menu (A3). The music is untouched (it starts on the press).
+      let unsub: (() => void) | null = null;
+      const revealMenu = (fadeS: number): void => {
+        const el = menu.el;
+        el.classList.remove('under');
+        // (no `screen-in` slide: the fade is the entrance; the animation comes back once the menu is next covered)
+        el.style.animation = 'none';
+        if (fadeS > 0 && el.hidden) {
+          el.style.opacity = '0';
+          el.hidden = false;
+          void el.offsetWidth;
+          el.style.transition = `opacity ${fadeS.toFixed(2)}s ease-out`;
+          el.style.opacity = '1';
+        } else {
+          el.style.transition = 'none';
+          el.style.opacity = '';
+          el.hidden = false;
+        }
+        unsub ??= app.screens.onChange(() => {
+          if (!el.hidden && el.isConnected) return;
+          el.style.animation = el.style.transition = el.style.opacity = '';
+          unsub?.();
+        });
+      };
+      title = new TitleScreen(brightness, {
+        maxS: IGNITE_S,
+        leftS: () => (app.current === ms ? ms.titleLeftS : 0),
+        paused: () => app.current === ms && ms.debugPause,
+        skip: () => ms.skipTitle(),
+        reveal: revealMenu,
+      });
+      app.screens.push(title);
+      // (menu-notes slice 4a, M2) the title's wordmark takes over from the boot's in the same place: the boot (black, no
+      // status) drops under the screens and keeps the stage hidden until the reveal; the prompt fades in then
+      bootEl?.classList.add('under');
+    } else endLaunchBoot();
+    // the reveal: the boot screen fades into the title (or the main menu), the menu takes input and the theme starts;
+    // the brightness calibration (first run, no title) waits for it too
+    // (prepare never rejects; the catch is a second guard so the boot screen can never be stranded)
+    void ms
+      .prepare((p, s) => {
+        if (gen === bootGen) setBoot(base + (1 - base) * p, s);
+      }, bootLimits)
+      .catch((e: unknown) => `error: ${e instanceof Error ? e.message : String(e)}`)
+      .then((why) => {
+        if (gen !== bootGen || app.current !== ms) return;
+        // (the boot screen and the input first: nothing below can keep the menu hidden)
+        app.bootHold = false;
+        title?.arm();
+        setBoot(1, 'Ready');
+        bootEl?.classList.add('done');
+        // (M2) once the boot has faded, later boots show their status again (a match load also ends it at once)
+        if (title) setTimeout(() => bootEl?.classList.contains('done') && endLaunchBoot(), 800);
+        if (why !== 'ready') {
+          const msg = `[menu] the load screen gave up waiting and shows the menu: ${why}`;
+          // (under automation a note only: the suites count warnings; the reason is on MenuState.bootGate)
+          if (navigator.webdriver) console.info(msg);
+          else console.warn(msg);
+        }
+        app.music.menu();
+        if (!title) brightness();
+      });
   };
 
   // menu-ui MD6: the flat main menu. Sector Ops (feature/sector-ops): the main menu is Sector Ops, Co-op, Loadout,
@@ -248,6 +341,10 @@ async function boot(): Promise<void> {
       gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
     };
     app.screens.clear();
+    // (a menu load screen still waiting is dropped: the match's loading owns the boot screen now)
+    bootGen++;
+    app.bootHold = false;
+    endLaunchBoot();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
@@ -328,11 +425,15 @@ async function boot(): Promise<void> {
   }
   app.start();
 
-  setBoot(1, 'Ready');
-  document.getElementById('boot')?.classList.add('done');
+  // (menu-notes note 2) the menu's own gate reveals it (goToMenu); a match boot keeps today's order
+  if (!menuShownOnce) {
+    setBoot(1, 'Ready');
+    document.getElementById('boot')?.classList.add('done');
+  }
 }
 
 boot().catch((err: unknown) => {
   console.error(err);
+  endLaunchBoot();
   setBoot(1, `Failed to start: ${err instanceof Error ? err.message : String(err)}`);
 });

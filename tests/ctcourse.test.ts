@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, CT_EXIT_ZONE, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
-import { exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
-import { CourseState } from '../src/game/course/courseState';
+import { AIRLOCK_PAD_COLOR, ctcourse, CT_EXIT_ZONE, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_POCKET, S3_POCKET_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
+import { bayObjective, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
+import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
+import { COURSE_TEXT_MAX } from '../src/config/course';
 import { getMap } from '../src/world/maps';
 import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
 import { hangReaches, inBoostBand, ropeRoom } from '../src/game/teamMoves';
@@ -65,9 +66,9 @@ describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
     const g = bay.gates[0]!;
     expect(g.kind).toBe('bolt');
     if (g.kind === 'bolt') {
-      // the bolt sits on the +x (far) side of the wall at x 22 + 9
+      // the bolt opens from the +x (far) side; its side test is the door plane x 22 + 9 (course-ready F7)
       expect(g.side).toEqual([1, 0]);
-      expect(g.at[0]).toBeGreaterThan(22 + 9.5);
+      expect(g.at[0]).toBe(22 + 9);
     }
     expect(c.devices['sw-s2-a']).toBeUndefined();
   });
@@ -232,5 +233,132 @@ describe('station 8 (B8): the final beat', () => {
     st.setPlayer(1, zx, 0, 6, false);
     st.update(1 / 60);
     expect(st.over).toBe(true);
+  });
+});
+
+describe('course-ready S1: station fixes and text', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const anchors = generateLedges(b.boxes);
+  const c = lay.course!;
+  const def = validateCourse(c.def, layoutKnownIds(c));
+  const DOOR_X = 22 + 9;
+  const at2 = (): CourseState => {
+    const s = new CourseState(def);
+    s.startAt(2);
+    s.clearEvents();
+    return s;
+  };
+
+  it('F7: the bolt side is the door plane: feet just past the leaf unbolt, the near side and the near doorway are refused', () => {
+    for (const x of [DOOR_X + 0.1, DOOR_X + 0.6, DOOR_X + 1.2]) {
+      const s = at2();
+      s.setPlayer(0, x, 0, 7, false);
+      expect(s.press('S2-door', 0)).toBeNull();
+      expect(s.isGateOpen('g-s2')).toBe(true);
+    }
+    for (const x of [DOOR_X - 0.1, DOOR_X - 0.6, DOOR_X - 1.5]) {
+      const s = at2();
+      s.setPlayer(1, x, 0, 7, false);
+      expect(s.press('S2-door', 1)).toBe(REFUSE_BOLT);
+      expect(s.isGateOpen('g-s2')).toBe(false);
+    }
+  });
+
+  it('F8: the "Unbolt" item is live only while the bolt is shut; a bay restart brings it back', () => {
+    const s = at2();
+    expect(s.boltUsable('g-s2')).toBe(true);
+    s.setPlayer(0, DOOR_X + 0.5, 0, 7, false);
+    s.press('S2-door', 0);
+    expect(s.boltUsable('g-s2')).toBe(false);
+    expect(s.locked('S2-door')).toBe(false);
+    s.restart();
+    expect(s.boltUsable('g-s2')).toBe(true);
+    expect(s.locked('S2-door')).toBe(true);
+  });
+
+  it('F17: a lone roof-plate press gets the partner hint; the partner inside the window opens the door', () => {
+    const s = new CourseState(def);
+    s.startAt(5);
+    expect(s.press('sw-s5-a', 0)).toBe(REFUSE_PAIR);
+    expect(s.press('sw-s5-a', 0)).toBe(REFUSE_PAIR);
+    expect(s.isGateOpen('g-s5')).toBe(false);
+    s.update(0.5);
+    expect(s.press('sw-s5-b', 1)).toBeNull();
+    expect(s.isGateOpen('g-s5')).toBe(true);
+    // too late: the hint again, nothing opens
+    const t = new CourseState(def);
+    t.startAt(5);
+    t.press('sw-s5-a', 0);
+    t.update(1.5);
+    expect(t.press('sw-s5-b', 1)).toBe(REFUSE_PAIR);
+    expect(t.isGateOpen('g-s5')).toBe(false);
+  });
+
+  it('F2: each station gate has a radio line naming the next step, in its own bay; flag gates are keyed by gate id', () => {
+    const want: [string, number][] = [['g-s2', 2], ['g-s3', 3], ['g-s4', 4], ['g-s5', 5], ['g-s5-grid', 5], ['g-s6', 6]];
+    for (const [id, n] of want) {
+      const bay = def.bays[n - 1]!;
+      expect(bay.gates.some((g) => g.id === id)).toBe(true);
+      expect(bay.radio.find((r) => r.at === id)?.text).toBe(GATE_RADIO[id]);
+    }
+    // the camera pocket and the scanners are flag gates (CourseMode speaks their line on flagSet)
+    expect(def.bays[2]!.gates.find((g) => g.id === 'g-s3')?.kind).toBe('flag');
+    expect(def.bays[5]!.gates.find((g) => g.id === 'g-s6')?.kind).toBe('flag');
+    expect(GATE_RADIO['g-s2']).toBe('Unbolted. Open the door for your partner.');
+    expect(GATE_RADIO['g-s5-grid']).toBe('Grid open. Off the roof, in the front door, through the grid to the airlock.');
+    expect(GATE_RADIO['g-s3']).toMatch(/Holster.*X \/ RMB/);
+  });
+
+  it('F1: every bay has one objective (the HUD step line while it has no drills)', () => {
+    expect(def.objectives).toHaveLength(8);
+    for (let n = 1; n <= 8; n++) expect(bayObjective(def, `S${n}`)).toBe(OBJECTIVE_TEXT[n - 1]);
+    expect(bayObjective(def, 'nope')).toBeNull();
+  });
+
+  it('every panel, radio and objective line is within its limit, has no em or en dash, says pad and keyboard words', () => {
+    const radio = def.bays.flatMap((bay) => bay.radio.map((r) => r.text));
+    expect(radio.length).toBe(RADIO_ENTER.length + Object.keys(GATE_RADIO).length);
+    for (const t of [...radio, ...OBJECTIVE_TEXT]) {
+      expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+      expect(t).not.toMatch(/[\u2013\u2014]/);
+    }
+    for (const t of PANEL_TEXT) {
+      expect(t.length, t).toBeLessThanOrEqual(PANEL_TEXT_MAX);
+      expect(t).not.toMatch(/[\u2013\u2014]/);
+    }
+    for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) expect(t).not.toMatch(/green pad/i);
+    // F14: every Co-op names RB / F, every LT names Z, every A names E
+    for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) {
+      if (/Co-op/.test(t)) expect(t, t).toMatch(/Co-op \(RB \/ F\)|Co-op action/i);
+      if (/\bLT\b/.test(t)) expect(t, t).toMatch(/LT \/ Z/);
+      if (/\bA\b(?! \()/.test(t.replace(/Roof plate A|scanner A/g, ''))) expect(t, t).toMatch(/A \/ E/);
+    }
+    // F12, F15: station 3 names the pistol switch and the draw; station 4 the release's place
+    expect(PANEL_TEXT[2]).toMatch(/LB \/ Tab to the pistol/);
+    expect(PANEL_TEXT[3]).toMatch(/red release on the left fence/);
+    // F18: panel 5 is two sentences, the hatch part is the g-s5 radio line
+    expect(PANEL_TEXT[4]!.split('. ').length).toBe(2);
+    expect(GATE_RADIO['g-s5']).toMatch(/hatch/);
+  });
+
+  it('F5: the station 3 blind spot is not the airlock pads\' colour', () => {
+    expect(S3_POCKET_COLOR).not.toBe(AIRLOCK_PAD_COLOR);
+    const px = (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2;
+    const sq = b.boxes.find((p) => !p.collide && Math.abs(p.c[0] - px) < 0.01 && Math.abs(p.c[2] - 7) < 0.01 && p.c[1] < 0.05);
+    expect(sq?.color).toBe(S3_POCKET_COLOR);
+  });
+
+  it('F11: the leg-up squares at stations 2, 5 and 7 sit on a spot where a leg-up finds a climbable lip', () => {
+    for (const n of [2, 5, 7]) {
+      const x = 22 * (n - 1) + LEGUP_SPOT[0];
+      const z = LEGUP_SPOT[1];
+      const sq = b.boxes.find((p) => !p.collide && Math.abs(p.c[0] - x) < 0.01 && Math.abs(p.c[2] - z) < 0.01 && p.c[1] < 0.05);
+      expect(sq, `station ${n} square`).toBeDefined();
+      const t = findJumpTarget(anchors, { x, y: TEAM.boostMax - 1.15, z }, -1, 1, 0, 1, 2.2, 0.2);
+      expect(t, `station ${n} leg-up`).not.toBeNull();
+      expect(inBoostBand(t!.grip.y)).toBe(true);
+      expect((t!.anchor as Ledge).canClimbUp).toBe(true);
+    }
   });
 });

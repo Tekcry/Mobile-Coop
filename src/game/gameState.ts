@@ -243,6 +243,9 @@ const PROMPT_Y = 0.55;
 /** Longest the loading screen waits for every material to compile (3.2.2). */
 const WARMUP_MAX_MS = 6000;
 export class GameState implements AppState {
+  /** The shot noise table (tests read it: a shot is heard to `shot` x the gun's noise stat; at or below `suppressed`
+   *  it only raises suspicion). */
+  static readonly NOISE = { shot: SHOT_NOISE, suppressed: SUPPRESSED_NOISE } as const;
   readonly scene: Scene;
   readonly player: Player;
   readonly registry = new DamageRegistry();
@@ -821,6 +824,25 @@ export class GameState implements AppState {
   scheduleRespawn(at: Vector3, seconds: number): void {
     this.respawnAt = at.clone();
     this.respawnT = seconds;
+  }
+
+  /**
+   * (sector-restart, M9) The local side of a checkpoint restart (Sector Ops; the co-op client runs it too, on the host's
+   * restart banner): the loadout as the section began (every gun reloaded, the gadgets back; the suppressor is part of
+   * the gun), grenades in flight and gadgets out in the world gone (no noisemaker or gas left pulsing at the new
+   * guards), the stealth leftovers cleared, the noise meter and suppression at rest, and the music calmed
+   * (`checkpointRestart`). Health comes back full with the respawn. The guards' side is `EnemyManager.resetMemory`.
+   */
+  checkpointReset(): void {
+    this.weapons.restoreCheckpoint();
+    this.grenades.clear();
+    this.gadgets.clearWorld();
+    this.stealth?.resetForRestart();
+    this.suppression.reset();
+    this.evNoise = 0;
+    this.evNoiseT = 0;
+    this.noise = 0;
+    this.events.emit('checkpointRestart', {});
   }
 
   /** End the session and show results (rewards are added by the progression hook). */

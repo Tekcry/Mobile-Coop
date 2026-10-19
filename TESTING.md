@@ -12,7 +12,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ## Desktop checklist
 
 ### Boot and menus (controller)
-- [ ] The game boots to the Night Shift title; the menu theme starts after the first button press.
+- [ ] Launch: a black screen with only NIGHT / SHIFT (no loading text, no progress line); when Wren, the weapons and
+  the shaders are ready, only "Press (any) to start" fades in, and the wordmark never moves. Wren is not visible at all.
+- [ ] The menu theme plays on the title (or starts on the first key or click if the browser blocks autoplay). The press
+  makes Wren's goggles flicker on in the dark on the goggle close-up, then the lights come up; no model swap or hitch.
+- [ ] B / Esc on the main menu does nothing (no way back to the title). After a match the menu comes back lit, with no
+  title and no flicker.
+- [ ] Main-menu shots: Wren holds the rifle or the pistol (the other on the thigh or the back); no hand through a
+  magazine, no floating parts.
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
@@ -24,10 +31,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
+  checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
+  suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
+  station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
+  an alive partner back to the airlock too.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
-- [ ] Settings > Controller: vibration on / off and strength; Settings > Accessibility > Controls: rebind a verb (A),
-  clear a slot (Y), a conflict shows a warning, reset restores the defaults.
+- [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
+  no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
+  the defaults.
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 

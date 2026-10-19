@@ -102,6 +102,8 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('body', ({ action }) => (action === 'pickup' ? sfx.thud(0.5) : sfx.thud(1))),
     g.events.on('objective', () => sfx.objective()),
     g.events.on('operationComplete', () => sfx.stinger(true)),
+    // (sector-restart, M9) a checkpoint restart is a clean start: the alert music fades out, Calm again
+    g.events.on('checkpointRestart', () => app.music.calm()),
     g.events.on('pickup', ({ kind }) => sfx.pickup(kind)),
     // coop: shots fired by teammates or host-simulated enemies
     g.events.on('remoteShot', ({ cls, x, y, z }) => {

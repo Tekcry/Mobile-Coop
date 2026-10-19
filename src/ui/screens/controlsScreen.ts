@@ -20,13 +20,13 @@ function fixedRows(dev: Dev): Row[] {
     ? [
         ['Left stick', 'Move (push further: faster, up to the speed gear)'],
         ['Right stick', 'Look'],
-        ['LT / RT', 'Aim / fire (fire while holstered: elbow strike)'],
+        ['LT / RT', 'Holstered: knockout / lethal palm strike. Drawn: secondary / primary fire'],
         ['A / B, d-pad, LB / RB', 'Menus: select / back, move, tabs'],
         ['Menu / Start', 'Pause; cancels a remap'],
       ]
     : [
         ['Mouse', 'Look (click to capture)'],
-        ['Right / left button', 'Aim / fire (fire while holstered: elbow strike)'],
+        ['Right / left button', 'Draw / holster (click); fire (holstered: lethal palm strike)'],
         ['Wheel', 'Speed gear up / down'],
         ['1-7', 'Pick a gadget'],
         ['Esc', 'Pause, menus back'],

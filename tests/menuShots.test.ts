@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CUT_S, SHOTS, XFADE_S, createDirector, easeInOut, goggleLevel, parseShotHooks, type ShotDef } from '../src/world/menuShots';
+import { CUT_S, IGNITE, IGNITE_S, SHOTS, XFADE_S, createDirector, easeInOut, goggleLevel, igniteGlow, igniteLit, parseShotHooks, type ShotDef } from '../src/world/menuShots';
 
 const DT = 1 / 60;
 
@@ -30,7 +30,7 @@ describe('menu shot director', () => {
       expect(s[0]).toBe('T2');
       expect(s.slice(1)).not.toContain('T2');
       for (let i = 1; i < s.length; i++) expect(s[i]).not.toBe(s[i - 1]);
-      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']));
+      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'W1', 'W2', 'W3']));
     }
   });
 
@@ -95,13 +95,9 @@ describe('menu shot director', () => {
     for (let i = 0; i < 600; i++) d.update(0.1);
     expect(d.shot.id).toBe('T1');
     expect(d.changes).toBe(0);
-    // the title plays once and holds its last frame (the goggle stays lit)
-    expect(d.t).toBe(1);
-    const r = createDirector({ seed: 1, reducedMotion: true, context: 'title' });
-    r.update(1);
-    expect(r.t).toBe(1);
-    expect(d.t).toBeGreaterThanOrEqual(0);
-    expect(d.t).toBeLessThanOrEqual(1);
+    // (menu-notes slice 4a) the title waits in the dark on its first frame
+    expect(d.t).toBe(0);
+    expect(d.titlePhase).toBe('dark');
     d.setContext('main');
     d.update(5);
     const mid = d.shot.id;
@@ -111,6 +107,124 @@ describe('menu shot director', () => {
     expect(d.shot.id).toBe('S7');
     d.setContext('main');
     expect(d.shot.id).toBe(mid);
+  });
+
+  // (menu-notes slice 4a, Michael's M1) full darkness until the press, then the goggle strikes in the dark on T1
+  describe('the dark title and the goggle strike', () => {
+    it('is black until the press: no light, no goggle, T1 on its first frame', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main' });
+      d.setContext('title');
+      for (let i = 0; i < 1200; i++) {
+        d.update(DT * 10);
+        expect(d.titlePhase).toBe('dark');
+        expect(d.shot.id).toBe('T1');
+        expect(d.lit).toBe(0);
+        expect(d.glow).toBe(0);
+        expect(d.t).toBe(0);
+        expect(d.fade).toBe(0);
+      }
+    });
+
+    it('the press flickers the goggle on in the dark, then the lights come up, then T2 opens the main menu', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'title' });
+      d.update(3);
+      d.setContext('main');
+      expect(d.titlePhase).toBe('ignite');
+      let blips = 0;
+      let prev = 0;
+      let maxLitInFlicker = 0;
+      let t = 0;
+      while (t < IGNITE.flickerS + IGNITE.holdS - 0.02) {
+        d.update(DT);
+        t += DT;
+        d.setContext('main');
+        expect(d.shot.id).toBe('T1');
+        expect(d.context).toBe('title');
+        if (d.glow > 0.3 && prev <= 0.3) blips++;
+        prev = d.glow;
+        maxLitInFlicker = Math.max(maxLitInFlicker, d.lit);
+      }
+      // a flicker (several strikes), not a fade; the key and rims stay off through it
+      expect(blips).toBeGreaterThanOrEqual(3);
+      expect(maxLitInFlicker).toBe(0);
+      expect(d.glow).toBe(1);
+      // the lights rise
+      d.update(IGNITE.riseS / 2);
+      expect(d.lit).toBeGreaterThan(0.3);
+      expect(d.lit).toBeLessThan(0.7);
+      expect(d.t).toBeGreaterThan(0);
+      const n = d.changes;
+      d.update(IGNITE.riseS / 2 + 0.05);
+      expect(d.titlePhase).toBe('done');
+      expect(d.lit).toBe(1);
+      expect(d.glow).toBe(-1);
+      expect(d.shot.id).toBe('T2');
+      expect(d.context).toBe('main');
+      expect(d.changes).toBe(n + 1);
+      expect(d.fade).toBe(0);
+    });
+
+    // (menu-notes slice 4c, M3 / A3) the title's press sequence waits on titleLeftS; a second press skips
+    it('counts down to the lights being up, and a skip jumps to the lit main menu on the next update', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main' });
+      expect(d.titleLeftS).toBe(0);
+      d.setContext('title');
+      d.update(1);
+      expect(d.titleLeftS).toBe(IGNITE_S);
+      d.setContext('main');
+      d.update(1);
+      expect(d.titleLeftS).toBeCloseTo(IGNITE_S - 1, 5);
+      expect(d.lit).toBe(0);
+      d.skipTitle();
+      d.update(1 / 60);
+      expect(d.titlePhase).toBe('done');
+      expect(d.titleLeftS).toBe(0);
+      expect(d.lit).toBe(1);
+      expect(d.glow).toBe(-1);
+      expect(d.shot.id).toBe('T2');
+      expect(d.context).toBe('main');
+      // a skip with no title does nothing
+      d.skipTitle();
+      expect(d.titlePhase).toBe('done');
+    });
+
+    it('takes the whole strike in about 5 s and reads as pure levels', () => {
+      expect(IGNITE_S).toBeGreaterThan(3);
+      expect(IGNITE_S).toBeLessThan(6);
+      expect(igniteGlow(0)).toBe(0);
+      expect(igniteGlow(IGNITE.flickerS)).toBe(1);
+      expect(igniteLit(IGNITE.flickerS + IGNITE.holdS)).toBe(0);
+      expect(igniteLit(IGNITE_S)).toBe(1);
+    });
+
+    it('plays only with the title: no title (after a match, automation) is lit from the start', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main' });
+      for (let i = 0; i < 100; i++) d.update(0.1);
+      expect(d.titlePhase).toBe('none');
+      expect(d.lit).toBe(1);
+      expect(d.glow).toBe(-1);
+    });
+
+    it('reduced motion: dark until the press, then the lights straight up (no flicker)', () => {
+      const d = createDirector({ seed: 1, reducedMotion: true, context: 'title' });
+      d.update(1);
+      expect(d.lit).toBe(0);
+      d.setContext('main');
+      d.update(DT);
+      expect(d.titlePhase).toBe('done');
+      expect(d.lit).toBe(1);
+      expect(d.shot.id).toBe('T2');
+    });
+
+    it('another screen during the strike ends it at once', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'title' });
+      d.setContext('main');
+      d.update(0.5);
+      d.setContext('loadout');
+      expect(d.titlePhase).toBe('done');
+      expect(d.lit).toBe(1);
+      expect(d.shot.id).toBe('S6');
+    });
   });
 
   it('forces a shot with ?menuShot and runs fast with ?menuClock=fast', () => {
@@ -153,10 +267,13 @@ describe('menu hero shots', () => {
 
 describe('menu shot passes', () => {
   it('plays every main shot once per round (a deck), never the same twice in a row', () => {
-    const s = sequence(11, 1 + 6 * 8).slice(1);
-    // a round is the shot carried over plus five new ones: windows of six starting every fifth shot hold no repeat
-    expect(new Set(s.slice(0, 6)).size).toBe(6);
-    for (let r = 0; r < 7; r++) expect(new Set(s.slice(5 + r * 5, 5 + r * 5 + 6)).size).toBe(6);
+    // (menu-notes slice 3: W1 / W2 joined, n = 8; slice 4d: W3, n = 9)
+    const n = SHOTS.filter((x) => x.contexts.includes('main') && !x.intro).length;
+    expect(n).toBe(9);
+    const s = sequence(11, 1 + n * 8).slice(1);
+    // a round is the shot carried over plus n - 1 new ones: windows of n starting every (n - 1)th shot hold no repeat
+    expect(new Set(s.slice(0, n)).size).toBe(n);
+    for (let r = 0; r < 7; r++) expect(new Set(s.slice(n - 1 + r * (n - 1), n - 1 + r * (n - 1) + n)).size).toBe(n);
   });
 
   it('the equipment shots use at least four kinds of pass', () => {
@@ -196,5 +313,41 @@ describe('menu shot passes', () => {
     }
     expect(fovs.size).toBeGreaterThanOrEqual(3);
     for (const h of HERO_SHOTS) if (h.id.startsWith('H')) expect(Math.min(Math.abs(h.from.alpha), Math.abs(h.to.alpha))).toBeGreaterThan(0.3);
+  });
+
+  it('(slice 4d, M4) W3 on the sights is in the main deck with the rifle raised; the X mock-ups are gone', async () => {
+    const { HERO_SHOTS } = await import('../src/world/menuSets');
+    const { applyMenuPose, menuPoseInput } = await import('../src/world/menuPoses');
+    const w3 = SHOTS.find((s) => s.id === 'W3');
+    expect(w3?.contexts).toEqual(['main']);
+    const h = HERO_SHOTS.find((x) => x.id === 'W3');
+    expect(h?.hold).toBe('rifle');
+    expect(h?.pose?.aim).toBe(1);
+    expect(SHOTS.some((s) => s.id.startsWith('X'))).toBe(false);
+    expect(HERO_SHOTS.some((x) => x.id.startsWith('X'))).toBe(false);
+    expect(sequence(3, 40)).toContain('W3');
+    const f = createDirector({ seed: 1, reducedMotion: false, context: 'main', force: 'W3' });
+    for (let i = 0; i < 100; i++) f.update(0.2);
+    expect(f.shot.id).toBe('W3');
+    // the raise, then a shot with no pose: back to the hold's ready
+    const pose = menuPoseInput();
+    applyMenuPose(pose, 'rifle', 1, h?.pose);
+    expect(pose.aim).toBe(1);
+    applyMenuPose(pose, 'rifle', 1);
+    expect(pose.aim).toBe(0.05);
+    expect(pose.crouch).toBe(0);
+    expect(pose.wall).toBe(false);
+  });
+
+  it('(slice 4d, M4) no goggle spill light: no hero shot lights a spot with the goggle level (the glow above her goggle)', async () => {
+    const { HERO_SHOTS } = await import('../src/world/menuSets');
+    for (const h of HERO_SHOTS) expect('glowLight' in h, h.id).toBe(false);
+    // the face shots keep the key and the rim; their third spot is off
+    for (const id of ['T1', 'T2']) {
+      const l = HERO_SHOTS.find((x) => x.id === id)!.lights;
+      expect(l[0].intensity).toBeGreaterThan(0);
+      expect(l[1].intensity).toBeGreaterThan(0);
+      expect(l[2].intensity).toBe(0);
+    }
   });
 });

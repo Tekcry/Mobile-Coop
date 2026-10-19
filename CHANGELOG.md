@@ -56,6 +56,79 @@
   comes straight up to the shoulder (no low-ready dip); a settings save from an A3 build had the speed on D-pad left /
   right: it moves to up / down (vision left, gadget right) unless remapped.
 
+## 4.9.0 - Marlow Yard co-op walkthrough fixes (2026-10-20, PR #30)
+Marlow Yard walkthrough fixes for the 2-player co-op test (S1; audit `docs/course-ready/AUDIT.md`, 0 blockers,
+8 confusing, 14 minor).
+- Each station's task shows as the course HUD step line on both screens (bays without drills).
+- A radio line names the next step when a station opens (unbolt, camera pocket, laser release, roof plates, hatch
+  hack, scanners).
+- Station 2: the bolt counts any player past the door leaf as the bolt side; once unbolted the "Unbolt" item turns off
+  so the door menu shows on both sides (back on a bay restart).
+- Panel and radio text name pad and keyboard buttons; station 3 says how to get the pistol out and to holster before
+  the door; station 4 places the red release; station 5 says the way out after the hack; shorter panel 5.
+- The station 3 blind spot is pale blue-grey (the airlock pads stay green); leg-up squares sit on the tested spot at
+  stations 2, 5 and 7; a lone roof-plate press hints "Partner: press the other plate now"; the host's banner says who
+  is down.
+- Co-op: a course bay restart also brings an alive partner back to the checkpoint (no partner shut out by relocked
+  gates). No wire change.
+
+## 4.8.2 - Sector Ops: a checkpoint restart is a clean start (2026-10-20, PR #29)
+- Sector Ops: a checkpoint restart is a clean start of the section (M9). The guards' shared memory goes back to its
+  match-start state (`EnemyManager.resetMemory`: alarm, last known position and chase field, sighting flags, flanker,
+  squads, AI clocks) and the section's guards load unaware on their routes. The loadout recorded when the section began
+  comes back with every gun reloaded (no reload animation) and the gadgets restored (`weapons/loadoutSnapshot.ts`);
+  grenades in flight and gadgets in the world (noisemakers, gas, mines, cams) go; doors the player opened are no longer
+  noticed by the new guards. The alert / caution music fades out and the section starts in Calm (`Music.calm`). Health
+  is full with the respawn.
+- Co-op: the client records its own loadout as each section goes live and restores it on the host's restart banner
+  (no wire change, A1).
+- Sector Ops issues the campaign kit like Infiltration: the rifle comes with its suppressor (A62), as the Kit screen and
+  the co-op lobby already showed it (A2). Before this its shots were loud in Sector Ops and put every guard in earshot
+  into combat.
+
+## 4.8.1 - Menu boot time measured (2026-10-19, PR #28)
+Docs only. The 4.8.0 load gate adds about 0.9 s to boot-to-menu under software GL (median 1.72 s vs 0.78 s on
+4.7.5); match boots skip it; no e2e helper change (docs/menu-notes/STATE.md).
+
+## 4.8.0 - Menu notes: black launch screen, goggle flicker, menu weapons and poses (2026-10-19, PR #27)
+- Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
+  both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
+  arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
+  the press fades the wordmark and prompt out, Wren's goggles flicker on in full darkness with no menu on screen, then
+  the light rises on the close-up and the main menu fades in (M3; a second press skips to the lit menu, A3; launch only).
+- Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
+  autoplay is blocked.
+- Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
+  one place (A2). Settings > Gameplay drops the Default shoulder row (CT: the camera is always over the right shoulder
+  when holstered); the Controls screen lists the CT trigger and mouse verbs (holstered knockout / lethal palm strike,
+  drawn secondary / primary fire; right click draws and holsters).
+- Hero quality (note 4): the menu close-ups always draw the hero LOD on desktop presets (no fix needed; the jump was the
+  LOD2 -> LOD0 -> hero load order, now behind the load gate); read-back `MenuState.heroLod`.
+- Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
+  compressed ready, the other holstered or on the back (`src/world/menuPoses.ts`; new shots W1, W2); the void no
+  longer shows a lone magazine or placeholder gun; a unit guard keeps the support hand off the magazine.
+- Tactical shot (M4): W3 joins the main-menu deck, Wren on the sights with the rifle shouldered (Michael's pick X5 of
+  the slice 4b mock-ups). The green goggle-spill spot in the face shots is gone: it reflected as a stray glow on the
+  goggle housing and helmet above the lenses; the lens flicker itself is unchanged.
+- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; `tests/titleSequence.test.ts`; e2e-menus checks the load
+  gate, the dark title, the prompt fade, the sequence and the skip; e2e-pad follows the shorter Pause menu and the pad skip; GPU script `scripts/menu-boot-shots.mjs`.
+
+## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
+- tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
+  compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it
+  is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
+  laptop (41.97 < 39.54). Tests only.
+
+## 4.7.4 - Orchestrator docs: new Claude account (2026-10-19, PR #25)
+Docs only. Every session restarted in the new Claude account; the new dashboard
+(https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh); the roadmap and orchestrator state at 22:55 (CT Core slice F
+checks, Menu Notes fixes for CT Core, Sector Ops fix round, lightfield-heap runs).
+
+## 4.7.3 - Orchestrator docs: walk notes, account handover, test runner and priority state (2026-10-19, PR #24)
+Docs only. Michael's playtest-2 walk notes (docs/ct-prototype/WALK-2026-10-19.md), the account-switch handover
+(docs/orchestrator/STATE.md), the roadmap (Menu Notes, Sector Ops restart bug M9, CT footage awaited), the menu notes
+start prompt, and the dashboard with the walk-test checklist.
+
 ## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
 - The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built
   from ct-movement e5fc5870 read "fca0e26"): vite.config.ts took GITHUB_SHA first, which every slot build in the deploy

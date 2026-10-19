@@ -34,6 +34,8 @@ Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Sectio
 - **Files:**
   - `src/audio/score/game/gameMusic.ts` plays the tracks. `src/audio/score/director.ts` decides the state (hysteresis:
     Cautious after 0.6 s, Alert at once; Alert holds 10 s, Evasion 12 s, Cautious 8 s; one rung at a time).
+    `GameMusic.calm()` (`Music.calm`, on the `checkpointRestart` event, sector-restart M9): a Sector Ops checkpoint
+    restart fades whatever plays over 2.5 s and resets the director to Calm.
   - `src/audio/score/game/adapter.ts` is the only code that reads the game. It maps every guard's `AlertLevel`:
     - alert -> alert
     - suspicious, investigating, searching -> caution

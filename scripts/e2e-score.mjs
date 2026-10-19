@@ -1,4 +1,4 @@
-// The score in the game (music V4, 2026-10-16): the menu theme starts on the main menu after the first gesture; in a
+// The score in the game (music V4, 2026-10-16): the menu theme starts on the title screen (at once, or on the first input when autoplay is blocked; menu-notes); in a
 // match the music is silent while nobody is aware of you, turns Cautious when a guard is suspicious, and on a guard's
 // alert plays the spotted hit into "Alert, under fire". Headless (null audio sink); the music state is read from
 // window.__app.music (state and debug), which only reports.

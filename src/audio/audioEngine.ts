@@ -29,8 +29,7 @@ export class AudioEngine {
 
   constructor() {
     const unlock = (): void => {
-      this.ensure();
-      void this.ctx?.resume();
+      this.unlock();
       if (this.ctx?.state === 'running') {
         window.removeEventListener('pointerdown', unlock, true);
         window.removeEventListener('keydown', unlock, true);
@@ -39,6 +38,34 @@ export class AudioEngine {
     window.addEventListener('pointerdown', unlock, true);
     window.addEventListener('keydown', unlock, true);
   }
+
+  /** Create the context if needed and ask it to run (it runs when the browser allows: a gesture, or autoplay). */
+  unlock(): void {
+    const ctx = this.ensure();
+    if (ctx && ctx.state !== 'running') void ctx.resume().catch(() => {});
+  }
+
+  /** (menu-notes note 1) Each frame while the context is not running: a pad button press asks it to run (browsers that
+   *  count a pad press as a gesture then start the menu music; the others wait for a key or click). */
+  pollPad(): void {
+    if (this.ctx?.state === 'running' || typeof navigator === 'undefined' || !navigator.getGamepads) return;
+    const pads = navigator.getGamepads();
+    let down = false;
+    for (let i = 0; i < pads.length && !down; i++) {
+      const p = pads[i];
+      if (!p) continue;
+      for (let b = 0; b < p.buttons.length; b++) {
+        if (p.buttons[b]?.pressed) {
+          down = true;
+          break;
+        }
+      }
+    }
+    // (a new press only: a held button does not ask the context to resume every frame)
+    if (down && !this.padDown) this.unlock();
+    this.padDown = down;
+  }
+  private padDown = false;
 
   /** Called by gamepad input too (a controller button counts as a gesture on most browsers). */
   ensure(): AudioContext | null {

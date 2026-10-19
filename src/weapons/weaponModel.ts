@@ -159,13 +159,21 @@ export class WeaponModel {
     // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
     // (feature/weapons) the baked mesh replaces the parts once loaded; such a weapon never builds a voxel model (A7)
-    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag) => this.useMesh(m, mag, opts.caster));
+    const meshed = opts.mesh === true && loadWeaponMesh(scene, def.id, this.node, () => !this.disposed, (m, mag) => this.useMesh(m, mag, opts.caster), () => (this.meshWanted = false));
+    this.meshWanted = meshed;
     if (VOXEL_WEAPONS && skin && !meshed) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
   }
 
   /** The baked mesh once loaded (null: the parts or the voxel model render). */
   mesh: Mesh | null = null;
   private disposed = false;
+  /** A baked mesh was asked for and has neither loaded nor failed yet. */
+  private meshWanted = false;
+
+  /** (menu-notes note 2) The baked mesh is still on its way (the menu's load screen waits for it). */
+  get meshPending(): boolean {
+    return this.meshWanted && !this.mesh && !this.disposed;
+  }
 
   private useMesh(m: Mesh, mag: Mesh | null, caster?: (m: AbstractMesh) => void): void {
     this.mesh = m;

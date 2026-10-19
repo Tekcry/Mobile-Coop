@@ -1,6 +1,6 @@
 import type { App } from '../../core/app';
 import { h } from '../dom';
-import { MenuScreen } from '../menuScreen';
+import { MenuScreen, type LegendItem } from '../menuScreen';
 import { button } from '../widgets';
 
 export interface MenuEntry {
@@ -27,8 +27,6 @@ export const versionText = (): string =>
 export class MainMenuScreen extends MenuScreen {
   override readonly root = true;
   static entries: ((app: App) => MenuEntry)[] = [];
-  /** Back on the main menu (MD2): set by main.ts when the title screen may show; null keeps Back a no-op. */
-  static onBackToTitle: (() => void) | null = null;
   private list: HTMLElement;
   readonly badge: HTMLElement;
 
@@ -76,8 +74,13 @@ export class MainMenuScreen extends MenuScreen {
     this.build();
   }
 
+  /** (menu-notes A1, Michael's note 3) Back on the main menu does nothing: no way back to the title screen. */
   override onBack(): boolean {
-    MainMenuScreen.onBackToTitle?.();
     return true;
+  }
+
+  /** No Back item: the root menu has nowhere to go back to. */
+  override legend(): LegendItem[] {
+    return [{ act: 'confirm', label: 'Select' }];
   }
 }
