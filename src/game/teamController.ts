@@ -676,8 +676,9 @@ export class TeamController {
     // (B7) standing facing a drop: the two-person rope instead of the throw
     const drop = near < 12 ? this.hangPoint(c.pos.x, c.pos.y, c.pos.z, c.yaw) : null;
     // (G4) a climb-up / ladder / vent now ends crouched by itself (CT): that crouch counts as standing here, so the rope
-    // and the throw stay one press away; a crouch the player chose offers the hang-down / leg-up
-    const crouched = c.crouched && !c.autoCrouch;
+    // and the throw stay one press away; a crouch the player chose offers the hang-down / leg-up. Standing up (the crouch
+    // no longer wanted, the body not up yet) also counts as standing.
+    const crouched = c.crouched && c.crouchIntent && !c.autoCrouch;
     if (near < (crouched || drop ? 12 : 4) && !this.prompt) {
       this.prompt = drop ? (crouched ? 'Co-op: offer a hang-down (lower your partner)' : 'Co-op: drop a rope for your partner (crouch: hang-down)') : crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
       this.promptAt.set(c.pos.x, c.pos.y + (crouched ? 1.5 : 1.9), c.pos.z);

@@ -259,6 +259,10 @@ export class PlayerController {
    *  the chosen crouch (hang-down, leg-up), and stands up for it. Cleared by a crouch press or standing up. */
   autoCrouch = false;
 
+  /** (G4) The crouch the player wants this step (toggle, hold or an override): false while standing up from a crouch, so a
+   *  co-op offer in the frames before the body is up reads it as standing. */
+  crouchIntent = false;
+
   /** (G4) Stand up from an automatic crouch (a co-op rope / throw offer after a crouched climb-up end). */
   standUp(): void {
     this.crouchToggled = false;
@@ -451,6 +455,7 @@ export class PlayerController {
     let wantCrouch = crouchWanted(input.crouchToggle, this.crouchToggled, input.crouchHeld);
     if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
     if (this.crouchPend) wantCrouch = false;
+    this.crouchIntent = wantCrouch;
     this.applyCrouch(wantCrouch);
 
     // speed: analog per stance; strafe / backstep penalties only while aiming (relative to the aim)
