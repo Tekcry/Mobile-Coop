@@ -46,6 +46,9 @@ Last updated: 2026-10-19 12:40 Sydney.
    archived. Opus, High; about half a day. Flaky suites (Michael, 2026-10-19): the audit finds each cause; then a fix
    job on the desktop makes e2e-coop, e2e-netmove and e2e-ctcourse reliable (all three fail alone on master bd59f32);
    flaky or failing suites outside the training level move to the legacy run instead of being fixed.
+1c. **Phone launch, testing only** (Character Build, laptop, now; Michael, 2026-10-19): the phone launches the game,
+   always minimum settings, no touch controls (Bluetooth pad), the display fits the iPhone screen; no time spent, no
+   checks beyond CI's `npm run check`. Branch feature/phone-launch. CLAUDE.md's M21 line is updated in the audit.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
