@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - phone-launch (feature/phone-launch)
+- A phone can launch the game for testing only (G182): the minimum settings (`?gfx=min`, no Auto detection, no
+  governor) and the menus and HUD scaled down to fit its screen. No touch controls; a Bluetooth pad drives it. Untested.
+
 ## Unreleased - weapons (feature/weapons)
 Placeholder weapons that look real at a glance, held and carried believably (Michael, 2026-10-19: "Holding weapons and
 holstering should at least look believable but only prototype quick run").
