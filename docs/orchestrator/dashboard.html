@@ -83,6 +83,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
+    <p class="qhint"><b>Playtest 2 walk test on /ct/</b> (controller). Solo course: <a href="https://tekcry.github.io/Mobile-Coop/ct/?autostart=ctcourse&amp;mode=course">Marlow Yard</a> (the ledge hang is at station 2). Drainpipe: <a href="https://tekcry.github.io/Mobile-Coop/ct/?autostart=proving&amp;mode=sandbox">Proving Grounds</a>. Co-op on one PC: open <a href="https://tekcry.github.io/Mobile-Coop/ct/?net=local&amp;autostart=ctcourse&amp;mode=course">this link</a> in two tabs. Mark each item Good or Not right and add a note on what feels off.</p>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
     <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
@@ -181,7 +182,23 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 </div>
 
 <script>
-const QUESTIONS = [];
+const PT = ['Good', 'Not right', 'Skipped'];
+const QUESTIONS = [
+  { id: 'pt2-speeds', who: 'Slice A', opts: PT, text: 'Walk speeds: D-pad up / down changes the speed, speed 2 is the slowest, and aiming feels about 70% slower than before.' },
+  { id: 'pt2-wall', who: 'Slice A', opts: PT, text: 'Wall: A from under 0.5 m settles onto the wall with no slide (further away does nothing); shuffling swings the camera to that side; corner peek goes the right way; the shoulder you pick carries into aiming and back.' },
+  { id: 'pt2-steps', who: 'Slice A', opts: PT, text: 'Footsteps are quiet at walking speeds and match the noise meter; running is louder; no camera bob when walking.' },
+  { id: 'pt2-ads', who: 'Slices B + C', opts: PT, text: 'Aiming frames the same standing and crouched, rifle and pistol; no gun flick when you swap shoulders while aiming.' },
+  { id: 'pt2-upper', who: 'Slices B + C', opts: PT, text: 'Aim up and down: the chest leans, the wrists stay straight, the arms are less stretched out; the pistol aim looks natural (compare with the CT footage).' },
+  { id: 'pt2-legs', who: 'Slices B + C', opts: PT, text: 'Legs stay in line under the body walking, running and turning on the spot.' },
+  { id: 'pt2-crouch', who: 'Slices B + C', opts: PT, text: 'Crouch: idle, walk and aim - the hands and legs look right.' },
+  { id: 'pt2-holster', who: 'Slices D + E', opts: PT, text: 'Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way. Check: does the rifle hand rise to about chin height mid-way?' },
+  { id: 'pt2-shimmy', who: 'Slices D + E', opts: PT, text: 'Ledge hang shimmy (Marlow Yard station 2): slower (0.7 m/s), one hand at a time, wide reaches.' },
+  { id: 'pt2-climbup', who: 'Slices D + E', opts: PT, text: 'Ledge climb-up: pull up, a knee on the top, then stand - not floating. Check: do the hands let go too early as the knee lands?' },
+  { id: 'pt2-pipe', who: 'Slices D + E', opts: PT, text: 'Drainpipe climb (Proving Grounds): the knees bend up and forward toward the wall and never flip.' },
+  { id: 'pt2-boost', who: 'Co-op, two tabs', opts: PT, text: 'Team boost onto a ledge still works, and its climb-up looks right.' },
+  { id: 'pt2-scanners', who: 'Co-op, two tabs', opts: PT, text: 'Scanners: a hack when your partner never started costs nothing; a late or abandoned hack costs 10 HP.' },
+  { id: 'pt2-other', who: 'Anything else', opts: [], text: 'Anything else you noticed: bugs, feel, what to do next.' },
+];
 const state = {};      // id -> { choice, note } being edited
 const saved = {};      // id -> stored doc body
 let db = null;
