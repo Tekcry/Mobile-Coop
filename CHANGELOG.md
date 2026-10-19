@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.7.3 - Orchestrator docs: walk notes, account handover, test runner and priority state (2026-10-19, PR #24)
+Docs only. Michael's playtest-2 walk notes (docs/ct-prototype/WALK-2026-10-19.md), the account-switch handover
+(docs/orchestrator/STATE.md), the roadmap (Menu Notes, Sector Ops restart bug M9, CT footage awaited), the menu notes
+start prompt, and the dashboard with the walk-test checklist.
+
 ## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
 - The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built
   from ct-movement e5fc5870 read "fca0e26"): vite.config.ts took GITHUB_SHA first, which every slot build in the deploy
