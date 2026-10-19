@@ -57,3 +57,8 @@ feature/anim-cleanup merges master once after that.
 - All 8 course stations have their real co-op moves; movement pass A1-A5, posture P1-P1c, fixes F1a / F1b done.
 - Running: T1 stale e2e assertion clean-up (branch only).
 - Next after the walkthrough: Michael's notes, then merge origin/master (weapons #7, menu PR) and open the PR.
+
+## 2026-10-19 after the walkthrough
+- PR #9 merged into master (2e141075). Playtest 2 notes: `PLAYTEST-2.md`.
+- Slice A (playtest 2: speed, ADS sensitivity, peek, shoulder carry, swap flick, wall snap, footsteps, no bob) running.
+- Next: B+C after the main session merges feature/anim-cleanup into master (pull master first); D+E held until then.
