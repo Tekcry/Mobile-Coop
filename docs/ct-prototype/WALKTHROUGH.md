@@ -42,7 +42,7 @@ The co-op action (RB / F) picks the move from your stance and where you stand:
 | 6 Scanners | One scanner each, wait for both small lights green, A together, stay put | built |
 | 7 Rope wall | Leg-up one player up; on top stand facing the partner and press RB to drop the rope; partner RB at the wall, stick up to climb | built |
 | 8 Finish | Both into the exit zone; the results show time, alarms and revives | built |
-Failing costs health, never the run: laser touch 15 HP, a late scanner 10 HP (never below 1). A downed player can be
+Failing costs health, never the run: laser touch 15 HP, a late or abandoned scanner hack 10 HP (never below 1; none if the partner never started). A downed player can be
 revived by the partner (hold A near them) within 30 s, at most twice per run; past that, or both down, the bay restarts.
 
 ## What changed overnight
@@ -82,7 +82,7 @@ your walkthrough.
 1. Selection wheel: LB hold, kept.
 2. Lethal / non-lethal switch: not added; LT / RT is enough.
 3. With a gun drawn, A reloads: kept.
-4. Scanners: no HP cost when the partner never started; the 10 HP stays for a late or abandoned hack (a later slice).
+4. Scanners: no HP cost when the partner never started; the 10 HP stays for a late or abandoned hack (built 2026-10-19).
 
 ## Polish list
 `POLISH.md`: nothing there is worked on until you have played the core loop.

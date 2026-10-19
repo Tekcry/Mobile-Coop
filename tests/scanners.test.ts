@@ -80,11 +80,12 @@ describe('paired scanners (B6)', () => {
     expect(s.open).toBe(false);
   });
 
-  it('one hack alone (nobody on the other panel): the window runs out, the lone hacker pays', () => {
+  it('one hack alone (the partner never started): the window runs out, both reset, nobody pays (Michael, 2026-10-19)', () => {
     const s = newScanPair();
     scanStart(s, 1, 0);
     const r = run(s, SCANNER.hack + SCANNER.window + 0.1);
-    expect(r).toEqual({ kind: 'fail', who: 0, why: 'late' });
+    expect(r).toEqual({ kind: 'fail', who: -1, why: 'alone' });
+    expect(s.ph).toEqual([SC_IDLE, SC_IDLE]);
   });
 
   it('walking off mid-hack aborts: both reset, the walker pays', () => {
