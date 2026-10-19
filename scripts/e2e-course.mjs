@@ -307,9 +307,8 @@ try {
     assert(!clientAnchors.includes(ladder), `${tag}: the client's own ladder anchor is unlocked`);
   }
 
-  console.log('gates: the host acts');
-  await gates('A');
-
+  // (process audit, 2026-10-19) one gate walk, the client's (after the restart): the host acting on gates is
+  // e2e-ctcourse's (the bolt from the far side, the plates), and the restart resets every gate either way
   console.log('forced both-down restart');
   await GA(() => {
     const g = window.__app.current;

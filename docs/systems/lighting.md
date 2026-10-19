@@ -119,4 +119,4 @@ change.
   shaders / lod / governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render
   frame; benchmark lines end with the run's summary, `feedbackContext().spikes`.
 - Tests: `tests/darkCurve.test.ts`, `tests/lampBake.test.ts`, `tests/nightVision.test.ts`, `tests/benchmark.test.ts`;
-  `scripts/e2e-darkness.mjs`, `scripts/e2e-lightbake.mjs`.
+  `scripts/e2e-darkness.mjs` (GPU list: `npm run e2e:gpu` on Michael's PC), `scripts/e2e-lightbake.mjs`.
