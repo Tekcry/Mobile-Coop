@@ -160,7 +160,18 @@ try {
     // (anim-cleanup) which side holds the draw: the client's own draw state and sim, or the host's copy of it
     const cl = await GB(() => { const g = window.__app.current; const w = g.weapons; return { dw: w.drawPhase, prog: w.draw.progress, ads: g.player.ads, alive: g.player.alive, swapT: w['swapT'], swapPhase: w['swapPhase'], reloadT: w['reloadT'], stowed: w.isStowed, lock: w['drawLock'], busy: w.handsBusy, hand: g.player.rig.weaponHand }; }).catch((x) => String(x));
     const ho = await GA(() => [...window.__app.current.net.remotes.values()].map((r) => ({ mv: r.state?.mv ? { m: r.state.mv.m, dw: r.state.mv.dw, sub: r.state.mv.sub } : null, alive: r.alive, viol: r.violations }))).catch((x) => String(x));
-    console.log(`    client ${JSON.stringify(cl)}\n    host ${JSON.stringify(ho)}\n    client errors ${JSON.stringify(eB.slice(-5))}`);
+    // is each sim stepping at all: its clock half a second apart, and anything that stops it (paused, ended, a menu,
+    // the loop's manual mode, a hidden page)
+    const live = async (page) => {
+      const snap = () => page.evaluate(() => { const g = window.__app.current; const l = window.__app.loop; return { t: g.time, paused: g['paused'], menu: g['menuOpen'], ended: g['ended'], exited: g['exited'], loopPaused: l.paused, manual: l.manual, steps: l.stats?.steps, vis: document.visibilityState, screens: [...document.querySelectorAll('.screens > *')].map((el) => el.className).join('|') }; });
+      const a = await snap();
+      await wait(500);
+      const b = await snap();
+      return { ...b, t0: a.t, t1: b.t };
+    };
+    const lc = await live(B).catch((x) => String(x));
+    const lh = await live(A).catch((x) => String(x));
+    console.log(`    client ${JSON.stringify(cl)}\n    host ${JSON.stringify(ho)}\n    client sim ${JSON.stringify(lc)}\n    host sim ${JSON.stringify(lh)}\n    client errors ${JSON.stringify(eB.slice(-5))}\n    host errors ${JSON.stringify(eA.slice(-5))}`);
     throw e;
   });
   {
