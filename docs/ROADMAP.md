@@ -41,7 +41,7 @@ Last updated: 2026-10-19 14:55 Sydney.
    Settings, Feedback; Missions / Training / Free Roam behind ?legacy=1). Sector Ops (original, after Conviction's
    Deniable Ops at CT pace): the Warehouse in 3-4 sectors of rising difficulty with cameras and lasers, each sector an
    objective then its exit, ghosting possible, solo or co-op; Michael's playground. Co-op is the campaign: Marlow Yard
-   (Course) by room code, the host can switch to Sector Ops. Prototype effort only.
+   (Course) by room code, the host can switch to Sector Ops. Prototype effort only. M5: five distinct sections (courtyard break-in, entrance, interior, ...) joined by connectors that load the next and unload the last, as many patrolling guards as the budget allows. Research (RESEARCH.md) and a full PLAN.md first; Michael approves before slice 2.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
