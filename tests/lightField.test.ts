@@ -274,38 +274,50 @@ describe('light field (3.6)', async () => {
     const gc = vm.runInNewContext('gc') as () => void;
     const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
     const out = new Float64Array(1);
-    const N = 20000;
-    const per = (fn: (n: number) => void): number => {
+    // Under load (an e2e run alongside, a low-priority laptop) the old 5-round reading skewed: the background compiler
+    // had not installed the optimized loop yet, so the field's doubles were still boxed (35-42 B a query, optimized
+    // 32.4), and a scavenge inside the 1.4 MB control round shrank new space (the control read 15 B). So: rounds that
+    // fit in new space after a gc() (the control 2000 x 272 B, about 0.5 MB, under the 1 MB minimum semi-space), and up
+    // to 40 of them with a short yield between, so the compiler can finish. Each keeps its smallest round (the optimized
+    // code). The control runs all 40; each field query stops once its smallest meets its limit (a query that allocates
+    // an object never gets there).
+    const N = 5000;
+    const per = async (fn: (n: number) => void, goal = -Infinity, n = N): Promise<number> => {
       for (let k = 0; k < 5; k++) fn(100000);
-      let best = Infinity;
-      for (let k = 0; k < 5; k++) {
+      let v = Infinity;
+      for (let k = 0; k < 40; k++) {
         gc();
         const b0 = newSpace();
-        fn(N);
-        best = Math.min(best, newSpace() - b0);
+        fn(n);
+        v = Math.min(v, (newSpace() - b0) / n);
+        if (k >= 4 && v <= goal) break;
+        await new Promise((r) => setTimeout(r, 25));
       }
-      return best / N;
+      return v;
     };
-    const level = per((n) => {
-      let s = 0;
-      for (let i = 0; i < n; i++) s += f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);
-      out[0] = s;
-    });
-    const body = per((n) => {
-      let s = 0;
-      for (let i = 0; i < n; i++) s += f.bodyLevel((i % 40) * 0.5 - 10, 0, ((i * 7) % 40) * 0.5 - 10, 1.75, occ);
-      out[0] = s;
-    });
-    // a control that makes one 3-vector per query: what a real allocation looks like
-    const ctl = per((n) => {
+    // a control that makes one 3-vector per query: what a real allocation looks like (kept in a small ring so it
+    // escapes: a fully optimized loop otherwise scalar-replaces part of it and the control read 63 B instead of 272)
+    const ring: Float64Array[] = new Array<Float64Array>(64);
+    const ctl = await per((n) => {
       let s = 0;
       for (let i = 0; i < n; i++) {
         const v = new Float64Array(3);
         v[0] = f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);
+        ring[i & 63] = v;
         s += v[0];
       }
       out[0] = s;
-    });
+    }, -Infinity, 2000);
+    const level = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);
+      out[0] = s;
+    }, Math.min(BOXED_BUDGET, ctl - 33));
+    const body = await per((n) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += f.bodyLevel((i % 40) * 0.5 - 10, 0, ((i * 7) % 40) * 0.5 - 10, 1.75, occ);
+      out[0] = s;
+    }, BOXED_BUDGET * 2);
     console.info(`bytes per query: levelAt ${level.toFixed(1)}, bodyLevel ${body.toFixed(1)}, control with a vector ${ctl.toFixed(1)}`);
     expect(out[0]).toBeGreaterThan(0);
     expect(level).toBeLessThan(ctl - 32);
