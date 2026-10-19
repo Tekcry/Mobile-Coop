@@ -1,6 +1,21 @@
 # Changelog
 
 ## Unreleased - ct-prototype
+- Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
+  of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours
+  (`docs/ct-prototype/audit/`: per area, with a coverage map of every catalogue move); slices G1-G4 below follow it, and
+  where the footage disagrees with an earlier number the footage wins (Michael).
+- G4 traversal (`docs/ct-prototype/G4-REPORT.md`): the drainpipe climbs with one reach per hand about every second and
+  both feet together; the hang shimmy slows to 0.5 m/s with the legs swinging under her (and a slight sway hanging
+  still); the ledge climb-up puts the knee on top at 0.47 s and ends crouched at 0.85 s, standing only if you hold the
+  stick; ladders climb 1.7 rungs a second, two rungs a reach, faster going down, mount from the top in 1.2 s and top out
+  in 0.85 s; rappel hooks on in 1.8 s and descends at 0.6 m/s; drops land crouched; crawling out of a wall vent takes
+  2.5 s.
+- G3 camera (`docs/ct-prototype/G3-REPORT.md`): the field of view is 86 (CT's vertical view; a saved 75 moves once,
+  `camV`) and the explore camera sits 0.15 m off the shoulder (Michael: "Match CT"); open spaces frame the whole body
+  from 2.8 m (tight spaces 1.8 m) from map flags with a probe fallback; the aim camera puts the head on the left with the
+  reticle clear; the camera eases in toward walls more slowly (as CT); it pushes in while passing through a doorway;
+  traversal cameras centre the hero; the corner peek eases in over 0.35 s.
 - G2 aiming and weapons (`docs/ct-prototype/G2-REPORT.md`, against the CT footage): the rifle is slung diagonally across
   the back (stock at the right shoulder, muzzle down to the left hip) and draws round the right side, muzzle up at the
   shoulder, then down onto the line, with no hold at the chest (about 0.4 s to settled); the holster is near instant

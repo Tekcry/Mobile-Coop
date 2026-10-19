@@ -675,12 +675,16 @@ export class TeamController {
     // (B5) crouched facing a drop (a roof edge, a hatch): the hang-down instead of the leg-up
     // (B7) standing facing a drop: the two-person rope instead of the throw
     const drop = near < 12 ? this.hangPoint(c.pos.x, c.pos.y, c.pos.z, c.yaw) : null;
-    if (near < (c.crouched || drop ? 12 : 4) && !this.prompt) {
-      this.prompt = drop ? (c.crouched ? 'Co-op: offer a hang-down (lower your partner)' : 'Co-op: drop a rope for your partner (crouch: hang-down)') : c.crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
-      this.promptAt.set(c.pos.x, c.pos.y + (c.crouched ? 1.5 : 1.9), c.pos.z);
+    // (G4) a climb-up / ladder / vent now ends crouched by itself (CT): that crouch counts as standing here, so the rope
+    // and the throw stay one press away; a crouch the player chose offers the hang-down / leg-up
+    const crouched = c.crouched && !c.autoCrouch;
+    if (near < (crouched || drop ? 12 : 4) && !this.prompt) {
+      this.prompt = drop ? (crouched ? 'Co-op: offer a hang-down (lower your partner)' : 'Co-op: drop a rope for your partner (crouch: hang-down)') : crouched ? 'Co-op: offer a leg-up' : 'Co-op: offer a partner throw (crouch for a leg-up)';
+      this.promptAt.set(c.pos.x, c.pos.y + (crouched ? 1.5 : 1.9), c.pos.z);
     }
     if (!coopPressed) return false;
-    if (drop && !c.crouched) {
+    if (!crouched && c.autoCrouch) c.standUp();
+    if (drop && !crouched) {
       // (B7) the rope: it needs ground under the edge within its length (polite refusal otherwise)
       const room = ropeRoom(c.pos.y, drop.floorY);
       if (room !== 'ok') {
@@ -713,7 +717,7 @@ export class TeamController {
       this.partner = '';
       return true;
     }
-    if (c.crouched) {
+    if (crouched) {
       if (!this.room()) this.refused('No room for a leg-up here');
       else {
         this.state = 'offer';

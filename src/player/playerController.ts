@@ -245,11 +245,24 @@ export class PlayerController {
   /** Cover takes over crouching: forget a pending crouch toggle. */
   clearCrouchToggle(): void {
     this.crouchToggled = false;
+    this.autoCrouch = false;
   }
 
-  /** End a committed move crouched (the Chaos Theory forward roll): the crouch toggle is set. */
+  /** End a committed move crouched (the Chaos Theory forward roll, G4 climb-up / ladder / vent ends): the crouch toggle
+   *  is set. It counts as automatic (`autoCrouch`) until the player presses crouch themselves. */
   setCrouchToggle(): void {
     this.crouchToggled = true;
+    this.autoCrouch = true;
+  }
+
+  /** (G4) The crouch came from a move's end, not the player: a co-op offer reads it as standing (rope, throw), not as
+   *  the chosen crouch (hang-down, leg-up), and stands up for it. Cleared by a crouch press or standing up. */
+  autoCrouch = false;
+
+  /** (G4) Stand up from an automatic crouch (a co-op rope / throw offer after a crouched climb-up end). */
+  standUp(): void {
+    this.crouchToggled = false;
+    this.autoCrouch = false;
   }
 
   /** Current speed gear (1..5): the stick's snapped gear while moving (step 17), else the maximum gear. */
@@ -418,6 +431,7 @@ export class PlayerController {
     const crouchPressed = input.crouchPressed && !this.swallowCrouch;
     this.swallowCrouch = false;
     const aiming = input.ads || input.aiming;
+    if (crouchPressed) this.autoCrouch = false;
     if (!this.frozen && !ov && crouchPressed && this.grounded) {
       if (this.rollReady(mag, aiming)) {
         this.crouchPend = true;
