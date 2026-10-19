@@ -6,6 +6,25 @@
   is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
   laptop (41.97 < 39.54). Tests only.
 
+## 4.7.4 - Orchestrator docs: new Claude account (2026-10-19, PR #25)
+Docs only. Every session restarted in the new Claude account; the new dashboard
+(https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh); the roadmap and orchestrator state at 22:55 (CT Core slice F
+checks, Menu Notes fixes for CT Core, Sector Ops fix round, lightfield-heap runs).
+
+## 4.7.3 - Orchestrator docs: walk notes, account handover, test runner and priority state (2026-10-19, PR #24)
+Docs only. Michael's playtest-2 walk notes (docs/ct-prototype/WALK-2026-10-19.md), the account-switch handover
+(docs/orchestrator/STATE.md), the roadmap (Menu Notes, Sector Ops restart bug M9, CT footage awaited), the menu notes
+start prompt, and the dashboard with the walk-test checklist.
+
+## 4.7.2 - The version label shows the build's own commit (2026-10-19, PR #23)
+- The in-game version label shows the commit the build was made from. Preview slots read master's commit (/ct/ built
+  from ct-movement e5fc5870 read "fca0e26"): vite.config.ts took GITHUB_SHA first, which every slot build in the deploy
+  workflow inherits. The checked-out folder's HEAD now wins; GITHUB_SHA is the fallback (`src/core/buildSha.ts`, tested).
+
+## 4.7.1 - e2e-traverse grate kick: a closed grate before the kick (2026-10-19, PR #22)
+- e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
+  grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
+
 ## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
   Sector Ops opens the op list (each op's difficulty stars), then the op's briefing (its sections, Difficulty, Weather,

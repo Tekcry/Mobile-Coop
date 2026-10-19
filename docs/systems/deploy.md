@@ -24,5 +24,7 @@ CLAUDE.md "Sessions" (who merges).
 - A preview build (`VITE_PREVIEW=1` or `VITE_PREVIEW_ID=<id>`; `__PREVIEW__`, `__PREVIEW_ID__` in `vite.config.ts`)
   has its own label ("PREVIEW" or "PREVIEW <ID>"), its own IndexedDB (`shoulder-strike-preview` or
   `shoulder-strike-<id>`, `src/save/db.ts`) and its own service worker; the live worker's `navigateFallbackDenylist`
-  skips the preview paths. Every build's label shows the version and the commit (G183).
+  skips the preview paths. Every build's label shows the version and the commit (G183): the commit is the
+  checked-out folder's own HEAD (`src/core/buildSha.ts`), so a slot shows its branch's commit; GITHUB_SHA (the
+  workflow's trigger, master) is only the fallback when git fails.
 - Boot a preview straight into a map: `/<repo>/<slot>/?autostart=<mapId>&mode=<mode>`.
