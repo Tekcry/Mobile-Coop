@@ -610,7 +610,7 @@ try {
   });
   assert(!!dpos, 'Proving has a door');
   await moveClient(B, dpos[0], dpos[1], dpos[2], dpos[3]);
-  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; const tap = (a) => window.__app.input.state.tap(a); /* (A3) door menu: A, one down, A = Stealth open */ setTimeout(() => tap('interact'), 400); setTimeout(() => tap('uiDown'), 900); setTimeout(() => tap('interact'), 1400); }, dpos[3]);
+  await GB((yaw) => { const c = window.__app.current.player.cam; c.yaw = yaw; c.pitch = 0; const tap = (a) => window.__app.input.state.tap(a); /* (A3) door menu: A, one down, A = Stealth open */ window.__afterSim(0.4, () => tap('interact')); window.__afterSim(0.9, () => tap('uiDown')); window.__afterSim(1.4, () => tap('interact')); }, dpos[3]);
   await until(B, () => window.__app.current.doorPeek.phase !== 'off', null, 5000, 'client starts the peek');
   const cracked = (P) => until(P, () => { const d = window.__app.current.world.doors.list[0]; return d.cracked && d.target === 0 && d.ajar > 0.06; }, null, 10000, 'the door cracked');
   await cracked(A);

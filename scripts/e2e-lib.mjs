@@ -12,7 +12,10 @@ export function browserExe() {
 
 /** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
 export function browserArgs() {
-  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+  // (test-speed) no background throttling: a two-page suite's second page is the background tab, and Chromium throttles
+  // its timers and renderer (page 2 of e2e-coop fell to 1 frame/s with another suite alongside); anim-audit had these
+  // for its remote run, now every suite has them
+  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
   // E2E_UNCAP=1 (frame-time measurements): no display-rate limit on requestAnimationFrame, so a frame cost is not hidden by a 60 / 120 Hz cap
   if (process.env.E2E_UNCAP === '1') base.push('--disable-frame-rate-limit', '--disable-gpu-vsync');
   if (!GPU) return ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
@@ -125,6 +128,16 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       const st = window.__app.current;
       const wrapper = st.fixedUpdate;
       for (let i = 0, n = Math.round(max * 60); i < n && st.fixedUpdate === wrapper; i++) window.__app.loop.stepHeadless(1 / 60);
+    };
+  });
+  // (test-speed) `window.__afterSim(sec, fn)`: run `fn` once the match's own clock (`__app.current.time`) has moved
+  // `sec` on, checked every rendered frame. An in-page `setTimeout` counts real time, so under load a timed chain of taps
+  // (a door menu: A, down, A) landed before the game had run the frames between them.
+  await page.addInitScript(() => {
+    window.__afterSim = (sec, fn) => {
+      const t0 = window.__app.current.time;
+      const tick = () => (window.__app.current.time - t0 >= sec ? fn() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
     };
   });
   // Fake standard-mapping gamepad, controllable via window.__pad.

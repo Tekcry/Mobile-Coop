@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, openPage, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
+import { launch, openPage, press, stick, frames, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -591,6 +591,8 @@ try {
       const G = (f, a) => P.evaluate(f, a);
       const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
       await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
+      // (test-speed) a mark that a reload would clear: the remap flake (full run 2, 4.6.3) found the Controls screen gone
+      await G(() => (window.__remapMark = 1));
       await G(() => window.__pad.connect());
       await press(P, BTN.DOWN);
       await click('.main-menu .btn', 'Settings');
@@ -703,9 +705,16 @@ try {
       } finally {
         await Q.page.close();
       }
+      // (test-speed) the play page was in front: this page is in front again and still on the Controls screen before the
+      // next press (a B with no capture listening is Back, which closed the screen in the flake), and the capture is on
+      await P.bringToFront();
+      await frames(P, 3);
+      const here = await G(() => ({ mark: window.__remapMark === 1, screen: !!document.querySelector('.controls-screen'), top: window.__app.screens.top?.el.className ?? '' }));
+      assert(here.mark && here.screen, `after the play page the remap page is still on the Controls screen (${JSON.stringify(here)})`);
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
       await focusSlot('draw:0');
       await press(P, BTN.A);
+      await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
       await press(P, BTN.B);
       v = await view();
       assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);

@@ -78,10 +78,13 @@ async function moveClient(x, z, yaw = 0) {
 }
 /** Door index (`Doors.list`) of a course door id. */
 const doorIndex = (cid) => GA((cid) => { const g = window.__app.current; const aid = g.world.layout.course.doors[cid]; return g.world.doors.list.find((d) => d.anchor.id === aid).index; }, cid);
-/** Time (ms) from `t0` until the client's course state satisfies `fn`. */
+/** (test-speed) The client's sim clock (s): the latency checks count game time, not wall time, so a loaded machine
+ * (frames slower than real time) does not read as network lag. */
+const clientSim = () => GB(() => window.__app.current.time);
+/** Game time (ms, the client's clock) from `t0` (`clientSim()`) until the client's course state satisfies `fn`. */
 async function clientWithin(t0, fn, arg, what) {
   await until(B, fn, arg, 5000, what);
-  return Date.now() - t0;
+  return Math.round(((await clientSim()) - t0) * 1000);
 }
 
 try {
@@ -245,7 +248,7 @@ try {
     for (let k = 0; k < 8; k++) idx[k] = await doorIndex(`d${k}`);
     // lever: the client sees the door unlock within 0.5 s
     await move(20.6, 1.5);
-    let t0 = Date.now();
+    let t0 = await clientSim();
     assert((await use(P, 'c-sw-lever')) === 'ok', `${tag}: lever pressed`);
     const msLock = await clientWithin(t0, (i) => !window.__course.wire.locks.includes(i), idx[0], 'client sees the lever door unlock');
     const limL = who === 'A' ? 500 : 1500;
@@ -283,7 +286,7 @@ try {
     // mains: the wall switch cuts lamp group 7; the client sees the group change within 0.5 s
     await move(44.6, 1.5);
     // one press (after a restart too: the restart syncs the wall switch with the restored circuit, A15)
-    t0 = Date.now();
+    t0 = await clientSim();
     await use(P, 'switch-0');
     const ms = await clientWithin(t0, () => window.__course.wire.lights.groups.some(([g, on]) => g === 7 && !on) && window.__app.current.world.level.lights.lights.filter((l) => l.group === 7).every((l) => !l.on), null, 'client sees the mains off after one press');
     await until(A, () => window.__course.debug().gates['g-mains'], null, 3000, 'mains gate open');
