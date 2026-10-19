@@ -41,7 +41,7 @@ Active jobs (each resume prompt is in that job's STATE.md, fenced, at the end):
   propose a card or give him the paste-in prompt.
 
 ## Master
-v4.8.2 (#29, cb175fd5). Tags v4.0.0-v4.8.2. /preview/ = dev = cb175fd5. Sector Ops stopped for the night (warehouse-redesign paused). Menu Notes finished (session stopped); Michael to prune feature/menu-notes, feature/menu-boot-time and their worktrees. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
+v4.9.0 (#30, 67d5032d). Tags v4.0.0-v4.9.0. /preview/ = dev = 67d5032d. Course Ready stopped (S2 lighting, S3 walkthrough guide parked in docs/course-ready/STATE.md). Sector Ops stopped for the night (warehouse-redesign paused). Menu Notes finished (session stopped); Michael to prune feature/menu-notes, feature/menu-boot-time and their worktrees. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
 #17 4.6.5, #18 4.6.6, #19 4.6.7, #20 4.6.8, #21 Sector Ops 4.7.0 (G184-G191), #22 grate-kick flake 4.7.1, #23 build
 label commit 4.7.2. /preview/ = dev = ce1da1a3. /ct/ = ct-movement = 624fca6b (v4.7.0 PREVIEW CT; moved by the
 orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu).
