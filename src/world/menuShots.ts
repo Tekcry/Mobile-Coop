@@ -59,6 +59,29 @@ export const CUT_S = 0.4;
 /** `?menuClock=fast`. */
 export const FAST_CLOCK = 8;
 
+/**
+ * (menu-notes slice 4a, Michael's M1) The title in full darkness until the first press, which strikes the goggle in the
+ * dark on the title close-up, then brings the lights up before the main menu's opening shot. Seconds of director time
+ * after the press: the flicker, the goggle alone, the lights rising.
+ */
+export const IGNITE = { flickerS: 2.4, holdS: 0.6, riseS: 1.8 } as const;
+export const IGNITE_S = IGNITE.flickerS + IGNITE.holdS + IGNITE.riseS;
+
+/** The title's phase: 'none' (no title this launch: lit from the start), 'dark' (waiting for the press), 'ignite' (the
+ *  goggle flicker and the lights coming up), 'done'. */
+export type TitlePhase = 'none' | 'dark' | 'ignite' | 'done';
+
+/** The goggle level `s` seconds after the press (pure): the authored flicker (`goggleLevel`), then on. */
+export function igniteGlow(s: number): number {
+  return goggleLevel(s, 0, IGNITE.flickerS);
+}
+
+/** The void lights' level `s` seconds after the press (pure): off through the flicker and the hold, then eased up. */
+export function igniteLit(s: number): number {
+  const r = s - (IGNITE.flickerS + IGNITE.holdS);
+  return r <= 0 ? 0 : easeInOut(r / IGNITE.riseS);
+}
+
 export interface DirectorOpts {
   shots?: readonly ShotDef[];
   seed: number;
@@ -82,6 +105,14 @@ export interface Director {
   readonly context: MenuContext;
   /** Shot changes so far (tests and the debug hook). */
   readonly changes: number;
+  /** (slice 4a) The title's phase (once per director: the title shows once per launch). */
+  readonly titlePhase: TitlePhase;
+  /** (slice 4a) Seconds since the press while the goggle strikes (0 before). */
+  readonly igniteT: number;
+  /** (slice 4a) The void lights' level 0..1 (0 on the dark title). */
+  readonly lit: number;
+  /** (slice 4a) The goggle level 0..1 the title phase sets, or -1: the shot decides (its `goggleOn`). */
+  readonly glow: number;
   update(dtS: number): void;
   setContext(c: MenuContext): void;
 }
@@ -95,6 +126,12 @@ class ShotDirector implements Director {
   fade = 0;
   context: MenuContext;
   changes = 0;
+  titlePhase: TitlePhase = 'none';
+  igniteT = 0;
+  lit = 1;
+  glow = -1;
+  /** The context asked for while the goggle strikes (entered when it is done). */
+  private pending: MenuContext | null = null;
   private readonly shots: readonly ShotDef[];
   private readonly main: ShotDef[];
   private readonly rng: () => number;
@@ -165,6 +202,12 @@ class ShotDirector implements Director {
   }
 
   private enter(c: MenuContext): void {
+    // (slice 4a) the first title is dark until the press
+    if (c === 'title' && this.titlePhase === 'none') {
+      this.titlePhase = 'dark';
+      this.lit = 0;
+      this.glow = 0;
+    }
     const h = this.held(c);
     this.holdClock = 0;
     this.fade = 0;
@@ -183,11 +226,58 @@ class ShotDirector implements Director {
 
   setContext(c: MenuContext): void {
     if (c === this.context) return;
+    if (this.titlePhase === 'dark' || this.titlePhase === 'ignite') {
+      // (slice 4a) the press: the title gives way to the main menu, and the goggle strikes on the title shot first; the
+      // main menu's opening follows when the lights are up. Any other screen (the loadout) ends it at once.
+      if (c === 'main') {
+        if (this.titlePhase === 'dark') {
+          this.titlePhase = 'ignite';
+          this.igniteT = 0;
+        }
+        this.pending = c;
+        return;
+      }
+      this.endTitle();
+    }
     this.context = c;
     this.enter(c);
   }
 
+  /** (slice 4a) The lights are up: the shots run as before. */
+  private endTitle(): void {
+    this.titlePhase = 'done';
+    this.pending = null;
+    this.lit = 1;
+    this.glow = -1;
+  }
+
   update(dtS: number): void {
+    if (this.titlePhase === 'dark') {
+      // (slice 4a) full darkness: the title shot waits on its first frame
+      this.t = this.freezeT ?? 0;
+      this.fade = 0;
+      return;
+    }
+    if (this.titlePhase === 'ignite') {
+      // reduced motion: no flicker, the lights straight up
+      this.igniteT = this.reduced ? IGNITE_S : this.igniteT + dtS;
+      if (this.igniteT < IGNITE_S) {
+        this.glow = igniteGlow(this.igniteT);
+        this.lit = igniteLit(this.igniteT);
+        // the title's push runs on under the flicker
+        this.t = this.freezeT ?? Math.min(1, this.igniteT / this.shot.durS);
+        this.fade = 0;
+        return;
+      }
+      const p = this.pending;
+      this.endTitle();
+      if (p && p !== this.context) {
+        this.context = p;
+        this.enter(p);
+      }
+      // (the main menu's opening carries on from the title's frame: the stage eases the camera across)
+      return;
+    }
     if (this.reduced) {
       // a held still: the title on its last frame (the goggle lit), anything else on its first
       this.t = this.shot.once ? 1 : 0;

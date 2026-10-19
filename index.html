@@ -17,7 +17,13 @@
   <body>
     <canvas id="game" touch-action="none"></canvas>
     <div id="ui-root"></div>
-    <div id="boot" class="boot">
+    <!-- (menu-notes slice 4a, M2) the launch boot shows only the title's NIGHT / SHIFT wordmark, in the title's place from
+         the first paint: the menu frame's scale (`uiScale` in src/core/display.ts, set again by App) before the bundle runs -->
+    <script>
+      document.documentElement.style.setProperty('--ui-scale', String(Math.round(Math.min(3, Math.max(1, Math.min(innerWidth / 1280, innerHeight / 720))) * 100) / 100));
+    </script>
+    <div id="boot" class="boot launch">
+      <div class="boot-frame"><div class="boot-mark"><div class="ts-l1">Night</div><div class="ts-l2">Shift</div></div></div>
       <div class="boot-title"><span>NIGHT</span><span>SHIFT</span></div>
       <div class="boot-bar"><div id="boot-progress"></div></div>
       <div id="boot-status">Loading…</div>

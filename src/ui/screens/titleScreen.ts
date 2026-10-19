@@ -11,6 +11,9 @@ export class TitleScreen extends Screen {
   override readonly root = true;
   override readonly showBack = false;
   private done = false;
+  /** (menu-notes slice 4a, M2) The menu is still loading: only the wordmark shows and nothing continues (the boot
+   *  screen sits under the screens now, so a click reaches this screen). `arm()` fades the prompt in. */
+  private waiting = true;
   /** A key with no menu action: continue on the next update (after the edges are routed, so nothing leaks below). */
   private pending = false;
   private readonly onKey = (e: KeyboardEvent): void => {
@@ -20,6 +23,7 @@ export class TitleScreen extends Screen {
 
   constructor(private onContinue: () => void) {
     super('title-screen');
+    this.el.classList.add('ts-wait');
     this.hintsEl.style.display = 'none';
     // one focusable target so A / Enter (the ScreenManager's confirm) continues; B / Y / bumpers continue too
     const start = h('button', { class: 'ts-press', focus: true, html: `Press ${glyphSlot('any')} to start` });
@@ -35,7 +39,7 @@ export class TitleScreen extends Screen {
   }
 
   continue(): void {
-    if (this.done) return;
+    if (this.done || this.waiting) return;
     this.done = true;
     if (this.manager.top === this) this.manager.pop();
     this.onContinue();
@@ -48,6 +52,8 @@ export class TitleScreen extends Screen {
   /** (menu-notes note 2) The load screen has gone: a key pressed while it was up does not skip the title. */
   arm(): void {
     this.pending = false;
+    this.waiting = false;
+    this.el.classList.remove('ts-wait');
   }
 
   override onShow(): void {

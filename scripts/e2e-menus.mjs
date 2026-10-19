@@ -283,6 +283,32 @@ try {
       await F.browser.close();
     }
   }
+  // (menu-notes slice 4a, M1) the title in full darkness until the press; the press strikes the goggle, then the lights
+  // come up and T2 opens the main menu (light state read back from MenuState.titleLight; pixels are a GPU check)
+  {
+    const F = await launch({ url, params: 'title=1', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      // (M2) the prompt has faded in after the load (the wordmark-only boot itself: menu-boot-shots.mjs)
+      await F.page.waitForFunction(() => getComputedStyle(document.querySelector('.title-screen .ts-press')).filter === 'none', null, { timeout: 10000, polling: 100 }).catch(() => {});
+      const pr = await F.page.evaluate(() => ({ wait: !!document.querySelector('.title-screen.ts-wait'), f: getComputedStyle(document.querySelector('.title-screen .ts-press')).filter }));
+      assert(!pr.wait && pr.f === 'none', `the press prompt fades in once the menu is ready (${JSON.stringify(pr)})`);
+      const tl = () => F.page.evaluate(() => window.__app.current?.titleLight);
+      const dk = await tl();
+      assert(dk?.phase === 'dark' && dk.lit === 0 && dk.glow === 0 && dk.spots === 0 && dk.hemi === 0 && dk.ambient === 0 && dk.clear === 0 && dk.goggle === 0 && dk.lens === 0, `the title is dark: no light, no goggle (${JSON.stringify(dk)})`);
+      await F.page.keyboard.press('Space');
+      await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 10000 }).catch(() => {});
+      const ig = await tl();
+      const topNow = await F.page.evaluate(() => window.__app.screens.top?.el.classList[1]);
+      assert((ig?.phase === 'ignite' || ig?.phase === 'done') && topNow !== 'title-screen', `the press dismisses the title and strikes the goggle (${ig?.phase}, top ${topNow})`);
+      await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done', null, { timeout: 60000 }).catch(() => {});
+      const up = await tl();
+      const sid = await F.page.evaluate(() => window.__app.current?.shotId);
+      assert(up?.phase === 'done' && up.lit === 1 && up.spots > 0 && sid === 'T2', `then the lights are up and T2 opens the main menu (${JSON.stringify(up)}, ${sid})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
 
   // slice 4: missions, briefing, free roam, issued kit
   await key('Escape');

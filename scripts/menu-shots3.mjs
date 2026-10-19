@@ -21,6 +21,8 @@ const legendBoxes = () =>
 
 try {
   await page.waitForSelector('.title-screen', { timeout: 60000 });
+  // (menu-notes slice 4a) the title ignores continue() until the load gate opens (#boot.done)
+  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 120000 });
   await G(() => window.__app.screens.top.continue());
   await page.waitForSelector('.main-menu:not([hidden]) .ms-item.focused');
   // slice 3: co-op root, join with the on-screen keyboard (pad), then the lobby as host and client, an error dialog

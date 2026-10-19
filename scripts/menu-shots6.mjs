@@ -31,18 +31,19 @@ const SHOTS = [
 ].filter(([n]) => !only || only.includes(n));
 const HERO = 1 << 0;
 const LOD2 = 1 << 3;
-const query = (id, t) => `${id === 'T1' ? 'title=1&' : ''}menuShot=${id}&menuT=${t}${gfx}`;
+// (menu-notes slice 4a) T1-dark is the title (dark until a press); T1 lit is the shot held over the main menu
+const query = (name, id, t) => `${name === 'T1-dark' ? 'title=1&' : ''}menuShot=${id}&menuT=${t}${gfx}`;
 let bad = 0;
 // one browser: each shot reloads the page with its query (the Wren files stay in the browser cache)
-const { browser, page, errors } = await launch({ url, params: query(SHOTS[0][1], SHOTS[0][2]), viewport: { width: 1920, height: 1080 } });
+const { browser, page, errors } = await launch({ url, params: query(...SHOTS[0]), viewport: { width: 1920, height: 1080 } });
 try {
   for (let i = 0; i < SHOTS.length; i++) {
     const [name, id, t] = SHOTS[i];
     if (i > 0) {
       const u = new URL(page.url());
-      await page.goto(`${u.origin}${u.pathname}?${query(id, t)}`);
+      await page.goto(`${u.origin}${u.pathname}?${query(name, id, t)}`);
     }
-    await page.waitForSelector(id === 'T1' ? '.title-screen' : '.main-menu .ms-item.focused', { timeout: 120000 });
+    await page.waitForSelector(name === 'T1-dark' ? '.title-screen' : '.main-menu .ms-item.focused', { timeout: 120000 });
     await page.evaluate(() => window.__app.input.setMode('kbm'));
     // the best body the preset allows: the hero (or LOD2 under ?gfx=min)
     const want = gfx || process.env.E2E_GPU ? HERO : LOD2;

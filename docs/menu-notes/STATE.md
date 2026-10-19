@@ -1,7 +1,7 @@
 # Menu notes - state
 
 ## Now
-Slice 4a (M1): title in full darkness, the first press starts the goggle flicker-on. Then 4b mock-ups.
+Merge master 4.7.0, then slice 4b: tactical shot mock-up sheet for Michael (M1).
 
 ## Next
 GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (commands in SLICE3.md), then the end step
@@ -23,6 +23,7 @@ GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (comma
 - 2026-10-19: worktree, BRIEF / PLAN / STATE.
 - 2026-10-19: slice 1 (c999919f): title music, Back on the main menu does nothing (A1), one Controls place (A2). Checker PASS.
 - 2026-10-19: slice 2: load screen gate (menuGate.ts, stall timeout with MB progress, launch title after the hero is drawn), hero LOD confirmed (no fix; the swap was load order), read-back heroLod. Checker 2 fixes, fix round, recheck PASS.
+- 2026-10-19: slice 4a (M1, M2): dark title (stage max 0/255 on the GPU), the press strikes the goggle flicker then the lights; wordmark-only boot, the prompt fades in when the gate opens. Checker PASS; fix round (wordmark check measured block width, not the letters; e2e wait on the fade).
 - 2026-10-19: slice 3: rifle and pistol in the void shots (menuPoses.ts, W1 / W2), magazine leak and hand guard. Checker PASS (code); visuals pending.
 
 ## Resume prompt

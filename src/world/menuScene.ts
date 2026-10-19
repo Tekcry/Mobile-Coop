@@ -272,6 +272,31 @@ export class MenuState implements AppState {
   get heroLodWanted(): string {
     return this.figure ? (LOD_NAMES[this.figure.closeUpLod] ?? 'none') : 'none';
   }
+  /** (menu-notes slice 4a, debug hook) Stops the shot director's clock (the GPU scripts freeze a moment of the goggle
+   *  flicker for a still); the hand-held drift runs on. */
+  debugPause = false;
+  /** (menu-notes slice 4a, debug hook) The title's light state, read back for the scripts: the phase ('dark' until the
+   *  press), seconds since the press, the lights' level and goggle level the director asks for, and what the stage
+   *  applied: the sum of the three spots' intensities, the hemi, the scene ambient, the clear colour, the goggle level
+   *  set on the figure (-1 before a body loaded) and its lens tint now (rgb sum; 0 = no emissive, so no bloom). */
+  get titleLight(): { phase: string; igniteT: number; lit: number; glow: number; spots: number; hemi: number; ambient: number; clear: number; goggle: number; lens: number } {
+    const d = this.director;
+    const c = this.figure?.glowColour;
+    const a = this.scene.ambientColor;
+    const k = this.scene.clearColor;
+    return {
+      phase: d.titlePhase,
+      igniteT: d.igniteT,
+      lit: d.lit,
+      glow: d.glow,
+      spots: this.spots.reduce((s, l) => s + (l.isEnabled() ? l.intensity : 0), 0),
+      hemi: this.hemi.intensity,
+      ambient: a.r + a.g + a.b,
+      clear: k.r + k.g + k.b,
+      goggle: this.glowK,
+      lens: c ? c[0] + c[1] + c[2] : -1,
+    };
+  }
   /** (menu-notes note 2, debug hook) The load screen gate: '' while it waits, 'ready', or 'timeout: <step> ...'. */
   get bootGate(): string {
     return this.gate;
@@ -500,6 +525,8 @@ export class MenuState implements AppState {
       }
       this.hemi.intensity = 0;
       this.scene.clearColor.set(0, 0, 0, 1);
+      // (menu-notes slice 4a) no ambient term in the void: the dark title is black with the spots off
+      this.scene.ambientColor.set(0, 0, 0);
     } else {
       LIGHTS.forEach((l, i) => {
         const s = this.spots[i]!;
@@ -516,6 +543,7 @@ export class MenuState implements AppState {
         s.shadowEnabled = true;
       });
       this.scene.clearColor.set(0.02, 0.027, 0.043, 1);
+      this.scene.ambientColor.set(0.08, 0.09, 0.11);
       this.camera.fov = 0.8;
       this.stack.lensMm = 50;
       this.dutch(0);
@@ -625,7 +653,7 @@ export class MenuState implements AppState {
     const ctx: MenuContext = this.framing !== 'menu' ? 'loadout' : (this.screenContext?.() ?? 'main');
     const d = this.director;
     d.setContext(ctx);
-    d.update(dt * this.clock);
+    d.update(this.debugPause ? 0 : dt * this.clock);
     if (d.changes !== this.lastChanges) {
       this.lastChanges = d.changes;
       // no black over the change (the title carried into the main menu): ease the camera across
@@ -729,10 +757,13 @@ export class MenuState implements AppState {
     }
     this.dutch(set.roll ?? 0);
     const on = set.goggleOn;
-    // (a blended change keeps the glow where it was going: on)
-    const glow = on ? goggleLevel(t, on[0], on[1]) : 1;
+    const d = this.director;
+    // (a blended change keeps the glow where it was going: on). (menu-notes slice 4a) the title phase sets the glow and
+    // the lights' level: all 0 on the dark title (no key, rim, goggle or its green spill), then the flicker, then up.
+    const glow = d.glow >= 0 ? d.glow : on ? goggleLevel(t, on[0], on[1]) : 1;
     this.setGlow(glow);
-    if (set.glowLight !== undefined) this.spots[set.glowLight]!.intensity = set.lights[set.glowLight]!.intensity * glow;
+    const lit = d.lit;
+    for (let i = 0; i < 3; i++) this.spots[i]!.intensity = set.lights[i]!.intensity * (i === set.glowLight ? glow : lit);
     if (this.rig) {
       // (menu-notes slice 3) the shot's hold: the rifle at low ready unless it names the pistol
       const hold = set.hold ?? 'rifle';

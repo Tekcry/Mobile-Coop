@@ -56,7 +56,15 @@ function setBoot(progress: number, status: string): void {
   if (st) st.textContent = status;
 }
 
+/** (menu-notes slice 4a, M2) The launch boot (wordmark only, then under the title) is over: later boots (a match load,
+ *  the menu after a match) show the ghost, the progress line and the status again. */
+function endLaunchBoot(): void {
+  document.getElementById('boot')?.classList.remove('launch', 'under');
+}
+
 async function boot(): Promise<void> {
+  // (M2) the wordmark-only boot is for a launch that shows the title; any other keeps the status lines
+  if (titleShown || (navigator.webdriver && !titleFlag)) endLaunchBoot();
   suppressBrowserGestures();
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
@@ -150,7 +158,10 @@ async function boot(): Promise<void> {
       titleShown = true;
       title = new TitleScreen(brightness);
       app.screens.push(title);
-    }
+      // (menu-notes slice 4a, M2) the title's wordmark takes over from the boot's in the same place: the boot (black, no
+      // status) drops under the screens and keeps the stage hidden until the reveal; the prompt fades in then
+      bootEl?.classList.add('under');
+    } else endLaunchBoot();
     // the reveal: the boot screen fades into the title (or the main menu), the menu takes input and the theme starts;
     // the brightness calibration (first run, no title) waits for it too
     // (prepare never rejects; the catch is a second guard so the boot screen can never be stranded)
@@ -166,6 +177,8 @@ async function boot(): Promise<void> {
         title?.arm();
         setBoot(1, 'Ready');
         bootEl?.classList.add('done');
+        // (M2) once the boot has faded, later boots show their status again (a match load also ends it at once)
+        if (title) setTimeout(() => bootEl?.classList.contains('done') && endLaunchBoot(), 800);
         if (why !== 'ready') {
           const msg = `[menu] the load screen gave up waiting and shows the menu: ${why}`;
           // (under automation a note only: the suites count warnings; the reason is on MenuState.bootGate)
@@ -275,6 +288,7 @@ async function boot(): Promise<void> {
     // (a menu load screen still waiting is dropped: the match's loading owns the boot screen now)
     bootGen++;
     app.bootHold = false;
+    endLaunchBoot();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
@@ -359,5 +373,6 @@ async function boot(): Promise<void> {
 
 boot().catch((err: unknown) => {
   console.error(err);
+  endLaunchBoot();
   setBoot(1, `Failed to start: ${err instanceof Error ? err.message : String(err)}`);
 });
