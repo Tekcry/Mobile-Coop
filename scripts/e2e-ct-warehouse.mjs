@@ -129,11 +129,13 @@ try {
   // prototype: revisit - the rappel prompt text is not on the vault label any more (empty); the hint is the check
   assert(i.hint === 'rappel:above', `rappel offered at the roof edge (${i.hint}, "${i.prompt}")`);
   await tap(BTN.Y);
-  await run(1.0);
+  // (ct-prototype G4) RAPPEL.hookTime 1.8 s (was 0.8)
+  await run(2.0);
   i = await I();
   assert(i.attached && i.kind === 'rappel' && i.phase === 'on', 'hooked on over the yard');
   await page.evaluate(() => { window.__app.current.player.cam.yaw = 0; });
-  for (let k = 0; k < 20 && i.window < 0; k++) {
+  // (G4) at RAPPEL.descend 0.6 m/s (was 1.6): a longer way down to the window
+  for (let k = 0; k < 60 && i.window < 0; k++) {
     await run(0.25, 0, -1);
     i = await I();
   }

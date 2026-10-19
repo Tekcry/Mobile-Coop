@@ -16,8 +16,10 @@ describe('rappel (3.2.0 phase 3)', () => {
     expect(ATTACH.rappel.axis).toBe('vertical');
     expect(ATTACH.rappel.allow.sidearm).toBe(true);
     expect(RAPPEL.ascend).toBeCloseTo(1.0);
-    expect(RAPPEL.descend).toBeCloseTo(1.6);
-    expect(RAPPEL.descendSprint).toBeCloseTo(3.0);
+    // (ct-prototype G4, CT 111731: a slow walk down, 0.45-0.75 m/s; hooking on about 2 s)
+    expect(RAPPEL.descend).toBeCloseTo(0.6);
+    expect(RAPPEL.descendSprint).toBeCloseTo(1.2);
+    expect(RAPPEL.hookTime).toBeCloseTo(1.8);
     expect(RAPPEL.swingOut).toBeCloseTo(1.2);
     expect(RAPPEL.lateralMax).toBeCloseTo(1.5);
     expect(attachRange(rope)).toEqual({ min: RAPPEL.minOut, max: 5 });

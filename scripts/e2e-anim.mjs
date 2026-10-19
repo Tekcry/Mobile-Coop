@@ -227,8 +227,11 @@ try {
   const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
   const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;
   const lowerT = stance.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99;
-  assert(within(raiseT, 0.3, 1.0), `aim raise ${f2(raiseT)} s (G103: ~0.6-0.75 s; prototype: revisit)`);
-  assert(within(lowerT, 0.3, 0.7), `aim lower ${f2(lowerT)} s (G103: 0.5-0.6 s)`);
+  // (CT prototype G2, AUDIT-AIM rows 1 / 2, footage wins over G103) the rifle's raise runs with its 0.3 s draw over 0.25 s
+  // (DRAW_RAISE: muzzle up at the shoulder, then down onto the line, CT 105845 3.37-3.63, no chest hold): ~0.2 s from low
+  // to shouldered; the lower goes with the 0.15 s (CT instant) holster over CARRY.lowerTime 0.3 s
+  assert(within(raiseT, 0.12, 0.6), `aim raise ${f2(raiseT)} s (CT: ~0.2 s onto the line after muzzle up; G2)`);
+  assert(within(lowerT, 0.1, 0.4), `aim lower ${f2(lowerT)} s (CT: instant holster; G2 0.3 s)`);
 
   // ---------------------------------------------------------------- weapon clips
   console.log('weapon clips');

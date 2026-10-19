@@ -377,6 +377,13 @@ export const ctcourse: MapDef = {
       passZones: [S3_POCKET],
       scanners: [S6_SCANNERS],
       course: { def: courseDef(), doors, devices, squads: {} },
+      // (G3, AUDIT-CAMERA row 1) the yard reads as open (the 2.8 m camera, the whole body in frame); the 6 m airlocks and
+      // the roofed annex (under its 4.2 m slab) are tight (1.8 m). Its roof is open again (feet at 4.4).
+      camSize: 'open',
+      camSpaces: [
+        ...Array.from({ length: 7 }, (_, i) => ({ box: [bayX(i) + CT_BAY, 4, bayX(i) + CT_PITCH, 10] as const, size: 'tight' as const })),
+        { box: [bayX(4) + CT_OBST, 0, bayX(4) + CT_BAY, CT_W], y: [-1, 3.9], size: 'tight' },
+      ],
     };
   },
 };

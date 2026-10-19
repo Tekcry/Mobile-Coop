@@ -44,7 +44,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
   map when the keys change, `captureNext` for the rebinding UI. Fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs,
   1-7 gadgets, LMB fire, RMB aim, the mouse wheel (maximum gear). Mouse look uses raw input via `unadjustedMovement` where
-  supported (`mouse.adsMultiplier`).
+  supported (`mouse.adsMultiplier`, default 0.3 since playtest 2; a saved old default 0.55 / 0.6 migrates, custom values stay;
+  the pad uses the same `ADS_LOOK`).
 - Prompts (`ui/prompts.ts` `promptHtml`) emit Xbox, PlayStation, Nintendo and key glyphs; the body classes
   (`input-gamepad`, `pad-ps`, `pad-nin`) show the pad glyph whenever a pad is the last device used, keys for KBM.
   `keyLabels` follow the bindings. Gamepad look: 30 ms smoothing (acceleration inside the smoothing).
@@ -60,7 +61,7 @@ and the code together.
 |---|---|---|---|---|---|
 | Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | Analog gears within the maximum gear |
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
-| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.3 s pistol / 0.4 s rifle, holster 0.55 s |
+| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.5 s pistol / 0.3 s rifle, holster 0.15 s (CT prototype G2, footage) |
 | Fire / lethal strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire. Holstered RT / LMB is the lethal palm strike (a kill; a co-op client's strike is a knockout on the host: stub) |
 | Knockout / secondary fire | `altFire` | LT | L2 / ZL | `knockout` (Z) | Holstered: the knockout palm strike. Drawn: secondary fire (a stub: fires like RT, no secondary fire exists yet) |
 | Reload | `reload` | A (drawn) | Cross / B (drawn) | `reload` (R) | The pad's A reloads instead of interacting while the weapon is drawn |
@@ -97,9 +98,13 @@ and the code together.
   toggle), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
+- (F7) Stored pad binds keep what was saved, so a settings save from an A3 build kept the speed on D-pad left / right
+  (and vision on up, sharing it with speed up). `Settings.padV` (`PAD_LAYOUT_V` 2): an older save moves each of vision,
+  gadget, speed down and speed up still on its exact A3 button (up / down / left / right) to today's default (left / right /
+  down / up); a remapped verb is kept (`migrateA3Dpad`, `tests/settings.test.ts`).
 
 ### Analog speed and the maximum gear (step 17)
-- The rocker (D-pad left / right since A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
+- The rocker (D-pad up / down since F1a; it was left / right in A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
   (the sprint is gone, CT prototype M1). The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure): v = cap(max) x
   `stickCurve(mag)`; the gear is the highest g <= max whose up threshold v has passed, kept until v drops under its down
   threshold; speed = cap(g). Thresholds (`GEAR_UP` / `GEAR_DOWN`) are the midpoint of adjacent caps +- 15% of the gap,
@@ -109,7 +114,9 @@ and the code together.
   `controller.maxGear` is the rocker gear.
 - The HUD gear pips are removed (CT prototype M1, G107): the speed rocker has no on-screen indicator.
 - Raw stick 50% / 80% / 100% at maximum 5 gives gears 2 / 4 / 5 (pad radial dead zone 0.15).
-- The speed numbers are starting values (G10): standing 0.2 / 0.75 / 2.0 / 3.0 / 4.2, crouched 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s (`GEARS`).
+- The speed numbers are starting values (G10): standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s (`GEARS`;
+  playtest 2 re-spaced them so the old speed 2 is the slowest). The stick reaches the D-pad speed from 0.9 of its travel
+  (`GEARS.fullPush`).
 
 ### Rumble (step 17; local only, D8)
 - `config/rumble.ts` `RUMBLE` `{strong, weak, ms}`: landing soft / roll / heavy, takedown done, elbow hit, shot suppressed /

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPlannerInput, FootPlanner, PLANNER } from '../src/anim/footPlanner';
+import { emptyPlannerInput, FootPlanner, PLANNER, STOP_CLOSE, STOP_SPLIT } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
 import { CT, MOVEMENT } from '../src/config/movement';
 
@@ -130,7 +130,7 @@ describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
 });
 
 describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
-  it('a foot in the air sets straight down where it is; held, the feet stay in the stride (no settling step)', () => {
+  it('a foot in the air sets straight down where it is (a trailing one drawn in to STOP_SPLIT); a lunge closes in once; then the feet stay put', () => {
     let tested = 0;
     for (const release of [1.0, 1.04, 1.09, 1.13, 1.17, 1.21]) {
       let releasedAt = -1;
@@ -149,18 +149,28 @@ describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
       const k0 = stopFrame(frames, Math.round(releasedAt * 120));
       const f0 = frames[k0]!;
       const last = frames[frames.length - 1]!;
-      // the foot that was in the air lands within a centimetre of where it was (horizontally)
+      // the foot that was in the air lands within a centimetre of where it was (horizontally); (G1, audit row 9) one just off
+      // the ground behind is drawn in to STOP_SPLIT of the planted foot (travel along +z here). (G1 fix) A stop frozen wider
+      // than STOP_CLOSE front to back closes the rear foot in once under the body (CT stands in a small split)
+      const at = (fz: number, oz: number): number => oz + Math.max(-STOP_SPLIT, fz - oz);
+      const wide = (lz: number, rz: number): boolean => Math.abs(lz - rz) > STOP_CLOSE;
       if (!f0.lc) {
         tested++;
-        expect(Math.hypot(last.lx - f0.lx, last.lz - f0.lz)).toBeLessThan(0.01);
+        const lz = at(f0.lz, f0.rz);
+        if (lz !== f0.lz) expect(last.lz - f0.rz).toBeGreaterThanOrEqual(-STOP_CLOSE);
+        else if (!wide(lz, f0.rz)) expect(Math.hypot(last.lx - f0.lx, last.lz - lz)).toBeLessThan(0.01);
       }
       if (!f0.rc) {
         tested++;
-        expect(Math.hypot(last.rx - f0.rx, last.rz - f0.rz)).toBeLessThan(0.01);
+        const rz = at(f0.rz, f0.lz);
+        // (drawn in: to STOP_SPLIT behind the planted foot or on to its stance spot under the stopped body)
+        if (rz !== f0.rz) expect(last.rz - f0.lz).toBeGreaterThanOrEqual(-STOP_CLOSE);
+        else if (!wide(f0.lz, rz)) expect(Math.hypot(last.rx - f0.rx, last.rz - rz)).toBeLessThan(0.01);
       }
-      // one landing at most (the foot in the air), then nothing moves for over a second
-      expect(last.landed - f0.landed).toBeLessThanOrEqual(1);
-      const k1 = k0 + Math.ceil((CT.stopBlend + 0.05) * 120);
+      expect(Math.abs(last.lz - last.rz)).toBeLessThanOrEqual(STOP_CLOSE + 0.01);
+      // two landings at most (the foot in the air, a closing step), then nothing moves for over a second
+      expect(last.landed - f0.landed).toBeLessThanOrEqual(2);
+      const k1 = k0 + Math.ceil((CT.stopBlend + 0.05 + 0.2 + PLANNER.idleStepTime) * 120);
       expect(last.lc && last.rc).toBe(true);
       expect(Math.hypot(last.lx - frames[k1]!.lx, last.lz - frames[k1]!.lz) + Math.hypot(last.rx - frames[k1]!.rx, last.rz - frames[k1]!.rz)).toBeLessThan(1e-6);
     }

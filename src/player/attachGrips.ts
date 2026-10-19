@@ -5,7 +5,7 @@
  */
 import { hyp2 } from '../core/mathx';
 import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';
-import { attachLift, attachPose, PIPE_HIPS, type AttachPose } from './attach';
+import { ATTACH, attachLift, attachPose, PIPE_HIPS, type AttachKind, type AttachPose } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
 import { RAPPEL, SPLIT } from '../config/movement';
@@ -16,6 +16,33 @@ const RAPPEL_STANDOFF = RAPPEL.standoff;
 /** Hand / foot swing times (s). */
 export const HAND_SWING = 0.2;
 export const FOOT_SWING = 0.24;
+/**
+ * (ct-prototype G4) Ladder / drainpipe reaches at the climb's own pace (s): CT 054411 3.4-5.7 (drainpipe) and 112102
+ * 9.19-10.66 (ladder) swing a hand in about 0.3 s (was 0.18 s scaled by the speed). Quicker climbs (a slide, the old
+ * sprint) scale it down, never below the arm's sweep (`minReachSwing`).
+ */
+export const CLIMB_HAND_SWING = 0.3;
+export const CLIMB_FOOT_SWING = 0.3;
+/**
+ * (G4, AUDIT-TRAVERSAL #2, CT 054411) Drainpipe feet: one pair, both on the wall either side of the pipe, stepping
+ * together right after a hand lands (an inchworm, no alternating feet). `off`: their spot over the root (the feet line,
+ * m); `ahead`: a step lands this far above it (knees drawn up to hip height), so a step is about 0.45 m, one per hand
+ * reach; `trail`: the feet step anyway past this far below it (a reach that never comes, at the top of the pipe). `swing`
+ * is the quick draw-up (s): at 0.9 m/s a hand lands every ~0.5 s, so the feet push for the other ~0.32 s (the surge),
+ * the legs straightening to `low` (m over the spot) before the next draw-up.
+ */
+export const PIPE_FEET = { off: 0.28, ahead: 0.22, low: -0.08, slack: 0.1, trail: 0.42, swing: 0.18 } as const;
+/**
+ * (G4, AUDIT-TRAVERSAL #5 / AUDIT-EXTRA-NEW #8) The hang pendulum: the body hangs from the hands and its lower half
+ * swings sideways along the lip (never towards the wall). Shimmying, the hips trail the hands' midpoint (CT 110522
+ * 66.0-68.9: legs trail the travel by about 16 deg as the lead hand reaches, through vertical as the trailing hand
+ * closes, one swing a hand cycle); still, a slow sway (CT 110522 44-51: about +-6 deg every 1.5-1.8 s, settling after
+ * 3 s). `gain` rad per metre of the hands' midpoint off the body; a spring (`period`, `zeta`) gives the lag and the one
+ * overshoot on a stop. Rad, s. Starting values.
+ */
+export const HANG_SWING = { gain: 1.4, max: 0.3, period: 0.7, zeta: 0.4, idle: 0.1, idleLate: 0.06, idlePeriod: 1.7, idleSettle: 3 } as const;
+/** (G4) `traverseT` of the hang (a looping HANG clip): the swing angle over this is a quarter turn of the clip. */
+export const HANG_SWING_CLIP = 0.25;
 /** Dropping through a ceiling vent: the share of the exit spent lowering on the hands. */
 export const VENT_LOWER_K = 0.4;
 /**
@@ -128,6 +155,8 @@ export class AttachGrips {
    *  how far the kick-out has swung the body off the wall (m). */
   u = 0;
   outOff = 0;
+  /** (ct-prototype E2) The feet's plant weight cap (a climb-up off a drainpipe: the feet leave the pipe first). */
+  footW = 1;
   /**
    * (G176) Visual only: the rig root's offset from the gameplay root this frame (`attachLift` at the rig's height,
    * weighted by the grip blend), so a body shorter than the 1.75 m gameplay height still meets its grips. The local
@@ -139,6 +168,16 @@ export class AttachGrips {
   private tB = { x: 0, y: 0, z: 0, w: 0 };
   private tC = { x: 0, y: 0, z: 0, w: 0 };
   private tD = { x: 0, y: 0, z: 0, w: 0 };
+  /** (G4) The anchor kind the steppers are set up for, and the body parameter last update (cadence). */
+  private kind: AttachKind | null = null;
+  private bodyNow = 0;
+  /** (G4) Hang pendulum: the swing angle (rad, + = the hips and legs to the body's right) and its rate, the sway
+   *  clock, seconds still, and which way along the lip is the body's right (+1 / -1). */
+  swingA = 0;
+  private swingW = 0;
+  private swayT = 0;
+  private stillT = 0;
+  private sideSgn = 1;
 
   /** Body parameter on the grip axis: along the lip / pipe (s), or the feet height for climbs. */
   body(a: Anchor, s: number): number {
@@ -151,14 +190,22 @@ export class AttachGrips {
     const h = this.hands.cfg;
     const f = this.feet.cfg;
     this.handSwingMin = 0;
+    this.kind = a.kind === 'ladder' || a.kind === 'pipeV' || a.kind === 'pipeH' || a.kind === 'ledge' || a.kind === 'duct' || a.kind === 'zipline' || a.kind === 'split' || a.kind === 'rappel' || a.kind === 'fence' ? a.kind : null;
+    // (ct-prototype D2b) the ledge's one-at-a-time, speed-led reach; every other anchor keeps the quick hand-over-hand
+    h.overlap = true;
+    h.leadTime = 0;
+    h.alternate = undefined;
+    f.lead = 1;
+    f.leadTime = 0;
     switch (a.kind) {
       case 'pipeH': {
         // facing along the pipe: the right hand leads, the left a hand's width behind (a shuffle along it)
         const len = hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
+        // (ct-prototype D2) a little longer, slower shuffle (was slack 0.12, swing 0.15 s)
         h.offL = -0.1 * k * face;
         h.offR = 0.14 * k * face;
-        h.slack = 0.12;
-        h.swingTime = 0.15;
+        h.slack = 0.16;
+        h.swingTime = 0.2;
         h.grid = 0;
         h.min = 0.2;
         h.max = len - 0.2;
@@ -169,30 +216,47 @@ export class AttachGrips {
         // which way along the axis is the body's right (the right hand grips on that side)
         const p = attachPose(a, s, face, height, this.ap);
         const sgn = a.tx * Math.cos(p.yaw) - a.tz * Math.sin(p.yaw) >= 0 ? 1 : -1;
-        h.offL = -0.22 * k * sgn;
-        h.offR = 0.22 * k * sgn;
-        h.slack = 0.12;
-        h.swingTime = 0.13;
+        this.sideSgn = sgn;
+        // (ct-prototype D2 / D2b, Michael: "hands move too quickly ... should be wider"; then the shimmy slowed to 0.7 m/s)
+        // slow reaches strictly one hand at a time, back to back, each landing ahead by the speed lead (not by the slack), so
+        // a reach taken as she stops lands on its spot instead of past the arm's reach; a short slack (0.08) starts the first
+        // reach early so the waiting hand never drifts under the body.
+        // (G4, AUDIT-TRAVERSAL #4, CT 110522 65.3-69.9: a 1.0 s hand cycle at 0.5 m/s, the lead hand out about 0.3 s, the
+        // trailing one closes about 0.3 s, a short hold; hands 0.55-0.8 m apart) swing 0.28 -> 0.32 s, lead 0.42 -> 0.6 s of
+        // travel, spots 0.26 -> 0.25 m either side: a reach ~0.4 m, one per hand every ~0.8 s, the lead hand at most 0.45 m out
+        // and the hands up to ~0.62 m apart (0.75-0.9 s of lead put it 4 cm past Wren's reach, e2e-traverse; was ~1.8 a second)
+        h.offL = -0.25 * k * sgn;
+        h.offR = 0.25 * k * sgn;
+        h.slack = 0.08;
+        h.swingTime = 0.32;
         h.grid = 0;
         h.min = 0.08;
         h.max = a.len - 0.08;
-        h.lead = 1;
+        h.lead = 0;
+        h.leadTime = 0.6;
+        h.overlap = false;
+        h.alternate = 0.02;
         break;
       }
       case 'ladder':
-        // hands stagger a rung apart at head height; feet a rung apart under the body
-        h.offL = 1.3 * k;
-        h.offR = 1.3 * k + a.rung;
-        h.slack = a.rung * 1.05;
-        h.lead = 0.5;
-        h.swingTime = HAND_SWING;
+        // hands stagger a rung apart at head height; feet a rung apart under the body.
+        // (G4, AUDIT-TRAVERSAL #10, CT 112102: one hand reach every 0.6 s, each hand 2 rungs a reach, the opposite knee
+        // lifting with it) slack 1.05 -> 1.9 rungs with a small lead (0.5 -> 0.05): each hand and foot moves 2 rungs a reach
+        // (was 1); the spots move up 0.3 m so the hands range from the chest to over the head (was 1.0 - 1.8 m, now
+        // 1.0 - 1.9 m over the feet), and the feet 0.3 m so the right foot steps just after the right hand lands
+        h.offL = 1.6 * k;
+        h.offR = 1.6 * k + a.rung;
+        h.slack = a.rung * 1.9;
+        h.lead = 0.05;
+        h.swingTime = CLIMB_HAND_SWING;
         h.grid = a.rung;
         h.gridOrigin = a.base.y;
         h.min = a.base.y + a.rung;
         h.max = a.top.y + 0.9;
-        f.offL = 0.05;
-        f.offR = 0.05 + a.rung;
-        f.slack = a.rung * 1.05;
+        f.offL = 0.35;
+        f.offR = 0.35 + a.rung;
+        f.slack = a.rung * 1.9;
+        f.lead = 0.05;
         f.grid = a.rung;
         f.gridOrigin = a.base.y;
         f.min = a.base.y + a.rung;
@@ -201,17 +265,28 @@ export class AttachGrips {
         this.handSwingMin = minReachSwing(h.slack * (1 + h.lead) + a.rung / 2, height);
         break;
       case 'pipeV':
+        // (G4, AUDIT-TRAVERSAL #1, CT 054411 3.4-5.7: one reach per hand a cycle, a cycle 1.1-1.2 s, a swing about 0.3 s;
+        // Michael: "arms need to move slower") slack 0.16 -> 0.5 with the lead kept at 0.8: a hand moves ~0.9 m a reach,
+        // one per hand every ~1.0 s at 0.9 m/s (was ~3 a second); the spots kept (the climb during a 0.3 s swing
+        // takes back most of the lead: planted hands range 0.85 - 1.75 m over the feet). The right hand starts higher (as
+        // if it had just reached) so the two alternate about half a cycle apart instead of reaching as a pair.
         h.offL = 1.35 * k;
         h.offR = 1.6 * k;
-        h.slack = 0.16;
+        h.slack = 0.5;
         h.lead = 0.8;
-        h.swingTime = HAND_SWING;
+        h.swingTime = CLIMB_HAND_SWING;
         h.grid = 0;
         h.min = a.base.y + 0.3;
         h.max = a.top.y;
-        f.offL = 0.12;
-        f.offR = 0.38;
-        f.slack = 0.2;
+        // (G4, AUDIT-TRAVERSAL #2) one pair of feet, stepping together after each hand lands (`update`); was alternating
+        // feet at 0.12 / 0.38 m (ct-prototype E1)
+        f.offL = PIPE_FEET.off * k;
+        f.offR = PIPE_FEET.off * k;
+        f.slack = PIPE_FEET.slack;
+        f.lead = PIPE_FEET.ahead / PIPE_FEET.slack;
+        // (the climb during the draw-up: the pair lands `ahead` over its spot at the end of the swing, not its start)
+        f.leadTime = PIPE_FEET.swing;
+        f.swingTime = PIPE_FEET.swing;
         f.grid = 0;
         f.min = a.base.y;
         f.max = a.top.y - 1;
@@ -243,6 +318,13 @@ export class AttachGrips {
     const body = this.body(a, s);
     this.hands.reset(body);
     this.feet.reset(body);
+    this.bodyNow = body;
+    if (a.kind === 'pipeV') {
+      // (G4) staggered hands: the right one a reach's lead higher
+      const R = this.hands.R;
+      R.at = Math.min(h.max, R.at + h.slack * 0.6);
+      R.from = R.at;
+    }
   }
 
   /**
@@ -251,16 +333,59 @@ export class AttachGrips {
    */
   update(dt: number, a: Anchor, s: number, v: number, face: number, w: number, rig: GripRig, vent: VentExit | null = null, decide = true): void {
     const body = this.body(a, s);
+    this.bodyNow = body;
     if (a.kind === 'ladder' || a.kind === 'pipeV') {
-      // quicker reaches the quicker the climb (a sprint up a ladder), never quicker than the arm can sweep
-      const sp = Math.max(0.9, Math.abs(v));
-      this.hands.cfg.swingTime = Math.max(this.handSwingMin, Math.min(HAND_SWING, 0.18 * (0.9 / sp)));
-      this.feet.cfg.swingTime = Math.min(FOOT_SWING, 0.22 * (0.9 / sp));
+      // (G4) the climb's own pace swings a hand in CLIMB_HAND_SWING; quicker climbs (a slide) quicker, never quicker than
+      // the arm can sweep
+      const base = ATTACH[a.kind].speed;
+      const k = base / Math.max(base, Math.abs(v));
+      this.hands.cfg.swingTime = Math.max(this.handSwingMin, CLIMB_HAND_SWING * k);
+      this.feet.cfg.swingTime = (a.kind === 'ladder' ? CLIMB_FOOT_SWING : PIPE_FEET.swing) * k;
     }
+    const steps = this.hands.steps;
     this.hands.update(dt, body, a.kind === 'duct' ? v * face : v, decide);
-    if (a.kind === 'ladder' || a.kind === 'pipeV' || (a.kind === 'pipeH' && this.pipeTo === 'legsUp')) this.feet.update(dt, body, v, decide);
+    if (a.kind === 'pipeV') {
+      // (G4) the drainpipe's pair of feet: they step together once a hand has landed (or, trailing too far, anyway)
+      const fL = this.feet.L;
+      const trail = Math.abs(body + this.feet.cfg.offL - fL.at) > PIPE_FEET.trail;
+      this.feet.update(dt, body, v, decide && (this.hands.steps !== steps || trail));
+      const fR = this.feet.R;
+      fR.at = fL.at;
+      fR.from = fL.from;
+      fR.swing = fL.swing;
+    } else if (a.kind === 'ladder' || (a.kind === 'pipeH' && this.pipeTo === 'legsUp')) this.feet.update(dt, body, v, decide);
+    if (a.kind === 'ledge') this.hangSwing(dt, s, v);
     this.apply(a, s, face, w, dt, rig, vent);
     this.gripAxes(a, rig);
+  }
+
+  /**
+   * (G4) The hang pendulum (`HANG_SWING`): the hips trail the hands' midpoint along the lip (one swing a hand cycle while
+   * shimmying) plus a slow sway at rest, through a damped spring (the lag, one overshoot on a stop). Allocation-free.
+   */
+  private hangSwing(dt: number, s: number, v: number): void {
+    const S = HANG_SWING;
+    const h = Math.min(0.05, Math.max(0, dt));
+    if (h <= 0) return;
+    const mid = (this.hands.pos(this.hands.L) + this.hands.pos(this.hands.R)) * 0.5;
+    // the hands' midpoint off the body, along the body's right (m): the hips swing the other way
+    const off = (mid - s) * this.sideSgn;
+    const moving = Math.min(1, Math.abs(v) / 0.1);
+    this.stillT = moving > 0.5 ? 0 : this.stillT + h;
+    this.swayT = (this.swayT + h) % S.idlePeriod;
+    const settle = Math.min(1, Math.max(0, (this.stillT - S.idleSettle) / 2));
+    const sway = (S.idle + (S.idleLate - S.idle) * settle) * Math.sin((2 * Math.PI * this.swayT) / S.idlePeriod) * (1 - moving);
+    const target = Math.max(-S.max, Math.min(S.max, -S.gain * off)) + sway;
+    const w0 = (2 * Math.PI) / S.period;
+    this.swingW += (w0 * w0 * (target - this.swingA) - 2 * S.zeta * w0 * this.swingW) * h;
+    this.swingA += this.swingW * h;
+    if (this.swingA > S.max) {
+      this.swingA = S.max;
+      this.swingW = Math.min(0, this.swingW);
+    } else if (this.swingA < -S.max) {
+      this.swingA = -S.max;
+      this.swingW = Math.max(0, this.swingW);
+    }
   }
 
   /** Planted contacts on the grip axis [hand L, hand R, foot L, foot R] (NaN = swinging) into `out`. */
@@ -280,8 +405,19 @@ export class AttachGrips {
     this.feet.settleTo(gp[2]!, gp[3]!);
   }
 
-  /** Climb cycle phase 0..1 from the hand steps: 0..0.5 the right hand reaches, 0.5..1 the left. */
+  /**
+   * Climb cycle phase 0..1 from the hand steps: 0..0.5 the right hand reaches, 0.5..1 the left. (G4) On a drainpipe: how
+   * drawn up the feet are (0 legs long under the body, 1 the knees at hip height: the inchworm, `PIPE_CLIMB`); hanging
+   * from a lip: the pendulum's swing as the looping HANG clip's time (`HANG_SWING_CLIP` a full swing to the right, minus
+   * to the left). The local player and a remote read it the same way (`poseFromMoveState`).
+   */
   cadence(): number {
+    if (this.kind === 'pipeV') {
+      const f = this.feet;
+      const up = f.pos(f.L) - this.bodyNow - f.cfg.offL;
+      return Math.max(0, Math.min(1, (up - PIPE_FEET.low) / (PIPE_FEET.ahead - PIPE_FEET.low)));
+    }
+    if (this.kind === 'ledge') return HANG_SWING_CLIP * Math.max(-1, Math.min(1, this.swingA / HANG_SWING.max));
     const L = this.hands.L;
     const R = this.hands.R;
     if (R.swing >= 0) return R.swing * 0.5;
@@ -397,6 +533,9 @@ export class AttachGrips {
     clearGripAxis(rig.reachR);
     this.plantFade = 0;
     this.lift.x = this.lift.y = this.lift.z = 0;
+    // (G4) a fresh hang starts plumb
+    this.swingA = this.swingW = this.stillT = this.swayT = 0;
+    this.kind = null;
   }
 
   /** (G176) `lift` for this frame: the body's offset from the gameplay root (a pipe change blends both states'). */
@@ -591,11 +730,13 @@ export class AttachGrips {
           t.z = lz + rz * span * sd - fz * lift * 0.08;
           t.y = this.hands.pos(g);
         }
-        // feet: on the rungs (ladder) or pressed to the wall beside the pipe
-        fl.w = fr.w = w;
-        this.plantFade = w;
+        // feet: on the rungs (ladder) or pressed to the wall beside the pipe ((ct-prototype E2) a climb-up off the top
+        // lets the feet go before the hands: `footW`)
+        fl.w = fr.w = Math.min(w, this.footW);
+        this.plantFade = fl.w;
         const fSpan = a.kind === 'ladder' ? 0.15 : 0.16;
-        const back = a.kind === 'ladder' ? 0.13 : 0.02;
+        // (ct-prototype E1) on a drainpipe the soles sit 8 cm out from the wall (was 2): room for the knees to bend in
+        const back = a.kind === 'ladder' ? 0.13 : 0.08;
         for (let i = 0; i < 2; i++) {
           const g = i === 0 ? this.feet.L : this.feet.R;
           const t = i === 0 ? fl : fr;
@@ -726,9 +867,10 @@ export class AttachGrips {
   private alongLip(l: Ledge, g: GripLimb, t: GripTarget): void {
     const q = this.hands.pos(g);
     const lift = this.hands.lift(g);
-    // the hands sit on the lip, a few cm in from the edge
-    t.x = l.a.x + l.tx * q - l.nx * (0.04 - lift * 0.06);
-    t.z = l.a.z + l.tz * q - l.nz * (0.04 - lift * 0.06);
-    t.y = l.top + lift * 0.05;
+    // the hands sit on the lip, a few cm in from the edge; (ct-prototype D2) mid-reach the hand lifts 9 cm and arcs 8 cm
+    // out past the edge (was 5 / 6)
+    t.x = l.a.x + l.tx * q - l.nx * (0.04 - lift * 0.08);
+    t.z = l.a.z + l.tz * q - l.nz * (0.04 - lift * 0.08);
+    t.y = l.top + lift * 0.09;
   }
 }

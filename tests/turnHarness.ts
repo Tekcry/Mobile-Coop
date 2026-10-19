@@ -61,6 +61,11 @@ export function run(o: Opts) {
     landings: [] as Landing[],
     maxSlide: 0,
     scrub: 0,
+    /** (G1) Largest planted-foot distance from the root's midline (m, root frame), its least, and the world-lock drag. */
+    latMax: 0,
+    latMin: Infinity,
+    drag: 0,
+    scrubPos: 0,
     yawAt: [] as number[],
     yawRateAt: [] as number[],
     feetYawAt: [] as number[],
@@ -157,6 +162,7 @@ export function run(o: Opts) {
     pi.faceGoal = faceGoal;
     pi.stride = 'facing';
     pi.pelvisYaw = yaw + follow;
+    pi.crouch = o.crouch ? 1 : 0;
     p.update(pi);
     const L = p.L;
     const R = p.R;
@@ -172,6 +178,11 @@ export function run(o: Opts) {
     for (const f of [L, R]) {
       if (f.contact) out.maxPlantedTwist = Math.max(out.maxPlantedTwist, Math.abs(wrap(f.yaw - py)));
       if (f.contact) out.maxPlantedTwistBody = Math.max(out.maxPlantedTwistBody, Math.abs(wrap(f.yaw - yaw)));
+      if (f.contact && pi.moving) {
+        const lat = Math.abs((f.x - rx) * Math.cos(yaw) - (f.z - rz) * Math.sin(yaw));
+        out.latMax = Math.max(out.latMax, lat);
+        out.latMin = Math.min(out.latMin, lat);
+      }
       out.maxKnee = Math.max(out.maxKnee, Math.abs(wrap(kneePoleYaw(py, f.yaw) - py)));
       if (f.landed) {
         const fwd = (f.x - rx) * s + (f.z - rz) * c;
@@ -187,6 +198,8 @@ export function run(o: Opts) {
     out.feetYawAt.push(Math.max(Math.abs(wrap(L.yaw - d.yaw)), Math.abs(wrap(R.yaw - d.yaw))));
   }
   out.scrub = p.L.scrub + p.R.scrub;
+  out.drag = p.L.slide + p.R.slide;
+  out.scrubPos = p.L.scrubPos + p.R.scrubPos;
   return out;
 }
 

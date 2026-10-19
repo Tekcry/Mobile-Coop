@@ -59,8 +59,8 @@ try {
     window.__ff();
   }), s);
   // (CT prototype M1) the five CT speeds
-  const STAND = [0.2, 0.75, 2.0, 3.0, 4.2];
-  const CROUCH = [0.4, 0.85, 1.5, 2.1, 2.6];
+  const STAND = [0.75, 1.4, 2.1, 3.0, 4.5];
+  const CROUCH = [0.85, 1.3, 1.7, 2.15, 2.6];
   for (const crouched of [false, true]) {
     // (locomotion step 17) the rocker sets the maximum gear 1-5 (no sprint, CT prototype M1)
     for (let g = 1; g <= 5; g++) {
@@ -83,7 +83,7 @@ try {
   await setGear(4);
   await settle(0.2);
   const half = await speedAt(0, -0.5);
-  assert(half > 0.6 && half < 0.9, `half stick at gear 4 (CT: snaps to speed 2, 0.75): the stick picks the speed (${half.toFixed(2)} m/s)`);
+  assert(half > 1.2 && half < 1.6, `half stick at gear 4 (snaps to speed 2, 1.4): the stick picks the speed (${half.toFixed(2)} m/s)`);
   await press(page, BTN.B);
   const keptCrouched = await GEAR();
   await press(page, BTN.B);
@@ -297,7 +297,7 @@ try {
   await settle(0.3);
   await press(page, BTN.B);
   await settle();
-  // (CT prototype M1: no sprint) the top speed standing is the run: 4.2 m/s, standing, and it stops within 0.6 s of the release
+  // (CT prototype M1: no sprint) the top speed standing is the run: 4.5 m/s (G1), standing, and it stops within 0.6 s of the release
   await press(page, BTN.B);
   await settle();
   await tp(0, 0, -14, Math.PI / 2);
@@ -312,7 +312,7 @@ try {
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(0.6);
   const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { speed: c.speed, crouched: c.crouched, hold: c.stopHold }; });
-  assert(peak > 3.9 && peak < 4.7, `the top speed reaches ~4.2 m/s (${peak.toFixed(2)} peak)`);
+  assert(peak > 4.2 && peak < 5.0, `the top speed reaches ~4.5 m/s (${peak.toFixed(2)} peak)`);
   assert(after.speed < 0.1 && !after.crouched && after.hold, `releasing the stick stops within 0.6 s, feet frozen in the stride (speed ${after.speed.toFixed(2)})`);
   await settle();
 

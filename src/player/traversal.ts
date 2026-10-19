@@ -17,8 +17,11 @@ const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
 export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop' | 'roll', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5, roll: 0.62 };
 
-/** Fastest each move gets at speed (s). */
-const MIN_TIME: Record<keyof typeof TRAVERSE_TIME, number> = { step: 0.22, vault: 0.42, mantle: 0.75, drop: 0.25, hop: 0.38, roll: 0.55 };
+/** Fastest each move gets at speed (s). (ct-prototype G4, AUDIT-TRAVERSAL #7 / #18, CT 110522 11.0-12.16 a crate mantle
+ *  1.0-1.15 s, 111424 0.8-1.46 a rail vault 0.65 s, both at a walk or more) vault 0.42 -> 0.6, mantle 0.75 -> 0.9. */
+export const MIN_TIME: Record<keyof typeof TRAVERSE_TIME, number> = { step: 0.22, vault: 0.6, mantle: 0.9, drop: 0.25, hop: 0.38, roll: 0.55 };
+/** (G4, AUDIT-TRAVERSAL #18, CT 111424 3.63-4.30) A vault onto a floor this much lower than the take-off (m) lands crouched. */
+export const VAULT_LAND_CROUCH = 0.3;
 /** Landing roll: furthest it travels (m) and the least room it needs to be worth playing (m). */
 const ROLL_LENGTH = 1.6;
 const ROLL_MIN = 0.6;
@@ -329,8 +332,8 @@ export class TraversalController {
         if (inStride && this.kind !== 'mantle') {
           c.motion.carry(this.dir.x * this.speed0, this.dir.z * this.speed0);
         }
-        // the forward roll comes up crouched
-        if (this.ctRoll) c.setCrouchToggle();
+        // the forward roll comes up crouched; (G4) so does a vault down onto a lower floor
+        if (this.ctRoll || (this.kind === 'vault' && !this.throughWindow && this.from.y - this.to.y >= VAULT_LAND_CROUCH)) c.setCrouchToggle();
         this.kind = 'none';
         this.throughWindow = false;
         this.ctRoll = false;

@@ -1,0 +1,73 @@
+# Audit: aiming and weapons (2026-10-20, pass 2)
+
+Covered: every weapon animation we have (rifle and pistol draw, holster, swap both ways, reload tactical / empty, ADS
+stand / crouch / walk / strafe, fire and recoil, aim turn, ready carry, back sling, thigh holster, scope). Footage beats
+G103 (Michael, 2026-10-20: "Footage wins").
+Clips (frames in `pc/ct-work/frames/aim/`): 111908 (0-2, 15.6-17.2, 20-22.4, 24.8-27.2, 31.6-34), 111953 (3-4.6,
+5.4-6.4 at 30 fps), 105845 (2.3-3.9, 12.1-13.7, 30.5-33.5, 35.2-36.8; normal vision), 051543 (12-33), 050541 (6.5-10.5),
+051812 (6-10.8), 054237 (8-10.4), 053709 (31-39), 053525 (34-36.8), 034747 (1.0). Ours: `pc/ct-work/ours/aim*`,
+`swap/reload/drawpistol/holster-side`, `docs/ct-prototype/shots/f/aim*`, `draw-side`.
+
+## Correction to the catalogue (read first)
+The rifle is NOT carried in both hands outdoors. In 053525 35-36.8, 053709 34.5-38 and 054237 8-9 it is slung
+diagonally across the back in the lit courtyard: the stock at the right shoulder blade, the muzzle down to the left
+hip, about 45 deg from vertical, hands empty (`c053525_courtyard_34-36.8.jpg`, `c053709_sling_34-38.jpg`,
+`c105845_sling30.6_crouchaim32.4.jpg`). It is the same indoors. The "both hands, muzzle low" read was the slung rifle
+lit from behind. So there is one carry everywhere: slung, with a weapon in the hand only while aiming. Our current
+rule is right, and we need no outdoor carry state or low ready on foot.
+
+## Delta table (most visible first; row numbers kept from pass 1)
+| # | item | CT (clip @ s, value, how) | ours (file:symbol, value) | delta | fix | size | feel |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Rifle draw, timing and path | 105845 (normal vision, 15 fps): the right hand reaches over the right shoulder at 2.77, the rifle comes forward muzzle UP at the right shoulder at 3.37-3.43, tips down onto the sight line at 3.5-3.57, aims at 3.63 and is settled at 3.7 (a 90 deg turn is in it). 111908 20.62 reach, at the cheek 20.98-21.05, settled 21.1 (30 fps). Crouched 105845 35.6 reach, muzzle up 36.07, level 36.2, settled 36.4. Reach to settled: 0.4-0.9 s, about 0.55 s without a turn. The rifle never drops below the shoulder | `drawState.ts` DRAW_TIME_PRIMARY 0.4 + `weaponCarry.ts` DRAW_RAISE {from 0.5, time 0.45}: off the back at 0.15 s, muzzle up 45 deg at 0.20 s (matches CT), then LEVEL AT THE CHEST 0.25-0.55 s, at the eye 0.6-0.75 s (shots/f/draw-side) | the 0.3 s hold at the chest is not in CT (Michael's "weird low ready"); total about 0.2 s long | DRAW_RAISE.from 0.5 -> 0.3, DRAW_RAISE.time 0.45 -> 0.25, DRAW_TIME_PRIMARY 0.4 -> 0.3 (total about 0.55 s); `actions.ts` swapClip back-slot keys: the pocket at 0.8 -> 0.65 and hRY never below 1.3 after 0.38, so the path is shoulder, muzzle up, then down onto the line | S | 3 |
+| 2 | Holster (rifle and pistol) | Instant: the rifle is on the back in the first pull-out frame (111908 31.9 aim, 32.0 slung, 15 fps); the pistol is gone at 15.87 -> 15.93; the camera is out to about 2 m in about 0.4 s and the hero walks off at once | `drawState.ts` HOLSTER_TIME 0.55 s; the rifle muzzle sweeps up over the helmet at 0.20-0.33 s (ours/holster-side) | about 0.4 s long, with an arc that is not in CT | HOLSTER_TIME 0.55 -> 0.15 (footage beats G103's 0.5-0.6; that was the camera, which keeps adsOutRate 7); rifle path: muzzle down toward the left hip, never up (row 3); pistol straight down to the holster | S | 3 |
+| 3 | Back sling orientation | Diagonal: stock at the right shoulder, muzzle down to the left hip, about 45 deg (refs above; 034747 side view: it lies flat on the back) | `operators/handFrame.ts` WREN_BACK_MOUNT backC up [0,1,0]: vertical, muzzle up, the barrel about 0.3 m above the helmet (ours/aim-front 0.00) | wrong look; it causes the row 2 arc and ceiling / duct / door-frame clipping | new frame `backDiag`: up about [-0.7,-0.7,0] (muzzle down-left), origin at the right shoulder blade, in WREN_BACK_MOUNT and `carrySlots.ts`; `actions.ts` REACH back key -> [0.14, 1.3, -0.12] (over the right shoulder); the draw swings it about the right shoulder (row 1 path). Needs a Blender anchor in scripts/operators or a game-side override | M | 3 |
+| 4 | Upper body rigid, tilting at the hips | 051543 15-30: aim pitched about 60-65 deg down; head and rifle keep the same relative place in the frame all the way (rigid block). 050541 6.5-10.5: same while walking. The hips / spine split is never visible (no third-person view of an aim) | `animGraph.ts`: spPitch share AIM_CHEST.pitch 0.75, the head adds aimPitch*0.45 on top, pelvis 0; the weapon takes the full aim pitch in world space (`characterRig.ts` ~1776), so 25 % bends at the wrists and the head over-rotates (about 1.2x) | wrists and head carry the aim; no hip hinge (Michael, WALK: "weapon still turning at wrists ... tilt at the hips") | raised: pelPitch += aimPitch * 0.35 * raise (clamp +-0.35 rad), spPitch share 0.75 -> 0.65 (pelvis + spine = 1.0), head share 0.45 -> 0.45 * (1 - raise) (weld only), HUNCH.aim 0.05 -> 0.1; pelvis Z back by 0.08 * sin(pelPitch) for balance; the feet stay planted by IK. The 0.35 split is a design value (not measurable) | M | 3 |
+| 5 | Pistol hold | Two hands, compact, hands below and right of the head at chin height: hand centre x 0.39, y 0.68 of the frame, against head 0.22 / 0.45 and reticle 0.5 / 0.5; the gun sits under the sight line with the forearms rising from below (111908 2.2) | `animGraph.ts` PISTOL_REACH {x -0.07, y 0.015, z 0.1} + SIGHT_RAISE: pistol at eye height about 25 cm from the face, elbows bent high, forearms vertical in the OTS view (shots/f/aimpistol-ots), torso leaning back (ours/aimpistol-side) | too high, too close, chest leaning back | PISTOL_REACH.y 0.015 -> -0.06, z 0.1 -> 0.2, x -0.07 -> -0.09; with the pistol raised the chest goes forward (spPitch +0.08 * pistolK); no SIGHT_HEAD roll for the pistol | S | 3 |
+| 6 | Aim framing (head in frame) | Head centre x 0.20-0.22 of the width, about 30 % wide (111908 2.2, 23.5; ct-measure-camera.md s.2); left shoulder mirrored (111953: head right, sight x 0.60, y 0.66) | `camera.ts` shoulderAds 0.42, boomAds 0.35: head at x 0.0-0.08, partly off-frame; the whole rifle receiver sits at the bottom centre of the frame (shots/f/aim-ots) | head too far left; rifle too prominent | shoulderAds 0.42 -> 0.22 (F1a raised it after playtest 1: check with the camera audit) | S | 2 |
+| 7 | Pistol draw timing | Camera starts at 0.6, pistol in view at 1.17, settled at 1.5 (111908, 12 fps): about 0.55 s; 051739 0.63-0.73 s | DRAW_TIME_SIDEARM 0.3: pistol at the eye at 0.20-0.27 s (ours/drawpistol-side); adsInTime 0.27 s | about 0.25 s fast | DRAW_TIME_SIDEARM 0.3 -> 0.5 (footage wins); adsInTime then 0.45 s | S | 2 |
+| 8 | Scope | Hard cut in (111908 25.3-25.4) and out (26.0-26.1); first person, circular reticle, "1.5 X" label, range readout in m (15.2-16.6 m) | `weapons.json` rifle adsZoom 0.72, blended on the OTS camera (`shoulderCamera.ts` zoom); the hero stays on screen; no overlay | no first person, no overlay, wrong zoom | zoomOn: camera to the sight point, body hidden, FOV / 1.5 (adsZoom 0.72 -> 0.667), 0 s blend both ways, a DOM overlay ring + raycast range "xx.xxM" | M | 2 |
+| 9 | Aim press: body turn | Facing the camera to facing away in about 0.45 s (111908 20.25-20.7), then the raise | `movement.ts` turnAim 360 deg/s, turnAccel 60: about 0.55 s for a 180 | slightly slow | turnAim 360 -> 450 deg/s (= CT.turnRate 7.85) | S | 1 |
+| 10 | Shoulder swap | Camera 0.40 / 0.43 s, pull-back to about 0.85 m. Rifle in normal vision (105845 12.63-13.1): the rifle stays at shoulder height, hidden in front of the chest at mid-swap (12.77-12.83), on the new side by 12.97, no flick up | `camera.ts` swapArc 0.3, swapRate 13 (about 0.45 s); `characterRig.ts` EDGE_HAND_TIME 0.25 s; `animGraph.ts` sightPos * (1 - 0.5 swapBump) | weapon path OK; arc a bit shallow | swapArc 0.3 -> 0.45; keep the hand switch | S | 1 |
+| 11 | Recoil (rifle) | Measured: 111953 3.87 and 6.27-6.33 (30 fps): the hero's front sight and head do not move in the frame (< 1 % of the frame, < 0.5 deg); no camera jump on the shot frames | camera kick 1.1 deg * 0.65 ADS + 0.32 kept + shake 0.04; weapon flip `animGraph.ts` rec * 0.12 / mass rad (about 7 deg rifle, 10 deg pistol) and wpZ -0.05 m | the weapon flip is about 7x CT; the camera kick is about 1.5x | flip 0.12 -> 0.02 rad, wpZ 0.05 -> 0.015 m; rifle recoilPitch 1 -> 0.6 in weapons.json; shake 0.04 -> 0 | S | 2 |
+| 12 | Aim look rate (pad) | Body locked to the camera; 60 deg/s pan, 120 deg/s fastest (051543) | BASE_YAW_RATE 3.6 * ADS_LOOK 0.3 = 62 deg/s, 87 with the hold accel | top end low | none now (Michael: "Aiming is good too"); ADS_LOOK 0.3 -> 0.4 only if he asks | S | 1 |
+| 13 | Weapon swap while holstered | Measured 051812 6-10.8 (5 fps): bar open 7.2-9.8, HUD to the rifle at about 9.9; hero idle, arms at the sides, NO body motion; the next aim draws the new gun (10.2) | `playerWeapons.ts` swap press when stowed: swapT = 0, phase 0 runs at STOW_RATE for about 0.14 s and the overlay plays the swap clip's 0-0.38 part: an empty-hand reach to backC (held = -1) | 0.14 s reach that is not in CT | when stowed: change `index` only, leave swapT at -1 (keep speedMul / applyAimCamera) | S | 1 |
+| 14 | Pistol holster position | Right hip, just below the belt, at about 0.9-0.95 m (105845 30.7, 053525 36.8 crops `c_holster_hips_*.jpg`); not a drop-leg | `actions.ts` REACH thigh [0.21, 0.74, 0.0]; WREN_HOLSTER origin 0.26 m below hipR (mid-thigh drop-leg) | about 0.18 m low | move the holster to the hip: REACH thigh y 0.74 -> 0.92, x 0.21 -> 0.19; WREN_HOLSTER origin y -0.26 -> -0.08 (Blender anchor); the draw is then a short lift straight up | M | 1 |
+| 15 | Swap while aimed (rifle to pistol and back) | Never done in the footage (every swap is from the bar while holstered: rows 13, 111908 18.5-19) | 0.9 s SWAP_TIME clip, both ways (ours/swap-side: rifle up, muzzle up and back at 0.20 s, slung at 0.30 s, pistol drawn at 0.6-1.1 s) | not CT; the 0.20 s muzzle-up arc shares row 2's problem | keep the 0.9 s swap; once rows 1-3 land, rebuild it as row 2 holster (0.15 s) + row 7 draw (0.5 s) = 0.65 s | S | 1 |
+| 16 | Reload, tactical / empty | No reload in any clip (ammo only counts down: 111953 30 -> 29, 052901 24 -> 23) | RELOAD_TACTICAL 2.6 s / RELOAD_EMPTY 3.1 s rifle (pistol 1.78 / 2.12 s); the weapon drops to the compressed ready at chest height, support hand to the magazine (ours/reload-side, no clip seen); a reload pressed while holstered draws to a low ready first (A43) | not measurable | keep; the A43 low ready is the one ready pose CT never shows: reload while holstered should draw straight to the compressed pose (no low-ready pass) | S | 1 |
+| 17 | Ready carry (low / high / compressed) | None on foot: the weapon is slung or aimed, nothing between (every clip) | READY_POSES low / high / compressed in `animGraph.ts`, used only in draw / holster / reload / wall transitions | OK as transitions; the chest hold of row 1 is the only visible one | remove `low` from the draw path (row 1); nothing else | S | 2 |
+| 18 | ADS walk and back step | 050541 7.6-9.0 forward, 9.5-10.3 back (6 fps): head and rifle fixed in the frame, no visible bob (< 2 % of the frame); legs out of frame; no strafe in any clip | adsSpeed 1.4, adsCrouchSpeed 1.0, strafeMult 0.9, backMult 0.75; the camera does not bob; the weapon follows the posed head (`sightToEye`), so the head bob reaches the gun | estimate: ours may carry the gait bob into the gun (no aim-walk render exists) | render aimwalk / aimstrafe (side + ots) in anim-sheet; if the bob shows, hold the chest height while raised (spine counter-bob * raise) | S | 2 |
+| 19 | Crouched ADS | 105845 31.4-32.9 (normal vision): rifle up 31.4 -> 32.0 with a turn, the same close right-shoulder framing, lower; head top-left, sight right of the head | `camera.ts` aimCrouchShare 0.68, kneel aim (shots/f/aimcrouch-side: upright kneel, rifle level, no clip) | framing close; the kneel is not visible in CT | keep; the camera height belongs to the camera audit | S | 1 |
+
+## Missing entirely
+- First-person scope view with a ring overlay and a rangefinder (111908 25.3-26.0, 105845 10.5). Plan: row 8: one
+  camera mode flag in `shoulderCamera.ts`, the overlay in `src/ui/hud`, the range from the existing fire raycast. One slice.
+- Diagonal back sling (all clips). Plan: row 3: a `backDiag` frame in WREN_BACK_MOUNT and the carry slot, the swap reach
+  keys, a travel path that swings about the right shoulder.
+- Instant holster hidden by the camera fast-out (111908 15.9, 32.0). Plan: row 2.
+- Pistol held one-handed over a held guard's shoulder, arm nearly straight at shoulder height, rifle still slung (034747
+  1.0). Plan: check that the grab state draws the sidearm one-handed (pistolK pose, offGrip 0, arm reach 0.9).
+
+## Clipping and believability risks in our renders
+- Vertical back rifle: the barrel stands about 0.3 m above the helmet (ours/aim-front 0.00) and fills the OTS view behind
+  the head (shots/f/aimpistol-ots 0.15). It will hit ceilings, ducts and door frames.
+- Holster and swap arc: the muzzle swings up and back over the helmet at 0.20-0.33 s (holster-side, swap-side 0.20), so
+  the barrel can pass through the head.
+- Rifle aim: the head sits ahead of the stock line and the butt rides high on the shoulder (aim-side 0.60-0.75); Michael
+  reports the stock clipping. Add a test: butt point against the shoulder joint and the deltoid capsule, at aim pitch
+  -60..+45 deg.
+- Pistol aim: the torso leans back with the hips forward, the pistol is 20-25 cm from the face, the forearms are vertical
+  (aimpistol-side, -ots).
+- Aiming stance: the feet are side by side and narrow (aim-side, aimpistol-side). A light bladed stance (left foot about
+  0.15 m forward) is more believable (design value; legs are never seen in CT aim).
+- Reload (reload-side) and the kneeling aim (aimcrouch-side): no clip seen. The front rifle aim (aim-front 0.60): the
+  support forearm lies flat across the chest, which is fine.
+
+## Not measurable from the footage
+- Hips / spine split of the aim pitch: CT never shows a third-person view of a hero who is aiming.
+- Legs, stance and the aim walk / strafe gait: the legs are out of frame in every aim clip, and there is no strafe.
+- Reload, tactical or empty: no reload in any clip.
+- Pistol draw path from the holster: the camera move hides it; only the times are known.
+- Pistol arm extension in metres: one view, no depth ruler (only the frame position, row 5).
+- Swap while aimed: never done.
+- Mouse aim behaviour: no input display.

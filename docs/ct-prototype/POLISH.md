@@ -69,3 +69,10 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - B7 check polish (B7-CHECK.md, PASS): stale teamPairs entry after a lost-holder slide; hangPoint runs about 9 rays
   every idle frame for a standing player with a mate within 12 m (perf); a rope offer replaces the throw at any
   2.2-6 m edge; the climber clips the wall corner on top-out.
+- Slice F check polish (PASS, 2026-10-19): climb-up hands hold grip weight 1 to k 0.6 but drift 8-22 cm off the lip at
+  1.1-1.2 s (arms out of reach as the body moves on) and 45 cm at 1.3 s; at 1.5 s the left foot hangs off the edge.
+  Crouched aim (rifle and pistol): the head fills the left third, more than standing; the slung rifle shows top left in
+  the crouched pistol aim. Corner sheets: add a side or top view at the edge to read the lean. Crouch: a deep forward
+  squat at 0.3-0.4 s before the kneel blends in. Remote kneel: `speed < 0.15` without the owner's stopHold / stopEase
+  checks (may kneel slightly earlier). F7 migration: a remapped verb on a migrated target (e.g. gearDown kept on LEFT)
+  ends up sharing that button with the moved verb.

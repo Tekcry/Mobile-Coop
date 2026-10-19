@@ -39,6 +39,9 @@ export const MOVEMENT = {
   /** Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. */
   stepLen0: 0.3,
   stepLenK: 0.2,
+  /** (CT prototype G1, audit row 7) The longest step (m): reached at 3.25 m/s, so the run quickens its cadence instead of
+   *  floating on long strides (CT run ~4.6 steps/s at ~1.0 m a step, footage 110117). */
+  stepLenMax: 0.95,
   /** Speed dip at each heel strike (fraction), mean 1 over the stride: each step lands and pushes off. */
   rootDip: 0.025,
   /** Facing the travel direction (not aiming): turn rate at sneak pace and at sprint (rad/s). */
@@ -100,6 +103,8 @@ export const ENEMY_MOTION: typeof MOVEMENT = {
   startShift: 0.3,
   stepLen0: 0.27,
   stepLenK: 0.22,
+  /** (G1) No step cap for guards (their 3.1.0 strides). */
+  stepLenMax: 9,
   rootDip: 0.05,
   turnTravelSlow: (540 * Math.PI) / 180,
   turnTravelFast: (300 * Math.PI) / 180,
@@ -140,10 +145,15 @@ export const GEARS = {
   spawn: 3,
   /**
    * (CT prototype M1, loco M20 Q8) Five analog speeds, no sprint (ct-measure-speeds-stops-posture.md); starting
-   * values, tune by feel (G10). Standing 0.2 / 0.75 / 2.0 / 3.0 / 4.2, crouched 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s.
+   * values, tune by feel (G10). (Playtest 2: the old speed 2 is the slowest; still five steps, re-spaced.) Standing
+   * 0.75 / 1.4 / 2.1 / 3.0 / 4.5, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s. (G1, audit row 14) the run 4.2 -> 4.5
+   * (old scroll measure 4.6, cross-checked by the run cadence 4.6 steps/s x ~1.0 m).
    */
-  crouch: [0.4, 0.85, 1.5, 2.1, 2.6],
-  stand: [0.2, 0.75, 2.0, 3.0, 4.2],
+  crouch: [0.85, 1.3, 1.7, 2.15, 2.6],
+  stand: [0.75, 1.4, 2.1, 3.0, 4.5],
+  /** (Playtest 2) The stick reaches the D-pad speed (the maximum gear) from this magnitude up, so a stick that
+   *  never quite hits its rim still walks at the speed the D-pad set. */
+  fullPush: 0.9,
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
 } as const;
@@ -181,7 +191,7 @@ export const CT = {
   /** (A1.1) The cap falls to `turnRateRun` (~350 deg/s) as the pace goes from `turnSlowFrom` to `turnSlowTo` (m/s). */
   turnRateRun: 6.1,
   turnSlowFrom: 3.0,
-  turnSlowTo: 4.2,
+  turnSlowTo: 4.5,
   turnAccel: 300,
   /** A turn dips the pace (fraction lost at a full 180): the run reversal slows and recovers (~0.3 s). */
   turnDip: 0.55,
@@ -209,6 +219,15 @@ export const CT = {
   releaseWindow: 0.15,
 };
 
+/**
+ * (CT prototype G1, audit row 26, G160) The tense sneak: crouched, at no more than `maxSpeed` (m/s, crouched gear 2), with
+ * an unaware guard within `radius` (m; the footage shows it on at a 3-4 m gap, its start radius is unmeasured: a guess),
+ * the operator sneaks with long deliberate steps of `step` m (1.3 steps/s at ~1.1 m/s, 112331 @ 12-15) and the tense
+ * carriage, blended in and out with time constant `tau` (s, ~0.3 s). Still near the guard it holds the pose (no kneel).
+ * Silent: the crouched gears 1-2 are under the noise band.
+ */
+export const TENSE = { radius: 5, maxSpeed: 1.4, step: 0.85, tau: 0.1 } as const;
+
 /** Debug Tune panel ranges for the `CT` feel values. */
 export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]>> = {
   stopBlend: [0.03, 0.4, 0.01],
@@ -221,12 +240,12 @@ export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]
 };
 
 /**
- * Footstep noise (`noiseRadius`, CT prototype M1, G40): the fastest pace that is still silent. Crouched speeds 1-3 (<= 1.5 m/s)
- * and standing speeds 1-2 (<= 0.75 m/s) are silent, with room for the stride's speed swell (`rootDip`); the rest rise.
+ * Footstep noise (`noiseRadius`, CT prototype M1, G40): the fastest pace that is still silent. Crouched speeds 1-3 (<= 1.7 m/s)
+ * and standing speeds 1-2 (<= 1.4 m/s) are silent, with room for the stride's speed swell (`rootDip`); the rest rise.
  */
 export const NOISE_QUIET = {
-  crouch: 1.7,
-  stand: 1.45,
+  crouch: 1.9,
+  stand: 1.65,
 };
 
 export type MovementKey = keyof typeof MOVEMENT;
@@ -322,10 +341,11 @@ export const PIPE = {
 // --- 3.2.0 phase 3: rappel and fences (`player/attachController.ts`)
 
 export const RAPPEL = {
-  /** Rope speeds (m/s): up, down, down with sprint held. */
+  /** Rope speeds (m/s): up, down, down with sprint held. (ct-prototype G4, AUDIT-TRAVERSAL #14, CT 111731 6.0-11.6: a slow
+   *  steady walk down, 0.45-0.75 m/s) down 1.6 -> 0.6, with sprint 3.0 -> 1.2 (estimates; G31 removed the sprint hold). */
   ascend: 1.0,
-  descend: 1.6,
-  descendSprint: 3.0,
+  descend: 0.6,
+  descendSprint: 1.2,
   /** Kick out from the wall: how far out the swing goes (m), how long it takes (s), how far sideways the stick takes
    *  it per kick and in all (m). */
   swingOut: 1.2,
@@ -337,8 +357,9 @@ export const RAPPEL = {
   /** Feet off the wall face (m) and the rope out where the body is just over the edge (m). */
   standoff: 0.5,
   minOut: 1.0,
-  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). */
-  hookTime: 0.8,
+  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). (G4, AUDIT-TRAVERSAL #13, CT
+   *  111731 2.0-4.2: steps over the edge and sits into the rope in about 2 s) 0.8 -> 1.8 s (estimate). */
+  hookTime: 1.8,
   reach: 0.9,
   /** Sidearm from the rope: yaw round the wall's outward normal, pitch band (rad). */
   aimYaw: (110 * Math.PI) / 180,

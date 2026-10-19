@@ -4,7 +4,7 @@
  *
  * Candidates are the level's `CoverSegment`s (the same faces the AI uses): high faces (>= HIGH_MIN) standing or
  * crouched, low faces (LOW_MIN..LOW_MAX) always crouched. The body line runs `standoff` (`coverStandoff`) out from the
- * face. States: off, entering (a 0.2 s settle onto the face, at most 0.9 m away: no snap from a distance, no glide),
+ * face. States: off, entering (a 0.14-0.24 s settle onto the face, at most 0.5 m away: no snap from a distance, no glide),
  * on (the stick's along-wall component at the gear's pace, capped at gear 4; inside corners wrap; outside ends stop),
  * leaving (one short beat back to free movement).
  *
@@ -19,14 +19,14 @@ import type { CoverSpot } from '../game/tactics';
 import type { MoveOverride } from './playerController';
 
 export const WALL = {
-  /** Enter: the body line point at most this far (m), the face within this angle of the move or look direction. */
-  reach: 0.9,
+  /** Enter (playtest 2: was 0.9, snapped from too far and slid): the body line point at most this far (m), the face within this angle of the move or look direction. */
+  reach: 0.5,
   coneCos: Math.cos((100 * Math.PI) / 180),
   /** Settle onto the face (s): at least `enterTime`, plus `enterPerM` per metre of travel, at most `enterMax` (a
    *  step or two onto the wall, never a lunge: the peak pace stays near a walk and the feet keep up). */
-  enterTime: 0.2,
-  enterPerM: 0.3,
-  enterMax: 0.45,
+  enterTime: 0.14,
+  enterPerM: 0.2,
+  enterMax: 0.24,
   /** Settle tracking gain (1/s) onto the eased path, on top of its own velocity (no lag, so no catch-up overshoot). */
   enterGain: 12,
   /** (step 21w, M14, A83) The stick held into a high face no longer enters on its own: entry is an intentional context
@@ -70,7 +70,18 @@ export const WALL = {
   peekBlend: 0.2,
   /** Looking past the edge (look . edge direction) peeks too. */
   peekLook: 0.85,
+  /** (F4) The camera's slide past the edge starts once the look turns this far toward it (look . edge direction) and is
+   *  full at `peekLook`; the stick's push toward the edge drives it too. Starting value (G10). */
+  viewLook: 0.2,
 } as const;
+
+/** (F4, playtest 2 "the body obviously is only going to lean right only") The wall stance side (1 right, -1 left): at
+ *  an edge the open side (`edge` 1 = the end at b = the body's left), else the slide's facing (`dir` < 0 = right).
+ *  Never from the camera. The remotes decode the same from WALL_SUB (`poseFromMoveState`). */
+export function wallFacing(edge: number, dir: number): -1 | 1 {
+  if (edge !== 0) return edge > 0 ? -1 : 1;
+  return dir < 0 ? 1 : -1;
+}
 
 /**
  * (step 12b, D9) The open side at a back-to-wall edge from WALL_SUB: -1 left (edgeL, the end at b), 1 right (edgeR).
@@ -111,6 +122,13 @@ export function wallSlideSpeed(along: number, crouch: boolean, gear: number): nu
 /** (A3, G35) The peek trigger: `on` now, the push toward the edge (`toward`). Peeks at once over `peekPush`, stays on over `peekKeep`. */
 export function wallPeekWanted(on: boolean, toward: number): boolean {
   return on ? toward > WALL.peekKeep : toward > WALL.peekPush;
+}
+
+/** (F4) The camera's slide past an edge (0..1, local only): how far the stick pushes toward the edge (`toward`, -1..1) or
+ *  the look turns past it (`look`, the look direction . the edge direction). No allocation. */
+export function wallPeekView(toward: number, look: number): number {
+  const l = (look - WALL.viewLook) / (WALL.peekLook - WALL.viewLook);
+  return Math.max(0, Math.min(1, Math.max(toward, l)));
 }
 
 /** MoveState `sub` bits for `wall` (u8): edge flags and peek; `leftHand` is the weapon hand at a left edge. (A3: the
@@ -311,6 +329,8 @@ export class WallCore {
   peekT = 0;
   peek = 0;
   peekOn = false;
+  /** (F4) The camera's slide toward the open side at an end (0..1, `wallPeekView`; local only, never sent). */
+  peekView = 0;
   /** The head's offset past the edge while peeking (world XZ): the light meter samples there (light parity, bible 5.1). */
   exX = 0;
   exZ = 0;
@@ -425,6 +445,7 @@ export class WallCore {
     this.peekT = 0;
     this.peek = this.exX = this.exZ = 0;
     this.peekOn = false;
+    this.peekView = 0;
   }
 
   reset(): void {
@@ -595,6 +616,7 @@ export class WallCore {
     const on = atEnd && wallPeekWanted(this.peekOn, push);
     if (on && !this.peekOn) this.count.peek++;
     this.peekOn = on;
+    this.peekView = atEnd ? wallPeekView(toward, this.edge !== 0 ? i.lookX * ex + i.lookZ * ez : 0) : 0;
     this.peek = on ? Math.min(1, this.peek + this.dt / WALL.peekBlend) : Math.max(0, this.peek - this.dt / WALL.peekBlend);
     const pe = this.peek * this.peek * (3 - 2 * this.peek);
     this.exX = ex * WALL.peekOut * pe;

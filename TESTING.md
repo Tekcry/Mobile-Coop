@@ -72,6 +72,35 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
 
+### Playtest 2 changes (controller, CT prototype; /ct/)
+- [ ] D-pad up / down set the walk speed; speed 2 is the slowest and a stick pushed nearly to the rim walks at it.
+  Aiming looks noticeably slower than before.
+- [ ] Back to a wall, shuffle to each end: the body leans only to the open side (swing the camera both ways: it never
+  flips) and the camera slides past the edge as you look or push toward it. Holstered, the camera is always over the
+  right shoulder; swap to the left while aiming, holster: it returns to the right and the next draw is on the right.
+- [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
+  without sliding; from further away it does nothing.
+- [ ] Footsteps at speeds 1-2 (crouched 1-3) are quiet and the noise meter is silent; a run is louder on both.
+- [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
+  height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
+  turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
+  comes from the back straight to the shoulder (no low-ready dip).
+- [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
+  Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
+  A team boost climb-up still works.
+- [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
+  10 HP.
+- [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
+  walk is upright, the run quick with a lean; stop from a run: a small split, upright; crouch and stop: she kneels at
+  once; near an unaware guard, crouch-walk slowly: the tense high-kneed sneak with a hand over the knife.
+- [ ] Camera: the yard frames the whole body from further back, rooms and airlocks closer; aim: head on the left, the
+  reticle clear; FOV 86 (a saved 75 moves once).
+- [ ] Rifle draw: muzzle up at the right shoulder, then down onto the line (no chest hold); holster near instant; aim,
+  release and aim again quickly: no sweep through the body. Pistol: lower, compact two-handed hold.
+- [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
+  ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
+
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
 - [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab

@@ -1,7 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { defaultPadBinds, sanitizePadBinds, type PadBinds } from '../input/padBinds';
+import { defaultPadBinds, migrateA3Dpad, PAD_LAYOUT_V, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
@@ -32,6 +32,11 @@ export interface Settings {
   keys: KeyBinds;
   /** (locomotion step 18, D7) Controller bindings (`input/padBinds.ts`; local only, D8). */
   pad: PadBinds;
+  /** (F7) The stored pad binds' D-pad layout version (`PAD_LAYOUT_V`; older A3 saves had the speed on left / right). */
+  padV: number;
+  /** (CT prototype G3) The camera defaults' version (`CAM_V`): 1 moved the FOV 75 -> 86 and the pad's vertical look
+   *  0.8 -> 1.0; an untouched old default follows once. */
+  camV: number;
   video: {
     /** Graphics preset; 'custom' once a feature is changed by hand. */
     preset: GraphicsPreset;
@@ -102,12 +107,25 @@ export interface Settings {
   };
 }
 
+/** (G3, AUDIT-CAMERA rows 18 and 19) The camera defaults' version: a save from before it that still holds the old
+ *  default FOV (75) or pad vertical look (0.8) takes the new one (Michael 2026-10-20 "Match CT (86)"; CT's pitch rate
+ *  137 deg/s); a value the player chose stays. */
+export const CAM_V = 1;
+const camKept = (v: unknown, n: number, old: number, d: number): number => (typeof v === 'number' && v >= CAM_V ? n : n === old ? d : n);
+
+/** (Playtest 2) Look speed while aiming = 0.3 of the explore speed (70% less). A saved old default (0.55 pad, 0.6 mouse) follows it. */
+export const ADS_LOOK = 0.3;
+const adsLook = (v: unknown, d: number, lo: number): number => {
+  const n = num(v, d, lo, 1.5);
+  return n === 0.55 || n === 0.6 ? ADS_LOOK : n;
+};
+
 export function defaultSettings(): Settings {
   return {
     gamepad: {
       lookSensitivityX: 1,
-      lookSensitivityY: 0.8,
-      adsMultiplier: 0.55,
+      lookSensitivityY: 1,
+      adsMultiplier: ADS_LOOK,
       deadzoneLeft: 0.15,
       deadzoneRight: 0.12,
       triggerDeadzone: 0.08,
@@ -116,10 +134,12 @@ export function defaultSettings(): Settings {
       aimAssist: 'standard',
       vibration: true,
     },
-    mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
+    mouse: { sensitivity: 1, invertY: false, adsMultiplier: ADS_LOOK, raw: true },
     keys: defaultBinds(),
     pad: defaultPadBinds(),
-    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    padV: PAD_LAYOUT_V,
+    camV: CAM_V,
+    video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -221,6 +241,13 @@ export function setPreset(s: Settings, p: FixedPreset): void {
   s.video.auto = false;
 }
 
+/** (F7) Stored pad binds, sanitized; a save from before `PAD_LAYOUT_V` 2 moves the A3 D-pad defaults to today's. */
+function padMigrated(raw: unknown, v: unknown): PadBinds {
+  const p = sanitizePadBinds(raw);
+  if (!(typeof v === 'number' && v >= PAD_LAYOUT_V)) migrateA3Dpad(p);
+  return p;
+}
+
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
 export function sanitizeSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -234,8 +261,8 @@ export function sanitizeSettings(raw: unknown): Settings {
   return {
     gamepad: {
       lookSensitivityX: num(g.lookSensitivityX, d.gamepad.lookSensitivityX, 0.1, 4),
-      lookSensitivityY: num(g.lookSensitivityY, d.gamepad.lookSensitivityY, 0.1, 4),
-      adsMultiplier: num(g.adsMultiplier, d.gamepad.adsMultiplier, 0.1, 1.5),
+      lookSensitivityY: camKept(r.camV, num(g.lookSensitivityY, d.gamepad.lookSensitivityY, 0.1, 4), 0.8, d.gamepad.lookSensitivityY),
+      adsMultiplier: adsLook(g.adsMultiplier, d.gamepad.adsMultiplier, 0.1),
       deadzoneLeft: num(g.deadzoneLeft, d.gamepad.deadzoneLeft, 0, 0.5),
       deadzoneRight: num(g.deadzoneRight, d.gamepad.deadzoneRight, 0, 0.5),
       triggerDeadzone: num(g.triggerDeadzone, d.gamepad.triggerDeadzone, 0, 0.5),
@@ -247,11 +274,13 @@ export function sanitizeSettings(raw: unknown): Settings {
     mouse: {
       sensitivity: num(m.sensitivity, d.mouse.sensitivity, 0.1, 5),
       invertY: bool(m.invertY, d.mouse.invertY),
-      adsMultiplier: num(m.adsMultiplier, d.mouse.adsMultiplier, 0.2, 1.5),
+      adsMultiplier: adsLook(m.adsMultiplier, d.mouse.adsMultiplier, 0.2),
       raw: bool(m.raw, d.mouse.raw),
     },
     keys: sanitizeBinds(r.keys),
-    pad: sanitizePadBinds(r.pad),
+    pad: padMigrated(r.pad, r.padV),
+    padV: PAD_LAYOUT_V,
+    camV: CAM_V,
     video: {
       ...videoGfx(v),
       // (3.0 settings: Auto when still on the 3.0 default, Epic; a preset picked by hand stays)
@@ -264,7 +293,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
       panini: num(v.panini, d.video.panini, 0, 1),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
-      fovH: num(v.fovH, d.video.fovH, 60, 120),
+      fovH: camKept(r.camV, num(v.fovH, d.video.fovH, 60, 120), 75, d.video.fovH),
       maxFov: num(v.maxFov, d.video.maxFov, 90, 150),
       hudWidth: pick(v.hudWidth, HUD_WIDTHS, d.video.hudWidth),
       gpuNotice: bool(v.gpuNotice, d.video.gpuNotice),

@@ -35,6 +35,17 @@ export interface GripConfig {
   /** The next limb may set off once the other is half way (a quick hand-over-hand); off = strictly one at a time
    *  (feet on rungs: two swinging legs would cross). */
   overlap?: boolean;
+  /**
+   * (ct-prototype D2b) Extra lead (s) at the body's speed: a re-grip lands `|vel| * leadTime` further ahead, so slow,
+   * one-at-a-time reaches keep up with the body at speed while one taken as it stops lands no further than its spot.
+   */
+  leadTime?: number;
+  /**
+   * (ct-prototype D2b) Strict alternation while moving: once a limb lands, the other may set off as soon as it trails its
+   * spot by this much (m), not only past the slack, so one-at-a-time reaches run back to back at speed instead of a
+   * waiting limb drifting a whole reach past its spot. A limb ahead of its spot never steps while moving. Unset: off.
+   */
+  alternate?: number;
 }
 
 const snap = (v: number, c: GripConfig): number => {
@@ -51,6 +62,10 @@ export class GripStepper {
   readonly R: GripLimb = { at: 0, from: 0, swing: -1 };
   /** Swings completed (cadence / audio). */
   steps = 0;
+  /** (ct-prototype D2b) The limb that set off last (0 left, 1 right, -1 none since the grab). */
+  private last = -1;
+  /** (ct-prototype D2b) With `alternate`: the limb on the first reach since the grab, which runs at twice the pace (-1: none). */
+  private quick = -1;
 
   constructor(public cfg: GripConfig) {}
 
@@ -59,6 +74,8 @@ export class GripStepper {
     this.L.at = snap(body + this.cfg.offL, this.cfg);
     this.R.at = snap(body + this.cfg.offR, this.cfg);
     this.L.swing = this.R.swing = -1;
+    this.last = -1;
+    this.quick = -1;
     this.L.from = this.L.at;
     this.R.from = this.R.at;
   }
@@ -69,9 +86,10 @@ export class GripStepper {
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;
       if (g.swing < 0) continue;
-      g.swing += dt / c.swingTime;
+      g.swing += dt / (k === this.quick ? c.swingTime * 0.5 : c.swingTime);
       if (g.swing >= 1) {
         g.swing = -1;
+        if (k === this.quick) this.quick = -1;
         g.from = g.at;
         this.steps++;
       }
@@ -86,16 +104,42 @@ export class GripStepper {
       const off = k === 0 ? c.offL : c.offR;
       const e = body + off - g.at;
       const oe = body + (k === 0 ? c.offR : c.offL) - o.at;
+      const ooff = k === 0 ? c.offR : c.offL;
+      if (c.alternate !== undefined && Math.abs(vel) > 1e-3) {
+        // (ct-prototype D2b) alternation: after the other limb's reach it is this one's turn; otherwise past the slack
+        if (e * vel <= 0) continue;
+        const turn = o.swing < 0 && this.last === 1 - k;
+        if (!turn) {
+          if (Math.abs(e) < c.slack || (o.swing < 0 && oe * vel > 0 && Math.abs(oe) > Math.abs(e))) continue;
+          if (o.swing < 0 && oe * vel > 0 && Math.abs(oe) >= c.slack && Math.abs(Math.abs(oe) - Math.abs(e)) < 1e-3 && off * ooff < 0 && (off - ooff) * vel > 0) continue;
+        } else if (Math.abs(e) < c.alternate) continue;
+        if (!this.start(g, k, body + off + Math.sign(vel) * (c.slack * c.lead + Math.abs(vel) * (c.leadTime ?? 0)))) continue;
+        return;
+      }
       // the worse-off limb goes first
       if (Math.abs(e) < c.slack || (o.swing < 0 && Math.abs(oe) > Math.abs(e))) continue;
+      // (ct-prototype D2) a tie (both let go together, as at the start of a shimmy): the trailing limb goes first (the
+      // leading one going first left the trailing hand to wait a whole reach, drifting under the body). Leading = its spot
+      // is further along the motion than the other's. Only for limbs either side of the body (a ledge's hands): (fix r1)
+      // a drainpipe's hands and feet (offsets of one sign) both counted as leading and never let go; ladders keep the old order)
+      if (o.swing < 0 && Math.abs(oe) >= c.slack && Math.abs(Math.abs(oe) - Math.abs(e)) < 1e-3 && off * ooff < 0 && (off - ooff) * vel > 0) continue;
       const dir = Math.abs(vel) > 1e-3 ? Math.sign(vel) : Math.sign(e);
-      const to = snap(body + off + dir * c.slack * c.lead, c);
-      if (Math.abs(to - g.at) < 1e-6) continue;
-      g.from = g.at;
-      g.at = to;
-      g.swing = 0;
+      if (!this.start(g, k, body + off + dir * (c.slack * c.lead + Math.abs(vel) * (c.leadTime ?? 0)))) continue;
       return;
     }
+  }
+
+  /** Sets a limb off towards `want` (snapped); false when that is where it already is. */
+  private start(g: GripLimb, k: number, want: number): boolean {
+    const to = snap(want, this.cfg);
+    if (Math.abs(to - g.at) < 1e-6) return false;
+    g.from = g.at;
+    g.at = to;
+    g.swing = 0;
+    // (ct-prototype D2b) the first reach from a standing grip is quick: the other hand waits half as long for its turn
+    if (this.cfg.alternate !== undefined && this.last === -1) this.quick = k;
+    this.last = k;
+    return true;
   }
 
   /**

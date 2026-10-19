@@ -34,9 +34,11 @@ const assert = (cond, msg) => {
 // shoulder point and camera height above the feet, standing still, hip, right shoulder, settled, at these pitches.
 const OLD_YARD = [
   // A2.1 (CT framing: boom 1.8 m, pivot = head 1.75 m): the yard reference is now the new open-space framing, not the old one
-  { pitch: 0, dist: 1.8, height: 1.75 },
-  { pitch: -0.35, dist: 1.8, height: 2.367 },
-  { pitch: 0.35, dist: 1.8, height: 1.133 },
+  // (G3, AUDIT-CAMERA rows 1 and 6) an open yard (the probe fallback: Kestrel has no camera spaces) frames from 2.8 m at
+  // the look-at 0.25 m under the 1.68 m head top (`openDrop`): height 1.43 + 2.8 sin(-pitch)
+  { pitch: 0, dist: 2.8, height: 1.43 },
+  { pitch: -0.35, dist: 2.8, height: 2.390 },
+  { pitch: 0.35, dist: 2.8, height: 0.470 },
 ];
 const YARD_TOL = 0.02;
 const BOUND_TOL = 0.02; // a camera this close past a bound's inner face still counts as inside

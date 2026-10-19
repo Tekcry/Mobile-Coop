@@ -39,7 +39,8 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     const cases: [string, number, number, number, number, number, number][] = [
       ['stand', 0, 0, 0, 8, 30, 0],
       ['stand-walk', 0, 1.2, 0, 8, 30, 0.08],
-      ['stand-jog', 0, 3, 0, 8, 30, 0.15],
+      // (G1, audit rows 8 / 22) the jog pumps its arms (CT 110038: elbows ~80-90 deg, hands between hip and lower chest)
+      ['stand-jog', 0, 3, 0, 70, 95, 0.15],
       ['stand-sprint', 0, 5.5, 1, 55, 95, 0.2],
       // (anim-cleanup, CT Core's P1c handover) crouched the hands come in by the thighs just above the knees over the
       // 35-45 degree crouch: ~52 degrees at the elbow (it was a 15-50 soft bend, the hands then hanging ahead of the

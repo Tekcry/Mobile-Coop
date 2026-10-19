@@ -6,8 +6,9 @@ import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 describe('speed gears (3.2.0)', () => {
   it('five speeds with the CT caps, crouched and standing', () => {
     // (CT prototype M1, loco M20 Q8) five analog speeds, no sprint (starting values, G10)
-    expect(GEARS.crouch).toEqual([0.4, 0.85, 1.5, 2.1, 2.6]);
-    expect(GEARS.stand).toEqual([0.2, 0.75, 2.0, 3.0, 4.2]);
+    // (playtest 2) the old speed 2 is the slowest: no 0.2 m/s gear, still five steps
+    expect(GEARS.crouch).toEqual([0.85, 1.3, 1.7, 2.15, 2.6]);
+    expect(GEARS.stand).toEqual([0.75, 1.4, 2.1, 3.0, 4.5]);
     for (let g = 1; g <= 5; g++) {
       expect(gearCap(g, true)).toBe(GEARS.crouch[g - 1]);
       expect(gearCap(g, false)).toBe(GEARS.stand[g - 1]);

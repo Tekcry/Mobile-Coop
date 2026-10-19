@@ -1,6 +1,7 @@
 // Weapon carry on Free Roam (the CT kit, G76: the rifle and the suppressed pistol): every carried weapon visible in its
-// own slot (the rifle centred on the back, the pistol on the right thigh), long guns vertical on the back (within
-// 10 deg of the spine, muzzle up) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
+// own slot (the rifle centred on the back, the pistol on the right thigh), long guns on the back within 10 deg of their
+// slot's axis (the side slots vertical, muzzle up; (CT prototype G2, AUDIT-AIM row 3) the centre gun slung DIAGONALLY,
+// stock at the right shoulder blade, muzzle down to the left hip, as CT 053525 / 053709) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
 // body, with and without a backpack, both avatar styles), the hands on the grip points (within 2 cm) for
 // every weapon, the swap reaching to the right slot, grenade pouches, and the draw-call budget.
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
@@ -52,15 +53,22 @@ const install = () => {
       const w = g.weapons;
       return w.slots.map((s, i) => ({ id: s.def.id, slot: w.carrySlots[i], model: s.model })).filter((e) => e.model.slot !== null);
     },
-    /** Angle (deg) between a back weapon's bore and the chest's up axis, and the bore's world up component. */
+    /**
+     * Angle (deg) between a back weapon's bore and its slot's axis in the chest frame, and how upright the slot axis is
+     * kept in the world (1 = as on an upright chest): the side slots' axis is the chest's up (muzzle up), the centre's the
+     * diagonal sling (G2: src/weapons/backDiag.ts, BACK_DIAG.angle 0.66 rad from straight down, toward the left).
+     */
     backAngles() {
       const torsoUp = p.rig.torso.getDirection(up);
+      const diag = p.rig.torso.getDirection(new V(-Math.sin(0.66), -Math.cos(0.66), 0));
       const out = [];
       for (const e of window.__w.carried()) {
         if (!e.slot.startsWith('back')) continue;
         e.model.node.computeWorldMatrix(true);
         const bore = e.model.node.getDirection(fwd);
-        out.push({ id: e.id, deg: (Math.acos(Math.min(1, Math.max(-1, bore.x * torsoUp.x + bore.y * torsoUp.y + bore.z * torsoUp.z))) * 180) / Math.PI, upY: bore.y });
+        const ax = e.slot === 'backC' ? diag : torsoUp;
+        const upY = e.slot === 'backC' ? -bore.y / Math.cos(0.66) : bore.y;
+        out.push({ id: e.id, deg: (Math.acos(Math.min(1, Math.max(-1, bore.x * ax.x + bore.y * ax.y + bore.z * ax.z))) * 180) / Math.PI, upY });
       }
       return out;
     },
@@ -106,7 +114,7 @@ try {
     assert(r.visible && r.held, `every weapon visible: holstered (not aiming), all carried in their slots (${r.parents.join(' ')})`);
     assert(r.pouches >= 1, `grenade pouches on the belt (${r.pouches})`);
 
-    console.log('back carry: vertical, muzzle up, within 10 deg of the spine');
+    console.log('back carry: on the slot axis (side slots vertical muzzle up, the centre diagonal muzzle down-left), within 10 deg');
     const stances = [
       ['idle', {}],
       ['walk', { y: 0.5 }],
@@ -137,7 +145,7 @@ try {
       }, inp);
       // crouched the operative is bent over the knees, so the back guns lean forward with the spine
       const upMin = name === 'crouch walk' ? 0.35 : 0.7;
-      assert(r.worst <= 10 && r.minUp > upMin, `${name}: back guns within ${f2(r.worst)} deg of the spine, muzzle up (bore up ${f2(r.minUp)} > ${upMin})`);
+      assert(r.worst <= 10 && r.minUp > upMin, `${name}: back guns within ${f2(r.worst)} deg of their slot axis, kept upright (${f2(r.minUp)} > ${upMin})`);
       assert(r.clips.length === 0, `${name}: nothing clips (${r.clips.join(', ') || 'none'})`);
     }
 
@@ -273,7 +281,7 @@ try {
       return { worst, clips, style: p.rig.style, gear: p.rig.backGear };
     }, inp);
     assert(r.style === 'detailed' && r.gear > 0.15, `detailed avatar with a backpack (back gear ${f2(r.gear)} m)`);
-    assert(r.worst <= 10 && r.clips.length === 0, `detailed + backpack, ${name}: back guns vertical (${f2(r.worst)} deg), nothing clips (${r.clips.join(', ') || 'none'})`);
+    assert(r.worst <= 10 && r.clips.length === 0, `detailed + backpack, ${name}: back guns on their slot axis (${f2(r.worst)} deg), nothing clips (${r.clips.join(', ') || 'none'})`);
   }
 } catch (e) {
   failed = true;

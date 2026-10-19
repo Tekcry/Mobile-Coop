@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * (P1c) Standing idle is upright with the hands hanging below the hips (holstered); crouch idle holds a two-foot
- * squat (no kneel: the footage has none).
+ * squat; (F3) still for a moment it kneels (Michael, playtest 2).
  */
 async function setup() {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -43,14 +43,21 @@ describe('idle posture (P1c)', () => {
     expect(deg).toBeLessThan(10);
     for (const w of [rig.wristL, rig.wristR]) expect(w.getAbsolutePosition().y).toBeLessThan(hipY);
   });
-  it('crouch idle with kneel requested: both feet planted, no knee on the ground', async () => {
+  it('(F3) crouch idle kneels like CT: the right knee down, the left foot planted, the back upright', async () => {
     const rig = await setup();
     settle(rig, idle(1, true), 3);
     const deg = torsoPitch(rig);
-    const ky = [rig.kneeL.getAbsolutePosition().y, rig.kneeR.getAbsolutePosition().y];
-    const ay = [rig.ankleL.getAbsolutePosition().y, rig.ankleR.getAbsolutePosition().y];
-    for (const y of ky) expect(y).toBeGreaterThan(0.25);
-    for (const y of ay) expect(y).toBeLessThan(0.2);
+    expect(rig.kneeR.getAbsolutePosition().y).toBeLessThan(0.15);
+    expect(rig.kneeL.getAbsolutePosition().y).toBeGreaterThan(0.25);
+    expect(rig.ankleL.getAbsolutePosition().y).toBeLessThan(0.2);
+    expect(deg).toBeGreaterThanOrEqual(0);
+    expect(deg).toBeLessThanOrEqual(20);
+  });
+  it('(F3) crouch without the kneel (moving / just stopped) keeps both feet planted and the crouch lean', async () => {
+    const rig = await setup();
+    settle(rig, idle(1, false), 3);
+    const deg = torsoPitch(rig);
+    for (const y of [rig.kneeL.getAbsolutePosition().y, rig.kneeR.getAbsolutePosition().y]) expect(y).toBeGreaterThan(0.25);
     expect(deg).toBeGreaterThanOrEqual(35);
     expect(deg).toBeLessThanOrEqual(45);
   });

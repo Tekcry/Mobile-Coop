@@ -10,7 +10,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   the CT co-op research. No attachment mode, disruptor or knife exists in code; the rifle keeps the legacy progression
   attachments (red dot, 4x scope, suppressor, compensator, grip, laser, magazines).
 - Decided, not built yet (G103): CT draw timings, about 0.6 s (pistol) and 0.75 s (rifle) to raise, 0.5-0.6 s to lower.
-  Code: 0.3 / 0.4 s draw, 0.4 s holster.
+  Code: (CT prototype G2, footage wins, AUDIT-AIM rows 1 / 2 / 7) rifle 0.3 s draw with the raise running from the press
+  (about 0.55 s to settled, muzzle up at the shoulder, no chest hold), pistol 0.5 s, holster 0.15 s (CT instant), carry
+  lower 0.2 s. Recoil (row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no shot shake).
 - Decided, not built yet (G104): normal aiming has no zoom; the marksman (sniper) attachment's scope has hold breath.
 - Decided, not built yet (G105): loadouts are Stealth / Assault / Recommended. Code: Silent / Flash / Loud.
 - Decided (G16): no aim assist (code still has pad aim assist, `docs/systems/movement.md`).

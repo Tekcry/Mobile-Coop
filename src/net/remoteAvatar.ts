@@ -1,5 +1,7 @@
 import { crackedHandle } from '../world/doorPeek';
 import { DOOR } from '../world/doors';
+import { KNEEL_STILL } from '../player/playerController';
+import { tenseNear } from '../player/tenseSneak';
 import { WALL, WALL_LOOK, WALL_SUB, WALL_TURN_RATE, wallHandPoint, wallPoint, wallRootPush } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { Vector3 } from '../core/babylon';
@@ -22,7 +24,7 @@ import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { RAPPEL } from '../config/movement';
-import { attachGripWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { clearGripAxis } from '../player/attachGrips';
@@ -57,6 +59,11 @@ export class RemoteAvatar {
   private aim = 0;
   private prev = new Vector3();
   private speed = 0;
+  /** (F3) Crouched and still (s): the owner's kneel (its controller: crouched and still for `KNEEL_STILL` s). */
+  private kneelT = 0;
+  /** (G1, audit row 18) Landing recovery (s) from the fall the snapshots show, as the owner's controller times it. */
+  private landT = 0;
+  private airTop = Number.NaN;
   private tmpA = new Vector3();
   private tmpB = new Vector3();
   private placed = false;
@@ -245,7 +252,7 @@ export class RemoteAvatar {
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
-    // of the 0.4 s holster, so the remote stows within 0.6 s of the release)
+    // of the holster, HOLSTER_TIME 0.15 s since CT prototype G2, so the remote stows within ~0.3 s of the release)
     this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
@@ -339,7 +346,10 @@ export class RemoteAvatar {
       const follow = !!mv!.gp && this.stillT > 0.25 && !mv!.gp.some((g) => Number.isNaN(g));
       if (follow) this.grips.settleTo(mv!.gp!);
       // (following the owner's grips the remote makes no stepping decisions of its own)
-      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph), this.rig, vent, !follow);
+      // (ct-prototype E2) a climb-up holds the hands until the knee is on, the feet leave a drainpipe first
+      const pullUp = sub.exit === 'climbUp' && (a.kind === 'ledge' || a.kind === 'pipeV');
+      this.grips.footW = climbUpFootWeight(pullUp && sub.phase === 'exit', mv!.ph);
+      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph, a.kind === 'duct' && sub.phase === 'exit' && sub.exit === 'none' ? 'crawlOut' : pullUp), this.rig, vent, !follow);
       // (G176) the rendered body sits off the gameplay root by its height's lift (visual only)
       r.position.x += this.grips.lift.x;
       r.position.y += this.grips.lift.y;
@@ -360,8 +370,24 @@ export class RemoteAvatar {
     const inv = moved > 1e-4 ? 1 / moved : 0;
     // hanging inverted (tumbled over): the spine aims mirrored, the raised weapon along the view in world space
     const upside = mp.tumble > 2;
+    // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
+    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && mv?.m === 'ground' ? this.kneelT + dt : 0;
+    // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
+    const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
+    // (G1, audit row 18) the landing clip from the fall the snapshots show (the owner's controller: recovery from 3 m/s)
+    const onGround = (f & PF.grounded) !== 0 || mp.traverse !== 'none';
+    if (!onGround) this.airTop = Number.isNaN(this.airTop) ? this.pos.y : Math.max(this.airTop, this.pos.y);
+    else if (!Number.isNaN(this.airTop)) {
+      const v = Math.sqrt(Math.max(0, 2 * 18 * (this.airTop - this.pos.y)));
+      if (v > 3) this.landT = Math.min(0.7, 0.15 + (v - 3) * 0.08);
+      this.airTop = Number.NaN;
+    }
+    this.landT = Math.max(0, this.landT - dt);
     this.rig.animate(dt, {
       speed: this.speed,
+      kneel: this.kneelT > KNEEL_STILL && !tense,
+      tense,
+      landing: Math.min(1, this.landT * 2),
       localX: (lx * cy - lz * sy) * inv,
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
