@@ -69,3 +69,17 @@ Michael: "climbing up over ledge looks strange, floats over instead of climbing 
 ## Report
 `docs/ct-prototype/DE-ANIM.md`: per note, what changed, numbers, files, before / after sheets, what is still off, what
 Michael should try on /ct/.
+
+## D2b Hang shimmy at 0.7 m/s (follow-up, 2026-10-19)
+Michael (via the orchestrator): slow the hang shimmy to about 0.7 m/s so the hands step slower and wider.
+- Ledge shimmy speed 1.2 -> about 0.7 m/s (`attach.ts` ~73). Grep `scripts/` and `tests/` for assertions on the
+  speed (e2e-traverse shimmy timings, tests/gripStepper.test.ts "shimmy at 1.2 m/s", tests/attach.test.ts) and update
+  them from the game's table, not a new literal.
+- Then the hands D2 could not reach: about 2 reaches a second, one hand at a time, wider (offsets about +-0.28-0.30,
+  slack 0.22-0.26, swing 0.28-0.32 s), keeping the 9 cm lift and 8 cm arc.
+- e2e-traverse "shimmy: hands reach their grips" (3.3 cm against 3 cm, pre-existing) is ours: fix the grip reach, or
+  justify a new limit in the report with numbers (what the palm misses by, why, and that it reads right on a sheet).
+- Co-op: speed and hands come from shared code; no wire change expected (if one is needed: Sector Ops took protocol 24,
+  whoever merges second takes the next).
+- Tests: `npm run check`; solo e2e-traverse, e2e-clip, e2e-ctcourse, e2e-netmove, e2e-coop. Sheets: hang-shimmy-dense
+  after the grab into `shots/de/traverse/`. Report: a "D2b" section in `DE-ANIM.md`.
