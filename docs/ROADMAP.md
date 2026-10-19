@@ -43,7 +43,9 @@ Last updated: 2026-10-19 12:40 Sydney.
    cuts only after Michael approves. Every e2e suite with its time and what it covers for the training level (keep /
    merge / legacy / fix; e2e-coop and e2e-netmove must stop being "known flaky"); one test tier per kind of change;
    one set of session and prompting rules (CLAUDE.md, session-method, orchestrator, per-job STATE); stale docs
-   archived. Opus, High; about half a day.
+   archived. Opus, High; about half a day. Flaky suites (Michael, 2026-10-19): the audit finds each cause; then a fix
+   job on the desktop makes e2e-coop, e2e-netmove and e2e-ctcourse reliable (all three fail alone on master bd59f32);
+   flaky or failing suites outside the training level move to the legacy run instead of being fixed.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
