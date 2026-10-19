@@ -10,22 +10,16 @@
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
+import { until, setSimPages } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = false;
 
-async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  // (G13) polled from here: on a desktop context the in-page polling of waitForFunction stops on a page in the
-  // background (another page in front), so a condition that holds there was never seen
-  const t0 = Date.now();
-  for (;;) {
-    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
-    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
+// (co-op test fix) `until` is e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks in a match. The
+// fixed pauses (`wait`) stay wall time here: the suite passes, and its latency checks are measured in wall time.
 
+// (the default window: the lobby is clicked; the menus need 1280 x 720 of layout, see e2e-coop)
 const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
 let B = null;
 let eB = [];
@@ -99,6 +93,7 @@ try {
   const opened = await openPage(ctx, url, 'net=local');
   B = opened.page;
   eB = opened.errors;
+  setSimPages([A, B]);
   await B.click('.main-menu .btn:has-text("Co-op")');
   await B.click('.btn:has-text("Join with code")');
   await B.keyboard.type(code.toLowerCase());
