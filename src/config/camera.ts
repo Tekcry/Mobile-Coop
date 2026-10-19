@@ -93,7 +93,8 @@ export function framing(ads: number, crouch: number, C = CAMERA): { boom: number
   return {
     boom: C.boomHip + (C.boomAds - C.boomHip) * ads,
     shoulder: C.shoulderHip + (C.shoulderAds - C.shoulderHip) * ads,
-    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch - C.aimEyeDrop * ads,
+    // (BC note 1) CT's aim view does not change when crouched: the crouch share of the pivot fades out with the aim
+    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch * (1 - ads) - C.aimEyeDrop * ads,
   };
 }
 

@@ -289,13 +289,21 @@ export function pickLower(i: AnimInput): LowerState {
  * the sight line level with the eye, beside the head (stock high in the shoulder, elbows up); the head dips onto the stock
  * (`SIGHT_HEAD` pitch, roll toward the gun). Scaled by the aim raise.
  */
-export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: 0.02 };
+export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: -0.05 };
+/**
+ * (BC note 2) Raised, the aim is carried by the chest: the spine chain takes this share of the aim pitch (rad per rad) and
+ * of the aim yaw on top of its usual share, so head, shoulders, arms and weapon stay one block and the wrists stay near
+ * neutral (the weapon was turning at the wrists only). Starting values (G10).
+ */
+export const AIM_CHEST = { pitch: 0.75, yaw: 0.3 };
+/** (BC note 2) Raised, the elbow pole tucks in: share of the usual outward elbow swing that is removed at a full raise. */
+export const AIM_ELBOW_TUCK = 0.6;
 /**
  * (feature/weapons) A sidearm raised to the eye goes out to nearly arm's length in front of the face (CT's pistol aim:
  * two hands, arms out; Michael's reference shots), not into the rifle's cheek weld: added to SIGHT_RAISE by the
  * weapon's lightness (mass factor 0.7 pistol: all of it; 0.85 and heavier: none).
  */
-export const PISTOL_REACH = { x: -0.05, y: 0.015, z: 0.22 };
+export const PISTOL_REACH = { x: -0.07, y: 0.015, z: 0.1 };
 export const SIGHT_HEAD = { roll: 0.15 };
 
 /**
@@ -820,12 +828,12 @@ export class AnimGraph {
     // (footage 35-45), the run leans ~23 deg; lowered only (a raised weapon keeps its platform), off a wall or a traversal
     // (eased: a one-frame grounded flicker as the capsule stands up popped the spine 0.23 rad)
     const postureLean = this.leanS;
-    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
+    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * (0.45 * 0.35 + raise * (AIM_CHEST.pitch - 0.45 * 0.35)) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
     // (21w, PC-PASS 42) continuous through the open-side hand switch (the sign flipped the chest, head and sight roll
     // in one frame at the half-way point)
     const handS = clamp(i.hand, -1, 1);
-    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0);
+    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * (0.6 + raise * AIM_CHEST.yaw) + raise * 0.2 * handS * (i.armed ? 1 : 0);
     src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
@@ -899,7 +907,7 @@ export class AnimGraph {
     // (the open-ground carries only: the wall tuck has its own pose)
     const bendK = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * ready * nw;
     src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
-    src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.16;
+    src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.08;
     src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
     // recoil absorbed through the shoulder and spine
     src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
@@ -1151,7 +1159,10 @@ export class AnimGraph {
     o.handR.y = q[CH.hRY]! * k;
     o.handR.z = q[CH.hRZ]! * k;
     // stance: shoulder-width tactical stance, support (left) foot slightly forward
-    const half = this.p.hipHalf * 1.2 * q[CH.width]!;
+    // (BC note 4) on foot the feet stay under the hips (inside the body width): the clips' width scale only widens the stance
+    // a quarter as much, capped at 1.1 hip half-widths (it was 1.2 x width: up to 1.6 crouched). Traversals keep their own width.
+    const wd = q[CH.width]!;
+    const half = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
     const st = o.stance;
     st.lX = (-half + q[CH.fLX]!) * k;
     st.lZ = (0.05 + q[CH.fLZ]!) * k;

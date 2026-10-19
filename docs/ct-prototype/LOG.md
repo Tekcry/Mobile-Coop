@@ -277,3 +277,13 @@ One section per step: built, numbers, Michael's notes (verbatim), open items, st
   becomes the shoulder and the last swap is saved for the next mission, swap flick +13 -> +4 cm, wall reach 0.5 m,
   footsteps follow the noise radius. Walking bob not fixed (rig pelvisDrop): moved to B+C. Check green; smoke, move,
   wall, pad, foley pass; e2e-ctcourse stations 1-6 pass, 600 s cap at station 7. Report `A-PLAYTEST2.md`.
+
+## 2026-10-19 scanner rule
+- A partner who never started: both reset at no cost ('alone'); late or abandoned still 10 HP (fd963a1c).
+
+## 2026-10-19 slices B+C (playtest 2 animation)
+- ADS camera the same standing and crouched (crouch pivot faded out with the aim); chest carries 0.75 of aim pitch,
+  more yaw; stock closer, elbows tucked; pistol reach pulled in; stance half-width capped at 1.1 hip half-widths;
+  crouched armed push-out halved; pelvis drop released slower while walking (bob). Partly judged: chest pitch spread,
+  legs in turns, crouch vs CT footage. turnFollow landing limit loosened -0.35 -> -0.5 (prototype: revisit).
+  Independent check: no blockers. Check green; smoke, anim, move, weapons-carry, pad, ctcourse pass. Report `BC-ANIM.md`.

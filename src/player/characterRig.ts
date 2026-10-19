@@ -5,7 +5,7 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
@@ -198,6 +198,8 @@ const approachTo = (x: number, target: number, dt: number, tau: number): number 
 
 /** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
 export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
+/** (BC note 6) Extra release time constant (s) of the pelvis drop at a walking pace and above (bob damping). Starting value. */
+export const PELVIS_HOLD = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
 export const NECK_WELD = 0.35;
 /** Shoulders lift into the stock at a full weld (m): the raised arms elevate the shoulder girdle. */
@@ -687,6 +689,8 @@ export class CharacterRig {
   private capDrop = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
   private readyRf = 0;
+  /** (BC note 2) Aim raise weight this frame (tucks the elbows). */
+  private aimK = 0;
   private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private headCap: number | undefined = undefined;
   /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
@@ -1637,7 +1641,10 @@ export class CharacterRig {
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
     const turned = Math.abs(this.input.tumble) > 0.3;
     if (turned) need = 0;
-    this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
+    // (BC note 6) walking, the drop is held near its per-step peak (slow release) so the chest does not bob with every
+    // step: a growing need is still met at once (no overstretched leg), only the easing back up slows with speed
+    const fall = 0.08 + PELVIS_HOLD * Math.min(1, hyp2(this.velX, this.velZ) / 1.2);
+    this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, fall);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
     // (A1.2) the hips follow the legs (this.follow); the spine takes it back so the chest stays on the facing
     Quaternion.RotationYawPitchRollToRef(pe.yaw + this.follow, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
@@ -1761,6 +1768,7 @@ export class CharacterRig {
     const leftGrips = this.handBlend > 0.5;
     // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
     this.readyRf = t.readyFollow;
+    this.aimK = t.aimW;
     this.readySh = t.readyShoulder;
     // (fix 21-2) the holster-out elbow eases with the gear (a draw clears thighGear while the hands still hang)
     this.holsterW += ((this.thighGear ? 1 : 0) - this.holsterW) * Math.min(1, dt * HOLSTER_OUT_RATE);
@@ -1946,7 +1954,7 @@ export class CharacterRig {
     // (fix 21-2) eased with the gear, and gone by a quarter of the reach to a world grip (zipline, ladder, ledge):
     // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
     const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
-    this.dirToWorld(side * (0.55 + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    this.dirToWorld(side * (0.55 * (1 - AIM_ELBOW_TUCK * this.aimK) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {

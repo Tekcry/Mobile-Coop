@@ -156,6 +156,8 @@ describe('camera framing', () => {
     expect(ads.shoulder).toBeCloseTo(0.42);
     expect(ads.pivot).toBeLessThan(hip.pivot);
     expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
+    // (BC note 1) the aim view is the same crouched and standing
+    expect(framing(1, 1)).toEqual(framing(1, 0));
     expect(CAMERA.fov).toBe(75);
   });
 });
