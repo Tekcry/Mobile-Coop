@@ -1,23 +1,16 @@
 # Menu notes - state
 
-## Now (2026-10-19 23:55, PR #27 open, branch frozen for the orchestrator's merge)
-PR https://github.com/Tekcry/Mobile-Coop/pull/27 "menu-notes: Michael's walk-test menu notes" is open. Laptop runner on
-4ae2d2f2: `npm run check` PASS (66 s, 1810 unit tests); full `npm run e2e` PASS, all 31 suites ok, 1388 s (E2E_JOBS=1,
-E2E_SUITE_TIMEOUT=900). After 4ae2d2f2: master 4.7.4 / 4.7.5 merged in (CHANGELOG conflict only; master's changes are
-docs and tests/lightField.test.ts) and this STATE. The orchestrator reviews, adds the 4.8.0 version commit and merges:
-no pushes to feature/menu-notes until it says the PR is merged.
+## Now (2026-10-20 00:00, job done; merged as 4.8.0)
+PR #27 merged as 4.8.0 (e67ebd73, tag v4.8.0). Laptop runner on 4ae2d2f2: `npm run check` PASS (1810 unit tests); full
+`npm run e2e` PASS, all 31 suites ok, 1388 s (E2E_JOBS=1, E2E_SUITE_TIMEOUT=900).
 
-History: c626147a's full run (600 s cap) failed only on load and the cap; solo reruns passed (git log of this file).
+Boot-time check (orchestrator ask, desktop, software GL, port 4191, `scripts/menu-boot-time.mjs 5`, 2026-10-19 23:55):
+boot to the main menu takes 0.71-1.29 s (median 0.78 s) on v4.7.5 (no gate) and 1.61-1.99 s (median 1.72 s) on
+v4.8.0 (gate "ready", hero lod2 under automation). The gate adds about 0.9 s per menu page; match boots
+(`?autostart`) skip it. Well under "a few seconds": the e2e helpers keep their condition waits, no follow-up change.
 
 ## Next
-1. After the orchestrator says #27 is merged: the boot-time check (orchestrator ask) on a new follow-up branch from
-   master, when the desktop heavy.lock is free (CT Core first). The slice 2 gate holds the menu until the hero, weapons
-   and shaders are ready. Measure boot-to-menu under software GL on master (with the gate) and at v4.7.5 (before it)
-   with `E2E_PORT=4191 node scripts/menu-boot-time.mjs 3`, serving each dist/ on 4191 in turn. If the gate adds more
-   than a few seconds per page, make the e2e helpers wait on `window.__app.current.bootGate` instead of a fixed time
-   (a follow-up PR, not a blocker).
-2. Clean-up: `git worktree remove --force C:/NightShift/Mobile-Coop-menu-notes-shots` (scratch worktree for GPU shots;
-   remove its node_modules junction first with `cmd /c rmdir` so the real node_modules is not touched). Then STOP.
+Nothing. The scratch worktree `C:/NightShift/Mobile-Coop-menu-notes-shots` is removed. STOP.
 
 ## Open
 - Slice 3 visuals not yet seen (GPU pending): W1 / W2 framing, H2-H4 pistol vs plate (one-word switch in menuSets.ts),
@@ -31,6 +24,7 @@ History: c626147a's full run (600 s cap) failed only on load and the cap; solo r
 - A hold change between void shots glides (0.1-0.45 s) during the crossfade; snap on a shot change if it shows.
 
 ## Done
+- 2026-10-20: boot-time check: the gate adds about 0.9 s per menu page (no change); scratch worktree removed.
 - 2026-10-19: master 4.7.3-4.7.5 merged; orchestrator CT Core items (4ae2d2f2: no Default shoulder row, Controls lists the CT trigger and mouse verbs; player.ts still reads defaultShoulder, left to CT Core); laptop check + full e2e PASS on 4ae2d2f2; PR #27 opened.
 - 2026-10-19: slice 4b (8 tactical candidates, sheet), Michael picked X5 (M4); slice 4c (M3: flicker in full darkness before the menu, skip A3; checker fix: Enter leak after a mouse start); slice 4d (X5 live as W3, candidates removed, green spill light removed = the forehead glow, menu-only). GPU sheet sheet-s4cd.png.
 - 2026-10-19: master 4.7.0 merged (44a0cb82).
