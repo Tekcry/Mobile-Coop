@@ -34,9 +34,9 @@ Last updated: 2026-10-19 16:30 Sydney.
 ## Now
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge #18 (4.6.6) and the test-runner rule (4.6.7); CT Core D + E |
+| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | CT Core D + E (first priority); Sector Ops slice 2 on spare capacity |
 | CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
-| Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 e2e-menus slider fix done (PR open). Between requests: give the unit tests that time out under load (posture, rig, lightField, netSim and others) their own timeouts | Next runner request |
+| Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 merged (4.6.6). Between requests: give the unit tests that time out under load (posture, rig, lightField, netSim and others) their own timeouts | Next runner request |
 | Sector Ops Build | desktop | `feature/sector-ops` | Low priority, spare capacity only. Slice 2: 3 Warehouse sections (M7, A12, M8: multiple routes, room to isolate guards) | Slice 2 on a preview |
 
 ## Next (in order)
@@ -73,6 +73,8 @@ Last updated: 2026-10-19 16:30 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #19 | 4.6.7: the laptop is the test runner; co-op training first, Sector Ops on spare capacity |
+| 2026-10-19 | #18 | 4.6.6: e2e-menus slider check waits on the condition (no game change) |
 | 2026-10-19 | #17 | 4.6.5: co-op test fix (coop, netmove, ctcourse reliable; only e2e-pad flaky) |
 | 2026-10-19 | #15 | 4.6.3: process audit (one rules file, test tiers, full e2e 62 -> 26 min) |
 | 2026-10-19 | #14 | 4.6.2: version numbers follow the merges (G183), the in-game label shows the commit |
