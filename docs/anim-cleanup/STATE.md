@@ -8,3 +8,6 @@
 - CT Core's P1b merged (2b67c57): back-gun crouch check passes; crouch and wall re-shot.
 - Open: audit rappel / fence / split jump / vault / duct (shot
   set-ups); slice 5 transitions; full e2e; PR after PR #7 and feature/ct-prototype merge (A1).
+- Now (2026-10-19): merged master (PR #9, #10); check passes; merge check PASS; PR body in PR-BODY.md. Michael: no heavy
+  runs on the laptop, so the orchestrator runs the full e2e on the desktop, then opens and merges the PR. Light fixes only
+  here if traverse or netmove fail there.
