@@ -23,15 +23,15 @@ e2e-pad only now).
 ## Sessions (all report to "Night Shift | Orchestrator"; every session was cleared once at 16:00)
 | Session | Where | Address | Job now |
 | --- | --- | --- | --- |
-| CT Core Build | desktop, C:NightShiftMobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | Master 4.6.4 merged (2b8179af); check + quick + ctcourse, then slices D + E (holstering, hanging shimmy, pipe climb, ledge climb-up). /ct/ = 87514ed1 (B + C). The scanner rule (fd963a1c) goes out with its next push. |
+| CT Core Build | desktop, C:NightShiftMobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | Master 4.6.4 merge pushed (2b8179af, check green); slices D + E running (docs/ct-prototype/DE-BRIEF.md: holster hand, shimmy hands, drainpipe knee flip, ledge climb-up via a knee plant). /ct/ stays on 87514ed1 (B + C, label v4.0.0) until D + E (Michael, 16:05). It owns the e2e-ctcourse station 2 ledge-hang failure (under 4-at-a-time load; solo rerun in the D + E run). |
 | Sector Ops Build | desktop, C:NightShiftMobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Slice 2 for 3 sections (M7), PLAN.md section 5 build order; slices 1 (menus) and 3 (lobby) done on the branch |
 | Character Build | laptop (second heavy slot), C:/NightShift/Mobile-Coop-coop-tests | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (new after the clear; delivery confirmed 16:00) | e2e-menus slider fix (Michael chose it 16:00): branch feature/menus-slider, folder C:/NightShift/Mobile-Coop-menus-slider, docs/menus-slider/. PR to master as a patch. |
 
 Known clashes to handle at merge time:
 - Sector Ops' lobby hides Infiltration, which e2e-coop's match (A1, coop-tests) uses. When Sector Ops merges, e2e-coop
   moves to Sector Ops or Course.
-- e2e-menus' slider hold-repeat check fails under load (2 of 3 on the desktop; it passes alone). It's a candidate for
-  KNOWN_FLAKY or a sim-time wait.
+- e2e-menus' slider hold-repeat check fails under load (2 of 3 on the desktop; it passes alone; CT Core's
+  quick run too). Being fixed on feature/menus-slider (Character Build).
 
 ## Waiting on Michael
 - Approve Sector Ops' RESEARCH.md + PLAN.md (when sent).
