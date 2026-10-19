@@ -3,7 +3,7 @@
 The one place that says what is happening, what comes next and what waits on Michael. Owned by the orchestrator
 session ("Night Shift | Orchestrator"): it is the only session that edits this file. Every other session reports to the
 orchestrator when it starts, finishes a slice, opens a PR or gets stuck; the orchestrator updates this file and merges.
-Machines (Michael, 2026-10-19): every CPU or GPU heavy task (e2e, full test runs, builds in loops, GPU shots, Blender, heavy subagents) runs on the desktop, where the orchestrator and CT Core run. The laptop session (Character Build) does light work only: docs, planning, small edits.
+Machines (Michael, 2026-10-19): every CPU or GPU heavy task (e2e, full test runs, builds in loops, GPU shots, Blender, heavy subagents) runs on the desktop, where the orchestrator and CT Core run. The laptop session (Character Build) does light work only: docs, planning, small edits. One heavy job at a time on the desktop (lock file C:NightShiftheavy.lock); the orchestrator sets the order.
 Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic
