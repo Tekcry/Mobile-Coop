@@ -398,7 +398,7 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  for (let i = 0; i < 4; i++) await press(page, BTN.DOWN);
+  for (let i = 0; i < 3; i++) await press(page, BTN.DOWN); // Resume, Objectives, Settings, Report feedback (menu-notes A2: no Controls item)
   assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
