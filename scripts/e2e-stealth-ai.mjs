@@ -820,7 +820,7 @@ try {
         t.step(0.3);
         g.player.controller.clearCrouchToggle();
         const yaw = Math.atan2(-s.nx, -s.nz);
-        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.75, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.75), yaw);
         g.player.cam.yaw = yaw;
         g.player.cam.pitch = 0;
         t.step(0.3);

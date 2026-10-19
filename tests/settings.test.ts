@@ -152,3 +152,60 @@ describe('settings: an old record with a touch section (touch input removed)', (
     expect(st.get().audio.music).toBe(0.25);
   });
 });
+
+describe('settings: the A3 D-pad layout (F7, playtest 2 "D pad left and right is speed?")', () => {
+  /** The pad binds as an A3 build stored them (speed on D-pad left / right, vision up, gadget down; no `padV`). */
+  const A3_SAVE = {
+    gamepad: { lookSensitivityX: 1, lookSensitivityY: 1, adsMultiplier: 0.3, deadzoneLeft: 0.15, deadzoneRight: 0.12, triggerDeadzone: 0.08, curve: 'classic', invertY: false, aimAssist: 'standard', vibration: true },
+    pad: { interact: [0], crouch: [1], jump: [3], reload: [2], wall: [10], coop: [5], quick: [4], shoulder: [11], vision: [12], throwCam: [13], gearDown: [14], gearUp: [15], device: [8], pause: [9] },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1 },
+  };
+  it('moves the speed to D-pad up / down, vision to left and the gadget to right; padV 2', () => {
+    const s = sanitizeSettings(structuredClone(A3_SAVE));
+    expect(s.pad.gearUp).toEqual([PAD.UP]);
+    expect(s.pad.gearDown).toEqual([PAD.DOWN]);
+    expect(s.pad.vision).toEqual([PAD.LEFT]);
+    expect(s.pad.throwCam).toEqual([PAD.RIGHT]);
+    expect(s.pad.crouch).toEqual([PAD.B]);
+    expect(s.padV).toBe(2);
+  });
+  it('keeps a verb the player remapped, and never migrates a padV 2 save again', () => {
+    const custom = sanitizeSettings({ ...structuredClone(A3_SAVE), pad: { ...A3_SAVE.pad, gearUp: [PAD.RB] } });
+    expect(custom.pad.gearUp).toEqual([PAD.RB]);
+    expect(custom.pad.gearDown).toEqual([PAD.DOWN]);
+    const chosen = sanitizeSettings({ ...structuredClone(A3_SAVE), padV: 2 });
+    expect(chosen.pad.gearDown).toEqual([PAD.LEFT]);
+    expect(chosen.pad.gearUp).toEqual([PAD.RIGHT]);
+  });
+});
+
+describe('settings: the CT camera defaults (G3, camV 1)', () => {
+  /** Settings as stored before G3: the old defaults FOV 75 and pad vertical look 0.8, no `camV`. */
+  const PRE_G3 = {
+    gamepad: { lookSensitivityX: 1, lookSensitivityY: 0.8, adsMultiplier: 0.3, deadzoneLeft: 0.15, deadzoneRight: 0.12, triggerDeadzone: 0.08, curve: 'classic', invertY: false, aimAssist: 'standard', vibration: true },
+    padV: 2,
+    video: { preset: 'epic', auto: true, renderScale: 1, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto' },
+  };
+  it('new defaults: FOV 86 (Michael "Match CT (86)"), pad vertical look 1.0', () => {
+    const d = defaultSettings();
+    expect(d.video.fovH).toBe(86);
+    expect(d.gamepad.lookSensitivityY).toBe(1);
+    expect(d.camV).toBe(1);
+  });
+  it('an old save on the old defaults moves to the new ones once', () => {
+    const s = sanitizeSettings(structuredClone(PRE_G3));
+    expect(s.video.fovH).toBe(86);
+    expect(s.gamepad.lookSensitivityY).toBe(1);
+    expect(s.camV).toBe(1);
+    // migrated settings stay put on the next load
+    expect(sanitizeSettings(structuredClone(s)).video.fovH).toBe(86);
+  });
+  it('a value the player chose stays, and a camV 1 save is never migrated again', () => {
+    const chosen = sanitizeSettings({ ...structuredClone(PRE_G3), video: { ...PRE_G3.video, fovH: 90 }, gamepad: { ...PRE_G3.gamepad, lookSensitivityY: 1.3 } });
+    expect(chosen.video.fovH).toBe(90);
+    expect(chosen.gamepad.lookSensitivityY).toBe(1.3);
+    const later = sanitizeSettings({ ...structuredClone(PRE_G3), camV: 1 });
+    expect(later.video.fovH).toBe(75);
+    expect(later.gamepad.lookSensitivityY).toBe(0.8);
+  });
+});

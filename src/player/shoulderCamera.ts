@@ -1,12 +1,13 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, PhysicsShapeSphere, Quaternion, ShapeCastResult, Vector3, type HavokPlugin, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { ATTACH_FRAMING, attachFraming, CAMERA, framing, WALL_CAMERA, type AttachCamera, type AttachFraming } from '../config/camera';
+import { ATTACH_FRAMING, attachFraming, CAMERA, framing, peekEase, WALL_CAMERA, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
 import { DOOR_PEEK, clampPeekYaw } from '../world/doorPeek';
 import { vfovFor } from '../core/display';
 import { castStop, easeRate, lowFraming, lowSwing, lowWeight, nearPlane, pivotFraction } from './cameraBounds';
+import { probeOpen } from '../world/camSpaces';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -33,7 +34,7 @@ export const CAMERA_TUNING = {
 /**
  * Chaos Theory style third-person camera (CT prototype A2.1). Gameplay sets the look angles (`yaw`, `pitch`); the rendered view
  * is exactly where they point (no look lag, no drift). The position is RIGID: the pivot is the character's head (capsule height,
- * G38) on its own axis, the camera a fixed offset from it (boom 1.8 m, 0.15 m to the shoulder side), aimed at the pivot. There is
+ * G38) on its own axis, the camera a fixed offset from it (boom 1.8 m tight, 2.8 m open (G3), 0.15 m to the shoulder side), aimed at the pivot. There is
  * no follow spring, look-ahead, pace boom, bob, swing toward travel or auto recentre: the camera moves only when the player
  * moves the stick or mouse. Only the feet's HEIGHT is low-passed (stairs). Aiming moves the camera in to the firing shoulder
  * over about 0.6 s (linear in, fast out) with NO zoom (G29); the shoulder swap works only while aiming and arcs back through a
@@ -69,9 +70,20 @@ export class ShoulderCamera {
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
   attach: AttachCamera | null = null;
-  /** (step 11) Back to a wall: the open side (1 right, -1 left, 0 none); the shoulder follows it in the `wall` preset. */
-  wallSide = 0;
-  /** (step 12) Back to a wall at an edge: peek / lean-out targets (0..1) and the direction past the edge (unit XZ). */
+  /** (G3) The map's camera space at the feet (`world/camSpaces.ts`): 1 open, 0 tight, NaN = no data (the probes decide). */
+  space = Number.NaN;
+  /** (G3) The eased open-space weight (0 tight .. 1 open) the explore boom follows. */
+  openW = 0;
+  private sOpen = new Spring(Number.NaN);
+  /** (G3) Passing through an open doorway (0 / 1, set by the game each step) and its eased weight. */
+  doorPass = 0;
+  private passW = 0;
+  /** (G3) This aim started on a wall (or just off it): the faster `adsInWall` blend. */
+  private adsWall = false;
+  /** (G3) The probe fallback said open last frame (its hysteresis). */
+  private probeWasOpen = false;
+  /** (step 12; F4) Back to a wall at an edge: how far the player looks / pushes past the edge (0..1, the camera's slide
+   *  toward the open side) and the direction past the edge (unit XZ, from the edge, never from the camera). */
   wallPeek = 0;
   wallEdgeX = 0;
   wallEdgeZ = 0;
@@ -96,7 +108,8 @@ export class ShoulderCamera {
   private sSide = new Spring(1);
   private sLean = new Spring();
   private sFootY = new Spring(Number.NaN);
-  private sBoom = new Spring(CAMERA.boomHip);
+  /** (G3) NaN until the first frame, which starts at that frame's boom (an open-space spawn starts at 2.8 m, not easing out). */
+  private sBoom = new Spring(Number.NaN);
   private headHidden = false;
   private allHidden = false;
   private recoilPitch = 0;
@@ -190,8 +203,22 @@ export class ShoulderCamera {
     return this.rr.hasHit ? this.rr.hitPoint.y : this.probe.y;
   }
 
+  /** Clear distance (m) along the horizontal direction (dx, dz) from `p`, up to `len` (the first hit, else `len`). */
+  private rayClear(eng: PhysicsEngine, p: Vector3, dx: number, dz: number, len: number): number {
+    this.probe.set(p.x + dx * len, p.y, p.z + dz * len);
+    this.rr.reset();
+    eng.raycastToRef(p, this.probe, this.rr, ShoulderCamera.Q);
+    return this.rr.hasHit ? hyp2(this.rr.hitPoint.x - p.x, this.rr.hitPoint.z - p.z) : len;
+  }
+
   swapShoulder(): void {
     this.shoulder = this.shoulder === 1 ? -1 : 1;
+  }
+
+  /** (F1, playtest 2) Holstering resets the shoulder to the right: the follow camera only ever sits over the right
+   *  shoulder, and the next draw is on the right. */
+  resetShoulder(): void {
+    this.shoulder = 1;
   }
 
   addLook(dYaw: number, dPitch: number): void {
@@ -242,22 +269,48 @@ export class ShoulderCamera {
     // (step 13) at a door's crack the look stays within its range
     if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
     this.doorW = this.doorPeek;
-    // aim blend: linear in over `adsInTime` (camera leads the weapon), fast-out (about half way in 0.1 s) on release
-    if (this.adsTarget > this.ads) this.ads = Math.min(this.adsTarget, this.ads + dt / Math.max(0.05, this.adsInTime));
-    else if (this.adsTarget < this.ads) {
+    this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
+    // aim blend: linear in over `adsInTime` (camera leads the weapon), fast-out (about half way in 0.1 s) on release.
+    // (G3, AUDIT-CAMERA row 13) an aim that starts on the wall or just off it dollies in over `adsInWall` at most
+    if (this.ads <= 0 && this.adsTarget > 0) this.adsWall = this.wallSideT > 0;
+    if (this.adsTarget > this.ads) {
+      const tIn = this.adsWall ? Math.min(this.adsInTime, T.adsInWall) : this.adsInTime;
+      this.ads = Math.min(this.adsTarget, this.ads + dt / Math.max(0.05, tIn));
+    } else if (this.adsTarget < this.ads) {
       this.ads += (this.adsTarget - this.ads) * (1 - Math.exp(-T.adsOutRate * dt));
       if (this.ads - this.adsTarget < 2e-3) this.ads = this.adsTarget;
     }
-    // shoulder side: only the aim's swap changes it (G17); on a wall it follows the open side at the slower wall rate
-    this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
-    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
+    // shoulder side: only the aim's swap changes it (G17) and holstering resets it to the right (F1). (F1) The wall's
+    // open side no longer sets it: CT aims off the wall (drawing leaves it), so the holstered wall camera stays over the
+    // right shoulder, and at an edge the peek slides the camera toward the open side instead (F4, below)
+    const side = this.sSide.step(this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
     const leanS = this.sLean.step(this.lean, 8, dt);
     const recover = Math.min(1, dt * 9);
     this.recoilPitch -= this.recoilPitch * recover;
     this.recoilYaw -= this.recoilYaw * recover;
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
-    const fr = framing(this.ads, crouch);
+    // (G3, AUDIT-CAMERA rows 1 and 7) open or tight space: the map's camera spaces, else probes back and to the sides
+    // from the head (no physics: tight). The weight eases on its own spring, so a doorway is a glide, not a cut
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    let openT = this.space;
+    if (!(openT === openT)) {
+      openT = 0;
+      if (eng) {
+        const hy = feet.y + T.pivotStand + (T.pivotCrouch - T.pivotStand) * crouch;
+        const h = this.head.set(feet.x, hy, feet.z);
+        const sx = Math.sin(this.yaw);
+        const cz = Math.cos(this.yaw);
+        const back = this.rayClear(eng, h, -sx, -cz, T.openBack);
+        const left = this.rayClear(eng, h, -cz, sx, T.openSide);
+        const right = this.rayClear(eng, h, cz, -sx, T.openSide);
+        openT = probeOpen(back, left, right, T.openBack, T.openSide, this.probeWasOpen);
+        this.probeWasOpen = openT > 0;
+      }
+    }
+    if (!(this.sOpen.x === this.sOpen.x)) this.sOpen.reset(openT);
+    this.openW = Math.max(0, Math.min(1, this.sOpen.step(openT, openT < this.sOpen.x ? T.toTight : T.toOpen, dt)));
+    const fr = framing(this.ads, crouch, CAMERA, this.openW);
     // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
     if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
     // attached: the free orbit stays within the state's cone around the body's facing (a soft edge)
@@ -281,13 +334,14 @@ export class ShoulderCamera {
       this.edgeZ = this.wallEdgeZ;
     }
     const pT = onWall ? this.wallPeek : 0;
-    this.peekW += Math.max(-dt / wp.blend, Math.min(dt / wp.blend, pT - this.peekW));
-    const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+    // (G3) in over `blend`, back over `out` (CT 0.2 s / 0.17 s)
+    const pRate = dt / (pT > this.peekW ? wp.blend : wp.out);
+    this.peekW += Math.max(-pRate, Math.min(pRate, pT - this.peekW));
+    const pe = peekEase(this.peekW);
     const swing = wp.offset * pe;
     this.pivot.set(feet.x + this.edgeX * swing, footY + fr.pivot, feet.z + this.edgeZ * swing);
     // the head: the pivot height on the operator's own axis, always in the operator's space
     const head = this.head.set(feet.x, this.pivot.y, feet.z);
-    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
     let lowDyT = 0;
     if (eng) {
       this.castShape = this.sphere(this.castShape, T.castRadius);
@@ -315,7 +369,7 @@ export class ShoulderCamera {
     let peekYaw = 0;
     if (this.peekW > 0) {
       const d = Math.atan2(Math.sin(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw), Math.cos(Math.atan2(this.edgeX, this.edgeZ) - this.viewYaw));
-      const pe = this.peekW * this.peekW * (3 - 2 * this.peekW);
+      const pe = peekEase(this.peekW);
       peekYaw = Math.sign(d) * Math.min(Math.abs(d), WALL_CAMERA.peek.yaw) * pe;
     }
     const yaw = this.viewYaw + peekYaw;
@@ -329,12 +383,20 @@ export class ShoulderCamera {
 
     // boom: framing, and the shoulder swap arcs back through a pulled-back mid-point (side passes through 0)
     const arc = T.swapArc * (1 - side * side);
-    const boomFr = Math.max(T.minBoom, fr.boom + arc);
+    // (F4) peeking past an edge the boom comes in toward CT's close side framing (1.0-1.5 m measured)
+    const boomPk = fr.boom + arc + (Math.min(fr.boom, WALL_CAMERA.peek.boom) - fr.boom) * pe;
+    // (G3, AUDIT-EXTRA-NEW row 19) through an open door the boom pushes in behind the shoulder, then returns
+    const pRateD = dt / (this.doorPass > this.passW ? T.doorPassIn : T.doorPassOut);
+    this.passW += Math.max(-pRateD, Math.min(pRateD, this.doorPass - this.passW));
+    const boomFr = Math.max(T.minBoom, boomPk + (Math.min(boomPk, T.doorPassBoom) - boomPk) * peekEase(this.passW));
     // low space: a shorter boom and the shoulder point between floor and ceiling (eased in fast, out slowly)
     const low = this.lowW;
     const lowDy = this.sLowDy.step(lowDyT, easeRate(lowDyT < this.sLowDy.x, T.lowIn, T.lowOut), dt);
     const boomTarget = boomFr + (Math.min(boomFr, T.lowBoom) - boomFr) * low;
-    const shoulder = fr.shoulder * side + leanS * T.leanShift;
+    // (F4) peeking, the shoulder offset turns toward the edge's open side: its share along the camera's right is the edge
+    // direction . right (continuous, so it never flips as the camera swings; 0 when looking straight past the edge)
+    // (G3) peeking, the offset grows to `peek.shoulder` (the wall preset alone is now a near-centred 0.15 m)
+    const shoulder = fr.shoulder * side * (1 - pe) + Math.max(fr.shoulder, wp.shoulder) * pe * (this.edgeX * rightX + this.edgeZ * rightZ) + leanS * T.leanShift;
     const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
     if (eng && this.pivotShape) {
       // the shoulder point stays on the pivot's side of a wall (tight corridors, leaning past a corner)
@@ -354,6 +416,7 @@ export class ShoulderCamera {
     let dist = len;
     if (eng && this.castShape) dist = castStop(this.cast(eng, this.castShape, T.castRadius, shoulderPt, desired), len, T.castPad);
     // pull in fast, ease back out slowly; never past the cast's stop (never behind a wall)
+    if (!(this.sBoom.x === this.sBoom.x)) this.sBoom.reset(dist);
     const boomNow = this.sBoom.step(dist, easeRate(dist < this.sBoom.x, T.boomIn, T.boomOut), dt);
     this.boomActual = Math.min(boomNow, dist);
     const pos = v.scaleToRef(this.boomActual / len, this.camPos).addInPlace(shoulderPt);

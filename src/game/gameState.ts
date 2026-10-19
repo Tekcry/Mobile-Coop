@@ -46,6 +46,8 @@ import { emptyStats, type GameMode, type ModeId, type SessionStats } from './mod
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
+import { camSpaceAt, doorPassing } from '../world/camSpaces';
+import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
@@ -54,7 +56,7 @@ import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
 import { TraversalController } from '../player/traversal';
-import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
+import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
@@ -94,7 +96,7 @@ import { DOOR_PEEK, DoorPeekCore, PEEK_ACT, crackedHandle, doorFrame, doorPeekEl
 import { DOOR, driveStep } from '../world/doors';
 import type { CKind } from './committedMoves';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
-import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallOverride } from '../player/wallController';
+import { WallCore, buildWallLinks, emptyWallInput, posedHeadSample, wallFacing, wallOverride } from '../player/wallController';
 import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
@@ -112,6 +114,10 @@ import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
 import { clearGripAxis } from '../player/attachGrips';
+import { setTenseSource } from '../player/tenseSneak';
+
+/** (G1) No victims (no allocation per call). */
+const NO_VICTIMS: readonly TakedownVictim[] = [];
 
 export type { ModeId };
 
@@ -260,6 +266,9 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (G3) The feet last step (the camera's door passage reads the move across a doorway). */
+  private camPrevX = Number.NaN;
+  private camPrevZ = Number.NaN;
   /** Incoming fire pressure on the local player (near misses, impacts close by). */
   readonly suppression = new Suppression();
   /** Fraction of the player visible to the best-placed threat (0..1), and the current cover's quality. */
@@ -372,7 +381,7 @@ export class GameState implements AppState {
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
   /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
-  takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? [];
+  takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? NO_VICTIMS;
 
   private constructor(
     readonly app: App,
@@ -386,6 +395,8 @@ export class GameState implements AppState {
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
+    // (G1, audit row 26) the tense sneak reads the takedown victims (the guards, or a client's puppets of them)
+    setTenseSource(() => this.takedownVictims());
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -947,6 +958,7 @@ export class GameState implements AppState {
     this.net?.dispose();
     this.net = null;
     this.audio?.dispose();
+    setTenseSource(null);
     this.app.input.setGameplayActive(false);
     for (const k of ['player', 'carry', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
@@ -1501,6 +1513,22 @@ export class GameState implements AppState {
     this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset ?? (this.wallCore?.active ? 'wall' : null);
     this.player.cam.attachYaw = this.player.controller.yaw;
+    // (G3) the explore camera frames by the space at the feet: the map's camera spaces (NaN: the camera's probes decide)
+    {
+      const lay = this.world.layout;
+      const fp = this.player.position;
+      this.player.cam.space = camSpaceAt(lay.camSpaces, lay.camSize, fp.x, fp.y, fp.z);
+      // (G3) passing through an open doorway (moving across its frame, not standing by it): the camera pushes in
+      // behind the shoulder (CT 110818); the feet velocity from this step's move
+      const door = this.world.doors.nearest(fp.x, fp.z, CAMERA.doorPassReach);
+      const inv = dt > 0 && this.camPrevX === this.camPrevX ? 1 / dt : 0;
+      const vx = (fp.x - this.camPrevX) * inv;
+      const vz = (fp.z - this.camPrevZ) * inv;
+      this.camPrevX = fp.x;
+      this.camPrevZ = fp.z;
+      const a = door?.anchor;
+      this.player.cam.doorPass = door && a && door.open > 0.5 && doorPassing(fp.x, fp.z, vx, vz, a.hinge.x, a.hinge.z, a.yaw, a.width) ? 1 : 0;
+    }
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate();
@@ -2167,7 +2195,8 @@ export class GameState implements AppState {
     }
     const pose = pl.pose;
     pose.wall = w.active;
-    pose.wallSide = w.active ? (w.dir < 0 ? 1 : -1) : 0;
+    // (F4) at an edge the side is the edge's open side (the end at b is the body's left), never the slide or the camera
+    pose.wallSide = w.active ? wallFacing(w.edge, w.dir) : 0;
     // (step 12, A3) the head-first peek past the edge (the hit volumes follow the rig: guards see the real body, never
     // the camera)
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
@@ -2184,10 +2213,9 @@ export class GameState implements AppState {
     pose.wallTz = g ? g.tz : 0;
     pose.wallGap = COVER_STANDOFF;
     pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
-    // at an edge the shoulder goes to the open side (the edge at b is the body's left)
-    pl.cam.wallSide = !w.active ? 0 : w.edge !== 0 ? (w.edge > 0 ? -1 : 1) : w.dir < 0 ? 1 : -1;
-    // (step 12, A3) the peek camera swing toward the edge (local only, never sent)
-    pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
+    // (F1) the wall no longer sets the camera shoulder (slice A's camera-frame side flipped it as the camera swung);
+    // (F4) the camera slides toward the open side by how far the player looks / pushes past the edge (local only)
+    pl.cam.wallPeek = w.phase === 'on' ? w.peekView : 0;
     pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;
     pl.cam.wallEdgeZ = g && w.edge !== 0 ? w.edge * g.tz : 0;
   }
@@ -2598,7 +2626,7 @@ export class GameState implements AppState {
       if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
       else w.set('jumpTo', null, 0, 0);
       // drop (slide on a ladder): under the hands
-      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
+      const lbl = a.kind === 'ladder' ? (m.s < LADDER_DROP_MAX ? ATTACH_LABEL.drop! : 'Slide') : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
       const dropAt = a.kind === 'split' || (a.kind === 'pipeH' && ac.pipe.mode !== 'hands') ? this.player.position : null;
       if (on && lbl && (dropAt ? this.project(dropAt.x, dropAt.y + 0.3, dropAt.z) : this.project(hx, hy - 0.5, hz))) w.set('drop', lbl, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);

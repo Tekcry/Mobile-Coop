@@ -1,5 +1,61 @@
 # Changelog
 
+## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
+- Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
+  of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours
+  (`docs/ct-prototype/audit/`: per area, with a coverage map of every catalogue move); slices G1-G4 below follow it, and
+  where the footage disagrees with an earlier number the footage wins (Michael).
+- G4 traversal (`docs/ct-prototype/G4-REPORT.md`): the drainpipe climbs with one reach per hand about every second and
+  both feet together; the hang shimmy slows to 0.5 m/s with the legs swinging under her (and a slight sway hanging
+  still); the ledge climb-up puts the knee on top at 0.47 s and ends crouched at 0.85 s, standing only if you hold the
+  stick; ladders climb 1.7 rungs a second, two rungs a reach, faster going down, mount from the top in 1.2 s and top out
+  in 0.85 s; rappel hooks on in 1.8 s and descends at 0.6 m/s; drops land crouched; crawling out of a wall vent takes
+  2.5 s.
+- G3 camera (`docs/ct-prototype/G3-REPORT.md`): the field of view is 86 (CT's vertical view; a saved 75 moves once,
+  `camV`) and the explore camera sits 0.15 m off the shoulder (Michael: "Match CT"); open spaces frame the whole body
+  from 2.8 m (tight spaces 1.8 m) from map flags with a probe fallback; the aim camera puts the head on the left with the
+  reticle clear; the camera eases in toward walls more slowly (as CT); it pushes in while passing through a doorway;
+  traversal cameras centre the hero; the corner peek eases in over 0.35 s.
+- G2 aiming and weapons (`docs/ct-prototype/G2-REPORT.md`, against the CT footage): the rifle is slung diagonally across
+  the back (stock at the right shoulder, muzzle down to the left hip) and draws round the right side, muzzle up at the
+  shoulder, then down onto the line, with no hold at the chest (about 0.4 s to settled); the holster is near instant
+  (0.15 s) and never swings the muzzle over the head; the aimed upper body is one rigid block that tilts at the hips;
+  the pistol is held lower and further out, under the sight line, and draws in 0.5 s; recoil shows no visible flip and
+  no shot shake; a swap while holstered is the selection only; a reload pressed while holstered draws straight to the
+  reload pose.
+- G1 legs and gait (`docs/ct-prototype/G1-REPORT.md`, against the CT footage): in turns the legs turn with the body
+  (feet under the hips, no splay, no pelvis spike); an upright standing walk with near-straight knees and the heel rising
+  onto the toes; the run quickens (~4.7 steps/s), leans from gear 4, pumps its arms, has a flight phase and banks into
+  fast turns; the top standing speed is 4.5 m/s; a stop sets down in a small split and straightens up; a crouched stop
+  kneels at once on the trailing knee, the forearm on the front thigh, no wide squat on the way in; moving crouched the
+  knees stay off the floor; a fall of about a metre lands deep with the arms out; new: the tense sneak near an unaware
+  guard (long high-kneed steps, head up, a hand over the knife).
+- Slice A (playtest 2, `docs/ct-prototype/A-PLAYTEST2.md`): the five speeds are re-spaced so the old speed 2 is the
+  slowest (standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s; D-pad up / down sets
+  them and the stick reaches that speed from 0.9 of its travel); ADS look is 70 % less sensitive; the corner peek swings
+  to the side you move to; the wall's open side becomes your shoulder and the last shoulder swap is kept for the next
+  mission; a shoulder swap while aiming no longer flicks the gun up; back to wall needs you within 0.5 m (was 0.9) and
+  settles faster, no slide; your own footsteps follow the noise meter (quiet when silent, 0.07 to 0.42 volume).
+- Scanners: a hack whose partner never started resets both with no cost; a late or abandoned hack still costs 10 HP.
+- Slices B+C (playtest 2, `docs/ct-prototype/BC-ANIM.md`): the ADS view is the same standing and crouched, for rifle
+  and pistol; the chest carries the aim with the stock closer to the shoulder and the elbows tucked; the pistol is held
+  closer to the eye line; the stance is narrower (legs stay under the body walking, running and turning, crouched too);
+  the crouched gun sits closer to the body; less body bob at walking pace.
+- Slices D+E (playtest 2, `docs/ct-prototype/DE-ANIM.md`): draw / holster keep the trigger hand on the gun the whole
+  way (the rifle out at the shoulder, not head height; the pistol waits in the holster for the hand); the hanging
+  shimmy's reaches are a little wider, longer and higher (D2b below slows it); drainpipe knees bend
+  up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee on the
+  top, then stands.
+- Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
+  two a second per hand.
+- Slice F (playtest 2 walk, `docs/ct-prototype/F-REPORT.md`): holstered, the camera is always over the right shoulder; a
+  left-shoulder swap lasts only while aiming and holstering resets it (the saved default shoulder and the wall's shoulder
+  side are gone); crouched aiming frames from crouch height; the crouch idle kneels (one knee down, back upright); at a
+  wall edge the body leans only to the open side and the camera slides past the edge as you look or push toward it; the
+  ledge climb-up (1.3 s) holds the hands until the knee is on the top, then stands up smoothly (no hop); the rifle draw
+  comes straight up to the shoulder (no low-ready dip); a settings save from an A3 build had the speed on D-pad left /
+  right: it moves to up / down (vision left, gadget right) unless remapped.
+
 ## 4.9.0 - Marlow Yard co-op walkthrough fixes (2026-10-20, PR #30)
 Marlow Yard walkthrough fixes for the 2-player co-op test (S1; audit `docs/course-ready/AUDIT.md`, 0 blockers,
 8 confusing, 14 minor).

@@ -407,13 +407,13 @@ try {
   };
   const wseg = await GB(findWall);
   assert(wseg >= 0, `a free high wall on Proving (${wseg})`);
-  /** Stand the page 0.5 m out from the wall at `k` m along it facing it, tap the context action. */
+  /** Stand the page 0.4 m out from the body line (playtest 2: entry within 0.5 m) at `k` m along it facing it, tap the context action. */
   const toWall = (P, k) => P.evaluate(([i, k]) => {
     const g = window.__app.current;
     const s = g.world.level.coverSegments[i];
     const yaw = Math.atan2(-s.nx, -s.nz);
     g.player.controller.clearCrouchToggle();
-    g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+    g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
     g.player.cam.yaw = yaw;
     g.player.cam.pitch = 0;
     // (the stance settles standing first: the entry keeps the stance the player has)
@@ -478,7 +478,7 @@ try {
       window.__pad.connect();
       for (let j = 0; j < 4; j++) window.__pad.axis(j, 0);
       g.player.controller.clearCrouchToggle();
-      g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+      g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
       g.player.cam.yaw = yaw;
       g.player.cam.pitch = 0;
       setTimeout(() => window.__app.input.state.tap('cover'), 1000);

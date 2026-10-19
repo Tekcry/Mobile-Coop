@@ -2,10 +2,11 @@
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
 // Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, crouchstop, walkstop, turn, crouch, reload, swap, grenade,
-// vault, dash, strafe; back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
+// vault, dash, strafe, drop, tense (G1); back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
 // (edge peek / lean both edges arrive with step 12); aimed edge lean-outs (PC1): walledgeaim, walledgeleftaim and their
 // pistol variants walledgeaimp, walledgeleftaimp. reload and swap run drawn (aim held: step 09 holsters by default);
-// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put)
+// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put); (F4)
+// walledgelook, walledgeleftlook: at an edge, the camera swung one way then the other
 import { launch, waitOperator } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -63,9 +64,24 @@ const SCENARIOS = {
   walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
   walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
   walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
+  // (F4) at each edge (slid there in the warm-up, stick released), the camera swung one way then the other: the body
+  // leans only to the open side, the camera slides past the edge as the look turns toward it
+  walledgelook: { wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
+  walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
   lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
+  // (CT prototype G2, AUDIT-AIM row 18) the aim walk forward and the aimed strafe: head and gun hold still in CT (050541)
+  aimwalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: 0.6 }, input: () => ({ ads: true, y: 0.6 }) },
+  aimstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
+  // (BC) the aim crouched, and the pistol both ways
+  aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
+  aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
+  aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
+  // (CT prototype G1) a drop of ~1.4 m onto open floor (the deep landing, arms out); the tense sneak (as if an unaware
+  // guard were close: the controller's test hook) moving and then still
+  drop: { pos: [0, -14], y: 1.4, yaw: Math.PI / 2, pre: 0.02, input: () => ({}) },
+  tense: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.45 }, input: (t) => ({ y: t < 0.9 ? 0.45 : 0 }), at0: "g.player.controller.tenseForce = true; a.input.state.tap('crouch');" },
 };
 
 const sc = SCENARIOS[scenario];
@@ -81,13 +97,13 @@ if ((await waitOperator(page)) < 0) {
 }
 // (PC1) the toasts too ("Ready to play offline", graphics tier)
 await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
-await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
+await page.evaluate(({ pos, yaw, wall, fixCam, weapon, y0 }) => {
   const a = window.__app;
   const g = a.current;
   const p = g.player;
   a.loop.manual = true;
   const V = p.controller.pos.constructor;
-  let y = 0;
+  let y = y0 ?? 0;
   if (wall) {
     // a wall segment with open floor in front of it (as e2e-netmove's findWall), low or high as asked
     const clear = (x0, z0, x1, z1, h) => !g.ballistics.ray(new V(x0, h, z0), new V(x1, h, z1), 1).hit;
@@ -106,7 +122,7 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     }
     if (!found) throw new Error(`no free ${wall.low ? 'low' : 'high'} wall on Proving`);
     const k = wall.k < 0 ? found.len + wall.k : wall.k;
-    pos = [found.ax + found.tx * k + found.nx * 0.85, found.az + found.tz * k + found.nz * 0.85];
+    pos = [found.ax + found.tx * k + found.nx * 0.75, found.az + found.tz * k + found.nz * 0.75];
     yaw = Math.atan2(-found.nx, -found.nz);
     y = found.y + 0.05;
   }
@@ -143,8 +159,8 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     c.position.set(r.x + off[0], r.y + Number(globalThis.__sheetCamY ?? 1.05), r.z + off[1]);
     c.setTarget(new r.constructor(r.x + fx * 0.15, r.y + Number(globalThis.__sheetTargetY ?? 0.85), r.z + fz * 0.15));
   };
-  a.loop.stepHeadless(0.3);
-}, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null });
+  a.loop.stepHeadless(y0 > 0 ? 0.01 : 0.3);
+}, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null, y0: sc.y ?? 0 });
 await page.evaluate((v) => (window.__view = v), view);
 await page.evaluate((o) => Object.assign(window, o), { __sheetDist: process.env.SHEET_DIST, __sheetCamY: process.env.SHEET_CAM_Y, __sheetTargetY: process.env.SHEET_TARGET_Y });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAIT_REF, GEARS } from '../src/config/movement';
 import { effortLevel, effortSpeed } from '../src/anim/effort';
 import { MotionDerive } from '../src/anim/motionDerive';
-import { FootPlanner, emptyPlannerInput, HEEL_ROLL } from '../src/anim/footPlanner';
+import { FootPlanner, emptyPlannerInput, HEEL_RAISE, HEEL_ROLL } from '../src/anim/footPlanner';
 
 // (locomotion step 22) the pure parts of batch 1b and the M14 weight change
 describe('effort curve (D5.1, A88)', () => {
@@ -55,7 +55,7 @@ describe('remote motion derive (D8, D5.2 / D5.3)', () => {
 });
 
 describe('heel-to-toe roll (A79)', () => {
-  it('at a walking pace a landing is heel first and rolls flat within HEEL_ROLL.time; faster gaits land flat', () => {
+  it('at a walking pace a landing is heel first and rolls flat within HEEL_ROLL.time; faster gaits land flat; the heel rises late in the stance', () => {
     for (const [speed, roll] of [[1.1, true], [3.15, false]] as const) {
       const p = new FootPlanner();
       const i = emptyPlannerInput();
@@ -66,6 +66,7 @@ describe('heel-to-toe roll (A79)', () => {
       let z = 0;
       let rolled = false;
       let flatAfter = true;
+      let raised = 0;
       for (let k = 0; k < 360; k++) {
         z += speed * i.dt;
         i.rootZ = z;
@@ -73,12 +74,16 @@ describe('heel-to-toe roll (A79)', () => {
         p.update(i);
         for (const f of [p.L, p.R]) {
           if (f.landed) rolled ||= f.pitch < -0.05;
-          if (f.contact && f.roll <= 0 && Math.abs(f.pitch) > 1e-9) flatAfter = false;
+          // (G1) after the roll no toe-up on the floor; the heel comes up (toe down, pitch > 0) late in the stance only
+          if (f.contact && f.roll <= 0 && f.pitch < -1e-9) flatAfter = false;
+          if (f.contact && f.roll <= 0 && f.pitch > 0) raised = Math.max(raised, f.pitch);
           expect(f.roll).toBeLessThanOrEqual(HEEL_ROLL.time + 1e-9);
         }
       }
       expect(rolled).toBe(roll);
       expect(flatAfter).toBe(true);
+      expect(raised).toBeGreaterThan(0.2);
+      expect(raised).toBeLessThanOrEqual(HEEL_RAISE.pitchRun + 1e-9);
     }
   });
 });

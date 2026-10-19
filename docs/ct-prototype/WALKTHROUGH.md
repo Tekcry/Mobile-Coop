@@ -42,7 +42,7 @@ The co-op action (RB / F) picks the move from your stance and where you stand:
 | 6 Scanners | One scanner each, wait for both small lights green, A together, stay put | built |
 | 7 Rope wall | Leg-up one player up; on top stand facing the partner and press RB to drop the rope; partner RB at the wall, stick up to climb | built |
 | 8 Finish | Both into the exit zone; the results show time, alarms and revives | built |
-Failing costs health, never the run: laser touch 15 HP, a late scanner 10 HP (never below 1). A downed player can be
+Failing costs health, never the run: laser touch 15 HP, a late or abandoned scanner hack 10 HP (never below 1; none if the partner never started). A downed player can be
 revived by the partner (hold A near them) within 30 s, at most twice per run; past that, or both down, the bay restarts.
 
 ## What changed overnight
@@ -78,11 +78,11 @@ your walkthrough.
 - A held stick spin can still pop the feet; idle knees slightly bent; head level, not slightly down.
 - 13 older e2e suites carry stale assertions from the control changes (test clean-up T1 before the PR).
 
-## Open questions for you
-1. Selection wheel button: LB hold (now; the D-pad is speed and vision) or a D-pad hold as in your screenshot?
-2. Lethal / non-lethal centre switch on the wheel: not built, since LT knockout / RT lethal covers it. Add it?
-3. With a gun drawn, A reloads: keep (CT), or interact on A always and reload elsewhere?
-4. Scanners: if your partner never starts their hack, the one who finished pays the 10 HP. Keep, or no cost then?
+## Answered questions (Michael, 2026-10-19)
+1. Selection wheel: LB hold, kept.
+2. Lethal / non-lethal switch: not added; LT / RT is enough.
+3. With a gun drawn, A reloads: kept.
+4. Scanners: no HP cost when the partner never started; the 10 HP stays for a late or abandoned hack (built 2026-10-19).
 
 ## Polish list
 `POLISH.md`: nothing there is worked on until you have played the core loop.

@@ -66,13 +66,13 @@ describe('crouch depth and run lean (P1b)', () => {
       expect(deg, `${name} ${deg.toFixed(1)}`).toBeLessThanOrEqual(hi);
     });
   }
-  it('crouch kneeling (idle for 0.5 s+) keeps the torso 35-45 deg', async () => {
+  it('(F3) crouch kneeling (idle for 0.5 s+) is upright: torso 0-20 deg', async () => {
     const rig = await setup();
     const pose: Pose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 1, aimPitch: 0, aim: 0, kick: 0, armed: true, kneel: true };
     settle(rig, pose, 3);
     const deg = torsoPitch(rig);
-    expect(deg, `kneel ${deg.toFixed(1)}`).toBeGreaterThanOrEqual(35);
-    expect(deg, `kneel ${deg.toFixed(1)}`).toBeLessThanOrEqual(45);
+    expect(deg, `kneel ${deg.toFixed(1)}`).toBeGreaterThanOrEqual(0);
+    expect(deg, `kneel ${deg.toFixed(1)}`).toBeLessThanOrEqual(20);
   });
 });
 

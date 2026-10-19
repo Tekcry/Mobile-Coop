@@ -135,6 +135,17 @@ export function noiseRadius(speed: number, crouched: boolean, _sprinting = false
   return speed <= NOISE_QUIET.stand ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;
 }
 
+/**
+ * (Playtest 2, G61) The player's own footstep volume follows the noise the guards can hear: `radius` is the emitted
+ * noise radius (m, 0 in the silent bands). Silent bands are very soft (`silent`), the loudest run `loud` (both x the
+ * foley's own mix); linear in the radius up to `ref` m. Starting values (G10); was a flat 1 for every pace.
+ */
+export const STEP_VOLUME = { silent: 0.07, loud: 0.42, ref: 6 } as const;
+export function stepVolume(radius: number): number {
+  const k = Math.max(0, Math.min(1, radius / STEP_VOLUME.ref));
+  return STEP_VOLUME.silent + (STEP_VOLUME.loud - STEP_VOLUME.silent) * k;
+}
+
 /** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,
  *  beyond it a heavy landing with a recovery. No fall damage (Blacklist), but every band is louder. */
 export const LANDING = { soft: 0.6, roll: 2.5, heavy: 4.5, heavyRecovery: 0.6 } as const;

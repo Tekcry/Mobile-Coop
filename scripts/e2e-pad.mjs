@@ -70,7 +70,7 @@ const WALL_HARNESS = () => {
   }
   const s = segs[seg];
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.85, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.75, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);

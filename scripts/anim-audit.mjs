@@ -619,7 +619,7 @@ async function drive(sc, halt = -1) {
       // (step 11 r3) the camera's own clock (idle drift, shake) runs from page load on real time: the entry reads the
       // camera's view, so every wall run starts from the same clock (the run was not repeatable without it)
       g.player.cam['t'] = 0;
-      t.tp(w.ax + w.tx * w.k + w.nx * 0.85, w.az + w.tz * w.k + w.nz * 0.85, Math.atan2(-w.nx, -w.nz), w.y);
+      t.tp(w.ax + w.tx * w.k + w.nx * 0.75, w.az + w.tz * w.k + w.nz * 0.75, Math.atan2(-w.nx, -w.nz), w.y);
       t.begin(halt);
       m.enter = t.mark();
       if (sc.edge) {
@@ -2023,7 +2023,7 @@ async function runRemote() {
           sc.plane ??= await A.evaluate(...findPlane(sc));
           if (!sc.plane) throw new Error('anim-audit wall: no free high wall on Proving');
           const w = sc.plane;
-          s = { x: w.ax + w.tx * w.k + w.nx * 0.85, z: w.az + w.tz * w.k + w.nz * 0.85, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
+          s = { x: w.ax + w.tx * w.k + w.nx * 0.75, z: w.az + w.tz * w.k + w.nz * 0.75, yaw: Math.atan2(-w.nx, -w.nz), y: w.y };
         }
         if (sc.kind === 'door') {
           sc.door ??= await A.evaluate(FIND_PEEKDOOR);

@@ -138,12 +138,15 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and
-  roll (leans into turns, <= 8 deg), the flat-back wall stance and tuck (reload / swap / grenade at the wall), traversal,
+  roll (leans into turns, <= 8 deg walking; G1 `BANK` up to 31 deg at a run), the flat-back wall stance and tuck (reload / swap / grenade at the wall), traversal,
   slide, land, reloads, per-slot swaps (`swapClipFor(from, to)`), grenade, ready positions blended to the aim
   pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s open-left hand
   switch `EDGE_HAND_TIME`, dormant until step 12b drives `rig.openLeft`),
   breathing, recoil, heel-strike compression (`HEEL_KICK`), hit flinch (`rig.hit`, recovers 0.3-0.6 s). State
-  switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
+  switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms). Playtest 2: the
+  chest carries the aim (`AIM_CHEST`), the stance half-width on foot is capped at 1.1 hip half-widths, the pelvis drop is
+  held at walking pace and above (`PELVIS_HOLD`, less bob; not while hanging or climbing), and a draw / holster keeps the
+  hand on the grip (`CharacterRig.weaponTravel`).
 - Gait style: `GAIT_STYLE` (`clips/locomotion.ts`) keeps height smooth (small loading dip and rise, smaller still at
   jog / sprint) and shows the weight in hip sway and twist; armed, the body carries a tactical `HUNCH` (chest well
   forward over the hips, knees bent, head up; deeper at a wall; `crouch`: bent over the knees, half of it
@@ -170,13 +173,30 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   `computeWorldMatrix(true)` per joint (it re-forces the whole chain). The FK pose override slot (`rig.emote` /
   `emoteTime`: grabbed and hostage guards, the VIP, the co-op enemy puppet, bodies) returns an `FkPose` slerped over
   the result; player emotes are deleted (G24). Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at half rate; `animate` is a no-op after `dispose`.
+- CT prototype G1 (legs and gait, `docs/ct-prototype/G1-REPORT.md`): standing, a planted leg reaches `SOFT_KNEE_STAND`
+  0.997 of its length before the pelvis drops (was 0.97: ~28 deg of knee at every plant), the standing clips sit nearly
+  straight (idle knee ~11 deg), the drop eases back with `PELVIS_HOLD` 0.06 (was 0.7) and counts the heel lift; late in
+  each stance the heel rises onto the toes (`HEEL_RAISE`, `TOE_BALL`: 0.45 rad walking, 0.55 running, 1.0 crouched); landings
+  aim `LAND_AHEAD` 0.45 of the stance ahead; moving crouched the knees stay `KNEE_FLOOR_MOVING` 0.12 m up (an eased hip
+  lift); the run has a flight phase (`JOG` duty 0.45, `DASH` 0.38, higher heel lift) and pumps its arms from `POSTURE.runFrom`
+  1.6 to `runTo` 3.0 m/s; fast turns bank (`BANK`: k x (speed x yaw rate)^2, cap 0.55 rad, from 2.5 m/s, 40 % pelvis);
+  the kneel starts with the crouch, keeps the lead foot planted (`KNEEL_M` mirrored) and rests the forearm on the front
+  thigh (`KNEEL_HANDS`); a fall of about a metre lands deep with the arms out (`LAND_DEEP`, `LAND_ARMS`); the tense sneak
+  is `TENSE_SNEAK` with `TENSE_HANDS`. `tests/g1Locomotion.test.ts` drives the real rig on a NullEngine for these numbers.
+  G1 fix round: `PELVIS_HOLD` 0 (the walk's dip is taken by the heel and toe: `HEEL_RAISE` 0.6 rad from 0.4 of the
+  stance, the heel-first strike 0.3 rad, `heelLift` also in the air), `REACH_HARD` 0.999 (a planted leg is never asked
+  past full stretch), `REST_SHIFT` 0.22 m (standing still the hips settle over the frozen feet), `CROUCH_REACH` 0.8
+  (crouched, the rear leg trails long), `IDLE_STANCE` (feet ~0.33 m apart standing still).
 - Weapons (`config/weapons.json`: the CT kit (G76), the rifle 0.84 m and the suppressed pistol; guards carry these two
   models too;
   parts carry a `role`: barrel, receiver, grip, mag, ...; `modelExtents`): `WeaponModel.hold(rig)` (aim pocket,
   hands IK'd to `grip` / `foregrip` within 2 cm, magazine well from the mag part) / `holster(rig, slot)` /
   `inHand(rig)` (mid-swap). `weapons/carrySlots.ts` (pure; class-keyed, so the compact-gun and second-long-gun slots
   stay for CT's rifle attachments) gives every loadout weapon its own slot: long guns
-  vertical on the back (`backL/backC/backR`, muzzle up, thin side to the back, splayed from the butt, standing
+  on the back: the side slots vertical (`backL/backR`, muzzle up, thin side to the back, splayed from the butt), the
+  centre one (`backC`, CT prototype G2) slung DIAGONALLY like CT's (stock at the right shoulder blade, muzzle down to the
+  left hip, flat on the back plate; `weapons/backDiag.ts`: its draw sweeps round the right side, muzzle up at the
+  shoulder, then onto the line; its holster goes muzzle down, never up), standing
   off `rig.backGear` = vest / hood / backpack depth measured from the parts), compact guns on the left-hip
   `sling` (pushed out by the thigh after each pose via `rig.onPosed`), the pistol low on the right `thigh`
   (standing off `rig.thighOuter`); `GrenadePouches` on the belt. (feature/weapons) An operator body brings its own

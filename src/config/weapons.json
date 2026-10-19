@@ -22,7 +22,7 @@
     "spreadPerShot": 0.3,
     "spreadRecovery": 6,
     "maxSpread": 5,
-    "recoilPitch": 1,
+    "recoilPitch": 0.6,
     "recoilYaw": 0.3,
     "recoilPattern": [
       [
