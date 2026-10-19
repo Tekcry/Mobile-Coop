@@ -148,7 +148,7 @@ describe('menu hero shots', () => {
     const ids = new Set(HERO_SHOTS.map((h) => h.id));
     for (const s of SHOTS) if (s.setup !== 'stage') expect(ids.has(s.setup)).toBe(true);
     for (let t = 0; t < 100; t += 0.37) expect(Math.abs(idleSway(t))).toBeLessThan(0.04);
-  }, 30000);
+  });
 });
 
 describe('menu shot passes', () => {
@@ -196,5 +196,5 @@ describe('menu shot passes', () => {
     }
     expect(fovs.size).toBeGreaterThanOrEqual(3);
     for (const h of HERO_SHOTS) if (h.id.startsWith('H')) expect(Math.min(Math.abs(h.from.alpha), Math.abs(h.to.alpha))).toBeGreaterThan(0.3);
-  }, 30000);
+  });
 });
